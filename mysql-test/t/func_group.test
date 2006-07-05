@@ -546,6 +546,34 @@ DROP TABLE t1;
 # Bug #12882  	min/max inconsistent on empty table
 #
 # Test case moved to func_group_innodb
+#
+# Bug #18206: min/max optimization cannot be applied to partial index
+#
+
+CREATE TABLE t1 (id int PRIMARY KEY, b char(3), INDEX(b));
+INSERT INTO t1 VALUES (1,'xx'), (2,'aa');
+SELECT * FROM t1;
+
+SELECT MAX(b) FROM t1 WHERE b < 'ppppp';
+SHOW WARNINGS;
+SELECT MAX(b) FROM t1 WHERE b < 'pp';
+DROP TABLE t1;
+
+CREATE TABLE t1 (id int PRIMARY KEY, b char(16), INDEX(b(4)));
+INSERT INTO t1 VALUES (1, 'xxxxbbbb'), (2, 'xxxxaaaa');
+SELECT MAX(b) FROM t1;
+EXPLAIN SELECT MAX(b) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (id int , b varchar(512), INDEX(b(250))) COLLATE latin1_bin;
+INSERT INTO t1 VALUES
+  (1,CONCAT(REPEAT('_', 250), "qq")), (1,CONCAT(REPEAT('_', 250), "zz")),
+  (1,CONCAT(REPEAT('_', 250), "aa")), (1,CONCAT(REPEAT('_', 250), "ff"));
+
+SELECT MAX(b) FROM t1;
+EXPLAIN SELECT MAX(b) FROM t1;
+DROP TABLE t1;
+
 # End of 4.1 tests
 
 #

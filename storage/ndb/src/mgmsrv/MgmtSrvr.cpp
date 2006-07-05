@@ -60,9 +60,6 @@
 
 #include <SignalSender.hpp>
 
-extern bool g_StopServer;
-extern bool g_RestartServer;
-
 //#define MGM_SRV_DEBUG
 #ifdef MGM_SRV_DEBUG
 #define DEBUG(x) do ndbout << x << endl; while(0)
@@ -937,6 +934,13 @@ int MgmtSrvr::sendStopMgmd(NodeId nodeId,
  * client connection to that mgmd and stop it that way.
  * This allows us to stop mgm servers when there isn't any real
  * distributed communication up.
+ *
+ * node_ids.size()==0 means to stop all DB nodes.
+ *                    MGM nodes will *NOT* be stopped.
+ *
+ * If we work out we should be stopping or restarting ourselves,
+ * we return <0 in stopSelf for restart, >0 for stop
+ * and 0 for do nothing.
  */
 
 int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
@@ -946,7 +950,8 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 			   bool stop,
 			   bool restart,
 			   bool nostart,
-			   bool initialStart)
+			   bool initialStart,
+                           int* stopSelf)
 {
   int error = 0;
   DBUG_ENTER("MgmtSrvr::sendSTOP_REQ");
@@ -995,12 +1000,13 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
   NodeId nodeId= 0;
   int use_master_node= 0;
   int do_send= 0;
-  int do_stop_self= 0;
+  *stopSelf= 0;
   NdbNodeBitmask nodes_to_stop;
   {
     for (unsigned i= 0; i < node_ids.size(); i++)
     {
       nodeId= node_ids[i];
+      ndbout << "asked to stop " << nodeId << endl;
       if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
         nodes_to_stop.set(nodeId);
       else if (nodeId != getOwnNodeId())
@@ -1011,7 +1017,11 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
           stoppedNodes.set(nodeId);
       }
       else
-        do_stop_self= 1;;
+      {
+        ndbout << "which is me" << endl;
+        *stopSelf= (restart)? -1 : 1;
+        stoppedNodes.set(nodeId);
+      }
     }
   }
   int no_of_nodes_to_stop= nodes_to_stop.count();
@@ -1043,14 +1053,6 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 	if (result == SEND_OK)
 	  nodes.set(nodeId);
       }
-    }
-    nodeId= 0;
-    while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_MGM))
-    {
-      if(nodeId==getOwnNodeId())
-        continue;
-      if(sendStopMgmd(nodeId, abort, stop, restart, nostart, initialStart)==0)
-        stoppedNodes.set(nodeId);
     }
   }
 
@@ -1143,11 +1145,9 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       DBUG_RETURN(SEND_OR_RECEIVE_FAILED);
     }
   }
-  if (!error && do_stop_self)
+  if (error && *stopSelf)
   {
-    if (restart)
-      g_RestartServer= true;
-    g_StopServer= true;
+    *stopSelf= 0;
   }
   DBUG_RETURN(error);
 }
@@ -1157,7 +1157,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
  */
 
 int MgmtSrvr::stopNodes(const Vector<NodeId> &node_ids,
-                        int *stopCount, bool abort)
+                        int *stopCount, bool abort, int* stopSelf)
 {
   if (!abort)
   {
@@ -1179,20 +1179,46 @@ int MgmtSrvr::stopNodes(const Vector<NodeId> &node_ids,
                         false,
                         false,
                         false,
-                        false);
+                        false,
+                        stopSelf);
   if (stopCount)
     *stopCount= nodes.count();
   return ret;
 }
 
+int MgmtSrvr::shutdownMGM(int *stopCount, bool abort, int *stopSelf)
+{
+  NodeId nodeId = 0;
+  int error;
+
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_MGM))
+  {
+    if(nodeId==getOwnNodeId())
+      continue;
+    error= sendStopMgmd(nodeId, abort, true, false,
+                        false, false);
+    if (error == 0)
+      *stopCount++;
+  }
+
+  *stopSelf= 1;
+  *stopCount++;
+
+  return 0;
+}
+
 /*
- * Perform system shutdown
+ * Perform DB nodes shutdown.
+ * MGM servers are left in their current state
  */
 
-int MgmtSrvr::stop(int * stopCount, bool abort)
+int MgmtSrvr::shutdownDB(int * stopCount, bool abort)
 {
   NodeBitmask nodes;
   Vector<NodeId> node_ids;
+
+  int tmp;
+
   int ret = sendSTOP_REQ(node_ids,
 			 nodes,
 			 0,
@@ -1200,7 +1226,8 @@ int MgmtSrvr::stop(int * stopCount, bool abort)
 			 true,
 			 false,
 			 false,
-			 false);
+			 false,
+                         &tmp);
   if (stopCount)
     *stopCount = nodes.count();
   return ret;
@@ -1225,6 +1252,7 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
   }
   NodeBitmask nodes;
   Vector<NodeId> node_ids;
+  int stopSelf;
   int ret = sendSTOP_REQ(node_ids,
 			 nodes,
 			 singleUserNodeId,
@@ -1232,7 +1260,8 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
 			 false,
 			 false,
 			 false,
-			 false);
+			 false,
+                         &stopSelf);
   if (stopCount)
     *stopCount = nodes.count();
   return ret;
@@ -1244,7 +1273,8 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
 
 int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                            int * stopCount, bool nostart,
-                           bool initialStart, bool abort)
+                           bool initialStart, bool abort,
+                           int *stopSelf)
 {
   NodeBitmask nodes;
   int ret= sendSTOP_REQ(node_ids,
@@ -1254,7 +1284,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                         false,
                         true,
                         true,
-                        initialStart);
+                        initialStart,
+                        stopSelf);
 
   if (ret)
     return ret;
@@ -1297,14 +1328,16 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
 }
 
 /*
- * Perform system restart
+ * Perform restart of all DB nodes
  */
 
-int MgmtSrvr::restart(bool nostart, bool initialStart, 
-		      bool abort, int * stopCount )
+int MgmtSrvr::restartDB(bool nostart, bool initialStart,
+                        bool abort, int * stopCount)
 {
   NodeBitmask nodes;
   Vector<NodeId> node_ids;
+  int tmp;
+
   int ret = sendSTOP_REQ(node_ids,
 			 nodes,
 			 0,
@@ -1312,7 +1345,8 @@ int MgmtSrvr::restart(bool nostart, bool initialStart,
 			 true,
 			 true,
 			 true,
-			 initialStart);
+			 initialStart,
+                         &tmp);
 
   if (ret)
     return ret;
@@ -2453,13 +2487,19 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
       event.Event = BackupEvent::BackupCompleted;
       event.Completed.BackupId = rep->backupId;
     
-      event.Completed.NoOfBytes = rep->noOfBytes;
+      event.Completed.NoOfBytes = rep->noOfBytesLow;
       event.Completed.NoOfLogBytes = rep->noOfLogBytes;
-      event.Completed.NoOfRecords = rep->noOfRecords;
+      event.Completed.NoOfRecords = rep->noOfRecordsLow;
       event.Completed.NoOfLogRecords = rep->noOfLogRecords;
       event.Completed.stopGCP = rep->stopGCP;
       event.Completed.startGCP = rep->startGCP;
       event.Nodes = rep->nodes;
+
+      if (signal->header.theLength >= BackupCompleteRep::SignalLength)
+      {
+        event.Completed.NoOfBytes += ((Uint64)rep->noOfBytesHigh) << 32;
+        event.Completed.NoOfRecords += ((Uint64)rep->noOfRecordsHigh) << 32;
+      }
 
       backupId = rep->backupId;
       return 0;

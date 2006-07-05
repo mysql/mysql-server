@@ -67,7 +67,7 @@ connection master;
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 # Shouldn't be written to the binary log
 --replace_regex /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1326;
+SHOW BINLOG EVENTS FROM 1256;
 
 # Test that INSERT-SELECT works the same way as for SBR.
 CREATE TABLE t7 (a INT, b INT UNIQUE);
@@ -76,7 +76,7 @@ INSERT INTO t7 SELECT a,b FROM tt3;
 SELECT * FROM t7 ORDER BY a,b;
 # Should be written to the binary log
 --replace_regex /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1326;
+SHOW BINLOG EVENTS FROM 1118;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
 
@@ -87,7 +87,7 @@ BEGIN;
 INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 --replace_regex /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1522;
+SHOW BINLOG EVENTS FROM 1314;
 SELECT * FROM t7 ORDER BY a,b;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
@@ -101,7 +101,7 @@ CREATE TEMPORARY TABLE tt6 LIKE tt4;
 --query_vertical SHOW CREATE TABLE t8
 --query_vertical SHOW CREATE TABLE t9
 --replace_regex /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1618;
+SHOW BINLOG EVENTS FROM 1410;
 sync_slave_with_master;
 --echo **** On Slave ****
 --query_vertical SHOW CREATE TABLE t8

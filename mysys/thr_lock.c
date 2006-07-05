@@ -1123,10 +1123,12 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
                               enum thr_lock_type new_lock_type)
 {
   THR_LOCK *lock=in_data->lock;
-  THR_LOCK_DATA *data, *next;
   enum thr_lock_type old_lock_type= in_data->type;
+#ifdef TO_BE_REMOVED
+  THR_LOCK_DATA *data, *next;
   bool start_writers= FALSE;
   bool start_readers= FALSE;
+#endif
   DBUG_ENTER("thr_downgrade_write_only_lock");
 
   pthread_mutex_lock(&lock->mutex);
@@ -1134,7 +1136,8 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
   DBUG_ASSERT(old_lock_type > new_lock_type);
   in_data->type= new_lock_type;
   check_locks(lock,"after downgrading lock",0);
-#if 0
+
+#if TO_BE_REMOVED
   switch (old_lock_type)
   {
     case TL_WRITE_ONLY:

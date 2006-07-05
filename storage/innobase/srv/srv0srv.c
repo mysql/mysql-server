@@ -68,6 +68,9 @@ ibool	srv_error_monitor_active = FALSE;
 
 const char*	srv_main_thread_op_info = "";
 
+/* Prefix used by MySQL to indicate pre-5.1 table name encoding */
+const char	srv_mysql50_table_name_prefix[9] = "#mysql50#";
+
 /* Server parameters which are read from the initfile */
 
 /* The following three are dir paths which are catenated before file
@@ -849,11 +852,9 @@ srv_init(void)
 	srv_sys = mem_alloc(sizeof(srv_sys_t));
 
 	kernel_mutex_temp = mem_alloc(sizeof(mutex_t));
-	mutex_create(&kernel_mutex);
-	mutex_set_level(&kernel_mutex, SYNC_KERNEL);
+	mutex_create(&kernel_mutex, SYNC_KERNEL);
 
-	mutex_create(&srv_innodb_monitor_mutex);
-	mutex_set_level(&srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(&srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 
 	srv_sys->threads = mem_alloc(OS_THREAD_MAX_N * sizeof(srv_slot_t));
 
@@ -2559,18 +2560,9 @@ suspend_thread:
 		os_thread_exit(NULL);
 	}
 
-	/* When there is user activity, InnoDB will set the event and the main
-	thread goes back to loop: */
+	/* When there is user activity, InnoDB will set the event and the
+	main thread goes back to loop. */
 
 	goto loop;
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit.
-	The thread actually never comes here because it is exited in an
-	os_event_wait(). */
-
-	os_thread_exit(NULL);
-
-	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */

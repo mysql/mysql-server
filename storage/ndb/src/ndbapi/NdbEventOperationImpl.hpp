@@ -145,9 +145,7 @@ public:
   Gci_ops *first_gci_ops();
   Gci_ops *next_gci_ops();
   // case 1 above; add Gci_op to single list
-  void add_gci_op(Gci_op g, bool del = false);
-  // delete bit from existing flags
-  void del_gci_op(Gci_op g) { add_gci_op(g, true); }
+  void add_gci_op(Gci_op g);
 private:
   // case 2 above; move single list or multi list from
   // one list to another

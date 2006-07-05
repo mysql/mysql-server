@@ -169,21 +169,22 @@ select @log;
 @log
 (BEFORE_INSERT: new=(id=1, data=2))
 set @log:= "";
-replace t1 values (1, 3), (2, 2);
+insert into t1 (id, data) values (1, 3), (2, 2) on duplicate key update data= data + 1;
 select @log;
 @log
-(BEFORE_INSERT: new=(id=1, data=3))(BEFORE_UPDATE: old=(id=1, data=1) new=(id=1, data=3))(AFTER_UPDATE: old=(id=1, data=1) new=(id=1, data=3))(BEFORE_INSERT: new=(id=2, data=2))(AFTER_INSERT: new=(id=2, data=2))
-alter table t1 add ts timestamp default now();
+(BEFORE_INSERT: new=(id=1, data=3))(BEFORE_UPDATE: old=(id=1, data=1) new=(id=1, data=2))(AFTER_UPDATE: old=(id=1, data=1) new=(id=1, data=2))(BEFORE_INSERT: new=(id=2, data=2))(AFTER_INSERT: new=(id=2, data=2))
 set @log:= "";
-replace t1 (id, data) values (1, 4);
+replace t1 values (1, 4), (3, 3);
 select @log;
 @log
-(BEFORE_INSERT: new=(id=1, data=4))(BEFORE_DELETE: old=(id=1, data=3))(AFTER_DELETE: old=(id=1, data=3))(AFTER_INSERT: new=(id=1, data=4))
+(BEFORE_INSERT: new=(id=1, data=4))(BEFORE_DELETE: old=(id=1, data=2))(AFTER_DELETE: old=(id=1, data=2))(AFTER_INSERT: new=(id=1, data=4))(BEFORE_INSERT: new=(id=3, data=3))(AFTER_INSERT: new=(id=3, data=3))
+drop trigger t1_bd;
+drop trigger t1_ad;
 set @log:= "";
-insert into t1 (id, data) values (1, 5), (3, 3) on duplicate key update data= data + 2;
+replace t1 values (1, 5);
 select @log;
 @log
-(BEFORE_INSERT: new=(id=1, data=5))(BEFORE_UPDATE: old=(id=1, data=4) new=(id=1, data=6))(AFTER_UPDATE: old=(id=1, data=4) new=(id=1, data=6))(BEFORE_INSERT: new=(id=3, data=3))(AFTER_INSERT: new=(id=3, data=3))
+(BEFORE_INSERT: new=(id=1, data=5))(AFTER_INSERT: new=(id=1, data=5))
 drop table t1;
 create table t1 (id int primary key, data varchar(10), fk int);
 create table t2 (event varchar(100));
@@ -493,15 +494,9 @@ select * from t1;
 i	k
 3	13
 replace into t1 values (3, 3);
-ERROR 42S22: Unknown column 'at' in 'NEW'
-select * from t1;
-i	k
-3	3
-alter table t1 add ts timestamp default now();
-replace into t1 (i, k) values (3, 13);
 ERROR 42S22: Unknown column 'at' in 'OLD'
 select * from t1;
-i	k	ts
+i	k
 drop table t1, t2;
 create table t1 (i int, bt int, k int, key(k)) engine=myisam;
 create table t2 (i int);
@@ -574,18 +569,11 @@ i	k
 1	1
 2	2
 replace into t1 values (2, 4);
-ERROR 42S22: Unknown column 'bt' in 'NEW'
+ERROR 42S22: Unknown column 'bt' in 'OLD'
 select * from t1;
 i	k
 1	1
 2	2
-alter table t1 add ts timestamp default now();
-replace into t1 (i, k) values (2, 11);
-ERROR 42S22: Unknown column 'bt' in 'OLD'
-select * from t1;
-i	k	ts
-1	1	0000-00-00 00:00:00
-2	2	0000-00-00 00:00:00
 drop table t1, t2;
 drop function if exists bug5893;
 create table t1 (col1 int, col2 int);

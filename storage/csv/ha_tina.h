@@ -29,15 +29,12 @@
 typedef struct st_tina_share {
   char *table_name;
   char data_file_name[FN_REFLEN];
-  byte *mapped_file;                /* mapped region of file */
   uint table_name_length, use_count;
   /*
     Below flag is needed to make log tables work with concurrent insert.
     For more details see comment to ha_tina::update_status.
   */
   my_bool is_log_table;
-  MY_STAT file_stat;                /* Stat information for the data file */
-  File data_file;                   /* Current open data file */
   /*
     Here we save the length of the file for readers. This is updated by
     inserts, updates and deletes. The var is initialized along with the
@@ -46,7 +43,10 @@ typedef struct st_tina_share {
   off_t saved_data_file_length;
   pthread_mutex_t mutex;
   THR_LOCK lock;
+  bool update_file_opened;
+  bool tina_write_opened;
   File meta_file;           /* Meta file we use */
+  File tina_write_filedes;  /* File handler for readers */
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
 } TINA_SHARE;
@@ -54,6 +54,49 @@ typedef struct st_tina_share {
 struct tina_set {
   off_t begin;
   off_t end;
+};
+
+class Transparent_file
+{
+   File filedes;
+   byte *buff;  /* in-memory window to the file or mmaped area */
+   /* current window sizes */
+   off_t lower_bound;
+   off_t upper_bound;
+   uint buff_size;
+
+ public:
+
+   Transparent_file() : lower_bound(0), buff_size(IO_SIZE)
+   { buff= (byte *) my_malloc(buff_size*sizeof(byte),  MYF(MY_WME)); }
+
+   ~Transparent_file()
+   { my_free((gptr)buff, MYF(MY_ALLOW_ZERO_PTR)); }
+
+   void init_buff(File filedes_arg)
+   {
+     filedes= filedes_arg;
+     /* read the beginning of the file */
+     lower_bound= 0;
+     VOID(my_seek(filedes, 0, MY_SEEK_SET, MYF(0)));
+     if (filedes && buff)
+       upper_bound= my_read(filedes, buff, buff_size, MYF(0));
+   }
+
+   byte *ptr()
+   { return buff; }
+
+   off_t start()
+   { return lower_bound; }
+
+   off_t end()
+   { return upper_bound; }
+
+   /* get a char from the given position in the file */
+   char get_value (off_t offset);
+   /* shift a buffer windows to see the next part of the file */
+   off_t read_next();
+
 };
 
 class ha_tina: public handler
@@ -64,6 +107,9 @@ class ha_tina: public handler
   off_t next_position;     /* Next position in the file scan */
   off_t local_saved_data_file_length; /* save position for reads */
   byte byte_buffer[IO_SIZE];
+  Transparent_file *file_buff;
+  File data_file;                   /* File handler for readers */
+  File update_temp_file;
   String buffer;
   /*
     The chain contains "holes" in the file, occured because of
@@ -77,12 +123,19 @@ class ha_tina: public handler
   uint32 chain_size;
   bool records_is_known;
 
+private:
+  bool get_write_pos(off_t *end_pos, tina_set *closest_hole);
+  int open_update_temp_file_if_needed();
+  int init_tina_writer();
+
 public:
   ha_tina(TABLE_SHARE *table_arg);
-  ~ha_tina() 
+  ~ha_tina()
   {
     if (chain_alloced)
-      my_free((gptr)chain,0);
+      my_free((gptr)chain, 0);
+    if (file_buff)
+      delete file_buff;
   }
   const char *table_type() const { return "CSV"; }
   const char *index_type(uint inx) { return "NONE"; }

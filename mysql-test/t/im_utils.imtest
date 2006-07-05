@@ -17,8 +17,16 @@
 #  - the second instance is offline;
 #
 
+# Wait for mysqld1 (guarded instance) to start.
+
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD1_PATH_PID 30 started
+
+# Let IM detect that mysqld1 is online. This delay should be longer than
+# monitoring interval.
+
 --sleep 3
-# should be longer than monitoring interval and enough to start instance.
+
+# Check that start conditions are as expected.
 
 SHOW INSTANCES;
 
@@ -43,12 +51,10 @@ SHOW INSTANCE OPTIONS mysqld2;
 #
 
 START INSTANCE mysqld2;
-
-# FIXME: START INSTANCE should be synchronous.
---sleep 3
-# should be longer than monitoring interval and enough to start instance.
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started
 
 STOP INSTANCE mysqld2;
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped
 
 #
 # Check 'SHOW LOG FILES' command:

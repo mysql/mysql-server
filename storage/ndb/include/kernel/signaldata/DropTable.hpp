@@ -53,6 +53,7 @@ public:
   
   enum ErrorCode {
     Busy = 701,
+    BusyWithNR = 711,
     NotMaster = 702,
     NoSuchTable         = 709,
     InvalidTableVersion = 241,

@@ -31,6 +31,8 @@ SHOW VARIABLES LIKE 'log_slow_queries';
 Variable_name	Value
 log_slow_queries	ON
 DROP FUNCTION get_value;
+"Make it quite long"
+SET SESSION long_query_time=300;
 TRUNCATE mysql.slow_log;
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
@@ -44,7 +46,10 @@ SLEEP(2)
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
 USER_HOST	SLEEPVAL	events_test	SELECT SLEEP(2)
+SET SESSION long_query_time=300;
+"Make it quite long"
 TRUNCATE mysql.slow_log;
+SET SESSION long_query_time=1;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
 "This won't go to the slow log"
 CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(3);
@@ -63,9 +68,9 @@ slo_val	val
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
 "This should go to the slow log"
+DROP EVENT long_event;
 SET SESSION long_query_time=10;
 SET GLOBAL long_query_time=1;
-DROP EVENT long_event;
 CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2);
 "Sleep some more time than the actual event run will take"
 "Check our table. Should see 2 rows"
@@ -78,8 +83,10 @@ SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
 USER_HOST	SLEEPVAL	events_test	INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2)
 DROP EVENT long_event2;
-SET GLOBAL  long_query_time =@old_global_long_query_time;
-SET SESSION long_query_time =@old_session_long_query_time;
+"Make it quite long"
+SET SESSION long_query_time=300;
 TRUNCATE mysql.slow_log;
 DROP TABLE slow_event_test;
+SET GLOBAL  long_query_time =@old_global_long_query_time;
+SET SESSION long_query_time =@old_session_long_query_time;
 drop database events_test;

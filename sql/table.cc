@@ -1481,11 +1481,21 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     if (!tmp)
-      tmp= fix_partition_func(thd, share->normalized_path.str, outparam,
-                              is_create_table);
+      tmp= fix_partition_func(thd, outparam, is_create_table);
     *root_ptr= old_root;
     if (tmp)
+    {
+      if (is_create_table)
+      {
+        /*
+          During CREATE/ALTER TABLE it is ok to receive errors here.
+          It is not ok if it happens during the opening of an frm
+          file as part of a normal query.
+        */
+        error_reported= TRUE;
+      }
       goto err;
+    }
   }
 #endif
 

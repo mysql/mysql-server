@@ -14,19 +14,21 @@ Created 1/30/1994 Heikki Tuuri
 ulint	ut_dbg_zero	= 0;
 #endif
 
+#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 /* If this is set to TRUE all threads will stop into the next assertion
 and assert */
 ibool	ut_dbg_stop_threads	= FALSE;
+#endif
 #ifdef __NETWARE__
 ibool panic_shutdown = FALSE;	/* This is set to TRUE when on NetWare there
 				happens an InnoDB assertion failure or other
 				fatal error condition that requires an
 				immediate shutdown. */
-#else /* __NETWARE__ */
+#elif !defined(UT_DBG_USE_ABORT)
 /* Null pointer used to generate memory trap */
 
 ulint*	ut_dbg_null_ptr		= NULL;
-#endif /* __NETWARE__ */
+#endif
 
 /*****************************************************************
 Report a failed assertion. */
@@ -56,7 +58,9 @@ ut_dbg_assertion_failed(
 "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
 "InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html\n"
 "InnoDB: about forcing recovery.\n", stderr);
+#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 	ut_dbg_stop_threads = TRUE;
+#endif
 }
 
 #ifdef __NETWARE__
@@ -74,6 +78,7 @@ ut_dbg_panic(void)
 	exit(1);
 }
 #else /* __NETWARE__ */
+# if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 /*****************************************************************
 Stop a thread after assertion failure. */
 
@@ -87,4 +92,5 @@ ut_dbg_stop_thread(
 		os_thread_pf(os_thread_get_curr_id()), file, line);
 	os_thread_sleep(1000000000);
 }
+# endif
 #endif /* __NETWARE__ */

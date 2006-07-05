@@ -127,7 +127,7 @@ NULL	5	10
 NULL	6	12
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 ERROR 23000: Duplicate entry '2' for key 'b'
-SHOW BINLOG EVENTS FROM 1326;
+SHOW BINLOG EVENTS FROM 1256;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 CREATE TABLE t7 (a INT, b INT UNIQUE);
 INSERT INTO t7 SELECT a,b FROM tt3;
@@ -137,11 +137,11 @@ a	b
 1	2
 2	4
 3	6
-SHOW BINLOG EVENTS FROM 1326;
+SHOW BINLOG EVENTS FROM 1118;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	1326	Query	1	1426	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
-master-bin.000001	1426	Table_map	1	1466	table_id: # (test.t7)
-master-bin.000001	1466	Write_rows	1	1522	table_id: # flags: STMT_END_F
+master-bin.000001	1118	Query	1	1218	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
+master-bin.000001	1218	Table_map	1	1258	table_id: # (test.t7)
+master-bin.000001	1258	Write_rows	1	1314	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -154,10 +154,10 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-SHOW BINLOG EVENTS FROM 1522;
+SHOW BINLOG EVENTS FROM 1314;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	1522	Table_map	1	1562	table_id: # (test.t7)
-master-bin.000001	1562	Write_rows	1	1618	table_id: # flags: STMT_END_F
+master-bin.000001	1314	Table_map	1	1354	table_id: # (test.t7)
+master-bin.000001	1354	Write_rows	1	1410	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -191,10 +191,10 @@ Create Table	CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SHOW BINLOG EVENTS FROM 1618;
+SHOW BINLOG EVENTS FROM 1410;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	1618	Query	1	1704	use `test`; CREATE TABLE t8 LIKE t4
-master-bin.000001	1704	Query	1	1843	use `test`; CREATE TABLE `t9` (
+master-bin.000001	1410	Query	1	1496	use `test`; CREATE TABLE t8 LIKE t4
+master-bin.000001	1496	Query	1	1635	use `test`; CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 )

@@ -256,6 +256,6 @@ typedef struct
 } LEX_STRING;
 
 #define STRING_WITH_LEN(X) (X), ((uint) (sizeof(X) - 1))
-#define C_STRING_WITH_SIZE(X) ((char *) (X)), ((uint) (sizeof(X) - 1))
+#define C_STRING_WITH_LEN(X) ((char *) (X)), ((uint) (sizeof(X) - 1))
 
 #endif

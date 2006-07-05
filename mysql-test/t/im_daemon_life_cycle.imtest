@@ -10,9 +10,22 @@
 
 ###########################################################################
 
+# Wait for mysqld1 (guarded instance) to start.
+
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD1_PATH_PID 30 started
+
+# Let IM detect that mysqld1 is online. This delay should be longer than
+# monitoring interval.
+
 --sleep 3
-# should be longer than monitoring interval and enough to start instance.
+
+# Check that start conditions are as expected.
 
 SHOW INSTANCES;
 
---exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted
+###########################################################################
+
+# Kill the IM main process and check that the IM Angel will restart the main
+# process.
+
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30

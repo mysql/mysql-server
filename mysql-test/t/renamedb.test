@@ -16,3 +16,11 @@ select database();
 show tables;
 select a from t1 order by a;
 drop database testdb2;
+
+#
+# Bug#19392 Rename Database: Crash if case change
+#
+create database testdb1;
+--error 1007
+rename database testdb1 to testdb1;
+drop database testdb1;

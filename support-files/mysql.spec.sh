@@ -148,6 +148,19 @@ They should be used with caution.
 
 %{see_base}
 
+%package bench
+Requires: %{name}-client perl-DBI perl
+Summary: MySQL - Benchmarks and test system
+Group: Applications/Databases
+Provides: mysql-bench
+Obsoletes: mysql-bench
+AutoReqProv: no
+
+%description bench
+This package contains MySQL benchmark scripts and data.
+
+%{see_base}
+
 %package devel
 Summary: MySQL - Development header files and libraries
 Group: Applications/Databases
@@ -221,7 +234,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
             --prefix=/ \
 	    --with-extra-charsets=all \
 %if %{YASSL_BUILD}
-	    --with-yassl \
+	    --with-ssl \
 %endif
             --exec-prefix=%{_exec_prefix} \
             --libexecdir=%{_sbindir} \
@@ -235,6 +248,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 	    --enable-thread-safe-client \
 	    --with-readline \
 	    "
+ make
 }
 
 # Use our own copy of glibc
@@ -350,6 +364,7 @@ BuildMySQL "--enable-shared \
 		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
 		--with-federated-storage-engine \
+		--with-embedded-server \
 	        --with-big-tables \
 		--with-comment=\"MySQL Community Server (GPL)\"")
 
@@ -389,10 +404,10 @@ install -d $RBR%{_sbindir}
 mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
 
 # install "mysqld-debug" and "mysqld-max"
-./libtool --mode=execute install -m 755 \
+$MBD/libtool --mode=execute install -m 755 \
                  $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-debug
-./libtool --mode=execute install -m 755 \
+$MBD/libtool --mode=execute install -m 755 \
                  $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-max-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-max
 
@@ -404,15 +419,11 @@ install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.
 install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Install embedded server library in the build root
-install -m 644 libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
+install -m 644 $MBD/libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
 ln -s %{_sysconfdir}/init.d/mysql $RPM_BUILD_ROOT%{_sbindir}/rcmysql
-
-# Create symbolic compatibility link safe_mysqld -> mysqld_safe
-# (safe_mysqld will be gone in MySQL 4.1)
-ln -sf ./mysqld_safe $RBR%{_bindir}/safe_mysqld
 
 # Touch the place where the my.cnf config file and mysqlmanager.passwd
 # (MySQL Instance Manager password file) might be located
@@ -468,7 +479,16 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
 
 # Upgrade databases if needed
-%{_bindir}/mysql_upgrade --user=%{mysqld_user}
+# This must be done as database user "root", who should be password-protected,
+# but this password is not available here.
+# So ensure the server is isolated as much as possible, and start it so that
+# passwords are not checked.
+# See the related change in the start script "/etc/init.d/mysql".
+chmod 700 $mysql_datadir
+%{_sysconfdir}/init.d/mysql start --skip-networking --skip-grant-tables
+%{_bindir}/mysql_upgrade
+%{_sysconfdir}/init.d/mysql stop  --skip-networking --skip-grant-tables
+chmod 755 $mysql_datadir
 
 # Change permissions again to fix any new files.
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
@@ -480,7 +500,7 @@ chmod -R og-rw $mysql_datadir/mysql
 # Restart in the same way that mysqld will be started normally.
 %{_sysconfdir}/init.d/mysql start
 
-# Allow safe_mysqld to start mysqld and print a message before we exit
+# Allow mysqld_safe to start mysqld and print a message before we exit
 sleep 2
 
 
@@ -542,7 +562,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
-%doc %attr(644, root, man) %{_mandir}/man1/safe_mysqld.1*
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 %ghost %config(noreplace,missingok) %{_sysconfdir}/mysqlmanager.passwd
@@ -571,7 +590,6 @@ fi
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
-%attr(755, root, root) %{_bindir}/safe_mysqld
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
@@ -683,6 +701,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Tue Jun 20 2006 Joerg Bruehe <joerg@mysql.com>
+
+- To run "mysql_upgrade", we need a running server;
+  start it in isolation and skip password checks.
+
 * Sat May 20 2006 Kent Boortz <kent@mysql.com>
 
 - Always compile for PIC, position independent code.

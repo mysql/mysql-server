@@ -32,4 +32,4 @@ ADD_LIBRARY(innobase btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 					 thr/thr0loc.c 
 					 trx/trx0purge.c trx/trx0rec.c trx/trx0roll.c trx/trx0rseg.c trx/trx0sys.c trx/trx0trx.c trx/trx0undo.c 
 					 usr/usr0sess.c 
-					 ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c)
+					 ut/ut0byte.c ut/ut0dbg.c ut/ut0mem.c ut/ut0rnd.c ut/ut0ut.c ut/ut0vec.c ut/ut0list.c ut/ut0wqueue.c)

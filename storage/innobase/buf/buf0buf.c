@@ -524,12 +524,11 @@ buf_block_init(
 
 	block->n_pointers = 0;
 
-	rw_lock_create(&(block->lock));
+	rw_lock_create(&block->lock, SYNC_LEVEL_VARYING);
 	ut_ad(rw_lock_validate(&(block->lock)));
 
 #ifdef UNIV_SYNC_DEBUG
-	rw_lock_create(&(block->debug_latch));
-	rw_lock_set_level(&(block->debug_latch), SYNC_NO_ORDER_CHECK);
+	rw_lock_create(&block->debug_latch, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 }
 
@@ -572,8 +571,7 @@ buf_pool_init(
 
 	/* 1. Initialize general fields
 	   ---------------------------- */
-	mutex_create(&(buf_pool->mutex));
-	mutex_set_level(&(buf_pool->mutex), SYNC_BUF_POOL);
+	mutex_create(&buf_pool->mutex, SYNC_BUF_POOL);
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -1856,7 +1854,6 @@ buf_page_io_complete(
 	buf_block_t*	block)	/* in: pointer to the block in question */
 {
 	ulint		io_type;
-	ulint		read_page_no;
 
 	ut_ad(block);
 
@@ -1866,18 +1863,36 @@ buf_page_io_complete(
 
 	if (io_type == BUF_IO_READ) {
 		/* If this page is not uninitialized and not in the
-		doublewrite buffer, then the page number should be the
-		same as in block */
-
-		read_page_no = mach_read_from_4((block->frame)
+		doublewrite buffer, then the page number and space id
+		should be the same as in block. */
+		ulint	read_page_no = mach_read_from_4((block->frame)
 						+ FIL_PAGE_OFFSET);
-		if (read_page_no != 0
-			&& !trx_doublewrite_page_inside(read_page_no)
-			&& read_page_no != block->offset) {
+		ulint	read_space_id = mach_read_from_4((block->frame)
+					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
+		if (!block->space && trx_doublewrite_page_inside(
+				block->offset)) {
+
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"InnoDB: Error: page n:o stored in the page read in is %lu, should be %lu!\n",
-				(ulong) read_page_no, (ulong) block->offset);
+"  InnoDB: Error: reading page %lu\n"
+"InnoDB: which is in the doublewrite buffer!\n",
+				(ulong) block->offset);
+		} else if (!read_space_id && !read_page_no) {
+			/* This is likely an uninitialized page. */
+		} else if ((block->space && block->space != read_space_id)
+				|| block->offset != read_page_no) {
+			/* We did not compare space_id to read_space_id
+			if block->space == 0, because the field on the
+			page may contain garbage in MySQL < 4.1.1,
+			which only supported block->space == 0. */
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+"  InnoDB: Error: space id and page n:o stored in the page\n"
+"InnoDB: read in are %lu:%lu, should be %lu:%lu!\n",
+				(ulong) read_space_id, (ulong) read_page_no,
+				(ulong) block->space, (ulong) block->offset);
 		}
 		/* From version 3.23.38 up we store the page checksum
 		   to the 4 first bytes of the page end lsn field */
@@ -2233,7 +2248,8 @@ buf_get_latched_pages_number(void)
 	}
 
 	mutex_exit(&(buf_pool->mutex));
-	return fixed_pages_number;
+
+	return(fixed_pages_number);
 }
 
 /*************************************************************************

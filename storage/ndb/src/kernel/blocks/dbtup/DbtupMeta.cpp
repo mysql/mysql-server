@@ -37,7 +37,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
 {
   ljamEntry();
 
-  if (signal->theData[0] == (Uint32)-1) {
+  TupFragReq* tupFragReq = (TupFragReq*)signal->getDataPtr();
+  if (tupFragReq->userPtr == (Uint32)-1) {
     ljam();
     abortAddFragOp(signal);
     return;
@@ -47,31 +48,32 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   FragrecordPtr regFragPtr;
   TablerecPtr regTabPtr;
 
-  Uint32 userptr= signal->theData[0];
-  Uint32 userblockref= signal->theData[1];
-  Uint32 reqinfo= signal->theData[2];
-  regTabPtr.i= signal->theData[3];
-  Uint32 noOfAttributes= signal->theData[4];
-  Uint32 fragId= signal->theData[5];
-  Uint32 pages= signal->theData[6];
-  Uint32 noOfNullAttr= signal->theData[7];
-  /*  Uint32 schemaVersion= signal->theData[8];*/
-  Uint32 noOfKeyAttr= signal->theData[9];
+  Uint32 userptr        = tupFragReq->userPtr;
+  Uint32 userblockref   = tupFragReq->userRef;
+  Uint32 reqinfo        = tupFragReq->reqInfo;
+  regTabPtr.i           = tupFragReq->tableId;
+  Uint32 noOfAttributes = tupFragReq->noOfAttr;
+  Uint32 fragId         = tupFragReq->fragId;
+  Uint32 noOfNullAttr = tupFragReq->noOfNullAttr;
+  /*  Uint32 schemaVersion = tupFragReq->schemaVersion;*/
+  Uint32 noOfKeyAttr = tupFragReq->noOfKeyAttr;
+  Uint32 noOfCharsets = tupFragReq->noOfCharsets;
 
-  //Uint32 noOfNewAttr= (signal->theData[10] & 0xFFFF);
-  /* DICT sends number of character sets in upper half */
-  Uint32 noOfCharsets= (signal->theData[10] >> 16);
-  Uint32 gcpIndicator = signal->theData[13];
-  Uint32 tablespace= signal->theData[14];
+  Uint32 checksumIndicator = tupFragReq->checksumIndicator;
+  Uint32 gcpIndicator = tupFragReq->globalCheckpointIdIndicator;
+  Uint32 tablespace_id= tupFragReq->tablespaceid;
 
-  Uint32 checksumIndicator= signal->theData[11];
+  Uint64 maxRows =
+    (((Uint64)tupFragReq->maxRowsHigh) << 32) + tupFragReq->maxRowsLow;
+  Uint64 minRows =
+    (((Uint64)tupFragReq->minRowsHigh) << 32) + tupFragReq->minRowsLow;
 
 #ifndef VM_TRACE
   // config mismatch - do not crash if release compiled
   if (regTabPtr.i >= cnoOfTablerec) {
     ljam();
-    signal->theData[0] = userptr;
-    signal->theData[1] = 800;
+    tupFragReq->userPtr = userptr;
+    tupFragReq->userRef = 800;
     sendSignal(userblockref, GSN_TUPFRAGREF, signal, 2, JBB);
     return;
   }
@@ -80,8 +82,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
   if (cfirstfreeFragopr == RNIL) {
     ljam();
-    signal->theData[0]= userptr;
-    signal->theData[1]= ZNOFREE_FRAGOP_ERROR;
+    tupFragReq->userPtr = userptr;
+    tupFragReq->userRef = ZNOFREE_FRAGOP_ERROR;
     sendSignal(userblockref, GSN_TUPFRAGREF, signal, 2, JBB);
     return;
   }
@@ -101,6 +103,8 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
 	 sizeof(fragOperPtr.p->m_var_attributes_size));
 
   fragOperPtr.p->charsetIndex = 0;
+  fragOperPtr.p->minRows = minRows;
+  fragOperPtr.p->maxRows = maxRows;
 
   ndbrequire(reqinfo == ZADDFRAG);
 
@@ -136,19 +140,11 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
 
   regFragPtr.p->fragTableId= regTabPtr.i;
   regFragPtr.p->fragmentId= fragId;
-  regFragPtr.p->m_tablespace_id= tablespace;
+  regFragPtr.p->m_tablespace_id= tablespace_id;
   regFragPtr.p->m_undo_complete= false;
   regFragPtr.p->m_lcp_scan_op = RNIL; 
   regFragPtr.p->m_lcp_keep_list = RNIL;
-  
-  Uint32 noAllocatedPages= allocFragPages(regFragPtr.p, pages);
-  
-  if (noAllocatedPages == 0) {
-    ljam();
-    terrorCode= ZNO_PAGES_ALLOCATED_ERROR;
-    fragrefuse3Lab(signal, fragOperPtr, regFragPtr, regTabPtr.p, fragId);
-    return;
-  }
+  regFragPtr.p->m_var_page_chunks = RNIL;  
 
   if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
       ERROR_INSERTED(4008) && regTabPtr.p->fragid[1] == fragId) {
@@ -538,6 +534,28 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 #endif
   
+  {
+    Uint32 fix_tupheader = regTabPtr.p->m_offsets[MM].m_fix_header_size;
+    if(regTabPtr.p->m_attributes[MM].m_no_of_varsize != 0)
+      fix_tupheader += Tuple_header::HeaderSize + 1;
+    ndbassert(fix_tupheader > 0);
+    Uint32 noRowsPerPage = ZWORDS_ON_PAGE / fix_tupheader;
+    Uint32 noAllocatedPages =
+      (fragOperPtr.p->minRows + noRowsPerPage - 1 )/ noRowsPerPage;
+    if (fragOperPtr.p->minRows == 0)
+      noAllocatedPages = 2;
+    else if (noAllocatedPages == 0)
+      noAllocatedPages = 2;
+    noAllocatedPages = allocFragPages(regFragPtr.p, noAllocatedPages);
+
+    if (noAllocatedPages == 0) {
+      ljam();
+      terrorCode = ZNO_PAGES_ALLOCATED_ERROR;
+      addattrrefuseLab(signal, regFragPtr, fragOperPtr, regTabPtr.p, fragId);
+      return;
+    }//if
+  }
+
   CreateFilegroupImplReq rep;
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
@@ -970,7 +988,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     case -1:
       break;
     default:
-      ndbrequire(res == pagePtr.i);
+      ndbrequire((Uint32)res == pagePtr.i);
       drop_fragment_unmap_page_callback(signal, pos, res);
     }
     return;
@@ -1050,6 +1068,44 @@ Dbtup::drop_fragment_free_exent(Signal *signal,
       LocalDLList<Page> list(* cheat_pool, alloc_info.m_dirty_pages[pos]);
       list.remove();
     }
+  }
+  
+  signal->theData[0] = ZFREE_VAR_PAGES;
+  signal->theData[1] = tabPtr.i;
+  signal->theData[2] = fragPtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);  
+}
+
+void
+Dbtup::drop_fragment_free_var_pages(Signal* signal)
+{
+  ljam();
+  Uint32 tableId = signal->theData[1];
+  Uint32 fragPtrI = signal->theData[2];
+  
+  TablerecPtr tabPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  
+  FragrecordPtr fragPtr;
+  fragPtr.i = fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  
+  PagePtr pagePtr;
+  if ((pagePtr.i = fragPtr.p->m_var_page_chunks) != RNIL)
+  {
+    c_page_pool.getPtr(pagePtr);
+    Var_page* page = (Var_page*)pagePtr.p;
+    fragPtr.p->m_var_page_chunks = page->next_chunk;
+
+    Uint32 sz = page->chunk_size;
+    returnCommonArea(pagePtr.i, sz);
+    
+    signal->theData[0] = ZFREE_VAR_PAGES;
+    signal->theData[1] = tabPtr.i;
+    signal->theData[2] = fragPtr.i;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);  
+    return;
   }
   
   releaseFragPages(fragPtr.p);

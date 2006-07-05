@@ -17,6 +17,7 @@
 ### BEGIN INIT INFO
 # Provides: mysql
 # Required-Start: $local_fs $network $remote_fs
+# Should-Start: ypbind nscd ldap ntpd xntpd
 # Required-Stop: $local_fs $network $remote_fs
 # Default-Start:  2 3 4 5
 # Default-Stop: 0 1 6
@@ -97,6 +98,11 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin:$basedir/bin
 export PATH
 
 mode=$1    # start or stop
+shift
+other_args="$*"   # uncommon, but needed when called from an RPM upgrade action
+           # Expected: "--skip-networking --skip-grant-tables"
+           # They are not checked here, intentionally, as it is the resposibility
+           # of the "spec" file author to give correct arguments only.
 
 case `echo "testing\c"`,`echo -n testing` in
     *c*,-n*) echo_n=   echo_c=     ;;
@@ -263,6 +269,11 @@ case "$mode" in
     echo $echo_n "Starting MySQL"
     if test -x $manager -a "$use_mysqld_safe" = "0"
     then
+      if test -n "$other_args"
+      then
+        log_failure_msg "MySQL manager does not support options '$other_args'"
+        exit 1
+      fi
       # Give extra arguments to mysqld with the my.cnf file. This script may
       # be overwritten at next upgrade.
       "$manager" \
@@ -281,7 +292,7 @@ case "$mode" in
       # Give extra arguments to mysqld with the my.cnf file. This script
       # may be overwritten at next upgrade.
       pid_file=$server_pid_file
-      $bindir/mysqld_safe --datadir=$datadir --pid-file=$server_pid_file >/dev/null 2>&1 &
+      $bindir/mysqld_safe --datadir=$datadir --pid-file=$server_pid_file $other_args >/dev/null 2>&1 &
       wait_for_pid created
 
       # Make lock for RedHat / SuSE
@@ -329,8 +340,8 @@ case "$mode" in
   'restart')
     # Stop the service and regardless of whether it was
     # running or not, start it again.
-    $0 stop
-    $0 start
+    $0 stop  $other_args
+    $0 start $other_args
     ;;
 
   'reload')
@@ -345,7 +356,7 @@ case "$mode" in
 
   *)
     # usage
-    echo "Usage: $0 start|stop|restart|reload"
+    echo "Usage: $0  {start|stop|restart|reload}  [ MySQL server options ]"
     exit 1
     ;;
 esac

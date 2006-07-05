@@ -68,11 +68,11 @@ public:
   longlong val_int() { return (longlong) value; }
   String *val_str(String *s)
   {
-    s->set(value,decimals,default_charset());
+    s->set_real(value,decimals,default_charset());
     return s;
   }
   my_decimal *val_decimal(my_decimal *);
-  unsigned int size_of() { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}
 };
 
 class Item_proc_int :public Item_proc
@@ -91,7 +91,7 @@ public:
   longlong val_int() { return value; }
   String *val_str(String *s) { s->set(value, default_charset()); return s; }
   my_decimal *val_decimal(my_decimal *);
-  unsigned int size_of() { return sizeof(*this);}  
+  unsigned int size_of() { return sizeof(*this);}
 };
 
 
@@ -102,12 +102,12 @@ public:
     { this->max_length=length; }
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
-  void set(double nr) { str_value.set(nr, 2, default_charset()); }
+  void set(double nr) { str_value.set_real(nr, 2, default_charset()); }
   void set(longlong nr) { str_value.set(nr, default_charset()); }
   void set(const char *str, uint length, CHARSET_INFO *cs)
   { str_value.copy(str,length,cs); }
   double val_real()
-  { 
+  {
     int err_not_used;
     char *end_not_used;
     CHARSET_INFO *cs= str_value.charset();

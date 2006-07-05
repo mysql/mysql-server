@@ -3002,6 +3002,31 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
 
 
 /*
+  Copy HA_CREATE_INFO struct
+  SYNOPSIS
+    copy_create_info()
+    lex_create_info         The create_info struct setup by parser
+  RETURN VALUES
+    > 0                     A pointer to a copy of the lex_create_info
+    0                       Memory allocation error
+  DESCRIPTION
+  Allocate memory for copy of HA_CREATE_INFO structure from parser
+  to ensure we can reuse the parser struct in stored procedures
+  and prepared statements.
+*/
+
+static HA_CREATE_INFO *copy_create_info(HA_CREATE_INFO *lex_create_info)
+{
+  HA_CREATE_INFO *create_info;
+  if (!(create_info= (HA_CREATE_INFO*)sql_alloc(sizeof(HA_CREATE_INFO))))
+    mem_alloc_error(sizeof(HA_CREATE_INFO));
+  else
+    memcpy((void*)create_info, (void*)lex_create_info, sizeof(HA_CREATE_INFO));
+  return create_info;
+}
+
+
+/*
   Create a table
 
   SYNOPSIS
@@ -3009,11 +3034,15 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
     thd			Thread object
     db			Database
     table_name		Table name
-    create_info		Create information (like MAX_ROWS)
+    lex_create_info	Create information (like MAX_ROWS)
     fields		List of fields to create
     keys		List of keys to create
     internal_tmp_table  Set to 1 if this is an internal temporary table
 			(From ALTER TABLE)
+    select_field_count  
+    use_copy_create_info Should we make a copy of create info (we do this
+                         when this is called from sql_parse.cc where we
+                         want to ensure lex object isn't manipulated.
 
   DESCRIPTION
     If one creates a temporary table, this is automatically opened
@@ -3030,20 +3059,32 @@ void sp_prepare_create_field(THD *thd, create_field *sql_field)
 
 bool mysql_create_table_internal(THD *thd,
                                 const char *db, const char *table_name,
-                                HA_CREATE_INFO *create_info,
+                                HA_CREATE_INFO *lex_create_info,
                                 List<create_field> &fields,
                                 List<Key> &keys,bool internal_tmp_table,
-                                uint select_field_count)
+                                uint select_field_count,
+                                bool use_copy_create_info)
 {
   char		path[FN_REFLEN];
   uint          path_length;
   const char	*alias;
   uint		db_options, key_count;
   KEY		*key_info_buffer;
+  HA_CREATE_INFO *create_info;
   handler	*file;
   bool		error= TRUE;
   DBUG_ENTER("mysql_create_table_internal");
 
+  if (use_copy_create_info)
+  {
+    if (!(create_info= copy_create_info(lex_create_info)))
+    {
+      DBUG_RETURN(TRUE);
+    }
+  }
+  else
+    create_info= lex_create_info;
+ 
   /* Check for duplicate fields and check type of table to create */
   if (!fields.elements)
   {
@@ -3144,8 +3185,7 @@ bool mysql_create_table_internal(THD *thd,
     }
     DBUG_PRINT("info", ("db_type = %d",
                          ha_legacy_type(part_info->default_engine_type)));
-    if (part_info->check_partition_info(&engine_type, file,
-                                        create_info->max_rows))
+    if (part_info->check_partition_info(thd, &engine_type, file, create_info))
       goto err;
     part_info->default_engine_type= engine_type;
 
@@ -3183,7 +3223,8 @@ bool mysql_create_table_internal(THD *thd,
       */
       if (part_info->use_default_no_partitions &&
           part_info->no_parts &&
-          (int)part_info->no_parts != file->get_default_no_partitions(0ULL))
+          (int)part_info->no_parts !=
+          file->get_default_no_partitions(create_info))
       {
         uint i;
         List_iterator<partition_element> part_it(part_info->partitions);
@@ -3196,10 +3237,10 @@ bool mysql_create_table_internal(THD *thd,
                part_info->use_default_no_subpartitions &&
                part_info->no_subparts &&
                (int)part_info->no_subparts !=
-                 file->get_default_no_partitions(0ULL))
+                 file->get_default_no_partitions(create_info))
       {
         DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
-        part_info->no_subparts= file->get_default_no_partitions(0ULL);
+        part_info->no_subparts= file->get_default_no_partitions(create_info);
       }
     }
     else if (create_info->db_type != engine_type)
@@ -3237,8 +3278,23 @@ bool mysql_create_table_internal(THD *thd,
       my_casedn_str(files_charset_info, path);
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
   }
-  else
+  else  
+  {
+ #ifdef FN_DEVCHAR
+    /* check if the table name contains FN_DEVCHAR when defined */
+    const char *start= alias;
+    while (*start != '\0')
+    {
+      if (*start == FN_DEVCHAR)
+      {
+        my_error(ER_WRONG_TABLE_NAME, MYF(0), alias);
+        DBUG_RETURN(TRUE);
+      }
+      start++;
+    }	  
+#endif
     path_length= build_table_filename(path, sizeof(path), db, alias, reg_ext);
+  }
 
   /* Check if table already exists */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -3358,7 +3414,8 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
                         List<create_field> &fields,
                         List<Key> &keys,bool internal_tmp_table,
-                        uint select_field_count)
+                        uint select_field_count,
+                        bool use_copy_create_info)
 {
   bool result;
   DBUG_ENTER("mysql_create_table");
@@ -3382,7 +3439,8 @@ bool mysql_create_table(THD *thd, const char *db, const char *table_name,
 
   result= mysql_create_table_internal(thd, db, table_name, create_info,
                                       fields, keys, internal_tmp_table,
-                                      select_field_count);
+                                      select_field_count,
+                                      use_copy_create_info);
 
   pthread_mutex_lock(&LOCK_lock_db);
   if (!--creating_table && creating_database)
@@ -4328,7 +4386,7 @@ bool mysql_preload_keys(THD* thd, TABLE_LIST* tables)
 */
 
 bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
-                             HA_CREATE_INFO *create_info,
+                             HA_CREATE_INFO *lex_create_info,
                              Table_ident *table_ident)
 {
   TABLE *tmp_table;
@@ -4341,9 +4399,15 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   int  err;
   bool res= TRUE;
   enum legacy_db_type not_used;
+  HA_CREATE_INFO *create_info;
 
   TABLE_LIST src_tables_list;
   DBUG_ENTER("mysql_create_like_table");
+
+  if (!(create_info= copy_create_info(lex_create_info)))
+  {
+    DBUG_RETURN(TRUE);
+  }
   src_db= table_ident->db.str ? table_ident->db.str : thd->db;
 
   /*
@@ -4709,6 +4773,14 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
     At the moment we can't handle altering temporary tables without a copy.
     We also test if OPTIMIZE TABLE was given and was mapped to alter table.
     In that case we always do full copy.
+
+    There was a bug prior to mysql-4.0.25. Number of null fields was
+    calculated incorrectly. As a result frm and data files gets out of
+    sync after fast alter table. There is no way to determine by which
+    mysql version (in 4.0 and 4.1 branches) table was created, thus we
+    disable fast alter table for all tables created by mysql versions
+    prior to 5.0 branch.
+    See BUG#6236.
   */
   if (table->s->fields != create_list->elements ||
       table->s->db_type != create_info->db_type ||
@@ -4718,6 +4790,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num ||
+      !table->s->mysql_version ||
       (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
     DBUG_RETURN(ALTER_TABLE_DATA_CHANGED);
 
@@ -4743,6 +4816,13 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
 	new_field->sql_type == MYSQL_TYPE_VARCHAR &&
 	create_info->row_type != ROW_TYPE_FIXED)
       create_info->table_options|= HA_OPTION_PACK_RECORD;
+
+    /* Check if field was renamed */
+    field->flags&= ~FIELD_IS_RENAMED;
+    if (my_strcasecmp(system_charset_info,
+		      field->field_name,
+		      new_field->field_name))
+      field->flags|= FIELD_IS_RENAMED;      
 
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
     if (!(tmp= field->is_equal(new_field)))
@@ -4873,7 +4953,7 @@ static uint compare_tables(TABLE *table, List<create_field> *create_list,
 */
 
 bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
-                       HA_CREATE_INFO *create_info,
+                       HA_CREATE_INFO *lex_create_info,
                        TABLE_LIST *table_list,
                        List<create_field> &fields, List<Key> &keys,
                        uint order_num, ORDER *order,
@@ -4891,6 +4971,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ulonglong next_insert_id;
   uint db_create_options, used_fields;
   handlerton *old_db_type, *new_db_type;
+  HA_CREATE_INFO *create_info;
   uint need_copy_table= 0;
   bool no_table_reopen= FALSE, varchar= FALSE;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -4916,6 +4997,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   LINT_INIT(index_drop_buffer);
 
   thd->proc_info="init";
+  if (!(create_info= copy_create_info(lex_create_info)))
+  {
+    DBUG_RETURN(TRUE);
+  }
   table_name=table_list->table_name;
   alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
   db=table_list->db;
@@ -4992,7 +5077,24 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   old_db_type= table->s->db_type;
   if (!create_info->db_type)
-    create_info->db_type= old_db_type;
+  {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    if (table->part_info &&
+        create_info->used_fields & HA_CREATE_USED_ENGINE)
+    {
+      /*
+        This case happens when the user specified
+        ENGINE = x where x is a non-existing storage engine
+        We set create_info->db_type to default_engine_type
+        to ensure we don't change underlying engine type
+        due to a erroneously given engine name.
+      */
+      create_info->db_type= table->part_info->default_engine_type;
+    }
+    else
+#endif
+      create_info->db_type= old_db_type;
+  }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (prep_alter_part_table(thd, table, alter_info, create_info, old_db_type,
@@ -5653,7 +5755,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   */
   tmp_disable_binlog(thd);
   error= mysql_create_table(thd, new_db, tmp_name,
-                            create_info,create_list,key_list,1,0);
+                            create_info,create_list,key_list,1,0,0);
   reenable_binlog(thd);
   if (error)
     DBUG_RETURN(error);
@@ -6235,12 +6337,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     if ((error=to->file->ha_write_row((byte*) to->record[0])))
     {
-      if ((!ignore &&
-	   handle_duplicates != DUP_REPLACE) ||
-	  (error != HA_ERR_FOUND_DUPP_KEY &&
-	   error != HA_ERR_FOUND_DUPP_UNIQUE))
+      if (!ignore || handle_duplicates != DUP_ERROR ||
+          to->file->is_fatal_error(error, HA_CHECK_DUP))
       {
-         if (error == HA_ERR_FOUND_DUPP_KEY)
+         if (!to->file->is_fatal_error(error, HA_CHECK_DUP))
          {
            uint key_nr= to->file->get_dup_key(error);
            if ((int) key_nr >= 0)

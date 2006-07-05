@@ -128,6 +128,36 @@ unlock tables;
 drop table t1;
 
 #
+# Bug#16986 - Deadlock condition with MyISAM tables
+#
+connection locker;
+use mysql;
+LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
+FLUSH TABLES;
+--sleep 1
+#
+connection reader;
+use mysql;
+#NOTE:  This must be a multi-table select, otherwise the deadlock will not occur
+send SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
+--sleep 1
+#
+connection locker;
+# Make test case independent from earlier grants.
+--replace_result "Table is already up to date" "OK"
+OPTIMIZE TABLES columns_priv, db, host, user;
+UNLOCK TABLES;
+#
+connection reader;
+reap;
+use test;
+#
+connection locker;
+use test;
+#
+connection default;
+
+#
 # Bug#19815 - CREATE/RENAME/DROP DATABASE can deadlock on a global read lock
 #
 connect (con1,localhost,root,,);
@@ -161,6 +191,33 @@ disconnect con2;
 --error ER_DB_DROP_EXISTS
 DROP DATABASE mysqltest_1;
 
+#
+# Bug #17264: MySQL Server freeze
+#
+connection locker;
+create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
+lock tables t1 write;
+connection writer;
+--sleep 2
+delimiter //;
+send alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+delimiter ;//
+connection reader;
+--sleep 2
+delimiter //;
+send alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+delimiter ;//
+connection locker;
+--sleep 2
+unlock tables;
+connection writer;
+reap;
+connection reader;
+reap;
+connection locker;
+drop table t1;
+
+# End of 5.0 tests
 # Bug#16986 - Deadlock condition with MyISAM tables
 #
 connection locker;
@@ -190,4 +247,3 @@ use test;
 #
 connection default;
 
-# End of 5.0 tests

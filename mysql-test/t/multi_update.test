@@ -452,6 +452,14 @@ insert into t2 values(1,null);
 delete t2, t1 from t2 left join t1 on (t2.aclid=t1.aclid) where t2.refid='1';
 drop table t1, t2;
 
+#
+# Bug#19225: unchecked error leads to server crash
+#
+create table t1(a int);
+create table t2(a int);
+--error 1093
+delete from t1,t2 using t1,t2 where t1.a=(select a from t1);
+drop table t1, t2;
 # End of 4.1 tests
 
 #

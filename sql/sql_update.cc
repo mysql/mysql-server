@@ -541,13 +541,14 @@ int mysql_update(THD *thd,
             break;
           }
 	}
- 	else if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
+ 	else if (!ignore ||
+                 table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
 	{
           /*
-            If (ignore && error == HA_ERR_FOUND_DUPP_KEY) we don't have to
+            If (ignore && error is ignorable) we don't have to
             do anything; otherwise...
           */
-          if (error != HA_ERR_FOUND_DUPP_KEY)
+          if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
             thd->fatal_error(); /* Other handler errors are fatal */
 	  table->file->print_error(error,MYF(0));
 	  error= 1;
@@ -985,7 +986,12 @@ reopen_tables:
       }
     }
   }
-
+  /*
+    Set exclude_from_table_unique_test value back to FALSE. It is needed for
+    further check in multi_update::prepare whether to use record cache.
+  */
+  lex->select_lex.exclude_from_table_unique_test= FALSE;
+ 
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
     DBUG_RETURN(TRUE);
@@ -1164,7 +1170,7 @@ int multi_update::prepare(List<Item> &not_used_values,
   for (table_ref= leaves;  table_ref; table_ref= table_ref->next_leaf)
   {
     TABLE *table=table_ref->table;
-    if (!(tables_to_update & table->map) &&
+    if ((tables_to_update & table->map) &&
         unique_table(thd, table_ref, update_tables))
       table->no_cache= 1;			// Disable row cache
   }
@@ -1417,13 +1423,14 @@ bool multi_update::send_data(List<Item> &not_used_values)
 					      table->record[0])))
 	{
 	  updated--;
-          if (!ignore || error != HA_ERR_FOUND_DUPP_KEY)
+          if (!ignore ||
+              table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
 	  {
             /*
-              If (ignore && error == HA_ERR_FOUND_DUPP_KEY) we don't have to
+              If (ignore && error == is ignorable) we don't have to
               do anything; otherwise...
             */
-            if (error != HA_ERR_FOUND_DUPP_KEY)
+            if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
               thd->fatal_error(); /* Other handler errors are fatal */
 	    table->file->print_error(error,MYF(0));
 	    DBUG_RETURN(1);
@@ -1452,8 +1459,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       /* Write row, ignoring duplicated updates to a row */
       if ((error= tmp_table->file->ha_write_row(tmp_table->record[0])))
       {
-        if (error != HA_ERR_FOUND_DUPP_KEY &&
-            error != HA_ERR_FOUND_DUPP_UNIQUE &&
+        if (tmp_table->file->is_fatal_error(error, HA_CHECK_DUP) &&
             create_myisam_from_heap(thd, tmp_table,
                                          tmp_table_param + offset, error, 1))
 	{
@@ -1576,7 +1582,8 @@ int multi_update::do_updates(bool from_send_error)
 	if ((local_error=table->file->ha_update_row(table->record[1],
 						    table->record[0])))
 	{
-	  if (!ignore || local_error != HA_ERR_FOUND_DUPP_KEY)
+	  if (!ignore ||
+              table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
 	    goto err;
 	}
 	updated++;

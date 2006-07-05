@@ -124,9 +124,9 @@ delete from t1;
 delete from t2;
 delete from t1;
 insert into t2 values(1),(2);
-create view v1 as select f1(a) from t2;
-select * from v1;
-f1(a)
+create view v1 as select f1(a) as f from t2;
+select * from v1 order by f;
+f
 2
 3
 SELECT 'master:',a FROM t1 ORDER BY a;

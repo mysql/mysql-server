@@ -96,29 +96,19 @@ bool String::realloc(uint32 alloc_length)
   return FALSE;
 }
 
-bool String::set(longlong num, CHARSET_INFO *cs)
+bool String::set_int(longlong num, bool unsigned_flag, CHARSET_INFO *cs)
 {
   uint l=20*cs->mbmaxlen+1;
+  int base= unsigned_flag ? 10 : -10;
 
   if (alloc(l))
     return TRUE;
-  str_length=(uint32) (cs->cset->longlong10_to_str)(cs,Ptr,l,-10,num);
+  str_length=(uint32) (cs->cset->longlong10_to_str)(cs,Ptr,l,base,num);
   str_charset=cs;
   return FALSE;
 }
 
-bool String::set(ulonglong num, CHARSET_INFO *cs)
-{
-  uint l=20*cs->mbmaxlen+1;
-
-  if (alloc(l))
-    return TRUE;
-  str_length=(uint32) (cs->cset->longlong10_to_str)(cs,Ptr,l,10,num);
-  str_charset=cs;
-  return FALSE;
-}
-
-bool String::set(double num,uint decimals, CHARSET_INFO *cs)
+bool String::set_real(double num,uint decimals, CHARSET_INFO *cs)
 {
   char buff[331];
   uint dummy_errors;
@@ -720,8 +710,8 @@ void String::qs_append(uint i)
 int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs,
-                              (unsigned char *) s->ptr(),s->length(),
-                              (unsigned char *) t->ptr(),t->length(), 0);
+                              (uchar *) s->ptr(),s->length(),
+                              (uchar *) t->ptr(),t->length(), 0);
 }
 
 
@@ -734,7 +724,7 @@ int sortcmp(const String *s,const String *t, CHARSET_INFO *cs)
     t		Second string
 
   NOTE:
-    Strings are compared as a stream of unsigned chars
+    Strings are compared as a stream of uchars
 
   RETURN
   < 0	s < t

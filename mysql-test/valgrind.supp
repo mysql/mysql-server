@@ -249,6 +249,18 @@
 }
 
 #
+# Warning from my_thread_init becasue mysqld dies before kill thread exists
+#
+
+{
+   my_thread_init kill thread memory loss second
+   Memcheck:Leak
+   fun:calloc
+   fun:my_thread_init
+   fun:kill_server_thread
+}
+
+#
 # Leaks reported in _dl_* internal functions on Linux amd64 / glibc2.3.2.
 #
 
@@ -408,6 +420,19 @@
 }
 
 #
+# BUG#19940: NDB sends uninitialized parts of field buffers across the wire.
+# This is "works as designed"; the uninitialized part is not used at the
+# other end (but Valgrind cannot see this).
+#
+{
+   bug19940
+   Memcheck:Param
+   socketcall.sendto(msg)
+   fun:send
+   fun:_ZN15TCP_Transporter6doSendEv
+   fun:_ZN19TransporterRegistry11performSendEv
+   fun:_ZN19TransporterRegistry14forceSendCheckEi
+}
 # Warning when printing stack trace (to suppress some not needed warnings)
 #
 
@@ -432,4 +457,14 @@
    fun:DbugMalloc
    fun:ListAdd
    fun:_db_set_
+}
+
+{
+   dbug initialization by kill_server
+   Memcheck:Leak
+   fun:malloc
+   fun:DbugMalloc
+   fun:code_state
+   fun:_db_enter_
+   fun:kill_server
 }

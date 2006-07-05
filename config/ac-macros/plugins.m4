@@ -406,7 +406,7 @@ dnl Although this is "pretty", it breaks libmysqld build
         mysql_plugin_dirs="$mysql_plugin_dirs $6"
         m4_syscmd(test -f "$6/configure")
         ifelse(m4_sysval, 0,
-          [other_configures="$other_configures $6/configure"],
+          [AC_CONFIG_SUBDIRS($6)],
           [AC_CONFIG_FILES($6/Makefile)]
         )
         ifelse(m4_substr($6, 0, 8), [storage/],

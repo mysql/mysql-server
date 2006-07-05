@@ -18,6 +18,32 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbOut.hpp>
 
+NdbDictionary::ObjectId::ObjectId()
+  : m_impl(* new NdbDictObjectImpl(NdbDictionary::Object::TypeUndefined))
+{
+}
+
+NdbDictionary::ObjectId::~ObjectId()
+{
+  NdbDictObjectImpl * tmp = &m_impl;  
+  delete tmp;
+}
+
+NdbDictionary::Object::Status
+NdbDictionary::ObjectId::getObjectStatus() const {
+  return m_impl.m_status;
+}
+
+int 
+NdbDictionary::ObjectId::getObjectVersion() const {
+  return m_impl.m_version;
+}
+
+int 
+NdbDictionary::ObjectId::getObjectId() const {
+  return m_impl.m_id;
+}
+
 /*****************************************************************
  * Column facade
  */
@@ -423,6 +449,18 @@ Uint64
 NdbDictionary::Table::getMaxRows() const
 {
   return m_impl.m_max_rows;
+}
+
+void
+NdbDictionary::Table::setMinRows(Uint64 minRows)
+{
+  m_impl.m_min_rows = minRows;
+}
+
+Uint64
+NdbDictionary::Table::getMinRows() const
+{
+  return m_impl.m_min_rows;
 }
 
 void
@@ -1198,9 +1236,14 @@ NdbDictionary::Datafile::getTablespace() const {
   return m_impl.m_filegroup_name.c_str();
 }
 
-Uint32
-NdbDictionary::Datafile::getTablespaceId() const {
-  return m_impl.m_filegroup_id;
+void
+NdbDictionary::Datafile::getTablespaceId(NdbDictionary::ObjectId* dst) const 
+{
+  if (dst)
+  {
+    NdbDictObjectImpl::getImpl(* dst).m_id = m_impl.m_filegroup_id;
+    NdbDictObjectImpl::getImpl(* dst).m_version = m_impl.m_filegroup_version;
+  }
 }
 
 NdbDictionary::Object::Status
@@ -1284,9 +1327,14 @@ NdbDictionary::Undofile::getLogfileGroup() const {
   return m_impl.m_filegroup_name.c_str();
 }
 
-Uint32
-NdbDictionary::Undofile::getLogfileGroupId() const {
-  return m_impl.m_filegroup_id;
+void
+NdbDictionary::Undofile::getLogfileGroupId(NdbDictionary::ObjectId * dst)const 
+{
+  if (dst)
+  {
+    NdbDictObjectImpl::getImpl(* dst).m_id = m_impl.m_filegroup_id;
+    NdbDictObjectImpl::getImpl(* dst).m_version = m_impl.m_filegroup_version;
+  }
 }
 
 NdbDictionary::Object::Status
@@ -1799,17 +1847,23 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
 }
 
 int
-NdbDictionary::Dictionary::createLogfileGroup(const LogfileGroup & lg){
-  return m_impl.createLogfileGroup(NdbLogfileGroupImpl::getImpl(lg));
+NdbDictionary::Dictionary::createLogfileGroup(const LogfileGroup & lg,
+					      ObjectId * obj)
+{
+  return m_impl.createLogfileGroup(NdbLogfileGroupImpl::getImpl(lg),
+				   obj ? 
+				   & NdbDictObjectImpl::getImpl(* obj) : 0);
 }
 
 int
-NdbDictionary::Dictionary::dropLogfileGroup(const LogfileGroup & lg){
+NdbDictionary::Dictionary::dropLogfileGroup(const LogfileGroup & lg)
+{
   return m_impl.dropLogfileGroup(NdbLogfileGroupImpl::getImpl(lg));
 }
 
 NdbDictionary::LogfileGroup
-NdbDictionary::Dictionary::getLogfileGroup(const char * name){
+NdbDictionary::Dictionary::getLogfileGroup(const char * name)
+{
   NdbDictionary::LogfileGroup tmp;
   m_impl.m_receiver.get_filegroup(NdbLogfileGroupImpl::getImpl(tmp), 
 				  NdbDictionary::Object::LogfileGroup, name);
@@ -1817,17 +1871,23 @@ NdbDictionary::Dictionary::getLogfileGroup(const char * name){
 }
 
 int
-NdbDictionary::Dictionary::createTablespace(const Tablespace & lg){
-  return m_impl.createTablespace(NdbTablespaceImpl::getImpl(lg));
+NdbDictionary::Dictionary::createTablespace(const Tablespace & lg,
+					    ObjectId * obj)
+{
+  return m_impl.createTablespace(NdbTablespaceImpl::getImpl(lg),
+				 obj ? 
+				 & NdbDictObjectImpl::getImpl(* obj) : 0);
 }
 
 int
-NdbDictionary::Dictionary::dropTablespace(const Tablespace & lg){
+NdbDictionary::Dictionary::dropTablespace(const Tablespace & lg)
+{
   return m_impl.dropTablespace(NdbTablespaceImpl::getImpl(lg));
 }
 
 NdbDictionary::Tablespace
-NdbDictionary::Dictionary::getTablespace(const char * name){
+NdbDictionary::Dictionary::getTablespace(const char * name)
+{
   NdbDictionary::Tablespace tmp;
   m_impl.m_receiver.get_filegroup(NdbTablespaceImpl::getImpl(tmp), 
 				  NdbDictionary::Object::Tablespace, name);
@@ -1835,7 +1895,8 @@ NdbDictionary::Dictionary::getTablespace(const char * name){
 }
 
 NdbDictionary::Tablespace
-NdbDictionary::Dictionary::getTablespace(Uint32 tablespaceId){
+NdbDictionary::Dictionary::getTablespace(Uint32 tablespaceId)
+{
   NdbDictionary::Tablespace tmp;
   m_impl.m_receiver.get_filegroup(NdbTablespaceImpl::getImpl(tmp), 
 				  NdbDictionary::Object::Tablespace,
@@ -1844,17 +1905,24 @@ NdbDictionary::Dictionary::getTablespace(Uint32 tablespaceId){
 }
 
 int
-NdbDictionary::Dictionary::createDatafile(const Datafile & df, bool force){
-  return m_impl.createDatafile(NdbDatafileImpl::getImpl(df), force);
+NdbDictionary::Dictionary::createDatafile(const Datafile & df, 
+					  bool force,
+					  ObjectId * obj)
+{
+  return m_impl.createDatafile(NdbDatafileImpl::getImpl(df), 
+			       force,
+			       obj ? & NdbDictObjectImpl::getImpl(* obj) : 0);
 }
 
 int
-NdbDictionary::Dictionary::dropDatafile(const Datafile& df){
+NdbDictionary::Dictionary::dropDatafile(const Datafile& df)
+{
   return m_impl.dropDatafile(NdbDatafileImpl::getImpl(df));
 }
 
 NdbDictionary::Datafile
-NdbDictionary::Dictionary::getDatafile(Uint32 node, const char * path){
+NdbDictionary::Dictionary::getDatafile(Uint32 node, const char * path)
+{
   NdbDictionary::Datafile tmp;
   m_impl.m_receiver.get_file(NdbDatafileImpl::getImpl(tmp),
 			     NdbDictionary::Object::Datafile,
@@ -1863,17 +1931,24 @@ NdbDictionary::Dictionary::getDatafile(Uint32 node, const char * path){
 }
 
 int
-NdbDictionary::Dictionary::createUndofile(const Undofile & df, bool force){
-  return m_impl.createUndofile(NdbUndofileImpl::getImpl(df), force);
+NdbDictionary::Dictionary::createUndofile(const Undofile & df, 
+					  bool force,
+					  ObjectId * obj)
+{
+  return m_impl.createUndofile(NdbUndofileImpl::getImpl(df), 
+			       force,
+			       obj ? & NdbDictObjectImpl::getImpl(* obj) : 0);
 }
 
 int
-NdbDictionary::Dictionary::dropUndofile(const Undofile& df){
+NdbDictionary::Dictionary::dropUndofile(const Undofile& df)
+{
   return m_impl.dropUndofile(NdbUndofileImpl::getImpl(df));
 }
 
 NdbDictionary::Undofile
-NdbDictionary::Dictionary::getUndofile(Uint32 node, const char * path){
+NdbDictionary::Dictionary::getUndofile(Uint32 node, const char * path)
+{
   NdbDictionary::Undofile tmp;
   m_impl.m_receiver.get_file(NdbUndofileImpl::getImpl(tmp),
 			     NdbDictionary::Object::Undofile,

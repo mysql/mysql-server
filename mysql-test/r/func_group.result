@@ -812,6 +812,41 @@ SELECT MAX(id) FROM t1 WHERE id < 3 AND a=2 AND b=6;
 MAX(id)
 NULL
 DROP TABLE t1;
+CREATE TABLE t1 (id int PRIMARY KEY, b char(3), INDEX(b));
+INSERT INTO t1 VALUES (1,'xx'), (2,'aa');
+SELECT * FROM t1;
+id	b
+1	xx
+2	aa
+SELECT MAX(b) FROM t1 WHERE b < 'ppppp';
+MAX(b)
+aa
+SHOW WARNINGS;
+Level	Code	Message
+SELECT MAX(b) FROM t1 WHERE b < 'pp';
+MAX(b)
+aa
+DROP TABLE t1;
+CREATE TABLE t1 (id int PRIMARY KEY, b char(16), INDEX(b(4)));
+INSERT INTO t1 VALUES (1, 'xxxxbbbb'), (2, 'xxxxaaaa');
+SELECT MAX(b) FROM t1;
+MAX(b)
+xxxxbbbb
+EXPLAIN SELECT MAX(b) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+DROP TABLE t1;
+CREATE TABLE t1 (id int , b varchar(512), INDEX(b(250))) COLLATE latin1_bin;
+INSERT INTO t1 VALUES
+(1,CONCAT(REPEAT('_', 250), "qq")), (1,CONCAT(REPEAT('_', 250), "zz")),
+(1,CONCAT(REPEAT('_', 250), "aa")), (1,CONCAT(REPEAT('_', 250), "ff"));
+SELECT MAX(b) FROM t1;
+MAX(b)
+__________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________________zz
+EXPLAIN SELECT MAX(b) FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
+DROP TABLE t1;
 create table t2 (ff double);
 insert into t2 values (2.2);
 select cast(sum(distinct ff) as decimal(5,2)) from t2;

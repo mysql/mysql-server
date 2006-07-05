@@ -3,6 +3,7 @@
 # Taken FROM the select test
 #
 -- source include/have_archive.inc
+-- source include/have_binlog_format_statement.inc
 
 --disable_warnings
 drop table if exists t1,t2,t3;
@@ -1330,12 +1331,14 @@ SELECT * FROM t2;
 #
 # For bug #12836
 # Delete was allowing all rows to be removed
+--error 1031
 DELETE FROM t2;
 SELECT * FROM t2;
 INSERT INTO t2 VALUES (2,011401,37,'breaking','dreaded','Steinberg','W');
 INSERT INTO t2 VALUES (3,011402,37,'Romans','scholastics','jarring','');
 INSERT INTO t2 VALUES (4,011403,37,'intercepted','audiology','tinily','');
 SELECT * FROM t2;
+--error 1031
 TRUNCATE TABLE t2;
 SELECT * FROM t2;
 

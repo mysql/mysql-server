@@ -741,8 +741,7 @@ log_init(void)
 
 	log_sys = mem_alloc(sizeof(log_t));
 
-	mutex_create(&(log_sys->mutex));
-	mutex_set_level(&(log_sys->mutex), SYNC_LOG);
+	mutex_create(&log_sys->mutex, SYNC_LOG);
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -798,8 +797,7 @@ log_init(void)
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
 	log_sys->n_pending_checkpoint_writes = 0;
 
-	rw_lock_create(&(log_sys->checkpoint_lock));
-	rw_lock_set_level(&(log_sys->checkpoint_lock), SYNC_NO_ORDER_CHECK);
+	rw_lock_create(&log_sys->checkpoint_lock, SYNC_NO_ORDER_CHECK);
 
 	log_sys->checkpoint_buf = ut_align(
 				mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE),
@@ -815,8 +813,7 @@ log_init(void)
 
 	log_sys->n_pending_archive_ios = 0;
 
-	rw_lock_create(&(log_sys->archive_lock));
-	rw_lock_set_level(&(log_sys->archive_lock), SYNC_NO_ORDER_CHECK);
+	rw_lock_create(&log_sys->archive_lock, SYNC_NO_ORDER_CHECK);
 
 	log_sys->archive_buf = NULL;
 

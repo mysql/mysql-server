@@ -174,11 +174,6 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const byte *rec1, const byte *rec2)
   FT_SEG_ITERATOR ftsi1, ftsi2;
   CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
   DBUG_ENTER("_mi_ft_cmp");
-#ifndef MYSQL_HAS_TRUE_CTYPE_IMPLEMENTATION
-  if (cs->mbmaxlen > 1)
-    DBUG_RETURN(THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT);
-#endif
-
   _mi_ft_segiterator_init(info, keynr, rec1, &ftsi1);
   _mi_ft_segiterator_init(info, keynr, rec2, &ftsi2);
 

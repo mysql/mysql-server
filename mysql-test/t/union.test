@@ -793,3 +793,51 @@ select id from t1 union all select 99 order by 1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug#18175: Union select over 129 tables with a sum function fails.
+#
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1));
+

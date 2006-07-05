@@ -365,19 +365,19 @@ on schedule every 10 hour
 disable
 do
 select 1;
-select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
-event_schema	event_name	definer	event_body
+select event_schema, event_name, definer, event_definition from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_definition
 events_test	white_space	root@localhost	select 1
 drop event white_space;
 create event white_space on schedule every 10 hour disable do
 select 2;
-select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
-event_schema	event_name	definer	event_body
+select event_schema, event_name, definer, event_definition from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_definition
 events_test	white_space	root@localhost	select 2
 drop event white_space;
 create event white_space on schedule every 10 hour disable do	select 3;
-select event_schema, event_name, definer, event_body from information_schema.events where event_name='white_space';
-event_schema	event_name	definer	event_body
+select event_schema, event_name, definer, event_definition from information_schema.events where event_name='white_space';
+event_schema	event_name	definer	event_definition
 events_test	white_space	root@localhost	select 3
 drop event white_space;
 create event e1 on schedule every 1 year do set @a = 5;

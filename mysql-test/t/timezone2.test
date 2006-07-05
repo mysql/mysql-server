@@ -69,7 +69,7 @@ set time_zone='UTC';
 
 select * from t1;
 
-delete from t1;
+truncate table t1;
 
 # Simple check for 'Europe/Moscow' time zone just for showing that it works
 set time_zone='Europe/Moscow';
@@ -79,7 +79,7 @@ insert into t1 (i, ts) values
   (unix_timestamp('2004-08-01 00:00:00'),'2003-08-01 00:00:00'),
   (unix_timestamp('2004-10-31 02:30:00'),'2004-10-31 02:30:00');
 select * from t1;
-delete from t1;
+truncate table t1;
 
 
 #
@@ -94,7 +94,7 @@ insert into t1 (i, ts) values
   (unix_timestamp('2004-08-01 00:00:00'),'2003-08-01 00:00:00'),
   (unix_timestamp('2004-10-31 02:30:00'),'2004-10-31 02:30:00');
 select * from t1;
-delete from t1;
+truncate table t1;
 # Let us test leap jump
 insert into t1 (i, ts) values
   (unix_timestamp('1981-07-01 03:59:59'),'1981-07-01 03:59:59'),
@@ -115,14 +115,14 @@ insert into t1 values ('0000-00-00 00:00:00'),('1969-12-31 23:59:59'),
                       ('1970-01-01 00:00:00'),('1970-01-01 00:00:01'),
                       ('2037-12-31 23:59:59'),('2038-01-01 00:00:00');
 select * from t1;
-delete from t1;
+truncate table t1;
 # MET time zone has range shifted by one hour
 set time_zone='MET';
 insert into t1 values ('0000-00-00 00:00:00'),('1970-01-01 00:30:00'),
                       ('1970-01-01 01:00:00'),('1970-01-01 01:00:01'),
                       ('2038-01-01 00:59:59'),('2038-01-01 01:00:00');
 select * from t1;
-delete from t1;
+truncate table t1;
 # same for +01:30 time zone
 set time_zone='+01:30';
 insert into t1 values ('0000-00-00 00:00:00'),('1970-01-01 01:00:00'),

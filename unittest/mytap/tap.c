@@ -199,8 +199,8 @@ int exit_status() {
 
   if (g_test.plan != g_test.last)
   {
-    diag("%d tests planned but only %d executed",
-         g_test.plan, g_test.last);
+    diag("%d tests planned but%s %d executed",
+         g_test.plan, (g_test.plan > g_test.last ? " only" : ""), g_test.last);
     return EXIT_FAILURE;
   }
 

@@ -24,6 +24,30 @@
 	/* Some functions to calculate dates */
 
 #ifndef TESTTIME
+
+LEX_STRING interval_type_to_name[INTERVAL_LAST] = {
+  { C_STRING_WITH_LEN("YEAR")},
+  { C_STRING_WITH_LEN("QUARTER")},
+  { C_STRING_WITH_LEN("MONTH")},
+  { C_STRING_WITH_LEN("DAY")},
+  { C_STRING_WITH_LEN("HOUR")},
+  { C_STRING_WITH_LEN("MINUTE")},
+  { C_STRING_WITH_LEN("WEEK")},
+  { C_STRING_WITH_LEN("SECOND")},
+  { C_STRING_WITH_LEN("MICROSECOND")},
+  { C_STRING_WITH_LEN("YEAR_MONTH")},
+  { C_STRING_WITH_LEN("DAY_HOUR")},
+  { C_STRING_WITH_LEN("DAY_MINUTE")},
+  { C_STRING_WITH_LEN("DAY_SECOND")},
+  { C_STRING_WITH_LEN("HOUR_MINUTE")},
+  { C_STRING_WITH_LEN("HOUR_SECOND")},
+  { C_STRING_WITH_LEN("MINUTE_SECOND")},
+  { C_STRING_WITH_LEN("DAY_MICROSECOND")},
+  { C_STRING_WITH_LEN("HOUR_MICROSECOND")},
+  { C_STRING_WITH_LEN("MINUTE_MICROSECOND")},
+  { C_STRING_WITH_LEN("SECOND_MICROSECOND")}
+}; 
+
 	/* Calc weekday from daynr */
 	/* Returns 0 for monday, 1 for tuesday .... */
 
@@ -909,5 +933,37 @@ calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign, longlong *seconds_out,
   return neg;
 }
 
+
+/*
+  Compares 2 TIME structures
+
+  SYNOPSIS
+    my_time_compare()
+
+      a - first time
+      b - second time
+
+  RETURN VALUE
+   -1   - a < b
+    0   - a == b
+    1   - a > b
+
+  NOTES
+    TIME.second_part is not considered during comparison
+*/
+
+int
+my_time_compare(TIME *a, TIME *b)
+{
+  my_ulonglong a_t= TIME_to_ulonglong_datetime(a);
+  my_ulonglong b_t= TIME_to_ulonglong_datetime(b);
+
+  if (a_t > b_t)
+    return 1;
+  else if (a_t < b_t)
+    return -1;
+
+  return 0;
+}
 
 #endif

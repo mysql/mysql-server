@@ -482,6 +482,10 @@ AM_PROG_CC_STDC
 
 # We need an assembler, too
 AM_PROG_AS
+CCASFLAGS="$CCASFLAGS $ASFLAGS"
+
+# Check if we need noexec stack for assembler
+AC_CHECK_NOEXECSTACK
 
 if test "$am_cv_prog_cc_stdc" = "no"
 then
@@ -2474,10 +2478,6 @@ AC_SUBST(netware_dir)
 AC_SUBST(linked_netware_sources)
 AM_CONDITIONAL(HAVE_NETWARE, test "$netware_dir" = "netware")
 
-# Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
-export CC CXX CFLAGS CXXFLAGS LD LDFLAGS AR
-ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'"
-
 if test "$with_server" = "yes" -o "$THREAD_SAFE_CLIENT" != "no"
 then
   AC_DEFINE([THREAD], [1],
@@ -2527,22 +2527,6 @@ AC_SUBST(CC)
 AC_SUBST(GXX)
 
 # Set configuration options for make_binary_distribution
-
-CONF_ARGS=
-case $SYSTEM_TYPE in
-  *netware*)
-    MAKE_BINARY_DISTRIBUTION_OPTIONS=--no-strip
-    CONF_ARGS=--host="$MACHINE_TYPE-$SYSTEM_TYPE"
-    ;;
-  *)
-    MAKE_BINARY_DISTRIBUTION_OPTIONS=
-    ;;
-esac
-
-for CONF in $other_configures; do
-  (cd `dirname $CONF`; ./`basename $CONF` $CONF_ARGS --build=$build_alias)
-done
-
 AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 
 # Output results
@@ -2559,8 +2543,13 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  support-files/MacOSX/Makefile mysql-test/Makefile dnl
  mysql-test/ndb/Makefile netware/Makefile dnl
  include/mysql_version.h plugin/Makefile win/Makefile)
- AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
- AC_OUTPUT
+
+AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
+
+# Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
+AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'")
+
+AC_OUTPUT
 
 echo
 echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"

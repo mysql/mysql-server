@@ -50,3 +50,20 @@ venue_id	venue_text	dt	name	entity_id
 1	a1	2003-05-23 19:30:00	aberdeen town hall	1
 NULL	a2	2003-05-23 19:30:00	NULL	NULL
 drop table t1,t2;
+create table t1 (id int not null primary key, d char(200) not null, e char(200));
+insert into t1 values (1, 'aword', null), (2, 'aword', 'bword'), (3, 'bword', null), (4, 'bword', 'aword'), (5, 'aword and bword', null);
+select * from t1 where match(d, e) against ('+aword +bword' in boolean mode);
+id	d	e
+2	aword	bword
+4	bword	aword
+5	aword and bword	NULL
+create table t2 (m_id int not null, f char(200), key (m_id));
+insert into t2 values (1, 'bword'), (3, 'aword'), (5, '');
+select * from t1 left join t2 on m_id = id where match(d, e, f) against ('+aword +bword' in boolean mode);
+id	d	e	m_id	f
+1	aword	NULL	1	bword
+2	aword	bword	NULL	NULL
+3	bword	NULL	3	aword
+4	bword	aword	NULL	NULL
+5	aword and bword	NULL	5	
+drop table t1,t2;

@@ -1,7 +1,0 @@
-#!/bin/sh
-
-#
-# Change linefeed -> return+linefeed for all VC++ project files
-# 
-
-find . \( -name "*.dsp" -o -name "*.dsw" \) -print | grep -v "SCCS" | xargs replace '\r\$' '' '\$' '' --

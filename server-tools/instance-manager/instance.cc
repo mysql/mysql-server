@@ -37,7 +37,7 @@
 
 
 const LEX_STRING
-Instance::DFLT_INSTANCE_NAME= { C_STRING_WITH_SIZE("mysqld") };
+Instance::DFLT_INSTANCE_NAME= { C_STRING_WITH_LEN("mysqld") };
 
 static const char * const INSTANCE_NAME_PREFIX= Instance::DFLT_INSTANCE_NAME.str;
 static const int INSTANCE_NAME_PREFIX_LEN= Instance::DFLT_INSTANCE_NAME.length;

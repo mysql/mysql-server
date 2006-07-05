@@ -21,11 +21,14 @@
 #   - server_id
 #   - port
 #   - nonguarded
-
+#
 # Let's test SET statement on the option 'server_id'. It's expected that
 # originally the instances have the following server ids and states:
 #  - mysqld1: server_id: 1; running (online)
 #  - mysqld2: server_id: 2; stopped (offline)
+#
+# NOTE: each CREATE INSTANCE statement must specify socket-file-name, otherwise
+# this results of the test can be affected by another running test suite.
 #
 ###########################################################################
 
@@ -76,7 +79,10 @@ SET mysqld1.server_id = 11;
 #   - start it;
 #   - try to set/unset options;
 
-CREATE INSTANCE mysqld3 datadir = '/';
+CREATE INSTANCE mysqld3
+  datadir = '/',
+  server_id = 3,
+  socket = "$MYSQL_TMP_DIR/mysqld_3.sock";
 START INSTANCE mysqld3;
 
 # FIXME: START INSTANCE should be synchronous.

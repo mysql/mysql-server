@@ -6,6 +6,9 @@
 drop table if exists t1,t2;
 --enable_warnings
 
+# Set timezone to GMT-3, to make it possible to use "interval 3 hour"
+set time_zone="+03:00";
+
 CREATE TABLE t1 (a int, t timestamp);
 CREATE TABLE t2 (a int, t datetime);
 SET TIMESTAMP=1234;
@@ -41,7 +44,7 @@ drop table t1;
 create table t1 (ix timestamp);
 insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000);
 select ix+0 from t1;
-delete from t1;
+truncate table t1;
 insert into t1 values ("19991101000000"),("19990102030405"),("19990630232922"),("19990601000000");
 select ix+0 from t1;
 drop table t1;
@@ -82,10 +85,10 @@ drop table t1;
 create table t1 (ix timestamp);
 insert into t1 values (0),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101),(20031200000000),(20030000000000);
 select ix+0 from t1;
-delete from t1;
+truncate table t1;
 insert into t1 values ("00000000000000"),("20030101010160"),("20030101016001"),("20030101240101"),("20030132010101"),("20031301010101"),("20031200000000"),("20030000000000");
 select ix+0 from t1;
-delete from t1;
+truncate table t1;
 insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
 select ix+0 from t1;
 drop table t1;
@@ -186,7 +189,7 @@ insert into t1 (t1) values (default);
 select * from t1;
 show create table t1;
 show columns from t1;
-delete from t1;
+truncate table t1;
 
 # 
 # Let us test some cases when auto-set should be disabled or influence
@@ -322,3 +325,6 @@ select * from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+# Restore timezone to default
+set time_zone= @@global.time_zone;

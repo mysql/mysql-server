@@ -61,7 +61,7 @@ Hybrid_type_traits::val_decimal(Hybrid_type *val, my_decimal *to) const
 String *
 Hybrid_type_traits::val_str(Hybrid_type *val, String *to, uint8 decimals) const
 {
-  to->set(val->real, decimals, &my_charset_bin);
+  to->set_real(val->real, decimals, &my_charset_bin);
   return to;
 }
 
@@ -202,7 +202,7 @@ String *Item::val_string_from_real(String *str)
   double nr= val_real();
   if (null_value)
     return 0;					/* purecov: inspected */
-  str->set(nr,decimals, &my_charset_bin);
+  str->set_real(nr,decimals, &my_charset_bin);
   return str;
 }
 
@@ -212,10 +212,7 @@ String *Item::val_string_from_int(String *str)
   longlong nr= val_int();
   if (null_value)
     return 0;
-  if (unsigned_flag)
-    str->set((ulonglong) nr, &my_charset_bin);
-  else
-    str->set(nr, &my_charset_bin);
+  str->set_int(nr, unsigned_flag, &my_charset_bin);
   return str;
 }
 
@@ -2041,7 +2038,7 @@ String *Item_float::val_str(String *str)
 {
   // following assert is redundant, because fixed=1 assigned in constructor
   DBUG_ASSERT(fixed == 1);
-  str->set(value,decimals,&my_charset_bin);
+  str->set_real(value,decimals,&my_charset_bin);
   return str;
 }
 
@@ -2636,7 +2633,7 @@ String *Item_param::val_str(String* str)
   case LONG_DATA_VALUE:
     return &str_value_ptr;
   case REAL_VALUE:
-    str->set(value.real, NOT_FIXED_DEC, &my_charset_bin);
+    str->set_real(value.real, NOT_FIXED_DEC, &my_charset_bin);
     return str;
   case INT_VALUE:
     str->set(value.integer, &my_charset_bin);
@@ -2676,7 +2673,7 @@ const String *Item_param::query_val_str(String* str) const
     str->set(value.integer, &my_charset_bin);
     break;
   case REAL_VALUE:
-    str->set(value.real, NOT_FIXED_DEC, &my_charset_bin);
+    str->set_real(value.real, NOT_FIXED_DEC, &my_charset_bin);
     break;
   case DECIMAL_VALUE:
     if (my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value,
@@ -4329,7 +4326,7 @@ void Item_float::print(String *str)
   }
   char buffer[20];
   String num(buffer, sizeof(buffer), &my_charset_bin);
-  num.set(value, decimals, &my_charset_bin);
+  num.set_real(value, decimals, &my_charset_bin);
   str->append(num);
 }
 
@@ -5771,7 +5768,7 @@ longlong Item_cache_real::val_int()
 String* Item_cache_real::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  str->set(value, decimals, default_charset());
+  str->set_real(value, decimals, default_charset());
   return str;
 }
 

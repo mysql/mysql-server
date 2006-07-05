@@ -126,7 +126,26 @@ show slave status;
 show binlog events in 'slave-bin.000005' from 4;
 
 # The table drops caused Cluster Replication wrapper to fail as event ID would never be the same.# Moving drops here.
-connection master;
+
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+
+#
+# Bug #6880: LAST_INSERT_ID() within a statement
+#
+
+create table t1(a int auto_increment primary key, b int);
+insert into t1 values (NULL, 1);
+reset master;
+set insert_id=5;
+insert into t1 values (NULL, last_insert_id()), (NULL, last_insert_id());
+--replace_result $VERSION VERSION
+--replace_column 2 # 5 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
+show binlog events;
+select * from t1;
+drop table t1;
+
+# End of 4.1 tests
+

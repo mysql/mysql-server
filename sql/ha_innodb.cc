@@ -135,6 +135,7 @@ extern "C" {
 #include "../storage/innobase/include/fil0fil.h"
 #include "../storage/innobase/include/trx0xa.h"
 #include "../storage/innobase/include/thr0loc.h"
+#include "../storage/innobase/include/ha_prototypes.h"
 }
 
 #define HA_INNOBASE_ROWS_IN_TABLE 10000 /* to get optimization right */
@@ -668,6 +669,61 @@ innobase_get_cset_width(
 }
 
 /**********************************************************************
+Converts an identifier to a table name.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+void
+innobase_convert_from_table_id(
+/*===========================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len)	/* in: length of 'to', in bytes */
+{
+	uint	errors;
+
+	strconvert(current_thd->charset(), from,
+		   &my_charset_filename, to, len, &errors);
+}
+
+/**********************************************************************
+Converts an identifier to UTF-8.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+void
+innobase_convert_from_id(
+/*=====================*/
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len)	/* in: length of 'to', in bytes */
+{
+	uint	errors;
+
+	strconvert(current_thd->charset(), from,
+		   system_charset_info, to, len, &errors);
+}
+
+/**********************************************************************
+Removes the filename encoding of a table or database name.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+void
+innobase_convert_from_filename(
+/*===========================*/
+	char*		s)	/* in: identifier; out: decoded identifier */
+{
+	uint	errors;
+
+	strconvert(&my_charset_filename, s,
+		   system_charset_info, s, strlen(s), &errors);
+}
+
+/**********************************************************************
 Compares NUL-terminated UTF-8 strings case insensitively.
 
 NOTE that the exact prototype of this function has to be in
@@ -695,6 +751,21 @@ innobase_casedn_str(
 	char*	a)	/* in/out: string to put in lower case */
 {
 	my_casedn_str(system_charset_info, a);
+}
+
+/**************************************************************************
+Determines the connection character set.
+
+NOTE that the exact prototype of this function has to be in
+/innobase/dict/dict0dict.c! */
+extern "C"
+struct charset_info_st*
+innobase_get_charset(
+/*=================*/
+				/* out: connection character set */
+	void*	mysql_thd)	/* in: MySQL thread handle */
+{
+	return(((THD*) mysql_thd)->charset());
 }
 
 /*************************************************************************
@@ -740,6 +811,25 @@ innobase_mysql_tmpfile(void)
 		my_close(fd, MYF(MY_WME));
 	}
 	return(fd2);
+}
+
+/*************************************************************************
+Wrapper around MySQL's copy_and_convert function, see it for
+documentation. */
+extern "C"
+ulint
+innobase_convert_string(
+/*====================*/
+	void*		to,
+	ulint		to_length,
+	CHARSET_INFO*	to_cs,
+	const void*	from,
+	ulint		from_length,
+	CHARSET_INFO*	from_cs,
+	uint*		errors)
+{
+	return(copy_and_convert((char*)to, to_length, to_cs,
+		       (const char*)from, from_length, from_cs, errors));
 }
 
 /*************************************************************************
@@ -1076,23 +1166,69 @@ innobase_invalidate_query_cache(
 }
 
 /*********************************************************************
-Get the quote character to be used in SQL identifiers.
+Display an SQL identifier.
 This definition must match the one in innobase/ut/ut0ut.c! */
 extern "C"
-int
-mysql_get_identifier_quote_char(
-/*============================*/
-				/* out: quote character to be
-				used in SQL identifiers; EOF if none */
+void
+innobase_print_identifier(
+/*======================*/
+	FILE*		f,	/* in: output stream */
 	trx_t*		trx,	/* in: transaction */
+	ibool		table_id,/* in: TRUE=decode table name */
 	const char*	name,	/* in: name to print */
 	ulint		namelen)/* in: length of name */
 {
-	if (!trx || !trx->mysql_thd) {
-		return(EOF);
+	const char*	s	= name;
+	char*		qname	= NULL;
+	int		q;
+
+	if (table_id) {
+		/* Decode the table name.  The filename_to_tablename()
+		function expects a NUL-terminated string.  The input and
+		output strings buffers must not be shared.  The function
+		only produces more output when the name contains other
+		characters than [0-9A-Z_a-z]. */
+		char*	temp_name = my_malloc(namelen + 1, MYF(MY_WME));
+		uint	qnamelen = namelen
+				+ (1 + sizeof srv_mysql50_table_name_prefix);
+
+		if (temp_name) {
+			qname = my_malloc(qnamelen, MYF(MY_WME));
+			if (qname) {
+				memcpy(temp_name, name, namelen);
+				temp_name[namelen] = 0;
+				s = qname;
+				namelen = filename_to_tablename(temp_name,
+						qname, qnamelen);
+			}
+			my_free(temp_name, MYF(0));
+		}
 	}
-	return(get_quote_char_for_identifier((THD*) trx->mysql_thd,
-						name, (int) namelen));
+
+	if (!trx || !trx->mysql_thd) {
+
+		q = '"';
+	} else {
+		q = get_quote_char_for_identifier((THD*) trx->mysql_thd,
+						s, (int) namelen);
+	}
+
+	if (q == EOF) {
+		fwrite(s, 1, namelen, f);
+	} else {
+		const char*	e = s + namelen;
+		putc(q, f);
+		while (s < e) {
+			int	c = *s++;
+			if (c == q) {
+				putc(c, f);
+			}
+			putc(c, f);
+		}
+		putc(q, f);
+	}
+
+	my_free(qname, MYF(MY_ALLOW_ZERO_PTR));
 }
 
 /**************************************************************************
@@ -1231,6 +1367,24 @@ innobase_init(void)
 	   DBUG_RETURN(0); // nothing else to do
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
+
+#ifdef UNIV_DEBUG
+	static const char	test_filename[] = "-@";
+	char			test_tablename[sizeof test_filename
+				+ sizeof srv_mysql50_table_name_prefix];
+	if ((sizeof test_tablename) - 1
+			!= filename_to_tablename(test_filename, test_tablename,
+			sizeof test_tablename)
+			|| strncmp(test_tablename,
+			srv_mysql50_table_name_prefix,
+			sizeof srv_mysql50_table_name_prefix)
+			|| strcmp(test_tablename
+			+ sizeof srv_mysql50_table_name_prefix,
+			test_filename)) {
+		sql_print_error("tablename encoding has been changed");
+		goto error;
+	}
+#endif /* UNIV_DEBUG */
 
 	/* Check that values don't overflow on 32-bit systems. */
 	if (sizeof(ulint) == 4) {
@@ -2200,8 +2354,7 @@ ha_innobase::open(
 
 	/* Get pointer to a table object in InnoDB dictionary cache */
 
-	ib_table = dict_table_get_and_increment_handle_count(
-		norm_name, NULL);
+	ib_table = dict_table_get_and_increment_handle_count(norm_name);
 
 	if (NULL == ib_table) {
 		ut_print_timestamp(stderr);
@@ -4116,6 +4269,9 @@ ha_innobase::index_prev(
 	mysql_byte*	buf)	/* in/out: buffer for previous row in MySQL
 				format */
 {
+	statistic_increment(current_thd->status_var.ha_read_prev_count,
+		&LOCK_status);
+
 	return(general_fetch(buf, ROW_SEL_PREV, 0));
 }
 
@@ -4652,7 +4808,7 @@ ha_innobase::create(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -4748,20 +4904,9 @@ ha_innobase::create(
 		}
 	}
 
-	if (current_thd->query != NULL) {
-		LEX_STRING q;
-
-		if (thd->convert_string(&q, system_charset_info,
-					current_thd->query,
-					current_thd->query_length,
-					current_thd->charset())) {
-			error = HA_ERR_OUT_OF_MEM;
-
-			goto cleanup;
-		}
-
+	if (thd->query != NULL) {
 		error = row_table_add_foreign_constraints(trx,
-			q.str, norm_name,
+			thd->query, norm_name,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
 		error = convert_error_code_to_mysql(error, NULL);
@@ -4781,7 +4926,7 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_get(norm_name, NULL);
+	innobase_table = dict_table_get(norm_name);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -4917,7 +5062,7 @@ ha_innobase::delete_table(
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
-	parent_trx = check_trx_exists(current_thd);
+	parent_trx = check_trx_exists(thd);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -6765,17 +6910,28 @@ ha_innobase::store_lock(
 		stored function call (MySQL does have thd->in_lock_tables
 		TRUE there). */
 
-		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT
-		&& lock_type <= TL_WRITE)
-		&& !(thd->in_lock_tables
-			&& thd->lex->sql_command == SQLCOM_LOCK_TABLES)
-		&& !thd->tablespace_op
-		&& thd->lex->sql_command != SQLCOM_TRUNCATE
-		&& thd->lex->sql_command != SQLCOM_OPTIMIZE
-		&& thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
+    		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT
+		    && lock_type <= TL_WRITE)
+		    && !(thd->in_lock_tables
+			    && thd->lex->sql_command == SQLCOM_LOCK_TABLES)
+		    && !thd->tablespace_op
+		    && thd->lex->sql_command != SQLCOM_TRUNCATE
+		    && thd->lex->sql_command != SQLCOM_OPTIMIZE
+#ifdef __WIN__
+                /* 
+                   for alter table on win32 for succesfull operation 
+                   completion it is used TL_WRITE(=10) lock instead of
+                   TL_WRITE_ALLOW_READ(=6), however here in innodb handler
+                   TL_WRITE is lifted to TL_WRITE_ALLOW_WRITE, which causes
+                   race condition when several clients do alter table 
+                   simultaneously (bug #17264). This fix avoids the problem.
+                */
+                    && thd->lex->sql_command != SQLCOM_ALTER_TABLE
+#endif
+		    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;
-		}
+      		}
 
 		/* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
 		MySQL would use the lock TL_READ_NO_INSERT on t2, and that

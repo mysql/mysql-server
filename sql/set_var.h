@@ -262,7 +262,7 @@ public:
 
 class sys_var_enum :public sys_var
 {
-  uint	*value; 
+  uint *value;
   TYPELIB *enum_names;
 public:
   sys_var_enum(const char *name_arg, uint *value_arg,
@@ -772,6 +772,38 @@ public:
 };
 
 
+class sys_var_log_state :public sys_var_bool_ptr
+{
+  uint log_type;
+public:
+  sys_var_log_state(const char *name_arg, my_bool *value_arg, uint log_type_arg)
+    :sys_var_bool_ptr(name_arg, value_arg), log_type(log_type_arg) {}
+  bool update(THD *thd, set_var *var);
+  void set_default(THD *thd, enum_var_type type);
+};
+
+
+class sys_var_log_output :public sys_var
+{
+  ulong *value;
+  TYPELIB *enum_names;
+public:
+  sys_var_log_output(const char *name_arg, ulong *value_arg,
+                     TYPELIB *typelib, sys_after_update_func func)
+    :sys_var(name_arg,func), value(value_arg), enum_names(typelib)
+  {}
+  bool check(THD *thd, set_var *var)
+  {
+    return check_set(thd, var, enum_names);
+  }
+  bool update(THD *thd, set_var *var);
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  bool check_update_type(Item_result type) { return 0; }
+  void set_default(THD *thd, enum_var_type type);
+  SHOW_TYPE type() { return SHOW_CHAR; }
+};
+
+
 /* Variable that you can only read from */
 
 class sys_var_readonly: public sys_var
@@ -881,15 +913,20 @@ public:
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
 };
 
+#ifdef HAVE_ROW_BASED_REPLICATION
 extern void fix_binlog_format_after_update(THD *thd, enum_var_type type);
+#endif
 
 class sys_var_thd_binlog_format :public sys_var_thd_enum
 {
 public:
   sys_var_thd_binlog_format(const char *name_arg, ulong SV::*offset_arg)
     :sys_var_thd_enum(name_arg, offset_arg,
-                      &binlog_format_typelib,
-                      fix_binlog_format_after_update)
+                      &binlog_format_typelib
+#ifdef HAVE_ROW_BASED_REPLICATION
+                      , fix_binlog_format_after_update
+#endif
+                      )
   {};
   bool is_readonly() const;
 };
@@ -1067,6 +1104,8 @@ extern sys_var_thd_bit sys_autocommit;
 CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 gptr find_named(I_List<NAMED_LIST> *list, const char *name, uint length,
 		NAMED_LIST **found);
+
+extern sys_var_str sys_var_general_log_path, sys_var_slow_log_path;
 
 /* key_cache functions */
 KEY_CACHE *get_key_cache(LEX_STRING *cache_name);

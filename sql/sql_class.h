@@ -244,6 +244,7 @@ struct system_variables
   my_bool innodb_table_locks;
   my_bool innodb_support_xa;
   my_bool ndb_force_send;
+  my_bool ndb_use_copying_alter_table;
   my_bool ndb_use_exact_count;
   my_bool ndb_use_transactions;
   my_bool ndb_index_stat_enable;
@@ -341,7 +342,6 @@ typedef struct system_status_var
 */
 
 #define last_system_status_var com_stmt_close
-
 
 #ifdef MYSQL_SERVER
 
@@ -692,6 +692,14 @@ public:
      THD::prelocked_mode for more info.)
   */
   MYSQL_LOCK *locked_tables;
+
+  /*
+    CREATE-SELECT keeps an extra lock for the table being
+    created. This field is used to keep the extra lock available for
+    lower level routines, which would otherwise miss that lock.
+   */
+  MYSQL_LOCK *extra_lock;
+
   /*
     prelocked_mode_type enum and prelocked_mode member are used for
     indicating whenever "prelocked mode" is on, and what type of
@@ -744,7 +752,7 @@ public:
   void reset_open_tables_state()
   {
     open_tables= temporary_tables= handler_tables= derived_tables= 0;
-    lock= locked_tables= 0;
+    extra_lock= lock= locked_tables= 0;
     prelocked_mode= NON_PRELOCKED;
     state_flags= 0U;
   }
@@ -762,12 +770,13 @@ class Sub_statement_state
 {
 public:
   ulonglong options;
-  ulonglong last_insert_id, next_insert_id;
+  ulonglong last_insert_id, next_insert_id, current_insert_id;
   ulonglong limit_found_rows;
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
   bool enable_slow_log, insert_id_used, clear_next_insert_id;
+  bool last_insert_id_used;
   my_bool no_send_ok;
   SAVEPOINT *savepoints;
 };
@@ -831,6 +840,7 @@ public:
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
+  struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   THR_LOCK_OWNER main_lock_id;          // To use for conventional queries
   THR_LOCK_OWNER *lock_id;              // If not main_lock_id, points to
@@ -906,8 +916,10 @@ public:
   /* container for handler's private per-connection data */
   void *ha_data[MAX_HA];
 
-#ifdef HAVE_ROW_BASED_REPLICATION
 #ifndef MYSQL_CLIENT
+  int binlog_setup_trx_data();
+
+#ifdef HAVE_ROW_BASED_REPLICATION
 
   /*
     Public interface to write RBR events to the binlog
@@ -937,7 +949,6 @@ public:
 				      RowsEventT* hint);
   Rows_log_event* binlog_get_pending_rows_event() const;
   void            binlog_set_pending_rows_event(Rows_log_event* ev);
-  int             binlog_setup_trx_data();
   
   my_size_t max_row_length_blob(TABLE* table, const byte *data) const;
   my_size_t max_row_length(TABLE* table, const byte *data) const
@@ -958,12 +969,15 @@ public:
 
 private:
   uint binlog_table_maps; // Number of table maps currently in the binlog
-
 public:
-
-#endif
+  uint get_binlog_table_maps() const {
+    return binlog_table_maps;
+  }
 #endif /* HAVE_ROW_BASED_REPLICATION */
+#endif /* MYSQL_CLIENT */
+
 #ifndef MYSQL_CLIENT
+public:
   enum enum_binlog_query_type {
       /*
         The query can be logged row-based or statement-based
@@ -1304,6 +1318,10 @@ public:
   {
     return !stmt_arena->is_stmt_prepare() && !lex->only_view_structure();
   }
+  inline bool fill_information_schema_tables()
+  {
+    return !stmt_arena->is_stmt_prepare();
+  }
   inline gptr trans_alloc(unsigned int size)
   {
     return alloc_root(&transaction.mem_root,size);
@@ -1397,22 +1415,34 @@ public:
   void restore_sub_statement_state(Sub_statement_state *backup);
   void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
   void restore_active_arena(Query_arena *set, Query_arena *backup);
-#ifdef HAVE_ROW_BASED_REPLICATION
   inline void set_current_stmt_binlog_row_based_if_mixed()
   {
+#ifdef HAVE_ROW_BASED_REPLICATION
     if (variables.binlog_format == BINLOG_FORMAT_MIXED)
-      current_stmt_binlog_row_based= 1;
+      current_stmt_binlog_row_based= TRUE;
+#endif
   }
   inline void set_current_stmt_binlog_row_based()
   {
-    current_stmt_binlog_row_based= 1;
+#ifdef HAVE_ROW_BASED_REPLICATION
+    current_stmt_binlog_row_based= TRUE;
+#endif
+  }
+  inline void clear_current_stmt_binlog_row_based()
+  {
+#ifdef HAVE_ROW_BASED_REPLICATION
+    current_stmt_binlog_row_based= FALSE;
+#endif
   }
   inline void reset_current_stmt_binlog_row_based()
   {
-    current_stmt_binlog_row_based= test(variables.binlog_format ==
-                                        BINLOG_FORMAT_ROW);
+#ifdef HAVE_ROW_BASED_REPLICATION
+    current_stmt_binlog_row_based=
+      test(variables.binlog_format == BINLOG_FORMAT_ROW);
+#else
+    current_stmt_binlog_row_based= FALSE;
+#endif
   }
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 };
 
 
@@ -1586,7 +1616,6 @@ class select_create: public select_insert {
   List<create_field> *extra_fields;
   List<Key> *keys;
   HA_CREATE_INFO *create_info;
-  MYSQL_LOCK *lock;
   Field **field;
 public:
   select_create (TABLE_LIST *table,
@@ -1596,10 +1625,10 @@ public:
 		 List<Item> &select_fields,enum_duplicates duplic, bool ignore)
     :select_insert (NULL, NULL, &select_fields, 0, 0, duplic, ignore),
     create_table(table), extra_fields(&fields_par),keys(&keys_par),
-    create_info(create_info_par),
-    lock(0)
+    create_info(create_info_par)
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
+
   void binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
@@ -1950,8 +1979,16 @@ public:
   void cleanup();
 };
 
+/* Bits in sql_command_flags */
+
+#define CF_CHANGES_DATA		1
+#define CF_HAS_ROW_COUNT	2
+#define CF_STATUS_COMMAND	4
+#define CF_SHOW_TABLE_COMMAND	8
+
 /* Functions in sql_class.cc */
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
-
+void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
+                        STATUS_VAR *dec_var);
 #endif /* MYSQL_SERVER */

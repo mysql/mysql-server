@@ -622,6 +622,7 @@ class ha_ndbcluster: public handler
   int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
 
   bool get_error_message(int error, String *buf);
+  ha_rows records();
   void info(uint);
   void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
   int extra(enum ha_extra_function operation);
@@ -651,17 +652,22 @@ class ha_ndbcluster: public handler
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
   int create_handler_files(const char *file, const char *old_name,
                            int action_flag, HA_CREATE_INFO *info);
-  int get_default_no_partitions(ulonglong max_rows);
+  int get_default_no_partitions(HA_CREATE_INFO *info);
   bool get_no_parts(const char *name, uint *no_parts);
   void set_auto_partitions(partition_info *part_info);
+  virtual bool is_fatal_error(int error, uint flags)
+  {
+    if (!handler::is_fatal_error(error, flags) ||
+        error == HA_ERR_NO_PARTITION_FOUND)
+      return FALSE;
+    return TRUE;
+  }
 
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
 
   bool low_byte_first() const;
-
-  virtual bool is_injective() const { return true; }
 
   const char* index_type(uint key_number);
 
@@ -798,7 +804,6 @@ private:
   int get_ndb_value(NdbOperation*, Field *field, uint fieldnr, byte*);
   int get_ndb_partition_id(NdbOperation *);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
-  int get_ndb_blobs_value(NdbBlob *last_ndb_blob);
   int set_primary_key(NdbOperation *op, const byte *key);
   int set_primary_key_from_record(NdbOperation *op, const byte *record);
   int set_index_key_from_record(NdbOperation *op, const byte *record,
@@ -854,7 +859,7 @@ private:
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];
   char m_tabname[FN_HEADLEN];
-  ulong m_table_flags;
+  ulonglong m_table_flags;
   THR_LOCK_DATA m_lock;
   bool m_lock_tuple;
   NDB_SHARE *m_share;
@@ -883,6 +888,7 @@ private:
   ha_rows m_ops_pending;
   bool m_skip_auto_increment;
   bool m_blobs_pending;
+  my_ptrdiff_t m_blobs_offset;
   // memory for blobs in one tuple
   char *m_blobs_buffer;
   uint32 m_blobs_buffer_size;
