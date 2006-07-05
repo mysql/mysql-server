@@ -3442,8 +3442,8 @@ restart:
     // wait for the first event
     thd->proc_info= "Waiting for first event from ndbcluster";
     DBUG_PRINT("info", ("Waiting for the first event"));
-    int schema_res= 0;
-    Uint64 schema_gci= 0;
+    int schema_res= 0, res= 0;
+    Uint64 schema_gci= 0, gci= 0;
     while (schema_res == 0 && !abort_loop)
     {
       schema_res= s_ndb->pollEvents(100, &schema_gci);
@@ -3452,7 +3452,14 @@ restart:
     DBUG_PRINT("info", ("schema_res: %d  schema_gci: %d", schema_res, schema_gci));
     if (schema_res > 0)
     {
-      i_ndb->pollEvents(0);
+      while (res >= 0 && gci < schema_gci && !abort_loop)
+      {
+        res= i_ndb->pollEvents(100, &gci);
+      }
+      if (gci > schema_gci)
+      {
+        schema_gci= gci;
+      }
       i_ndb->flushIncompleteEvents(schema_gci);
       s_ndb->flushIncompleteEvents(schema_gci);
       if (schema_gci < ndb_latest_handled_binlog_epoch)
