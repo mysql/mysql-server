@@ -3716,14 +3716,15 @@ sub_part_definition:
         {
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
-          partition_element *p_elem= new partition_element();
-          if (!p_elem ||
-           part_info->current_partition->subpartitions.push_back(p_elem))
+          partition_element *curr_part= part_info->current_partition;
+          partition_element *sub_p_elem= new partition_element(curr_part);
+          if (!sub_p_elem ||
+           curr_part->subpartitions.push_back(sub_p_elem))
           {
             mem_alloc_error(sizeof(partition_element));
             YYABORT;
           }
-          part_info->curr_part_elem= p_elem;
+          part_info->curr_part_elem= sub_p_elem;
           part_info->use_default_subpartitions= FALSE;
           part_info->use_default_no_subpartitions= FALSE;
           part_info->count_curr_subparts++;
