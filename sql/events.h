@@ -75,7 +75,7 @@ public:
   get_instance();
 
   int
-  create_event(THD *thd, Event_parse_data *parse_data, uint create_options,
+  create_event(THD *thd, Event_parse_data *parse_data, bool if_exists,
                uint *rows_affected);
 
   int
@@ -83,7 +83,7 @@ public:
                uint *rows_affected);
 
   int
-  drop_event(THD *thd, sp_name *name, bool drop_if_exists, uint *rows_affected);
+  drop_event(THD *thd, sp_name *name, bool if_exists, uint *rows_affected);
 
   int
   drop_schema_events(THD *thd, char *db);
@@ -105,9 +105,9 @@ public:
   int
   dump_internal_status(THD *thd);
 
+  Event_queue         *event_queue;
+  Event_scheduler_ng  *scheduler_ng;
   Event_db_repository *db_repository;
-  Event_queue *event_queue;
-  Event_scheduler_ng *scheduler_ng;
 
 private:
   /* Singleton DP is used */

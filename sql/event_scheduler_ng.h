@@ -48,10 +48,10 @@ public:
   run(THD *thd);
   
   bool 
-  init(Event_queue *queue);
+  init_scheduler(Event_queue *queue);
 
   void
-  deinit();
+  deinit_scheduler();
 
   void
   init_mutexes();
@@ -78,9 +78,6 @@ private:
   bool
   execute_top(THD *thd, Event_timed *job_data);
 
-  void
-  stop_all_running_events(THD *thd);
-
   /* helper functions for working with mutexes & conditionals */
   void
   lock_data(const char *func, uint line);
@@ -104,7 +101,6 @@ private:
   pthread_cond_t COND_state;
   
   Event_queue *queue;
-  Event_db_repository *db_repository;
 
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;
