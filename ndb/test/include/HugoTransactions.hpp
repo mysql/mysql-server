@@ -28,9 +28,6 @@ public:
   HugoTransactions(const NdbDictionary::Table&,
 		   const NdbDictionary::Index* idx = 0);
   ~HugoTransactions();
-  int createEvent(Ndb*);
-  int eventOperation(Ndb*, void* stats,
-		     int records);
   int loadTable(Ndb*, 
 		int records,
 		int batch = 512,
