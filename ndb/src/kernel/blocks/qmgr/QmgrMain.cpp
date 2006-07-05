@@ -2340,7 +2340,6 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   failedNodePtr.p->failState = WAITING_FOR_FAILCONF1;
   sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBA);
-  sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
 
   /**-------------------------------------------------------------------------
    * THE OTHER NODE WAS AN API NODE. THE COMMUNICATION LINK IS ALREADY 

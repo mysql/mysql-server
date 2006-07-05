@@ -15,7 +15,6 @@ ndbapi/NdbApi.hpp \
 ndbapi/NdbTransaction.hpp \
 ndbapi/NdbDictionary.hpp \
 ndbapi/NdbError.hpp \
-ndbapi/NdbEventOperation.hpp \
 ndbapi/NdbIndexOperation.hpp \
 ndbapi/NdbOperation.hpp \
 ndbapi/ndb_cluster_connection.hpp \

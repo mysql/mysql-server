@@ -661,29 +661,11 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   case GSN_CREATE_INDX_REF:
   case GSN_DROP_INDX_CONF:
   case GSN_DROP_INDX_REF:
-  case GSN_CREATE_EVNT_CONF:
-  case GSN_CREATE_EVNT_REF:
-  case GSN_DROP_EVNT_CONF:
-  case GSN_DROP_EVNT_REF:
   case GSN_LIST_TABLES_CONF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
     break;
     
-  case GSN_SUB_META_DATA:
-  case GSN_SUB_REMOVE_CONF:
-  case GSN_SUB_REMOVE_REF:
-    break; // ignore these signals
-  case GSN_SUB_GCP_COMPLETE_REP:
-  case GSN_SUB_START_CONF:
-  case GSN_SUB_START_REF:
-  case GSN_SUB_TABLE_DATA:
-  case GSN_SUB_STOP_CONF:
-  case GSN_SUB_STOP_REF:
-    NdbDictInterface::execSignal(&theDictionary->m_receiver,
-				 aSignal, ptr);
-    break;
-
   case GSN_DIHNDBTAMPER:
     {
       tFirstDataPtr = int2void(tFirstData);
