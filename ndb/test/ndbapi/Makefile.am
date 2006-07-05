@@ -31,13 +31,11 @@ testSystemRestart \
 testTimeout \
 testTransactions \
 testDeadlock \
-test_event ndbapi_slow_select testReadPerf testLcp \
+ndbapi_slow_select testReadPerf testLcp \
 testPartitioning \
 testBitfield \
 DbCreate DbAsyncGenerator \
-test_event_multi_table \
-testSRBank \
-test_event_merge
+testSRBank
 
 #flexTimedAsynch
 #testBlobs
