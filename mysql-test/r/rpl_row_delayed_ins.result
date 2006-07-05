@@ -17,8 +17,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	102	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	102	Query	1	222	use `test`; create table t1(a int not null primary key) engine=myisam
 master-bin.000001	222	Table_map	1	261	table_id: # (test.t1)
-master-bin.000001	261	Write_rows	1	305	table_id: # flags: STMT_END_F
-master-bin.000001	305	Query	1	380	use `test`; flush tables
+master-bin.000001	261	Write_rows	1	295	table_id: # flags: STMT_END_F
+master-bin.000001	295	Table_map	1	334	table_id: # (test.t1)
+master-bin.000001	334	Write_rows	1	373	table_id: # flags: STMT_END_F
+master-bin.000001	373	Query	1	448	use `test`; flush tables
 SELECT * FROM t1 ORDER BY a;
 a
 1
