@@ -15,11 +15,13 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #if defined(__i386__) || defined(_M_IX86)
+
 #ifdef MY_ATOMIC_MODE_DUMMY
 #  define LOCK ""
 #else
-#  define LOCK "lock "
+#  define LOCK "lock"
 #endif
+
 #ifdef __GNUC__
 #include "x86-gcc.h"
 #elif defined(_MSC_VER)
@@ -27,7 +29,7 @@
 #endif
 #endif
 
-#ifdef make_atomic_add_body
+#ifdef make_atomic_cas_body
 
 typedef struct { } my_atomic_rwlock_t;
 #define my_atomic_rwlock_destroy(name)
