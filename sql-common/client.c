@@ -130,6 +130,8 @@ static void mysql_close_free(MYSQL *mysql);
 static int wait_for_data(my_socket fd, uint timeout);
 #endif
 
+CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
+
 
 /****************************************************************************
   A modified version of connect().  my_connect() allows you to specify
@@ -1431,7 +1433,7 @@ mysql_init(MYSQL *mysql)
     bzero((char*) (mysql), sizeof(*(mysql)));
   mysql->options.connect_timeout= CONNECT_TIMEOUT;
   mysql->last_used_con= mysql->next_slave= mysql->master = mysql;
-  mysql->charset=default_charset_info;
+  mysql->charset=default_client_charset_info;
   strmov(mysql->net.sqlstate, not_error_sqlstate);
   /*
     By default, we are a replication pivot. The caller must reset it
@@ -1659,6 +1661,50 @@ static MYSQL_METHODS client_methods=
   cli_read_binary_rows
 #endif
 };
+
+C_MODE_START
+int mysql_init_character_set(MYSQL *mysql)
+{
+  NET		*net= &mysql->net;
+  /* Set character set */
+  if (!mysql->options.charset_name &&
+      !(mysql->options.charset_name= 
+       my_strdup(MYSQL_DEFAULT_CHARSET_NAME,MYF(MY_WME))))
+    return 1;
+  
+  {
+    const char *save= charsets_dir;
+    if (mysql->options.charset_dir)
+      charsets_dir=mysql->options.charset_dir;
+    mysql->charset=get_charset_by_csname(mysql->options.charset_name,
+                                         MY_CS_PRIMARY, MYF(MY_WME));
+    charsets_dir= save;
+  }
+  
+  if (!mysql->charset)
+  {
+    net->last_errno=CR_CANT_READ_CHARSET;
+    strmov(net->sqlstate, unknown_sqlstate);
+    if (mysql->options.charset_dir)
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(net->last_errno),
+                  mysql->options.charset_name,
+                  mysql->options.charset_dir);
+    else
+    {
+      char cs_dir_name[FN_REFLEN];
+      get_charsets_dir(cs_dir_name);
+      my_snprintf(net->last_error, sizeof(net->last_error)-1,
+                  ER(net->last_errno),
+                  mysql->options.charset_name,
+                  cs_dir_name);
+    }
+    return 1;
+  }
+  return 0;
+}
+C_MODE_END
+
 
 MYSQL *
 CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
@@ -1997,42 +2043,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
 
-  /* Set character set */
-  if (!mysql->options.charset_name &&
-      !(mysql->options.charset_name= 
-       my_strdup(MYSQL_DEFAULT_CHARSET_NAME,MYF(MY_WME))))
+  if (mysql_init_character_set(mysql))
     goto error;
-  
-  {
-    const char *save= charsets_dir;
-    if (mysql->options.charset_dir)
-      charsets_dir=mysql->options.charset_dir;
-    mysql->charset=get_charset_by_csname(mysql->options.charset_name,
-                                         MY_CS_PRIMARY, MYF(MY_WME));
-    charsets_dir= save;
-  }
-  
-  if (!mysql->charset)
-  {
-    net->last_errno=CR_CANT_READ_CHARSET;
-    strmov(net->sqlstate, unknown_sqlstate);
-    if (mysql->options.charset_dir)
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                  ER(net->last_errno),
-                  mysql->options.charset_name,
-                  mysql->options.charset_dir);
-    else
-    {
-      char cs_dir_name[FN_REFLEN];
-      get_charsets_dir(cs_dir_name);
-      my_snprintf(net->last_error, sizeof(net->last_error)-1,
-                  ER(net->last_errno),
-                  mysql->options.charset_name,
-                  cs_dir_name);
-    }
-    goto error;
-  }
-
 
   /* Save connection information */
   if (!my_multi_malloc(MYF(0),
