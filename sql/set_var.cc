@@ -57,7 +57,6 @@
 #include <myisam.h>
 #include <my_dir.h>
 
-#include "event_scheduler.h"
 #include "events.h"
 
 /* WITH_BERKELEY_STORAGE_ENGINE */
@@ -3894,7 +3893,6 @@ bool
 sys_var_event_scheduler::update(THD *thd, set_var *var)
 {
   int res;
-  Event_scheduler *scheduler= Event_scheduler::get_instance();
   /* here start the thread if not running. */
   DBUG_ENTER("sys_var_event_scheduler::update");
   if (Events::opt_event_scheduler == 0)
@@ -3927,8 +3925,6 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
 byte *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
                                          LEX_STRING *base)
 {
-  Event_scheduler *scheduler= Event_scheduler::get_instance();
-
   if (Events::opt_event_scheduler == 0)
     thd->sys_var_tmp.long_value= 0;
   else if (Events::get_instance()->is_started())

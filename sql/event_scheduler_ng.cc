@@ -212,6 +212,7 @@ end:
   pthread_mutex_unlock(&LOCK_thread_count);
 
   my_thread_end();
+  DBUG_RETURN(0);                               // Against gcc warnings
 }
 
 
@@ -296,26 +297,22 @@ end:
   delete event;
 
   my_thread_end();
+  DBUG_RETURN(0);                               // Against gcc warnings
 }
 
 
 bool
-Event_scheduler_ng::init(Event_queue *q)
+Event_scheduler_ng::init_scheduler(Event_queue *q)
 {
   thread_id= 0;
   state= INITIALIZED;
-  /* init memory root */
-
   queue= q;
-
   return FALSE;
 }
 
 
 void
-Event_scheduler_ng::deinit()
-{
-}
+Event_scheduler_ng::deinit_scheduler() {}
 
 
 void
@@ -477,7 +474,6 @@ Event_scheduler_ng::run(THD *thd)
   pthread_cond_signal(&COND_state);
 error:
   state= INITIALIZED;
-  stop_all_running_events(thd);
   UNLOCK_SCHEDULER_DATA();
   sql_print_information("SCHEDULER: Stopped");
 
@@ -561,97 +557,17 @@ Event_scheduler_ng::workers_count()
 
 
 /*
-  Stops all running events
-
-  SYNOPSIS
-    Event_scheduler::stop_all_running_events()
-      thd  Thread
-
-  NOTE
-    LOCK_scheduler data must be acquired prior to call to this method
-*/
-
-void
-Event_scheduler_ng::stop_all_running_events(THD *thd)
-{
-  CHARSET_INFO *scs= system_charset_info;
-  uint i;
-  DYNAMIC_ARRAY running_threads;
-  THD *tmp;
-  DBUG_ENTER("Event_scheduler::stop_all_running_events");
-  DBUG_PRINT("enter", ("workers_count=%d", workers_count()));
-
-  my_init_dynamic_array(&running_threads, sizeof(ulong), 10, 10);
-
-  bool had_super= FALSE;
-  VOID(pthread_mutex_lock(&LOCK_thread_count)); // For unlink from list
-  I_List_iterator<THD> it(threads);
-  while ((tmp=it++))
-  {
-    if (tmp->command == COM_DAEMON)
-      continue;
-    if (tmp->system_thread == SYSTEM_THREAD_EVENT_WORKER)
-      push_dynamic(&running_threads, (gptr) &tmp->thread_id);
-  }
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
-
-  /* We need temporarily SUPER_ACL to be able to kill our offsprings */
-  if (!(thd->security_ctx->master_access & SUPER_ACL))
-    thd->security_ctx->master_access|= SUPER_ACL;
-  else
-    had_super= TRUE;
-
-  char tmp_buff[10*STRING_BUFFER_USUAL_SIZE];
-  char int_buff[STRING_BUFFER_USUAL_SIZE];
-  String tmp_string(tmp_buff, sizeof(tmp_buff), scs);
-  String int_string(int_buff, sizeof(int_buff), scs);
-  tmp_string.length(0);
-
-  for (i= 0; i < running_threads.elements; ++i)
-  {
-    int ret;
-    ulong thd_id= *dynamic_element(&running_threads, i, ulong*);
-
-    int_string.set((longlong) thd_id,scs);
-    tmp_string.append(int_string);
-    if (i < running_threads.elements - 1)
-      tmp_string.append(' ');
-
-    if ((ret= kill_one_thread(thd, thd_id, FALSE)))
-    {
-      sql_print_error("SCHEDULER: Error killing %lu code=%d", thd_id, ret);
-      break;
-    }
-  }
-  if (running_threads.elements)
-    sql_print_information("SCHEDULER: Killing workers :%s", tmp_string.c_ptr());
-
-  if (!had_super)
-    thd->security_ctx->master_access &= ~SUPER_ACL;
-
-  delete_dynamic(&running_threads);
-
-  sql_print_information("SCHEDULER: Waiting for worker threads to finish");
-
-  while (workers_count())
-    my_sleep(100000);
-
-  DBUG_VOID_RETURN;
-}
-
-
-/*
   Signals the main scheduler thread that the queue has changed
   its state.
 
   SYNOPSIS
-    Event_scheduler::queue_changed()
+    Event_scheduler_ng::queue_changed()
 */
 
 void
 Event_scheduler_ng::queue_changed()
 {
-  DBUG_ENTER("Event_scheduler::queue_changed");
+  DBUG_ENTER("Event_scheduler_ng::queue_changed");
   DBUG_PRINT("info", ("Sending COND_state"));
   pthread_cond_signal(&COND_state);
   DBUG_VOID_RETURN;
@@ -662,8 +578,7 @@ void
 Event_scheduler_ng::lock_data(const char *func, uint line)
 {
   DBUG_ENTER("Event_scheduler_ng::lock_mutex");
-  DBUG_PRINT("enter", ("mutex_lock=%p func=%s line=%u",
-             &LOCK_scheduler_state, func, line));
+  DBUG_PRINT("enter", ("func=%s line=%u", func, line));
   pthread_mutex_lock(&LOCK_scheduler_state);
   mutex_last_locked_in_func= func;
   mutex_last_locked_at_line= line;
@@ -675,9 +590,8 @@ Event_scheduler_ng::lock_data(const char *func, uint line)
 void
 Event_scheduler_ng::unlock_data(const char *func, uint line)
 {
-  DBUG_ENTER("Event_scheduler_ng::UNLOCK_mutex");
-  DBUG_PRINT("enter", ("mutex_unlock=%p func=%s line=%u",
-             &LOCK_scheduler_state, func, line));
+  DBUG_ENTER("Event_scheduler_ng::unlock_mutex");
+  DBUG_PRINT("enter", ("func=%s line=%u", func, line));
   mutex_last_unlocked_at_line= line;
   mutex_scheduler_data_locked= FALSE;
   mutex_last_unlocked_in_func= func;

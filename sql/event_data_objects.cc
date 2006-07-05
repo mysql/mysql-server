@@ -530,18 +530,14 @@ Event_parse_data::init_ends(THD *thd, Item *new_ends)
     Event_timed::Event_timed()
 */
 
-Event_timed::Event_timed():in_spawned_thread(0),locked_by_thread_id(0),
-                           running(0), thread_id(0), status_changed(false),
+Event_timed::Event_timed():status_changed(false),
                            last_executed_changed(false), expression(0),
                            created(0), modified(0),
                            on_completion(Event_timed::ON_COMPLETION_DROP),
                            status(Event_timed::ENABLED), sphead(0),
-                           sql_mode(0), dropped(false),
-                           free_sphead_on_delete(true), flags(0)
+                           sql_mode(0), dropped(false), flags(0)
                 
 {
-  pthread_mutex_init(&this->LOCK_running, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&this->COND_finished, NULL);
   init();
 }
 
@@ -555,46 +551,8 @@ Event_timed::Event_timed():in_spawned_thread(0),locked_by_thread_id(0),
 
 Event_timed::~Event_timed()
 {    
-  deinit_mutexes();
   free_root(&mem_root, MYF(0));
-
-  if (free_sphead_on_delete)
-    free_sp();
-}
-
-
-/*
-  Destructor
-
-  SYNOPSIS
-    Event_timed::deinit_mutexes()
-*/
-
-void
-Event_timed::deinit_mutexes()
-{
-  pthread_mutex_destroy(&this->LOCK_running);
-  pthread_cond_destroy(&this->COND_finished);
-}
-
-
-/*
-  Checks whether the event is running
-
-  SYNOPSIS
-    Event_timed::is_running()
-*/
-
-bool
-Event_timed::is_running()
-{
-  bool ret;
-
-  VOID(pthread_mutex_lock(&this->LOCK_running));
-  ret= running;
-  VOID(pthread_mutex_unlock(&this->LOCK_running));
-
-  return ret;
+  free_sp();
 }
 
 
@@ -1253,7 +1211,7 @@ Event_timed::update_fields(THD *thd)
   Open_tables_state backup;
   int ret;
 
-  DBUG_ENTER("Event_timed::update_time_fields");
+  DBUG_ENTER("Event_timed::update_fields");
 
   DBUG_PRINT("enter", ("name: %*s", name.length, name.str));
 
@@ -1382,7 +1340,7 @@ Event_timed::get_create_event(THD *thd, String *buf)
   Executes the event (the underlying sp_head object);
 
   SYNOPSIS
-    evex_fill_row()
+    Event_timed::execute()
       thd       THD
       mem_root  If != NULL use it to compile the event on it
 
@@ -1603,149 +1561,6 @@ done:
   if (mem_root)
     thd->mem_root= tmp_mem_root;
 
-  DBUG_RETURN(ret);
-}
-
-
-extern pthread_attr_t connection_attrib;
-
-/*
-  Checks whether is possible and forks a thread. Passes self as argument.
-
-  RETURN VALUE
-    EVENT_EXEC_STARTED       OK
-    EVENT_EXEC_ALREADY_EXEC  Thread not forked, already working
-    EVENT_EXEC_CANT_FORK     Unable to spawn thread (error)
-*/
-
-int
-Event_timed::spawn_now(void * (*thread_func)(void*), void *arg)
-{
-  THD *thd= current_thd;
-  int ret= EVENT_EXEC_STARTED;
-  DBUG_ENTER("Event_timed::spawn_now");
-  DBUG_PRINT("info", ("[%s.%s]", dbname.str, name.str));
-
-  VOID(pthread_mutex_lock(&this->LOCK_running));
-
-  DBUG_PRINT("info", ("SCHEDULER: execute_at of %s is %lld", name.str,
-             TIME_to_ulonglong_datetime(&execute_at)));
-  mark_last_executed(thd);
-  if (compute_next_execution_time())
-  {
-    sql_print_error("SCHEDULER: Error while computing time of %s.%s . "
-                    "Disabling after execution.", dbname.str, name.str);
-    status= DISABLED;
-  }
-  DBUG_PRINT("evex manager", ("[%10s] next exec at [%llu]", name.str,
-             TIME_to_ulonglong_datetime(&execute_at)));
-   /*
-    1. For one-time event : year is > 0 and expression is 0
-    2. For recurring, expression is != -=> check execute_at_null in this case
-  */
-  if ((execute_at.year && !expression) || execute_at_null)
-  {
-    sql_print_information("SCHEDULER: [%s.%s of %s] no more executions "
-                          "after this one", dbname.str, name.str,
-                          definer.str);
-    flags |= EVENT_EXEC_NO_MORE | EVENT_FREE_WHEN_FINISHED;
-  }
-
-  update_fields(thd);
-
-  if (!in_spawned_thread)
-  {
-    pthread_t th;
-    in_spawned_thread= true;
-
-    if (pthread_create(&th, &connection_attrib, thread_func, arg))
-    {
-      DBUG_PRINT("info", ("problem while spawning thread"));
-      ret= EVENT_EXEC_CANT_FORK;
-      in_spawned_thread= false;
-    }
-  }
-  else
-  {
-    DBUG_PRINT("info", ("already in spawned thread. skipping"));
-    ret= EVENT_EXEC_ALREADY_EXEC;
-  }
-  VOID(pthread_mutex_unlock(&this->LOCK_running));
-
-  DBUG_RETURN(ret);  
-}
-
-
-bool
-Event_timed::spawn_thread_finish(THD *thd)
-{
-  bool should_free;
-  DBUG_ENTER("Event_timed::spawn_thread_finish");
-  VOID(pthread_mutex_lock(&LOCK_running));
-  in_spawned_thread= false;
-  DBUG_PRINT("info", ("Sending COND_finished for thread %d", thread_id));
-  thread_id= 0;
-  if (dropped)
-    drop(thd);
-  pthread_cond_broadcast(&COND_finished);
-  should_free= flags & EVENT_FREE_WHEN_FINISHED;
-  VOID(pthread_mutex_unlock(&LOCK_running));
-  DBUG_RETURN(should_free);
-}
-
-
-/*
-  Kills a running event
-  SYNOPSIS
-    Event_timed::kill_thread()
-    
-  RETURN VALUE 
-     0    OK
-    -1    EVEX_CANT_KILL
-    !0   Error 
-*/
-
-int
-Event_timed::kill_thread(THD *thd)
-{
-  int ret= 0;
-  DBUG_ENTER("Event_timed::kill_thread");
-  pthread_mutex_lock(&LOCK_running);
-  DBUG_PRINT("info", ("thread_id=%lu", thread_id));
-
-  if (thread_id == thd->thread_id)
-  {
-    /*
-      We don't kill ourselves in cases like :
-      alter event e_43 do alter event e_43 do set @a = 4 because
-      we will never receive COND_finished.
-    */
-    DBUG_PRINT("info", ("It's not safe to kill ourselves in self altering queries"));
-    ret= EVEX_CANT_KILL;
-  }
-  else if (thread_id && !(ret= kill_one_thread(thd, thread_id, false)))
-  {
-    thd->enter_cond(&COND_finished, &LOCK_running, "Waiting for finished");
-    DBUG_PRINT("info", ("Waiting for COND_finished from thread %d", thread_id));
-    while (thread_id)
-      pthread_cond_wait(&COND_finished, &LOCK_running);
-
-    DBUG_PRINT("info", ("Got COND_finished"));
-    /* This will implicitly unlock LOCK_running. Hence we return before that */
-    thd->exit_cond("");
-
-    DBUG_RETURN(0);
-  }
-  else if (!thread_id && in_spawned_thread)
-  {
-    /*
-      Because the manager thread waits for the forked thread to update thread_id
-      this situation is impossible.
-    */
-    DBUG_ASSERT(0);
-  }
-  pthread_mutex_unlock(&LOCK_running);
-  DBUG_PRINT("exit", ("%d", ret));
   DBUG_RETURN(ret);
 }
 

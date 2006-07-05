@@ -38,15 +38,15 @@ public:
   deinit_mutexes();
   
   bool
-  init(Event_db_repository *db_repo);
+  init_queue(Event_db_repository *db_repo, Event_scheduler_ng *sched);
   
   void
-  deinit();
+  deinit_queue();
 
   /* Methods for queue management follow */
 
   int
-  create_event(THD *thd, Event_parse_data *et, bool check_existence);
+  create_event(THD *thd, Event_parse_data *et);
 
   int
   update_event(THD *thd, Event_parse_data *et, LEX_STRING *new_schema,
@@ -55,12 +55,8 @@ public:
   bool
   drop_event(THD *thd, sp_name *name);
 
-  int
+  void
   drop_schema_events(THD *thd, LEX_STRING schema);
-
-  int
-  drop_user_events(THD *thd, LEX_STRING *definer)
-  { DBUG_ASSERT(0); return 0;}
 
   uint
   events_count();
@@ -89,7 +85,7 @@ public:
   void
   top_changed();
 
-///////////////protected
+protected:
   Event_timed *
   find_event(LEX_STRING db, LEX_STRING name, bool remove_from_q);
 
@@ -105,8 +101,6 @@ public:
 
   Event_db_repository *db_repository;
 
-  /* The sorted queue with the Event_timed objects */
-  QUEUE queue;
   
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;
@@ -122,10 +116,16 @@ public:
   unlock_data(const char *func, uint line);
 
   void
-  on_queue_change();
-  
+  notify_observers();
+
+  void
+  dbug_dump_queue(time_t now);
+
   Event_scheduler_ng *scheduler;
-protected:
+
+//public:
+  /* The sorted queue with the Event_timed objects */
+  QUEUE queue;
 
 };
 
