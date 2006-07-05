@@ -1970,9 +1970,6 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
     signal->theData[0] = reference();
     signal->theData[1] = c_nodeStartSlave.nodeId;
     sendSignal(BACKUP_REF, GSN_INCL_NODEREQ, signal, 2, JBB);
-    
-    // Suma will not send response to this for now, later...
-    sendSignal(SUMA_REF, GSN_INCL_NODEREQ, signal, 2, JBB);
     return;
   }//if
   if (TstartNode_or_blockref == numberToRef(BACKUP, getOwnNodeId())){
@@ -7971,12 +7968,6 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
   if (reason == CopyGCIReq::GLOBAL_CHECKPOINT) {
     jam();
     cgcpParticipantState = GCP_PARTICIPANT_READY;
-    
-    SubGcpCompleteRep * const rep = (SubGcpCompleteRep*)signal->getDataPtr();
-    rep->gci = coldgcp;
-    rep->senderData = 0;
-    sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
-	       SubGcpCompleteRep::SignalLength, JBB);
   }
   
   jam();
