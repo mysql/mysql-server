@@ -73,7 +73,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc \
 			mysqld.cc password.c hash_filo.cc hostname.cc \
 			set_var.cc sql_parse.cc sql_yacc.yy \
 			sql_base.cc table.cc sql_select.cc sql_insert.cc \
-                        sql_prepare.cc sql_error.cc \
+                        sql_prepare.cc sql_error.cc sql_locale.cc \
 			sql_update.cc sql_delete.cc uniques.cc sql_do.cc \
 			procedure.cc item_uniq.cc sql_test.cc \
 			log.cc log_event.cc init.cc derror.cc sql_acl.cc \
