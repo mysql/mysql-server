@@ -63,12 +63,6 @@ class Event_timed
 {
   Event_timed(const Event_timed &);	/* Prevent use of these */
   void operator=(Event_timed &);
-  my_bool in_spawned_thread;
-  ulong locked_by_thread_id;
-  my_bool running;
-  ulong thread_id;
-  pthread_mutex_t LOCK_running;
-  pthread_cond_t COND_finished;
 
   bool status_changed;
   bool last_executed_changed;
@@ -118,7 +112,6 @@ public:
   ulong sql_mode;
 
   bool dropped;
-  bool free_sphead_on_delete;
   uint flags;//all kind of purposes
 
   static void *operator new(size_t size)
@@ -146,9 +139,6 @@ public:
   void
   init();
 
-  void
-  deinit_mutexes();
-
   int
   load_from_row(TABLE *table);
 
@@ -172,24 +162,9 @@ public:
 
   int
   compile(THD *thd, MEM_ROOT *mem_root);
-
-  bool
-  is_running();
-
-  int
-  spawn_now(void * (*thread_func)(void*), void *arg);
-  
-  bool
-  spawn_thread_finish(THD *thd);
   
   void
   free_sp();
-
-  int
-  kill_thread(THD *thd);
-
-  void
-  set_thread_id(ulong tid) { thread_id= tid; }
 };
 
 

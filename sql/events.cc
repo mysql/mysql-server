@@ -17,10 +17,10 @@
 #include "mysql_priv.h"
 #include "events.h"
 #include "event_data_objects.h"
-#include "event_scheduler.h"
 #include "event_db_repository.h"
-#include "sp_head.h"
+#include "event_queue.h"
 #include "event_scheduler_ng.h"
+#include "sp_head.h"
 
 /*
  TODO list :
@@ -47,6 +47,21 @@ Warning:
    event.
 */
 
+
+/*
+  If the user (un)intentionally removes an event directly from mysql.event
+  the following sequence has to be used to be able to remove the in-memory
+  counterpart.
+  1. CREATE EVENT the_name ON SCHEDULE EVERY 1 SECOND DISABLE DO SELECT 1;
+  2. DROP EVENT the_name
+  
+  In other words, the first one will create a row in mysql.event . In the
+  second step because there will be a line, disk based drop will pass and
+  the scheduler will remove the memory counterpart. The reason is that
+  in-memory queue does not check whether the event we try to drop from memory
+  is disabled. Disabled events are not kept in-memory because they are not
+  eligible for execution.
+*/
 
 const char *event_scheduler_state_names[]=
     { "OFF", "0", "ON", "1", "SUSPEND", "2", NullS };
@@ -284,17 +299,15 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
 */
 
 int
-Events::create_event(THD *thd, Event_parse_data *parse_data, uint create_options,
+Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
                      uint *rows_affected)
 {
   int ret;
   DBUG_ENTER("Events::create_event");
-  if (!(ret= db_repository->
-                 create_event(thd, parse_data,
-                              create_options & HA_LEX_CREATE_IF_NOT_EXISTS,
-                              rows_affected)))
+  if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists,
+                                         rows_affected)))
   {
-    if ((ret= event_queue->create_event(thd, parse_data, true)))
+    if ((ret= event_queue->create_event(thd, parse_data)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
   }
   /* No need to close the table, it will be closed in sql_parse::do_command */
@@ -350,9 +363,10 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
   SYNOPSIS
     Events::drop_event()
       thd             THD
-      name            event's name
-      drop_if_exists  if set and the event not existing => warning onto the stack
-      rows_affected   affected number of rows is returned heres
+      name            Event's name
+      if_exists       When set and the event does not exist => warning onto
+                      the stack
+      rows_affected   Affected number of rows is returned heres
 
   RETURN VALUE
      0  OK
@@ -360,15 +374,13 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
 */
 
 int
-Events::drop_event(THD *thd, sp_name *name, bool drop_if_exists,
-                   uint *rows_affected)
+Events::drop_event(THD *thd, sp_name *name, bool if_exists, uint *rows_affected)
 {
   int ret;
-
   DBUG_ENTER("Events::drop_event");
 
-  if (!(ret= db_repository->drop_event(thd, name->m_db, name->m_name,
-                                      drop_if_exists, rows_affected)))
+  if (!(ret= db_repository->drop_event(thd, name->m_db, name->m_name, if_exists,
+                                       rows_affected)))
   {
     if ((ret= event_queue->drop_event(thd, name)))
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
@@ -401,7 +413,7 @@ Events::show_create_event(THD *thd, sp_name *spn)
   DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
 
   thd->reset_n_backup_open_tables_state(&backup);
-  ret= db_repository->find_event(thd, spn->m_db, spn->m_name, &et, NULL, thd->mem_root);
+  ret= db_repository->find_event(thd, spn->m_db, spn->m_name, &et, NULL);
   thd->restore_backup_open_tables_state(&backup);
 
   if (!ret)
@@ -472,7 +484,7 @@ Events::drop_schema_events(THD *thd, char *db)
   DBUG_ENTER("evex_drop_db_events");  
   DBUG_PRINT("enter", ("dropping events from %s", db));
 
-  ret= event_queue->drop_schema_events(thd, db_lex);
+  event_queue->drop_schema_events(thd, db_lex);
   ret= db_repository->drop_schema_events(thd, db_lex);
 
   DBUG_RETURN(ret);
@@ -500,9 +512,8 @@ Events::init()
   Event_db_repository *db_repo;
   DBUG_ENTER("Events::init");
   db_repository->init_repository();
-  event_queue->init(db_repository);
-  event_queue->scheduler= scheduler_ng;
-  scheduler_ng->init(event_queue);
+  event_queue->init_queue(db_repository, scheduler_ng);
+  scheduler_ng->init_scheduler(event_queue);
 
   /* it should be an assignment! */
   if (opt_event_scheduler)
@@ -532,8 +543,9 @@ Events::deinit()
   DBUG_ENTER("Events::deinit");
 
   scheduler_ng->stop();
-  scheduler_ng->deinit();
-  event_queue->deinit();
+  scheduler_ng->deinit_scheduler();
+
+  event_queue->deinit_queue();
   db_repository->deinit_repository();
 
   DBUG_VOID_RETURN;

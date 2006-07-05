@@ -207,7 +207,7 @@ evex_fill_row(THD *thd, TABLE *table, Event_parse_data *et, my_bool is_update)
       table->field[ET_FIELD_STARTS]->set_notnull();
       table->field[ET_FIELD_STARTS]->
                             store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
-    }	   
+    }
 
     if (!et->ends_null)
     {
@@ -374,8 +374,7 @@ Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
     ret= read_record_info.read_record(&read_record_info);
     if (ret == 0)
       ret= copy_event_to_schema_table(thd, schema_table, event_table);
-  }
-  while (ret == 0);
+  } while (ret == 0);
 
   DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
   end_read_record(&read_record_info);
@@ -464,8 +463,7 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables, char *db)
 
 int
 Event_db_repository::find_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
-                                Event_timed **ett,
-                                TABLE *tbl, MEM_ROOT *root)
+                                Event_timed **ett, TABLE *tbl)
 {
   TABLE *table;
   int ret;
@@ -505,7 +503,7 @@ done:
   if (ret)
   {
     delete et;
-    et= 0;
+    et= NULL;
   }
   /* don't close the table if we haven't opened it ourselves */
   if (!tbl && table)
@@ -518,7 +516,6 @@ done:
 int
 Event_db_repository::init_repository()
 {
-  init_alloc_root(&repo_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
   return 0;
 }
 
@@ -526,7 +523,6 @@ Event_db_repository::init_repository()
 void
 Event_db_repository::deinit_repository()
 {
-  free_root(&repo_root, MYF(0));
 }
 
 
@@ -731,7 +727,8 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
              parse_data->name.str));
 
   DBUG_PRINT("info", ("check existance of an event with the same name"));
-  if (!evex_db_find_event_by_name(thd, parse_data->dbname, parse_data->name, table))
+  if (!evex_db_find_event_by_name(thd, parse_data->dbname,
+                                  parse_data->name, table))
   {
     if (create_if_not)
     {
@@ -1026,14 +1023,12 @@ Event_db_repository::find_event_by_name(THD *thd, LEX_STRING db,
   */
   if (db.length > table->field[ET_FIELD_DB]->field_length ||
       name.length > table->field[ET_FIELD_NAME]->field_length)
-      
     DBUG_RETURN(EVEX_KEY_NOT_FOUND);
 
   table->field[ET_FIELD_DB]->store(db.str, db.length, &my_charset_bin);
   table->field[ET_FIELD_NAME]->store(name.str, name.length, &my_charset_bin);
 
-  key_copy(key, table->record[0], table->key_info,
-           table->key_info->key_length);
+  key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
   if (table->file->index_read_idx(table->record[0], 0, key,
                                   table->key_info->key_length,
@@ -1125,7 +1120,7 @@ Event_db_repository::drop_events_by_field(THD *thd,
   the table, compiles and inserts it into the cache.
 
   SYNOPSIS
-    Event_scheduler::load_named_event()
+    Event_db_repository::load_named_event_timed()
       thd      THD
       etn      The name of the event to load and compile on scheduler's root
       etn_new  The loaded event
@@ -1136,20 +1131,21 @@ Event_db_repository::drop_events_by_field(THD *thd,
 */
 
 int
-Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
-                                      Event_timed **etn_new)
+Event_db_repository::load_named_event_timed(THD *thd, LEX_STRING dbname,
+                                            LEX_STRING name,
+                                            Event_timed **etn_new)
 {
   int ret= 0;
   MEM_ROOT *tmp_mem_root;
   Event_timed *et_loaded= NULL;
   Open_tables_state backup;
 
-  DBUG_ENTER("Event_db_repository::load_named_event");
+  DBUG_ENTER("Event_db_repository::load_named_event_timed");
   DBUG_PRINT("enter",("thd=%p name:%*s",thd, name.length, name.str));
 
   thd->reset_n_backup_open_tables_state(&backup);
   /* No need to use my_error() here because db_find_event() has done it */
-  ret= find_event(thd, dbname, name, &et_loaded, NULL, &repo_root);
+  ret= find_event(thd, dbname, name, &et_loaded, NULL);
   thd->restore_backup_open_tables_state(&backup);
   /* In this case no memory was allocated so we don't need to clean */
   if (ret)
@@ -1169,5 +1165,59 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING na
   et_loaded->compute_next_execution_time();
   *etn_new= et_loaded;
 
+  DBUG_RETURN(OP_OK);
+}
+
+
+/*
+  Looks for a named event in mysql.event and then loads it from
+  the table, compiles and inserts it into the cache.
+
+  SYNOPSIS
+    Event_db_repository::load_named_event_job()
+      thd      THD
+      etn      The name of the event to load and compile on scheduler's root
+      etn_new  The loaded event
+
+  RETURN VALUE
+    NULL       Error during compile or the event is non-enabled.
+    otherwise  Address
+*/
+
+int
+Event_db_repository::load_named_event_job(THD *thd, LEX_STRING dbname,
+                                          LEX_STRING name,
+                                          Event_job_data **etn_new)
+{
+  int ret= 0;
+  MEM_ROOT *tmp_mem_root;
+  Event_timed *et_loaded= NULL;
+  Open_tables_state backup;
+
+  DBUG_ENTER("Event_db_repository::load_named_event_job");
+  DBUG_PRINT("enter",("thd=%p name:%*s",thd, name.length, name.str));
+#if 0
+  thd->reset_n_backup_open_tables_state(&backup);
+  /* No need to use my_error() here because db_find_event() has done it */
+  ret= find_event(thd, dbname, name, &et_loaded, NULL);
+  thd->restore_backup_open_tables_state(&backup);
+  /* In this case no memory was allocated so we don't need to clean */
+  if (ret)
+    DBUG_RETURN(OP_LOAD_ERROR);
+
+  if (et_loaded->status != Event_timed::ENABLED)
+  {
+    /*
+      We don't load non-enabled events.
+      In db_find_event() `et_new` was allocated on the heap and not on
+      scheduler_root therefore we delete it here.
+    */
+    delete et_loaded;
+    DBUG_RETURN(OP_DISABLED_EVENT);
+  }
+
+  et_loaded->compute_next_execution_time();
+  *etn_new= et_loaded;
+#endif
   DBUG_RETURN(OP_OK);
 }

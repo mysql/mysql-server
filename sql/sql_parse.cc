@@ -3832,25 +3832,26 @@ end_with_restore_list:
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
   {
-    uint rows_affected= 1;
+    uint affected= 1;
     DBUG_ASSERT(lex->event_parse_data);
     switch (lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
-      res= Events::get_instance()->create_event(thd, lex->event_parse_data,
-                                               (uint) lex->create_info.options,
-                                               &rows_affected);
+      res= Events::get_instance()->
+            create_event(thd, lex->event_parse_data,
+                         lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS,
+                         &affected);
       break;
     case SQLCOM_ALTER_EVENT:
-      res= Events::get_instance()->update_event(thd, lex->event_parse_data,
-                                                  lex->spname, &rows_affected);
+      res= Events::get_instance()->
+             update_event(thd, lex->event_parse_data, lex->spname, &affected);
       break;
     default:;
     }
-    DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
-               res, rows_affected));
+    DBUG_PRINT("info",("DDL error code=%d affected=%d", res, affected));
     if (!res)
-      send_ok(thd, rows_affected);
+      send_ok(thd, affected);
 
+    /* Don't do it, if we are inside a SP */
     if (!thd->spcont)
     {
       delete lex->sphead;
@@ -3867,8 +3868,7 @@ end_with_restore_list:
     if (! lex->spname->m_db.str)
     {
       my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-      res= true;
-      break;
+      goto error;
     }
     if (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
                      is_schema_db(lex->spname->m_db.str)))
@@ -3885,11 +3885,10 @@ end_with_restore_list:
       res= Events::get_instance()->show_create_event(thd, lex->spname);
     else
     {
-      uint rows_affected= 1;
-      if (!(res= Events::get_instance()->drop_event(thd, lex->spname,
-                                                    lex->drop_if_exists,
-                                                    &rows_affected)))
-        send_ok(thd, rows_affected);     
+      uint affected= 1;
+      if (!(res= Events::get_instance()->
+                  drop_event(thd, lex->spname, lex->drop_if_exists, &affected)))
+        send_ok(thd, affected);     
     }
     break;
   }

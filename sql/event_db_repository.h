@@ -56,6 +56,7 @@ fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
 class Event_timed;
 class Event_parse_data;
 class Event_queue_element;
+class Event_job_data;
 
 class Event_db_repository
 {
@@ -88,10 +89,15 @@ public:
 
   int
   find_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_timed **ett,
-             TABLE *tbl, MEM_ROOT *root);
+             TABLE *tbl);
 
   int
-  load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_timed **etn_new);
+  load_named_event_timed(THD *thd, LEX_STRING dbname, LEX_STRING name,
+                         Event_timed **etn_new);
+
+  int
+  load_named_event_job(THD *thd, LEX_STRING dbname, LEX_STRING name,
+                       Event_job_data **etn_new);
 
   int
   find_event_by_name(THD *thd, LEX_STRING db, LEX_STRING name, TABLE *table);
@@ -115,8 +121,6 @@ private:
 
   static bool
   check_system_tables(THD *thd);
-
-  MEM_ROOT repo_root;
 
   /* Prevent use of these */
   Event_db_repository(const Event_db_repository &);
