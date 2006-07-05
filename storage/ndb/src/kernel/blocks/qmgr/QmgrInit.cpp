@@ -81,6 +81,7 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_API_REGREQ, &Qmgr::execAPI_REGREQ);
   addRecSignal(GSN_API_VERSION_REQ, &Qmgr::execAPI_VERSION_REQ);
   addRecSignal(GSN_DISCONNECT_REP, &Qmgr::execDISCONNECT_REP);
+  addRecSignal(GSN_API_FAILREQ, &Qmgr::execAPI_FAILREQ);
   addRecSignal(GSN_API_FAILCONF, &Qmgr::execAPI_FAILCONF);
   addRecSignal(GSN_READ_NODESREQ, &Qmgr::execREAD_NODESREQ);
   addRecSignal(GSN_SET_VAR_REQ,  &Qmgr::execSET_VAR_REQ);
