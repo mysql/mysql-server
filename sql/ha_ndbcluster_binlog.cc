@@ -3473,6 +3473,12 @@ restart:
         ndb_latest_applied_binlog_epoch= 0;
         ndb_latest_received_binlog_epoch= 0;
       }
+      else if (ndb_latest_applied_binlog_epoch > 0)
+      {
+        sql_print_warning("NDB Binlog: cluster has reconnected. "
+                          "Changes to the database that occured while "
+                          "disconnected will not be in the binlog");
+      }
       if (ndb_extra_logging)
       {
         sql_print_information("NDB Binlog: starting log at epoch %u",
