@@ -747,6 +747,19 @@ select count(id1) from t1 where id2 = 10;
 count(id1)
 5
 drop table t1;
+CREATE TABLE t1(a TINYINT, KEY(a)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1);
+SELECT MAX(a) FROM t1 IGNORE INDEX(a);
+MAX(a)
+1
+ALTER TABLE t1 DISABLE KEYS;
+SELECT MAX(a) FROM t1;
+MAX(a)
+1
+SELECT MAX(a) FROM t1 IGNORE INDEX(a);
+MAX(a)
+1
+DROP TABLE t1;
 CREATE TABLE t1(a CHAR(9), b VARCHAR(7)) ENGINE=MyISAM;
 INSERT INTO t1(a) VALUES('xxxxxxxxx'),('xxxxxxxxx');
 UPDATE t1 AS ta1,t1 AS ta2 SET ta1.b='aaaaaa',ta2.b='bbbbbb';
