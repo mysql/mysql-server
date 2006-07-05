@@ -391,3 +391,17 @@ ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
 SELECT convert(@str collate latin1_swedish_ci using utf8);
 convert(@str collate latin1_swedish_ci using utf8)
 ABC €°§ß²³µ~ äöüÄÖÜ áéíóú ÀÈÌÒÙ @ abc
+SET NAMES latin1;
+DROP TABLE IF EXISTS `abcÿdef`;
+CREATE TABLE `abcÿdef` (i int);
+INSERT INTO `abcÿdef` VALUES (1);
+INSERT INTO abcÿdef VALUES (2);
+SELECT * FROM `abcÿdef`;
+i
+1
+2
+SELECT * FROM abcÿdef;
+i
+1
+2
+DROP TABLE `abcÿdef`;

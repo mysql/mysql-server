@@ -2217,15 +2217,6 @@ show table status like 't1%';
 select 123 as a from t1 where f1 is null;
 drop table t1,t11;
 
-# Bug 7672 Unknown column error in order clause
-#
-CREATE TABLE t1 (a INT, b INT);
-(SELECT a, b AS c FROM t1) ORDER BY c+1;
-(SELECT a, b AS c FROM t1) ORDER BY b+1;
-SELECT a, b AS c FROM t1 ORDER BY c+1;
-SELECT a, b AS c FROM t1 ORDER BY b+1;
-drop table t1;
-
 #
 # Bug #3874 (function in GROUP and LEFT JOIN)
 #
@@ -2265,6 +2256,21 @@ select * from t1 where f1 in (select f3 from t2 where (f3,f4)= (select f3,f4 fro
 drop table t1,t2;
 
 #
+# Bug #4981: 4.x and 5.x produce non-optimal execution path, 3.23 regression test failure
+#
+CREATE TABLE t1(a int, b int, c int, KEY b(b), KEY c(c));
+insert into t1 values (1,0,0),(2,0,0);
+CREATE TABLE t2 (a int, b varchar(2), c varchar(2), PRIMARY KEY(a));
+insert into t2 values (1,'',''), (2,'','');
+CREATE TABLE t3 (a int, b int, PRIMARY KEY (a,b), KEY a (a), KEY b (b));
+insert into t3 values (1,1),(1,2);
+# must have "range checked" for t2
+explain select straight_join DISTINCT t2.a,t2.b, t1.c from t1, t3, t2 
+ where (t1.c=t2.a or (t1.c=t3.a and t2.a=t3.b)) and t1.b=556476786 and 
+       t2.b like '%%' order by t2.b limit 0,1;
+DROP TABLE t1,t2,t3;
+
+#
 # Bug #17873: confusing error message when IGNORE INDEX refers a column name
 #
 
@@ -2279,49 +2285,26 @@ EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
 
 DROP TABLE t1;
 
-# End of 4.1 tests
-
 #
-# Test case for bug 7098: substitution of a constant for a string field 
+# Bug #18759 "Incorrect string to numeric conversion"
 #
-
-CREATE TABLE t1 ( city char(30) );
-INSERT INTO t1 VALUES ('London');
-INSERT INTO t1 VALUES ('Paris');
-
-SELECT * FROM t1 WHERE city='London';
-SELECT * FROM t1 WHERE city='london';
-EXPLAIN SELECT * FROM t1 WHERE city='London' AND city='london';
-SELECT * FROM t1 WHERE city='London' AND city='london';
-EXPLAIN SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-SELECT * FROM t1 WHERE city LIKE '%london%' AND city='London';
-
+# This test is here so that the behavior will not be changed to 4.1
+# and not to 5.0 either. In 4.1 and 5.0 sending an integer as a string
+# will be converted internally to real (double) value and it is not
+# as accurate as bigint (longlong) for integers. Thus the results may
+# vary. In 5.1 internally it is decimal, which is a string type and
+# will be more accurate. Due to rather big changes needed to fix this
+# in 4.1 or 5.0 it is not desired to do it in the stable versions.
+#
+# This test is here only to make sure that behavior is not changed in
+# 4.1 and 5.0
+#
+CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
+INSERT INTO t1 VALUES (10);
+SELECT i='1e+01',i=1e+01, i in (1e+01,1e+01), i in ('1e+01','1e+01') FROM t1;
 DROP TABLE t1;
 
-#
-# Bug#7425 inconsistent sort order on unsigned columns result of substraction
-#
-
-create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
-select a-b  from t1 order by 1;
-select a-b , (a-b < 0)  from t1 order by 1;
-select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
-select cast((a - b) as unsigned) from t1 order by 1;
-drop table t1;
-
-
-#
-# Bug#8733 server accepts malformed query (multiply mentioned distinct)
-#
-create table t1 (a int(11));
-select all all * from t1;
-select distinct distinct * from t1;
---error 1221
-select all distinct * from t1;
---error 1221
-select distinct all * from t1;
-drop table t1;
+# End of 4.1 tests
 
 #
 # Test for bug #6474
@@ -2356,21 +2339,6 @@ SELECT K2C4, K4N4, F2I4 FROM t1
 SELECT K2C4, K4N4, F2I4 FROM t1
   WHERE  K2C4 = 'WART' AND (K2C4 = 'WART' OR K4N4 = '0200');
 DROP TABLE t1;
-
-#
-# Test case for bug 7520: a wrong cost of the index for a BLOB field
-#
-
-CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
-CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
-
-INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
-INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
-
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
-
-DROP TABLE t1, t2;
 
 #
 # Bug#8670
@@ -2409,34 +2377,6 @@ insert into t1 values (null),(1);
 select distinct avg(s1) as x from t1 group by s1 with rollup;
 drop table t1;
 
-
-#
-# Bug#8733 server accepts malformed query (multiply mentioned distinct)
-#
-create table t1 (a int(11));
-select all all * from t1;
-select distinct distinct * from t1;
---error 1221
-select all distinct * from t1;
---error 1221
-select distinct all * from t1;
-drop table t1;
-
-
-#
-# Test case for bug 7520: a wrong cost of the index for a BLOB field
-#
-
-CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
-CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
-
-INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
-INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
-
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
-EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
-
-DROP TABLE t1, t2;
 
 #
 # Test for bug #10084: STRAIGHT_JOIN with ON expression 
@@ -2935,3 +2875,29 @@ EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6 AND a > 0;
 
 DROP TABLE t1, t2;
+
+#
+# Bug #18895: BIT values cause joins to fail
+#
+create table t1 (
+    a int unsigned    not null auto_increment primary key,
+    b bit             not null,
+    c bit             not null
+);
+
+create table t2 (
+    a int unsigned    not null auto_increment primary key,
+    b bit             not null,
+    c int unsigned    not null,
+    d varchar(50)
+);
+
+insert into t1 (b,c) values (0,1), (0,1);
+insert into t2 (b,c) values (0,1);
+
+-- Row 1 should succeed.  Row 2 should fail.  Both fail.
+select t1.a, t1.b + 0, t1.c + 0, t2.a, t2.b + 0, t2.c, t2.d
+from t1 left outer join t2 on t1.a = t2.c and t2.b <> 1
+where t1.b <> 1 order by t1.a;
+
+drop table t1,t2;

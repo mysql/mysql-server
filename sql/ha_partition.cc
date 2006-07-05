@@ -1565,6 +1565,7 @@ error:
 
 void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 {
+  m_file[0]->update_create_info(create_info);
   return;
 }
 
@@ -3399,7 +3400,8 @@ int ha_partition::common_first_last(byte *buf)
 
   if ((error= partition_scan_set_up(buf, FALSE)))
     return error;
-  if (!m_ordered_scan_ongoing)
+  if (!m_ordered_scan_ongoing &&
+      m_index_scan_type != partition_index_last)
     return handle_unordered_scan_next_partition(buf);
   return handle_ordered_index_scan(buf);
 }
@@ -5097,14 +5099,7 @@ void ha_partition::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error: %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
-  {
-    char buf[100];
-    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-    my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0),
-             m_part_info->part_expr->null_value ? "NULL" :
-             llstr(m_part_info->part_expr->val_int(), buf));
-    dbug_tmp_restore_column_map(table->read_set, old_map);
-  }
+    m_part_info->print_no_partition_found(table);
   else
     m_file[0]->print_error(error, errflag);
   DBUG_VOID_RETURN;

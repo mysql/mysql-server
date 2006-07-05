@@ -41,6 +41,7 @@ private:
   Parser_t *m_parser;
   MgmtSrvr::Allocated_resources *m_allocated_resources;
   char m_err_str[1024];
+  int m_stopSelf; // -1 is restart, 0 do nothing, 1 stop
 
   void getConfig_common(Parser_t::Context &ctx,
 			const class Properties &args,
@@ -62,7 +63,9 @@ public:
   void getVersion(Parser_t::Context &ctx, const class Properties &args);
   void getStatus(Parser_t::Context &ctx, const class Properties &args);
   void getInfoClusterLog(Parser_t::Context &ctx, const class Properties &args);
-  void restart(Parser_t::Context &ctx, const class Properties &args);
+  void restart(const class Properties &args, int version);
+  void restart_v1(Parser_t::Context &ctx, const class Properties &args);
+  void restart_v2(Parser_t::Context &ctx, const class Properties &args);
   void restartAll(Parser_t::Context &ctx, const class Properties &args);
   void insertError(Parser_t::Context &ctx, const class Properties &args);
   void setTrace(Parser_t::Context &ctx, const class Properties &args);
@@ -74,7 +77,9 @@ public:
   void abortBackup(Parser_t::Context &ctx, const class Properties &args);
   void enterSingleUser(Parser_t::Context &ctx, const class Properties &args);
   void exitSingleUser(Parser_t::Context &ctx, const class Properties &args);
-  void stop(Parser_t::Context &ctx, const class Properties &args);
+  void stop_v1(Parser_t::Context &ctx, const class Properties &args);
+  void stop_v2(Parser_t::Context &ctx, const class Properties &args);
+  void stop(const class Properties &args, int version);
   void stopAll(Parser_t::Context &ctx, const class Properties &args);
   void start(Parser_t::Context &ctx, const class Properties &args);
   void startAll(Parser_t::Context &ctx, const class Properties &args);

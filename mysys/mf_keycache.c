@@ -470,8 +470,10 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 		     uint age_threshold)
 {
   int blocks;
+#ifdef THREAD
   struct st_my_thread_var *thread;
   KEYCACHE_WQUEUE *wqueue;
+#endif
   DBUG_ENTER("resize_key_cache");
 
   if (!keycache->key_cache_inited)
@@ -1102,8 +1104,12 @@ static void unreg_request(KEY_CACHE *keycache,
 
 static inline void remove_reader(BLOCK_LINK *block)
 {
+#ifdef THREAD
   if (! --block->hash_link->requests && block->condvar)
     keycache_pthread_cond_signal(block->condvar);
+#else
+  --block->hash_link->requests;
+#endif
 }
 
 
@@ -1112,7 +1118,8 @@ static inline void remove_reader(BLOCK_LINK *block)
   signals on its termination
 */
 
-static inline void wait_for_readers(KEY_CACHE *keycache, BLOCK_LINK *block)
+static inline void wait_for_readers(KEY_CACHE *keycache __attribute__((unused)),
+                                    BLOCK_LINK *block)
 {
 #ifdef THREAD
   struct st_my_thread_var *thread= my_thread_var;
@@ -1209,7 +1216,6 @@ static HASH_LINK *get_hash_link(KEY_CACHE *keycache,
                                 int file, my_off_t filepos)
 {
   reg1 HASH_LINK *hash_link, **start;
-  KEYCACHE_PAGE page;
 #if defined(KEYCACHE_DEBUG)
   int cnt;
 #endif
@@ -1264,6 +1270,7 @@ restart:
 #ifdef THREAD
       /* Wait for a free hash link */
       struct st_my_thread_var *thread= my_thread_var;
+      KEYCACHE_PAGE page;
       KEYCACHE_DBUG_PRINT("get_hash_link", ("waiting"));
       page.file= file;
       page.filepos= filepos;
@@ -1588,8 +1595,10 @@ restart:
             /* Remove the hash link for this page from the hash table */
             unlink_hash(keycache, block->hash_link);
             /* All pending requests for this page must be resubmitted */
+#ifdef THREAD
             if (block->wqueue[COND_FOR_SAVED].last_thread)
               release_queue(&block->wqueue[COND_FOR_SAVED]);
+#endif
           }
           link_to_file_list(keycache, block, file,
                             (my_bool)(block->hash_link ? 1 : 0));
@@ -1669,7 +1678,7 @@ restart:
     portion is less than read_length, but not less than min_length.
 */
 
-static void read_block(KEY_CACHE *keycache,
+static void read_block(KEY_CACHE *keycache __attribute__((unused)),
                        BLOCK_LINK *block, uint read_length,
                        uint min_length, my_bool primary)
 {
@@ -1707,8 +1716,10 @@ static void read_block(KEY_CACHE *keycache,
     KEYCACHE_DBUG_PRINT("read_block",
                         ("primary request: new page in cache"));
     /* Signal that all pending requests for this page now can be processed */
+#ifdef THREAD
     if (block->wqueue[COND_FOR_REQUESTED].last_thread)
       release_queue(&block->wqueue[COND_FOR_REQUESTED]);
+#endif
   }
   else
   {
@@ -1973,9 +1984,11 @@ int key_cache_insert(KEY_CACHE *keycache,
         block->length= read_length+offset;
         KEYCACHE_DBUG_PRINT("key_cache_insert",
                             ("primary request: new page in cache"));
+#ifdef THREAD
         /* Signal that all pending requests for this now can be processed. */
         if (block->wqueue[COND_FOR_REQUESTED].last_thread)
           release_queue(&block->wqueue[COND_FOR_REQUESTED]);
+#endif
       }
 
       remove_reader(block);
@@ -2219,9 +2232,11 @@ static void free_block(KEY_CACHE *keycache, BLOCK_LINK *block)
   /* Keep track of the number of currently unused blocks. */
   keycache->blocks_unused++;
 
+#ifdef THREAD
   /* All pending requests for this page must be resubmitted. */
   if (block->wqueue[COND_FOR_SAVED].last_thread)
     release_queue(&block->wqueue[COND_FOR_SAVED]);
+#endif
 }
 
 
@@ -2275,12 +2290,14 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
       if (!last_errno)
         last_errno= errno ? errno : -1;
     }
+    #ifdef THREAD
     /*
       Let to proceed for possible waiting requests to write to the block page.
       It might happen only during an operation to resize the key cache.
     */
     if (block->wqueue[COND_FOR_SAVED].last_thread)
       release_queue(&block->wqueue[COND_FOR_SAVED]);
+#endif
     /* type will never be FLUSH_IGNORE_CHANGED here */
     if (! (type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE))
     {

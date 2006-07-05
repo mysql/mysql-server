@@ -125,6 +125,7 @@ static TABLE_LIST binlog_tables;
 */
 
 #ifndef DBUG_OFF
+/* purecov: begin deadcode */
 static void print_records(TABLE *table, const char *record)
 {
   for (uint j= 0; j < table->s->fields; j++)
@@ -138,12 +139,13 @@ static void print_records(TABLE *table, const char *record)
 
     for (int i= 0; i < n && pos < 20; i++)
     {
-      pos+= sprintf(&buf[pos]," %x", (int) (unsigned char) field_ptr[i]);
+      pos+= sprintf(&buf[pos]," %x", (int) (uchar) field_ptr[i]);
     }
     buf[pos]= 0;
     DBUG_PRINT("info",("[%u]field_ptr[0->%d]: %s", j, n, buf));
   }
 }
+/* purecov: end */
 #else
 #define print_records(a,b)
 #endif
@@ -286,6 +288,7 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
   int error;
   DBUG_ENTER("ndbcluster_binlog_open_table");
   
+  safe_mutex_assert_owner(&LOCK_open);
   init_tmp_table_share(table_share, share->db, 0, share->table_name, 
                        share->key);
   if ((error= open_table_def(thd, table_share, 0)))
@@ -310,8 +313,10 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share,
   if (!reopen)
   {
     // allocate memory on ndb share so it can be reused after online alter table
-    share->record[0]= (byte*) alloc_root(&share->mem_root, table->s->rec_buff_length);
-    share->record[1]= (byte*) alloc_root(&share->mem_root, table->s->rec_buff_length);
+    (void)multi_alloc_root(&share->mem_root,
+                           &(share->record[0]), table->s->rec_buff_length,
+                           &(share->record[1]), table->s->rec_buff_length,
+                           NULL);
   }
   {
     my_ptrdiff_t row_offset= share->record[0] - table->record[0];
@@ -452,7 +457,7 @@ static void ndbcluster_binlog_wait(THD *thd)
 }
 
 /*
- Called from MYSQL_LOG::reset_logs in log.cc when binlog is emptied
+ Called from MYSQL_BIN_LOG::reset_logs in log.cc when binlog is emptied
 */
 static int ndbcluster_reset_logs(THD *thd)
 {
@@ -476,7 +481,7 @@ static int ndbcluster_reset_logs(THD *thd)
 }
 
 /*
-  Called from MYSQL_LOG::purge_logs in log.cc when the binlog "file"
+  Called from MYSQL_BIN_LOG::purge_logs in log.cc when the binlog "file"
   is removed
 */
 
@@ -870,11 +875,11 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
 
 struct Cluster_schema
 {
-  unsigned char db_length;
+  uchar db_length;
   char db[64];
-  unsigned char name_length;
+  uchar name_length;
   char name[64];
-  unsigned char slock_length;
+  uchar slock_length;
   uint32 slock[SCHEMA_SLOCK_SIZE/4];
   unsigned short query_length;
   char *query;
@@ -973,7 +978,7 @@ static char *ndb_pack_varchar(const NDBCOL *col, char *buf,
       memcpy(buf, str, sz);
       break;
     case NDBCOL::ArrayTypeShortVar:
-      *(unsigned char*)buf= (unsigned char)sz;
+      *(uchar*)buf= (uchar)sz;
       memcpy(buf + 1, str, sz);
       break;
     case NDBCOL::ArrayTypeMediumVar:
@@ -1767,8 +1772,31 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
           /* acknowledge this query _after_ epoch completion */
           post_epoch_unlock= 1;
           break;
-        case SOT_CREATE_TABLE:
 	case SOT_TRUNCATE_TABLE:
+        {
+          char key[FN_REFLEN];
+          build_table_filename(key, sizeof(key), schema->db, schema->name, "");
+          NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
+          // invalidation already handled by binlog thread
+          if (!share || !share->op)
+          {
+            {
+              injector_ndb->setDatabaseName(schema->db);
+              Ndb_table_guard ndbtab_g(injector_ndb->getDictionary(),
+                                       schema->name);
+              ndbtab_g.invalidate();
+            }
+            TABLE_LIST table_list;
+            bzero((char*) &table_list,sizeof(table_list));
+            table_list.db= schema->db;
+            table_list.alias= table_list.table_name= schema->name;
+            close_cached_tables(thd, 0, &table_list, FALSE);
+          }
+          if (share)
+            free_share(&share);
+        }
+        // fall through
+        case SOT_CREATE_TABLE:
           pthread_mutex_lock(&LOCK_open);
           if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
@@ -2158,6 +2186,9 @@ int ndb_add_binlog_index(THD *thd, void *_row)
     break;
   }
 
+  // Set all fields non-null.
+  if(binlog_index->s->null_bytes > 0)
+    bzero(binlog_index->record[0], binlog_index->s->null_bytes);
   binlog_index->field[0]->store(row.master_log_pos);
   binlog_index->field[1]->store(row.master_log_file,
                                 strlen(row.master_log_file),
@@ -3274,6 +3305,13 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   THD_CHECK_SENTRY(thd);
 
+  /* We need to set thd->thread_id before thd->store_globals, or it will
+     set an invalid value for thd->variables.pseudo_thread_id.
+  */
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->thread_id= thread_id++;
+  pthread_mutex_unlock(&LOCK_thread_count);
+
   thd->thread_stack= (char*) &thd; /* remember where our stack is */
   if (thd->store_globals())
   {
@@ -3306,7 +3344,6 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   pthread_detach_this_thread();
   thd->real_id= pthread_self();
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thread_id++;
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
   thd->lex->start_transaction_opt= 0;
@@ -3346,9 +3383,11 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   ndb_binlog_thread_running= 1;
   if (opt_bin_log)
   {
-    if (global_system_variables.binlog_format == BINLOG_FORMAT_ROW)
+    if (global_system_variables.binlog_format == BINLOG_FORMAT_ROW ||
+        global_system_variables.binlog_format == BINLOG_FORMAT_MIXED)
     {
       ndb_binlog_running= TRUE;
+      thd->current_stmt_binlog_row_based= TRUE;     // If in mixed mode
     }
     else
     {
@@ -3640,6 +3679,10 @@ restart:
             injector::transaction::table tbl(table, TRUE);
             int ret= trans.use_table(::server_id, tbl);
             DBUG_ASSERT(ret == 0);
+
+            // Set all fields non-null.
+            if(table->s->null_bytes > 0)
+              bzero(table->record[0], table->s->null_bytes);
             table->field[0]->store((longlong)::server_id);
             table->field[1]->store((longlong)gci);
             trans.write_row(::server_id,
@@ -3879,21 +3922,22 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
   pthread_mutex_lock(&injector_mutex);
   if (injector_ndb)
   {
+    char buff1[22],buff2[22],buff3[22],buff4[22],buff5[22];
     ndb_latest_epoch= injector_ndb->getLatestGCI();
     pthread_mutex_unlock(&injector_mutex);
 
     buflen=
       snprintf(buf, sizeof(buf),
-               "latest_epoch=%llu, "
-               "latest_trans_epoch=%llu, "
-               "latest_received_binlog_epoch=%llu, "
-               "latest_handled_binlog_epoch=%llu, "
-               "latest_applied_binlog_epoch=%llu",
-               ndb_latest_epoch,
-               g_latest_trans_gci,
-               ndb_latest_received_binlog_epoch,
-               ndb_latest_handled_binlog_epoch,
-               ndb_latest_applied_binlog_epoch);
+               "latest_epoch=%s, "
+               "latest_trans_epoch=%s, "
+               "latest_received_binlog_epoch=%s, "
+               "latest_handled_binlog_epoch=%s, "
+               "latest_applied_binlog_epoch=%s",
+               llstr(ndb_latest_epoch, buff1),
+               llstr(g_latest_trans_gci, buff2),
+               llstr(ndb_latest_received_binlog_epoch, buff3),
+               llstr(ndb_latest_handled_binlog_epoch, buff4),
+               llstr(ndb_latest_applied_binlog_epoch, buff5));
     if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                    "binlog", strlen("binlog"),
                    buf, buflen))

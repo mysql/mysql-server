@@ -1,3 +1,4 @@
+Success: the process has been started.
 SHOW INSTANCES;
 instance_name	state
 mysqld1	online
@@ -42,7 +43,9 @@ skip-ndbcluster	VALUE
 nonguarded	VALUE
 log-output	VALUE
 START INSTANCE mysqld2;
+Success: the process has been started.
 STOP INSTANCE mysqld2;
+Success: the process has been stopped.
 SHOW mysqld1 LOG FILES;
 Logfile	Path	File size
 ERROR LOG	PATH	FILE_SIZE

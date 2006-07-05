@@ -16,6 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+class Event_timed;
 
 class THD;
 typedef bool * (*event_timed_identifier_comparator)(Event_timed*, Event_timed*);
@@ -25,7 +26,6 @@ events_init();
 
 void
 events_shutdown();
-
 
 class Event_scheduler
 {
@@ -66,14 +66,15 @@ public:
   /* Methods for queue management follow */
 
   enum enum_error_code
-  add_event(THD *thd, Event_timed *et, bool check_existence);
+  create_event(THD *thd, Event_timed *et, bool check_existence);
+
+  enum enum_error_code
+  update_event(THD *thd, Event_timed *et, LEX_STRING *new_schema,
+                LEX_STRING *new_name);
 
   bool
   drop_event(THD *thd, Event_timed *et);
 
-  enum enum_error_code
-  replace_event(THD *thd, Event_timed *et, LEX_STRING *new_schema,
-                LEX_STRING *new_name);
 
   int
   drop_schema_events(THD *thd, LEX_STRING *schema);

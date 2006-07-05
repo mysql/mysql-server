@@ -30,7 +30,7 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   */
   if (hton == NULL || hton->state != SHOW_OPTION_YES)
   {
-    hton= ha_resolve_by_legacy_type(thd, DB_TYPE_DEFAULT);
+    hton= ha_default_handlerton(thd);
     if (ts_info->storage_engine != 0)
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                           ER_WARN_USING_OTHER_HANDLER,

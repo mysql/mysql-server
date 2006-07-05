@@ -1459,7 +1459,6 @@ UNLOCK TABLES;
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
 DROP TABLE IF EXISTS `v2`;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
-/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 CREATE TABLE `v2` (
   `a` varchar(30)
 ) */;
@@ -1871,7 +1870,6 @@ UNLOCK TABLES;
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 DROP TABLE IF EXISTS `v1`;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
-/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 CREATE TABLE `v1` (
   `a` int(11)
 ) */;
@@ -1929,7 +1927,6 @@ UNLOCK TABLES;
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
 DROP TABLE IF EXISTS `v2`;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
-/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 CREATE TABLE `v2` (
   `a` varchar(30)
 ) */;
@@ -2022,7 +2019,6 @@ UNLOCK TABLES;
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 DROP TABLE IF EXISTS `v1`;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
-/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 CREATE TABLE `v1` (
   `a` int(11),
   `b` int(11),
@@ -2030,13 +2026,11 @@ DROP TABLE IF EXISTS `v1`;
 ) */;
 DROP TABLE IF EXISTS `v2`;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
-/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 CREATE TABLE `v2` (
   `a` int(11)
 ) */;
 DROP TABLE IF EXISTS `v3`;
 /*!50001 DROP VIEW IF EXISTS `v3`*/;
-/*!50001 DROP TABLE IF EXISTS `v3`*/;
 /*!50001 CREATE TABLE `v3` (
   `a` int(11),
   `b` int(11),
@@ -2597,7 +2591,6 @@ UNLOCK TABLES;
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 DROP TABLE IF EXISTS `v0`;
 /*!50001 DROP VIEW IF EXISTS `v0`*/;
-/*!50001 DROP TABLE IF EXISTS `v0`*/;
 /*!50001 CREATE TABLE `v0` (
   `a` int(11),
   `b` varchar(32),
@@ -2605,7 +2598,6 @@ DROP TABLE IF EXISTS `v0`;
 ) */;
 DROP TABLE IF EXISTS `v1`;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
-/*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 CREATE TABLE `v1` (
   `a` int(11),
   `b` varchar(32),
@@ -2613,16 +2605,11 @@ DROP TABLE IF EXISTS `v1`;
 ) */;
 DROP TABLE IF EXISTS `v2`;
 /*!50001 DROP VIEW IF EXISTS `v2`*/;
-/*!50001 DROP TABLE IF EXISTS `v2`*/;
 /*!50001 CREATE TABLE `v2` (
   `a` int(11),
   `b` varchar(32),
   `c` varchar(32)
 ) */;
-
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET latin1 */;
-
-USE `test`;
 /*!50001 DROP TABLE IF EXISTS `v0`*/;
 /*!50001 DROP VIEW IF EXISTS `v0`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
@@ -2795,6 +2782,25 @@ end	AFTER	#		root@localhost
 drop trigger tr1;
 drop trigger tr2;
 drop table t1, t2;
+create table t (qty int, price int);
+insert into t values(3, 50);
+insert into t values(5, 51);
+create view v1 as select qty, price, qty*price as value from t;
+create view v2 as select qty from v1;
+mysqldump {
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `t`.`qty` AS `qty`,`t`.`price` AS `price`,(`t`.`qty` * `t`.`price`) AS `value` from `t` */;
+
+} mysqldump {
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v2` AS select `v1`.`qty` AS `qty` from `v1` */;
+
+} mysqldump
+drop view v1;
+drop view v2;
+drop table t;
 /*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
 return 42 */|
 /*!50003 CREATE PROCEDURE `p`()
@@ -2809,6 +2815,15 @@ p		CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 select 42
 drop function f;
 drop procedure p;
+create table t1 ( id serial );
+create view v1 as select * from t1;
+drop table t1;
+mysqldump {
+
+-- failed on view `v1`: CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`id` AS `id` from `t1`
+
+} mysqldump
+drop view v1;
 create table t1 (a text , b text);
 create table t2 (a text , b text);
 insert t1 values ("Duck, Duck", "goose");
@@ -3021,3 +3036,62 @@ third	ee3	root@localhost	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLE
 drop database third;
 set time_zone = 'SYSTEM';
 use test;
+create database mysqldump_test_db;
+use mysqldump_test_db;
+create table t1 (id int);
+create view v1 as select * from t1;
+insert into t1 values (1232131);
+insert into t1 values (4711);
+insert into t1 values (3231);
+insert into t1 values (0815);
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+/*!40000 DROP DATABASE IF EXISTS `mysqldump_test_db`*/;
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_test_db` /*!40100 DEFAULT CHARACTER SET latin1 */;
+
+USE `mysqldump_test_db`;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `id` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+
+/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
+LOCK TABLES `t1` WRITE;
+INSERT INTO `t1` VALUES (1232131),(4711),(3231),(815);
+UNLOCK TABLES;
+/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+DROP TABLE IF EXISTS `v1`;
+/*!50001 DROP VIEW IF EXISTS `v1`*/;
+/*!50001 CREATE TABLE `v1` (
+  `id` int(11)
+) */;
+/*!50001 DROP TABLE IF EXISTS `v1`*/;
+/*!50001 DROP VIEW IF EXISTS `v1`*/;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `v1` AS select `t1`.`id` AS `id` from `t1` */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+drop view v1;
+drop table t1;
+drop database mysqldump_test_db;

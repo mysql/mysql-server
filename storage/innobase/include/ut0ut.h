@@ -224,6 +224,7 @@ ut_print_name(
 /*==========*/
 	FILE*		f,	/* in: output stream */
 	struct trx_struct*trx,	/* in: transaction */
+	ibool		table_id,/* in: TRUE=decode table name */
 	const char*	name);	/* in: name to print */
 
 /**************************************************************************
@@ -234,6 +235,7 @@ ut_print_namel(
 /*===========*/
 	FILE*		f,	/* in: output stream */
 	struct trx_struct*trx,	/* in: transaction (NULL=no quotes) */
+	ibool		table_id,/* in: TRUE=decode table name */
 	const char*	name,	/* in: name to print */
 	ulint		namelen);/* in: length of name */
 

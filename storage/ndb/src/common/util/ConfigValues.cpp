@@ -294,6 +294,12 @@ ConfigValuesFactory::ConfigValuesFactory(ConfigValues * cfg){
   }
 }
 
+ConfigValuesFactory::~ConfigValuesFactory()
+{
+  if(m_cfg)
+    free(m_cfg);
+}
+
 ConfigValues *
 ConfigValuesFactory::create(Uint32 keys, Uint32 data){
   Uint32 sz = sizeof(ConfigValues);
@@ -528,7 +534,7 @@ ConfigValuesFactory::extractCurrentSection(const ConfigValues::ConstIterator & c
     }
   }
   
-  ConfigValues * ret = fac->m_cfg;
+  ConfigValues * ret = fac->getConfigValues();
   delete fac;
   return ret;
 }

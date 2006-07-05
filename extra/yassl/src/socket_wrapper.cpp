@@ -113,13 +113,22 @@ uint Socket::get_ready() const
 
 uint Socket::send(const byte* buf, unsigned int sz, int flags) const
 {
+    const byte* pos = buf;
+    const byte* end = pos + sz;
+
     assert(socket_ != INVALID_SOCKET);
-    int sent = ::send(socket_, reinterpret_cast<const char *>(buf), sz, flags);
+
+    while (pos != end) {
+        int sent = ::send(socket_, reinterpret_cast<const char *>(pos),
+                          static_cast<int>(end - pos), flags);
 
     if (sent == -1)
         return 0;
 
-    return sent;
+        pos += sent;
+    }
+
+    return sz;
 }
 
 

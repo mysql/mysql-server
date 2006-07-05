@@ -124,7 +124,7 @@ public:
   static bool type_can_have_key_part(enum_field_types);
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
-  bool eq(Field *field)
+  virtual bool eq(Field *field)
   {
     return (ptr == field->ptr && null_ptr == field->null_ptr &&
             null_bit == field->null_bit);
@@ -351,6 +351,8 @@ public:
     return field_length / charset()->mbmaxlen;
   }
 
+  /* Hash value */
+  virtual void hash(ulong *nr, ulong *nr2);
   friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(my_string name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
@@ -823,7 +825,7 @@ public:
     if ((*null_value= is_null()))
       return 0;
 #ifdef WORDS_BIGENDIAN
-    if (table->s->db_low_byte_first)
+    if (table && table->s->db_low_byte_first)
       return sint4korr(ptr);
 #endif
     long tmp;
@@ -1121,6 +1123,7 @@ public:
                        char *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
   uint is_equal(create_field *new_field);
+  void hash(ulong *nr, ulong *nr2);
 };
 
 
@@ -1387,6 +1390,13 @@ public:
   {
     bit_ptr= bit_ptr_arg;
     bit_ofs= bit_ofs_arg;
+  }
+  bool eq(Field *field)
+  {
+    return (Field::eq(field) &&
+            field->type() == type() &&
+            bit_ptr == ((Field_bit *)field)->bit_ptr &&
+            bit_ofs == ((Field_bit *)field)->bit_ofs);
   }
   void move_field_offset(my_ptrdiff_t ptr_diff)
   {

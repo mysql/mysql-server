@@ -255,9 +255,9 @@ delete from t2 where b=3;
 delete from t3 where a=3;
 --replace_column 6 # 7 # 8 # 9 # 10 #
 show table status;
-delete from t1;
-delete from t2;
-delete from t3;
+truncate table t1;
+truncate table t2;
+truncate table t3;
 --replace_column 6 # 7 # 8 # 9 #
 show table status;
 insert into t1 values (5);
@@ -444,5 +444,18 @@ delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';
 flush privileges;
 drop database mysqltest;
+
+#
+# Ensure that show plugin code is tested
+#
+
+--disable_result_log
+show full plugin;
+--enable_result_log
+show warnings;
+--disable_result_log
+show plugin;
+show plugins;
+--enable_result_log
 
 --echo End of 5.1 tests

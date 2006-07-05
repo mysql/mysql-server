@@ -286,7 +286,7 @@ our $opt_user_test;
 our $opt_valgrind= 0;
 our $opt_valgrind_mysqld= 0;
 our $opt_valgrind_mysqltest= 0;
-our $opt_valgrind_all= 0;
+our $default_valgrind_options= "-v --show-reachable=yes";
 our $opt_valgrind_options;
 our $opt_valgrind_path;
 
@@ -624,10 +624,9 @@ sub command_line_setup () {
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
-             'valgrind'                 => \$opt_valgrind,
+             'valgrind|valgrind-all'    => \$opt_valgrind,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
-             'valgrind-all'             => \$opt_valgrind_all,
              'valgrind-options=s'       => \$opt_valgrind_options,
              'valgrind-path=s'          => \$opt_valgrind_path,
 
@@ -848,20 +847,32 @@ sub command_line_setup () {
     }
   }
 
-  # Turn on valgrinding of all executables if "valgrind" or "valgrind-all"
-  if ( $opt_valgrind or $opt_valgrind_all )
+  # Check valgrind arguments
+  if ( $opt_valgrind or $opt_valgrind_path or defined $opt_valgrind_options)
   {
     mtr_report("Turning on valgrind for all executables");
     $opt_valgrind= 1;
     $opt_valgrind_mysqld= 1;
     $opt_valgrind_mysqltest= 1;
   }
-  elsif ( $opt_valgrind_mysqld or $opt_valgrind_mysqltest )
+  elsif ( $opt_valgrind_mysqld )
   {
-    # If test's are run for a specific executable, turn on
-    # verbose and show-reachable
+    mtr_report("Turning on valgrind for mysqld(s) only");
     $opt_valgrind= 1;
-    $opt_valgrind_all= 1;
+  }
+  elsif ( $opt_valgrind_mysqltest )
+  {
+    mtr_report("Turning on valgrind for mysqltest only");
+    $opt_valgrind= 1;
+  }
+
+  if ( $opt_valgrind )
+  {
+    # Set valgrind_options to default unless already defined
+    $opt_valgrind_options=$default_valgrind_options
+      unless defined $opt_valgrind_options;
+
+    mtr_report("Running valgrind with options \"$opt_valgrind_options\"");
   }
 
   if ( ! $opt_testcase_timeout )
@@ -1129,7 +1140,9 @@ sub executable_setup () {
                                            # New CMake locations.
                                            "$glob_basedir/client/release",
                                            "$glob_basedir/client/debug");
-      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt",
+      $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max-nt",
+                                           "$path_client_bindir/mysqld-max",
+                                           "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-debug",
                                            "$path_client_bindir/mysqld-max",
@@ -3440,7 +3453,31 @@ sub im_stop($) {
 
   # Try graceful shutdown.
 
+  mtr_debug("IM-main pid: $instance_manager->{'pid'}");
+  mtr_debug("Stopping IM-main...");
+
   mtr_kill_process($instance_manager->{'pid'}, 'TERM', 10);
+
+  # If necessary, wait for angel process to die.
+
+  if (defined $instance_manager->{'angel_pid'})
+  {
+    mtr_debug("IM-angel pid: $instance_manager->{'angel_pid'}");
+    mtr_debug("Waiting for IM-angel to die...");
+
+    my $total_attempts= 10;
+
+    for (my $cur_attempt=1; $cur_attempt <= $total_attempts; ++$cur_attempt)
+    {
+      unless (kill (0, $instance_manager->{'angel_pid'}))
+      {
+        mtr_debug("IM-angel died.");
+        last;
+      }
+
+      sleep(1);
+    }
+  }
 
   # Check that all processes died.
 
@@ -3448,14 +3485,26 @@ sub im_stop($) {
 
   while (1)
   {
-    last if kill (0, $instance_manager->{'pid'});
+    if (kill (0, $instance_manager->{'pid'}))
+    {
+      mtr_debug("IM-main is still alive.");
+      last;
+    }
 
-    last if (defined $instance_manager->{'angel_pid'}) &&
-            kill (0, $instance_manager->{'angel_pid'});
+    if (defined $instance_manager->{'angel_pid'} &&
+        kill (0, $instance_manager->{'angel_pid'}))
+    {
+      mtr_debug("IM-angel is still alive.");
+      last;
+    }
 
     foreach my $pid (@mysqld_pids)
     {
-      last if kill (0, $pid);
+      if (kill (0, $pid))
+      {
+        mtr_debug("Guarded mysqld ($pid) is still alive.");
+        last;
+      }
     }
 
     $clean_shutdown= 1;
@@ -3466,15 +3515,21 @@ sub im_stop($) {
 
   unless ($clean_shutdown)
   {
-    mtr_kill_process($instance_manager->{'angel_pid'}, 'KILL', 10)
-      if defined $instance_manager->{'angel_pid'};
+
+    if (defined $instance_manager->{'angel_pid'})
+    {
+      mtr_debug("Killing IM-angel...");
+      mtr_kill_process($instance_manager->{'angel_pid'}, 'KILL', 10)
+    }
     
+    mtr_debug("Killing IM-main...");
     mtr_kill_process($instance_manager->{'pid'}, 'KILL', 10);
 
     # Shutdown managed mysqld-processes. Some of them may be nonguarded, so IM
     # will not stop them on shutdown. So, we should firstly try to end them
     # legally.
 
+    mtr_debug("Killing guarded mysqld(s)...");
     mtr_kill_processes(\@mysqld_pids);
 
     # Complain in error log so that a warning will be shown.
@@ -4040,17 +4095,8 @@ sub valgrind_arguments {
   mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
     if -f "$glob_mysql_test_dir/valgrind.supp";
 
-  if ( $opt_valgrind_all )
-  {
-    mtr_add_arg($args, "-v");
-    mtr_add_arg($args, "--show-reachable=yes");
-  }
-
-  if ( $opt_valgrind_options )
-  {
-    mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
-  }
-
+  # Add valgrind options, can be overriden by user
+  mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
 
   mtr_add_arg($args, $$exe);
 
@@ -4164,12 +4210,11 @@ Options for coverage, profiling etc
   gcov                  FIXME
   gprof                 FIXME
   valgrind              Run the "mysqltest" and "mysqld" executables using
-                        valgrind
-  valgrind-all          Same as "valgrind" but will also add "verbose" and
-                        "--show-reachable" flags to valgrind
+                        valgrind with options($default_valgrind_options)
+  valgrind-all          Synonym for --valgrind
   valgrind-mysqltest    Run the "mysqltest" executable with valgrind
   valgrind-mysqld       Run the "mysqld" executable with valgrind
-  valgrind-options=ARGS Extra options to give valgrind
+  valgrind-options=ARGS Options to give valgrind, replaces default options
   valgrind-path=[EXE]   Path to the valgrind executable
 
 Misc options

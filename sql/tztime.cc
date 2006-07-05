@@ -107,7 +107,7 @@ typedef struct st_time_zone_info
   uint revcnt;   // Number of transition descr. for TIME->my_time_t conversion
   /* The following are dynamical arrays are allocated in MEM_ROOT */
   my_time_t *ats;       // Times of transitions between time types
-  unsigned char	*types; // Local time types for transitions
+  uchar	*types; // Local time types for transitions
   TRAN_TYPE_INFO *ttis; // Local time types descriptions
 #ifdef ABBR_ARE_USED
   /* Storage for local time types abbreviations. They are stored as ASCIIZ */
@@ -222,7 +222,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 
     sp->ats= (my_time_t *)tzinfo_buf;
     tzinfo_buf+= ALIGN_SIZE(sp->timecnt * sizeof(my_time_t));
-    sp->types= (unsigned char *)tzinfo_buf;
+    sp->types= (uchar *)tzinfo_buf;
     tzinfo_buf+= ALIGN_SIZE(sp->timecnt);
     sp->ttis= (TRAN_TYPE_INFO *)tzinfo_buf;
     tzinfo_buf+= ALIGN_SIZE(sp->typecnt * sizeof(TRAN_TYPE_INFO));
@@ -237,7 +237,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 
     for (i= 0; i < sp->timecnt; i++)
     {
-      sp->types[i]= (unsigned char) *p++;
+      sp->types[i]= (uchar) *p++;
       if (sp->types[i] >= sp->typecnt)
         return 1;
     }
@@ -248,10 +248,10 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
       ttisp= &sp->ttis[i];
       ttisp->tt_gmtoff= int4net(p);
       p+= 4;
-      ttisp->tt_isdst= (unsigned char) *p++;
+      ttisp->tt_isdst= (uchar) *p++;
       if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1)
         return 1;
-      ttisp->tt_abbrind= (unsigned char) *p++;
+      ttisp->tt_abbrind= (uchar) *p++;
       if (ttisp->tt_abbrind > sp->charcnt)
         return 1;
     }
@@ -1801,7 +1801,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
     TIME_ZONE_INFO structure
   */
   my_time_t ats[TZ_MAX_TIMES];
-  unsigned char types[TZ_MAX_TIMES];
+  uchar types[TZ_MAX_TIMES];
   TRAN_TYPE_INFO ttis[TZ_MAX_TYPES];
 #ifdef ABBR_ARE_USED
   char chars[max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
@@ -2038,7 +2038,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   tz_info->ats= (my_time_t *)alloc_buff;
   memcpy(tz_info->ats, ats, tz_info->timecnt * sizeof(my_time_t));
   alloc_buff+= ALIGN_SIZE(sizeof(my_time_t) * tz_info->timecnt);
-  tz_info->types= (unsigned char *)alloc_buff;
+  tz_info->types= (uchar *)alloc_buff;
   memcpy(tz_info->types, types, tz_info->timecnt);
   alloc_buff+= ALIGN_SIZE(tz_info->timecnt);
 #ifdef ABBR_ARE_USED

@@ -476,6 +476,11 @@ aclid bigint, index idx_acl(aclid)
 insert into t2 values(1,null);
 delete t2, t1 from t2 left join t1 on (t2.aclid=t1.aclid) where t2.refid='1';
 drop table t1, t2;
+create table t1(a int);
+create table t2(a int);
+delete from t1,t2 using t1,t2 where t1.a=(select a from t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+drop table t1, t2;
 create table t1 ( c char(8) not null ) engine=innodb;
 insert into t1 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9');
 insert into t1 values ('A'),('B'),('C'),('D'),('E'),('F');

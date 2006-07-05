@@ -65,9 +65,8 @@ int get_part_for_delete(const byte *buf, const byte *rec0,
                         partition_info *part_info, uint32 *part_id);
 void prune_partition_set(const TABLE *table, part_id_range *part_spec);
 bool check_partition_info(partition_info *part_info,handlerton **eng_type,
-                          handler *file, ulonglong max_rows);
-bool fix_partition_func(THD *thd, const char *name, TABLE *table,
-                        bool create_table_ind);
+                          TABLE *table, handler *file, HA_CREATE_INFO *info);
+bool fix_partition_func(THD *thd, TABLE *table, bool create_table_ind);
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options);
@@ -91,6 +90,8 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
 uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
                                            bool left_endpoint,
                                            bool include_endpoint);
+bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
+                          bool is_sub_part, bool is_field_to_be_setup);
 
 /*
   A "Get next" function for partition iterator.

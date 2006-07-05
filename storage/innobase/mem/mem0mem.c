@@ -17,6 +17,7 @@ Created 6/9/1994 Heikki Tuuri
 #include "btr0sea.h"
 #include "srv0srv.h"
 #include "mem0dbg.c"
+#include <stdarg.h>
 
 /*
 			THE MEMORY MANAGEMENT
@@ -107,11 +108,45 @@ char*
 mem_heap_strdup(
 /*============*/
 				/* out, own: a copy of the string */
-	mem_heap_t* heap,	/* in: memory heap where string is allocated */
-	const char* str)	/* in: string to be copied */
+	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
+	const char*	str)	/* in: string to be copied */
 {
-	ulint	len = strlen(str) + 1;
-	return(memcpy(mem_heap_alloc(heap, len), str, len));
+	return(mem_heap_dup(heap, str, strlen(str) + 1));
+}
+
+/**************************************************************************
+Duplicate a block of data, allocated from a memory heap. */
+
+void*
+mem_heap_dup(
+/*=========*/
+				/* out, own: a copy of the data */
+	mem_heap_t*	heap,	/* in: memory heap where copy is allocated */
+	const void*	data,	/* in: data to be copied */
+	ulint		len)	/* in: length of data, in bytes */
+{
+	return(memcpy(mem_heap_alloc(heap, len), data, len));
+}
+
+/**************************************************************************
+Concatenate two memory blocks and return the result, using a memory heap. */
+
+void*
+mem_heap_cat(
+/*=========*/
+				/* out, own: the result */
+	mem_heap_t*	heap,	/* in: memory heap where result is allocated */
+	const void*	b1,	/* in: block 1 */
+	ulint		len1,	/* in: length of b1, in bytes */
+	const void*	b2,	/* in: block 2 */
+	ulint		len2)	/* in: length of b2, in bytes */
+{
+	void*	res = mem_heap_alloc(heap, len1 + len2);
+
+	memcpy(res, b1, len1);
+	memcpy((char *)res + len1, b2, len2);
+
+	return(res);
 }
 
 /**************************************************************************
@@ -137,6 +172,150 @@ mem_heap_strcat(
 	s[s1_len + s2_len] = '\0';
 
 	return(s);
+}
+
+
+/********************************************************************
+Helper function for mem_heap_printf. */
+static
+ulint
+mem_heap_printf_low(
+/*================*/
+				/* out: length of formatted string,
+				including terminating NUL */
+	char*		buf,	/* in/out: buffer to store formatted string
+				in, or NULL to just calculate length */
+	const char*	format,	/* in: format string */
+	va_list		ap)	/* in: arguments */
+{
+	ulint 		len = 0;
+
+	while (*format) {
+
+		/* Does this format specifier have the 'l' length modifier. */
+		ibool	is_long = FALSE;
+
+		/* Length of one parameter. */
+		size_t	plen;
+
+		if (*format++ != '%') {
+			/* Non-format character. */
+
+			len++;
+
+			if (buf) {
+				*buf++ = *(format - 1);
+			}
+
+			continue;
+		}
+
+		if (*format == 'l') {
+			is_long = TRUE;
+			format++;
+		}
+
+		switch (*format++) {
+		case 's':
+			/* string */
+			{
+				char*	s = va_arg(ap, char*);
+
+				/* "%ls" is a non-sensical format specifier. */
+				ut_a(!is_long);
+
+				plen = strlen(s);
+				len += plen;
+
+				if (buf) {
+					memcpy(buf, s, plen);
+					buf += plen;
+				}
+			}
+
+			break;
+
+		case 'u':
+			/* unsigned int */
+			{
+				char		tmp[32];
+				unsigned long	val;
+
+				/* We only support 'long' values for now. */
+				ut_a(is_long);
+
+				val = va_arg(ap, unsigned long);
+
+				plen = sprintf(tmp, "%lu", val);
+				len += plen;
+
+				if (buf) {
+					memcpy(buf, tmp, plen);
+					buf += plen;
+				}
+			}
+
+			break;
+
+		case '%':
+
+			/* "%l%" is a non-sensical format specifier. */
+			ut_a(!is_long);
+
+			len++;
+
+			if (buf) {
+				*buf++ = '%';
+			}
+
+			break;
+
+		default:
+			ut_error;
+		}
+	}
+
+	/* For the NUL character. */
+	len++;
+
+	if (buf) {
+		*buf = '\0';
+	}
+
+	return(len);
+}
+
+/********************************************************************
+A simple (s)printf replacement that dynamically allocates the space for the
+formatted string from the given heap. This supports a very limited set of
+the printf syntax: types 's' and 'u' and length modifier 'l' (which is
+required for the 'u' type). */
+
+char*
+mem_heap_printf(
+/*============*/
+				/* out: heap-allocated formatted string */
+	mem_heap_t*	heap,	/* in: memory heap */
+	const char*	format,	/* in: format string */
+	...)
+{
+	va_list		ap;
+	char*		str;
+	ulint 		len;
+
+	/* Calculate length of string */
+	len = 0;
+	va_start(ap, format);
+	len = mem_heap_printf_low(NULL, format, ap);
+	va_end(ap);
+
+	/* Now create it for real. */
+	str = mem_heap_alloc(heap, len);
+	va_start(ap, format);
+	mem_heap_printf_low(str, format, ap);
+	va_end(ap);
+
+	return(str);
 }
 
 /*******************************************************************

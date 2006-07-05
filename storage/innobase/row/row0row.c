@@ -480,12 +480,12 @@ row_build_row_ref_in_tuple(
 
 	ut_a(ref && index && rec);
 
-	if (!index->table) {
+	if (UNIV_UNLIKELY(!index->table)) {
 		fputs("InnoDB: table ", stderr);
 	notfound:
-		ut_print_name(stderr, trx, index->table_name);
+		ut_print_name(stderr, trx, TRUE, index->table_name);
 		fputs(" for index ", stderr);
-		ut_print_name(stderr, trx, index->name);
+		ut_print_name(stderr, trx, FALSE, index->name);
 		fputs(" not found\n", stderr);
 		ut_error;
 	}

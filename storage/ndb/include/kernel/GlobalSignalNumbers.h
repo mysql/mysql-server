@@ -517,16 +517,12 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TEST_ORD                    407
 #define GSN_TESTSIG                     408
 #define GSN_TIME_SIGNAL                 409
-/* 410 unused  */
-/* 411 unused  */
-/* 412 unused */
 #define GSN_TUP_ABORTREQ                414
 #define GSN_TUP_ADD_ATTCONF             415
 #define GSN_TUP_ADD_ATTRREF             416
 #define GSN_TUP_ADD_ATTRREQ             417
 #define GSN_TUP_ATTRINFO                418
 #define GSN_TUP_COMMITREQ               419
-/* 420 unused */
 
 /* 421 unused */
 /* 422 unused */
@@ -695,6 +691,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_BACKUP_FRAGMENT_REF         546
 #define GSN_BACKUP_FRAGMENT_CONF        547
 
+#define GSN_BACKUP_FRAGMENT_COMPLETE_REP 575
+
 #define GSN_STOP_BACKUP_REQ             548
 #define GSN_STOP_BACKUP_REF             549
 #define GSN_STOP_BACKUP_CONF            550
@@ -744,7 +742,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SUB_STOP_REQ                572
 #define GSN_SUB_STOP_REF                573
 #define GSN_SUB_STOP_CONF               574
-/*                                      575 unused */
+/*                                      575 used */
 #define GSN_SUB_CREATE_REQ              576
 #define GSN_SUB_CREATE_REF              577
 #define GSN_SUB_CREATE_CONF             578
@@ -980,5 +978,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DICT_ABORT_REQ              667
 #define GSN_DICT_ABORT_REF              668
 #define GSN_DICT_ABORT_CONF             669
+
+/* DICT LOCK signals */
+#define GSN_DICT_LOCK_REQ               410
+#define GSN_DICT_LOCK_CONF              411
+#define GSN_DICT_LOCK_REF               412
+#define GSN_DICT_UNLOCK_ORD             420
 
 #endif

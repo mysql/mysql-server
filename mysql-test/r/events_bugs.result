@@ -178,4 +178,27 @@ drop procedure ee_16407_6_pendant;
 set global event_scheduler= 2;
 drop table events_smode_test;
 set sql_mode=@old_sql_mode;
+set global event_scheduler=2;
+delete from mysql.user where User like 'mysqltest_%';
+delete from mysql.db where User like 'mysqltest_%';
+flush privileges;
+drop database if exists mysqltest_db1;
+create user mysqltest_user1@localhost;
+create database mysqltest_db1;
+grant event on events_test.* to mysqltest_user1@localhost;
+create event mysqltest_user1 on schedule every 10 second do select 42;
+alter event mysqltest_user1 rename to mysqltest_db1.mysqltest_user1;
+ERROR 42000: Access denied for user 'mysqltest_user1'@'localhost' to database 'mysqltest_db1'
+"Let's test now rename when there is no select DB"
+select database();
+database()
+NULL
+alter event events_test.mysqltest_user1 rename to mysqltest_user1;
+ERROR 3D000: No database selected
+select event_schema, event_name, definer, event_type, status from information_schema.events;
+event_schema	event_name	definer	event_type	status
+events_test	mysqltest_user1	mysqltest_user1@localhost	RECURRING	ENABLED
+drop event events_test.mysqltest_user1;
+drop user mysqltest_user1@localhost;
+drop database mysqltest_db1;
 drop database events_test;

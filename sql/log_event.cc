@@ -1287,6 +1287,18 @@ bool Query_log_event::write(IO_CACHE* file)
           my_b_safe_write(file, (byte*) query, q_len)) ? 1 : 0;
 }
 
+/*
+  Query_log_event::Query_log_event()
+ 
+  The simplest constructor that could possibly work.  This is used for
+  creating static objects that have a special meaning and are invisible
+  to the log.  
+*/
+Query_log_event::Query_log_event()
+  :Log_event(), data_buf(0)
+{
+}
+
 
 /*
   Query_log_event::Query_log_event()
@@ -1931,6 +1943,21 @@ end:
   return (thd->query_error ? thd->query_error : 
           (thd->one_shot_set ? (rli->inc_event_relay_log_pos(),0) :
            Log_event::exec_event(rli))); 
+}
+#endif
+
+
+/**************************************************************************
+	Muted_query_log_event methods
+**************************************************************************/
+
+#ifndef MYSQL_CLIENT
+/*
+  Muted_query_log_event::Muted_query_log_event()
+*/
+Muted_query_log_event::Muted_query_log_event()
+  :Query_log_event()
+{
 }
 #endif
 
@@ -5595,6 +5622,7 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
 bool Rows_log_event::write_data_header(IO_CACHE *file)
 {
   byte buf[ROWS_HEADER_LEN];	// No need to init the buffer
+  DBUG_ASSERT(m_table_id != ~0UL);
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
                   {
                     int4store(buf + 0, m_table_id);
@@ -5681,7 +5709,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   /* If malloc fails, catched in is_valid() */
   if ((m_memory= my_malloc(m_colcnt, MYF(MY_WME))))
   {
-    m_coltype= reinterpret_cast<unsigned char*>(m_memory);
+    m_coltype= reinterpret_cast<uchar*>(m_memory);
     for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
       m_coltype[i]= m_table->field[i]->type();
   }
@@ -5737,11 +5765,11 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
   /* Extract the length of the various parts from the buffer */
   byte const* const ptr_dblen= (byte const*)vpart + 0;
-  m_dblen= *(unsigned char*) ptr_dblen;
+  m_dblen= *(uchar*) ptr_dblen;
 
   /* Length of database name + counter + terminating null */
   byte const* const ptr_tbllen= ptr_dblen + m_dblen + 2;
-  m_tbllen= *(unsigned char*) ptr_tbllen;
+  m_tbllen= *(uchar*) ptr_tbllen;
 
   /* Length of table name + counter + terminating null */
   byte const* const ptr_colcnt= ptr_tbllen + m_tbllen + 2;
@@ -5845,9 +5873,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 
     /*
       Open the table if it is not already open and add the table to table map.
-      If the table should not be replicated, we don't bother to do anything.
-      The table map will return NULL and the row-level event will effectively
-      be a no-op.
+      Note that for any table that should not be replicated, a filter is needed.
     */
     uint count;
     /*
@@ -5863,36 +5889,16 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
         /*
           Error reporting borrowed from Query_log_event with many excessive
           simplifications (we don't honour --slave-skip-errors)
-
-          BUG: There can be extreneous table maps in the binary log,
-          so in case we fail to open the table, we just generate a
-          warning and do not add the table to the list of tables to
-          open and lock.
         */
         uint actual_error= thd->net.last_errno;
-        switch (actual_error)
-        {
-        case ER_NO_SUCH_TABLE:
-          slave_print_msg(WARNING_LEVEL, rli, actual_error,
-                          thd->net.last_error ?
-                          thd->net.last_error :
-                          "<no message>");
-          clear_all_errors(thd, rli);
-          rli->inc_event_relay_log_pos();       // Continue with next event
-          error= 0;
-          break;
-
-        default:
-          slave_print_msg(ERROR_LEVEL, rli, actual_error,
-                          "Error '%s' on opening table `%s`.`%s`",
-                          (actual_error ? thd->net.last_error :
-                           "unexpected success or fatal error"),
-                          table_list->db, table_list->table_name);
-          thd->query_error= 1;
-          break;
-        }
+        slave_print_msg(ERROR_LEVEL, rli, actual_error,
+                        "Error '%s' on opening table `%s`.`%s`",
+                        (actual_error ? thd->net.last_error :
+                         "unexpected success or fatal error"),
+                        table_list->db, table_list->table_name);
+        thd->query_error= 1;
       }
-      DBUG_RETURN(error);
+      goto err;
     }
 
     m_table= table_list->table;
@@ -5939,6 +5945,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 
     if (col <= tsh->fields)
     {
+      /* purecov: begin inspected */
       /*
         If we get here, the number of columns in the event didn't
         match the number of columns in the table on the slave, *or*
@@ -5969,7 +5976,9 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       }
 
       thd->query_error= 1;
-      DBUG_RETURN(ERR_BAD_TABLE_DEF);
+      error= ERR_BAD_TABLE_DEF;
+      goto err;
+      /* purecov: end */
     }
 
     /*
@@ -5977,12 +5986,10 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       locked by linking the table into the list of tables to lock, and
       tell the RLI that we are touching a table.
     */
-    if (!error)
-    {
-      table_list->next_global= table_list->next_local= rli->tables_to_lock;
-      rli->tables_to_lock= table_list;
-      rli->tables_to_lock_count++;
-    }
+    table_list->next_global= table_list->next_local= rli->tables_to_lock;
+    rli->tables_to_lock= table_list;
+    rli->tables_to_lock_count++;
+    /* 'memory' is freed in clear_tables_to_lock */
   }
 
   /*
@@ -5997,7 +6004,10 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
 
   if (likely(!error))
     rli->inc_event_relay_log_pos();
+  DBUG_RETURN(error);
 
+err:
+  my_free((gptr) memory, MYF(MY_WME));
   DBUG_RETURN(error);
 }
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */

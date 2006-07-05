@@ -55,6 +55,7 @@
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
+#include <my_dir.h>
 
 #include "event_scheduler.h"
 
@@ -164,6 +165,11 @@ static byte *get_error_count(THD *thd);
 static byte *get_warning_count(THD *thd);
 static byte *get_prepared_stmt_count(THD *thd);
 static byte *get_tmpdir(THD *thd);
+static int  sys_check_log_path(THD *thd,  set_var *var);
+static bool sys_update_general_log_path(THD *thd, set_var * var);
+static void sys_default_general_log_path(THD *thd, enum_var_type type);
+static bool sys_update_slow_log_path(THD *thd, set_var * var);
+static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 
 /*
   Variable definition list
@@ -548,6 +554,8 @@ sys_ndb_index_stat_update_freq("ndb_index_stat_update_freq",
                                &SV::ndb_index_stat_update_freq);
 sys_var_long_ptr
 sys_ndb_extra_logging("ndb_extra_logging", &ndb_extra_logging);
+sys_var_thd_bool
+sys_ndb_use_copying_alter_table("ndb_use_copying_alter_table", &SV::ndb_use_copying_alter_table);
 
 /* Time/date/datetime formats */
 
@@ -679,6 +687,22 @@ sys_var_have_variable sys_have_row_based_replication("have_row_based_replication
 /* Global read-only variable describing server license */
 sys_var_const_str		sys_license("license", STRINGIFY_ARG(LICENSE));
 
+/* Global variables which enable|disable logging */
+sys_var_log_state sys_var_general_log("general_log", &opt_log,
+                                      QUERY_LOG_GENERAL);
+sys_var_log_state sys_var_slow_query_log("slow_query_log", &opt_slow_log,
+                                         QUERY_LOG_SLOW);
+sys_var_str sys_var_general_log_path("general_log_file", sys_check_log_path,
+				     sys_update_general_log_path,
+				     sys_default_general_log_path,
+				     opt_logname);
+sys_var_str sys_var_slow_log_path("slow_query_log_file", sys_check_log_path,
+				  sys_update_slow_log_path, 
+				  sys_default_slow_log_path,
+				  opt_slow_logname);
+sys_var_log_output sys_var_log_output_state("log_output", &log_output_options,
+					    &log_output_typelib, 0);
+
 #ifdef HAVE_REPLICATION
 static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
 {
@@ -777,6 +801,8 @@ SHOW_VAR init_vars[]= {
   {"ft_min_word_len",         (char*) &ft_min_word_len,             SHOW_LONG},
   {"ft_query_expansion_limit",(char*) &ft_query_expansion_limit,    SHOW_LONG},
   {"ft_stopword_file",        (char*) &ft_stopword_file,            SHOW_CHAR_PTR},
+  {sys_var_general_log.name, (char*) &opt_log,                      SHOW_MY_BOOL},
+  {sys_var_general_log_path.name, (char*) &sys_var_general_log_path,  SHOW_SYS},
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
   {sys_have_archive_db.name,  (char*) &have_archive_db,             SHOW_HAVE},
   {sys_have_berkeley_db.name, (char*) &have_berkeley_db,            SHOW_HAVE},
@@ -854,6 +880,7 @@ SHOW_VAR init_vars[]= {
   {"log_bin",                 (char*) &opt_bin_log,                 SHOW_BOOL},
   {sys_trust_function_creators.name,(char*) &sys_trust_function_creators, SHOW_SYS},
   {"log_error",               (char*) log_error_file,               SHOW_CHAR},
+  {sys_var_log_output_state.name, (char*) &sys_var_log_output_state, SHOW_SYS},
   {sys_log_queries_not_using_indexes.name,
     (char*) &sys_log_queries_not_using_indexes, SHOW_SYS},
 #ifdef HAVE_REPLICATION
@@ -917,6 +944,8 @@ SHOW_VAR init_vars[]= {
   {sys_ndb_report_thresh_binlog_mem_usage.name,
    (char*) &sys_ndb_report_thresh_binlog_mem_usage,                 SHOW_SYS},
 #endif
+  {sys_ndb_use_copying_alter_table.name,
+   (char*) &sys_ndb_use_copying_alter_table,                        SHOW_SYS},
   {sys_ndb_use_exact_count.name,(char*) &sys_ndb_use_exact_count,   SHOW_SYS},
   {sys_ndb_use_transactions.name,(char*) &sys_ndb_use_transactions, SHOW_SYS},
   {sys_net_buffer_length.name,(char*) &sys_net_buffer_length,       SHOW_SYS},
@@ -977,6 +1006,8 @@ SHOW_VAR init_vars[]= {
   {sys_slave_trans_retries.name,(char*) &sys_slave_trans_retries,   SHOW_SYS},
 #endif
   {sys_slow_launch_time.name, (char*) &sys_slow_launch_time,        SHOW_SYS},
+  {sys_var_slow_query_log.name, (char*) &opt_slow_log,              SHOW_MY_BOOL},
+  {sys_var_slow_log_path.name, (char*) &sys_var_slow_log_path,      SHOW_SYS},
 #ifdef HAVE_SYS_UN_H
   {"socket",                  (char*) &mysqld_unix_port,             SHOW_CHAR_PTR},
 #endif
@@ -1297,15 +1328,20 @@ bool sys_var_thd_binlog_format::is_readonly() const
     if global or not here.
     And this test will also prevent switching from RBR to RBR (a no-op which
     should not happen too often).
+
+    If we don't have row-based replication compiled in, the variable
+    is always read-only.
   */
-#ifdef HAVE_ROW_BASED_REPLICATION
+#ifndef HAVE_ROW_BASED_REPLICATION
+  my_error(ER_RBR_NOT_AVAILABLE, MYF(0));
+  return 1;
+#else
   if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW) &&
       thd->temporary_tables)
   {
     my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
     return 1;
   }
-#endif /*HAVE_ROW_BASED_REPLICATION*/
   /*
     if in a stored function, it's too late to change mode
   */
@@ -1323,9 +1359,11 @@ bool sys_var_thd_binlog_format::is_readonly() const
     my_error(ER_NDB_CANT_SWITCH_BINLOG_FORMAT, MYF(0));
     return 1;
   }
-#endif
+#endif /* HAVE_NDB_BINLOG */
+#endif /* HAVE_ROW_BASED_REPLICATION */
   return sys_var_thd_enum::is_readonly();
 }
+
 
 void fix_binlog_format_after_update(THD *thd, enum_var_type type)
 {
@@ -1333,6 +1371,7 @@ void fix_binlog_format_after_update(THD *thd, enum_var_type type)
   thd->reset_current_stmt_binlog_row_based();
 #endif /*HAVE_ROW_BASED_REPLICATION*/
 }
+
 
 static void fix_max_binlog_size(THD *thd, enum_var_type type)
 {
@@ -2506,6 +2545,207 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 end:
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return error;
+}
+
+
+bool sys_var_log_state::update(THD *thd, set_var *var)
+{
+  bool res= 0;
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  if (!var->save_result.ulong_value)
+    logger.deactivate_log_handler(thd, log_type);
+  else
+  {
+    if ((res= logger.activate_log_handler(thd, log_type)))
+    {
+      my_error(ER_CANT_ACTIVATE_LOG, MYF(0),
+               log_type == QUERY_LOG_GENERAL ? "general" :
+               "slow query");
+      goto err;
+    }
+  }
+err:
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  return res;
+}
+
+void sys_var_log_state::set_default(THD *thd, enum_var_type type)
+{
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  logger.deactivate_log_handler(thd, log_type);
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+}
+
+
+static int  sys_check_log_path(THD *thd,  set_var *var)
+{
+  char path[FN_REFLEN];
+  MY_STAT f_stat;
+  const char *var_path= var->value->str_value.ptr();
+  bzero(&f_stat, sizeof(MY_STAT));
+
+  (void) unpack_filename(path, var_path);
+  if (my_stat(path, &f_stat, MYF(0)))
+  {
+    /* Check if argument is a file and we have 'write' permission */
+    if (!MY_S_ISREG(f_stat.st_mode) ||
+        !(f_stat.st_mode & MY_S_IWRITE))
+      return -1;
+  }
+  else
+  {
+    /*
+      Check if directory exists and 
+      we have permission to create file & write to file
+    */
+    (void) dirname_part(path, var_path);
+    if (my_access(path, (F_OK|W_OK)))
+      return -1;
+  }
+  return 0;
+}
+
+
+bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
+			     set_var *var, const char *log_ext,
+			     bool log_state, uint log_type)
+{
+  MYSQL_QUERY_LOG *file_log;
+  char buff[FN_REFLEN];
+  char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
+  bool result= 0;
+  uint str_length= (var ? var->value->str_value.length() : 0);
+
+  switch (log_type) {
+  case QUERY_LOG_SLOW:
+    file_log= logger.get_slow_log_file_handler();
+    break;
+  case QUERY_LOG_GENERAL:
+    file_log= logger.get_log_file_handler();
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+
+  if (!old_value)
+  {
+    old_value= make_default_log_name(buff, log_ext);
+    str_length= strlen(old_value);
+  }
+  if (!(res= my_strndup((byte*)old_value, str_length, MYF(MY_FAE+MY_WME))))
+  {
+    result= 1;
+    goto err;
+  }
+
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  logger.lock();
+
+  if (file_log && log_state)
+    file_log->close(0);
+  old_value= var_str->value;
+  var_str->value= res;
+  var_str->value_length= str_length;
+  my_free(old_value, MYF(MY_ALLOW_ZERO_PTR));
+  if (file_log && log_state)
+  {
+    switch (log_type) {
+    case QUERY_LOG_SLOW:
+      file_log->open_slow_log(sys_var_general_log_path.value);
+      break;
+    case QUERY_LOG_GENERAL:
+      file_log->open_query_log(sys_var_general_log_path.value);
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
+  }
+
+  logger.unlock();
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+
+err:
+  return result;
+}
+
+
+static bool sys_update_general_log_path(THD *thd, set_var * var)
+{
+  return update_sys_var_str_path(thd, &sys_var_general_log_path, 
+				 var, ".log", opt_log, QUERY_LOG_GENERAL);
+}
+
+
+static void sys_default_general_log_path(THD *thd, enum_var_type type)
+{
+  (void) update_sys_var_str_path(thd, &sys_var_general_log_path,
+				 0, ".log", opt_log, QUERY_LOG_GENERAL);
+}
+
+
+static bool sys_update_slow_log_path(THD *thd, set_var * var)
+{
+  return update_sys_var_str_path(thd, &sys_var_slow_log_path,
+				 var, "-slow.log", opt_slow_log,
+                                 QUERY_LOG_SLOW);
+}
+
+
+static void sys_default_slow_log_path(THD *thd, enum_var_type type)
+{
+  (void) update_sys_var_str_path(thd, &sys_var_slow_log_path,
+				 0, "-slow.log", opt_slow_log,
+                                 QUERY_LOG_SLOW);
+}
+
+
+bool sys_var_log_output::update(THD *thd, set_var *var)
+{
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  logger.lock();
+  logger.init_slow_log(var->save_result.ulong_value);
+  logger.init_general_log(var->save_result.ulong_value);
+  *value= var->save_result.ulong_value;
+  logger.unlock();
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+  return 0;
+}
+
+
+void sys_var_log_output::set_default(THD *thd, enum_var_type type)
+{
+  pthread_mutex_lock(&LOCK_global_system_variables);
+  logger.lock();
+  logger.init_slow_log(LOG_TABLE);
+  logger.init_general_log(LOG_TABLE);
+  *value= LOG_TABLE;
+  logger.unlock();
+  pthread_mutex_unlock(&LOCK_global_system_variables);
+}
+
+
+byte *sys_var_log_output::value_ptr(THD *thd, enum_var_type type,
+                                    LEX_STRING *base)
+{
+  char buff[256];
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  ulong length;
+  ulong val= *value;
+
+  tmp.length(0);
+  for (uint i= 0; val; val>>= 1, i++)
+  {
+    if (val & 1)
+    {
+      tmp.append(log_output_typelib.type_names[i],
+                 log_output_typelib.type_lengths[i]);
+      tmp.append(',');
+    }
+  }
+
+  if ((length= tmp.length()))
+    length--;
+  return (byte*) thd->strmake(tmp.ptr(), length);
 }
 
 

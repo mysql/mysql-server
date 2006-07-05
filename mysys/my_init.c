@@ -246,6 +246,22 @@ void setEnvString(char *ret, const char *name, const char *value)
   DBUG_VOID_RETURN ;
 }
 
+/*
+  my_paramter_handler
+  Invalid paramter handler we will use instead of the one "baked" into the CRT
+  for MSC v8.  This one just prints out what invalid parameter was encountered.
+  By providing this routine, routines like lseek will return -1 when we expect them 
+  to instead of crash.
+*/
+void my_parameter_handler(const wchar_t * expression, const wchar_t * function, 
+                          const wchar_t * file, unsigned int line, 
+                          uintptr_t pReserved)
+{
+  DBUG_PRINT("my",("Expression: %s  function: %s  file: %s, line: %d",
+		   expression, function, file, line));
+}
+
+
 static void my_win_init(void)
 {
   HKEY	hSoftMysql ;
@@ -263,12 +279,18 @@ static void my_win_init(void)
 
   setlocale(LC_CTYPE, "");             /* To get right sortorder */
 
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
+#if defined(_MSC_VER)
+#if _MSC_VER < 1300
   /* 
     Clear the OS system variable TZ and avoid the 100% CPU usage
     Only for old versions of Visual C++
   */
   _putenv( "TZ=" ); 
+#endif 
+#if _MSC_VER >= 1400
+  /* this is required to make crt functions return -1 appropriately */
+  _set_invalid_parameter_handler(my_parameter_handler);
+#endif
 #endif  
   _tzset();
 

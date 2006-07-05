@@ -23,63 +23,75 @@
 // (InterlockedCompareExchange, InterlockedCompareExchange16
 // InterlockedExchangeAdd, InterlockedExchange)
 
-#define make_atomic_add_body(REG)				\
-  _asm {							\
-    _asm mov   REG, v						\
-    _asm LOCK  xadd a->val, REG					\
-    _asm movzx v, REG						\
+#ifndef _atomic_h_cleanup_
+#define _atomic_h_cleanup_ "atomic/x86-msvc.h"
+
+#define MY_ATOMIC_MODE "msvc-x86" ## LOCK
+
+#define make_atomic_add_body(S)				\
+  _asm {						\
+    _asm mov   reg_ ## S, v				\
+    _asm LOCK  xadd *a, reg_ ## S			\
+    _asm movzx v, reg_ ## S				\
   }
-#define make_atomic_cas_body(AREG,REG2)				\
-  _asm {							\
-    _asm mov    AREG, *cmp					\
-    _asm mov    REG2, set					\
-    _asm LOCK cmpxchg a->val, REG2				\
-    _asm mov    *cmp, AREG					\
-    _asm setz   al						\
-    _asm movzx  ret, al						\
+#define make_atomic_cas_body(S)				\
+  _asm {						\
+    _asm mov    areg_ ## S, *cmp			\
+    _asm mov    reg2_ ## S, set				\
+    _asm LOCK cmpxchg *a, reg2_ ## S			\
+    _asm mov    *cmp, areg_ ## S			\
+    _asm setz   al					\
+    _asm movzx  ret, al					\
   }
-#define make_atomic_swap_body(REG)				\
-  _asm {							\
-    _asm mov    REG, v						\
-    _asm xchg   a->val, REG					\
-    _asm mov    v, REG						\
+#define make_atomic_swap_body(S)			\
+  _asm {						\
+    _asm mov    reg_ ## S, v				\
+    _asm xchg   *a, reg_ ## S				\
+    _asm mov    v, reg_ ## S				\
   }
 
 #ifdef MY_ATOMIC_MODE_DUMMY
-#define make_atomic_load_body(AREG,REG)   ret=a->val
-#define make_atomic_store_body(REG)	  a->val=v
+#define make_atomic_load_body(S)        ret=*a
+#define make_atomic_store_body(S)       *a=v
 #else
 /*
   Actually 32-bit reads/writes are always atomic on x86
   But we add LOCK here anyway to force memory barriers
 */
-#define make_atomic_load_body(AREG,REG2)			\
-  _asm {							\
-    _asm mov    AREG, 0						\
-    _asm mov    REG2, AREG					\
-    _asm LOCK cmpxchg a->val, REG2				\
-    _asm mov    ret, AREG					\
+#define make_atomic_load_body(S)			\
+  _asm {						\
+    _asm mov    areg_ ## S, 0				\
+    _asm mov    reg2_ ## S, areg_ ## S			\
+    _asm LOCK cmpxchg *a, reg2_ ## S			\
+    _asm mov    ret, areg_ ## S				\
   }
-#define make_atomic_store_body(REG)				\
-  _asm {							\
-    _asm mov    REG, v						\
-    _asm xchg   a->val, REG					\
+#define make_atomic_store_body(S)			\
+  _asm {						\
+    _asm mov    reg_ ## S, v				\
+    _asm xchg   *a, reg_ ## S				\
   }
 #endif
 
-#define make_atomic_add_body8	 make_atomic_add_body(al)
-#define make_atomic_add_body16   make_atomic_add_body(ax)
-#define make_atomic_add_body32   make_atomic_add_body(eax)
-#define make_atomic_cas_body8    make_atomic_cas_body(al, bl)
-#define make_atomic_cas_body16   make_atomic_cas_body(ax, bx)
-#define make_atomic_cas_body32   make_atomic_cas_body(eax, ebx)
-#define make_atomic_load_body8    make_atomic_load_body(al, bl)
-#define make_atomic_load_body16   make_atomic_load_body(ax, bx)
-#define make_atomic_load_body32   make_atomic_load_body(eax, ebx)
-#define make_atomic_store_body8  make_atomic_store_body(al)
-#define make_atomic_store_body16 make_atomic_store_body(ax)
-#define make_atomic_store_body32 make_atomic_store_body(eax)
-#define make_atomic_swap_body8   make_atomic_swap_body(al)
-#define make_atomic_swap_body16  make_atomic_swap_body(ax)
-#define make_atomic_swap_body32  make_atomic_swap_body(eax)
+#define reg_8           al
+#define reg_16          ax
+#define reg_32          eax
+#define areg_8          al
+#define areg_16         ax
+#define areg_32         eax
+#define reg2_8          bl
+#define reg2_16         bx
+#define reg2_32         ebx
+
+#else /* cleanup */
+
+#undef reg_8
+#undef reg_16
+#undef reg_32
+#undef areg_8
+#undef areg_16
+#undef areg_32
+#undef reg2_8
+#undef reg2_16
+#undef reg2_32
+#endif
 

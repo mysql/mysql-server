@@ -370,7 +370,7 @@ insert into t2(uid, name) values
   (25, CHAR(64+25)),
   (26, CHAR(64+26));
 
-insert into t1(uid, name) select uid, name from t2;
+insert into t1(uid, name) select uid, name from t2 order by uid;
 
 delete from t2;
 insert into t2(id, uid, name) select id, uid, name from t1;

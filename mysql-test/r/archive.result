@@ -6254,6 +6254,7 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 3	011402	37	Romans	scholastics	jarring	
 4	011403	37	intercepted	audiology	tinily	
 DELETE FROM t2;
+ERROR HY000: Table storage engine for 't2' doesn't have this option
 SELECT * FROM t2;
 auto	fld1	companynr	fld3	fld4	fld5	fld6
 1	000001	00	Omaha	teethe	neat	
@@ -8685,6 +8686,7 @@ auto	fld1	companynr	fld3	fld4	fld5	fld6
 3	011402	37	Romans	scholastics	jarring	
 4	011403	37	intercepted	audiology	tinily	
 TRUNCATE TABLE t2;
+ERROR HY000: Table storage engine for 't2' doesn't have this option
 SELECT * FROM t2;
 auto	fld1	companynr	fld3	fld4	fld5	fld6
 1	000001	00	Omaha	teethe	neat	

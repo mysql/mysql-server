@@ -51,14 +51,16 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_SYSTEM_ERROR, XIE,
     "System error, node killed during node restart by other node"},
    {NDBD_EXIT_INDEX_NOTINRANGE, XIE, "Array index out of range"},
-   {NDBD_EXIT_ARBIT_SHUTDOWN, XAE, "Arbitrator shutdown, "
-    "please investigate error(s) on other node(s)"},
+   {NDBD_EXIT_ARBIT_SHUTDOWN, XAE, "Node lost connection to other nodes and "
+    "can not form a unpartitioned cluster, please investigate if there are "
+    "error(s) on other node(s)"},
    {NDBD_EXIT_POINTER_NOTINRANGE, XIE, "Pointer too large"},
    {NDBD_EXIT_SR_OTHERNODEFAILED, XRE, "Another node failed during system "
     "restart, please investigate error(s) on other node(s)"},
    {NDBD_EXIT_NODE_NOT_DEAD, XRE, "Internal node state conflict, "
     "most probably resolved by restarting node again"},
    {NDBD_EXIT_SR_REDOLOG, XFI, "Error while reading the REDO log"},
+   {NDBD_EXIT_SR_SCHEMAFILE, XFI, "Error while reading the schema file"},
    /* Currently unused? */
    {2311, XIE, "Conflict when selecting restart type"},
    {NDBD_EXIT_NO_MORE_UNDOLOG, XCR,
@@ -80,6 +82,10 @@ static const ErrStruct errArray[] =
    /* this error message is complemented by additional info when generated */
    {NDBD_EXIT_INVALID_CONFIG, XCE,
     "Invalid configuration received from Management Server"},
+
+   {NDBD_EXIT_RESOURCE_ALLOC_ERROR, XCE,
+    "Resource allocation error, please review the configuration"},
+
    /* this error message is complemented by additional info when
       generated, such as signal, and text
    */
@@ -94,7 +100,7 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_WATCHDOG_TERMINATE, XIE, "WatchDog terminate, internal error "
     "or massive overload on the machine running this node"},
    {NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL, XCR,
-    "Signal lost, out of send buffer memory, please increase SendBufferMemory"},
+    "Signal lost, out of send buffer memory, please increase SendBufferMemory or lower the load"},
    {NDBD_EXIT_SIGNAL_LOST,    XIE, "Signal lost (unknown reason)"},
    {NDBD_EXIT_ILLEGAL_SIGNAL, XIE,
     "Illegal signal (version mismatch a possibility)"},

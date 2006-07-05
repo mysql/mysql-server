@@ -144,6 +144,7 @@ static ulint ibuf_rnd		= 986058871;
 
 ulint	ibuf_flush_count	= 0;
 
+#ifdef UNIV_IBUF_DEBUG
 /* Dimensions for the ibuf_count array */
 #define IBUF_COUNT_N_SPACES	500
 #define IBUF_COUNT_N_PAGES	2000
@@ -152,6 +153,7 @@ ulint	ibuf_flush_count	= 0;
 static ulint*	ibuf_counts[IBUF_COUNT_N_SPACES];
 
 static ibool	ibuf_counts_inited	= FALSE;
+#endif
 
 /* The start address for an insert buffer bitmap page bitmap */
 #define IBUF_BITMAP		PAGE_DATA
@@ -314,6 +316,7 @@ ibuf_tree_root_get(
 	return(page);
 }
 
+#ifdef UNIV_IBUF_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page. */
 
@@ -338,7 +341,6 @@ ibuf_count_get(
 
 /**********************************************************************
 Sets the ibuf count for a given page. */
-#ifdef UNIV_IBUF_DEBUG
 static
 void
 ibuf_count_set(
@@ -389,23 +391,18 @@ ibuf_init_at_db_start(void)
 				ibuf_count_set(i, j, 0);
 			}
 		}
+
+		ibuf_counts_inited = TRUE;
 	}
 #endif
-	mutex_create(&ibuf_pessimistic_insert_mutex);
+	mutex_create(&ibuf_pessimistic_insert_mutex,
+		SYNC_IBUF_PESS_INSERT_MUTEX);
 
-	mutex_set_level(&ibuf_pessimistic_insert_mutex,
-						SYNC_IBUF_PESS_INSERT_MUTEX);
-	mutex_create(&ibuf_mutex);
+	mutex_create(&ibuf_mutex, SYNC_IBUF_MUTEX);
 
-	mutex_set_level(&ibuf_mutex, SYNC_IBUF_MUTEX);
-
-	mutex_create(&ibuf_bitmap_mutex);
-
-	mutex_set_level(&ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
+	mutex_create(&ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
 
 	fil_ibuf_init_at_db_start();
-
-	ibuf_counts_inited = TRUE;
 }
 
 /**********************************************************************
@@ -2348,6 +2345,10 @@ ibuf_get_volume_buffered(
 	}
 
 	prev_page = buf_page_get(0, prev_page_no, RW_X_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
+	ut_a(btr_page_get_next(prev_page, mtr)
+			== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(prev_page, SYNC_TREE_NODE);
@@ -2411,6 +2412,10 @@ count_later:
 	}
 
 	next_page = buf_page_get(0, next_page_no, RW_X_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
+	ut_a(btr_page_get_prev(next_page, mtr)
+			== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(next_page, SYNC_TREE_NODE);

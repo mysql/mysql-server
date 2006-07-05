@@ -24,12 +24,12 @@
 void my_caseup_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
-  register char *end=str+strlen(str); /* BAR TODO: remove strlen() call */
   register uchar *map=cs->to_upper;
   
   while (*str)
   {
-    if ((l=my_ismbchar(cs, str,end)))
+    /* Pointing after the '\0' is safe here. */
+    if ((l=my_ismbchar(cs, str, str + cs->mbmaxlen)))
       str+=l;
     else
     { 
@@ -42,12 +42,12 @@ void my_caseup_str_mb(CHARSET_INFO * cs, char *str)
 void my_casedn_str_mb(CHARSET_INFO * cs, char *str)
 {
   register uint32 l;
-  register char *end=str+strlen(str);
   register uchar *map=cs->to_lower;
   
   while (*str)
   {
-    if ((l=my_ismbchar(cs, str,end)))
+    /* Pointing after the '\0' is safe here. */
+    if ((l=my_ismbchar(cs, str, str + cs->mbmaxlen)))
       str+=l;
     else
     {
@@ -101,15 +101,18 @@ uint my_casedn_mb(CHARSET_INFO * cs, char *src, uint srclen,
   return srclen;
 }
 
+/*
+  my_strcasecmp_mb() returns 0 if strings are equal, non-zero otherwise.
+ */
 int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)
 {
   register uint32 l;
-  register const char *end=s+strlen(s);
   register uchar *map=cs->to_upper;
   
-  while (s<end)
+  while (*s && *t)
   {
-    if ((l=my_ismbchar(cs, s,end)))
+    /* Pointing after the '\0' is safe here. */
+    if ((l=my_ismbchar(cs, s, s + cs->mbmaxlen)))
     {
       while (l--)
         if (*s++ != *t++) 
@@ -120,7 +123,8 @@ int my_strcasecmp_mb(CHARSET_INFO * cs,const char *s, const char *t)
     else if (map[(uchar) *s++] != map[(uchar) *t++])
       return 1;
   }
-  return *t;
+  /* At least one of '*s' and '*t' is zero here. */
+  return (*t != *s);
 }
 
 
@@ -523,27 +527,20 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
 			 char *min_str,char *max_str,
 			 uint *min_length,uint *max_length)
 {
+  uint mblen;
   const char *end= ptr + ptr_length;
   char *min_org= min_str;
   char *min_end= min_str + res_length;
   char *max_end= max_str + res_length;
-  uint charlen= res_length / cs->mbmaxlen;
+  uint maxcharlen= res_length / cs->mbmaxlen;
 
-  for (; ptr != end && min_str != min_end && charlen > 0 ; ptr++, charlen--)
+  for (; ptr != end && min_str != min_end && maxcharlen ; maxcharlen--)
   {
+    /* We assume here that escape, w_any, w_namy are one-byte characters */
     if (*ptr == escape && ptr+1 != end)
-    {
-      ptr++;					/* Skip escape */
-      *min_str++= *max_str++ = *ptr;
-      continue;
-    }
-    if (*ptr == w_one || *ptr == w_many)	/* '_' and '%' in SQL */
-    {
-      charlen= my_charpos(cs, min_org, min_str, res_length/cs->mbmaxlen);
-      
-      if (charlen < (uint) (min_str - min_org))
-        min_str= min_org + charlen;
-      
+      ptr++;                                    /* Skip escape */
+    else if (*ptr == w_one || *ptr == w_many)   /* '_' and '%' in SQL */
+    {      
       /*
         Calculate length of keys:
         'a\0\0... is the smallest possible string when we have space expand
@@ -567,7 +564,16 @@ my_bool my_like_range_mb(CHARSET_INFO *cs,
       pad_max_char(cs, max_str, max_end);
       return 0;
     }
-    *min_str++= *max_str++ = *ptr;
+    if ((mblen= my_ismbchar(cs, ptr, end)) > 1)
+    {
+      if (ptr+mblen > end || min_str+mblen > min_end)
+        break;
+      while (mblen--)
+       *min_str++= *max_str++= *ptr++;
+    }
+    else
+       *min_str++= *max_str++= *ptr++;    
+
   }
 
   *min_length= *max_length = (uint) (min_str - min_org);

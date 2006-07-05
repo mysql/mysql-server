@@ -516,6 +516,31 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
   /* it doesn't make sense to add last_query_cost values */
 }
 
+/*
+  Add the difference between two status variable arrays to another one.
+
+  SYNOPSIS
+    add_diff_to_status
+    to_var       add to this array
+    from_var     from this array
+    dec_var      minus this array
+  
+  NOTE
+    This function assumes that all variables are long/ulong.
+*/
+
+void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
+                        STATUS_VAR *dec_var)
+{
+  ulong *end= (ulong*) ((byte*) to_var + offsetof(STATUS_VAR,
+						  last_system_status_var) +
+			sizeof(ulong));
+  ulong *to= (ulong*) to_var, *from= (ulong*) from_var, *dec= (ulong*) dec_var;
+
+  while (to != end)
+    *(to++)+= *(from++) - *(dec++);
+}
+
 
 void THD::awake(THD::killed_state state_to_set)
 {
@@ -1916,15 +1941,10 @@ bool select_dumpvar::send_data(List<Item> &items)
   Item_func_set_user_var *xx;
   Item_splocal *yy;
   my_var *zz;
-  DBUG_ENTER("send_data");
-  if (unit->offset_limit_cnt)
-  {						// using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
-  }
+  DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
-  {				          // Using limit offset,count
+  {						// using limit offset,count
     unit->offset_limit_cnt--;
     DBUG_RETURN(0);
   }
@@ -2121,7 +2141,9 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->enable_slow_log= enable_slow_log;
   backup->last_insert_id=  last_insert_id;
   backup->next_insert_id=  next_insert_id;
+  backup->current_insert_id=  current_insert_id;
   backup->insert_id_used=  insert_id_used;
+  backup->last_insert_id_used=  last_insert_id_used;
   backup->clear_next_insert_id= clear_next_insert_id;
   backup->limit_found_rows= limit_found_rows;
   backup->examined_row_count= examined_row_count;
@@ -2132,7 +2154,9 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !current_stmt_binlog_row_based)
+  {
     options&= ~OPTION_BIN_LOG;
+  }    
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
@@ -2171,7 +2195,9 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   enable_slow_log=  backup->enable_slow_log;
   last_insert_id=   backup->last_insert_id;
   next_insert_id=   backup->next_insert_id;
+  current_insert_id= backup->current_insert_id;
   insert_id_used=   backup->insert_id_used;
+  last_insert_id_used= backup->last_insert_id_used;
   clear_next_insert_id= backup->clear_next_insert_id;
   limit_found_rows= backup->limit_found_rows;
   sent_row_count=   backup->sent_row_count;
@@ -2475,15 +2501,19 @@ my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data,
   int n_null_bytes= table->s->null_bytes;
   byte *ptr;
   uint i;
-  my_ptrdiff_t const offset= (my_ptrdiff_t) (record - (byte*)
-                                             table->record[0]);
+  my_ptrdiff_t const rec_offset= record - table->record[0];
+  my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
   memcpy(row_data, record, n_null_bytes);
   ptr= row_data+n_null_bytes;
 
   for (i= 0 ; (field= *p_field) ; i++, p_field++)
   {
     if (bitmap_is_set(cols,i))
+    {
+      my_ptrdiff_t const offset=
+        field->is_null(rec_offset) ? def_offset : rec_offset;
       ptr= (byte*)field->pack((char *) ptr, field->ptr + offset);
+    }
   }
   return (static_cast<my_size_t>(ptr - row_data));
 }
@@ -2638,31 +2668,6 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
 
     error= mysql_bin_log.flush_and_set_pending_rows_event(this, 0);
   }
-  else if (stmt_end && binlog_table_maps > 0)
-  {                      /* there is no pending event at this point */
-    /*
-      If pending is null and we are going to end the statement, we
-      have to write an extra, empty, binrow event so that the slave
-      knows to discard the tables it has received.  Otherwise, the
-      table maps written this far will be included in the table maps
-      for the following statement.
-
-      TODO: Remove the need for a dummy event altogether.  It can be
-      fixed if we can write table maps to a memory buffer before
-      writing the first binrow event.  We can then flush and clear the
-      memory buffer with table map events before writing the first
-      binrow event.  In the event of a crash, nothing is lost since
-      the table maps are only needed if there are binrow events.
-    */
-
-    Rows_log_event *ev=
-      new Write_rows_log_event(this, 0, ~0UL, 0, FALSE);
-    ev->set_flags(Rows_log_event::STMT_END_F);
-    binlog_set_pending_rows_event(ev);
-
-    error= mysql_bin_log.flush_and_set_pending_rows_event(this, 0);
-    binlog_table_maps= 0;
-  }
 
   DBUG_RETURN(error);
 }
@@ -2720,6 +2725,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
       to how you treat this.
     */
   case THD::ROW_QUERY_TYPE:
+#ifdef HAVE_ROW_BASED_REPLICATION
     if (current_stmt_binlog_row_based)
     {
       /*
@@ -2740,6 +2746,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
 #endif /*HAVE_ROW_BASED_REPLICATION*/
       DBUG_RETURN(0);
     }
+#endif
     /* Otherwise, we fall through */
   case THD::STMT_QUERY_TYPE:
     /*
@@ -2748,7 +2755,9 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
      */
     {
       Query_log_event qinfo(this, query, query_len, is_trans, suppress_use);
+#ifdef HAVE_ROW_BASED_REPLICATION
       qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
+#endif
       /*
         Binlog table maps will be irrelevant after a Query_log_event
         (they are just removed on the slave side) so after the query

@@ -999,12 +999,15 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   Uint8 tlh = req->lh3PageBits;
   Uint32 tnoOfAttr = req->noOfAttributes;
   Uint32 tnoOfNull = req->noOfNullAttributes;
-  Uint32 noOfAlloc = req->noOfPagesToPreAllocate;
+  Uint32 maxRowsLow = req->maxRowsLow;
+  Uint32 maxRowsHigh = req->maxRowsHigh;
+  Uint32 minRowsLow = req->minRowsLow;
+  Uint32 minRowsHigh = req->minRowsHigh;
   Uint32 tschemaVersion = req->schemaVersion;
   Uint32 ttupKeyLength = req->keyLength;
   Uint32 nextLcp = req->nextLCP;
   Uint32 noOfKeyAttr = req->noOfKeyAttr;
-  Uint32 noOfNewAttr = req->noOfNewAttr;
+  Uint32 noOfCharsets = req->noOfCharsets;
   Uint32 checksumIndicator = req->checksumIndicator;
   Uint32 gcpIndicator = req->GCPIndicator;
   Uint32 startGci = req->startGci;
@@ -1112,7 +1115,10 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   addfragptr.p->m_senderAttrPtr = RNIL;
   addfragptr.p->noOfAttr = tnoOfAttr;
   addfragptr.p->noOfNull = tnoOfNull;
-  addfragptr.p->noOfAllocPages = noOfAlloc;
+  addfragptr.p->maxRowsLow = maxRowsLow;
+  addfragptr.p->maxRowsHigh = maxRowsHigh;
+  addfragptr.p->minRowsLow = minRowsLow;
+  addfragptr.p->minRowsHigh = minRowsHigh;
   addfragptr.p->tabId = tabptr.i;
   addfragptr.p->totalAttrReceived = 0;
   addfragptr.p->attrSentToTup = ZNIL;/* TO FIND PROGRAMMING ERRORS QUICKLY */
@@ -1121,7 +1127,7 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
   addfragptr.p->fragCopyCreation = (tmp == 0 ? 0 : 1);
   addfragptr.p->addfragErrorCode = 0;
   addfragptr.p->noOfKeyAttr = noOfKeyAttr;
-  addfragptr.p->noOfNewAttr = noOfNewAttr;
+  addfragptr.p->noOfCharsets = noOfCharsets;
   addfragptr.p->checksumIndicator = checksumIndicator;
   addfragptr.p->GCPIndicator = gcpIndicator;
   addfragptr.p->lh3DistrBits = tlhstar;
@@ -1257,44 +1263,49 @@ Dblqh::sendAddFragReq(Signal* signal)
   fragptr.i = addfragptr.p->fragmentPtr;
   c_fragment_pool.getPtr(fragptr);
   if (addfragptr.p->addfragStatus == AddFragRecord::WAIT_TUP){
+    TupFragReq* const tupFragReq = (TupFragReq*)signal->getDataPtrSend();
     if (DictTabInfo::isTable(addfragptr.p->tableType) ||
         DictTabInfo::isHashIndex(addfragptr.p->tableType)) {
       jam();
-      signal->theData[0] = addfragptr.i;
-      signal->theData[1] = cownref;
-      signal->theData[2] = 0; /* ADD TABLE */
-      signal->theData[3] = addfragptr.p->tabId;
-      signal->theData[4] = addfragptr.p->noOfAttr;
-      signal->theData[5] = addfragptr.p->addFragid;
-      signal->theData[6] = (addfragptr.p->noOfAllocPages >> 1) + 1;
-      signal->theData[7] = addfragptr.p->noOfNull;
-      signal->theData[8] = addfragptr.p->schemaVer;
-      signal->theData[9] = addfragptr.p->noOfKeyAttr;
-      signal->theData[10] = addfragptr.p->noOfNewAttr;
-      signal->theData[11] = addfragptr.p->checksumIndicator;
-      signal->theData[12] = addfragptr.p->noOfAttributeGroups;
-      signal->theData[13] = addfragptr.p->GCPIndicator;
-      signal->theData[14] = addfragptr.p->tablespace_id;
+      tupFragReq->userPtr = addfragptr.i;
+      tupFragReq->userRef = cownref;
+      tupFragReq->reqInfo = 0; /* ADD TABLE */
+      tupFragReq->tableId = addfragptr.p->tabId;
+      tupFragReq->noOfAttr = addfragptr.p->noOfAttr;
+      tupFragReq->fragId = addfragptr.p->addFragid;
+      tupFragReq->maxRowsLow = addfragptr.p->maxRowsLow;
+      tupFragReq->maxRowsHigh = addfragptr.p->maxRowsHigh;
+      tupFragReq->minRowsLow = addfragptr.p->minRowsLow;
+      tupFragReq->minRowsHigh = addfragptr.p->minRowsHigh;
+      tupFragReq->noOfNullAttr = addfragptr.p->noOfNull;
+      tupFragReq->schemaVersion = addfragptr.p->schemaVer;
+      tupFragReq->noOfKeyAttr = addfragptr.p->noOfKeyAttr;
+      tupFragReq->noOfCharsets = addfragptr.p->noOfCharsets;
+      tupFragReq->checksumIndicator = addfragptr.p->checksumIndicator;
+      tupFragReq->globalCheckpointIdIndicator = addfragptr.p->GCPIndicator;
+      tupFragReq->tablespaceid = addfragptr.p->tablespace_id;
       sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
 		 signal, TupFragReq::SignalLength, JBB);
       return;
     }
     if (DictTabInfo::isOrderedIndex(addfragptr.p->tableType)) {
       jam();
-      signal->theData[0] = addfragptr.i;
-      signal->theData[1] = cownref;
-      signal->theData[2] = 0; /* ADD TABLE */
-      signal->theData[3] = addfragptr.p->tabId;
-      signal->theData[4] = 1; /* ordered index: one array attr */
-      signal->theData[5] = addfragptr.p->addFragid;
-      signal->theData[6] = (addfragptr.p->noOfAllocPages >> 1) + 1;
-      signal->theData[7] = 0; /* ordered index: no nullable */
-      signal->theData[8] = addfragptr.p->schemaVer;
-      signal->theData[9] = 1; /* ordered index: one key */
-      signal->theData[10] = addfragptr.p->noOfNewAttr;
-      signal->theData[11] = addfragptr.p->checksumIndicator;
-      signal->theData[12] = addfragptr.p->noOfAttributeGroups;
-      signal->theData[13] = addfragptr.p->GCPIndicator;
+      tupFragReq->userPtr = addfragptr.i;
+      tupFragReq->userRef = cownref;
+      tupFragReq->reqInfo = 0; /* ADD TABLE */
+      tupFragReq->tableId = addfragptr.p->tabId;
+      tupFragReq->noOfAttr = 1; /* ordered index: one array attr */
+      tupFragReq->fragId = addfragptr.p->addFragid;
+      tupFragReq->maxRowsLow = addfragptr.p->maxRowsLow;
+      tupFragReq->maxRowsHigh = addfragptr.p->maxRowsHigh;
+      tupFragReq->minRowsLow = addfragptr.p->minRowsLow;
+      tupFragReq->minRowsHigh = addfragptr.p->minRowsHigh;
+      tupFragReq->noOfNullAttr = 0; /* ordered index: no nullable */
+      tupFragReq->schemaVersion = addfragptr.p->schemaVer;
+      tupFragReq->noOfKeyAttr = 1; /* ordered index: one key */
+      tupFragReq->noOfCharsets = addfragptr.p->noOfCharsets;
+      tupFragReq->checksumIndicator = addfragptr.p->checksumIndicator;
+      tupFragReq->globalCheckpointIdIndicator = addfragptr.p->GCPIndicator;
       sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
 		 signal, TupFragReq::SignalLength, JBB);
       return;
@@ -1598,16 +1609,19 @@ void Dblqh::abortAddFragOps(Signal* signal)
 {
   fragptr.i = addfragptr.p->fragmentPtr;
   c_fragment_pool.getPtr(fragptr);
-  signal->theData[0] = (Uint32)-1;
   if (addfragptr.p->tupConnectptr != RNIL) {
     jam();
-    signal->theData[1] = addfragptr.p->tupConnectptr;
+    TupFragReq* const tupFragReq = (TupFragReq*)signal->getDataPtrSend();
+    tupFragReq->userPtr = (Uint32)-1;
+    tupFragReq->userRef = addfragptr.p->tupConnectptr;
     sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ, signal, 2, JBB);
     addfragptr.p->tupConnectptr = RNIL;
   }
   if (addfragptr.p->tuxConnectptr != RNIL) {
     jam();
-    signal->theData[1] = addfragptr.p->tuxConnectptr;
+    TuxFragReq* const tuxFragReq = (TuxFragReq*)signal->getDataPtrSend();
+    tuxFragReq->userPtr = (Uint32)-1;
+    tuxFragReq->userRef = addfragptr.p->tuxConnectptr;
     sendSignal(fragptr.p->tuxBlockref, GSN_TUXFRAGREQ, signal, 2, JBB);
     addfragptr.p->tuxConnectptr = RNIL;
   }
@@ -8059,15 +8073,15 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
       scanptr.p->m_curr_batch_size_rows = 0;
       scanptr.p->m_curr_batch_size_bytes = 0;
       closeScanLab(signal);
+    } else if (scanptr.p->m_last_row && !scanptr.p->scanLockHold) {
+      jam();
+      closeScanLab(signal);
+      return;
     } else if (scanptr.p->check_scan_batch_completed() &&
                scanptr.p->scanLockHold != ZTRUE) {
       jam();
       scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
       sendScanFragConf(signal, ZFALSE);
-    } else if (scanptr.p->m_last_row && !scanptr.p->scanLockHold) {
-      jam();
-      closeScanLab(signal);
-      return;
     } else {
       jam();
       /*
@@ -17839,7 +17853,8 @@ void Dblqh::stepAhead(Signal* signal, Uint32 stepAheadWords)
     logFilePtr.p->currentLogpage = logPagePtr.p->logPageWord[ZNEXT_PAGE];
     logPagePtr.i = logPagePtr.p->logPageWord[ZNEXT_PAGE];
     logFilePtr.p->currentFilepage++;
-    ptrCheckGuard(logPagePtr, clogPageFileSize, logPageRecord);
+    ptrCheckGuardErr(logPagePtr, clogPageFileSize, logPageRecord,
+                     NDBD_EXIT_SR_REDOLOG);
     logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] = ZPAGE_HEADER_SIZE;
     logPartPtr.p->execSrPagesRead--;
     logPartPtr.p->execSrPagesExecuted++;

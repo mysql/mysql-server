@@ -41,12 +41,21 @@ void ut_dbg_panic(void);
 /* Stop threads in ut_a(). */
 # define UT_DBG_STOP	while (0)	/* We do not do this on NetWare */
 #else /* __NETWARE__ */
+# if defined(__WIN__) || defined(__INTEL_COMPILER)
+#  undef UT_DBG_USE_ABORT
+# elif defined(__GNUC__) && (__GNUC__ > 2)
+#  define UT_DBG_USE_ABORT
+# endif
+
+# ifndef UT_DBG_USE_ABORT
+/* A null pointer that will be dereferenced to trigger a memory trap */
+extern ulint*	ut_dbg_null_ptr;
+# endif
+
+# if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 /* Flag for indicating that all threads should stop.  This will be set
 by ut_dbg_assertion_failed(). */
 extern ibool	ut_dbg_stop_threads;
-
-/* A null pointer that will be dereferenced to trigger a memory trap */
-extern ulint*	ut_dbg_null_ptr;
 
 /*****************************************************************
 Stop a thread after assertion failure. */
@@ -56,15 +65,23 @@ ut_dbg_stop_thread(
 /*===============*/
 	const char*	file,
 	ulint		line);
+# endif
 
+# ifdef UT_DBG_USE_ABORT
 /* Abort the execution. */
-# define UT_DBG_PANIC					\
+#  define UT_DBG_PANIC abort()
+/* Stop threads (null operation) */
+#  define UT_DBG_STOP while (0)
+# else /* UT_DBG_USE_ABORT */
+/* Abort the execution. */
+#  define UT_DBG_PANIC					\
 	if (*(ut_dbg_null_ptr)) ut_dbg_null_ptr = NULL
 /* Stop threads in ut_a(). */
-# define UT_DBG_STOP do						\
+#  define UT_DBG_STOP do						\
 	if (UNIV_UNLIKELY(ut_dbg_stop_threads)) {		\
 		ut_dbg_stop_thread(__FILE__, (ulint) __LINE__);	\
 	} while (0)
+# endif /* UT_DBG_USE_ABORT */
 #endif /* __NETWARE__ */
 
 /* Abort execution if EXPR does not evaluate to nonzero. */

@@ -695,7 +695,7 @@ bool Create_instance::parse_args(const char **text)
 
     if (!option_value_str)
     {
-      LEX_STRING empty_str= { C_STRING_WITH_SIZE("") };
+      LEX_STRING empty_str= { C_STRING_WITH_LEN("") };
 
       if (!(option_value_str= Named_value::alloc_str(&empty_str)))
         return TRUE; /* out of memory during parsing. */
@@ -1511,7 +1511,7 @@ bool Set_option::parse_args(const char **text)
 
     if (!option_value_str)
     {
-      LEX_STRING empty_str= { C_STRING_WITH_SIZE("") };
+      LEX_STRING empty_str= { C_STRING_WITH_LEN("") };
 
       if (!(option_value_str= Named_value::alloc_str(&empty_str)))
         return TRUE; /* out of memory during parsing. */
@@ -1650,7 +1650,7 @@ bool Unset_option::parse_args(const char **text)
       return TRUE; /* out of memory during parsing. */
 
     {
-      LEX_STRING empty_str= { C_STRING_WITH_SIZE("") };
+      LEX_STRING empty_str= { C_STRING_WITH_LEN("") };
 
       if (!(option_value_str= Named_value::alloc_str(&empty_str)))
       {

@@ -43,7 +43,7 @@ bool linuxthreads;
   The following string must be less then 80 characters, as
   mysql_connection.cc relies on it
 */
-const LEX_STRING mysqlmanager_version= { C_STRING_WITH_SIZE("1.0-beta") };
+const LEX_STRING mysqlmanager_version= { C_STRING_WITH_LEN("1.0-beta") };
 
 const unsigned char protocol_version= PROTOCOL_VERSION;
 

@@ -83,7 +83,7 @@ eval SHOW CREATE TABLE federated.t2;
 INSERT INTO federated.t2 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t2 (id, name) VALUES (2, 'fee');
 
-SELECT * FROM federated.t2;
+SELECT * FROM federated.t2 ORDER BY id, name;
 DROP TABLE federated.t2;
 
 connection slave;
@@ -110,7 +110,7 @@ eval CREATE TABLE federated.t1 (
 INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
 
-SELECT * FROM federated.t1;
+SELECT * FROM federated.t1 ORDER BY id,name;
 DELETE FROM federated.t1;
 DROP TABLE IF EXISTS federated.t1;
 
@@ -125,7 +125,7 @@ eval CREATE TABLE federated.`t1%` (
 INSERT INTO federated.`t1%` (id, name) VALUES (1, 'foo');
 INSERT INTO federated.`t1%` (id, name) VALUES (2, 'fee');
 
-SELECT * FROM federated.`t1%`;
+SELECT * FROM federated.`t1%` ORDER BY id, name;
 DELETE FROM federated.`t1%`;
 DROP TABLE IF EXISTS federated.`t1%`;
 

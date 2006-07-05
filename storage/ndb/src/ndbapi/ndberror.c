@@ -214,6 +214,7 @@ ErrorBundle ErrorCodes[] = {
    * OverloadError
    */
   { 701,  DMEC, OL, "System busy with other schema operation" },
+  { 711,  DMEC, OL, "System busy with node restart, schema operations not allowed" },
   { 410,  DMEC, OL, "REDO log files overloaded, consult online manual (decrease TimeBetweenLocalCheckpoints, and|or increase NoOfFragmentLogFiles)" },
   { 677,  DMEC, OL, "Index UNDO buffers overloaded (increase UndoIndexBuffer)" },
   { 891,  DMEC, OL, "Data UNDO buffers overloaded (increase UndoDataBuffer)" },
@@ -284,6 +285,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * Application error
    */
+  { 763,  DMEC, AE, "Alter table requires cluster nodes to have exact same version" },
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
   { 876,  DMEC, AE, "876" },
@@ -344,6 +346,7 @@ ErrorBundle ErrorCodes[] = {
   /**
    * SchemaError
    */
+  { 311,  DMEC, AE, "Undefined partition used in setPartitionId" },
   { 703,  DMEC, SE, "Invalid table format" },
   { 704,  DMEC, SE, "Attribute name too long" },
   { 705,  DMEC, SE, "Table name too long" },
@@ -417,6 +420,7 @@ ErrorBundle ErrorCodes[] = {
   { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
   
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
+  { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
   
   /**
    * FunctionNotImplemented
@@ -594,7 +598,7 @@ ErrorBundle ErrorCodes[] = {
   { 4262, DMEC, UD, "NdbScanFilter: Condition is out of bounds"},
   { 4263, DMEC, IE, "Invalid blob attributes or invalid blob parts table" },
   { 4264, DMEC, AE, "Invalid usage of blob attribute" },
-  { 4265, DMEC, AE, "Method is not valid in current blob state" },
+  { 4265, DMEC, AE, "The method is not valid in current blob state" },
   { 4266, DMEC, AE, "Invalid blob seek position" },
   { 4267, DMEC, IE, "Corrupted blob value" },
   { 4268, DMEC, IE, "Error in blob head update forced rollback of transaction" },
@@ -604,7 +608,8 @@ ErrorBundle ErrorCodes[] = {
   { 4271, DMEC, AE, "Invalid index object, not retrieved via getIndex()" },
   { 4272, DMEC, AE, "Table definition has undefined column" },
   { 4273, DMEC, IE, "No blob table in dict cache" },
-  { 4274, DMEC, IE, "Corrupted main table PK in blob operation" }
+  { 4274, DMEC, IE, "Corrupted main table PK in blob operation" },
+  { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" }
 };
 
 static

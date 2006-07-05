@@ -322,6 +322,11 @@ void Dbdict::execCONTINUEB(Signal* signal)
     sendGetTabResponse(signal);
     break;
 
+  case ZDICT_LOCK_POLL:
+    jam();
+    checkDictLockQueue(signal, true);
+    break;
+
   default :
     ndbrequire(false);
     break;
@@ -454,6 +459,8 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::DefaultNoPartFlag, tablePtr.p->defaultNoPartFlag);
   w.add(DictTabInfo::LinearHashFlag, tablePtr.p->linearHashFlag);
   w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
+  w.add(DictTabInfo::MinRowsLow, tablePtr.p->minRowsLow);
+  w.add(DictTabInfo::MinRowsHigh, tablePtr.p->minRowsHigh);
 
   if(signal)
   {
@@ -1355,10 +1362,11 @@ void Dbdict::readSchemaConf(Signal* signal,
       sf->FileSize == sf0->FileSize &&
       sf->PageNumber == n &&
       computeChecksum((Uint32*)sf, NDB_SF_PAGE_SIZE_IN_WORDS) == 0;
-    ndbrequire(ok || !crashInd);
+    ndbrequireErr(ok || !crashInd, NDBD_EXIT_SR_SCHEMAFILE);
     if (! ok) {
       jam();
-      ndbrequire(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1);
+      ndbrequireErr(fsPtr.p->fsState == FsConnectRecord::READ_SCHEMA1,
+                    NDBD_EXIT_SR_SCHEMAFILE);
       readSchemaRef(signal, fsPtr);
       return;
     }
@@ -1500,8 +1508,9 @@ Dbdict::Dbdict(Block_context& ctx):
   c_Trans(c_opRecordPool),
   c_opCreateObj(c_schemaOp),
   c_opDropObj(c_schemaOp),
-  c_opRecordSequence(0)
-
+  c_opRecordSequence(0),
+  c_dictLockQueue(c_dictLockPool),
+  c_dictLockPoll(false)
 {
   BLOCK_CONSTRUCTOR(Dbdict);
   
@@ -1670,6 +1679,8 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_DICT_ABORT_REF, &Dbdict::execDICT_ABORT_REF);
   addRecSignal(GSN_DICT_ABORT_CONF, &Dbdict::execDICT_ABORT_CONF);
 
+  addRecSignal(GSN_DICT_LOCK_REQ, &Dbdict::execDICT_LOCK_REQ);
+  addRecSignal(GSN_DICT_UNLOCK_ORD, &Dbdict::execDICT_UNLOCK_ORD);
 }//Dbdict::Dbdict()
 
 Dbdict::~Dbdict() 
@@ -1846,6 +1857,8 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->defaultNoPartFlag = true;
   tablePtr.p->linearHashFlag = true;
   tablePtr.p->m_bits = 0;
+  tablePtr.p->minRowsLow = 0;
+  tablePtr.p->minRowsHigh = 0;
   tablePtr.p->tableType = DictTabInfo::UserTable;
   tablePtr.p->primaryTableId = RNIL;
   // volatile elements
@@ -2061,6 +2074,8 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_opCreateTrigger.setSize(8);
   c_opDropTrigger.setSize(8);
   c_opAlterTrigger.setSize(8);
+
+  c_dictLockPool.setSize(32);
   
   // Initialize schema file copies
   c_schemaFile[0].schemaPage =
@@ -3535,6 +3550,10 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
     c_blockState = BS_NODE_FAILURE;
     ok = true;
     break;
+  case BS_NODE_RESTART:
+    jam();
+    ok = true;
+    break;
   }
   ndbrequire(ok);
   
@@ -3556,6 +3575,15 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
       c_aliveNodes.clear(i);
     }//if
   }//for
+
+  /*
+   * NODE_FAILREP guarantees that no "in flight" signal from
+   * a dead node is accepted, and also that the job buffer contains
+   * no such (un-executed) signals.  Therefore no DICT_UNLOCK_ORD
+   * from a dead node (leading to master crash) is possible after
+   * this clean-up removes the lock record.
+   */
+  removeStaleDictLocks(signal, theFailedNodes);
 
 }//execNODE_FAILREP()
 
@@ -3622,6 +3650,12 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
     if(getOwnNodeId() != c_masterNodeId){
       jam();
       parseRecord.errorCode = CreateTableRef::NotMaster;
+      break;
+    }
+    
+    if (c_blockState == BS_NODE_RESTART){
+      jam();
+      parseRecord.errorCode = CreateTableRef::BusyWithNR;
       break;
     }
     
@@ -3801,6 +3835,12 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   if(getOwnNodeId() != c_masterNodeId){
     jam();
     alterTableRef(signal, req, AlterTableRef::NotMaster);
+    return;
+  }
+  
+  if(c_blockState == BS_NODE_RESTART){
+    jam();
+    alterTableRef(signal, req, AlterTableRef::BusyWithNR);
     return;
   }
   
@@ -4695,11 +4735,6 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
   SegmentedSectionPtr tabInfoPtr;
   getSection(tabInfoPtr, alterTabPtr.p->m_tabInfoPtrI);
   signal->setSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
-#ifndef DBUG_OFF
-  ndbout_c("DICT_TAB_INFO in DICT");
-  SimplePropertiesSectionReader reader(tabInfoPtr, getSectionSegmentPool());
-  reader.printAll(ndbout);
-#endif
   EXECUTE_DIRECT(SUMA, GSN_ALTER_TAB_REQ, signal,
                  AlterTabReq::SignalLength);
   releaseSections(signal);
@@ -5295,6 +5330,13 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
   Uint32 lhPageBits = 0;
   ::calcLHbits(&lhPageBits, &lhDistrBits, fragId, fragCount);
 
+  Uint64 maxRows = tabPtr.p->maxRowsLow +
+    (((Uint64)tabPtr.p->maxRowsHigh) << 32);
+  Uint64 minRows = tabPtr.p->minRowsLow +
+    (((Uint64)tabPtr.p->minRowsHigh) << 32);
+  maxRows = (maxRows + fragCount - 1) / fragCount;
+  minRows = (minRows + fragCount - 1) / fragCount;
+
   {  
     LqhFragReq* req = (LqhFragReq*)signal->getDataPtrSend();
     req->senderData = senderData;
@@ -5310,16 +5352,17 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
     req->lh3PageBits = 0; //lhPageBits;
     req->noOfAttributes = tabPtr.p->noOfAttributes;
     req->noOfNullAttributes = tabPtr.p->noOfNullBits;
-    req->noOfPagesToPreAllocate = 0;
+    req->maxRowsLow = maxRows & 0xFFFFFFFF;
+    req->maxRowsHigh = maxRows >> 32;
+    req->minRowsLow = minRows & 0xFFFFFFFF;
+    req->minRowsHigh = minRows >> 32;
     req->schemaVersion = tabPtr.p->tableVersion;
     Uint32 keyLen = tabPtr.p->tupKeyLength;
     req->keyLength = keyLen; // wl-2066 no more "long keys"
     req->nextLCP = lcpNo;
 
     req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
-    req->noOfNewAttr = 0;
-    // noOfCharsets passed to TUP in upper half
-    req->noOfNewAttr |= (tabPtr.p->noOfCharsets << 16);
+    req->noOfCharsets = tabPtr.p->noOfCharsets;
     req->checksumIndicator = 1;
     req->GCPIndicator = 1;
     req->startGci = startGci;
@@ -5940,9 +5983,16 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->m_tablespace_id = c_tableDesc.TablespaceId; 
   tablePtr.p->maxRowsLow = c_tableDesc.MaxRowsLow; 
   tablePtr.p->maxRowsHigh = c_tableDesc.MaxRowsHigh; 
+  tablePtr.p->minRowsLow = c_tableDesc.MinRowsLow;
+  tablePtr.p->minRowsHigh = c_tableDesc.MinRowsHigh;
   tablePtr.p->defaultNoPartFlag = c_tableDesc.DefaultNoPartFlag; 
   tablePtr.p->linearHashFlag = c_tableDesc.LinearHashFlag; 
   
+  Uint64 maxRows =
+    (((Uint64)tablePtr.p->maxRowsHigh) << 32) + tablePtr.p->maxRowsLow;
+  Uint64 minRows =
+    (((Uint64)tablePtr.p->minRowsHigh) << 32) + tablePtr.p->minRowsLow;
+
   {
     Rope frm(c_rope_pool, tablePtr.p->frmData);
     tabRequire(frm.assign(c_tableDesc.FrmData, c_tableDesc.FrmLen),
@@ -6354,6 +6404,12 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal){
   if(getOwnNodeId() != c_masterNodeId){
     jam();
     dropTableRef(signal, req, DropTableRef::NotMaster);
+    return;
+  }
+
+  if(c_blockState == BS_NODE_RESTART){
+    jam();
+    dropTableRef(signal, req, DropTableRef::BusyWithNR);
     return;
   }
 
@@ -6960,13 +7016,37 @@ void Dbdict::releaseTableObject(Uint32 tableId, bool removeFromHash)
 {
   TableRecordPtr tablePtr;
   c_tableRecordPool.getPtr(tablePtr, tableId);
-  if (removeFromHash){
+  if (removeFromHash)
+  {
     jam();
     release_object(tablePtr.p->m_obj_ptr_i);
   }
+  else
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->tableName);
+    tmp.erase();
+  }
   
-  Rope frm(c_rope_pool, tablePtr.p->frmData);
-  frm.erase();
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->frmData);
+    tmp.erase();
+  }
+
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->tsData);
+    tmp.erase();
+  }
+
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->ngData);
+    tmp.erase();
+  }
+
+  {
+    Rope tmp(c_rope_pool, tablePtr.p->rangeData);
+    tmp.erase();
+  }
+
   tablePtr.p->tabState = TableRecord::NOT_DEFINED;
   
   LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool, 
@@ -9457,7 +9537,14 @@ Dbdict::createEventComplete_RT_USER_GET(Signal* signal,
 
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
   RequestTracker & p = evntRecPtr.p->m_reqTracker;
-  p.init<CreateEvntRef>(c_counterMgr, rg, GSN_CREATE_EVNT_REF, evntRecPtr.i);
+  if (!p.init<CreateEvntRef>(c_counterMgr, rg, GSN_CREATE_EVNT_REF, 
+			     evntRecPtr.i))
+  {
+    jam();
+    evntRecPtr.p->m_errorCode = 701;
+    createEvent_sendReply(signal, evntRecPtr);
+    return;
+  }
 
   sendSignal(rg, GSN_CREATE_EVNT_REQ, signal, CreateEvntReq::SignalLength, JBB);
 }
@@ -9745,8 +9832,12 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
     return;
   }
   OpSubEventPtr subbPtr;
+  Uint32 errCode = 0;
   if (!c_opSubEvent.seize(subbPtr)) {
+    errCode = SubStartRef::Busy;
+busy:
     SubStartRef * ref = (SubStartRef *)signal->getDataPtrSend();
+
     { // fix
       Uint32 subcriberRef = ((SubStartReq*)signal->getDataPtr())->subscriberRef;
       ref->subscriberRef = subcriberRef;
@@ -9756,7 +9847,7 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
     //      ret->setErrorLine(__LINE__);
     //      ret->setErrorNode(reference());
     ref->senderRef = reference();
-    ref->errorCode = SubStartRef::Busy;
+    ref->errorCode = errCode;
 
     sendSignal(origSenderRef, GSN_SUB_START_REF, signal,
 	       SubStartRef::SignalLength2, JBB);
@@ -9779,7 +9870,12 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
     RequestTracker & p = subbPtr.p->m_reqTracker;
-    p.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i);
+    if (!p.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i))
+    {
+      c_opSubEvent.release(subbPtr);
+      errCode = SubStartRef::Busy;
+      goto busy;
+    }
     
     SubStartReq* req = (SubStartReq*) signal->getDataPtrSend();
     
@@ -9969,14 +10065,17 @@ void Dbdict::execSUB_STOP_REQ(Signal* signal)
     return;
   }
   OpSubEventPtr subbPtr;
+  Uint32 errCode = 0;
   if (!c_opSubEvent.seize(subbPtr)) {
+    errCode = SubStopRef::Busy;
+busy:
     SubStopRef * ref = (SubStopRef *)signal->getDataPtrSend();
     jam();
     //      ret->setErrorCode(SubStartRef::SeizeError);
     //      ret->setErrorLine(__LINE__);
     //      ret->setErrorNode(reference());
     ref->senderRef = reference();
-    ref->errorCode = SubStopRef::Busy;
+    ref->errorCode = errCode;
 
     sendSignal(origSenderRef, GSN_SUB_STOP_REF, signal,
 	       SubStopRef::SignalLength, JBB);
@@ -10001,10 +10100,16 @@ void Dbdict::execSUB_STOP_REQ(Signal* signal)
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
     RequestTracker & p = subbPtr.p->m_reqTracker;
-    p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF, subbPtr.i);
-
+    if (!p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF, subbPtr.i))
+    {
+      jam();
+      c_opSubEvent.release(subbPtr);
+      errCode = SubStopRef::Busy;
+      goto busy;
+    }
+    
     SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
-
+    
     req->senderRef  = reference();
     req->senderData = subbPtr.i;
     
@@ -10294,9 +10399,14 @@ Dbdict::dropEventUTIL_EXECUTE_READ(Signal* signal,
 
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
   RequestTracker & p = evntRecPtr.p->m_reqTracker;
-  p.init<SubRemoveRef>(c_counterMgr, rg, GSN_SUB_REMOVE_REF,
-						evntRecPtr.i);
-
+  if (!p.init<SubRemoveRef>(c_counterMgr, rg, GSN_SUB_REMOVE_REF,
+			    evntRecPtr.i))
+  {
+    evntRecPtr.p->m_errorCode = 701;
+    dropEvent_sendReply(signal, evntRecPtr);
+    return;
+  }
+  
   SubRemoveReq* req = (SubRemoveReq*) signal->getDataPtrSend();
 
   req->senderRef       = reference();
@@ -13279,6 +13389,275 @@ Dbdict::getIndexAttrMask(TableRecordPtr indexPtr, AttributeMask& mask)
   }
 }
 
+// DICT lock master
+
+const Dbdict::DictLockType*
+Dbdict::getDictLockType(Uint32 lockType)
+{
+  static const DictLockType lt[] = {
+    { DictLockReq::NodeRestartLock, BS_NODE_RESTART, "NodeRestart" }
+  };
+  for (int i = 0; i < sizeof(lt)/sizeof(lt[0]); i++) {
+    if (lt[i].lockType == lockType)
+      return &lt[i];
+  }
+  return NULL;
+}
+
+void
+Dbdict::sendDictLockInfoEvent(Uint32 pollCount)
+{
+  DictLockPtr loopPtr;
+  c_dictLockQueue.first(loopPtr);
+  unsigned count = 0;
+
+  char queue_buf[100];
+  char *p = &queue_buf[0];
+  const char *const q = &queue_buf[sizeof(queue_buf)];
+  *p = 0;
+
+  while (loopPtr.i != RNIL) {
+    jam();
+    my_snprintf(p, q-p, "%s%u%s",
+                ++count == 1 ? "" : " ",
+                (unsigned)refToNode(loopPtr.p->req.userRef),
+                loopPtr.p->locked ? "L" : "");
+    p += strlen(p);
+    c_dictLockQueue.next(loopPtr);
+  }
+
+  infoEvent("DICT: lock bs: %d ops: %d poll: %d cnt: %d queue: %s",
+      (int)c_blockState,
+      c_opRecordPool.getSize() - c_opRecordPool.getNoOfFree(),
+      c_dictLockPoll, (int)pollCount, queue_buf);
+}
+
+void
+Dbdict::sendDictLockInfoEvent(DictLockPtr lockPtr, const char* text)
+{
+  infoEvent("DICT: %s %u for %s",
+      text,
+      (unsigned)refToNode(lockPtr.p->req.userRef), lockPtr.p->lt->text);
+}
+
+void
+Dbdict::execDICT_LOCK_REQ(Signal* signal)
+{
+  jamEntry();
+  const DictLockReq* req = (const DictLockReq*)&signal->theData[0];
+
+  // make sure bad request crashes slave, not master (us)
+
+  if (getOwnNodeId() != c_masterNodeId) {
+    jam();
+    sendDictLockRef(signal, *req, DictLockRef::NotMaster);
+    return;
+  }
+
+  const DictLockType* lt = getDictLockType(req->lockType);
+  if (lt == NULL) {
+    jam();
+    sendDictLockRef(signal, *req, DictLockRef::InvalidLockType);
+    return;
+  }
+
+  if (req->userRef != signal->getSendersBlockRef() ||
+      getNodeInfo(refToNode(req->userRef)).m_type != NodeInfo::DB) {
+    jam();
+    sendDictLockRef(signal, *req, DictLockRef::BadUserRef);
+    return;
+  }
+
+  if (c_aliveNodes.get(refToNode(req->userRef))) {
+    jam();
+    sendDictLockRef(signal, *req, DictLockRef::TooLate);
+    return;
+  }
+
+  DictLockPtr lockPtr;
+  if (! c_dictLockQueue.seize(lockPtr)) {
+    jam();
+    sendDictLockRef(signal, *req, DictLockRef::TooManyRequests);
+    return;
+  }
+
+  lockPtr.p->req = *req;
+  lockPtr.p->locked = false;
+  lockPtr.p->lt = lt;
+
+  checkDictLockQueue(signal, false);
+
+  if (! lockPtr.p->locked)
+    sendDictLockInfoEvent(lockPtr, "lock request by node");
+}
+
+void
+Dbdict::checkDictLockQueue(Signal* signal, bool poll)
+{
+  Uint32 pollCount = ! poll ? 0 : signal->theData[1];
+
+  DictLockPtr lockPtr;
+
+  do {
+    if (! c_dictLockQueue.first(lockPtr)) {
+      jam();
+      setDictLockPoll(signal, false, pollCount);
+      return;
+    }
+
+    if (lockPtr.p->locked) {
+      jam();
+      ndbrequire(c_blockState == lockPtr.p->lt->blockState);
+      break;
+    }
+
+    if (c_opRecordPool.getNoOfFree() != c_opRecordPool.getSize()) {
+      jam();
+      break;
+    }
+
+    ndbrequire(c_blockState == BS_IDLE);
+    lockPtr.p->locked = true;
+    c_blockState = lockPtr.p->lt->blockState;
+    sendDictLockConf(signal, lockPtr);
+
+    sendDictLockInfoEvent(lockPtr, "locked by node");
+  } while (0);
+
+  // poll while first request is open
+  // this routine is called again when it is removed for any reason
+
+  bool on = ! lockPtr.p->locked;
+  setDictLockPoll(signal, on, pollCount);
+}
+
+void
+Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
+{
+  jamEntry();
+  const DictUnlockOrd* ord = (const DictUnlockOrd*)&signal->theData[0];
+
+  DictLockPtr lockPtr;
+  c_dictLockQueue.getPtr(lockPtr, ord->lockPtr);
+  ndbrequire(lockPtr.p->lt->lockType == ord->lockType);
+
+  if (lockPtr.p->locked) {
+    jam();
+    ndbrequire(c_blockState == lockPtr.p->lt->blockState);
+    ndbrequire(c_opRecordPool.getNoOfFree() == c_opRecordPool.getSize());
+    ndbrequire(! c_dictLockQueue.hasPrev(lockPtr));
+
+    c_blockState = BS_IDLE;
+    sendDictLockInfoEvent(lockPtr, "unlocked by node");
+  } else {
+    sendDictLockInfoEvent(lockPtr, "lock request removed by node");
+  }
+
+  c_dictLockQueue.release(lockPtr);
+
+  checkDictLockQueue(signal, false);
+}
+
+void
+Dbdict::sendDictLockConf(Signal* signal, DictLockPtr lockPtr)
+{
+  DictLockConf* conf = (DictLockConf*)&signal->theData[0];
+  const DictLockReq& req = lockPtr.p->req;
+
+  conf->userPtr = req.userPtr;
+  conf->lockType = req.lockType;
+  conf->lockPtr = lockPtr.i;
+
+  sendSignal(req.userRef, GSN_DICT_LOCK_CONF, signal,
+      DictLockConf::SignalLength, JBB);
+}
+
+void
+Dbdict::sendDictLockRef(Signal* signal, DictLockReq req, Uint32 errorCode)
+{
+  DictLockRef* ref = (DictLockRef*)&signal->theData[0];
+
+  ref->userPtr = req.userPtr;
+  ref->lockType = req.lockType;
+  ref->errorCode = errorCode;
+
+  sendSignal(req.userRef, GSN_DICT_LOCK_REF, signal,
+      DictLockRef::SignalLength, JBB);
+}
+
+// control polling
+
+void
+Dbdict::setDictLockPoll(Signal* signal, bool on, Uint32 pollCount)
+{
+  if (on) {
+    jam();
+    signal->theData[0] = ZDICT_LOCK_POLL;
+    signal->theData[1] = pollCount + 1;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+  }
+
+  bool change = (c_dictLockPoll != on);
+
+  if (change) {
+    jam();
+    c_dictLockPoll = on;
+  }
+
+  // avoid too many messages if master is stuck busy (BS_NODE_FAILURE)
+  bool periodic =
+    pollCount < 8 ||
+    pollCount < 64 && pollCount % 8 == 0 ||
+    pollCount < 512 && pollCount % 64 == 0 ||
+    pollCount < 4096 && pollCount % 512 == 0 ||
+    pollCount % 4096 == 0; // about every 6 minutes
+
+  if (change || periodic)
+    sendDictLockInfoEvent(pollCount);
+}
+
+// NF handling
+
+void
+Dbdict::removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes)
+{
+  DictLockPtr loopPtr;
+  c_dictLockQueue.first(loopPtr);
+
+  if (getOwnNodeId() != c_masterNodeId) {
+    ndbrequire(loopPtr.i == RNIL);
+    return;
+  }
+
+  while (loopPtr.i != RNIL) {
+    jam();
+    DictLockPtr lockPtr = loopPtr;
+    c_dictLockQueue.next(loopPtr);
+
+    Uint32 nodeId = refToNode(lockPtr.p->req.userRef);
+
+    if (NodeBitmask::get(theFailedNodes, nodeId)) {
+      if (lockPtr.p->locked) {
+        jam();
+        ndbrequire(c_blockState == lockPtr.p->lt->blockState);
+        ndbrequire(c_opRecordPool.getNoOfFree() == c_opRecordPool.getSize());
+        ndbrequire(! c_dictLockQueue.hasPrev(lockPtr));
+
+        c_blockState = BS_IDLE;
+
+        sendDictLockInfoEvent(lockPtr, "remove lock by failed node");
+      } else {
+        sendDictLockInfoEvent(lockPtr, "remove lock request by failed node");
+      }
+
+      c_dictLockQueue.release(lockPtr);
+    }
+  }
+
+  checkDictLockQueue(signal, false);
+}
+
+
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* MODULE:          STORE/RESTORE SCHEMA FILE---------------------- */
@@ -13966,7 +14345,8 @@ Dbdict::trans_commit_complete_done(Signal* signal,
     conf->senderRef = reference();
     conf->senderData = trans_ptr.p->m_senderData;
     conf->fileId = f_ptr.p->key;
-    
+    conf->fileVersion = f_ptr.p->m_version;
+
     //@todo check api failed
     sendSignal(trans_ptr.p->m_senderRef, GSN_CREATE_FILE_CONF, signal, 
 	       CreateFileConf::SignalLength, JBB);
@@ -15131,6 +15511,17 @@ Dbdict::create_file_prepare_start(Signal* signal, SchemaOp* op){
     if(get_object(f.FileName, len, hash) != 0){
       op->m_errorCode = CreateFileRef::FilenameAlreadyExists;
       break;
+    }
+    
+    {
+      Uint32 dl;
+      const ndb_mgm_configuration_iterator * p = 
+	m_ctx.m_config.getOwnConfigIterator();
+      if(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl) && dl)
+      {
+	op->m_errorCode = CreateFileRef::NotSupportedWhenDiskless;
+	break;
+      }
     }
     
     // Loop through all filenames...

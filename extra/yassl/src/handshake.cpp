@@ -880,7 +880,7 @@ int sendData(SSL& ssl, const void* buffer, int sz)
         ssl.SetError(no_error);
 
     ssl.verfiyHandShakeComplete();
-    if (ssl.GetError()) return 0;
+    if (ssl.GetError()) return -1;
     int sent = 0;
 
     for (;;) {
@@ -891,7 +891,7 @@ int sendData(SSL& ssl, const void* buffer, int sz)
         buildMessage(ssl, out, data);
         ssl.Send(out.get_buffer(), out.get_size());
 
-        if (ssl.GetError()) return 0;
+        if (ssl.GetError()) return -1;
         sent += len;
         if (sent == sz) break;
     }
@@ -918,14 +918,14 @@ int receiveData(SSL& ssl, Data& data)
         ssl.SetError(no_error);
 
     ssl.verfiyHandShakeComplete();
-    if (ssl.GetError()) return 0;
+    if (ssl.GetError()) return -1;
 
     if (!ssl.bufferedData())
         processReply(ssl);
     ssl.fillData(data);
     ssl.useLog().ShowData(data.get_length());
 
-    if (ssl.GetError()) return 0;
+    if (ssl.GetError()) return -1;
 
     if (data.get_length() == 0 && ssl.getSocket().WouldBlock()) {
         ssl.SetError(YasslError(SSL_ERROR_WANT_READ));

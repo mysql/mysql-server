@@ -155,6 +155,7 @@ private:
 
   NdbMgmHandle m_mgmsrv;
   NdbMgmHandle m_mgmsrv2;
+  const char *m_constr;
   bool m_connected;
   int m_verbose;
   int try_reconnect;
@@ -335,22 +336,7 @@ convert(const char* s, int& val) {
 CommandInterpreter::CommandInterpreter(const char *_host,int verbose) 
   : m_verbose(verbose)
 {
-  m_mgmsrv = ndb_mgm_create_handle();
-  if(m_mgmsrv == NULL) {
-    ndbout_c("Cannot create handle to management server.");
-    exit(-1);
-  }
-  m_mgmsrv2 = ndb_mgm_create_handle();
-  if(m_mgmsrv2 == NULL) {
-    ndbout_c("Cannot create 2:nd handle to management server.");
-    exit(-1);
-  }
-  if (ndb_mgm_set_connectstring(m_mgmsrv, _host))
-  {
-    printError();
-    exit(-1);
-  }
-
+  m_constr= _host;
   m_connected= false;
   m_event_thread= 0;
   try_reconnect = 0;
@@ -362,8 +348,6 @@ CommandInterpreter::CommandInterpreter(const char *_host,int verbose)
 CommandInterpreter::~CommandInterpreter() 
 {
   disconnect();
-  ndb_mgm_destroy_handle(&m_mgmsrv);
-  ndb_mgm_destroy_handle(&m_mgmsrv2);
 }
 
 static bool 
@@ -385,15 +369,14 @@ emptyString(const char* s)
 void
 CommandInterpreter::printError() 
 {
-  if (ndb_mgm_check_connection(m_mgmsrv))
-  {
-    m_connected= false;
-    disconnect();
-  }
   ndbout_c("* %5d: %s", 
 	   ndb_mgm_get_latest_error(m_mgmsrv),
 	   ndb_mgm_get_latest_error_msg(m_mgmsrv));
   ndbout_c("*        %s", ndb_mgm_get_latest_error_desc(m_mgmsrv));
+  if (ndb_mgm_check_connection(m_mgmsrv))
+  {
+    disconnect();
+  }
 }
 
 //*****************************************************************************
@@ -437,78 +420,97 @@ event_thread_run(void* m)
 }
 
 bool
-CommandInterpreter::connect() 
+CommandInterpreter::connect()
 {
   DBUG_ENTER("CommandInterpreter::connect");
-  if(!m_connected)
+
+  if(m_connected)
+    DBUG_RETURN(m_connected);
+
+  m_mgmsrv = ndb_mgm_create_handle();
+  if(m_mgmsrv == NULL) {
+    ndbout_c("Cannot create handle to management server.");
+    exit(-1);
+  }
+  m_mgmsrv2 = ndb_mgm_create_handle();
+  if(m_mgmsrv2 == NULL) {
+    ndbout_c("Cannot create 2:nd handle to management server.");
+    exit(-1);
+  }
+
+  if (ndb_mgm_set_connectstring(m_mgmsrv, m_constr))
   {
-    if(!ndb_mgm_connect(m_mgmsrv, try_reconnect-1, 5, 1))
+    printError();
+    exit(-1);
+  }
+
+  if(ndb_mgm_connect(m_mgmsrv, try_reconnect-1, 5, 1))
+    DBUG_RETURN(m_connected); // couldn't connect, always false
+
+  const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
+  unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
+  BaseString constr;
+  constr.assfmt("%s:%d",host,port);
+  if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
+     !ndb_mgm_connect(m_mgmsrv2, try_reconnect-1, 5, 1))
+  {
+    DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
+                       host, port));
+    assert(m_event_thread == 0);
+    assert(do_event_thread == 0);
+    do_event_thread= 0;
+    m_event_thread = NdbThread_Create(event_thread_run,
+                                      (void**)&m_mgmsrv2,
+                                      32768,
+                                      "CommandInterpreted_event_thread",
+                                      NDB_THREAD_PRIO_LOW);
+    if (m_event_thread != 0)
     {
-      const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
-      unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
-      BaseString constr;
-      constr.assfmt("%s:%d",host,port);
-      if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
-	 !ndb_mgm_connect(m_mgmsrv2, try_reconnect-1, 5, 1))
+      DBUG_PRINT("info",("Thread created ok, waiting for started..."));
+      int iter= 1000; // try for 30 seconds
+      while(do_event_thread == 0 &&
+            iter-- > 0)
+        NdbSleep_MilliSleep(30);
+    }
+    if (m_event_thread == 0 ||
+        do_event_thread == 0 ||
+        do_event_thread == -1)
+    {
+      DBUG_PRINT("info",("Warning, event thread startup failed, "
+                         "degraded printouts as result, errno=%d",
+                         errno));
+      printf("Warning, event thread startup failed, "
+             "degraded printouts as result, errno=%d\n", errno);
+      do_event_thread= 0;
+      if (m_event_thread)
       {
-	DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
-			   host, port));
-	assert(m_event_thread == 0);
-	assert(do_event_thread == 0);
-	do_event_thread= 0;
-	m_event_thread = NdbThread_Create(event_thread_run,
-					  (void**)&m_mgmsrv2,
-					  32768,
-					  "CommandInterpreted_event_thread",
-					  NDB_THREAD_PRIO_LOW);
-	if (m_event_thread != 0)
-	{
-	  DBUG_PRINT("info",("Thread created ok, waiting for started..."));
-	  int iter= 1000; // try for 30 seconds
-	  while(do_event_thread == 0 &&
-		iter-- > 0)
-	    NdbSleep_MilliSleep(30);
-	}
-	if (m_event_thread == 0 ||
-	    do_event_thread == 0 ||
-	    do_event_thread == -1)
-	{
-	  DBUG_PRINT("info",("Warning, event thread startup failed, "
-			     "degraded printouts as result, errno=%d",
-			     errno));
-	  printf("Warning, event thread startup failed, "
-		 "degraded printouts as result, errno=%d\n", errno);
-	  do_event_thread= 0;
-	  if (m_event_thread)
-	  {
-	    void *res;
-	    NdbThread_WaitFor(m_event_thread, &res);
-	    NdbThread_Destroy(&m_event_thread);
-	  }
-	  ndb_mgm_disconnect(m_mgmsrv2);
-	}
+        void *res;
+        NdbThread_WaitFor(m_event_thread, &res);
+        NdbThread_Destroy(&m_event_thread);
       }
-      else
-      {
-	DBUG_PRINT("warning",
-		   ("Could not do 2:nd connect to mgmtserver for event listening"));
-	DBUG_PRINT("info", ("code: %d, msg: %s",
-		    ndb_mgm_get_latest_error(m_mgmsrv2),
-		    ndb_mgm_get_latest_error_msg(m_mgmsrv2)));
-	printf("Warning, event connect failed, degraded printouts as result\n");
-	printf("code: %d, msg: %s\n",
-	       ndb_mgm_get_latest_error(m_mgmsrv2),
-	       ndb_mgm_get_latest_error_msg(m_mgmsrv2));
-      }
-      m_connected= true;
-      DBUG_PRINT("info",("Connected to Management Server at: %s:%d", host, port));
-      if (m_verbose)
-      {
-	printf("Connected to Management Server at: %s:%d\n",
-	       host, port);
-      }
+      ndb_mgm_disconnect(m_mgmsrv2);
     }
   }
+  else
+  {
+    DBUG_PRINT("warning",
+               ("Could not do 2:nd connect to mgmtserver for event listening"));
+    DBUG_PRINT("info", ("code: %d, msg: %s",
+                        ndb_mgm_get_latest_error(m_mgmsrv2),
+                        ndb_mgm_get_latest_error_msg(m_mgmsrv2)));
+    printf("Warning, event connect failed, degraded printouts as result\n");
+    printf("code: %d, msg: %s\n",
+           ndb_mgm_get_latest_error(m_mgmsrv2),
+           ndb_mgm_get_latest_error_msg(m_mgmsrv2));
+  }
+  m_connected= true;
+  DBUG_PRINT("info",("Connected to Management Server at: %s:%d", host, port));
+  if (m_verbose)
+  {
+    printf("Connected to Management Server at: %s:%d\n",
+           host, port);
+  }
+
   DBUG_RETURN(m_connected);
 }
 
@@ -516,20 +518,18 @@ bool
 CommandInterpreter::disconnect() 
 {
   DBUG_ENTER("CommandInterpreter::disconnect");
+
   if (m_event_thread) {
     void *res;
     do_event_thread= 0;
     NdbThread_WaitFor(m_event_thread, &res);
     NdbThread_Destroy(&m_event_thread);
     m_event_thread= 0;
-    ndb_mgm_disconnect(m_mgmsrv2);
+    ndb_mgm_destroy_handle(&m_mgmsrv2);
   }
   if (m_connected)
   {
-    if (ndb_mgm_disconnect(m_mgmsrv) == -1) {
-      ndbout_c("Could not disconnect from management server");
-      printError();
-    }
+    ndb_mgm_destroy_handle(&m_mgmsrv);
     m_connected= false;
   }
   DBUG_RETURN(true);
@@ -985,7 +985,8 @@ CommandInterpreter::executeShutdown(char* parameters)
   NdbAutoPtr<char> ap1((char*)state);
 
   int result = 0;
-  result = ndb_mgm_stop(m_mgmsrv, 0, 0);
+  int need_disconnect;
+  result = ndb_mgm_stop3(m_mgmsrv, -1, 0, 0, &need_disconnect);
   if (result < 0) {
     ndbout << "Shutdown of NDB Cluster node(s) failed." << endl;
     printError();
@@ -994,28 +995,11 @@ CommandInterpreter::executeShutdown(char* parameters)
 
   ndbout << result << " NDB Cluster node(s) have shutdown." << endl;
 
-  int mgm_id= 0;
-  mgm_id= ndb_mgm_get_mgmd_nodeid(m_mgmsrv);
-  if (mgm_id == 0)
-  {
-    ndbout << "Unable to locate management server, "
-           << "shutdown manually with <id> STOP"
+  if(need_disconnect) {
+    ndbout << "Disconnecting to allow management server to shutdown."
            << endl;
-    return 1;
+    disconnect();
   }
-
-  result = ndb_mgm_stop(m_mgmsrv, 1, &mgm_id);
-  if (result <= 0) {
-    ndbout << "Shutdown of NDB Cluster management server failed." << endl;
-    printError();
-    if (result == 0)
-      return 1;
-    return result;
-  }
-
-  m_connected= false;
-  disconnect();
-  ndbout << "NDB Cluster management server shutdown." << endl;
   return 0;
 }
 
@@ -1237,12 +1221,7 @@ CommandInterpreter::executeConnect(char* parameters)
 {
   disconnect();
   if (!emptyString(parameters)) {
-    if (ndb_mgm_set_connectstring(m_mgmsrv,
-				  BaseString(parameters).trim().c_str()))
-    {
-      printError();
-      return;
-    }
+    m_constr= BaseString(parameters).trim().c_str();
   }
   connect();
 }
@@ -1407,6 +1386,7 @@ CommandInterpreter::executeStop(Vector<BaseString> &command_list,
                                 unsigned command_pos,
                                 int *node_ids, int no_of_nodes)
 {
+  int need_disconnect;
   int abort= 0;
   for (; command_pos < command_list.size(); command_pos++)
   {
@@ -1421,7 +1401,8 @@ CommandInterpreter::executeStop(Vector<BaseString> &command_list,
     return;
   }
 
-  int result= ndb_mgm_stop2(m_mgmsrv, no_of_nodes, node_ids, abort);
+  int result= ndb_mgm_stop3(m_mgmsrv, no_of_nodes, node_ids, abort,
+                            &need_disconnect);
   if (result < 0)
   {
     ndbout_c("Shutdown failed.");
@@ -1435,10 +1416,17 @@ CommandInterpreter::executeStop(Vector<BaseString> &command_list,
     {
       ndbout << "Node";
       for (int i= 0; i < no_of_nodes; i++)
-        ndbout << " " << node_ids[i];
+          ndbout << " " << node_ids[i];
       ndbout_c(" has shutdown.");
     }
   }
+
+  if(need_disconnect)
+  {
+    ndbout << "Disconnecting to allow Management Server to shutdown" << endl;
+    disconnect();
+  }
+
 }
 
 void
@@ -1529,6 +1517,7 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
   int nostart= 0;
   int initialstart= 0;
   int abort= 0;
+  int need_disconnect= 0;
 
   for (; command_pos < command_list.size(); command_pos++)
   {
@@ -1553,9 +1542,9 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
     return;
   }
 
-  result= ndb_mgm_restart2(m_mgmsrv, no_of_nodes, node_ids,
-                           initialstart, nostart, abort);
-  
+  result= ndb_mgm_restart3(m_mgmsrv, no_of_nodes, node_ids,
+                           initialstart, nostart, abort, &need_disconnect);
+
   if (result <= 0) {
     ndbout_c("Restart failed.");
     printError();
@@ -1571,6 +1560,8 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
         ndbout << " " << node_ids[i];
       ndbout_c(" is being restarted");
     }
+    if(need_disconnect)
+      disconnect();
   }
 }
 

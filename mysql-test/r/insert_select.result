@@ -686,3 +686,12 @@ ERROR 42S22: Unknown column 'z' in 'field list'
 insert into t1(x,y) select x,z from t2 on duplicate key update x=values(t2.x);
 ERROR 42S22: Unknown column 't2.x' in 'field list'
 drop table t1,t2;
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 values (1), (2);
+INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
+DROP TABLE t1;
+CREATE TABLE t1 (x int, y int);
+CREATE TABLE t2 (z int, y int);
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 (SELECT x, y FROM t1 JOIN t2 USING (y) WHERE z = 1);
+DROP TABLE IF EXISTS t1,t2,t3;

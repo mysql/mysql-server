@@ -151,8 +151,8 @@ INSERT INTO t1 VALUES(0);
 
 # Cleanup for further tests.
 DROP TRIGGER trg1;
-DELETE FROM t1;
-DELETE FROM t2;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
 
 --disconnect wl2818_definer_con
 

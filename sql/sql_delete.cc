@@ -42,8 +42,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   ha_rows	deleted= 0;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
-  bool          ha_delete_all_rows= 0;
-  ulonglong const saved_options= thd->options;
   DBUG_ENTER("mysql_delete");
 
   if (open_and_lock_tables(thd, table_list))
@@ -75,20 +73,19 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     Test if the user wants to delete all rows and deletion doesn't have
     any side-effects (because of triggers), so we can use optimized
     handler::delete_all_rows() method.
+
+    If row-based replication is used, we also delete the table row by
+    row.
   */
   if (!using_limit && const_cond && (!conds || conds->val_int()) &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
-      !(table->triggers && table->triggers->has_delete_triggers()))
+      !(table->triggers && table->triggers->has_delete_triggers()) &&
+      !thd->current_stmt_binlog_row_based)
   {
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     ha_rows const maybe_deleted= table->file->stats.records;
-    /*
-      If all rows shall be deleted, we (almost) always log this
-      statement-based (see [binlog], below), so we set this flag and
-      test it below.
-    */
-    ha_delete_all_rows= 1;
+    DBUG_PRINT("debug", ("Trying to use delete_all_rows()"));
     if (!(error=table->file->delete_all_rows()))
     {
       error= -1;				// ok
@@ -218,13 +215,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   thd->proc_info="updating";
   will_batch= !table->file->start_bulk_delete();
 
-  /*
-    We saved the thread options above before clearing the
-    OPTION_BIN_LOG, and will restore below, effectively disabling the
-    binary log (unless it was already disabled, of course).
-  */
-  if (ha_delete_all_rows)
-    thd->options&= ~static_cast<ulonglong>(OPTION_BIN_LOG);
 
   table->mark_columns_needed_for_delete();
 
@@ -318,12 +308,6 @@ cleanup:
   delete select;
   transactional_table= table->file->has_transactions();
 
-  /*
-    Restore the saved value of the OPTION_BIN_LOG bit in the thread
-    options before executing binlog_query() below.
-  */
-  thd->options|= (saved_options & OPTION_BIN_LOG);
-
   /* See similar binlogging code in sql_update.cc, for comments */
   if ((error < 0) || (deleted && !transactional_table))
   {
@@ -338,11 +322,7 @@ cleanup:
         statement-based; otherwise, 'ha_delete_row()' was used to
         delete specific rows which we might log row-based.
       */
-      THD::enum_binlog_query_type const
-	query_type(ha_delete_all_rows && !table->file->is_injective() ?
-		   THD::STMT_QUERY_TYPE :
-		   THD::ROW_QUERY_TYPE);
-      int log_result= thd->binlog_query(query_type,
+      int log_result= thd->binlog_query(THD::ROW_QUERY_TYPE,
                                         thd->query, thd->query_length,
                                         transactional_table, FALSE);
 
@@ -931,7 +911,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   /* close log tables in use */
   if (!my_strcasecmp(system_charset_info, table_list->db, "mysql"))
   {
-    if (!my_strcasecmp(system_charset_info, table_list->table_name,
+    if (opt_log &&
+        !my_strcasecmp(system_charset_info, table_list->table_name,
                        "general_log"))
     {
       lock_logger= 1;
@@ -940,7 +921,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       closed_log_tables= closed_log_tables | QUERY_LOG_GENERAL;
     }
     else
-      if (!my_strcasecmp(system_charset_info, table_list->table_name,
+      if (opt_slow_log &&
+          !my_strcasecmp(system_charset_info, table_list->table_name,
                          "slow_log"))
       {
         lock_logger= 1;
@@ -981,10 +963,10 @@ end:
     unlock_table_name(thd, table_list);
     VOID(pthread_mutex_unlock(&LOCK_open));
 
-    if (closed_log_tables & QUERY_LOG_SLOW)
+    if (opt_slow_log && (closed_log_tables & QUERY_LOG_SLOW))
       logger.reopen_log_table(QUERY_LOG_SLOW);
 
-    if (closed_log_tables & QUERY_LOG_GENERAL)
+    if (opt_log && (closed_log_tables & QUERY_LOG_GENERAL))
       logger.reopen_log_table(QUERY_LOG_GENERAL);
     if (lock_logger)
       logger.unlock();
@@ -1004,6 +986,9 @@ trunc_by_del:
   thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
   ha_enable_transaction(thd, FALSE);
   mysql_init_select(thd->lex);
+#ifdef HAVE_ROW_BASED_REPLICATION
+  thd->clear_current_stmt_binlog_row_based();
+#endif
   error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
                       HA_POS_ERROR, LL(0), TRUE);
   ha_enable_transaction(thd, TRUE);

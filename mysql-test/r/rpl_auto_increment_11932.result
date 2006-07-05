@@ -1,0 +1,47 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop database if exists test1;
+create database test1;
+use test1;
+CREATE TABLE `t1` (
+`id` int(10) unsigned NOT NULL auto_increment,
+`fname` varchar(100) default NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=2 ;
+INSERT INTO `t1` VALUES (1, 'blablabla');
+CREATE TABLE `t2` (
+`id` int(10) NOT NULL auto_increment,
+`comment` varchar(255) NOT NULL default '',
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM  AUTO_INCREMENT=3 ;
+INSERT INTO `t2` VALUES (1, 'testtest 1');
+INSERT INTO `t2` VALUES (2, 'test 2');
+CREATE PROCEDURE simpleproc3 ()
+NOT DETERMINISTIC
+BEGIN
+INSERT INTO t1 (fname) (SELECT t2.comment FROM t2 WHERE t2.id = '1');
+INSERT INTO t1 (fname) VALUES('test');
+END
+$
+CALL simpleproc3();
+select * from t2;
+id	comment
+1	testtest 1
+2	test 2
+TRUNCATE TABLE `t1`;
+CALL simpleproc3();
+select * from t1;
+id	fname
+1	testtest 1
+2	test
+use test1;
+select * from t1;
+id	fname
+1	testtest 1
+2	test
+drop database test1;
+drop database test1;

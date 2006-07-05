@@ -365,6 +365,7 @@ public:
   {
     return tmp_table_field_from_field_type(table, 0);
   }
+  bool result_as_longlong() { return TRUE; }
 };
 
 
@@ -380,6 +381,7 @@ public:
   {
     return tmp_table_field_from_field_type(table, 0);
   }
+  bool result_as_longlong() { return TRUE; }
 };
 
 
@@ -409,6 +411,7 @@ public:
     TIME representation using UTC-SYSTEM or per-thread time zone.
   */
   virtual void store_now_in_TIME(TIME *now_time)=0;
+  bool result_as_longlong() { return TRUE; }
 };
 
 
@@ -638,6 +641,7 @@ public:
   { 
     collation.set(&my_charset_bin);
     maybe_null=1;
+    decimals= DATETIME_DEC;
     max_length=MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
   }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
@@ -646,6 +650,7 @@ public:
   {
     return tmp_table_field_from_field_type(table, 0);
   }
+  bool result_as_longlong() { return TRUE; }
   bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
@@ -767,6 +772,8 @@ public:
     max_length= 10;
     maybe_null= 1;
   }
+  bool result_as_longlong() { return TRUE; }
+  longlong val_int();
 };
 
 
@@ -783,6 +790,8 @@ public:
   {
     return tmp_table_field_from_field_type(table, 0);
   }
+  bool result_as_longlong() { return TRUE; }
+  longlong val_int();
 };
 
 
@@ -798,6 +807,8 @@ public:
   {
     return tmp_table_field_from_field_type(table, 0);
   }
+  bool result_as_longlong() { return TRUE; }
+  longlong val_int();
 };
 
 class Item_func_makedate :public Item_str_func
@@ -816,6 +827,8 @@ public:
   {
     return tmp_table_field_from_field_type(table, 0);
   }
+  bool result_as_longlong() { return TRUE; }
+  longlong val_int();
   bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 

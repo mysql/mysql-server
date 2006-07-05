@@ -293,3 +293,35 @@ dtype_print(
 
 	fprintf(stderr, " len %lu prec %lu", (ulong) len, (ulong) type->prec);
 }
+
+/***************************************************************************
+Returns the maximum size of a data type. Note: types in system tables may be
+incomplete and return incorrect information. */
+ulint
+dtype_get_max_size(
+/*===============*/
+				/* out: maximum size (ULINT_MAX for
+				unbounded types) */
+	const dtype_t*	type)	/* in: type */
+{
+	switch (type->mtype) {
+	case DATA_SYS:
+	case DATA_CHAR:
+	case DATA_FIXBINARY:
+	case DATA_INT:
+	case DATA_FLOAT:
+	case DATA_DOUBLE:
+	case DATA_MYSQL:
+	case DATA_VARCHAR:
+	case DATA_BINARY:
+	case DATA_DECIMAL:
+	case DATA_VARMYSQL:
+			return(type->len);
+	case DATA_BLOB:
+			return(ULINT_MAX);
+	default:
+		ut_error;
+	}
+
+	return(ULINT_MAX);
+}

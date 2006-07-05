@@ -2601,7 +2601,17 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
   xml_enter(&p, raw_xml->ptr(), 0);
 
   /* Execute XML parser */
-  rc= my_xml_parse(&p, raw_xml->ptr(), raw_xml->length());
+  if ((rc= my_xml_parse(&p, raw_xml->ptr(), raw_xml->length())) != MY_XML_OK)
+  {
+    char buf[128];
+    my_snprintf(buf, sizeof(buf)-1, "parse error at line %d pos %d: %s",
+                my_xml_error_lineno(&p) + 1,
+                my_xml_error_pos(&p) + 1,
+                my_xml_error_string(&p));
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WRONG_VALUE,
+                        ER(ER_WRONG_VALUE), "XML", buf);
+  }
   my_xml_parser_free(&p);
 
   return rc == MY_XML_OK ? parsed_xml_buf : 0;

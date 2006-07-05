@@ -147,33 +147,85 @@ typedef struct st_log_info
 class Log_event;
 class Rows_log_event;
 
-enum enum_log_type { LOG_CLOSED, LOG_TO_BE_OPENED, LOG_NORMAL, LOG_NEW, LOG_BIN};
+enum enum_log_type { LOG_UNKNOWN, LOG_NORMAL, LOG_BIN };
+enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };
 
 /*
-  TODO split MYSQL_LOG into base MYSQL_LOG and
-  MYSQL_QUERY_LOG, MYSQL_SLOW_LOG, MYSQL_BIN_LOG
-  most of the code from MYSQL_LOG should be in the MYSQL_BIN_LOG
-  only (TC_LOG included)
-
   TODO use mmap instead of IO_CACHE for binlog
   (mmap+fsync is two times faster than write+fsync)
 */
 
-class MYSQL_LOG: public TC_LOG
+class MYSQL_LOG
+{
+public:
+  MYSQL_LOG();
+  void init_pthread_objects();
+  void cleanup();
+  bool open(const char *log_name,
+            enum_log_type log_type,
+            const char *new_name,
+            enum cache_type io_cache_type_arg);
+  void init(enum_log_type log_type_arg,
+            enum cache_type io_cache_type_arg);
+  void close(uint exiting);
+  inline bool is_open() { return log_state != LOG_CLOSED; }
+  const char *generate_name(const char *log_name, const char *suffix,
+                            bool strip_ext, char *buff);
+  int generate_new_name(char *new_name, const char *log_name);
+ protected:
+  /* LOCK_log is inited by init_pthread_objects() */
+  pthread_mutex_t LOCK_log;
+  char *name;
+  char log_file_name[FN_REFLEN];
+  char time_buff[20], db[NAME_LEN + 1];
+  bool write_error, inited;
+  IO_CACHE log_file;
+  enum_log_type log_type;
+  volatile enum_log_state log_state;
+  enum cache_type io_cache_type;
+  friend class Log_event;
+};
+
+class MYSQL_QUERY_LOG: public MYSQL_LOG
+{
+public:
+  MYSQL_QUERY_LOG() : last_time(0) {}
+  void reopen_file();
+  bool write(time_t event_time, const char *user_host,
+             uint user_host_len, int thread_id,
+             const char *command_type, uint command_type_len,
+             const char *sql_text, uint sql_text_len);
+  bool write(THD *thd, time_t current_time, time_t query_start_arg,
+             const char *user_host, uint user_host_len,
+             longlong query_time, longlong lock_time, bool is_command,
+             const char *sql_text, uint sql_text_len);
+  bool open_slow_log(const char *log_name)
+  {
+    char buf[FN_REFLEN];
+    return open(generate_name(log_name, "-slow.log", 0, buf), LOG_NORMAL, 0,
+                WRITE_CACHE);
+  }
+  bool open_query_log(const char *log_name)
+  {
+    char buf[FN_REFLEN];
+    return open(generate_name(log_name, ".log", 0, buf), LOG_NORMAL, 0,
+                WRITE_CACHE);
+  }
+private:
+  time_t last_time;
+};
+
+class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
-  pthread_mutex_t LOCK_log, LOCK_index;
+  pthread_mutex_t LOCK_index;
   pthread_mutex_t LOCK_prep_xids;
   pthread_cond_t  COND_prep_xids;
   pthread_cond_t update_cond;
   ulonglong bytes_written;
-  time_t last_time,query_start;
-  IO_CACHE log_file;
   IO_CACHE index_file;
-  char *name;
-  char time_buff[20],db[NAME_LEN+1];
-  char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
+  char index_file_name[FN_REFLEN];
   /*
      The max size before rotation (usable only if log_type == LOG_BIN: binary
      logs and relay logs).
@@ -186,13 +238,10 @@ class MYSQL_LOG: public TC_LOG
   */
   ulong max_size;
   ulong prepared_xids; /* for tc log - number of xids to remember */
-  volatile enum_log_type log_type;
-  enum cache_type io_cache_type;
   // current file sequence number for load data infile binary logging
   uint file_id;
   uint open_count;				// For replication
   int readers_count;
-  bool write_error, inited;
   bool need_start_event;
   /*
     no_auto_events means we don't want any of these automatic events :
@@ -202,13 +251,21 @@ class MYSQL_LOG: public TC_LOG
     In 5.0 it's 0 for relay logs too!
   */
   bool no_auto_events;
-  friend class Log_event;
 
   ulonglong m_table_map_version;
 
   int write_to_file(IO_CACHE *cache);
+  /*
+    This is used to start writing to a new log file. The difference from
+    new_file() is locking. new_file_without_locking() does not acquire
+    LOCK_log.
+  */
+  void new_file_without_locking();
+  void new_file_impl(bool need_lock);
 
 public:
+  MYSQL_LOG::generate_name;
+  MYSQL_LOG::is_open;
   /*
     These describe the log's format. This is used only for relay logs.
     _for_exec is used by the SQL thread, _for_queue by the I/O thread. It's
@@ -220,9 +277,9 @@ public:
   Format_description_log_event *description_event_for_exec,
     *description_event_for_queue;
 
-  MYSQL_LOG();
+  MYSQL_BIN_LOG();
   /*
-    note that there's no destructor ~MYSQL_LOG() !
+    note that there's no destructor ~MYSQL_BIN_LOG() !
     The reason is that we don't want it to be automatically called
     on exit() - but only during the correct shutdown process
   */
@@ -264,9 +321,7 @@ public:
   void signal_update();
   void wait_for_update(THD* thd, bool master_or_slave);
   void set_need_start_event() { need_start_event = 1; }
-  void init(enum_log_type log_type_arg,
-	    enum cache_type io_cache_type_arg,
-	    bool no_auto_events_arg, ulong max_size);
+  void init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();
   void cleanup();
   bool open(const char *log_name,
@@ -275,35 +330,10 @@ public:
 	    enum cache_type io_cache_type_arg,
 	    bool no_auto_events_arg, ulong max_size,
             bool null_created);
-  const char *generate_name(const char *log_name, const char *suffix,
-                            bool strip_ext, char *buff);
-  /* simplified open_xxx wrappers for the gigantic open above */
-  bool open_query_log(const char *log_name)
-  {
-    char buf[FN_REFLEN];
-    return open(generate_name(log_name, ".log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
-  }
-  bool open_slow_log(const char *log_name)
-  {
-    char buf[FN_REFLEN];
-    return open(generate_name(log_name, "-slow.log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE, 0, 0, 0);
-  }
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name);
-  void new_file(bool need_lock);
-  /* log a command to the old-fashioned general log */
-  bool write(time_t event_time, const char *user_host,
-             uint user_host_len, int thread_id,
-             const char *command_type, uint command_type_len,
-             const char *sql_text, uint sql_text_len);
-
-  /* log a query to the old-fashioned slow query log */
-  bool write(THD *thd, time_t current_time, time_t query_start_arg,
-             const char *user_host, uint user_host_len,
-             longlong query_time, longlong lock_time, bool is_command,
-             const char *sql_text, uint sql_text_len);
+  /* Use this to start writing a new log file */
+  void new_file();
 
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event);
@@ -319,7 +349,6 @@ public:
   bool appendv(const char* buf,uint len,...);
   bool append(Log_event* ev);
 
-  int generate_new_name(char *new_name,const char *old_name);
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
@@ -339,7 +368,6 @@ public:
   int find_next_log(LOG_INFO* linfo, bool need_mutex);
   int get_current_log(LOG_INFO* linfo);
   uint next_file_id();
-  inline bool is_open() { return log_type != LOG_CLOSED; }
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }
   inline char* get_name() { return name; }
@@ -416,7 +444,8 @@ public:
 
 class Log_to_file_event_handler: public Log_event_handler
 {
-  MYSQL_LOG mysql_log, mysql_slow_log;
+  MYSQL_QUERY_LOG mysql_log;
+  MYSQL_QUERY_LOG mysql_slow_log;
   bool is_initialized;
 public:
   Log_to_file_event_handler(): is_initialized(FALSE)
@@ -438,6 +467,8 @@ public:
                            CHARSET_INFO *client_cs);
   void flush();
   void init_pthread_objects();
+  MYSQL_QUERY_LOG *get_mysql_slow_log() { return &mysql_slow_log; }
+  MYSQL_QUERY_LOG *get_mysql_log() { return &mysql_log; }
 };
 
 
@@ -510,8 +541,21 @@ public:
   void init_error_log(uint error_log_printer);
   void init_slow_log(uint slow_log_printer);
   void init_general_log(uint general_log_printer);
- };
-
+  void deactivate_log_handler(THD* thd, uint log_type);
+  bool activate_log_handler(THD* thd, uint log_type);
+  MYSQL_QUERY_LOG *get_slow_log_file_handler()
+  { 
+    if (file_log_handler)
+      return file_log_handler->get_mysql_slow_log();
+    return NULL;
+  }
+  MYSQL_QUERY_LOG *get_log_file_handler()
+  { 
+    if (file_log_handler)
+      return file_log_handler->get_mysql_log();
+    return NULL;
+  }
+};
 
 enum enum_binlog_format {
   BINLOG_FORMAT_STMT= 0, // statement-based

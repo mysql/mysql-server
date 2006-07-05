@@ -58,7 +58,6 @@ dict_mem_table_create(
 	table->tablespace_discarded = FALSE;
 	table->n_def = 0;
 	table->n_cols = n_cols + DATA_N_SYS_COLS;
-	table->mem_fix = 0;
 
 	table->n_mysql_handles_opened = 0;
 	table->n_foreign_key_checks_running = 0;
@@ -83,8 +82,9 @@ dict_mem_table_create(
 
 	table->stat_modified_counter = 0;
 
-	mutex_create(&(table->autoinc_mutex));
-	mutex_set_level(&(table->autoinc_mutex), SYNC_DICT_AUTOINC_MUTEX);
+	table->max_row_size = 0;
+
+	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc_inited = FALSE;
 
