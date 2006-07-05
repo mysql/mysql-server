@@ -3466,6 +3466,11 @@ restart:
         ndb_latest_applied_binlog_epoch= 0;
         ndb_latest_received_binlog_epoch= 0;
       }
+      if (ndb_extra_logging)
+      {
+        sql_print_information("NDB Binlog: starting log at epoch %u",
+                              (unsigned)schema_gci);
+      }
     }
   }
   {
