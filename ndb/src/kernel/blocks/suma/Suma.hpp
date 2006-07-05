@@ -77,14 +77,6 @@ protected:
   void execSUB_SYNC_CONTINUE_CONF(Signal* signal);
   
   /**
-   * Trigger logging
-   */
-  void execTRIG_ATTRINFO(Signal* signal);
-  void execFIRE_TRIG_ORD(Signal* signal);
-  void execSUB_GCP_COMPLETE_REP(Signal* signal);
-  void runSUB_GCP_COMPLETE_ACC(Signal* signal);
-  
-  /**
    * DIH signals
    */
   void execDI_FCOUNTREF(Signal* signal);
@@ -92,14 +84,6 @@ protected:
   void execDIGETPRIMREF(Signal* signal);
   void execDIGETPRIMCONF(Signal* signal);
 
-  /**
-   * Trigger administration
-   */
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_CONF(Signal* signal);
-  
   /**
    * continueb
    */
@@ -190,22 +174,6 @@ public:
     void completeMeta(Signal*);
     
     /**
-     * Create triggers
-     */
-    Uint32 m_latestTriggerId;
-    void startTrigger(Signal* signal);
-    void nextTrigger(Signal* signal);
-    void completeTrigger(Signal* signal);
-    void createAttributeMask(AttributeMask&, Table*);
-    
-    /**
-     * Drop triggers
-     */
-    void startDropTrigger(Signal* signal);
-    void nextDropTrigger(Signal* signal);
-    void completeDropTrigger(Signal* signal);
-
-    /**
      * Sync data
      */
     Uint32 m_currentTable;          // Index in m_tableList
@@ -229,17 +197,11 @@ public:
       suma.progError(line, cause, extra); 
     }
     
-    void runLIST_TABLES_CONF(Signal* signal);
     void runGET_TABINFO_CONF(Signal* signal);    
     void runGET_TABINFOREF(Signal* signal);
     
     void runDI_FCOUNTCONF(Signal* signal);
     void runDIGETPRIMCONF(Signal* signal);
-
-    void runCREATE_TRIG_CONF(Signal* signal);
-    void runDROP_TRIG_CONF(Signal* signal);
-    void runDROP_TRIG_REF(Signal* signal);
-    void runDropTrig(Signal* signal, Uint32 triggerId, Uint32 tableId);
 
     Uint32 ptrI;
     union { Uint32 nextPool; Uint32 nextList; };
@@ -294,23 +256,10 @@ public:
     Uint32 m_subscriberRef;
     Uint32 m_subscriberData;
     Uint32 m_subPtrI; //reference to subscription
-    Uint32 m_firstGCI; // first GCI to send
-    Uint32 m_lastGCI; // last acnowledged GCI
     Uint32 nextList;
     union { Uint32 nextPool; Uint32 prevList; };
   };
   typedef Ptr<Subscriber> SubscriberPtr;
-
-  struct Bucket {
-    bool active;
-    bool handover;
-    bool handover_started;
-    Uint32 handoverGCI;
-  };
-#define NO_OF_BUCKETS 24
-  struct Bucket c_buckets[NO_OF_BUCKETS];
-  bool c_handoverToDo;
-  Uint32 c_lastCompleteGCI;
 
   /**
    * 
@@ -336,25 +285,8 @@ public:
   DataBuffer<15>::DataBufferPool c_dataBufferPool;
 
   /**
-   * for restarting Suma not to start sending data too early
-   */
-  bool c_restartLock;
-
-  /**
-   * for flagging that a GCI containg inconsistent data
-   * typically due to node failiure
-   */
-
-  Uint32 c_lastInconsistentGCI;
-  Uint32 c_nodeFailGCI;
-
-  NodeBitmask c_failedApiNodes;
-  
-  /**
    * Functions
    */
-  bool removeSubscribersOnNode(Signal *signal, Uint32 nodeId);
-
   bool parseTable(Signal* signal, class GetTabInfoConf* conf, Uint32 tableId,
 		  SyncRecord* syncPtr_p);
   bool checkTableTriggers(SegmentedSectionPtr ptr);
@@ -365,51 +297,10 @@ public:
   void sendSubIdRef(Signal* signal, Uint32 errorCode);
   void sendSubCreateConf(Signal* signal, Uint32 sender, SubscriptionPtr subPtr);  
   void sendSubCreateRef(Signal* signal, const SubCreateReq& req, Uint32 errorCode);  
-  void sendSubStartRef(SubscriptionPtr subPtr, Signal* signal,
-		       Uint32 errorCode, bool temporary = false);
-  void sendSubStartRef(Signal* signal,
-		       Uint32 errorCode, bool temporary = false);
-  void sendSubStopRef(Signal* signal,
-		      Uint32 errorCode, bool temporary = false);
   void sendSubSyncRef(Signal* signal, Uint32 errorCode);  
   void sendSubRemoveRef(Signal* signal, const SubRemoveReq& ref,
 			Uint32 errorCode, bool temporary = false);
-  void sendSubStartComplete(Signal*, SubscriberPtr, Uint32, 
-			    SubscriptionData::Part);
-  void sendSubStopComplete(Signal*, SubscriberPtr);
-  void sendSubStopReq(Signal* signal, bool unlock= false);
-
   void completeSubRemoveReq(Signal* signal, SubscriptionPtr subPtr);
-
-  Uint32 getFirstGCI(Signal* signal);
-  Uint32 decideWhoToSend(Uint32 nBucket, Uint32 gci);
-
-  virtual Uint32 getStoreBucket(Uint32 v) = 0;
-  virtual Uint32 getResponsibleSumaNodeId(Uint32 D) = 0;
-  virtual Uint32 RtoI(Uint32 sumaRef, bool dieOnNotFound = true) = 0;
-
-  struct FailoverBuffer {
-    //    FailoverBuffer(DataBuffer<15>::DataBufferPool & p);
-    FailoverBuffer();
-
-    bool subTableData(Uint32 gci, Uint32 *src, int sz);
-    bool subGcpCompleteRep(Uint32 gci);
-    bool nodeFailRep();
-
-    //    typedef DataBuffer<15> GCIDataBuffer;
-    //    GCIDataBuffer                      m_GCIDataBuffer;
-    //    GCIDataBuffer::DataBufferIterator  m_GCIDataBuffer_it;
-
-    Uint32 *c_gcis;
-    int c_sz;
-
-    //    Uint32 *c_buf;
-    //    int c_buf_sz;
-
-    int c_first;
-    int c_next;
-    bool c_full;
-  } c_failoverBuffer;
 
   /**
    * Table admin
@@ -441,8 +332,6 @@ private:
    * Framework signals
    */
 
-  void getNodeGroupMembers(Signal* signal);
-
   void execREAD_CONFIG_REQ(Signal* signal);
 
   void execSTTOR(Signal* signal);
@@ -454,34 +343,12 @@ private:
   void execINCL_NODEREQ(Signal* signal);
   void execCONTINUEB(Signal* signal);
   void execSIGNAL_DROPPED_REP(Signal* signal);
-  void execAPI_FAILREQ(Signal* signal) ;
-
-  void execSUB_GCP_COMPLETE_ACC(Signal* signal);
 
   /**
    * Controller interface
    */
-  void execSUB_CREATE_REF(Signal* signal);
-  void execSUB_CREATE_CONF(Signal* signal);
-
-  void execSUB_DROP_REF(Signal* signal);
-  void execSUB_DROP_CONF(Signal* signal);
-
-  void execSUB_START_REF(Signal* signal);
-  void execSUB_START_CONF(Signal* signal);
-
-  void execSUB_STOP_REF(Signal* signal);
-  void execSUB_STOP_CONF(Signal* signal);
-
-  void execSUB_SYNC_REF(Signal* signal);
-  void execSUB_SYNC_CONF(Signal* signal);
-  
   void execSUB_ABORT_SYNC_REF(Signal* signal);
   void execSUB_ABORT_SYNC_CONF(Signal* signal);
-
-  void execSUMA_START_ME(Signal* signal);
-  void execSUMA_HANDOVER_REQ(Signal* signal);
-  void execSUMA_HANDOVER_CONF(Signal* signal);
 
   /**
    * Subscription generation interface
@@ -494,49 +361,6 @@ private:
   void execUTIL_SEQUENCE_REF(Signal* signal);
   void execCREATE_SUBID_REQ(Signal* signal);
   
-  Uint32 getStoreBucket(Uint32 v);
-  Uint32 getResponsibleSumaNodeId(Uint32 D);
-
-  /**
-   * for Suma that is restarting another
-   */
-
-  struct Restart {
-    Restart(Suma& s);
-
-    Suma & suma;
-
-    bool c_okToStart[MAX_REPLICAS];
-    bool c_waitingToStart[MAX_REPLICAS];
-
-    DLHashTable<SumaParticipant::Subscription>::Iterator c_subPtr; // TODO  [MAX_REPLICAS] 
-    SubscriberPtr c_subbPtr; // TODO [MAX_REPLICAS] 
-
-    void progError(int line, int cause, const char * extra) { 
-      suma.progError(line, cause, extra); 
-    }
-
-    void resetNode(Uint32 sumaRef);
-    void runSUMA_START_ME(Signal*, Uint32 sumaRef);
-    void startNode(Signal*, Uint32 sumaRef);
-
-    void createSubscription(Signal* signal, Uint32 sumaRef);
-    void nextSubscription(Signal* signal, Uint32 sumaRef);
-    void completeSubscription(Signal* signal, Uint32 sumaRef);
-
-    void startSync(Signal* signal, Uint32 sumaRef);
-    void nextSync(Signal* signal, Uint32 sumaRef);
-    void completeSync(Signal* signal, Uint32 sumaRef);
-
-    void sendSubStartReq(SubscriptionPtr subPtr, SubscriberPtr subbPtr,
-			 Signal* signal, Uint32 sumaRef);
-    void startSubscriber(Signal* signal, Uint32 sumaRef);
-    void nextSubscriber(Signal* signal, Uint32 sumaRef);
-    void completeSubscriber(Signal* signal, Uint32 sumaRef);
-
-    void completeRestartingNode(Signal* signal, Uint32 sumaRef);
-  } Restart;
-
 private:
   friend class Restart;
   struct SubCoordinator {
@@ -589,15 +413,5 @@ private:
   ArrayPool<SubCoordinator> c_subCoordinatorPool;
   DLList<SubCoordinator> c_runningSubscriptions;
 };
-
-inline Uint32
-Suma::RtoI(Uint32 sumaRef, bool dieOnNotFound) {
-  for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
-    if (sumaRef == calcSumaBlockRef(c_nodesInGroup[i]))
-      return i;
-  }
-  ndbrequire(!dieOnNotFound);
-  return RNIL;
-}
 
 #endif
