@@ -21,7 +21,6 @@
 #include <NdbOperation.hpp>
 #include <NdbTransaction.hpp>
 #include <NdbBlob.hpp>
-#include "NdbEventOperationImpl.hpp"
 
 static void
 update(const NdbError & _err){
@@ -72,11 +71,4 @@ NdbError &
 NdbBlob::getNdbError() const {
   update(theError);
   return theError;
-}
-
-const
-NdbError &
-NdbEventOperationImpl::getNdbError() const {
-  update(m_error);
-  return m_error;
 }
