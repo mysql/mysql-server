@@ -2370,8 +2370,6 @@ void Qmgr::execAPI_FAILREQ(Signal* signal)
   failedNodePtr.i = signal->theData[0];
   // signal->theData[1] == QMGR_REF
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
-  
-  ndbout_c("Qmgr::execAPI_FAILREQ node %d", failedNodePtr.i);
 
   ndbrequire(getNodeInfo(failedNodePtr.i).getType() != NodeInfo::DB);
 
