@@ -54,6 +54,8 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_ARBIT_SHUTDOWN, XAE, "Node lost connection to other nodes and "
     "can not form a unpartitioned cluster, please investigate if there are "
     "error(s) on other node(s)"},
+   {NDBD_EXIT_PARTITIONED_SHUTDOWN, XAE, "Partitioned cluster detected. "
+    "Please check if cluster is already running"},
    {NDBD_EXIT_POINTER_NOTINRANGE, XIE, "Pointer too large"},
    {NDBD_EXIT_SR_OTHERNODEFAILED, XRE, "Another node failed during system "
     "restart, please investigate error(s) on other node(s)"},
