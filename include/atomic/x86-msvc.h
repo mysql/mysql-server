@@ -26,7 +26,7 @@
 #ifndef _atomic_h_cleanup_
 #define _atomic_h_cleanup_ "atomic/x86-msvc.h"
 
-#define MY_ATOMIC_MODE "msvc-x86" ## LOCK
+#define MY_ATOMIC_MODE "msvc-x86" LOCK
 
 #define make_atomic_add_body(S)				\
   _asm {						\
