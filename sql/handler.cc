@@ -1471,6 +1471,26 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
 }
 
 
+void handler::adjust_next_insert_id_after_explicit_value(ulonglong nr)
+{
+  /*
+    If we have set THD::next_insert_id previously and plan to insert an
+    explicitely-specified value larger than this, we need to increase
+    THD::next_insert_id to be greater than the explicit value.
+  */
+  THD *thd= table->in_use;
+  if (thd->clear_next_insert_id && (nr >= thd->next_insert_id))
+  {
+    if (thd->variables.auto_increment_increment != 1)
+      nr= next_insert_id(nr, &thd->variables);
+    else
+      nr++;
+    thd->next_insert_id= nr;
+    DBUG_PRINT("info",("next_insert_id: %lu", (ulong) nr));
+  }
+}
+
+
 /*
   Update the auto_increment field if necessary
 
@@ -1547,17 +1567,7 @@ bool handler::update_auto_increment()
     /* Clear flag for next row */
     /* Mark that we didn't generate a new value **/
     auto_increment_column_changed=0;
-
-    /* Update next_insert_id if we have already generated a value */
-    if (thd->clear_next_insert_id && nr >= thd->next_insert_id)
-    {
-      if (variables->auto_increment_increment != 1)
-        nr= next_insert_id(nr, variables);
-      else
-        nr++;
-      thd->next_insert_id= nr;
-      DBUG_PRINT("info",("next_insert_id: %lu", (ulong) nr));
-    }
+    adjust_next_insert_id_after_explicit_value(nr);
     DBUG_RETURN(0);
   }
   if (!(nr= thd->next_insert_id))
