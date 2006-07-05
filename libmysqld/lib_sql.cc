@@ -37,6 +37,8 @@ extern "C"
 int check_user(THD *thd, enum enum_server_command command, 
 	       const char *passwd, uint passwd_len, const char *db,
 	       bool check_count);
+void thd_init_client_charset(THD *thd, uint cs_number);
+
 C_MODE_START
 
 #include <mysql.h>
@@ -600,11 +602,14 @@ err:
   return NULL;
 }
 
+
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 int check_embedded_connection(MYSQL *mysql)
 {
   int result;
   THD *thd= (THD*)mysql->thd;
+  thd_init_client_charset(thd, mysql->charset->number);
+  thd->update_charset();
   Security_context *sctx= thd->security_ctx;
   sctx->host_or_ip= sctx->host= (char*) my_localhost;
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
@@ -623,6 +628,8 @@ int check_embedded_connection(MYSQL *mysql)
   char scramble_buff[SCRAMBLE_LENGTH];
   int passwd_len;
 
+  thd_init_client_charset(thd, mysql->charset->number);
+  thd->update_charset();
   if (mysql->options.client_ip)
   {
     sctx->host= my_strdup(mysql->options.client_ip, MYF(0));
