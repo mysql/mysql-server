@@ -1686,5 +1686,27 @@ select * from t1 where b like 'ab' or b like 'ab';
 select * from t1 where b like 'abc';
 select * from t1 where b like 'abc' or b like 'abc';
 
+# bug#20406 (maybe same as bug#17421 -1, not seen on 32-bit x86)
+drop table t1;
+create table  t1 ( fname varchar(255), lname varchar(255) )
+engine=ndbcluster;
+insert into t1 values ("Young","Foo");
+
+set engine_condition_pushdown = 0;
+SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
+set engine_condition_pushdown = 1;
+SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
+
+# make sure optimizer does not do some crazy shortcut
+insert into t1 values ("aaa", "aaa");
+insert into t1 values ("bbb", "bbb");
+insert into t1 values ("ccc", "ccc");
+insert into t1 values ("ddd", "ddd");
+
+set engine_condition_pushdown = 0;
+SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
+set engine_condition_pushdown = 1;
+SELECT fname, lname FROM t1 WHERE (fname like 'Y%') or (lname like 'F%');
+
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

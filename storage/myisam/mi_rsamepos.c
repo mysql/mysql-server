@@ -31,8 +31,9 @@
 int mi_rsame_with_pos(MI_INFO *info, byte *record, int inx, my_off_t filepos)
 {
   DBUG_ENTER("mi_rsame_with_pos");
+  DBUG_PRINT("enter",("index: %d  filepos: %ld", inx, (long) filepos));
 
-  if (inx < -1 || ! mi_is_key_active(info->s->state.key_map, inx))
+  if (inx < -1 || inx >= 0 && ! mi_is_key_active(info->s->state.key_map, inx))
   {
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
   }

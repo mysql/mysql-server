@@ -14,7 +14,7 @@ export LDFLAGS="-fprofile-arcs -ftest-coverage"
 # The  -fprofile-arcs and -ftest-coverage options cause GCC to instrument the
 # code with profiling information used by gcov.
 # the -DDISABLE_TAO_ASM is needed to avoid build failures in Yassl.
-extra_flags="$pentium_cflags -fprofile-arcs -ftest-coverage -DDISABLE_TAO_ASM"
+extra_flags="$pentium_cflags -fprofile-arcs -ftest-coverage -DDISABLE_TAO_ASM -DHAVE_MUTEX_THREAD_ONLY"
 extra_configs="$pentium_configs $debug_configs --disable-shared $static_link"
 extra_configs="$extra_configs $max_configs"
 

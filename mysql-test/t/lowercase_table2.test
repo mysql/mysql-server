@@ -139,3 +139,14 @@ select t1Aa.col1 from t1aA,t2Aa where t1Aa.col1 = t2aA.col1;
 drop table t2aA, t1Aa;
 
 # End of 4.1 tests
+
+#
+# Bug#17661 information_schema.SCHEMATA returns uppercase with lower_case_table_names = 1
+#
+create database mysqltest_LC2;
+use mysqltest_LC2;
+create table myUC (i int);
+select TABLE_SCHEMA,TABLE_NAME FROM information_schema.TABLES
+where TABLE_SCHEMA ='mysqltest_LC2';
+use test;
+drop database mysqltest_LC2;

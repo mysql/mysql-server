@@ -70,6 +70,7 @@ protected:
   void execBACKUP_DATA(Signal* signal);
   void execSTART_BACKUP_REQ(Signal* signal);
   void execBACKUP_FRAGMENT_REQ(Signal* signal);
+  void execBACKUP_FRAGMENT_COMPLETE_REP(Signal* signal);
   void execSTOP_BACKUP_REQ(Signal* signal);
   void execBACKUP_STATUS_REQ(Signal* signal);
   void execABORT_BACKUP_ORD(Signal* signal);
@@ -192,6 +193,7 @@ public:
   typedef Ptr<Attribute> AttributePtr;
   
   struct Fragment {
+    Uint64 noOfRecords;
     Uint32 tableId;
     Uint16 node;
     Uint16 fragmentId;
@@ -205,6 +207,8 @@ public:
   struct Table {
     Table(ArrayPool<Attribute> &, ArrayPool<Fragment> &);
     
+    Uint64 noOfRecords;
+
     Uint32 tableId;
     Uint32 schemaVersion;
     Uint32 tableType;
@@ -280,8 +284,8 @@ public:
     Uint32 tablePtr;    // Ptr.i to current table
 
     FsBuffer dataBuffer;
-    Uint32 noOfRecords;
-    Uint32 noOfBytes;
+    Uint64 noOfRecords;
+    Uint64 noOfBytes;
     Uint32 maxRecordSize;
     
   private:

@@ -532,6 +532,8 @@ void cleanup_items(Item *item);
 class THD;
 void close_thread_tables(THD *thd, bool locked=0, bool skip_derived=0);
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);
+bool check_single_table_access(THD *thd, ulong privilege,
+			   TABLE_LIST *tables);
 bool check_routine_access(THD *thd,ulong want_access,char *db,char *name,
 			  bool is_proc, bool no_errors);
 bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
@@ -862,7 +864,8 @@ int prepare_create_field(create_field *sql_field,
 bool mysql_create_table(THD *thd,const char *db, const char *table_name,
                         HA_CREATE_INFO *create_info,
                         List<create_field> &fields, List<Key> &keys,
-                        bool tmp_table, uint select_field_count);
+                        bool tmp_table, uint select_field_count,
+                        bool use_copy_create_info);
 
 bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
@@ -1167,6 +1170,7 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 void remove_db_from_cache(const char *db);
 void flush_tables();
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
+char *make_default_log_name(char *buff,const char* log_ext);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 uint fast_alter_partition_table(THD *thd, TABLE *table,
@@ -1514,7 +1518,9 @@ extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
 extern bool opt_using_transactions, mysqld_embedded;
 extern bool using_update_log, opt_large_files, server_id_supplied;
-extern bool opt_log, opt_update_log, opt_bin_log, opt_slow_log, opt_error_log;
+extern bool opt_update_log, opt_bin_log, opt_error_log;
+extern my_bool opt_log, opt_slow_log;
+extern ulong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern my_bool opt_character_set_client_handshake;
@@ -1536,8 +1542,10 @@ extern my_bool opt_enable_shared_memory;
 extern char *default_tz_name;
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
+extern char *opt_logname, *opt_slow_logname;
+extern const char *log_output_str;
 
-extern MYSQL_LOG mysql_bin_log;
+extern MYSQL_BIN_LOG mysql_bin_log;
 extern LOGGER logger;
 extern TABLE_LIST general_log, slow_log;
 extern FILE *bootstrap_file;
@@ -1582,6 +1590,8 @@ extern TABLE *unused_tables;
 extern const char* any_db;
 extern struct my_option my_long_options[];
 extern const LEX_STRING view_type;
+extern uint sql_command_flags[];
+extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
 
@@ -1751,6 +1761,8 @@ bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval);
 bool calc_time_diff(TIME *l_time1, TIME *l_time2, int l_sign,
                     longlong *seconds_out, long *microseconds_out);
 
+extern LEX_STRING interval_type_to_name[];
+
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,
 					       const char *format_str,
 					       uint format_length);
@@ -1766,6 +1778,7 @@ void make_date(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
 void make_time(const DATE_TIME_FORMAT *format, const TIME *l_time,
                String *str);
+int my_time_compare(TIME *a, TIME *b);
 
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(byte *,uint,char,char);
@@ -1783,6 +1796,7 @@ void filesort_free_buffers(TABLE *table);
 void change_double_for_sort(double nr,byte *to);
 double my_double_round(double value, int dec, bool truncate);
 int get_quick_record(SQL_SELECT *select);
+
 int calc_weekday(long daynr,bool sunday_first_day_of_week);
 uint calc_week(TIME *l_time, uint week_behaviour, uint *year);
 void find_date(char *pos,uint *vek,uint flag);

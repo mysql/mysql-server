@@ -20,7 +20,7 @@
 #include "mysql_priv.h"
 #include <mysys_err.h>
 #include "sp.h"
-#include "event.h"
+#include "events.h"
 #include <my_dir.h>
 #include <m_ctype.h>
 #ifdef __WIN__
@@ -134,9 +134,9 @@ void lock_db_delete(const char *name, uint length)
 {
   my_dblock_t *opt;
   safe_mutex_assert_owner(&LOCK_lock_db);
-  opt= (my_dblock_t *)hash_search(&lock_db_cache, (const byte*) name, length);
-  DBUG_ASSERT(opt != NULL);
-  hash_delete(&lock_db_cache, (byte*) opt);
+  if ((opt= (my_dblock_t *)hash_search(&lock_db_cache,
+                                       (const byte*) name, length)))
+    hash_delete(&lock_db_cache, (byte*) opt);
 }
 
 

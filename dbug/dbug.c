@@ -1728,7 +1728,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
     struct tm *tm_p;
     if (gettimeofday(&tv, NULL) != -1)
     {
-      if ((tm_p= localtime(&tv.tv_sec)))
+      if ((tm_p= localtime((const time_t *)&tv.tv_sec)))
       {
         (void) fprintf (cs->stack->out_file,
                         /* "%04d-%02d-%02d " */

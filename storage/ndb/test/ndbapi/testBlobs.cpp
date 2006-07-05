@@ -297,13 +297,15 @@ createTable()
 struct Bval {
   char* m_val;
   unsigned m_len;
-  char* m_buf;
+  char* m_buf; // read/write buffer
   unsigned m_buflen;
+  int m_error_code; // for testing expected error code
   Bval() :
     m_val(0),
     m_len(0),
-    m_buf(0),   // read/write buffer
-    m_buflen(0)
+    m_buf(0),
+    m_buflen(0),
+    m_error_code(0)
     {}
   ~Bval() { delete [] m_val; delete [] m_buf; }
   void alloc(unsigned buflen) {
@@ -459,19 +461,23 @@ getBlobLength(NdbBlob* h, unsigned& len)
 // setValue / getValue
 
 static int
-setBlobValue(NdbBlob* h, const Bval& v)
+setBlobValue(NdbBlob* h, const Bval& v, int error_code = 0)
 {
   bool null = (v.m_val == 0);
   bool isNull;
   unsigned len;
   DBG("setValue " <<  h->getColumn()->getName() << " len=" << v.m_len << " null=" << null);
   if (null) {
-    CHK(h->setNull() == 0);
+    CHK(h->setNull() == 0 || h->getNdbError().code == error_code);
+    if (error_code)
+      return 0;
     isNull = false;
     CHK(h->getNull(isNull) == 0 && isNull == true);
     CHK(getBlobLength(h, len) == 0 && len == 0);
   } else {
-    CHK(h->setValue(v.m_val, v.m_len) == 0);
+    CHK(h->setValue(v.m_val, v.m_len) == 0 || h->getNdbError().code == error_code);
+    if (error_code)
+      return 0;
     CHK(h->getNull(isNull) == 0 && isNull == false);
     CHK(getBlobLength(h, len) == 0 && len == v.m_len);
   }
@@ -479,11 +485,11 @@ setBlobValue(NdbBlob* h, const Bval& v)
 }
 
 static int
-setBlobValue(const Tup& tup)
+setBlobValue(const Tup& tup, int error_code = 0)
 {
-  CHK(setBlobValue(g_bh1, tup.m_blob1) == 0);
+  CHK(setBlobValue(g_bh1, tup.m_blob1, error_code) == 0);
   if (! g_opt.m_oneblob)
-    CHK(setBlobValue(g_bh2, tup.m_blob2) == 0);
+    CHK(setBlobValue(g_bh2, tup.m_blob2, error_code) == 0);
   return 0;
 }
 
@@ -543,13 +549,18 @@ writeBlobData(NdbBlob* h, const Bval& v)
   bool isNull;
   unsigned len;
   DBG("write " <<  h->getColumn()->getName() << " len=" << v.m_len << " null=" << null);
+  int error_code = v.m_error_code;
   if (null) {
-    CHK(h->setNull() == 0);
+    CHK(h->setNull() == 0 || h->getNdbError().code == error_code);
+    if (error_code)
+      return 0;
     isNull = false;
     CHK(h->getNull(isNull) == 0 && isNull == true);
     CHK(getBlobLength(h, len) == 0 && len == 0);
   } else {
-    CHK(h->truncate(v.m_len) == 0);
+    CHK(h->truncate(v.m_len) == 0 || h->getNdbError().code == error_code);
+    if (error_code)
+      return 0;
     unsigned n = 0;
     do {
       unsigned m = g_opt.m_full ? v.m_len : urandom(v.m_len + 1);
@@ -568,11 +579,14 @@ writeBlobData(NdbBlob* h, const Bval& v)
 }
 
 static int
-writeBlobData(const Tup& tup)
+writeBlobData(Tup& tup, int error_code = 0)
 {
+  tup.m_blob1.m_error_code = error_code;
   CHK(writeBlobData(g_bh1, tup.m_blob1) == 0);
-  if (! g_opt.m_oneblob)
+  if (! g_opt.m_oneblob) {
+    tup.m_blob2.m_error_code = error_code;
     CHK(writeBlobData(g_bh2, tup.m_blob2) == 0);
+  }
   return 0;
 }
 
@@ -635,19 +649,20 @@ blobWriteHook(NdbBlob* h, void* arg)
 }
 
 static int
-setBlobWriteHook(NdbBlob* h, Bval& v)
+setBlobWriteHook(NdbBlob* h, Bval& v, int error_code = 0)
 {
   DBG("setBlobWriteHook");
+  v.m_error_code = error_code;
   CHK(h->setActiveHook(blobWriteHook, &v) == 0);
   return 0;
 }
 
 static int
-setBlobWriteHook(Tup& tup)
+setBlobWriteHook(Tup& tup, int error_code = 0)
 {
-  CHK(setBlobWriteHook(g_bh1, tup.m_blob1) == 0);
+  CHK(setBlobWriteHook(g_bh1, tup.m_blob1, error_code) == 0);
   if (! g_opt.m_oneblob)
-    CHK(setBlobWriteHook(g_bh2, tup.m_blob2) == 0);
+    CHK(setBlobWriteHook(g_bh2, tup.m_blob2, error_code) == 0);
   return 0;
 }
 
@@ -869,7 +884,10 @@ readPk(int style)
     DBG("readPk pk1=" << hex << tup.m_pk1);
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->readTuple() == 0);
+    if (urandom(2) == 0)
+      CHK(g_opr->readTuple() == 0);
+    else
+      CHK(g_opr->readTuple(NdbOperation::LM_CommittedRead) == 0);
     CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
     if (g_opt.m_pk2len != 0)
       CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
@@ -883,6 +901,8 @@ readPk(int style)
       CHK(readBlobData(tup) == 0);
     }
     CHK(g_con->execute(Commit) == 0);
+    // verify lock mode upgrade
+    CHK(g_opr->getLockMode() == NdbOperation::LM_Read);
     if (style == 0 || style == 1) {
       CHK(verifyBlobValue(tup) == 0);
     }
@@ -900,23 +920,40 @@ updatePk(int style)
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     DBG("updatePk pk1=" << hex << tup.m_pk1);
-    CHK((g_con = g_ndb->startTransaction()) != 0);
-    CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
-    CHK(g_opr->updateTuple() == 0);
-    CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
-    if (g_opt.m_pk2len != 0)
-      CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
-    CHK(getBlobHandles(g_opr) == 0);
-    if (style == 0) {
-      CHK(setBlobValue(tup) == 0);
-    } else if (style == 1) {
-      CHK(setBlobWriteHook(tup) == 0);
-    } else {
-      CHK(g_con->execute(NoCommit) == 0);
-      CHK(writeBlobData(tup) == 0);
+    while (1) {
+      int mode = urandom(3);
+      int error_code = mode == 0 ? 0 : 4275;
+      CHK((g_con = g_ndb->startTransaction()) != 0);
+      CHK((g_opr = g_con->getNdbOperation(g_opt.m_tname)) != 0);
+      if (mode == 0) {
+        DBG("using updateTuple");
+        CHK(g_opr->updateTuple() == 0);
+      } else if (mode == 1) {
+        DBG("using readTuple exclusive");
+        CHK(g_opr->readTuple(NdbOperation::LM_Exclusive) == 0);
+      } else {
+        DBG("using readTuple - will fail and retry");
+        CHK(g_opr->readTuple() == 0);
+      }
+      CHK(g_opr->equal("PK1", tup.m_pk1) == 0);
+      if (g_opt.m_pk2len != 0)
+        CHK(g_opr->equal("PK2", tup.m_pk2) == 0);
+      CHK(getBlobHandles(g_opr) == 0);
+      if (style == 0) {
+        CHK(setBlobValue(tup, error_code) == 0);
+      } else if (style == 1) {
+        CHK(setBlobWriteHook(tup, error_code) == 0);
+      } else {
+        CHK(g_con->execute(NoCommit) == 0);
+        CHK(writeBlobData(tup, error_code) == 0);
+      }
+      if (error_code == 0) {
+        CHK(g_con->execute(Commit) == 0);
+        g_ndb->closeTransaction(g_con);
+        break;
+      }
+      g_ndb->closeTransaction(g_con);
     }
-    CHK(g_con->execute(Commit) == 0);
-    g_ndb->closeTransaction(g_con);
     g_opr = 0;
     g_con = 0;
     tup.m_exists = true;
@@ -1002,7 +1039,10 @@ readIdx(int style)
     DBG("readIdx pk1=" << hex << tup.m_pk1);
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
-    CHK(g_opx->readTuple() == 0);
+    if (urandom(2) == 0)
+      CHK(g_opx->readTuple() == 0);
+    else
+      CHK(g_opx->readTuple(NdbOperation::LM_CommittedRead) == 0);
     CHK(g_opx->equal("PK2", tup.m_pk2) == 0);
     CHK(getBlobHandles(g_opx) == 0);
     if (style == 0) {
@@ -1014,6 +1054,8 @@ readIdx(int style)
       CHK(readBlobData(tup) == 0);
     }
     CHK(g_con->execute(Commit) == 0);
+    // verify lock mode upgrade (already done by NdbIndexOperation)
+    CHK(g_opx->getLockMode() == NdbOperation::LM_Read);
     if (style == 0 || style == 1) {
       CHK(verifyBlobValue(tup) == 0);
     }
@@ -1031,6 +1073,7 @@ updateIdx(int style)
   for (unsigned k = 0; k < g_opt.m_rows; k++) {
     Tup& tup = g_tups[k];
     DBG("updateIdx pk1=" << hex << tup.m_pk1);
+    // skip 4275 testing
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_opx = g_con->getNdbIndexOperation(g_opt.m_x1name, g_opt.m_tname)) != 0);
     CHK(g_opx->updateTuple() == 0);
@@ -1128,7 +1171,10 @@ readScan(int style, bool idx)
   } else {
     CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
   }
-  CHK(g_ops->readTuples(NdbScanOperation::LM_Read) == 0);
+  if (urandom(2) == 0)
+    CHK(g_ops->readTuples(NdbOperation::LM_Read) == 0);
+  else
+    CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead) == 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
   if (g_opt.m_pk2len != 0)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
@@ -1139,6 +1185,8 @@ readScan(int style, bool idx)
     CHK(setBlobReadHook(tup) == 0);
   }
   CHK(g_con->execute(NoCommit) == 0);
+  // verify lock mode upgrade
+  CHK(g_ops->getLockMode() == NdbOperation::LM_Read);
   unsigned rows = 0;
   while (1) {
     int ret;
@@ -1180,7 +1228,7 @@ updateScan(int style, bool idx)
   } else {
     CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
   }
-  CHK(g_ops->readTuples(NdbScanOperation::LM_Exclusive) == 0);
+  CHK(g_ops->readTuples(NdbOperation::LM_Exclusive) == 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
   if (g_opt.m_pk2len != 0)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
@@ -1199,6 +1247,7 @@ updateScan(int style, bool idx)
     // calculate new blob values
     calcBval(g_tups[k], false);
     tup.copyfrom(g_tups[k]);
+    // cannot do 4275 testing, scan op error code controls execution
     CHK((g_opr = g_ops->updateCurrentTuple()) != 0);
     CHK(getBlobHandles(g_opr) == 0);
     if (style == 0) {
@@ -1232,7 +1281,7 @@ deleteScan(bool idx)
   } else {
     CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
   }
-  CHK(g_ops->readTuples(NdbScanOperation::LM_Exclusive) == 0);
+  CHK(g_ops->readTuples(NdbOperation::LM_Exclusive) == 0);
   CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
   if (g_opt.m_pk2len != 0)
     CHK(g_ops->getValue("PK2", tup.m_pk2) != 0);
@@ -1651,7 +1700,7 @@ testperf()
     char b[20];
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_ops = g_con->getNdbScanOperation(tab.getName())) != 0);
-    CHK(g_ops->readTuples(NdbScanOperation::LM_Read) == 0);
+    CHK(g_ops->readTuples(NdbOperation::LM_Read) == 0);
     CHK(g_ops->getValue(cA, (char*)&a) != 0);
     CHK(g_ops->getValue(cB, b) != 0);
     CHK(g_con->execute(NoCommit) == 0);
@@ -1680,7 +1729,7 @@ testperf()
     char c[20];
     CHK((g_con = g_ndb->startTransaction()) != 0);
     CHK((g_ops = g_con->getNdbScanOperation(tab.getName())) != 0);
-    CHK(g_ops->readTuples(NdbScanOperation::LM_Read) == 0);
+    CHK(g_ops->readTuples(NdbOperation::LM_Read) == 0);
     CHK(g_ops->getValue(cA, (char*)&a) != 0);
     CHK((g_bh1 = g_ops->getBlobHandle(cC)) != 0);
     CHK(g_con->execute(NoCommit) == 0);

@@ -53,6 +53,8 @@ st_plugin_int *hton2plugin[MAX_HA];
 
 static handlerton *installed_htons[128];
 
+#define BITMAP_STACKBUF_SIZE (128/8)
+
 KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0, {NullS,0} };
 
 /* static functions defined in this file */
@@ -68,14 +70,14 @@ ulong total_ha_2pc= 0;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size= 0;
 
-struct show_table_alias_st sys_table_aliases[]=
+static const LEX_STRING sys_table_aliases[]=
 {
-  {"INNOBASE",  DB_TYPE_INNODB},
-  {"NDB",       DB_TYPE_NDBCLUSTER},
-  {"BDB",       DB_TYPE_BERKELEY_DB},
-  {"HEAP",      DB_TYPE_HEAP},
-  {"MERGE",     DB_TYPE_MRG_MYISAM},
-  {NullS,       DB_TYPE_UNKNOWN}
+  {(char*)STRING_WITH_LEN("INNOBASE")},  {(char*)STRING_WITH_LEN("INNODB")},
+  {(char*)STRING_WITH_LEN("NDB")},       {(char*)STRING_WITH_LEN("NDBCLUSTER")},
+  {(char*)STRING_WITH_LEN("BDB")},       {(char*)STRING_WITH_LEN("BERKELEYDB")},
+  {(char*)STRING_WITH_LEN("HEAP")},      {(char*)STRING_WITH_LEN("MEMORY")},
+  {(char*)STRING_WITH_LEN("MERGE")},     {(char*)STRING_WITH_LEN("MRG_MYISAM")},
+  {NullS, 0}
 };
 
 const char *ha_row_type[] = {
@@ -91,15 +93,50 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
 uint known_extensions_id= 0;
 
-handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name)
+
+/*
+  Return the default storage engine handlerton for thread
+  
+  SYNOPSIS
+    ha_default_handlerton(thd)
+    thd         current thread
+  
+  RETURN
+    pointer to handlerton
+*/
+
+handlerton *ha_default_handlerton(THD *thd)
 {
-  show_table_alias_st *table_alias;
+  return (thd->variables.table_type != NULL) ?
+          thd->variables.table_type :
+          (global_system_variables.table_type != NULL ?
+           global_system_variables.table_type : &myisam_hton);
+}
+
+
+/*
+  Return the storage engine handlerton for the supplied name
+  
+  SYNOPSIS
+    ha_resolve_by_name(thd, name)
+    thd         current thread
+    name        name of storage engine
+  
+  RETURN
+    pointer to handlerton
+*/
+
+handlerton *ha_resolve_by_name(THD *thd, const LEX_STRING *name)
+{
+  const LEX_STRING *table_alias;
   st_plugin_int *plugin;
 
-  if (thd && !my_strnncoll(&my_charset_latin1,
+redo:
+  /* my_strnncoll is a macro and gcc doesn't do early expansion of macro */
+  if (thd && !my_charset_latin1.coll->strnncoll(&my_charset_latin1,
                            (const uchar *)name->str, name->length,
-                           (const uchar *)"DEFAULT", 7))
-    return ha_resolve_by_legacy_type(thd, DB_TYPE_DEFAULT);
+                           (const uchar *)STRING_WITH_LEN("DEFAULT"), 0))
+    return ha_default_handlerton(thd);
 
   if ((plugin= plugin_lock(name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
@@ -112,13 +149,15 @@ handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name)
   /*
     We check for the historical aliases.
   */
-  for (table_alias= sys_table_aliases; table_alias->type; table_alias++)
+  for (table_alias= sys_table_aliases; table_alias->str; table_alias+= 2)
   {
     if (!my_strnncoll(&my_charset_latin1,
                       (const uchar *)name->str, name->length,
-                      (const uchar *)table_alias->alias,
-                      strlen(table_alias->alias)))
-      return ha_resolve_by_legacy_type(thd, table_alias->type);
+                      (const uchar *)table_alias->str, table_alias->length))
+    {
+      name= table_alias + 1;
+      goto redo;
+    }
   }
 
   return NULL;
@@ -130,20 +169,20 @@ const char *ha_get_storage_engine(enum legacy_db_type db_type)
   switch (db_type) {
   case DB_TYPE_DEFAULT:
     return "DEFAULT";
-  case DB_TYPE_UNKNOWN:
-    return "UNKNOWN";
   default:
     if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
         installed_htons[db_type])
       return hton2plugin[installed_htons[db_type]->slot]->name.str;
-      return "*NONE*";
+    /* fall through */
+  case DB_TYPE_UNKNOWN:
+    return "UNKNOWN";
   }
 }
 
 
 static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
-  handlerton *hton=ha_resolve_by_legacy_type(current_thd, DB_TYPE_DEFAULT);
+  handlerton *hton= ha_default_handlerton(current_thd);
   return (hton && hton->create) ? hton->create(table, mem_root) : NULL;
 }
 
@@ -152,10 +191,7 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type)
 {
   switch (db_type) {
   case DB_TYPE_DEFAULT:
-    return (thd->variables.table_type != NULL) ?
-            thd->variables.table_type :
-            (global_system_variables.table_type != NULL ?
-             global_system_variables.table_type : &myisam_hton);
+    return ha_default_handlerton(thd);
   case DB_TYPE_UNKNOWN:
     return NULL;
   default:
@@ -196,7 +232,7 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
     break;
   }
 
-  return ha_resolve_by_legacy_type(thd, DB_TYPE_DEFAULT);  
+  return ha_default_handlerton(thd);
 } /* ha_checktype */
 
 
@@ -3200,35 +3236,133 @@ namespace {
   }
 }
 
-template<class RowsEventT> int binlog_log_row(TABLE *table,
-                                              const byte *before_record,
-                                              const byte *after_record)
-{
-  if (table->file->is_injective())
-    return 0;
-  bool error= 0;
-
-  if (check_table_binlog_row_based(table->in_use, table))
-  {
-    error=
-      RowsEventT::binlog_row_logging_function(table->in_use, table,
-                                              table->file->has_transactions(),
-                                              &table->s->all_set,
-                                              table->s->fields,
-                                              before_record, after_record);
-  }
-  return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
-}
-
-
 /*
-  Instantiate the versions we need for the above template function, because we
-  have -fno-implicit-template as compiling option.
-*/
+   Write table maps for all (manually or automatically) locked tables
+   to the binary log.
 
-template int binlog_log_row<Write_rows_log_event>(TABLE *, const byte *, const byte *);
-template int binlog_log_row<Delete_rows_log_event>(TABLE *, const byte *, const byte *);
-template int binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const byte *);
+   SYNOPSIS
+     write_locked_table_maps()
+       thd     Pointer to THD structure
+
+   DESCRIPTION
+       This function will generate and write table maps for all tables
+       that are locked by the thread 'thd'.  Either manually locked
+       (stored in THD::locked_tables) and automatically locked (stored
+       in THD::lock) are considered.
+   
+   RETURN VALUE
+       0   All OK
+       1   Failed to write all table maps
+
+   SEE ALSO
+       THD::lock
+       THD::locked_tables
+ */
+namespace
+{
+  int write_locked_table_maps(THD *thd)
+  {
+    DBUG_ENTER("write_locked_table_maps");
+    DBUG_PRINT("enter", ("thd=%p, thd->lock=%p, thd->locked_tables=%p, thd->extra_lock",
+                         thd, thd->lock, thd->locked_tables, thd->extra_lock));
+
+    if (thd->get_binlog_table_maps() == 0)
+    {
+      MYSQL_LOCK *locks[3];
+      locks[0]= thd->extra_lock;
+      locks[1]= thd->lock;
+      locks[2]= thd->locked_tables;
+      for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
+      {
+        MYSQL_LOCK const *const lock= locks[i];
+        if (lock == NULL)
+          continue;
+
+        TABLE **const end_ptr= lock->table + lock->table_count;
+        for (TABLE **table_ptr= lock->table ; 
+             table_ptr != end_ptr ;
+             ++table_ptr)
+        {
+          TABLE *const table= *table_ptr;
+          DBUG_PRINT("info", ("Checking table %s", table->s->table_name));
+          if (table->current_lock == F_WRLCK &&
+              check_table_binlog_row_based(thd, table))
+          {
+            int const has_trans= table->file->has_transactions();
+            int const error= thd->binlog_write_table_map(table, has_trans);
+            /*
+              If an error occurs, it is the responsibility of the caller to
+              roll back the transaction.
+            */
+            if (unlikely(error))
+              DBUG_RETURN(1);
+          }
+        }
+      }
+    }
+    DBUG_RETURN(0);
+  }
+
+  template<class RowsEventT> int
+  binlog_log_row(TABLE* table,
+                 const byte *before_record,
+                 const byte *after_record)
+  {
+    if (table->file->ha_table_flags() & HA_HAS_OWN_BINLOGGING)
+      return 0;
+    bool error= 0;
+    THD *const thd= table->in_use;
+
+    if (check_table_binlog_row_based(thd, table))
+    {
+      MY_BITMAP cols;
+      /* Potential buffer on the stack for the bitmap */
+      uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
+      uint n_fields= table->s->fields;
+      my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
+
+      /*
+        If there are no table maps written to the binary log, this is
+        the first row handled in this statement. In that case, we need
+        to write table maps for all locked tables to the binary log.
+      */
+      if (likely(!(error= bitmap_init(&cols,
+                                      use_bitbuf ? bitbuf : NULL,
+                                      (n_fields + 7) & ~7UL,
+                                      FALSE))))
+      {
+        bitmap_set_all(&cols);
+        if (likely(!(error= write_locked_table_maps(thd))))
+        {
+          error=
+            RowsEventT::binlog_row_logging_function(thd, table,
+                                                    table->file->
+                                                    has_transactions(),
+                                                    &cols, table->s->fields,
+                                                    before_record,
+                                                    after_record);
+        }
+        if (!use_bitbuf)
+          bitmap_free(&cols);
+      }
+    }
+    return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
+  }
+
+  /*
+    Instantiate the versions we need for the above template function,
+    because we have -fno-implicit-template as compiling option.
+  */
+
+  template int
+  binlog_log_row<Write_rows_log_event>(TABLE *, const byte *, const byte *);
+
+  template int
+  binlog_log_row<Delete_rows_log_event>(TABLE *, const byte *, const byte *);
+
+  template int
+  binlog_log_row<Update_rows_log_event>(TABLE *, const byte *, const byte *);
+}
 
 #endif /* HAVE_ROW_BASED_REPLICATION */
 
@@ -3238,41 +3372,6 @@ int handler::ha_external_lock(THD *thd, int lock_type)
   int error;
   if (unlikely(error= external_lock(thd, lock_type)))
     DBUG_RETURN(error);
-#ifdef HAVE_ROW_BASED_REPLICATION
-  if (table->file->is_injective())
-    DBUG_RETURN(0);
-
-  /*
-    There is a number of statements that are logged statement-based
-    but call external lock. For these, we do not need to generate a
-    table map.
-
-    TODO: The need for this switch is an indication that the model for
-    locking combined with row-based replication needs to be looked
-    over. Ideally, no such special handling should be needed.
-   */
-  switch (thd->lex->sql_command) {
-  case SQLCOM_TRUNCATE:
-  case SQLCOM_ALTER_TABLE:
-  case SQLCOM_OPTIMIZE:
-  case SQLCOM_REPAIR:
-    DBUG_RETURN(0);
-  default:
-    break;
-  }
-
-  /*
-    If we are locking a table for writing, we generate a table map.
-    For all other kinds of locks, we don't do anything.
-   */
-  if (lock_type == F_WRLCK && check_table_binlog_row_based(thd, table))
-  {
-    int const has_trans= table->file->has_transactions();
-    error= thd->binlog_write_table_map(table, has_trans);
-    if (unlikely(error))
-      DBUG_RETURN(error);
-  }
-#endif
   DBUG_RETURN(0);
 }
 

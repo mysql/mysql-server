@@ -26,7 +26,7 @@
 --echo
 
 --echo --> Printing out line for 'testuser'...
---exec $IM_EXE --defaults-file="$IM_DEFAULTS_PATH" --passwd --username=testuser --password=abc | tail -1
+--exec $IM_EXE --defaults-file="$IM_DEFAULTS_PATH" --print-password-line --username=testuser --password=abc | tail -1
 --echo
 
 --echo --> Listing users...
@@ -45,7 +45,7 @@
 --echo
 
 --echo --> Printing out line for 'testuser'...
---exec $IM_EXE --defaults-file="$IM_DEFAULTS_PATH" --passwd --username=testuser --password=xyz | tail -1
+--exec $IM_EXE --defaults-file="$IM_DEFAULTS_PATH" --print-password-line --username=testuser --password=xyz | tail -1
 --echo
 
 --echo --> Listing users...

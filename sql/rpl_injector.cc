@@ -25,7 +25,7 @@
 
 /* inline since it's called below */
 inline
-injector::transaction::transaction(MYSQL_LOG *log, THD *thd)
+injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd)
   : m_state(START_STATE), m_thd(thd)
 {
   /* 
@@ -155,6 +155,16 @@ injector *injector::instance()
   return s_injector;
 }
 
+void injector::free_instance()
+{
+  injector *inj = s_injector;
+
+  if (inj != 0)
+  {
+    s_injector= 0;
+    delete inj;
+  }
+}
 
 
 injector::transaction injector::new_trans(THD *thd)

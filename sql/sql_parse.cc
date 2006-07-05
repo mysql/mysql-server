@@ -26,7 +26,8 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
-#include "event.h"
+#include "events.h"
+#include "event_timed.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -68,6 +69,7 @@ static void decrease_user_connections(USER_CONN *uc);
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
+static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -626,50 +628,79 @@ void free_max_user_conn(void)
   sql_command is actually set to SQLCOM_END sometimes
   so we need the +1 to include it in the array.
 
-  numbers are:
-     0  - read-only query
-  != 0  - query that may change a table
+  See COMMAND_FLAG_xxx for different type of commands
      2  - query that returns meaningful ROW_COUNT() -
           a number of modified rows
 */
 
-char  uc_update_queries[SQLCOM_END+1];
+uint sql_command_flags[SQLCOM_END+1];
 
 void init_update_queries(void)
 {
-  bzero((gptr) &uc_update_queries, sizeof(uc_update_queries));
+  bzero((gptr) &sql_command_flags, sizeof(sql_command_flags));
 
-  uc_update_queries[SQLCOM_CREATE_TABLE]=1;
-  uc_update_queries[SQLCOM_CREATE_INDEX]=1;
-  uc_update_queries[SQLCOM_ALTER_TABLE]=1;
-  uc_update_queries[SQLCOM_UPDATE]=2;
-  uc_update_queries[SQLCOM_UPDATE_MULTI]=2;
-  uc_update_queries[SQLCOM_INSERT]=2;
-  uc_update_queries[SQLCOM_INSERT_SELECT]=2;
-  uc_update_queries[SQLCOM_DELETE]=2;
-  uc_update_queries[SQLCOM_DELETE_MULTI]=2;
-  uc_update_queries[SQLCOM_TRUNCATE]=1;
-  uc_update_queries[SQLCOM_DROP_TABLE]=1;
-  uc_update_queries[SQLCOM_LOAD]=1;
-  uc_update_queries[SQLCOM_CREATE_DB]=1;
-  uc_update_queries[SQLCOM_DROP_DB]=1;
-  uc_update_queries[SQLCOM_REPLACE]=2;
-  uc_update_queries[SQLCOM_REPLACE_SELECT]=2;
-  uc_update_queries[SQLCOM_RENAME_TABLE]=1;
-  uc_update_queries[SQLCOM_BACKUP_TABLE]=1;
-  uc_update_queries[SQLCOM_RESTORE_TABLE]=1;
-  uc_update_queries[SQLCOM_DROP_INDEX]=1;
-  uc_update_queries[SQLCOM_CREATE_VIEW]=1;
-  uc_update_queries[SQLCOM_DROP_VIEW]=1;
-  uc_update_queries[SQLCOM_CREATE_EVENT]=1;
-  uc_update_queries[SQLCOM_ALTER_EVENT]=1;
-  uc_update_queries[SQLCOM_DROP_EVENT]=1;  
+  sql_command_flags[SQLCOM_CREATE_TABLE]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_INDEX]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_TABLE]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_TRUNCATE]=       CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_BACKUP_TABLE]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_RESTORE_TABLE]=  CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_VIEW]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_VIEW]=      CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_CREATE_EVENT]=   CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA;  
+
+  sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+
+  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS_FUNC]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_TRIGGERS]=    CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_EVENTS]=      CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_OPEN_TABLES]= CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_PLUGINS]=     CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_FIELDS]=      CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_KEYS]=        CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND;
+
+  sql_command_flags[SQLCOM_SHOW_TABLES]=       (CF_STATUS_COMMAND |
+                                                CF_SHOW_TABLE_COMMAND);
+  sql_command_flags[SQLCOM_SHOW_TABLE_STATUS]= (CF_STATUS_COMMAND |
+                                                CF_SHOW_TABLE_COMMAND);
+
+  /*
+    The following is used to preserver CF_ROW_COUNT during the
+    a CALL or EXECUTE statement, so the value generated by the
+    last called (or executed) statement is preserved.
+    See mysql_execute_command() for how CF_ROW_COUNT is used.
+  */
+  sql_command_flags[SQLCOM_CALL]= 		CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_EXECUTE]= 		CF_HAS_ROW_COUNT;
 }
+
 
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
-  return uc_update_queries[command] != 0;
+  return (sql_command_flags[command] & CF_CHANGES_DATA) != 0;
 }
 
 /*
@@ -733,7 +764,8 @@ static bool check_mqh(THD *thd, uint check_command)
   if (check_command < (uint) SQLCOM_END)
   {
     /* Check that we have not done too many updates / hour */
-    if (uc->user_resources.updates && uc_update_queries[check_command] &&
+    if (uc->user_resources.updates &&
+        (sql_command_flags[check_command] & CF_CHANGES_DATA) &&
 	uc->updates++ >= uc->user_resources.updates)
     {
       net_printf_error(thd, ER_USER_LIMIT_REACHED, uc->user, "max_updates",
@@ -2290,8 +2322,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   TABLE_LIST *table_list= (TABLE_LIST*) select_lex->table_list.first;
   table_list->schema_select_lex= sel;
   table_list->schema_table_reformed= 1;
-  statistic_increment(thd->status_var.com_stat[lex->orig_sql_command],
-                      &LOCK_status);
   DBUG_RETURN(0);
 }
 
@@ -2458,7 +2488,7 @@ mysql_execute_command(THD *thd)
     */
     if (opt_readonly &&
 	!(thd->security_ctx->master_access & SUPER_ACL) &&
-	uc_update_queries[lex->sql_command] &&
+	(sql_command_flags[lex->sql_command] & CF_CHANGES_DATA) &&
 	!((lex->sql_command == SQLCOM_CREATE_TABLE) &&
 	  (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) &&
 	((lex->sql_command != SQLCOM_UPDATE_MULTI) &&
@@ -2470,9 +2500,8 @@ mysql_execute_command(THD *thd)
 #ifdef HAVE_REPLICATION
   } /* endif unlikely slave */
 #endif
-  if(lex->orig_sql_command == SQLCOM_END)
-    statistic_increment(thd->status_var.com_stat[lex->sql_command],
-                        &LOCK_status);
+  statistic_increment(thd->status_var.com_stat[lex->sql_command],
+                      &LOCK_status);
 
 #ifdef HAVE_ROW_BASED_REPLICATION
   if (lex->binlog_row_based_if_mixed)
@@ -2480,77 +2509,61 @@ mysql_execute_command(THD *thd)
 #endif /*HAVE_ROW_BASED_REPLICATION*/
 
   switch (lex->sql_command) {
-  case SQLCOM_SELECT:
+  case SQLCOM_SHOW_EVENTS:
+    if ((res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
+                           is_schema_db(thd->lex->select_lex.db))))
+      break;
+    /* fall through */
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_STATUS_FUNC:
+    res= execute_sqlcom_select(thd, all_tables);
+    break;
+  case SQLCOM_SHOW_STATUS:
   {
-    /* assign global limit variable if limit is not given */
-    {
-      SELECT_LEX *param= lex->unit.global_parameters;
-      if (!param->explicit_limit)
-	param->select_limit=
-          new Item_int((ulonglong)thd->variables.select_limit);
-    }
-
-    select_result *result=lex->result;
+    system_status_var old_status_var= thd->status_var;
+    thd->initial_status_var= &old_status_var;
+    res= execute_sqlcom_select(thd, all_tables);
+    /* Don't log SHOW STATUS commands to slow query log */
+    thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
+                           SERVER_QUERY_NO_GOOD_INDEX_USED);
+    /*
+      restore status variables, as we don't want 'show status' to cause
+      changes
+    */
+    pthread_mutex_lock(&LOCK_status);
+    add_diff_to_status(&global_status_var, &thd->status_var,
+                       &old_status_var);
+    thd->status_var= old_status_var;
+    pthread_mutex_unlock(&LOCK_status);
+    break;
+  }
+  case SQLCOM_SHOW_DATABASES:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_TRIGGERS:
+  case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_OPEN_TABLES:
+  case SQLCOM_SHOW_PLUGINS:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_VARIABLES:
+  case SQLCOM_SHOW_CHARSETS:
+  case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SELECT:
+    thd->status_var.last_query_cost= 0.0;
     if (all_tables)
     {
-      if (lex->orig_sql_command != SQLCOM_SHOW_STATUS_PROC &&
-          lex->orig_sql_command != SQLCOM_SHOW_STATUS_FUNC &&
-          lex->orig_sql_command != SQLCOM_SHOW_EVENTS)
-        res= check_table_access(thd,
-                                lex->exchange ? SELECT_ACL | FILE_ACL :
-                                SELECT_ACL,
-                                all_tables, 0);
-      else if (lex->orig_sql_command == SQLCOM_SHOW_EVENTS)
-        res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
-                       is_schema_db(thd->lex->select_lex.db));
+      res= check_table_access(thd,
+                              lex->exchange ? SELECT_ACL | FILE_ACL :
+                              SELECT_ACL,
+                              all_tables, 0);
     }
     else
       res= check_access(thd,
-			lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL,
-			any_db, 0, 0, 0, 0);
-    if (res)
-      goto error;
-
-    if (!(res= open_and_lock_tables(thd, all_tables)))
-    {
-      if (lex->describe)
-      {
-        /*
-          We always use select_send for EXPLAIN, even if it's an EXPLAIN
-          for SELECT ... INTO OUTFILE: a user application should be able
-          to prepend EXPLAIN to any query and receive output for it,
-          even if the query itself redirects the output.
-        */
-	if (!(result= new select_send()))
-	  goto error;
-	else
-	  thd->send_explain_fields(result);
-	res= mysql_explain_union(thd, &thd->lex->unit, result);
-	if (lex->describe & DESCRIBE_EXTENDED)
-	{
-	  char buff[1024];
-	  String str(buff,(uint32) sizeof(buff), system_charset_info);
-	  str.length(0);
-	  thd->lex->unit.print(&str);
-	  str.append('\0');
-	  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
-		       ER_YES, str.ptr());
-	}
-	result->send_eof();
-        delete result;
-      }
-      else
-      {
-	if (!result && !(result= new select_send()))
-          goto error;
-	query_cache_store_query(thd, all_tables);
-	res= handle_select(thd, lex, result, 0);
-        if (result != lex->result)
-          delete result;
-      }
-    }
+                        lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL,
+                        any_db, 0, 0, 0, 0);
+    if (!res)
+      res= execute_sqlcom_select(thd, all_tables);
     break;
-  }
   case SQLCOM_PREPARE:
   {
     mysql_sql_stmt_prepare(thd);
@@ -2943,7 +2956,7 @@ mysql_execute_command(THD *thd)
         res= mysql_create_table(thd, create_table->db,
 				create_table->table_name, &lex->create_info,
 				lex->create_list,
-				lex->key_list, 0, 0);
+				lex->key_list, 0, 0, 1);
       }
       if (!res)
 	send_ok(thd);
@@ -3369,15 +3382,6 @@ end_with_restore_list:
                                              &lex->value_list,
                                              lex->duplicates, lex->ignore)))
       {
-        /*
-          Skip first table, which is the table we are inserting in.
-          Below we set context.table_list again because the call above to
-          mysql_insert_select_prepare() calls resolve_in_table_list_only(),
-          which in turn resets context.table_list and
-          context.first_name_resolution_table.
-        */
-        select_lex->context.table_list= 
-          select_lex->context.first_name_resolution_table= second_table;
 	res= handle_select(thd, lex, result, OPTION_SETUP_TABLES_DONE);
         /*
           Invalidate the table in the query cache if something changed
@@ -3823,7 +3827,9 @@ end_with_restore_list:
     uint rows_affected= 1;
     DBUG_ASSERT(lex->et);
     do {
-      if (! lex->et->dbname.str)
+      if (! lex->et->dbname.str ||
+          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
+           !lex->spname->m_db.str))
       {
         my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
         res= true;
@@ -3831,7 +3837,10 @@ end_with_restore_list:
       }
 
       if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
-                       is_schema_db(lex->et->dbname.str)))
+                       is_schema_db(lex->et->dbname.str)) ||
+          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
+           (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
+                         is_schema_db(lex->spname->m_db.str)))))
         break;
 
       if (end_active_trans(thd))
@@ -4826,6 +4835,7 @@ end_with_restore_list:
       }
       break;
     }
+#ifdef NOT_USED
   case SQLCOM_SHOW_STATUS_PROC:
     {
       res= sp_show_status_procedure(thd, (lex->wild ?
@@ -4838,6 +4848,7 @@ end_with_restore_list:
 					 lex->wild->ptr() : NullS));
       break;
     }
+#endif
 #ifndef DBUG_OFF
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_FUNC_CODE:
@@ -5162,13 +5173,10 @@ end:
   /*
     The return value for ROW_COUNT() is "implementation dependent" if the
     statement is not DELETE, INSERT or UPDATE, but -1 is what JDBC and ODBC
-    wants.
-
-    We do not change the value for a CALL or EXECUTE statement, so the value
-    generated by the last called (or executed) statement is preserved.
-   */
-  if (lex->sql_command != SQLCOM_CALL && lex->sql_command != SQLCOM_EXECUTE &&
-      uc_update_queries[lex->sql_command]<2)
+    wants. We also keep the last value in case of SQLCOM_CALL or
+    SQLCOM_EXECUTE.
+  */
+  if (!(sql_command_flags[lex->sql_command] & CF_HAS_ROW_COUNT))
     thd->row_count_func= -1;
   DBUG_RETURN(res || thd->net.report_error);
 
@@ -5177,6 +5185,106 @@ error:
   goto end;
 }
 
+
+static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
+{
+  LEX	*lex= thd->lex;
+  select_result *result=lex->result;
+  bool res;
+  /* assign global limit variable if limit is not given */
+  {
+    SELECT_LEX *param= lex->unit.global_parameters;
+    if (!param->explicit_limit)
+      param->select_limit=
+        new Item_int((ulonglong) thd->variables.select_limit);
+  }
+  if (!(res= open_and_lock_tables(thd, all_tables)))
+  {
+    if (lex->describe)
+    {
+      /*
+        We always use select_send for EXPLAIN, even if it's an EXPLAIN
+        for SELECT ... INTO OUTFILE: a user application should be able
+        to prepend EXPLAIN to any query and receive output for it,
+        even if the query itself redirects the output.
+      */
+      if (!(result= new select_send()))
+        return 1;                               /* purecov: inspected */
+      thd->send_explain_fields(result);
+      res= mysql_explain_union(thd, &thd->lex->unit, result);
+      if (lex->describe & DESCRIBE_EXTENDED)
+      {
+        char buff[1024];
+        String str(buff,(uint32) sizeof(buff), system_charset_info);
+        str.length(0);
+        thd->lex->unit.print(&str);
+        str.append('\0');
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                     ER_YES, str.ptr());
+      }
+      result->send_eof();
+      delete result;
+    }
+    else
+    {
+      if (!result && !(result= new select_send()))
+        return 1;                               /* purecov: inspected */
+      query_cache_store_query(thd, all_tables);
+      res= handle_select(thd, lex, result, 0);
+      if (result != lex->result)
+        delete result;
+    }
+  }
+  return res;
+}
+
+
+/*
+  Check grants for commands which work only with one table.
+
+  SYNOPSIS
+    check_single_table_access()
+    thd			Thread handler
+    privilege		requested privilege
+    all_tables		global table list of query
+
+  RETURN
+    0 - OK
+    1 - access denied, error is sent to client
+*/
+
+bool check_single_table_access(THD *thd, ulong privilege, 
+                               TABLE_LIST *all_tables)
+{
+  Security_context * backup_ctx= thd->security_ctx;
+
+  /* we need to switch to the saved context (if any) */
+  if (all_tables->security_ctx)
+    thd->security_ctx= all_tables->security_ctx;
+
+  const char *db_name;
+  if ((all_tables->view || all_tables->field_translation) &&
+      !all_tables->schema_table)
+    db_name= all_tables->view_db.str;
+  else
+    db_name= all_tables->db;
+
+  if (check_access(thd, privilege, db_name,
+		   &all_tables->grant.privilege, 0, 0,
+                   test(all_tables->schema_table)))
+    goto deny;
+
+  /* Show only 1 table for check_grant */
+  if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, 0))
+    goto deny;
+
+  thd->security_ctx= backup_ctx;
+  return 0;
+
+deny:
+  thd->security_ctx= backup_ctx;
+  return 1;
+}
 
 /*
   Check grants for commands which work only with one table and all other
@@ -5195,35 +5303,17 @@ error:
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
 {
-  Security_context * backup_ctx= thd->security_ctx;
-
-  /* we need to switch to the saved context (if any) */
-  if (all_tables->security_ctx)
-    thd->security_ctx= all_tables->security_ctx;
-
-  if (check_access(thd, privilege, all_tables->db,
-		   &all_tables->grant.privilege, 0, 0,
-                   test(all_tables->schema_table)))
-    goto deny;
-
-  /* Show only 1 table for check_grant */
-  if (grant_option && check_grant(thd, privilege, all_tables, 0, 1, 0))
-    goto deny;
-
-  thd->security_ctx= backup_ctx;
+  if (check_single_table_access (thd,privilege,all_tables))
+    return 1;
 
   /* Check rights on tables of subselects and implictly opened tables */
   TABLE_LIST *subselects_tables;
   if ((subselects_tables= all_tables->next_global))
   {
     if ((check_table_access(thd, SELECT_ACL, subselects_tables, 0)))
-      goto deny;
+      return 1;
   }
   return 0;
-
-deny:
-  thd->security_ctx= backup_ctx;
-  return 1;
 }
 
 
@@ -5392,8 +5482,26 @@ bool check_global_access(THD *thd, ulong want_access)
 
 
 /*
-  Check the privilege for all used tables.  Table privileges are cached
-  in the table list for GRANT checking
+  Check the privilege for all used tables.
+
+  SYNOPSYS
+    check_table_access()
+      thd          Thread context
+      want_access  Privileges requested
+      tables       List of tables to be checked
+      no_errors    FALSE/TRUE - report/don't report error to
+                   the client (using my_error() call).
+
+  NOTES
+    Table privileges are cached in the table list for GRANT checking.
+    This functions assumes that table list used and
+    thd->lex->query_tables_own_last value correspond to each other
+    (the latter should be either 0 or point to next_global member
+    of one of elements of this table list).
+
+  RETURN VALUE
+    FALSE - OK
+    TRUE  - Access denied
 */
 
 bool
@@ -6276,7 +6384,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
         (schema_table->hidden && 
-         lex->orig_sql_command == SQLCOM_END))  // not a 'show' command
+         (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
     {
       my_error(ER_UNKNOWN_TABLE, MYF(0),
                ptr->table_name, information_schema_name.str);
@@ -7306,14 +7414,28 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   TABLE_LIST *aux_tables=
     (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
+  TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
   if (check_db_used(thd, tables) || check_db_used(thd,aux_tables) ||
-      check_table_access(thd,SELECT_ACL, tables,0) ||
-      check_table_access(thd,DELETE_ACL, aux_tables,0))
+      check_table_access(thd, SELECT_ACL, tables, 0))
     DBUG_RETURN(TRUE);
+
+  /*
+    Since aux_tables list is not part of LEX::query_tables list we
+    have to juggle with LEX::query_tables_own_last value to be able
+    call check_table_access() safely.
+  */
+  thd->lex->query_tables_own_last= 0;
+  if (check_table_access(thd, DELETE_ACL, aux_tables, 0))
+  {
+    thd->lex->query_tables_own_last= save_query_tables_own_last;
+    DBUG_RETURN(TRUE);
+  }
+  thd->lex->query_tables_own_last= save_query_tables_own_last;
+
   if ((thd->options & OPTION_SAFE_UPDATES) && !select_lex->where)
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,

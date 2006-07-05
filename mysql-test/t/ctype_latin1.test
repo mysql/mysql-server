@@ -110,3 +110,14 @@ SELECT convert(@str collate latin1_german2_ci using utf8);
 SELECT convert(@str collate latin1_swedish_ci using utf8);
 
 # End of 4.1 tests
+
+SET NAMES latin1;
+--disable_warnings
+DROP TABLE IF EXISTS `abcÿdef`;
+--enable_warnings
+CREATE TABLE `abcÿdef` (i int);
+INSERT INTO `abcÿdef` VALUES (1);
+INSERT INTO abcÿdef VALUES (2);
+SELECT * FROM `abcÿdef`;
+SELECT * FROM abcÿdef;
+DROP TABLE `abcÿdef`;

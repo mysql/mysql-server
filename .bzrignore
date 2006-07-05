@@ -7,6 +7,8 @@
 *.d
 *.da
 *.exe
+*.gcda
+*.gcno
 *.gcov
 *.idb
 *.la
@@ -462,6 +464,7 @@ libmysqld/event.cc
 libmysqld/event_executor.cc
 libmysqld/event_scheduler.cc
 libmysqld/event_timed.cc
+libmysqld/events.cc
 libmysqld/examples/client_test.c
 libmysqld/examples/client_test.cc
 libmysqld/examples/completion_hash.cc
@@ -1117,6 +1120,7 @@ server-tools/instance-manager/messages.cpp
 server-tools/instance-manager/mysql_connection.cpp
 server-tools/instance-manager/mysqlmanager
 server-tools/instance-manager/mysqlmanager.cpp
+server-tools/instance-manager/net_serv.cc
 server-tools/instance-manager/options.cpp
 server-tools/instance-manager/parse.cpp
 server-tools/instance-manager/parse_output.cpp

@@ -10,6 +10,21 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# Bug 19309 Partitions: Crash if double procedural alter
+#
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (1));
+
+create procedure pz()
+alter table t1 engine = myisam;
+
+call pz();
+call pz();
+drop procedure pz;
+drop table t1;
+
+#
 # Bug 19307: CSV engine crashes
 #
 --error ER_PARTITION_MERGE_ERROR
@@ -19,6 +34,45 @@ partition by list (a)
 (partition p0 values in (null));
 
 #
+# BUG 16002: Handle unsigned integer functions properly
+#
+--error 1064
+create table t1 (a bigint)
+partition by range (a)
+(partition p0 values less than (0xFFFFFFFFFFFFFFFF),
+ partition p1 values less than (10));
+--error 1064
+create table t1 (a bigint)
+partition by list (a)
+(partition p0 values in (0xFFFFFFFFFFFFFFFF),
+ partition p1 values in (10));
+
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (100),
+ partition p1 values less than MAXVALUE);
+insert into t1 values (1);
+drop table t1;
+
+create table t1 (a bigint unsigned)
+partition by hash (a);
+insert into t1 values (0xFFFFFFFFFFFFFFFD);
+insert into t1 values (0xFFFFFFFFFFFFFFFE);
+select * from t1 where (a + 1) < 10;
+select * from t1 where (a + 1) > 10;
+drop table t1;
+
+#
+# Bug 19307: CSV engine crashes
+#
+--error ER_PARTITION_MERGE_ERROR
+create table t1 (a int)
+engine = csv
+partition by list (a)
+(partition p0 values in (null));
+
+#
+# Added test case
 #
 create table t1 (a int)
 partition by key(a)
@@ -913,6 +967,12 @@ create table t1 (f1 smallint)
 partition by list (f1) (partition p0 values in (null));
 insert into t1 values (null);
 select * from t1 where f1 is null;
+select * from t1 where f1 < 1;
+select * from t1 where f1 <= NULL;
+select * from t1 where f1 < NULL;
+select * from t1 where f1 >= NULL;
+select * from t1 where f1 > NULL;
+select * from t1 where f1 > 1;
 drop table t1;
 
 create table t1 (f1 smallint)
@@ -978,6 +1038,23 @@ PARTITION p2 VALUES LESS THAN (30) ENGINE = MyISAM);
 --replace_column 6 0 7 0 8 0 9 0 12 NULL 13 NULL 14 NULL
 SHOW TABLE STATUS;
 DROP TABLE t1;
+
+#
+#BUG 16002 Erroneus handling of unsigned partition functions
+#
+--error ER_PARTITION_CONST_DOMAIN_ERROR
+create table t1 (a bigint unsigned)
+partition by list (a)
+(partition p0 values in (0-1));
+
+create table t1 (a bigint unsigned)
+partition by range (a)
+(partition p0 values less than (10));
+
+--error ER_NO_PARTITION_FOR_GIVEN_VALUE
+insert into t1 values (0xFFFFFFFFFFFFFFFF);
+
+drop table t1;
 
 #
 #BUG 18750 Problems with partition names
@@ -1139,5 +1216,43 @@ alter table t1 add partition (partition p2 values in (3));
 alter table t1 drop partition p2;
 use test;
 drop database db99;
+
+#
+#BUG 17138 Problem with stored procedure and analyze partition
+#
+--disable_warnings
+drop procedure if exists mysqltest_1;
+--enable_warnings
+
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (0));
+
+insert into t1 values (0);
+delimiter //;
+
+create procedure mysqltest_1 ()
+begin
+  begin
+    declare continue handler for sqlexception begin end;
+    update ignore t1 set a = 1 where a = 0;
+  end;
+  prepare stmt1 from 'alter table t1';
+  execute stmt1;
+end//
+
+call mysqltest_1()//
+delimiter ;//
+drop table t1;
+drop procedure mysqltest_1;
+
+#
+# Bug 20583 Partitions: Crash using index_last
+#
+create table t1 (a int, index(a))
+partition by hash(a);
+insert into t1 values (1),(2);
+select * from t1 ORDER BY a DESC;
+drop table t1;
 
 --echo End of 5.1 tests

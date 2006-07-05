@@ -1,5 +1,7 @@
-drop table if exists t1,t2;
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
+drop table if exists t1,t2,t3;
+CREATE TABLE t3 (dummy INT PRIMARY KEY) ENGINE = NDB;
+DROP TABLE t3;
 reset master;
 reset master;
 CREATE TABLE t2 (a INT PRIMARY KEY, b int) ENGINE = NDB;

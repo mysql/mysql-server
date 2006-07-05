@@ -1105,4 +1105,12 @@ insert into t1 values(123.12);
 select * from t1;
 alter table t1 modify a decimal(10,2);
 select * from t1;
+
+#
+# Bug#19667 group by a decimal expression yields wrong result
+#
+create table t1 (i int, j int);
+insert into t1 values (1,1), (1,2), (2,3), (2,4);
+select i, count(distinct j) from t1 group by i;
+select i+0.0 as i2, count(distinct j) from t1 group by i2;
 drop table t1;

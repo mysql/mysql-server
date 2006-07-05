@@ -325,11 +325,12 @@ execute stmt4;
 # That is the reason why, we switch the output here off.
 #   (The real output will be tested in ps_6bdb.test)
 --disable_warnings
+prepare stmt4 from ' show engine bdb logs ';
+--enable_warnings
 --disable_result_log
 prepare stmt4 from ' show engine bdb logs ';
 execute stmt4;
 --enable_result_log
---enable_warnings
 prepare stmt4 from ' show grants for user ';
 --error 1295
 prepare stmt4 from ' show create table t2 ';

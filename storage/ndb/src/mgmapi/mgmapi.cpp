@@ -27,6 +27,7 @@
 #include <mgmapi_debug.h>
 #include "mgmapi_configuration.hpp"
 #include <socket_io.h>
+#include <version.h>
 
 #include <NdbOut.hpp>
 #include <SocketServer.hpp>
@@ -103,6 +104,9 @@ struct ndb_mgm_handle {
 #endif
   FILE *errstream;
   char *m_name;
+  int mgmd_version_major;
+  int mgmd_version_minor;
+  int mgmd_version_build;
 };
 
 #define SET_ERROR(h, e, s) setError(h, e, __LINE__, s)
@@ -173,6 +177,10 @@ ndb_mgm_create_handle()
 #ifdef MGMAPI_LOG
   h->logfile = 0;
 #endif
+
+  h->mgmd_version_major= -1;
+  h->mgmd_version_minor= -1;
+  h->mgmd_version_build= -1;
 
   DBUG_PRINT("info", ("handle=0x%x", (UintPtr)h));
   DBUG_RETURN(h);
@@ -367,8 +375,9 @@ ndb_mgm_call(NdbMgmHandle handle, const ParserRow<ParserDummy> *command_reply,
        * Print some info about why the parser returns NULL
        */
       fprintf(handle->errstream,
-	      "Error in mgm protocol parser. cmd: >%s< status: %d curr: %d\n",
-	      cmd, (Uint32)ctx.m_status, ctx.m_currentToken);
+	      "Error in mgm protocol parser. cmd: >%s< status: %d curr: %s\n",
+	      cmd, (Uint32)ctx.m_status,
+              (ctx.m_currentToken)?ctx.m_currentToken:"NULL");
       DBUG_PRINT("info",("ctx.status: %d, ctx.m_currentToken: %s",
 		         ctx.m_status, ctx.m_currentToken));
     }
@@ -684,7 +693,11 @@ ndb_mgm_get_status(NdbMgmHandle handle)
   out.println("");
 
   char buf[1024];
-  in.gets(buf, sizeof(buf));
+  if(!in.gets(buf, sizeof(buf)))
+  {
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
+    return NULL;
+  }
   if(buf[strlen(buf)-1] == '\n')
     buf[strlen(buf)-1] = '\0';
 
@@ -693,7 +706,11 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     return NULL;
   }
 
-  in.gets(buf, sizeof(buf));
+  if(!in.gets(buf, sizeof(buf)))
+  {
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
+    return NULL;
+  }
   if(buf[strlen(buf)-1] == '\n')
     buf[strlen(buf)-1] = '\0';
   
@@ -716,6 +733,13 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     malloc(sizeof(ndb_mgm_cluster_state)+
 	   noOfNodes*(sizeof(ndb_mgm_node_state)+sizeof("000.000.000.000#")));
 
+  if(!state)
+  {
+    SET_ERROR(handle, NDB_MGM_OUT_OF_MEMORY,
+              "Allocating ndb_mgm_cluster_state");
+    return NULL;
+  }
+
   state->no_of_nodes= noOfNodes;
   ndb_mgm_node_state * ptr = &state->node_states[0];
   int nodeId = 0;
@@ -725,7 +749,13 @@ ndb_mgm_get_status(NdbMgmHandle handle)
   }
   i = -1; ptr--;
   for(; i<noOfNodes; ){
-    in.gets(buf, sizeof(buf));
+    if(!in.gets(buf, sizeof(buf)))
+    {
+      free(state);
+      SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY,
+                "Probably disconnected");
+      return NULL;
+    }
     tmp.assign(buf);
 
     if(tmp.trim() == ""){
@@ -835,37 +865,81 @@ ndb_mgm_stop(NdbMgmHandle handle, int no_of_nodes, const int * node_list)
   return ndb_mgm_stop2(handle, no_of_nodes, node_list, 0);
 }
 
-
 extern "C"
-int 
+int
 ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 	      int abort)
 {
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_stop2");
-  const ParserRow<ParserDummy> stop_reply[] = {
+  int disconnect;
+  return ndb_mgm_stop3(handle, no_of_nodes, node_list, abort, &disconnect);
+}
+
+
+extern "C"
+int
+ndb_mgm_stop3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
+	      int abort, int *disconnect)
+{
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_stop3");
+  const ParserRow<ParserDummy> stop_reply_v1[] = {
     MGM_CMD("stop reply", NULL, ""),
     MGM_ARG("stopped", Int, Optional, "No of stopped nodes"),
     MGM_ARG("result", String, Mandatory, "Error message"),
     MGM_END()
   };
+  const ParserRow<ParserDummy> stop_reply_v2[] = {
+    MGM_CMD("stop reply", NULL, ""),
+    MGM_ARG("stopped", Int, Optional, "No of stopped nodes"),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_ARG("disconnect", Int, Mandatory, "Need to disconnect"),
+    MGM_END()
+  };
+
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -1);
 
-  if(no_of_nodes < 0){
+  if(handle->mgmd_version_build==-1)
+  {
+    char verstr[50];
+    if(!ndb_mgm_get_version(handle,
+                        &(handle->mgmd_version_major),
+                        &(handle->mgmd_version_minor),
+                        &(handle->mgmd_version_build),
+                        sizeof(verstr),
+                            verstr))
+    {
+      return -1;
+    }
+  }
+  int use_v2= ((handle->mgmd_version_major==5)
+    && (
+        (handle->mgmd_version_minor==0 && handle->mgmd_version_build>=21)
+        ||(handle->mgmd_version_minor==1 && handle->mgmd_version_build>=12)
+        ||(handle->mgmd_version_minor>1)
+        )
+               )
+    || (handle->mgmd_version_major>5);
+
+  if(no_of_nodes < -1){
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NUMBER_OF_NODES, 
 	      "Negative number of nodes requested to stop");
     return -1;
   }
 
   Uint32 stoppedNoOfNodes = 0;
-  if(no_of_nodes == 0){
+  if(no_of_nodes <= 0){
     /**
-     * All database nodes should be stopped
+     * All nodes should be stopped (all or just db)
      */
     Properties args;
     args.put("abort", abort);
+    if(use_v2)
+      args.put("stop", (no_of_nodes==-1)?"mgm,db":"db");
     const Properties *reply;
-    reply = ndb_mgm_call(handle, stop_reply, "stop all", &args);
+    if(use_v2)
+      reply = ndb_mgm_call(handle, stop_reply_v2, "stop all", &args);
+    else
+      reply = ndb_mgm_call(handle, stop_reply_v1, "stop all", &args);
     CHECK_REPLY(reply, -1);
 
     if(!reply->get("stopped", &stoppedNoOfNodes)){
@@ -874,6 +948,10 @@ ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
       delete reply;
       return -1;
     }
+    if(use_v2)
+      reply->get("disconnect", (Uint32*)disconnect);
+    else
+      *disconnect= 0;
     BaseString result;
     reply->get("result", result);
     if(strcmp(result.c_str(), "Ok") != 0) {
@@ -899,7 +977,11 @@ ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   args.put("abort", abort);
 
   const Properties *reply;
-  reply = ndb_mgm_call(handle, stop_reply, "stop", &args);
+  if(use_v2)
+    reply = ndb_mgm_call(handle, stop_reply_v2, "stop v2", &args);
+  else
+    reply = ndb_mgm_call(handle, stop_reply_v1, "stop", &args);
+
   CHECK_REPLY(reply, stoppedNoOfNodes);
   if(!reply->get("stopped", &stoppedNoOfNodes)){
     SET_ERROR(handle, NDB_MGM_STOP_FAILED, 
@@ -907,6 +989,10 @@ ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     delete reply;
     return -1;
   }
+  if(use_v2)
+    reply->get("disconnect", (Uint32*)disconnect);
+  else
+    *disconnect= 0;
   BaseString result;
   reply->get("result", result);
   if(strcmp(result.c_str(), "Ok") != 0) {
@@ -920,20 +1006,69 @@ ndb_mgm_stop2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 
 extern "C"
 int
+ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes, const int *node_list) 
+{
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_restart");
+  return ndb_mgm_restart2(handle, no_of_nodes, node_list, 0, 0, 0);
+}
+
+extern "C"
+int
 ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
 		 int initial, int nostart, int abort)
 {
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_restart2");
+  int disconnect;
+
+  return ndb_mgm_restart3(handle, no_of_nodes, node_list, initial, nostart,
+                          abort, &disconnect);
+}
+
+extern "C"
+int
+ndb_mgm_restart3(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
+		 int initial, int nostart, int abort, int *disconnect)
+{
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_restart3");
   Uint32 restarted = 0;
-  const ParserRow<ParserDummy> restart_reply[] = {
+  const ParserRow<ParserDummy> restart_reply_v1[] = {
     MGM_CMD("restart reply", NULL, ""),
     MGM_ARG("result", String, Mandatory, "Error message"),
     MGM_ARG("restarted", Int, Optional, "No of restarted nodes"),
     MGM_END()
   };
+  const ParserRow<ParserDummy> restart_reply_v2[] = {
+    MGM_CMD("restart reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_ARG("restarted", Int, Optional, "No of restarted nodes"),
+    MGM_ARG("disconnect", Int, Optional, "Disconnect to apply"),
+    MGM_END()
+  };
+
   CHECK_HANDLE(handle, -1);
   CHECK_CONNECTED(handle, -1);
-  
+
+  if(handle->mgmd_version_build==-1)
+  {
+    char verstr[50];
+    if(!ndb_mgm_get_version(handle,
+                        &(handle->mgmd_version_major),
+                        &(handle->mgmd_version_minor),
+                        &(handle->mgmd_version_build),
+                        sizeof(verstr),
+                            verstr))
+    {
+      return -1;
+    }
+  }
+  int use_v2= ((handle->mgmd_version_major==5)
+    && (
+        (handle->mgmd_version_minor==0 && handle->mgmd_version_build>=21)
+        ||(handle->mgmd_version_minor==1 && handle->mgmd_version_build>=12)
+        ||(handle->mgmd_version_minor>1)
+        )
+               )
+    || (handle->mgmd_version_major>5);
+
   if(no_of_nodes < 0){
     SET_ERROR(handle, NDB_MGM_RESTART_FAILED, 
 	      "Restart requested of negative number of nodes");
@@ -948,7 +1083,7 @@ ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
     const Properties *reply;
     const int timeout = handle->read_timeout;
     handle->read_timeout= 5*60*1000; // 5 minutes
-    reply = ndb_mgm_call(handle, restart_reply, "restart all", &args);
+    reply = ndb_mgm_call(handle, restart_reply_v1, "restart all", &args);
     handle->read_timeout= timeout;
     CHECK_REPLY(reply, -1);
 
@@ -984,7 +1119,10 @@ ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
   const Properties *reply;
   const int timeout = handle->read_timeout;
   handle->read_timeout= 5*60*1000; // 5 minutes
-  reply = ndb_mgm_call(handle, restart_reply, "restart node", &args);
+  if(use_v2)
+    reply = ndb_mgm_call(handle, restart_reply_v2, "restart node v2", &args);
+  else
+    reply = ndb_mgm_call(handle, restart_reply_v1, "restart node", &args);
   handle->read_timeout= timeout;
   if(reply != NULL) {
     BaseString result;
@@ -995,18 +1133,14 @@ ndb_mgm_restart2(NdbMgmHandle handle, int no_of_nodes, const int * node_list,
       return -1;
     }
     reply->get("restarted", &restarted);
+    if(use_v2)
+      reply->get("disconnect", (Uint32*)disconnect);
+    else
+      *disconnect= 0;
     delete reply;
   } 
   
   return restarted;
-}
-
-extern "C"
-int
-ndb_mgm_restart(NdbMgmHandle handle, int no_of_nodes, const int *node_list) 
-{
-  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_restart");
-  return ndb_mgm_restart2(handle, no_of_nodes, node_list, 0, 0, 0);
 }
 
 static const char *clusterlog_severity_names[]=
@@ -1790,7 +1924,7 @@ ndb_mgm_get_configuration(NdbMgmHandle handle, unsigned int version) {
     }
 
     delete prop;
-    return (ndb_mgm_configuration*)cvf.m_cfg;
+    return (ndb_mgm_configuration*)cvf.getConfigValues();
   } while(0);
 
   delete prop;
@@ -2338,6 +2472,58 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
   in.gets(buf, sizeof(buf));
 
   DBUG_RETURN(0);
+}
+
+extern "C"
+int ndb_mgm_get_version(NdbMgmHandle handle,
+                        int *major, int *minor, int *build, int len, char* str)
+{
+  DBUG_ENTER("ndb_mgm_get_version");
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+
+  Properties args;
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("version", NULL, ""),
+    MGM_ARG("id", Int, Mandatory, "ID"),
+    MGM_ARG("major", Int, Mandatory, "Major"),
+    MGM_ARG("minor", Int, Mandatory, "Minor"),
+    MGM_ARG("string", String, Mandatory, "String"),
+    MGM_END()
+  };
+
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "get version", &args);
+  CHECK_REPLY(prop, 0);
+
+  Uint32 id;
+  if(!prop->get("id",&id)){
+    fprintf(handle->errstream, "Unable to get value\n");
+    return 0;
+  }
+  *build= getBuild(id);
+
+  if(!prop->get("major",(Uint32*)major)){
+    fprintf(handle->errstream, "Unable to get value\n");
+    return 0;
+  }
+
+  if(!prop->get("minor",(Uint32*)minor)){
+    fprintf(handle->errstream, "Unable to get value\n");
+    return 0;
+  }
+
+  BaseString result;
+  if(!prop->get("string", result)){
+    fprintf(handle->errstream, "Unable to get value\n");
+    return 0;
+  }
+
+  strncpy(str, result.c_str(), len);
+
+  delete prop;
+  DBUG_RETURN(1);
 }
 
 template class Vector<const ParserRow<ParserDummy>*>;

@@ -48,6 +48,19 @@ connection default;
 
 select 1;
 show status like 'last_query_cost';
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+select * from t1 where a=6;
+show status like 'last_query_cost';
+# Ensure value dosn't change by second status call
+show status like 'last_query_cost';
+select 1;
+show status like 'last_query_cost';
+drop table t1;
 
 #
 # Test for Bug #15933 max_used_connections is wrong after FLUSH STATUS
@@ -144,3 +157,24 @@ disconnect con2;
 disconnect con1;
 
 # End of 5.0 tests
+
+#
+# Ensure that SHOW STATUS only changes global status variables
+#
+
+connect (con1,localhost,root,,);
+let $rnd_next = `show global status like 'handler_read_rnd_next'`;
+let $tmp_table = `show global status like 'Created_tmp_tables'`;
+show status like 'com_show_status';
+show status like 'hand%write%';
+show status like '%tmp%';
+show status like 'hand%write%';
+show status like '%tmp%';
+show status like 'com_show_status';
+let $rnd_next2 = `show global status like 'handler_read_rnd_next'`;
+let $tmp_table2 = `show global status like 'Created_tmp_tables'`;
+--disable_query_log
+eval select substring_index('$rnd_next2',0x9,-1)-substring_index('$rnd_next',0x9,-1) as rnd_diff, substring_index('$tmp_table2',0x9,-1)-substring_index('$tmp_table',0x9,-1) as tmp_table_diff;
+--enable_query_log
+
+# End of 5.1 tests

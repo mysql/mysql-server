@@ -14,13 +14,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <tap.h>
-
 #include <my_global.h>
+#include <tap.h>
 #include <my_sys.h>
 #include <my_atomic.h>
 
-my_atomic_32_t a32,b32,c32;
+int32 a32,b32,c32;
 my_atomic_rwlock_t rwl;
 
 pthread_attr_t thr_attr;
@@ -36,8 +35,13 @@ pthread_handler_t test_atomic_add_handler(void *arg)
   for (x=((int)(&m)); m ; m--)
   {
     x=x*m+0x87654321;
-    my_atomic_add32(&a32, x,  &rwl);
-    my_atomic_add32(&a32, -x, &rwl);
+    my_atomic_rwlock_wrlock(&rwl);
+    my_atomic_add32(&a32, x);
+    my_atomic_rwlock_wrunlock(&rwl);
+
+    my_atomic_rwlock_wrlock(&rwl);
+    my_atomic_add32(&a32, -x);
+    my_atomic_rwlock_wrunlock(&rwl);
   }
   pthread_mutex_lock(&mutex);
   N--;
@@ -57,17 +61,33 @@ pthread_handler_t test_atomic_add_handler(void *arg)
 pthread_handler_t test_atomic_swap_handler(void *arg)
 {
   int    m=*(int *)arg;
-  uint32  x=my_atomic_add32(&b32, 1, &rwl);
+  int32 x;
 
-  my_atomic_add32(&a32, x, &rwl);
+  my_atomic_rwlock_wrlock(&rwl);
+  x=my_atomic_add32(&b32, 1);
+  my_atomic_rwlock_wrunlock(&rwl);
+
+  my_atomic_rwlock_wrlock(&rwl);
+  my_atomic_add32(&a32, x);
+  my_atomic_rwlock_wrunlock(&rwl);
 
   for (; m ; m--)
-    x=my_atomic_swap32(&c32, x,&rwl);
+  {
+    my_atomic_rwlock_wrlock(&rwl);
+    x=my_atomic_swap32(&c32, x);
+    my_atomic_rwlock_wrunlock(&rwl);
+  }
 
   if (!x)
-    x=my_atomic_swap32(&c32, x,&rwl);
+  {
+    my_atomic_rwlock_wrlock(&rwl);
+    x=my_atomic_swap32(&c32, x);
+    my_atomic_rwlock_wrunlock(&rwl);
+  }
 
-  my_atomic_add32(&a32, -x, &rwl);
+  my_atomic_rwlock_wrlock(&rwl);
+  my_atomic_add32(&a32, -x);
+  my_atomic_rwlock_wrunlock(&rwl);
 
   pthread_mutex_lock(&mutex);
   N--;
@@ -82,14 +102,25 @@ pthread_handler_t test_atomic_swap_handler(void *arg)
 */
 pthread_handler_t test_atomic_cas_handler(void *arg)
 {
-  int    m=*(int *)arg;
-  int32 x;
+  int    m=*(int *)arg, ok;
+  int32 x,y;
   for (x=((int)(&m)); m ; m--)
   {
-    uint32 y=my_atomic_load32(&a32, &rwl);
+    my_atomic_rwlock_wrlock(&rwl);
+    y=my_atomic_load32(&a32);
+    my_atomic_rwlock_wrunlock(&rwl);
+
     x=x*m+0x87654321;
-    while (!my_atomic_cas32(&a32, &y, y+x, &rwl)) ;
-    while (!my_atomic_cas32(&a32, &y, y-x, &rwl)) ;
+    do {
+      my_atomic_rwlock_wrlock(&rwl);
+      ok=my_atomic_cas32(&a32, &y, y+x);
+      my_atomic_rwlock_wrunlock(&rwl);
+    } while (!ok);
+    do {
+      my_atomic_rwlock_wrlock(&rwl);
+      ok=my_atomic_cas32(&a32, &y, y-x);
+      my_atomic_rwlock_wrunlock(&rwl);
+    } while (!ok);
   }
   pthread_mutex_lock(&mutex);
   N--;
@@ -103,9 +134,9 @@ void test_atomic(const char *test, pthread_handler handler, int n, int m)
   pthread_t t;
   ulonglong now=my_getsystime();
 
-  my_atomic_store32(&a32, 0, &rwl);
-  my_atomic_store32(&b32, 0, &rwl);
-  my_atomic_store32(&c32, 0, &rwl);
+  a32= 0;
+  b32= 0;
+  c32= 0;
 
   diag("Testing %s with %d threads, %d iterations... ", test, n, m);
   for (N=n ; n ; n--)
@@ -116,8 +147,7 @@ void test_atomic(const char *test, pthread_handler handler, int n, int m)
     pthread_cond_wait(&cond, &mutex);
   pthread_mutex_unlock(&mutex);
   now=my_getsystime()-now;
-  ok(my_atomic_load32(&a32, &rwl) == 0,
-     "tested %s in %g secs", test, ((double)now)/1e7);
+  ok(a32 == 0, "tested %s in %g secs", test, ((double)now)/1e7);
 }
 
 int main()

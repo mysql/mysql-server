@@ -53,7 +53,9 @@ static struct my_err_head
   int                   meh_first;      /* error number matching array slot 0 */
   int                   meh_last;       /* error number matching last slot */
 } my_errmsgs_globerrs = {NULL, globerrs, EE_ERROR_FIRST, EE_ERROR_LAST};
+
 static struct my_err_head *my_errmsgs_list= &my_errmsgs_globerrs;
+
 
 /*
    Error message to user
@@ -76,7 +78,6 @@ int my_error(int nr, myf MyFlags, ...)
   va_list args;
   char ebuff[ERRMSGSIZE + 20];
   DBUG_ENTER("my_error");
-
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d", nr, MyFlags, errno));
 
   /* Search for the error messages array, which could contain the message. */
@@ -101,6 +102,7 @@ int my_error(int nr, myf MyFlags, ...)
   }
   DBUG_RETURN((*error_handler_hook)(nr, ebuff, MyFlags));
 }
+
 
 /*
   Error as printf

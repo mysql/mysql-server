@@ -61,13 +61,14 @@ public:
 
 
 /*************************************************************************
-  Passwd_cmd: support for --passwd command-line option.
+  Print_password_line_cmd: support for --print-password-line command-line
+  option.
 *************************************************************************/
 
-class Passwd_cmd : public User_management_cmd
+class Print_password_line_cmd : public User_management_cmd
 {
 public:
-  Passwd_cmd()
+  Print_password_line_cmd()
   { }
 
 public:

@@ -128,9 +128,9 @@ public:
   String *avg(String *s, ha_rows rows)
   {
     if (!(rows - nulls))
-      s->set((double) 0.0, 1,my_thd_charset);
+      s->set_real((double) 0.0, 1,my_thd_charset);
     else
-      s->set((ulonglong2double(sum) / ulonglong2double(rows - nulls)),
+      s->set_real((ulonglong2double(sum) / ulonglong2double(rows - nulls)),
 	     DEC_IN_AVG,my_thd_charset);
     return s;
   }
@@ -190,34 +190,34 @@ public:
 
   void	 add();
   void	 get_opt_type(String*, ha_rows);
-  String *get_min_arg(String *s) 
-  { 
-    s->set(min_arg, item->decimals,my_thd_charset); 
-    return s; 
+  String *get_min_arg(String *s)
+  {
+    s->set_real(min_arg, item->decimals, my_thd_charset);
+    return s;
   }
-  String *get_max_arg(String *s) 
-  { 
-    s->set(max_arg, item->decimals,my_thd_charset);
-    return s; 
+  String *get_max_arg(String *s)
+  {
+    s->set_real(max_arg, item->decimals, my_thd_charset);
+    return s;
   }
   String *avg(String *s, ha_rows rows)
   {
     if (!(rows - nulls))
-      s->set((double) 0.0, 1,my_thd_charset);
+      s->set_real((double) 0.0, 1,my_thd_charset);
     else
-      s->set(((double)sum / (double) (rows - nulls)), item->decimals,my_thd_charset);
+      s->set_real(((double)sum / (double) (rows - nulls)), item->decimals,my_thd_charset);
     return s;
   }
   String *std(String *s, ha_rows rows)
   {
     double tmp = ulonglong2double(rows);
     if (!(tmp - nulls))
-      s->set((double) 0.0, 1,my_thd_charset);
+      s->set_real((double) 0.0, 1,my_thd_charset);
     else
     {
       double tmp2 = ((sum_sqr - sum * sum / (tmp - nulls)) /
 		     (tmp - nulls));
-      s->set(((double) tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), item->decimals,my_thd_charset);
+      s->set_real(((double) tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), item->decimals,my_thd_charset);
     }
     return s;
   }
@@ -249,21 +249,21 @@ public:
   String *avg(String *s, ha_rows rows)
   {
     if (!(rows - nulls))
-      s->set((double) 0.0, 1,my_thd_charset);
+      s->set_real((double) 0.0, 1,my_thd_charset);
     else
-      s->set(((double) sum / (double) (rows - nulls)), DEC_IN_AVG,my_thd_charset);
+      s->set_real(((double) sum / (double) (rows - nulls)), DEC_IN_AVG,my_thd_charset);
     return s;
   }
   String *std(String *s, ha_rows rows)
   {
     double tmp = ulonglong2double(rows);
     if (!(tmp - nulls))
-      s->set((double) 0.0, 1,my_thd_charset);
+      s->set_real((double) 0.0, 1,my_thd_charset);
     else
     {
       double tmp2 = ((sum_sqr - sum * sum / (tmp - nulls)) /
 		    (tmp - nulls));
-      s->set(((double) tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), DEC_IN_AVG,my_thd_charset);
+      s->set_real(((double) tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), DEC_IN_AVG,my_thd_charset);
     }
     return s;
   }
@@ -293,9 +293,9 @@ public:
   String *avg(String *s, ha_rows rows)
   {
     if (!(rows - nulls))
-      s->set((double) 0.0, 1,my_thd_charset);
+      s->set_real((double) 0.0, 1,my_thd_charset);
     else
-      s->set((ulonglong2double(sum) / ulonglong2double(rows - nulls)),
+      s->set_real((ulonglong2double(sum) / ulonglong2double(rows - nulls)),
 	     DEC_IN_AVG,my_thd_charset);
     return s;
   }
@@ -303,13 +303,13 @@ public:
   {
     double tmp = ulonglong2double(rows);
     if (!(tmp - nulls))
-      s->set((double) 0.0, 1,my_thd_charset);
+      s->set_real((double) 0.0, 1,my_thd_charset);
     else
     {
       double tmp2 = ((ulonglong2double(sum_sqr) - 
 		     ulonglong2double(sum * sum) / (tmp - nulls)) /
 		     (tmp - nulls));
-      s->set(((double) tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), DEC_IN_AVG,my_thd_charset);
+      s->set_real(((double) tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), DEC_IN_AVG,my_thd_charset);
     }
     return s;
   }

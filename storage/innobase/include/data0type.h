@@ -330,6 +330,15 @@ dtype_get_min_size(
 				/* out: minimum size */
 	const dtype_t*	type);	/* in: type */
 /***************************************************************************
+Returns the maximum size of a data type. Note: types in system tables may be
+incomplete and return incorrect information. */
+ulint
+dtype_get_max_size(
+/*===============*/
+				/* out: maximum size (ULINT_MAX for
+				unbounded types) */
+	const dtype_t*	type);	/* in: type */
+/***************************************************************************
 Returns a stored SQL NULL size for a type. For fixed length types it is
 the fixed length of the type, otherwise 0. */
 UNIV_INLINE

@@ -165,3 +165,12 @@ create table t1Aa (col1 int);
 select t1Aa.col1 from t1aA,t2Aa where t1Aa.col1 = t2aA.col1;
 col1
 drop table t2aA, t1Aa;
+create database mysqltest_LC2;
+use mysqltest_LC2;
+create table myUC (i int);
+select TABLE_SCHEMA,TABLE_NAME FROM information_schema.TABLES
+where TABLE_SCHEMA ='mysqltest_LC2';
+TABLE_SCHEMA	TABLE_NAME
+mysqltest_LC2	myUC
+use test;
+drop database mysqltest_LC2;

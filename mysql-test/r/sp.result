@@ -78,7 +78,7 @@ replace t1 set data = data, id = "bar";
 update t1 set id = "kaka", data = 3 where t1.data = data;
 end|
 call setcontext()|
-select * from t1|
+select * from t1 order by data|
 id	data
 foo	1
 kaka	3
@@ -191,7 +191,7 @@ drop procedure if exists inc|
 create procedure inc(inout io int)
 set io = io + 1|
 call iotest("io1", "io2", 1)|
-select * from t1|
+select * from t1 order by data desc|
 id	data
 io2	2
 io1	1
@@ -224,7 +224,7 @@ set y2 = 4711;
 insert into test.t1 values ("cbv2", y1);
 end|
 call cbv1()|
-select * from t1|
+select * from t1 order by data|
 id	data
 cbv2	4
 cbv1	4711
@@ -251,7 +251,7 @@ call sub1("sub1c", (select i,d from t2 limit 1))|
 ERROR 21000: Operand should contain 1 column(s)
 call sub1("sub1d", (select 1 from (select 1) a))|
 call sub2("sub2")|
-select * from t1|
+select * from t1 order by id|
 id	data
 sub1a	7
 sub1b	3
@@ -272,7 +272,7 @@ set x = x-1;
 insert into test.t1 values ("a0", x);
 end while|
 call a0(3)|
-select * from t1|
+select * from t1 order by data desc|
 id	data
 a0	2
 a0	1
@@ -286,7 +286,7 @@ set x = x-1;
 insert into test.t1 values ("a", x);
 end while|
 call a(3)|
-select * from t1|
+select * from t1 order by data desc|
 id	data
 a	2
 a	1
@@ -300,7 +300,7 @@ insert into test.t1 values (repeat("b",3), x);
 set x = x-1;
 until x = 0 end repeat|
 call b(3)|
-select * from t1|
+select * from t1 order by data desc|
 id	data
 bbb	3
 bbb	2
@@ -323,7 +323,7 @@ iterate hmm;
 insert into test.t1 values ("x", x);
 end while hmm|
 call c(3)|
-select * from t1|
+select * from t1 order by data desc|
 id	data
 c	3
 c	2
@@ -354,7 +354,7 @@ insert into test.t1 values ("e", x);
 set x = x-1;
 end loop foo|
 call e(3)|
-select * from t1|
+select * from t1 order by data desc|
 id	data
 e	3
 e	2
@@ -373,7 +373,7 @@ end if|
 call f(-2)|
 call f(0)|
 call f(4)|
-select * from t1|
+select * from t1 order by data|
 id	data
 f	0
 f	1
@@ -393,7 +393,7 @@ end case|
 call g(-42)|
 call g(0)|
 call g(1)|
-select * from t1|
+select * from t1 order by data|
 id	data
 g	0
 g	1
@@ -413,7 +413,7 @@ end case|
 call h(0)|
 call h(1)|
 call h(17)|
-select * from t1|
+select * from t1 order by data|
 id	data
 h0	0
 h1	1
@@ -441,7 +441,7 @@ insert into t2 values ("x", 9, 4.1), ("y", -1, 19.2), ("z", 3, 2.2)|
 drop procedure if exists sel1|
 create procedure sel1()
 begin
-select * from t1;
+select * from t1 order by data;
 end|
 call sel1()|
 id	data
@@ -451,8 +451,8 @@ drop procedure sel1|
 drop procedure if exists sel2|
 create procedure sel2()
 begin
-select * from t1;
-select * from t2;
+select * from t1 order by data;
+select * from t2 order by s;
 end|
 call sel2()|
 id	data
@@ -473,7 +473,7 @@ select id,data into x,y from test.t1 limit 1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_test("into", 100)|
-select * from t1|
+select * from t1 order by data|
 id	data
 into	100
 into2	102
@@ -487,7 +487,7 @@ select id,data into x,@z from test.t1 limit 1;
 insert into test.t1 values (concat(x, "2"), y+2);
 end|
 call into_test2("into", 100)|
-select id,data,@z from t1|
+select id,data,@z from t1 order by data|
 id	data	@z
 into	100	100
 into2	102	100
@@ -619,14 +619,14 @@ insert into t2 values (append("a", "b"), mul(2,mul(3,4)), fun(1.7, 4, 6))|
 select * from t2 where s = append("a", "b")|
 s	i	d
 ab	24	1324.36598821719
-select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2)|
+select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2) order by i|
 s	i	d
 xxxyyy	12	2.71828182845905
 ab	24	1324.36598821719
 select * from t2 where d = e()|
 s	i	d
 xxxyyy	12	2.71828182845905
-select * from t2|
+select * from t2 order by i|
 s	i	d
 xxxyyy	12	2.71828182845905
 ab	24	1324.36598821719
@@ -745,8 +745,8 @@ drop procedure if exists cur2|
 create procedure cur2()
 begin
 declare done int default 0;
-declare c1 cursor for select id,data from test.t1;
-declare c2 cursor for select i from test.t2;
+declare c1 cursor for select id,data from test.t1 order by id,data;
+declare c2 cursor for select i from test.t2 order by i;
 declare continue handler for sqlstate '02000' set done = 1;
 open c1;
 open c2;
@@ -769,10 +769,10 @@ close c1;
 close c2;
 end|
 call cur2()|
-select * from t3|
+select * from t3 order by i,s|
 s	i
-foo	40
 bar	3
+foo	40
 zap	663
 delete from t1|
 delete from t2|
@@ -935,16 +935,16 @@ return (select sum(data) from t1)|
 select f1()|
 f1()
 3
-select id, f1() from t1|
+select id, f1() from t1 order by id|
 id	f1()
 a	3
 b	3
 create function f2() returns int
-return (select data from t1 where data <= (select sum(data) from t1) limit 1)|
+return (select data from t1 where data <= (select sum(data) from t1) order by data limit 1)|
 select f2()|
 f2()
 1
-select id, f2() from t1|
+select id, f2() from t1 order by id|
 id	f2()
 a	1
 b	1
@@ -959,14 +959,14 @@ end|
 select f3()|
 f3()
 1
-select id, f3() from t1|
+select id, f3() from t1 order by id|
 id	f3()
 a	1
 b	1
 select f1(), f3()|
 f1()	f3()
 3	1
-select id, f1(), f3() from t1|
+select id, f1(), f3() from t1 order by id|
 id	f1()	f3()
 a	3	1
 b	3	1
@@ -975,7 +975,7 @@ return (select d from t1, t2 where t1.data = t2.i and t1.id= "b")|
 select f4()|
 f4()
 2
-select s, f4() from t2|
+select s, f4() from t2 order by s|
 s	f4()
 a	2
 b	2
@@ -1008,7 +1008,7 @@ return (select sum(data) from t1 where data <= f1())|
 select f6()|
 f6()
 2
-select id, f6() from t1|
+select id, f6() from t1 order by id|
 id	f6()
 a	2
 b	2
@@ -1016,7 +1016,7 @@ create view v1 (a) as select f1()|
 select * from v1|
 a
 3
-select id, a from t1, v1|
+select id, a from t1, v1 order by id|
 id	a
 a	3
 b	3
@@ -1027,7 +1027,7 @@ create view v2 (a) as select a*10 from v1|
 select * from v2|
 a
 30
-select id, a from t1, v2|
+select id, a from t1, v2 order by id|
 id	a
 a	30
 b	30
@@ -1072,7 +1072,7 @@ lock tables t1 read, t1 as t11 read|
 select f3()|
 f3()
 1
-select id, f3() from t1 as t11|
+select id, f3() from t1 as t11 order by id|
 id	f3()
 a	1
 b	1
@@ -1175,8 +1175,8 @@ drop function f12_2|
 drop view v0|
 drop view v1|
 drop view v2|
-delete from t1 |
-delete from t2 |
+truncate table t1 |
+truncate table t2 |
 drop table t4|
 drop table if exists t3|
 create table t3 (n int unsigned not null primary key, f bigint unsigned)|
@@ -1355,7 +1355,7 @@ f
 1
 1
 2
-delete from t3|
+truncate table t3|
 insert into t3 values (0), (1)|
 call fib(10)|
 select * from t3 order by f asc|
@@ -1814,7 +1814,7 @@ delete from t1|
 call bug822('foo', 42)|
 call bug822('foo', 42)|
 call bug822('bar', 666)|
-select * from t1|
+select * from t1 order by data|
 id	data
 foo	42
 bar	666
@@ -1837,7 +1837,7 @@ delete from t1 where id='foo'|
 insert into t1 values ('bar', 7)|
 call bug1495()|
 delete from t1 where id='bar'|
-select * from t1|
+select * from t1 order by data|
 id	data
 less	2
 more	17
@@ -1857,10 +1857,10 @@ end|
 insert into t1 values ("foo", 12), ("bar", 7)|
 call bug1547("foo")|
 call bug1547("bar")|
-select * from t1|
+select * from t1 order by id|
 id	data
-foo	12
 bar	7
+foo	12
 less	2
 more	17
 delete from t1|
@@ -1908,12 +1908,12 @@ insert into t2 values ("avg", 0, y);
 end|
 insert into t1 (data) values (3), (1), (5), (9), (4)|
 call bug1874()|
-select * from t2|
+select * from t2 order by i|
 s	i	d
-max	9	0
-min	1	0
-sum	22	0
 avg	0	4.4
+min	1	0
+max	9	0
+sum	22	0
 delete from t1|
 delete from t2|
 drop procedure bug1874|
@@ -4466,7 +4466,7 @@ Error	1347	'test.v1' is not BASE TABLE
 Error	1347	'test.v1' is not BASE TABLE
 drop procedure bug13012|
 drop view v1;
-select * from t1|
+select * from t1 order by data|
 id	data
 aa	0
 aa	1
@@ -4803,7 +4803,7 @@ insert into t1 values ('c', 2), ('b', 3), ('a', 1)|
 create procedure bug16474_1()
 begin
 declare x int;
-select id from t1 order by x;
+select id from t1 order by x, id;
 end|
 drop procedure if exists bug14945|
 create table t3 (id int not null auto_increment primary key)|
@@ -4817,30 +4817,30 @@ id
 drop table t3|
 drop procedure bug14945|
 create procedure bug16474_2(x int)
-select id from t1 order by x|
+select id from t1 order by x, id|
 call bug16474_1()|
 id
-c
-b
 a
+b
+c
 call bug16474_2(1)|
 id
-c
-b
 a
+b
+c
 call bug16474_2(2)|
 id
-c
-b
 a
+b
+c
 drop procedure bug16474_1|
 drop procedure bug16474_2|
 set @x = 2|
-select * from t1 order by @x|
+select * from t1 order by @x, data|
 id	data
+a	1
 c	2
 b	3
-a	1
 delete from t1|
 drop function if exists bug15728|
 drop table if exists t3|
@@ -4984,4 +4984,25 @@ CALL bug18037_p2()|
 DROP FUNCTION bug18037_f1|
 DROP PROCEDURE bug18037_p1|
 DROP PROCEDURE bug18037_p2|
+drop table if exists t3|
+drop procedure if exists bug15217|
+create table t3 as select 1|
+create procedure bug15217()
+begin
+declare var1 char(255);
+declare cur1 cursor for select * from t3;
+open cur1;
+fetch cur1 into var1;
+select concat('data was: /', var1, '/');
+close cur1;
+end |
+call bug15217()|
+concat('data was: /', var1, '/')
+data was: /1/
+flush tables |
+call bug15217()|
+concat('data was: /', var1, '/')
+data was: /1/
+drop table t3|
+drop procedure bug15217|
 drop table t1,t2;

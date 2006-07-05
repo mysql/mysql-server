@@ -1035,18 +1035,18 @@ create table t2 (a int);
 insert into t2 values (2),(3),(0);
 # INSERT SELECT with ignore test
 insert ignore into v1 SELECT a from t2;
-select * from t1;
+select * from t1 order by a desc;
 #simple UPDATE test
 update v1 set a=-1 where a=0;
 -- error 1369
 update v1 set a=2 where a=1;
-select * from t1;
+select * from t1 order by a desc;
 # prepare data for next check
 update v1 set a=0 where a=0;
 insert into t2 values (1);
 # multiupdate test
 update v1,t2 set v1.a=v1.a-1 where v1.a=t2.a;
-select * from t1;
+select * from t1 order by a desc;
 # prepare data for next check
 update v1 set a=a+1;
 # multiupdate with ignore test
@@ -1226,8 +1226,8 @@ select * from t1;
 select * from v1;
 delete from t1;
 load data infile '../std_data_ln/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
-select * from t1;
-select * from v1;
+select * from t1 order by a,b;
+select * from v1 order by a,b;
 drop view v1;
 drop table t1;
 # variable length fields

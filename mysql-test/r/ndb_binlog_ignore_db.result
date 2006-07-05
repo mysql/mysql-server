@@ -7,6 +7,4 @@ insert into t1 values (1, 1);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; drop table if exists t1
-master-bin.000001	#	Table_map	#	#	table_id: # (mysql.proc)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 drop database mysqltest;

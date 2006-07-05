@@ -168,7 +168,7 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
   lex->ignore_space=test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
-  lex->sql_command= lex->orig_sql_command= SQLCOM_END;
+  lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->sphead= NULL;
@@ -777,8 +777,6 @@ int MYSQLlex(void *arg, void *yythd)
 	int length;
 	if ((length= my_mbcharlen(cs, c)) == 1)
 	{
-	  if (c == (uchar) NAMES_SEP_CHAR)
-	    break; /* Old .frm format can't handle this char */
 	  if (c == quote_char)
 	  {
 	    if (yyPeek() != quote_char)

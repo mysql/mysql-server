@@ -42,7 +42,7 @@ public:
    * readTuples.
    */
   enum ScanFlag {
-    SF_TupScan = (1 << 16),     // scan TUP - only LM_CommittedRead
+    SF_TupScan = (1 << 16),     // scan TUP
     SF_OrderBy = (1 << 24),     // index scan in order
     SF_Descending = (2 << 24),  // index scan in descending order
     SF_ReadRangeNo = (4 << 24), // enable @ref get_range_no
@@ -58,7 +58,9 @@ public:
    */ 
   virtual
   int readTuples(LockMode lock_mode = LM_Read, 
-                 Uint32 scan_flags = 0, Uint32 parallel = 0);
+                 Uint32 scan_flags = 0, 
+		 Uint32 parallel = 0,
+		 Uint32 batch = 0);
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**

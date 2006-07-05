@@ -13,7 +13,10 @@ UNSET mysqld1.server_id;
 ERROR HY000: The instance is active. Stop the instance first
 SET mysqld1.server_id = 11;
 ERROR HY000: The instance is active. Stop the instance first
-CREATE INSTANCE mysqld3 datadir = '/';
+CREATE INSTANCE mysqld3
+datadir = '/',
+server_id = 3,
+socket = "$MYSQL_TMP_DIR/mysqld_3.sock";
 START INSTANCE mysqld3;
 UNSET mysqld3.server_id;
 ERROR HY000: The instance is active. Stop the instance first
@@ -101,12 +104,14 @@ ERROR HY000: Bad instance name. Check that the instance with such a name exists
 --------------------------------------------------------------------
 server_id           = 1
 server_id=2
+server_id=3
 --------------------------------------------------------------------
 UNSET mysqld2.server_id, mysqld3.server_id, mysqld1.ccc;
 ERROR HY000: The instance is active. Stop the instance first
 --------------------------------------------------------------------
 server_id           = 1
 server_id=2
+server_id=3
 --------------------------------------------------------------------
 DROP INSTANCE mysqld3;
 SET mysqld2.server_id=222;

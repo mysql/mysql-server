@@ -1419,6 +1419,15 @@ int fetch_master_table(THD *thd, const char *db_name, const char *table_name,
     if (connect_to_master(thd, mysql, mi))
     {
       my_error(ER_CONNECT_TO_MASTER, MYF(0), mysql_error(mysql));
+      /*
+        We need to clear the active VIO since, theoretically, somebody
+        might issue an awake() on this thread.  If we are then in the
+        middle of closing and destroying the VIO inside the
+        mysql_close(), we will have a problem.
+       */
+#ifdef SIGNAL_WITH_VIO_CLOSE
+      thd->clear_active_vio();
+#endif
       mysql_close(mysql);
       DBUG_RETURN(1);
     }
@@ -3507,6 +3516,17 @@ err:
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   if (mysql)
   {
+    /*
+      Here we need to clear the active VIO before closing the
+      connection with the master.  The reason is that THD::awake()
+      might be called from terminate_slave_thread() because somebody
+      issued a STOP SLAVE.  If that happends, the close_active_vio()
+      can be called in the middle of closing the VIO associated with
+      the 'mysql' object, causing a crash.
+    */
+#ifdef SIGNAL_WITH_VIO_CLOSE
+    thd->clear_active_vio();
+#endif
     mysql_close(mysql);
     mi->mysql=0;
   }
@@ -4658,7 +4678,7 @@ static Log_event* next_event(RELAY_LOG_INFO* rli)
       When the relay log is created when the I/O thread starts, easy: the
       master will send the description event and we will queue it.
       But if the relay log is created by new_file(): then the solution is:
-      MYSQL_LOG::open() will write the buffered description event.
+      MYSQL_BIN_LOG::open() will write the buffered description event.
     */
     if ((ev=Log_event::read_log_event(cur_log,0,
                                       rli->relay_log.description_event_for_exec)))
@@ -4920,7 +4940,8 @@ err:
   Rotate a relay log (this is used only by FLUSH LOGS; the automatic rotation
   because of size is simpler because when we do it we already have all relevant
   locks; here we don't, so this function is mainly taking locks). 
-  Returns nothing as we cannot catch any error (MYSQL_LOG::new_file() is void).
+  Returns nothing as we cannot catch any error (MYSQL_BIN_LOG::new_file()
+  is void).
 */
 
 void rotate_relay_log(MASTER_INFO* mi)
@@ -4942,7 +4963,7 @@ void rotate_relay_log(MASTER_INFO* mi)
   }
 
   /* If the relay log is closed, new_file() will do nothing. */
-  rli->relay_log.new_file(1);
+  rli->relay_log.new_file();
 
   /*
     We harvest now, because otherwise BIN_LOG_HEADER_SIZE will not immediately

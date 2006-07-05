@@ -367,12 +367,23 @@ CREATE TEMPORARY TABLE ndb_show_tables (id INT, type VARCHAR(20), state VARCHAR(
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
 --enable_warnings
 
+# Ndb doesn't support renaming attributes on-line
 set @t1_id = (select id from ndb_show_tables where name like '%t1%');
 truncate ndb_show_tables;
 
 alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+--disable_warnings
+--exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
+LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+--enable_warnings
+
+select 'no_copy' from ndb_show_tables where id = @t1_id and name like '%t1%';
+
+set @t1_id = (select id from ndb_show_tables where name like '%t1%');
+truncate ndb_show_tables;
+
 create index i1 on t1(medium);
-alter table t1 add index i2(long_int);
+alter table t1 add index i2(new_tiny);
 drop index i1 on t1;
 
 --disable_warnings

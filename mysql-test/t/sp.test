@@ -143,7 +143,7 @@ begin
 end|
 
 call setcontext()|
-select * from t1|
+select * from t1 order by data|
 delete from t1|
 drop procedure setcontext|
 
@@ -287,7 +287,7 @@ create procedure inc(inout io int)
   set io = io + 1|
 
 call iotest("io1", "io2", 1)|
-select * from t1|
+select * from t1 order by data desc|
 delete from t1|
 drop procedure iotest|
 drop procedure inc2|
@@ -333,7 +333,7 @@ begin
 end|
 
 call cbv1()|
-select * from t1|
+select * from t1 order by data|
 delete from t1|
 drop procedure cbv1|
 drop procedure cbv2|
@@ -371,7 +371,7 @@ call sub1("sub1b", (select max(i) from t2))|
 call sub1("sub1c", (select i,d from t2 limit 1))|
 call sub1("sub1d", (select 1 from (select 1) a))|
 call sub2("sub2")|
-select * from t1|
+select * from t1 order by id|
 select sub3((select max(i) from t2))|
 drop procedure sub1|
 drop procedure sub2|
@@ -392,7 +392,7 @@ while x do
 end while|
 
 call a0(3)|
-select * from t1|
+select * from t1 order by data desc|
 delete from t1|
 drop procedure a0|
 
@@ -408,7 +408,7 @@ while x > 0 do
 end while|
 
 call a(3)|
-select * from t1|
+select * from t1 order by data desc|
 delete from t1|
 drop procedure a|
 
@@ -424,7 +424,7 @@ repeat
 until x = 0 end repeat|
 
 call b(3)|
-select * from t1|
+select * from t1 order by data desc|
 delete from t1|
 drop procedure b|
 
@@ -456,7 +456,7 @@ hmm: while x > 0 do
 end while hmm|
 
 call c(3)|
-select * from t1|
+select * from t1 order by data desc|
 delete from t1|
 drop procedure c|
 
@@ -493,7 +493,7 @@ foo: loop
 end loop foo|
 
 call e(3)|
-select * from t1|
+select * from t1 order by data desc|
 delete from t1|
 drop procedure e|
 
@@ -514,7 +514,7 @@ end if|
 call f(-2)|
 call f(0)|
 call f(4)|
-select * from t1|
+select * from t1 order by data|
 delete from t1|
 drop procedure f|
 
@@ -536,7 +536,7 @@ end case|
 call g(-42)|
 call g(0)|
 call g(1)|
-select * from t1|
+select * from t1 order by data|
 delete from t1|
 drop procedure g|
 
@@ -558,7 +558,7 @@ end case|
 call h(0)|
 call h(1)|
 call h(17)|
-select * from t1|
+select * from t1 order by data|
 delete from t1|
 drop procedure h|
 
@@ -592,7 +592,7 @@ drop procedure if exists sel1|
 --enable_warnings
 create procedure sel1()
 begin
-  select * from t1;
+  select * from t1 order by data;
 end|
 
 call sel1()|
@@ -603,8 +603,8 @@ drop procedure if exists sel2|
 --enable_warnings
 create procedure sel2()
 begin
-  select * from t1;
-  select * from t2;
+  select * from t1 order by data;
+  select * from t2 order by s;
 end|
 
 call sel2()|
@@ -624,7 +624,7 @@ begin
 end|
 
 call into_test("into", 100)|
-select * from t1|
+select * from t1 order by data|
 delete from t1|
 drop procedure into_test|
 
@@ -641,7 +641,7 @@ begin
 end|
 
 call into_test2("into", 100)|
-select id,data,@z from t1|
+select id,data,@z from t1 order by data|
 delete from t1|
 drop procedure into_test2|
 
@@ -819,9 +819,9 @@ insert into t2 values (append("a", "b"), mul(2,mul(3,4)), fun(1.7, 4, 6))|
 # Disable PS because double's give a bit different values
 --disable_ps_protocol
 select * from t2 where s = append("a", "b")|
-select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2)|
+select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2) order by i|
 select * from t2 where d = e()|
-select * from t2|
+select * from t2 order by i|
 --enable_ps_protocol
 delete from t2|
 
@@ -976,8 +976,8 @@ drop procedure if exists cur2|
 create procedure cur2()
 begin
   declare done int default 0;
-  declare c1 cursor for select id,data from test.t1;
-  declare c2 cursor for select i from test.t2;
+  declare c1 cursor for select id,data from test.t1 order by id,data;
+  declare c2 cursor for select i from test.t2 order by i;
   declare continue handler for sqlstate '02000' set done = 1;
 
   open c1;
@@ -1003,7 +1003,7 @@ begin
 end|
 
 call cur2()|
-select * from t3|
+select * from t3 order by i,s|
 delete from t1|
 delete from t2|
 drop table t3|
@@ -1178,13 +1178,13 @@ create function f1() returns int
   return (select sum(data) from t1)|
 select f1()|
 # This should work too (and give 2 rows as result)
-select id, f1() from t1|
+select id, f1() from t1 order by id|
 
 # Function which uses two instances of table simultaneously
 create function f2() returns int
-  return (select data from t1 where data <= (select sum(data) from t1) limit 1)|
+  return (select data from t1 where data <= (select sum(data) from t1) order by data limit 1)|
 select f2()|
-select id, f2() from t1|
+select id, f2() from t1 order by id|
 
 # Function which uses the same table twice in different queries
 create function f3() returns int
@@ -1196,17 +1196,17 @@ begin
   return n < m;
 end|
 select f3()|
-select id, f3() from t1|
+select id, f3() from t1 order by id|
 
 # Calling two functions using same table
 select f1(), f3()|
-select id, f1(), f3() from t1|
+select id, f1(), f3() from t1 order by id|
 
 # Function which uses two different tables
 create function f4() returns double 
   return (select d from t1, t2 where t1.data = t2.i and t1.id= "b")|
 select f4()|
-select s, f4() from t2|
+select s, f4() from t2 order by s|
 
 # Recursive functions which due to this recursion require simultaneous
 # access to several instance of the same table won't work
@@ -1239,7 +1239,7 @@ end|
 create function f7() returns int
   return (select sum(data) from t1 where data <= f1())|
 select f6()|
-select id, f6() from t1|
+select id, f6() from t1 order by id|
 
 #
 # Let us test how new locking work with views
@@ -1247,12 +1247,12 @@ select id, f6() from t1|
 # The most trivial view
 create view v1 (a) as select f1()|
 select * from v1|
-select id, a from t1, v1|
+select id, a from t1, v1 order by id|
 select * from v1, v1 as v|
 # A bit more complex construction
 create view v2 (a) as select a*10 from v1|
 select * from v2|
-select id, a from t1, v2|
+select id, a from t1, v2 order by id|
 select * from v1, v2|
 
 # Nice example where the same view is used on
@@ -1297,7 +1297,7 @@ select *, f0() from v0|
 lock tables t1 read, t1 as t11 read|
 # These should work well
 select f3()|
-select id, f3() from t1 as t11|
+select id, f3() from t1 as t11 order by id|
 # Degenerate cases work too :)
 select f0()|
 select * from v0|
@@ -1407,8 +1407,8 @@ drop function f12_2|
 drop view v0|
 drop view v1|
 drop view v2|
-delete from t1 |
-delete from t2 |
+truncate table t1 |
+truncate table t2 |
 drop table t4|
 
 # End of non-bug tests
@@ -1596,7 +1596,7 @@ call fib(3)|
 
 select * from t3 order by f asc|
 
-delete from t3|
+truncate table t3|
 
 # The original test, 20 levels, ran into memory limits on some machines
 # and builds. Try 10 instead...
@@ -1693,7 +1693,6 @@ begin
   end if;
   return x;
 end|
-
 select * from t1 where data = getcount("bar")|
 select * from t3|
 select getcount("zip")|
@@ -2120,7 +2119,7 @@ delete from t1|
 call bug822('foo', 42)|
 call bug822('foo', 42)|
 call bug822('bar', 666)|
-select * from t1|
+select * from t1 order by data|
 delete from t1|
 drop procedure bug822|
 
@@ -2148,7 +2147,7 @@ delete from t1 where id='foo'|
 insert into t1 values ('bar', 7)|
 call bug1495()|
 delete from t1 where id='bar'|
-select * from t1|
+select * from t1 order by data|
 delete from t1|
 drop procedure bug1495|
 
@@ -2173,7 +2172,7 @@ end|
 insert into t1 values ("foo", 12), ("bar", 7)|
 call bug1547("foo")|
 call bug1547("bar")|
-select * from t1|
+select * from t1 order by id|
 delete from t1|
 drop procedure bug1547|
 
@@ -2240,7 +2239,7 @@ end|
 
 insert into t1 (data) values (3), (1), (5), (9), (4)|
 call bug1874()|
-select * from t2|
+select * from t2 order by i|
 delete from t1|
 delete from t2|
 drop procedure bug1874|
@@ -5260,7 +5259,7 @@ call bug13012()|
 call bug13012()|
 drop procedure bug13012|
 drop view v1;
-select * from t1|
+select * from t1 order by data|
 
 #
 # A test case for Bug#15392 "Server crashes during prepared statement
@@ -5652,7 +5651,7 @@ create procedure bug16474_1()
 begin
   declare x int;
 
-  select id from t1 order by x;
+  select id from t1 order by x, id;
 end|
 
 # 
@@ -5672,7 +5671,7 @@ drop procedure bug14945|
 
 # This does NOT order by column index; variable is an expression.
 create procedure bug16474_2(x int)
-  select id from t1 order by x|
+  select id from t1 order by x, id|
 
 call bug16474_1()|
 call bug16474_2(1)|
@@ -5682,7 +5681,7 @@ drop procedure bug16474_2|
 
 # For reference: user variables are expressions too and do not affect ordering.
 set @x = 2|
-select * from t1 order by @x|
+select * from t1 order by @x, data|
 
 delete from t1|
 
@@ -5877,6 +5876,33 @@ DROP FUNCTION bug18037_f1|
 DROP PROCEDURE bug18037_p1|
 DROP PROCEDURE bug18037_p2|
 
+#
+# Bug#15217 "Using a SP cursor on a table created with PREPARE fails with
+#           weird error". Check that the code that is supposed to work at
+#           the first execution of a stored procedure actually works for
+#           sp_instr_copen.
+
+--disable_warnings
+drop table if exists t3|
+drop procedure if exists bug15217|
+--enable_warnings
+create table t3 as select 1|
+create procedure bug15217()
+begin
+  declare var1 char(255);
+  declare cur1 cursor for select * from t3;
+  open cur1;
+  fetch cur1 into var1;
+  select concat('data was: /', var1, '/');
+  close cur1;
+end |
+# Returns expected result
+call bug15217()|
+flush tables |
+# Returns error with garbage as column name
+call bug15217()|
+drop table t3|
+drop procedure bug15217|
 
 #
 # BUG#NNNN: New bug synopsis

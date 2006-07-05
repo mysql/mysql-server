@@ -157,6 +157,10 @@ btr_cur_latch_leaves(
 		if (left_page_no != FIL_NULL) {
 			get_page = btr_page_get(space, left_page_no,
 							RW_X_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
+			ut_a(btr_page_get_next(get_page, mtr)
+					== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 			ut_a(page_is_comp(get_page) == page_is_comp(page));
 			buf_block_align(get_page)->check_index_page_at_flush =
 									TRUE;
@@ -171,6 +175,10 @@ btr_cur_latch_leaves(
 		if (right_page_no != FIL_NULL) {
 			get_page = btr_page_get(space, right_page_no,
 							RW_X_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
+			ut_a(btr_page_get_prev(get_page, mtr)
+					== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 			buf_block_align(get_page)->check_index_page_at_flush =
 									TRUE;
 		}
@@ -183,6 +191,10 @@ btr_cur_latch_leaves(
 		if (left_page_no != FIL_NULL) {
 			cursor->left_page = btr_page_get(space, left_page_no,
 							RW_S_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
+			ut_a(btr_page_get_next(cursor->left_page, mtr)
+					== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 			ut_a(page_is_comp(cursor->left_page) ==
 					page_is_comp(page));
 			buf_block_align(
@@ -201,6 +213,10 @@ btr_cur_latch_leaves(
 		if (left_page_no != FIL_NULL) {
 			cursor->left_page = btr_page_get(space, left_page_no,
 							RW_X_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
+			ut_a(btr_page_get_next(cursor->left_page, mtr)
+					== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 			ut_a(page_is_comp(cursor->left_page) ==
 					page_is_comp(page));
 			buf_block_align(
@@ -1731,6 +1747,10 @@ btr_cur_pess_upd_restore_supremum(
 
 	ut_ad(prev_page_no != FIL_NULL);
 	prev_page = buf_page_get_with_no_latch(space, prev_page_no, mtr);
+#ifdef UNIV_BTR_DEBUG
+	ut_a(btr_page_get_next(prev_page, mtr)
+			== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 	/* We must already have an x-latch to prev_page! */
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(prev_page),
@@ -3771,11 +3791,6 @@ btr_copy_externally_stored_field(
 
 		page_no = btr_blob_get_next_page_no(blob_header);
 
-		/* On other BLOB pages except the first the BLOB header
-		always is at the page data start: */
-
-		offset = FIL_PAGE_DATA;
-
 		mtr_commit(&mtr);
 
 		if (page_no == FIL_NULL) {
@@ -3785,6 +3800,11 @@ btr_copy_externally_stored_field(
 
 			return(buf);
 		}
+
+		/* On other BLOB pages except the first the BLOB header
+		always is at the page data start: */
+
+		offset = FIL_PAGE_DATA;
 
 		ut_a(copied_len < local_len + extern_len);
 	}

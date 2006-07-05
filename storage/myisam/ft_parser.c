@@ -111,6 +111,7 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
                  FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param)
 {
   byte *doc=*start;
+  int ctype;
   uint mwc, length, mbl;
 
   param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
@@ -119,9 +120,11 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
 
   while (doc<end)
   {
-    for (;doc<end;doc++)
+    for (; doc < end; doc+= (mbl > 0 ? mbl : 1))
     {
-      if (true_word_char(cs,*doc)) break;
+      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      if (true_word_char(ctype, *doc))
+        break;
       if (*doc == FTB_RQUOT && param->quot)
       {
         param->quot=doc;
@@ -155,14 +158,16 @@ byte ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
     }
 
     mwc=length=0;
-    for (word->pos=doc; doc<end; length++, mbl=my_mbcharlen(cs, *(uchar *)doc), doc+=(mbl ? mbl : 1))
-      if (true_word_char(cs,*doc))
+    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    {
+      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      if (true_word_char(ctype, *doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc)
         break;
       else
         mwc++;
-
+    }
     param->prev='A'; /* be sure *prev is true_word_char */
     word->len= (uint)(doc-word->pos) - mwc;
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
@@ -197,24 +202,31 @@ byte ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
 {
   byte *doc= *start;
   uint mwc, length, mbl;
+  int ctype;
   DBUG_ENTER("ft_simple_get_word");
 
   do
   {
-    for (;; doc++)
+    for (;; doc+= (mbl > 0 ? mbl : 1))
     {
-      if (doc >= end) DBUG_RETURN(0);
-      if (true_word_char(cs, *doc)) break;
+      if (doc >= end)
+        DBUG_RETURN(0);
+      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      if (true_word_char(ctype, *doc))
+        break;
     }
 
     mwc= length= 0;
-    for (word->pos=doc; doc<end; length++, mbl=my_mbcharlen(cs, *(uchar *)doc), doc+=(mbl ? mbl : 1))
-      if (true_word_char(cs,*doc))
+    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    {
+      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      if (true_word_char(ctype, *doc))
         mwc= 0;
       else if (!misc_word_char(*doc) || mwc)
         break;
       else
         mwc++;
+    }
 
     word->len= (uint)(doc-word->pos) - mwc;
 

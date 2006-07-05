@@ -26,7 +26,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "trx0sys.h"
 #include "srv0srv.h"
 
-/* When flushed, dirty blocks are searched in neigborhoods of this size, and
+/* When flushed, dirty blocks are searched in neighborhoods of this size, and
 flushed along with the original page. */
 
 #define BUF_FLUSH_AREA		ut_min(BUF_READ_AHEAD_AREA,\

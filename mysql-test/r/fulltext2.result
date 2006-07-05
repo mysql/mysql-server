@@ -241,3 +241,11 @@ select * from t1 where match a against('ab c' in boolean mode);
 a
 drop table t1;
 set names latin1;
+SET NAMES utf8;
+CREATE TABLE t1(a VARCHAR(255), FULLTEXT(a)) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 VALUES('„MySQL“');
+SELECT a FROM t1 WHERE MATCH a AGAINST('“MySQL„' IN BOOLEAN MODE);
+a
+„MySQL“
+DROP TABLE t1;
+SET NAMES latin1;

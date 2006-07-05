@@ -96,6 +96,7 @@ public:
 public:
   ConfigValuesFactory(Uint32 keys = 50, Uint32 data = 10); // Initial
   ConfigValuesFactory(ConfigValues * m_cfg);        //
+  ~ConfigValuesFactory();
 
   ConfigValues * m_cfg;
   ConfigValues * getConfigValues();

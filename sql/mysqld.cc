@@ -24,9 +24,13 @@
 #include "stacktrace.h"
 #include "mysqld_suffix.h"
 #include "mysys_err.h"
-#include "event.h"
+#include "events.h"
 
 #include "ha_myisam.h"
+
+#ifdef HAVE_ROW_BASED_REPLICATION
+#include "rpl_injector.h"
+#endif
 
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
 #define OPT_INNODB_DEFAULT 1
@@ -112,16 +116,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/utsname.h>
 #endif /* __WIN__ */
 
-#ifdef HAVE_LIBWRAP
-#include <tcpd.h>
-#include <syslog.h>
-#ifdef NEED_SYS_SYSLOG_H
-#include <sys/syslog.h>
-#endif /* NEED_SYS_SYSLOG_H */
-int allow_severity = LOG_INFO;
-int deny_severity = LOG_WARNING;
-
-#endif /* HAVE_LIBWRAP */
+#include <my_libwrap.h>
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
@@ -302,16 +297,15 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
  {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
-const char *log_output_names[] =
-{ "NONE", "FILE", "TABLE", NullS};
+const char *log_output_names[] = { "NONE", "FILE", "TABLE", NullS};
+static const unsigned int log_output_names_len[]= { 4, 4, 5, 0 };
 TYPELIB log_output_typelib= {array_elements(log_output_names)-1,"",
-				 log_output_names, NULL};
+                             log_output_names, 
+                             (unsigned int *) log_output_names_len};
 
 /* static variables */
 
 /* the default log output is log tables */
-static const char *log_output_str= "TABLE";
-static ulong log_output_options= LOG_TABLE;
 static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
@@ -342,7 +336,9 @@ static my_bool opt_sync_bdb_logs;
 
 /* Global variables */
 
-bool opt_log, opt_update_log, opt_bin_log, opt_slow_log;
+bool opt_update_log, opt_bin_log;
+my_bool opt_log, opt_slow_log;
+ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
@@ -520,6 +516,7 @@ ulong thread_id=1L,current_pid;
 ulong slow_launch_threads = 0, sync_binlog_period;
 ulong expire_logs_days = 0;
 ulong rpl_recovery_rank=0;
+const char *log_output_str= "TABLE";
 
 double log_10[32];			/* 10 potences */
 time_t start_time;
@@ -681,6 +678,8 @@ static const char* default_dbug_option;
 #endif
 #ifdef HAVE_LIBWRAP
 const char *libwrapName= NULL;
+int allow_severity = LOG_INFO;
+int deny_severity = LOG_WARNING;
 #endif
 #ifdef HAVE_QUERY_CACHE
 static ulong query_cache_limit= 0;
@@ -1183,6 +1182,9 @@ void clean_up(bool print_message)
     what they have that is dependent on the binlog
   */
   ha_binlog_end(current_thd);
+#ifdef HAVE_ROW_BASED_REPLICATION
+  injector::free_instance();
+#endif
   mysql_bin_log.cleanup();
 
 #ifdef HAVE_REPLICATION
@@ -1229,6 +1231,8 @@ void clean_up(bool print_message)
     free_defaults(defaults_argv);
   my_free(sys_init_connect.value, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sys_init_slave.value, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sys_var_general_log_path.value, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(sys_var_slow_log_path.value, MYF(MY_ALLOW_ZERO_PTR));
   free_tmpdir(&mysql_tmpdir_list);
 #ifdef HAVE_REPLICATION
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
@@ -1259,13 +1263,13 @@ void clean_up(bool print_message)
           MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
+  logger.cleanup_end();
   (void) pthread_mutex_lock(&LOCK_thread_count);
   DBUG_PRINT("quit", ("got thread count lock"));
   ready_to_exit=1;
   /* do the broadcast inside the lock to ensure that my_end() is not called */
   (void) pthread_cond_broadcast(&COND_thread_count);
   (void) pthread_mutex_unlock(&LOCK_thread_count);
-  logger.cleanup_end();
 
   /*
     The following lines may never be executed as the main thread may have
@@ -2607,6 +2611,7 @@ static bool init_global_datetime_format(timestamp_type format_type,
 static int init_common_variables(const char *conf_file_name, int argc,
 				 char **argv, const char **groups)
 {
+  char buff[FN_REFLEN];
   umask(((~my_umask) & 0666));
   my_decimal_set_zero(&decimal_zero); // set decimal_zero constant;
   tzset();			// Set tzname
@@ -2635,10 +2640,10 @@ static int init_common_variables(const char *conf_file_name, int argc,
   global_system_variables.time_zone= my_tz_SYSTEM;
   
   /*
-    Init mutexes for the global MYSQL_LOG objects.
+    Init mutexes for the global MYSQL_BIN_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
-    global MYSQL_LOGs in their constructors, because then they would be inited
-    before MY_INIT(). So we do it here.
+    global MYSQL_BIN_LOGs in their constructors, because then they would be
+    inited before MY_INIT(). So we do it here.
   */
   mysql_bin_log.init_pthread_objects();
 
@@ -2762,6 +2767,16 @@ static int init_common_variables(const char *conf_file_name, int argc,
     sys_init_slave.value_length= strlen(opt_init_slave);
   else
     sys_init_slave.value=my_strdup("",MYF(0));
+
+  if (!opt_logname)
+    opt_logname= make_default_log_name(buff, ".log");
+  sys_var_general_log_path.value= my_strdup(opt_logname, MYF(0));
+  sys_var_general_log_path.value_length= strlen(opt_logname);
+
+  if (!opt_slow_logname)
+    opt_slow_logname= make_default_log_name(buff, "-slow.log");
+  sys_var_slow_log_path.value= my_strdup(opt_slow_logname, MYF(0));
+  sys_var_slow_log_path.value_length= strlen(opt_slow_logname);
 
   if (use_temp_pool && bitmap_init(&temp_pool,0,1024,1))
     return 1;
@@ -3208,9 +3223,11 @@ server.");
     /* fall back to the log files if tables are not present */
     if (have_csv_db == SHOW_OPTION_NO)
     {
+      /* purecov: begin inspected */
       sql_print_error("CSV engine is not present, falling back to the "
                       "log files");
-      log_output_options= log_output_options & ~LOG_TABLE | LOG_FILE;
+      log_output_options= (log_output_options & ~LOG_TABLE) | LOG_FILE;
+      /* purecov: end */
     }
 
     logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
@@ -4217,8 +4234,8 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	struct request_info req;
 	signal(SIGCHLD, SIG_DFL);
 	request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE, new_sock, NULL);
-	fromhost(&req);
-	if (!hosts_access(&req))
+	my_fromhost(&req);
+	if (!my_hosts_access(&req))
 	{
 	  /*
 	    This may be stupid but refuse() includes an exit(0)
@@ -4226,7 +4243,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	    clean_exit() - same stupid thing ...
 	  */
 	  syslog(deny_severity, "refused connect from %s",
-		 eval_client(&req));
+		 my_eval_client(&req));
 
 	  /*
 	    C++ sucks (the gibberish in front just translates the supplied
@@ -4695,6 +4712,7 @@ enum options_mysqld
   OPT_NDB_EXTRA_LOGGING,
   OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
   OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
+  OPT_NDB_USE_COPYING_ALTER_TABLE,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -4815,7 +4833,9 @@ enum options_mysqld
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PLUGIN_DIR,
   OPT_LOG_OUTPUT,
-  OPT_PORT_OPEN_TIMEOUT
+  OPT_PORT_OPEN_TIMEOUT,
+  OPT_GENERAL_LOG,
+  OPT_SLOW_LOG
 };
 
 
@@ -4983,11 +5003,12 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &default_collation_name, (gptr*) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-storage-engine", OPT_STORAGE_ENGINE,
-   "Set the default storage engine (table type) for tables.", 0, 0,
+   "Set the default storage engine (table type) for tables.",
+   (gptr*)&default_storage_engine_str, (gptr*)&default_storage_engine_str,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-table-type", OPT_STORAGE_ENGINE,
    "(deprecated) Use --default-storage-engine.",
-   (gptr*)default_storage_engine_str, (gptr*)default_storage_engine_str,
+   (gptr*)&default_storage_engine_str, (gptr*)&default_storage_engine_str,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-time-zone", OPT_DEFAULT_TIME_ZONE, "Set the default time zone.",
    (gptr*) &default_tz_name, (gptr*) &default_tz_name,
@@ -5044,6 +5065,9 @@ Disable with --skip-bdb (will save memory).",
    "Set up signals usable for debugging",
    (gptr*) &opt_debugging, (gptr*) &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"general-log", OPT_GENERAL_LOG,
+   "Enable|disable general log", (gptr*) &opt_log,
+   (gptr*) &opt_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_LARGE_PAGES
   {"large-pages", OPT_ENABLE_LARGE_PAGES, "Enable support for large pages. \
 Disable with --skip-large-pages.",
@@ -5430,6 +5454,12 @@ Disable with --skip-ndbcluster (will save memory).",
    (gptr*) &max_system_variables.ndb_index_stat_update_freq,
    0, GET_ULONG, OPT_ARG, 20, 0, ~0L, 0, 0, 0},
 #endif
+  {"ndb-use-copying-alter-table",
+   OPT_NDB_USE_COPYING_ALTER_TABLE,
+   "Force ndbcluster to always copy tables at alter table (should only be used if on-line alter table fails).",
+   (gptr*) &global_system_variables.ndb_use_copying_alter_table,
+   (gptr*) &global_system_variables.ndb_use_copying_alter_table,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (gptr*) &global_system_variables.new_mode,
    (gptr*) &max_system_variables.new_mode,
@@ -5613,6 +5643,9 @@ replicating a LOAD DATA INFILE command.",
    "Tells the slave thread to continue replication when a query returns an error from the provided list.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"slow-query-log", OPT_SLOW_LOG,
+   "Enable|disable slow query log", (gptr*) &opt_slow_log,
+   (gptr*) &opt_slow_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", OPT_SOCKET, "Socket file to use for connection.",
    (gptr*) &mysqld_unix_port, (gptr*) &mysqld_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6148,7 +6181,8 @@ The minimum value for this variable is 4096.",
    "Each thread that does a sequential scan allocates a buffer of this size for each table it scans. If you do many sequential scans, you may want to increase this value.",
    (gptr*) &global_system_variables.read_buff_size,
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE,
+   0},
   {"read_only", OPT_READONLY,
    "Make all non-temporary tables read-only, with the exception for replication (slave) threads and users with the SUPER privilege",
    (gptr*) &opt_readonly,
@@ -6159,12 +6193,12 @@ The minimum value for this variable is 4096.",
    (gptr*) &global_system_variables.read_rnd_buff_size,
    (gptr*) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
-   ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
+   SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
   {"record_buffer", OPT_RECORD_BUFFER,
    "Alias for read_buffer_size",
    (gptr*) &global_system_variables.read_buff_size,
    (gptr*) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
-   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, ~0L, MALLOC_OVERHEAD, IO_SIZE, 0},
+   128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, SSIZE_MAX, MALLOC_OVERHEAD, IO_SIZE, 0},
 #ifdef HAVE_REPLICATION
   {"relay_log_purge", OPT_RELAY_LOG_PURGE,
    "0 = do not purge relay logs. 1 = purge them as soon as they are no more needed.",
@@ -6921,7 +6955,9 @@ static void mysql_init_variables(void)
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
-  opt_log= opt_update_log= opt_slow_log= 0;
+  opt_log= opt_slow_log= 0;
+  opt_update_log= 0;
+  log_output_options= find_bit_type(log_output_str, &log_output_typelib);
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;

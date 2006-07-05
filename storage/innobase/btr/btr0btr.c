@@ -190,6 +190,10 @@ btr_get_prev_user_rec(
 			|| (mtr_memo_contains(mtr, buf_block_align(prev_page),
 					MTR_MEMO_PAGE_X_FIX)));
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
+#ifdef UNIV_BTR_DEBUG
+		ut_a(btr_page_get_next(prev_page, mtr)
+				== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 		return(page_rec_get_prev(page_get_supremum_rec(prev_page)));
 	}
@@ -237,6 +241,10 @@ btr_get_next_user_rec(
 						MTR_MEMO_PAGE_S_FIX))
 			|| (mtr_memo_contains(mtr, buf_block_align(next_page),
 						MTR_MEMO_PAGE_X_FIX)));
+#ifdef UNIV_BTR_DEBUG
+		ut_a(btr_page_get_prev(next_page, mtr)
+				== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 		ut_a(page_is_comp(next_page) == page_is_comp(page));
 		return(page_rec_get_next(page_get_infimum_rec(next_page)));
@@ -597,9 +605,9 @@ btr_page_get_father_for_rec(
 		buf_page_print(buf_frame_align(node_ptr));
 
 		fputs("InnoDB: Corruption of an index tree: table ", stderr);
-		ut_print_name(stderr, NULL, index->table_name);
+		ut_print_name(stderr, NULL, TRUE, index->table_name);
 		fputs(", index ", stderr);
-		ut_print_name(stderr, NULL, index->name);
+		ut_print_name(stderr, NULL, FALSE, index->name);
 		fprintf(stderr, ",\n"
 "InnoDB: father ptr page no %lu, child page no %lu\n",
 			(ulong)
@@ -1518,6 +1526,10 @@ btr_attach_half_pages(
 
 		prev_page = btr_page_get(space, prev_page_no, RW_X_LATCH, mtr);
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
+#ifdef UNIV_BTR_DEBUG
+		ut_a(btr_page_get_next(prev_page, mtr)
+				== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 		btr_page_set_next(prev_page, lower_page_no, mtr);
 	}
@@ -1805,6 +1817,10 @@ btr_level_list_remove(
 
 		prev_page = btr_page_get(space, prev_page_no, RW_X_LATCH, mtr);
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
+#ifdef UNIV_BTR_DEBUG
+		ut_a(btr_page_get_next(prev_page, mtr)
+				== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 		btr_page_set_next(prev_page, next_page_no, mtr);
 	}
@@ -1813,6 +1829,10 @@ btr_level_list_remove(
 
 		next_page = btr_page_get(space, next_page_no, RW_X_LATCH, mtr);
 		ut_a(page_is_comp(next_page) == page_is_comp(page));
+#ifdef UNIV_BTR_DEBUG
+		ut_a(btr_page_get_prev(next_page, mtr)
+				== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
 		btr_page_set_prev(next_page, prev_page_no, mtr);
 	}
@@ -2032,16 +2052,24 @@ btr_compress(
 	/* Decide the page to which we try to merge and which will inherit
 	the locks */
 
-	if (left_page_no != FIL_NULL) {
+	is_left = left_page_no != FIL_NULL;
 
-		is_left = TRUE;
+	if (is_left) {
+
 		merge_page = btr_page_get(space, left_page_no, RW_X_LATCH,
 									mtr);
+#ifdef UNIV_BTR_DEBUG
+		ut_a(btr_page_get_next(merge_page, mtr)
+				== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 	} else if (right_page_no != FIL_NULL) {
 
-		is_left = FALSE;
 		merge_page = btr_page_get(space, right_page_no, RW_X_LATCH,
 									mtr);
+#ifdef UNIV_BTR_DEBUG
+		ut_a(btr_page_get_prev(merge_page, mtr)
+				== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 	} else {
 		/* The page is the only one on the level, lift the records
 		to the father */
@@ -2203,7 +2231,6 @@ btr_discard_page(
 	ulint		left_page_no;
 	ulint		right_page_no;
 	page_t*		merge_page;
-	ibool		is_left;
 	page_t*		page;
 	rec_t*		node_ptr;
 
@@ -2223,13 +2250,19 @@ btr_discard_page(
 	right_page_no = btr_page_get_next(page, mtr);
 
 	if (left_page_no != FIL_NULL) {
-		is_left = TRUE;
 		merge_page = btr_page_get(space, left_page_no, RW_X_LATCH,
 									mtr);
+#ifdef UNIV_BTR_DEBUG
+		ut_a(btr_page_get_next(merge_page, mtr)
+				== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 	} else if (right_page_no != FIL_NULL) {
-		is_left = FALSE;
 		merge_page = btr_page_get(space, right_page_no, RW_X_LATCH,
 									mtr);
+#ifdef UNIV_BTR_DEBUG
+		ut_a(btr_page_get_prev(merge_page, mtr)
+				== buf_frame_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 	} else {
 		btr_discard_only_page_on_level(tree, page, mtr);
 
@@ -2256,11 +2289,11 @@ btr_discard_page(
 	/* Remove the page from the level list */
 	btr_level_list_remove(tree, page, mtr);
 
-	if (is_left) {
+	if (left_page_no != FIL_NULL) {
 		lock_update_discard(page_get_supremum_rec(merge_page), page);
 	} else {
 		lock_update_discard(page_rec_get_next(
-					    page_get_infimum_rec(merge_page)), page);
+				page_get_infimum_rec(merge_page)), page);
 	}
 
 	/* Free the file page */
@@ -2745,7 +2778,29 @@ loop:
 		rec_t*	right_rec;
 		right_page = btr_page_get(space, right_page_no, RW_X_LATCH,
 									&mtr);
-		ut_a(page_is_comp(right_page) == page_is_comp(page));
+		if (UNIV_UNLIKELY(btr_page_get_prev(right_page, &mtr)
+				!= buf_frame_get_page_no(page))) {
+			btr_validate_report2(index, level, page, right_page);
+			fputs("InnoDB: broken FIL_PAGE_NEXT"
+				" or FIL_PAGE_PREV links\n", stderr);
+			buf_page_print(page);
+			buf_page_print(right_page);
+
+			ret = FALSE;
+		}
+
+		if (UNIV_UNLIKELY(page_is_comp(right_page)
+				!= page_is_comp(page))) {
+			btr_validate_report2(index, level, page, right_page);
+			fputs("InnoDB: 'compact' flag mismatch\n", stderr);
+			buf_page_print(page);
+			buf_page_print(right_page);
+
+			ret = FALSE;
+
+			goto node_ptr_fails;
+		}
+
 		rec = page_rec_get_prev(page_get_supremum_rec(page));
 		right_rec = page_rec_get_next(
 					page_get_infimum_rec(right_page));
@@ -2753,8 +2808,8 @@ loop:
 					offsets, ULINT_UNDEFINED, &heap);
 		offsets2 = rec_get_offsets(right_rec, index,
 					offsets2, ULINT_UNDEFINED, &heap);
-		if (cmp_rec_rec(rec, right_rec, offsets, offsets2, index)
-				>= 0) {
+		if (UNIV_UNLIKELY(cmp_rec_rec(rec, right_rec,
+				offsets, offsets2, index) >= 0)) {
 
 			btr_validate_report2(index, level, page, right_page);
 
@@ -2869,10 +2924,7 @@ loop:
 			ut_a(node_ptr == page_rec_get_prev(
 				page_get_supremum_rec(father_page)));
 			ut_a(btr_page_get_next(father_page, &mtr) == FIL_NULL);
-		}
-
-		if (right_page_no != FIL_NULL) {
-
+		} else {
 			right_node_ptr = btr_page_get_father_node_ptr(tree,
 							right_page, &mtr);
 			if (page_rec_get_next(node_ptr) !=
@@ -2934,14 +2986,15 @@ loop:
 	}
 
 node_ptr_fails:
+	/* Commit the mini-transaction to release the latch on 'page'.
+	Re-acquire the latch on right_page, which will become 'page'
+	on the next loop.  The page has already been checked. */
 	mtr_commit(&mtr);
 
 	if (right_page_no != FIL_NULL) {
-		ulint	comp = page_is_comp(page);
 		mtr_start(&mtr);
 
 		page = btr_page_get(space, right_page_no, RW_X_LATCH, &mtr);
-		ut_a(page_is_comp(page) == comp);
 
 		goto loop;
 	}

@@ -976,12 +976,25 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
     while ((error=table->file->ha_write_row(table->record[0])))
     {
       uint key_nr;
-      if (error != HA_WRITE_SKIP)
+      bool is_duplicate_key_error;
+      if (table->file->is_fatal_error(error, HA_CHECK_DUP))
 	goto err;
       table->file->restore_auto_increment(); // it's too early here! BUG#20188
+      is_duplicate_key_error= table->file->is_fatal_error(error, 0);
+      if (!is_duplicate_key_error)
+      {
+        /*
+          We come here when we had an ignorable error which is not a duplicate
+          key error. In this we ignore error if ignore flag is set, otherwise
+          report error as usual. We will not do any duplicate key processing.
+        */
+        if (info->ignore)
+          goto ok_or_after_trg_err; /* Ignoring a not fatal error, return 0 */
+        goto err;
+      }
       if ((int) (key_nr = table->file->get_dup_key(error)) < 0)
       {
-	error=HA_WRITE_SKIP;			/* Database can't find key */
+	error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
 	goto err;
       }
       /* Read all columns for the row we are going to replace */
@@ -1062,7 +1075,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if ((error=table->file->ha_update_row(table->record[1],
                                               table->record[0])))
 	{
-	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
+          if (info->ignore &&
+              !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
             goto ok_or_after_trg_err;
           goto err;
 	}
@@ -1083,16 +1097,19 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	  to convert the latter operation internally to an UPDATE.
           We also should not perform this conversion if we have 
           timestamp field with ON UPDATE which is different from DEFAULT.
+          Another case when conversion should not be performed is when
+          we have ON DELETE trigger on table so user may notice that
+          we cheat here. Note that it is ok to do such conversion for
+          tables which have ON UPDATE but have no ON DELETE triggers,
+          we just should not expose this fact to users by invoking
+          ON UPDATE triggers.
 	*/
 	if (last_uniq_key(table,key_nr) &&
 	    !table->file->referenced_by_foreign_key() &&
             (table->timestamp_field_type == TIMESTAMP_NO_AUTO_SET ||
-             table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH))
+             table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH) &&
+            (!table->triggers || !table->triggers->has_delete_triggers()))
         {
-          if (table->triggers &&
-              table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                TRG_ACTION_BEFORE, TRUE))
-            goto before_trg_err;
           if (thd->clear_next_insert_id)
           {
             /* Reset auto-increment cacheing if we do an update */
@@ -1103,13 +1120,11 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 					        table->record[0])))
             goto err;
           info->deleted++;
-          trg_error= (table->triggers &&
-                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                        TRG_ACTION_AFTER,
-                                                        TRUE));
-          /* Update logfile and count */
-          info->copied++;
-          goto ok_or_after_trg_err;
+          /*
+            Since we pretend that we have done insert we should call
+            its after triggers.
+          */
+          goto after_trg_n_copied_inc;
         }
         else
         {
@@ -1133,10 +1148,6 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         }
       }
     }
-    info->copied++;
-    trg_error= (table->triggers &&
-                table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
-                                                  TRG_ACTION_AFTER, TRUE));
     /*
       Restore column maps if they where replaced during an duplicate key
       problem.
@@ -1148,17 +1159,17 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   else if ((error=table->file->ha_write_row(table->record[0])))
   {
     if (!info->ignore ||
-	(error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE))
+        table->file->is_fatal_error(error, HA_CHECK_DUP))
       goto err;
     table->file->restore_auto_increment();
+    goto ok_or_after_trg_err;
   }
-  else
-  {
-    info->copied++;
-    trg_error= (table->triggers &&
-                table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
-                                                  TRG_ACTION_AFTER, TRUE));
-  }
+
+after_trg_n_copied_inc:
+  info->copied++;
+  trg_error= (table->triggers &&
+              table->triggers->process_triggers(thd, TRG_EVENT_INSERT,
+                                                TRG_ACTION_AFTER, TRUE));
 
 ok_or_after_trg_err:
   if (key)
@@ -2009,6 +2020,14 @@ bool delayed_insert::handle_inserts(void)
   if (!using_bin_log)
     table->file->extra(HA_EXTRA_WRITE_CACHE);
   pthread_mutex_lock(&mutex);
+
+  /* Reset auto-increment cacheing */
+  if (thd.clear_next_insert_id)
+  {
+    thd.next_insert_id= 0;
+    thd.clear_next_insert_id= 0;
+  }
+
   while ((row=rows.get()))
   {
     stacked_inserts--;
@@ -2350,6 +2369,7 @@ bool select_insert::send_data(List<Item> &values)
 {
   DBUG_ENTER("select_insert::send_data");
   bool error=0;
+
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
@@ -2370,7 +2390,10 @@ bool select_insert::send_data(List<Item> &values)
       DBUG_RETURN(1);
     }
   }
-  if (!(error= write_record(thd, table, &info)))
+
+  error= write_record(thd, table, &info);
+    
+  if (!error)
   {
     if (table->triggers || info.handle_duplicates == DUP_UPDATE)
     {
@@ -2649,7 +2672,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     tmp_disable_binlog(thd);
     if (!mysql_create_table(thd, create_table->db, create_table->table_name,
                             create_info, *extra_fields, *keys, 0,
-                            select_field_count))
+                            select_field_count, 0))
     {
       /*
         If we are here in prelocked mode we either create temporary table
@@ -2715,15 +2738,34 @@ private:
 };
 
 
-int select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
+int
+select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
-  MY_HOOKS hooks(this);
   DBUG_ENTER("select_create::prepare");
+
+  TABLEOP_HOOKS *hook_ptr= NULL;
+#ifdef HAVE_ROW_BASED_REPLICATION
+  class MY_HOOKS : public TABLEOP_HOOKS {
+  public:
+    MY_HOOKS(select_create *x) : ptr(x) { }
+    virtual void do_prelock(TABLE **tables, uint count)
+    {
+      if (ptr->get_thd()->current_stmt_binlog_row_based)
+        ptr->binlog_show_create_table(tables, count);
+    }
+
+  private:
+    select_create *ptr;
+  };
+
+  MY_HOOKS hooks(this);
+  hook_ptr= &hooks;
+#endif
 
   unit= u;
   if (!(table= create_table_from_items(thd, create_info, create_table,
-                                       extra_fields, keys, &values, &lock,
-                                       &hooks)))
+                                       extra_fields, keys, &values,
+                                       &thd->extra_lock, hook_ptr)))
     DBUG_RETURN(-1);				// abort() deletes table
 
   if (table->s->fields < values.elements)
@@ -2759,7 +2801,9 @@ int select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 }
 
 
-void select_create::binlog_show_create_table(TABLE **tables, uint count)
+#ifdef HAVE_ROW_BASED_REPLICATION
+void
+select_create::binlog_show_create_table(TABLE **tables, uint count)
 {
   /*
     Note 1: In RBR mode, we generate a CREATE TABLE statement for the
@@ -2778,9 +2822,7 @@ void select_create::binlog_show_create_table(TABLE **tables, uint count)
     schema that will do a close_thread_tables(), destroying the
     statement transaction cache.
   */
-#ifdef HAVE_ROW_BASED_REPLICATION
   DBUG_ASSERT(thd->current_stmt_binlog_row_based);
-#endif
   DBUG_ASSERT(tables && *tables && count > 0);
 
   char buf[2048];
@@ -2800,7 +2842,7 @@ void select_create::binlog_show_create_table(TABLE **tables, uint count)
                     /* is_trans */ TRUE,
                     /* suppress_use */ FALSE);
 }
-
+#endif // HAVE_ROW_BASED_REPLICATION
 
 void select_create::store_values(List<Item> &values)
 {
@@ -2830,13 +2872,13 @@ bool select_create::send_eof()
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     VOID(pthread_mutex_lock(&LOCK_open));
-    mysql_unlock_tables(thd, lock);
+    mysql_unlock_tables(thd, thd->extra_lock);
     if (!table->s->tmp_table)
     {
       if (close_thread_table(thd, &table))
         VOID(pthread_cond_broadcast(&COND_refresh));
     }
-    lock=0;
+    thd->extra_lock=0;
     table=0;
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
@@ -2846,10 +2888,10 @@ bool select_create::send_eof()
 void select_create::abort()
 {
   VOID(pthread_mutex_lock(&LOCK_open));
-  if (lock)
+  if (thd->extra_lock)
   {
-    mysql_unlock_tables(thd, lock);
-    lock=0;
+    mysql_unlock_tables(thd, thd->extra_lock);
+    thd->extra_lock=0;
   }
   if (table)
   {

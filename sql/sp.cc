@@ -555,17 +555,17 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     table->field[MYSQL_PROC_FIELD_NAME]->
       store(sp->m_name.str, sp->m_name.length, system_charset_info);
     table->field[MYSQL_PROC_FIELD_TYPE]->
-      store((longlong)type);
+      store((longlong)type, TRUE);
     table->field[MYSQL_PROC_FIELD_SPECIFIC_NAME]->
       store(sp->m_name.str, sp->m_name.length, system_charset_info);
     if (sp->m_chistics->daccess != SP_DEFAULT_ACCESS)
       table->field[MYSQL_PROC_FIELD_ACCESS]->
-	store((longlong)sp->m_chistics->daccess);
+	store((longlong)sp->m_chistics->daccess, TRUE);
     table->field[MYSQL_PROC_FIELD_DETERMINISTIC]->
-      store((longlong)(sp->m_chistics->detistic ? 1 : 2));
+      store((longlong)(sp->m_chistics->detistic ? 1 : 2), TRUE);
     if (sp->m_chistics->suid != SP_IS_DEFAULT_SUID)
       table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
-	store((longlong)sp->m_chistics->suid);
+	store((longlong)sp->m_chistics->suid, TRUE);
     table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
       store(sp->m_params.str, sp->m_params.length, system_charset_info);
     if (sp->m_type == TYPE_ENUM_FUNCTION)
@@ -582,7 +582,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_CREATED])->set_time();
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
     table->field[MYSQL_PROC_FIELD_SQL_MODE]->
-      store((longlong)thd->variables.sql_mode);
+      store((longlong)thd->variables.sql_mode, TRUE);
     if (sp->m_chistics->comment.str)
       table->field[MYSQL_PROC_FIELD_COMMENT]->
 	store(sp->m_chistics->comment.str, sp->m_chistics->comment.length,
@@ -686,10 +686,10 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     ((Field_timestamp *)table->field[MYSQL_PROC_FIELD_MODIFIED])->set_time();
     if (chistics->suid != SP_IS_DEFAULT_SUID)
       table->field[MYSQL_PROC_FIELD_SECURITY_TYPE]->
-	store((longlong)chistics->suid);
+	store((longlong)chistics->suid, TRUE);
     if (chistics->daccess != SP_DEFAULT_ACCESS)
       table->field[MYSQL_PROC_FIELD_ACCESS]->
-	store((longlong)chistics->daccess);
+	store((longlong)chistics->daccess, TRUE);
     if (chistics->comment.str)
       table->field[MYSQL_PROC_FIELD_COMMENT]->store(chistics->comment.str,
 						    chistics->comment.length,

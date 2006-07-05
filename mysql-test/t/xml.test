@@ -53,7 +53,7 @@ SELECT extractValue(@xml,'/a//@x');
 SELECT extractValue(@xml,'/a//@x[1]');
 SELECT extractValue(@xml,'/a//@x[2]');
 
-SET @xml='<a><b>b1</b><b>b2</b><c><b>c1b1</b><b>c1b2</b></c><c><b>c2b1</c></b>/a>';
+SET @xml='<a><b>b1</b><b>b2</b><c><b>c1b1</b><b>c1b2</b></c><c><b>c2b1</c></b></a>';
 SELECT extractValue(@xml,'//b[1]');
 SELECT extractValue(@xml,'/descendant::b[1]');
 
@@ -297,6 +297,17 @@ select extractvalue('<a>Jack</a>' collate latin1_bin,'/a[contains(../a,"j")]');
 # data within <![CDATA[]]> as expected
 #
 select ExtractValue('<tag1><![CDATA[test]]></tag1>','/tag1');
+
+#
+# Bug#18201: XML: ExtractValue works even if the xml fragment
+# is not well-formed xml
+#
+select extractValue('<a>a','/a');
+select extractValue('<a>a<','/a');
+select extractValue('<a>a</','/a');
+select extractValue('<a>a</a','/a');
+select extractValue('<a>a</a></b>','/a');
+select extractValue('<a b=>a</a>','/a');
 
 #
 # Bug #18171 XML: ExtractValue: the XPath position()

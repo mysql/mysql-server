@@ -700,8 +700,8 @@ ERROR 42S22: Unknown column 't1.b' in 'on clause'
 select * from information_schema.statistics join information_schema.columns
 using(table_name,column_name) where table_name='user';
 TABLE_NAME	COLUMN_NAME	TABLE_CATALOG	TABLE_SCHEMA	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	TABLE_CATALOG	TABLE_SCHEMA	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-user	Host	NULL	mysql	0	mysql	PRIMARY	1	A	NULL	NULL	NULL		BTREE		NULL	mysql	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
-user	User	NULL	mysql	0	mysql	PRIMARY	2	A	5	NULL	NULL		BTREE		NULL	mysql	2		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		select,insert,update,references	
+user	Host	NULL	mysql	0	mysql	PRIMARY	1	A	NULL	NULL	NULL		BTREE		NULL	mysql	1		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		#	
+user	User	NULL	mysql	0	mysql	PRIMARY	2	A	5	NULL	NULL		BTREE		NULL	mysql	2		NO	char	16	48	NULL	NULL	utf8	utf8_bin	char(16)	PRI		#	
 drop table t1;
 drop table t2;
 drop table t3;
@@ -744,3 +744,23 @@ select a2 from ((t1 natural join t2) join t3 on b=c1) natural join t4;
 a2
 1
 drop table t1,t2,t3,t4;
+create table t1 (c int, b int);
+create table t2 (a int, b int);
+create table t3 (b int, c int);
+create table t4 (y int, c int);
+create table t5 (y int, z int);
+insert into t1 values (3,2);
+insert into t2 values (1,2);
+insert into t3 values (2,3);
+insert into t4 values (1,3);
+insert into t5 values (1,4);
+prepare stmt1 from "select * from ((t3 natural join (t1 natural join t2))
+natural join t4) natural join t5";
+execute stmt1;
+y	c	b	a	z
+1	3	2	1	4
+select * from ((t3 natural join (t1 natural join t2)) natural join t4)
+natural join t5;
+y	c	b	a	z
+1	3	2	1	4
+drop table t1, t2, t3, t4, t5;

@@ -1159,6 +1159,27 @@ drop table t1, t2;
 
 
 #
+# Bug#18462 mysqldump does not dump view structures correctly
+#
+#
+create table t (qty int, price int);
+insert into t values(3, 50);
+insert into t values(5, 51);
+create view v1 as select qty, price, qty*price as value from t;
+create view v2 as select qty from v1;
+--echo mysqldump {
+--exec $MYSQL_DUMP --compact -F --tab . test
+--exec cat v1.sql
+--echo } mysqldump {
+--exec cat v2.sql
+--echo } mysqldump
+--rm v.sql t.sql t.txt
+drop view v1;
+drop view v2;
+drop table t;
+
+
+#
 # Bug#14857 Reading dump files with single statement stored routines fails.
 # fixed by patch for bug#16878
 #
@@ -1174,6 +1195,19 @@ show create procedure p;
 drop function f;
 drop procedure p;
 
+#
+# Bug #17371 Unable to dump a schema with invalid views
+#
+#
+create table t1 ( id serial );
+create view v1 as select * from t1;
+drop table t1;
+# mysqldump gets 1356 from server, but gives us 2
+--echo mysqldump {
+--error 2
+--exec $MYSQL_DUMP --force -N --compact --skip-comments test
+--echo } mysqldump
+drop view v1;
 # Added for use-thread option
 #
 create table t1 (a text , b text);
@@ -1252,3 +1286,20 @@ set time_zone = 'SYSTEM';
 use test;
 
 #####
+#
+# BUG#17201 Spurious 'DROP DATABASE' in output,
+# also confusion between tables and views.
+# Example code from Markus Popp
+
+create database mysqldump_test_db;
+use mysqldump_test_db;
+create table t1 (id int);
+create view v1 as select * from t1;
+insert into t1 values (1232131);
+insert into t1 values (4711);
+insert into t1 values (3231);
+insert into t1 values (0815);
+--exec $MYSQL_DUMP --skip-comments --add-drop-database --databases mysqldump_test_db
+drop view v1;
+drop table t1;
+drop database mysqldump_test_db;

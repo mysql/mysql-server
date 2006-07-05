@@ -1353,7 +1353,7 @@ int bin2decimal(char *from, decimal_t *to, int precision, int scale)
     }
     from+=i;
     *buf=x ^ mask;
-    if (((uint32)*buf) >=  powers10[intg0x+1])
+    if (((ulonglong)*buf) >=  (ulonglong) powers10[intg0x+1])
       goto err;
     if (buf > to->buf || *buf != 0)
       buf++;

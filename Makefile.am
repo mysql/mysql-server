@@ -101,7 +101,9 @@ dist-hook:
 
 tags:
 	support-files/build-tags
-.PHONY:		init-db bin-dist
+
+.PHONY:	init-db bin-dist test test-full test-ps test-nr \
+	test-ns test-pr test-unit
 
 # Target 'test' will run the regression test suite using the built server.
 #
@@ -111,37 +113,40 @@ tags:
 # will then calculate the various port numbers it needs from this,
 # making sure each user use different ports.
 
-test:
-	cd mysql-test ; \
-	./mysql-test-run.pl --mysqld=--binlog-format=statement && \
-	./mysql-test-run.pl --ps-protocol --mysqld=--binlog-format=row
+test-unit:
+	cd unittest && $(MAKE) test
 
-test-full:
+test-ps:
 	cd mysql-test ; \
-	./mysql-test-run.pl --mysqld=--binlog-format=statement && \
-	./mysql-test-run.pl --ps-protocol --mysqld=--binlog-format=statement && \
-	./mysql-test-run.pl --mysqld=--binlog-format=row && \
-	./mysql-test-run.pl --ps-protocol --mysqld=--binlog-format=row
+	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=statement
+
+test-nr:
+	cd mysql-test ; \
+	./mysql-test-run.pl $(force) --mysqld=--binlog-format=row
+
+test-pr:
+	cd mysql-test ; \
+	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=row
+
+test-ns:
+	cd mysql-test ; \
+	./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
+
+test:	test-unit test-ns test-pr
+
+test-full:	test test-nr test-ps
 
 test-force:
-	cd mysql-test ; \
-	./mysql-test-run.pl --force --mysqld=--binlog-format=statement && \
-	./mysql-test-run.pl --ps-protocol --force --mysqld=--binlog-format=row
+	$(MAKE) force=--force test
 
 test-force-full:
-	cd mysql-test ; \
-	./mysql-test-run.pl --force --mysqld=--binlog-format=statement && \
-	./mysql-test-run.pl --force --ps-protocol --mysqld=--binlog-format=statement && \
-	./mysql-test-run.pl --force --mysqld=--binlog-format=row && \
-	./mysql-test-run.pl --force --ps-protocol --mysqld=--binlog-format=row
+	$(MAKE) force=--force test-full
 
 # Keep these for a while
 test-pl:	test
 test-full-pl:	test-full
 test-force-pl:	test-force
 test-force-full-pl: test-force-full
-
-
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

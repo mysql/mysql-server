@@ -360,24 +360,28 @@ description takes less than 1 byte; a descriptor page is repeated every
 this many file pages */
 #define XDES_DESCRIBED_PER_PAGE		UNIV_PAGE_SIZE
 
-/* The space low address page map, and also offsets for extent descriptor and
-bitmap pages which are repeated always after XDES_DESCRIBED_PER_PAGE more
-pages: */
+/* The space low address page map */
 /*--------------------------------------*/
-#define FSP_XDES_OFFSET			0
-#define FSP_IBUF_BITMAP_OFFSET		1
+				/* The following two pages are repeated
+				every XDES_DESCRIBED_PER_PAGE pages in
+				every tablespace. */
+#define FSP_XDES_OFFSET			0	/* extent descriptor */
+#define FSP_IBUF_BITMAP_OFFSET		1	/* insert buffer bitmap */
 				/* The ibuf bitmap pages are the ones whose
 				page number is the number above plus a
 				multiple of XDES_DESCRIBED_PER_PAGE */
-#define FSP_FIRST_INODE_PAGE_NO		2
-#define FSP_IBUF_HEADER_PAGE_NO		3
-#define FSP_IBUF_TREE_ROOT_PAGE_NO	4
+
+#define FSP_FIRST_INODE_PAGE_NO		2	/* in every tablespace */
+				/* The following pages exist
+				in the system tablespace (space 0). */
+#define FSP_IBUF_HEADER_PAGE_NO		3	/* in tablespace 0 */
+#define FSP_IBUF_TREE_ROOT_PAGE_NO	4	/* in tablespace 0 */
 				/* The ibuf tree root page number in
 				tablespace 0; its fseg inode is on the page
 				number FSP_FIRST_INODE_PAGE_NO */
-#define FSP_TRX_SYS_PAGE_NO		5
-#define	FSP_FIRST_RSEG_PAGE_NO		6
-#define FSP_DICT_HDR_PAGE_NO		7
+#define FSP_TRX_SYS_PAGE_NO		5	/* in tablespace 0 */
+#define	FSP_FIRST_RSEG_PAGE_NO		6	/* in tablespace 0 */
+#define FSP_DICT_HDR_PAGE_NO		7	/* in tablespace 0 */
 /*--------------------------------------*/
 
 #ifndef UNIV_NONINL

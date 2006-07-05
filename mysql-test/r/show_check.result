@@ -148,14 +148,12 @@ flush tables;
 show open tables;
 Database	Table	In_use	Name_locked
 mysql	general_log	1	0
-mysql	slow_log	1	0
 create table t1(n int);
 insert into t1 values (1);
 show open tables;
 Database	Table	In_use	Name_locked
-mysql	general_log	1	0
-mysql	slow_log	1	0
 test	t1	0	0
+mysql	general_log	1	0
 drop table t1;
 create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
 show create table t1;
@@ -382,9 +380,9 @@ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	I
 t1	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t2	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 t3	MEMORY	10	Fixed	4	#	#	#	#	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
-delete from t1;
-delete from t2;
-delete from t3;
+truncate table t1;
+truncate table t2;
+truncate table t3;
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
@@ -568,23 +566,21 @@ SELECT 1 FROM mysql.db, mysql.proc, mysql.user, mysql.time_zone, mysql.time_zone
 1
 SHOW OPEN TABLES;
 Database	Table	In_use	Name_locked
-mysql	proc	0	0
+mysql	db	0	0
 test	urkunde	0	0
 mysql	time_zone	0	0
-mysql	db	0	0
-test	txt1	0	0
-mysql	slow_log	1	0
-test	tyt2	0	0
 mysql	general_log	1	0
+test	txt1	0	0
+mysql	proc	0	0
+test	tyt2	0	0
 mysql	user	0	0
 mysql	time_zone_name	0	0
 SHOW OPEN TABLES FROM mysql;
 Database	Table	In_use	Name_locked
-mysql	proc	0	0
-mysql	time_zone	0	0
 mysql	db	0	0
-mysql	slow_log	1	0
+mysql	time_zone	0	0
 mysql	general_log	1	0
+mysql	proc	0	0
 mysql	user	0	0
 mysql	time_zone_name	0	0
 SHOW OPEN TABLES FROM mysql LIKE 'u%';
@@ -598,16 +594,14 @@ test	tyt2	0	0
 mysql	time_zone_name	0	0
 SHOW OPEN TABLES LIKE '%o%';
 Database	Table	In_use	Name_locked
-mysql	proc	0	0
 mysql	time_zone	0	0
-mysql	slow_log	1	0
 mysql	general_log	1	0
+mysql	proc	0	0
 mysql	time_zone_name	0	0
 FLUSH TABLES;
 SHOW OPEN TABLES;
 Database	Table	In_use	Name_locked
 mysql	general_log	1	0
-mysql	slow_log	1	0
 DROP TABLE txt1;
 DROP TABLE tyt2;
 DROP TABLE urkunde;
@@ -629,4 +623,10 @@ delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';
 flush privileges;
 drop database mysqltest;
+show full plugin;
+show warnings;
+Level	Code	Message
+Warning	1541	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 5.2. Please use 'SHOW PLUGINS' instead.
+show plugin;
+show plugins;
 End of 5.1 tests

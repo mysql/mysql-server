@@ -77,6 +77,7 @@ public:
   enum ErrorCode {
     NoError = 0,
     Busy = 701,
+    BusyWithNR = 711,
     NotMaster = 702,
     InvalidFormat = 703,
     AttributeNameTooLong = 704,

@@ -82,7 +82,7 @@ memory is read outside the allocated blocks. */
 
 /* Make a non-inline debug version */
 
-/*
+#if 0
 #define UNIV_DEBUG
 #define UNIV_MEM_DEBUG
 #define UNIV_IBUF_DEBUG
@@ -90,8 +90,10 @@ memory is read outside the allocated blocks. */
 #define UNIV_SEARCH_DEBUG
 #define UNIV_SYNC_PERF_STAT
 #define UNIV_SEARCH_PERF_STAT
-#define UNIV_SRV_PRINT_LATCH_WAITS;
-*/
+#define UNIV_SRV_PRINT_LATCH_WAITS
+#endif
+
+#define UNIV_BTR_DEBUG
 #define UNIV_LIGHT_MEM_DEBUG
 
 #define YYDEBUG			1

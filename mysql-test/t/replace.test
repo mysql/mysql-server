@@ -35,3 +35,13 @@ select * from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug#19789: REPLACE was allowed for a VIEW with CHECK OPTION enabled.
+#
+CREATE TABLE t1 (f1 INT);
+CREATE VIEW v1 AS SELECT f1 FROM t1 WHERE f1 = 0 WITH CHECK OPTION;
+--error 1369
+REPLACE INTO v1 (f1) VALUES (1);
+DROP TABLE t1;
+DROP VIEW v1;

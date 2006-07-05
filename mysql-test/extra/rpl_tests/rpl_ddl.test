@@ -228,15 +228,11 @@ let $my_master_commit= true;
 let $my_slave_commit= true;
 --source include/rpl_stmt_seq.inc
 SELECT * FROM mysqltest1.t7;
-connection slave;
---disable_query_log
-SELECT '-------- switch to slave --------' as "";
---enable_query_log
+--echo -------- switch to slave --------
+sync_slave_with_master;
 SELECT * FROM mysqltest1.t7;
+--echo -------- switch to master -------
 connection master;
---disable_query_log
-SELECT '-------- switch to master -------' as "";
---enable_query_log
 
 ###############################################################
 # Cases with LOCK/UNLOCK

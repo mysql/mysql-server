@@ -50,6 +50,22 @@ Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 unlock tables;
 drop table t1;
+use mysql;
+LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
+FLUSH TABLES;
+use mysql;
+ SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
+OPTIMIZE TABLES columns_priv, db, host, user;
+Table	Op	Msg_type	Msg_text
+mysql.columns_priv	optimize	status	OK
+mysql.db	optimize	status	OK
+mysql.host	optimize	status	OK
+mysql.user	optimize	status	OK
+UNLOCK TABLES;
+Select_priv
+N
+use test;
+use test;
 CREATE DATABASE mysqltest_1;
 FLUSH TABLES WITH READ LOCK;
  DROP DATABASE mysqltest_1;
@@ -58,6 +74,12 @@ ERROR HY000: Can't execute the query because you have a conflicting read lock
 UNLOCK TABLES;
 DROP DATABASE mysqltest_1;
 ERROR HY000: Can't drop database 'mysqltest_1'; database doesn't exist
+create table t1 (f1 int(12) unsigned not null auto_increment, primary key(f1)) engine=innodb;
+lock tables t1 write;
+ alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+ alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
+unlock tables;
+drop table t1;
 use mysql;
 LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
 FLUSH TABLES;

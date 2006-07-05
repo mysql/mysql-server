@@ -4,10 +4,17 @@
 
 --disable_warnings
 connection server2;
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 connection server1;
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 --enable_warnings
+
+# Dummy table create/drop to avoid a race where table is created
+# before event subscription is set up, causing test failure (BUG#20677).
+connection server2;
+CREATE TABLE t3 (dummy INT PRIMARY KEY) ENGINE = NDB;
+connection server1;
+DROP TABLE t3;
 
 # reset for test
 connection server1;

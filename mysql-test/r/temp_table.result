@@ -98,7 +98,7 @@ d
 show status like "created_tmp%tables";
 Variable_name	Value
 Created_tmp_disk_tables	0
-Created_tmp_tables	2
+Created_tmp_tables	1
 drop table t1;
 create temporary table v1 as select 'This is temp. table' A;
 create view v1 as select 'This is view' A;

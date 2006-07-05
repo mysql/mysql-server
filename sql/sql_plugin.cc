@@ -23,7 +23,7 @@ extern struct st_mysql_plugin *mysqld_builtins[];
 
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
-LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
+const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   { (char *)STRING_WITH_LEN("UDF") },
   { (char *)STRING_WITH_LEN("STORAGE ENGINE") },
@@ -63,7 +63,7 @@ static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
 static rw_lock_t THR_LOCK_plugin;
 static bool initialized= 0;
 
-static struct st_plugin_dl *plugin_dl_find(LEX_STRING *dl)
+static struct st_plugin_dl *plugin_dl_find(const LEX_STRING *dl)
 {
   uint i;
   DBUG_ENTER("plugin_dl_find");
@@ -112,7 +112,7 @@ static inline void free_plugin_mem(struct st_plugin_dl *p)
     my_free((gptr)p->plugins, MYF(MY_ALLOW_ZERO_PTR));
 }
 
-static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
+static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 {
 #ifdef HAVE_DLOPEN
   char dlpath[FN_REFLEN];
@@ -294,7 +294,7 @@ static st_plugin_dl *plugin_dl_add(LEX_STRING *dl, int report)
 }
 
 
-static void plugin_dl_del(LEX_STRING *dl)
+static void plugin_dl_del(const LEX_STRING *dl)
 {
 #ifdef HAVE_DLOPEN
   uint i;
@@ -322,7 +322,7 @@ static void plugin_dl_del(LEX_STRING *dl)
 }
 
 
-static struct st_plugin_int *plugin_find_internal(LEX_STRING *name, int type)
+static struct st_plugin_int *plugin_find_internal(const LEX_STRING *name, int type)
 {
   uint i;
   DBUG_ENTER("plugin_find_internal");
@@ -345,7 +345,7 @@ static struct st_plugin_int *plugin_find_internal(LEX_STRING *name, int type)
 }
 
 
-my_bool plugin_is_ready(LEX_STRING *name, int type)
+my_bool plugin_is_ready(const LEX_STRING *name, int type)
 {
   my_bool rc= FALSE;
   struct st_plugin_int *plugin;
@@ -359,7 +359,7 @@ my_bool plugin_is_ready(LEX_STRING *name, int type)
 }
 
 
-struct st_plugin_int *plugin_lock(LEX_STRING *name, int type)
+struct st_plugin_int *plugin_lock(const LEX_STRING *name, int type)
 {
   struct st_plugin_int *rc;
   DBUG_ENTER("plugin_lock");
@@ -396,7 +396,7 @@ static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
                               struct st_plugin_int *));
 }
 
-static my_bool plugin_add(LEX_STRING *name, LEX_STRING *dl, int report)
+static my_bool plugin_add(const LEX_STRING *name, const LEX_STRING *dl, int report)
 {
   struct st_plugin_int tmp;
   struct st_mysql_plugin *plugin;
@@ -479,7 +479,7 @@ err:
 }
 
 
-static void plugin_del(LEX_STRING *name)
+static void plugin_del(const LEX_STRING *name)
 {
   uint i;
   struct st_plugin_int *plugin;
@@ -811,7 +811,7 @@ void plugin_free(void)
 }
 
 
-my_bool mysql_install_plugin(THD *thd, LEX_STRING *name, LEX_STRING *dl)
+my_bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl)
 {
   TABLE_LIST tables;
   TABLE *table;
@@ -866,7 +866,7 @@ err:
 }
 
 
-my_bool mysql_uninstall_plugin(THD *thd, LEX_STRING *name)
+my_bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 {
   TABLE *table;
   TABLE_LIST tables;

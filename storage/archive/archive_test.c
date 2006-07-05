@@ -4,7 +4,7 @@
 #define TEST_STRING "This is a test"
 #define BUFFER_LEN 1024
 
-int main(int argc, char *argv[])
+int main(int argc __attribute__((unused)), char *argv[])
 {
   int ret;
   azio_stream foo, foo1;

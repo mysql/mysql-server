@@ -73,7 +73,7 @@
   run_lock protects all information about the run state: slave_running, and the
   existence of the I/O thread (to stop/start it, you need this mutex).
   data_lock protects some moving members of the struct: counters (log name,
-  position) and relay log (MYSQL_LOG object).
+  position) and relay log (MYSQL_BIN_LOG object).
 
   In RELAY_LOG_INFO: run_lock, data_lock
   see MASTER_INFO
@@ -81,7 +81,7 @@
   Order of acquisition: if you want to have LOCK_active_mi and a run_lock, you
   must acquire LOCK_active_mi first.
 
-  In MYSQL_LOG: LOCK_log, LOCK_index of the binlog and the relay log
+  In MYSQL_BIN_LOG: LOCK_log, LOCK_index of the binlog and the relay log
   LOCK_log: when you write to it. LOCK_index: when you create/delete a binlog
   (so that you have to update the .index file).
 */

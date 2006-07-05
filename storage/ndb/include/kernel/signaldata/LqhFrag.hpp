@@ -106,7 +106,7 @@ class LqhFragReq {
   friend bool printLQH_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 20 );
+  STATIC_CONST( SignalLength = 24 );
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -123,7 +123,7 @@ private:
   Uint32 kValue;
   Uint32 schemaVersion;
   Uint32 nextLCP;
-  Uint32 noOfNewAttr;           // noOfCharsets in upper half
+  Uint32 noOfCharsets;
   Uint32 startGci;
   Uint32 tableType;             // DictTabInfo::TableType
   Uint32 primaryTableId;        // table of index or RNIL
@@ -140,6 +140,10 @@ private:
   Uint8 checksumIndicator;
   Uint8 GCPIndicator;
   Uint32 logPartId;
+  Uint32 maxRowsLow;
+  Uint32 maxRowsHigh;
+  Uint32 minRowsLow;
+  Uint32 minRowsHigh;
 };
 
 class LqhFragConf {

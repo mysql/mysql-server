@@ -106,8 +106,8 @@ public:
   SEL_ARG(Field *field, uint8 part, char *min_value, char *max_value,
 	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
   SEL_ARG(enum Type type_arg)
-    :elements(1),use_count(1),left(0),next_key_part(0),color(BLACK),
-     type(type_arg)
+    :min_flag(0),elements(1),use_count(1),left(0),next_key_part(0),
+    color(BLACK), type(type_arg)
   {}
   inline bool is_same(SEL_ARG *arg)
   {
@@ -5164,8 +5164,8 @@ get_mm_parts(RANGE_OPT_PARAM *param, COND *cond_func, Field *field,
 
 
 static SEL_ARG *
-get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field, KEY_PART *key_part,
-	    Item_func::Functype type,Item *value)
+get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
+            KEY_PART *key_part, Item_func::Functype type,Item *value)
 {
   uint maybe_null=(uint) field->real_maybe_null();
   bool optimize_range;
@@ -9126,10 +9126,10 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
 
     uint field_length= cur_part->store_length;
     if ((cur_range->maybe_null &&
-         cur_range->min_value[0] && cur_range->max_value[0])
-        ||
-        (memcmp(cur_range->min_value, cur_range->max_value, field_length) == 0))
-    { /* cur_range specifies 'IS NULL' or an equality condition. */
+         cur_range->min_value[0] && cur_range->max_value[0]) ||
+        !memcmp(cur_range->min_value, cur_range->max_value, field_length))
+    {
+      /* cur_range specifies 'IS NULL' or an equality condition. */
       memcpy(key_ptr, cur_range->min_value, field_length);
       key_ptr+= field_length;
       *key_infix_len+= field_length;

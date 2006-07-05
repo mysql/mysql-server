@@ -836,27 +836,27 @@ count(*)
 26
 show status like 'Slow_queries';
 Variable_name	Value
-Slow_queries	1
+Slow_queries	0
 select count(*) from t1 where b=13;
 count(*)
 10
 show status like 'Slow_queries';
 Variable_name	Value
-Slow_queries	3
+Slow_queries	1
 select count(*) from t1 where b=13 union select count(*) from t1 where a=7;
 count(*)
 10
 26
 show status like 'Slow_queries';
 Variable_name	Value
-Slow_queries	5
+Slow_queries	2
 select count(*) from t1 where a=7 union select count(*) from t1 where b=13;
 count(*)
 26
 10
 show status like 'Slow_queries';
 Variable_name	Value
-Slow_queries	7
+Slow_queries	3
 flush status;
 select a from t1 where b not in (1,2,3) union select a from t1 where b not in (4,5,6);
 a
@@ -1306,3 +1306,48 @@ id
 5
 99
 drop table t1;
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1)) union
+(select avg(1)) union (select avg(1)) union (select avg(1));
+avg(1)
+NULL

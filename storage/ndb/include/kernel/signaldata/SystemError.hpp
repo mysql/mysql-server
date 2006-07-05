@@ -45,7 +45,8 @@ public:
     CopyFragRefError = 5,
     TestStopOnError = 6,
     CopySubscriptionRef = 7,
-    CopySubscriberRef = 8
+    CopySubscriberRef = 8,
+    StartFragRefError = 9
   };
   
   Uint32 errorRef;

@@ -116,6 +116,8 @@
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 #define HA_NO_COPY_ON_ALTER    (LL(1) << 31)
 #define HA_HAS_RECORDS	       (LL(1) << 32) /* records() gives exact count*/
+/* Has it's own method of binlog logging */
+#define HA_HAS_OWN_BINLOGGING  (LL(1) << 33)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -216,11 +218,6 @@
 #define HA_BLOCK_LOCK		256	/* unlock when reading some records */
 #define HA_OPEN_TEMPORARY	512
 
-	/* Errors on write which is recoverable  (Key exist) */
-#define HA_WRITE_SKIP 121		/* Duplicate key on write */
-#define HA_READ_CHECK 123		/* Update with is recoverable */
-#define HA_CANT_DO_THAT 131		/* Databasehandler can't do it */
-
 	/* Some key definitions */
 #define HA_KEY_NULL_LENGTH	1
 #define HA_KEY_BLOB_LENGTH	2
@@ -239,6 +236,11 @@
 
 /* Options of START TRANSACTION statement (and later of SET TRANSACTION stmt) */
 #define MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT 1
+
+/* Flags for method is_fatal_error */
+#define HA_CHECK_DUP_KEY 1
+#define HA_CHECK_DUP_UNIQUE 2
+#define HA_CHECK_DUP (HA_CHECK_DUP_KEY + HA_CHECK_DUP_UNIQUE)
 
 enum legacy_db_type
 {
@@ -667,10 +669,6 @@ struct handlerton
                         struct handler_iterator *fill_this_in);
 };
 
-struct show_table_alias_st {
-  const char *alias;
-  enum legacy_db_type type;
-};
 
 /* Possible flags of a handlerton */
 #define HTON_NO_FLAGS                 0
@@ -974,7 +972,27 @@ public:
   bool has_transactions()
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
   virtual uint extra_rec_buf_length() const { return 0; }
-  
+
+  /*
+    This method is used to analyse the error to see whether the error
+    is ignorable or not, certain handlers can have more error that are
+    ignorable than others. E.g. the partition handler can get inserts
+    into a range where there is no partition and this is an ignorable
+    error.
+    HA_ERR_FOUND_DUP_UNIQUE is a special case in MyISAM that means the
+    same thing as HA_ERR_FOUND_DUP_KEY but can in some cases lead to
+    a slightly different error message.
+  */
+  virtual bool is_fatal_error(int error, uint flags)
+  {
+    if (!error ||
+        ((flags & HA_CHECK_DUP_KEY) &&
+         (error == HA_ERR_FOUND_DUPP_KEY ||
+          error == HA_ERR_FOUND_DUPP_UNIQUE)))
+      return FALSE;
+    return TRUE;
+  }
+
   /*
     Number of rows in table. It will only be called if
     (table_flags() & (HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT)) != 0
@@ -1026,7 +1044,7 @@ public:
     DBUG_RETURN(rnd_end());
   }
   int ha_reset();
-    
+
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
   {
@@ -1056,12 +1074,6 @@ public:
   int ha_write_row(byte * buf);
   int ha_update_row(const byte * old_data, byte * new_data);
   int ha_delete_row(const byte * buf);
-
-  /*
-    If the handler does it's own injection of the rows, this member function
-    should return 'true'.
-  */
-  virtual bool is_injective() const { return false; }
 
   /*
     SYNOPSIS
@@ -1343,7 +1355,7 @@ public:
   virtual const char *table_type() const =0;
   virtual const char **bas_ext() const =0;
 
-  virtual int get_default_no_partitions(ulonglong max_rows) { return 1;}
+  virtual int get_default_no_partitions(HA_CREATE_INFO *info) { return 1;}
   virtual void set_auto_partitions(partition_info *part_info) { return; }
   virtual bool get_no_parts(const char *name,
                             uint *no_parts)
@@ -1545,7 +1557,8 @@ extern ulong total_ha, total_ha_2pc;
 #define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
 /* lookups */
-handlerton *ha_resolve_by_name(THD *thd, LEX_STRING *name);
+handlerton *ha_default_handlerton(THD *thd);
+handlerton *ha_resolve_by_name(THD *thd, const LEX_STRING *name);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
 const char *ha_get_storage_engine(enum legacy_db_type db_type);
 handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
@@ -1653,10 +1666,10 @@ void ha_binlog_log_query(THD *thd, const handlerton *db_type,
 void ha_binlog_wait(THD *thd);
 int ha_binlog_end(THD *thd);
 #else
-#define ha_reset_logs(a) 0
-#define ha_binlog_index_purge_file(a,b) 0
-#define ha_reset_slave(a)
-#define ha_binlog_log_query(a,b,c,d,e,f,g);
-#define ha_binlog_wait(a)
-#define ha_binlog_end(a) 0
+#define ha_reset_logs(a) do {} while (0)
+#define ha_binlog_index_purge_file(a,b) do {} while (0)
+#define ha_reset_slave(a) do {} while (0)
+#define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
+#define ha_binlog_wait(a) do {} while (0)
+#define ha_binlog_end(a)  do {} while (0)
 #endif
