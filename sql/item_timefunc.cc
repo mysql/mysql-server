@@ -30,25 +30,6 @@
 /* Day number for Dec 31st, 9999 */
 #define MAX_DAY_NUMBER 3652424L
 
-static const char *month_names[]=
-{
-  "January", "February", "March", "April", "May", "June", "July", "August",
-  "September", "October", "November", "December", NullS
-};
-
-TYPELIB month_names_typelib=
-{ array_elements(month_names)-1,"", month_names, NULL };
-
-static const char *day_names[]=
-{
-  "Monday", "Tuesday", "Wednesday",
-  "Thursday", "Friday", "Saturday" ,"Sunday", NullS
-};
-
-TYPELIB day_names_typelib=
-{ array_elements(day_names)-1,"", day_names, NULL};
-
-
 /*
   OPTIMIZATION TODO:
    - Replace the switch with a function that should be called for each
@@ -222,8 +203,12 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	val= tmp;
 	break;
       case 'M':
+	if ((l_time->month= check_word(my_locale_en_US.month_names,
+				       val, val_end, &val)) <= 0)
+	  goto err;
+	break;
       case 'b':
-	if ((l_time->month= check_word(&month_names_typelib,
+	if ((l_time->month= check_word(my_locale_en_US.ab_month_names,
 				       val, val_end, &val)) <= 0)
 	  goto err;
 	break;
@@ -298,8 +283,11 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 
 	/* Exotic things */
       case 'W':
+	if ((weekday= check_word(my_locale_en_US.day_names, val, val_end, &val)) <= 0)
+	  goto err;
+	break;
       case 'a':
-	if ((weekday= check_word(&day_names_typelib, val, val_end, &val)) <= 0)
+	if ((weekday= check_word(my_locale_en_US.ab_day_names, val, val_end, &val)) <= 0)
 	  goto err;
 	break;
       case 'w':
@@ -489,9 +477,15 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
   uint weekday;
   ulong length;
   const char *ptr, *end;
+  MY_LOCALE *locale;
+  THD *thd= current_thd;
+  char buf[128]; 
+  String tmp(buf, thd->variables.character_set_results);
+  uint errors= 0;
 
   str->length(0);
   str->set_charset(&my_charset_bin);
+  locale = thd->variables.lc_time_names;
 
   if (l_time->neg)
     str->append("-", 1);
@@ -507,26 +501,38 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
       case 'M':
 	if (!l_time->month)
 	  return 1;
-	str->append(month_names[l_time->month-1]);
+	tmp.copy(locale->month_names->type_names[l_time->month-1],
+		   strlen(locale->month_names->type_names[l_time->month-1]),
+		   system_charset_info, tmp.charset(), &errors);
+	str->append(tmp.ptr(), tmp.length());
 	break;
       case 'b':
 	if (!l_time->month)
 	  return 1;
-	str->append(month_names[l_time->month-1],3);
+	tmp.copy(locale->ab_month_names->type_names[l_time->month-1],
+		 strlen(locale->ab_month_names->type_names[l_time->month-1]),
+		 system_charset_info, tmp.charset(), &errors);
+	str->append(tmp.ptr(), tmp.length());
 	break;
       case 'W':
 	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	weekday= calc_weekday(calc_daynr(l_time->year,l_time->month,
 					 l_time->day),0);
-	str->append(day_names[weekday]);
+	tmp.copy(locale->day_names->type_names[weekday],
+		 strlen(locale->day_names->type_names[weekday]),
+		 system_charset_info, tmp.charset(), &errors);
+	str->append(tmp.ptr(), tmp.length());
 	break;
       case 'a':
 	if (type == MYSQL_TIMESTAMP_TIME)
 	  return 1;
 	weekday=calc_weekday(calc_daynr(l_time->year,l_time->month,
 					l_time->day),0);
-	str->append(day_names[weekday],3);
+	tmp.copy(locale->ab_day_names->type_names[weekday],
+		 strlen(locale->ab_day_names->type_names[weekday]),
+		 system_charset_info, tmp.charset(), &errors);
+	str->append(tmp.ptr(), tmp.length());
 	break;
       case 'D':
 	if (type == MYSQL_TIMESTAMP_TIME)
@@ -908,6 +914,7 @@ String* Item_func_monthname::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   const char *month_name;
   uint   month= (uint) val_int();
+  THD *thd= current_thd;
 
   if (null_value || !month)
   {
@@ -915,7 +922,7 @@ String* Item_func_monthname::val_str(String* str)
     return (String*) 0;
   }
   null_value=0;
-  month_name= month_names[month-1];
+  month_name= thd->variables.lc_time_names->month_names->type_names[month-1];
   str->set(month_name, strlen(month_name), system_charset_info);
   return str;
 }
@@ -1039,11 +1046,12 @@ String* Item_func_dayname::val_str(String* str)
   DBUG_ASSERT(fixed == 1);
   uint weekday=(uint) val_int();		// Always Item_func_daynr()
   const char *name;
+  THD *thd= current_thd;
 
   if (null_value)
     return (String*) 0;
   
-  name= day_names[weekday];
+  name= thd->variables.lc_time_names->day_names->type_names[weekday];
   str->set(name, strlen(name), system_charset_info);
   return str;
 }
@@ -1572,7 +1580,7 @@ uint Item_func_date_format::format_length(const String *format)
       switch(*++ptr) {
       case 'M': /* month, textual */
       case 'W': /* day (of the week), textual */
-	size += 9;
+	size += 64; /* large for UTF8 locale data */
 	break;
       case 'D': /* day (of the month), numeric plus english suffix */
       case 'Y': /* year, numeric, 4 digits */
@@ -1582,6 +1590,8 @@ uint Item_func_date_format::format_length(const String *format)
 	break;
       case 'a': /* locale's abbreviated weekday name (Sun..Sat) */
       case 'b': /* locale's abbreviated month name (Jan.Dec) */
+	size += 32; /* large for UTF8 locale data */
+	break;
       case 'j': /* day of year (001..366) */
 	size += 3;
 	break;
