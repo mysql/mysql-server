@@ -2717,6 +2717,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
                       bool is_trans, bool suppress_use)
 {
   DBUG_ENTER("THD::binlog_query");
+  DBUG_PRINT("enter", ("qtype=%d, query='%s'", qtype, query));
   DBUG_ASSERT(query && mysql_bin_log.is_open());
 
   switch (qtype) {
