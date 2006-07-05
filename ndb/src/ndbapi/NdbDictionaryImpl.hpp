@@ -208,55 +208,6 @@ public:
   NdbDictionary::Index * m_facade;
 };
 
-class NdbEventImpl : public NdbDictionary::Event, public NdbDictObjectImpl {
-public:
-  NdbEventImpl();
-  NdbEventImpl(NdbDictionary::Event &);
-  ~NdbEventImpl();
-
-  void init();
-  void setName(const char * name);
-  const char * getName() const;
-  void setTable(const NdbDictionary::Table& table);
-  void setTable(const char * table);
-  const char * getTableName() const;
-  void addTableEvent(const NdbDictionary::Event::TableEvent t);
-  void setDurability(NdbDictionary::Event::EventDurability d);
-  NdbDictionary::Event::EventDurability  getDurability() const;
-  void addEventColumn(const NdbColumnImpl &c);
-  int getNoOfEventColumns() const;
-
-  void print() {
-    ndbout_c("NdbEventImpl: id=%d, key=%d",
-	     m_eventId,
-	     m_eventKey);
-  };
-
-  Uint32 m_eventId;
-  Uint32 m_eventKey;
-  Uint32 m_tableId;
-  AttributeMask m_attrListBitmask;
-  //BaseString m_internalName;
-  BaseString m_externalName;
-  Uint32 mi_type;
-  NdbDictionary::Event::EventDurability m_dur;
-
-
-  NdbTableImpl *m_tableImpl;
-  BaseString m_tableName;
-  Vector<NdbColumnImpl *> m_columns;
-  Vector<unsigned> m_attrIds;
-
-  int m_bufferId;
-
-  NdbEventOperation *eventOp;
-
-  static NdbEventImpl & getImpl(NdbDictionary::Event & t);
-  static NdbEventImpl & getImpl(const NdbDictionary::Event & t);
-  NdbDictionary::Event * m_facade;
-};
-
-
 class NdbDictInterface {
 public:
   NdbDictInterface(NdbError& err) : m_error(err) {
@@ -294,24 +245,12 @@ public:
 		  const NdbTableImpl &);
   int createIndex(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
   
-  int createEvent(class Ndb & ndb, NdbEventImpl &, int getFlag);
-  int createEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
-  
   int dropTable(const NdbTableImpl &);
   int dropTable(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
 
   int dropIndex(const NdbIndexImpl &, const NdbTableImpl &);
   int dropIndex(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
 
-  int dropEvent(const NdbEventImpl &);
-  int dropEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3], int noLSP);
-
-  int executeSubscribeEvent(class Ndb & ndb, NdbEventImpl &);
-  int executeSubscribeEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
-  
-  int stopSubscribeEvent(class Ndb & ndb, NdbEventImpl &);
-  int stopSubscribeEvent(NdbApiSignal* signal, LinearSectionPtr ptr[3]);
-  
   int listObjects(NdbDictionary::Dictionary::List& list, Uint32 requestData, bool fullyQualifiedNames);
   int listObjects(NdbApiSignal* signal);
   
@@ -357,17 +296,6 @@ private:
   void execDROP_INDX_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execDROP_INDX_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
 
-  void execCREATE_EVNT_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execCREATE_EVNT_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execSUB_START_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execSUB_START_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execSUB_TABLE_DATA(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execSUB_GCP_COMPLETE_REP(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execSUB_STOP_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execSUB_STOP_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execDROP_EVNT_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-  void execDROP_EVNT_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
-
   void execDROP_TABLE_REF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execDROP_TABLE_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
   void execLIST_TABLES_CONF(NdbApiSignal *, LinearSectionPtr ptr[3]);
@@ -402,12 +330,6 @@ public:
   NdbTableImpl * getIndexTable(NdbIndexImpl * index, 
 			       NdbTableImpl * table);
 
-  int createEvent(NdbEventImpl &);
-  int dropEvent(const char * eventName);
-
-  int executeSubscribeEvent(NdbEventImpl &);
-  int stopSubscribeEvent(NdbEventImpl &);
-
   int listObjects(List& list, NdbDictionary::Object::Type type);
   int listIndexes(List& list, Uint32 indexId);
 
@@ -418,8 +340,6 @@ public:
 			  const char * tableName);
   NdbIndexImpl * getIndex(const char * indexName,
 			  NdbTableImpl * table);
-  NdbEventImpl * getEvent(const char * eventName);
-  NdbEventImpl * getEventImpl(const char * internalName);
   
   const NdbError & getNdbError() const;
   NdbError m_error;
@@ -439,18 +359,6 @@ private:
                               const BaseString& internalName);
   Ndb_local_table_info * fetchGlobalTableImpl(const BaseString& internalName);
 };
-
-inline
-NdbEventImpl &
-NdbEventImpl::getImpl(const NdbDictionary::Event & t){
-  return t.m_impl;
-}
-
-inline
-NdbEventImpl &
-NdbEventImpl::getImpl(NdbDictionary::Event & t){
-  return t.m_impl;
-}
 
 inline
 NdbColumnImpl &

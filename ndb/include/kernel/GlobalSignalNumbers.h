@@ -731,9 +731,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SUB_CREATE_REQ              576
 #define GSN_SUB_CREATE_REF              577
 #define GSN_SUB_CREATE_CONF             578
+/*
 #define GSN_SUB_START_REQ               579
 #define GSN_SUB_START_REF               580
 #define GSN_SUB_START_CONF              581
+*/
 #define GSN_SUB_SYNC_REQ                582
 #define GSN_SUB_SYNC_REF                583
 #define GSN_SUB_SYNC_CONF               584
@@ -899,10 +901,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /**
  * SUMA restart protocol
  */
+/*
 #define GSN_SUMA_START_ME               691
 #define GSN_SUMA_HANDOVER_REQ           692
 #define GSN_SUMA_HANDOVER_CONF          693
-
+*/
 /* not used                             694 */
 /* not used                             695 */
 /* not used                             696 */
@@ -919,6 +922,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /*
  * EVENT Signals
  */
+/*
 #define GSN_SUB_GCP_COMPLETE_ACC        699
 
 #define GSN_CREATE_EVNT_REQ             700
@@ -928,7 +932,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_EVNT_REQ               703
 #define GSN_DROP_EVNT_CONF              704
 #define GSN_DROP_EVNT_REF               705
-
+*/
 #define GSN_TUX_BOUND_INFO		710
 
 #define GSN_ACC_LOCKREQ			711

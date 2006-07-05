@@ -34,10 +34,6 @@
 #include "NdbUtil.hpp"
 #include <NdbBlob.hpp>
 
-class NdbGlobalEventBufferHandle;
-NdbGlobalEventBufferHandle *NdbGlobalEventBuffer_init(int);
-void NdbGlobalEventBuffer_drop(NdbGlobalEventBufferHandle *);
-
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
 	  const char* aDataBase , const char* aSchema)
   : theImpl(NULL)
@@ -107,16 +103,6 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   if (theInitState == NotConstructed)
     theInitState = NotInitialised;
 
-  {
-    NdbGlobalEventBufferHandle *h=
-      NdbGlobalEventBuffer_init(NDB_MAX_ACTIVE_EVENTS);
-    if (h == NULL) {
-      ndbout_c("Failed NdbGlobalEventBuffer_init(%d)",NDB_MAX_ACTIVE_EVENTS);
-      exit(-1);
-    }
-    theGlobalEventBufferHandle = h;
-  }
-
   DBUG_VOID_RETURN;
 }
 
@@ -131,8 +117,6 @@ Ndb::~Ndb()
   DBUG_ENTER("Ndb::~Ndb()");
   DBUG_PRINT("enter",("Ndb::~Ndb this=0x%x",this));
   doDisconnect();
-
-  NdbGlobalEventBuffer_drop(theGlobalEventBufferHandle);
 
   if (TransporterFacade::instance() != NULL && theNdbBlockNumber > 0){
     TransporterFacade::instance()->close(theNdbBlockNumber, theFirstTransId);
