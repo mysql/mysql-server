@@ -66,7 +66,6 @@ static void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 #endif
 static void decrease_user_connections(USER_CONN *uc);
-static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd);
 static void remove_escape(char *name);
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
@@ -1362,7 +1361,21 @@ end:
 }
 
 
-    /* This works because items are allocated with sql_alloc() */
+/* This works because items are allocated with sql_alloc() */
+
+void free_items(Item *item)
+{
+  Item *next;
+  DBUG_ENTER("free_items");
+  for (; item ; item=next)
+  {
+    next=item->next;
+    item->delete_self();
+  }
+  DBUG_VOID_RETURN;
+}
+
+/* This works because items are allocated with sql_alloc() */
 
 void cleanup_items(Item *item)
 {
@@ -2719,8 +2732,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_BACKUP_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-	check_table_access(thd, SELECT_ACL, all_tables, 0) ||
+    if (check_table_access(thd, SELECT_ACL, all_tables, 0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -2732,8 +2744,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_RESTORE_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-	check_table_access(thd, INSERT_ACL, all_tables, 0) ||
+    if (check_table_access(thd, INSERT_ACL, all_tables, 0) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -2745,8 +2756,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-        check_access(thd, INDEX_ACL, first_table->db,
+    if (check_access(thd, INDEX_ACL, first_table->db,
                      &first_table->grant.privilege, 0, 0,
                      test(first_table->schema_table)))
       goto error;
@@ -2756,8 +2766,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_PRELOAD_KEYS:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-	check_access(thd, INDEX_ACL, first_table->db,
+    if (check_access(thd, INDEX_ACL, first_table->db,
                      &first_table->grant.privilege, 0, 0,
                      test(first_table->schema_table)))
       goto error;
@@ -3131,8 +3140,6 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     TABLE_LIST *table;
-    if (check_db_used(thd, all_tables))
-      goto error;
     for (table= first_table; table; table= table->next_local->next_local)
     {
       if (check_access(thd, ALTER_ACL | DROP_ACL, table->db,
@@ -3189,8 +3196,7 @@ end_with_restore_list:
       if (lex->only_view)
         first_table->skip_temporary= 1;
 
-      if (check_db_used(thd, all_tables) ||
-	  check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
+      if (check_access(thd, SELECT_ACL | EXTRA_ACL, first_table->db,
 		       &first_table->grant.privilege, 0, 0, 
                        test(first_table->schema_table)))
 	goto error;
@@ -3203,8 +3209,7 @@ end_with_restore_list:
   case SQLCOM_CHECKSUM:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-	check_table_access(thd, SELECT_ACL | EXTRA_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | EXTRA_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
     res = mysql_checksum_table(thd, first_table, &lex->check_opt);
     break;
@@ -3212,8 +3217,7 @@ end_with_restore_list:
   case SQLCOM_REPAIR:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res= mysql_repair_table(thd, first_table, &lex->check_opt);
@@ -3234,8 +3238,7 @@ end_with_restore_list:
   case SQLCOM_CHECK:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-	check_table_access(thd, SELECT_ACL | EXTRA_ACL , all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | EXTRA_ACL , all_tables, 0))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
@@ -3246,8 +3249,7 @@ end_with_restore_list:
   case SQLCOM_ANALYZE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res= mysql_analyze_table(thd, first_table, &lex->check_opt);
@@ -3269,8 +3271,7 @@ end_with_restore_list:
   case SQLCOM_OPTIMIZE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-	check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
@@ -3690,7 +3691,7 @@ end_with_restore_list:
     break;
   case SQLCOM_LOCK_TABLES:
     unlock_locked_tables(thd);
-    if (check_db_used(thd, all_tables) || end_active_trans(thd))
+    if (end_active_trans(thd))
       goto error;
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables, 0))
       goto error;
@@ -4167,7 +4168,7 @@ end_with_restore_list:
   case SQLCOM_FLUSH:
   {
     bool write_to_binlog;
-    if (check_global_access(thd,RELOAD_ACL) || check_db_used(thd, all_tables))
+    if (check_global_access(thd,RELOAD_ACL))
       goto error;
     /*
       reload_acl_and_cache() will tell us if we are allowed to write to the
@@ -4216,15 +4217,12 @@ end_with_restore_list:
 #endif
   case SQLCOM_HA_OPEN:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables) ||
-	check_table_access(thd, SELECT_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL, all_tables, 0))
       goto error;
     res= mysql_ha_open(thd, first_table, 0);
     break;
   case SQLCOM_HA_CLOSE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_db_used(thd, all_tables))
-      goto error;
     res= mysql_ha_close(thd, first_table);
     break;
   case SQLCOM_HA_READ:
@@ -4234,8 +4232,6 @@ end_with_restore_list:
       if a user has no permissions to read a table, he won't be
       able to open it (with SQLCOM_HA_OPEN) in the first place.
     */
-    if (check_db_used(thd, all_tables))
-      goto error;
     unit->set_limit(select_lex);
     res= mysql_ha_read(thd, first_table, lex->ha_read_mode, lex->ident.str,
                        lex->insert_list, lex->ha_rkey_mode, select_lex->where,
@@ -5733,27 +5729,6 @@ bool check_merge_table_access(THD *thd, char *db,
   return error;
 }
 
-
-static bool check_db_used(THD *thd,TABLE_LIST *tables)
-{
-  char *current_db= NULL;
-  for (; tables; tables= tables->next_global)
-  {
-    if (tables->db == NULL)
-    {
-      /*
-        This code never works and should be removed in 5.1.  All tables
-        that are added to the list of tables should already have its
-        database field initialized properly (see st_lex::add_table_to_list).
-      */
-      DBUG_ASSERT(0);
-      if (thd->copy_db_to(&current_db, 0))
-        return TRUE;
-      tables->db= current_db;
-    }
-  }
-  return FALSE;
-}
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
@@ -7450,8 +7425,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
-  if (check_db_used(thd, tables) || check_db_used(thd,aux_tables) ||
-      check_table_access(thd, SELECT_ACL, tables, 0))
+  if (check_table_access(thd, SELECT_ACL, tables, 0))
     DBUG_RETURN(TRUE);
 
   /*
@@ -7551,8 +7525,7 @@ bool update_precheck(THD *thd, TABLE_LIST *tables)
     my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
     DBUG_RETURN(TRUE);
   }
-  DBUG_RETURN(check_db_used(thd, tables) ||
-	       check_one_table_access(thd, UPDATE_ACL, tables));
+  DBUG_RETURN(check_one_table_access(thd, UPDATE_ACL, tables));
 }
 
 
@@ -7614,8 +7587,6 @@ bool insert_precheck(THD *thd, TABLE_LIST *tables)
     my_message(ER_WRONG_VALUE_COUNT, ER(ER_WRONG_VALUE_COUNT), MYF(0));
     DBUG_RETURN(TRUE);
   }
-  if (check_db_used(thd, tables))
-    DBUG_RETURN(TRUE);
   DBUG_RETURN(FALSE);
 }
 
