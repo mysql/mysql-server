@@ -8058,7 +8058,8 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
                                    org_field->field_name, table->s,
                                    org_field->charset());
   else
-    new_field= org_field->new_field(thd->mem_root, table);
+    new_field= org_field->new_field(thd->mem_root, table,
+                                    table == org_field->table);
   if (new_field)
   {
     new_field->init(table);
@@ -13166,7 +13167,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   saved value
 	*/
 	Field *field= item->field;
-	item->result_field=field->new_field(thd->mem_root,field->table);
+	item->result_field=field->new_field(thd->mem_root,field->table, 1);
 	char *tmp=(char*) sql_alloc(field->pack_length()+1);
 	if (!tmp)
 	  goto err;
