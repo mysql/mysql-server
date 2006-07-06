@@ -143,24 +143,13 @@ Event_timed::init_name(THD *thd, sp_name *spn)
   MEM_ROOT *root= thd->mem_root;
 
   /* We have to copy strings to get them into the right memroot */
-  if (spn)
-  {
-    dbname.length= spn->m_db.length;
-    if (spn->m_db.length == 0)
-      dbname.str= NULL;
-    else
-      dbname.str= strmake_root(root, spn->m_db.str, spn->m_db.length);
-    name.length= spn->m_name.length;
-    name.str= strmake_root(root, spn->m_name.str, spn->m_name.length);
+  dbname.length= spn->m_db.length;
+  dbname.str= strmake_root(root, spn->m_db.str, spn->m_db.length);
+  name.length= spn->m_name.length;
+  name.str= strmake_root(root, spn->m_name.str, spn->m_name.length);
 
-    if (spn->m_qname.length == 0)
-      spn->init_qname(thd);
-  }
-  else if (thd->db)
-  {
-    dbname.length= thd->db_length;
-    dbname.str= strmake_root(root, thd->db, dbname.length);
-  }
+  if (spn->m_qname.length == 0)
+    spn->init_qname(thd);
 
   DBUG_PRINT("dbname", ("len=%d db=%s",dbname.length, dbname.str));
   DBUG_PRINT("name", ("len=%d name=%s",name.length, name.str));
