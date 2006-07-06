@@ -238,6 +238,11 @@ typedef struct st_table_list
   bool		cacheable_table;	/* stop PS caching */
   /* used in multi-upd privelege check */
   bool		table_in_update_from_clause;
+  /*
+    Cleanup for re-execution in a prepared statement or a stored
+    procedure.
+  */
+  void reinit_before_use(THD *thd);
 } TABLE_LIST;
 
 typedef struct st_changed_table_list
