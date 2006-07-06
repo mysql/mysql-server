@@ -154,12 +154,21 @@ call foo2();
 select foo3();
 select * from t1 where a="alarm";
 
-# Test that INSERT DELAYED works in mixed mode
+# Test that INSERT DELAYED works in mixed mode (BUG#20649)
 insert delayed into t2 values("delay_1_");
 insert delayed into t2 values(concat("delay_2_",UUID()));
 insert delayed into t2 values("delay_3_"),(concat("delay_4_",UUID())),("delay_5_");
 insert delayed into t2 values("delay_6_");
-sleep 4; # time for the delayed insert to reach disk
+
+# Test for BUG#20633 (INSERT DELAYED RAND()/user_variable does not
+# replicate fine in statement-based ; we test that in mixed mode it
+# works).
+create table t12 (a int, b float);
+insert delayed into t12 values(1,rand());
+set @a=2.345;
+insert delayed into t12 values(2,@a);
+
+sleep 4; # time for the delayed inserts to reach disk
 
 # If you want to do manual testing of the mixed mode regarding UDFs (not
 # testable automatically as quite platform- and compiler-dependent),
@@ -195,6 +204,7 @@ select count(*) from t2;
 select count(*) from t3;
 select count(*) from t4;
 select count(*) from t5;
+select count(*) from t12;
 if ($you_want_to_test_UDF)
 {
   select count(*) from t6;
