@@ -1025,14 +1025,19 @@ int Ndb::initAutoIncrement()
   setDatabaseName("sys");
   setDatabaseSchemaName("def");
 
-  m_sys_tab_0 = getDictionary()->getTableGlobal("SYSTAB_0");
+  m_sys_tab_0 = theDictionary->getTableGlobal("SYSTAB_0");
 
   // Restore current name space
   setDatabaseName(currentDb.c_str());
   setDatabaseSchemaName(currentSchema.c_str());
 
+  if (m_sys_tab_0 == NULL) {
+    assert(theDictionary->m_error.code != 0);
+    theError.code = theDictionary->m_error.code;
+    return -1;
+  }
 
-  return (m_sys_tab_0 == NULL);
+  return 0;
 }
 
 int
@@ -1043,19 +1048,19 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
   Uint32 aTableId = table->m_id;
   DBUG_PRINT("enter", ("table=%u value=%llu op=%u", aTableId, opValue, op));
 
-  NdbTransaction*     tConnection;
-  NdbOperation*      tOperation= 0; // Compiler warning if not initialized
+  NdbTransaction*    tConnection = NULL;
+  NdbOperation*      tOperation = NULL;
   Uint64             tValue;
   NdbRecAttr*        tRecAttrResult;
 
-  CHECK_STATUS_MACRO_ZERO;
+  CHECK_STATUS_MACRO;
 
-  if (initAutoIncrement())
-    goto error_return;
+  if (initAutoIncrement() == -1)
+    goto error_handler;
 
   tConnection = this->startTransaction();
   if (tConnection == NULL)
-    goto error_return;
+    goto error_handler;
 
   tOperation = tConnection->getNdbOperation(m_sys_tab_0);
   if (tOperation == NULL)
@@ -1065,7 +1070,7 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
     {
     case 0:
       tOperation->interpretedUpdateTuple();
-      tOperation->equal("SYSKEY_0", aTableId );
+      tOperation->equal("SYSKEY_0", aTableId);
       tOperation->incValue("NEXTID", opValue);
       tRecAttrResult = tOperation->getValue("NEXTID");
 
@@ -1130,14 +1135,21 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
 
   DBUG_RETURN(0);
 
-  error_handler:
-    theError.code = tConnection->theError.code;
-    this->closeTransaction(tConnection);
-  error_return:
+error_handler:
   DBUG_PRINT("error", ("ndb=%d con=%d op=%d",
              theError.code,
-             tConnection ? tConnection->theError.code : -1,
-             tOperation ? tOperation->theError.code : -1));
+             tConnection != NULL ? tConnection->theError.code : -1,
+             tOperation != NULL ? tOperation->theError.code : -1));
+
+  if (theError.code == 0 && tConnection != NULL)
+    theError.code = tConnection->theError.code;
+  if (theError.code == 0 && tOperation != NULL)
+    theError.code = tOperation->theError.code;
+  DBUG_ASSERT(theError.code != 0);
+
+  if (tConnection != NULL)
+    this->closeTransaction(tConnection);
+
   DBUG_RETURN(-1);
 }
 

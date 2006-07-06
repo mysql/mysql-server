@@ -1535,11 +1535,19 @@ selecttables()
   uint i;
   for (i = 0; i < maxrun(); i++)
     run(i).skip = false;
+  if (g_opts.opstring != 0) {
+    ll1("using all tables due to fixed ops");
+    return;
+  }
   for (i = 0; i + 1 < maxrun(); i++)
     run(urandom(maxrun())).skip = true;
   uint cnt = 0;
-  for (i = 0; i < maxrun(); i++)
-    cnt += ! run(i).skip;
+  for (i = 0; i < maxrun(); i++) {
+    if (! run(i).skip) {
+      ll2("use table " << run(i).tabname);
+      cnt++;
+    }
+  }
   ll1("use " << cnt << "/" << maxrun() << " tables in this loop");
 }
 

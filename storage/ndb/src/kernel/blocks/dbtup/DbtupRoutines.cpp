@@ -1135,13 +1135,20 @@ Dbtup::read_pseudo(Uint32 attrId,
   case AttributeHeader::FRAGMENT:
     * outBuffer = fragptr.p->fragmentId;
     return 1;
-  case AttributeHeader::FRAGMENT_MEMORY:
-    {
-      Uint64 tmp= fragptr.p->noOfPages;
-      tmp*= 32768;
-      memcpy(outBuffer,&tmp,8);
-    }
-    return 2;
+  case AttributeHeader::FRAGMENT_FIXED_MEMORY:
+  {
+    Uint64 tmp= fragptr.p->noOfPages;
+    tmp*= 32768;
+    memcpy(outBuffer,&tmp,8);
+  }
+  return 2;
+  case AttributeHeader::FRAGMENT_VARSIZED_MEMORY:
+  {
+    Uint64 tmp= fragptr.p->noOfVarPages;
+    tmp*= 32768;
+    memcpy(outBuffer,&tmp,8);
+  }
+  return 2;
   case AttributeHeader::ROW_SIZE:
     * outBuffer = tabptr.p->m_offsets[MM].m_fix_header_size << 2;
     return 1;

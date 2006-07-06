@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3;
+set time_zone="+03:00";
 select from_days(to_days("960101")),to_days(960201)-to_days("19960101"),to_days(date_add(curdate(), interval 1 day))-to_days(curdate()),weekday("1997-11-29");
 from_days(to_days("960101"))	to_days(960201)-to_days("19960101")	to_days(date_add(curdate(), interval 1 day))-to_days(curdate())	weekday("1997-11-29")
 1996-01-01	31	1	5
@@ -932,6 +933,7 @@ id	day	id	day
 1	2005-06-01	3	2005-07-15
 3	2005-07-01	3	2005-07-15
 DROP TABLE t1,t2;
+set time_zone= @@global.time_zone;
 End of 5.0 tests
 select date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND);
 date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND)

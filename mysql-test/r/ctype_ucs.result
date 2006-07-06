@@ -704,6 +704,32 @@ select f1 from t1 where f1 like 'a%';
 f1
 a
 drop table t1;
+create table t1 (utext varchar(20) character set ucs2);
+insert into t1 values ("lily");
+insert into t1 values ("river");
+prepare stmt from 'select utext from t1 where utext like ?';
+set @param1='%%';
+execute stmt using @param1;
+utext
+lily
+river
+execute stmt using @param1;
+utext
+lily
+river
+select utext from t1 where utext like '%%';
+utext
+lily
+river
+drop table t1;
+deallocate prepare stmt;
+CREATE TABLE t1 (id int, s char(5) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci);
+INSERT INTO t1 VALUES (1, 'ZZZZZ'), (1, 'ZZZ'), (2, 'ZZZ'), (2, 'ZZZZZ');
+SELECT id, MIN(s) FROM t1 GROUP BY id;
+id	MIN(s)
+1	ZZZ
+2	ZZZ
+DROP TABLE t1;
 CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
 INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
 update t1 set b=a;
