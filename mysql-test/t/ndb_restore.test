@@ -219,30 +219,6 @@ select * from t10_c order by a;
 #
 # Try Partitioned tables as well
 #
---error 1005
-ALTER TABLE t1_c
-PARTITION BY RANGE (`capgoaledatta`)
-(PARTITION p0 VALUES LESS THAN MAXVALUE);
-
---error 1005
-ALTER TABLE t2_c
-PARTITION BY LIST(`capgotod`)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6));
-
---error 1005
-ALTER TABLE t3_c
-PARTITION BY HASH (`CapGoaledatta`);
-
---error 1005
-ALTER TABLE t5_c
-PARTITION BY HASH (`capfa`)
-PARTITIONS 4;
-
---error 1005
-ALTER TABLE t6_c
-PARTITION BY LINEAR HASH (`relatta`)
-PARTITIONS 4;
-
 ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
 
