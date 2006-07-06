@@ -154,6 +154,13 @@ call foo2();
 select foo3();
 select * from t1 where a="alarm";
 
+# Test that INSERT DELAYED works in mixed mode
+insert delayed into t2 values("delay_1_");
+insert delayed into t2 values(concat("delay_2_",UUID()));
+insert delayed into t2 values("delay_3_"),(concat("delay_4_",UUID())),("delay_5_");
+insert delayed into t2 values("delay_6_");
+sleep 4; # time for the delayed insert to reach disk
+
 # If you want to do manual testing of the mixed mode regarding UDFs (not
 # testable automatically as quite platform- and compiler-dependent),
 # you just need to set the variable below to 1, and to
