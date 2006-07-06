@@ -240,25 +240,6 @@ a
 1
 2
 3
-ALTER TABLE t1_c
-PARTITION BY RANGE (`capgoaledatta`)
-(PARTITION p0 VALUES LESS THAN MAXVALUE);
-ERROR HY000: Can't create table 'test.#sql-2a5b_3' (errno: 138)
-ALTER TABLE t2_c
-PARTITION BY LIST(`capgotod`)
-(PARTITION p0 VALUES IN (0,1,2,3,4,5,6));
-ERROR HY000: Can't create table 'test.#sql-2a5b_3' (errno: 138)
-ALTER TABLE t3_c
-PARTITION BY HASH (`CapGoaledatta`);
-ERROR HY000: Can't create table 'test.#sql-2a5b_3' (errno: 138)
-ALTER TABLE t5_c
-PARTITION BY HASH (`capfa`)
-PARTITIONS 4;
-ERROR HY000: Can't create table 'test.#sql-2a5b_3' (errno: 138)
-ALTER TABLE t6_c
-PARTITION BY LINEAR HASH (`relatta`)
-PARTITIONS 4;
-ERROR HY000: Can't create table 'test.#sql-2a5b_3' (errno: 138)
 ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
 CREATE TEMPORARY TABLE IF NOT EXISTS test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
