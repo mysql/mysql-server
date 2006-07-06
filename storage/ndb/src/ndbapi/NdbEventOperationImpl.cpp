@@ -1658,6 +1658,10 @@ NdbEventBuffer::completeClusterFailed()
   data.logType = SubTableData::LOG;
   data.gci = m_latestGCI + 1;
   
+#ifdef VM_TRACE
+  m_flush_gci = 0;
+#endif
+
   /**
    * Insert this event for each operation
    */
