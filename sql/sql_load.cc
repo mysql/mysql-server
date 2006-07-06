@@ -225,6 +225,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
   }
 
+  mark_fields_used_by_triggers_for_insert_stmt(thd, table, handle_duplicates);
+
   uint tot_length=0;
   bool use_blobs= 0, use_vars= 0;
   List_iterator_fast<Item> it(fields_vars);
@@ -357,6 +359,13 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (ignore ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (handle_duplicates == DUP_REPLACE)
+    {
+      if (!table->triggers ||
+          !table->triggers->has_delete_triggers())
+        table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+      table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
+    }
     if (!thd->prelocked_mode)
       table->file->start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
@@ -381,6 +390,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= 1;
     }
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     table->next_number_field=0;
   }
   ha_enable_transaction(thd, TRUE);
