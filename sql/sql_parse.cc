@@ -3089,8 +3089,7 @@ end_with_restore_list:
 			       lex->key_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, lex->ignore, &lex->alter_info,
-                               1);
+			       lex->ignore, &lex->alter_info, 1);
       }
       break;
     }
@@ -7028,7 +7027,7 @@ bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, &alter_info, 1));
+                                0, &alter_info, 1));
 }
 
 
@@ -7046,7 +7045,7 @@ bool mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, alter_info, 1));
+                                0, alter_info, 1));
 }
 
 

@@ -3217,20 +3217,11 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     break;
   case HA_EXTRA_IGNORE_DUP_KEY:       /* Dup keys don't rollback everything*/
     DBUG_PRINT("info", ("HA_EXTRA_IGNORE_DUP_KEY"));
-    if (current_thd->lex->sql_command == SQLCOM_REPLACE && !m_has_unique_index)
-    {
-      DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
-      m_use_write= TRUE;
-    } else 
-    {
-      DBUG_PRINT("info", ("Ignoring duplicate key"));
-      m_ignore_dup_key= TRUE;
-    }
+    DBUG_PRINT("info", ("Ignoring duplicate key"));
+    m_ignore_dup_key= TRUE;
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
     DBUG_PRINT("info", ("HA_EXTRA_NO_IGNORE_DUP_KEY"));
-    DBUG_PRINT("info", ("Turning OFF use of write instead of insert"));
-    m_use_write= FALSE;
     m_ignore_dup_key= FALSE;
     break;
   case HA_EXTRA_RETRIEVE_ALL_COLS:    /* Retrieve all columns, not just those
@@ -3260,7 +3251,19 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
   case HA_EXTRA_KEYREAD_PRESERVE_FIELDS:
     DBUG_PRINT("info", ("HA_EXTRA_KEYREAD_PRESERVE_FIELDS"));
     break;
-
+  case HA_EXTRA_WRITE_CAN_REPLACE:
+    DBUG_PRINT("info", ("HA_EXTRA_WRITE_CAN_REPLACE"));
+    if (!m_has_unique_index)
+    {
+      DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
+      m_use_write= TRUE;
+    }
+    break;
+  case HA_EXTRA_WRITE_CANNOT_REPLACE:
+    DBUG_PRINT("info", ("HA_EXTRA_WRITE_CANNOT_REPLACE"));
+    DBUG_PRINT("info", ("Turning OFF use of write instead of insert"));
+    m_use_write= FALSE;
+    break;
   }
   
   DBUG_RETURN(0);
