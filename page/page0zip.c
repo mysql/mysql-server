@@ -381,6 +381,20 @@ page_zip_fields_encode(
 			col++;
 		} else if (val) {
 			/* fixed-length non-nullable field */
+
+			if (fixed_sum && UNIV_UNLIKELY(
+					fixed_sum + field->fixed_len
+					> DICT_MAX_INDEX_COL_LEN)) {
+				/* Write out the length of the
+				preceding non-nullable fields,
+				to avoid exceeding the maximum
+				length of a fixed-length column. */
+				buf = page_zip_fixed_field_encode(buf,
+						fixed_sum << 1 | 1);
+				fixed_sum = 0;
+				col++;
+			}
+
 			if (i && UNIV_UNLIKELY(i == trx_id_pos)) {
 				if (fixed_sum) {
 					/* Write out the length of any
