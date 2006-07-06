@@ -42,6 +42,8 @@ LOGGER logger;
 MYSQL_BIN_LOG mysql_bin_log;
 ulong sync_binlog_counter= 0;
 
+static Muted_query_log_event invisible_commit;
+
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
 static int binlog_init();
@@ -1188,7 +1190,9 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
   int error=0;
   IO_CACHE *trans_log= &trx_data->trans_log;
 
-  if (end_ev)
+
+  /* NULL denotes ROLLBACK with nothing to replicate */
+  if (end_ev != NULL)
   {
     /*
       We can always end the statement when ending a transaction since
@@ -1259,9 +1263,14 @@ static int binlog_commit(THD *thd, bool all)
     // we're here because trans_log was flushed in MYSQL_BIN_LOG::log()
     DBUG_RETURN(0);
   }
-  Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
-  qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
-  DBUG_RETURN(binlog_end_trans(thd, trx_data, &qev));
+  if (all) 
+  {
+    Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
+    qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
+    DBUG_RETURN(binlog_end_trans(thd, trx_data, &qev));
+  }
+  else
+    DBUG_RETURN(binlog_end_trans(thd, trx_data, &invisible_commit));
 }
 
 static int binlog_rollback(THD *thd, bool all)
@@ -3515,6 +3524,9 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::write(THD *, IO_CACHE *, Log_event *)");
   VOID(pthread_mutex_lock(&LOCK_log));
+
+  /* NULL would represent nothing to replicate after ROLLBACK */
+  DBUG_ASSERT(commit_event != NULL);
 
   if (likely(is_open()))                       // Should always be true
   {
