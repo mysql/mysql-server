@@ -519,9 +519,20 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   if (ci->index_file_name)
   {
-    fn_format(filename, ci->index_file_name,"",MI_NAME_IEXT,4);
-    fn_format(linkname,name, "",MI_NAME_IEXT,4);
-    linkname_ptr=linkname;
+    if (options & HA_OPTION_TMP_TABLE)
+    {
+      char *path;
+      /* chop off the table name, tempory tables use generated name */
+      if ((path= strrchr(ci->index_file_name, FN_LIBCHAR)))
+        *path= '\0';
+      fn_format(filename, name, ci->index_file_name, MI_NAME_IEXT,
+                MY_REPLACE_DIR | MY_UNPACK_FILENAME);
+    }
+    else
+      fn_format(filename, ci->index_file_name, "",
+                MI_NAME_IEXT, MY_UNPACK_FILENAME);
+    fn_format(linkname, name, "", MI_NAME_IEXT, MY_UNPACK_FILENAME);
+    linkname_ptr= linkname;
     /*
       Don't create the table if the link or file exists to ensure that one
       doesn't accidently destroy another table.
@@ -575,10 +586,21 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     {
       if (ci->data_file_name)
       {
-	fn_format(filename, ci->data_file_name,"",MI_NAME_DEXT,4);
-	fn_format(linkname, name, "",MI_NAME_DEXT,4);
-	linkname_ptr=linkname;
-	create_flag=0;
+        if (options & HA_OPTION_TMP_TABLE)
+        {
+          char *path;
+          /* chop off the table name, tempory tables use generated name */
+          if ((path= strrchr(ci->data_file_name, FN_LIBCHAR)))
+            *path= '\0';
+          fn_format(filename, name, ci->data_file_name, MI_NAME_DEXT,
+                    MY_REPLACE_DIR | MY_UNPACK_FILENAME);
+        }
+        else
+          fn_format(filename, ci->data_file_name, "",
+                    MI_NAME_DEXT, MY_UNPACK_FILENAME);
+        fn_format(linkname, name, "", MI_NAME_DEXT, MY_UNPACK_FILENAME);
+        linkname_ptr= linkname;
+        create_flag= 0;
       }
       else
       {
