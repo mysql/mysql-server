@@ -3354,6 +3354,12 @@ sub run_mysqltest ($) {
     "--port=$master->[0]->{'path_myport'} " .
     "--socket=$master->[0]->{'path_mysock'}";
 
+  if ( $opt_debug )
+  {
+    $cmdline_mysql_client_test .=
+      " --debug=d:t:A,$opt_vardir_trace/log/mysql_client_test.trace";
+  }
+
   if ( $glob_use_embedded_server )
   {
     $cmdline_mysql_client_test.=
