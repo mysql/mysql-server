@@ -5000,6 +5000,52 @@ CALL bug18037_p2()|
 DROP FUNCTION bug18037_f1|
 DROP PROCEDURE bug18037_p1|
 DROP PROCEDURE bug18037_p2|
+use test|
+create table t3 (i int)|
+insert into t3 values (1), (2)|
+create database mysqltest1|
+use mysqltest1|
+create function bug17199() returns varchar(2) deterministic return 'ok'|
+use test|
+select *, mysqltest1.bug17199() from t3|
+i	mysqltest1.bug17199()
+1	ok
+2	ok
+use mysqltest1|
+create function bug18444(i int) returns int no sql deterministic return i + 1|
+use test|
+select mysqltest1.bug18444(i) from t3|
+mysqltest1.bug18444(i)
+2
+3
+drop database mysqltest1|
+create database mysqltest1 charset=utf8|
+create database mysqltest2 charset=utf8|
+create procedure mysqltest1.p1()
+begin
+-- alters the default collation of database test 
+alter database character set koi8r;
+end|
+use mysqltest1|
+call p1()|
+show create database mysqltest1|
+Database	Create Database
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET koi8r */
+show create database mysqltest2|
+Database	Create Database
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET utf8 */
+alter database mysqltest1 character set utf8|
+use mysqltest2|
+call mysqltest1.p1()|
+show create database mysqltest1|
+Database	Create Database
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET koi8r */
+show create database mysqltest2|
+Database	Create Database
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET utf8 */
+drop database mysqltest1|
+drop database mysqltest2|
+use test|
 drop table if exists t3|
 drop procedure if exists bug15217|
 create table t3 as select 1|

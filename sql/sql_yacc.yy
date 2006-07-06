@@ -1594,12 +1594,18 @@ sp_name:
 	  }
 	| ident
 	  {
+            THD *thd= YYTHD;
+            LEX_STRING db;
 	    if (check_routine_name($1))
             {
 	      my_error(ER_SP_WRONG_NAME, MYF(0), $1.str);
 	      YYABORT;
 	    }
-	    $$= sp_name_current_db_new(YYTHD, $1);
+            if (thd->copy_db_to(&db.str, &db.length))
+              YYABORT;
+	    $$= new sp_name(db, $1);
+            if ($$)
+	      $$->init_qname(YYTHD);
 	  }
 	;
 
@@ -3184,14 +3190,26 @@ create2:
         | LIKE table_ident
           {
             LEX *lex=Lex;
+            THD *thd= lex->thd;
             if (!(lex->like_name= $2))
               YYABORT;
+            if ($2->db.str == NULL &&
+                thd->copy_db_to(&($2->db.str), &($2->db.length)))
+            {
+              YYABORT;
+            }
           }
         | '(' LIKE table_ident ')'
           {
             LEX *lex=Lex;
+            THD *thd= lex->thd;
             if (!(lex->like_name= $3))
               YYABORT;
+            if ($3->db.str == NULL &&
+                thd->copy_db_to(&($3->db.str), &($3->db.length)))
+            {
+              YYABORT;
+            }
           }
         ;
 
@@ -4640,8 +4658,10 @@ alter:
 	  lex->key_list.empty();
 	  lex->col_list.empty();
           lex->select_lex.init_order();
-	  lex->select_lex.db=lex->name= 0;
+	  lex->name= 0;
 	  lex->like_name= 0;
+	  lex->select_lex.db=
+            ((TABLE_LIST*) lex->select_lex.table_list.first)->db;
 	  bzero((char*) &lex->create_info,sizeof(lex->create_info));
 	  lex->create_info.db_type= 0;
 	  lex->create_info.default_table_charset= NULL;
@@ -4660,8 +4680,11 @@ alter:
           opt_create_database_options
 	  {
 	    LEX *lex=Lex;
+            THD *thd= Lex->thd;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name= $3;
+            if (lex->name == NULL && thd->copy_db_to(&lex->name, NULL))
+              YYABORT;
 	  }
 	| ALTER PROCEDURE sp_name
 	  {
@@ -5096,14 +5119,20 @@ alter_list_item:
 	| RENAME opt_to table_ident
 	  {
 	    LEX *lex=Lex;
+            THD *thd= lex->thd;
 	    lex->select_lex.db=$3->db.str;
-	    lex->name= $3->table.str;
+            if (lex->select_lex.db == NULL &&
+                thd->copy_db_to(&lex->select_lex.db, NULL))
+            {
+              YYABORT;
+            }
             if (check_table_name($3->table.str,$3->table.length) ||
                 $3->db.str && check_db_name($3->db.str))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               YYABORT;
             }
+	    lex->name= $3->table.str;
 	    lex->alter_info.flags|= ALTER_RENAME;
 	  }
 	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
@@ -6449,7 +6478,13 @@ simple_expr:
 #endif /* HAVE_DLOPEN */
             {
 	      LEX *lex= Lex;
-              sp_name *name= sp_name_current_db_new(YYTHD, $1);
+              THD *thd= lex->thd;
+              LEX_STRING db;
+              if (thd->copy_db_to(&db.str, &db.length))
+                YYABORT;
+              sp_name *name= new sp_name(db, $1);
+              if (name)
+                name->init_qname(thd);
 
               sp_add_used_routine(lex, YYTHD, name, TYPE_ENUM_FUNCTION);
               if ($4)
@@ -10328,7 +10363,9 @@ grant_ident:
 	'*'
 	  {
 	    LEX *lex= Lex;
-	    lex->current_select->db= lex->thd->db;
+            THD *thd= lex->thd;
+            if (thd->copy_db_to(&lex->current_select->db, NULL))
+              YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;
 	    else if (lex->columns.elements)

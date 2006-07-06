@@ -928,8 +928,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
       save_db.str= thd->db;
       save_db.length= thd->db_length;
-      thd->db_length= strlen(db);
-      thd->db= (char *) db;
+      thd->reset_db((char*) db, strlen(db));
       while ((trg_create_str= it++))
       {
         trg_sql_mode= itm++;
@@ -1031,8 +1030,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         lex_end(&lex);
       }
-      thd->db= save_db.str;
-      thd->db_length= save_db.length;
+      thd->reset_db(save_db.str, save_db.length);
       thd->lex= old_lex;
       thd->spcont= save_spcont;
       thd->variables.sql_mode= save_sql_mode;
@@ -1045,8 +1043,7 @@ err_with_lex_cleanup:
       thd->lex= old_lex;
       thd->spcont= save_spcont;
       thd->variables.sql_mode= save_sql_mode;
-      thd->db= save_db.str;
-      thd->db_length= save_db.length;
+      thd->reset_db(save_db.str, save_db.length);
       DBUG_RETURN(1);
     }
 

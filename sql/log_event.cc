@@ -1928,9 +1928,10 @@ end:
     don't suffer from these assignments to 0 as DROP TEMPORARY
     TABLE uses the db.table syntax.
   */
-  thd->db= thd->catalog= 0;	        // prevent db from being freed
+  thd->catalog= 0;
+  thd->reset_db(NULL, 0);               // prevent db from being freed
   thd->query= 0;			// just to be sure
-  thd->query_length= thd->db_length =0;
+  thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
@@ -2954,7 +2955,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
     TABLE_LIST tables;
     bzero((char*) &tables,sizeof(tables));
-    tables.db = thd->db;
+    tables.db= thd->strmake(thd->db, thd->db_length);
     tables.alias = tables.table_name = (char*) table_name;
     tables.lock_type = TL_WRITE;
     tables.updating= 1;
@@ -3049,7 +3050,7 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
       ex.skip_lines = skip_lines;
       List<Item> field_list;
       thd->main_lex.select_lex.context.resolve_in_table_list_only(&tables);
-      set_fields(thd->db, field_list, &thd->main_lex.select_lex.context);
+      set_fields(tables.db, field_list, &thd->main_lex.select_lex.context);
       thd->variables.pseudo_thread_id= thread_id;
       List<Item> set_fields;
       if (net)
@@ -3096,11 +3097,12 @@ int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli,
 
 error:
   thd->net.vio = 0; 
-  char *save_db= thd->db;
+  const char *remember_db= thd->db;
   VOID(pthread_mutex_lock(&LOCK_thread_count));
-  thd->db= thd->catalog= 0;
+  thd->catalog= 0;
+  thd->reset_db(NULL, 0);
   thd->query= 0;
-  thd->query_length= thd->db_length= 0;
+  thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);
   if (thd->query_error)
@@ -3117,7 +3119,7 @@ error:
     }
     slave_print_msg(ERROR_LEVEL, rli, sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-                    err, (char*)table_name, print_slave_db_safe(save_db));
+                    err, (char*)table_name, print_slave_db_safe(remember_db));
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
     return 1;
   }
@@ -3127,7 +3129,7 @@ Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
   {
     slave_print_msg(ERROR_LEVEL, rli, ER_UNKNOWN_ERROR, "\
 Fatal error running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-                    (char*)table_name, print_slave_db_safe(save_db));
+                    (char*)table_name, print_slave_db_safe(remember_db));
     return 1;
   }
 
@@ -3202,8 +3204,7 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
                       llstr(pos_arg, buff), flags));
 #endif
   if (flags & DUP_NAME)
-    new_log_ident= my_strndup((const byte*) new_log_ident_arg,
-                                         ident_len, MYF(MY_WME));
+    new_log_ident= my_strndup(new_log_ident_arg, ident_len, MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 #endif
@@ -3226,9 +3227,7 @@ Rotate_log_event::Rotate_log_event(const char* buf, uint event_len,
                      (header_size+post_header_len)); 
   ident_offset = post_header_len; 
   set_if_smaller(ident_len,FN_REFLEN-1);
-  new_log_ident= my_strndup((byte*) buf + ident_offset,
-                                       (uint) ident_len,
-                                       MYF(MY_WME));
+  new_log_ident= my_strndup(buf + ident_offset, (uint) ident_len, MYF(MY_WME));
   DBUG_VOID_RETURN;
 }
 

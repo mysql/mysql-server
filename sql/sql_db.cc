@@ -930,8 +930,7 @@ exit:
   {
     if (!(thd->slave_thread)) /* a slave thread will free it itself */
       x_free(thd->db);
-    thd->db= 0;
-    thd->db_length= 0;
+    thd->reset_db(NULL, 0);
   }
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
@@ -1345,14 +1344,10 @@ end:
   {
     if (!(thd->slave_thread))
       my_free(dbname, MYF(0));
-    thd->db= NULL;
-    thd->db_length= 0;
+    thd->reset_db(NULL, 0);
   }
   else
-  {
-    thd->db= dbname;				// THD::~THD will free this
-    thd->db_length= db_length;
-  }
+    thd->reset_db(dbname, db_length);          // THD::~THD will free this
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!no_access_check)
     sctx->db_access= db_access;
