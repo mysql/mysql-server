@@ -382,16 +382,18 @@ page_zip_fields_encode(
 		} else if (val) {
 			/* fixed-length non-nullable field */
 			if (i && UNIV_UNLIKELY(i == trx_id_pos)) {
+				trx_id_col = col;
+
 				if (fixed_sum) {
 					/* Write out the length of any
 					preceding non-nullable fields,
 					and start a new trx_id column. */
 					buf = page_zip_fixed_field_encode(buf,
 							fixed_sum << 1 | 1);
+					col++;
 				}
 
 				fixed_sum = field->fixed_len;
-				trx_id_col = ++col;
 			} else {
 				/* add to the sum */
 				fixed_sum += field->fixed_len;
