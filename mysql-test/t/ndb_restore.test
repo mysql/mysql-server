@@ -4,8 +4,8 @@
 
 --disable_warnings
 use test;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 --enable_warnings
 
 CREATE TABLE `t1` (
@@ -132,6 +132,13 @@ CREATE TABLE `t9` (
 ) ENGINE=myisam DEFAULT CHARSET=latin1;
 INSERT INTO `t9` VALUES ('3g4jh8gar2t','joe','q3.net','elredun.com','q3.net','436643316120','436643316939','91341234568968','695595699','1.1.1.1','2.2.6.2','3','86989','34','x','x','2012-03-12 18:35:04','2012-12-05 12:35:04',3123123,9569,6565,1),('4tt45345235','pap','q3plus.qt','q3plus.qt','q3.net','436643316120','436643316939','8956234534568968','5254595969','1.1.1.1','8.6.2.2','4','86989','34','x','x','2012-03-12 12:55:34','2012-12-05 11:20:04',3223433,3369,9565,2),('4545435545','john','q3.net','q3.net','acne.li','436643316120','436643316939','45345234568968','995696699','1.1.1.1','2.9.9.2','2','86998','34','x','x','2012-03-12 11:35:03','2012-12-05 08:50:04',8823123,169,3565,3);
 
+# Bug #20820
+# auto inc table not handled correctly when restored from cluster backup
+# - before fix ndb_restore would not set auto inc value correct,
+#   seen by select below
+create table t10 (a int auto_increment key);
+insert into t10 values (1),(2),(3);
+
 create table t1_c engine=ndbcluster as select * from t1;
 create table t2_c engine=ndbcluster as select * from t2;
 create table t3_c engine=ndbcluster as select * from t3;
@@ -141,10 +148,11 @@ create table t6_c engine=ndbcluster as select * from t6;
 create table t7_c engine=ndbcluster as select * from t7;
 create table t8_c engine=ndbcluster as select * from t8;
 create table t9_c engine=ndbcluster as select * from t9;
+create table t10_c engine=ndbcluster as select * from t10;
 
 
 --exec $NDB_MGM --no-defaults -e "start backup" >> $NDB_TOOLS_OUTPUT
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c, t10_c;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-1 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-1 >> $NDB_TOOLS_OUTPUT
 
@@ -205,9 +213,12 @@ select count(*)
   from (select * from t9 union 
         select * from t9_c) a;
 
+# Bug #20820 cont'd
+select * from t10_c order by a;
+
 --disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9, t10;
+drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c, t10_c;
 --enable_warnings
 
 #
@@ -216,4 +227,4 @@ drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 
 --exec $NDB_TOOLS_DIR/ndb_select_all --no-defaults -d sys -D , SYSTAB_0 | grep 520093696
 
-# End of 4.1 tests
+# End of 5.0 tests (4.1 test intermixed to save test time)
