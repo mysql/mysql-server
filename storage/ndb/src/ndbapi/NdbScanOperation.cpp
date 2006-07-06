@@ -1574,62 +1574,6 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
     return -1;
   }
   
-  bool holdLock = false;
-  if (theSCAN_TABREQ)
-  {
-    ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
-    holdLock = ScanTabReq::getHoldLockFlag(req->requestInfo);
-  }
-
-  /**
-   * When using locks, force close of scan directly
-   */
-  if (holdLock && theError.code == 0 && 
-      (m_sent_receivers_count + m_conf_receivers_count + m_api_receivers_count))
-  {
-    NdbApiSignal tSignal(theNdb->theMyRef);
-    tSignal.setSignal(GSN_SCAN_NEXTREQ);
-    
-    Uint32* theData = tSignal.getDataPtrSend();
-    Uint64 transId = theNdbCon->theTransactionId;
-    theData[0] = theNdbCon->theTCConPtr;
-    theData[1] = 1;
-    theData[2] = transId;
-    theData[3] = (Uint32) (transId >> 32);
-
-    tSignal.setLength(4);
-    int ret = tp->sendSignal(&tSignal, nodeId);
-    if (ret)
-    {
-      setErrorCode(4008);
-      return -1;
-    }
-    
-    /**
-     * If no receiver is outstanding...
-     *   set it to 1 as execCLOSE_SCAN_REP resets it
-     */
-    m_sent_receivers_count = m_sent_receivers_count ? m_sent_receivers_count : 1;
-    
-    while(theError.code == 0 && (m_sent_receivers_count + m_conf_receivers_count))
-    {
-      int return_code = poll_guard->wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId, forceSend);
-      switch(return_code){
-      case 0:
-	break;
-      case -1:
-	setErrorCode(4008);
-      case -2:
-	m_api_receivers_count = 0;
-	m_conf_receivers_count = 0;
-	m_sent_receivers_count = 0;
-	theNdbCon->theReleaseOnClose = true;
-	return -1;
-      }
-    }
-    return 0;
-  }
-  
   /**
    * Wait for outstanding
    */
