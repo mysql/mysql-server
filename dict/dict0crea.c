@@ -273,6 +273,11 @@ dict_build_table_def_step(
 					dict_table_zip_size(table), &mtr);
 
 		mtr_commit(&mtr);
+	} else {
+		/* Create in the system tablespace: disallow compression */
+		if (table->flags & DICT_TF_COMPRESSED_MASK) {
+			return(DB_ERROR);
+		}
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);
