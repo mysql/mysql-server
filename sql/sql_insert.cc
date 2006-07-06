@@ -1290,9 +1290,11 @@ public:
     thd.command=COM_DELAYED_INSERT;
     thd.lex->current_select= 0; 		// for my_message_sql
     thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
-#ifdef HAVE_ROW_BASED_REPLICATION
+    /*
+      Statement-based replication of INSERT DELAYED has problems with RAND()
+      and user vars, so in mixed mode we go to row-based.
+    */
     thd.set_current_stmt_binlog_row_based_if_mixed();
-#endif
 
     bzero((char*) &thd.net, sizeof(thd.net));		// Safety
     bzero((char*) &table_list, sizeof(table_list));	// Safety
