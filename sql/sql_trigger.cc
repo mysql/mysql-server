@@ -733,7 +733,8 @@ bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
       QQ: it is supposed that it is ok to use this function for field
       cloning...
     */
-    if (!(*old_fld= (*fld)->new_field(&table->mem_root, table)))
+    if (!(*old_fld= (*fld)->new_field(&table->mem_root, table,
+                                      table == (*fld)->table)))
       return 1;
     (*old_fld)->move_field_offset((my_ptrdiff_t)(table->record[1] -
                                           table->record[0]));
