@@ -375,7 +375,7 @@ delimiter //;
  end//
  insert into test.t1 (a1) values (1)//
  insert into test.t1 (a1,a2) values (2, 'ccccccc')//
- select * from test.t1//
+ select * from test.t1 order by a1//
  delimiter ;//
  
  DELETE FROM test.t1;
