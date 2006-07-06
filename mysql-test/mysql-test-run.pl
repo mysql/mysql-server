@@ -216,6 +216,7 @@ our $opt_extern;
 our $opt_fast;
 our $opt_force;
 our $opt_reorder;
+our $opt_enable_disabled;
 
 our $opt_gcov;
 our $opt_gcov_err;
@@ -661,6 +662,7 @@ sub command_line_setup () {
              'netware'                  => \$opt_netware,
              'old-master'               => \$opt_old_master,
              'reorder'                  => \$opt_reorder,
+             'enable-disabled'          => \$opt_enable_disabled,
              'script-debug'             => \$opt_script_debug,
              'sleep=i'                  => \$opt_sleep,
              'socket=s'                 => \$opt_socket,
@@ -1781,11 +1783,11 @@ sub run_suite () {
 
   mtr_print_thick_line();
 
-  mtr_report("Finding  Tests in the '$suite' suite");
-
   mtr_timer_start($glob_timers,"suite", 60 * $opt_suite_timeout);
 
   mtr_report("Starting Tests in the '$suite' suite");
+
+  mtr_report_tests_not_skipped_though_disabled($tests);
 
   mtr_print_header();
 
