@@ -769,3 +769,24 @@ a	b
 xxxxxxxxx	bbbbbb
 xxxxxxxxx	bbbbbb
 DROP TABLE t1;
+show create table t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+create table t1 (a int) engine=myisam select 42 a;
+select * from t1;
+a
+9
+select * from t1;
+a
+99
+select * from t1;
+a
+42
+drop table t1;
