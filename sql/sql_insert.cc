@@ -181,9 +181,6 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       }
     }
   }
-  if (table->found_next_number_field)
-    table->mark_auto_increment_column();
-  table->mark_columns_needed_for_insert();
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
@@ -252,33 +249,6 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                      table->timestamp_field->field_index);
   }
   return 0;
-}
-
-
-/*
-  Mark fields used by triggers for INSERT-like statement.
-
-  SYNOPSIS
-    mark_fields_used_by_triggers_for_insert_stmt()
-      thd     The current thread
-      table   Table to which insert will happen
-      duplic  Type of duplicate handling for insert which will happen
-
-  NOTE
-    For REPLACE there is no sense in marking particular fields
-    used by ON DELETE trigger as to execute it properly we have
-    to retrieve and store values for all table columns anyway.
-*/
-
-void mark_fields_used_by_triggers_for_insert_stmt(THD *thd, TABLE *table,
-                                                  enum_duplicates duplic)
-{
-  if (table->triggers)
-  {
-    table->triggers->mark_fields_used(thd, TRG_EVENT_INSERT);
-    if (duplic == DUP_UPDATE)
-      table->triggers->mark_fields_used(thd, TRG_EVENT_UPDATE);
-  }
 }
 
 
@@ -442,17 +412,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="update";
   if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if (duplic == DUP_REPLACE)
-  {
-    if (!table->triggers || !table->triggers->has_delete_triggers())
-      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-    /*
-      REPLACE should change values of all columns so we should mark
-      all columns as columns to be set. As nice side effect we will
-      retrieve columns which values are needed for ON DELETE triggers.
-    */
-    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-  }
+  if (duplic == DUP_REPLACE &&
+      (!table->triggers || !table->triggers->has_delete_triggers()))
+    table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   /*
     let's *try* to start bulk inserts. It won't necessary
     start them as values_list.elements should be greater than
@@ -481,7 +443,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     error= 1;
   }
 
-  mark_fields_used_by_triggers_for_insert_stmt(thd, table, duplic);
+  table->mark_columns_needed_for_insert();
 
   if (table_list->prepare_where(thd, 0, TRUE) ||
       table_list->prepare_check_option(thd))
@@ -2346,12 +2308,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if (info.handle_duplicates == DUP_REPLACE)
-  {
-    if (!table->triggers || !table->triggers->has_delete_triggers())
-      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-  }
+  if (info.handle_duplicates == DUP_REPLACE &&
+      (!table->triggers || !table->triggers->has_delete_triggers()))
+    table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
@@ -2363,8 +2322,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         table_list->prepare_check_option(thd));
 
   if (!res)
-    mark_fields_used_by_triggers_for_insert_stmt(thd, table,
-                                                 info.handle_duplicates);
+    table->mark_columns_needed_for_insert();
+
   DBUG_RETURN(res);
 }
 
@@ -2840,12 +2799,9 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  if (info.handle_duplicates == DUP_REPLACE)
-  {
-    if (!table->triggers || !table->triggers->has_delete_triggers())
-      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-    table->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
-  }
+  if (info.handle_duplicates == DUP_REPLACE &&
+      (!table->triggers || !table->triggers->has_delete_triggers()))
+    table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   if (!thd->prelocked_mode)
     table->file->ha_start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
@@ -2853,8 +2809,10 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
-  DBUG_RETURN(check_that_all_fields_are_given_values(thd, table,
-                                                     table_list));
+  if (check_that_all_fields_are_given_values(thd, table, table_list))
+    DBUG_RETURN(1);
+  table->mark_columns_needed_for_insert();
+  DBUG_RETURN(0);
 }
 
 
