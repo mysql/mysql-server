@@ -495,20 +495,32 @@ sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
 
-  DBUG_ASSERT(name);
-  /* Must be initialized in the parser */
-  DBUG_ASSERT(name->m_db.str && name->m_db.length);
+  if (name)
+  {
+    /* Must be initialized in the parser */
+    DBUG_ASSERT(name->m_db.str && name->m_db.length);
 
-  /* We have to copy strings to get them into the right memroot */
-  m_db.length= name->m_db.length;
-  m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
-  m_name.length= name->m_name.length;
-  m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
+    /* We have to copy strings to get them into the right memroot */
+    m_db.length= name->m_db.length;
+    m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
+    m_name.length= name->m_name.length;
+    m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
 
-  if (name->m_qname.length == 0)
-    name->init_qname(thd);
-  m_qname.length= name->m_qname.length;
-  m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
+    if (name->m_qname.length == 0)
+      name->init_qname(thd);
+    m_qname.length= name->m_qname.length;
+    m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
+  }
+  else
+  {
+    /*
+      FIXME: the only use case when name is NULL is events, and it should
+      be rewritten soon. Remove the else part and replace 'if' with
+      an assert when this is done.
+    */
+    LEX_STRING str_reset= { NULL, 0 };
+    m_db= m_name= m_qname= str_reset;
+  }
 
   if (m_param_begin && m_param_end)
   {
