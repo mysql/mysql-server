@@ -1391,15 +1391,15 @@ insert into federated.t2 values (13, 17), (19, 23);
 # Each of three statements should correctly set values for all three fields
 # insert
 insert into federated.t1 (a, b) values (1, 2), (3, 5), (7, 11);
-select * from federated.t1;
+select * from federated.t1 order by a;
 delete from federated.t1;
 # insert ... select
 insert into federated.t1 (a, b) select * from federated.t2;
-select * from federated.t1;
+select * from federated.t1 order by a;
 delete from federated.t1;
 # load
 load data infile '../std_data_ln/loaddata5.dat' into table federated.t1 fields terminated by '' enclosed by '' ignore 1 lines (a, b);
-select * from federated.t1;
+select * from federated.t1 order by a;
 drop tables federated.t1, federated.t2;
 
 connection slave;

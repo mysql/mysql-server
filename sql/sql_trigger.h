@@ -125,7 +125,7 @@ public:
 
   void set_table(TABLE *new_table);
 
-  void mark_fields_used(THD *thd, trg_event_type event);
+  void mark_fields_used(trg_event_type event);
 
   friend class Item_trigger_field;
   friend int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
@@ -140,10 +140,6 @@ private:
                                      const char *db_name,
                                      LEX_STRING *old_table_name,
                                      LEX_STRING *new_table_name);
-  friend void st_table::mark_columns_needed_for_insert(void);
-  friend void st_table::mark_columns_needed_for_update(void);
-  friend void st_table::mark_columns_needed_for_delete(void);
-
 };
 
 extern const LEX_STRING trg_action_time_type_names[];
