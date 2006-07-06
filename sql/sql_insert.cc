@@ -2732,7 +2732,8 @@ public:
   MY_HOOKS(select_create *x) : ptr(x) { }
   virtual void do_prelock(TABLE **tables, uint count)
   {
-    if (ptr->get_thd()->current_stmt_binlog_row_based)
+    if (ptr->get_thd()->current_stmt_binlog_row_based  &&
+        !(ptr->get_create_info()->options & HA_LEX_CREATE_TMP_TABLE))
       ptr->binlog_show_create_table(tables, count);
   }
 
