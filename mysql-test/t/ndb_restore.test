@@ -152,7 +152,7 @@ create table t10 engine=myisam as select * from t10_c;
 
 
 --source include/ndb_backup.inc
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c, t10_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
@@ -219,21 +219,26 @@ select * from t10_c order by a;
 #
 # Try Partitioned tables as well
 #
+--error 1005
 ALTER TABLE t1_c
 PARTITION BY RANGE (`capgoaledatta`)
 (PARTITION p0 VALUES LESS THAN MAXVALUE);
 
+--error 1005
 ALTER TABLE t2_c
 PARTITION BY LIST(`capgotod`)
 (PARTITION p0 VALUES IN (0,1,2,3,4,5,6));
 
+--error 1005
 ALTER TABLE t3_c
 PARTITION BY HASH (`CapGoaledatta`);
 
+--error 1005
 ALTER TABLE t5_c
 PARTITION BY HASH (`capfa`)
 PARTITIONS 4;
 
+--error 1005
 ALTER TABLE t6_c
 PARTITION BY LINEAR HASH (`relatta`)
 PARTITIONS 4;
@@ -242,7 +247,7 @@ ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
 
 --source include/ndb_backup.inc
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
@@ -300,7 +305,7 @@ select count(*)
   from (select * from t9 union 
         select * from t9_c) a;
 
-drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
+drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map '(0,0)' --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
