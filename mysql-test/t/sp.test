@@ -5894,6 +5894,52 @@ DROP PROCEDURE bug18037_p1|
 DROP PROCEDURE bug18037_p2|
 
 #
+# Bug#17199: "Table not found" error occurs if the query contains a call
+#            to a function from another database.
+#            See also ps.test for an additional test case for this bug.
+#
+use test|
+create table t3 (i int)|
+insert into t3 values (1), (2)|
+create database mysqltest1|
+use mysqltest1|
+create function bug17199() returns varchar(2) deterministic return 'ok'|
+use test|
+select *, mysqltest1.bug17199() from t3|
+#
+# Bug#18444: Fully qualified stored function names don't work correctly
+#            in select statements
+#
+use mysqltest1|
+create function bug18444(i int) returns int no sql deterministic return i + 1|
+use test|
+select mysqltest1.bug18444(i) from t3|
+drop database mysqltest1|
+#
+# Check that current database has no influence to a stored procedure
+#
+create database mysqltest1 charset=utf8|
+create database mysqltest2 charset=utf8|
+create procedure mysqltest1.p1()
+begin
+-- alters the default collation of database test 
+  alter database character set koi8r;
+end|
+use mysqltest1|
+call p1()|
+show create database mysqltest1|
+show create database mysqltest2|
+alter database mysqltest1 character set utf8|
+use mysqltest2|
+call mysqltest1.p1()|
+show create database mysqltest1|
+show create database mysqltest2|
+drop database mysqltest1|
+drop database mysqltest2|
+#
+# Restore the old environemnt
+use test|
+#
 # Bug#15217 "Using a SP cursor on a table created with PREPARE fails with
 #           weird error". Check that the code that is supposed to work at
 #           the first execution of a stored procedure actually works for

@@ -4406,7 +4406,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   {
     DBUG_RETURN(TRUE);
   }
-  src_db= table_ident->db.str ? table_ident->db.str : thd->db;
+  DBUG_ASSERT(table_ident->db.str); /* Must be set in the parser */
+  src_db= table_ident->db.str;
 
   /*
     Validate the source table
