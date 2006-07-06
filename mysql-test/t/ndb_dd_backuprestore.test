@@ -5,6 +5,8 @@
 ########################################
 
 -- source include/have_ndb.inc
+-- source include/ndb_default_cluster.inc
+-- source include/not_embedded.inc
 
 --disable_query_log
 set new=on;
