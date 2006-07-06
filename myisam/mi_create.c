@@ -59,6 +59,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   MI_CREATE_INFO tmp_create_info;
   DBUG_ENTER("mi_create");
+  DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u",
+                      keys, columns, uniques, flags));
 
   if (!ci)
   {
@@ -471,6 +473,16 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 			       uniques * MI_UNIQUEDEF_SIZE +
 			       (key_segs + unique_key_parts)*HA_KEYSEG_SIZE+
 			       columns*MI_COLUMNDEF_SIZE);
+  DBUG_PRINT("info", ("info_length: %u", info_length));
+  /* There are only 16 bits for the total header length. */
+  if (info_length > 65535)
+  {
+    my_printf_error(0, "MyISAM table '%s' has too many columns and/or "
+                    "indexes and/or unique constraints.",
+                    MYF(0), name + dirname_length(name));
+    my_errno= HA_WRONG_CREATE_OPTION;
+    goto err;
+  }
 
   bmove(share.state.header.file_version,(byte*) myisam_file_magic,4);
   ci->old_options=options| (ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD ?
@@ -620,6 +632,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     errpos=3;
   }
 
+  DBUG_PRINT("info", ("write state info and base info"));
   if (mi_state_info_write(file, &share.state, 2) ||
       mi_base_info_write(file, &share.base))
     goto err;
@@ -633,6 +646,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 #endif
 
   /* Write key and keyseg definitions */
+  DBUG_PRINT("info", ("write key and keyseg definitions"));
   for (i=0 ; i < share.base.keys - uniques; i++)
   {
     uint sp_segs=(keydefs[i].flag & HA_SPATIAL) ? 2*SPDIMS : 0;
@@ -683,6 +697,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   }
 
   /* Save unique definition */
+  DBUG_PRINT("info", ("write unique definitions"));
   for (i=0 ; i < share.state.header.uniques ; i++)
   {
     HA_KEYSEG *keyseg_end;
@@ -713,6 +728,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	goto err;
     }
   }
+  DBUG_PRINT("info", ("write field definitions"));
   for (i=0 ; i < share.base.fields ; i++)
     if (mi_recinfo_write(file, &recinfo[i]))
       goto err;
@@ -727,6 +743,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 #endif
 
 	/* Enlarge files */
+  DBUG_PRINT("info", ("enlarge to keystart: %lu", (ulong) share.base.keystart));
   if (my_chsize(file,(ulong) share.base.keystart,0,MYF(0)))
     goto err;
 
