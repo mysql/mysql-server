@@ -804,7 +804,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	    if (!(field->flags & BLOB_FLAG))
 	    {					// Create a new field
 	      field=key_part->field=field->new_field(&outparam->mem_root,
-						     outparam);
+                                                     outparam,
+                                                     outparam == field->table);
 	      field->field_length=key_part->length;
 	    }
 	  }
