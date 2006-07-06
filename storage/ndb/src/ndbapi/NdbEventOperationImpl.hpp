@@ -422,6 +422,7 @@ public:
   void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep);
   void complete_outof_order_gcis();
   
+  void report_node_connected(Uint32 node_id);
   void report_node_failure(Uint32 node_id);
   void completeClusterFailed();
 
@@ -462,6 +463,7 @@ public:
 
 #ifdef VM_TRACE
   const char *m_latest_command;
+  Uint64 m_flush_gci;
 #endif
 
   Ndb *m_ndb;

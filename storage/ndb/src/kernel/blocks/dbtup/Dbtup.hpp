@@ -604,6 +604,7 @@ struct Fragrecord {
   Uint32 currentPageRange;
   Uint32 rootPageRange;
   Uint32 noOfPages;
+  Uint32 noOfVarPages;
   Uint32 noOfPagesToGrow;
 
   DLList<Page>::Head emptyPrimPage; // allocated pages (not init)

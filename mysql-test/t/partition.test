@@ -1223,4 +1223,42 @@ alter table t1 drop partition p2;
 use test;
 drop database db99;
 
+#
+#BUG 17138 Problem with stored procedure and analyze partition
+#
+--disable_warnings
+drop procedure if exists mysqltest_1;
+--enable_warnings
+
+create table t1 (a int)
+partition by list (a)
+(partition p0 values in (0));
+
+insert into t1 values (0);
+delimiter //;
+
+create procedure mysqltest_1 ()
+begin
+  begin
+    declare continue handler for sqlexception begin end;
+    update ignore t1 set a = 1 where a = 0;
+  end;
+  prepare stmt1 from 'alter table t1';
+  execute stmt1;
+end//
+
+call mysqltest_1()//
+delimiter ;//
+drop table t1;
+drop procedure mysqltest_1;
+
+#
+# Bug 20583 Partitions: Crash using index_last
+#
+create table t1 (a int, index(a))
+partition by hash(a);
+insert into t1 values (1),(2);
+select * from t1 ORDER BY a DESC;
+drop table t1;
+
 --echo End of 5.1 tests

@@ -976,12 +976,25 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
     while ((error=table->file->ha_write_row(table->record[0])))
     {
       uint key_nr;
-      if (error != HA_WRITE_SKIP)
+      bool is_duplicate_key_error;
+      if (table->file->is_fatal_error(error, HA_CHECK_DUP))
 	goto err;
       table->file->restore_auto_increment(); // it's too early here! BUG#20188
+      is_duplicate_key_error= table->file->is_fatal_error(error, 0);
+      if (!is_duplicate_key_error)
+      {
+        /*
+          We come here when we had an ignorable error which is not a duplicate
+          key error. In this we ignore error if ignore flag is set, otherwise
+          report error as usual. We will not do any duplicate key processing.
+        */
+        if (info->ignore)
+          goto ok_or_after_trg_err; /* Ignoring a not fatal error, return 0 */
+        goto err;
+      }
       if ((int) (key_nr = table->file->get_dup_key(error)) < 0)
       {
-	error=HA_WRITE_SKIP;			/* Database can't find key */
+	error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
 	goto err;
       }
       /* Read all columns for the row we are going to replace */
@@ -1062,7 +1075,8 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if ((error=table->file->ha_update_row(table->record[1],
                                               table->record[0])))
 	{
-	  if ((error == HA_ERR_FOUND_DUPP_KEY) && info->ignore)
+          if (info->ignore &&
+              !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
             goto ok_or_after_trg_err;
           goto err;
 	}
@@ -1145,7 +1159,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   else if ((error=table->file->ha_write_row(table->record[0])))
   {
     if (!info->ignore ||
-	(error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE))
+        table->file->is_fatal_error(error, HA_CHECK_DUP))
       goto err;
     table->file->restore_auto_increment();
     goto ok_or_after_trg_err;
@@ -1407,18 +1421,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
     */
     if (! (tmp= find_handler(thd, table_list)))
     {
-      /*
-        Avoid that a global read lock steps in while we are creating the
-        new thread. It would block trying to open the table. Hence, the
-        DI thread and this thread would wait until after the global
-        readlock is gone. Since the insert thread needs to wait for a
-        global read lock anyway, we do it right now. Note that
-        wait_if_global_read_lock() sets a protection against a new
-        global read lock when it succeeds. This needs to be released by
-        start_waiting_global_read_lock().
-      */
-      if (wait_if_global_read_lock(thd, 0, 1))
-        goto err;
       if (!(tmp=new delayed_insert()))
       {
 	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(delayed_insert));
@@ -1459,11 +1461,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_cond_wait(&tmp->cond_client,&tmp->mutex);
       }
       pthread_mutex_unlock(&tmp->mutex);
-      /*
-        Release the protection against the global read lock and wake
-        everyone, who might want to set a global read lock.
-      */
-      start_waiting_global_read_lock(thd);
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
@@ -1499,11 +1496,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 
  err1:
   thd->fatal_error();
-  /*
-    Release the protection against the global read lock and wake
-    everyone, who might want to set a global read lock.
-  */
-  start_waiting_global_read_lock(thd);
  err:
   pthread_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(0); // Continue with normal insert
@@ -2862,7 +2854,7 @@ bool select_create::send_eof()
     if (!table->s->tmp_table)
     {
       if (close_thread_table(thd, &table))
-        VOID(pthread_cond_broadcast(&COND_refresh));
+        broadcast_refresh();
     }
     thd->extra_lock=0;
     table=0;
@@ -2892,7 +2884,7 @@ void select_create::abort()
         quick_rm_table(table_type, create_table->db, create_table->table_name);
       /* Tell threads waiting for refresh that something has happened */
       if (version != refresh_version)
-        VOID(pthread_cond_broadcast(&COND_refresh));
+        broadcast_refresh();
     }
     else if (!create_info->table_existed)
       close_temporary_table(thd, table, 1, 1);

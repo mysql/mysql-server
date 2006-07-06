@@ -254,7 +254,8 @@ err:
 
   DESCRIPTION
     Though this function takes a list of tables, only the first list entry
-    will be closed. Broadcasts a COND_refresh condition.
+    will be closed.
+    Broadcasts refresh if it closed the table.
 
   RETURN
     FALSE ok
@@ -291,7 +292,7 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
       if (close_thread_table(thd, table_ptr))
       {
         /* Tell threads waiting for refresh that something has happened */
-        VOID(pthread_cond_broadcast(&COND_refresh));
+        broadcast_refresh();
       }
       VOID(pthread_mutex_unlock(&LOCK_open));
     }
@@ -615,7 +616,7 @@ err0:
     tables are closed (if MYSQL_HA_FLUSH_ALL) is set.
     If 'tables' is NULL and MYSQL_HA_FLUSH_ALL is not set,
     all HANDLER tables marked for flush are closed.
-    Broadcasts a COND_refresh condition, for every table closed.
+    Broadcasts refresh for every table closed.
 
   NOTE
     Since mysql_ha_flush() is called when the base table has to be closed,
@@ -712,7 +713,7 @@ int mysql_ha_flush(THD *thd, TABLE_LIST *tables, uint mode_flags,
                                 MYSQL_HA_REOPEN_ON_USAGE mark for reopen.
 
   DESCRIPTION
-    Broadcasts a COND_refresh condition, for every table closed.
+    Broadcasts refresh if it closed the table.
     The caller must lock LOCK_open.
 
   RETURN
@@ -750,7 +751,7 @@ static int mysql_ha_flush_table(THD *thd, TABLE **table_ptr, uint mode_flags)
   if (close_thread_table(thd, table_ptr))
   {
     /* Tell threads waiting for refresh that something has happened */
-    VOID(pthread_cond_broadcast(&COND_refresh));
+    broadcast_refresh();
   }
 
   DBUG_RETURN(0);

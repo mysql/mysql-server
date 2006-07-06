@@ -334,6 +334,7 @@ create table t1 (
  UNIQUE i1idx (i1),
  UNIQUE i2idx (i2));
 desc t1;
+show create table t1;
 drop table t1;
 
 #
