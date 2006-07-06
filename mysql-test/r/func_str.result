@@ -1038,6 +1038,21 @@ select * from t1 where f1='test' and (f2= sha("TEST") or f2= sha("test"));
 f1	f2
 test	a94a8fe5ccb19ba61c4c0873d391e987982fbbd3
 drop table t1;
+CREATE TABLE t1 (a varchar(10));
+INSERT INTO t1 VALUES ('abc'), ('xyz');
+SELECT a, CONCAT(a,' ',a) AS c FROM t1
+HAVING LEFT(c,LENGTH(c)-INSTR(REVERSE(c)," ")) = a;
+a	c
+abc	abc abc
+xyz	xyz xyz
+SELECT a, CONCAT(a,' ',a) AS c FROM t1
+HAVING LEFT(CONCAT(a,' ',a),
+LENGTH(CONCAT(a,' ',a))-
+INSTR(REVERSE(CONCAT(a,' ',a))," ")) = a;
+a	c
+abc	abc abc
+xyz	xyz xyz
+DROP TABLE t1;
 End of 4.1 tests
 create table t1 (d decimal default null);
 insert into t1 values (null);
