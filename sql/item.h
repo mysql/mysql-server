@@ -697,9 +697,16 @@ public:
     Any new item which can be NULL must implement this call.
   */
   virtual bool is_null() { return 0; }
+
   /*
-    it is "top level" item of WHERE clause and we do not need correct NULL
-    handling
+    Inform the item that there will be no distinction between its result
+    being FALSE or NULL.
+
+    NOTE
+      This function will be called for eg. Items that are top-level AND-parts
+      of the WHERE clause. Items implementing this function (currently
+      Item_cond_and and subquery-related item) enable special optimizations
+      when they are "top level".
   */
   virtual void top_level_item() {}
   /*
