@@ -325,12 +325,15 @@ GlobalDictCache::invalidate_all()
     if (vers->size())
     {
       TableVersion * ver = & vers->back();
-      ver->m_impl->m_status = NdbDictionary::Object::Invalid;
-      ver->m_status = DROPPED;
-      if (ver->m_refCount == 0)
+      if (ver->m_status != RETREIVING)
       {
-        delete ver->m_impl;
-        vers->erase(vers->size() - 1);
+        ver->m_impl->m_status = NdbDictionary::Object::Invalid;
+        ver->m_status = DROPPED;
+        if (ver->m_refCount == 0)
+        {
+          delete ver->m_impl;
+          vers->erase(vers->size() - 1);
+        }
       }
     }
     curr = m_tableHash.getNext(curr);
