@@ -930,7 +930,7 @@ bool select_send::send_data(List<Item> &items)
   Protocol *protocol= thd->protocol;
   char buff[MAX_FIELD_WIDTH];
   String buffer(buff, sizeof(buff), &my_charset_bin);
-  DBUG_ENTER("send_data");
+  DBUG_ENTER("select_send::send_data");
 
   protocol->prepare_for_resend();
   Item *item;
@@ -1140,7 +1140,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 bool select_export::send_data(List<Item> &items)
 {
 
-  DBUG_ENTER("send_data");
+  DBUG_ENTER("select_export::send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   bool space_inited=0;
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
@@ -1297,7 +1297,7 @@ bool select_dump::send_data(List<Item> &items)
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   tmp.length(0);
   Item *item;
-  DBUG_ENTER("send_data");
+  DBUG_ENTER("select_dump::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
