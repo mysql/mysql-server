@@ -70,7 +70,7 @@ public:
   void get_wild_do_table(String* str);
   void get_wild_ignore_table(String* str);
 
-  const char* get_rewrite_db(const char* db, uint32 *new_len);
+  const char* get_rewrite_db(const char* db, uint *new_len);
 
   I_List<i_string>* get_do_db();
   I_List<i_string>* get_ignore_db();

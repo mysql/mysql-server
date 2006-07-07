@@ -69,7 +69,7 @@ private:
 
 inline char *Named_value::alloc_str(const LEX_STRING *str)
 {
-  return my_strndup((const byte *) str->str, str->length, MYF(0));
+  return my_strndup(str->str, str->length, MYF(0));
 }
 
 inline char *Named_value::alloc_str(const char *str)
