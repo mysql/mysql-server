@@ -70,6 +70,7 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   ndbSetOwnVersion();
   clusterMgrThreadMutex = NdbMutex_Create();
   waitForHBCond= NdbCondition_Create();
+  waitingForHB= false;
   noOfAliveNodes= 0;
   noOfConnectedNodes= 0;
   theClusterMgrThread= 0;
@@ -172,7 +173,7 @@ ClusterMgr::forceHB(NodeBitmask waitFor)
 {
     theFacade.lock_mutex();
 
-    if(!waitForHBFromNodes.isclear())
+    if(waitingForHB)
     {
       NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
       theFacade.unlock_mutex();
@@ -180,6 +181,7 @@ ClusterMgr::forceHB(NodeBitmask waitFor)
     }
 
     global_flag_send_heartbeat_now= 1;
+    waitingForHB= true;
 
     waitForHBFromNodes= waitFor;
 #ifdef DEBUG_REG
@@ -209,10 +211,11 @@ ClusterMgr::forceHB(NodeBitmask waitFor)
     }
 
     NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
-    theFacade.unlock_mutex();
+    waitingForHB= false;
 #ifdef DEBUG_REG
     ndbout << "Still waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
 #endif
+    theFacade.unlock_mutex();
 }
 
 void
@@ -404,10 +407,16 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
     node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
   }
 
-  waitForHBFromNodes.clear(nodeId);
+  if(waitingForHB)
+  {
+    waitForHBFromNodes.clear(nodeId);
 
-  if(waitForHBFromNodes.isclear())
-    NdbCondition_Broadcast(waitForHBCond);
+    if(waitForHBFromNodes.isclear())
+    {
+      waitingForHB= false;
+      NdbCondition_Broadcast(waitForHBCond);
+    }
+  }
 }
 
 void

@@ -1941,6 +1941,25 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
   }
 }
 
+void
+MgmtSrvr::get_connected_ndb_nodes(NodeBitmask &connected_nodes) const
+{
+  NodeBitmask ndb_nodes;
+  if (theFacade && theFacade->theClusterMgr)
+  {
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+    {
+      if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
+      {
+        ndb_nodes.set(i);
+	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	connected_nodes.bitOR(node.m_state.m_connected_nodes);
+      }
+    }
+  }
+  connected_nodes.bitAND(ndb_nodes);
+}
+
 bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId, 
 			enum ndb_mgm_node_type type,
