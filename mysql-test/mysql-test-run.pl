@@ -168,7 +168,7 @@ our $opt_suite;
 our $opt_netware;
 
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
-our $opt_verbose= 1;  # Verbose output, enable with --verbose
+our $opt_verbose= 0;  # Verbose output, enable with --verbose
 
 # Options FIXME not all....
 
