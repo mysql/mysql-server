@@ -629,10 +629,9 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_PRINT("info", ("Length: %d", table->s->connect_string.length));
   DBUG_PRINT("info", ("String: '%.*s'", table->s->connect_string.length, 
                       table->s->connect_string.str));
-  share->scheme= my_strndup((const byte*)table->s->
-                                       connect_string.str, 
-                                       table->s->connect_string.length,
-                                       MYF(0));
+  share->scheme= my_strndup(table->s->connect_string.str,
+                            table->s->connect_string.length,
+                            MYF(0));
 
   // Add a null for later termination of table name
   share->scheme[table->s->connect_string.length]= 0;
