@@ -513,7 +513,7 @@ Rpl_filter::get_wild_ignore_table(String* str)
 
 
 const char*
-Rpl_filter::get_rewrite_db(const char* db, uint32 *new_len)
+Rpl_filter::get_rewrite_db(const char* db, uint *new_len)
 {
   if (rewrite_db.is_empty() || !db)
     return db;
