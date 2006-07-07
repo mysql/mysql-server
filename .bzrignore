@@ -1,3 +1,5 @@
+*.Plo
+*.Po
 *.a
 *.bb
 *.bbg
@@ -9,6 +11,7 @@
 *.gcov
 *.idb
 *.la
+*.lai
 *.lib
 *.lo
 *.map
@@ -26,9 +29,6 @@
 */.pure
 *~
 .*.swp
-*.Po
-*.Plo
-*.lai
 ./README.build-files
 ./config.h
 ./copy_mysql_files.bat
@@ -45,9 +45,6 @@
 .gdb_history
 .gdbinit
 .libs
-client/.libs -prune
-tests/.libs -prune
-tools/.libs -prune
 .o
 .out
 .snprj/*
@@ -55,6 +52,7 @@ tools/.libs -prune
 50
 =6
 BUILD/compile-pentium-maintainer
+BitKeeper/etc/RESYNC_TREE
 BitKeeper/etc/config
 BitKeeper/etc/csets
 BitKeeper/etc/csets-in
@@ -286,6 +284,7 @@ build_tags.sh
 client/#mysql.cc#
 client/*.ds?
 client/*.vcproj
+client/.libs -prune
 client/completion_hash.cpp
 client/decimal.c
 client/insert_test
@@ -565,6 +564,7 @@ libmysqld/sql_insert.cc
 libmysqld/sql_lex.cc
 libmysqld/sql_list.cc
 libmysqld/sql_load.cc
+libmysqld/sql_locale.cc
 libmysqld/sql_manager.cc
 libmysqld/sql_map.cc
 libmysqld/sql_olap.cc
@@ -676,6 +676,7 @@ mysql-test/mysql-test-run.log
 mysql-test/mysql_test_run_new
 mysql-test/ndb/ndbcluster
 mysql-test/r/*.err
+mysql-test/r/*.log
 mysql-test/r/*.out
 mysql-test/r/*.reject
 mysql-test/r/alter_table.err
@@ -1068,6 +1069,7 @@ scripts/mysql_secure_installation
 scripts/mysql_setpermission
 scripts/mysql_tableinfo
 scripts/mysql_upgrade
+scripts/mysql_upgrade_shell
 scripts/mysql_zap
 scripts/mysqlaccess
 scripts/mysqlbug
@@ -1269,6 +1271,7 @@ test1/*
 test_xml
 tests/*.ds?
 tests/*.vcproj
+tests/.libs -prune
 tests/client_test
 tests/connect_test
 tests/mysql_client_test
@@ -1276,6 +1279,7 @@ thr_insert_test/*
 thr_test/*
 thread_test
 tmp/*
+tools/.libs -prune
 tools/my_vsnprintf.c
 tools/mysqlmanager
 tools/mysqlmngd
@@ -1292,6 +1296,3 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
-BitKeeper/etc/RESYNC_TREE
-mysql-test/r/*.log
-scripts/mysql_upgrade_shell
