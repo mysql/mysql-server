@@ -600,7 +600,7 @@ db_create_event(THD *thd, Event_timed *et, my_bool create_if_not,
   TABLE *table;
   char old_db_buf[NAME_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
-  bool dbchanged;
+  bool dbchanged= FALSE;
   DBUG_ENTER("db_create_event");
   DBUG_PRINT("enter", ("name: %.*s", et->name.length, et->name.str));
 
