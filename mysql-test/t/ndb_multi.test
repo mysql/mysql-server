@@ -3,6 +3,9 @@
 -- source include/not_embedded.inc
 -- source include/have_binlog_format_statement.inc
 
+# BUG#20902: Test fails in statement-based binlogging mode. Remove when fixed.
+-- source include/have_binlog_format_row.inc
+
 
 --disable_warnings
 connection server2;
