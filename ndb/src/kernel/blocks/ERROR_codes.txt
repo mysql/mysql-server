@@ -2,7 +2,7 @@ Next QMGR 1
 Next NDBCNTR 1000
 Next NDBFS 2000
 Next DBACC 3002
-Next DBTUP 4013
+Next DBTUP 4014
 Next DBLQH 5043
 Next DBDICT 6006
 Next DBDIH 7174
@@ -429,6 +429,8 @@ Drop Table/Index:
 8034: Fail next index create in TC
 8035: Fail next trigger drop in TC
 8036: Fail next index drop in TC
+
+4013: verify TUP tab descr before and after next DROP TABLE
 
 System Restart:
 ---------------
