@@ -35,9 +35,7 @@ const char *primary_key_name="PRIMARY";
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
-				    List<create_field> &create,
-				    enum enum_duplicates handle_duplicates,
-                                    bool ignore,
+                                    List<create_field> &create, bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted);
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
@@ -4955,8 +4953,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        HA_CREATE_INFO *lex_create_info,
                        TABLE_LIST *table_list,
                        List<create_field> &fields, List<Key> &keys,
-                       uint order_num, ORDER *order,
-                       enum enum_duplicates handle_duplicates, bool ignore,
+                       uint order_num, ORDER *order, bool ignore,
                        ALTER_INFO *alter_info, bool do_send_ok)
 {
   TABLE *table,*new_table=0;
@@ -5794,8 +5791,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
-    error=copy_data_between_tables(table,new_table,create_list,
-				   handle_duplicates, ignore,
+    error=copy_data_between_tables(table, new_table, create_list, ignore,
 				   order_num, order, &copied, &deleted);
   }
   thd->last_insert_id=next_insert_id;		// Needed for correct log
@@ -6209,7 +6205,6 @@ end_temporary:
 static int
 copy_data_between_tables(TABLE *from,TABLE *to,
 			 List<create_field> &create,
-			 enum enum_duplicates handle_duplicates,
                          bool ignore,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
@@ -6308,8 +6303,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
-  if (ignore ||
-      handle_duplicates == DUP_REPLACE)
+  if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->row_count= 0;
   restore_record(to, s->default_values);        // Create empty record
@@ -6336,7 +6330,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     if ((error=to->file->ha_write_row((byte*) to->record[0])))
     {
-      if (!ignore || handle_duplicates != DUP_ERROR ||
+      if (!ignore ||
           to->file->is_fatal_error(error, HA_CHECK_DUP))
       {
          if (!to->file->is_fatal_error(error, HA_CHECK_DUP))
@@ -6428,7 +6422,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, lex->create_list,
                                 lex->key_list, 0, (ORDER *) 0,
-                                DUP_ERROR, 0, &lex->alter_info, do_send_ok));
+                                0, &lex->alter_info, do_send_ok));
 }
 
 

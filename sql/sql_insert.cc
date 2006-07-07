@@ -181,9 +181,6 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       }
     }
   }
-  if (table->found_next_number_field)
-    table->mark_auto_increment_column();
-  table->mark_columns_needed_for_insert();
   // For the values we need select_priv
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table->grant.want_privilege= (SELECT_ACL & ~table->grant.privilege);
@@ -414,6 +411,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->proc_info="update";
   if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (duplic == DUP_REPLACE &&
+      (!table->triggers || !table->triggers->has_delete_triggers()))
+    table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   /*
     let's *try* to start bulk inserts. It won't necessary
     start them as values_list.elements should be greater than
@@ -441,6 +441,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     /* thd->net.report_error is now set, which will abort the next loop */
     error= 1;
   }
+
+  table->mark_columns_needed_for_insert();
 
   if (table_list->prepare_where(thd, 0, TRUE) ||
       table_list->prepare_check_option(thd))
@@ -615,6 +617,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->next_insert_id=0;			// Reset this if wrongly used
   if (duplic != DUP_ERROR || ignore)
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  if (duplic == DUP_REPLACE &&
+      (!table->triggers || !table->triggers->has_delete_triggers()))
+    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
   /* Reset value of LAST_INSERT_ID if no rows where inserted */
   if (!info.copied && thd->insert_id_used)
@@ -1961,9 +1966,8 @@ bool delayed_insert::handle_inserts(void)
 {
   int error;
   ulong max_rows;
-  bool using_ignore=0,
-    using_bin_log= mysql_bin_log.is_open();
-
+  bool using_ignore= 0, using_opt_replace= 0,
+       using_bin_log= mysql_bin_log.is_open();
   delayed_row *row;
   DBUG_ENTER("handle_inserts");
 
@@ -2026,6 +2030,13 @@ bool delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
       using_ignore=1;
     }
+    if (info.handle_duplicates == DUP_REPLACE &&
+        (!table->triggers ||
+         !table->triggers->has_delete_triggers()))
+    {
+      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+      using_opt_replace= 1;
+    }
     thd.clear_error(); // reset error for binlog
     if (write_record(&thd, table, &info))
     {
@@ -2037,6 +2048,11 @@ bool delayed_insert::handle_inserts(void)
     {
       using_ignore=0;
       table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    }
+    if (using_opt_replace)
+    {
+      using_opt_replace= 0;
+      table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     }
     if (table->s->blob_fields)
       free_delayed_insert_blobs(table);
@@ -2283,6 +2299,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (info.handle_duplicates == DUP_REPLACE &&
+      (!table->triggers || !table->triggers->has_delete_triggers()))
+    table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   thd->no_trans_update= 0;
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
@@ -2292,6 +2311,10 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
          check_that_all_fields_are_given_values(thd, table, table_list)) ||
         table_list->prepare_where(thd, 0, TRUE) ||
         table_list->prepare_check_option(thd));
+
+  if (!res)
+    table->mark_columns_needed_for_insert();
+
   DBUG_RETURN(res);
 }
 
@@ -2482,6 +2505,7 @@ bool select_insert::send_eof()
 
   error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert():0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
   if (info.copied || info.deleted || info.updated)
   {
@@ -2766,6 +2790,9 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   thd->cuted_fields=0;
   if (info.ignore || info.handle_duplicates != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (info.handle_duplicates == DUP_REPLACE &&
+      (!table->triggers || !table->triggers->has_delete_triggers()))
+    table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   if (!thd->prelocked_mode)
     table->file->ha_start_bulk_insert((ha_rows) 0);
   thd->no_trans_update= 0;
@@ -2773,8 +2800,10 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |
                             MODE_STRICT_ALL_TABLES)));
-  DBUG_RETURN(check_that_all_fields_are_given_values(thd, table,
-                                                     table_list));
+  if (check_that_all_fields_are_given_values(thd, table, table_list))
+    DBUG_RETURN(1);
+  table->mark_columns_needed_for_insert();
+  DBUG_RETURN(0);
 }
 
 
@@ -2848,6 +2877,7 @@ bool select_create::send_eof()
   else
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     VOID(pthread_mutex_lock(&LOCK_open));
     mysql_unlock_tables(thd, thd->extra_lock);
     if (!table->s->tmp_table)
@@ -2873,6 +2903,7 @@ void select_create::abort()
   if (table)
   {
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     handlerton *table_type=table->s->db_type;
     if (!table->s->tmp_table)
     {
