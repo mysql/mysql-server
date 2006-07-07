@@ -409,3 +409,10 @@ create table t1(pt GEOMETRY);
 alter table t1 add primary key pti(pt);
 alter table t1 add primary key pti(pt(20));
 drop table t1;
+
+--enable_metadata
+create table t1 (g GEOMETRY);
+select * from t1;
+select asbinary(g) from t1;
+--disable_metadata
+drop table t1;
