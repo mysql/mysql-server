@@ -1038,7 +1038,7 @@ String *Item_func_left::val_str(String *str)
   long length  =(long) args[1]->val_int();
   uint char_pos;
 
-  if ((null_value=args[0]->null_value))
+  if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0;
   if (length <= 0)
     return &my_empty_string;
@@ -1078,7 +1078,7 @@ String *Item_func_right::val_str(String *str)
   String *res  =args[0]->val_str(str);
   long length  =(long) args[1]->val_int();
 
-  if ((null_value=args[0]->null_value))
+  if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0; /* purecov: inspected */
   if (length <= 0)
     return &my_empty_string; /* purecov: inspected */
