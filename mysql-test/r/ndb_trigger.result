@@ -1,0 +1,119 @@
+drop table if exists t1, t2, t3;
+create table t1 (id int primary key, a int not null, b decimal (63,30) default 0) engine=ndb;
+create table t2 (op char(1), a int not null, b decimal (63,30));
+create table t3 select 1 as i;
+create trigger t1_bu before update on t1 for each row
+begin
+insert into t2 values ("u", old.a, old.b);
+set new.b = old.b + 10;
+end;//
+create trigger t1_bd before delete on t1 for each row
+begin
+insert into t2 values ("d", old.a, old.b);
+end;//
+insert into t1 values (1, 1, 1.05), (2, 2, 2.05), (3, 3, 3.05), (4, 4, 4.05);
+update t1 set a=5 where a != 3;
+select * from t1 order by id;
+id	a	b
+1	5	11.050000000000000000000000000000
+2	5	12.050000000000000000000000000000
+3	3	3.050000000000000000000000000000
+4	5	14.050000000000000000000000000000
+select * from t2 order by op, a, b;
+op	a	b
+u	1	1.050000000000000000000000000000
+u	2	2.050000000000000000000000000000
+u	4	4.050000000000000000000000000000
+delete from t2;
+update t1, t3 set a=6 where a = 5;
+select * from t1 order by id;
+id	a	b
+1	6	21.050000000000000000000000000000
+2	6	22.050000000000000000000000000000
+3	3	3.050000000000000000000000000000
+4	6	24.050000000000000000000000000000
+select * from t2 order by op, a, b;
+op	a	b
+u	5	11.050000000000000000000000000000
+u	5	12.050000000000000000000000000000
+u	5	14.050000000000000000000000000000
+delete from t2;
+delete from t1 where a != 3;
+select * from t1 order by id;
+id	a	b
+3	3	3.050000000000000000000000000000
+select * from t2 order by op, a, b;
+op	a	b
+d	6	21.050000000000000000000000000000
+d	6	22.050000000000000000000000000000
+d	6	24.050000000000000000000000000000
+delete from t2;
+insert into t1 values (1, 1, 1.05), (2, 2, 2.05), (4, 4, 4.05);
+delete t1 from t1, t3 where a != 3;
+select * from t1 order by id;
+id	a	b
+3	3	3.050000000000000000000000000000
+select * from t2 order by op, a, b;
+op	a	b
+d	1	1.050000000000000000000000000000
+d	2	2.050000000000000000000000000000
+d	4	4.050000000000000000000000000000
+delete from t2;
+insert into t1 values (4, 4, 4.05);
+insert into t1 (id, a) values (4, 1), (3, 1) on duplicate key update a= a + 1;
+select * from t1 order by id;
+id	a	b
+3	4	13.050000000000000000000000000000
+4	5	14.050000000000000000000000000000
+select * from t2 order by op, a, b;
+op	a	b
+u	3	3.050000000000000000000000000000
+u	4	4.050000000000000000000000000000
+delete from t2;
+delete from t3;
+insert into t3 values (4), (3);
+insert into t1 (id, a) (select i, 1 from t3) on duplicate key update a= a + 1;
+select * from t1 order by id;
+id	a	b
+3	5	23.050000000000000000000000000000
+4	6	24.050000000000000000000000000000
+select * from t2 order by op, a, b;
+op	a	b
+u	4	13.050000000000000000000000000000
+u	5	14.050000000000000000000000000000
+delete from t2;
+replace into t1 (id, a) values (4, 1), (3, 1);
+select * from t1 order by id;
+id	a	b
+3	1	0.000000000000000000000000000000
+4	1	0.000000000000000000000000000000
+select * from t2 order by op, a, b;
+op	a	b
+d	5	23.050000000000000000000000000000
+d	6	24.050000000000000000000000000000
+delete from t1;
+delete from t2;
+insert into t1 values (3, 1, 1.05), (4, 1, 2.05);
+replace into t1 (id, a) (select i, 2 from t3);
+select * from t1 order by id;
+id	a	b
+3	2	0.000000000000000000000000000000
+4	2	0.000000000000000000000000000000
+select * from t2 order by op, a, b;
+op	a	b
+d	1	1.050000000000000000000000000000
+d	1	2.050000000000000000000000000000
+delete from t1;
+delete from t2;
+insert into t1 values (3, 1, 1.05), (5, 2, 2.05);
+load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (id, a);
+select * from t1 order by id;
+id	a	b
+3	4	0.000000000000000000000000000000
+5	6	0.000000000000000000000000000000
+select * from t2 order by op, a, b;
+op	a	b
+d	1	1.050000000000000000000000000000
+d	2	2.050000000000000000000000000000
+drop tables t1, t2, t3;
+End of 5.0 tests

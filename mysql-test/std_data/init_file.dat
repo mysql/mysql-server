@@ -1,1 +1,29 @@
 select * from mysql.user as t1, mysql.user as t2, mysql.user as t3;
+use test;
+
+drop table if exists t1;
+create table t1 (x int);
+drop table if exists t2;
+create table t2 (y int);
+
+drop procedure if exists p1;
+create definer=root@localhost procedure p1() select * from t1;
+call p1();
+drop procedure p1;
+
+create definer=root@localhost procedure p1() insert into t1 values (3),(5),(7);
+call p1();
+
+drop function if exists f1;
+create definer=root@localhost function f1() returns int return (select count(*) from t1);
+insert into t2 set y = f1()*10;
+
+drop view if exists v1;
+create definer=root@localhost view v1 as select f1();
+insert into t2 (y) select * from v1;
+
+create trigger trg1 after insert on t2 for each row insert into t1 values (new.y);
+insert into t2 values (11), (13);
+drop procedure p1;
+drop function f1;
+drop view v1;
