@@ -5839,7 +5839,7 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
   if (memory == NULL)
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
-  uint32 dummy_len;
+  uint dummy_len;
   bzero(table_list, sizeof(*table_list));
   table_list->db = db_mem;
   table_list->alias= table_list->table_name = tname_mem;
