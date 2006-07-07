@@ -416,7 +416,7 @@ int federated_db_init()
 
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
-  if (hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
+  if (!hash_init(&federated_open_tables, &my_charset_bin, 32, 0, 0,
                     (hash_get_key) federated_get_key, 0, 0))
   {
     federated_init= TRUE;
@@ -2114,7 +2114,7 @@ error:
 
 /* Initialized at each key walk (called multiple times unlike rnd_init()) */
 
-int ha_federated::index_init(uint keynr)
+int ha_federated::index_init(uint keynr, bool sorted)
 {
   DBUG_ENTER("ha_federated::index_init");
   DBUG_PRINT("info", ("table: '%s'  key: %u", table->s->table_name, keynr));
@@ -2523,14 +2523,13 @@ void ha_federated::info(uint flag)
         stats.check_time=      (ha_rows) my_strtoll10(row[13], (char**) 0,
                                                       &error);
     }
-    if (flag & HA_STATUS_CONST)
-      stats.block_size= 4096;
-
     /*
       size of IO operations (This is based on a good guess, no high science
       involved)
     */
-    block_size= 4096;
+    if (flag & HA_STATUS_CONST)
+      stats.block_size= 4096;
+
   }
 
   if (result)
