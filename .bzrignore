@@ -20,11 +20,15 @@
 *.res
 *.sbr
 *.so
+*.so.*
 *.spec
 */*_pure_*warnings
 */.pure
 *~
 .*.swp
+*.Po
+*.Plo
+*.lai
 ./README.build-files
 ./config.h
 ./copy_mysql_files.bat
@@ -41,6 +45,9 @@
 .gdb_history
 .gdbinit
 .libs
+client/.libs -prune
+tests/.libs -prune
+tools/.libs -prune
 .o
 .out
 .snprj/*
