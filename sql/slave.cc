@@ -3533,15 +3533,12 @@ err:
   write_ignored_events_info_to_relay_log(thd, mi);
   thd->proc_info = "Waiting for slave mutex on exit";
   pthread_mutex_lock(&mi->run_lock);
-  mi->slave_running = 0;
-  mi->io_thd = 0;
 
   /* Forget the relay log's format */
   delete mi->rli.relay_log.description_event_for_queue;
   mi->rli.relay_log.description_event_for_queue= 0;
   // TODO: make rpl_status part of MASTER_INFO
   change_rpl_status(RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE);
-  mi->abort_slave = 0; // TODO: check if this is needed
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
   close_thread_tables(thd, 0);
@@ -3552,6 +3549,9 @@ err:
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
   pthread_mutex_unlock(&mi->run_lock);
   my_thread_end();
+  mi->abort_slave = 0;
+  mi->slave_running = 0;
+  mi->io_thd = 0;
   pthread_exit(0);
   DBUG_RETURN(0);                               // Can't return anything here
 }
