@@ -814,6 +814,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.time_zone= thd->variables.time_zone;
     flags.sql_mode= thd->variables.sql_mode;
     flags.max_sort_length= thd->variables.max_sort_length;
+    flags.lc_time_names= thd->variables.lc_time_names;
     flags.group_concat_max_len= thd->variables.group_concat_max_len;
     DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
@@ -1048,6 +1049,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   flags.sql_mode= thd->variables.sql_mode;
   flags.max_sort_length= thd->variables.max_sort_length;
   flags.group_concat_max_len= thd->variables.group_concat_max_len;
+  flags.lc_time_names= thd->variables.lc_time_names;
   DBUG_PRINT("qcache", ("long %d, 4.1: %d, more results %d, pkt_nr: %d, \
 CS client: %u, CS result: %u, CS conn: %u, limit: %lu, TZ: 0x%lx, \
 sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
