@@ -3546,12 +3546,12 @@ err:
   THD_CHECK_SENTRY(thd);
   delete thd;
   pthread_mutex_unlock(&LOCK_thread_count);
-  pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
-  pthread_mutex_unlock(&mi->run_lock);
-  my_thread_end();
   mi->abort_slave = 0;
   mi->slave_running = 0;
   mi->io_thd = 0;
+  pthread_mutex_unlock(&mi->run_lock);
+  pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
+  my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);                               // Can't return anything here
 }
