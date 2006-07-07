@@ -1971,6 +1971,17 @@ inline int hexchar_to_int(char c)
 }
 
 /*
+  is_user_table()
+  return true if the table was created explicitly
+*/
+
+inline bool is_user_table(TABLE * table)
+{
+  const char *name= table->s->table_name.str;
+  return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
+}
+
+/*
   Some functions that are different in the embedded library and the normal
   server
 */
