@@ -1241,8 +1241,9 @@ if test "$with_named_thread" = "no" -a "$with_mit_threads" = "no"
 then
   # Look for LinuxThreads.
   AC_MSG_CHECKING("LinuxThreads")
-    res=`grep Linuxthreads /usr/include/pthread.h 2>/dev/null | wc -l`
-    if test "$res" -gt 0
+    grepres=`grep Linuxthreads /usr/include/pthread.h 2>/dev/null | wc -l`
+    getconfres=`which getconf >/dev/null && getconf GNU_LIBPTHREAD_VERSION | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ |grep LINUXTHREADS | wc -l || echo 0`
+    if test "$grepres" -gt 0 -o "$getconfres" -gt 0
     then
       AC_MSG_RESULT("Found")
       AC_DEFINE(HAVE_LINUXTHREADS)
@@ -1255,12 +1256,20 @@ then
     else
       AC_MSG_RESULT("Not found")
       # If this is a linux machine we should barf
+      AC_MSG_CHECKING("NPTL")
       if test "$IS_LINUX" = "true"
       then
-	AC_MSG_ERROR([This is a linux system and Linuxthreads was not
-found. On linux Linuxthreads should be used.  Please install Linuxthreads
-(or a new glibc) and try again.  See the Installation chapter in the
-Reference Manual for more information.])
+        getconfres=`which getconf >/dev/null && getconf GNU_LIBPTHREAD_VERSION | tr abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ |grep NPTL | wc -l || echo 0`
+        if test "$getconfres" -gt 0
+        then
+          AC_DEFINE(HAVE_LINUXTHREADS) dnl All this code predates NPTL, so "have linuxthreads" is a poor name.
+          with_named_thread="-lpthread"
+        else
+          AC_MSG_ERROR([This is a Linux system and neither Linuxthreads nor NPTL were
+found. Please install Linuxthreads or a new glibc and try 
+again.  See the Installation chapter in the Reference Manual for 
+more information.])
+        fi
       else
 	AC_MSG_CHECKING("DEC threads")
         if test -f /usr/shlib/libpthread.so -a -f /usr/lib/libmach.a -a -f /usr/ccs/lib/cmplrs/cc/libexc.a
