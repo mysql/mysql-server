@@ -172,6 +172,7 @@ ClusterMgr::doStop( ){
 void
 ClusterMgr::forceHB(NodeBitmask waitFor)
 {
+    NdbMutex_Lock(waitForHBMutex);
     theFacade.lock_mutex();
     global_flag_send_heartbeat_now= 1;
 
@@ -204,7 +205,6 @@ ClusterMgr::forceHB(NodeBitmask waitFor)
 
     theFacade.unlock_mutex();
 
-    NdbMutex_Lock(waitForHBMutex);
     NdbCondition_WaitTimeout(waitForHBCond, waitForHBMutex, 1000);
     NdbMutex_Unlock(waitForHBMutex);
 #ifdef DEBUG_REG
@@ -400,13 +400,14 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   if (node.m_info.m_type != NodeInfo::REP) {
     node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
   }
+
+  NdbMutex_Lock(waitForHBMutex);
   waitForHBFromNodes.clear(nodeId);
+
   if(waitForHBFromNodes.isclear())
-  {
-    NdbMutex_Lock(waitForHBMutex);
     NdbCondition_Signal(waitForHBCond);
-    NdbMutex_Unlock(waitForHBMutex);
-  }
+
+  NdbMutex_Unlock(waitForHBMutex);
 }
 
 void
