@@ -187,9 +187,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   table= table_list->table;
   transactional_table= table->file->has_transactions();
 
-  if (table->found_next_number_field)
-    table->mark_auto_increment_column();
-
   if (!fields_vars.elements)
   {
     Field **field;
@@ -231,6 +228,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (setup_fields(thd, 0, set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
   }
+
+  table->mark_columns_needed_for_insert();
 
   uint tot_length=0;
   bool use_blobs= 0, use_vars= 0;
@@ -362,6 +361,10 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (ignore ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (handle_duplicates == DUP_REPLACE &&
+        (!table->triggers ||
+         !table->triggers->has_delete_triggers()))
+        table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
     if (!thd->prelocked_mode)
       table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
@@ -386,6 +389,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= 1;
     }
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     table->next_number_field=0;
   }
   ha_enable_transaction(thd, TRUE);

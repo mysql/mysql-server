@@ -3925,16 +3925,7 @@ void st_table::mark_auto_increment_column()
 void st_table::mark_columns_needed_for_delete()
 {
   if (triggers)
-  {
-    if (triggers->bodies[TRG_EVENT_DELETE][TRG_ACTION_BEFORE] ||
-        triggers->bodies[TRG_EVENT_DELETE][TRG_ACTION_AFTER])
-    {
-      /* TODO: optimize to only add columns used by trigger */
-      use_all_columns();
-      return;
-    }
-  }
-
+    triggers->mark_fields_used(TRG_EVENT_DELETE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     Field **reg_field;
@@ -3985,15 +3976,7 @@ void st_table::mark_columns_needed_for_update()
 {
   DBUG_ENTER("mark_columns_needed_for_update");
   if (triggers)
-  {
-    if (triggers->bodies[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE] ||
-        triggers->bodies[TRG_EVENT_UPDATE][TRG_ACTION_AFTER])
-    {
-      /* TODO: optimize to only add columns used by trigger */
-      use_all_columns();
-      DBUG_VOID_RETURN;
-    }
-  }
+    triggers->mark_fields_used(TRG_EVENT_UPDATE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
@@ -4036,13 +4019,14 @@ void st_table::mark_columns_needed_for_insert()
 {
   if (triggers)
   {
-    if (triggers->bodies[TRG_EVENT_INSERT][TRG_ACTION_BEFORE] ||
-        triggers->bodies[TRG_EVENT_INSERT][TRG_ACTION_AFTER])
-    {
-      /* TODO: optimize to only add columns used by trigger */
-      use_all_columns();
-      return;
-    }
+    /*
+      We don't need to mark columns which are used by ON DELETE and
+      ON UPDATE triggers, which may be invoked in case of REPLACE or
+      INSERT ... ON DUPLICATE KEY UPDATE, since before doing actual
+      row replacement or update write_record() will mark all table
+      fields as used.
+    */
+    triggers->mark_fields_used(TRG_EVENT_INSERT);
   }
   if (found_next_number_field)
     mark_auto_increment_column();

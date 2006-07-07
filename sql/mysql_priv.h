@@ -872,9 +872,7 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        TABLE_LIST *table_list,
                        List<create_field> &fields,
                        List<Key> &keys,
-                       uint order_num, ORDER *order,
-                       enum enum_duplicates handle_duplicates,
-                       bool ignore,
+                       uint order_num, ORDER *order, bool ignore,
                        ALTER_INFO *alter_info, bool do_send_ok);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
