@@ -1946,6 +1946,7 @@ void Security_context::init()
 {
   host= user= priv_user= ip= 0;
   host_or_ip= "connecting host";
+  priv_host[0]= '\0';
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
 #endif

@@ -30,7 +30,8 @@ REPLACE INTO t1 (i,j) VALUES (17,2);
 SELECT * from t1 ORDER BY i;
 i	j	k
 3	1	42
-17	2	24
+17	2	NULL
+DROP TABLE t1;
 CREATE TABLE t2 (a INT(11) NOT NULL,
 b INT(11) NOT NULL,
 c INT(11) NOT NULL,
@@ -52,3 +53,47 @@ SELECT * FROM t2 ORDER BY id;
 a	b	c	x	y	z	id	i
 1	1	1	b	b	b	5	2
 DROP TABLE t2;
+drop table if exists t1;
+create table t1 (pk int primary key, apk int unique, data int) engine=ndbcluster;
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+replace into t1 (pk, apk) values (4, 1), (5, 2);
+select * from t1 order by pk;
+pk	apk	data
+3	3	3
+4	1	NULL
+5	2	NULL
+delete from t1;
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+replace into t1 (pk, apk) values (1, 4), (2, 5);
+select * from t1 order by pk;
+pk	apk	data
+1	4	NULL
+2	5	NULL
+3	3	3
+delete from t1;
+insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
+load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+pk	apk	data
+1	1	1
+3	4	NULL
+5	6	NULL
+delete from t1;
+insert into t1 values (1, 1, 1), (3, 3, 3), (5, 5, 5);
+load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+select * from t1 order by pk;
+pk	apk	data
+1	1	1
+3	4	NULL
+5	6	NULL
+delete from t1;
+insert into t1 values (1, 1, 1), (2, 2, 2), (3, 3, 3);
+replace into t1 (pk, apk) select 4, 1;
+replace into t1 (pk, apk) select 2, 4;
+select * from t1 order by pk;
+pk	apk	data
+2	4	NULL
+3	3	3
+4	1	NULL
+drop table t1;
+End of 5.0 tests.
