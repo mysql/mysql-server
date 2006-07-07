@@ -69,7 +69,6 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   DBUG_ENTER("ClusterMgr::ClusterMgr");
   ndbSetOwnVersion();
   clusterMgrThreadMutex = NdbMutex_Create();
-  waitForHBMutex= NdbMutex_Create();
   waitForHBCond= NdbCondition_Create();
   noOfAliveNodes= 0;
   noOfConnectedNodes= 0;
@@ -83,7 +82,6 @@ ClusterMgr::~ClusterMgr()
   DBUG_ENTER("ClusterMgr::~ClusterMgr");
   doStop();
   NdbCondition_Destroy(waitForHBCond);
-  NdbMutex_Destroy(waitForHBMutex);
   NdbMutex_Destroy(clusterMgrThreadMutex);
   DBUG_VOID_RETURN;
 }
@@ -172,8 +170,15 @@ ClusterMgr::doStop( ){
 void
 ClusterMgr::forceHB(NodeBitmask waitFor)
 {
-    NdbMutex_Lock(waitForHBMutex);
     theFacade.lock_mutex();
+
+    if(!waitForHBFromNodes.isclear())
+    {
+      NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
+      theFacade.unlock_mutex();
+      return;
+    }
+
     global_flag_send_heartbeat_now= 1;
 
     waitForHBFromNodes= waitFor;
@@ -203,10 +208,8 @@ ClusterMgr::forceHB(NodeBitmask waitFor)
       theFacade.sendSignalUnCond(&signal, nodeId);
     }
 
+    NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
     theFacade.unlock_mutex();
-
-    NdbCondition_WaitTimeout(waitForHBCond, waitForHBMutex, 1000);
-    NdbMutex_Unlock(waitForHBMutex);
 #ifdef DEBUG_REG
     ndbout << "Still waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
 #endif
@@ -401,13 +404,10 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
     node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
   }
 
-  NdbMutex_Lock(waitForHBMutex);
   waitForHBFromNodes.clear(nodeId);
 
   if(waitForHBFromNodes.isclear())
-    NdbCondition_Signal(waitForHBCond);
-
-  NdbMutex_Unlock(waitForHBMutex);
+    NdbCondition_Broadcast(waitForHBCond);
 }
 
 void
@@ -436,13 +436,10 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
   default:
     break;
   }
+
   waitForHBFromNodes.clear(nodeId);
   if(waitForHBFromNodes.isclear())
-  {
-    NdbMutex_Lock(waitForHBMutex);
     NdbCondition_Signal(waitForHBCond);
-    NdbMutex_Unlock(waitForHBMutex);
-  }
 }
 
 void
