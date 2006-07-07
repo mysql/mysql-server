@@ -2970,6 +2970,7 @@ static int
 com_use(String *buffer __attribute__((unused)), char *line)
 {
   char *tmp, buff[FN_REFLEN + 1];
+  int select_db;
 
   bzero(buff, sizeof(buff));
   strmov(buff, line);
@@ -2989,34 +2990,52 @@ com_use(String *buffer __attribute__((unused)), char *line)
   if (!current_db || cmp_database(charset_info, current_db,tmp))
   {
     if (one_database)
-      skip_updates= 1;
-    else
     {
-      /*
-	reconnect once if connection is down or if connection was found to
-	be down during query
-      */
-      if (!connected && reconnect())
-      return opt_reconnect ? -1 : 1;                        // Fatal error
-      if (mysql_select_db(&mysql,tmp))
-      {
-	if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR)
-	  return put_error(&mysql);
-
-	if (reconnect())
-        return opt_reconnect ? -1 : 1;                      // Fatal error
-	if (mysql_select_db(&mysql,tmp))
-	  return put_error(&mysql);
-      }
-      my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
-      current_db=my_strdup(tmp,MYF(MY_WME));
-#ifdef HAVE_READLINE
-      build_completion_hash(rehash, 1);
-#endif
+      skip_updates= 1;
+      select_db= 0;    // don't do mysql_select_db()
     }
+    else
+      select_db= 2;    // do mysql_select_db() and build_completion_hash()
   }
   else
+  {
+    /*
+      USE to the current db specified.
+      We do need to send mysql_select_db() to make server
+      update database level privileges, which might
+      change since last USE (see bug#10979).
+      For performance purposes, we'll skip rebuilding of completion hash.
+    */
     skip_updates= 0;
+    select_db= 1;      // do only mysql_select_db(), without completion
+  }
+
+  if (select_db)
+  {
+    /*
+      reconnect once if connection is down or if connection was found to
+      be down during query
+    */
+    if (!connected && reconnect())
+      return opt_reconnect ? -1 : 1;                        // Fatal error
+    if (mysql_select_db(&mysql,tmp))
+    {
+      if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR)
+        return put_error(&mysql);
+
+      if (reconnect())
+        return opt_reconnect ? -1 : 1;                      // Fatal error
+      if (mysql_select_db(&mysql,tmp))
+        return put_error(&mysql);
+    }
+    my_free(current_db,MYF(MY_ALLOW_ZERO_PTR));
+    current_db=my_strdup(tmp,MYF(MY_WME));
+#ifdef HAVE_READLINE
+    if (select_db > 1)
+      build_completion_hash(rehash, 1);
+#endif
+  }
+
   put_info("Database changed",INFO_INFO);
   return 0;
 }
