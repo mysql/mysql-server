@@ -83,7 +83,7 @@ char *my_strdup(const char *from, myf my_flags)
 }
 
 
-char *my_strndup(const byte *from, uint length, myf my_flags)
+char *my_strndup(const char *from, uint length, myf my_flags)
 {
   gptr ptr;
   if ((ptr=my_malloc(length+1,my_flags)) != 0)
