@@ -952,7 +952,7 @@ printNodeStatus(OutputStream *output,
 		enum ndb_mgm_node_type type) {
   NodeId nodeId = 0;
   NodeBitmask hbnodes;
-  mgmsrv.get_connected_nodes(hbnodes);
+  mgmsrv.get_connected_ndb_nodes(hbnodes);
   mgmsrv.updateStatus(hbnodes);
   while(mgmsrv.getNextNodeId(&nodeId, type)) {
     enum ndb_mgm_node_status status;

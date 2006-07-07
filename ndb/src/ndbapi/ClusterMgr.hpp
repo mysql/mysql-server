@@ -90,6 +90,7 @@ private:
 
   NodeBitmask   waitForHBFromNodes; // used in forcing HBs
   NdbCondition* waitForHBCond;
+  bool          waitingForHB;
 
   /**
    * Used for controlling start/stop of the thread
