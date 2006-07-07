@@ -1314,7 +1314,6 @@ select * from federated.t1 where fld_parentid=0 and fld_delt=0;
 DROP TABLE federated.t1;
 connection slave;
 DROP TABLE federated.bug_17377_table;
-DROP TABLE federated.t1;
 
 #
 # BUG 19773 Crash when using multi-table updates, deletes
