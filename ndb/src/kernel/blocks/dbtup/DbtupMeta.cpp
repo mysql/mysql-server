@@ -567,6 +567,9 @@ void
 Dbtup::execDROP_TAB_REQ(Signal* signal)
 {
   ljamEntry();
+  if (ERROR_INSERTED(4013)) {
+    verifytabdes();
+  }
   DropTabReq* req = (DropTabReq*)signal->getDataPtr();
   
   TablerecPtr tabPtr;
@@ -685,5 +688,9 @@ void Dbtup::execFSREMOVECONF(Signal* signal)
   
   releaseTabDescr(tabPtr.p);
   initTab(tabPtr.p);
+  if (ERROR_INSERTED(4013)) {
+    CLEAR_ERROR_INSERT_VALUE;
+    verifytabdes();
+  }
 }//Dbtup::execFSREMOVECONF()
 
