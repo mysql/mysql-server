@@ -1040,10 +1040,10 @@ page_delete_rec_list_start(
 
 	ut_ad((ibool) !!page_rec_is_comp(rec)
 			== dict_table_is_comp(index->table));
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip,
-			ut_align_down(rec, UNIV_PAGE_SIZE)));
-#endif /* UNIV_ZIP_DEBUG */
+	/* page_zip_validate() would detect a min_rec_mark mismatch
+	in btr_page_split_and_insert()
+	between btr_attach_half_pages() and insert_page = ...
+	when btr_page_get_split_rec_to_left() holds (direction == FSP_DOWN). */
 
 	if (page_rec_is_infimum(rec)) {
 

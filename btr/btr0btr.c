@@ -1858,6 +1858,13 @@ func_start:
 		lock_update_split_right(right_page, left_page);
 	}
 
+#ifdef UNIV_ZIP_DEBUG
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		ut_a(page_zip_validate(page_zip, page));
+		ut_a(page_zip_validate(new_page_zip, new_page));
+	}
+#endif /* UNIV_ZIP_DEBUG */
+
 	/* At this point, split_rec, move_limit and first_rec may point
 	to garbage on the old page. */
 
