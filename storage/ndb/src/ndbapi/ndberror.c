@@ -484,6 +484,8 @@ ErrorBundle ErrorCodes[] = {
   { 1418, DMEC, SE, "Subscription dropped, no new subscribers allowed" },
   { 1419, DMEC, SE, "Subscription already dropped" },
 
+  { 1420, DMEC, TR, "Subscriber manager busy with adding/removing a table" },
+
   { 4004, DMEC, AE, "Attribute name not found in the Table" },
   
   { 4100, DMEC, AE, "Status Error in NDB" },
