@@ -301,7 +301,8 @@ public:
     
     union { Uint32 m_tableId; Uint32 key; };
     Uint32 m_schemaVersion;
-    Uint32 m_hasTriggerDefined[3]; // Insert/Update/Delete
+    Uint8  m_hasTriggerDefined[3]; // Insert/Update/Delete
+    Uint8  m_hasOutstandingTriggerReq[3]; // Insert/Update/Delete
     Uint32 m_triggerIds[3]; // Insert/Update/Delete
 
     Uint32 m_error;
