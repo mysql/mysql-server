@@ -324,9 +324,6 @@ execute stmt4;
 # history (actions of the bdb engine).
 # That is the reason why, we switch the output here off.
 #   (The real output will be tested in ps_6bdb.test)
---disable_warnings
-prepare stmt4 from ' show engine bdb logs ';
---enable_warnings
 --disable_result_log
 prepare stmt4 from ' show engine bdb logs ';
 execute stmt4;
