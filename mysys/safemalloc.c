@@ -525,7 +525,7 @@ char *_my_strdup(const char *from, const char *filename, uint lineno,
 } /* _my_strdup */
 
 
-char *_my_strndup(const byte *from, uint length,
+char *_my_strndup(const char *from, uint length,
 			     const char *filename, uint lineno,
 			     myf MyFlags)
 {
