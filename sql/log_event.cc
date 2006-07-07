@@ -6138,6 +6138,7 @@ int Write_rows_log_event::do_before_row_operations(TABLE *table)
   thd->lex->sql_command= SQLCOM_REPLACE;
 
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);  // Needed for ndbcluster
+  table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);  // Needed for ndbcluster
   table->file->extra(HA_EXTRA_IGNORE_NO_KEY);   // Needed for ndbcluster
   /*
     TODO: the cluster team (Tomas?) says that it's better if the engine knows
