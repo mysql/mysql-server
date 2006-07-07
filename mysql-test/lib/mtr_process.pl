@@ -951,7 +951,7 @@ sub mtr_kill_process ($$$) {
   my $timeout= shift; # Seconds to wait for process
   my $max_loop= $timeout*10; # Sleeping 0.1 between each kill attempt
 
-  for (my $cur_attempt= 1; $cur_attempt <= $total_retries; ++$cur_attempt)
+  for (my $cur_attempt= 1; $cur_attempt <= $max_loop; ++$cur_attempt)
   {
     mtr_debug("Sending $signal to $pid...");
 
