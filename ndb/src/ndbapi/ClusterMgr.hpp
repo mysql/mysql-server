@@ -89,7 +89,6 @@ private:
   NdbThread*    theClusterMgrThread;
 
   NodeBitmask   waitForHBFromNodes; // used in forcing HBs
-  NdbMutex*     waitForHBMutex;
   NdbCondition* waitForHBCond;
 
   /**
