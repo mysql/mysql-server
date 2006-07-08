@@ -812,7 +812,7 @@ public:
   void warn_deprecated(THD *thd);
   void set_default(THD *thd, enum_var_type type);
   bool update(THD *thd, set_var *var);
-}
+};
 
 
 class sys_var_thd_lc_time_names :public sys_var_thd
