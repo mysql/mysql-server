@@ -749,6 +749,7 @@ void make_truncated_value_warning(THD *thd, const char *str_val,
                ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }
 
+/* Daynumber from year 0 to 9999-12-31 */
 #define MAX_DAY_NUMBER 3652424L
 
 bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval)
@@ -804,7 +805,7 @@ bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval)
     ltime->hour=   (uint) (sec/3600);
     daynr= calc_daynr(ltime->year,ltime->month,1) + days;
     /* Day number from year 0 to 9999-12-31 */
-    if ((ulonglong) daynr >= MAX_DAY_NUMBER)
+    if ((ulonglong) daynr > MAX_DAY_NUMBER)
       goto invalid_date;
     get_date_from_daynr((long) daynr, &ltime->year, &ltime->month,
                         &ltime->day);
@@ -815,7 +816,7 @@ bool date_add_interval(TIME *ltime, interval_type int_type, INTERVAL interval)
     period= (calc_daynr(ltime->year,ltime->month,ltime->day) +
              sign * (long) interval.day);
     /* Daynumber from year 0 to 9999-12-31 */
-    if ((ulong) period >= MAX_DAY_NUMBER)
+    if ((ulong) period > MAX_DAY_NUMBER)
       goto invalid_date;
     get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
     break;
