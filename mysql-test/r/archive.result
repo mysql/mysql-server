@@ -13812,6 +13812,8 @@ select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
 i	v
 4	3r4f
 alter table t1 data directory="$MYSQLTEST_VARDIR/tmp";
+Warnings:
+Warning	0	DATA DIRECTORY option ignored
 select * from t1;
 i	v
 1	def

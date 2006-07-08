@@ -816,3 +816,43 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+CREATE TABLE t1 (
+c1 geometry NOT NULL default '',
+SPATIAL KEY i1 (c1(32))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 (c1) VALUES (
+PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
+                            -18.6055555000 -66.8158332999,
+                            -18.7186111000 -66.8102777000,
+                            -18.7211111000 -66.9269443999,
+                            -18.6086111000 -66.9327777000))'));
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+c1 geometry NOT NULL default '',
+SPATIAL KEY i1 (c1(32))
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 (c1) VALUES (
+PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
+                            -18.6055555000 -66.8158332999,
+                            -18.7186111000 -66.8102777000,
+                            -18.7211111000 -66.9269443999,
+                            -18.6086111000 -66.9327777000))'));
+INSERT INTO t1 (c1) VALUES (
+PolygonFromText('POLYGON((-65.7402776999 -96.6686111000,
+                            -65.7372222000 -96.5516666000,
+                            -65.8502777000 -96.5461111000,
+                            -65.8527777000 -96.6627777000,
+                            -65.7402776999 -96.6686111000))'));
+INSERT INTO t1 (c1) VALUES (
+PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
+                            -18.6055555000 -66.8158332999,
+                            -18.7186111000 -66.8102777000,
+                            -18.7211111000 -66.9269443999,
+                            -18.6086111000 -66.9327777000))'));
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
