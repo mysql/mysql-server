@@ -68,6 +68,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 
   if (fast_mi_readinfo(info))
     goto err;
+
   if (share->concurrent_insert)
     rw_rdlock(&share->key_root_lock[inx]);
 
@@ -89,24 +90,35 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   case HA_KEY_ALG_BTREE:
   default:
     if (!_mi_search(info, keyinfo, key_buff, use_key_length,
-		  myisam_read_vec[search_flag], info->s->state.key_root[inx]))
+                    myisam_read_vec[search_flag], info->s->state.key_root[inx]))
     {
-      while (info->lastpos >= info->state->data_file_length)
+      /*
+        If we are searching for an exact key (including the data pointer)
+        and this was added by an concurrent insert,
+        then the result is "key not found".
+      */
+      if ((search_flag == HA_READ_KEY_EXACT) &&
+          (info->lastpos >= info->state->data_file_length))
+      {
+        my_errno= HA_ERR_KEY_NOT_FOUND;
+        info->lastpos= HA_OFFSET_ERROR;
+      }
+      else while (info->lastpos >= info->state->data_file_length)
       {
         /*
 	  Skip rows that are inserted by other threads since we got a lock
 	  Note that this can only happen if we are not searching after an
 	  exact key, because the keys are sorted according to position
         */
-
         if  (_mi_search_next(info, keyinfo, info->lastkey,
-			   info->lastkey_length,
-			   myisam_readnext_vec[search_flag],
-			   info->s->state.key_root[inx]))
+                             info->lastkey_length,
+                             myisam_readnext_vec[search_flag],
+                             info->s->state.key_root[inx]))
 	  break;
       }
     }
   }
+
   if (share->concurrent_insert)
     rw_unlock(&share->key_root_lock[inx]);
 
