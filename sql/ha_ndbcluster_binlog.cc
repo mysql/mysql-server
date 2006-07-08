@@ -1220,7 +1220,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
     type_str= "create table";
     break;
   case SOT_ALTER_TABLE:
-    type_str= "create table";
+    type_str= "alter table";
     break;
   case SOT_DROP_DB:
     type_str= "drop db";
@@ -2500,7 +2500,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
       /*
         failed, print a warning
       */
-      if (push_warning)
+      if (push_warning > 1)
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
@@ -2528,7 +2528,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     if (dict->getNdbError().code == NDB_INVALID_SCHEMA_OBJECT &&
         dict->dropEvent(my_event.getName()))
     {
-      if (push_warning)
+      if (push_warning > 1)
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
@@ -2547,7 +2547,7 @@ ndbcluster_create_event(Ndb *ndb, const NDBTAB *ndbtab,
     */
     if (dict->createEvent(my_event))
     {
-      if (push_warning)
+      if (push_warning > 1)
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
@@ -3442,24 +3442,31 @@ restart:
     // wait for the first event
     thd->proc_info= "Waiting for first event from ndbcluster";
     DBUG_PRINT("info", ("Waiting for the first event"));
-    int schema_res= 0, res= 0;
-    Uint64 schema_gci= 0, gci= 0;
-    while (schema_res == 0 && !abort_loop)
+    int schema_res, res;
+    Uint64 schema_gci;
+    do
     {
+      if (abort_loop)
+        goto err;
       schema_res= s_ndb->pollEvents(100, &schema_gci);
-    }
-    // now check that we have epochs consistant with what we had before the restart
-    DBUG_PRINT("info", ("schema_res: %d  schema_gci: %d", schema_res, schema_gci));
-    if (schema_res > 0)
+    } while (ndb_latest_received_binlog_epoch == schema_gci);
+    if (ndb_binlog_running)
     {
-      while (res >= 0 && gci < schema_gci && !abort_loop)
+      Uint64 gci= i_ndb->getLatestGCI();
+      while (gci < schema_gci || gci == ndb_latest_received_binlog_epoch)
       {
-        res= i_ndb->pollEvents(100, &gci);
+        if (abort_loop)
+          goto err;
+        res= i_ndb->pollEvents(10, &gci);
       }
       if (gci > schema_gci)
       {
         schema_gci= gci;
       }
+    }
+    // now check that we have epochs consistant with what we had before the restart
+    DBUG_PRINT("info", ("schema_res: %d  schema_gci: %d", schema_res, schema_gci));
+    {
       i_ndb->flushIncompleteEvents(schema_gci);
       s_ndb->flushIncompleteEvents(schema_gci);
       if (schema_gci < ndb_latest_handled_binlog_epoch)
