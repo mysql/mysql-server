@@ -34,12 +34,24 @@ int mi_delete_table(const char *name)
 #ifdef USE_RAID
   {
     MI_INFO *info;
-    /* we use 'open_for_repair' to be able to delete a crashed table */
-    if (!(info=mi_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR)))
-      DBUG_RETURN(my_errno);
-    raid_type =      info->s->base.raid_type;
-    raid_chunks =    info->s->base.raid_chunks;
-    mi_close(info);
+    /*
+      When built with RAID support, we need to determine if this table
+      makes use of the raid feature. If yes, we need to remove all raid
+      chunks. This is done with my_raid_delete(). Unfortunately it is
+      necessary to open the table just to check this. We use
+      'open_for_repair' to be able to open even a crashed table. If even
+      this open fails, we assume no raid configuration for this table
+      and try to remove the normal data file only. This may however
+      leave the raid chunks behind.
+    */
+    if (!(info= mi_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR)))
+      raid_type= 0;
+    else
+    {
+      raid_type=   info->s->base.raid_type;
+      raid_chunks= info->s->base.raid_chunks;
+      mi_close(info);
+    }
   }
 #ifdef EXTRA_DEBUG
   check_table_is_closed(name,"delete");
