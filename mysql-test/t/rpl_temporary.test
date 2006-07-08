@@ -142,11 +142,8 @@ create temporary table t4 (f int);
 create table t5 (f int);
 sync_with_master;
 # find dumper's $id
-source include/get_binlog_dump_thread_id.inc;
-insert into t4 values (1);
-# a hint how to do that in 5.1
---replace_result $id "`select id from information_schema.processlist where command='Binlog Dump'`"
-eval kill $id; # to stimulate reconnection by slave w/o timeout
+select id from information_schema.processlist where command='Binlog Dump' into @id;
+kill @id; # to stimulate reconnection by slave w/o timeout
 insert into t5 select * from t4;
 save_master_pos;
 
@@ -190,5 +187,17 @@ select * from t1 /* must be 1 */;
 
 connection master; 
 drop table t1;
---echo End of 5.1 tests
 
+#
+#14157: utf8 encoding in binlog without set character_set_client
+#
+--exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test -e 'create table t1 (a int); set names latin1; create temporary table `äöüÄÖÜ` (a int); insert into `äöüÄÖÜ` values (1); insert into t1 select * from `äöüÄÖÜ`'
+
+sync_slave_with_master;
+#connection slave;
+select * from t1;
+
+connection master; 
+drop table t1;
+
+# End of 5.1 tests
