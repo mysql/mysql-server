@@ -1638,8 +1638,12 @@ write_delayed(THD *thd,TABLE *table, enum_duplicates duplic,
    */
 
   if (query.str)
-    if (!(query.str= my_strndup(query.str, MYF(MY_WME), query.length)))
+  {
+    char *str;
+    if (!(str= my_strndup(query.str, query.length, MYF(MY_WME))))
       goto err;
+    query.str= str;
+  }
   row= new delayed_row(query, duplic, ignore, log_on);
   if (row == NULL)
   {
