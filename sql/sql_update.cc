@@ -135,7 +135,8 @@ int mysql_update(THD *thd,
   SQL_SELECT	*select;
   READ_RECORD	info;
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
-  bool need_reopen;
+  bool          need_reopen;
+  ulonglong     id;
   DBUG_ENTER("mysql_update");
 
   for ( ; ; )
@@ -676,6 +677,10 @@ int mysql_update(THD *thd,
     thd->lock=0;
   }
 
+  /* If LAST_INSERT_ID(X) was used, report X */
+  id= thd->arg_of_last_insert_id_function ?
+    thd->first_successful_insert_id_in_prev_stmt : 0;
+
   if (error < 0)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
@@ -683,8 +688,7 @@ int mysql_update(THD *thd,
 	    (ulong) thd->cuted_fields);
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-    send_ok(thd, (ulong) thd->row_count_func,
-	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
+    send_ok(thd, (ulong) thd->row_count_func, id, buff);
     DBUG_PRINT("info",("%d records updated",updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -1634,6 +1638,7 @@ err2:
 bool multi_update::send_eof()
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
+  ulonglong id;
   thd->proc_info="updating reference tables";
 
   /* Does updates for the last n - 1 tables, returns 0 if ok */
@@ -1686,12 +1691,12 @@ bool multi_update::send_eof()
     return TRUE;
   }
 
-
+  id= thd->arg_of_last_insert_id_function ?
+    thd->first_successful_insert_id_in_prev_stmt : 0;
   sprintf(buff, ER(ER_UPDATE_INFO), (ulong) found, (ulong) updated,
 	  (ulong) thd->cuted_fields);
   thd->row_count_func=
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-  ::send_ok(thd, (ulong) thd->row_count_func,
-	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
+  ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   return FALSE;
 }
