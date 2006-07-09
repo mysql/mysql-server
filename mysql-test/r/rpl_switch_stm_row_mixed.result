@@ -142,12 +142,24 @@ select foo3();
 ERROR HY000: Cannot change the binary logging format inside a stored function or trigger
 select * from t1 where a="alarm";
 a
+insert delayed into t2 values("delay_1_");
+insert delayed into t2 values(concat("delay_2_",UUID()));
+Warnings:
+Warning	1265	Data truncated for column 'UUID()' at row 1
+insert delayed into t2 values("delay_3_"),(concat("delay_4_",UUID())),("delay_5_");
+Warnings:
+Warning	1265	Data truncated for column 'UUID()' at row 2
+insert delayed into t2 values("delay_6_");
+create table t12 (a int, b float);
+insert delayed into t12 values(1,rand());
+set @a=2.345;
+insert delayed into t12 values(2,@a);
 select count(*) from t1;
 count(*)
 36
 select count(*) from t2;
 count(*)
-1
+7
 select count(*) from t3;
 count(*)
 2
@@ -157,17 +169,14 @@ count(*)
 select count(*) from t5;
 count(*)
 58
+select count(*) from t12;
+count(*)
+2
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	drop database if exists mysqltest1
-master-bin.000001	#	Table_map	1	#	table_id: # (mysql.proc)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	create database mysqltest1
 master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE TABLE t1 (a varchar(100))
-master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t1)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t1)
@@ -268,5 +277,18 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; insert into t1 values("work")
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t12 (a int, b float)
+master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t12)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t12)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 drop database mysqltest1;
