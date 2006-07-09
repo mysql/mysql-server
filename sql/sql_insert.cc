@@ -980,7 +980,6 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
       bool is_duplicate_key_error;
       if (table->file->is_fatal_error(error, HA_CHECK_DUP))
 	goto err;
-      table->file->restore_auto_increment(); // it's too early here! BUG#20188
       is_duplicate_key_error= table->file->is_fatal_error(error, 0);
       if (!is_duplicate_key_error)
       {
@@ -1067,21 +1066,21 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
         if (res == VIEW_CHECK_ERROR)
           goto before_trg_err;
 
-        if (thd->clear_next_insert_id)
-        {
-          /* Reset auto-increment cacheing if we do an update */
-          thd->clear_next_insert_id= 0;
-          thd->next_insert_id= 0;
-        }
         if ((error=table->file->ha_update_row(table->record[1],
                                               table->record[0])))
 	{
           if (info->ignore &&
               !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+          {
+            table->file->restore_auto_increment();
             goto ok_or_after_trg_err;
+          }
           goto err;
 	}
         info->updated++;
+
+        if (table->next_number_field)
+          table->file->adjust_next_insert_id_after_explicit_value(table->next_number_field->val_int());
 
         trg_error= (table->triggers &&
                     table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -1111,12 +1110,6 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
              table->timestamp_field_type == TIMESTAMP_AUTO_SET_ON_BOTH) &&
             (!table->triggers || !table->triggers->has_delete_triggers()))
         {
-          if (thd->clear_next_insert_id)
-          {
-            /* Reset auto-increment cacheing if we do an update */
-            thd->clear_next_insert_id= 0;
-            thd->next_insert_id= 0;
-          }
           if ((error=table->file->ha_update_row(table->record[1],
 					        table->record[0])))
             goto err;
@@ -1187,6 +1180,7 @@ err:
   table->file->print_error(error,MYF(0));
 
 before_trg_err:
+  table->file->restore_auto_increment();
   if (key)
     my_safe_afree(key, table->s->max_unique_length, MAX_KEY_LENGTH);
   table->column_bitmaps_set(save_read_set, save_write_set);

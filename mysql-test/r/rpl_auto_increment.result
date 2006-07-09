@@ -183,3 +183,47 @@ a
 32
 42
 drop table t1;
+create table t1 (a tinyint not null auto_increment primary key) engine=myisam;
+insert into t1 values(103);
+set auto_increment_increment=11;
+set auto_increment_offset=4;
+insert into t1 values(null);
+insert into t1 values(null);
+insert into t1 values(null);
+ERROR 23000: Duplicate entry '125' for key 1
+select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t1 order by a;
+a	mod(a-@@auto_increment_offset,@@auto_increment_increment)
+103	0
+114	0
+125	0
+create table t2 (a tinyint unsigned not null auto_increment primary key) engine=myisam;
+set auto_increment_increment=10;
+set auto_increment_offset=1;
+set insert_id=1000;
+insert into t2 values(null);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t2 order by a;
+a	mod(a-@@auto_increment_offset,@@auto_increment_increment)
+251	0
+create table t3 like t1;
+set auto_increment_increment=1000;
+set auto_increment_offset=700;
+insert into t3 values(null);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+select * from t3 order by a;
+a
+127
+select * from t1 order by a;
+a
+103
+114
+125
+select * from t2 order by a;
+a
+251
+select * from t3 order by a;
+a
+127
+drop table t1,t2,t3;
