@@ -2503,11 +2503,6 @@ mysql_execute_command(THD *thd)
   statistic_increment(thd->status_var.com_stat[lex->sql_command],
                       &LOCK_status);
 
-#ifdef HAVE_ROW_BASED_REPLICATION
-  if (lex->binlog_row_based_if_mixed)
-    thd->set_current_stmt_binlog_row_based_if_mixed();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
-
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
     if ((res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
@@ -5166,9 +5161,6 @@ end:
   */
   if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
     reset_one_shot_variables(thd);
-#ifdef HAVE_ROW_BASED_REPLICATION
-  thd->reset_current_stmt_binlog_row_based();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
   /*
     The return value for ROW_COUNT() is "implementation dependent" if the
@@ -5846,6 +5838,11 @@ void mysql_reset_thd_for_next_command(THD *thd)
     thd->rand_used= 0;
     thd->sent_row_count= thd->examined_row_count= 0;
   }
+#ifdef HAVE_ROW_BASED_REPLICATION
+  /* If in a routine, we reset only at end of top statement. */
+  thd->reset_current_stmt_binlog_row_based();
+#endif /*HAVE_ROW_BASED_REPLICATION*/
+
   DBUG_VOID_RETURN;
 }
 
