@@ -83,7 +83,7 @@ static char *init_syms(udf_func *tmp, char *nm)
 {
   char *end;
 
-  if (!((tmp->func= dlsym(tmp->dlhandle, tmp->name.str))))
+  if (!((tmp->func= (Udf_func_any) dlsym(tmp->dlhandle, tmp->name.str))))
     return tmp->name.str;
 
   end=strmov(nm,tmp->name.str);
@@ -91,18 +91,18 @@ static char *init_syms(udf_func *tmp, char *nm)
   if (tmp->type == UDFTYPE_AGGREGATE)
   {
     (void)strmov(end, "_clear");
-    if (!((tmp->func_clear= dlsym(tmp->dlhandle, nm))))
+    if (!((tmp->func_clear= (Udf_func_clear) dlsym(tmp->dlhandle, nm))))
       return nm;
     (void)strmov(end, "_add");
-    if (!((tmp->func_add= dlsym(tmp->dlhandle, nm))))
+    if (!((tmp->func_add= (Udf_func_add) dlsym(tmp->dlhandle, nm))))
       return nm;
   }
 
   (void) strmov(end,"_deinit");
-  tmp->func_deinit= dlsym(tmp->dlhandle, nm);
+  tmp->func_deinit= (Udf_func_deinit) dlsym(tmp->dlhandle, nm);
 
   (void) strmov(end,"_init");
-  tmp->func_init= dlsym(tmp->dlhandle, nm);
+  tmp->func_init= (Udf_func_init) dlsym(tmp->dlhandle, nm);
 
   /*
     to prefent loading "udf" from, e.g. libc.so

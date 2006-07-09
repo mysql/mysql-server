@@ -23,6 +23,15 @@
 
 enum Item_udftype {UDFTYPE_FUNCTION=1,UDFTYPE_AGGREGATE};
 
+typedef void (*Udf_func_clear)(UDF_INIT *, uchar *, uchar *);
+typedef void (*Udf_func_add)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
+typedef void (*Udf_func_deinit)(UDF_INIT*);
+typedef my_bool (*Udf_func_init)(UDF_INIT *, UDF_ARGS *,  char *);
+typedef void (*Udf_func_any)();
+typedef double (*Udf_func_double)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *);
+typedef longlong (*Udf_func_longlong)(UDF_INIT *, UDF_ARGS *, uchar *,
+                                      uchar *);
+
 typedef struct st_udf_func
 {
   LEX_STRING name;
@@ -30,11 +39,11 @@ typedef struct st_udf_func
   Item_udftype type;
   char *dl;
   void *dlhandle;
-  void *func;
-  void *func_init;
-  void *func_deinit;
-  void *func_clear;
-  void *func_add;
+  Udf_func_any func;
+  Udf_func_init func_init;
+  Udf_func_deinit func_deinit;
+  Udf_func_clear func_clear;
+  Udf_func_add func_add;
   ulong usage_count;
 } udf_func;
 
@@ -76,8 +85,7 @@ class udf_handler :public Sql_alloc
       *null_value=1;
       return 0.0;
     }
-    double (*func)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)=
-      (double (*)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)) u_d->func;
+    Udf_func_double func= (Udf_func_double) u_d->func;
     double tmp=func(&initid, &f_args, &is_null, &error);
     if (is_null || error)
     {
@@ -95,8 +103,7 @@ class udf_handler :public Sql_alloc
       *null_value=1;
       return LL(0);
     }
-    longlong (*func)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)=
-      (longlong (*)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)) u_d->func;
+    Udf_func_longlong func= (Udf_func_longlong) u_d->func;
     longlong tmp=func(&initid, &f_args, &is_null, &error);
     if (is_null || error)
     {
@@ -110,8 +117,7 @@ class udf_handler :public Sql_alloc
   void clear()
   {
     is_null= 0;
-    void (*func)(UDF_INIT *, uchar *, uchar *)=
-    (void (*)(UDF_INIT *, uchar *, uchar *)) u_d->func_clear;
+    Udf_func_clear func= u_d->func_clear;
     func(&initid, &is_null, &error);
   }
   void add(my_bool *null_value)
@@ -121,8 +127,7 @@ class udf_handler :public Sql_alloc
       *null_value=1;
       return;
     }
-    void (*func)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)=
-    (void (*)(UDF_INIT *, UDF_ARGS *, uchar *, uchar *)) u_d->func_add;
+    Udf_func_add func= u_d->func_add;
     func(&initid, &f_args, &is_null, &error);
     *null_value= (my_bool) (is_null || error);
   }
