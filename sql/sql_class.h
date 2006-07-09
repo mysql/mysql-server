@@ -1418,7 +1418,17 @@ public:
   inline void set_current_stmt_binlog_row_based_if_mixed()
   {
 #ifdef HAVE_ROW_BASED_REPLICATION
-    if (variables.binlog_format == BINLOG_FORMAT_MIXED)
+    /*
+      If in a stored/function trigger, the caller should already have done the
+      change. We test in_sub_stmt to prevent introducing bugs where people
+      wouldn't ensure that, and would switch to row-based mode in the middle
+      of executing a stored function/trigger (which is too late, see also
+      reset_current_stmt_binlog_row_based()); this condition will make their
+      tests fail and so force them to propagate the
+      lex->binlog_row_based_if_mixed upwards to the caller.
+    */
+    if ((variables.binlog_format == BINLOG_FORMAT_MIXED) &&
+        (in_sub_stmt == 0))
       current_stmt_binlog_row_based= TRUE;
 #endif
   }
@@ -1437,8 +1447,26 @@ public:
   inline void reset_current_stmt_binlog_row_based()
   {
 #ifdef HAVE_ROW_BASED_REPLICATION
-    current_stmt_binlog_row_based=
-      test(variables.binlog_format == BINLOG_FORMAT_ROW);
+    /*
+      If there are temporary tables, don't reset back to
+      statement-based. Indeed it could be that:
+      CREATE TEMPORARY TABLE t SELECT UUID(); # row-based
+      # and row-based does not store updates to temp tables
+      # in the binlog.
+      INSERT INTO u SELECT * FROM t; # stmt-based
+      and then the INSERT will fail as data inserted into t was not logged.
+      So we continue with row-based until the temp table is dropped.
+      If we are in a stored function or trigger, we mustn't reset in the
+      middle of its execution (as the binary logging way of a stored function
+      or trigger is decided when it starts executing, depending for example on
+      the caller (for a stored function: if caller is SELECT or
+      INSERT/UPDATE/DELETE...).
+    */
+    if ((temporary_tables == NULL) && (in_sub_stmt == 0))
+    {
+      current_stmt_binlog_row_based= 
+        test(variables.binlog_format == BINLOG_FORMAT_ROW);
+    }
 #else
     current_stmt_binlog_row_based= FALSE;
 #endif
