@@ -1287,6 +1287,11 @@ public:
     thd.command=COM_DELAYED_INSERT;
     thd.lex->current_select= 0; 		// for my_message_sql
     thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
+    /*
+      Statement-based replication of INSERT DELAYED has problems with RAND()
+      and user vars, so in mixed mode we go to row-based.
+    */
+    thd.set_current_stmt_binlog_row_based_if_mixed();
 
     bzero((char*) &thd.net, sizeof(thd.net));		// Safety
     bzero((char*) &table_list, sizeof(table_list));	// Safety
@@ -2745,7 +2750,8 @@ public:
   MY_HOOKS(select_create *x) : ptr(x) { }
   virtual void do_prelock(TABLE **tables, uint count)
   {
-    if (ptr->get_thd()->current_stmt_binlog_row_based)
+    if (ptr->get_thd()->current_stmt_binlog_row_based  &&
+        !(ptr->get_create_info()->options & HA_LEX_CREATE_TMP_TABLE))
       ptr->binlog_show_create_table(tables, count);
   }
 
