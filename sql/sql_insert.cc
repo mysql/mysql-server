@@ -2066,9 +2066,19 @@ bool delayed_insert::handle_inserts(void)
     }
 
     if (row->log_query && row->query.str != NULL && mysql_bin_log.is_open())
+    {
+      /*
+        If the query has several rows to insert, only the first row will come
+        here. In row-based binlogging, this means that the first row will be
+        written to binlog as one Table_map event and one Rows event (due to an
+        event flush done in binlog_query()), then all other rows of this query
+        will be binlogged together as one single Table_map event and one
+        single Rows event.
+      */
       thd.binlog_query(THD::ROW_QUERY_TYPE,
                        row->query.str, row->query.length,
                        FALSE, FALSE);
+    }
 
     if (table->s->blob_fields)
       free_delayed_insert_blobs(table);
@@ -2744,22 +2754,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 }
 
 
-class MY_HOOKS : public TABLEOP_HOOKS
-{
-public:
-  MY_HOOKS(select_create *x) : ptr(x) { }
-  virtual void do_prelock(TABLE **tables, uint count)
-  {
-    if (ptr->get_thd()->current_stmt_binlog_row_based  &&
-        !(ptr->get_create_info()->options & HA_LEX_CREATE_TMP_TABLE))
-      ptr->binlog_show_create_table(tables, count);
-  }
-
-private:
-  select_create *ptr;
-};
-
-
 int
 select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
@@ -2772,8 +2766,9 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     MY_HOOKS(select_create *x) : ptr(x) { }
     virtual void do_prelock(TABLE **tables, uint count)
     {
-      if (ptr->get_thd()->current_stmt_binlog_row_based)
-        ptr->binlog_show_create_table(tables, count);
+    if (ptr->get_thd()->current_stmt_binlog_row_based  &&
+        !(ptr->get_create_info()->options & HA_LEX_CREATE_TMP_TABLE))
+      ptr->binlog_show_create_table(tables, count);
     }
 
   private:

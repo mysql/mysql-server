@@ -286,6 +286,8 @@ master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	use `mysqltest1`; create table t12 (a int, b float)
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t12)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
