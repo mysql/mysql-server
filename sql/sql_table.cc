@@ -4953,7 +4953,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   char path[FN_REFLEN];
   char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
-  ulonglong next_insert_id;
   uint db_create_options, used_fields;
   handlerton *old_db_type, *new_db_type;
   HA_CREATE_INFO *create_info;
@@ -5773,7 +5772,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   thd->proc_info="copy to tmp table";
-  next_insert_id=thd->next_insert_id;		// Remember for logging
   copied=deleted=0;
   if (new_table && !(new_table->file->ha_table_flags() & HA_NO_COPY_ON_ALTER))
   {
@@ -5784,7 +5782,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 				   handle_duplicates, ignore,
 				   order_num, order, &copied, &deleted);
   }
-  thd->last_insert_id=next_insert_id;		// Needed for correct log
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
   /* If we did not need to copy, we might still need to add/drop indexes. */
@@ -6214,6 +6211,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   ha_rows examined_rows;
   bool auto_increment_field_copied= 0;
   ulong save_sql_mode;
+  ulonglong prev_insert_id;
   DBUG_ENTER("copy_data_between_tables");
 
   /*
@@ -6320,6 +6318,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     {
       copy_ptr->do_copy(copy_ptr);
     }
+    prev_insert_id= to->file->next_insert_id;
     if ((error=to->file->ha_write_row((byte*) to->record[0])))
     {
       if ((!ignore &&
@@ -6345,7 +6344,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 	to->file->print_error(error,MYF(0));
 	break;
       }
-      to->file->restore_auto_increment();
+      to->file->restore_auto_increment(prev_insert_id);
       delete_count++;
     }
     else
@@ -6379,6 +6378,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
+  to->file->ha_release_auto_increment();
   if (to->file->ha_external_lock(thd,F_UNLCK))
     error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);

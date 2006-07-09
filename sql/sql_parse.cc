@@ -3348,8 +3348,9 @@ end_with_restore_list:
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
+    /* do not show last insert ID if VIEW does not have auto_inc */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->first_successful_insert_id_in_cur_stmt= 0;
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -3401,9 +3402,9 @@ end_with_restore_list:
       /* revert changes for SP */
       select_lex->table_list.first= (byte*) first_table;
     }
-
+    /* do not show last insert ID if VIEW does not have auto_inc */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->first_successful_insert_id_in_cur_stmt= 0;
     break;
   }
   case SQLCOM_TRUNCATE:
@@ -5807,6 +5808,7 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
  DESCRIPTION
    This needs to be called before execution of every statement
    (prepared or conventional).
+   It is not called by substatements of routines.
 
  TODO
    Make it a method of THD and align its name with the rest of
@@ -5817,9 +5819,12 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
 void mysql_reset_thd_for_next_command(THD *thd)
 {
   DBUG_ENTER("mysql_reset_thd_for_next_command");
+  DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
   thd->free_list= 0;
   thd->select_number= 1;
-  thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
+  thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+  thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 
+    thd->query_start_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
