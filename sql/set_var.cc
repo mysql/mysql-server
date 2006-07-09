@@ -1343,9 +1343,9 @@ bool sys_var_thd_binlog_format::is_readonly() const
     return 1;
   }
   /*
-    if in a stored function, it's too late to change mode
+    if in a stored function/trigger, it's too late to change mode
   */
-  if (thd->spcont && thd->prelocked_mode)
+  if (thd->in_sub_stmt)
   {
     my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return 1;    
