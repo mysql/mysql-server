@@ -5,8 +5,14 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 reset master;
+select last_insert_id();
+last_insert_id()
+0
 create table t1(a int not null auto_increment, b int, primary key(a) );
 load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+select last_insert_id();
+last_insert_id()
+1
 create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
 load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
 create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
