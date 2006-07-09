@@ -496,11 +496,13 @@ void close_temporary_tables(THD *thd)
   TABLE *table;
   if (!thd->temporary_tables)
     return;
-  
+
   if (!mysql_bin_log.is_open())
   {
-    for (table= thd->temporary_tables; table; table= table->next)
+    TABLE *next;
+    for (table= thd->temporary_tables; table; table= next)
     {
+      next= table->next;
       close_temporary(table, 1);
     }
     thd->temporary_tables= 0;
@@ -518,7 +520,7 @@ void close_temporary_tables(THD *thd)
   String s_query= String(buf, sizeof(buf), system_charset_info);
   bool found_user_tables= false;
   LINT_INIT(next);
-  
+
   /* 
      insertion sort of temp tables by pseudo_thread_id to build ordered list 
      of sublists of equal pseudo_thread_id
