@@ -3069,6 +3069,7 @@ sub run_mysqltest ($) {
   my $cmdline_mysql_client_test=
     "$exe_mysql_client_test --no-defaults --testcase --user=root --silent " .
     "--port=$master->[0]->{'path_myport'} " .
+    "--vardir=$opt_vardir " .
     "--socket=$master->[0]->{'path_mysock'}";
 
   if ( $glob_use_embedded_server )
