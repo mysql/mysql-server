@@ -3273,9 +3273,16 @@ sub run_check_testcase ($) {
 }
 
 
+sub generate_cmdline_mysqldump ($) {
+  my($info) = @_;
+  return
+    "$exe_mysqldump --no-defaults -uroot " .
+      "--port=$info->[0]->{'path_myport'} " .
+        "--socket=$info->[0]->{'path_mysock'} --password=";
+}
+
 sub run_mysqltest ($) {
   my $tinfo=       shift;
-
   my $cmdline_mysqlcheck= "$exe_mysqlcheck --no-defaults -uroot " .
                           "--port=$master->[0]->{'path_myport'} " .
                           "--socket=$master->[0]->{'path_mysock'} --password=";
@@ -3285,17 +3292,15 @@ sub run_mysqltest ($) {
       " --debug=d:t:A,$opt_vardir_trace/log/mysqlcheck.trace";
   }
 
-  my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
-                         "--port=$master->[0]->{'path_myport'} " .
-                         "--socket=$master->[0]->{'path_mysock'} --password=";
-
- my $cmdline_mysqldumpslave= "$exe_mysqldump --no-defaults -uroot " .
-                         "--socket=$slave->[0]->{'path_mysock'} --password=";
+  my $cmdline_mysqldump= generate_cmdline_mysqldump $master;
+  my $cmdline_mysqldumpslave= generate_cmdline_mysqldump $slave;
 
   if ( $opt_debug )
   {
     $cmdline_mysqldump .=
-      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump-master.trace";
+    $cmdline_mysqldumpslave .=
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump-slave.trace";
   }
 
   my $cmdline_mysqlslap;
