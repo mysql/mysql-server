@@ -49,3 +49,35 @@ show binlog events in 'master-bin.000001' from 102;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events in 'master-bin.000002' from 102;
+
+# Test of a too big SET INSERT_ID: see if the truncated value goes
+# into binlog (right), or the too big value (wrong); we look at the
+# binlog further down with SHOW BINLOG EVENTS.
+reset master;
+create table t1 (id tinyint auto_increment primary key);
+set insert_id=128;
+insert into t1 values(null);
+select * from t1;
+drop table t1;
+
+# Test of binlogging of INSERT_ID with INSERT DELAYED
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+# First, avoid BUG#20627:
+set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
+# Verify that only one INSERT_ID event is binlogged.
+insert delayed into t1 values (207);
+
+# We use sleeps between statements, that's the only way to get a
+# repeatable binlog in a normal test run and under Valgrind.
+# It may be that the "binlog missing rows" of BUG#20821 shows up
+# here.
+sleep 2;
+insert delayed into t1 values (null);
+sleep 2;
+insert delayed into t1 values (300);
+sleep 2; # time for the delayed queries to reach disk
+select * from t1;
+--replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
+show binlog events from 102;
+drop table t1;

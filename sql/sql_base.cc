@@ -49,6 +49,8 @@ static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
 static void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
                                  bool send_refresh);
 static bool reopen_table(TABLE *table);
+static bool
+has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables);
 
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
@@ -3314,6 +3316,18 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
 
   *need_reopen= FALSE;
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+  /*
+    CREATE ... SELECT UUID() locks no tables, we have to test here.
+    Note that we will not do the resetting if inside a stored
+    function/trigger, because the binlogging of those is decided earlier (by
+    the caller) and can't be changed afterwards.
+  */
+  thd->reset_current_stmt_binlog_row_based();
+  if (thd->lex->binlog_row_based_if_mixed)
+    thd->set_current_stmt_binlog_row_based_if_mixed();
+#endif /*HAVE_ROW_BASED_REPLICATION*/
+
   if (!tables)
     DBUG_RETURN(0);
 
@@ -3344,6 +3358,19 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     {
       thd->in_lock_tables=1;
       thd->options|= OPTION_TABLE_LOCK;
+#ifdef HAVE_ROW_BASED_REPLICATION
+      /*
+        If we have >= 2 different tables to update with auto_inc columns,
+        statement-based binlogging won't work. We can solve this problem in
+        mixed mode by switching to row-based binlogging:
+      */
+      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
+          has_two_write_locked_tables_with_auto_increment(tables))
+      {
+        thd->lex->binlog_row_based_if_mixed= TRUE;
+        thd->set_current_stmt_binlog_row_based_if_mixed();
+      }
+#endif
     }
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
@@ -6476,3 +6503,46 @@ void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  Tells if two (or more) tables have auto_increment columns and we want to
+  lock those tables with a write lock.
+
+  SYNOPSIS
+    has_two_write_locked_tables_with_auto_increment
+      tables        Table list
+
+  NOTES:
+    Call this function only when you have established the list of all tables
+    which you'll want to update (including stored functions, triggers, views
+    inside your statement).
+
+  RETURN
+    0  No
+    1  Yes
+*/
+
+static bool
+has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables)
+{
+  char *first_table_name= NULL, *first_db;
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->placeholder() && !table->schema_table &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE))
+    {
+      if (first_table_name == NULL)
+      {
+        first_table_name= table->table_name;
+        first_db= table->db;
+        DBUG_ASSERT(first_db);
+      }
+      else if (strcmp(first_db, table->db) ||
+               strcmp(first_table_name, table->table_name))
+        return 1;
+    }
+  }
+  return 0;
+}

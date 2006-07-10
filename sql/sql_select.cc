@@ -7895,7 +7895,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       Field *field=((Item_field*) args[0])->field;
       if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
-	  thd->insert_id())
+	  (thd->first_successful_insert_id_in_prev_stmt > 0))
       {
 #ifdef HAVE_QUERY_CACHE
 	query_cache_abort(&thd->net);
@@ -7903,7 +7903,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",
-						     thd->insert_id(),
+                                                     thd->read_first_successful_insert_id_in_prev_stmt(),
 						     21))))
 	{
 	  cond=new_cond;
@@ -7914,7 +7914,11 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
           */
 	  cond->fix_fields(thd, &cond);
 	}
-	thd->insert_id(0);		// Clear for next request
+        /*
+          IS NULL should be mapped to LAST_INSERT_ID only for first row, so
+          clear for next row
+        */
+	thd->first_successful_insert_id_in_prev_stmt= 0;
       }
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       else if (((field->type() == FIELD_TYPE_DATE) ||
