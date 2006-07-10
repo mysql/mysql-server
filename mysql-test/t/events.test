@@ -18,7 +18,7 @@ CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
 connection default;
 SHOW DATABASES LIKE 'db_x';
 SET GLOBAL event_scheduler=1;
---sleep 1.5
+--sleep 0.8
 SHOW DATABASES LIKE 'db_x';
 SHOW TABLES FROM db_x;
 SET GLOBAL event_scheduler=2;
@@ -81,19 +81,27 @@ SHOW EVENTS;
 DROP EVENT event_starts_test;
 #
 #
+create table test_nested(a int);
 create event e_43 on schedule every 1 second do set @a = 5;
-set global event_scheduler = 1;
---sleep 2
+--error 1562
 alter event e_43 do alter event e_43 do set @a = 4;
---sleep 2
+delimiter |;
+alter event e_43 do
+begin
+  alter event e_43 on schedule every 5 minute;
+  insert into test_nested values(1);
+end|
+delimiter ;|
+set global event_scheduler = 1;
+--sleep 3
 select db, name, body, status, interval_field, interval_value from mysql.event;
 drop event e_43;
---sleep 1
+drop table test_nested;
 
 --echo "Let's check whether we can use non-qualified names"
 create table non_qualif(a int);
 create event non_qualif_ev on schedule every 10 minute do insert into non_qualif values (800219);
---sleep 1
+--sleep 0.5
 select * from non_qualif;
 drop event non_qualif_ev;
 drop table non_qualif;
@@ -156,6 +164,10 @@ show create event root22;
 --error ER_NOT_SUPPORTED_YET
 SHOW EVENTS;
 drop event root22;
+--error ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
+create event root23 on schedule every -100 year do select 1;
+--error ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
+create event root23 on schedule every 222222222222222222222 year do select 1;
 drop event root6;
 drop event root7;
 drop event root8;
@@ -246,9 +258,9 @@ create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 drop event e_26;
 --error ER_WRONG_VALUE
-create event e_26 on schedule at NULL disabled do set @a = 5;
+create event e_26 on schedule at NULL disable do set @a = 5;
 --error ER_WRONG_VALUE
-create event e_26 on schedule at 'definitely not a datetime' disabled do set @a = 5;
+create event e_26 on schedule at 'definitely not a datetime' disable do set @a = 5;
 
 set names utf8;
 create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
@@ -285,7 +297,7 @@ select get_lock("test_lock2", 20);
 --echo "Create an event which tries to acquire a mutex. The event locks on the mutex"
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
 --echo "Let some time pass to the event starts"
---sleep 1
+--sleep 0.5
 --echo "Should have only 2 processes: the scheduler and the locked event"
 select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;--echo "Release the mutex, the event worker should finish."
 --echo "Release the mutex, the event worker should finish."
@@ -303,10 +315,11 @@ drop event закачка;
 set global event_scheduler=1;
 select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
---sleep 1
+--sleep 0.5
 --echo "Should have only 3 processes: the scheduler, our conn and the locked event"
 select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 set global event_scheduler=2;
+--sleep 0.3
 --echo "Should have only our process now:"
 select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 drop event закачка21;
@@ -315,7 +328,7 @@ drop event закачка21;
 # Bug #16410  Events: CREATE EVENT is legal in a CREATE TRIGGER statement
 #
 create table t_16 (s1 int);
---error 1422
+--error 1562
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
 drop table t_16;
 #
