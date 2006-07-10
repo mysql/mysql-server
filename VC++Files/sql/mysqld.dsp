@@ -2023,6 +2023,10 @@ SOURCE=.\tztime.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\sql_locale.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\uniques.cpp
 # End Source File
 # Begin Source File
