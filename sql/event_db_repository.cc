@@ -524,8 +524,10 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   int ret= 0;
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table;
-  char olddb[128];
+  char old_db_buf[NAME_LEN+1];
+  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged= FALSE;
+
   DBUG_ENTER("Event_db_repository::create_event");
 
   *rows_affected= 0;
@@ -557,8 +559,8 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   }
 
   DBUG_PRINT("info", ("non-existant, go forward"));
-  if ((ret= sp_use_new_db(thd, parse_data->dbname.str, olddb, sizeof(olddb), 0,
-                          &dbchanged)))
+
+  if ((ret= sp_use_new_db(thd, parse_data->dbname, &old_db, 0, &dbchanged)))
   {
     my_error(ER_BAD_DB_ERROR, MYF(0));
     goto err;
@@ -618,14 +620,14 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   *rows_affected= 1;
 ok:
   if (dbchanged)
-    (void) mysql_change_db(thd, olddb, 1);
+    (void) mysql_change_db(thd, old_db.str, 1);
   if (table)
     close_thread_tables(thd);
   DBUG_RETURN(EVEX_OK);
 
 err:
   if (dbchanged)
-    (void) mysql_change_db(thd, olddb, 1);
+    (void) mysql_change_db(thd, old_db.str, 1);
   if (table)
     close_thread_tables(thd);
   DBUG_RETURN(EVEX_GENERAL_ERROR);
@@ -655,7 +657,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
                                   sp_name *new_name)
 {
   CHARSET_INFO *scs= system_charset_info;
-  TABLE *table;
+  TABLE *table= NULL;
   int ret= EVEX_OPEN_TABLE_FAILED;
   DBUG_ENTER("Event_db_repository::update_event");
 
@@ -765,7 +767,7 @@ int
 Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
                                 bool drop_if_exists, uint *rows_affected)
 {
-  TABLE *table;
+  TABLE *table= NULL;
   Open_tables_state backup;
   int ret;
 
@@ -804,7 +806,8 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   }
 
 done:
-  close_thread_tables(thd);
+  if (table)
+    close_thread_tables(thd);
   thd->restore_backup_open_tables_state(&backup);
   DBUG_RETURN(ret);
 }
@@ -965,7 +968,7 @@ int
 Event_db_repository::find_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                                 Event_basic *et)
 {
-  TABLE *table;
+  TABLE *table= NULL;
   int ret;
   DBUG_ENTER("Event_db_repository::find_event");
   DBUG_PRINT("enter", ("name: %*s", name.length, name.str));

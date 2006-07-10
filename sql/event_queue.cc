@@ -42,7 +42,7 @@
 
   SYNOPSIS
     event_queue_element_data_compare_q()
-  
+
       vptr - not used (set it to NULL)
       a    - first Event_queue_element object
       b    - second Event_queue_element object
@@ -51,7 +51,7 @@
    -1   - a->execute_at < b->execute_at
     0   - a->execute_at == b->execute_at
     1   - a->execute_at > b->execute_at
-    
+
   NOTES
     execute_at.second_part is not considered during comparison
 */
@@ -409,7 +409,7 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
   DBUG_ENTER("Event_queue::drop_matching_events");
   DBUG_PRINT("enter", ("pattern=%*s state=%d", pattern.length, pattern.str));
 
-  uint i= 0;   
+  uint i= 0;
   while (i < queue.elements)
   {
     Event_queue_element *et= (Event_queue_element *) queue_element(&queue, i);
@@ -438,7 +438,7 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
        not notify the scheduler and it will realize the change when it
        wakes up from timedwait.
   */
-  
+
   DBUG_VOID_RETURN;
 }
 
@@ -499,7 +499,7 @@ Event_queue::events_count()
   SYNOPSIS
     Event_queue::load_events_from_db()
       thd - Thread context. Used for memory allocation in some cases.
-    
+
   RETURN VALUE
     0  OK
    !0  Error (EVEX_OPEN_TABLE_FAILED, EVEX_MICROSECOND_UNSUP, 

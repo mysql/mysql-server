@@ -111,7 +111,7 @@ int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
     Events::get_instance()
 
   RETURN VALUE
-    address  
+    address
 */
 
 Events *

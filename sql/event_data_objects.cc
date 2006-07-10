@@ -87,20 +87,15 @@ void
 Event_parse_data::init_name(THD *thd, sp_name *spn)
 {
   DBUG_ENTER("Event_parse_data::init_name");
-  /* During parsing, we must use thd->mem_root */
-  MEM_ROOT *root= thd->mem_root;
 
   /* We have to copy strings to get them into the right memroot */
   dbname.length= spn->m_db.length;
-  dbname.str= strmake_root(root, spn->m_db.str, spn->m_db.length);
+  dbname.str= thd->strmake(spn->m_db.str, spn->m_db.length);
   name.length= spn->m_name.length;
-  name.str= strmake_root(root, spn->m_name.str, spn->m_name.length);
+  name.str= thd->strmake(spn->m_name.str, spn->m_name.length);
 
   if (spn->m_qname.length == 0)
     spn->init_qname(thd);
-
-  DBUG_PRINT("dbname", ("len=%d db=%s",dbname.length, dbname.str));
-  DBUG_PRINT("name", ("len=%d name=%s",name.length, name.str));
 
   DBUG_VOID_RETURN;
 }
@@ -116,7 +111,7 @@ Event_parse_data::init_name(THD *thd, sp_name *spn)
   NOTE
     The body is extracted by copying all data between the
     start of the body set by another method and the current pointer in Lex.
- 
+
     Some questionable removal of characters is done in here, and that part
     should be refactored when the parser is smarter.
 */
@@ -187,7 +182,7 @@ Event_parse_data::init_body(THD *thd)
 
   SYNOPSIS
     Event_parse_data::init_definer()
-  
+
   RETURN VALUE
     0  OK
 */
@@ -615,7 +610,7 @@ Event_basic::Event_basic()
   dbname.length= name.length= 0;
   DBUG_VOID_RETURN;
 }
-  
+
 
 /*
   Destructor
@@ -652,7 +647,7 @@ Event_basic::load_string_fields(Field **fields, ...)
   LEX_STRING *field_value;
 
   DBUG_ENTER("Event_basic::load_string_fields");
-  
+
   va_start(args, fields);
   field_name= (enum enum_events_table_field) va_arg(args, int);
   while (field_name != ET_FIELD_COUNT)
@@ -668,7 +663,7 @@ Event_basic::load_string_fields(Field **fields, ...)
     field_name= (enum enum_events_table_field) va_arg(args, int);
   }
   va_end(args);
-  
+
   DBUG_RETURN(ret);
 }
 
@@ -757,7 +752,7 @@ Event_job_data::Event_job_data():
 */
 
 Event_job_data::~Event_job_data()
-{    
+{
   free_sp();
 }
 
@@ -819,25 +814,6 @@ Event_job_data::load_from_row(TABLE *table)
                      ET_FIELD_BODY, &body, ET_FIELD_DEFINER, &definer,
                      ET_FIELD_COUNT);
 
-/*  
-  if ((dbname.str= get_field(&mem_root, table->field[ET_FIELD_DB])) == NullS)
-    goto error;
-  dbname.length= strlen(dbname.str);
-
-  if ((name.str= get_field(&mem_root, table->field[ET_FIELD_NAME])) == NullS)
-    goto error;
-  name.length= strlen(name.str);
-
-  if ((body.str= get_field(&mem_root, table->field[ET_FIELD_BODY])) == NullS)
-    goto error;
-  body.length= strlen(body.str);
-
-  if ((definer.str= get_field(&mem_root,
-                              table->field[ET_FIELD_DEFINER])) == NullS)
-    goto error;
-
-  definer.length= strlen(definer.str);
-*/
   ptr= strchr(definer.str, '@');
 
   if (! ptr)
@@ -848,7 +824,7 @@ Event_job_data::load_from_row(TABLE *table)
   definer_user.length= len;
   len= definer.length - len - 1;
   /* 1:because of @ */
-  definer_host.str= strmake_root(&mem_root, ptr + 1,  len);
+  definer_host.str= strmake_root(&mem_root, ptr + 1, len);
   definer_host.length= len;
 
   sql_mode= (ulong) table->field[ET_FIELD_SQL_MODE]->val_int();
@@ -891,26 +867,13 @@ Event_queue_element::load_from_row(TABLE *table)
 
   load_string_fields(table->field, ET_FIELD_DB, &dbname, ET_FIELD_NAME, &name,
                      ET_FIELD_DEFINER, &definer, ET_FIELD_COUNT);
-/*
-  if ((dbname.str= get_field(&mem_root, table->field[ET_FIELD_DB])) == NullS)
-    goto error;
-  dbname.length= strlen(dbname.str);
 
-  if ((name.str= get_field(&mem_root, table->field[ET_FIELD_NAME])) == NullS)
-    goto error;
-  name.length= strlen(name.str);
-
-  if ((definer.str= get_field(&mem_root,
-                              table->field[ET_FIELD_DEFINER])) == NullS)
-    goto error;
-  definer.length= strlen(definer.str);
-*/
   starts_null= table->field[ET_FIELD_STARTS]->is_null();
   res1= table->field[ET_FIELD_STARTS]->get_date(&starts, TIME_NO_ZERO_DATE);
 
   ends_null= table->field[ET_FIELD_ENDS]->is_null();
   res2= table->field[ET_FIELD_ENDS]->get_date(&ends, TIME_NO_ZERO_DATE);
-  
+
   if (!table->field[ET_FIELD_INTERVAL_EXPR]->is_null())
     expression= table->field[ET_FIELD_INTERVAL_EXPR]->val_int();
   else
@@ -990,12 +953,7 @@ Event_timed::load_from_row(TABLE *table)
     goto error;
 
   load_string_fields(table->field, ET_FIELD_BODY, &body, ET_FIELD_COUNT);
-/*
-  if ((body.str= get_field(&mem_root, table->field[ET_FIELD_BODY])) == NullS)
-    goto error;
 
-  body.length= strlen(body.str);
-*/
   ptr= strchr(definer.str, '@');
 
   if (! ptr)
