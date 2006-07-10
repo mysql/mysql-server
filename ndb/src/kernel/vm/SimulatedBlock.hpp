@@ -423,6 +423,7 @@ private:
 
   void execSIGNAL_DROPPED_REP(Signal* signal);
   void execCONTINUE_FRAGMENTED(Signal* signal);
+  void execNODE_START_REP(Signal* signal);
 
   Uint32 c_fragmentIdCounter;
   ArrayPool<FragmentInfo> c_fragmentInfoPool;
