@@ -587,6 +587,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_BLOCK_COMMIT_ORD            485
 #define GSN_UNBLOCK_COMMIT_ORD          486
 
+#define GSN_NODE_START_REP              502
 #define GSN_NODE_STATE_REP              487
 #define GSN_CHANGE_NODE_STATE_REQ       488
 #define GSN_CHANGE_NODE_STATE_CONF      489
