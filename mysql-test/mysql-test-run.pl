@@ -291,7 +291,7 @@ our $opt_user_test;
 our $opt_valgrind= 0;
 our $opt_valgrind_mysqld= 0;
 our $opt_valgrind_mysqltest= 0;
-our $default_valgrind_options= "-v --show-reachable=yes";
+our $default_valgrind_options= "--show-reachable=yes";
 our $opt_valgrind_options;
 our $opt_valgrind_path;
 

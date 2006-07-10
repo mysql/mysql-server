@@ -1538,6 +1538,58 @@ compute_next_insert_id(ulonglong nr,struct system_variables *variables)
 }
 
 
+void handler::adjust_next_insert_id_after_explicit_value(ulonglong nr)
+{
+  /*
+    If we have set THD::next_insert_id previously and plan to insert an
+    explicitely-specified value larger than this, we need to increase
+    THD::next_insert_id to be greater than the explicit value.
+  */
+  if ((next_insert_id > 0) && (nr >= next_insert_id))
+    set_next_insert_id(compute_next_insert_id(nr, &table->in_use->variables));
+}
+
+
+/*
+  Computes the largest number X:
+  - smaller than or equal to "nr"
+  - of the form: auto_increment_offset + N * auto_increment_increment
+  where N>=0.
+
+  SYNOPSIS
+    prev_insert_id
+      nr            Number to "round down"
+      variables     variables struct containing auto_increment_increment and
+                    auto_increment_offset
+
+  RETURN
+    The number X if it exists, "nr" otherwise.
+*/
+
+inline ulonglong
+prev_insert_id(ulonglong nr, struct system_variables *variables)
+{
+  if (unlikely(nr < variables->auto_increment_offset))
+  {
+    /*
+      There's nothing good we can do here. That is a pathological case, where
+      the offset is larger than the column's max possible value, i.e. not even
+      the first sequence value may be inserted. User will receive warning.
+    */
+    DBUG_PRINT("info",("auto_increment: nr: %lu cannot honour "
+                       "auto_increment_offset: %lu",
+                       nr, variables->auto_increment_offset));
+    return nr;
+  }
+  if (variables->auto_increment_increment == 1)
+    return nr; // optimization of the formula below
+  nr= (((nr - variables->auto_increment_offset)) /
+       (ulonglong) variables->auto_increment_increment);
+  return (nr * (ulonglong) variables->auto_increment_increment +
+          variables->auto_increment_offset);
+}
+
+
 /*
   Update the auto_increment field if necessary
 
@@ -1643,8 +1695,7 @@ bool handler::update_auto_increment()
       the last NULL needs to insert 3764, not the value of the first NULL plus
       1).
     */
-    if ((next_insert_id > 0) && (nr >= next_insert_id))
-      set_next_insert_id(compute_next_insert_id(nr, variables));
+    adjust_next_insert_id_after_explicit_value(nr);
     insert_id_for_cur_row= 0; // didn't generate anything
     DBUG_RETURN(0);
   }
@@ -1736,12 +1787,15 @@ bool handler::update_auto_increment()
   {
     /*
       field refused this value (overflow) and truncated it, use the result of
-      the truncation (which is going to be inserted).
+      the truncation (which is going to be inserted); however we try to
+      decrease it to honour auto_increment_* variables.
       That will shift the left bound of the reserved interval, we don't
       bother shifting the right bound (anyway any other value from this
       interval will cause a duplicate key).
     */
-    nr= table->next_number_field->val_int();
+    nr= prev_insert_id(table->next_number_field->val_int(), variables);
+    if (unlikely(table->next_number_field->store((longlong) nr, TRUE)))
+      nr= table->next_number_field->val_int();
   }
   if (append)
   {
