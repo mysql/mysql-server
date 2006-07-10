@@ -71,6 +71,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_INDEX_NOTINRANGE            2304
 #define NDBD_EXIT_ARBIT_SHUTDOWN              2305
 #define NDBD_EXIT_POINTER_NOTINRANGE          2306
+#define NDBD_EXIT_PARTITIONED_SHUTDOWN        2307
 #define NDBD_EXIT_SR_OTHERNODEFAILED          2308
 #define NDBD_EXIT_NODE_NOT_DEAD               2309
 #define NDBD_EXIT_SR_REDOLOG                  2310

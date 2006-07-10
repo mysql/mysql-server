@@ -156,6 +156,55 @@ connection locker;
 use test;
 #
 connection default;
+#
+# Test if CREATE TABLE with LOCK TABLE deadlocks.
+#
+connection writer;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+#
+# This waits until t1 is unlocked.
+connection locker;
+send FLUSH TABLES WITH READ LOCK;
+--sleep 1
+#
+# This must not block.
+connection writer;
+CREATE TABLE t2 (c1 int);
+UNLOCK TABLES;
+#
+# This awakes now.
+connection locker;
+reap;
+UNLOCK TABLES;
+#
+connection default;
+DROP TABLE t1, t2;
+#
+# Test if CREATE TABLE SELECT with LOCK TABLE deadlocks.
+#
+connection writer;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+#
+# This waits until t1 is unlocked.
+connection locker;
+send FLUSH TABLES WITH READ LOCK;
+--sleep 1
+#
+# This must not block.
+connection writer;
+--error 1100
+CREATE TABLE t2 AS SELECT * FROM t1;
+UNLOCK TABLES;
+#
+# This awakes now.
+connection locker;
+reap;
+UNLOCK TABLES;
+#
+connection default;
+DROP TABLE t1;
 
 #
 # Bug#19815 - CREATE/RENAME/DROP DATABASE can deadlock on a global read lock
@@ -218,32 +267,4 @@ connection locker;
 drop table t1;
 
 # End of 5.0 tests
-# Bug#16986 - Deadlock condition with MyISAM tables
-#
-connection locker;
-use mysql;
-LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
-FLUSH TABLES;
---sleep 1
-#
-connection reader;
-use mysql;
-#NOTE:  This must be a multi-table select, otherwise the deadlock will not occur
-send SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
---sleep 1
-#
-connection locker;
-# Make test case independent from earlier grants.
---replace_result "Table is already up to date" "OK"
-OPTIMIZE TABLES columns_priv, db, host, user;
-UNLOCK TABLES;
-#
-connection reader;
-reap;
-use test;
-#
-connection locker;
-use test;
-#
-connection default;
 

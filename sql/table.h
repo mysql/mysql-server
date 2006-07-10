@@ -695,7 +695,8 @@ typedef struct st_table_list
   thr_lock_type lock_type;
   uint		outer_join;		/* Which join type */
   uint		shared;			/* Used in multi-upd */
-  uint32        db_length, table_name_length;
+  uint          db_length;
+  uint32        table_name_length;
   bool          updatable;		/* VIEW/TABLE can be updated now */
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */

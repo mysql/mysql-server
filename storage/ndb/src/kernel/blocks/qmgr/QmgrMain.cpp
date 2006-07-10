@@ -438,6 +438,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
 void
 Qmgr::execREAD_NODESCONF(Signal* signal)
 {
+  jamEntry();
   check_readnodes_reply(signal, 
 			refToNode(signal->getSendersBlockRef()),
 			GSN_READ_NODESCONF);
@@ -446,6 +447,7 @@ Qmgr::execREAD_NODESCONF(Signal* signal)
 void
 Qmgr::execREAD_NODESREF(Signal* signal)
 {
+  jamEntry();
   check_readnodes_reply(signal, 
 			refToNode(signal->getSendersBlockRef()),
 			GSN_READ_NODESREF);
@@ -907,9 +909,9 @@ retry:
 
   char buf[255];
   BaseString::snprintf(buf, sizeof(buf),
-		       "Partitioned cluster! check StartPartialTimeout, "
-		       " node %d thinks %d is president, "
-		       " I think president is: %d",
+		       "check StartPartialTimeout, "
+		       "node %d thinks %d is president, "
+		       "I think president is: %d",
 		       nodeId, president, cpresident);
 
   ndbout_c(buf);
@@ -941,7 +943,7 @@ retry:
   CRASH_INSERTION(932);
   
   progError(__LINE__, 
-	    NDBD_EXIT_ARBIT_SHUTDOWN,
+	    NDBD_EXIT_PARTITIONED_SHUTDOWN,
 	    buf);
   
   ndbrequire(false);
@@ -2338,6 +2340,8 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   ndbrequire(failedNodePtr.p->failState == NORMAL);
   
   failedNodePtr.p->failState = WAITING_FOR_FAILCONF1;
+  NodeReceiverGroup rg(QMGR, c_clusterNodes);
+  sendSignal(rg, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
@@ -2360,6 +2364,27 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   sendSignal(CMVMI_REF, GSN_CLOSE_COMREQ, signal, 
 	     CloseComReqConf::SignalLength, JBA);
 }//Qmgr::sendApiFailReq()
+
+void Qmgr::execAPI_FAILREQ(Signal* signal)
+{
+  jamEntry();
+  NodeRecPtr failedNodePtr;
+  failedNodePtr.i = signal->theData[0];
+  // signal->theData[1] == QMGR_REF
+  ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+
+  ndbrequire(getNodeInfo(failedNodePtr.i).getType() != NodeInfo::DB);
+
+  // ignore if api not active
+  if (failedNodePtr.p->phase != ZAPI_ACTIVE)
+    return;
+
+  signal->theData[0] = NDB_LE_Disconnected;
+  signal->theData[1] = failedNodePtr.i;
+  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+
+  node_failed(signal, failedNodePtr.i);
+}
 
 void Qmgr::execAPI_FAILCONF(Signal* signal) 
 {
@@ -2798,7 +2823,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       break;
     case FailRep::ZPARTITIONED_CLUSTER:
     {
-      code = NDBD_EXIT_ARBIT_SHUTDOWN;
+      code = NDBD_EXIT_PARTITIONED_SHUTDOWN;
       char buf1[100], buf2[100];
       c_clusterNodes.getText(buf1);
       if (signal->getLength()== FailRep::SignalLength + FailRep::ExtraLength &&
@@ -2809,16 +2834,14 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
 	part.assign(NdbNodeBitmask::Size, rep->partition);
 	part.getText(buf2);
 	BaseString::snprintf(extra, sizeof(extra),
-			     "Partitioned cluster!"
-			     " Our cluster: %s other cluster: %s",
+			     "Our cluster: %s other cluster: %s",
 			     buf1, buf2);
       }
       else
       {
 	jam();
 	BaseString::snprintf(extra, sizeof(extra),
-			     "Partitioned cluster!"
-			     " Our cluster: %s ", buf1);
+			     "Our cluster: %s", buf1);
       }
       msg = extra;
       break;

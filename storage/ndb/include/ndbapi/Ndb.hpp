@@ -1553,6 +1553,7 @@ private:
 	     const char* aCatalogName, const char* aSchemaName);
 
   void connected(Uint32 block_reference);
+  void report_node_connected(Uint32 nodeId);
  
 
   NdbTransaction*  startTransactionLocal(Uint32 aPrio, Uint32 aFragmentId); 

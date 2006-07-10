@@ -351,6 +351,7 @@ void Dbtup::initFragRange(Fragrecord* const regFragPtr)
   regFragPtr->rootPageRange = RNIL;
   regFragPtr->currentPageRange = RNIL;
   regFragPtr->noOfPages = 0;
+  regFragPtr->noOfVarPages = 0;
   regFragPtr->noOfPagesToGrow = 2;
   regFragPtr->nextStartRange = 0;
 }//initFragRange()

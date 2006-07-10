@@ -598,8 +598,9 @@ db_create_event(THD *thd, Event_timed *et, my_bool create_if_not,
   int ret= 0;
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table;
-  char olddb[128];
-  bool dbchanged= false;
+  char old_db_buf[NAME_LEN+1];
+  LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
+  bool dbchanged= FALSE;
   DBUG_ENTER("db_create_event");
   DBUG_PRINT("enter", ("name: %.*s", et->name.length, et->name.str));
 
@@ -626,8 +627,7 @@ db_create_event(THD *thd, Event_timed *et, my_bool create_if_not,
   }
 
   DBUG_PRINT("info", ("non-existant, go forward"));
-  if ((ret= sp_use_new_db(thd, et->dbname.str,olddb, sizeof(olddb),0,
-                          &dbchanged)))
+  if ((ret= sp_use_new_db(thd, et->dbname, &old_db, 0, &dbchanged)))
   {
     my_error(ER_BAD_DB_ERROR, MYF(0));
     goto err;
@@ -691,14 +691,14 @@ db_create_event(THD *thd, Event_timed *et, my_bool create_if_not,
   *rows_affected= 1;
 ok:
   if (dbchanged)
-    (void) mysql_change_db(thd, olddb, 1);
+    (void) mysql_change_db(thd, old_db.str, 1);
   if (table)
     close_thread_tables(thd);
   DBUG_RETURN(EVEX_OK);
 
 err:
   if (dbchanged)
-    (void) mysql_change_db(thd, olddb, 1);
+    (void) mysql_change_db(thd, old_db.str, 1);
   if (table)
     close_thread_tables(thd);
   DBUG_RETURN(EVEX_GENERAL_ERROR);

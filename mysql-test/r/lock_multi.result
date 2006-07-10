@@ -66,6 +66,21 @@ Select_priv
 N
 use test;
 use test;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+ FLUSH TABLES WITH READ LOCK;
+CREATE TABLE t2 (c1 int);
+UNLOCK TABLES;
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (c1 int);
+LOCK TABLE t1 WRITE;
+ FLUSH TABLES WITH READ LOCK;
+CREATE TABLE t2 AS SELECT * FROM t1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+UNLOCK TABLES;
+UNLOCK TABLES;
+DROP TABLE t1;
 CREATE DATABASE mysqltest_1;
 FLUSH TABLES WITH READ LOCK;
  DROP DATABASE mysqltest_1;
@@ -80,19 +95,3 @@ lock tables t1 write;
  alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; alter table t1 auto_increment=0; //
 unlock tables;
 drop table t1;
-use mysql;
-LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
-FLUSH TABLES;
-use mysql;
- SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
-OPTIMIZE TABLES columns_priv, db, host, user;
-Table	Op	Msg_type	Msg_text
-mysql.columns_priv	optimize	status	OK
-mysql.db	optimize	status	OK
-mysql.host	optimize	status	OK
-mysql.user	optimize	status	OK
-UNLOCK TABLES;
-Select_priv
-N
-use test;
-use test;
