@@ -123,11 +123,3 @@ master-bin.000001	#	Query	1	#	use `test`; create table t3 like t1
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 select * from t3
 master-bin.000001	#	Query	1	#	use `test`; replace into t1 select * from t3
 drop table t1,t2,t3;
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
-create table t1 (c char(20)) engine=MyISAM;
-insert into t1 values ("Monty"),("WAX"),("Walrus");
-alter table t1 engine=blackhole;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-drop table t1;
