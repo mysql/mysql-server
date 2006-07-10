@@ -5829,9 +5829,9 @@ ER_CANT_CHANGE_TX_ISOLATION 25001
 ER_DUP_ENTRY_AUTOINCREMENT_CASE
         eng "ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '%-.64s' for key '%-.64s'"
 ER_EVENT_MODIFY_QUEUE_ERROR
-        eng "Internal scheduler error %d"
+        eng "Error during loading event from disk. mysql.event damaged?"
 ER_EVENT_SET_VAR_ERROR
-        eng "Error during starting/stopping of the scheduler. Error code %u"
+        eng "Error during starting/stopping of the scheduler."
 ER_PARTITION_MERGE_ERROR
         eng "%s handler cannot be used in partitioned tables"
         swe "%s kan inte användas i en partitionerad tabell"
@@ -5839,3 +5839,6 @@ ER_CANT_ACTIVATE_LOG
         eng "Cannot activate '%-.64s' log."
 ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
+ER_EVENT_RECURSIVITY_FORBIDDEN
+        eng "Recursivity of EVENT DDL statements is forbidden when body is present"
+
