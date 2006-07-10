@@ -12,7 +12,21 @@ ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 --replace_result $MYSQLTEST_VARDIR "hello"
 --exec ls $MYSQLTEST_VARDIR/master-data/test/t1*
+drop table t1;
+#
+# Bug 20767: REORGANIZE partition crashes
+#
+create table t1 (a int)
+partition by list (a)
+subpartition by hash (a)
+(partition p11 values in (1,2),
+ partition p12 values in (3,4));
 
+alter table t1 REORGANIZE partition p11, p12 INTO
+(partition p1 values in (1,2,3,4));
 
+alter table t1 REORGANIZE partition p1 INTO
+(partition p11 values in (1,2),
+ partition p12 values in (3,4));
 
-
+drop table t1;
