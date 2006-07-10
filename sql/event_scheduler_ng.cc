@@ -191,7 +191,7 @@ pthread_handler_t
 event_scheduler_ng_thread(void *arg)
 {
   /* needs to be first for thread_stack */
-  THD *thd= (THD *)(*(struct scheduler_param *) arg).thd;                               
+  THD *thd= (THD *)(*(struct scheduler_param *) arg).thd;
 
   thd->thread_stack= (char *)&thd;              // remember where our stack is
   DBUG_ENTER("event_scheduler_ng_thread");
@@ -207,7 +207,7 @@ event_scheduler_ng_thread(void *arg)
 
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
-  VOID(sigemptyset(&set));			// Get mask in use
+    VOID(sigemptyset(&set));                    // Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
 
@@ -256,7 +256,7 @@ event_worker_ng_thread(void *arg)
 
 #if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
   sigset_t set;
-  VOID(sigemptyset(&set));			// Get mask in use
+  VOID(sigemptyset(&set));                      // Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK, &set, &thd->block_signals));
 #endif
   thd->init_for_queries();
