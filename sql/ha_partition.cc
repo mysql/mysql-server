@@ -204,6 +204,7 @@ void ha_partition::init_handler_variables()
   m_name_buffer_ptr= NULL;
   m_engine_array= NULL;
   m_file= NULL;
+  m_file_tot_parts= 0;
   m_reorged_file= NULL;
   m_new_file= NULL;
   m_reorged_parts= 0;
@@ -1231,7 +1232,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
   uint no_parts= m_part_info->partitions.elements;
   uint no_subparts= m_part_info->no_subparts;
   uint i= 0;
-  uint no_remain_partitions, part_count;
+  uint no_remain_partitions, part_count, orig_count;
   handler **new_file_array;
   int error= 1;
   bool first;
@@ -1266,10 +1267,10 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
     } while (++i < no_parts);
   }
   if (m_reorged_parts &&
-      !(m_reorged_file= (handler**)sql_calloc(sizeof(partition_element*)*
+      !(m_reorged_file= (handler**)sql_calloc(sizeof(handler*)*
                                               (m_reorged_parts + 1))))
   {
-    mem_alloc_error(sizeof(partition_element*)*(m_reorged_parts+1));
+    mem_alloc_error(sizeof(handler*)*(m_reorged_parts+1));
     DBUG_RETURN(ER_OUTOFMEMORY);
   }
 
@@ -1340,6 +1341,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           ones used to be.
         */
         first= FALSE;
+        DBUG_ASSERT(i + m_reorged_parts <= m_file_tot_parts);
         memcpy((void*)m_reorged_file, &m_file[i*no_subparts],
                sizeof(handler*)*m_reorged_parts*no_subparts);
       }
@@ -1353,15 +1355,18 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
   */
   i= 0;
   part_count= 0;
+  orig_count= 0;
   part_it.rewind();
   do
   {
     partition_element *part_elem= part_it++;
     if (part_elem->part_state == PART_NORMAL)
     {
-      memcpy((void*)&new_file_array[part_count], (void*)&m_file[i],
+      DBUG_ASSERT(orig_count + no_subparts <= m_file_tot_parts);
+      memcpy((void*)&new_file_array[part_count], (void*)&m_file[orig_count],
              sizeof(handler*)*no_subparts);
       part_count+= no_subparts;
+      orig_count+= no_subparts;
     }
     else if (part_elem->part_state == PART_CHANGED ||
              part_elem->part_state == PART_TO_BE_ADDED)
@@ -1959,6 +1964,7 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
 
   if (!(m_file= (handler **) alloc_root(mem_root, alloc_len)))
     DBUG_RETURN(TRUE);
+  m_file_tot_parts= m_tot_parts;
   bzero((char*) m_file, alloc_len);
   for (i= 0; i < m_tot_parts; i++)
   {
@@ -2008,6 +2014,7 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
     mem_alloc_error(alloc_len);
     goto error_end;
   }
+  m_file_tot_parts= m_tot_parts;
   bzero((char*) m_file, alloc_len);
   DBUG_ASSERT(m_part_info->no_parts > 0);
 
