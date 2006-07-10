@@ -434,6 +434,33 @@ void Dblqh::execCONTINUEB(Signal* signal)
     checkDropTab(signal);
     return;
     break;
+  case ZENABLE_EXPAND_CHECK:
+  {
+    jam();
+    fragptr.i = signal->theData[1];
+    if (fragptr.i != RNIL)
+    {
+      jam();
+      ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
+      signal->theData[0] = fragptr.p->tabRef;
+      signal->theData[1] = fragptr.p->fragId;
+      sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+      
+      signal->theData[0] = ZENABLE_EXPAND_CHECK;
+      signal->theData[1] = fragptr.p->nextFrag;
+      sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 2, JBB);	
+      return;
+    }
+    else
+    {
+      jam();
+      StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
+      conf->startingNodeId = getOwnNodeId();
+      sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
+		 StartRecConf::SignalLength, JBB);
+      return;
+    }
+  }
   default:
     ndbrequire(false);
     break;
@@ -15503,20 +15530,21 @@ void Dblqh::srFourthComp(Signal* signal)
   } else if ((cstartType == NodeState::ST_NODE_RESTART) ||
              (cstartType == NodeState::ST_SYSTEM_RESTART)) {
     jam();
-    StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
-    conf->startingNodeId = getOwnNodeId();
-    sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
-	       StartRecConf::SignalLength, JBB);
 
-    if(cstartType == NodeState::ST_SYSTEM_RESTART){
-      fragptr.i = c_redo_log_complete_frags;
-      while(fragptr.i != RNIL){
-	ptrCheckGuard(fragptr, cfragrecFileSize, fragrecord);
-	signal->theData[0] = fragptr.p->tabRef;
-	signal->theData[1] = fragptr.p->fragId;
-	sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
-	fragptr.i = fragptr.p->nextFrag;
-      }
+    if(cstartType == NodeState::ST_SYSTEM_RESTART)
+    {
+      jam();
+      signal->theData[0] = ZENABLE_EXPAND_CHECK;
+      signal->theData[1] = c_redo_log_complete_frags;
+      sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 2, JBB);
+    }
+    else
+    {
+      jam();
+      StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
+      conf->startingNodeId = getOwnNodeId();
+      sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
+		 StartRecConf::SignalLength, JBB);
     }
   } else {
     ndbrequire(false);

@@ -926,4 +926,29 @@ select @@max_prepared_stmt_count, @@prepared_stmt_count;
 set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
 --enable_ps_protocol
 
+#
+# Bug#19399 "Stored Procedures 'Lost Connection' when dropping/creating
+#            tables"
+# Check that multi-delete tables are also cleaned up before re-execution.
+# 
+--disable_warnings
+drop table if exists t1;
+create temporary table if not exists t1 (a1 int);
+--enable_warnings
+# exact delete syntax is essential
+prepare stmt from "delete t1 from t1 where (cast(a1/3 as unsigned) * 3) = a1";
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+# the server crashed on  the next statement without the fix
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+# the problem was in memory corruption: repeat the test just in case
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+deallocate prepare stmt;
+
 # End of 4.1 tests
