@@ -9,7 +9,7 @@ SELECT user_host, argument FROM mysql.general_log WHERE argument LIKE '%alabala%
 END|
 "Check General Query Log"
 SET GLOBAL event_scheduler=2;
-create event log_general on schedule every 1 minute do SELect 'alabala', sleep(3) from dual;
+create event log_general on schedule every 1 minute do SELect 'alabala', sleep(1) from dual;
 TRUNCATE mysql.general_log;
 "1 row, the current statement!"
 call select_general_log();
@@ -19,7 +19,7 @@ SET GLOBAL event_scheduler=1;
 "Should see 3 rows - the 'SELect' is in the middle. The other two are selects from general_log"
 call select_general_log();
 user_host	argument
-USER_HOST	SELect 'alabala', sleep(3) from dual
+USER_HOST	SELect 'alabala', sleep(1) from dual
 DROP PROCEDURE select_general_log;
 DROP EVENT log_general;
 SET GLOBAL event_scheduler=2;
@@ -49,13 +49,13 @@ USER_HOST	SLEEPVAL	events_test	SELECT SLEEP(2)
 SET SESSION long_query_time=300;
 "Make it quite long"
 TRUNCATE mysql.slow_log;
-SET SESSION long_query_time=1;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
 "This won't go to the slow log"
-CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(3);
 SELECT * FROM slow_event_test;
 slo_val	val
+SET SESSION long_query_time=1;
 SET GLOBAL event_scheduler=1;
+CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(1.5);
 "Sleep some more time than the actual event run will take"
 SHOW VARIABLES LIKE 'event_scheduler';
 Variable_name	Value
@@ -64,7 +64,7 @@ event_scheduler	1
 SELECT * FROM slow_event_test;
 slo_val	val
 4	0
-"Check slow log. Should not see anything because 3 is under the threshold of 4 for GLOBAL, though over SESSION which is 2"
+"Check slow log. Should not see anything because 1.5 is under the threshold of 300 for GLOBAL, though over SESSION which is 2"
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
 "This should go to the slow log"

@@ -29,7 +29,8 @@
 time_t mysql_event_last_create_time= 0L;
 
 static
-TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] = {
+TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
+{
   {
     {(char *) STRING_WITH_LEN("db")},
     {(char *) STRING_WITH_LEN("char(64)")},
@@ -128,50 +129,49 @@ TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] = {
   Puts some data common to CREATE and ALTER EVENT into a row.
 
   SYNOPSIS
-    evex_fill_row()
+    mysql_event_fill_row()
       thd        THD
       table      The row to fill out
       et         Event's data
       is_update  CREATE EVENT or ALTER EVENT
 
   RETURN VALUE
-    0 - OK
-    EVEX_GENERAL_ERROR    - bad data
-    EVEX_GET_FIELD_FAILED - field count does not match. table corrupted?
+    0                       OK
+    EVEX_GENERAL_ERROR      Bad data
+    EVEX_GET_FIELD_FAILED   Field count does not match. table corrupted?
 
   DESCRIPTION 
     Used both when an event is created and when it is altered.
 */
 
 static int
-evex_fill_row(THD *thd, TABLE *table, Event_parse_data *et, my_bool is_update)
+mysql_event_fill_row(THD *thd, TABLE *table, Event_parse_data *et,
+                     my_bool is_update)
 {
   CHARSET_INFO *scs= system_charset_info;
-  enum enum_events_table_field field_num;
+  enum enum_events_table_field f_num;
+  Field **fields= table->field;
 
-  DBUG_ENTER("evex_fill_row");
+  DBUG_ENTER("mysql_event_fill_row");
 
   DBUG_PRINT("info", ("dbname=[%s]", et->dbname.str));
   DBUG_PRINT("info", ("name  =[%s]", et->name.str));
   DBUG_PRINT("info", ("body  =[%s]", et->body.str));
 
-  if (table->field[field_num= ET_FIELD_DEFINER]->
-                  store(et->definer.str, et->definer.length, scs))
+  if (fields[f_num= ET_FIELD_DEFINER]->
+                              store(et->definer.str, et->definer.length, scs))
     goto err_truncate;
 
-  if (table->field[field_num= ET_FIELD_DB]->
-                  store(et->dbname.str, et->dbname.length, scs))
+  if (fields[f_num= ET_FIELD_DB]->store(et->dbname.str, et->dbname.length, scs))
     goto err_truncate;
 
-  if (table->field[field_num= ET_FIELD_NAME]->
-                  store(et->name.str, et->name.length, scs))
+  if (fields[f_num= ET_FIELD_NAME]->store(et->name.str, et->name.length, scs))
     goto err_truncate;
 
   /* both ON_COMPLETION and STATUS are NOT NULL thus not calling set_notnull()*/
-  table->field[ET_FIELD_ON_COMPLETION]->
-                                       store((longlong)et->on_completion, true);
+  fields[ET_FIELD_ON_COMPLETION]->store((longlong)et->on_completion, TRUE);
 
-  table->field[ET_FIELD_STATUS]->store((longlong)et->status, true);
+  fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
 
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
@@ -179,52 +179,46 @@ evex_fill_row(THD *thd, TABLE *table, Event_parse_data *et, my_bool is_update)
   */ 
   if (et->body.str)
   {
-    table->field[ET_FIELD_SQL_MODE]->
-                               store((longlong)thd->variables.sql_mode, true);
-
-    if (table->field[field_num= ET_FIELD_BODY]->
-                     store(et->body.str, et->body.length, scs))
+    fields[ET_FIELD_SQL_MODE]->store((longlong)thd->variables.sql_mode, TRUE);
+    if (fields[f_num= ET_FIELD_BODY]->store(et->body.str, et->body.length, scs))
       goto err_truncate;
   }
 
   if (et->expression)
   {
-    table->field[ET_FIELD_INTERVAL_EXPR]->set_notnull();
-    table->field[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, true);
+    fields[ET_FIELD_INTERVAL_EXPR]->set_notnull();
+    fields[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, TRUE);
 
-    table->field[ET_FIELD_TRANSIENT_INTERVAL]->set_notnull();
+    fields[ET_FIELD_TRANSIENT_INTERVAL]->set_notnull();
     /*
-      In the enum (C) intervals start from 0 but in mysql enum valid values start
-      from 1. Thus +1 offset is needed!
+      In the enum (C) intervals start from 0 but in mysql enum valid values
+      start from 1. Thus +1 offset is needed!
     */
-    table->field[ET_FIELD_TRANSIENT_INTERVAL]->
-                                         store((longlong)et->interval+1, true);
+    fields[ET_FIELD_TRANSIENT_INTERVAL]->store((longlong)et->interval+1, TRUE);
 
-    table->field[ET_FIELD_EXECUTE_AT]->set_null();
+    fields[ET_FIELD_EXECUTE_AT]->set_null();
 
     if (!et->starts_null)
     {
-      table->field[ET_FIELD_STARTS]->set_notnull();
-      table->field[ET_FIELD_STARTS]->
-                            store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_STARTS]->set_notnull();
+      fields[ET_FIELD_STARTS]->store_time(&et->starts, MYSQL_TIMESTAMP_DATETIME);
     }
 
     if (!et->ends_null)
     {
-      table->field[ET_FIELD_ENDS]->set_notnull();
-      table->field[ET_FIELD_ENDS]->
-                            store_time(&et->ends, MYSQL_TIMESTAMP_DATETIME);
+      fields[ET_FIELD_ENDS]->set_notnull();
+      fields[ET_FIELD_ENDS]->store_time(&et->ends, MYSQL_TIMESTAMP_DATETIME);
     }
   }
   else if (et->execute_at.year)
   {
-    table->field[ET_FIELD_INTERVAL_EXPR]->set_null();
-    table->field[ET_FIELD_TRANSIENT_INTERVAL]->set_null();
-    table->field[ET_FIELD_STARTS]->set_null();
-    table->field[ET_FIELD_ENDS]->set_null();
+    fields[ET_FIELD_INTERVAL_EXPR]->set_null();
+    fields[ET_FIELD_TRANSIENT_INTERVAL]->set_null();
+    fields[ET_FIELD_STARTS]->set_null();
+    fields[ET_FIELD_ENDS]->set_null();
     
-    table->field[ET_FIELD_EXECUTE_AT]->set_notnull();
-    table->field[ET_FIELD_EXECUTE_AT]->
+    fields[ET_FIELD_EXECUTE_AT]->set_notnull();
+    fields[ET_FIELD_EXECUTE_AT]->
                         store_time(&et->execute_at, MYSQL_TIMESTAMP_DATETIME);
   }
   else
@@ -236,44 +230,20 @@ evex_fill_row(THD *thd, TABLE *table, Event_parse_data *et, my_bool is_update)
     */
   }
     
-  ((Field_timestamp *)table->field[ET_FIELD_MODIFIED])->set_time();
+  ((Field_timestamp *)fields[ET_FIELD_MODIFIED])->set_time();
 
   if (et->comment.str)
   {
-    if (table->field[field_num= ET_FIELD_COMMENT]->
-                 store(et->comment.str, et->comment.length, scs))
+    if (fields[f_num= ET_FIELD_COMMENT]->
+                          store(et->comment.str, et->comment.length, scs))
       goto err_truncate;
   }
 
   DBUG_RETURN(0);
+
 err_truncate:
-  my_error(ER_EVENT_DATA_TOO_LONG, MYF(0), table->field[field_num]->field_name);
+  my_error(ER_EVENT_DATA_TOO_LONG, MYF(0), fields[f_num]->field_name);
   DBUG_RETURN(EVEX_GENERAL_ERROR);
-}
-
-
-/*
-  Find row in open mysql.event table representing event
-
-  SYNOPSIS
-    evex_db_find_event_by_name()
-      thd    Thread context
-      dbname Name of event's database
-      rname  Name of the event inside the db  
-      table  TABLE object for open mysql.event table.
-
-  RETURN VALUE
-    0                  - Routine found
-    EVEX_KEY_NOT_FOUND - No routine with given name
-*/
-
-int
-evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
-                          const LEX_STRING ev_name,
-                          TABLE *table)
-{
-  return Events::get_instance()->db_repository->
-            find_event_by_name(thd, dbname, ev_name, table);
 }
 
 
@@ -313,7 +283,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
   {
     ret= 1;
-    /* don't send error, it would be done by sql_alloc_error_handler() */
+    /* Don't send error, it would be done by sql_alloc_error_handler() */
   }
   else
   {
@@ -441,99 +411,13 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables, char *db)
 
 
 /*
-  Looks for a named event in mysql.event and in case of success returns
-  an object will data loaded from the table.
-
-  SYNOPSIS
-    Event_db_repository::find_event()
-      thd      THD
-      name     the name of the event to find
-      ett      event's data if event is found
-      tbl      TABLE object to use when not NULL
-      root     On which root to load the event
-
-  NOTES
-    1) Use sp_name for look up, return in **ett if found
-    2) tbl is not closed at exit
-
-  RETURN VALUE
-    0  ok     In this case *ett is set to the event
-    #  error  *ett == 0
-*/
-
-int
-Event_db_repository::find_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
-                                Event_timed **ett, TABLE *tbl)
-{
-  TABLE *table;
-  int ret;
-  Event_timed *et= NULL;
-  DBUG_ENTER("Event_db_repository::find_event");
-  DBUG_PRINT("enter", ("name: %*s", name.length, name.str));
-
-  if (tbl)
-    table= tbl;
-  else if (open_event_table(thd, TL_READ, &table))
-  {
-    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
-    ret= EVEX_GENERAL_ERROR;
-    goto done;
-  }
-
-  if ((ret= evex_db_find_event_by_name(thd, dbname, name, table)))
-  {
-    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
-    goto done;
-  }
-  et= new Event_timed;
-
-  /*
-    1)The table should not be closed beforehand. ::load_from_row() only loads
-      and does not compile
-
-    2)::load_from_row() is silent on error therefore we emit error msg here
-  */
-  if ((ret= et->load_from_row(table)))
-  {
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
-    goto done;
-  }
-
-done:
-  if (ret)
-  {
-    delete et;
-    et= NULL;
-  }
-  /* don't close the table if we haven't opened it ourselves */
-  if (!tbl && table)
-    close_thread_tables(thd);
-  *ett= et;
-  DBUG_RETURN(ret);
-}
-
-
-int
-Event_db_repository::init_repository()
-{
-  return 0;
-}
-
-
-void
-Event_db_repository::deinit_repository()
-{
-}
-
-
-/*
   Open mysql.event table for read
 
   SYNOPSIS
     Events::open_event_table()
-    thd         Thread context
-    lock_type   How to lock the table
-    table       We will store the open table here
+    thd         [in]  Thread context
+    lock_type   [in]  How to lock the table
+    table       [out] We will store the open table here
 
   RETURN VALUE
     1   Cannot lock table
@@ -574,33 +458,26 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
    Checks parameters which we got from the parsing phase.
 
    SYNOPSIS
-     evex_check_params()
+     check_parse_params()
        thd            THD
        et             event's data
   
    RETURNS
      0                OK
-     EVEX_BAD_PARAMS  Error
-  
-   REMARKS
-     Issues error messages
+     EVEX_BAD_PARAMS  Error (reported)
 */
 
-int
-evex_check_params(THD *thd, Event_parse_data *parse_data)
+static int
+check_parse_params(THD *thd, Event_parse_data *parse_data)
 {
   const char *pos= NULL;
   Item *bad_item;
+  int res;
 
-  DBUG_ENTER("evex_check_params");
-  DBUG_PRINT("info", ("execute_at=0x%d expr=0x%d starts=0x%d ends=0x%d",
-                      parse_data->item_execute_at,
-                      parse_data->item_expression,
-                      parse_data->item_starts,
-                      parse_data->item_ends));
+  DBUG_ENTER("check_parse_params");
 
-  parse_data->init_name(thd, parse_data->identifier);
-  parse_data->init_definer(thd);
+  if (parse_data->check_parse_data(thd))
+    DBUG_RETURN(EVEX_BAD_PARAMS);
 
   if (!parse_data->dbname.str ||
       (thd->lex->sql_command == SQLCOM_ALTER_EVENT && thd->lex->spname &&
@@ -617,68 +494,7 @@ evex_check_params(THD *thd, Event_parse_data *parse_data)
                      is_schema_db(thd->lex->spname->m_db.str)))))
     DBUG_RETURN(EVEX_BAD_PARAMS);
 
-  if (parse_data->item_execute_at)
-  {
-    DBUG_PRINT("info", ("ONE TIME"));
-    if (parse_data->init_execute_at(thd, parse_data->item_execute_at))
-    {
-      pos= "AT";
-      bad_item= parse_data->item_execute_at;
-      goto wrong_value;
-    }
-  }
-  else
-  {
-    int res;
-    DBUG_PRINT("info", ("RECURRING"));
-
-    if (parse_data->item_expression &&
-        (res= parse_data->init_interval(thd, parse_data->item_expression,
-                                        parse_data->interval)))
-    {
-      switch (res) {
-      case EVEX_BAD_PARAMS:
-        my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
-        break;
-      case EVEX_MICROSECOND_UNSUP:
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
-        break;
-      default:
-        pos= "INTERVAL";
-        bad_item= parse_data->item_expression;
-        goto wrong_value;
-      }
-      DBUG_RETURN(EVEX_BAD_PARAMS);
-    }
-
-    if (parse_data->item_starts &&
-        parse_data->init_starts(thd, parse_data->item_starts))
-    {
-      pos= "STARTS";
-      bad_item= parse_data->item_starts;
-      goto wrong_value;
-    }
-
-    if (parse_data->item_ends &&
-        parse_data->init_ends(thd, parse_data->item_ends))
-    {
-      /*
-        despite the error name the value is
-        eng "ENDS is either invalid or before STARTS"
-      */
-      my_error(ER_EVENT_ENDS_BEFORE_STARTS, MYF(0));
-      DBUG_RETURN(EVEX_BAD_PARAMS);
-    }
-  }
   DBUG_RETURN(0);
-wrong_value:
-  {
-    char buff[120];
-    String str(buff,(uint32) sizeof(buff), system_charset_info);
-    String *str2= bad_item->fixed? bad_item->val_str(&str):NULL;
-    my_error(ER_WRONG_VALUE, MYF(0), pos, str2? str2->c_ptr():"NULL");
-    DBUG_RETURN(EVEX_BAD_PARAMS);
-  }
 }
 
 
@@ -687,18 +503,18 @@ wrong_value:
 
   SYNOPSIS
     Event_db_repository::create_event()
-      thd             THD
-      et              Event_timed object containing information for the event
-      create_if_not   If an warning should be generated in case event exists
-      rows_affected   How many rows were affected
+      thd             [in]  THD
+      et              [in]  Object containing info about the event
+      create_if_not   [in]  Whether to generate anwarning in case event exists
+      rows_affected   [out] How many rows were affected
 
   RETURN VALUE
                      0 - OK
     EVEX_GENERAL_ERROR - Failure
 
   DESCRIPTION 
-    Creates an event. Relies on evex_fill_row which is shared with
-    db_update_event. The name of the event is inside "et".
+    Creates an event. Relies on mysql_event_fill_row which is shared with
+    ::update_event. The name of the event is inside "et".
 */
 
 int
@@ -709,7 +525,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table;
   char olddb[128];
-  bool dbchanged= false;
+  bool dbchanged= FALSE;
   DBUG_ENTER("Event_db_repository::create_event");
 
   *rows_affected= 0;
@@ -720,15 +536,14 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     goto err;
   }
 
-  if (evex_check_params(thd, parse_data))
+  if (check_parse_params(thd, parse_data))
     goto err;
 
   DBUG_PRINT("info", ("name: %.*s", parse_data->name.length,
              parse_data->name.str));
 
   DBUG_PRINT("info", ("check existance of an event with the same name"));
-  if (!evex_db_find_event_by_name(thd, parse_data->dbname,
-                                  parse_data->name, table))
+  if (!find_event_by_name(thd, parse_data->dbname, parse_data->name, table))
   {
     if (create_if_not)
     {
@@ -784,10 +599,10 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   ((Field_timestamp *)table->field[ET_FIELD_CREATED])->set_time();
 
   /*
-    evex_fill_row() calls my_error() in case of error so no need to
+    mysql_event_fill_row() calls my_error() in case of error so no need to
     handle it here
   */
-  if ((ret= evex_fill_row(thd, table, parse_data, false)))
+  if ((ret= mysql_event_fill_row(thd, table, parse_data, FALSE)))
     goto err; 
 
   /* Close active transaction only if We are going to modify disk */
@@ -799,16 +614,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     my_error(ER_EVENT_STORE_FAILED, MYF(0), parse_data->name.str, ret);
     goto err;
   }
-
-#ifdef USE_THIS_CODE_AS_TEMPLATE_WHEN_EVENT_REPLICATION_IS_AGREED
-  if (mysql_bin_log.is_open())
-  {
-    thd->clear_error();
-    /* Such a statement can always go directly to binlog, no trans cache */
-    thd->binlog_query(THD::MYSQL_QUERY_TYPE, thd->query, thd->query_length,
-                      FALSE, FALSE);
-  }
-#endif
 
   *rows_affected= 1;
 ok:
@@ -838,7 +643,7 @@ err:
 
   RETURN VALUE
     0  OK
-    EVEX_GENERAL_ERROR  Error occured (my_error() called)
+    EVEX_GENERAL_ERROR  Error occured and reported
 
   NOTES
     sp_name is passed since this is the name of the event to
@@ -860,7 +665,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     goto err;
   }
 
-  if (evex_check_params(thd, parse_data))
+  if (check_parse_params(thd, parse_data))
     goto err;
 
   DBUG_PRINT("info", ("dbname: %s", parse_data->dbname.str));
@@ -879,7 +684,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
       goto err;
     }
 
-    if (!evex_db_find_event_by_name(thd,new_name->m_db,new_name->m_name,table))
+    if (!find_event_by_name(thd, new_name->m_db, new_name->m_name, table))
     {
       my_error(ER_EVENT_ALREADY_EXISTS, MYF(0), new_name->m_name.str);
       goto err;
@@ -904,10 +709,10 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
   /*
-    evex_fill_row() calls my_error() in case of error so no need to
+    mysql_event_fill_row() calls my_error() in case of error so no need to
     handle it here
   */
-  if ((ret= evex_fill_row(thd, table, parse_data, true)))
+  if ((ret= mysql_event_fill_row(thd, table, parse_data, TRUE)))
     goto err;
 
   if (new_name)
@@ -944,11 +749,12 @@ err:
 
   SYNOPSIS
     Event_db_repository::drop_event()
-      thd             THD
-      db              database name
-      name            event's name
-      drop_if_exists  if set and the event not existing => warning onto the stack
-      rows_affected   affected number of rows is returned heres
+      thd             [in]  THD
+      db              [in]  Database name
+      name            [in]  Event's name
+      drop_if_exists  [in]  If set and the event not existing => warning
+                            onto the stack
+      rows_affected   [out] Affected number of rows is returned heres
 
   RETURN VALUE
     0   OK
@@ -974,17 +780,16 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
     goto done;
   }
 
-  if (!(ret= evex_db_find_event_by_name(thd, db, name, table)))
-  {
-    /* Close active transaction only if We are going to modify disk */
+  switch ((ret= find_event_by_name(thd, db, name, table))) {
+  case 0:
+    /* Close active transaction only if we are actually going to modify disk */
     if ((ret= end_active_trans(thd)))
-      goto done;
+      break;
 
     if ((ret= table->file->ha_delete_row(table->record[0])))
       my_error(ER_EVENT_CANNOT_DELETE, MYF(0));
-  }
-  else if (ret == EVEX_KEY_NOT_FOUND)
-  { 
+    break;
+  case EVEX_KEY_NOT_FOUND:
     if (drop_if_exists)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -993,18 +798,33 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
       ret= 0;
     } else
       my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
+    break;
+  default:
+    ;
   }
 
 done:
-  /*
-    evex_drop_event() is used by Event_timed::drop therefore
-    we have to close our thread tables.
-  */
   close_thread_tables(thd);
   thd->restore_backup_open_tables_state(&backup);
   DBUG_RETURN(ret);
 }
 
+
+/*
+  Positions the internal pointer of `table` to the place where (db, name)
+  is stored.
+
+  SYNOPSIS
+    Event_db_repository::find_event_by_name()
+      thd    Thread
+      db     Schema
+      name   Event name
+      table  Opened mysql.event
+
+  RETURN VALUE
+    0                   OK
+    EVEX_KEY_NOT_FOUND  No such event
+*/
 
 int
 Event_db_repository::find_event_by_name(THD *thd, LEX_STRING db,
@@ -1043,6 +863,19 @@ Event_db_repository::find_event_by_name(THD *thd, LEX_STRING db,
 }
 
 
+/*
+  Drops all events in the selected database, from mysql.event.
+
+  SYNOPSIS
+    Event_db_repository::drop_schema_events()
+      thd     Thread
+      schema  The database to clean from events
+
+  RETURN VALUE
+    0  OK
+   !0  Error (Reported)
+*/
+
 int
 Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
 {
@@ -1050,18 +883,11 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
 }
 
 
-int
-Event_db_repository::drop_user_events(THD *thd, LEX_STRING definer)
-{
-  return drop_events_by_field(thd, ET_FIELD_DEFINER, definer);
-}
-
-
 /*
-  Drops all events in the selected database, from mysql.event.
+  Drops all events by field which has specific value of the field
 
   SYNOPSIS
-    drop_events_from_table_by_field()
+    Event_db_repository::drop_events_by_field()
       thd         Thread
       table       mysql.event TABLE
       field       Which field of the row to use for matching
@@ -1116,56 +942,63 @@ Event_db_repository::drop_events_by_field(THD *thd,
 
 
 /*
-  Looks for a named event in mysql.event and then loads it from
-  the table, compiles and inserts it into the cache.
+  Looks for a named event in mysql.event and in case of success returns
+  an object will data loaded from the table.
 
   SYNOPSIS
-    Event_db_repository::load_named_event_timed()
-      thd      THD
-      etn      The name of the event to load and compile on scheduler's root
-      etn_new  The loaded event
+    Event_db_repository::find_event()
+      thd   [in]  THD
+      name  [in]  The name of the event to find
+      ett   [out] Event's data if event is found
+      tbl   [in]  TABLE object to use when not NULL
+
+  NOTES
+    1) Use sp_name for look up, return in **ett if found
+    2) tbl is not closed at exit
 
   RETURN VALUE
-    NULL       Error during compile or the event is non-enabled.
-    otherwise  Address
+    0  ok     In this case *ett is set to the event
+    #  error  *ett == 0
 */
 
 int
-Event_db_repository::load_named_event_timed(THD *thd, LEX_STRING dbname,
-                                            LEX_STRING name,
-                                            Event_timed **etn_new)
+Event_db_repository::find_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
+                                Event_basic *et)
 {
-  int ret= 0;
-  MEM_ROOT *tmp_mem_root;
-  Event_timed *et_loaded= NULL;
-  Open_tables_state backup;
+  TABLE *table;
+  int ret;
+  DBUG_ENTER("Event_db_repository::find_event");
+  DBUG_PRINT("enter", ("name: %*s", name.length, name.str));
 
-  DBUG_ENTER("Event_db_repository::load_named_event_timed");
-  DBUG_PRINT("enter",("thd=%p name:%*s",thd, name.length, name.str));
-
-  thd->reset_n_backup_open_tables_state(&backup);
-  /* No need to use my_error() here because db_find_event() has done it */
-  ret= find_event(thd, dbname, name, &et_loaded, NULL);
-  thd->restore_backup_open_tables_state(&backup);
-  /* In this case no memory was allocated so we don't need to clean */
-  if (ret)
-    DBUG_RETURN(OP_LOAD_ERROR);
-
-  if (et_loaded->status != Event_timed::ENABLED)
+  if (open_event_table(thd, TL_READ, &table))
   {
-    /*
-      We don't load non-enabled events.
-      In db_find_event() `et_new` was allocated on the heap and not on
-      scheduler_root therefore we delete it here.
-    */
-    delete et_loaded;
-    DBUG_RETURN(OP_DISABLED_EVENT);
+    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+    ret= EVEX_GENERAL_ERROR;
+    goto done;
   }
 
-  et_loaded->compute_next_execution_time();
-  *etn_new= et_loaded;
+  if ((ret= find_event_by_name(thd, dbname, name, table)))
+  {
+    my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
+    goto done;
+  }
+  /*
+    1)The table should not be closed beforehand. ::load_from_row() only loads
+      and does not compile
 
-  DBUG_RETURN(OP_OK);
+    2)::load_from_row() is silent on error therefore we emit error msg here
+  */
+  if ((ret= et->load_from_row(table)))
+  {
+    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
+    goto done;
+  }
+
+done:
+  if (table)
+    close_thread_tables(thd);
+
+  DBUG_RETURN(ret);
 }
 
 
@@ -1174,50 +1007,34 @@ Event_db_repository::load_named_event_timed(THD *thd, LEX_STRING dbname,
   the table, compiles and inserts it into the cache.
 
   SYNOPSIS
-    Event_db_repository::load_named_event_job()
-      thd      THD
-      etn      The name of the event to load and compile on scheduler's root
-      etn_new  The loaded event
+    Event_db_repository::load_named_event()
+      thd      [in]  THD
+      dbname   [in]  Event's db name
+      name     [in]  Event's name
+      etn_new  [out] The loaded event
 
   RETURN VALUE
-    NULL       Error during compile or the event is non-enabled.
-    otherwise  Address
+    OP_OK          OK
+    OP_LOAD_ERROR  Error during loading from disk
 */
 
 int
-Event_db_repository::load_named_event_job(THD *thd, LEX_STRING dbname,
-                                          LEX_STRING name,
-                                          Event_job_data **etn_new)
+Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
+                                      LEX_STRING name, Event_basic *etn)
 {
   int ret= 0;
-  MEM_ROOT *tmp_mem_root;
-  Event_timed *et_loaded= NULL;
   Open_tables_state backup;
 
-  DBUG_ENTER("Event_db_repository::load_named_event_job");
-  DBUG_PRINT("enter",("thd=%p name:%*s",thd, name.length, name.str));
-#if 0
+  DBUG_ENTER("Event_db_repository::load_named_event");
+  DBUG_PRINT("enter",("thd=0x%lx name:%*s",thd, name.length, name.str));
+
   thd->reset_n_backup_open_tables_state(&backup);
-  /* No need to use my_error() here because db_find_event() has done it */
-  ret= find_event(thd, dbname, name, &et_loaded, NULL);
+  /* No need to use my_error() here because find_event() has done it */
+  ret= find_event(thd, dbname, name, etn);
   thd->restore_backup_open_tables_state(&backup);
   /* In this case no memory was allocated so we don't need to clean */
   if (ret)
     DBUG_RETURN(OP_LOAD_ERROR);
 
-  if (et_loaded->status != Event_timed::ENABLED)
-  {
-    /*
-      We don't load non-enabled events.
-      In db_find_event() `et_new` was allocated on the heap and not on
-      scheduler_root therefore we delete it here.
-    */
-    delete et_loaded;
-    DBUG_RETURN(OP_DISABLED_EVENT);
-  }
-
-  et_loaded->compute_next_execution_time();
-  *etn_new= et_loaded;
-#endif
   DBUG_RETURN(OP_OK);
 }

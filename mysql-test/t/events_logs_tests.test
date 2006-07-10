@@ -14,7 +14,7 @@ END|
 delimiter ;|
 --echo "Check General Query Log"
 SET GLOBAL event_scheduler=2;
-create event log_general on schedule every 1 minute do SELect 'alabala', sleep(3) from dual;
+create event log_general on schedule every 1 minute do SELect 'alabala', sleep(1) from dual;
 TRUNCATE mysql.general_log;
 --echo "1 row, the current statement!"
 --replace_column 1 USER_HOST
@@ -22,13 +22,12 @@ call select_general_log();
 SET GLOBAL event_scheduler=1;
 --echo "Wait the scheduler to start"
 --echo "Should see 3 rows - the 'SELect' is in the middle. The other two are selects from general_log"
---sleep 2
+--sleep 0.7
 --replace_column 1 USER_HOST
 call select_general_log();
 DROP PROCEDURE select_general_log;
 DROP EVENT log_general;
 SET GLOBAL event_scheduler=2;
---sleep 1
 
 --echo "Check slow query log"
 --disable_query_log
@@ -69,18 +68,18 @@ SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 SET SESSION long_query_time=300;
 --echo "Make it quite long"
 TRUNCATE mysql.slow_log;
-SET SESSION long_query_time=1;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
 --echo "This won't go to the slow log"
-CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(3);
 SELECT * FROM slow_event_test;
+SET SESSION long_query_time=1;
 SET GLOBAL event_scheduler=1;
+CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(1.5);
 --echo "Sleep some more time than the actual event run will take"
---sleep 5
+--sleep 2
 SHOW VARIABLES LIKE 'event_scheduler';
 --echo "Check our table. Should see 1 row"
 SELECT * FROM slow_event_test;
---echo "Check slow log. Should not see anything because 3 is under the threshold of 4 for GLOBAL, though over SESSION which is 2"
+--echo "Check slow log. Should not see anything because 1.5 is under the threshold of 300 for GLOBAL, though over SESSION which is 2"
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 --echo "This should go to the slow log"
 DROP EVENT long_event;
@@ -88,7 +87,7 @@ SET SESSION long_query_time=10;
 SET GLOBAL long_query_time=1;
 CREATE EVENT long_event2 ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(2);
 --echo "Sleep some more time than the actual event run will take"
---sleep 3
+--sleep 2.5
 --echo "Check our table. Should see 2 rows"
 SELECT * FROM slow_event_test;
 --echo "Check slow log. Should see 1 row because 4 is over the threshold of 3 for GLOBAL, though under SESSION which is 10"

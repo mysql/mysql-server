@@ -39,11 +39,6 @@ enum enum_events_table_field
 
 
 int
-evex_db_find_event_by_name(THD *thd, const LEX_STRING dbname,
-                           const LEX_STRING ev_name,
-                           TABLE *table);
-
-int
 events_table_index_read_for_db(THD *thd, TABLE *schema_table,
                                TABLE *event_table);
 
@@ -53,22 +48,13 @@ events_table_scan_all(THD *thd, TABLE *schema_table, TABLE *event_table);
 int
 fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
 
-class Event_timed;
+class Event_basic;
 class Event_parse_data;
-class Event_queue_element;
-class Event_job_data;
 
 class Event_db_repository
 {
 public:
   Event_db_repository(){}
-  ~Event_db_repository(){}
-
-  int
-  init_repository();
-
-  void
-  deinit_repository();
 
   int
   create_event(THD *thd, Event_parse_data *parse_data, my_bool create_if_not,
@@ -85,19 +71,10 @@ public:
   drop_schema_events(THD *thd, LEX_STRING schema);
 
   int
-  drop_user_events(THD *thd, LEX_STRING definer);
+  find_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_basic *et);
 
   int
-  find_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_timed **ett,
-             TABLE *tbl);
-
-  int
-  load_named_event_timed(THD *thd, LEX_STRING dbname, LEX_STRING name,
-                         Event_timed **etn_new);
-
-  int
-  load_named_event_job(THD *thd, LEX_STRING dbname, LEX_STRING name,
-                       Event_job_data **etn_new);
+  load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_basic *et);
 
   int
   find_event_by_name(THD *thd, LEX_STRING db, LEX_STRING name, TABLE *table);

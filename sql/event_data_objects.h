@@ -47,30 +47,46 @@
 
 class sp_head;
 class Sql_alloc;
-
-class Event_timed;
+class Event_basic;
 
 /* Compares only the schema part of the identifier */
 bool
-event_timed_db_equal(Event_timed *et, LEX_STRING *db);
+event_basic_db_equal( LEX_STRING *db, Event_basic *et);
 
 /* Compares the whole identifier*/
 bool
-event_timed_identifier_equal(LEX_STRING db, LEX_STRING name, Event_timed *b);
+event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b);
 
-
-class Event_timed
+class Event_basic
 {
-  Event_timed(const Event_timed &);	/* Prevent use of these */
-  void operator=(Event_timed &);
-
-  bool status_changed;
-  bool last_executed_changed;
-  
+protected:
   MEM_ROOT mem_root;
 
 public:
-  THD *thd;
+  LEX_STRING dbname;
+  LEX_STRING name;
+  LEX_STRING definer;// combination of user and host
+  
+  Event_basic();
+  virtual ~Event_basic();
+
+  virtual int
+  load_from_row(TABLE *table) = 0;
+
+protected:
+  bool
+  load_string_fields(Field **fields, ...);
+};
+
+
+
+class Event_queue_element : public Event_basic
+{
+protected:
+  bool status_changed;
+  bool last_executed_changed;
+
+public:
   enum enum_status
   {
     ENABLED = 1,
@@ -83,17 +99,10 @@ public:
     ON_COMPLETION_PRESERVE
   };
 
+  enum enum_on_completion on_completion;
+  enum enum_status status;
   TIME last_executed;
 
-  LEX_STRING dbname;
-  LEX_STRING name;
-  LEX_STRING body;
-
-  LEX_STRING definer_user;
-  LEX_STRING definer_host;
-  LEX_STRING definer;// combination of user and host
-
-  LEX_STRING comment;
   TIME starts;
   TIME ends;
   TIME execute_at;
@@ -104,42 +113,14 @@ public:
   longlong expression;
   interval_type interval;
 
-  ulonglong created;
-  ulonglong modified;
-  enum enum_on_completion on_completion;
-  enum enum_status status;
-  sp_head *sphead;
-  ulong sql_mode;
-
-  bool dropped;
   uint flags;//all kind of purposes
 
-  static void *operator new(size_t size)
-  {
-    void *p;
-    DBUG_ENTER("Event_timed::new(size)");
-    p= my_malloc(size, MYF(0));
-    DBUG_PRINT("info", ("alloc_ptr=0x%lx", p));
-    DBUG_RETURN(p);
-  }
+  bool dropped;
 
-  static void operator delete(void *ptr, size_t size)
-  {
-    DBUG_ENTER("Event_timed::delete(ptr,size)");
-    DBUG_PRINT("enter", ("free_ptr=0x%lx", ptr));
-    TRASH(ptr, size);
-    my_free((gptr) ptr, MYF(0));
-    DBUG_VOID_RETURN;
-  }
-
-  Event_timed();
-
-  ~Event_timed();
-
-  void
-  init();
-
-  int
+  Event_queue_element();
+  virtual ~Event_queue_element();
+  
+  virtual int
   load_from_row(TABLE *table);
 
   bool
@@ -152,27 +133,97 @@ public:
   mark_last_executed(THD *thd);
 
   bool
-  update_fields(THD *thd);
+  update_timing_fields(THD *thd);
+
+  static void *operator new(size_t size)
+  {
+    void *p;
+    DBUG_ENTER("Event_queue_element::new(size)");
+    p= my_malloc(size, MYF(0));
+    DBUG_PRINT("info", ("alloc_ptr=0x%lx", p));
+    DBUG_RETURN(p);
+  }
+
+  static void operator delete(void *ptr, size_t size)
+  {
+    DBUG_ENTER("Event_queue_element::delete(ptr,size)");
+    DBUG_PRINT("enter", ("free_ptr=0x%lx", ptr));
+    TRASH(ptr, size);
+    my_free((gptr) ptr, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+};
+
+
+class Event_timed : public Event_queue_element
+{
+  Event_timed(const Event_timed &);	/* Prevent use of these */
+  void operator=(Event_timed &);
+
+public:
+  LEX_STRING body;
+
+  LEX_STRING definer_user;
+  LEX_STRING definer_host;
+
+  LEX_STRING comment;
+
+  ulonglong created;
+  ulonglong modified;
+
+  ulong sql_mode;
+
+  Event_timed();
+  virtual ~Event_timed();
+
+  void
+  init();
+
+  virtual int
+  load_from_row(TABLE *table);
 
   int
   get_create_event(THD *thd, String *buf);
+};
+
+
+class Event_job_data : public Event_basic
+{
+public:
+  THD *thd;
+  sp_head *sphead;
+
+  LEX_STRING body;
+  LEX_STRING definer_user;
+  LEX_STRING definer_host;
+
+  ulong sql_mode;
+
+  Event_job_data();
+  virtual ~Event_job_data();
+
+  virtual int
+  load_from_row(TABLE *table);
 
   int
   execute(THD *thd, MEM_ROOT *mem_root);
+private:
+  int
+  get_fake_create_event(THD *thd, String *buf);
 
   int
   compile(THD *thd, MEM_ROOT *mem_root);
-  
+
   void
   free_sp();
+
+  Event_job_data(const Event_job_data &);	/* Prevent use of these */
+  void operator=(Event_job_data &);
 };
 
 
 class Event_parse_data : public Sql_alloc
 {
-  Event_parse_data(const Event_parse_data &);	/* Prevent use of these */
-  void operator=(Event_parse_data &);
-
 public:
   enum enum_status
   {
@@ -185,7 +236,6 @@ public:
     ON_COMPLETION_DROP = 1,
     ON_COMPLETION_PRESERVE
   };
-
   enum enum_on_completion on_completion;
   enum enum_status status;
 
@@ -193,8 +243,8 @@ public:
 
   LEX_STRING dbname;
   LEX_STRING name;
-  LEX_STRING body;
   LEX_STRING definer;// combination of user and host
+  LEX_STRING body;
   LEX_STRING comment;
 
   Item* item_starts;
@@ -216,59 +266,41 @@ public:
   static Event_parse_data *
   new_instance(THD *thd);
 
-  Event_parse_data();
-  ~Event_parse_data();
+  bool
+  check_parse_data(THD *);
+
+  void
+  init_body(THD *thd);
+
+private:
 
   int
   init_definer(THD *thd);
-
-  int
-  init_execute_at(THD *thd, Item *expr);
-
-  int
-  init_interval(THD *thd, Item *expr, interval_type new_interval);
 
   void
   init_name(THD *thd, sp_name *spn);
 
   int
-  init_starts(THD *thd, Item *starts);
+  init_execute_at(THD *thd);
 
   int
-  init_ends(THD *thd, Item *ends);
+  init_interval(THD *thd);
+
+  int
+  init_starts(THD *thd);
+
+  int
+  init_ends(THD *thd);
+
+  Event_parse_data();
+  ~Event_parse_data();
 
   void
-  init_body(THD *thd);
+  report_bad_value(const char *item_name, Item *bad_item);
+
+  Event_parse_data(const Event_parse_data &);	/* Prevent use of these */
+  void operator=(Event_parse_data &);
 };
 
 
-class Event_job_data
-{
-public:
-  LEX_STRING dbname;
-  LEX_STRING name;
-  sp_head *sphead;
-  LEX_STRING definer;
-  LEX_STRING body;
-  ulong sql_mode;
-
-  THD *thd;
-  
-  Event_job_data(){}
-  ~Event_job_data(){}
-
-  int
-  execute();
-
-private:
-  int
-  load_from_disk();
-  
-  int
-  compile();
-
-
-  Event_job_data(const Event_job_data &);	/* Prevent use of these */
-  void operator=(Event_job_data &);
-};
 #endif /* _EVENT_DATA_OBJECTS_H_ */
