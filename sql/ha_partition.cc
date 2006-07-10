@@ -5263,7 +5263,7 @@ int ha_partition::cmp_ref(const byte *ref1, const byte *ref2)
                 MODULE auto increment
 ****************************************************************************/
 
-void ha_partition::restore_auto_increment()
+void ha_partition::restore_auto_increment(ulonglong)
 {
   DBUG_ENTER("ha_partition::restore_auto_increment");
 

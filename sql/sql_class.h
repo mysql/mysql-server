@@ -1149,8 +1149,9 @@ public:
     column; our rules are
     a) on master, while executing a top statement involving substatements,
     first top- or sub- statement to generate auto_increment values wins the
-    exclusive right to write them to binlog (so the losers won't write their
-    values to binlog).
+    exclusive right to see its values be written to binlog (the write
+    will be done by the statement or its caller), and the losers won't see
+    their values be written to binlog.
     b) on slave, while replicating a top statement involving substatements,
     first top- or sub- statement to need to read auto_increment values from
     the master's binlog wins the exclusive right to read them (so the losers

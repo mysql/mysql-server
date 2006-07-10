@@ -3401,6 +3401,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
           }
         }
       }
+      /* Forget those values, for next binlogger: */
+      thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
+      thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     }
 
     /*

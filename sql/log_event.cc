@@ -5334,10 +5334,10 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
 
     /*
       lock_tables() reads the contents of thd->lex, so they must be
-      initialized, so we should call lex_start(); to be even safer, we
-      call mysql_init_query() which does a more complete set of inits.
+      initialized. Contrary to in Table_map_log_event::exec_event() we don't
+      call mysql_init_query() as that may reset the binlog format.
     */
-    mysql_init_query(thd, NULL, 0);
+    lex_start(thd, NULL, 0);
 
     while ((error= lock_tables(thd, rli->tables_to_lock,
                                rli->tables_to_lock_count, &need_reopen)))
@@ -5841,6 +5841,12 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
   else
   {
     /*
+      open_tables() reads the contents of thd->lex, so they must be
+      initialized, so we should call lex_start(); to be even safer, we
+      call mysql_init_query() which does a more complete set of inits.
+    */
+    mysql_init_query(thd, NULL, 0);
+    /*
       Check if the slave is set to use SBR.  If so, it should switch
       to using RBR until the end of the "statement", i.e., next
       STMT_END_F or next error.
@@ -5856,12 +5862,6 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       Note that for any table that should not be replicated, a filter is needed.
     */
     uint count;
-    /*
-      open_tables() reads the contents of thd->lex, so they must be
-      initialized, so we should call lex_start(); to be even safer, we
-      call mysql_init_query() which does a more complete set of inits.
-    */
-    mysql_init_query(thd, NULL, 0);
     if ((error= open_tables(thd, &table_list, &count, 0)))
     {
       if (thd->query_error || thd->is_fatal_error)
