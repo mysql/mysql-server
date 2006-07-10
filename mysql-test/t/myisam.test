@@ -852,13 +852,17 @@ connection session1;
 disable_query_log;
 eval create temporary table t1 (a int) engine=myisam data directory="$MYSQLTEST_VARDIR/tmp" select 9 a;
 enable_query_log;
+disable_result_log;
 show create table t1;
+enable_result_log;
 
 connection session2;
 disable_query_log;
 eval create temporary table t1 (a int) engine=myisam data directory="$MYSQLTEST_VARDIR/tmp" select 99 a;
 enable_query_log;
+disable_result_log;
 show create table t1;
+enable_result_log;
 
 connection default;
 create table t1 (a int) engine=myisam select 42 a;
