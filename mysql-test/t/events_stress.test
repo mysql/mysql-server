@@ -62,7 +62,7 @@ while ($1)
 --enable_query_log
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
 SET GLOBAL event_scheduler=1;
---sleep 6
+--sleep 2.5
 DROP DATABASE events_conn1_test2;
 
 SET GLOBAL event_scheduler=2;
@@ -101,7 +101,7 @@ while ($1)
 }
 --enable_query_log
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
---sleep 6
+--sleep 2.5
 connection conn2;
 --send
 DROP DATABASE events_conn2_db;

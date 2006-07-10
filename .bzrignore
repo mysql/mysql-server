@@ -444,6 +444,7 @@ libmysql/mysys_priv.h
 libmysql/net.c
 libmysql/release/libmysql.exp
 libmysql/vio_priv.h
+libmysql/viosocket.o.6WmSJk
 libmysql_r/*.c
 libmysql_r/acconfig.h
 libmysql_r/conf_to_src
@@ -461,7 +462,10 @@ libmysqld/discover.cc
 libmysqld/emb_qcache.cpp
 libmysqld/errmsg.c
 libmysqld/event.cc
+libmysqld/event_data_objects.cc
+libmysqld/event_db_repository.cc
 libmysqld/event_executor.cc
+libmysqld/event_queue.cc
 libmysqld/event_scheduler.cc
 libmysqld/event_timed.cc
 libmysqld/events.cc
