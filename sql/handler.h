@@ -410,7 +410,6 @@ struct show_table_alias_st {
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
 #define HTON_CAN_RECREATE            (1 << 2) //Delete all is used fro truncate
 #define HTON_HIDDEN                  (1 << 3) //Engine does not appear in lists
-#define HTON_ALTER_CANNOT_CREATE     (1 << 4) //Cannot use alter to create
 
 typedef struct st_thd_trans
 {
