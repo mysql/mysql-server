@@ -265,6 +265,7 @@ THD::THD()
     ulong tmp=sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
   }
+  substitute_null_with_insert_id = FALSE;
 }
 
 
