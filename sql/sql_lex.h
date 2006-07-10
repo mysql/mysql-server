@@ -808,6 +808,11 @@ public:
     *this= *state;
   }
 
+  /*
+    Direct addition to the list of query tables.
+    If you are using this function, you must ensure that the table
+    object, in particular table->db member, is initialized.
+  */
   void add_to_query_tables(TABLE_LIST *table)
   {
     *(table->prev_global= query_tables_last)= table;

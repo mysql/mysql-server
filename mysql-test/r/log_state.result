@@ -102,7 +102,7 @@ show variables like 'general_log_file';
 Variable_name	Value
 general_log_file	#
 set global general_log= OFF;
-set global general_log_file='/tmp/log.master';
+set global general_log_file='MYSQLTEST_VARDIR/tmp/log.master';
 set global general_log= ON;
 create table t1(f1 int);
 drop table t1;

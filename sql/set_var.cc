@@ -1097,7 +1097,7 @@ bool update_sys_var_str(sys_var_str *var_str, rw_lock_t *var_mutex,
   uint new_length= (var ? var->value->str_value.length() : 0);
   if (!old_value)
     old_value= (char*) "";
-  if (!(res= my_strndup((byte*)old_value, new_length, MYF(0))))
+  if (!(res= my_strndup(old_value, new_length, MYF(0))))
     return 1;
   /*
     Replace the old value in such a way that the any thread using
@@ -2632,7 +2632,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
     old_value= make_default_log_name(buff, log_ext);
     str_length= strlen(old_value);
   }
-  if (!(res= my_strndup((byte*)old_value, str_length, MYF(MY_FAE+MY_WME))))
+  if (!(res= my_strndup(old_value, str_length, MYF(MY_FAE+MY_WME))))
   {
     result= 1;
     goto err;

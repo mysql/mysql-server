@@ -1445,12 +1445,13 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
     tabPtr.p->m_error         = 0;
     tabPtr.p->m_schemaVersion = RNIL;
     tabPtr.p->m_state = Table::DEFINING;
-    tabPtr.p->m_hasTriggerDefined[0] = 0;
-    tabPtr.p->m_hasTriggerDefined[1] = 0;
-    tabPtr.p->m_hasTriggerDefined[2] = 0;
-    tabPtr.p->m_triggerIds[0] = ILLEGAL_TRIGGER_ID;
-    tabPtr.p->m_triggerIds[1] = ILLEGAL_TRIGGER_ID;
-    tabPtr.p->m_triggerIds[2] = ILLEGAL_TRIGGER_ID;
+    tabPtr.p->m_drop_subbPtr.p = 0;
+    for (int j= 0; j < 3; j++)
+    {
+      tabPtr.p->m_hasTriggerDefined[j] = 0;
+      tabPtr.p->m_hasOutstandingTriggerReq[j] = 0;
+      tabPtr.p->m_triggerIds[j] = ILLEGAL_TRIGGER_ID;
+    }
 
     c_tables.add(tabPtr);
 
@@ -2491,6 +2492,13 @@ Suma::execSUB_STOP_REQ(Signal* signal){
     DBUG_VOID_RETURN;
   }
 
+  if (tabPtr.p->m_drop_subbPtr.p != 0) {
+    jam();
+    DBUG_PRINT("error", ("table locked"));
+    sendSubStopRef(signal, 1420);
+    DBUG_VOID_RETURN;
+  }
+
   DBUG_PRINT("info",("subscription: %u tableId: %u[i=%u] id: %u key: %u",
 		     subPtr.i, subPtr.p->m_tableId, tabPtr.i,
 		     subPtr.p->m_subscriptionId,subPtr.p->m_subscriptionKey));
@@ -2543,7 +2551,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
   subPtr.p->m_senderRef  = senderRef; // store ref to requestor
   subPtr.p->m_senderData = senderData; // store ref to requestor
 
-  tabPtr.p->m_drop_subbPtr= subbPtr;
+  tabPtr.p->m_drop_subbPtr = subbPtr;
 
   if (subPtr.p->m_state == Subscription::DEFINED)
   {
@@ -2560,6 +2568,7 @@ Suma::execSUB_STOP_REQ(Signal* signal){
 		       tabPtr.p->m_tableId, tabPtr.p->n_subscribers));
     tabPtr.p->checkRelease(*this);
     sendSubStopComplete(signal, tabPtr.p->m_drop_subbPtr);
+    tabPtr.p->m_drop_subbPtr.p = 0;
   }
   else
   {
@@ -2667,7 +2676,8 @@ Suma::reportAllSubscribers(Signal *signal,
 {
   SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
 
-  if (table_event == NdbDictionary::Event::_TE_SUBSCRIBE)
+  if (table_event == NdbDictionary::Event::_TE_SUBSCRIBE &&
+      !c_startup.m_restart_server_node_id)
   {
     data->gci            = m_last_complete_gci + 1;
     data->tableId        = subPtr.p->m_tableId;
@@ -2893,6 +2903,9 @@ Suma::Table::dropTrigger(Signal* signal,Suma& suma)
   jam();
   DBUG_ENTER("Suma::dropTrigger");
   
+  m_hasOutstandingTriggerReq[0] =
+    m_hasOutstandingTriggerReq[1] =
+    m_hasOutstandingTriggerReq[2] = 1;
   for(Uint32 j = 0; j<3; j++){
     jam();
     suma.suma_ndbrequire(m_triggerIds[j] != ILLEGAL_TRIGGER_ID);
@@ -2971,14 +2984,18 @@ Suma::Table::runDropTrigger(Signal* signal,
 
   suma.suma_ndbrequire(type < 3);
   suma.suma_ndbrequire(m_triggerIds[type] == triggerId);
+  suma.suma_ndbrequire(m_hasTriggerDefined[type] > 0);
+  suma.suma_ndbrequire(m_hasOutstandingTriggerReq[type] == 1);
   m_hasTriggerDefined[type]--;
+  m_hasOutstandingTriggerReq[type] = 0;
   if (m_hasTriggerDefined[type] == 0)
   {
     jam();
     m_triggerIds[type] = ILLEGAL_TRIGGER_ID;
   }
-  if( m_hasTriggerDefined[0] != m_hasTriggerDefined[1] ||
-      m_hasTriggerDefined[0] != m_hasTriggerDefined[2])
+  if( m_hasOutstandingTriggerReq[0] ||
+      m_hasOutstandingTriggerReq[1] ||
+      m_hasOutstandingTriggerReq[2])
   {
     // more to come
     jam();
@@ -2996,6 +3013,7 @@ Suma::Table::runDropTrigger(Signal* signal,
   checkRelease(suma);
 
   suma.sendSubStopComplete(signal, m_drop_subbPtr);
+  m_drop_subbPtr.p = 0;
 }
 
 void Suma::suma_ndbrequire(bool v) { ndbrequire(v); }
@@ -3550,13 +3568,17 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   DBUG_PRINT("info",("drop table id: %d[i=%u]", tableId, tabPtr.i));
 
   tabPtr.p->m_state = Table::DROPPED;
-  tabPtr.p->m_hasTriggerDefined[0] = 0;
-  tabPtr.p->m_hasTriggerDefined[1] = 0;
-  tabPtr.p->m_hasTriggerDefined[2] = 0;
-  tabPtr.p->m_triggerIds[0] = ILLEGAL_TRIGGER_ID;
-  tabPtr.p->m_triggerIds[1] = ILLEGAL_TRIGGER_ID;
-  tabPtr.p->m_triggerIds[2] = ILLEGAL_TRIGGER_ID;
-
+  for (int j= 0; j < 3; j++)
+  {
+    if (!tabPtr.p->m_hasOutstandingTriggerReq[j])
+    {
+      tabPtr.p->m_hasTriggerDefined[j] = 0;
+      tabPtr.p->m_hasOutstandingTriggerReq[j] = 0;
+      tabPtr.p->m_triggerIds[j] = ILLEGAL_TRIGGER_ID;
+    }
+    else
+      tabPtr.p->m_hasTriggerDefined[j] = 1;
+  }
   if (senderRef == 0)
   {
     DBUG_VOID_RETURN;

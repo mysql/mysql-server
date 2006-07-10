@@ -138,7 +138,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   client/mysqlslap$BS \
   client/mysqldump$BS client/mysqlimport$BS \
   client/mysqltest$BS client/mysqlcheck$BS \
-  client/mysqlbinlog$BS \
+  client/mysqlbinlog$BS client/mysql_upgrade$BS \
   tests/mysql_client_test$BS \
   libmysqld/examples/mysql_client_test_embedded$BS \
   libmysqld/examples/mysqltest_embedded$BS \
@@ -181,11 +181,21 @@ if [ $BASE_SYSTEM = "netware" ] ; then
 fi
 
 copyfileto $BASE/lib \
-  libmysql/.libs/libmysqlclient.a libmysql/.libs/libmysqlclient.so* \
-  libmysql/libmysqlclient.* libmysql_r/.libs/libmysqlclient_r.a \
-  libmysql_r/.libs/libmysqlclient_r.so* libmysql_r/libmysqlclient_r.* \
+  libmysql/.libs/libmysqlclient.a \
+  libmysql/.libs/libmysqlclient.so* \
+  libmysql/.libs/libmysqlclient.sl* \
+  libmysql/.libs/libmysqlclient*.dylib \
+  libmysql/libmysqlclient.* \
+  libmysql_r/.libs/libmysqlclient_r.a \
+  libmysql_r/.libs/libmysqlclient_r.so* \
+  libmysql_r/.libs/libmysqlclient_r.sl* \
+  libmysql_r/.libs/libmysqlclient_r*.dylib \
+  libmysql_r/libmysqlclient_r.* \
+  libmysqld/.libs/libmysqld.a \
+  libmysqld/.libs/libmysqld.so* \
+  libmysqld/.libs/libmysqld.sl* \
+  libmysqld/.libs/libmysqld*.dylib \
   mysys/libmysys.a strings/libmystrings.a dbug/libdbug.a \
-  libmysqld/.libs/libmysqld.a libmysqld/.libs/libmysqld.so* \
   libmysqld/libmysqld.a netware/libmysql.imp \
   zlib/.libs/libz.a
 
