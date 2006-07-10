@@ -61,13 +61,6 @@ public:
   */
   LEX_STRING m_sroutines_key;
 
-  sp_name(LEX_STRING name)
-    : m_name(name)
-  {
-    m_db.str= m_qname.str= m_sroutines_key.str= 0;
-    m_db.length= m_qname.length= m_sroutines_key.length= 0;
-  }
-
   sp_name(LEX_STRING db, LEX_STRING name)
     : m_db(db), m_name(name)
   {
@@ -101,8 +94,6 @@ public:
   {}
 };
 
-sp_name *
-sp_name_current_db_new(THD *thd, LEX_STRING name);
 
 bool
 check_routine_name(LEX_STRING name);
@@ -356,7 +347,6 @@ private:
 
   MEM_ROOT *m_thd_root;		// Temp. store for thd's mem_root
   THD *m_thd;			// Set if we have reset mem_root
-  char *m_thd_db;		// Original thd->db pointer
 
   sp_pcontext *m_pcont;		// Parse context
   List<LEX> m_lex;		// Temp. store for the other lex

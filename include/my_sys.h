@@ -163,7 +163,7 @@ extern gptr my_realloc(gptr oldpoint,uint Size,myf MyFlags);
 extern void my_no_flags_free(gptr ptr);
 extern gptr my_memdup(const byte *from,uint length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
-extern char *my_strndup(const byte *from, uint length,
+extern char *my_strndup(const char *from, uint length,
 				   myf MyFlags);
 /* we do use FG (as a no-op) in below so that a typo on FG is caught */
 #define my_free(PTR,FG) ((void)FG,my_no_flags_free(PTR))

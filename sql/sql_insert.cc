@@ -17,6 +17,44 @@
 
 /* Insert of records */
 
+/*
+  INSERT DELAYED
+
+  Insert delayed is distinguished from a normal insert by lock_type ==
+  TL_WRITE_DELAYED instead of TL_WRITE. It first tries to open a
+  "delayed" table (delayed_get_table()), but falls back to
+  open_and_lock_tables() on error and proceeds as normal insert then.
+
+  Opening a "delayed" table means to find a delayed insert thread that
+  has the table open already. If this fails, a new thread is created and
+  waited for to open and lock the table.
+
+  If accessing the thread succeeded, in
+  delayed_insert::get_local_table() the table of the thread is copied
+  for local use. A copy is required because the normal insert logic
+  works on a target table, but the other threads table object must not
+  be used. The insert logic uses the record buffer to create a record.
+  And the delayed insert thread uses the record buffer to pass the
+  record to the table handler. So there must be different objects. Also
+  the copied table is not included in the lock, so that the statement
+  can proceed even if the real table cannot be accessed at this moment.
+
+  Copying a table object is not a trivial operation. Besides the TABLE
+  object there are the field pointer array, the field objects and the
+  record buffer. After copying the field objects, their pointers into
+  the record must be "moved" to point to the new record buffer.
+
+  After this setup the normal insert logic is used. Only that for
+  delayed inserts write_delayed() is called instead of write_record().
+  It inserts the rows into a queue and signals the delayed insert thread
+  instead of writing directly to the table.
+
+  The delayed insert thread awakes from the signal. It locks the table,
+  inserts the rows from the queue, unlocks the table, and waits for the
+  next signal. It does normally live until a FLUSH TABLES or SHUTDOWN.
+
+*/
+
 #include "mysql_priv.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
@@ -312,9 +350,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     if (thd->locked_tables)
     {
-      if (find_locked_table(thd,
-			    table_list->db ? table_list->db : thd->db,
-			    table_list->table_name))
+      DBUG_ASSERT(table_list->db); /* Must be set in the parser */
+      if (find_locked_table(thd, table_list->db, table_list->table_name))
       {
 	my_error(ER_DELAYED_INSERT_TABLE_LOCKED, MYF(0),
                  table_list->table_name);
@@ -1401,8 +1438,8 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
   TABLE *table;
   DBUG_ENTER("delayed_get_table");
 
-  if (!table_list->db)
-    table_list->db=thd->db;
+  /* Must be set in the parser */
+  DBUG_ASSERT(table_list->db);
 
   /* Find the thread which handles this table. */
   if (!(tmp=find_handler(thd,table_list)))
@@ -1421,18 +1458,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
     */
     if (! (tmp= find_handler(thd, table_list)))
     {
-      /*
-        Avoid that a global read lock steps in while we are creating the
-        new thread. It would block trying to open the table. Hence, the
-        DI thread and this thread would wait until after the global
-        readlock is gone. Since the insert thread needs to wait for a
-        global read lock anyway, we do it right now. Note that
-        wait_if_global_read_lock() sets a protection against a new
-        global read lock when it succeeds. This needs to be released by
-        start_waiting_global_read_lock().
-      */
-      if (wait_if_global_read_lock(thd, 0, 1))
-        goto err;
       if (!(tmp=new delayed_insert()))
       {
 	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(delayed_insert));
@@ -1441,15 +1466,15 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
       pthread_mutex_lock(&LOCK_thread_count);
       thread_count++;
       pthread_mutex_unlock(&LOCK_thread_count);
-      if (!(tmp->thd.db=my_strdup(table_list->db,MYF(MY_WME))) ||
-	  !(tmp->thd.query=my_strdup(table_list->table_name,MYF(MY_WME))))
+      tmp->thd.set_db(table_list->db, strlen(table_list->db));
+      tmp->thd.query= my_strdup(table_list->table_name,MYF(MY_WME));
+      if (tmp->thd.db == NULL || tmp->thd.query == NULL)
       {
 	delete tmp;
 	my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
 	goto err1;
       }
       tmp->table_list= *table_list;			// Needed to open table
-      tmp->table_list.db= tmp->thd.db;
       tmp->table_list.alias= tmp->table_list.table_name= tmp->thd.query;
       tmp->lock();
       pthread_mutex_lock(&tmp->mutex);
@@ -1473,11 +1498,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	pthread_cond_wait(&tmp->cond_client,&tmp->mutex);
       }
       pthread_mutex_unlock(&tmp->mutex);
-      /*
-        Release the protection against the global read lock and wake
-        everyone, who might want to set a global read lock.
-      */
-      start_waiting_global_read_lock(thd);
       thd->proc_info="got old table";
       if (tmp->thd.killed)
       {
@@ -1513,11 +1533,6 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 
  err1:
   thd->fatal_error();
-  /*
-    Release the protection against the global read lock and wake
-    everyone, who might want to set a global read lock.
-  */
-  start_waiting_global_read_lock(thd);
  err:
   pthread_mutex_unlock(&LOCK_delayed_create);
   DBUG_RETURN(0); // Continue with normal insert
@@ -1538,6 +1553,7 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   TABLE *copy;
   TABLE_SHARE *share= table->s;
   byte *bitmap;
+  DBUG_ENTER("delayed_insert::get_local_table");
 
   /* First request insert thread to get a lock */
   status=1;
@@ -1561,6 +1577,13 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
     }
   }
 
+  /*
+    Allocate memory for the TABLE object, the field pointers array, and
+    one record buffer of reclength size. Normally a table has three
+    record buffers of rec_buff_length size, which includes alignment
+    bytes. Since the table copy is used for creating one record only,
+    the other record buffers and alignment are unnecessary.
+  */
   client_thd->proc_info="allocating local table";
   copy= (TABLE*) client_thd->alloc(sizeof(*copy)+
 				   (share->fields+1)*sizeof(Field**)+
@@ -1568,23 +1591,28 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
                                    share->column_bitmap_size*2);
   if (!copy)
     goto error;
+
+  /* Copy the TABLE object. */
   *copy= *table;
-
   /* We don't need to change the file handler here */
-  field= copy->field= (Field**) (copy+1);
-  bitmap= (byte*) (field+share->fields+1);
-  copy->record[0]= (bitmap+ share->column_bitmap_size*2);
-  memcpy((char*) copy->record[0],(char*) table->record[0],share->reclength);
-
-  /* Make a copy of all fields */
-
-  adjust_ptrs=PTR_BYTE_DIFF(copy->record[0],table->record[0]);
-
-  found_next_number_field=table->found_next_number_field;
-  for (org_field=table->field ; *org_field ; org_field++,field++)
+  /* Assign the pointers for the field pointers array and the record. */
+  field= copy->field= (Field**) (copy + 1);
+  bitmap= (byte*) (field + share->fields + 1);
+  copy->record[0]= (bitmap + share->column_bitmap_size * 2);
+  memcpy((char*) copy->record[0], (char*) table->record[0], share->reclength);
+  /*
+    Make a copy of all fields.
+    The copied fields need to point into the copied record. This is done
+    by copying the field objects with their old pointer values and then
+    "move" the pointers by the distance between the original and copied
+    records. That way we preserve the relative positions in the records.
+  */
+  adjust_ptrs= PTR_BYTE_DIFF(copy->record[0], table->record[0]);
+  found_next_number_field= table->found_next_number_field;
+  for (org_field= table->field; *org_field; org_field++, field++)
   {
-    if (!(*field= (*org_field)->new_field(client_thd->mem_root,copy)))
-      return 0;
+    if (!(*field= (*org_field)->new_field(client_thd->mem_root, copy, 1)))
+      DBUG_RETURN(0);
     (*field)->orig_table= copy;			// Remove connection
     (*field)->move_field_offset(adjust_ptrs);	// Point at copy->record[0]
     if (*org_field == found_next_number_field)
@@ -1617,14 +1645,14 @@ TABLE *delayed_insert::get_local_table(THD* client_thd)
   copy->read_set=  &copy->def_read_set;
   copy->write_set= &copy->def_write_set;
 
-  return copy;
+  DBUG_RETURN(copy);
 
   /* Got fatal error */
  error:
   tables_in_use--;
   status=1;
   pthread_cond_signal(&cond);			// Inform thread about abort
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -2876,7 +2904,7 @@ bool select_create::send_eof()
     if (!table->s->tmp_table)
     {
       if (close_thread_table(thd, &table))
-        VOID(pthread_cond_broadcast(&COND_refresh));
+        broadcast_refresh();
     }
     thd->extra_lock=0;
     table=0;
@@ -2906,7 +2934,7 @@ void select_create::abort()
         quick_rm_table(table_type, create_table->db, create_table->table_name);
       /* Tell threads waiting for refresh that something has happened */
       if (version != refresh_version)
-        VOID(pthread_cond_broadcast(&COND_refresh));
+        broadcast_refresh();
     }
     else if (!create_info->table_existed)
       close_temporary_table(thd, table, 1, 1);

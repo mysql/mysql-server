@@ -4781,7 +4781,7 @@ int ha_ndbcluster::create(const char *name,
         expect it to be there.
       */
       if (!ndbcluster_create_event(ndb, m_table, event_name.c_ptr(), share,
-                                   share && do_event_op /* push warning */))
+                                   share && do_event_op ? 2 : 1/* push warning */))
       {
         if (ndb_extra_logging)
           sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
@@ -5175,7 +5175,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
 
     if (!ndbcluster_create_event(ndb, ndbtab, event_name.c_ptr(), share,
-                                 share && ndb_binlog_running /* push warning */))
+                                 share && ndb_binlog_running ? 2 : 1/* push warning */))
     {
       if (ndb_extra_logging)
         sql_print_information("NDB Binlog: RENAME Event: %s",
@@ -7420,7 +7420,7 @@ ndb_get_table_statistics(Ndb* ndb, const NDBTAB *ndbtab,
 
   do
   {
-    Uint64 rows, commits, mem;
+    Uint64 rows, commits, fixed_mem, var_mem;
     Uint32 size;
     Uint32 count= 0;
     Uint64 sum_rows= 0;
@@ -7458,7 +7458,10 @@ ndb_get_table_statistics(Ndb* ndb, const NDBTAB *ndbtab,
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
     pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
     pOp->getValue(NdbDictionary::Column::ROW_SIZE, (char*)&size);
-    pOp->getValue(NdbDictionary::Column::FRAGMENT_MEMORY, (char*)&mem);
+    pOp->getValue(NdbDictionary::Column::FRAGMENT_FIXED_MEMORY, 
+		  (char*)&fixed_mem);
+    pOp->getValue(NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY, 
+		  (char*)&var_mem);
     
     if (pTrans->execute(NdbTransaction::NoCommit,
                         NdbTransaction::AbortOnError,
@@ -7474,7 +7477,7 @@ ndb_get_table_statistics(Ndb* ndb, const NDBTAB *ndbtab,
       sum_commits+= commits;
       if (sum_row_size < size)
         sum_row_size= size;
-      sum_mem+= mem;
+      sum_mem+= fixed_mem + var_mem;
       count++;
     }
     
@@ -9866,7 +9869,6 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   }
   else 
   {
-#ifdef NOT_YET
     if (!current_thd->variables.new_mode)
     {
       push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -9875,9 +9877,8 @@ uint ha_ndbcluster::set_up_partition_info(partition_info *part_info,
                           ndbcluster_hton_name,
                           "LIST, RANGE and HASH partition disabled by default,"
                           " use --new option to enable");
-      return HA_ERR_UNSUPPORTED;
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
     }
-#endif
    /*
       Create a shadow field for those tables that have user defined
       partitioning. This field stores the value of the partition

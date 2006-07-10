@@ -177,6 +177,7 @@ Ndb::executeMessage(void* NdbObject,
 
 void Ndb::connected(Uint32 ref)
 {
+// cluster connect, a_node == own reference
   theMyRef= ref;
   Uint32 tmpTheNode= refToNode(ref);
   Uint64 tBlockNo= refToBlock(ref);
@@ -209,16 +210,30 @@ void Ndb::connected(Uint32 ref)
   theNode= tmpTheNode; // flag that Ndb object is initialized
 }
 
+void Ndb::report_node_connected(Uint32 nodeId)
+{
+  if (theEventBuffer)
+  {
+    // node connected
+    // eventOperations in the ndb object should be notified
+    theEventBuffer->report_node_connected(nodeId);
+  }
+}
+
 void
 Ndb::statusMessage(void* NdbObject, Uint32 a_node, bool alive, bool nfComplete)
 {
   DBUG_ENTER("Ndb::statusMessage");
+  DBUG_PRINT("info", ("a_node: %u  alive: %u  nfComplete: %u",
+                      a_node, alive, nfComplete));
   Ndb* tNdb = (Ndb*)NdbObject;
   if (alive) {
     if (nfComplete) {
+      // cluster connect, a_node == own reference
       tNdb->connected(a_node);
       DBUG_VOID_RETURN;
     }//if
+    tNdb->report_node_connected(a_node);
   } else {
     if (nfComplete) {
       tNdb->report_node_failure_completed(a_node);

@@ -10,6 +10,9 @@
 drop table if exists t1;
 --enable_warnings
 
+--disable_query_log
+set new=on;
+--enable_query_log
 #
 # Partition by range, generate node group error
 #
