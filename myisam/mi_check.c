@@ -1155,12 +1155,13 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	      */
               int search_result= (keyinfo->flag & HA_SPATIAL) ?
                 rtree_find_first(info, key, info->lastkey, key_length,
-                                 SEARCH_SAME) : 
+                                 MBR_EQUAL | MBR_DATA) : 
                 _mi_search(info,keyinfo,info->lastkey,key_length,
                            SEARCH_SAME, info->s->state.key_root[key]);
               if (search_result)
               {
-                mi_check_print_error(param,"Record at: %10s  Can't find key for index: %2d",
+                mi_check_print_error(param,"Record at: %10s  "
+                                     "Can't find key for index: %2d",
                                      llstr(start_recpos,llbuff),key+1);
                 if (error++ > MAXERR || !(param->testflag & T_VERBOSE))
                   goto err2;

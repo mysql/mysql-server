@@ -1727,14 +1727,9 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
 	 tables;
 	 tables= tables->next)
     {
-      /*
-        Reset old pointers to TABLEs: they are not valid since the tables
-        were closed in the end of previous prepare or execute call.
-      */
-      tables->table= 0;
-      tables->table_list= 0;
+      tables->reinit_before_use(thd);
     }
-    
+
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
       unit->unclean();
@@ -1742,6 +1737,17 @@ static void reset_stmt_for_execute(Prepared_statement *stmt)
       /* for derived tables & PS (which can't be reset by Item_subquery) */
       unit->reinit_exec_mechanism();
     }
+  }
+  /*
+    Cleanup of the special case of DELETE t1, t2 FROM t1, t2, t3 ...
+    (multi-delete).  We do a full clean up, although at the moment all we
+    need to clean in the tables of MULTI-DELETE list is 'table' member.
+  */
+  for (TABLE_LIST *tables= (TABLE_LIST*) lex->auxilliary_table_list.first;
+       tables;
+       tables= tables->next)
+  {
+    tables->reinit_before_use(thd);
   }
   lex->current_select= &lex->select_lex;
   if (lex->result)
