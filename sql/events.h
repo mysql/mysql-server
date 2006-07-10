@@ -20,6 +20,7 @@ class sp_name;
 class Event_parse_data;
 class Event_db_repository;
 class Event_queue;
+class Event_queue_element;
 class Event_scheduler_ng;
 
 /* Return codes */
@@ -41,6 +42,7 @@ sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 class Events
 {
 public:
+  friend class Event_queue_element;
   /*
     Quite NOT the best practice and will be removed once
     Event_timed::drop() and Event_timed is fixed not do drop directly
@@ -83,7 +85,8 @@ public:
                uint *rows_affected);
 
   int
-  drop_event(THD *thd, sp_name *name, bool if_exists, uint *rows_affected);
+  drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
+             uint *rows_affected, bool only_from_disk);
 
   int
   drop_schema_events(THD *thd, char *db);
@@ -102,12 +105,8 @@ public:
   static int
   fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
   
-  int
+  bool
   dump_internal_status(THD *thd);
-
-  Event_queue         *event_queue;
-  Event_scheduler_ng  *scheduler_ng;
-  Event_db_repository *db_repository;
 
 private:
   /* Singleton DP is used */
@@ -116,6 +115,12 @@ private:
 
   /* Singleton instance */
   static Events singleton;
+
+  Event_queue         *event_queue;
+  Event_scheduler_ng  *scheduler_ng;
+  Event_db_repository *db_repository;
+
+  pthread_mutex_t LOCK_event_metadata;  
 
   /* Prevent use of these */
   Events(const Events &);

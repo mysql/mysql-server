@@ -87,7 +87,6 @@ events_test	event_starts_test	root@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLE
 DROP EVENT event_starts_test;
 create table test_nested(a int);
 create event e_43 on schedule every 1 second do set @a = 5;
-set global event_scheduler = 1;
 alter event e_43 do alter event e_43 do set @a = 4;
 ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
 alter event e_43 do
@@ -207,6 +206,10 @@ ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
 SHOW EVENTS;
 ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
 drop event root22;
+create event root23 on schedule every -100 year do select 1;
+ERROR HY000: INTERVAL is either not positive or too big
+create event root23 on schedule every 222222222222222222222 year do select 1;
+ERROR HY000: INTERVAL is either not positive or too big
 drop event root6;
 drop event root7;
 drop event root8;
@@ -342,7 +345,7 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 "Should have only 2 processes: the scheduler and the locked event"
 select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Waiting for next activation	NULL
+event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2", 20)
 "Release the mutex, the event worker should finish."
 "Release the mutex, the event worker should finish."
@@ -358,7 +361,7 @@ create event закачка21 on schedule every 10 hour do select get_lock("test
 "Should have only 3 processes: the scheduler, our conn and the locked event"
 select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Waiting for next activation	NULL
+event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
 set global event_scheduler=2;
 "Should have only our process now:"

@@ -16,8 +16,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-class Event_timed;
 class Event_queue;
+class Event_job_data;
 
 class Event_scheduler_ng
 {
@@ -67,7 +67,7 @@ public:
   void
   queue_changed();
 
-  static int
+  bool
   dump_internal_status(THD *thd);
 
 private:
@@ -76,7 +76,7 @@ private:
 
   /* helper functions */
   bool
-  execute_top(THD *thd, Event_timed *job_data);
+  execute_top(THD *thd, Event_job_data *job_data);
 
   /* helper functions for working with mutexes & conditionals */
   void
@@ -84,7 +84,10 @@ private:
 
   void
   unlock_data(const char *func, uint line);
-  
+
+  void
+  cond_wait(struct timespec *abstime, const char *func, uint line);
+
   pthread_mutex_t LOCK_scheduler_state;
 
   /* This is the current status of the life-cycle of the scheduler. */
@@ -107,6 +110,9 @@ private:
   const char* mutex_last_locked_in_func;
   const char* mutex_last_unlocked_in_func;
   bool mutex_scheduler_data_locked;
+  bool waiting_on_cond;
+  
+  ulonglong started_events;
 
 private:
   /* Prevent use of these */
