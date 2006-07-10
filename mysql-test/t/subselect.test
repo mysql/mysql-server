@@ -1820,4 +1820,14 @@ DROP TABLE t1,t2,t3;
 
 purge master logs before (select adddate(current_timestamp(), interval -4 day));
 
+
+#
+# Bug#16302: Quantified subquery without any tables gives wrong results
+#
+select 1 from dual where 1 < any (select 2);
+select 1 from dual where 1 < all (select 2);
+select 1 from dual where 2 > any (select 1);
+select 1 from dual where 2 > all (select 1);
+select 1 from dual where 1 < any (select 2 from dual);
+select 1 from dual where 1 < all (select 2 from dual where 1!=1);
 # End of 4.1 tests
