@@ -82,7 +82,6 @@ sync_slave_with_master;
 # Bug#14553: NULL in WHERE resets LAST_INSERT_ID
 #
 connection master;
-drop table if exists t1,t2;
 create table t1(a int auto_increment, key(a));
 create table t2(a int);
 insert into t1 (a) values (null);
