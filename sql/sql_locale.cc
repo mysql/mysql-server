@@ -305,7 +305,7 @@ static TYPELIB my_locale_typelib_day_names_en_US =
 static TYPELIB my_locale_typelib_ab_day_names_en_US = 
  { array_elements(my_locale_ab_day_names_en_US)-1, "", my_locale_ab_day_names_en_US, NULL };
 MY_LOCALE my_locale_en_US=
- { "en_US", "English - United States", "true", &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
+ { "en_US", "English - United States", TRUE, &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
 /***** LOCALE END en_US *****/
 
 /***** LOCALE BEGIN es_ES: Spanish - Spain *****/
@@ -368,7 +368,7 @@ static TYPELIB my_locale_typelib_day_names_eu_ES =
 static TYPELIB my_locale_typelib_ab_day_names_eu_ES = 
  { array_elements(my_locale_ab_day_names_eu_ES)-1, "", my_locale_ab_day_names_eu_ES, NULL };
 MY_LOCALE my_locale_eu_ES=
- { "eu_ES", "Basque - Basque", "true", &my_locale_typelib_month_names_eu_ES, &my_locale_typelib_ab_month_names_eu_ES, &my_locale_typelib_day_names_eu_ES, &my_locale_typelib_ab_day_names_eu_ES };
+ { "eu_ES", "Basque - Basque", TRUE, &my_locale_typelib_month_names_eu_ES, &my_locale_typelib_ab_month_names_eu_ES, &my_locale_typelib_day_names_eu_ES, &my_locale_typelib_ab_day_names_eu_ES };
 /***** LOCALE END eu_ES *****/
 
 /***** LOCALE BEGIN fi_FI: Finnish - Finland *****/
@@ -578,7 +578,7 @@ static TYPELIB my_locale_typelib_day_names_id_ID =
 static TYPELIB my_locale_typelib_ab_day_names_id_ID = 
  { array_elements(my_locale_ab_day_names_id_ID)-1, "", my_locale_ab_day_names_id_ID, NULL };
 MY_LOCALE my_locale_id_ID=
- { "id_ID", "Indonesian - Indonesia", "true", &my_locale_typelib_month_names_id_ID, &my_locale_typelib_ab_month_names_id_ID, &my_locale_typelib_day_names_id_ID, &my_locale_typelib_ab_day_names_id_ID };
+ { "id_ID", "Indonesian - Indonesia", TRUE, &my_locale_typelib_month_names_id_ID, &my_locale_typelib_ab_month_names_id_ID, &my_locale_typelib_day_names_id_ID, &my_locale_typelib_ab_day_names_id_ID };
 /***** LOCALE END id_ID *****/
 
 /***** LOCALE BEGIN is_IS: Icelandic - Iceland *****/
@@ -767,7 +767,7 @@ static TYPELIB my_locale_typelib_day_names_ms_MY =
 static TYPELIB my_locale_typelib_ab_day_names_ms_MY = 
  { array_elements(my_locale_ab_day_names_ms_MY)-1, "", my_locale_ab_day_names_ms_MY, NULL };
 MY_LOCALE my_locale_ms_MY=
- { "ms_MY", "Malay - Malaysia", "true", &my_locale_typelib_month_names_ms_MY, &my_locale_typelib_ab_month_names_ms_MY, &my_locale_typelib_day_names_ms_MY, &my_locale_typelib_ab_day_names_ms_MY };
+ { "ms_MY", "Malay - Malaysia", TRUE, &my_locale_typelib_month_names_ms_MY, &my_locale_typelib_ab_month_names_ms_MY, &my_locale_typelib_day_names_ms_MY, &my_locale_typelib_ab_day_names_ms_MY };
 /***** LOCALE END ms_MY *****/
 
 /***** LOCALE BEGIN nb_NO: Norwegian(Bokml) - Norway *****/
@@ -809,7 +809,7 @@ static TYPELIB my_locale_typelib_day_names_nl_NL =
 static TYPELIB my_locale_typelib_ab_day_names_nl_NL = 
  { array_elements(my_locale_ab_day_names_nl_NL)-1, "", my_locale_ab_day_names_nl_NL, NULL };
 MY_LOCALE my_locale_nl_NL=
- { "nl_NL", "Dutch - The Netherlands", "true", &my_locale_typelib_month_names_nl_NL, &my_locale_typelib_ab_month_names_nl_NL, &my_locale_typelib_day_names_nl_NL, &my_locale_typelib_ab_day_names_nl_NL };
+ { "nl_NL", "Dutch - The Netherlands", TRUE, &my_locale_typelib_month_names_nl_NL, &my_locale_typelib_ab_month_names_nl_NL, &my_locale_typelib_day_names_nl_NL, &my_locale_typelib_ab_day_names_nl_NL };
 /***** LOCALE END nl_NL *****/
 
 /***** LOCALE BEGIN pl_PL: Polish - Poland *****/
@@ -1314,42 +1314,42 @@ MY_LOCALE my_locale_de_LU=
 
 /***** LOCALE BEGIN en_AU: English - Australia *****/
 MY_LOCALE my_locale_en_AU=
- { "en_AU", "English - Australia", "true", &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
+ { "en_AU", "English - Australia", TRUE, &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
 /***** LOCALE END en_AU *****/
 
 /***** LOCALE BEGIN en_CA: English - Canada *****/
 MY_LOCALE my_locale_en_CA=
- { "en_CA", "English - Canada", "true", &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
+ { "en_CA", "English - Canada", TRUE, &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
 /***** LOCALE END en_CA *****/
 
 /***** LOCALE BEGIN en_GB: English - United Kingdom *****/
 MY_LOCALE my_locale_en_GB=
- { "en_GB", "English - United Kingdom", "true", &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
+ { "en_GB", "English - United Kingdom", TRUE, &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
 /***** LOCALE END en_GB *****/
 
 /***** LOCALE BEGIN en_IN: English - India *****/
 MY_LOCALE my_locale_en_IN=
- { "en_IN", "English - India", "true", &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
+ { "en_IN", "English - India", TRUE, &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
 /***** LOCALE END en_IN *****/
 
 /***** LOCALE BEGIN en_NZ: English - New Zealand *****/
 MY_LOCALE my_locale_en_NZ=
- { "en_NZ", "English - New Zealand", "true", &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
+ { "en_NZ", "English - New Zealand", TRUE, &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
 /***** LOCALE END en_NZ *****/
 
 /***** LOCALE BEGIN en_PH: English - Philippines *****/
 MY_LOCALE my_locale_en_PH=
- { "en_PH", "English - Philippines", "true", &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
+ { "en_PH", "English - Philippines", TRUE, &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
 /***** LOCALE END en_PH *****/
 
 /***** LOCALE BEGIN en_ZA: English - South Africa *****/
 MY_LOCALE my_locale_en_ZA=
- { "en_ZA", "English - South Africa", "true", &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
+ { "en_ZA", "English - South Africa", TRUE, &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
 /***** LOCALE END en_ZA *****/
 
 /***** LOCALE BEGIN en_ZW: English - Zimbabwe *****/
 MY_LOCALE my_locale_en_ZW=
- { "en_ZW", "English - Zimbabwe", "true", &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
+ { "en_ZW", "English - Zimbabwe", TRUE, &my_locale_typelib_month_names_en_US, &my_locale_typelib_ab_month_names_en_US, &my_locale_typelib_day_names_en_US, &my_locale_typelib_ab_day_names_en_US };
 /***** LOCALE END en_ZW *****/
 
 /***** LOCALE BEGIN es_AR: Spanish - Argentina *****/
@@ -1474,7 +1474,7 @@ MY_LOCALE my_locale_it_IT=
 
 /***** LOCALE BEGIN nl_BE: Dutch - Belgium *****/
 MY_LOCALE my_locale_nl_BE=
- { "nl_BE", "Dutch - Belgium", "true", &my_locale_typelib_month_names_nl_NL, &my_locale_typelib_ab_month_names_nl_NL, &my_locale_typelib_day_names_nl_NL, &my_locale_typelib_ab_day_names_nl_NL };
+ { "nl_BE", "Dutch - Belgium", TRUE, &my_locale_typelib_month_names_nl_NL, &my_locale_typelib_ab_month_names_nl_NL, &my_locale_typelib_day_names_nl_NL, &my_locale_typelib_ab_day_names_nl_NL };
 /***** LOCALE END nl_BE *****/
 
 /***** LOCALE BEGIN no_NO: Norwegian - Norway *****/
