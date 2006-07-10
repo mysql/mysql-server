@@ -28,6 +28,8 @@
 class sys_var;
 class set_var;
 typedef struct system_variables SV;
+typedef struct my_locale_st MY_LOCALE;
+
 extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib;
 
 typedef int (*sys_check_func)(THD *,  set_var *);
@@ -757,6 +759,24 @@ public:
   virtual void set_default(THD *thd, enum_var_type type);
 };
 
+class sys_var_thd_lc_time_names :public sys_var_thd
+{
+public:
+  sys_var_thd_lc_time_names(const char *name_arg):
+    sys_var_thd(name_arg) 
+  {}
+  bool check(THD *thd, set_var *var);
+  SHOW_TYPE type() { return SHOW_CHAR; }
+  bool check_update_type(Item_result type)
+  {
+    return type != STRING_RESULT;		/* Only accept strings */
+  }
+  bool check_default(enum_var_type type) { return 0; }
+  bool update(THD *thd, set_var *var);
+  byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  virtual void set_default(THD *thd, enum_var_type type);
+};
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -791,6 +811,7 @@ public:
     ulonglong ulonglong_value;
     DATE_TIME_FORMAT *date_time_format;
     Time_zone *time_zone;
+    MY_LOCALE *locale_value;
   } save_result;
   LEX_STRING base;			/* for structs */
 
