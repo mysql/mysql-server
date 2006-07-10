@@ -291,11 +291,11 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
 
   RETURN VALUE
     0   OK
-    !0  Error
+    !0  Error (Reported)
 
   NOTES
-    - in case there is an event with the same name (db) and 
-      IF NOT EXISTS is specified, an warning is put into the W stack.
+    In case there is an event with the same name (db) and 
+    IF NOT EXISTS is specified, an warning is put into the stack.
 */
 
 int
@@ -304,13 +304,20 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
 {
   int ret;
   DBUG_ENTER("Events::create_event");
+
+  pthread_mutex_lock(&LOCK_event_metadata);
+  /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists,
                                          rows_affected)))
   {
-    if ((ret= event_queue->create_event(thd, parse_data)))
-      my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
+    if ((ret= event_queue->create_event(thd, parse_data->dbname,
+                                        parse_data->name)))
+    {
+      DBUG_ASSERT(ret == OP_LOAD_ERROR);
+      my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0));
+    }
   }
-  /* No need to close the table, it will be closed in sql_parse::do_command */
+  pthread_mutex_unlock(&LOCK_event_metadata);
 
   DBUG_RETURN(ret);
 }
@@ -322,8 +329,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
   SYNOPSIS
     Events::update_event()
       thd        THD
-      et         event's data
-      new_name   set in case of RENAME TO.
+      et         Event's data from parsing stage
+      new_name   Set in case of RENAME TO.
 
   RETURN VALUE
     0   OK
@@ -341,18 +348,23 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
 {
   int ret;
   DBUG_ENTER("Events::update_event");
-  /*
-    db_update_event() opens & closes the table to prevent
-    crash later in the code when loading and compiling the new definition.
-    Also on error conditions my_error() is called so no need to handle here
-  */
+
+  pthread_mutex_lock(&LOCK_event_metadata);
+  /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->update_event(thd, parse_data, new_name)))
   {
-    if ((ret= event_queue->update_event(thd, parse_data,
+    if ((ret= event_queue->update_event(thd,
+                                        parse_data->dbname,
+                                        parse_data->name,
                                         new_name? &new_name->m_db: NULL,
                                         new_name? &new_name->m_name: NULL)))
-      my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
+    {
+      DBUG_ASSERT(ret == OP_LOAD_ERROR);
+      my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0));
+    }
   }
+  pthread_mutex_unlock(&LOCK_event_metadata);
+
   DBUG_RETURN(ret);
 }
 
@@ -363,10 +375,15 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
   SYNOPSIS
     Events::drop_event()
       thd             THD
+      dbname          Event's schema
       name            Event's name
       if_exists       When set and the event does not exist => warning onto
                       the stack
       rows_affected   Affected number of rows is returned heres
+      only_from_disk  Whether to remove the event from the queue too. In case
+                      of Event_job_data::drop() it's needed to do only disk
+                      drop because Event_queue will handle removal from memory
+                      queue.
 
   RETURN VALUE
      0  OK
@@ -374,17 +391,52 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
 */
 
 int
-Events::drop_event(THD *thd, sp_name *name, bool if_exists, uint *rows_affected)
+Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
+                   uint *rows_affected, bool only_from_disk)
 {
   int ret;
   DBUG_ENTER("Events::drop_event");
 
-  if (!(ret= db_repository->drop_event(thd, name->m_db, name->m_name, if_exists,
+  pthread_mutex_lock(&LOCK_event_metadata);
+  /* On error conditions my_error() is called so no need to handle here */
+  if (!(ret= db_repository->drop_event(thd, dbname, name, if_exists,
                                        rows_affected)))
   {
-    if ((ret= event_queue->drop_event(thd, name)))
-      my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0), ret);
+    if (!only_from_disk)
+      event_queue->drop_event(thd, dbname, name);
   }
+  pthread_mutex_unlock(&LOCK_event_metadata);
+  DBUG_RETURN(ret);
+}
+
+
+/*
+  Drops all events from a schema
+
+  SYNOPSIS
+    Events::drop_schema_events()
+      thd  Thread
+      db   ASCIIZ schema name
+
+  RETURN VALUE
+    0   OK
+    !0  Error
+*/
+
+int
+Events::drop_schema_events(THD *thd, char *db)
+{
+  int ret= 0;
+  LEX_STRING db_lex= {db, strlen(db)};
+  
+  DBUG_ENTER("evex_drop_db_events");  
+  DBUG_PRINT("enter", ("dropping events from %s", db));
+
+  pthread_mutex_lock(&LOCK_event_metadata);
+  event_queue->drop_schema_events(thd, db_lex);
+  ret= db_repository->drop_schema_events(thd, db_lex);
+  pthread_mutex_unlock(&LOCK_event_metadata);
+
   DBUG_RETURN(ret);
 }
 
@@ -406,14 +458,14 @@ int
 Events::show_create_event(THD *thd, sp_name *spn)
 {
   int ret;
-  Event_timed *et= NULL;
+  Event_timed *et= new Event_timed();
   Open_tables_state backup;
 
   DBUG_ENTER("Events::show_create_event");
   DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
 
   thd->reset_n_backup_open_tables_state(&backup);
-  ret= db_repository->find_event(thd, spn->m_db, spn->m_name, &et, NULL);
+  ret= db_repository->find_event(thd, spn->m_db, spn->m_name, et);
   thd->restore_backup_open_tables_state(&backup);
 
   if (!ret)
@@ -458,155 +510,7 @@ Events::show_create_event(THD *thd, sp_name *spn)
   DBUG_RETURN(ret);
 err:
   delete et;
-  DBUG_RETURN(1);  
-}
-
-
-/*
-  Drops all events from a schema
-
-  SYNOPSIS
-    Events::drop_schema_events()
-      thd  Thread
-      db   ASCIIZ schema name
-
-  RETURN VALUE
-    0   OK
-    !0  Error
-*/
-
-int
-Events::drop_schema_events(THD *thd, char *db)
-{
-  int ret= 0;
-  LEX_STRING db_lex= {db, strlen(db)};
-  
-  DBUG_ENTER("evex_drop_db_events");  
-  DBUG_PRINT("enter", ("dropping events from %s", db));
-
-  event_queue->drop_schema_events(thd, db_lex);
-  ret= db_repository->drop_schema_events(thd, db_lex);
-
-  DBUG_RETURN(ret);
-}
-
-
-/*
-  Inits the scheduler's structures.
-
-  SYNOPSIS
-    Events::init()
-
-  NOTES
-    This function is not synchronized.
-
-  RETURN VALUE
-    0  OK
-    1  Error
-*/
-
-int
-Events::init()
-{
-  int ret= 0;
-  Event_db_repository *db_repo;
-  DBUG_ENTER("Events::init");
-  db_repository->init_repository();
-  event_queue->init_queue(db_repository, scheduler_ng);
-  scheduler_ng->init_scheduler(event_queue);
-
-  /* it should be an assignment! */
-  if (opt_event_scheduler)
-  {
-    DBUG_ASSERT(opt_event_scheduler == 1 || opt_event_scheduler == 2);
-    if (opt_event_scheduler == 1)
-      DBUG_RETURN(scheduler_ng->start());
-  }
-
-  DBUG_RETURN(0);
-}
-
-
-/*
-  Cleans up scheduler's resources. Called at server shutdown.
-
-  SYNOPSIS
-    Events::deinit()
-
-  NOTES
-    This function is not synchronized.
-*/
-
-void
-Events::deinit()
-{
-  DBUG_ENTER("Events::deinit");
-
-  scheduler_ng->stop();
-  scheduler_ng->deinit_scheduler();
-
-  event_queue->deinit_queue();
-  db_repository->deinit_repository();
-
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Inits Events mutexes
-
-  SYNOPSIS
-    Events::init_mutexes()
-      thd  Thread
-*/
-
-void
-Events::init_mutexes()
-{
-  db_repository= new Event_db_repository;
-
-  event_queue= new Event_queue;
-  event_queue->init_mutexes();
-
-  scheduler_ng= new Event_scheduler_ng();
-  scheduler_ng->init_mutexes();
-}
-
-
-/*
-  Destroys Events mutexes
-
-  SYNOPSIS
-    Events::destroy_mutexes()
-*/
-
-void
-Events::destroy_mutexes()
-{
-  event_queue->deinit_mutexes();
-  scheduler_ng->deinit_mutexes();
-  
-  delete scheduler_ng;
-  delete db_repository;
-}
-
-
-/*
-  Proxy for Event_scheduler::dump_internal_status
-
-  SYNOPSIS
-    Events::dump_internal_status()
-      thd  Thread
-  
-  RETURN VALUE
-    0  OK
-    !0 Error
-*/
-
-int
-Events::dump_internal_status(THD *thd)
-{
-  return Event_scheduler_ng::dump_internal_status(thd);
+  DBUG_RETURN(1);
 }
 
 
@@ -646,6 +550,153 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 }
 
 
+/*
+  Inits the scheduler's structures.
+
+  SYNOPSIS
+    Events::init()
+
+  NOTES
+    This function is not synchronized.
+
+  RETURN VALUE
+    0  OK
+    1  Error
+*/
+
+int
+Events::init()
+{
+  int ret= 0;
+  Event_db_repository *db_repo;
+  DBUG_ENTER("Events::init");
+  event_queue->init_queue(db_repository, scheduler_ng);
+  scheduler_ng->init_scheduler(event_queue);
+
+  /* it should be an assignment! */
+  if (opt_event_scheduler)
+  {
+    DBUG_ASSERT(opt_event_scheduler == 1 || opt_event_scheduler == 2);
+    if (opt_event_scheduler == 1)
+      DBUG_RETURN(scheduler_ng->start());
+  }
+
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Cleans up scheduler's resources. Called at server shutdown.
+
+  SYNOPSIS
+    Events::deinit()
+
+  NOTES
+    This function is not synchronized.
+*/
+
+void
+Events::deinit()
+{
+  DBUG_ENTER("Events::deinit");
+
+  scheduler_ng->stop();
+  scheduler_ng->deinit_scheduler();
+
+  event_queue->deinit_queue();
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Inits Events mutexes
+
+  SYNOPSIS
+    Events::init_mutexes()
+      thd  Thread
+*/
+
+void
+Events::init_mutexes()
+{
+  pthread_mutex_init(&LOCK_event_metadata, MY_MUTEX_INIT_FAST);
+
+  db_repository= new Event_db_repository;
+
+  event_queue= new Event_queue;
+  event_queue->init_mutexes();
+
+  scheduler_ng= new Event_scheduler_ng();
+  scheduler_ng->init_mutexes();
+}
+
+
+/*
+  Destroys Events mutexes
+
+  SYNOPSIS
+    Events::destroy_mutexes()
+*/
+
+void
+Events::destroy_mutexes()
+{
+  event_queue->deinit_mutexes();
+  scheduler_ng->deinit_mutexes();
+
+  delete scheduler_ng;
+  delete db_repository;
+
+  pthread_mutex_destroy(&LOCK_event_metadata);
+}
+
+
+/*
+  Proxy for Event_scheduler::dump_internal_status
+
+  SYNOPSIS
+    Events::dump_internal_status()
+      thd  Thread
+
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error
+*/
+
+bool
+Events::dump_internal_status(THD *thd)
+{
+  DBUG_ENTER("Events::dump_internal_status");
+  Protocol *protocol= thd->protocol;
+  List<Item> field_list;
+
+  field_list.push_back(new Item_empty_string("Name", 30));
+  field_list.push_back(new Item_empty_string("Value",20));
+  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
+                                         Protocol::SEND_EOF))
+    DBUG_RETURN(TRUE);
+
+  if (scheduler_ng->dump_internal_status(thd) ||
+      event_queue->dump_internal_status(thd))
+    DBUG_RETURN(TRUE);
+
+  send_eof(thd);
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  Starts execution of events by the scheduler
+
+  SYNOPSIS
+    Events::start_execution_of_events()
+
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error
+*/
+
 bool
 Events::start_execution_of_events()
 {
@@ -654,12 +705,37 @@ Events::start_execution_of_events()
 }
 
 
+/*
+  Stops execution of events by the scheduler.
+  Already running events will not be stopped. If the user needs
+  them stopped manual intervention is needed.
+
+  SYNOPSIS
+    Events::stop_execution_of_events()
+
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error
+*/
+
 bool
 Events::stop_execution_of_events()
 {
   DBUG_ENTER("Events::stop_execution_of_events");
   DBUG_RETURN(scheduler_ng->stop());
 }
+
+
+/*
+  Checks whether the scheduler is running or not.
+
+  SYNOPSIS
+    Events::is_started()
+
+  RETURN VALUE
+    TRUE  Yes
+    FALSE No
+*/
 
 bool
 Events::is_started()

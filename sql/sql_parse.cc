@@ -3886,8 +3886,12 @@ end_with_restore_list:
     else
     {
       uint affected= 1;
-      if (!(res= Events::get_instance()->
-                  drop_event(thd, lex->spname, lex->drop_if_exists, &affected)))
+      if (!(res= Events::get_instance()->drop_event(thd,
+                                                    lex->spname->m_db,
+                                                    lex->spname->m_name,
+                                                    lex->drop_if_exists,
+                                                    &affected,
+                                                    FALSE)))
         send_ok(thd, affected);     
     }
     break;
