@@ -1058,3 +1058,4 @@ vio/test-sslclient
 vio/test-sslserver
 vio/viotest-ssl
 libmysql/libmysql.ver
+libmysqld/sql_locale.cc

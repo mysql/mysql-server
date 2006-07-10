@@ -875,3 +875,17 @@ select @@max_prepared_stmt_count, @@prepared_stmt_count;
 @@max_prepared_stmt_count	@@prepared_stmt_count
 3	0
 set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
+drop table if exists t1;
+create temporary table if not exists t1 (a1 int);
+prepare stmt from "delete t1 from t1 where (cast(a1/3 as unsigned) * 3) = a1";
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+deallocate prepare stmt;
