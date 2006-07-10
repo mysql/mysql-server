@@ -3283,12 +3283,20 @@ longlong Item_func_last_insert_id::val_int()
   if (arg_count)
   {
     longlong value= args[0]->val_int();
-    thd->insert_id(value);
     null_value= args[0]->null_value;
-    return value;                       // Avoid side effect of insert_id()
+    /*
+      LAST_INSERT_ID(X) must affect the client's mysql_insert_id() as
+      documented in the manual. We don't want to touch
+      first_successful_insert_id_in_cur_stmt because it would make
+      LAST_INSERT_ID(X) take precedence over an generated auto_increment
+      value for this row.
+    */
+    thd->arg_of_last_insert_id_function= TRUE;
+    thd->first_successful_insert_id_in_prev_stmt= value;
+    return value;
   }
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  return thd->last_insert_id_used ? thd->current_insert_id : thd->insert_id();
+  return thd->read_first_successful_insert_id_in_prev_stmt();
 }
 
 /* This function is just used to test speed of different functions */
