@@ -170,7 +170,7 @@ connection master;
 
 drop function bug15728;
 drop function bug15728_insert;
-drop table t1, t2;
+drop table t1;
 drop procedure foo;
 
 # test of BUG#20188 REPLACE or ON DUPLICATE KEY UPDATE in

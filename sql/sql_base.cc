@@ -3319,11 +3319,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
 #ifdef HAVE_ROW_BASED_REPLICATION
   /*
     CREATE ... SELECT UUID() locks no tables, we have to test here.
-    Note that we will not do the resetting if inside a stored
-    function/trigger, because the binlogging of those is decided earlier (by
-    the caller) and can't be changed afterwards.
   */
-  thd->reset_current_stmt_binlog_row_based();
   if (thd->lex->binlog_row_based_if_mixed)
     thd->set_current_stmt_binlog_row_based_if_mixed();
 #endif /*HAVE_ROW_BASED_REPLICATION*/

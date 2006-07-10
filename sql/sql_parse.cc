@@ -5843,10 +5843,11 @@ void mysql_reset_thd_for_next_command(THD *thd)
     thd->rand_used= 0;
     thd->sent_row_count= thd->examined_row_count= 0;
   }
-#ifdef HAVE_ROW_BASED_REPLICATION
-  /* If in a routine, we reset only at end of top statement. */
+  /*
+    Because we come here only for start of top-statements, binlog format is
+    constant inside a complex statement (using stored functions) etc.
+  */
   thd->reset_current_stmt_binlog_row_based();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
   DBUG_VOID_RETURN;
 }

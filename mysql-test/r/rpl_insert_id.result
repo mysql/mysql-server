@@ -153,43 +153,8 @@ id	last_id
 3	5
 drop function bug15728;
 drop function bug15728_insert;
-drop procedure foo;
 drop table t1;
-truncate table t2;
-create table t1 (id tinyint primary key);
-create function insid() returns int
-begin
-insert into t2 (last_id) values (0);
-return 0;
-end|
-set sql_log_bin=0;
-insert into t2 (id) values(1),(2),(3);
-delete from t2;
-set sql_log_bin=1;
-select insid();
-insid()
-0
-set sql_log_bin=0;
-insert into t2 (id) values(5),(6),(7);
-delete from t2 where id>=5;
-set sql_log_bin=1;
-insert into t1 select insid();
-select * from t1;
-id
-0
-select * from t2;
-id	last_id
-4	0
-8	0
-select * from t1;
-id
-0
-select * from t2;
-id	last_id
-4	0
-8	0
-drop table t1, t2;
-drop function insid;
+drop procedure foo;
 create table t1 (n int primary key auto_increment not null,
 b int, unique(b));
 set sql_log_bin=0;
@@ -255,3 +220,38 @@ n	b
 2	100
 3	350
 drop table t1;
+truncate table t2;
+create table t1 (id tinyint primary key);
+create function insid() returns int
+begin
+insert into t2 (last_id) values (0);
+return 0;
+end|
+set sql_log_bin=0;
+insert into t2 (id) values(1),(2),(3);
+delete from t2;
+set sql_log_bin=1;
+select insid();
+insid()
+0
+set sql_log_bin=0;
+insert into t2 (id) values(5),(6),(7);
+delete from t2 where id>=5;
+set sql_log_bin=1;
+insert into t1 select insid();
+select * from t1;
+id
+0
+select * from t2;
+id	last_id
+4	0
+8	0
+select * from t1;
+id
+0
+select * from t2;
+id	last_id
+4	0
+8	0
+drop table t1, t2;
+drop function insid;

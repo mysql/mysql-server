@@ -631,18 +631,6 @@ bool THD::store_globals()
 
 void THD::cleanup_after_query()
 {
-  /*
-    If in stored function or trigger, where statement-based binlogging logs
-    only the caller, the insert_id/last_insert_id stored in binlog must
-    describe their first values inside the routine or caller (the values when
-    they were first set). Otherwise (e.g. stored procedure) it must describe
-    their values for the current substatement.
-  */
-  if (!prelocked_mode)
-  {
-    stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
-    auto_inc_intervals_in_cur_stmt_for_binlog.empty();
-  }
   if (first_successful_insert_id_in_cur_stmt > 0)
   {
     /* set what LAST_INSERT_ID() will return */
