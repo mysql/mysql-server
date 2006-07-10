@@ -7854,7 +7854,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       Field *field=((Item_field*) args[0])->field;
       if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
-	  thd->insert_id())
+	  thd->insert_id() && thd->substitute_null_with_insert_id)
       {
 #ifdef HAVE_QUERY_CACHE
 	query_cache_abort(&thd->net);
@@ -7873,7 +7873,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
           */
 	  cond->fix_fields(thd, &cond);
 	}
-	thd->insert_id(0);		// Clear for next request
+	thd->substitute_null_with_insert_id= FALSE;   // Clear for next request
       }
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       else if (((field->type() == FIELD_TYPE_DATE) ||
