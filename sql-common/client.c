@@ -1701,7 +1701,7 @@ int mysql_init_character_set(MYSQL *mysql)
 C_MODE_END
 
 
-MYSQL *
+MYSQL * STDCALL 
 CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
 		       uint port, const char *unix_socket,ulong client_flag)
