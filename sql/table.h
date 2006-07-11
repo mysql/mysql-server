@@ -668,6 +668,7 @@ typedef struct st_table_list
   Security_context *find_view_security_context(THD *thd);
   bool prepare_view_securety_context(THD *thd);
 #endif
+  void reinit_before_use(THD *thd);
 
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
@@ -676,7 +677,6 @@ private:
     Cleanup for re-execution in a prepared statement or a stored
     procedure.
   */
-  void reinit_before_use(THD *thd);
 } TABLE_LIST;
 
 class Item;

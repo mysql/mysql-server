@@ -527,6 +527,7 @@ set @a=200887, @b=860;
 # this query did not return all matching rows
 execute stmt using @a, @b;
 deallocate prepare stmt;
+
 drop table t1;
 
 #
@@ -586,7 +587,6 @@ execute stmt;
 execute stmt;
 deallocate prepare stmt;
 drop table t1;
-
 #
 # Bug#11458 "Prepared statement with subselects return random data":
 # drop PARAM_TABLE_BIT from the list of tables used by a subquery
@@ -655,7 +655,6 @@ execute stmt using @user_id, @id;
 execute stmt using @user_id, @id;
 deallocate prepare stmt;
 drop table t1, t2, t3, t4;
-
 #
 # Bug#9379: make sure that Item::collation is reset when one sets
 # a parameter marker from a string variable.
@@ -770,7 +769,6 @@ execute stmt using @like;
 deallocate prepare stmt;
 drop table t1;
 
-
 #
 # Bug#13134 "Length of VARCHAR() utf8 column is increasing when table is
 # recreated with PS/SP"
@@ -841,17 +839,17 @@ set global max_prepared_stmt_count=10000000000000000;
 select @@max_prepared_stmt_count;
 set global max_prepared_stmt_count=default;
 select @@max_prepared_stmt_count;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_GLOBAL_VARIABLE
 set @@max_prepared_stmt_count=1;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_GLOBAL_VARIABLE
 set max_prepared_stmt_count=1;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_GLOBAL_VARIABLE
 set local max_prepared_stmt_count=1;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set local prepared_stmt_count=0;
---error 1229 # ER_GLOBAL_VARIABLE
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@prepared_stmt_count=0;
---error 1232 # ER_WRONG_TYPE_FOR_VAR
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR 
 set global prepared_stmt_count=1;
 # set to a reasonable limit works
 set global max_prepared_stmt_count=1;
@@ -861,13 +859,13 @@ select @@max_prepared_stmt_count;
 #
 set global max_prepared_stmt_count=0;
 select @@max_prepared_stmt_count, @@prepared_stmt_count;
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt from "select 1";
 select @@prepared_stmt_count;
 set global max_prepared_stmt_count=1;
 prepare stmt from "select 1";
 select @@prepared_stmt_count;
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt1 from "select 1";
 select @@prepared_stmt_count;
 deallocate prepare stmt;
@@ -886,13 +884,13 @@ select @@prepared_stmt_count;
 #
 select @@prepared_stmt_count, @@max_prepared_stmt_count;
 set global max_prepared_stmt_count=0;
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt from "select 1";
 # Result: the old statement is deallocated, the new is not created.
 --error 1243 # ER_UNKNOWN_STMT_HANDLER
 execute stmt;
 select @@prepared_stmt_count;
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt from "select 1";
 select @@prepared_stmt_count;
 #
@@ -906,10 +904,10 @@ connect (con1,localhost,root,,);
 connection con1;
 prepare stmt from "select 2";
 prepare stmt1 from "select 3";
---error 1105 # ER_UNKNOWN_ERROR
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt2 from "select 4";
 connection default;
---error 1105 # ER_UNKNOWN_ERROR 
+--error ER_MAX_PREPARED_STMT_COUNT_REACHED
 prepare stmt2 from "select 4";
 select @@max_prepared_stmt_count, @@prepared_stmt_count;
 disconnect con1;

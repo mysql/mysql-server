@@ -2138,9 +2138,9 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     (multi-delete).  We do a full clean up, although at the moment all we
     need to clean in the tables of MULTI-DELETE list is 'table' member.
   */
-  for (TABLE_LIST *tables= (TABLE_LIST*) lex->auxilliary_table_list.first;
+  for (TABLE_LIST *tables= (TABLE_LIST*) lex->auxiliary_table_list.first;
        tables;
-       tables= tables->next)
+       tables= tables->next_global)
   {
     tables->reinit_before_use(thd);
   }
