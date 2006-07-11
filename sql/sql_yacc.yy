@@ -1447,7 +1447,8 @@ ev_sql_stmt:
             LEX *lex=Lex;
 
             // return back to the original memory root ASAP
-            lex->sphead->init_strings(YYTHD, lex, NULL);
+            lex->sphead->init_strings(YYTHD, lex,
+                                      Lex->event_parse_data->identifier);
             lex->sphead->restore_thd_mem_root(YYTHD);
 
             lex->sp_chistics.suid= SP_IS_SUID;//always the definer!

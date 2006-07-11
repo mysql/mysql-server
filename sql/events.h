@@ -81,7 +81,7 @@ public:
                uint *rows_affected);
 
   int
-  update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
+  update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to,
                uint *rows_affected);
 
   int
@@ -95,7 +95,7 @@ public:
   open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
   int
-  show_create_event(THD *thd, sp_name *spn);
+  show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
 
   /* Needed for both SHOW CREATE EVENT and INFORMATION_SCHEMA */
   static int

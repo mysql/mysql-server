@@ -182,12 +182,10 @@ Event_parse_data::init_body(THD *thd)
 
   SYNOPSIS
     Event_parse_data::init_definer()
-
-  RETURN VALUE
-    0  OK
+      thd  Thread
 */
 
-int
+void
 Event_parse_data::init_definer(THD *thd)
 {
   int definer_user_len;
@@ -216,22 +214,20 @@ Event_parse_data::init_definer(THD *thd)
   definer.str[definer.length]= '\0';
   DBUG_PRINT("info",("definer [%s] initted", definer.str));
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 
 /*
-  Set time for execution for one time events.
+  Sets time for execution for one-time event.
 
   SYNOPSIS
     Event_parse_data::init_execute_at()
-      expr   when (datetime)
+      thd  Thread
 
   RETURN VALUE
-    0                  OK
-    EVEX_PARSE_ERROR   fix_fields failed
-    EVEX_BAD_PARAMS    datetime is in the past
-    ER_WRONG_VALUE     wrong value for execute at
+    0               OK
+    ER_WRONG_VALUE  Wrong value for execute at (reported)
 */
 
 int
@@ -293,18 +289,16 @@ wrong_value:
 
 
 /*
-  Set time for execution for transient events.
+  Sets time for execution of multi-time event.s
 
   SYNOPSIS
     Event_parse_data::init_interval()
-      expr      how much?
-      new_interval  what is the interval
+      thd  Thread
 
   RETURN VALUE
-    0                       OK
-    EVEX_PARSE_ERROR        fix_fields failed (reported)
-    EVEX_BAD_PARAMS         Interval is not positive (reported)
-    EVEX_MICROSECOND_UNSUP  Microseconds are not supported (reported)
+    0                OK
+    EVEX_BAD_PARAMS  Interval is not positive or MICROSECOND (reported)
+    ER_WRONG_VALUE   Wrong value for interval (reported)
 */
 
 int
@@ -402,12 +396,11 @@ wrong_value:
 
 
 /*
-  Sets activation time.
+  Sets STARTS.
 
   SYNOPSIS
     Event_parse_data::init_starts()
       expr      how much?
-      interval  what is the interval
 
   NOTES
     Note that activation time is not execution time.
@@ -418,9 +411,8 @@ wrong_value:
     same time.
 
   RETURN VALUE
-    0                  OK
-    EVEX_PARSE_ERROR   fix_fields failed
-    EVEX_BAD_PARAMS    starts before now
+    0                OK
+    ER_WRONG_VALUE  Starts before now
 */
 
 int
@@ -471,12 +463,11 @@ wrong_value:
 
 
 /*
-  Sets deactivation time.
+  Sets ENDS (deactivation time).
 
   SYNOPSIS
     Event_parse_data::init_ends()
       thd       THD
-      new_ends  When?
 
   NOTES
     Note that activation time is not execution time.
@@ -566,7 +557,7 @@ Event_parse_data::report_bad_value(const char *item_name, Item *bad_item)
 
 
 /*
-  Performs checking of the data gathered during the parsing phase.
+  Checks for validity the data gathered during the parsing phase.
 
   SYNOPSIS
     Event_parse_data::check_parse_data()
@@ -593,6 +584,7 @@ Event_parse_data::check_parse_data(THD *thd)
        init_ends(thd);
   DBUG_RETURN(ret);
 }
+
 
 /*
   Constructor
@@ -769,11 +761,8 @@ Event_timed::init()
 {
   DBUG_ENTER("Event_timed::init");
 
-  body.str= comment.str= NULL;
-  body.length= comment.length= 0;
-
-  definer_user.str= definer_host.str= 0;
-  definer_user.length= definer_host.length= 0;
+  definer_user.str= definer_host.str= body.str= comment.str= NULL;
+  definer_user.length= definer_host.length= body.length= comment.length= 0;
 
   sql_mode= 0;
 
@@ -880,7 +869,7 @@ Event_queue_element::load_from_row(TABLE *table)
     expression= 0;
   /*
     If res1 and res2 are TRUE then both fields are empty.
-    Hence if ET_FIELD_EXECUTE_AT is empty there is an error.
+    Hence, if ET_FIELD_EXECUTE_AT is empty there is an error.
   */
   execute_at_null= table->field[ET_FIELD_EXECUTE_AT]->is_null();
   DBUG_ASSERT(!(starts_null && ends_null && !expression && execute_at_null));
@@ -1440,8 +1429,8 @@ Event_queue_element::drop(THD *thd)
   uint tmp= 0;
   DBUG_ENTER("Event_queue_element::drop");
 
-  DBUG_RETURN(Events::get_instance()->drop_event(thd, dbname, name, FALSE,
-                                                 &tmp, TRUE));
+  DBUG_RETURN(Events::get_instance()->
+                    drop_event(thd, dbname, name, FALSE, &tmp, TRUE));
 }
 
 
@@ -1453,20 +1442,17 @@ Event_queue_element::drop(THD *thd)
       thd - thread context
 
   RETURN VALUE
-    0   OK
-    EVEX_OPEN_TABLE_FAILED  Error while opening mysql.event for writing
-    EVEX_WRITE_ROW_FAILED   On error to write to disk
-
-   others                   return code from SE in case deletion of the event
-                            row failed.
+    FALSE   OK
+    TRUE    Error while opening mysql.event for writing or during write on disk
 */
 
 bool
 Event_queue_element::update_timing_fields(THD *thd)
 {
   TABLE *table;
+  Field **fields;
   Open_tables_state backup;
-  int ret;
+  int ret= FALSE;
 
   DBUG_ENTER("Event_queue_element::update_timing_fields");
 
@@ -1480,12 +1466,12 @@ Event_queue_element::update_timing_fields(THD *thd)
 
   if (Events::get_instance()->open_event_table(thd, TL_WRITE, &table))
   {
-    ret= EVEX_OPEN_TABLE_FAILED;
+    ret= TRUE;
     goto done;
   }
-
+  fields= table->field;
   if ((ret= Events::get_instance()->db_repository->
-                        find_event_by_name(thd, dbname, name, table)))
+                                 find_named_event(thd, dbname, name, table)))
     goto done;
 
   store_record(table,record[1]);
@@ -1494,20 +1480,20 @@ Event_queue_element::update_timing_fields(THD *thd)
 
   if (last_executed_changed)
   {
-    table->field[ET_FIELD_LAST_EXECUTED]->set_notnull();
-    table->field[ET_FIELD_LAST_EXECUTED]->store_time(&last_executed,
+    fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
+    fields[ET_FIELD_LAST_EXECUTED]->store_time(&last_executed,
                                                MYSQL_TIMESTAMP_DATETIME);
     last_executed_changed= FALSE;
   }
   if (status_changed)
   {
-    table->field[ET_FIELD_STATUS]->set_notnull();
-    table->field[ET_FIELD_STATUS]->store((longlong)status, TRUE);
+    fields[ET_FIELD_STATUS]->set_notnull();
+    fields[ET_FIELD_STATUS]->store((longlong)status, TRUE);
     status_changed= FALSE;
   }
 
-  if ((table->file->ha_update_row(table->record[1],table->record[0])))
-    ret= EVEX_WRITE_ROW_FAILED;
+  if ((table->file->ha_update_row(table->record[1], table->record[0])))
+    ret= TRUE;
 
 done:
   close_thread_tables(thd);
@@ -1550,10 +1536,9 @@ Event_timed::get_create_event(THD *thd, String *buf)
   buf->append(STRING_WITH_LEN("CREATE EVENT "));
   append_identifier(thd, buf, name.str, name.length);
 
-  buf->append(STRING_WITH_LEN(" ON SCHEDULE "));
   if (expression)
   {
-    buf->append(STRING_WITH_LEN("EVERY "));
+    buf->append(STRING_WITH_LEN(" ON SCHEDULE EVERY "));
     buf->append(expr_buf);
     buf->append(' ');
     LEX_STRING *ival= &interval_type_to_name[interval];
@@ -1562,7 +1547,7 @@ Event_timed::get_create_event(THD *thd, String *buf)
   else
   {
     char dtime_buff[20*2+32];/* +32 to make my_snprintf_{8bit|ucs2} happy */
-    buf->append(STRING_WITH_LEN("AT '"));
+    buf->append(STRING_WITH_LEN(" ON SCHEDULE AT '"));
     /*
       Pass the buffer and the second param tells fills the buffer and
       returns the number of chars to copy.
@@ -1612,86 +1597,11 @@ int
 Event_job_data::get_fake_create_event(THD *thd, String *buf)
 {
   DBUG_ENTER("Event_job_data::get_create_event");
-  buf->append(STRING_WITH_LEN("CREATE EVENT test.anonymous ON SCHEDULE "
+  buf->append(STRING_WITH_LEN("CREATE EVENT anonymous ON SCHEDULE "
                               "EVERY 3337 HOUR DO "));
   buf->append(body.str, body.length);
 
   DBUG_RETURN(0);
-}
-
-
-/*
-  Executes the event (the underlying sp_head object);
-
-  SYNOPSIS
-    Event_job_data::execute()
-      thd       THD
-      mem_root  If != NULL use it to compile the event on it
-
-  RETURN VALUE
-    0        success
-    -99      No rights on this.dbname.str
-    -100     event in execution (parallel execution is impossible)
-    others   retcodes of sp_head::execute_procedure()
-*/
-
-int
-Event_job_data::execute(THD *thd, MEM_ROOT *mem_root)
-{
-  Security_context *save_ctx;
-  /* this one is local and not needed after exec */
-  Security_context security_ctx;
-  int ret= 0;
-
-  DBUG_ENTER("Event_job_data::execute");
-  DBUG_PRINT("info", ("EXECUTING %s.%s", dbname.str, name.str));
-
-  thd->change_security_context(definer_user, definer_host, dbname,
-                               &security_ctx, &save_ctx);
-
-  if (!sphead && (ret= compile(thd, mem_root)))
-    goto done;
-  /*
-    THD::~THD will clean this or if there is DROP DATABASE in the SP then
-    it will be free there. It should not point to our buffer which is allocated
-    on a mem_root.
-  */
-  thd->db= my_strdup(dbname.str, MYF(0));
-  thd->db_length= dbname.length;
-  if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
-  {
-    List<Item> empty_item_list;
-    empty_item_list.empty();
-    if (thd->enable_slow_log)
-      sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
-    sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
-
-    ret= sphead->execute_procedure(thd, &empty_item_list);
-  }
-  else
-  {
-    DBUG_PRINT("error", ("%s@%s has no rights on %s", definer_user.str,
-               definer_host.str, dbname.str));
-    ret= -99;
-  }
-  /* Will compile every time a new sp_head on different root */
-  free_sp();
-
-done:
-  thd->restore_security_context(save_ctx);
-  /*
-    1. Don't cache sphead if allocated on another mem_root
-    2. Don't call security_ctx.destroy() because this will free our dbname.str
-       name.str and definer.str
-  */
-  if (mem_root && sphead)
-  {
-    delete sphead;
-    sphead= 0;
-  }
-  DBUG_PRINT("info", ("EXECUTED %s.%s ret=%d", dbname.str, name.str, ret));
-
-  DBUG_RETURN(ret);
 }
 
 
@@ -1816,7 +1726,6 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
   DBUG_PRINT("note", ("success compiling %s.%s", dbname.str, name.str));
 
   sphead= lex.sphead;
-  sphead->m_db= dbname;
 
   sphead->set_definer(definer.str, definer.length);
   sphead->set_info(0, 0, &lex.sp_chistics, sql_mode);
@@ -1848,10 +1757,76 @@ done:
 
 
 /*
+  Executes the event (the underlying sp_head object);
+
+  SYNOPSIS
+    Event_job_data::execute()
+      thd       THD
+
+  RETURN VALUE
+    0        success
+    -99      No rights on this.dbname.str
+    others   retcodes of sp_head::execute_procedure()
+*/
+
+int
+Event_job_data::execute(THD *thd)
+{
+  Security_context *save_ctx;
+  /* this one is local and not needed after exec */
+  Security_context security_ctx;
+  int ret= 0;
+
+  DBUG_ENTER("Event_job_data::execute");
+  DBUG_PRINT("info", ("EXECUTING %s.%s", dbname.str, name.str));
+
+
+  if ((ret= compile(thd, NULL)))
+    goto done;
+
+  thd->change_security_context(definer_user, definer_host, dbname,
+                               &security_ctx, &save_ctx);
+  /*
+    THD::~THD will clean this or if there is DROP DATABASE in the SP then
+    it will be free there. It should not point to our buffer which is allocated
+    on a mem_root.
+  */
+  thd->db= my_strdup(dbname.str, MYF(0));
+  thd->db_length= dbname.length;
+  if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
+  {
+    List<Item> empty_item_list;
+    empty_item_list.empty();
+    if (thd->enable_slow_log)
+      sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
+    sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
+
+    ret= sphead->execute_procedure(thd, &empty_item_list);
+  }
+  else
+  {
+    DBUG_PRINT("error", ("%s@%s has no rights on %s", definer_user.str,
+               definer_host.str, dbname.str));
+    ret= -99;
+  }
+
+  thd->restore_security_context(save_ctx);
+done:
+  free_sp();
+
+  DBUG_PRINT("info", ("EXECUTED %s.%s ret=%d", dbname.str, name.str, ret));
+
+  DBUG_RETURN(ret);
+}
+
+
+/*
   Checks whether two events are in the same schema
 
   SYNOPSIS
     event_basic_db_equal()
+      db  Schema
+      et  Compare et->dbname to `db`
 
   RETURN VALUE
     TRUE   Equal
@@ -1859,9 +1834,9 @@ done:
 */
 
 bool
-event_basic_db_equal(LEX_STRING *db, Event_basic *et)
+event_basic_db_equal(LEX_STRING db, Event_basic *et)
 {
-  return !sortcmp_lex_string(et->dbname, *db, system_charset_info);
+  return !sortcmp_lex_string(et->dbname, db, system_charset_info);
 }
 
 

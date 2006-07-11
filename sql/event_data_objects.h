@@ -17,45 +17,16 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#define EVEX_OK                  0
-#define EVEX_KEY_NOT_FOUND      -1
-#define EVEX_OPEN_TABLE_FAILED  -2
-#define EVEX_WRITE_ROW_FAILED   -3
-#define EVEX_DELETE_ROW_FAILED  -4
-#define EVEX_GET_FIELD_FAILED   -5
-#define EVEX_PARSE_ERROR        -6
-#define EVEX_INTERNAL_ERROR     -7
-#define EVEX_NO_DB_ERROR        -8
-#define EVEX_COMPILE_ERROR     -19
-#define EVEX_GENERAL_ERROR     -20
-#define EVEX_BAD_IDENTIFIER    -21 
-#define EVEX_BODY_TOO_LONG     -22
-#define EVEX_BAD_PARAMS        -23
-#define EVEX_NOT_RUNNING       -24
-#define EVEX_MICROSECOND_UNSUP -25
-#define EVEX_CANT_KILL         -26
-
-#define EVENT_EXEC_NO_MORE      (1L << 0)
-#define EVENT_NOT_USED          (1L << 1)
-#define EVENT_FREE_WHEN_FINISHED (1L << 2)
-
-
-#define EVENT_EXEC_STARTED      0
-#define EVENT_EXEC_ALREADY_EXEC 1
-#define EVENT_EXEC_CANT_FORK    2
+#define EVEX_GET_FIELD_FAILED   -2
+#define EVEX_COMPILE_ERROR      -3
+#define EVEX_GENERAL_ERROR      -4
+#define EVEX_BAD_PARAMS         -5
+#define EVEX_MICROSECOND_UNSUP  -6
 
 
 class sp_head;
 class Sql_alloc;
-class Event_basic;
 
-/* Compares only the schema part of the identifier */
-bool
-event_basic_db_equal( LEX_STRING *db, Event_basic *et);
-
-/* Compares the whole identifier*/
-bool
-event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b);
 
 class Event_basic
 {
@@ -206,7 +177,7 @@ public:
   load_from_row(TABLE *table);
 
   int
-  execute(THD *thd, MEM_ROOT *mem_root);
+  execute(THD *thd);
 private:
   int
   get_fake_create_event(THD *thd, String *buf);
@@ -274,7 +245,7 @@ public:
 
 private:
 
-  int
+  void
   init_definer(THD *thd);
 
   void
@@ -301,6 +272,15 @@ private:
   Event_parse_data(const Event_parse_data &);	/* Prevent use of these */
   void operator=(Event_parse_data &);
 };
+
+
+/* Compares only the schema part of the identifier */
+bool
+event_basic_db_equal(LEX_STRING db, Event_basic *et);
+
+/* Compares the whole identifier*/
+bool
+event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b);
 
 
 #endif /* _EVENT_DATA_OBJECTS_H_ */
