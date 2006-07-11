@@ -47,7 +47,7 @@ handlerton blackhole_hton= {
   NULL,    /* create_cursor_read_view */
   NULL,    /* set_cursor_read_view */
   NULL,    /* close_cursor_read_view */
-  HTON_CAN_RECREATE | HTON_ALTER_CANNOT_CREATE
+  HTON_CAN_RECREATE
 };
 
 /*****************************************************************************
