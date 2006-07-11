@@ -16,6 +16,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#define EVEX_OPEN_TABLE_FAILED  -1
+
 enum enum_events_table_field
 {
   ET_FIELD_DB = 0,
@@ -60,24 +62,23 @@ public:
   create_event(THD *thd, Event_parse_data *parse_data, my_bool create_if_not,
                uint *rows_affected);
 
-  int
-  update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name);
+  bool
+  update_event(THD *thd, Event_parse_data *parse_data, LEX_STRING *new_dbname,
+               LEX_STRING *new_name);
 
-  int 
+  bool 
   drop_event(THD *thd, LEX_STRING db, LEX_STRING name, bool drop_if_exists,
              uint *rows_affected);
 
   int
   drop_schema_events(THD *thd, LEX_STRING schema);
 
-  int
-  find_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_basic *et);
+  bool
+  find_named_event(THD *thd, LEX_STRING db, LEX_STRING name, TABLE *table);
 
-  int
+  bool
   load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_basic *et);
 
-  int
-  find_event_by_name(THD *thd, LEX_STRING db, LEX_STRING name, TABLE *table);
 
   int
   open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);

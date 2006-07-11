@@ -105,7 +105,18 @@ create event non_qualif_ev on schedule every 10 minute do insert into non_qualif
 select * from non_qualif;
 drop event non_qualif_ev;
 drop table non_qualif;
+
+--error ER_EVENT_DOES_NOT_EXIST
+alter event non_existant rename to non_existant_too;
+
 set global event_scheduler = 2;
+create event existant on schedule at now() + interval 1 year do select 12;
+--error ER_EVENT_ALREADY_EXISTS
+alter event non_existant rename to existant;
+--error ER_EVENT_SAME_NAME
+alter event existant rename to events_test.existant;
+drop event existant;
+
 
 create table t_event3 (a int, b float);
 drop event if exists event3;
