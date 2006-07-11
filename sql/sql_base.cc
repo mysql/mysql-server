@@ -49,6 +49,8 @@ static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
 static void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
                                  bool send_refresh);
 static bool reopen_table(TABLE *table);
+static bool
+has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables);
 
 
 extern "C" byte *table_cache_key(const byte *record,uint *length,
@@ -1179,135 +1181,134 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
 
 void close_temporary_tables(THD *thd)
 {
-  TABLE *next, *prev_table, *table;
-  char *query= 0, *end;
-  uint query_buf_size, max_names_len; 
-  bool found_user_tables;
-
+  TABLE *table;
   if (!thd->temporary_tables)
     return;
-  
-  LINT_INIT(end);
-  query_buf_size= 50;   // Enough for DROP ... TABLE IF EXISTS
 
-  /* 
-     insertion sort of temp tables by pseudo_thread_id to build ordered list 
+  if (!mysql_bin_log.is_open() || thd->current_stmt_binlog_row_based)
+  {
+    TABLE *next;
+    for (table= thd->temporary_tables; table; table= next)
+    {
+      next=table->next;
+      close_temporary(table, 1, 1);
+    }
+    thd->temporary_tables= 0;
+    return;
+  }
+
+  TABLE *next,
+    *prev_table /* TODO: 5.1 maintaines prev link in temporary_tables
+                   double-linked list so we could fix it. But it is not necessary
+                   at this time when the list is being destroyed */;
+  bool was_quote_show= true; /* to assume thd->options has OPTION_QUOTE_SHOW_CREATE */
+  // Better add "if exists", in case a RESET MASTER has been done
+  const char stub[]= "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ";
+  uint stub_len= sizeof(stub) - 1;
+  char buf[256];
+  memcpy(buf, stub, stub_len);
+  String s_query= String(buf, sizeof(buf), system_charset_info);
+  bool found_user_tables= false;
+  LINT_INIT(next);
+
+  /*
+     insertion sort of temp tables by pseudo_thread_id to build ordered list
      of sublists of equal pseudo_thread_id
   */
-  for (prev_table= thd->temporary_tables, 
-         table= prev_table->next,
-         found_user_tables= (prev_table->s->table_name.str[0] != '#'); 
+
+  for (prev_table= thd->temporary_tables, table= prev_table->next;
        table;
        prev_table= table, table= table->next)
   {
-    TABLE *prev_sorted /* same as for prev_table */,
-      *sorted;
-    /*
-      table not created directly by the user is moved to the tail. 
-      Fixme/todo: nothing (I checked the manual) prevents user to create temp
-      with `#' 
-    */
-    if (table->s->table_name.str[0] == '#')
-      continue;
-    else 
+    TABLE *prev_sorted /* same as for prev_table */, *sorted;
+    if (is_user_table(table))
     {
-      found_user_tables = 1;
-    }
-    for (prev_sorted= NULL, sorted= thd->temporary_tables; sorted != table; 
-         prev_sorted= sorted, sorted= sorted->next)
-    {
-      if (sorted->s->table_name.str[0] == '#' || tmpkeyval(thd, sorted) > tmpkeyval(thd, table))
+      if (!found_user_tables)
+        found_user_tables= true;
+      for (prev_sorted= NULL, sorted= thd->temporary_tables; sorted != table;
+           prev_sorted= sorted, sorted= sorted->next)
       {
-        /* move into the sorted part of the list from the unsorted */
-        prev_table->next= table->next;
-        table->next= sorted;
-        if (prev_sorted) 
+        if (!is_user_table(sorted) ||
+            tmpkeyval(thd, sorted) > tmpkeyval(thd, table))
         {
-          prev_sorted->next= table;
+          /* move into the sorted part of the list from the unsorted */
+          prev_table->next= table->next;
+          table->next= sorted;
+          if (prev_sorted)
+          {
+            prev_sorted->next= table;
+          }
+          else
+          {
+            thd->temporary_tables= table;
+          }
+          table= prev_table;
+          break;
         }
-        else
-        {
-          thd->temporary_tables= table;
-        }
-        table= prev_table;
-        break;
       }
     }
-  }  
-  /* 
-     calc query_buf_size as max per sublists, one sublist per pseudo thread id.
-     Also stop at first occurence of `#'-named table that starts 
-     all implicitly created temp tables
-  */
-  for (max_names_len= 0, table=thd->temporary_tables; 
-       table && table->s->table_name.str[0] != '#';
-       table=table->next)
-  {
-    uint tmp_names_len;
-    for (tmp_names_len= table->s->table_cache_key.length + 1;
-         table->next && table->s->table_name.str[0] != '#' &&
-           tmpkeyval(thd, table) == tmpkeyval(thd, table->next);
-         table=table->next)
-    {
-      /*
-        We are going to add 4 ` around the db/table names, so 1 might not look
-        enough; indeed it is enough, because table->s->table_cache_key.length is
-        greater (by 8, because of server_id and thread_id) than db||table.
-      */
-      tmp_names_len += table->next->s->table_cache_key.length + 1;
-    }
-    if (tmp_names_len > max_names_len) max_names_len= tmp_names_len;
   }
-  
-  /* allocate */
-  if (found_user_tables && mysql_bin_log.is_open() &&
-      !thd->current_stmt_binlog_row_based &&
-      (query = alloc_root(thd->mem_root, query_buf_size+= max_names_len)))
-    // Better add "if exists", in case a RESET MASTER has been done
-    end= strmov(query, "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ");
+
+  /* We always quote db,table names though it is slight overkill */
+  if (found_user_tables &&
+      !(was_quote_show= (thd->options & OPTION_QUOTE_SHOW_CREATE)))
+  {
+    thd->options |= OPTION_QUOTE_SHOW_CREATE;
+  }
 
   /* scan sorted tmps to generate sequence of DROP */
-  for (table=thd->temporary_tables; table; table= next)
+  for (table= thd->temporary_tables; table; table= next)
   {
-    if (query // we might be out of memory, but this is not fatal 
-        && table->s->table_name.str[0] != '#') 
+    if (is_user_table(table))
     {
-      char *end_cur;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
       /* Loop forward through all tables within the sublist of
          common pseudo_thread_id to create single DROP query */
-      for (end_cur= end;
-           table && table->s->table_name.str[0] != '#' &&
+      for (s_query.length(stub_len);
+           table && is_user_table(table) &&
              tmpkeyval(thd, table) == thd->variables.pseudo_thread_id;
            table= next)
       {
-        end_cur= strxmov(end_cur, "`", table->s->db.str, "`.`",
-                         table->s->table_name.str, "`,", NullS);
+        /*
+          We are going to add 4 ` around the db/table names and possible more
+          due to special characters in the names
+        */
+        append_identifier(thd, &s_query, table->s->db.str, strlen(table->s->db.str));
+        s_query.q_append('.');
+        append_identifier(thd, &s_query, table->s->table_name.str,
+                          strlen(table->s->table_name.str));
+        s_query.q_append(',');
         next= table->next;
         close_temporary(table, 1, 1);
       }
       thd->clear_error();
-      /* The -1 is to remove last ',' */
-      Query_log_event qinfo(thd, query, (ulong)(end_cur - query) - 1, 0, FALSE);
+      CHARSET_INFO *cs_save= thd->variables.character_set_client;
+      thd->variables.character_set_client= system_charset_info;
+      Query_log_event qinfo(thd, s_query.ptr(),
+                            s_query.length() - 1 /* to remove trailing ',' */,
+                            0, FALSE);
+      thd->variables.character_set_client= cs_save;
       /*
-        Imagine the thread had created a temp table, then was doing a SELECT,
-        and the SELECT was killed. Then it's not clever to mark the statement
-        above as "killed", because it's not really a statement updating data,
-        and there are 99.99% chances it will succeed on slave.  If a real update
-        (one updating a persistent table) was killed on the master, then this
-        real update will be logged with error_code=killed, rightfully causing
-        the slave to stop.
+        Imagine the thread had created a temp table, then was doing a SELECT, and
+        the SELECT was killed. Then it's not clever to mark the statement above as
+        "killed", because it's not really a statement updating data, and there
+        are 99.99% chances it will succeed on slave.
+        If a real update (one updating a persistent table) was killed on the
+        master, then this real update will be logged with error_code=killed,
+        rightfully causing the slave to stop.
       */
       qinfo.error_code= 0;
       mysql_bin_log.write(&qinfo);
     }
-    else 
+    else
     {
       next= table->next;
       close_temporary(table, 1, 1);
     }
   }
+  if (!was_quote_show)
+    thd->options &= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
   thd->temporary_tables=0;
 }
 
@@ -3317,6 +3318,14 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
 
   *need_reopen= FALSE;
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+  /*
+    CREATE ... SELECT UUID() locks no tables, we have to test here.
+  */
+  if (thd->lex->binlog_row_based_if_mixed)
+    thd->set_current_stmt_binlog_row_based_if_mixed();
+#endif /*HAVE_ROW_BASED_REPLICATION*/
+
   if (!tables)
     DBUG_RETURN(0);
 
@@ -3347,6 +3356,19 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     {
       thd->in_lock_tables=1;
       thd->options|= OPTION_TABLE_LOCK;
+#ifdef HAVE_ROW_BASED_REPLICATION
+      /*
+        If we have >= 2 different tables to update with auto_inc columns,
+        statement-based binlogging won't work. We can solve this problem in
+        mixed mode by switching to row-based binlogging:
+      */
+      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
+          has_two_write_locked_tables_with_auto_increment(tables))
+      {
+        thd->lex->binlog_row_based_if_mixed= TRUE;
+        thd->set_current_stmt_binlog_row_based_if_mixed();
+      }
+#endif
     }
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
@@ -6479,3 +6501,46 @@ void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  Tells if two (or more) tables have auto_increment columns and we want to
+  lock those tables with a write lock.
+
+  SYNOPSIS
+    has_two_write_locked_tables_with_auto_increment
+      tables        Table list
+
+  NOTES:
+    Call this function only when you have established the list of all tables
+    which you'll want to update (including stored functions, triggers, views
+    inside your statement).
+
+  RETURN
+    0  No
+    1  Yes
+*/
+
+static bool
+has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables)
+{
+  char *first_table_name= NULL, *first_db;
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->placeholder() && !table->schema_table &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE))
+    {
+      if (first_table_name == NULL)
+      {
+        first_table_name= table->table_name;
+        first_db= table->db;
+        DBUG_ASSERT(first_db);
+      }
+      else if (strcmp(first_db, table->db) ||
+               strcmp(first_table_name, table->table_name))
+        return 1;
+    }
+  }
+  return 0;
+}

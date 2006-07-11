@@ -76,16 +76,11 @@ drop table t1,t2;
 create temporary table t3 (f int);
 create temporary table t4 (f int);
 create table t5 (f int);
-drop table if exists t999;
-create temporary table t999 (f int);
-LOAD DATA INFILE "./tmp/bl_dump_thread_id" into table t999;
-drop table t999;
-insert into t4 values (1);
-kill `select id from information_schema.processlist where command='Binlog Dump'`;
+select id from information_schema.processlist where command='Binlog Dump' into @id;
+kill @id;
 insert into t5 select * from t4;
 select * from t5 /* must be 1 after reconnection */;
 f
-1
 drop temporary table t4;
 drop table t5;
 set @@session.pseudo_thread_id=100;
@@ -93,6 +88,7 @@ create temporary table t101 (id int);
 create temporary table t102 (id int);
 set @@session.pseudo_thread_id=200;
 create temporary table t201 (id int);
+create temporary table `t``201` (id int);
 create temporary table `#sql_not_user_table202` (id int);
 set @@session.pseudo_thread_id=300;
 create temporary table t301 (id int);
