@@ -466,6 +466,10 @@ args: -n CreateAndDrop
 
 max-time: 1500
 cmd: testDict
+args: -n CreateAndDropAtRandom -l 200 T1
+
+max-time: 1500
+cmd: testDict
 args: -n CreateAndDropWithData 
 
 max-time: 1500
@@ -499,6 +503,10 @@ args: -n FragmentTypeAllLarge T1 T6 T7 T8
 max-time: 1500
 cmd: testDict
 args: -n TemporaryTables T1 T6 T7 T8 
+
+max-time: 1500
+cmd: testDict
+args: -n Restart_NR2 T1
 
 #
 # TEST NDBAPI
