@@ -399,6 +399,8 @@ const GsnName SignalNames [] = {
   ,{ GSN_TUP_COM_UNBLOCK,        "TUP_COM_UNBLOCK" }
   ,{ GSN_DUMP_STATE_ORD,         "DUMP_STATE_ORD" }
 
+  ,{ GSN_NODE_START_REP, "NODE_START_REP" }
+
   ,{ GSN_START_INFOREQ,  "START_INFOREQ" }
   ,{ GSN_START_INFOREF,  "START_INFOREF" }
   ,{ GSN_START_INFOCONF, "START_INFOCONF" }
@@ -647,6 +649,12 @@ const GsnName SignalNames [] = {
   ,{ GSN_TUX_MAINT_REF,  "TUX_MAINT_REF" }
   ,{ GSN_TUX_BOUND_INFO,  "TUX_BOUND_INFO" }
   ,{ GSN_ACC_LOCKREQ,  "ACC_LOCKREQ" }
+
+  /* DICT LOCK */
+  ,{ GSN_DICT_LOCK_REQ,          "DICT_LOCK_REQ" }
+  ,{ GSN_DICT_LOCK_CONF,         "DICT_LOCK_CONF" }
+  ,{ GSN_DICT_LOCK_REF,          "DICT_LOCK_REF" }
+  ,{ GSN_DICT_UNLOCK_ORD,        "DICT_UNLOCK_ORD" }
   
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

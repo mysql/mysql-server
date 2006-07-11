@@ -507,16 +507,12 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TEST_ORD                    407
 #define GSN_TESTSIG                     408
 #define GSN_TIME_SIGNAL                 409
-/* 410 unused  */
-/* 411 unused  */
-/* 412 unused */
 #define GSN_TUP_ABORTREQ                414
 #define GSN_TUP_ADD_ATTCONF             415
 #define GSN_TUP_ADD_ATTRREF             416
 #define GSN_TUP_ADD_ATTRREQ             417
 #define GSN_TUP_ATTRINFO                418
 #define GSN_TUP_COMMITREQ               419
-/* 420 unused */
 #define GSN_TUP_LCPCONF                 421
 #define GSN_TUP_LCPREF                  422
 #define GSN_TUP_LCPREQ                  423
@@ -591,6 +587,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_BLOCK_COMMIT_ORD            485
 #define GSN_UNBLOCK_COMMIT_ORD          486
 
+#define GSN_NODE_START_REP              502
 #define GSN_NODE_STATE_REP              487
 #define GSN_CHANGE_NODE_STATE_REQ       488
 #define GSN_CHANGE_NODE_STATE_CONF      489
@@ -937,5 +934,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_ACC_LOCKREQ			711
 #define GSN_READ_PSUEDO_REQ             712
+
+/* DICT LOCK signals */
+#define GSN_DICT_LOCK_REQ               410
+#define GSN_DICT_LOCK_CONF              411
+#define GSN_DICT_LOCK_REF               412
+#define GSN_DICT_UNLOCK_ORD             420
 
 #endif

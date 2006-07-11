@@ -500,6 +500,10 @@ max-time: 1500
 cmd: testDict
 args: -n TemporaryTables T1 T6 T7 T8 
 
+max-time: 1500
+cmd: testDict
+args: -n Restart_NR2 T1
+
 #
 # TEST NDBAPI
 #
