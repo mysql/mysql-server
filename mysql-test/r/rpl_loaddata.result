@@ -5,8 +5,14 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 reset master;
+select last_insert_id();
+last_insert_id()
+0
 create table t1(a int not null auto_increment, b int, primary key(a) );
 load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+select last_insert_id();
+last_insert_id()
+1
 create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
 load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
 create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
@@ -22,7 +28,7 @@ day	id	category	name
 2003-03-22	2416	a	bbbbb
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-slave-bin.000001	1276		
+slave-bin.000001	1248		
 drop table t1;
 drop table t2;
 drop table t3;
@@ -33,7 +39,7 @@ set global sql_slave_skip_counter=1;
 start slave;
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1793	#	#	master-bin.000001	Yes	Yes				#			0		0	1793	#	None		0	No						#
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1765	#	#	master-bin.000001	Yes	Yes				#			0		0	1765	#	None		0	No						#
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
@@ -43,7 +49,7 @@ change master to master_user='test';
 change master to master_user='root';
 show slave status;
 Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File	Read_Master_Log_Pos	Relay_Log_File	Relay_Log_Pos	Relay_Master_Log_File	Slave_IO_Running	Slave_SQL_Running	Replicate_Do_DB	Replicate_Ignore_DB	Replicate_Do_Table	Replicate_Ignore_Table	Replicate_Wild_Do_Table	Replicate_Wild_Ignore_Table	Last_Errno	Last_Error	Skip_Counter	Exec_Master_Log_Pos	Relay_Log_Space	Until_Condition	Until_Log_File	Until_Log_Pos	Master_SSL_Allowed	Master_SSL_CA_File	Master_SSL_CA_Path	Master_SSL_Cert	Master_SSL_Cipher	Master_SSL_Key	Seconds_Behind_Master
-#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1828	#	#	master-bin.000001	No	No				#			0		0	1828	#	None		0	No						#
+#	127.0.0.1	root	MASTER_PORT	1	master-bin.000001	1800	#	#	master-bin.000001	No	No				#			0		0	1800	#	None		0	No						#
 set global sql_slave_skip_counter=1;
 start slave;
 set sql_log_bin=0;

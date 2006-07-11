@@ -1514,7 +1514,10 @@ int handler::read_first_row(byte * buf, uint primary_key)
 }
 
 /*
-  Generate the next auto-increment number based on increment and offset
+  Generate the next auto-increment number based on increment and offset:
+  computes the lowest number
+  - strictly greater than "nr"
+  - of the form: auto_increment_offset + N * auto_increment_increment
 
   In most cases increment= offset= 1, in which case we get:
   1,2,3,4,5,...
@@ -1523,12 +1526,66 @@ int handler::read_first_row(byte * buf, uint primary_key)
 */
 
 inline ulonglong
-next_insert_id(ulonglong nr,struct system_variables *variables)
+compute_next_insert_id(ulonglong nr,struct system_variables *variables)
 {
+  if (variables->auto_increment_increment == 1)
+    return (nr+1); // optimization of the formula below
   nr= (((nr+ variables->auto_increment_increment -
          variables->auto_increment_offset)) /
        (ulonglong) variables->auto_increment_increment);
   return (nr* (ulonglong) variables->auto_increment_increment +
+          variables->auto_increment_offset);
+}
+
+
+void handler::adjust_next_insert_id_after_explicit_value(ulonglong nr)
+{
+  /*
+    If we have set THD::next_insert_id previously and plan to insert an
+    explicitely-specified value larger than this, we need to increase
+    THD::next_insert_id to be greater than the explicit value.
+  */
+  if ((next_insert_id > 0) && (nr >= next_insert_id))
+    set_next_insert_id(compute_next_insert_id(nr, &table->in_use->variables));
+}
+
+
+/*
+  Computes the largest number X:
+  - smaller than or equal to "nr"
+  - of the form: auto_increment_offset + N * auto_increment_increment
+  where N>=0.
+
+  SYNOPSIS
+    prev_insert_id
+      nr            Number to "round down"
+      variables     variables struct containing auto_increment_increment and
+                    auto_increment_offset
+
+  RETURN
+    The number X if it exists, "nr" otherwise.
+*/
+
+inline ulonglong
+prev_insert_id(ulonglong nr, struct system_variables *variables)
+{
+  if (unlikely(nr < variables->auto_increment_offset))
+  {
+    /*
+      There's nothing good we can do here. That is a pathological case, where
+      the offset is larger than the column's max possible value, i.e. not even
+      the first sequence value may be inserted. User will receive warning.
+    */
+    DBUG_PRINT("info",("auto_increment: nr: %lu cannot honour "
+                       "auto_increment_offset: %lu",
+                       nr, variables->auto_increment_offset));
+    return nr;
+  }
+  if (variables->auto_increment_increment == 1)
+    return nr; // optimization of the formula below
+  nr= (((nr - variables->auto_increment_offset)) /
+       (ulonglong) variables->auto_increment_increment);
+  return (nr * (ulonglong) variables->auto_increment_increment +
           variables->auto_increment_offset);
 }
 
@@ -1546,7 +1603,7 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
 
   IMPLEMENTATION
 
-    Updates columns with type NEXT_NUMBER if:
+    Updates the record's Field of type NEXT_NUMBER if:
 
   - If column value is set to NULL (in which case
     auto_increment_field_not_null is 0)
@@ -1554,25 +1611,31 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
     set. In the future we will only set NEXT_NUMBER fields if one sets them
     to NULL (or they are not included in the insert list).
 
+    In those cases, we check if the currently reserved interval still has
+    values we have not used. If yes, we pick the smallest one and use it.
+    Otherwise:
 
-  There are two different cases when the above is true:
+  - If a list of intervals has been provided to the statement via SET
+    INSERT_ID or via an Intvar_log_event (in a replication slave), we pick the
+    first unused interval from this list, consider it as reserved.
 
-  - thd->next_insert_id == 0  (This is the normal case)
-    In this case we set the set the column for the first row to the value
-    next_insert_id(get_auto_increment(column))) which is normally
-    max-used-column-value +1.
+  - Otherwise we set the column for the first row to the value
+    next_insert_id(get_auto_increment(column))) which is usually
+    max-used-column-value+1.
+    We call get_auto_increment() for the first row in a multi-row
+    statement. get_auto_increment() will tell us the interval of values it
+    reserved for us.
 
-    We call get_auto_increment() only for the first row in a multi-row
-    statement. For the following rows we generate new numbers based on the
-    last used number.
+  - In both cases, for the following rows we use those reserved values without
+    calling the handler again (we just progress in the interval, computing
+    each new value from the previous one). Until we have exhausted them, then
+    we either take the next provided interval or call get_auto_increment()
+    again to reserve a new interval.
 
-  - thd->next_insert_id != 0.  This happens when we have read an Intvar event
-    of type INSERT_ID_EVENT from the binary log or when one has used SET
-    INSERT_ID=#.
-
-    In this case we will set the column to the value of next_insert_id.
-    The next row will be given the id
-    next_insert_id(next_insert_id)
+  - In both cases, the reserved intervals are remembered in
+    thd->auto_inc_intervals_in_cur_stmt_for_binlog if statement-based
+    binlogging; the last reserved interval is remembered in
+    auto_inc_interval_for_cur_row.
 
     The idea is that generated auto_increment values are predictable and
     independent of the column values in the table.  This is needed to be
@@ -1583,7 +1646,13 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
     inserts a column with a higher value than the last used one, we will
     start counting from the inserted value.
 
-    thd->next_insert_id is cleared after it's been used for a statement.
+    This function's "outputs" are: the table's auto_increment field is filled
+    with a value, thd->next_insert_id is filled with the value to use for the
+    next row, if a value was autogenerated for the current row it is stored in
+    thd->insert_id_for_cur_row, if get_auto_increment() was called
+    thd->auto_inc_interval_for_cur_row is modified, if that interval is not
+    present in thd->auto_inc_intervals_in_cur_stmt_for_binlog it is added to
+    this list.
 
    TODO
 
@@ -1600,7 +1669,8 @@ next_insert_id(ulonglong nr,struct system_variables *variables)
 
 bool handler::update_auto_increment()
 {
-  ulonglong nr;
+  ulonglong nr, nb_reserved_values;
+  bool append= FALSE;
   THD *thd= table->in_use;
   struct system_variables *variables= &thd->variables;
   bool auto_increment_field_not_null;
@@ -1608,10 +1678,10 @@ bool handler::update_auto_increment()
   DBUG_ENTER("handler::update_auto_increment");
 
   /*
-    We must save the previous value to be able to restore it if the
-    row was not inserted
+    next_insert_id is a "cursor" into the reserved interval, it may go greater
+    than the interval, but not smaller.
   */
-  thd->prev_insert_id= thd->next_insert_id;
+  DBUG_ASSERT(next_insert_id >= auto_inc_interval_for_cur_row.minimum());
   auto_increment_field_not_null= table->auto_increment_field_not_null;
   table->auto_increment_field_not_null= FALSE; // to reset for next row
 
@@ -1620,131 +1690,140 @@ bool handler::update_auto_increment()
       thd->variables.sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO)
   {
     /*
-      The user did specify a value for the auto_inc column, we don't generate
-      a new value, write it down.
-    */
-    auto_increment_column_changed=0;
-
-    /*
       Update next_insert_id if we had already generated a value in this
       statement (case of INSERT VALUES(null),(3763),(null):
       the last NULL needs to insert 3764, not the value of the first NULL plus
       1).
     */
-    if (thd->clear_next_insert_id && nr >= thd->next_insert_id)
-    {
-      if (variables->auto_increment_increment != 1)
-        nr= next_insert_id(nr, variables);
-      else
-        nr++;
-      thd->next_insert_id= nr;
-      DBUG_PRINT("info",("next_insert_id: %lu", (ulong) nr));
-    }
+    adjust_next_insert_id_after_explicit_value(nr);
+    insert_id_for_cur_row= 0; // didn't generate anything
     DBUG_RETURN(0);
   }
-  if (!(nr= thd->next_insert_id))
-  {
-    ulonglong nb_desired_values= 1, nb_reserved_values;
-#ifdef TO_BE_ENABLED_SOON
-    /*
-      Reserved intervals will be stored in "THD::auto_inc_intervals".
-      handler::estimation_rows_to_insert will be the argument passed by
-      handler::ha_start_bulk_insert().
-    */
-    uint estimation_known= test(estimation_rows_to_insert > 0);
-    uint nb_already_reserved_intervals= thd->auto_inc_intervals.nb_elements();
-    /*
-      If an estimation was given to the engine:
-      - use it.
-      - if we already reserved numbers, it means the estimation was
-        not accurate, then we'll reserve 2*AUTO_INC_DEFAULT_NB_VALUES the 2nd
-        time, twice that the 3rd time etc.
-      If no estimation was given, use those increasing defaults from the
-      start, starting from AUTO_INC_DEFAULT_NB_VALUES.
-      Don't go beyond a max to not reserve "way too much" (because reservation
-      means potentially losing unused values).
-    */
-    if (nb_already_reserved_intervals == 0 && estimation_known)
-      nb_desired_values= estimation_rows_to_insert;
-    else /* go with the increasing defaults */
-    {
-      /* avoid overflow in formula, with this if() */
-      if (nb_already_reserved_intervals <= AUTO_INC_DEFAULT_NB_MAX_BITS)
-      {
-        nb_desired_values= AUTO_INC_DEFAULT_NB_VALUES * 
-          (1 << nb_already_reserved_intervals);
-        set_if_smaller(nb_desired_values, AUTO_INC_DEFAULT_NB_MAX);
-      }
-      else
-        nb_desired_values= AUTO_INC_DEFAULT_NB_MAX;
-    }
-#endif
-    /* This call ignores all its parameters but nr, currently */
-    get_auto_increment(variables->auto_increment_offset,
-                       variables->auto_increment_increment,
-                       nb_desired_values, &nr,
-                       &nb_reserved_values);
-    if (nr == ~(ulonglong) 0)
-      result= 1;                                // Mark failure
 
-    /*
-      That should not be needed when engines actually use offset and increment
-      above.
-    */
-    if (variables->auto_increment_increment != 1)
-      nr= next_insert_id(nr-1, variables);
-    /*
-      Update next row based on the found value. This way we don't have to
-      call the handler for every generated auto-increment value on a
-      multi-row statement
-    */
-    thd->next_insert_id= nr;
+  if ((nr= next_insert_id) >= auto_inc_interval_for_cur_row.maximum())
+  {
+    /* next_insert_id is beyond what is reserved, so we reserve more. */
+    const Discrete_interval *forced=
+      thd->auto_inc_intervals_forced.get_next();
+    if (forced != NULL)
+    {
+      nr= forced->minimum();
+      nb_reserved_values= forced->values();
+    }
+    else
+    {
+      /*
+        handler::estimation_rows_to_insert was set by
+        handler::ha_start_bulk_insert(); if 0 it means "unknown".
+      */
+      uint nb_already_reserved_intervals=
+        thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements();
+      ulonglong nb_desired_values;
+      /*
+        If an estimation was given to the engine:
+        - use it.
+        - if we already reserved numbers, it means the estimation was
+        not accurate, then we'll reserve 2*AUTO_INC_DEFAULT_NB_ROWS the 2nd
+        time, twice that the 3rd time etc.
+        If no estimation was given, use those increasing defaults from the
+        start, starting from AUTO_INC_DEFAULT_NB_ROWS.
+        Don't go beyond a max to not reserve "way too much" (because
+        reservation means potentially losing unused values).
+      */
+      if (nb_already_reserved_intervals == 0 &&
+          (estimation_rows_to_insert > 0))
+        nb_desired_values= estimation_rows_to_insert;
+      else /* go with the increasing defaults */
+      {
+        /* avoid overflow in formula, with this if() */
+        if (nb_already_reserved_intervals <= AUTO_INC_DEFAULT_NB_MAX_BITS)
+        {
+          nb_desired_values= AUTO_INC_DEFAULT_NB_ROWS * 
+            (1 << nb_already_reserved_intervals);
+          set_if_smaller(nb_desired_values, AUTO_INC_DEFAULT_NB_MAX);
+        }
+        else
+          nb_desired_values= AUTO_INC_DEFAULT_NB_MAX;
+      }
+      /* This call ignores all its parameters but nr, currently */
+      get_auto_increment(variables->auto_increment_offset,
+                         variables->auto_increment_increment,
+                         nb_desired_values, &nr,
+                         &nb_reserved_values);
+      if (nr == ~(ulonglong) 0)
+        result= 1;                                // Mark failure
+      
+      /*
+        That rounding below should not be needed when all engines actually
+        respect offset and increment in get_auto_increment(). But they don't
+        so we still do it. Wonder if for the not-first-in-index we should do
+        it. Hope that this rounding didn't push us out of the interval; even
+        if it did we cannot do anything about it (calling the engine again
+        will not help as we inserted no row).
+      */
+      nr= compute_next_insert_id(nr-1, variables);
+    }
+    
+    if (table->s->next_number_key_offset == 0)
+    {
+      /* We must defer the appending until "nr" has been possibly truncated */
+      append= TRUE;
+    }
+    else
+    {
+      /*
+        For such auto_increment there is no notion of interval, just a
+        singleton. The interval is not even stored in
+        thd->auto_inc_interval_for_cur_row, so we are sure to call the engine
+        for next row.
+      */
+      DBUG_PRINT("info",("auto_increment: special not-first-in-index"));
+    }
   }
 
   DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
 
-  /* Mark that we should clear next_insert_id before next stmt */
-  thd->clear_next_insert_id= 1;
-
-  if (!table->next_number_field->store((longlong) nr, TRUE))
-    thd->insert_id((ulonglong) nr);
-  else
-    thd->insert_id(table->next_number_field->val_int());
-
-  /*
-    We can't set next_insert_id if the auto-increment key is not the
-    first key part, as there is no guarantee that the first parts will be in
-    sequence
-  */
-  if (!table->s->next_number_key_offset)
+  if (unlikely(table->next_number_field->store((longlong) nr, TRUE)))
   {
     /*
-      Set next insert id to point to next auto-increment value to be able to
-      handle multi-row statements
-      This works even if auto_increment_increment > 1
+      field refused this value (overflow) and truncated it, use the result of
+      the truncation (which is going to be inserted); however we try to
+      decrease it to honour auto_increment_* variables.
+      That will shift the left bound of the reserved interval, we don't
+      bother shifting the right bound (anyway any other value from this
+      interval will cause a duplicate key).
     */
-    thd->next_insert_id= next_insert_id(nr, variables);
+    nr= prev_insert_id(table->next_number_field->val_int(), variables);
+    if (unlikely(table->next_number_field->store((longlong) nr, TRUE)))
+      nr= table->next_number_field->val_int();
   }
-  else
-    thd->next_insert_id= 0;
+  if (append)
+  {
+    auto_inc_interval_for_cur_row.replace(nr, nb_reserved_values,
+                                          variables->auto_increment_increment);
+    /* Row-based replication does not need to store intervals in binlog */
+    if (!thd->current_stmt_binlog_row_based)
+      result= result ||
+        thd->auto_inc_intervals_in_cur_stmt_for_binlog.append(auto_inc_interval_for_cur_row.minimum(),
+                                                              auto_inc_interval_for_cur_row.values(),
+                                                              variables->auto_increment_increment);
+  }
 
-  /* Mark that we generated a new value */
-  auto_increment_column_changed=1;
+  /*
+    Record this autogenerated value. If the caller then
+    succeeds to insert this value, it will call
+    record_first_successful_insert_id_in_cur_stmt()
+    which will set first_successful_insert_id_in_cur_stmt if it's not
+    already set.
+  */
+  insert_id_for_cur_row= nr;
+  /*
+    Set next insert id to point to next auto-increment value to be able to
+    handle multi-row statements.
+  */
+  set_next_insert_id(compute_next_insert_id(nr, variables));
+
   DBUG_RETURN(result);
-}
-
-/*
-  restore_auto_increment
-
-  In case of error on write, we restore the last used next_insert_id value
-  because the previous value was not used.
-*/
-
-void handler::restore_auto_increment()
-{
-  THD *thd= table->in_use;
-  if (thd->next_insert_id)
-    thd->next_insert_id= thd->prev_insert_id;
 }
 
 
@@ -1837,6 +1916,23 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
   *first_value= nr;
+}
+
+
+void handler::ha_release_auto_increment()
+{
+  release_auto_increment();
+  insert_id_for_cur_row= 0;
+  auto_inc_interval_for_cur_row.replace(0, 0, 0);
+  if (next_insert_id > 0)
+  {
+    next_insert_id= 0;
+    /*
+      this statement used forced auto_increment values if there were some,
+      wipe them away for other statements.
+    */
+    table->in_use->auto_inc_intervals_forced.empty();
+  }
 }
 
 
@@ -3369,10 +3465,13 @@ namespace
 int handler::ha_external_lock(THD *thd, int lock_type)
 {
   DBUG_ENTER("handler::ha_external_lock");
-  int error;
-  if (unlikely(error= external_lock(thd, lock_type)))
-    DBUG_RETURN(error);
-  DBUG_RETURN(0);
+  /*
+    Whether this is lock or unlock, this should be true, and is to verify that
+    if get_auto_increment() was called (thus may have reserved intervals or
+    taken a table lock), ha_release_auto_increment() was too.
+  */
+  DBUG_ASSERT(next_insert_id == 0);
+  DBUG_RETURN(external_lock(thd, lock_type));
 }
 
 

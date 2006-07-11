@@ -142,11 +142,8 @@ create temporary table t4 (f int);
 create table t5 (f int);
 sync_with_master;
 # find dumper's $id
-source include/get_binlog_dump_thread_id.inc;
-insert into t4 values (1);
-# a hint how to do that in 5.1
---replace_result $id "`select id from information_schema.processlist where command='Binlog Dump'`"
-eval kill $id; # to stimulate reconnection by slave w/o timeout
+select id from information_schema.processlist where command='Binlog Dump' into @id;
+kill @id; # to stimulate reconnection by slave w/o timeout
 insert into t5 select * from t4;
 save_master_pos;
 
@@ -170,7 +167,7 @@ create temporary table t101 (id int);
 create temporary table t102 (id int);
 set @@session.pseudo_thread_id=200;
 create temporary table t201 (id int);
-#create temporary table `t``201` (id int);
+create temporary table `t``201` (id int);
 # emulate internal temp table not to come to binlog
 create temporary table `#sql_not_user_table202` (id int);
 set @@session.pseudo_thread_id=300;
@@ -203,4 +200,4 @@ select * from t1;
 connection master; 
 drop table t1;
 
-# End of 5.0 tests
+# End of 5.1 tests
