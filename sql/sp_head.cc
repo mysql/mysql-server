@@ -1661,6 +1661,16 @@ sp_head::restore_lex(THD *thd)
   oldlex->next_state= sublex->next_state;
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+  /*
+    If this substatement needs row-based, the entire routine does too (we
+    cannot switch from statement-based to row-based only for this
+    substatement).
+  */
+  if (sublex->binlog_row_based_if_mixed)
+    m_flags|= BINLOG_ROW_BASED_IF_MIXED;
+#endif
+
   /*
     Add routines which are used by statement to respective set for
     this routine.

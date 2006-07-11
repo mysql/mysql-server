@@ -208,8 +208,12 @@ THD::THD()
 #endif /*HAVE_ROW_BASED_REPLICATION*/
    global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
-   last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
+   arg_of_last_insert_id_function(FALSE),
+   first_successful_insert_id_in_prev_stmt(0),
+   first_successful_insert_id_in_prev_stmt_for_binlog(0),
+   first_successful_insert_id_in_cur_stmt(0),
    in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
+   stmt_depends_on_first_successful_insert_id_in_prev_stmt(FALSE),
    spcont(NULL)
 {
   stmt_arena= this;
@@ -224,7 +228,6 @@ THD::THD()
   killed= NOT_KILLED;
   db_length= col_access=0;
   query_error= tmp_table_used= 0;
-  next_insert_id=last_insert_id=0;
   hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;
@@ -628,11 +631,14 @@ bool THD::store_globals()
 
 void THD::cleanup_after_query()
 {
-  if (clear_next_insert_id)
+  if (first_successful_insert_id_in_cur_stmt > 0)
   {
-    clear_next_insert_id= 0;
-    next_insert_id= 0;
+    /* set what LAST_INSERT_ID() will return */
+    first_successful_insert_id_in_prev_stmt= 
+      first_successful_insert_id_in_cur_stmt;
+    first_successful_insert_id_in_cur_stmt= 0;
   }
+  arg_of_last_insert_id_function= 0;
   /* Free Items that were created during this execution */
   free_items();
   /* Reset where. */
@@ -2139,18 +2145,16 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->in_sub_stmt=     in_sub_stmt;
   backup->no_send_ok=      net.no_send_ok;
   backup->enable_slow_log= enable_slow_log;
-  backup->last_insert_id=  last_insert_id;
-  backup->next_insert_id=  next_insert_id;
-  backup->current_insert_id=  current_insert_id;
-  backup->insert_id_used=  insert_id_used;
-  backup->last_insert_id_used=  last_insert_id_used;
-  backup->clear_next_insert_id= clear_next_insert_id;
   backup->limit_found_rows= limit_found_rows;
   backup->examined_row_count= examined_row_count;
   backup->sent_row_count=   sent_row_count;
   backup->cuted_fields=     cuted_fields;
   backup->client_capabilities= client_capabilities;
   backup->savepoints= transaction.savepoints;
+  backup->first_successful_insert_id_in_prev_stmt= 
+    first_successful_insert_id_in_prev_stmt;
+  backup->first_successful_insert_id_in_cur_stmt= 
+    first_successful_insert_id_in_cur_stmt;
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !current_stmt_binlog_row_based)
@@ -2160,12 +2164,11 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   /* Disable result sets */
   client_capabilities &= ~CLIENT_MULTI_RESULTS;
   in_sub_stmt|= new_state;
-  next_insert_id= 0;
-  insert_id_used= 0;
   examined_row_count= 0;
   sent_row_count= 0;
   cuted_fields= 0;
   transaction.savepoints= 0;
+  first_successful_insert_id_in_cur_stmt= 0;
 
   /* Surpress OK packets in case if we will execute statements */
   net.no_send_ok= TRUE;
@@ -2193,12 +2196,10 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   in_sub_stmt=      backup->in_sub_stmt;
   net.no_send_ok=   backup->no_send_ok;
   enable_slow_log=  backup->enable_slow_log;
-  last_insert_id=   backup->last_insert_id;
-  next_insert_id=   backup->next_insert_id;
-  current_insert_id= backup->current_insert_id;
-  insert_id_used=   backup->insert_id_used;
-  last_insert_id_used= backup->last_insert_id_used;
-  clear_next_insert_id= backup->clear_next_insert_id;
+  first_successful_insert_id_in_prev_stmt= 
+    backup->first_successful_insert_id_in_prev_stmt;
+  first_successful_insert_id_in_cur_stmt= 
+    backup->first_successful_insert_id_in_cur_stmt;
   limit_found_rows= backup->limit_found_rows;
   sent_row_count=   backup->sent_row_count;
   client_capabilities= backup->client_capabilities;
@@ -2712,6 +2713,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
                       bool is_trans, bool suppress_use)
 {
   DBUG_ENTER("THD::binlog_query");
+  DBUG_PRINT("enter", ("qtype=%d, query='%s'", qtype, query));
   DBUG_ASSERT(query && mysql_bin_log.is_open());
 
   switch (qtype) {
@@ -2775,6 +2777,28 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
   case THD::QUERY_TYPE_COUNT:
   default:
     DBUG_ASSERT(0 <= qtype && qtype < QUERY_TYPE_COUNT);
+  }
+  DBUG_RETURN(0);
+}
+
+bool Discrete_intervals_list::append(ulonglong start, ulonglong val,
+                                 ulonglong incr)
+{
+  DBUG_ENTER("Discrete_intervals_list::append");
+  /* first, see if this can be merged with previous */
+  if ((head == NULL) || tail->merge_if_contiguous(start, val, incr))
+  {
+    /* it cannot, so need to add a new interval */
+    Discrete_interval *new_interval= new Discrete_interval(start, val, incr);
+    if (unlikely(new_interval == NULL)) // out of memory
+      DBUG_RETURN(1);
+    DBUG_PRINT("info",("adding new auto_increment interval"));
+    if (head == NULL)
+      head= current= new_interval;
+    else
+      tail->next= new_interval;
+    tail= new_interval;
+    elements++;
   }
   DBUG_RETURN(0);
 }

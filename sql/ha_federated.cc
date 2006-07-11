@@ -630,7 +630,8 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   DBUG_PRINT("info", ("String: '%.*s'", table->s->connect_string.length, 
                       table->s->connect_string.str));
   share->scheme= my_strndup(table->s->connect_string.str,
-                            table->s->connect_string.length, MYF(0));
+                            table->s->connect_string.length,
+                            MYF(0));
 
   // Add a null for later termination of table name
   share->scheme[table->s->connect_string.length]= 0;
@@ -1708,14 +1709,15 @@ int ha_federated::write_row(byte *buf)
   This method ensures that last_insert_id() works properly. What it simply does
   is calls last_insert_id() on the foreign database immediately after insert
   (if the table has an auto_increment field) and sets the insert id via
-  thd->insert_id(ID) (as well as storing thd->prev_insert_id)
+  thd->insert_id(ID)).
 */
 void ha_federated::update_auto_increment(void)
 {
   THD *thd= current_thd;
   DBUG_ENTER("ha_federated::update_auto_increment");
 
-  thd->insert_id(mysql->last_used_con->insert_id);
+  thd->first_successful_insert_id_in_cur_stmt= 
+    mysql->last_used_con->insert_id;
   DBUG_PRINT("info",("last_insert_id %d", stats.auto_increment_value));
 
   DBUG_VOID_RETURN;

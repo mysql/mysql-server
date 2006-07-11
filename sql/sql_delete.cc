@@ -986,12 +986,12 @@ trunc_by_del:
   thd->options&= ~(ulong) (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT);
   ha_enable_transaction(thd, FALSE);
   mysql_init_select(thd->lex);
-#ifdef HAVE_ROW_BASED_REPLICATION
+  bool save_binlog_row_based= thd->current_stmt_binlog_row_based;
   thd->clear_current_stmt_binlog_row_based();
-#endif
   error= mysql_delete(thd, table_list, (COND*) 0, (SQL_LIST*) 0,
                       HA_POS_ERROR, LL(0), TRUE);
   ha_enable_transaction(thd, TRUE);
   thd->options= save_options;
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(error);
 }
