@@ -16,7 +16,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-class sp_name;
 class Event_basic;
 class Event_db_repository;
 class Event_job_data;
@@ -57,31 +56,28 @@ public:
   void
   drop_schema_events(THD *thd, LEX_STRING schema);
 
-  uint
-  events_count();
-
   static bool
   check_system_tables(THD *thd);
 
   void
   recalculate_activation_times(THD *thd);
 
-  Event_job_data *
-  get_top_for_execution_if_time(THD *thd, time_t now, struct timespec *abstime);
-
+  bool
+  get_top_for_execution_if_time(THD *thd, time_t now, Event_job_data **job_data,
+                                struct timespec *abstime);
   bool
   dump_internal_status(THD *thd);
 
 protected:
   Event_queue_element *
-  find_event(LEX_STRING db, LEX_STRING name, bool remove_from_q);
+  find_n_remove_event(LEX_STRING db, LEX_STRING name);
 
   int
   load_events_from_db(THD *thd);
 
   void
   drop_matching_events(THD *thd, LEX_STRING pattern,
-                       bool (*)(LEX_STRING *, Event_basic *));
+                       bool (*)(LEX_STRING, Event_basic *));
 
   void
   empty_queue();
@@ -93,9 +89,12 @@ protected:
 
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;
+  uint mutex_last_attempted_lock_at_line;
   const char* mutex_last_locked_in_func;
   const char* mutex_last_unlocked_in_func;
+  const char* mutex_last_attempted_lock_in_func;
   bool mutex_queue_data_locked;
+  bool mutex_queue_data_attempting_lock;
 
   /* helper functions for working with mutexes & conditionals */
   void

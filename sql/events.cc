@@ -41,10 +41,6 @@
 
  - Add logging to file
 
-Warning:
- - For now parallel execution is not possible because the same sp_head cannot
-   be executed few times!!! There is still no lock attached to particular
-   event.
 */
 
 
@@ -84,18 +80,14 @@ ulong Events::opt_event_scheduler= 2;
 
   SYNOPSIS
     sortcmp_lex_string()
-
-      s - first LEX_STRING
-      t - second LEX_STRING
-      cs - charset
+      s   First LEX_STRING
+      t   Second LEX_STRING
+      cs  Charset
 
   RETURN VALUE
-   -1   - s < t
-    0   - s == t
-    1   - s > t
-
-  Notes
-    TIME.second_part is not considered during comparison
+   -1   s < t
+    0   s == t
+    1   s > t
 */
 
 int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
@@ -103,6 +95,7 @@ int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
  return cs->coll->strnncollsp(cs, (uchar *) s.str,s.length,
                                   (uchar *) t.str,t.length, 0);
 }
+
 
 /*
   Accessor for the singleton instance.
@@ -131,13 +124,13 @@ Events::get_instance()
 
   SYNOPSIS
     Events::reconstruct_interval_expression()
-      buf - preallocated String buffer to add the value to
-      interval - the interval type (for instance YEAR_MONTH)
-      expression - the value in the lowest entity
+      buf         Preallocated String buffer to add the value to
+      interval    The interval type (for instance YEAR_MONTH)
+      expression  The value in the lowest entity
 
   RETURN VALUE
-   0 - OK
-   1 - Error
+    0  OK
+    1  Error
 */
 
 int
@@ -256,7 +249,7 @@ common_1_lev_code:
 
 
 /*
-  Open mysql.event table for read
+  Opens mysql.event table with specified lock
 
   SYNOPSIS
     Events::open_event_table()
@@ -283,11 +276,10 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
 
   SYNOPSIS
     Events::create_event()
-      thd            THD
-      et             event's data
-      create_options Options specified when in the query. We are
-                     interested whether there is IF NOT EXISTS
-      rows_affected  How many rows were affected
+      thd            [in]  THD
+      et             [in]  Event's data from parsing stage
+      if_not_exists  [in]  Whether IF NOT EXISTS was specified in the DDL
+      rows_affected  [out] How many rows were affected
 
   RETURN VALUE
     0   OK
@@ -328,9 +320,10 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
 
   SYNOPSIS
     Events::update_event()
-      thd        THD
-      et         Event's data from parsing stage
-      new_name   Set in case of RENAME TO.
+      thd           [in]  THD
+      et            [in]  Event's data from parsing stage
+      rename_to     [in]  Set in case of RENAME TO.
+      rows_affected [out] How many rows were affected.
 
   RETURN VALUE
     0   OK
@@ -338,26 +331,25 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
 
   NOTES
     et contains data about dbname and event name. 
-    new_name is the new name of the event, if not null (this means
-    that RENAME TO was specified in the query)
+    new_name is the new name of the event, if not null this means
+    that RENAME TO was specified in the query
 */
 
 int
-Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
+Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to,
                      uint *rows_affected)
 {
   int ret;
   DBUG_ENTER("Events::update_event");
+  LEX_STRING *new_dbname= rename_to? &rename_to->m_db: NULL;
+  LEX_STRING *new_name= rename_to? &rename_to->m_name: NULL;
 
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
-  if (!(ret= db_repository->update_event(thd, parse_data, new_name)))
+  if (!(ret= db_repository->update_event(thd, parse_data, new_dbname, new_name)))
   {
-    if ((ret= event_queue->update_event(thd,
-                                        parse_data->dbname,
-                                        parse_data->name,
-                                        new_name? &new_name->m_db: NULL,
-                                        new_name? &new_name->m_name: NULL)))
+    if ((ret= event_queue->update_event(thd, parse_data->dbname,
+                                        parse_data->name, new_dbname, new_name)))
     {
       DBUG_ASSERT(ret == OP_LOAD_ERROR);
       my_error(ER_EVENT_MODIFY_QUEUE_ERROR, MYF(0));
@@ -374,16 +366,16 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *new_name,
 
   SYNOPSIS
     Events::drop_event()
-      thd             THD
-      dbname          Event's schema
-      name            Event's name
-      if_exists       When set and the event does not exist => warning onto
-                      the stack
-      rows_affected   Affected number of rows is returned heres
-      only_from_disk  Whether to remove the event from the queue too. In case
-                      of Event_job_data::drop() it's needed to do only disk
-                      drop because Event_queue will handle removal from memory
-                      queue.
+      thd             [in]  THD
+      dbname          [in]  Event's schema
+      name            [in]  Event's name
+      if_exists       [in]  When set and the event does not exist =>
+                            warning onto the stack
+      rows_affected   [out] Affected number of rows is returned here
+      only_from_disk  [in]  Whether to remove the event from the queue too.
+                            In case of Event_job_data::drop() it's needed to
+                            do only disk drop because Event_queue will handle
+                            removal from memory queue.
 
   RETURN VALUE
      0  OK
@@ -429,7 +421,7 @@ Events::drop_schema_events(THD *thd, char *db)
   int ret= 0;
   LEX_STRING db_lex= {db, strlen(db)};
   
-  DBUG_ENTER("evex_drop_db_events");  
+  DBUG_ENTER("Events::drop_schema_events");  
   DBUG_PRINT("enter", ("dropping events from %s", db));
 
   pthread_mutex_lock(&LOCK_event_metadata);
@@ -455,24 +447,22 @@ Events::drop_schema_events(THD *thd, char *db)
 */
 
 int
-Events::show_create_event(THD *thd, sp_name *spn)
+Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 {
+  CHARSET_INFO *scs= system_charset_info;
   int ret;
   Event_timed *et= new Event_timed();
-  Open_tables_state backup;
 
   DBUG_ENTER("Events::show_create_event");
-  DBUG_PRINT("enter", ("name: %*s", spn->m_name.length, spn->m_name.str));
+  DBUG_PRINT("enter", ("name: %s@%s", dbname.str, name.str));
 
-  thd->reset_n_backup_open_tables_state(&backup);
-  ret= db_repository->find_event(thd, spn->m_db, spn->m_name, et);
-  thd->restore_backup_open_tables_state(&backup);
+  ret= db_repository->load_named_event(thd, dbname, name, et);
 
   if (!ret)
   {
     Protocol *protocol= thd->protocol;
-    char show_str_buf[768];
-    String show_str(show_str_buf, sizeof(show_str_buf), system_charset_info);
+    char show_str_buf[10 * STRING_BUFFER_USUAL_SIZE];
+    String show_str(show_str_buf, sizeof(show_str_buf), scs);
     List<Item> field_list;
     byte *sql_mode_str;
     ulong sql_mode_len=0;
@@ -491,18 +481,19 @@ Events::show_create_event(THD *thd, sp_name *spn)
 
     field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
 
-    field_list.push_back(new Item_empty_string("Create Event",
-                                               show_str.length()));
+    field_list.
+        push_back(new Item_empty_string("Create Event", show_str.length()));
+
     if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
                                            Protocol::SEND_EOF))
       goto err;
 
     protocol->prepare_for_resend();
-    protocol->store(et->name.str, et->name.length, system_charset_info);
+    protocol->store(et->name.str, et->name.length, scs);
 
-    protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
+    protocol->store((char*) sql_mode_str, sql_mode_len, scs);
 
-    protocol->store(show_str.c_ptr(), show_str.length(), system_charset_info);
+    protocol->store(show_str.c_ptr(), show_str.length(), scs);
     ret= protocol->write();
     send_eof(thd);
   }
@@ -546,7 +537,8 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
       DBUG_RETURN(1);
     db= thd->lex->select_lex.db;
   }
-  DBUG_RETURN(get_instance()->db_repository->fill_schema_events(thd, tables, db));
+  DBUG_RETURN(get_instance()->db_repository->
+                                      fill_schema_events(thd, tables, db));
 }
 
 
@@ -561,14 +553,12 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 
   RETURN VALUE
     0  OK
-    1  Error
+    1  Error in case the scheduler can't start
 */
 
 int
 Events::init()
 {
-  int ret= 0;
-  Event_db_repository *db_repo;
   DBUG_ENTER("Events::init");
   event_queue->init_queue(db_repository, scheduler_ng);
   scheduler_ng->init_scheduler(event_queue);
@@ -653,7 +643,10 @@ Events::destroy_mutexes()
 
 
 /*
-  Proxy for Event_scheduler::dump_internal_status
+  Dumps the internal status of the scheduler and the memory cache
+  into a table with two columns - Name & Value. Different properties
+  which could be useful for debugging for instance deadlocks are
+  returned.
 
   SYNOPSIS
     Events::dump_internal_status()
@@ -733,8 +726,8 @@ Events::stop_execution_of_events()
     Events::is_started()
 
   RETURN VALUE
-    TRUE  Yes
-    FALSE No
+    TRUE   Yes
+    FALSE  No
 */
 
 bool

@@ -111,7 +111,15 @@ a
 800219
 drop event non_qualif_ev;
 drop table non_qualif;
+alter event non_existant rename to non_existant_too;
+ERROR HY000: Unknown event 'non_existant'
 set global event_scheduler = 2;
+create event existant on schedule at now() + interval 1 year do select 12;
+alter event non_existant rename to existant;
+ERROR HY000: Event 'existant' already exists
+alter event existant rename to events_test.existant;
+ERROR HY000: Same old and new event name
+drop event existant;
 create table t_event3 (a int, b float);
 drop event if exists event3;
 Warnings:

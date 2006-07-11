@@ -176,6 +176,7 @@ deinit_event_thread(THD *thd)
   my_thread_end();
 }
 
+
 /*
   Function that executes the scheduler,
 
@@ -271,7 +272,7 @@ event_worker_ng_thread(void *arg)
 
   thd->enable_slow_log= TRUE;
 
-  ret= event->execute(thd, thd->mem_root);
+  ret= event->execute(thd);
 
   evex_print_warnings(thd, event);
 
@@ -506,8 +507,13 @@ Event_scheduler_ng::run(THD *thd)
   {
     thd->end_time();
     /* Gets a minimized version */
-    job_data= queue->
-            get_top_for_execution_if_time(thd, thd->query_start(), &abstime);
+    if (queue->get_top_for_execution_if_time(thd, thd->query_start(),
+                                                   &job_data, &abstime))
+    {
+      sql_print_information("SCHEDULER: Serious error during getting next"
+                            " event to execute. Stopping.");
+      break;
+    }
 
     DBUG_PRINT("info", ("get_top returned job_data=0x%lx now=%d "
                         "abs_time.tv_sec=%d",

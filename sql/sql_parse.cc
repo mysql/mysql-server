@@ -3926,7 +3926,8 @@ end_with_restore_list:
     }
 
     if (lex->sql_command == SQLCOM_SHOW_CREATE_EVENT)
-      res= Events::get_instance()->show_create_event(thd, lex->spname);
+      res= Events::get_instance()->show_create_event(thd, lex->spname->m_db,
+                                                     lex->spname->m_name);
     else
     {
       uint affected= 1;
