@@ -2128,28 +2128,21 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     they have their own table list).
   */
   for (TABLE_LIST *tables= lex->query_tables;
-         tables;
-         tables= tables->next_global)
+       tables;
+       tables= tables->next_global)
   {
-    /*
-      Reset old pointers to TABLEs: they are not valid since the tables
-      were closed in the end of previous prepare or execute call.
-    */
-    tables->table= 0;
-    /* Reset is_schema_table_processed value(needed for I_S tables */
-    tables->is_schema_table_processed= FALSE;
-
-    TABLE_LIST *embedded; /* The table at the current level of nesting. */
-    TABLE_LIST *embedding= tables; /* The parent nested table reference. */
-    do
-    {
-      embedded= embedding;
-      if (embedded->prep_on_expr)
-        embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
-      embedding= embedded->embedding;
-    }
-    while (embedding &&
-           embedding->nested_join->join_list.head() == embedded);
+    tables->reinit_before_use(thd);
+  }
+  /*
+    Cleanup of the special case of DELETE t1, t2 FROM t1, t2, t3 ...
+    (multi-delete).  We do a full clean up, although at the moment all we
+    need to clean in the tables of MULTI-DELETE list is 'table' member.
+  */
+  for (TABLE_LIST *tables= (TABLE_LIST*) lex->auxilliary_table_list.first;
+       tables;
+       tables= tables->next)
+  {
+    tables->reinit_before_use(thd);
   }
   lex->current_select= &lex->select_lex;
 

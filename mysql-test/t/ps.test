@@ -490,17 +490,6 @@ execute stmt;
 deallocate prepare stmt;
 drop table t1, t2;
 
-#
-# Bug#6102 "Server crash with prepared statement and blank after
-# function name"
-# ensure that stored functions are cached when preparing a statement
-# before we open tables
-#
-create table t1 (a varchar(20)); 
-insert into t1 values ('foo'); 
---error 1305
-prepare stmt FROM 'SELECT char_length (a) FROM t1'; 
-drop table t1;
 
 #
 # Bug #6089: FOUND_ROWS returns wrong values when no table/view is used 
@@ -512,6 +501,473 @@ SELECT FOUND_ROWS();
 execute stmt;                                                                   
 SELECT FOUND_ROWS();                                                            
 deallocate prepare stmt;
+
+#
+# Bug#9096 "select doesn't return all matched records if prepared statements
+# is used"
+# The bug was is bad co-operation of the optimizer's algorithm which determines
+# which keys can be used to execute a query, constants propagation
+# part of the optimizer and parameter markers used by prepared statements.
+
+drop table if exists t1;
+create table t1 (c1 int(11) not null, c2 int(11) not null,
+             primary key  (c1,c2), key c2 (c2), key c1 (c1));
+
+insert into t1 values (200887, 860);
+insert into t1 values (200887, 200887);
+
+select * from t1 where (c1=200887 and c2=200887) or c2=860;
+
+prepare stmt from
+"select * from t1 where (c1=200887 and c2=200887) or c2=860";
+execute stmt;
+prepare stmt from
+"select * from t1 where (c1=200887 and c2=?) or c2=?";
+set @a=200887, @b=860;
+# this query did not return all matching rows
+execute stmt using @a, @b;
+deallocate prepare stmt;
+drop table t1;
+
+#
+# Bug#9777 - another occurrence of the problem stated in Bug#9096:
+# we can not compare basic constants by their names, because a placeholder
+# is a basic constant while his name is always '?'
+#
+
+create table t1 (
+   id bigint(20) not null auto_increment,
+   code varchar(20) character set utf8 collate utf8_bin not null default '',
+   company_name varchar(250) character set utf8 collate utf8_bin default null,
+   setup_mode tinyint(4) default null,
+   start_date datetime default null,
+   primary key  (id), unique key code (code)
+);
+
+create table t2 (
+   id bigint(20) not null auto_increment,
+   email varchar(250) character set utf8 collate utf8_bin default null,
+   name varchar(250) character set utf8 collate utf8_bin default null,
+   t1_id bigint(20) default null,
+   password varchar(250) character set utf8 collate utf8_bin default null,
+   primary_contact tinyint(4) not null default '0',
+   email_opt_in tinyint(4) not null default '1',
+   primary key  (id), unique key email (email), key t1_id (t1_id),
+   constraint t2_fk1 foreign key (t1_id) references t1 (id)
+);
+
+insert into t1 values
+(1, 'demo', 'demo s', 0, current_date()),
+(2, 'code2', 'name 2', 0, current_date()),
+(3, 'code3', 'name 3', 0, current_date());
+
+insert into t2 values
+(2, 'email1', 'name1', 3, 'password1', 0, 0),
+(3, 'email2', 'name1', 1, 'password2', 1, 0),
+(5, 'email3', 'name3', 2, 'password3', 0, 0);
+
+prepare stmt from 'select t2.id from t2, t1 where (t1.id=? and t2.t1_id=t1.id)';
+set @a=1;
+execute stmt using @a;
+
+select t2.id from t2, t1 where (t1.id=1 and t2.t1_id=t1.id);
+
+deallocate prepare stmt;
+drop table t1, t2;
+
+#
+# Bug#11060 "Server crashes on calling stored procedure with INSERT SELECT
+# UNION SELECT" aka "Server crashes on re-execution of prepared INSERT ...
+# SELECT with UNION".
+#
+create table t1 (id int);
+prepare stmt from "insert into t1 (id) select id from t1 union select id from t1";
+execute stmt;
+execute stmt;
+deallocate prepare stmt;
+drop table t1;
+
+#
+# Bug#11458 "Prepared statement with subselects return random data":
+# drop PARAM_TABLE_BIT from the list of tables used by a subquery
+#
+create table t1 (
+  id int(11) unsigned not null primary key auto_increment,
+  partner_id varchar(35) not null,
+  t1_status_id int(10) unsigned
+);
+
+insert into t1 values ("1", "partner1", "10"), ("2", "partner2", "10"),
+                      ("3", "partner3", "10"), ("4", "partner4", "10");
+
+create table t2 (
+  id int(11) unsigned not null default '0',
+  t1_line_id int(11) unsigned not null default '0',
+  article_id varchar(20),
+  sequence int(11) not null default '0',
+  primary key  (id,t1_line_id)
+);
+
+insert into t2 values ("1", "1", "sup", "0"), ("2", "1", "sup", "1"),
+                      ("2", "2", "sup", "2"), ("2", "3", "sup", "3"),
+                      ("2", "4", "imp", "4"), ("3", "1", "sup", "0"),
+                      ("4", "1", "sup", "0");
+
+create table t3 (
+  id int(11) not null default '0',
+  preceeding_id int(11) not null default '0',
+  primary key  (id,preceeding_id)
+);
+
+create table t4 (
+  user_id varchar(50) not null,
+  article_id varchar(20) not null,
+  primary key  (user_id,article_id)
+);
+
+insert into t4 values("nicke", "imp");
+
+prepare stmt from
+'select distinct t1.partner_id
+from t1 left join t3 on t1.id = t3.id
+     left join t1 pp on pp.id = t3.preceeding_id
+where
+  exists (
+    select *
+    from t2 as pl_inner
+    where pl_inner.id = t1.id
+    and pl_inner.sequence <= (
+      select min(sequence) from t2 pl_seqnr
+      where pl_seqnr.id = t1.id
+    )
+    and exists (
+      select * from t4
+      where t4.article_id = pl_inner.article_id
+      and t4.user_id = ?
+    )
+  )
+  and t1.id = ?
+group by t1.id
+having count(pp.id) = 0';
+set @user_id = 'nicke';
+set @id = '2';
+execute stmt using @user_id, @id;
+execute stmt using @user_id, @id;
+deallocate prepare stmt;
+drop table t1, t2, t3, t4;
+
+#
+# Bug#9379: make sure that Item::collation is reset when one sets
+# a parameter marker from a string variable.
+#
+prepare stmt from 'select ?=?';
+set @a='CHRISTINE           ';
+set @b='CHRISTINE';
+execute stmt using @a, @b;
+execute stmt using @a, @b;
+set @a=1, @b=2;
+execute stmt using @a, @b;
+set @a='CHRISTINE           ';
+set @b='CHRISTINE';
+execute stmt using @a, @b;
+deallocate prepare stmt;
+#
+# Bug#11299 "prepared statement makes wrong SQL syntax in binlog which stops
+# replication": check that errouneous queries with placeholders are not
+# allowed
+#
+create table t1 (a int);
+--error 1064
+prepare stmt from "select ??";
+--error 1064
+prepare stmt from "select ?FROM t1";
+--error 1064
+prepare stmt from "select FROM t1 WHERE?=1";
+--error 1064
+prepare stmt from "update t1 set a=a+?WHERE 1";
+--disable_ps_protocol
+--error 1064
+select ?;
+--error 1064
+select ??;
+--error 1064
+select ? from t1;
+--enable_ps_protocol
+drop table t1;
+#
+# Bug#9359 "Prepared statements take snapshot of system vars at PREPARE
+# time"
+#
+prepare stmt from "select @@time_zone";
+execute stmt;
+set @@time_zone:='Japan';
+execute stmt;
+prepare stmt from "select @@tx_isolation";
+execute stmt;
+set transaction isolation level read committed;
+execute stmt;
+set transaction isolation level serializable;
+execute stmt;
+set @@tx_isolation=default;
+execute stmt;
+deallocate prepare stmt;
+
+#
+# Bug#14410 "Crash in Enum or Set type in CREATE TABLE and PS/SP"
+#
+# Part I. Make sure the typelib for ENUM is created in the statement memory
+# root.
+prepare stmt from "create temporary table t1 (letter enum('','a','b','c')
+not null)";
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+# Part II. Make sure that when the default value is converted to UTF-8,
+# the new item is # created in the statement memory root.
+set names latin1;
+prepare stmt from "create table t1 (a enum('test') default 'test')
+ character set utf8";
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+execute stmt;
+drop table t1;
+# Cleanup
+set names default;
+deallocate prepare stmt;
+
+#
+# A test case for Bug#12734 "prepared statement may return incorrect result
+# set for a select SQL request": test that canDoTurboBM is reset for each
+# execute of a prepared statement.
+#
+create table t1 (
+  word_id mediumint(8) unsigned not null default '0',
+  formatted varchar(20) not null default ''
+);
+
+insert into t1 values
+  (80,'pendant'), (475,'pretendants'), (989,'tendances'),
+  (1019,'cependant'),(1022,'abondance'),(1205,'independants'),
+  (13,'lessiver'),(25,'lambiner'),(46,'situer'),(71,'terminer'),
+  (82,'decrocher');
+
+select count(*) from t1 where formatted like '%NDAN%';
+select count(*) from t1 where formatted like '%ER';
+prepare stmt from "select count(*) from t1 where formatted like ?";
+set @like="%NDAN%";
+execute stmt using @like;
+set @like="%ER";
+execute stmt using @like;
+set @like="%NDAN%";
+execute stmt using @like;
+set @like="%ER";
+execute stmt using @like;
+deallocate prepare stmt;
+drop table t1;
+
+
+#
+# Bug#13134 "Length of VARCHAR() utf8 column is increasing when table is
+# recreated with PS/SP"
+#
+
+prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
+execute stmt;
+--disable_warnings
+insert into t1 (a) values (repeat('a', 20));
+--enable_warnings
+select length(a) from t1;
+drop table t1;
+execute stmt;
+--disable_warnings
+insert into t1 (a) values (repeat('a', 20));
+--enable_warnings
+# Check that the data is truncated to the same length
+select length(a) from t1;
+drop table t1;
+deallocate prepare stmt;
+
+#
+# Bug#16248 "WHERE (col1,col2) IN ((?,?)) gives wrong results":
+# check that ROW implementation is reexecution-friendly.
+#
+create table t1 (col1 integer, col2 integer);
+insert into t1 values(100,100),(101,101),(102,102),(103,103);
+prepare stmt from 'select col1, col2 from t1 where (col1, col2) in ((?,?))';
+set @a=100, @b=100;
+execute stmt using @a,@b;
+set @a=101, @b=101;
+execute stmt using @a,@b;
+set @a=102, @b=102;
+execute stmt using @a,@b;
+set @a=102, @b=103;
+execute stmt using @a,@b;
+deallocate prepare stmt;
+drop table t1;
+
+#
+# Bug#16365 Prepared Statements: DoS with too many open statements
+# Check that the limit @@max_prpeared_stmt_count works.
+#
+# Save the old value
+set @old_max_prepared_stmt_count= @@max_prepared_stmt_count;
+#
+# Disable prepared statement protocol: in this test we set
+# @@max_prepared_stmt_count to 0 or 1 and would like to test the limit
+# manually.
+#
+--disable_ps_protocol
+#
+# A. Check that the new variables are present in SHOW VARIABLES list.
+#
+show variables like 'max_prepared_stmt_count';
+show variables like 'prepared_stmt_count';
+#
+# B. Check that the new variables are selectable.
+#
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+#
+# C. Check that max_prepared_stmt_count is settable (global only),
+#    whereas prepared_stmt_count is readonly.
+#
+set global max_prepared_stmt_count=-1;
+select @@max_prepared_stmt_count;
+set global max_prepared_stmt_count=10000000000000000;
+select @@max_prepared_stmt_count;
+set global max_prepared_stmt_count=default;
+select @@max_prepared_stmt_count;
+--error 1229 # ER_GLOBAL_VARIABLE
+set @@max_prepared_stmt_count=1;
+--error 1229 # ER_GLOBAL_VARIABLE
+set max_prepared_stmt_count=1;
+--error 1229 # ER_GLOBAL_VARIABLE
+set local max_prepared_stmt_count=1;
+--error 1229 # ER_GLOBAL_VARIABLE
+set local prepared_stmt_count=0;
+--error 1229 # ER_GLOBAL_VARIABLE
+set @@prepared_stmt_count=0;
+--error 1232 # ER_WRONG_TYPE_FOR_VAR
+set global prepared_stmt_count=1;
+# set to a reasonable limit works
+set global max_prepared_stmt_count=1;
+select @@max_prepared_stmt_count;
+#
+# D. Check that the variables actually work.
+#
+set global max_prepared_stmt_count=0;
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+--error 1105 # ER_UNKNOWN_ERROR
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+set global max_prepared_stmt_count=1;
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+--error 1105 # ER_UNKNOWN_ERROR
+prepare stmt1 from "select 1";
+select @@prepared_stmt_count;
+deallocate prepare stmt;
+select @@prepared_stmt_count;
+#
+# E. Check that we can prepare a statement with the same name 
+# successfully, without hitting the limit.
+#
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+prepare stmt from "select 2";
+select @@prepared_stmt_count;
+#
+# F. We can set the max below the current count. In this case no new 
+# statements should be allowed to prepare.
+#
+select @@prepared_stmt_count, @@max_prepared_stmt_count;
+set global max_prepared_stmt_count=0;
+--error 1105 # ER_UNKNOWN_ERROR
+prepare stmt from "select 1";
+# Result: the old statement is deallocated, the new is not created.
+--error 1243 # ER_UNKNOWN_STMT_HANDLER
+execute stmt;
+select @@prepared_stmt_count;
+--error 1105 # ER_UNKNOWN_ERROR
+prepare stmt from "select 1";
+select @@prepared_stmt_count;
+#
+# G. Show that the variables are up to date even after a connection with all
+# statements in it was terminated.
+#
+set global max_prepared_stmt_count=3;
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+prepare stmt from "select 1";
+connect (con1,localhost,root,,);
+connection con1;
+prepare stmt from "select 2";
+prepare stmt1 from "select 3";
+--error 1105 # ER_UNKNOWN_ERROR
+prepare stmt2 from "select 4";
+connection default;
+--error 1105 # ER_UNKNOWN_ERROR 
+prepare stmt2 from "select 4";
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+disconnect con1;
+connection default;
+# Wait for the connection to die: deal with a possible race
+deallocate prepare stmt;
+let $count= `select @@prepared_stmt_count`;
+if ($count)
+{
+--sleep 2
+  let $count= `select @@prepared_stmt_count`;
+}
+select @@max_prepared_stmt_count, @@prepared_stmt_count;
+#
+# Restore the old value.
+#
+set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
+--enable_ps_protocol
+
+#
+# Bug#19399 "Stored Procedures 'Lost Connection' when dropping/creating
+#            tables"
+# Check that multi-delete tables are also cleaned up before re-execution.
+# 
+--disable_warnings
+drop table if exists t1;
+create temporary table if not exists t1 (a1 int);
+--enable_warnings
+# exact delete syntax is essential
+prepare stmt from "delete t1 from t1 where (cast(a1/3 as unsigned) * 3) = a1";
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+# the server crashed on  the next statement without the fix
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+# the problem was in memory corruption: repeat the test just in case
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+deallocate prepare stmt;
+
+--echo End of 4.1 tests
+############################# 5.0 tests start ################################
+#
+#
+# Bug#6102 "Server crash with prepared statement and blank after
+# function name"
+# ensure that stored functions are cached when preparing a statement
+# before we open tables
+#
+create table t1 (a varchar(20)); 
+insert into t1 values ('foo'); 
+--error 1305
+prepare stmt FROM 'SELECT char_length (a) FROM t1'; 
+drop table t1;
 
 #
 # Bug#8115: equality propagation and prepared statements
@@ -593,79 +1049,6 @@ drop procedure p1|
 drop table t1|
 delimiter ;|
 
-#
-# Bug#9096 "select doesn't return all matched records if prepared statements
-# is used"
-# The bug was is bad co-operation of the optimizer's algorithm which determines
-# which keys can be used to execute a query, constants propagation
-# part of the optimizer and parameter markers used by prepared statements.
-
-drop table if exists t1;
-create table t1 (c1 int(11) not null, c2 int(11) not null,
-             primary key  (c1,c2), key c2 (c2), key c1 (c1));
-
-insert into t1 values (200887, 860);
-insert into t1 values (200887, 200887);
-
-select * from t1 where (c1=200887 and c2=200887) or c2=860;
-
-prepare stmt from
-"select * from t1 where (c1=200887 and c2=200887) or c2=860";
-execute stmt;
-prepare stmt from
-"select * from t1 where (c1=200887 and c2=?) or c2=?";
-set @a=200887, @b=860;
-# this query did not return all matching rows
-execute stmt using @a, @b;
-deallocate prepare stmt;
-
-drop table t1;
-
-#
-# Bug#9777 - another occurrence of the problem stated in Bug#9096:
-# we can not compare basic constants by their names, because a placeholder
-# is a basic constant while his name is always '?'
-#
-
-create table t1 (
-   id bigint(20) not null auto_increment,
-   code varchar(20) character set utf8 collate utf8_bin not null default '',
-   company_name varchar(250) character set utf8 collate utf8_bin default null,
-   setup_mode tinyint(4) default null,
-   start_date datetime default null,
-   primary key  (id), unique key code (code)
-);
-
-create table t2 (
-   id bigint(20) not null auto_increment,
-   email varchar(250) character set utf8 collate utf8_bin default null,
-   name varchar(250) character set utf8 collate utf8_bin default null,
-   t1_id bigint(20) default null,
-   password varchar(250) character set utf8 collate utf8_bin default null,
-   primary_contact tinyint(4) not null default '0',
-   email_opt_in tinyint(4) not null default '1',
-   primary key  (id), unique key email (email), key t1_id (t1_id),
-   constraint t2_fk1 foreign key (t1_id) references t1 (id)
-);
-
-insert into t1 values
-(1, 'demo', 'demo s', 0, current_date()),
-(2, 'code2', 'name 2', 0, current_date()),
-(3, 'code3', 'name 3', 0, current_date());
-
-insert into t2 values
-(2, 'email1', 'name1', 3, 'password1', 0, 0),
-(3, 'email2', 'name1', 1, 'password2', 1, 0),
-(5, 'email3', 'name3', 2, 'password3', 0, 0);
-
-prepare stmt from 'select t2.id from t2, t1 where (t1.id=? and t2.t1_id=t1.id)';
-set @a=1;
-execute stmt using @a;
-
-select t2.id from t2, t1 where (t1.id=1 and t2.t1_id=t1.id);
-
-deallocate prepare stmt;
-drop table t1, t2;
 
 #
 # Bug#7306 LIMIT ?, ? and also WL#1785 " Prepared statements: implement
@@ -697,124 +1080,6 @@ drop table t1;
 deallocate prepare stmt;
 
 #
-# Bug#11060 "Server crashes on calling stored procedure with INSERT SELECT
-# UNION SELECT" aka "Server crashes on re-execution of prepared INSERT ...
-# SELECT with UNION".
-#
-create table t1 (id int);
-prepare stmt from "insert into t1 (id) select id from t1 union select id from t1";
-execute stmt;
-execute stmt;
-deallocate prepare stmt;
-drop table t1;
-#
-# Bug#11458 "Prepared statement with subselects return random data":
-# drop PARAM_TABLE_BIT from the list of tables used by a subquery
-#
-create table t1 (
-  id int(11) unsigned not null primary key auto_increment,
-  partner_id varchar(35) not null,
-  t1_status_id int(10) unsigned
-);
-
-insert into t1 values ("1", "partner1", "10"), ("2", "partner2", "10"),
-                      ("3", "partner3", "10"), ("4", "partner4", "10");
-
-create table t2 (
-  id int(11) unsigned not null default '0',
-  t1_line_id int(11) unsigned not null default '0',
-  article_id varchar(20),
-  sequence int(11) not null default '0',
-  primary key  (id,t1_line_id)
-);
-
-insert into t2 values ("1", "1", "sup", "0"), ("2", "1", "sup", "1"),
-                      ("2", "2", "sup", "2"), ("2", "3", "sup", "3"),
-                      ("2", "4", "imp", "4"), ("3", "1", "sup", "0"),
-                      ("4", "1", "sup", "0");
-
-create table t3 (
-  id int(11) not null default '0',
-  preceeding_id int(11) not null default '0',
-  primary key  (id,preceeding_id)
-);
-
-create table t4 (
-  user_id varchar(50) not null,
-  article_id varchar(20) not null,
-  primary key  (user_id,article_id)
-);
-
-insert into t4 values("nicke", "imp");
-
-prepare stmt from
-'select distinct t1.partner_id
-from t1 left join t3 on t1.id = t3.id
-     left join t1 pp on pp.id = t3.preceeding_id
-where
-  exists (
-    select *
-    from t2 as pl_inner
-    where pl_inner.id = t1.id
-    and pl_inner.sequence <= (
-      select min(sequence) from t2 pl_seqnr
-      where pl_seqnr.id = t1.id
-    )
-    and exists (
-      select * from t4
-      where t4.article_id = pl_inner.article_id
-      and t4.user_id = ?
-    )
-  )
-  and t1.id = ?
-group by t1.id
-having count(pp.id) = 0';
-set @user_id = 'nicke';
-set @id = '2';
-execute stmt using @user_id, @id;
-execute stmt using @user_id, @id;
-deallocate prepare stmt;
-drop table t1, t2, t3, t4;
-#
-# Bug#9379: make sure that Item::collation is reset when one sets
-# a parameter marker from a string variable.
-#
-prepare stmt from 'select ?=?';
-set @a='CHRISTINE           ';
-set @b='CHRISTINE';
-execute stmt using @a, @b;
-execute stmt using @a, @b;
-set @a=1, @b=2;
-execute stmt using @a, @b;
-set @a='CHRISTINE           ';
-set @b='CHRISTINE';
-execute stmt using @a, @b;
-deallocate prepare stmt;
-#
-# Bug#11299 "prepared statement makes wrong SQL syntax in binlog which stops
-# replication": check that errouneous queries with placeholders are not
-# allowed
-#
-create table t1 (a int);
---error 1064
-prepare stmt from "select ??";
---error 1064
-prepare stmt from "select ?FROM t1";
---error 1064
-prepare stmt from "select FROM t1 WHERE?=1";
---error 1064
-prepare stmt from "update t1 set a=a+?WHERE 1";
---disable_ps_protocol
---error 1064
-select ?;
---error 1064
-select ??;
---error 1064
-select ? from t1;
---enable_ps_protocol
-drop table t1;
-
-#
 # Bug#12651
 # (Crash on a PS including a subquery which is a select from a simple view)
 #
@@ -829,241 +1094,7 @@ DROP VIEW b12651_V1;
 DROP TABLE b12651_T1, b12651_T2;
 DEALLOCATE PREPARE b12651;
 
-#
-# Bug#9359 "Prepared statements take snapshot of system vars at PREPARE
-# time"
-#
-prepare stmt from "select @@time_zone";
-execute stmt;
-set @@time_zone:='Japan';
-execute stmt;
-prepare stmt from "select @@tx_isolation";
-execute stmt;
-set transaction isolation level read committed;
-execute stmt;
-set transaction isolation level serializable;
-execute stmt;
-set @@tx_isolation=default;
-execute stmt;
-deallocate prepare stmt;
 
-#
-# Bug#14410 "Crash in Enum or Set type in CREATE TABLE and PS/SP"
-#
-# Part I. Make sure the typelib for ENUM is created in the statement memory
-# root.
-prepare stmt from "create temporary table t1 (letter enum('','a','b','c')
-not null)";
-execute stmt;
-drop table t1;
-execute stmt;
-drop table t1;
-execute stmt;
-drop table t1;
-# Part II. Make sure that when the default value is converted to UTF-8,
-# the new item is # created in the statement memory root.
-set names latin1;
-prepare stmt from "create table t1 (a enum('test') default 'test')
- character set utf8";
-execute stmt;
-drop table t1;
-execute stmt;
-drop table t1;
-execute stmt;
-drop table t1;
-# Cleanup
-set names default;
-deallocate prepare stmt;
-
-#
-# A test case for Bug#12734 "prepared statement may return incorrect result
-# set for a select SQL request": test that canDoTurboBM is reset for each
-# execute of a prepared statement.
-#
-create table t1 (
-  word_id mediumint(8) unsigned not null default '0',
-  formatted varchar(20) not null default ''
-);
-
-insert into t1 values
-  (80,'pendant'), (475,'pretendants'), (989,'tendances'),
-  (1019,'cependant'),(1022,'abondance'),(1205,'independants'),
-  (13,'lessiver'),(25,'lambiner'),(46,'situer'),(71,'terminer'),
-  (82,'decrocher');
-
-select count(*) from t1 where formatted like '%NDAN%';
-select count(*) from t1 where formatted like '%ER';
-prepare stmt from "select count(*) from t1 where formatted like ?";
-set @like="%NDAN%";
-execute stmt using @like;
-set @like="%ER";
-execute stmt using @like;
-set @like="%NDAN%";
-execute stmt using @like;
-set @like="%ER";
-execute stmt using @like;
-deallocate prepare stmt;
-drop table t1;
-
-#
-# Bug#13134 "Length of VARCHAR() utf8 column is increasing when table is
-# recreated with PS/SP"
-#
-
-prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
-execute stmt;
---disable_warnings
-insert into t1 (a) values (repeat('a', 20));
---enable_warnings
-select length(a) from t1;
-drop table t1;
-execute stmt;
---disable_warnings
-insert into t1 (a) values (repeat('a', 20));
---enable_warnings
-# Check that the data is truncated to the same length
-select length(a) from t1;
-drop table t1;
-deallocate prepare stmt;
-
-#
-# Bug#16248 "WHERE (col1,col2) IN ((?,?)) gives wrong results":
-# check that ROW implementation is reexecution-friendly.
-#
-create table t1 (col1 integer, col2 integer);
-insert into t1 values(100,100),(101,101),(102,102),(103,103);
-prepare stmt from 'select col1, col2 from t1 where (col1, col2) in ((?,?))';
-set @a=100, @b=100;
-execute stmt using @a,@b;
-set @a=101, @b=101;
-execute stmt using @a,@b;
-set @a=102, @b=102;
-execute stmt using @a,@b;
-set @a=102, @b=103;
-execute stmt using @a,@b;
-deallocate prepare stmt;
-drop table t1;
-
-#
-# Bug#16365 Prepared Statements: DoS with too many open statements
-# Check that the limit @@max_prpeared_stmt_count works.
-#
-# Save the old value
-set @old_max_prepared_stmt_count= @@max_prepared_stmt_count;
-#
-# Disable prepared statement protocol: in this test we set
-# @@max_prepared_stmt_count to 0 or 1 and would like to test the limit
-# manually.
-#
---disable_ps_protocol
-#
-# A. Check that the new variables are present in SHOW VARIABLES list.
-#
-show variables like 'max_prepared_stmt_count';
-show variables like 'prepared_stmt_count';
-#
-# B. Check that the new variables are selectable.
-#
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
-#
-# C. Check that max_prepared_stmt_count is settable (global only),
-#    whereas prepared_stmt_count is readonly.
-#
-set global max_prepared_stmt_count=-1;
-select @@max_prepared_stmt_count;
-set global max_prepared_stmt_count=10000000000000000;
-select @@max_prepared_stmt_count;
-set global max_prepared_stmt_count=default;
-select @@max_prepared_stmt_count;
---error ER_GLOBAL_VARIABLE
-set @@max_prepared_stmt_count=1;
---error ER_GLOBAL_VARIABLE
-set max_prepared_stmt_count=1;
---error ER_GLOBAL_VARIABLE
-set local max_prepared_stmt_count=1;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set local prepared_stmt_count=0;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-set @@prepared_stmt_count=0;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR 
-set global prepared_stmt_count=1;
-# set to a reasonable limit works
-set global max_prepared_stmt_count=1;
-select @@max_prepared_stmt_count;
-#
-# D. Check that the variables actually work.
-#
-set global max_prepared_stmt_count=0;
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
---error ER_MAX_PREPARED_STMT_COUNT_REACHED
-prepare stmt from "select 1";
-select @@prepared_stmt_count;
-set global max_prepared_stmt_count=1;
-prepare stmt from "select 1";
-select @@prepared_stmt_count;
---error ER_MAX_PREPARED_STMT_COUNT_REACHED
-prepare stmt1 from "select 1";
-select @@prepared_stmt_count;
-deallocate prepare stmt;
-select @@prepared_stmt_count;
-#
-# E. Check that we can prepare a statement with the same name 
-# successfully, without hitting the limit.
-#
-prepare stmt from "select 1";
-select @@prepared_stmt_count;
-prepare stmt from "select 2";
-select @@prepared_stmt_count;
-#
-# F. We can set the max below the current count. In this case no new 
-# statements should be allowed to prepare.
-#
-select @@prepared_stmt_count, @@max_prepared_stmt_count;
-set global max_prepared_stmt_count=0;
---error ER_MAX_PREPARED_STMT_COUNT_REACHED
-prepare stmt from "select 1";
-# Result: the old statement is deallocated, the new is not created.
---error 1243 # ER_UNKNOWN_STMT_HANDLER
-execute stmt;
-select @@prepared_stmt_count;
---error ER_MAX_PREPARED_STMT_COUNT_REACHED
-prepare stmt from "select 1";
-select @@prepared_stmt_count;
-#
-# G. Show that the variables are up to date even after a connection with all
-# statements in it was terminated.
-#
-set global max_prepared_stmt_count=3;
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
-prepare stmt from "select 1";
-connect (con1,localhost,root,,);
-connection con1;
-prepare stmt from "select 2";
-prepare stmt1 from "select 3";
---error ER_MAX_PREPARED_STMT_COUNT_REACHED
-prepare stmt2 from "select 4";
-connection default;
---error ER_MAX_PREPARED_STMT_COUNT_REACHED
-prepare stmt2 from "select 4";
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
-disconnect con1;
-connection default;
-# Wait for the connection to die: deal with a possible race
-deallocate prepare stmt;
-let $count= `select @@prepared_stmt_count`;
-if ($count)
-{
---sleep 2
-  let $count= `select @@prepared_stmt_count`;
-}
-select @@max_prepared_stmt_count, @@prepared_stmt_count;
-#
-# Restore the old value.
-#
-set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
---enable_ps_protocol
-
-# End of 4.1 tests
 
 #
 # Bug #14956: ROW_COUNT() returns incorrect result after EXECUTE of prepared
