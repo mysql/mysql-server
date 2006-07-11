@@ -126,6 +126,7 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->param_list.empty();
   lex->view_list.empty();
   lex->prepared_stmt_params.empty();
+  lex->auxilliary_table_list.empty();
   lex->unit.next= lex->unit.master=
     lex->unit.link_next= lex->unit.return_to= 0;
   lex->unit.prev= lex->unit.link_prev= 0;
