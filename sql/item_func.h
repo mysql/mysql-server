@@ -138,7 +138,10 @@ public:
   {
     return (null_value=args[0]->get_time(ltime));
   }
-  bool is_null() { (void) val_int(); return null_value; }
+  bool is_null() { 
+    (void) val_int();  /* Discard result. It sets null_value as side-effect. */ 
+    return null_value; 
+  }
   friend class udf_handler;
   Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg);
