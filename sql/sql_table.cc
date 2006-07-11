@@ -3237,9 +3237,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   DBUG_PRINT("info", ("old type: %d  new type: %d", old_db_type, new_db_type));
   if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED) ||
-      ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED) ||
-      (old_db_type != new_db_type &&
-       ha_check_storage_engine_flag(new_db_type, HTON_ALTER_CANNOT_CREATE)))
+      ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
   {
     DBUG_PRINT("info", ("doesn't support alter"));
     my_error(ER_ILLEGAL_HA, MYF(0), table_name);
