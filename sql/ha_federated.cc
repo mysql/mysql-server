@@ -124,11 +124,6 @@
 
     ha_federated::write_row
 
-    <for every field/column>
-    Field::quote_data
-    Field::quote_data
-    </for every field/column>
-
     ha_federated::reset
 
     (UPDATE)
@@ -138,19 +133,9 @@
     ha_federated::index_init
     ha_federated::index_read
     ha_federated::index_read_idx
-    Field::quote_data
     ha_federated::rnd_next
     ha_federated::convert_row_to_internal_format
     ha_federated::update_row
-
-    <quote 3 cols, new and old data>
-    Field::quote_data
-    Field::quote_data
-    Field::quote_data
-    Field::quote_data
-    Field::quote_data
-    Field::quote_data
-    </quote 3 cols, new and old data>
 
     ha_federated::extra
     ha_federated::extra
@@ -1151,7 +1136,7 @@ bool ha_federated::create_where_from_key(String *to,
       Field *field= key_part->field;
       uint store_length= key_part->store_length;
       uint part_length= min(store_length, length);
-      needs_quotes= field->needs_quotes();
+      needs_quotes= 1;
       DBUG_DUMP("key, start of loop", (char *) ptr, length);
 
       if (key_part->null_bit)
@@ -1641,20 +1626,21 @@ int ha_federated::write_row(byte *buf)
       */
       has_fields= TRUE;
 
-      if ((*field)->is_null())
-        insert_field_value_string.append(FEDERATED_NULL);
-      else
-      {
-        (*field)->val_str(&insert_field_value_string);
-        /* quote these fields if they require it */
-        (*field)->quote_data(&insert_field_value_string);
-      }
       /* append the field name */
       insert_string.append((*field)->field_name);
 
-      /* append the value */
-      values_string.append(insert_field_value_string);
-      insert_field_value_string.length(0);
+      /* append the field value */
+      if ((*field)->is_null())
+        values_string.append(FEDERATED_NULL);
+      else
+      {
+        (*field)->val_str(&insert_field_value_string);
+        values_string.append('\'');
+        insert_field_value_string.print(&values_string);
+        values_string.append('\'');
+
+        insert_field_value_string.length(0);
+      }
 
       /* append commas between both fields and fieldnames */
       /*
@@ -1861,8 +1847,9 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     {
       /* otherwise = */
       (*field)->val_str(&field_value);
-      (*field)->quote_data(&field_value);
-      update_string.append(field_value);
+      update_string.append('\'');
+      field_value.print(&update_string);
+      update_string.append('\'');
       field_value.length(0);
     }
 
@@ -1873,8 +1860,9 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
       where_string.append(FEDERATED_EQ);
       (*field)->val_str(&field_value,
                         (char*) (old_data + (*field)->offset()));
-      (*field)->quote_data(&field_value);
-      where_string.append(field_value);
+      where_string.append('\'');
+      field_value.print(&where_string);
+      where_string.append('\'');
       field_value.length(0);
     }
 
@@ -1944,17 +1932,17 @@ int ha_federated::delete_row(const byte *buf)
 
     if (cur_field->is_null())
     {
-      delete_string.append(FEDERATED_IS);
-      data_string.append(FEDERATED_NULL);
+      delete_string.append(FEDERATED_ISNULL);
     }
     else
     {
       delete_string.append(FEDERATED_EQ);
       cur_field->val_str(&data_string);
-      cur_field->quote_data(&data_string);
+      delete_string.append('\'');
+      data_string.print(&delete_string);
+      delete_string.append('\'');
     }
 
-    delete_string.append(data_string);
     delete_string.append(FEDERATED_AND);
   }
   delete_string.length(delete_string.length()-5); // Remove trailing AND
