@@ -19,7 +19,7 @@
 #include "event_data_objects.h"
 #include "event_db_repository.h"
 #include "event_queue.h"
-#include "event_scheduler_ng.h"
+#include "event_scheduler.h"
 #include "sp_head.h"
 
 /*
@@ -560,15 +560,15 @@ int
 Events::init()
 {
   DBUG_ENTER("Events::init");
-  event_queue->init_queue(db_repository, scheduler_ng);
-  scheduler_ng->init_scheduler(event_queue);
+  event_queue->init_queue(db_repository, scheduler);
+  scheduler->init_scheduler(event_queue);
 
   /* it should be an assignment! */
   if (opt_event_scheduler)
   {
     DBUG_ASSERT(opt_event_scheduler == 1 || opt_event_scheduler == 2);
     if (opt_event_scheduler == 1)
-      DBUG_RETURN(scheduler_ng->start());
+      DBUG_RETURN(scheduler->start());
   }
 
   DBUG_RETURN(0);
@@ -590,8 +590,8 @@ Events::deinit()
 {
   DBUG_ENTER("Events::deinit");
 
-  scheduler_ng->stop();
-  scheduler_ng->deinit_scheduler();
+  scheduler->stop();
+  scheduler->deinit_scheduler();
 
   event_queue->deinit_queue();
 
@@ -617,8 +617,8 @@ Events::init_mutexes()
   event_queue= new Event_queue;
   event_queue->init_mutexes();
 
-  scheduler_ng= new Event_scheduler_ng();
-  scheduler_ng->init_mutexes();
+  scheduler= new Event_scheduler();
+  scheduler->init_mutexes();
 }
 
 
@@ -633,9 +633,9 @@ void
 Events::destroy_mutexes()
 {
   event_queue->deinit_mutexes();
-  scheduler_ng->deinit_mutexes();
+  scheduler->deinit_mutexes();
 
-  delete scheduler_ng;
+  delete scheduler;
   delete db_repository;
 
   pthread_mutex_destroy(&LOCK_event_metadata);
@@ -670,7 +670,7 @@ Events::dump_internal_status(THD *thd)
                                          Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  if (scheduler_ng->dump_internal_status(thd) ||
+  if (scheduler->dump_internal_status(thd) ||
       event_queue->dump_internal_status(thd))
     DBUG_RETURN(TRUE);
 
@@ -694,7 +694,7 @@ bool
 Events::start_execution_of_events()
 {
   DBUG_ENTER("Events::start_execution_of_events");
-  DBUG_RETURN(scheduler_ng->start());
+  DBUG_RETURN(scheduler->start());
 }
 
 
@@ -715,7 +715,7 @@ bool
 Events::stop_execution_of_events()
 {
   DBUG_ENTER("Events::stop_execution_of_events");
-  DBUG_RETURN(scheduler_ng->stop());
+  DBUG_RETURN(scheduler->stop());
 }
 
 
@@ -734,5 +734,5 @@ bool
 Events::is_started()
 {
   DBUG_ENTER("Events::is_started");
-  DBUG_RETURN(scheduler_ng->get_state() == Event_scheduler_ng::RUNNING);
+  DBUG_RETURN(scheduler->get_state() == Event_scheduler::RUNNING);
 }

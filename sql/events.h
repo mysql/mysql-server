@@ -21,7 +21,7 @@ class Event_parse_data;
 class Event_db_repository;
 class Event_queue;
 class Event_queue_element;
-class Event_scheduler_ng;
+class Event_scheduler;
 
 /* Return codes */
 enum enum_events_error_code
@@ -117,7 +117,7 @@ private:
   static Events singleton;
 
   Event_queue         *event_queue;
-  Event_scheduler_ng  *scheduler_ng;
+  Event_scheduler  *scheduler;
   Event_db_repository *db_repository;
 
   pthread_mutex_t LOCK_event_metadata;  

@@ -22,7 +22,7 @@ class Event_job_data;
 class Event_queue_element;
 
 class THD;
-class Event_scheduler_ng;
+class Event_scheduler;
 
 class Event_queue
 {
@@ -36,7 +36,7 @@ public:
   deinit_mutexes();
   
   bool
-  init_queue(Event_db_repository *db_repo, Event_scheduler_ng *sched);
+  init_queue(Event_db_repository *db_repo, Event_scheduler *sched);
   
   void
   deinit_queue();
@@ -109,7 +109,7 @@ protected:
   void
   dbug_dump_queue(time_t now);
 
-  Event_scheduler_ng *scheduler;
+  Event_scheduler *scheduler;
 
   /* The sorted queue with the Event_job_data objects */
   QUEUE queue;
