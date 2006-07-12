@@ -1733,6 +1733,19 @@ id	val
 2	0
 drop table t1;
 drop table t1;
+create table t1 (a longblob not null);
+create table t1
+(a longblob not null) engine=federated
+connection='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+insert into t1 values (repeat('a',5000));
+select length(a) from t1;
+length(a)
+5000
+select length(a) from t1;
+length(a)
+5000
+drop table t1;
+drop table t1;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
