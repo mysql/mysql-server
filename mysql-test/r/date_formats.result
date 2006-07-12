@@ -525,3 +525,9 @@ TIME_FORMAT("24:00:00", '%l %p')
 SELECT TIME_FORMAT("25:00:00", '%l %p');
 TIME_FORMAT("25:00:00", '%l %p')
 1 AM
+SELECT DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896);
+DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '%Y-%m-%d %H:%i:%s'
+"End of 4.1 tests"

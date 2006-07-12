@@ -289,7 +289,6 @@ drop table t1;
 select str_to_date( 1, NULL );
 select str_to_date( NULL, 1 );
 select str_to_date( 1, IF(1=1,NULL,NULL) );
-# End of 4.1 tests
 
 #
 # Bug#11326
@@ -312,3 +311,10 @@ SELECT TIME_FORMAT("12:00:00", '%l %p');
 SELECT TIME_FORMAT("23:00:00", '%l %p');
 SELECT TIME_FORMAT("24:00:00", '%l %p');
 SELECT TIME_FORMAT("25:00:00", '%l %p');
+
+#
+# Bug#20729:  Bad date_format() call makes mysql server crash
+#
+SELECT DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896);
+
+--echo "End of 4.1 tests"
