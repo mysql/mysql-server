@@ -432,16 +432,23 @@ bool Log_to_csv_event_handler::
     table->field[6]->set_notnull();
   }
 
-  if (thd->last_insert_id_used)
+  if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
   {
-    table->field[7]->store((longlong) thd->current_insert_id, TRUE);
+    table->field[7]->store((longlong)
+                           thd->first_successful_insert_id_in_prev_stmt_for_binlog, TRUE);
     table->field[7]->set_notnull();
   }
 
-  /* set value if we do an insert on autoincrement column */
-  if (thd->insert_id_used)
+  /*
+    Set value if we do an insert on autoincrement column. Note that for
+    some engines (those for which get_auto_increment() does not leave a
+    table lock until the statement ends), this is just the first value and
+    the next ones used may not be contiguous to it.
+  */
+  if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
   {
-    table->field[8]->store((longlong) thd->last_insert_id, TRUE);
+    table->field[8]->store((longlong)
+                           thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(), TRUE);
     table->field[8]->set_notnull();
   }
 
@@ -731,7 +738,6 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
   Security_context *sctx= thd->security_ctx;
   uint message_buff_len= 0, user_host_len= 0;
   longlong query_time= 0, lock_time= 0;
-  longlong last_insert_id= 0, insert_id= 0;
 
   /*
     Print the message to the buffer if we have slow log enabled
@@ -765,13 +771,6 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
       query_time= (longlong) (current_time - query_start_arg);
       lock_time= (longlong) (thd->time_after_lock - query_start_arg);
     }
-
-    if (thd->last_insert_id_used)
-      last_insert_id= (longlong) thd->current_insert_id;
-
-    /* set value if we do an insert on autoincrement column */
-    if (thd->insert_id_used)
-      insert_id= (longlong) thd->last_insert_id;
 
     if (!query)
     {
@@ -1931,18 +1930,22 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
         tmp_errno= errno;
       strmov(db,thd->db);
     }
-    if (thd->last_insert_id_used)
+    if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
     {
       end=strmov(end, ",last_insert_id=");
-      end=longlong10_to_str((longlong) thd->current_insert_id, end, -10);
+      end=longlong10_to_str((longlong)
+                            thd->first_successful_insert_id_in_prev_stmt_for_binlog,
+                            end, -10);
     }
     // Save value if we do an insert.
-    if (thd->insert_id_used)
+    if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
     {
       if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
       {
         end=strmov(end,",insert_id=");
-        end=longlong10_to_str((longlong) thd->last_insert_id, end, -10);
+        end=longlong10_to_str((longlong)
+                              thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(),
+                              end, -10);
       }
     }
 
@@ -3363,21 +3366,24 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     {
       if (!thd->current_stmt_binlog_row_based)
       {
-        if (thd->last_insert_id_used)
+        if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
         {
           Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
-                             thd->current_insert_id);
+                             thd->first_successful_insert_id_in_prev_stmt_for_binlog);
           if (e.write(file))
             goto err;
         }
-        if (thd->insert_id_used)
+        if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
         {
+          DBUG_PRINT("info",("number of auto_inc intervals: %lu",
+                             thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements()));
           /*
             If the auto_increment was second in a table's index (possible with
             MyISAM or BDB) (table->next_number_key_offset != 0), such event is
             in fact not necessary. We could avoid logging it.
           */
-          Intvar_log_event e(thd,(uchar) INSERT_ID_EVENT,thd->last_insert_id);
+          Intvar_log_event e(thd,(uchar) INSERT_ID_EVENT,
+                             thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum());
           if (e.write(file))
             goto err;
         }
@@ -3404,6 +3410,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
           }
         }
       }
+      /* Forget those values, for next binlogger: */
+      thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
+      thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     }
 
     /*

@@ -1,0 +1,29 @@
+
+#
+# Bug#20821: INSERT DELAYED fails to write some rows to binlog
+#
+
+--source include/master-slave.inc
+--source include/not_embedded.inc
+--source include/not_windows.inc
+
+--disable_warnings
+CREATE SCHEMA IF NOT EXISTS mysqlslap;
+USE mysqlslap;
+--enable_warnings
+
+CREATE TABLE t1 (id INT, name VARCHAR(64));
+
+let $query = "INSERT DELAYED INTO t1 VALUES (1, 'Dr. No'), (2, 'From Russia With Love'), (3, 'Goldfinger'), (4, 'Thunderball'), (5, 'You Only Live Twice')";
+--exec $MYSQL_SLAP --silent --concurrency=5 --iterations=200 --query=$query --delimiter=";"
+
+--sleep 10
+
+SELECT COUNT(*) FROM mysqlslap.t1;
+sync_slave_with_master;
+SELECT COUNT(*) FROM mysqlslap.t1;
+
+connection master;
+DROP SCHEMA IF EXISTS mysqlslap;
+sync_slave_with_master;
+

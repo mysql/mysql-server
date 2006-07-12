@@ -1630,6 +1630,7 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
           sp->add_used_tables_to_table_list(thd, &lex->query_tables_last,
                                             rt->belong_to_view);
       }
+      sp->propagate_attributes(lex);
     }
     first= FALSE;
   }
@@ -1727,14 +1728,16 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
     {
       for (int j= 0; j < (int)TRG_ACTION_MAX; j++)
       {
-        if (triggers->bodies[i][j])
+        sp_head *trigger_body= triggers->bodies[i][j];
+        if (trigger_body)
         {
-          (void)triggers->bodies[i][j]->
-                add_used_tables_to_table_list(thd, &lex->query_tables_last,
-                                              table->belong_to_view);
+          (void)trigger_body->
+            add_used_tables_to_table_list(thd, &lex->query_tables_last,
+                                          table->belong_to_view);
           sp_update_stmt_used_routines(thd, lex,
-                                       &triggers->bodies[i][j]->m_sroutines,
+                                       &trigger_body->m_sroutines,
                                        table->belong_to_view);
+          trigger_body->propagate_attributes(lex);
         }
       }
     }

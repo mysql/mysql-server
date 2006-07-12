@@ -71,8 +71,8 @@ a
 250
 251
 400
+401
 1000
-1001
 ******* Select from Slave *************
 
 select * from t1 ORDER BY a;
@@ -83,8 +83,8 @@ a
 250
 251
 400
+401
 1000
-1001
 drop table t1;
 create table t1 (a int not null auto_increment, primary key (a)) engine=NDB;
 insert into t1 values (NULL),(5),(NULL),(NULL);
@@ -120,8 +120,6 @@ a
 502
 503
 600
-603
-604
 610
 611
 ******* Select from Slave *************
@@ -137,8 +135,6 @@ a
 502
 503
 600
-603
-604
 610
 611
 drop table t1;
