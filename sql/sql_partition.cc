@@ -525,6 +525,7 @@ static bool set_up_field_array(TABLE *table,
 }
 
 
+
 /*
   Create a field array including all fields of both the partitioning and the
   subpartitioning functions.
@@ -549,6 +550,7 @@ static bool create_full_part_field_array(TABLE *table,
                                          partition_info *part_info)
 {
   bool result= FALSE;
+  Field **ptr;
   DBUG_ENTER("create_full_part_field_array");
 
   if (!part_info->is_sub_partitioned())
@@ -558,7 +560,7 @@ static bool create_full_part_field_array(TABLE *table,
   }
   else
   {
-    Field **ptr, *field, **field_array;
+    Field *field, **field_array;
     uint no_part_fields=0, size_field_array;
     ptr= table->field;
     while ((field= *(ptr++)))
@@ -1369,6 +1371,38 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
   return part_id;
 }
 
+
+/*
+  Check that partition function do not contain any forbidden
+  character sets and collations.
+  SYNOPSIS
+    check_part_func_collation()
+    part_info                           Partition info
+    ptr                                 Array of Field pointers
+  RETURN VALUES
+    FALSE                               Success
+    TRUE                                Error
+*/
+
+static bool check_part_func_collation(int collation_allowed,
+                                      Field **ptr)
+{
+  Field *field;
+  while ((field= *(ptr++)))
+  {
+    if (field->result_type() == STRING_RESULT)
+    {
+      CHARSET_INFO *cs= ((Field_str*)field)->charset();
+      if (use_strnxfrm(cs) ||
+          (collation_allowed == PF_SAFE_BINARY_COLLATION &&
+          (!(cs->state & MY_CS_BINSORT))))
+        return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
 /*
   fix partition functions
 
@@ -1513,6 +1547,17 @@ bool fix_partition_func(THD *thd, TABLE *table,
       my_error(ER_PARTITION_FUNC_NOT_ALLOWED_ERROR, MYF(0), part_str);
       goto end;
     }
+  }
+  if (((part_info->pf_collation_allowed != PF_SAFE) &&
+        check_part_func_collation(part_info->pf_collation_allowed,
+                                  part_info->part_field_array)) ||
+      (part_info->is_sub_partitioned() &&
+       part_info->spf_collation_allowed != PF_SAFE &&
+       check_part_func_collation(part_info->spf_collation_allowed,
+                                 part_info->subpart_field_array)))
+  {
+    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+    goto end;
   }
   if (unlikely(create_full_part_field_array(table, part_info)))
     goto end;
@@ -4533,7 +4578,7 @@ the generated partition syntax in a correct manner.
         tab_part_info->use_default_no_subpartitions= FALSE;
       }
       if (tab_part_info->check_partition_info(thd, (handlerton**)NULL,
-                                              table->file, ULL(0)))
+                                              table->file, ULL(0), FALSE))
       {
         DBUG_RETURN(TRUE);
       }
