@@ -737,8 +737,6 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       }
       spf_collation_allowed= (char)part_expression_ok;
     }
-    else
-      multi_char_collation_allowed= TRUE;
     if (!pf_collation_allowed ||
         !spf_collation_allowed)
     {
