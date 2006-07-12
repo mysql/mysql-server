@@ -426,7 +426,9 @@ Item *create_func_unhex(Item* a)
 Item *create_func_uuid(void)
 {
   THD *thd= current_thd;
-  thd->lex->binlog_row_based_if_mixed= 1;
+#ifdef HAVE_ROW_BASED_REPLICATION
+  thd->lex->binlog_row_based_if_mixed= TRUE;
+#endif
   return new(thd->mem_root) Item_func_uuid();
 }
 

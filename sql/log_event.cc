@@ -1934,6 +1934,16 @@ end:
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
   close_thread_tables(thd);      
+  /*
+    As a disk space optimization, future masters will not log an event for
+    LAST_INSERT_ID() if that function returned 0 (and thus they will be able
+    to replace the THD::stmt_depends_on_first_successful_insert_id_in_prev_stmt
+    variable by (THD->first_successful_insert_id_in_prev_stmt > 0) ; with the
+    resetting below we are ready to support that.
+  */
+  thd->first_successful_insert_id_in_prev_stmt_for_binlog= 0;
+  thd->first_successful_insert_id_in_prev_stmt= 0;
+  thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
   /*
     If there was an error we stop. Otherwise we increment positions. Note that
@@ -3425,11 +3435,11 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 {
   switch (type) {
   case LAST_INSERT_ID_EVENT:
-    thd->last_insert_id_used = 1;
-    thd->last_insert_id = val;
+    thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 1;
+    thd->first_successful_insert_id_in_prev_stmt= val;
     break;
   case INSERT_ID_EVENT:
-    thd->next_insert_id = val;
+    thd->force_one_auto_inc_interval(val);
     break;
   }
   rli->inc_event_relay_log_pos();
@@ -5353,10 +5363,10 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
 
     /*
       lock_tables() reads the contents of thd->lex, so they must be
-      initialized, so we should call lex_start(); to be even safer, we
-      call mysql_init_query() which does a more complete set of inits.
+      initialized. Contrary to in Table_map_log_event::exec_event() we don't
+      call mysql_init_query() as that may reset the binlog format.
     */
-    mysql_init_query(thd, NULL, 0);
+    lex_start(thd, NULL, 0);
 
     while ((error= lock_tables(thd, rli->tables_to_lock,
                                rli->tables_to_lock_count, &need_reopen)))
@@ -5860,6 +5870,12 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
   else
   {
     /*
+      open_tables() reads the contents of thd->lex, so they must be
+      initialized, so we should call lex_start(); to be even safer, we
+      call mysql_init_query() which does a more complete set of inits.
+    */
+    mysql_init_query(thd, NULL, 0);
+    /*
       Check if the slave is set to use SBR.  If so, it should switch
       to using RBR until the end of the "statement", i.e., next
       STMT_END_F or next error.
@@ -5875,12 +5891,6 @@ int Table_map_log_event::exec_event(st_relay_log_info *rli)
       Note that for any table that should not be replicated, a filter is needed.
     */
     uint count;
-    /*
-      open_tables() reads the contents of thd->lex, so they must be
-      initialized, so we should call lex_start(); to be even safer, we
-      call mysql_init_query() which does a more complete set of inits.
-    */
-    mysql_init_query(thd, NULL, 0);
     if ((error= open_tables(thd, &table_list, &count, 0)))
     {
       if (thd->query_error || thd->is_fatal_error)

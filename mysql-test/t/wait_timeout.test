@@ -9,16 +9,20 @@
 # Connect with another connection and reset counters
 --disable_query_log
 connect (wait_con,localhost,root,,test,,);
-flush status; # Reset counters
 connection wait_con;
 set session wait_timeout=100;
 let $retries=300;
-let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
 set @aborted_clients= 0;
 --enable_query_log
 
 # Disable reconnect and do the query
 connection default;
+# If slow host (Valgrind...), we may have already timed out here.
+# So force a reconnect if necessary, using a dummy query. And issue a
+# 'flush status' to reset the 'aborted_clients' counter.
+--enable_reconnect
+select 0;
+flush status;
 --disable_reconnect
 select 1;
 
@@ -46,6 +50,9 @@ connection default;
 select 2;
 --enable_reconnect
 select 3;
+# Disconnect so that we will not be confused by a future abort from this
+# connection.
+disconnect default
 
 #
 # Do the same test as above on a TCP connection
@@ -56,7 +63,6 @@ select 3;
 connection wait_con;
 flush status; # Reset counters
 let $retries=300;
-let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
 set @aborted_clients= 0;
 --enable_query_log
 

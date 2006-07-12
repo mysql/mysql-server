@@ -1343,9 +1343,9 @@ bool sys_var_thd_binlog_format::is_readonly() const
     return 1;
   }
   /*
-    if in a stored function, it's too late to change mode
+    if in a stored function/trigger, it's too late to change mode
   */
-  if (thd->spcont && thd->prelocked_mode)
+  if (thd->in_sub_stmt)
   {
     my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return 1;    
@@ -2794,7 +2794,8 @@ byte *sys_var_timestamp::value_ptr(THD *thd, enum_var_type type,
 
 bool sys_var_last_insert_id::update(THD *thd, set_var *var)
 {
-  thd->insert_id(var->save_result.ulonglong_value);
+  thd->first_successful_insert_id_in_prev_stmt= 
+    var->save_result.ulonglong_value;
   return 0;
 }
 
@@ -2802,14 +2803,19 @@ bool sys_var_last_insert_id::update(THD *thd, set_var *var)
 byte *sys_var_last_insert_id::value_ptr(THD *thd, enum_var_type type,
 					LEX_STRING *base)
 {
-  thd->sys_var_tmp.long_value= (long) thd->insert_id();
-  return (byte*) &thd->last_insert_id;
+  /*
+    this tmp var makes it robust againt change of type of 
+    read_first_successful_insert_id_in_prev_stmt().
+  */
+  thd->sys_var_tmp.ulonglong_value= 
+    thd->read_first_successful_insert_id_in_prev_stmt();
+  return (byte*) &thd->sys_var_tmp.ulonglong_value;
 }
 
 
 bool sys_var_insert_id::update(THD *thd, set_var *var)
 {
-  thd->next_insert_id= var->save_result.ulonglong_value;
+  thd->force_one_auto_inc_interval(var->save_result.ulonglong_value);
   return 0;
 }
 
@@ -2817,7 +2823,9 @@ bool sys_var_insert_id::update(THD *thd, set_var *var)
 byte *sys_var_insert_id::value_ptr(THD *thd, enum_var_type type,
 				   LEX_STRING *base)
 {
-  return (byte*) &thd->current_insert_id;
+  thd->sys_var_tmp.ulonglong_value= 
+    thd->auto_inc_intervals_forced.minimum();
+  return (byte*) &thd->sys_var_tmp.ulonglong_value;
 }
 
 

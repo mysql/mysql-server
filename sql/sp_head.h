@@ -117,7 +117,8 @@ public:
     /* Is set if a procedure with COMMIT (implicit or explicit) | ROLLBACK */
     HAS_COMMIT_OR_ROLLBACK= 128,
     LOG_SLOW_STATEMENTS= 256,   // Used by events
-    LOG_GENERAL_LOG= 512        // Used by events
+    LOG_GENERAL_LOG= 512,        // Used by events
+    BINLOG_ROW_BASED_IF_MIXED= 1024
   };
 
   /* TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
@@ -341,6 +342,25 @@ public:
 #ifndef DBUG_OFF
   int show_routine_code(THD *thd);
 #endif
+
+  /*
+    This method is intended for attributes of a routine which need
+    to propagate upwards to the LEX of the caller (when a property of a
+    sp_head needs to "taint" the caller).
+  */
+  void propagate_attributes(LEX *lex)
+  {
+#ifdef HAVE_ROW_BASED_REPLICATION
+    /*
+      If this routine needs row-based binary logging, the entire top statement
+      too (we cannot switch from statement-based to row-based only for this
+      routine, as in statement-based the top-statement may be binlogged and
+      the substatements not).
+    */
+    if (m_flags & BINLOG_ROW_BASED_IF_MIXED)
+      lex->binlog_row_based_if_mixed= TRUE;
+#endif
+  }
 
 
 private:

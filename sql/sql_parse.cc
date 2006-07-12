@@ -818,6 +818,37 @@ static void reset_mqh(LEX_USER *lu, bool get_them= 0)
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
+void thd_init_client_charset(THD *thd, uint cs_number)
+{
+  /*
+   Use server character set and collation if
+   - opt_character_set_client_handshake is not set
+   - client has not specified a character set
+   - client character set is the same as the servers
+   - client character set doesn't exists in server
+  */
+  if (!opt_character_set_client_handshake ||
+      !(thd->variables.character_set_client= get_charset(cs_number, MYF(0))) ||
+      !my_strcasecmp(&my_charset_latin1,
+                     global_system_variables.character_set_client->name,
+                     thd->variables.character_set_client->name))
+  {
+    thd->variables.character_set_client=
+      global_system_variables.character_set_client;
+    thd->variables.collation_connection=
+      global_system_variables.collation_connection;
+    thd->variables.character_set_results=
+      global_system_variables.character_set_results;
+  }
+  else
+  {
+    thd->variables.character_set_results=
+      thd->variables.collation_connection= 
+      thd->variables.character_set_client;
+  }
+}
+
+
 /*
     Perform handshake, authorize client and update thd ACL variables.
   SYNOPSIS
@@ -953,33 +984,7 @@ static int check_connection(THD *thd)
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
-    /*
-      Use server character set and collation if
-      - opt_character_set_client_handshake is not set
-      - client has not specified a character set
-      - client character set is the same as the servers
-      - client character set doesn't exists in server
-    */
-    if (!opt_character_set_client_handshake ||
-        !(thd->variables.character_set_client=
-	  get_charset((uint) net->read_pos[8], MYF(0))) ||
-	!my_strcasecmp(&my_charset_latin1,
-		       global_system_variables.character_set_client->name,
-		       thd->variables.character_set_client->name))
-    {
-      thd->variables.character_set_client=
-	global_system_variables.character_set_client;
-      thd->variables.collation_connection=
-	global_system_variables.collation_connection;
-      thd->variables.character_set_results=
-	global_system_variables.character_set_results;
-    }
-    else
-    {
-      thd->variables.character_set_results=
-      thd->variables.collation_connection= 
-	thd->variables.character_set_client;
-    }
+    thd_init_client_charset(thd, (uint) net->read_pos[8]);
     thd->update_charset();
     end= (char*) net->read_pos+32;
   }
@@ -2558,11 +2563,6 @@ mysql_execute_command(THD *thd)
   statistic_increment(thd->status_var.com_stat[lex->sql_command],
                       &LOCK_status);
 
-#ifdef HAVE_ROW_BASED_REPLICATION
-  if (lex->binlog_row_based_if_mixed)
-    thd->set_current_stmt_binlog_row_based_if_mixed();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
-
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
     if ((res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
@@ -3112,6 +3112,12 @@ end_with_restore_list:
 	}
       }
       /* Don't yet allow changing of symlinks with ALTER TABLE */
+      if (lex->create_info.data_file_name)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                     "DATA DIRECTORY option ignored");
+      if (lex->create_info.index_file_name)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                     "INDEX DIRECTORY option ignored");
       lex->create_info.data_file_name=lex->create_info.index_file_name=0;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
@@ -3382,8 +3388,9 @@ end_with_restore_list:
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
+    /* do not show last insert ID if VIEW does not have auto_inc */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->first_successful_insert_id_in_cur_stmt= 0;
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -3443,9 +3450,9 @@ end_with_restore_list:
       /* revert changes for SP */
       select_lex->table_list.first= (byte*) first_table;
     }
-
+    /* do not show last insert ID if VIEW does not have auto_inc */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->first_successful_insert_id_in_cur_stmt= 0;
     break;
   }
   case SQLCOM_TRUNCATE:
@@ -5189,9 +5196,6 @@ end:
   */
   if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
     reset_one_shot_variables(thd);
-#ifdef HAVE_ROW_BASED_REPLICATION
-  thd->reset_current_stmt_binlog_row_based();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
   /*
     The return value for ROW_COUNT() is "implementation dependent" if the
@@ -5823,6 +5827,7 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
  DESCRIPTION
    This needs to be called before execution of every statement
    (prepared or conventional).
+   It is not called by substatements of routines.
 
  TODO
    Make it a method of THD and align its name with the rest of
@@ -5833,9 +5838,12 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
 void mysql_reset_thd_for_next_command(THD *thd)
 {
   DBUG_ENTER("mysql_reset_thd_for_next_command");
+  DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
   thd->free_list= 0;
   thd->select_number= 1;
-  thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
+  thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+  thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 
+    thd->query_start_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
@@ -5862,6 +5870,12 @@ void mysql_reset_thd_for_next_command(THD *thd)
     thd->rand_used= 0;
     thd->sent_row_count= thd->examined_row_count= 0;
   }
+  /*
+    Because we come here only for start of top-statements, binlog format is
+    constant inside a complex statement (using stored functions) etc.
+  */
+  thd->reset_current_stmt_binlog_row_based();
+
   DBUG_VOID_RETURN;
 }
 
