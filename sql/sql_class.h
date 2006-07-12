@@ -1201,6 +1201,7 @@ public:
   */
   inline void force_one_auto_inc_interval(ulonglong next_id)
   {
+    auto_inc_intervals_forced.empty(); // in case of multiple SET INSERT_ID
     auto_inc_intervals_forced.append(next_id, ULONGLONG_MAX, 0);
   }
 
@@ -1571,6 +1572,7 @@ public:
 #else
     current_stmt_binlog_row_based= FALSE;
 #endif
+  }
 
   /*
     Initialize the current database from a NULL-terminated string with length
