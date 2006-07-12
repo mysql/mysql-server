@@ -2473,9 +2473,7 @@ int ha_ndbcluster::write_row(byte *record)
 
       m_skip_auto_increment= FALSE;
       update_auto_increment();
-      /* Ensure that handler is always called for auto_increment values */
-      thd->next_insert_id= 0;
-      m_skip_auto_increment= !auto_increment_column_changed;
+      m_skip_auto_increment= (insert_id_for_cur_row == 0);
     }
   }
 
@@ -4785,7 +4783,7 @@ int ha_ndbcluster::create(const char *name,
         expect it to be there.
       */
       if (!ndbcluster_create_event(ndb, m_table, event_name.c_ptr(), share,
-                                   share && do_event_op /* push warning */))
+                                   share && do_event_op ? 2 : 1/* push warning */))
       {
         if (ndb_extra_logging)
           sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
@@ -5179,7 +5177,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
 
     if (!ndbcluster_create_event(ndb, ndbtab, event_name.c_ptr(), share,
-                                 share && ndb_binlog_running /* push warning */))
+                                 share && ndb_binlog_running ? 2 : 1/* push warning */))
     {
       if (ndb_extra_logging)
         sql_print_information("NDB Binlog: RENAME Event: %s",

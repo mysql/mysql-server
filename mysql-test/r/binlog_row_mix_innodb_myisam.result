@@ -8,12 +8,12 @@ insert into t2 select * from t1;
 commit;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	#	use `test`; BEGIN
-master-bin.000001	170	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	209	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	243	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	282	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 delete from t1;
 delete from t2;
 reset master;
@@ -25,12 +25,12 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	#	use `test`; BEGIN
-master-bin.000001	170	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	209	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	243	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	282	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	316	Query	1	#	use `test`; ROLLBACK
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; ROLLBACK
 delete from t1;
 delete from t2;
 reset master;
@@ -45,16 +45,16 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 commit;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	#	use `test`; BEGIN
-master-bin.000001	170	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	209	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	243	Query	1	#	use `test`; savepoint my_savepoint
-master-bin.000001	328	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	367	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	401	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	440	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	479	Query	1	#	use `test`; rollback to savepoint my_savepoint
-master-bin.000001	576	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 delete from t1;
 delete from t2;
 reset master;
@@ -74,18 +74,18 @@ a
 7
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	#	use `test`; BEGIN
-master-bin.000001	170	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	209	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	243	Query	1	#	use `test`; savepoint my_savepoint
-master-bin.000001	328	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	367	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	401	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	440	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	479	Query	1	#	use `test`; rollback to savepoint my_savepoint
-master-bin.000001	576	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	615	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	649	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 delete from t1;
 delete from t2;
 reset master;
@@ -100,12 +100,12 @@ get_lock("a",10)
 1
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	#	use `test`; BEGIN
-master-bin.000001	170	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	209	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	243	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	282	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	316	Query	1	#	use `test`; ROLLBACK
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; ROLLBACK
 delete from t1;
 delete from t2;
 reset master;
@@ -113,11 +113,11 @@ insert into t1 values(9);
 insert into t2 select * from t1;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	141	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	175	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	202	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	241	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 delete from t1;
 delete from t2;
 reset master;
@@ -126,24 +126,24 @@ begin;
 insert into t2 select * from t1;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	141	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	175	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	202	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	241	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 insert into t1 values(11);
 commit;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	141	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	175	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	202	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	241	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	275	Query	1	#	use `test`; BEGIN
-master-bin.000001	343	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	382	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	416	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 alter table t2 engine=INNODB;
 delete from t1;
 delete from t2;
@@ -154,12 +154,12 @@ insert into t2 select * from t1;
 commit;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	#	use `test`; BEGIN
-master-bin.000001	170	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	209	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	243	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	282	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 delete from t1;
 delete from t2;
 reset master;
@@ -181,10 +181,10 @@ rollback to savepoint my_savepoint;
 commit;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	#	use `test`; BEGIN
-master-bin.000001	170	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	209	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	243	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 delete from t1;
 delete from t2;
 reset master;
@@ -202,12 +202,12 @@ a
 18
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	#	use `test`; BEGIN
-master-bin.000001	170	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	209	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	243	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	282	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 delete from t1;
 delete from t2;
 alter table t2 engine=MyISAM;
@@ -254,28 +254,28 @@ get_lock("lock1",60)
 1
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Query	1	#	use `test`; BEGIN
-master-bin.000001	170	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	209	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	243	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	282	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	316	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	343	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	382	Delete_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	421	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	448	Query	1	#	use `test`; alter table t2 engine=MyISAM
-master-bin.000001	539	Table_map	1	#	table_id: # (test.t1)
-master-bin.000001	578	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	612	Xid	1	#	COMMIT /* xid= */
-master-bin.000001	639	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	678	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	712	Query	1	#	use `test`; drop table t1,t2
-master-bin.000001	791	Query	1	#	use `test`; create table t0 (n int)
-master-bin.000001	877	Table_map	1	#	table_id: # (test.t0)
-master-bin.000001	916	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	950	Table_map	1	#	table_id: # (test.t0)
-master-bin.000001	989	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	1023	Query	1	#	use `test`; create table t2 (n int) engine=innodb
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Delete_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; alter table t2 engine=MyISAM
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; drop table t1,t2
+master-bin.000001	#	Query	1	#	use `test`; create table t0 (n int)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t0)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t0)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; create table t2 (n int) engine=innodb
 do release_lock("lock1");
 drop table t0,t2;
 set autocommit=0;
@@ -357,83 +357,55 @@ a	b
 DROP TABLE t1,t2;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	102	Table_map	1	142	table_id: # (test.t1)
-master-bin.000001	142	Write_rows	1	189	table_id: # flags: STMT_END_F
-master-bin.000001	189	Query	1	257	use `test`; BEGIN
-master-bin.000001	257	Query	1	182	use `test`; CREATE TABLE `t2` (
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE `t2` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB
-master-bin.000001	439	Table_map	1	222	table_id: # (test.t2)
-master-bin.000001	479	Write_rows	1	260	table_id: # flags: STMT_END_F
-master-bin.000001	517	Xid	1	544	COMMIT /* xid= */
-master-bin.000001	544	Query	1	630	use `test`; DROP TABLE if exists t2
-master-bin.000001	630	Table_map	1	670	table_id: # (test.t1)
-master-bin.000001	670	Write_rows	1	708	table_id: # flags: STMT_END_F
-master-bin.000001	708	Query	1	776	use `test`; BEGIN
-master-bin.000001	776	Query	1	192	use `test`; CREATE TEMPORARY TABLE `t2` (
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; DROP TABLE if exists t2
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; DROP TABLE IF EXISTS t2
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE `t2` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB
-master-bin.000001	968	Query	1	1039	use `test`; ROLLBACK
-master-bin.000001	1039	Query	1	1125	use `test`; DROP TABLE IF EXISTS t2
-master-bin.000001	1125	Query	1	1249	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
-master-bin.000001	1249	Table_map	1	1289	table_id: # (test.t1)
-master-bin.000001	1289	Write_rows	1	1327	table_id: # flags: STMT_END_F
-master-bin.000001	1327	Query	1	1395	use `test`; BEGIN
-master-bin.000001	1395	Query	1	182	use `test`; CREATE TABLE `t2` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB
-master-bin.000001	1577	Table_map	1	222	table_id: # (test.t2)
-master-bin.000001	1617	Write_rows	1	260	table_id: # flags: STMT_END_F
-master-bin.000001	1655	Xid	1	1682	COMMIT /* xid= */
-master-bin.000001	1682	Query	1	80	use `test`; TRUNCATE table t2
-master-bin.000001	1762	Xid	1	1789	COMMIT /* xid= */
-master-bin.000001	1789	Table_map	1	1829	table_id: # (test.t1)
-master-bin.000001	1829	Write_rows	1	1867	table_id: # flags: STMT_END_F
-master-bin.000001	1867	Query	1	1935	use `test`; BEGIN
-master-bin.000001	1935	Table_map	1	40	table_id: # (test.t2)
-master-bin.000001	1975	Write_rows	1	78	table_id: # flags: STMT_END_F
-master-bin.000001	2013	Xid	1	2040	COMMIT /* xid= */
-master-bin.000001	2040	Query	1	2116	use `test`; DROP TABLE t2
-master-bin.000001	2116	Table_map	1	2156	table_id: # (test.t1)
-master-bin.000001	2156	Write_rows	1	2194	table_id: # flags: STMT_END_F
-master-bin.000001	2194	Table_map	1	2234	table_id: # (test.t1)
-master-bin.000001	2234	Write_rows	1	2272	table_id: # flags: STMT_END_F
-master-bin.000001	2272	Table_map	1	2312	table_id: # (test.t1)
-master-bin.000001	2312	Write_rows	1	2350	table_id: # flags: STMT_END_F
-master-bin.000001	2350	Query	1	2418	use `test`; BEGIN
-master-bin.000001	2418	Query	1	192	use `test`; CREATE TEMPORARY TABLE `t2` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB
-master-bin.000001	2610	Xid	1	2637	COMMIT /* xid= */
-master-bin.000001	2637	Table_map	1	2677	table_id: # (test.t1)
-master-bin.000001	2677	Write_rows	1	2715	table_id: # flags: STMT_END_F
-master-bin.000001	2715	Query	1	2783	use `test`; BEGIN
-master-bin.000001	2783	Query	1	192	use `test`; CREATE TEMPORARY TABLE `t2` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB
-master-bin.000001	2975	Query	1	3046	use `test`; ROLLBACK
-master-bin.000001	3046	Query	1	80	use `test`; TRUNCATE table t2
-master-bin.000001	3126	Xid	1	3153	COMMIT /* xid= */
-master-bin.000001	3153	Table_map	1	3193	table_id: # (test.t1)
-master-bin.000001	3193	Write_rows	1	3231	table_id: # flags: STMT_END_F
-master-bin.000001	3231	Query	1	3299	use `test`; BEGIN
-master-bin.000001	3299	Query	1	192	use `test`; CREATE TEMPORARY TABLE `t2` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB
-master-bin.000001	3491	Xid	1	3518	COMMIT /* xid= */
-master-bin.000001	3518	Query	1	3622	use `test`; DROP TABLE `t1` /* generated by server */
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; TRUNCATE table t2
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Query	1	#	use `test`; DROP TABLE t2
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; TRUNCATE table t2
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; DROP TABLE `t1` /* generated by server */
 reset master;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;

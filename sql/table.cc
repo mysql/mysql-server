@@ -1456,7 +1456,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
             Create a new field for the key part that matches the index
           */
           field= key_part->field=field->new_field(&outparam->mem_root,
-                                                  outparam);
+                                                  outparam, 0);
           field->field_length= key_part->length;
         }
       }
