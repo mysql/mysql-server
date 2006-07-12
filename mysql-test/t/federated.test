@@ -1425,4 +1425,22 @@ drop table t1;
 connection master;
 drop table t1;
 
+#
+# Bug #17608: String literals lost during INSERT query on FEDERATED table
+#
+connection slave;
+create table t1 (a longblob not null);
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table t1
+  (a longblob not null) engine=federated
+  connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
+insert into t1 values (repeat('a',5000));
+select length(a) from t1;
+connection slave;
+select length(a) from t1;
+drop table t1;
+connection master;
+drop table t1;
+
 source include/federated_cleanup.inc;
