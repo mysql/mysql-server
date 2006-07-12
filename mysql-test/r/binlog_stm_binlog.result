@@ -145,3 +145,35 @@ master-bin.000001	#	Rotate	1	#	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002' from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	1	#	use `test`; drop table t1
+reset master;
+create table t1 (id tinyint auto_increment primary key);
+set insert_id=128;
+insert into t1 values(null);
+Warnings:
+Warning	1264	Out of range value for column 'id' at row 1
+select * from t1;
+id
+127
+drop table t1;
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
+insert delayed into t1 values (207);
+insert delayed into t1 values (null);
+insert delayed into t1 values (300);
+select * from t1;
+a
+207
+208
+300
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (id tinyint auto_increment primary key)
+master-bin.000001	#	Intvar	1	#	INSERT_ID=127
+master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(null)
+master-bin.000001	#	Query	1	#	use `test`; drop table t1
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
+master-bin.000001	#	Query	1	#	use `test`; insert delayed into t1 values (207)
+master-bin.000001	#	Intvar	1	#	INSERT_ID=208
+master-bin.000001	#	Query	1	#	use `test`; insert delayed into t1 values (null)
+master-bin.000001	#	Query	1	#	use `test`; insert delayed into t1 values (300)
+drop table t1;

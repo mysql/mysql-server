@@ -183,7 +183,6 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
-  lex->binlog_row_based_if_mixed= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1625,6 +1624,9 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list.empty();
   sroutines_list_own_last= sroutines_list.next;
   sroutines_list_own_elements= 0;
+#ifdef HAVE_ROW_BASED_REPLICATION
+  binlog_row_based_if_mixed= FALSE;
+#endif
 }
 
 

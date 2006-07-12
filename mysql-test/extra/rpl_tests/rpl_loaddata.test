@@ -20,8 +20,11 @@ connection slave;
 reset master;
 connection master;
 
+select last_insert_id();
 create table t1(a int not null auto_increment, b int, primary key(a) );
 load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+# verify that LAST_INSERT_ID() is set by LOAD DATA INFILE
+select last_insert_id();
 
 create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
 load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;

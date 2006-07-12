@@ -501,13 +501,12 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     error=ha_autocommit_or_rollback(thd,error);
 
 err:
+  table->file->ha_release_auto_increment();
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  if (table != NULL)
-    table->file->release_auto_increment();
   thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }
@@ -643,14 +642,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->no_trans_update= no_trans_update;
    
     /*
-      If auto_increment values are used, save the first one
-       for LAST_INSERT_ID() and for the binary/update log.
-       We can't use insert_id() as we don't want to touch the
-       last_insert_id_used flag.
-    */
-    if (!id && thd->insert_id_used)
-      id= thd->last_insert_id;
-    /*
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
@@ -666,8 +657,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->row_count++;
 continue_loop:;
   }
-  if (id && !read_info.error)
-    thd->insert_id(id);			// For binary/update log
   DBUG_RETURN(test(read_info.error));
 }
 
@@ -811,14 +800,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (write_record(thd, table, &info))
       DBUG_RETURN(1);
     /*
-      If auto_increment values are used, save the first one
-       for LAST_INSERT_ID() and for the binary/update log.
-       We can't use insert_id() as we don't want to touch the
-       last_insert_id_used flag.
-    */
-    if (!id && thd->insert_id_used)
-      id= thd->last_insert_id;
-    /*
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
@@ -837,8 +818,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->row_count++;
 continue_loop:;
   }
-  if (id && !read_info.error)
-    thd->insert_id(id);			// For binary/update log
   DBUG_RETURN(test(read_info.error));
 }
 
