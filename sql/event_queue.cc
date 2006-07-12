@@ -18,7 +18,7 @@
 #include "event_queue.h"
 #include "event_data_objects.h"
 #include "event_db_repository.h"
-#include "event_scheduler_ng.h"
+#include "event_scheduler.h"
 
 
 #define EVENT_QUEUE_INITIAL_SIZE 30
@@ -123,7 +123,7 @@ Event_queue::deinit_mutexes()
 */
 
 bool
-Event_queue::init_queue(Event_db_repository *db_repo, Event_scheduler_ng *sched)
+Event_queue::init_queue(Event_db_repository *db_repo, Event_scheduler *sched)
 {
   int i= 0;
   bool ret= FALSE;
