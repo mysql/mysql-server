@@ -353,3 +353,18 @@ select row_count();
 row_count()
 1
 drop table t1;
+create table t1 (id int primary key auto_increment, data int, unique(data));
+insert ignore into t1 values(NULL,100),(NULL,110),(NULL,120);
+insert ignore into t1 values(NULL,10),(NULL,20),(NULL,110),(NULL,120),(NULL,100),(NULL,90);
+insert ignore into t1 values(NULL,130),(NULL,140),(500,110),(550,120),(450,100),(NULL,150);
+select * from t1 order by id;
+id	data
+1	100
+2	110
+3	120
+4	10
+5	20
+6	90
+7	130
+8	140
+9	150

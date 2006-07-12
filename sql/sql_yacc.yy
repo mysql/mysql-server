@@ -6403,7 +6403,7 @@ simple_expr:
               if (udf->type == UDFTYPE_AGGREGATE)
                 Select->in_sum_expr--;
 
-              Lex->binlog_row_based_if_mixed= 1;
+              Lex->binlog_row_based_if_mixed= TRUE;
 
               switch (udf->returns) {
               case STRING_RESULT:
