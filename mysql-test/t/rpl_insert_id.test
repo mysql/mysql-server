@@ -147,6 +147,69 @@ drop function bug15728;
 drop function bug15728_insert;
 drop table t1, t2;
 
+# test of BUG#20188 REPLACE or ON DUPLICATE KEY UPDATE in
+# auto_increment breaks binlog
+
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+
+# First, test that we do not call restore_auto_increment() too early
+# in write_record():
+set sql_log_bin=0;
+insert into t1 values(null,100);
+replace into t1 values(null,50),(null,100),(null,150);
+select * from t1 order by n;
+truncate table t1;
+set sql_log_bin=1;
+
+insert into t1 values(null,100);
+select * from t1 order by n;
+sync_slave_with_master;
+# make slave's table autoinc counter bigger
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+# check that slave's table content is identical to master
+select * from t1 order by n;
+# only the auto_inc counter differs.
+
+connection master;
+replace into t1 values(null,100),(null,350);
+select * from t1 order by n;
+sync_slave_with_master;
+select * from t1 order by n;
+
+# Same test as for REPLACE, but for ON DUPLICATE KEY UPDATE
+
+# We first check that if we update a row using a value larger than the
+# table's counter, the counter for next row is bigger than the
+# after-value of the updated row.
+connection master;
+insert into t1 values (NULL,400),(3,500),(NULL,600) on duplicate key UPDATE n=1000;
+select * from t1 order by n;
+sync_slave_with_master;
+select * from t1 order by n;
+
+# and now test for the bug:
+connection master;
+drop table t1;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+insert into t1 values(null,100);
+select * from t1 order by n;
+sync_slave_with_master;
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+select * from t1 order by n;
+
+connection master;
+insert into t1 values(null,100),(null,350) on duplicate key update n=2;
+select * from t1 order by n;
+sync_slave_with_master;
+select * from t1 order by n;
+
+connection master;
+drop table t1;
+
 # End of 5.0 tests
 
 sync_slave_with_master;
