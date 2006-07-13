@@ -747,7 +747,8 @@ bool Table_triggers_list::prepare_record1_accessors(TABLE *table)
       QQ: it is supposed that it is ok to use this function for field
       cloning...
     */
-    if (!(*old_fld= (*fld)->new_field(&table->mem_root, table)))
+    if (!(*old_fld= (*fld)->new_field(&table->mem_root, table,
+                                      table == (*fld)->table)))
       return 1;
     (*old_fld)->move_field((my_ptrdiff_t)(table->record[1] -
                                           table->record[0]));
@@ -1024,8 +1025,15 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
         }
 
         /*
-          Let us bind Item_trigger_field objects representing access to fields
-          in old/new versions of row in trigger to Field objects in table being
+          Gather all Item_trigger_field objects representing access to fields
+          in old/new versions of row in trigger into lists containing all such
+          objects for the triggers with same action and timing.
+        */
+        triggers->trigger_fields[lex.trg_chistics.event]
+                                [lex.trg_chistics.action_time]=
+          (Item_trigger_field *)(lex.trg_table_fields.first);
+        /*
+          Also let us bind these objects to Field objects in table being
           opened.
 
           We ignore errors here, because if even something is wrong we still
@@ -1532,6 +1540,39 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
   }
 
   return err_status;
+}
+
+
+/*
+  Mark fields of subject table which we read/set in its triggers as such.
+
+  SYNOPSIS
+    mark_fields_used()
+      thd    Current thread context
+      event  Type of event triggers for which we are going to inspect
+
+  DESCRIPTION
+    This method marks fields of subject table which are read/set in its
+    triggers as such (by setting Field::query_id equal to THD::query_id)
+    and thus informs handler that values for these fields should be
+    retrieved/stored during execution of statement.
+*/
+
+void Table_triggers_list::mark_fields_used(THD *thd, trg_event_type event)
+{
+  int action_time;
+  Item_trigger_field *trg_field;
+
+  for (action_time= 0; action_time < (int)TRG_ACTION_MAX; action_time++)
+  {
+    for (trg_field= trigger_fields[event][action_time]; trg_field;
+         trg_field= trg_field->next_trg_field)
+    {
+      /* We cannot mark fields which does not present in table. */
+      if (trg_field->field_idx != (uint)-1)
+        table->field[trg_field->field_idx]->query_id = thd->query_id;
+    }
+  }
 }
 
 

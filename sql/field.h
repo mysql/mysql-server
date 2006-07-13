@@ -211,7 +211,8 @@ public:
   */
   virtual bool can_be_compared_as_longlong() const { return FALSE; }
   virtual void free() {}
-  virtual Field *new_field(MEM_ROOT *root, struct st_table *new_table);
+  virtual Field *new_field(MEM_ROOT *root, struct st_table *new_table,
+                           bool keep_type);
   virtual Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                                char *new_ptr, uchar *new_null_ptr,
                                uint new_null_bit);
@@ -1033,7 +1034,7 @@ public:
   enum_field_types real_type() const { return FIELD_TYPE_STRING; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
-  Field *new_field(MEM_ROOT *root, struct st_table *new_table);
+  Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
 };
 
 
@@ -1105,7 +1106,7 @@ public:
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
-  Field *new_field(MEM_ROOT *root, struct st_table *new_table);
+  Field *new_field(MEM_ROOT *root, struct st_table *new_table, bool keep_type);
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                        char *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);

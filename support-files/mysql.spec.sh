@@ -342,7 +342,7 @@ then
   cp -fp config.log "$MYSQL_MAXCONFLOG_DEST"
 fi
 
-make -i test-force || true
+make -i test-force-pl || true
 
 # Save mysqld-max
 ./libtool --mode=execute cp sql/mysqld sql/mysqld-max
@@ -401,7 +401,7 @@ then
   cp -fp config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-make -i test-force || true
+make -i test-force-pl || true
 
 %install
 RBR=$RPM_BUILD_ROOT
@@ -740,6 +740,15 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon Jul 10 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Fix a typing error in the "make" target for the Perl script to run the tests.
+
+* Tue Jul 04 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Use the Perl script to run the tests, because it will automatically check
+  whether the server is configured with SSL.
+
 * Tue Jun 27 2006 Joerg Bruehe <joerg@mysql.com>
 
 - move "mysqldumpslow" from the client RPM to the server RPM (bug#20216)

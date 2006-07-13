@@ -194,6 +194,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   deleted=0L;
   init_ftfuncs(thd, select_lex, 1);
   thd->proc_info="updating";
+
+  if (table->triggers)
+    table->triggers->mark_fields_used(thd, TRG_EVENT_DELETE);
+
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 !thd->net.report_error)
   {
@@ -387,7 +391,7 @@ extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
 bool mysql_multi_delete_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  TABLE_LIST *aux_tables= (TABLE_LIST *)lex->auxilliary_table_list.first;
+  TABLE_LIST *aux_tables= (TABLE_LIST *)lex->auxiliary_table_list.first;
   TABLE_LIST *target_tbl;
   DBUG_ENTER("mysql_multi_delete_prepare");
 
@@ -507,6 +511,8 @@ multi_delete::initialize_tables(JOIN *join)
 	transactional_tables= 1;
       else
 	normal_tables= 1;
+      if (tbl->triggers)
+        tbl->triggers->mark_fields_used(thd, TRG_EVENT_DELETE);
     }
     else if ((tab->type != JT_SYSTEM && tab->type != JT_CONST) &&
              walk == delete_tables)

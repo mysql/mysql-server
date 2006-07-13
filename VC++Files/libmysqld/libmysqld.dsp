@@ -623,6 +623,10 @@ SOURCE=..\sql\time.cpp
 SOURCE=..\sql\tztime.cpp
 # End Source File
 # Begin Source File
+#
+SOURCE=..\sql\sql_locale.cpp
+# End Source File
+# Begin Source File
 
 SOURCE=..\sql\uniques.cpp
 # End Source File

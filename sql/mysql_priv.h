@@ -95,6 +95,23 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 extern CHARSET_INFO *system_charset_info, *files_charset_info ;
 extern CHARSET_INFO *national_charset_info, *table_alias_charset;
 
+
+typedef struct my_locale_st
+{
+  const char *name;
+  const char *description;
+  const bool is_ascii;
+  TYPELIB *month_names;
+  TYPELIB *ab_month_names;
+  TYPELIB *day_names;
+  TYPELIB *ab_day_names;
+} MY_LOCALE;
+
+extern MY_LOCALE my_locale_en_US;
+extern MY_LOCALE *my_locales[];
+
+MY_LOCALE *my_locale_by_name(const char *name);
+
 /***************************************************************************
   Configuration parameters
 ****************************************************************************/
@@ -567,6 +584,7 @@ struct Query_cache_query_flags
   ulong sql_mode;
   ulong max_sort_length;
   ulong group_concat_max_len;
+  MY_LOCALE *lc_time_names;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
 #include "sql_cache.h"
@@ -727,9 +745,7 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        TABLE_LIST *table_list,
                        List<create_field> &fields,
                        List<Key> &keys,
-                       uint order_num, ORDER *order,
-                       enum enum_duplicates handle_duplicates,
-                       bool ignore,
+                       uint order_num, ORDER *order, bool ignore,
                        ALTER_INFO *alter_info, bool do_send_ok);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
@@ -765,6 +781,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   bool ignore);
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
+void mark_fields_used_by_triggers_for_insert_stmt(THD *thd, TABLE *table,
+                                                  enum_duplicates duplic);
 bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                   SQL_LIST *order, ha_rows rows, ulonglong options,

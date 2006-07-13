@@ -262,6 +262,20 @@ select str_to_date("2003-04-05  g", "%Y-%m-%d") as f1,
 --enable_ps_protocol
 
 #
+# Test of locale dependent date format (WL#2928 Date Translation NRE)
+#
+set names latin1;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+set lc_time_names=ru_RU;
+set names koi8r;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+set lc_time_names=de_DE;
+set names latin1;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+set names latin1;
+set lc_time_names=en_US;
+
+#
 # Bug #14016 
 #
 create table t1 (f1 datetime);
