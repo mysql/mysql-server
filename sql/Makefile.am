@@ -65,8 +65,8 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
 			sql_array.h sql_cursor.h events.h \
+                        event_db_repository.h event_queue.h \
 			sql_plugin.h authors.h sql_partition.h event_data_objects.h \
-                        event_queue.h event_db_repository.h \
 			partition_info.h partition_element.h event_scheduler.h \
 			contributors.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
@@ -104,8 +104,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \
 			tztime.cc my_time.c my_user.c my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
-			sp_cache.cc parse_file.cc sql_trigger.cc event_scheduler.cc\
-                        events.cc event_data_objects.cc \
+			sp_cache.cc parse_file.cc sql_trigger.cc \
+                        event_scheduler.cc events.cc event_data_objects.cc \
                         event_queue.cc event_db_repository.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc
