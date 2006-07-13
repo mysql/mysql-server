@@ -2085,7 +2085,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
       mysql_use_result it won't be freed in mysql_stmt_free_result and
       we should get 'Commands out of sync' here.
     */
-    if (simple_command(mysql, COM_CLOSE_STMT, buff, 4, 1))
+    if (stmt_command(mysql, COM_CLOSE_STMT, buff, 4, stmt))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                       mysql->net.sqlstate);
@@ -2094,7 +2094,7 @@ mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query, ulong length)
     stmt->state= MYSQL_STMT_INIT_DONE;
   }
 
-  if (simple_command(mysql, COM_PREPARE, query, length, 1))
+  if (stmt_command(mysql, COM_PREPARE, query, length, stmt))
   {
     set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                     mysql->net.sqlstate);
@@ -2504,7 +2504,7 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   buff[4]= (char) 0;                            /* no flags */
   int4store(buff+5, 1);                         /* iteration count */
   if (cli_advanced_command(mysql, COM_EXECUTE, buff, sizeof(buff),
-                           packet, length, 1) ||
+                           packet, length, 1, NULL) ||
       (*mysql->methods->read_query_result)(mysql))
   {
     set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
@@ -3278,7 +3278,8 @@ mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
       This is intentional to save bandwidth.
     */
     if ((*mysql->methods->advanced_command)(mysql, COM_LONG_DATA, buff,
-					    sizeof(buff), data, length, 1))
+					    sizeof(buff), data, length, 1,
+                                            NULL))
     {
       set_stmt_errmsg(stmt, mysql->net.last_error,
 		      mysql->net.last_errno, mysql->net.sqlstate);
@@ -4602,7 +4603,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
         mysql->status= MYSQL_STATUS_READY;
       }
       int4store(buff, stmt->stmt_id);
-      if ((rc= simple_command(mysql, COM_CLOSE_STMT, buff, 4, 1)))
+      if ((rc= stmt_command(mysql, COM_CLOSE_STMT, buff, 4, stmt)))
       {
         set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                         mysql->net.sqlstate);
@@ -4640,7 +4641,7 @@ my_bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt)
   mysql= stmt->mysql->last_used_con;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
   if ((*mysql->methods->advanced_command)(mysql, COM_RESET_STMT, buff,
-                                          sizeof(buff), 0, 0, 0))
+                                          sizeof(buff), 0, 0, 0, 0))
   {
     set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                     mysql->net.sqlstate);
