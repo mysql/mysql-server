@@ -731,7 +731,7 @@ Event_timed::~Event_timed()
 */
 
 Event_job_data::Event_job_data():
-  thd(NULL), sphead(0), sql_mode(0)
+  thd(NULL), sphead(NULL), sql_mode(0)
 {
 }
 
@@ -745,7 +745,10 @@ Event_job_data::Event_job_data():
 
 Event_job_data::~Event_job_data()
 {
-  free_sp();
+  DBUG_ENTER("Event_job_data::~Event_job_data");
+  delete sphead;
+  sphead= NULL;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1606,20 +1609,6 @@ Event_job_data::get_fake_create_event(THD *thd, String *buf)
 
 
 /*
-  Frees the memory of the sp_head object we hold
-  SYNOPSIS
-    Event_job_data::free_sp()
-*/
-
-void
-Event_job_data::free_sp()
-{
-  delete sphead;
-  sphead= NULL;
-}
-
-
-/*
   Compiles an event before it's execution. Compiles the anonymous
   sp_head object held by the event
 
@@ -1651,9 +1640,7 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
   CHARSET_INFO *old_character_set_client,
                *old_collation_connection,
                *old_character_set_results;
-  Security_context *save_ctx;
-  /* this one is local and not needed after exec */
-  Security_context security_ctx;
+  Security_context save_ctx;
 
   DBUG_ENTER("Event_job_data::compile");
 
@@ -1699,10 +1686,9 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
   thd->query_length= show_create.length();
   DBUG_PRINT("info", ("query:%s",thd->query));
 
-  thd->change_security_context(definer_user, definer_host, dbname,
-                               &security_ctx, &save_ctx);
+  thd->change_security_context(definer_user, definer_host, dbname, &save_ctx);
   thd->lex= &lex;
-  lex_start(thd, (uchar*)thd->query, thd->query_length);
+  mysql_init_query(thd, (uchar*) thd->query, thd->query_length);
   if (MYSQLparse((void *)thd) || thd->is_fatal_error)
   {
     DBUG_PRINT("error", ("error during compile or thd->is_fatal_error=%d",
@@ -1713,13 +1699,10 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
     */
     sql_print_error("error during compile of %s.%s or thd->is_fatal_error=%d",
                     dbname.str, name.str, thd->is_fatal_error);
-    if (lex.sphead)
-    {
-      if (&lex != thd->lex)
-        thd->lex->sphead->restore_lex(thd);
-      delete lex.sphead;
-      lex.sphead= 0;
-    }
+
+    lex.unit.cleanup();
+    delete lex.sphead;
+    sphead= lex.sphead= NULL;
     ret= EVEX_COMPILE_ERROR;
     goto done;
   }
@@ -1734,7 +1717,7 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
 done:
 
   lex_end(&lex);
-  thd->restore_security_context(save_ctx);
+  thd->restore_security_context(&save_ctx);
   DBUG_PRINT("note", ("return old data on its place. set back NAMES"));
 
   thd->lex= old_lex;
@@ -1772,20 +1755,17 @@ done:
 int
 Event_job_data::execute(THD *thd)
 {
-  Security_context *save_ctx;
+  Security_context save_ctx;
   /* this one is local and not needed after exec */
-  Security_context security_ctx;
   int ret= 0;
 
   DBUG_ENTER("Event_job_data::execute");
   DBUG_PRINT("info", ("EXECUTING %s.%s", dbname.str, name.str));
 
-
   if ((ret= compile(thd, NULL)))
     goto done;
 
-  thd->change_security_context(definer_user, definer_host, dbname,
-                               &security_ctx, &save_ctx);
+  thd->change_security_context(definer_user, definer_host, dbname, &save_ctx);
   /*
     THD::~THD will clean this or if there is DROP DATABASE in the SP then
     it will be free there. It should not point to our buffer which is allocated
@@ -1810,9 +1790,10 @@ Event_job_data::execute(THD *thd)
     ret= -99;
   }
 
-  thd->restore_security_context(save_ctx);
+  thd->restore_security_context(&save_ctx);
 done:
-  free_sp();
+  thd->end_statement();
+  thd->cleanup_after_query();
 
   DBUG_PRINT("info", ("EXECUTED %s.%s ret=%d", dbname.str, name.str, ret));
 

@@ -3675,7 +3675,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (!opt_noacl)
   {
-    Events::get_instance()->init();
+    if (Events::get_instance()->init())
+      unireg_abort(1);
   }
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();

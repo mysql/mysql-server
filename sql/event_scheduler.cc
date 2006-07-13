@@ -40,9 +40,6 @@ struct scheduler_param
   Event_scheduler *scheduler;
 };
 
-struct scheduler_param scheduler_param_value;
-
-
 
 static
 LEX_STRING scheduler_states_names[] =
@@ -103,25 +100,23 @@ evex_print_warnings(THD *thd, Event_job_data *et)
 
 
 /*
-  Inits an scheduler thread handler, both the main and a worker
+  Performs pre- pthread_create() initialisation of THD. Do this
+  in the thread that will pass THD to the child thread. In the
+  child thread call post_init_event_thread().
 
   SYNOPSIS
-    init_event_thread()
-      thd - the THD of the thread. Has to be allocated by the caller.
+    pre_init_event_thread()
+      thd  The THD of the thread. Has to be allocated by the caller.
 
   NOTES
     1. The host of the thead is my_localhost
     2. thd->net is initted with NULL - no communication.
-
-  RETURN VALUE
-    0  OK
-   -1  Error
 */
 
-static int
-init_scheduler_thread(THD* thd)
+void
+pre_init_event_thread(THD* thd)
 {
-  DBUG_ENTER("init_event_thread");
+  DBUG_ENTER("pre_init_event_thread");
   thd->client_capabilities= 0;
   thd->security_ctx->master_access= 0;
   thd->security_ctx->db_access= 0;
@@ -148,7 +143,36 @@ init_scheduler_thread(THD* thd)
   thd->version= refresh_version;
   thd->set_time();
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Performs post initialization of structures in a new thread.
+
+  SYNOPSIS
+    post_init_event_thread()
+      thd  Thread
+*/
+
+bool
+post_init_event_thread(THD *thd)
+{
+  my_thread_init();
+  pthread_detach_this_thread();
+  thd->real_id= pthread_self();
+  if (init_thr_lock() || thd->store_globals())
+  {
+    thd->cleanup();
+    return TRUE;
+  }
+
+#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
+  sigset_t set;
+    VOID(sigemptyset(&set));                    // Get mask in use
+  VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
+#endif
+  return FALSE;
 }
 
 
@@ -160,7 +184,7 @@ init_scheduler_thread(THD* thd)
       thd  Thread
 */
 
-static void
+void
 deinit_event_thread(THD *thd)
 {
   thd->proc_info= "Clearing";
@@ -192,29 +216,18 @@ pthread_handler_t
 event_scheduler_thread(void *arg)
 {
   /* needs to be first for thread_stack */
-  THD *thd= (THD *)(*(struct scheduler_param *) arg).thd;
+  THD *thd= (THD *)((struct scheduler_param *) arg)->thd;
+  Event_scheduler *scheduler= ((struct scheduler_param *) arg)->scheduler;
+
+  my_free((char*)arg, MYF(0));
 
   thd->thread_stack= (char *)&thd;              // remember where our stack is
+
   DBUG_ENTER("event_scheduler_thread");
 
-  my_thread_init();
-  pthread_detach_this_thread();
-  thd->real_id=pthread_self();
-  if (init_thr_lock() || thd->store_globals())
-  {
-    thd->cleanup();
-    goto end;
-  }
+  if (!post_init_event_thread(thd))
+    scheduler->run(thd);
 
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  sigset_t set;
-    VOID(sigemptyset(&set));                    // Get mask in use
-  VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
-#endif
-
-  ((struct scheduler_param *) arg)->scheduler->run(thd);
-
-end:
   deinit_event_thread(thd);
 
   DBUG_RETURN(0);                               // Against gcc warnings
@@ -242,27 +255,13 @@ event_worker_thread(void *arg)
   int ret;
 
   thd= event->thd;
-  thd->thread_stack= (char *) &thd;
 
-
-  my_thread_init();
-  pthread_detach_this_thread();
-  thd->real_id=pthread_self();
-  if (init_thr_lock() || thd->store_globals())
-  {
-    thd->cleanup();
-    goto end;
-  }
-
-
-#if !defined(__WIN__) && !defined(OS2) && !defined(__NETWARE__)
-  sigset_t set;
-  VOID(sigemptyset(&set));                      // Get mask in use
-  VOID(pthread_sigmask(SIG_UNBLOCK, &set, &thd->block_signals));
-#endif
-  thd->init_for_queries();
-
+  thd->thread_stack= (char *) &thd;             // remember where our stack is
   DBUG_ENTER("event_worker_thread");
+
+  if (post_init_event_thread(thd))
+    goto end;
+
   DBUG_PRINT("info", ("Baikonur, time is %d, BURAN reporting and operational."
              "THD=0x%lx", time(NULL), thd));
 
@@ -375,6 +374,7 @@ Event_scheduler::start()
   THD *new_thd= NULL;
   bool ret= FALSE;
   pthread_t th;
+  struct scheduler_param *scheduler_param_value;
   DBUG_ENTER("Event_scheduler::start");
 
   LOCK_SCHEDULER_DATA();
@@ -382,21 +382,24 @@ Event_scheduler::start()
   if (state > INITIALIZED)
     goto end;
 
-  if (!(new_thd= new THD) || init_scheduler_thread(new_thd))
+  if (!(new_thd= new THD))
   {
     sql_print_error("SCHEDULER: Cannot init manager event thread.");
     ret= TRUE;
     goto end;
   }
+  pre_init_event_thread(new_thd);
   new_thd->system_thread= SYSTEM_THREAD_EVENT_SCHEDULER;
   new_thd->command= COM_DAEMON;
 
-  scheduler_param_value.thd= new_thd;
-  scheduler_param_value.scheduler= this;
+  scheduler_param_value=
+    (struct scheduler_param *)my_malloc(sizeof(struct scheduler_param), MYF(0));
+  scheduler_param_value->thd= new_thd;
+  scheduler_param_value->scheduler= this;
 
   DBUG_PRINT("info", ("Forking new thread for scheduduler. THD=0x%lx", new_thd));
   if (pthread_create(&th, &connection_attrib, event_scheduler_thread,
-                    (void*)&scheduler_param_value))
+                    (void*)scheduler_param_value))
   {
     DBUG_PRINT("error", ("cannot create a new thread"));
     state= INITIALIZED;
@@ -588,9 +591,10 @@ Event_scheduler::execute_top(THD *thd, Event_job_data *job_data)
   pthread_t th;
   int res= 0;
   DBUG_ENTER("Event_scheduler::execute_top");
-  if (!(new_thd= new THD) || init_scheduler_thread(new_thd))
+  if (!(new_thd= new THD))
     goto error;
 
+  pre_init_event_thread(new_thd);
   new_thd->system_thread= SYSTEM_THREAD_EVENT_WORKER;
   job_data->thd= new_thd;
   DBUG_PRINT("info", ("BURAN %s@%s ready for start t-3..2..1..0..ignition",

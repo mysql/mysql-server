@@ -2085,21 +2085,20 @@ bool Security_context::set_user(char *user_arg)
 
 bool
 THD::change_security_context(LEX_STRING user, LEX_STRING host,
-                             LEX_STRING db, Security_context *s_ctx,
-                             Security_context **backup)
+                             LEX_STRING db, Security_context *backup)
 {
   DBUG_ENTER("change_security_context");
   DBUG_PRINT("info",("%s@%s@%s", user.str, host.str, db.str));
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  s_ctx->init();
-  *backup= 0;
-  if (acl_getroot_no_password(s_ctx, user.str, host.str, host.str, db.str))
+
+  *backup= main_security_ctx;
+  if (acl_getroot_no_password(&main_security_ctx, user.str, host.str, host.str,
+                              db.str))
   {
     my_error(ER_NO_SUCH_USER, MYF(0), user.str, host.str);
     DBUG_RETURN(TRUE);
   }
-  *backup= security_ctx;
-  security_ctx= s_ctx;
+  security_ctx= &main_security_ctx;
 #endif
   DBUG_RETURN(FALSE);
 }
@@ -2119,7 +2118,10 @@ THD::restore_security_context(Security_context *backup)
   DBUG_ENTER("restore_security_context");
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (backup)
-    security_ctx= backup;
+  {
+    main_security_ctx= *backup;
+    security_ctx= &main_security_ctx;
+  }
 #endif
   DBUG_VOID_RETURN;
 }

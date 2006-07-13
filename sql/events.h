@@ -52,7 +52,7 @@ public:
   static ulong opt_event_scheduler;
   static TYPELIB opt_typelib;
 
-  int
+  bool
   init();
   
   void

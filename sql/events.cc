@@ -556,11 +556,16 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
     1  Error in case the scheduler can't start
 */
 
-int
+bool
 Events::init()
 {
+  int res;
   DBUG_ENTER("Events::init");
-  event_queue->init_queue(db_repository, scheduler);
+  if (event_queue->init_queue(db_repository, scheduler))
+  {
+    sql_print_information("SCHEDULER: Error while loading from disk.");
+    DBUG_RETURN(TRUE);
+  }
   scheduler->init_scheduler(event_queue);
 
   /* it should be an assignment! */
@@ -571,7 +576,7 @@ Events::init()
       DBUG_RETURN(scheduler->start());
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 }
 
 

@@ -19,6 +19,15 @@
 class Event_queue;
 class Event_job_data;
 
+void
+pre_init_event_thread(THD* thd);
+
+bool
+post_init_event_thread(THD* thd);
+
+void
+deinit_event_thread(THD *thd);
+
 class Event_scheduler
 {
 public:
