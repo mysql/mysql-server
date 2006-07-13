@@ -5707,10 +5707,21 @@ select_option:
 	      YYABORT;
 	    Select->options|= OPTION_FOUND_ROWS;
 	  }
-	| SQL_NO_CACHE_SYM { Lex->safe_to_cache_query=0; }
+	| SQL_NO_CACHE_SYM
+          {
+            Lex->safe_to_cache_query=0;
+	    Lex->select_lex.options&= ~OPTION_TO_QUERY_CACHE;
+            Lex->select_lex.sql_cache= SELECT_LEX::SQL_NO_CACHE;
+          }
 	| SQL_CACHE_SYM
 	  {
-	    Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
+            /* Honor this flag only if SQL_NO_CACHE wasn't specified. */
+            if (Lex->select_lex.sql_cache != SELECT_LEX::SQL_NO_CACHE)
+            {
+              Lex->safe_to_cache_query=1;
+	      Lex->select_lex.options|= OPTION_TO_QUERY_CACHE;
+              Lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE;
+            }
 	  }
 	| ALL		    { Select->options|= SELECT_ALL; }
 	;
@@ -8073,6 +8084,7 @@ truncate:
 	  LEX* lex= Lex;
 	  lex->sql_command= SQLCOM_TRUNCATE;
 	  lex->select_lex.options= 0;
+          lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
 	  lex->select_lex.init_order();
 	}
 	;

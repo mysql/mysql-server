@@ -183,6 +183,15 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       !(tables= add_table_for_trigger(thd, thd->lex->spname)))
     DBUG_RETURN(TRUE);
 
+  /*
+    We don't allow creating triggers on tables in the 'mysql' schema
+  */
+  if (create && !my_strcasecmp(system_charset_info, "mysql", tables->db))
+  {
+    my_error(ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   /* We should have only one table in table list. */
   DBUG_ASSERT(tables->next_global == 0);
 
@@ -372,7 +381,9 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   /* We don't allow creation of several triggers of the same type yet */
   if (bodies[lex->trg_chistics.event][lex->trg_chistics.action_time])
   {
-    my_message(ER_TRG_ALREADY_EXISTS, ER(ER_TRG_ALREADY_EXISTS), MYF(0));
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "multiple triggers with the same action time"
+             " and event for one table");
     return 1;
   }
 

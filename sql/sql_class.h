@@ -1576,21 +1576,29 @@ public:
 
   /*
     Initialize the current database from a NULL-terminated string with length
+    If we run out of memory, we free the current database and return TRUE.
+    This way the user will notice the error as there will be no current
+    database selected (in addition to the error message set by malloc).
   */
-  void set_db(const char *new_db, uint new_db_len)
+  bool set_db(const char *new_db, uint new_db_len)
   {
-    if (new_db)
+    /* Do not reallocate memory if current chunk is big enough. */
+    if (db && new_db && db_length >= new_db_len)
+      memcpy(db, new_db, new_db_len+1);
+    else
     {
       /* Do not reallocate memory if current chunk is big enough. */
       if (db && db_length >= new_db_len)
         memcpy(db, new_db, new_db_len+1);
       else
       {
-        safeFree(db);
-        db= my_strndup(new_db, new_db_len, MYF(MY_WME));
+        x_free(db);
+        db= new_db ? my_strndup(new_db, new_db_len, MYF(MY_WME)) : NULL;
       }
       db_length= db ? new_db_len: 0;
     }
+    db_length= db ? new_db_len : 0;
+    return new_db && !db;
   }
   void reset_db(char *new_db, uint new_db_len)
   {

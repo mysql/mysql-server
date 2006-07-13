@@ -338,6 +338,14 @@ protected:
 public:
 
   ulonglong options;
+
+  /*
+    In sql_cache we store SQL_CACHE flag as specified by user to be
+    able to restore SELECT statement from internal structures.
+  */
+  enum e_sql_cache { SQL_CACHE_UNSPECIFIED, SQL_NO_CACHE, SQL_CACHE };
+  e_sql_cache sql_cache;
+
   /*
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT

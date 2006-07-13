@@ -672,7 +672,7 @@ drop table t1;
 CREATE VIEW v1 (f1,f2,f3,f4) AS SELECT connection_id(), pi(), current_user(), version();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select connection_id() AS `f1`,pi() AS `f2`,current_user() AS `f3`,version() AS `f4`
 drop view v1;
 create table t1 (s1 int);
 create table t2 (s2 int);
@@ -787,7 +787,7 @@ create function `f``1` () returns int return 5;
 create view v1 as select test.`f``1` ();
 show create view v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `test`.`f``1`() AS `test.``f````1`` ()`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`f``1`() AS `test.``f````1`` ()`
 select * from v1;
 test.`f``1` ()
 5
@@ -1868,14 +1868,14 @@ create table t2 (b timestamp default now());
 create view v1 as select a,b,t1.a < now() from t1,t2 where t1.a < now();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a`,`t2`.`b` AS `b`,(`t1`.`a` < now()) AS `t1.a < now()` from (`t1` join `t2`) where (`t1`.`a` < now())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,`t2`.`b` AS `b`,(`t1`.`a` < now()) AS `t1.a < now()` from (`t1` join `t2`) where (`t1`.`a` < now())
 drop view v1;
 drop table t1, t2;
 CREATE TABLE t1 ( a varchar(50) );
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = CURRENT_USER();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a` from `t1` where (`t1`.`a` = current_user())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = current_user())
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = VERSION();
 SHOW CREATE VIEW v1;
@@ -1885,7 +1885,7 @@ DROP VIEW v1;
 CREATE VIEW v1 AS SELECT * FROM t1 WHERE a = DATABASE();
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `t1`.`a` AS `a` from `t1` where (`t1`.`a` = database())
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`t1`.`a` = database())
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (col1 time);
@@ -2538,7 +2538,7 @@ show create view v1;
 drop view v1;
 //
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache `test`.`t1`.`id` AS `id` from `t1`
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`id` AS `id` from `t1`
 create table t1(f1 int, f2 int);
 create view v1 as select ta.f1 as a, tb.f1 as b from t1 ta, t1 tb where ta.f1=tb
 .f1 and ta.f2=tb.f2;
@@ -2683,7 +2683,7 @@ SELECT (year(now())-year(DOB)) AS Age
 FROM t1 HAVING Age < 75;
 SHOW CREATE VIEW v1;
 View	Create View
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache (year(now()) - year(`t1`.`DOB`)) AS `Age` from `t1` having (`Age` < 75)
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (year(now()) - year(`t1`.`DOB`)) AS `Age` from `t1` having (`Age` < 75)
 SELECT (year(now())-year(DOB)) AS Age FROM t1 HAVING Age < 75;
 Age
 42
