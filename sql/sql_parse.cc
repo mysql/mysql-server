@@ -54,8 +54,8 @@ extern "C" int gethostname(char *name, int namelen);
 static void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
-#endif
 static void decrease_user_connections(USER_CONN *uc);
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 static bool check_db_used(THD *thd,TABLE_LIST *tables);
 static bool check_multi_update_lock(THD *thd, TABLE_LIST *tables, 
 				    List<Item> *fields, SELECT_LEX *select_lex);
@@ -137,6 +137,7 @@ inline bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
 #endif
 
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static HASH hash_user_connections;
 
 static int get_or_create_user_conn(THD *thd, const char *user,
@@ -190,6 +191,7 @@ end:
   return return_val;
 
 }
+#endif /* !NO_EMBEDDED_ACCESS_CHECKS */
 
 
 /*
@@ -231,11 +233,7 @@ int check_user(THD *thd, enum enum_server_command command,
     thd->db= 0;
     thd->db_length= 0;
     if (mysql_change_db(thd, db))
-    {
-      if (thd->user_connect)
-	decrease_user_connections(thd->user_connect);
       DBUG_RETURN(-1);
-    }
   }
   else
     send_ok(thd);
@@ -409,10 +407,12 @@ extern "C" void free_user(struct user_conn *uc)
 
 void init_max_user_conn(void)
 {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   (void) hash_init(&hash_user_connections,system_charset_info,max_connections,
 		   0,0,
 		   (hash_get_key) get_key_conn, (hash_free_key) free_user,
 		   0);
+#endif
 }
 
 
@@ -466,7 +466,6 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc)
   (void) pthread_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
 }
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /*
   Decrease user connection count
@@ -500,11 +499,16 @@ static void decrease_user_connections(USER_CONN *uc)
   DBUG_VOID_RETURN;
 }
 
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
 
 void free_max_user_conn(void)
 {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   hash_free(&hash_user_connections);
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
+
 
 
 /*
@@ -1481,9 +1485,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     else
     {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
       /* we've authenticated new user */
       if (save_user_connect)
 	decrease_user_connections(save_user_connect);
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
       x_free((gptr) save_db);
       x_free((gptr) save_user);
     }
