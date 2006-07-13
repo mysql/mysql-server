@@ -1495,40 +1495,11 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
       old_field= table->field;
     }
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    Security_context *save_ctx;
-
-    if (sp_change_security_context(thd, sp_trigger, &save_ctx))
-      return TRUE;
-
-    /*
-      NOTE: TRIGGER_ACL should be used below.
-    */
-
-    if (check_global_access(thd, SUPER_ACL))
-    {
-      sp_restore_security_context(thd, save_ctx);
-      return TRUE;
-    }
-
-    /*
-      Fetch information about table-level privileges to GRANT_INFO structure for
-      subject table. Check of privileges that will use it and information about
-      column-level privileges will happen in Item_trigger_field::fix_fields().
-    */
-
-    fill_effective_table_privileges(thd,
-                                    &subject_table_grants[event][time_type],
-                                    table->s->db, table->s->table_name);
-#endif // NO_EMBEDDED_ACCESS_CHECKS
-
     thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
-    err_status= sp_trigger->execute_function(thd, 0, 0, 0);
+    err_status= sp_trigger->execute_trigger
+      (thd, table->s->db, table->s->table_name,
+       &subject_table_grants[event][time_type]);
     thd->restore_sub_statement_state(&statement_state);
-
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    sp_restore_security_context(thd, save_ctx);
-#endif // NO_EMBEDDED_ACCESS_CHECKS
   }
 
   return err_status;

@@ -4383,9 +4383,6 @@ end_with_restore_list:
       }
       else
       {
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-	Security_context *save_ctx;
-#endif
 	ha_rows select_limit;
         /* bits that should be cleared in thd->server_status */
 	uint bits_to_be_cleared= 0;
@@ -4427,21 +4424,11 @@ end_with_restore_list:
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 	if (check_routine_access(thd, EXECUTE_ACL,
-				 sp->m_db.str, sp->m_name.str, TRUE, 0) ||
-          sp_change_security_context(thd, sp, &save_ctx))
+				 sp->m_db.str, sp->m_name.str, TRUE, FALSE))
 	{
 	  thd->net.no_send_ok= nsok;
 	  goto error;
 	}
-	if (save_ctx &&
-            check_routine_access(thd, EXECUTE_ACL,
-                                 sp->m_db.str, sp->m_name.str, TRUE, 0))
-	{
-	  thd->net.no_send_ok= nsok;
-	  sp_restore_security_context(thd, save_ctx);
-	  goto error;
-	}
-
 #endif
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
@@ -4465,9 +4452,6 @@ end_with_restore_list:
 	  thd->total_warn_count= 0;
 
 	thd->variables.select_limit= select_limit;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-	sp_restore_security_context(thd, save_ctx);
-#endif
 
 	thd->net.no_send_ok= nsok;
         thd->server_status&= ~bits_to_be_cleared;

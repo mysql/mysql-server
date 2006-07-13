@@ -207,6 +207,10 @@ public:
   destroy();
 
   bool
+  execute_trigger(THD *thd, const char *db, const char *table,
+                  GRANT_INFO *grant_onfo);
+
+  bool
   execute_function(THD *thd, Item **args, uint argcount, Field *return_fld);
 
   bool
@@ -1149,6 +1153,10 @@ sp_change_security_context(THD *thd, sp_head *sp,
                            Security_context **backup);
 void
 sp_restore_security_context(THD *thd, Security_context *backup);
+
+bool
+set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
+                         Security_context **save_ctx);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 TABLE_LIST *
