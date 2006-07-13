@@ -270,6 +270,7 @@ void ha_ndbcluster::records_update()
   {
     Ndb *ndb= get_ndb();
     Uint64 rows;
+    ndb->setDatabaseName(m_dbname);
     if(ndb_get_table_statistics(ndb, m_tabname, &rows, 0) == 0){
       info->records= rows;
     }
@@ -1363,6 +1364,12 @@ int ha_ndbcluster::unique_index_read(const byte *key,
       m_value[i].ptr= NULL;
     }
   }
+  if (table->primary_key == MAX_KEY) 
+  {
+    DBUG_PRINT("info", ("Getting hidden key"));
+    if (get_ndb_value(op, NULL, i, NULL))
+      ERR_RETURN(op->getNdbError());
+  }
 
   if (execute_no_commit_ie(this,trans) != 0) 
   {
@@ -2299,12 +2306,14 @@ void ha_ndbcluster::unpack_record(byte* buf)
   {
     // Table with hidden primary key
     int hidden_no= table->fields;
+    char buff[22];
     const NDBTAB *tab= (const NDBTAB *) m_table;
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     NdbRecAttr* rec= m_value[hidden_no].rec;
     DBUG_ASSERT(rec);
-    DBUG_PRINT("hidden", ("%d: %s \"%llu\"", hidden_no, 
-                          hidden_col->getName(), rec->u_64_value()));
+    DBUG_PRINT("hidden", ("%d: %s \"%s\"", hidden_no, 
+                          hidden_col->getName(), 
+                          llstr(rec->u_64_value(), buff)));
   } 
   print_results();
 #endif
@@ -2876,6 +2885,7 @@ void ha_ndbcluster::info(uint flag)
         DBUG_VOID_RETURN;
       Ndb *ndb= get_ndb();
       Uint64 rows= 100;
+      ndb->setDatabaseName(m_dbname);
       if (current_thd->variables.ndb_use_exact_count)
 	ndb_get_table_statistics(ndb, m_tabname, &rows, 0);
       records= rows;
@@ -5228,34 +5238,53 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
 {
   DBUG_ENTER("ndb_get_table_statistics");
   DBUG_PRINT("enter", ("table: %s", table));
-  NdbConnection* pTrans= ndb->startTransaction();
-  do 
+  NdbConnection* pTrans;
+  NdbError error;
+  int retries= 10;
+  int retry_sleep= 30 * 1000; /* 30 milliseconds */
+
+  do
   {
-    if (pTrans == NULL)
-      break;
-      
-    NdbScanOperation* pOp= pTrans->getNdbScanOperation(table);
-    if (pOp == NULL)
-      break;
-    
-    NdbResultSet* rs= pOp->readTuples(NdbOperation::LM_CommittedRead); 
-    if (rs == 0)
-      break;
-    
-    int check= pOp->interpret_exit_last_row();
-    if (check == -1)
-      break;
-    
     Uint64 rows, commits;
+    Uint64 sum_rows= 0;
+    Uint64 sum_commits= 0;
+    NdbScanOperation*pOp;
+    NdbResultSet *rs;
+    int check;
+
+    if ((pTrans= ndb->startTransaction()) == NULL)
+    {
+      error= ndb->getNdbError();
+      goto retry;
+    }
+      
+    if ((pOp= pTrans->getNdbScanOperation(table)) == NULL)
+    {
+      error= pTrans->getNdbError();
+      goto retry;
+    }
+    
+    if ((rs= pOp->readTuples(NdbOperation::LM_CommittedRead)) == 0)
+    {
+      error= pOp->getNdbError();
+      goto retry;
+    }
+    
+    if (pOp->interpret_exit_last_row() == -1)
+    {
+      error= pOp->getNdbError();
+      goto retry;
+    }
+    
     pOp->getValue(NdbDictionary::Column::ROW_COUNT, (char*)&rows);
     pOp->getValue(NdbDictionary::Column::COMMIT_COUNT, (char*)&commits);
     
-    check= pTrans->execute(NoCommit, AbortOnError, TRUE);
-    if (check == -1)
-      break;
+    if (pTrans->execute(NoCommit, AbortOnError, TRUE) == -1)
+    {
+      error= pTrans->getNdbError();
+      goto retry;
+    }
     
-    Uint64 sum_rows= 0;
-    Uint64 sum_commits= 0;
     while((check= rs->nextResult(TRUE, TRUE)) == 0)
     {
       sum_rows+= rows;
@@ -5263,7 +5292,10 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     }
     
     if (check == -1)
-      break;
+    {
+      error= pOp->getNdbError();
+      goto retry;
+    }
 
     rs->close(TRUE);
 
@@ -5274,11 +5306,22 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
       * commit_count= sum_commits;
     DBUG_PRINT("exit", ("records: %u commits: %u", sum_rows, sum_commits));
     DBUG_RETURN(0);
-  } while(0);
 
-  ndb->closeTransaction(pTrans);
-  DBUG_PRINT("exit", ("failed"));
-  DBUG_RETURN(-1);
+retry:
+    if (pTrans)
+    {
+      ndb->closeTransaction(pTrans);
+      pTrans= NULL;
+    }
+    if (error.status == NdbError::TemporaryError && retries--)
+    {
+      my_sleep(retry_sleep);
+      continue;
+    }
+    break;
+  } while(1);
+  DBUG_PRINT("exit", ("failed, error %u(%s)", error.code, error.message));
+  ERR_RETURN(error);
 }
 
 /*

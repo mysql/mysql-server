@@ -930,7 +930,6 @@ Item_sum_hybrid::min_max_update_str_field()
 
   if (!args[0]->null_value)
   {
-    res_str->strip_sp();
     result_field->val_str(&tmp_value);
 
     if (result_field->is_null() ||

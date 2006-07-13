@@ -706,6 +706,18 @@ select count(id1) from t1 where id2 = 10;
 drop table t1;
 
 #
+# BUG##20357 - Got error 124 from storage engine using MIN and MAX functions
+#              in queries
+#
+CREATE TABLE t1(a TINYINT, KEY(a)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(1);
+SELECT MAX(a) FROM t1 IGNORE INDEX(a);
+ALTER TABLE t1 DISABLE KEYS;
+SELECT MAX(a) FROM t1;
+SELECT MAX(a) FROM t1 IGNORE INDEX(a);
+DROP TABLE t1;
+
+#
 # BUG#18036 - update of table joined to self reports table as crashed
 #
 CREATE TABLE t1(a CHAR(9), b VARCHAR(7)) ENGINE=MyISAM;

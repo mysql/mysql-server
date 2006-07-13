@@ -322,6 +322,18 @@ alter table t1 add key (c1,c1,c2);
 drop table t1;
 
 #
+# Bug#11228: DESC shows arbitrary column as "PRI"
+#
+create table t1 (
+ i1 INT NOT NULL,
+ i2 INT NOT NULL,
+ UNIQUE i1idx (i1),
+ UNIQUE i2idx (i2));
+desc t1;
+show create table t1;
+drop table t1;
+
+#
 # Bug#12565 - ERROR 1034 when running simple UPDATE or DELETE 
 #             on large MyISAM table
 #

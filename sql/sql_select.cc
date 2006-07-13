@@ -114,6 +114,10 @@ static Item* part_of_refkey(TABLE *form,Field *field);
 static uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
 				    ha_rows select_limit, bool no_changes);
+static bool list_contains_unique_index(TABLE *table,
+                          bool (*find_func) (Field *, void *), void *data);
+static bool find_field_in_item_list (Field *field, void *data);
+static bool find_field_in_order_list (Field *field, void *data);
 static int create_sort_index(THD *thd, JOIN *join, ORDER *order,
 			     ha_rows filesort_limit, ha_rows select_limit);
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
@@ -694,6 +698,36 @@ JOIN::optimize()
 			     &simple_group);
     if (old_group_list && !group_list)
       select_distinct= 0;
+  }
+  /*
+     Check if we can optimize away GROUP BY/DISTINCT.
+     We can do that if there are no aggregate functions and the
+     fields in DISTINCT clause (if present) and/or columns in GROUP BY
+     (if present) contain direct references to all key parts of
+     an unique index (in whatever order).
+     Note that the unique keys for DISTINCT and GROUP BY should not
+     be the same (as long as they are unique).
+
+     The FROM clause must contain a single non-constant table.
+  */
+  if (tables - const_tables == 1 && (group_list || select_distinct) &&
+      !tmp_table_param.sum_func_count)
+  {
+    if (group_list &&
+       list_contains_unique_index(join_tab[const_tables].table,
+                                 find_field_in_order_list,
+                                 (void *) group_list))
+    {
+      group_list= 0;
+      group= 0;
+    }
+    if (select_distinct &&
+       list_contains_unique_index(join_tab[const_tables].table,
+                                 find_field_in_item_list,
+                                 (void *) &fields_list))
+    {
+      select_distinct= 0;
+    }
   }
   if (!group_list && group)
   {
@@ -7375,6 +7409,140 @@ test_if_subkey(ORDER *order, TABLE *table, uint ref, uint ref_key_parts,
   }
   return best;
 }
+
+
+/*
+  Check if GROUP BY/DISTINCT can be optimized away because the set is 
+  already known to be distinct.
+  
+  SYNOPSIS
+    list_contains_unique_index ()
+    table                The table to operate on.
+    find_func            function to iterate over the list and search
+                         for a field
+  
+  DESCRIPTION
+    Used in removing the GROUP BY/DISTINCT of the following types of
+    statements:
+      SELECT [DISTINCT] <unique_key_cols>... FROM <single_table_ref>
+        [GROUP BY <unique_key_cols>,...]
+
+    If (a,b,c is distinct)
+      then <any combination of a,b,c>,{whatever} is also distinct
+
+    This function checks if all the key parts of any of the unique keys
+    of the table are referenced by a list : either the select list 
+    through find_field_in_item_list or GROUP BY list through
+    find_field_in_order_list.
+    If the above holds then we can safely remove the GROUP BY/DISTINCT,
+    as no result set can be more distinct than an unique key.
+  
+  RETURN VALUE
+    1                    found
+    0                    not found.
+*/
+
+static bool
+list_contains_unique_index(TABLE *table,
+                          bool (*find_func) (Field *, void *), void *data)
+{
+  for (uint keynr= 0; keynr < table->keys; keynr++)
+  {
+    if (keynr == table->primary_key ||
+         (table->key_info[keynr].flags & HA_NOSAME))
+    {
+      KEY *keyinfo= table->key_info + keynr;
+      KEY_PART_INFO *key_part, *key_part_end;
+
+      for (key_part=keyinfo->key_part,
+           key_part_end=key_part+ keyinfo->key_parts;
+           key_part < key_part_end;
+           key_part++)
+      {
+        if (!find_func(key_part->field, data))
+          break;
+      }
+      if (key_part == key_part_end)
+        return 1;
+    }
+  }
+  return 0;
+}
+
+
+/*
+  Helper function for list_contains_unique_index.
+  Find a field reference in a list of ORDER structures.
+  
+  SYNOPSIS
+    find_field_in_order_list ()
+    field                The field to search for.
+    data                 ORDER *.The list to search in
+  
+  DESCRIPTION
+    Finds a direct reference of the Field in the list.
+  
+  RETURN VALUE
+    1                    found
+    0                    not found.
+*/
+
+static bool
+find_field_in_order_list (Field *field, void *data)
+{
+  ORDER *group= (ORDER *) data;
+  bool part_found= 0;
+  for (ORDER *tmp_group= group; tmp_group; tmp_group=tmp_group->next)
+  {
+    Item *item= (*tmp_group->item)->real_item();
+    if (item->type() == Item::FIELD_ITEM &&
+        ((Item_field*) item)->field->eq(field))
+    {
+      part_found= 1;
+      break;
+    }
+  }
+  return part_found;
+}
+
+
+/*
+  Helper function for list_contains_unique_index.
+  Find a field reference in a dynamic list of Items.
+  
+  SYNOPSIS
+    find_field_in_item_list ()
+    field in             The field to search for.
+    data  in             List<Item> *.The list to search in
+  
+  DESCRIPTION
+    Finds a direct reference of the Field in the list.
+  
+  RETURN VALUE
+    1                    found
+    0                    not found.
+*/
+
+static bool
+find_field_in_item_list (Field *field, void *data)
+{
+  List<Item> *fields= (List<Item> *) data;
+  bool part_found= 0;
+  List_iterator<Item> li(*fields);
+  Item *item;
+
+  while ((item= li++))
+  {
+    if (item->type() == Item::FIELD_ITEM &&
+        ((Item_field*) item)->field->eq(field))
+    {
+      part_found= 1;
+      break;
+    }
+  }
+  return part_found;
+}
+
 
 /*
   Test if we can skip the ORDER BY by using an index.
