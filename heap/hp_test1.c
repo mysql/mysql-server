@@ -44,6 +44,7 @@ int main(int argc, char **argv)
   get_options(argc,argv);
 
   bzero(&hp_create_info, sizeof(hp_create_info));
+  hp_create_info.max_table_size= 1024L*1024L;
 
   keyinfo[0].keysegs=1;
   keyinfo[0].seg=keyseg;
@@ -58,7 +59,7 @@ int main(int argc, char **argv)
   bzero((gptr) flags,sizeof(flags));
 
   printf("- Creating heap-file\n");
-  if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000l,10l,
+  if (heap_create(filename,1,keyinfo,30,(ulong) flag*100000L,10L,
 		  &hp_create_info) ||
       !(file= heap_open(filename, 2)))
     goto err;

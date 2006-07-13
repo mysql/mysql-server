@@ -148,6 +148,7 @@ Summary: MySQL - Benchmarks and test system
 Group: Applications/Databases
 Provides: mysql-bench
 Obsoletes: mysql-bench
+AutoReqProv: no
 
 %description bench
 This package contains MySQL benchmark scripts and data.

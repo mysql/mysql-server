@@ -797,7 +797,7 @@ void make_truncated_value_warning(THD *thd, const char *str_val,
   }
   sprintf(warn_buff, ER(ER_TRUNCATED_WRONG_VALUE),
 	  type_str, str.ptr());
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 		      ER_TRUNCATED_WRONG_VALUE, warn_buff);
 }
 

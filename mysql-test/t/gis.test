@@ -364,3 +364,10 @@ select (asWKT(geomfromwkb((0x000000000140240000000000004024000000000000))));
 select (asWKT(geomfromwkb((0x010100000000000000000024400000000000002440))));
 
 # End of 4.1 tests
+
+--enable_metadata
+create table t1 (g GEOMETRY);
+select * from t1;
+select asbinary(g) from t1;
+--disable_metadata
+drop table t1;

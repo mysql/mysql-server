@@ -1052,7 +1052,7 @@ static int read_lines(bool execute_commands)
       (We want to allow help, print and clear anywhere at line start
     */
     if (execute_commands && (named_cmds || glob_buffer.is_empty()) 
-	&& !in_string && (com=find_command(line,0)))
+	&& !ml_comment && !in_string && (com=find_command(line,0)))
     {
       if ((*com->func)(&glob_buffer,line) > 0)
 	break;
