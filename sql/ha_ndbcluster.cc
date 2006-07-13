@@ -7417,15 +7417,13 @@ int
 ndb_get_table_statistics(Ndb* ndb, const NDBTAB *ndbtab,
                          struct Ndb_statistics * ndbstat)
 {
-  DBUG_ENTER("ndb_get_table_statistics");
-  DBUG_PRINT("enter", ("table: %s", ndbtab->getName()));
   NdbTransaction* pTrans;
   NdbError error;
   int retries= 10;
   int retry_sleep= 30 * 1000; /* 30 milliseconds */
   char buff[22], buff2[22], buff3[22], buff4[22];
   DBUG_ENTER("ndb_get_table_statistics");
-  DBUG_PRINT("enter", ("table: %s", table));
+  DBUG_PRINT("enter", ("table: %s", ndbtab->getName()));
 
   DBUG_ASSERT(ndbtab != 0);
 
@@ -8170,7 +8168,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
                      ("Table: %s, commit_count: %llu, rows: %llu",
                       share->key,
                       llstr(stat.commit_count, buff),
-                      llstr(stat.row_count, buff)));
+                      llstr(stat.row_count, buff2)));
         }
         else
         {
