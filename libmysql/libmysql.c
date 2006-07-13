@@ -2385,10 +2385,9 @@ static void net_store_datetime(NET *net, MYSQL_TIME *tm)
 
 static void store_param_date(NET *net, MYSQL_BIND *param)
 {
-  MYSQL_TIME *tm= (MYSQL_TIME *) param->buffer;
-  tm->hour= tm->minute= tm->second= 0;
-  tm->second_part= 0;
-  net_store_datetime(net, tm);
+  MYSQL_TIME tm= *((MYSQL_TIME *) param->buffer);
+  tm.hour= tm.minute= tm.second= tm.second_part= 0;
+  net_store_datetime(net, &tm);
 }
 
 static void store_param_datetime(NET *net, MYSQL_BIND *param)

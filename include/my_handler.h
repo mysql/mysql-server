@@ -18,7 +18,6 @@
 #ifndef _my_handler_h
 #define _my_handler_h
 
-#include "my_global.h"
 #include "my_base.h"
 #include "m_ctype.h"
 #include "myisampack.h"
