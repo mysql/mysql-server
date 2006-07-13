@@ -2985,6 +2985,23 @@ Field_iterator_table_ref::get_natural_column_ref()
   return nj_col;
 }
 
+/*
+  Cleanup this table for re-execution.
+
+  SYNOPSIS
+    st_table_list::reinit_before_use()
+*/
+
+void st_table_list::reinit_before_use(THD * /* thd */)
+{
+  /*
+    Reset old pointers to TABLEs: they are not valid since the tables
+    were closed in the end of previous prepare or execute call.
+  */
+  table= 0;
+  table_list= 0;
+}
+
 
 /*****************************************************************************
 ** Instansiate templates
