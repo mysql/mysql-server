@@ -68,12 +68,13 @@ public:
   bool
   dump_internal_status(THD *thd);
 
+  int
+  load_events_from_db(THD *thd);
+
 protected:
   Event_queue_element *
   find_n_remove_event(LEX_STRING db, LEX_STRING name);
 
-  int
-  load_events_from_db(THD *thd);
 
   void
   drop_matching_events(THD *thd, LEX_STRING pattern,
@@ -82,10 +83,23 @@ protected:
   void
   empty_queue();
 
+  void
+  notify_observers();
+
+  void
+  dbug_dump_queue(time_t now);
+
   /* LOCK_event_queue is the mutex which protects the access to the queue. */
   pthread_mutex_t LOCK_event_queue;
 
   Event_db_repository *db_repository;
+
+  Event_scheduler *scheduler;
+
+  /* The sorted queue with the Event_job_data objects */
+  QUEUE queue;
+
+  bool queue_loaded;
 
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;
@@ -95,24 +109,13 @@ protected:
   const char* mutex_last_attempted_lock_in_func;
   bool mutex_queue_data_locked;
   bool mutex_queue_data_attempting_lock;
-
+  
   /* helper functions for working with mutexes & conditionals */
   void
   lock_data(const char *func, uint line);
 
   void
   unlock_data(const char *func, uint line);
-
-  void
-  notify_observers();
-
-  void
-  dbug_dump_queue(time_t now);
-
-  Event_scheduler *scheduler;
-
-  /* The sorted queue with the Event_job_data objects */
-  QUEUE queue;
 };
 
 #endif /* _EVENT_QUEUE_H_ */

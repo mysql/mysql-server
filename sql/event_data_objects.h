@@ -178,15 +178,12 @@ public:
 
   int
   execute(THD *thd);
-private:
-  int
-  get_fake_create_event(THD *thd, String *buf);
 
   int
   compile(THD *thd, MEM_ROOT *mem_root);
-
-  void
-  free_sp();
+private:
+  int
+  get_fake_create_event(THD *thd, String *buf);
 
   Event_job_data(const Event_job_data &);	/* Prevent use of these */
   void operator=(Event_job_data &);
