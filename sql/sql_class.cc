@@ -269,6 +269,7 @@ THD::THD()
   tablespace_op=FALSE;
   ulong tmp=sql_rnd_with_mutex();
   randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
+  substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
   thr_lock_owner_init(&main_lock_id, &lock_info);
 }
