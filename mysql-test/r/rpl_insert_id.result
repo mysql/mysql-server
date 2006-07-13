@@ -74,6 +74,19 @@ SET FOREIGN_KEY_CHECKS=0;
 INSERT INTO t1 VALUES (1),(1);
 ERROR 23000: Duplicate entry '1' for key 1
 drop table t1;
+create table t1(a int auto_increment, key(a));
+create table t2(a int);
+insert into t1 (a) values (null);
+insert into t2 (a) select a from t1 where a is null;
+insert into t2 (a) select a from t1 where a is null;
+select * from t2;
+a
+1
+select * from t2;
+a
+1
+drop table t1;
+drop table t2;
 drop function if exists bug15728;
 drop function if exists bug15728_insert;
 drop table if exists t1, t2;

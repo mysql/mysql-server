@@ -102,6 +102,7 @@ public:
 
 class Item_func_reverse :public Item_str_func
 {
+  String tmp_value;
 public:
   Item_func_reverse(Item *a) :Item_str_func(a) {}
   String *val_str(String *);
