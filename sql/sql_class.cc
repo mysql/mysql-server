@@ -2068,64 +2068,6 @@ bool Security_context::set_user(char *user_arg)
   return user == 0;
 }
 
-/*
-  Switches the security context
-  SYNOPSIS
-    THD::change_security_context()
-      user    The user
-      host    The host of the user
-      db      The schema for which the security_ctx will be loaded
-      s_ctx   Security context to load state into
-      backup  Where to store the old context
-  
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error (generates error too)
-*/
-
-bool
-THD::change_security_context(LEX_STRING user, LEX_STRING host,
-                             LEX_STRING db, Security_context *backup)
-{
-  DBUG_ENTER("change_security_context");
-  DBUG_PRINT("info",("%s@%s@%s", user.str, host.str, db.str));
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
-  *backup= main_security_ctx;
-  if (acl_getroot_no_password(&main_security_ctx, user.str, host.str, host.str,
-                              db.str))
-  {
-    my_error(ER_NO_SUCH_USER, MYF(0), user.str, host.str);
-    DBUG_RETURN(TRUE);
-  }
-  security_ctx= &main_security_ctx;
-#endif
-  DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Restores the security context
-  SYNOPSIS
-    restore_security_context()
-      thd     Thread
-      backup  Context to switch to
-*/
-
-void
-THD::restore_security_context(Security_context *backup)
-{
-  DBUG_ENTER("restore_security_context");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (backup)
-  {
-    main_security_ctx= *backup;
-    security_ctx= &main_security_ctx;
-  }
-#endif
-  DBUG_VOID_RETURN;
-}
-
 
 /****************************************************************************
   Handling of open and locked tables states.
