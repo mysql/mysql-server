@@ -1427,7 +1427,6 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
   LINT_INIT(safe_args[1]);
 
   if (agg_item_collations(coll, fname, args, nargs, flags, item_sep))
-  if (agg_item_collations(coll, fname, args, nargs, flags))
     return TRUE;
 
   /*
