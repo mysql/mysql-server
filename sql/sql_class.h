@@ -1587,15 +1587,8 @@ public:
       memcpy(db, new_db, new_db_len+1);
     else
     {
-      /* Do not reallocate memory if current chunk is big enough. */
-      if (db && db_length >= new_db_len)
-        memcpy(db, new_db, new_db_len+1);
-      else
-      {
-        x_free(db);
-        db= new_db ? my_strndup(new_db, new_db_len, MYF(MY_WME)) : NULL;
-      }
-      db_length= db ? new_db_len: 0;
+      x_free(db);
+      db= new_db ? my_strndup(new_db, new_db_len, MYF(MY_WME)) : NULL;
     }
     db_length= db ? new_db_len : 0;
     return new_db && !db;

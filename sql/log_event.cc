@@ -1694,22 +1694,6 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 
-static const char *rewrite_db(const char *db)
-{
-  if (replicate_rewrite_db.is_empty() || db == NULL)
-    return db;
-  I_List_iterator<i_string_pair> it(replicate_rewrite_db);
-  i_string_pair* tmp;
-
-  while ((tmp=it++))
-  {
-    if (strcmp(tmp->key, db) == 0)
-      return tmp->val;
-  }
-  return db;
-}
-
-
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   return exec_event(rli, query, q_len);
