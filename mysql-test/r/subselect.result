@@ -2854,6 +2854,40 @@ a
 3
 4
 DROP TABLE t1,t2,t3;
+purge master logs before (select adddate(current_timestamp(), interval -4 day));
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f2 INT);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 WHERE f1 > ALL (SELECT f2 FROM t2);
+f1
+1
+SELECT * FROM t1 WHERE f1 > ALL (SELECT f2 FROM t2 WHERE 1=0);
+f1
+1
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t1 WHERE f1 > ALL (SELECT f2 FROM t2 WHERE f2=0);
+f1
+1
+DROP TABLE t1, t2;
+select 1 from dual where 1 < any (select 2);
+1
+1
+select 1 from dual where 1 < all (select 2);
+1
+1
+select 1 from dual where 2 > any (select 1);
+1
+1
+select 1 from dual where 2 > all (select 1);
+1
+1
+select 1 from dual where 1 < any (select 2 from dual);
+1
+1
+select 1 from dual where 1 < all (select 2 from dual where 1!=1);
+1
+1
 create table t1 (df decimal(5,1));
 insert into t1 values(1.1);
 insert into t1 values(2.2);

@@ -10608,8 +10608,13 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  if (!join->first_record)
 	  {
+            List_iterator_fast<Item> it(*join->fields);
+            Item *item;
 	    /* No matching rows for group function */
 	    join->clear();
+
+            while ((item= it++))
+              item->no_rows_in_result();
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
