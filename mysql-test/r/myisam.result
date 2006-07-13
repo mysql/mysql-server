@@ -1454,3 +1454,16 @@ create table t3 (c1 int) engine=myisam pack_keys=default;
 create table t4 (c1 int) engine=myisam pack_keys=2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
 drop table t1, t2, t3;
+show create table t1;
+show create table t1;
+create table t1 (a int) engine=myisam select 42 a;
+select * from t1;
+a
+9
+select * from t1;
+a
+99
+select * from t1;
+a
+42
+drop table t1;

@@ -1155,12 +1155,11 @@ insert into t values(5, 51);
 create view v1 as select qty, price, qty*price as value from t;
 create view v2 as select qty from v1;
 --echo mysqldump {
---exec $MYSQL_DUMP --compact -F --tab . test
---exec cat v1.sql
+--exec $MYSQL_DUMP --compact -F --tab $MYSQLTEST_VARDIR/tmp test
+--exec cat $MYSQLTEST_VARDIR/tmp/v1.sql
 --echo } mysqldump {
---exec cat v2.sql
+--exec cat $MYSQLTEST_VARDIR/tmp/v2.sql
 --echo } mysqldump
---rm v.sql t.sql t.txt
 drop view v1;
 drop view v2;
 drop table t;
