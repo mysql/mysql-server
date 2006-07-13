@@ -395,11 +395,10 @@ show create table t1;
 drop table if exists t1;
 system rm -f $MYSQLTEST_VARDIR/master-data/test/t1.frm ;
 
-
-# End of 4.1 tests
 #
 # BUG 12183 -  SHOW OPEN TABLES behavior doesn't match grammar
 # First we close all open tables with FLUSH tables and then we open some.
+#
 CREATE TABLE txt1(a int);
 CREATE TABLE tyt2(a int);
 CREATE TABLE urkunde(a int);
@@ -421,7 +420,78 @@ DROP TABLE urkunde;
 --error 1049
 SHOW TABLES FROM non_existing_database;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
+
+#
+# Bug#17203: "sql_no_cache sql_cache" in views created from prepared
+# statement
+#
+# The problem was that initial user setting was forgotten, and current
+# runtime-determined values of the flags were shown instead.
+#
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+# Check that SHOW CREATE VIEW shows SQL_CACHE flag exaclty as
+# specified by the user.
+CREATE VIEW v1 AS SELECT 1;
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+CREATE VIEW v1 AS SELECT SQL_CACHE 1;
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+CREATE VIEW v1 AS SELECT SQL_NO_CACHE 1;
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+# Usage of NOW() disables caching, but we still have show what the
+# user have specified.
+CREATE VIEW v1 AS SELECT NOW();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+CREATE VIEW v1 AS SELECT SQL_CACHE NOW();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+CREATE VIEW v1 AS SELECT SQL_NO_CACHE NOW();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+# Check that SQL_NO_CACHE always wins.
+CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE NOW();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+CREATE VIEW v1 AS SELECT SQL_NO_CACHE SQL_CACHE NOW();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE SQL_CACHE NOW();
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+# Check CREATE VIEW in a prepared statement in a procedure.
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  SET @s= 'CREATE VIEW v1 AS SELECT SQL_CACHE 1';
+  PREPARE stmt FROM @s;
+  EXECUTE stmt;
+  DROP PREPARE stmt;
+END |
+delimiter ;|
+CALL p1();
+SHOW CREATE VIEW v1;
+
+DROP PROCEDURE p1;
+DROP VIEW v1;
+
+--echo End of 5.0 tests.
 
 --disable_result_log
 SHOW AUTHORS;

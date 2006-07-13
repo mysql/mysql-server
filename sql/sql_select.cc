@@ -14584,10 +14584,19 @@ void st_select_lex::print(THD *thd, String *str)
     str->append(STRING_WITH_LEN("sql_buffer_result "));
   if (options & OPTION_FOUND_ROWS)
     str->append(STRING_WITH_LEN("sql_calc_found_rows "));
-  if (!thd->lex->safe_to_cache_query)
-    str->append(STRING_WITH_LEN("sql_no_cache "));
-  if (options & OPTION_TO_QUERY_CACHE)
-    str->append(STRING_WITH_LEN("sql_cache "));
+  switch (sql_cache)
+  {
+    case SQL_NO_CACHE:
+      str->append(STRING_WITH_LEN("sql_no_cache "));
+      break;
+    case SQL_CACHE:
+      str->append(STRING_WITH_LEN("sql_cache "));
+      break;
+    case SQL_CACHE_UNSPECIFIED:
+      break;
+    default:
+      DBUG_ASSERT(0);
+  }
 
   //Item List
   bool first= 1;
