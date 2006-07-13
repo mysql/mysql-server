@@ -56,7 +56,7 @@ public:
   void
   drop_schema_events(THD *thd, LEX_STRING schema);
 
-  static bool
+  void
   check_system_tables(THD *thd);
 
   void
@@ -98,8 +98,6 @@ protected:
 
   /* The sorted queue with the Event_job_data objects */
   QUEUE queue;
-
-  bool queue_loaded;
 
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;

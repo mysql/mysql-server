@@ -24,65 +24,12 @@
 
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
 
-
-/*
-  Switches the security context
-  SYNOPSIS
-    event_change_security_context()
-      thd     Thread
-      user    The user
-      host    The host of the user
-      db      The schema for which the security_ctx will be loaded
-      backup  Where to store the old context
-  
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error (generates error too)
-*/
-
 static bool
 event_change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
-                              LEX_STRING db, Security_context *backup)
-{
-  DBUG_ENTER("event_change_security_context");
-  DBUG_PRINT("info",("%s@%s@%s", user.str, host.str, db.str));
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
-  *backup= thd->main_security_ctx;
-  if (acl_getroot_no_password(&thd->main_security_ctx, user.str, host.str,
-                              host.str, db.str))
-  {
-    my_error(ER_NO_SUCH_USER, MYF(0), user.str, host.str);
-    DBUG_RETURN(TRUE);
-  }
-  thd->security_ctx= &thd->main_security_ctx;
-#endif
-  DBUG_RETURN(FALSE);
-} 
-
-
-/*
-  Restores the security context
-  SYNOPSIS
-    event_restore_security_context()
-      thd     Thread
-      backup  Context to switch to
-*/
+                              LEX_STRING db, Security_context *backup);
 
 static void
-event_restore_security_context(THD *thd, Security_context *backup)
-{
-  DBUG_ENTER("event_restore_security_context");
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (backup)
-  {
-    thd->main_security_ctx= *backup;
-    thd->security_ctx= &thd->main_security_ctx;
-  }
-#endif
-  DBUG_VOID_RETURN;
-}
-
+event_restore_security_context(THD *thd, Security_context *backup);
 
 /*
   Returns a new instance
@@ -231,47 +178,6 @@ Event_parse_data::init_body(THD *thd)
     --body.length;
   }
   body.str= thd->strmake((char *)body_begin, body.length);
-
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Inits definer (definer_user and definer_host) during parsing.
-
-  SYNOPSIS
-    Event_parse_data::init_definer()
-      thd  Thread
-*/
-
-void
-Event_parse_data::init_definer(THD *thd)
-{
-  int definer_user_len;
-  int definer_host_len;
-  DBUG_ENTER("Event_parse_data::init_definer");
-
-  DBUG_PRINT("info",("init definer_user thd->mem_root=0x%lx "
-                     "thd->sec_ctx->priv_user=0x%lx", thd->mem_root,
-                     thd->security_ctx->priv_user));
-
-  definer_user_len= strlen(thd->security_ctx->priv_user);
-  definer_host_len= strlen(thd->security_ctx->priv_host);
-
-  /* + 1 for @ */
-  DBUG_PRINT("info",("init definer as whole"));
-  definer.length= definer_user_len + definer_host_len + 1;
-  definer.str= thd->alloc(definer.length + 1);
-
-  DBUG_PRINT("info",("copy the user"));
-  memcpy(definer.str, thd->security_ctx->priv_user, definer_user_len);
-  definer.str[definer_user_len]= '@';
-
-  DBUG_PRINT("info",("copy the host"));
-  memcpy(definer.str + definer_user_len + 1, thd->security_ctx->priv_host,
-         definer_host_len);
-  definer.str[definer.length]= '\0';
-  DBUG_PRINT("info",("definer [%s] initted", definer.str));
 
   DBUG_VOID_RETURN;
 }
@@ -642,6 +548,47 @@ Event_parse_data::check_parse_data(THD *thd)
   ret= init_execute_at(thd) || init_interval(thd) || init_starts(thd) ||
        init_ends(thd);
   DBUG_RETURN(ret);
+}
+
+
+/*
+  Inits definer (definer_user and definer_host) during parsing.
+
+  SYNOPSIS
+    Event_parse_data::init_definer()
+      thd  Thread
+*/
+
+void
+Event_parse_data::init_definer(THD *thd)
+{
+  int definer_user_len;
+  int definer_host_len;
+  DBUG_ENTER("Event_parse_data::init_definer");
+
+  DBUG_PRINT("info",("init definer_user thd->mem_root=0x%lx "
+                     "thd->sec_ctx->priv_user=0x%lx", thd->mem_root,
+                     thd->security_ctx->priv_user));
+
+  definer_user_len= strlen(thd->security_ctx->priv_user);
+  definer_host_len= strlen(thd->security_ctx->priv_host);
+
+  /* + 1 for @ */
+  DBUG_PRINT("info",("init definer as whole"));
+  definer.length= definer_user_len + definer_host_len + 1;
+  definer.str= thd->alloc(definer.length + 1);
+
+  DBUG_PRINT("info",("copy the user"));
+  memcpy(definer.str, thd->security_ctx->priv_user, definer_user_len);
+  definer.str[definer_user_len]= '@';
+
+  DBUG_PRINT("info",("copy the host"));
+  memcpy(definer.str + definer_user_len + 1, thd->security_ctx->priv_host,
+         definer_host_len);
+  definer.str[definer.length]= '\0';
+  DBUG_PRINT("info",("definer [%s] initted", definer.str));
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1668,6 +1615,69 @@ Event_job_data::get_fake_create_event(THD *thd, String *buf)
 
 
 /*
+  Executes the event (the underlying sp_head object);
+
+  SYNOPSIS
+    Event_job_data::execute()
+      thd       THD
+
+  RETURN VALUE
+    0        success
+    -99      No rights on this.dbname.str
+    others   retcodes of sp_head::execute_procedure()
+*/
+
+int
+Event_job_data::execute(THD *thd)
+{
+  Security_context save_ctx;
+  /* this one is local and not needed after exec */
+  int ret= 0;
+
+  DBUG_ENTER("Event_job_data::execute");
+  DBUG_PRINT("info", ("EXECUTING %s.%s", dbname.str, name.str));
+
+  if ((ret= compile(thd, NULL)))
+    goto done;
+
+  event_change_security_context(thd, definer_user, definer_host, dbname,
+                                &save_ctx);
+  /*
+    THD::~THD will clean this or if there is DROP DATABASE in the SP then
+    it will be free there. It should not point to our buffer which is allocated
+    on a mem_root.
+  */
+  thd->db= my_strdup(dbname.str, MYF(0));
+  thd->db_length= dbname.length;
+  if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
+  {
+    List<Item> empty_item_list;
+    empty_item_list.empty();
+    if (thd->enable_slow_log)
+      sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
+    sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
+
+    ret= sphead->execute_procedure(thd, &empty_item_list);
+  }
+  else
+  {
+    DBUG_PRINT("error", ("%s@%s has no rights on %s", definer_user.str,
+               definer_host.str, dbname.str));
+    ret= -99;
+  }
+
+  event_restore_security_context(thd, &save_ctx);
+done:
+  thd->end_statement();
+  thd->cleanup_after_query();
+
+  DBUG_PRINT("info", ("EXECUTED %s.%s ret=%d", dbname.str, name.str, ret));
+
+  DBUG_RETURN(ret);
+}
+
+
+/*
   Compiles an event before it's execution. Compiles the anonymous
   sp_head object held by the event
 
@@ -1800,69 +1810,6 @@ done:
 
 
 /*
-  Executes the event (the underlying sp_head object);
-
-  SYNOPSIS
-    Event_job_data::execute()
-      thd       THD
-
-  RETURN VALUE
-    0        success
-    -99      No rights on this.dbname.str
-    others   retcodes of sp_head::execute_procedure()
-*/
-
-int
-Event_job_data::execute(THD *thd)
-{
-  Security_context save_ctx;
-  /* this one is local and not needed after exec */
-  int ret= 0;
-
-  DBUG_ENTER("Event_job_data::execute");
-  DBUG_PRINT("info", ("EXECUTING %s.%s", dbname.str, name.str));
-
-  if ((ret= compile(thd, NULL)))
-    goto done;
-
-  event_change_security_context(thd, definer_user, definer_host, dbname,
-                                &save_ctx);
-  /*
-    THD::~THD will clean this or if there is DROP DATABASE in the SP then
-    it will be free there. It should not point to our buffer which is allocated
-    on a mem_root.
-  */
-  thd->db= my_strdup(dbname.str, MYF(0));
-  thd->db_length= dbname.length;
-  if (!check_access(thd, EVENT_ACL,dbname.str, 0, 0, 0,is_schema_db(dbname.str)))
-  {
-    List<Item> empty_item_list;
-    empty_item_list.empty();
-    if (thd->enable_slow_log)
-      sphead->m_flags|= sp_head::LOG_SLOW_STATEMENTS;
-    sphead->m_flags|= sp_head::LOG_GENERAL_LOG;
-
-    ret= sphead->execute_procedure(thd, &empty_item_list);
-  }
-  else
-  {
-    DBUG_PRINT("error", ("%s@%s has no rights on %s", definer_user.str,
-               definer_host.str, dbname.str));
-    ret= -99;
-  }
-
-  event_restore_security_context(thd, &save_ctx);
-done:
-  thd->end_statement();
-  thd->cleanup_after_query();
-
-  DBUG_PRINT("info", ("EXECUTED %s.%s ret=%d", dbname.str, name.str, ret));
-
-  DBUG_RETURN(ret);
-}
-
-
-/*
   Checks whether two events are in the same schema
 
   SYNOPSIS
@@ -1898,4 +1845,63 @@ event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b)
 {
   return !sortcmp_lex_string(name, b->name, system_charset_info) &&
          !sortcmp_lex_string(db, b->dbname, system_charset_info);
+}
+
+
+/*
+  Switches the security context
+  SYNOPSIS
+    event_change_security_context()
+      thd     Thread
+      user    The user
+      host    The host of the user
+      db      The schema for which the security_ctx will be loaded
+      backup  Where to store the old context
+  
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error (generates error too)
+*/
+
+static bool
+event_change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
+                              LEX_STRING db, Security_context *backup)
+{
+  DBUG_ENTER("event_change_security_context");
+  DBUG_PRINT("info",("%s@%s@%s", user.str, host.str, db.str));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+  *backup= thd->main_security_ctx;
+  if (acl_getroot_no_password(&thd->main_security_ctx, user.str, host.str,
+                              host.str, db.str))
+  {
+    my_error(ER_NO_SUCH_USER, MYF(0), user.str, host.str);
+    DBUG_RETURN(TRUE);
+  }
+  thd->security_ctx= &thd->main_security_ctx;
+#endif
+  DBUG_RETURN(FALSE);
+} 
+
+
+/*
+  Restores the security context
+  SYNOPSIS
+    event_restore_security_context()
+      thd     Thread
+      backup  Context to switch to
+*/
+
+static void
+event_restore_security_context(THD *thd, Security_context *backup)
+{
+  DBUG_ENTER("event_restore_security_context");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (backup)
+  {
+    thd->main_security_ctx= *backup;
+    thd->security_ctx= &thd->main_security_ctx;
+  }
+#endif
+  DBUG_VOID_RETURN;
 }
