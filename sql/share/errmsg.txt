@@ -5594,8 +5594,6 @@ ER_NON_GROUPING_FIELD_USED 42000
 	eng "non-grouping field '%-.64s' is used in %-.64s clause"
 ER_TABLE_CANT_HANDLE_SPKEYS
         eng "The used table type doesn't support SPATIAL indexes"
-ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
-	eng "Triggers can not be created on system tables"
 ER_ILLEGAL_HA_CREATE_OPTION
         eng "Table storage engine '%-.64s' does not support the create option '%.64s'"
 ER_PARTITION_REQUIRES_VALUES_ERROR
@@ -5841,3 +5839,5 @@ ER_CANT_ACTIVATE_LOG
         eng "Cannot activate '%-.64s' log."
 ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
+ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
+	eng "Triggers can not be created on system tables"

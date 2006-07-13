@@ -1603,7 +1603,6 @@ fld_cid	fld_name	fld_parentid	fld_delt
 5	Torkel	0	0
 DROP TABLE federated.t1;
 DROP TABLE federated.bug_17377_table;
-DROP TABLE federated.t1;
 drop table if exists federated.t1;
 create table federated.t1 (a int, b int, c int);
 drop table if exists federated.t1;
