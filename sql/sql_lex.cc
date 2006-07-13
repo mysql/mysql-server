@@ -171,6 +171,7 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
+  lex->spname= NULL;
   lex->sphead= NULL;
   lex->spcont= NULL;
   lex->proc_list.first= 0;

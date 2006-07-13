@@ -4652,6 +4652,13 @@ alter:
              YYTHD->client_capabilities is set back to original value
           */
           {
+            /* 
+               It is safe to use Lex->spname because
+               ALTER EVENT xxx RENATE TO yyy DO ALTER EVENT RENAME TO
+               is not allowed. Lex->spname is used in the case of RENAME TO
+               If it had to be supported spname had to be added to
+               Event_parse_data.
+            */
             Lex->spname= NULL;
 
             if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))

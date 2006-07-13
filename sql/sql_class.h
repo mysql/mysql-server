@@ -871,8 +871,7 @@ public:
   
   bool
   change_security_context(LEX_STRING user, LEX_STRING host,
-                          LEX_STRING db, Security_context *s_ctx,
-                          Security_context **backup);  
+                          LEX_STRING db, Security_context *backup);  
 
   void
   restore_security_context(Security_context *backup);
