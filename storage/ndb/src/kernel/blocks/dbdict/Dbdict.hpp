@@ -2075,12 +2075,17 @@ private:
    *
    * XXX only table ops check BlockState
    */
+  struct DictLockType;
+  friend struct DictLockType;
 
   struct DictLockType {
     DictLockReq::LockType lockType;
     BlockState blockState;
     const char* text;
   };
+
+  struct DictLockRecord;
+  friend struct DictLockRecord;
 
   struct DictLockRecord {
     DictLockReq req;

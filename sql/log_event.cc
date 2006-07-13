@@ -1693,14 +1693,33 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+
+static const char *rewrite_db(const char *db)
+{
+  if (replicate_rewrite_db.is_empty() || db == NULL)
+    return db;
+  I_List_iterator<i_string_pair> it(replicate_rewrite_db);
+  i_string_pair* tmp;
+
+  while ((tmp=it++))
+  {
+    if (strcmp(tmp->key, db) == 0)
+      return tmp->val;
+  }
+  return db;
+}
+
+
 int Query_log_event::exec_event(struct st_relay_log_info* rli)
 {
   return exec_event(rli, query, q_len);
 }
 
 
-int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query_arg, uint32 q_len_arg)
+int Query_log_event::exec_event(struct st_relay_log_info* rli,
+                                const char *query_arg, uint32 q_len_arg)
 {
+  LEX_STRING new_db;
   int expected_error,actual_error= 0;
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would lead to
@@ -1709,8 +1728,9 @@ int Query_log_event::exec_event(struct st_relay_log_info* rli, const char *query
     Thank you.
   */
   thd->catalog= catalog_len ? (char *) catalog : (char *)"";
-  thd->db_length= db_len;
-  thd->db= (char *) rpl_filter->get_rewrite_db(db, &thd->db_length);
+  new_db.length= db_len;
+  new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
+  thd->set_db(new_db.str, new_db.length);       /* allocates a copy of 'db' */
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
 
@@ -1929,7 +1949,7 @@ end:
     TABLE uses the db.table syntax.
   */
   thd->catalog= 0;
-  thd->reset_db(NULL, 0);               // prevent db from being freed
+  thd->set_db(NULL, 0);                 /* will free the current database */
   thd->query= 0;			// just to be sure
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
@@ -2906,8 +2926,10 @@ void Load_log_event::set_fields(const char* affected_db,
 int Load_log_event::exec_event(NET* net, struct st_relay_log_info* rli, 
 			       bool use_rli_only_for_errors)
 {
-  thd->db_length= db_len;
-  thd->db= (char *) rpl_filter->get_rewrite_db(db, &thd->db_length);
+  LEX_STRING new_db;
+  new_db.length= db_len;
+  new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
+  thd->set_db(new_db.str, new_db.length);
   DBUG_ASSERT(thd->query == 0);
   thd->query_length= 0;                         // Should not be needed
   thd->query_error= 0;
@@ -3110,7 +3132,7 @@ error:
   const char *remember_db= thd->db;
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->catalog= 0;
-  thd->reset_db(NULL, 0);
+  thd->set_db(NULL, 0);                   /* will free the current database */
   thd->query= 0;
   thd->query_length= 0;
   VOID(pthread_mutex_unlock(&LOCK_thread_count));
