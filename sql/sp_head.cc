@@ -1097,6 +1097,7 @@ sp_head::execute(THD *thd)
 
   thd->restore_active_arena(&execute_arena, &backup_arena);
 
+  thd->spcont->pop_all_cursors(); // To avoid memory leaks after an error
 
   /* Restore all saved */
   old_packet.swap(thd->packet);
@@ -1158,6 +1159,161 @@ sp_head::execute(THD *thd)
                m_first_instance->m_first_free_instance->m_recursion_level ==
                m_recursion_level + 1));
   m_first_instance->m_first_free_instance= this;
+
+  DBUG_RETURN(err_status);
+}
+
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+/*
+  set_routine_security_ctx() changes routine security context, and
+  checks if there is an EXECUTE privilege in new context.  If there is
+  no EXECUTE privilege, it changes the context back and returns a
+  error.
+
+  SYNOPSIS
+    set_routine_security_ctx()
+      thd         thread handle
+      sp          stored routine to change the context for
+      is_proc     TRUE is procedure, FALSE if function
+      save_ctx    pointer to an old security context
+   
+  RETURN
+    TRUE if there was a error, and the context wasn't changed.
+    FALSE if the context was changed.
+*/
+
+bool
+set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
+                         Security_context **save_ctx)
+{
+  *save_ctx= 0;
+  if (sp_change_security_context(thd, sp, save_ctx))
+    return TRUE;
+
+  /*
+    If we changed context to run as another user, we need to check the
+    access right for the new context again as someone may have revoked
+    the right to use the procedure from this user.
+
+    TODO:
+      Cache if the definer has the right to use the object on the
+      first usage and only reset the cache if someone does a GRANT
+      statement that 'may' affect this.
+  */
+  if (*save_ctx &&
+      check_routine_access(thd, EXECUTE_ACL,
+                           sp->m_db.str, sp->m_name.str, is_proc, FALSE))
+  {
+    sp_restore_security_context(thd, *save_ctx);
+    *save_ctx= 0;
+    return TRUE;
+  }
+
+  return FALSE;
+}
+#endif // ! NO_EMBEDDED_ACCESS_CHECKS
+
+
+/*
+  Execute a trigger:
+   - changes security context for triggers
+   - switch to new memroot
+   - call sp_head::execute
+   - restore old memroot
+   - restores security context
+
+  SYNOPSIS
+    sp_head::execute_trigger()
+      thd               Thread handle
+      db                database name
+      table             table name
+      grant_info        GRANT_INFO structure to be filled with
+                        information about definer's privileges
+                        on subject table
+   
+  RETURN
+    FALSE  on success
+    TRUE   on error
+*/
+
+bool
+sp_head::execute_trigger(THD *thd, const char *db, const char *table,
+                         GRANT_INFO *grant_info)
+{
+  sp_rcontext *octx = thd->spcont;
+  sp_rcontext *nctx = NULL;
+  bool err_status= FALSE;
+  MEM_ROOT call_mem_root;
+  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena backup_arena;
+
+  DBUG_ENTER("sp_head::execute_trigger");
+  DBUG_PRINT("info", ("trigger %s", m_name.str));
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_ctx;
+  if (sp_change_security_context(thd, this, &save_ctx))
+    DBUG_RETURN(TRUE);
+
+  /*
+    NOTE: TRIGGER_ACL should be used here.
+  */
+  if (check_global_access(thd, SUPER_ACL))
+  {
+    sp_restore_security_context(thd, save_ctx);
+    DBUG_RETURN(TRUE);
+  }
+
+  /*
+    Fetch information about table-level privileges to GRANT_INFO
+    structure for subject table. Check of privileges that will use it
+    and information about column-level privileges will happen in
+    Item_trigger_field::fix_fields().
+  */
+  fill_effective_table_privileges(thd, grant_info, db, table);
+#endif // NO_EMBEDDED_ACCESS_CHECKS
+
+  /*
+    Prepare arena and memroot for objects which lifetime is whole
+    duration of trigger call (sp_rcontext, it's tables and items,
+    sp_cursor and Item_cache holders for case expressions).  We can't
+    use caller's arena/memroot for those objects because in this case
+    some fixed amount of memory will be consumed for each trigger
+    invocation and so statements which involve lot of them will hog
+    memory.
+
+    TODO: we should create sp_rcontext once per command and reuse it
+    on subsequent executions of a trigger.
+  */
+  init_sql_alloc(&call_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
+  thd->set_n_backup_active_arena(&call_arena, &backup_arena);
+
+  if (!(nctx= new sp_rcontext(m_pcont, 0, octx)) ||
+      nctx->init(thd))
+  {
+    err_status= TRUE;
+    goto err_with_cleanup;
+  }
+
+#ifndef DBUG_OFF
+  nctx->sp= this;
+#endif
+
+  thd->spcont= nctx;
+
+  err_status= execute(thd);
+
+err_with_cleanup:
+  thd->restore_active_arena(&call_arena, &backup_arena);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  sp_restore_security_context(thd, save_ctx);
+#endif // NO_EMBEDDED_ACCESS_CHECKS
+  delete nctx;
+  call_arena.free_items();
+  free_root(&call_mem_root, MYF(0));
+  thd->spcont= octx;
+
   DBUG_RETURN(err_status);
 }
 
@@ -1165,8 +1321,12 @@ sp_head::execute(THD *thd)
 /*
   Execute a function:
    - evaluate parameters
+   - changes security context for SUID routines
+   - switch to new memroot
    - call sp_head::execute
+   - restore old memroot
    - evaluate the return value
+   - restores security context
 
   SYNOPSIS
     sp_head::execute_function()
@@ -1293,6 +1453,15 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   }
   thd->spcont= nctx;
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_security_ctx;
+  if (set_routine_security_ctx(thd, this, FALSE, &save_security_ctx))
+  {
+    err_status= TRUE;
+    goto err_with_cleanup;
+  }
+#endif
+
   binlog_save_options= thd->options;
   if (need_binlog_call)
   {
@@ -1333,7 +1502,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     reset_dynamic(&thd->user_var_events);
   }
 
-  if (m_type == TYPE_ENUM_FUNCTION && !err_status)
+  if (!err_status)
   {
     /* We need result only in function but not in trigger */
 
@@ -1344,8 +1513,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     }
   }
 
-
-  nctx->pop_all_cursors();	// To avoid memory leaks after an error
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  sp_restore_security_context(thd, save_security_ctx);
+#endif
 
 err_with_cleanup:
   delete nctx;
@@ -1368,8 +1538,10 @@ err_with_cleanup:
 
   The function does the following steps:
    - Set all parameters 
+   - changes security context for SUID routines
    - call sp_head::execute
    - copy back values of INOUT and OUT parameters
+   - restores security context
 
   RETURN
     FALSE  on success
@@ -1490,6 +1662,12 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   thd->spcont= nctx;
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_security_ctx= 0;
+  if (!err_status)
+    err_status= set_routine_security_ctx(thd, this, TRUE, &save_security_ctx);
+#endif
+
   if (!err_status)
     err_status= execute(thd);
 
@@ -1534,10 +1712,14 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     }
   }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (save_security_ctx)
+    sp_restore_security_context(thd, save_security_ctx);
+#endif
+
   if (!save_spcont)
     delete octx;
 
-  nctx->pop_all_cursors();	// To avoid memory leaks after an error
   delete nctx;
   thd->spcont= save_spcont;
 
