@@ -2239,15 +2239,16 @@ static void dump_table(char *table, char *db)
       goto err;
     }
 
-    if (opt_disable_keys)
-    {
-      fprintf(md_result_file, "\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
-              opt_quoted_table);
-      check_io(md_result_file);
-    }
     if (opt_lock)
     {
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n", opt_quoted_table);
+      check_io(md_result_file);
+    }
+    /* Moved disable keys to after lock per bug 15977 */
+    if (opt_disable_keys)
+    {
+      fprintf(md_result_file, "/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
+	      opt_quoted_table);
       check_io(md_result_file);
     }
 
@@ -2511,15 +2512,17 @@ static void dump_table(char *table, char *db)
       error= EX_CONSCHECK;
       goto err;
     }
-    if (opt_lock)
-    {
-      fputs("UNLOCK TABLES;\n", md_result_file);
-      check_io(md_result_file);
-    }
+
+    /* Moved enable keys to before unlock per bug 15977 */
     if (opt_disable_keys)
     {
       fprintf(md_result_file,"/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
               opt_quoted_table);
+      check_io(md_result_file);
+    }
+    if (opt_lock)
+    {
+      fputs("UNLOCK TABLES;\n", md_result_file);
       check_io(md_result_file);
     }
     if (opt_autocommit)

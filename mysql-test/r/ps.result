@@ -502,6 +502,20 @@ SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
 deallocate prepare stmt;
+drop table if exists t1;
+create temporary table if not exists t1 (a1 int);
+prepare stmt from "delete t1 from t1 where (cast(a1/3 as unsigned) * 3) = a1";
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+deallocate prepare stmt;
 create table t1 (a char(3) not null, b char(3) not null,
 c char(3) not null, primary key  (a, b, c));
 create table t2 like t1;
