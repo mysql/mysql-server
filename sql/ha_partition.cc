@@ -2229,7 +2229,8 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   m_table_flags&= ~(HA_CAN_GEOMETRY | HA_CAN_FULLTEXT | HA_DUPLICATE_POS |
                     HA_CAN_SQL_HANDLER | HA_CAN_INSERT_DELAYED);
   m_table_flags|= HA_FILE_BASED | HA_REC_NOT_IN_SEQ;
-
+  key_used_on_scan= m_file[0]->key_used_on_scan;
+  implicit_emptied= m_file[0]->implicit_emptied;
   /*
     Add 2 bytes for partition id in position ref length.
     ref_length=max_in_all_partitions(ref_length) + PARTITION_BYTES_IN_POS
