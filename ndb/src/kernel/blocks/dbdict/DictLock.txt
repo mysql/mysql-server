@@ -85,10 +85,14 @@ DIH/s
     START_MECONF
 DIH/s
 
-* sp7 - release DICT lock
+* (copy data, omitted)
 
-DIH/s
-    DICT_UNLOCK_ORD
-        DICT/m
+* SL_STARTED - release DICT lock
+
+CNTR/s
+    NODE_START_REP
+        DIH/s
+            DICT_UNLOCK_ORD
+                DICT/m
 
 # vim: set et sw=4:

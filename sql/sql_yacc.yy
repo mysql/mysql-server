@@ -4453,7 +4453,10 @@ simple_expr:
 	    Lex->safe_to_cache_query=0;
 	  }
 	| CURRENT_USER optional_braces
-          { $$= create_func_current_user(); }
+          {
+            $$= new Item_func_current_user(Lex->current_context());
+            Lex->safe_to_cache_query= 0;
+          }
 	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
 	  { $$= new Item_date_add_interval($3,$5,$6,0); }
 	| DATE_SUB_INTERVAL '(' expr ',' interval_expr interval ')'
@@ -4810,7 +4813,7 @@ simple_expr:
 	| UNIX_TIMESTAMP '(' expr ')'
 	  { $$= new Item_func_unix_timestamp($3); }
 	| USER '(' ')'
-	  { $$= new Item_func_user(FALSE); Lex->safe_to_cache_query=0; }
+	  { $$= new Item_func_user(); Lex->safe_to_cache_query=0; }
 	| UTC_DATE_SYM optional_braces
 	  { $$= new Item_func_curdate_utc(); Lex->safe_to_cache_query=0;}
 	| UTC_TIME_SYM optional_braces

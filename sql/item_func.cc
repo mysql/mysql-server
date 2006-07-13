@@ -2510,8 +2510,7 @@ void udf_handler::cleanup()
     {
       if (u_d->func_deinit != NULL)
       {
-        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
-        u_d->func_deinit;
+        Udf_func_deinit deinit= u_d->func_deinit;
         (*deinit)(&initid);
       }
       free_udf(u_d);
@@ -2656,9 +2655,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       }
     }
     thd->net.last_error[0]=0;
-    my_bool (*init)(UDF_INIT *, UDF_ARGS *, char *)=
-      (my_bool (*)(UDF_INIT *, UDF_ARGS *,  char *))
-      u_d->func_init;
+    Udf_func_init init= u_d->func_init;
     if ((error=(uchar) init(&initid, &f_args, thd->net.last_error)))
     {
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0),

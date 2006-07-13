@@ -624,8 +624,10 @@ void close_temporary_tables(THD *thd)
 
   if (!mysql_bin_log.is_open())
   {
-    for (table= thd->temporary_tables; table; table= table->next)
+    TABLE *next;
+    for (table= thd->temporary_tables; table; table= next)
     {
+      next= table->next;
       close_temporary(table, 1);
     }
     thd->temporary_tables= 0;
@@ -648,7 +650,6 @@ void close_temporary_tables(THD *thd)
      insertion sort of temp tables by pseudo_thread_id to build ordered list
      of sublists of equal pseudo_thread_id
   */
-
   for (prev_table= thd->temporary_tables, table= prev_table->next;
        table;
        prev_table= table, table= table->next)
