@@ -752,44 +752,47 @@ String *Item_func_reverse::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
-  char *ptr,*end;
+  char *ptr, *end, *tmp;
 
   if ((null_value=args[0]->null_value))
     return 0;
   /* An empty string is a special case as the string pointer may be null */
   if (!res->length())
     return &my_empty_string;
-  res=copy_if_not_alloced(str,res,res->length());
-  ptr = (char *) res->ptr();
-  end=ptr+res->length();
+  if (tmp_value.alloced_length() < res->length() &&
+      tmp_value.realloc(res->length()))
+  {
+    null_value= 1;
+    return 0;
+  }
+  tmp_value.length(res->length());
+  tmp_value.set_charset(res->charset());
+  ptr= (char *) res->ptr();
+  end= ptr + res->length();
+  tmp= (char *) tmp_value.ptr() + tmp_value.length();
 #ifdef USE_MB
   if (use_mb(res->charset()))
   {
-    String tmpstr;
-    tmpstr.copy(*res);
-    char *tmp = (char *) tmpstr.ptr() + tmpstr.length();
     register uint32 l;
     while (ptr < end)
     {
-      if ((l=my_ismbchar(res->charset(), ptr,end)))
-        tmp-=l, memcpy(tmp,ptr,l), ptr+=l;
+      if ((l= my_ismbchar(res->charset(),ptr,end)))
+      {
+        tmp-= l;
+        memcpy(tmp,ptr,l);
+        ptr+= l;
+      }
       else
-        *--tmp=*ptr++;
+        *--tmp= *ptr++;
     }
-    memcpy((char *) res->ptr(),(char *) tmpstr.ptr(), res->length());
   }
   else
 #endif /* USE_MB */
   {
-    char tmp;
     while (ptr < end)
-    {
-      tmp=*ptr;
-      *ptr++=*--end;
-      *end=tmp;
-    }
+      *--tmp= *ptr++;
   }
-  return res;
+  return &tmp_value;
 }
 
 
