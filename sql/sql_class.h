@@ -868,13 +868,6 @@ public:
   char   *db, *catalog;
   Security_context main_security_ctx;
   Security_context *security_ctx;
-  
-  bool
-  change_security_context(LEX_STRING user, LEX_STRING host,
-                          LEX_STRING db, Security_context *backup);  
-
-  void
-  restore_security_context(Security_context *backup);
 
   /* remote (peer) port */
   uint16 peer_port;

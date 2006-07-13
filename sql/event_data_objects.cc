@@ -26,6 +26,65 @@
 
 
 /*
+  Switches the security context
+  SYNOPSIS
+    event_change_security_context()
+      thd     Thread
+      user    The user
+      host    The host of the user
+      db      The schema for which the security_ctx will be loaded
+      backup  Where to store the old context
+  
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error (generates error too)
+*/
+
+static bool
+event_change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
+                              LEX_STRING db, Security_context *backup)
+{
+  DBUG_ENTER("event_change_security_context");
+  DBUG_PRINT("info",("%s@%s@%s", user.str, host.str, db.str));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+  *backup= thd->main_security_ctx;
+  if (acl_getroot_no_password(&thd->main_security_ctx, user.str, host.str,
+                              host.str, db.str))
+  {
+    my_error(ER_NO_SUCH_USER, MYF(0), user.str, host.str);
+    DBUG_RETURN(TRUE);
+  }
+  thd->security_ctx= &thd->main_security_ctx;
+#endif
+  DBUG_RETURN(FALSE);
+} 
+
+
+/*
+  Restores the security context
+  SYNOPSIS
+    event_restore_security_context()
+      thd     Thread
+      backup  Context to switch to
+*/
+
+static void
+event_restore_security_context(THD *thd, Security_context *backup)
+{
+  DBUG_ENTER("event_restore_security_context");
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  if (backup)
+  {
+    thd->main_security_ctx= *backup;
+    thd->security_ctx= &thd->main_security_ctx;
+  }
+#endif
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Returns a new instance
 
   SYNOPSIS
@@ -1686,7 +1745,8 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
   thd->query_length= show_create.length();
   DBUG_PRINT("info", ("query:%s",thd->query));
 
-  thd->change_security_context(definer_user, definer_host, dbname, &save_ctx);
+  event_change_security_context(thd, definer_user, definer_host, dbname,
+                                &save_ctx);
   thd->lex= &lex;
   mysql_init_query(thd, (uchar*) thd->query, thd->query_length);
   if (MYSQLparse((void *)thd) || thd->is_fatal_error)
@@ -1717,7 +1777,7 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
 done:
 
   lex_end(&lex);
-  thd->restore_security_context(&save_ctx);
+  event_restore_security_context(thd, &save_ctx);
   DBUG_PRINT("note", ("return old data on its place. set back NAMES"));
 
   thd->lex= old_lex;
@@ -1765,7 +1825,8 @@ Event_job_data::execute(THD *thd)
   if ((ret= compile(thd, NULL)))
     goto done;
 
-  thd->change_security_context(definer_user, definer_host, dbname, &save_ctx);
+  event_change_security_context(thd, definer_user, definer_host, dbname,
+                                &save_ctx);
   /*
     THD::~THD will clean this or if there is DROP DATABASE in the SP then
     it will be free there. It should not point to our buffer which is allocated
@@ -1790,7 +1851,7 @@ Event_job_data::execute(THD *thd)
     ret= -99;
   }
 
-  thd->restore_security_context(&save_ctx);
+  event_restore_security_context(thd, &save_ctx);
 done:
   thd->end_statement();
   thd->cleanup_after_query();
