@@ -56,7 +56,7 @@ public:
   bool
   run(THD *thd);
   
-  bool 
+  void 
   init_scheduler(Event_queue *queue);
 
   void

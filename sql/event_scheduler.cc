@@ -28,18 +28,11 @@
 #define SCHED_FUNC "<unknown>"
 #endif
 
-#define LOCK_SCHEDULER_DATA()   lock_data(SCHED_FUNC, __LINE__)
-#define UNLOCK_SCHEDULER_DATA() unlock_data(SCHED_FUNC, __LINE__)
+#define LOCK_DATA()             lock_data(SCHED_FUNC, __LINE__)
+#define UNLOCK_DATA()           unlock_data(SCHED_FUNC, __LINE__)
 #define COND_STATE_WAIT(timer)  cond_wait(timer, SCHED_FUNC, __LINE__)
 
 extern pthread_attr_t connection_attrib;
-
-struct scheduler_param
-{
-  THD *thd;
-  Event_scheduler *scheduler;
-};
-
 
 static
 LEX_STRING scheduler_states_names[] =
@@ -47,6 +40,11 @@ LEX_STRING scheduler_states_names[] =
   { C_STRING_WITH_LEN("INITIALIZED")},
   { C_STRING_WITH_LEN("RUNNING")},
   { C_STRING_WITH_LEN("STOPPING")}
+};
+
+struct scheduler_param {
+  THD *thd;
+  Event_scheduler *scheduler;
 };
 
 
@@ -95,54 +93,6 @@ evex_print_warnings(THD *thd, Event_job_data *et)
     (sql_print_message_handlers[err->level])("%*s", err_msg.length(),
                                               err_msg.c_ptr());
   }
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Performs pre- pthread_create() initialisation of THD. Do this
-  in the thread that will pass THD to the child thread. In the
-  child thread call post_init_event_thread().
-
-  SYNOPSIS
-    pre_init_event_thread()
-      thd  The THD of the thread. Has to be allocated by the caller.
-
-  NOTES
-    1. The host of the thead is my_localhost
-    2. thd->net is initted with NULL - no communication.
-*/
-
-void
-pre_init_event_thread(THD* thd)
-{
-  DBUG_ENTER("pre_init_event_thread");
-  thd->client_capabilities= 0;
-  thd->security_ctx->master_access= 0;
-  thd->security_ctx->db_access= 0;
-  thd->security_ctx->host_or_ip= (char*)my_localhost;
-  thd->security_ctx->set_user((char*)"event_scheduler");
-  my_net_init(&thd->net, NULL);
-  thd->net.read_timeout= slave_net_timeout;
-  thd->slave_thread= 0;
-  thd->options|= OPTION_AUTO_IS_NULL;
-  thd->client_capabilities|= CLIENT_MULTI_RESULTS;
-  pthread_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thread_id++;
-  threads.append(thd);
-  thread_count++;
-  thread_running++;
-  pthread_mutex_unlock(&LOCK_thread_count);
-
-  /*
-    Guarantees that we will see the thread in SHOW PROCESSLIST though its
-    vio is NULL.
-  */
-
-  thd->proc_info= "Initialized";
-  thd->version= refresh_version;
-  thd->set_time();
-
   DBUG_VOID_RETURN;
 }
 
@@ -198,6 +148,54 @@ deinit_event_thread(THD *thd)
   pthread_mutex_unlock(&LOCK_thread_count);
 
   my_thread_end();
+}
+
+
+/*
+  Performs pre- pthread_create() initialisation of THD. Do this
+  in the thread that will pass THD to the child thread. In the
+  child thread call post_init_event_thread().
+
+  SYNOPSIS
+    pre_init_event_thread()
+      thd  The THD of the thread. Has to be allocated by the caller.
+
+  NOTES
+    1. The host of the thead is my_localhost
+    2. thd->net is initted with NULL - no communication.
+*/
+
+void
+pre_init_event_thread(THD* thd)
+{
+  DBUG_ENTER("pre_init_event_thread");
+  thd->client_capabilities= 0;
+  thd->security_ctx->master_access= 0;
+  thd->security_ctx->db_access= 0;
+  thd->security_ctx->host_or_ip= (char*)my_localhost;
+  my_net_init(&thd->net, NULL);
+  thd->security_ctx->set_user((char*)"event_scheduler");
+  thd->net.read_timeout= slave_net_timeout;
+  thd->slave_thread= 0;
+  thd->options|= OPTION_AUTO_IS_NULL;
+  thd->client_capabilities|= CLIENT_MULTI_RESULTS;
+  pthread_mutex_lock(&LOCK_thread_count);
+  thd->thread_id= thread_id++;
+  threads.append(thd);
+  thread_count++;
+  thread_running++;
+  pthread_mutex_unlock(&LOCK_thread_count);
+
+  /*
+    Guarantees that we will see the thread in SHOW PROCESSLIST though its
+    vio is NULL.
+  */
+
+  thd->proc_info= "Initialized";
+  thd->version= refresh_version;
+  thd->set_time();
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -259,33 +257,32 @@ event_worker_thread(void *arg)
   thd->thread_stack= (char *) &thd;             // remember where our stack is
   DBUG_ENTER("event_worker_thread");
 
-  if (post_init_event_thread(thd))
-    goto end;
+  if (!post_init_event_thread(thd))
+  {
+    DBUG_PRINT("info", ("Baikonur, time is %d, BURAN reporting and operational."
+               "THD=0x%lx", time(NULL), thd));
 
-  DBUG_PRINT("info", ("Baikonur, time is %d, BURAN reporting and operational."
-             "THD=0x%lx", time(NULL), thd));
-
-  sql_print_information("SCHEDULER: [%s.%s of %s] executing in thread %lu",
-                        event->dbname.str, event->name.str,
-                        event->definer.str, thd->thread_id);
-
-  thd->enable_slow_log= TRUE;
-
-  ret= event->execute(thd);
-
-  evex_print_warnings(thd, event);
-
-  sql_print_information("SCHEDULER: [%s.%s of %s] executed "
-                        " in thread thread %lu. RetCode=%d",
-                        event->dbname.str, event->name.str,
-                        event->definer.str, thd->thread_id, ret);
-  if (ret == EVEX_COMPILE_ERROR)
-    sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s of %s",
+    sql_print_information("SCHEDULER: [%s.%s of %s] executing in thread %lu",
                           event->dbname.str, event->name.str,
-                          event->definer.str);
-  else if (ret == EVEX_MICROSECOND_UNSUP)
-    sql_print_information("SCHEDULER: MICROSECOND is not supported");
+                          event->definer.str, thd->thread_id);
 
+    thd->enable_slow_log= TRUE;
+
+    ret= event->execute(thd);
+
+    evex_print_warnings(thd, event);
+
+    sql_print_information("SCHEDULER: [%s.%s of %s] executed "
+                          " in thread thread %lu. RetCode=%d",
+                          event->dbname.str, event->name.str,
+                          event->definer.str, thd->thread_id, ret);
+    if (ret == EVEX_COMPILE_ERROR)
+      sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s of %s",
+                            event->dbname.str, event->name.str,
+                            event->definer.str);
+    else if (ret == EVEX_MICROSECOND_UNSUP)
+      sql_print_information("SCHEDULER: MICROSECOND is not supported");
+  }
 end:
   DBUG_PRINT("info", ("BURAN %s.%s is landing!", event->dbname.str,
              event->name.str));
@@ -293,7 +290,7 @@ end:
 
   deinit_event_thread(thd);
 
-  DBUG_RETURN(0);                               // Against gcc warnings
+  DBUG_RETURN(0);                               // Can't return anything here
 }
 
 
@@ -305,17 +302,15 @@ end:
     Event_scheduler::init_scheduler()
 */
 
-bool
+void
 Event_scheduler::init_scheduler(Event_queue *q)
 {
-  LOCK_SCHEDULER_DATA();
-  thread_id= 0;
-  state= INITIALIZED;
+  LOCK_DATA();
   queue= q;
   started_events= 0;
-  UNLOCK_SCHEDULER_DATA();
-
-  return FALSE;
+  thread_id= 0;
+  state= INITIALIZED;
+  UNLOCK_DATA();
 }
 
 
@@ -377,7 +372,7 @@ Event_scheduler::start()
   struct scheduler_param *scheduler_param_value;
   DBUG_ENTER("Event_scheduler::start");
 
-  LOCK_SCHEDULER_DATA();
+  LOCK_DATA();
   DBUG_PRINT("info", ("state before action %s", scheduler_states_names[state]));
   if (state > INITIALIZED)
     goto end;
@@ -408,7 +403,7 @@ Event_scheduler::start()
   DBUG_PRINT("info", ("Setting state go RUNNING"));
   state= RUNNING;
 end:
-  UNLOCK_SCHEDULER_DATA();
+  UNLOCK_DATA();
 
   if (ret && new_thd)
   {
@@ -423,56 +418,6 @@ end:
     pthread_mutex_unlock(&LOCK_thread_count);
   }
   DBUG_RETURN(ret);
-}
-
-
-/*
-  Stops the scheduler (again). Waits for acknowledgement from the
-  scheduler that it has stopped - synchronous stopping.
-
-  SYNOPSIS
-    Event_scheduler::stop()
-
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error (not reported)
-*/
-
-bool
-Event_scheduler::stop()
-{
-  THD *thd= current_thd;
-  DBUG_ENTER("Event_scheduler::stop");
-  DBUG_PRINT("enter", ("thd=0x%lx", current_thd));
-
-  LOCK_SCHEDULER_DATA();
-  DBUG_PRINT("info", ("state before action %s", scheduler_states_names[state]));
-  if (state != RUNNING)
-    goto end;
-
-  state= STOPPING;
-
-  DBUG_PRINT("info", ("Manager thread has id %d", thread_id));
-  sql_print_information("SCHEDULER: Killing manager thread %lu", thread_id);
-  
-  pthread_cond_signal(&COND_state);
-
-  /* Guarantee we don't catch spurious signals */
-  sql_print_information("SCHEDULER: Waiting the manager thread to reply");
-  do {
-    DBUG_PRINT("info", ("Waiting for COND_started_or_stopped from the manager "
-                        "thread.  Current value of state is %s . "
-                        "workers count=%d", scheduler_states_names[state].str,
-                        workers_count()));
-    /* thd could be 0x0, when shutting down */
-    COND_STATE_WAIT(NULL);
-  } while (state == STOPPING);
-  DBUG_PRINT("info", ("Manager thread has cleaned up. Set state to INIT"));
-
-  thread_id= 0;
-end:
-  UNLOCK_SCHEDULER_DATA();
-  DBUG_RETURN(FALSE);
 }
 
 
@@ -496,7 +441,7 @@ Event_scheduler::run(THD *thd)
   Event_job_data *job_data;
   DBUG_ENTER("Event_scheduler::run");
 
-  LOCK_SCHEDULER_DATA();
+  LOCK_DATA();
 
   thread_id= thd->thread_id;
   sql_print_information("SCHEDULER: Manager thread started with id %lu",
@@ -529,7 +474,7 @@ Event_scheduler::run(THD *thd)
       COND_STATE_WAIT(NULL);
       thd->exit_cond("");
       DBUG_PRINT("info", ("Woke up. Got COND_state"));
-      LOCK_SCHEDULER_DATA();
+      LOCK_DATA();
     }
     else if (abstime.tv_sec)
     {
@@ -545,16 +490,16 @@ Event_scheduler::run(THD *thd)
         1. Spurious wake-up
         2. The top of the queue was changed (new one becase of create/update)
       */
-      /* This will do implicit UNLOCK_SCHEDULER_DATA() */
+      /* This will do implicit UNLOCK_DATA() */
       thd->exit_cond("");
       DBUG_PRINT("info", ("Woke up. Got COND_stat or time for execution."));
-      LOCK_SCHEDULER_DATA();
+      LOCK_DATA();
     }
     else
     {
-      UNLOCK_SCHEDULER_DATA();
+      UNLOCK_DATA();
       res= execute_top(thd, job_data);
-      LOCK_SCHEDULER_DATA();
+      LOCK_DATA();
       if (res)
         break;
       ++started_events;
@@ -565,7 +510,7 @@ Event_scheduler::run(THD *thd)
   pthread_cond_signal(&COND_state);
 error:
   state= INITIALIZED;
-  UNLOCK_SCHEDULER_DATA();
+  UNLOCK_DATA();
   sql_print_information("SCHEDULER: Stopped");
 
   DBUG_RETURN(res);
@@ -627,23 +572,52 @@ error:
 
 
 /*
-  Returns the current state of the scheduler
+  Stops the scheduler (again). Waits for acknowledgement from the
+  scheduler that it has stopped - synchronous stopping.
 
   SYNOPSIS
-    Event_scheduler::get_state()
+    Event_scheduler::stop()
 
   RETURN VALUE
-    The state of the scheduler (INITIALIZED | RUNNING | STOPPING)
+    FALSE  OK
+    TRUE   Error (not reported)
 */
 
-enum Event_scheduler::enum_state
-Event_scheduler::get_state()
+bool
+Event_scheduler::stop()
 {
-  enum Event_scheduler::enum_state ret;
-  LOCK_SCHEDULER_DATA();
-  ret= state;
-  UNLOCK_SCHEDULER_DATA();
-  return ret;
+  THD *thd= current_thd;
+  DBUG_ENTER("Event_scheduler::stop");
+  DBUG_PRINT("enter", ("thd=0x%lx", current_thd));
+
+  LOCK_DATA();
+  DBUG_PRINT("info", ("state before action %s", scheduler_states_names[state]));
+  if (state != RUNNING)
+    goto end;
+
+  state= STOPPING;
+
+  DBUG_PRINT("info", ("Manager thread has id %d", thread_id));
+  sql_print_information("SCHEDULER: Killing manager thread %lu", thread_id);
+  
+  pthread_cond_signal(&COND_state);
+
+  /* Guarantee we don't catch spurious signals */
+  sql_print_information("SCHEDULER: Waiting the manager thread to reply");
+  do {
+    DBUG_PRINT("info", ("Waiting for COND_started_or_stopped from the manager "
+                        "thread.  Current value of state is %s . "
+                        "workers count=%d", scheduler_states_names[state].str,
+                        workers_count()));
+    /* thd could be 0x0, when shutting down */
+    COND_STATE_WAIT(NULL);
+  } while (state == STOPPING);
+  DBUG_PRINT("info", ("Manager thread has cleaned up. Set state to INIT"));
+
+  thread_id= 0;
+end:
+  UNLOCK_DATA();
+  DBUG_RETURN(FALSE);
 }
 
 
@@ -697,7 +671,7 @@ Event_scheduler::queue_changed()
 
 /*
   Auxiliary function for locking LOCK_scheduler_state. Used
-  by the LOCK_SCHEDULER_DATA macro.
+  by the LOCK_DATA macro.
 
   SYNOPSIS
     Event_scheduler::lock_data()
@@ -720,7 +694,7 @@ Event_scheduler::lock_data(const char *func, uint line)
 
 /*
   Auxiliary function for unlocking LOCK_scheduler_state. Used
-  by the UNLOCK_SCHEDULER_DATA macro.
+  by the UNLOCK_DATA macro.
 
   SYNOPSIS
     Event_scheduler::unlock_data()
@@ -754,28 +728,50 @@ Event_scheduler::unlock_data(const char *func, uint line)
 */
 
 void
-Event_scheduler::cond_wait(struct timespec *abstime,
-                              const char *func, uint line)
+Event_scheduler::cond_wait(struct timespec *abstime, const char *func,
+                           uint line)
 {
-  DBUG_ENTER("Event_scheduler::cond_wait");
   waiting_on_cond= TRUE;
   mutex_last_unlocked_at_line= line;
   mutex_scheduler_data_locked= FALSE;
   mutex_last_unlocked_in_func= func;
-
-  if (abstime)
-    pthread_cond_timedwait(&COND_state, &LOCK_scheduler_state, abstime);
-  else
+  if (!abstime)
     pthread_cond_wait(&COND_state, &LOCK_scheduler_state);
-
+  else
+    pthread_cond_timedwait(&COND_state, &LOCK_scheduler_state, abstime);
   mutex_last_locked_in_func= func;
   mutex_last_locked_at_line= line;
   mutex_scheduler_data_locked= TRUE;
   waiting_on_cond= FALSE;
-
-  DBUG_VOID_RETURN;
 }
 
+
+/*
+  Returns the current state of the scheduler
+
+  SYNOPSIS
+    Event_scheduler::get_state()
+
+  RETURN VALUE
+    The state of the scheduler (INITIALIZED | RUNNING | STOPPING)
+*/
+
+enum Event_scheduler::enum_state
+Event_scheduler::get_state()
+{
+  enum Event_scheduler::enum_state ret;
+  DBUG_ENTER("Event_scheduler::get_state");
+  LOCK_DATA();
+  ret= state;
+  UNLOCK_DATA();
+  DBUG_RETURN(ret);
+}
+
+
+/*
+  REMOVE THIS COMMENT AFTER PATCH REVIEW. USED TO HELP DIFF
+  Returns whether the scheduler was initialized.
+*/
 
 /*
   Dumps the internal status of the scheduler
@@ -805,80 +801,82 @@ Event_scheduler::dump_internal_status(THD *thd)
   tmp_string.length(0);
   int_string.length(0);
 
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("scheduler state"), scs);
-  protocol->store(scheduler_states_names[state].str,
-                  scheduler_states_names[state].length, scs);
-
-  if ((ret= protocol->write()))
-    goto end;
-
-  /* thread_id */
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("thread_id"), scs);
-  if (thread_id)
+  do
   {
-    int_string.set((longlong) thread_id, scs);
+    protocol->prepare_for_resend();
+    protocol->store(STRING_WITH_LEN("scheduler state"), scs);
+    protocol->store(scheduler_states_names[state].str,
+                    scheduler_states_names[state].length, scs);
+
+    if ((ret= protocol->write()))
+      break;
+
+    /* thread_id */
+    protocol->prepare_for_resend();
+    protocol->store(STRING_WITH_LEN("thread_id"), scs);
+    if (thread_id)
+    {
+      int_string.set((longlong) thread_id, scs);
+      protocol->store(&int_string);
+    }
+    else
+      protocol->store_null();
+    if ((ret= protocol->write()))
+      break;
+
+    /* last locked at*/
+    protocol->prepare_for_resend();
+    protocol->store(STRING_WITH_LEN("scheduler last locked at"), scs);
+    tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
+                                          tmp_string.alloced_length(), "%s::%d",
+                                          mutex_last_locked_in_func,
+                                          mutex_last_locked_at_line));
+    protocol->store(&tmp_string);
+    if ((ret= protocol->write()))
+      break;
+
+    /* last unlocked at*/
+    protocol->prepare_for_resend();
+    protocol->store(STRING_WITH_LEN("scheduler last unlocked at"), scs);
+    tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
+                                          tmp_string.alloced_length(), "%s::%d",
+                                          mutex_last_unlocked_in_func,
+                                          mutex_last_unlocked_at_line));
+    protocol->store(&tmp_string);
+    if ((ret= protocol->write()))
+      break;
+
+    /* waiting on */
+    protocol->prepare_for_resend();
+    protocol->store(STRING_WITH_LEN("scheduler waiting on condition"), scs);
+    int_string.set((longlong) waiting_on_cond, scs);
     protocol->store(&int_string);
-  }
-  else
-    protocol->store_null();
-  if ((ret= protocol->write()))
-    goto end;
+    if ((ret= protocol->write()))
+      break;
 
-  /* last locked at*/
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("scheduler last locked at"), scs);
-  tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
-                                        tmp_string.alloced_length(), "%s::%d",
-                                        mutex_last_locked_in_func,
-                                        mutex_last_locked_at_line));
-  protocol->store(&tmp_string);
-  if ((ret= protocol->write()))
-    goto end;
+    /* workers_count */
+    protocol->prepare_for_resend();
+    protocol->store(STRING_WITH_LEN("scheduler workers count"), scs);
+    int_string.set((longlong) workers_count(), scs);
+    protocol->store(&int_string);
+    if ((ret= protocol->write()))
+      break;
 
-  /* last unlocked at*/
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("scheduler last unlocked at"), scs);
-  tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
-                                        tmp_string.alloced_length(), "%s::%d",
-                                        mutex_last_unlocked_in_func,
-                                        mutex_last_unlocked_at_line));
-  protocol->store(&tmp_string);
-  if ((ret= protocol->write()))
-    goto end;
+    /* workers_count */
+    protocol->prepare_for_resend();
+    protocol->store(STRING_WITH_LEN("scheduler executed events"), scs);
+    int_string.set((longlong) started_events, scs);
+    protocol->store(&int_string);
+    if ((ret= protocol->write()))
+      break;
 
-  /* waiting on */
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("scheduler waiting on condition"), scs);
-  int_string.set((longlong) waiting_on_cond, scs);
-  protocol->store(&int_string);
-  if ((ret= protocol->write()))
-    goto end;
-
-  /* workers_count */
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("scheduler workers count"), scs);
-  int_string.set((longlong) workers_count(), scs);
-  protocol->store(&int_string);
-  if ((ret= protocol->write()))
-    goto end;
-
-  /* workers_count */
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("scheduler executed events"), scs);
-  int_string.set((longlong) started_events, scs);
-  protocol->store(&int_string);
-  if ((ret= protocol->write()))
-    goto end;
-
-  /* scheduler_data_locked */
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("scheduler data locked"), scs);
-  int_string.set((longlong) mutex_scheduler_data_locked, scs);
-  protocol->store(&int_string);
-  ret= protocol->write();
-end:
+    /* scheduler_data_locked */
+    protocol->prepare_for_resend();
+    protocol->store(STRING_WITH_LEN("scheduler data locked"), scs);
+    int_string.set((longlong) mutex_scheduler_data_locked, scs);
+    protocol->store(&int_string);
+    ret= protocol->write();
+  } while (0);
 #endif
 
   DBUG_RETURN(ret);

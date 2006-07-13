@@ -41,6 +41,7 @@ struct event_queue_param
   Event_queue *queue;
   pthread_mutex_t LOCK_loaded;
   pthread_cond_t COND_loaded;
+  bool loading_finished;
 };
 
 
@@ -85,9 +86,14 @@ event_queue_loader_thread(void *arg)
 
   DBUG_ENTER("event_queue_loader_thread");
 
+
   pthread_mutex_lock(&param->LOCK_loaded);
+  param->queue->check_system_tables(thd);
   param->queue->load_events_from_db(thd);
+
+  param->loading_finished= TRUE;
   pthread_cond_signal(&param->COND_loaded);
+
   pthread_mutex_unlock(&param->LOCK_loaded);
 
 end:
@@ -113,8 +119,6 @@ Event_queue::Event_queue()
     mutex_last_attempted_lock_in_func= "";
 
   mutex_queue_data_locked= mutex_queue_data_attempting_lock= FALSE;
-
-  queue_loaded= FALSE;
 }
 
 
@@ -195,8 +199,10 @@ Event_queue::init_queue(Event_db_repository *db_repo, Event_scheduler *sched)
 
   event_queue_param_value= (struct event_queue_param *)
                           my_malloc(sizeof(struct event_queue_param), MYF(0));
+
   event_queue_param_value->thd= new_thd;
   event_queue_param_value->queue= this;
+  event_queue_param_value->loading_finished= FALSE;
   pthread_mutex_init(&event_queue_param_value->LOCK_loaded, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&event_queue_param_value->COND_loaded, NULL);
 
@@ -207,8 +213,8 @@ Event_queue::init_queue(Event_db_repository *db_repo, Event_scheduler *sched)
   {
     do {
       pthread_cond_wait(&event_queue_param_value->COND_loaded,
-                      &event_queue_param_value->LOCK_loaded);
-    } while (queue_loaded == FALSE);
+                        &event_queue_param_value->LOCK_loaded);
+    } while (event_queue_param_value->loading_finished == FALSE);
   }
 
   pthread_mutex_unlock(&event_queue_param_value->LOCK_loaded);
@@ -662,8 +668,6 @@ end:
 
   close_thread_tables(thd);
 
-  queue_loaded= TRUE;
-
   DBUG_PRINT("info", ("Status code %d. Loaded %d event(s)", ret, count));
   DBUG_RETURN(ret);
 }
@@ -683,7 +687,7 @@ end:
     TRUE   Error
 */
 
-bool
+void
 Event_queue::check_system_tables(THD *thd)
 {
   TABLE_LIST tables;
@@ -702,39 +706,35 @@ Event_queue::check_system_tables(THD *thd)
   tables.lock_type= TL_READ;
 
   if ((ret= simple_open_n_lock_tables(thd, &tables)))
-    sql_print_error("Cannot open mysql.db");
-  else
   {
-    ret= table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT,
-                           mysql_db_table_fields, &mysql_db_table_last_check,
-                           ER_CANNOT_LOAD_FROM_TABLE);
-    close_thread_tables(thd);
+    sql_print_error("Cannot open mysql.db");
+    goto end;
   }
-  if (ret)
-    DBUG_RETURN(TRUE);
+  ret= table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT,
+                          mysql_db_table_fields, &mysql_db_table_last_check,
+                          ER_CANNOT_LOAD_FROM_TABLE);
+  close_thread_tables(thd);
 
   bzero((char*) &tables, sizeof(tables));
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "user";
   tables.lock_type= TL_READ;
 
-  if ((ret= simple_open_n_lock_tables(thd, &tables)))
+  if (simple_open_n_lock_tables(thd, &tables))
     sql_print_error("Cannot open mysql.db");
   else
   {
     if (tables.table->s->fields < 29 ||
         strncmp(tables.table->field[29]->field_name,
                 STRING_WITH_LEN("Event_priv")))
-    {
       sql_print_error("mysql.user has no `Event_priv` column at position 29");
-      ret= TRUE;
-    }
     close_thread_tables(thd);
   }
 
+end:
   thd->restore_backup_open_tables_state(&backup);
 
-  DBUG_RETURN(ret);
+  DBUG_VOID_RETURN;
 }
 
 
