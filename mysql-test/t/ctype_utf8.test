@@ -926,4 +926,118 @@ INSERT INTO t1 VALUES('uUABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbb
 check table t1;
 drop table t1;
 
+#
+# Bug#14896: Comparison with a key in a partial index over mb chararacter field
+#
+
+SET NAMES utf8;
+CREATE TABLE t1 (id int PRIMARY KEY,
+                 a varchar(16) collate utf8_unicode_ci NOT NULL default '',
+                 b int,
+                 f varchar(128) default 'XXX',
+                 INDEX (a(4))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+INSERT INTO t1(id, a, b) VALUES
+  (1, 'cccc', 50), (2, 'cccc', 70), (3, 'cccc', 30),
+  (4, 'cccc', 30), (5, 'cccc', 20), (6, 'bbbbbb', 40),
+  (7, 'dddd', 30), (8, 'aaaa', 10), (9, 'aaaa', 50),
+  (10, 'eeeee', 40), (11, 'bbbbbb', 60);
+
+SELECT id, a, b FROM t1;
+
+SELECT id, a, b FROM t1 WHERE a BETWEEN 'aaaa' AND 'bbbbbb';
+
+SELECT id, a FROM t1 WHERE a='bbbbbb';
+SELECT id, a FROM t1 WHERE a='bbbbbb' ORDER BY b;
+
+DROP TABLE t1;
+
+#
+# Bug#16674: LIKE predicate for a utf8 character set column
+#
+
+SET NAMES utf8;
+
+CREATE TABLE t1 (
+  a CHAR(13) DEFAULT '',
+  INDEX(a)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+INSERT INTO t1 VALUES 
+ ('Käli Käli 2-4'), ('Käli Käli 2-4'),
+ ('Käli Käli 2+4'), ('Käli Käli 2+4'),
+ ('Käli Käli 2-6'), ('Käli Käli 2-6');
+INSERT INTO t1 SELECT * FROM t1;
+
+CREATE TABLE t2 (
+  a CHAR(13) DEFAULT '',
+  INDEX(a)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+
+INSERT INTO t2 VALUES
+ ('Kali Kali 2-4'), ('Kali Kali 2-4'),
+ ('Kali Kali 2+4'), ('Kali Kali 2+4'),
+ ('Kali Kali 2-6'), ('Kali Kali 2-6');
+INSERT INTO t2 SELECT * FROM t2;
+
+SELECT a FROM t1 WHERE a LIKE 'Käli Käli 2+4';
+SELECT a FROM t2 WHERE a LIKE 'Kali Kali 2+4';
+
+EXPLAIN SELECT a FROM t1 WHERE a LIKE 'Käli Käli 2+4';
+EXPLAIN SELECT a FROM t1 WHERE a = 'Käli Käli 2+4';
+EXPLAIN SELECT a FROM t2 WHERE a LIKE 'Kali Kali 2+4';
+EXPLAIN SELECT a FROM t2 WHERE a = 'Kali Kali 2+4';
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1 (
+  a char(255) DEFAULT '', 
+  KEY(a(10))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  a char(255) DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+INSERT INTO t1 VALUES ('Käli Käli 2-4');
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+ALTER TABLE t1 ADD KEY (a(10));
+SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
+DROP TABLE t1;
+
+#
+# Bug#18359: LIKE predicate for a 'utf8' text column with a partial index
+#            (see bug #16674 as well)
+#
+
+SET NAMES latin2;
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL default '0',
+  tid int(11) NOT NULL default '0',
+  val text NOT NULL,
+  INDEX idx(tid, val(10))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+INSERT INTO t1 VALUES
+  (40988,72,'VOLN� ADSL'),(41009,72,'VOLN� ADSL'),
+  (41032,72,'VOLN� ADSL'),(41038,72,'VOLN� ADSL'),
+  (41063,72,'VOLN� ADSL'),(41537,72,'VOLN� ADSL Office'),
+  (42141,72,'VOLN� ADSL'),(42565,72,'VOLN� ADSL Combi'),
+  (42749,72,'VOLN� ADSL'),(44205,72,'VOLN� ADSL');
+
+SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLNY ADSL'; 
+SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLN� ADSL'; 
+SELECT * FROM t1 WHERE tid=72 and val LIKE '%VOLN� ADSL'; 
+
+ALTER TABLE t1 DROP KEY idx;
+ALTER TABLE t1 ADD KEY idx (tid,val(11));
+
+SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLN� ADSL'; 
+
+DROP TABLE t1;
 # End of 4.1 tests

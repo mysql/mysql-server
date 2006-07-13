@@ -63,8 +63,8 @@ public:
   SEL_ARG(Field *field, uint8 part, char *min_value, char *max_value,
 	  uint8 min_flag, uint8 max_flag, uint8 maybe_flag);
   SEL_ARG(enum Type type_arg)
-    :elements(1),use_count(1),left(0),next_key_part(0),color(BLACK),
-     type(type_arg),min_flag(0)
+    :min_flag(0),elements(1),use_count(1),left(0),next_key_part(0),
+    color(BLACK), type(type_arg)
   {}
   inline bool is_same(SEL_ARG *arg)
   {

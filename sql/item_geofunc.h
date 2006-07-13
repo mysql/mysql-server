@@ -32,6 +32,7 @@ public:
   Item_geometry_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
   Item_geometry_func(List<Item> &list) :Item_str_func(list) {}
   void fix_length_and_dec();
+  enum_field_types field_type() const  { return MYSQL_TYPE_GEOMETRY; }
 };
 
 class Item_func_geometry_from_text: public Item_geometry_func
@@ -67,6 +68,7 @@ public:
   Item_func_as_wkb(Item *a): Item_geometry_func(a) {}
   const char *func_name() const { return "aswkb"; }
   String *val_str(String *);
+  enum_field_types field_type() const  { return MYSQL_TYPE_BLOB; }
 };
 
 class Item_func_geometry_type: public Item_str_func
