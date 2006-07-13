@@ -1324,6 +1324,8 @@ public:
   bool	     no_errors, password, is_fatal_error;
   bool	     query_start_used, rand_used, time_zone_used;
   bool	     last_insert_id_used,insert_id_used, clear_next_insert_id;
+  /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
+  bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;
@@ -1455,6 +1457,7 @@ public:
   {
     last_insert_id= id_arg;
     insert_id_used=1;
+    substitute_null_with_insert_id= TRUE;
   }
   inline ulonglong insert_id(void)
   {
