@@ -484,4 +484,30 @@ SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 1' OR ARG1 != ' 2');
 SELECT count(*) FROM t1 WHERE CLIENT='000' AND (ARG1 != ' 2' OR ARG1 != ' 1');
 drop table t1;
 
+# BUG#16168: Wrong range optimizer results, "Use_count: Wrong count ..."
+#            warnings in server stderr.
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 (
+  pk1 int(11) NOT NULL,
+  pk2 int(11) NOT NULL,
+  pk3 int(11) NOT NULL,
+  pk4 int(11) NOT NULL,
+  filler char(82),
+  PRIMARY KEY (pk1,pk2,pk3,pk4)
+) DEFAULT CHARSET=latin1;
+
+insert into t2 select 1, A.a+10*B.a, 432, 44, 'fillerZ' from t1 A, t1 B;
+INSERT INTO t2 VALUES (2621, 2635, 0, 0,'filler'), (2621, 2635, 1, 0,'filler'),
+  (2621, 2635, 10, 0,'filler'), (2621, 2635, 11, 0,'filler'),
+  (2621, 2635, 14, 0,'filler'), (2621, 2635, 1000015, 0,'filler');
+
+SELECT * FROM t2
+WHERE ((((pk4 =0) AND (pk1 =2621) AND (pk2 =2635)))
+OR ((pk4 =1) AND (((pk1 IN ( 7, 2, 1 ))) OR (pk1 =522)) AND ((pk2 IN ( 0, 2635))))
+) AND (pk3 >=1000000);
+drop table t1, t2;
+
 # End of 4.1 tests
