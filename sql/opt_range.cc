@@ -85,18 +85,119 @@ static int sel_cmp(Field *f,char *a,char *b,uint8 a_flag,uint8 b_flag);
 
 static char is_null_string[2]= {1,0};
 
+
+/*
+  A construction block of the SEL_ARG-graph.
+  
+  The following description only covers graphs of SEL_ARG objects with 
+  sel_arg->type==KEY_RANGE:
+
+  One SEL_ARG object represents an "elementary interval" in form
+  
+      min_value <=?  table.keypartX  <=? max_value
+  
+  The interval is a non-empty interval of any kind: with[out] minimum/maximum
+  bound, [half]open/closed, single-point interval, etc.
+
+  1. SEL_ARG GRAPH STRUCTURE
+  
+  SEL_ARG objects are linked together in a graph. The meaning of the graph
+  is better demostrated by an example:
+  
+     tree->keys[i]
+      | 
+      |             $              $
+      |    part=1   $     part=2   $    part=3
+      |             $              $
+      |  +-------+  $   +-------+  $   +--------+
+      |  | kp1<1 |--$-->| kp2=5 |--$-->| kp3=10 |
+      |  +-------+  $   +-------+  $   +--------+
+      |      |      $              $       |
+      |      |      $              $   +--------+
+      |      |      $              $   | kp3=12 | 
+      |      |      $              $   +--------+ 
+      |  +-------+  $              $   
+      \->| kp1=2 |--$--------------$-+ 
+         +-------+  $              $ |   +--------+
+             |      $              $  ==>| kp3=11 |
+         +-------+  $              $ |   +--------+
+         | kp1=3 |--$--------------$-+       |
+         +-------+  $              $     +--------+
+             |      $              $     | kp3=14 |
+            ...     $              $     +--------+
+ 
+  The entire graph is partitioned into "interval lists".
+
+  An interval list is a sequence of ordered disjoint intervals over the same
+  key part. SEL_ARG are linked via "next" and "prev" pointers. Additionally,
+  all intervals in the list form an RB-tree, linked via left/right/parent 
+  pointers. The RB-tree root SEL_ARG object will be further called "root of the
+  interval list".
+  
+    In the example pic, there are 4 interval lists: 
+    "kp<1 OR kp1=2 OR kp1=3", "kp2=5", "kp3=10 OR kp3=12", "kp3=11 OR kp3=13".
+    The vertical lines represent SEL_ARG::next/prev pointers.
+    
+  In an interval list, each member X may have SEL_ARG::next_key_part pointer
+  pointing to the root of another interval list Y. The pointed interval list
+  must cover a key part with greater number (i.e. Y->part > X->part).
+    
+    In the example pic, the next_key_part pointers are represented by
+    horisontal lines.
+
+  2. SEL_ARG GRAPH SEMANTICS
+
+  It represents a condition in a special form (we don't have a name for it ATM)
+  The SEL_ARG::next/prev is "OR", and next_key_part is "AND".
+  
+  For example, the picture represents the condition in form:
+   (kp1 < 1 AND kp2=5 AND (kp3=10 OR kp3=12)) OR 
+   (kp1=2 AND (kp3=11 OR kp3=14)) OR 
+   (kp1=3 AND (kp3=11 OR kp3=14))
+
+
+  3. SEL_ARG GRAPH USE
+
+  Use get_mm_tree() to construct SEL_ARG graph from WHERE condition.
+  Then walk the SEL_ARG graph and get a list of dijsoint ordered key
+  intervals (i.e. intervals in form
+  
+   (constA1, .., const1_K) < (keypart1,.., keypartK) < (constB1, .., constB_K)
+
+  Those intervals can be used to access the index. The uses are in:
+   - check_quick_select() - Walk the SEL_ARG graph and find an estimate of
+                            how many table records are contained within all
+                            intervals.
+   - get_quick_select()   - Walk the SEL_ARG, materialize the key intervals,
+                            and create QUICK_RANGE_SELECT object that will
+                            read records within these intervals.
+*/
+
 class SEL_ARG :public Sql_alloc
 {
 public:
   uint8 min_flag,max_flag,maybe_flag;
   uint8 part;					// Which key part
   uint8 maybe_null;
-  uint16 elements;				// Elements in tree
-  ulong use_count;				// use of this sub_tree
+  /* 
+    Number of children of this element in the RB-tree, plus 1 for this
+    element itself.
+  */
+  uint16 elements;
+  /*
+    Valid only for elements which are RB-tree roots: Number of times this
+    RB-tree is referred to (it is referred by SEL_ARG::next_key_part or by
+    SEL_TREE::keys[i] or by a temporary SEL_ARG* variable)
+  */
+  ulong use_count;
+
   Field *field;
   char *min_value,*max_value;			// Pointer to range
 
-  SEL_ARG *left,*right,*next,*prev,*parent,*next_key_part;
+  SEL_ARG *left,*right;   /* R-B tree children */
+  SEL_ARG *next,*prev;    /* Links for bi-directional interval list */
+  SEL_ARG *parent;        /* R-B tree parent */
+  SEL_ARG *next_key_part; 
   enum leaf_color { BLACK,RED } color;
   enum Type { IMPOSSIBLE, MAYBE, MAYBE_KEY, KEY_RANGE } type;
 
@@ -1428,6 +1529,7 @@ SEL_ARG *SEL_ARG::clone(SEL_ARG *new_parent,SEL_ARG **next_arg)
   }
   increment_use_count(1);
   tmp->color= color;
+  tmp->elements= this->elements;
   return tmp;
 }
 
@@ -5795,8 +5897,21 @@ and_all_keys(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
 }
 
 
+/*
+  Produce a SEL_ARG graph that represents "key1 AND key2"
+
+  SYNOPSIS
+    key_and()
+      key1   First argument, root of its RB-tree
+      key2   Second argument, root of its RB-tree
+
+  RETURN
+    RB-tree root of the resulting SEL_ARG graph.
+    NULL if the result of AND operation is an empty interval {0}.
+*/
+
 static SEL_ARG *
-key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
+key_and(SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
 {
   if (!key1)
     return key2;
@@ -5859,6 +5974,7 @@ key_and(SEL_ARG *key1,SEL_ARG *key2,uint clone_flag)
 
   if ((key1->min_flag | key2->min_flag) & GEOM_FLAG)
   {
+    /* TODO: why not leave one of the trees? */
     key1->free_tree();
     key2->free_tree();
     return 0;					// Can't optimize this
@@ -6581,6 +6697,51 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
   return -1;					// Error, no more warnings
 }
 
+
+/*
+  Count how many times SEL_ARG graph "root" refers to its part "key"
+  
+  SYNOPSIS
+    count_key_part_usage()
+      root  An RB-Root node in a SEL_ARG graph.
+      key   Another RB-Root node in that SEL_ARG graph.
+
+  DESCRIPTION
+    The passed "root" node may refer to "key" node via root->next_key_part,
+    root->next->n
+
+    This function counts how many times the node "key" is referred (via
+    SEL_ARG::next_key_part) by 
+     - intervals of RB-tree pointed by "root", 
+     - intervals of RB-trees that are pointed by SEL_ARG::next_key_part from 
+       intervals of RB-tree pointed by "root",
+     - and so on.
+    
+    Here is an example (horizontal links represent next_key_part pointers, 
+    vertical links - next/prev prev pointers):  
+    
+         +----+               $
+         |root|-----------------+
+         +----+               $ |
+           |                  $ |
+           |                  $ |
+         +----+       +---+   $ |     +---+    Here the return value
+         |    |- ... -|   |---$-+--+->|key|    will be 4.
+         +----+       +---+   $ |  |  +---+
+           |                  $ |  |
+          ...                 $ |  |
+           |                  $ |  |
+         +----+   +---+       $ |  |
+         |    |---|   |---------+  |
+         +----+   +---+       $    |
+           |        |         $    |
+          ...     +---+       $    |
+                  |   |------------+
+                  +---+       $
+  RETURN 
+    Number of links to "key" from nodes reachable from "root".
+*/
+
 static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
 {
   ulong count= 0;
@@ -6597,6 +6758,20 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
   return count;
 }
 
+
+/*
+  Check if SEL_ARG::use_count value is correct
+
+  SYNOPSIS
+    SEL_ARG::test_use_count()
+      root  The root node of the SEL_ARG graph (an RB-tree root node that
+            has the least value of sel_arg->part in the entire graph, and
+            thus is the "origin" of the graph)
+
+  DESCRIPTION
+    Check if SEL_ARG::use_count value is correct. See the definition of
+    use_count for what is "correct".
+*/
 
 void SEL_ARG::test_use_count(SEL_ARG *root)
 {
