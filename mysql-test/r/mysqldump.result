@@ -2844,3 +2844,33 @@ DROP TABLE IF EXISTS `v1`;
 drop view v1;
 drop table t1;
 drop database mysqldump_test_db;
+create database mysqldump_tables;
+use mysqldump_tables;
+create table basetable ( id serial, tag varchar(64) );
+create database mysqldump_views;
+use mysqldump_views;
+create view nasishnasifu as select mysqldump_tables.basetable.id from
+mysqldump_tables.basetable;
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_tables` /*!40100 DEFAULT CHARACTER SET latin1 */;
+
+USE `mysqldump_tables`;
+CREATE TABLE `basetable` (
+  `id` bigint(20) unsigned NOT NULL auto_increment,
+  `tag` varchar(64) default NULL,
+  UNIQUE KEY `id` (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_views` /*!40100 DEFAULT CHARACTER SET latin1 */;
+
+USE `mysqldump_views`;
+/*!50001 CREATE TABLE `nasishnasifu` (
+  `id` bigint(20) unsigned
+) */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `mysqldump_views`.`nasishnasifu` AS select `mysqldump_tables`.`basetable`.`id` AS `id` from `mysqldump_tables`.`basetable` */;
+drop view nasishnasifu;
+drop database mysqldump_views;
+drop table mysqldump_tables.basetable;
+drop database mysqldump_tables;
