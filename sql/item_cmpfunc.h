@@ -1134,7 +1134,7 @@ public:
   void print(String *str) { print_op(str); }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg); }
+  { return safe_for_binary_collation(int_arg); }
 };
 
 #else
