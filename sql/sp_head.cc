@@ -1933,8 +1933,11 @@ sp_head::show_create_procedure(THD *thd)
   field_list.push_back(new Item_empty_string("Procedure", NAME_LEN));
   field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
   // 1024 is for not to confuse old clients
-  field_list.push_back(new Item_empty_string("Create Procedure",
-					     max(buffer.length(), 1024)));
+  Item_empty_string *definition=
+    new Item_empty_string("Create Procedure", max(buffer.length(),1024));
+  definition->maybe_null= TRUE;
+  field_list.push_back(definition);
+
   if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
     DBUG_RETURN(1);
@@ -1943,6 +1946,8 @@ sp_head::show_create_procedure(THD *thd)
   protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
+  else
+    protocol->store_null();
   res= protocol->write();
   send_eof(thd);
 
@@ -1998,8 +2003,11 @@ sp_head::show_create_function(THD *thd)
                                                        &sql_mode_len);
   field_list.push_back(new Item_empty_string("Function",NAME_LEN));
   field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
-  field_list.push_back(new Item_empty_string("Create Function",
-					     max(buffer.length(),1024)));
+  Item_empty_string *definition=
+    new Item_empty_string("Create Function", max(buffer.length(),1024));
+  definition->maybe_null= TRUE;
+  field_list.push_back(definition);
+
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
@@ -2008,6 +2016,8 @@ sp_head::show_create_function(THD *thd)
   protocol->store((char*) sql_mode_str, sql_mode_len, system_charset_info);
   if (full_access)
     protocol->store(m_defstr.str, m_defstr.length, system_charset_info);
+  else
+    protocol->store_null();
   res= protocol->write();
   send_eof(thd);
 

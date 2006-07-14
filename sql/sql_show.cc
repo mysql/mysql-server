@@ -3330,6 +3330,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       {
         get_field(thd->mem_root, proc_table->field[10], &tmp_string);
         table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        table->field[7]->set_notnull();
       }
       table->field[6]->store(STRING_WITH_LEN("SQL"), cs);
       table->field[10]->store(STRING_WITH_LEN("SQL"), cs);
@@ -5283,7 +5284,7 @@ ST_FIELD_INFO proc_fields_info[]=
   {"ROUTINE_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"DTD_IDENTIFIER", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"ROUTINE_BODY", 8, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"ROUTINE_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"ROUTINE_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
   {"EXTERNAL_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"EXTERNAL_LANGUAGE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PARAMETER_STYLE", 8, MYSQL_TYPE_STRING, 0, 0, 0},
