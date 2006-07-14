@@ -1514,6 +1514,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 */
 
 #ifdef HAVE_OPENSSL
+
 static void
 mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 {
@@ -1538,6 +1539,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   DBUG_VOID_RETURN;
 }
 
+#endif /* HAVE_OPENSSL */
 
 /*
   Return the SSL cipher (if any) used for current
@@ -1553,8 +1555,10 @@ const char * STDCALL
 mysql_get_ssl_cipher(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_get_ssl_cipher");
+#ifdef HAVE_OPENSSL
   if (mysql->net.vio && mysql->net.vio->ssl_arg)
     DBUG_RETURN(SSL_get_cipher_name((SSL*)mysql->net.vio->ssl_arg));
+#endif /* HAVE_OPENSSL */
   DBUG_RETURN(NULL);
 }
 
@@ -1573,6 +1577,9 @@ mysql_get_ssl_cipher(MYSQL *mysql)
    1 Failed to validate server
 
  */
+
+#ifdef HAVE_OPENSSL
+
 static int ssl_verify_server_cert(Vio *vio, const char* server_hostname)
 {
   SSL *ssl;

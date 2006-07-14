@@ -5,4 +5,7 @@ set -e
 
 args=" $*"
 
-wine --debugmsg -all -- mwasmnlm $args
+# NOTE: Option 'pipefail' is not standard sh
+set -o pipefail
+wine --debugmsg -all -- mwasmnlm $args | \
+perl -pe 's/\r//g; s/^\e.*\e(\[J|>)?//; s/[[^:print:]]//g'

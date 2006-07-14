@@ -1758,7 +1758,7 @@ NULL                        as const12, @arg12 as param12,
 show create table t5 ;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `const01` bigint(1) NOT NULL default '0',
+  `const01` int(1) NOT NULL default '0',
   `param01` bigint(20) default NULL,
   `const02` decimal(2,1) NOT NULL default '0.0',
   `param02` decimal(65,30) default NULL,
@@ -1788,7 +1788,7 @@ t5	CREATE TABLE `t5` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t5 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t5	t5	const01	const01	8	1	1	N	32769	0	63
+def	test	t5	t5	const01	const01	3	1	1	N	32769	0	63
 def	test	t5	t5	param01	param01	8	20	1	Y	32768	0	63
 def	test	t5	t5	const02	const02	246	4	3	N	1	1	63
 def	test	t5	t5	param02	param02	246	67	32	Y	0	30	63

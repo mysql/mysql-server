@@ -410,7 +410,9 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
   int_length= uint2korr(head+274);
   share->null_fields= uint2korr(head+282);
   com_length= uint2korr(head+284);
-  share->comment= strdup_root(&outparam->mem_root, (char*) head+47);
+  share->comment.length=  (int) (head[46]);
+  share->comment.str= strmake_root(&outparam->mem_root, (char*) head+47,
+                                   share->comment.length);
 
   DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length));
 
@@ -678,6 +680,27 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
       if (outparam->key_info[key].flags & HA_FULLTEXT)
 	outparam->key_info[key].algorithm= HA_KEY_ALG_FULLTEXT;
 
+      if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME))
+      {
+	/*
+	  If the UNIQUE key doesn't have NULL columns and is not a part key
+	  declare this as a primary key.
+	*/
+	primary_key=key;
+	for (i=0 ; i < keyinfo->key_parts ;i++)
+	{
+	  uint fieldnr= key_part[i].fieldnr;
+	  if (!fieldnr ||
+	      outparam->field[fieldnr-1]->null_ptr ||
+	      outparam->field[fieldnr-1]->key_length() !=
+	      key_part[i].length)
+	  {
+	    primary_key=MAX_KEY;		// Can't be used
+	    break;
+	  }
+	}
+      }
+
       for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
       {
 	if (new_field_pack_flag <= 1)
@@ -781,7 +804,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
 	    if (!(field->flags & BLOB_FLAG))
 	    {					// Create a new field
 	      field=key_part->field=field->new_field(&outparam->mem_root,
-						     outparam);
+                                                     outparam,
+                                                     outparam == field->table);
 	      field->field_length=key_part->length;
 	    }
 	  }

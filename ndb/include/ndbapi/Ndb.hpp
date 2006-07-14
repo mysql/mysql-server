@@ -38,9 +38,6 @@
    In addition, the NDB API defines a structure NdbError, which contains the 
    specification for an error.
 
-   It is also possible to receive "events" triggered when data in the database in changed.
-   This is done through the NdbEventOperation class.
-
    There are also some auxiliary classes, which are listed in the class hierarchy.
      
    The main structure of an application program is as follows:
@@ -968,7 +965,6 @@
 
 class NdbObjectIdMap;
 class NdbOperation;
-class NdbEventOperationImpl;
 class NdbScanOperation;
 class NdbIndexScanOperation;
 class NdbIndexOperation;
@@ -981,13 +977,11 @@ class NdbSubroutine;
 class NdbCall;
 class Table;
 class BaseString;
-class NdbEventOperation;
 class NdbBlob;
 class NdbReceiver;
 class Ndb_local_table_info;
 template <class T> struct Ndb_free_list_t;
 
-typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 
 #if defined NDB_OSE
 /**
@@ -1049,7 +1043,6 @@ class Ndb
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbReceiver;
   friend class NdbOperation;
-  friend class NdbEventOperationImpl;
   friend class NdbTransaction;
   friend class Table;
   friend class NdbApiSignal;
@@ -1192,46 +1185,6 @@ public:
    */
   class NdbDictionary::Dictionary* getDictionary() const;
   
-
-  /** @} *********************************************************************/
-
-  /** 
-   * @name Event subscriptions
-   * @{
-   */
-
-  /**
-   * Create a subcription to an event defined in the database
-   *
-   * @param eventName
-   *        unique identifier of the event
-   * @param bufferLength
-   *        circular buffer size for storing event data
-   *
-   * @return Object representing an event, NULL on failure
-   */
-  NdbEventOperation* createEventOperation(const char* eventName,
-					  const int bufferLength);
-  /**
-   * Drop a subscription to an event
-   *
-   * @param eventOp
-   *        Event operation
-   *
-   * @return 0 on success
-   */
-  int dropEventOperation(NdbEventOperation* eventOp);
-
-  /**
-   * Wait for an event to occur. Will return as soon as an event
-   * is detected on any of the created events.
-   *
-   * @param aMillisecondNumber
-   *        maximum time to wait
-   *
-   * @return the number of events that has occured, -1 on failure
-   */
-  int pollEvents(int aMillisecondNumber);
 
   /** @} *********************************************************************/
 

@@ -2038,7 +2038,7 @@ void Item_func_min_max::fix_length_and_dec()
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
   }
   if (cmp_type == STRING_RESULT)
-    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
                                             unsigned_flag);
@@ -2227,7 +2227,7 @@ longlong Item_func_coercibility::val_int()
 void Item_func_locate::fix_length_and_dec()
 {
   maybe_null=0; max_length=11;
-  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
 }
 
 
@@ -2344,7 +2344,7 @@ void Item_func_field::fix_length_and_dec()
   for (uint i=1; i < arg_count ; i++)
     cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
   if (cmp_type == STRING_RESULT)
-    agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV);
+    agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1);
 }
 
 
@@ -2411,7 +2411,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
 }
 
 static const char separator=',';
@@ -2510,8 +2510,7 @@ void udf_handler::cleanup()
     {
       if (u_d->func_deinit != NULL)
       {
-        void (*deinit)(UDF_INIT *) = (void (*)(UDF_INIT*))
-        u_d->func_deinit;
+        Udf_func_deinit deinit= u_d->func_deinit;
         (*deinit)(&initid);
       }
       free_udf(u_d);
@@ -2656,9 +2655,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       }
     }
     thd->net.last_error[0]=0;
-    my_bool (*init)(UDF_INIT *, UDF_ARGS *, char *)=
-      (my_bool (*)(UDF_INIT *, UDF_ARGS *,  char *))
-      u_d->func_init;
+    Udf_func_init init= u_d->func_init;
     if ((error=(uchar) init(&initid, &f_args, thd->net.last_error)))
     {
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0),
@@ -4401,7 +4398,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     return 1;
   }
   table->fulltext_searched=1;
-  return agg_arg_collations_for_comparison(cmp_collation, args+1, arg_count-1);
+  return agg_arg_collations_for_comparison(cmp_collation,
+                                           args+1, arg_count-1, 0);
 }
 
 bool Item_func_match::fix_index()

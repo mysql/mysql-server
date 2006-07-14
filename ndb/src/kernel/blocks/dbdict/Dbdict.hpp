@@ -46,8 +46,6 @@
 #include <signaldata/DropIndx.hpp>
 #include <signaldata/AlterIndx.hpp>
 #include <signaldata/BuildIndx.hpp>
-#include <signaldata/UtilPrepare.hpp>
-#include <signaldata/CreateEvnt.hpp>
 #include <signaldata/CreateTrig.hpp>
 #include <signaldata/DropTrig.hpp>
 #include <signaldata/AlterTrig.hpp>
@@ -516,45 +514,6 @@ private:
   void execBUILDINDXREF(Signal* signal);
 
   void execBACKUP_FRAGMENT_REQ(Signal*);
-
-  // Util signals used by Event code
-  void execUTIL_PREPARE_CONF(Signal* signal);
-  void execUTIL_PREPARE_REF (Signal* signal);
-  void execUTIL_EXECUTE_CONF(Signal* signal);
-  void execUTIL_EXECUTE_REF (Signal* signal);
-  void execUTIL_RELEASE_CONF(Signal* signal);
-  void execUTIL_RELEASE_REF (Signal* signal);
-
-
-  // Event signals from API
-  void execCREATE_EVNT_REQ (Signal* signal);
-  void execCREATE_EVNT_CONF(Signal* signal);
-  void execCREATE_EVNT_REF (Signal* signal);
-
-  void execDROP_EVNT_REQ (Signal* signal);
-
-  void execSUB_START_REQ (Signal* signal);
-  void execSUB_START_CONF (Signal* signal);
-  void execSUB_START_REF (Signal* signal);
-
-  void execSUB_STOP_REQ (Signal* signal);
-  void execSUB_STOP_CONF (Signal* signal);
-  void execSUB_STOP_REF (Signal* signal);
-
-  // Event signals from SUMA
-
-  void execCREATE_SUBID_CONF(Signal* signal);
-  void execCREATE_SUBID_REF (Signal* signal);
-
-  void execSUB_CREATE_CONF(Signal* signal);
-  void execSUB_CREATE_REF (Signal* signal);
-
-  void execSUB_SYNC_CONF(Signal* signal);
-  void execSUB_SYNC_REF (Signal* signal);
-
-  void execSUB_REMOVE_REQ(Signal* signal);
-  void execSUB_REMOVE_CONF(Signal* signal);
-  void execSUB_REMOVE_REF(Signal* signal);
 
   // Trigger signals
   void execCREATE_TRIG_REQ(Signal* signal);
@@ -1386,119 +1345,6 @@ private:
   typedef Ptr<OpBuildIndex> OpBuildIndexPtr;
 
   /**
-   * Operation record for Util Signals.
-   */
-  struct OpSignalUtil : OpRecordCommon{
-    Callback m_callback;
-    Uint32 m_userData;
-  };
-  typedef Ptr<OpSignalUtil> OpSignalUtilPtr;
-
-  /**
-   * Operation record for subscribe-start-stop
-   */
-  struct OpSubEvent : OpRecordCommon {
-    Uint32 m_senderRef;
-    Uint32 m_senderData;
-    Uint32 m_errorCode;
-    RequestTracker m_reqTracker;
-  };
-  typedef Ptr<OpSubEvent> OpSubEventPtr;
-
-  static const Uint32 sysTab_NDBEVENTS_0_szs[];
-
-  /**
-   * Operation record for create event.
-   */
-  struct OpCreateEvent : OpRecordCommon {
-    // original request (event id will be added)
-    CreateEvntReq m_request;
-    //AttributeMask m_attrListBitmask;
-    //    AttributeList m_attrList;
-    sysTab_NDBEVENTS_0 m_eventRec;
-    //    char m_eventName[MAX_TAB_NAME_SIZE];
-    //    char m_tableName[MAX_TAB_NAME_SIZE];
-
-    // coordinator DICT
-    RequestTracker m_reqTracker;
-    // state info
-    CreateEvntReq::RequestType m_requestType;
-    Uint32 m_requestFlag;
-    // error info
-    CreateEvntRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // ctor
-    OpCreateEvent() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_requestType = CreateEvntReq::RT_UNDEFINED;
-      m_requestFlag = 0;
-      m_errorCode = CreateEvntRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void init(const CreateEvntReq* req, Dbdict* dp) {
-      m_request = *req;
-      m_errorCode = CreateEvntRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-      m_requestType = req->getRequestType();
-      m_requestFlag = req->getRequestFlag();
-    }
-    bool hasError() {
-      return m_errorCode != CreateEvntRef::NoError;
-    }
-    void setError(const CreateEvntRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
-      }
-    }
-
-  };
-  typedef Ptr<OpCreateEvent> OpCreateEventPtr;
-
-  /**
-   * Operation record for drop event.
-   */
-  struct OpDropEvent : OpRecordCommon {
-    // original request
-    DropEvntReq m_request;
-    //    char m_eventName[MAX_TAB_NAME_SIZE];
-    sysTab_NDBEVENTS_0 m_eventRec;
-    RequestTracker m_reqTracker;
-    // error info
-    DropEvntRef::ErrorCode m_errorCode;
-    Uint32 m_errorLine;
-    Uint32 m_errorNode;
-    // ctor
-    OpDropEvent() {
-      memset(&m_request, 0, sizeof(m_request));
-      m_errorCode = DropEvntRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    void init(const DropEvntReq* req) {
-      m_request = *req;
-      m_errorCode = DropEvntRef::NoError;
-      m_errorLine = 0;
-      m_errorNode = 0;
-    }
-    bool hasError() {
-      return m_errorCode != DropEvntRef::NoError;
-    }
-    void setError(const DropEvntRef* ref) {
-      if (ref != 0 && ! hasError()) {
-        m_errorCode = ref->getErrorCode();
-        m_errorLine = ref->getErrorLine();
-        m_errorNode = ref->getErrorNode();
-      }
-    }
-  };
-  typedef Ptr<OpDropEvent> OpDropEventPtr;
-
-  /**
    * Operation record for create trigger.
    */
   struct OpCreateTrigger : OpRecordCommon {
@@ -1718,10 +1564,6 @@ public:
   STATIC_CONST( opDropIndexSize = sizeof(OpDropIndex) );
   STATIC_CONST( opAlterIndexSize = sizeof(OpAlterIndex) );
   STATIC_CONST( opBuildIndexSize = sizeof(OpBuildIndex) );
-  STATIC_CONST( opCreateEventSize = sizeof(OpCreateEvent) );
-  STATIC_CONST( opSubEventSize = sizeof(OpSubEvent) );
-  STATIC_CONST( opDropEventSize = sizeof(OpDropEvent) );
-  STATIC_CONST( opSignalUtilSize = sizeof(OpSignalUtil) );
   STATIC_CONST( opCreateTriggerSize = sizeof(OpCreateTrigger) );
   STATIC_CONST( opDropTriggerSize = sizeof(OpDropTrigger) );
   STATIC_CONST( opAlterTriggerSize = sizeof(OpAlterTrigger) );
@@ -1732,10 +1574,6 @@ private:
     Uint32 u_opDropTable    [PTR_ALIGN(opDropTableSize)];
     Uint32 u_opCreateIndex  [PTR_ALIGN(opCreateIndexSize)];
     Uint32 u_opDropIndex    [PTR_ALIGN(opDropIndexSize)];
-    Uint32 u_opCreateEvent  [PTR_ALIGN(opCreateEventSize)];
-    Uint32 u_opSubEvent     [PTR_ALIGN(opSubEventSize)];
-    Uint32 u_opDropEvent    [PTR_ALIGN(opDropEventSize)];
-    Uint32 u_opSignalUtil   [PTR_ALIGN(opSignalUtilSize)];
     Uint32 u_opAlterIndex   [PTR_ALIGN(opAlterIndexSize)];
     Uint32 u_opBuildIndex   [PTR_ALIGN(opBuildIndexSize)];
     Uint32 u_opCreateTrigger[PTR_ALIGN(opCreateTriggerSize)];
@@ -1752,10 +1590,6 @@ private:
   KeyTable2<OpDropIndex, OpRecordUnion> c_opDropIndex;
   KeyTable2<OpAlterIndex, OpRecordUnion> c_opAlterIndex;
   KeyTable2<OpBuildIndex, OpRecordUnion> c_opBuildIndex;
-  KeyTable2<OpCreateEvent, OpRecordUnion> c_opCreateEvent;
-  KeyTable2<OpSubEvent, OpRecordUnion> c_opSubEvent;
-  KeyTable2<OpDropEvent, OpRecordUnion> c_opDropEvent;
-  KeyTable2<OpSignalUtil, OpRecordUnion> c_opSignalUtil;
   KeyTable2<OpCreateTrigger, OpRecordUnion> c_opCreateTrigger;
   KeyTable2<OpDropTrigger, OpRecordUnion> c_opDropTrigger;
   KeyTable2<OpAlterTrigger, OpRecordUnion> c_opAlterTrigger;
@@ -2018,101 +1852,6 @@ private:
   void buildIndex_fromOnline(Signal* signal, OpBuildIndexPtr opPtr);
   void buildIndex_sendSlaveReq(Signal* signal, OpBuildIndexPtr opPtr);
   void buildIndex_sendReply(Signal* signal, OpBuildIndexPtr opPtr, bool);
-
-  // Events
-  void 
-  createEventUTIL_PREPARE(Signal* signal,
-			  Uint32 callbackData,
-			  Uint32 returnCode);
-  void 
-  createEventUTIL_EXECUTE(Signal *signal, 
-			  Uint32 callbackData,
-			  Uint32 returnCode);
-  void 
-  dropEventUTIL_PREPARE_READ(Signal* signal,
-			     Uint32 callbackData,
-			     Uint32 returnCode);
-  void 
-  dropEventUTIL_EXECUTE_READ(Signal* signal,
-			     Uint32 callbackData,
-			     Uint32 returnCode);
-  void
-  dropEventUTIL_PREPARE_DELETE(Signal* signal,
-			       Uint32 callbackData,
-			       Uint32 returnCode);
-  void 
-  dropEventUTIL_EXECUTE_DELETE(Signal *signal, 
-			       Uint32 callbackData,
-			       Uint32 returnCode);
-  void
-  dropEventUtilPrepareRef(Signal* signal,
-			  Uint32 callbackData,
-			  Uint32 returnCode);
-  void
-  dropEventUtilExecuteRef(Signal* signal,
-			  Uint32 callbackData,
-			  Uint32 returnCode);
-  int
-  sendSignalUtilReq(Callback *c,
-		    BlockReference ref, 
-		    GlobalSignalNumber gsn, 
-		    Signal* signal, 
-		    Uint32 length, 
-		    JobBufferLevel jbuf,
-		    LinearSectionPtr ptr[3],
-		    Uint32 noOfSections);
-  int
-  recvSignalUtilReq(Signal* signal, Uint32 returnCode);
-
-  void completeSubStartReq(Signal* signal, Uint32 ptrI,	Uint32 returnCode);
-  void completeSubStopReq(Signal* signal, Uint32 ptrI, Uint32 returnCode);
-  void completeSubRemoveReq(Signal* signal, Uint32 ptrI, Uint32 returnCode);
-  
-  void dropEvent_sendReply(Signal* signal,
-			   OpDropEventPtr evntRecPtr);
-
-  void createEvent_RT_USER_CREATE(Signal* signal, OpCreateEventPtr evntRecPtr);
-  void createEventComplete_RT_USER_CREATE(Signal* signal,
-					  OpCreateEventPtr evntRecPtr);
-  void createEvent_RT_USER_GET(Signal* signal, OpCreateEventPtr evntRecPtr);
-  void createEventComplete_RT_USER_GET(Signal* signal, OpCreateEventPtr evntRecPtr);
-
-  void createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPtr);
-
-  void createEvent_nodeFailCallback(Signal* signal, Uint32 eventRecPtrI,
-				    Uint32 returnCode);
-  void createEvent_sendReply(Signal* signal, OpCreateEventPtr evntRecPtr,
-			     LinearSectionPtr *ptr = NULL, int noLSP = 0);
-
-  void prepareTransactionEventSysTable (Callback *c,
-					Signal* signal,
-					Uint32 senderData,
-					UtilPrepareReq::OperationTypeValue prepReq);
-  void prepareUtilTransaction(Callback *c,
-			      Signal* signal,
-			      Uint32 senderData,
-			      Uint32 tableId,
-			      const char *tableName,
-			      UtilPrepareReq::OperationTypeValue prepReq,
-			      Uint32 noAttr,
-			      Uint32 attrIds[],
-			      const char *attrNames[]);
-
-  void executeTransEventSysTable(Callback *c,
-				 Signal *signal,
-				 const Uint32 ptrI,
-				 sysTab_NDBEVENTS_0& m_eventRec,
-				 const Uint32 prepareId,
-				 UtilPrepareReq::OperationTypeValue prepReq);
-  void executeTransaction(Callback *c,
-			  Signal* signal, 
-			  Uint32 senderData,
-			  Uint32 prepareId,
-			  Uint32 noAttr,
-			  LinearSectionPtr headerPtr,
-			  LinearSectionPtr dataPtr);
-
-  void parseReadEventSys(Signal *signal, sysTab_NDBEVENTS_0& m_eventRec);
 
   // create trigger
   void createTrigger_recvReply(Signal* signal, const CreateTrigConf* conf,

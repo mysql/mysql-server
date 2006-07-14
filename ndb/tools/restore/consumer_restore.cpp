@@ -145,17 +145,38 @@ BackupRestore::finalize_table(const TableS & table){
   bool ret= true;
   if (!m_restore && !m_restore_meta)
     return ret;
-  if (table.have_auto_inc())
+  if (!table.have_auto_inc())
+    return ret;
+
+  Uint64 max_val= table.get_max_auto_val();
+  do
   {
-    Uint64 max_val= table.get_max_auto_val();
-    Uint64 auto_val;
+    Uint64 auto_val = ~(Uint64)0;
     int r= m_ndb->readAutoIncrementValue(get_table(table.m_dictTable), auto_val);
-    if (r == -1 && m_ndb->getNdbError().code != 626)
+    if (r == -1 && m_ndb->getNdbError().status == NdbError::TemporaryError)
+    {
+      NdbSleep_MilliSleep(50);
+      continue; // retry
+    }
+    else if (r == -1 && m_ndb->getNdbError().code != 626)
+    {
       ret= false;
-    else if (r == -1 || max_val+1 > auto_val)
-      ret= m_ndb->setAutoIncrementValue(get_table(table.m_dictTable), max_val+1, false) != -1;
-  }
-  return ret;
+    }
+    else if ((r == -1 && m_ndb->getNdbError().code == 626) ||
+             max_val+1 > auto_val || auto_val == ~(Uint64)0)
+    {
+      r= m_ndb->setAutoIncrementValue(get_table(table.m_dictTable),
+                                      max_val+1, false);
+      if (r == -1 &&
+            m_ndb->getNdbError().status == NdbError::TemporaryError)
+      {
+        NdbSleep_MilliSleep(50);
+        continue; // retry
+      }
+      ret = (r == 0);
+    }
+    return (ret);
+  } while (1);
 }
 
 bool
@@ -216,9 +237,6 @@ BackupRestore::table(const TableS & table){
   if(tab == 0){
     err << "Unable to find table: " << split[2].c_str() << endl;
     return false;
-  }
-  if(m_restore_meta){
-    m_ndb->setAutoIncrementValue(tab, ~(Uint64)0, false);
   }
   const NdbDictionary::Table* null = 0;
   m_new_tables.fill(table.m_dictTable->getTableId(), null);

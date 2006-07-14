@@ -1071,8 +1071,8 @@ do { doubleget_union _tmp; \
 #define doublestore(T,V) do { *((long *) T) = ((doubleget_union *)&V)->m[0]; \
 			     *(((long *) T)+1) = ((doubleget_union *)&V)->m[1]; \
                          } while (0)
-#define float4get(V,M) do { *((long *) &(V)) = *((long*) (M)); } while(0)
-#define float8get(V,M) doubleget((V),(M))
+#define float4get(V,M)   do { *((float *) &(V)) = *((float*) (M)); } while(0)
+#define float8get(V,M)   doubleget((V),(M))
 #define float4store(V,M) memcpy((byte*) V,(byte*) (&M),sizeof(float))
 #define floatstore(T,V)  memcpy((byte*)(T), (byte*)(&V),sizeof(float))
 #define floatget(V,M)    memcpy((byte*) &V,(byte*) (M),sizeof(float))

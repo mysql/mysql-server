@@ -591,6 +591,13 @@ Ndbcntr::execCNTR_START_REP(Signal* signal){
   Uint32 nodeId = signal->theData[0];
   c_startedNodes.set(nodeId);
   c_start.m_starting.clear(nodeId);
+
+  /**
+   * Inform all interested blocks that node has started
+   */
+  for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
+    sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_START_REP, signal, 1, JBB);
+  }
   
   if(!c_start.m_starting.isclear()){
     jam();
@@ -1459,9 +1466,6 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
 	     NodeFailRep::SignalLength, JBB);
   
   sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
-
-  sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
 	     NodeFailRep::SignalLength, JBB);
 
   if (c_stopRec.stopReq.senderRef)

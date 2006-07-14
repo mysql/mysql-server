@@ -2595,4 +2595,51 @@ CREATE TABLE t2 SELECT * FROM v1;
 SELECT * FROM t2;
 
 DROP VIEW v1;
-DROP TABLE IF EXISTS t1,t2;
+DROP TABLE t1,t2;
+
+#
+# Bug#16110: insert permitted into view col w/o default value
+#
+CREATE TABLE t1 (a INT NOT NULL, b INT NULL DEFAULT NULL);
+CREATE VIEW v1 AS SELECT a, b FROM t1;
+
+INSERT INTO v1 (b) VALUES (2);
+
+SET SQL_MODE = STRICT_ALL_TABLES;
+--error 1423
+INSERT INTO v1 (b) VALUES (4);
+SET SQL_MODE = '';
+
+SELECT * FROM t1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #18243: expression over a view column that with the REVERSE function
+#
+
+CREATE TABLE t1 (firstname text, surname text);
+INSERT INTO t1 VALUES
+  ("Bart","Simpson"),("Milhouse","van Houten"),("Montgomery","Burns");
+
+CREATE VIEW v1 AS SELECT CONCAT(firstname," ",surname) AS name FROM t1;
+SELECT CONCAT(LEFT(name,LENGTH(name)-INSTR(REVERSE(name)," ")),
+              LEFT(name,LENGTH(name)-INSTR(REVERSE(name)," "))) AS f1
+ FROM v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+#
+# Bug #19714: wrong type of a view column specified by an expressions over ints
+#
+
+CREATE TABLE t1 (i int, j int);
+CREATE VIEW v1 AS SELECT COALESCE(i,j) FROM t1;
+DESCRIBE v1;
+CREATE TABLE t2 SELECT COALESCE(i,j) FROM t1;  
+DESCRIBE t2;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;

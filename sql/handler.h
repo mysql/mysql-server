@@ -57,6 +57,7 @@
   see mi_rsame/heap_rsame/myrg_rsame
 */
 #define HA_READ_RND_SAME       (1 << 0)
+#define HA_PARTIAL_COLUMN_READ (1 << 1) /* read may not return all columns */
 #define HA_TABLE_SCAN_ON_INDEX (1 << 2) /* No separate data/index file */
 #define HA_REC_NOT_IN_SEQ      (1 << 3) /* ha_info don't return recnumber;
                                            It returns a position to ha_r_rnd */
@@ -409,7 +410,6 @@ struct show_table_alias_st {
 #define HTON_ALTER_NOT_SUPPORTED     (1 << 1) //Engine does not support alter
 #define HTON_CAN_RECREATE            (1 << 2) //Delete all is used fro truncate
 #define HTON_HIDDEN                  (1 << 3) //Engine does not appear in lists
-#define HTON_ALTER_CANNOT_CREATE     (1 << 4) //Cannot use alter to create
 
 typedef struct st_thd_trans
 {
@@ -428,7 +428,8 @@ typedef struct st_ha_create_information
 {
   CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
-  const char *comment,*password;
+  LEX_STRING comment;
+  const char *password;
   const char *data_file_name, *index_file_name;
   const char *alias;
   ulonglong max_rows,min_rows;
@@ -563,6 +564,7 @@ public:
     {}
   virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
   int ha_open(const char *name, int mode, int test_if_locked);
+  void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   bool update_auto_increment();
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);

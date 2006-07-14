@@ -35,9 +35,7 @@ const char *primary_key_name="PRIMARY";
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
-				    List<create_field> &create,
-				    enum enum_duplicates handle_duplicates,
-                                    bool ignore,
+                                    List<create_field> &create, bool ignore,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted);
 static bool prepare_blob_field(THD *thd, create_field *sql_field);
@@ -3141,8 +3139,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                        HA_CREATE_INFO *create_info,
                        TABLE_LIST *table_list,
                        List<create_field> &fields, List<Key> &keys,
-                       uint order_num, ORDER *order,
-                       enum enum_duplicates handle_duplicates, bool ignore,
+                       uint order_num, ORDER *order, bool ignore,
                        ALTER_INFO *alter_info, bool do_send_ok)
 {
   TABLE *table,*new_table=0;
@@ -3240,9 +3237,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   DBUG_PRINT("info", ("old type: %d  new type: %d", old_db_type, new_db_type));
   if (ha_check_storage_engine_flag(old_db_type, HTON_ALTER_NOT_SUPPORTED) ||
-      ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED) ||
-      (old_db_type != new_db_type &&
-       ha_check_storage_engine_flag(new_db_type, HTON_ALTER_CANNOT_CREATE)))
+      ha_check_storage_engine_flag(new_db_type, HTON_ALTER_NOT_SUPPORTED))
   {
     DBUG_PRINT("info", ("doesn't support alter"));
     my_error(ER_ILLEGAL_HA, MYF(0), table_name);
@@ -3598,8 +3593,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
   }
   create_info->db_type=new_db_type;
-  if (!create_info->comment)
-    create_info->comment= table->s->comment;
+  if (!create_info->comment.str)
+  {
+    create_info->comment.str= table->s->comment.str;
+    create_info->comment.length= table->s->comment.length;
+  }
 
   table->file->update_create_info(create_info);
   if ((create_info->table_options &
@@ -3737,8 +3735,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
-    error=copy_data_between_tables(table,new_table,create_list,
-				   handle_duplicates, ignore,
+    error=copy_data_between_tables(table, new_table, create_list, ignore,
 				   order_num, order, &copied, &deleted);
   }
   thd->last_insert_id=next_insert_id;		// Needed for correct log
@@ -3961,7 +3958,6 @@ end_temporary:
 static int
 copy_data_between_tables(TABLE *from,TABLE *to,
 			 List<create_field> &create,
-			 enum enum_duplicates handle_duplicates,
                          bool ignore,
 			 uint order_num, ORDER *order,
 			 ha_rows *copied,
@@ -4064,8 +4060,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   */
   from->file->extra(HA_EXTRA_RETRIEVE_ALL_COLS);
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
-  if (ignore ||
-      handle_duplicates == DUP_REPLACE)
+  if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->row_count= 0;
   restore_record(to, s->default_values);        // Create empty record
@@ -4092,8 +4087,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     if ((error=to->file->write_row((byte*) to->record[0])))
     {
-      if ((!ignore &&
-	   handle_duplicates != DUP_REPLACE) ||
+      if (!ignore ||
 	  (error != HA_ERR_FOUND_DUPP_KEY &&
 	   error != HA_ERR_FOUND_DUPP_UNIQUE))
       {
@@ -4171,7 +4165,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(mysql_alter_table(thd, NullS, NullS, &create_info,
                                 table_list, lex->create_list,
                                 lex->key_list, 0, (ORDER *) 0,
-                                DUP_ERROR, 0, &lex->alter_info, do_send_ok));
+                                0, &lex->alter_info, do_send_ok));
 }
 
 

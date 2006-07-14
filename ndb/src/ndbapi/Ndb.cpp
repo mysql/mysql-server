@@ -28,7 +28,6 @@ Name:          Ndb.cpp
 #include "NdbImpl.hpp"
 #include <NdbOperation.hpp>
 #include <NdbTransaction.hpp>
-#include <NdbEventOperation.hpp>
 #include <NdbRecAttr.hpp>
 #include <md5_hash.hpp>
 #include <NdbSleep.h>
@@ -1298,51 +1297,6 @@ Ndb::getSchemaFromInternalName(const char * internalName)
   BaseString ret = BaseString(schemaName);
   delete [] schemaName;
   return ret;
-}
-
-NdbEventOperation* Ndb::createEventOperation(const char* eventName,
-					     const int bufferLength)
-{
-  NdbEventOperation* tOp;
-
-  tOp = new NdbEventOperation(this, eventName, bufferLength);
-
-  if (tOp == 0)
-  {
-    theError.code= 4000;
-    return NULL;
-  }
-
-  if (tOp->getState() != NdbEventOperation::EO_CREATED) {
-    theError.code= tOp->getNdbError().code;
-    delete tOp;
-    tOp = NULL;
-  }
-
-  //now we have to look up this event in dict
-
-  return tOp;
-}
-
-int Ndb::dropEventOperation(NdbEventOperation* op) {
-  delete op;
-  return 0;
-}
-
-NdbGlobalEventBufferHandle* Ndb::getGlobalEventBufferHandle()
-{
-  return theGlobalEventBufferHandle;
-}
-
-//void Ndb::monitorEvent(NdbEventOperation *op, NdbEventCallback cb, void* rs)
-//{
-//}
-
-int
-Ndb::pollEvents(int aMillisecondNumber)
-{
-  return NdbEventOperation::wait(theGlobalEventBufferHandle,
-				 aMillisecondNumber);
 }
 
 #ifdef VM_TRACE

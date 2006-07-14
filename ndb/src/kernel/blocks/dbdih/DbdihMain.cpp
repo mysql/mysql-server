@@ -1356,30 +1356,33 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     }
     ndbrequire(false);
     break;
-  case ZNDB_SPH7:
-    jam();
-    switch (typestart) {
-    case NodeState::ST_INITIAL_START:
-    case NodeState::ST_SYSTEM_RESTART:
-      jam();
-      ndbsttorry10Lab(signal, __LINE__);
-      return;
-    case NodeState::ST_NODE_RESTART:
-    case NodeState::ST_INITIAL_NODE_RESTART:
-      jam();
-      sendDictUnlockOrd(signal, c_dictLockSlavePtrI_nodeRestart);
-      c_dictLockSlavePtrI_nodeRestart = RNIL;
-      ndbsttorry10Lab(signal, __LINE__);
-      return;
-    }
-    ndbrequire(false);
-    break;
   default:
     jam();
     ndbsttorry10Lab(signal, __LINE__);
     break;
   }//switch
 }//Dbdih::execNDB_STTOR()
+
+void
+Dbdih::exec_node_start_rep(Signal* signal)
+{
+  /*
+   * Send DICT_UNLOCK_ORD when this node is SL_STARTED.
+   *
+   * Sending it before (sp 7) conflicts with code which assumes
+   * SL_STARTING means we are in copy phase of NR.
+   *
+   * NodeState::starting.restartType is not supposed to be used
+   * when SL_STARTED.  Also it seems NODE_START_REP can arrive twice.
+   *
+   * For these reasons there are no consistency checks and
+   * we rely on c_dictLockSlavePtrI_nodeRestart alone.
+   */
+  if (c_dictLockSlavePtrI_nodeRestart != RNIL) {
+    sendDictUnlockOrd(signal, c_dictLockSlavePtrI_nodeRestart);
+    c_dictLockSlavePtrI_nodeRestart = RNIL;
+  }
+}
 
 void
 Dbdih::createMutexes(Signal * signal, Uint32 count){
@@ -1605,6 +1608,7 @@ void Dbdih::nodeRestartPh2Lab(Signal* signal)
 void Dbdih::recvDictLockConf_nodeRestart(Signal* signal, Uint32 data, Uint32 ret)
 {
   ndbrequire(c_dictLockSlavePtrI_nodeRestart == RNIL);
+  ndbrequire(data != RNIL);
   c_dictLockSlavePtrI_nodeRestart = data;
 
   nodeRestartPh2Lab2(signal);
@@ -2018,9 +2022,6 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
     signal->theData[0] = reference();
     signal->theData[1] = c_nodeStartSlave.nodeId;
     sendSignal(BACKUP_REF, GSN_INCL_NODEREQ, signal, 2, JBB);
-    
-    // Suma will not send response to this for now, later...
-    sendSignal(SUMA_REF, GSN_INCL_NODEREQ, signal, 2, JBB);
     return;
   }//if
   if (TstartNode_or_blockref == numberToRef(BACKUP, getOwnNodeId())){
@@ -8019,12 +8020,6 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
   if (reason == CopyGCIReq::GLOBAL_CHECKPOINT) {
     jam();
     cgcpParticipantState = GCP_PARTICIPANT_READY;
-    
-    SubGcpCompleteRep * const rep = (SubGcpCompleteRep*)signal->getDataPtr();
-    rep->gci = coldgcp;
-    rep->senderData = 0;
-    sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
-	       SubGcpCompleteRep::SignalLength, JBB);
   }
   
   jam();

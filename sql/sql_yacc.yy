@@ -2529,7 +2529,7 @@ create_table_option:
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ulong_num	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
 	| PASSWORD opt_equal TEXT_STRING_sys	{ Lex->create_info.password=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_PASSWORD; }
-	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_COMMENT; }
+	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3; Lex->create_info.used_fields|= HA_CREATE_USED_COMMENT; }
 	| AUTO_INC opt_equal ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
         | PACK_KEYS_SYM opt_equal ulong_num
           {
@@ -4453,7 +4453,10 @@ simple_expr:
 	    Lex->safe_to_cache_query=0;
 	  }
 	| CURRENT_USER optional_braces
-          { $$= create_func_current_user(); }
+          {
+            $$= new Item_func_current_user(Lex->current_context());
+            Lex->safe_to_cache_query= 0;
+          }
 	| DATE_ADD_INTERVAL '(' expr ',' interval_expr interval ')'
 	  { $$= new Item_date_add_interval($3,$5,$6,0); }
 	| DATE_SUB_INTERVAL '(' expr ',' interval_expr interval ')'
@@ -4810,7 +4813,7 @@ simple_expr:
 	| UNIX_TIMESTAMP '(' expr ')'
 	  { $$= new Item_func_unix_timestamp($3); }
 	| USER '(' ')'
-	  { $$= new Item_func_user(FALSE); Lex->safe_to_cache_query=0; }
+	  { $$= new Item_func_user(); Lex->safe_to_cache_query=0; }
 	| UTC_DATE_SYM optional_braces
 	  { $$= new Item_func_curdate_utc(); Lex->safe_to_cache_query=0;}
 	| UTC_TIME_SYM optional_braces
@@ -6522,24 +6525,10 @@ show_param:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_GRANTS;
-	    THD *thd= lex->thd;
-            Security_context *sctx= thd->security_ctx;
 	    LEX_USER *curr_user;
-            if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+            if (!(curr_user= (LEX_USER*) lex->thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            curr_user->user.str= sctx->priv_user;
-            curr_user->user.length= strlen(sctx->priv_user);
-            if (*sctx->priv_host != 0)
-            {
-              curr_user->host.str= sctx->priv_host;
-              curr_user->host.length= strlen(sctx->priv_host);
-            }
-            else
-            {
-              curr_user->host.str= (char *) "%";
-              curr_user->host.length= 1;
-            }
-            curr_user->password=null_lex_str;
+            bzero(curr_user, sizeof(st_lex_user));
 	    lex->grant_user= curr_user;
 	  }
 	| GRANTS FOR_SYM user
@@ -7489,22 +7478,14 @@ user:
 	  }
 	| CURRENT_USER optional_braces
 	{
-          THD *thd= YYTHD;
-          Security_context *sctx= thd->security_ctx;
-          if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+          if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(st_lex_user))))
             YYABORT;
-          $$->user.str= sctx->priv_user;
-          $$->user.length= strlen(sctx->priv_user);
-          if (*sctx->priv_host != 0)
-          {
-            $$->host.str= sctx->priv_host;
-            $$->host.length= strlen(sctx->priv_host);
-          }
-          else
-          {
-            $$->host.str= (char *) "%";
-            $$->host.length= 1;
-          }
+          /* 
+            empty LEX_USER means current_user and 
+            will be handled in the  get_current_user() function
+            later
+          */
+          bzero($$, sizeof(LEX_USER));
 	};
 
 /* Keyword that we allow for identifiers (except SP labels) */

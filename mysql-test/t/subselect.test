@@ -1821,6 +1821,36 @@ SELECT * FROM t1
 
 DROP TABLE t1,t2,t3;
 
+#
+# BUG #10308: purge log with subselect
+#
+
+purge master logs before (select adddate(current_timestamp(), interval -4 day));
+
+
+#
+# Bug#18503: Queries with a quantified subquery returning empty set may
+# return a wrong result. 
+#
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f2 INT);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 WHERE f1 > ALL (SELECT f2 FROM t2);
+SELECT * FROM t1 WHERE f1 > ALL (SELECT f2 FROM t2 WHERE 1=0);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t1 WHERE f1 > ALL (SELECT f2 FROM t2 WHERE f2=0);
+DROP TABLE t1, t2;
+
+#
+# Bug#16302: Quantified subquery without any tables gives wrong results
+#
+select 1 from dual where 1 < any (select 2);
+select 1 from dual where 1 < all (select 2);
+select 1 from dual where 2 > any (select 1);
+select 1 from dual where 2 > all (select 1);
+select 1 from dual where 1 < any (select 2 from dual);
+select 1 from dual where 1 < all (select 2 from dual where 1!=1);
 # End of 4.1 tests
 
 #
