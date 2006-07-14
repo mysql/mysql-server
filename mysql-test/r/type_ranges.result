@@ -273,7 +273,7 @@ create table t2 (primary key (auto)) select auto+1 as auto,1 as t1, 'a' as t2, r
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	bigint(12) unsigned	NULL	NO	PRI	0		#	
-t1	bigint(1)	NULL	NO		0		#	
+t1	int(1)	NULL	NO		0		#	
 t2	varchar(1)	latin1_swedish_ci	NO				#	
 t3	varchar(256)	latin1_swedish_ci	NO				#	
 t4	varbinary(256)	NULL	NO				#	
@@ -301,7 +301,7 @@ show full columns from t3;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 c1	int(11)	NULL	YES		NULL		#	
 c2	int(11)	NULL	YES		NULL		#	
-const	bigint(1)	NULL	NO		0		#	
+const	int(1)	NULL	NO		0		#	
 drop table t1,t2,t3;
 create table t1 ( myfield INT NOT NULL, UNIQUE INDEX (myfield), unique (myfield), index(myfield));
 drop table t1;

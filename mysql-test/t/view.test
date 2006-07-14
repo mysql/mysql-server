@@ -2630,3 +2630,16 @@ SELECT CONCAT(LEFT(name,LENGTH(name)-INSTR(REVERSE(name)," ")),
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# Bug #19714: wrong type of a view column specified by an expressions over ints
+#
+
+CREATE TABLE t1 (i int, j int);
+CREATE VIEW v1 AS SELECT COALESCE(i,j) FROM t1;
+DESCRIBE v1;
+CREATE TABLE t2 SELECT COALESCE(i,j) FROM t1;  
+DESCRIBE t2;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;

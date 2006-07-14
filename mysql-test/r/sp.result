@@ -4921,7 +4921,7 @@ create table t3 as select * from v1|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `j` bigint(11) default NULL
+  `j` int(11) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3|
 j

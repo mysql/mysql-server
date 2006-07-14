@@ -8074,8 +8074,13 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 			       item->name, table, item->decimals);
     break;
   case INT_RESULT:
-    new_field=new Field_longlong(item->max_length, maybe_null,
-				   item->name, table, item->unsigned_flag);
+    /* Select an integer type with the minimal fit precision */
+    if (item->max_length > 11)
+      new_field=new Field_longlong(item->max_length, maybe_null,
+                                   item->name, table, item->unsigned_flag);
+    else
+      new_field=new Field_long(item->max_length, maybe_null,
+                               item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
