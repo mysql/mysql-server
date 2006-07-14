@@ -2999,7 +2999,6 @@ void st_table_list::reinit_before_use(THD * /* thd */)
     were closed in the end of previous prepare or execute call.
   */
   table= 0;
-  table_list= 0;
 }
 
 
