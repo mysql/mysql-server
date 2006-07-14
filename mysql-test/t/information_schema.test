@@ -859,7 +859,40 @@ select concat(@a, table_name), @a, table_name
 from information_schema.tables where table_schema = 'test';
 drop table t1,t2;
 
-# End of 5.0 tests.
+#
+# Bug#20230: routine_definition is not null
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+CREATE PROCEDURE p1() SET @a= 1;
+CREATE FUNCTION f1() RETURNS INT RETURN @a + 1;
+CREATE USER mysql_bug20230@localhost;
+GRANT EXECUTE ON PROCEDURE p1 TO mysql_bug20230@localhost;
+GRANT EXECUTE ON FUNCTION f1 TO mysql_bug20230@localhost;
+
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES;
+SHOW CREATE PROCEDURE p1;
+SHOW CREATE FUNCTION f1;
+
+connect (conn1, localhost, mysql_bug20230,,);
+
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES;
+SHOW CREATE PROCEDURE p1;
+SHOW CREATE FUNCTION f1;
+CALL p1();
+SELECT f1();
+
+disconnect conn1;
+connection default;
+
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+DROP USER mysql_bug20230@localhost;
+
+--echo End of 5.0 tests.
 #
 # Show engines
 #
@@ -876,4 +909,6 @@ connection con3148;
 select user,db from information_schema.processlist;
 connection default;
 drop user user3148@localhost;
+
+--echo End of 5.1 tests.
 

@@ -890,13 +890,6 @@ protected:
 public:
   LEX_STRING m_name;
 
-  /*
-    Buffer, pointing to the string value of the item. We need it to
-    protect internal buffer from changes. See comment to analogous
-    member in Item_param for more details.
-  */
-  String str_value_ptr;
-
 public:
 #ifndef DBUG_OFF
   /*

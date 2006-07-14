@@ -2431,7 +2431,7 @@ static void reset_one_shot_variables(THD *thd)
 
 
 /*
-  Execute command saved in thd and current_lex->sql_command
+  Execute command saved in thd and lex->sql_command
 
   SYNOPSIS
     mysql_execute_command()
@@ -5780,7 +5780,7 @@ bool check_stack_overrun(THD *thd, long margin,
 
 bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 {
-  LEX	*lex=current_lex;
+  LEX	*lex= current_thd->lex;
   ulong old_info=0;
   if ((uint) *yystacksize >= MY_YACC_MAX)
     return 1;
@@ -6245,7 +6245,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 
 void store_position_for_column(const char *name)
 {
-  current_lex->last_field->after=my_const_cast(char*) (name);
+  current_thd->lex->last_field->after=my_const_cast(char*) (name);
 }
 
 bool
