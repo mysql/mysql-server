@@ -118,6 +118,10 @@ create table t1 (id int) engine=isam;
 alter table t1 engine=isam;
 drop table t1;
 
+create table t1 (id int) engine=merge;
+alter table t1 engine=merge;
+drop table t1;
+
 #
 # Test for deprecated TYPE= syntax
 #
