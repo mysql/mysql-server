@@ -1087,24 +1087,24 @@ CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(1) NOT NULL default '0',
-  `(SELECT 1)` bigint(1) NOT NULL default '0'
+  `a` int(1) NOT NULL default '0',
+  `(SELECT 1)` int(1) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(1) NOT NULL default '0',
-  `(SELECT a)` bigint(1) NOT NULL default '0'
+  `a` int(1) NOT NULL default '0',
+  `(SELECT a)` int(1) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(1) NOT NULL default '0',
-  `(SELECT a+0)` bigint(3) NOT NULL default '0'
+  `a` int(1) NOT NULL default '0',
+  `(SELECT a+0)` int(3) NOT NULL default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;

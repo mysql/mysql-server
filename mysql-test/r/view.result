@@ -2763,3 +2763,14 @@ Milhouse vanMilhouse van
 MontgomeryMontgomery
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE t1 (i int, j int);
+CREATE VIEW v1 AS SELECT COALESCE(i,j) FROM t1;
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+COALESCE(i,j)	int(11)	YES		NULL	
+CREATE TABLE t2 SELECT COALESCE(i,j) FROM t1;
+DESCRIBE t2;
+Field	Type	Null	Key	Default	Extra
+COALESCE(i,j)	int(11)	YES		NULL	
+DROP VIEW v1;
+DROP TABLE t1,t2;
