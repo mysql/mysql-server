@@ -2135,7 +2135,8 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       Reset old pointers to TABLEs: they are not valid since the tables
       were closed in the end of previous prepare or execute call.
     */
-    tables->table= 0;
+    tables->reinit_before_use(thd);
+
     /* Reset is_schema_table_processed value(needed for I_S tables */
     tables->is_schema_table_processed= FALSE;
 
