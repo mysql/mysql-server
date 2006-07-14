@@ -287,6 +287,7 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_console= 0, opt_bdb, opt_innodb, opt_isam, opt_ndbcluster;
+my_bool opt_merge;
 #ifdef HAVE_NDBCLUSTER_DB
 const char *opt_ndbcluster_connectstring= 0;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
@@ -420,7 +421,7 @@ CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 
 SHOW_COMP_OPTION have_berkeley_db, have_innodb, have_isam, have_ndbcluster, 
-  have_example_db, have_archive_db, have_csv_db;
+  have_example_db, have_archive_db, have_csv_db, have_merge_db;
 SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
@@ -4345,7 +4346,8 @@ enum options_mysqld
   OPT_DATETIME_FORMAT,
   OPT_LOG_QUERIES_NOT_USING_INDEXES,
   OPT_DEFAULT_TIME_ZONE,
-  OPT_LOG_SLOW_ADMIN_STATEMENTS
+  OPT_LOG_SLOW_ADMIN_STATEMENTS,
+  OPT_MERGE
 };
 
 
@@ -4705,6 +4707,9 @@ master-ssl",
 #endif /* HAVE_REPLICATION */
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory.", (gptr*) &locked_in_memory,
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"merge", OPT_MERGE, "Enable Merge storage engine. Disable with \
+--skip-merge.",
+   (gptr*) &opt_merge, (gptr*) &opt_merge, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,
@@ -6467,6 +6472,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     else
       have_berkeley_db= SHOW_OPTION_DISABLED;
 #endif
+    break;
+  case OPT_MERGE:
+    have_merge_db= opt_merge ? SHOW_OPTION_YES : SHOW_OPTION_DISABLED;
     break;
   case OPT_ISAM:
 #ifdef HAVE_ISAM
