@@ -3845,6 +3845,7 @@ make_join_readinfo(JOIN *join, uint options)
 {
   uint i;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
+  bool ordered_set= 0;
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -3854,6 +3855,22 @@ make_join_readinfo(JOIN *join, uint options)
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->next_select=sub_select;		/* normal select */
+
+    /*
+      Determine if the set is already ordered for ORDER BY, so it can 
+      disable join cache because it will change the ordering of the results.
+      Code handles sort table that is at any location (not only first after 
+      the const tables) despite the fact that it's currently prohibited.
+    */
+    if (!ordered_set && 
+        (table == join->sort_by_table &&
+         (!join->order || join->skip_sort_order ||
+          test_if_skip_sort_order(tab, join->order, join->select_limit,
+                                  1))
+        ) ||
+        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables))
+      ordered_set= 1;
+
     switch (tab->type) {
     case JT_SYSTEM:				// Only happens with left join
       table->status=STATUS_NO_RECORD;
@@ -3924,10 +3941,11 @@ make_join_readinfo(JOIN *join, uint options)
     case JT_ALL:
       /*
 	If previous table use cache
+        If the incoming data set is already sorted don't use cache.
       */
       table->status=STATUS_NO_RECORD;
       if (i != join->const_tables && !(options & SELECT_NO_JOIN_CACHE) &&
-	  tab->use_quick != 2 && !tab->on_expr)
+	  tab->use_quick != 2 && !tab->on_expr && !ordered_set)
       {
 	if ((options & SELECT_DESCRIBE) ||
 	    !join_init_cache(join->thd,join->join_tab+join->const_tables,
