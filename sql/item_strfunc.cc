@@ -405,7 +405,7 @@ void Item_func_concat::fix_length_and_dec()
 {
   ulonglong max_result_length= 0;
 
-  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV))
+  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV, 1))
     return;
 
   for (uint i=0 ; i < arg_count ; i++)
@@ -727,7 +727,7 @@ void Item_func_concat_ws::fix_length_and_dec()
 {
   ulonglong max_result_length;
 
-  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV))
+  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV, 1))
     return;
 
   /*
@@ -752,44 +752,47 @@ String *Item_func_reverse::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
-  char *ptr,*end;
+  char *ptr, *end, *tmp;
 
   if ((null_value=args[0]->null_value))
     return 0;
   /* An empty string is a special case as the string pointer may be null */
   if (!res->length())
     return &my_empty_string;
-  res=copy_if_not_alloced(str,res,res->length());
-  ptr = (char *) res->ptr();
-  end=ptr+res->length();
+  if (tmp_value.alloced_length() < res->length() &&
+      tmp_value.realloc(res->length()))
+  {
+    null_value= 1;
+    return 0;
+  }
+  tmp_value.length(res->length());
+  tmp_value.set_charset(res->charset());
+  ptr= (char *) res->ptr();
+  end= ptr + res->length();
+  tmp= (char *) tmp_value.ptr() + tmp_value.length();
 #ifdef USE_MB
   if (use_mb(res->charset()))
   {
-    String tmpstr;
-    tmpstr.copy(*res);
-    char *tmp = (char *) tmpstr.ptr() + tmpstr.length();
     register uint32 l;
     while (ptr < end)
     {
-      if ((l=my_ismbchar(res->charset(), ptr,end)))
-        tmp-=l, memcpy(tmp,ptr,l), ptr+=l;
+      if ((l= my_ismbchar(res->charset(),ptr,end)))
+      {
+        tmp-= l;
+        memcpy(tmp,ptr,l);
+        ptr+= l;
+      }
       else
-        *--tmp=*ptr++;
+        *--tmp= *ptr++;
     }
-    memcpy((char *) res->ptr(),(char *) tmpstr.ptr(), res->length());
   }
   else
 #endif /* USE_MB */
   {
-    char tmp;
     while (ptr < end)
-    {
-      tmp=*ptr;
-      *ptr++=*--end;
-      *end=tmp;
-    }
+      *--tmp= *ptr++;
   }
-  return res;
+  return &tmp_value;
 }
 
 
@@ -937,7 +940,7 @@ void Item_func_replace::fix_length_and_dec()
   }
   max_length= (ulong) max_result_length;
   
-  if (agg_arg_charsets(collation, args, 3, MY_COLL_CMP_CONV))
+  if (agg_arg_charsets(collation, args, 3, MY_COLL_CMP_CONV, 1))
     return;
 }
 
@@ -982,15 +985,11 @@ null:
 
 void Item_func_insert::fix_length_and_dec()
 {
-  Item *cargs[2];
   ulonglong max_result_length;
 
-  cargs[0]= args[0];
-  cargs[1]= args[3];
-  if (agg_arg_charsets(collation, cargs, 2, MY_COLL_ALLOW_CONV))
+  // Handle character set for args[0] and args[3].
+  if (agg_arg_charsets(collation, &args[0], 2, MY_COLL_ALLOW_CONV, 3))
     return;
-  args[0]= cargs[0];
-  args[3]= cargs[1];
   max_result_length= ((ulonglong) args[0]->max_length+
                       (ulonglong) args[3]->max_length);
   if (max_result_length >= MAX_BLOB_WIDTH)
@@ -1161,7 +1160,7 @@ void Item_func_substr_index::fix_length_and_dec()
 { 
   max_length= args[0]->max_length;
 
-  if (agg_arg_charsets(collation, args, 2, MY_COLL_CMP_CONV))
+  if (agg_arg_charsets(collation, args, 2, MY_COLL_CMP_CONV, 1))
     return;
 }
 
@@ -1497,13 +1496,10 @@ void Item_func_trim::fix_length_and_dec()
   }
   else
   {
-    Item *cargs[2];
-    cargs[0]= args[1];
-    cargs[1]= args[0];
-    if (agg_arg_charsets(collation, cargs, 2, MY_COLL_CMP_CONV))
+    // Handle character set for args[1] and args[0].
+    // Note that we pass args[1] as the first item, and args[0] as the second.
+    if (agg_arg_charsets(collation, &args[1], 2, MY_COLL_CMP_CONV, -1))
       return;
-    args[0]= cargs[1];
-    args[1]= cargs[0];
   }
 }
 
@@ -1677,42 +1673,51 @@ String *Item_func_database::val_str(String *str)
   return str;
 }
 
-// TODO: make USER() replicate properly (currently it is replicated to "")
 
-String *Item_func_user::val_str(String *str)
+/*
+  TODO: make USER() replicate properly (currently it is replicated to "")
+*/
+bool Item_func_user::init(const char *user, const char *host)
 {
   DBUG_ASSERT(fixed == 1);
-  THD          *thd=current_thd;
-  CHARSET_INFO *cs= system_charset_info;
-  const char   *host, *user;
-  uint		res_length;
-
-  if (is_current)
-  {
-    user= thd->security_ctx->priv_user;
-    host= thd->security_ctx->priv_host;
-  }
-  else
-  {
-    user= thd->main_security_ctx.user;
-    host= thd->main_security_ctx.host_or_ip;
-  }
 
   // For system threads (e.g. replication SQL thread) user may be empty
-  if (!user)
-    return &my_empty_string;
-  res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
-
-  if (str->alloc(res_length))
+  if (user)
   {
-    null_value=1;
-    return 0;
+    CHARSET_INFO *cs= str_value.charset();
+    uint res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
+
+    if (str_value.alloc(res_length))
+    {
+      null_value=1;
+      return TRUE;
+    }
+
+    res_length=cs->cset->snprintf(cs, (char*)str_value.ptr(), res_length,
+                                  "%s@%s", user, host);
+    str_value.length(res_length);
+    str_value.mark_as_const();
   }
-  res_length=cs->cset->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",
-			        user, host);
-  str->length(res_length);
-  str->set_charset(cs);
-  return str;
+  return FALSE;
+}
+
+
+bool Item_func_user::fix_fields(THD *thd, Item **ref)
+{
+  return (Item_func_sysconst::fix_fields(thd, ref) ||
+          init(thd->main_security_ctx.user,
+               thd->main_security_ctx.host_or_ip));
+}
+
+
+bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_func_sysconst::fix_fields(thd, ref))
+    return TRUE;
+
+  Security_context *ctx= (context->security_ctx
+                          ? context->security_ctx : thd->security_ctx);
+  return init(ctx->priv_user, ctx->priv_host);
 }
 
 
@@ -1887,7 +1892,7 @@ void Item_func_elt::fix_length_and_dec()
   max_length=0;
   decimals=0;
 
-  if (agg_arg_charsets(collation, args+1, arg_count-1, MY_COLL_ALLOW_CONV))
+  if (agg_arg_charsets(collation, args+1, arg_count-1, MY_COLL_ALLOW_CONV, 1))
     return;
 
   for (uint i= 1 ; i < arg_count ; i++)
@@ -1954,7 +1959,7 @@ void Item_func_make_set::fix_length_and_dec()
 {
   max_length=arg_count-1;
 
-  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV))
+  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV, 1))
     return;
   
   for (uint i=0 ; i < arg_count ; i++)
@@ -2162,14 +2167,9 @@ err:
 
 void Item_func_rpad::fix_length_and_dec()
 {
-  Item *cargs[2];
-
-  cargs[0]= args[0];
-  cargs[1]= args[2];
-  if (agg_arg_charsets(collation, cargs, 2, MY_COLL_ALLOW_CONV))
+  // Handle character set for args[0] and args[2].
+  if (agg_arg_charsets(collation, &args[0], 2, MY_COLL_ALLOW_CONV, 2))
     return;
-  args[0]= cargs[0];
-  args[2]= cargs[1];
   if (args[1]->const_item())
   {
     ulonglong length= ((ulonglong) args[1]->val_int() *
@@ -2249,13 +2249,9 @@ String *Item_func_rpad::val_str(String *str)
 
 void Item_func_lpad::fix_length_and_dec()
 {
-  Item *cargs[2];
-  cargs[0]= args[0];
-  cargs[1]= args[2];
-  if (agg_arg_charsets(collation, cargs, 2, MY_COLL_ALLOW_CONV))
+  // Handle character set for args[0] and args[2].
+  if (agg_arg_charsets(collation, &args[0], 2, MY_COLL_ALLOW_CONV, 2))
     return;
-  args[0]= cargs[0];
-  args[2]= cargs[1];
   
   if (args[1]->const_item())
   {
@@ -2712,8 +2708,8 @@ void Item_func_export_set::fix_length_and_dec()
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
 
-  if (agg_arg_charsets(collation, args+1, min(4,arg_count)-1),
-                       MY_COLL_ALLOW_CONV)
+  if (agg_arg_charsets(collation, args+1, min(4,arg_count)-1,
+                       MY_COLL_ALLOW_CONV, 1))
     return;
 }
 

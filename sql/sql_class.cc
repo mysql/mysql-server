@@ -269,6 +269,7 @@ THD::THD()
   tablespace_op=FALSE;
   ulong tmp=sql_rnd_with_mutex();
   randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::query_id);
+  substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
   thr_lock_owner_init(&main_lock_id, &lock_info);
 }
@@ -306,6 +307,7 @@ void THD::init(void)
   total_warn_count= 0;
   update_charset();
   bzero((char *) &status_var, sizeof(status_var));
+  variables.lc_time_names = &my_locale_en_US;
 }
 
 
@@ -930,7 +932,7 @@ bool select_send::send_data(List<Item> &items)
   Protocol *protocol= thd->protocol;
   char buff[MAX_FIELD_WIDTH];
   String buffer(buff, sizeof(buff), &my_charset_bin);
-  DBUG_ENTER("send_data");
+  DBUG_ENTER("select_send::send_data");
 
   protocol->prepare_for_resend();
   Item *item;
@@ -1140,7 +1142,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 bool select_export::send_data(List<Item> &items)
 {
 
-  DBUG_ENTER("send_data");
+  DBUG_ENTER("select_export::send_data");
   char buff[MAX_FIELD_WIDTH],null_buff[2],space[MAX_FIELD_WIDTH];
   bool space_inited=0;
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
@@ -1297,7 +1299,7 @@ bool select_dump::send_data(List<Item> &items)
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   tmp.length(0);
   Item *item;
-  DBUG_ENTER("send_data");
+  DBUG_ENTER("select_dump::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
@@ -1946,6 +1948,7 @@ void Security_context::init()
 {
   host= user= priv_user= ip= 0;
   host_or_ip= "connecting host";
+  priv_host[0]= '\0';
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
 #endif

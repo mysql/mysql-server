@@ -394,7 +394,7 @@ void Item_bool_func2::fix_length_and_dec()
   DTCollation coll;
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
-      agg_arg_charsets(coll, args, 2, MY_COLL_CMP_CONV))
+      agg_arg_charsets(coll, args, 2, MY_COLL_CMP_CONV, 1))
     return;
     
  
@@ -1211,7 +1211,7 @@ void Item_func_between::fix_length_and_dec()
   agg_cmp_type(thd, &cmp_type, args, 3);
 
   if (cmp_type == STRING_RESULT)
-      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV);
+      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV, 1);
 }
 
 
@@ -1331,7 +1331,7 @@ Item_func_ifnull::fix_length_and_dec()
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
     break;
   case DECIMAL_RESULT:
   case REAL_RESULT:
@@ -1503,7 +1503,7 @@ Item_func_if::fix_length_and_dec()
     agg_result_type(&cached_result_type, args+1, 2);
     if (cached_result_type == STRING_RESULT)
     {
-      if (agg_arg_charsets(collation, args+1, 2, MY_COLL_ALLOW_CONV))
+      if (agg_arg_charsets(collation, args+1, 2, MY_COLL_ALLOW_CONV, 1))
         return;
     }
     else
@@ -1584,7 +1584,7 @@ Item_func_nullif::fix_length_and_dec()
     unsigned_flag= args[0]->unsigned_flag;
     cached_result_type= args[0]->result_type();
     if (cached_result_type == STRING_RESULT &&
-        agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV))
+        agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1))
       return;
   }
 }
@@ -1876,7 +1876,7 @@ void Item_func_case::fix_length_and_dec()
   
   agg_result_type(&cached_result_type, agg, nagg);
   if ((cached_result_type == STRING_RESULT) &&
-      agg_arg_charsets(collation, agg, nagg, MY_COLL_ALLOW_CONV))
+      agg_arg_charsets(collation, agg, nagg, MY_COLL_ALLOW_CONV, 1))
     return;
   
   
@@ -1892,7 +1892,7 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     agg_cmp_type(thd, &cmp_type, agg, nagg);
     if ((cmp_type == STRING_RESULT) &&
-        agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV))
+        agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV, 1))
       return;
   }
   
@@ -2022,7 +2022,7 @@ void Item_func_coalesce::fix_length_and_dec()
   case STRING_RESULT:
     count_only_length();
     decimals= NOT_FIXED_DEC;
-    agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV, 1);
     break;
   case DECIMAL_RESULT:
     count_decimal_length();
@@ -2486,7 +2486,7 @@ void Item_func_in::fix_length_and_dec()
   agg_cmp_type(thd, &cmp_type, args, arg_count);
 
   if (cmp_type == STRING_RESULT &&
-      agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV))
+      agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1))
     return;
 
   for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -3219,7 +3219,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
   max_length= 1;
   decimals= 0;
 
-  if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV))
+  if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1))
     return TRUE;
 
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
@@ -3303,7 +3303,7 @@ longlong Item_func_regex::val_int()
     }
   }
   null_value=0;
-  return my_regexec(&preg,res->c_ptr(),0,(my_regmatch_t*) 0,0) ? 0 : 1;
+  return my_regexec(&preg,res->c_ptr_safe(),0,(my_regmatch_t*) 0,0) ? 0 : 1;
 }
 
 

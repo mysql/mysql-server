@@ -438,6 +438,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
 void
 Qmgr::execREAD_NODESCONF(Signal* signal)
 {
+  jamEntry();
   check_readnodes_reply(signal, 
 			refToNode(signal->getSendersBlockRef()),
 			GSN_READ_NODESCONF);
@@ -446,6 +447,7 @@ Qmgr::execREAD_NODESCONF(Signal* signal)
 void
 Qmgr::execREAD_NODESREF(Signal* signal)
 {
+  jamEntry();
   check_readnodes_reply(signal, 
 			refToNode(signal->getSendersBlockRef()),
 			GSN_READ_NODESREF);
@@ -907,9 +909,9 @@ retry:
 
   char buf[255];
   BaseString::snprintf(buf, sizeof(buf),
-		       "Partitioned cluster! check StartPartialTimeout, "
-		       " node %d thinks %d is president, "
-		       " I think president is: %d",
+		       "check StartPartialTimeout, "
+		       "node %d thinks %d is president, "
+		       "I think president is: %d",
 		       nodeId, president, cpresident);
 
   ndbout_c(buf);
@@ -941,7 +943,7 @@ retry:
   CRASH_INSERTION(932);
   
   progError(__LINE__, 
-	    NDBD_EXIT_ARBIT_SHUTDOWN,
+	    NDBD_EXIT_PARTITIONED_SHUTDOWN,
 	    buf);
   
   ndbrequire(false);
@@ -2340,7 +2342,6 @@ void Qmgr::sendApiFailReq(Signal* signal, Uint16 failedNodeNo)
   failedNodePtr.p->failState = WAITING_FOR_FAILCONF1;
   sendSignal(DBTC_REF, GSN_API_FAILREQ, signal, 2, JBA);
   sendSignal(DBDICT_REF, GSN_API_FAILREQ, signal, 2, JBA);
-  sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
 
   /**-------------------------------------------------------------------------
    * THE OTHER NODE WAS AN API NODE. THE COMMUNICATION LINK IS ALREADY 
@@ -2795,7 +2796,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       break;
     case FailRep::ZPARTITIONED_CLUSTER:
     {
-      code = NDBD_EXIT_ARBIT_SHUTDOWN;
+      code = NDBD_EXIT_PARTITIONED_SHUTDOWN;
       char buf1[100], buf2[100];
       c_clusterNodes.getText(buf1);
       if (signal->getLength()== FailRep::SignalLength + FailRep::ExtraLength &&
@@ -2806,16 +2807,14 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
 	part.assign(NdbNodeBitmask::Size, rep->partition);
 	part.getText(buf2);
 	BaseString::snprintf(extra, sizeof(extra),
-			     "Partitioned cluster!"
-			     " Our cluster: %s other cluster: %s",
+			     "Our cluster: %s other cluster: %s",
 			     buf1, buf2);
       }
       else
       {
 	jam();
 	BaseString::snprintf(extra, sizeof(extra),
-			     "Partitioned cluster!"
-			     " Our cluster: %s ", buf1);
+			     "Our cluster: %s", buf1);
       }
       msg = extra;
       break;

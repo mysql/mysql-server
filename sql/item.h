@@ -697,9 +697,16 @@ public:
     Any new item which can be NULL must implement this call.
   */
   virtual bool is_null() { return 0; }
+
   /*
-    it is "top level" item of WHERE clause and we do not need correct NULL
-    handling
+    Inform the item that there will be no distinction between its result
+    being FALSE or NULL.
+
+    NOTE
+      This function will be called for eg. Items that are top-level AND-parts
+      of the WHERE clause. Items implementing this function (currently
+      Item_cond_and and subquery-related item) enable special optimizations
+      when they are "top level".
   */
   virtual void top_level_item() {}
   /*
@@ -826,13 +833,6 @@ protected:
 
 public:
   LEX_STRING m_name;
-
-  /*
-    Buffer, pointing to the string value of the item. We need it to
-    protect internal buffer from changes. See comment to analogous
-    member in Item_param for more details.
-  */
-  String str_value_ptr;
 
 public:
 #ifndef DBUG_OFF
@@ -1075,12 +1075,11 @@ public:
 };
 
 bool agg_item_collations(DTCollation &c, const char *name,
-                         Item **items, uint nitems, uint flags= 0);
+                         Item **items, uint nitems, uint flags, int item_sep);
 bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
-                                        Item **items, uint nitems,
-                                        uint flags= 0);
+                                        Item **items, uint nitems, uint flags);
 bool agg_item_charsets(DTCollation &c, const char *name,
-                       Item **items, uint nitems, uint flags= 0);
+                       Item **items, uint nitems, uint flags, int item_sep);
 
 
 class Item_num: public Item
@@ -1141,6 +1140,28 @@ public:
                             const char *table_name, List_iterator<Item> *it,
                             bool any_privileges);
 };
+
+
+class Item_ident_for_show :public Item
+{
+public:
+  Field *field;
+  const char *db_name;
+  const char *table_name;
+
+  Item_ident_for_show(Field *par_field, const char *db_arg,
+                      const char *table_name_arg)
+    :field(par_field), db_name(db_arg), table_name(table_name_arg)
+  {}
+
+  enum Type type() const { return FIELD_ITEM; }
+  double val_real() { return field->val_real(); }
+  longlong val_int() { return field->val_int(); }
+  String *val_str(String *str) { return field->val_str(str); }
+  my_decimal *val_decimal(my_decimal *dec) { return field->val_decimal(dec); }
+  void make_field(Send_field *tmp_field);
+};
+
 
 class Item_equal;
 class COND_EQUAL;

@@ -1515,7 +1515,8 @@ bool Field::optimize_range(uint idx, uint part)
 }
 
 
-Field *Field::new_field(MEM_ROOT *root, struct st_table *new_table)
+Field *Field::new_field(MEM_ROOT *root, struct st_table *new_table,
+                        bool keep_type __attribute__((unused)))
 {
   Field *tmp;
   if (!(tmp= (Field*) memdup_root(root,(char*) this,size_of())))
@@ -1540,7 +1541,7 @@ Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
                             uint new_null_bit)
 {
   Field *tmp;
-  if ((tmp= new_field(root, new_table)))
+  if ((tmp= new_field(root, new_table, table == new_table)))
   {
     tmp->ptr=      new_ptr;
     tmp->null_ptr= new_null_ptr;
@@ -6227,29 +6228,21 @@ uint Field_string::max_packed_col_length(uint max_length)
 }
 
 
-Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table)
+Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
+                               bool keep_type)
 {
   Field *new_field;
 
-  if (type() != MYSQL_TYPE_VAR_STRING || table == new_table)
-    return Field::new_field(root, new_table);
+  if (type() != MYSQL_TYPE_VAR_STRING || keep_type)
+    return Field::new_field(root, new_table, keep_type);
 
   /*
     Old VARCHAR field which should be modified to a VARCHAR on copy
     This is done to ensure that ALTER TABLE will convert old VARCHAR fields
     to now VARCHAR fields.
   */
-  if ((new_field= new Field_varstring(field_length, maybe_null(),
-                                      field_name, new_table, charset())))
-  {
-    /*
-      delayed_insert::get_local_table() needs a ptr copied from old table.
-      This is what other new_field() methods do too. The above method of
-      Field_varstring sets ptr to NULL.
-    */
-    new_field->ptr= ptr;
-  }
-  return new_field;
+  return new Field_varstring(field_length, maybe_null(),
+                             field_name, new_table, charset());
 }
 
 /****************************************************************************
@@ -6741,9 +6734,11 @@ int Field_varstring::cmp_binary(const char *a_ptr, const char *b_ptr,
 }
 
 
-Field *Field_varstring::new_field(MEM_ROOT *root, struct st_table *new_table)
+Field *Field_varstring::new_field(MEM_ROOT *root, struct st_table *new_table,
+                                  bool keep_type)
 {
-  Field_varstring *res= (Field_varstring*) Field::new_field(root, new_table);
+  Field_varstring *res= (Field_varstring*) Field::new_field(root, new_table,
+                                                            keep_type);
   if (res)
     res->length_bytes= length_bytes;
   return res;

@@ -6,5 +6,15 @@
 # mysql-test/t/init_file-master.opt for the actual test
 # 
 
-# End of 4.1 tests
-echo ok;
+--echo ok
+--echo end of 4.1 tests
+#
+# Chec 5.x features
+#
+# Expected:
+#   3, 5, 7, 11, 13 
+select * from t1;
+# Expected:
+#   30, 3, 11, 13
+select * from t2;
+drop table t1, t2;

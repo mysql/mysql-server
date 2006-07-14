@@ -1075,3 +1075,18 @@ SELECT f1();
 f1()
 abc
 DROP FUNCTION f1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v_char VARCHAR(255);
+DECLARE v_text TEXT DEFAULT '';
+SET v_char = 'abc';
+SET v_text = v_char;
+SET v_char = 'def';
+SET v_text = concat(v_text, '|', v_char);
+SELECT v_text;
+END|
+CALL p1();
+v_text
+abc|def
+DROP PROCEDURE p1;

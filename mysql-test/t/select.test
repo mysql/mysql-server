@@ -2901,3 +2901,8 @@ from t1 left outer join t2 on t1.a = t2.c and t2.b <> 1
 where t1.b <> 1 order by t1.a;
 
 drop table t1,t2;
+
+#
+# Bug #20569: Garbage in DECIMAL results from some mathematical functions
+#
+SELECT 0.9888889889 * 1.011111411911;

@@ -873,7 +873,7 @@ typedef struct st_lex : public Query_tables_list
   */
   List<Name_resolution_context> context_stack;
 
-  SQL_LIST	      proc_list, auxilliary_table_list, save_list;
+  SQL_LIST	      proc_list, auxiliary_table_list, save_list;
   create_field	      *last_field;
   Item_sum *in_sum_func;
   udf_func udf;
@@ -1116,6 +1116,3 @@ extern void lex_start(THD *thd, uchar *buf,uint length);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 
-extern pthread_key(LEX*,THR_LEX);
-
-#define current_lex (current_thd->lex)

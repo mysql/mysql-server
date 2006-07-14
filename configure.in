@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.24)
+AM_INIT_AUTOMAKE(mysql, 5.0.25)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -19,7 +19,7 @@ SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=24
+NDB_VERSION_BUILD=25
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -382,18 +382,18 @@ fi
 AC_SUBST(LD_VERSION_SCRIPT)
 
 # Avoid bug in fcntl on some versions of linux
-AC_MSG_CHECKING("if we should use 'skip-locking' as default for $target_os")
+AC_MSG_CHECKING([if we should use 'skip-external-locking' as default for $target_os])
 # Any variation of Linux
 if expr "$target_os" : "[[Ll]]inux.*" > /dev/null
 then
-  MYSQLD_DEFAULT_SWITCHES="--skip-locking"
+  MYSQLD_DEFAULT_SWITCHES="--skip-external-locking"
   TARGET_LINUX="true"
-  AC_MSG_RESULT("yes")
+  AC_MSG_RESULT([yes])
   AC_DEFINE([TARGET_OS_LINUX], [1], [Whether we build for Linux])
 else
   MYSQLD_DEFAULT_SWITCHES=""
   TARGET_LINUX="false"
-  AC_MSG_RESULT("no")
+  AC_MSG_RESULT([no])
 fi
 AC_SUBST(MYSQLD_DEFAULT_SWITCHES)
 AC_SUBST(TARGET_LINUX)
