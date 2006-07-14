@@ -582,7 +582,14 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   {
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
-      field_list.push_back(new Item_field(field));
+    {
+      if (table_list->view)
+        field_list.push_back(new Item_ident_for_show(field,
+                                                     table_list->view_db.str,
+                                                     table_list->view_name.str));
+      else
+        field_list.push_back(new Item_field(field));
+    }
   }
   restore_record(table, s->default_values);              // Get empty record
   if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS |
@@ -1073,10 +1080,10 @@ store_create_info(THD *thd, TABLE_LIST *table_list, String *packet)
       packet->append(ha_row_type[(uint) share->row_type]);
     }
     table->file->append_create_info(packet);
-    if (share->comment && share->comment[0])
+    if (share->comment.length)
     {
       packet->append(STRING_WITH_LEN(" COMMENT="));
-      append_unescaped(packet, share->comment, strlen(share->comment));
+      append_unescaped(packet, share->comment.str, share->comment.length);
     }
     if (share->connect_string.length)
     {
@@ -2540,11 +2547,14 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
                              (uint) (ptr-option_buff)-1), cs);
     {
       char *comment;
-      comment= show_table->file->update_table_comment(share->comment);
+      comment= show_table->file->update_table_comment(share->comment.str);
       if (comment)
       {
-        table->field[20]->store(comment, strlen(comment), cs);
-        if (comment != share->comment)
+        table->field[20]->store(comment,
+                                (comment == share->comment.str ?
+                                 share->comment.length : 
+                                 strlen(comment)), cs);
+        if (comment != share->comment.str)
           my_free(comment, MYF(0));
       }
     }
@@ -2916,6 +2926,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       {
         get_field(thd->mem_root, proc_table->field[10], &tmp_string);
         table->field[7]->store(tmp_string.ptr(), tmp_string.length(), cs);
+        table->field[7]->set_notnull();
       }
       table->field[6]->store(STRING_WITH_LEN("SQL"), cs);
       table->field[10]->store(STRING_WITH_LEN("SQL"), cs);
@@ -4069,7 +4080,7 @@ ST_FIELD_INFO proc_fields_info[]=
   {"ROUTINE_TYPE", 9, MYSQL_TYPE_STRING, 0, 0, "Type"},
   {"DTD_IDENTIFIER", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"ROUTINE_BODY", 8, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"ROUTINE_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"ROUTINE_DEFINITION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
   {"EXTERNAL_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"EXTERNAL_LANGUAGE", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PARAMETER_STYLE", 8, MYSQL_TYPE_STRING, 0, 0, 0},

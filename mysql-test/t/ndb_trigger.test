@@ -1,0 +1,92 @@
+# Tests which involve triggers and NDB storage engine
+--source include/have_ndb.inc
+--source include/not_embedded.inc
+
+# 
+# Test for bug#18437 "Wrong values inserted with a before update
+# trigger on NDB table". SQL-layer didn't properly inform handler
+# about fields which were read and set in triggers. In some cases 
+# this resulted in incorrect (garbage) values of OLD variables and
+# lost changes to NEW variables.
+# You can find similar tests for ON INSERT triggers in federated.test
+# since this engine so far is the only engine in MySQL which cares
+# about field mark-up during handler::write_row() operation.
+#
+
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+create table t1 (id int primary key, a int not null, b decimal (63,30) default 0) engine=ndb;
+create table t2 (op char(1), a int not null, b decimal (63,30));
+create table t3 select 1 as i;
+	
+delimiter //;
+create trigger t1_bu before update on t1 for each row
+begin
+  insert into t2 values ("u", old.a, old.b);
+  set new.b = old.b + 10;
+end;//
+create trigger t1_bd before delete on t1 for each row
+begin
+  insert into t2 values ("d", old.a, old.b);
+end;//
+delimiter ;//
+insert into t1 values (1, 1, 1.05), (2, 2, 2.05), (3, 3, 3.05), (4, 4, 4.05);
+
+# Check that usual update works as it should
+update t1 set a=5 where a != 3;
+select * from t1 order by id;
+select * from t2 order by op, a, b;
+delete from t2;
+# Check that everything works for multi-update
+update t1, t3 set a=6 where a = 5;
+select * from t1 order by id;
+select * from t2 order by op, a, b;
+delete from t2;
+# Check for delete
+delete from t1 where a != 3;
+select * from t1 order by id;
+select * from t2 order by op, a, b;
+delete from t2;
+# Check for multi-delete
+insert into t1 values (1, 1, 1.05), (2, 2, 2.05), (4, 4, 4.05);
+delete t1 from t1, t3 where a != 3;
+select * from t1 order by id;
+select * from t2 order by op, a, b;
+delete from t2;
+# Check for insert ... on duplicate key update
+insert into t1 values (4, 4, 4.05);
+insert into t1 (id, a) values (4, 1), (3, 1) on duplicate key update a= a + 1;
+select * from t1 order by id;
+select * from t2 order by op, a, b;
+delete from t2;
+# Check for insert ... select ... on duplicate key update
+delete from t3;
+insert into t3 values (4), (3);
+insert into t1 (id, a) (select i, 1 from t3) on duplicate key update a= a + 1;
+select * from t1 order by id;
+select * from t2 order by op, a, b;
+delete from t2;
+# Check for replace
+replace into t1 (id, a) values (4, 1), (3, 1);
+select * from t1 order by id;
+select * from t2 order by op, a, b;
+delete from t1;
+delete from t2;
+# Check for replace ... select ...
+insert into t1 values (3, 1, 1.05), (4, 1, 2.05);
+replace into t1 (id, a) (select i, 2 from t3);
+select * from t1 order by id;
+select * from t2 order by op, a, b;
+delete from t1;
+delete from t2;
+# Check for load data replace
+insert into t1 values (3, 1, 1.05), (5, 2, 2.05);
+load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (id, a);
+select * from t1 order by id;
+select * from t2 order by op, a, b;
+
+drop tables t1, t2, t3;
+
+--echo End of 5.0 tests

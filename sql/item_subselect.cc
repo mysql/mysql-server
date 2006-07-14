@@ -802,7 +802,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (!select_lex->group_list.elements &&
         !select_lex->having &&
 	!select_lex->with_sum_func &&
-	!(select_lex->next_select()))
+	!(select_lex->next_select()) &&
+        select_lex->table_list.elements)
     {
       Item_sum_hybrid *item;
       nesting_map save_allow_sum_func;

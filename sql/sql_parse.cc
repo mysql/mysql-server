@@ -1250,6 +1250,12 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->version=refresh_version;
   thd->security_ctx->priv_user=
     thd->security_ctx->user= (char*) my_strdup("boot", MYF(MY_WME));
+  /*
+    Make the "client" handle multiple results. This is necessary
+    to enable stored procedures with SELECTs and Dynamic SQL
+    in init-file.
+  */
+  thd->client_capabilities|= CLIENT_MULTI_RESULTS;
 
   buff= (char*) thd->net.buff;
   thd->init_for_queries();
@@ -2365,7 +2371,7 @@ static void reset_one_shot_variables(THD *thd)
 
 
 /*
-  Execute command saved in thd and current_lex->sql_command
+  Execute command saved in thd and lex->sql_command
 
   SYNOPSIS
     mysql_execute_command()
@@ -3083,8 +3089,7 @@ end_with_restore_list:
 			       lex->key_list,
 			       select_lex->order_list.elements,
                                (ORDER *) select_lex->order_list.first,
-			       lex->duplicates, lex->ignore, &lex->alter_info,
-                               1);
+			       lex->ignore, &lex->alter_info, 1);
       }
       break;
     }
@@ -3457,7 +3462,7 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     TABLE_LIST *aux_tables=
-      (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
+      (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
     multi_delete *result;
 
     if (!thd->locked_tables &&
@@ -3893,11 +3898,13 @@ end_with_restore_list:
 
     if (thd->security_ctx->user)              // If not replication
     {
-      LEX_USER *user;
+      LEX_USER *user, *tmp_user;
 
       List_iterator <LEX_USER> user_list(lex->users_list);
-      while ((user= user_list++))
+      while ((tmp_user= user_list++))
       {
+        if (!(user= get_current_user(thd, tmp_user)))
+          goto error;
         if (specialflag & SPECIAL_NO_RESOLVE &&
             hostname_requires_resolving(user->host.str))
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -3979,9 +3986,13 @@ end_with_restore_list:
 	if (lex->sql_command == SQLCOM_GRANT)
 	{
 	  List_iterator <LEX_USER> str_list(lex->users_list);
-	  LEX_USER *user;
-	  while ((user=str_list++))
+	  LEX_USER *user, *tmp_user;
+	  while ((tmp_user=str_list++))
+          {
+            if (!(user= get_current_user(thd, tmp_user)))
+              goto error;
 	    reset_mqh(user);
+          }
 	}
       }
     }
@@ -4036,13 +4047,18 @@ end_with_restore_list:
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_SHOW_GRANTS:
+  {
+    LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
+    if (!grant_user)
+      goto error;
     if ((thd->security_ctx->priv_user &&
-	 !strcmp(thd->security_ctx->priv_user, lex->grant_user->user.str)) ||
+	 !strcmp(thd->security_ctx->priv_user, grant_user->user.str)) ||
 	!check_access(thd, SELECT_ACL, "mysql",0,1,0,0))
     {
-      res = mysql_show_grants(thd,lex->grant_user);
+      res = mysql_show_grants(thd, grant_user);
     }
     break;
+  }
 #endif
   case SQLCOM_HA_OPEN:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -5547,7 +5563,7 @@ bool check_stack_overrun(THD *thd, long margin,
 
 bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
 {
-  LEX	*lex=current_lex;
+  LEX	*lex= current_thd->lex;
   ulong old_info=0;
   if ((uint) *yystacksize >= MY_YACC_MAX)
     return 1;
@@ -5762,7 +5778,7 @@ void mysql_init_multi_delete(LEX *lex)
   mysql_init_select(lex);
   lex->select_lex.select_limit= 0;
   lex->unit.select_limit_cnt= HA_POS_ERROR;
-  lex->select_lex.table_list.save_and_clear(&lex->auxilliary_table_list);
+  lex->select_lex.table_list.save_and_clear(&lex->auxiliary_table_list);
   lex->lock_option= using_update_log ? TL_READ_NO_INSERT : TL_READ;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
@@ -5984,7 +6000,7 @@ bool add_field_to_list(THD *thd, char *field_name, enum_field_types type,
 
 void store_position_for_column(const char *name)
 {
-  current_lex->last_field->after=my_const_cast(char*) (name);
+  current_thd->lex->last_field->after=my_const_cast(char*) (name);
 }
 
 bool
@@ -7022,7 +7038,7 @@ bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, &alter_info, 1));
+                                0, &alter_info, 1));
 }
 
 
@@ -7040,7 +7056,7 @@ bool mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, alter_info, 1));
+                                0, alter_info, 1));
 }
 
 
@@ -7141,7 +7157,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   TABLE_LIST *aux_tables=
-    (TABLE_LIST *)thd->lex->auxilliary_table_list.first;
+    (TABLE_LIST *)thd->lex->auxiliary_table_list.first;
   TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
 
@@ -7195,7 +7211,7 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
 
   lex->table_count= 0;
 
-  for (target_tbl= (TABLE_LIST *)lex->auxilliary_table_list.first;
+  for (target_tbl= (TABLE_LIST *)lex->auxiliary_table_list.first;
        target_tbl; target_tbl= target_tbl->next_local)
   {
     lex->table_count++;
@@ -7500,4 +7516,35 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
   definer->host= *host_name;
 
   return definer;
+}
+
+
+/*
+  Retuns information about user or current user.
+
+  SYNOPSIS
+    get_current_user()
+    thd         [in] thread handler
+    user        [in] user
+
+  RETURN
+    On success, return a valid pointer to initialized
+    LEX_USER, which contains user information.
+    On error, return 0.
+*/
+
+LEX_USER *get_current_user(THD *thd, LEX_USER *user)
+{
+  LEX_USER *curr_user;
+  if (!user->user.str)  // current_user
+  {
+    if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
+    {
+      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(LEX_USER));
+      return 0;
+    }
+    get_default_definer(thd, curr_user);
+    return curr_user;
+  }
+  return user;
 }

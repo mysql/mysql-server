@@ -685,6 +685,23 @@ select * from t1 where f1='test' and (f2= sha("test") or f2= sha("TEST"));
 select * from t1 where f1='test' and (f2= sha("TEST") or f2= sha("test"));
 drop table t1;
 
+#
+# Bug#18243: REVERSE changes its argument
+#
+
+CREATE TABLE t1 (a varchar(10));
+INSERT INTO t1 VALUES ('abc'), ('xyz');
+
+SELECT a, CONCAT(a,' ',a) AS c FROM t1
+  HAVING LEFT(c,LENGTH(c)-INSTR(REVERSE(c)," ")) = a;
+
+SELECT a, CONCAT(a,' ',a) AS c FROM t1
+  HAVING LEFT(CONCAT(a,' ',a),
+              LENGTH(CONCAT(a,' ',a))-
+                     INSTR(REVERSE(CONCAT(a,' ',a))," ")) = a;
+
+DROP TABLE t1;
+ 
 --echo End of 4.1 tests
 
 #

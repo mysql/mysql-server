@@ -5482,6 +5482,7 @@ make_join_readinfo(JOIN *join, uint options)
   uint i;
 
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
+  bool ordered_set= 0;
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -5491,6 +5492,22 @@ make_join_readinfo(JOIN *join, uint options)
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->next_select=sub_select;		/* normal select */
+
+    /*
+      Determine if the set is already ordered for ORDER BY, so it can 
+      disable join cache because it will change the ordering of the results.
+      Code handles sort table that is at any location (not only first after 
+      the const tables) despite the fact that it's currently prohibited.
+    */
+    if (!ordered_set && 
+        (table == join->sort_by_table &&
+         (!join->order || join->skip_sort_order ||
+          test_if_skip_sort_order(tab, join->order, join->select_limit,
+                                  1))
+        ) ||
+        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables))
+      ordered_set= 1;
+
     switch (tab->type) {
     case JT_SYSTEM:				// Only happens with left join
       table->status=STATUS_NO_RECORD;
@@ -5561,10 +5578,11 @@ make_join_readinfo(JOIN *join, uint options)
     case JT_ALL:
       /*
 	If previous table use cache
+        If the incoming data set is already sorted don't use cache.
       */
       table->status=STATUS_NO_RECORD;
       if (i != join->const_tables && !(options & SELECT_NO_JOIN_CACHE) &&
-          tab->use_quick != 2 && !tab->first_inner)
+          tab->use_quick != 2 && !tab->first_inner && !ordered_set)
       {
 	if ((options & SELECT_DESCRIBE) ||
 	    !join_init_cache(join->thd,join->join_tab+join->const_tables,
@@ -7854,7 +7872,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       Field *field=((Item_field*) args[0])->field;
       if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
-	  thd->insert_id())
+	  thd->insert_id() && thd->substitute_null_with_insert_id)
       {
 #ifdef HAVE_QUERY_CACHE
 	query_cache_abort(&thd->net);
@@ -7873,7 +7891,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
           */
 	  cond->fix_fields(thd, &cond);
 	}
-	thd->insert_id(0);		// Clear for next request
+	thd->substitute_null_with_insert_id= FALSE;   // Clear for next request
       }
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       else if (((field->type() == FIELD_TYPE_DATE) ||
@@ -8017,7 +8035,8 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    org_field->field_name, table,
                                    org_field->charset());
   else
-    new_field= org_field->new_field(thd->mem_root, table);
+    new_field= org_field->new_field(thd->mem_root, table,
+                                    table == org_field->table);
   if (new_field)
   {
     if (item)
@@ -8073,8 +8092,13 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
 			       item->name, table, item->decimals);
     break;
   case INT_RESULT:
-    new_field=new Field_longlong(item->max_length, maybe_null,
-				   item->name, table, item->unsigned_flag);
+    /* Select an integer type with the minimal fit precision */
+    if (item->max_length > 11)
+      new_field=new Field_longlong(item->max_length, maybe_null,
+                                   item->name, table, item->unsigned_flag);
+    else
+      new_field=new Field_long(item->max_length, maybe_null,
+                               item->name, table, item->unsigned_flag);
     break;
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
@@ -10607,8 +10631,13 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  if (!join->first_record)
 	  {
+            List_iterator_fast<Item> it(*join->fields);
+            Item *item;
 	    /* No matching rows for group function */
 	    join->clear();
+
+            while ((item= it++))
+              item->no_rows_in_result();
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
@@ -13062,7 +13091,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   saved value
 	*/
 	Field *field= item->field;
-	item->result_field=field->new_field(thd->mem_root,field->table);
+	item->result_field=field->new_field(thd->mem_root,field->table, 1);
 	char *tmp=(char*) sql_alloc(field->pack_length()+1);
 	if (!tmp)
 	  goto err;

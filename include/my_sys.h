@@ -597,7 +597,7 @@ extern gptr _my_memdup(const byte *from,uint length,
 		       const char *sFile, uint uLine,myf MyFlag);
 extern my_string _my_strdup(const char *from, const char *sFile, uint uLine,
 			    myf MyFlag);
-extern char *_my_strdup_with_length(const byte *from, uint length,
+extern char *_my_strdup_with_length(const char *from, uint length,
 				    const char *sFile, uint uLine,
 				    myf MyFlag);
 

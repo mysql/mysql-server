@@ -35,19 +35,11 @@ SumaParticipant::SumaParticipant(const Configuration & conf) :
    */
   addRecSignal(GSN_SUB_CREATE_REQ, &SumaParticipant::execSUB_CREATE_REQ);
   addRecSignal(GSN_SUB_REMOVE_REQ, &SumaParticipant::execSUB_REMOVE_REQ);
-  addRecSignal(GSN_SUB_START_REQ, &SumaParticipant::execSUB_START_REQ);
-  addRecSignal(GSN_SUB_STOP_REQ, &SumaParticipant::execSUB_STOP_REQ);
   addRecSignal(GSN_SUB_SYNC_REQ, &SumaParticipant::execSUB_SYNC_REQ);
   
-  addRecSignal(GSN_SUB_STOP_CONF, &SumaParticipant::execSUB_STOP_CONF);
-  addRecSignal(GSN_SUB_STOP_REF, &SumaParticipant::execSUB_STOP_REF);
-
   /**
    * Dict interface
    */
-  //addRecSignal(GSN_LIST_TABLES_REF, &SumaParticipant::execLIST_TABLES_REF);
-  addRecSignal(GSN_LIST_TABLES_CONF, &SumaParticipant::execLIST_TABLES_CONF);
-  //addRecSignal(GSN_GET_TABINFOREF, &SumaParticipant::execGET_TABINFO_REF);
   addRecSignal(GSN_GET_TABINFO_CONF, &SumaParticipant::execGET_TABINFO_CONF);
   addRecSignal(GSN_GET_TABINFOREF, &SumaParticipant::execGET_TABINFOREF);
 #if 0
@@ -76,32 +68,6 @@ SumaParticipant::SumaParticipant(const Configuration & conf) :
   addRecSignal(GSN_SUB_SYNC_CONTINUE_CONF, 
 	       &SumaParticipant::execSUB_SYNC_CONTINUE_CONF);
   
-  /**
-   * Trigger stuff
-   */
-  addRecSignal(GSN_TRIG_ATTRINFO, &SumaParticipant::execTRIG_ATTRINFO);
-  addRecSignal(GSN_FIRE_TRIG_ORD, &SumaParticipant::execFIRE_TRIG_ORD);
-
-  addRecSignal(GSN_CREATE_TRIG_REF, &Suma::execCREATE_TRIG_REF);
-  addRecSignal(GSN_CREATE_TRIG_CONF, &Suma::execCREATE_TRIG_CONF);
-  addRecSignal(GSN_DROP_TRIG_REF, &Suma::execDROP_TRIG_REF);
-  addRecSignal(GSN_DROP_TRIG_CONF, &Suma::execDROP_TRIG_CONF);
-  
-  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, 
-	       &SumaParticipant::execSUB_GCP_COMPLETE_REP);
-  
-  for( int i = 0; i < NO_OF_BUCKETS; i++) {
-    c_buckets[i].active = false;
-    c_buckets[i].handover = false;
-    c_buckets[i].handover_started = false;
-    c_buckets[i].handoverGCI = 0;
-  }
-  c_handoverToDo = false;
-  c_lastInconsistentGCI = RNIL;
-  c_lastCompleteGCI = RNIL;
-  c_nodeFailGCI = 0;
-
-  c_failedApiNodes.clear();
 }
   
 SumaParticipant::~SumaParticipant()
@@ -110,7 +76,6 @@ SumaParticipant::~SumaParticipant()
 
 Suma::Suma(const Configuration & conf) :
   SumaParticipant(conf),
-  Restart(*this),
   c_nodes(c_nodePool),
   c_runningSubscriptions(c_subCoordinatorPool)
 {
@@ -120,29 +85,12 @@ Suma::Suma(const Configuration & conf) :
   addRecSignal(GSN_NDB_STTOR, &Suma::execNDB_STTOR);
   addRecSignal(GSN_DUMP_STATE_ORD, &Suma::execDUMP_STATE_ORD);
   addRecSignal(GSN_READ_NODESCONF, &Suma::execREAD_NODESCONF);
-  addRecSignal(GSN_API_FAILREQ,  &Suma::execAPI_FAILREQ);
-  addRecSignal(GSN_NODE_FAILREP, &Suma::execNODE_FAILREP);
-  addRecSignal(GSN_INCL_NODEREQ, &Suma::execINCL_NODEREQ);
   addRecSignal(GSN_CONTINUEB, &Suma::execCONTINUEB);
   addRecSignal(GSN_SIGNAL_DROPPED_REP, &Suma::execSIGNAL_DROPPED_REP, true);
   addRecSignal(GSN_UTIL_SEQUENCE_CONF, &Suma::execUTIL_SEQUENCE_CONF);
   addRecSignal(GSN_UTIL_SEQUENCE_REF, &Suma::execUTIL_SEQUENCE_REF);
   addRecSignal(GSN_CREATE_SUBID_REQ, 
 	       &Suma::execCREATE_SUBID_REQ);
-
-  addRecSignal(GSN_SUB_CREATE_CONF, &Suma::execSUB_CREATE_CONF);
-  addRecSignal(GSN_SUB_CREATE_REF, &Suma::execSUB_CREATE_REF);
-  addRecSignal(GSN_SUB_SYNC_CONF, &Suma::execSUB_SYNC_CONF);
-  addRecSignal(GSN_SUB_SYNC_REF, &Suma::execSUB_SYNC_REF);
-  addRecSignal(GSN_SUB_START_CONF, &Suma::execSUB_START_CONF);
-  addRecSignal(GSN_SUB_START_REF, &Suma::execSUB_START_REF);
-
-  addRecSignal(GSN_SUMA_START_ME, &Suma::execSUMA_START_ME);
-  addRecSignal(GSN_SUMA_HANDOVER_REQ, &Suma::execSUMA_HANDOVER_REQ);
-  addRecSignal(GSN_SUMA_HANDOVER_CONF, &Suma::execSUMA_HANDOVER_CONF);
-
-  addRecSignal(GSN_SUB_GCP_COMPLETE_ACC, 
-	       &Suma::execSUB_GCP_COMPLETE_ACC);
 }
 
 Suma::~Suma()
