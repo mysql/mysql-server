@@ -2781,6 +2781,12 @@ static my_bool dump_all_views_in_db(char *database)
   uint numrows;
   char table_buff[NAME_LEN*2+3];
 
+  if (mysql_select_db(sock, database))
+  {
+    DB_error(sock, "when selecting the database");
+    return 1;
+  }
+
   if (opt_xml)
     print_xml_tag1(md_result_file, "", "database name=", database, "\n");
   if (lock_tables)
@@ -3436,12 +3442,13 @@ static my_bool get_view_structure(char *table, char* db)
     mysql_free_result(table_res);
 
     /* Get the result from "select ... information_schema" */
-    if (!(table_res= mysql_store_result(sock)))
+    if (!(table_res= mysql_store_result(sock)) ||
+        !(row= mysql_fetch_row(table_res)))
     {
       safe_exit(EX_MYSQLERR);
       DBUG_RETURN(1);
     }
-    row= mysql_fetch_row(table_res);
+
     lengths= mysql_fetch_lengths(table_res);
 
     /*
