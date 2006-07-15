@@ -46,7 +46,8 @@ private:
     partition_index_read= 0,
     partition_index_first= 1,
     partition_index_last= 2,
-    partition_no_index_scan= 3
+    partition_index_read_last= 3,
+    partition_no_index_scan= 4
   };
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
@@ -429,7 +430,7 @@ private:
       return (queue_buf(part_id) +
               PARTITION_BYTES_IN_POS);
     }
-  int handle_ordered_index_scan(byte * buf);
+  int handle_ordered_index_scan(byte * buf, bool reverse_order);
   int handle_ordered_next(byte * buf, bool next_same);
   int handle_ordered_prev(byte * buf);
   void return_top_record(byte * buf);
