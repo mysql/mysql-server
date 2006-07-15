@@ -204,7 +204,8 @@ private:
   int copy_partitions(ulonglong *copied, ulonglong *deleted);
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
-                            handler *file, const char *part_name);
+                            handler *file, const char *part_name,
+                            partition_element *p_elem);
   /*
     delete_table, rename_table and create uses very similar logic which
     is packed into this routine.
@@ -224,7 +225,8 @@ private:
   void set_up_table_before_create(TABLE *table_arg,
                                   const char *partition_name_with_path,
                                   HA_CREATE_INFO *info,
-                                  uint part_id);
+                                  uint part_id,
+                                  partition_element *p_elem);
   partition_element *find_partition_element(uint part_id);
 
 public:
