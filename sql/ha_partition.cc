@@ -1126,13 +1126,15 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
 
 int ha_partition::prepare_new_partition(TABLE *table,
                                         HA_CREATE_INFO *create_info,
-                                        handler *file, const char *part_name)
+                                        handler *file, const char *part_name,
+                                        partition_element *p_elem)
 {
   int error;
   bool create_flag= FALSE;
   bool open_flag= FALSE;
   DBUG_ENTER("prepare_new_partition");
 
+  set_up_table_before_create(table, part_name, create_info, 0, p_elem);
   if ((error= file->create(part_name, table, create_info)))
     goto error;
   create_flag= TRUE;
@@ -1425,7 +1427,8 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           DBUG_PRINT("info", ("Add subpartition %s", part_name_buff));
           if ((error= prepare_new_partition(table, create_info,
                                             new_file_array[part],
-                                            (const char *)part_name_buff)))
+                                            (const char *)part_name_buff,
+                                            sub_elem)))
           {
             cleanup_new_partition(part_count);
             DBUG_RETURN(error);
@@ -1441,7 +1444,8 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
         DBUG_PRINT("info", ("Add partition %s", part_name_buff));
         if ((error= prepare_new_partition(table, create_info,
                                           new_file_array[i],
-                                          (const char *)part_name_buff)))
+                                          (const char *)part_name_buff,
+                                          part_elem)))
         {
           cleanup_new_partition(part_count);
           DBUG_RETURN(error);
@@ -1653,7 +1657,7 @@ uint ha_partition::del_ren_cre_table(const char *from,
       error= (*file)->delete_table((const char*) from_buff);
     else
     {
-      set_up_table_before_create(table_arg, from_buff, create_info, i);
+      set_up_table_before_create(table_arg, from_buff, create_info, i, NULL);
       error= (*file)->create(from_buff, table_arg, create_info);
     }
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
@@ -1729,12 +1733,15 @@ partition_element *ha_partition::find_partition_element(uint part_id)
 void ha_partition::set_up_table_before_create(TABLE *table,
                    const char *partition_name_with_path, 
                    HA_CREATE_INFO *info,
-                   uint part_id)
+                   uint part_id,
+                   partition_element *part_elem)
 {
-  partition_element *part_elem= find_partition_element(part_id);
-
   if (!part_elem)
-    return;                                     // Fatal error
+  {
+    part_elem= find_partition_element(part_id);
+    if (!part_elem)
+      return;                                   // Fatal error
+  }
   table->s->max_rows= part_elem->part_max_rows;
   table->s->min_rows= part_elem->part_min_rows;
   const char *partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
