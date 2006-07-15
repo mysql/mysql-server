@@ -2178,12 +2178,7 @@ then
     USE_NDBCLUSTER_OPT=
   fi
 
-# Do not automagically start daemons if we are in gdb or running only one
-# test case
-  if [ -z "$DO_GDB" ] && [ -z "$DO_DDD" ]
-  then
-    mysql_start
-  fi
+  mysql_start
   $ECHO  "Loading Standard Test Databases"
   mysql_loadstd
 fi

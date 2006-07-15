@@ -1343,35 +1343,37 @@ void my_coll_agg_error(DTCollation &c1, DTCollation &c2, DTCollation &c3,
 
 
 static
-void my_coll_agg_error(Item** args, uint count, const char *fname)
+void my_coll_agg_error(Item** args, uint count, const char *fname,
+                       int item_sep)
 {
   if (count == 2)
-    my_coll_agg_error(args[0]->collation, args[1]->collation, fname);
+    my_coll_agg_error(args[0]->collation, args[item_sep]->collation, fname);
   else if (count == 3)
-    my_coll_agg_error(args[0]->collation, args[1]->collation,
-                      args[2]->collation, fname);
+    my_coll_agg_error(args[0]->collation, args[item_sep]->collation,
+                      args[2*item_sep]->collation, fname);
   else
     my_error(ER_CANT_AGGREGATE_NCOLLATIONS,MYF(0),fname);
 }
 
 
 bool agg_item_collations(DTCollation &c, const char *fname,
-                         Item **av, uint count, uint flags)
+                         Item **av, uint count, uint flags, int item_sep)
 {
   uint i;
+  Item **arg;
   c.set(av[0]->collation);
-  for (i= 1; i < count; i++)
+  for (i= 1, arg= &av[item_sep]; i < count; i++, arg++)
   {
-    if (c.aggregate(av[i]->collation, flags))
+    if (c.aggregate((*arg)->collation, flags))
     {
-      my_coll_agg_error(av, count, fname);
+      my_coll_agg_error(av, count, fname, item_sep);
       return TRUE;
     }
   }
   if ((flags & MY_COLL_DISALLOW_NONE) &&
       c.derivation == DERIVATION_NONE)
   {
-    my_coll_agg_error(av, count, fname);
+    my_coll_agg_error(av, count, fname, item_sep);
     return TRUE;
   }
   return FALSE;
@@ -1382,7 +1384,7 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
                                         Item **av, uint count, uint flags)
 {
   return (agg_item_collations(c, fname, av, count,
-                              flags | MY_COLL_DISALLOW_NONE));
+                              flags | MY_COLL_DISALLOW_NONE, 1));
 }
 
 
@@ -1405,16 +1407,26 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
   For functions with more than two arguments:
 
     collect(A,B,C) ::= collect(collect(A,B),C)
+
+  Since this function calls THD::change_item_tree() on the passed Item **
+  pointers, it is necessary to pass the original Item **'s, not copies.
+  Otherwise their values will not be properly restored (see BUG#20769).
+  If the items are not consecutive (eg. args[2] and args[5]), use the
+  item_sep argument, ie.
+
+    agg_item_charsets(coll, fname, &args[2], 2, flags, 3)
+
 */
 
 bool agg_item_charsets(DTCollation &coll, const char *fname,
-                       Item **args, uint nargs, uint flags)
+                       Item **args, uint nargs, uint flags, int item_sep)
 {
   Item **arg, **last, *safe_args[2];
 
   LINT_INIT(safe_args[0]);
   LINT_INIT(safe_args[1]);
-  if (agg_item_collations(coll, fname, args, nargs, flags))
+
+  if (agg_item_collations(coll, fname, args, nargs, flags, item_sep))
     return TRUE;
 
   /*
@@ -1427,19 +1439,20 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
   if (nargs >=2 && nargs <= 3)
   {
     safe_args[0]= args[0];
-    safe_args[1]= args[1];
+    safe_args[1]= args[item_sep];
   }
 
   THD *thd= current_thd;
   Query_arena *arena, backup;
   bool res= FALSE;
+  uint i;
   /*
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
   arena= thd->activate_stmt_arena_if_needed(&backup);
 
-  for (arg= args, last= args + nargs; arg < last; arg++)
+  for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
     Item* conv;
     uint32 dummy_offset;
@@ -1454,9 +1467,9 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       {
         /* restore the original arguments for better error message */
         args[0]= safe_args[0];
-        args[1]= safe_args[1];
+        args[item_sep]= safe_args[1];
       }
-      my_coll_agg_error(args, nargs, fname);
+      my_coll_agg_error(args, nargs, fname, item_sep);
       res= TRUE;
       break; // we cannot return here, we need to restore "arena".
     }
@@ -5436,9 +5449,14 @@ void Item_insert_value::print(String *str)
 void Item_trigger_field::setup_field(THD *thd, TABLE *table,
                                      GRANT_INFO *table_grant_info)
 {
+  /*
+    It is too early to mark fields used here, because before execution
+    of statement that will invoke trigger other statements may use same
+    TABLE object, so all such mark-up will be wiped out.
+    So instead we do it in Table_triggers_list::mark_fields_used()
+    method which is called during execution of these statements.
+  */
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
-
-  /* TODO: Think more about consequences of this step. */
   thd->mark_used_columns= MARK_COLUMNS_NONE;
   /*
     Try to find field by its name and if it will be found

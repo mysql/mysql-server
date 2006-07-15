@@ -1558,6 +1558,8 @@ id
 3
 4
 5
+DROP TABLE federated.t1;
+DROP TABLE federated.t1;
 DROP TABLE IF EXISTS federated.bug_17377_table;
 CREATE TABLE federated.bug_17377_table (
 `fld_cid` bigint(20) NOT NULL auto_increment,
@@ -1601,7 +1603,120 @@ fld_cid	fld_name	fld_parentid	fld_delt
 5	Torkel	0	0
 DROP TABLE federated.t1;
 DROP TABLE federated.bug_17377_table;
-DROP TABLE federated.t1;
+drop table if exists federated.t1;
+create table federated.t1 (a int, b int, c int);
+drop table if exists federated.t1;
+drop table if exists federated.t2;
+create table federated.t1 (a int,  b int, c int) engine=federated connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+create trigger federated.t1_bi before insert on federated.t1 for each row set new.c= new.a * new.b;
+create table federated.t2 (a int, b int);
+insert into federated.t2 values (13, 17), (19, 23);
+insert into federated.t1 (a, b) values (1, 2), (3, 5), (7, 11);
+select * from federated.t1 order by a;
+a	b	c
+1	2	2
+3	5	15
+7	11	77
+delete from federated.t1;
+insert into federated.t1 (a, b) select * from federated.t2;
+select * from federated.t1 order by a;
+a	b	c
+13	17	221
+19	23	437
+delete from federated.t1;
+load data infile '../std_data_ln/loaddata5.dat' into table federated.t1 fields terminated by '' enclosed by '' ignore 1 lines (a, b);
+select * from federated.t1 order by a;
+a	b	c
+3	4	12
+5	6	30
+drop tables federated.t1, federated.t2;
+drop table federated.t1;
+create table federated.t1 (i1 int, i2 int, i3 int);
+create table federated.t2 (id int, c1 varchar(20), c2 varchar(20));
+create table federated.t1 (i1 int, i2 int, i3 int) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+create table federated.t2 (id int, c1 varchar(20), c2 varchar(20)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t2';
+insert into federated.t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
+insert into federated.t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
+select * from federated.t1 order by i1;
+i1	i2	i3
+1	5	10
+2	2	2
+3	7	12
+4	5	2
+9	10	15
+select * from federated.t2;
+id	c1	c2
+9	abc	def
+5	opq	lmn
+2	test t	t test
+update federated.t1,federated.t2 set t1.i2=15, t2.c2="ppc" where t1.i1=t2.id;
+select * from federated.t1 order by i1;
+i1	i2	i3
+1	5	10
+2	15	2
+3	7	12
+4	5	2
+9	15	15
+select * from federated.t2 order by id;
+id	c1	c2
+2	test t	ppc
+5	opq	lmn
+9	abc	ppc
+delete   federated.t1.*,federated.t2.* from federated.t1,federated.t2 where t1.i2=t2.id;
+select * from federated.t1 order by i1;
+i1	i2	i3
+2	15	2
+3	7	12
+9	15	15
+select * from federated.t2 order by id;
+id	c1	c2
+2	test t	ppc
+9	abc	ppc
+drop table federated.t1, federated.t2;
+drop table federated.t1, federated.t2;
+create table federated.t1 (i1 int, i2 int, i3 int, primary key (i1));
+create table federated.t2 (id int, c1 varchar(20), c2 varchar(20), primary key (id));
+create table federated.t1 (i1 int auto_increment not null, i2 int, i3 int, primary key (i1)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+create table federated.t2 (id int auto_increment not null, c1 varchar(20), c2 varchar(20), primary key(id)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t2';
+insert into federated.t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
+insert into federated.t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
+select * from federated.t1 order by i1;
+i1	i2	i3
+1	5	10
+2	2	2
+3	7	12
+4	5	2
+9	10	15
+select * from federated.t2 order by id;
+id	c1	c2
+2	test t	t test
+5	opq	lmn
+9	abc	def
+update federated.t1,federated.t2 set t1.i2=15, t2.c2="ppc" where t1.i1=t2.id;
+select * from federated.t1 order by i1;
+i1	i2	i3
+1	5	10
+2	15	2
+3	7	12
+4	5	2
+9	15	15
+select * from federated.t2 order by id;
+id	c1	c2
+2	test t	ppc
+5	opq	lmn
+9	abc	ppc
+delete federated.t1.*,federated.t2.* from federated.t1,federated.t2 where t1.i2=t2.id;
+select * from federated.t1 order by i1;
+i1	i2	i3
+2	15	2
+3	7	12
+9	15	15
+select * from federated.t2 order by id;
+id	c1	c2
+2	test t	ppc
+9	abc	ppc
+drop table federated.t1, federated.t2;
+drop table federated.t1, federated.t2;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;

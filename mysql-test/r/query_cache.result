@@ -233,7 +233,7 @@ explain extended select benchmark(1,1) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	const row not found
 Warnings:
-Note	1003	select sql_no_cache benchmark(1,1) AS `benchmark(1,1)` from `test`.`t1`
+Note	1003	select benchmark(1,1) AS `benchmark(1,1)` from `test`.`t1`
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0

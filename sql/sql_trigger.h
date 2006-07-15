@@ -26,6 +26,11 @@ class Table_triggers_list: public Sql_alloc
   /* Triggers as SPs grouped by event, action_time */
   sp_head *bodies[TRG_EVENT_MAX][TRG_ACTION_MAX];
   /*
+    Heads of the lists linking items for all fields used in triggers
+    grouped by event and action_time.
+  */
+  Item_trigger_field *trigger_fields[TRG_EVENT_MAX][TRG_ACTION_MAX];
+  /*
     Copy of TABLE::Field array with field pointers set to TABLE::record[1]
     buffer instead of TABLE::record[0] (used for OLD values in on UPDATE
     trigger and DELETE trigger when it is called for REPLACE).
@@ -82,6 +87,7 @@ public:
     record1_field(0), table(table_arg)
   {
     bzero((char *)bodies, sizeof(bodies));
+    bzero((char *)trigger_fields, sizeof(trigger_fields));
     bzero((char *)&subject_table_grants, sizeof(subject_table_grants));
   }
   ~Table_triggers_list();
@@ -119,6 +125,8 @@ public:
 
   void set_table(TABLE *new_table);
 
+  void mark_fields_used(trg_event_type event);
+
   friend class Item_trigger_field;
   friend int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
                                                             TABLE_LIST *table);
@@ -132,10 +140,6 @@ private:
                                      const char *db_name,
                                      LEX_STRING *old_table_name,
                                      LEX_STRING *new_table_name);
-  friend void st_table::mark_columns_needed_for_insert(void);
-  friend void st_table::mark_columns_needed_for_update(void);
-  friend void st_table::mark_columns_needed_for_delete(void);
-
 };
 
 extern const LEX_STRING trg_action_time_type_names[];

@@ -117,6 +117,14 @@ insert into t1 (last_id) values (bug15728());
 select last_insert_id();
 last_insert_id()
 5
+drop procedure if exists foo;
+create procedure foo()
+begin
+declare res int;
+insert into t2 (last_id) values (bug15728());
+insert into t1 (last_id) values (bug15728());
+end|
+call foo();
 select * from t1;
 id	last_id
 1	0
@@ -124,10 +132,126 @@ id	last_id
 3	2
 4	1
 5	4
+6	3
 select * from t2;
 id	last_id
 1	3
 2	4
+3	5
+select * from t1;
+id	last_id
+1	0
+2	1
+3	2
+4	1
+5	4
+6	3
+select * from t2;
+id	last_id
+1	3
+2	4
+3	5
 drop function bug15728;
 drop function bug15728_insert;
+drop table t1;
+drop procedure foo;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+set sql_log_bin=0;
+insert into t1 values(null,100);
+replace into t1 values(null,50),(null,100),(null,150);
+select * from t1 order by n;
+n	b
+2	50
+3	100
+4	150
+truncate table t1;
+set sql_log_bin=1;
+insert into t1 values(null,100);
+select * from t1 order by n;
+n	b
+1	100
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+select * from t1 order by n;
+n	b
+1	100
+replace into t1 values(null,100),(null,350);
+select * from t1 order by n;
+n	b
+2	100
+3	350
+select * from t1 order by n;
+n	b
+2	100
+3	350
+insert into t1 values (NULL,400),(3,500),(NULL,600) on duplicate key UPDATE n=1000;
+select * from t1 order by n;
+n	b
+2	100
+4	400
+1000	350
+1001	600
+select * from t1 order by n;
+n	b
+2	100
+4	400
+1000	350
+1001	600
+drop table t1;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+insert into t1 values(null,100);
+select * from t1 order by n;
+n	b
+1	100
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+select * from t1 order by n;
+n	b
+1	100
+insert into t1 values(null,100),(null,350) on duplicate key update n=2;
+select * from t1 order by n;
+n	b
+2	100
+3	350
+select * from t1 order by n;
+n	b
+2	100
+3	350
+drop table t1;
+truncate table t2;
+create table t1 (id tinyint primary key);
+create function insid() returns int
+begin
+insert into t2 (last_id) values (0);
+return 0;
+end|
+set sql_log_bin=0;
+insert into t2 (id) values(1),(2),(3);
+delete from t2;
+set sql_log_bin=1;
+select insid();
+insid()
+0
+set sql_log_bin=0;
+insert into t2 (id) values(5),(6),(7);
+delete from t2 where id>=5;
+set sql_log_bin=1;
+insert into t1 select insid();
+select * from t1;
+id
+0
+select * from t2;
+id	last_id
+4	0
+8	0
+select * from t1;
+id
+0
+select * from t2;
+id	last_id
+4	0
+8	0
 drop table t1, t2;
+drop function insid;

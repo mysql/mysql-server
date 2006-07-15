@@ -338,6 +338,14 @@ protected:
 public:
 
   ulonglong options;
+
+  /*
+    In sql_cache we store SQL_CACHE flag as specified by user to be
+    able to restore SELECT statement from internal structures.
+  */
+  enum e_sql_cache { SQL_CACHE_UNSPECIFIED, SQL_NO_CACHE, SQL_CACHE };
+  e_sql_cache sql_cache;
+
   /*
     result of this query can't be cached, bit field, can be :
       UNCACHEABLE_DEPENDENT
@@ -793,6 +801,16 @@ public:
   byte     **sroutines_list_own_last;
   uint     sroutines_list_own_elements;
 
+#ifdef HAVE_ROW_BASED_REPLICATION
+  /*
+    Tells if the parsing stage detected that some items require row-based
+    binlogging to give a reliable binlog/replication, or if we will use
+    stored functions or triggers which themselves need require row-based
+    binlogging.
+  */
+  bool binlog_row_based_if_mixed;
+#endif
+
   /*
     These constructor and destructor serve for creation/destruction
     of Query_tables_list instances which are used as backup storage.
@@ -975,11 +993,7 @@ typedef struct st_lex : public Query_tables_list
   uint8 create_view_check;
   bool drop_if_exists, drop_temporary, local_file, one_shot_set;
   bool in_comment, ignore_space, verbose, no_write_to_binlog;
-  /*
-    binlog_row_based_if_mixed tells if the parsing stage detected that some
-    items require row-based binlogging to give a reliable binlog/replication.
-  */
-  bool tx_chain, tx_release, binlog_row_based_if_mixed;
+  bool tx_chain, tx_release;
   /*
     Special JOIN::prepare mode: changing of query is prohibited.
     When creating a view, we need to just check its syntax omitting
