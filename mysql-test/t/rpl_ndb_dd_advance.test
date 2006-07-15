@@ -441,7 +441,7 @@ CREATE TEMPORARY TABLE IF NOT EXISTS cluster.backup_info (id INT, backup_id INT)
 DELETE FROM cluster.backup_info;
 
 LOAD DATA INFILE '../tmp.dat' INTO TABLE cluster.backup_info FIELDS TERMINATED BY ',';
-
+--exec rm $MYSQLTEST_VARDIR/tmp.dat || true
 --replace_column 1 <the_backup_id>
 
 SELECT @the_backup_id:=backup_id FROM cluster.backup_info;
