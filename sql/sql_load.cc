@@ -187,9 +187,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   table= table_list->table;
   transactional_table= table->file->has_transactions();
 
-  if (table->found_next_number_field)
-    table->mark_auto_increment_column();
-
   if (!fields_vars.elements)
   {
     Field **field;
@@ -231,6 +228,8 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (setup_fields(thd, 0, set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
   }
+
+  table->mark_columns_needed_for_insert();
 
   uint tot_length=0;
   bool use_blobs= 0, use_vars= 0;
@@ -362,6 +361,10 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (ignore ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (handle_duplicates == DUP_REPLACE &&
+        (!table->triggers ||
+         !table->triggers->has_delete_triggers()))
+        table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
     if (!thd->prelocked_mode)
       table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
@@ -386,6 +389,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= 1;
     }
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     table->next_number_field=0;
   }
   ha_enable_transaction(thd, TRUE);
@@ -497,13 +501,12 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     error=ha_autocommit_or_rollback(thd,error);
 
 err:
+  table->file->ha_release_auto_increment();
   if (thd->lock)
   {
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  if (table != NULL)
-    table->file->release_auto_increment();
   thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }
@@ -639,14 +642,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->no_trans_update= no_trans_update;
    
     /*
-      If auto_increment values are used, save the first one
-       for LAST_INSERT_ID() and for the binary/update log.
-       We can't use insert_id() as we don't want to touch the
-       last_insert_id_used flag.
-    */
-    if (!id && thd->insert_id_used)
-      id= thd->last_insert_id;
-    /*
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
@@ -662,8 +657,6 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->row_count++;
 continue_loop:;
   }
-  if (id && !read_info.error)
-    thd->insert_id(id);			// For binary/update log
   DBUG_RETURN(test(read_info.error));
 }
 
@@ -807,14 +800,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (write_record(thd, table, &info))
       DBUG_RETURN(1);
     /*
-      If auto_increment values are used, save the first one
-       for LAST_INSERT_ID() and for the binary/update log.
-       We can't use insert_id() as we don't want to touch the
-       last_insert_id_used flag.
-    */
-    if (!id && thd->insert_id_used)
-      id= thd->last_insert_id;
-    /*
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
@@ -833,8 +818,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->row_count++;
 continue_loop:;
   }
-  if (id && !read_info.error)
-    thd->insert_id(id);			// For binary/update log
   DBUG_RETURN(test(read_info.error));
 }
 

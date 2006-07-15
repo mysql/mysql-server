@@ -141,6 +141,7 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->select_lex.link_next= lex->select_lex.slave= lex->select_lex.next= 0;
   lex->select_lex.link_prev= (st_select_lex_node**)&(lex->all_selects_list);
   lex->select_lex.options= 0;
+  lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
   lex->select_lex.init_order();
   lex->select_lex.group_list.empty();
   lex->describe= 0;
@@ -183,7 +184,6 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
-  lex->binlog_row_based_if_mixed= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1071,6 +1071,7 @@ int MYSQLlex(void *arg, void *yythd)
 void st_select_lex_node::init_query()
 {
   options= 0;
+  sql_cache= SQL_CACHE_UNSPECIFIED;
   linkage= UNSPECIFIED_TYPE;
   no_error= no_table_names_allowed= 0;
   uncacheable= 0;
@@ -1147,6 +1148,7 @@ void st_select_lex::init_select()
   table_join_options= 0;
   in_sum_expr= with_wild= 0;
   options= 0;
+  sql_cache= SQL_CACHE_UNSPECIFIED;
   braces= 0;
   when_list.empty();
   expr_list.empty();
@@ -1625,6 +1627,9 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list.empty();
   sroutines_list_own_last= sroutines_list.next;
   sroutines_list_own_elements= 0;
+#ifdef HAVE_ROW_BASED_REPLICATION
+  binlog_row_based_if_mixed= FALSE;
+#endif
 }
 
 

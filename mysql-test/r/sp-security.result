@@ -410,3 +410,34 @@ ERROR HY000: There is no 'mysqltest_1'@'localhost' registered
 ---> connection: root
 DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
+GRANT USAGE ON *.* TO user19857@localhost IDENTIFIED BY 'meow';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ROUTINE, ALTER ROUTINE ON test.* TO
+user19857@localhost;
+SELECT Host,User,Password FROM mysql.user WHERE User='user19857';
+Host	User	Password
+localhost	user19857	*82DC221D557298F6CE9961037DB1C90604792F5C
+
+---> connection: mysqltest_2_con
+use test;
+CREATE PROCEDURE sp19857() DETERMINISTIC
+BEGIN
+DECLARE a INT;
+SET a=1;
+SELECT a;
+END //
+SHOW CREATE PROCEDURE test.sp19857;
+Procedure	sql_mode	Create Procedure
+sp19857		CREATE DEFINER=`user19857`@`localhost` PROCEDURE `sp19857`()
+    DETERMINISTIC
+BEGIN
+DECLARE a INT;
+SET a=1;
+SELECT a;
+END
+DROP PROCEDURE IF EXISTS test.sp19857;
+
+---> connection: root
+SELECT Host,User,Password FROM mysql.user WHERE User='user19857';
+Host	User	Password
+localhost	user19857	*82DC221D557298F6CE9961037DB1C90604792F5C
+DROP USER user19857@localhost;

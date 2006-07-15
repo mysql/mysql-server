@@ -323,7 +323,9 @@ static char *opt_init_slave, *language_ptr, *opt_init_connect;
 static char *default_character_set_name;
 static char *character_set_filesystem_name;
 static char *my_bind_addr_str;
-static char *default_collation_name, *default_storage_engine_str;
+static char *default_collation_name; 
+static char *default_storage_engine_str;
+static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 static char mysql_data_home_buff[2];
 static struct passwd *user_info;
 static I_List<THD> thread_cache;
@@ -7047,7 +7049,7 @@ static void mysql_init_variables(void)
   /* Variables in libraries */
   charsets_dir= 0;
   default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
-  default_collation_name= (char*) MYSQL_DEFAULT_COLLATION_NAME;
+  default_collation_name= compiled_default_collation_name;
   sys_charset_system.value= (char*) system_charset_info->csname;
   character_set_filesystem_name= (char*) "binary";
 
@@ -7181,7 +7183,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
     break;
   case 'C':
-    default_collation_name= 0;
+    if (default_collation_name == compiled_default_collation_name)
+      default_collation_name= 0;
     break;
   case 'l':
     opt_log=1;

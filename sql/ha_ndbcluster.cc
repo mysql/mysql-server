@@ -2473,9 +2473,7 @@ int ha_ndbcluster::write_row(byte *record)
 
       m_skip_auto_increment= FALSE;
       update_auto_increment();
-      /* Ensure that handler is always called for auto_increment values */
-      thd->next_insert_id= 0;
-      m_skip_auto_increment= !auto_increment_column_changed;
+      m_skip_auto_increment= (insert_id_for_cur_row == 0);
     }
   }
 
@@ -2631,9 +2629,10 @@ int ha_ndbcluster::write_row(byte *record)
   {
     Ndb *ndb= get_ndb();
     Uint64 next_val= (Uint64) table->next_number_field->val_int() + 1;
+    char buff[22];
     DBUG_PRINT("info", 
-               ("Trying to set next auto increment value to %llu",
-                (ulonglong) next_val));
+               ("Trying to set next auto increment value to %s",
+                llstr(next_val, buff)));
     Ndb_tuple_id_range_guard g(m_share);
     if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
         == -1)
@@ -3067,11 +3066,13 @@ void ha_ndbcluster::unpack_record(byte *buf)
     // Table with hidden primary key
     int hidden_no= table_share->fields;
     const NDBTAB *tab= m_table;
+    char buff[22];
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
     const NdbRecAttr* rec= m_value[hidden_no].rec;
     DBUG_ASSERT(rec);
-    DBUG_PRINT("hidden", ("%d: %s \"%llu\"", hidden_no,
-                          hidden_col->getName(), rec->u_64_value()));
+    DBUG_PRINT("hidden", ("%d: %s \"%s\"", hidden_no,
+			  hidden_col->getName(),
+                          llstr(rec->u_64_value(), buff)));
   }
   //DBUG_EXECUTE("value", print_results(););
 #endif
@@ -3663,20 +3664,11 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
   switch (operation) {
   case HA_EXTRA_IGNORE_DUP_KEY:       /* Dup keys don't rollback everything*/
     DBUG_PRINT("info", ("HA_EXTRA_IGNORE_DUP_KEY"));
-    if (current_thd->lex->sql_command == SQLCOM_REPLACE && !m_has_unique_index)
-    {
-      DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
-      m_use_write= TRUE;
-    } else 
-    {
-      DBUG_PRINT("info", ("Ignoring duplicate key"));
-      m_ignore_dup_key= TRUE;
-    }
+    DBUG_PRINT("info", ("Ignoring duplicate key"));
+    m_ignore_dup_key= TRUE;
     break;
   case HA_EXTRA_NO_IGNORE_DUP_KEY:
     DBUG_PRINT("info", ("HA_EXTRA_NO_IGNORE_DUP_KEY"));
-    DBUG_PRINT("info", ("Turning OFF use of write instead of insert"));
-    m_use_write= FALSE;
     m_ignore_dup_key= FALSE;
     break;
   case HA_EXTRA_IGNORE_NO_KEY:
@@ -3688,6 +3680,19 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
     DBUG_PRINT("info", ("HA_EXTRA_NO_IGNORE_NO_KEY"));
     DBUG_PRINT("info", ("Turning on AO_IgnoreError at Commit/NoCommit"));
     m_ignore_no_key= FALSE;
+    break;
+  case HA_EXTRA_WRITE_CAN_REPLACE:
+    DBUG_PRINT("info", ("HA_EXTRA_WRITE_CAN_REPLACE"));
+    if (!m_has_unique_index)
+    {
+      DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
+      m_use_write= TRUE;
+    }
+    break;
+  case HA_EXTRA_WRITE_CANNOT_REPLACE:
+    DBUG_PRINT("info", ("HA_EXTRA_WRITE_CANNOT_REPLACE"));
+    DBUG_PRINT("info", ("Turning OFF use of write instead of insert"));
+    m_use_write= FALSE;
     break;
   default:
     break;
@@ -4502,10 +4507,11 @@ static int create_ndb_column(NDBCOL &col,
   // Set autoincrement
   if (field->flags & AUTO_INCREMENT_FLAG) 
   {
+    char buff[22];
     col.setAutoIncrement(TRUE);
     ulonglong value= info->auto_increment_value ?
       info->auto_increment_value : (ulonglong) 1;
-    DBUG_PRINT("info", ("Autoincrement key, initial: %llu", value));
+    DBUG_PRINT("info", ("Autoincrement key, initial: %s", llstr(value, buff)));
     col.setAutoIncrementInitialValue(value);
   }
   else
@@ -6822,8 +6828,9 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
     if (share->commit_count != 0)
     {
       *commit_count= share->commit_count;
-      DBUG_PRINT("info", ("Getting commit_count: %llu from share",
-                          share->commit_count));
+      char buff[22];
+      DBUG_PRINT("info", ("Getting commit_count: %s from share",
+                          llstr(share->commit_count, buff)));
       pthread_mutex_unlock(&share->mutex);
       free_share(&share);
       DBUG_RETURN(0);
@@ -6851,7 +6858,9 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   pthread_mutex_lock(&share->mutex);
   if (share->commit_count_lock == lock)
   {
-    DBUG_PRINT("info", ("Setting commit_count to %llu", stat.commit_count));
+    char buff[22];
+    DBUG_PRINT("info", ("Setting commit_count to %s",
+                        llstr(stat.commit_count, buff)));
     share->commit_count= stat.commit_count;
     *commit_count= stat.commit_count;
   }
@@ -6901,13 +6910,12 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
                                    char *full_name, uint full_name_len,
                                    ulonglong *engine_data)
 {
-  DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
-
   Uint64 commit_count;
   bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   char *dbname= full_name;
   char *tabname= dbname+strlen(dbname)+1;
-
+  char buff[22], buff2[22];
+  DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
   DBUG_PRINT("enter", ("dbname: %s, tabname: %s, is_autocommit: %d",
                        dbname, tabname, is_autocommit));
 
@@ -6923,8 +6931,8 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
     DBUG_PRINT("exit", ("No, could not retrieve commit_count"));
     DBUG_RETURN(FALSE);
   }
-  DBUG_PRINT("info", ("*engine_data: %llu, commit_count: %llu",
-                      *engine_data, commit_count));
+  DBUG_PRINT("info", ("*engine_data: %s, commit_count: %s",
+                      llstr(*engine_data, buff), llstr(commit_count, buff2)));
   if (commit_count == 0)
   {
     *engine_data= 0; /* invalidate */
@@ -6938,7 +6946,8 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
      DBUG_RETURN(FALSE);
    }
 
-  DBUG_PRINT("exit", ("OK to use cache, engine_data: %llu", *engine_data));
+  DBUG_PRINT("exit", ("OK to use cache, engine_data: %s",
+                      llstr(*engine_data, buff)));
   DBUG_RETURN(TRUE);
 }
 
@@ -6971,10 +6980,10 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
                                           qc_engine_callback *engine_callback,
                                           ulonglong *engine_data)
 {
-  DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
-
+  Uint64 commit_count;
+  char buff[22];
   bool is_autocommit= !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-
+  DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
   DBUG_PRINT("enter",("dbname: %s, tabname: %s, is_autocommit: %d",
 		      m_dbname, m_tabname, is_autocommit));
 
@@ -6984,7 +6993,6 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
     DBUG_RETURN(FALSE);
   }
 
-  Uint64 commit_count;
   if (ndb_get_commitcount(thd, m_dbname, m_tabname, &commit_count))
   {
     *engine_data= 0;
@@ -6993,7 +7001,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
   }
   *engine_data= commit_count;
   *engine_callback= ndbcluster_cache_retrieval_allowed;
-  DBUG_PRINT("exit", ("commit_count: %llu", commit_count));
+  DBUG_PRINT("exit", ("commit_count: %s", llstr(commit_count, buff)));
   DBUG_RETURN(commit_count > 0);
 }
 
@@ -7409,12 +7417,13 @@ int
 ndb_get_table_statistics(Ndb* ndb, const NDBTAB *ndbtab,
                          struct Ndb_statistics * ndbstat)
 {
-  DBUG_ENTER("ndb_get_table_statistics");
-  DBUG_PRINT("enter", ("table: %s", ndbtab->getName()));
   NdbTransaction* pTrans;
   NdbError error;
   int retries= 10;
   int retry_sleep= 30 * 1000; /* 30 milliseconds */
+  char buff[22], buff2[22], buff3[22], buff4[22];
+  DBUG_ENTER("ndb_get_table_statistics");
+  DBUG_PRINT("enter", ("table: %s", ndbtab->getName()));
 
   DBUG_ASSERT(ndbtab != 0);
 
@@ -7496,10 +7505,13 @@ ndb_get_table_statistics(Ndb* ndb, const NDBTAB *ndbtab,
     ndbstat->row_size= sum_row_size;
     ndbstat->fragment_memory= sum_mem;
 
-    DBUG_PRINT("exit", ("records: %llu commits: %llu "
-                        "row_size: %llu mem: %llu count: %u",
-			sum_rows, sum_commits, sum_row_size,
-                        sum_mem, count));
+    DBUG_PRINT("exit", ("records: %s  commits: %s "
+                        "row_size: %s  mem: %s count: %u",
+			llstr(sum_rows, buff),
+                        llstr(sum_commits, buff2),
+                        llstr(sum_row_size, buff3),
+                        llstr(sum_mem, buff4),
+                        count));
 
     DBUG_RETURN(0);
 retry:
@@ -8151,9 +8163,12 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
         if (ndbtab_g.get_table() &&
             ndb_get_table_statistics(ndb, ndbtab_g.get_table(), &stat) == 0)
         {
+          char buff[22], buff2[22];
           DBUG_PRINT("ndb_util_thread",
                      ("Table: %s, commit_count: %llu, rows: %llu",
-                      share->key, stat.commit_count, stat.row_count));
+                      share->key,
+                      llstr(stat.commit_count, buff),
+                      llstr(stat.row_count, buff2)));
         }
         else
         {

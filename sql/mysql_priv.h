@@ -872,9 +872,7 @@ bool mysql_alter_table(THD *thd, char *new_db, char *new_name,
                        TABLE_LIST *table_list,
                        List<create_field> &fields,
                        List<Key> &keys,
-                       uint order_num, ORDER *order,
-                       enum enum_duplicates handle_duplicates,
-                       bool ignore,
+                       uint order_num, ORDER *order, bool ignore,
                        ALTER_INFO *alter_info, bool do_send_ok);
 bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
@@ -1969,6 +1967,17 @@ inline int hexchar_to_int(char c)
   if (c <= 'f' && c >= 'a')
     return c-'a'+10;
   return -1;
+}
+
+/*
+  is_user_table()
+  return true if the table was created explicitly
+*/
+
+inline bool is_user_table(TABLE * table)
+{
+  const char *name= table->s->table_name.str;
+  return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
 }
 
 /*

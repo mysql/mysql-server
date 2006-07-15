@@ -68,3 +68,10 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 delete t2 from t1,t2 where t1.a=t2.a;
 ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 drop table t1,t2;
+drop table if exists t1;
+create table t1 (a int);
+lock table t1 write;
+flush tables with read lock;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+unlock tables;
+drop table t1;

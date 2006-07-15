@@ -10,6 +10,7 @@ sub mtr_report_test_name($);
 sub mtr_report_test_passed($);
 sub mtr_report_test_failed($);
 sub mtr_report_test_skipped($);
+sub mtr_report_test_not_skipped_though_disabled($);
 
 sub mtr_show_failed_diff ($);
 sub mtr_report_stats ($);
@@ -98,6 +99,23 @@ sub mtr_report_test_skipped ($) {
   else
   {
     print "[ skipped ]   $tinfo->{'comment'}\n";
+  }
+}
+
+sub mtr_report_tests_not_skipped_though_disabled ($) {
+  my $tests= shift;
+
+  if ( $::opt_enable_disabled )
+  {
+    my @disabled_tests= grep {$_->{'dont_skip_though_disabled'}} @$tests;
+    if ( @disabled_tests )
+    {
+      print "\nTest(s) which will be run though they are marked as disabled:\n";
+      foreach my $tinfo ( sort {$a->{'name'} cmp $b->{'name'}} @disabled_tests )
+      {
+        printf "  %-20s : %s\n", $tinfo->{'name'}, $tinfo->{'comment'};
+      }
+    }
   }
 }
 

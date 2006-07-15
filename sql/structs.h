@@ -250,3 +250,99 @@ typedef struct  user_conn {
 #define STATUS_UPDATED		16	/* Record is updated by formula */
 #define STATUS_NULL_ROW		32	/* table->null_row is set */
 #define STATUS_DELETED		64
+
+/*
+  Such interval is "discrete": it is the set of
+  { auto_inc_interval_min + k * increment,
+    0 <= k <= (auto_inc_interval_values-1) }
+  Where "increment" is maintained separately by the user of this class (and is
+  currently only thd->variables.auto_increment_increment).
+  It mustn't derive from Sql_alloc, because SET INSERT_ID needs to
+  allocate memory which must stay allocated for use by the next statement.
+*/
+class Discrete_interval {
+private:
+  ulonglong interval_min;
+  ulonglong interval_values;
+  ulonglong  interval_max;    // excluded bound. Redundant.
+public:
+  Discrete_interval *next;    // used when linked into Discrete_intervals_list
+  void replace(ulonglong start, ulonglong val, ulonglong incr)
+  {
+    interval_min=    start;
+    interval_values= val;
+    interval_max=    (val == ULONGLONG_MAX) ? val : start + val * incr;
+  }
+  Discrete_interval(ulonglong start, ulonglong val, ulonglong incr) :
+    next(NULL) { replace(start, val, incr); };
+  Discrete_interval() : next(NULL) { replace(0, 0, 0); };
+  ulonglong minimum() const { return interval_min;    };
+  ulonglong values()  const { return interval_values; };
+  ulonglong maximum() const { return interval_max;    };
+  /*
+    If appending [3,5] to [1,2], we merge both in [1,5] (they should have the
+    same increment for that, user of the class has to ensure that). That is
+    just a space optimization. Returns 0 if merge succeeded.
+  */
+  bool merge_if_contiguous(ulonglong start, ulonglong val, ulonglong incr)
+  {
+    if (interval_max == start)
+    {
+      if (val == ULONGLONG_MAX)
+      {
+        interval_values=   interval_max= val;
+      }
+      else
+      {
+        interval_values+=  val;
+        interval_max=      start + val * incr;
+      }
+      return 0;
+    }
+    return 1;
+  };
+};
+
+/* List of Discrete_interval objects */
+class Discrete_intervals_list {
+private:
+  Discrete_interval        *head;
+  Discrete_interval        *tail;
+  /*
+    When many intervals are provided at the beginning of the execution of a
+    statement (in a replication slave or SET INSERT_ID), "current" points to
+    the interval being consumed by the thread now (so "current" goes from
+    "head" to "tail" then to NULL).
+  */
+  Discrete_interval        *current;
+  uint                  elements; // number of elements
+public:
+  Discrete_intervals_list() : head(NULL), current(NULL), elements(0) {};
+  void empty_no_free()
+  {
+    head= current= NULL;
+    elements= 0;
+  }
+  void empty()
+  {
+    for (Discrete_interval *i= head; i;)
+    {
+      Discrete_interval *next= i->next;
+      delete i;
+      i= next;
+    }
+    empty_no_free();
+  }
+  const Discrete_interval* get_next()
+  {
+    Discrete_interval *tmp= current;
+    if (current != NULL)
+      current= current->next;
+    return tmp;
+  }
+  ~Discrete_intervals_list() { empty(); };
+  bool append(ulonglong start, ulonglong val, ulonglong incr);
+  ulonglong minimum()     const { return (head ? head->minimum() : 0); };
+  ulonglong maximum()     const { return (head ? tail->maximum() : 0); };
+  uint      nb_elements() const { return elements; }
+};

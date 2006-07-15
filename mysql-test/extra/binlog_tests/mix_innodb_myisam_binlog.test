@@ -29,7 +29,7 @@ insert into t1 values(1);
 insert into t2 select * from t1;
 commit;
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -43,7 +43,7 @@ insert into t2 select * from t1;
 # should say some changes to non-transact1onal tables couldn't be rolled back
 rollback;
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -59,7 +59,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -77,7 +77,7 @@ insert into t1 values(7);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -99,7 +99,7 @@ connection con2;
 # so SHOW BINLOG EVENTS may come before con1 does the loggin. To be sure that
 # logging has been done, we use a user lock.
 select get_lock("a",10);
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -111,7 +111,7 @@ reset master;
 insert into t1 values(9);
 insert into t2 select * from t1;
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -124,13 +124,13 @@ reset master;
 insert into t1 values(10); # first make t1 non-empty
 begin;
 insert into t2 select * from t1;
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 insert into t1 values(11);
 commit;
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -149,7 +149,7 @@ insert into t1 values(12);
 insert into t2 select * from t1;
 commit;
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -162,7 +162,7 @@ insert into t1 values(13);
 insert into t2 select * from t1;
 rollback;
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -178,7 +178,7 @@ insert into t2 select * from t1;
 rollback to savepoint my_savepoint;
 commit;
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -196,7 +196,7 @@ insert into t1 values(18);
 commit;
 select a from t1 order by a; # check that savepoints work :)
 
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 
@@ -257,7 +257,7 @@ insert into t2 values (3);
 disconnect con2;
 connection con3;
 select get_lock("lock1",60);
---replace_column 5 #
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 do release_lock("lock1");
@@ -324,6 +324,7 @@ CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select *
 ROLLBACK;
 SELECT * from t2;
 DROP TABLE t1,t2;
+--replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
 show binlog events from 102;
 

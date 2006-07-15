@@ -216,6 +216,7 @@ our $opt_extern;
 our $opt_fast;
 our $opt_force;
 our $opt_reorder;
+our $opt_enable_disabled;
 
 our $opt_gcov;
 our $opt_gcov_err;
@@ -286,7 +287,7 @@ our $opt_user_test;
 our $opt_valgrind= 0;
 our $opt_valgrind_mysqld= 0;
 our $opt_valgrind_mysqltest= 0;
-our $default_valgrind_options= "-v --show-reachable=yes";
+our $default_valgrind_options= "--show-reachable=yes";
 our $opt_valgrind_options;
 our $opt_valgrind_path;
 
@@ -657,6 +658,7 @@ sub command_line_setup () {
              'fast'                     => \$opt_fast,
              'netware'                  => \$opt_netware,
              'reorder'                  => \$opt_reorder,
+             'enable-disabled'          => \$opt_enable_disabled,
              'script-debug'             => \$opt_script_debug,
              'verbose'                  => \$opt_verbose,
              'sleep=i'                  => \$opt_sleep,
@@ -1914,11 +1916,11 @@ sub run_suite () {
 
   mtr_print_thick_line();
 
-  mtr_report("Finding  Tests in the '$suite' suite");
-
   mtr_timer_start($glob_timers,"suite", 60 * $opt_suite_timeout);
 
   mtr_report("Starting Tests in the '$suite' suite");
+
+  mtr_report_tests_not_skipped_though_disabled($tests);
 
   mtr_print_header();
 
@@ -3612,9 +3614,16 @@ sub run_check_testcase ($$) {
 }
 
 
+sub generate_cmdline_mysqldump ($) {
+  my($info) = @_;
+  return
+    "$exe_mysqldump --no-defaults -uroot " .
+      "--port=$info->[0]->{'port'} " .
+      "--socket=$info->[0]->{'path_sock'} --password=";
+}
+
 sub run_mysqltest ($) {
   my $tinfo=       shift;
-
   my $cmdline_mysqlcheck= "$exe_mysqlcheck --no-defaults -uroot " .
                           "--port=$master->[0]->{'port'} " .
                           "--socket=$master->[0]->{'path_sock'} --password=";
@@ -3624,17 +3633,15 @@ sub run_mysqltest ($) {
       " --debug=d:t:A,$opt_vardir_trace/log/mysqlcheck.trace";
   }
 
-  my $cmdline_mysqldump= "$exe_mysqldump --no-defaults -uroot " .
-                         "--port=$master->[0]->{'port'} " .
-                         "--socket=$master->[0]->{'path_sock'} --password=";
-
- my $cmdline_mysqldumpslave= "$exe_mysqldump --no-defaults -uroot " .
-                         "--socket=$slave->[0]->{'path_sock'} --password=";
+  my $cmdline_mysqldump= generate_cmdline_mysqldump $master;
+  my $cmdline_mysqldumpslave= generate_cmdline_mysqldump $slave;
 
   if ( $opt_debug )
   {
     $cmdline_mysqldump .=
-      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump.trace";
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump-master.trace";
+    $cmdline_mysqldumpslave .=
+      " --debug=d:t:A,$opt_vardir_trace/log/mysqldump-slave.trace";
   }
 
   my $cmdline_mysqlslap;
@@ -3690,6 +3697,12 @@ sub run_mysqltest ($) {
     "$exe_mysql_client_test --no-defaults --testcase --user=root --silent " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'}";
+
+  if ( $opt_debug )
+  {
+    $cmdline_mysql_client_test .=
+      " --debug=d:t:A,$opt_vardir_trace/log/mysql_client_test.trace";
+  }
 
   if ( $glob_use_embedded_server )
   {

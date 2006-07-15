@@ -3248,7 +3248,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
                         args,
 			/* skip charset aggregation for order columns */
 			arg_count - arg_count_order,
-			MY_COLL_ALLOW_CONV))
+			MY_COLL_ALLOW_CONV, 1))
     return 1;
 
   result.set_charset(collation.collation);

@@ -28,6 +28,23 @@
 
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
+# On SuSE 9 no separate "debuginfo" package is built. To enable basic
+# debugging on that platform, we don't strip binaries on SuSE 9. We
+# disable the strip of binaries by redefining the RPM macro
+# "__os_install_post" leaving out the script calls that normally does
+# this. We do this in all cases, as on platforms where "debuginfo" is
+# created, a script "find-debuginfo.sh" will be called that will do
+# the strip anyway, part of separating the executable and debug
+# information into separate files put into separate packages.
+#
+# Some references (shows more advanced conditional usage):
+# http://www.redhat.com/archives/rpm-list/2001-November/msg00257.html
+# http://www.redhat.com/archives/rpm-list/2003-February/msg00275.html
+# http://www.redhat.com/archives/rhl-devel-list/2004-January/msg01546.html
+# http://lists.opensuse.org/archive/opensuse-commit/2006-May/1171.html
+
+%define __os_install_post /usr/lib/rpm/brp-compress
+
 Name: MySQL
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases

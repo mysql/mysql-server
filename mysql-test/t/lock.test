@@ -93,3 +93,18 @@ delete t2 from t1,t2 where t1.a=t2.a;
 drop table t1,t2;
 
 # End of 4.1 tests
+
+#
+# Bug#18884 "lock table + global read lock = crash"
+# The bug is not repeatable, just add the test case.
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int);
+lock table t1 write;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+flush tables with read lock;
+unlock tables;
+drop table t1;
+
