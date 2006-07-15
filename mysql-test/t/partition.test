@@ -1261,4 +1261,47 @@ insert into t1 values (1),(2);
 select * from t1 ORDER BY a DESC;
 drop table t1;
 
+#
+# Bug 20770 Partitions: DATA DIRECTORY clause change in reorganize
+#                       doesn't remove old directory
+#
+--disable_query_log
+--exec mkdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
+eval SET @data_dir = 'DATA DIRECTORY = ''$MYSQLTEST_VARDIR/master-data/tmpdata''';
+let $data_directory = `select @data_dir`;
+
+--exec mkdir $MYSQLTEST_VARDIR/master-data/tmpinx || true
+eval SET @inx_dir = 'INDEX DIRECTORY = ''$MYSQLTEST_VARDIR/master-data/tmpinx''';
+let $inx_directory = `select @inx_dir`;
+--enable_query_log
+
+--replace_result $MYSQLTEST_VARDIR "hello"
+eval create table t1 (a int) engine myisam
+partition by range (a)
+subpartition by hash (a)
+(partition p0 VALUES LESS THAN (1) $data_directory $inx_directory
+ (SUBPARTITION subpart00, SUBPARTITION subpart01));
+
+--replace_result $MYSQLTEST_VARDIR "hello"
+--exec ls $MYSQLTEST_VARDIR/master-data/test || true
+--replace_result $MYSQLTEST_VARDIR "hello"
+--exec ls $MYSQLTEST_VARDIR/master-data/tmpdata || true
+--replace_result $MYSQLTEST_VARDIR "hello"
+--exec ls $MYSQLTEST_VARDIR/master-data/tmpinx || true
+--replace_result $MYSQLTEST_VARDIR "hello"
+
+eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
+(partition p1 VALUES LESS THAN (1) $data_directory $inx_directory
+ (SUBPARTITION subpart10, SUBPARTITION subpart11),
+ partition p2 VALUES LESS THAN (2) $data_directory $inx_directory
+ (SUBPARTITION subpart20, SUBPARTITION subpart21));
+
+--replace_result $MYSQLTEST_VARDIR "hello"
+--exec ls $MYSQLTEST_VARDIR/master-data/test || true
+--replace_result $MYSQLTEST_VARDIR "hello"
+--exec ls $MYSQLTEST_VARDIR/master-data/tmpdata || true
+--replace_result $MYSQLTEST_VARDIR "hello"
+--exec ls $MYSQLTEST_VARDIR/master-data/tmpinx || true
+
+drop table t1;
 --echo End of 5.1 tests
