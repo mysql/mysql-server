@@ -1202,12 +1202,13 @@ int ha_myisam::index_read_idx(byte * buf, uint index, const byte * key,
 
 int ha_myisam::index_read_last(byte * buf, const byte * key, uint key_len)
 {
+  DBUG_ENTER("ha_myisam::index_read_last");
   DBUG_ASSERT(inited==INDEX);
   statistic_increment(table->in_use->status_var.ha_read_key_count,
 		      &LOCK_status);
   int error=mi_rkey(file,buf,active_index, key, key_len, HA_READ_PREFIX_LAST);
   table->status=error ? STATUS_NOT_FOUND: 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 int ha_myisam::index_next(byte * buf)
