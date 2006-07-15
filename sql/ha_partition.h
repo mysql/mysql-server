@@ -46,7 +46,8 @@ private:
     partition_index_read= 0,
     partition_index_first= 1,
     partition_index_last= 2,
-    partition_no_index_scan= 3
+    partition_index_read_last= 3,
+    partition_no_index_scan= 4
   };
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
@@ -55,6 +56,7 @@ private:
   char *m_name_buffer_ptr;		// Pointer to first partition name
   handlerton **m_engine_array;          // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
+  uint m_file_tot_parts;                // Debug
   handler **m_new_file;                 // Array of references to new handlers
   handler **m_reorged_file;             // Reorganised partitions
   handler **m_added_file;               // Added parts kept for errors
@@ -202,7 +204,8 @@ private:
   int copy_partitions(ulonglong *copied, ulonglong *deleted);
   void cleanup_new_partition(uint part_count);
   int prepare_new_partition(TABLE *table, HA_CREATE_INFO *create_info,
-                            handler *file, const char *part_name);
+                            handler *file, const char *part_name,
+                            partition_element *p_elem);
   /*
     delete_table, rename_table and create uses very similar logic which
     is packed into this routine.
@@ -222,7 +225,8 @@ private:
   void set_up_table_before_create(TABLE *table_arg,
                                   const char *partition_name_with_path,
                                   HA_CREATE_INFO *info,
-                                  uint part_id);
+                                  uint part_id,
+                                  partition_element *p_elem);
   partition_element *find_partition_element(uint part_id);
 
 public:
@@ -429,7 +433,7 @@ private:
       return (queue_buf(part_id) +
               PARTITION_BYTES_IN_POS);
     }
-  int handle_ordered_index_scan(byte * buf);
+  int handle_ordered_index_scan(byte * buf, bool reverse_order);
   int handle_ordered_next(byte * buf, bool next_same);
   int handle_ordered_prev(byte * buf);
   void return_top_record(byte * buf);
