@@ -389,6 +389,7 @@ drop index i1 on t1;
 --disable_warnings
 --exec $NDB_TOOLS_DIR/ndb_show_tables --p > $MYSQLTEST_VARDIR/master-data/test/tmp.dat
 LOAD DATA INFILE 'tmp.dat' INTO TABLE ndb_show_tables;
+--exec rm $MYSQLTEST_VARDIR/master-data/test/tmp.dat || true
 --enable_warnings
 
 select 'no_copy' from ndb_show_tables where id = @t1_id and name like '%t1%';
