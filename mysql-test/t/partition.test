@@ -7,7 +7,6 @@
 
 --disable_warnings
 drop table if exists t1;
---exec rm $MYSQLTEST_VARDIR/test/db.opt || true
 --enable_warnings
 
 #
@@ -1267,6 +1266,7 @@ drop table t1;
 #                       doesn't remove old directory
 #
 --disable_query_log
+--exec rm $MYSQLTEST_VARDIR/test/db.opt || true
 --exec mkdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
 eval SET @data_dir = 'DATA DIRECTORY = ''$MYSQLTEST_VARDIR/master-data/tmpdata''';
 let $data_directory = `select @data_dir`;
