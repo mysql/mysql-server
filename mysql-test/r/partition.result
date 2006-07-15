@@ -1082,4 +1082,49 @@ a
 2
 1
 drop table t1;
+create table t1 (a int) engine myisam
+partition by range (a)
+subpartition by hash (a)
+(partition p0 VALUES LESS THAN (1) DATA DIRECTORY = 'hello/master-data/tmpdata' INDEX DIRECTORY = 'hello/master-data/tmpinx'
+(SUBPARTITION subpart00, SUBPARTITION subpart01));
+hello/master-data/test:
+t1#P#p0#SP#subpart00.MYD
+t1#P#p0#SP#subpart00.MYI
+t1#P#p0#SP#subpart01.MYD
+t1#P#p0#SP#subpart01.MYI
+t1.frm
+t1.par
+hello/master-data/tmpdata:
+t1#P#p0#SP#subpart00.MYD
+t1#P#p0#SP#subpart01.MYD
+hello/master-data/tmpinx:
+t1#P#p0#SP#subpart00.MYI
+t1#P#p0#SP#subpart01.MYI
+ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
+(partition p1 VALUES LESS THAN (1) DATA DIRECTORY = 'hello/master-data/tmpdata' INDEX DIRECTORY = 'hello/master-data/tmpinx'
+(SUBPARTITION subpart10, SUBPARTITION subpart11),
+partition p2 VALUES LESS THAN (2) DATA DIRECTORY = 'hello/master-data/tmpdata' INDEX DIRECTORY = 'hello/master-data/tmpinx'
+(SUBPARTITION subpart20, SUBPARTITION subpart21));
+hello/master-data/test:
+t1#P#p1#SP#subpart10.MYD
+t1#P#p1#SP#subpart10.MYI
+t1#P#p1#SP#subpart11.MYD
+t1#P#p1#SP#subpart11.MYI
+t1#P#p2#SP#subpart20.MYD
+t1#P#p2#SP#subpart20.MYI
+t1#P#p2#SP#subpart21.MYD
+t1#P#p2#SP#subpart21.MYI
+t1.frm
+t1.par
+hello/master-data/tmpdata:
+t1#P#p1#SP#subpart10.MYD
+t1#P#p1#SP#subpart11.MYD
+t1#P#p2#SP#subpart20.MYD
+t1#P#p2#SP#subpart21.MYD
+hello/master-data/tmpinx:
+t1#P#p1#SP#subpart10.MYI
+t1#P#p1#SP#subpart11.MYI
+t1#P#p2#SP#subpart20.MYI
+t1#P#p2#SP#subpart21.MYI
+drop table t1;
 End of 5.1 tests
