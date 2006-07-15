@@ -22,7 +22,7 @@
 static const char* cMonth[]  = { "x", "January", "February", "Mars", "April", "May", "June",
 				 "July", "August", "September", "October", "November", "December"};
 
-static const char* cDay[]    = { "x", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+static const char* cDay[]    = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
 				 "Saturday", "Sunday"};
 
 static const char* cHour[]   = { "00","01","02","03","04","05","06","07","08","09","10","11","12",
