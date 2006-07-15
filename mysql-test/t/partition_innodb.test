@@ -78,3 +78,16 @@ select * from t1 where id = 'a';
 select * from t1 where id = 'aa';
 select * from t1 where id = 'aaa';
 drop table t1;
+
+#
+# Bug #20852 Partitions: Crash if hash innodb, composite primary key
+#
+create table t1 (a int, b int, primary key (b,a))
+engine = innodb
+partition by hash (a);
+insert into t1 values (0, 0);
+insert into t1 values (1, 0);
+update t1 set b = b + 1 where a = 1;
+select * from t1;
+drop table t1;
+
