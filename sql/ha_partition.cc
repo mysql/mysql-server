@@ -3265,6 +3265,7 @@ int ha_partition::index_read(byte * buf, const byte * key,
   DBUG_ENTER("ha_partition::index_read");
 
   end_range= 0;
+  m_index_scan_type= partition_index_read;
   DBUG_RETURN(common_index_read(buf, key, key_len, find_flag));
 }
 
@@ -3282,18 +3283,24 @@ int ha_partition::common_index_read(byte *buf, const byte *key, uint key_len,
 				    enum ha_rkey_function find_flag)
 {
   int error;
+  bool reverse_order= FALSE;
   DBUG_ENTER("ha_partition::common_index_read");
 
   memcpy((void*)m_start_key.key, key, key_len);
   m_start_key.length= key_len;
   m_start_key.flag= find_flag;
-  m_index_scan_type= partition_index_read;
 
   if ((error= partition_scan_set_up(buf, TRUE)))
   {
     DBUG_RETURN(error);
   }
-
+  if (find_flag == HA_READ_PREFIX_LAST ||
+      find_flag == HA_READ_PREFIX_LAST_OR_PREV ||
+      find_flag == HA_READ_BEFORE_KEY)
+  {
+    reverse_order= TRUE;
+    m_ordered_scan_ongoing= TRUE;
+  }
   if (!m_ordered_scan_ongoing ||
       (find_flag == HA_READ_KEY_EXACT &&
        (key_len >= m_curr_key_info->key_length ||
@@ -3319,7 +3326,7 @@ int ha_partition::common_index_read(byte *buf, const byte *key, uint key_len,
       In all other cases we will use the ordered index scan. This will use
       the partition set created by the get_partition_set method.
     */
-    error= handle_ordered_index_scan(buf);
+    error= handle_ordered_index_scan(buf, reverse_order);
   }
   DBUG_RETURN(error);
 }
@@ -3403,7 +3410,7 @@ int ha_partition::common_first_last(byte *buf)
   if (!m_ordered_scan_ongoing &&
       m_index_scan_type != partition_index_last)
     return handle_unordered_scan_next_partition(buf);
-  return handle_ordered_index_scan(buf);
+  return handle_ordered_index_scan(buf, FALSE);
 }
 
 
@@ -3457,7 +3464,9 @@ int ha_partition::index_read_last(byte *buf, const byte *key, uint keylen)
   DBUG_ENTER("ha_partition::index_read_last");
 
   m_ordered= TRUE;				// Safety measure
-  DBUG_RETURN(index_read(buf, key, keylen, HA_READ_PREFIX_LAST));
+  end_range= 0;
+  m_index_scan_type= partition_index_read_last;
+  DBUG_RETURN(common_index_read(buf, key, keylen, HA_READ_PREFIX_LAST));
 }
 
 
@@ -3597,6 +3606,7 @@ int ha_partition::read_range_first(const key_range *start_key,
   }
   else
   {
+    m_index_scan_type= partition_index_read;
     error= common_index_read(m_rec0,
 			     start_key->key,
 			     start_key->length, start_key->flag);
@@ -3855,12 +3865,11 @@ int ha_partition::handle_unordered_scan_next_partition(byte * buf)
     entries.
 */
 
-int ha_partition::handle_ordered_index_scan(byte *buf)
+int ha_partition::handle_ordered_index_scan(byte *buf, bool reverse_order)
 {
   uint i;
   uint j= 0;
   bool found= FALSE;
-  bool reverse_order= FALSE;
   DBUG_ENTER("ha_partition::handle_ordered_index_scan");
 
   m_top_entry= NO_CURRENT_PART_ID;
@@ -3881,7 +3890,6 @@ int ha_partition::handle_ordered_index_scan(byte *buf)
                               m_start_key.key,
                               m_start_key.length,
                               m_start_key.flag);
-      reverse_order= FALSE;
       break;
     case partition_index_first:
       error= file->index_first(rec_buf_ptr);
@@ -3889,6 +3897,12 @@ int ha_partition::handle_ordered_index_scan(byte *buf)
       break;
     case partition_index_last:
       error= file->index_last(rec_buf_ptr);
+      reverse_order= TRUE;
+      break;
+    case partition_index_read_last:
+      error= file->index_read_last(rec_buf_ptr,
+                                   m_start_key.key,
+                                   m_start_key.length);
       reverse_order= TRUE;
       break;
     default:
