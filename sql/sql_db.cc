@@ -906,32 +906,13 @@ exit:
   (void)sp_drop_db_routines(thd, db); /* QQ Ignore errors for now  */
   error= Events::drop_schema_events(thd, db);
   /*
-    If this database was the client's selected database, we silently change the
-    client's selected database to nothing (to have an empty SELECT DATABASE()
-    in the future). For this we free() thd->db and set it to 0. But we don't do
-    free() for the slave thread. Indeed, doing a x_free() on it leads to nasty
-    problems (i.e. long painful debugging) because in this thread, thd->db is
-    the same as data_buf and db of the Query_log_event which is dropping the
-    database. So if you free() thd->db, you're freeing data_buf. You set
-    thd->db to 0 but not data_buf (thd->db and data_buf are two distinct
-    pointers which point to the same place). Then in ~Query_log_event(), we
-    have 'if (data_buf) free(data_buf)' data_buf is !=0 so this makes a
-    DOUBLE free().
-    Side effects of this double free() are, randomly (depends on the machine),
-    when the slave is replicating a DROP DATABASE:
-    - garbage characters in the error message:
-    "Error 'Can't drop database 'test2'; database doesn't exist' on query
-    'h4zI©'"
-    - segfault
-    - hang in "free(vio)" (yes!) in the I/O or SQL slave threads (so slave
-    server hangs at shutdown etc).
+    If this database was the client's selected database, we silently
+    change the client's selected database to nothing (to have an empty
+    SELECT DATABASE() in the future). For this we free() thd->db and set
+    it to 0.
   */
   if (thd->db && !strcmp(thd->db, db))
-  {
-    if (!(thd->slave_thread)) /* a slave thread will free it itself */
-      x_free(thd->db);
-    thd->reset_db(NULL, 0);
-  }
+    thd->set_db(NULL, 0);
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
   start_waiting_global_read_lock(thd);
 exit2:
@@ -1227,38 +1208,52 @@ err:
 
 
 /*
-  Change default database.
+  Change the current database.
 
   SYNOPSIS
     mysql_change_db()
-    thd			Thread handler
-    name		Databasename
-    no_access_check	True don't do access check. In this case name may be ""
+    thd			thread handle
+    name		database name
+    no_access_check	if TRUE, don't do access check. In this
+                        case name may be ""
 
   DESCRIPTION
-    Becasue the database name may have been given directly from the
-    communication packet (in case of 'connect' or 'COM_INIT_DB')
-    we have to do end space removal in this function.
+    Check that the database name corresponds to a valid and
+    existent database, check access rights (unless called with
+    no_access_check), and set the current database. This function
+    is called to change the current database upon user request
+    (COM_CHANGE_DB command) or temporarily, to execute a stored
+    routine.
 
   NOTES
-    Do as little as possible in this function, as it is not called for the
-    replication slave SQL thread (for that thread, setting of thd->db is done
-    in ::exec_event() methods of log_event.cc).
+    This function is not the only way to switch the database that
+    is currently employed. When the replication slave thread
+    switches the database before executing a query, it calls
+    thd->set_db directly. However, if the query, in turn, uses
+    a stored routine, the stored routine will use this function,
+    even if it's run on the slave.
 
-    This function does not send anything, including error messages to the
-    client, if that should be sent to the client, call net_send_error after
-    this function.
+    This function allocates the name of the database on the system
+    heap: this is necessary to be able to uniformly change the
+    database from any module of the server. Up to 5.0 different
+    modules were using different memory to store the name of the
+    database, and this led to memory corruption: a stack pointer
+    set by Stored Procedures was used by replication after the
+    stack address was long gone.
+
+    This function does not send anything, including error
+    messages, to the client. If that should be sent to the client,
+    call net_send_error after this function.
 
   RETURN VALUES
-    0	ok
+    0	OK
     1	error
 */
 
 bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 {
-  int length, db_length;
-  char *dbname= thd->slave_thread ? (char *) name :
-                                    my_strdup((char *) name, MYF(MY_WME));
+  int path_length, db_length;
+  char *db_name;
   char	path[FN_REFLEN];
   HA_CREATE_INFO create;
   bool system_db= 0;
@@ -1270,32 +1265,35 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
   DBUG_ENTER("mysql_change_db");
   DBUG_PRINT("enter",("name: '%s'",name));
 
-  LINT_INIT(db_length);
-
-  /* dbname can only be NULL if malloc failed */
-  if (!dbname || !(db_length= strlen(dbname)))
+  if (name == NULL || name[0] == '\0' && no_access_check == FALSE)
   {
-    if (no_access_check && dbname)
-    {
-      /* Called from SP when orignal database was not set */
-      system_db= 1;
-      goto end;
-    }
-    if (!(thd->slave_thread))
-      x_free(dbname);				/* purecov: inspected */
-    my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR),
-               MYF(0));                         /* purecov: inspected */
+    my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
     DBUG_RETURN(1);				/* purecov: inspected */
   }
-  if (check_db_name(dbname))
+  else if (name[0] == '\0')
   {
-    my_error(ER_WRONG_DB_NAME, MYF(0), dbname);
-    if (!(thd->slave_thread))
-      my_free(dbname, MYF(0));
+    /* Called from SP to restore the original database, which was NULL */
+    DBUG_ASSERT(no_access_check);
+    system_db= 1;
+    db_name= NULL;
+    db_length= 0;
+    goto end;
+  }
+  /*
+    Now we need to make a copy because check_db_name requires a
+    non-constant argument. TODO: fix check_db_name.
+  */
+  if ((db_name= my_strdup(name, MYF(MY_WME))) == NULL)
+    DBUG_RETURN(1);                             /* the error is set */
+  db_length= strlen(db_name);
+  if (check_db_name(db_name))
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), db_name);
+    my_free(db_name, MYF(0));
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("info",("Use database: %s", dbname));
-  if (!my_strcasecmp(system_charset_info, dbname, information_schema_name.str))
+  DBUG_PRINT("info",("Use database: %s", db_name));
+  if (!my_strcasecmp(system_charset_info, db_name, information_schema_name.str))
   {
     system_db= 1;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1310,44 +1308,35 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
     if (test_all_bits(sctx->master_access, DB_ACLS))
       db_access=DB_ACLS;
     else
-      db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, dbname, 0) |
+      db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name, 0) |
                   sctx->master_access);
     if (!(db_access & DB_ACLS) && (!grant_option ||
-                                   check_grant_db(thd,dbname)))
+                                   check_grant_db(thd,db_name)))
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                sctx->priv_user,
                sctx->priv_host,
-               dbname);
+               db_name);
       general_log_print(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
-                        sctx->priv_user, sctx->priv_host, dbname);
-      if (!(thd->slave_thread))
-        my_free(dbname,MYF(0));
+                        sctx->priv_user, sctx->priv_host, db_name);
+      my_free(db_name,MYF(0));
       DBUG_RETURN(1);
     }
   }
 #endif
-  length= build_table_filename(path, sizeof(path), dbname, "", "");
-  if (length && path[length-1] == FN_LIBCHAR)
-    path[length-1]=0;				// remove ending '\'
+  path_length= build_table_filename(path, sizeof(path), db_name, "", "");
+  if (path_length && path[path_length-1] == FN_LIBCHAR)
+    path[path_length-1]= '\0';                  // remove ending '\'
   if (my_access(path,F_OK))
   {
-    my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
-    if (!(thd->slave_thread))
-      my_free(dbname,MYF(0));
+    my_error(ER_BAD_DB_ERROR, MYF(0), db_name);
+    my_free(db_name, MYF(0));
     DBUG_RETURN(1);
   }
 end:
-  if (!(thd->slave_thread))
-    x_free(thd->db);
-  if (dbname && dbname[0] == 0)
-  {
-    if (!(thd->slave_thread))
-      my_free(dbname, MYF(0));
-    thd->reset_db(NULL, 0);
-  }
-  else
-    thd->reset_db(dbname, db_length);          // THD::~THD will free this
+  x_free(thd->db);
+  DBUG_ASSERT(db_name == NULL || db_name[0] != '\0');
+  thd->reset_db(db_name, db_length);            // THD::~THD will free this
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!no_access_check)
     sctx->db_access= db_access;

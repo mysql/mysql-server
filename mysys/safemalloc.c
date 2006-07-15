@@ -525,8 +525,9 @@ char *_my_strdup(const char *from, const char *filename, uint lineno,
 } /* _my_strdup */
 
 
-char *_my_strndup(const char *from, uint length, const char *filename,
-                  uint lineno, myf MyFlags)
+char *_my_strndup(const char *from, uint length,
+			     const char *filename, uint lineno,
+			     myf MyFlags)
 {
   gptr ptr;
   if ((ptr=_mymalloc(length+1,filename,lineno,MyFlags)) != 0)

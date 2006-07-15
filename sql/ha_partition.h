@@ -811,7 +811,7 @@ public:
     auto_increment_column_changed
      -------------------------------------------------------------------------
   */
-  virtual void restore_auto_increment();
+  virtual void restore_auto_increment(ulonglong prev_insert_id);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,

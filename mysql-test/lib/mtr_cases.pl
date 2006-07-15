@@ -40,6 +40,23 @@ sub collect_test_cases ($) {
 
   opendir(TESTDIR, $testdir) or mtr_error("Can't open dir \"$testdir\": $!");
 
+  # ----------------------------------------------------------------------
+  # Disable some tests listed in disabled.def
+  # ----------------------------------------------------------------------
+  my %disabled;
+  if ( open(DISABLED, "$testdir/disabled.def" ) )
+  {
+    while ( <DISABLED> )
+      {
+        chomp;
+        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+          {
+            $disabled{$1}= $2;
+          }
+      }
+    close DISABLED;
+  }
+
   if ( @::opt_cases )
   {
     foreach my $tname ( @::opt_cases ) { # Run in specified order, no sort
@@ -103,30 +120,13 @@ sub collect_test_cases ($) {
         }
       }
 
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,{},
+      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
         $component_id);
     }
     closedir TESTDIR;
   }
   else
   {
-    # ----------------------------------------------------------------------
-    # Disable some tests listed in disabled.def
-    # ----------------------------------------------------------------------
-    my %disabled;
-    if ( ! $::opt_ignore_disabled_def and open(DISABLED, "$testdir/disabled.def" ) )
-    {
-      while ( <DISABLED> )
-      {
-        chomp;
-        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
-        {
-          $disabled{$1}= $2;
-        }
-      }
-      close DISABLED;
-    }
-
     foreach my $elem ( sort readdir(TESTDIR) ) {
       my $component_id= undef;
       my $tname= undef;
@@ -418,18 +418,33 @@ sub collect_one_test_case($$$$$$$) {
   }
 
   # FIXME why this late?
+  my $marked_as_disabled= 0;
   if ( $disabled->{$tname} )
   {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'disable'}= 1;   # Sub type of 'skip'
-    $tinfo->{'comment'}= $disabled->{$tname} if $disabled->{$tname};
+    $marked_as_disabled= 1;
+    $tinfo->{'comment'}= $disabled->{$tname};
   }
 
   if ( -f $disabled_file )
   {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'disable'}= 1;   # Sub type of 'skip'
+    $marked_as_disabled= 1;
     $tinfo->{'comment'}= mtr_fromfile($disabled_file);
+  }
+
+  # If test was marked as disabled, either opt_enable_disabled is off and then
+  # we skip this test, or it is on and then we run this test but warn
+
+  if ( $marked_as_disabled )
+  {
+    if ( $::opt_enable_disabled )
+    {
+      $tinfo->{'dont_skip_though_disabled'}= 1;
+    }
+    else
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'disable'}= 1;   # Sub type of 'skip'
+    }
   }
 
   if ( $component_id eq 'im' )

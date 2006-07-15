@@ -14900,11 +14900,13 @@ static void test_bug17667()
 
     printf("success.  All queries found intact in the log.\n");
 
-  } else {
+  }
+  else
+  {
     fprintf(stderr, "Could not find the log file, var/log/master.log, so "
-        "test_bug17667 is \ninconclusive.  Run test from the "
-        "mysql-test/mysql-test-run* program \nto set up the correct "
-        "environment for this test.\n\n");
+            "test_bug17667 is \ninconclusive.  Run test from the "
+            "mysql-test/mysql-test-run* program \nto set up the correct "
+            "environment for this test.\n\n");
   }
 
   if (log_file != NULL)
@@ -14914,7 +14916,8 @@ static void test_bug17667()
 
 
 /*
-  Bug#14169: type of group_concat() result changed to blob if tmp_table was used
+  Bug#14169: type of group_concat() result changed to blob if tmp_table was
+  used
 */
 static void test_bug14169()
 {
@@ -14947,7 +14950,243 @@ static void test_bug14169()
 
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
-}/*
+}
+
+/*
+   Test that mysql_insert_id() behaves as documented in our manual
+*/
+
+static void test_mysql_insert_id()
+{
+  my_ulonglong res;
+  int rc;
+
+  myheader("test_mysql_insert_id");
+
+  rc= mysql_query(mysql, "drop table if exists t1");
+  myquery(rc);
+  /* table without auto_increment column */
+  rc= mysql_query(mysql, "create table t1 (f1 int, f2 varchar(255), key(f1))");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 values (1,'a')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "insert into t1 values (null,'b')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "insert into t1 select 5,'c'");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "insert into t1 select null,'d'");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "insert into t1 values (null,last_insert_id(300))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 300);
+  rc= mysql_query(mysql, "insert into t1 select null,last_insert_id(400)");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  /*
+    Behaviour change: old code used to return 0; but 400 is consistent
+    with INSERT VALUES, and the manual's section of mysql_insert_id() does not
+    say INSERT SELECT should be different.
+  */
+  DIE_UNLESS(res == 400);
+
+  /* table with auto_increment column */
+  rc= mysql_query(mysql, "create table t2 (f1 int not null primary key auto_increment, f2 varchar(255))");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t2 values (1,'a')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 1);
+  /* this should not influence next INSERT if it doesn't have auto_inc */
+  rc= mysql_query(mysql, "insert into t1 values (10,'e')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+
+  rc= mysql_query(mysql, "insert into t2 values (null,'b')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 2);
+  rc= mysql_query(mysql, "insert into t2 select 5,'c'");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  /*
+    Manual says that for multirow insert this should have been 5, but does not
+    say for INSERT SELECT. This is a behaviour change: old code used to return
+    0. We try to be consistent with INSERT VALUES.
+  */
+  DIE_UNLESS(res == 5);
+  rc= mysql_query(mysql, "insert into t2 select null,'d'");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 6);
+  /* with more than one row */
+  rc= mysql_query(mysql, "insert into t2 values (10,'a'),(11,'b')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 11);
+  rc= mysql_query(mysql, "insert into t2 select 12,'a' union select 13,'b'");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  /*
+    Manual says that for multirow insert this should have been 13, but does
+    not say for INSERT SELECT. This is a behaviour change: old code used to
+    return 0. We try to be consistent with INSERT VALUES.
+  */
+  DIE_UNLESS(res == 13);
+  rc= mysql_query(mysql, "insert into t2 values (null,'a'),(null,'b')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 14);
+  rc= mysql_query(mysql, "insert into t2 select null,'a' union select null,'b'");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 16);
+  rc= mysql_query(mysql, "insert into t2 select 12,'a' union select 13,'b'");
+  myquery_r(rc);
+  rc= mysql_query(mysql, "insert ignore into t2 select 12,'a' union select 13,'b'");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "insert into t2 values (12,'a'),(13,'b')");
+  myquery_r(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "insert ignore into t2 values (12,'a'),(13,'b')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  /* mixing autogenerated and explicit values */
+  rc= mysql_query(mysql, "insert into t2 values (null,'e'),(12,'a'),(13,'b')");
+  myquery_r(rc);
+  rc= mysql_query(mysql, "insert into t2 values (null,'e'),(12,'a'),(13,'b'),(25,'g')");
+  myquery_r(rc);
+  rc= mysql_query(mysql, "insert into t2 values (null,last_insert_id(300))");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  /*
+    according to the manual, this might be 20 or 300, but it looks like
+    auto_increment column takes priority over last_insert_id().
+  */
+  DIE_UNLESS(res == 20);
+  /* If first autogenerated number fails and 2nd works: */
+  rc= mysql_query(mysql, "drop table t2");
+  myquery(rc);
+  rc= mysql_query(mysql, "create table t2 (f1 int not null primary key "
+                  "auto_increment, f2 varchar(255), unique (f2))");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t2 values (null,'e')");
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 1);
+  rc= mysql_query(mysql, "insert ignore into t2 values (null,'e'),(null,'a'),(null,'e')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 2);
+  /* If autogenerated fails and explicit works: */
+  rc= mysql_query(mysql, "insert ignore into t2 values (null,'e'),(12,'c'),(null,'d')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  /*
+    Behaviour change: old code returned 3 (first autogenerated, even if it
+    fails); we now return first successful autogenerated.
+  */
+  DIE_UNLESS(res == 13);
+  /* UPDATE may update mysql_insert_id() if it uses LAST_INSERT_ID(#) */
+  rc= mysql_query(mysql, "update t2 set f1=14 where f1=12");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "update t2 set f1=NULL where f1=14");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "update t2 set f2=last_insert_id(372) where f1=0");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 372);
+  /* check that LAST_INSERT_ID() does not update mysql_insert_id(): */
+  rc= mysql_query(mysql, "insert into t2 values (null,'g')");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 15);
+  rc= mysql_query(mysql, "update t2 set f2=(@li:=last_insert_id()) where f1=15");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  /*
+    Behaviour change: now if ON DUPLICATE KEY UPDATE updates a row,
+    mysql_insert_id() returns the id of the row, instead of not being
+    affected.
+  */
+  rc= mysql_query(mysql, "insert into t2 values (null,@li) on duplicate key "
+                  "update f2=concat('we updated ',f2)");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 15);
+
+  rc= mysql_query(mysql, "drop table t1,t2");
+  myquery(rc);
+}
+
+/*
+  Bug#20152: mysql_stmt_execute() writes to MYSQL_TYPE_DATE buffer
+*/
+
+static void test_bug20152()
+{
+  MYSQL_BIND bind[1];
+  MYSQL_STMT *stmt;
+  MYSQL_TIME tm;
+  int rc;
+  const char *query= "INSERT INTO t1 (f1) VALUES (?)";
+
+  myheader("test_bug20152");
+
+  memset(bind, 0, sizeof(bind));
+  bind[0].buffer_type= MYSQL_TYPE_DATE;
+  bind[0].buffer= (void*)&tm;
+
+  tm.year = 2006;
+  tm.month = 6;
+  tm.day = 18;
+  tm.hour = 14;
+  tm.minute = 9;
+  tm.second = 42;
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1 (f1 DATE)");
+  myquery(rc);
+
+  stmt= mysql_stmt_init(mysql);
+  rc= mysql_stmt_prepare(stmt, query, strlen(query));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_close(stmt);
+  check_execute(stmt, rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+
+  if (tm.hour == 14 && tm.minute == 9 && tm.second == 42) {
+    if (!opt_silent)
+      printf("OK!");
+  } else {
+    printf("[14:09:42] != [%02d:%02d:%02d]\n", tm.hour, tm.minute, tm.second);
+    DIE_UNLESS(0==1);
+  }
+}
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -15212,8 +15451,10 @@ static struct my_tests_st my_tests[]= {
   { "test_bug16143", test_bug16143 },
   { "test_bug16144", test_bug16144 },
   { "test_bug15613", test_bug15613 },
+  { "test_bug20152", test_bug20152 },
   { "test_bug14169", test_bug14169 },
   { "test_bug17667", test_bug17667 },
+  { "test_mysql_insert_id", test_mysql_insert_id },
   { 0, 0 }
 };
 

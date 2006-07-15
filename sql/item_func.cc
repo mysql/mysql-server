@@ -2036,7 +2036,7 @@ void Item_func_min_max::fix_length_and_dec()
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
   }
   if (cmp_type == STRING_RESULT)
-    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV);
+    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length(max_int_part+decimals, decimals,
                                             unsigned_flag);
@@ -2222,7 +2222,7 @@ longlong Item_func_coercibility::val_int()
 void Item_func_locate::fix_length_and_dec()
 {
   maybe_null=0; max_length=11;
-  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
 }
 
 
@@ -2339,7 +2339,7 @@ void Item_func_field::fix_length_and_dec()
   for (uint i=1; i < arg_count ; i++)
     cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
   if (cmp_type == STRING_RESULT)
-    agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV);
+    agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1);
 }
 
 
@@ -2406,7 +2406,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV);
+  agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1);
 }
 
 static const char separator=',';
@@ -3283,12 +3283,20 @@ longlong Item_func_last_insert_id::val_int()
   if (arg_count)
   {
     longlong value= args[0]->val_int();
-    thd->insert_id(value);
     null_value= args[0]->null_value;
-    return value;                       // Avoid side effect of insert_id()
+    /*
+      LAST_INSERT_ID(X) must affect the client's mysql_insert_id() as
+      documented in the manual. We don't want to touch
+      first_successful_insert_id_in_cur_stmt because it would make
+      LAST_INSERT_ID(X) take precedence over an generated auto_increment
+      value for this row.
+    */
+    thd->arg_of_last_insert_id_function= TRUE;
+    thd->first_successful_insert_id_in_prev_stmt= value;
+    return value;
   }
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  return thd->last_insert_id_used ? thd->current_insert_id : thd->insert_id();
+  return thd->read_first_successful_insert_id_in_prev_stmt();
 }
 
 /* This function is just used to test speed of different functions */
@@ -4393,7 +4401,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     return 1;
   }
   table->fulltext_searched=1;
-  return agg_arg_collations_for_comparison(cmp_collation, args+1, arg_count-1);
+  return agg_arg_collations_for_comparison(cmp_collation,
+                                           args+1, arg_count-1, 0);
 }
 
 bool Item_func_match::fix_index()

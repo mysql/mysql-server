@@ -4666,6 +4666,27 @@ int ha_partition::extra(enum ha_extra_function operation)
      */
     break;
   }
+  case HA_EXTRA_WRITE_CAN_REPLACE:
+  case HA_EXTRA_WRITE_CANNOT_REPLACE:
+  {
+    /*
+      Informs handler that write_row() can replace rows which conflict
+      with row being inserted by PK/unique key without reporting error
+      to the SQL-layer.
+
+      This optimization is not safe for partitioned table in general case
+      since we may have to put new version of row into partition which is
+      different from partition in which old version resides (for example
+      when we partition by non-PK column or by some column which is not
+      part of unique key which were violated).
+      And since NDB which is the only engine at the moment that supports
+      this optimization handles partitioning on its own we simple disable
+      it here. (BTW for NDB this optimization is safe since it supports
+      only KEY partitioning and won't use this optimization for tables
+      which have additional unique constraints).
+    */
+    break;
+  }
   default:
   {
     /* Temporary crash to discover what is wrong */
@@ -5263,7 +5284,7 @@ int ha_partition::cmp_ref(const byte *ref1, const byte *ref2)
                 MODULE auto increment
 ****************************************************************************/
 
-void ha_partition::restore_auto_increment()
+void ha_partition::restore_auto_increment(ulonglong)
 {
   DBUG_ENTER("ha_partition::restore_auto_increment");
 

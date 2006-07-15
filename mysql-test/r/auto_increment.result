@@ -143,7 +143,7 @@ explain extended select last_insert_id();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select sql_no_cache last_insert_id() AS `last_insert_id()`
+Note	1003	select last_insert_id() AS `last_insert_id()`
 insert into t1 set i = 254;
 ERROR 23000: Duplicate entry '254' for key 'PRIMARY'
 select last_insert_id();
@@ -153,7 +153,7 @@ insert into t1 set i = null;
 ERROR 23000: Duplicate entry '255' for key 'PRIMARY'
 select last_insert_id();
 last_insert_id()
-0
+255
 drop table t1;
 create table t1 (i tinyint unsigned not null auto_increment, key (i));
 insert into t1 set i = 254;
@@ -181,7 +181,7 @@ insert into t1 values (NULL, 10);
 ERROR 23000: Duplicate entry '10' for key 'b'
 select last_insert_id();
 last_insert_id()
-0
+2
 drop table t1;
 create table t1(a int auto_increment,b int null,primary key(a));
 SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
@@ -446,3 +446,57 @@ INSERT INTO t1 VALUES(1, 1);
 ALTER TABLE t1 CHANGE t1 t1 INT(10) auto_increment;
 ERROR 23000: ALTER TABLE causes auto_increment resequencing, resulting in duplicate entry '1' for key 'PRIMARY'
 DROP TABLE t1;
+CREATE TABLE `t2` (
+`k` int(11) NOT NULL auto_increment,
+`a` int(11) default NULL,
+`c` int(11) default NULL,
+PRIMARY KEY  (`k`),
+UNIQUE KEY `idx_1` (`a`)
+) ENGINE=InnoDB;
+insert into t2 ( a ) values ( 6 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1;
+insert into t2 ( a ) values ( 7 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1;
+select last_insert_id();
+last_insert_id()
+2
+select * from t2;
+k	a	c
+1	6	NULL
+2	7	NULL
+insert into t2 ( a ) values ( 6 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1;
+select last_insert_id();
+last_insert_id()
+1
+select * from t2;
+k	a	c
+1	6	1
+2	7	NULL
+insert ignore into t2 values (null,6,1),(10,8,1);
+select last_insert_id();
+last_insert_id()
+1
+insert ignore into t2 values (null,6,1),(null,8,1),(null,15,1),(null,20,1);
+select last_insert_id();
+last_insert_id()
+11
+select * from t2;
+k	a	c
+1	6	1
+2	7	NULL
+10	8	1
+11	15	1
+12	20	1
+drop table t2;
+create table t1 (a int primary key auto_increment, b int, c int, d timestamp default current_timestamp, unique(b),unique(c));
+insert into t1 values(null,1,1,now());
+insert into t1 values(null,0,0,null);
+replace into t1 values(null,1,0,null);
+select last_insert_id();
+last_insert_id()
+3
+drop table t1;

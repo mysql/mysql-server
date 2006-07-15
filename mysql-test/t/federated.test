@@ -1256,6 +1256,10 @@ SELECT LAST_INSERT_ID();
 INSERT INTO federated.t1 VALUES ();
 SELECT LAST_INSERT_ID();
 SELECT * FROM federated.t1;
+DROP TABLE federated.t1;
+
+connection slave;
+DROP TABLE federated.t1;
 
 #
 # Bug#17377 Federated Engine returns wrong Data, always the rows
@@ -1310,7 +1314,6 @@ select * from federated.t1 where fld_parentid=0 and fld_delt=0;
 DROP TABLE federated.t1;
 connection slave;
 DROP TABLE federated.bug_17377_table;
-DROP TABLE federated.t1;
 
 #
 # Test multi updates and deletes without keys
@@ -1363,4 +1366,98 @@ drop table federated.t1, federated.t2;
 connection master;
 --enable_parsing
 
---source include/federated_cleanup.inc
+# 
+# Additional test for bug#18437 "Wrong values inserted with a before
+# update trigger on NDB table". SQL-layer didn't properly inform
+# handler about fields which were read and set in triggers. In some
+# cases this resulted in incorrect (garbage) values of OLD variables
+# and lost changes to NEW variables.
+# Since for federated engine only operation which is affected by wrong
+# fields mark-up is handler::write_row() this file constains coverage
+# for ON INSERT triggers only. Tests for other types of triggers reside
+# in ndb_trigger.test.
+#
+--disable_warnings
+drop table if exists federated.t1;
+--enable_warnings
+create table federated.t1 (a int, b int, c int);
+connection master;
+--disable_warnings
+drop table if exists federated.t1;
+drop table if exists federated.t2;
+--enable_warnings
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.t1 (a int,  b int, c int) engine=federated connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+create trigger federated.t1_bi before insert on federated.t1 for each row set new.c= new.a * new.b;
+create table federated.t2 (a int, b int);
+insert into federated.t2 values (13, 17), (19, 23);
+# Each of three statements should correctly set values for all three fields
+# insert
+insert into federated.t1 (a, b) values (1, 2), (3, 5), (7, 11);
+select * from federated.t1 order by a;
+delete from federated.t1;
+# insert ... select
+insert into federated.t1 (a, b) select * from federated.t2;
+select * from federated.t1 order by a;
+delete from federated.t1;
+# load
+load data infile '../std_data_ln/loaddata5.dat' into table federated.t1 fields terminated by '' enclosed by '' ignore 1 lines (a, b);
+select * from federated.t1 order by a;
+drop tables federated.t1, federated.t2;
+
+connection slave;
+drop table federated.t1;
+
+#
+# BUG 19773 Crash when using multi-table updates, deletes
+# with federated tables
+#
+connection slave;
+create table federated.t1 (i1 int, i2 int, i3 int);
+create table federated.t2 (id int, c1 varchar(20), c2 varchar(20));
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.t1 (i1 int, i2 int, i3 int) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.t2 (id int, c1 varchar(20), c2 varchar(20)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t2';
+insert into federated.t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
+insert into federated.t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
+select * from federated.t1 order by i1;
+select * from federated.t2;
+update federated.t1,federated.t2 set t1.i2=15, t2.c2="ppc" where t1.i1=t2.id;
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+delete   federated.t1.*,federated.t2.* from federated.t1,federated.t2 where t1.i2=t2.id;
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+drop table federated.t1, federated.t2;
+connection slave;
+drop table federated.t1, federated.t2;
+
+# Test multi updates and deletes with keys
+connection slave;
+create table federated.t1 (i1 int, i2 int, i3 int, primary key (i1));
+create table federated.t2 (id int, c1 varchar(20), c2 varchar(20), primary key (id));
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.t1 (i1 int auto_increment not null, i2 int, i3 int, primary key (i1)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1';
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.t2 (id int auto_increment not null, c1 varchar(20), c2 varchar(20), primary key(id)) ENGINE=FEDERATED CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t2';
+insert into federated.t1 values (1,5,10),(3,7,12),(4,5,2),(9,10,15),(2,2,2);
+insert into federated.t2 values (9,"abc","def"),(5,"opq","lmn"),(2,"test t","t test");
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+update federated.t1,federated.t2 set t1.i2=15, t2.c2="ppc" where t1.i1=t2.id;
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+delete federated.t1.*,federated.t2.* from federated.t1,federated.t2 where t1.i2=t2.id;
+select * from federated.t1 order by i1;
+select * from federated.t2 order by id;
+drop table federated.t1, federated.t2;
+
+connection slave;
+drop table federated.t1, federated.t2;
+
+source include/federated_cleanup.inc;

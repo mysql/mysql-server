@@ -1093,6 +1093,7 @@ scripts/mysql_secure_installation
 scripts/mysql_setpermission
 scripts/mysql_tableinfo
 scripts/mysql_upgrade
+scripts/mysql_upgrade_shell
 scripts/mysql_zap
 scripts/mysqlaccess
 scripts/mysqlbug

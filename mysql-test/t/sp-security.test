@@ -721,4 +721,50 @@ DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
 
 
+#
+# Bug#19857 - When a user with CREATE ROUTINE priv creates a routine,
+#             it results in NULL p/w
+#
+
+# Can't test with embedded server that doesn't support grants
+
+GRANT USAGE ON *.* TO user19857@localhost IDENTIFIED BY 'meow';
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ROUTINE, ALTER ROUTINE ON test.* TO
+user19857@localhost;
+SELECT Host,User,Password FROM mysql.user WHERE User='user19857';
+
+--connect (mysqltest_2_con,localhost,user19857,meow,test)
+--echo
+--echo ---> connection: mysqltest_2_con
+--connection mysqltest_2_con
+
+use test;
+
+DELIMITER //;
+  CREATE PROCEDURE sp19857() DETERMINISTIC
+  BEGIN
+    DECLARE a INT;
+    SET a=1;
+    SELECT a;
+  END //
+DELIMITER ;//
+
+SHOW CREATE PROCEDURE test.sp19857;
+
+--disconnect mysqltest_2_con
+--connect (mysqltest_2_con,localhost,user19857,meow,test)
+--connection mysqltest_2_con
+
+DROP PROCEDURE IF EXISTS test.sp19857;
+
+--echo
+--echo ---> connection: root
+--connection con1root
+
+--disconnect mysqltest_2_con
+
+SELECT Host,User,Password FROM mysql.user WHERE User='user19857';
+
+DROP USER user19857@localhost;
+
 # End of 5.0 bugs.

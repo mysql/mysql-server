@@ -2563,11 +2563,6 @@ mysql_execute_command(THD *thd)
   statistic_increment(thd->status_var.com_stat[lex->sql_command],
                       &LOCK_status);
 
-#ifdef HAVE_ROW_BASED_REPLICATION
-  if (lex->binlog_row_based_if_mixed)
-    thd->set_current_stmt_binlog_row_based_if_mixed();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
-
   switch (lex->sql_command) {
   case SQLCOM_SHOW_EVENTS:
     if ((res= check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
@@ -3142,8 +3137,7 @@ end_with_restore_list:
                              lex->key_list,
                              select_lex->order_list.elements,
                              (ORDER *) select_lex->order_list.first,
-                             lex->duplicates, lex->ignore, &lex->alter_info,
-                             1);
+                             lex->ignore, &lex->alter_info, 1);
       break;
     }
 #endif /*DONT_ALLOW_SHOW_COMMANDS*/
@@ -3394,8 +3388,9 @@ end_with_restore_list:
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
+    /* do not show last insert ID if VIEW does not have auto_inc */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->first_successful_insert_id_in_cur_stmt= 0;
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -3455,9 +3450,9 @@ end_with_restore_list:
       /* revert changes for SP */
       select_lex->table_list.first= (byte*) first_table;
     }
-
+    /* do not show last insert ID if VIEW does not have auto_inc */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->first_successful_insert_id_in_cur_stmt= 0;
     break;
   }
   case SQLCOM_TRUNCATE:
@@ -5201,9 +5196,6 @@ end:
   */
   if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
     reset_one_shot_variables(thd);
-#ifdef HAVE_ROW_BASED_REPLICATION
-  thd->reset_current_stmt_binlog_row_based();
-#endif /*HAVE_ROW_BASED_REPLICATION*/
 
   /*
     The return value for ROW_COUNT() is "implementation dependent" if the
@@ -5835,6 +5827,7 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
  DESCRIPTION
    This needs to be called before execution of every statement
    (prepared or conventional).
+   It is not called by substatements of routines.
 
  TODO
    Make it a method of THD and align its name with the rest of
@@ -5845,9 +5838,12 @@ mysql_init_query(THD *thd, uchar *buf, uint length)
 void mysql_reset_thd_for_next_command(THD *thd)
 {
   DBUG_ENTER("mysql_reset_thd_for_next_command");
+  DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
   thd->free_list= 0;
   thd->select_number= 1;
-  thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
+  thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+  thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 
+    thd->query_start_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
@@ -5874,6 +5870,12 @@ void mysql_reset_thd_for_next_command(THD *thd)
     thd->rand_used= 0;
     thd->sent_row_count= thd->examined_row_count= 0;
   }
+  /*
+    Because we come here only for start of top-statements, binlog format is
+    constant inside a complex statement (using stored functions) etc.
+  */
+  thd->reset_current_stmt_binlog_row_based();
+
   DBUG_VOID_RETURN;
 }
 
@@ -7311,7 +7313,7 @@ bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, &alter_info, 1));
+                                0, &alter_info, 1));
 }
 
 
@@ -7329,7 +7331,7 @@ bool mysql_drop_index(THD *thd, TABLE_LIST *table_list, ALTER_INFO *alter_info)
   DBUG_RETURN(mysql_alter_table(thd,table_list->db,table_list->table_name,
 				&create_info, table_list,
 				fields, keys, 0, (ORDER*)0,
-				DUP_ERROR, 0, alter_info, 1));
+                                0, alter_info, 1));
 }
 
 

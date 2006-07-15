@@ -5839,3 +5839,5 @@ ER_CANT_ACTIVATE_LOG
         eng "Cannot activate '%-.64s' log."
 ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
+ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
+	eng "Triggers can not be created on system tables"
