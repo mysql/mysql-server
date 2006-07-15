@@ -485,7 +485,8 @@ BackupRestore::object(Uint32 type, const void * ptr)
       if (ret)
       {
 	NdbError errobj= dict->getNdbError();
-	info << "FAILED " << errobj << endl;
+	info << "FAILED" << endl;
+        err << "Create tablespace failed: " << old.getName() << ": " << errobj << endl;
 	return false;
       }
       info << "done" << endl;
@@ -523,7 +524,8 @@ BackupRestore::object(Uint32 type, const void * ptr)
       if (ret)
       {
 	NdbError errobj= dict->getNdbError();
-	info << "FAILED" << errobj << endl;
+	info << "FAILED" << endl;
+        err << "Create logfile group failed: " << old.getName() << ": " << errobj << endl;
 	return false;
       }
       info << "done" << endl;
@@ -564,7 +566,9 @@ BackupRestore::object(Uint32 type, const void * ptr)
       info << "Creating datafile \"" << old.getPath() << "\"..." << flush;
       if (dict->createDatafile(old))
       {
-	info << "FAILED " << dict->getNdbError() << endl;
+	NdbError errobj= dict->getNdbError();
+	info << "FAILED" << endl;
+        err << "Create datafile failed: " << old.getPath() << ": " << errobj << endl;
 	return false;
       }
       info << "done" << endl;
@@ -588,7 +592,9 @@ BackupRestore::object(Uint32 type, const void * ptr)
       info << "Creating undofile \"" << old.getPath() << "\"..." << flush;
       if (dict->createUndofile(old))
       {
-	info << "FAILED " << dict->getNdbError() << endl;
+	NdbError errobj= dict->getNdbError();
+	info << "FAILED" << endl;
+        err << "Create undofile failed: " << old.getPath() << ": " << errobj << endl;
 	return false;
       }
       info << "done" << endl;
