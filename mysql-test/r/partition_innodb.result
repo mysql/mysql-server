@@ -107,3 +107,14 @@ select * from t1 where id = 'aaa';
 id
 aaa
 drop table t1;
+create table t1 (a int, b int, primary key (b,a))
+engine = innodb
+partition by hash (a);
+insert into t1 values (0, 0);
+insert into t1 values (1, 0);
+update t1 set b = b + 1 where a = 1;
+select * from t1;
+a	b
+0	0
+1	1
+drop table t1;
