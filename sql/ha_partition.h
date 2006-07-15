@@ -56,6 +56,7 @@ private:
   char *m_name_buffer_ptr;		// Pointer to first partition name
   handlerton **m_engine_array;          // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
+  uint m_file_tot_parts;                // Debug
   handler **m_new_file;                 // Array of references to new handlers
   handler **m_reorged_file;             // Reorganised partitions
   handler **m_added_file;               // Added parts kept for errors
