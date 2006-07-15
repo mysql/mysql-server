@@ -3398,3 +3398,8 @@ drop table t1,t2;
 SELECT 0.9888889889 * 1.011111411911;
 0.9888889889 * 1.011111411911
 0.9998769417899202067879
+select 1 as ' a ';
+a 
+1
+Warnings:
+Warning	1466	Leading spaces are removed from name ' a '
