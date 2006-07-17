@@ -1266,7 +1266,6 @@ drop table t1;
 #                       doesn't remove old directory
 #
 --disable_query_log
---exec rm $MYSQLTEST_VARDIR/test/db.opt || true
 --exec mkdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
 eval SET @data_dir = 'DATA DIRECTORY = ''$MYSQLTEST_VARDIR/master-data/tmpdata''';
 let $data_directory = `select @data_dir`;
@@ -1284,11 +1283,11 @@ subpartition by hash (a)
  (SUBPARTITION subpart00, SUBPARTITION subpart01));
 
 --replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/test t1* || true
+--exec ls $MYSQLTEST_VARDIR/master-data/test/t1* || true
 --replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/tmpdata t1* || true
+--exec ls $MYSQLTEST_VARDIR/master-data/tmpdata/t1* || true
 --replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/tmpinx t1* || true
+--exec ls $MYSQLTEST_VARDIR/master-data/tmpinx/t1* || true
 --replace_result $MYSQLTEST_VARDIR "hello"
 
 eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
@@ -1298,11 +1297,11 @@ eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
  (SUBPARTITION subpart20, SUBPARTITION subpart21));
 
 --replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/test t1* || true
+--exec ls $MYSQLTEST_VARDIR/master-data/test/t1* || true
 --replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/tmpdata t1* || true
+--exec ls $MYSQLTEST_VARDIR/master-data/tmpdata/t1* || true
 --replace_result $MYSQLTEST_VARDIR "hello"
---exec ls $MYSQLTEST_VARDIR/master-data/tmpinx t1* || true
+--exec ls $MYSQLTEST_VARDIR/master-data/tmpinx/t1* || true
 
 drop table t1;
 --exec rmdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
