@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -472,16 +476,7 @@ void CertDecoder::Decode(SignerList* signers, CertType ct)
         return;
     }
 
-    if (ct == CA) {
-    if ( memcmp(issuerHash_, subjectHash_, SHA::DIGEST_SIZE) == 0 ) {
-            if (!ValidateSelfSignature() && verify_)
-            source_.SetError(SIG_CONFIRM_E);
-    }
-    else
-            if (!ValidateSignature(signers) && verify_)
-                source_.SetError(SIG_OTHER_E);
-    }
-    else if (!ValidateSignature(signers) && verify_)
+    if (ct != CA && verify_ && !ValidateSignature(signers))
             source_.SetError(SIG_OTHER_E);
 }
 
