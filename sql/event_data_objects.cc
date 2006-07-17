@@ -676,7 +676,7 @@ Event_basic::load_string_fields(Field **fields, ...)
 Event_queue_element::Event_queue_element():
   status_changed(FALSE), last_executed_changed(FALSE),
   on_completion(ON_COMPLETION_DROP), status(ENABLED),
-  expression(0), dropped(FALSE), flags(0)
+  expression(0), dropped(FALSE), execution_count(0)
 {
   DBUG_ENTER("Event_queue_element::Event_queue_element");
 
@@ -1413,6 +1413,8 @@ Event_queue_element::mark_last_executed(THD *thd)
 
   last_executed= time_now; /* was execute_at */
   last_executed_changed= TRUE;
+  
+  execution_count++;
 }
 
 

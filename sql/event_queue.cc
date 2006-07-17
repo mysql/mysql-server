@@ -98,7 +98,6 @@ event_queue_loader_thread(void *arg)
 
 end:
   deinit_event_thread(thd);
-
   DBUG_RETURN(0);                               // Against gcc warnings
 }
 
@@ -177,7 +176,7 @@ Event_queue::init_queue(Event_db_repository *db_repo, Event_scheduler *sched)
   scheduler= sched;
 
   if (init_queue_ex(&queue, EVENT_QUEUE_INITIAL_SIZE , 0 /*offset*/,
-                    0 /*smallest_on_top*/, event_queue_element_compare_q,
+                    0 /*max_on_top*/, event_queue_element_compare_q,
                     NULL, EVENT_QUEUE_EXTENT))
   {
     sql_print_error("SCHEDULER: Can't initialize the execution queue");
@@ -196,6 +195,7 @@ Event_queue::init_queue(Event_db_repository *db_repo, Event_scheduler *sched)
     goto err;
 
   pre_init_event_thread(new_thd);
+  new_thd->security_ctx->set_user((char*)"event_scheduler_loader");
 
   event_queue_param_value= (struct event_queue_param *)
                           my_malloc(sizeof(struct event_queue_param), MYF(0));
@@ -285,6 +285,7 @@ Event_queue::create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     LOCK_QUEUE_DATA();
     DBUG_PRINT("info", ("new event in the queue 0x%lx", new_element));
     queue_insert_safe(&queue, (byte *) new_element);
+    dbug_dump_queue(thd->query_start());
     UNLOCK_QUEUE_DATA();
 
     notify_observers();
@@ -356,6 +357,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                         new_element, old_element));
     queue_insert_safe(&queue, (byte *) new_element);
   }
+  dbug_dump_queue(thd->query_start());
   UNLOCK_QUEUE_DATA();
 
   if (new_element)
@@ -389,6 +391,7 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
   LOCK_QUEUE_DATA();
   element= find_n_remove_event(dbname, name);
+  dbug_dump_queue(thd->query_start());
   UNLOCK_QUEUE_DATA();
 
   if (element)
@@ -427,7 +430,7 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
                            bool (*comparator)(LEX_STRING, Event_basic *))
 {
   DBUG_ENTER("Event_queue::drop_matching_events");
-  DBUG_PRINT("enter", ("pattern=%*s state=%d", pattern.length, pattern.str));
+  DBUG_PRINT("enter", ("pattern=%s", pattern.str));
 
   uint i= 0;
   while (i < queue.elements)
@@ -808,26 +811,29 @@ Event_queue::empty_queue()
       now  Current timestamp
 */
 
-inline void
+void
 Event_queue::dbug_dump_queue(time_t now)
 {
 #ifndef DBUG_OFF
   Event_queue_element *et;
   uint i;
+  DBUG_ENTER("Event_queue::dbug_dump_queue");
   DBUG_PRINT("info", ("Dumping queue . Elements=%u", queue.elements));
   for (i = 0; i < queue.elements; i++)
   {
     et= ((Event_queue_element*)queue_element(&queue, i));
     DBUG_PRINT("info",("et=0x%lx db=%s name=%s",et, et->dbname.str, et->name.str));
-    DBUG_PRINT("info", ("exec_at=%llu starts=%llu ends=%llu "
+    DBUG_PRINT("info", ("exec_at=%llu starts=%llu ends=%llu execs_so_far=%u"
                " expr=%lld et.exec_at=%d now=%d (et.exec_at - now)=%d if=%d",
                TIME_to_ulonglong_datetime(&et->execute_at),
                TIME_to_ulonglong_datetime(&et->starts),
                TIME_to_ulonglong_datetime(&et->ends),
+               et->execution_count,
                et->expression, sec_since_epoch_TIME(&et->execute_at), now,
                (int)(sec_since_epoch_TIME(&et->execute_at) - now),
                sec_since_epoch_TIME(&et->execute_at) <= now));
   }
+  DBUG_VOID_RETURN;
 #endif
 }
 
@@ -838,7 +844,7 @@ Event_queue::dbug_dump_queue(time_t now)
   `now` is compared against `execute_at` of the top element in the queue.
 
   SYNOPSIS
-    Event_queue::dbug_dump_queue()
+    Event_queue::get_top_for_execution_if_time()
       thd      [in]  Thread
       now      [in]  Current timestamp
       job_data [out] The object to execute
@@ -873,7 +879,6 @@ Event_queue::get_top_for_execution_if_time(THD *thd, time_t now,
       abstime->tv_sec= 0;
       break;
     }
-    dbug_dump_queue(now);
 
     Event_queue_element *top= ((Event_queue_element*) queue_element(&queue, 0));
 
@@ -889,7 +894,11 @@ Event_queue::get_top_for_execution_if_time(THD *thd, time_t now,
 
     DBUG_PRINT("info", ("Ready for execution"));
     abstime->tv_sec= 0;
-    *job_data= new Event_job_data();
+    if (!(*job_data= new Event_job_data()))
+    {
+      ret= TRUE;
+      break;
+    }
     if ((res= db_repository->load_named_event(thd, top->dbname, top->name,
                                               *job_data)))
     {
@@ -902,13 +911,18 @@ Event_queue::get_top_for_execution_if_time(THD *thd, time_t now,
     top->mark_last_executed(thd);
     if (top->compute_next_execution_time())
       top->status= Event_queue_element::DISABLED;
-    DBUG_PRINT("info", ("event's status is %d", top->status));
+    DBUG_PRINT("info", ("event %s status is %d", top->name.str, top->status));
+
+    (*job_data)->execution_count= top->execution_count;
 
     top->update_timing_fields(thd);
     if (((top->execute_at.year && !top->expression) || top->execute_at_null) ||
         (top->status == Event_queue_element::DISABLED))
     {
       DBUG_PRINT("info", ("removing from the queue"));
+      sql_print_information("SCHEDULER: Last execution of %s.%s. %s",
+                            top->dbname.str, top->name.str,
+                            top->dropped? "Dropping.":"");
       if (top->dropped)
         top->drop(thd);
       delete top;
@@ -916,6 +930,8 @@ Event_queue::get_top_for_execution_if_time(THD *thd, time_t now,
     }
     else
       queue_replaced(&queue);
+
+    dbug_dump_queue(now);
   } while (0);
   UNLOCK_QUEUE_DATA();
   

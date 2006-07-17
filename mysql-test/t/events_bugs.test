@@ -78,9 +78,9 @@ begin
   drop table "hashed_num";
 end|
 delimiter ;|
---sleep 0.5
+--sleep 0.8
 --echo "Now if everything is fine the event has compiled and is locked
-select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*1*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('test_bug16407');
 
 set global event_scheduler= 2;
@@ -127,11 +127,11 @@ begin
 end|
 delimiter ;|
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
---sleep 0.5
-select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+--sleep 1
+select /*2*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('ee_16407_2');
---sleep 0.8
-select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+--sleep 1.2
+select /*3*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 set global event_scheduler= 2;
 select * from events_smode_test order by ev_name, a;
 --echo "OK, last check before we drop them"
@@ -165,13 +165,13 @@ begin
   call events_test.ee_16407_6_pendant();
 end|
 delimiter ;|
---sleep 0.5
+--sleep 1
 --echo "Should have 2 locked processes"
-select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*4*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('ee_16407_5');
---sleep 0.8
+--sleep 1.3
 --echo "Should have 0 processes locked"
-select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*5*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select * from events_smode_test order by ev_name, a;
 --echo "And here we check one more time before we drop the events"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
