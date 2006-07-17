@@ -2910,4 +2910,5 @@ SELECT 0.9888889889 * 1.011111411911;
 #
 # Bug #10977: No warning issued if a column name is truncated
 #
-select 1 as ' a ';
+prepare stmt from 'select 1 as " a "';
+execute stmt;
