@@ -2503,6 +2503,8 @@ DROP TABLE IF EXISTS `v2`;
   `b` varchar(32),
   `c` varchar(32)
 ) */;
+
+USE `test`;
 /*!50001 DROP TABLE IF EXISTS `v0`*/;
 /*!50001 DROP VIEW IF EXISTS `v0`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
@@ -2826,6 +2828,8 @@ DROP TABLE IF EXISTS `v1`;
 /*!50001 CREATE TABLE `v1` (
   `id` int(11)
 ) */;
+
+USE `mysqldump_test_db`;
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
@@ -2867,6 +2871,10 @@ USE `mysqldump_views`;
 /*!50001 CREATE TABLE `nasishnasifu` (
   `id` bigint(20) unsigned
 ) */;
+
+USE `mysqldump_tables`;
+
+USE `mysqldump_views`;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `mysqldump_views`.`nasishnasifu` AS select `mysqldump_tables`.`basetable`.`id` AS `id` from `mysqldump_tables`.`basetable` */;
@@ -2874,3 +2882,34 @@ drop view nasishnasifu;
 drop database mysqldump_views;
 drop table mysqldump_tables.basetable;
 drop database mysqldump_tables;
+create database mysqldump_dba;
+use mysqldump_dba;
+create table t1 (f1 int, f2 int);
+insert into t1 values (1,1);
+create view v1 as select f1, f2 from t1;
+create database mysqldump_dbb;
+use mysqldump_dbb;
+create table t1 (f1 int, f2 int);
+insert into t1 values (2,2);
+create view v1 as select f1, f2 from t1;
+drop view v1;
+drop table t1;
+drop database mysqldump_dbb;
+use mysqldump_dba;
+drop view v1;
+drop table t1;
+drop database mysqldump_dba;
+select * from mysqldump_dba.v1;
+f1	f2
+1	1
+select * from mysqldump_dbb.v1;
+f1	f2
+2	2
+use mysqldump_dba;
+drop view v1;
+drop table t1;
+drop database mysqldump_dba;
+use mysqldump_dbb;
+drop view v1;
+drop table t1;
+drop database mysqldump_dbb;
