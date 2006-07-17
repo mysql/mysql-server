@@ -1418,7 +1418,8 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  arena= thd->is_stmt_prepare() ? thd->activate_stmt_arena_if_needed(&backup)
+                                : NULL;
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
@@ -1453,7 +1454,7 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       been created in prepare. In this case register the change for
       rollback.
     */
-    if (arena && arena->is_conventional())
+    if (arena)
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);

@@ -5057,4 +5057,16 @@ concat('data was: /', var1, '/')
 data was: /1/
 drop table t3|
 drop procedure bug15217|
+DROP PROCEDURE IF EXISTS bug21013 |
+CREATE PROCEDURE bug21013(IN lim INT)
+BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE (i < lim) DO
+SET @b = LOCATE(_latin1'b', @a, 1);
+SET i = i + 1;
+END WHILE;
+END |
+SET @a = _latin2"aaaaaaaaaa" |
+CALL bug21013(10) |
+DROP PROCEDURE bug21013 |
 drop table t1,t2;
