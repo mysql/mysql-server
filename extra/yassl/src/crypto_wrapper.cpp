@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -904,7 +908,7 @@ void DiffieHellman::get_parms(byte* bp, byte* bg, byte* bpub) const
 
 
 // convert PEM file to DER x509 type
-x509* PemToDer(const char* fname, CertType type)
+x509* PemToDer(FILE* file, CertType type)
 {
     using namespace TaoCrypt;
 
@@ -918,10 +922,6 @@ x509* PemToDer(const char* fname, CertType type)
         strncpy(header, "-----BEGIN RSA PRIVATE KEY-----", sizeof(header));
         strncpy(footer, "-----END RSA PRIVATE KEY-----", sizeof(header));
     }
-
-    FILE* file = fopen(fname, "rb");
-    if (!file)
-        return 0;
 
     long begin = -1;
     long end   = 0;
@@ -943,18 +943,14 @@ x509* PemToDer(const char* fname, CertType type)
         else
             end = ftell(file);
 
-    if (begin == -1 || !foundEnd) {
-        fclose(file);
+    if (begin == -1 || !foundEnd)
         return 0;
-    }
 
     input_buffer tmp(end - begin);
     fseek(file, begin, SEEK_SET);
     size_t bytes = fread(tmp.get_buffer(), end - begin, 1, file);
-    if (bytes != 1) {
-        fclose(file);
+    if (bytes != 1)
         return 0;
-    }
     
     Source der(tmp.get_buffer(), end - begin);
     Base64Decoder b64Dec(der);
@@ -963,7 +959,6 @@ x509* PemToDer(const char* fname, CertType type)
     mySTL::auto_ptr<x509> x(NEW_YS x509(sz), ysDelete);
     memcpy(x->use_buffer(), der.get_buffer(), sz);
 
-    fclose(file);
     return x.release();
 }
 
