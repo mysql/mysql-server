@@ -28,9 +28,10 @@
 #define SCHED_FUNC "<unknown>"
 #endif
 
-#define LOCK_DATA()             lock_data(SCHED_FUNC, __LINE__)
-#define UNLOCK_DATA()           unlock_data(SCHED_FUNC, __LINE__)
-#define COND_STATE_WAIT(timer)  cond_wait(timer, SCHED_FUNC, __LINE__)
+#define LOCK_DATA()       lock_data(SCHED_FUNC, __LINE__)
+#define UNLOCK_DATA()     unlock_data(SCHED_FUNC, __LINE__)
+#define COND_STATE_WAIT(mythd, abstime, msg) \
+        cond_wait(mythd, abstime, msg, SCHED_FUNC, __LINE__)
 
 extern pthread_attr_t connection_attrib;
 
@@ -140,7 +141,7 @@ deinit_event_thread(THD *thd)
   thd->proc_info= "Clearing";
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net);
-  DBUG_PRINT("exit", ("Scheduler thread finishing"));
+  DBUG_PRINT("exit", ("Event thread finishing"));
   pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   thread_running--;
@@ -262,9 +263,11 @@ event_worker_thread(void *arg)
     DBUG_PRINT("info", ("Baikonur, time is %d, BURAN reporting and operational."
                "THD=0x%lx", time(NULL), thd));
 
-    sql_print_information("SCHEDULER: [%s.%s of %s] executing in thread %lu",
+    sql_print_information("SCHEDULER: [%s.%s of %s] executing in thread %lu. "
+                          "Execution %u",
                           event->dbname.str, event->name.str,
-                          event->definer.str, thd->thread_id);
+                          event->definer.str, thd->thread_id,
+                          event->execution_count);
 
     thd->enable_slow_log= TRUE;
 
@@ -272,9 +275,8 @@ event_worker_thread(void *arg)
 
     evex_print_warnings(thd, event);
 
-    sql_print_information("SCHEDULER: [%s.%s of %s] executed "
-                          " in thread thread %lu. RetCode=%d",
-                          event->dbname.str, event->name.str,
+    sql_print_information("SCHEDULER: [%s.%s of %s] executed in thread %lu. "
+                          "RetCode=%d", event->dbname.str, event->name.str,
                           event->definer.str, thd->thread_id, ret);
     if (ret == EVEX_COMPILE_ERROR)
       sql_print_information("SCHEDULER: COMPILE ERROR for event %s.%s of %s",
@@ -456,7 +458,7 @@ Event_scheduler::run(THD *thd)
     thd->end_time();
     /* Gets a minimized version */
     if (queue->get_top_for_execution_if_time(thd, thd->query_start(),
-                                                   &job_data, &abstime))
+                                             &job_data, &abstime))
     {
       sql_print_information("SCHEDULER: Serious error during getting next"
                             " event to execute. Stopping.");
@@ -469,31 +471,22 @@ Event_scheduler::run(THD *thd)
     if (!job_data && !abstime.tv_sec)
     {
       DBUG_PRINT("info", ("The queue is empty. Going to sleep"));
-      thd->enter_cond(&COND_state, &LOCK_scheduler_state,
-                      "Waiting on empty queue");
-      COND_STATE_WAIT(NULL);
-      thd->exit_cond("");
+      COND_STATE_WAIT(thd, NULL, "Waiting on empty queue");
       DBUG_PRINT("info", ("Woke up. Got COND_state"));
-      LOCK_DATA();
     }
     else if (abstime.tv_sec)
     {
-      DBUG_PRINT("info", ("Have to sleep some time %u till",
+      DBUG_PRINT("info", ("Have to sleep some time %u s. till %u",
                  abstime.tv_sec - thd->query_start(), abstime.tv_sec));
 
-      thd->enter_cond(&COND_state, &LOCK_scheduler_state,
-                      "Waiting for next activation");
-      COND_STATE_WAIT(&abstime);
+      COND_STATE_WAIT(thd, &abstime, "Waiting for next activation");
       /*
         If we get signal we should recalculate the whether it's the right time
         because there could be :
         1. Spurious wake-up
         2. The top of the queue was changed (new one becase of create/update)
       */
-      /* This will do implicit UNLOCK_DATA() */
-      thd->exit_cond("");
       DBUG_PRINT("info", ("Woke up. Got COND_stat or time for execution."));
-      LOCK_DATA();
     }
     else
     {
@@ -610,7 +603,7 @@ Event_scheduler::stop()
                         "workers count=%d", scheduler_states_names[state].str,
                         workers_count()));
     /* thd could be 0x0, when shutting down */
-    COND_STATE_WAIT(NULL);
+    COND_STATE_WAIT(thd, NULL, "Waiting scheduler to stop");
   } while (state == STOPPING);
   DBUG_PRINT("info", ("Manager thread has cleaned up. Set state to INIT"));
 
@@ -720,29 +713,43 @@ Event_scheduler::unlock_data(const char *func, uint line)
 
   SYNOPSIS
     Event_scheduler::cond_wait()
-      cond   Conditional to wait for
-      mutex  Mutex of the conditional
-
-  RETURN VALUE
-    Error code of pthread_cond_wait()
+      thd     Thread (Could be NULL during shutdown procedure)
+      abstime If not null then call pthread_cond_timedwait()
+      func    Which function is requesting cond_wait
+      line    On which line cond_wait is requested
 */
 
 void
-Event_scheduler::cond_wait(struct timespec *abstime, const char *func,
-                           uint line)
+Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
+                           const char *func, uint line)
 {
+  DBUG_ENTER("Event_scheduler::cond_wait");
   waiting_on_cond= TRUE;
   mutex_last_unlocked_at_line= line;
   mutex_scheduler_data_locked= FALSE;
   mutex_last_unlocked_in_func= func;
+  if (thd)
+    thd->enter_cond(&COND_state, &LOCK_scheduler_state, msg);
+
+  DBUG_PRINT("info", ("pthread_cond_%swait", abstime? "timed":""));
   if (!abstime)
     pthread_cond_wait(&COND_state, &LOCK_scheduler_state);
   else
     pthread_cond_timedwait(&COND_state, &LOCK_scheduler_state, abstime);
+  if (thd)
+  {
+    /*
+      This will free the lock so we need to relock. Not the best thing to
+      do but we need to obey cond_wait()
+    */
+    thd->exit_cond("");
+    LOCK_DATA();
+  }
   mutex_last_locked_in_func= func;
   mutex_last_locked_at_line= line;
   mutex_scheduler_data_locked= TRUE;
   waiting_on_cond= FALSE;
+  DBUG_VOID_RETURN;
 }
 
 

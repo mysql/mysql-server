@@ -622,7 +622,7 @@ Events::init_mutexes()
   event_queue= new Event_queue;
   event_queue->init_mutexes();
 
-  scheduler= new Event_scheduler();
+  scheduler= new Event_scheduler;
   scheduler->init_mutexes();
 }
 
@@ -642,6 +642,7 @@ Events::destroy_mutexes()
 
   delete scheduler;
   delete db_repository;
+  delete event_queue;
 
   pthread_mutex_destroy(&LOCK_event_metadata);
 }
