@@ -3283,6 +3283,7 @@ id	name	date_last	date_next_to_last
 2	Joe	2006-04-20	2006-04-06
 3	Frank	2006-04-13	NULL
 DROP TABLE t1,t2;
+CREATE TABLE t1 (
 i1 int(11) NOT NULL default '0',
 i2 int(11) NOT NULL default '0',
 t datetime NOT NULL default '0000-00-00 00:00:00',
