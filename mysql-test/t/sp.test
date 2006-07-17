@@ -5962,6 +5962,33 @@ call bug15217()|
 drop table t3|
 drop procedure bug15217|
 
+
+#
+# BUG#21013: Performance Degrades when importing data that uses
+# Trigger and Stored Procedure
+#
+# This is a performance and memory leak test.  Run with large number
+# passed to bug21013() procedure.
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug21013 |
+--enable_warnings
+
+CREATE PROCEDURE bug21013(IN lim INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE (i < lim) DO
+    SET @b = LOCATE(_latin1'b', @a, 1);
+    SET i = i + 1;
+  END WHILE;
+END |
+
+SET @a = _latin2"aaaaaaaaaa" |
+CALL bug21013(10) |
+
+DROP PROCEDURE bug21013 |
+
+
 #
 # BUG#NNNN: New bug synopsis
 #
