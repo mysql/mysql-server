@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,6 +39,10 @@
 #include <stdio.h>   /* ERR_print fp */
 #include "opensslv.h" /* for version number */
 #include "rsa.h"
+
+
+#define YASSL_VERSION "1.3.7"
+
 
 #if defined(__cplusplus)
 extern "C" {
@@ -414,6 +422,7 @@ int         RAND_load_file(const char*, long);
 
 /* for libcurl */
 int  RAND_status(void);
+int  RAND_bytes(unsigned char* buf, int num);
 
 int  DES_set_key(const_DES_cblock*, DES_key_schedule*);
 void DES_set_odd_parity(DES_cblock*);
@@ -421,6 +430,7 @@ void DES_ecb_encrypt(DES_cblock*, DES_cblock*, DES_key_schedule*, int);
 
 void SSL_CTX_set_default_passwd_cb_userdata(SSL_CTX*, void* userdata);
 void SSL_SESSION_free(SSL_SESSION* session);
+int  SSL_peek(SSL* ssl, void* buf, int num);
 
 X509*     SSL_get_certificate(SSL* ssl);
 EVP_PKEY* SSL_get_privatekey(SSL* ssl);
@@ -512,6 +522,8 @@ typedef struct MD5_CTX {
 void MD5_Init(MD5_CTX*);
 void MD5_Update(MD5_CTX*, const void*, unsigned long);
 void MD5_Final(unsigned char*, MD5_CTX*);
+
+#define MD5_DIGEST_LENGTH 16
 
 
 #define SSL_DEFAULT_CIPHER_LIST ""   /* default all */
