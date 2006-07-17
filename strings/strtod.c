@@ -26,7 +26,7 @@
 
  */
 
-#include <my_global.h>				/* Includes errno.h */
+#include <my_base.h>				/* Includes errno.h */
 #include <m_ctype.h>
 
 #define MAX_DBL_EXP	308
