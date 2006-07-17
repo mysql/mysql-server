@@ -2163,6 +2163,46 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 # 
+# Bug#20519: subselect with LIMIT M, N
+#
+
+CREATE TABLE t1 (
+  id bigint(20) unsigned NOT NULL auto_increment,
+  name varchar(255) NOT NULL,
+  PRIMARY KEY  (id)
+);
+INSERT INTO t1 VALUES
+  (1, 'Balazs'), (2, 'Joe'), (3, 'Frank');
+
+CREATE TABLE t2 (
+  id bigint(20) unsigned NOT NULL auto_increment,
+  mid bigint(20) unsigned NOT NULL,
+  date date NOT NULL,
+  PRIMARY KEY  (id)
+);
+INSERT INTO t2 VALUES 
+  (1, 1, '2006-03-30'), (2, 2, '2006-04-06'), (3, 3, '2006-04-13'),
+  (4, 2, '2006-04-20'), (5, 1, '2006-05-01');
+
+SELECT *,
+      (SELECT date FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 0, 1) AS date_last,
+      (SELECT date FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 3, 1) AS date_next_to_last
+  FROM t1;
+SELECT *,
+      (SELECT COUNT(*) FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 1, 1) AS date_count
+  FROM t1;
+SELECT *,
+      (SELECT date FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 0, 1) AS date_last,
+      (SELECT date FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 1, 1) AS date_next_to_last
+  FROM t1;
+DROP TABLE t1,t2;
+
+#
 # Bug#20869: subselect with range access by DESC
 #
 
