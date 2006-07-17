@@ -50,10 +50,10 @@ select get_lock('test_bug16407', 60);
 drop table "hashed_num";
 end|
 "Now if everything is fine the event has compiled and is locked
-select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
-root	localhost	events_test	Connect	User lock	select get_lock('test_bug16407', 60)
+select /*1*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
+root	localhost	events_test	select get_lock('test_bug16407', 60)
 select release_lock('test_bug16407');
 release_lock('test_bug16407')
 1
@@ -106,18 +106,18 @@ event_schema	event_name	sql_mode
 events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 events_test	ee_16407_4	
-select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60) /*ee_16407_2*/
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60) /*ee_16407_3*/
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60) /*ee_16407_4*/
+select /*2*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
+root	localhost	events_test	select get_lock('ee_16407_2', 60) /*ee_16407_2*/
+root	localhost	events_test	select get_lock('ee_16407_2', 60) /*ee_16407_3*/
+root	localhost	events_test	select get_lock('ee_16407_2', 60) /*ee_16407_4*/
 select release_lock('ee_16407_2');
 release_lock('ee_16407_2')
 1
-select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
+select /*3*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
 set global event_scheduler= 2;
 select * from events_smode_test order by ev_name, a;
 ev_name	a
@@ -156,18 +156,18 @@ select release_lock('ee_16407_5');
 call events_test.ee_16407_6_pendant();
 end|
 "Should have 2 locked processes"
-select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_5', 60) /*ee_16407_5*/
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_5', 60) /*ee_16407_6*/
+select /*4*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
+root	localhost	events_test	select get_lock('ee_16407_5', 60) /*ee_16407_5*/
+root	localhost	events_test	select get_lock('ee_16407_5', 60) /*ee_16407_6*/
 select release_lock('ee_16407_5');
 release_lock('ee_16407_5')
 1
 "Should have 0 processes locked"
-select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
+select /*5*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
 select * from events_smode_test order by ev_name, a;
 ev_name	a
 ee_16407_6	2004-02-29

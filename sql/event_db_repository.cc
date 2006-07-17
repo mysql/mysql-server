@@ -523,7 +523,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 {
   int ret= 0;
   CHARSET_INFO *scs= system_charset_info;
-  TABLE *table;
+  TABLE *table= NULL;
   char old_db_buf[NAME_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged= FALSE;
@@ -621,8 +621,29 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 ok:
   if (dbchanged)
     (void) mysql_change_db(thd, old_db.str, 1);
-  if (table)
-    close_thread_tables(thd);
+  /*
+    When valgrinded, the following call may lead to the following error:
+    
+    Syscall param pwrite64(buf) points to uninitialised byte(s)
+      at 0x406003B: do_pwrite64 (in /lib/tls/libpthread.so.0)
+      by 0x40600EF: pwrite64 (in /lib/tls/libpthread.so.0)
+      by 0x856FF74: my_pwrite (my_pread.c:146)
+      by 0x85734E1: flush_cached_blocks (mf_keycache.c:2280)
+    ....
+    Address 0x6618110 is 56 bytes inside a block of size 927,772 alloc'd
+     at 0x401C451: malloc (vg_replace_malloc.c:149)
+      by 0x8578CDC: _mymalloc (safemalloc.c:138)
+      by 0x858E5E2: my_large_malloc (my_largepage.c:65)
+      by 0x8570634: init_key_cache (mf_keycache.c:343)
+      by 0x82EDA51: ha_init_key_cache(char const*, st_key_cache*) (handler.cc:2509)
+      by 0x8212071: process_key_caches(int (*)(char const*, st_key_cache*))
+                                                                  (set_var.cc:3824)
+      by 0x8206D75: init_server_components() (mysqld.cc:3304)
+      by 0x8207163: main (mysqld.cc:3578)
+
+    I think it is safe not to think about it.
+  */
+  close_thread_tables(thd);
   DBUG_RETURN(0);
 
 err:
@@ -900,7 +921,7 @@ Event_db_repository::drop_events_by_field(THD *thd,
                                           LEX_STRING field_value)
 {
   int ret= 0;
-  TABLE *table;
+  TABLE *table= NULL;
   Open_tables_state backup;
   READ_RECORD read_record_info;
   DBUG_ENTER("Event_db_repository::drop_events_by_field");  

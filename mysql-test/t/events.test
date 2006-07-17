@@ -18,7 +18,7 @@ CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
 connection default;
 SHOW DATABASES LIKE 'db_x';
 SET GLOBAL event_scheduler=1;
---sleep 0.8
+--sleep 1.2
 SHOW DATABASES LIKE 'db_x';
 SHOW TABLES FROM db_x;
 SET GLOBAL event_scheduler=2;
@@ -101,7 +101,7 @@ drop table test_nested;
 --echo "Let's check whether we can use non-qualified names"
 create table non_qualif(a int);
 create event non_qualif_ev on schedule every 10 minute do insert into non_qualif values (800219);
---sleep 0.5
+--sleep 1.1
 select * from non_qualif;
 drop event non_qualif_ev;
 drop table non_qualif;
@@ -224,34 +224,34 @@ SHOW EVENTS;
 CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
 #sleep a bit or we won't catch the change of time
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 --error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
 #wait a bit or we won't see the difference because of seconds resolution
---sleep 1
+--sleep 1.1
 SHOW CREATE TABLE mysql.event;
 --error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
---sleep 1
+--sleep 1.1
 --echo "This should work"
 --replace_column 8 # 9 #
 SHOW EVENTS;
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 --error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
---sleep 1
+--sleep 1.1
 --error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event DROP comment, DROP starts;
---sleep 1
+--sleep 1.1
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 DROP TABLE mysql.event;
@@ -308,7 +308,7 @@ select get_lock("test_lock2", 20);
 --echo "Create an event which tries to acquire a mutex. The event locks on the mutex"
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
 --echo "Let some time pass to the event starts"
---sleep 0.5
+--sleep 1
 --echo "Should have only 2 processes: the scheduler and the locked event"
 select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;--echo "Release the mutex, the event worker should finish."
 --echo "Release the mutex, the event worker should finish."
@@ -326,11 +326,11 @@ drop event закачка;
 set global event_scheduler=1;
 select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
---sleep 0.5
+--sleep 1
 --echo "Should have only 3 processes: the scheduler, our conn and the locked event"
 select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 set global event_scheduler=2;
---sleep 0.3
+--sleep 0.8
 --echo "Should have only our process now:"
 select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 drop event закачка21;

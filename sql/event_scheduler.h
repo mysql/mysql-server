@@ -95,7 +95,8 @@ private:
   unlock_data(const char *func, uint line);
 
   void
-  cond_wait(struct timespec *abstime, const char *func, uint line);
+  cond_wait(THD *thd, struct timespec *abstime, const char* msg,
+            const char *func, uint line);
 
   pthread_mutex_t LOCK_scheduler_state;
 

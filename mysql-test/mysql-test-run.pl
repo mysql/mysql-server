@@ -3461,6 +3461,11 @@ sub run_mysqltest ($) {
     mtr_add_arg($args, "--big-test");
   }
 
+  if ( $opt_valgrind )
+  {
+    mtr_add_arg($args, "--valgrind");
+  }
+
   if ( $opt_compress )
   {
     mtr_add_arg($args, "--compress");

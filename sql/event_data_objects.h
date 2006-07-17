@@ -74,9 +74,9 @@ public:
   enum enum_status status;
   TIME last_executed;
 
+  TIME execute_at;
   TIME starts;
   TIME ends;
-  TIME execute_at;
   my_bool starts_null;
   my_bool ends_null;
   my_bool execute_at_null;
@@ -84,9 +84,9 @@ public:
   longlong expression;
   interval_type interval;
 
-  uint flags;//all kind of purposes
-
   bool dropped;
+
+  uint execution_count;
 
   Event_queue_element();
   virtual ~Event_queue_element();
@@ -169,6 +169,8 @@ public:
   LEX_STRING definer_host;
 
   ulong sql_mode;
+
+  uint execution_count;
 
   Event_job_data();
   virtual ~Event_job_data();

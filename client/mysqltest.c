@@ -157,6 +157,7 @@ static my_bool ps_protocol= 0, ps_protocol_enabled= 0;
 static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
+static my_bool opt_valgrind_test= 0;
 static int parsing_disabled= 0;
 const char *manager_user="root",*manager_host=0;
 char *manager_pass=0;
@@ -3343,6 +3344,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login.", (gptr*) &user, (gptr*) &user, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"valgrind", 'N', "Define VALGRIND_TEST to 1.", (gptr*) &opt_valgrind_test,
+   (gptr*) &opt_valgrind_test, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Write more.", (gptr*) &verbose, (gptr*) &verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.",
@@ -5108,6 +5111,9 @@ static void init_var_hash(MYSQL *mysql)
     die("Variable hash initialization failed");
   my_hash_insert(&var_hash, (byte*) var_init(0,"BIG_TEST", 0,
                                              (opt_big_test) ? "1" : "0", 0));
+  my_hash_insert(&var_hash, (byte*) var_init(0,"VALGRIND_TEST", 0,
+                                             (opt_valgrind_test) ? "1" : "0",
+                                             0));
   v= var_init(0,"MAX_TABLES", 0, (sizeof(ulong) == 4) ? "31" : "62",0);
   my_hash_insert(&var_hash, (byte*) v);
   v= var_init(0,"SERVER_VERSION", 0, mysql_get_server_info(mysql), 0);
