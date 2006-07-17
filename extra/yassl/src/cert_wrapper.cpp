@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -182,7 +186,8 @@ int CertManager::CopyCaCert(const x509* x)
         signers_.push_back(NEW_YS TaoCrypt::Signer(key.GetKey(), key.size(),
                                         cert.GetCommonName(), cert.GetHash()));
     }
-    return cert.GetError().What();
+    // just don't add, not an error return cert.GetError().What();
+    return 0;
 }
 
 

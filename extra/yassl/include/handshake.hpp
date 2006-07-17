@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -55,7 +59,7 @@ void sendCertificateVerify(SSL&, BufferOutput = buffered);
 int  sendData(SSL&, const void*, int);
 int  sendAlert(SSL& ssl, const Alert& alert);
 
-int  receiveData(SSL&, Data&); 
+int  receiveData(SSL&, Data&, bool peek = false); 
 void processReply(SSL&);
 
 void buildFinished(SSL&, Finished&, const opaque*);

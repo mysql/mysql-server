@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -113,13 +117,22 @@ uint Socket::get_ready() const
 
 uint Socket::send(const byte* buf, unsigned int sz, int flags) const
 {
+    const byte* pos = buf;
+    const byte* end = pos + sz;
+
     assert(socket_ != INVALID_SOCKET);
-    int sent = ::send(socket_, reinterpret_cast<const char *>(buf), sz, flags);
+
+    while (pos != end) {
+        int sent = ::send(socket_, reinterpret_cast<const char *>(pos),
+                          static_cast<int>(end - pos), flags);
 
     if (sent == -1)
         return 0;
 
-    return sent;
+        pos += sent;
+    }
+
+    return sz;
 }
 
 

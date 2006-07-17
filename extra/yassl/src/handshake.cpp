@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -880,7 +884,7 @@ int sendData(SSL& ssl, const void* buffer, int sz)
         ssl.SetError(no_error);
 
     ssl.verfiyHandShakeComplete();
-    if (ssl.GetError()) return 0;
+    if (ssl.GetError()) return -1;
     int sent = 0;
 
     for (;;) {
@@ -891,7 +895,7 @@ int sendData(SSL& ssl, const void* buffer, int sz)
         buildMessage(ssl, out, data);
         ssl.Send(out.get_buffer(), out.get_size());
 
-        if (ssl.GetError()) return 0;
+        if (ssl.GetError()) return -1;
         sent += len;
         if (sent == sz) break;
     }
@@ -912,20 +916,24 @@ int sendAlert(SSL& ssl, const Alert& alert)
 
 
 // process input data
-int receiveData(SSL& ssl, Data& data)
+int receiveData(SSL& ssl, Data& data, bool peek)
 {
     if (ssl.GetError() == YasslError(SSL_ERROR_WANT_READ))
         ssl.SetError(no_error);
 
     ssl.verfiyHandShakeComplete();
-    if (ssl.GetError()) return 0;
+    if (ssl.GetError()) return -1;
 
     if (!ssl.bufferedData())
         processReply(ssl);
-    ssl.fillData(data);
-    ssl.useLog().ShowData(data.get_length());
 
-    if (ssl.GetError()) return 0;
+    if (peek)
+        ssl.PeekData(data);
+    else
+    ssl.fillData(data);
+
+    ssl.useLog().ShowData(data.get_length());
+    if (ssl.GetError()) return -1;
 
     if (data.get_length() == 0 && ssl.getSocket().WouldBlock()) {
         ssl.SetError(YasslError(SSL_ERROR_WANT_READ));
