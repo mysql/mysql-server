@@ -2906,3 +2906,9 @@ drop table t1,t2;
 # Bug #20569: Garbage in DECIMAL results from some mathematical functions
 #
 SELECT 0.9888889889 * 1.011111411911;
+
+#
+# Bug #10977: No warning issued if a column name is truncated
+#
+prepare stmt from 'select 1 as " a "';
+execute stmt;
