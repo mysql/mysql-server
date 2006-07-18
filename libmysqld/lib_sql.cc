@@ -387,20 +387,6 @@ static MYSQL_RES * emb_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
-my_bool emb_next_result(MYSQL *mysql)
-{
-  THD *thd= (THD*)mysql->thd;
-  DBUG_ENTER("emb_next_result");
-
-  if (emb_advanced_command(mysql, COM_QUERY,0,0,
-			   thd->query_rest.ptr(),thd->query_rest.length(),
-                           1, NULL) ||
-      emb_mysql_read_query_result(mysql))
-    DBUG_RETURN(1);
-
-  DBUG_RETURN(0);				/* No more results */
-}
-
 int emb_read_change_user_result(MYSQL *mysql, 
 				char *buff __attribute__((unused)),
 				const char *passwd __attribute__((unused)))

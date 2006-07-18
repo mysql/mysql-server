@@ -2699,7 +2699,8 @@ stmt_read_row_from_cursor(MYSQL_STMT *stmt, unsigned char **row)
     int4store(buff, stmt->stmt_id);
     int4store(buff + 4, stmt->prefetch_rows); /* number of rows to fetch */
     if ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH,
-                                            buff, sizeof(buff), NullS, 0, 1))
+                                            buff, sizeof(buff), NullS, 0,
+                                            1, NULL))
     {
       set_stmt_errmsg(stmt, net->last_error, net->last_errno, net->sqlstate);
       return 1;
@@ -4948,7 +4949,7 @@ static my_bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags)
         char buff[MYSQL_STMT_HEADER]; /* packet header: 4 bytes for stmt id */
         int4store(buff, stmt->stmt_id);
         if ((*mysql->methods->advanced_command)(mysql, COM_STMT_RESET, buff,
-                                                sizeof(buff), 0, 0, 0))
+                                                sizeof(buff), 0, 0, 0, NULL))
         {
           set_stmt_errmsg(stmt, mysql->net.last_error, mysql->net.last_errno,
                           mysql->net.sqlstate);
