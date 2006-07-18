@@ -479,10 +479,11 @@ bool make_date_time(DATE_TIME_FORMAT *format, TIME *l_time,
   const char *ptr, *end;
   MY_LOCALE *locale;
   THD *thd= current_thd;
-  char buf[128]; 
-  String tmp(buf, thd->variables.character_set_results);
+  char buf[128];
+  String tmp(buf, sizeof(buf), thd->variables.character_set_results);
   uint errors= 0;
 
+  tmp.length(0);
   str->length(0);
   str->set_charset(&my_charset_bin);
   locale = thd->variables.lc_time_names;
