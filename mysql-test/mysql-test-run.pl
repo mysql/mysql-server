@@ -3518,7 +3518,6 @@ sub im_stop($) {
   }
 
   # Kill leftovers (the order is important).
-
   unless ($clean_shutdown)
   {
 
@@ -3535,7 +3534,7 @@ sub im_stop($) {
     # will not stop them on shutdown. So, we should firstly try to end them
     # legally.
 
-    mtr_verbose("Killing guarded mysqld(s) " . join(@mysqld_pids));
+    mtr_verbose("Killing guarded mysqld(s) " . join(" ", @mysqld_pids));
     mtr_kill_processes(\@mysqld_pids);
 
     # Complain in error log so that a warning will be shown.
