@@ -58,6 +58,7 @@ static unsigned int iter_count= 0;
 static my_bool have_innodb= FALSE;
 
 static const char *opt_basedir= "./";
+static const char *opt_vardir= "mysql-test/var";
 
 static longlong opt_getopt_ll_test= 0;
 
@@ -13099,7 +13100,7 @@ static void test_bug9478()
       int4store(buff, stmt->stmt_id);
       buff[4]= 1;                               /* prefetch rows */
       rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH, buff,
-                                               sizeof(buff), 0,0,1) ||
+                                               sizeof(buff), 0,0,1,NULL) ||
            (*mysql->methods->read_query_result)(mysql));
       DIE_UNLESS(rc);
       if (!opt_silent && i == 0)
@@ -14883,6 +14884,7 @@ static void test_bug17667()
 
   struct buffer_and_length *statement_cursor;
   FILE *log_file;
+  char *master_log_filename;
 
   myheader("test_bug17667");
 
@@ -14894,7 +14896,13 @@ static void test_bug17667()
   }
 
   sleep(1); /* The server may need time to flush the data to the log. */
-  log_file= fopen("var/log/master.log", "r");
+
+  master_log_filename = (char *) malloc(strlen(opt_vardir) + strlen("/log/master.log") + 1);
+  strcpy(master_log_filename, opt_vardir);
+  strcat(master_log_filename, "/log/master.log");
+  log_file= fopen(master_log_filename, "r");
+  free(master_log_filename);
+
   if (log_file != NULL) {
 
     for (statement_cursor= statements; statement_cursor->buffer != NULL;
@@ -14918,7 +14926,7 @@ static void test_bug17667()
   }
   else
   {
-    fprintf(stderr, "Could not find the log file, var/log/master.log, so "
+    fprintf(stderr, "Could not find the log file, VARDIR/log/master.log, so "
             "test_bug17667 is \ninconclusive.  Run test from the "
             "mysql-test/mysql-test-run* program \nto set up the correct "
             "environment for this test.\n\n");
@@ -15062,6 +15070,8 @@ static struct my_option client_test_long_options[] =
   {"user", 'u', "User for login if not current user", (char **) &opt_user,
    (char **) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"vardir", 'v', "Data dir for tests.", (gptr*) &opt_vardir,
+   (gptr*) &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
    (char **) &opt_getopt_ll_test, (char **) &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},

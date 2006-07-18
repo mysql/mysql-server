@@ -1,5 +1,6 @@
-#!@PERL@ -w
+#!@PERL@
 use strict;
+use warnings;
 use DBI;
 
 use Getopt::Long;
@@ -58,7 +59,7 @@ else {
   }
   else {
     $Param->{Start} = time;
-    while(<STDIN>) {
+    while(<>) {
       $Param->{LineCount} ++ ;
 
       if ($Param->{ViewDate} ) {
@@ -317,6 +318,8 @@ Usage: $0 [OPTIONS] < LOGFILE
 -p=PASSWORD
 --socket=SOCKET     mysqld socket file to connect
 -s=SOCKET
+--printerror=1      enable error output
+-e 1
 
 Read logfile from STDIN an try to EXPLAIN all SELECT statements. All UPDATE statements are rewritten to an EXPLAIN SELECT statement. The results of the EXPLAIN statement are collected and counted. All results with type=ALL are collected in an separete list. Results are printed to STDOUT.
 
@@ -331,7 +334,7 @@ __END__
 
 =head1 NAME
 
-explain_log.pl
+mysql_explain_log
 
 Feed a mysqld general logfile (created with mysqld --log) back into mysql
 and collect statistics about index usage with EXPLAIN.
@@ -348,7 +351,7 @@ Then add indices to avoid table scans and remove those which aren't used.
 
 =head1 USAGE
 
-explain_log.pl [--date=YYMMDD] --host=dbhost] [--user=dbuser] [--password=dbpw] [--socket=/path/to/socket] < logfile
+mysql_explain_log [--date=YYMMDD] --host=dbhost] [--user=dbuser] [--password=dbpw] [--socket=/path/to/socket] < logfile
 
 --date=YYMMDD       select only entrys of date
 
@@ -370,20 +373,19 @@ explain_log.pl [--date=YYMMDD] --host=dbhost] [--user=dbuser] [--password=dbpw] 
 
 -s=SOCKET
 
+--printerror=1      enable error output
+
+-e 1
+
 =head1 EXAMPLE
 
-explain_log.pl --host=localhost --user=foo --password=bar < /var/lib/mysql/mobile.log
+mysql_explain_log --host=localhost --user=foo --password=bar < /var/lib/mysql/mobile.log
 
 =head1 AUTHORS
 
   Stefan Nitz
-  Jan Willamowius <jan@mobile.de>, http://www.mobile.de
+  Jan Willamowius <jan@willamowius.de>, http://www.willamowius.de
   Dennis Haney <davh@davh.dk> (Added socket support)
-
-=head1 RECRUITING
-
-If you are looking for a MySQL or Perl job, take a look at http://www.mobile.de
-and send me an email with your resume (you must be speaking German!).
 
 =head1 SEE ALSO
 

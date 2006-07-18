@@ -19,6 +19,11 @@ select hex(char(256));
 select locate('he','hello'),locate('he','hello',2),locate('lo','hello',2) ;
 select instr('hello','HE'), instr('hello',binary 'HE'), instr(binary 'hello','HE'); 
 select position(binary 'll' in 'hello'),position('a' in binary 'hello');
+#
+# Bug#11728 string function LEFT,
+# strange undocumented behaviour, strict mode
+#
+select left('hello',null), right('hello',null);
 select left('hello',2),right('hello',2),substring('hello',2,2),mid('hello',1,5) ;
 select concat('',left(right(concat('what ',concat('is ','happening')),9),4),'',substring('monty',5,1)) ;
 select substring_index('www.tcx.se','.',-2),substring_index('www.tcx.se','.',1);

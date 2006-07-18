@@ -2239,15 +2239,16 @@ static void dump_table(char *table, char *db)
       goto err;
     }
 
-    if (opt_disable_keys)
-    {
-      fprintf(md_result_file, "\n/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
-              opt_quoted_table);
-      check_io(md_result_file);
-    }
     if (opt_lock)
     {
       fprintf(md_result_file,"LOCK TABLES %s WRITE;\n", opt_quoted_table);
+      check_io(md_result_file);
+    }
+    /* Moved disable keys to after lock per bug 15977 */
+    if (opt_disable_keys)
+    {
+      fprintf(md_result_file, "/*!40000 ALTER TABLE %s DISABLE KEYS */;\n",
+	      opt_quoted_table);
       check_io(md_result_file);
     }
 
@@ -2511,15 +2512,17 @@ static void dump_table(char *table, char *db)
       error= EX_CONSCHECK;
       goto err;
     }
-    if (opt_lock)
-    {
-      fputs("UNLOCK TABLES;\n", md_result_file);
-      check_io(md_result_file);
-    }
+
+    /* Moved enable keys to before unlock per bug 15977 */
     if (opt_disable_keys)
     {
       fprintf(md_result_file,"/*!40000 ALTER TABLE %s ENABLE KEYS */;\n",
               opt_quoted_table);
+      check_io(md_result_file);
+    }
+    if (opt_lock)
+    {
+      fputs("UNLOCK TABLES;\n", md_result_file);
       check_io(md_result_file);
     }
     if (opt_autocommit)
@@ -2780,6 +2783,12 @@ static my_bool dump_all_views_in_db(char *database)
   char *table;
   uint numrows;
   char table_buff[NAME_LEN*2+3];
+
+  if (mysql_select_db(sock, database))
+  {
+    DB_error(sock, "when selecting the database");
+    return 1;
+  }
 
   if (opt_xml)
     print_xml_tag1(md_result_file, "", "database name=", database, "\n");
@@ -3436,12 +3445,13 @@ static my_bool get_view_structure(char *table, char* db)
     mysql_free_result(table_res);
 
     /* Get the result from "select ... information_schema" */
-    if (!(table_res= mysql_store_result(sock)))
+    if (!(table_res= mysql_store_result(sock)) ||
+        !(row= mysql_fetch_row(table_res)))
     {
       safe_exit(EX_MYSQLERR);
       DBUG_RETURN(1);
     }
-    row= mysql_fetch_row(table_res);
+
     lengths= mysql_fetch_lengths(table_res);
 
     /*
