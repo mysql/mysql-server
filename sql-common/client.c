@@ -647,7 +647,8 @@ void free_rows(MYSQL_DATA *cur)
 my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
-		     const char *arg, ulong arg_length, my_bool skip_check)
+		     const char *arg, ulong arg_length, my_bool skip_check,
+                     MYSQL_STMT *stmt __attribute__((unused)))
 {
   NET *net= &mysql->net;
   my_bool result= 1;
