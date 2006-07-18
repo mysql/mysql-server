@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -428,7 +432,7 @@ opaque* DH_Server::get_serverKey() const
 
 // set available suites
 Parameters::Parameters(ConnectionEnd ce, const Ciphers& ciphers, 
-                       ProtocolVersion pv) : entity_(ce)
+                       ProtocolVersion pv, bool haveDH) : entity_(ce)
 {
     pending_ = true;	// suite not set yet
 
@@ -438,11 +442,11 @@ Parameters::Parameters(ConnectionEnd ce, const Ciphers& ciphers,
         SetCipherNames();
     }
     else 
-        SetSuites(pv);  // defaults
+        SetSuites(pv, ce == server_end && !haveDH);  // defaults
 }
 
 
-void Parameters::SetSuites(ProtocolVersion pv)
+void Parameters::SetSuites(ProtocolVersion pv, bool removeDH)
 {
     int i = 0;
     // available suites, best first
@@ -450,19 +454,23 @@ void Parameters::SetSuites(ProtocolVersion pv)
     //      MAX_CIPHERS is big enough
 
     if (isTLS(pv)) {
+        if (!removeDH) {
         suites_[i++] = 0x00;
         suites_[i++] = TLS_DHE_RSA_WITH_AES_256_CBC_SHA;
         suites_[i++] = 0x00;
         suites_[i++] = TLS_DHE_DSS_WITH_AES_256_CBC_SHA;
+        }
         suites_[i++] = 0x00;
         suites_[i++] = TLS_RSA_WITH_AES_256_CBC_SHA;
 
-        suites_[i++] = 0x00;
-        suites_[i++] = TLS_RSA_WITH_AES_128_CBC_SHA;
+        if (!removeDH) {
         suites_[i++] = 0x00;
         suites_[i++] = TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
         suites_[i++] = 0x00;
         suites_[i++] = TLS_DHE_DSS_WITH_AES_128_CBC_SHA;
+        }
+        suites_[i++] = 0x00;
+        suites_[i++] = TLS_RSA_WITH_AES_128_CBC_SHA;
 
         suites_[i++] = 0x00;
         suites_[i++] = TLS_RSA_WITH_AES_256_CBC_RMD160;
@@ -471,6 +479,7 @@ void Parameters::SetSuites(ProtocolVersion pv)
         suites_[i++] = 0x00;
         suites_[i++] = TLS_RSA_WITH_3DES_EDE_CBC_RMD160;
 
+        if (!removeDH) {
         suites_[i++] = 0x00;
         suites_[i++] = TLS_DHE_RSA_WITH_AES_256_CBC_RMD160;
         suites_[i++] = 0x00;
@@ -485,6 +494,7 @@ void Parameters::SetSuites(ProtocolVersion pv)
         suites_[i++] = 0x00;
         suites_[i++] = TLS_DHE_DSS_WITH_3DES_EDE_CBC_RMD160;
     }
+    }
 
     suites_[i++] = 0x00;
     suites_[i++] = SSL_RSA_WITH_RC4_128_SHA;  
@@ -496,6 +506,7 @@ void Parameters::SetSuites(ProtocolVersion pv)
     suites_[i++] = 0x00;
     suites_[i++] = SSL_RSA_WITH_DES_CBC_SHA;
 
+    if (!removeDH) {
     suites_[i++] = 0x00;
     suites_[i++] = SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA;  
     suites_[i++] = 0x00;
@@ -505,6 +516,7 @@ void Parameters::SetSuites(ProtocolVersion pv)
     suites_[i++] = SSL_DHE_RSA_WITH_DES_CBC_SHA;  
     suites_[i++] = 0x00;
     suites_[i++] = SSL_DHE_DSS_WITH_DES_CBC_SHA;
+    }
 
     suites_size_ = i;
 
