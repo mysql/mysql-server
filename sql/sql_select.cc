@@ -3845,6 +3845,7 @@ make_join_readinfo(JOIN *join, uint options)
 {
   uint i;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
+  bool ordered_set= 0;
   DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
@@ -3854,6 +3855,22 @@ make_join_readinfo(JOIN *join, uint options)
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->next_select=sub_select;		/* normal select */
+
+    /*
+      Determine if the set is already ordered for ORDER BY, so it can 
+      disable join cache because it will change the ordering of the results.
+      Code handles sort table that is at any location (not only first after 
+      the const tables) despite the fact that it's currently prohibited.
+    */
+    if (!ordered_set && 
+        (table == join->sort_by_table &&
+         (!join->order || join->skip_sort_order ||
+          test_if_skip_sort_order(tab, join->order, join->select_limit,
+                                  1))
+        ) ||
+        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables))
+      ordered_set= 1;
+
     switch (tab->type) {
     case JT_SYSTEM:				// Only happens with left join
       table->status=STATUS_NO_RECORD;
@@ -3924,10 +3941,11 @@ make_join_readinfo(JOIN *join, uint options)
     case JT_ALL:
       /*
 	If previous table use cache
+        If the incoming data set is already sorted don't use cache.
       */
       table->status=STATUS_NO_RECORD;
       if (i != join->const_tables && !(options & SELECT_NO_JOIN_CACHE) &&
-	  tab->use_quick != 2 && !tab->on_expr)
+	  tab->use_quick != 2 && !tab->on_expr && !ordered_set)
       {
 	if ((options & SELECT_DESCRIBE) ||
 	    !join_init_cache(join->thd,join->join_tab+join->const_tables,
@@ -4754,7 +4772,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       Field *field=((Item_field*) args[0])->field;
       if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
-	  thd->insert_id())
+	  thd->insert_id() && thd->substitute_null_with_insert_id)
       {
 #ifdef HAVE_QUERY_CACHE
 	query_cache_abort(&thd->net);
@@ -4768,7 +4786,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	  cond=new_cond;
 	  cond->fix_fields(thd, 0, &cond);
 	}
-	thd->insert_id(0);		// Clear for next request
+	thd->substitute_null_with_insert_id= FALSE;   // Clear for next request
       }
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       else if (((field->type() == FIELD_TYPE_DATE) ||
@@ -6780,8 +6798,13 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	{
 	  if (!join->first_record)
 	  {
+            List_iterator_fast<Item> it(*join->fields);
+            Item *item;
 	    /* No matching rows for group function */
 	    join->clear();
+
+            while ((item= it++))
+              item->no_rows_in_result();
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
