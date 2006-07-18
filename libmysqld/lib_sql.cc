@@ -79,7 +79,8 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
 static my_bool
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
-		     const char *arg, ulong arg_length, my_bool skip_check)
+		     const char *arg, ulong arg_length, my_bool skip_check,
+                     MYSQL_STMT *stmt)
 {
   my_bool result= 1;
   THD *thd=(THD *) mysql->thd;
@@ -99,6 +100,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net->last_errno= 0;
+  mysql->current_stmt= stmt;
 
   thd->store_globals();				// Fix if more than one connect
   /* 
@@ -285,7 +287,7 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
   if (emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE,0,0,
-                           header, sizeof(header), 1) ||
+                           header, sizeof(header), 1, stmt) ||
       emb_read_query_result(stmt->mysql))
   {
     NET *net= &stmt->mysql->net;
@@ -385,6 +387,19 @@ static MYSQL_RES * emb_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
+my_bool emb_next_result(MYSQL *mysql)
+{
+  THD *thd= (THD*)mysql->thd;
+  DBUG_ENTER("emb_next_result");
+
+  if (emb_advanced_command(mysql, COM_QUERY,0,0,
+			   thd->query_rest.ptr(),thd->query_rest.length(),
+                           1, NULL) ||
+      emb_mysql_read_query_result(mysql))
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);				/* No more results */
+}
 
 int emb_read_change_user_result(MYSQL *mysql, 
 				char *buff __attribute__((unused)),
@@ -549,7 +564,7 @@ void end_embedded_server()
 }
 
 
-void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db)
+void init_embedded_mysql(MYSQL *mysql, int client_flag)
 {
   THD *thd = (THD *)mysql->thd;
   thd->mysql= mysql;
@@ -557,7 +572,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db)
   init_alloc_root(&mysql->field_alloc, 8192, 0);
 }
 
-void *create_embedded_thd(int client_flag, char *db)
+void *create_embedded_thd(int client_flag)
 {
   THD * thd= new THD;
   thd->thread_id= thread_id++;
@@ -584,8 +599,8 @@ void *create_embedded_thd(int client_flag, char *db)
   thd->init_for_queries();
   thd->client_capabilities= client_flag;
 
-  thd->db= db;
-  thd->db_length= db ? strip_sp(db) : 0;
+  thd->db= NULL;
+  thd->db_length= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   thd->security_ctx->db_access= DB_ACLS;
   thd->security_ctx->master_access= ~NO_ACCESS;
@@ -604,7 +619,7 @@ err:
 
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
-int check_embedded_connection(MYSQL *mysql)
+int check_embedded_connection(MYSQL *mysql, const char *db)
 {
   int result;
   THD *thd= (THD*)mysql->thd;
@@ -614,13 +629,13 @@ int check_embedded_connection(MYSQL *mysql)
   sctx->host_or_ip= sctx->host= (char*) my_localhost;
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   sctx->priv_user= sctx->user= my_strdup(mysql->user, MYF(0));
-  result= check_user(thd, COM_CONNECT, NULL, 0, thd->db, true);
+  result= check_user(thd, COM_CONNECT, NULL, 0, db, true);
   emb_read_query_result(mysql);
   return result;
 }
 
 #else
-int check_embedded_connection(MYSQL *mysql)
+int check_embedded_connection(MYSQL *mysql, const char *db)
 {
   THD *thd= (THD*)mysql->thd;
   Security_context *sctx= thd->security_ctx;
@@ -657,7 +672,7 @@ int check_embedded_connection(MYSQL *mysql)
     passwd_len= 0;
 
   if((result= check_user(thd, COM_CONNECT, 
-			 scramble_buff, passwd_len, thd->db, true)))
+			 scramble_buff, passwd_len, db, true)))
      goto err;
 
   return 0;
