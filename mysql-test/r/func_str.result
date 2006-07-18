@@ -33,6 +33,9 @@ instr('hello','HE')	instr('hello',binary 'HE')	instr(binary 'hello','HE')
 select position(binary 'll' in 'hello'),position('a' in binary 'hello');
 position(binary 'll' in 'hello')	position('a' in binary 'hello')
 3	0
+select left('hello',null), right('hello',null);
+left('hello',null)	right('hello',null)
+NULL	NULL
 select left('hello',2),right('hello',2),substring('hello',2,2),mid('hello',1,5) ;
 left('hello',2)	right('hello',2)	substring('hello',2,2)	mid('hello',1,5)
 he	lo	el	hello

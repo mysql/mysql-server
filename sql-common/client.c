@@ -647,7 +647,8 @@ void free_rows(MYSQL_DATA *cur)
 my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
-		     const char *arg, ulong arg_length, my_bool skip_check)
+		     const char *arg, ulong arg_length, my_bool skip_check,
+                     MYSQL_STMT *stmt __attribute__((unused)))
 {
   NET *net= &mysql->net;
   my_bool result= 1;
@@ -1673,11 +1674,18 @@ C_MODE_START
 int mysql_init_character_set(MYSQL *mysql)
 {
   NET		*net= &mysql->net;
+  const char *default_collation_name;
+  
   /* Set character set */
-  if (!mysql->options.charset_name &&
-      !(mysql->options.charset_name= 
+  if (!mysql->options.charset_name)
+  {
+    default_collation_name= MYSQL_DEFAULT_COLLATION_NAME;
+    if (!(mysql->options.charset_name= 
        my_strdup(MYSQL_DEFAULT_CHARSET_NAME,MYF(MY_WME))))
     return 1;
+  }
+  else
+    default_collation_name= NULL;
   
   {
     const char *save= charsets_dir;
@@ -1685,6 +1693,28 @@ int mysql_init_character_set(MYSQL *mysql)
       charsets_dir=mysql->options.charset_dir;
     mysql->charset=get_charset_by_csname(mysql->options.charset_name,
                                          MY_CS_PRIMARY, MYF(MY_WME));
+    if (mysql->charset && default_collation_name)
+    {
+      CHARSET_INFO *collation;
+      if ((collation= 
+           get_charset_by_name(default_collation_name, MYF(MY_WME))))
+      {
+        if (!my_charset_same(mysql->charset, collation))
+        {
+          my_printf_error(ER_UNKNOWN_ERROR, 
+                         "COLLATION %s is not valid for CHARACTER SET %s",
+                         MYF(0),
+                         default_collation_name, mysql->options.charset_name);
+          mysql->charset= NULL;
+        }
+        else
+        {
+          mysql->charset= collation;
+        }
+      }
+      else
+        mysql->charset= NULL;
+    }
     charsets_dir= save;
   }
   
