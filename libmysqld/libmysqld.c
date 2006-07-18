@@ -97,7 +97,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 		   const char *passwd, const char *db,
 		   uint port, const char *unix_socket,ulong client_flag)
 {
-  char *db_name;
   char name_buff[USERNAME_LENGTH];
 
   DBUG_ENTER("mysql_real_connect");
@@ -165,7 +164,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   port=0;
   unix_socket=0;
-  db_name = db ? my_strdup(db,MYF(MY_WME)) : NULL;
 
   /* Send client information for access check */
   client_flag|=CLIENT_CAPABILITIES;
@@ -176,14 +174,14 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     client_flag|=CLIENT_CONNECT_WITH_DB;
 
   mysql->info_buffer= my_malloc(MYSQL_ERRMSG_SIZE, MYF(0));
-  mysql->thd= create_embedded_thd(client_flag, db_name);
+  mysql->thd= create_embedded_thd(client_flag);
 
-  init_embedded_mysql(mysql, client_flag, db_name);
+  init_embedded_mysql(mysql, client_flag);
 
   if (mysql_init_character_set(mysql))
     goto error;
 
-  if (check_embedded_connection(mysql))
+  if (check_embedded_connection(mysql, db))
     goto error;
 
   mysql->server_status= SERVER_STATUS_AUTOCOMMIT;
