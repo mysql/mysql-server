@@ -164,7 +164,6 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
 
   port=0;
   unix_socket=0;
-  db_name = db ? my_strdup(db,MYF(MY_WME)) : NULL;
 
   /* Send client information for access check */
   client_flag|=CLIENT_CAPABILITIES;
@@ -175,7 +174,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     client_flag|=CLIENT_CONNECT_WITH_DB;
 
   mysql->info_buffer= my_malloc(MYSQL_ERRMSG_SIZE, MYF(0));
-  mysql->thd= create_embedded_thd(client_flag, db_name);
+  mysql->thd= create_embedded_thd(client_flag);
 
   init_embedded_mysql(mysql, client_flag);
 

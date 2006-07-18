@@ -306,6 +306,7 @@ int check_user(THD *thd, enum enum_server_command command,
       /* Send the error to the client */
       net_send_error(thd);
       DBUG_RETURN(-1);
+    }
   }
   send_ok(thd);
   DBUG_RETURN(0);
