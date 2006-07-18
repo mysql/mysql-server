@@ -2965,6 +2965,16 @@ String *Item_func_uncompress::val_str(String *str)
   if (res->is_empty())
     return res;
 
+  /* If length is less than 4 bytes, data is corrupt */
+  if (res->length() <= 4)
+  {
+    push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_ERROR,
+			ER_ZLIB_Z_DATA_ERROR,
+			ER(ER_ZLIB_Z_DATA_ERROR));
+    goto err;
+  }
+
+  /* Size of uncompressed data is stored as first 4 bytes of field */
   new_size= uint4korr(res->ptr()) & 0x3FFFFFFF;
   if (new_size > current_thd->variables.max_allowed_packet)
   {

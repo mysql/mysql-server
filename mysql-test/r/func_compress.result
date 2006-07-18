@@ -85,12 +85,12 @@ explain select * from t1 where uncompress(a) is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
 Warnings:
-Error	1256	Uncompressed data size too large; the maximum size is 104857600 (probably, length of uncompressed data was corrupted)
+Error	1259	ZLIB: Input data corrupted
 select * from t1 where uncompress(a) is null;
 a
 foo
 Warnings:
-Error	1256	Uncompressed data size too large; the maximum size is 104857600 (probably, length of uncompressed data was corrupted)
+Error	1259	ZLIB: Input data corrupted
 explain select *, uncompress(a) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
@@ -98,12 +98,12 @@ select *, uncompress(a) from t1;
 a	uncompress(a)
 foo	NULL
 Warnings:
-Error	1256	Uncompressed data size too large; the maximum size is 104857600 (probably, length of uncompressed data was corrupted)
+Error	1259	ZLIB: Input data corrupted
 select *, uncompress(a), uncompress(a) is null from t1;
 a	uncompress(a)	uncompress(a) is null
 foo	NULL	1
 Warnings:
-Error	1256	Uncompressed data size too large; the maximum size is 104857600 (probably, length of uncompressed data was corrupted)
-Error	1256	Uncompressed data size too large; the maximum size is 104857600 (probably, length of uncompressed data was corrupted)
+Error	1259	ZLIB: Input data corrupted
+Error	1259	ZLIB: Input data corrupted
 drop table t1;
 End of 5.0 tests
