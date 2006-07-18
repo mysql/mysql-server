@@ -204,7 +204,19 @@ SELECT CAST(v AS DECIMAL), CAST(tt AS DECIMAL), CAST(t AS DECIMAL),
        CAST(mt AS DECIMAL), CAST(lt AS DECIMAL) from t1;
 
 DROP TABLE t1;
-# Bug @10237 (CAST(NULL DECIMAL) crashes server)
+
+#
+# Bug #10237 (CAST(NULL DECIMAL) crashes server)
 #
 select cast(NULL as decimal(6)) as t1;
 
+
+#
+# Bug #17903: cast to char results in binary
+#
+set names latin1;
+select hex(cast('a' as char(2) binary));
+select hex(cast('a' as binary(2)));
+select hex(cast('a' as char(2) binary));
+
+--echo End of 5.0 tests
