@@ -18,9 +18,9 @@
 
 C_MODE_START
 void lib_connection_phase(NET *net, int phase);
-void init_embedded_mysql(MYSQL *mysql, int client_flag, char *db);
-void *create_embedded_thd(int client_flag, char *db);
-int check_embedded_connection(MYSQL *mysql);
+void init_embedded_mysql(MYSQL *mysql, int client_flag);
+void *create_embedded_thd(int client_flag);
+int check_embedded_connection(MYSQL *mysql, const char *db);
 void free_old_query(MYSQL *mysql);
 extern MYSQL_METHODS embedded_methods;
 
