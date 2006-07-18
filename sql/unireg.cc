@@ -77,7 +77,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 		      handler *db_file)
 {
   LEX_STRING str_db_type;
-  uint reclength,info_length,screens,key_info_length,maxlength,i;
+  uint reclength, info_length, screens, key_info_length, maxlength, tmp_len, i;
   ulong key_buff_length;
   File file;
   ulong filepos, data_offset;
@@ -170,10 +170,30 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&
 			     (create_info->min_rows == 1) && (keys == 0));
   int2store(fileinfo+28,key_info_length);
-  strmake((char*) forminfo+47,create_info->comment ? create_info->comment : "",
-	  60);
-  forminfo[46]=(uchar) strlen((char*)forminfo+47);	// Length of comment
 
+  tmp_len= system_charset_info->cset->charpos(system_charset_info,
+                                              create_info->comment.str,
+                                              create_info->comment.str +
+                                              create_info->comment.length, 60);
+  if (tmp_len < create_info->comment.length)
+  {
+    char buff[128];
+    (void) my_snprintf(buff, sizeof(buff), "Too long comment for table '%s'",
+                       table);
+    if ((thd->variables.sql_mode &
+         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+    {
+      my_message(ER_UNKNOWN_ERROR, buff, MYF(0));
+      goto err;
+    }
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), buff);
+    create_info->comment.length= tmp_len;
+  }
+
+  strmake((char*) forminfo+47, create_info->comment.str ?
+          create_info->comment.str : "", create_info->comment.length);
+  forminfo[46]=(uchar) create_info->comment.length;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
   {
@@ -182,6 +202,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   }
 #endif
   int2store(fileinfo+59,db_file->extra_rec_buf_length());
+
   if (my_pwrite(file,(byte*) fileinfo,64,0L,MYF_RW) ||
       my_pwrite(file,(byte*) keybuff,key_info_length,
 		(ulong) uint2korr(fileinfo+6),MYF_RW))
@@ -524,6 +545,27 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   create_field *field;
   while ((field=it++))
   {
+
+    uint tmp_len= system_charset_info->cset->charpos(system_charset_info,
+                                                     field->comment.str,
+                                                     field->comment.str +
+                                                     field->comment.length, 255);
+    if (tmp_len < field->comment.length)
+    {
+      char buff[128];
+      (void) my_snprintf(buff,sizeof(buff), "Too long comment for field '%s'",
+                         field->field_name);
+      if ((current_thd->variables.sql_mode &
+	   (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+      {
+        my_message(ER_UNKNOWN_ERROR, buff, MYF(0));
+	DBUG_RETURN(1);
+      }
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), buff);
+      field->comment.length= tmp_len;
+    }
+
     totlength+= field->length;
     com_length+= field->comment.length;
     if (MTYP_TYPENR(field->unireg_check) == Field::NOEMPTY ||

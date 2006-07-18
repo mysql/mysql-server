@@ -5479,8 +5479,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     goto err;
   }
   create_info->db_type=new_db_type;
-  if (!create_info->comment)
-    create_info->comment= table->s->comment;
+  if (!create_info->comment.str)
+  {
+    create_info->comment.str= table->s->comment.str;
+    create_info->comment.length= table->s->comment.length;
+  }
 
   table->file->update_create_info(create_info);
   if ((create_info->table_options &
