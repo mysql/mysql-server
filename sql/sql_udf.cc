@@ -237,7 +237,7 @@ void udf_init()
     }
   }
   if (error > 0)
-    sql_print_error(ER(ER_GET_ERRNO), my_errno);
+    sql_print_error("Got unknown error: %d", my_errno);
   end_read_record(&read_record_info);
   new_thd->version--;				// Force close to free memory
 

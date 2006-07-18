@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -36,6 +40,7 @@
 #define yaSSL_CRYPTO_WRAPPER_HPP
 
 #include "yassl_types.hpp"
+#include <stdio.h>   // FILE
 
 
 namespace yaSSL {
@@ -410,7 +415,8 @@ private:
 
 class x509;
 
-x509* PemToDer(const char*, CertType);
+
+x509* PemToDer(FILE*, CertType);
 
 
 } // naemspace
