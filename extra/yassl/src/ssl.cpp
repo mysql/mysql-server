@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -64,12 +68,15 @@ int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
         return SSL_BAD_FILE;
 
     if (type == CA) {
-        x509* ptr = PemToDer(file, Cert);
-        if (!ptr) {
+        // may have a bunch of CAs
+        x509* ptr;
+        while ( (ptr = PemToDer(input, Cert)) )
+            ctx->AddCA(ptr);
+
+        if (!feof(input)) {
             fclose(input);
             return SSL_BAD_FILE;
         }
-        ctx->AddCA(ptr);  // takes ownership
     }
     else {
         x509*& x = (type == Cert) ? ctx->certificate_ : ctx->privateKey_;
@@ -86,7 +93,7 @@ int read_file(SSL_CTX* ctx, const char* file, int format, CertType type)
             }
         }
         else {
-            x = PemToDer(file, type);
+            x = PemToDer(input, type);
             if (!x) {
                 fclose(input);
                 return SSL_BAD_FILE;
@@ -1189,6 +1196,35 @@ void MD5_Final(unsigned char* hash, MD5_CTX* md5)
 }
 
 
+int RAND_bytes(unsigned char* buf, int num)
+{
+    RandomPool ran;
+
+    if (ran.GetError()) return 0;
+
+    ran.Fill(buf, num);
+    return 1;
+}
+
+
+int SSL_peek(SSL* ssl, void* buffer, int sz)
+{
+    Data data(min(sz, MAX_RECORD_SIZE), static_cast<opaque*>(buffer));
+    return receiveData(*ssl, data, true);
+}
+
+
+int SSL_pending(SSL* ssl)
+{
+    // Just in case there's pending data that hasn't been processed yet...
+    char c;
+    SSL_peek(ssl, &c, 1);
+    
+    return ssl->bufferedData();
+}
+
+
+
     // functions for stunnel
 
     void RAND_screen()
@@ -1347,12 +1383,6 @@ void MD5_Final(unsigned char* hash, MD5_CTX* md5)
 
 
     int SSL_set_wfd(SSL*, int)
-    {
-        return SSL_SUCCESS; // TODO:
-    }
-
-
-    int SSL_pending(SSL*)
     {
         return SSL_SUCCESS; // TODO:
     }
