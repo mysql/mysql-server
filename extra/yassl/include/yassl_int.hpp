@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -429,9 +433,10 @@ private:
 
 // holds input and output buffers
 class Buffers {
+public: 
     typedef mySTL::list<input_buffer*>  inputList;
     typedef mySTL::list<output_buffer*> outputList;
-
+private:
     inputList  dataList_;                // list of users app data / handshake
     outputList handShakeList_;           // buffered handshake msgs
 public:
@@ -458,7 +463,7 @@ class Security {
     bool          resuming_;                      // trying to resume
 public:
     Security(ProtocolVersion, RandomPool&, ConnectionEnd, const Ciphers&,
-             SSL_CTX*);
+             SSL_CTX*, bool);
 
     const SSL_CTX*     GetContext()     const;
     const Connection&  get_connection() const;
@@ -521,6 +526,7 @@ public:
     void makeTLSMasterSecret();
     void addData(input_buffer* data);
     void fillData(Data&);
+    void PeekData(Data&);
     void addBuffer(output_buffer* b);
     void flushBuffer();
     void verifyState(const RecordLayerHeader&);
