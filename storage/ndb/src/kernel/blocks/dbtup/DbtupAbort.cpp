@@ -63,6 +63,11 @@ void Dbtup::freeAttrinbufrec(Uint32 anAttrBuf)
  */
 void Dbtup::execTUP_ABORTREQ(Signal* signal) 
 {
+  do_tup_abortreq(signal, 0);
+}
+
+void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
+{
   OperationrecPtr regOperPtr;
   FragrecordPtr regFragPtr;
   TablerecPtr regTabPtr;
@@ -91,7 +96,8 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
   if (get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
   {
     ljam();
-    if (!regTabPtr.p->tuxCustomTriggers.isEmpty())
+    if (!regTabPtr.p->tuxCustomTriggers.isEmpty() &&
+        (flags & 0x1) == 0)
       executeTuxAbortTriggers(signal,
 			      regOperPtr.p,
 			      regFragPtr.p,
@@ -103,7 +109,8 @@ void Dbtup::execTUP_ABORTREQ(Signal* signal)
       ljam();
       c_operation_pool.getPtr(loopOpPtr);
       if (get_tuple_state(loopOpPtr.p) != TUPLE_ALREADY_ABORTED &&
-	  !regTabPtr.p->tuxCustomTriggers.isEmpty()) {
+	  !regTabPtr.p->tuxCustomTriggers.isEmpty() &&
+          (flags & 0x1) == 0) {
         ljam();
         executeTuxAbortTriggers(signal,
                                 loopOpPtr.p,
