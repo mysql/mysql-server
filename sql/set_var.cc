@@ -424,7 +424,8 @@ static sys_var_thd_bit	sys_sql_big_tables("sql_big_tables", 0,
 static sys_var_thd_bit	sys_big_selects("sql_big_selects", 0,
 					set_option_bit,
 					OPTION_BIG_SELECTS);
-static sys_var_thd_bit	sys_log_off("sql_log_off", 0,
+static sys_var_thd_bit	sys_log_off("sql_log_off",
+				    check_log_update,
 				    set_option_bit,
 				    OPTION_LOG_OFF);
 static sys_var_thd_bit	sys_log_update("sql_log_update",
