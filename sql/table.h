@@ -134,7 +134,7 @@ typedef struct st_table_share
   uint	*blob_field;			/* Index to blobs in Field arrray*/
 
   byte	*default_values;		/* row with default values */
-  char	*comment;			/* Comment about table */
+  LEX_STRING comment;			/* Comment about table */
   CHARSET_INFO *table_charset;		/* Default charset of string fields */
 
   MY_BITMAP all_set;
