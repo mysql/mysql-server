@@ -1503,6 +1503,23 @@ void Item_func_trim::fix_length_and_dec()
   }
 }
 
+void Item_func_trim::print(String *str)
+{
+  if (arg_count == 1)
+  {
+    Item_func::print(str);
+    return;
+  }
+  str->append(Item_func_trim::func_name());
+  str->append('(');
+  str->append(mode_name());
+  str->append(' ');
+  args[1]->print(str);
+  str->append(" from ",6);
+  args[0]->print(str);
+  str->append(')');
+}
+
 
 /* Item_func_password */
 

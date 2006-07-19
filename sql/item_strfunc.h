@@ -233,6 +233,8 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "trim"; }
+  void print(String *str);
+  virtual const char *mode_name() const { return "both"; }
 };
 
 
@@ -243,6 +245,7 @@ public:
   Item_func_ltrim(Item *a) :Item_func_trim(a) {}
   String *val_str(String *);
   const char *func_name() const { return "ltrim"; }
+  const char *mode_name() const { return "leading"; }
 };
 
 
@@ -253,6 +256,7 @@ public:
   Item_func_rtrim(Item *a) :Item_func_trim(a) {}
   String *val_str(String *);
   const char *func_name() const { return "rtrim"; }
+  const char *mode_name() const { return "trailing"; }
 };
 
 
