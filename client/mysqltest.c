@@ -82,9 +82,6 @@
 #define MAX_EXPECTED_ERRORS 10
 #define QUERY_SEND  1
 #define QUERY_REAP  2
-#ifndef MYSQL_MANAGER_PORT
-#define MYSQL_MANAGER_PORT 23546
-#endif
 #define MAX_SERVER_ARGS 64
 
 
@@ -96,11 +93,10 @@
 #define RESULT_CONTENT_MISMATCH 1
 #define RESULT_LENGTH_MISMATCH 2
 
-enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
-      OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
-      OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
-      OPT_SSL_CIPHER,OPT_PS_PROTOCOL,OPT_SP_PROTOCOL,OPT_CURSOR_PROTOCOL,
-      OPT_VIEW_PROTOCOL, OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
+enum {OPT_SKIP_SAFEMALLOC=256, OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT,
+      OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
+      OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
+      OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
       OPT_MARK_PROGRESS};
 
 /* ************************************************************************ */
@@ -160,11 +156,6 @@ static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static int parsing_disabled= 0;
-const char *manager_user="root",*manager_host=0;
-char *manager_pass=0;
-int manager_port=MYSQL_MANAGER_PORT;
-int manager_wait_timeout=3;
-MYSQL_MANAGER* manager=0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
@@ -335,7 +326,7 @@ Q_RPL_PROBE,	    Q_ENABLE_RPL_PARSE,
 Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
 Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
 Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
-Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
+Q_SERVER_START, Q_SERVER_STOP,
 Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_PS_WARNINGS, Q_DISABLE_PS_WARNINGS,
@@ -411,7 +402,6 @@ const char *command_names[]=
   "disable_result_log",
   "server_start",
   "server_stop",
-  "require_manager",
   "wait_for_slave_to_stop",
   "enable_warnings",
   "disable_warnings",
@@ -610,10 +600,7 @@ static void free_used_memory()
 {
   uint i;
   DBUG_ENTER("free_used_memory");
-#ifndef EMBEDDED_LIBRARY
-  if (manager)
-    mysql_manager_close(manager);
-#endif
+
   close_cons();
   close_files();
   hash_free(&var_hash);
@@ -1029,57 +1016,6 @@ int do_wait_for_slave_to_stop(struct st_query *q __attribute__((unused)))
   }
   return 0;
 }
-
-int do_require_manager(struct st_query *query __attribute__((unused)) )
-{
-  if (!manager)
-    abort_not_supported_test("manager");
-  return 0;
-}
-
-#ifndef EMBEDDED_LIBRARY
-static int do_server_op(struct st_query *q, const char *op)
-{
-  char *p= q->first_argument;
-  char com_buf[256], *com_p;
-  if (!manager)
-  {
-    die("Manager is not initialized, manager commands are not possible");
-  }
-  com_p= strmov(com_buf,op);
-  com_p= strmov(com_p,"_exec ");
-  if (!*p)
-    die("Missing server name in server_%s", op);
-  while (*p && !my_isspace(charset_info, *p))
-   *com_p++= *p++;
-  *com_p++= ' ';
-  com_p= int10_to_str(manager_wait_timeout, com_p, 10);
-  *com_p++= '\n';
-  *com_p= 0;
-  if (mysql_manager_command(manager, com_buf, (int)(com_p-com_buf)))
-    die("Error in command: %s(%d)", manager->last_error, manager->last_errno);
-  while (!manager->eof)
-  {
-    if (mysql_manager_fetch_line(manager, com_buf, sizeof(com_buf)))
-      die("Error fetching result line: %s(%d)", manager->last_error,
-	  manager->last_errno);
-  }
-
-  q->last_argument= p;
-  return 0;
-}
-
-int do_server_start(struct st_query *q)
-{
-  return do_server_op(q, "start");
-}
-
-int do_server_stop(struct st_query *q)
-{
-  return do_server_op(q, "stop");
-}
-
-#endif
 
 
 /*
@@ -2473,19 +2409,6 @@ char* safe_get_param(char *str, char** arg, const char *msg)
   DBUG_RETURN(str);
 }
 
-#ifndef EMBEDDED_LIBRARY
-void init_manager()
-{
-  if (!(manager=mysql_manager_init(0)))
-    die("Failed in mysql_manager_init()");
-  if (!mysql_manager_connect(manager,manager_host,manager_user,
-			     manager_pass,manager_port))
-    die("Could not connect to MySQL manager: %s(%d)",manager->last_error,
-	manager->last_errno);
-
-}
-#endif
-
 
 /*
   Connect to a server doing several retries if needed.
@@ -3287,20 +3210,6 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
    (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging.",
-   (gptr*) &manager_host, (gptr*) &manager_host, 0, GET_STR, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
-  {"manager-password", OPT_MANAGER_PASSWD, "Undocumented: Used for debugging.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"manager-port", OPT_MANAGER_PORT, "Undocumented: Used for debugging.",
-   (gptr*) &manager_port, (gptr*) &manager_port, 0, GET_INT, REQUIRED_ARG,
-   MYSQL_MANAGER_PORT, 0, 0, 0, 0, 0},
-  {"manager-user", OPT_MANAGER_USER, "Undocumented: Used for debugging.",
-   (gptr*) &manager_user, (gptr*) &manager_user, 0, GET_STR, REQUIRED_ARG, 0,
-   0, 0, 0, 0, 0},
-  {"manager-wait-timeout", OPT_MANAGER_WAIT_TIMEOUT,
-   "Undocumented: Used for debugging.", (gptr*) &manager_wait_timeout,
-   (gptr*) &manager_wait_timeout, 0, GET_INT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
    "Write linenumber and elapsed time to <testname>.progress ",
    (gptr*) &opt_mark_progress, (gptr*) &opt_mark_progress, 0,
@@ -3396,11 +3305,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'r':
     record = 1;
-    break;
-  case (int)OPT_MANAGER_PASSWD:
-    my_free(manager_pass,MYF(MY_ALLOW_ZERO_PTR));
-    manager_pass=my_strdup(argument, MYF(MY_FAE));
-    while (*argument) *argument++= 'x';		/* Destroy argument */
     break;
   case 'x':
     {
@@ -5224,10 +5128,6 @@ int main(int argc, char **argv)
     cur_file->file_name= my_strdup("<stdin>", MYF(MY_WME));
     cur_file->lineno= 1;
   }
-#ifndef EMBEDDED_LIBRARY
-  if (manager_host)
-    init_manager();
-#endif
   init_re();
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;
@@ -5319,11 +5219,6 @@ int main(int argc, char **argv)
       case Q_SLEEP: do_sleep(q, 0); break;
       case Q_REAL_SLEEP: do_sleep(q, 1); break;
       case Q_WAIT_FOR_SLAVE_TO_STOP: do_wait_for_slave_to_stop(q); break;
-      case Q_REQUIRE_MANAGER: do_require_manager(q); break;
-#ifndef EMBEDDED_LIBRARY
-      case Q_SERVER_START: do_server_start(q); break;
-      case Q_SERVER_STOP: do_server_stop(q); break;
-#endif
       case Q_INC: do_modify_var(q, DO_INC); break;
       case Q_DEC: do_modify_var(q, DO_DEC); break;
       case Q_ECHO: do_echo(q); query_executed= 1; break;
