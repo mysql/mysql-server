@@ -1725,7 +1725,14 @@ static int com_server_help(String *buffer __attribute__((unused)),
   
   if (help_arg[0] != '\'')
   {
-    (void) strxnmov(cmd_buf, sizeof(cmd_buf), "help '", help_arg, "'", NullS);
+	char *end_arg= strend(help_arg);
+	if(--end_arg)
+	{
+		while (my_isspace(charset_info,*end_arg))
+          end_arg--;
+		*++end_arg= '\0';
+	}
+	(void) strxnmov(cmd_buf, sizeof(cmd_buf), "help '", help_arg, "'", NullS);
     server_cmd= cmd_buf;
   }
   
@@ -1811,9 +1818,13 @@ com_help(String *buffer __attribute__((unused)),
 {
   reg1 int i, j;
   char * help_arg= strchr(line,' '), buff[32], *end;
-
   if (help_arg)
-    return com_server_help(buffer,line,help_arg+1);
+  {
+    while (my_isspace(charset_info,*help_arg))
+      help_arg++;
+	if (*help_arg)	  
+	  return com_server_help(buffer,line,help_arg);
+  }
 
   put_info("\nFor information about MySQL products and services, visit:\n"
            "   http://www.mysql.com/\n"
