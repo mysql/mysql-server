@@ -1544,10 +1544,6 @@ inline uint field_in_record_is_null(TABLE *table,
 
 int ha_federated::write_row(byte *buf)
 {
-  bool has_fields= FALSE;
-  uint all_fields_have_same_query_id= 1;
-  ulong current_query_id= 1;
-  ulong tmp_query_id= 1;
   char insert_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char values_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char insert_field_value_buffer[STRING_BUFFER_USUAL_SIZE];
@@ -1565,22 +1561,10 @@ int ha_federated::write_row(byte *buf)
   insert_string.length(0);
   insert_field_value_string.length(0);
   DBUG_ENTER("ha_federated::write_row");
-  DBUG_PRINT("info",
-             ("table charset name %s csname %s",
-              table->s->table_charset->name,
-              table->s->table_charset->csname));
 
   statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
-
-  /*
-    get the current query id - the fields that we add to the insert
-    statement to send to the foreign will not be appended unless they match
-    this query id
-  */
-  current_query_id= table->in_use->query_id;
-  DBUG_PRINT("info", ("current query id %d", current_query_id));
 
   /*
     start both our field and field values strings
@@ -1595,64 +1579,36 @@ int ha_federated::write_row(byte *buf)
   values_string.append(FEDERATED_OPENPAREN);
 
   /*
-    Even if one field is different, all_fields_same_query_id can't remain
-    0 if it remains 0, then that means no fields were specified in the query
-    such as in the case of INSERT INTO table VALUES (val1, val2, valN)
-
-  */
-  for (field= table->field; *field; field++)
-  {
-    if (field > table->field && tmp_query_id != (*field)->query_id)
-      all_fields_have_same_query_id= 0;
-
-    tmp_query_id= (*field)->query_id;
-  }
-  /*
     loop through the field pointer array, add any fields to both the values
     list and the fields list that match the current query id
-
-    You might ask "Why an index variable (has_fields) ?" My answer is that
-    we need to count how many fields we actually need
   */
   for (field= table->field; *field; field++)
   {
-    /* if there is a query id and if it's equal to the current query id */
-    if (((*field)->query_id && (*field)->query_id == current_query_id)
-        || all_fields_have_same_query_id)
+    if ((*field)->is_null())
+      insert_field_value_string.append(FEDERATED_NULL);
+    else
     {
-      /*
-        There are some fields. This will be used later to determine
-        whether to chop off commas and parens.
-      */
-      has_fields= TRUE;
-
-      /* append the field name */
-      insert_string.append((*field)->field_name);
-
-      /* append the field value */
-      if ((*field)->is_null())
-        values_string.append(FEDERATED_NULL);
-      else
-      {
-        (*field)->val_str(&insert_field_value_string);
-        values_string.append('\'');
-        insert_field_value_string.print(&values_string);
-        values_string.append('\'');
-
-        insert_field_value_string.length(0);
-      }
-
-      /* append commas between both fields and fieldnames */
-      /*
-        unfortunately, we can't use the logic
-        if *(fields + 1) to make the following
-        appends conditional because we may not append
-        if the next field doesn't match the condition:
-        (((*field)->query_id && (*field)->query_id == current_query_id)
-      */
-      insert_string.append(FEDERATED_COMMA);
-      values_string.append(FEDERATED_COMMA);
+      (*field)->val_str(&insert_field_value_string);
+      /* quote these fields if they require it */
+      (*field)->quote_data(&insert_field_value_string);
     }
+    /* append the field name */
+    insert_string.append((*field)->field_name);
+
+    /* append the value */
+    values_string.append(insert_field_value_string);
+    insert_field_value_string.length(0);
+
+    /* append commas between both fields and fieldnames */
+    /*
+      unfortunately, we can't use the logic
+      if *(fields + 1) to make the following
+      appends conditional because we may not append
+      if the next field doesn't match the condition:
+      (((*field)->query_id && (*field)->query_id == current_query_id)
+    */
+    insert_string.append(FEDERATED_COMMA);
+    values_string.append(FEDERATED_COMMA);
   }
 
   /*
@@ -1664,7 +1620,7 @@ int ha_federated::write_row(byte *buf)
     AND, we don't want to chop off the last char '('
     insert will be "INSERT INTO t1 VALUES ();"
   */
-  if (has_fields)
+  if (table->s->fields)
   {
     /* chops off leading commas */
     values_string.length(values_string.length() - strlen(FEDERATED_COMMA));
