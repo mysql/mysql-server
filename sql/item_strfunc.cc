@@ -1515,7 +1515,7 @@ void Item_func_trim::print(String *str)
   str->append(mode_name());
   str->append(' ');
   args[1]->print(str);
-  str->append(" from ",6);
+  str->append(STRING_WITH_LEN(" from "));
   args[0]->print(str);
   str->append(')');
 }
