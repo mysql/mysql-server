@@ -742,11 +742,18 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
+  /*
+     first table in list is the one we'll INSERT into, requires INSERT_ACL.
+     all others require SELECT_ACL only. the ACL requirement below is for
+     new leaves only anyway (view-constituents), so check for SELECT rather
+     than INSERT.
+  */
+
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
                                     table_list, where, 
                                     &thd->lex->select_lex.leaf_tables,
-                                    select_insert, INSERT_ACL))
+                                    select_insert, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
   if (insert_into_view && !fields.elements)
