@@ -5057,4 +5057,19 @@ concat('data was: /', var1, '/')
 data was: /1/
 drop table t3|
 drop procedure bug15217|
+drop table if exists t3|
+drop database if exists mysqltest1|
+create table t3 (a int)|
+insert into t3 (a) values (1), (2)|
+create database mysqltest1|
+use mysqltest1|
+drop database mysqltest1|
+select database()|
+database()
+NULL
+select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
+a
+1
+use test|
+drop table t3|
 drop table t1,t2;
