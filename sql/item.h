@@ -890,13 +890,6 @@ protected:
 public:
   LEX_STRING m_name;
 
-  /*
-    Buffer, pointing to the string value of the item. We need it to
-    protect internal buffer from changes. See comment to analogous
-    member in Item_param for more details.
-  */
-  String str_value_ptr;
-
 public:
 #ifndef DBUG_OFF
   /*
@@ -1205,6 +1198,28 @@ public:
                             const char *table_name, List_iterator<Item> *it,
                             bool any_privileges);
 };
+
+
+class Item_ident_for_show :public Item
+{
+public:
+  Field *field;
+  const char *db_name;
+  const char *table_name;
+
+  Item_ident_for_show(Field *par_field, const char *db_arg,
+                      const char *table_name_arg)
+    :field(par_field), db_name(db_arg), table_name(table_name_arg)
+  {}
+
+  enum Type type() const { return FIELD_ITEM; }
+  double val_real() { return field->val_real(); }
+  longlong val_int() { return field->val_int(); }
+  String *val_str(String *str) { return field->val_str(str); }
+  my_decimal *val_decimal(my_decimal *dec) { return field->val_decimal(dec); }
+  void make_field(Send_field *tmp_field);
+};
+
 
 class Item_equal;
 class COND_EQUAL;
