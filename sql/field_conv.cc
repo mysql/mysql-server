@@ -674,9 +674,14 @@ void field_conv(Field *to,Field *from)
   {						// Be sure the value is stored
     Field_blob *blob=(Field_blob*) to;
     from->val_str(&blob->value);
-    if (!blob->value.is_alloced() &&
-	from->real_type() != MYSQL_TYPE_STRING &&
-        from->real_type() != MYSQL_TYPE_VARCHAR)
+    /*
+      Copy value if copy_blobs is set, or source is not a string and
+      we have a pointer to its internal string conversion buffer.
+    */
+    if (to->table->copy_blobs ||
+        (!blob->value.is_alloced() &&
+         from->real_type() != MYSQL_TYPE_STRING &&
+         from->real_type() != MYSQL_TYPE_VARCHAR))
       blob->value.copy();
     blob->store(blob->value.ptr(),blob->value.length(),from->charset());
     return;

@@ -3734,14 +3734,15 @@ sub_part_definition:
         {
           LEX *lex= Lex;
           partition_info *part_info= lex->part_info;
-          partition_element *p_elem= new partition_element();
-          if (!p_elem ||
-           part_info->current_partition->subpartitions.push_back(p_elem))
+          partition_element *curr_part= part_info->current_partition;
+          partition_element *sub_p_elem= new partition_element(curr_part);
+          if (!sub_p_elem ||
+           curr_part->subpartitions.push_back(sub_p_elem))
           {
             mem_alloc_error(sizeof(partition_element));
             YYABORT;
           }
-          part_info->curr_part_elem= p_elem;
+          part_info->curr_part_elem= sub_p_elem;
           part_info->use_default_subpartitions= FALSE;
           part_info->use_default_no_subpartitions= FALSE;
           part_info->count_curr_subparts++;
@@ -3879,7 +3880,7 @@ create_table_option:
 	| MIN_ROWS opt_equal ulonglong_num	{ Lex->create_info.min_rows= $3; Lex->create_info.used_fields|= HA_CREATE_USED_MIN_ROWS;}
 	| AVG_ROW_LENGTH opt_equal ulong_num	{ Lex->create_info.avg_row_length=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AVG_ROW_LENGTH;}
 	| PASSWORD opt_equal TEXT_STRING_sys	{ Lex->create_info.password=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_PASSWORD; }
-	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3.str; Lex->create_info.used_fields|= HA_CREATE_USED_COMMENT; }
+	| COMMENT_SYM opt_equal TEXT_STRING_sys	{ Lex->create_info.comment=$3; Lex->create_info.used_fields|= HA_CREATE_USED_COMMENT; }
 	| AUTO_INC opt_equal ulonglong_num	{ Lex->create_info.auto_increment_value=$3; Lex->create_info.used_fields|= HA_CREATE_USED_AUTO;}
         | PACK_KEYS_SYM opt_equal ulong_num
           {
@@ -8352,24 +8353,10 @@ show_param:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_SHOW_GRANTS;
-	    THD *thd= lex->thd;
-            Security_context *sctx= thd->security_ctx;
 	    LEX_USER *curr_user;
-            if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+            if (!(curr_user= (LEX_USER*) lex->thd->alloc(sizeof(st_lex_user))))
               YYABORT;
-            curr_user->user.str= sctx->priv_user;
-            curr_user->user.length= strlen(sctx->priv_user);
-            if (*sctx->priv_host != 0)
-            {
-              curr_user->host.str= sctx->priv_host;
-              curr_user->host.length= strlen(sctx->priv_host);
-            }
-            else
-            {
-              curr_user->host.str= (char *) "%";
-              curr_user->host.length= 1;
-            }
-            curr_user->password=null_lex_str;
+            bzero(curr_user, sizeof(st_lex_user));
 	    lex->grant_user= curr_user;
 	  }
 	| GRANTS FOR_SYM user
@@ -9316,22 +9303,14 @@ user:
 	  }
 	| CURRENT_USER optional_braces
 	{
-          THD *thd= YYTHD;
-          Security_context *sctx= thd->security_ctx;
-          if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
+          if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(st_lex_user))))
             YYABORT;
-          $$->user.str= sctx->priv_user;
-          $$->user.length= strlen(sctx->priv_user);
-          if (*sctx->priv_host != 0)
-          {
-            $$->host.str= sctx->priv_host;
-            $$->host.length= strlen(sctx->priv_host);
-          }
-          else
-          {
-            $$->host.str= (char *) "%";
-            $$->host.length= 1;
-          }
+          /* 
+            empty LEX_USER means current_user and 
+            will be handled in the  get_current_user() function
+            later
+          */
+          bzero($$, sizeof(LEX_USER));
 	};
 
 /* Keyword that we allow for identifiers (except SP labels) */
