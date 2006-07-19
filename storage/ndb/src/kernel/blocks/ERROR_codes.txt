@@ -2,7 +2,7 @@ Next QMGR 1
 Next NDBCNTR 1000
 Next NDBFS 2000
 Next DBACC 3002
-Next DBTUP 4013
+Next DBTUP 4024
 Next DBLQH 5043
 Next DBDICT 6007
 Next DBDIH 7177
@@ -484,3 +484,6 @@ Dbtup:
 4019 - handleInsert - Alloc rowid error
 4020 - handleInsert - Size change error
 4021 - handleInsert - Out of disk space
+
+4022 - addTuxEntries - fail before add of first entry
+4023 - addTuxEntries - fail add of last entry (the entry for last index)

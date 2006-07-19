@@ -2156,6 +2156,9 @@ private:
 //------------------------------------------------------------------
   void tupkeyErrorLab(Signal* signal);
 
+  // need flag to skip TUX indexes
+  void do_tup_abortreq(Signal*, Uint32 flags);
+
 //------------------------------------------------------------------
 //------------------------------------------------------------------
 // Methods to handle execution of TUP_COMMITREQ + TUP_ABORTREQ.

@@ -747,6 +747,12 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 				      regFragPtr,
 				      regTabPtr) != 0) {
 	   jam();
+           /*
+            * undo the change before tupkeyErrorLab resets the op
+            * assume no timeslicing can occur even with diskdata
+            */
+           signal->theData[0] = operPtr.i;
+           do_tup_abortreq(signal, 0x1);
 	   tupkeyErrorLab(signal);
 	   return;
 	 }
@@ -775,6 +781,11 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 				      regFragPtr,
 				      regTabPtr) != 0) {
 	   jam();
+           /*
+            * see insert case
+            */
+           signal->theData[0] = operPtr.i;
+           do_tup_abortreq(signal, 0x1);
 	   tupkeyErrorLab(signal);
 	   return;
 	 }
