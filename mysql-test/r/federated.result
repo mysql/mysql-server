@@ -1727,7 +1727,6 @@ id	val1	val2
 DROP TABLE federated.test_local;
 DROP TABLE federated.test_remote;
 DROP TABLE federated.test;
-
 drop table if exists federated.t1;
 create table federated.t1 (a int, b int, c int);
 drop table if exists federated.t1;

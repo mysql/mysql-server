@@ -1589,8 +1589,11 @@ int ha_federated::write_row(byte *buf)
     else
     {
       (*field)->val_str(&insert_field_value_string);
-      /* quote these fields if they require it */
-      (*field)->quote_data(&insert_field_value_string);
+      values_string.append('\'');
+      insert_field_value_string.print(&values_string);
+      values_string.append('\'');
+
+      insert_field_value_string.length(0);
     }
     /* append the field name */
     insert_string.append((*field)->field_name);
