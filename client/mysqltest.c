@@ -669,17 +669,43 @@ static void die(const char *fmt, ...)
   exit(1);
 }
 
-/* Note that we will get some memory leaks when calling this! */
 
-static void abort_not_supported_test(const char *fname)
+static void abort_not_supported_test(const char *fmt, ...)
 {
+  va_list args;
+  test_file* err_file= cur_file;
   DBUG_ENTER("abort_not_supported_test");
+
+  /* Print include filestack */
   fprintf(stderr, "The test '%s' is not supported by this installation\n",
-          fname);
-  if (!silent)
-    printf("skipped\n");
+          file_stack->file_name);
+  fprintf(stderr, "Detected in file %s at line %d\n",
+          err_file->file_name, err_file->lineno);
+  while (err_file != file_stack)
+  {
+    err_file--;
+    fprintf(stderr, "included from %s at line %d\n",
+            err_file->file_name, err_file->lineno);
+  }
+
+  /* Print error message */
+  va_start(args, fmt);
+  if (fmt)
+  {
+    fprintf(stderr, "reason: ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    fflush(stderr);
+  }
+  va_end(args);
+
+  /* Clean up and exit */
   free_used_memory();
   my_end(MY_CHECK_ERROR);
+
+  if (!silent)
+    printf("skipped\n");
+
   exit(62);
 }
 
@@ -691,13 +717,13 @@ static void verbose_msg(const char *fmt, ...)
     DBUG_VOID_RETURN;
 
   va_start(args, fmt);
-
   fprintf(stderr, "mysqltest: ");
   if (start_lineno != 0)
     fprintf(stderr, "At line %u: ", start_lineno);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+
   DBUG_VOID_RETURN;
 }
 
@@ -723,10 +749,10 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   if (!test_if_hard_path(fname))
   {
     strxmov(eval_file, opt_basedir, fname, NullS);
-    fn_format(eval_file, eval_file,"","",4);
+    fn_format(eval_file, eval_file, "", "", MY_UNPACK_FILENAME);
   }
   else
-    fn_format(eval_file, fname,"","",4);
+    fn_format(eval_file, fname, "", "", MY_UNPACK_FILENAME);
 
   if (!my_stat(eval_file, &stat_info, MYF(MY_WME)))
     die(NullS);
@@ -767,8 +793,9 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 
 err:
   if (res && eval_result)
-    str_to_file(fn_format(eval_file, fname, "", ".eval",2), res_ptr,
-		res_len);
+    str_to_file(fn_format(eval_file, fname, "", ".eval",
+                          MY_REPLACE_EXT),
+                res_ptr, res_len);
 
   my_free((gptr) tmp, MYF(0));
   my_close(fd, MYF(MY_WME));
@@ -798,7 +825,11 @@ static void check_result(DYNAMIC_STRING* ds, const char *fname,
   DBUG_ENTER("check_result");
 
   if (res && require_option)
-    abort_not_supported_test(fname);
+  {
+    char reason[FN_REFLEN];
+    fn_format(reason, fname, "", "", MY_REPLACE_EXT | MY_REPLACE_DIR);
+    abort_not_supported_test("Test requires: '%s'", reason);
+  }
   switch (res) {
   case RESULT_OK:
     break; /* ok */
@@ -943,7 +974,7 @@ int open_file(const char *name)
     strxmov(buff, opt_basedir, name, NullS);
     name=buff;
   }
-  fn_format(buff,name,"","",4);
+  fn_format(buff, name, "", "", MY_UNPACK_FILENAME);
 
   if (cur_file == file_stack_end)
     die("Source directives are nesting too deep");
@@ -1855,7 +1886,7 @@ static void set_charset(struct st_query *q)
   q->last_argument= p;
   charset_info= get_charset_by_csname(charset_name,MY_CS_PRIMARY,MYF(MY_WME));
   if (!charset_info)
-    abort_not_supported_test(charset_name);
+    abort_not_supported_test("Test requires charset '%s'", charset_name);
 }
 
 static uint get_errcodes(match_err *to,struct st_query *q)
@@ -2693,7 +2724,7 @@ int do_connect(struct st_query *q)
   }
 #endif
   if (con_sock && !free_con_sock && *con_sock && *con_sock != FN_LIBCHAR)
-    con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
+    con_sock=fn_format(buff, con_sock, TMPDIR, "", 0);
   if (!con_db[0])
     con_db= db;
   /* Special database to allow one to connect without a database name */
@@ -3314,7 +3345,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	strxmov(buff, opt_basedir, argument, NullS);
 	argument= buff;
       }
-      fn_format(buff, argument, "", "", 4);
+      fn_format(buff, argument, "", "", MY_UNPACK_FILENAME);
       DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
       if (!(cur_file->file=
             my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
@@ -3331,7 +3362,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	strxmov(buff, opt_basedir, argument, NullS);
 	argument= buff;
       }
-      fn_format(buff, argument, "", "", 4);
+      fn_format(buff, argument, "", "", MY_UNPACK_FILENAME);
       timer_file= buff;
       unlink(timer_file);	     /* Ignore error, may not exist */
       break;
@@ -3425,7 +3456,7 @@ static void str_to_file(const char *fname, char *str, int size)
     strxmov(buff, opt_basedir, fname, NullS);
     fname= buff;
   }
-  fn_format(buff,fname,"","",4);
+  fn_format(buff, fname, "", "", MY_UNPACK_FILENAME);
 
   if ((fd= my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
 		    MYF(MY_WME | MY_FFNF))) < 0)
@@ -3439,19 +3470,24 @@ static void str_to_file(const char *fname, char *str, int size)
 void dump_result_to_reject_file(const char *record_file, char *buf, int size)
 {
   char reject_file[FN_REFLEN];
-  str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
+  str_to_file(fn_format(reject_file, record_file, "", ".reject",
+                        MY_REPLACE_EXT),
+              buf, size);
 }
 
 void dump_result_to_log_file(const char *record_file, char *buf, int size)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, record_file,"",".log",2), buf, size);
+  str_to_file(fn_format(log_file, record_file, "", ".log",
+                        MY_REPLACE_EXT),
+              buf, size);
 }
 
 void dump_progress(const char *record_file)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, record_file,"",".progress",2),
+  str_to_file(fn_format(log_file, record_file, "", ".progress",
+                        MY_REPLACE_EXT),
               ds_progress.str, ds_progress.length);
 }
 
@@ -4262,7 +4298,9 @@ static void handle_error(const char *query, struct st_query *q,
     if (err_errno == CR_SERVER_LOST ||
         err_errno == CR_SERVER_GONE_ERROR)
       die("require query '%s' failed: %d: %s", query, err_errno, err_error);
-    abort_not_supported_test("failed_query");
+
+    /* Abort the run of this test, pass the failed query as reason */
+    abort_not_supported_test("Query '%s' failed, required functionality not supported", query);
   }
 
   if (q->abort_on_error)
@@ -5517,7 +5555,7 @@ static int read_server_arguments(const char *name)
     strxmov(buff, opt_basedir, name, NullS);
     name=buff;
   }
-  fn_format(buff,name,"","",4);
+  fn_format(buff, name, "", "", MY_UNPACK_FILENAME);
 
   if (!embedded_server_arg_count)
   {
