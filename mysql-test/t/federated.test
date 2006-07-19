@@ -1416,7 +1416,6 @@ select * from federated.test_remote;
 DROP TABLE federated.test_local;
 DROP TABLE federated.test_remote;
 --enable_warnings
-
 connection slave;
 --disable_warnings
 DROP TABLE federated.test;
