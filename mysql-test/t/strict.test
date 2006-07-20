@@ -635,9 +635,9 @@ UPDATE t1 SET col2 =col2 + 50 WHERE col2 > 0;
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 --error 1365
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
---error 1264
+--error 1366
 INSERT INTO t1 (col1) VALUES ('');
---error 1264
+--error 1366
 INSERT INTO t1 (col1) VALUES ('a59b');
 --error 1265
 INSERT INTO t1 (col1) VALUES ('1a');
@@ -696,9 +696,9 @@ INSERT INTO t1 (col2) VALUES(18446744073709551616.0);
 UPDATE t1 SET col1 =col1 / 0 WHERE col1 > 0;
 --error 1365
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
---error 1264
+--error 1366
 INSERT INTO t1 (col1) VALUES ('');
---error 1264
+--error 1366
 INSERT INTO t1 (col1) VALUES ('a59b');
 --error 1265
 INSERT INTO t1 (col1) VALUES ('1a');

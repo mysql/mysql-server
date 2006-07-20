@@ -2734,7 +2734,7 @@ CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
 INSERT INTO t1 VALUES (10);
 SELECT i='1e+01',i=1e+01, i in (1e+01,1e+01), i in ('1e+01','1e+01') FROM t1;
 i='1e+01'	i=1e+01	i in (1e+01,1e+01)	i in ('1e+01','1e+01')
-0	1	1	1
+1	1	1	1
 DROP TABLE t1;
 CREATE TABLE t1 ( 
 K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
