@@ -13100,7 +13100,7 @@ static void test_bug9478()
       int4store(buff, stmt->stmt_id);
       buff[4]= 1;                               /* prefetch rows */
       rc= ((*mysql->methods->advanced_command)(mysql, COM_STMT_FETCH, buff,
-                                               sizeof(buff), 0,0,1) ||
+                                               sizeof(buff), 0,0,1,NULL) ||
            (*mysql->methods->read_query_result)(mysql));
       DIE_UNLESS(rc);
       if (!opt_silent && i == 0)
