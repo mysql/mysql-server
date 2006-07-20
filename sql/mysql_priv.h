@@ -1324,6 +1324,7 @@ extern SHOW_COMP_OPTION have_ndbcluster;
 #endif
 
 extern SHOW_COMP_OPTION have_isam;
+extern SHOW_COMP_OPTION have_merge_db;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;

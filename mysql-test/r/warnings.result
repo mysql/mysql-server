@@ -173,6 +173,13 @@ alter table t1 engine=isam;
 Warnings:
 Warning	1266	Using storage engine MyISAM for table 't1'
 drop table t1;
+create table t1 (id int) engine=merge;
+Warnings:
+Warning	1266	Using storage engine MyISAM for table 't1'
+alter table t1 engine=merge;
+Warnings:
+Warning	1266	Using storage engine MyISAM for table 't1'
+drop table t1;
 create table t1 (id int) type=heap;
 Warnings:
 Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
