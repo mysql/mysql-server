@@ -6887,6 +6887,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     global_system_variables.tx_isolation= (type-1);
     break;
   }
+  case OPT_MERGE:
+    if (opt_merge)
+      have_merge_db= SHOW_OPTION_YES;
+    else
+      have_merge_db= SHOW_OPTION_DISABLED;
 #ifdef HAVE_BERKELEY_DB
   case OPT_BDB_NOSYNC:
     /* Deprecated option */
