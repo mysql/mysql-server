@@ -37,7 +37,7 @@ select * from t2 order by a limit 3;
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -r 30 -d cluster apply_status >> $NDB_TOOLS_OUTPUT
-
+sleep 2;
 --connection server2
 --error ER_NO_SUCH_TABLE
 select * from t2;
@@ -56,7 +56,7 @@ reset master;
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -r 30 -d cluster apply_status >> $NDB_TOOLS_OUTPUT
-
+sleep 2;
 --connection server1
 --error ER_NO_SUCH_TABLE
 select * from t2;
