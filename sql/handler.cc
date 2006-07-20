@@ -302,7 +302,9 @@ handler *get_new_handler(TABLE *table, MEM_ROOT *alloc, enum db_type db_type)
 #endif
   case DB_TYPE_MRG_MYISAM:
   case DB_TYPE_MRG_ISAM:
-    return new (alloc) ha_myisammrg(table);
+    if (have_merge_db == SHOW_OPTION_YES)
+      return new (alloc) ha_myisammrg(table);
+    return NULL;
 #ifdef HAVE_BERKELEY_DB
   case DB_TYPE_BERKELEY_DB:
     if (have_berkeley_db == SHOW_OPTION_YES)
