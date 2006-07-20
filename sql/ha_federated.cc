@@ -1804,19 +1804,13 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   /* 
     buffers for following strings
   */
-  char old_field_value_buffer[STRING_BUFFER_USUAL_SIZE];
-  char new_field_value_buffer[STRING_BUFFER_USUAL_SIZE];
+  char field_value_buffer[STRING_BUFFER_USUAL_SIZE];
   char update_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char where_buffer[FEDERATED_QUERY_BUFFER_SIZE];
 
-  /* stores the value to be replaced of the field were are updating */
-  String old_field_value(old_field_value_buffer,
-                         sizeof(old_field_value_buffer),
-                         &my_charset_bin);
-  /* stores the new value of the field */
-  String new_field_value(new_field_value_buffer,
-                         sizeof(new_field_value_buffer),
-                         &my_charset_bin);
+  /* Work area for field values */
+  String field_value(field_value_buffer, sizeof(field_value_buffer),
+                     &my_charset_bin);
   /* stores the update query */
   String update_string(update_buffer,
                        sizeof(update_buffer),
@@ -1829,8 +1823,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   /* 
     set string lengths to 0 to avoid misc chars in string
   */
-  old_field_value.length(0);
-  new_field_value.length(0);
+  field_value.length(0);
   update_string.length(0);
   where_string.length(0);
 
@@ -1844,8 +1837,8 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     In this loop, we want to match column names to values being inserted
     (while building INSERT statement).
 
-    Iterate through table->field (new data) and share->old_filed (old_data)
-    using the same index to created an SQL UPDATE statement, new data is
+    Iterate through table->field (new data) and share->old_field (old_data)
+    using the same index to create an SQL UPDATE statement. New data is
     used to create SET field=value and old data is used to create WHERE
     field=oldvalue
   */
@@ -1855,13 +1848,15 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     if (bitmap_is_set(table->write_set, (*field)->field_index))
     {
       if ((*field)->is_null())
-        new_field_value.append(FEDERATED_NULL);
+        update_string.append(FEDERATED_NULL);
       else
       {
         my_bitmap_map *old_map= tmp_use_all_columns(table, table->read_set);
         /* otherwise = */
-        (*field)->val_str(&new_field_value);
-        (*field)->quote_data(&new_field_value);
+        (*field)->val_str(&field_value);
+        (*field)->quote_data(&field_value);
+        update_string.append(field_value);
+        field_value.length(0);
         tmp_restore_column_map(table->read_set, old_map);
       }
       update_string.append((*field)->field_name);

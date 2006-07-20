@@ -3318,7 +3318,7 @@ longlong Item_func_regex::val_int()
     }
   }
   null_value=0;
-  return my_regexec(&preg,res->c_ptr(),0,(my_regmatch_t*) 0,0) ? 0 : 1;
+  return my_regexec(&preg,res->c_ptr_safe(),0,(my_regmatch_t*) 0,0) ? 0 : 1;
 }
 
 
