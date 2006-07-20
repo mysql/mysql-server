@@ -272,10 +272,10 @@ sub spawn_parent_impl {
           last;
         }
 
-        # If one of the processes died, we want to
-        # mark this, and kill the mysqltest process.
+        # One of the child processes died, unless this was expected
+	# mysqltest should be killed and test aborted
 
-	mark_process_dead($ret_pid);
+	check_expected_crash_and_restart($ret_pid);
       }
 
       if ( $ret_pid != $pid )
@@ -806,6 +806,81 @@ sub mark_process_dead($)
     }
   }
   mtr_warning("mark_process_dead couldn't find an entry for pid: $ret_pid");
+
+}
+
+#
+# Loop through our list of processes and look for and entry
+# with the provided pid, if found check for the file indicating
+# expected crash and restart it.
+#
+sub check_expected_crash_and_restart($)
+{
+  my $ret_pid= shift;
+
+  foreach my $mysqld (@{$::master}, @{$::slave})
+  {
+    if ( $mysqld->{'pid'} eq $ret_pid )
+    {
+      mtr_verbose("$mysqld->{'type'} $mysqld->{'idx'} exited, pid: $ret_pid");
+      $mysqld->{'pid'}= 0;
+
+      # Check if crash expected and restart if it was
+      my $expect_file= "$::opt_vardir/tmp/" . "$mysqld->{'type'}" .
+	"$mysqld->{'idx'}" . ".expect";
+      if ( -f $expect_file )
+      {
+	mtr_verbose("Crash was expected, file $expect_file exists");
+	mysqld_start($mysqld, $mysqld->{'start_opts'},
+		     $mysqld->{'start_slave_master_info'});
+	unlink($expect_file);
+      }
+
+      return;
+    }
+  }
+
+  foreach my $cluster (@{$::clusters})
+  {
+    if ( $cluster->{'pid'} eq $ret_pid )
+    {
+      mtr_verbose("$cluster->{'name'} cluster ndb_mgmd exited, pid: $ret_pid");
+      $cluster->{'pid'}= 0;
+
+      # Check if crash expected and restart if it was
+      my $expect_file= "$::opt_vardir/tmp/ndb_mgmd_" . "$cluster->{'type'}" .
+	".expect";
+      if ( -f $expect_file )
+      {
+	mtr_verbose("Crash was expected, file $expect_file exists");
+	ndbmgmd_start($cluster);
+	unlink($expect_file);
+      }
+      return;
+    }
+
+    foreach my $ndbd (@{$cluster->{'ndbds'}})
+    {
+      if ( $ndbd->{'pid'} eq $ret_pid )
+      {
+	mtr_verbose("$cluster->{'name'} cluster ndbd exited, pid: $ret_pid");
+	$ndbd->{'pid'}= 0;
+
+	# Check if crash expected and restart if it was
+	my $expect_file= "$::opt_vardir/tmp/ndbd_" . "$cluster->{'type'}" .
+	  "$ndbd->{'idx'}" . ".expect";
+	if ( -f $expect_file )
+	{
+	  mtr_verbose("Crash was expected, file $expect_file exists");
+	  ndbd_start($cluster, $ndbd->{'idx'},
+		     $ndbd->{'start_extra_args'});
+	  unlink($expect_file);
+	}
+	return;
+      }
+    }
+  }
+  mtr_warning("check_expected_crash_and_restart couldn't find an entry for pid: $ret_pid");
 
 }
 
