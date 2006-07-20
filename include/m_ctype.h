@@ -205,6 +205,9 @@ typedef struct my_charset_handler_st
 			 int *err);
   longlong    (*strtoll10)(struct charset_info_st *cs,
                            const char *nptr, char **endptr, int *error);
+  ulonglong   (*strntoull10rnd)(struct charset_info_st *cs,
+                                const char *str, uint length, int unsigned_fl,
+                                char **endptr, int *error);
   ulong        (*scan)(struct charset_info_st *, const char *b, const char *e,
 		       int sq);
 } MY_CHARSET_HANDLER;
@@ -340,6 +343,13 @@ longlong my_strtoll10_8bit(CHARSET_INFO *cs,
                            const char *nptr, char **endptr, int *error);
 longlong my_strtoll10_ucs2(CHARSET_INFO *cs, 
                            const char *nptr, char **endptr, int *error);
+
+ulonglong my_strntoull10rnd_8bit(CHARSET_INFO *cs,
+                                 const char *str, uint length, int unsigned_fl,
+                                 char **endptr, int *error);
+ulonglong my_strntoull10rnd_ucs2(CHARSET_INFO *cs, 
+                                 const char *str, uint length, int unsigned_fl,
+                                 char **endptr, int *error);
 
 void my_fill_8bit(CHARSET_INFO *cs, char* to, uint l, int fill);
 

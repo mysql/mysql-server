@@ -611,9 +611,9 @@ ERROR 22012: Division by 0
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
-ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
-ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
 ERROR 01000: Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
@@ -693,9 +693,9 @@ ERROR 22012: Division by 0
 UPDATE t1 SET col1= MOD(col1,0) WHERE col1 > 0;
 ERROR 22012: Division by 0
 INSERT INTO t1 (col1) VALUES ('');
-ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+ERROR HY000: Incorrect integer value: '' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('a59b');
-ERROR 22003: Out of range value adjusted for column 'col1' at row 1
+ERROR HY000: Incorrect integer value: 'a59b' for column 'col1' at row 1
 INSERT INTO t1 (col1) VALUES ('1a');
 ERROR 01000: Data truncated for column 'col1' at row 1
 INSERT IGNORE INTO t1 (col1) VALUES ('2a');
