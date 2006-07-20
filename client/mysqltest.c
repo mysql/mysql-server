@@ -338,11 +338,10 @@ Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
 Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
-Q_EXIT,
 Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
 Q_IF,
 Q_DISABLE_PARSING, Q_ENABLE_PARSING,
-Q_REPLACE_REGEX,
+Q_REPLACE_REGEX, Q_DIE,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -424,13 +423,13 @@ const char *command_names[]=
   "character_set",
   "disable_ps_protocol",
   "enable_ps_protocol",
-  "exit",
   "disable_reconnect",
   "enable_reconnect",
   "if",
   "disable_parsing",
   "enable_parsing",
   "replace_regex",
+  "die",
   0
 };
 
@@ -5081,7 +5080,7 @@ static void init_var_hash(MYSQL *mysql)
   test run completes
 
 */
-static void mark_progress(struct st_query* q, int line)
+static void mark_progress(struct st_query* q __attribute__((unused)), int line)
 {
   char buf[32], *end;
   ulonglong timer= timer_now();
@@ -5116,7 +5115,7 @@ static void mark_progress(struct st_query* q, int line)
 int main(int argc, char **argv)
 {
   struct st_query *q;
-  my_bool require_file=0, q_send_flag=0, abort_flag= 0,
+  my_bool require_file=0, q_send_flag=0,
           query_executed= 0;
   char save_file[FN_REFLEN];
   MY_STAT res_info;
@@ -5219,7 +5218,7 @@ int main(int argc, char **argv)
     open_file(opt_include);
   }
 
-  while (!abort_flag && !read_query(&q))
+  while (!read_query(&q))
   {
     int current_line_inc = 1, processed = 0;
     if (q->type == Q_UNKNOWN || q->type == Q_COMMENT_WITH_COMMAND)
@@ -5434,8 +5433,8 @@ int main(int argc, char **argv)
           parsing_disabled--;
         break;
 
-      case Q_EXIT:
-        abort_flag= 1;
+      case Q_DIE:
+        die("%s", q->first_argument);
         break;
 
       default:
