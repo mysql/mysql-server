@@ -14,6 +14,20 @@ reset master;
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults --not-started > /dev/null
 --exec $NDB_MGM --no-defaults -e "all start" > /dev/null
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults > /dev/null
-insert into t1 values(1);
+
+--disable_query_log
+let $mysql_errno= 1;
+while ($mysql_errno)
+{
+  # Table t1 is readonly until the mysqld has reconnected properly
+  --error 0,1036
+  insert into t1 values(1);
+  if ($mysql_errno)
+  {
+    --sleep 0.1
+  }
+}
+--enable_query_log
+
 --source include/show_binlog_events.inc
 drop table t1;
