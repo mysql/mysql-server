@@ -12125,7 +12125,9 @@ static struct my_tests_st my_tests[]= {
   { "test_bug8378", test_bug8378 },
   { "test_bug9735", test_bug9735 },
   { "test_bug11183", test_bug11183 },
+#ifndef EMBEDDED_LIBRARY
   { "test_bug12744", test_bug12744 },
+#endif
   { "test_bug12001", test_bug12001 },
   { "test_bug11718", test_bug11718 },
   { "test_bug12925", test_bug12925 },
