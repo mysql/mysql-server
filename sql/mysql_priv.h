@@ -387,8 +387,9 @@ enum enum_var_type
   OPT_DEFAULT, OPT_SESSION, OPT_GLOBAL
 };
 class sys_var;
-#include "item.h"
+class Comp_creator;
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
+#include "item.h"
 /* sql_parse.cc */
 void free_items(Item *item);
 void cleanup_items(Item *item);
