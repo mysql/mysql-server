@@ -130,6 +130,8 @@ static my_bool opt_compress= FALSE, tty_password= FALSE,
                opt_silent= FALSE,
                auto_generate_sql= FALSE;
 
+static unsigned long connect_flags= CLIENT_MULTI_RESULTS;
+
 static int verbose, num_int_cols, num_char_cols, delimiter_length;
 static int iterations;
 static char *default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
@@ -243,7 +245,6 @@ static int gettimeofday(struct timeval *tp, void *tzp)
 int main(int argc, char **argv)
 {
   MYSQL mysql;
-  int client_flag= 0;
   int x;
   unsigned long long client_limit;
   statement *eptr;
@@ -293,12 +294,11 @@ int main(int argc, char **argv)
 #endif
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
 
-  client_flag|= CLIENT_MULTI_RESULTS;
   if (!opt_only_print) 
   {
     if (!(mysql_real_connect(&mysql, host, user, opt_password,
                              NULL, opt_mysql_port,
-                             opt_mysql_unix_port, client_flag)))
+                             opt_mysql_unix_port, connect_flags)))
     {
       fprintf(stderr,"%s: Error when connecting to server: %s\n",
               my_progname,mysql_error(&mysql));
@@ -1141,7 +1141,7 @@ run_task(thread_context *con)
                              create_schema_string,
                              opt_mysql_port,
                              opt_mysql_unix_port,
-                             0)))
+                             connect_flags)))
     {
       fprintf(stderr,"%s: %s\n",my_progname,mysql_error(mysql));
       goto end;
