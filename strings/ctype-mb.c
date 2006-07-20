@@ -449,15 +449,28 @@ static void my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 
 
 /* 
-  Write max key: create a buffer with multibyte
+  Write max key:
+- for non-Unicode character sets:
+  just set to 255.
+- for Unicode character set (utf-8):
+  create a buffer with multibyte
   representation of the max_sort_char character,
   and copy it into max_str in a loop. 
 */
 static void pad_max_char(CHARSET_INFO *cs, char *str, char *end)
 {
   char buf[10];
-  char buflen= cs->cset->wc_mb(cs, cs->max_sort_char, (uchar*) buf,
-                               (uchar*) buf + sizeof(buf));
+  char buflen;
+  
+  if (!(cs->state & MY_CS_UNICODE))
+  {
+    bfill(str, end - str, 255);
+    return;
+  }
+  
+  buflen= cs->cset->wc_mb(cs, cs->max_sort_char, (uchar*) buf,
+                          (uchar*) buf + sizeof(buf));
+  
   DBUG_ASSERT(buflen > 0);
   do
   {
@@ -894,7 +907,7 @@ MY_COLLATION_HANDLER my_collation_mb_bin_handler =
     my_strnncoll_mb_bin,
     my_strnncollsp_mb_bin,
     my_strnxfrm_mb_bin,
-    my_like_range_simple,
+    my_like_range_mb,
     my_wildcmp_mb_bin,
     my_strcasecmp_mb_bin,
     my_instr_mb,

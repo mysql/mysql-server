@@ -1124,6 +1124,81 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+set names utf8;
+create table t1 (s1 char(5) character set utf8);
+insert into t1 values
+('a'),('b'),(null),('ペテルグル'),('ü'),('Y');
+create index it1 on t1 (s1);
+select s1 as before_delete_general_ci from t1 where s1 like 'ペテ%';
+before_delete_general_ci
+ペテルグル
+delete from t1 where s1 = 'Y';
+select s1 as after_delete_general_ci from t1 where s1 like 'ペテ%';
+after_delete_general_ci
+ペテルグル
+drop table t1;
+set names utf8;
+create table t1 (s1 char(5) character set utf8 collate utf8_unicode_ci);
+insert into t1 values
+('a'),('b'),(null),('ペテルグル'),('ü'),('Y');
+create index it1 on t1 (s1);
+select s1 as before_delete_unicode_ci from t1 where s1 like 'ペテ%';
+before_delete_unicode_ci
+ペテルグル
+delete from t1 where s1 = 'Y';
+select s1 as after_delete_unicode_ci from t1 where s1 like 'ペテ%';
+after_delete_unicode_ci
+ペテルグル
+drop table t1;
+set names utf8;
+create table t1 (s1 char(5) character set utf8 collate utf8_bin);
+insert into t1 values
+('a'),('b'),(null),('ペテルグル'),('ü'),('Y');
+create index it1 on t1 (s1);
+select s1 as before_delete_bin from t1 where s1 like 'ペテ%';
+before_delete_bin
+ペテルグル
+delete from t1 where s1 = 'Y';
+select s1 as after_delete_bin from t1 where s1 like 'ペテ%';
+after_delete_bin
+ペテルグル
+drop table t1;
+set names utf8;
+create table t1 (a varchar(30) not null primary key)
+engine=innodb  default character set utf8 collate utf8_general_ci;
+insert into t1 values ('あいうえおかきくけこさしすせそ');
+insert into t1 values ('さしすせそかきくけこあいうえお');
+select a as gci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
+gci1
+さしすせそかきくけこあいうえお
+select a as gci2 from t1 where a like 'あいうえおかきくけこさしすせそ';
+gci2
+あいうえおかきくけこさしすせそ
+drop table t1;
+set names utf8;
+create table t1 (a varchar(30) not null primary key)
+engine=innodb default character set utf8 collate utf8_unicode_ci;
+insert into t1 values ('あいうえおかきくけこさしすせそ');
+insert into t1 values ('さしすせそかきくけこあいうえお');
+select a as uci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
+uci1
+さしすせそかきくけこあいうえお
+select a as uci2 from t1 where a like 'あいうえおかきくけこさしすせそ';
+uci2
+あいうえおかきくけこさしすせそ
+drop table t1;
+set names utf8;
+create table t1 (a varchar(30) not null primary key)
+engine=innodb default character set utf8 collate utf8_bin;
+insert into t1 values ('あいうえおかきくけこさしすせそ');
+insert into t1 values ('さしすせそかきくけこあいうえお');
+select a as bin1 from t1 where a like 'さしすせそかきくけこあいうえお%';
+bin1
+さしすせそかきくけこあいうえお
+select a as bin2 from t1 where a like 'あいうえおかきくけこさしすせそ';
+bin2
+あいうえおかきくけこさしすせそ
+drop table t1;
 SET NAMES utf8;
 CREATE TABLE t1 (id int PRIMARY KEY,
 a varchar(16) collate utf8_unicode_ci NOT NULL default '',
