@@ -1793,6 +1793,10 @@ sub ndbd_start ($$$) {
   # Add pid to list of pids for this cluster
   $cluster->{'ndbds'}->[$idx]->{'pid'}= $pid;
 
+  # Rememeber options used when starting
+  $cluster->{'ndbds'}->[$idx]->{'start_extra_args'}= $extra_args;
+  $cluster->{'ndbds'}->[$idx]->{'idx'}= $idx;
+
   mtr_verbose("ndbd_start, pid: $pid");
 
   return $pid;
@@ -2894,6 +2898,7 @@ sub mysqld_start ($$$) {
 
   # Remember options used when starting
   $mysqld->{'start_opts'}= $extra_opt;
+  $mysqld->{'start_slave_master_info'}= $slave_master_info;
 
   mtr_verbose("mysqld pid: $pid");
   return $pid;
