@@ -31,19 +31,19 @@ Error	1064	You have an error in your SQL syntax; check the manual that correspon
 insert into t1 values (1);
 insert into t1 values ("hej");
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
 insert into t1 values ("hej"),("då");
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'd?' for column 'a' at row 2
 set SQL_WARNINGS=1;
 insert into t1 values ("hej");
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
 insert into t1 values ("hej"),("då");
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'd?' for column 'a' at row 2
 drop table t1;
 set SQL_WARNINGS=0;
 drop temporary table if exists not_exists;
@@ -187,44 +187,44 @@ create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 update t1 set a='abc';
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 2
-Warning	1264	Out of range value adjusted for column 'a' at row 3
-Warning	1264	Out of range value adjusted for column 'a' at row 4
-Warning	1264	Out of range value adjusted for column 'a' at row 5
-Warning	1264	Out of range value adjusted for column 'a' at row 6
-Warning	1264	Out of range value adjusted for column 'a' at row 7
-Warning	1264	Out of range value adjusted for column 'a' at row 8
-Warning	1264	Out of range value adjusted for column 'a' at row 9
-Warning	1264	Out of range value adjusted for column 'a' at row 10
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 3
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 4
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 5
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 6
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 7
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 8
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 9
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 10
 show warnings limit 2, 1;
 Level	Code	Message
-Warning	1264	Out of range value adjusted for column 'a' at row 3
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 3
 show warnings limit 0, 10;
 Level	Code	Message
-Warning	1264	Out of range value adjusted for column 'a' at row 1
-Warning	1264	Out of range value adjusted for column 'a' at row 2
-Warning	1264	Out of range value adjusted for column 'a' at row 3
-Warning	1264	Out of range value adjusted for column 'a' at row 4
-Warning	1264	Out of range value adjusted for column 'a' at row 5
-Warning	1264	Out of range value adjusted for column 'a' at row 6
-Warning	1264	Out of range value adjusted for column 'a' at row 7
-Warning	1264	Out of range value adjusted for column 'a' at row 8
-Warning	1264	Out of range value adjusted for column 'a' at row 9
-Warning	1264	Out of range value adjusted for column 'a' at row 10
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 3
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 4
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 5
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 6
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 7
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 8
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 9
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 10
 show warnings limit 9, 1;
 Level	Code	Message
-Warning	1264	Out of range value adjusted for column 'a' at row 10
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 10
 show warnings limit 10, 1;
 Level	Code	Message
 show warnings limit 9, 2;
 Level	Code	Message
-Warning	1264	Out of range value adjusted for column 'a' at row 10
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 10
 show warnings limit 0, 0;
 Level	Code	Message
 show warnings limit 1;
 Level	Code	Message
-Warning	1264	Out of range value adjusted for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 1
 show warnings limit 0;
 Level	Code	Message
 show warnings limit 1, 0;
