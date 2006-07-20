@@ -1,8 +1,11 @@
-server_id           = 1
-server_id           = 2
+Success: the process has been started.
 SHOW VARIABLES LIKE 'server_id';
 Variable_name	Value
 server_id	1
+SHOW INSTANCES;
+instance_name	status
+mysqld1	online
+mysqld2	offline
 UNSET mysqld1.server_id;
 server_id           = 2
 SHOW VARIABLES LIKE 'server_id';
