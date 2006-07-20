@@ -108,6 +108,8 @@ enum my_lex_states
 
 struct charset_info_st;
 
+
+/* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct my_collation_handler_st
 {
   my_bool (*init)(struct charset_info_st *, void *(*alloc)(uint));
@@ -147,6 +149,7 @@ extern MY_COLLATION_HANDLER my_collation_8bit_simple_ci_handler;
 extern MY_COLLATION_HANDLER my_collation_ucs2_uca_handler;
 
 
+/* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct my_charset_handler_st
 {
   my_bool (*init)(struct charset_info_st *, void *(*alloc)(uint));
@@ -204,6 +207,7 @@ extern MY_CHARSET_HANDLER my_charset_8bit_handler;
 extern MY_CHARSET_HANDLER my_charset_ucs2_handler;
 
 
+/* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct charset_info_st
 {
   uint      number;
