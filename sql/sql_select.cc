@@ -12806,7 +12806,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
     {
       if (! field->const_item())
       {
-	Item_sum *sum_item=(Item_sum*) field;
+	Item_sum *sum_item=(Item_sum*) field->real_item();
 	if (!sum_item->quick_group)
 	  param->quick_group=0;			// UDF SUM function
 	param->sum_func_count++;
