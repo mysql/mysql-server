@@ -13066,10 +13066,11 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   param->copy_funcs.empty();
   for (i= 0; (pos= li++); i++)
   {
-    if (pos->real_item()->type() == Item::FIELD_ITEM)
+    Item *real_pos= pos->real_item();
+    if (real_pos->type() == Item::FIELD_ITEM)
     {
       Item_field *item;
-      pos= pos->real_item();
+      pos= real_pos;
       if (!(item= new Item_field(thd, ((Item_field*) pos))))
 	goto err;
       pos= item;
@@ -13108,12 +13109,13 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       }				
       }
     }
-    else if ((pos->type() == Item::FUNC_ITEM ||
-	      pos->type() == Item::SUBSELECT_ITEM ||
-	      pos->type() == Item::CACHE_ITEM ||
-	      pos->type() == Item::COND_ITEM) &&
-	     !pos->with_sum_func)
+    else if ((real_pos->type() == Item::FUNC_ITEM ||
+	      real_pos->type() == Item::SUBSELECT_ITEM ||
+	      real_pos->type() == Item::CACHE_ITEM ||
+	      real_pos->type() == Item::COND_ITEM) &&
+	     !real_pos->with_sum_func)
     {						// Save for send fields
+      pos= real_pos;
       /* TODO:
 	 In most cases this result will be sent to the user.
 	 This should be changed to use copy_int or copy_real depending
