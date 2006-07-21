@@ -1207,7 +1207,7 @@ static void do_exec(struct st_query *query)
     }
   }
   error= pclose(res_file);
-  if (error != 0)
+  if (error > 0)
   {
     uint status= WEXITSTATUS(error), i;
     my_bool ok= 0;
