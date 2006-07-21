@@ -1194,6 +1194,7 @@ drop table t1;
 --exec $MYSQL_DUMP --force -N --compact --skip-comments test
 --echo } mysqldump
 drop view v1;
+
 # BUG#17201 Spurious 'DROP DATABASE' in output,
 # also confusion between tables and views.
 # Example code from Markus Popp
@@ -1210,3 +1211,20 @@ insert into t1 values (0815);
 drop view v1;
 drop table t1;
 drop database mysqldump_test_db;
+
+# Bug21014 Segmentation fault of mysqldump on view
+
+create database mysqldump_tables;
+use mysqldump_tables;
+create table basetable ( id serial, tag varchar(64) );
+
+create database mysqldump_views;
+use mysqldump_views;
+create view nasishnasifu as select mysqldump_tables.basetable.id from mysqldump_tables.basetable;
+
+--exec $MYSQL_DUMP --skip-comments --databases mysqldump_tables mysqldump_views;
+
+drop view nasishnasifu;
+drop database mysqldump_views;
+drop table mysqldump_tables.basetable;
+drop database mysqldump_tables;
