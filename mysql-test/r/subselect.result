@@ -2894,3 +2894,4 @@ s1
 select * from t1 where NOT(s1 = ALL (select s1/s1 from t1));
 s1
 2
+drop table t1;
