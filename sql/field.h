@@ -251,8 +251,6 @@ public:
     ptr= old_ptr;
     return str;
   }
-  bool quote_data(String *unquoted_string);
-  bool needs_quotes(void);
   virtual bool send_binary(Protocol *protocol);
   virtual char *pack(char* to, const char *from, uint max_length=~(uint) 0)
   {
