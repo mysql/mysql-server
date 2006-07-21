@@ -1304,6 +1304,10 @@ extern handlerton ndbcluster_hton;
 extern SHOW_COMP_OPTION have_ndbcluster;
 #endif
 
+/* MRG_MYISAM handler is always built, but may be skipped */
+extern handlerton myisammrg_hton;
+#define have_merge_db myisammrg_hton.state
+
 extern SHOW_COMP_OPTION have_isam;
 extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
