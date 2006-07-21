@@ -240,7 +240,7 @@ public:
   }
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_not :public Item_bool_func
@@ -251,7 +251,7 @@ public:
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
   Item *neg_transformer(THD *thd);
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_maxmin_subselect;
@@ -466,7 +466,7 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -478,7 +478,7 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "strcmp"; }
   void print(String *str) { Item_func::print(str); }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -541,7 +541,7 @@ public:
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
   uint decimal_precision() const;
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -582,7 +582,7 @@ public:
   void print(String *str) { Item_func::print(str); }
   table_map not_null_tables() const { return 0; }
   bool is_null();
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -625,7 +625,7 @@ public:
   void print(String *str);
   Item *find_item(String *str);
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -976,7 +976,7 @@ public:
   bool nulls_in_row();
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 /* Functions used by where clause */
@@ -1018,7 +1018,7 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd);
   CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 /* Functions used by HAVING for rewriting IN subquery */
@@ -1040,8 +1040,8 @@ public:
   */
   table_map used_tables() const
     { return used_tables_cache | RAND_TABLE_BIT; }
-  bool check_partition_func_processor(byte *bool_arg)
-  { *(bool *)bool_arg= FALSE; return 0; }
+  bool check_partition_func_processor(byte *int_arg)
+  { *(int *)int_arg= 0; return FALSE; }
 };
 
 
@@ -1064,7 +1064,7 @@ public:
   void print(String *str);
   CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
   void top_level_item() { abort_on_null=1; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -1103,7 +1103,7 @@ public:
   const char *func_name() const { return "like"; }
   bool fix_fields(THD *thd, Item **ref);
   void cleanup();
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 #ifdef USE_REGEX
@@ -1126,7 +1126,7 @@ public:
   const char *func_name() const { return "regexp"; }
   void print(String *str) { print_op(str); }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 #else
@@ -1183,7 +1183,7 @@ public:
   Item *transform(Item_transformer transformer, byte *arg);
   void traverse_cond(Cond_traverser, void *arg, traverse_order order);
   void neg_arguments(THD *thd);
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
