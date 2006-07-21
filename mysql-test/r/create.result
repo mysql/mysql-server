@@ -452,7 +452,7 @@ t2	CREATE TABLE `t2` (
   `ifnull(h,h)` decimal(5,4) default NULL,
   `ifnull(i,i)` year(4) default NULL,
   `ifnull(j,j)` date default NULL,
-  `ifnull(k,k)` datetime NOT NULL default '0000-00-00 00:00:00',
+  `ifnull(k,k)` timestamp NOT NULL default '0000-00-00 00:00:00',
   `ifnull(l,l)` datetime default NULL,
   `ifnull(m,m)` varchar(1) default NULL,
   `ifnull(n,n)` varchar(3) default NULL,

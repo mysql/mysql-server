@@ -3874,7 +3874,9 @@ Field *Item::make_string_field(TABLE *table)
   if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
     return new Field_blob(max_length, maybe_null, name, table,
                           collation.collation);
-  if (max_length > 0)
+  /* Item_type_holder holds the exact type, do not change it */
+  if (max_length > 0 &&
+      (type() != Item::TYPE_HOLDER || field_type() != MYSQL_TYPE_STRING))
     return new Field_varstring(max_length, maybe_null, name, table,
                                collation.collation);
   return new Field_string(max_length, maybe_null, name, table,
@@ -3938,6 +3940,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_TIME:
     return new Field_time(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_TIMESTAMP:
+    return new Field_timestamp(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_DATETIME:
     return new Field_datetime(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_YEAR:
@@ -3961,7 +3964,11 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
-    return new Field_blob(max_length, maybe_null, name, table,
+    if (this->type() == Item::TYPE_HOLDER)
+      return new Field_blob(max_length, maybe_null, name, table,
+                          collation.collation, 1);
+    else
+      return new Field_blob(max_length, maybe_null, name, table,
                           collation.collation);
     break;					// Blob handled outside of case
   }
@@ -6117,7 +6124,7 @@ uint32 Item_type_holder::display_length(Item *item)
   case MYSQL_TYPE_DOUBLE:
     return 53;
   case MYSQL_TYPE_NULL:
-    return 4;
+    return 0;
   case MYSQL_TYPE_LONGLONG:
     return 20;
   case MYSQL_TYPE_INT24:
