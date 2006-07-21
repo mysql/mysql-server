@@ -1,0 +1,27 @@
+#
+# Specific tests for case sensitive file systems
+# i.e. lower_case_filesystem=OFF
+#
+-- source include/have_case_sensitive_file_system.inc
+
+connect (master,localhost,root,,);
+connection master;
+create database d1;
+grant all on d1.* to 'sample'@'localhost' identified by 'password';
+flush privileges;
+
+connect (sample,localhost,sample,password,d1);
+connection sample;
+select database();
+--error 1044
+create database d2;
+--error 1044
+create database D1;
+disconnect sample;
+
+connection master;
+drop database if exists d1;
+disconnect master;
+connection default;
+
+# End of 4.1 tests
