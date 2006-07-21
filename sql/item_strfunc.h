@@ -47,8 +47,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "md5"; }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -89,8 +88,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "concat"; }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_concat_ws :public Item_str_func
@@ -111,8 +109,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "reverse"; }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -150,8 +147,7 @@ protected:
 public:
   Item_str_conv(Item *item) :Item_str_func(item) {}
   String *val_str(String *);
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_binary_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -419,8 +415,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "soundex"; }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -528,8 +523,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "rpad"; }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -542,8 +536,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "lpad"; }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -558,8 +551,7 @@ public:
     collation.set(default_charset());
     max_length= 64;
   }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -576,8 +568,7 @@ public:
     decimals=0;
     max_length=args[0]->max_length*2*collation.collation->mbmaxlen;
   }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_binary_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_unhex :public Item_str_func
@@ -593,8 +584,7 @@ public:
     decimals=0;
     max_length=(1+args[0]->max_length)/2;
   }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_binary_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -618,8 +608,7 @@ public:
   }
   void print(String *str);
   const char *func_name() const { return "cast_as_binary"; }
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -659,7 +648,7 @@ public:
   String* val_str(String* str);
   const char *func_name() const { return "inet_ntoa"; }
   void fix_length_and_dec() { decimals = 0; max_length=3*8+7; }
-  bool check_partition_func_processor(byte *int_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_quote :public Item_str_func
@@ -674,7 +663,7 @@ public:
     collation.set(args[0]->collation);
     max_length= args[0]->max_length * 2 + 2;
   }
-  bool check_partition_func_processor(byte *int_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_conv_charset :public Item_str_func
@@ -775,8 +764,7 @@ public:
   const char *func_name() const { return "crc32"; }
   void fix_length_and_dec() { max_length=10; }
   longlong val_int();
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_uncompressed_length : public Item_int_func
