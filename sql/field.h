@@ -782,6 +782,8 @@ public:
 		  enum utype unireg_check_arg, const char *field_name_arg,
 		  struct st_table *table_arg,
 		  CHARSET_INFO *cs);
+  Field_timestamp(bool maybe_null_arg, const char *field_name_arg,
+		 struct st_table *table_arg, CHARSET_INFO *cs);
   enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
@@ -1129,6 +1131,21 @@ public:
     packlength(4)
   {
     flags|= BLOB_FLAG;
+  }
+  Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
+	     struct st_table *table_arg, CHARSET_INFO *cs, bool set_packlength)
+    :Field_longstr((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
+                   NONE, field_name_arg, table_arg, cs)
+  {
+    flags|= BLOB_FLAG;
+    packlength= 4;
+    if (set_packlength)
+    {
+      uint32 char_lengt= len_arg/cs->mbmaxlen;
+      packlength= char_length <= 255 ? 1 :
+                  char_length <= 65535 ? 2 :
+                  char_length <= 16777215 ? 3 : 4;
+    }
   }
   enum_field_types type() const { return FIELD_TYPE_BLOB;}
   enum ha_base_keytype key_type() const
