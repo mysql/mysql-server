@@ -17,7 +17,19 @@ CREATE TABLE t1 (id INT, name VARCHAR(64));
 let $query = "INSERT DELAYED INTO t1 VALUES (1, 'Dr. No'), (2, 'From Russia With Love'), (3, 'Goldfinger'), (4, 'Thunderball'), (5, 'You Only Live Twice')";
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=200 --query=$query --delimiter=";"
 
---sleep 10
+# Wait until all the 5000 inserts has been inserted into the table
+--disable_query_log
+let $counter= 300; # Max 30 seconds wait
+while (`select count(*)!=5000 from mysqlslap.t1`)
+{
+  sleep 0.1;
+  dec $counter;
+  if (!$counter)
+  {
+    Number of records in t1 didnt reach 5000;
+  }
+}
+--enable_query_log
 
 SELECT COUNT(*) FROM mysqlslap.t1;
 sync_slave_with_master;
