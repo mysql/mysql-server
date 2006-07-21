@@ -54,7 +54,7 @@ ER_CANT_CREATE_FILE
 	cze "Nemohu vytvo-Bøit soubor '%-.64s' (chybovı kód: %d)"
 	dan "Kan ikke oprette filen '%-.64s' (Fejlkode: %d)"
 	nla "Kan file '%-.64s' niet aanmaken (Errcode: %d)"
-	eng "Can't create file '%-.64s' (errno: %d)"
+	eng "Can't create file '%-.200s' (errno: %d)"
 	est "Ei suuda luua faili '%-.64s' (veakood: %d)"
 	fre "Ne peut créer le fichier '%-.64s' (Errcode: %d)"
 	ger "Kann Datei '%-.64s' nicht erzeugen (Fehler: %d)"
@@ -278,7 +278,7 @@ ER_CANT_GET_STAT
 	cze "Nemohu z-Bískat stav '%-.64s' (chybovı kód: %d)"
 	dan "Kan ikke læse status af '%-.64s' (Fejlkode: %d)"
 	nla "Kan de status niet krijgen van '%-.64s' (Errcode: %d)"
-	eng "Can't get status of '%-.64s' (errno: %d)"
+	eng "Can't get status of '%-.200s' (errno: %d)"
 	jps "'%-.64s' ‚ÌƒXƒeƒCƒ^ƒX‚ª“¾‚ç‚ê‚Ü‚¹‚ñ. (errno: %d)",
 	est "Ei suuda lugeda '%-.64s' olekut (veakood: %d)"
 	fre "Ne peut obtenir le status de '%-.64s' (Errcode: %d)"
@@ -353,7 +353,7 @@ ER_CANT_OPEN_FILE
 	cze "Nemohu otev-Bøít soubor '%-.64s' (chybovı kód: %d)"
 	dan "Kan ikke åbne fil: '%-.64s' (Fejlkode: %d)"
 	nla "Kan de file '%-.64s' niet openen (Errcode: %d)"
-	eng "Can't open file: '%-.64s' (errno: %d)"
+	eng "Can't open file: '%-.200s' (errno: %d)"
 	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚ğŠJ‚­–‚ª‚Å‚«‚Ü‚¹‚ñ (errno: %d)",
 	est "Ei suuda avada faili '%-.64s' (veakood: %d)"
 	fre "Ne peut ouvrir le fichier: '%-.64s' (Errcode: %d)"
@@ -378,7 +378,7 @@ ER_FILE_NOT_FOUND
 	cze "Nemohu naj-Bít soubor '%-.64s' (chybovı kód: %d)"
 	dan "Kan ikke finde fila: '%-.64s' (Fejlkode: %d)"
 	nla "Kan de file: '%-.64s' niet vinden (Errcode: %d)"
-	eng "Can't find file: '%-.64s' (errno: %d)"
+	eng "Can't find file: '%-.200s' (errno: %d)"
 	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚ğŒ©•t‚¯‚é–‚ª‚Å‚«‚Ü‚¹‚ñ.(errno: %d)",
 	est "Ei suuda leida faili '%-.64s' (veakood: %d)"
 	fre "Ne peut trouver le fichier: '%-.64s' (Errcode: %d)"
@@ -549,7 +549,7 @@ ER_ERROR_ON_READ
 	cze "Chyba p-Bøi ètení souboru '%-.64s' (chybovı kód: %d)"
 	dan "Fejl ved læsning af '%-.64s' (Fejlkode: %d)"
 	nla "Fout bij het lezen van file '%-.64s' (Errcode: %d)"
-	eng "Error reading file '%-.64s' (errno: %d)"
+	eng "Error reading file '%-.200s' (errno: %d)"
 	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚Ì“Ç‚İ‚İƒGƒ‰[ (errno: %d)",
 	est "Viga faili '%-.64s' lugemisel (veakood: %d)"
 	fre "Erreur en lecture du fichier '%-.64s' (Errcode: %d)"
@@ -599,7 +599,7 @@ ER_ERROR_ON_WRITE
 	cze "Chyba p-Bøi zápisu do souboru '%-.64s' (chybovı kód: %d)"
 	dan "Fejl ved skriving av filen '%-.64s' (Fejlkode: %d)"
 	nla "Fout bij het wegschrijven van file '%-.64s' (Errcode: %d)"
-	eng "Error writing file '%-.64s' (errno: %d)"
+	eng "Error writing file '%-.200s' (errno: %d)"
 	jps "'%-.64s' ƒtƒ@ƒCƒ‹‚ğ‘‚­–‚ª‚Å‚«‚Ü‚¹‚ñ (errno: %d)",
 	est "Viga faili '%-.64s' kirjutamisel (veakood: %d)"
 	fre "Erreur d'écriture du fichier '%-.64s' (Errcode: %d)"
@@ -772,7 +772,7 @@ ER_NOT_FORM_FILE
 	cze "Nespr-Bávná informace v souboru '%-.64s'"
 	dan "Forkert indhold i: '%-.64s'"
 	nla "Verkeerde info in file: '%-.64s'"
-	eng "Incorrect information in file: '%-.64s'"
+	eng "Incorrect information in file: '%-.200s'"
 	jps "ƒtƒ@ƒCƒ‹ '%-.64s' ‚Ì info ‚ªŠÔˆá‚Á‚Ä‚¢‚é‚æ‚¤‚Å‚·",
 	est "Vigane informatsioon failis '%-.64s'"
 	fre "Information erronnée dans le fichier: '%-.64s'"
@@ -797,7 +797,7 @@ ER_NOT_KEYFILE
 	cze "Nespr-Bávnı klíè pro tabulku '%-.64s'; pokuste se ho opravit"
 	dan "Fejl i indeksfilen til tabellen '%-.64s'; prøv at reparere den"
 	nla "Verkeerde zoeksleutel file voor tabel: '%-.64s'; probeer het te repareren"
-	eng "Incorrect key file for table '%-.64s'; try to repair it"
+	eng "Incorrect key file for table '%-.200s'; try to repair it"
 	jps "'%-.64s' ƒe[ƒuƒ‹‚Ì key file ‚ªŠÔˆá‚Á‚Ä‚¢‚é‚æ‚¤‚Å‚·. C•œ‚ğ‚µ‚Ä‚­‚¾‚³‚¢",
 	est "Tabeli '%-.64s' võtmefail on vigane; proovi seda parandada"
 	fre "Index corrompu dans la table: '%-.64s'; essayez de le réparer"
@@ -2044,7 +2044,7 @@ ER_TEXTFILE_NOT_READABLE
 	cze "Soubor '%-.64s' mus-Bí bıt v adresáøi databáze nebo èitelnı pro v¹echny"
 	dan "Filen '%-.64s' skal være i database-folderen og kunne læses af alle"
 	nla "Het bestand '%-.64s' dient in de database directory voor the komen of leesbaar voor iedereen te zijn."
-	eng "The file '%-.64s' must be in the database directory or be readable by all"
+	eng "The file '%-.128s' must be in the database directory or be readable by all"
 	jps "ƒtƒ@ƒCƒ‹ '%-.64s' ‚Í databse ‚Ì directory ‚É‚ ‚é‚©‘S‚Ä‚Ìƒ†[ƒU[‚ª“Ç‚ß‚é‚æ‚¤‚É‹–‰Â‚³‚ê‚Ä‚¢‚È‚¯‚ê‚Î‚È‚è‚Ü‚¹‚ñ.",
 	est "Fail '%-.64s' peab asuma andmebaasi kataloogis või olema kõigile loetav"
 	fre "Le fichier '%-.64s' doit être dans le répertoire de la base et lisible par tous"
@@ -2069,7 +2069,7 @@ ER_FILE_EXISTS_ERROR
 	cze "Soubor '%-.64s' ji-B¾ existuje"
 	dan "Filen '%-.64s' eksisterer allerede"
 	nla "Het bestand '%-.64s' bestaat reeds"
-	eng "File '%-.80s' already exists"
+	eng "File '%-.200s' already exists"
 	jps "File '%-.64s' ‚ÍŠù‚É‘¶İ‚µ‚Ü‚·",
 	est "Fail '%-.80s' juba eksisteerib"
 	fre "Le fichier '%-.64s' existe déjà"
@@ -2345,7 +2345,7 @@ ER_NO_UNIQUE_LOGFILE
 	cze "Nemohu vytvo-Bøit jednoznaèné jméno logovacího souboru %s.(1-999)\n"
 	dan "Kan ikke lave unikt log-filnavn %s.(1-999)\n"
 	nla "Het is niet mogelijk een unieke naam te maken voor de logfile %s.(1-999)\n"
-	eng "Can't generate a unique log-filename %-.64s.(1-999)\n"
+	eng "Can't generate a unique log-filename %-.200s.(1-999)\n"
 	est "Ei suuda luua unikaalset logifaili nime %-.64s.(1-999)\n"
 	fre "Ne peut générer un unique nom de journal %s.(1-999)\n"
 	ger "Kann keinen eindeutigen Dateinamen für die Logdatei %-.64s(1-999) erzeugen\n"
@@ -5218,7 +5218,7 @@ ER_FPARSER_BAD_HEADER
 	rus "îÅ×ÅÒÎÙÊ ÚÁÇÏÌÏ×ÏË ÔÉĞÁ ÆÁÊÌÁ '%-.64s'"
 	ukr "îÅ×¦ÒÎÉÊ ÚÁÇÏÌÏ×ÏË ÔÉĞÕ Õ ÆÁÊÌ¦ '%-.64s'"
 ER_FPARSER_EOF_IN_COMMENT  
-	eng "Unexpected end of file while parsing comment '%-.64s'"
+	eng "Unexpected end of file while parsing comment '%-.200s'"
 	ger "Unerwartetes Dateiende beim Parsen des Kommentars '%-.64s'"
 	rus "îÅÏÖÉÄÁÎÎÙÊ ËÏÎÅÃ ÆÁÊÌÁ × ËÏÍÅÎÔÁÒÉÉ '%-.64s'"
 	ukr "îÅÓĞÏÄ¦×ÁÎÎÉÊ Ë¦ÎÅÃØ ÆÁÊÌÕ Õ ËÏÍÅÎÔÁÒ¦ '%-.64s'"
@@ -5387,7 +5387,7 @@ ER_LOGGING_PROHIBIT_CHANGING_OF
 	eng "Binary logging and replication forbid changing the global server %s"
 	ger "Binärlogs und Replikation verhindern Wechsel des globalen Servers %s"
 ER_NO_FILE_MAPPING  
-	eng "Can't map file: %-.64s, errno: %d"
+	eng "Can't map file: %-.200s, errno: %d"
 	ger "Kann Datei nicht abbilden: %-.64s, Fehler: %d"
 ER_WRONG_MAGIC  
 	eng "Wrong magic in %-.64s"
