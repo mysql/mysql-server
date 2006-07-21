@@ -1396,6 +1396,7 @@ drop table t1;
 # for ON INSERT triggers only. Tests for other types of triggers reside
 # in ndb_trigger.test.
 #
+connection slave;
 --disable_warnings
 drop table if exists federated.t1;
 --enable_warnings
