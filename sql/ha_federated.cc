@@ -1775,7 +1775,7 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
   it.
 
   Keep in mind that the server can do updates based on ordering if an ORDER BY
-  clause was used. Consecutive ordering is not guarenteed.
+  clause was used. Consecutive ordering is not guaranteed.
   Currently new_data will not have an updated auto_increament record, or
   and updated timestamp field. You can do these for federated by doing these:
   if (table->timestamp_on_update_now)
@@ -1801,7 +1801,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     this.
   */
   bool has_a_primary_key= test(table->s->primary_key != MAX_KEY);
-  /* 
+  /*
     buffers for following strings
   */
   char field_value_buffer[STRING_BUFFER_USUAL_SIZE];
@@ -1820,7 +1820,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
                       sizeof(where_buffer),
                       &my_charset_bin);
   DBUG_ENTER("ha_federated::update_row");
-  /* 
+  /*
     set string lengths to 0 to avoid misc chars in string
   */
   field_value.length(0);
@@ -1847,6 +1847,9 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   {
     if (bitmap_is_set(table->write_set, (*field)->field_index))
     {
+      update_string.append((*field)->field_name);
+      update_string.append(FEDERATED_EQ);
+
       if ((*field)->is_null())
         update_string.append(FEDERATED_NULL);
       else
@@ -1859,11 +1862,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
         field_value.length(0);
         tmp_restore_column_map(table->read_set, old_map);
       }
-      update_string.append((*field)->field_name);
-      update_string.append(FEDERATED_EQ);
-      update_string.append(new_field_value);
       update_string.append(FEDERATED_COMMA);
-      new_field_value.length(0);
     }
 
     if (bitmap_is_set(table->read_set, (*field)->field_index))
@@ -1874,11 +1873,11 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
       else
       {
         where_string.append(FEDERATED_EQ);
-        (*field)->val_str(&old_field_value,
+        (*field)->val_str(&field_value,
                           (char*) (old_data + (*field)->offset()));
-        (*field)->quote_data(&old_field_value);
-        where_string.append(old_field_value);
-        old_field_value.length(0);
+        (*field)->quote_data(&field_value);
+        where_string.append(field_value);
+        field_value.length(0);
       }
       where_string.append(FEDERATED_AND);
     }
