@@ -236,6 +236,7 @@ typedef struct character_set
 } MY_CHARSET_INFO;
 
 struct st_mysql_methods;
+struct st_mysql_stmt;
 
 typedef struct st_mysql
 {
@@ -293,6 +294,12 @@ typedef struct st_mysql
   /* needed for embedded server - no net buffer to store the 'info' */
   char *info_buffer;
 #endif
+  /*
+    In embedded server it points to the statement that is processed
+    in the current query. We store some results directly in statement
+    fields then.
+  */
+  struct st_mysql_stmt *current_stmt;
 } MYSQL;
 
 typedef struct st_mysql_res {
@@ -745,7 +752,8 @@ typedef struct st_mysql_methods
 			      unsigned long header_length,
 			      const char *arg,
 			      unsigned long arg_length,
-			      my_bool skip_check);
+			      my_bool skip_check,
+                              MYSQL_STMT *stmt);
   MYSQL_DATA *(*read_rows)(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 			   unsigned int fields);
   MYSQL_RES * (*use_result)(MYSQL *mysql);
@@ -835,8 +843,11 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 */
 
 #define simple_command(mysql, command, arg, length, skip_check) \
-  (*(mysql)->methods->advanced_command)(mysql, command,         \
-					NullS, 0, arg, length, skip_check)
+  (*(mysql)->methods->advanced_command)(mysql, command, NullS,  \
+                                        0, arg, length, skip_check, NULL)
+#define stmt_command(mysql, command, arg, length, stmt) \
+  (*(mysql)->methods->advanced_command)(mysql, command, NullS,  \
+                                        0, arg, length, 1, stmt)
 unsigned long net_safe_read(MYSQL* mysql);
 
 #ifdef __NETWARE__
