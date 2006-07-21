@@ -775,6 +775,37 @@ static void reset_mqh(LEX_USER *lu, bool get_them= 0)
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
+void thd_init_client_charset(THD *thd, uint cs_number)
+{
+  /*
+   Use server character set and collation if
+   - opt_character_set_client_handshake is not set
+   - client has not specified a character set
+   - client character set is the same as the servers
+   - client character set doesn't exists in server
+  */
+  if (!opt_character_set_client_handshake ||
+      !(thd->variables.character_set_client= get_charset(cs_number, MYF(0))) ||
+      !my_strcasecmp(&my_charset_latin1,
+                     global_system_variables.character_set_client->name,
+                     thd->variables.character_set_client->name))
+  {
+    thd->variables.character_set_client=
+      global_system_variables.character_set_client;
+    thd->variables.collation_connection=
+      global_system_variables.collation_connection;
+    thd->variables.character_set_results=
+      global_system_variables.character_set_results;
+  }
+  else
+  {
+    thd->variables.character_set_results=
+      thd->variables.collation_connection= 
+      thd->variables.character_set_client;
+  }
+}
+
+
 /*
     Perform handshake, authorize client and update thd ACL variables.
   SYNOPSIS
@@ -910,33 +941,7 @@ static int check_connection(THD *thd)
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
     thd->max_client_packet_length= uint4korr(net->read_pos+4);
     DBUG_PRINT("info", ("client_character_set: %d", (uint) net->read_pos[8]));
-    /*
-      Use server character set and collation if
-      - opt_character_set_client_handshake is not set
-      - client has not specified a character set
-      - client character set is the same as the servers
-      - client character set doesn't exists in server
-    */
-    if (!opt_character_set_client_handshake ||
-        !(thd->variables.character_set_client=
-	  get_charset((uint) net->read_pos[8], MYF(0))) ||
-	!my_strcasecmp(&my_charset_latin1,
-		       global_system_variables.character_set_client->name,
-		       thd->variables.character_set_client->name))
-    {
-      thd->variables.character_set_client=
-	global_system_variables.character_set_client;
-      thd->variables.collation_connection=
-	global_system_variables.collation_connection;
-      thd->variables.character_set_results=
-	global_system_variables.character_set_results;
-    }
-    else
-    {
-      thd->variables.character_set_results=
-      thd->variables.collation_connection= 
-	thd->variables.character_set_client;
-    }
+    thd_init_client_charset(thd, (uint) net->read_pos[8]);
     thd->update_charset();
     end= (char*) net->read_pos+32;
   }
@@ -3033,6 +3038,12 @@ end_with_restore_list:
 	}
       }
       /* Don't yet allow changing of symlinks with ALTER TABLE */
+      if (lex->create_info.data_file_name)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                     "DATA DIRECTORY option ignored");
+      if (lex->create_info.index_file_name)
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                     "INDEX DIRECTORY option ignored");
       lex->create_info.data_file_name=lex->create_info.index_file_name=0;
       /* ALTER TABLE ends previous transaction */
       if (end_active_trans(thd))
