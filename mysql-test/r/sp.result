@@ -2383,16 +2383,6 @@ Warning	1329	No data - zero rows fetched, selected, or processed
 drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
-drop procedure if exists bug2773|
-create function bug2773() returns int return null|
-create table t3 as select bug2773()|
-show create table t3|
-Table	Create Table
-t3	CREATE TABLE `t3` (
-  `bug2773()` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t3|
-drop function bug2773|
 drop procedure if exists bug3788|
 create function bug3788() returns date return cast("2005-03-04" as date)|
 select bug3788()|
