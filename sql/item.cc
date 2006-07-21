@@ -6053,14 +6053,13 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     max_length= my_decimal_precision_to_length(precision, decimals,
                                                unsigned_flag);
   }
-  else
-    max_length= max(max_length, display_length(item));
- 
+
   switch (Field::result_merge_type(fld_type))
   {
   case STRING_RESULT:
   {
     const char *old_cs, *old_derivation;
+    uint32 old_max_chars= max_length / collation.collation->mbmaxlen;
     old_cs= collation.collation->name;
     old_derivation= collation.derivation_name();
     if (collation.aggregate(item->collation, MY_COLL_ALLOW_CONV))
@@ -6072,6 +6071,14 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
 	       "UNION");
       DBUG_RETURN(TRUE);
     }
+    /*
+      To figure out max_length, we have to take into account possible
+      expansion of the size of the values because of character set
+      conversions.
+     */
+    max_length= max(old_max_chars * collation.collation->mbmaxlen,
+                    display_length(item) / item->collation.collation->mbmaxlen *
+                    collation.collation->mbmaxlen);
     break;
   }
   case REAL_RESULT:
@@ -6090,7 +6097,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
     break;
   }
-  default:;
+  default:
+    max_length= max(max_length, display_length(item));
   };
   maybe_null|= item->maybe_null;
   get_full_info(item);
