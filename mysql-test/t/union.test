@@ -841,3 +841,10 @@ drop table t1;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
 (select avg(1)) union (select avg(1)) union (select avg(1));
 
+#
+# Bug #16881: password() and union select
+# (The issue was poor handling of character set aggregation.)
+#
+select _utf8'12' union select _latin1'12345';
+
+--echo End of 5.0 tests
