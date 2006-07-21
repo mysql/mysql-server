@@ -2888,6 +2888,32 @@ select 1 from dual where 1 < any (select 2 from dual);
 select 1 from dual where 1 < all (select 2 from dual where 1!=1);
 1
 1
+create table t1 (s1 char);
+insert into t1 values (1),(2);
+select * from t1 where (s1 < any (select s1 from t1));
+s1
+1
+select * from t1 where not (s1 < any (select s1 from t1));
+s1
+2
+select * from t1 where (s1 < ALL (select s1+1 from t1));
+s1
+1
+select * from t1 where not(s1 < ALL (select s1+1 from t1));
+s1
+2
+select * from t1 where (s1+1 = ANY (select s1 from t1));
+s1
+1
+select * from t1 where NOT(s1+1 = ANY (select s1 from t1));
+s1
+2
+select * from t1 where (s1 = ALL (select s1/s1 from t1));
+s1
+1
+select * from t1 where NOT(s1 = ALL (select s1/s1 from t1));
+s1
+2
 create table t1 (df decimal(5,1));
 insert into t1 values(1.1);
 insert into t1 values(2.2);
