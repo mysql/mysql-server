@@ -1079,7 +1079,7 @@ drop table t1,t2,t3;
 #
 create table t1 (id int,  name char(10) not null,  name2 char(10) not null) engine=innodb;
 insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
-select name2 from t1  union all  select name from t1 union all select id from t1;
+select trim(name2) from t1  union all  select trim(name) from t1 union all select trim(id) from t1;
 drop table t1;
 
 #
