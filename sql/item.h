@@ -807,26 +807,10 @@ public:
     below should be defined in the new Item class.
   */
 
-#define PF_SAFE_BINARY_COLLATION 3
-#define PF_SAFE_SINGLE_CHAR_COLLATION 2
-#define PF_SAFE 1
-#define PF_UNSAFE 0
-  bool safe_for_binary_collation(byte *int_arg)
-  {
-    if (*(int *)int_arg != PF_UNSAFE)
-      *(int*)int_arg= PF_SAFE_BINARY_COLLATION;
-    return 0;
-  }
-  bool safe_for_single_char_collation(byte *int_arg)
-  {
-    if (*(int*)int_arg == PF_SAFE)
-      *(int*)int_arg= PF_SAFE_SINGLE_CHAR_COLLATION;
-    return 0;
-  }
   virtual bool check_partition_func_processor(byte *int_arg)
   {
-    *(int *)int_arg= PF_UNSAFE;
-    return 0;
+    *(int *)int_arg= 0;
+    return FALSE;
   }
 
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
@@ -1126,8 +1110,7 @@ public:
     Item::maybe_null= TRUE;
   }
 
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_single_char_collation(int_arg); }
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
   bool fix_fields(THD *, Item **);
 
   enum Type type() const;
@@ -1174,7 +1157,7 @@ public:
   Item_num() {}                               /* Remove gcc warning */
   virtual Item_num *neg()= 0;
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE;}
 };
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
@@ -1310,7 +1293,7 @@ public:
   bool collect_item_field_processor(byte * arg);
   bool find_item_in_field_list_processor(byte *arg);
   bool register_field_in_read_map(byte *arg);
-  bool check_partition_func_processor(byte *int_arg) { return 0; }
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
   void cleanup();
   bool result_as_longlong()
   {
@@ -1358,7 +1341,7 @@ public:
   bool is_null() { return 1; }
   void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE;}
 };
 
 class Item_null_result :public Item_null
@@ -1372,7 +1355,7 @@ public:
     save_in_field(result_field, no_conversions);
   }
   bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= PF_UNSAFE; return 0; }
+  { *(int *)int_arg= 0; return FALSE; }
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -1664,7 +1647,7 @@ public:
   void print(String *str) { str->append(func_name); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= PF_UNSAFE; return 0; }
+  { *(int *)int_arg= 0; return FALSE; }
 };
 
 
@@ -1742,7 +1725,7 @@ public:
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
-  bool check_partition_func_processor(byte *int_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE;}
 };
 
 
@@ -1758,7 +1741,7 @@ public:
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   void print(String *str) { str->append(func_name); }
   bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= PF_UNSAFE; return 0; }
+  { *(int *)int_arg= 0; return FALSE; }
 };
 
 
@@ -1772,7 +1755,7 @@ public:
   { max_length=19;}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
   bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= PF_UNSAFE; return 0; }
+  { *(int *)int_arg= 0; return FALSE; }
 };
 
 class Item_empty_string :public Item_string
@@ -1796,7 +1779,7 @@ public:
   }
   enum_field_types field_type() const { return int_field_type; }
   bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= PF_UNSAFE; return 0; }
+  { *(int *)int_arg= 0; return FALSE; }
 };
 
 
@@ -1820,8 +1803,7 @@ public:
   void cleanup() {}
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg)
-  { return safe_for_binary_collation(int_arg);}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -2049,7 +2031,7 @@ public:
   Item *new_item();
   virtual Item *real_item() { return ref; }
   bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= PF_UNSAFE; return 0; }
+  { *(int *)int_arg= 0; return FALSE; }
 };
 
 #ifdef MYSQL_SERVER

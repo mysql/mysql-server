@@ -3619,7 +3619,7 @@ part_bit_expr:
         {
           Item *part_expr= $1;
           bool not_corr_func;
-          bool part_expression_ok= TRUE;
+          int part_expression_ok= 1;
           LEX *lex= Lex;
           THD *thd= YYTHD;
           longlong item_value;

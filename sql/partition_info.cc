@@ -718,25 +718,26 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   uint i, tot_partitions;
   bool result= TRUE;
   char *same_name;
-  int part_expression_ok= PF_SAFE;
   DBUG_ENTER("partition_info::check_partition_info");
 
-  pf_collation_allowed= PF_SAFE;
-  spf_collation_allowed= PF_SAFE;
   if (check_partition_function)
   {
+    int part_expression_ok= 1;
+    int pf_collation_allowed= 1;
+    int spf_collation_allowed= 1;
+
     if (part_type != HASH_PARTITION || !list_of_part_fields)
     {
       part_expr->walk(&Item::check_partition_func_processor, 0,
                       (byte*)(&part_expression_ok));
-      pf_collation_allowed= (char)part_expression_ok;
-      part_expression_ok= PF_SAFE;
+      pf_collation_allowed= part_expression_ok;
+      part_expression_ok= 1;
       if (is_sub_partitioned() && !list_of_subpart_fields)
       {
         subpart_expr->walk(&Item::check_partition_func_processor, 0,
                            (byte*)(&part_expression_ok));
       }
-      spf_collation_allowed= (char)part_expression_ok;
+      spf_collation_allowed= part_expression_ok;
     }
     if (!pf_collation_allowed ||
         !spf_collation_allowed)

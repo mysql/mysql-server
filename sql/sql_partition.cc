@@ -1376,7 +1376,7 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
   Check that partition function do not contain any forbidden
   character sets and collations.
   SYNOPSIS
-    check_part_func_collation()
+    check_part_func_fields()
     part_info                           Partition info
     ptr                                 Array of Field pointers
   RETURN VALUES
@@ -1384,19 +1384,24 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
     TRUE                                Error
 */
 
-static bool check_part_func_collation(int collation_allowed,
-                                      Field **ptr)
+static bool check_part_func_fields(Field **ptr)
 {
   Field *field;
   while ((field= *(ptr++)))
   {
-    if (field->result_type() == STRING_RESULT)
+    /*
+      For CHAR/VARCHAR fields we need to take special precautions.
+      Binary collation with CHAR is automatically supported. Other
+      types need some kind of standardisation function handling
+    */
+    if (field->type() == MYSQL_TYPE_STRING ||
+        field->type() == MYSQL_TYPE_VARCHAR)
     {
       CHARSET_INFO *cs= ((Field_str*)field)->charset();
-      if (use_strnxfrm(cs) ||
-          (collation_allowed == PF_SAFE_BINARY_COLLATION &&
-          (!(cs->state & MY_CS_BINSORT))))
-        return TRUE;
+      if (field->type() == MYSQL_TYPE_STRING &&
+          cs->state & MY_CS_BINSORT)
+        return FALSE;
+      return TRUE;
     }
   }
   return FALSE;
@@ -1548,13 +1553,9 @@ bool fix_partition_func(THD *thd, TABLE *table,
       goto end;
     }
   }
-  if (((part_info->pf_collation_allowed != PF_SAFE) &&
-        check_part_func_collation(part_info->pf_collation_allowed,
-                                  part_info->part_field_array)) ||
+  if ((check_part_func_fields(part_info->part_field_array)) ||
       (part_info->is_sub_partitioned() &&
-       part_info->spf_collation_allowed != PF_SAFE &&
-       check_part_func_collation(part_info->spf_collation_allowed,
-                                 part_info->subpart_field_array)))
+       check_part_func_fields(part_info->subpart_field_array)))
   {
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
     goto end;
