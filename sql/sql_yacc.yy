@@ -1911,9 +1911,12 @@ sp_proc_stmt:
               sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
                                                  lex->spcont, lex);
 
-              /* Extract the query statement from the tokenizer:
-                 The end is either lex->tok_end or tok->ptr. */
-              if (lex->ptr - lex->tok_end > 1)
+              /*
+                Extract the query statement from the tokenizer.  The
+                end is either lex->ptr, if there was no lookahead,
+                lex->tok_end otherwise.
+              */
+              if (yychar == YYEMPTY)
                 i->m_query.length= lex->ptr - sp->m_tmp_query;
               else
                 i->m_query.length= lex->tok_end - sp->m_tmp_query;
@@ -7822,7 +7825,12 @@ option_type_value:
                                          lex)))
                 YYABORT;
 
-              if (lex->ptr - lex->tok_end > 1)
+              /*
+                Extract the query statement from the tokenizer.  The
+                end is either lex->ptr, if there was no lookahead,
+                lex->tok_end otherwise.
+              */
+              if (yychar == YYEMPTY)
                 qbuff.length= lex->ptr - sp->m_tmp_query;
               else
                 qbuff.length= lex->tok_end - sp->m_tmp_query;
