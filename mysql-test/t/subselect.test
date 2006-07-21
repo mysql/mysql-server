@@ -1860,4 +1860,5 @@ select * from t1 where NOT(s1+1 = ANY (select s1 from t1));
 
 select * from t1 where (s1 = ALL (select s1/s1 from t1));
 select * from t1 where NOT(s1 = ALL (select s1/s1 from t1));
+drop table t1;
 # End of 4.1 tests
