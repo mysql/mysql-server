@@ -1,4 +1,88 @@
 drop table if exists t1;
+create table t1 (a int unsigned)
+partition by hash(a div 2)
+partitions 4;
+insert into t1 values (null),(0),(1),(2),(3),(4),(5),(6),(7);
+select * from t1 where a < 0;
+a
+select * from t1 where a is null or (a >= 5 and a <= 7);
+a
+NULL
+5
+6
+7
+select * from t1 where a is null;
+a
+NULL
+select * from t1 where a is not null;
+a
+0
+1
+2
+3
+4
+5
+6
+7
+select * from t1 where a >= 1 and a < 3;
+a
+1
+2
+select * from t1 where a >= 3 and a <= 5;
+a
+3
+4
+5
+select * from t1 where a > 2 and a < 4;
+a
+3
+select * from t1 where a > 3 and a <= 6;
+a
+4
+5
+6
+select * from t1 where a > 5;
+a
+6
+7
+select * from t1 where a >= 1 and a <= 5;
+a
+1
+2
+3
+4
+5
+explain partitions select * from t1 where a < 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	Using where
+explain partitions select * from t1 where a is null or (a >= 5 and a <= 7);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p2,p3	ALL	NULL	NULL	NULL	NULL	7	Using where
+explain partitions select * from t1 where a is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 where a is not null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	Using where
+explain partitions select * from t1 where a >= 1 and a < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	5	Using where
+explain partitions select * from t1 where a >= 3 and a <= 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a > 2 and a < 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a > 3 and a <= 6;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a > 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	Using where
+explain partitions select * from t1 where a >= 1 and a <= 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	Using where
+drop table t1;
 CREATE TABLE t1 (
 a int not null,
 b int not null,
