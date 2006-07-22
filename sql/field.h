@@ -1141,7 +1141,7 @@ public:
     packlength= 4;
     if (set_packlength)
     {
-      uint32 char_lengt= len_arg/cs->mbmaxlen;
+      uint32 char_length= len_arg/cs->mbmaxlen;
       packlength= char_length <= 255 ? 1 :
                   char_length <= 65535 ? 2 :
                   char_length <= 16777215 ? 3 : 4;
