@@ -4070,11 +4070,13 @@ end_with_restore_list:
 
     if (thd->security_ctx->user)              // If not replication
     {
-      LEX_USER *user;
+      LEX_USER *user, *tmp_user;
 
       List_iterator <LEX_USER> user_list(lex->users_list);
-      while ((user= user_list++))
+      while ((tmp_user= user_list++))
       {
+        if (!(user= get_current_user(thd, tmp_user)))
+          goto error;
         if (specialflag & SPECIAL_NO_RESOLVE &&
             hostname_requires_resolving(user->host.str))
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -4156,9 +4158,13 @@ end_with_restore_list:
 	if (lex->sql_command == SQLCOM_GRANT)
 	{
 	  List_iterator <LEX_USER> str_list(lex->users_list);
-	  LEX_USER *user;
-	  while ((user=str_list++))
+	  LEX_USER *user, *tmp_user;
+	  while ((tmp_user=str_list++))
+          {
+            if (!(user= get_current_user(thd, tmp_user)))
+              goto error;
 	    reset_mqh(user);
+          }
 	}
       }
     }
@@ -4213,13 +4219,18 @@ end_with_restore_list:
   }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   case SQLCOM_SHOW_GRANTS:
+  {
+    LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
+    if (!grant_user)
+      goto error;
     if ((thd->security_ctx->priv_user &&
-	 !strcmp(thd->security_ctx->priv_user, lex->grant_user->user.str)) ||
+	 !strcmp(thd->security_ctx->priv_user, grant_user->user.str)) ||
 	!check_access(thd, SELECT_ACL, "mysql",0,1,0,0))
     {
-      res = mysql_show_grants(thd,lex->grant_user);
+      res = mysql_show_grants(thd, grant_user);
     }
     break;
+  }
 #endif
   case SQLCOM_HA_OPEN:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -7787,4 +7798,35 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
   definer->host= *host_name;
 
   return definer;
+}
+
+
+/*
+  Retuns information about user or current user.
+
+  SYNOPSIS
+    get_current_user()
+    thd         [in] thread handler
+    user        [in] user
+
+  RETURN
+    On success, return a valid pointer to initialized
+    LEX_USER, which contains user information.
+    On error, return 0.
+*/
+
+LEX_USER *get_current_user(THD *thd, LEX_USER *user)
+{
+  LEX_USER *curr_user;
+  if (!user->user.str)  // current_user
+  {
+    if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
+    {
+      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(LEX_USER));
+      return 0;
+    }
+    get_default_definer(thd, curr_user);
+    return curr_user;
+  }
+  return user;
 }
