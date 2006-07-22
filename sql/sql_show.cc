@@ -770,7 +770,14 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   {
     if (!wild || !wild[0] || 
         !wild_case_compare(system_charset_info, field->field_name,wild))
-      field_list.push_back(new Item_field(field));
+    {
+      if (table_list->view)
+        field_list.push_back(new Item_ident_for_show(field,
+                                                     table_list->view_db.str,
+                                                     table_list->view_name.str));
+      else
+        field_list.push_back(new Item_field(field));
+    }
   }
   restore_record(table, s->default_values);              // Get empty record
   table->use_all_columns();
@@ -1345,10 +1352,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(buff, (uint) (end - buff));
     }
     table->file->append_create_info(packet);
-    if (share->comment && share->comment[0])
+    if (share->comment.length)
     {
       packet->append(STRING_WITH_LEN(" COMMENT="));
-      append_unescaped(packet, share->comment, strlen(share->comment));
+      append_unescaped(packet, share->comment.str, share->comment.length);
     }
     if (share->connect_string.length)
     {
@@ -2901,11 +2908,14 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
                              (uint) (ptr-option_buff)-1), cs);
     {
       char *comment;
-      comment= show_table->file->update_table_comment(share->comment);
+      comment= show_table->file->update_table_comment(share->comment.str);
       if (comment)
       {
-        table->field[20]->store(comment, strlen(comment), cs);
-        if (comment != share->comment)
+        table->field[20]->store(comment,
+                                (comment == share->comment.str ?
+                                 share->comment.length : 
+                                 strlen(comment)), cs);
+        if (comment != share->comment.str)
           my_free(comment, MYF(0));
       }
     }
