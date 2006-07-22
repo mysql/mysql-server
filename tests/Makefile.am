@@ -50,8 +50,14 @@ INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include \
 LIBS =			@CLIENT_LIBS@
 LDADD =			@CLIENT_EXTRA_LDFLAGS@ \
                         $(LIBMYSQLCLIENT_LA)
+if HAVE_NETWARE
+mysql_client_test_LDADD= $(LDADD) $(CXXLDFLAGS)
+mysql_client_test_SOURCES= mysql_client_test.c $(yassl_dummy_link_fix) \
+			../mysys/my_memmem.c
+else
 mysql_client_test_LDADD= $(LDADD) $(CXXLDFLAGS) -L../mysys -lmysys
 mysql_client_test_SOURCES= mysql_client_test.c $(yassl_dummy_link_fix)
+endif
 insert_test_SOURCES=       insert_test.c $(yassl_dummy_link_fix)
 select_test_SOURCES=       select_test.c $(yassl_dummy_link_fix)
 insert_test_DEPENDENCIES=	$(LIBRARIES) $(pkglib_LTLIBRARIES)
