@@ -43,7 +43,10 @@
 				OutputFile="../client_classic/mysqld-nt.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				AdditionalLibraryDirectories=""
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile="../client_classic/mysqld-nt.pdb"
+				GenerateMapFile="TRUE"
+				MapFileName="../client_classic/mysqld-nt.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
@@ -104,6 +107,10 @@
 				OutputFile="../client_release/mysqld-max.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile="../client_release/mysqld-max.pdb"
+				GenerateMapFile="TRUE"
+				MapFileName="../client_release/mysqld-max.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
@@ -164,9 +171,10 @@
 				OutputFile="../client_release/mysqld-max-nt.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				ProgramDatabaseFile=".\max_nt/mysqld-max-nt.pdb"
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile="../client_release/mysqld-max-nt.pdb"
 				GenerateMapFile="TRUE"
-				MapFileName=".\max_nt/mysqld-max-nt.map"
+				MapFileName="../client_release/mysqld-max-nt.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
@@ -227,9 +235,10 @@
 				OutputFile="../client_release/mysqld-nt.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				ProgramDatabaseFile=".\nt/mysqld-nt.pdb"
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile="../client_release/mysqld-nt.pdb"
 				GenerateMapFile="TRUE"
-				MapFileName=".\nt/mysqld-nt.map"
+				MapFileName="../client_release/mysqld-nt.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
@@ -290,7 +299,10 @@
 				OutputFile="../client_pro/mysqld-nt.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				AdditionalLibraryDirectories=""
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile="../client_pro/mysqld-nt.pdb"
+				GenerateMapFile="TRUE"
+				MapFileName="../client_pro/mysqld-nt.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
@@ -350,7 +362,9 @@
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
 				GenerateDebugInformation="TRUE"
-				ProgramDatabaseFile=".\debug/mysqld-debug.pdb"
+				ProgramDatabaseFile="../client_debug/mysqld-debug.pdb"
+				GenerateMapFile="TRUE"
+				MapFileName="../client_debug/mysqld-debug.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
@@ -411,7 +425,10 @@
 				OutputFile="../client_pro/mysqld.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				AdditionalLibraryDirectories=""
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile="../client_pro/mysqld.pdb"
+				GenerateMapFile="TRUE"
+				MapFileName="../client_pro/mysqld.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
@@ -472,7 +489,10 @@
 				OutputFile="../client_classic/mysqld.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
-				AdditionalLibraryDirectories=""
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile="../client_classic/mysqld.pdb"
+				GenerateMapFile="TRUE"
+				MapFileName="../client_classic/mysqld.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
@@ -533,6 +553,10 @@
 				OutputFile="../client_release/mysqld.exe"
 				LinkIncremental="1"
 				SuppressStartupBanner="TRUE"
+				GenerateDebugInformation="TRUE"
+				ProgramDatabaseFile="../client_release/mysqld.pdb"
+				GenerateMapFile="TRUE"
+				MapFileName="../client_release/mysqld.map"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool
