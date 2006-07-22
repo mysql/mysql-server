@@ -10,6 +10,49 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# Bug 20733: Zerofill columns gives wrong result with partitioned tables
+#
+create table t1 (a int unsigned)
+partition by list (a)
+(partition p0 values in (0),
+ partition p1 values in (1),
+ partition pnull values in (null),
+ partition p2 values in (2));
+
+insert into t1 values (null),(0),(1),(2);
+select * from t1 where a < 2;
+select * from t1 where a <= 0;
+select * from t1 where a < 1;
+select * from t1 where a > 0;
+select * from t1 where a > 1;
+select * from t1 where a >= 0;
+select * from t1 where a >= 1;
+select * from t1 where a is null;
+select * from t1 where a is not null;
+select * from t1 where a is null or a > 0;
+drop table t1;
+
+create table t1 (a int unsigned, b int)
+partition by list (a)
+subpartition by hash (b)
+subpartitions 2
+(partition p0 values in (0),
+ partition p1 values in (1),
+ partition pnull values in (null, 2),
+ partition p3 values in (3));
+insert into t1 values (0,0),(0,1),(1,0),(1,1),(null,0),(null,1);
+insert into t1 values (2,0),(2,1),(3,0),(3,1);
+
+explain partitions select * from t1 where a is null;
+select * from t1 where a is null;
+explain partitions select * from t1 where a = 2;
+select * from t1 where a = 2;
+select * from t1 where a <= 0;
+select * from t1 where a < 3;
+select * from t1 where a >= 1 or a is null;
+drop table t1;
+
+#
 # Test ordinary list partitioning that it works ok
 #
 CREATE TABLE t1 (
@@ -135,4 +178,5 @@ create index inx on t1 (a);
 insert into t1 values (null);
 select * from t1;
 drop table t1;
+
 

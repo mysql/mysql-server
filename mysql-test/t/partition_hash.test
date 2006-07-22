@@ -10,6 +10,36 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# More partition pruning tests, especially on interval walking
+#
+create table t1 (a int unsigned)
+partition by hash(a div 2)
+partitions 4;
+insert into t1 values (null),(0),(1),(2),(3),(4),(5),(6),(7);
+select * from t1 where a < 0;
+select * from t1 where a is null or (a >= 5 and a <= 7);
+select * from t1 where a is null;
+select * from t1 where a is not null;
+select * from t1 where a >= 1 and a < 3;
+select * from t1 where a >= 3 and a <= 5;
+select * from t1 where a > 2 and a < 4;
+select * from t1 where a > 3 and a <= 6;
+select * from t1 where a > 5;
+select * from t1 where a >= 1 and a <= 5;
+explain partitions select * from t1 where a < 0;
+explain partitions select * from t1 where a is null or (a >= 5 and a <= 7); 
+explain partitions select * from t1 where a is null;
+explain partitions select * from t1 where a is not null;
+explain partitions select * from t1 where a >= 1 and a < 3;
+explain partitions select * from t1 where a >= 3 and a <= 5;
+explain partitions select * from t1 where a > 2 and a < 4;
+explain partitions select * from t1 where a > 3 and a <= 6;
+explain partitions select * from t1 where a > 5;
+explain partitions select * from t1 where a >= 1 and a <= 5;
+
+drop table t1;
+
+#
 # Partition by hash, basic
 #
 CREATE TABLE t1 (

@@ -2415,6 +2415,10 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("get_list_array_idx_for_endpoint");
 
+  if (part_info->part_expr->null_value)
+  {
+    DBUG_RETURN(0);
+  }
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
   DBUG_ASSERT(part_info->no_list_values);
@@ -2539,6 +2543,13 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   bool unsigned_flag= part_info->part_expr->unsigned_flag;
   DBUG_ENTER("get_partition_id_range_for_endpoint");
 
+  if (part_info->part_expr->null_value)
+  {
+    uint32 ret_part_id= 0;
+    if (!left_endpoint && include_endpoint)
+      ret_part_id= 1;
+    DBUG_RETURN(ret_part_id);
+  }
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
   while (max_part_id > min_part_id)
