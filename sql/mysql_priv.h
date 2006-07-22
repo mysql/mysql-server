@@ -523,6 +523,8 @@ class sys_var;
 class Comp_creator;
 typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #include "item.h"
+extern my_decimal decimal_zero;
+
 /* sql_parse.cc */
 void free_items(Item *item);
 void cleanup_items(Item *item);
