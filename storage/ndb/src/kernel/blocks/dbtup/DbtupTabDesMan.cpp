@@ -24,13 +24,15 @@
 #define ljam() { jamLine(22000 + __LINE__); }
 #define ljamEntry() { jamEntryLine(22000 + __LINE__); }
 
-/* **************************************************************** */
-/* *********** TABLE DESCRIPTOR MEMORY MANAGER ******************** */
-/* **************************************************************** */
-/* This module is used to allocate and deallocate table descriptor  */
-/* memory attached to fragments (could be allocated per table       */
-/* instead. Performs its task by a buddy algorithm.                 */
-/* **************************************************************** */
+/*
+ * TABLE DESCRIPTOR MEMORY MANAGER
+ *
+ * Each table has a descriptor which is a contiguous array of words.
+ * The descriptor is allocated from a global array using a buddy
+ * algorithm.  Free lists exist for each power of 2 words.  Freeing
+ * a piece first merges with free right and left neighbours and then
+ * divides itself up into free list chunks.
+ */
 
 Uint32
 Dbtup::getTabDescrOffsets(const Tablerec* regTabPtr, Uint32* offset)
@@ -59,7 +61,7 @@ Uint32 Dbtup::allocTabDescr(const Tablerec* regTabPtr, Uint32* offset)
   Uint32 reference = RNIL;
   Uint32 allocSize = getTabDescrOffsets(regTabPtr, offset);
 /* ---------------------------------------------------------------- */
-/*       ALWAYS ALLOCATE A MULTIPLE OF 16 BYTES                     */
+/*       ALWAYS ALLOCATE A MULTIPLE OF 16 WORDS                     */
 /* ---------------------------------------------------------------- */
   allocSize = (((allocSize - 1) >> 4) + 1) << 4;
   Uint32 list = nextHigherTwoLog(allocSize - 1);	/* CALCULATE WHICH LIST IT BELONGS TO     */
@@ -72,9 +74,9 @@ Uint32 Dbtup::allocTabDescr(const Tablerec* regTabPtr, Uint32* offset)
       Uint32 retNo = (1 << i) - allocSize;	        /* CALCULATE THE DIFFERENCE               */
       if (retNo >= ZTD_FREE_SIZE) {
         ljam();
-        Uint32 retRef = reference + allocSize;          /* SET THE RETURN POINTER                 */
-        retNo = itdaMergeTabDescr(retRef, retNo);       /* MERGE WITH POSSIBLE RIGHT NEIGHBOURS   */
-        freeTabDescr(retRef, retNo);	                /* RETURN UNUSED TD SPACE TO THE TD AREA  */
+        // return unused words, of course without attempting left merge
+        Uint32 retRef = reference + allocSize;
+        freeTabDescr(retRef, retNo, false);
       } else {
         ljam();
         allocSize = 1 << i;
@@ -100,17 +102,19 @@ Uint32 Dbtup::allocTabDescr(const Tablerec* regTabPtr, Uint32* offset)
   }//if
 }//Dbtup::allocTabDescr()
 
-void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo) 
+void Dbtup::freeTabDescr(Uint32 retRef, Uint32 retNo, bool normal)
 {
+  itdaMergeTabDescr(retRef, retNo, normal);       /* MERGE WITH POSSIBLE NEIGHBOURS   */
   while (retNo >= ZTD_FREE_SIZE) {
     ljam();
     Uint32 list = nextHigherTwoLog(retNo);
     list--;	/* RETURN TO NEXT LOWER LIST    */
     Uint32 sizeOfChunk = 1 << list;
-    insertTdArea(sizeOfChunk, retRef, list);
+    insertTdArea(retRef, list);
     retRef += sizeOfChunk;
     retNo -= sizeOfChunk;
   }//while
+  ndbassert(retNo == 0);
 }//Dbtup::freeTabDescr()
 
 Uint32
@@ -127,7 +131,7 @@ Dbtup::setTabDescrWord(Uint32 index, Uint32 word)
   tableDescriptor[index].tabDescr = word;
 }//Dbtup::setTabDescrWord()
 
-void Dbtup::insertTdArea(Uint32 sizeOfChunk, Uint32 tabDesRef, Uint32 list) 
+void Dbtup::insertTdArea(Uint32 tabDesRef, Uint32 list) 
 {
   ndbrequire(list < 16);
   setTabDescrWord(tabDesRef + ZTD_FL_HEADER, ZTD_TYPE_FREE);
@@ -144,19 +148,14 @@ void Dbtup::insertTdArea(Uint32 sizeOfChunk, Uint32 tabDesRef, Uint32 list)
   setTabDescrWord((tabDesRef + (1 << list)) - ZTD_TR_SIZE, 1 << list);
 }//Dbtup::insertTdArea()
 
-/* ---------------------------------------------------------------- */
-/* ----------------------- MERGE_TAB_DESCR ------------------------ */
-/* ---------------------------------------------------------------- */
-/* INPUT:  TAB_DESCR_PTR   POINTING AT THE CURRENT CHUNK            */
-/*                                                                  */
-/* SHORTNAME:   MTD                                                 */
-/* -----------------------------------------------------------------*/
-Uint32 Dbtup::itdaMergeTabDescr(Uint32 retRef, Uint32 retNo) 
+/*
+ * Merge to-be-removed chunk (which need not be initialized with header
+ * and trailer) with left and right buddies.  The start point retRef
+ * moves to left and the size retNo increases to match the new chunk.
+ */
+void Dbtup::itdaMergeTabDescr(Uint32& retRef, Uint32& retNo, bool normal)
 {
-   /* THE SIZE OF THE PART TO MERGE MUST BE OF THE SAME SIZE AS THE INSERTED PART */
-   /* THIS IS TRUE EITHER IF ONE PART HAS THE SAME SIZE OR THE SUM OF BOTH PARTS  */
-   /* TOGETHER HAS THE SAME SIZE AS THE PART TO BE INSERTED                       */
-   /* FIND THE SIZES OF THE PARTS TO THE RIGHT OF THE PART TO BE REINSERTED */
+  // merge right
   while ((retRef + retNo) < cnoOfTabDescrRec) {
     ljam();
     Uint32 tabDesRef = retRef + retNo;
@@ -170,11 +169,28 @@ Uint32 Dbtup::itdaMergeTabDescr(Uint32 retRef, Uint32 retNo)
       removeTdArea(tabDesRef, list);
     } else {
       ljam();
-      return retNo;
-    }//if
-  }//while
-  ndbrequire((retRef + retNo) == cnoOfTabDescrRec);
-  return retNo;
+      break;
+    }
+  }
+  // merge left
+  const bool mergeLeft = normal;
+  while (mergeLeft && retRef > 0) {
+    ljam();
+    Uint32 trailerWord = getTabDescrWord(retRef - ZTD_TR_TYPE);
+    if (trailerWord == ZTD_TYPE_FREE) {
+      ljam();
+      Uint32 sizeOfMergedPart = getTabDescrWord(retRef - ZTD_TR_SIZE);
+      ndbrequire(retRef >= sizeOfMergedPart);
+      retRef -= sizeOfMergedPart;
+      retNo += sizeOfMergedPart;
+      Uint32 list = nextHigherTwoLog(sizeOfMergedPart - 1);
+      removeTdArea(retRef, list);
+    } else {
+      ljam();
+      break;
+    }
+  }
+  ndbrequire((retRef + retNo) <= cnoOfTabDescrRec);
 }//Dbtup::itdaMergeTabDescr()
 
 /* ---------------------------------------------------------------- */
@@ -210,3 +226,94 @@ void Dbtup::removeTdArea(Uint32 tabDesRef, Uint32 list)
     setTabDescrWord(tabDescrPrevPtr + ZTD_FL_NEXT, tabDescrNextPtr);
   }//if
 }//Dbtup::removeTdArea()
+
+#ifdef VM_TRACE
+void
+Dbtup::verifytabdes()
+{
+  struct WordType {
+    short fl;   // free list 0-15
+    short ti;   // table id
+    WordType() : fl(-1), ti(-1) {}
+  };
+  WordType* wt = new WordType [cnoOfTabDescrRec];
+  uint free_frags = 0;
+  // free lists
+  {
+    for (uint i = 0; i < 16; i++) {
+      Uint32 desc2 = RNIL;
+      Uint32 desc = cfreeTdList[i];
+      while (desc != RNIL) {
+        const Uint32 size = (1 << i);
+        ndbrequire(size >= ZTD_FREE_SIZE);
+        ndbrequire(desc + size <= cnoOfTabDescrRec);
+        { Uint32 index = desc + ZTD_FL_HEADER;
+          ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_FREE);
+        }
+        { Uint32 index = desc + ZTD_FL_SIZE;
+          ndbrequire(tableDescriptor[index].tabDescr == size);
+        }
+        { Uint32 index = desc + size - ZTD_TR_TYPE;
+          ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_FREE);
+        }
+        { Uint32 index = desc + size - ZTD_TR_SIZE;
+          ndbrequire(tableDescriptor[index].tabDescr == size);
+        }
+        { Uint32 index = desc + ZTD_FL_PREV;
+          ndbrequire(tableDescriptor[index].tabDescr == desc2);
+        }
+        for (uint j = 0; j < size; j++) {
+          ndbrequire(wt[desc + j].fl == -1);
+          wt[desc + j].fl = i;
+        }
+        desc2 = desc;
+        desc = tableDescriptor[desc + ZTD_FL_NEXT].tabDescr;
+        free_frags++;
+      }
+    }
+  }
+  // tables
+  {
+    for (uint i = 0; i < cnoOfTablerec; i++) {
+      TablerecPtr ptr;
+      ptr.i = i;
+      ptrAss(ptr, tablerec);
+      if (ptr.p->tableStatus == DEFINED) {
+        Uint32 offset[10];
+        const Uint32 alloc = getTabDescrOffsets(ptr.p, offset);
+        const Uint32 desc = ptr.p->readKeyArray - offset[3];
+        Uint32 size = alloc;
+        if (size % ZTD_FREE_SIZE != 0)
+          size += ZTD_FREE_SIZE - size % ZTD_FREE_SIZE;
+        ndbrequire(desc + size <= cnoOfTabDescrRec);
+        { Uint32 index = desc + ZTD_FL_HEADER;
+          ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_NORMAL);
+        }
+        { Uint32 index = desc + ZTD_FL_SIZE;
+          ndbrequire(tableDescriptor[index].tabDescr == size);
+        }
+        { Uint32 index = desc + size - ZTD_TR_TYPE;
+          ndbrequire(tableDescriptor[index].tabDescr == ZTD_TYPE_NORMAL);
+        }
+        { Uint32 index = desc + size - ZTD_TR_SIZE;
+          ndbrequire(tableDescriptor[index].tabDescr == size);
+        }
+        for (uint j = 0; j < size; j++) {
+          ndbrequire(wt[desc + j].ti == -1);
+          wt[desc + j].ti = i;
+        }
+      }
+    }
+  }
+  // all words
+  {
+    for (uint i = 0; i < cnoOfTabDescrRec; i++) {
+      bool is_fl = wt[i].fl != -1;
+      bool is_ti = wt[i].ti != -1;
+      ndbrequire(is_fl != is_ti);
+    }
+  }
+  delete [] wt;
+  ndbout << "verifytabdes: frags=" << free_frags << endl;
+}
+#endif
