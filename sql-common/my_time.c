@@ -69,6 +69,7 @@ uint calc_days_in_year(uint year)
     Here we assume that year and month is ok !
     If month is 0 we allow any date. (This only happens if we allow zero
     date parts in str_to_datetime())
+    Disallow dates with zero year and non-zero month and/or day.
 
   RETURN
     0  ok
@@ -85,7 +86,8 @@ static my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
         (!(flags & TIME_INVALID_DATES) &&
          ltime->month && ltime->day > days_in_month[ltime->month-1] &&
          (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
-          ltime->day != 29)))
+          ltime->day != 29)) ||
+        (ltime->year == 0 && (ltime->month != 0 || ltime->day != 0)))
     {
       *was_cut= 2;
       return TRUE;
