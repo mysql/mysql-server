@@ -91,6 +91,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     /* Handler didn't support fast delete; Delete rows one by one */
   }
 
+  if (conds)
+  {
+    Item::cond_result result;
+    conds= remove_eq_conds(thd, conds, &result);
+    if (result == Item::COND_FALSE)             // Impossible where
+      limit= 0;
+  }
+
   table->used_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
   select=make_select(table, 0, 0, conds, 0, &error);
