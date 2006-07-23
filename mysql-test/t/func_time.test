@@ -329,6 +329,16 @@ select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
        monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 
 #
+# Bug #16327: problem with timestamp < 1970
+#
+
+set time_zone='-6:00';
+create table t1(a timestamp);
+insert into t1 values (19691231190001);
+select * from t1;
+drop table t1;
+
+#
 # Bug#16377 result of DATE/TIME functions were compared as strings which
 #           can lead to a wrong result.
 #
