@@ -112,6 +112,7 @@ install-data-local:
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(testdir)
 
+
 SUFFIXES = .sh
 
 .sh:

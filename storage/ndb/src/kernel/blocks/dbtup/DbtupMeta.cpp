@@ -857,6 +857,11 @@ void
 Dbtup::execDROP_TAB_REQ(Signal* signal)
 {
   ljamEntry();
+  if (ERROR_INSERTED(4013)) {
+#ifdef VM_TRACE
+    verifytabdes();
+#endif
+  }
   DropTabReq* req= (DropTabReq*)signal->getDataPtr();
   
   TablerecPtr tabPtr;
@@ -1109,7 +1114,6 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   }
   
   releaseFragPages(fragPtr.p);
-  
   Uint32 i;
   for(i= 0; i<MAX_FRAG_PER_NODE; i++)
     if(tabPtr.p->fragrec[i] == fragPtr.i)
@@ -1152,7 +1156,6 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   tabPtr.p->m_attributes[DD].m_no_of_fixsize = 0;
   tabPtr.p->m_attributes[DD].m_no_of_varsize = 0;
 }
-
 void
 Dbtup::complete_restore_lcp(Uint32 tableId, Uint32 fragId)
 {
