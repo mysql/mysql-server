@@ -187,6 +187,7 @@ our $exe_mysqltest;
 our $exe_slave_mysqld;
 our $exe_im;
 our $exe_my_print_defaults;
+our $exe_perror;
 our $lib_udf_example;
 our $exe_libtool;
 
@@ -1048,6 +1049,8 @@ sub executable_setup () {
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
       $exe_my_print_defaults=
 	mtr_exe_exists("$path_client_bindir/my_print_defaults");
+      $exe_perror=
+	mtr_exe_exists("$path_client_bindir/perror");
     }
     else
     {
@@ -1060,6 +1063,8 @@ sub executable_setup () {
         "$glob_basedir/server-tools/instance-manager/mysqlmanager");
       $exe_my_print_defaults=
 	mtr_exe_exists("$glob_basedir/extra/my_print_defaults");
+      $exe_perror=
+	mtr_exe_exists("$glob_basedir/extra/perror");
     }
 
     if ( $glob_use_embedded_server )
@@ -1107,6 +1112,8 @@ sub executable_setup () {
 			"$glob_basedir/scripts/mysql_fix_privilege_tables");
     $exe_my_print_defaults=
       mtr_exe_exists("$path_client_bindir/my_print_defaults");
+    $exe_perror=
+      mtr_exe_exists("$path_client_bindir/perror");
 
     $path_language=      mtr_path_exists("$glob_basedir/share/mysql/english/",
                                          "$glob_basedir/share/english/");
@@ -3103,6 +3110,7 @@ sub run_mysqltest ($) {
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
   $ENV{'UDF_EXAMPLE_LIB'}=
     ($lib_udf_example ? basename($lib_udf_example) : "");
+  $ENV{'MY_PERROR'}=                 $exe_perror;
 
   $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
   $ENV{'NDB_BACKUP_DIR'}=           $path_ndb_data_dir;
