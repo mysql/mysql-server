@@ -870,9 +870,8 @@ static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
   if (mysql_query(mysql_con, query) ||
       (res && !((*res)= mysql_store_result(mysql_con))))
   {
-    my_printf_error(0, "%s: Couldn't execute '%s': %s (%d)",
-                    MYF(0), my_progname, query,
-                    mysql_error(mysql_con), mysql_errno(mysql_con));
+    my_printf_error(0, "Couldn't execute '%s': %s (%d)", MYF(0),
+                    query, mysql_error(mysql_con), mysql_errno(mysql_con));
     return 1;
   }
   return 0;
