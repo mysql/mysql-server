@@ -1707,6 +1707,28 @@ create aggregate function bug16896() returns int return 1;
 
 
 #
+# BUG#14702: misleading error message when syntax error in CREATE
+# PROCEDURE
+#
+# Misleading error message was given when IF NOT EXISTS was used in
+# CREATE PROCEDURE.
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug14702;
+--enable_warnings
+
+--error ER_PARSE_ERROR
+CREATE IF NOT EXISTS PROCEDURE bug14702()
+BEGIN
+END;
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE IF NOT EXISTS bug14702()
+BEGIN
+END;
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
