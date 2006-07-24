@@ -645,7 +645,7 @@ int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
   NET *net= &mysql->net;
   ulong pkt_length;
 
-  pkt_length= net_safe_read(mysql);
+  pkt_length= cli_safe_read(mysql);
   
   if (pkt_length == packet_error)
     return 1;
@@ -666,7 +666,7 @@ int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd)
       return 1;
     }
     /* Read what server thinks about out new auth message report */
-    if (net_safe_read(mysql) == packet_error)
+    if (cli_safe_read(mysql) == packet_error)
       return 1;
   }
   return 0;
@@ -1887,7 +1887,7 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   DBUG_ENTER("cli_read_prepare_result");
 
   mysql= mysql->last_used_con;
-  if ((packet_length= net_safe_read(mysql)) == packet_error)
+  if ((packet_length= cli_safe_read(mysql)) == packet_error)
     DBUG_RETURN(1);
   mysql->warning_count= 0;
 
@@ -2505,7 +2505,8 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
 
   if (stmt->param_count)
   {
-    NET        *net= &stmt->mysql->net;
+    MYSQL *mysql= stmt->mysql;
+    NET        *net= &mysql->net;
     MYSQL_BIND *param, *param_end;
     char       *param_data;
     ulong length;
@@ -2517,7 +2518,8 @@ int cli_stmt_execute(MYSQL_STMT *stmt)
       set_stmt_error(stmt, CR_PARAMS_NOT_BOUND, unknown_sqlstate);
       DBUG_RETURN(1);
     }
-    if (stmt->mysql->status != MYSQL_STATUS_READY)
+    if (mysql->status != MYSQL_STATUS_READY ||
+        mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
     {
       set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
       DBUG_RETURN(1);
@@ -4531,7 +4533,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row)
 
 int cli_unbuffered_fetch(MYSQL *mysql, char **row)
 {
-  if (packet_error == net_safe_read(mysql))
+  if (packet_error == cli_safe_read(mysql))
     return 1;
 
   *row= ((mysql->net.read_pos[0] == 254) ? NULL :
@@ -4640,7 +4642,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
 
   mysql= mysql->last_used_con;
 
-  while ((pkt_len= net_safe_read(mysql)) != packet_error)
+  while ((pkt_len= cli_safe_read(mysql)) != packet_error)
   {
     cp= net->read_pos;
     if (cp[0] != 254 || pkt_len >= 8)
