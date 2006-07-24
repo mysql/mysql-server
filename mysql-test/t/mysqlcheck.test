@@ -9,3 +9,17 @@
 --replace_result 'Table is already up to date' OK
 --exec $MYSQL_CHECK --analyze --optimize  --databases test information_schema mysql
 --exec $MYSQL_CHECK --analyze --optimize information_schema schemata
+
+#
+# Bug #16502: mysqlcheck tries to check views
+#
+create table t1 (a int);
+create view v1 as select * from t1;
+--replace_result 'Table is already up to date' OK
+--exec $MYSQL_CHECK --analyze --optimize --databases test
+--replace_result 'Table is already up to date' OK
+--exec $MYSQL_CHECK --all-in-1 --analyze --optimize --databases test
+drop view v1;
+drop table t1;
+
+--echo End of 5.0 tests
