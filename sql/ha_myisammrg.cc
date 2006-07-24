@@ -555,7 +555,7 @@ static int myisammrg_init()
   myisammrg_hton.db_type=DB_TYPE_MRG_MYISAM;
   myisammrg_hton.create=myisammrg_create_handler;
   myisammrg_hton.panic=myrg_panic;
-  myisammrg_hton.flags= HTON_CAN_RECREATE | HTON_ALTER_CANNOT_CREATE;
+  myisammrg_hton.flags= HTON_CAN_RECREATE;
   return 0;
 }
 

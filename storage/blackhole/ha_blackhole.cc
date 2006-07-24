@@ -206,7 +206,7 @@ static int blackhole_init()
   blackhole_hton.state= SHOW_OPTION_YES;
   blackhole_hton.db_type= DB_TYPE_BLACKHOLE_DB;
   blackhole_hton.create= blackhole_create_handler;
-  blackhole_hton.flags= HTON_CAN_RECREATE | HTON_ALTER_CANNOT_CREATE;
+  blackhole_hton.flags= HTON_CAN_RECREATE;
   return 0;
 }
 
