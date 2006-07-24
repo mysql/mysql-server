@@ -704,3 +704,82 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	
 drop table t1;
+create table t1 (a bigint unsigned not null) partition by range(a) (
+partition p0 values less than (10),
+partition p1 values less than (100),
+partition p2 values less than (1000),
+partition p3 values less than (18446744073709551000),
+partition p4 values less than (18446744073709551614)
+);
+insert into t1 values (5),(15),(105),(1005);
+insert into t1 values (18446744073709551000+1);
+insert into t1 values (18446744073709551614-1);
+explain partitions select * from t1 where a < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	system	NULL	NULL	NULL	NULL	1	
+explain partitions select * from t1 
+where a >= 18446744073709551000-1 and a <= 18446744073709551000+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p3,p4	ALL	NULL	NULL	NULL	NULL	3	Using where
+explain partitions select * from t1 
+where a between 18446744073709551001 and 18446744073709551002;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a = 18446744073709551000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a = 18446744073709551613;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a = 18446744073709551614;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+drop table t1;
+create table t1 (a int) 
+partition by range((a & 0xFF) << 56) (
+partition p0 values less than (0x40 << 56),
+partition p1 values less than (0x80 << 56),
+partition p2 values less than (0xFF << 56)
+);
+insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+explain partitions select * from t1 where a=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a=0xFE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a>0xFE and a<= 0xFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+drop table t1;
+create table t1(a bigint unsigned not null) partition by range(a+0) (
+partition p1 values less than (10),
+partition p2 values less than (20),
+partition p3 values less than (2305561538531885056),
+partition p4 values less than (2305561538531950591)
+);
+insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
+insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
+explain partitions select * from t1 where 
+a >= 2305561538531885056-10 and a <= 2305561538531885056-8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where 
+a > 0xFFFFFFFFFFFFFFEC and a < 0xFFFFFFFFFFFFFFEE;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t1 where a>=0 and a <= 0xFFFFFFFFFFFFFFFF;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	8	Using where
+drop table t1;
+create table t1 (a bigint) partition by range(a+0) (
+partition p1 values less than (-1000),
+partition p2 values less than (-10),
+partition p3 values less than (10),
+partition p4 values less than (1000)
+);
+insert into t1 values (-15),(-5),(5),(15),(-15),(-5),(5),(15);
+explain partitions select * from t1 where a>-2 and a <=0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	4	Using where
+drop table t1;
