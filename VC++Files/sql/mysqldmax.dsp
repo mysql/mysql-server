@@ -781,6 +781,22 @@ SOURCE=.\sql_load.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\sql_locale.cpp
+
+!IF  "$(CFG)" == "mysqldmax - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "mysqldmax - Win32 Debug"
+
+# ADD CPP /G5
+# SUBTRACT CPP /YX /Yc /Yu
+
+!ELSEIF  "$(CFG)" == "mysqldmax - Win32 nt"
+
+!ENDIF
+
+# End Source File
+# Begin Source File
+
 SOURCE=.\sql_manager.cpp
 # End Source File
 # Begin Source File

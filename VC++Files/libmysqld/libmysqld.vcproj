@@ -3306,6 +3306,42 @@
 			</FileConfiguration>
 		</File>
 		<File
+			RelativePath="..\sql\sql_locale.cpp">
+			<FileConfiguration
+				Name="Debug|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="0"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_MBCS;SAFEMALLOC;HAVE_BERKELEY_DB;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;HAVE_INNOBASE_DB;USE_TLS;__WIN__;$(NoInherit)"
+					BasicRuntimeChecks="3"/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="pro|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="WIN32;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;EMBEDDED_LIBRARY;USE_TLS;__WIN__;MYSQL_SERVER;LICENSE=Commercial;_MBCS;HAVE_DLOPEN;HAVE_INNOBASE_DB;DBUG_OFF;NDEBUG;_WINDOWS;_CONSOLE;$(NoInherit)"/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="Release|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_MBCS;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;HAVE_INNOBASE_DB;DBUG_OFF;USE_TLS;__WIN__;$(NoInherit)"/>
+			</FileConfiguration>
+			<FileConfiguration
+				Name="classic|Win32">
+				<Tool
+					Name="VCCLCompilerTool"
+					Optimization="2"
+					AdditionalIncludeDirectories=""
+					PreprocessorDefinitions="WIN32;_WINDOWS;USE_SYMDIR;SIGNAL_WITH_VIO_CLOSE;HAVE_DLOPEN;EMBEDDED_LIBRARY;USE_TLS;__WIN__;LICENSE=Commercial;DBUG_OFF;_MBCS;NDEBUG;$(NoInherit)"/>
+			</FileConfiguration>
+		</File>
+		<File
 			RelativePath="..\sql\sql_manager.cpp">
 			<FileConfiguration
 				Name="Debug|Win32">

@@ -454,6 +454,10 @@ SOURCE=..\sql\sql_load.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=..\sql\sql_locale.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=..\sql\sql_manager.cpp
 # End Source File
 # Begin Source File
