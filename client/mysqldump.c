@@ -427,6 +427,30 @@ static my_bool dump_all_views_in_db(char *database);
 #include <help_start.h>
 
 /*
+  Print the supplied message if in verbose mode
+
+  SYNOPSIS
+    verbose_msg()
+    fmt   format specifier
+    ...   variable number of parameters
+*/
+
+static void verbose_msg(const char *fmt, ...)
+{
+  va_list args;
+  DBUG_ENTER("verbose_msg");
+
+  if (!verbose)
+    DBUG_VOID_RETURN;
+
+  va_start(args, fmt);
+  vfprintf(stderr, fmt, args);
+  va_end(args);
+
+  DBUG_VOID_RETURN;
+}
+
+/*
   exit with message if ferror(file)
 
   SYNOPSIS
@@ -894,10 +918,8 @@ static int dbConnect(char *host, char *user,char *passwd)
 {
   char buff[20+FN_REFLEN];
   DBUG_ENTER("dbConnect");
-  if (verbose)
-  {
-    fprintf(stderr, "-- Connecting to %s...\n", host ? host : "localhost");
-  }
+
+  verbose_msg("-- Connecting to %s...\n", host ? host : "localhost");
   mysql_init(&mysql_connection);
   if (opt_compress)
     mysql_options(&mysql_connection,MYSQL_OPT_COMPRESS,NullS);
@@ -963,8 +985,7 @@ static int dbConnect(char *host, char *user,char *passwd)
 */
 static void dbDisconnect(char *host)
 {
-  if (verbose)
-    fprintf(stderr, "-- Disconnecting from %s...\n", host ? host : "localhost");
+  verbose_msg("-- Disconnecting from %s...\n", host ? host : "localhost");
   mysql_close(sock);
 } /* dbDisconnect */
 
@@ -1418,10 +1439,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   if (delayed && (*ignore_flag & IGNORE_INSERT_DELAYED))
   {
     delayed= 0;
-    if (verbose)
-      fprintf(stderr,
-              "-- Warning: Unable to use delayed inserts for table '%s' "
-              "because it's of type %s\n", table, table_type);
+    verbose_msg("-- Warning: Unable to use delayed inserts for table '%s' "
+                "because it's of type %s\n", table, table_type);
   }
 
   complete_insert= 0;
@@ -1437,8 +1456,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   insert_option= ((delayed && opt_ignore) ? " DELAYED IGNORE " :
                   delayed ? " DELAYED " : opt_ignore ? " IGNORE " : "");
 
-  if (verbose)
-    fprintf(stderr, "-- Retrieving table structure for table %s...\n", table);
+  verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
   len= my_snprintf(query_buff, sizeof(query_buff),
                    "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
@@ -1505,8 +1523,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       {
         char *scv_buff = NULL;
 
-        if (verbose)
-          fprintf(stderr, "-- It's a view, create dummy table for view\n");
+        verbose_msg("-- It's a view, create dummy table for view\n");
 
         /* save "show create" statement for later */
         if ((row= mysql_fetch_row(result)) && (scv_buff=row[1]))
@@ -1649,10 +1666,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   }
   else
   {
-    if (verbose)
-      fprintf(stderr,
-              "%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
-              my_progname, mysql_error(sock));
+    verbose_msg("%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
+                my_progname, mysql_error(sock));
 
     my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
                 result_table);
@@ -1841,10 +1856,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         {
           if (mysql_errno(sock) != ER_PARSE_ERROR)
           {                                     /* If old MySQL version */
-            if (verbose)
-              fprintf(stderr,
-                      "-- Warning: Couldn't get status information for table %s (%s)\n",
-                      result_table,mysql_error(sock));
+            verbose_msg("-- Warning: Couldn't get status information for " \
+                        "table %s (%s)\n", result_table,mysql_error(sock));
           }
         }
         else if (!(row= mysql_fetch_row(result)))
@@ -2096,10 +2109,8 @@ static void dump_table(char *table, char *db)
   /* Check --no-data flag */
   if (dFlag)
   {
-    if (verbose)
-      fprintf(stderr,
-              "-- Skipping dump data for table '%s', --no-data was used\n",
-              table);
+    verbose_msg("-- Skipping dump data for table '%s', --no-data was used\n",
+                table);
     DBUG_VOID_RETURN;
   }
 
@@ -2112,27 +2123,22 @@ static void dump_table(char *table, char *db)
   */
   if (ignore_flag & IGNORE_DATA)
   {
-    if (verbose)
-      fprintf(stderr,
-              "-- Warning: Skipping data for table '%s' because it's of type %s\n",
-              table, table_type);
+    verbose_msg("-- Warning: Skipping data for table '%s' because " \
+                "it's of type %s\n", table, table_type);
     DBUG_VOID_RETURN;
   }
   /* Check that there are any fields in the table */
   if (num_fields == 0)
   {
-    if (verbose)
-      fprintf(stderr,
-              "-- Skipping dump data for table '%s', it has no fields\n",
-              table);
+    verbose_msg("-- Skipping dump data for table '%s', it has no fields\n",
+                table);
     DBUG_VOID_RETURN;
   }
 
   result_table= quote_name(table,table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
-  if (verbose)
-    fprintf(stderr, "-- Sending SELECT query...\n");
+  verbose_msg("-- Sending SELECT query...\n");
   if (path)
   {
     char filename[FN_REFLEN], tmp_path[FN_REFLEN];
@@ -2229,8 +2235,8 @@ static void dump_table(char *table, char *db)
       DB_error(sock, "when retrieving data from server");
       goto err;
     }
-    if (verbose)
-      fprintf(stderr, "-- Retrieving rows...\n");
+
+    verbose_msg("-- Retrieving rows...\n");
     if (mysql_num_fields(res) != num_fields)
     {
       fprintf(stderr,"%s: Error in field count for table: %s !  Aborting.\n",
@@ -3172,10 +3178,8 @@ char check_if_ignore_table(const char *table_name, char *table_type)
   {
     if (mysql_errno(sock) != ER_PARSE_ERROR)
     {                                   /* If old MySQL version */
-      if (verbose)
-        fprintf(stderr,
-                "-- Warning: Couldn't get status information for table %s (%s)\n",
-                table_name,mysql_error(sock));
+      verbose_msg("-- Warning: Couldn't get status information for " \
+                  "table %s (%s)\n", table_name,mysql_error(sock));
       DBUG_RETURN(result);                       /* assume table is ok */
     }
   }
@@ -3361,8 +3365,7 @@ static my_bool get_view_structure(char *table, char* db)
   if (tFlag) /* Don't write table creation info */
     DBUG_RETURN(0);
 
-  if (verbose)
-    fprintf(stderr, "-- Retrieving view structure for table %s...\n", table);
+  verbose_msg("-- Retrieving view structure for table %s...\n", table);
 
 #ifdef NOT_REALLY_USED_YET
   sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
@@ -3383,8 +3386,7 @@ static my_bool get_view_structure(char *table, char* db)
   field= mysql_fetch_field_direct(table_res, 0);
   if (strcmp(field->name, "View") != 0)
   {
-    if (verbose)
-      fprintf(stderr, "-- It's base table, skipped\n");
+    verbose_msg("-- It's base table, skipped\n");
     DBUG_RETURN(0);
   }
 
