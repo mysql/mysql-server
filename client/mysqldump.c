@@ -83,7 +83,8 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
 static char *alloc_query_str(ulong size);
 
 static char *field_escape(char *to,const char *from,uint length);
-static my_bool  verbose=0,tFlag=0,dFlag=0,quick= 1, extended_insert= 1,
+static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
+                quick= 1, extended_insert= 1,
                 lock_tables=1,ignore_errors=0,flush_logs=0,
                 opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
@@ -312,9 +313,10 @@ static struct my_option my_long_options[] =
    (gptr*) &opt_create_db, (gptr*) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
   {"no-create-info", 't', "Don't write table creation info.",
-   (gptr*) &tFlag, (gptr*) &tFlag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-data", 'd', "No row information.", (gptr*) &dFlag, (gptr*) &dFlag, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+   (gptr*) &opt_no_create_info, (gptr*) &opt_no_create_info, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-data", 'd', "No row information.", (gptr*) &opt_no_data,
+   (gptr*) &opt_no_data, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-set-names", 'N',
    "Deprecated. Use --skip-set-charset instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1474,7 +1476,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   if (!opt_xml && !mysql_query_with_error_report(sock, 0, query_buff))
   {
     /* using SHOW CREATE statement */
-    if (!tFlag)
+    if (!opt_no_create_info)
     {
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
@@ -1678,7 +1680,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     }
 
     /* Make an sql-file, if path was given iow. option -T was given */
-    if (!tFlag)
+    if (!opt_no_create_info)
     {
       if (path)
       {
@@ -1722,7 +1724,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       ulong *lengths= mysql_fetch_lengths(result);
       if (init)
       {
-        if (!opt_xml && !tFlag)
+        if (!opt_xml && !opt_no_create_info)
         {
           fputs(",\n",sql_file);
           check_io(sql_file);
@@ -1734,7 +1736,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       if (opt_complete_insert)
         dynstr_append(&insert_pat,
                       quote_name(row[SHOW_FIELDNAME], name_buff, 0));
-      if (!tFlag)
+      if (!opt_no_create_info)
       {
         if (opt_xml)
         {
@@ -1764,7 +1766,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     }
     num_fields= mysql_num_rows(result);
     mysql_free_result(result);
-    if (!tFlag)
+    if (!opt_no_create_info)
     {
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
@@ -2107,7 +2109,7 @@ static void dump_table(char *table, char *db)
     return;
 
   /* Check --no-data flag */
-  if (dFlag)
+  if (opt_no_data)
   {
     verbose_msg("-- Skipping dump data for table '%s', --no-data was used\n",
                 table);
@@ -3215,7 +3217,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
     /*
       If these two types, we do want to skip dumping the table
     */
-    if (!dFlag &&
+    if (!opt_no_data &&
         (!strcmp(table_type,"MRG_MyISAM") || !strcmp(table_type,"MRG_ISAM")))
       result= IGNORE_DATA;
   }
@@ -3362,7 +3364,7 @@ static my_bool get_view_structure(char *table, char* db)
   FILE       *sql_file = md_result_file;
   DBUG_ENTER("get_view_structure");
 
-  if (tFlag) /* Don't write table creation info */
+  if (opt_no_create_info) /* Don't write table creation info */
     DBUG_RETURN(0);
 
   verbose_msg("-- Retrieving view structure for table %s...\n", table);
