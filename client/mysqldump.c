@@ -959,7 +959,6 @@ static int dbConnect(char *host, char *user,char *passwd)
               compatible_mode_normal_str);
   if (mysql_query_with_error_report(mysql, 0, buff))
   {
-    mysql_close(mysql);
     safe_exit(EX_MYSQLERR);
     return 1;
   }
@@ -972,7 +971,6 @@ static int dbConnect(char *host, char *user,char *passwd)
     my_snprintf(buff, sizeof(buff), "/*!40103 SET TIME_ZONE='+00:00' */");
     if (mysql_query_with_error_report(mysql, 0, buff))
     {
-      mysql_close(mysql);
       safe_exit(EX_MYSQLERR);
       return 1;
     }
