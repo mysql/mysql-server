@@ -129,7 +129,6 @@ show binlog events;
 drop table t1,t2,t3;
 
 # End of 4.1 tests
-
 # Test that a transaction which is rolled back does not go into binlog
 # and that a transaction which is committed does
 

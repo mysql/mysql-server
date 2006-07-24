@@ -384,16 +384,6 @@ drop table t1, t2, t3;
 # End of 4.1 tests
 
 #
-# BUG#10952 - alter table ... lost data without errors and warnings
-#
-drop table if exists t1;
-create table t1 (c char(20)) engine=MyISAM;
-insert into t1 values ("Monty"),("WAX"),("Walrus");
---error 1031
-alter table t1 engine=MERGE;
-drop table t1;
-
-#
 # BUG#19648 - Merge table does not work with bit types
 #
 create table t1 (b bit(1));
