@@ -521,7 +521,7 @@ int main(int argc, char **argv)
     return(1); /* purecov: deadcode */
   }
 
-  if (mysql_query(sock, "set @@character_set_database=binary;"))
+  if (mysql_query(sock, "/*!40101 set @@character_set_database=binary */;"))
   {
     db_error(sock); /* We shall countinue here, if --force was given */
     return(1);
