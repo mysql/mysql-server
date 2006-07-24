@@ -146,5 +146,6 @@ set autocommit=1;
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events;
+drop table if exists t1;
 
 # End of 5.0 tests
