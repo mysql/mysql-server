@@ -13,11 +13,7 @@ typedef enum enum_checkpoint_level {
   FULL /* also flush all dirty pages */
 } CHECKPOINT_LEVEL;
 
-/*
-  Call this when you want to request a checkpoint.
-  In real life it will be called by log_write_record() and by client thread
-  which explicitely wants to do checkpoint (ALTER ENGINE CHECKPOINT
-  checkpoint_level).
-*/
-int request_checkpoint(CHECKPOINT_LEVEL level, my_bool wait_for_completion);
+void request_asynchronous_checkpoint(CHECKPOINT_LEVEL level);
+my_bool execute_synchronous_checkpoint(CHECKPOINT_LEVEL level);
+my_bool execute_asynchronous_checkpoint_if_any();
 /* that's all that's needed in the interface */

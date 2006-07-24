@@ -48,6 +48,15 @@
   Key cache has groupping already somehow Monty said (investigate that).
 */
 #define FLUSH_GROUP_SIZE 512 /* 8 MB */
+/*
+  We don't want to probe for checkpoint requests all the time (it takes
+  the log mutex).
+  If FLUSH_GROUP_SIZE is 8MB, assuming a local disk which can write 30MB/s
+  (1.8GB/min), probing every 16th call to flush_one_group_from_LRD() is every
+  16*8=128MB which is every 128/30=4.2second.
+  Using a power of 2 gives a fast modulo operation.
+*/
+#define CHECKPOINT_PROBING_PERIOD_LOG2 4
 
 /*
   This thread does background flush of pieces of the LRD, and all checkpoints.
@@ -56,19 +65,19 @@
 pthread_handler_decl background_flush_and_checkpoint_thread()
 {
   char *flush_group_buffer= my_malloc(PAGE_SIZE*FLUSH_GROUP_SIZE);
+  uint flush_calls= 0;
   while (this_thread_not_killed)
   {
-    lock(log_mutex);
-    if (checkpoint_request)
-      checkpoint(); /* will unlock mutex */
-    else
-    {
-      unlock(log_mutex);
-      lock(global_LRD_mutex);
-      flush_one_group_from_LRD();
-      safemutex_assert_not_owner(global_LRD_mutex);
-    }
-    my_sleep(1000000); /* one second ? */
+    if ((flush_calls++) & ((2<<CHECKPOINT_PROBING_PERIOD_LOG2)-1) == 0)
+      execute_asynchronous_checkpoint_if_any();
+    lock(global_LRD_mutex);
+    flush_one_group_from_LRD();
+    safemutex_assert_not_owner(global_LRD_mutex);
+    /*
+      We are a background thread, leave time for client threads or we would
+      monopolize the disk:
+    */
+    pthread_yield();
   }
   my_free(flush_group_buffer);
 }
@@ -155,6 +164,12 @@ flush_one_group_from_LRD()
     */
   }
   free(array);
+  /*
+    MikaelR noted that he observed that Linux's file cache may never fsync to
+    disk until this cache is full, at which point it decides to empty the
+    cache, making the machine very slow. A solution was to fsync after writing
+    2 MB.
+  */
 }
 
 /* flushes all page from LRD up to approximately rec_lsn>=max_lsn */
@@ -165,7 +180,7 @@ int flush_all_LRD_to_lsn(LSN max_lsn)
     max_lsn= LRD->first->prev->rec_lsn;
   while (LRD->first->rec_lsn < max_lsn)
   {
-    if (flush_one_group_from_LRD()) /* will unlock mutex */
+    if (flush_one_group_from_LRD()) /* will unlock LRD mutex */
       return 1;
     /* scheduler may preempt us here so that we don't take full CPU */
     lock(global_LRD_mutex);

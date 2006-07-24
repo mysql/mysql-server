@@ -6,11 +6,27 @@
 
 /* Here is the implementation of this module */
 
+/*
+  Summary:
+  - there are asynchronous checkpoints (a writer to the log notices that it's
+  been a long time since we last checkpoint-ed, so posts a request for a
+  background thread to do a checkpoint; does not care about the success of the
+  checkpoint). Then the checkpoint is done by the checkpoint thread, at an
+  unspecified moment ("later") (==soon, of course).
+  - there are synchronous checkpoints: a thread requests a checkpoint to
+  happen now and wants to know when it finishes and if it succeeded; then the
+  checkpoint is done by that same thread.
+*/
+
 #include "page_cache.h"
 #include "least_recently_dirtied.h"
 #include "transaction.h"
 #include "share.h"
 #include "log.h"
+
+/* could also be called LSN_ERROR */
+#define LSN_IMPOSSIBLE ((LSN)0)
+#define LSN_MAX ((LSN)ULONGLONG_MAX)
 
 /*
   this transaction is used for any system work (purge, checkpoint writing
@@ -19,43 +35,112 @@
 */
 st_transaction system_trans= {0 /* long trans id */, 0 /* short trans id */,0,...};
 
+/* those three are protected by the log's mutex */
 /*
   The maximum rec_lsn in the LRD when last checkpoint was run, serves for the
   MEDIUM checkpoint.
 */
 LSN max_rec_lsn_at_last_checkpoint= 0;
+CHECKPOINT_LEVEL next_asynchronous_checkpoint_to_do= NONE;
+CHECKPOINT_LEVEL synchronous_checkpoint_in_progress= NONE;
 
-/* Picks a checkpoint request and executes it */
-my_bool checkpoint()
+/*
+  Used by MySQL client threads requesting a checkpoint (like "ALTER MARIA
+  ENGINE DO CHECKPOINT"), and probably by maria_panic().
+*/
+my_bool execute_synchronous_checkpoint(CHECKPOINT_LEVEL level)
+{
+  DBUG_ENTER("execute_synchronous_checkpoint");
+  DBUG_ASSERT(level > NONE);
+
+  lock(log_mutex);
+  while ((synchronous_checkpoint_in_progress != NONE) ||
+         (next_asynchronous_checkpoint_to_do != NONE))
+    wait_on_checkpoint_done_cond();
+
+  synchronous_checkpoint_in_progress= level;
+  execute_checkpoint(level);
+  safemutex_assert_owner(log_mutex);
+  synchronous_checkpoint_in_progress= NONE;
+  unlock(log_mutex);
+  broadcast(checkpoint_done_cond);
+}
+
+/* Picks a checkpoint request, if there is one, and executes it */
+my_bool execute_asynchronous_checkpoint_if_any()
 {
   CHECKPOINT_LEVEL level;
-  DBUG_ENTER("checkpoint");
+  DBUG_ENTER("execute_asynchronous_checkpoint");
 
-  level= checkpoint_running= checkpoint_request;
-  unlock(log_mutex);
-
-  DBUG_ASSERT(level != NONE);
-
-  switch (level)
+  lock(log_mutex);
+  if (likely(next_asynchronous_checkpoint_to_do == NONE))
   {
-  case FULL:
-    /* flush all pages up to the current end of the LRD */
-    flush_all_LRD_to_lsn(MAX_LSN); /* MAX_LSN==ULONGLONG_MAX */
-    /* this will go full speed (normal scheduling, no sleep) */
-    break;
-  case MEDIUM:
-    /*
-      flush all pages which were already dirty at last checkpoint:
-      ensures that recovery will never start from before the next-to-last
-      checkpoint (two-checkpoint rule).
-      It is max, not min as the WL says (TODO update WL).
-    */
-    flush_all_LRD_to_lsn(max_rec_lsn_at_last_checkpoint);
-    /* this will go full speed (normal scheduling, no sleep) */
-    break;
+    unlock(log_mutex);
+    DBUG_RETURN(FALSE);
   }
-  
-  error= checkpoint_indirect();
+
+  while (synchronous_checkpoint_in_progress)
+    wait_on_checkpoint_done_cond();
+
+do_checkpoint:
+  level= next_asynchronous_checkpoint_to_do;
+  DBUG_ASSERT(level > NONE);
+  execute_checkpoint(level);
+  safemutex_assert_owner(log_mutex);
+  if (next_asynchronous_checkpoint_to_do > level)
+    goto do_checkpoint;     /* one more request was posted */
+  else
+  {
+    DBUG_ASSERT(next_asynchronous_checkpoint_to_do == level);
+    next_asynchronous_checkpoint_to_do= NONE; /* all work done */
+  }
+  unlock(log_mutex);
+  broadcast(checkpoint_done_cond);
+}
+
+
+/*
+  Does the actual checkpointing. Called by
+  execute_synchronous_checkpoint() and
+  execute_asynchronous_checkpoint_if_any().
+*/
+my_bool execute_checkpoint(CHECKPOINT_LEVEL level)
+{
+  LSN candidate_max_rec_lsn_at_last_checkpoint;
+  /* to avoid { lock + no-op + unlock } in the common (==indirect) case */
+  my_bool need_log_mutex;
+                    
+  DBUG_ENTER("execute_checkpoint");
+
+  safemutex_assert_owner(log_mutex);
+  copy_of_max_rec_lsn_at_last_checkpoint= max_rec_lsn_at_last_checkpoint;
+
+  if (unlikely(need_log_mutex= (level > INDIRECT)))
+  {
+    /* much I/O work to do, release log mutex */
+    unlock(log_mutex);
+    
+    switch (level)
+    {
+    case FULL:
+      /* flush all pages up to the current end of the LRD */
+      flush_all_LRD_to_lsn(LSN_MAX);
+      /* this will go full speed (normal scheduling, no sleep) */
+      break;
+    case MEDIUM:
+      /*
+        flush all pages which were already dirty at last checkpoint:
+        ensures that recovery will never start from before the next-to-last
+        checkpoint (two-checkpoint rule).
+        It is max, not min as the WL says (TODO update WL).
+      */
+      flush_all_LRD_to_lsn(copy_of_max_rec_lsn_at_last_checkpoint);
+      /* this will go full speed (normal scheduling, no sleep) */
+      break;
+    }
+  }
+
+  candidate_max_rec_lsn_at_last_checkpoint= checkpoint_indirect(need_log_mutex);
 
   lock(log_mutex);
   /*
@@ -66,13 +151,22 @@ my_bool checkpoint()
     file in the hook but that would be an I/O under the log's mutex, bad.
     - it would not be nice organisation of code (I tried it :).
   */
-  mark_checkpoint_done(error);
-  unlock(log_mutex);
-  DBUG_RETURN(error);
+  if (candidate_max_rec_lsn_at_last_checkpoint != LSN_IMPOSSIBLE)
+  {
+    /* checkpoint succeeded */
+    maximum_rec_lsn_last_checkpoint= candidate_max_rec_lsn_at_last_checkpoint;
+    written_since_last_checkpoint= (my_off_t)0;
+    DBUG_RETURN(FALSE);
+  }
+  /*
+    keep mutex locked because callers will want to clear mutex-protected
+    status variables
+  */
+  DBUG_RETURN(TRUE);
 }
 
 
-my_bool checkpoint_indirect()
+LSN checkpoint_indirect(my_bool need_log_mutex)
 {
   DBUG_ENTER("checkpoint_indirect");
 
@@ -90,7 +184,8 @@ my_bool checkpoint_indirect()
   DBUG_ASSERT(sizeof(byte *) <= 8);
   DBUG_ASSERT(sizeof(LSN) <= 8);
 
-  lock(log_mutex); /* will probably be in log_read_end_lsn() already */
+  if (need_log_mutex)
+    lock(log_mutex); /* maybe this will clash with log_read_end_lsn() */
   checkpoint_start_lsn= log_read_end_lsn();
   unlock(log_mutex);
 
@@ -196,15 +291,13 @@ my_bool checkpoint_indirect()
   checkpoint_lsn= log_write_record(LOGREC_CHECKPOINT,
                                    &system_trans, string_array);
 
-  if (0 == checkpoint_lsn) /* maybe 0 is impossible LSN to indicate error ? */
+  if (LSN_IMPOSSIBLE == checkpoint_lsn)
     goto err;
 
   if (0 != control_file_write_and_force(checkpoint_lsn, NULL))
     goto err;
 
-  maximum_rec_lsn_last_checkpoint= candidate_max_rec_lsn_at_last_checkpoint;
-
-  DBUG_RETURN(0);
+  DBUG_RETURN(candidate_max_rec_lsn_at_last_checkpoint);
 
 err:
 
@@ -213,7 +306,7 @@ err:
   my_free(buffer2.str, MYF(MY_ALLOW_ZERO_PTR));
   my_free(buffer3.str, MYF(MY_ALLOW_ZERO_PTR));
 
-  DBUG_RETURN(1);
+  DBUG_RETURN(LSN_IMPOSSIBLE);
 }
 
 
@@ -235,7 +328,7 @@ log_write_record(...)
       ask one system thread (the "LRD background flusher and checkpointer
       thread" WL#3261) to do a checkpoint
     */
-    request_checkpoint(INDIRECT, 0 /*wait_for_completion*/);
+    request_asynchronous_checkpoint(INDIRECT);
   }
   ...;
   unlock(log_mutex);
@@ -243,152 +336,38 @@ log_write_record(...)
 }
 
 /*
-  Call this when you want to request a checkpoint.
-  In real life it will be called by log_write_record() and by client thread
+  Requests a checkpoint from the background thread, *asynchronously*
+  (requestor does not wait for completion, and does not even later check the
+  result).
+  In real life it will be called by log_write_record().
   which explicitely wants to do checkpoint (ALTER ENGINE CHECKPOINT
   checkpoint_level).
 */
-int request_checkpoint(CHECKPOINT_LEVEL level, my_bool wait_for_completion)
+void request_asynchronous_checkpoint(CHECKPOINT_LEVEL level);
 {
-  int error= 0;
-  /*
-    If caller wants to wait for completion we'll have to release the log mutex
-    to wait on condition, if caller had log mutex he may not be happy that we
-    release it, so we check that caller didn't have log mutex.
-  */
-  if (wait_for_completion)
-  {
-    lock(log_mutex);
-  }
-  else
-    safemutex_assert_owner(log_mutex);
+  safemutex_assert_owner(log_mutex);
 
-  DBUG_ASSERT(checkpoint_request >= checkpoint_running);
   DBUG_ASSERT(level > NONE);
   if (checkpoint_request < level)
   {
     /* no equal or stronger running or to run, we post request */
     /*
       note that thousands of requests for checkpoints are going to come all
-      at the same time (when the log bound is passed), so it may not be a good
-      idea for each of them to broadcast a cond. We just don't broacast a
-      cond, the checkpoint thread will wake up in max one second.
+      at the same time (when the log bound
+      MAX_LOG_BYTES_WRITTEN_BETWEEN_CHECKPOINTS is passed), so it may not be a
+      good idea for each of them to broadcast a cond to wake up the background
+      checkpoint thread. We just don't broacast a cond, the checkpoint thread
+      will notice our request in max a few seconds.
     */
     checkpoint_request= level; /* post request */
   }
-   
-  if (wait_for_completion)
-  {
-    uint checkpoints_done_copy= checkpoints_done;
-    uint checkpoint_errors_copy= checkpoint_errors;
-    /*
-      note that the "==done" works when the uint counter wraps too, so counter
-      can even be smaller than uint if we wanted (however it should be big
-      enough so that max_the_int_type checkpoints cannot happen between two
-      wakeups of our thread below). uint sounds fine.
-      Wait for our checkpoint to be done:
-    */
-
-    if (checkpoint_running != NONE) /* not ours, let it pass */
-    {
-      while (1)
-      {
-        if (checkpoints_done != checkpoints_done_copy)
-        {
-          if (checkpoints_done == (checkpoints_done_copy+1))
-          {
-            /* not our checkpoint, forget about it */
-            checkpoints_done_copy= checkpoints_done;
-          }
-          break; /* maybe even ours has been done at this stage! */
-        }
-        cond_wait(checkpoint_done_cond, log_mutex);
-      }
-    }
-
-    /* now we come to waiting for our checkpoint */
-    while (1)
-    {
-      if (checkpoints_done != checkpoints_done_copy)
-      {
-        /* our checkpoint has been done */
-        break;
-      }
-      if (checkpoint_errors != checkpoint_errors_copy)
-      {
-        /*
-          the one which was running a few milliseconds ago (if there was one),
-          and/or ours, had an error, just assume it was ours. So there
-          is a possibility that we return error though we succeeded, in which
-          case user will have to retry; but two simultanate checkpoints have
-          high changes to fail together (as the error probably comes from
-          malloc or disk write problem), so chance of false alarm is low.
-          Reporting the error only to the one which caused the error would
-          require having a (not fixed size) list of all requests, not worth it.
-        */
-        error= 1;
-        break;
-      }
-      cond_wait(checkpoint_done_cond, log_mutex);
-    }
-    unlock(log_mutex);
-  } /* ... if (wait_for_completion) */
 
   /*
-    If wait_for_completion was false, and there was an error, only an error
+    If there was an error, only an error
     message to the error log will say it; normal, for a checkpoint triggered
     by a log write, we probably don't want the client's log write to throw an
     error, as the log write succeeded and a checkpoint failure is not
     critical: the failure in this case is more for the DBA to know than for
     the end user.
   */
-  return error;
 }
-
-void mark_checkpoint_done(int error)
-{
-  safemutex_assert_owner(log_mutex);
-  if (error)
-    checkpoint_errors++;
-  /* a checkpoint is said done even if it had an error */
-  checkpoints_done++;
-  if (checkpoint_request == checkpoint_running)
-  {
-    /*
-      No new request has been posted, so we satisfied all requests, forget
-      about them.
-    */
-    checkpoint_request= NONE;
-  }
-  checkpoint_running= NONE;
-  written_since_last_checkpoint= 0;
-  broadcast(checkpoint_done_cond);
-}
-
-/*
-  Alternative (not to be done, too disturbing):
-  do the autocheckpoint in the thread which passed the bound first (and do the
-  checkpoint in the client thread which requested it).
-  It will give a delay to that client thread which passed the bound (time to
-  fsync() for example 1000 files is 16 s on my laptop). Here is code for
-  explicit and implicit checkpoints, where client thread does the job:
-*/
-#if 0
-{
-  lock(log_mutex); /* explicit takes it here, implicit already has it */
-  while (checkpoint_running != NONE)
-  {
-    if (checkpoint_running >= my_level) /* always true for auto checkpoints */
-      goto end; /* we skip checkpoint */
-    /* a less strong is running, I'll go next */
-    wait_on_checkpoint_done_cond();
-  }
-  checkpoint_running= my_level;
-  checkpoint(my_level); // can gather checkpoint_start_lsn before unlock
-  lock(log_mutex);
-  checkpoint_running= NONE;
-  written_since_last_checkpoint= 0;
-end:
-  unlock(log_mutex);
-}
-#endif
