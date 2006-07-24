@@ -141,8 +141,3 @@ master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	use `test`; COMMIT
 drop table if exists t1;
-create table t1 (c char(20)) engine=MyISAM;
-insert into t1 values ("Monty"),("WAX"),("Walrus");
-alter table t1 engine=blackhole;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-drop table t1;
