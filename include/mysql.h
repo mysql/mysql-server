@@ -837,7 +837,6 @@ int		STDCALL mysql_drop_db(MYSQL *mysql, const char *DB);
 #define simple_command(mysql, command, arg, length, skip_check) \
   (*(mysql)->methods->advanced_command)(mysql, command,         \
 					NullS, 0, arg, length, skip_check)
-unsigned long net_safe_read(MYSQL* mysql);
 
 #ifdef __NETWARE__
 #pragma pack(pop)		/* restore alignment */

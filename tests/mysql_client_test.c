@@ -50,7 +50,6 @@ static unsigned int  opt_port;
 static my_bool tty_password= 0, opt_silent= 0;
 
 static MYSQL *mysql= 0;
-static char query[MAX_TEST_QUERY_LENGTH];
 static char current_db[]= "client_test_db";
 static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
@@ -269,6 +268,7 @@ mysql_simple_prepare(MYSQL  *mysql, const char *query)
 static void client_connect(ulong flag)
 {
   int  rc;
+  static char query[MAX_TEST_QUERY_LENGTH];
   myheader_r("client_connect");
 
   if (!opt_silent)
@@ -326,6 +326,8 @@ static void client_connect(ulong flag)
 
 static void client_disconnect()
 {
+  static char query[MAX_TEST_QUERY_LENGTH];
+
   myheader_r("client_disconnect");
 
   if (mysql)
@@ -657,6 +659,7 @@ int my_stmt_result(const char *buff)
 static void verify_col_data(const char *table, const char *col,
                             const char *exp_data)
 {
+  static char query[MAX_TEST_QUERY_LENGTH];
   MYSQL_RES *result;
   MYSQL_ROW row;
   int       rc, field= 1;
@@ -1362,6 +1365,7 @@ static void test_prepare_insert_update()
   
   for (cur_query= testcase; *cur_query; cur_query++)
   {
+    char query[MAX_TEST_QUERY_LENGTH];
     printf("\nRunning query: %s", *cur_query);
     strmov(query, *cur_query);
     stmt= mysql_simple_prepare(mysql, query);
@@ -1396,6 +1400,7 @@ static void test_prepare_simple()
 {
   MYSQL_STMT *stmt;
   int        rc;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_prepare_simple");
 
@@ -1466,6 +1471,7 @@ static void test_prepare_field_result()
   MYSQL_STMT *stmt;
   MYSQL_RES  *result;
   int        rc;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_prepare_field_result");
 
@@ -1517,6 +1523,7 @@ static void test_prepare_syntax()
 {
   MYSQL_STMT *stmt;
   int        rc;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_prepare_syntax");
 
@@ -1558,6 +1565,7 @@ static void test_prepare()
   my_bool    is_null[7];
   char	     llbuf[22];
   MYSQL_BIND bind[7];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_prepare");
 
@@ -1731,6 +1739,7 @@ static void test_double_compare()
   MYSQL_RES  *result;
   MYSQL_BIND bind[3];
   ulong      length[3];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_double_compare");
 
@@ -1813,6 +1822,7 @@ static void test_null()
   uint       nData;
   MYSQL_BIND bind[2];
   my_bool    is_null[2];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_null");
 
@@ -1959,6 +1969,7 @@ static void test_ps_null_param()
   /* Execute several queries, all returning NULL in result. */
   for(cur_query= queries; *cur_query; cur_query++)
   {
+    char query[MAX_TEST_QUERY_LENGTH];
     strmov(query, *cur_query);
     stmt= mysql_simple_prepare(mysql, query);
     check_stmt(stmt);
@@ -1990,6 +2001,7 @@ static void test_fetch_null()
   MYSQL_BIND bind[11];
   ulong      length[11];
   my_bool    is_null[11];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_fetch_null");
 
@@ -2218,6 +2230,7 @@ static void test_select()
   int        nData= 1;
   MYSQL_BIND bind[2];
   ulong length[2];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_select");
 
@@ -2289,6 +2302,7 @@ static void test_ps_conj_select()
   int32      int_data;
   char       str_data[32];
   unsigned long str_length;
+  char query[MAX_TEST_QUERY_LENGTH];
   myheader("test_ps_conj_select");
 
   rc= mysql_query(mysql, "drop table if exists t1");
@@ -2346,6 +2360,7 @@ static void test_bug1115()
   MYSQL_BIND bind[1];
   ulong length[1];
   char szData[11];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_bug1115");
 
@@ -2457,6 +2472,7 @@ static void test_bug1180()
   MYSQL_BIND bind[1];
   ulong length[1];
   char szData[11];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_select_bug");
 
@@ -2547,6 +2563,7 @@ static void test_bug1644()
   int num;
   my_bool isnull;
   int rc, i;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_bug1644");
 
@@ -2646,6 +2663,7 @@ static void test_select_show()
 {
   MYSQL_STMT *stmt;
   int        rc;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_select_show");
 
@@ -2714,6 +2732,7 @@ static void test_simple_update()
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
   ulong      length[2];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_simple_update");
 
@@ -2791,6 +2810,7 @@ static void test_long_data()
   char       *data= NullS;
   MYSQL_RES  *result;
   MYSQL_BIND bind[3];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_long_data");
 
@@ -2877,6 +2897,7 @@ static void test_long_data_str()
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
   my_bool    is_null[2];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_long_data_str");
 
@@ -2969,6 +2990,7 @@ static void test_long_data_str1()
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
   MYSQL_FIELD *field;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_long_data_str1");
 
@@ -3124,6 +3146,7 @@ static void test_long_data_bin()
   long       length;
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
+  char query[MAX_TEST_QUERY_LENGTH];
 
 
   myheader("test_long_data_bin");
@@ -3203,6 +3226,7 @@ static void test_simple_delete()
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
   ulong length[2];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_simple_delete");
 
@@ -3285,6 +3309,7 @@ static void test_update()
   MYSQL_RES  *result;
   MYSQL_BIND bind[2];
   ulong length[2];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_update");
 
@@ -3381,6 +3406,7 @@ static void test_prepare_noparam()
   MYSQL_STMT *stmt;
   int        rc;
   MYSQL_RES  *result;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_prepare_noparam");
 
@@ -4237,6 +4263,7 @@ static void test_prepare_ext()
   short      sData= 10;
   longlong   bData= 20;
   MYSQL_BIND bind[6];
+  char query[MAX_TEST_QUERY_LENGTH];
   myheader("test_prepare_ext");
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_prepare_ext");
@@ -4624,6 +4651,7 @@ static void test_stmt_close()
   MYSQL_RES   *result;
   unsigned int  count;
   int   rc;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_stmt_close");
 
@@ -5270,6 +5298,7 @@ static void test_manual_sample()
   ulonglong    affected_rows;
   MYSQL_BIND   bind[3];
   my_bool      is_null;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_manual_sample");
 
@@ -5624,6 +5653,7 @@ static void test_prepare_multi_statements()
 {
   MYSQL *mysql_local;
   MYSQL_STMT *stmt;
+  char query[MAX_TEST_QUERY_LENGTH];
   myheader("test_prepare_multi_statements");
 
   if (!(mysql_local= mysql_init(NULL)))
@@ -5841,6 +5871,7 @@ static void test_store_result2()
   int        nData;
   ulong      length;
   MYSQL_BIND bind[1];
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_store_result2");
 
@@ -7120,6 +7151,7 @@ static void test_set_option()
 static void test_prepare_grant()
 {
   int rc;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_prepare_grant");
 
@@ -8592,6 +8624,7 @@ static void test_sqlmode()
   MYSQL_BIND bind[2];
   char       c1[5], c2[5];
   int        rc;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_sqlmode");
 
@@ -8735,6 +8768,7 @@ static void test_ts()
   ulong      length;
   int        rc, field_count;
   char       name;
+  char query[MAX_TEST_QUERY_LENGTH];
 
   myheader("test_ts");
 
@@ -15019,6 +15053,65 @@ static void test_bug20152()
   }
 }
 
+/* Bug#15752 "Lost connection to MySQL server when calling a SP from C API" */
+
+static void test_bug15752()
+{
+  MYSQL mysql_local;
+  int rc, i;
+  const int ITERATION_COUNT= 100;
+  char *query= "CALL p1()";
+
+  myheader("test_bug15752");
+
+  rc= mysql_query(mysql, "drop procedure if exists p1");
+  myquery(rc);
+  rc= mysql_query(mysql, "create procedure p1() select 1");
+  myquery(rc);
+
+  mysql_init(&mysql_local);
+  if (! mysql_real_connect(&mysql_local, opt_host, opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket,
+                           CLIENT_MULTI_STATEMENTS|CLIENT_MULTI_RESULTS))
+  {
+    printf("Unable connect to MySQL server: %s\n", mysql_error(&mysql_local));
+    DIE_UNLESS(0);
+  }
+  rc= mysql_real_query(&mysql_local, query, strlen(query));
+  myquery(rc);
+  mysql_free_result(mysql_store_result(&mysql_local));
+
+  rc= mysql_real_query(&mysql_local, query, strlen(query));
+  DIE_UNLESS(rc && mysql_errno(&mysql_local) == CR_COMMANDS_OUT_OF_SYNC);
+
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(&mysql_local));
+
+  /* Check some other commands too */
+
+  DIE_UNLESS(mysql_next_result(&mysql_local) == 0);
+  mysql_free_result(mysql_store_result(&mysql_local));
+  DIE_UNLESS(mysql_next_result(&mysql_local) == -1);
+
+  /* The second problem is not reproducible: add the test case */
+  for (i = 0; i < ITERATION_COUNT; i++)
+  {
+    if (mysql_real_query(&mysql_local, query, strlen(query)))
+    {
+      printf("\ni=%d %s failed: %s\n", i, query, mysql_error(&mysql_local));
+      break;
+    }
+    mysql_free_result(mysql_store_result(&mysql_local));
+    DIE_UNLESS(mysql_next_result(&mysql_local) == 0);
+    mysql_free_result(mysql_store_result(&mysql_local));
+    DIE_UNLESS(mysql_next_result(&mysql_local) == -1);
+
+  }
+  mysql_close(&mysql_local);
+  rc= mysql_query(mysql, "drop procedure p1");
+  myquery(rc);
+}
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -15287,7 +15380,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug20152", test_bug20152 },
   { "test_bug14169", test_bug14169 },
   { "test_bug17667", test_bug17667 },
-  { "test_bug19671", test_bug19671},
+  { "test_bug19671", test_bug19671 },
+  { "test_bug15752", test_bug15752 },
   { 0, 0 }
 };
 
