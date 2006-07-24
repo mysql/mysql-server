@@ -218,8 +218,11 @@ int main(int argc,char *argv[])
       On some system, like NETWARE, strerror(unknown_error) returns a
       string 'Unknown Error'.  To avoid printing it we try to find the
       error string by asking for an impossible big error message.
+
+      On Solaris 2.8 it might return NULL
     */
-    msg= strerror(10000);
+    if ((msg= strerror(10000)) == NULL)
+      msg= "Unknown Error";
 
     /*
       Allocate a buffer for unknown_error since strerror always returns
