@@ -97,7 +97,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_complete_insert= 0, opt_drop_database= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
-static MYSQL mysql_connection,*sock=0;
+static MYSQL mysql_connection,*mysql=0;
 static my_bool insert_pat_inited=0;
 static DYNAMIC_STRING insert_pat;
 static char  *opt_password=0,*current_user=0,
@@ -906,8 +906,8 @@ static void safe_exit(int error)
     first_error= error;
   if (ignore_errors)
     return;
-  if (sock)
-    mysql_close(sock);
+  if (mysql)
+    mysql_close(mysql);
   exit(error);
 }
 /* safe_exit */
@@ -939,7 +939,7 @@ static int dbConnect(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
   mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
-  if (!(sock= mysql_real_connect(&mysql_connection,host,user,passwd,
+  if (!(mysql= mysql_real_connect(&mysql_connection,host,user,passwd,
          NULL,opt_mysql_port,opt_mysql_unix_port,
          0)))
   {
@@ -955,12 +955,12 @@ static int dbConnect(char *host, char *user,char *passwd)
     As we're going to set SQL_MODE, it would be lost on reconnect, so we
     cannot reconnect.
   */
-  sock->reconnect= 0;
+  mysql->reconnect= 0;
   my_snprintf(buff, sizeof(buff), "/*!40100 SET @@SQL_MODE='%s' */",
               compatible_mode_normal_str);
-  if (mysql_query_with_error_report(sock, 0, buff))
+  if (mysql_query_with_error_report(mysql, 0, buff))
   {
-    mysql_close(sock);
+    mysql_close(mysql);
     safe_exit(EX_MYSQLERR);
     return 1;
   }
@@ -971,9 +971,9 @@ static int dbConnect(char *host, char *user,char *passwd)
   if (opt_tz_utc)
   {
     my_snprintf(buff, sizeof(buff), "/*!40103 SET TIME_ZONE='+00:00' */");
-    if (mysql_query_with_error_report(sock, 0, buff))
+    if (mysql_query_with_error_report(mysql, 0, buff))
     {
-      mysql_close(sock);
+      mysql_close(mysql);
       safe_exit(EX_MYSQLERR);
       return 1;
     }
@@ -988,7 +988,7 @@ static int dbConnect(char *host, char *user,char *passwd)
 static void dbDisconnect(char *host)
 {
   verbose_msg("-- Disconnecting from %s...\n", host ? host : "localhost");
-  mysql_close(sock);
+  mysql_close(mysql);
 } /* dbDisconnect */
 
 
@@ -1281,7 +1281,7 @@ static uint dump_routines_for_db(char *db)
   DBUG_ENTER("dump_routines_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
 
-  mysql_real_escape_string(sock, db_name_buff, db, strlen(db));
+  mysql_real_escape_string(mysql, db_name_buff, db, strlen(db));
 
   /* nice comments */
   if (opt_comments)
@@ -1292,7 +1292,7 @@ static uint dump_routines_for_db(char *db)
     enough privileges to lock mysql.proc.
   */
   if (lock_tables)
-    mysql_query(sock, "LOCK TABLES mysql.proc READ");
+    mysql_query(mysql, "LOCK TABLES mysql.proc READ");
 
   fprintf(sql_file, "DELIMITER ;;\n");
 
@@ -1303,7 +1303,7 @@ static uint dump_routines_for_db(char *db)
                 "SHOW %s STATUS WHERE Db = '%s'",
                 routine_type[i], db_name_buff);
 
-    if (mysql_query_with_error_report(sock, &routine_list_res, query_buff))
+    if (mysql_query_with_error_report(mysql, &routine_list_res, query_buff))
       DBUG_RETURN(1);
 
     if (mysql_num_rows(routine_list_res))
@@ -1317,7 +1317,7 @@ static uint dump_routines_for_db(char *db)
         my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE %s %s",
                     routine_type[i], routine_name);
 
-        if (mysql_query_with_error_report(sock, &routine_res, query_buff))
+        if (mysql_query_with_error_report(mysql, &routine_res, query_buff))
           DBUG_RETURN(1);
 
         while ((row= mysql_fetch_row(routine_res)))
@@ -1399,7 +1399,7 @@ static uint dump_routines_for_db(char *db)
   fprintf(sql_file, "DELIMITER ;\n");
 
   if (lock_tables)
-    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
+    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
   DBUG_RETURN(0);
 }
 
@@ -1473,7 +1473,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   if (opt_order_by_primary)
     order_by = primary_key_fields(result_table);
 
-  if (!opt_xml && !mysql_query_with_error_report(sock, 0, query_buff))
+  if (!opt_xml && !mysql_query_with_error_report(mysql, 0, query_buff))
   {
     /* using SHOW CREATE statement */
     if (!opt_no_create_info)
@@ -1483,7 +1483,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       MYSQL_FIELD *field;
 
       my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
-      if (mysql_query_with_error_report(sock, 0, buff))
+      if (mysql_query_with_error_report(mysql, 0, buff))
       {
         safe_exit(EX_MYSQLERR);
         DBUG_RETURN(0);
@@ -1519,7 +1519,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         check_io(sql_file);
       }
 
-      result= mysql_store_result(sock);
+      result= mysql_store_result(mysql);
       field= mysql_fetch_field_direct(result, 0);
       if (strcmp(field->name, "View") == 0)
       {
@@ -1546,7 +1546,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         */
         my_snprintf(query_buff, sizeof(query_buff),
                     "SHOW FIELDS FROM %s", result_table);
-        if (mysql_query_with_error_report(sock, 0, query_buff))
+        if (mysql_query_with_error_report(mysql, 0, query_buff))
         {
           /*
             View references invalid or privileged table/col/fun (err 1356),
@@ -1554,7 +1554,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
             a comment with the view's 'show create' statement. (Bug #17371)
           */
 
-          if (mysql_errno(sock) == ER_VIEW_INVALID)
+          if (mysql_errno(mysql) == ER_VIEW_INVALID)
             fprintf(sql_file, "\n-- failed on view %s: %s\n\n", result_table, scv_buff ? scv_buff : "");
 
           my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -1565,7 +1565,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         else
           my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
 
-        if ((result= mysql_store_result(sock)))
+        if ((result= mysql_store_result(mysql)))
         {
           if (mysql_num_rows(result))
           {
@@ -1618,7 +1618,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     }
     my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
                 result_table);
-    if (mysql_query_with_error_report(sock, &result, query_buff))
+    if (mysql_query_with_error_report(mysql, &result, query_buff))
     {
       if (path)
         my_fclose(sql_file, MYF(MY_WME));
@@ -1669,11 +1669,11 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   else
   {
     verbose_msg("%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
-                my_progname, mysql_error(sock));
+                my_progname, mysql_error(mysql));
 
     my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
                 result_table);
-    if (mysql_query_with_error_report(sock, &result, query_buff))
+    if (mysql_query_with_error_report(mysql, &result, query_buff))
     {
       safe_exit(EX_MYSQLERR);
       DBUG_RETURN(0);
@@ -1772,16 +1772,16 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       char buff[20+FN_REFLEN];
       uint keynr,primary_key;
       my_snprintf(buff, sizeof(buff), "show keys from %s", result_table);
-      if (mysql_query_with_error_report(sock, &result, buff))
+      if (mysql_query_with_error_report(mysql, &result, buff))
       {
-        if (mysql_errno(sock) == ER_WRONG_OBJECT)
+        if (mysql_errno(mysql) == ER_WRONG_OBJECT)
         {
           /* it is VIEW */
           fputs("\t\t<options Comment=\"view\" />\n", sql_file);
           goto continue_xml;
         }
         fprintf(stderr, "%s: Can't get keys for table %s (%s)\n",
-                my_progname, result_table, mysql_error(sock));
+                my_progname, result_table, mysql_error(mysql));
         if (path)
           my_fclose(sql_file, MYF(MY_WME));
         safe_exit(EX_MYSQLERR);
@@ -1854,19 +1854,19 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         my_snprintf(buff, sizeof(buff), "show table status like %s",
                     quote_for_like(table, show_name_buff));
 
-        if (mysql_query_with_error_report(sock, &result, buff))
+        if (mysql_query_with_error_report(mysql, &result, buff))
         {
-          if (mysql_errno(sock) != ER_PARSE_ERROR)
+          if (mysql_errno(mysql) != ER_PARSE_ERROR)
           {                                     /* If old MySQL version */
             verbose_msg("-- Warning: Couldn't get status information for " \
-                        "table %s (%s)\n", result_table,mysql_error(sock));
+                        "table %s (%s)\n", result_table,mysql_error(mysql));
           }
         }
         else if (!(row= mysql_fetch_row(result)))
         {
           fprintf(stderr,
                   "Error: Couldn't read status information for table %s (%s)\n",
-                  result_table,mysql_error(sock));
+                  result_table,mysql_error(mysql));
         }
         else
         {
@@ -1939,7 +1939,7 @@ static void dump_triggers_for_table (char *table, char *db)
               "SHOW TRIGGERS LIKE %s",
               quote_for_like(table, name_buff));
 
-  if (mysql_query_with_error_report(sock, &result, query_buff))
+  if (mysql_query_with_error_report(mysql, &result, query_buff))
   {
     if (path)
       my_fclose(sql_file, MYF(MY_WME));
@@ -2178,9 +2178,9 @@ static void dump_table(char *table, char *db)
       if (order_by)
         end = strxmov(end, " ORDER BY ", order_by, NullS);
     }
-    if (mysql_real_query(sock, query, (uint) (end - query)))
+    if (mysql_real_query(mysql, query, (uint) (end - query)))
     {
-      DB_error(sock, "when executing 'SELECT INTO OUTFILE'");
+      DB_error(mysql, "when executing 'SELECT INTO OUTFILE'");
       DBUG_VOID_RETURN;
     }
   }
@@ -2226,15 +2226,15 @@ static void dump_table(char *table, char *db)
       fputs("\n", md_result_file);
       check_io(md_result_file);
     }
-    if (mysql_query_with_error_report(sock, 0, query))
-      DB_error(sock, "when retrieving data from server");
+    if (mysql_query_with_error_report(mysql, 0, query))
+      DB_error(mysql, "when retrieving data from server");
     if (quick)
-      res=mysql_use_result(sock);
+      res=mysql_use_result(mysql);
     else
-      res=mysql_store_result(sock);
+      res=mysql_store_result(mysql);
     if (!res)
     {
-      DB_error(sock, "when retrieving data from server");
+      DB_error(mysql, "when retrieving data from server");
       goto err;
     }
 
@@ -2507,13 +2507,13 @@ static void dump_table(char *table, char *db)
       fputs(";\n", md_result_file);             /* If not empty table */
     fflush(md_result_file);
     check_io(md_result_file);
-    if (mysql_errno(sock))
+    if (mysql_errno(mysql))
     {
       my_snprintf(query, QUERY_LENGTH,
                   "%s: Error %d: %s when dumping table %s at row: %ld\n",
                   my_progname,
-                  mysql_errno(sock),
-                  mysql_error(sock),
+                  mysql_errno(mysql),
+                  mysql_error(mysql),
                   result_table,
                   rownr);
       fputs(query,stderr);
@@ -2559,7 +2559,7 @@ static char *getTableName(int reset)
 
   if (!res)
   {
-    if (!(res = mysql_list_tables(sock,NullS)))
+    if (!(res = mysql_list_tables(mysql,NullS)))
       return(NULL);
   }
   if ((row = mysql_fetch_row(res)))
@@ -2582,7 +2582,7 @@ static int dump_all_databases()
   MYSQL_RES *tableres;
   int result=0;
 
-  if (mysql_query_with_error_report(sock, &tableres, "SHOW DATABASES"))
+  if (mysql_query_with_error_report(mysql, &tableres, "SHOW DATABASES"))
     return 1;
   while ((row = mysql_fetch_row(tableres)))
   {
@@ -2591,11 +2591,11 @@ static int dump_all_databases()
   }
   if (seen_views)
   {
-    if (mysql_query(sock, "SHOW DATABASES") ||
-        !(tableres = mysql_store_result(sock)))
+    if (mysql_query(mysql, "SHOW DATABASES") ||
+        !(tableres = mysql_store_result(mysql)))
     {
       my_printf_error(0, "Error: Couldn't execute 'SHOW DATABASES': %s",
-                      MYF(0), mysql_error(sock));
+                      MYF(0), mysql_error(mysql));
       return 1;
     }
     while ((row = mysql_fetch_row(tableres)))
@@ -2632,13 +2632,13 @@ static int dump_databases(char **db_names)
 
 static int init_dumping(char *database)
 {
-  if (mysql_get_server_version(sock) >= 50003 &&
+  if (mysql_get_server_version(mysql) >= 50003 &&
       !my_strcasecmp(&my_charset_latin1, database, "information_schema"))
     return 1;
 
-  if (mysql_select_db(sock, database))
+  if (mysql_select_db(mysql, database))
   {
-    DB_error(sock, "when selecting the database");
+    DB_error(mysql, "when selecting the database");
     return 1;                   /* If --force */
   }
   if (!path && !opt_xml)
@@ -2665,7 +2665,7 @@ static int init_dumping(char *database)
                     "SHOW CREATE DATABASE IF NOT EXISTS %s",
                     qdatabase);
 
-        if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
+        if (mysql_query(mysql, qbuf) || !(dbinfo = mysql_store_result(mysql)))
         {
           /* Old server version, dump generic CREATE DATABASE */
           if (opt_drop_database)
@@ -2733,15 +2733,15 @@ static int dump_all_tables_in_db(char *database)
       dynstr_append(&query, quote_name(table, table_buff, 1));
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
-    if (numrows && mysql_real_query(sock, query.str, query.length-1))
-      DB_error(sock, "when using LOCK TABLES");
+    if (numrows && mysql_real_query(mysql, query.str, query.length-1))
+      DB_error(mysql, "when using LOCK TABLES");
             /* We shall continue here, if --force was given */
     dynstr_free(&query);
   }
   if (flush_logs)
   {
-    if (mysql_refresh(sock, REFRESH_LOG))
-      DB_error(sock, "when doing refresh");
+    if (mysql_refresh(mysql, REFRESH_LOG))
+      DB_error(mysql, "when doing refresh");
            /* We shall continue here, if --force was given */
   }
   while ((table= getTableName(0)))
@@ -2753,12 +2753,12 @@ static int dump_all_tables_in_db(char *database)
       my_free(order_by, MYF(MY_ALLOW_ZERO_PTR));
       order_by= 0;
       if (opt_dump_triggers && ! opt_xml &&
-          mysql_get_server_version(sock) >= 50009)
+          mysql_get_server_version(mysql) >= 50009)
         dump_triggers_for_table(table, database);
     }
   }
   if (opt_routines && !opt_xml &&
-      mysql_get_server_version(sock) >= 50009)
+      mysql_get_server_version(mysql) >= 50009)
   {
     DBUG_PRINT("info", ("Dumping routines for database %s", database));
     dump_routines_for_db(database);
@@ -2769,7 +2769,7 @@ static int dump_all_tables_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
+    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
   return 0;
 } /* dump_all_tables_in_db */
 
@@ -2792,9 +2792,9 @@ static my_bool dump_all_views_in_db(char *database)
   uint numrows;
   char table_buff[NAME_LEN*2+3];
 
-  if (mysql_select_db(sock, database))
+  if (mysql_select_db(mysql, database))
   {
-    DB_error(sock, "when selecting the database");
+    DB_error(mysql, "when selecting the database");
     return 1;
   }
 
@@ -2809,15 +2809,15 @@ static my_bool dump_all_views_in_db(char *database)
       dynstr_append(&query, quote_name(table, table_buff, 1));
       dynstr_append(&query, " READ /*!32311 LOCAL */,");
     }
-    if (numrows && mysql_real_query(sock, query.str, query.length-1))
-      DB_error(sock, "when using LOCK TABLES");
+    if (numrows && mysql_real_query(mysql, query.str, query.length-1))
+      DB_error(mysql, "when using LOCK TABLES");
             /* We shall continue here, if --force was given */
     dynstr_free(&query);
   }
   if (flush_logs)
   {
-    if (mysql_refresh(sock, REFRESH_LOG))
-      DB_error(sock, "when doing refresh");
+    if (mysql_refresh(mysql, REFRESH_LOG))
+      DB_error(mysql, "when doing refresh");
            /* We shall continue here, if --force was given */
   }
   while ((table= getTableName(0)))
@@ -2828,7 +2828,7 @@ static my_bool dump_all_views_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
+    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
   return 0;
 } /* dump_all_tables_in_db */
 
@@ -2858,12 +2858,12 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
   my_snprintf(query, sizeof(query), "SHOW TABLES LIKE %s",
               quote_for_like(old_table_name, show_name_buff));
 
-  if (mysql_query_with_error_report(sock, 0, query))
+  if (mysql_query_with_error_report(mysql, 0, query))
   {
     safe_exit(EX_MYSQLERR);
   }
 
-  if ((table_res= mysql_store_result(sock)))
+  if ((table_res= mysql_store_result(mysql)))
   {
     my_ulonglong num_rows= mysql_num_rows(table_res);
     if (num_rows > 0)
@@ -2925,16 +2925,16 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
 
   if (lock_tables)
   {
-    if (mysql_real_query(sock, lock_tables_query.str,
+    if (mysql_real_query(mysql, lock_tables_query.str,
                          lock_tables_query.length-1))
-      DB_error(sock, "when doing LOCK TABLES");
+      DB_error(mysql, "when doing LOCK TABLES");
        /* We shall countinue here, if --force was given */
   }
   dynstr_free(&lock_tables_query);
   if (flush_logs)
   {
-    if (mysql_refresh(sock, REFRESH_LOG))
-      DB_error(sock, "when doing refresh");
+    if (mysql_refresh(mysql, REFRESH_LOG))
+      DB_error(mysql, "when doing refresh");
      /* We shall countinue here, if --force was given */
   }
   if (opt_xml)
@@ -2946,7 +2946,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     DBUG_PRINT("info",("Dumping table %s", *pos));
     dump_table(*pos, db);
     if (opt_dump_triggers &&
-        mysql_get_server_version(sock) >= 50009)
+        mysql_get_server_version(mysql) >= 50009)
       dump_triggers_for_table(*pos, db);
   }
 
@@ -2958,7 +2958,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   }
   /* obtain dump of routines (procs/functions) */
   if (opt_routines  && !opt_xml &&
-      mysql_get_server_version(sock) >= 50009)
+      mysql_get_server_version(mysql) >= 50009)
   {
     DBUG_PRINT("info", ("Dumping routines for database %s", db));
     dump_routines_for_db(db);
@@ -2972,7 +2972,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
+    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
   DBUG_RETURN(0);
 } /* dump_selected_tables */
 
@@ -3157,7 +3157,7 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
     table_type                  Type of table
 
   GLOBAL VARIABLES
-    sock                        MySQL socket
+    mysql                       MySQL connection
     verbose                     Write warning messages
 
   RETURN
@@ -3176,12 +3176,12 @@ char check_if_ignore_table(const char *table_name, char *table_type)
   DBUG_ASSERT(2*sizeof(table_name) < sizeof(show_name_buff));
   my_snprintf(buff, sizeof(buff), "show table status like %s",
               quote_for_like(table_name, show_name_buff));
-  if (mysql_query_with_error_report(sock, &res, buff))
+  if (mysql_query_with_error_report(mysql, &res, buff))
   {
-    if (mysql_errno(sock) != ER_PARSE_ERROR)
+    if (mysql_errno(mysql) != ER_PARSE_ERROR)
     {                                   /* If old MySQL version */
       verbose_msg("-- Warning: Couldn't get status information for " \
-                  "table %s (%s)\n", table_name,mysql_error(sock));
+                  "table %s (%s)\n", table_name,mysql_error(mysql));
       DBUG_RETURN(result);                       /* assume table is ok */
     }
   }
@@ -3189,7 +3189,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
   {
     fprintf(stderr,
             "Error: Couldn't read status information for table %s (%s)\n",
-            table_name, mysql_error(sock));
+            table_name, mysql_error(mysql));
     mysql_free_result(res);
     DBUG_RETURN(result);                         /* assume table is ok */
   }
@@ -3225,6 +3225,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
   DBUG_RETURN(result);
 }
 
+
 /*
   Get string of comma-separated primary key field names
 
@@ -3254,12 +3255,12 @@ static char *primary_key_fields(const char *table_name)
 
   my_snprintf(show_keys_buff, sizeof(show_keys_buff),
               "SHOW KEYS FROM %s", table_name);
-  if (mysql_query(sock, show_keys_buff) ||
-      !(res = mysql_store_result(sock)))
+  if (mysql_query(mysql, show_keys_buff) ||
+      !(res = mysql_store_result(mysql)))
   {
     fprintf(stderr, "Warning: Couldn't read keys from table %s;"
             " records are NOT sorted (%s)\n",
-            table_name, mysql_error(sock));
+            table_name, mysql_error(mysql));
     /* Don't exit, because it's better to print out unsorted records */
     goto cleanup;
   }
@@ -3378,7 +3379,7 @@ static my_bool get_view_structure(char *table, char* db)
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
   my_snprintf(query, sizeof(query), "SHOW CREATE TABLE %s", result_table);
-  if (mysql_query_with_error_report(sock, &table_res, query))
+  if (mysql_query_with_error_report(mysql, &table_res, query))
   {
     safe_exit(EX_MYSQLERR);
     DBUG_RETURN(0);
@@ -3423,7 +3424,7 @@ static my_bool get_view_structure(char *table, char* db)
               "SELECT CHECK_OPTION, DEFINER, SECURITY_TYPE "            \
               "FROM information_schema.views "                          \
               "WHERE table_name=\"%s\" AND table_schema=\"%s\"", table, db);
-  if (mysql_query(sock, query))
+  if (mysql_query(mysql, query))
   {
     /*
       Use the raw output from SHOW CREATE TABLE if
@@ -3449,7 +3450,7 @@ static my_bool get_view_structure(char *table, char* db)
     mysql_free_result(table_res);
 
     /* Get the result from "select ... information_schema" */
-    if (!(table_res= mysql_store_result(sock)) ||
+    if (!(table_res= mysql_store_result(mysql)) ||
         !(row= mysql_fetch_row(table_res)))
     {
       safe_exit(EX_MYSQLERR);
@@ -3544,21 +3545,21 @@ int main(int argc, char **argv)
     write_header(md_result_file, *argv);
 
   if ((opt_lock_all_tables || opt_master_data) &&
-      do_flush_tables_read_lock(sock))
+      do_flush_tables_read_lock(mysql))
     goto err;
-  if (opt_single_transaction && start_transaction(sock, test(opt_master_data)))
+  if (opt_single_transaction && start_transaction(mysql, test(opt_master_data)))
       goto err;
-  if (opt_delete_master_logs && do_reset_master(sock))
+  if (opt_delete_master_logs && do_reset_master(mysql))
     goto err;
   if (opt_lock_all_tables || opt_master_data)
   {
-    if (flush_logs && mysql_refresh(sock, REFRESH_LOG))
+    if (flush_logs && mysql_refresh(mysql, REFRESH_LOG))
       goto err;
     flush_logs= 0; /* not anymore; that would not be sensible */
   }
-  if (opt_master_data && do_show_master_status(sock))
+  if (opt_master_data && do_show_master_status(mysql))
     goto err;
-  if (opt_single_transaction && do_unlock_tables(sock)) /* unlock but no commit! */
+  if (opt_single_transaction && do_unlock_tables(mysql)) /* unlock but no commit! */
     goto err;
 
   if (opt_alldbs)
