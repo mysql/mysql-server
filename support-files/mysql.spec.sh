@@ -662,7 +662,6 @@ fi
 %files ndb-management
 %defattr(-,root,root,0755)
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
-%attr(755, root, root) %{_bindir}/ndb_mgm
 
 %files ndb-tools
 %defattr(-,root,root,0755)
