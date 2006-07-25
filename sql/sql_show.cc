@@ -3110,31 +3110,18 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
   if (tables->view)
   {
     Security_context *sctx= thd->security_ctx;
-    ulong grant= SHOW_VIEW_ACL;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    char *save_table_name= tables->table_name;
-    if (!my_strcasecmp(system_charset_info, tables->definer.user.str,
-                       sctx->priv_user) &&
-        !my_strcasecmp(system_charset_info, tables->definer.host.str,
-                       sctx->priv_host))
-      grant= SHOW_VIEW_ACL;
-    else
+    if (!tables->allowed_show)
     {
-      tables->table_name= tables->view_name.str;
-      if (check_access(thd, SHOW_VIEW_ACL , base_name,
-                       &tables->grant.privilege, 0, 1,
-                       test(tables->schema_table)))
-        grant= get_table_grant(thd, tables);
-      else
-        grant= tables->grant.privilege;
+      if (!my_strcasecmp(system_charset_info, tables->definer.user.str,
+                         sctx->priv_user) &&
+          !my_strcasecmp(system_charset_info, tables->definer.host.str,
+                         sctx->priv_host))
+        tables->allowed_show= TRUE;
     }
-    tables->table_name= save_table_name;
-#endif
-
     restore_record(table, s->default_values);
     table->field[1]->store(tables->view_db.str, tables->view_db.length, cs);
     table->field[2]->store(tables->view_name.str, tables->view_name.length, cs);
-    if (grant & SHOW_VIEW_ACL)
+    if (tables->allowed_show)
     {
       char buff[2048];
       String qwe_str(buff, sizeof(buff), cs);
