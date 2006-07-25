@@ -3321,7 +3321,19 @@ bool mysql_create_table_internal(THD *thd,
       my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
       goto unlock_and_end;
     }
-    DBUG_ASSERT(get_cached_table_share(db, alias) == 0);
+    /*
+      We don't assert here, but check the result, because the table could be
+      in the table definition cache and in the same time the .frm could be
+      missing from the disk, in case of manual intervention which deletes
+      the .frm file. The user has to use FLUSH TABLES; to clear the cache.
+      Then she could create the table. This case is pretty obscure and
+      therefore we don't introduce a new error message only for it.
+    */
+    if (get_cached_table_share(db, alias))
+    {
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+      goto unlock_and_end;
+    }
   }
 
   /*
