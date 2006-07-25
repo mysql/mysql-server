@@ -218,3 +218,11 @@ START INSTANCE mysqld1,mysqld2,mysqld3;
 
 --error ER_SYNTAX_ERROR
 STOP INSTANCE mysqld1,mysqld2,mysqld3;
+
+#
+# Bug #12673: Instance Manager: allows to stop the instance many times
+#
+--error 3001
+STOP INSTANCE mysqld2;
+
+--echo End of 5.0 tests
