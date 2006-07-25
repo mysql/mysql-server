@@ -398,6 +398,13 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
   return res;
 }
 
+
+bool Item_func::func_type_checker_processor(byte *arg)
+{
+  return *((Functype*)arg) == functype();
+}
+
+
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
