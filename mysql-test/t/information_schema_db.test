@@ -98,3 +98,59 @@ where table_schema='test';
 drop function f1;
 drop function f2;
 drop view v1, v2;
+
+#
+# Bug#20543: select on information_schema strange warnings, view, different
+#             schemas/users
+#
+#
+create database testdb_1;
+create user testdb_1@localhost;
+grant all on testdb_1.* to testdb_1@localhost with grant option;
+
+create user testdb_2@localhost;
+grant all on test.* to testdb_2@localhost with grant option;
+
+connect (testdb_1,localhost,testdb_1,,test);
+use testdb_1;
+create table t1 (f1 char(4));
+create view v1 as select f1 from t1;
+grant insert on v1 to testdb_2@localhost;
+
+create table t3 (f1 char(4), f2 char(4));
+create view v3 as select f1,f2 from t3;
+grant insert(f1), insert(f2) on v3 to testdb_2@localhost;
+
+connect (testdb_2,localhost,testdb_2,,test);
+create view v2 as select f1 from testdb_1.v1;
+create view v4 as select f1,f2 from testdb_1.v3;
+
+connection testdb_1;
+revoke insert(f1) on v3 from testdb_2@localhost;
+connection testdb_2;
+
+--error 1345
+show create view v4;
+--error 1345
+show fields from v4;
+
+show fields from v2;
+show fields from testdb_1.v1;
+show create view v2;
+--error 1142
+show create view testdb_1.v1;
+
+select table_name from information_schema.columns a 
+where a.table_name = 'v2';
+select view_definition from information_schema.views a 
+where a.table_name = 'v2';
+select view_definition from information_schema.views a 
+where a.table_name = 'testdb_1.v1';
+
+--error 1356
+select * from v2;
+
+connection default;
+drop view testdb_1.v1,v2, testdb_1.v3, v4;
+drop database testdb_1;
+drop user testdb_1@localhost;
