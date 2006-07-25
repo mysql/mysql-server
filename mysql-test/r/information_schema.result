@@ -1232,3 +1232,11 @@ TABLE_PRIVILEGES	TABLE_SCHEMA
 TRIGGERS	TRIGGER_SCHEMA
 USER_PRIVILEGES	GRANTEE
 VIEWS	TABLE_SCHEMA
+SELECT MAX(table_name) FROM information_schema.tables;
+MAX(table_name)
+VIEWS
+SELECT table_name from information_schema.tables
+WHERE table_name=(SELECT MAX(table_name)
+FROM information_schema.tables);
+table_name
+VIEWS

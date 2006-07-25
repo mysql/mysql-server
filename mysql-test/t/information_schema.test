@@ -920,4 +920,14 @@ SELECT t.table_name, c1.column_name
                   c2.column_name LIKE '%SCHEMA%'
         );
 
+#
+# Bug#21231: query with a simple non-correlated subquery over
+#            INFORMARTION_SCHEMA.TABLES 
+#
+
+SELECT MAX(table_name) FROM information_schema.tables;
+SELECT table_name from information_schema.tables
+  WHERE table_name=(SELECT MAX(table_name)
+                      FROM information_schema.tables);
+
 # End of 5.0 tests.
