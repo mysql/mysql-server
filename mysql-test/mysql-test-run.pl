@@ -534,6 +534,11 @@ sub command_line_setup () {
               "($opt_master_myport - $opt_master_myport + 10)");
   }
 
+  # This is needed for test log evaluation in "gen-build-status-page"
+  # in all cases where the calling tool does not log the commands
+  # directly before it executes them, like "make test-force-pl" in RPM builds.
+  print "Logging: $0 ", join(" ", @ARGV), "\n";
+
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
 
