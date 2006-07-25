@@ -1064,6 +1064,26 @@ JOIN::optimize()
     {
       need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
     }
+    if (order)
+    {
+      /*
+        Force using of tmp table if sorting by a SP or UDF function due to
+        their expensive and probably non-deterministic nature.
+      */
+      for (ORDER *tmp_order= order; tmp_order ; tmp_order=tmp_order->next)
+      {
+        Item *item= *tmp_order->item;
+        Item_func::Functype type=Item_func::FUNC_SP;
+        Item_func::Functype type1=Item_func::UDF_FUNC;
+        if (item->walk(&Item::func_type_checker_processor,(byte*)&type) ||
+            item->walk(&Item::func_type_checker_processor,(byte*)&type1))
+        {
+          /* Force tmp table without sort */
+          need_tmp=1; simple_order=simple_group=0;
+          break;
+        }
+      }
+    }
   }
 
   tmp_having= having;
