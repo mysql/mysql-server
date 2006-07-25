@@ -1784,6 +1784,33 @@ length(a)
 5000
 drop table t1;
 drop table t1;
+DROP TABLE IF EXISTS federated.test;
+CREATE TABLE federated.test (
+`i` int(11) NOT NULL,
+`j` int(11) NOT NULL,
+`c` varchar(30) default NULL,
+PRIMARY KEY  (`i`,`j`),
+UNIQUE KEY `i` (`i`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.test1;
+DROP TABLE IF EXISTS federated.test2;
+create table federated.test1 (
+i int not null,
+j int not null,
+c varchar(30),
+primary key (i,j),
+unique key (i, c))
+engine = federated
+connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/test';
+create table federated.test2 (
+i int default null,
+j int not null,
+c varchar(30),
+key (i))
+engine = federated
+connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/test';
+drop table federated.test1, federated.test2;
+drop table federated.test;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
