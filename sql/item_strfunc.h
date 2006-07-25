@@ -728,7 +728,7 @@ public:
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "collate"; }
-  enum Functype func_type() const { return COLLATE_FUNC; }
+  enum Functype functype() const { return COLLATE_FUNC; }
   void print(String *str);
   Item_field *filed_for_view_update()
   {
