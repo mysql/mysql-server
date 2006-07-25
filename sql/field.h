@@ -118,6 +118,11 @@ public:
   */
   virtual String *val_str(String*,String *)=0;
   String *val_int_as_str(String *val_buffer, my_bool unsigned_flag);
+  /*
+   str_needs_quotes() returns TRUE if the value returned by val_str() needs
+   to be quoted when used in constructing an SQL query.
+  */
+  virtual bool str_needs_quotes() { return FALSE; }
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
   virtual Item_result cast_to_int_type () const { return result_type(); }
@@ -386,6 +391,7 @@ public:
   uint32 max_length() { return field_length; }
   friend class create_field;
   my_decimal *val_decimal(my_decimal *);
+  virtual bool str_needs_quotes() { return TRUE; }
 };
 
 
@@ -1330,6 +1336,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*, String *);
+  virtual bool str_needs_quotes() { return TRUE; }
   my_decimal *val_decimal(my_decimal *);
   int cmp(const char *a, const char *b)
   { return cmp_binary(a, b); }

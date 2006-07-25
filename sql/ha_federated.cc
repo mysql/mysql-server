@@ -1136,7 +1136,7 @@ bool ha_federated::create_where_from_key(String *to,
       Field *field= key_part->field;
       uint store_length= key_part->store_length;
       uint part_length= min(store_length, length);
-      needs_quotes= 1;
+      needs_quotes= field->str_needs_quotes();
       DBUG_DUMP("key, start of loop", (char *) ptr, length);
 
       if (key_part->null_bit)
@@ -1588,10 +1588,13 @@ int ha_federated::write_row(byte *buf)
       insert_field_value_string.append(FEDERATED_NULL);
     else
     {
+      bool needs_quote= (*field)->str_needs_quotes();
       (*field)->val_str(&insert_field_value_string);
-      values_string.append('\'');
+      if (needs_quote)
+        values_string.append('\'');
       insert_field_value_string.print(&values_string);
-      values_string.append('\'');
+      if (needs_quote)
+        values_string.append('\'');
 
       insert_field_value_string.length(0);
     }
@@ -1804,11 +1807,14 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
       update_string.append(FEDERATED_NULL);
     else
     {
+      bool needs_quote= (*field)->str_needs_quotes();
       /* otherwise = */
       (*field)->val_str(&field_value);
-      update_string.append('\'');
+      if (needs_quote)
+        update_string.append('\'');
       field_value.print(&update_string);
-      update_string.append('\'');
+      if (needs_quote)
+        update_string.append('\'');
       field_value.length(0);
     }
 
@@ -1816,12 +1822,15 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
       where_string.append(FEDERATED_ISNULL);
     else
     {
+      bool needs_quote= (*field)->str_needs_quotes();
       where_string.append(FEDERATED_EQ);
       (*field)->val_str(&field_value,
                         (char*) (old_data + (*field)->offset()));
-      where_string.append('\'');
+      if (needs_quote)
+        where_string.append('\'');
       field_value.print(&where_string);
-      where_string.append('\'');
+      if (needs_quote)
+        where_string.append('\'');
       field_value.length(0);
     }
 
@@ -1895,11 +1904,14 @@ int ha_federated::delete_row(const byte *buf)
     }
     else
     {
+      bool needs_quote= cur_field->str_needs_quotes();
       delete_string.append(FEDERATED_EQ);
       cur_field->val_str(&data_string);
-      delete_string.append('\'');
+      if (needs_quote)
+        delete_string.append('\'');
       data_string.print(&delete_string);
-      delete_string.append('\'');
+      if (needs_quote)
+        delete_string.append('\'');
     }
 
     delete_string.append(FEDERATED_AND);
