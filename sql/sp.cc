@@ -1537,7 +1537,6 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src,
       first_no_prelock - If true, don't add tables or cache routines used by
                          the body of the first routine (i.e. *start)
                          will be executed in non-prelocked mode.
-      tabs_changed     - Set to TRUE some tables were added, FALSE otherwise
   NOTE
     If some function is missing this won't be reported here.
     Instead this fact will be discovered during query execution.
@@ -1550,10 +1549,9 @@ static void sp_update_stmt_used_routines(THD *thd, LEX *lex, SQL_LIST *src,
 static int
 sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
                                      Sroutine_hash_entry *start, 
-                                     bool first_no_prelock, bool *tabs_changed)
+                                     bool first_no_prelock)
 {
   int ret= 0;
-  bool tabschnd= 0;             /* Set if tables changed */
   bool first= TRUE;
   DBUG_ENTER("sp_cache_routines_and_add_tables_aux");
 
@@ -1626,16 +1624,13 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
       {
         sp_update_stmt_used_routines(thd, lex, &sp->m_sroutines,
                                      rt->belong_to_view);
-        tabschnd|=
-          sp->add_used_tables_to_table_list(thd, &lex->query_tables_last,
-                                            rt->belong_to_view);
+        (void)sp->add_used_tables_to_table_list(thd, &lex->query_tables_last,
+                                                rt->belong_to_view);
       }
       sp->propagate_attributes(lex);
     }
     first= FALSE;
   }
-  if (tabs_changed)             /* it can be NULL  */
-    *tabs_changed= tabschnd;
   DBUG_RETURN(ret);
 }
 
@@ -1651,20 +1646,18 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
       lex              - LEX representing statement
       first_no_prelock - If true, don't add tables or cache routines used by
                          the body of the first routine (i.e. *start)
-      tabs_changed     - Set to TRUE some tables were added, FALSE otherwise
-                         
+
   RETURN VALUE
      0     - success
      non-0 - failure
 */
 
 int
-sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock,
-                                 bool *tabs_changed)
+sp_cache_routines_and_add_tables(THD *thd, LEX *lex, bool first_no_prelock)
 {
   return sp_cache_routines_and_add_tables_aux(thd, lex,
            (Sroutine_hash_entry *)lex->sroutines_list.first,
-           first_no_prelock, tabs_changed);
+           first_no_prelock);
 }
 
 
@@ -1691,9 +1684,8 @@ sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex, TABLE_LIST *view)
                           (Sroutine_hash_entry **)lex->sroutines_list.next;
   sp_update_stmt_used_routines(thd, lex, &view->view->sroutines_list,
                                view->top_table());
-  return sp_cache_routines_and_add_tables_aux(thd, lex, 
-                                              *last_cached_routine_ptr, FALSE,
-                                              NULL);
+  return sp_cache_routines_and_add_tables_aux(thd, lex,
+                                              *last_cached_routine_ptr, FALSE);
 }
 
 
@@ -1742,8 +1734,7 @@ sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
       }
     }
     ret= sp_cache_routines_and_add_tables_aux(thd, lex,
-                                              *last_cached_routine_ptr, 
-                                              FALSE, NULL);
+                                              *last_cached_routine_ptr, FALSE);
   }
   return ret;
 }
