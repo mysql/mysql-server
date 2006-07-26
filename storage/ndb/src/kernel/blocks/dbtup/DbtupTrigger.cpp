@@ -1111,6 +1111,12 @@ Dbtup::addTuxEntries(Signal* signal,
                      Operationrec* regOperPtr,
                      Tablerec* regTabPtr)
 {
+  if (ERROR_INSERTED(4022)) {
+    ljam();
+    CLEAR_ERROR_INSERT_VALUE;
+    terrorCode = 9999;
+    return -1;
+  }
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
   const DLList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
@@ -1120,6 +1126,14 @@ Dbtup::addTuxEntries(Signal* signal,
     ljam();
     req->indexId = triggerPtr.p->indexId;
     req->errorCode = RNIL;
+    if (ERROR_INSERTED(4023) &&
+        ! triggerList.hasNext(triggerPtr)) {
+      ljam();
+      CLEAR_ERROR_INSERT_VALUE;
+      terrorCode = 9999;
+      failPtrI = triggerPtr.i;
+      goto fail;
+    }
     EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
         signal, TuxMaintReq::SignalLength);
     ljamEntry();
