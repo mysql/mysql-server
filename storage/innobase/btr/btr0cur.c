@@ -455,7 +455,7 @@ retry_page_get:
 				if (UNIV_LIKELY_NULL(heap)) {
 					mem_heap_free(heap);
 				}
-				return;
+				goto func_exit;
 			}
 
 			/* Insert to the insert buffer did not succeed:
@@ -571,6 +571,7 @@ retry_page_get:
 						|| mode != PAGE_CUR_LE);
 	}
 
+func_exit:
 	if (has_search_latch) {
 
 		rw_lock_s_lock(&btr_search_latch);

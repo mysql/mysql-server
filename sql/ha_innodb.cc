@@ -1174,7 +1174,8 @@ innobase_print_identifier(
 /*======================*/
 	FILE*		f,	/* in: output stream */
 	trx_t*		trx,	/* in: transaction */
-	ibool		table_id,/* in: TRUE=decode table name */
+	ibool		table_id,/* in: TRUE=print a table name,
+				FALSE=print other identifier */
 	const char*	name,	/* in: name to print */
 	ulint		namelen)/* in: length of name */
 {
