@@ -189,7 +189,8 @@ public:
   Item *transform(Item_transformer transformer, byte *arg);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
-  bool func_type_checker_processor(byte *arg);
+  bool is_expensive_processor(byte *arg);
+  virtual bool is_expensive() { return 0; }
 };
 
 
@@ -947,6 +948,7 @@ public:
   void cleanup();
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
+  bool is_expensive() { return 1; }
 };
 
 
@@ -1475,6 +1477,7 @@ public:
   virtual enum Functype functype() const { return FUNC_SP; }
 
   bool fix_fields(THD *thd, Item **ref);
+  bool is_expensive() { return 1; }
 };
 
 
