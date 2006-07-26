@@ -266,6 +266,9 @@ struct system_variables
   CHARSET_INFO	*collation_database;
   CHARSET_INFO  *collation_connection;
 
+  /* Locale Support */
+  MY_LOCALE *lc_time_names;
+
   Time_zone *time_zone;
 
   /* DATE, DATETIME and TIME formats */

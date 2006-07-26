@@ -296,12 +296,6 @@ Item *create_func_pow(Item* a, Item *b)
   return new Item_func_pow(a,b);
 }
 
-Item *create_func_current_user()
-{
-  current_thd->lex->safe_to_cache_query= 0;
-  return new Item_func_user(TRUE);
-}
-
 Item *create_func_radians(Item *a)
 {
   return new Item_func_units((char*) "radians",a,M_PI/180,0.0);

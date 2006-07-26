@@ -393,21 +393,40 @@ public:
 
 class Item_func_user :public Item_func_sysconst
 {
-  bool is_current;
+protected:
+  bool init (const char *user, const char *host);
 
 public:
-  Item_func_user(bool is_current_arg)
-    :Item_func_sysconst(), is_current(is_current_arg) {}
-  String *val_str(String *);
+  Item_func_user()
+  {
+    str_value.set("", 0, system_charset_info);
+  }
+  String *val_str(String *)
+  {
+    DBUG_ASSERT(fixed == 1);
+    return (null_value ? 0 : &str_value);
+  }
+  bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec()
   {
     max_length= ((USERNAME_LENGTH + HOSTNAME_LENGTH + 1) *
                  system_charset_info->mbmaxlen);
   }
-  const char *func_name() const
-    { return is_current ? "current_user" : "user"; }
-  const char *fully_qualified_func_name() const
-    { return is_current ? "current_user()" : "user()"; }
+  const char *func_name() const { return "user"; }
+  const char *fully_qualified_func_name() const { return "user()"; }
+};
+
+
+class Item_func_current_user :public Item_func_user
+{
+  Name_resolution_context *context;
+
+public:
+  Item_func_current_user(Name_resolution_context *context_arg)
+    : context(context_arg) {}
+  bool fix_fields(THD *thd, Item **ref);
+  const char *func_name() const { return "current_user"; }
+  const char *fully_qualified_func_name() const { return "current_user()"; }
 };
 
 
