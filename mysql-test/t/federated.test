@@ -1366,25 +1366,6 @@ drop table federated.t1, federated.t2;
 connection master;
 --enable_parsing
 
-#
-# Bug #16494: Updates that set a column to NULL fail sometimes
-#
-connection slave;
-create table t1 (id int not null auto_increment primary key, val int);
-connection master;
---replace_result $SLAVE_MYPORT SLAVE_PORT
-eval create table t1
-  (id int not null auto_increment primary key, val int) engine=federated
-  connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
-insert into t1 values (1,0),(2,0);
-update t1 set val = NULL where id = 1;
-select * from t1;
-connection slave;
-select * from t1;
-drop table t1;
-connection master;
-drop table t1;
-
 # 
 # Additional test for bug#18437 "Wrong values inserted with a before
 # update trigger on NDB table". SQL-layer didn't properly inform
@@ -1479,5 +1460,26 @@ drop table federated.t1, federated.t2;
 
 connection slave;
 drop table federated.t1, federated.t2;
+#
+# Bug #16494: Updates that set a column to NULL fail sometimes
+#
+connection slave;
+create table t1 (id int not null auto_increment primary key, val int);
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table t1
+  (id int not null auto_increment primary key, val int) engine=federated
+  connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
+insert into t1 values (1,0),(2,0);
+update t1 set val = NULL where id = 1;
+select * from t1;
+connection slave;
+select * from t1;
+drop table t1;
+connection master;
+drop table t1;
+
+--echo End of 5.0 tests
 
 source include/federated_cleanup.inc;
+

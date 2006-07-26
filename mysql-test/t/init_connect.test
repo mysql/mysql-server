@@ -35,4 +35,205 @@ select @a;
 connection con0;
 drop table t1;
 
-# End of 4.1 tests
+disconnect con1;
+disconnect con2;
+disconnect con3;
+disconnect con4;
+disconnect con5;
+
+--echo End of 4.1 tests
+#
+# Test 5.* features
+#
+
+create table t1 (x int);
+insert into t1 values (3), (5), (7);
+create table t2 (y int);
+
+create user mysqltest1@localhost;
+grant all privileges on test.* to mysqltest1@localhost;
+#
+# Create a simple procedure
+#
+set global init_connect="create procedure p1() select * from t1";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+call p1();
+drop procedure p1;
+
+connection con0;
+disconnect con1;
+#
+# Create a multi-result set procedure
+#
+set global init_connect="create procedure p1(x int)\
+begin\
+  select count(*) from t1;\
+  select * from t1;\
+  set @x = x;
+end";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+call p1(42);
+select @x;
+
+connection con0;
+disconnect con1;
+#
+# Just call it - this will not generate any output
+#
+set global init_connect="call p1(4711)";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select @x;
+
+connection con0;
+disconnect con1;
+#
+# Drop the procedure
+#
+set global init_connect="drop procedure if exists p1";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+--error ER_SP_DOES_NOT_EXIST
+call p1();
+
+connection con0;
+disconnect con1;
+#
+# Execution of a more complex procedure
+#
+delimiter |;
+create procedure p1(out sum int)
+begin
+  declare n int default 0;
+  declare c cursor for select * from t1;
+  declare exit handler for not found
+    begin
+      close c;
+      set sum = n;
+    end;
+
+  open c;
+  loop
+    begin
+      declare x int;
+
+      fetch c into x;
+      if x > 3 then
+        set n = n + x;
+      end if;
+    end;
+  end loop;
+end|
+delimiter ;|
+# Call the procedure with a cursor
+set global init_connect="call p1(@sum)";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select @sum;
+
+connection con0;
+disconnect con1;
+drop procedure p1;
+#
+# Test Dynamic SQL
+#
+delimiter |;
+create procedure p1(tbl char(10), v int)
+begin
+  set @s = concat('insert into ', tbl, ' values (?)');
+  set @v = v;
+  prepare stmt1 from @s;
+  execute stmt1 using @v;
+  deallocate prepare stmt1;
+end|
+delimiter ;|
+# Call the procedure with prepared statements
+set global init_connect="call p1('t1', 11)";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select * from t1;
+
+connection con0;
+disconnect con1;
+drop procedure p1;
+#
+# Stored functions
+#
+delimiter |;
+create function f1() returns int
+begin
+  declare n int;
+
+  select count(*) into n from t1;
+  return n;
+end|
+delimiter ;|
+# Invoke a function
+set global init_connect="set @x = f1()";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select @x;
+
+connection con0;
+disconnect con1;
+#
+# Create a view
+#
+set global init_connect="create view v1 as select f1()";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select * from v1;
+
+connection con0;
+disconnect con1;
+#
+# Drop the view
+#
+set global init_connect="drop view v1";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+--error ER_NO_SUCH_TABLE
+select * from v1;
+
+connection con0;
+disconnect con1;
+drop function f1;
+
+# We can't test "create trigger", since this requires super privileges
+# in 5.0, but with super privileges, init_connect is not executed.
+# (However, this can be tested in 5.1)
+#
+#set global init_connect="create trigger trg1\
+#  after insert on t2\
+#  for each row\
+#  insert into t1 values (new.y)";
+#connect (con1,localhost,mysqltest1,,);
+#connection con1;
+#insert into t2 values (2), (4);
+#select * from t1;
+#
+#connection con0;
+#disconnect con1;
+
+create trigger trg1
+  after insert on t2
+  for each row
+  insert into t1 values (new.y);
+
+# Invoke trigger
+set global init_connect="insert into t2 values (13), (17), (19)";
+connect (con1,localhost,mysqltest1,,);
+connection con1;
+select * from t1;
+
+connection con0;
+disconnect con1;
+
+drop trigger trg1;
+set global init_connect=default;
+
+revoke all privileges, grant option from mysqltest1@localhost;
+drop user mysqltest1@localhost;
+drop table t1, t2;

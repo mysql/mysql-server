@@ -428,7 +428,7 @@ extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
 bool mysql_multi_delete_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
-  TABLE_LIST *aux_tables= (TABLE_LIST *)lex->auxilliary_table_list.first;
+  TABLE_LIST *aux_tables= (TABLE_LIST *)lex->auxiliary_table_list.first;
   TABLE_LIST *target_tbl;
   DBUG_ENTER("mysql_multi_delete_prepare");
 
