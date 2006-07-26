@@ -3355,7 +3355,7 @@ sub run_testcase_start_servers($) {
 
     if (mysqld_wait_started($mysqld))
     {
-      mtr_error("Failed to start $mysqld->{'type'} mysqld $mysqld->{'idx'}");
+      mtr_warning("Failed to start $mysqld->{'type'} mysqld $mysqld->{'idx'}");
     }
   }
 }
