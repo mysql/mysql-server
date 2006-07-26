@@ -266,11 +266,9 @@ trx_end_lock_wait(
 /********************************************************************
 Sends a signal to a trx object. */
 
-ibool
+void
 trx_sig_send(
 /*=========*/
-					/* out: TRUE if the signal was
-					successfully delivered */
 	trx_t*		trx,		/* in: trx handle */
 	ulint		type,		/* in: signal type */
 	ulint		sender,		/* in: TRX_SIG_SELF or

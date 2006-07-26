@@ -72,7 +72,7 @@ pars_res_word_t	pars_asc_token = {PARS_ASC_TOKEN};
 pars_res_word_t	pars_desc_token = {PARS_DESC_TOKEN};
 pars_res_word_t	pars_open_token = {PARS_OPEN_TOKEN};
 pars_res_word_t	pars_close_token = {PARS_CLOSE_TOKEN};
-pars_res_word_t	pars_consistent_token = {PARS_CONSISTENT_TOKEN};
+pars_res_word_t	pars_share_token = {PARS_SHARE_TOKEN};
 pars_res_word_t	pars_unique_token = {PARS_UNIQUE_TOKEN};
 pars_res_word_t	pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 
@@ -699,8 +699,7 @@ pars_select_statement(
 	sym_node_t*	table_list,	/* in: table list */
 	que_node_t*	search_cond,	/* in: search condition or NULL */
 	pars_res_word_t* for_update,	/* in: NULL or &pars_update_token */
-	pars_res_word_t* consistent_read,/* in: NULL or
-						&pars_consistent_token */
+	pars_res_word_t* lock_shared,	/* in: NULL or &pars_share_token */
 	order_node_t*	order_by)	/* in: NULL or an order-by node */
 {
 	select_node->state = SEL_NODE_OPEN;
@@ -734,19 +733,24 @@ pars_select_statement(
 	}
 
 	if (for_update) {
-		ut_a(!consistent_read);
+		ut_a(!lock_shared);
+
 		select_node->set_x_locks = TRUE;
 		select_node->row_lock_mode = LOCK_X;
+
+		select_node->consistent_read = FALSE;
+		select_node->read_view = NULL;
+	} else if (lock_shared){
+		select_node->set_x_locks = FALSE;
+		select_node->row_lock_mode = LOCK_S;
+
+		select_node->consistent_read = FALSE;
+		select_node->read_view = NULL;
 	} else {
 		select_node->set_x_locks = FALSE;
 		select_node->row_lock_mode = LOCK_S;
-	}
 
-	if (consistent_read) {
 		select_node->consistent_read = TRUE;
-	} else {
-		select_node->consistent_read = FALSE;
-		select_node->read_view = NULL;
 	}
 
 	select_node->order_by = order_by;
@@ -976,7 +980,7 @@ pars_update_statement(
 		sel_node = pars_select_list(NULL, NULL);
 
 		pars_select_statement(sel_node, table_sym, search_cond, NULL,
-								NULL, NULL);
+			&pars_share_token, NULL);
 		node->searched_update = TRUE;
 		sel_node->common.parent = node;
 	}
@@ -1857,8 +1861,9 @@ pars_sql(
 #endif /* UNIV_SYNC_DEBUG */
 	pars_sym_tab_global = sym_tab_create(heap);
 
-	pars_sym_tab_global->sql_string = mem_heap_strdup(heap, str);
 	pars_sym_tab_global->string_len = strlen(str);
+	pars_sym_tab_global->sql_string = mem_heap_dup(heap, str,
+		pars_sym_tab_global->string_len + 1);
 	pars_sym_tab_global->next_char_pos = 0;
 	pars_sym_tab_global->info = info;
 
