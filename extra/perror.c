@@ -261,7 +261,7 @@ int main(int argc,char *argv[])
         found= 1;
         msg= 0;
       }
-      else 
+      else
 #endif
 	msg = strerror(code);
 
@@ -281,20 +281,23 @@ int main(int argc,char *argv[])
 	else
 	  puts(msg);
       }
-      if (!(msg=get_ha_error_msg(code)))
+
+      if (!found)
       {
-	if (!found)
-	{
+        /* Error message still not found, look in handler error codes */
+        if (!(msg=get_ha_error_msg(code)))
+        {
 	  fprintf(stderr,"Illegal error code: %d\n",code);
 	  error=1;
-	}
-      }
-      else
-      {
-	if (verbose)
-	  printf("MySQL error code %3d: %s\n",code,msg);
-	else
-	  puts(msg);
+        }
+        else
+        {
+          found= 1;
+          if (verbose)
+            printf("MySQL error code %3d: %s\n",code,msg);
+          else
+            puts(msg);
+        }
       }
     }
   }
