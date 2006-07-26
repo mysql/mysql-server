@@ -46,6 +46,8 @@ call bug4902_2()|
 drop procedure bug4902_2|
 
 
+# Disable until bug#17244 is fixed
+--disable_parsing
 #
 # BUG#5278: Stored procedure packets out of order if SET PASSWORD.
 #
@@ -63,7 +65,7 @@ select bug5278()|
 --error 1133
 select bug5278()|
 drop function bug5278|
-
+--enable_parsing
 
 --disable_warnings
 drop table if exists t1|
