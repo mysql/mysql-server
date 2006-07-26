@@ -340,7 +340,9 @@ sub mtr_kill_leftovers () {
   my $pid;
 
   #Start shutdown of instance_managers, masters and slaves
-  foreach my $srv (@{$::instance_manager->{'instances'}},@{$::master},@{$::slave})
+  foreach my $srv ($::instance_manager,
+		   @{$::instance_manager->{'instances'}},
+		   @{$::master},@{$::slave})
   {
     $pid= mtr_mysqladmin_start($srv, "shutdown", 70);
 
