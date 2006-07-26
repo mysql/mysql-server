@@ -2736,6 +2736,32 @@ SELECT i='1e+01',i=1e+01, i in (1e+01,1e+01), i in ('1e+01','1e+01') FROM t1;
 i='1e+01'	i=1e+01	i in (1e+01,1e+01)	i in ('1e+01','1e+01')
 0	1	1	1
 DROP TABLE t1;
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (1,1), (2,1), (4,10);
+CREATE TABLE t2 (a int PRIMARY KEY, b int, KEY b (b));
+INSERT INTO t2 VALUES (1,NULL), (2,10);
+ALTER TABLE t1 ENABLE KEYS;
+EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+a	b	a	b
+1	NULL	1	1
+1	NULL	2	1
+1	NULL	4	10
+2	10	4	10
+EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+a	b	a	b
+1	NULL	1	1
+1	NULL	2	1
+1	NULL	4	10
+2	10	4	10
+DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1 ( 
 K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
 K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', 
@@ -3125,32 +3151,6 @@ select count(*)
 from t1 inner join (t2 right join t3 on t2.id = t3.b_id) on t1.id = t3.a_id;
 count(*)
 6
-CREATE TABLE t1 (a int, b int);
-INSERT INTO t1 VALUES (1,1), (2,1), (4,10);
-CREATE TABLE t2 (a int PRIMARY KEY, b int, KEY b (b));
-INSERT INTO t2 VALUES (1,NULL), (2,10);
-ALTER TABLE t1 ENABLE KEYS;
-EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
-a	b	a	b
-1	NULL	1	1
-1	NULL	2	1
-1	NULL	4	10
-2	10	4	10
-EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
-a	b	a	b
-1	NULL	1	1
-1	NULL	2	1
-1	NULL	4	10
-2	10	4	10
-DROP TABLE IF EXISTS t1,t2;
 drop table t1,t2,t3;
 create table t1 (a int);
 create table t2 (b int);
