@@ -71,6 +71,7 @@ td,th { border: 1px solid black }
   <tr>
     <th>Column</th>
     <th>Type</th>
+    <th>VARSIZE</th>
     <th>Size</th>
     <th>Key</th>
     <TMPL_LOOP NAME=releases>
@@ -81,6 +82,7 @@ td,th { border: 1px solid black }
     <tr>
       <td><TMPL_VAR NAME=name></td>
       <td><TMPL_VAR NAME=type></td>
+      <td><TMPL_IF NAME=is_varsize>YES<TMPL_ELSE>&nbsp;</TMPL_IF></td>
       <td><TMPL_VAR NAME=size></td>
       <td><TMPL_VAR NAME=key></td>
       <TMPL_LOOP NAME=datamemory>
