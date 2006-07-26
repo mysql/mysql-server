@@ -748,11 +748,19 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 				      regTabPtr) != 0) {
 	   jam();
            /*
-            * undo the change before tupkeyErrorLab resets the op
-            * assume no timeslicing can occur even with diskdata
+            * TUP insert succeeded but add of TUX entries failed.  All
+            * TUX changes have been rolled back at this point.
+            *
+            * We will abort via tupkeyErrorLab() as usual.  This routine
+            * however resets the operation to ZREAD.  The TUP_ABORTREQ
+            * arriving later cannot then undo the insert.
+            *
+            * Therefore we call TUP_ABORTREQ already now.  Diskdata etc
+            * should be in memory and timeslicing cannot occur.  We must
+            * skip TUX abort triggers since TUX is already aborted.
             */
            signal->theData[0] = operPtr.i;
-           do_tup_abortreq(signal, 0x1);
+           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
 	   tupkeyErrorLab(signal);
 	   return;
 	 }
@@ -782,10 +790,10 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 				      regTabPtr) != 0) {
 	   jam();
            /*
-            * see insert case
+            * See insert case.
             */
            signal->theData[0] = operPtr.i;
-           do_tup_abortreq(signal, 0x1);
+           do_tup_abortreq(signal, ZSKIP_TUX_TRIGGERS);
 	   tupkeyErrorLab(signal);
 	   return;
 	 }
