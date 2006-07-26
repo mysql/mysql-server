@@ -107,7 +107,8 @@ create table t4 (f text character set cp932);
 --exec $MYSQL --default-character-set=cp932 test -e "insert into t4 values(_cp932'ƒ\');"
 flush logs;
 rename table t3 to t03, t4 to t04;
---exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000004 | $MYSQL --default-character-set=utf8
+--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000004 > $MYSQL_TEST_DIR/var/tmp/bug16217.sql
+--exec $MYSQL --default-character-set=utf8 < $MYSQL_TEST_DIR/var/tmp/bug16217.sql
 # original and recovered data must be equal
 select HEX(f) from t03;
 select HEX(f) from t3;
@@ -123,7 +124,8 @@ flush logs;
 # resulted binlog, parly consisting of multi-byte utf8 chars, 
 # must be digestable for both client and server. In 4.1 the client 
 # should use default-character-set same as the server.
---exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000006 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQL_TEST_DIR/var/log/master-bin.000006 > $MYSQL_TEST_DIR/var/tmp/bug14157.sql
+--exec $MYSQL < $MYSQL_TEST_DIR/var/tmp/bug14157.sql
 select * from t5  /* must be (1),(1) */;
 
 # clean up
