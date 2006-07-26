@@ -2828,8 +2828,6 @@ drop procedure bug4579_1|
 drop procedure bug4579_2|
 drop table t3|
 
-# MASV : Disable test case until bug#21039 is fixed
---disable_parsing
 #
 # BUG#2773: Function's data type ignored in stored procedures
 #
@@ -2842,7 +2840,6 @@ create table t3 as select bug2773()|
 show create table t3|
 drop table t3|
 drop function bug2773|
---enable_parsing
 
 #
 # BUG#3788: Stored procedure packet error
