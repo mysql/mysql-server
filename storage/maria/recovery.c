@@ -16,31 +16,42 @@ typedef struct st_record_type_properties {
  /* used for debug error messages or "maria_read_log" command-line tool: */
   char *name,
   my_bool record_ends_group;
-  int (*record_execute)(RECORD *); /* param will be record header instead later */
+  /* a function to execute when we see the record during the REDO phase */
+  int (*record_execute_in_redo_phase)(RECORD *); /* param will be record header instead later */
+  /* a function to execute when we see the record during the UNDO phase */
+  int (*record_execute_in_undo_phase)(RECORD *); /* param will be record header instead later */
 } RECORD_TYPE_PROPERTIES;
+
+int no_op(RECORD *) {return 0};
 
 RECORD_TYPE_PROPERTIES all_record_type_properties[]=
 {
   /* listed here in the order of the "log records type" enumeration */
-  {"REDO_INSERT_HEAD", 0, redo_insert_head_execute},
+  {"REDO_INSERT_HEAD", FALSE, redo_insert_head_execute_in_redo_phase, no_op},
   ...,
-  {"UNDO_INSERT"     , 1, undo_insert_execute     },
-  {"COMMIT",         , 1, commit_execute          },
+  {"UNDO_INSERT"     , TRUE , undo_insert_execute_in_redo_phase, undo_insert_execute_in_undo_phase},
+  {"COMMIT",         , TRUE , commit_execute_in_redo_phase, no_op},
   ...
 };
 
-int redo_insert_head_execute(RECORD *record)
+int redo_insert_head_execute_in_redo_phase(RECORD *record)
 {
   /* write the data to the proper page */
 }
 
-int undo_insert_execute(RECORD *record)
+int undo_insert_execute_in_redo_phase(RECORD *record)
 {
   trans_table[short_trans_id].undo_lsn= record.lsn;
-  /* restore the old version of the row */
+  /* don't restore the old version of the row */
 }
 
-int commit_execute(RECORD *record)
+int undo_insert_execute_in_undo_phase(RECORD *record)
+{
+  /* restore the old version of the row */
+  trans_table[short_trans_id].undo_lsn= record.prev_undo_lsn;
+}
+
+int commit_execute_in_redo_phase(RECORD *record)
 {
   trans_table[short_trans_id].state= COMMITTED;
   /*
@@ -52,8 +63,8 @@ int commit_execute(RECORD *record)
 #define record_ends_group(R)                                            \
   all_record_type_properties[(R)->type].record_ends_group)
 
-#define execute_log_record(R)                                           \
-  all_record_type_properties[(R).type].record_execute(R)
+#define execute_log_record_in_redo_phase(R)                                           \
+  all_record_type_properties[(R).type].record_execute_in_redo_phase(R)
 
 
 int recovery()
@@ -77,7 +88,10 @@ int recovery()
     phase):
   */
 
-  record= log_read_record(min(rec_lsn, ...));
+  /**** REDO PHASE *****/
+
+  record= log_read_record(min(rec_lsn, ...)); /* later, read only header */
+
   /*
     if log handler knows the end LSN of the log, we could print here how many
     MB of log we have to read (to give an idea of the time), and print
@@ -94,15 +108,11 @@ int recovery()
     */
     if (record_ends_group(record)
     {
-      /*
-        such end events can always be executed immediately (they don't touch
-        the disk).
-      */
-      execute_log_record(record);
       if (trans_table[record.short_trans_id].group_start_lsn != 0)
       {
         /*
-          There is a complete group for this transaction.
+          There is a complete group for this transaction, containing more than
+          this event.
           We're going to read recently read log records:
           for this log_read_record() to be efficient (not touch the disk),
           log handler could cache recently read pages
@@ -110,17 +120,19 @@ int recovery()
           log handler page cache).
           Without it only OS file cache will help.
         */
-        record2= log_read_record(trans_table[record.short_trans_id].group_start_lsn);
-        while (record2.lsn < record.lsn)
+        record2=
+          log_read_record(trans_table[record.short_trans_id].group_start_lsn);
+
+        do
         {
           if (record2.short_trans_id == record.short_trans_id)
-            execute_log_record(record2); /* it's in our group */
+            execute_log_record_in_redo_phase(record2); /* it's in our group */
           record2= log_read_next_record();
         }
+        while (record2.lsn < record.lsn);
         trans_table[record.short_trans_id].group_start_lsn= 0; /* group finished */
-        /* we're now at the UNDO, re-read it to advance log pointer */
-        record2= log_read_next_record(); /* and throw it away */
       }
+      execute_log_record_in_redo_phase(record);
     }
     else /* record does not end group */
     {
@@ -161,7 +173,14 @@ int recovery()
     the log, and so the delete/update handler may do changes which conflict
     with these REDOs.
     Even if done here, better to not wake it up now as we're going to free the
-    page cache:
+    page cache.
+
+    MikaelR suggests: support checkpoints during REDO phase too: do checkpoint
+    after a certain amount of log records have been executed. This helps
+    against repeated crashes. Those checkpoints could not be user-requested
+    (as engine is not communicating during the REDO phase), so they would be
+    automatic: this changes the original assumption that we don't write to the
+    log while in the REDO phase, but why not. How often should we checkpoint?
   */
 
   /*
@@ -177,6 +196,8 @@ int recovery()
     Destroy all shares (maria_close()), then at init_with_normal_memory() we
     do this:
   */
+
+  /**** UNDO PHASE *****/
 
   print_information_to_error_log(nb of trans to roll back, nb of prepared trans);
 
@@ -217,7 +238,7 @@ pthread_handler_decl rollback_background_thread()
     {
       /* this is the normal runtime-rollback code: */
       record= log_read_record(trans->undo_lsn);
-      execute_log_record(record);
+      execute_log_record_in_undo_phase(record);
       trans->undo_lsn= record.prev_undo_lsn;
     }
     /* remove trans from list */

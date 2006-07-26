@@ -20,6 +20,13 @@
 #include "least_recently_dirtied.h"
 
 /*
+  MikaelR suggested removing this global_LRD_mutex (I have a paper note of
+  comments), however at least for the first version we'll start with this
+  mutex (which will be a LOCK-based atomic_rwlock).
+*/
+pthread_mutex_t global_LRD_mutex; 
+
+/*
   When we flush a page, we should pin page.
   This "pin" is to protect against that:
   I make copy,
@@ -61,6 +68,8 @@
 /*
   This thread does background flush of pieces of the LRD, and all checkpoints.
   Just launch it when engine starts.
+  MikaelR questioned why the same thread does two different jobs, the risk
+  could be that while a checkpoint happens no LRD flushing happens.
 */
 pthread_handler_decl background_flush_and_checkpoint_thread()
 {

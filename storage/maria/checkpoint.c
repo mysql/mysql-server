@@ -246,7 +246,7 @@ LSN checkpoint_indirect(my_bool need_log_mutex)
       if no latch, use double variable of type ULONGLONG_CONSISTENT in
       st_transaction, or even no need if Intel >=486
     */
-    int8store(ptr, el->first_purge_lsn);
+    int8store(ptr, el->first_undo_lsn);
     ptr+= 8;
     /* possibly unlatch el.rwlock */
   }
@@ -297,16 +297,18 @@ LSN checkpoint_indirect(my_bool need_log_mutex)
   if (0 != control_file_write_and_force(checkpoint_lsn, NULL))
     goto err;
 
-  DBUG_RETURN(candidate_max_rec_lsn_at_last_checkpoint);
+  goto end;
 
 err:
-
   print_error_to_error_log(the_error_message);
+  candidate_max_rec_lsn_at_last_checkpoint= LSN_IMPOSSIBLE;
+
+end:
   my_free(buffer1.str, MYF(MY_ALLOW_ZERO_PTR));
   my_free(buffer2.str, MYF(MY_ALLOW_ZERO_PTR));
   my_free(buffer3.str, MYF(MY_ALLOW_ZERO_PTR));
 
-  DBUG_RETURN(LSN_IMPOSSIBLE);
+  DBUG_RETURN(candidate_max_rec_lsn_at_last_checkpoint);
 }
 
 
