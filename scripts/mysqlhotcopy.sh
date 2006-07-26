@@ -262,6 +262,7 @@ my $hc_locks = "";
 my $hc_tables = "";
 my $num_tables = 0;
 my $num_files = 0;
+my $raid_dir_regex = '[A-Za-z0-9]{2}';
 
 foreach my $rdb ( @db_desc ) {
     my $db = $rdb->{src};
@@ -296,7 +297,7 @@ foreach my $rdb ( @db_desc ) {
     my @raid_dir = ();
 
     while ( defined( my $name = readdir DBDIR ) ) {
-	if ( $name =~ /^\d\d$/ && -d "$db_dir/$name" ) {
+	if ( $name =~ /^$raid_dir_regex$/ && -d "$db_dir/$name" ) {
 	    push @raid_dir, $name;
 	}
 	else {
@@ -604,7 +605,7 @@ sub copy_files {
 	# add recursive option for scp
 	$cp.= " -r" if $^O =~ /m^(solaris|linux|freebsd|darwin)$/ && $method =~ /^scp\b/;
 
-	my @non_raid = map { "'$_'" } grep { ! m:/\d{2}/[^/]+$: } @$files;
+	my @non_raid = map { "'$_'" } grep { ! m:/$raid_dir_regex/[^/]+$: } @$files;
 
 	# add files to copy and the destination directory
 	safe_system( $cp, @non_raid, "'$target'" ) if (@non_raid);
@@ -797,7 +798,7 @@ sub get_raid_dirs {
 
     my %dirs = ();
     foreach my $f ( @$r_files ) {
-	if ( $f =~ m:^(\d\d)/: ) {
+	if ( $f =~ m:^($raid_dir_regex)/: ) {
 	    $dirs{$1} = 1;
 	}
     }
