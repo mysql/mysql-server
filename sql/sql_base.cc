@@ -2855,25 +2855,18 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     statement for which table list for prelocking is already built, let
     us cache routines and try to build such table list.
 
-    NOTE: We will mark statement as requiring prelocking only if we will
-    have non empty table list. But this does not guarantee that in prelocked
-    mode we will have some locked tables, because queries which use only
-    derived/information schema tables and views possible. Thus "counter"
-    may be still zero for prelocked statement...
   */
 
   if (!thd->prelocked_mode && !thd->lex->requires_prelocking() &&
       thd->lex->sroutines_list.elements)
   {
-    bool first_no_prelocking, need_prelocking, tabs_changed;
+    bool first_no_prelocking, need_prelocking;
     TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
 
     DBUG_ASSERT(thd->lex->query_tables == *start);
     sp_get_prelocking_info(thd, &need_prelocking, &first_no_prelocking);
 
-    if (sp_cache_routines_and_add_tables(thd, thd->lex,
-                                         first_no_prelocking,
-                                         &tabs_changed))
+    if (sp_cache_routines_and_add_tables(thd, thd->lex, first_no_prelocking))
     {
       /*
         Serious error during reading stored routines from mysql.proc table.
@@ -2883,7 +2876,7 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
       result= -1;
       goto err;
     }
-    else if ((tabs_changed || *start) && need_prelocking)
+    else if (need_prelocking)
     {
       query_tables_last_own= save_query_tables_last;
       *start= thd->lex->query_tables;
@@ -3310,11 +3303,6 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     in prelocked mode.
   */
   DBUG_ASSERT(!thd->prelocked_mode || !thd->lex->requires_prelocking());
-  /*
-    If statement requires prelocking then it has non-empty table list.
-    So it is safe to shortcut.
-  */
-  DBUG_ASSERT(!thd->lex->requires_prelocking() || tables);
 
   *need_reopen= FALSE;
 
@@ -3326,7 +3314,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     thd->set_current_stmt_binlog_row_based_if_mixed();
 #endif /*HAVE_ROW_BASED_REPLICATION*/
 
-  if (!tables)
+  if (!tables && !thd->lex->requires_prelocking())
     DBUG_RETURN(0);
 
   /*

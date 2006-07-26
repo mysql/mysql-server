@@ -88,8 +88,7 @@ void sp_add_used_routine(LEX *lex, Query_arena *arena,
 void sp_remove_not_own_routines(LEX *lex);
 void sp_update_sp_used_routines(HASH *dst, HASH *src);
 int sp_cache_routines_and_add_tables(THD *thd, LEX *lex,
-                                     bool first_no_prelock,
-                                     bool *tabs_changed);
+                                     bool first_no_prelock);
 int sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
                                               TABLE_LIST *view);
 int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,

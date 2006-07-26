@@ -1075,6 +1075,10 @@ execute stmt;
 drop function bug11834_1;
 # Attempt to execute statement should return proper error and 
 # should not crash server.
+
+# NOTE! The error we get from the below query indicates that the sp bug11834_2
+# does not exist(this is wrong but can be accepted)
+# This behaviour has been reported as bug#21294
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
 deallocate prepare stmt;
