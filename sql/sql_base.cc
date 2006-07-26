@@ -4959,12 +4959,17 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
             bool ignore_errors)
 {
   List_iterator_fast<Item> f(fields),v(values);
-  Item *value;
+  Item *value, *fld;
   Item_field *field;
   DBUG_ENTER("fill_record");
 
-  while ((field=(Item_field*) f++))
+  while ((fld= f++))
   {
+    if (!(field= fld->filed_for_view_update()))
+    {
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
+      DBUG_RETURN(TRUE);
+    }
     value=v++;
     Field *rfield= field->field;
     TABLE *table= rfield->table;

@@ -2807,3 +2807,16 @@ yadda
 yad
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE t1 (s1 char);
+INSERT INTO t1 VALUES ('Z');
+CREATE VIEW v1 AS SELECT s1 collate latin1_german1_ci AS col FROM t1;
+CREATE VIEW v2 (col) AS SELECT s1 collate latin1_german1_ci FROM t1;
+INSERT INTO v1 (col) VALUES ('b');
+INSERT INTO v2 (col) VALUES ('c');
+SELECT s1 FROM t1;
+s1
+Z
+b
+c
+DROP VIEW v1, v2;
+DROP TABLE t1;
