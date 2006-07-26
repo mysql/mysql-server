@@ -290,6 +290,7 @@ our $opt_valgrind_mysqltest= 0;
 our $default_valgrind_options= "--show-reachable=yes";
 our $opt_valgrind_options;
 our $opt_valgrind_path;
+our $opt_callgrind;
 
 our $opt_stress=               "";
 our $opt_stress_suite=     "main";
@@ -635,6 +636,7 @@ sub command_line_setup () {
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
              'valgrind-options=s'       => \$opt_valgrind_options,
              'valgrind-path=s'          => \$opt_valgrind_path,
+	     'callgrind'                => \$opt_callgrind,
 
              # Stress testing 
              'stress'                   => \$opt_stress,
@@ -871,6 +873,17 @@ sub command_line_setup () {
   {
     mtr_report("Turning on valgrind for mysqltest only");
     $opt_valgrind= 1;
+  }
+
+  if ( $opt_callgrind )
+  {
+    mtr_report("Turning on valgrind with callgrind for mysqld(s)");
+    $opt_valgrind= 1;
+    $opt_valgrind_mysqld= 1;
+
+    # Set special valgrind options unless options passed on command line
+    $opt_valgrind_options="--trace-children=yes"
+      unless defined $opt_valgrind_options;
   }
 
   if ( $opt_valgrind )
@@ -4098,12 +4111,20 @@ sub valgrind_arguments {
   my $args= shift;
   my $exe=  shift;
 
-  mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
-  mtr_add_arg($args, "--alignment=8");
-  mtr_add_arg($args, "--leak-check=yes");
-  mtr_add_arg($args, "--num-callers=16");
-  mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
-    if -f "$glob_mysql_test_dir/valgrind.supp";
+  if ( $opt_callgrind)
+  {
+    mtr_add_arg($args, "--tool=callgrind");
+    mtr_add_arg($args, "--base=$opt_vardir/log");
+  }
+  else
+  {
+    mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
+    mtr_add_arg($args, "--alignment=8");
+    mtr_add_arg($args, "--leak-check=yes");
+    mtr_add_arg($args, "--num-callers=16");
+    mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
+      if -f "$glob_mysql_test_dir/valgrind.supp";
+  }
 
   # Add valgrind options, can be overriden by user
   mtr_add_arg($args, '%s', $_) for (split(' ', $opt_valgrind_options));
@@ -4226,6 +4247,7 @@ Options for coverage, profiling etc
   valgrind-mysqld       Run the "mysqld" executable with valgrind
   valgrind-options=ARGS Options to give valgrind, replaces default options
   valgrind-path=[EXE]   Path to the valgrind executable
+  callgrind             Instruct valgrind to use callgrind
 
 Misc options
 
