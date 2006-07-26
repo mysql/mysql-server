@@ -754,7 +754,7 @@ bug11834_2()
 10
 drop function bug11834_1;
 execute stmt;
-ERROR 42000: FUNCTION test.bug11834_1 does not exist
+ERROR 42000: FUNCTION test.bug11834_2 does not exist
 deallocate prepare stmt;
 drop function bug11834_2;
 DROP FUNCTION IF EXISTS bug12953|
