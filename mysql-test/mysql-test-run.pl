@@ -3485,36 +3485,29 @@ sub im_stop($) {
     }
   }
 
-  # Check that all processes died.
+  # Check if all processes shutdown cleanly
+  my $clean_shutdown= 1; # Assum they did
 
-  my $clean_shutdown= 0;
-
-  while (1)
+  if (kill (0, $instance_manager->{'pid'}))
   {
-    if (kill (0, $instance_manager->{'pid'}))
-    {
-      mtr_warning("IM-main is still alive.");
-      last;
-    }
+    mtr_warning("IM-main is still alive.");
+    $clean_shutdown= 0;
+  }
 
-    if (defined $instance_manager->{'angel_pid'} &&
-        kill (0, $instance_manager->{'angel_pid'}))
-    {
-      mtr_warning("IM-angel is still alive.");
-      last;
-    }
+  if (defined $instance_manager->{'angel_pid'} &&
+      kill (0, $instance_manager->{'angel_pid'}))
+  {
+    mtr_warning("IM-angel is still alive.");
+    $clean_shutdown= 0;
+  }
 
-    foreach my $pid (@mysqld_pids)
+  foreach my $pid (@mysqld_pids)
+  {
+    if (kill (0, $pid))
     {
-      if (kill (0, $pid))
-      {
-        mtr_warning("Guarded mysqld ($pid) is still alive.");
-        last;
-      }
+      mtr_warning("Guarded mysqld ($pid) is still alive.");
+      $clean_shutdown= 0;
     }
-
-    $clean_shutdown= 1;
-    last;
   }
 
   # Kill leftovers (the order is important).
