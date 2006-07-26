@@ -367,7 +367,7 @@ sub mysqld_start ($$$);
 sub mysqld_arguments ($$$$$);
 sub stop_all_servers ();
 sub im_start ($$);
-sub im_stop ($);
+sub im_stop ($$);
 sub run_mysqltest ($);
 sub usage ($);
 
@@ -2364,7 +2364,7 @@ sub run_testcase ($) {
   if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' and
        $instance_manager->{'pid'} )
   {
-    im_stop($instance_manager);
+    im_stop($instance_manager, $tinfo->{'name'});
   }
 }
 
@@ -2904,7 +2904,7 @@ sub stop_all_servers () {
   if ( $instance_manager->{'pid'} )
   {
     print  "Shutting-down Instance Manager\n";
-    im_stop($instance_manager);
+    im_stop($instance_manager, "stop_all_servers");
   }
 
   my %admin_pids; # hash of admin processes that requests shutdown
@@ -3423,8 +3423,9 @@ sub im_start($$) {
 }
 
 
-sub im_stop($) {
+sub im_stop($$) {
   my $instance_manager = shift;
+  my $where = shift;
 
   # Obtain mysqld-process pids before we start stopping IM (it can delete pid
   # files).
@@ -3539,7 +3540,7 @@ sub im_stop($) {
 
     my $ts= localtime();
     print ERRLOG
-      "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
+      "[$where] Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
 
     close ERRLOG;
   }
