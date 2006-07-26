@@ -1125,3 +1125,18 @@ drop table t1;
 drop table t1;
 
 
+#
+# Bug#19890  	mysqltest: "query" command is broken
+#
+
+# It should be possible to use the command "query" to force mysqltest to
+# send the command to the server although it's a builtin mysqltest command.
+--error 1064
+query sleep;
+
+--error 1064
+--query sleep
+
+# Just an empty query command
+--error 1065
+query ;
