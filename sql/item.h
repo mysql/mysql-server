@@ -752,7 +752,7 @@ public:
   virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
   virtual bool reset_query_id_processor(byte *query_id) { return 0; }
-  virtual bool func_type_checker_processor(byte *arg) { return 0; }
+  virtual bool is_expensive_processor(byte *arg) { return 0; }
 
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }
