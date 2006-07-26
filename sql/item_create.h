@@ -73,7 +73,6 @@ Item *create_func_period_add(Item* a, Item *b);
 Item *create_func_period_diff(Item* a, Item *b);
 Item *create_func_pi(void);
 Item *create_func_pow(Item* a, Item *b);
-Item *create_func_current_user(void);
 Item *create_func_radians(Item *a);
 Item *create_func_release_lock(Item* a);
 Item *create_func_repeat(Item* a, Item *b);

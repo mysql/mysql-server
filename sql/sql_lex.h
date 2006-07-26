@@ -937,7 +937,7 @@ typedef struct st_lex : public Query_tables_list
   List<Name_resolution_context> context_stack;
   List<LEX_STRING>     db_list;
 
-  SQL_LIST	      proc_list, auxilliary_table_list, save_list;
+  SQL_LIST	      proc_list, auxiliary_table_list, save_list;
   create_field	      *last_field;
   Item_sum *in_sum_func;
   udf_func udf;

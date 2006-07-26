@@ -1670,42 +1670,51 @@ String *Item_func_database::val_str(String *str)
   return str;
 }
 
-// TODO: make USER() replicate properly (currently it is replicated to "")
 
-String *Item_func_user::val_str(String *str)
+/*
+  TODO: make USER() replicate properly (currently it is replicated to "")
+*/
+bool Item_func_user::init(const char *user, const char *host)
 {
   DBUG_ASSERT(fixed == 1);
-  THD          *thd=current_thd;
-  CHARSET_INFO *cs= system_charset_info;
-  const char   *host, *user;
-  uint		res_length;
-
-  if (is_current)
-  {
-    user= thd->security_ctx->priv_user;
-    host= thd->security_ctx->priv_host;
-  }
-  else
-  {
-    user= thd->main_security_ctx.user;
-    host= thd->main_security_ctx.host_or_ip;
-  }
 
   // For system threads (e.g. replication SQL thread) user may be empty
-  if (!user)
-    return &my_empty_string;
-  res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
-
-  if (str->alloc(res_length))
+  if (user)
   {
-    null_value=1;
-    return 0;
+    CHARSET_INFO *cs= str_value.charset();
+    uint res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
+
+    if (str_value.alloc(res_length))
+    {
+      null_value=1;
+      return TRUE;
+    }
+
+    res_length=cs->cset->snprintf(cs, (char*)str_value.ptr(), res_length,
+                                  "%s@%s", user, host);
+    str_value.length(res_length);
+    str_value.mark_as_const();
   }
-  res_length=cs->cset->snprintf(cs, (char*)str->ptr(), res_length, "%s@%s",
-			        user, host);
-  str->length(res_length);
-  str->set_charset(cs);
-  return str;
+  return FALSE;
+}
+
+
+bool Item_func_user::fix_fields(THD *thd, Item **ref)
+{
+  return (Item_func_sysconst::fix_fields(thd, ref) ||
+          init(thd->main_security_ctx.user,
+               thd->main_security_ctx.host_or_ip));
+}
+
+
+bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
+{
+  if (Item_func_sysconst::fix_fields(thd, ref))
+    return TRUE;
+
+  Security_context *ctx= (context->security_ctx
+                          ? context->security_ctx : thd->security_ctx);
+  return init(ctx->priv_user, ctx->priv_host);
 }
 
 

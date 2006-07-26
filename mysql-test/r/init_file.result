@@ -1,1 +1,16 @@
 ok
+end of 4.1 tests
+select * from t1;
+x
+3
+5
+7
+11
+13
+select * from t2;
+y
+30
+3
+11
+13
+drop table t1, t2;
