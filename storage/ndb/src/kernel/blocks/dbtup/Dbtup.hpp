@@ -254,6 +254,8 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZSTORED_PROCEDURE_FREE 0xffff
 #define ZMIN_PAGE_LIMIT_TUP_COMMITREQ 2
 
+#define ZSKIP_TUX_TRIGGERS 0x1 // flag for TUP_ABORTREQ
+
 #endif
 
 class Dbtup: public SimulatedBlock {
@@ -2155,8 +2157,6 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void tupkeyErrorLab(Signal* signal);
-
-  // need flag to skip TUX indexes
   void do_tup_abortreq(Signal*, Uint32 flags);
 
 //------------------------------------------------------------------
