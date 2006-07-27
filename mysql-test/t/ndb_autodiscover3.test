@@ -17,7 +17,9 @@ insert into t1 values (1);
 
 --exec $NDB_MGM --no-defaults -e "all restart" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_TOOLS_DIR/ndb_waiter --no-defaults >> $NDB_TOOLS_OUTPUT
-sleep 1;
+# Wait for mysqld to reconnect and exit from readonly mode
+# Should preferrably be a "while (!"select ndb_readonly")" loop
+sleep 2;
 --error 1297
 insert into t1 values (2);
 --error 1296
