@@ -581,8 +581,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       if ((path= strrchr(ci->index_file_name, FN_LIBCHAR)))
         *path= '\0';
       fn_format(filename, name, ci->index_file_name, MI_NAME_IEXT,
-                MY_REPLACE_DIR | MY_UNPACK_FILENAME |
-                (have_iext ? MY_REPLACE_EXT : MY_APPEND_EXT));
+                MY_REPLACE_DIR | MY_UNPACK_FILENAME | MY_APPEND_EXT);
     }
     else
     {
@@ -659,8 +658,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
           if ((path= strrchr(ci->data_file_name, FN_LIBCHAR)))
             *path= '\0';
           fn_format(filename, name, ci->data_file_name, MI_NAME_DEXT,
-                    MY_REPLACE_DIR | MY_UNPACK_FILENAME |
-                    (have_dext ? MY_REPLACE_EXT : MY_APPEND_EXT));
+                    MY_REPLACE_DIR | MY_UNPACK_FILENAME | MY_APPEND_EXT);
         }
         else
         {
