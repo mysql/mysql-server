@@ -1054,6 +1054,30 @@ int MYSQLlex(void *arg, void *yythd)
   }
 }
 
+
+/*
+  Skip comment in the end of statement.
+
+  SYNOPSIS
+    skip_rear_comments()
+      begin   pointer to the beginning of statement
+      end     pointer to the end of statement
+
+  DESCRIPTION
+    The function is intended to trim comments at the end of the statement.
+
+  RETURN
+    Pointer to the last non-comment symbol of the statement.
+*/
+
+uchar *skip_rear_comments(uchar *begin, uchar *end)
+{
+  while (begin < end && (end[-1] <= ' ' || end[-1] == '*' ||
+                         end[-1] == '/' || end[-1] == ';'))
+    end-= 1;
+  return end;
+}
+
 /*
   st_select_lex structures initialisations
 */

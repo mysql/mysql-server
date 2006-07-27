@@ -633,7 +633,10 @@ db_create_routine(THD *thd, int type, sp_head *sp)
       log_query.append(STRING_WITH_LEN("CREATE "));
       append_definer(thd, &log_query, &thd->lex->definer->user,
                      &thd->lex->definer->host);
-      log_query.append(thd->lex->stmt_definition_begin);
+      log_query.append(thd->lex->stmt_definition_begin,
+                       (char *)sp->m_body_begin -
+                       thd->lex->stmt_definition_begin +
+                       sp->m_body.length);
 
       /* Such a statement can always go directly to binlog, no trans cache */
       Query_log_event qinfo(thd, log_query.c_ptr(), log_query.length(), 0,
