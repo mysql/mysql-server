@@ -583,6 +583,8 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
 geometry NOT NULL default '') ENGINE=MyISAM ;
+Warnings:
+Warning	1101	BLOB/TEXT column 'geo' can't have a default value
 insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
 36.305435,-114.992394 36.305202,-114.991219 36.305975,-114.991163
 36.306845,-114.989432 36.309452,-114.978275 36.312642,-114.977363
