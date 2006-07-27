@@ -2248,7 +2248,7 @@ RETURN a+b */;;
 /*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;;
 /*!50003 DROP FUNCTION IF EXISTS `bug9056_func2` */;;
 /*!50003 SET SESSION SQL_MODE=""*/;;
-/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 FUNCTION `bug9056_func2`(f1 char binary) RETURNS char(1)
+/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 FUNCTION `bug9056_func2`(f1 char binary) RETURNS char(1) CHARSET latin1
 begin
 set f1= concat( 'hello', f1 );
 return f1;

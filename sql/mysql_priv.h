@@ -1138,7 +1138,10 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 bool is_keyword(const char *name, uint len);
 
 #define MY_DB_OPT_FILE "db.opt"
+bool check_db_dir_existence(const char *db_name);
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
+bool load_db_opt_by_name(THD *thd, const char *db_name,
+                         HA_CREATE_INFO *db_create_info);
 bool my_dbopt_init(void);
 void my_dbopt_cleanup(void);
 void my_dbopt_free(void);

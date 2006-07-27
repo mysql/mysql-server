@@ -1285,6 +1285,7 @@ create_function_tail:
 	    sp= new sp_head();
 	    sp->reset_thd_mem_root(YYTHD);
 	    sp->init(lex);
+            sp->init_sp_name(YYTHD, lex->spname);
 
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
@@ -1339,7 +1340,7 @@ create_function_tail:
               YYABORT;
 
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
-	    sp->init_strings(YYTHD, lex, lex->spname);
+	    sp->init_strings(YYTHD, lex);
             if (!(sp->m_flags & sp_head::HAS_RETURN))
             {
               my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
@@ -9100,6 +9101,7 @@ trigger_tail:
 	    YYABORT;
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
+          sp->init_sp_name(YYTHD, $3);
 	
 	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
@@ -9128,7 +9130,7 @@ trigger_tail:
 	  sp_head *sp= lex->sphead;
 	  
 	  lex->sql_command= SQLCOM_CREATE_TRIGGER;
-	  sp->init_strings(YYTHD, lex, $3);
+	  sp->init_strings(YYTHD, lex);
 	  /* Restore flag if it was cleared above */
 	  if (sp->m_old_cmq)
 	    YYTHD->client_capabilities |= CLIENT_MULTI_QUERIES;
@@ -9176,13 +9178,14 @@ sp_tail:
 	    my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "PROCEDURE");
 	    YYABORT;
 	  }
-	  
+
 	  lex->stmt_definition_begin= $2;
-	  
+
 	  /* Order is important here: new - reset - init */
 	  sp= new sp_head();
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
+          sp->init_sp_name(YYTHD, $3);
 
 	  sp->m_type= TYPE_ENUM_PROCEDURE;
 	  lex->sphead= sp;
@@ -9220,7 +9223,7 @@ sp_tail:
 	  LEX *lex= Lex;
 	  sp_head *sp= lex->sphead;
 
-	  sp->init_strings(YYTHD, lex, $3);
+	  sp->init_strings(YYTHD, lex);
 	  lex->sql_command= SQLCOM_CREATE_PROCEDURE;
 	  /* Restore flag if it was cleared above */
 	  if (sp->m_old_cmq)
