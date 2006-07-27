@@ -1113,6 +1113,7 @@ WAIT:
   DBUG_RETURN(0);
 }
 
+
 int
 run_task(thread_context *con)
 {
@@ -1137,13 +1138,27 @@ run_task(thread_context *con)
   my_lock(lock_file, F_RDLCK, 0, F_TO_EOF, MYF(0));
   if (!opt_only_print)
   {
-    if (!(mysql_real_connect(mysql, host, user, opt_password,
+    /* Connect to server */
+    static ulong connection_retry_sleep= 100000; /* Microseconds */
+    int i, connect_error= 1;
+    for (i= 0; i < 10; i++)
+    {
+      if (mysql_real_connect(mysql, host, user, opt_password,
                              create_schema_string,
                              opt_mysql_port,
                              opt_mysql_unix_port,
-                             connect_flags)))
+                             connect_flags))
+      {
+        /* Connect suceeded */
+        connect_error= 0;
+        break;
+      }
+      my_sleep(connection_retry_sleep);
+    }
+    if (connect_error)
     {
-      fprintf(stderr,"%s: %s\n",my_progname,mysql_error(mysql));
+      fprintf(stderr,"%s: Error when connecting to server: %d %s\n",
+              my_progname, mysql_errno(mysql), mysql_error(mysql));
       goto end;
     }
   }
