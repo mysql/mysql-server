@@ -439,13 +439,11 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 {
   Security_context *sctx= thd->security_ctx;
   int length;
-  char path[FN_REFLEN];
   char buff[2048];
   String buffer(buff, sizeof(buff), system_charset_info);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint db_access;
 #endif
-  bool found_libchar;
   HA_CREATE_INFO create;
   uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol=thd->protocol;
@@ -480,23 +478,13 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
   else
   {
-    (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
-    length=unpack_dirname(path,path);		// Convert if not unix
-    found_libchar= 0;
-    if (length && path[length-1] == FN_LIBCHAR)
-    {
-      found_libchar= 1;
-      path[length-1]=0;				// remove ending '\'
-    }
-    if (access(path,F_OK))
+    if (check_db_dir_existence(dbname))
     {
       my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
       DBUG_RETURN(TRUE);
     }
-    if (found_libchar)
-      path[length-1]= FN_LIBCHAR;
-    strmov(path+length, MY_DB_OPT_FILE);
-    load_db_opt(thd, path, &create);
+
+    load_db_opt_by_name(thd, dbname, &create);
   }
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Database",NAME_LEN));
@@ -2319,8 +2307,11 @@ bool store_schema_shemata(THD* thd, TABLE *table, const char *db_name,
 
 int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 {
-  char path[FN_REFLEN];
-  bool found_libchar;
+  /*
+    TODO: fill_schema_shemata() is called when new client is connected.
+    Returning error status in this case leads to client hangup.
+  */
+
   INDEX_FIELD_VALUES idx_field_vals;
   List<char> files;
   char *file_name;
@@ -2352,20 +2343,9 @@ int fill_schema_shemata(THD *thd, TABLE_LIST *tables, COND *cond)
 	(grant_option && !check_grant_db(thd, file_name)))
 #endif
     {
-      strxmov(path, mysql_data_home, "/", file_name, NullS);
-      length=unpack_dirname(path,path);		// Convert if not unix
-      found_libchar= 0;
-      if (length && path[length-1] == FN_LIBCHAR)
-      {
-	found_libchar= 1;
-	path[length-1]=0;			// remove ending '\'
-      }
+      load_db_opt_by_name(thd, file_name, &create);
 
-      if (found_libchar)
-	path[length-1]= FN_LIBCHAR;
-      strmov(path+length, MY_DB_OPT_FILE);
-      load_db_opt(thd, path, &create);
-      if (store_schema_shemata(thd, table, file_name, 
+      if (store_schema_shemata(thd, table, file_name,
                                create.default_table_charset))
         DBUG_RETURN(1);
     }

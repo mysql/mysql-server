@@ -193,9 +193,13 @@ public:
   void
   init(LEX *lex);
 
+  /* Copy sp name from parser. */
+  void
+  init_sp_name(THD *thd, sp_name *spname);
+
   // Initialize strings after parsing header
   void
-  init_strings(THD *thd, LEX *lex, sp_name *name);
+  init_strings(THD *thd, LEX *lex);
 
   int
   create(THD *thd);
