@@ -295,7 +295,10 @@ end:
           append_definer(thd, &log_query, &definer_user, &definer_host);
         }
 
-        log_query.append(thd->lex->stmt_definition_begin);
+        log_query.append(thd->lex->stmt_definition_begin,
+                         (char *)thd->lex->sphead->m_body_begin -
+                         thd->lex->stmt_definition_begin +
+                         thd->lex->sphead->m_body.length);
       }
 
       /* Such a statement can always go directly to binlog, no trans cache. */

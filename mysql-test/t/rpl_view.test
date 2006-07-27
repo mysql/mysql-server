@@ -45,3 +45,87 @@ drop table t1;
 sync_slave_with_master;
 --replace_column 2 # 5 #
 show binlog events limit 1,100;
+
+
+
+#
+# BUG#20438: CREATE statements for views, stored routines and triggers can be
+# not replicable.
+#
+
+--echo
+--echo ---> Test for BUG#20438
+
+# Prepare environment.
+
+--echo
+--echo ---> Preparing environment...
+--echo ---> connection: master
+--connection master
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+--echo
+--echo ---> Synchronizing slave with master...
+
+--save_master_pos
+--connection slave
+--sync_with_master
+
+--echo
+--echo ---> connection: master
+--connection master
+
+# Test.
+
+--echo
+--echo ---> Creating objects...
+
+CREATE TABLE t1(c INT);
+
+/*!50003 CREATE VIEW v1 AS SELECT * FROM t1 */;
+
+--echo
+--echo ---> Inserting value...
+
+INSERT INTO t1 VALUES(1);
+
+--echo
+--echo ---> Checking on master...
+
+SELECT * FROM t1;
+
+--echo
+--echo ---> Synchronizing slave with master...
+
+--save_master_pos
+--connection slave
+--sync_with_master
+
+--echo ---> connection: master
+
+--echo
+--echo ---> Checking on slave...
+
+SELECT * FROM t1;
+
+# Cleanup.
+
+--echo
+--echo ---> connection: master
+--connection master
+
+--echo
+--echo ---> Cleaning up...
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--save_master_pos
+--connection slave
+--sync_with_master
+--connection master
+
