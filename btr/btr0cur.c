@@ -3707,37 +3707,29 @@ btr_store_big_rec_extern_fields(
 				buf_page_dbg_add_level(
 						rec_page, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
-				mlog_write_ulint(field_ref
-						+ BTR_EXTERN_LEN, 0,
-						MLOG_4BYTES, &mtr);
-
 				if (err == Z_STREAM_END) {
-					mlog_write_ulint(field_ref
+					mach_write_to_4(field_ref
+							+ BTR_EXTERN_LEN, 0);
+					mach_write_to_4(field_ref
 							+ BTR_EXTERN_LEN + 4,
-							c_stream.total_in,
-							MLOG_4BYTES, &mtr);
+							c_stream.total_in);
 				} else {
-					mlog_write_ulint(field_ref
-							+ BTR_EXTERN_LEN + 4,
-							0,
-							MLOG_4BYTES, &mtr);
+					memset(field_ref + BTR_EXTERN_LEN,
+							0, 8);
 				}
 
 				if (prev_page_no == FIL_NULL) {
-					mlog_write_ulint(field_ref
+					mach_write_to_4(field_ref
 							+ BTR_EXTERN_SPACE_ID,
-							space_id,
-							MLOG_4BYTES, &mtr);
+							space_id);
 
-					mlog_write_ulint(field_ref
+					mach_write_to_4(field_ref
 							+ BTR_EXTERN_PAGE_NO,
-							page_no,
-							MLOG_4BYTES, &mtr);
+							page_no);
 
-					mlog_write_ulint(field_ref
+					mach_write_to_4(field_ref
 							+ BTR_EXTERN_OFFSET,
-							FIL_PAGE_NEXT,
-							MLOG_4BYTES, &mtr);
+							FIL_PAGE_NEXT);
 				}
 
 				page_zip_write_blob_ptr(page_zip, rec,
@@ -3933,15 +3925,21 @@ btr_free_externally_stored_field(
 			btr_page_free_low(index->tree, page,
 						space_id, page_no, 0, &mtr);
 
-			mlog_write_ulint(field_ref + BTR_EXTERN_PAGE_NO,
+			if (UNIV_LIKELY(page_zip != NULL)) {
+				mach_write_to_4(field_ref + BTR_EXTERN_PAGE_NO,
+						next_page_no);
+				mach_write_to_4(field_ref + BTR_EXTERN_LEN + 4,
+						0);
+				page_zip_write_blob_ptr(page_zip, rec, index,
+						offsets, i, &mtr);
+			} else {
+				mlog_write_ulint(field_ref
+						+ BTR_EXTERN_PAGE_NO,
 						next_page_no,
 						MLOG_4BYTES, &mtr);
-			mlog_write_ulint(field_ref + BTR_EXTERN_LEN + 4,
-						0,
+				mlog_write_ulint(field_ref
+						+ BTR_EXTERN_LEN + 4, 0,
 						MLOG_4BYTES, &mtr);
-			if (page_zip) {
-				page_zip_write_blob_ptr(page_zip,
-						rec, index, offsets, i, &mtr);
 			}
 		} else {
 			ulint	extern_len	= mach_read_from_4(
@@ -3949,6 +3947,7 @@ btr_free_externally_stored_field(
 			ulint	part_len	= btr_blob_get_part_len(
 					page + FIL_PAGE_DATA);
 
+			ut_a(!page_zip);
 			ut_a(extern_len >= part_len);
 
 			next_page_no = mach_read_from_4(page + FIL_PAGE_DATA
