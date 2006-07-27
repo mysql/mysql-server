@@ -332,7 +332,6 @@ fi
 (cd mysql-debug-%{mysql_version} ; \
  ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force ; \
  true)
-
 ##############################################################################
 #
 #  Build the max binary
@@ -344,7 +343,6 @@ CFLAGS="${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" \
 CXXFLAGS="${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" \
 BuildMySQL "--enable-shared \
 		--with-berkeley-db \
-		--with-innodb \
 		--with-ndbcluster \
 		--with-archive-storage-engine \
 		--with-csv-storage-engine \
@@ -384,7 +382,6 @@ BuildMySQL "--enable-shared \
 		--with-embedded-server \
 	        --with-big-tables \
 		--with-comment=\"MySQL Community Server (GPL)\"")
-
 # We might want to save the config log file
 if test -n "$MYSQL_CONFLOG_DEST"
 then
@@ -708,6 +705,15 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Mon Jul 10 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Fix a typing error in the "make" target for the Perl script to run the tests.
+
+* Tue Jul 04 2006 Joerg Bruehe <joerg@mysql.com>
+
+- Use the Perl script to run the tests, because it will automatically check
+  whether the server is configured with SSL.
+
 * Tue Jun 27 2006 Joerg Bruehe <joerg@mysql.com>
 
 - move "mysqldumpslow" from the client RPM to the server RPM (bug#20216)
