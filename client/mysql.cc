@@ -2858,7 +2858,7 @@ com_connect(String *buffer, char *line)
   bzero(buff, sizeof(buff));
   if (buffer)
   {
-    strmov(buff, line);
+    strxnmov(buff, sizeof(buff), line, NullS);
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
