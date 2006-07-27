@@ -495,6 +495,13 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   table.s = &table.share_not_to_be_used;
   field= sp->create_result_field(0, 0, &table);
   field->sql_type(result);
+
+  if (field->has_charset())
+  {
+    result.append(STRING_WITH_LEN(" CHARSET "));
+    result.append(field->charset()->csname);
+  }
+
   delete field;
 }
 
@@ -974,6 +981,11 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
     sp_head *new_sp;
     const char *returns= "";
     char definer[USER_HOST_BUFF_SIZE];
+
+    /*
+      String buffer for RETURNS data type must have system charset;
+      64 -- size of "returns" column of mysql.proc.
+    */
     String retstr(64);
 
     DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));

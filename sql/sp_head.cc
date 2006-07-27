@@ -470,7 +470,7 @@ sp_head::init(LEX *lex)
   lex->trg_table_fields.empty();
   my_init_dynamic_array(&m_instr, sizeof(sp_instr *), 16, 8);
   m_param_begin= m_param_end= m_body_begin= 0;
-  m_qname.str= m_db.str= m_name.str= m_params.str= 
+  m_qname.str= m_db.str= m_name.str= m_params.str=
     m_body.str= m_defstr.str= 0;
   m_qname.length= m_db.length= m_name.length= m_params.length=
     m_body.length= m_defstr.length= 0;
@@ -478,28 +478,41 @@ sp_head::init(LEX *lex)
   DBUG_VOID_RETURN;
 }
 
+
 void
-sp_head::init_strings(THD *thd, LEX *lex, sp_name *name)
+sp_head::init_sp_name(THD *thd, sp_name *spname)
+{
+  DBUG_ENTER("sp_head::init_sp_name");
+
+  /* Must be initialized in the parser. */
+
+  DBUG_ASSERT(spname && spname->m_db.str && spname->m_db.length);
+
+  /* We have to copy strings to get them into the right memroot. */
+
+  m_db.length= spname->m_db.length;
+  m_db.str= strmake_root(thd->mem_root, spname->m_db.str, spname->m_db.length);
+
+  m_name.length= spname->m_name.length;
+  m_name.str= strmake_root(thd->mem_root, spname->m_name.str,
+                           spname->m_name.length);
+
+  if (spname->m_qname.length == 0)
+    spname->init_qname(thd);
+
+  m_qname.length= spname->m_qname.length;
+  m_qname.str= strmake_root(thd->mem_root, spname->m_qname.str,
+                            m_qname.length);
+}
+
+
+void
+sp_head::init_strings(THD *thd, LEX *lex)
 {
   DBUG_ENTER("sp_head::init_strings");
   uchar *endp;                  /* Used to trim the end */
   /* During parsing, we must use thd->mem_root */
   MEM_ROOT *root= thd->mem_root;
-
-  DBUG_ASSERT(name);
-  /* Must be initialized in the parser */
-  DBUG_ASSERT(name->m_db.str && name->m_db.length);
-
-  /* We have to copy strings to get them into the right memroot */
-  m_db.length= name->m_db.length;
-  m_db.str= strmake_root(root, name->m_db.str, name->m_db.length);
-  m_name.length= name->m_name.length;
-  m_name.str= strmake_root(root, name->m_name.str, name->m_name.length);
-
-  if (name->m_qname.length == 0)
-    name->init_qname(thd);
-  m_qname.length= name->m_qname.length;
-  m_qname.str= strmake_root(root, name->m_qname.str, m_qname.length);
 
   if (m_param_begin && m_param_end)
   {
@@ -1856,14 +1869,18 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
                                enum enum_field_types field_type,
                                create_field *field_def)
 {
+  HA_CREATE_INFO sp_db_info;
   LEX_STRING cmt = { 0, 0 };
   uint unused1= 0;
   int unused2= 0;
 
+  load_db_opt_by_name(thd, m_db.str, &sp_db_info);
+
   if (field_def->init(thd, (char*) "", field_type, lex->length, lex->dec,
                       lex->type, (Item*) 0, (Item*) 0, &cmt, 0,
                       &lex->interval_list,
-                      (lex->charset ? lex->charset : default_charset_info),
+                      (lex->charset ? lex->charset :
+                                      sp_db_info.default_table_charset),
                       lex->uint_geom_type))
     return TRUE;
 
