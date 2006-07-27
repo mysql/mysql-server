@@ -233,6 +233,101 @@ int runCreateAndDrop(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
+{
+  myRandom48Init(NdbTick_CurrentMillisecond());
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int loops = ctx->getNumLoops();
+  int numTables = NDBT_Tables::getNumTables();
+  bool* tabList = new bool [ numTables ];
+  int tabCount;
+
+  {
+    for (int num = 0; num < numTables; num++) {
+      (void)pDic->dropTable(NDBT_Tables::getTable(num)->getName());
+      tabList[num] = false;
+    }
+    tabCount = 0;
+  }
+
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+  int bias = 1; // 0-less 1-more
+  int i = 0;
+  
+  while (i < loops) {
+    g_info << "loop " << i << " tabs " << tabCount << "/" << numTables << endl;
+    int num = myRandom48(numTables);
+    const NdbDictionary::Table* pTab = NDBT_Tables::getTable(num);
+    char tabName[200];
+    strcpy(tabName, pTab->getName());
+
+    if (tabList[num] == false) {
+      if (bias == 0 && myRandom48(100) < 80)
+        continue;
+      g_info << tabName << ": create" << endl;
+      if (pDic->createTable(*pTab) != 0) {
+        const NdbError err = pDic->getNdbError();
+        g_err << tabName << ": create failed: " << err << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+      const NdbDictionary::Table* pTab2 = pDic->getTable(tabName);
+      if (pTab2 == NULL) {
+        const NdbError err = pDic->getNdbError();
+        g_err << tabName << ": verify create: " << err << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+      tabList[num] = true;
+      assert(tabCount < numTables);
+      tabCount++;
+      if (tabCount == numTables)
+        bias = 0;
+    }
+    else {
+      if (bias == 1 && myRandom48(100) < 80)
+        continue;
+      g_info << tabName << ": drop" << endl;
+      if (restarter.insertErrorInAllNodes(4013) != 0) {
+        g_err << "error insert failed" << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+      if (pDic->dropTable(tabName) != 0) {
+        const NdbError err = pDic->getNdbError();
+        g_err << tabName << ": drop failed: " << err << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+      const NdbDictionary::Table* pTab2 = pDic->getTable(tabName);
+      if (pTab2 != NULL) {
+        g_err << tabName << ": verify drop: table exists" << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+      if (pDic->getNdbError().code != 709 &&
+          pDic->getNdbError().code != 723) {
+        const NdbError err = pDic->getNdbError();
+        g_err << tabName << ": verify drop: " << err << endl;
+        result = NDBT_FAILED;
+        break;
+      }
+      tabList[num] = false;
+      assert(tabCount > 0);
+      tabCount--;
+      if (tabCount == 0)
+        bias = 1;
+    }
+    i++;
+  }
+
+  delete [] tabList;
+  return result;
+}
+
+
 int runCreateAndDropWithData(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   int loops = ctx->getNumLoops();
@@ -1944,6 +2039,12 @@ NDBT_TESTSUITE(testDict);
 TESTCASE("CreateAndDrop", 
 	 "Try to create and drop the table loop number of times\n"){
   INITIALIZER(runCreateAndDrop);
+}
+TESTCASE("CreateAndDropAtRandom",
+	 "Try to create and drop table at random loop number of times\n"
+         "Uses all available tables\n"
+         "Uses error insert 4013 to make TUP verify table descriptor"){
+  INITIALIZER(runCreateAndDropAtRandom);
 }
 TESTCASE("CreateAndDropWithData", 
 	 "Try to create and drop the table when it's filled with data\n"

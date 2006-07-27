@@ -1,4 +1,82 @@
 drop table if exists t1;
+create table t1 (a int unsigned)
+partition by range (a)
+(partition pnull values less than (0),
+partition p0 values less than (1),
+partition p1 values less than(2));
+insert into t1 values (null),(0),(1);
+select * from t1 where a is null;
+a
+NULL
+select * from t1 where a >= 0;
+a
+0
+1
+select * from t1 where a < 0;
+a
+select * from t1 where a <= 0;
+a
+0
+select * from t1 where a > 1;
+a
+explain partitions select * from t1 where a is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull	system	NULL	NULL	NULL	NULL	1	
+explain partitions select * from t1 where a >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a < 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+explain partitions select * from t1 where a <= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull,p0	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+drop table t1;
+create table t1 (a int unsigned, b int unsigned)
+partition by range (a)
+subpartition by hash (b)
+subpartitions 2
+(partition pnull values less than (0),
+partition p0 values less than (1),
+partition p1 values less than(2));
+insert into t1 values (null,0),(null,1),(0,0),(0,1),(1,0),(1,1);
+select * from t1 where a is null;
+a	b
+NULL	0
+NULL	1
+select * from t1 where a >= 0;
+a	b
+0	0
+0	1
+1	0
+1	1
+select * from t1 where a < 0;
+a	b
+select * from t1 where a <= 0;
+a	b
+0	0
+0	1
+select * from t1 where a > 1;
+a	b
+explain partitions select * from t1 where a is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a < 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 where a <= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	pnull_pnullsp0,pnull_pnullsp1,p0_p0sp0,p0_p0sp1	ALL	NULL	NULL	NULL	NULL	4	Using where
+explain partitions select * from t1 where a > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	2	Using where
+drop table t1;
 CREATE TABLE t1 (
 a int not null,
 b int not null,

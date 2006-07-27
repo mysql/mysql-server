@@ -3203,7 +3203,12 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
 
     ppar->is_part_keypart[part]= !in_subpart_fields;
     ppar->is_subpart_keypart[part]= in_subpart_fields;
- 
+
+    /*
+      Check if this was last field in this array, in this case we
+      switch to subpartitioning fields. (This will only happens if
+      there are subpartitioning fields to cater for).
+    */
     if (!*(++field))
     {
       field= part_info->subpart_field_array;
