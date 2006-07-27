@@ -1,6 +1,6 @@
 # TODO: THIS TEST DOES NOT WORK ON WINDOWS
 #       This should be fixed.
---source include/not_windows.inc
+#--source include/not_windows.inc
 
 source include/have_openssl.inc;
 source include/master-slave.inc;
