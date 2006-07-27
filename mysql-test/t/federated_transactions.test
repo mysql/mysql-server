@@ -1,6 +1,6 @@
 # should work with embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
-#source include/have_innodb.inc;
+source include/have_innodb.inc;
 source include/federated.inc;
 
 connection slave;
