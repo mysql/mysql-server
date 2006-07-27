@@ -2968,17 +2968,24 @@ sub im_stop($) {
     mtr_kill_processes(\@mysqld_pids);
 
     # Complain in error log so that a warning will be shown.
+    # 
+    # TODO: unless BUG#20761 is fixed, we will print the warning
+    # to stdout, so that it can be seen on console and does not
+    # produce pushbuild error.
 
-    my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
-
-    open (ERRLOG, ">>$errlog") ||
-      mtr_error("Can not open error log ($errlog)");
+    # my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
+    # 
+    # open (ERRLOG, ">>$errlog") ||
+    #   mtr_error("Can not open error log ($errlog)");
+    # 
+    # my $ts= localtime();
+    # print ERRLOG
+    #   "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
+    # 
+    # close ERRLOG;
 
     my $ts= localtime();
-    print ERRLOG
-      "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
-
-    close ERRLOG;
+    print "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
   }
 
   # That's all.
