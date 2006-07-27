@@ -399,9 +399,9 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
 }
 
 
-bool Item_func::func_type_checker_processor(byte *arg)
+bool Item_func::is_expensive_processor(byte *arg)
 {
-  return *((Functype*)arg) == functype();
+  return is_expensive();
 }
 
 

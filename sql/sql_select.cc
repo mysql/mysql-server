@@ -1073,10 +1073,7 @@ JOIN::optimize()
       for (ORDER *tmp_order= order; tmp_order ; tmp_order=tmp_order->next)
       {
         Item *item= *tmp_order->item;
-        Item_func::Functype type=Item_func::FUNC_SP;
-        Item_func::Functype type1=Item_func::UDF_FUNC;
-        if (item->walk(&Item::func_type_checker_processor,(byte*)&type) ||
-            item->walk(&Item::func_type_checker_processor,(byte*)&type1))
+        if (item->walk(&Item::is_expensive_processor,(byte*)0))
         {
           /* Force tmp table without sort */
           need_tmp=1; simple_order=simple_group=0;
@@ -6197,10 +6194,16 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
   DBUG_RETURN(0);
 }
 
-
+/*
+  used only in JOIN::clear
+*/
 static void clear_tables(JOIN *join)
 {
-  for (uint i=0 ; i < join->tables ; i++)
+  /* 
+    must clear only the non-const tables, as const tables
+    are not re-calculated.
+  */
+  for (uint i=join->const_tables ; i < join->tables ; i++)
     mark_as_null_row(join->table[i]);		// All fields are NULL
 }
 
