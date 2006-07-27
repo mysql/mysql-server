@@ -22,7 +22,7 @@
 				Optimization="0"
 				OptimizeForProcessor="2"
 				AdditionalIncludeDirectories="../include,../zlib"
-				PreprocessorDefinitions="__NT__;_DEBUG;SAFEMALLOC;SAFE_MUTEX;_WINDOWS;USE_SYMDIR"
+				PreprocessorDefinitions="_DEBUG;SAFEMALLOC;SAFE_MUTEX;_WINDOWS;USE_SYMDIR"
 				RuntimeLibrary="1"
 				PrecompiledHeaderFile=".\debug/mysys.pch"
 				AssemblerListingLocation=".\debug/"
