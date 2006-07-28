@@ -350,6 +350,7 @@ void THD::init(void)
   reset_current_stmt_binlog_row_based();
 #endif /*HAVE_ROW_BASED_REPLICATION*/
   bzero((char *) &status_var, sizeof(status_var));
+  variables.lc_time_names = &my_locale_en_US;
 }
 
 
@@ -2040,6 +2041,7 @@ void Security_context::init()
 {
   host= user= priv_user= ip= 0;
   host_or_ip= "connecting host";
+  priv_host[0]= '\0';
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
 #endif

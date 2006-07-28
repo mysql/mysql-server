@@ -1436,12 +1436,27 @@ show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE	
 drop table t1;
+show create table t1;
+show create table t1;
+create table t1 (a int) engine=myisam select 42 a;
+select * from t1;
+a
+9
+select * from t1;
+a
+99
+select * from t1;
+a
+42
+drop table t1;
+End of 4.1 tests
 create table t1 (c1 int) engine=myisam pack_keys=0;
 create table t2 (c1 int) engine=myisam pack_keys=1;
 create table t3 (c1 int) engine=myisam pack_keys=default;
 create table t4 (c1 int) engine=myisam pack_keys=2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
 drop table t1, t2, t3;
+End of 5.0 tests
 create table t1 (a int not null, key `a` (a) key_block_size=1024);
 show create table t1;
 Table	Create Table
@@ -1588,3 +1603,4 @@ create table t1 (a int not null, key key_block_size=1024 (a));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1
 create table t1 (a int not null, key `a` key_block_size=1024 (a));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_block_size=1024 (a))' at line 1
+End of 5.1 tests
