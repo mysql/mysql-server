@@ -501,7 +501,7 @@ page_rec_check(
 
 	ut_a(rec);
 
-	page = buf_frame_align(rec);
+	page = ut_align_down(rec, UNIV_PAGE_SIZE);
 
 	ut_a(rec <= page_header_get_ptr(page, PAGE_HEAP_TOP));
 	ut_a(rec >= page + PAGE_DATA);
@@ -518,7 +518,7 @@ page_dir_slot_get_rec(
 					/* out: pointer to record */
 	page_dir_slot_t*	slot)	/* in: directory slot */
 {
-	return(buf_frame_align(slot) + mach_read_from_2(slot));
+	return(ut_align_down(slot, UNIV_PAGE_SIZE) + mach_read_from_2(slot));
 }
 
 /*******************************************************************
