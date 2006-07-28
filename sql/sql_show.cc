@@ -250,9 +250,35 @@ bool mysqld_show_column_types(THD *thd)
 }
 
 
-int
-mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
-                 const char *wild, bool dir)
+/*
+  find_files() - find files in a given directory.
+
+  SYNOPSIS
+    find_files()
+    thd                 thread handler
+    files               put found files in this list
+    db                  database name to set in TABLE_LIST structure
+    path                path to database
+    wild                filter for found files
+    dir                 read databases in path if TRUE, read .frm files in
+                        database otherwise
+
+  RETURN
+    FIND_FILES_OK       success
+    FIND_FILES_OOM      out of memory error
+    FIND_FILES_DIR      no such directory, or directory can't be read
+*/
+
+enum find_files_result {
+  FIND_FILES_OK,
+  FIND_FILES_OOM,
+  FIND_FILES_DIR
+};
+
+static
+find_files_result
+find_files(THD *thd, List<char> *files, const char *db,
+           const char *path, const char *wild, bool dir)
 {
   uint i;
   char *ext;
@@ -262,7 +288,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
   uint col_access=thd->col_access;
 #endif
   TABLE_LIST table_list;
-  DBUG_ENTER("mysql_find_files");
+  DBUG_ENTER("find_files");
 
   if (wild && !wild[0])
     wild=0;
@@ -275,7 +301,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
       my_error(ER_BAD_DB_ERROR, MYF(ME_BELL+ME_WAITTANG), db);
     else
       my_error(ER_CANT_READ_DIR, MYF(ME_BELL+ME_WAITTANG), path, my_errno);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(FIND_FILES_DIR);
   }
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
@@ -337,7 +363,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
     if (files->push_back(thd->strdup(file->name)))
     {
       my_dirend(dirp);
-      DBUG_RETURN(-1);
+      DBUG_RETURN(FIND_FILES_OOM);
     }
   }
   DBUG_PRINT("info",("found: %d files", files->elements));
@@ -345,7 +371,7 @@ mysql_find_files(THD *thd,List<char> *files, const char *db,const char *path,
 
   VOID(ha_find_files(thd,db,path,wild,dir,files));
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(FIND_FILES_OK);
 }
 
 
@@ -1988,8 +2014,8 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table)
                           wild string otherwise it's db name; 
 
   RETURN
-    1	                  error
-    0	                  success
+    zero                  success
+    non-zero              error
 */
 
 int make_db_list(THD *thd, List<char> *files,
@@ -2015,8 +2041,8 @@ int make_db_list(THD *thd, List<char> *files,
       if (files->push_back(thd->strdup(information_schema_name.str)))
         return 1;
     }
-    return mysql_find_files(thd, files, NullS, mysql_data_home,
-                            idx_field_vals->db_value, 1);
+    return (find_files(thd, files, NullS, mysql_data_home,
+                       idx_field_vals->db_value, 1) != FIND_FILES_OK);
   }
 
   /*
@@ -2043,7 +2069,8 @@ int make_db_list(THD *thd, List<char> *files,
   if (files->push_back(thd->strdup(information_schema_name.str)))
     return 1;
   *with_i_schema= 1;
-  return mysql_find_files(thd, files, NullS, mysql_data_home, NullS, 1);
+  return (find_files(thd, files, NullS,
+                     mysql_data_home, NullS, 1) != FIND_FILES_OK);
 }
 
 
@@ -2192,9 +2219,28 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
         strxmov(path, mysql_data_home, "/", base_name, NullS);
         end= path + (len= unpack_dirname(path,path));
         len= FN_LEN - len;
-        if (mysql_find_files(thd, &files, base_name, 
-                             path, idx_field_vals.table_value, 0))
-          goto err;
+        find_files_result res= find_files(thd, &files, base_name, 
+                                          path, idx_field_vals.table_value, 0);
+        if (res != FIND_FILES_OK)
+        {
+          /*
+            Downgrade errors about problems with database directory to
+            warnings if this is not a 'SHOW' command.  Another thread
+            may have dropped database, and we may still have a name
+            for that directory.
+          */
+          if (res == FIND_FILES_DIR && lex->orig_sql_command == SQLCOM_END)
+          {
+            push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                         thd->net.last_errno, thd->net.last_error);
+            thd->clear_error();
+            continue;
+          }
+          else
+          {
+            goto err;
+          }
+        }
         if (lower_case_table_names)
           orig_base_name= thd->strdup(base_name);
       }
@@ -3949,7 +3995,12 @@ bool get_schema_tables_result(JOIN *join)
 
       if (table_list->schema_table->fill_table(thd, table_list,
                                                tab->select_cond))
+      {
         result= 1;
+        join->error= 1;
+        table_list->is_schema_table_processed= TRUE;
+        break;
+      }
       table_list->is_schema_table_processed= TRUE;
     }
   }
