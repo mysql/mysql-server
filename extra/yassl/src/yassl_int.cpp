@@ -9,6 +9,10 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
+ * There are special exceptions to the terms and conditions of the GPL as it
+ * is applied to yaSSL. View the full text of the exception in the file
+ * FLOSS-EXCEPTIONS in the directory of this software distribution.
+ *
  * yaSSL is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -260,7 +264,8 @@ const ClientKeyFactory& sslFactory::getClientKey() const
 // extract context parameters and store
 SSL::SSL(SSL_CTX* ctx) 
     : secure_(ctx->getMethod()->getVersion(), crypto_.use_random(),
-              ctx->getMethod()->getSide(), ctx->GetCiphers(), ctx)
+              ctx->getMethod()->getSide(), ctx->GetCiphers(), ctx,
+              ctx->GetDH_Parms().set_)
 {
     if (int err = crypto_.get_random().GetError()) {
         SetError(YasslError(err));
@@ -982,6 +987,36 @@ void SSL::fillData(Data& data)
         }
         if (data.get_length() == dataSz)
             break;
+    }
+}
+
+
+// like Fill but keep data in buffer
+void SSL::PeekData(Data& data)
+{
+    if (GetError()) return;
+    uint dataSz   = data.get_length();        // input, data size to fill
+    uint elements = buffers_.getData().size();
+
+    data.set_length(0);                         // output, actual data filled
+    dataSz = min(dataSz, bufferedData());
+
+    Buffers::inputList::iterator front = buffers_.getData().begin();
+
+    while (elements) {
+        uint frontSz = (*front)->get_remaining();
+        uint readSz  = min(dataSz - data.get_length(), frontSz);
+        uint before  = (*front)->get_current();
+
+        (*front)->read(data.set_buffer() + data.get_length(), readSz);
+        data.set_length(data.get_length() + readSz);
+        (*front)->set_current(before);
+
+        if (data.get_length() == dataSz)
+            break;
+
+        elements--;
+        front++;
     }
 }
 
@@ -1910,9 +1945,9 @@ Buffers::outputList& Buffers::useHandShake()
 
 
 Security::Security(ProtocolVersion pv, RandomPool& ran, ConnectionEnd ce,
-                   const Ciphers& ciphers, SSL_CTX* ctx)
-   : conn_(pv, ran), parms_(ce, ciphers, pv), resumeSession_(ran), ctx_(ctx),
-     resuming_(false)
+                   const Ciphers& ciphers, SSL_CTX* ctx, bool haveDH)
+   : conn_(pv, ran), parms_(ce, ciphers, pv, haveDH), resumeSession_(ran),
+     ctx_(ctx), resuming_(false)
 {}
 
 
