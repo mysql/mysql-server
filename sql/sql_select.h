@@ -128,7 +128,21 @@ typedef struct st_join_table {
   key_map	checked_keys;			/* Keys checked in find_best */
   key_map	needed_reg;
   key_map       keys;                           /* all keys with can be used */
-  ha_rows	records,found_records,read_time;
+
+  /* Either #rows in the table or 1 for const table.  */
+  ha_rows	records;
+  /*
+    Number of records that will be scanned (yes scanned, not returned) by the
+    best 'independent' access method, i.e. table scan or QUICK_*_SELECT)
+  */
+  ha_rows       found_records;
+  /*
+    Cost of accessing the table using "ALL" or range/index_merge access
+    method (but not 'index' for some reason), i.e. this matches method which
+    E(#records) is in found_records.
+  */
+  ha_rows       read_time;
+  
   table_map	dependent,key_dependent;
   uint		use_quick,index;
   uint		status;				// Save status for cache
@@ -156,14 +170,23 @@ enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
 enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
                                   end_of_records);
 
-
-typedef struct st_position			/* Used in find_best */
+/*
+  Information about a position of table within a join order. Used in join
+  optimization.
+*/
+typedef struct st_position
 {
   double records_read;
+  /* 
+    Cost accessing the table in course of the entire complete join execution,
+    i.e. cost of one access method use (e.g. 'range' or 'ref' scan ) times 
+    number the access method will be invoked.
+  */
   double read_time;
   JOIN_TAB *table;
   KEYUSE *key;
 } POSITION;
+
 
 typedef struct st_rollup
 {

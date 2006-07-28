@@ -12,8 +12,8 @@ create table t1 (ID int(8) unsigned zerofill not null auto_increment,UNIQ bigint
 insert into t1 set UNIQ=0x38afba1d73e6a18a;
 insert into t1 set UNIQ=123;
 explain extended select * from t1 where UNIQ=0x38afba1d73e6a18a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	const	UNIQ	UNIQ	8	const	1	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	const	UNIQ	UNIQ	8	const	1	100.00	
 Warnings:
 Note	1003	select `test`.`t1`.`ID` AS `ID`,`test`.`t1`.`UNIQ` AS `UNIQ` from `test`.`t1` where 1
 drop table t1;

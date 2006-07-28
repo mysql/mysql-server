@@ -590,3 +590,22 @@ select * from ((t3 natural join (t1 natural join t2)) natural join t4)
 drop table t1, t2, t3, t4, t5;
 
 # End of tests for WL#2486 - natural/using join
+
+#
+# BUG#14940: Make E(#rows) from "range" access be re-used by range optimizer
+#
+create table t1 (a int); 
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (a int, b int, filler char(100), key(a), key(b));
+create table t3 (a int, b int, filler char(100), key(a), key(b));
+
+insert into t2 
+  select @a:= A.a + 10*(B.a + 10*C.a), @a, 'filler' from t1 A, t1 B, t1 C;
+insert into t3 select * from t2 where a < 800;
+
+# The order of tables must be t2,t3:
+explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
+
+drop table t1, t2, t3;
+
