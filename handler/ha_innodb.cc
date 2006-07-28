@@ -6175,14 +6175,6 @@ ha_innobase::start_stmt(
 
 	innobase_release_stat_resources(trx);
 
-	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-						&& trx->global_read_view) {
-		/* At low transaction isolation levels we let
-		each consistent read set its own snapshot */
-
-		read_view_close_for_mysql(trx);
-	}
-
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	prebuilt->read_just_key = 0;
