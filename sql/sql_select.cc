@@ -4131,14 +4131,14 @@ greedy_search(JOIN      *join,
   double    read_time=    0.0;
   uint      idx= join->const_tables; // index into 'join->best_ref'
   uint      best_idx;
-  uint      rem_size;    // cardinality of remaining_tables
+  uint      size_remain;    // cardinality of remaining_tables
   POSITION  best_pos;
   JOIN_TAB  *best_table; // the next plan node to be added to the curr QEP
 
   DBUG_ENTER("greedy_search");
 
   /* number of tables that remain to be optimized */
-  rem_size= my_count_bits(remaining_tables);
+  size_remain= my_count_bits(remaining_tables);
 
   do {
     /* Find the extension of the current QEP with the lowest cost */
@@ -4146,7 +4146,7 @@ greedy_search(JOIN      *join,
     best_extension_by_limited_search(join, remaining_tables, idx, record_count,
                                      read_time, search_depth, prune_level);
 
-    if (rem_size <= search_depth)
+    if (size_remain <= search_depth)
     {
       /*
         'join->best_positions' contains a complete optimal extension of the
@@ -4182,7 +4182,7 @@ greedy_search(JOIN      *join,
     read_time+=    join->positions[idx].read_time;
 
     remaining_tables&= ~(best_table->table->map);
-    --rem_size;
+    --size_remain;
     ++idx;
 
     DBUG_EXECUTE("opt", print_plan(join, join->tables,
