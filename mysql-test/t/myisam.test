@@ -718,8 +718,6 @@ UPDATE t1 AS ta1,t1 AS ta2 SET ta1.b='aaaaaa',ta2.b='bbbbbb';
 SELECT * FROM t1;
 DROP TABLE t1;
 
-# End of 4.1 tests
-
 #
 # Test varchar
 #
@@ -817,6 +815,42 @@ alter table t1 enable keys;
 show keys from t1;
 
 drop table t1;
+#
+# Bug#8706 - temporary table with data directory option fails
+#
+connect (session1,localhost,root,,);
+connect (session2,localhost,root,,);
+
+connection session1;
+disable_query_log;
+eval create temporary table t1 (a int) engine=myisam data directory="$MYSQLTEST_VARDIR/tmp" select 9 a;
+enable_query_log;
+disable_result_log;
+show create table t1;
+enable_result_log;
+
+connection session2;
+disable_query_log;
+eval create temporary table t1 (a int) engine=myisam data directory="$MYSQLTEST_VARDIR/tmp" select 99 a;
+enable_query_log;
+disable_result_log;
+show create table t1;
+enable_result_log;
+
+connection default;
+create table t1 (a int) engine=myisam select 42 a;
+
+connection session1;
+select * from t1;
+disconnect session1;
+connection session2;
+select * from t1;
+disconnect session2;
+connection default;
+select * from t1;
+drop table t1;
+
+--echo End of 4.1 tests
 
 #
 # Bug#10056 - PACK_KEYS option take values greater than 1 while creating table
@@ -827,6 +861,8 @@ create table t3 (c1 int) engine=myisam pack_keys=default;
 --error 1064
 create table t4 (c1 int) engine=myisam pack_keys=2;
 drop table t1, t2, t3;
+
+--echo End of 5.0 tests
 
 #
 # Test of key_block_size
@@ -890,3 +926,5 @@ drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
 --error 1064
 create table t1 (a int not null, key `a` key_block_size=1024 (a));
+
+--echo End of 5.1 tests

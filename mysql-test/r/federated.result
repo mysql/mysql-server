@@ -1603,22 +1603,6 @@ fld_cid	fld_name	fld_parentid	fld_delt
 5	Torkel	0	0
 DROP TABLE federated.t1;
 DROP TABLE federated.bug_17377_table;
-create table t1 (id int not null auto_increment primary key, val int);
-create table t1
-(id int not null auto_increment primary key, val int) engine=federated
-connection='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
-insert into t1 values (1,0),(2,0);
-update t1 set val = NULL where id = 1;
-select * from t1;
-id	val
-1	NULL
-2	0
-select * from t1;
-id	val
-1	NULL
-2	0
-drop table t1;
-drop table t1;
 drop table if exists federated.t1;
 create table federated.t1 (a int, b int, c int);
 drop table if exists federated.t1;
@@ -1733,6 +1717,23 @@ id	c1	c2
 9	abc	ppc
 drop table federated.t1, federated.t2;
 drop table federated.t1, federated.t2;
+create table t1 (id int not null auto_increment primary key, val int);
+create table t1
+(id int not null auto_increment primary key, val int) engine=federated
+connection='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+insert into t1 values (1,0),(2,0);
+update t1 set val = NULL where id = 1;
+select * from t1;
+id	val
+1	NULL
+2	0
+select * from t1;
+id	val
+1	NULL
+2	0
+drop table t1;
+drop table t1;
+End of 5.0 tests
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;

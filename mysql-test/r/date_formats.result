@@ -498,6 +498,22 @@ f1	f2
 Warnings:
 Warning	1292	Truncated incorrect date value: '2003-04-05  g'
 Warning	1292	Truncated incorrect datetime value: '2003-04-05 10:11:12.101010234567'
+set names latin1;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+date_format('2004-01-01','%W (%a), %e %M (%b) %Y')
+Thursday (Thu), 1 January (Jan) 2004
+set lc_time_names=ru_RU;
+set names koi8r;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+date_format('2004-01-01','%W (%a), %e %M (%b) %Y')
+Четверг (Чтв), 1 Января (Янв) 2004
+set lc_time_names=de_DE;
+set names latin1;
+select date_format('2004-01-01','%W (%a), %e %M (%b) %Y');
+date_format('2004-01-01','%W (%a), %e %M (%b) %Y')
+Donnerstag (Do), 1 Januar (Jan) 2004
+set names latin1;
+set lc_time_names=en_US;
 create table t1 (f1 datetime);
 insert into t1 (f1) values ("2005-01-01");
 insert into t1 (f1) values ("2005-02-01");

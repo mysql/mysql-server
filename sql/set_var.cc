@@ -109,7 +109,6 @@ extern ulong ndb_report_thresh_binlog_mem_usage;
 
 
 
-
 static HASH system_variable_hash;
 const char *bool_type_names[]= { "OFF", "ON", NullS };
 TYPELIB bool_typelib=
@@ -631,6 +630,9 @@ static sys_var_thd_ha_rows	sys_select_limit("sql_select_limit",
 static sys_var_timestamp	sys_timestamp("timestamp");
 static sys_var_last_insert_id	sys_last_insert_id("last_insert_id");
 static sys_var_last_insert_id	sys_identity("identity");
+
+static sys_var_thd_lc_time_names       sys_lc_time_names("lc_time_names");
+
 static sys_var_insert_id	sys_insert_id("insert_id");
 static sys_var_readonly		sys_error_count("error_count",
 						OPT_SESSION,
@@ -871,6 +873,7 @@ SHOW_VAR init_vars[]= {
   {"large_files_support",     (char*) &opt_large_files,             SHOW_BOOL},
   {"large_page_size",         (char*) &opt_large_page_size,         SHOW_INT},
   {"large_pages",             (char*) &opt_large_pages,             SHOW_MY_BOOL},
+  {sys_lc_time_names.name,    (char*) &sys_lc_time_names,           SHOW_SYS},
   {sys_license.name,	      (char*) &sys_license,                 SHOW_SYS},
   {sys_local_infile.name,     (char*) &sys_local_infile,	    SHOW_SYS},
 #ifdef HAVE_MLOCKALL
@@ -3011,6 +3014,40 @@ byte *sys_var_max_user_conn::value_ptr(THD *thd, enum_var_type type,
   return (byte*) &(max_user_connections);
 }
 
+bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
+{
+  char *locale_str =var->value->str_value.c_ptr();
+  MY_LOCALE *locale_match=  my_locale_by_name(locale_str);
+
+  if (locale_match == NULL)
+  {
+    my_printf_error(ER_UNKNOWN_ERROR,
+                    "Unknown locale: '%s'", MYF(0), locale_str);
+    return 1;
+  }
+  var->save_result.locale_value= locale_match;
+  return 0;
+}
+
+
+bool sys_var_thd_lc_time_names::update(THD *thd, set_var *var)
+{
+  thd->variables.lc_time_names= var->save_result.locale_value;
+  return 0;
+}
+
+
+byte *sys_var_thd_lc_time_names::value_ptr(THD *thd, enum_var_type type,
+					  LEX_STRING *base)
+{
+  return (byte *)(thd->variables.lc_time_names->name);
+}
+
+
+void sys_var_thd_lc_time_names::set_default(THD *thd, enum_var_type type)
+{
+  thd->variables.lc_time_names = &my_locale_en_US;
+}
 
 /*
   Functions to update thd->options bits
