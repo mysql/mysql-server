@@ -1996,6 +1996,7 @@ page_zip_validate(
 	const page_t*		page)	/* in: uncompressed page */
 {
 	page_zip_des_t	temp_page_zip = *page_zip;
+	byte*		temp_page_buf;
 	page_t*		temp_page;
 	ibool		valid;
 
@@ -2016,7 +2017,10 @@ page_zip_validate(
 		return(TRUE);
 	}
 
-	temp_page = buf_frame_alloc();
+	/* page_zip_decompress() expects the uncompressed page to be
+	UNIV_PAGE_SIZE aligned. */
+	temp_page_buf = ut_malloc(2 * UNIV_PAGE_SIZE);
+	temp_page = ut_align(temp_page_buf, UNIV_PAGE_SIZE);
 
 	valid = page_zip_decompress(&temp_page_zip, temp_page);
 	if (!valid) {
@@ -2052,7 +2056,7 @@ page_zip_validate(
 	}
 
 func_exit:
-	buf_frame_free(temp_page);
+	ut_free(temp_page_buf);
 	return(valid);
 }
 #endif /* UNIV_ZIP_DEBUG */
