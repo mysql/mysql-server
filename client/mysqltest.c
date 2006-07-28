@@ -362,7 +362,7 @@ Q_COMMENT_WITH_COMMAND
 struct st_query
 {
   char *query, *query_buf,*first_argument,*last_argument,*end;
-  int first_word_len;
+  int first_word_len, query_len;
   my_bool abort_on_error, require_file;
   match_err expected_errno[MAX_EXPECTED_ERRORS];
   uint expected_errors;
@@ -758,12 +758,13 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   if (my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
     die(NullS);
   tmp[stat_info.st_size] = 0;
-  init_dynamic_string(&res_ds, "", 0, 65536);
+  init_dynamic_string(&res_ds, "", stat_info.st_size+256, 256);
   if (eval_result)
   {
     do_eval(&res_ds, tmp, FALSE);
-    res_ptr = res_ds.str;
-    if ((res_len = res_ds.length) != ds->length)
+    res_ptr= res_ds.str;
+    res_len= res_ds.length;
+    if (res_len != ds->length)
     {
       res= RESULT_LENGTH_MISMATCH;
       goto err;
@@ -783,9 +784,9 @@ err:
     str_to_file(fn_format(eval_file, fname, "", ".eval",2), res_ptr,
 		res_len);
 
+  dynstr_free(&res_ds);
   my_free((gptr) tmp, MYF(0));
   my_close(fd, MYF(MY_WME));
-  dynstr_free(&res_ds);
 
   DBUG_RETURN(res);
 }
@@ -1183,7 +1184,7 @@ static void do_exec(struct st_query *query)
     die("Missing argument in exec");
   query->last_argument= query->end;
 
-  init_dynamic_string(&ds_cmd, 0, strlen(cmd)+256, 256);
+  init_dynamic_string(&ds_cmd, 0, query->query_len+256, 256);
   /* Eval the command, thus replacing all environment variables */
   do_eval(&ds_cmd, cmd, TRUE);
   cmd= ds_cmd.str;
@@ -1306,7 +1307,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
 #endif
 
-    init_dynamic_string(&result, "", 16384, 65536);
+    init_dynamic_string(&result, "", 2048, 2048);
     lengths= mysql_fetch_lengths(res);
     for (i=0; i < mysql_num_fields(res); i++)
     {
@@ -1498,7 +1499,7 @@ void do_system(struct st_query *command)
   if (strlen(command->first_argument) == 0)
     die("Missing arguments to system, nothing to do!");
 
-  init_dynamic_string(&ds_cmd, 0, strlen(command->first_argument) + 64, 256);
+  init_dynamic_string(&ds_cmd, 0, command->query_len + 64, 256);
 
   /* Eval the system command, thus replacing all environment variables */
   do_eval(&ds_cmd, command->first_argument, TRUE);
@@ -1552,7 +1553,7 @@ int do_echo(struct st_query *command)
 
   ds= &ds_res;
 
-  init_dynamic_string(&ds_echo, "", 256, 256);
+  init_dynamic_string(&ds_echo, "", command->query_len, 256);
   do_eval(&ds_echo, command->first_argument, FALSE);
   dynstr_append_mem(ds, ds_echo.str, ds_echo.length);
   dynstr_append_mem(ds, "\n", 1);
@@ -3205,6 +3206,7 @@ int read_query(struct st_query** q_ptr)
   q->record_file[0]= 0;
   q->require_file= 0;
   q->first_word_len= 0;
+  q->query_len= 0;
 
   q->type= Q_UNKNOWN;
   q->query_buf= q->query= 0;
@@ -3255,6 +3257,7 @@ end:
     p++;
   q->first_argument= p;
   q->end= strend(q->query);
+  q->query_len= (q->end - q->query);
   parser.read_lines++;
   DBUG_RETURN(0);
 }
@@ -4723,7 +4726,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
    */
   if (command->type == Q_EVAL)
   {
-    init_dynamic_string(&eval_query, "", 16384, 65536);
+    init_dynamic_string(&eval_query, "", command->query_len+256, 1024);
     do_eval(&eval_query, command->query, FALSE);
     query = eval_query.str;
     query_len = eval_query.length;
@@ -4742,7 +4745,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
    */
   if (command->record_file[0])
   {
-    init_dynamic_string(&ds_result, "", 16384, 65536);
+    init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
   }
   else
@@ -5209,7 +5212,7 @@ int main(int argc, char **argv)
 
   memset(&master_pos, 0, sizeof(master_pos));
 
-  init_dynamic_string(&ds_res, "", 0, 65536);
+  init_dynamic_string(&ds_res, "", 65536, 65536);
   init_dynamic_string(&ds_progress, "", 0, 2048);
   parse_args(argc, argv);
 
@@ -5404,7 +5407,8 @@ int main(int argc, char **argv)
 	}
 	/* fix up query pointer if this is first iteration for this line */
 	if (q->query == q->query_buf)
-	  q->query += q->first_word_len;
+	  q->query+= q->first_word_len;
+
 	/*
 	  run_query() can execute a query partially, depending on the flags.
 	  QUERY_SEND flag without QUERY_REAP tells it to just send the
