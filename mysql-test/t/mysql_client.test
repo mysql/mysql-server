@@ -1,0 +1,29 @@
+# This test should work in embedded server after we fix mysqltest
+-- source include/not_embedded.inc
+
+#
+# Bug #20432: mysql client interprets commands in comments
+#
+
+# if the client sees the 'use' within the comment, we haven't fixed
+--exec echo "/*"          >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "use"         >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "*/"          >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+
+# SQL can have embedded comments => workie
+--exec echo "select /*"   >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "use"         >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "*/ 1"        >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+
+# client commands on the other hand must be at BOL => error
+--exec echo "/*"          >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "xxx"         >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "*/ use"      >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--error 1
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+
+# client comment recognized, but parameter missing => error
+--exec echo "use"         >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1

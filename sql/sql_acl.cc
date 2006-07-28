@@ -264,8 +264,8 @@ my_bool acl_init(bool dont_read_acl_tables)
   acl_cache= new hash_filo(ACL_CACHE_SIZE, 0, 0,
                            (hash_get_key) acl_entry_get_key,
                            (hash_free_key) free,
-                           /* Use the case sensitive "binary" charset */
-                           &my_charset_bin);
+                           lower_case_file_system ?
+                           system_charset_info : &my_charset_bin);
   if (dont_read_acl_tables)
   {
     DBUG_RETURN(0); /* purecov: tested */

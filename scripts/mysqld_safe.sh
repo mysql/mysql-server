@@ -346,10 +346,13 @@ then
     ulimit -n $open_files
     append_arg_to_args "--open-files-limit=$open_files"
   fi
-  if test -n "$core_file_size"
-  then
-    ulimit -c $core_file_size
-  fi
+fi
+
+# Try to set the core file size (even if we aren't root) because many systems
+# don't specify a hard limit on core file size.
+if test -n "$core_file_size"
+then
+  ulimit -c $core_file_size
 fi
 
 #
