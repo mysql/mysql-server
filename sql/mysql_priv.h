@@ -865,8 +865,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
-int mysql_find_files(THD *thd,List<char> *files, const char *db,
-                const char *path, const char *wild, bool dir);
 bool mysqld_show_storage_engines(THD *thd);
 bool mysqld_show_privileges(THD *thd);
 bool mysqld_show_column_types(THD *thd);
