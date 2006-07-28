@@ -719,8 +719,8 @@ select strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0;
 strcmp(concat(utc_date(),' ',utc_time()),utc_timestamp())=0
 1
 explain extended select period_add("9602",-12),period_diff(199505,"9404"),from_days(to_days("960101")),dayofmonth("1997-01-02"), month("1997-01-02"), monthname("1972-03-04"),dayofyear("0000-00-00"),HOUR("1997-03-03 23:03:22"),MINUTE("23:03:22"),SECOND(230322),QUARTER(980303),WEEK("1998-03-03"),yearweek("2000-01-01",1),week(19950101,1),year("98-02-03"),weekday(curdate())-weekday(now()),dayname("1962-03-03"),unix_timestamp(),sec_to_time(time_to_sec("0:30:47")/6.21),curtime(),utc_time(),curdate(),utc_date(),utc_timestamp(),date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w"),from_unixtime(unix_timestamp("1994-03-02 10:11:12")),"1997-12-31 23:59:59" + INTERVAL 1 SECOND,"1998-01-01 00:00:00" - INTERVAL 1 SECOND,INTERVAL 1 DAY + "1997-12-31", extract(YEAR FROM "1999-01-02 10:11:12"),date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select sql_no_cache period_add(_latin1'9602',-(12)) AS `period_add("9602",-12)`,period_diff(199505,_latin1'9404') AS `period_diff(199505,"9404")`,from_days(to_days(_latin1'960101')) AS `from_days(to_days("960101"))`,dayofmonth(_latin1'1997-01-02') AS `dayofmonth("1997-01-02")`,month(_latin1'1997-01-02') AS `month("1997-01-02")`,monthname(_latin1'1972-03-04') AS `monthname("1972-03-04")`,dayofyear(_latin1'0000-00-00') AS `dayofyear("0000-00-00")`,hour(_latin1'1997-03-03 23:03:22') AS `HOUR("1997-03-03 23:03:22")`,minute(_latin1'23:03:22') AS `MINUTE("23:03:22")`,second(230322) AS `SECOND(230322)`,quarter(980303) AS `QUARTER(980303)`,week(_latin1'1998-03-03',0) AS `WEEK("1998-03-03")`,yearweek(_latin1'2000-01-01',1) AS `yearweek("2000-01-01",1)`,week(19950101,1) AS `week(19950101,1)`,year(_latin1'98-02-03') AS `year("98-02-03")`,(weekday(curdate()) - weekday(now())) AS `weekday(curdate())-weekday(now())`,dayname(_latin1'1962-03-03') AS `dayname("1962-03-03")`,unix_timestamp() AS `unix_timestamp()`,sec_to_time((time_to_sec(_latin1'0:30:47') / 6.21)) AS `sec_to_time(time_to_sec("0:30:47")/6.21)`,curtime() AS `curtime()`,utc_time() AS `utc_time()`,curdate() AS `curdate()`,utc_date() AS `utc_date()`,utc_timestamp() AS `utc_timestamp()`,date_format(_latin1'1997-01-02 03:04:05',_latin1'%M %W %D %Y %y %m %d %h %i %s %w') AS `date_format("1997-01-02 03:04:05", "%M %W %D %Y %y %m %d %h %i %s %w")`,from_unixtime(unix_timestamp(_latin1'1994-03-02 10:11:12')) AS `from_unixtime(unix_timestamp("1994-03-02 10:11:12"))`,(_latin1'1997-12-31 23:59:59' + interval 1 second) AS `"1997-12-31 23:59:59" + INTERVAL 1 SECOND`,(_latin1'1998-01-01 00:00:00' - interval 1 second) AS `"1998-01-01 00:00:00" - INTERVAL 1 SECOND`,(_latin1'1997-12-31' + interval 1 day) AS `INTERVAL 1 DAY + "1997-12-31"`,extract(year from _latin1'1999-01-02 10:11:12') AS `extract(YEAR FROM "1999-01-02 10:11:12")`,(_latin1'1997-12-31 23:59:59' + interval 1 second) AS `date_add("1997-12-31 23:59:59",INTERVAL 1 SECOND)`
 SET @TMP=NOW();
@@ -808,8 +808,8 @@ drop table t1;
 End of 4.1 tests
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select timestampdiff(WEEK,_latin1'2001-02-01',_latin1'2001-05-01') AS `a1`,timestampdiff(SECOND_FRAC,_latin1'2001-02-01 12:59:59.120000',_latin1'2001-05-01 12:58:58.119999') AS `a2`
 select time_format('100:00:00', '%H %k %h %I %l');

@@ -36,7 +36,7 @@ a	a	a	a
 explain select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t2	ALL	b	NULL	NULL	NULL	5	Using where
 select t1.*,t2.* from t1,t1 as t2 where t1.A=t2.B order by binary t1.a,t2.a;
 a	b	a	b
 A	B	a	a
