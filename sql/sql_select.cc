@@ -2074,6 +2074,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     s->key_dependent= 0;
     if (tables->schema_table)
       table->file->stats.records= 2;
+    table->quick_condition_rows= table->file->records();
 
     s->on_expr_ref= &tables->on_expr;
     if (*s->on_expr_ref)
@@ -3754,13 +3755,23 @@ best_access_path(JOIN      *join,
   {                                             // Check full join
     ha_rows rnd_records= s->found_records;
     /*
-      If there is a restriction on the table, assume that 25% of the
-      rows can be skipped on next part.
-      This is to force tables that this table depends on before this
-      table
+      If there is a filtering condition on the table (i.e. ref analyzer found
+      at least one "table.keyXpartY= exprZ", where exprZ refers only to tables
+      preceding this table in the join order we're now considering), then 
+      assume that 25% of the rows will be filtered out by this condition.
+
+      This heuristic is supposed to force tables used in exprZ to be before
+      this table in join order.
     */
     if (found_constraint)
       rnd_records-= rnd_records/4;
+
+    /*
+      If applicable, get a more accurate estimate. Don't use the two
+      heuristics at once.
+    */
+    if (s->table->quick_condition_rows != s->found_records)
+      rnd_records= s->table->quick_condition_rows;
 
     /*
       Range optimizer never proposes a RANGE if it isn't better
@@ -3773,6 +3784,10 @@ best_access_path(JOIN      *join,
         For each record we:
         - read record range through 'quick'
         - skip rows which does not satisfy WHERE constraints
+        TODO: 
+        We take into account possible use of join cache for ALL/index
+        access (see first else-branch below), but we don't take it into 
+        account here for range/index_merge access. Find out why this is so.
       */
       tmp= record_count *
         (s->quick->read_time +
@@ -4342,6 +4357,8 @@ best_extension_by_limited_search(JOIN      *join,
     return;
 
   DBUG_ENTER("best_extension_by_limited_search");
+  DBUG_EXECUTE("opt", print_plan(join, idx, read_time, record_count, idx,
+                                 "SOFAR:"););
 
   /* 
      'join' is a partial plan with lower cost than the best plan so far,
@@ -14065,6 +14082,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       item_list.push_back(item_null);
     if (join->thd->lex->describe & DESCRIBE_PARTITIONS)
       item_list.push_back(item_null);
+    if (join->thd->lex->describe & DESCRIBE_EXTENDED)
+      item_list.push_back(item_null);
   
     item_list.push_back(new Item_string(message,strlen(message),cs));
     if (result->send_data(item_list))
@@ -14110,6 +14129,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       item_list.push_back(new Item_string(table_name_buffer, len, cs));
     }
+    /* partitions */
+    if (join->thd->lex->describe & DESCRIBE_PARTITIONS)
+      item_list.push_back(item_null);
     /* type */
     item_list.push_back(new Item_string(join_type_str[JT_ALL],
 					  strlen(join_type_str[JT_ALL]),
@@ -14122,6 +14144,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     item_list.push_back(item_null);
     /* ref */
     item_list.push_back(item_null);
+    /* in_rows */
+    if (join->thd->lex->describe & DESCRIBE_EXTENDED)
+      item_list.push_back(item_null);
     /* rows */
     item_list.push_back(item_null);
     /* extra */
@@ -14277,10 +14302,33 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(item_null);
 	item_list.push_back(item_null);
       }
+      
       /* Add "rows" field to item_list. */
-      item_list.push_back(new Item_int((longlong) (ulonglong)
-				       join->best_positions[i]. records_read,
-				       21));
+      ha_rows examined_rows;
+      if (tab->select && tab->select->quick)
+        examined_rows= tab->select->quick->records;
+      else if (tab->type == JT_NEXT || tab->type == JT_ALL)
+        examined_rows= tab->table->file->records();
+      else
+        examined_rows=(ha_rows)join->best_positions[i].records_read; 
+ 
+      item_list.push_back(new Item_int((longlong) (ulonglong) examined_rows, 
+                                       21));
+
+      /* Add "filtered" field to item_list. */
+      if (join->thd->lex->describe & DESCRIBE_EXTENDED)
+      {
+        Item_float *filtered;
+        float f; 
+        if (examined_rows)
+          f= 100.0 * join->best_positions[i].records_read / examined_rows;
+        else
+          f= 0.0;
+        item_list.push_back((filtered= new Item_float(f)));
+        filtered->decimals= 2;
+      }
+
+
       /* Build "Extra" field and add it to item_list. */
       my_bool key_read=table->key_read;
       if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&
