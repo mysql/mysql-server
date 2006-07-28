@@ -1,0 +1,23 @@
+#
+# Check if the variable MY_PERROR is set
+#
+--require r/have_perror.require
+disable_query_log;
+eval select LENGTH("$MY_PERROR") > 0 as "have_perror";
+enable_query_log;
+
+--exec $MY_PERROR 150 > /dev/null
+--exec $MY_PERROR --silent 120 > /dev/null
+
+#
+# Bug#16561 Unknown ERROR msg "ERROR 1186 (HY000): Binlog closed" by perror
+#
+
+# As long there is no error code 1186 defined by NDB
+# we should get a message "Illegal ndb error code: 1186"
+--error 1
+--exec $MY_PERROR --ndb 1186 2>&1
+
+# As there is an error code defined for 1186, expect error
+--error 1
+--exec $MY_PERROR 1186 2>&1

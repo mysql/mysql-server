@@ -77,6 +77,15 @@ drop table t1;
 #
 --exec $MYSQL -t test -e "create table b19564 (i int, s1 char(1)); insert into b19564 values (1, 'x'); insert into b19564 values (2, NULL); insert into b19564 values (3, ' '); select * from b19564 order by i; drop table b19564;" 
 
+#
+# Bug#19265 describe command does not work from mysql prompt
+#
+
+create table t1(a int, b varchar(255), c int);
+--exec $MYSQL test -e "desc t1"
+--exec $MYSQL test -e "desc t1\g"
+drop table t1;
+
 --echo End of 5.0 tests
 
 

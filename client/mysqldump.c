@@ -565,6 +565,13 @@ static void write_footer(FILE *sql_file)
     fprintf(sql_file,
             "/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;\n");
     fputs("\n", sql_file);
+    if (opt_comments)
+    {
+      char time_str[20];
+      get_date(time_str, GETDATE_DATE_TIME, 0);
+      fprintf(sql_file, "-- Dump completed on %s\n",
+              time_str);
+    }
     check_io(sql_file);
   }
 } /* write_footer */
