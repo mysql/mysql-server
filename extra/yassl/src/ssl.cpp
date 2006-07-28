@@ -158,7 +158,7 @@ SSL* SSL_new(SSL_CTX* ctx)
 
 void SSL_free(SSL* ssl)
 {
-//    ysDelete(ssl);
+    ysDelete(ssl);
 }
 
 
