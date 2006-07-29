@@ -9,8 +9,8 @@ select count(a) as b from t1 where a=0 having b >=0;
 b
 0
 explain extended select count(a) as b from t1 where a=0 having b >=0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
 Note	1003	select count(`test`.`t1`.`a`) AS `b` from `test`.`t1` where 0 having (`b` >= 0)
 drop table t1;

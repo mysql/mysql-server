@@ -3,32 +3,32 @@ select floor(5.5),floor(-5.5);
 floor(5.5)	floor(-5.5)
 5	-6
 explain extended select floor(5.5),floor(-5.5);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select floor(5.5) AS `floor(5.5)`,floor(-(5.5)) AS `floor(-5.5)`
 select ceiling(5.5),ceiling(-5.5);
 ceiling(5.5)	ceiling(-5.5)
 6	-5
 explain extended select ceiling(5.5),ceiling(-5.5);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select ceiling(5.5) AS `ceiling(5.5)`,ceiling(-(5.5)) AS `ceiling(-5.5)`
 select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
 truncate(52.64,1)	truncate(52.64,2)	truncate(52.64,-1)	truncate(52.64,-2)	truncate(-52.64,1)	truncate(-52.64,-1)
 52.6	52.64	50	0	-52.6	-50
 explain extended select truncate(52.64,1),truncate(52.64,2),truncate(52.64,-1),truncate(52.64,-2), truncate(-52.64,1),truncate(-52.64,-1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select truncate(52.64,1) AS `truncate(52.64,1)`,truncate(52.64,2) AS `truncate(52.64,2)`,truncate(52.64,-(1)) AS `truncate(52.64,-1)`,truncate(52.64,-(2)) AS `truncate(52.64,-2)`,truncate(-(52.64),1) AS `truncate(-52.64,1)`,truncate(-(52.64),-(1)) AS `truncate(-52.64,-1)`
 select round(5.5),round(-5.5);
 round(5.5)	round(-5.5)
 6	-6
 explain extended select round(5.5),round(-5.5);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select round(5.5,0) AS `round(5.5)`,round(-(5.5),0) AS `round(-5.5)`
 select round(5.64,1),round(5.64,2),round(5.64,-1),round(5.64,-2);
@@ -38,48 +38,48 @@ select abs(-10), sign(-5), sign(5), sign(0);
 abs(-10)	sign(-5)	sign(5)	sign(0)
 10	-1	1	0
 explain extended select abs(-10), sign(-5), sign(5), sign(0);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select abs(-(10)) AS `abs(-10)`,sign(-(5)) AS `sign(-5)`,sign(5) AS `sign(5)`,sign(0) AS `sign(0)`
 select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
 log(exp(10))	exp(log(sqrt(10))*2)	log(-1)	log(NULL)	log(1,1)	log(3,9)	log(-1,2)	log(NULL,2)
 10	10	NULL	NULL	NULL	2	NULL	NULL
 explain extended select log(exp(10)),exp(log(sqrt(10))*2),log(-1),log(NULL),log(1,1),log(3,9),log(-1,2),log(NULL,2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select log(exp(10)) AS `log(exp(10))`,exp((log(sqrt(10)) * 2)) AS `exp(log(sqrt(10))*2)`,log(-(1)) AS `log(-1)`,log(NULL) AS `log(NULL)`,log(1,1) AS `log(1,1)`,log(3,9) AS `log(3,9)`,log(-(1),2) AS `log(-1,2)`,log(NULL,2) AS `log(NULL,2)`
 select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
 ln(exp(10))	exp(ln(sqrt(10))*2)	ln(-1)	ln(0)	ln(NULL)
 10	10	NULL	NULL	NULL
 explain extended select ln(exp(10)),exp(ln(sqrt(10))*2),ln(-1),ln(0),ln(NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select ln(exp(10)) AS `ln(exp(10))`,exp((ln(sqrt(10)) * 2)) AS `exp(ln(sqrt(10))*2)`,ln(-(1)) AS `ln(-1)`,ln(0) AS `ln(0)`,ln(NULL) AS `ln(NULL)`
 select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
 log2(8)	log2(15)	log2(-2)	log2(0)	log2(NULL)
 3	3.9068905956085	NULL	NULL	NULL
 explain extended select log2(8),log2(15),log2(-2),log2(0),log2(NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select log2(8) AS `log2(8)`,log2(15) AS `log2(15)`,log2(-(2)) AS `log2(-2)`,log2(0) AS `log2(0)`,log2(NULL) AS `log2(NULL)`
 select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
 log10(100)	log10(18)	log10(-4)	log10(0)	log10(NULL)
 2	1.2552725051033	NULL	NULL	NULL
 explain extended select log10(100),log10(18),log10(-4),log10(0),log10(NULL);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select log10(100) AS `log10(100)`,log10(18) AS `log10(18)`,log10(-(4)) AS `log10(-4)`,log10(0) AS `log10(0)`,log10(NULL) AS `log10(NULL)`
 select pow(10,log10(10)),power(2,4);
 pow(10,log10(10))	power(2,4)
 10	16
 explain extended select pow(10,log10(10)),power(2,4);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select pow(10,log10(10)) AS `pow(10,log10(10))`,pow(2,4) AS `power(2,4)`
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
@@ -87,16 +87,16 @@ select rand(999999),rand();
 rand(999999)	rand()
 0.014231365187309	0.028870999839968
 explain extended select rand(999999),rand();
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select sql_no_cache rand(999999) AS `rand(999999)`,rand() AS `rand()`
 select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
 pi()	format(sin(pi()/2),6)	format(cos(pi()/2),6)	format(abs(tan(pi())),6)	format(cot(1),6)	format(asin(1),6)	format(acos(0),6)	format(atan(1),6)
 3.141593	1.000000	0.000000	0.000000	0.642093	1.570796	1.570796	0.785398
 explain extended select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(abs(tan(pi())),6),format(cot(1),6),format(asin(1),6),format(acos(0),6),format(atan(1),6);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select pi() AS `pi()`,format(sin((pi() / 2)),6) AS `format(sin(pi()/2),6)`,format(cos((pi() / 2)),6) AS `format(cos(pi()/2),6)`,format(abs(tan(pi())),6) AS `format(abs(tan(pi())),6)`,format((1 / tan(1)),6) AS `format(cot(1),6)`,format(asin(1),6) AS `format(asin(1),6)`,format(acos(0),6) AS `format(acos(0),6)`,format(atan(1),6) AS `format(atan(1),6)`
 select degrees(pi()),radians(360);
@@ -124,8 +124,8 @@ select format(4.55, 1), format(4.551, 1);
 format(4.55, 1)	format(4.551, 1)
 4.6	4.6
 explain extended select degrees(pi()),radians(360);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select degrees(pi()) AS `degrees(pi())`,radians(360) AS `radians(360)`
 select rand(rand);
