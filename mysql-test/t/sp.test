@@ -2944,11 +2944,11 @@ begin
 end|
 --disable_parsing
 --replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events;
-show storage engines;
-show master status;
-show slave hosts;
-show slave status;
+show binlog events|
+show storage engines|
+show master status|
+show slave hosts|
+show slave status|
 --enable_parsing
 
 call bug4902()|
