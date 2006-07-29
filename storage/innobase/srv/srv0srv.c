@@ -116,7 +116,7 @@ ulint	srv_n_log_groups	= ULINT_MAX;
 ulint	srv_n_log_files		= ULINT_MAX;
 ulint	srv_log_file_size	= ULINT_MAX;	/* size in database pages */
 ulint	srv_log_buffer_size	= ULINT_MAX;	/* size in database pages */
-ulint	srv_flush_log_at_trx_commit = 1;
+ulong	srv_flush_log_at_trx_commit = 1;
 
 byte	srv_latin1_ordering[256]	/* The sort order table of the latin1
 					character set. The following table is

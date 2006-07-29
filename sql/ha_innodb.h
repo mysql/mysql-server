@@ -206,7 +206,6 @@ class ha_innobase: public handler
 };
 
 extern SHOW_VAR innodb_status_variables[];
-extern uint innobase_flush_log_at_trx_commit;
 extern ulong innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
 extern long innobase_mirrored_log_groups, innobase_log_files_in_group;
@@ -243,6 +242,7 @@ extern ulong srv_n_free_tickets_to_enter;
 extern ulong srv_thread_sleep_delay;
 extern ulong srv_thread_concurrency;
 extern ulong srv_commit_concurrency;
+extern ulong srv_flush_log_at_trx_commit;
 }
 
 int innobase_init(void);

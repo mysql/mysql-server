@@ -402,6 +402,7 @@ extern ulong srv_n_free_tickets_to_enter;
 extern ulong srv_thread_sleep_delay;
 extern ulong srv_thread_concurrency;
 extern ulong srv_commit_concurrency;
+extern ulong srv_flush_log_at_trx_commit;
 }
 #endif
 #ifdef WITH_BERKELEY_STORAGE_ENGINE
@@ -5127,8 +5128,8 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &innobase_file_per_table, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb_flush_log_at_trx_commit", OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
    "Set to 0 (write and flush once per second), 1 (write and flush at each commit) or 2 (write at commit, flush once per second).",
-   (gptr*) &innobase_flush_log_at_trx_commit,
-   (gptr*) &innobase_flush_log_at_trx_commit,
+   (gptr*) &srv_flush_log_at_trx_commit,
+   (gptr*) &srv_flush_log_at_trx_commit,
    0, GET_ULONG, OPT_ARG,  1, 0, 2, 0, 0, 0},
   {"innodb_flush_method", OPT_INNODB_FLUSH_METHOD,
    "With which method to flush data.", (gptr*) &innobase_unix_file_flush_method,
