@@ -1141,6 +1141,9 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
     block_info.second_read= 0;
     do
     {
+      /* A corrupted table can have wrong pointers. (Bug# 19835) */
+      if (filepos == HA_OFFSET_ERROR)
+        goto panic;
       if (info->opt_flag & WRITE_CACHE_USED &&
 	  info->rec_cache.pos_in_file < filepos + MI_BLOCK_INFO_HEADER_LENGTH &&
 	  flush_io_cache(&info->rec_cache))
