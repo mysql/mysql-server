@@ -19,11 +19,11 @@ begin
   show grants for 'root'@'localhost';
 end|
 --disable_parsing
-show binlog events;
-show storage engines;
-show master status;
-show slave hosts;
-show slave status;
+show binlog events|
+show storage engines|
+show master status|
+show slave hosts|
+show slave status|
 --enable_parsing
 
 call bug4902()|
@@ -110,7 +110,7 @@ flush status|
 flush query cache|
 delete from t1|
 drop procedure bug3583|
-drop table t1;
+drop table t1|
 
 #
 # BUG#6807: Stored procedure crash if CREATE PROCEDURE ... KILL QUERY
