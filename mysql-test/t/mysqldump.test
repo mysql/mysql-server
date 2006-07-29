@@ -759,7 +759,7 @@ create table t3(a int);
 --exec $MYSQL_DUMP --skip-comments --force --no-data test t3 t1 non_existing t2
 drop table t1, t2, t3;
 
---echo End of 4.1 tests
+#
 # Bug #13318: Bad result with empty field and --hex-blob
 # 
 create table t1 (a binary(1), b blob);
@@ -1095,7 +1095,7 @@ SET SQL_MODE = @old_sql_mode;
 DROP TRIGGER tr1;
 DROP TABLE t1;
 
-#
+--echo End of 4.1 tests
 
 #
 # Bug 14871 Invalid view dump output
@@ -1241,7 +1241,11 @@ drop view nasishnasifu;
 drop database mysqldump_views;
 drop table mysqldump_tables.basetable;
 drop database mysqldump_tables;
+use test;
 
+--echo End of 5.0 tests
+
+#
 # Added for use-thread option
 #
 create table t1 (a text , b text);
@@ -1337,3 +1341,5 @@ insert into t1 values (0815);
 drop view v1;
 drop table t1;
 drop database mysqldump_test_db;
+
+--echo End of 5.1 tests
