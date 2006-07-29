@@ -478,7 +478,8 @@ static SEL_ARG *get_mm_leaf(RANGE_OPT_PARAM *param,COND *cond_func,Field *field,
 static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond);
 
 static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts);
-static ha_rows check_quick_select(PARAM *param,uint index,SEL_ARG *key_tree);
+static ha_rows check_quick_select(PARAM *param,uint index,SEL_ARG *key_tree, 
+                                  bool update_tbl_stats);
 static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
 				char *min_key,uint min_key_flag,
 				char *max_key, uint max_key_flag);
@@ -488,6 +489,7 @@ QUICK_RANGE_SELECT *get_quick_select(PARAM *param,uint index,
                                      MEM_ROOT *alloc = NULL);
 static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                        bool index_read_must_be_used,
+                                       bool update_tbl_stats,
                                        double read_time);
 static
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
@@ -1854,16 +1856,46 @@ static int fill_used_fields_bitmap(PARAM *param)
       quick      - Parameter to use when reading records.
 
     In the table struct the following information is updated:
-      quick_keys - Which keys can be used
-      quick_rows - How many rows the key matches
+      quick_keys           - Which keys can be used
+      quick_rows           - How many rows the key matches
+      quick_condition_rows - E(# rows that will satisfy the table condition)
+
+  IMPLEMENTATION
+    quick_condition_rows value is obtained as follows:
+      
+      It is a minimum of E(#output rows) for all considered table access
+      methods (range and index_merge accesses over various indexes).
+    
+    The obtained value is not a true E(#rows that satisfy table condition)
+    but rather a pessimistic estimate. To obtain a true E(#...) one would
+    need to combine estimates of various access methods, taking into account
+    correlations between sets of rows they will return.
+    
+    For example, if values of tbl.key1 and tbl.key2 are independent (a right
+    assumption if we have no information about their correlation) then the
+    correct estimate will be:
+    
+      E(#rows("tbl.key1 < c1 AND tbl.key2 < c2")) = 
+      = E(#rows(tbl.key1 < c1)) / total_rows(tbl) * E(#rows(tbl.key2 < c2)
+
+    which is smaller than 
+      
+       MIN(E(#rows(tbl.key1 < c1), E(#rows(tbl.key2 < c2)))
+
+    which is currently produced.
 
   TODO
-   Check if this function really needs to modify keys_to_use, and change the
-   code to pass it by reference if it doesn't.
+   * Change the value returned in quick_condition_rows from a pessimistic
+     estimate to true E(#rows that satisfy table condition). 
+     (we can re-use some of E(#rows) calcuation code from index_merge/intersection 
+      for this)
+   
+   * Check if this function really needs to modify keys_to_use, and change the
+     code to pass it by reference if it doesn't.
 
-   In addition to force_quick_range other means can be (an usually are) used
-   to make this function prefer range over full table scan. Figure out if
-   force_quick_range is really needed.
+   * In addition to force_quick_range other means can be (an usually are) used
+     to make this function prefer range over full table scan. Figure out if
+     force_quick_range is really needed.
 
   RETURN
    -1 if impossible select (i.e. certainly no rows will be selected)
@@ -2015,10 +2047,15 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       Notice that it can be constructed no matter if there is a range tree.
     */
     group_trp= get_best_group_min_max(&param, tree);
-    if (group_trp && group_trp->read_cost < best_read_time)
+    if (group_trp)
     {
-      best_trp= group_trp;
-      best_read_time= best_trp->read_cost;
+      param.table->quick_condition_rows= min(group_trp->records,
+                                             head->file->stats.records);
+      if (group_trp->read_cost < best_read_time)
+      {
+        best_trp= group_trp;
+        best_read_time= best_trp->read_cost;
+      }
     }
 
     if (tree)
@@ -2034,7 +2071,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         bool can_build_covering= FALSE;
 
         /* Get best 'range' plan and prepare data for making other plans */
-        if ((range_trp= get_key_scans_params(&param, tree, FALSE,
+        if ((range_trp= get_key_scans_params(&param, tree, FALSE, TRUE,
                                              best_read_time)))
         {
           best_trp= range_trp;
@@ -2077,13 +2114,15 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         SEL_IMERGE *imerge;
         TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
         LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
-
         DBUG_PRINT("info",("No range reads possible,"
                            " trying to construct index_merge"));
         List_iterator_fast<SEL_IMERGE> it(tree->merges);
         while ((imerge= it++))
         {
           new_conj_trp= get_best_disjunct_quick(&param, imerge, best_read_time);
+          if (new_conj_trp)
+            set_if_smaller(param.table->quick_condition_rows, 
+                           new_conj_trp->records);
           if (!best_conj_trp || (new_conj_trp && new_conj_trp->read_cost <
                                  best_conj_trp->read_cost))
             best_conj_trp= new_conj_trp;
@@ -3381,7 +3420,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   {
     DBUG_EXECUTE("info", print_sel_tree(param, *ptree, &(*ptree)->keys_map,
                                         "tree in SEL_IMERGE"););
-    if (!(*cur_child= get_key_scans_params(param, *ptree, TRUE, read_time)))
+    if (!(*cur_child= get_key_scans_params(param, *ptree, TRUE, FALSE, read_time)))
     {
       /*
         One of index scans in this index_merge is more expensive than entire
@@ -4282,6 +4321,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     ha_rows best_rows = double2rows(intersect_best->out_rows);
     if (!best_rows)
       best_rows= 1;
+    set_if_smaller(param->table->quick_condition_rows, best_rows);
     trp->records= best_rows;
     trp->index_scan_costs= intersect_best->index_scan_costs;
     trp->cpk_scan= cpk_scan_used? cpk_scan: NULL;
@@ -4432,6 +4472,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   trp->read_cost= total_cost;
   trp->records= records;
   trp->cpk_scan= NULL;
+  set_if_smaller(param->table->quick_condition_rows, records); 
 
   DBUG_PRINT("info",
              ("Returning covering ROR-intersect plan: cost %g, records %lu",
@@ -4456,7 +4497,8 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
 */
 
 static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
-                                       bool index_read_must_be_used,
+                                       bool index_read_must_be_used, 
+                                       bool update_tbl_stats,
                                        double read_time)
 {
   int idx;
@@ -4491,7 +4533,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       bool read_index_only= index_read_must_be_used ? TRUE :
                             (bool) param->table->used_keys.is_set(keynr);
 
-      found_records= check_quick_select(param, idx, *key);
+      found_records= check_quick_select(param, idx, *key, update_tbl_stats);
       if (param->is_ror_scan)
       {
         tree->n_ror_scans++;
@@ -6637,9 +6679,12 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
   SYNOPSIS
     check_quick_select
       param  Parameter from test_quick_select
-      idx    Number of index to use in PARAM::key SEL_TREE::key
-      tree   Transformed selection condition, tree->key[idx] holds intervals
-             tree to be used for scanning.
+      idx               Number of index to use in tree->keys
+      tree              Transformed selection condition, tree->keys[idx]
+                        holds the range tree to be used for scanning.
+      update_tbl_stats  If true, update table->quick_keys with information
+                        about range scan we've evaluated.
+
   NOTES
     param->is_ror_scan is set to reflect if the key scan is a ROR (see
     is_key_scan_ror function for more info)
@@ -6653,7 +6698,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
 */
 
 static ha_rows
-check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
+check_quick_select(PARAM *param,uint idx,SEL_ARG *tree, bool update_tbl_stats)
 {
   ha_rows records;
   bool    cpk_scan;
@@ -6694,10 +6739,19 @@ check_quick_select(PARAM *param,uint idx,SEL_ARG *tree)
   records=check_quick_keys(param,idx,tree,param->min_key,0,param->max_key,0);
   if (records != HA_POS_ERROR)
   {
-    param->table->quick_keys.set_bit(key);
+    if (update_tbl_stats)
+    {
+      param->table->quick_keys.set_bit(key);
+      param->table->quick_key_parts[key]=param->max_key_part+1;
+      param->table->quick_n_ranges[key]= param->n_ranges;
+      param->table->quick_condition_rows=
+        min(param->table->quick_condition_rows, records);
+    }
+    /*
+      Need to save quick_rows in any case as it is used when calculating
+      cost of ROR intersection:
+    */
     param->table->quick_rows[key]=records;
-    param->table->quick_key_parts[key]=param->max_key_part+1;
-    param->table->quick_n_ranges[key]= param->n_ranges;
     if (cpk_scan)
       param->is_ror_scan= TRUE;
   }
@@ -8847,7 +8901,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
                                            &cur_param_idx);
       /* Check if this range tree can be used for prefix retrieval. */
       cur_quick_prefix_records= check_quick_select(param, cur_param_idx,
-                                                    cur_index_tree);
+                                                    cur_index_tree, TRUE);
     }
     cost_group_min_max(table, cur_index_info, used_key_parts,
                        cur_group_key_parts, tree, cur_index_tree,

@@ -88,8 +88,8 @@ select old_password(' i 	 d k f a ');
 old_password(' i 	 d k f a ')
 5c078dc54ca0fcca
 explain extended select password('idkfa '), old_password('idkfa');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select password(_latin1'idkfa ') AS `password('idkfa ')`,old_password(_latin1'idkfa') AS `old_password('idkfa')`
 select encrypt('1234','_.');

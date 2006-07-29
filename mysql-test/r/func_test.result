@@ -45,8 +45,8 @@ select 3 ^ 11, 1 ^ 1, 1 ^ 0, 1 ^ NULL, NULL ^ 1;
 3 ^ 11	1 ^ 1	1 ^ 0	1 ^ NULL	NULL ^ 1
 8	0	1	NULL	NULL
 explain extended select 3 ^ 11, 1 ^ 1, 1 ^ 0, 1 ^ NULL, NULL ^ 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select (3 ^ 11) AS `3 ^ 11`,(1 ^ 1) AS `1 ^ 1`,(1 ^ 0) AS `1 ^ 0`,(1 ^ NULL) AS `1 ^ NULL`,(NULL ^ 1) AS `NULL ^ 1`
 select 1 XOR 1, 1 XOR 0, 0 XOR 1, 0 XOR 0, NULL XOR 1, 1 XOR NULL, 0 XOR NULL;
@@ -59,16 +59,16 @@ select 10 % 7, 10 mod 7, 10 div 3;
 10 % 7	10 mod 7	10 div 3
 3	3	3
 explain extended select 10 % 7, 10 mod 7, 10 div 3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select (10 % 7) AS `10 % 7`,(10 % 7) AS `10 mod 7`,(10 DIV 3) AS `10 div 3`
 select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
 (1 << 64)-1	((1 << 64)-1) DIV 1	((1 << 64)-1) DIV 2
 18446744073709551615	18446744073709551615	9223372036854775807
 explain extended select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select ((1 << 64) - 1) AS `(1 << 64)-1`,(((1 << 64) - 1) DIV 1) AS `((1 << 64)-1) DIV 1`,(((1 << 64) - 1) DIV 2) AS `((1 << 64)-1) DIV 2`
 create table t1 (a int);
@@ -76,16 +76,16 @@ insert t1 values (1);
 select * from t1 where 1 xor 1;
 a
 explain extended select * from t1 where 1 xor 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1`
 select - a from t1;
 - a
 -1
 explain extended select - a from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
 Note	1003	select -(`test`.`t1`.`a`) AS `- a` from `test`.`t1`
 drop table t1;
@@ -105,8 +105,8 @@ select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
 _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci
 1
 explain extended select _koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select (_koi8r'a' = (_koi8r'A' collate koi8r_general_ci)) AS `_koi8r'a' = _koi8r'A' COLLATE koi8r_general_ci`
 select _koi8r'a' = _koi8r'A' COLLATE koi8r_bin;
