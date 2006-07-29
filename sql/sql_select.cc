@@ -8442,13 +8442,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         param->group_length : 0,
                         NullS))
   {
-    bitmap_clear_bit(&temp_pool, temp_pool_slot);
+    if (temp_pool_slot != MY_BIT_NONE)
+      bitmap_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   /* Copy_field belongs to TMP_TABLE_PARAM, allocate it in THD mem_root */
   if (!(param->copy_field= copy= new (thd->mem_root) Copy_field[field_count]))
   {
-    bitmap_clear_bit(&temp_pool, temp_pool_slot);
+    if (temp_pool_slot != MY_BIT_NONE)
+      bitmap_clear_bit(&temp_pool, temp_pool_slot);
     free_root(&own_root, MYF(0));               /* purecov: inspected */
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
@@ -8972,7 +8974,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 err:
   thd->mem_root= mem_root_save;
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  bitmap_clear_bit(&temp_pool, temp_pool_slot);
+  if (temp_pool_slot != MY_BIT_NONE)
+    bitmap_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -9260,7 +9263,8 @@ free_tmp_table(THD *thd, TABLE *entry)
     (*ptr)->free();
   free_io_cache(entry);
 
-  bitmap_clear_bit(&temp_pool, entry->temp_pool_slot);
+  if (entry->temp_pool_slot != MY_BIT_NONE)
+    bitmap_clear_bit(&temp_pool, entry->temp_pool_slot);
 
   free_root(&own_root, MYF(0)); /* the table is allocated in its own root */
   thd->proc_info=save_proc_info;
