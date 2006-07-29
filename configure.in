@@ -2339,12 +2339,16 @@ then
   man_dirs="man"
   man1_files=`ls -1 $srcdir/man/*.1 | sed -e 's;^.*man/;;'`
   man1_files=`echo $man1_files`
+  man8_files=`ls -8 $srcdir/man/*.8 | sed -e 's;^.*man/;;'`
+  man8_files=`echo $man8_files`
 else
   man_dirs=""
   man1_files=""
+  man8_files=""
 fi
 AC_SUBST(man_dirs)
 AC_SUBST(man1_files)
+AC_SUBST(man8_files)
 
 # Shall we build the bench code?
 AC_ARG_WITH(bench,
