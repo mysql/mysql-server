@@ -6577,10 +6577,19 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
   
   store_key_image_to_rec(field, max_value, len);
   b= field->val_int();
+  
+  /* 
+    Handle a special case where the distance between interval bounds is 
+    exactly 4G-1. This interval is too big for range walking, and if it is an
+    (x,y]-type interval then the following "b +=..." code will convert it to 
+    an empty interval by "wrapping around" a + 4G-1 + 1 = a. 
+  */
+  if ((ulonglong)b - (ulonglong)a == ~0ULL)
+    return -1;
 
   a += test(flags & NEAR_MIN);
   b += test(!(flags & NEAR_MAX));
-  uint n_values= b - a;
+  ulonglong n_values= b - a;
   
   if (n_values > total_parts || n_values > MAX_RANGE_TO_WALK)
     return -1;
@@ -6684,7 +6693,8 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
   while (part_iter->field_vals.cur != part_iter->field_vals.end)
   {
     longlong dummy;
-    field->store(part_iter->field_vals.cur++, FALSE);
+    field->store(part_iter->field_vals.cur++,
+                 ((Field_num*)field)->unsigned_flag);
     if (part_iter->part_info->is_sub_partitioned() &&
         !part_iter->part_info->get_part_partition_id(part_iter->part_info,
                                                      &part_id, &dummy) ||
@@ -6692,8 +6702,6 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR *part_iter)
                                                 &part_id, &dummy))
       return part_id;
   }
-  //psergey-todo: return partition(part_func(NULL)) here...
-  
   part_iter->field_vals.cur= part_iter->field_vals.start;
   return NOT_A_PARTITION_ID;
 }
