@@ -1558,9 +1558,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select distinct a1,a2,b from t1 where (a2 >= 'b') and (b = 'a');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
-explain select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
+explain extended select distinct a1,a2,b,c from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	50.78	Using where; Using index
+Warnings:
+Note	1003	select distinct `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = _latin1'i121') and (`test`.`t1`.`b` = _latin1'a') and (`test`.`t1`.`a2` >= _latin1'b'))
 explain select distinct a1,a2,b from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	14	Using where; Using index for group-by
@@ -1573,9 +1575,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select distinct a1,a2,b from t2 where (a2 >= 'b') and (b = 'a');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	NULL	idx_t2_1	146	NULL	#	Using where; Using index for group-by
-explain select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+explain extended select distinct a1,a2,b,c from t2 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	index	NULL	idx_t2_1	163	NULL	164	50.61	Using where; Using index
+Warnings:
+Note	1003	select distinct `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`c` = _latin1'i121') and (`test`.`t2`.`b` = _latin1'a') and (`test`.`t2`.`a2` >= _latin1'b'))
 explain select distinct a1,a2,b from t2 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	range	idx_t2_0,idx_t2_1,idx_t2_2	idx_t2_1	146	NULL	#	Using where; Using index for group-by
@@ -1800,15 +1804,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select count(distinct a1,a2,b,c) from t1 where (a2 >= 'b') and (b = 'a') and (c = 'i121');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
-explain select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	Using where; Using index
+explain extended select count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a') and (b = 'c');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	75.00	Using where; Using index
+Warnings:
+Note	1003	select count(distinct `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`) AS `count(distinct a1,a2,b)` from `test`.`t1` where ((`test`.`t1`.`b` = _latin1'c') and (`test`.`t1`.`a1` > _latin1'a') and (`test`.`t1`.`a2` > _latin1'a'))
 explain select count(distinct b) from t1 where (a2 >= 'b') and (b = 'a');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx_t1_2	147	NULL	128	Using where; Using index
-explain select ord(a1) + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	Using where; Using index
+explain extended select ord(a1) + count(distinct a1,a2,b) from t1 where (a1 > 'a') and (a2 > 'a');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_2	147	NULL	128	75.00	Using where; Using index
+Warnings:
+Note	1003	select (ord(`test`.`t1`.`a1`) + count(distinct `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`)) AS `ord(a1) + count(distinct a1,a2,b)` from `test`.`t1` where ((`test`.`t1`.`a1` > _latin1'a') and (`test`.`t1`.`a2` > _latin1'a'))
 select count(distinct a1,a2,b) from t1 where (a2 >= 'b') and (b = 'a');
 count(distinct a1,a2,b)
 4
@@ -1911,24 +1919,32 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select a1,a2,b,d from t1 group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	128	Using temporary; Using filesort
-explain select a1,a2,min(b),max(b) from t1
+explain extended select a1,a2,min(b),max(b) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	130	NULL	76	Using where; Using index
-explain select a1,a2,b,min(c),max(c) from t1
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	130	NULL	76	85.53	Using where; Using index
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,min(`test`.`t1`.`b`) AS `min(b)`,max(`test`.`t1`.`b`) AS `max(b)` from `test`.`t1` where (((`test`.`t1`.`a1` = _latin1'b') or (`test`.`t1`.`a1` = _latin1'd') or (`test`.`t1`.`a1` = _latin1'a') or (`test`.`t1`.`a1` = _latin1'c')) and (`test`.`t1`.`a2` > _latin1'a') and (`test`.`t1`.`c` > _latin1'a111')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`
+explain extended select a1,a2,b,min(c),max(c) from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	idx_t1_0,idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	Using where; Using temporary; Using filesort
-explain select a1,a2,b,c from t1
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	idx_t1_0,idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	50.78	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where (((`test`.`t1`.`a1` = _latin1'b') or (`test`.`t1`.`a1` = _latin1'd') or (`test`.`t1`.`a1` = _latin1'a') or (`test`.`t1`.`a1` = _latin1'c')) and (`test`.`t1`.`a2` > _latin1'a') and (`test`.`t1`.`d` > _latin1'xy2')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
+explain extended select a1,a2,b,c from t1
 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (d > 'xy2') group by a1,a2,b,c;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	idx_t1_0,idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	Using where; Using temporary; Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	idx_t1_0,idx_t1_1,idx_t1_2	NULL	NULL	NULL	128	50.78	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`a1` = _latin1'b') or (`test`.`t1`.`a1` = _latin1'd') or (`test`.`t1`.`a1` = _latin1'a') or (`test`.`t1`.`a1` = _latin1'c')) and (`test`.`t1`.`a2` > _latin1'a') and (`test`.`t1`.`d` > _latin1'xy2')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`,`test`.`t1`.`c`
 explain select a1,a2,b,max(c),min(c) from t2 where (a2 = 'a') and (b = 'b') or (b < 'b') group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
-explain select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	130	NULL	76	Using where; Using index
+explain extended select a1,a2,b from t1 where (a1 = 'b' or a1 = 'd' or a1 = 'a' or a1 = 'c') and (a2 > 'a') and (c > 'a111') group by a1,a2,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	130	NULL	76	85.53	Using where; Using index
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a1` = _latin1'b') or (`test`.`t1`.`a1` = _latin1'd') or (`test`.`t1`.`a1` = _latin1'a') or (`test`.`t1`.`a1` = _latin1'c')) and (`test`.`t1`.`a2` > _latin1'a') and (`test`.`t1`.`c` > _latin1'a111')) group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain select a1,a2,min(b),c from t2 where (a2 = 'a') and (c = 'a111') group by a1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
@@ -1948,12 +1964,16 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select a1,a2,count(a2) from t1 group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	Using index
-explain select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	Using where; Using index
-explain select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	Using where; Using index
+explain extended select a1,a2,count(a2) from t1 where (a1 > 'a') group by a1,a2,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	75.00	Using where; Using index
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,count(`test`.`t1`.`a2`) AS `count(a2)` from `test`.`t1` where (`test`.`t1`.`a1` > _latin1'a') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
+explain extended select sum(ord(a1)) from t1 where (a1 > 'a') group by a1,a2,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	163	NULL	128	75.00	Using where; Using index
+Warnings:
+Note	1003	select sum(ord(`test`.`t1`.`a1`)) AS `sum(ord(a1))` from `test`.`t1` where (`test`.`t1`.`a1` > _latin1'a') group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain select distinct(a1) from t1 where ord(a2) = 98;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index

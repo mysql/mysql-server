@@ -48,8 +48,8 @@ ERROR 42S22: Unknown column 'b' in 'field list'
 select v1.b from v1;
 ERROR 42S22: Unknown column 'v1.b' in 'field list'
 explain extended select c from v1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
 Note	1003	select (`test`.`t1`.`b` + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v2 (c) as select b+1 from t1;
@@ -64,9 +64,9 @@ c
 6
 11
 explain extended select c from v2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
 Note	1003	select `v2`.`c` AS `c` from `test`.`v2`
 create view v3 (c) as select a+1 from v1;
@@ -82,8 +82,8 @@ c
 7
 12
 explain extended select c from v3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
 Note	1003	select ((`test`.`t1`.`b` + 1) + 1) AS `c` from `test`.`t1`
 create algorithm=temptable view v4 (c) as select c+1 from v2;
@@ -95,10 +95,10 @@ c
 7
 12
 explain extended select c from v4;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
-2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	5	
-3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	
+2	DERIVED	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
 Note	1003	select `v4`.`c` AS `c` from `test`.`v4`
 create view v5 (c) as select c+1 from v2;
@@ -110,9 +110,9 @@ c
 7
 12
 explain extended select c from v5;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	
-3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived3>	ALL	NULL	NULL	NULL	NULL	5	100.00	
+3	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
 Note	1003	select (`v2`.`c` + 1) AS `c` from `test`.`v2`
 create algorithm=temptable view v6 (c) as select c+1 from v1;
@@ -124,9 +124,9 @@ c
 7
 12
 explain extended select c from v6;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
 Note	1003	select `v6`.`c` AS `c` from `test`.`v6`
 show tables;
@@ -375,8 +375,8 @@ c
 20
 30
 explain extended select * from v1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`b` AS `c` from `test`.`t1` where (`test`.`t1`.`a` < 3)
 update v1 set c=c+1;
@@ -1390,10 +1390,10 @@ a	a	b
 2	2	NULL
 4	NULL	NULL
 explain extended select * from t3 left join v3 on (t3.a = v3.a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
 create view v1 (a) as select a from t1;
@@ -1405,10 +1405,10 @@ a	a	b
 2	2	NULL
 4	NULL	NULL
 explain extended select * from t3 left join v4 on (t3.a = v4.a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
