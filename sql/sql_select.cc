@@ -679,6 +679,24 @@ JOIN::optimize()
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
+      /*
+        Extract all table-independent conditions and replace the WHERE
+        clause with them. All other conditions were computed by opt_sum_query
+        and the MIN/MAX/COUNT function(s) have been replaced by constants,
+        so there is no need to compute the whole WHERE clause again.
+        Notice that make_cond_for_table() will always succeed to remove all
+        computed conditions, because opt_sum_query() is applicable only to
+        conjunctions.
+      */
+      if (conds)
+      {
+        COND *table_independent_conds=
+          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0);
+        DBUG_EXECUTE("where",
+                     print_where(table_independent_conds,
+                                 "where after opt_sum_query()"););
+        conds= table_independent_conds;
+      }
     }
   }
   if (!tables_list)
