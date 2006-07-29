@@ -15029,6 +15029,49 @@ static void test_bug20152()
 
 
 /*
+  Bug#21206: memory corruption when too many cursors are opened at once
+
+  Memory corruption happens when more than 1024 cursors are open
+  simultaneously.
+*/
+static void test_bug21206()
+{
+  const size_t cursor_count= 1025;
+
+  const char *create_table[]=
+  {
+    "DROP TABLE IF EXISTS t1",
+    "CREATE TABLE t1 (i INT)",
+    "INSERT INTO t1 VALUES (1), (2), (3)"
+  };
+  const char *query= "SELECT * FROM t1";
+
+  Stmt_fetch *fetch_array=
+    (Stmt_fetch*) calloc(cursor_count, sizeof(Stmt_fetch));
+
+  Stmt_fetch *fetch;
+
+  DBUG_ENTER("test_bug21206");
+  myheader("test_bug21206");
+
+  fill_tables(create_table, sizeof(create_table) / sizeof(*create_table));
+
+  for (fetch= fetch_array; fetch < fetch_array + cursor_count; ++fetch)
+  {
+    /* Init will exit(1) in case of error */
+    stmt_fetch_init(fetch, fetch - fetch_array, query);
+  }
+
+  for (fetch= fetch_array; fetch < fetch_array + cursor_count; ++fetch)
+    stmt_fetch_close(fetch);
+
+  free(fetch_array);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -15300,6 +15343,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug14169", test_bug14169 },
   { "test_bug17667", test_bug17667 },
   { "test_bug19671", test_bug19671},
+  { "test_bug21206", test_bug21206},
   { 0, 0 }
 };
 
