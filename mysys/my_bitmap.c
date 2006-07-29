@@ -445,7 +445,7 @@ uint bitmap_get_first(const MY_BITMAP *map)
 {
   uchar *bitmap=map->bitmap;
   uint bit_found = MY_BIT_NONE;
-  uint bitmap_size=map->bitmap_size*8;
+  uint bitmap_size=map->bitmap_size;
   uint i;
 
   DBUG_ASSERT(map->bitmap);
