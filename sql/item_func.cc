@@ -402,6 +402,12 @@ Field *Item_func::tmp_table_field(TABLE *table)
 }
 
 
+bool Item_func::is_expensive_processor(byte *arg)
+{
+  return is_expensive();
+}
+
+
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);

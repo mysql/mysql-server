@@ -5107,6 +5107,7 @@ bool get_schema_tables_result(JOIN *join)
         table_list->table->file->delete_all_rows();
         free_io_cache(table_list->table);
         filesort_free_buffers(table_list->table);
+        table_list->table->null_row= 0;
       }
       else
         table_list->table->file->stats.records= 0;

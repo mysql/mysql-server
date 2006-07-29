@@ -105,6 +105,7 @@ public:
 
 class Item_func_reverse :public Item_str_func
 {
+  String tmp_value;
 public:
   Item_func_reverse(Item *a) :Item_str_func(a) {}
   String *val_str(String *);
@@ -239,6 +240,8 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "trim"; }
+  void print(String *str);
+  virtual const char *mode_name() const { return "both"; }
   bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
@@ -250,6 +253,7 @@ public:
   Item_func_ltrim(Item *a) :Item_func_trim(a) {}
   String *val_str(String *);
   const char *func_name() const { return "ltrim"; }
+  const char *mode_name() const { return "leading"; }
 };
 
 
@@ -260,6 +264,7 @@ public:
   Item_func_rtrim(Item *a) :Item_func_trim(a) {}
   String *val_str(String *);
   const char *func_name() const { return "rtrim"; }
+  const char *mode_name() const { return "trailing"; }
 };
 
 
@@ -741,7 +746,7 @@ public:
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "collate"; }
-  enum Functype func_type() const { return COLLATE_FUNC; }
+  enum Functype functype() const { return COLLATE_FUNC; }
   void print(String *str);
   Item_field *filed_for_view_update()
   {

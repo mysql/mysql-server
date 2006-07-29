@@ -171,6 +171,7 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
         do                                                              \
         {                                                               \
           dec1 a=(from1)+(from2)+(carry);                               \
+          DBUG_ASSERT((carry) <= 1);                                    \
           if (((carry)= a >= DIG_BASE)) /* no division here! */         \
             a-=DIG_BASE;                                                \
           (to)=a;                                                       \
@@ -179,7 +180,7 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
 #define ADD2(to, from1, from2, carry)                                   \
         do                                                              \
         {                                                               \
-          dec1 a=(from1)+(from2)+(carry);                               \
+          dec2 a=((dec2)(from1))+(from2)+(carry);                       \
           if (((carry)= a >= DIG_BASE))                                 \
             a-=DIG_BASE;                                                \
           if (unlikely(a >= DIG_BASE))                                  \
@@ -187,7 +188,7 @@ static const dec1 frac_max[DIG_PER_DEC1-1]={
             a-=DIG_BASE;                                                \
             carry++;                                                    \
           }                                                             \
-          (to)=a;                                                       \
+          (to)=(dec1) a;                                                \
         } while(0)
 
 #define SUB(to, from1, from2, carry) /* to=from1-from2 */               \
@@ -2004,7 +2005,13 @@ int decimal_mul(decimal_t *from1, decimal_t *from2, decimal_t *to)
       ADD2(*buf0, *buf0, lo, carry);
       carry+=hi;
     }
-    for (; carry; buf0--)
+    if (carry)
+    {
+      if (buf0 < to->buf)
+        return E_DEC_OVERFLOW;
+      ADD2(*buf0, *buf0, 0, carry);
+    }
+    for (buf0--; carry; buf0--)
     {
       if (buf0 < to->buf)
         return E_DEC_OVERFLOW;

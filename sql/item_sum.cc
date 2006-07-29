@@ -381,7 +381,9 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
     field= new Field_longlong(max_length, maybe_null, name, unsigned_flag);
     break;
   case STRING_RESULT:
-    if (max_length/collation.collation->mbmaxlen <= 255 || !convert_blob_length)
+    if (max_length/collation.collation->mbmaxlen <= 255 ||
+        max_length/collation.collation->mbmaxlen >=UINT_MAX16 ||
+        !convert_blob_length)
       return make_string_field(table);
     field= new Field_varstring(convert_blob_length, maybe_null,
                                name, table->s, collation.collation);

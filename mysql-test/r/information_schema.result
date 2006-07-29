@@ -1218,6 +1218,76 @@ f1()
 DROP FUNCTION f1;
 DROP PROCEDURE p1;
 DROP USER mysql_bug20230@localhost;
+SELECT t.table_name, c1.column_name
+FROM information_schema.tables t
+INNER JOIN
+information_schema.columns c1
+ON t.table_schema = c1.table_schema AND
+t.table_name = c1.table_name
+WHERE t.table_schema = 'information_schema' AND
+c1.ordinal_position =
+( SELECT COALESCE(MIN(c2.ordinal_position),1)
+FROM information_schema.columns c2
+WHERE c2.table_schema = t.table_schema AND
+c2.table_name = t.table_name AND
+c2.column_name LIKE '%SCHEMA%'
+        );
+table_name	column_name
+CHARACTER_SETS	CHARACTER_SET_NAME
+COLLATIONS	COLLATION_NAME
+COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
+COLUMNS	TABLE_SCHEMA
+COLUMN_PRIVILEGES	TABLE_SCHEMA
+KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+ROUTINES	ROUTINE_SCHEMA
+SCHEMATA	SCHEMA_NAME
+SCHEMA_PRIVILEGES	TABLE_SCHEMA
+STATISTICS	TABLE_SCHEMA
+TABLES	TABLE_SCHEMA
+TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
+TABLE_PRIVILEGES	TABLE_SCHEMA
+TRIGGERS	TRIGGER_SCHEMA
+USER_PRIVILEGES	GRANTEE
+VIEWS	TABLE_SCHEMA
+SELECT t.table_name, c1.column_name
+FROM information_schema.tables t
+INNER JOIN
+information_schema.columns c1
+ON t.table_schema = c1.table_schema AND
+t.table_name = c1.table_name
+WHERE t.table_schema = 'information_schema' AND
+c1.ordinal_position =
+( SELECT COALESCE(MIN(c2.ordinal_position),1)
+FROM information_schema.columns c2
+WHERE c2.table_schema = 'information_schema' AND
+c2.table_name = t.table_name AND
+c2.column_name LIKE '%SCHEMA%'
+        );
+table_name	column_name
+CHARACTER_SETS	CHARACTER_SET_NAME
+COLLATIONS	COLLATION_NAME
+COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME
+COLUMNS	TABLE_SCHEMA
+COLUMN_PRIVILEGES	TABLE_SCHEMA
+KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
+ROUTINES	ROUTINE_SCHEMA
+SCHEMATA	SCHEMA_NAME
+SCHEMA_PRIVILEGES	TABLE_SCHEMA
+STATISTICS	TABLE_SCHEMA
+TABLES	TABLE_SCHEMA
+TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
+TABLE_PRIVILEGES	TABLE_SCHEMA
+TRIGGERS	TRIGGER_SCHEMA
+USER_PRIVILEGES	GRANTEE
+VIEWS	TABLE_SCHEMA
+SELECT MAX(table_name) FROM information_schema.tables;
+MAX(table_name)
+VIEWS
+SELECT table_name from information_schema.tables
+WHERE table_name=(SELECT MAX(table_name)
+FROM information_schema.tables);
+table_name
+VIEWS
 End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
