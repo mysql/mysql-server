@@ -9,3 +9,24 @@
 -- source include/have_innodb.inc
 let $engine_type=innodb;
 -- source extra/rpl_tests/rpl_insert_id.test
+
+connection master;
+drop table t1;
+sync_slave_with_master;
+ 
+#
+# Bug#14553: NULL in WHERE resets LAST_INSERT_ID
+#
+connection master;
+create table t1(a int auto_increment, key(a));
+create table t2(a int);
+insert into t1 (a) values (null);
+insert into t2 (a) select a from t1 where a is null;
+insert into t2 (a) select a from t1 where a is null;
+select * from t2;
+sync_slave_with_master;
+connection slave;
+select * from t2;
+connection master;
+drop table t1;
+drop table t2;

@@ -1276,6 +1276,8 @@ public:
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
   bool	     query_start_used, rand_used, time_zone_used;
+  /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
+  bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
   bool       query_error, bootstrap, cleanup_done;
   bool	     tmp_table_used;

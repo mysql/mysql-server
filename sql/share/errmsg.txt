@@ -5802,6 +5802,8 @@ ER_FOREIGN_DUPLICATE_KEY 23000 S1009
 	eng "Upholding foreign key constraints for table '%.64s', entry '%-.64s', key %d would lead to a duplicate entry"
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use scripts/mysql_fix_privilege_tables"
+ER_REMOVED_SPACES
+        eng "Leading spaces are removed from name '%s'"
 ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
 	eng "Cannot switch out of the row-based binary log format when the session has open temporary tables"
 ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT

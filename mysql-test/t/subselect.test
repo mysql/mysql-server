@@ -1821,6 +1821,54 @@ SELECT * FROM t1
 
 DROP TABLE t1,t2,t3;
 
+#
+# BUG #10308: purge log with subselect
+#
+
+purge master logs before (select adddate(current_timestamp(), interval -4 day));
+
+
+#
+# Bug#18503: Queries with a quantified subquery returning empty set may
+# return a wrong result. 
+#
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f2 INT);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 WHERE f1 > ALL (SELECT f2 FROM t2);
+SELECT * FROM t1 WHERE f1 > ALL (SELECT f2 FROM t2 WHERE 1=0);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t1 WHERE f1 > ALL (SELECT f2 FROM t2 WHERE f2=0);
+DROP TABLE t1, t2;
+
+#
+# Bug#16302: Quantified subquery without any tables gives wrong results
+#
+select 1 from dual where 1 < any (select 2);
+select 1 from dual where 1 < all (select 2);
+select 1 from dual where 2 > any (select 1);
+select 1 from dual where 2 > all (select 1);
+select 1 from dual where 1 < any (select 2 from dual);
+select 1 from dual where 1 < all (select 2 from dual where 1!=1);
+
+# BUG#20975 Wrong query results for subqueries within NOT
+create table t1 (s1 char);
+insert into t1 values (1),(2);
+
+select * from t1 where (s1 < any (select s1 from t1));
+select * from t1 where not (s1 < any (select s1 from t1));
+
+select * from t1 where (s1 < ALL (select s1+1 from t1));
+select * from t1 where not(s1 < ALL (select s1+1 from t1));
+
+select * from t1 where (s1+1 = ANY (select s1 from t1));
+select * from t1 where NOT(s1+1 = ANY (select s1 from t1));
+
+select * from t1 where (s1 = ALL (select s1/s1 from t1));
+select * from t1 where NOT(s1 = ALL (select s1/s1 from t1));
+drop table t1;
+# End of 4.1 tests
 # End of 4.1 tests
 
 #
@@ -2131,3 +2179,81 @@ SELECT t1.i FROM t1 WHERE t1.i = CAST((SELECT MAX(i) FROM t2) AS UNSIGNED);
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+# 
+# Bug#20519: subselect with LIMIT M, N
+#
+
+CREATE TABLE t1 (
+  id bigint(20) unsigned NOT NULL auto_increment,
+  name varchar(255) NOT NULL,
+  PRIMARY KEY  (id)
+);
+INSERT INTO t1 VALUES
+  (1, 'Balazs'), (2, 'Joe'), (3, 'Frank');
+
+CREATE TABLE t2 (
+  id bigint(20) unsigned NOT NULL auto_increment,
+  mid bigint(20) unsigned NOT NULL,
+  date date NOT NULL,
+  PRIMARY KEY  (id)
+);
+INSERT INTO t2 VALUES 
+  (1, 1, '2006-03-30'), (2, 2, '2006-04-06'), (3, 3, '2006-04-13'),
+  (4, 2, '2006-04-20'), (5, 1, '2006-05-01');
+
+SELECT *,
+      (SELECT date FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 0, 1) AS date_last,
+      (SELECT date FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 3, 1) AS date_next_to_last
+  FROM t1;
+SELECT *,
+      (SELECT COUNT(*) FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 1, 1) AS date_count
+  FROM t1;
+SELECT *,
+      (SELECT date FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 0, 1) AS date_last,
+      (SELECT date FROM t2 WHERE mid = t1.id
+         ORDER BY date DESC LIMIT 1, 1) AS date_next_to_last
+  FROM t1;
+DROP TABLE t1,t2;
+
+#
+# Bug#20869: subselect with range access by DESC
+#
+
+CREATE TABLE t1 (
+  i1 int(11) NOT NULL default '0',
+  i2 int(11) NOT NULL default '0',
+  t datetime NOT NULL default '0000-00-00 00:00:00',
+  PRIMARY KEY  (i1,i2,t)
+);
+INSERT INTO t1 VALUES 
+(24,1,'2005-03-03 16:31:31'),(24,1,'2005-05-27 12:40:07'),
+(24,1,'2005-05-27 12:40:08'),(24,1,'2005-05-27 12:40:10'),
+(24,1,'2005-05-27 12:40:25'),(24,1,'2005-05-27 12:40:30'),
+(24,2,'2005-03-03 13:43:05'),(24,2,'2005-03-03 16:23:31'),
+(24,2,'2005-03-03 16:31:30'),(24,2,'2005-05-27 12:37:02'),
+(24,2,'2005-05-27 12:40:06');
+
+CREATE TABLE t2 (
+  i1 int(11) NOT NULL default '0',
+  i2 int(11) NOT NULL default '0',
+  t datetime default NULL,
+  PRIMARY KEY  (i1)
+);
+INSERT INTO t2 VALUES (24,1,'2006-06-20 12:29:40');
+
+EXPLAIN
+SELECT * FROM t1,t2
+  WHERE t1.t = (SELECT t1.t FROM t1 
+                  WHERE t1.t < t2.t  AND t1.i2=1 AND t2.i1=t1.i1
+                    ORDER BY t1.t DESC LIMIT 1);
+SELECT * FROM t1,t2
+  WHERE t1.t = (SELECT t1.t FROM t1 
+                  WHERE t1.t < t2.t  AND t1.i2=1 AND t2.i1=t1.i1
+                    ORDER BY t1.t DESC LIMIT 1);
+
+DROP TABLE t1, t2;

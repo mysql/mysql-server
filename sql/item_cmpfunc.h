@@ -313,6 +313,7 @@ public:
   void set_sum_test(Item_sum_hybrid *item) { test_sum_item= item; };
   void set_sub_test(Item_maxmin_subselect *item) { test_sub_item= item; };
   bool empty_underlying_subquery();
+  Item *neg_transformer(THD *thd);
 };
 
 
@@ -323,6 +324,7 @@ public:
   Item_func_nop_all(Item *a) :Item_func_not_all(a) {}
   longlong val_int();
   const char *func_name() const { return "<nop>"; }
+  Item *neg_transformer(THD *thd);
 };
 
 
