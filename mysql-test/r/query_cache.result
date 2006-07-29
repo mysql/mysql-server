@@ -935,7 +935,6 @@ zyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbazy
 flush query cache;
 drop table t1, t2;
 set GLOBAL query_cache_size=1355776;
-#;
 flush status;
 CREATE TABLE t1 (
 `date` datetime NOT NULL default '0000-00-00 00:00:00',
