@@ -590,3 +590,76 @@ explain partitions select * from t2;
 --horizontal_results
 drop table t2;
 
+
+# BUG#20484 "Partitions: crash with explain and union"
+create table t1 (s1 int);
+explain partitions select 1 from t1 union all select 2;
+drop table t1;
+
+
+# BUG#20257: partition pruning test coverage for BIGINT UNSIGNED
+create table t1 (a bigint unsigned not null) partition by range(a) (
+  partition p0 values less than (10),
+  partition p1 values less than (100),
+  partition p2 values less than (1000),
+  partition p3 values less than (18446744073709551000),
+  partition p4 values less than (18446744073709551614)
+);
+insert into t1 values (5),(15),(105),(1005);
+insert into t1 values (18446744073709551000+1);
+insert into t1 values (18446744073709551614-1);
+
+explain partitions select * from t1 where a < 10;
+explain partitions select * from t1 
+  where a >= 18446744073709551000-1 and a <= 18446744073709551000+1;
+
+explain partitions select * from t1 
+  where a between 18446744073709551001 and 18446744073709551002;
+
+explain partitions select * from t1 where a = 18446744073709551000;
+explain partitions select * from t1 where a = 18446744073709551613;
+explain partitions select * from t1 where a = 18446744073709551614;
+drop table t1;
+
+create table t1 (a int) 
+  partition by range((a & 0xFF) << 56) (
+  partition p0 values less than (0x40 << 56),
+  partition p1 values less than (0x80 << 56),
+  partition p2 values less than (0xFF << 56)
+);
+
+insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE); 
+explain partitions select * from t1 where a=0;
+explain partitions select * from t1 where a=0xFE;
+explain partitions select * from t1 where a>0xFE and a<= 0xFF;
+drop table t1;
+
+create table t1(a bigint unsigned not null) partition by range(a+0) (
+  partition p1 values less than (10),
+  partition p2 values less than (20),
+  partition p3 values less than (2305561538531885056),
+  partition p4 values less than (2305561538531950591)
+);
+
+insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
+insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
+
+explain partitions select * from t1 where 
+  a >= 2305561538531885056-10 and a <= 2305561538531885056-8;
+
+explain partitions select * from t1 where 
+  a > 0xFFFFFFFFFFFFFFEC and a < 0xFFFFFFFFFFFFFFEE;
+
+explain partitions select * from t1 where a>=0 and a <= 0xFFFFFFFFFFFFFFFF;
+drop table t1;
+
+create table t1 (a bigint) partition by range(a+0) (
+  partition p1 values less than (-1000),
+  partition p2 values less than (-10),
+  partition p3 values less than (10),
+  partition p4 values less than (1000)
+);
+insert into t1 values (-15),(-5),(5),(15),(-15),(-5),(5),(15);
+explain partitions select * from t1 where a>-2 and a <=0;
+drop table t1;
+
