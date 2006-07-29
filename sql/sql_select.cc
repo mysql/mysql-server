@@ -14109,6 +14109,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       item_list.push_back(new Item_string(table_name_buffer, len, cs));
     }
+    /* partitions */
+    if (join->thd->lex->describe & DESCRIBE_PARTITIONS)
+      item_list.push_back(item_null);
     /* type */
     item_list.push_back(new Item_string(join_type_str[JT_ALL],
 					  strlen(join_type_str[JT_ALL]),
