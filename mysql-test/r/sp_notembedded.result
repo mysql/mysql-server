@@ -76,8 +76,7 @@ flush status|
 flush query cache|
 delete from t1|
 drop procedure bug3583|
-drop table t1;
-#|
+drop table t1|
 drop procedure if exists bug6807|
 create procedure bug6807()
 begin
