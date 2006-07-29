@@ -571,5 +571,5 @@ SELECT DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896);
 DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '%Y-%m-%d %H:%i:%s'
+Warning	1292	Incorrect datetime value: '%Y-%m-%d %H:%i:%s'
 "End of 4.1 tests"

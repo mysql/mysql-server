@@ -42,3 +42,4 @@ rpl_ndb_idempotent       : BUG#21298 2006-07-27 msvensson
 rpl_row_basic_7ndb       : BUG#21298 2006-07-27 msvensson
 rpl_truncate_7ndb        : BUG#21298 2006-07-27 msvensson
 
+rpl_ndb_dd_advance       : BUG#18679 2006-07-28 jimw (Test fails randomly)
