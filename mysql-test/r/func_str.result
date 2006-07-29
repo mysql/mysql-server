@@ -1041,6 +1041,49 @@ select * from t1 where f1='test' and (f2= sha("TEST") or f2= sha("test"));
 f1	f2
 test	a94a8fe5ccb19ba61c4c0873d391e987982fbbd3
 drop table t1;
+CREATE TABLE t1 (a varchar(10));
+INSERT INTO t1 VALUES ('abc'), ('xyz');
+SELECT a, CONCAT(a,' ',a) AS c FROM t1
+HAVING LEFT(c,LENGTH(c)-INSTR(REVERSE(c)," ")) = a;
+a	c
+abc	abc abc
+xyz	xyz xyz
+SELECT a, CONCAT(a,' ',a) AS c FROM t1
+HAVING LEFT(CONCAT(a,' ',a),
+LENGTH(CONCAT(a,' ',a))-
+INSTR(REVERSE(CONCAT(a,' ',a))," ")) = a;
+a	c
+abc	abc abc
+xyz	xyz xyz
+DROP TABLE t1;
+CREATE TABLE t1 (s varchar(10));
+INSERT INTO t1 VALUES ('yadda'), ('yaddy');
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(s) > 'ab';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(`test`.`t1`.`s`) > _latin1'ab')
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(leading _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(trailing _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+Warnings:
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
+DROP TABLE t1;
 End of 4.1 tests
 create table t1 (d decimal default null);
 insert into t1 values (null);

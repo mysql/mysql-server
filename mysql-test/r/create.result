@@ -465,7 +465,7 @@ t2	CREATE TABLE `t2` (
   `ifnull(h,h)` decimal(5,4) DEFAULT NULL,
   `ifnull(i,i)` year(4) DEFAULT NULL,
   `ifnull(j,j)` date DEFAULT NULL,
-  `ifnull(k,k)` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `ifnull(k,k)` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `ifnull(l,l)` datetime DEFAULT NULL,
   `ifnull(m,m)` varchar(1) DEFAULT NULL,
   `ifnull(n,n)` varchar(3) DEFAULT NULL,
@@ -681,7 +681,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `c` bigint(1) NOT NULL DEFAULT '0',
+  `c` int(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
@@ -694,7 +694,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `c` bigint(1) NOT NULL DEFAULT '0',
+  `c` int(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;

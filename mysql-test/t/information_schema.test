@@ -892,6 +892,49 @@ DROP FUNCTION f1;
 DROP PROCEDURE p1;
 DROP USER mysql_bug20230@localhost;
 
+#
+# Bug#18925: subqueries with MIN/MAX functions on INFORMARTION_SCHEMA 
+#
+
+SELECT t.table_name, c1.column_name
+  FROM information_schema.tables t
+       INNER JOIN
+       information_schema.columns c1
+       ON t.table_schema = c1.table_schema AND
+          t.table_name = c1.table_name
+  WHERE t.table_schema = 'information_schema' AND
+        c1.ordinal_position =
+        ( SELECT COALESCE(MIN(c2.ordinal_position),1)
+            FROM information_schema.columns c2
+            WHERE c2.table_schema = t.table_schema AND
+                  c2.table_name = t.table_name AND
+                  c2.column_name LIKE '%SCHEMA%'
+        );
+SELECT t.table_name, c1.column_name
+  FROM information_schema.tables t
+       INNER JOIN
+       information_schema.columns c1
+       ON t.table_schema = c1.table_schema AND
+          t.table_name = c1.table_name
+  WHERE t.table_schema = 'information_schema' AND
+        c1.ordinal_position =
+        ( SELECT COALESCE(MIN(c2.ordinal_position),1)
+            FROM information_schema.columns c2
+            WHERE c2.table_schema = 'information_schema' AND
+                  c2.table_name = t.table_name AND
+                  c2.column_name LIKE '%SCHEMA%'
+        );
+
+#
+# Bug#21231: query with a simple non-correlated subquery over
+#            INFORMARTION_SCHEMA.TABLES 
+#
+
+SELECT MAX(table_name) FROM information_schema.tables;
+SELECT table_name from information_schema.tables
+  WHERE table_name=(SELECT MAX(table_name)
+                      FROM information_schema.tables);
+
 --echo End of 5.0 tests.
 #
 # Show engines

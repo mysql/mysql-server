@@ -615,14 +615,14 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
 }
 
 Item_allany_subselect::Item_allany_subselect(Item * left_exp,
-					     Comp_creator *fn,
+                                             chooser_compare_func_creator fc,
 					     st_select_lex *select_lex,
 					     bool all_arg)
-  :Item_in_subselect(), all(all_arg)
+  :Item_in_subselect(), func_creator(fc), all(all_arg)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
-  func= fn;
+  func= func_creator(all_arg);
   init(select_lex, new select_exists_subselect(this));
   max_columns= 1;
   abort_on_null= 0;
@@ -845,7 +845,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     if (!select_lex->group_list.elements &&
         !select_lex->having &&
 	!select_lex->with_sum_func &&
-	!(select_lex->next_select()))
+	!(select_lex->next_select()) &&
+        select_lex->table_list.elements)
     {
       Item_sum_hybrid *item;
       nesting_map save_allow_sum_func;

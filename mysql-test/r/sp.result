@@ -4915,7 +4915,7 @@ create table t3 as select * from v1|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `j` bigint(11) DEFAULT NULL
+  `j` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from t3|
 j
@@ -5051,4 +5051,23 @@ concat('data was: /', var1, '/')
 data was: /1/
 drop table t3|
 drop procedure bug15217|
+drop procedure if exists bug19862|
+CREATE TABLE t11 (a INT)|
+CREATE TABLE t12 (a INT)|
+CREATE FUNCTION bug19862(x INT) RETURNS INT
+BEGIN
+INSERT INTO t11 VALUES (x);
+RETURN x+1;
+END|
+INSERT INTO t12 VALUES (1), (2)|
+SELECT bug19862(a) FROM t12 ORDER BY 1|
+bug19862(a)
+2
+3
+SELECT * FROM t11|
+a
+1
+2
+DROP TABLE t11, t12|
+DROP FUNCTION bug19862|
 drop table t1,t2;

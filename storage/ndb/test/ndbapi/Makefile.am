@@ -38,6 +38,10 @@ DbCreate DbAsyncGenerator \
 testSRBank \
 test_event_merge
 
+EXTRA_PROGRAMS = \
+ test_event \
+ test_event_merge \
+ test_event_multi_table
 #flexTimedAsynch
 #testBlobs
 #flex_bench_mysql

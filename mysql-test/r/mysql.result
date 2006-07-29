@@ -36,19 +36,19 @@ Tables_in_test
 t1
 t2
 t3
-
+_
 Test delimiter : from command line
 a
 1
-
+_
 Test delimiter :; from command line
 a
 1
-
+_
 Test 'go' command(vertical output) G
 *************************** 1. row ***************************
 a: 1
-
+_
 Test  'go' command g
 a
 1

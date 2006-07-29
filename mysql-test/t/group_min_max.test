@@ -771,3 +771,51 @@ EXPLAIN SELECT DISTINCT a,a FROM t1 ORDER BY a;
 SELECT DISTINCT a,a FROM t1 ORDER BY a;  
 
 DROP TABLE t1;
+
+#
+# Bug #21007: NATURAL JOIN (any JOIN (2 x NATURAL JOIN)) crashes the server
+#
+
+CREATE TABLE t1 (id1 INT, id2 INT);
+CREATE TABLE t2 (id2 INT, id3 INT, id5 INT);
+CREATE TABLE t3 (id3 INT, id4 INT);
+CREATE TABLE t4 (id4 INT);
+CREATE TABLE t5 (id5 INT, id6 INT);
+CREATE TABLE t6 (id6 INT);
+
+INSERT INTO t1 VALUES(1,1);
+INSERT INTO t2 VALUES(1,1,1);
+INSERT INTO t3 VALUES(1,1);
+INSERT INTO t4 VALUES(1);
+INSERT INTO t5 VALUES(1,1);
+INSERT INTO t6 VALUES(1);
+
+-- original bug query
+SELECT * FROM
+t1
+  NATURAL JOIN
+(t2 JOIN (t3 NATURAL JOIN t4, t5 NATURAL JOIN t6)
+    ON (t3.id3 = t2.id3 AND t5.id5 = t2.id5));
+
+-- inner join swapped
+SELECT * FROM
+t1
+  NATURAL JOIN
+(((t3 NATURAL JOIN t4) join (t5 NATURAL JOIN t6) on t3.id4 = t5.id5) JOIN t2
+    ON (t3.id3 = t2.id3 AND t5.id5 = t2.id5));
+
+-- one join less, no ON cond
+SELECT * FROM t1 NATURAL JOIN ((t3 join (t5 NATURAL JOIN t6)) JOIN t2);
+
+-- wrong error message: 'id2' - ambiguous column
+SELECT * FROM
+(t2 JOIN (t3 NATURAL JOIN t4, t5 NATURAL JOIN t6)
+    ON (t3.id3 = t2.id3 AND t5.id5 = t2.id5))
+  NATURAL JOIN
+t1;
+SELECT * FROM
+(t2 JOIN ((t3 NATURAL JOIN t4) join (t5 NATURAL JOIN t6)))
+  NATURAL JOIN
+t1;
+
+DROP TABLE t1,t2,t3,t4,t5,t6;

@@ -737,9 +737,16 @@ public:
     Any new item which can be NULL must implement this call.
   */
   virtual bool is_null() { return 0; }
+
   /*
-    it is "top level" item of WHERE clause and we do not need correct NULL
-    handling
+    Inform the item that there will be no distinction between its result
+    being FALSE or NULL.
+
+    NOTE
+      This function will be called for eg. Items that are top-level AND-parts
+      of the WHERE clause. Items implementing this function (currently
+      Item_cond_and and subquery-related item) enable special optimizations
+      when they are "top level".
   */
   virtual void top_level_item() {}
   /*
@@ -784,6 +791,7 @@ public:
   virtual bool collect_item_field_processor(byte * arg) { return 0; }
   virtual bool find_item_in_field_list_processor(byte *arg) { return 0; }
   virtual bool change_context_processor(byte *context) { return 0; }
+  virtual bool is_expensive_processor(byte *arg) { return 0; }
   virtual bool register_field_in_read_map(byte *arg) { return 0; }
   /*
     Check if a partition function is allowed

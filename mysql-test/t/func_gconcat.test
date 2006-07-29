@@ -433,3 +433,17 @@ create table t1 (c1 varchar(10), c2 int);
 select charset(group_concat(c1 order by c2)) from t1;
 drop table t1;
 
+#
+# Bug #16712: group_concat returns odd string instead of intended result
+#
+CREATE TABLE t1 (a INT(10), b LONGTEXT, PRIMARY KEY (a));
+
+SET GROUP_CONCAT_MAX_LEN = 20000000;
+
+INSERT INTO t1 VALUES (1,REPEAT(CONCAT('A',CAST(CHAR(0) AS BINARY),'B'), 40000));
+INSERT INTO t1 SELECT a + 1, b FROM t1;
+
+SELECT a, CHAR_LENGTH(b) FROM t1;
+SELECT CHAR_LENGTH( GROUP_CONCAT(b) ) FROM t1;
+SET GROUP_CONCAT_MAX_LEN = 1024;
+DROP TABLE t1;

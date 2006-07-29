@@ -4585,6 +4585,24 @@ Field_timestamp::Field_timestamp(char *ptr_arg, uint32 len_arg,
 }
 
 
+Field_timestamp::Field_timestamp(bool maybe_null_arg,
+                                 const char *field_name_arg,
+                                 struct st_table *table_arg, CHARSET_INFO *cs)
+  :Field_str((char*) 0, 19, maybe_null_arg ? (uchar*) "": 0, 0,
+	     NONE, field_name_arg, table_arg, cs)
+{
+  /* For 4.0 MYD and 4.0 InnoDB compatibility */
+  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+  if (table && !table->timestamp_field &&
+      unireg_check != NONE)
+  {
+    /* This timestamp has auto-update */
+    table->timestamp_field= this;
+    flags|=TIMESTAMP_FLAG;
+  }
+}
+
+
 /*
   Get auto-set type for TIMESTAMP field.
 
