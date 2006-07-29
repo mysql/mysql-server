@@ -699,7 +699,7 @@ select a from t1;
 flush query cache;
 
 drop table t1, t2;
-set GLOBAL query_cache_size=1355776
+set GLOBAL query_cache_size=1355776;
 
 
 #
