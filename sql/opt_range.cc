@@ -1872,14 +1872,17 @@ static int fill_used_fields_bitmap(PARAM *param)
     correlations between sets of rows they will return.
     
     For example, if values of tbl.key1 and tbl.key2 are independent (a right
-    assumption if we have no infromation about their correlation) then the
+    assumption if we have no information about their correlation) then the
     correct estimate will be:
     
       E(#rows("tbl.key1 < c1 AND tbl.key2 < c2")) = 
-      = E(#rows(tbl.key1 < c1)) / total_rows(tbl) * E(#rows(tbl.key2 < c2) / 
-        total_rows(tbl).
+      = E(#rows(tbl.key1 < c1)) / total_rows(tbl) * E(#rows(tbl.key2 < c2)
 
-    which is smaller than MIN(rows(tbl.key1 < c1), rows(tbl.key2 < c2)).
+    which is smaller than 
+      
+       MIN(E(#rows(tbl.key1 < c1), E(#rows(tbl.key2 < c2)))
+
+    which is currently produced.
 
   TODO
    * Change the value returned in quick_condition_rows from a pessimistic
@@ -4469,8 +4472,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   trp->read_cost= total_cost;
   trp->records= records;
   trp->cpk_scan= NULL;
-  if (records < param->table->quick_condition_rows)
-     param->table->quick_condition_rows= records;
+  set_if_smaller(param->table->quick_condition_rows, records); 
 
   DBUG_PRINT("info",
              ("Returning covering ROR-intersect plan: cost %g, records %lu",
