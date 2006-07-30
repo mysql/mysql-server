@@ -1159,3 +1159,78 @@ insert into t1 values (2,4);
 --replace_regex /A/C/ /B/D/i /3/2/ /2/1/
 select * from t1;
 drop table t1;
+
+# ----------------------------------------------------------------------------
+# test for remove_file
+# ----------------------------------------------------------------------------
+
+--error 1
+--exec echo "remove_file ;" | $MYSQL_TEST 2>&1
+
+--error 1
+remove_file non_existing_file;
+
+# ----------------------------------------------------------------------------
+# test for write_file
+# ----------------------------------------------------------------------------
+--error 1
+--exec echo "write_file ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "write_file filename ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "write_file filename \";" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# test for file_exist
+# ----------------------------------------------------------------------------
+--error 1
+--exec echo "file_exists ;" | $MYSQL_TEST 2>&1
+
+--error 0,1
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Content for test_file1
+EOF
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+
+# ----------------------------------------------------------------------------
+# test for copy_file
+# ----------------------------------------------------------------------------
+--write_file $MYSQLTEST_VARDIR/tmp/file1.tmp
+file1
+EOF
+
+copy_file $MYSQLTEST_VARDIR/tmp/file1.tmp $MYSQLTEST_VARDIR/tmp/file2.tmp;
+file_exists $MYSQLTEST_VARDIR/tmp/file2.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/file2.tmp;
+
+--error 1
+--exec echo "copy_file ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "copy_file from_file;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# test for perl
+# ----------------------------------------------------------------------------
+--perl
+print "hello\n";
+EOF
+
+perl;
+print "hello\n";
+EOF
+
+perl;
+  # Print "hello"
+  print "hello\n";
+EOF

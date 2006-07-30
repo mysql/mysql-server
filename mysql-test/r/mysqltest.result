@@ -467,3 +467,14 @@ a	D
 1	1
 1	4
 drop table t1;
+mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
+mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
+mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
+mysqltest: At line 1: End of line junk detected: "write_file filename ";
+"
+mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
+mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
+mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
+hello
+hello
+hello
