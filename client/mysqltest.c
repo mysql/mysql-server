@@ -178,7 +178,7 @@ typedef struct
 static test_file file_stack[MAX_INCLUDE_DEPTH];
 static test_file* cur_file;
 static test_file* file_stack_end;
-uint start_lineno; /* Start line of query */
+uint start_lineno= 0; /* Start line of query */
 
 /* Stores regex substitutions */
 
@@ -657,7 +657,7 @@ static void die(const char *fmt, ...)
     if (cur_file && cur_file != file_stack)
       fprintf(stderr, "In included file \"%s\": ",
               cur_file->file_name);
-    if (start_lineno != 0)
+    if (start_lineno > 0)
       fprintf(stderr, "At line %u: ", start_lineno);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
