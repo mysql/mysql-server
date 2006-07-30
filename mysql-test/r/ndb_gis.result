@@ -233,8 +233,8 @@ fid	AsText(Envelope(g))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((3 6,44 6,44 9,3 9,3 6))
 explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	21	21	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	21	100.00	
 Warnings:
 Note	1003	select dimension(`test`.`gis_geometry`.`g`) AS `Dimension(g)`,geometrytype(`test`.`gis_geometry`.`g`) AS `GeometryType(g)`,isempty(`test`.`gis_geometry`.`g`) AS `IsEmpty(g)`,astext(envelope(`test`.`gis_geometry`.`g`)) AS `AsText(Envelope(g))` from `test`.`gis_geometry`
 SELECT fid, X(g) FROM gis_point ORDER by fid;
@@ -250,8 +250,8 @@ fid	Y(g)
 103	20
 104	20
 explain extended select X(g),Y(g) FROM gis_point;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_point	ALL	NULL	NULL	NULL	NULL	4	4	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_point	ALL	NULL	NULL	NULL	NULL	4	100.00	
 Warnings:
 Note	1003	select x(`test`.`gis_point`.`g`) AS `X(g)`,y(`test`.`gis_point`.`g`) AS `Y(g)` from `test`.`gis_point`
 SELECT fid, AsText(StartPoint(g)) FROM gis_line ORDER by fid;
@@ -285,8 +285,8 @@ fid	IsClosed(g)
 106	1
 107	0
 explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),GLength(g),NumPoints(g),AsText(PointN(g, 2)),IsClosed(g) FROM gis_line;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_line	ALL	NULL	NULL	NULL	NULL	3	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_line	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select astext(startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint(g))`,astext(endpoint(`test`.`gis_line`.`g`)) AS `AsText(EndPoint(g))`,glength(`test`.`gis_line`.`g`) AS `GLength(g)`,numpoints(`test`.`gis_line`.`g`) AS `NumPoints(g)`,astext(pointn(`test`.`gis_line`.`g`,2)) AS `AsText(PointN(g, 2))`,isclosed(`test`.`gis_line`.`g`) AS `IsClosed(g)` from `test`.`gis_line`
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon ORDER by fid;
@@ -315,8 +315,8 @@ fid	AsText(InteriorRingN(g, 1))
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
 explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),NumInteriorRings(g),AsText(InteriorRingN(g, 1)) FROM gis_polygon;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_polygon	ALL	NULL	NULL	NULL	NULL	3	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_polygon	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select astext(centroid(`test`.`gis_polygon`.`g`)) AS `AsText(Centroid(g))`,area(`test`.`gis_polygon`.`g`) AS `Area(g)`,astext(exteriorring(`test`.`gis_polygon`.`g`)) AS `AsText(ExteriorRing(g))`,numinteriorrings(`test`.`gis_polygon`.`g`) AS `NumInteriorRings(g)`,astext(interiorringn(`test`.`gis_polygon`.`g`,1)) AS `AsText(InteriorRingN(g, 1))` from `test`.`gis_polygon`
 SELECT fid, IsClosed(g) FROM gis_multi_line ORDER by fid;
@@ -354,8 +354,8 @@ fid	NumGeometries(g)
 120	2
 121	2
 explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select `test`.`gis_multi_point`.`fid` AS `fid`,numgeometries(`test`.`gis_multi_point`.`g`) AS `NumGeometries(g)` from `test`.`gis_multi_point`
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point ORDER by fid;
@@ -382,8 +382,8 @@ fid	AsText(GeometryN(g, 1))
 120	POINT(0 0)
 121	POINT(44 6)
 explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select `test`.`gis_multi_point`.`fid` AS `fid`,astext(geometryn(`test`.`gis_multi_point`.`g`,2)) AS `AsText(GeometryN(g, 2))` from `test`.`gis_multi_point`
 SELECT g1.fid as first, g2.fid as second,
@@ -401,9 +401,9 @@ Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	2	Using temporary; Using filesort
-1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	2	2	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
 Note	1003	select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,within(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,contains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,overlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,equals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,disjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,intersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `test`.`g1`.`fid`,`test`.`g2`.`fid`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
@@ -695,8 +695,8 @@ fid	AsText(Envelope(g))
 120	POLYGON((0 0,10 0,10 10,0 10,0 0))
 121	POLYGON((3 6,44 6,44 9,3 9,3 6))
 explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelope(g)) from gis_geometry;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	21	21	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_geometry	ALL	NULL	NULL	NULL	NULL	21	100.00	
 Warnings:
 Note	1003	select dimension(`test`.`gis_geometry`.`g`) AS `Dimension(g)`,geometrytype(`test`.`gis_geometry`.`g`) AS `GeometryType(g)`,isempty(`test`.`gis_geometry`.`g`) AS `IsEmpty(g)`,astext(envelope(`test`.`gis_geometry`.`g`)) AS `AsText(Envelope(g))` from `test`.`gis_geometry`
 SELECT fid, X(g) FROM gis_point ORDER by fid;
@@ -712,8 +712,8 @@ fid	Y(g)
 103	20
 104	20
 explain extended select X(g),Y(g) FROM gis_point;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_point	ALL	NULL	NULL	NULL	NULL	4	4	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_point	ALL	NULL	NULL	NULL	NULL	4	100.00	
 Warnings:
 Note	1003	select x(`test`.`gis_point`.`g`) AS `X(g)`,y(`test`.`gis_point`.`g`) AS `Y(g)` from `test`.`gis_point`
 SELECT fid, AsText(StartPoint(g)) FROM gis_line ORDER by fid;
@@ -747,8 +747,8 @@ fid	IsClosed(g)
 106	1
 107	0
 explain extended select AsText(StartPoint(g)),AsText(EndPoint(g)),GLength(g),NumPoints(g),AsText(PointN(g, 2)),IsClosed(g) FROM gis_line;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_line	ALL	NULL	NULL	NULL	NULL	3	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_line	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select astext(startpoint(`test`.`gis_line`.`g`)) AS `AsText(StartPoint(g))`,astext(endpoint(`test`.`gis_line`.`g`)) AS `AsText(EndPoint(g))`,glength(`test`.`gis_line`.`g`) AS `GLength(g)`,numpoints(`test`.`gis_line`.`g`) AS `NumPoints(g)`,astext(pointn(`test`.`gis_line`.`g`,2)) AS `AsText(PointN(g, 2))`,isclosed(`test`.`gis_line`.`g`) AS `IsClosed(g)` from `test`.`gis_line`
 SELECT fid, AsText(Centroid(g)) FROM gis_polygon ORDER by fid;
@@ -777,8 +777,8 @@ fid	AsText(InteriorRingN(g, 1))
 109	LINESTRING(10 10,20 10,20 20,10 20,10 10)
 110	NULL
 explain extended select AsText(Centroid(g)),Area(g),AsText(ExteriorRing(g)),NumInteriorRings(g),AsText(InteriorRingN(g, 1)) FROM gis_polygon;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_polygon	ALL	NULL	NULL	NULL	NULL	3	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_polygon	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select astext(centroid(`test`.`gis_polygon`.`g`)) AS `AsText(Centroid(g))`,area(`test`.`gis_polygon`.`g`) AS `Area(g)`,astext(exteriorring(`test`.`gis_polygon`.`g`)) AS `AsText(ExteriorRing(g))`,numinteriorrings(`test`.`gis_polygon`.`g`) AS `NumInteriorRings(g)`,astext(interiorringn(`test`.`gis_polygon`.`g`,1)) AS `AsText(InteriorRingN(g, 1))` from `test`.`gis_polygon`
 SELECT fid, IsClosed(g) FROM gis_multi_line ORDER by fid;
@@ -816,8 +816,8 @@ fid	NumGeometries(g)
 120	2
 121	2
 explain extended SELECT fid, NumGeometries(g) from gis_multi_point;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select `test`.`gis_multi_point`.`fid` AS `fid`,numgeometries(`test`.`gis_multi_point`.`g`) AS `NumGeometries(g)` from `test`.`gis_multi_point`
 SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point ORDER by fid;
@@ -844,8 +844,8 @@ fid	AsText(GeometryN(g, 1))
 120	POINT(0 0)
 121	POINT(44 6)
 explain extended SELECT fid, AsText(GeometryN(g, 2)) from gis_multi_point;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	gis_multi_point	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select `test`.`gis_multi_point`.`fid` AS `fid`,astext(geometryn(`test`.`gis_multi_point`.`g`,2)) AS `AsText(GeometryN(g, 2))` from `test`.`gis_multi_point`
 SELECT g1.fid as first, g2.fid as second,
@@ -863,9 +863,9 @@ Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	2	Using temporary; Using filesort
-1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	2	2	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	g1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	2	100.00	
 Warnings:
 Note	1003	select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,within(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,contains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,overlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,equals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,disjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,intersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `test`.`g1`.`fid`,`test`.`g2`.`fid`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
