@@ -1394,7 +1394,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	11	Using where
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1402,7 +1402,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 and companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	11	Using where
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1418,7 +1418,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	Using where
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	11	Using where
+1	SIMPLE	t4	ALL	PRIMARY	NULL	NULL	NULL	12	Using where
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0 or companynr > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1508,8 +1508,8 @@ select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1)
 count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 70	absentee	vest	17788966	254128.0857	3272.5940	10709871.3069
 explain extended select count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 where companynr = 34 and fld4<>"";
-id	select_type	table	type	possible_keys	key	key_len	ref	in_rows	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	1199	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
 Note	1003	select count(0) AS `count(*)`,min(`test`.`t2`.`fld4`) AS `min(fld4)`,max(`test`.`t2`.`fld4`) AS `max(fld4)`,sum(`test`.`t2`.`fld1`) AS `sum(fld1)`,avg(`test`.`t2`.`fld1`) AS `avg(fld1)`,std(`test`.`t2`.`fld1`) AS `std(fld1)`,variance(`test`.`t2`.`fld1`) AS `variance(fld1)` from `test`.`t2` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld4` <> _latin1''))
 select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr limit 3;
