@@ -24,23 +24,6 @@
  *   Jani
  **/
 
-/**********************************************************************
-  TODO:
-
-- Do comparison line by line, instead of doing a full comparison of
-  the text file.  This will save space as we don't need to keep many
-  results in memory.  It will also make it possible to do simple
-  'comparison' fixes like accepting the result even if a float differed
-  in the last decimals.
-
-- Don't buffer lines from the test that you don't expect to need
-  again.
-
-- Change 'read_line' to be faster by using the readline.cc code;
-  We can do better than calling feof() for each character!
-
-**********************************************************************/
-
 #define MTEST_VERSION "2.6"
 
 #include <my_global.h>
