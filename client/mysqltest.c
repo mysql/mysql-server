@@ -147,7 +147,7 @@ const char *user = 0, *host = 0, *unix_sock = 0, *opt_basedir="./";
 static int port = 0;
 static my_bool opt_big_test= 0, opt_compress= 0, silent= 0, verbose = 0;
 static my_bool tty_password= 0, ps_protocol= 0, ps_protocol_enabled= 0;
-static uint start_lineno, *lineno;
+static uint start_lineno= 0, *lineno;
 const char *manager_user="root",*manager_host=0;
 char *manager_pass=0;
 int manager_port=MYSQL_MANAGER_PORT;
@@ -580,7 +580,7 @@ static void die(const char *fmt, ...)
     if (cur_file && cur_file != file_stack)
       fprintf(stderr, "In included file \"%s\": ",
               cur_file->file_name);
-    if (start_lineno != 0)
+    if (start_lineno > 0)
       fprintf(stderr, "At line %u: ", start_lineno);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
@@ -4071,6 +4071,8 @@ int main(int argc, char **argv)
 
     parser.current_line += current_line_inc;
   }
+
+  start_lineno= 0;
 
   if (!query_executed && result_file && my_stat(result_file, &res_info, 0))
   {
