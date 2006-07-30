@@ -132,3 +132,68 @@ id	last_id
 drop function bug15728;
 drop function bug15728_insert;
 drop table t1, t2;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+set sql_log_bin=0;
+insert into t1 values(null,100);
+replace into t1 values(null,50),(null,100),(null,150);
+select * from t1 order by n;
+n	b
+2	50
+3	100
+4	150
+truncate table t1;
+set sql_log_bin=1;
+insert into t1 values(null,100);
+select * from t1 order by n;
+n	b
+1	100
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+select * from t1 order by n;
+n	b
+1	100
+replace into t1 values(null,100),(null,350);
+select * from t1 order by n;
+n	b
+2	100
+3	350
+select * from t1 order by n;
+n	b
+2	100
+3	350
+insert into t1 values (NULL,400),(3,500),(NULL,600) on duplicate key UPDATE n=1000;
+select * from t1 order by n;
+n	b
+2	100
+4	400
+1000	350
+1001	600
+select * from t1 order by n;
+n	b
+2	100
+4	400
+1000	350
+1001	600
+drop table t1;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+insert into t1 values(null,100);
+select * from t1 order by n;
+n	b
+1	100
+insert into t1 values(null,200),(null,300);
+delete from t1 where b <> 100;
+select * from t1 order by n;
+n	b
+1	100
+insert into t1 values(null,100),(null,350) on duplicate key update n=2;
+select * from t1 order by n;
+n	b
+2	100
+3	350
+select * from t1 order by n;
+n	b
+2	100
+3	350
+drop table t1;
