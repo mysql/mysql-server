@@ -1187,9 +1187,6 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
 	  info->rec_cache.pos_in_file < filepos + MI_BLOCK_INFO_HEADER_LENGTH &&
 	  flush_io_cache(&info->rec_cache))
 	goto err;
-      /* A corrupted table can have wrong pointers. (Bug# 19835) */
-      if (block_info.next_filepos == HA_OFFSET_ERROR)
-        goto panic;
       info->rec_cache.seek_not_done=1;
       if ((b_type= _mi_get_block_info(&block_info, file, filepos))
 	  & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
