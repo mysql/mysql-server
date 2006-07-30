@@ -15,8 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* mysqltest test tool
- * See the manual for more information
- * TODO: document better how mysqltest works
+ * See the "MySQL Test framework manual" for more information
  *
  * Written by:
  *   Sasha Pachev <sasha@mysql.com>
