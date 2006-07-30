@@ -1530,7 +1530,7 @@ void do_system(struct st_query *command)
 
   SYNOPSIS
     do_echo()
-    q  called command
+    command  called command
 
   DESCRIPTION
     echo text
@@ -1549,14 +1549,12 @@ void do_system(struct st_query *command)
 
 int do_echo(struct st_query *command)
 {
-  DYNAMIC_STRING *ds, ds_echo;
-
-  ds= &ds_res;
+  DYNAMIC_STRING ds_echo;
 
   init_dynamic_string(&ds_echo, "", command->query_len, 256);
   do_eval(&ds_echo, command->first_argument, FALSE);
-  dynstr_append_mem(ds, ds_echo.str, ds_echo.length);
-  dynstr_append_mem(ds, "\n", 1);
+  dynstr_append_mem(&ds_res, ds_echo.str, ds_echo.length);
+  dynstr_append_mem(&ds_res, "\n", 1);
   dynstr_free(&ds_echo);
   command->last_argument= command->end;
   return(0);
@@ -2901,9 +2899,7 @@ void do_block(enum block_cmd cmd, struct st_query* q)
 
   while (*p && my_isspace(charset_info, *p))
     p++;
-  if (*p == '{')
-    die("Missing newline between %s and '{'", cmd_name);
-  if (*p)
+  if (*p && *p != '{')
     die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
 
   var_init(&v,0,0,0,0);
@@ -2971,6 +2967,27 @@ my_bool end_of_query(int c)
 }
 
 
+void do_delimiter(struct st_query* command)
+{
+  char* p= command->first_argument;
+  DBUG_ENTER("do_delimiter");
+  DBUG_PRINT("enter", ("first_argument: %s", command->first_argument));
+
+  while (*p && my_isspace(charset_info, *p))
+    p++;
+
+  if (!(*p))
+    die("Can't set empty delimiter");
+
+  strmake(delimiter, p, sizeof(delimiter) - 1);
+  delimiter_length= strlen(delimiter);
+
+  DBUG_PRINT("exit", ("delimiter: %s", delimiter));
+  command->last_argument= p + delimiter_length;
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Read one "line" from the file
 
@@ -2997,19 +3014,19 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  int c;
-  char quote;
+  char c, last_quote;
   char *p= buf, *buf_end= buf + size - 1;
-  int no_save= 0;
-  enum {R_NORMAL, R_Q, R_Q_IN_Q, R_SLASH_IN_Q,
-	R_COMMENT, R_LINE_START} state= R_LINE_START;
+  int skip_char= 0;
+  enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
+        R_COMMENT, R_LINE_START} state= R_LINE_START;
   DBUG_ENTER("read_line");
-  LINT_INIT(quote);
+  LINT_INIT(last_quote);
 
   start_lineno= cur_file->lineno;
+  DBUG_PRINT("info", ("start_lineno: %d", start_lineno));
   for (; p < buf_end ;)
   {
-    no_save= 0;
+    skip_char= 0;
     c= my_getc(cur_file->file);
     if (feof(cur_file->file))
     {
@@ -3029,8 +3046,9 @@ int read_line(char *buf, int size)
         if (cur_block != block_stack)
           die("Missing end of block");
 
+        *p= 0;
         DBUG_PRINT("info", ("end of file"));
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
       }
       cur_file--;
       start_lineno= cur_file->lineno;
@@ -3044,61 +3062,74 @@ int read_line(char *buf, int size)
 
       /* Convert cr/lf to lf */
       if (p != buf && *(p-1) == '\r')
-        *(p-1)= 0;
+        p--;
     }
 
     switch(state) {
     case R_NORMAL:
-      /*  Only accept '{' in the beginning of a line */
       if (end_of_query(c))
       {
 	*p= 0;
+        DBUG_PRINT("exit", ("Found delimiter '%s'", delimiter));
+	DBUG_RETURN(0);
+      }
+      else if ((c == '{' &&
+                (!strncasecmp(buf, "while", min(5, p - buf)) ||
+                 !strncasecmp(buf, "if", min(2, p - buf)))))
+      {
+        /* Only if and while commands can be terminated by { */
+        *p++= c;
+	*p= 0;
+        DBUG_PRINT("exit", ("Found '{' indicating begining of block"));
 	DBUG_RETURN(0);
       }
       else if (c == '\'' || c == '"' || c == '`')
       {
-        quote= c;
+        last_quote= c;
 	state= R_Q;
       }
-      else if (c == '\n')
-      {
-	state = R_LINE_START;
-      }
       break;
+
     case R_COMMENT:
       if (c == '\n')
       {
+        /* Comments are terminated by newline */
 	*p= 0;
+        DBUG_PRINT("exit", ("Found newline in comment"));
 	DBUG_RETURN(0);
       }
       break;
+
     case R_LINE_START:
-      /* Only accept start of comment if this is the first line in query */
-      if ((cur_file->lineno == start_lineno) &&
-	  (c == '#' || c == '-' || parsing_disabled))
+      if (c == '#' || c == '-')
       {
+        /* A # or - in the first position of the line - this is a comment */
 	state = R_COMMENT;
       }
       else if (my_isspace(charset_info, c))
       {
+        /* Skip all space at begining of line */
 	if (c == '\n')
 	  start_lineno= cur_file->lineno; /* Query hasn't started yet */
-	no_save= 1;
+	skip_char= 1;
+      }
+      else if (end_of_query(c))
+      {
+	*p= 0;
+        DBUG_PRINT("exit", ("Found delimiter '%s'", delimiter));
+	DBUG_RETURN(0);
       }
       else if (c == '}')
       {
-	*buf++= '}';
-	*buf= 0;
-	DBUG_RETURN(0);
-      }
-      else if (end_of_query(c) || c == '{')
-      {
+        /* A "}" need to be by itself in the begining of a line to terminate */
+        *p++= c;
 	*p= 0;
+        DBUG_PRINT("exit", ("Found '}' in begining of a line"));
 	DBUG_RETURN(0);
       }
       else if (c == '\'' || c == '"' || c == '`')
       {
-        quote= c;
+        last_quote= c;
 	state= R_Q;
       }
       else
@@ -3106,29 +3137,19 @@ int read_line(char *buf, int size)
       break;
 
     case R_Q:
-      if (c == quote)
-	state= R_Q_IN_Q;
+      if (c == last_quote)
+	state= R_NORMAL;
       else if (c == '\\')
 	state= R_SLASH_IN_Q;
       break;
-    case R_Q_IN_Q:
-      if (end_of_query(c))
-      {
-	*p= 0;
-	DBUG_RETURN(0);
-      }
-      if (c != quote)
-	state= R_NORMAL;
-      else
-	state= R_Q;
-      break;
+
     case R_SLASH_IN_Q:
       state= R_Q;
       break;
 
     }
 
-    if (!no_save)
+    if (!skip_char)
     {
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
@@ -3146,7 +3167,7 @@ int read_line(char *buf, int size)
 	for (i= 1; i < charlen; i++)
 	{
 	  if (feof(cur_file->file))
-	    goto found_eof;	/* FIXME: could we just break here?! */
+	    goto found_eof;
 	  c= my_getc(cur_file->file);
 	  *p++ = c;
 	}
@@ -3163,9 +3184,63 @@ int read_line(char *buf, int size)
 	*p++= c;
     }
   }
-  *p= 0;					/* Always end with \0 */
-  DBUG_RETURN(feof(cur_file->file));
+  die("The input buffer is too small for this query.x\n" \
+      "check your query or increase MAX_QUERY and recompile");
+  DBUG_RETURN(0);
 }
+
+
+/*
+  Convert the read query to format version 1
+
+  That is: After newline, all spaces need to be skipped
+  unless the previous char was a quote
+
+  This is due to an old bug that has now been fixed, but the
+  version 1 output format is preserved by using this function
+
+*/
+
+static void convert_to_format_v1(char* query)
+{
+  int last_c_was_quote= 0;
+  char *p= query, *write= query;
+  char *end= strend(query);
+  char last_c;
+
+  while (p <= end)
+  {
+    if (*p == '\n' && !last_c_was_quote)
+    {
+      *write++ = *p++; /* Save the newline */
+
+      /* Skip any spaces on next line */
+      while (*p && my_isspace(charset_info, *p))
+        p++;
+
+      last_c_was_quote= 0;
+    }
+    else if (*p == '\'' || *p == '"' || *p == '`')
+    {
+      last_c= *p;
+      *write++ = *p++;
+
+      /* Copy anything until the next quote of same type */
+      while (*p && *p != last_c)
+        *write++ = *p++;
+
+      *write++ = *p++;
+
+      last_c_was_quote= 1;
+    }
+    else
+    {
+      *write++ = *p++;
+      last_c_was_quote= 0;
+    }
+  }
+}
+
 
 /*
   Create a query from a set of lines
@@ -3216,7 +3291,9 @@ int read_query(struct st_query** q_ptr)
     check_eol_junk(read_query_buf);
     DBUG_RETURN(1);
   }
-  
+
+  convert_to_format_v1(read_query_buf);
+
   DBUG_PRINT("info", ("query: %s", read_query_buf));
   if (*p == '#')
   {
@@ -3871,9 +3948,11 @@ static void fix_win_paths(const char* val, int len)
 }
 #endif
 
+
+
 /* Append the string to ds, with optional replace */
 static void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
-                                      const char *val,  int len)
+                                      const char *val, int len)
 {
 #ifdef __WIN__
   fix_win_paths(val, len);
@@ -5032,7 +5111,7 @@ void get_query_type(struct st_query* q)
   }
   else if (q->type == Q_COMMENT_WITH_COMMAND &&
 	   q->first_word_len &&
-           q->query[q->first_word_len-1] == ';')
+           strcmp(q->query + q->first_word_len - 1, delimiter) == 0)
   {
     /*
        Detect comment with command using extra delimiter
@@ -5142,7 +5221,7 @@ static void init_var_hash(MYSQL *mysql)
   test run completes
 
 */
-static void mark_progress(struct st_query* q, int line)
+static void mark_progress(struct st_query* q __attribute__((unused)), int line)
 {
   char buf[32], *end;
   ulonglong timer= timer_now();
@@ -5332,9 +5411,7 @@ int main(int argc, char **argv)
       case Q_ECHO: do_echo(q); query_executed= 1; break;
       case Q_SYSTEM: do_system(q); break;
       case Q_DELIMITER:
-	strmake(delimiter, q->first_argument, sizeof(delimiter) - 1);
-	delimiter_length= strlen(delimiter);
-        q->last_argument= q->first_argument+delimiter_length;
+        do_delimiter(q);
 	break;
       case Q_DISPLAY_VERTICAL_RESULTS:
         display_result_vertically= TRUE;
@@ -5494,7 +5571,10 @@ int main(int argc, char **argv)
         break;
       }
       case Q_DISABLE_PARSING:
-        parsing_disabled++;
+        if (parsing_disabled == 0)
+          parsing_disabled++;
+        else
+          die("Parsing is already disabled");
         break;
       case Q_ENABLE_PARSING:
         /*
@@ -5503,6 +5583,8 @@ int main(int argc, char **argv)
         */
         if (parsing_disabled > 0)
           parsing_disabled--;
+        else
+          die("Parsing is already enabled");
         break;
 
       case Q_EXIT:
@@ -5544,6 +5626,9 @@ int main(int argc, char **argv)
   }
 
   start_lineno= 0;
+
+  if (parsing_disabled)
+    die("Test ended with parsing disabled");
 
   /*
     The whole test has been executed _sucessfully_.

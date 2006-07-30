@@ -335,10 +335,10 @@ mysqltest: At line 1: missing ')' in while
 mysqltest: At line 1: Missing '{' after while. Found "dec $i"
 mysqltest: At line 1: Stray '}' - end of block before beginning
 mysqltest: At line 1: Stray 'end' command - end of block before beginning
-mysqltest: At line 1: query '' failed: 1065: Query was empty
+mysqltest: At line 1: query '{' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
 mysqltest: At line 1: Missing '{' after while. Found "echo hej"
 mysqltest: At line 3: Missing end of block
-mysqltest: At line 1: Missing newline between while and '{'
+mysqltest: At line 3: Missing end of block
 mysqltest: At line 1: missing '(' in if
 mysqltest: At line 1: Stray 'end' command - end of block before beginning
 select "b" bs col1, "c" bs col2;
