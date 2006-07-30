@@ -5588,7 +5588,7 @@ static void mark_progress(struct st_query* q __attribute__((unused)), int line)
 int main(int argc, char **argv)
 {
   struct st_query *q;
-  my_bool require_file=0, q_send_flag=0, abort_flag= 0,
+  my_bool require_file=0, abort_flag= 0,
           query_executed= 0;
   char save_file[FN_REFLEN];
   MY_STAT res_info;
@@ -5796,11 +5796,7 @@ int main(int argc, char **argv)
 	int flags = QUERY_REAP;
 	if (q->type != Q_REAP) /* for a full query, enable the send stage */
 	  flags |= QUERY_SEND;
-	if (q_send_flag)
-	{
-	  flags= QUERY_SEND;
-	  q_send_flag=0;
-	}
+
 	if (save_file[0])
 	{
 	  strmov(q->record_file,save_file);
@@ -5813,12 +5809,6 @@ int main(int argc, char **argv)
 	break;
       }
       case Q_SEND:
-	if (!q->query[q->first_word_len])
-	{
-	  /* This happens when we use 'send' on its own line */
-	  q_send_flag=1;
-	  break;
-	}
 	/* fix up query pointer if this is first iteration for this line */
 	if (q->query == q->query_buf)
 	  q->query+= q->first_word_len;
