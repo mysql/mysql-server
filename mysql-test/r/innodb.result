@@ -1830,7 +1830,7 @@ innodb_thread_concurrency	1000
 set global innodb_thread_concurrency=0;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
-innodb_thread_concurrency	1
+innodb_thread_concurrency	0
 set global innodb_thread_concurrency=16;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
