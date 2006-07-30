@@ -162,7 +162,7 @@ typedef struct
 static test_file file_stack[MAX_INCLUDE_DEPTH];
 static test_file* cur_file;
 static test_file* file_stack_end;
-uint start_lineno; /* Start line of query */
+static uint start_lineno= 0; /* Start line of query */
 
 /* Stores regex substitutions */
 
@@ -997,8 +997,8 @@ int do_wait_for_slave_to_stop(struct st_query *q __attribute__((unused)))
 
     if (mysql_query(mysql,"show status like 'Slave_running'") ||
 	!(res=mysql_store_result(mysql)))
-      die("Query failed while probing slave for stop: %s",
-	  mysql_error(mysql));
+      die("Query failed while probing slave for stop: %d %s",
+	  mysql_errno(mysql), mysql_error(mysql));
     if (!(row=mysql_fetch_row(res)) || !row[1])
     {
       mysql_free_result(res);
@@ -1271,8 +1271,8 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
       !(res = mysql_store_result(mysql)))
   {
     *end = 0;
-    die("Error running query '%s': %d: %s", query,
-	mysql_errno(mysql) ,mysql_error(mysql));
+    die("Error running query '%s': %d %s", query,
+	mysql_errno(mysql), mysql_error(mysql));
   }
 
   if ((row = mysql_fetch_row(res)) && row[0])
@@ -1563,7 +1563,7 @@ int do_sync_with_master2(long offset)
 wait_for_position:
 
   if (mysql_query(mysql, query_buf))
-    die("failed in %s: %d: %s", query_buf, mysql_errno(mysql),
+    die("failed in '%s': %d: %s", query_buf, mysql_errno(mysql),
         mysql_error(mysql));
 
   if (!(res= mysql_store_result(mysql)))
@@ -1629,13 +1629,12 @@ int do_save_master_pos()
   {
     ulong have_ndbcluster;
     if (mysql_query(mysql, query= "show variables like 'have_ndbcluster'"))
-      die("At line %u: failed in %s: %d: %s", start_lineno, query,
+      die("'%s' failed: %d %s", query,
           mysql_errno(mysql), mysql_error(mysql));
     if (!(res= mysql_store_result(mysql)))
-      die("line %u: mysql_store_result() retuned NULL for '%s'", start_lineno,
-          query);
+      die("mysql_store_result() returned NULL for '%s'", query);
     if (!(row= mysql_fetch_row(res)))
-      die("line %u: empty result in %s", start_lineno, query);
+      die("Query '%s' returned empty result", query);
 
     have_ndbcluster= strcmp("YES", row[1]) == 0;
     mysql_free_result(res);
@@ -1655,11 +1654,10 @@ int do_save_master_pos()
         if (count)
           sleep(1);
         if (mysql_query(mysql, query= "show engine ndb status"))
-          die("At line %u: failed in '%s': %d: %s", start_lineno, query,
+          die("failed in '%s': %d %s", query,
               mysql_errno(mysql), mysql_error(mysql));
         if (!(res= mysql_store_result(mysql)))
-          die("line %u: mysql_store_result() retuned NULL for '%s'",
-              start_lineno, query);
+          die("mysql_store_result() returned NULL for '%s'", query);
         while ((row= mysql_fetch_row(res)))
         {
           if (strcmp(row[1], binlog) == 0)
@@ -1677,8 +1675,8 @@ int do_save_master_pos()
                 epoch= strtoull(status, (char**) 0, 10);
               }
               else
-                die("line %u: result does not contain '%s' in '%s'",
-                    start_lineno, latest_trans_epoch, query);
+                die("result does not contain '%s' in '%s'",
+                    latest_trans_epoch, query);
             }
             /* latest_applied_binlog_epoch */
             while (*status && strncmp(status, latest_handled_binlog_epoch,
@@ -1690,14 +1688,14 @@ int do_save_master_pos()
               tmp_epoch= strtoull(status, (char**) 0, 10);
             }
             else
-              die("line %u: result does not contain '%s' in '%s'",
-                  start_lineno, latest_handled_binlog_epoch, query);
+              die("result does not contain '%s' in '%s'",
+                  latest_handled_binlog_epoch, query);
             break;
           }
         }
         if (!row)
-          die("line %u: result does not contain '%s' in '%s'",
-              start_lineno, binlog, query);
+          die("result does not contain '%s' in '%s'",
+              binlog, query);
         count++;
         if (tmp_epoch >= epoch)
           do_continue= 0;
@@ -1711,7 +1709,7 @@ int do_save_master_pos()
   }
 #endif
   if (mysql_query(mysql, query= "show master status"))
-    die("failed in show master status: %d: %s",
+    die("failed in 'show master status': %d %s",
 	mysql_errno(mysql), mysql_error(mysql));
 
   if (!(res = mysql_store_result(mysql)))
