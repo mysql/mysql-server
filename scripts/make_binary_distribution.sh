@@ -96,7 +96,7 @@ mkdir $BASE $BASE/bin $BASE/docs \
 
 if [ $BASE_SYSTEM != "netware" ] ; then
  mkdir $BASE/share/mysql $BASE/tests $BASE/sql-bench $BASE/man \
-  $BASE/man/man1 $BASE/data $BASE/data/mysql $BASE/data/test
+  $BASE/man/man1 $BASE/man/man8 $BASE/data $BASE/data/mysql $BASE/data/test
 
  chmod o-rwx $BASE/data $BASE/data/*
 fi
@@ -219,6 +219,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   fi
   if [ -d man ] ; then
     $CP man/*.1 $BASE/man/man1
+    $CP man/*.8 $BASE/man/man8
   fi
 fi
 
@@ -309,7 +310,6 @@ else
 fi
 
 # Make safe_mysqld a symlink to mysqld_safe for backwards portability
-# To be removed in MySQL 4.1
 if [ $BASE_SYSTEM != "netware" ] ; then
   (cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
 fi
