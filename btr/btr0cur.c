@@ -4264,13 +4264,14 @@ btr_rec_copy_externally_stored_field(
 				/* out: the field copied to heap */
 	rec_t*		rec,	/* in: record */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
+				zero for uncompressed BLOBs */
 	ulint		no,	/* in: field number */
 	ulint*		len,	/* out: length of the field */
 	mem_heap_t*	heap)	/* in: mem heap */
 {
 	ulint		local_len;
 	byte*		data;
-	page_zip_des_t*	page_zip;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_a(rec_offs_nth_extern(offsets, no));
@@ -4286,9 +4287,6 @@ btr_rec_copy_externally_stored_field(
 
 	data = rec_get_nth_field(rec, offsets, no, &local_len);
 
-	page_zip = buf_block_get_page_zip(buf_block_align(rec));
-
 	return(btr_copy_externally_stored_field(len, data,
-				page_zip ? page_zip->size : 0,
-				local_len, heap));
+				zip_size, local_len, heap));
 }

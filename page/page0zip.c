@@ -2700,8 +2700,7 @@ page_zip_clear_rec(
 
 			memset(storage - (heap_no - 1) * REC_NODE_PTR_SIZE,
 				0, REC_NODE_PTR_SIZE);
-		}
-		else if (dict_index_is_clust(index)) {
+		} else if (dict_index_is_clust(index)) {
 			/* Clear trx_id and roll_ptr on the compressed page. */
 			byte*	storage	= page_zip->data + page_zip->size
 					- (page_dir_get_n_heap(page) - 2)

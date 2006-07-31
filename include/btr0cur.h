@@ -508,6 +508,8 @@ btr_rec_copy_externally_stored_field(
 				/* out: the field copied to heap */
 	rec_t*		rec,	/* in: record */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
+	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
+				zero for uncompressed BLOBs */
 	ulint		no,	/* in: field number */
 	ulint*		len,	/* out: length of the field */
 	mem_heap_t*	heap);	/* in: mem heap */

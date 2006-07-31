@@ -210,7 +210,9 @@ row_build(
 				&& rec_offs_nth_extern(offsets, i)) {
 
 				field = btr_rec_copy_externally_stored_field(
-						rec, offsets, i, &len, heap);
+						rec, offsets,
+						dict_table_zip_size(table),
+						i, &len, heap);
 			}
 
 			dfield_set_data(dfield, field, len);
