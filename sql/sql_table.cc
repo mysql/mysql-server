@@ -3183,7 +3183,8 @@ bool mysql_create_table_internal(THD *thd,
     }
     DBUG_PRINT("info", ("db_type = %d",
                          ha_legacy_type(part_info->default_engine_type)));
-    if (part_info->check_partition_info(thd, &engine_type, file, create_info))
+    if (part_info->check_partition_info(thd, &engine_type, file,
+                                        create_info, TRUE))
       goto err;
     part_info->default_engine_type= engine_type;
 

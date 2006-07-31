@@ -751,7 +751,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='no comment' /*!50100 PARTITION BY KEY (a)  */
 drop table t2;
 create table t1 (s1 char(2) character set utf8)
-partition by list (case when s1 > 'cz' then 1 else 2 end)
+partition by list (cast(s1 as signed))
 (partition p1 values in (1),
 partition p2 values in (2));
 drop table t1;

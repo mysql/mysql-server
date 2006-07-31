@@ -250,7 +250,8 @@ public:
   bool check_range_constants();
   bool check_list_constants();
   bool check_partition_info(THD *thd, handlerton **eng_type,
-                            handler *file, HA_CREATE_INFO *info);
+                            handler *file, HA_CREATE_INFO *info,
+                            bool check_partition_function);
   void print_no_partition_found(TABLE *table);
 private:
   static int list_part_cmp(const void* a, const void* b);
