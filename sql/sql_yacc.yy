@@ -1256,6 +1256,17 @@ create_function_tail:
 	  RETURNS_SYM udf_type UDF_SONAME_SYM TEXT_STRING_sys
 	  {
 	    LEX *lex=Lex;
+            if (lex->definer != NULL)
+            {
+              /*
+                 DEFINER is a concept meaningful when interpreting SQL code.
+                 UDF functions are compiled.
+                 Using DEFINER with UDF has therefore no semantic,
+                 and is considered a parsing error.
+              */
+	      my_error(ER_WRONG_USAGE, MYF(0), "SONAME", "DEFINER");
+              YYABORT;
+            }
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
 	    lex->udf.name = lex->spname->m_name;
 	    lex->udf.returns=(Item_result) $2;
