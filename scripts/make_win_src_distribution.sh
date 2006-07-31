@@ -206,7 +206,7 @@ copy_dir_files()
     for i in *.c *.cpp *.h *.ih *.i *.ic *.asm *.def *.hpp *.yy \
              README INSTALL* LICENSE AUTHORS NEWS ChangeLog \
              *.inc *.test *.result *.pem Moscow_leap des_key_file \
-             *.vcproj *.sln *.dat *.000001 *.require *.opt
+             *.vcproj *.sln *.dat *.000001 *.require *.opt *.cnf
     do
       if [ -f $i ]
       then
