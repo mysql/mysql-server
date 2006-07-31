@@ -2503,7 +2503,8 @@ do not allow the discard. We also reserve the data dictionary latch. */
 	"BEGIN\n"
 	"SELECT ID INTO old_id\n"
 	"FROM SYS_TABLES\n"
-	"WHERE NAME = :table_name;\n"
+	"WHERE NAME = :table_name\n"
+	"LOCK IN SHARE MODE;\n"
 	"IF (SQL % NOTFOUND) THEN\n"
 	"       COMMIT WORK;\n"
 	"       RETURN;\n"
@@ -2516,7 +2517,7 @@ do not allow the discard. We also reserve the data dictionary latch. */
 	" WHERE TABLE_ID = old_id;\n"
 	"COMMIT WORK;\n"
 	"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
@@ -2912,7 +2913,7 @@ do not allow the TRUNCATE. We also reserve the data dictionary latch. */
 		" WHERE TABLE_ID = :old_id;\n"
 		"COMMIT WORK;\n"
 		"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
@@ -3182,7 +3183,8 @@ fputs("  InnoDB: You are trying to drop table ", stderr);
 	"BEGIN\n"
 	"SELECT ID INTO table_id\n"
 	"FROM SYS_TABLES\n"
-	"WHERE NAME = :table_name;\n"
+	"WHERE NAME = :table_name\n"
+	"LOCK IN SHARE MODE;\n"
 	"IF (SQL % NOTFOUND) THEN\n"
 	"       COMMIT WORK;\n"
 	"       RETURN;\n"
@@ -3190,7 +3192,8 @@ fputs("  InnoDB: You are trying to drop table ", stderr);
 	"found := 1;\n"
 	"SELECT ID INTO sys_foreign_id\n"
 	"FROM SYS_TABLES\n"
-	"WHERE NAME = 'SYS_FOREIGN';\n"
+	"WHERE NAME = 'SYS_FOREIGN'\n"
+	"LOCK IN SHARE MODE;\n"
 	"IF (SQL % NOTFOUND) THEN\n"
 	"       found := 0;\n"
 	"END IF;\n"
@@ -3204,7 +3207,8 @@ fputs("  InnoDB: You are trying to drop table ", stderr);
 	"       SELECT ID INTO foreign_id\n"
 	"       FROM SYS_FOREIGN\n"
 	"       WHERE FOR_NAME = :table_name\n"
-	"               AND TO_BINARY(FOR_NAME) = TO_BINARY(:table_name);\n"
+	"               AND TO_BINARY(FOR_NAME) = TO_BINARY(:table_name)\n"
+	"               LOCK IN SHARE MODE;\n"
 	"       IF (SQL % NOTFOUND) THEN\n"
 	"               found := 0;\n"
 	"       ELSE"
@@ -3216,7 +3220,8 @@ fputs("  InnoDB: You are trying to drop table ", stderr);
 	"WHILE found = 1 LOOP\n"
 	"       SELECT ID INTO index_id\n"
 	"       FROM SYS_INDEXES\n"
-	"       WHERE TABLE_ID = table_id;\n"
+	"       WHERE TABLE_ID = table_id\n"
+	"       LOCK IN SHARE MODE;\n"
 	"       IF (SQL % NOTFOUND) THEN\n"
 	"               found := 0;\n"
 	"       ELSE"
@@ -3229,7 +3234,7 @@ fputs("  InnoDB: You are trying to drop table ", stderr);
 	"DELETE FROM SYS_TABLES WHERE ID = table_id;\n"
 	"COMMIT WORK;\n"
 	"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (err != DB_SUCCESS) {
 		ut_a(err == DB_OUT_OF_FILE_SPACE);
@@ -3438,7 +3443,7 @@ row_delete_constraint_low(
 		"DELETE FROM SYS_FOREIGN_COLS WHERE ID = :id;\n"
 		"DELETE FROM SYS_FOREIGN WHERE ID = :id;\n"
 		"END;\n"
-		, trx));
+		, FALSE, trx));
 }
 
 /********************************************************************
@@ -3604,7 +3609,7 @@ row_rename_table_for_mysql(
 		"UPDATE SYS_TABLES SET NAME = :new_table_name\n"
 		" WHERE NAME = :old_table_name;\n"
 		"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (err != DB_SUCCESS) {
 
@@ -3641,7 +3646,8 @@ row_rename_table_for_mysql(
 	"       SELECT ID INTO foreign_id\n"
 	"        FROM SYS_FOREIGN\n"
 	"        WHERE FOR_NAME = :old_table_name\n"
-	"         AND TO_BINARY(FOR_NAME) = TO_BINARY(:old_table_name);\n"
+	"         AND TO_BINARY(FOR_NAME) = TO_BINARY(:old_table_name)\n"
+	"         LOCK IN SHARE MODE;\n"
 	"       IF (SQL % NOTFOUND) THEN\n"
 	"        found := 0;\n"
 	"       ELSE\n"
@@ -3677,7 +3683,7 @@ row_rename_table_for_mysql(
 	"WHERE REF_NAME = :old_table_name\n"
 	"       AND TO_BINARY(REF_NAME) = TO_BINARY(:old_table_name);\n"
 	"END;\n"
-			, trx);
+			, FALSE, trx);
 
 	} else if (n_constraints_to_drop > 0) {
 		/* Drop some constraints of tmp tables. */

@@ -402,6 +402,7 @@ extern ulong srv_n_free_tickets_to_enter;
 extern ulong srv_thread_sleep_delay;
 extern ulong srv_thread_concurrency;
 extern ulong srv_commit_concurrency;
+extern ulong srv_flush_log_at_trx_commit;
 }
 #endif
 #ifdef WITH_BERKELEY_STORAGE_ENGINE
@@ -5127,8 +5128,8 @@ Disable with --skip-innodb-doublewrite.", (gptr*) &innobase_use_doublewrite,
    (gptr*) &innobase_file_per_table, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"innodb_flush_log_at_trx_commit", OPT_INNODB_FLUSH_LOG_AT_TRX_COMMIT,
    "Set to 0 (write and flush once per second), 1 (write and flush at each commit) or 2 (write at commit, flush once per second).",
-   (gptr*) &innobase_flush_log_at_trx_commit,
-   (gptr*) &innobase_flush_log_at_trx_commit,
+   (gptr*) &srv_flush_log_at_trx_commit,
+   (gptr*) &srv_flush_log_at_trx_commit,
    0, GET_ULONG, OPT_ARG,  1, 0, 2, 0, 0, 0},
   {"innodb_flush_method", OPT_INNODB_FLUSH_METHOD,
    "With which method to flush data.", (gptr*) &innobase_unix_file_flush_method,
@@ -5899,9 +5900,11 @@ log and this option does nothing anymore.",
    (gptr*) &srv_n_spin_wait_rounds,
    0, GET_LONG, REQUIRED_ARG, 20L, 0L, ~0L, 0, 1L, 0},
   {"innodb_thread_concurrency", OPT_INNODB_THREAD_CONCURRENCY,
-   "Helps in performance tuning in heavily concurrent environments.",
+   "Helps in performance tuning in heavily concurrent environments. "
+   "Sets the maximum number of threads allowed inside InnoDB. Value 0"
+   " will disable the thread throttling.",
    (gptr*) &srv_thread_concurrency, (gptr*) &srv_thread_concurrency,
-   0, GET_LONG, REQUIRED_ARG, 8, 1, 1000, 0, 1, 0},
+   0, GET_LONG, REQUIRED_ARG, 8, 0, 1000, 0, 1, 0},
   {"innodb_thread_sleep_delay", OPT_INNODB_THREAD_SLEEP_DELAY,
    "Time of innodb thread sleeping before joining InnoDB queue (usec). Value 0"
     " disable a sleep",
