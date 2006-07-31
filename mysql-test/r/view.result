@@ -193,7 +193,7 @@ c	d
 2	5
 3	10
 drop view v100;
-ERROR 42S02: Unknown table 'test.v100'
+ERROR 42S02: Unknown table 'v100'
 drop view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table v1;
@@ -2820,3 +2820,22 @@ b
 c
 DROP VIEW v1, v2;
 DROP TABLE t1;
+CREATE TABLE t1 (id INT);
+CREATE VIEW v1 AS SELECT id FROM t1;
+SHOW TABLES;
+Tables_in_test
+t1
+v1
+DROP VIEW v2,v1;
+ERROR 42S02: Unknown table 'v2'
+SHOW TABLES;
+Tables_in_test
+t1
+CREATE VIEW v1 AS SELECT id FROM t1;
+DROP VIEW t1,v1;
+ERROR HY000: 'test.t1' is not VIEW
+SHOW TABLES;
+Tables_in_test
+t1
+DROP TABLE t1;
+DROP VIEW IF EXISTS v1;
