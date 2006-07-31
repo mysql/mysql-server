@@ -3637,6 +3637,7 @@ part_bit_expr:
         {
           Item *part_expr= $1;
           bool not_corr_func;
+          int part_expression_ok= 1;
           LEX *lex= Lex;
           THD *thd= YYTHD;
           longlong item_value;
@@ -3654,13 +3655,19 @@ part_bit_expr:
             mem_alloc_error(sizeof(part_elem_value));
             YYABORT;
           }
-
+          part_expr->walk(&Item::check_partition_func_processor, 0,
+                          (byte*)(&part_expression_ok));
+          if (!part_expression_ok)
+          {
+            my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+            YYABORT;
+          }
           if (part_expr->fix_fields(YYTHD, (Item**)0) ||
               ((context->table_list= save_list), FALSE) ||
               (!part_expr->const_item()) ||
               (!lex->safe_to_cache_query))
           {
-            yyerror(ER(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR));
+            my_error(ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR, MYF(0));
             YYABORT;
           }
           thd->where= save_where;
