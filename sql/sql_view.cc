@@ -155,6 +155,54 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+/*
+  Fill defined view parts
+
+  SYNOPSIS
+    fill_defined_view_parts()
+      thd                current thread.
+      view               view to operate on
+
+  DESCRIPTION
+    This function will initialize the parts of the view 
+    definition that are not specified in ALTER VIEW
+    to their values from CREATE VIEW.
+    The view must be opened to get its definition.
+    We use a copy of the view when opening because we want 
+    to preserve the original view instance.
+
+  RETURN VALUE
+    TRUE                 can't open table
+    FALSE                success
+*/
+static bool
+fill_defined_view_parts (THD *thd, TABLE_LIST *view)
+{
+  LEX *lex= thd->lex;
+  bool not_used;
+  TABLE_LIST decoy;
+
+  memcpy (&decoy, view, sizeof (TABLE_LIST));
+  if (!open_table(thd, &decoy, thd->mem_root, &not_used, 0) &&
+      !decoy.view)
+  {
+    return TRUE;
+  }
+  if (!lex->definer)
+  {
+    view->definer.host= decoy.definer.host;
+    view->definer.user= decoy.definer.user;
+    lex->definer= &view->definer;
+  }
+  if (lex->create_view_algorithm == VIEW_ALGORITHM_UNDEFINED)
+    lex->create_view_algorithm= decoy.algorithm;
+  if (lex->create_view_suid == VIEW_SUID_DEFAULT)
+    lex->create_view_suid= decoy.view_suid ? 
+      VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
+
+  return FALSE;
+}
+
 
 /*
   Creating/altering VIEW procedure
@@ -207,7 +255,15 @@ bool mysql_create_view(THD *thd,
   }
 
   if (mode != VIEW_CREATE_NEW)
+  {
+    if (mode == VIEW_ALTER &&
+        fill_defined_view_parts(thd, view))
+    {
+      res= TRUE;
+      goto err;
+    }
     sp_cache_invalidate();
+  }
 
   if (!lex->definer)
   {
