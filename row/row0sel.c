@@ -321,7 +321,9 @@ row_sel_fetch_columns(
 				heap = mem_heap_create(1);
 
 				data = btr_rec_copy_externally_stored_field(
-					rec, offsets, field_no, &len, heap);
+					rec, offsets,
+					dict_table_zip_size(index->table),
+					field_no, &len, heap);
 
 				ut_a(len != UNIV_SQL_NULL);
 
@@ -2613,8 +2615,10 @@ row_sel_store_mysql_rec(
 			already run out of memory in the next call, which
 			causes an assert */
 
-			data = btr_rec_copy_externally_stored_field(rec,
-					offsets, templ->rec_field_no, &len,
+			data = btr_rec_copy_externally_stored_field(
+					rec, offsets,
+					dict_table_zip_size(prebuilt->table),
+					templ->rec_field_no, &len,
 					heap);
 
 			ut_a(len != UNIV_SQL_NULL);
