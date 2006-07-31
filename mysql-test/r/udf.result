@@ -93,6 +93,12 @@ NULL
 0R
 FR
 DROP TABLE bug19904;
+CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+ERROR HY000: Incorrect usage of SONAME and DEFINER
+CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+ERROR HY000: Incorrect usage of SONAME and DEFINER
 End of 5.0 tests.
 DROP FUNCTION metaphon;
 DROP FUNCTION myfunc_double;
