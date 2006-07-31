@@ -116,7 +116,7 @@ DEFS =			-DMYSQL_SERVER \
 			@DEFS@
 
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
-EXTRA_DIST =		udf_example.cc $(BUILT_SOURCES)
+EXTRA_DIST =		$(BUILT_SOURCES)
 DISTCLEANFILES =        lex_hash.h
 AM_YFLAGS =		-d
 
@@ -155,7 +155,7 @@ lex_hash.h:	gen_lex_hash$(EXEEXT)
 
 # For testing of udf_example.so
 noinst_LTLIBRARIES= udf_example.la
-udf_example_la_SOURCES= udf_example.cc
+udf_example_la_SOURCES= udf_example.c
 udf_example_la_LDFLAGS= -module -rpath $(pkglibdir)
 
 
