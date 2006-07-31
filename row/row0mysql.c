@@ -3706,6 +3706,7 @@ end:
 
 funct_exit:
 	trx_commit_for_mysql(trx);
+	row_mysql_unlock_data_dictionary(trx);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
