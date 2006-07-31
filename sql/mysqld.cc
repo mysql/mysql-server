@@ -2770,6 +2770,11 @@ You should consider changing lower_case_table_names to 1 or 2",
 			mysql_real_data_home);
     lower_case_table_names= 0;
   }
+  else
+  {
+    lower_case_file_system=
+      (test_if_case_insensitive(mysql_real_data_home) == 1);
+  }
 
   /* Reset table_alias_charset, now that lower_case_table_names is set. */
   table_alias_charset= (lower_case_table_names ?
