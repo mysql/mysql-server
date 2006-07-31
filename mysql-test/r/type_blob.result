@@ -503,6 +503,8 @@ foobar	boggle
 fish	10
 drop table t1;
 create table t1 (id integer auto_increment unique,imagem LONGBLOB not null default '');
+Warnings:
+Warning	1101	BLOB/TEXT column 'imagem' can't have a default value
 insert into t1 (id) values (1);
 select 
 charset(load_file('../../std_data/words.dat')),
@@ -788,3 +790,21 @@ NULL
 616100000000
 620000000000
 drop table t1;
+create table t1 (a text default '');
+Warnings:
+Warning	1101	BLOB/TEXT column 'a' can't have a default value
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` text
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values (default);
+select * from t1;
+a
+NULL
+drop table t1;
+set @@sql_mode='TRADITIONAL';
+create table t1 (a text default '');
+ERROR 42000: BLOB/TEXT column 'a' can't have a default value
+set @@sql_mode='';
+End of 5.0 tests
