@@ -495,10 +495,14 @@ buf_flush_init_for_writing(
 
 		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ZBLOB:
-			mach_write_to_4(page + FIL_PAGE_OFFSET, page_no);
-			mach_write_to_4(page + FIL_PAGE_ZBLOB_SPACE_ID, space);
-			mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
-			mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
+			mach_write_to_4(page_zip->data
+					+ FIL_PAGE_OFFSET, page_no);
+			mach_write_to_4(page_zip->data
+					+ FIL_PAGE_ZBLOB_SPACE_ID, space);
+			mach_write_to_8(page_zip->data
+					+ FIL_PAGE_LSN, newest_lsn);
+			mach_write_to_4(page_zip->data
+					+ FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums
 					? page_zip_calc_checksum(
 							page, zip_size)

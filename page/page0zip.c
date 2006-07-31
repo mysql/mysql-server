@@ -2111,6 +2111,7 @@ page_zip_write_rec(
 	page = ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE);
 
 	ut_ad(page_zip_header_cmp(page_zip, page));
+	ut_ad(page_simple_validate_new(page));
 
 	slot = page_zip_dir_find(page_zip,
 			ut_align_offset(rec, UNIV_PAGE_SIZE));
@@ -2402,6 +2403,7 @@ page_zip_write_blob_ptr(
 	ulint	len;
 
 	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)rec)) == page_zip);
+	ut_ad(page_simple_validate_new(page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
 	ut_ad(rec_offs_comp(offsets));
@@ -2555,6 +2557,7 @@ page_zip_write_node_ptr(
 	page_t*	page	= buf_frame_align(rec);
 
 	ut_ad(buf_block_get_page_zip(buf_block_align(rec)) == page_zip);
+	ut_ad(page_simple_validate_new(page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
 	ut_ad(page_rec_is_comp(rec));
@@ -2619,6 +2622,7 @@ page_zip_write_trx_id_and_roll_ptr(
 	ulint	len;
 
 	ut_ad(buf_block_get_page_zip(buf_block_align(rec)) == page_zip);
+	ut_ad(page_simple_validate_new(page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
