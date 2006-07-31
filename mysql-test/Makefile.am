@@ -60,6 +60,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(srcdir)/std_data/*.000001 $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(distdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/lib/init_db.sql $(distdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
 
@@ -83,6 +84,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/include/*.inc $(DESTDIR)$(testdir)/include
 	$(INSTALL_DATA) $(srcdir)/std_data/*.dat $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.*001 $(DESTDIR)$(testdir)/std_data
+	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/des_key_file $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/Moscow_leap $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.pem $(DESTDIR)$(testdir)/std_data
