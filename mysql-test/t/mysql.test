@@ -86,6 +86,12 @@ create table t1(a int, b varchar(255), c int);
 --exec $MYSQL test -e "desc t1\g"
 drop table t1;
 
+#
+# Bug#21042  	mysql client segfaults on importing a mysqldump export
+#
+--error 1
+--exec $MYSQL test -e "connect verylongdatabasenamethatshouldblowthe256byteslongbufferincom_connectfunctionxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxendcccccccdxxxxxxxxxxxxxxxxxkskskskskkskskskskskskskskskskkskskskskkskskskskskskskskskend" 2>&1
+
 --echo End of 5.0 tests
 
 
