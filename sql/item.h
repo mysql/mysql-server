@@ -1103,7 +1103,6 @@ public:
     Item::maybe_null= TRUE;
   }
 
-  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
   bool fix_fields(THD *, Item **);
 
   enum Type type() const;
