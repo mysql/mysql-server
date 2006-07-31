@@ -1553,8 +1553,11 @@ bool fix_partition_func(THD *thd, TABLE *table,
       goto end;
     }
   }
-  if ((check_part_func_fields(part_info->part_field_array)) ||
-      (part_info->is_sub_partitioned() &&
+  if (((part_info->part_type != HASH_PARTITION ||
+      part_info->list_of_part_fields == FALSE) &&
+      check_part_func_fields(part_info->part_field_array)) ||
+      (part_info->list_of_part_fields == FALSE &&
+       part_info->is_sub_partitioned() &&
        check_part_func_fields(part_info->subpart_field_array)))
   {
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
