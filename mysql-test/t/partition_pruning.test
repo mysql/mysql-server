@@ -238,11 +238,14 @@ explain partitions select * from t9 where a <= '2004-12-19';
 drop table t5,t6,t7,t8,t9;
 
 # Test the case where we can't create partitioning 'index'
-create table t1 (a enum('a','b','c','d') default 'a') 
-  partition by hash (ascii(a)) partitions 2;
-insert into t1 values ('a'),('b'),('c');
-explain partitions select * from t1 where a='b';
-drop table t1;
+#
+# Not supported after bug#18198 is fixed
+#
+#create table t1 (a enum('a','b','c','d') default 'a') 
+#  partition by hash (ascii(a)) partitions 2;
+#insert into t1 values ('a'),('b'),('c');
+#explain partitions select * from t1 where a='b';
+#drop table t1;
 
 #
 # Test cases for bugs found in code review:
@@ -519,8 +522,9 @@ select * from t1 where f_int1 between 5 and 15 order by f_int1;
 drop table t1;
 
 #  part2: bug in pruning code
-create table t1 (a char(10)) partition by list(length(a)) (
-  partition p1 values in (1),
+create table t1 (a char(10) binary)
+partition by list(length(a))
+ (partition p1 values in (1),
   partition p2 values in (2),
   partition p3 values in (3),
   partition p4 values in (4),
