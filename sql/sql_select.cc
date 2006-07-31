@@ -697,8 +697,9 @@ JOIN::optimize()
         Notice that make_cond_for_table() will always succeed to remove all
         computed conditions, because opt_sum_query() is applicable only to
         conjunctions.
+        Preserve conditions for EXPLAIN.
       */
-      if (conds)
+      if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
       {
         COND *table_independent_conds=
           make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0);
