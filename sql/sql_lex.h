@@ -1047,7 +1047,7 @@ typedef struct st_lex : public Query_tables_list
   /*
     view created to be run from definer (standard behaviour)
   */
-  bool create_view_suid;
+  uint8 create_view_suid;
   /* Characterstics of trigger being created */
   st_trg_chistics trg_chistics;
   /*
