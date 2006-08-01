@@ -144,7 +144,7 @@ mem_heap_cat(
 	void*	res = mem_heap_alloc(heap, len1 + len2);
 
 	memcpy(res, b1, len1);
-	memcpy((char *)res + len1, b2, len2);
+	memcpy((char*)res + len1, b2, len2);
 
 	return(res);
 }
