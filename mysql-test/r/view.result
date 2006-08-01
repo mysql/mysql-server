@@ -193,7 +193,7 @@ c	d
 2	5
 3	10
 drop view v100;
-ERROR 42S02: Unknown table 'test.v100'
+ERROR 42S02: Unknown table 'v100'
 drop view t1;
 ERROR HY000: 'test.t1' is not VIEW
 drop table v1;
@@ -2807,6 +2807,17 @@ yadda
 yad
 DROP VIEW v1;
 DROP TABLE t1;
+CREATE TABLE t1 (x INT, y INT);
+CREATE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`x` AS `x` from `t1`
+ALTER VIEW v1 AS SELECT x, y FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `v1` AS select `t1`.`x` AS `x`,`t1`.`y` AS `y` from `t1`
+DROP VIEW v1;
+DROP TABLE t1;
 CREATE TABLE t1 (s1 char);
 INSERT INTO t1 VALUES ('Z');
 CREATE VIEW v1 AS SELECT s1 collate latin1_german1_ci AS col FROM t1;
@@ -2820,3 +2831,22 @@ b
 c
 DROP VIEW v1, v2;
 DROP TABLE t1;
+CREATE TABLE t1 (id INT);
+CREATE VIEW v1 AS SELECT id FROM t1;
+SHOW TABLES;
+Tables_in_test
+t1
+v1
+DROP VIEW v2,v1;
+ERROR 42S02: Unknown table 'v2'
+SHOW TABLES;
+Tables_in_test
+t1
+CREATE VIEW v1 AS SELECT id FROM t1;
+DROP VIEW t1,v1;
+ERROR HY000: 'test.t1' is not VIEW
+SHOW TABLES;
+Tables_in_test
+t1
+DROP TABLE t1;
+DROP VIEW IF EXISTS v1;
