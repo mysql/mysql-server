@@ -715,27 +715,6 @@ que_graph_try_free(
 	return(FALSE);
 }
 
-/**************************************************************************
-Handles an SQL error noticed during query thread execution. Currently,
-does nothing! */
-
-void
-que_thr_handle_error(
-/*=================*/
-	que_thr_t*	thr __attribute__((unused)),
-				/* in: query thread */
-	ulint		err_no __attribute__((unused)),
-				/* in: error number */
-	byte*		err_str __attribute__((unused)),
-				/* in, own: error string or NULL; NOTE: the
-				function will take care of freeing of the
-				string! */
-	ulint		err_len __attribute__((unused)))
-				/* in: error string length */
-{
-	/* Does nothing */
-}
-
 /********************************************************************
 Performs an execution step on a thr node. */
 static
@@ -813,11 +792,10 @@ que_thr_move_to_run_state(
 Decrements the query thread reference counts in the query graph and the
 transaction. May start signal handling, e.g., a rollback.
 *** NOTE ***:
-This and que_thr_stop_for_mysql are
-the only functions where the reference count can be decremented and
-this function may only be called from inside que_run_threads or
-que_thr_check_if_switch! These restrictions exist to make the rollback code
-easier to maintain. */
+This and que_thr_stop_for_mysql are the only functions where the reference
+count can be decremented and this function may only be called from inside
+que_run_threads or que_thr_check_if_switch! These restrictions exist to make
+the rollback code easier to maintain. */
 static
 void
 que_thr_dec_refer_count(
@@ -836,7 +814,7 @@ que_thr_dec_refer_count(
 	ibool		stopped;
 
 	fork = thr->common.parent;
-	trx = thr->graph->trx;
+	trx = thr_get_trx(thr);
 	sess = trx->sess;
 
 	mutex_enter(&kernel_mutex);
@@ -856,6 +834,12 @@ que_thr_dec_refer_count(
 				stderr); */
 
 			if (next_thr && *next_thr == NULL) {
+				/* Normally srv_suspend_mysql_thread resets
+				the state to DB_SUCCESS before waiting, but
+				in this case we have to do it here,
+				otherwise nobody does it. */
+				trx->error_state = DB_SUCCESS;
+
 				*next_thr = thr;
 			} else {
 				ut_a(0);
@@ -1200,7 +1184,10 @@ que_thr_step(
 	trx_t*		trx;
 	ulint		type;
 
+	trx = thr_get_trx(thr);
+
 	ut_ad(thr->state == QUE_THR_RUNNING);
+	ut_a(trx->error_state == DB_SUCCESS);
 
 	thr->resource++;
 
@@ -1236,7 +1223,6 @@ que_thr_step(
 			threads doing updating or inserting at the moment! */
 
 			if (thr->prev_node == que_node_get_parent(node)) {
-				trx = thr_get_trx(thr);
 				trx->last_sql_stat_start.least_undo_no
 							= trx->undo_no;
 			}
@@ -1298,24 +1284,28 @@ que_thr_step(
 		old_thr->prev_node = node;
 	}
 
+	if (thr) {
+		ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
+	}
+
 	return(thr);
 }
 
 /**************************************************************************
-Runs query threads. Note that the individual query thread which is run
-within this function may change if, e.g., the OS thread executing this
-function uses a threshold amount of resources. */
-
+Run a query thread until it finishes or encounters e.g. a lock wait. */
+static
 void
-que_run_threads(
-/*============*/
-	que_thr_t*	thr)	/* in: query thread which is run initially */
+que_run_threads_low(
+/*================*/
+	que_thr_t*	thr)	/* in: query thread */
 {
 	que_thr_t*	next_thr;
 	ulint		cumul_resource;
 	ulint		loop_count;
 
 	ut_ad(thr->state == QUE_THR_RUNNING);
+	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1340,10 +1330,15 @@ loop:
 	next_thr = que_thr_step(thr);
 	/*-------------------------*/
 
+	ut_a(!next_thr || (thr_get_trx(next_thr)->error_state == DB_SUCCESS));
+
 	loop_count++;
 
 	if (next_thr != thr) {
 		ut_a(next_thr == NULL);
+
+		/* This can change next_thr to a non-NULL value if there was
+		a lock wait that already completed. */
 		que_thr_dec_refer_count(thr, &next_thr);
 
 		if (next_thr == NULL) {
@@ -1359,20 +1354,89 @@ loop:
 	goto loop;
 }
 
+/**************************************************************************
+Run a query thread. Handles lock waits. */
+void
+que_run_threads(
+/*============*/
+	que_thr_t*	thr)	/* in: query thread */
+{
+loop:
+	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
+	que_run_threads_low(thr);
+
+	mutex_enter(&kernel_mutex);
+
+	switch (thr->state) {
+
+	case QUE_THR_RUNNING:
+		/* There probably was a lock wait, but it already ended
+		before we came here: continue running thr */
+
+		mutex_exit(&kernel_mutex);
+
+		goto loop;
+
+	case QUE_THR_LOCK_WAIT:
+		mutex_exit(&kernel_mutex);
+
+		/* The ..._mysql_... function works also for InnoDB's
+		internal threads. Let us wait that the lock wait ends. */
+
+		srv_suspend_mysql_thread(thr);
+
+		if (thr_get_trx(thr)->error_state != DB_SUCCESS) {
+			/* thr was chosen as a deadlock victim or there was
+			a lock wait timeout */
+
+			que_thr_dec_refer_count(thr, NULL);
+
+			return;
+		}
+
+		goto loop;
+
+	case QUE_THR_COMPLETED:
+	case QUE_THR_COMMAND_WAIT:
+		/* Do nothing */
+		break;
+
+	default:
+		ut_error;
+	}
+
+	mutex_exit(&kernel_mutex);
+}
+
 /*************************************************************************
-Evaluate the given SQL */
+Evaluate the given SQL. */
 
 ulint
 que_eval_sql(
 /*=========*/
-	pars_info_t*	info,	/* out: error code or DB_SUCCESS */
-	const char*	sql,	/* in: info struct, or NULL */
+				/* out: error code or DB_SUCCESS */
+	pars_info_t*	info,	/* in: info struct, or NULL */
+	const char*	sql,	/* in: SQL string */
+	ibool		reserve_dict_mutex,
+				/* in: if TRUE, acquire/release
+				dict_sys->mutex around call to pars_sql. */
 	trx_t*		trx)	/* in: trx */
 {
 	que_thr_t*	thr;
 	que_t*		graph;
 
+	ut_a(trx->error_state == DB_SUCCESS);
+
+	if (reserve_dict_mutex) {
+		mutex_enter(&dict_sys->mutex);
+	}
+
 	graph = pars_sql(info, sql);
+
+	if (reserve_dict_mutex) {
+		mutex_exit(&dict_sys->mutex);
+	}
+
 	ut_a(graph);
 
 	graph->trx = trx;

@@ -45,6 +45,9 @@ to que_run_threads: this is to allow canceling runaway queries */
 
 #define SEL_COST_LIMIT	100
 
+/* The lower limit for what we consider a "big" row */
+#define BIG_ROW_SIZE	1024
+
 /* Flags for search shortcut */
 #define SEL_FOUND	0
 #define	SEL_EXHAUSTED	1
@@ -1132,11 +1135,12 @@ row_sel_try_search_shortcut(
 	ut_ad(plan->pcur.latch_mode == node->latch_mode);
 
 	plan->n_rows_fetched++;
+	ret = SEL_FOUND;
 func_exit:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
-	return(SEL_FOUND);
+	return(ret);
 }
 
 /*************************************************************************
@@ -1240,7 +1244,8 @@ table_loop:
 	mtr_start(&mtr);
 
 	if (consistent_read && plan->unique_search && !plan->pcur_is_open
-						&& !plan->must_get_clust) {
+			&& !plan->must_get_clust
+			&& (plan->table->max_row_size < BIG_ROW_SIZE)) {
 		if (!search_latch_locked) {
 			rw_lock_s_lock(&btr_search_latch);
 
@@ -1354,6 +1359,12 @@ rec_loop:
 
 			if (srv_locks_unsafe_for_binlog
 			|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+
+				if (page_rec_is_supremum(next_rec)) {
+
+					goto skip_lock;
+				}
+
 				lock_type = LOCK_REC_NOT_GAP;
 			} else {
 				lock_type = LOCK_ORDINARY;
@@ -1372,6 +1383,7 @@ rec_loop:
 		}
 	}
 
+skip_lock:
 	if (page_rec_is_infimum(rec)) {
 
 		/* The infimum record on a page cannot be in the result set,
@@ -1402,6 +1414,12 @@ rec_loop:
 
 		if (srv_locks_unsafe_for_binlog
 		|| trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+
+			if (page_rec_is_supremum(rec)) {
+
+				goto next_rec;
+			}
+
 			lock_type = LOCK_REC_NOT_GAP;
 		} else {
 			lock_type = LOCK_ORDINARY;
@@ -1628,7 +1646,8 @@ rec_loop:
 	}
 
 	if ((plan->n_rows_fetched <= SEL_PREFETCH_LIMIT)
-				|| plan->unique_search || plan->no_prefetch) {
+		|| plan->unique_search || plan->no_prefetch
+		|| (plan->table->max_row_size >= BIG_ROW_SIZE)) {
 
 		/* No prefetch in operation: go to the next table */
 
@@ -1914,9 +1933,8 @@ row_sel_step(
 				err = lock_table(0, table_node->table,
 							i_lock_mode, thr);
 				if (err != DB_SUCCESS) {
+					thr_get_trx(thr)->error_state = err;
 
-					que_thr_handle_error(thr, DB_ERROR,
-								NULL, 0);
 					return(NULL);
 				}
 
@@ -1952,17 +1970,8 @@ row_sel_step(
 
 	thr->graph->last_sel_node = node;
 
-	if (err == DB_SUCCESS) {
-		/* Ok: do nothing */
-
-	} else if (err == DB_LOCK_WAIT) {
-
-		return(NULL);
-	} else {
-		/* SQL error detected */
-		fprintf(stderr, "SQL error %lu\n", (ulong) err);
-
-		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
+	if (err != DB_SUCCESS) {
+		thr_get_trx(thr)->error_state = err;
 
 		return(NULL);
 	}
@@ -2023,7 +2032,7 @@ fetch_step(
 		fprintf(stderr,
 			"InnoDB: Error: fetch called on a closed cursor\n");
 
-		que_thr_handle_error(thr, DB_ERROR, NULL, 0);
+		thr_get_trx(thr)->error_state = DB_ERROR;
 
 		return(NULL);
 	}
