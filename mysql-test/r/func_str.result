@@ -1059,28 +1059,28 @@ DROP TABLE t1;
 CREATE TABLE t1 (s varchar(10));
 INSERT INTO t1 VALUES ('yadda'), ('yaddy');
 EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(s) > 'ab';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(`test`.`t1`.`s`) > _latin1'ab')
 EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
 EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(leading _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
 EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(trailing _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
 EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
 DROP TABLE t1;
