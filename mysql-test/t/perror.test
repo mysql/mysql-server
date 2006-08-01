@@ -13,6 +13,7 @@ enable_query_log;
 # Bug#16561 Unknown ERROR msg "ERROR 1186 (HY000): Binlog closed" by perror
 #
 
-# As there is an error code defined for 1186, expect error
+# Test with error code 10000 as it's a common "unknown error"
+# As there is no error code defined for 10000, expect error
 --error 1
---exec $MY_PERROR 1186 2>&1
+--exec $MY_PERROR 10000 2>&1
