@@ -519,7 +519,8 @@ HugoTransactions::loadTable(Ndb* pNdb,
 			    bool allowConstraintViolation,
 			    int doSleep,
                             bool oneTrans,
-			    int value){
+			    int value,
+			    bool abort){
   int             check, a;
   int             retryAttempt = 0;
   int             retryMax = 5;
@@ -585,10 +586,22 @@ HugoTransactions::loadTable(Ndb* pNdb,
     if (!oneTrans || (c + batch) >= records) {
       //      closeTrans = true;
       closeTrans = false;
-      check = pTrans->execute( Commit );
-      if(check != -1)
-	m_latest_gci = pTrans->getGCI();
-      pTrans->restart();
+      if (!abort)
+      {
+	check = pTrans->execute( Commit );
+	if(check != -1)
+	  m_latest_gci = pTrans->getGCI();
+	pTrans->restart();
+      }
+      else
+      {
+	check = pTrans->execute( NoCommit );
+	if (check != -1)
+	{
+	  check = pTrans->execute( Rollback );	
+	  closeTransaction(pNdb);
+	}
+      }
     } else {
       closeTrans = false;
       check = pTrans->execute( NoCommit );
