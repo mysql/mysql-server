@@ -60,7 +60,7 @@ Uint32 sizes = 7;
 unsigned int seed;
 Ndbd_mem_manager mm;
 Configuration cfg;
-Block_context ctx = { cfg, mm };
+Block_context ctx(cfg, mm);
 struct BB : public SimulatedBlock
 {
   BB(int no, Block_context& ctx) : SimulatedBlock(no, ctx) {}
@@ -548,6 +548,8 @@ main(int argc, char **argv)
 }
 
 Uint32 g_currentStartPhase;
+Uint32 g_start_type;
+NdbNodeBitmask g_nowait_nodes;
 
 void childExit(int code, Uint32 currentStartPhase)
 {
