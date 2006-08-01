@@ -135,7 +135,13 @@ make_atomic_swap(ptr)
 #undef _atomic_h_cleanup_
 #endif
 
-typedef int32 intptr; /* TODO configure check */
+#if SIZEOF_CHARP == SIZEOF_INT
+typedef int intptr;
+#elif SIZEOF_CHARP == SIZEOF_LONG
+typedef long intptr;
+#else
+#error
+#endif
 
 #define MY_ATOMIC_OK       0
 #define MY_ATOMIC_NOT_1CPU 1
