@@ -155,6 +155,54 @@ err:
   DBUG_RETURN(TRUE);
 }
 
+/*
+  Fill defined view parts
+
+  SYNOPSIS
+    fill_defined_view_parts()
+      thd                current thread.
+      view               view to operate on
+
+  DESCRIPTION
+    This function will initialize the parts of the view 
+    definition that are not specified in ALTER VIEW
+    to their values from CREATE VIEW.
+    The view must be opened to get its definition.
+    We use a copy of the view when opening because we want 
+    to preserve the original view instance.
+
+  RETURN VALUE
+    TRUE                 can't open table
+    FALSE                success
+*/
+static bool
+fill_defined_view_parts (THD *thd, TABLE_LIST *view)
+{
+  LEX *lex= thd->lex;
+  bool not_used;
+  TABLE_LIST decoy;
+
+  memcpy (&decoy, view, sizeof (TABLE_LIST));
+  if (!open_table(thd, &decoy, thd->mem_root, &not_used, 0) &&
+      !decoy.view)
+  {
+    return TRUE;
+  }
+  if (!lex->definer)
+  {
+    view->definer.host= decoy.definer.host;
+    view->definer.user= decoy.definer.user;
+    lex->definer= &view->definer;
+  }
+  if (lex->create_view_algorithm == VIEW_ALGORITHM_UNDEFINED)
+    lex->create_view_algorithm= decoy.algorithm;
+  if (lex->create_view_suid == VIEW_SUID_DEFAULT)
+    lex->create_view_suid= decoy.view_suid ? 
+      VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
+
+  return FALSE;
+}
+
 
 /*
   Creating/altering VIEW procedure
@@ -207,7 +255,15 @@ bool mysql_create_view(THD *thd,
   }
 
   if (mode != VIEW_CREATE_NEW)
+  {
+    if (mode == VIEW_ALTER &&
+        fill_defined_view_parts(thd, view))
+    {
+      res= TRUE;
+      goto err;
+    }
     sp_cache_invalidate();
+  }
 
   if (!lex->definer)
   {
@@ -1238,6 +1294,10 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 {
   char path[FN_REFLEN];
   TABLE_LIST *view;
+  frm_type_enum type;
+  String non_existant_views;
+  char *wrong_object_db= NULL, *wrong_object_name= NULL;
+  bool error= FALSE;
   enum legacy_db_type not_used;
   DBUG_ENTER("mysql_drop_view");
 
@@ -1248,8 +1308,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     build_table_filename(path, sizeof(path),
                          view->db, view->table_name, reg_ext);
     VOID(pthread_mutex_lock(&LOCK_open));
-    if (access(path, F_OK) ||
-	(type= (mysql_frm_type(thd, path, &not_used) != FRMTYPE_VIEW)))
+    type= FRMTYPE_ERROR;
+    if (access(path, F_OK) || 
+        FRMTYPE_VIEW != (type= mysql_frm_type(thd, path, &not_used)))
     {
       char name[FN_REFLEN];
       my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
@@ -1261,14 +1322,25 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 	VOID(pthread_mutex_unlock(&LOCK_open));
 	continue;
       }
-      if (type)
-        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
+      if (type == FRMTYPE_TABLE)
+      {
+        if (!wrong_object_name)
+        {
+          wrong_object_db= view->db;
+          wrong_object_name= view->table_name;
+        }
+      }
       else
-        my_error(ER_BAD_TABLE_ERROR, MYF(0), name);
-      goto err;
+      {
+        if (non_existant_views.length())
+          non_existant_views.append(',');
+        non_existant_views.append(String(view->table_name,system_charset_info));
+      }
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      continue;
     }
     if (my_delete(path, MYF(MY_WME)))
-      goto err;
+      error= TRUE;
 
     /*
       For a view, there is only one table_share object which should never
@@ -1287,13 +1359,23 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     sp_cache_invalidate();
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
+  if (error)
+  {
+    DBUG_RETURN(TRUE);
+  }
+  if (wrong_object_name)
+  {
+    my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name, 
+             "VIEW");
+    DBUG_RETURN(TRUE);
+  }
+  if (non_existant_views.length())
+  {
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
+    DBUG_RETURN(TRUE);
+  }
   send_ok(thd);
   DBUG_RETURN(FALSE);
-
-err:
-  VOID(pthread_mutex_unlock(&LOCK_open));
-  DBUG_RETURN(TRUE);
-
 }
 
 

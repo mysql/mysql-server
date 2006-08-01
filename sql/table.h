@@ -472,6 +472,10 @@ typedef struct st_schema_table
 #define VIEW_ALGORITHM_TMPTABLE         1
 #define VIEW_ALGORITHM_MERGE            2
 
+#define VIEW_SUID_INVOKER               0
+#define VIEW_SUID_DEFINER               1
+#define VIEW_SUID_DEFAULT               2
+
 /* view WITH CHECK OPTION parameter options */
 #define VIEW_CHECK_NONE       0
 #define VIEW_CHECK_LOCAL      1
