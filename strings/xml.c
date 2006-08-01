@@ -159,7 +159,7 @@ static int my_xml_enter(MY_XML_PARSER *st, const char *str, uint len)
   }
   if (st->attrend > st->attr)
   {
-    st->attrend[0]='.';
+    st->attrend[0]= '/';
     st->attrend++;
   }
   memcpy(st->attrend,str,len);
@@ -188,9 +188,9 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, uint slen)
   char g[32];
   int  rc;
 
-  /* Find previous '.' or beginning */
-  for( e=p->attrend; (e>p->attr) && (e[0] != '.') ; e--);
-  glen = (uint) ((e[0] == '.') ? (p->attrend-e-1) : p->attrend-e);
+  /* Find previous '/' or beginning */
+  for( e=p->attrend; (e>p->attr) && (e[0] != '/') ; e--);
+  glen = (uint) ((e[0] == '/') ? (p->attrend-e-1) : p->attrend-e);
   
   if (str && (slen != glen))
   {
