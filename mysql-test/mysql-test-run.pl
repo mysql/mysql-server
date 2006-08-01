@@ -812,6 +812,13 @@ sub command_line_setup () {
     $opt_with_ndbcluster= 0;
   }
 
+  # Check IM arguments
+  if ( $glob_win32 )
+  {
+    mtr_report("Disable Instance manager - not supported on Windows");
+    opt_skip_im= 1;
+  }
+
   # Check valgrind arguments
   if ( $opt_valgrind or $opt_valgrind_path or defined $opt_valgrind_options)
   {
