@@ -748,3 +748,4 @@ f1	f2	f3
 111111	aaaaaa	1
 222222	bbbbbb	2
 drop table t1;
+Illegal ndb error code: 1186
