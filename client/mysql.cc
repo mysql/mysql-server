@@ -2858,7 +2858,7 @@ com_connect(String *buffer, char *line)
   bzero(buff, sizeof(buff));
   if (buffer)
   {
-    strmov(buff, line);
+    strmake(buff, line, sizeof(buff));
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
@@ -3723,6 +3723,9 @@ static const char* construct_prompt()
 	break;
       case 't':
 	processed_prompt.append('\t');
+	break;
+      case 'l':
+	processed_prompt.append(delimiter_str);
 	break;
       default:
 	processed_prompt.append(c);

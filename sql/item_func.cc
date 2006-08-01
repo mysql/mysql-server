@@ -3406,6 +3406,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->length=0;
     entry->update_query_id=0;
     entry->collation.set(NULL, DERIVATION_IMPLICIT);
+    entry->unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
       variable. Imagine it is this:
@@ -3492,6 +3493,7 @@ Item_func_set_user_var::fix_length_and_dec()
     type     - type of new value
     cs       - charset info for new value
     dv       - derivation for new value
+    unsigned_arg - indiates if a value of type INT_RESULT is unsigned
 
   RETURN VALUE
     False - success, True - failure
@@ -3499,7 +3501,8 @@ Item_func_set_user_var::fix_length_and_dec()
 
 static bool
 update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
-            Item_result type, CHARSET_INFO *cs, Derivation dv)
+            Item_result type, CHARSET_INFO *cs, Derivation dv,
+            bool unsigned_arg)
 {
   if (set_null)
   {
@@ -3547,6 +3550,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
     entry->collation.set(cs, dv);
+    entry->unsigned_flag= unsigned_arg;
   }
   entry->type=type;
   return 0;
@@ -3555,7 +3559,8 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
 
 bool
 Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
-                                    CHARSET_INFO *cs, Derivation dv)
+                                    CHARSET_INFO *cs, Derivation dv,
+                                    bool unsigned_arg)
 {
   /*
     If we set a variable explicitely to NULL then keep the old
@@ -3564,7 +3569,7 @@ Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
   if ((null_value= args[0]->null_value) && null_item)
     type= entry->type;                          // Don't change type of item
   if (::update_hash(entry, (null_value= args[0]->null_value),
-                    ptr, length, type, cs, dv))
+                    ptr, length, type, cs, dv, unsigned_arg))
   {
     current_thd->fatal_error();     // Probably end of memory
     null_value= 1;
@@ -3646,7 +3651,10 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
     str->set(*(double*) value, decimals, &my_charset_bin);
     break;
   case INT_RESULT:
-    str->set(*(longlong*) value, &my_charset_bin);
+    if (!unsigned_flag)
+      str->set(*(longlong*) value, &my_charset_bin);
+    else
+      str->set(*(ulonglong*) value, &my_charset_bin);
     break;
   case DECIMAL_RESULT:
     my_decimal2string(E_DEC_FATAL_ERROR, (my_decimal *)value, 0, 0, 0, str);
@@ -3717,6 +3725,7 @@ Item_func_set_user_var::check()
   case INT_RESULT:
   {
     save_result.vint= args[0]->val_int();
+    unsigned_flag= args[0]->unsigned_flag;
     break;
   }
   case STRING_RESULT:
@@ -3772,7 +3781,8 @@ Item_func_set_user_var::update()
   case INT_RESULT:
   {
     res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
-		     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
+		     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT,
+                     unsigned_flag);
     break;
   }
   case STRING_RESULT:
@@ -4151,7 +4161,7 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 void Item_user_var_as_out_param::set_null_value(CHARSET_INFO* cs)
 {
   if (::update_hash(entry, TRUE, 0, 0, STRING_RESULT, cs,
-                    DERIVATION_IMPLICIT))
+                    DERIVATION_IMPLICIT, 0 /* unsigned_arg */))
     current_thd->fatal_error();			// Probably end of memory
 }
 
@@ -4160,7 +4170,7 @@ void Item_user_var_as_out_param::set_value(const char *str, uint length,
                                            CHARSET_INFO* cs)
 {
   if (::update_hash(entry, FALSE, (void*)str, length, STRING_RESULT, cs,
-                    DERIVATION_IMPLICIT))
+                    DERIVATION_IMPLICIT, 0 /* unsigned_arg */))
     current_thd->fatal_error();			// Probably end of memory
 }
 

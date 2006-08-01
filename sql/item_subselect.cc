@@ -1511,6 +1511,7 @@ static Item_result set_row(List<Item> &item_list, Item *item,
     item->max_length= sel_item->max_length;
     res_type= sel_item->result_type();
     item->decimals= sel_item->decimals;
+    item->unsigned_flag= sel_item->unsigned_flag;
     *maybe_null= sel_item->maybe_null;
     if (!(row[i]= Item_cache::get_cache(res_type)))
       return STRING_RESULT; // we should return something
