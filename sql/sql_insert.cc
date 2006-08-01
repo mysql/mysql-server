@@ -730,7 +730,7 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
   uint used_fields_buff_size= bitmap_buffer_size(table->s->fields);
   uint32 *used_fields_buff= (uint32*)thd->alloc(used_fields_buff_size);
   MY_BITMAP used_fields;
-  bool save_set_query_id= thd->set_query_id;
+  enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   DBUG_ENTER("check_key_in_view");
 
   if (!used_fields_buff)
@@ -746,20 +746,20 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
     we must not set query_id for fields as they're not 
     really used in this context
   */
-  thd->set_query_id= 0;
+  thd->mark_used_columns= MARK_COLUMNS_NONE;
   /* check simplicity and prepare unique test of view */
   for (trans= trans_start; trans != trans_end; trans++)
   {
     if (!trans->item->fixed && trans->item->fix_fields(thd, &trans->item))
     {
-      thd->set_query_id= save_set_query_id;
+      thd->mark_used_columns= save_mark_used_columns;
       DBUG_RETURN(TRUE);
     }
     Item_field *field;
     /* simple SELECT list entry (field without expression) */
     if (!(field= trans->item->filed_for_view_update()))
     {
-      thd->set_query_id= save_set_query_id;
+      thd->mark_used_columns= save_mark_used_columns;
       DBUG_RETURN(TRUE);
     }
     if (field->field->unireg_check == Field::NEXT_NUMBER)
@@ -771,7 +771,7 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
     */
     trans->item= field;
   }
-  thd->set_query_id= save_set_query_id;
+  thd->mark_used_columns= save_mark_used_columns;
   /* unique test */
   for (trans= trans_start; trans != trans_end; trans++)
   {

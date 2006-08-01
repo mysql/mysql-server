@@ -84,9 +84,28 @@ SET FOREIGN_KEY_CHECKS=0;
 --error 1022, 1062
 INSERT INTO t1 VALUES (1),(1);
 sync_slave_with_master;
+connection master;
+drop table t1;
+sync_slave_with_master;
 
 # End of 4.1 tests
-
+ 
+#
+# Bug#14553: NULL in WHERE resets LAST_INSERT_ID
+#
+connection master;
+create table t1(a int auto_increment, key(a));
+create table t2(a int);
+insert into t1 (a) values (null);
+insert into t2 (a) select a from t1 where a is null;
+insert into t2 (a) select a from t1 where a is null;
+select * from t2;
+sync_slave_with_master;
+connection slave;
+select * from t2;
+connection master;
+drop table t1;
+drop table t2;
 
 #
 # BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
@@ -274,3 +293,4 @@ drop table t1, t2;
 drop function insid;
 
 sync_slave_with_master;
+

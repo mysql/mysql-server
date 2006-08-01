@@ -793,10 +793,9 @@ public:
   Field_timestamp(char *ptr_arg, uint32 len_arg,
                   uchar *null_ptr_arg, uchar null_bit_arg,
 		  enum utype unireg_check_arg, const char *field_name_arg,
-		  struct st_table *table_arg,
 		  TABLE_SHARE *share, CHARSET_INFO *cs);
   Field_timestamp(bool maybe_null_arg, const char *field_name_arg,
-		 struct st_table *table_arg, CHARSET_INFO *cs);
+		  CHARSET_INFO *cs);
   enum_field_types type() const { return FIELD_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
@@ -1148,9 +1147,9 @@ public:
     flags|= BLOB_FLAG;
   }
   Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     struct st_table *table_arg, CHARSET_INFO *cs, bool set_packlength)
+	     CHARSET_INFO *cs, bool set_packlength)
     :Field_longstr((char*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
-                   NONE, field_name_arg, table_arg, cs)
+                   NONE, field_name_arg, cs)
   {
     flags|= BLOB_FLAG;
     packlength= 4;

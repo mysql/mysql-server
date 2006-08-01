@@ -1311,14 +1311,14 @@ create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` char(1) default NULL,
-  `f2` char(5) default NULL,
-  `f3` binary(1) default NULL,
-  `f4` binary(5) default NULL,
-  `f5` timestamp NOT NULL default '0000-00-00 00:00:00',
-  `f6` varchar(1) character set utf8 default NULL,
+  `f1` char(1) DEFAULT NULL,
+  `f2` char(5) DEFAULT NULL,
+  `f3` binary(1) DEFAULT NULL,
+  `f4` binary(5) DEFAULT NULL,
+  `f5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `f6` varchar(1) CHARACTER SET utf8 DEFAULT NULL,
   `f7` text,
-  `f8` text character set utf8
+  `f8` text CHARACTER SET utf8
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
