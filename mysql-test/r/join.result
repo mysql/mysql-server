@@ -764,3 +764,15 @@ natural join t5;
 y	c	b	a	z
 1	3	2	1	4
 drop table t1, t2, t3, t4, t5;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, filler char(100), key(a), key(b));
+create table t3 (a int, b int, filler char(100), key(a), key(b));
+insert into t2 
+select @a:= A.a + 10*(B.a + 10*C.a), @a, 'filler' from t1 A, t1 B, t1 C;
+insert into t3 select * from t2 where a < 800;
+explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	a,b	NULL	NULL	NULL	1000	Using where
+1	SIMPLE	t3	ref	b	b	5	test.t2.b	1	Using where
+drop table t1, t2, t3;

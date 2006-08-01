@@ -46,8 +46,8 @@ select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
 row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)))
 NULL
 explain extended select row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select ((1,2,(3,4)) in ((3,2,(3,4)),(1,2,(3,NULL)))) AS `row(1,2,row(3,4)) IN (row(3,2,row(3,4)), row(1,2,row(3,NULL)))`
 SELECT (1,2,3)=(0,NULL,3);

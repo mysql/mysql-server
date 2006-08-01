@@ -15,8 +15,8 @@ grp	group_concat(c)
 2	b,c
 3	E,C,D,d,d,D
 explain extended select grp,group_concat(c) from t1 group by grp;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	100.00	Using filesort
 Warnings:
 Note	1003	select `test`.`t1`.`grp` AS `grp`,group_concat(`test`.`t1`.`c` separator ',') AS `group_concat(c)` from `test`.`t1` group by `test`.`t1`.`grp`
 select grp,group_concat(a,c) from t1 group by grp;
@@ -90,8 +90,8 @@ grp	group_concat(distinct c order by c desc)
 2	c,b
 3	E,D,C
 explain extended select grp,group_concat(distinct c order by c desc) from t1 group by grp;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	100.00	Using filesort
 Warnings:
 Note	1003	select `test`.`t1`.`grp` AS `grp`,group_concat(distinct `test`.`t1`.`c` order by `test`.`t1`.`c` DESC separator ',') AS `group_concat(distinct c order by c desc)` from `test`.`t1` group by `test`.`t1`.`grp`
 select grp,group_concat(c order by c separator ",") from t1 group by grp;
@@ -110,8 +110,8 @@ grp	group_concat(distinct c order by c separator ",")
 2	b,c
 3	C,D,E
 explain extended select grp,group_concat(distinct c order by c separator ",") from t1 group by grp;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	100.00	Using filesort
 Warnings:
 Note	1003	select `test`.`t1`.`grp` AS `grp`,group_concat(distinct `test`.`t1`.`c` order by `test`.`t1`.`c` ASC separator ',') AS `group_concat(distinct c order by c separator ",")` from `test`.`t1` group by `test`.`t1`.`grp`
 select grp,group_concat(distinct c order by c desc separator ",") from t1 group by grp;

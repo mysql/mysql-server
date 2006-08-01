@@ -5,8 +5,8 @@ select default(str), default(strnull), default(intg), default(rel) from t1;
 default(str)	default(strnull)	default(intg)	default(rel)
 def	NULL	10	3.14
 explain extended select default(str), default(strnull), default(intg), default(rel) from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
 Note	1003	select default(`test`.`t1`.`str`) AS `default(str)`,default(`test`.`t1`.`strnull`) AS `default(strnull)`,default(`test`.`t1`.`intg`) AS `default(intg)`,default(`test`.`t1`.`rel`) AS `default(rel)` from `test`.`t1`
 select * from t1 where str <> default(str);

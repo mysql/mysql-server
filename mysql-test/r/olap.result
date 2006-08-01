@@ -87,8 +87,8 @@ TV	2	NULL	200
 TV	NULL	NULL	600
 NULL	NULL	NULL	7785
 explain extended select product, country_id , year, sum(profit) from t1 group by product, country_id, year with rollup;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	15	Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	15	100.00	Using filesort
 Warnings:
 Note	1003	select `test`.`t1`.`product` AS `product`,`test`.`t1`.`country_id` AS `country_id`,`test`.`t1`.`year` AS `year`,sum(`test`.`t1`.`profit`) AS `sum(profit)` from `test`.`t1` group by `test`.`t1`.`product`,`test`.`t1`.`country_id`,`test`.`t1`.`year` with rollup
 select product, country_id , sum(profit) from t1 group by product desc, country_id with rollup;
