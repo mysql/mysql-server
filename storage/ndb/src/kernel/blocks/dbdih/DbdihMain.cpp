@@ -8529,11 +8529,20 @@ void Dbdih::openingTableErrorLab(Signal* signal, FileRecordPtr filePtr)
   /*    WE FAILED IN OPENING A FILE. IF THE FIRST FILE THEN TRY WITH THE    */
   /*    DUPLICATE FILE, OTHERWISE WE REPORT AN ERROR IN THE SYSTEM RESTART. */
   /* ---------------------------------------------------------------------- */
-  ndbrequire(filePtr.i == tabPtr.p->tabFile[0]);
-  filePtr.i = tabPtr.p->tabFile[1];
-  ptrCheckGuard(filePtr, cfileFileSize, fileRecord);
-  openFileRw(signal, filePtr);
-  filePtr.p->reqStatus = FileRecord::OPENING_TABLE;
+  if (filePtr.i == tabPtr.p->tabFile[0])
+  {
+    filePtr.i = tabPtr.p->tabFile[1];
+    ptrCheckGuard(filePtr, cfileFileSize, fileRecord);
+    openFileRw(signal, filePtr);
+    filePtr.p->reqStatus = FileRecord::OPENING_TABLE;
+  }
+  else
+  {
+    char buf[256];
+    BaseString::snprintf(buf, "Error opening DIH schema files for table: %d",
+			 tabPtr.i);
+    progError(__LINE__, NDBD_EXIT_AFS_NO_SUCH_FILE, buf);
+  }
 }//Dbdih::openingTableErrorLab()
 
 void Dbdih::readingTableLab(Signal* signal, FileRecordPtr filePtr) 
