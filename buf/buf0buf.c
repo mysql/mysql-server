@@ -2004,8 +2004,15 @@ buf_page_io_complete(
 		should be the same as in block. */
 		read_page_no = mach_read_from_4((block->frame)
 					+ FIL_PAGE_OFFSET);
-		read_space_id = mach_read_from_4((block->frame)
+		switch (fil_page_get_type(frame)) {
+		case FIL_PAGE_TYPE_ZBLOB:
+			read_space_id = mach_read_from_4(block->frame
+					+ FIL_PAGE_ZBLOB_SPACE_ID);
+			break;
+		default:
+			read_space_id = mach_read_from_4(block->frame
 					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		}
 
 		if (!block->space && trx_doublewrite_page_inside(
 				block->offset)) {
