@@ -1515,14 +1515,16 @@ page_zip_apply_log(
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected. */
-
+static
 ibool
-page_zip_decompress(
-/*================*/
+page_zip_decompress_low(
+/*====================*/
 				/* out: TRUE on success, FALSE on failure */
 	page_zip_des_t*	page_zip,/* in: data, size;
 				out: m_start, m_end, n_blobs */
-	page_t*		page)	/* out: uncompressed page, may be trashed */
+	page_t*		page,	/* out: uncompressed page, may be trashed */
+	ibool		do_validate __attribute__((unused)))
+				/* in: TRUE=assert page_validate() */
 {
 	z_stream	d_stream;
 	dict_index_t*	index	= NULL;
@@ -1973,12 +1975,28 @@ process_externs:
 
 recs_done:
 	ut_a(page_is_comp(page));
-	ut_ad(page_simple_validate_new(page));
+	ut_ad(!do_validate || page_validate(page, index));
 
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
 
 	return(TRUE);
+}
+
+/**************************************************************************
+Decompress a page.  This function should tolerate errors on the compressed
+page.  Instead of letting assertions fail, it will return FALSE if an
+inconsistency is detected. */
+
+ibool
+page_zip_decompress(
+/*================*/
+				/* out: TRUE on success, FALSE on failure */
+	page_zip_des_t*	page_zip,/* in: data, size;
+				out: m_start, m_end, n_blobs */
+	page_t*		page)	/* out: uncompressed page, may be trashed */
+{
+	return(page_zip_decompress_low(page_zip, page, TRUE));
 }
 
 #ifdef UNIV_ZIP_DEBUG
@@ -2022,7 +2040,7 @@ page_zip_validate(
 	temp_page_buf = ut_malloc(2 * UNIV_PAGE_SIZE);
 	temp_page = ut_align(temp_page_buf, UNIV_PAGE_SIZE);
 
-	valid = page_zip_decompress(&temp_page_zip, temp_page);
+	valid = page_zip_decompress_low(&temp_page_zip, temp_page, FALSE);
 	if (!valid) {
 		fputs("page_zip_validate(): failed to decompress\n", stderr);
 		goto func_exit;
