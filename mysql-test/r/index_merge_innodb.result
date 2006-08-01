@@ -109,7 +109,7 @@ count(*)
 explain select count(*) from t1 where 
 key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i1,i2	i1,i2	10,10	NULL	3	Using intersect(i1,i2); Using where; Using index
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	10,10	NULL	4	Using intersect(i1,i2); Using where; Using index
 select count(*) from t1 where 
 key1a = 2 and key1b is null and key2a = 2 and key2b is null;
 count(*)
@@ -117,7 +117,7 @@ count(*)
 explain select count(*) from t1 where 
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i1,i3	i1,i3	10,10	NULL	3	Using intersect(i1,i3); Using where; Using index
+1	SIMPLE	t1	index_merge	i1,i3	i1,i3	10,10	NULL	4	Using intersect(i1,i3); Using where; Using index
 select count(*) from t1 where 
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 count(*)

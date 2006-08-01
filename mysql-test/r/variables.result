@@ -72,8 +72,8 @@ select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 @t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
 5	5	1	4
 explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
 select @t5;
@@ -132,16 +132,16 @@ select last_insert_id(345);
 last_insert_id(345)
 345
 explain extended select last_insert_id(345);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select last_insert_id(345) AS `last_insert_id(345)`
 select @@IDENTITY,last_insert_id(), @@identity;
 @@IDENTITY	last_insert_id()	@@identity
 345	345	345
 explain extended select @@IDENTITY,last_insert_id(), @@identity;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select 345 AS `@@IDENTITY`,last_insert_id() AS `last_insert_id()`,345 AS `@@identity`
 set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF", big_tables="ON";

@@ -37,8 +37,8 @@ select * from t1 where xxx regexp('is a test of some long text to');
 xxx
 this is a test of some long text to see what happens
 explain extended select * from t1 where xxx regexp('is a test of some long text to');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
 Note	1003	select `test`.`t1`.`xxx` AS `xxx` from `test`.`t1` where (`test`.`t1`.`xxx` regexp _latin1'is a test of some long text to')
 select * from t1 where xxx regexp('is a test of some long text to ');
