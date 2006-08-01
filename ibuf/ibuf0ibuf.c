@@ -2870,8 +2870,9 @@ void
 ibuf_insert_to_index_page(
 /*======================*/
 	dtuple_t*	entry,	/* in: buffered entry to insert */
-	page_t*		page,	/* in: index page where the buffered entry
+	page_t*		page,	/* in/out: index page where the buffered entry
 				should be placed */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -2921,7 +2922,7 @@ ibuf_insert_to_index_page(
 
 		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
-		rec = page_cur_tuple_insert(&page_cur, NULL,
+		rec = page_cur_tuple_insert(&page_cur, page_zip,
 					entry, index, NULL, 0, mtr);
 
 		if (UNIV_UNLIKELY(rec == NULL)) {
@@ -2934,7 +2935,7 @@ ibuf_insert_to_index_page(
 
 			/* This time the record must fit */
 			if (UNIV_UNLIKELY(!page_cur_tuple_insert(
-						&page_cur, NULL,
+						&page_cur, page_zip,
 						entry, index, NULL, 0, mtr))) {
 
 				ulint	space;
@@ -3118,6 +3119,7 @@ ibuf_merge_or_delete_for_page(
 	ulint		volume;
 #endif
 	ulint		zip_size;
+	page_zip_des_t*	page_zip		= NULL;
 	ibool		tablespace_being_deleted = FALSE;
 	ibool		corruption_noticed	= FALSE;
 	mtr_t		mtr;
@@ -3207,8 +3209,9 @@ ibuf_merge_or_delete_for_page(
 
 		block = buf_block_align(page);
 		rw_lock_x_lock_move_ownership(&(block->lock));
+		page_zip = buf_block_get_page_zip(block);
 
-		if (fil_page_get_type(page) != FIL_PAGE_INDEX) {
+		if (UNIV_UNLIKELY(fil_page_get_type(page) != FIL_PAGE_INDEX)) {
 
 			corruption_noticed = TRUE;
 
@@ -3279,16 +3282,13 @@ loop:
 		if (ibuf_rec_get_page_no(ibuf_rec) != page_no
 			|| ibuf_rec_get_space(ibuf_rec) != space) {
 			if (page) {
-				/* TODO: if the insert buffer is adapted for
-				use on compressed pages, pass the compressed
-				page as a parameter */
 				page_header_reset_last_insert(
-						page, NULL, &mtr);
+						page, page_zip, &mtr);
 			}
 			goto reset_bit;
 		}
 
-		if (corruption_noticed) {
+		if (UNIV_UNLIKELY(corruption_noticed)) {
 			fputs("InnoDB: Discarding record\n ", stderr);
 			rec_print_old(stderr, ibuf_rec);
 			fputs("\n from the insert buffer!\n\n", stderr);
@@ -3301,7 +3301,7 @@ loop:
 			dict_index_t*	dummy_index;
 			dulint		max_trx_id = page_get_max_trx_id(
 						buf_frame_align(ibuf_rec));
-			page_update_max_trx_id(page, NULL, max_trx_id);
+			page_update_max_trx_id(page, page_zip, max_trx_id);
 
 			entry = ibuf_build_entry_from_ibuf_rec(ibuf_rec,
 							heap, &dummy_index);
@@ -3311,7 +3311,7 @@ loop:
 			ut_a(volume <= 4 * UNIV_PAGE_SIZE
 					/ IBUF_PAGE_SIZE_PER_FREE_SPACE);
 #endif
-			ibuf_insert_to_index_page(entry, page,
+			ibuf_insert_to_index_page(entry, page, page_zip,
 						dummy_index, &mtr);
 			ibuf_dummy_index_free(dummy_index);
 		}
