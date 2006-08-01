@@ -8262,7 +8262,8 @@ void Dbdih::openingTableErrorLab(Signal* signal, FileRecordPtr filePtr)
   else
   {
     char buf[256];
-    BaseString::snprintf(buf, "Error opening DIH schema files for table: %d",
+    BaseString::snprintf(buf, sizeof(buf),
+			 "Error opening DIH schema files for table: %d",
 			 tabPtr.i);
     progError(__LINE__, NDBD_EXIT_AFS_NO_SUCH_FILE, buf);
   }
