@@ -449,6 +449,10 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug20185 T1
 
+max-time: 1000
+cmd: testIndex
+args: -n Bug21384
+
 # OLD FLEX
 max-time: 500
 cmd: flexBench
