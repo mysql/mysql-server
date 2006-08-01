@@ -154,7 +154,7 @@ page_dir_slot_check(
 
 	ut_a(slot);
 
-	page = buf_frame_align(slot);
+	page = ut_align_down(slot, UNIV_PAGE_SIZE);
 
 	n_slots = page_dir_get_n_slots(page);
 
