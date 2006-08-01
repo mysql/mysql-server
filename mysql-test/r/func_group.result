@@ -287,8 +287,8 @@ a	count(b)	sum(b)	avg(b)	std(b)	min(b)	max(b)	bit_and(b)	bit_or(b)	bit_xor(b)
 2	1	1	1.00000	0.00000	1	1	1	1	1
 3	1	1	1.00000	0.00000	1	1	1	1	1
 explain extended select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using filesort
 Warnings:
 Note	1003	select sql_big_result `test`.`t1`.`a` AS `a`,count(`test`.`t1`.`b`) AS `count(b)`,sum(`test`.`t1`.`b`) AS `sum(b)`,avg(`test`.`t1`.`b`) AS `avg(b)`,std(`test`.`t1`.`b`) AS `std(b)`,min(`test`.`t1`.`b`) AS `min(b)`,max(`test`.`t1`.`b`) AS `max(b)`,bit_and(`test`.`t1`.`b`) AS `bit_and(b)`,bit_or(`test`.`t1`.`b`) AS `bit_or(b)`,bit_xor(`test`.`t1`.`b`) AS `bit_xor(b)` from `test`.`t1` group by `test`.`t1`.`a`
 drop table t1;

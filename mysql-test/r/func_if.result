@@ -40,8 +40,8 @@ a
 aa
 aaa
 explain extended select if(u=1,st,binary st) s from t1 where st like "%a%" order by s;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where; Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where; Using filesort
 Warnings:
 Note	1003	select if((`test`.`t1`.`u` = 1),`test`.`t1`.`st`,cast(`test`.`t1`.`st` as char charset binary)) AS `s` from `test`.`t1` where (`test`.`t1`.`st` like _latin1'%a%') order by if((`test`.`t1`.`u` = 1),`test`.`t1`.`st`,cast(`test`.`t1`.`st` as char charset binary))
 select nullif(u, 1) from t1;
@@ -54,8 +54,8 @@ NULL
 0
 0
 explain extended select nullif(u, 1) from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	
 Warnings:
 Note	1003	select nullif(`test`.`t1`.`u`,1) AS `nullif(u, 1)` from `test`.`t1`
 drop table t1;

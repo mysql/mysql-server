@@ -397,10 +397,10 @@ count(*)
 8704
 explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	24	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	32	Using intersect(cola,colb); Using where
 explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	24	Using intersect(cola,colb); Using where
+1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	32	Using intersect(cola,colb); Using where
 drop table t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);

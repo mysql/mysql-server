@@ -3,8 +3,8 @@ select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull
 NULL	NULL	isnull(null)	isnull(1/0)	isnull(1/0 = null)	ifnull(null,1)	ifnull(null,"TRUE")	ifnull("TRUE","ERROR")	1/0 is null	1 is not null
 NULL	NULL	1	1	1	1	TRUE	TRUE	1	1
 explain extended select null,\N,isnull(null),isnull(1/0),isnull(1/0 = null),ifnull(null,1),ifnull(null,"TRUE"),ifnull("TRUE","ERROR"),1/0 is null,1 is not null;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select NULL AS `NULL`,NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,_latin1'TRUE') AS `ifnull(null,"TRUE")`,ifnull(_latin1'TRUE',_latin1'ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
 select 1 | NULL,1 & NULL,1+NULL,1-NULL;
@@ -29,8 +29,8 @@ select 2 between null and 1,2 between 3 AND NULL,NULL between 1 and 2,2 between 
 2 between null and 1	2 between 3 AND NULL	NULL between 1 and 2	2 between NULL and 3	2 between 1 AND null
 0	0	NULL	NULL	NULL
 explain extended select 2 between null and 1,2 between 3 AND NULL,NULL between 1 and 2,2 between NULL and 3, 2 between 1 AND null;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select (2 between NULL and 1) AS `2 between null and 1`,(2 between 3 and NULL) AS `2 between 3 AND NULL`,(NULL between 1 and 2) AS `NULL between 1 and 2`,(2 between NULL and 3) AS `2 between NULL and 3`,(2 between 1 and NULL) AS `2 between 1 AND null`
 SELECT NULL AND NULL, 1 AND NULL, NULL AND 1, NULL OR NULL, 0 OR NULL, NULL OR 0;
@@ -46,8 +46,8 @@ select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),inet_aton("122.226."
 inet_ntoa(null)	inet_aton(null)	inet_aton("122.256")	inet_aton("122.226.")	inet_aton("")
 NULL	NULL	NULL	NULL	NULL
 explain extended select inet_ntoa(null),inet_aton(null),inet_aton("122.256"),inet_aton("122.226."),inet_aton("");
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select inet_ntoa(NULL) AS `inet_ntoa(null)`,inet_aton(NULL) AS `inet_aton(null)`,inet_aton(_latin1'122.256') AS `inet_aton("122.256")`,inet_aton(_latin1'122.226.') AS `inet_aton("122.226.")`,inet_aton(_latin1'') AS `inet_aton("")`
 create table t1 (x int);

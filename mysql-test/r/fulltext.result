@@ -14,8 +14,8 @@ a	b
 Only MyISAM tables	support collections
 Full-text indexes	are called collections
 explain extended select * from t1 where MATCH(a,b) AGAINST ("collections");
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0		1	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	fulltext	a	a	0		1	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against (_latin1'collections'))
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
@@ -84,8 +84,8 @@ select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE
 a	b
 MySQL has now support	for full-text search
 explain extended select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	fulltext	a	a	0		1	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	fulltext	a	a	0		1	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against (_latin1'support -collections' in boolean mode))
 select * from t1 where MATCH(a,b) AGAINST("support  collections" IN BOOLEAN MODE);

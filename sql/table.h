@@ -264,10 +264,27 @@ struct st_table {
   MY_BITMAP     *read_set, *write_set;          /* Active column sets */
   query_id_t	query_id;
 
+  /* 
+    For each key that has quick_keys.is_set(key) == TRUE: estimate of #records
+    and max #key parts that range access would use.
+  */
   ha_rows	quick_rows[MAX_KEY];
+
+  /* Bitmaps of key parts that =const for the entire join. */
   key_part_map  const_key_parts[MAX_KEY];
+
   uint		quick_key_parts[MAX_KEY];
   uint		quick_n_ranges[MAX_KEY];
+
+  /* 
+    Estimate of number of records that satisfy SARGable part of the table
+    condition, or table->file->records if no SARGable condition could be
+    constructed.
+    This value is used by join optimizer as an estimate of number of records
+    that will pass the table condition (condition that depends on fields of 
+    this table and constants)
+  */
+  ha_rows       quick_condition_rows;
 
   /*
     If this table has TIMESTAMP field with auto-set property (pointed by

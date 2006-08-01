@@ -3,8 +3,8 @@ select (select 2);
 (select 2)
 2
 explain extended select (select 2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1003	select 2 AS `(select 2)`
@@ -13,10 +13,10 @@ SELECT (SELECT 1) UNION SELECT (SELECT 2);
 1
 2
 explain extended SELECT (SELECT 1) UNION SELECT (SELECT 2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union1,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union1,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1249	Select 4 was reduced during optimization
@@ -25,11 +25,11 @@ SELECT (SELECT (SELECT 0 UNION SELECT 0));
 (SELECT (SELECT 0 UNION SELECT 0))
 0
 explain extended SELECT (SELECT (SELECT 0 UNION SELECT 0));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union3,4>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1003	select (select 0 AS `0` union select 0 AS `0`) AS `(SELECT (SELECT 0 UNION SELECT 0))`
@@ -43,10 +43,10 @@ SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
 SELECT (SELECT a) as a;
 ERROR 42S22: Reference 'a' not supported (forward reference in item list)
 EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	100.00	
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'b.a' of SELECT #3 was resolved in SELECT #1
@@ -181,12 +181,12 @@ a	b
 4	8
 3	8
 explain extended (select * from t2 where t2.b=(select a from t3 order by 1 desc limit 1)) union (select * from t4 where t4.b=(select max(t2.a)*4 from t2) order by a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using filesort
-3	UNION	t4	ALL	NULL	NULL	NULL	NULL	3	Using where
-4	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
-NULL	UNION RESULT	<union1,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
+3	UNION	t4	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+4	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+NULL	UNION RESULT	<union1,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
 Note	1003	(select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = (select `test`.`t3`.`a` AS `a` from `test`.`t3` order by 1 desc limit 1))) union (select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b` from `test`.`t4` where (`test`.`t4`.`b` = (select (max(`test`.`t2`.`a`) * 4) AS `max(t2.a)*4` from `test`.`t2`)) order by `a`)
 select (select a from t3 where a<t2.a*4 order by 1 desc limit 1), a from t2;
@@ -199,10 +199,10 @@ select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from
 7	2
 explain extended select (select t3.a from t3 where a<8 order by 1 desc limit 1), a from 
 (select * from t2 where a>1) as tt;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived3>	system	NULL	NULL	NULL	NULL	1	
-3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived3>	system	NULL	NULL	NULL	NULL	1	100.00	
+3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using filesort
 Warnings:
 Note	1003	select (select `test`.`t3`.`a` AS `a` from `test`.`t3` where (`test`.`t3`.`a` < 8) order by 1 desc limit 1) AS `(select t3.a from t3 where a<8 order by 1 desc limit 1)`,`tt`.`a` AS `a` from (select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` > 1)) `tt`
 select * from t1 where t1.a=(select t2.a from t2 where t2.b=(select max(a) from t3) order by 1 desc limit 1);
@@ -219,10 +219,10 @@ b	(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2)
 8	4.5000
 9	7.5000
 explain extended select b,(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2) from t4;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	3	
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
-3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	3	100.00	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Note	1276	Field or reference 't4.a' of SELECT #3 was resolved in SELECT #1
 Note	1003	select `test`.`t4`.`b` AS `b`,(select avg((`test`.`t2`.`a` + (select min(`test`.`t3`.`a`) AS `min(t3.a)` from `test`.`t3` where (`test`.`t3`.`a` >= `test`.`t4`.`a`)))) AS `avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a))` from `test`.`t2`) AS `(select avg(t2.a+(select min(t3.a) from t3 where t3.a >= t4.a)) from t2)` from `test`.`t4`
@@ -267,9 +267,9 @@ a
 6
 7
 explain extended select * from t3 where a >= any (select b from t2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (select min(`test`.`t2`.`b`) from `test`.`t2`)))
 select * from t3 where a >= all (select b from t2);
@@ -307,11 +307,11 @@ select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a)
 NULL	1
 2	2
 explain extended select (select a from t1 where t1.a=t2.a union select a from t5 where t5.a=t2.a), a from t2;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
-2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
-3	DEPENDENT UNION	t5	ALL	NULL	NULL	NULL	NULL	2	Using where
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+3	DEPENDENT UNION	t5	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
 Note	1276	Field or reference 't2.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 't2.a' of SELECT #3 was resolved in SELECT #1
@@ -328,9 +328,9 @@ patient_uq	clinic_uq
 1	2
 2	2
 explain extended select * from t6 where exists (select * from t7 where uq = clinic_uq);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t6	ALL	NULL	NULL	NULL	NULL	4	Using where
-2	DEPENDENT SUBQUERY	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.clinic_uq	1	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t6	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+2	DEPENDENT SUBQUERY	t7	eq_ref	PRIMARY	PRIMARY	4	test.t6.clinic_uq	1	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'clinic_uq' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t6`.`patient_uq` AS `patient_uq`,`test`.`t6`.`clinic_uq` AS `clinic_uq` from `test`.`t6` where exists(select 1 AS `Not_used` from `test`.`t7` where (`test`.`t7`.`uq` = `test`.`t6`.`clinic_uq`))
@@ -362,11 +362,11 @@ INSERT INTO t8 (pseudo,email) VALUES ('joce','test');
 INSERT INTO t8 (pseudo,email) VALUES ('joce1','test1');
 INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
 EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t8	ref	PRIMARY	PRIMARY	37	const	1	Using where; Using index
-4	SUBQUERY	t8	ref	PRIMARY	PRIMARY	37		1	Using where; Using index
-2	SUBQUERY	t8	ref	PRIMARY	PRIMARY	37	const	1	Using where
-3	SUBQUERY	t8	ref	PRIMARY	PRIMARY	37		1	Using where; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t8	ref	PRIMARY	PRIMARY	37	const	1	100.00	Using where; Using index
+4	SUBQUERY	t8	ref	PRIMARY	PRIMARY	37		1	100.00	Using where; Using index
+2	SUBQUERY	t8	ref	PRIMARY	PRIMARY	37	const	1	100.00	Using where
+3	SUBQUERY	t8	ref	PRIMARY	PRIMARY	37		1	100.00	Using where; Using index
 Warnings:
 Note	1003	select `test`.`t8`.`pseudo` AS `pseudo`,(select `test`.`t8`.`email` AS `email` from `test`.`t8` where (`test`.`t8`.`pseudo` = (select `test`.`t8`.`pseudo` AS `pseudo` from `test`.`t8` where (`test`.`t8`.`pseudo` = _latin1'joce')))) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from `test`.`t8` where (`test`.`t8`.`pseudo` = (select `test`.`t8`.`pseudo` AS `pseudo` from `test`.`t8` where (`test`.`t8`.`pseudo` = _latin1'joce')))
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
@@ -391,14 +391,14 @@ KEY `topic` (`topic`)
 INSERT INTO t1 (topic,date,pseudo) VALUES
 ('43506','2002-10-02','joce'),('40143','2002-08-03','joce');
 EXPLAIN EXTENDED SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	43	NULL	2	Using where; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	43	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	select distinct `test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = 20020803)
 EXPLAIN EXTENDED SELECT (SELECT DISTINCT date FROM t1 WHERE date='2002-08-03');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	SUBQUERY	t1	index	NULL	PRIMARY	43	NULL	2	Using where; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	t1	index	NULL	PRIMARY	43	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	select (select distinct `test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = 20020803)) AS `(SELECT DISTINCT date FROM t1 WHERE date='2002-08-03')`
 SELECT DISTINCT date FROM t1 WHERE date='2002-08-03';
@@ -415,11 +415,11 @@ SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1) UNION ALL SELECT 1;
 SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION ALL SELECT 1) UNION SELECT 1;
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1=(SELECT 1 UNION SELECT 1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	topic	3	NULL	2	Using index
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	NULL	topic	3	NULL	2	100.00	Using index
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
 Note	1003	select 1 AS `1` from `test`.`t1`
 drop table t1;
@@ -538,14 +538,14 @@ INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
 ERROR 21000: Subquery returns more than 1 row
 EXPLAIN EXTENDED SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	select max(`test`.`t1`.`numreponse`) AS `MAX(numreponse)` from `test`.`t1` where (`test`.`t1`.`numeropost` = _latin1'1')
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	Using index
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	100.00	Using index
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	select `test`.`t1`.`numreponse` AS `numreponse` from `test`.`t1` where ((`test`.`t1`.`numeropost` = _latin1'1'))
 drop table t1;
@@ -719,8 +719,8 @@ SELECT * FROM t2 WHERE id IN (SELECT 1);
 id
 1
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ref	id	id	5	const	1	100.00	Using where; Using index
 Warnings:
 Note	1249	Select 2 was reduced during optimization
 Note	1003	select `test`.`t2`.`id` AS `id` from `test`.`t2` where (`test`.`t2`.`id` = 1)
@@ -731,18 +731,18 @@ SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
 id
 2
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1+(select 1));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ref	id	id	5	const	1	Using where; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ref	id	id	5	const	1	100.00	Using where; Using index
 Warnings:
 Note	1249	Select 3 was reduced during optimization
 Note	1249	Select 2 was reduced during optimization
 Note	1003	select `test`.`t2`.`id` AS `id` from `test`.`t2` where (`test`.`t2`.`id` = (1 + 1))
 EXPLAIN EXTENDED SELECT * FROM t2 WHERE id IN (SELECT 1 UNION SELECT 3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	id	5	NULL	2	Using where; Using index
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	index	NULL	id	5	NULL	2	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
 Note	1003	select `test`.`t2`.`id` AS `id` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`id`,<exists>(select 1 AS `1` having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(1)) union select 3 AS `3` having (<cache>(`test`.`t2`.`id`) = <ref_null_helper>(3))))
 SELECT * FROM t2 WHERE id IN (SELECT 5 UNION SELECT 3);
@@ -865,8 +865,8 @@ select 10.5 > ANY (SELECT * from t1);
 10.5 > ANY (SELECT * from t1)
 1
 explain extended select (select a+1) from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #2 was resolved in SELECT #1
 Note	1249	Select 2 was reduced during optimization
@@ -888,9 +888,9 @@ a	t1.a in (select t2.a from t2)
 3	1
 4	0
 explain extended SELECT t1.a, t1.a in (select t2.a from t2) FROM t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	a	a	5	func	2	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	a	a	5	func	2	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on a checking NULL))) AS `t1.a in (select t2.a from t2)` from `test`.`t1`
 CREATE TABLE t3 (a int(11) default '0');
@@ -902,10 +902,10 @@ a	t1.a in (select t2.a from t2,t3 where t3.a=t2.a)
 3	1
 4	0
 explain extended SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	Using index
-2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`))) having <is_not_null_test>(`test`.`t2`.`a`))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
 drop table t1,t2,t3;
@@ -1015,21 +1015,21 @@ i
 drop table t1;
 CREATE TABLE t1 (a int(1));
 EXPLAIN EXTENDED SELECT (SELECT RAND() FROM t1) FROM t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
-2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select (select rand() AS `RAND()` from `test`.`t1`) AS `(SELECT RAND() FROM t1)` from `test`.`t1`
 EXPLAIN EXTENDED SELECT (SELECT ENCRYPT('test') FROM t1) FROM t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
-2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select (select encrypt(_latin1'test') AS `ENCRYPT('test')` from `test`.`t1`) AS `(SELECT ENCRYPT('test') FROM t1)` from `test`.`t1`
 EXPLAIN EXTENDED SELECT (SELECT BENCHMARK(1,1) FROM t1) FROM t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
-2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	UNCACHEABLE SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select (select benchmark(1,1) AS `BENCHMARK(1,1)` from `test`.`t1`) AS `(SELECT BENCHMARK(1,1) FROM t1)` from `test`.`t1`
 drop table t1;
@@ -1121,10 +1121,10 @@ create table t1 (a int);
 insert into t1 values (1), (2), (3);
 explain extended select a,(select (select rand() from t1 limit 1)  from t1 limit 1)
 from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-2	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
-3	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+2	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+3	UNCACHEABLE SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,(select (select rand() AS `rand()` from `test`.`t1` limit 1) AS `(select rand() from t1 limit 1)` from `test`.`t1` limit 1) AS `(select (select rand() from t1 limit 1)  from t1 limit 1)` from `test`.`t1`
 drop table t1;
@@ -1176,9 +1176,9 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 0 IN (SELECT 1 FROM t1 a)
 0
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1003	select <in_optimizer>(0,<exists>(select 1 AS `Not_used` from `test`.`t1` `a`)) AS `0 IN (SELECT 1 FROM t1 a)`
 INSERT INTO t1 (pseudo) VALUES ('test1');
@@ -1186,9 +1186,9 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 0 IN (SELECT 1 FROM t1 a)
 0
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1003	select <in_optimizer>(0,<exists>(select 1 AS `Not_used` from `test`.`t1` `a`)) AS `0 IN (SELECT 1 FROM t1 a)`
 drop table t1;
@@ -1231,9 +1231,9 @@ drop table t1;
 create table t1 (id int not null auto_increment primary key, salary int, key(salary));
 insert into t1 (salary) values (100),(1000),(10000),(10),(500),(5000),(50000);
 explain extended SELECT id FROM t1 where salary = (SELECT MAX(salary) FROM t1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ref	salary	salary	5	const	1	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ref	salary	salary	5	const	1	100.00	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`salary` = (select max(`test`.`t1`.`salary`) AS `MAX(salary)` from `test`.`t1`))
 drop table t1;
@@ -1293,9 +1293,9 @@ a
 3
 4
 explain extended select * from t2 where t2.a in (select a from t1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY)))
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
@@ -1303,9 +1303,9 @@ a
 2
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index; Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where (`test`.`t1`.`b` <> 30))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
@@ -1313,10 +1313,10 @@ a
 2
 3
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	Using where
-2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	Using where; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using where; Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
 drop table t1, t2, t3;
@@ -1332,9 +1332,9 @@ a
 3
 4
 explain extended select * from t2 where t2.a in (select a from t1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a)))
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
@@ -1342,9 +1342,9 @@ a
 2
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index; Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where (`test`.`t1`.`b` <> 30))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
@@ -1352,10 +1352,10 @@ a
 2
 3
 explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1001	Using where; Using index
-2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	Using where; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	ref	a	a	5	func	1001	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	index	a	a	5	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t1`.`b`) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))))
 insert into t1 values (3,31);
@@ -1369,9 +1369,9 @@ a
 2
 4
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	NULL	a	5	NULL	4	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	Using index; Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	1001	100.00	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a where (`test`.`t1`.`b` <> 30))))
 drop table t1, t2, t3;
@@ -1427,8 +1427,8 @@ select * from t1 where ('a','b')=(select 'a','b' from t1 union select 'a','b' fr
 s1
 tttt
 explain extended (select * from t1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
 Note	1003	(select `test`.`t1`.`s1` AS `s1` from `test`.`t1`)
 (select * from t1);
@@ -1460,27 +1460,27 @@ a1	0
 a2	1
 a3	1
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2) from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1`,not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL)))) AS `s1 NOT IN (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL))) AS `s1 = ANY (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1`,not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL)))) AS `s1 <> ALL (SELECT s1 FROM t2)` from `test`.`t1`
 explain extended select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	s1	6	NULL	3	Using index
-2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	Using index; Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	index	NULL	s1	6	NULL	3	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	index_subquery	s1	s1	6	func	2	100.00	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1`,not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where (`test`.`t2`.`s1` < _latin1'a2'))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
 drop table t1,t2;
@@ -1493,17 +1493,17 @@ a
 7
 3
 explain extended select * from t3 where a >= all (select b from t2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < (select max(`test`.`t2`.`b`) from `test`.`t2`)))
 select * from t3 where a >= some (select b from t2);
 a
 explain extended select * from t3 where a >= some (select b from t2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= (select min(`test`.`t2`.`b`) from `test`.`t2`)))
 select * from t3 where a >= all (select b from t2 group by 1);
@@ -1512,49 +1512,49 @@ a
 7
 3
 explain extended select * from t3 where a >= all (select b from t2 group by 1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(select `test`.`t2`.`b` AS `b` from `test`.`t2` group by 1)))
 select * from t3 where a >= some (select b from t2 group by 1);
 a
 explain extended select * from t3 where a >= some (select b from t2 group by 1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((`test`.`t3`.`a` >= <min>(select `test`.`t2`.`b` AS `b` from `test`.`t2` group by 1)))
 select * from t3 where NULL >= any (select b from t2);
 a
 explain extended select * from t3 where NULL >= any (select b from t2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3`
 select * from t3 where NULL >= any (select b from t2 group by 1);
 a
 explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3`
 select * from t3 where NULL >= some (select b from t2);
 a
 explain extended select * from t3 where NULL >= some (select b from t2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3`
 select * from t3 where NULL >= some (select b from t2 group by 1);
 a
 explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3`
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
@@ -1563,9 +1563,9 @@ a
 6
 7
 explain extended select * from t3 where a > all (select max(b) from t2 group by a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` <= <max>(select max(`test`.`t2`.`b`) AS `max(b)` from `test`.`t2` group by `test`.`t2`.`a`)))
 drop table t2, t3;
@@ -1612,11 +1612,11 @@ select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
 s1
 e
 explain extended select * from t1 where 'f' > any (select s1 from t1 union select s1 from t1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	
-3	UNION	t1	system	NULL	NULL	NULL	NULL	1	
-NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+3	UNION	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
 Note	1003	select `test`.`t1`.`s1` AS `s1` from `test`.`t1`
 drop table t1;
@@ -1733,15 +1733,15 @@ id	text
 11	text11
 12	text12
 explain extended select * from t1 where id not in (select id from t1 where id < 8);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	12	Using where
-2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using index; Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	12	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using index; Using where
 Warnings:
 Note	1003	select `test`.`t1`.`id` AS `id`,`test`.`t1`.`text` AS `text` from `test`.`t1` where not(<in_optimizer>(`test`.`t1`.`id`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`id`) in t1 on PRIMARY where (`test`.`t1`.`id` < 8)))))
 explain extended select * from t1 as tt where not exists (select id from t1 where id < 8 and (id = tt.id or id is null) having id is not null);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	tt	ALL	NULL	NULL	NULL	NULL	12	Using where
-2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	test.tt.id	1	Using where; Using index
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	tt	ALL	NULL	NULL	NULL	NULL	12	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	eq_ref	PRIMARY	PRIMARY	4	test.tt.id	1	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'tt.id' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`tt`.`id` AS `id`,`test`.`tt`.`text` AS `text` from `test`.`t1` `tt` where not(exists(select `test`.`t1`.`id` AS `id` from `test`.`t1` where ((`test`.`t1`.`id` < 8) and (`test`.`t1`.`id` = `test`.`tt`.`id`)) having (`test`.`t1`.`id` is not null)))
@@ -1765,10 +1765,10 @@ id	text	id	text	id	text
 1000	text1000	NULL	NULL	1000	text1000
 1001	text1001	NULL	NULL	1000	text1000
 explain extended select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	a	ALL	NULL	NULL	NULL	NULL	14	
-1	SIMPLE	b	eq_ref	PRIMARY	PRIMARY	4	test.a.id	2	
-1	SIMPLE	c	eq_ref	PRIMARY	PRIMARY	4	func	1	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	a	ALL	NULL	NULL	NULL	NULL	14	100.00	
+1	SIMPLE	b	eq_ref	PRIMARY	PRIMARY	4	test.a.id	2	100.00	
+1	SIMPLE	c	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where
 Warnings:
 Note	1003	select `test`.`a`.`id` AS `id`,`test`.`a`.`text` AS `text`,`test`.`b`.`id` AS `id`,`test`.`b`.`text` AS `text`,`test`.`c`.`id` AS `id`,`test`.`c`.`text` AS `text` from `test`.`t1` `a` left join `test`.`t2` `b` on(((`test`.`b`.`id` = `test`.`a`.`id`) or isnull(`test`.`b`.`id`))) join `test`.`t1` `c` where (if(isnull(`test`.`b`.`id`),1000,`test`.`b`.`id`) = `test`.`c`.`id`)
 drop table t1,t2;
@@ -2275,9 +2275,9 @@ a	b
 1	2
 3	4
 explain extended select * from t1 up where exists (select * from t1 where t1.a=up.a);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	up	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	up	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'up.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`up`.`a` AS `a`,`test`.`up`.`b` AS `b` from `test`.`t1` `up` where exists(select 1 AS `Not_used` from `test`.`t1` where (`test`.`t1`.`a` = `test`.`up`.`a`))
@@ -2813,21 +2813,21 @@ one	two	test
 10	5	NULL
 10	10	NULL
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0') as 'test' from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where ((`test`.`t2`.`flag` = _latin1'0') and ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)) and ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`))) having (<is_not_null_test>(`test`.`t2`.`one`) and <is_not_null_test>(`test`.`t2`.`two`)))) AS `test` from `test`.`t1`
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
 Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where ((`test`.`t2`.`flag` = _latin1'N') and (<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) and (<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`))))
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where; Using temporary; Using filesort
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where (`test`.`t2`.`flag` = _latin1'0') group by `test`.`t2`.`one`,`test`.`t2`.`two` having (((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)) and ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)) and <is_not_null_test>(`test`.`t2`.`one`) and <is_not_null_test>(`test`.`t2`.`two`)))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;

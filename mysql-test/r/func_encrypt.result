@@ -179,7 +179,7 @@ NULL
 Warnings:
 Error	1108	Incorrect parameters to procedure 'des_decrypt'
 explain extended select des_decrypt(des_encrypt("hello",4),'password2'), des_decrypt(des_encrypt("hello","hidden"));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select des_decrypt(des_encrypt(_latin1'hello',4),_latin1'password2') AS `des_decrypt(des_encrypt("hello",4),'password2')`,des_decrypt(des_encrypt(_latin1'hello',_latin1'hidden')) AS `des_decrypt(des_encrypt("hello","hidden"))`
