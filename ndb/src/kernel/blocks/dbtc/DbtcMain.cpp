@@ -1775,8 +1775,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   apiConnectptr.i = signal->theData[0];
   tmaxData = 20;
   if (apiConnectptr.i >= capiConnectFilesize) {
-    jam();
-    warningHandlerLab(signal, __LINE__);
+    TCKEY_abort(signal, 18);
     return;
   }//if
   ptrAss(apiConnectptr, apiConnectRecord);
@@ -1785,9 +1784,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   compare_transid2 = apiConnectptr.p->transid[1] ^ signal->theData[2];
   compare_transid1 = compare_transid1 | compare_transid2;
   if (compare_transid1 != 0) {
-    jam();
-    printState(signal, 10);
-    sendSignalErrorRefuseLab(signal);
+    TCKEY_abort(signal, 19);
     return;
   }//if
   switch (apiConnectptr.p->apiConnectstate) {
@@ -2531,7 +2528,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint32 TstartFlag = tcKeyReq->getStartFlag(Treqinfo);
   Uint32 TexecFlag = TcKeyReq::getExecuteFlag(Treqinfo);
 
-  bool isIndexOp = regApiPtr->isIndexOp;
+  Uint8 isIndexOp = regApiPtr->isIndexOp;
   bool isIndexOpReturn = regApiPtr->indexOpReturn;
   regApiPtr->isIndexOp = false; // Reset marker
   regApiPtr->m_exec_flag |= TexecFlag;
@@ -3277,7 +3274,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   sig1 = regCachePtr->fragmentid + (regTcPtr->tcNodedata[1] << 16);
   sig2 = regApiPtr->transid[0];
   sig3 = regApiPtr->transid[1];
-  sig4 = regApiPtr->ndbapiBlockref;
+  sig4 = (regTcPtr->isIndexOp == 2) ? reference() : regApiPtr->ndbapiBlockref;
   sig5 = regTcPtr->clientData;
   sig6 = regCachePtr->scanInfo;
 
@@ -8619,6 +8616,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
       // left over from simple/dirty read
     } else {
       jam();
+      jamLine(transP->apiConnectstate);
       errCode = ZSTATE_ERROR;
       goto SCAN_TAB_error_no_state_change;
     }
@@ -12036,14 +12034,18 @@ void Dbtc::readIndexTable(Signal* signal,
 			     opType == ZREAD ? ZREAD : ZREAD_EX);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 1); // Allways send one AttrInfo
   TcKeyReq::setExecutingTrigger(tcKeyRequestInfo, 0);
-  BlockReference originalReceiver = regApiPtr->ndbapiBlockref;
-  regApiPtr->ndbapiBlockref = reference(); // Send result to me
   tcKeyReq->senderData = indexOp->indexOpId;
   indexOp->indexOpState = IOS_INDEX_ACCESS;
   regApiPtr->executingIndexOp = regApiPtr->accumulatingIndexOp;
   regApiPtr->accumulatingIndexOp = RNIL;
-  regApiPtr->isIndexOp = true;
+  regApiPtr->isIndexOp = 2;
 
+  if (ERROR_INSERTED(8037))
+  {
+    ndbout_c("shifting index version");
+    tcKeyReq->tableSchemaVersion = ~(Uint32)indexOp->tcIndxReq.indexSchemaVersion;
+  }
+  
   Uint32 remainingKey = indexOp->keyInfo.getSize();
   bool moreKeyData = indexOp->keyInfo.first(keyIter);
   // *********** KEYINFO in TCKEYREQ ***********
@@ -12062,21 +12064,13 @@ void Dbtc::readIndexTable(Signal* signal,
   ndbassert(TcKeyReq::getDirtyFlag(tcKeyRequestInfo) == 0);
   ndbassert(TcKeyReq::getSimpleFlag(tcKeyRequestInfo) == 0);
   EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, tcKeyLength);
- 
-  /**
-   * "Fool" TC not to start commiting transaction since it always will
-   *   have one outstanding lqhkeyreq
-   * This is later decreased when the index read is complete
-   */ 
-  regApiPtr->lqhkeyreqrec++;
-
-  /**
-   * Remember ptr to index read operation
-   *   (used to set correct save point id on index operation later)
-   */
-  indexOp->indexReadTcConnect = regApiPtr->lastTcConnect;
-
   jamEntry();
+
+  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+  {
+    goto err;
+  }
+
   // *********** KEYINFO ***********
   if (moreKeyData) {
     jam();
@@ -12096,6 +12090,10 @@ void Dbtc::readIndexTable(Signal* signal,
 	EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal, 
 		       KeyInfo::HeaderLength + KeyInfo::DataLength);
         jamEntry();
+	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+	{
+	  goto err;
+	}
 	dataPos = 0;
 	dataPtr = (Uint32 *) &keyInfo->keyData;
       }       
@@ -12106,10 +12104,32 @@ void Dbtc::readIndexTable(Signal* signal,
       EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
 		     KeyInfo::HeaderLength + dataPos);
       jamEntry();
+      if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+      {
+	goto err;
+      }
     }
   }
   
-  regApiPtr->ndbapiBlockref = originalReceiver; // reset original receiver
+  /**
+   * "Fool" TC not to start commiting transaction since it always will
+   *   have one outstanding lqhkeyreq
+   * This is later decreased when the index read is complete
+   */ 
+  regApiPtr->lqhkeyreqrec++;
+
+  /**
+   * Remember ptr to index read operation
+   *   (used to set correct save point id on index operation later)
+   */
+  indexOp->indexReadTcConnect = regApiPtr->lastTcConnect;
+  
+done:  
+  return;
+  
+err:
+  jam();
+  goto done;
 }
 
 /**
@@ -12160,7 +12180,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
   tcKeyReq->transId2 = regApiPtr->transid[1];
   tcKeyReq->senderData = tcIndxReq->senderData; // Needed for TRANSID_AI to API
   indexOp->indexOpState = IOS_INDEX_OPERATION;
-  regApiPtr->isIndexOp = true;
+  regApiPtr->isIndexOp = 1;
   regApiPtr->executingIndexOp = indexOp->indexOpId;;
   regApiPtr->noIndexOp++; // Increase count
 
@@ -12233,9 +12253,16 @@ void Dbtc::executeIndexOperation(Signal* signal,
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   regApiPtr->currSavePointId = tmp.p->savePointId;
   EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, tcKeyLength);
+  jamEntry();
+  
+  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+  {
+    jam();
+    return;
+  }
+
   regApiPtr->currSavePointId = currSavePointId;
   
-  jamEntry();
   // *********** KEYINFO ***********
   if (moreKeyData) {
     jam();
@@ -12256,6 +12283,13 @@ void Dbtc::executeIndexOperation(Signal* signal,
 	EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal, 
 		       KeyInfo::HeaderLength + KeyInfo::DataLength);
         jamEntry();
+
+	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+	{
+	  jam();
+	  return;
+	}
+
 	dataPos = 0;
 	dataPtr = (Uint32 *) &keyInfo->keyData;
       }
@@ -12266,6 +12300,12 @@ void Dbtc::executeIndexOperation(Signal* signal,
       EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
 		     KeyInfo::HeaderLength + dataPos);
       jamEntry();
+
+      if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+      {
+	jam();
+	return;
+      }
     }
   }
   
@@ -12295,6 +12335,13 @@ void Dbtc::executeIndexOperation(Signal* signal,
         EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal,
 		       AttrInfo::HeaderLength + AttrInfo::DataLength);
         jamEntry();
+
+	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+	{
+	  jam();
+	  return;
+	}
+
         attrInfoPos = 0;
 	dataPtr = (Uint32 *) &attrInfo->attrData;
       }
@@ -12694,9 +12741,16 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   regApiPtr->currSavePointId = opRecord->savePointId;
   EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, tcKeyLength);
+  jamEntry();
+
+  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+  {
+    jam();
+    return;
+  }
+
   regApiPtr->currSavePointId = currSavePointId;
   tcConnectptr.p->currentIndexId = indexData->indexId;
-  jamEntry();
 
   // *********** KEYINFO ***********
   if (moreKeyData) {
@@ -12726,6 +12780,12 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
 		       KeyInfo::HeaderLength + KeyInfo::DataLength);
         jamEntry();
 #endif
+	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+	{
+	  jam();
+	  return;
+	}
+	
 	dataPtr = (Uint32 *) &keyInfo->keyData;
 	dataPos = 0;
       }
@@ -12761,6 +12821,13 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
 			 KeyInfo::HeaderLength + KeyInfo::DataLength);
           jamEntry();
 #endif
+
+	  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+	  {
+	    jam();
+	    return;
+	  }
+
 	  dataPtr = (Uint32 *) &keyInfo->keyData;	  
           dataPos = 0;
         }       
@@ -12778,6 +12845,11 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
 		     KeyInfo::HeaderLength + dataPos);
       jamEntry();
 #endif
+      if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+      {
+	jam();
+	return;
+      }
     }
   }
   
@@ -12813,6 +12885,12 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
 		       AttrInfo::HeaderLength + AttrInfo::DataLength);
         jamEntry();
 #endif
+	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+	{
+	  jam();
+	  return;
+	}
+
 	dataPtr = (Uint32 *) &attrInfo->attrData;
 	attrInfoPos = 0;
       }
@@ -12849,6 +12927,12 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
 			 AttrInfo::HeaderLength + AttrInfo::DataLength);
           jamEntry();
 #endif
+	  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+	  {
+	    jam();
+	    return;
+	  }
+	  
 	  dataPtr = (Uint32 *) &attrInfo->attrData;	  
           attrInfoPos = 0;
         }       
@@ -12994,9 +13078,16 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   regApiPtr->currSavePointId = opRecord->savePointId;
   EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, tcKeyLength);
+  jamEntry();
+
+  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+  {
+    jam();
+    return;
+  }
+
   regApiPtr->currSavePointId = currSavePointId;
   tcConnectptr.p->currentIndexId = indexData->indexId;
-  jamEntry();
 
   // *********** KEYINFO ***********
   if (moreKeyData) {
@@ -13027,6 +13118,12 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
 		       KeyInfo::HeaderLength + KeyInfo::DataLength);
         jamEntry();
 #endif
+	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+	{
+	  jam();
+	  return;
+	}
+
 	dataPtr = (Uint32 *) &keyInfo->keyData;
 	dataPos = 0;
       }
@@ -13063,6 +13160,12 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
 			 KeyInfo::HeaderLength + KeyInfo::DataLength);
           jamEntry();
 #endif
+	  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
+	  {
+	    jam();
+	    return;
+	  }
+
 	  dataPtr = (Uint32 *) &keyInfo->keyData;	  
           dataPos = 0;
         }       
