@@ -3475,7 +3475,7 @@ SELECT 0.9888889889 * 1.011111411911;
 0.9998769417899202067879
 prepare stmt from 'select 1 as " a "';
 Warnings:
-Warning	1466	Leading spaces are removed from name ' a '
+Warning	1546	Leading spaces are removed from name ' a '
 execute stmt;
 a 
 1

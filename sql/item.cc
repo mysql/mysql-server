@@ -4037,7 +4037,8 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     field= new Field_time(maybe_null, name, &my_charset_bin);
     break;
   case MYSQL_TYPE_TIMESTAMP:
-    return new Field_timestamp(maybe_null, name, table, &my_charset_bin);
+    field= new Field_timestamp(maybe_null, name, &my_charset_bin);
+    break;
   case MYSQL_TYPE_DATETIME:
     field= new Field_datetime(maybe_null, name, &my_charset_bin);
     break;
@@ -4072,10 +4073,10 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_GEOMETRY:
     if (this->type() == Item::TYPE_HOLDER)
-      field= new Field_blob(max_length, maybe_null, name, table,
-                            collation.collation, 1);
+      field= new Field_blob(max_length, maybe_null, name, collation.collation,
+                            1);
     else
-      field= new Field_blob(max_length, maybe_null, name, table, collation.collation);
+      field= new Field_blob(max_length, maybe_null, name, collation.collation);
     break;					// Blob handled outside of case
   }
   if (field)

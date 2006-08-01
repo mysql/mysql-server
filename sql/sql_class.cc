@@ -639,6 +639,7 @@ void THD::cleanup_after_query()
     first_successful_insert_id_in_prev_stmt= 
       first_successful_insert_id_in_cur_stmt;
     first_successful_insert_id_in_cur_stmt= 0;
+    substitute_null_with_insert_id= TRUE;
   }
   arg_of_last_insert_id_function= 0;
   /* Free Items that were created during this execution */

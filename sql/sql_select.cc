@@ -1095,7 +1095,7 @@ JOIN::optimize()
       for (ORDER *tmp_order= order; tmp_order ; tmp_order=tmp_order->next)
       {
         Item *item= *tmp_order->item;
-        if (item->walk(&Item::is_expensive_processor,(byte*)0))
+        if (item->walk(&Item::is_expensive_processor, 0, (byte*)0))
         {
           /* Force tmp table without sort */
           need_tmp=1; simple_order=simple_group=0;
@@ -7963,7 +7963,8 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       Field *field=((Item_field*) args[0])->field;
       if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
-	  (thd->first_successful_insert_id_in_prev_stmt > 0))
+	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
+           thd->substitute_null_with_insert_id))
       {
 #ifdef HAVE_QUERY_CACHE
 	query_cache_abort(&thd->net);
@@ -7986,7 +7987,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
           IS NULL should be mapped to LAST_INSERT_ID only for first row, so
           clear for next row
         */
-	thd->first_successful_insert_id_in_prev_stmt= 0;
+        thd->substitute_null_with_insert_id= FALSE;
       }
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       else if (((field->type() == FIELD_TYPE_DATE) ||
