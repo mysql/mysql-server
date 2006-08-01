@@ -652,7 +652,7 @@ page_zip_compress(
 
 	ut_a(page_is_comp((page_t*) page));
 	ut_a(fil_page_get_type((page_t*) page) == FIL_PAGE_INDEX);
-	ut_ad(page_simple_validate_new((page_t*) page));
+	ut_ad(page_validate((page_t*) page, index));
 	ut_ad(page_zip_simple_validate(page_zip));
 
 	/* Check the data that will be omitted. */
@@ -2047,10 +2047,6 @@ page_zip_validate(
 	}
 	if (memcmp(page + PAGE_HEADER, temp_page + PAGE_HEADER,
 			UNIV_PAGE_SIZE - PAGE_HEADER - FIL_PAGE_DATA_END)) {
-		/* This can happen if a record containing externally
-		stored columns was deleted and page_zip_clear_rec() failed
-		to clear the record.  However, page_zip_validate() will
-		only be invoked in debug builds. */
 		fputs("page_zip_validate(): content mismatch\n", stderr);
 		valid = FALSE;
 	}
@@ -2111,7 +2107,7 @@ page_zip_write_rec(
 	page = ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE);
 
 	ut_ad(page_zip_header_cmp(page_zip, page));
-	ut_ad(page_simple_validate_new(page));
+	ut_ad(page_validate(page, index));
 
 	slot = page_zip_dir_find(page_zip,
 			ut_align_offset(rec, UNIV_PAGE_SIZE));
@@ -2403,7 +2399,7 @@ page_zip_write_blob_ptr(
 	ulint	len;
 
 	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)rec)) == page_zip);
-	ut_ad(page_simple_validate_new(page));
+	ut_ad(page_validate(page, index));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
 	ut_ad(rec_offs_comp(offsets));
@@ -2726,32 +2722,27 @@ page_zip_clear_rec(
 		ut_ad(!*data);
 		ut_ad((ulint) (data - page_zip->data) < page_zip->size);
 		page_zip->m_end = data - page_zip->data;
-#ifdef UNIV_ZIP_DEBUG
-		ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_ZIP_DEBUG */
 	} else {
-		/* There is not enough space to log the clearing.
-		Try to clear the block and to recompress the page. */
+		/* Do not clear the record, because there is not enough space
+		to log the operation. */
 
-		byte*	buf = mem_alloc(rec_offs_data_size(offsets));
-		memcpy(buf, rec, rec_offs_data_size(offsets));
-
-		/* Do not touch the extra bytes, because the
-		decompressor depends on them. */
-		memset(rec, 0, rec_offs_data_size(offsets));
-		if (UNIV_UNLIKELY(!page_zip_compress(
-				page_zip, page, index, NULL))) {
-			/* Compression failed. Restore the block. */
-			memcpy(rec, buf, rec_offs_data_size(offsets));
-			/* From now on, page_zip_validate() would fail
-			if a record containing externally stored columns
-			is being deleted.  However, page_zip_validate()
-			will only be invoked in debug builds.  Should
-			this be an issue, we could here zero out the
-			BLOB pointers contained in rec. */
+		ulint	i;
+		for (i = rec_offs_n_fields(offsets); i--; ) {
+			/* Clear all BLOB pointers in order to make
+			page_zip_validate() pass. */
+			if (rec_offs_nth_extern(offsets, i)) {
+				ulint	len;
+				byte*	field = rec_get_nth_field(
+						rec, offsets, i, &len);
+				memset(field + len - BTR_EXTERN_FIELD_REF_SIZE,
+					0, BTR_EXTERN_FIELD_REF_SIZE);
+			}
 		}
-		mem_free(buf);
 	}
+
+#ifdef UNIV_ZIP_DEBUG
+	ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
 }
 
 /**************************************************************************
