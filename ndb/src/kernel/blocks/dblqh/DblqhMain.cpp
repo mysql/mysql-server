@@ -12508,6 +12508,20 @@ void Dblqh::lastWriteInFileLab(Signal* signal)
 
 void Dblqh::writePageZeroLab(Signal* signal) 
 {
+  if (logPartPtr.p->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM) 
+  {
+    if (logPartPtr.p->firstLogQueue == RNIL) 
+    {
+      jam();
+      logPartPtr.p->logPartState = LogPartRecord::IDLE;
+    } 
+    else 
+    {
+      jam();
+      logPartPtr.p->logPartState = LogPartRecord::ACTIVE;
+    }
+  }
+  
   logFilePtr.p->fileChangeState = LogFileRecord::NOT_ONGOING;
 /*---------------------------------------------------------------------------*/
 /* IT COULD HAVE ARRIVED PAGE WRITES TO THE CURRENT FILE WHILE WE WERE       */
