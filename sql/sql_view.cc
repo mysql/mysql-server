@@ -1304,11 +1304,11 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   for (view= views; view; view= view->next_local)
   {
     TABLE_SHARE *share;
-    bool type= 0;
+    frm_type_enum type= FRMTYPE_ERROR;
     build_table_filename(path, sizeof(path),
                          view->db, view->table_name, reg_ext);
     VOID(pthread_mutex_lock(&LOCK_open));
-    type= FRMTYPE_ERROR;
+
     if (access(path, F_OK) || 
         FRMTYPE_VIEW != (type= mysql_frm_type(thd, path, &not_used)))
     {
