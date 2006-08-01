@@ -495,6 +495,8 @@ buf_flush_init_for_writing(
 
 		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ZBLOB:
+			ut_ad(fil_page_get_type(page_zip->data)
+					== FIL_PAGE_TYPE_ZBLOB);
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_OFFSET, page_no);
 			mach_write_to_4(page_zip->data
@@ -505,7 +507,8 @@ buf_flush_init_for_writing(
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums
 					? page_zip_calc_checksum(
-							page, zip_size)
+							page_zip->data,
+							zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
 		case FIL_PAGE_TYPE_ALLOCATED:
