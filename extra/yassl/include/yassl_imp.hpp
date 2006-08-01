@@ -626,6 +626,7 @@ struct Connection {
     bool            send_server_key_;                  // server key exchange?
     bool            master_clean_;                     // master secret clean?
     bool            TLS_;                              // TLSv1 or greater
+    bool            sessionID_Set_;                    // do we have a session
     ProtocolVersion version_;
     RandomPool&     random_;
 
