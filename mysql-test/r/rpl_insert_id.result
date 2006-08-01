@@ -73,6 +73,7 @@ CREATE TABLE t1 ( a INT UNIQUE );
 SET FOREIGN_KEY_CHECKS=0;
 INSERT INTO t1 VALUES (1),(1);
 Got one of the listed errors
+drop table t1;
 create table t1(a int auto_increment, key(a));
 create table t2(a int);
 insert into t1 (a) values (null);

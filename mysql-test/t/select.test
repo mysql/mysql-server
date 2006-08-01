@@ -2286,25 +2286,6 @@ EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
 DROP TABLE t1;
 
 #
-# Bug #18759 "Incorrect string to numeric conversion"
-#
-# This test is here so that the behavior will not be changed to 4.1
-# and not to 5.0 either. In 4.1 and 5.0 sending an integer as a string
-# will be converted internally to real (double) value and it is not
-# as accurate as bigint (longlong) for integers. Thus the results may
-# vary. In 5.1 internally it is decimal, which is a string type and
-# will be more accurate. Due to rather big changes needed to fix this
-# in 4.1 or 5.0 it is not desired to do it in the stable versions.
-#
-# This test is here only to make sure that behavior is not changed in
-# 4.1 and 5.0
-#
-CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
-INSERT INTO t1 VALUES (10);
-SELECT i='1e+01',i=1e+01, i in (1e+01,1e+01), i in ('1e+01','1e+01') FROM t1;
-DROP TABLE t1;
-
-#
 # Bug #21019: First result of SELECT COUNT(*) different than consecutive runs
 #
 CREATE TABLE t1 (a int, b int);
@@ -2319,6 +2300,7 @@ SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NUL
 EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 DROP TABLE IF EXISTS t1,t2;
+
 #
 # Bug #20954 "avg(keyval) retuns 0.38 but max(keyval) returns an empty set"
 #
@@ -2348,6 +2330,25 @@ select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 
 DROP TABLE t1,t2;
 --enable_ps_protocol
+
+#
+# Bug #18759 "Incorrect string to numeric conversion"
+#
+# This test is here so that the behavior will not be changed to 4.1
+# and not to 5.0 either. In 4.1 and 5.0 sending an integer as a string
+# will be converted internally to real (double) value and it is not
+# as accurate as bigint (longlong) for integers. Thus the results may
+# vary. In 5.1 internally it is decimal, which is a string type and
+# will be more accurate. Due to rather big changes needed to fix this
+# in 4.1 or 5.0 it is not desired to do it in the stable versions.
+#
+# This test is here only to make sure that behavior is not changed in
+# 4.1 and 5.0
+#
+CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
+INSERT INTO t1 VALUES (10);
+SELECT i='1e+01',i=1e+01, i in (1e+01,1e+01), i in ('1e+01','1e+01') FROM t1;
+DROP TABLE t1;
 
 # End of 4.1 tests
 
