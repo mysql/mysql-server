@@ -22,8 +22,15 @@
 #include "atomic/nolock.h"
 #endif
 
-#ifndef my_atomic_rwlock_init
+#ifndef make_atomic_cas_body
 #include "atomic/rwlock.h"
+#endif
+
+#ifndef make_atomic_add_body
+#define make_atomic_add_body(S)					\
+  int ## S tmp=*a;                                              \
+  while (!my_atomic_cas ## S(a, &tmp, tmp+v));                  \
+  v=tmp;
 #endif
 
 #ifdef HAVE_INLINE
@@ -87,14 +94,14 @@ extern void my_atomic_store ## S(int ## S volatile *a, int ## S v);
 
 #endif
 
-make_atomic_add( 8)
-make_atomic_add(16)
-make_atomic_add(32)
-
 make_atomic_cas( 8)
 make_atomic_cas(16)
 make_atomic_cas(32)
 make_atomic_cas(ptr)
+
+make_atomic_add( 8)
+make_atomic_add(16)
+make_atomic_add(32)
 
 make_atomic_load( 8)
 make_atomic_load(16)
@@ -116,12 +123,19 @@ make_atomic_swap(ptr)
 #undef make_atomic_load
 #undef make_atomic_store
 #undef make_atomic_swap
-#undef intaptr
+#undef make_atomic_add_body
+#undef make_atomic_cas_body
+#undef make_atomic_load_body
+#undef make_atomic_store_body
+#undef make_atomic_swap_body
+#undef intptr
 
 #ifdef _atomic_h_cleanup_
 #include _atomic_h_cleanup_
 #undef _atomic_h_cleanup_
 #endif
+
+typedef int32 intptr; /* TODO configure check */
 
 #define MY_ATOMIC_OK       0
 #define MY_ATOMIC_NOT_1CPU 1

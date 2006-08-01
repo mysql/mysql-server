@@ -36,6 +36,7 @@
 */
 int my_atomic_initialize()
 {
+  DBUG_ASSERT(sizeof(intptr) == sizeof(void *));
   /* currently the only thing worth checking is SMP/UP issue */
 #ifdef MY_ATOMIC_MODE_DUMMY
   return my_getncpus() == 1 ? MY_ATOMIC_OK : MY_ATOMIC_NOT_1CPU;
