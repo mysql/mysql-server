@@ -12789,19 +12789,17 @@ void Dblqh::lastWriteInFileLab(Signal* signal)
 
 void Dblqh::writePageZeroLab(Signal* signal) 
 {
-  if (false && logPartPtr.p->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM) 
+  if (logPartPtr.p->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM) 
   {
     if (logPartPtr.p->firstLogQueue == RNIL) 
     {
       jam();
       logPartPtr.p->logPartState = LogPartRecord::IDLE;
-      ndbout_c("resetting logPartState to IDLE");
     } 
     else 
     {
       jam();
       logPartPtr.p->logPartState = LogPartRecord::ACTIVE;
-      ndbout_c("resetting logPartState to ACTIVE");
     }
   }
   
