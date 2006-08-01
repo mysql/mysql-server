@@ -1193,7 +1193,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 	"CREATE UNIQUE CLUSTERED INDEX ID_IND ON SYS_FOREIGN_COLS (ID, POS);\n"
 	"COMMIT WORK;\n"
 	"END;\n"
-		, trx);
+		, FALSE, trx);
 
 	if (error != DB_SUCCESS) {
 		fprintf(stderr, "InnoDB: error %lu in creation\n",
@@ -1242,7 +1242,7 @@ dict_foreign_eval_sql(
 	ulint		error;
 	FILE*		ef	= dict_foreign_err_file;
 
-	error = que_eval_sql(info, sql, trx);
+	error = que_eval_sql(info, sql, FALSE, trx);
 
 	if (error == DB_DUPLICATE_KEY) {
 		mutex_enter(&dict_foreign_err_mutex);
