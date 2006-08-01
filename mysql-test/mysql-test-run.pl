@@ -816,7 +816,7 @@ sub command_line_setup () {
   if ( $glob_win32 )
   {
     mtr_report("Disable Instance manager - not supported on Windows");
-    opt_skip_im= 1;
+    $opt_skip_im= 1;
   }
 
   # Check valgrind arguments
