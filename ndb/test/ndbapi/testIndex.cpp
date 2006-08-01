@@ -1199,6 +1199,48 @@ int runLQHKEYREF(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int 
+runBug21384(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  HugoTransactions hugoTrans(*ctx->getTab());
+  NdbRestarter restarter;
+  
+  int loops = ctx->getNumLoops();
+  const int rows = ctx->getNumRecords();
+  const int batchsize = ctx->getProperty("BatchSize", 50);
+  
+  while (loops--)
+  {
+    if(restarter.insertErrorInAllNodes(8037) != 0)
+    {
+      g_err << "Failed to error insert(8037)" << endl;
+      return NDBT_FAILED;
+    }
+    
+    if (hugoTrans.indexReadRecords(pNdb, pkIdxName, rows, batchsize) == 0)
+    {
+      g_err << "Index succeded (it should have failed" << endl;
+      return NDBT_FAILED;
+    }
+    
+    if(restarter.insertErrorInAllNodes(0) != 0)
+    {
+      g_err << "Failed to error insert(0)" << endl;
+      return NDBT_FAILED;
+    }
+    
+    if (hugoTrans.indexReadRecords(pNdb, pkIdxName, rows, batchsize) != 0){
+      g_err << "Index read failed" << endl;
+      return NDBT_FAILED;
+    }
+  }
+  
+  return NDBT_OK;
+}
+
+
+
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
 	 "Test that we can create all various indexes on each table\n"
@@ -1509,6 +1551,16 @@ TESTCASE("UniqueNull",
   STEP(runUniqueNullTransactions);
   FINALIZER(runVerifyIndex);
   FINALIZER(createRandomIndex_Drop);
+  FINALIZER(createPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug21384", 
+	 "Test that unique indexes and nulls"){ 
+  TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  INITIALIZER(runClearTable);
+  INITIALIZER(createPkIndex);
+  INITIALIZER(runLoadTable);
+  STEP(runBug21384);
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
