@@ -42,7 +42,7 @@ ut_dbg_assertion_failed(
 {
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: Assertion failure in thread %lu"
+		" InnoDB: Assertion failure in thread %lu"
 		" in file %s line %lu\n",
 		os_thread_pf(os_thread_get_curr_id()), file, line);
 	if (expr) {
