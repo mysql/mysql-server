@@ -883,11 +883,13 @@ drop table t2;
 #
 # Bug#14367: Partitions: crash if utf8 column
 #
-create table t1 (s1 char(2) character set utf8)
-partition by list (case when s1 > 'cz' then 1 else 2 end)
-(partition p1 values in (1),
- partition p2 values in (2));
-drop table t1;
+# utf columns not supported after Bug #18198 is fixed
+#
+#create table t1 (s1 char(2) character set utf8)
+#partition by list (cast(s1 as signed))
+#(partition p1 values in (1),
+# partition p2 values in (2));
+#drop table t1;
 
 #
 # Bug#15336 Partitions: crash if create table as select
