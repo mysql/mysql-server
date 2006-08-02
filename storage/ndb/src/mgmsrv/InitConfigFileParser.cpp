@@ -655,6 +655,18 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
 			m_info->getMax(ctx.m_currentInfo, fname));
 	return false;
       }
+
+      ConfigInfo::Status status = m_info->getStatus(ctx.m_currentInfo, fname);
+      if (status == ConfigInfo::CI_DEPRICATED) {
+	const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
+	if(desc && desc[0]){
+	  ctx.reportWarning("[%s] %s is depricated, use %s instead", 
+			    ctx.fname, fname, desc);
+	} else if (desc == 0){
+	  ctx.reportWarning("[%s] %s is depricated", ctx.fname, fname);
+	} 
+      }
+      
       if (options[i].var_type == GET_INT)
 	ctx.m_currentSection->put(options[i].name, (Uint32)value_int);
       else

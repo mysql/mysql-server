@@ -33,6 +33,7 @@
 #include <blocks/mutexes.hpp>
 
 #include <NdbTCP.h>
+#include <NdbTick.h>
 #include <Array.hpp>
 
 /**
@@ -522,6 +523,11 @@ public:
     Uint32 m_minWriteSize;
     Uint32 m_maxWriteSize;
     Uint32 m_lcp_buffer_size;
+    
+    Uint32 m_disk_write_speed_sr;
+    Uint32 m_disk_write_speed;
+    Uint32 m_disk_synch_size;
+    Uint32 m_diskless;
   };
   
   /**
@@ -533,8 +539,17 @@ public:
   NdbNodeBitmask c_aliveNodes;
   DLList<BackupRecord> c_backups;
   Config c_defaults;
-  Uint32 m_diskless;
 
+  /*
+    Variables that control checkpoint to disk speed
+  */
+  Uint32 m_curr_disk_write_speed;
+  Uint32 m_words_written_this_period;
+  Uint32 m_overflow_disk_write;
+  Uint32 m_reset_delay_used;
+  NDB_TICKS m_reset_disk_speed_time;
+  static const int  DISK_SPEED_CHECK_DELAY = 100;
+  
   STATIC_CONST(NO_OF_PAGES_META_FILE = MAX_WORDS_META_FILE/BACKUP_WORDS_PER_PAGE);
 
   /**
@@ -631,6 +646,8 @@ public:
   void lcp_open_file_done(Signal*, BackupRecordPtr);
   void lcp_close_file_conf(Signal* signal, BackupRecordPtr);
   void lcp_send_end_lcp_conf(Signal* signal, BackupRecordPtr);
+
+  bool ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP);
 };
 
 inline
