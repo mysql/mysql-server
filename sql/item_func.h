@@ -252,7 +252,7 @@ public:
   void fix_num_length_and_dec();
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -265,7 +265,7 @@ class Item_num_op :public Item_func_numhybrid
   void print(String *str) { print_op(str); }
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -316,7 +316,7 @@ public:
   { max_length=args[0]->max_length; unsigned_flag=0; }
   void print(String *str);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -350,7 +350,7 @@ public:
   void fix_length_and_dec() {};
   const char *func_name() const { return "decimal_typecast"; }
   void print(String *);
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -419,7 +419,7 @@ public:
   const char *func_name() const { return "DIV"; }
   void fix_length_and_dec();
   void print(String *str) { print_op(str); }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -492,7 +492,7 @@ public:
   Item_func_exp(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "exp"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -502,7 +502,7 @@ public:
   Item_func_ln(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "ln"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -513,7 +513,7 @@ public:
   Item_func_log(Item *a,Item *b) :Item_dec_func(a,b) {}
   double val_real();
   const char *func_name() const { return "log"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -523,7 +523,7 @@ public:
   Item_func_log2(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "log2"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -533,7 +533,7 @@ public:
   Item_func_log10(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "log10"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -543,7 +543,7 @@ public:
   Item_func_sqrt(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "sqrt"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -553,7 +553,7 @@ public:
   Item_func_pow(Item *a,Item *b) :Item_dec_func(a,b) {}
   double val_real();
   const char *func_name() const { return "pow"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -563,7 +563,7 @@ public:
   Item_func_acos(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "acos"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_asin :public Item_dec_func
@@ -572,7 +572,7 @@ public:
   Item_func_asin(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "asin"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_atan :public Item_dec_func
@@ -582,7 +582,7 @@ public:
   Item_func_atan(Item *a,Item *b) :Item_dec_func(a,b) {}
   double val_real();
   const char *func_name() const { return "atan"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_cos :public Item_dec_func
@@ -591,7 +591,7 @@ public:
   Item_func_cos(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "cos"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_sin :public Item_dec_func
@@ -600,7 +600,7 @@ public:
   Item_func_sin(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "sin"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_tan :public Item_dec_func
@@ -609,7 +609,7 @@ public:
   Item_func_tan(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "tan"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_integer :public Item_int_func
@@ -686,7 +686,7 @@ public:
   Item_func_sign(Item *a) :Item_int_func(a) {}
   const char *func_name() const { return "sign"; }
   longlong val_int();
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -701,7 +701,7 @@ public:
   const char *func_name() const { return name; }
   void fix_length_and_dec()
   { decimals= NOT_FIXED_DEC; max_length= float_length(decimals); }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -719,7 +719,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_min :public Item_func_min_max
@@ -745,7 +745,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "length"; }
   void fix_length_and_dec() { max_length=10; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_bit_length :public Item_func_length
@@ -765,7 +765,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "char_length"; }
   void fix_length_and_dec() { max_length=10; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_coercibility :public Item_int_func
@@ -776,7 +776,6 @@ public:
   const char *func_name() const { return "coercibility"; }
   void fix_length_and_dec() { max_length=10; maybe_null= 0; }
   table_map not_null_tables() const { return 0; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
 };
 
 class Item_func_locate :public Item_int_func
@@ -790,7 +789,7 @@ public:
   longlong val_int();
   void fix_length_and_dec();
   void print(String *str);
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 
@@ -815,7 +814,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "ascii"; }
   void fix_length_and_dec() { max_length=3; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_ord :public Item_int_func
@@ -825,7 +824,7 @@ public:
   Item_func_ord(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "ord"; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_find_in_set :public Item_int_func
@@ -839,7 +838,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "find_in_set"; }
   void fix_length_and_dec();
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 /* Base class for all bit functions: '~', '|', '^', '&', '>>', '<<' */
@@ -851,7 +850,7 @@ public:
   Item_func_bit(Item *a) :Item_int_func(a) {}
   void fix_length_and_dec() { unsigned_flag= 1; }
   void print(String *str) { print_op(str); }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_bit_or :public Item_func_bit
@@ -877,7 +876,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "bit_count"; }
   void fix_length_and_dec() { max_length=2; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 class Item_func_shift_left :public Item_func_bit
@@ -1316,7 +1315,7 @@ public:
    longlong val_int();
    const char *func_name() const { return "inet_aton"; }
    void fix_length_and_dec() { decimals = 0; max_length = 21; maybe_null=1;}
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
 };
 
 

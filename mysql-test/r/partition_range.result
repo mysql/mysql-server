@@ -709,3 +709,45 @@ WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p407,p408,p409,p507,p508,p509	ALL	NULL	NULL	NULL	NULL	18	Using where
 DROP TABLE t1;
+create table t1 (a varchar(20))
+partition by range (crc32(md5(a)))
+(partition p0 values less than (100),
+partition p1 values less than maxvalue);
+insert into t1 values ("12345678901234567890");
+insert into t1 values ("A2345678901234567890");
+insert into t1 values ("B2345678901234567890");
+insert into t1 values ("1234567890123456789");
+insert into t1 values ("1234567890123456");
+select * from t1;
+a
+12345678901234567890
+A2345678901234567890
+B2345678901234567890
+1234567890123456789
+1234567890123456
+explain partitions select * from t1 where a = "12345678901234567890";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	5	Using where
+explain partitions select * from t1 where a = "12345678901234567890" OR
+a = "A2345678901234567890" OR
+a = "B2345678901234567890" OR
+a = "C2345678901234567890";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	5	Using where
+explain partitions select * from t1 where a = "01234567890123456";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	5	Using where
+select * from t1 where a = "01234567890123456";
+a
+select * from t1 where a = "12345678901234567890" OR
+a = "A2345678901234567890" OR
+a = "B2345678901234567890" OR
+a = "C2345678901234567890";
+a
+12345678901234567890
+A2345678901234567890
+B2345678901234567890
+select * from t1 where a = "12345678901234567890";
+a
+12345678901234567890
+drop table t1;
