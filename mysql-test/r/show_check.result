@@ -625,3 +625,7 @@ View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`
 DROP PROCEDURE p1;
 DROP VIEW v1;
+SHOW TABLES FROM no_such_database;
+ERROR 42000: Unknown database 'no_such_database'
+SHOW COLUMNS FROM no_such_table;
+ERROR 42S02: Table 'test.no_such_table' doesn't exist

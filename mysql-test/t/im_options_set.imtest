@@ -39,32 +39,7 @@
 ###########################################################################
 
 --source include/im_check_os.inc
-
-###########################################################################
-#
-# 0. Check starting conditions.
-#
-###########################################################################
-
-# - check the configuration file;
-
---exec grep server_id $MYSQLTEST_VARDIR/im.cnf ;
-
-# - check the running instances.
-
---connect (mysql1_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
-
---connection mysql1_con
-
-SHOW VARIABLES LIKE 'server_id';
-
---connection default
-
-# - check the internal cache.
-#   TODO: we should check only server_id option here.
-
-# SHOW INSTANCE OPTIONS mysqld1;
-# SHOW INSTANCE OPTIONS mysqld2;
+--source include/im_check_env.inc
 
 ###########################################################################
 #
