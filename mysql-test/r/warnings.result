@@ -72,7 +72,7 @@ drop table t1;
 create table t1(a tinyint, b int not null, c date, d char(5));
 load data infile '../std_data_ln/warnings_loaddata.dat' into table t1 fields terminated by ',';
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 2
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 3
 Warning	1265	Data truncated for column 'c' at row 4
 Warning	1261	Row 5 doesn't contain data for all columns
@@ -86,7 +86,7 @@ drop table t1;
 create table t1(a tinyint NOT NULL, b tinyint unsigned, c char(5));
 insert into t1 values(NULL,100,'mysql'),(10,-1,'mysql ab'),(500,256,'open source'),(20,NULL,'test');
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 1
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'a' at row 1
 Warning	1264	Out of range value adjusted for column 'b' at row 2
 Warning	1265	Data truncated for column 'c' at row 2
 Warning	1264	Out of range value adjusted for column 'a' at row 3
@@ -99,7 +99,7 @@ Warning	1265	Data truncated for column 'c' at row 2
 alter table t1 add d char(2);
 update t1 set a=NULL where a=10;
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 2
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'a' at row 2
 update t1 set c='mysql ab' where c='test';
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 4
@@ -115,7 +115,7 @@ Warnings:
 Warning	1265	Data truncated for column 'b' at row 1
 Warning	1265	Data truncated for column 'b' at row 2
 Warning	1265	Data truncated for column 'b' at row 3
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 4
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'a' at row 4
 Warning	1265	Data truncated for column 'b' at row 4
 insert into t2(b) values('mysqlab');
 Warnings:
