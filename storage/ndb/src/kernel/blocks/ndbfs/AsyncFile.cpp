@@ -219,6 +219,10 @@ AsyncFile::run()
     case Request:: append:
       appendReq(request);
       break;
+    case Request:: append_synch:
+      appendReq(request);
+      syncReq(request);
+      break;
     case Request::rmrf:
       rmrfReq(request, (char*)theFileName.c_str(), request->par.rmrf.own_directory);
       break;
@@ -246,9 +250,8 @@ extern Uint32 Global_syncFreq;
 
 void AsyncFile::openReq(Request* request)
 {  
-  m_openedWithSync = false;
-  m_syncFrequency = 0;
-  m_syncCount= 0;
+  m_auto_sync_freq = 0;
+  m_write_wo_sync = 0;
 
   // for open.flags, see signal FSOPENREQ
 #ifdef NDB_WIN32
@@ -329,7 +332,7 @@ void AsyncFile::openReq(Request* request)
 
   if (flags & FsOpenReq::OM_AUTOSYNC)
   {
-    m_syncFrequency = 1024*1024; // Hard coded to 1M
+    m_auto_sync_freq = request->par.open.auto_sync_size;
   }
 
   if (flags & FsOpenReq::OM_APPEND){
@@ -429,7 +432,7 @@ no_odirect:
     {
       request->error = errno;
     } 
-    else if(buf.st_size != request->par.open.file_size)
+    else if((Uint64)buf.st_size != request->par.open.file_size)
     {
       request->error = FsRef::fsErrInvalidFileSize;
     }
@@ -737,6 +740,10 @@ AsyncFile::writeReq( Request * request)
       return;
     }
   } // while(write_not_complete)
+
+  if(m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq){
+    syncReq(request);
+  }
 }
 
 int
@@ -745,6 +752,8 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
 {
   size_t bytes_to_write = chunk_size;
   int return_value;
+
+  m_write_wo_sync += size;
 
 #ifdef NDB_WIN32
   DWORD dwSFP = SetFilePointer(hFile, offset, 0, FILE_BEGIN);
@@ -805,7 +814,6 @@ AsyncFile::writeBuffer(const char * buf, size_t size, off_t offset,
     }
 #endif
     
-    m_syncCount+= bytes_written;
     buf += bytes_written;
     size -= bytes_written;
     offset += bytes_written;
@@ -856,8 +864,7 @@ bool AsyncFile::isOpen(){
 void
 AsyncFile::syncReq(Request * request)
 {
-  if(m_openedWithSync ||
-     m_syncCount == 0){
+  if(m_auto_sync_freq && m_write_wo_sync == 0){
     return;
   }
 #ifdef NDB_WIN32
@@ -871,7 +878,7 @@ AsyncFile::syncReq(Request * request)
     return;
   }
 #endif
-  m_syncCount = 0;
+  m_write_wo_sync = 0;
 }
 
 void
@@ -880,7 +887,7 @@ AsyncFile::appendReq(Request * request){
   const char * buf = request->par.append.buf;
   Uint32 size = request->par.append.size;
 
-  m_syncCount += size;
+  m_write_wo_sync += size;
 
 #ifdef NDB_WIN32
   DWORD dwWritten = 0;  
@@ -912,7 +919,7 @@ AsyncFile::appendReq(Request * request){
   }
 #endif
 
-  if(m_syncFrequency != 0 && m_syncCount > m_syncFrequency){
+  if(m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq){
     syncReq(request);
   }
 }

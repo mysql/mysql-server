@@ -123,6 +123,7 @@ public:
     sync,
     end,
     append,
+    append_synch,
     rmrf,
     readPartial
   };
@@ -132,6 +133,7 @@ public:
       Uint32 flags;
       Uint32 page_size;
       Uint64 file_size;
+      Uint32 auto_sync_size;
     } open;
     struct {
       int numberOfPages;
@@ -232,9 +234,8 @@ private:
   int theWriteBufferSize;
   char* theWriteBuffer;
   
-  bool m_openedWithSync;
-  Uint32 m_syncCount;
-  Uint32 m_syncFrequency;
+  size_t m_write_wo_sync;  // Writes wo/ sync
+  size_t m_auto_sync_freq; // Auto sync freq in bytes
 public:
   SimulatedBlock& m_fs;
   Ptr<GlobalPage> m_page_ptr;
