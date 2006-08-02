@@ -373,7 +373,6 @@ ibuf_init_at_db_start(void)
 
 	ibuf->max_size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE
 						/ IBUF_POOL_SIZE_PER_MAX_SIZE;
-	ibuf->meter = IBUF_THRESHOLD + 1;
 
 	UT_LIST_INIT(ibuf->data_list);
 
