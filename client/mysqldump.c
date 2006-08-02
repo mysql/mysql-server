@@ -617,13 +617,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       tty_password=1;
     break;
   case 'r':
-    if (!(md_result_file = my_fopen(argument, O_WRONLY | FILE_BINARY,
+    if (!(md_result_file= my_fopen(argument, O_WRONLY | FILE_BINARY,
                                     MYF(MY_WME))))
       exit(1);
     break;
   case 'W':
 #ifdef __WIN__
-    opt_protocol = MYSQL_PROTOCOL_PIPE;
+    opt_protocol= MYSQL_PROTOCOL_PIPE;
 #endif
     break;
   case 'N':
@@ -638,7 +638,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #include <sslopt-case.h>
   case 'V': print_version(); exit(0);
   case 'X':
-    opt_xml = 1;
+    opt_xml= 1;
     extended_insert= opt_drop= opt_lock=
       opt_disable_keys= opt_autocommit= opt_create_db= 0;
     break;
@@ -1404,7 +1404,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   const char *insert_option;
   char       name_buff[NAME_LEN+3],table_buff[NAME_LEN*2+3];
   char       table_buff2[NAME_LEN*2+3], query_buff[512];
-  FILE       *sql_file = md_result_file;
+  FILE       *sql_file= md_result_file;
   int        len;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
@@ -1451,7 +1451,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
   if (opt_order_by_primary)
-    order_by = primary_key_fields(result_table);
+    order_by= primary_key_fields(result_table);
 
   if (!opt_xml && !mysql_query_with_error_report(sock, 0, query_buff))
   {
@@ -1503,7 +1503,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       field= mysql_fetch_field_direct(result, 0);
       if (strcmp(field->name, "View") == 0)
       {
-        char *scv_buff = NULL;
+        char *scv_buff= NULL;
 
         if (verbose)
           fprintf(stderr, "-- It's a view, create dummy table for view\n");
@@ -1541,7 +1541,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
 
           safe_exit(EX_MYSQLERR);
-          DBUG_RETURN(0); 
+          DBUG_RETURN(0);
         }
         else
           my_free(scv_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -1909,7 +1909,7 @@ static void dump_triggers_for_table (char *table, char *db)
   char       name_buff[NAME_LEN*4+3], table_buff[NAME_LEN*2+3];
   char       query_buff[512];
   uint old_opt_compatible_mode=opt_compatible_mode;
-  FILE       *sql_file = md_result_file;
+  FILE       *sql_file= md_result_file;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
 
@@ -2160,15 +2160,15 @@ static void dump_table(char *table, char *db)
     end= strmov(end,buff);
     if (where || order_by)
     {
-      query = alloc_query_str((ulong) ((end - query) + 1 +
+      query= alloc_query_str((ulong) ((end - query) + 1 +
                              (where ? strlen(where) + 7 : 0) +
                              (order_by ? strlen(order_by) + 10 : 0)));
-      end = strmov(query, query_buf);
+      end= strmov(query, query_buf);
 
       if (where)
-        end = strxmov(end, " WHERE ", where, NullS);
+        end= strxmov(end, " WHERE ", where, NullS);
       if (order_by)
-        end = strxmov(end, " ORDER BY ", order_by, NullS);
+        end= strxmov(end, " ORDER BY ", order_by, NullS);
     }
     if (mysql_real_query(sock, query, (uint) (end - query)))
     {
@@ -2189,10 +2189,10 @@ static void dump_table(char *table, char *db)
                 result_table);
     if (where || order_by)
     {
-      query = alloc_query_str((ulong) (strlen(query) + 1 +
+      query= alloc_query_str((ulong) (strlen(query) + 1 +
                              (where ? strlen(where) + 7 : 0) +
                              (order_by ? strlen(order_by) + 10 : 0)));
-      end = strmov(query, query_buf);
+      end= strmov(query, query_buf);
 
       if (where)
       {
@@ -2201,7 +2201,7 @@ static void dump_table(char *table, char *db)
           fprintf(md_result_file, "-- WHERE:  %s\n", where);
           check_io(md_result_file);
         }
-        end = strxmov(end, " WHERE ", where, NullS);
+        end= strxmov(end, " WHERE ", where, NullS);
       }
       if (order_by)
       {
@@ -2210,7 +2210,7 @@ static void dump_table(char *table, char *db)
           fprintf(md_result_file, "-- ORDER BY:  %s\n", order_by);
           check_io(md_result_file);
         }
-        end = strxmov(end, " ORDER BY ", order_by, NullS);
+        end= strxmov(end, " ORDER BY ", order_by, NullS);
       }
     }
     if (!opt_xml && !opt_compact)
@@ -2283,12 +2283,12 @@ static void dump_table(char *table, char *db)
         check_io(md_result_file);
       }
 
-      for (i = 0; i < mysql_num_fields(res); i++)
+      for (i= 0; i < mysql_num_fields(res); i++)
       {
         int is_blob;
         ulong length= lengths[i];
 
-        if (!(field = mysql_fetch_field(res)))
+        if (!(field= mysql_fetch_field(res)))
         {
           my_snprintf(query, QUERY_LENGTH,
                       "%s: Not enough fields from table %s! Aborting.\n",
@@ -2360,7 +2360,7 @@ static void dump_table(char *table, char *db)
               else
               {
                 /* change any strings ("inf", "-inf", "nan") into NULL */
-                char *ptr = row[i];
+                char *ptr= row[i];
                 if (my_isalpha(charset_info, *ptr) || (*ptr == '-' &&
                     my_isalpha(charset_info, ptr[1])))
                   dynstr_append(&extended_row, "NULL");
@@ -2420,7 +2420,7 @@ static void dump_table(char *table, char *db)
             else
             {
               /* change any strings ("inf", "-inf", "nan") into NULL */
-              char *ptr = row[i];
+              char *ptr= row[i];
               if (opt_xml)
               {
                 print_xml_tag1(md_result_file, "\t\t", "field name=",
@@ -2466,10 +2466,10 @@ static void dump_table(char *table, char *db)
       {
         ulong row_length;
         dynstr_append(&extended_row,")");
-        row_length = 2 + extended_row.length;
+        row_length= 2 + extended_row.length;
         if (total_length + row_length < opt_net_buffer_length)
         {
-          total_length += row_length;
+          total_length+= row_length;
           fputc(',',md_result_file);            /* Always row break */
           fputs(extended_row.str,md_result_file);
         }
@@ -2481,7 +2481,7 @@ static void dump_table(char *table, char *db)
 
           fputs(insert_pat.str,md_result_file);
           fputs(extended_row.str,md_result_file);
-          total_length = row_length+init_length;
+          total_length= row_length+init_length;
         }
         check_io(md_result_file);
       }
@@ -2546,15 +2546,15 @@ err:
 
 static char *getTableName(int reset)
 {
-  static MYSQL_RES *res = NULL;
+  static MYSQL_RES *res= NULL;
   MYSQL_ROW    row;
 
   if (!res)
   {
-    if (!(res = mysql_list_tables(sock,NullS)))
+    if (!(res= mysql_list_tables(sock,NullS)))
       return(NULL);
   }
-  if ((row = mysql_fetch_row(res)))
+  if ((row= mysql_fetch_row(res)))
     return((char*) row[0]);
 
   if (reset)
@@ -2562,7 +2562,7 @@ static char *getTableName(int reset)
   else
   {
     mysql_free_result(res);
-    res = NULL;
+    res= NULL;
   }
   return(NULL);
 } /* getTableName */
@@ -2576,7 +2576,7 @@ static int dump_all_databases()
 
   if (mysql_query_with_error_report(sock, &tableres, "SHOW DATABASES"))
     return 1;
-  while ((row = mysql_fetch_row(tableres)))
+  while ((row= mysql_fetch_row(tableres)))
   {
     if (dump_all_tables_in_db(row[0]))
       result=1;
@@ -2584,13 +2584,13 @@ static int dump_all_databases()
   if (seen_views)
   {
     if (mysql_query(sock, "SHOW DATABASES") ||
-        !(tableres = mysql_store_result(sock)))
+        !(tableres= mysql_store_result(sock)))
     {
       my_printf_error(0, "Error: Couldn't execute 'SHOW DATABASES': %s",
                       MYF(0), mysql_error(sock));
       return 1;
     }
-    while ((row = mysql_fetch_row(tableres)))
+    while ((row= mysql_fetch_row(tableres)))
     {
       if (dump_all_views_in_db(row[0]))
         result=1;
@@ -2657,7 +2657,7 @@ static int init_dumping(char *database)
                     "SHOW CREATE DATABASE IF NOT EXISTS %s",
                     qdatabase);
 
-        if (mysql_query(sock, qbuf) || !(dbinfo = mysql_store_result(sock)))
+        if (mysql_query(sock, qbuf) || !(dbinfo= mysql_store_result(sock)))
         {
           /* Old server version, dump generic CREATE DATABASE */
           if (opt_drop_database)
@@ -2674,7 +2674,7 @@ static int init_dumping(char *database)
             fprintf(md_result_file,
                     "\n/*!40000 DROP DATABASE IF EXISTS %s*/;\n",
                     qdatabase);
-          row = mysql_fetch_row(dbinfo);
+          row= mysql_fetch_row(dbinfo);
           if (row[1])
           {
             fprintf(md_result_file,"\n%s;\n",row[1]);
@@ -2983,7 +2983,7 @@ static int do_show_master_status(MYSQL *mysql_con)
   }
   else
   {
-    row = mysql_fetch_row(master);
+    row= mysql_fetch_row(master);
     if (row && row[0] && row[1])
     {
       /* SHOW MASTER STATUS reports file and position */
@@ -3110,7 +3110,7 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
   MYSQL_FIELD   *field;
   mysql_field_seek(result, 0);
 
-  for ( ; (field = mysql_fetch_field(result)) ; row++)
+  for ( ; (field= mysql_fetch_field(result)) ; row++)
   {
     if (!strcmp(field->name,name))
     {
@@ -3239,17 +3239,17 @@ char check_if_ignore_table(const char *table_name, char *table_type)
 
 static char *primary_key_fields(const char *table_name)
 {
-  MYSQL_RES  *res = NULL;
+  MYSQL_RES  *res= NULL;
   MYSQL_ROW  row;
   /* SHOW KEYS FROM + table name * 2 (escaped) + 2 quotes + \0 */
   char show_keys_buff[15 + 64 * 2 + 3];
-  uint result_length = 0;
-  char *result = 0;
+  uint result_length= 0;
+  char *result= 0;
 
   my_snprintf(show_keys_buff, sizeof(show_keys_buff),
               "SHOW KEYS FROM %s", table_name);
   if (mysql_query(sock, show_keys_buff) ||
-      !(res = mysql_store_result(sock)))
+      !(res= mysql_store_result(sock)))
   {
     fprintf(stderr, "Warning: Couldn't read keys from table %s;"
             " records are NOT sorted (%s)\n",
@@ -3264,12 +3264,12 @@ static char *primary_key_fields(const char *table_name)
    * row, and UNIQUE keys come before others.  So we only need to check
    * the first key, not all keys.
    */
-  if ((row = mysql_fetch_row(res)) && atoi(row[1]) == 0)
+  if ((row= mysql_fetch_row(res)) && atoi(row[1]) == 0)
   {
     /* Key is unique */
     do
-      result_length += strlen(row[4]) + 1;      /* + 1 for ',' or \0 */
-    while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1);
+      result_length+= strlen(row[4]) + 1;      /* + 1 for ',' or \0 */
+    while ((row= mysql_fetch_row(res)) && atoi(row[3]) > 1);
   }
 
   /* Build the ORDER BY clause result */
@@ -3277,17 +3277,17 @@ static char *primary_key_fields(const char *table_name)
   {
     char *end;
     /* result (terminating \0 is already in result_length) */
-    result = my_malloc(result_length + 10, MYF(MY_WME));
+    result= my_malloc(result_length + 10, MYF(MY_WME));
     if (!result)
     {
       fprintf(stderr, "Error: Not enough memory to store ORDER BY clause\n");
       goto cleanup;
     }
     mysql_data_seek(res, 0);
-    row = mysql_fetch_row(res);
-    end = strmov(result, row[4]);
-    while ((row = mysql_fetch_row(res)) && atoi(row[3]) > 1)
-      end = strxmov(end, ",", row[4], NullS);
+    row= mysql_fetch_row(res);
+    end= strmov(result, row[4]);
+    while ((row= mysql_fetch_row(res)) && atoi(row[3]) > 1)
+      end= strxmov(end, ",", row[4], NullS);
   }
 
 cleanup:
@@ -3355,7 +3355,7 @@ static my_bool get_view_structure(char *table, char* db)
   char       table_buff[NAME_LEN*2+3];
   char       table_buff2[NAME_LEN*2+3];
   char       query[QUERY_LENGTH];
-  FILE       *sql_file = md_result_file;
+  FILE       *sql_file= md_result_file;
   DBUG_ENTER("get_view_structure");
 
   if (tFlag) /* Don't write table creation info */
