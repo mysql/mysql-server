@@ -20,7 +20,8 @@ libkernel_a_SOURCES = \
         Mutex.cpp SafeCounter.cpp \
         Rope.cpp \
 	ndbd_malloc.cpp ndbd_malloc_impl.cpp \
-        Pool.cpp WOPool.cpp RWPool.cpp
+        Pool.cpp WOPool.cpp RWPool.cpp \
+        DynArr256.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
@@ -44,7 +45,7 @@ libkernel.dsp: Makefile \
 	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(libkernel_a_SOURCES)
 	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LIB $(LDADD)
 
-EXTRA_PROGRAMS = ndbd_malloc_impl_test bench_pool
+EXTRA_PROGRAMS = ndbd_malloc_impl_test bench_pool testDynArr256
 ndbd_malloc_impl_test_CXXFLAGS = -DUNIT_TEST
 ndbd_malloc_impl_test_SOURCES = ndbd_malloc_impl.cpp
 ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@ \
@@ -54,9 +55,19 @@ ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/strings/libmystrings.a
 
 bench_pool_SOURCES = bench_pool.cpp
-bench_pool_LDFLAGS = @ndb_bin_am_ldflags@ ../SimBlockList.o \
+bench_pool_LDFLAGS = @ndb_bin_am_ldflags@\
   libkernel.a ../error/liberror.a \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
   $(top_builddir)/mysys/libmysys.a \
   $(top_builddir)/dbug/libdbug.a \
   $(top_builddir)/strings/libmystrings.a
+
+testDynArr256_CXXFLAGS = -DUNIT_TEST
+testDynArr256_SOURCES = DynArr256.cpp
+testDynArr256_LDFLAGS = @ndb_bin_am_ldflags@ \
+  libkernel.a ../error/liberror.a \
+  $(top_builddir)/storage/ndb/src/libndbclient.la \
+  $(top_builddir)/mysys/libmysys.a \
+  $(top_builddir)/dbug/libdbug.a \
+  $(top_builddir)/strings/libmystrings.a
+
