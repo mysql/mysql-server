@@ -2643,3 +2643,46 @@ DESCRIBE t2;
 
 DROP VIEW v1;
 DROP TABLE t1,t2;
+
+#
+# Bug #17526: views with TRIM functions
+#
+
+CREATE TABLE t1 (s varchar(10));
+INSERT INTO t1 VALUES ('yadda'), ('yady');
+
+SELECT TRIM(BOTH 'y' FROM s) FROM t1;
+CREATE VIEW v1 AS SELECT TRIM(BOTH 'y' FROM s) FROM t1;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+SELECT TRIM(LEADING 'y' FROM s) FROM t1; 
+CREATE VIEW v1 AS SELECT TRIM(LEADING 'y' FROM s) FROM t1;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+SELECT TRIM(TRAILING 'y' FROM s) FROM t1; 
+CREATE VIEW v1 AS SELECT TRIM(TRAILING 'y' FROM s) FROM t1;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+DROP TABLE t1;
+
+#
+# Bug #21086: server crashes when VIEW defined with a SELECT with COLLATE 
+# clause is called
+#
+CREATE TABLE t1 (s1 char);
+INSERT INTO t1 VALUES ('Z');
+
+CREATE VIEW v1 AS SELECT s1 collate latin1_german1_ci AS col FROM t1;
+
+CREATE VIEW v2 (col) AS SELECT s1 collate latin1_german1_ci FROM t1;
+
+# either of these statements will cause crash
+INSERT INTO v1 (col) VALUES ('b');
+INSERT INTO v2 (col) VALUES ('c');
+
+SELECT s1 FROM t1;
+DROP VIEW v1, v2;
+DROP TABLE t1;
