@@ -809,10 +809,10 @@ partition by range (a)
 #
 # Bug 18198 Partitions: Verify that erroneus partition functions doesn't work
 #
--- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
 create table t1 (v varchar(12))
 partition by range (ascii(v))
 (partition p0 values less than (10));
+drop table t1;
 
 -- error 1064
 create table t1 (a int)

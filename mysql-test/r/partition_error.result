@@ -641,7 +641,7 @@ ERROR HY000: Partition constant is out of partition function domain
 create table t1 (v varchar(12))
 partition by range (ascii(v))
 (partition p0 values less than (10));
-ERROR HY000: This partition function is not allowed
+drop table t1;
 create table t1 (a int)
 partition by hash (rand(a));
 ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')' at line 2
