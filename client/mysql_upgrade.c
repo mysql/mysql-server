@@ -73,7 +73,7 @@ static struct my_option my_long_options[]=
 };
 static const char *load_default_groups[]=
 {
-  "mysql_upgrade", "client", 0
+  "mysql_upgrade", 0
 };
 
 #include <help_end.h>
