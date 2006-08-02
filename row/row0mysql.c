@@ -3657,8 +3657,8 @@ end:
 			trx_general_rollback_for_mysql(trx, FALSE, NULL);
 			trx->error_state = DB_SUCCESS;
 			ut_print_timestamp(stderr);
-			fputs(" InnoDB: Error in table rename, cannot rename ",
-				stderr);
+			fputs(
+"  InnoDB: Error in table rename, cannot rename ", stderr);
 			ut_print_name(stderr, trx, TRUE, old_name);
 			fputs(" to ", stderr);
 			ut_print_name(stderr, trx, TRUE, new_name);
