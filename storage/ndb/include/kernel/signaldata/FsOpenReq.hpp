@@ -53,7 +53,7 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( SignalLength = 10 );
+  STATIC_CONST( SignalLength = 11 );
   SECTION( FILENAME = 0 );
   
 private:
@@ -69,6 +69,7 @@ private:
   Uint32 page_size;
   Uint32 file_size_hi;
   Uint32 file_size_lo;
+  Uint32 auto_sync_size; // In bytes
   
   STATIC_CONST( OM_READONLY  = 0 );
   STATIC_CONST( OM_WRITEONLY = 1 );
@@ -80,10 +81,10 @@ private:
   STATIC_CONST( OM_TRUNCATE  = 0x200 );
   STATIC_CONST( OM_AUTOSYNC  = 0x400 ); 
 
-  STATIC_CONST( OM_CREATE_IF_NONE = 0x0400 );
-  STATIC_CONST( OM_INIT           = 0x0800 ); // 
-  STATIC_CONST( OM_CHECK_SIZE     = 0x1000 );
-  STATIC_CONST( OM_DIRECT         = 0x2000 );
+  STATIC_CONST( OM_CREATE_IF_NONE = 0x0800 );
+  STATIC_CONST( OM_INIT           = 0x1000 ); // 
+  STATIC_CONST( OM_CHECK_SIZE     = 0x2000 );
+  STATIC_CONST( OM_DIRECT         = 0x4000 );
   
   enum Suffixes {
     S_DATA = 0,
