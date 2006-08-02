@@ -2002,15 +2002,14 @@ buf_page_io_complete(
 		/* If this page is not uninitialized and not in the
 		doublewrite buffer, then the page number and space id
 		should be the same as in block. */
-		read_page_no = mach_read_from_4((block->frame)
-					+ FIL_PAGE_OFFSET);
+		read_page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
 		switch (fil_page_get_type(frame)) {
 		case FIL_PAGE_TYPE_ZBLOB:
-			read_space_id = mach_read_from_4(block->frame
+			read_space_id = mach_read_from_4(frame
 					+ FIL_PAGE_ZBLOB_SPACE_ID);
 			break;
 		default:
-			read_space_id = mach_read_from_4(block->frame
+			read_space_id = mach_read_from_4(frame
 					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 		}
 
