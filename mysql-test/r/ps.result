@@ -485,6 +485,20 @@ execute stmt;
 pnum
 deallocate prepare stmt;
 drop table t1, t2;
+drop table if exists t1;
+create temporary table if not exists t1 (a1 int);
+prepare stmt from "delete t1 from t1 where (cast(a1/3 as unsigned) * 3) = a1";
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+deallocate prepare stmt;
 create table t1 (a varchar(20));
 insert into t1 values ('foo');
 prepare stmt FROM 'SELECT char_length (a) FROM t1';
@@ -502,77 +516,6 @@ SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
 deallocate prepare stmt;
-create table t1 (a char(3) not null, b char(3) not null,
-c char(3) not null, primary key  (a, b, c));
-create table t2 like t1;
-prepare stmt from
-"select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
-  where t1.a=1";
-execute stmt;
-a
-execute stmt;
-a
-execute stmt;
-a
-prepare stmt from
-"select t1.a, t1.b, t1.c, t2.a, t2.b, t2.c from
-(t1 left outer join t2 on t2.a=? and t1.b=t2.b)
-left outer join t2 t3 on t3.a=? where t1.a=?";
-set @a:=1, @b:=1, @c:=1;
-execute stmt using @a, @b, @c;
-a	b	c	a	b	c
-execute stmt using @a, @b, @c;
-a	b	c	a	b	c
-execute stmt using @a, @b, @c;
-a	b	c	a	b	c
-deallocate prepare stmt;
-drop table t1,t2;
-SET @aux= "SELECT COUNT(*)
-                FROM INFORMATION_SCHEMA.COLUMNS A,
-                INFORMATION_SCHEMA.COLUMNS B
-                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
-                AND A.TABLE_NAME = B.TABLE_NAME
-                AND A.COLUMN_NAME = B.COLUMN_NAME AND
-                A.TABLE_NAME = 'user'";
-prepare my_stmt from @aux;
-execute my_stmt;
-COUNT(*)
-37
-execute my_stmt;
-COUNT(*)
-37
-execute my_stmt;
-COUNT(*)
-37
-deallocate prepare my_stmt;
-drop procedure if exists p1|
-drop table if exists t1|
-create table t1 (id int)|
-insert into t1 values(1)|
-create procedure p1(a int, b int)
-begin
-declare c int;
-select max(id)+1 into c from t1;
-insert into t1 select a+b;
-insert into t1 select a-b;
-insert into t1 select a-c;
-end|
-set @a= 3, @b= 4|
-prepare stmt from "call p1(?, ?)"|
-execute stmt using @a, @b|
-execute stmt using @a, @b|
-select * from t1|
-id
-1
-7
--1
-1
-7
--1
--5
-deallocate prepare stmt|
-drop procedure p1|
-drop table t1|
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
