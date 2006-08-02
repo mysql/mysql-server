@@ -39,7 +39,7 @@ class FsAppendReq {
   friend bool printFSAPPENDREQ(FILE * output, const Uint32 * theData, 
 			       Uint32 len, Uint16 receiverBlockNo);
 public:
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 7 );
 
 private:
 
@@ -52,6 +52,7 @@ private:
   UintR varIndex;             // DATA 3
   UintR offset;               // DATA 4
   UintR size;                 // DATA 5
+  UintR synch_flag;           // DATA 6
 };
 
 #endif

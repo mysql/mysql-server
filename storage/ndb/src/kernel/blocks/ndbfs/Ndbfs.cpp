@@ -230,6 +230,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   request->par.open.file_size = fsOpenReq->file_size_hi;
   request->par.open.file_size <<= 32;
   request->par.open.file_size |= fsOpenReq->file_size_lo;
+  request->par.open.auto_sync_size = fsOpenReq->auto_sync_size;
   
   ndbrequire(forward(file, request));
 }
@@ -567,6 +568,7 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
   const Uint32  tSz   = myBaseAddrRef->nrr;
   const Uint32 offset = fsReq->offset;
   const Uint32 size   = fsReq->size;
+  const Uint32 synch_flag = fsReq->synch_flag;
   Request *request = theRequestPool->get();
 
   if (openFile == NULL) {
@@ -596,12 +598,15 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
   request->error = 0;
   request->set(userRef, userPointer, filePointer);
   request->file = openFile;
-  request->action = Request::append;
   request->theTrace = signal->getTrace();
   
   request->par.append.buf = (const char *)(tWA + offset);
   request->par.append.size = size << 2;
-  
+
+  if (!synch_flag)
+    request->action = Request::append;
+  else
+    request->action = Request::append_synch;
   ndbrequire(forward(openFile, request));
   return;
   
@@ -744,7 +749,9 @@ Ndbfs::report(Request * request, Signal* signal)
       sendSignal(ref, GSN_FSSYNCREF, signal, FsRef::SignalLength, JBB);
       break;
     }
-    case Request::append: {
+    case Request::append:
+    case Request::append_synch:
+    {
       jam();
       sendSignal(ref, GSN_FSAPPENDREF, signal, FsRef::SignalLength, JBB);
       break;
@@ -814,7 +821,9 @@ Ndbfs::report(Request * request, Signal* signal)
       sendSignal(ref, GSN_FSSYNCCONF, signal, 1, JBB);
       break;
     }//case
-    case Request::append: {
+    case Request::append:
+    case Request::append_synch:
+    {
       jam();
       signal->theData[1] = request->par.append.size;
       sendSignal(ref, GSN_FSAPPENDCONF, signal, 2, JBB);
