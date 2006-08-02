@@ -34,7 +34,8 @@ public:
 		bool allowConstraintViolation = true,
 		int doSleep = 0,
                 bool oneTrans = false,
-		int updateValue = 0);
+		int updateValue = 0,
+		bool abort = false);
 
   int scanReadRecords(Ndb*, 
 		      int records,
