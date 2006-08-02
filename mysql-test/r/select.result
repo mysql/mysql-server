@@ -2744,3 +2744,78 @@ SELECT i='1e+01',i=1e+01, i in (1e+01), i in ('1e+01') FROM t1;
 i='1e+01'	i=1e+01	i in (1e+01)	i in ('1e+01')
 0	1	1	1
 DROP TABLE t1;
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (1,1), (2,1), (4,10);
+CREATE TABLE t2 (a int PRIMARY KEY, b int, KEY b (b));
+INSERT INTO t2 VALUES (1,NULL), (2,10);
+ALTER TABLE t1 ENABLE KEYS;
+EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+a	b	a	b
+1	NULL	1	1
+1	NULL	2	1
+1	NULL	4	10
+2	10	4	10
+EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	b	b	5	NULL	2	Using index
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+a	b	a	b
+1	NULL	1	1
+1	NULL	2	1
+1	NULL	4	10
+2	10	4	10
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1 (key1 float default NULL, UNIQUE KEY key1 (key1));
+CREATE TABLE t2 (key2 float default NULL, UNIQUE KEY key2 (key2));
+INSERT INTO t1 VALUES (0.3762),(0.3845),(0.6158),(0.7941);
+INSERT INTO t2 VALUES (1.3762),(1.3845),(1.6158),(1.7941);
+explain select max(key1) from t1 where key1 <= 0.6158;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+explain select max(key2) from t2 where key2 <= 1.6158;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+explain select min(key1) from t1 where key1 >= 0.3762;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+explain select min(key2) from t2 where key2 >= 1.3762;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+explain select max(key1), min(key2) from t1, t2
+where key1 <= 0.6158 and key2 >= 1.3762;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+explain select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+explain select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+select max(key1) from t1 where key1 <= 0.6158;
+max(key1)
+0.61580002307892
+select max(key2) from t2 where key2 <= 1.6158;
+max(key2)
+1.6158000230789
+select min(key1) from t1 where key1 >= 0.3762;
+min(key1)
+0.37619999051094
+select min(key2) from t2 where key2 >= 1.3762;
+min(key2)
+1.3761999607086
+select max(key1), min(key2) from t1, t2
+where key1 <= 0.6158 and key2 >= 1.3762;
+max(key1)	min(key2)
+0.61580002307892	1.3761999607086
+select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
+max(key1)
+0.61580002307892
+select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
+min(key1)
+0.37619999051094
+DROP TABLE t1,t2;
