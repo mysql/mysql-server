@@ -679,6 +679,25 @@ JOIN::optimize()
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
+      /*
+        Extract all table-independent conditions and replace the WHERE
+        clause with them. All other conditions were computed by opt_sum_query
+        and the MIN/MAX/COUNT function(s) have been replaced by constants,
+        so there is no need to compute the whole WHERE clause again.
+        Notice that make_cond_for_table() will always succeed to remove all
+        computed conditions, because opt_sum_query() is applicable only to
+        conjunctions.
+        Preserve conditions for EXPLAIN.
+      */
+      if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
+      {
+        COND *table_independent_conds=
+          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0);
+        DBUG_EXECUTE("where",
+                     print_where(table_independent_conds,
+                                 "where after opt_sum_query()"););
+        conds= table_independent_conds;
+      }
     }
   }
   if (!tables_list)
@@ -1063,6 +1082,23 @@ JOIN::optimize()
         tmp_table_param.quick_group && !procedure)
     {
       need_tmp=1; simple_order=simple_group=0;	// Force tmp table without sort
+    }
+    if (order)
+    {
+      /*
+        Force using of tmp table if sorting by a SP or UDF function due to
+        their expensive and probably non-deterministic nature.
+      */
+      for (ORDER *tmp_order= order; tmp_order ; tmp_order=tmp_order->next)
+      {
+        Item *item= *tmp_order->item;
+        if (item->walk(&Item::is_expensive_processor,(byte*)0))
+        {
+          /* Force tmp table without sort */
+          need_tmp=1; simple_order=simple_group=0;
+          break;
+        }
+      }
     }
   }
 
@@ -2470,8 +2506,11 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	  /* field = expression OR field IS NULL */
 	  old->level= and_level;
 	  old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
-	  /* Remember the NOT NULL value */
-	  if (old->val->is_null())
+	  /*
+            Remember the NOT NULL value unless the value does not depend
+            on other tables.
+          */
+	  if (!old->val->used_tables() && old->val->is_null())
 	    old->val= new_fields->val;
           /* The referred expression can be NULL: */ 
           old->null_rejecting= 0;
@@ -6174,10 +6213,16 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
   DBUG_RETURN(0);
 }
 
-
+/*
+  used only in JOIN::clear
+*/
 static void clear_tables(JOIN *join)
 {
-  for (uint i=0 ; i < join->tables ; i++)
+  /* 
+    must clear only the non-const tables, as const tables
+    are not re-calculated.
+  */
+  for (uint i=join->const_tables ; i < join->tables ; i++)
     mark_as_null_row(join->table[i]);		// All fields are NULL
 }
 
@@ -8034,7 +8079,12 @@ Field* create_tmp_field_from_field(THD *thd, Field* org_field,
 {
   Field *new_field;
 
-  if (convert_blob_length && (org_field->flags & BLOB_FLAG))
+  /* 
+    Make sure that the blob fits into a Field_varstring which has 
+    2-byte lenght. 
+  */
+  if (convert_blob_length && convert_blob_length < UINT_MAX16 &&
+      (org_field->flags & BLOB_FLAG))
     new_field= new Field_varstring(convert_blob_length,
                                    org_field->maybe_null(),
                                    org_field->field_name, table,
@@ -8116,8 +8166,13 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
         type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE)
       new_field= item->tmp_table_field_from_field_type(table);
+    /* 
+      Make sure that the blob fits into a Field_varstring which has 
+      2-byte lenght. 
+    */
     else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
-             convert_blob_length)
+             item->max_length/item->collation.collation->mbmaxlen < UINT_MAX16
+             && convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,
                                      item->name, table,
                                      item->collation.collation);
@@ -12810,7 +12865,7 @@ count_field_types(TMP_TABLE_PARAM *param, List<Item> &fields,
     {
       if (! field->const_item())
       {
-	Item_sum *sum_item=(Item_sum*) field;
+	Item_sum *sum_item=(Item_sum*) field->real_item();
 	if (!sum_item->quick_group)
 	  param->quick_group=0;			// UDF SUM function
 	param->sum_func_count++;
@@ -13070,10 +13125,11 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   param->copy_funcs.empty();
   for (i= 0; (pos= li++); i++)
   {
-    if (pos->real_item()->type() == Item::FIELD_ITEM)
+    Item *real_pos= pos->real_item();
+    if (real_pos->type() == Item::FIELD_ITEM)
     {
       Item_field *item;
-      pos= pos->real_item();
+      pos= real_pos;
       if (!(item= new Item_field(thd, ((Item_field*) pos))))
 	goto err;
       pos= item;
@@ -13112,12 +13168,13 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       }				
       }
     }
-    else if ((pos->type() == Item::FUNC_ITEM ||
-	      pos->type() == Item::SUBSELECT_ITEM ||
-	      pos->type() == Item::CACHE_ITEM ||
-	      pos->type() == Item::COND_ITEM) &&
-	     !pos->with_sum_func)
+    else if ((real_pos->type() == Item::FUNC_ITEM ||
+	      real_pos->type() == Item::SUBSELECT_ITEM ||
+	      real_pos->type() == Item::CACHE_ITEM ||
+	      real_pos->type() == Item::COND_ITEM) &&
+	     !real_pos->with_sum_func)
     {						// Save for send fields
+      pos= real_pos;
       /* TODO:
 	 In most cases this result will be sent to the user.
 	 This should be changed to use copy_int or copy_real depending
