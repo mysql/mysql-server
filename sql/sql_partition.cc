@@ -3430,7 +3430,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
       char *src_db= table_ident->db.str ? table_ident->db.str : thd->db;
       char *src_table= table_ident->table.str;
       char buf[FN_REFLEN];
-      build_table_filename(buf, sizeof(buf), src_db, src_table, "");
+      build_table_filename(buf, sizeof(buf), src_db, src_table, "", 0);
       if (partition_default_handling(table, part_info,
                                      FALSE, buf))
       {
@@ -4704,7 +4704,7 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   handler *file= lpt->table->file;
   DBUG_ENTER("mysql_change_partitions");
 
-  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "");
+  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "", 0);
   if ((error= file->change_partitions(lpt->create_info, path, &lpt->copied,
                                       &lpt->deleted, lpt->pack_frm_data,
                                       lpt->pack_frm_len)))
@@ -4744,7 +4744,7 @@ static bool mysql_rename_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   int error;
   DBUG_ENTER("mysql_rename_partitions");
 
-  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "");
+  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "", 0);
   if ((error= lpt->table->file->rename_partitions(path)))
   {
     if (error != 1)
@@ -4785,7 +4785,7 @@ static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   int error;
   DBUG_ENTER("mysql_drop_partitions");
 
-  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "");
+  build_table_filename(path, sizeof(path), lpt->db, lpt->table_name, "", 0);
   if ((error= lpt->table->file->drop_partitions(path)))
   {
     lpt->table->file->print_error(error, MYF(0));
@@ -5136,7 +5136,7 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   DBUG_ENTER("write_log_drop_shadow_frm");
 
   build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                       lpt->table_name, "#");
+                       lpt->table_name, "#", 0);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, NULL,
                                   (const char*)shadow_path, FALSE))
@@ -5184,9 +5184,9 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   part_info->first_log_entry= NULL;
   build_table_filename(path, sizeof(path), lpt->db,
-                       lpt->table_name, "");
+                       lpt->table_name, "", 0);
   build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                       lpt->table_name, "#");
+                       lpt->table_name, "#", 0);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, shadow_path, path, TRUE))
     goto error;
@@ -5238,9 +5238,9 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   part_info->first_log_entry= NULL;
   build_table_filename(path, sizeof(path), lpt->db,
-                       lpt->table_name, "");
+                       lpt->table_name, "", 0);
   build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
-                       lpt->table_name, "#");
+                       lpt->table_name, "#", 0);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
@@ -5295,9 +5295,9 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   DBUG_ENTER("write_log_add_change_partition");
 
   build_table_filename(path, sizeof(path), lpt->db,
-                       lpt->table_name, "");
+                       lpt->table_name, "", 0);
   build_table_filename(tmp_path, sizeof(tmp_path), lpt->db,
-                       lpt->table_name, "#");
+                       lpt->table_name, "#", 0);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
@@ -5352,9 +5352,9 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   part_info->first_log_entry= NULL;
   build_table_filename(path, sizeof(path), lpt->db,
-                       lpt->table_name, "");
+                       lpt->table_name, "", 0);
   build_table_filename(shadow_path, sizeof(shadow_path), lpt->db,
-                       lpt->table_name, "#");
+                       lpt->table_name, "#", 0);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                       lpt->alter_info->flags & ALTER_REORGANIZE_PARTITION))

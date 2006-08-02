@@ -733,7 +733,7 @@ int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
 				   bool if_exists, bool drop_temporary,
 				   bool log_query);
 bool quick_rm_table(handlerton *base,const char *db,
-                    const char *table_name);
+                    const char *table_name, uint flags);
 void close_cached_table(THD *thd, TABLE *table);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool mysql_change_db(THD *thd,const char *name,bool no_access_check);
@@ -880,11 +880,9 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              HA_CREATE_INFO *create_info,
                              Table_ident *src_table);
-bool mysql_rename_table(handlerton *base,
-			const char *old_db,
-			const char * old_name,
-			const char *new_db,
-			const char * new_name);
+bool mysql_rename_table(handlerton *base, const char *old_db,
+                        const char * old_name, const char *new_db,
+                        const char * new_name, uint flags);
 bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 bool mysql_drop_index(THD *thd, TABLE_LIST *table_list,
                       ALTER_INFO *alter_info);
@@ -1827,7 +1825,12 @@ uint strconvert(CHARSET_INFO *from_cs, const char *from,
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
-                          const char *table, const char *ext);
+                          const char *table, const char *ext, uint flags);
+/* Flags for conversion functions. */
+#define FN_FROM_IS_TMP  (1 << 0)
+#define FN_TO_IS_TMP    (1 << 1)
+#define FN_IS_TMP       (FN_FROM_IS_TMP | FN_TO_IS_TMP)
+
 /* from hostname.cc */
 struct in_addr;
 my_string ip_to_hostname(struct in_addr *in,uint *errors);
