@@ -9017,11 +9017,11 @@ view_algorithm_opt:
 
 view_suid:
 	/* empty */
-	{ Lex->create_view_suid= TRUE; }
+	{ Lex->create_view_suid= VIEW_SUID_DEFAULT; }
 	| SQL_SYM SECURITY_SYM DEFINER_SYM
-	{ Lex->create_view_suid= TRUE; }
+	{ Lex->create_view_suid= VIEW_SUID_DEFINER; }
 	| SQL_SYM SECURITY_SYM INVOKER_SYM
-	{ Lex->create_view_suid= FALSE; }
+	{ Lex->create_view_suid= VIEW_SUID_INVOKER; }
 	;
 
 view_tail:
