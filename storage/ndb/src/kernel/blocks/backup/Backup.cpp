@@ -84,6 +84,16 @@ Backup::execSTTOR(Signal* signal)
   const Uint32 startphase  = signal->theData[1];
   const Uint32 typeOfStart = signal->theData[7];
 
+  if (startphase == 1)
+  {
+    m_curr_disk_write_speed = c_defaults.m_disk_write_speed_sr;
+    m_overflow_disk_write = 0;
+    m_reset_disk_speed_time = NdbTick_CurrentMillisecond();
+    m_reset_delay_used = Backup::DISK_SPEED_CHECK_DELAY;
+    signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
+    sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal,
+                        Backup::DISK_SPEED_CHECK_DELAY, 1);
+  }
   if (startphase == 3) {
     jam();
     g_TypeOfStart = typeOfStart;
@@ -91,6 +101,11 @@ Backup::execSTTOR(Signal* signal)
     sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
     return;
   }//if
+
+  if (startphase == 7)
+  {
+    m_curr_disk_write_speed = c_defaults.m_disk_write_speed;
+  }
 
   if(startphase == 7 && g_TypeOfStart == NodeState::ST_INITIAL_START &&
      c_masterNodeId == getOwnNodeId()){
@@ -170,6 +185,42 @@ Backup::execCONTINUEB(Signal* signal)
   const Uint32 Tdata2 = signal->theData[2];
   
   switch(Tdata0) {
+  case BackupContinueB::RESET_DISK_SPEED_COUNTER:
+  {
+    /*
+      Adjust for upto 10 millisecond delay of this signal. Longer
+      delays will not be handled, in this case the system is most
+      likely under too high load and it won't matter very much that
+      we decrease the speed of checkpoints.
+
+      We use a technique where we allow an overflow write in one
+      period. This overflow will be removed from the next period
+      such that the load will at average be as specified.
+    */
+    int delay_time = m_reset_delay_used;
+    NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
+    int sig_delay = curr_time - m_reset_disk_speed_time;
+
+    m_words_written_this_period = m_overflow_disk_write;
+    m_overflow_disk_write = 0;
+    m_reset_disk_speed_time = curr_time;
+
+    if (sig_delay > delay_time + 10)
+      delay_time = Backup::DISK_SPEED_CHECK_DELAY - 10;
+    else if (sig_delay < delay_time - 10)
+      delay_time = Backup::DISK_SPEED_CHECK_DELAY + 10;
+    else
+      delay_time = Backup::DISK_SPEED_CHECK_DELAY - (sig_delay - delay_time);
+    m_reset_delay_used= delay_time;
+    signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
+    sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, delay_time, 1);
+#if 0
+    ndbout << "Signal delay was = " << sig_delay;
+    ndbout << " Current time = " << curr_time << endl;
+    ndbout << " Delay time will be = " << delay_time << endl << endl;
+#endif
+    break;
+  }
   case BackupContinueB::BACKUP_FRAGMENT_INFO:
   {
     const Uint32 ptr_I = Tdata1;
@@ -202,8 +253,8 @@ Backup::execCONTINUEB(Signal* signal)
     fragInfo->FragmentNo = htonl(fragPtr_I);
     fragInfo->NoOfRecordsLow = htonl(fragPtr.p->noOfRecords & 0xFFFFFFFF);
     fragInfo->NoOfRecordsHigh = htonl(fragPtr.p->noOfRecords >> 32);
-    fragInfo->FilePosLow = htonl(0 & 0xFFFFFFFF);
-    fragInfo->FilePosHigh = htonl(0 >> 32);
+    fragInfo->FilePosLow = htonl(0);
+    fragInfo->FilePosHigh = htonl(0);
 
     filePtr.p->operation.dataBuffer.updateWritePtr(sz);
 
@@ -938,7 +989,7 @@ Backup::execBACKUP_REQ(Signal* signal)
     return;
   }//if
 
-  if (m_diskless)
+  if (c_defaults.m_diskless)
   {
     sendBackupRef(senderRef, flags, signal, senderData, 
 		  BackupRef::CannotBackupDiskless);
@@ -2610,9 +2661,10 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::OM_WRITEONLY | 
     FsOpenReq::OM_TRUNCATE |
     FsOpenReq::OM_CREATE | 
-    FsOpenReq::OM_APPEND;
+    FsOpenReq::OM_APPEND |
+    FsOpenReq::OM_AUTOSYNC;
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
-  
+  req->auto_sync_size = c_defaults.m_disk_synch_size;
   /**
    * Ctl file
    */
@@ -3881,6 +3933,69 @@ Backup::execFSAPPENDCONF(Signal* signal)
   checkFile(signal, filePtr);
 }
 
+/*
+  This routine handles two problems with writing to disk during local
+  checkpoints and backups. The first problem is that we need to limit
+  the writing to ensure that we don't use too much CPU and disk resources
+  for backups and checkpoints. The perfect solution to this is to use
+  a dynamic algorithm that adapts to the environment. Until we have
+  implemented this we can satisfy ourselves with an algorithm that
+  uses a configurable limit.
+
+  The second problem is that in Linux we can get severe problems if we
+  write very much to the disk without synching. In the worst case we
+  can have Gigabytes of data in the Linux page cache before we reach
+  the limit of how much we can write. If this happens the performance
+  will drop significantly when we reach this limit since the Linux flush
+  daemon will spend a few minutes on writing out the page cache to disk.
+  To avoid this we ensure that a file never have more than a certain
+  amount of data outstanding before synch. This variable is also
+  configurable.
+*/
+bool
+Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
+{
+#if 0
+  ndbout << "ready_to_write: ready = " << ready << " eof = " << eof;
+  ndbout << " sz = " << sz << endl;
+  ndbout << "words this period = " << m_words_written_this_period;
+  ndbout << endl << "overflow disk write = " << m_overflow_disk_write;
+  ndbout << endl << "Current Millisecond is = ";
+  ndbout << NdbTick_CurrentMillisecond() << endl;
+#endif
+  if ((ready || eof) &&
+      m_words_written_this_period <= m_curr_disk_write_speed)
+  {
+    /*
+      We have a buffer ready to write or we have reached end of
+      file and thus we must write the last before closing the
+      file.
+      We have already check that we are allowed to write at this
+      moment. We only worry about history of last 100 milliseconds.
+      What happened before that is of no interest since a disk
+      write that was issued more than 100 milliseconds should be
+      completed by now.
+    */
+    int overflow;
+    m_words_written_this_period += sz;
+    overflow = m_words_written_this_period - m_curr_disk_write_speed;
+    if (overflow > 0)
+      m_overflow_disk_write = overflow;
+#if 0
+    ndbout << "Will write with " << endl;
+    ndbout << endl;
+#endif
+    return true;
+  }
+  else
+  {
+#if 0
+    ndbout << "Will not write now" << endl << endl;
+#endif
+    return false;
+  }
+}
+
 void
 Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
 {
@@ -3890,12 +4005,23 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
 #endif
 
   OperationRecord & op = filePtr.p->operation;
-  
-  Uint32 * tmp, sz; bool eof;
-  if(op.dataBuffer.getReadPtr(&tmp, &sz, &eof)) 
+  Uint32 *tmp = NULL;
+  Uint32 sz = 0;
+  bool eof = FALSE;
+  bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof); 
+#if 0
+  ndbout << "Ptr to data = " << hex << tmp << endl;
+#endif
+  if (!ready_to_write(ready, sz, eof, filePtr.p))
   {
     jam();
-    
+    signal->theData[0] = BackupContinueB::BUFFER_UNDERFLOW;
+    signal->theData[1] = filePtr.i;
+    sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 20, 2);
+    return;
+  }
+  else if (sz > 0)
+  {
     jam();
     FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
     req->filePointer   = filePtr.p->filePointer;
@@ -3904,35 +4030,13 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
     req->varIndex      = 0;
     req->offset        = tmp - c_startOfPages;
     req->size          = sz;
+    req->synch_flag    = 0;
     
     sendSignal(NDBFS_REF, GSN_FSAPPENDREQ, signal, 
 	       FsAppendReq::SignalLength, JBA);
     return;
   }
   
-  if(!eof) {
-    jam();
-    signal->theData[0] = BackupContinueB::BUFFER_UNDERFLOW;
-    signal->theData[1] = filePtr.i;
-    sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 50, 2);
-    return;
-  }//if
-  
-  if(sz > 0) {
-    jam();
-    FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
-    req->filePointer   = filePtr.p->filePointer;
-    req->userPointer   = filePtr.i;
-    req->userReference = reference();
-    req->varIndex      = 0;
-    req->offset        = tmp - c_startOfPages;
-    req->size          = sz; // Round up
-    
-    sendSignal(NDBFS_REF, GSN_FSAPPENDREQ, signal, 
-	       FsAppendReq::SignalLength, JBA);
-    return;
-  }//if
-
 #ifdef DEBUG_ABORT
   Uint32 running= filePtr.p->fileRunning;
   Uint32 closing= filePtr.p->fileClosing;
@@ -4214,16 +4318,15 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
       continue;
     }//if
 
+    filePtr.p->operation.dataBuffer.eof();
     if(filePtr.p->fileRunning == 1){
       jam();
 #ifdef DEBUG_ABORT
       ndbout_c("Close files fileRunning == 1, filePtr.i=%u", filePtr.i);
 #endif
-      filePtr.p->operation.dataBuffer.eof();
     } else {
       jam();
       filePtr.p->fileClosing = 1;
-      filePtr.p->operation.dataBuffer.eof();
       checkFile(sig, filePtr); // make sure we write everything before closing
 
       FsCloseReq * req = (FsCloseReq *)sig->getDataPtrSend();
@@ -4712,8 +4815,10 @@ Backup::lcp_open_file(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::OM_WRITEONLY | 
     FsOpenReq::OM_TRUNCATE |
     FsOpenReq::OM_CREATE | 
-    FsOpenReq::OM_APPEND;
+    FsOpenReq::OM_APPEND |
+    FsOpenReq::OM_AUTOSYNC;
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
+  req->auto_sync_size = c_defaults.m_disk_synch_size;
   
   TablePtr tabPtr;
   FragmentPtr fragPtr;
