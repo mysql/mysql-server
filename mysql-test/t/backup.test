@@ -58,3 +58,22 @@ drop table t5;
 --system rm $MYSQLTEST_VARDIR/tmp/t?.*
 
 # End of 4.1 tests
+# End of 5.0 tests
+
+#
+# Bug#18775 - Temporary table from alter table visible to other threads
+#
+# Backup did not encode table names.
+--disable_warnings
+DROP TABLE IF EXISTS `t-blüten`;
+--enable_warnings
+CREATE  TABLE `t-blüten` (c1 INT);
+INSERT  INTO  `t-blüten` VALUES (1), (2), (3);
+BACKUP  TABLE `t-blüten` TO '../tmp';
+DROP    TABLE `t-blüten`;
+#
+# Same for restore.
+RESTORE TABLE `t-blüten` FROM '../tmp';
+SELECT * FROM `t-blüten`;
+DROP    TABLE `t-blüten`;
+

@@ -606,11 +606,11 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
   /* print file name */
   dir.length= build_table_filename(dir_buff, sizeof(dir_buff),
-                                   view->db, "", "");
+                                   view->db, "", "", 0);
   dir.str= dir_buff;
 
   path.length= build_table_filename(path_buff, sizeof(path_buff),
-                                    view->db, view->table_name, reg_ext);
+                                    view->db, view->table_name, reg_ext, 0);
   path.str= path_buff;
 
   file.str= path.str + dir.length;
@@ -1237,7 +1237,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     TABLE_SHARE *share;
     bool type= 0;
     build_table_filename(path, sizeof(path),
-                         view->db, view->table_name, reg_ext);
+                         view->db, view->table_name, reg_ext, 0);
     VOID(pthread_mutex_lock(&LOCK_open));
     if (access(path, F_OK) ||
 	(type= (mysql_frm_type(thd, path, &not_used) != FRMTYPE_VIEW)))

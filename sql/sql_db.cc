@@ -560,7 +560,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   /* Check directory */
-  path_len= build_table_filename(path, sizeof(path), db, "", "");
+  path_len= build_table_filename(path, sizeof(path), db, "", "", 0);
   path[path_len-1]= 0;                    // Remove last '/' from path
 
   if (my_stat(path,&stat_info,MYF(0)))
@@ -704,7 +704,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
      We pass MY_DB_OPT_FILE as "extension" to avoid
      "table name to file name" encoding.
   */
-  build_table_filename(path, sizeof(path), db, "", MY_DB_OPT_FILE);
+  build_table_filename(path, sizeof(path), db, "", MY_DB_OPT_FILE, 0);
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
@@ -797,7 +797,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  length= build_table_filename(path, sizeof(path), db, "", "");
+  length= build_table_filename(path, sizeof(path), db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
   path[length]= '\0';				// Remove file name
@@ -1327,7 +1327,7 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
     }
   }
 #endif
-  length= build_table_filename(path, sizeof(path), dbname, "", "");
+  length= build_table_filename(path, sizeof(path), dbname, "", "", 0);
   if (length && path[length-1] == FN_LIBCHAR)
     path[length-1]=0;				// remove ending '\'
   if (my_access(path,F_OK))
@@ -1480,11 +1480,12 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
   if (thd->db && !strcmp(thd->db, old_db->str))
     change_to_newdb= 1;
 
-  build_table_filename(path, sizeof(path)-1, old_db->str, "", MY_DB_OPT_FILE);
+  build_table_filename(path, sizeof(path)-1,
+                       old_db->str, "", MY_DB_OPT_FILE, 0);
   if ((load_db_opt(thd, path, &create_info)))
     create_info.default_table_charset= thd->variables.collation_server;
 
-  length= build_table_filename(path, sizeof(path)-1, old_db->str, "", "");
+  length= build_table_filename(path, sizeof(path)-1, old_db->str, "", "", 0);
   if (length && path[length-1] == FN_LIBCHAR)
     path[length-1]=0;                            // remove ending '\'
   if ((error= my_access(path,F_OK)))
@@ -1549,9 +1550,10 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
       If some tables were left in the new directory, rmdir() will fail.
       It garantees we never loose any tables.
     */
-    build_table_filename(path, sizeof(path)-1, new_db->str,"",MY_DB_OPT_FILE);
+    build_table_filename(path, sizeof(path)-1,
+                         new_db->str,"",MY_DB_OPT_FILE, 0);
     my_delete(path, MYF(MY_WME));
-    length= build_table_filename(path, sizeof(path)-1, new_db->str, "", "");
+    length= build_table_filename(path, sizeof(path)-1, new_db->str, "", "", 0);
     if (length && path[length-1] == FN_LIBCHAR)
       path[length-1]=0;                            // remove ending '\'
     rmdir(path);
@@ -1603,9 +1605,9 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
 
       /* pass empty file name, and file->name as extension to avoid encoding */
       build_table_filename(oldname, sizeof(oldname)-1,
-                           old_db->str, "", file->name);
+                           old_db->str, "", file->name, 0);
       build_table_filename(newname, sizeof(newname)-1,
-                           new_db->str, "", file->name);
+                           new_db->str, "", file->name, 0);
       my_rename(oldname, newname, MYF(MY_WME));
     }
     my_dirend(dirp);  
