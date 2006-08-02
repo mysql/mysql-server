@@ -146,8 +146,28 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
+  c_defaults.m_disk_write_speed = 10 * (1024 * 1024);
+  c_defaults.m_disk_write_speed_sr = 100 * (1024 * 1024);
+  c_defaults.m_disk_synch_size = 4 * (1024 * 1024);
+  
   Uint32 noBackups = 0, noTables = 0, noAttribs = 0, noFrags = 0;
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &m_diskless));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, 
+					&c_defaults.m_diskless));
+  ndb_mgm_get_int_parameter(p, CFG_DB_CHECKPOINT_SPEED_SR,
+			    &c_defaults.m_disk_write_speed_sr);
+  ndb_mgm_get_int_parameter(p, CFG_DB_CHECKPOINT_SPEED,
+			    &c_defaults.m_disk_write_speed);
+  ndb_mgm_get_int_parameter(p, CFG_DB_DISK_SYNCH_SIZE,
+			    &c_defaults.m_disk_synch_size);
+
+  /*
+    We adjust the disk speed parameters from bytes per second to rather be
+    words per 100 milliseconds. We convert disk synch size from bytes per
+    second to words per second.
+  */
+  c_defaults.m_disk_write_speed /= (4 * 10);
+  c_defaults.m_disk_write_speed_sr /= (4 * 10);
+
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
   //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
