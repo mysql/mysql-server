@@ -31,6 +31,8 @@ int main(int argc, const char** argv){
   int _batch = 512;
   int _loops = -1;
   int _rand = 0;
+  int _onetrans = 0;
+  int _abort = 0;
   const char* db = 0;
 
   struct getargs args[] = {
@@ -39,7 +41,9 @@ int main(int argc, const char** argv){
     { "loops", 'l', arg_integer, &_loops, "Number of loops", "" },
     { "database", 'd', arg_string, &db, "Database", "" },
     { "usage", '?', arg_flag, &_help, "Print help", "" },
-    { "rnd-rows", 0, arg_flag, &_rand, "Rand number of records", "recs" }
+    { "rnd-rows", 0, arg_flag, &_rand, "Rand number of records", "recs" },
+    { "one-trans", 0, arg_flag, &_onetrans, "Insert as 1 trans", "" },
+    { "abort", 0, arg_integer, &_abort, "Abort probability", "" }
   };
   int num_args = sizeof(args) / sizeof(args[0]);
   int optind = 0;
@@ -92,10 +96,13 @@ int main(int argc, const char** argv){
     HugoTransactions hugoTrans(*pTab);
 loop:    
     int rows = (_rand ? rand() % _records : _records);
+    int abort = (rand() % 100) < _abort ? 1 : 0;
+    if (abort)
+      ndbout << "load+abort" << endl;
     if (hugoTrans.loadTable(&MyNdb, 
 			    rows,
 			    _batch,
-			    true, 0, false, _loops) != 0){
+			    true, 0, _onetrans, _loops, abort) != 0){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     
