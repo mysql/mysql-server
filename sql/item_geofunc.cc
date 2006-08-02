@@ -25,6 +25,12 @@
 #ifdef HAVE_SPATIAL
 #include <m_ctype.h>
 
+Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
+{
+  return new Field_geom(max_length, maybe_null, name, t_arg,
+                        (Field::geometry_type) get_geometry_type());
+}
+
 void Item_geometry_func::fix_length_and_dec()
 {
   collation.set(&my_charset_bin);
@@ -32,6 +38,10 @@ void Item_geometry_func::fix_length_and_dec()
   max_length=MAX_BLOB_WIDTH;
 }
 
+int Item_geometry_func::get_geometry_type() const
+{
+  return (int)Field::GEOM_GEOMETRY;
+}
 
 String *Item_func_geometry_from_text::val_str(String *str)
 {
@@ -152,6 +162,12 @@ String *Item_func_geometry_type::val_str(String *str)
 }
 
 
+int Item_func_envelope::get_geometry_type() const
+{
+  return (int) Field::GEOM_POLYGON;
+}
+
+
 String *Item_func_envelope::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -173,6 +189,12 @@ String *Item_func_envelope::val_str(String *str)
     return 0;
   str->q_append(srid);
   return (null_value= geom->envelope(str)) ? 0 : str;
+}
+
+
+int Item_func_centroid::get_geometry_type() const
+{
+  return (int) Field::GEOM_POINT;
 }
 
 
@@ -308,6 +330,12 @@ err:
 /*
 *  Concatenate doubles into Point
 */
+
+
+int Item_func_point::get_geometry_type() const
+{
+  return (int) Field::GEOM_POINT;
+}
 
 
 String *Item_func_point::val_str(String *str)
