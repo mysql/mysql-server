@@ -128,13 +128,15 @@ mlog_parse_nbytes(
 	ulint	type,	/* in: log record type: MLOG_1BYTE, ... */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
-	byte*	page)	/* in: page where to apply the log record, or NULL */
+	byte*	page,	/* in: page where to apply the log record, or NULL */
+	void*	page_zip)/* in/out: compressed page, or NULL */
 {
 	ulint	offset;
 	ulint	val;
 	dulint	dval;
 
 	ut_a(type <= MLOG_8BYTES);
+	ut_a(!page || !page_zip || fil_page_get_type(page) != FIL_PAGE_INDEX);
 
 	if (end_ptr < ptr + 2) {
 
@@ -159,6 +161,11 @@ mlog_parse_nbytes(
 		}
 
 		if (page) {
+			if (UNIV_LIKELY_NULL(page_zip)) {
+				mach_write_to_8(
+					((page_zip_des_t*) page_zip)->data
+					+ offset, dval);
+			}
 			mach_write_to_8(page + offset, dval);
 		}
 
@@ -172,35 +179,47 @@ mlog_parse_nbytes(
 		return(NULL);
 	}
 
-	if (type == MLOG_1BYTE) {
-		if (val > 0xFFUL) {
-			recv_sys->found_corrupt_log = TRUE;
-
-			return(NULL);
+	switch (type) {
+	case MLOG_1BYTE:
+		if (UNIV_UNLIKELY(val > 0xFFUL)) {
+			goto corrupt;
 		}
-	} else if (type == MLOG_2BYTES) {
-		if (val > 0xFFFFUL) {
-			recv_sys->found_corrupt_log = TRUE;
-
-			return(NULL);
-		}
-	} else {
-		if (type != MLOG_4BYTES) {
-			recv_sys->found_corrupt_log = TRUE;
-
-			return(NULL);
-		}
-	}
-
-	if (page) {
-		if (type == MLOG_1BYTE) {
+		if (page) {
+			if (UNIV_LIKELY_NULL(page_zip)) {
+				mach_write_to_1(
+					((page_zip_des_t*) page_zip)->data
+					+ offset, val);
+			}
 			mach_write_to_1(page + offset, val);
-		} else if (type == MLOG_2BYTES) {
+		}
+		break;
+	case MLOG_2BYTES:
+		if (UNIV_UNLIKELY(val > 0xFFFFUL)) {
+			goto corrupt;
+		}
+		if (page) {
+			if (UNIV_LIKELY_NULL(page_zip)) {
+				mach_write_to_2(
+					((page_zip_des_t*) page_zip)->data
+					+ offset, val);
+			}
 			mach_write_to_2(page + offset, val);
-		} else {
-			ut_a(type == MLOG_4BYTES);
+		}
+		break;
+	case MLOG_4BYTES:
+		if (page) {
+			if (UNIV_LIKELY_NULL(page_zip)) {
+				mach_write_to_4(
+					((page_zip_des_t*) page_zip)->data
+					+ offset, val);
+			}
 			mach_write_to_4(page + offset, val);
 		}
+		break;
+	default:
+	corrupt:
+		recv_sys->found_corrupt_log = TRUE;
+		ptr = NULL;
 	}
 
 	return(ptr);
@@ -374,10 +393,13 @@ mlog_parse_string(
 			record */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
-	byte*	page)	/* in: page where to apply the log record, or NULL */
+	byte*	page,	/* in: page where to apply the log record, or NULL */
+	void*	page_zip)/* in/out: compressed page, or NULL */
 {
 	ulint	offset;
 	ulint	len;
+
+	ut_a(!page || !page_zip || fil_page_get_type(page) != FIL_PAGE_INDEX);
 
 	if (end_ptr < ptr + 4) {
 
@@ -386,17 +408,15 @@ mlog_parse_string(
 
 	offset = mach_read_from_2(ptr);
 	ptr += 2;
+	len = mach_read_from_2(ptr);
+	ptr += 2;
 
-	if (offset >= UNIV_PAGE_SIZE) {
+	if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
+			|| UNIV_UNLIKELY(len + offset) > UNIV_PAGE_SIZE) {
 		recv_sys->found_corrupt_log = TRUE;
 
 		return(NULL);
 	}
-
-	len = mach_read_from_2(ptr);
-	ptr += 2;
-
-	ut_a(len + offset <= UNIV_PAGE_SIZE);
 
 	if (end_ptr < ptr + len) {
 
@@ -404,7 +424,11 @@ mlog_parse_string(
 	}
 
 	if (page) {
-		ut_memcpy(page + offset, ptr, len);
+		if (UNIV_LIKELY_NULL(page_zip)) {
+			memcpy(((page_zip_des_t*) page_zip)->data
+				+ offset, ptr, len);
+		}
+		memcpy(page + offset, ptr, len);
 	}
 
 	return(ptr + len);

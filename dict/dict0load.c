@@ -837,7 +837,7 @@ dict_load_table(
 
 	/* Check if the tablespace exists and has the right name */
 	if (space != 0) {
-		ulint	zip_size = dict_sys_tables_get_zip_size(rec);
+		zip_size = dict_sys_tables_get_zip_size(rec);
 		ut_a(zip_size != ULINT_UNDEFINED);
 
 		if (fil_space_for_table_exists_in_mem(space, name, FALSE,
@@ -863,6 +863,8 @@ dict_load_table(
 				ibd_file_missing = TRUE;
 			}
 		}
+	} else {
+		zip_size = 0;
 	}
 
 	ut_a(0 == ut_strcmp("N_COLS",
@@ -872,7 +874,7 @@ dict_load_table(
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
 
-	flags = 0;
+	flags = zip_size << DICT_TF_COMPRESSED_SHIFT;
 
 	/* The high-order bit of N_COLS is the "compact format" flag. */
 	if (n_cols & 0x80000000UL) {

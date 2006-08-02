@@ -800,11 +800,11 @@ page_parse_delete_rec_list(
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in: page or NULL */
+	page_t*		page,	/* in/out: page or NULL */
+	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
 	mtr_t*		mtr)	/* in: mtr or NULL */
 {
 	ulint		offset;
-	page_zip_des_t*	page_zip;
 
 	ut_ad(type == MLOG_LIST_END_DELETE
 		|| type == MLOG_LIST_START_DELETE
@@ -827,8 +827,6 @@ page_parse_delete_rec_list(
 	}
 
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
-
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
 
 	if (type == MLOG_LIST_END_DELETE
 			|| type == MLOG_COMP_LIST_END_DELETE) {
