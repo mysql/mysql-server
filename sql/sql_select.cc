@@ -547,6 +547,24 @@ JOIN::optimize()
       }
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
+      /*
+        Extract all table-independent conditions and replace the WHERE
+        clause with them. All other conditions were computed by opt_sum_query
+        and the MIN/MAX/COUNT function(s) have been replaced by constants,
+        so there is no need to compute the whole WHERE clause again.
+        Notice that make_cond_for_table() will always succeed to remove all
+        computed conditions, because opt_sum_query() is applicable only to
+        conjunctions.
+      */
+      if (conds)
+      {
+        COND *table_independent_conds=
+          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0);
+        DBUG_EXECUTE("where",
+                     print_where(table_independent_conds,
+                                 "where after opt_sum_query()"););
+        conds= table_independent_conds;
+      }
     }
   }
   if (!tables_list)
@@ -2143,8 +2161,11 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	  /* field = expression OR field IS NULL */
 	  old->level= and_level;
 	  old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
-	  /* Remember the NOT NULL value */
-	  if (old->val->is_null())
+	  /*
+            Remember the NOT NULL value unless the value does not depend
+            on other tables.
+          */
+	  if (!old->val->used_tables() && old->val->is_null())
 	    old->val= new_fields->val;
           /* The referred expression can be NULL: */ 
           old->null_rejecting= 0;
@@ -4452,10 +4473,16 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
   DBUG_RETURN(0);
 }
 
-
+/*
+  used only in JOIN::clear
+*/
 static void clear_tables(JOIN *join)
 {
-  for (uint i=0 ; i < join->tables ; i++)
+  /* 
+    must clear only the non-const tables, as const tables
+    are not re-calculated.
+  */
+  for (uint i=join->const_tables ; i < join->tables ; i++)
     mark_as_null_row(join->table[i]);		// All fields are NULL
 }
 
