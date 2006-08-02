@@ -888,7 +888,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   }
 
   path_length= build_table_filename(path, sizeof(path), table_list->db,
-                                    table_list->table_name, reg_ext);
+                                    table_list->table_name, reg_ext, 0);
 
   if (!dont_send_ok)
   {

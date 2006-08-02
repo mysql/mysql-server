@@ -41,3 +41,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	warning	Number of rows changed from 0 to 1
 test.t1	repair	status	OK
 drop table t1;
+DROP TABLE IF EXISTS tt1;
+CREATE TEMPORARY TABLE tt1 (c1 INT);
+REPAIR TABLE tt1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+tt1	repair	error	Cannot repair temporary table from .frm file
+DROP TABLE tt1;
