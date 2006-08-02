@@ -12415,7 +12415,6 @@ void Dblqh::initFsopenconf(Signal* signal)
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
   logFilePtr.p->currentMbyte = 0;
   logFilePtr.p->filePosition = 0;
-  logFilePtr.p->logFilePagesToDiskWithoutSynch = 0;
 }//Dblqh::initFsopenconf()
 
 /* ========================================================================= */
@@ -13062,14 +13061,16 @@ void Dblqh::initLogpage(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dblqh::openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr) 
 {
+  FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
   signal->theData[0] = cownref;
   signal->theData[1] = olfLogFilePtr.i;
   signal->theData[2] = olfLogFilePtr.p->fileName[0];
   signal->theData[3] = olfLogFilePtr.p->fileName[1];
   signal->theData[4] = olfLogFilePtr.p->fileName[2];
   signal->theData[5] = olfLogFilePtr.p->fileName[3];
-  signal->theData[6] = ZOPEN_READ_WRITE;
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+  signal->theData[6] = ZOPEN_READ_WRITE | FsOpenReq::OM_AUTOSYNC;
+  req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dblqh::openFileRw()
 
 /* ------------------------------------------------------------------------- */
@@ -13080,14 +13081,16 @@ void Dblqh::openFileRw(Signal* signal, LogFileRecordPtr olfLogFilePtr)
 void Dblqh::openLogfileInit(Signal* signal) 
 {
   logFilePtr.p->logFileStatus = LogFileRecord::OPENING_INIT;
+  FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
   signal->theData[0] = cownref;
   signal->theData[1] = logFilePtr.i;
   signal->theData[2] = logFilePtr.p->fileName[0];
   signal->theData[3] = logFilePtr.p->fileName[1];
   signal->theData[4] = logFilePtr.p->fileName[2];
   signal->theData[5] = logFilePtr.p->fileName[3];
-  signal->theData[6] = 0x302;
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+  signal->theData[6] = 0x302 | FsOpenReq::OM_AUTOSYNC;
+  req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dblqh::openLogfileInit()
 
 /* OPEN FOR READ/WRITE, DO CREATE AND DO TRUNCATE FILE */
@@ -13114,14 +13117,16 @@ void Dblqh::openNextLogfile(Signal* signal)
       return;
     }//if
     onlLogFilePtr.p->logFileStatus = LogFileRecord::OPENING_WRITE_LOG;
+    FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
     signal->theData[0] = cownref;
     signal->theData[1] = onlLogFilePtr.i;
     signal->theData[2] = onlLogFilePtr.p->fileName[0];
     signal->theData[3] = onlLogFilePtr.p->fileName[1];
     signal->theData[4] = onlLogFilePtr.p->fileName[2];
     signal->theData[5] = onlLogFilePtr.p->fileName[3];
-    signal->theData[6] = 2;
-    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+    signal->theData[6] = 2 | FsOpenReq::OM_AUTOSYNC;
+    req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
+    sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
   }//if
 }//Dblqh::openNextLogfile()
 
@@ -16138,15 +16143,8 @@ void Dblqh::completedLogPage(Signal* signal, Uint32 clpType, Uint32 place)
   signal->theData[0] = logFilePtr.p->fileRef;
   signal->theData[1] = cownref;
   signal->theData[2] = lfoPtr.i;
-  logFilePtr.p->logFilePagesToDiskWithoutSynch += twlpNoPages;
   if (twlpType == ZLAST_WRITE_IN_FILE) {
     jam();
-    logFilePtr.p->logFilePagesToDiskWithoutSynch = 0;
-    signal->theData[3] = ZLIST_OF_MEM_PAGES_SYNCH;
-  } else if (logFilePtr.p->logFilePagesToDiskWithoutSynch >
-             MAX_REDO_PAGES_WITHOUT_SYNCH) {
-    jam();
-    logFilePtr.p->logFilePagesToDiskWithoutSynch = 0;
     signal->theData[3] = ZLIST_OF_MEM_PAGES_SYNCH;
   } else {
     jam();
