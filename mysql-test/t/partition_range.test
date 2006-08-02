@@ -686,3 +686,33 @@ EXPLAIN PARTITIONS SELECT * from t1
 WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
       (a >= '2005-07-01' AND a <= '2005-09-30');
 DROP TABLE t1;
+
+#
+# Bug 18198: Try with a couple of cases using VARCHAR fields in
+#            partition function.
+create table t1 (a varchar(20))
+partition by range (crc32(md5(a)))
+(partition p0 values less than (100),
+ partition p1 values less than maxvalue);
+
+insert into t1 values ("12345678901234567890");
+insert into t1 values ("A2345678901234567890");
+insert into t1 values ("B2345678901234567890");
+insert into t1 values ("1234567890123456789");
+insert into t1 values ("1234567890123456");
+select * from t1;
+explain partitions select * from t1 where a = "12345678901234567890";
+explain partitions select * from t1 where a = "12345678901234567890" OR
+                                          a = "A2345678901234567890" OR
+                                          a = "B2345678901234567890" OR
+                                          a = "C2345678901234567890";
+explain partitions select * from t1 where a = "01234567890123456";
+select * from t1 where a = "01234567890123456";
+select * from t1 where a = "12345678901234567890" OR
+                       a = "A2345678901234567890" OR
+                       a = "B2345678901234567890" OR
+                       a = "C2345678901234567890";
+select * from t1 where a = "12345678901234567890";
+
+
+drop table t1;
