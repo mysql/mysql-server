@@ -2669,6 +2669,17 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 #
+#Bug #21080: ALTER VIEW makes user restate SQL SECURITY mode, and ALGORITHM
+#
+CREATE TABLE t1 (x INT, y INT);
+CREATE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
+SHOW CREATE VIEW v1;
+
+ALTER VIEW v1 AS SELECT x, y FROM t1;
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
+DROP TABLE t1;
 # Bug #21086: server crashes when VIEW defined with a SELECT with COLLATE 
 # clause is called
 #
@@ -2686,3 +2697,24 @@ INSERT INTO v2 (col) VALUES ('c');
 SELECT s1 FROM t1;
 DROP VIEW v1, v2;
 DROP TABLE t1;
+
+#
+# Bug #11551: Asymmetric + undocumented behaviour of DROP VIEW and DROP TABLE
+#
+CREATE TABLE t1 (id INT);
+CREATE VIEW v1 AS SELECT id FROM t1;
+SHOW TABLES;
+
+--error 1051
+DROP VIEW v2,v1;
+SHOW TABLES;
+
+CREATE VIEW v1 AS SELECT id FROM t1;
+--error 1347
+DROP VIEW t1,v1;
+SHOW TABLES;
+
+DROP TABLE t1;
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
