@@ -252,7 +252,7 @@ uint cached_table_definitions(void)
   Get TABLE_SHARE for a table.
 
   get_table_share()
-  thd			Table share
+  thd			Thread handle
   table_list		Table that should be opened
   key			Table cache key
   key_length		Length of key
@@ -1499,15 +1499,18 @@ TABLE *find_temporary_table(THD *thd, TABLE_LIST *table_list)
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
   TABLE *table;
+  DBUG_ENTER("find_temporary_table");
+  DBUG_PRINT("enter", ("table: '%s'.'%s'",
+                       table_list->db, table_list->table_name));
 
   key_length= create_table_def_key(thd, key, table_list, 1);
   for (table=thd->temporary_tables ; table ; table= table->next)
   {
     if (table->s->table_cache_key.length == key_length &&
 	!memcmp(table->s->table_cache_key.str, key, key_length))
-      return table;
+      DBUG_RETURN(table);
   }
-  return 0;					// Not a temporary table
+  DBUG_RETURN(0);					// Not a temporary table
 }
 
 
@@ -1948,7 +1951,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       char path[FN_REFLEN];
       enum legacy_db_type not_used;
       build_table_filename(path, sizeof(path) - 1,
-                           table_list->db, table_list->table_name, reg_ext);
+                           table_list->db, table_list->table_name, reg_ext, 0);
       if (mysql_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         /*
@@ -3487,6 +3490,8 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   uint key_length;
   TABLE_LIST table_list;
   DBUG_ENTER("open_temporary_table");
+  DBUG_PRINT("enter", ("table: '%s'.'%s'  path: '%s'",
+                       db, table_name, path));
 
   table_list.db=         (char*) db;
   table_list.table_name= (char*) table_name;
