@@ -3435,13 +3435,9 @@ bool mysql_create_table_internal(THD *thd,
   */
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
-    char dbbuff[FN_REFLEN];
-    char tbbuff[FN_REFLEN];
     bool create_if_not_exists =
       create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
-    VOID(tablename_to_filename(db, dbbuff, sizeof(dbbuff)));
-    VOID(tablename_to_filename(table_name, tbbuff, sizeof(tbbuff)));
-    if (ha_table_exists_in_engine(thd, dbbuff, tbbuff))
+    if (ha_table_exists_in_engine(thd, db, table_name))
     {
       DBUG_PRINT("info", ("Table with same name already existed in handler"));
 
