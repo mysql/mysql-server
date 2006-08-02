@@ -1806,6 +1806,10 @@ sub ndbd_start ($$$) {
   # Add pid to list of pids for this cluster
   $cluster->{'ndbds'}->[$idx]->{'pid'}= $pid;
 
+  # Rememeber options used when starting
+  $cluster->{'ndbds'}->[$idx]->{'start_extra_args'}= $extra_args;
+  $cluster->{'ndbds'}->[$idx]->{'idx'}= $idx;
+
   mtr_verbose("ndbd_start, pid: $pid");
 
   return $pid;
@@ -2343,8 +2347,11 @@ sub run_testcase ($) {
     elsif ( $res == 62 )
     {
       # Testcase itself tell us to skip this one
-      # FIXME get reason to skip from mysqltest
-      $tinfo->{'comment'}= "Detected by testcase";
+
+      # Try to get reason from mysqltest.log
+      my $last_line= mtr_lastlinefromfile($path_timefile) if -f $path_timefile;
+      my $reason= mtr_match_prefix($last_line, "reason: ");
+      $tinfo->{'comment'}= defined $reason ? $reason : "Detected by testcase(reason unknown) ";
       mtr_report_test_skipped($tinfo);
     }
     elsif ( $res == 63 )
@@ -2904,6 +2911,7 @@ sub mysqld_start ($$$) {
 
   # Remember options used when starting
   $mysqld->{'start_opts'}= $extra_opt;
+  $mysqld->{'start_slave_master_info'}= $slave_master_info;
 
   mtr_verbose("mysqld pid: $pid");
   return $pid;
