@@ -539,7 +539,7 @@ EXPLAIN EXTENDED SELECT MAX(numreponse) FROM t1 WHERE numeropost='1';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	select max(test.t1.numreponse) AS `MAX(numreponse)` from test.t1 where (test.t1.numeropost = _latin1'1')
+Note	1003	select max(test.t1.numreponse) AS `MAX(numreponse)` from test.t1
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT MAX(numreponse) FROM t1 WHERE numeropost='1');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY,numreponse	PRIMARY	7	const,const	1	Using index
@@ -2868,3 +2868,30 @@ select 1 from dual where 1 < any (select 2 from dual);
 select 1 from dual where 1 < all (select 2 from dual where 1!=1);
 1
 1
+create table t1 (s1 char);
+insert into t1 values (1),(2);
+select * from t1 where (s1 < any (select s1 from t1));
+s1
+1
+select * from t1 where not (s1 < any (select s1 from t1));
+s1
+2
+select * from t1 where (s1 < ALL (select s1+1 from t1));
+s1
+1
+select * from t1 where not(s1 < ALL (select s1+1 from t1));
+s1
+2
+select * from t1 where (s1+1 = ANY (select s1 from t1));
+s1
+1
+select * from t1 where NOT(s1+1 = ANY (select s1 from t1));
+s1
+2
+select * from t1 where (s1 = ALL (select s1/s1 from t1));
+s1
+1
+select * from t1 where NOT(s1 = ALL (select s1/s1 from t1));
+s1
+2
+drop table t1;
