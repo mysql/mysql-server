@@ -170,7 +170,8 @@ mlog_parse_nbytes(
 	ulint	type,	/* in: log record type: MLOG_1BYTE, ... */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
-	byte*	page);	/* in: page where to apply the log record, or NULL */
+	byte*	page,	/* in: page where to apply the log record, or NULL */
+	void*	page_zip);/* in/out: compressed page, or NULL */
 /************************************************************
 Parses a log record written by mlog_write_string. */
 
@@ -181,7 +182,8 @@ mlog_parse_string(
 			record */
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
-	byte*	page);	/* in: page where to apply the log record, or NULL */
+	byte*	page,	/* in: page where to apply the log record, or NULL */
+	void*	page_zip);/* in/out: compressed page, or NULL */
 
 
 /************************************************************

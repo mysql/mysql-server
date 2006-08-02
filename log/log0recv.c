@@ -764,8 +764,7 @@ recv_parse_or_apply_log_rec_body(
 
 	switch (type) {
 	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
-		ut_a(!page_zip || fil_page_get_type(page) != FIL_PAGE_INDEX);
-		ptr = mlog_parse_nbytes(type, ptr, end_ptr, page);
+		ptr = mlog_parse_nbytes(type, ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_REC_INSERT: case MLOG_COMP_REC_INSERT:
 		if (NULL != (ptr = mlog_parse_index(ptr, end_ptr,
@@ -791,6 +790,7 @@ recv_parse_or_apply_log_rec_body(
 		/* This log record type is obsolete, but we process it for
 		backward compatibility with MySQL 5.0.3 and 5.0.4. */
 		ut_a(!page || page_is_comp(page));
+		ut_a(!page_zip);
 		ptr = mlog_parse_index(ptr, end_ptr, TRUE, &index);
 		if (!ptr) {
 			break;
@@ -819,7 +819,7 @@ recv_parse_or_apply_log_rec_body(
 				|| (ibool)!!page_is_comp(page)
 				== dict_table_is_comp(index->table));
 			ptr = page_parse_delete_rec_list(type, ptr, end_ptr,
-							index, page, mtr);
+						index, page, page_zip, mtr);
 		}
 		break;
 	case MLOG_LIST_END_COPY_CREATED: case MLOG_COMP_LIST_END_COPY_CREATED:
@@ -843,6 +843,7 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
+		ut_a(!page_zip);
 		ptr = page_parse_create(ptr, end_ptr,
 				type == MLOG_COMP_PAGE_CREATE,
 				page, mtr);
@@ -865,6 +866,7 @@ recv_parse_or_apply_log_rec_body(
 								page, mtr);
 		break;
 	case MLOG_REC_MIN_MARK: case MLOG_COMP_REC_MIN_MARK:
+		ut_a(!page_zip);
 		ptr = btr_parse_set_min_rec_mark(ptr, end_ptr,
 				type == MLOG_COMP_REC_MIN_MARK, page, mtr);
 		break;
@@ -886,8 +888,7 @@ recv_parse_or_apply_log_rec_body(
 		ptr = fsp_parse_init_file_page(ptr, end_ptr, page);
 		break;
 	case MLOG_WRITE_STRING:
-		ut_a(!page_zip || fil_page_get_type(page) != FIL_PAGE_INDEX);
-		ptr = mlog_parse_string(ptr, end_ptr, page);
+		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_RENAME:
