@@ -5963,6 +5963,23 @@ drop table t3|
 drop procedure bug15217|
 
 #
+# BUG#19862: Sort with filesort by function evaluates function twice
+#
+--disable_warnings
+drop procedure if exists bug19862|
+--enable_warnings
+CREATE TABLE t11 (a INT)|
+CREATE TABLE t12 (a INT)|
+CREATE FUNCTION bug19862(x INT) RETURNS INT
+  BEGIN
+    INSERT INTO t11 VALUES (x);
+    RETURN x+1;
+  END|
+INSERT INTO t12 VALUES (1), (2)|
+SELECT bug19862(a) FROM t12 ORDER BY 1|
+SELECT * FROM t11|
+DROP TABLE t11, t12|
+DROP FUNCTION bug19862|
 # Bug#21002 "Derived table not selecting from a "real" table fails in JOINs"
 #         
 # A regression caused by the fix for Bug#18444: for derived tables we should

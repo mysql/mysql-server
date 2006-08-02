@@ -3656,6 +3656,28 @@ Item *Item_cond_or::neg_transformer(THD *thd)	/* NOT(a OR b OR ...)  -> */
 }
 
 
+Item *Item_func_nop_all::neg_transformer(THD *thd)
+{
+  /* "NOT (e $cmp$ ANY (SELECT ...)) -> e $rev_cmp$" ALL (SELECT ...) */
+  Item_func_not_all *new_item= new Item_func_not_all(args[0]);
+  Item_allany_subselect *allany= (Item_allany_subselect*)args[0];
+  allany->func= allany->func_creator(FALSE);
+  allany->all= !allany->all;
+  allany->upper_item= new_item;
+  return new_item;
+}
+
+Item *Item_func_not_all::neg_transformer(THD *thd)
+{
+  /* "NOT (e $cmp$ ALL (SELECT ...)) -> e $rev_cmp$" ANY (SELECT ...) */
+  Item_func_nop_all *new_item= new Item_func_nop_all(args[0]);
+  Item_allany_subselect *allany= (Item_allany_subselect*)args[0];
+  allany->all= !allany->all;
+  allany->func= allany->func_creator(TRUE);
+  allany->upper_item= new_item;
+  return new_item;
+}
+
 Item *Item_func_eq::negated_item()		/* a = b  ->  a != b */
 {
   return new Item_func_ne(args[0], args[1]);
