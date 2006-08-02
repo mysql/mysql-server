@@ -114,5 +114,4 @@ a	int(11)	YES		NULL
 b	varchar(255)	YES		NULL	
 c	int(11)	YES		NULL	
 drop table t1;
-ERROR 1049 (42000) at line 1: Unknown database 'verylongdatabasenamethatshouldblowthe256byteslongbufferincom_con'
 End of 5.0 tests
