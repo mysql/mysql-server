@@ -2563,7 +2563,7 @@ fil_reset_too_high_lsns(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-" InnoDB: Flush lsn in the tablespace file %lu to be imported\n"
+"  InnoDB: Flush lsn in the tablespace file %lu to be imported\n"
 "InnoDB: is %lu %lu, which exceeds current system lsn %lu %lu.\n"
 "InnoDB: We reset the lsn's in the file ",
 		(ulong) space_id,
