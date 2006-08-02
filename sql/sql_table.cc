@@ -1631,10 +1631,9 @@ bool mysql_create_table(THD *thd,const char *db, const char *table_name,
   if (!create_info->default_table_charset)
   {
     HA_CREATE_INFO db_info;
-    char  path[FN_REFLEN];
-    /* Abuse build_table_path() to build the path to the db.opt file */
-    build_table_path(path, sizeof(path), db, MY_DB_OPT_FILE, "");
-    load_db_opt(thd, path, &db_info);
+
+    load_db_opt_by_name(thd, db, &db_info);
+
     create_info->default_table_charset= db_info.default_table_charset;
   }
 
