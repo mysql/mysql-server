@@ -193,9 +193,13 @@ public:
   void
   init(LEX *lex);
 
+  /* Copy sp name from parser. */
+  void
+  init_sp_name(THD *thd, sp_name *spname);
+
   // Initialize strings after parsing header
   void
-  init_strings(THD *thd, LEX *lex, sp_name *name);
+  init_strings(THD *thd, LEX *lex);
 
   int
   create(THD *thd);
@@ -205,6 +209,10 @@ public:
   // Free memory
   void
   destroy();
+
+  bool
+  execute_trigger(THD *thd, const char *db, const char *table,
+                  GRANT_INFO *grant_onfo);
 
   bool
   execute_function(THD *thd, Item **args, uint argcount, Field *return_fld);
@@ -1149,6 +1157,10 @@ sp_change_security_context(THD *thd, sp_head *sp,
                            Security_context **backup);
 void
 sp_restore_security_context(THD *thd, Security_context *backup);
+
+bool
+set_routine_security_ctx(THD *thd, sp_head *sp, bool is_proc,
+                         Security_context **save_ctx);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 TABLE_LIST *
