@@ -29,6 +29,7 @@
 #include <signaldata/LCP.hpp>
 #include <signaldata/LqhTransConf.hpp>
 #include <signaldata/LqhFrag.hpp>
+#include <signaldata/FsOpenReq.hpp>
 
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
@@ -1514,11 +1515,6 @@ public:
     UintR lastWordWritten;
     /**
      *       This variable contains the last word written in the last page.
-     */
-    UintR logFilePagesToDiskWithoutSynch;
-    /**
-     *       This variable keeps track of the number of pages written since
-     *       last synch on this log file.
      */
     LogFileStatus logFileStatus;
     /**

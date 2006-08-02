@@ -43,6 +43,7 @@ class FsOpenReq {
   friend class Lgman;
   friend class Tsman;
   friend class Restore;
+  friend class Dblqh;
 
   /**
    * For printing
