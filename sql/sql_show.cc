@@ -2131,12 +2131,6 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   LINT_INIT(end);
   LINT_INIT(len);
 
-  /*
-    Let us set fake sql_command so views won't try to merge
-    themselves into main statement.
-  */
-  lex->sql_command= SQLCOM_SHOW_FIELDS;
-
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
 
   /*
@@ -2159,8 +2153,16 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
       I_S tables will be done.
     */
     thd->temporary_tables= open_tables_state_backup.temporary_tables;
+    /*
+      Let us set fake sql_command so views won't try to merge
+      themselves into main statement. If we don't do this,
+      SELECT * from information_schema.xxxx will cause problems.
+      SQLCOM_SHOW_FIELDS is used because it satisfies 'only_view_structure()' 
+    */
+    lex->sql_command= SQLCOM_SHOW_FIELDS;
     res= open_normal_and_derived_tables(thd, show_table_list,
                                         MYSQL_LOCK_IGNORE_FLUSH);
+    lex->sql_command= save_sql_command;
     /*
       get_all_tables() returns 1 on failure and 0 on success thus
       return only these and not the result code of ::process_table()
@@ -2301,8 +2303,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             TABLE_LIST *show_table_list= (TABLE_LIST*) sel.table_list.first;
             lex->all_selects_list= &sel;
             lex->derived_tables= 0;
+            lex->sql_command= SQLCOM_SHOW_FIELDS;
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
+            lex->sql_command= save_sql_command;
             /*
               We should use show_table_list->alias instead of 
               show_table_list->table_name because table_name
@@ -3989,6 +3993,7 @@ bool get_schema_tables_result(JOIN *join)
         table_list->table->file->delete_all_rows();
         free_io_cache(table_list->table);
         filesort_free_buffers(table_list->table);
+        table_list->table->null_row= 0;
       }
       else
         table_list->table->file->records= 0;

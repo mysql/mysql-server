@@ -377,7 +377,13 @@ Field *Item_sum::create_tmp_field(bool group, TABLE *table,
   case INT_RESULT:
     return new Field_longlong(max_length,maybe_null,name,table,unsigned_flag);
   case STRING_RESULT:
-    if (max_length/collation.collation->mbmaxlen > 255 && convert_blob_length)
+    /* 
+      Make sure that the blob fits into a Field_varstring which has 
+      2-byte lenght. 
+    */
+    if (max_length/collation.collation->mbmaxlen > 255 && 
+        max_length/collation.collation->mbmaxlen < UINT_MAX16 &&
+        convert_blob_length)
       return new Field_varstring(convert_blob_length, maybe_null,
                                  name, table,
                                  collation.collation);
