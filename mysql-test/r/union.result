@@ -1351,3 +1351,8 @@ drop table t1;
 (select avg(1)) union (select avg(1)) union (select avg(1));
 avg(1)
 NULL
+select _utf8'12' union select _latin1'12345';
+12
+12
+12345
+End of 5.0 tests
