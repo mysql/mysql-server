@@ -173,13 +173,6 @@ alter table t1 engine=merge;
 Warnings:
 Warning	1266	Using storage engine MyISAM for table 't1'
 drop table t1;
-create table t1 (id int) type=heap;
-Warnings:
-Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
-alter table t1 type=myisam;
-Warnings:
-Warning	1287	'TYPE=storage_engine' is deprecated; use 'ENGINE=storage_engine' instead
-drop table t1;
 set table_type=MYISAM;
 Warnings:
 Warning	1541	The syntax 'table_type' is deprecated and will be removed in MySQL 5.2. Please use 'storage_engine' instead.
