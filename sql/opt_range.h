@@ -86,7 +86,7 @@ public:
 
   QUICK_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0);
   virtual ~QUICK_SELECT();
-  void reset(void) { next=0; it.rewind(); }
+  virtual void reset(void);
   int init()
   {
     key_part_info= head->key_info[index].key_part;
@@ -120,7 +120,7 @@ private:
 #ifdef NOT_USED
   bool test_if_null_range(QUICK_RANGE *range, uint used_key_parts);
 #endif
-  void reset(void) { next=0; rev_it.rewind(); }
+  void reset(void);
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
 };
