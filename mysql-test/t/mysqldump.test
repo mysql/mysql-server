@@ -1235,6 +1235,50 @@ create database mysqldump_views;
 use mysqldump_views;
 create view nasishnasifu as select mysqldump_tables.basetable.id from mysqldump_tables.basetable;
 
+--exec $MYSQL_DUMP --skip-comments --compact --databases mysqldump_tables mysqldump_views;
+
+drop view nasishnasifu;
+drop database mysqldump_views;
+drop table mysqldump_tables.basetable;
+drop database mysqldump_tables;
+
+# Bug20221 Dumping of multiple databases containing view(s) yields maleformed dumps
+
+create database mysqldump_dba;
+use mysqldump_dba;
+create table t1 (f1 int, f2 int);
+insert into t1 values (1,1);
+create view v1 as select f1, f2 from t1;
+
+create database mysqldump_dbb;
+use mysqldump_dbb;
+create table t1 (f1 int, f2 int);
+insert into t1 values (2,2);
+create view v1 as select f1, f2 from t1;
+
+--exec $MYSQL_DUMP --skip-comments --add-drop-database --databases mysqldump_dba mysqldump_dbb > $MYSQLTEST_VARDIR/tmp/bug20221_backup;
+
+drop view v1;
+drop table t1;
+drop database mysqldump_dbb;
+use mysqldump_dba;
+drop view v1;
+drop table t1;
+drop database mysqldump_dba;
+
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug20221_backup;
+
+select * from mysqldump_dba.v1;
+select * from mysqldump_dbb.v1;
+
+use mysqldump_dba;
+drop view v1;
+drop table t1;
+drop database mysqldump_dba;
+use mysqldump_dbb;
+drop view v1;
+drop table t1;
+drop database mysqldump_dbb;
 --exec $MYSQL_DUMP --skip-comments --databases mysqldump_tables mysqldump_views;
 
 drop view nasishnasifu;
