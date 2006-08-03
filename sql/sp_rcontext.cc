@@ -260,6 +260,65 @@ sp_rcontext::find_handler(uint sql_errno,
   return TRUE;
 }
 
+/*
+   Handle the error for a given errno.
+   The severity of the error is adjusted depending of the current sql_mode.
+   If an handler is present for the error (see find_handler()),
+   this function will return true.
+   If a handler is found and if the severity of the error indicate
+   that the current instruction executed should abort,
+   the flag thd->net.report_error is also set.
+   This will cause the execution of the current instruction in a
+   sp_instr* to fail, and give control to the handler code itself
+   in the sp_head::execute() loop.
+
+  SYNOPSIS
+    sql_errno     The error code
+    level         Warning level
+    thd           The current thread
+                  - thd->net.report_error is an optional output.
+
+  RETURN
+    TRUE       if a handler was found.
+    FALSE      if no handler was found.
+*/
+bool
+sp_rcontext::handle_error(uint sql_errno,
+                          MYSQL_ERROR::enum_warning_level level,
+                          THD *thd)
+{
+  bool handled= FALSE;
+  MYSQL_ERROR::enum_warning_level elevated_level= level;
+
+
+  /* Depending on the sql_mode of execution,
+     warnings may be considered errors */
+  if ((level == MYSQL_ERROR::WARN_LEVEL_WARN) &&
+      thd->really_abort_on_warning())
+  {
+    elevated_level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+  }
+
+  if (find_handler(sql_errno, elevated_level))
+  {
+    if (elevated_level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+    {
+      /*
+         Forces to abort the current instruction execution.
+         NOTE: This code is altering the original meaning of
+         the net.report_error flag (send an error to the client).
+         In the context of stored procedures with error handlers,
+         the flag is reused to cause error propagation,
+         until the error handler is reached.
+         No messages will be sent to the client in that context.
+      */
+      thd->net.report_error= 1;
+    }
+    handled= TRUE;
+  }
+
+  return handled;
+}
 
 void
 sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)

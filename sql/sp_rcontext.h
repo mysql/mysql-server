@@ -128,6 +128,12 @@ class sp_rcontext : public Sql_alloc
   bool
   find_handler(uint sql_errno,MYSQL_ERROR::enum_warning_level level);
 
+  // If there is an error handler for this error, handle it and return TRUE.
+  bool
+  handle_error(uint sql_errno,
+               MYSQL_ERROR::enum_warning_level level,
+               THD *thd);
+
   // Returns handler type and sets *ip to location if one was found
   inline int
   found_handler(uint *ip, uint *fp)
