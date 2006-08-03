@@ -101,23 +101,23 @@ test.t5	backup	status	OK
 Warnings:
 Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
 drop table t5;
-DROP TABLE IF EXISTS `t-blüten`;
-CREATE  TABLE `t-blüten` (c1 INT);
-INSERT  INTO  `t-blüten` VALUES (1), (2), (3);
-BACKUP  TABLE `t-blüten` TO '../tmp';
+DROP TABLE IF EXISTS `t+1`;
+CREATE  TABLE `t+1` (c1 INT);
+INSERT  INTO  `t+1` VALUES (1), (2), (3);
+BACKUP  TABLE `t+1` TO '../tmp';
 Table	Op	Msg_type	Msg_text
-test.t-blüten	backup	status	OK
+test.t+1	backup	status	OK
 Warnings:
 Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
-DROP    TABLE `t-blüten`;
-RESTORE TABLE `t-blüten` FROM '../tmp';
+DROP    TABLE `t+1`;
+RESTORE TABLE `t+1` FROM '../tmp';
 Table	Op	Msg_type	Msg_text
-test.t-blüten	restore	status	OK
+test.t+1	restore	status	OK
 Warnings:
 Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
-SELECT * FROM `t-blüten`;
+SELECT * FROM `t+1`;
 c1
 1
 2
 3
-DROP    TABLE `t-blüten`;
+DROP    TABLE `t+1`;
