@@ -1422,6 +1422,34 @@ void handler::ha_statistic_increment(ulong SSV::*offset) const
   statistic_increment(table->in_use->status_var.*offset, &LOCK_status);
 }
 
+
+bool handler::check_if_log_table_locking_is_allowed(uint sql_command,
+                                                    ulong type, TABLE *table)
+{
+  /*
+    Deny locking of the log tables, which is incompatible with
+    concurrent insert. Unless called from a logger THD:
+    general_log_thd or slow_log_thd.
+  */
+  if (table->s->log_table &&
+      sql_command != SQLCOM_TRUNCATE &&
+      sql_command != SQLCOM_ALTER_TABLE &&
+      !(sql_command == SQLCOM_FLUSH &&
+        type & REFRESH_LOG) &&
+      (table->reginfo.lock_type >= TL_READ_NO_INSERT))
+  {
+    /*
+      The check  >= TL_READ_NO_INSERT denies all write locks
+      plus the only read lock (TL_READ_NO_INSERT itself)
+    */
+    table->reginfo.lock_type == TL_READ_NO_INSERT ?
+      my_error(ER_CANT_READ_LOCK_LOG_TABLE, MYF(0)) :
+        my_error(ER_CANT_WRITE_LOCK_LOG_TABLE, MYF(0));
+    return FALSE;
+  }
+  return TRUE;
+}
+
 /*
   Open database-handler.
 

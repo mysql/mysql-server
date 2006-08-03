@@ -1537,6 +1537,18 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     table->db_type= NULL;
     if ((share= get_cached_table_share(table->db, table->table_name)))
       table->db_type= share->db_type;
+
+    /* Disable drop of enabled log tables */
+    if (share && share->log_table &&
+        ((!my_strcasecmp(system_charset_info, table->table_name,
+                         "general_log") && opt_log &&
+          logger.is_general_log_table_enabled()) ||
+         (!my_strcasecmp(system_charset_info, table->table_name, "slow_log")
+          && opt_slow_log && logger.is_slow_log_table_enabled())))
+    {
+      my_error(ER_CANT_DROP_LOG_TABLE, MYF(0));
+      DBUG_RETURN(1);
+    }
   }
 
   if (lock_table_names(thd, tables))
@@ -4990,6 +5002,42 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   LINT_INIT(index_drop_count);
   LINT_INIT(index_add_buffer);
   LINT_INIT(index_drop_buffer);
+
+  if (table_list && table_list->db &&
+      !my_strcasecmp(system_charset_info, table_list->db, "mysql") &&
+      table_list->table_name)
+  {
+    enum enum_table_kind { NOT_LOG_TABLE= 1, GENERAL_LOG, SLOW_LOG }
+         table_kind= NOT_LOG_TABLE;
+
+    if (!my_strcasecmp(system_charset_info, table_list->table_name,
+                       "general_log"))
+      table_kind= GENERAL_LOG;
+    else
+      if (!my_strcasecmp(system_charset_info, table_list->table_name,
+                         "slow_log"))
+        table_kind= SLOW_LOG;
+
+    /* Disable alter of enabled log tables */
+    if ((table_kind == GENERAL_LOG && opt_log &&
+        logger.is_general_log_table_enabled()) ||
+       (table_kind == SLOW_LOG && opt_slow_log &&
+         logger.is_slow_log_table_enabled()))
+    {
+      my_error(ER_CANT_ALTER_LOG_TABLE, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+
+    /* Disable alter of log tables to unsupported engine */
+    if ((table_kind == GENERAL_LOG || table_kind == SLOW_LOG) &&
+        (lex_create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+        !(lex_create_info->db_type->db_type == DB_TYPE_MYISAM ||
+          lex_create_info->db_type->db_type == DB_TYPE_CSV_DB))
+    {
+      my_error(ER_BAD_LOG_ENGINE, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
+  }
 
   thd->proc_info="init";
   if (!(create_info= copy_create_info(lex_create_info)))
