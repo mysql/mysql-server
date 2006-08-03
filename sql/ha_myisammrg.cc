@@ -551,7 +551,7 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
 
 static int myisammrg_init()
 {
-  myisammrg_hton.state=SHOW_OPTION_YES;
+  myisammrg_hton.state=have_merge_db;
   myisammrg_hton.db_type=DB_TYPE_MRG_MYISAM;
   myisammrg_hton.create=myisammrg_create_handler;
   myisammrg_hton.panic=myrg_panic;
