@@ -364,6 +364,12 @@ static HASH federated_open_tables;              // To track open tables
 pthread_mutex_t federated_mutex;                // To init the hash
 static int federated_init= FALSE;               // Checking the state of hash
 
+/* Variables used when chopping off trailing characters */
+static const uint sizeof_trailing_comma= sizeof(", ") - 1;
+static const uint sizeof_trailing_closeparen= sizeof(") ") - 1;
+static const uint sizeof_trailing_and= sizeof(" AND ") - 1;
+static const uint sizeof_trailing_where= sizeof(" WHERE ") - 1;
+
 /* Static declaration for handerton */
 static handler *federated_create_handler(TABLE_SHARE *table,
                                          MEM_ROOT *mem_root);
@@ -526,19 +532,14 @@ static int check_foreign_data_source(FEDERATED_SHARE *share,
 
       the query will be: SELECT * FROM `tablename` WHERE 1=0
     */
-    query.append(FEDERATED_SELECT);
-    query.append(FEDERATED_STAR);
-    query.append(FEDERATED_FROM);
-    query.append(FEDERATED_BTICK);
+    query.append(STRING_WITH_LEN("SELECT * FROM `"));
     escaped_table_name_length=
       escape_string_for_mysql(&my_charset_bin, (char*)escaped_table_name,
                             sizeof(escaped_table_name),
                             share->table_name,
                             share->table_name_length);
     query.append(escaped_table_name, escaped_table_name_length);
-    query.append(FEDERATED_BTICK);
-    query.append(FEDERATED_WHERE);
-    query.append(FEDERATED_FALSE);
+    query.append(STRING_WITH_LEN("` WHERE 1=0"));
 
     if (mysql_real_query(mysql, query.ptr(), query.length()))
     {
@@ -801,9 +802,9 @@ uint ha_federated::convert_row_to_internal_format(byte *record,
 static bool emit_key_part_name(String *to, KEY_PART_INFO *part)
 {
   DBUG_ENTER("emit_key_part_name");
-  if (to->append(FEDERATED_BTICK) ||
+  if (to->append(STRING_WITH_LEN("`")) ||
       to->append(part->field->field_name) ||
-      to->append(FEDERATED_BTICK))
+      to->append(STRING_WITH_LEN("`")))
     DBUG_RETURN(1);                           // Out of memory
   DBUG_RETURN(0);
 }
@@ -815,7 +816,7 @@ static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
   Field *field= part->field;
   DBUG_ENTER("emit_key_part_element");
 
-  if (needs_quotes && to->append(FEDERATED_SQUOTE))
+  if (needs_quotes && to->append(STRING_WITH_LEN("'")))
     DBUG_RETURN(1);
 
   if (part->type == HA_KEYTYPE_BIT)
@@ -862,10 +863,10 @@ static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
       DBUG_RETURN(1);
   }
 
-  if (is_like && to->append(FEDERATED_PERCENT))
+  if (is_like && to->append(STRING_WITH_LEN("%")))
     DBUG_RETURN(1);
 
-  if (needs_quotes && to->append(FEDERATED_SQUOTE))
+  if (needs_quotes && to->append(STRING_WITH_LEN("'")))
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);
@@ -1141,9 +1142,9 @@ bool ha_federated::create_where_from_key(String *to,
     if (both_not_null)
     {
       if (i > 0)
-        tmp.append(FEDERATED_CONJUNCTION);
+        tmp.append(STRING_WITH_LEN(") AND ("));
       else
-        tmp.append(FEDERATED_OPENPAREN);
+        tmp.append(STRING_WITH_LEN(" ("));
     }
 
     for (key_part= key_info->key_part,
@@ -1164,13 +1165,13 @@ bool ha_federated::create_where_from_key(String *to,
         if (*ptr++)
         {
           if (emit_key_part_name(&tmp, key_part) ||
-              tmp.append(FEDERATED_ISNULL))
+              tmp.append(STRING_WITH_LEN(" IS NULL ")))
             goto err;
           continue;
         }
       }
 
-      if (tmp.append(FEDERATED_OPENPAREN))
+      if (tmp.append(STRING_WITH_LEN(" (")))
         goto err;
 
       switch (ranges[i]->flag) {
@@ -1186,12 +1187,12 @@ bool ha_federated::create_where_from_key(String *to,
 
           if (records_in_range)
           {
-            if (tmp.append(FEDERATED_GE))
+            if (tmp.append(STRING_WITH_LEN(" >= ")))
               goto err;
           }
           else
           {
-            if (tmp.append(FEDERATED_EQ))
+            if (tmp.append(STRING_WITH_LEN(" = ")))
               goto err;
           }
 
@@ -1203,7 +1204,7 @@ bool ha_federated::create_where_from_key(String *to,
         {
           /* LIKE */
           if (emit_key_part_name(&tmp, key_part) ||
-              tmp.append(FEDERATED_LIKE) ||
+              tmp.append(STRING_WITH_LEN(" LIKE ")) ||
               emit_key_part_element(&tmp, key_part, needs_quotes, 1, ptr,
                                     part_length))
             goto err;
@@ -1224,12 +1225,12 @@ bool ha_federated::create_where_from_key(String *to,
 
           if (i > 0) /* end key */
           {
-            if (tmp.append(FEDERATED_LE))
+            if (tmp.append(STRING_WITH_LEN(" <= ")))
               goto err;
           }
           else /* start key */
           {
-            if (tmp.append(FEDERATED_GT))
+            if (tmp.append(STRING_WITH_LEN(" > ")))
               goto err;
           }
 
@@ -1243,7 +1244,7 @@ bool ha_federated::create_where_from_key(String *to,
       case HA_READ_KEY_OR_NEXT:
         DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
         if (emit_key_part_name(&tmp, key_part) ||
-            tmp.append(FEDERATED_GE) ||
+            tmp.append(STRING_WITH_LEN(" >= ")) ||
             emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
               part_length))
           goto err;
@@ -1253,7 +1254,7 @@ bool ha_federated::create_where_from_key(String *to,
         if (store_length >= length)
         {
           if (emit_key_part_name(&tmp, key_part) ||
-              tmp.append(FEDERATED_LT) ||
+              tmp.append(STRING_WITH_LEN(" < ")) ||
               emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
                                     part_length))
             goto err;
@@ -1262,7 +1263,7 @@ bool ha_federated::create_where_from_key(String *to,
       case HA_READ_KEY_OR_PREV:
         DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
         if (emit_key_part_name(&tmp, key_part) ||
-            tmp.append(FEDERATED_LE) ||
+            tmp.append(STRING_WITH_LEN(" <= ")) ||
             emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
                                   part_length))
           goto err;
@@ -1271,7 +1272,7 @@ bool ha_federated::create_where_from_key(String *to,
         DBUG_PRINT("info",("cannot handle flag %d", ranges[i]->flag));
         goto err;
       }
-      if (tmp.append(FEDERATED_CLOSEPAREN))
+      if (tmp.append(STRING_WITH_LEN(") ")))
         goto err;
 
 next_loop:
@@ -1281,7 +1282,7 @@ next_loop:
       DBUG_ASSERT(remainder > 1);
       length-= store_length;
       ptr+= store_length;
-      if (tmp.append(FEDERATED_AND))
+      if (tmp.append(STRING_WITH_LEN(" AND ")))
         goto err;
 
       DBUG_PRINT("info",
@@ -1292,10 +1293,10 @@ next_loop:
   dbug_tmp_restore_column_map(table->write_set, old_map);
 
   if (both_not_null)
-    if (tmp.append(FEDERATED_CLOSEPAREN))
+    if (tmp.append(STRING_WITH_LEN(") ")))
       DBUG_RETURN(1);
 
-  if (to->append(FEDERATED_WHERE))
+  if (to->append(STRING_WITH_LEN(" WHERE ")))
     DBUG_RETURN(1);
 
   if (to->append(tmp))
@@ -1339,17 +1340,17 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
                                                connect_string_length)))
   {
     query.set_charset(system_charset_info);
-    query.append(FEDERATED_SELECT);
+    query.append(STRING_WITH_LEN("SELECT "));
     for (field= table->field; *field; field++)
     {
-      query.append(FEDERATED_BTICK);
+      query.append(STRING_WITH_LEN("`"));
       query.append((*field)->field_name);
-      query.append(FEDERATED_BTICK);
-      query.append(FEDERATED_COMMA);
+      query.append(STRING_WITH_LEN("`, "));
     }
-    query.length(query.length()- FEDERATED_COMMA_LEN);
-    query.append(FEDERATED_FROM);
-    query.append(FEDERATED_BTICK);
+    /* chops off trailing comma */
+    query.length(query.length() - sizeof_trailing_comma);
+
+    query.append(STRING_WITH_LEN(" FROM `"));
 
     if (!(share= (FEDERATED_SHARE *)
           my_multi_malloc(MYF(MY_WME),
@@ -1364,7 +1365,7 @@ static FEDERATED_SHARE *get_share(const char *table_name, TABLE *table)
     share->table_name_length= strlen(share->table_name);
     /* TODO: share->table_name to LEX_STRING object */
     query.append(share->table_name, share->table_name_length);
-    query.append(FEDERATED_BTICK);
+    query.append(STRING_WITH_LEN("`"));
     share->select_query= select_query;
     strmov(share->select_query, query.ptr());
     share->use_count= 0;
@@ -1608,14 +1609,11 @@ int ha_federated::write_row(byte *buf)
   /*
     start both our field and field values strings
   */
-  insert_string.append(FEDERATED_INSERT);
-  insert_string.append(FEDERATED_BTICK);
+  insert_string.append(STRING_WITH_LEN("INSERT `"));
   insert_string.append(share->table_name, share->table_name_length);
-  insert_string.append(FEDERATED_BTICK);
-  insert_string.append(FEDERATED_OPENPAREN);
+  insert_string.append(STRING_WITH_LEN("` ("));
 
-  values_string.append(FEDERATED_VALUES);
-  values_string.append(FEDERATED_OPENPAREN);
+  values_string.append(STRING_WITH_LEN(" VALUES ("));
 
   /*
     loop through the field pointer array, add any fields to both the values
@@ -1636,7 +1634,7 @@ int ha_federated::write_row(byte *buf)
       has_fields= TRUE;
 
       if ((*field)->is_null())
-        insert_field_value_string.append(FEDERATED_NULL);
+        insert_field_value_string.append(STRING_WITH_LEN(" NULL "));
       else
       {
         (*field)->val_str(&insert_field_value_string);
@@ -1656,8 +1654,8 @@ int ha_federated::write_row(byte *buf)
         make the following appends conditional as we don't know if the
         next field is in the write set
       */
-      insert_string.append(FEDERATED_COMMA);
-      values_string.append(FEDERATED_COMMA);
+      insert_string.append(STRING_WITH_LEN(", "));
+      values_string.append(STRING_WITH_LEN(", "));
     }
   }
   dbug_tmp_restore_column_map(table->read_set, old_map);
@@ -1669,16 +1667,18 @@ int ha_federated::write_row(byte *buf)
   */
   if (has_fields)
   {
-    /* chops off leading commas */
-    insert_string.length(insert_string.length() - FEDERATED_COMMA_LEN);
-    values_string.length(values_string.length() - FEDERATED_COMMA_LEN);
-    insert_string.append(FEDERATED_CLOSEPAREN);
+    /* chops off trailing commas */
+    insert_string.length(insert_string.length() - sizeof_trailing_comma);
+    values_string.length(values_string.length() - sizeof_trailing_comma);
+    insert_string.append(STRING_WITH_LEN(") "));
   }
   else
-    insert_string.length(insert_string.length() - FEDERATED_CLOSEPAREN_LEN);
+  {
+    /* chops off trailing ) */
+    insert_string.length(insert_string.length() - sizeof_trailing_closeparen);
+  }
 
-  /* we always want to append this, even if there aren't any fields */
-  values_string.append(FEDERATED_CLOSEPAREN);
+  values_string.append(STRING_WITH_LEN(") "));
 
   /* add the values */
   insert_string.append(values_string);
@@ -1726,10 +1726,9 @@ int ha_federated::optimize(THD* thd, HA_CHECK_OPT* check_opt)
   query.length(0);
 
   query.set_charset(system_charset_info);
-  query.append(FEDERATED_OPTIMIZE);
-  query.append(FEDERATED_BTICK);
+  query.append(STRING_WITH_LEN("OPTIMIZE TABLE `"));
   query.append(share->table_name, share->table_name_length);
-  query.append(FEDERATED_BTICK);
+  query.append(STRING_WITH_LEN("`"));
 
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
@@ -1749,16 +1748,15 @@ int ha_federated::repair(THD* thd, HA_CHECK_OPT* check_opt)
   query.length(0);
 
   query.set_charset(system_charset_info);
-  query.append(FEDERATED_REPAIR);
-  query.append(FEDERATED_BTICK);
+  query.append(STRING_WITH_LEN("REPAIR TABLE `"));
   query.append(share->table_name, share->table_name_length);
-  query.append(FEDERATED_BTICK);
+  query.append(STRING_WITH_LEN("`"));
   if (check_opt->flags & T_QUICK)
-    query.append(FEDERATED_QUICK);
+    query.append(STRING_WITH_LEN(" QUICK"));
   if (check_opt->flags & T_EXTEND)
-    query.append(FEDERATED_EXTENDED);
+    query.append(STRING_WITH_LEN(" EXTENDED"));
   if (check_opt->sql_flags & TT_USEFRM)
-    query.append(FEDERATED_USE_FRM);
+    query.append(STRING_WITH_LEN(" USE_FRM"));
 
   if (mysql_real_query(mysql, query.ptr(), query.length()))
   {
@@ -1827,11 +1825,9 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
   update_string.length(0);
   where_string.length(0);
 
-  update_string.append(FEDERATED_UPDATE);
-  update_string.append(FEDERATED_BTICK);
+  update_string.append(STRING_WITH_LEN("UPDATE `"));
   update_string.append(share->table_name);
-  update_string.append(FEDERATED_BTICK);
-  update_string.append(FEDERATED_SET);
+  update_string.append(STRING_WITH_LEN("` SET "));
 
   /*
     In this loop, we want to match column names to values being inserted
@@ -1851,7 +1847,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
       update_string.append(FEDERATED_EQ);
 
       if ((*field)->is_null())
-        update_string.append(FEDERATED_NULL);
+        update_string.append(STRING_WITH_LEN(" NULL "));
       else
       {
         my_bitmap_map *old_map= tmp_use_all_columns(table, table->read_set);
@@ -1862,33 +1858,34 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
         field_value.length(0);
         tmp_restore_column_map(table->read_set, old_map);
       }
-      update_string.append(FEDERATED_COMMA);
+      update_string.append(STRING_WITH_LEN(", "));
     }
 
     if (bitmap_is_set(table->read_set, (*field)->field_index))
     {
       where_string.append((*field)->field_name);
       if (field_in_record_is_null(table, *field, (char*) old_data))
-        where_string.append(FEDERATED_ISNULL);
+        where_string.append(STRING_WITH_LEN(" IS NULL "));
       else
       {
-        where_string.append(FEDERATED_EQ);
+        where_string.append(STRING_WITH_LEN(" = "));
         (*field)->val_str(&field_value,
                           (char*) (old_data + (*field)->offset()));
         (*field)->quote_data(&field_value);
         where_string.append(field_value);
         field_value.length(0);
       }
-      where_string.append(FEDERATED_AND);
+      where_string.append(STRING_WITH_LEN(" AND "));
     }
   }
 
   /* Remove last ', '. This works as there must be at least on updated field */
-  update_string.length(update_string.length() - FEDERATED_COMMA_LEN);
+  update_string.length(update_string.length() - sizeof_trailing_comma);
   if (where_string.length())
   {
-    where_string.length(where_string.length() - FEDERATED_AND_LEN);
-    update_string.append(FEDERATED_WHERE);
+    /* chop off trailing AND */
+    where_string.length(where_string.length() - sizeof_trailing_and);
+    update_string.append(STRING_WITH_LEN(" WHERE "));
     update_string.append(where_string);
   }
 
@@ -1897,7 +1894,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     update multiple rows. We want to make sure to only update one!
   */
   if (!has_a_primary_key)
-    update_string.append(FEDERATED_LIMIT1);
+    update_string.append(STRING_WITH_LEN(" LIMIT 1"));
 
   if (mysql_real_query(mysql, update_string.ptr(), update_string.length()))
   {
@@ -1931,12 +1928,9 @@ int ha_federated::delete_row(const byte *buf)
   DBUG_ENTER("ha_federated::delete_row");
 
   delete_string.length(0);
-  delete_string.append(FEDERATED_DELETE);
-  delete_string.append(FEDERATED_FROM);
-  delete_string.append(FEDERATED_BTICK);
+  delete_string.append(STRING_WITH_LEN("DELETE FROM `"));
   delete_string.append(share->table_name);
-  delete_string.append(FEDERATED_BTICK);
-  delete_string.append(FEDERATED_WHERE);
+  delete_string.append(STRING_WITH_LEN("` WHERE "));
 
   for (Field **field= table->field; *field; field++)
   {
@@ -1948,26 +1942,25 @@ int ha_federated::delete_row(const byte *buf)
       delete_string.append(cur_field->field_name);
       if (cur_field->is_null())
       {
-        delete_string.append(FEDERATED_IS);
-        delete_string.append(FEDERATED_NULL);
+        delete_string.append(STRING_WITH_LEN(" IS NULL "));
       }
       else
       {
-        delete_string.append(FEDERATED_EQ);
+        delete_string.append(STRING_WITH_LEN(" = "));
         cur_field->val_str(&data_string);
         cur_field->quote_data(&data_string);
         delete_string.append(data_string);
       }
-      delete_string.append(FEDERATED_AND);
+      delete_string.append(STRING_WITH_LEN(" AND "));
     }
   }
 
- // Remove trailing AND
-  delete_string.length(delete_string.length() - FEDERATED_AND_LEN);
+  // Remove trailing AND
+  delete_string.length(delete_string.length() - sizeof_trailing_and);
   if (!found)
-    delete_string.length(delete_string.length() - FEDERATED_WHERE_LEN);
+    delete_string.length(delete_string.length() - sizeof_trailing_where);
 
-  delete_string.append(FEDERATED_LIMIT1);
+  delete_string.append(STRING_WITH_LEN(" LIMIT 1"));
   DBUG_PRINT("info",
              ("Delete sql: %s", delete_string.c_ptr_quick()));
   if (mysql_real_query(mysql, delete_string.ptr(), delete_string.length()))
@@ -2463,15 +2456,13 @@ void ha_federated::info(uint flag)
   if (flag & (HA_STATUS_VARIABLE | HA_STATUS_CONST))
   {
     status_query_string.length(0);
-    status_query_string.append(FEDERATED_INFO);
-    status_query_string.append(FEDERATED_SQUOTE);
-
+    status_query_string.append(STRING_WITH_LEN("SHOW TABLE STATUS LIKE '"));
     escape_string_for_mysql(&my_charset_bin, (char *)escaped_table_name,
                             sizeof(escaped_table_name),
                             share->table_name,
                             share->table_name_length);
     status_query_string.append(escaped_table_name);
-    status_query_string.append(FEDERATED_SQUOTE);
+    status_query_string.append(STRING_WITH_LEN("'"));
 
     if (mysql_real_query(mysql, status_query_string.ptr(),
                          status_query_string.length()))
@@ -2563,10 +2554,9 @@ int ha_federated::delete_all_rows()
   query.length(0);
 
   query.set_charset(system_charset_info);
-  query.append(FEDERATED_TRUNCATE);
-  query.append(FEDERATED_BTICK);
+  query.append(STRING_WITH_LEN("TRUNCATE `"));
   query.append(share->table_name);
-  query.append(FEDERATED_BTICK);
+  query.append(STRING_WITH_LEN("`"));
 
   /*
     TRUNCATE won't return anything in mysql_affected_rows
