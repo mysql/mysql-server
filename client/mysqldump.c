@@ -2994,8 +2994,6 @@ static int do_show_master_status(MYSQL *mysql_con)
     (opt_master_data == MYSQL_OPT_MASTER_DATA_COMMENTED_SQL) ? "-- " : "";
   if (mysql_query_with_error_report(mysql_con, &master, "SHOW MASTER STATUS"))
   {
-    my_printf_error(0, "Error: Couldn't execute 'SHOW MASTER STATUS': %s",
-                    MYF(0), mysql_error(mysql_con));
     return 1;
   }
   else
