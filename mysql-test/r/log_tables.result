@@ -72,3 +72,8 @@ sleep(2)
 select * from mysql.slow_log;
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
 TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00	1	0	test	0	0	1	select sleep(2)
+flush tables with read lock;
+unlock tables;
+use mysql;
+lock tables general_log read local, help_category read local;
+unlock tables;
