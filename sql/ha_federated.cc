@@ -1844,7 +1844,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     if (bitmap_is_set(table->write_set, (*field)->field_index))
     {
       update_string.append((*field)->field_name);
-      update_string.append(FEDERATED_EQ);
+      update_string.append(STRING_WITH_LEN("="));
 
       if ((*field)->is_null())
         update_string.append(STRING_WITH_LEN(" NULL "));
