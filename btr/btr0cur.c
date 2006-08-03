@@ -2161,6 +2161,9 @@ btr_cur_pessimistic_update(
 	}
 
 return_after_reservations:
+#ifdef UNIV_ZIP_DEBUG
+	ut_a(!page_zip || page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
 	mem_heap_free(heap);
 
 	if (n_extents > 0) {

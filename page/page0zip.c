@@ -1906,11 +1906,13 @@ err_exit:
 			ulint	len;
 			byte*	dst;
 			rec_t*	rec	= *recs++;
+			ibool	exists	= !page_zip_dir_find_free(
+						page_zip, ut_align_offset(
+						rec, UNIV_PAGE_SIZE));
+			offsets = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
 
 			if (UNIV_UNLIKELY(trx_id_col != ULINT_UNDEFINED)) {
-				offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
-
 				dst = rec_get_nth_field(rec, offsets,
 						trx_id_col, &len);
 				ut_ad(len >= DATA_TRX_ID_LEN
@@ -1918,42 +1920,31 @@ err_exit:
 				storage -= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 				memcpy(dst, storage,
 					DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+			}
 
-				if (UNIV_LIKELY(!page_zip_dir_find_free(
-						page_zip, ut_align_offset(
-						rec, UNIV_PAGE_SIZE)))) {
+			/* Check if there are any externally stored
+			columns in this existing (not deleted)
+			record.  For each externally stored column,
+			restore or clear the BTR_EXTERN_FIELD_REF. */
 
-					goto process_externs;
+			for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+				if (!rec_offs_nth_extern(offsets, i)) {
+					continue;
 				}
-			} else if (UNIV_LIKELY(!page_zip_dir_find_free(
-					page_zip, ut_align_offset(
-					rec, UNIV_PAGE_SIZE)))) {
-				offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
+				dst = rec_get_nth_field(rec, offsets, i, &len);
+				ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+				dst += len - BTR_EXTERN_FIELD_REF_SIZE;
 
-process_externs:
-
-				/* Check if there are any externally stored
-				columns in this existing (not deleted)
-				record.  For each externally stored column,
-				restore the BTR_EXTERN_FIELD_REF separately. */
-
-				for (i = 0; i < rec_offs_n_fields(offsets);
-						i++) {
-					if (!rec_offs_nth_extern(offsets, i)) {
-						continue;
-					}
-					dst = rec_get_nth_field(
-							rec, offsets, i, &len);
-					ut_ad(len > BTR_EXTERN_FIELD_REF_SIZE);
-					dst += len - BTR_EXTERN_FIELD_REF_SIZE;
-
+				if (UNIV_LIKELY(exists)) {
 					externs -= BTR_EXTERN_FIELD_REF_SIZE;
 
 					memcpy(dst, externs,
 						BTR_EXTERN_FIELD_REF_SIZE);
 
 					page_zip->n_blobs++;
+				} else {
+					memset(dst, 0,
+						BTR_EXTERN_FIELD_REF_SIZE);
 				}
 			}
 		} while (--n_dense);
@@ -2696,6 +2687,7 @@ page_zip_clear_rec(
 			ut_align_offset(rec, UNIV_PAGE_SIZE)));
 	ut_ad(page_zip_dir_find_free(page_zip,
 			ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	ut_ad(page_zip_header_cmp(page_zip, page));
 
 	heap_no = rec_get_heap_no_new(rec);
 	ut_ad(heap_no >= 2); /* exclude infimum and supremum */
