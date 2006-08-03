@@ -867,3 +867,6 @@ insert into mysql.user select * from t2;
 flush privileges;
 drop table t2;
 drop table t1;
+create user mysqltest1_thisisreallytoolong;
+ERROR HY000: Operation CREATE USER failed for 'mysqltest1_thisisreallytoolong'@'%'
+End of 5.0 tests
