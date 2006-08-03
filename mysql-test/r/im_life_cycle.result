@@ -1,8 +1,7 @@
-
---------------------------------------------------------------------
--- 1.1.1.
---------------------------------------------------------------------
 Success: the process has been started.
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
 SHOW INSTANCES;
 instance_name	status
 mysqld1	online
@@ -40,10 +39,6 @@ ERROR HY000: Bad instance name. Check that the instance with such a name exists
 --------------------------------------------------------------------
 -- 1.1.6.
 --------------------------------------------------------------------
-SHOW INSTANCES;
-instance_name	status
-mysqld1	online
-mysqld2	offline
 Killing the process...
 Sleeping...
 Success: the process was restarted.

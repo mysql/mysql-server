@@ -1851,6 +1851,24 @@ select 1 from dual where 2 > any (select 1);
 select 1 from dual where 2 > all (select 1);
 select 1 from dual where 1 < any (select 2 from dual);
 select 1 from dual where 1 < all (select 2 from dual where 1!=1);
+
+# BUG#20975 Wrong query results for subqueries within NOT
+create table t1 (s1 char);
+insert into t1 values (1),(2);
+
+select * from t1 where (s1 < any (select s1 from t1));
+select * from t1 where not (s1 < any (select s1 from t1));
+
+select * from t1 where (s1 < ALL (select s1+1 from t1));
+select * from t1 where not(s1 < ALL (select s1+1 from t1));
+
+select * from t1 where (s1+1 = ANY (select s1 from t1));
+select * from t1 where NOT(s1+1 = ANY (select s1 from t1));
+
+select * from t1 where (s1 = ALL (select s1/s1 from t1));
+select * from t1 where NOT(s1 = ALL (select s1/s1 from t1));
+drop table t1;
+# End of 4.1 tests
 # End of 4.1 tests
 
 #

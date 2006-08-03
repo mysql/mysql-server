@@ -3051,7 +3051,7 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
     return packet_error;      
 #endif
   
-  len = net_safe_read(mysql);
+  len = cli_safe_read(mysql);
   if (len == packet_error || (long) len < 1)
   {
     if (mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)

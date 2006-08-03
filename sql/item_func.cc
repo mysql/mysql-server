@@ -398,6 +398,13 @@ Field *Item_func::tmp_table_field(TABLE *t_arg)
   return res;
 }
 
+
+bool Item_func::is_expensive_processor(byte *arg)
+{
+  return is_expensive();
+}
+
+
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
@@ -4830,7 +4837,9 @@ Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
 {
   bool err_status= TRUE;
   Sub_statement_state statement_state;
-  Security_context *save_security_ctx= thd->security_ctx, *save_ctx_func;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_security_ctx= thd->security_ctx;
+#endif
 
   DBUG_ENTER("Item_func_sp::execute_impl");
 
@@ -4841,7 +4850,7 @@ Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
     thd->security_ctx= context->security_ctx;
   }
 #endif
-  if (find_and_check_access(thd, EXECUTE_ACL, &save_ctx_func))
+  if (find_and_check_access(thd))
     goto error;
 
   /*
@@ -4853,13 +4862,11 @@ Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
   err_status= m_sp->execute_function(thd, args, arg_count, return_value_fld);
   thd->restore_sub_statement_state(&statement_state);
 
+error:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  sp_restore_security_context(thd, save_ctx_func);
-error:
   thd->security_ctx= save_security_ctx;
-#else
-error:
 #endif
+
   DBUG_RETURN(err_status);
 }
 
@@ -4976,69 +4983,37 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
   SYNOPSIS
     find_and_check_access()
     thd           thread handler
-    want_access   requested access
-    save          backup of security context
 
   RETURN
     FALSE    Access granted
     TRUE     Requested access can't be granted or function doesn't exists
-	     In this case security context is not changed and *save = 0
 
   NOTES
     Checks if requested access to function can be granted to user.
     If function isn't found yet, it searches function first.
     If function can't be found or user don't have requested access
     error is raised.
-    If security context sp_ctx is provided and access can be granted then
-    switch back to previous context isn't performed.
-    In case of access error or if context is not provided then
-    find_and_check_access() switches back to previous security context.
 */
 
 bool
-Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
-                                    Security_context **save)
+Item_func_sp::find_and_check_access(THD *thd)
 {
-  bool res= TRUE;
-
-  *save= 0;                                     // Safety if error
   if (! m_sp && ! (m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
                                          &thd->sp_func_cache, TRUE)))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
-    goto error;
+    return TRUE;
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_routine_access(thd, want_access,
+  if (check_routine_access(thd, EXECUTE_ACL,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
-    goto error;
-
-  sp_change_security_context(thd, m_sp, save);
-  /*
-    If we changed context to run as another user, we need to check the
-    access right for the new context again as someone may have deleted
-    this person the right to use the procedure
-
-    TODO:
-      Cache if the definer has the right to use the object on the first
-      usage and only reset the cache if someone does a GRANT statement
-      that 'may' affect this.
-  */
-  if (*save &&
-      check_routine_access(thd, want_access,
-			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
-  {
-    sp_restore_security_context(thd, *save);
-    *save= 0;                                   // Safety
-    goto error;
-  }
+    return TRUE;
 #endif
-  res= FALSE;                                   // no error
 
-error:
-  return res;
+  return FALSE;
 }
+
 
 bool
 Item_func_sp::fix_fields(THD *thd, Item **ref)
@@ -5050,19 +5025,23 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   {
     /*
       Here we check privileges of the stored routine only during view
-      creation, in order to validate the view. A runtime check is perfomed
-      in Item_func_sp::execute(), and this method is not called during
-      context analysis. We do not need to restore the security context
-      changed in find_and_check_access because all view structures created
-      in CREATE VIEW are not used for execution.  Notice, that during view
-      creation we do not infer into stored routine bodies and do not check
-      privileges of its statements, which would probably be a good idea
-      especially if the view has SQL SECURITY DEFINER and the used stored
-      procedure has SQL SECURITY DEFINER
+      creation, in order to validate the view.  A runtime check is
+      perfomed in Item_func_sp::execute(), and this method is not
+      called during context analysis.  Notice, that during view
+      creation we do not infer into stored routine bodies and do not
+      check privileges of its statements, which would probably be a
+      good idea especially if the view has SQL SECURITY DEFINER and
+      the used stored procedure has SQL SECURITY DEFINER.
     */
-    Security_context *save_ctx;
-    if (!(res= find_and_check_access(thd, EXECUTE_ACL, &save_ctx)))
-      sp_restore_security_context(thd, save_ctx);
+    res= find_and_check_access(thd);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    Security_context *save_secutiry_ctx;
+    if (!res && !(res= set_routine_security_ctx(thd, m_sp, false,
+                                                &save_secutiry_ctx)))
+    {
+      sp_restore_security_context(thd, save_secutiry_ctx);
+    }
+#endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
   return res;
 }

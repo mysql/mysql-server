@@ -520,9 +520,11 @@ enum enum_var_type
   OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL
 };
 class sys_var;
+class Comp_creator;
+typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 #include "item.h"
 extern my_decimal decimal_zero;
-typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
+
 /* sql_parse.cc */
 void free_items(Item *item);
 void cleanup_items(Item *item);
@@ -865,8 +867,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
-int mysql_find_files(THD *thd,List<char> *files, const char *db,
-                const char *path, const char *wild, bool dir);
 bool mysqld_show_storage_engines(THD *thd);
 bool mysqld_show_privileges(THD *thd);
 bool mysqld_show_column_types(THD *thd);
@@ -1138,7 +1138,10 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 bool is_keyword(const char *name, uint len);
 
 #define MY_DB_OPT_FILE "db.opt"
+bool check_db_dir_existence(const char *db_name);
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
+bool load_db_opt_by_name(THD *thd, const char *db_name,
+                         HA_CREATE_INFO *db_create_info);
 bool my_dbopt_init(void);
 void my_dbopt_cleanup(void);
 void my_dbopt_free(void);

@@ -495,6 +495,13 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   table.s = &table.share_not_to_be_used;
   field= sp->create_result_field(0, 0, &table);
   field->sql_type(result);
+
+  if (field->has_charset())
+  {
+    result.append(STRING_WITH_LEN(" CHARSET "));
+    result.append(field->charset()->csname);
+  }
+
   delete field;
 }
 
@@ -626,7 +633,10 @@ db_create_routine(THD *thd, int type, sp_head *sp)
       log_query.append(STRING_WITH_LEN("CREATE "));
       append_definer(thd, &log_query, &thd->lex->definer->user,
                      &thd->lex->definer->host);
-      log_query.append(thd->lex->stmt_definition_begin);
+      log_query.append(thd->lex->stmt_definition_begin,
+                       (char *)sp->m_body_begin -
+                       thd->lex->stmt_definition_begin +
+                       sp->m_body.length);
 
       /* Such a statement can always go directly to binlog, no trans cache */
       Query_log_event qinfo(thd, log_query.c_ptr(), log_query.length(), 0,
@@ -974,6 +984,11 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
     sp_head *new_sp;
     const char *returns= "";
     char definer[USER_HOST_BUFF_SIZE];
+
+    /*
+      String buffer for RETURNS data type must have system charset;
+      64 -- size of "returns" column of mysql.proc.
+    */
     String retstr(64);
 
     DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));

@@ -950,14 +950,11 @@ ibool
 ibuf_fixed_addr_page(
 /*=================*/
 			/* out: TRUE if a fixed address ibuf i/o page */
+	ulint	space,	/* in: space id */
 	ulint	page_no)/* in: page number */
 {
-	if ((ibuf_bitmap_page(page_no))
-				|| (page_no == IBUF_TREE_ROOT_PAGE_NO)) {
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return((space == 0 && page_no == IBUF_TREE_ROOT_PAGE_NO)
+			|| ibuf_bitmap_page(page_no));
 }
 
 /***************************************************************************
@@ -981,7 +978,7 @@ ibuf_page(
 		return(FALSE);
 	}
 
-	if (ibuf_fixed_addr_page(page_no)) {
+	if (ibuf_fixed_addr_page(space, page_no)) {
 
 		return(TRUE);
 	}
@@ -1029,7 +1026,7 @@ ibuf_page_low(
 		return(FALSE);
 	}
 #endif	
-	if (ibuf_fixed_addr_page(page_no)) {
+	if (ibuf_fixed_addr_page(space, page_no)) {
 
 		return(TRUE);
 	}
@@ -3052,7 +3049,7 @@ ibuf_merge_or_delete_for_page(
 		return;
 	}
 #endif	
-	if (ibuf_fixed_addr_page(page_no) || fsp_descr_page(page_no)
+	if (ibuf_fixed_addr_page(space, page_no) || fsp_descr_page(page_no)
 					|| trx_sys_hdr_page(space, page_no)) {
 		return;
 	}
@@ -3502,21 +3499,9 @@ ibuf_print(
 	data = UT_LIST_GET_FIRST(ibuf->data_list);
 
 	while (data) {
-	fprintf(file,
-  	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,",
-			       (ulong) data->space, (ulong) data->size,
-			       (ulong) data->free_list_len,
-			       (ulong) data->seg_size);
-
-		if (data->empty) {
-			fputs(" is empty\n", file);
-		} else {
-			fputs(" is not empty\n", file);
-		}
 		fprintf(file,
-	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,\n"
-			"%lu inserts, %lu merged recs, %lu merges\n",
-                               (ulong) data->space,
+	"Ibuf: size %lu, free list len %lu, seg size %lu,\n"
+	"%lu inserts, %lu merged recs, %lu merges\n",
                                (ulong) data->size,
                                (ulong) data->free_list_len,
 			       (ulong) data->seg_size,
