@@ -171,6 +171,16 @@ select sleep(2);
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME
 select * from mysql.slow_log;
 
+#
+# Bug #20139 Infinite loop after "FLUSH" and "LOCK tabX, general_log"
+#
+
+flush tables with read lock;
+unlock tables;
+use mysql;
+lock tables general_log read local, help_category read local;
+unlock tables;
+
 # kill all connections
 disconnect con1;
 disconnect con2;
