@@ -691,9 +691,9 @@ t1	CREATE TABLE `t1` (
   `da` datetime default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 SELECT dt from t2 UNION select sc from t2;
-select * from t1;
-dt
+create table t1 SELECT dt from t2 UNION select trim(sc) from t2;
+select trim(dt) from t1;
+trim(dt)
 1972-10-22 11:50:00
 testc
 show create table t1;
@@ -732,7 +732,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` longblob
+  `dt` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select b from t2;
@@ -743,7 +743,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `sv` longblob
+  `sv` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT i from t2 UNION select d from t2 UNION select b from t2;
@@ -755,7 +755,7 @@ tetetetetest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` longblob
+  `i` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sv from t2 UNION select tx from t2;
@@ -766,7 +766,7 @@ teeeeeeeeeeeest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `sv` longtext
+  `sv` text
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT b from t2 UNION select tx from t2;
@@ -777,7 +777,7 @@ teeeeeeeeeeeest
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` longblob
+  `b` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1 select 1 union select -1;
@@ -1306,6 +1306,21 @@ id
 5
 99
 drop table t1;
+create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp, f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
+create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` char(1) default NULL,
+  `f2` char(5) default NULL,
+  `f3` binary(1) default NULL,
+  `f4` binary(5) default NULL,
+  `f5` timestamp NOT NULL default '0000-00-00 00:00:00',
+  `f6` varchar(1) character set utf8 default NULL,
+  `f7` text,
+  `f8` text character set utf8
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1, t2;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
 (select avg(1)) union (select avg(1)) union (select avg(1)) union

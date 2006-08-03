@@ -27,3 +27,14 @@
 # client comment recognized, but parameter missing => error
 --exec echo "use"         >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
 --exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+
+#
+# Bug #20103: Escaping with backslash does not work
+#
+--exec echo "SET SQL_MODE = 'NO_BACKSLASH_ESCAPES';"  > $MYSQLTEST_VARDIR/tmp/bug20103.sql
+--exec echo "SELECT '\';" >> $MYSQLTEST_VARDIR/tmp/bug20103.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug20103.sql 2>&1
+
+--exec echo "SET SQL_MODE = '';"  > $MYSQLTEST_VARDIR/tmp/bug20103.sql
+--exec echo "SELECT '\';';" >> $MYSQLTEST_VARDIR/tmp/bug20103.sql
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20103.sql 2>&1

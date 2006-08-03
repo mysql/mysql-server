@@ -93,6 +93,18 @@ NULL
 0R
 FR
 DROP TABLE bug19904;
+CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+ERROR HY000: Incorrect usage of SONAME and DEFINER
+CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+ERROR HY000: Incorrect usage of SONAME and DEFINER
+create table t1(f1 int);
+insert into t1 values(1),(2);
+explain select myfunc_int(f1) from t1 order by 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+drop table t1;
 End of 5.0 tests.
 DROP FUNCTION metaphon;
 DROP FUNCTION myfunc_double;

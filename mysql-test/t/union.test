@@ -390,8 +390,8 @@ create table t1 SELECT da from t2 UNION select dt from t2;
 select * from t1;
 show create table t1;
 drop table t1;
-create table t1 SELECT dt from t2 UNION select sc from t2;
-select * from t1;
+create table t1 SELECT dt from t2 UNION select trim(sc) from t2;
+select trim(dt) from t1;
 show create table t1;
 drop table t1;
 create table t1 SELECT dt from t2 UNION select sv from t2;
@@ -793,6 +793,14 @@ select id from t1 union all select 99 order by 1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug#12185: Data type aggregation may produce wrong result
+#
+create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp, f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
+create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
+show create table t2;
+drop table t1, t2;
 
 #
 # Bug#18175: Union select over 129 tables with a sum function fails.

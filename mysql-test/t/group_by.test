@@ -632,3 +632,26 @@ group by t1.c1;
 show warnings;
 drop table t1, t2;
 
+#
+# Bug #20466: a view is mixing data when there's a trigger on the table
+#
+CREATE TABLE t1 (a tinyint(3), b varchar(255), PRIMARY KEY  (a));
+
+INSERT INTO t1 VALUES (1,'-----'), (6,'Allemagne'), (17,'Autriche'), 
+    (25,'Belgique'), (54,'Danemark'), (62,'Espagne'), (68,'France');
+
+CREATE TABLE t2 (a tinyint(3), b tinyint(3), PRIMARY KEY  (a), KEY b (b));
+
+INSERT INTO t2 VALUES (1,1), (2,1), (6,6), (18,17), (15,25), (16,25),
+ (17,25), (10,54), (5,62),(3,68);
+
+CREATE VIEW v1 AS select t1.a, concat(t1.b,'') AS b, t1.b as real_b from t1;
+
+explain 
+SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+where t2.b=v1.a GROUP BY t2.b;
+SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
+where t2.b=v1.a GROUP BY t2.b;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
