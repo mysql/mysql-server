@@ -4872,8 +4872,6 @@ declare continue handler for sqlexception begin end;
 select no_such_function();
 end|
 call bug18787()|
-no_such_function()
-NULL
 drop procedure bug18787|
 create database bug18344_012345678901|
 use bug18344_012345678901|
@@ -5220,6 +5218,66 @@ CHARSET(p2)	COLLATION(p2)
 cp1251	cp1251_general_ci
 CHARSET(p3)	COLLATION(p3)
 greek	greek_general_ci
+drop table if exists t3, t4, t5|
+drop procedure if exists bug8153_subselect|
+drop procedure if exists bug8153_function|
+create table t3 (a int)|
+create table t4 (a int)|
+insert into t3 values (1)|
+insert into t4 values (1), (1)|
+create procedure bug8153_subselect()
+begin
+declare continue handler for sqlexception
+begin
+select 'statement failed';
+end;
+update t3 set a=a+1 where (select a from t4 where a=1) is null;
+select 'statement after update';
+end|
+call bug8153_subselect()|
+statement failed
+statement failed
+statement after update
+statement after update
+select * from t3|
+a
+1
+call bug8153_subselect()|
+statement failed
+statement failed
+statement after update
+statement after update
+select * from t3|
+a
+1
+drop procedure bug8153_subselect|
+create procedure bug8153_function_a()
+begin
+declare continue handler for sqlexception
+begin
+select 'in continue handler';
+end;
+select 'reachable code a1';
+call bug8153_function_b();
+select 'reachable code a2';
+end|
+create procedure bug8153_function_b()
+begin
+select 'reachable code b1';
+select no_such_function();
+select 'unreachable code b2';
+end|
+call bug8153_function_a()|
+reachable code a1
+reachable code a1
+reachable code b1
+reachable code b1
+in continue handler
+in continue handler
+reachable code a2
+reachable code a2
+drop procedure bug8153_function_a|
+drop procedure bug8153_function_b|
 use test|
 DROP DATABASE mysqltest1|
 drop table t1,t2;
