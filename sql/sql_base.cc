@@ -4041,36 +4041,48 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
   if (table_ref->nested_join)
   {
     List_iterator_fast<TABLE_LIST> nested_it(table_ref->nested_join->join_list);
-    TABLE_LIST *cur_left_neighbor= nested_it++;
-    TABLE_LIST *cur_right_neighbor= NULL;
+    TABLE_LIST *same_level_left_neighbor= nested_it++;
+    TABLE_LIST *same_level_right_neighbor= NULL;
+    /* Left/right-most neighbors, possibly at higher levels in the join tree. */
+    TABLE_LIST *real_left_neighbor, *real_right_neighbor;
 
-    while (cur_left_neighbor)
+    while (same_level_left_neighbor)
     {
-      TABLE_LIST *cur_table_ref= cur_left_neighbor;
-      cur_left_neighbor= nested_it++;
+      TABLE_LIST *cur_table_ref= same_level_left_neighbor;
+      same_level_left_neighbor= nested_it++;
       /*
         The order of RIGHT JOIN operands is reversed in 'join list' to
         transform it into a LEFT JOIN. However, in this procedure we need
         the join operands in their lexical order, so below we reverse the
-        join operands. Notice that this happens only in the first loop, and
-        not in the second one, as in the second loop cur_left_neighbor == NULL.
-        This is the correct behavior, because the second loop
-        sets cur_table_ref reference correctly after the join operands are
+        join operands. Notice that this happens only in the first loop,
+        and not in the second one, as in the second loop
+        same_level_left_neighbor == NULL.
+        This is the correct behavior, because the second loop sets
+        cur_table_ref reference correctly after the join operands are
         swapped in the first loop.
       */
-      if (cur_left_neighbor &&
+      if (same_level_left_neighbor &&
           cur_table_ref->outer_join & JOIN_TYPE_RIGHT)
       {
         /* This can happen only for JOIN ... ON. */
         DBUG_ASSERT(table_ref->nested_join->join_list.elements == 2);
-        swap_variables(TABLE_LIST*, cur_left_neighbor, cur_table_ref);
+        swap_variables(TABLE_LIST*, same_level_left_neighbor, cur_table_ref);
       }
+
+      /*
+        Pick the parent's left and right neighbors if there are no immediate
+        neighbors at the same level.
+      */
+      real_left_neighbor=  (same_level_left_neighbor) ?
+                           same_level_left_neighbor : left_neighbor;
+      real_right_neighbor= (same_level_right_neighbor) ?
+                           same_level_right_neighbor : right_neighbor;
 
       if (cur_table_ref->nested_join &&
           store_top_level_join_columns(thd, cur_table_ref,
-                                       cur_left_neighbor, cur_right_neighbor))
+                                       real_left_neighbor, real_right_neighbor))
         goto err;
-      cur_right_neighbor= cur_table_ref;
+      same_level_right_neighbor= cur_table_ref;
     }
   }
 
@@ -4947,12 +4959,17 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
             bool ignore_errors)
 {
   List_iterator_fast<Item> f(fields),v(values);
-  Item *value;
+  Item *value, *fld;
   Item_field *field;
   DBUG_ENTER("fill_record");
 
-  while ((field=(Item_field*) f++))
+  while ((fld= f++))
   {
+    if (!(field= fld->filed_for_view_update()))
+    {
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->name);
+      DBUG_RETURN(TRUE);
+    }
     value=v++;
     Field *rfield= field->field;
     TABLE *table= rfield->table;

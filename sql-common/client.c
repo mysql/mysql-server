@@ -584,7 +584,7 @@ err:
 *****************************************************************************/
 
 ulong
-net_safe_read(MYSQL *mysql)
+cli_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
   ulong len=0;
@@ -627,6 +627,16 @@ net_safe_read(MYSQL *mysql)
     }
     else
       set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
+    /*
+      Cover a protocol design error: error packet does not
+      contain the server status. Therefore, the client has no way
+      to find out whether there are more result sets of
+      a multiple-result-set statement pending. Luckily, in 5.0 an
+      error always aborts execution of a statement, wherever it is
+      a multi-statement or a stored procedure, so it should be
+      safe to unconditionally turn off the flag here.
+    */
+    mysql->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
 
     DBUG_PRINT("error",("Got error: %d/%s (%s)",
 			net->last_errno, net->sqlstate, net->last_error));
@@ -653,7 +663,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   NET *net= &mysql->net;
   my_bool result= 1;
   init_sigpipe_variables
-    DBUG_ENTER("cli_advanced_command");
+  DBUG_ENTER("cli_advanced_command");
 
   /* Don't give sigpipe errors if the client doesn't want them */
   set_sigpipe(mysql);
@@ -663,7 +673,8 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     if (mysql_reconnect(mysql))
       DBUG_RETURN(1);
   }
-  if (mysql->status != MYSQL_STATUS_READY)
+  if (mysql->status != MYSQL_STATUS_READY ||
+      mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
   {
     DBUG_PRINT("error",("state: %d", mysql->status));
     set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
@@ -702,7 +713,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   }
   result=0;
   if (!skip_check)
-    result= ((mysql->packet_length=net_safe_read(mysql)) == packet_error ?
+    result= ((mysql->packet_length=cli_safe_read(mysql)) == packet_error ?
 	     1 : 0);
 end:
   reset_sigpipe(mysql);
@@ -754,7 +765,7 @@ static void cli_flush_use_result(MYSQL *mysql)
   for (;;)
   {
     ulong pkt_len;
-    if ((pkt_len=net_safe_read(mysql)) == packet_error)
+    if ((pkt_len=cli_safe_read(mysql)) == packet_error)
       break;
     if (pkt_len <= 8 && mysql->net.read_pos[0] == 254)
     {
@@ -1276,7 +1287,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
   NET *net = &mysql->net;
   DBUG_ENTER("cli_read_rows");
 
-  if ((pkt_len= net_safe_read(mysql)) == packet_error)
+  if ((pkt_len= cli_safe_read(mysql)) == packet_error)
     DBUG_RETURN(0);
   if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
 				       MYF(MY_WME | MY_ZEROFILL))))
@@ -1341,7 +1352,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
       }
     }
     cur->data[field]=to;			/* End of last field */
-    if ((pkt_len=net_safe_read(mysql)) == packet_error)
+    if ((pkt_len=cli_safe_read(mysql)) == packet_error)
     {
       free_rows(result);
       DBUG_RETURN(0);
@@ -1373,7 +1384,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   uchar *pos, *prev_pos, *end_pos;
   NET *net= &mysql->net;
 
-  if ((pkt_len=net_safe_read(mysql)) == packet_error)
+  if ((pkt_len=cli_safe_read(mysql)) == packet_error)
     return -1;
   if (pkt_len <= 8 && net->read_pos[0] == 254)
   {
@@ -1650,23 +1661,23 @@ static MYSQL_RES *cli_use_result(MYSQL *mysql);
 
 static MYSQL_METHODS client_methods=
 {
-  cli_read_query_result,
-  cli_advanced_command,
-  cli_read_rows,
-  cli_use_result,
-  cli_fetch_lengths,
-  cli_flush_use_result
+  cli_read_query_result,                       /* read_query_result */
+  cli_advanced_command,                        /* advanced_command */
+  cli_read_rows,                               /* read_rows */
+  cli_use_result,                              /* use_result */
+  cli_fetch_lengths,                           /* fetch_lengths */
+  cli_flush_use_result                         /* flush_use_result */
 #ifndef MYSQL_SERVER
-  ,cli_list_fields,
-  cli_read_prepare_result,
-  cli_stmt_execute,
-  cli_read_binary_rows,
-  cli_unbuffered_fetch,
-  NULL,
-  cli_read_statistics,
-  cli_read_query_result,
-  cli_read_change_user_result,
-  cli_read_binary_rows
+  ,cli_list_fields,                            /* list_fields */
+  cli_read_prepare_result,                     /* read_prepare_result */
+  cli_stmt_execute,                            /* stmt_execute */
+  cli_read_binary_rows,                        /* read_binary_rows */
+  cli_unbuffered_fetch,                        /* unbuffered_fetch */
+  NULL,                                        /* free_embedded_thd */
+  cli_read_statistics,                         /* read_statistics */
+  cli_read_query_result,                       /* next_result */
+  cli_read_change_user_result,                 /* read_change_user_result */
+  cli_read_binary_rows                         /* read_rows_from_cursor */
 #endif
 };
 
@@ -2029,7 +2040,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     Part 1: Connection established, read and parse first packet
   */
 
-  if ((pkt_length=net_safe_read(mysql)) == packet_error)
+  if ((pkt_length=cli_safe_read(mysql)) == packet_error)
     goto error;
 
   /* Check if version of protocol matches current one */
@@ -2253,7 +2264,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     OK-packet, or re-request scrambled password.
   */
 
-  if ((pkt_length=net_safe_read(mysql)) == packet_error)
+  if ((pkt_length=cli_safe_read(mysql)) == packet_error)
     goto error;
 
   if (pkt_length == 1 && net->read_pos[0] == 254 && 
@@ -2270,7 +2281,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       goto error;
     }
     /* Read what server thinks about out new auth message report */
-    if (net_safe_read(mysql) == packet_error)
+    if (cli_safe_read(mysql) == packet_error)
       goto error;
   }
 
@@ -2594,7 +2605,7 @@ static my_bool cli_read_query_result(MYSQL *mysql)
   */
   mysql = mysql->last_used_con;
 
-  if ((length = net_safe_read(mysql)) == packet_error)
+  if ((length = cli_safe_read(mysql)) == packet_error)
     DBUG_RETURN(1);
   free_old_query(mysql);		/* Free old result */
 #ifdef MYSQL_CLIENT			/* Avoid warn of unused labels*/
@@ -2629,7 +2640,7 @@ get_info:
   if (field_count == NULL_LENGTH)		/* LOAD DATA LOCAL INFILE */
   {
     int error=handle_local_infile(mysql,(char*) pos);
-    if ((length=net_safe_read(mysql)) == packet_error || error)
+    if ((length= cli_safe_read(mysql)) == packet_error || error)
       DBUG_RETURN(1);
     goto get_info;				/* Get info packet */
   }

@@ -3499,21 +3499,9 @@ ibuf_print(
 	data = UT_LIST_GET_FIRST(ibuf->data_list);
 
 	while (data) {
-	fprintf(file,
-  	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,",
-			       (ulong) data->space, (ulong) data->size,
-			       (ulong) data->free_list_len,
-			       (ulong) data->seg_size);
-
-		if (data->empty) {
-			fputs(" is empty\n", file);
-		} else {
-			fputs(" is not empty\n", file);
-		}
 		fprintf(file,
-	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,\n"
-			"%lu inserts, %lu merged recs, %lu merges\n",
-                               (ulong) data->space,
+	"Ibuf: size %lu, free list len %lu, seg size %lu,\n"
+	"%lu inserts, %lu merged recs, %lu merges\n",
                                (ulong) data->size,
                                (ulong) data->free_list_len,
 			       (ulong) data->seg_size,

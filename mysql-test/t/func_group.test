@@ -661,6 +661,22 @@ DROP TABLE t1;
 set div_precision_increment= @sav_dpi;
 
 #
+# Bug #20868: Client connection is broken on SQL query error
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES (1,1), (2,2);
+
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT);
+INSERT INTO t2 VALUES (1,1), (3,3);
+
+SELECT SQL_NO_CACHE 
+  (SELECT SUM(c.a) FROM t1 ttt, t2 ccc 
+   WHERE ttt.a = ccc.b AND ttt.a = t.a GROUP BY ttt.a) AS minid   
+FROM t1 t, t2 c WHERE t.a = c.b;
+
+DROP TABLE t1,t2;
+
+#
 # Bug #10966: Variance functions return wrong data type
 #
 
