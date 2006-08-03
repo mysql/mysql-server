@@ -331,6 +331,98 @@ SHOW TRIGGERS;
 
 RESET MASTER;
 
+# Restart slave.
+
+connection slave;
+START SLAVE;
+
+
+#
+# BUG#20438: CREATE statements for views, stored routines and triggers can be
+# not replicable.
+#
+
+--echo
+--echo ---> Test for BUG#20438
+
+# Prepare environment.
+
+--echo
+--echo ---> Preparing environment...
+--echo ---> connection: master
+--connection master
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+--echo
+--echo ---> Synchronizing slave with master...
+
+--save_master_pos
+--connection slave
+--sync_with_master
+
+--echo
+--echo ---> connection: master
+--connection master
+
+# Test.
+
+--echo
+--echo ---> Creating objects...
+
+CREATE TABLE t1(c INT);
+CREATE TABLE t2(c INT);
+
+/*!50003 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2 VALUES(NEW.c * 10) */;
+
+--echo
+--echo ---> Inserting value...
+
+INSERT INTO t1 VALUES(1);
+
+--echo
+--echo ---> Checking on master...
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo
+--echo ---> Synchronizing slave with master...
+
+--save_master_pos
+--connection slave
+--sync_with_master
+
+--echo ---> connection: master
+
+--echo
+--echo ---> Checking on slave...
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+# Cleanup.
+
+--echo
+--echo ---> connection: master
+--connection master
+
+--echo
+--echo ---> Cleaning up...
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--save_master_pos
+--connection slave
+--sync_with_master
+--connection master
+
 
 #
 # End of tests

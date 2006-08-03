@@ -978,7 +978,7 @@ typedef struct st_lex : public Query_tables_list
   /*
     view created to be run from definer (standard behaviour)
   */
-  bool create_view_suid;
+  uint8 create_view_suid;
   /* Characterstics of trigger being created */
   st_trg_chistics trg_chistics;
   /*
@@ -1115,4 +1115,4 @@ extern void lex_free(void);
 extern void lex_start(THD *thd, uchar *buf,uint length);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
-
+extern uchar *skip_rear_comments(uchar *begin, uchar *end);

@@ -5943,14 +5943,6 @@ ha_innobase::start_stmt(
 
 	innobase_release_stat_resources(trx);
 
-	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-	    					&& trx->global_read_view) {
-	    	/* At low transaction isolation levels we let
-		each consistent read set its own snapshot */
-
-	    	read_view_close_for_mysql(trx);
-	}
-
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
 	prebuilt->read_just_key = 0;
@@ -6684,17 +6676,17 @@ ha_innobase::store_lock(
 		    && !thd->tablespace_op
 		    && thd->lex->sql_command != SQLCOM_TRUNCATE
 		    && thd->lex->sql_command != SQLCOM_OPTIMIZE
+
 #ifdef __WIN__
-                /* 
-                   for alter table on win32 for succesfull operation 
-                   completion it is used TL_WRITE(=10) lock instead of
-                   TL_WRITE_ALLOW_READ(=6), however here in innodb handler
-                   TL_WRITE is lifted to TL_WRITE_ALLOW_WRITE, which causes
-                   race condition when several clients do alter table 
-                   simultaneously (bug #17264). This fix avoids the problem.
-                */
-                    && thd->lex->sql_command != SQLCOM_ALTER_TABLE
+                /* For alter table on win32 for succesful operation
+                completion it is used TL_WRITE(=10) lock instead of
+                TL_WRITE_ALLOW_READ(=6), however here in innodb handler
+                TL_WRITE is lifted to TL_WRITE_ALLOW_WRITE, which causes
+                race condition when several clients do alter table
+                simultaneously (bug #17264). This fix avoids the problem. */
+		    && thd->lex->sql_command != SQLCOM_ALTER_TABLE
 #endif
+
 		    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;
