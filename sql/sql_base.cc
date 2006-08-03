@@ -1997,17 +1997,17 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
        table= (TABLE*) hash_next(&open_cache, (byte*) key, key_length,
                                  &state))
   {
-    if (table->s->version != refresh_version)
+    /*
+      Here we flush tables marked for flush. However we never flush log
+      tables here. They are flushed only on FLUSH LOGS.
+    */
+    if (table->s->version != refresh_version && !table->s->log_table)
     {
       DBUG_PRINT("note",
                  ("Found table '%s.%s' with different refresh version",
                   table_list->db, table_list->table_name));
 
-      /*
-        Don't close tables if we are working with a log table or were
-        asked not to close the table explicitly
-      */
-      if (flags & MYSQL_LOCK_IGNORE_FLUSH || table->s->log_table)
+      if (flags & MYSQL_LOCK_IGNORE_FLUSH)
       {
         /* Force close at once after usage */
         thd->version= table->s->version;
@@ -2346,7 +2346,11 @@ void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
 
   for (; table ; table=table->next)
   {
-    if (table->s->version != refresh_version)
+    /*
+      Reopen marked for flush. But close log tables. They are flushed only
+      explicitly on FLUSH LOGS
+    */
+    if (table->s->version != refresh_version && !table->s->log_table)
     {
       found=1;
       if (table->db_stat)
