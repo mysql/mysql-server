@@ -1276,6 +1276,9 @@ use test;
 create user mysqltest_1;
 create table t1(a int, b varchar(34));
 
+# To get consistent output, reset the master, starts over from first log
+reset master;
+
 # Execute mysqldump, will fail on FLUSH TABLES
 --error 2
 --exec $MYSQL_DUMP --compact --master-data -u mysqltest_1 test 2>&1
