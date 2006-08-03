@@ -1225,8 +1225,9 @@ drop view v1;
 drop table t1;
 drop database mysqldump_test_db;
 
+#
 # Bug21014 Segmentation fault of mysqldump on view
-
+#
 create database mysqldump_tables;
 use mysqldump_tables;
 create table basetable ( id serial, tag varchar(64) );
@@ -1242,8 +1243,9 @@ drop database mysqldump_views;
 drop table mysqldump_tables.basetable;
 drop database mysqldump_tables;
 
+#
 # Bug20221 Dumping of multiple databases containing view(s) yields maleformed dumps
-
+#
 create database mysqldump_dba;
 use mysqldump_dba;
 create table t1 (f1 int, f2 int);
@@ -1279,12 +1281,6 @@ use mysqldump_dbb;
 drop view v1;
 drop table t1;
 drop database mysqldump_dbb;
---exec $MYSQL_DUMP --skip-comments --databases mysqldump_tables mysqldump_views;
-
-drop view nasishnasifu;
-drop database mysqldump_views;
-drop table mysqldump_tables.basetable;
-drop database mysqldump_tables;
 use test;
 
 --echo End of 5.0 tests
