@@ -1669,6 +1669,10 @@ extern handlerton partition_hton;
 extern SHOW_COMP_OPTION have_partition_db;
 #endif
 
+extern handlerton myisammrg_hton;
+/* MRG_MYISAM handler is always built, but may be skipped */
+#define have_merge_db myisammrg_hton.state
+
 extern handlerton myisam_hton;
 extern handlerton myisammrg_hton;
 extern handlerton heap_hton;
