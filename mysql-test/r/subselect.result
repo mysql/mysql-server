@@ -2895,3 +2895,32 @@ select * from t1 where NOT(s1 = ALL (select s1/s1 from t1));
 s1
 2
 drop table t1;
+create table t1(a int, primary key (a));
+insert into t1 values (10);
+create table t2 (a int primary key, b varchar(32), c int, unique key b(c, b));
+insert into t2(a, c, b) values (1,10,'359'), (2,10,'35988'), (3,10,'35989');
+explain SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r 
+ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899' 
+ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
+1	PRIMARY	r	const	PRIMARY	PRIMARY	4	const	1	
+2	DEPENDENT SUBQUERY	t2	range	b	b	38	NULL	2	Using where
+SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r 
+ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899' 
+ORDER BY t2.c DESC, t2.b DESC LIMIT 1) WHERE t1.a = 10;
+a	a	b
+10	3	35989
+explain SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r 
+ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899' 
+ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	PRIMARY	NULL	NULL	NULL	1	
+1	PRIMARY	r	const	PRIMARY	PRIMARY	4	const	1	
+2	DEPENDENT SUBQUERY	t2	range	b	b	38	NULL	2	Using where
+SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r 
+ON r.a = (SELECT t2.a FROM t2 WHERE t2.c = t1.a AND t2.b <= '359899' 
+ORDER BY t2.c, t2.b LIMIT 1) WHERE t1.a = 10;
+a	a	b
+10	1	359
+drop table t1,t2;
