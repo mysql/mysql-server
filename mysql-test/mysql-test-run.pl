@@ -2898,11 +2898,15 @@ sub im_stop($) {
 
   while (1)
   {
+    # Check that IM-main died.
+
     if (kill (0, $instance_manager->{'pid'}))
     {
       mtr_debug("IM-main is still alive.");
       last;
     }
+
+    # Check that IM-angel died.
 
     if (defined $instance_manager->{'angel_pid'} &&
         kill (0, $instance_manager->{'angel_pid'}))
@@ -2911,20 +2915,38 @@ sub im_stop($) {
       last;
     }
 
+    # Check that all guarded mysqld-instances died.
+
+    my $guarded_mysqlds_dead= 1;
+
     foreach my $pid (@mysqld_pids)
     {
       if (kill (0, $pid))
       {
         mtr_debug("Guarded mysqld ($pid) is still alive.");
+        $guarded_mysqlds_dead= 0;
         last;
       }
     }
+
+    last unless $guarded_mysqlds_dead;
+
+    # Ok, all necessary processes are dead.
 
     $clean_shutdown= 1;
     last;
   }
 
   # Kill leftovers (the order is important).
+
+  if ($clean_shutdown)
+  {
+    mtr_debug("IM-shutdown was clean -- all processed died.");
+  }
+  else
+  {
+    mtr_debug("IM failed to shutdown gracefully. We have to clean the mess...");
+  }
 
   unless ($clean_shutdown)
   {
@@ -2946,17 +2968,24 @@ sub im_stop($) {
     mtr_kill_processes(\@mysqld_pids);
 
     # Complain in error log so that a warning will be shown.
+    # 
+    # TODO: unless BUG#20761 is fixed, we will print the warning
+    # to stdout, so that it can be seen on console and does not
+    # produce pushbuild error.
 
-    my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
-
-    open (ERRLOG, ">>$errlog") ||
-      mtr_error("Can not open error log ($errlog)");
+    # my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
+    # 
+    # open (ERRLOG, ">>$errlog") ||
+    #   mtr_error("Can not open error log ($errlog)");
+    # 
+    # my $ts= localtime();
+    # print ERRLOG
+    #   "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
+    # 
+    # close ERRLOG;
 
     my $ts= localtime();
-    print ERRLOG
-      "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
-
-    close ERRLOG;
+    print "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
   }
 
   # That's all.

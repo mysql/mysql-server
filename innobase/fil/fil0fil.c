@@ -251,9 +251,6 @@ struct fil_system_struct {
 initialized. */
 fil_system_t*	fil_system	= NULL;
 
-/* The tablespace memory cache hash table size */
-#define	FIL_SYSTEM_HASH_SIZE	50 /* TODO: make bigger! */
-
 
 /************************************************************************
 NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
@@ -1324,11 +1321,17 @@ fil_init(
 /*=====*/
 	ulint	max_n_open)	/* in: max number of open files */
 {
+	ulint	hash_size;
+
 	ut_a(fil_system == NULL);
 
-	/*printf("Initializing the tablespace cache with max %lu open files\n",
-							       max_n_open); */
-	fil_system = fil_system_create(FIL_SYSTEM_HASH_SIZE, max_n_open);
+	if (srv_file_per_table) {
+		hash_size = 50000;
+	} else {
+		hash_size = 5000;
+	}
+
+	fil_system = fil_system_create(hash_size, max_n_open);
 }
 
 /***********************************************************************
