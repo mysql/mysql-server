@@ -274,6 +274,15 @@ bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
              table->s->table_name.str);
     return FALSE;
   }
+
+  /*
+    Deny locking of the log tables, which is incompatible with
+    concurrent insert. Unless called from a logger THD:
+    general_log_thd or slow_log_thd.
+  */
+  if (!called_by_logger_thread)
+    return check_if_log_table_locking_is_allowed(sql_command, type, table);
+
   return TRUE;
 }
 
