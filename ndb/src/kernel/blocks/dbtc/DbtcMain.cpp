@@ -12043,7 +12043,7 @@ void Dbtc::readIndexTable(Signal* signal,
   if (ERROR_INSERTED(8037))
   {
     ndbout_c("shifting index version");
-    tcKeyReq->tableSchemaVersion = ~(Uint32)indexOp->tcIndxReq.indexSchemaVersion;
+    tcKeyReq->tableSchemaVersion = ~(Uint32)indexOp->tcIndxReq.tableSchemaVersion;
   }
   
   Uint32 remainingKey = indexOp->keyInfo.getSize();
