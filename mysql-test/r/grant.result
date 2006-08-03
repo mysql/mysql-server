@@ -383,7 +383,7 @@ GRANT SELECT (c) ON `mysqltest_2`.`t1` TO 'mysqltest_3'@'localhost'
 update mysqltest_1.t1, mysqltest_1.t2 set q=10 where b=1;
 ERROR 42000: UPDATE command denied to user 'mysqltest_3'@'localhost' for column 'q' in table 't1'
 update mysqltest_1.t1, mysqltest_2.t2 set d=20 where d=1;
-ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for column 'd' in table 't2'
+ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 't1'
 update mysqltest_2.t1, mysqltest_1.t2 set c=20 where b=1;
 ERROR 42000: UPDATE command denied to user 'mysqltest_3'@'localhost' for column 'c' in table 't1'
 update mysqltest_2.t1, mysqltest_2.t2 set d=10 where s=2;
@@ -402,6 +402,7 @@ revoke all on mysqltest_2.t1 from mysqltest_3@localhost;
 revoke all on mysqltest_2.t2 from mysqltest_3@localhost;
 grant all on mysqltest_2.* to mysqltest_3@localhost;
 grant select on *.* to mysqltest_3@localhost;
+grant select on mysqltest_2.t1 to mysqltest_3@localhost;
 flush privileges;
 use mysqltest_1;
 update mysqltest_2.t1, mysqltest_2.t2 set c=500,d=600;
@@ -409,11 +410,11 @@ update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
 ERROR 42000: UPDATE command denied to user 'mysqltest_3'@'localhost' for column 'a' in table 't1'
 use mysqltest_2;
 update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
-ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysqltest_1'
+ERROR 42000: UPDATE command denied to user 'mysqltest_3'@'localhost' for table 't1'
 update mysqltest_2.t1, mysqltest_1.t2 set c=100,b=200;
-ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysqltest_1'
+ERROR 42000: UPDATE command denied to user 'mysqltest_3'@'localhost' for table 't2'
 update mysqltest_1.t1, mysqltest_2.t2 set a=100,d=200;
-ERROR 42000: Access denied for user 'mysqltest_3'@'localhost' to database 'mysqltest_1'
+ERROR 42000: UPDATE command denied to user 'mysqltest_3'@'localhost' for table 't1'
 select t1.*,t2.* from mysqltest_1.t1,mysqltest_1.t2;
 a	q	b	r
 10	2	1	2
