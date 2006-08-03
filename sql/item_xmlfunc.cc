@@ -1356,7 +1356,8 @@ my_xpath_lex_scan(MY_XPATH *xpath,
          (length= xpath->cs->cset->ctype(xpath->cs, &ctype,
                                          (const uchar*) beg,
                                          (const uchar*) end)) > 0 &&
-         ((ctype & (_MY_L | _MY_U | _MY_NMR)) || *beg == '_' || *beg == '-') ;
+         ((ctype & (_MY_L | _MY_U | _MY_NMR)) ||
+          *beg == '_' || *beg == '-' || *beg == '.') ;
          beg+= length) /* no op */;
     lex->end= beg;
 
