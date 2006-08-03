@@ -896,3 +896,50 @@ Tables_in_test (t_)
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 RESET MASTER;
+START SLAVE;
+
+---> Test for BUG#20438
+
+---> Preparing environment...
+---> connection: master
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+
+---> Synchronizing slave with master...
+
+---> connection: master
+
+---> Creating objects...
+CREATE TABLE t1(c INT);
+CREATE TABLE t2(c INT);
+/*!50003 CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2 VALUES(NEW.c * 10) */;
+
+---> Inserting value...
+INSERT INTO t1 VALUES(1);
+
+---> Checking on master...
+SELECT * FROM t1;
+c
+1
+SELECT * FROM t2;
+c
+10
+
+---> Synchronizing slave with master...
+---> connection: master
+
+---> Checking on slave...
+SELECT * FROM t1;
+c
+1
+SELECT * FROM t2;
+c
+10
+
+---> connection: master
+
+---> Cleaning up...
+DROP TABLE t1;
+DROP TABLE t2;

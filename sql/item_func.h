@@ -55,7 +55,7 @@ public:
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
                   GUSERVAR_FUNC, COLLATE_FUNC,
-                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP };
+                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP, UDF_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
@@ -189,6 +189,8 @@ public:
   Item *transform(Item_transformer transformer, byte *arg);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
+  bool is_expensive_processor(byte *arg);
+  virtual bool is_expensive() { return 0; }
 };
 
 
@@ -933,6 +935,7 @@ public:
   Item_udf_func(udf_func *udf_arg, List<Item> &list)
     :Item_func(list), udf(udf_arg) {}
   const char *func_name() const { return udf.name(); }
+  enum Functype functype() const   { return UDF_FUNC; }
   bool fix_fields(THD *thd, Item **ref)
   {
     DBUG_ASSERT(fixed == 0);
@@ -945,6 +948,7 @@ public:
   void cleanup();
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
+  bool is_expensive() { return 1; }
 };
 
 
@@ -1466,11 +1470,11 @@ public:
     { context= (Name_resolution_context *)cntx; return FALSE; }
 
   void fix_length_and_dec();
-  bool find_and_check_access(THD * thd, ulong want_access,
-                             Security_context **backup);
+  bool find_and_check_access(THD * thd);
   virtual enum Functype functype() const { return FUNC_SP; }
 
   bool fix_fields(THD *thd, Item **ref);
+  bool is_expensive() { return 1; }
 };
 
 
