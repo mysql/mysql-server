@@ -628,7 +628,7 @@ int mysql_multi_update_lock(THD *thd,
         if (!using_lock_tables)
 	  tl->table->reginfo.lock_type= tl->lock_type;
         if (check_access(thd, wants, tl->db, &tl->grant.privilege, 0, 0) ||
-            (grant_option && check_grant(thd, wants, tl, 0, 0, 0)))
+            (grant_option && check_grant(thd, wants, tl, 0, 1, 0)))
         {
           tl->next= save;
           DBUG_RETURN(1);
