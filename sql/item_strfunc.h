@@ -808,7 +808,7 @@ class Item_func_uncompress: public Item_str_func
   String buffer;
 public:
   Item_func_uncompress(Item *a): Item_str_func(a){}
-  void fix_length_and_dec(){max_length= MAX_BLOB_WIDTH;}
+  void fix_length_and_dec(){ maybe_null= 1; max_length= MAX_BLOB_WIDTH; }
   const char *func_name() const{return "uncompress";}
   String *val_str(String *) ZLIB_DEPENDED_FUNCTION
 };

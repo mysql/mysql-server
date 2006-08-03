@@ -3725,6 +3725,9 @@ static const char* construct_prompt()
       case 't':
 	processed_prompt.append('\t');
 	break;
+      case 'l':
+	processed_prompt.append(delimiter_str);
+	break;
       default:
 	processed_prompt.append(c);
       }
