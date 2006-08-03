@@ -457,6 +457,10 @@ SOURCE=.\my_malloc.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\my_memmem.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\my_messnc.c
 # End Source File
 # Begin Source File
