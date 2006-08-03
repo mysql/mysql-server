@@ -913,6 +913,9 @@ page_delete_rec_list_end(
 			offsets = rec_get_offsets(rec, index, offsets,
 					ULINT_UNDEFINED, &heap);
 			rec = rec_get_next_ptr(rec, TRUE);
+#ifdef UNIV_ZIP_DEBUG
+			ut_a(page_zip_validate(page_zip, page));
+#endif /* UNIV_ZIP_DEBUG */
 			page_cur_delete_rec(&cur, index, offsets,
 					page_zip, mtr);
 		} while (ut_align_offset(rec, UNIV_PAGE_SIZE)
