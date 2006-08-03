@@ -974,6 +974,8 @@ public:
   {
     return TRUE;
   }
+  bool check_if_log_table_locking_is_allowed(uint sql_command,
+                                             ulong type, TABLE *table);
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   bool update_auto_increment();
