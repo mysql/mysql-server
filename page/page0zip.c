@@ -1762,12 +1762,19 @@ page_zip_decompress_low(
 						goto zlib_error;
 					}
 
-					/* Skip the BLOB pointer in case
-					the record was deleted.  The BLOB
-					pointers will be initialized
-					(copied from "externs" or cleared)
+					/* Clear the BLOB pointer in case
+					the record will be deleted and the
+					space will not be reused.  Note that
+					the final initialization of the BLOB
+					pointers (copying from "externs"
+					or clearing) will have to take place
 					only after the page modification log
-					has been applied. */
+					has been applied.  Otherwise, we
+					could end up with an uninitialized
+					BLOB pointer when a record is deleted,
+					reallocated and deleted. */
+					memset(d_stream.next_out, 0,
+						BTR_EXTERN_FIELD_REF_SIZE);
 					d_stream.next_out
 						+= BTR_EXTERN_FIELD_REF_SIZE;
 				}
@@ -1905,10 +1912,10 @@ err_exit:
 			ibool	exists	= !page_zip_dir_find_free(
 						page_zip, ut_align_offset(
 						rec, UNIV_PAGE_SIZE));
-			if (UNIV_UNLIKELY(trx_id_col != ULINT_UNDEFINED)) {
-				offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
+			offsets = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
 
+			if (UNIV_UNLIKELY(trx_id_col != ULINT_UNDEFINED)) {
 				dst = rec_get_nth_field(rec, offsets,
 						trx_id_col, &len);
 				ut_ad(len >= DATA_TRX_ID_LEN
@@ -1916,21 +1923,12 @@ err_exit:
 				storage -= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 				memcpy(dst, storage,
 					DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-
-				if (UNIV_UNLIKELY(!exists)) {
-					continue;
-				}
-			} else if (UNIV_LIKELY(exists)) {
-				offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
-			} else {
-				continue;
 			}
 
 			/* Check if there are any externally stored
-			columns in this existing (not deleted)
-			record.  For each externally stored column,
-			restore or clear the BTR_EXTERN_FIELD_REF. */
+			columns in this record.  For each externally
+			stored column, restore or clear the
+			BTR_EXTERN_FIELD_REF. */
 
 			for (i = 0; i < rec_offs_n_fields(offsets); i++) {
 				if (!rec_offs_nth_extern(offsets, i)) {
@@ -1941,6 +1939,8 @@ err_exit:
 				dst += len - BTR_EXTERN_FIELD_REF_SIZE;
 
 				if (UNIV_LIKELY(exists)) {
+					/* Existing record:
+					restore the BLOB pointer */
 					externs -= BTR_EXTERN_FIELD_REF_SIZE;
 
 					memcpy(dst, externs,
@@ -1948,6 +1948,8 @@ err_exit:
 
 					page_zip->n_blobs++;
 				} else {
+					/* Deleted record:
+					clear the BLOB pointer */
 					memset(dst, 0,
 						BTR_EXTERN_FIELD_REF_SIZE);
 				}
@@ -2672,6 +2674,13 @@ page_zip_write_trx_id_and_roll_ptr(
 	memcpy(storage, field, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 }
 
+#ifdef UNIV_ZIP_DEBUG
+/* Set this variable in a debugger to disable page_zip_clear_rec().
+The only observable effect should be the compression ratio due to
+deleted records not being zeroed out. */
+ibool	page_zip_clear_rec_disable;
+#endif /* UNIV_ZIP_DEBUG */
+
 /**************************************************************************
 Clear an area on the uncompressed and compressed page, if possible. */
 static
@@ -2697,7 +2706,11 @@ page_zip_clear_rec(
 	heap_no = rec_get_heap_no_new(rec);
 	ut_ad(heap_no >= 2); /* exclude infimum and supremum */
 
-	if (page_zip->m_end
+	if (
+#ifdef UNIV_ZIP_DEBUG
+			!page_zip_clear_rec_disable &&
+#endif /* UNIV_ZIP_DEBUG */
+			page_zip->m_end
 			+ 1 + ((heap_no - 1) >= 64)/* size of the log entry */
 			+ page_zip_get_trailer_len(page_zip, index, NULL)
 			< page_zip->size) {
