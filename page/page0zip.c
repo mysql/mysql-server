@@ -195,10 +195,6 @@ page_zip_compress_write_log(
 	byte*	log_ptr;
 	ulint	trailer_size;
 
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(page_zip, page));
-#endif /* UNIV_ZIP_DEBUG */
-
 	log_ptr = mlog_open(mtr, 11 + 2 + 2);
 
 	if (!log_ptr) {
@@ -1550,6 +1546,10 @@ page_zip_decompress_low(
 	heap = mem_heap_create(n_dense * (3 * sizeof *recs));
 	recs = mem_heap_alloc(heap, n_dense * (2 * sizeof *recs));
 
+#ifdef UNIV_ZIP_DEBUG
+	/* Clear the page. */
+	memset(page, 0x55, UNIV_PAGE_SIZE);
+#endif /* UNIV_ZIP_DEBUG */
 	/* Copy the page header. */
 	memcpy(page, page_zip->data, PAGE_DATA);
 
@@ -1653,20 +1653,17 @@ page_zip_decompress_low(
 
 	/* Decompress the records in heap_no order. */
 	for (slot = 0; slot < n_dense; slot++) {
-		byte* const	last	= d_stream.next_out;
 		rec_t*		rec	= recs[slot];
 
-		d_stream.avail_out = rec - REC_N_NEW_EXTRA_BYTES - last;
+		d_stream.avail_out = rec - REC_N_NEW_EXTRA_BYTES
+				- d_stream.next_out;
 
 		ut_ad(d_stream.avail_out < UNIV_PAGE_SIZE
 			      - PAGE_ZIP_START - PAGE_DIR);
 		switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
 		case Z_STREAM_END:
 			/* Apparently, n_dense has grown
-			since the time the page was last compressed.
-			(d_stream.next_out == last) will not hold,
-			in case the last record was allocated from
-			an originally longer space on the free list. */
+			since the time the page was last compressed. */
 			goto zlib_done;
 		case Z_OK:
 		case Z_BUF_ERROR:
@@ -1765,13 +1762,12 @@ page_zip_decompress_low(
 						goto zlib_error;
 					}
 
-					/* Clear the BLOB pointer in case
+					/* Skip the BLOB pointer in case
 					the record was deleted.  The BLOB
-					pointers of existing records will
-					be copied later from "externs" in
-					this function. */
-					memset(d_stream.next_out, 0,
-						BTR_EXTERN_FIELD_REF_SIZE);
+					pointers will be initialized
+					(copied from "externs" or cleared)
+					only after the page modification log
+					has been applied. */
 					d_stream.next_out
 						+= BTR_EXTERN_FIELD_REF_SIZE;
 				}
@@ -1909,10 +1905,10 @@ err_exit:
 			ibool	exists	= !page_zip_dir_find_free(
 						page_zip, ut_align_offset(
 						rec, UNIV_PAGE_SIZE));
-			offsets = rec_get_offsets(rec, index, offsets,
-					ULINT_UNDEFINED, &heap);
-
 			if (UNIV_UNLIKELY(trx_id_col != ULINT_UNDEFINED)) {
+				offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
+
 				dst = rec_get_nth_field(rec, offsets,
 						trx_id_col, &len);
 				ut_ad(len >= DATA_TRX_ID_LEN
@@ -1920,6 +1916,15 @@ err_exit:
 				storage -= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 				memcpy(dst, storage,
 					DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+
+				if (UNIV_UNLIKELY(!exists)) {
+					continue;
+				}
+			} else if (UNIV_LIKELY(exists)) {
+				offsets = rec_get_offsets(rec, index, offsets,
+						ULINT_UNDEFINED, &heap);
+			} else {
+				continue;
 			}
 
 			/* Check if there are any externally stored
