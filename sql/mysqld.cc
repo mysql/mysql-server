@@ -2738,9 +2738,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
     get corrupted if accesses with names of different case.
   */
   DBUG_PRINT("info", ("lower_case_table_names: %d", lower_case_table_names));
-  if (!lower_case_table_names &&
-      (lower_case_file_system=
-       (test_if_case_insensitive(mysql_real_data_home) == 1)))
+  lower_case_file_system= test_if_case_insensitive(mysql_real_data_home);
+  if (!lower_case_table_names && lower_case_file_system == 1)
   {
     if (lower_case_table_names_used)
     {
