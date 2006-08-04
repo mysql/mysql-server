@@ -8312,11 +8312,12 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
-  if(dumpState->args[0] == DumpStateOrd::DumpPageMemory){
+  if(dumpState->args[0] == DumpStateOrd::DumpPageMemory && 
+     signal->getLength() == 1){
     reportMemoryUsage(signal, 0);
     return;
   }
-
+  
   if(dumpState->args[0] == DumpStateOrd::EnableUndoDelayDataWrite){
     ndbout << "Dbacc:: delay write of datapages for table = " 
 	   << dumpState->args[1]<< endl;
