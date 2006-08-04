@@ -1113,14 +1113,16 @@ Dbtup::updateStartLab(Signal* signal,
                                 regOperPtr->pageOffset,
                                 &cinBuffer[0],
                                 regOperPtr->attrinbufLen);
-    if (retValue == -1) {
-      tupkeyErrorLab(signal);
-      return -1;
-    }//if
   } else {
     jam();
     retValue = interpreterStartLab(signal, pagePtr, regOperPtr->pageOffset);
   }//if
+
+  if (retValue == -1) {
+    tupkeyErrorLab(signal);
+    return -1;
+  }//if
+
   ndbrequire(regOperPtr->tupVersion != ZNIL);
   pagePtr->pageWord[regOperPtr->pageOffset + 1] = regOperPtr->tupVersion;
   if (regTabPtr->checksumIndicator) {
