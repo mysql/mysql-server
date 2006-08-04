@@ -81,7 +81,7 @@ void
 Dbtup::execDUMP_STATE_ORD(Signal* signal)
 {
   Uint32 type = signal->theData[0];
-  if(type == DumpStateOrd::DumpPageMemory){
+  if(type == DumpStateOrd::DumpPageMemory && signal->getLength() == 1){
     reportMemoryUsage(signal, 0);
     return;
   }
