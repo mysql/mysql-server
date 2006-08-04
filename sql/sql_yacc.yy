@@ -3104,7 +3104,7 @@ opt_bin_mod:
 	| BINARY { Lex->type|= BINCMP_FLAG; };
 
 opt_bin_charset:
-	/* empty */ { }
+        /* empty */ { Lex->charset= NULL; }
 	| ASCII_SYM	{ Lex->charset=&my_charset_latin1; }
 	| UNICODE_SYM
 	{
