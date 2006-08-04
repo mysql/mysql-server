@@ -11,6 +11,7 @@ sub mtr_get_opts_from_file ($);
 sub mtr_fromfile ($);
 sub mtr_tofile ($@);
 sub mtr_tonewfile($@);
+sub mtr_lastlinefromfile($);
 
 ##############################################################################
 #
@@ -113,6 +114,20 @@ sub mtr_fromfile ($) {
   return $text;
 }
 
+sub mtr_lastlinefromfile ($) {
+  my $file=  shift;
+  my $text;
+
+  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
+  while (my $line= <FILE>)
+  {
+    $text= $line;
+  }
+  close FILE;
+  return $text;
+}
+
+
 sub mtr_tofile ($@) {
   my $file=  shift;
 
@@ -128,6 +143,5 @@ sub mtr_tonewfile ($@) {
   print FILE join("", @_);
   close FILE;
 }
-
 
 1;
