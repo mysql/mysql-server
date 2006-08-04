@@ -1262,9 +1262,6 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
                              sizeof(double)*2) + sizeof(longlong),
                             0, name, table, &my_charset_bin);
   }
-  if (hybrid_type == DECIMAL_RESULT)
-    return new Field_new_decimal(max_length, maybe_null, name, table,
-                                 decimals, unsigned_flag);
   return new Field_double(max_length, maybe_null,name,table,decimals);
 }
 
