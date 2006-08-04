@@ -1,0 +1,22 @@
+--source include/have_debug.inc
+
+CREATE TABLE t1(a int) engine=innodb;
+START TRANSACTION;
+insert into t1 values(9);
+
+# Setup the mysqld to crash at certain point
+SET SESSION debug="d,crash_commit_before";
+
+# Write file to make mysql-test-run.pl expect crash and restart
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/master0.expect
+
+# Run the crashing query
+--error 2013
+COMMIT;
+
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE t1;
+
+SELECT * FROM t1;
