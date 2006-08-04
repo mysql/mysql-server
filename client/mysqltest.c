@@ -177,7 +177,7 @@ typedef struct
 static test_file file_stack[MAX_INCLUDE_DEPTH];
 static test_file* cur_file;
 static test_file* file_stack_end;
-uint start_lineno; /* Start line of query */
+uint start_lineno= 0; /* Start line of query */
 
 static char TMPDIR[FN_REFLEN];
 static char delimiter[MAX_DELIMITER]= DEFAULT_DELIMITER;
@@ -4757,6 +4757,14 @@ int main(int argc, char **argv)
 	  q->require_file=require_file;
 	  save_file[0]=0;
 	}
+        /*
+          To force something being sent as a query to the mysqld one can
+          use the prefix "query". Remove "query" from string before executing
+        */
+        if (strncmp(q->query, "query ", 6) == 0)
+        {
+          q->query= q->first_argument;
+        }
 	run_query(&cur_con->mysql, q, flags);
 	query_executed= 1;
         q->last_argument= q->end;

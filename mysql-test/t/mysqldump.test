@@ -1266,3 +1266,46 @@ use mysqldump_dbb;
 drop view v1;
 drop table t1;
 drop database mysqldump_dbb;
+
+#
+# Bug#21215 mysqldump creating incomplete backups without warning
+#
+use test;
+
+# Create user without sufficient privs to perform the requested operation
+create user mysqltest_1;
+create table t1(a int, b varchar(34));
+
+# To get consistent output, reset the master, starts over from first log
+reset master;
+
+# Execute mysqldump, will fail on FLUSH TABLES
+--error 2
+--exec $MYSQL_DUMP --compact --master-data -u mysqltest_1 test 2>&1
+
+# Execute mysqldump, will fail on FLUSH TABLES
+# use --force, should no affect behaviour
+--error 2
+--exec $MYSQL_DUMP --compact --force --master-data -u mysqltest_1 test 2>&1
+
+# Add RELOAD grants
+grant RELOAD on *.* to mysqltest_1@localhost;
+
+# Execute mysqldump, will fail on SHOW MASTER STATUS
+--error 2
+--exec $MYSQL_DUMP --compact --master-data -u mysqltest_1 test 2>&1
+
+# Execute mysqldump, will fail on SHOW MASTER STATUS.
+# use --force, should not alter behaviour
+--error 2
+--exec $MYSQL_DUMP --compact --force --master-data -u mysqltest_1 test 2>&1
+
+# Add REPLICATION CLIENT grants
+grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
+
+# Execute mysqldump, should now succeed
+--exec $MYSQL_DUMP --compact --master-data -u mysqltest_1 test 2>&1
+
+# Clean up
+drop table t1;
+drop user mysqltest_1;

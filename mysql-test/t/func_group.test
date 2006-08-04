@@ -675,3 +675,15 @@ SELECT SQL_NO_CACHE
 FROM t1 t, t2 c WHERE t.a = c.b;
 
 DROP TABLE t1,t2;
+
+#
+# Bug #10966: Variance functions return wrong data type
+#
+
+create table t1 select variance(0);                                               
+show create table t1;                                                           
+drop table t1;                                                                  
+create table t1 select stddev(0);
+show create table t1;
+drop table t1;
+ 
