@@ -2910,7 +2910,7 @@ static int init_dumping(char *database)
       /*
         length of table name * 2 (if name contains quotes), 2 quotes and 0
       */
-      char quoted_database_buf[64*2+3];
+      char quoted_database_buf[NAME_LEN*2+3];
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
       if (opt_comments)
       {
@@ -3067,7 +3067,18 @@ static my_bool dump_all_views_in_db(char *database)
     DB_error(sock, "when selecting the database");
     return 1;
   }
-
+  if (opt_databases || opt_alldbs)
+  {
+    char quoted_database_buf[NAME_LEN*2+3];
+    char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
+    if (opt_comments)
+    {
+      fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", qdatabase);
+      check_io(md_result_file);
+    }
+    fprintf(md_result_file,"\nUSE %s;\n", qdatabase);
+    check_io(md_result_file);
+  }
   if (opt_xml)
     print_xml_tag1(md_result_file, "", "database name=", database, "\n");
   if (lock_tables)
@@ -3526,7 +3537,7 @@ static char *primary_key_fields(const char *table_name)
   MYSQL_RES  *res = NULL;
   MYSQL_ROW  row;
   /* SHOW KEYS FROM + table name * 2 (escaped) + 2 quotes + \0 */
-  char show_keys_buff[15 + 64 * 2 + 3];
+  char show_keys_buff[15 + NAME_LEN * 2 + 3];
   uint result_length = 0;
   char *result = 0;
 

@@ -310,7 +310,7 @@ static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
-static my_bool opt_bdb, opt_isam, opt_ndbcluster;
+static my_bool opt_bdb, opt_isam, opt_ndbcluster, opt_merge;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
@@ -4838,7 +4838,8 @@ enum options_mysqld
   OPT_LOG_OUTPUT,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_GENERAL_LOG,
-  OPT_SLOW_LOG
+  OPT_SLOW_LOG,
+  OPT_MERGE
 };
 
 
@@ -5346,6 +5347,9 @@ master-ssl",
 #endif /* HAVE_REPLICATION */
   {"memlock", OPT_MEMLOCK, "Lock mysqld in memory.", (gptr*) &locked_in_memory,
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"merge", OPT_MERGE, "Enable Merge storage engine. Disable with \
+--skip-merge.",
+   (gptr*) &opt_merge, (gptr*) &opt_merge, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,
@@ -7556,6 +7560,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     global_system_variables.tx_isolation= (type-1);
     break;
   }
+  case OPT_MERGE:
+    if (opt_merge)
+      have_merge_db= SHOW_OPTION_YES;
+    else
+      have_merge_db= SHOW_OPTION_DISABLED;
 #ifdef WITH_BERKELEY_STORAGE_ENGINE
   case OPT_BDB_NOSYNC:
     /* Deprecated option */
