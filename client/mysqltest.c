@@ -82,9 +82,6 @@
 #define MAX_EXPECTED_ERRORS 10
 #define QUERY_SEND  1
 #define QUERY_REAP  2
-#ifndef MYSQL_MANAGER_PORT
-#define MYSQL_MANAGER_PORT 23546
-#endif
 #define MAX_SERVER_ARGS 64
 
 
@@ -96,11 +93,10 @@
 #define RESULT_CONTENT_MISMATCH 1
 #define RESULT_LENGTH_MISMATCH 2
 
-enum {OPT_MANAGER_USER=256,OPT_MANAGER_HOST,OPT_MANAGER_PASSWD,
-      OPT_MANAGER_PORT,OPT_MANAGER_WAIT_TIMEOUT, OPT_SKIP_SAFEMALLOC,
-      OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA, OPT_SSL_CAPATH,
-      OPT_SSL_CIPHER,OPT_PS_PROTOCOL,OPT_SP_PROTOCOL,OPT_CURSOR_PROTOCOL,
-      OPT_VIEW_PROTOCOL, OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
+enum {OPT_SKIP_SAFEMALLOC=256, OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT,
+      OPT_SSL_CA, OPT_SSL_CAPATH, OPT_SSL_CIPHER, OPT_PS_PROTOCOL,
+      OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
+      OPT_SSL_VERIFY_SERVER_CERT, OPT_MAX_CONNECT_RETRIES,
       OPT_MARK_PROGRESS};
 
 /* ************************************************************************ */
@@ -160,11 +156,6 @@ static my_bool sp_protocol= 0, sp_protocol_enabled= 0;
 static my_bool view_protocol= 0, view_protocol_enabled= 0;
 static my_bool cursor_protocol= 0, cursor_protocol_enabled= 0;
 static int parsing_disabled= 0;
-const char *manager_user="root",*manager_host=0;
-char *manager_pass=0;
-int manager_port=MYSQL_MANAGER_PORT;
-int manager_wait_timeout=3;
-MYSQL_MANAGER* manager=0;
 
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest","client",0 };
@@ -180,7 +171,7 @@ typedef struct
 static test_file file_stack[MAX_INCLUDE_DEPTH];
 static test_file* cur_file;
 static test_file* file_stack_end;
-uint start_lineno; /* Start line of query */
+uint start_lineno= 0; /* Start line of query */
 
 /* Stores regex substitutions */
 
@@ -335,7 +326,6 @@ Q_RPL_PROBE,	    Q_ENABLE_RPL_PARSE,
 Q_DISABLE_RPL_PARSE, Q_EVAL_RESULT,
 Q_ENABLE_QUERY_LOG, Q_DISABLE_QUERY_LOG,
 Q_ENABLE_RESULT_LOG, Q_DISABLE_RESULT_LOG,
-Q_SERVER_START, Q_SERVER_STOP,Q_REQUIRE_MANAGER,
 Q_WAIT_FOR_SLAVE_TO_STOP,
 Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
 Q_ENABLE_PS_WARNINGS, Q_DISABLE_PS_WARNINGS,
@@ -347,11 +337,10 @@ Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
 Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL,
 Q_START_TIMER, Q_END_TIMER,
 Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
-Q_EXIT,
 Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
 Q_IF,
 Q_DISABLE_PARSING, Q_ENABLE_PARSING,
-Q_REPLACE_REGEX,
+Q_REPLACE_REGEX, Q_DIE,
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -409,9 +398,6 @@ const char *command_names[]=
   /* Enable/disable that the _result_ from a query is logged to result file */
   "enable_result_log",
   "disable_result_log",
-  "server_start",
-  "server_stop",
-  "require_manager",
   "wait_for_slave_to_stop",
   "enable_warnings",
   "disable_warnings",
@@ -434,13 +420,13 @@ const char *command_names[]=
   "character_set",
   "disable_ps_protocol",
   "enable_ps_protocol",
-  "exit",
   "disable_reconnect",
   "enable_reconnect",
   "if",
   "disable_parsing",
   "enable_parsing",
   "replace_regex",
+  "die",
   0
 };
 
@@ -610,10 +596,7 @@ static void free_used_memory()
 {
   uint i;
   DBUG_ENTER("free_used_memory");
-#ifndef EMBEDDED_LIBRARY
-  if (manager)
-    mysql_manager_close(manager);
-#endif
+
   close_cons();
   close_files();
   hash_free(&var_hash);
@@ -660,7 +643,7 @@ static void die(const char *fmt, ...)
     if (cur_file && cur_file != file_stack)
       fprintf(stderr, "In included file \"%s\": ",
               cur_file->file_name);
-    if (start_lineno != 0)
+    if (start_lineno > 0)
       fprintf(stderr, "At line %u: ", start_lineno);
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
@@ -682,17 +665,43 @@ static void die(const char *fmt, ...)
   exit(1);
 }
 
-/* Note that we will get some memory leaks when calling this! */
 
-static void abort_not_supported_test(const char *fname)
+static void abort_not_supported_test(const char *fmt, ...)
 {
+  va_list args;
+  test_file* err_file= cur_file;
   DBUG_ENTER("abort_not_supported_test");
+
+  /* Print include filestack */
   fprintf(stderr, "The test '%s' is not supported by this installation\n",
-          fname);
-  if (!silent)
-    printf("skipped\n");
+          file_stack->file_name);
+  fprintf(stderr, "Detected in file %s at line %d\n",
+          err_file->file_name, err_file->lineno);
+  while (err_file != file_stack)
+  {
+    err_file--;
+    fprintf(stderr, "included from %s at line %d\n",
+            err_file->file_name, err_file->lineno);
+  }
+
+  /* Print error message */
+  va_start(args, fmt);
+  if (fmt)
+  {
+    fprintf(stderr, "reason: ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    fflush(stderr);
+  }
+  va_end(args);
+
+  /* Clean up and exit */
   free_used_memory();
   my_end(MY_CHECK_ERROR);
+
+  if (!silent)
+    printf("skipped\n");
+
   exit(62);
 }
 
@@ -704,13 +713,13 @@ static void verbose_msg(const char *fmt, ...)
     DBUG_VOID_RETURN;
 
   va_start(args, fmt);
-
   fprintf(stderr, "mysqltest: ");
   if (start_lineno != 0)
     fprintf(stderr, "At line %u: ", start_lineno);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
   va_end(args);
+
   DBUG_VOID_RETURN;
 }
 
@@ -736,10 +745,10 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   if (!test_if_hard_path(fname))
   {
     strxmov(eval_file, opt_basedir, fname, NullS);
-    fn_format(eval_file, eval_file,"","",4);
+    fn_format(eval_file, eval_file, "", "", MY_UNPACK_FILENAME);
   }
   else
-    fn_format(eval_file, fname,"","",4);
+    fn_format(eval_file, fname, "", "", MY_UNPACK_FILENAME);
 
   if (!my_stat(eval_file, &stat_info, MYF(MY_WME)))
     die(NullS);
@@ -780,8 +789,9 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
 
 err:
   if (res && eval_result)
-    str_to_file(fn_format(eval_file, fname, "", ".eval",2), res_ptr,
-		res_len);
+    str_to_file(fn_format(eval_file, fname, "", ".eval",
+                          MY_REPLACE_EXT),
+                res_ptr, res_len);
 
   my_free((gptr) tmp, MYF(0));
   my_close(fd, MYF(MY_WME));
@@ -811,7 +821,11 @@ static void check_result(DYNAMIC_STRING* ds, const char *fname,
   DBUG_ENTER("check_result");
 
   if (res && require_option)
-    abort_not_supported_test(fname);
+  {
+    char reason[FN_REFLEN];
+    fn_format(reason, fname, "", "", MY_REPLACE_EXT | MY_REPLACE_DIR);
+    abort_not_supported_test("Test requires: '%s'", reason);
+  }
   switch (res) {
   case RESULT_OK:
     break; /* ok */
@@ -956,7 +970,7 @@ int open_file(const char *name)
     strxmov(buff, opt_basedir, name, NullS);
     name=buff;
   }
-  fn_format(buff,name,"","",4);
+  fn_format(buff, name, "", "", MY_UNPACK_FILENAME);
 
   if (cur_file == file_stack_end)
     die("Source directives are nesting too deep");
@@ -1029,57 +1043,6 @@ int do_wait_for_slave_to_stop(struct st_query *q __attribute__((unused)))
   }
   return 0;
 }
-
-int do_require_manager(struct st_query *query __attribute__((unused)) )
-{
-  if (!manager)
-    abort_not_supported_test("manager");
-  return 0;
-}
-
-#ifndef EMBEDDED_LIBRARY
-static int do_server_op(struct st_query *q, const char *op)
-{
-  char *p= q->first_argument;
-  char com_buf[256], *com_p;
-  if (!manager)
-  {
-    die("Manager is not initialized, manager commands are not possible");
-  }
-  com_p= strmov(com_buf,op);
-  com_p= strmov(com_p,"_exec ");
-  if (!*p)
-    die("Missing server name in server_%s", op);
-  while (*p && !my_isspace(charset_info, *p))
-   *com_p++= *p++;
-  *com_p++= ' ';
-  com_p= int10_to_str(manager_wait_timeout, com_p, 10);
-  *com_p++= '\n';
-  *com_p= 0;
-  if (mysql_manager_command(manager, com_buf, (int)(com_p-com_buf)))
-    die("Error in command: %s(%d)", manager->last_error, manager->last_errno);
-  while (!manager->eof)
-  {
-    if (mysql_manager_fetch_line(manager, com_buf, sizeof(com_buf)))
-      die("Error fetching result line: %s(%d)", manager->last_error,
-	  manager->last_errno);
-  }
-
-  q->last_argument= p;
-  return 0;
-}
-
-int do_server_start(struct st_query *q)
-{
-  return do_server_op(q, "start");
-}
-
-int do_server_stop(struct st_query *q)
-{
-  return do_server_op(q, "stop");
-}
-
-#endif
 
 
 /*
@@ -1919,7 +1882,7 @@ static void set_charset(struct st_query *q)
   q->last_argument= p;
   charset_info= get_charset_by_csname(charset_name,MY_CS_PRIMARY,MYF(MY_WME));
   if (!charset_info)
-    abort_not_supported_test(charset_name);
+    abort_not_supported_test("Test requires charset '%s'", charset_name);
 }
 
 static uint get_errcodes(match_err *to,struct st_query *q)
@@ -2473,19 +2436,6 @@ char* safe_get_param(char *str, char** arg, const char *msg)
   DBUG_RETURN(str);
 }
 
-#ifndef EMBEDDED_LIBRARY
-void init_manager()
-{
-  if (!(manager=mysql_manager_init(0)))
-    die("Failed in mysql_manager_init()");
-  if (!mysql_manager_connect(manager,manager_host,manager_user,
-			     manager_pass,manager_port))
-    die("Could not connect to MySQL manager: %s(%d)",manager->last_error,
-	manager->last_errno);
-
-}
-#endif
-
 
 /*
   Connect to a server doing several retries if needed.
@@ -2770,7 +2720,7 @@ int do_connect(struct st_query *q)
   }
 #endif
   if (con_sock && !free_con_sock && *con_sock && *con_sock != FN_LIBCHAR)
-    con_sock=fn_format(buff, con_sock, TMPDIR, "",0);
+    con_sock=fn_format(buff, con_sock, TMPDIR, "", 0);
   if (!con_db[0])
     con_db= db;
   /* Special database to allow one to connect without a database name */
@@ -3287,20 +3237,6 @@ static struct my_option my_long_options[] =
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", (gptr*) &opt_include,
    (gptr*) &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"manager-host", OPT_MANAGER_HOST, "Undocumented: Used for debugging.",
-   (gptr*) &manager_host, (gptr*) &manager_host, 0, GET_STR, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
-  {"manager-password", OPT_MANAGER_PASSWD, "Undocumented: Used for debugging.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"manager-port", OPT_MANAGER_PORT, "Undocumented: Used for debugging.",
-   (gptr*) &manager_port, (gptr*) &manager_port, 0, GET_INT, REQUIRED_ARG,
-   MYSQL_MANAGER_PORT, 0, 0, 0, 0, 0},
-  {"manager-user", OPT_MANAGER_USER, "Undocumented: Used for debugging.",
-   (gptr*) &manager_user, (gptr*) &manager_user, 0, GET_STR, REQUIRED_ARG, 0,
-   0, 0, 0, 0, 0},
-  {"manager-wait-timeout", OPT_MANAGER_WAIT_TIMEOUT,
-   "Undocumented: Used for debugging.", (gptr*) &manager_wait_timeout,
-   (gptr*) &manager_wait_timeout, 0, GET_INT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0},
   {"mark-progress", OPT_MARK_PROGRESS,
    "Write linenumber and elapsed time to <testname>.progress ",
    (gptr*) &opt_mark_progress, (gptr*) &opt_mark_progress, 0,
@@ -3397,11 +3333,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'r':
     record = 1;
     break;
-  case (int)OPT_MANAGER_PASSWD:
-    my_free(manager_pass,MYF(MY_ALLOW_ZERO_PTR));
-    manager_pass=my_strdup(argument, MYF(MY_FAE));
-    while (*argument) *argument++= 'x';		/* Destroy argument */
-    break;
   case 'x':
     {
       char buff[FN_REFLEN];
@@ -3410,7 +3341,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	strxmov(buff, opt_basedir, argument, NullS);
 	argument= buff;
       }
-      fn_format(buff, argument, "", "", 4);
+      fn_format(buff, argument, "", "", MY_UNPACK_FILENAME);
       DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
       if (!(cur_file->file=
             my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
@@ -3427,7 +3358,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	strxmov(buff, opt_basedir, argument, NullS);
 	argument= buff;
       }
-      fn_format(buff, argument, "", "", 4);
+      fn_format(buff, argument, "", "", MY_UNPACK_FILENAME);
       timer_file= buff;
       unlink(timer_file);	     /* Ignore error, may not exist */
       break;
@@ -3521,7 +3452,7 @@ static void str_to_file(const char *fname, char *str, int size)
     strxmov(buff, opt_basedir, fname, NullS);
     fname= buff;
   }
-  fn_format(buff,fname,"","",4);
+  fn_format(buff, fname, "", "", MY_UNPACK_FILENAME);
 
   if ((fd= my_open(buff, O_WRONLY | O_CREAT | O_TRUNC,
 		    MYF(MY_WME | MY_FFNF))) < 0)
@@ -3535,19 +3466,24 @@ static void str_to_file(const char *fname, char *str, int size)
 void dump_result_to_reject_file(const char *record_file, char *buf, int size)
 {
   char reject_file[FN_REFLEN];
-  str_to_file(fn_format(reject_file, record_file,"",".reject",2), buf, size);
+  str_to_file(fn_format(reject_file, record_file, "", ".reject",
+                        MY_REPLACE_EXT),
+              buf, size);
 }
 
 void dump_result_to_log_file(const char *record_file, char *buf, int size)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, record_file,"",".log",2), buf, size);
+  str_to_file(fn_format(log_file, record_file, "", ".log",
+                        MY_REPLACE_EXT),
+              buf, size);
 }
 
 void dump_progress(const char *record_file)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, record_file,"",".progress",2),
+  str_to_file(fn_format(log_file, record_file, "", ".progress",
+                        MY_REPLACE_EXT),
               ds_progress.str, ds_progress.length);
 }
 
@@ -4358,7 +4294,9 @@ static void handle_error(const char *query, struct st_query *q,
     if (err_errno == CR_SERVER_LOST ||
         err_errno == CR_SERVER_GONE_ERROR)
       die("require query '%s' failed: %d: %s", query, err_errno, err_error);
-    abort_not_supported_test("failed_query");
+
+    /* Abort the run of this test, pass the failed query as reason */
+    abort_not_supported_test("Query '%s' failed, required functionality not supported", query);
   }
 
   if (q->abort_on_error)
@@ -5139,7 +5077,7 @@ static void init_var_hash(MYSQL *mysql)
   test run completes
 
 */
-static void mark_progress(struct st_query* q, int line)
+static void mark_progress(struct st_query* q __attribute__((unused)), int line)
 {
   char buf[32], *end;
   ulonglong timer= timer_now();
@@ -5174,7 +5112,7 @@ static void mark_progress(struct st_query* q, int line)
 int main(int argc, char **argv)
 {
   struct st_query *q;
-  my_bool require_file=0, q_send_flag=0, abort_flag= 0,
+  my_bool require_file=0, q_send_flag=0,
           query_executed= 0;
   char save_file[FN_REFLEN];
   MY_STAT res_info;
@@ -5224,10 +5162,6 @@ int main(int argc, char **argv)
     cur_file->file_name= my_strdup("<stdin>", MYF(MY_WME));
     cur_file->lineno= 1;
   }
-#ifndef EMBEDDED_LIBRARY
-  if (manager_host)
-    init_manager();
-#endif
   init_re();
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;
@@ -5281,7 +5215,7 @@ int main(int argc, char **argv)
     open_file(opt_include);
   }
 
-  while (!abort_flag && !read_query(&q))
+  while (!read_query(&q))
   {
     int current_line_inc = 1, processed = 0;
     if (q->type == Q_UNKNOWN || q->type == Q_COMMENT_WITH_COMMAND)
@@ -5319,11 +5253,6 @@ int main(int argc, char **argv)
       case Q_SLEEP: do_sleep(q, 0); break;
       case Q_REAL_SLEEP: do_sleep(q, 1); break;
       case Q_WAIT_FOR_SLAVE_TO_STOP: do_wait_for_slave_to_stop(q); break;
-      case Q_REQUIRE_MANAGER: do_require_manager(q); break;
-#ifndef EMBEDDED_LIBRARY
-      case Q_SERVER_START: do_server_start(q); break;
-      case Q_SERVER_STOP: do_server_stop(q); break;
-#endif
       case Q_INC: do_modify_var(q, DO_INC); break;
       case Q_DEC: do_modify_var(q, DO_DEC); break;
       case Q_ECHO: do_echo(q); query_executed= 1; break;
@@ -5501,8 +5430,8 @@ int main(int argc, char **argv)
           parsing_disabled--;
         break;
 
-      case Q_EXIT:
-        abort_flag= 1;
+      case Q_DIE:
+        die("%s", q->first_argument);
         break;
 
       default:
@@ -5622,7 +5551,7 @@ static int read_server_arguments(const char *name)
     strxmov(buff, opt_basedir, name, NullS);
     name=buff;
   }
-  fn_format(buff,name,"","",4);
+  fn_format(buff, name, "", "", MY_UNPACK_FILENAME);
 
   if (!embedded_server_arg_count)
   {
