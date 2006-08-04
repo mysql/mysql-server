@@ -5951,6 +5951,16 @@ drop table t3|
 drop procedure bug15217|
 
 #
+# BUG#21416: SP: Recursion level higher than zero needed for non-recursive call
+#
+--disable_warnings
+drop procedure if exists bug21416|
+--enable_warnings
+create procedure bug21416() show create procedure bug21416|
+call bug21416()|
+drop procedure bug21416|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
