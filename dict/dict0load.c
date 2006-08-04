@@ -304,14 +304,14 @@ loop:
 		byte*	field;
 		ulint	len;
 		ulint	space_id;
-		ulint	zip_size;
+		ulint	zip_size_in_k;
 		char*	name;
 
 		field = rec_get_nth_field_old(rec, 0, &len);
 		name = mem_strdupl((char*) field, len);
 
-		zip_size = dict_sys_tables_get_zip_size(rec);
-		ut_a(zip_size != ULINT_UNDEFINED);
+		zip_size_in_k = dict_sys_tables_get_zip_size(rec);
+		ut_a(zip_size_in_k != ULINT_UNDEFINED);
 
 		field = rec_get_nth_field_old(rec, 9, &len);
 		ut_a(len == 4);
@@ -335,7 +335,7 @@ loop:
 			object and check that the .ibd file exists. */
 
 			fil_open_single_table_tablespace(FALSE, space_id,
-							zip_size, name);
+						zip_size_in_k * 1024, name);
 		}
 
 		mem_free(name);
