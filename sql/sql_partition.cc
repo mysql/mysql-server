@@ -2573,10 +2573,13 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   }
   else 
   {
-    if (part_func_value == range_array[loc_part_id])
-      loc_part_id += test(include_endpoint);
-    else if (part_func_value > range_array[loc_part_id])
-      loc_part_id++;
+    if (loc_part_id < max_partition)
+    {
+      if (part_func_value == range_array[loc_part_id])
+        loc_part_id += test(include_endpoint);
+      else if (part_func_value > range_array[loc_part_id])
+        loc_part_id++;
+    }
     loc_part_id++;
   }
   DBUG_RETURN(loc_part_id);
