@@ -1300,4 +1300,22 @@ eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
 drop table t1;
 --exec rmdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
 --exec rmdir $MYSQLTEST_VARDIR/master-data/tmpinx || true
+
+#
+# Bug 21388: Bigint fails to find record
+#
+create table t1 (a bigint unsigned not null, primary key(a))
+engine = myisam
+partition by key (a)
+partitions 10;
+
+show create table t1;
+insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE),
+(18446744073709551613), (18446744073709551612);
+select * from t1;
+select * from t1 where a = 18446744073709551615;
+delete from t1 where a = 18446744073709551615;
+select * from t1;
+drop table t1;
+
 --echo End of 5.1 tests

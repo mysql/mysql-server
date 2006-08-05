@@ -1117,4 +1117,32 @@ hello/master-data/tmpinx/t1#P#p1#SP#subpart11.MYI
 hello/master-data/tmpinx/t1#P#p2#SP#subpart20.MYI
 hello/master-data/tmpinx/t1#P#p2#SP#subpart21.MYI
 drop table t1;
+create table t1 (a bigint unsigned not null, primary key(a))
+engine = myisam
+partition by key (a)
+partitions 10;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) PARTITIONS 10  */
+insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE),
+(18446744073709551613), (18446744073709551612);
+select * from t1;
+a
+18446744073709551612
+18446744073709551613
+18446744073709551614
+18446744073709551615
+select * from t1 where a = 18446744073709551615;
+a
+18446744073709551615
+delete from t1 where a = 18446744073709551615;
+select * from t1;
+a
+18446744073709551612
+18446744073709551613
+18446744073709551614
+drop table t1;
 End of 5.1 tests
