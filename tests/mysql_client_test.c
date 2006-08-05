@@ -10996,7 +10996,8 @@ static void test_view()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(1 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(1 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11038,7 +11039,8 @@ static void test_view_where()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(4 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(4 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11120,7 +11122,8 @@ static void test_view_2where()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  assert(0 == my_process_stmt_result(stmt));
+  rc= my_process_stmt_result(stmt);
+  assert(0 == rc);
 
   mysql_stmt_close(stmt);
 
@@ -11172,7 +11175,8 @@ static void test_view_star()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(0 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(0 == rc);
   }
 
   mysql_stmt_close(stmt);
@@ -11275,7 +11279,8 @@ static void test_left_join_view()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(3 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(3 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11350,7 +11355,8 @@ static void test_view_insert_fields()
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  assert(1 == my_process_stmt_result(stmt));
+  rc= my_process_stmt_result(stmt);
+  assert(1 == rc);
 
   mysql_stmt_close(stmt);
   rc= mysql_query(mysql, "DROP VIEW v1");
