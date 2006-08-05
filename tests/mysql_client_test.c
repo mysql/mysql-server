@@ -11226,6 +11226,7 @@ static void test_view_insert()
 
   for (i= 0; i < 3; i++)
   {
+    int rowcount= 0;
     my_val= i;
 
     rc= mysql_stmt_execute(insert_stmt);
@@ -11233,7 +11234,8 @@ static void test_view_insert()
 
     rc= mysql_stmt_execute(select_stmt);
     check_execute(select_stmt, rc);
-    assert(i + 1 == (int) my_process_stmt_result(select_stmt));
+    rowcount= (int)my_process_stmt_result(select_stmt);
+    assert((i+1) == rowcount);
   }
   mysql_stmt_close(insert_stmt);
   mysql_stmt_close(select_stmt);
