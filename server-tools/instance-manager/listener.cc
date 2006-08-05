@@ -88,7 +88,7 @@ Listener_thread::~Listener_thread()
 
 void Listener_thread::run()
 {
-  int n= 0;
+  int i, n= 0;
 
 #ifndef __WIN__
   /* we use this var to check whether we are running on LinuxThreads */
@@ -117,7 +117,7 @@ void Listener_thread::run()
 #endif
 
   /* II. Listen sockets and spawn childs */
-  for (int i= 0; i < num_sockets; i++)
+  for (i= 0; i < num_sockets; i++)
     n= max(n, sockets[i]);
   n++;
 
@@ -176,7 +176,7 @@ void Listener_thread::run()
 
   log_info("Listener_thread::run(): shutdown requested, exiting...");
 
-  for (int i= 0; i < num_sockets; i++)
+  for (i= 0; i < num_sockets; i++)
     close(sockets[i]);
 
 #ifndef __WIN__
@@ -189,7 +189,7 @@ void Listener_thread::run()
 
 err:
   // we have to close the ip sockets in case of error
-  for (int i= 0; i < num_sockets; i++)
+  for (i= 0; i < num_sockets; i++)
     close(sockets[i]);
 
   thread_registry.unregister_thread(&thread_info);
