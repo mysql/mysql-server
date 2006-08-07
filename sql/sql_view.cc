@@ -208,7 +208,10 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
     lex->create_view_suid= decoy.view_suid ? 
       VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
   if (free_view)
+  {
     delete decoy.view;
+    lex->cleanup_after_one_table_open();
+  }
 
   return FALSE;
 }
