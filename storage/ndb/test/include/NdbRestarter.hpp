@@ -38,16 +38,16 @@ public:
 		 bool abort = false);
   
   int startAll();
-  int startNodes(int * _nodes, int _num_nodes);
+  int startNodes(const int * _nodes, int _num_nodes);
   int waitClusterStarted(unsigned int _timeout = 120);
   int waitClusterSingleUser(unsigned int _timeout = 120);
   int waitClusterStartPhase(int _startphase, unsigned int _timeout = 120);
   int waitClusterNoStart(unsigned int _timeout = 120);  
-  int waitNodesStarted(int * _nodes, int _num_nodes,
+  int waitNodesStarted(const int * _nodes, int _num_nodes,
 		       unsigned int _timeout = 120);
-  int waitNodesStartPhase(int * _nodes, int _num_nodes, 
+  int waitNodesStartPhase(const int * _nodes, int _num_nodes, 
 			  int _startphase, unsigned int _timeout = 120);
-  int waitNodesNoStart(int * _nodes, int _num_nodes,
+  int waitNodesNoStart(const int * _nodes, int _num_nodes,
 		       unsigned int _timeout = 120); 
 
 
@@ -58,8 +58,8 @@ public:
   int enterSingleUserMode(int _nodeId);
   int exitSingleUserMode();
 
-  int dumpStateOneNode(int _nodeId, int * _args, int _num_args);
-  int dumpStateAllNodes(int * _args, int _num_args);
+  int dumpStateOneNode(int _nodeId, const int * _args, int _num_args);
+  int dumpStateAllNodes(const int * _args, int _num_args);
 
   int getMasterNodeId();
   int getRandomNodeSameNodeGroup(int nodeId, int randomNumber);
@@ -74,7 +74,7 @@ protected:
 		       unsigned int _timeout,
 		       int _startphase = -1);  
 
-  int waitNodesState(int * _nodes, int _num_nodes,
+  int waitNodesState(const int * _nodes, int _num_nodes,
 		     ndb_mgm_node_status _status,
 		     unsigned int _timeout,
 		     int _startphase = -1);

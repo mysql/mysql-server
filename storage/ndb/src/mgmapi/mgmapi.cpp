@@ -1442,7 +1442,7 @@ ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 
 extern "C"
 int 
-ndb_mgm_dump_state(NdbMgmHandle handle, int nodeId, int* _args,
+ndb_mgm_dump_state(NdbMgmHandle handle, int nodeId, const int * _args,
 		   int _num_args, struct ndb_mgm_reply* /* reply */) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_dump_state");

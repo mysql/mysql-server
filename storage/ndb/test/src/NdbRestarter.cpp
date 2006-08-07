@@ -249,7 +249,7 @@ NdbRestarter::waitClusterState(ndb_mgm_node_status _status,
  
 
 int 
-NdbRestarter::waitNodesState(int * _nodes, int _num_nodes,
+NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 			     ndb_mgm_node_status _status,
 			     unsigned int _timeout,
 			     int _startphase){
@@ -367,20 +367,20 @@ NdbRestarter::waitNodesState(int * _nodes, int _num_nodes,
   return 0;
 }
 
-int NdbRestarter::waitNodesStarted(int * _nodes, int _num_nodes,
+int NdbRestarter::waitNodesStarted(const int * _nodes, int _num_nodes,
 		     unsigned int _timeout){
   return waitNodesState(_nodes, _num_nodes, 
-			  NDB_MGM_NODE_STATUS_STARTED, _timeout);  
+			NDB_MGM_NODE_STATUS_STARTED, _timeout);  
 }
 
-int NdbRestarter::waitNodesStartPhase(int * _nodes, int _num_nodes, 
+int NdbRestarter::waitNodesStartPhase(const int * _nodes, int _num_nodes, 
 			int _startphase, unsigned int _timeout){
   return waitNodesState(_nodes, _num_nodes, 
 			  NDB_MGM_NODE_STATUS_STARTING, _timeout,
 			  _startphase);  
 }
 
-int NdbRestarter::waitNodesNoStart(int * _nodes, int _num_nodes,
+int NdbRestarter::waitNodesNoStart(const int * _nodes, int _num_nodes,
 		     unsigned int _timeout){
   return waitNodesState(_nodes, _num_nodes, 
 			  NDB_MGM_NODE_STATUS_NOT_STARTED, _timeout);  
@@ -549,7 +549,7 @@ int NdbRestarter::startAll(){
   
 }
 
-int NdbRestarter::startNodes(int * nodes, int num_nodes){
+int NdbRestarter::startNodes(const int * nodes, int num_nodes){
   if (!isConnected())
     return -1;
   
@@ -599,7 +599,7 @@ int NdbRestarter::insertErrorInAllNodes(int _error){
 
 
 
-int NdbRestarter::dumpStateOneNode(int _nodeId, int * _args, int _num_args){
+int NdbRestarter::dumpStateOneNode(int _nodeId, const int * _args, int _num_args){
  if (!isConnected())
     return -1;
 
@@ -617,7 +617,7 @@ int NdbRestarter::dumpStateOneNode(int _nodeId, int * _args, int _num_args){
   return reply.return_code;  
 }
 
-int NdbRestarter::dumpStateAllNodes(int * _args, int _num_args){
+int NdbRestarter::dumpStateAllNodes(const int * _args, int _num_args){
  if (!isConnected())
     return -1;
 
