@@ -1495,7 +1495,7 @@ insert into v3(b) values (10);
 insert into v3(a) select a from t2;
 insert into v3(b) select b from t2;
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 2
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'a' at row 2
 insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
 select * from t1;
 a	b
