@@ -264,7 +264,7 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_status = File::FIRST_READ;
   
   file_ptr.p->m_table_id = req->tableId;
-  file_ptr.p->m_fragment_id = RNIL;
+  file_ptr.p->m_fragment_id = req->fragmentId;
   file_ptr.p->m_table_version = RNIL;
 
   file_ptr.p->m_bytes_left = 0; // Bytes read from FS
@@ -361,6 +361,7 @@ Restore::open_file(Signal* signal, FilePtr file_ptr, Uint32 lcpNo)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
   FsOpenReq::v5_setLcpNo(req->fileNumber, lcpNo);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
@@ -475,6 +476,11 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
        */
       ndbout_c("records: %d len: %x left: %d", 
 	       status & File::READING_RECORDS, 4*len, left);
+      
+      if (unlikely((status & File:: FILE_THREAD_RUNNING) == 0))
+      {
+	ndbrequire(false);
+      }
       len= 0;
       break;
     }

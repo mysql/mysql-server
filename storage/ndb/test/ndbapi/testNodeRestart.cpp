@@ -931,6 +931,41 @@ retry:
   return NDBT_OK;
 }
 
+int 
+runBug21271(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+  
+  const int masterNode = restarter.getMasterNodeId();
+  const int nodeId = restarter.getRandomNodeSameNodeGroup(masterNode, rand());
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  if (restarter.dumpStateOneNode(nodeId, val2, 2))
+    return NDBT_FAILED;
+  
+  Uint32 tableId = ctx->getTab()->getTableId();
+  int dump[] = { DumpStateOrd::LqhErrorInsert5042, 0, 5044 };
+  dump[1] = tableId;
+
+  if (restarter.dumpStateOneNode(nodeId, dump, 3))
+    return NDBT_FAILED;
+  
+  restarter.waitNodesNoStart(&nodeId, 1);
+  ctx->stopTest();
+
+  restarter.startNodes(&nodeId, 1);
+
+  if (restarter.waitClusterStarted() != 0)
+    return NDBT_FAILED;
+
+  return NDBT_OK;
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -1242,6 +1277,13 @@ TESTCASE("Bug20185",
 	 ""){
   INITIALIZER(runLoadTable);
   STEP(runBug20185);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug21271",
+	 ""){
+  INITIALIZER(runLoadTable);
+  STEP(runBug21271);
+  STEP(runPkUpdateUntilStopped);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
