@@ -1,5 +1,21 @@
 drop table if exists t1;
 create table t1 (a int)
+partition by key(a)
+partitions 0.2+e1;
+ERROR 42000: Only normal integers allowed as number here near '0.2+e1' at line 3
+create table t1 (a int)
+partition by key(a)
+partitions -1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 3
+create table t1 (a int)
+partition by key(a)
+partitions 1.5;
+ERROR 42000: Only normal integers allowed as number here near '1.5' at line 3
+create table t1 (a int)
+partition by key(a)
+partitions 1e+300;
+ERROR 42000: Only normal integers allowed as number here near '1e+300' at line 3
+create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
 create procedure pz()
