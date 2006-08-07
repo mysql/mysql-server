@@ -136,9 +136,11 @@ private:
    */
   static Uint32 v5_getLcpNo(const Uint32 fileNumber[]);
   static Uint32 v5_getTableId(const Uint32 fileNumber[]);
-  
+  static Uint32 v5_getFragmentId(const Uint32 fileNumber[]);
+
   static void v5_setLcpNo(Uint32 fileNumber[], Uint32 no);
   static void v5_setTableId(Uint32 fileNumber[], Uint32 no);
+  static void v5_setFragmentId(Uint32 fileNumber[], Uint32 no);
 };
 
 /**
@@ -316,6 +318,16 @@ Uint32 FsOpenReq::v5_getLcpNo(const Uint32 fileNumber[]){
 inline
 void FsOpenReq::v5_setLcpNo(Uint32 fileNumber[], Uint32 val){
   fileNumber[1] = val;
+}
+
+inline 
+Uint32 FsOpenReq::v5_getFragmentId(const Uint32 fileNumber[]){
+  return fileNumber[2];
+}
+
+inline
+void FsOpenReq::v5_setFragmentId(Uint32 fileNumber[], Uint32 val){
+  fileNumber[2] = val;
 }
 
 #endif

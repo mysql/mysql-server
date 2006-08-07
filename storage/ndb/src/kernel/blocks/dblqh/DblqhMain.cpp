@@ -427,17 +427,20 @@ void Dblqh::execCONTINUEB(Signal* signal)
       signal->theData[0] = fragptr.p->tabRef;
       signal->theData[1] = fragptr.p->fragId;
       sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
+      Ptr<Fragrecord> save = fragptr;
 
       c_redo_complete_fragments.next(fragptr);
       signal->theData[0] = ZENABLE_EXPAND_CHECK;
       signal->theData[1] = fragptr.i;
       sendSignal(DBLQH_REF, GSN_CONTINUEB, signal, 2, JBB);	
+
+      c_redo_complete_fragments.remove(save);
       return;
     }
     else
     {
       jam();
-      c_redo_complete_fragments.remove();
+      ndbrequire(c_redo_complete_fragments.isEmpty());
       StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
       conf->startingNodeId = getOwnNodeId();
       sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
@@ -11269,8 +11272,22 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
     else
 #endif
     {
-      sendSignal(BACKUP_REF, GSN_BACKUP_FRAGMENT_REQ, signal, 
-		 BackupFragmentReq::SignalLength, JBB);
+      if (ERROR_INSERTED(5044) && 
+	  (fragptr.p->tabRef == c_error_insert_table_id) && 
+	  fragptr.p->fragId) // Not first frag
+      {
+	/**
+	 * Force CRASH_INSERTION in 10s
+	 */
+	ndbout_c("table: %d frag: %d", fragptr.p->tabRef, fragptr.p->fragId);
+	SET_ERROR_INSERT_VALUE(5027);
+	sendSignalWithDelay(reference(), GSN_START_RECREQ, signal, 10000, 1);
+      }
+      else
+      {
+	sendSignal(BACKUP_REF, GSN_BACKUP_FRAGMENT_REQ, signal, 
+		   BackupFragmentReq::SignalLength, JBB);
+      }
     }
   }
 }
@@ -13745,7 +13762,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     fragptr.p->newestGci = cnewestGci;
   }//if
   
-  if (lcpNo == ZNIL || fragptr.i != tabptr.p->fragrec[0])
+  if (lcpNo == ZNIL)
   {
     jam();
     /**
@@ -18470,10 +18487,17 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if (dumpState->args[0] == DumpStateOrd::LqhErrorInsert5042 && signal->getLength() == 2)
+  if (dumpState->args[0] == DumpStateOrd::LqhErrorInsert5042 && (signal->getLength() >= 2))
   {
     c_error_insert_table_id = dumpState->args[1];
-    SET_ERROR_INSERT_VALUE(5042);
+    if (signal->getLength() == 2)
+    {
+      SET_ERROR_INSERT_VALUE(5042);
+    }
+    else
+    {
+      SET_ERROR_INSERT_VALUE(dumpState->args[2]);
+    }
   }
 
   TcConnectionrec *regTcConnectionrec = tcConnectionrec;

@@ -3796,20 +3796,28 @@ Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
 
-  BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
-  conf->backupId = ptr.p->backupId;
-  conf->backupPtr = ptr.i;
-  conf->tableId = filePtr.p->tableId;
-  conf->fragmentNo = filePtr.p->fragmentNo;
-  conf->noOfRecordsLow = (Uint32)(op.noOfRecords & 0xFFFFFFFF);
-  conf->noOfRecordsHigh = (Uint32)(op.noOfRecords >> 32);
-  conf->noOfBytesLow = (Uint32)(op.noOfBytes & 0xFFFFFFFF);
-  conf->noOfBytesHigh = (Uint32)(op.noOfBytes >> 32);
-  sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
-	     BackupFragmentConf::SignalLength, JBB);
-  
-  ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_CONF;
-  ptr.p->slaveState.setState(STARTED);
+  if (ptr.p->is_lcp())
+  {
+    ptr.p->slaveState.setState(STOPPING);
+    filePtr.p->operation.dataBuffer.eof();
+  }
+  else
+  {
+    BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
+    conf->backupId = ptr.p->backupId;
+    conf->backupPtr = ptr.i;
+    conf->tableId = filePtr.p->tableId;
+    conf->fragmentNo = filePtr.p->fragmentNo;
+    conf->noOfRecordsLow = (Uint32)(op.noOfRecords & 0xFFFFFFFF);
+    conf->noOfRecordsHigh = (Uint32)(op.noOfRecords >> 32);
+    conf->noOfBytesLow = (Uint32)(op.noOfBytes & 0xFFFFFFFF);
+    conf->noOfBytesHigh = (Uint32)(op.noOfBytes >> 32);
+    sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
+	       BackupFragmentConf::SignalLength, JBB);
+
+    ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_CONF;
+    ptr.p->slaveState.setState(STARTED);
+  }
   return;
 }
 
@@ -4719,29 +4727,8 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, req.backupPtr);
 
-  bool first= true;
   TablePtr tabPtr;
-  if(ptr.p->tables.first(tabPtr) && tabPtr.p->tableId != req.tableId)
-  {
-    jam();
-    first= false;
-    tabPtr.p->attributes.release();
-    tabPtr.p->fragments.release();
-    ptr.p->tables.release();
-    ptr.p->errorCode = 0;
-  } 
-
-  if(ptr.p->tables.first(tabPtr) && ptr.p->errorCode == 0)
-  {
-    jam();
-    FragmentPtr fragPtr;
-    tabPtr.p->fragments.getPtr(fragPtr, 0);
-    fragPtr.p->fragmentId = req.fragmentId;
-    
-    lcp_open_file_done(signal, ptr);
-    return;
-  } 
-  else if(ptr.p->errorCode == 0)
+  if(ptr.p->errorCode == 0)
   {
     jam();
     FragmentPtr fragPtr;
@@ -4759,6 +4746,9 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     fragPtr.p->scanned = 0;
     fragPtr.p->scanning = 0;
     fragPtr.p->tableId = req.tableId;
+
+    ptr.p->backupId= req.backupId;
+    lcp_open_file(signal, ptr);
   } 
   else
   {
@@ -4767,43 +4757,38 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     tabPtr.p->fragments.getPtr(fragPtr, 0);
     fragPtr.p->fragmentId = req.fragmentId;
     defineBackupRef(signal, ptr, ptr.p->errorCode);
-    return;
   }
-  
-  if(first)
-  {
-    jam();
-    // start file thread
-    ptr.p->backupId= req.backupId;
-    lcp_open_file(signal, ptr);
-    return;
-  }
-  else
-  {
-    jam();
-    ndbrequire(ptr.p->backupId == req.backupId);
-  }
-  
-  /**
-   * Close previous file
-   */
-  jam();
-  BackupFilePtr filePtr;
-  c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
-  filePtr.p->operation.dataBuffer.eof();
 }
 
 void
 Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
 {
-  if(!ptr.p->tables.isEmpty())
-  {
-    jam();
-    lcp_open_file(signal, ptr);
-    return;
-  }
+  jam();
   
-  lcp_send_end_lcp_conf(signal, ptr);
+  TablePtr tabPtr;
+  ndbrequire(ptr.p->tables.first(tabPtr));
+  Uint32 tableId = tabPtr.p->tableId;
+
+  FragmentPtr fragPtr;
+  tabPtr.p->fragments.getPtr(fragPtr, 0);
+  Uint32 fragmentId = fragPtr.p->fragmentId;
+  
+  tabPtr.p->attributes.release();
+  tabPtr.p->fragments.release();
+  ptr.p->tables.release();
+  ptr.p->errorCode = 0;
+  
+  BackupFragmentConf * conf = (BackupFragmentConf*)signal->getDataPtrSend();
+  conf->backupId = ptr.p->backupId;
+  conf->backupPtr = ptr.i;
+  conf->tableId = tableId;
+  conf->fragmentNo = fragmentId;
+  conf->noOfRecordsLow = 0;
+  conf->noOfRecordsHigh = 0;
+  conf->noOfBytesLow = 0;
+  conf->noOfBytesHigh = 0;
+  sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
+	     BackupFragmentConf::SignalLength, JBB);
 }
 
 void
@@ -4840,6 +4825,7 @@ Backup::lcp_open_file(Signal* signal, BackupRecordPtr ptr)
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
   FsOpenReq::v5_setLcpNo(req->fileNumber, fragPtr.p->lcp_no);
   FsOpenReq::v5_setTableId(req->fileNumber, tabPtr.p->tableId);
+  FsOpenReq::v5_setFragmentId(req->fileNumber, fragPtr.p->fragmentId);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
@@ -4872,38 +4858,15 @@ Backup::execEND_LCPREQ(Signal* signal)
   c_backupPool.getPtr(ptr, req->backupPtr);
   ndbrequire(ptr.p->backupId == req->backupId);
 
-  ptr.p->slaveState.setState(STOPPING);
-
-  TablePtr tabPtr;
-  if(ptr.p->tables.first(tabPtr))
-  {
-    tabPtr.p->attributes.release();
-    tabPtr.p->fragments.release();
-    ptr.p->tables.release();
-  
-    BackupFilePtr filePtr;
-    c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
-    filePtr.p->operation.dataBuffer.eof();
-    return;
-  } 
-  
-  lcp_send_end_lcp_conf(signal, ptr);
-}
-
-void
-Backup::lcp_send_end_lcp_conf(Signal* signal, BackupRecordPtr ptr)
-{
-  EndLcpConf* conf= (EndLcpConf*)signal->getDataPtr();
-
-  conf->senderData = ptr.p->clientData;
-  conf->senderRef = reference();
-  
   ptr.p->errorCode = 0;
   ptr.p->slaveState.setState(CLEANING);
   ptr.p->slaveState.setState(INITIAL);
   ptr.p->slaveState.setState(DEFINING);
   ptr.p->slaveState.setState(DEFINED);
 
+  EndLcpConf* conf= (EndLcpConf*)signal->getDataPtr();
+  conf->senderData = ptr.p->clientData;
+  conf->senderRef = reference();
   sendSignal(ptr.p->masterRef, GSN_END_LCPCONF,
 	     signal, EndLcpConf::SignalLength, JBB);
 }
