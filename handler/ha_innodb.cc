@@ -3667,7 +3667,7 @@ ha_innobase::update_row(
 
 	DBUG_ENTER("ha_innobase::update_row");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -3728,7 +3728,7 @@ ha_innobase::delete_row(
 
 	DBUG_ENTER("ha_innobase::delete_row");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (last_query_id != user_thd->query_id) {
@@ -3825,6 +3825,9 @@ ha_innobase::try_semi_consistent_read(bool yes)
 /*===========================================*/
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	/* Row read type is set to semi consistent read if this was
 	requested by the MySQL and either innodb_locks_unsafe_for_binlog
@@ -3990,7 +3993,7 @@ ha_innobase::index_read(
 
 	DBUG_ENTER("index_read");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	statistic_increment(current_thd->status_var.ha_read_key_count,
@@ -4105,7 +4108,7 @@ ha_innobase::change_active_index(
 	DBUG_ENTER("change_active_index");
 
 	ut_ad(user_thd == current_thd);
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	active_index = keynr;
@@ -4195,7 +4198,7 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
@@ -4431,7 +4434,7 @@ ha_innobase::rnd_pos(
 	statistic_increment(current_thd->status_var.ha_read_rnd_count,
 		&LOCK_status);
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (prebuilt->clust_index_was_generated) {
@@ -4481,7 +4484,7 @@ ha_innobase::position(
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	uint		len;
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (prebuilt->clust_index_was_generated) {
@@ -5026,7 +5029,13 @@ ha_innobase::delete_all_rows(void)
 
 	trx = check_trx_exists(thd);
 
+	/* Update prebuilt->trx */
+	update_thd(current_thd);
+
 	/* Truncate the table in InnoDB */
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	error = row_truncate_table_for_mysql(prebuilt->table, trx);
 	if (error == DB_ERROR) {
@@ -5310,6 +5319,9 @@ ha_innobase::records_in_range(
 	void*		heap2;
 
 	DBUG_ENTER("records_in_range");
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	prebuilt->trx->op_info = (char*)"estimating records in index range";
 
@@ -6038,6 +6050,10 @@ ha_innobase::can_switch_engines(void)
 	bool	can_switch;
 
 	DBUG_ENTER("ha_innobase::can_switch_engines");
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+
 	prebuilt->trx->op_info =
 			"determining if there are foreign key constraints";
 	row_mysql_lock_data_dictionary(prebuilt->trx);
@@ -7150,6 +7166,8 @@ ha_innobase::reset_auto_increment(ulonglong value)
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	int		error;
 
+	update_thd(current_thd);
+
 	error = row_lock_table_autoinc_for_mysql(prebuilt);
 
 	if (error != DB_SUCCESS) {
@@ -7190,7 +7208,7 @@ ha_innobase::cmp_ref(
 	const mysql_byte* ref2)	/* in: an (internal) primary key value in the
 				MySQL key value format */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	enum_field_types mysql_type;
 	Field*		field;
 	KEY_PART_INFO*	key_part;
