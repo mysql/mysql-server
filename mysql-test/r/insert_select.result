@@ -606,8 +606,8 @@ NULL	2	100
 create table t2(No int not null, Field int not null, Count int not null);
 insert into t2 Select null, Field, Count From t1 Where Month=20030901 and Type=2;
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'No' at row 1
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'No' at row 2
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'No' at row 1
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'No' at row 2
 select * from t2;
 No	Field	Count
 0	1	100
