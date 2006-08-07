@@ -368,4 +368,34 @@ create table t1 select now() - now(), curtime() - curtime(),
 show create table t1;
 drop table t1;
 
-# End of 4.1 tests
+
+
+#
+# Bug #20987: str_to_date doesn't accept user variable for specification
+#
+
+SET @df:="%M %D, %Y";
+SELECT DATE_FORMAT('2005-10-31', "%M %D, %Y"); 
+SELECT DATE_FORMAT('2005-10-31', @df); 
+SELECT STR_TO_DATE('October 31st, 2005', "%M %D, %Y");
+SELECT STR_TO_DATE('October 31st, 2005', @df);
+
+CREATE TABLE `dt` (
+  d datetime,
+  ds char(30)
+);
+
+INSERT INTO `dt` (d) VALUES ('2005-10-31'), ('2005-11-30');
+SET @df:="%M %D, %Y";
+
+UPDATE dt SET ds = DATE_FORMAT(d, @df);
+
+SELECT * FROM dt;
+SELECT d, ds, STR_TO_DATE(ds, @df) FROM dt;
+SELECT d, ds, STR_TO_DATE(ds, "%M %D, %Y") FROM dt;
+
+DROP TABLE `dt`;
+
+
+
+--echo End of 4.1 tests
