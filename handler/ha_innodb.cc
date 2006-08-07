@@ -6980,9 +6980,10 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	int		error;
 
 	ut_a(prebuilt);
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 	ut_a(prebuilt->table);
+
+	/* Prepare prebuilt->trx in the table handle */
+	update_thd(current_thd);
 
 	if (prebuilt->trx->conc_state == TRX_NOT_STARTED) {
 		trx_was_not_started = TRUE;
@@ -7117,6 +7118,9 @@ void ha_innobase::get_auto_increment(
 {
 	longlong	nr;
 	int		error;
+
+	/* Prepare prebuilt->trx in the table handle */
+	update_thd(current_thd);
 
 	error = innobase_read_and_init_auto_inc(&nr);
 
