@@ -140,6 +140,7 @@ class NdbTransaction
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbBlob;
+  friend class ha_ndbcluster;
 #endif
 
 public:
