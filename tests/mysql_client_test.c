@@ -122,7 +122,7 @@ static void client_disconnect();
 void die(const char *file, int line, const char *expr)
 {
   fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
-  fflush(stderr);
+  fflush(NULL);
   abort();
 }
 
