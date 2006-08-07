@@ -866,7 +866,11 @@ recv_parse_or_apply_log_rec_body(
 								page, mtr);
 		break;
 	case MLOG_REC_MIN_MARK: case MLOG_COMP_REC_MIN_MARK:
-		ut_a(!page_zip);
+		/* On a compressed page, MLOG_COMP_REC_MIN_MARK
+		will be followed by MLOG_COMP_REC_DELETE
+		or MLOG_ZIP_WRITE_HEADER(FIL_PAGE_PREV, FIL_NULL)
+		in the same mini-transaction. */
+		ut_a(type == MLOG_COMP_REC_MIN_MARK || !page_zip);
 		ptr = btr_parse_set_min_rec_mark(ptr, end_ptr,
 				type == MLOG_COMP_REC_MIN_MARK, page, mtr);
 		break;
