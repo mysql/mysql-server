@@ -27,3 +27,9 @@
 # client comment recognized, but parameter missing => error
 --exec echo "use"         >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
 --exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+
+#
+# Bug #20328: mysql client interprets commands in comments
+#
+--exec echo 'help' | $MYSQL
+--exec echo 'help ' | $MYSQL
