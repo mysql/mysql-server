@@ -10,6 +10,22 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# Bug 21350: Data Directory problems
+#
+-- error 1103
+create table t1 (a int)
+partition by key (a)
+(partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
+#
+# Insert a test that manages to create the first partition and fails with
+# the second, ensure that we clean up afterwards in a proper manner.
+#
+--error 1103
+create table t1 (a int)
+partition by key (a)
+(partition p0,
+ partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
+#
 # Bug 19309 Partitions: Crash if double procedural alter
 #
 create table t1 (a int)

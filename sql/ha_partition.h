@@ -222,11 +222,11 @@ private:
   bool new_handlers_from_part_info(MEM_ROOT *mem_root);
   bool create_handlers(MEM_ROOT *mem_root);
   void clear_handler_file();
-  void set_up_table_before_create(TABLE *table_arg,
-                                  const char *partition_name_with_path,
-                                  HA_CREATE_INFO *info,
-                                  uint part_id,
-                                  partition_element *p_elem);
+  int set_up_table_before_create(TABLE *table_arg,
+                                 const char *partition_name_with_path,
+                                 HA_CREATE_INFO *info,
+                                 uint part_id,
+                                 partition_element *p_elem);
   partition_element *find_partition_element(uint part_id);
 
 public:
