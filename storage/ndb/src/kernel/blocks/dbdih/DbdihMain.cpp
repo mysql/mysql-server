@@ -6628,6 +6628,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
         const Uint32 max = NGPtr.p->nodeCount;
 	
+	fragments[count++] = c_nextLogPart++; // Store logpart first
 	Uint32 tmp= next_replica_node[NGPtr.i];
         for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
         {
@@ -6674,7 +6675,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         FragmentstorePtr fragPtr;
         ReplicaRecordPtr replicaPtr;
         getFragstore(primTabPtr.p, fragNo, fragPtr);
-        fragments[count++]= fragPtr.p->preferredPrimary;
+	fragments[count++] = c_nextLogPart++;
+        fragments[count++] = fragPtr.p->preferredPrimary;
         for (replicaPtr.i = fragPtr.p->storedReplicas;
              replicaPtr.i != RNIL;
              replicaPtr.i = replicaPtr.p->nextReplica) {
@@ -6697,7 +6699,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         }
       }
     }
-    ndbrequire(count == (2U + noOfReplicas * noOfFragments)); 
+    ndbrequire(count == (2U + (1 + noOfReplicas) * noOfFragments)); 
     
     CreateFragmentationConf * const conf = 
       (CreateFragmentationConf*)signal->getDataPtrSend();
@@ -6870,8 +6872,8 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
     FragmentstorePtr fragPtr;
     Uint32 activeIndex = 0;
     getFragstore(tabPtr.p, fragId, fragPtr);
+    fragPtr.p->m_log_part_id = fragments[index++];
     fragPtr.p->preferredPrimary = fragments[index];
-    fragPtr.p->m_log_part_id = c_nextLogPart++;
     
     for (Uint32 i = 0; i<noReplicas; i++) {
       const Uint32 nodeId = fragments[index++];
@@ -8543,7 +8545,8 @@ void Dbdih::openingTableErrorLab(Signal* signal, FileRecordPtr filePtr)
   else
   {
     char buf[256];
-    BaseString::snprintf(buf, "Error opening DIH schema files for table: %d",
+    BaseString::snprintf(buf, sizeof(buf), 
+		         "Error opening DIH schema files for table: %d",
 			 tabPtr.i);
     progError(__LINE__, NDBD_EXIT_AFS_NO_SUCH_FILE, buf);
   }
