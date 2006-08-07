@@ -6787,7 +6787,15 @@ ha_innobase::store_lock(
 						TL_IGNORE */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-	trx_t*		trx		= prebuilt->trx;
+	trx_t*		trx;
+
+	/* Call update_thd() to update prebuilt->trx to point to the trx
+	object of thd! Failure to do this caused a serious memory
+	corruption bug in 5.1.11. */
+
+	update_thd(thd);
+
+	trx = prebuilt->trx;
 
 	/* NOTE: MySQL	can call this function with lock 'type' TL_IGNORE!
 	Be careful to ignore TL_IGNORE if we are going to do something with
