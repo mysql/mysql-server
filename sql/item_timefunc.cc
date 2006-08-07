@@ -223,7 +223,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	tmp= (char*) val + min(2, val_len);
 	l_time->day= (int) my_strtoll10(val, &tmp, &error);
 	/* Skip 'st, 'nd, 'th .. */
-	val= tmp + min((int) (end-tmp), 2);
+	val= tmp + min((int) (val_end-tmp), 2);
 	break;
 
 	/* Hour */
