@@ -14937,6 +14937,7 @@ static void test_bug17667()
   master_log_filename = (char *) malloc(strlen(opt_vardir) + strlen("/log/master.log") + 1);
   strcpy(master_log_filename, opt_vardir);
   strcat(master_log_filename, "/log/master.log");
+  printf("Opening '%s'\n", master_log_filename);
   log_file= fopen(master_log_filename, "r");
   free(master_log_filename);
 
@@ -14956,6 +14957,9 @@ static void test_bug17667()
 
       } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
             statement_cursor->buffer, statement_cursor->length) == NULL);
+
+      printf("Found statement starting with \"%s\"\n",
+             statement_cursor->buffer);
     }
 
     printf("success.  All queries found intact in the log.\n");
