@@ -1343,9 +1343,9 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           ones used to be.
         */
         first= FALSE;
-        DBUG_ASSERT(i + m_reorged_parts <= m_file_tot_parts);
+        DBUG_ASSERT(((i*no_subparts) + m_reorged_parts) <= m_file_tot_parts);
         memcpy((void*)m_reorged_file, &m_file[i*no_subparts],
-               sizeof(handler*)*m_reorged_parts*no_subparts);
+               sizeof(handler*)*m_reorged_parts);
       }
     } while (++i < no_parts);
   }
