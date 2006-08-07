@@ -177,13 +177,12 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
 	     "the state of a fragment scan was out of sync.",     
 	     killingNode);
     break;
-
+    
   case SystemError::CopyFragRefError:
     BaseString::snprintf(buf, sizeof(buf), 
-	     "Node %d killed this node because "
-	     "it could not copy a fragment during node restart. "
-	     "Copy fragment error code: %u.",
-	     killingNode, data1);
+			 "Killed by node %d as "
+			 "copyfrag failed, error: %u",
+			 killingNode, data1);
     break;
 
   default:
