@@ -154,3 +154,4 @@ connection default;
 drop view testdb_1.v1,v2, testdb_1.v3, v4;
 drop database testdb_1;
 drop user testdb_1@localhost;
+drop user testdb_2@localhost;
