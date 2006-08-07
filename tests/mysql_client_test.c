@@ -14951,9 +14951,18 @@ static void test_bug17667()
       do {
         memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
 
-        DIE_UNLESS(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) !=
-            NULL);
-        /* If we reach EOF before finishing the statement list, then we failed. */
+        if(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) == NULL)
+        {
+          /* If fgets returned NULL, it indicates either error or EOF */
+          if (feof(log_file))
+            DIE("Found EOF before all statements where found");
+          else
+          {
+            fprintf(stderr, "Got error %d while reading from file\n",
+                    ferror(log_file));
+            DIE("Read error");
+          }
+        }
 
       } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
             statement_cursor->buffer, statement_cursor->length) == NULL);
