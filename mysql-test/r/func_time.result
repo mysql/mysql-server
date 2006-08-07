@@ -695,3 +695,37 @@ t1	CREATE TABLE `t1` (
   `from_unixtime(1) + 0` double(23,6) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+SET @df:="%M %D, %Y";
+SELECT DATE_FORMAT('2005-10-31', "%M %D, %Y");
+DATE_FORMAT('2005-10-31', "%M %D, %Y")
+October 31st, 2005
+SELECT DATE_FORMAT('2005-10-31', @df);
+DATE_FORMAT('2005-10-31', @df)
+October 31st, 2005
+SELECT STR_TO_DATE('October 31st, 2005', "%M %D, %Y");
+STR_TO_DATE('October 31st, 2005', "%M %D, %Y")
+2005-10-31
+SELECT STR_TO_DATE('October 31st, 2005', @df);
+STR_TO_DATE('October 31st, 2005', @df)
+2005-10-31
+CREATE TABLE `dt` (
+d datetime,
+ds char(30)
+);
+INSERT INTO `dt` (d) VALUES ('2005-10-31'), ('2005-11-30');
+SET @df:="%M %D, %Y";
+UPDATE dt SET ds = DATE_FORMAT(d, @df);
+SELECT * FROM dt;
+d	ds
+2005-10-31 00:00:00	October 31st, 2005
+2005-11-30 00:00:00	November 30th, 2005
+SELECT d, ds, STR_TO_DATE(ds, @df) FROM dt;
+d	ds	STR_TO_DATE(ds, @df)
+2005-10-31 00:00:00	October 31st, 2005	2005-10-31
+2005-11-30 00:00:00	November 30th, 2005	2005-11-30
+SELECT d, ds, STR_TO_DATE(ds, "%M %D, %Y") FROM dt;
+d	ds	STR_TO_DATE(ds, "%M %D, %Y")
+2005-10-31 00:00:00	October 31st, 2005	2005-10-31
+2005-11-30 00:00:00	November 30th, 2005	2005-11-30
+DROP TABLE `dt`;
+End of 4.1 tests
