@@ -1347,23 +1347,16 @@ row_upd_sec_index_entry(
 							node,
 							&pcur, index->table,
 							index, thr, &mtr);
-				if (err != DB_SUCCESS) {
-
-					goto close_cur;
-				}
 			}
-
 		}
 	}
-close_cur:
+
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
 	if (node->is_delete || err != DB_SUCCESS) {
 
-		mem_heap_free(heap);
-
-		return(err);
+		goto func_exit;
 	}
 
 	/* Build a new index entry */
@@ -1372,6 +1365,7 @@ close_cur:
 	/* Insert new index entry */
 	err = row_ins_index_entry(index, entry, NULL, 0, thr);
 
+func_exit:
 	mem_heap_free(heap);
 
 	return(err);

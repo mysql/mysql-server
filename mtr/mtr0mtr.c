@@ -54,16 +54,13 @@ mtr_memo_slot_release(
 		} else if (type == MTR_MEMO_S_LOCK) {
 			rw_lock_s_unlock((rw_lock_t*)object);
 #ifdef UNIV_DEBUG
-		} else if (type == MTR_MEMO_X_LOCK) {
-			rw_lock_x_unlock((rw_lock_t*)object);
-		} else {
+		} else if (type != MTR_MEMO_X_LOCK) {
 			ut_ad(type == MTR_MEMO_MODIFY);
 			ut_ad(mtr_memo_contains(mtr, object,
 						MTR_MEMO_PAGE_X_FIX));
-#else
+#endif /* UNIV_DEBUG */
 		} else {
 			rw_lock_x_unlock((rw_lock_t*)object);
-#endif
 		}
 	}
 
