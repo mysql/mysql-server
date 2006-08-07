@@ -14930,7 +14930,9 @@ static void test_bug17667()
     myquery(rc);
   }
 
-  sleep(1); /* The server may need time to flush the data to the log. */
+  /* Make sure the server has written the logs to disk before reading it */
+  rc= mysql_query(mysql, "flush logs");
+  myquery(rc);
 
   master_log_filename = (char *) malloc(strlen(opt_vardir) + strlen("/log/master.log") + 1);
   strcpy(master_log_filename, opt_vardir);
