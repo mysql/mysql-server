@@ -2794,10 +2794,10 @@ private:
 /*THIS VARIABLE IS THE HEAD OF A LINKED LIST OF FRAGMENTS WAITING TO BE      */
 /*RESTORED FROM DISK.                                                        */
 /* ------------------------------------------------------------------------- */
-  DLList<Fragrecord> c_lcp_waiting_fragments;  // StartFragReq'ed
-  DLList<Fragrecord> c_lcp_restoring_fragments; // Restoring as we speek
-  DLList<Fragrecord> c_lcp_complete_fragments;  // Restored
-  DLList<Fragrecord> c_redo_complete_fragments; // Redo'ed
+  DLFifoList<Fragrecord> c_lcp_waiting_fragments;  // StartFragReq'ed
+  DLFifoList<Fragrecord> c_lcp_restoring_fragments; // Restoring as we speek
+  DLFifoList<Fragrecord> c_lcp_complete_fragments;  // Restored
+  DLFifoList<Fragrecord> c_redo_complete_fragments; // Redo'ed
   
 /* ------------------------------------------------------------------------- */
 /*USED DURING SYSTEM RESTART, INDICATES THE OLDEST GCI THAT CAN BE RESTARTED */

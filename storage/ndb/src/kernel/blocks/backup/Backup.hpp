@@ -645,7 +645,6 @@ public:
   void lcp_open_file(Signal* signal, BackupRecordPtr ptr);
   void lcp_open_file_done(Signal*, BackupRecordPtr);
   void lcp_close_file_conf(Signal* signal, BackupRecordPtr);
-  void lcp_send_end_lcp_conf(Signal* signal, BackupRecordPtr);
 
   bool ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP);
 };
