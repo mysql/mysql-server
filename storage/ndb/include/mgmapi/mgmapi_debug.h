@@ -101,7 +101,7 @@ extern "C" {
    */
   int ndb_mgm_dump_state(NdbMgmHandle handle,
 			 int nodeId,
-			 int * args,
+			 const int * args,
 			 int num_args,
 			 struct ndb_mgm_reply* reply);
     
