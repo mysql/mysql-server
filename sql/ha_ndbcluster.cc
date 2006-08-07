@@ -161,6 +161,7 @@ int execute_no_commit(ha_ndbcluster *h, NdbConnection *trans)
   if (m_batch_execute)
     return 0;
 #endif
+  h->release_completed_operations(trans);
   return trans->execute(NoCommit,AbortOnError,h->m_force_send);
 }
 
@@ -194,6 +195,7 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbConnection *trans)
   if (m_batch_execute)
     return 0;
 #endif
+  h->release_completed_operations(trans);
   return trans->execute(NoCommit, AO_IgnoreError,h->m_force_send);
 }
 
@@ -5267,6 +5269,12 @@ int ha_ndbcluster::write_ndb_file()
     my_close(file,MYF(0));
   }
   DBUG_RETURN(error);
+}
+
+void 
+ha_ndbcluster::release_completed_operations(NdbConnection *trans)
+{
+  trans->releaseCompletedOperations();
 }
 
 int
