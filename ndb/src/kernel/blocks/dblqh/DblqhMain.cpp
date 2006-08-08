@@ -6470,6 +6470,7 @@ void Dblqh::execACC_ABORTCONF(Signal* signal)
      * A NORMAL EVENT DURING CREATION OF A FRAGMENT. WE NOW NEED TO CONTINUE
      * WITH NORMAL COMMIT PROCESSING.
      * ---------------------------------------------------------------------- */
+    regTcPtr->totSendlenAi = regTcPtr->totReclenAi;
     if (regTcPtr->currTupAiLen == regTcPtr->totReclenAi) {
       jam();
       regTcPtr->abortState = TcConnectionrec::ABORT_IDLE;
