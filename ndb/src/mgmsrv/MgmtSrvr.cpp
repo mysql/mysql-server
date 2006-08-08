@@ -1455,6 +1455,12 @@ MgmtSrvr::exitSingleUser(int * stopCount, bool abort)
 
 #include <ClusterMgr.hpp>
 
+void
+MgmtSrvr::updateStatus(NodeBitmask nodes)
+{
+  theFacade->theClusterMgr->forceHB(nodes);
+}
+
 int 
 MgmtSrvr::status(int nodeId, 
                  ndb_mgm_node_status * _status, 
@@ -1977,6 +1983,25 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
       }
     }
   }
+}
+
+void
+MgmtSrvr::get_connected_ndb_nodes(NodeBitmask &connected_nodes) const
+{
+  NodeBitmask ndb_nodes;
+  if (theFacade && theFacade->theClusterMgr)
+  {
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+    {
+      if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
+      {
+        ndb_nodes.set(i);
+	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	connected_nodes.bitOR(node.m_state.m_connected_nodes);
+      }
+    }
+  }
+  connected_nodes.bitAND(ndb_nodes);
 }
 
 bool
