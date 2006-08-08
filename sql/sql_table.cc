@@ -5043,8 +5043,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* Disable alter of log tables to unsupported engine */
     if ((table_kind == GENERAL_LOG || table_kind == SLOW_LOG) &&
         (lex_create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+        (!lex_create_info->db_type || /* unknown engine */
         !(lex_create_info->db_type->db_type == DB_TYPE_MYISAM ||
-          lex_create_info->db_type->db_type == DB_TYPE_CSV_DB))
+          lex_create_info->db_type->db_type == DB_TYPE_CSV_DB)))
     {
       my_error(ER_BAD_LOG_ENGINE, MYF(0));
       DBUG_RETURN(TRUE);
