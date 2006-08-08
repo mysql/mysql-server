@@ -39,6 +39,8 @@
 
 int global_flag_send_heartbeat_now= 0;
 
+//#define DEBUG_REG
+
 // Just a C wrapper for threadMain
 extern "C" 
 void*
@@ -67,6 +69,8 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   DBUG_ENTER("ClusterMgr::ClusterMgr");
   ndbSetOwnVersion();
   clusterMgrThreadMutex = NdbMutex_Create();
+  waitForHBCond= NdbCondition_Create();
+  waitingForHB= false;
   noOfAliveNodes= 0;
   noOfConnectedNodes= 0;
   theClusterMgrThread= 0;
@@ -77,7 +81,8 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
 ClusterMgr::~ClusterMgr()
 {
   DBUG_ENTER("ClusterMgr::~ClusterMgr");
-  doStop();  
+  doStop();
+  NdbCondition_Destroy(waitForHBCond);
   NdbMutex_Destroy(clusterMgrThreadMutex);
   DBUG_VOID_RETURN;
 }
@@ -164,6 +169,56 @@ ClusterMgr::doStop( ){
 }
 
 void
+ClusterMgr::forceHB(NodeBitmask waitFor)
+{
+    theFacade.lock_mutex();
+
+    if(waitingForHB)
+    {
+      NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
+      theFacade.unlock_mutex();
+      return;
+    }
+
+    global_flag_send_heartbeat_now= 1;
+    waitingForHB= true;
+
+    waitForHBFromNodes= waitFor;
+#ifdef DEBUG_REG
+    char buf[128];
+    ndbout << "Waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
+#endif
+    NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theFacade.ownId()));
+
+    signal.theVerId_signalNumber   = GSN_API_REGREQ;
+    signal.theReceiversBlockNumber = QMGR;
+    signal.theTrace                = 0;
+    signal.theLength               = ApiRegReq::SignalLength;
+
+    ApiRegReq * req = CAST_PTR(ApiRegReq, signal.getDataPtrSend());
+    req->ref = numberToRef(API_CLUSTERMGR, theFacade.ownId());
+    req->version = NDB_VERSION;
+
+    int nodeId= 0;
+    for(int i=0;
+        NodeBitmask::NotFound!=(nodeId= waitForHBFromNodes.find(i));
+        i= nodeId+1)
+    {
+#ifdef DEBUG_REG
+      ndbout << "FORCE HB to " << nodeId << endl;
+#endif
+      theFacade.sendSignalUnCond(&signal, nodeId);
+    }
+
+    NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
+    waitingForHB= false;
+#ifdef DEBUG_REG
+    ndbout << "Still waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
+#endif
+    theFacade.unlock_mutex();
+}
+
+void
 ClusterMgr::threadMain( ){
   NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theFacade.ownId()));
   
@@ -226,7 +281,7 @@ ClusterMgr::threadMain( ){
 	if (theNode.m_info.m_type == NodeInfo::REP) {
 	  signal.theReceiversBlockNumber = API_CLUSTERMGR;
 	}
-#if 0 
+#ifdef DEBUG_REG
 	ndbout_c("ClusterMgr: Sending API_REGREQ to node %d", (int)nodeId);
 #endif
 	theFacade.sendSignalUnCond(&signal, nodeId);
@@ -278,7 +333,7 @@ ClusterMgr::execAPI_REGREQ(const Uint32 * theData){
   const ApiRegReq * const apiRegReq = (ApiRegReq *)&theData[0];
   const NodeId nodeId = refToNode(apiRegReq->ref);
 
-#if 0
+#ifdef DEBUG_REG
   ndbout_c("ClusterMgr: Recd API_REGREQ from node %d", nodeId);
 #endif
 
@@ -319,7 +374,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   const ApiRegConf * const apiRegConf = (ApiRegConf *)&theData[0];
   const NodeId nodeId = refToNode(apiRegConf->qmgrRef);
   
-#if 0 
+#ifdef DEBUG_REG
   ndbout_c("ClusterMgr: Recd API_REGCONF from node %d", nodeId);
 #endif
 
@@ -351,6 +406,17 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   if (node.m_info.m_type != NodeInfo::REP) {
     node.hbFrequency = (apiRegConf->apiHeartbeatFrequency * 10) - 50;
   }
+
+  if(waitingForHB)
+  {
+    waitForHBFromNodes.clear(nodeId);
+
+    if(waitForHBFromNodes.isclear())
+    {
+      waitingForHB= false;
+      NdbCondition_Broadcast(waitForHBCond);
+    }
+  }
 }
 
 void
@@ -379,6 +445,10 @@ ClusterMgr::execAPI_REGREF(const Uint32 * theData){
   default:
     break;
   }
+
+  waitForHBFromNodes.clear(nodeId);
+  if(waitForHBFromNodes.isclear())
+    NdbCondition_Signal(waitForHBCond);
 }
 
 void
