@@ -1,5 +1,13 @@
 drop table if exists t1;
 create table t1 (a int)
+engine = innodb
+partition by key (a);
+insert into t1 values (0);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	2	8192	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
+create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
 create procedure pz()
