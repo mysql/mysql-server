@@ -3471,14 +3471,9 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   }
   table->part_info= part_info;
   table->file->set_part_info(part_info);
-  if (part_info->default_engine_type == NULL)
-  {
+  if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
-  }
-  else
-  {
-    DBUG_ASSERT(part_info->default_engine_type == default_db_type);
-  }
+  DBUG_ASSERT(part_info->default_engine_type == default_db_type);
   part_info->item_free_list= thd->free_list;
 
   {
@@ -4390,6 +4385,13 @@ state of p1.
            (no_parts_new != no_parts_reorged))
       {
         my_error(ER_REORG_HASH_ONLY_ON_SAME_NO, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+      if (tab_part_info->is_sub_partitioned() &&
+          alt_part_info->no_subparts &&
+          alt_part_info->no_subparts != tab_part_info->no_subparts)
+      {
+        my_error(ER_PARTITION_WRONG_NO_SUBPART_ERROR, MYF(0));
         DBUG_RETURN(TRUE);
       }
       check_total_partitions= tab_part_info->no_parts + no_parts_new;

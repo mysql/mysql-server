@@ -5145,13 +5145,12 @@ void ha_partition::print_error(int error, myf errflag)
   DBUG_ENTER("ha_partition::print_error");
 
   /* Should probably look for my own errors first */
-  /* monty: needs to be called for the last used partition ! */
   DBUG_PRINT("enter", ("error: %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
     m_part_info->print_no_partition_found(table);
   else
-    m_file[0]->print_error(error, errflag);
+    m_file[m_last_part]->print_error(error, errflag);
   DBUG_VOID_RETURN;
 }
 
@@ -5161,8 +5160,7 @@ bool ha_partition::get_error_message(int error, String *buf)
   DBUG_ENTER("ha_partition::get_error_message");
 
   /* Should probably look for my own errors first */
-  /* monty: needs to be called for the last used partition ! */
-  DBUG_RETURN(m_file[0]->get_error_message(error, buf));
+  DBUG_RETURN(m_file[m_last_part]->get_error_message(error, buf));
 }
 
 
