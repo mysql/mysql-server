@@ -5023,17 +5023,11 @@ ha_innobase::delete_all_rows(void)
 	}
 
 	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
+	if not yet created, and update prebuilt->trx */
 
-	trx = check_trx_exists(thd);
-
-	/* Update prebuilt->trx */
 	update_thd(current_thd);
 
 	/* Truncate the table in InnoDB */
-
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	error = row_truncate_table_for_mysql(prebuilt->table, trx);
 	if (error == DB_ERROR) {
