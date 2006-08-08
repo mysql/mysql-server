@@ -1115,3 +1115,14 @@ insert into t1 values (1,1), (1,2), (2,3), (2,4);
 select i, count(distinct j) from t1 group by i;
 select i+0.0 as i2, count(distinct j) from t1 group by i2;
 drop table t1;
+
+#
+# Bug#16172 DECIMAL data type processed incorrectly
+#
+select cast(143.481 as decimal(4,1));
+select cast(143.481 as decimal(4,0));
+select cast(143.481 as decimal(2,1));
+select cast(-3.4 as decimal(2,1));
+select cast(99.6 as decimal(2,0));
+select cast(-13.4 as decimal(2,1));
+select cast(98.6 as decimal(2,0));

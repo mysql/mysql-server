@@ -1787,7 +1787,7 @@ drop table t1;
 create view v1 as select cast(1 as decimal);
 select * from v1;
 cast(1 as decimal)
-1.00
+1
 drop view v1;
 create table t1(f1 int);
 create table t2(f2 int);
