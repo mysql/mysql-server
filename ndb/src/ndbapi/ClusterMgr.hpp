@@ -49,7 +49,9 @@ public:
 
   void doStop();
   void startThread();
-  
+
+  void forceHB(NodeBitmask waitFor);
+
 private:
   void threadMain();
   
@@ -85,7 +87,11 @@ private:
   Uint32        noOfConnectedNodes;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
-  
+
+  NodeBitmask   waitForHBFromNodes; // used in forcing HBs
+  NdbCondition* waitForHBCond;
+  bool          waitingForHB;
+
   /**
    * Used for controlling start/stop of the thread
    */
