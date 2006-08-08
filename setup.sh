@@ -35,7 +35,7 @@ do
   ln -s ../../../innodb/"$dir"* .
   cd ..
 done
-for file in configure.in Makefile.am
+for file in configure.in Makefile.am CMakeLists.txt
 do
   ln -s ../../innodb/"$file" .
 done
