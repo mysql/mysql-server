@@ -552,15 +552,18 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
+%doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisampack.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_explain_log.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlmanager.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
@@ -646,7 +649,6 @@ fi
 %files ndb-management
 %defattr(-,root,root,0755)
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
-%attr(755, root, root) %{_bindir}/ndb_mgm
 
 %files ndb-tools
 %defattr(-,root,root,0755)

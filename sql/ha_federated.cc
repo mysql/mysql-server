@@ -124,11 +124,6 @@
 
     ha_federated::write_row
 
-    <for every field/column>
-    Field::quote_data
-    Field::quote_data
-    </for every field/column>
-
     ha_federated::reset
 
     (UPDATE)
@@ -138,19 +133,9 @@
     ha_federated::index_init
     ha_federated::index_read
     ha_federated::index_read_idx
-    Field::quote_data
     ha_federated::rnd_next
     ha_federated::convert_row_to_internal_format
     ha_federated::update_row
-
-    <quote 3 cols, new and old data>
-    Field::quote_data
-    Field::quote_data
-    Field::quote_data
-    Field::quote_data
-    Field::quote_data
-    Field::quote_data
-    </quote 3 cols, new and old data>
 
     ha_federated::extra
     ha_federated::extra
@@ -1157,7 +1142,7 @@ bool ha_federated::create_where_from_key(String *to,
       Field *field= key_part->field;
       uint store_length= key_part->store_length;
       uint part_length= min(store_length, length);
-      needs_quotes= field->needs_quotes();
+      needs_quotes= 1;
       DBUG_DUMP("key, start of loop", (char *) ptr, length);
 
       if (key_part->null_bit)
@@ -1578,7 +1563,62 @@ inline uint field_in_record_is_null(TABLE *table,
 
 int ha_federated::write_row(byte *buf)
 {
-  bool has_fields= FALSE;
+  /*
+    I need a bool again, in 5.0, I used table->s->fields to accomplish this.
+    This worked as a flag that says there are fields with values or not.
+    In 5.1, this value doesn't work the same, and I end up with the code
+    truncating open parenthesis:
+
+    the statement "INSERT INTO t1 VALUES ()" ends up being first built
+    in two strings
+      "INSERT INTO t1 ("
+      and
+      " VALUES ("
+
+    If there are fields with values, they get appended, with commas, and 
+    the last loop, a trailing comma is there
+
+    "INSERT INTO t1 ( col1, col2, colN, "
+
+    " VALUES ( 'val1', 'val2', 'valN', "
+
+    Then, if there are fields, it should decrement the string by ", " length.
+
+    "INSERT INTO t1 ( col1, col2, colN"
+    " VALUES ( 'val1', 'val2', 'valN'"
+
+    Then it adds a close paren to both - if there are fields
+
+    "INSERT INTO t1 ( col1, col2, colN)"
+    " VALUES ( 'val1', 'val2', 'valN')"
+
+    Then appends both together
+    "INSERT INTO t1 ( col1, col2, colN) VALUES ( 'val1', 'val2', 'valN')"
+
+    So... the problem, is if you have the original statement:
+
+    "INSERT INTO t1 VALUES ()"
+
+    Which is legitimate, but if the code thinks there are fields
+
+    "INSERT INTO t1 ("
+    " VALUES ( "
+
+    If the field flag is set, but there are no commas, reduces the 
+    string by strlen(", ")
+
+    "INSERT INTO t1 "
+    " VALUES "
+
+    Then adds the close parenthesis
+
+    "INSERT INTO t1  )"
+    " VALUES  )"
+
+    So, I have to use a bool as before, set in the loop where fields and commas
+    are appended to the string
+  */
+  my_bool commas_added= FALSE;
   char insert_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char values_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char insert_field_value_buffer[STRING_BUFFER_USUAL_SIZE];
@@ -1594,10 +1634,6 @@ int ha_federated::write_row(byte *buf)
                                    &my_charset_bin);
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
   DBUG_ENTER("ha_federated::write_row");
-  DBUG_PRINT("info",
-             ("table charset name %s csname %s",
-              table->s->table_charset->name,
-              table->s->table_charset->csname));
 
   values_string.length(0);
   insert_string.length(0);
@@ -1609,37 +1645,33 @@ int ha_federated::write_row(byte *buf)
   /*
     start both our field and field values strings
   */
-  insert_string.append(STRING_WITH_LEN("INSERT `"));
+  insert_string.append(STRING_WITH_LEN("INSERT INTO `"));
   insert_string.append(share->table_name, share->table_name_length);
-  insert_string.append(STRING_WITH_LEN("` ("));
+  insert_string.append('`');
+  insert_string.append(STRING_WITH_LEN(" ("));
 
-  values_string.append(STRING_WITH_LEN(" VALUES ("));
+  values_string.append(STRING_WITH_LEN(" VALUES "));
+  values_string.append(STRING_WITH_LEN(" ("));
 
   /*
     loop through the field pointer array, add any fields to both the values
     list and the fields list that is part of the write set
-
-    You might ask "Why an index variable (has_fields) ?" My answer is that
-    we need to count how many fields we actually need
   */
   for (field= table->field; *field; field++)
   {
-    /* if there is a query id and if it's equal to the current query id */
     if (bitmap_is_set(table->write_set, (*field)->field_index))
     {
-      /*
-        There are some fields. This will be used later to determine
-        whether to chop off commas and parens.
-      */
-      has_fields= TRUE;
-
+      commas_added= TRUE;
       if ((*field)->is_null())
         insert_field_value_string.append(STRING_WITH_LEN(" NULL "));
       else
       {
         (*field)->val_str(&insert_field_value_string);
-        /* quote these fields if they require it */
-        (*field)->quote_data(&insert_field_value_string);
+        values_string.append('\'');
+        insert_field_value_string.print(&values_string);
+        values_string.append('\'');
+
+        insert_field_value_string.length(0);
       }
       /* append the field name */
       insert_string.append((*field)->field_name);
@@ -1665,10 +1697,10 @@ int ha_federated::write_row(byte *buf)
     AND, we don't want to chop off the last char '('
     insert will be "INSERT INTO t1 VALUES ();"
   */
-  if (has_fields)
+  if (commas_added)
   {
-    /* chops off trailing commas */
     insert_string.length(insert_string.length() - sizeof_trailing_comma);
+    /* chops off leading commas */
     values_string.length(values_string.length() - sizeof_trailing_comma);
     insert_string.append(STRING_WITH_LEN(") "));
   }
@@ -1678,6 +1710,7 @@ int ha_federated::write_row(byte *buf)
     insert_string.length(insert_string.length() - sizeof_trailing_closeparen);
   }
 
+  /* we always want to append this, even if there aren't any fields */
   values_string.append(STRING_WITH_LEN(") "));
 
   /* add the values */
@@ -1799,6 +1832,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     this.
   */
   bool has_a_primary_key= test(table->s->primary_key != MAX_KEY);
+  
   /*
     buffers for following strings
   */
@@ -1844,7 +1878,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
     if (bitmap_is_set(table->write_set, (*field)->field_index))
     {
       update_string.append((*field)->field_name);
-      update_string.append(STRING_WITH_LEN("="));
+      update_string.append(STRING_WITH_LEN(" = "));
 
       if ((*field)->is_null())
         update_string.append(STRING_WITH_LEN(" NULL "));
@@ -1852,9 +1886,10 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
       {
         my_bitmap_map *old_map= tmp_use_all_columns(table, table->read_set);
         /* otherwise = */
-        (*field)->val_str(&field_value);
-        (*field)->quote_data(&field_value);
-        update_string.append(field_value);
+	(*field)->val_str(&field_value);
+        update_string.append('\'');
+        field_value.print(&update_string);
+        update_string.append('\'');
         field_value.length(0);
         tmp_restore_column_map(table->read_set, old_map);
       }
@@ -1871,8 +1906,9 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
         where_string.append(STRING_WITH_LEN(" = "));
         (*field)->val_str(&field_value,
                           (char*) (old_data + (*field)->offset()));
-        (*field)->quote_data(&field_value);
-        where_string.append(field_value);
+	where_string.append('\'');
+        field_value.print(&where_string);
+	where_string.append('\'');
         field_value.length(0);
       }
       where_string.append(STRING_WITH_LEN(" AND "));
@@ -1881,6 +1917,7 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
 
   /* Remove last ', '. This works as there must be at least on updated field */
   update_string.length(update_string.length() - sizeof_trailing_comma);
+
   if (where_string.length())
   {
     /* chop off trailing AND */
@@ -1946,10 +1983,11 @@ int ha_federated::delete_row(const byte *buf)
       }
       else
       {
-        delete_string.append(STRING_WITH_LEN(" = "));
-        cur_field->val_str(&data_string);
-        cur_field->quote_data(&data_string);
-        delete_string.append(data_string);
+      delete_string.append(STRING_WITH_LEN(" = "));
+      cur_field->val_str(&data_string);
+      delete_string.append('\'');
+      data_string.print(&delete_string);
+      delete_string.append('\'');
       }
       delete_string.append(STRING_WITH_LEN(" AND "));
     }
