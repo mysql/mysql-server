@@ -1896,6 +1896,14 @@ static int do_sub(decimal_t *from1, decimal_t *from2, decimal_t *to)
   return error;
 }
 
+int decimal_intg(decimal_t *from)
+{
+  int res;
+  dec1 *tmp_res;
+  tmp_res= remove_leading_zeroes(from, &res);
+  return res;
+}
+
 int decimal_add(decimal_t *from1, decimal_t *from2, decimal_t *to)
 {
   if (likely(from1->sign == from2->sign))

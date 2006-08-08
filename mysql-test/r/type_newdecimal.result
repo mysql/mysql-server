@@ -1418,3 +1418,30 @@ i2	count(distinct j)
 1.0	2
 2.0	2
 drop table t1;
+select cast(143.481 as decimal(4,1));
+cast(143.481 as decimal(4,1))
+143.5
+select cast(143.481 as decimal(4,0));
+cast(143.481 as decimal(4,0))
+143
+select cast(143.481 as decimal(2,1));
+cast(143.481 as decimal(2,1))
+9.9
+Warnings:
+Error	1264	Out of range value for column 'cast(143.481 as decimal(2,1))' at row 1
+select cast(-3.4 as decimal(2,1));
+cast(-3.4 as decimal(2,1))
+-3.4
+select cast(99.6 as decimal(2,0));
+cast(99.6 as decimal(2,0))
+99
+Warnings:
+Error	1264	Out of range value for column 'cast(99.6 as decimal(2,0))' at row 1
+select cast(-13.4 as decimal(2,1));
+cast(-13.4 as decimal(2,1))
+-9.9
+Warnings:
+Error	1264	Out of range value for column 'cast(-13.4 as decimal(2,1))' at row 1
+select cast(98.6 as decimal(2,0));
+cast(98.6 as decimal(2,0))
+99

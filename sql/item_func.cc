@@ -955,9 +955,32 @@ longlong Item_decimal_typecast::val_int()
 my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
 {
   my_decimal tmp_buf, *tmp= args[0]->val_decimal(&tmp_buf);
+  bool sign;
   if ((null_value= args[0]->null_value))
     return NULL;
   my_decimal_round(E_DEC_FATAL_ERROR, tmp, decimals, FALSE, dec);
+  sign= dec->sign();
+  if (unsigned_flag)
+  {
+    if (sign)
+    {
+      my_decimal_set_zero(dec);
+      goto err;
+    }
+  }
+  if (max_length - 2 - decimals < (uint) my_decimal_intg(dec))
+  {
+    max_my_decimal(dec, max_length - 2, decimals);
+    dec->sign(sign);
+    goto err;
+  }
+  return dec;
+
+err:
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                      ER_WARN_DATA_OUT_OF_RANGE,
+                      ER(ER_WARN_DATA_OUT_OF_RANGE),
+                      name, 1);
   return dec;
 }
 
