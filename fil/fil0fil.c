@@ -2688,8 +2688,7 @@ fil_open_single_table_tablespace(
 "InnoDB: It is also possible that this is a temporary table #sql...,\n"
 "InnoDB: and MySQL removed the .ibd file for this.\n"
 "InnoDB: Please refer to\n"
-"InnoDB:"
-" http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(filepath);
@@ -2728,8 +2727,7 @@ fil_open_single_table_tablespace(
 "InnoDB: Have you moved InnoDB .ibd files around without using the\n"
 "InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n"
 "InnoDB: Please refer to\n"
-"InnoDB:"
-" http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "InnoDB: for how to resolve the issue.\n", (ulong) space_id, (ulong) id);
 
 		ret = FALSE;
@@ -3376,8 +3374,7 @@ fil_space_for_table_exists_in_mem(
 	error_exit:
 		fputs(
 "InnoDB: Please refer to\n"
-"InnoDB:"
-" http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(path);
