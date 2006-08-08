@@ -39,7 +39,7 @@ static bool table_def_inited= 0;
 static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
 			     const char *alias,
                              char *cache_key, uint cache_key_length,
-			     MEM_ROOT *mem_root);
+			     MEM_ROOT *mem_root, uint flags);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
@@ -1763,7 +1763,7 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 
   if (open_unireg_entry(thd, table, table_list, table_name,
                         table->s->table_cache_key.str,
-                        table->s->table_cache_key.length, thd->mem_root))
+                        table->s->table_cache_key.length, thd->mem_root, 0))
   {
     intern_close_table(table);
     /*
@@ -1960,7 +1960,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         table= &tab;
         VOID(pthread_mutex_lock(&LOCK_open));
         if (!open_unireg_entry(thd, table, table_list, alias,
-                              key, key_length, mem_root))
+                              key, key_length, mem_root, 0))
         {
           DBUG_ASSERT(table_list->view != 0);
           VOID(pthread_mutex_unlock(&LOCK_open));
@@ -2044,6 +2044,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
   else
   {
+    int error;
     /* Free cache if too big */
     while (open_cache.records > table_cache_size && unused_tables)
       VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
@@ -2055,15 +2056,23 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       DBUG_RETURN(NULL);
     }
 
-    if (open_unireg_entry(thd, table, table_list, alias, key, key_length,
-                          mem_root))
+    error= open_unireg_entry(thd, table, table_list, alias, key, key_length,
+                             mem_root, (flags & OPEN_VIEW_NO_PARSE));
+    if (error > 0)
     {
       my_free((gptr)table, MYF(0));
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
     }
-    if (table_list->view)
+    if (table_list->view || error < 0)
     {
+      /*
+        VIEW not really opened, only frm were read.
+        Set 1 as a flag here
+      */
+      if (error < 0)
+        table_list->view= (st_lex*)1;
+
       my_free((gptr)table, MYF(0));
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(0); // VIEW
@@ -2165,7 +2174,6 @@ static bool reopen_table(TABLE *table)
     sql_print_error("Table %s had a open data handler in reopen_table",
 		    table->alias);
 #endif
-
   table_list.db=         table->s->db.str;
   table_list.table_name= table->s->table_name.str;
   table_list.table=      table;
@@ -2179,7 +2187,7 @@ static bool reopen_table(TABLE *table)
 			table->alias,
                         table->s->table_cache_key.str,
                         table->s->table_cache_key.length,
-                        thd->mem_root))
+                        thd->mem_root, 0))
     goto end;
 
   /* This list copies variables set by open_table */
@@ -2613,6 +2621,8 @@ void assign_new_table_id(TABLE_SHARE *share)
     cache_key		Key for share_cache
     cache_key_length	length of cache_key
     mem_root		temporary mem_root for parsing
+    flags               the OPEN_VIEW_NO_PARSE flag to be passed to
+                        openfrm()/open_new_frm()
 
   NOTES
    Extra argument for open is taken from thd->open_options
@@ -2626,7 +2636,7 @@ void assign_new_table_id(TABLE_SHARE *share)
 static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
                              const char *alias,
                              char *cache_key, uint cache_key_length,
-                             MEM_ROOT *mem_root)
+                             MEM_ROOT *mem_root, uint flags)
 {
   int error;
   TABLE_SHARE *share;
@@ -2649,7 +2659,7 @@ retry:
                                       HA_GET_INDEX | HA_TRY_READ_ONLY),
                               READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                               thd->open_options, entry, table_list,
-                              mem_root);
+                              mem_root, (flags & OPEN_VIEW_NO_PARSE)));
     if (error)
       goto err;
     /* TODO: Don't free this */
@@ -2707,7 +2717,6 @@ retry:
     }
     if (!entry->s || !entry->s->crashed)
       goto err;
-
      // Code below is for repairing a crashed file
      if ((error= lock_table_name(thd, table_list, TRUE)))
      {
@@ -6339,7 +6348,8 @@ open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                  "BASE TABLE");
         goto err;
       }
-      if (mysql_make_view(thd, parser, table_desc))
+      if (mysql_make_view(thd, parser, table_desc,
+                          (prgflag & OPEN_VIEW_NO_PARSE)))
         goto err;
     }
     else
