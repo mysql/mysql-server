@@ -122,6 +122,10 @@ int ha_myisammrg::close(void)
 int ha_myisammrg::write_row(byte * buf)
 {
   statistic_increment(table->in_use->status_var.ha_write_count,&LOCK_status);
+
+  if (file->merge_insert_method == MERGE_INSERT_DISABLED || !file->tables)
+    return (HA_ERR_TABLE_READONLY);
+
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
