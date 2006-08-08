@@ -15,10 +15,20 @@ drop table if exists t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
-insert into t1 values (0);
+show table status;
+insert into t1 values (0), (1), (2), (3);
 show table status;
 drop table t1;
 
+create table t1 (a int auto_increment primary key)
+engine = innodb
+partition by key (a);
+show table status;
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+show table status;
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+show table status;
+drop table t1;
 #
 # Bug 19309 Partitions: Crash if double procedural alter
 #
