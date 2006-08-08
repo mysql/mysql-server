@@ -4186,12 +4186,16 @@ void ha_partition::info(uint flag)
 
     if (table->found_next_number_field)
     {
+      /*
+        Can only call get_auto_increment for tables that actually
+        have auto_increment columns, otherwise there will be
+        problems in handlers that don't expect get_auto_increment
+        for non-autoincrement tables.
+      */
       get_auto_increment(0, 0, 0, &stats.auto_increment_value,
                          &nb_reserved_values);
       release_auto_increment();
     }
-    else
-      stats.auto_increment_value= ~(ulonglong)(0);
   }
   if (flag & HA_STATUS_VARIABLE)
   {
