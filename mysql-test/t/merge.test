@@ -392,4 +392,19 @@ create table tm (b bit(1)) engine = merge union = (t1,t2);
 select * from tm;
 drop table tm, t1, t2;
 
-# End of 5.0 tests
+#
+# Bug #17766: The server accepts to create MERGE tables which cannot work
+#
+create table t1 (a int) insert_method = last engine = merge;
+--error ER_OPEN_AS_READONLY
+insert into t1 values (1);
+create table t2 (a int) engine = myisam;
+alter table t1 union (t2);
+insert into t1 values (1);
+alter table t1 insert_method = no;
+--error ER_OPEN_AS_READONLY
+insert into t1 values (1);
+drop table t2;
+drop table t1;
+
+--echo End of 5.0 tests
