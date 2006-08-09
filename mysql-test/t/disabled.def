@@ -22,6 +22,7 @@ ndb_binlog_ignore_db     : BUG#21279 2006-07-25 ingo    Randomly throws a warnin
 ndb_load                 : BUG#17233 2006-05-04 tomas failed load data from infile causes mysqld dbug_assert, binlog not flushed
 ndb_restore_compat       : BUG#21283 2006-07-26 ingo    Test fails randomly
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
+ps                       : BUG#21524 2006-08-08 pgalbraith 'ps' test fails in --ps-protocol test AMD64 bit
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller create table like does not obtain LOCK_open
 rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
 rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
