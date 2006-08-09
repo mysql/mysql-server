@@ -488,10 +488,9 @@ public:
 
   const char *get_connect_address(Uint32 node_id);
   void get_connected_nodes(NodeBitmask &connected_nodes) const;
-  void get_connected_ndb_nodes(NodeBitmask &connected_nodes) const;
   SocketServer *get_socket_server() { return m_socket_server; }
 
-  void updateStatus(NodeBitmask nodes);
+  void updateStatus();
 
   //**************************************************************************
 private:

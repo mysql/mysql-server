@@ -50,7 +50,7 @@ public:
   void doStop();
   void startThread();
 
-  void forceHB(NodeBitmask waitFor);
+  void forceHB();
 
 private:
   void threadMain();
