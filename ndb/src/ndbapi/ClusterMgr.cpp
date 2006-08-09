@@ -193,7 +193,6 @@ ClusterMgr::forceHB()
         const ClusterMgr::Node &node= getNodeInfo(i);
         waitForHBFromNodes.bitOR(node.m_state.m_connected_nodes);
       }
-      ndbout << endl;
     }
     waitForHBFromNodes.bitAND(ndb_nodes);
 
