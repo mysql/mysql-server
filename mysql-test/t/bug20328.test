@@ -1,9 +1,0 @@
-# This test should work in embedded server after we fix mysqltest
--- source include/not_embedded.inc
-
-#
-# Bug #20328: mysql client interprets commands in comments
-#
---exec echo 'help' | $MYSQL
---exec echo 'help ' | $MYSQL
-
