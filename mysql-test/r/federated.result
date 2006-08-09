@@ -1603,6 +1603,44 @@ fld_cid	fld_name	fld_parentid	fld_delt
 5	Torkel	0	0
 DROP TABLE federated.t1;
 DROP TABLE federated.bug_17377_table;
+DROP TABLE IF EXISTS federated.test;
+CREATE TABLE federated.test (
+`id` int(11) NOT NULL,
+`val1` varchar(255) NOT NULL,
+`val2` varchar(255) NOT NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.test_local;
+DROP TABLE IF EXISTS federated.test_remote;
+CREATE TABLE federated.test_local (
+`id` int(11) NOT NULL,
+`val1` varchar(255) NOT NULL,
+`val2` varchar(255) NOT NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO federated.test_local VALUES (1, 'foo', 'bar'),
+(2, 'bar', 'foo');
+CREATE TABLE federated.test_remote (
+`id` int(11) NOT NULL,
+`val1` varchar(255) NOT NULL,
+`val2` varchar(255) NOT NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=FEDERATED DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/test';
+insert into federated.test_remote select * from federated.test_local;
+select * from federated.test_remote;
+id	val1	val2
+1	foo	bar
+2	bar	foo
+delete from federated.test_remote where id in (1,2);
+insert into federated.test_remote select * from federated.test_local;
+select * from federated.test_remote;
+id	val1	val2
+2	bar	foo
+1	foo	bar
+DROP TABLE federated.test_local;
+DROP TABLE federated.test_remote;
+DROP TABLE federated.test;
 drop table if exists federated.t1;
 create table federated.t1 (a int, b int, c int);
 drop table if exists federated.t1;
@@ -1731,6 +1769,19 @@ select * from t1;
 id	val
 1	NULL
 2	0
+drop table t1;
+drop table t1;
+create table t1 (a longblob not null);
+create table t1
+(a longblob not null) engine=federated
+connection='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+insert into t1 values (repeat('a',5000));
+select length(a) from t1;
+length(a)
+5000
+select length(a) from t1;
+length(a)
+5000
 drop table t1;
 drop table t1;
 End of 5.0 tests
