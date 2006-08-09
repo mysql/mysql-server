@@ -330,6 +330,7 @@ fsp_get_space_header(
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(header, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
+	ut_ad(id == mach_read_from_4(FSP_SPACE_ID + header));
 	return(header);
 }
 
@@ -571,11 +572,15 @@ xdes_get_state(
 	xdes_t*	descr,	/* in: descriptor */
 	mtr_t*	mtr)	/* in: mtr handle */
 {
+	ulint	state;
+
 	ut_ad(descr && mtr);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(descr),
 							MTR_MEMO_PAGE_X_FIX));
 
-	return(mtr_read_ulint(descr + XDES_STATE, MLOG_4BYTES, mtr));
+	state = mtr_read_ulint(descr + XDES_STATE, MLOG_4BYTES, mtr);
+	ut_ad(state - 1 < XDES_FSEG);
+	return(state);
 }
 
 /**************************************************************************
