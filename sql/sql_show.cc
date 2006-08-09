@@ -2713,9 +2713,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       table->field[5]->store("",0, cs);
       table->field[5]->set_notnull();
     }
-    pos=(byte*) ((flags & NOT_NULL_FLAG) &&
-                 field->type() != FIELD_TYPE_TIMESTAMP ?
-                 "NO" : "YES");
+    pos=(byte*) ((flags & NOT_NULL_FLAG) ?  "NO" : "YES");
     table->field[6]->store((const char*) pos,
                            strlen((const char*) pos), cs);
     is_blob= (field->type() == FIELD_TYPE_BLOB);
