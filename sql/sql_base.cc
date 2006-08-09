@@ -2657,14 +2657,15 @@ retry:
     error= (int) open_new_frm(thd, share, alias,
                               (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                       HA_GET_INDEX | HA_TRY_READ_ONLY),
-                              READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                              READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
+                              (flags & OPEN_VIEW_NO_PARSE),
                               thd->open_options, entry, table_list,
-                              mem_root, (flags & OPEN_VIEW_NO_PARSE)));
+                              mem_root);
     if (error)
       goto err;
     /* TODO: Don't free this */
     release_table_share(share, RELEASE_NORMAL);
-    DBUG_RETURN(0);
+    DBUG_RETURN((flags & OPEN_VIEW_NO_PARSE)? -1 : 0);
   }
 
   while ((error= open_table_from_share(thd, share, alias,
