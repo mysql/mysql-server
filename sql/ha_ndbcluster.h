@@ -534,6 +534,12 @@ class Ndb_cond_traverse_context
   Ndb_rewrite_context *rewrite_stack;
 };
 
+
+typedef enum ndb_query_state_bits {
+  NDB_QUERY_NORMAL = 0,
+  NDB_QUERY_MULTI_READ_RANGE = 1
+} NDB_QUERY_STATE_BITS;
+
 /*
   Place holder for ha_ndbcluster thread specific data
 */
@@ -571,6 +577,7 @@ class Thd_ndb
   int error;
   uint32 options;
   List<NDB_SHARE> changed_tables;
+  uint query_state;
   HASH open_tables;
 };
 
@@ -833,6 +840,8 @@ private:
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
 
+  void release_completed_operations(NdbTransaction*, bool);
+
   /*
     Condition pushdown
   */
@@ -849,8 +858,8 @@ private:
 
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
+  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
 
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
