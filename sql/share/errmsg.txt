@@ -5843,3 +5843,9 @@ ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
 ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
 	eng "Triggers can not be created on system tables"
+ER_CANT_ALTER_LOG_TABLE
+        eng "You can't alter a log table if logging is enabled"
+ER_BAD_LOG_ENGINE
+        eng "One can use only CSV and MyISAM engines for the log tables"
+ER_CANT_DROP_LOG_TABLE
+        eng "Cannot drop log table if log is enabled"
