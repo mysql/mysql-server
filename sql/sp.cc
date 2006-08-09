@@ -1841,7 +1841,6 @@ sp_use_new_db(THD *thd, LEX_STRING new_db, LEX_STRING *old_db,
 	      bool no_access_check, bool *dbchangedp)
 {
   int ret;
-  static char empty_c_string[1]= {0};          /* used for not defined db */
   DBUG_ENTER("sp_use_new_db");
   DBUG_PRINT("enter", ("newdb: %s", new_db.str));
 
