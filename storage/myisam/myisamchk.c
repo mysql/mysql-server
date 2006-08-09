@@ -17,7 +17,6 @@
 /* Describe, check and repair of MyISAM tables */
 
 #include "fulltext.h"
-
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_getopt.h>
@@ -68,9 +67,9 @@ static const char *myisam_stats_method_str="nulls_unequal";
 static void get_options(int *argc,char * * *argv);
 static void print_version(void);
 static void usage(void);
-static int myisamchk(MI_CHECK *param, char *filename);
-static void descript(MI_CHECK *param, register MI_INFO *info, my_string name);
-static int mi_sort_records(MI_CHECK *param, register MI_INFO *info,
+static int myisamchk(HA_CHECK *param, char *filename);
+static void descript(HA_CHECK *param, register MI_INFO *info, my_string name);
+static int mi_sort_records(HA_CHECK *param, register MI_INFO *info,
                            my_string name, uint sort_key,
 			   my_bool write_info, my_bool update_index);
 static int sort_record_index(MI_SORT_PARAM *sort_param, MI_INFO *info,
@@ -78,7 +77,7 @@ static int sort_record_index(MI_SORT_PARAM *sort_param, MI_INFO *info,
 			     my_off_t page,uchar *buff,uint sortkey,
 			     File new_file, my_bool update_index);
 
-MI_CHECK check_param;
+HA_CHECK check_param;
 
 	/* Main program */
 
@@ -696,7 +695,7 @@ get_one_option(int optid,
   case OPT_STATS_METHOD:
   {
     int method;
-    enum_mi_stats_method method_conv;
+    enum_handler_stats_method method_conv;
     myisam_stats_method_str= argument;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
     {
@@ -793,7 +792,7 @@ static void get_options(register int *argc,register char ***argv)
 
 	/* Check table */
 
-static int myisamchk(MI_CHECK *param, my_string filename)
+static int myisamchk(HA_CHECK *param, my_string filename)
 {
   int error,lock_type,recreate;
   int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
@@ -1198,7 +1197,7 @@ end2:
 
 	 /* Write info about table */
 
-static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
+static void descript(HA_CHECK *param, register MI_INFO *info, my_string name)
 {
   uint key,keyseg_nr,field,start;
   reg3 MI_KEYDEF *keyinfo;
@@ -1463,7 +1462,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, my_string name)
 
 	/* Sort records according to one key */
 
-static int mi_sort_records(MI_CHECK *param,
+static int mi_sort_records(HA_CHECK *param,
 			   register MI_INFO *info, my_string name,
 			   uint sort_key,
 			   my_bool write_info,
@@ -1477,7 +1476,7 @@ static int mi_sort_records(MI_CHECK *param,
   ha_rows old_record_count;
   MYISAM_SHARE *share=info->s;
   char llbuff[22],llbuff2[22];
-  SORT_INFO sort_info;
+  MI_SORT_INFO sort_info;
   MI_SORT_PARAM sort_param;
   DBUG_ENTER("sort_records");
 
@@ -1652,10 +1651,10 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
   uint	nod_flag,used_length,key_length;
   uchar *temp_buff,*keypos,*endpos;
   my_off_t next_page,rec_pos;
-  uchar lastkey[MI_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   char llbuff[22];
-  SORT_INFO *sort_info= sort_param->sort_info;
-  MI_CHECK *param=sort_info->param;
+  MI_SORT_INFO *sort_info= sort_param->sort_info;
+  HA_CHECK *param=sort_info->param;
   DBUG_ENTER("sort_record_index");
 
   nod_flag=mi_test_if_nod(buff);
@@ -1743,7 +1742,7 @@ err:
 
 static int not_killed= 0;
 
-volatile int *killed_ptr(MI_CHECK *param __attribute__((unused)))
+volatile int *killed_ptr(HA_CHECK *param __attribute__((unused)))
 {
   return &not_killed;			/* always NULL */
 }
@@ -1751,7 +1750,7 @@ volatile int *killed_ptr(MI_CHECK *param __attribute__((unused)))
 	/* print warnings and errors */
 	/* VARARGS */
 
-void mi_check_print_info(MI_CHECK *param __attribute__((unused)),
+void mi_check_print_info(HA_CHECK *param __attribute__((unused)),
 			 const char *fmt,...)
 {
   va_list args;
@@ -1764,7 +1763,7 @@ void mi_check_print_info(MI_CHECK *param __attribute__((unused)),
 
 /* VARARGS */
 
-void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
+void mi_check_print_warning(HA_CHECK *param, const char *fmt,...)
 {
   va_list args;
   DBUG_ENTER("mi_check_print_warning");
@@ -1789,7 +1788,7 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 
 /* VARARGS */
 
-void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
+void mi_check_print_error(HA_CHECK *param, const char *fmt,...)
 {
   va_list args;
   DBUG_ENTER("mi_check_print_error");

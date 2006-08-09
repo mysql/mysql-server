@@ -59,7 +59,7 @@ static handler *myisam_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 
 // collect errors printed by mi_check routines
 
-static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
+static void mi_check_print_msg(HA_CHECK *param,	const char* msg_type,
 			       const char *fmt, va_list args)
 {
   THD* thd = (THD*)param->thd;
@@ -100,13 +100,13 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
 extern "C" {
 
-volatile int *killed_ptr(MI_CHECK *param)
+volatile int *killed_ptr(HA_CHECK *param)
 {
   /* In theory Unsafe conversion, but should be ok for now */
   return (int*) &(((THD *)(param->thd))->killed);
 }
 
-void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
+void mi_check_print_error(HA_CHECK *param, const char *fmt,...)
 {
   param->error_printed|=1;
   param->out_flag|= O_DATA_LOST;
@@ -116,7 +116,7 @@ void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
   va_end(args);
 }
 
-void mi_check_print_info(MI_CHECK *param, const char *fmt,...)
+void mi_check_print_info(HA_CHECK *param, const char *fmt,...)
 {
   va_list args;
   va_start(args, fmt);
@@ -124,7 +124,7 @@ void mi_check_print_info(MI_CHECK *param, const char *fmt,...)
   va_end(args);
 }
 
-void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
+void mi_check_print_warning(HA_CHECK *param, const char *fmt,...)
 {
   param->warning_printed=1;
   param->out_flag|= O_DATA_LOST;
@@ -338,7 +338,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 {
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
   int error;
-  MI_CHECK param;
+  HA_CHECK param;
   MYISAM_SHARE* share = file->s;
   const char *old_proc_info=thd->proc_info;
 
@@ -349,7 +349,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   param.db_name=    table->s->db.str;
   param.table_name= table->alias;
   param.testflag = check_opt->flags | T_CHECK | T_SILENT;
-  param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
+  param.stats_method= (enum_handler_stats_method)thd->variables.myisam_stats_method;
 
   if (!(table->db_stat & HA_READ_ONLY))
     param.testflag|= T_STATISTICS;
@@ -430,7 +430,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
 {
   int error=0;
-  MI_CHECK param;
+  HA_CHECK param;
   MYISAM_SHARE* share = file->s;
 
   myisamchk_init(&param);
@@ -441,7 +441,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache = 1;
-  param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
+  param.stats_method= (enum_handler_stats_method)thd->variables.myisam_stats_method;
 
   if (!(share->state.changed & STATE_NOT_ANALYZED))
     return HA_ADMIN_ALREADY_DONE;
@@ -487,7 +487,7 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
 
  err:
   {
-    MI_CHECK param;
+    HA_CHECK param;
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "restore";
@@ -547,7 +547,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 
  err:
   {
-    MI_CHECK param;
+    HA_CHECK param;
     myisamchk_init(&param);
     param.thd=        thd;
     param.op_name=    "backup";
@@ -563,7 +563,7 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 int ha_myisam::repair(THD* thd, HA_CHECK_OPT *check_opt)
 {
   int error;
-  MI_CHECK param;
+  HA_CHECK param;
   ha_rows start_records;
 
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
@@ -613,7 +613,7 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 {
   int error;
   if (!file) return HA_ADMIN_INTERNAL_ERROR;
-  MI_CHECK param;
+  HA_CHECK param;
 
   myisamchk_init(&param);
   param.thd = thd;
@@ -632,7 +632,7 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 }
 
 
-int ha_myisam::repair(THD *thd, MI_CHECK &param, bool optimize)
+int ha_myisam::repair(THD *thd, HA_CHECK &param, bool optimize)
 {
   int error=0;
   uint local_testflag=param.testflag;
@@ -810,7 +810,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
   if (error != HA_ADMIN_OK)
   {
     /* Send error to user */
-    MI_CHECK param;
+    HA_CHECK param;
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "assign_to_keycache";
@@ -878,7 +878,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
 
  err:
   {
-    MI_CHECK param;
+    HA_CHECK param;
     myisamchk_init(&param);
     param.thd= thd;
     param.op_name=    "preload_keys";
@@ -985,7 +985,7 @@ int ha_myisam::enable_indexes(uint mode)
   else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
   {
     THD *thd=current_thd;
-    MI_CHECK param;
+    HA_CHECK param;
     const char *save_proc_info=thd->proc_info;
     thd->proc_info="Creating index";
     myisamchk_init(&param);
@@ -994,7 +994,7 @@ int ha_myisam::enable_indexes(uint mode)
                      T_CREATE_MISSING_KEYS);
     param.myf_rw&= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length=  thd->variables.myisam_sort_buff_size;
-    param.stats_method= (enum_mi_stats_method)thd->variables.myisam_stats_method;
+    param.stats_method= (enum_handler_stats_method)thd->variables.myisam_stats_method;
     param.tmpdir=&mysql_tmpdir_list;
     if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
     {
@@ -1650,7 +1650,7 @@ void ha_myisam::get_auto_increment(ulonglong offset, ulonglong increment,
 {
   ulonglong nr;
   int error;
-  byte key[MI_MAX_KEY_LENGTH];
+  byte key[HA_MAX_KEY_LENGTH];
 
   if (!table->s->next_number_key_offset)
   {						// Autoincrement at key-start

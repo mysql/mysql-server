@@ -22,6 +22,28 @@
 #include "m_ctype.h"
 #include "myisampack.h"
 
+/*
+  There is a hard limit for the maximum number of keys as there are only
+  8 bits in the index file header for the number of keys in a table.
+  This means that 0..255 keys can exist for a table. The idea of
+  HA_MAX_POSSIBLE_KEY is to ensure that one can use myisamchk & tools on
+  a MyISAM table for which one has more keys than MyISAM is normally
+  compiled for. If you don't have this, you will get a core dump when
+  running myisamchk compiled for 128 keys on a table with 255 keys.
+*/
+
+#define HA_MAX_POSSIBLE_KEY         255         /* For myisamchk */
+/*
+  The following defines can be increased if necessary.
+  But beware the dependency of HA_MAX_POSSIBLE_KEY_BUFF and HA_MAX_KEY_LENGTH.
+*/
+
+#define HA_MAX_KEY_LENGTH           1000        /* Max length in bytes */
+#define HA_MAX_KEY_SEG              16          /* Max segments for key */
+
+#define HA_MAX_POSSIBLE_KEY_BUFF    (HA_MAX_KEY_LENGTH + 24+ 6+6) 
+#define HA_MAX_KEY_BUFF  (HA_MAX_KEY_LENGTH+HA_MAX_KEY_SEG*6+8+8)
+
 typedef struct st_HA_KEYSEG		/* Key-portion */
 {
   CHARSET_INFO *charset;
@@ -81,7 +103,7 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 #define clr_rec_bits(bit_ptr, bit_ofs, bit_len) \
   set_rec_bits(0, bit_ptr, bit_ofs, bit_len)
 
-extern int mi_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
+extern int ha_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
 			   my_bool, my_bool);
 extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 		      register uchar *b, uint key_length, uint nextflag,

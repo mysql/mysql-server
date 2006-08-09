@@ -2200,6 +2200,11 @@ MYSQL_PLUGIN_ACTIONS(ndbcluster,[MYSQL_SETUP_NDBCLUSTER])
 
 MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
         [MySQL Partitioning Support], [max,max-no-ndb])
+MYSQL_STORAGE_ENGINE(maria,maria, [Maria Storage Engine],
+        [Traditional transactional MySQL tables])
+MYSQL_PLUGIN_DIRECTORY(maria,  [storage/maria])
+MYSQL_PLUGIN_STATIC(maria,     [libmaria.a])
+MYSQL_PLUGIN_MANDATORY(maria)
 
 dnl -- ndbcluster requires partition to be enabled
 MYSQL_PLUGIN_DEPENDS(ndbcluster, [partition])
@@ -2434,7 +2439,6 @@ AC_SUBST(readline_topdir)
 AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
-
 
 # If we have threads generate some library functions and test programs
 sql_server_dirs=

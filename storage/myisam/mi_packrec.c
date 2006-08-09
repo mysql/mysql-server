@@ -102,6 +102,7 @@ static void init_bit_buffer(MI_BIT_BUFF *bit_buff,uchar *buffer,uint length);
 static uint fill_and_get_bits(MI_BIT_BUFF *bit_buff,uint count);
 static void fill_buffer(MI_BIT_BUFF *bit_buff);
 static uint max_bit(uint value);
+static uint read_pack_length(uint version, const uchar *buf, ulong *length);
 #ifdef HAVE_MMAP
 static uchar *_mi_mempack_get_block_info(MI_INFO *myisam,MI_BLOCK_INFO *info,
 					 uchar *header);
@@ -775,7 +776,7 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
       return;
     }
     decode_bytes(rec,bit_buff,bit_buff->blob_pos,bit_buff->blob_pos+length);
-    _my_store_blob_length((byte*) to,pack_length,length);
+    _mi_store_blob_length((byte*) to,pack_length,length);
     memcpy_fixed((char*) to+pack_length,(char*) &bit_buff->blob_pos,
 		 sizeof(char*));
     bit_buff->blob_pos+=length;
@@ -1178,7 +1179,6 @@ static int _mi_read_rnd_mempack_record(MI_INFO*, byte *,my_off_t, my_bool);
 
 my_bool _mi_memmap_file(MI_INFO *info)
 {
-  byte *file_map;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("mi_memmap_file");
 
@@ -1315,7 +1315,7 @@ uint save_pack_length(uint version, byte *block_buff, ulong length)
 }
 
 
-uint read_pack_length(uint version, const uchar *buf, ulong *length)
+static uint read_pack_length(uint version, const uchar *buf, ulong *length)
 {
   if (buf[0] < 254)
   {

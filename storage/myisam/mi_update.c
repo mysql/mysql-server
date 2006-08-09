@@ -24,7 +24,7 @@ int mi_update(register MI_INFO *info, const byte *oldrec, byte *newrec)
   int flag,key_changed,save_errno;
   reg3 my_off_t pos;
   uint i;
-  uchar old_key[MI_MAX_KEY_BUFF],*new_key;
+  uchar old_key[HA_MAX_KEY_BUFF],*new_key;
   bool auto_key_changed=0;
   ulonglong changed;
   MYISAM_SHARE *share=info->s;
