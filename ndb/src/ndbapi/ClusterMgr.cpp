@@ -37,8 +37,6 @@
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
 
-int global_flag_send_heartbeat_now= 0;
-
 //#define DEBUG_REG
 
 // Just a C wrapper for threadMain
@@ -169,7 +167,7 @@ ClusterMgr::doStop( ){
 }
 
 void
-ClusterMgr::forceHB(NodeBitmask waitFor)
+ClusterMgr::forceHB()
 {
     theFacade.lock_mutex();
 
@@ -180,10 +178,25 @@ ClusterMgr::forceHB(NodeBitmask waitFor)
       return;
     }
 
-    global_flag_send_heartbeat_now= 1;
     waitingForHB= true;
 
-    waitForHBFromNodes= waitFor;
+    NodeBitmask ndb_nodes;
+    ndb_nodes.clear();
+    waitForHBFromNodes.clear();
+    for(Uint32 i = 0; i < MAX_NODES; i++)
+    {
+      if(!theNodes[i].defined)
+        continue;
+      if(theNodes[i].m_info.m_type == NodeInfo::DB)
+      {
+        ndb_nodes.set(i);
+        const ClusterMgr::Node &node= getNodeInfo(i);
+        waitForHBFromNodes.bitOR(node.m_state.m_connected_nodes);
+      }
+      ndbout << endl;
+    }
+    waitForHBFromNodes.bitAND(ndb_nodes);
+
 #ifdef DEBUG_REG
     char buf[128];
     ndbout << "Waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
@@ -239,9 +252,6 @@ ClusterMgr::threadMain( ){
     /**
      * Start of Secure area for use of Transporter
      */
-    int send_heartbeat_now= global_flag_send_heartbeat_now;
-    global_flag_send_heartbeat_now= 0;
-
     theFacade.lock_mutex();
     for (int i = 1; i < MAX_NODES; i++){
       /**
@@ -264,8 +274,7 @@ ClusterMgr::threadMain( ){
       }
       
       theNode.hbCounter += timeSlept;
-      if (theNode.hbCounter >= theNode.hbFrequency ||
-	  send_heartbeat_now) {
+      if (theNode.hbCounter >= theNode.hbFrequency) {
 	/**
 	 * It is now time to send a new Heartbeat
 	 */
