@@ -8,8 +8,8 @@
 # server or run mysql-test-run --debug mysql_client_test and check
 # var/log/mysql_client_test.trace
 
---disable_result_log
---exec $MYSQL_CLIENT_TEST --getopt-ll-test=25600M
+--exec echo "$MYSQL_CLIENT_TEST" > $MYSQLTEST_VARDIR/log/mysql_client_test.log 2>&1
+--exec $MYSQL_CLIENT_TEST --getopt-ll-test=25600M >> $MYSQLTEST_VARDIR/log/mysql_client_test.log 2>&1
 
 # End of 4.1 tests
 echo ok;

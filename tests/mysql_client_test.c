@@ -122,6 +122,7 @@ static void client_disconnect();
 void die(const char *file, int line, const char *expr)
 {
   fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
+  fflush(NULL);
   abort();
 }
 
@@ -14914,7 +14915,7 @@ static void test_bug17667()
     { "insert into bug17667 (c) values ('5 NULs=\0\0\0\0\0')", 48 },
     { "/* NUL=\0 with comment */ insert into bug17667 (c) values ('encore')", 67 },
     { "drop table bug17667", 19 },
-    { NULL, 0 } };  
+    { NULL, 0 } };
 
   struct buffer_and_length *statement_cursor;
   FILE *log_file;
@@ -14929,11 +14930,14 @@ static void test_bug17667()
     myquery(rc);
   }
 
-  sleep(1); /* The server may need time to flush the data to the log. */
+  /* Make sure the server has written the logs to disk before reading it */
+  rc= mysql_query(mysql, "flush logs");
+  myquery(rc);
 
   master_log_filename = (char *) malloc(strlen(opt_vardir) + strlen("/log/master.log") + 1);
   strcpy(master_log_filename, opt_vardir);
   strcat(master_log_filename, "/log/master.log");
+  printf("Opening '%s'\n", master_log_filename);
   log_file= fopen(master_log_filename, "r");
   free(master_log_filename);
 
@@ -14941,18 +14945,30 @@ static void test_bug17667()
 
     for (statement_cursor= statements; statement_cursor->buffer != NULL;
         statement_cursor++) {
-     char line_buffer[MAX_TEST_QUERY_LENGTH*2]; 
-     /* more than enough room for the query and some marginalia. */
+      char line_buffer[MAX_TEST_QUERY_LENGTH*2];
+      /* more than enough room for the query and some marginalia. */
 
       do {
         memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
 
-        DIE_UNLESS(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) !=
-            NULL);
-        /* If we reach EOF before finishing the statement list, then we failed. */
+        if(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) == NULL)
+        {
+          /* If fgets returned NULL, it indicates either error or EOF */
+          if (feof(log_file))
+            DIE("Found EOF before all statements where found");
+          else
+          {
+            fprintf(stderr, "Got error %d while reading from file\n",
+                    ferror(log_file));
+            DIE("Read error");
+          }
+        }
 
       } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
             statement_cursor->buffer, statement_cursor->length) == NULL);
+
+      printf("Found statement starting with \"%s\"\n",
+             statement_cursor->buffer);
     }
 
     printf("success.  All queries found intact in the log.\n");
