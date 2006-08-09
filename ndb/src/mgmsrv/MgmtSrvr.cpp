@@ -77,7 +77,6 @@
     }\
   }
 
-extern int global_flag_send_heartbeat_now;
 extern int g_no_nodeid_checks;
 extern my_bool opt_core;
 
@@ -1456,9 +1455,9 @@ MgmtSrvr::exitSingleUser(int * stopCount, bool abort)
 #include <ClusterMgr.hpp>
 
 void
-MgmtSrvr::updateStatus(NodeBitmask nodes)
+MgmtSrvr::updateStatus()
 {
-  theFacade->theClusterMgr->forceHB(nodes);
+  theFacade->theClusterMgr->forceHB();
 }
 
 int 
@@ -1985,25 +1984,6 @@ MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
   }
 }
 
-void
-MgmtSrvr::get_connected_ndb_nodes(NodeBitmask &connected_nodes) const
-{
-  NodeBitmask ndb_nodes;
-  if (theFacade && theFacade->theClusterMgr)
-  {
-    for(Uint32 i = 0; i < MAX_NODES; i++)
-    {
-      if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
-      {
-        ndb_nodes.set(i);
-	const ClusterMgr::Node &node= theFacade->theClusterMgr->getNodeInfo(i);
-	connected_nodes.bitOR(node.m_state.m_connected_nodes);
-      }
-    }
-  }
-  connected_nodes.bitAND(ndb_nodes);
-}
-
 bool
 MgmtSrvr::alloc_node_id(NodeId * nodeId, 
 			enum ndb_mgm_node_type type,
@@ -2178,7 +2158,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   if (found_matching_type && !found_free_node) {
     // we have a temporary error which might be due to that 
     // we have got the latest connect status from db-nodes.  Force update.
-    global_flag_send_heartbeat_now= 1;
+    updateStatus();
   }
 
   BaseString type_string, type_c_string;
@@ -2532,7 +2512,7 @@ MgmtSrvr::Allocated_resources::~Allocated_resources()
   if (!m_reserved_nodes.isclear()) {
     m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
     // node has been reserved, force update signal to ndb nodes
-    global_flag_send_heartbeat_now= 1;
+    m_mgmsrv.updateStatus();
 
     char tmp_str[128];
     m_mgmsrv.m_reserved_nodes.getText(tmp_str);

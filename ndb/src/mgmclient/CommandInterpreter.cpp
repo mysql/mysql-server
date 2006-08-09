@@ -705,6 +705,7 @@ CommandInterpreter::execute_impl(const char *_line)
     DBUG_RETURN(true);
 
   if (strcasecmp(firstToken, "SHOW") == 0) {
+    Guard g(m_print_mutex);
     executeShow(allAfterFirstToken);
     DBUG_RETURN(true);
   }
