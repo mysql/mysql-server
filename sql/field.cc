@@ -4722,7 +4722,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   thd->time_zone_used= 1;
 
   temp= time_tmp.year % 100;
-  if (temp < YY_PART_YEAR)
+  if (temp < YY_PART_YEAR - 1)
   {
     *to++= '2';
     *to++= '0';
