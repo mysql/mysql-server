@@ -1816,6 +1816,10 @@ page_zip_decompress_low(
 				goto zlib_error;
 			}
 
+			/* Clear the node pointer in case the record
+			will be deleted and the space will be reallocated
+			to a smaller record. */
+			memset(d_stream.next_out, 0, REC_NODE_PTR_SIZE);
 			d_stream.next_out += REC_NODE_PTR_SIZE;
 		}
 
@@ -2677,7 +2681,9 @@ page_zip_write_trx_id_and_roll_ptr(
 #ifdef UNIV_ZIP_DEBUG
 /* Set this variable in a debugger to disable page_zip_clear_rec().
 The only observable effect should be the compression ratio due to
-deleted records not being zeroed out. */
+deleted records not being zeroed out.  In rare cases, there can be
+page_zip_validate() failures on the node_ptr, trx_id and roll_ptr
+columns if the space is reallocated for a smaller record. */
 ibool	page_zip_clear_rec_disable;
 #endif /* UNIV_ZIP_DEBUG */
 
