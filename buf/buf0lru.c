@@ -419,6 +419,9 @@ loop:
 
 		if (block->page_zip.size != zip_size) {
 			block->page_zip.size = zip_size;
+			block->page_zip.n_blobs = 0;
+			block->page_zip.m_start = 0;
+			block->page_zip.m_end = 0;
 			if (block->page_zip.data) {
 				ut_free(block->page_zip.data);
 			}
