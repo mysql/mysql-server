@@ -8338,6 +8338,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
       }
       replicaPtr.i = nextReplicaPtrI;
     }//while
+    updateNodeInfo(fragPtr);
   }
 }
 
