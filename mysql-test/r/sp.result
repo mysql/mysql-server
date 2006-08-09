@@ -3625,7 +3625,6 @@ begin
 set f1= concat( 'hello', f1 );
 return f1;
 end|
-drop function bug9048|
 drop procedure if exists bug12849_1|
 create procedure bug12849_1(inout x char) select x into x|
 set @var='a'|
@@ -4074,7 +4073,7 @@ select res;
 end|
 create table t3 (a int)|
 insert into t3 values (0)|
-create view v1 as select a from t3;
+create view v1 as select a from t3|
 create procedure bug10100pt(level int, lim int)
 begin
 if level < lim then
@@ -4095,7 +4094,7 @@ else
 select * from v1;
 end if;
 end|
-prepare stmt2 from "select * from t3;";
+prepare stmt2 from "select * from t3;"|
 create procedure bug10100pd(level int, lim int)
 begin
 if level < lim then
@@ -4465,7 +4464,7 @@ Error	1347	'test.v1' is not BASE TABLE
 Error	1347	'test.v1' is not BASE TABLE
 Error	1347	'test.v1' is not BASE TABLE
 drop procedure bug13012|
-drop view v1;
+drop view v1|
 select * from t1 order by data|
 id	data
 aa	0
