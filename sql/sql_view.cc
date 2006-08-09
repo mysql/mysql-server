@@ -179,23 +179,16 @@ static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
   LEX *lex= thd->lex;
-  bool free_view= 1;
+  bool not_used;
   TABLE_LIST decoy;
 
-  if (view->view)
-    free_view= 0;
   memcpy (&decoy, view, sizeof (TABLE_LIST));
   if (!open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE) &&
       !decoy.view)
   {
     /* It's a table */
-    my_free((gptr)decoy.table, MYF(0));
-    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
     return TRUE;
   }
-  if (!decoy.view)
-    /* An error while opening the view occurs, caller will handle it */
-    return FALSE;
 
   if (!lex->definer)
   {
@@ -208,11 +201,6 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   if (lex->create_view_suid == VIEW_SUID_DEFAULT)
     lex->create_view_suid= decoy.view_suid ? 
       VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
-  if (free_view)
-  {
-    delete decoy.view;
-    lex->cleanup_after_one_table_open();
-  }
 
   return FALSE;
 }
