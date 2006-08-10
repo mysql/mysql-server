@@ -248,34 +248,34 @@ a
 DROP TABLE t1;
 create table t1(a int not null, key using btree(a)) engine=heap;
 insert into t1 values (2), (2), (2), (1), (1), (3), (3), (3), (3);
-select a from t1 where a > 2;
+select a from t1 where a > 2 order by a;
 a
 3
 3
 3
 3
 delete from t1 where a < 4;
-select a from t1;
+select a from t1 order by a;
 a
 insert into t1 values (2), (2), (2), (1), (1), (3), (3), (3), (3);
-select a from t1 where a > 4;
+select a from t1 where a > 4 order by a;
 a
 delete from t1 where a > 4;
-select a from t1;
+select a from t1 order by a;
 a
-3
-3
 1
-3
-3
 1
 2
 2
 2
-select a from t1 where a > 3;
+3
+3
+3
+3
+select a from t1 where a > 3 order by a;
 a
 delete from t1 where a >= 2;
-select a from t1;
+select a from t1 order by a;
 a
 1
 1

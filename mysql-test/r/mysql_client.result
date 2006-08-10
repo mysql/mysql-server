@@ -5,7 +5,7 @@ ERROR at line 1: USE must be followed by a database name
 ?         (\?) Synonym for `help'.
 clear     (\c) Clear command.
 connect   (\r) Reconnect to the server. Optional arguments are db and host.
-delimiter (\d) Set query delimiter. 
+delimiter (\d) Set statement delimiter. NOTE: Takes the rest of the line as new delimiter.
 edit      (\e) Edit command with $EDITOR.
 ego       (\G) Send command to mysql server, display result vertically.
 exit      (\q) Exit mysql. Same as quit.
@@ -23,11 +23,13 @@ status    (\s) Get status information from the server.
 system    (\!) Execute a system shell command.
 tee       (\T) Set outfile [to_outfile]. Append everything into given outfile.
 use       (\u) Use another database. Takes database name as argument.
-charset_name(\C) Switch to another charset. Might be needed for processing binlog.
+charset   (\C) Switch to another charset. Might be needed for processing binlog with multi-byte charsets.
+warnings  (\W) Show warnings after every statement.
+nowarning (\w) Don't show warnings after every statement.
 ?         (\?) Synonym for `help'.
 clear     (\c) Clear command.
 connect   (\r) Reconnect to the server. Optional arguments are db and host.
-delimiter (\d) Set query delimiter. 
+delimiter (\d) Set statement delimiter. NOTE: Takes the rest of the line as new delimiter.
 edit      (\e) Edit command with $EDITOR.
 ego       (\G) Send command to mysql server, display result vertically.
 exit      (\q) Exit mysql. Same as quit.
@@ -45,7 +47,9 @@ status    (\s) Get status information from the server.
 system    (\!) Execute a system shell command.
 tee       (\T) Set outfile [to_outfile]. Append everything into given outfile.
 use       (\u) Use another database. Takes database name as argument.
-charset_name(\C) Switch to another charset. Might be needed for processing binlog.
+charset   (\C) Switch to another charset. Might be needed for processing binlog with multi-byte charsets.
+warnings  (\W) Show warnings after every statement.
+nowarning (\w) Don't show warnings after every statement.
 \
 \\
 ';

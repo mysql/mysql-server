@@ -121,9 +121,9 @@ mysqltest_5@host5, mysqltest_6@host6, mysqltest_7@host7;
 create database mysqltest_1;
 grant select, insert, update on `mysqltest\_1`.* to mysqltest_1@localhost;
 set sql_log_off = 1;
-ERROR HY000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
 set sql_log_bin = 0;
-ERROR HY000: Access denied; you need the SUPER privilege for this operation
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
 delete from mysql.user where user like 'mysqltest\_1';
 delete from mysql.db where user like 'mysqltest\_1';
 drop database mysqltest_1;
