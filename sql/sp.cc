@@ -992,11 +992,6 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
       }
       DBUG_RETURN(sp->m_first_free_instance);
     }
-    /*
-      Actually depth could be +1 than the actual value in case a SP calls
-      SHOW CREATE PROCEDURE. Hence, the linked list could hold up to one more
-      instance.
-    */
 
     level= sp->m_last_cached_sp->m_recursion_level + 1;
     if (level > depth)
@@ -1172,16 +1167,10 @@ sp_show_create_procedure(THD *thd, sp_name *name)
   DBUG_ENTER("sp_show_create_procedure");
   DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
-  /*
-    Increase the recursion limit for this statement. SHOW CREATE PROCEDURE
-    does not do actual recursion.  
-  */
-  thd->variables.max_sp_recursion_depth++;
   if ((sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
                            &thd->sp_proc_cache, FALSE)))
     ret= sp->show_create_procedure(thd);
 
-  thd->variables.max_sp_recursion_depth--;
   DBUG_RETURN(ret);
 }
 
