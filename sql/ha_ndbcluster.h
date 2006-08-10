@@ -115,7 +115,7 @@ class ha_ndbcluster: public handler
   int read_range_next();
 
   bool get_error_message(int error, String *buf);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
@@ -256,7 +256,7 @@ class ha_ndbcluster: public handler
 
   Ndb *get_ndb();
   void set_rec_per_key();
-  void records_update();
+  int records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_init(THD *);

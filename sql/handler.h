@@ -394,7 +394,7 @@ public:
                                    key_range *max_key)
     { return (ha_rows) 10; }
   virtual void position(const byte *record)=0;
-  virtual void info(uint)=0;
+  virtual int info(uint)=0;
   virtual int extra(enum ha_extra_function operation)
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
