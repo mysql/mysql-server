@@ -52,7 +52,6 @@ fi
   --with-csv-storage-engine \
   --with-example-storage-engine \
   --with-federated-storage-engine \
-  --with-berkeley-db \
   --with-innodb \
   --with-ssl \
   --enable-thread-safe-client \
