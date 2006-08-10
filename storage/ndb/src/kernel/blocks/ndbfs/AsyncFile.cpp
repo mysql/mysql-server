@@ -259,7 +259,7 @@ void AsyncFile::openReq(Request* request)
   DWORD dwDesiredAccess = 0;
   DWORD dwShareMode = FILE_SHARE_READ | FILE_SHARE_WRITE;
   DWORD dwFlagsAndAttributes = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS | FILE_FLAG_NO_BUFFERING;
-  const Uint32 flags = request->par.open.flags;
+  Uint32 flags = request->par.open.flags;
     
     // Convert file open flags from Solaris to Windows
   if ((flags & FsOpenReq::OM_CREATE) && (flags & FsOpenReq::OM_TRUNCATE)){
@@ -312,7 +312,7 @@ void AsyncFile::openReq(Request* request)
     return;
   }
 #else
-  const Uint32 flags = request->par.open.flags;
+  Uint32 flags = request->par.open.flags;
   Uint32 new_flags = 0;
 
   // Convert file open flags from Solaris to Liux
@@ -339,22 +339,24 @@ void AsyncFile::openReq(Request* request)
     new_flags |= O_APPEND;
   }
 
+  if (flags & FsOpenReq::OM_DIRECT) 
+#ifdef O_DIRECT
+  {
+    new_flags |= O_DIRECT;
+  }
+#elif defined O_SYNC
+  {
+    flags |= OM_SYNC;
+  }
+#endif
+  
   if ((flags & FsOpenReq::OM_SYNC) && ! (flags & FsOpenReq::OM_INIT))
   {
 #ifdef O_SYNC
     new_flags |= O_SYNC;
 #endif
   }
-  
-//#ifndef NDB_NO_O_DIRECT  /* to allow tmpfs */
-#ifdef O_DIRECT
-  if (flags & FsOpenReq::OM_DIRECT) 
-  {
-    new_flags |= O_DIRECT;
-  }
-#endif
-//#endif
-  
+    
   switch(flags & 0x3){
   case FsOpenReq::OM_READONLY:
     new_flags |= O_RDONLY;
@@ -403,6 +405,11 @@ no_odirect:
 	if (new_flags & O_DIRECT)
 	{
 	  new_flags &= ~O_DIRECT;
+	  flags |= FsOpenReq::OM_SYNC;
+#ifdef O_SYNC
+	  if (! (flags & FsOpenReq::OM_INIT))
+	    new_flags |= O_SYNC;
+#endif
 	  goto no_odirect;
 	}
 #endif
@@ -415,6 +422,11 @@ no_odirect:
     else if (new_flags & O_DIRECT)
     {
       new_flags &= ~O_DIRECT;
+      flags |= FsOpenReq::OM_SYNC;
+#ifdef O_SYNC
+      if (! (flags & FsOpenReq::OM_INIT))
+	new_flags |= O_SYNC;
+#endif
       goto no_odirect;
     }
 #endif
@@ -489,6 +501,7 @@ no_odirect:
 	{
 	  ndbout_c("error on first write(%d), disable O_DIRECT", err);
 	  new_flags &= ~O_DIRECT;
+	  flags |= FsOpenReq::OM_SYNC;
 	  close(theFd);
 	  theFd = ::open(theFileName.c_str(), new_flags, mode);
 	  if (theFd != -1)
@@ -505,18 +518,41 @@ no_odirect:
     if(lseek(theFd, 0, SEEK_SET) != 0)
       request->error = errno;
   }
+  else if (flags & FsOpenReq::OM_DIRECT)
+  {
+#ifdef O_DIRECT
+    do {
+      int ret;
+      char buf[2*GLOBAL_PAGE_SIZE -1];
+      char * bufptr = (char*)((UintPtr(buf)+(GLOBAL_PAGE_SIZE - 1)) & ~(GLOBAL_PAGE_SIZE - 1));
+      while (((ret = ::read(theFd, bufptr, GLOBAL_PAGE_SIZE)) == -1) && (errno == EINTR));
+      if (ret == -1)
+      {
+	ndbout_c("%s Failed to read using O_DIRECT, disabling", theFileName.c_str());
+	flags |= FsOpenReq::OM_SYNC;
+	flags |= FsOpenReq::OM_INIT;
+	break;
+      }
+      if(lseek(theFd, 0, SEEK_SET) != 0)
+      {
+	request->error = errno;
+	return;
+      }
+    } while (0);
+#endif
+  }
 
   if ((flags & FsOpenReq::OM_SYNC) && (flags & FsOpenReq::OM_INIT))
   {
+#ifdef O_SYNC
     /**
      * reopen file with O_SYNC
      */
     close(theFd);
     new_flags &= ~(O_CREAT | O_TRUNC);
-#ifdef O_SYNC
     new_flags |= O_SYNC;
-#endif
     theFd = ::open(theFileName.c_str(), new_flags, mode);
+#endif
   }
 #endif
 }
