@@ -671,7 +671,6 @@ page_copy_rec_list_start(
 	page_cur_t	cur1;
 	page_cur_t	cur2;
 	page_t*		page;
-	rec_t*		old_end;
 	ulint		log_mode	= 0 /* remove warning */;
 	mem_heap_t*	heap		= NULL;
 	rec_t*		ret		= page_rec_get_prev(
@@ -694,9 +693,7 @@ page_copy_rec_list_start(
 	page_cur_set_before_first(page, &cur1);
 	page_cur_move_to_next(&cur1);
 
-	page_cur_set_after_last(new_page, &cur2);
-	page_cur_move_to_prev(&cur2);
-	old_end = page_cur_get_rec(&cur2);
+	page_cur_position(ret, &cur2);
 
 	/* Copy records from the original page to the new page */
 
@@ -753,7 +750,7 @@ page_copy_rec_list_start(
 	page_update_max_trx_id(new_page, new_page_zip,
 					page_get_max_trx_id(page));
 
-	lock_move_rec_list_start(new_page, page, rec, old_end);
+	lock_move_rec_list_start(new_page, page, rec, ret);
 
 	btr_search_move_or_delete_hash_entries(new_page, page, index);
 
