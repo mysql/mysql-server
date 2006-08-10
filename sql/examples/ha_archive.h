@@ -116,7 +116,7 @@ public:
   int read_data_header(gzFile file_to_read);
   int write_data_header(gzFile file_to_write);
   void position(const byte *record);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int reset(void);
   int external_lock(THD *thd, int lock_type);
