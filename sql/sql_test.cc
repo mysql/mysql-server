@@ -455,7 +455,7 @@ void mysql_print_status()
   VOID(my_getwd(current_dir, sizeof(current_dir),MYF(0)));
   printf("Current dir: %s\n", current_dir);
   printf("Running threads: %d  Stack size: %ld\n", thread_count,
-	 (long) thread_stack);
+	 (long) my_thread_stack_size);
   thr_print_locks();				// Write some debug info
 #ifndef DBUG_OFF
   print_cached_tables();
@@ -530,7 +530,7 @@ Estimated memory (with thread stack):    %ld\n",
 	 (int) info.uordblks,
 	 (int) info.fordblks,
 	 (int) info.keepcost,
-	 (long) (thread_count * thread_stack + info.hblkhd + info.arena));
+	 (long) (thread_count * my_thread_stack_size + info.hblkhd + info.arena));
 #endif
   puts("");
 }

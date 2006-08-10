@@ -23,7 +23,7 @@ pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h my_xml.h \
 			my_getopt.h sslopt-longopts.h my_dir.h typelib.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			mysql_time.h mysql/plugin.h $(BUILT_SOURCES)
-noinst_HEADERS =	config-win.h config-netware.h \
+noinst_HEADERS =	config-win.h config-netware.h lf.h \
 			heap.h maria.h myisamchk.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
