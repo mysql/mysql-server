@@ -5801,7 +5801,7 @@ int ndbcluster_discover(THD* thd, const char *db, const char *name,
     DBUG_RETURN(HA_ERR_NO_CONNECTION);  
   ndb->setDatabaseName(db);
   NDBDICT* dict= ndb->getDictionary();
-  build_table_filename(key, sizeof(key), db, name, "");
+  build_table_filename(key, sizeof(key), db, name, "", 0);
   NDB_SHARE *share= get_share(key, 0, false);
   if (share && get_ndb_share_state(share) == NSS_ALTERED)
   {
@@ -5944,7 +5944,7 @@ int ndbcluster_drop_database_impl(const char *path)
   // Drop any tables belonging to database
   char full_path[FN_REFLEN];
   char *tmp= full_path +
-    build_table_filename(full_path, sizeof(full_path), dbname, "", "");
+    build_table_filename(full_path, sizeof(full_path), dbname, "", "", 0);
 
   ndb->setDatabaseName(dbname);
   List_iterator_fast<char> it(drop_list);
@@ -6067,7 +6067,7 @@ int ndbcluster_find_all_files(THD *thd)
     
       /* check if database exists */
       char *end= key +
-        build_table_filename(key, sizeof(key), elmt.database, "", "");
+        build_table_filename(key, sizeof(key), elmt.database, "", "", 0);
       if (my_access(key, F_OK))
       {
         /* no such database defined, skip table */
@@ -6210,7 +6210,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     }
     
     // File is not in NDB, check for .ndb file with this name
-    build_table_filename(name, sizeof(name), db, file_name, ha_ndb_ext);
+    build_table_filename(name, sizeof(name), db, file_name, ha_ndb_ext, 0);
     DBUG_PRINT("info", ("Check access for %s", name));
     if (my_access(name, F_OK))
     {
@@ -6235,7 +6235,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   /* setup logging to binlog for all discovered tables */
   {
     char *end, *end1= name +
-      build_table_filename(name, sizeof(name), db, "", "");
+      build_table_filename(name, sizeof(name), db, "", "", 0);
     for (i= 0; i < ok_tables.records; i++)
     {
       file_name= (char*)hash_element(&ok_tables, i);
@@ -6257,7 +6257,7 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     file_name= hash_element(&ndb_tables, i);
     if (!hash_search(&ok_tables, file_name, strlen(file_name)))
     {
-      build_table_filename(name, sizeof(name), db, file_name, reg_ext);
+      build_table_filename(name, sizeof(name), db, file_name, reg_ext, 0);
       if (my_access(name, F_OK))
       {
         DBUG_PRINT("info", ("%s must be discovered", file_name));
@@ -6808,7 +6808,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   NDB_SHARE *share;
   DBUG_ENTER("ndb_get_commitcount");
 
-  build_table_filename(name, sizeof(name), dbname, tabname, "");
+  build_table_filename(name, sizeof(name), dbname, tabname, "", 0);
   DBUG_PRINT("enter", ("name: %s", name));
   pthread_mutex_lock(&ndbcluster_mutex);
   if (!(share=(NDB_SHARE*) hash_search(&ndbcluster_open_tables,
