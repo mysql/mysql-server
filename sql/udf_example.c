@@ -806,6 +806,7 @@ char *reverse_lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
 #if defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
   char name_buff[256];
   struct hostent tmp_hostent;
+  int tmp_errno;
 #endif
   struct hostent *hp;
   unsigned long taddr;
@@ -845,7 +846,6 @@ char *reverse_lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
     return 0;
   }
 #if defined(HAVE_GETHOSTBYADDR_R) && defined(HAVE_SOLARIS_STYLE_GETHOST)
-  int tmp_errno;
   if (!(hp=gethostbyaddr_r((char*) &taddr,sizeof(taddr), AF_INET,
 			   &tmp_hostent, name_buff,sizeof(name_buff),
 			   &tmp_errno)))
