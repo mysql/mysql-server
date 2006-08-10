@@ -5951,7 +5951,6 @@ drop table t3|
 drop procedure bug15217|
 
 
-#
 # Bug#21002 "Derived table not selecting from a "real" table fails in JOINs"
 #         
 # A regression caused by the fix for Bug#18444: for derived tables we should

@@ -299,7 +299,7 @@ t9	MyISAM	10	Dynamic	2	216	432	#	2048	0	NULL	#	#	#	latin1_swedish_ci	NULL
 prepare stmt4 from ' show status like ''Threads_running'' ';
 execute stmt4;
 Variable_name	Value
-Threads_running	2
+Threads_running	#
 prepare stmt4 from ' show variables like ''sql_mode'' ';
 execute stmt4;
 Variable_name	Value
