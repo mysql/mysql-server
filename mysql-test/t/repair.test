@@ -35,3 +35,16 @@ repair table t1 use_frm;
 drop table t1;
 
 # End of 4.1 tests
+# End of 5.0 tests
+
+#
+# Bug#18775 - Temporary table from alter table visible to other threads
+#
+# REPAIR TABLE ... USE_FRM on temporary table crashed the table or server.
+--disable_warnings
+DROP TABLE IF EXISTS tt1;
+--enable_warnings
+CREATE TEMPORARY TABLE tt1 (c1 INT);
+REPAIR TABLE tt1 USE_FRM;
+DROP TABLE tt1;
+
