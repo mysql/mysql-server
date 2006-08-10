@@ -5740,10 +5740,10 @@ bool check_stack_overrun(THD *thd, long margin,
   long stack_used;
   DBUG_ASSERT(thd == current_thd);
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
-      (long) (thread_stack - margin))
+      (long) (my_thread_stack_size - margin))
   {
     sprintf(errbuff[0],ER(ER_STACK_OVERRUN_NEED_MORE),
-            stack_used,thread_stack,margin);
+            stack_used,my_thread_stack_size,margin);
     my_message(ER_STACK_OVERRUN_NEED_MORE,errbuff[0],MYF(0));
     thd->fatal_error();
     return 1;

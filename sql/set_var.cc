@@ -1037,10 +1037,10 @@ SHOW_VAR init_vars[]= {
 #ifdef HAVE_THR_SETCONCURRENCY
   {"thread_concurrency",      (char*) &concurrency,                 SHOW_LONG},
 #endif
-  {"thread_stack",            (char*) &thread_stack,                SHOW_LONG},
+  {"thread_stack",            (char*) &my_thread_stack_size,        SHOW_LONG},
   {sys_time_format.name,      (char*) &sys_time_format,		    SHOW_SYS},
   {"time_zone",               (char*) &sys_time_zone,               SHOW_SYS},
-  {sys_timed_mutexes.name,    (char*) &sys_timed_mutexes,       SHOW_SYS},
+  {sys_timed_mutexes.name,    (char*) &sys_timed_mutexes,           SHOW_SYS},
   {sys_tmp_table_size.name,   (char*) &sys_tmp_table_size,	    SHOW_SYS},
   {sys_tmpdir.name,           (char*) &sys_tmpdir,	            SHOW_SYS},
   {sys_trans_alloc_block_size.name, (char*) &sys_trans_alloc_block_size,

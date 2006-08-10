@@ -17,6 +17,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <my_dir.h>
+#include <my_bit.h>
 #include "slave.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
@@ -480,7 +481,7 @@ uint volatile thread_count, thread_running;
 ulonglong thd_startup_options;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
-ulong thread_stack, what_to_log;
+ulong what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
@@ -2142,7 +2143,7 @@ the thread stack. Please read http://www.mysql.com/doc/en/Linux.html\n\n",
   {
     fprintf(stderr,"thd=%p\n",thd);
     print_stacktrace(thd ? (gptr) thd->thread_stack : (gptr) 0,
-		     thread_stack);
+		     my_thread_stack_size);
   }
   if (thd)
   {
@@ -2274,9 +2275,9 @@ static void start_signal_handler(void)
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&thr_attr,thread_stack*2);
+  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size*2);
 #else
-  pthread_attr_setstacksize(&thr_attr,thread_stack);
+  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size);
 #endif
 #endif
 
@@ -3493,9 +3494,9 @@ int main(int argc, char **argv)
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&connection_attrib,thread_stack*2);
+  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size*2);
 #else
-  pthread_attr_setstacksize(&connection_attrib,thread_stack);
+  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size);
 #endif
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
@@ -3506,15 +3507,15 @@ int main(int argc, char **argv)
     stack_size/= 2;
 #endif
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
-    if (stack_size && stack_size < thread_stack)
+    if (stack_size && stack_size < my_thread_stack_size)
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Asked for %ld thread stack, but got %ld",
-			  thread_stack, stack_size);
+			  my_thread_stack_size, stack_size);
 #if defined(__ia64__) || defined(__ia64)
-      thread_stack= stack_size*2;
+      my_thread_stack_size= stack_size*2;
 #else
-      thread_stack= stack_size;
+      my_thread_stack_size= stack_size;
 #endif
     }
   }
@@ -6276,8 +6277,8 @@ The minimum value for this variable is 4096.",
    (gptr*) &concurrency, (gptr*) &concurrency, 0, GET_ULONG, REQUIRED_ARG,
    DEFAULT_CONCURRENCY, 1, 512, 0, 1, 0},
   {"thread_stack", OPT_THREAD_STACK,
-   "The stack size for each thread.", (gptr*) &thread_stack,
-   (gptr*) &thread_stack, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
+   "The stack size for each thread.", (gptr*) &my_thread_stack_size,
+   (gptr*) &my_thread_stack_size, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
    1024L*128L, ~0L, 0, 1024, 0},
   { "time_format", OPT_TIME_FORMAT,
     "The TIME format (for future).",

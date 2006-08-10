@@ -216,6 +216,7 @@ extern int (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern int (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
 extern uint my_file_limit;
+extern ulong my_thread_stack_size;
 
 #ifdef HAVE_LARGE_PAGES
 extern my_bool my_use_large_pages;
@@ -821,10 +822,6 @@ extern int packfrm(const void *, uint, const void **, uint *);
 extern int unpackfrm(const void **, uint *, const void *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const byte *mem, uint count);
-extern uint my_bit_log2(ulong value);
-extern uint32 my_round_up_to_next_power(uint32 v);
-extern uint my_count_bits(ulonglong v);
-extern uint my_count_bits_ushort(ushort v);
 extern void my_sleep(ulong m_seconds);
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
@@ -840,7 +837,7 @@ extern int my_getncpus();
 #ifndef MAP_NOSYNC
 #define MAP_NOSYNC      0
 #endif
-#ifndef MAP_NORESERVE   
+#ifndef MAP_NORESERVE
 #define MAP_NORESERVE 0         /* For irix and AIX */
 #endif
 
