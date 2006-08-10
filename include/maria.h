@@ -168,7 +168,7 @@ typedef struct st_maria_keydef          /* Key definition with open & info */
   uint16 keylength;                     /* Tot length of keyparts (auto) */
   uint16 minlength;                     /* min length of (packed) key (auto) */
   uint16 maxlength;                     /* max length of (packed) key (auto) */
-  uint16 block_size;                    /* block_size (auto) */
+  uint16 block_size_index;              /* block_size (auto) */
   uint32 version;                       /* For concurrent read/write */
   uint32 ftparser_nr;                   /* distinct ftparser number */
 
@@ -235,7 +235,6 @@ typedef struct st_maria_columndef		/* column information */
 } MARIA_COLUMNDEF;
 
 
-extern my_string maria_log_filename;		/* Name of logfile */
 extern ulong maria_block_size;
 extern ulong maria_concurrent_insert;
 extern my_bool maria_flush, maria_delay_key_write, maria_single_user;
@@ -281,9 +280,9 @@ extern int maria_delete_table(const char *name);
 extern int maria_rename(const char *from, const char *to);
 extern int maria_extra(struct st_maria_info *file,
 		       enum ha_extra_function function, void *extra_arg);
+extern int maria_reset(struct st_maria_info *file);
 extern ha_rows maria_records_in_range(struct st_maria_info *info, int inx,
 				      key_range *min_key, key_range *max_key);
-extern int maria_logging(int activate_log);
 extern int maria_is_changed(struct st_maria_info *info);
 extern int maria_delete_all_rows(struct st_maria_info *info);
 extern uint maria_get_pointer_length(ulonglong file_length, uint def);
@@ -328,6 +327,7 @@ typedef struct st_maria_sort_param
   uchar **sort_keys;
   byte *rec_buff;
   void *wordlist, *wordptr;
+  MEM_ROOT wordroot;
   char *record;
   MY_TMPDIR *tmpdir;
 

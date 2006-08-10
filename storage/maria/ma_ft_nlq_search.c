@@ -226,7 +226,7 @@ FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, byte *query,
   aio.charset=info->s->keyinfo[keynr].seg->charset;
   aio.keybuff=info->lastkey+info->s->base.max_key_length;
   parser= info->s->keyinfo[keynr].parser;
-  if (! (ftparser_param= maria_ftparser_call_initializer(info, keynr)))
+  if (! (ftparser_param= maria_ftparser_call_initializer(info, keynr, 0)))
     goto err;
 
   bzero(&wtree,sizeof(wtree));
@@ -235,7 +235,9 @@ FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, byte *query,
             NULL, NULL);
 
   maria_ft_parse_init(&wtree, aio.charset);
-  if (maria_ft_parse(&wtree, query, query_len, 0, parser, ftparser_param))
+  ftparser_param->flags= 0;
+  if (maria_ft_parse(&wtree, query, query_len, parser, ftparser_param,
+               &wtree.mem_root))
     goto err;
 
   if (tree_walk(&wtree, (tree_walk_action)&walk_and_match, &aio,
@@ -255,7 +257,9 @@ FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, byte *query,
       if (!(*info->read_record)(info,docid,record))
       {
         info->update|= HA_STATE_AKTIV;
-        _ma_ft_parse(&wtree, info, keynr, record, 1, ftparser_param);
+        ftparser_param->flags= MYSQL_FTFLAGS_NEED_COPY;
+        _ma_ft_parse(&wtree, info, keynr, record, ftparser_param,
+                     &wtree.mem_root);
       }
     }
     delete_queue(&best);

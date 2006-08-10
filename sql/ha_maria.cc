@@ -30,8 +30,9 @@
 #include "../storage/maria/ma_rt_index.h"
 #endif
 
+#include <mysql/plugin.h>
+
 ulong maria_recover_options= HA_RECOVER_NONE;
-static bool ha_maria_init();
 
 /* bits in maria_recover_options */
 const char *maria_recover_names[]=
@@ -60,65 +61,9 @@ TYPELIB maria_stats_method_typelib=
 ** MARIA tables
 *****************************************************************************/
 
-static handler *maria_create_handler(TABLE_SHARE * table);
-
-/* MARIA handlerton */
-static const char maria_hton_name[]= "MARIA";
-static const char maria_hton_comment[]=
-  "Transactional storage engine, optimized for long running transactions";
-
-handlerton maria_hton=
+static handler *maria_create_handler(TABLE_SHARE * table, MEM_ROOT *mem_root)
 {
-  MYSQL_HANDLERTON_INTERFACE_VERSION,
-  maria_hton_name,
-  SHOW_OPTION_YES,
-  maria_hton_comment,
-  DB_TYPE_MARIA,
-  ha_maria_init,
-  0,                                            /* slot */
-  0,                                            /* savepoint size. */
-  NULL,                                         /* close_connection */
-  NULL,                                         /* savepoint */
-  NULL,                                         /* rollback to savepoint */
-  NULL,                                         /* release savepoint */
-  NULL,                                         /* commit */
-  NULL,                                         /* rollback */
-  NULL,                                         /* prepare */
-  NULL,                                         /* recover */
-  NULL,                                         /* commit_by_xid */
-  NULL,                                         /* rollback_by_xid */
-  NULL,                                         /* create_cursor_read_view */
-  NULL,                                         /* set_cursor_read_view */
-  NULL,                                         /* close_cursor_read_view */
-  /*
-     MARIA doesn't support transactions yet and doesn't have
-     transaction-dependent context: cursors can survive a commit.
-  */
-  maria_create_handler,                         /* Create a new handler */
-  NULL,                                         /* Drop a database */
-  maria_panic,                                  /* Panic call */
-  NULL,                                         /* Start Consistent Snapshot */
-  NULL,                                         /* Flush logs */
-  NULL,                                         /* Show status */
-  NULL,                                         /* Partition flags */
-  NULL,                                         /* Alter table flags */
-  NULL,                                         /* Alter Tablespace */
-  NULL,                                         /* Fill Files Table */
-  HTON_CAN_RECREATE,
-  NULL,                                         /* binlog_func */
-  NULL,                                         /* binlog_log_query */
-  NULL                                          /* release_temporary_latches */
-};
-
-
-static bool ha_maria_init()
-{
-  return test(maria_init());
-}
-
-static handler *maria_create_handler(TABLE_SHARE *table)
-{
-  return new ha_maria(table);
+  return new (mem_root) ha_maria(table);
 }
 
 
@@ -208,9 +153,10 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
 ha_maria::ha_maria(TABLE_SHARE *table_arg):
 handler(&maria_hton, table_arg), file(0),
 int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
-                HA_DUPP_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
-                HA_FILE_BASED | HA_CAN_GEOMETRY | HA_READ_RND_SAME |
-                HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD),
+                HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
+                HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
+                HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD |
+                HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
 can_enable_indexes(1)
 {}
 
@@ -376,6 +322,7 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     if (table->key_info[i].flags & HA_USES_PARSER)
       file->s->keyinfo[i].parser=
         (struct st_mysql_ftparser *) parser->plugin->info;
+    table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
   return (0);
 }
@@ -1284,13 +1231,14 @@ int ha_maria::index_read_idx(byte * buf, uint index, const byte * key,
 
 int ha_maria::index_read_last(byte * buf, const byte * key, uint key_len)
 {
+  DBUG_ENTER("ha_maria::index_read_last");
   DBUG_ASSERT(inited == INDEX);
   statistic_increment(table->in_use->status_var.ha_read_key_count,
                       &LOCK_status);
   int error= maria_rkey(file, buf, active_index, key, key_len,
                         HA_READ_PREFIX_LAST);
   table->status= error ? STATUS_NOT_FOUND : 0;
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -1355,7 +1303,7 @@ int ha_maria::rnd_init(bool scan)
 {
   if (scan)
     return maria_scan_init(file);
-  return maria_extra(file, HA_EXTRA_RESET, 0);
+  return maria_reset(file);                        // Free buffers
 }
 
 
@@ -1400,24 +1348,23 @@ void ha_maria::info(uint flag)
   (void) maria_status(file, &info, flag);
   if (flag & HA_STATUS_VARIABLE)
   {
-    records= info.records;
-    deleted= info.deleted;
-    data_file_length= info.data_file_length;
-    index_file_length= info.index_file_length;
-    delete_length= info.delete_length;
-    check_time= info.check_time;
-    mean_rec_length= info.mean_reclength;
+    stats.records= info.records;
+    stats.deleted= info.deleted;
+    stats.data_file_length= info.data_file_length;
+    stats.index_file_length= info.index_file_length;
+    stats.delete_length= info.delete_length;
+    stats.check_time= info.check_time;
+    stats.mean_rec_length= info.mean_reclength;
   }
   if (flag & HA_STATUS_CONST)
   {
     TABLE_SHARE *share= table->s;
-    max_data_file_length= info.max_data_file_length;
-    max_index_file_length= info.max_index_file_length;
-    create_time= info.create_time;
-    sortkey= info.sortkey;
+    stats.max_data_file_length= info.max_data_file_length;
+    stats.max_index_file_length= info.max_index_file_length;
+    stats.create_time= info.create_time;
     ref_length= info.reflength;
     share->db_options_in_use= info.options;
-    block_size= maria_block_size;
+    stats.block_size= maria_block_size;
 
     /* Update share */
     if (share->tmp_table == NO_TMP_TABLE)
@@ -1448,11 +1395,11 @@ void ha_maria::info(uint flag)
   if (flag & HA_STATUS_ERRKEY)
   {
     errkey= info.errkey;
-    my_store_ptr(dupp_ref, ref_length, info.dupp_key_pos);
+    my_store_ptr(dup_ref, ref_length, info.dupp_key_pos);
   }
   /* Faster to always update, than to do it based on flag */
-  update_time= info.update_time;
-  auto_increment_value= info.auto_increment;
+  stats.update_time= info.update_time;
+  stats.auto_increment_value= info.auto_increment;
 }
 
 
@@ -1463,6 +1410,10 @@ int ha_maria::extra(enum ha_extra_function operation)
   return maria_extra(file, operation, 0);
 }
 
+int ha_maria::reset(void)
+{
+  return maria_reset(file);
+}
 
 /* To be used with WRITE_CACHE and EXTRA_CACHE */
 
@@ -1510,7 +1461,7 @@ void ha_maria::update_create_info(HA_CREATE_INFO *create_info)
   ha_maria::info(HA_STATUS_AUTO | HA_STATUS_CONST);
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
   {
-    create_info->auto_increment_value= auto_increment_value;
+    create_info->auto_increment_value= stats.auto_increment_value;
   }
   create_info->data_file_name= data_file_name;
   create_info->index_file_name= index_file_name;
@@ -1552,6 +1503,8 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ?
       (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
       pos->algorithm;
+    keydef[i].block_length= pos->block_size;
+
     keydef[i].seg= keyseg;
     keydef[i].keysegs= pos->key_parts;
     for (j= 0; j < pos->key_parts; j++)
@@ -1731,7 +1684,10 @@ int ha_maria::rename_table(const char *from, const char *to)
 }
 
 
-ulonglong ha_maria::get_auto_increment()
+void ha_maria::get_auto_increment(ulonglong offset, ulonglong increment,
+                                  ulonglong nb_desired_values,
+                                  ulonglong *first_value,
+                                  ulonglong *nb_reserved_values)
 {
   ulonglong nr;
   int error;
@@ -1740,7 +1696,10 @@ ulonglong ha_maria::get_auto_increment()
   if (!table->s->next_number_key_offset)
   {                                             // Autoincrement at key-start
     ha_maria::info(HA_STATUS_AUTO);
-    return auto_increment_value;
+    *first_value= stats.auto_increment_value;
+    /* Maria has only table-level lock for now, so reserves to +inf */
+    *nb_reserved_values= ULONGLONG_MAX;
+    return;
   }
 
   /* it's safe to call the following if bulk_insert isn't on */
@@ -1761,7 +1720,14 @@ ulonglong ha_maria::get_auto_increment()
          val_int_offset(table->s->rec_buff_length) + 1);
   }
   extra(HA_EXTRA_NO_KEYREAD);
-  return nr;
+  *first_value= nr;
+  /*
+    MySQL needs to call us for next row: assume we are inserting ("a",null)
+    here, we return 3, and next this statement will want to insert ("b",null):
+    there is no reason why ("b",3+1) would be the good row to insert: maybe it
+    already exists, maybe 3+1 is too large...
+  */
+  *nb_reserved_values= 1;
 }
 
 
@@ -1825,9 +1791,11 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *info,
 {
   uint options= table->s->db_options_in_use;
 
-  if (info->auto_increment_value != auto_increment_value ||
+  if (info->auto_increment_value != stats.auto_increment_value ||
       info->data_file_name != data_file_name ||
-      info->index_file_name != index_file_name || table_changes == IS_EQUAL_NO)
+      info->index_file_name != index_file_name ||
+      table_changes == IS_EQUAL_NO ||
+      table_changes & IS_EQUAL_PACK_LENGTH) // Not implemented yet
     return COMPATIBLE_DATA_NO;
 
   if ((options & (HA_OPTION_PACK_RECORD | HA_OPTION_CHECKSUM |
@@ -1838,14 +1806,29 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
+handlerton maria_hton;
+
+static int ha_maria_init()
+{
+  maria_hton.state=SHOW_OPTION_YES;
+  maria_hton.db_type=DB_TYPE_MARIA;
+  maria_hton.create=maria_create_handler;
+  maria_hton.panic=maria_panic;
+  maria_hton.flags=HTON_CAN_RECREATE;
+  return test(maria_init());
+}
+
+struct st_mysql_storage_engine maria_storage_engine=
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, &maria_hton };
+
 mysql_declare_plugin(maria)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
-  &maria_hton,
-  maria_hton_name,
+  &maria_storage_engine,
+  "Maria",
   "MySQL AB",
-  maria_hton_comment,
-  NULL, /* Plugin Init */
+  "Traditional transactional MySQL tables",
+  ha_maria_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */
   0

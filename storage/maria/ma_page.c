@@ -112,8 +112,8 @@ int _ma_dispose(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, my_off_t pos,
   DBUG_ENTER("_ma_dispose");
   DBUG_PRINT("enter",("pos: %ld", (long) pos));
 
-  old_link=info->s->state.key_del[keyinfo->block_size];
-  info->s->state.key_del[keyinfo->block_size]=pos;
+  old_link= info->s->state.key_del[keyinfo->block_size_index];
+  info->s->state.key_del[keyinfo->block_size_index]= pos;
   mi_sizestore(buff,old_link);
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_RETURN(key_cache_write(info->s->key_cache,
@@ -132,7 +132,8 @@ my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
   char buff[8];
   DBUG_ENTER("_ma_new");
 
-  if ((pos=info->s->state.key_del[keyinfo->block_size]) == HA_OFFSET_ERROR)
+  if ((pos= info->s->state.key_del[keyinfo->block_size_index]) ==
+      HA_OFFSET_ERROR)
   {
     if (info->state->key_file_length >=
 	info->s->base.max_key_file_length - keyinfo->block_length)
@@ -152,7 +153,7 @@ my_off_t _ma_new(register MARIA_HA *info, MARIA_KEYDEF *keyinfo, int level)
 			(uint) keyinfo->block_length,0))
       pos= HA_OFFSET_ERROR;
     else
-      info->s->state.key_del[keyinfo->block_size]=mi_sizekorr(buff);
+      info->s->state.key_del[keyinfo->block_size_index]= mi_sizekorr(buff);
   }
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_PRINT("exit",("Pos: %ld",(long) pos));

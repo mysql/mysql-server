@@ -67,6 +67,11 @@ static int _ma_cmp_buffer(File file, const byte *buff, my_off_t filepos,
 my_bool _ma_dynmap_file(MARIA_HA *info, my_off_t size)
 {
   DBUG_ENTER("_ma_dynmap_file");
+  if (size > (my_off_t) (~((size_t) 0)) - MEMMAP_EXTRA_MARGIN)
+  {
+    DBUG_PRINT("warning", ("File is too large for mmap"));
+    DBUG_RETURN(1);
+  }
   info->s->file_map= (byte*)
                   my_mmap(0, (size_t)(size + MEMMAP_EXTRA_MARGIN),
                           info->s->mode==O_RDONLY ? PROT_READ :
@@ -1324,6 +1329,9 @@ int _ma_read_dynamic_record(MARIA_HA *info, my_off_t filepos, byte *buf)
 	  info->rec_cache.pos_in_file <= block_info.next_filepos &&
 	  flush_io_cache(&info->rec_cache))
 	goto err;
+      /* A corrupted table can have wrong pointers. (Bug# 19835) */
+      if (block_info.next_filepos == HA_OFFSET_ERROR)
+        goto panic;
       info->rec_cache.seek_not_done=1;
       if ((b_type= _ma_get_block_info(&block_info,file,
 				     block_info.next_filepos))

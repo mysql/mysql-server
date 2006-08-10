@@ -95,7 +95,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   bzero((byte*) &info,sizeof(info));
 
   my_realpath(name_buff, fn_format(org_name,name,"",MARIA_NAME_IEXT,
-                                   MY_UNPACK_FILENAME|MY_APPEND_EXT),MYF(0));
+                                   MY_UNPACK_FILENAME),MYF(0));
   pthread_mutex_lock(&THR_LOCK_maria);
   if (!(old_info=_ma_test_if_reopen(name_buff)))
   {
@@ -287,7 +287,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 			 &share->data_file_name,strlen(data_name)+1,
 			 &share->state.key_root,keys*sizeof(my_off_t),
 			 &share->state.key_del,
-			 (share->state.header.max_block_size*sizeof(my_off_t)),
+			 (share->state.header.max_block_size_index*sizeof(my_off_t)),
 #ifdef THREAD
 			 &share->key_root_lock,sizeof(rw_lock_t)*keys,
 #endif
@@ -302,7 +302,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	   (char*) key_root, sizeof(my_off_t)*keys);
     memcpy((char*) share->state.key_del,
 	   (char*) key_del, (sizeof(my_off_t) *
-			     share->state.header.max_block_size));
+			     share->state.header.max_block_size_index));
     strmov(share->unique_file_name, name_buff);
     share->unique_name_length= strlen(name_buff);
     strmov(share->index_file_name,  index_name);
@@ -799,7 +799,7 @@ uint _ma_state_info_write(File file, MARIA_STATE_INFO *state, uint pWrite)
   uchar  buff[MARIA_STATE_INFO_SIZE + MARIA_STATE_EXTRA_SIZE];
   uchar *ptr=buff;
   uint	i, keys= (uint) state->header.keys,
-	key_blocks=state->header.max_block_size;
+	key_blocks=state->header.max_block_size_index;
   DBUG_ENTER("_ma_state_info_write");
 
   memcpy_fixed(ptr,&state->header,sizeof(state->header));
@@ -865,7 +865,7 @@ uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
   ptr +=sizeof(state->header);
   keys=(uint) state->header.keys;
   key_parts=mi_uint2korr(state->header.key_parts);
-  key_blocks=state->header.max_block_size;
+  key_blocks=state->header.max_block_size_index;
 
   state->open_count = mi_uint2korr(ptr);	ptr +=2;
   state->changed= (bool) *ptr++;
@@ -1038,7 +1038,7 @@ char *_ma_keydef_read(char *ptr, MARIA_KEYDEF *keydef)
    keydef->keylength	= mi_uint2korr(ptr);	ptr +=2;
    keydef->minlength	= mi_uint2korr(ptr);	ptr +=2;
    keydef->maxlength	= mi_uint2korr(ptr);	ptr +=2;
-   keydef->block_size	= keydef->block_length/MARIA_MIN_KEY_BLOCK_LENGTH-1;
+   keydef->block_size_index	= keydef->block_length/MARIA_MIN_KEY_BLOCK_LENGTH-1;
    keydef->underflow_block_length=keydef->block_length/3;
    keydef->version	= 0;			/* Not saved */
    keydef->parser       = &ft_default_parser;

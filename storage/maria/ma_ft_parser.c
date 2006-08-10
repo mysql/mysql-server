@@ -28,7 +28,7 @@ typedef struct st_maria_ft_docstat {
 typedef struct st_my_maria_ft_parser_param
 {
   TREE *wtree;
-  my_bool with_alloc;
+  MEM_ROOT *mem_root;
 } MY_FT_PARSER_PARAM;
 
 
@@ -48,14 +48,14 @@ static int walk_and_copy(FT_WORD *word,uint32 count,FT_DOCSTAT *docstat)
 
 /* transforms tree of words into the array, applying normalization */
 
-FT_WORD * maria_ft_linearize(TREE *wtree)
+FT_WORD * maria_ft_linearize(TREE *wtree, MEM_ROOT *mem_root)
 {
   FT_WORD *wlist,*p;
   FT_DOCSTAT docstat;
   DBUG_ENTER("maria_ft_linearize");
 
-  if ((wlist=(FT_WORD *) my_malloc(sizeof(FT_WORD)*
-				   (1+wtree->elements_in_tree),MYF(0))))
+  if ((wlist=(FT_WORD *) alloc_root(mem_root, sizeof(FT_WORD)*
+                                    (1+wtree->elements_in_tree))))
   {
     docstat.list=wlist;
     docstat.uniq=wtree->elements_in_tree;
@@ -114,6 +114,7 @@ byte maria_ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
                  FT_WORD *word, MYSQL_FTPARSER_BOOLEAN_INFO *param)
 {
   byte *doc=*start;
+  int ctype;
   uint mwc, length, mbl;
 
   param->yesno=(FTB_YES==' ') ? 1 : (param->quot != 0);
@@ -122,9 +123,11 @@ byte maria_ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
 
   while (doc<end)
   {
-    for (;doc<end;doc++)
+    for (; doc < end; doc+= (mbl > 0 ? mbl : 1))
     {
-      if (true_word_char(cs,*doc)) break;
+      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      if (true_word_char(ctype, *doc))
+        break;
       if (*doc == FTB_RQUOT && param->quot)
       {
         param->quot=doc;
@@ -158,14 +161,16 @@ byte maria_ft_get_word(CHARSET_INFO *cs, byte **start, byte *end,
     }
 
     mwc=length=0;
-    for (word->pos=doc; doc<end; length++, mbl=my_mbcharlen(cs, *(uchar *)doc), doc+=(mbl ? mbl : 1))
-      if (true_word_char(cs,*doc))
+    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    {
+      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      if (true_word_char(ctype, *doc))
         mwc=0;
       else if (!misc_word_char(*doc) || mwc)
         break;
       else
         mwc++;
-
+    }
     param->prev='A'; /* be sure *prev is true_word_char */
     word->len= (uint)(doc-word->pos) - mwc;
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
@@ -199,25 +204,32 @@ byte maria_ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
                         FT_WORD *word, my_bool skip_stopwords)
 {
   byte *doc= *start;
+  int ctype;
   uint mwc, length, mbl;
   DBUG_ENTER("maria_ft_simple_get_word");
 
   do
   {
-    for (;; doc++)
+    for (;; doc+= (mbl > 0 ? mbl : 1))
     {
-      if (doc >= end) DBUG_RETURN(0);
-      if (true_word_char(cs, *doc)) break;
+      if (doc >= end)
+        DBUG_RETURN(0);
+      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      if (true_word_char(ctype, *doc))
+        break;
     }
 
     mwc= length= 0;
-    for (word->pos=doc; doc<end; length++, mbl=my_mbcharlen(cs, *(uchar *)doc), doc+=(mbl ? mbl : 1))
-      if (true_word_char(cs,*doc))
+    for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
+    {
+      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      if (true_word_char(ctype, *doc))
         mwc= 0;
       else if (!misc_word_char(*doc) || mwc)
         break;
       else
         mwc++;
+    }
 
     word->len= (uint)(doc-word->pos) - mwc;
 
@@ -241,19 +253,20 @@ void maria_ft_parse_init(TREE *wtree, CHARSET_INFO *cs)
 }
 
 
-static int maria_ft_add_word(void *param, byte *word, uint word_len,
+static int maria_ft_add_word(MYSQL_FTPARSER_PARAM *param,
+                       char *word, int word_len,
              MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
 {
   TREE *wtree;
   FT_WORD w;
+  MY_FT_PARSER_PARAM *ft_param=param->mysql_ftparam;
   DBUG_ENTER("maria_ft_add_word");
-  wtree= ((MY_FT_PARSER_PARAM *)param)->wtree;
-  if (((MY_FT_PARSER_PARAM *)param)->with_alloc)
+  wtree= ft_param->wtree;
+  if (param->flags & MYSQL_FTFLAGS_NEED_COPY)
   {
     byte *ptr;
-    /* allocating the data in the tree - to avoid mallocs and frees */
     DBUG_ASSERT(wtree->with_delete == 0);
-    ptr= (byte *)alloc_root(&wtree->mem_root, word_len);
+    ptr= (byte *)alloc_root(ft_param->mem_root, word_len);
     memcpy(ptr, word, word_len);
     w.pos= ptr;
   }
@@ -269,30 +282,31 @@ static int maria_ft_add_word(void *param, byte *word, uint word_len,
 }
 
 
-static int maria_ft_parse_internal(void *param, byte *doc, uint doc_len)
+static int maria_ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
+                             byte *doc, int doc_len)
 {
   byte   *end=doc+doc_len;
+  MY_FT_PARSER_PARAM *ft_param=param->mysql_ftparam;
+  TREE *wtree= ft_param->wtree;
   FT_WORD w;
-  TREE *wtree;
   DBUG_ENTER("maria_ft_parse_internal");
 
-  wtree= ((MY_FT_PARSER_PARAM *)param)->wtree;
   while (maria_ft_simple_get_word(wtree->custom_arg, &doc, end, &w, TRUE))
-    if (maria_ft_add_word(param, w.pos, w.len, 0))
+    if (param->mysql_add_word(param, w.pos, w.len, 0))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
 
-int maria_ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc,
+int maria_ft_parse(TREE *wtree, byte *doc, int doclen,
                     struct st_mysql_ftparser *parser,
-                    MYSQL_FTPARSER_PARAM *param)
+                   MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
   MY_FT_PARSER_PARAM my_param;
   DBUG_ENTER("maria_ft_parse");
   DBUG_ASSERT(parser);
   my_param.wtree= wtree;
-  my_param.with_alloc= with_alloc;
+  my_param.mem_root= mem_root;
 
   param->mysql_parse= maria_ft_parse_internal;
   param->mysql_add_word= maria_ft_add_word;
@@ -305,7 +319,9 @@ int maria_ft_parse(TREE *wtree, byte *doc, int doclen, my_bool with_alloc,
 }
 
 
-MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info, uint keynr)
+#define MAX_PARAM_NR 2
+MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info,
+                                                      uint keynr, uint paramnr)
 {
   uint32 ftparser_nr;
   struct st_mysql_ftparser *parser;
@@ -344,9 +360,16 @@ MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info, uint keynr
       }
       info->s->ftparsers= ftparsers;
     }
+    /*
+      We have to allocate two MYSQL_FTPARSER_PARAM structures per plugin
+      because in a boolean search a parser is called recursively
+      ftb_find_relevance* calls ftb_check_phrase*
+      (MAX_PARAM_NR=2)
+    */
     info->ftparser_param= (MYSQL_FTPARSER_PARAM *)
-      my_malloc(sizeof(MYSQL_FTPARSER_PARAM) *
+      my_malloc(MAX_PARAM_NR * sizeof(MYSQL_FTPARSER_PARAM) *
                 info->s->ftparsers, MYF(MY_WME|MY_ZEROFILL));
+    init_alloc_root(&info->ft_memroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
     if (! info->ftparser_param)
       return 0;
   }
@@ -360,6 +383,8 @@ MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info, uint keynr
     ftparser_nr= info->s->keyinfo[keynr].ftparser_nr;
     parser= info->s->keyinfo[keynr].parser;
   }
+  DBUG_ASSERT(paramnr < MAX_PARAM_NR);
+  ftparser_nr= ftparser_nr*MAX_PARAM_NR + paramnr;
   if (! info->ftparser_param[ftparser_nr].mysql_add_word)
   {
     /* Note, that mysql_add_word is used here as a flag:
@@ -376,19 +401,25 @@ MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info, uint keynr
 
 void maria_ftparser_call_deinitializer(MARIA_HA *info)
 {
-  uint i, keys= info->s->state.header.keys;
+  uint i, j, keys= info->s->state.header.keys;
+  free_root(&info->ft_memroot, MYF(0));
   if (! info->ftparser_param)
     return;
   for (i= 0; i < keys; i++)
   {
     MARIA_KEYDEF *keyinfo= &info->s->keyinfo[i];
-    MYSQL_FTPARSER_PARAM *ftparser_param=
-      &info->ftparser_param[keyinfo->ftparser_nr];
-    if (keyinfo->flag & HA_FULLTEXT && ftparser_param->mysql_add_word)
+    for (j=0; j < MAX_PARAM_NR; j++)
     {
-      if (keyinfo->parser->deinit)
-        keyinfo->parser->deinit(ftparser_param);
-      ftparser_param->mysql_add_word= 0;
+      MYSQL_FTPARSER_PARAM *ftparser_param=
+        &info->ftparser_param[keyinfo->ftparser_nr*MAX_PARAM_NR + j];
+      if (keyinfo->flag & HA_FULLTEXT && ftparser_param->mysql_add_word)
+      {
+        if (keyinfo->parser->deinit)
+          keyinfo->parser->deinit(ftparser_param);
+        ftparser_param->mysql_add_word= 0;
+      }
+      else
+        break;
     }
   }
 }

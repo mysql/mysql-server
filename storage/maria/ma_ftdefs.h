@@ -24,11 +24,14 @@
 #include <queues.h>
 #include <mysql/plugin.h>
 
-#define true_word_char(s,X)	(my_isalnum(s,X) || (X)=='_')
+#define true_word_char(ctype, character) \
+                      ((ctype) & (_MY_U | _MY_L | _MY_NMR) || \
+                       (character) == '_')
 #define misc_word_char(X)	0
-#define word_char(s,X)		(true_word_char(s,X) || misc_word_char(X))
 
 #define FT_MAX_WORD_LEN_FOR_SORT 31
+
+#define FTPARSER_MEMROOT_ALLOC_SIZE 65536
 
 #define COMPILE_STOPWORDS_IN
 
@@ -119,12 +122,12 @@ void _ma_ft_segiterator_dummy_init(const byte *, uint, FT_SEG_ITERATOR *);
 uint _ma_ft_segiterator(FT_SEG_ITERATOR *);
 
 void maria_ft_parse_init(TREE *, CHARSET_INFO *);
-int maria_ft_parse(TREE *, byte *, int, my_bool, struct st_mysql_ftparser *parser,
-             MYSQL_FTPARSER_PARAM *param);
-FT_WORD * maria_ft_linearize(TREE *);
-FT_WORD * _ma_ft_parserecord(MARIA_HA *, uint, const byte *);
-uint _ma_ft_parse(TREE *, MARIA_HA *, uint, const byte *, my_bool,
-                  MYSQL_FTPARSER_PARAM *param);
+int maria_ft_parse(TREE *, byte *, int, struct st_mysql_ftparser *parser,
+             MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
+FT_WORD * maria_ft_linearize(TREE *, MEM_ROOT *);
+FT_WORD * _ma_ft_parserecord(MARIA_HA *, uint, const byte *, MEM_ROOT *);
+uint _ma_ft_parse(TREE *, MARIA_HA *, uint, const byte *,
+                  MYSQL_FTPARSER_PARAM *, MEM_ROOT *);
 
 FT_INFO *maria_ft_init_nlq_search(MARIA_HA *, uint, byte *, uint, uint, byte *);
 FT_INFO *maria_ft_init_boolean_search(MARIA_HA *, uint, byte *, uint, CHARSET_INFO *);
@@ -145,5 +148,6 @@ float maria_ft_boolean_get_relevance(FT_INFO *);
 my_off_t maria_ft_boolean_get_docid(FT_INFO *);
 void maria_ft_boolean_reinit_search(FT_INFO *);
 extern MYSQL_FTPARSER_PARAM *maria_ftparser_call_initializer(MARIA_HA *info,
-                                                       uint keynr);
+                                                             uint keynr,
+                                                             uint paramnr);
 extern void maria_ftparser_call_deinitializer(MARIA_HA *info);

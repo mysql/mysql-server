@@ -359,7 +359,7 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
     puts("- check key delete-chain");
 
   param->key_file_blocks=info->s->base.keystart;
-  for (key=0 ; key < info->s->state.header.max_block_size ; key++)
+  for (key=0 ; key < info->s->state.header.max_block_size_index ; key++)
     if (check_k_link(param,info,key))
     {
       if (param->testflag & T_VERBOSE) puts("");
@@ -454,25 +454,24 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
     if ((uint) share->base.auto_key -1 == key)
     {
       /* Check that auto_increment key is bigger than max key value */
-      ulonglong save_auto_value=info->s->state.auto_increment;
-      info->s->state.auto_increment=0;
+      ulonglong auto_increment;
       info->lastinx=key;
       _ma_read_key_record(info, 0L, info->rec_buff);
-      _ma_update_auto_increment(info, info->rec_buff);
-      if (info->s->state.auto_increment > save_auto_value)
+      auto_increment= ma_retrieve_auto_increment(info, info->rec_buff);
+      if (auto_increment > info->s->state.auto_increment)
       {
 	_ma_check_print_warning(param,
 			       "Auto-increment value: %s is smaller than max used value: %s",
-			       llstr(save_auto_value,buff2),
-			       llstr(info->s->state.auto_increment, buff));
+			       llstr(info->s->state.auto_increment,buff2),
+			       llstr(auto_increment, buff));
       }
       if (param->testflag & T_AUTO_INC)
       {
-	set_if_bigger(info->s->state.auto_increment,
-		      param->auto_increment_value);
+        set_if_bigger(info->s->state.auto_increment,
+                      auto_increment);
+        set_if_bigger(info->s->state.auto_increment,
+                      param->auto_increment_value);
       }
-      else
-	info->s->state.auto_increment=save_auto_value;
 
       /* Check that there isn't a row with auto_increment = 0 in the table */
       maria_extra(info,HA_EXTRA_KEYREAD,0);
@@ -1160,7 +1159,7 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
 #ifdef HAVE_RTREE_KEYS
                 (keyinfo->flag & HA_SPATIAL) ?
                 maria_rtree_find_first(info, key, info->lastkey, key_length,
-                                 SEARCH_SAME) :
+                                       MBR_EQUAL | MBR_DATA) :
 #endif
                 _ma_search(info,keyinfo,info->lastkey,key_length,
                            SEARCH_SAME, info->s->state.key_root[key]);
@@ -1412,7 +1411,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
     share->state.key_root[i]= HA_OFFSET_ERROR;
 
   /* Drop the delete chain. */
-  for (i=0 ; i < share->state.header.max_block_size ; i++)
+  for (i=0 ; i < share->state.header.max_block_size_index ; i++)
     share->state.key_del[i]=  HA_OFFSET_ERROR;
 
   /*
@@ -1796,7 +1795,7 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, my_string name)
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   for (key=0 ; key < info->s->base.keys ; key++)
     info->s->state.key_root[key]=index_pos[key];
-  for (key=0 ; key < info->s->state.header.max_block_size ; key++)
+  for (key=0 ; key < info->s->state.header.max_block_size_index ; key++)
     info->s->state.key_del[key]=  HA_OFFSET_ERROR;
 
   info->s->state.changed&= ~STATE_NOT_SORTED_PAGES;
@@ -2079,7 +2078,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
-    for (i=0 ; i < share->state.header.max_block_size ; i++)
+    for (i=0 ; i < share->state.header.max_block_size_index ; i++)
       share->state.key_del[i]=  HA_OFFSET_ERROR;
     info->state->key_file_length=share->base.keystart;
   }
@@ -2101,6 +2100,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
     my_seek(param->read_cache.file,0L,MY_SEEK_END,MYF(0));
 
   sort_param.wordlist=NULL;
+  init_alloc_root(&sort_param.wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
 
   if (share->data_file_type == DYNAMIC_RECORD)
     length=max(share->base.min_pack_length+1,share->base.min_block_length);
@@ -2163,12 +2163,36 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
     {
       uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
                                     sort_param.keyinfo->seg->charset->mbmaxlen;
-      sort_info.max_records=
-        (ha_rows) (sort_info.filelength/ft_min_word_len+1);
+      sort_param.key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
+      /*
+        fulltext indexes may have much more entries than the
+        number of rows in the table. We estimate the number here.
+
+        Note, built-in parser is always nr. 0 - see ftparser_call_initializer()
+      */
+      if (sort_param.keyinfo->ftparser_nr == 0)
+      {
+        /*
+          for built-in parser the number of generated index entries
+          cannot be larger than the size of the data file divided
+          by the minimal word's length
+        */
+        sort_info.max_records=
+          (ha_rows) (sort_info.filelength/ft_min_word_len+1);
+      }
+      else
+      {
+        /*
+          for external plugin parser we cannot tell anything at all :(
+          so, we'll use all the sort memory and start from ~10 buffpeks.
+          (see _create_index_by_sort)
+        */
+        sort_info.max_records=
+          10*param->sort_buffer_length/sort_param.key_length;
+      }
 
       sort_param.key_read=sort_maria_ft_key_read;
       sort_param.key_write=sort_maria_ft_key_write;
-      sort_param.key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
     }
     else
     {
@@ -2184,6 +2208,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
       goto err;
     }
     param->calc_checksum=0;			/* No need to calc glob_crc */
+    free_root(&sort_param.wordroot, MYF(0));
 
     /* Set for next loop */
     sort_info.max_records= (ha_rows) info->state->records;
@@ -2447,7 +2472,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
-    for (i=0 ; i < share->state.header.max_block_size ; i++)
+    for (i=0 ; i < share->state.header.max_block_size_index ; i++)
       share->state.key_del[i]=  HA_OFFSET_ERROR;
     info->state->key_file_length=share->base.keystart;
   }
@@ -2573,6 +2598,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
       uint ft_max_word_len_for_sort=FT_MAX_WORD_LEN_FOR_SORT*
                                     sort_param[i].keyinfo->seg->charset->mbmaxlen;
       sort_param[i].key_length+=ft_max_word_len_for_sort-HA_FT_MAXBYTELEN;
+      init_alloc_root(&sort_param[i].wordroot, FTPARSER_MEMROOT_ALLOC_SIZE, 0);
     }
   }
   sort_info.total_keys=i;
@@ -2794,10 +2820,12 @@ static int sort_maria_ft_key_read(MARIA_SORT_PARAM *sort_param, void *key)
   {
     for (;;)
     {
-      my_free((char*) wptr, MYF(MY_ALLOW_ZERO_PTR));
+      free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
       if ((error=sort_get_next_record(sort_param)))
         DBUG_RETURN(error);
-      if (!(wptr= _ma_ft_parserecord(info,sort_param->key,sort_param->record)))
+      if (!(wptr= _ma_ft_parserecord(info,sort_param->key,sort_param->record,
+                                     &sort_param->wordroot)))
+
         DBUG_RETURN(1);
       if (wptr->pos)
         break;
@@ -2821,7 +2849,7 @@ static int sort_maria_ft_key_read(MARIA_SORT_PARAM *sort_param, void *key)
 #endif
   if (!wptr->pos)
   {
-    my_free((char*) sort_param->wordlist, MYF(0));
+    free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
     sort_param->wordlist=0;
     error=_ma_sort_write_record(sort_param);
   }
@@ -3784,6 +3812,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   ha_rows max_records;
   ulonglong file_length,tmp_length;
   MARIA_CREATE_INFO create_info;
+  DBUG_ENTER("maria_recreate_table");
 
   error=1;					/* Default error */
   info= **org_info;
@@ -3793,7 +3822,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   unpack= (share.options & HA_OPTION_COMPRESS_RECORD) &&
     (param->testflag & T_UNPACK);
   if (!(keyinfo=(MARIA_KEYDEF*) my_alloca(sizeof(MARIA_KEYDEF)*share.base.keys)))
-    return 0;
+    DBUG_RETURN(0);
   memcpy((byte*) keyinfo,(byte*) share.keyinfo,
 	 (size_t) (sizeof(MARIA_KEYDEF)*share.base.keys));
 
@@ -3802,14 +3831,14 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
 				       (key_parts+share.base.keys))))
   {
     my_afree((gptr) keyinfo);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (!(recdef=(MARIA_COLUMNDEF*)
 	my_alloca(sizeof(MARIA_COLUMNDEF)*(share.base.fields+1))))
   {
     my_afree((gptr) keyinfo);
     my_afree((gptr) keysegs);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (!(uniquedef=(MARIA_UNIQUEDEF*)
 	my_alloca(sizeof(MARIA_UNIQUEDEF)*(share.state.header.uniques+1))))
@@ -3817,7 +3846,7 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
     my_afree((gptr) recdef);
     my_afree((gptr) keyinfo);
     my_afree((gptr) keysegs);
-    return 1;
+    DBUG_RETURN(1);
   }
 
   /* Copy the column definitions */
@@ -3887,6 +3916,11 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   create_info.language = (param->language ? param->language :
 			  share.state.header.language);
   create_info.key_file_length=  status_info.key_file_length;
+  /*
+    Allow for creating an auto_increment key. This has an effect only if
+    an auto_increment key exists in the original table.
+  */
+  create_info.with_auto_increment= TRUE;
   /* We don't have to handle symlinks here because we are using
      HA_DONT_TOUCH_DATA */
   if (maria_create(filename,
@@ -3931,7 +3965,7 @@ end:
   my_afree((gptr) keyinfo);
   my_afree((gptr) recdef);
   my_afree((gptr) keysegs);
-  return error;
+  DBUG_RETURN(error);
 }
 
 
@@ -4034,6 +4068,8 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
                                    my_bool repair_only)
 {
   byte *record;
+  DBUG_ENTER("update_auto_increment_key");
+
   if (!info->s->base.auto_key ||
       ! maria_is_key_active(info->s->state.key_map, info->s->base.auto_key - 1))
   {
@@ -4041,7 +4077,7 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
       _ma_check_print_info(param,
 			  "Table: %s doesn't have an auto increment key\n",
 			  param->isam_file_name);
-    return;
+    DBUG_VOID_RETURN;
   }
   if (!(param->testflag & T_SILENT) &&
       !(param->testflag & T_REP))
@@ -4054,7 +4090,7 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
 				  MYF(0))))
   {
     _ma_check_print_error(param,"Not enough memory for extra record");
-    return;
+    DBUG_VOID_RETURN;
   }
 
   maria_extra(info,HA_EXTRA_KEYREAD,0);
@@ -4065,23 +4101,22 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
       maria_extra(info,HA_EXTRA_NO_KEYREAD,0);
       my_free((char*) record, MYF(0));
       _ma_check_print_error(param,"%d when reading last record",my_errno);
-      return;
+      DBUG_VOID_RETURN;
     }
     if (!repair_only)
       info->s->state.auto_increment=param->auto_increment_value;
   }
   else
   {
-    ulonglong auto_increment= (repair_only ? info->s->state.auto_increment :
-			       param->auto_increment_value);
-    info->s->state.auto_increment=0;
-    _ma_update_auto_increment(info, record);
+    ulonglong auto_increment= ma_retrieve_auto_increment(info, record);
     set_if_bigger(info->s->state.auto_increment,auto_increment);
+    if (!repair_only)
+      set_if_bigger(info->s->state.auto_increment, param->auto_increment_value);
   }
   maria_extra(info,HA_EXTRA_NO_KEYREAD,0);
   my_free((char*) record, MYF(0));
   maria_update_state_info(param, info, UPDATE_AUTO_INC);
-  return;
+  DBUG_VOID_RETURN;
 }
 
 

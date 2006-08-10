@@ -55,7 +55,7 @@ typedef struct st_maria_state_info
     uchar keys;				/* number of keys in file */
     uchar uniques;			/* number of UNIQUE definitions */
     uchar language;			/* Language for indexes */
-    uchar max_block_size;		/* max keyblock size */
+    uchar max_block_size_index;		/* max keyblock size */
     uchar fulltext_keys;
     uchar not_used;			/* To align to 8 */
   } header;
@@ -246,6 +246,7 @@ struct st_maria_info
   /* accumulate indexfile changes between write's */
   TREE *bulk_insert;
   DYNAMIC_ARRAY *ft1_to_ft2;		/* used only in ft1->ft2 conversion */
+  MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param;	/* share info between init/deinit */
   char *filename;			/* parameter to open filename */
   uchar *buff,				/* Temp area for key */
@@ -398,7 +399,7 @@ struct st_maria_info
 #define MARIA_FOUND_WRONG_KEY 32738	/* Impossible value from ha_key_cmp */
 
 #define MARIA_MAX_KEY_BLOCK_SIZE	(MARIA_MAX_KEY_BLOCK_LENGTH/MARIA_MIN_KEY_BLOCK_LENGTH)
-#define MARIA_BLOCK_SIZE(key_length,data_pointer,key_pointer) (((((key_length)+(data_pointer)+(key_pointer))*4+(key_pointer)+2)/maria_block_size+1)*maria_block_size)
+#define MARIA_BLOCK_SIZE(key_length,data_pointer,key_pointer,block_size)  (((((key_length)+(data_pointer)+(key_pointer))*4+(key_pointer)+2)/(block_size)+1)*(block_size))
 #define MARIA_MAX_KEYPTR_SIZE	5	/* For calculating block lengths */
 #define MARIA_MIN_KEYBLOCK_LENGTH 50	/* When to split delete blocks */
 
@@ -572,7 +573,7 @@ extern int _ma_read_key_record(MARIA_HA *info, my_off_t filepos,
                                byte *buf);
 extern int _ma_read_cache(IO_CACHE *info, byte *buff, my_off_t pos,
                           uint length, int re_read_if_possibly);
-extern void _ma_update_auto_increment(MARIA_HA *info, const byte *record);
+extern ulonglong ma_retrieve_auto_increment(MARIA_HA *info, const byte *record);
 
 extern byte *_ma_alloc_rec_buff(MARIA_HA *, ulong, byte **);
 #define _ma_get_rec_buff_ptr(info,buf)                        \

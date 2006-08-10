@@ -183,9 +183,11 @@ int maria_rtree_find_first(MARIA_HA *info, uint keynr, uchar *key, uint key_leng
     return -1;
   }
 
-  /* Save searched key */
-  memcpy(info->first_mbr_key, key, keyinfo->keylength -
-	 info->s->base.rec_reflength);
+  /*
+    Save searched key, include data pointer.
+    The data pointer is required if the search_flag contains MBR_DATA.
+  */
+  memcpy(info->first_mbr_key, key, keyinfo->keylength);
   info->last_rkey_length = key_length;
 
   info->maria_rtree_recursion_depth = -1;

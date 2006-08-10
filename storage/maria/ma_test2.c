@@ -96,6 +96,7 @@ int main(int argc, char *argv[])
   keyinfo[0].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[0].keysegs=1;
   keyinfo[0].flag = pack_type;
+  keyinfo[0].block_length= 0;                   /* Default block length */
   keyinfo[1].seg= &glob_keyseg[1][0];
   keyinfo[1].seg[0].start=7;
   keyinfo[1].seg[0].length=6;
@@ -112,6 +113,7 @@ int main(int argc, char *argv[])
   keyinfo[1].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[1].keysegs=2;
   keyinfo[1].flag =0;
+  keyinfo[1].block_length= MARIA_MIN_KEY_BLOCK_LENGTH;  /* Diff blocklength */
   keyinfo[2].seg= &glob_keyseg[2][0];
   keyinfo[2].seg[0].start=12;
   keyinfo[2].seg[0].length=8;
@@ -122,6 +124,7 @@ int main(int argc, char *argv[])
   keyinfo[2].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[2].keysegs=1;
   keyinfo[2].flag =HA_NOSAME;
+  keyinfo[2].block_length= 0;                   /* Default block length */
   keyinfo[3].seg= &glob_keyseg[3][0];
   keyinfo[3].seg[0].start=0;
   keyinfo[3].seg[0].length=reclength-(use_blob ? 8 : 0);
@@ -133,6 +136,7 @@ int main(int argc, char *argv[])
   keyinfo[3].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[3].keysegs=1;
   keyinfo[3].flag = pack_type;
+  keyinfo[3].block_length= 0;                   /* Default block length */
   keyinfo[4].seg= &glob_keyseg[4][0];
   keyinfo[4].seg[0].start=0;
   keyinfo[4].seg[0].length=5;
@@ -144,6 +148,7 @@ int main(int argc, char *argv[])
   keyinfo[4].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[4].keysegs=1;
   keyinfo[4].flag = pack_type;
+  keyinfo[4].block_length= 0;                   /* Default block length */
   keyinfo[5].seg= &glob_keyseg[5][0];
   keyinfo[5].seg[0].start=0;
   keyinfo[5].seg[0].length=4;
@@ -155,6 +160,7 @@ int main(int argc, char *argv[])
   keyinfo[5].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[5].keysegs=1;
   keyinfo[5].flag = pack_type;
+  keyinfo[5].block_length= 0;                   /* Default block length */
 
   recinfo[0].type=pack_fields ? FIELD_SKIP_PRESPACE : 0;
   recinfo[0].length=7;
@@ -701,7 +707,7 @@ int main(int argc, char *argv[])
 
   if (!silent)
     printf("- maria_extra(CACHE) + maria_rrnd.... + maria_extra(NO_CACHE)\n");
-  if (maria_extra(file,HA_EXTRA_RESET,0) || maria_extra(file,HA_EXTRA_CACHE,0))
+  if (maria_reset(file) || maria_extra(file,HA_EXTRA_CACHE,0))
   {
     if (locking || (!use_blob && !pack_fields))
     {
@@ -744,7 +750,7 @@ int main(int argc, char *argv[])
   DBUG_PRINT("progpos",("Removing keys"));
   lastpos = HA_OFFSET_ERROR;
   /* DBUG_POP(); */
-  maria_extra(file,HA_EXTRA_RESET,0);
+  maria_reset(file);
   found_parts=0;
   while ((error=maria_rrnd(file,read_record,HA_OFFSET_ERROR)) !=
 	 HA_ERR_END_OF_FILE)
@@ -911,13 +917,13 @@ static void get_options(int argc, char **argv)
       }
       break;
     case 'e':				/* maria_block_length */
-      if ((maria_block_size=atoi(++pos)) < MARIA_MIN_KEY_BLOCK_LENGTH ||
+      if ((maria_block_size= atoi(++pos)) < MARIA_MIN_KEY_BLOCK_LENGTH ||
 	  maria_block_size > MARIA_MAX_KEY_BLOCK_LENGTH)
       {
 	fprintf(stderr,"Wrong maria_block_length\n");
 	exit(1);
       }
-      maria_block_size=1 << my_bit_log2(maria_block_size);
+      maria_block_size= my_round_up_to_next_power(maria_block_size);
       break;
     case 'E':				/* maria_block_length */
       if ((key_cache_block_size=atoi(++pos)) < MARIA_MIN_KEY_BLOCK_LENGTH ||
@@ -926,7 +932,7 @@ static void get_options(int argc, char **argv)
 	fprintf(stderr,"Wrong key_cache_block_size\n");
 	exit(1);
       }
-      key_cache_block_size=1 << my_bit_log2(key_cache_block_size);
+      key_cache_block_size= my_round_up_to_next_power(key_cache_block_size);
       break;
     case 'f':
       if ((first_key=atoi(++pos)) < 0 || first_key >= MARIA_KEYS)

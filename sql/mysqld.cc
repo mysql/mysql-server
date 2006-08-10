@@ -6021,7 +6021,6 @@ log and this option does nothing anymore.",
    (gptr*) &maria_stats_method_str, (gptr*) &maria_stats_method_str, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,

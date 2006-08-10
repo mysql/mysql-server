@@ -52,10 +52,14 @@
     if (EQUAL_CMP(amin, amax, bmin, bmax)) \
       return 1; \
   } \
-  else /* if (nextflag & MBR_DISJOINT) */ \
+  else if (nextflag & MBR_DISJOINT) \
   { \
     if (DISJOINT_CMP(amin, amax, bmin, bmax)) \
       return 1; \
+  }\
+  else /* if unknown comparison operator */ \
+  { \
+    DBUG_ASSERT(0); \
   }
 
 #define RT_CMP_KORR(type, korr_func, len, nextflag) \

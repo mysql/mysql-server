@@ -1,9 +1,11 @@
+set global storage_engine=maria;
+set session storage_engine=maria;
 drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
 CREATE TABLE t1 (
 STRING_DATA char(255) default NULL,
 KEY string_data (STRING_DATA)
-) ENGINE=MARIA;
+);
 INSERT INTO t1 VALUES ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
 INSERT INTO t1 VALUES ('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD');
 INSERT INTO t1 VALUES ('FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF');
@@ -14,7 +16,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a)) engine=maria;
+create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -32,7 +34,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 (a int not null auto_increment, b int not null, primary key (a), index(b)) engine=maria;
+create table t1 (a int not null auto_increment, b int not null, primary key (a), index(b));
 insert into t1 (b) values (1),(2),(2),(2),(2);
 optimize table t1;
 Table	Op	Msg_type	Msg_text
@@ -49,7 +51,7 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE	
 t1	1	b	1	b	A	1	NULL	NULL		BTREE	
 drop table t1;
-create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) engine=maria;
+create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b));
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
 explain select * from t1 order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -76,7 +78,7 @@ explain select a,b,c from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
 drop table t1;
-CREATE TABLE t1 (a INT) engine=maria;
+CREATE TABLE t1 (a INT);
 INSERT INTO  t1 VALUES (1), (2), (3);
 LOCK TABLES t1 WRITE;
 INSERT INTO  t1 VALUES (1), (2), (3);
@@ -84,7 +86,7 @@ OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 DROP TABLE t1;
-create table t1 ( t1 char(255), key(t1(250))) engine=maria;
+create table t1 ( t1 char(255), key(t1(250)));
 insert t1 values ('137513751375137513751375137513751375137569516951695169516951695169516951695169');
 insert t1 values ('178417841784178417841784178417841784178403420342034203420342034203420342034203');
 insert t1 values ('213872387238723872387238723872387238723867376737673767376737673767376737673767');
@@ -245,7 +247,7 @@ int, i967 int, i968 int, i969 int, i970 int, i971 int, i972 int, i973 int, i974
 int, i975 int, i976 int, i977 int, i978 int, i979 int, i980 int, i981 int, i982
 int, i983 int, i984 int, i985 int, i986 int, i987 int, i988 int, i989 int, i990
 int, i991 int, i992 int, i993 int, i994 int, i995 int, i996 int, i997 int, i998
-int, i999 int, i1000 int, b blob) row_format=dynamic engine=maria;
+int, i999 int, i1000 int, b blob) row_format=dynamic;
 insert into t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -313,7 +315,7 @@ KEY `ip` (`ip`),
 KEY `poster_login` (`poster_login`),
 KEY `topic_id` (`topic_id`),
 FULLTEXT KEY `post_text` (`post_text`)
-) ENGINE=MARIA;
+);
 INSERT INTO t1 (post_text) VALUES ('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test');
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -322,15 +324,15 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255), KEY t1 (a, b, c, d, e)) engine=maria;
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255), KEY t1 (a, b, c, d, e));
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
-CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255)) engine=maria;
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255));
 ALTER TABLE t1 ADD INDEX t1 (a, b, c, d, e);
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
 DROP TABLE t1;
-CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a)) engine=maria;
+CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
 INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
-create table t2 (a int not null, b int, c int, key(b), key(c), key(a)) engine=maria;
+create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
 INSERT into t2 values (1,1,1), (2,2,2);
 optimize table t1;
 Table	Op	Msg_type	Msg_text
@@ -346,11 +348,11 @@ t1	1	c_2	2	a	A	5	NULL	NULL		BTREE
 explain select * from t1,t2 where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
 explain select * from t1,t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
 explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
@@ -362,7 +364,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	4	Using where
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
 explain select * from t1 where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
@@ -376,7 +378,7 @@ explain select * from t1 use index() where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 drop table t1,t2;
-create table t1 (a int not null auto_increment primary key, b varchar(255)) engine=maria;
+create table t1 (a int not null auto_increment primary key, b varchar(255));
 insert into t1 (b) values (repeat('a',100)),(repeat('b',100)),(repeat('c',100));
 update t1 set b=repeat(left(b,1),200) where a=1;
 delete from t1 where (a & 1)= 0;
@@ -398,7 +400,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 ( a text not null, key a (a(20))) engine=maria;
+create table t1 ( a text not null, key a (a(20)));
 insert into t1 values ('aaa   '),('aaa'),('aa');
 check table t1;
 Table	Op	Msg_type	Msg_text
@@ -420,7 +422,7 @@ bbb.
 bbb.
 aa.
 drop table t1;
-create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10))) engine=maria;
+create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10)));
 insert into t1 values('807780', '477', '165');
 insert into t1 values('807780', '477', '162');
 insert into t1 values('807780', '472', '162');
@@ -431,7 +433,7 @@ drop table t1;
 DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 't1'
-CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a)) engine=maria;
+CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a));
 INSERT t1 VALUES ("can \tcan");
 INSERT t1 VALUES ("can   can");
 INSERT t1 VALUES ("can");
@@ -444,7 +446,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
-create table t1 (a blob) engine=maria;
+create table t1 (a blob);
 insert into t1 values('a '),('a');
 select concat(a,'.') from t1 where a='a';
 concat(a,'.')
@@ -460,7 +462,7 @@ select concat(a,'.') from t1 where a='a ';
 concat(a,'.')
 a .
 drop table t1;
-create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20))) engine=maria;
+create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));
 insert into t1 (b) values ('a'),('b'),('c');
 select concat(b,'.') from t1;
 concat(b,'.')
@@ -483,8 +485,8 @@ a	concat(b,'.')
 1	a.
 3	c.
 drop table t1;
-create table t1 (a int not null) engine=maria;
-create table t2 (a int not null, primary key (a)) engine=maria;
+create table t1 (a int not null);
+create table t2 (a int not null, primary key (a));
 insert into t1 values (1);
 insert into t2 values (1),(2);
 select sql_big_result distinct t1.a from t1,t2 order by t2.a;
@@ -508,17 +510,17 @@ drop table t1,t2;
 create table t1 (
 c1 varchar(32),
 key (c1)
-) engine=maria;
+);
 alter table t1 disable keys;
 insert into t1 values ('a'), ('b');
 select c1 from t1 order by c1 limit 1;
 c1
 a
 drop table t1;
-CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) ENGINE=MARIA;
+CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`));
 Got one of the listed errors
-create table t1 (a int, b varchar(200), c text not null) checksum=1 engine=maria;
-create table t2 (a int, b varchar(200), c text not null) checksum=0 engine=maria;
+create table t1 (a int, b varchar(200), c text not null) checksum=1;
+create table t2 (a int, b varchar(200), c text not null) checksum=0;
 insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
 insert t2 select * from t1;
 checksum table t1, t2, t3 quick;
@@ -543,7 +545,7 @@ test.t3	NULL
 Warnings:
 Error	1146	Table 'test.t3' doesn't exist
 drop table t1,t2;
-create table t1 (a int, key (a)) engine=maria;
+create table t1 (a int, key (a));
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	
@@ -551,7 +553,7 @@ alter table t1 disable keys;
 show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled
-create table t2 (a int) engine=maria;
+create table t2 (a int);
 set @@rand_seed1=31415926,@@rand_seed2=2718281828;
 insert t1 select * from t2;
 show keys from t1;
@@ -569,7 +571,7 @@ show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	NULL	500	NULL	NULL	YES	HASH	
 drop table t1,t2;
-create table t1 ( a tinytext, b char(1), index idx (a(1),b))  engine=maria;
+create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
 insert into t1 values (null,''), (null,'');
 explain select count(*) from t1 where a is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -579,20 +581,20 @@ count(*)
 2
 drop table t1;
 create table t1 (c1 int, c2 varchar(4) not null default '',
-key(c2(3))) default charset=utf8 engine=maria;
+key(c2(3))) default charset=utf8;
 insert into t1 values (1,'A'), (2, 'B'), (3, 'A');
 update t1 set c2='A  B' where c1=2;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 (c1 int) engine=maria;
+create table t1 (c1 int);
 insert into t1 values (1),(2),(3),(4);
 checksum table t1;
 Table	Checksum
 test.t1	149057747
 delete from t1 where c1 = 1;
-create table t2 engine=maria as select * from t1;
+create table t2 as select * from t1;
 checksum table t1;
 Table	Checksum
 test.t1	984116287
@@ -603,7 +605,7 @@ drop table t1, t2;
 show variables like 'maria_stats_method';
 Variable_name	Value
 maria_stats_method	nulls_unequal
-create table t1 (a int, key(a)) engine=maria;
+create table t1 (a int, key(a));
 insert into t1 values (0),(1),(2),(3),(4);
 insert into t1 select NULL from t1;
 analyze table t1;
@@ -668,7 +670,7 @@ maria_stats_method	nulls_ignored
 create table t1 (
 a char(3), b char(4), c char(5), d char(6),
 key(a,b,c,d)
-) engine=maria;
+);
 insert into t1 values ('bcd','def1', NULL, 'zz');
 insert into t1 values ('bcd','def2', NULL, 'zz');
 insert into t1 values ('bce','def1', 'yuu', NULL);
@@ -699,7 +701,7 @@ cip INT NOT NULL,
 time TIME NOT NULL,
 score INT NOT NULL DEFAULT 0,
 bob TINYBLOB
-) engine=maria;
+);
 insert into t1 (cip, time) VALUES (1, '00:01'), (2, '00:02'), (3,'00:03');
 insert into t1 (cip, bob, time) VALUES (4, 'a', '00:04'), (5, 'b', '00:05'), 
 (6, 'c', '00:06');
@@ -729,7 +731,27 @@ select count(id1) from t1 where id2 = 10;
 count(id1)
 5
 drop table t1;
-set storage_engine=MARIA;
+CREATE TABLE t1(a TINYINT, KEY(a));
+INSERT INTO t1 VALUES(1);
+SELECT MAX(a) FROM t1 IGNORE INDEX(a);
+MAX(a)
+1
+ALTER TABLE t1 DISABLE KEYS;
+SELECT MAX(a) FROM t1;
+MAX(a)
+1
+SELECT MAX(a) FROM t1 IGNORE INDEX(a);
+MAX(a)
+1
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(9), b VARCHAR(7));
+INSERT INTO t1(a) VALUES('xxxxxxxxx'),('xxxxxxxxx');
+UPDATE t1 AS ta1,t1 AS ta2 SET ta1.b='aaaaaa',ta2.b='bbbbbb';
+SELECT * FROM t1;
+a	b
+xxxxxxxxx	bbbbbb
+xxxxxxxxx	bbbbbb
+DROP TABLE t1;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
 --- Testing varchar ---
@@ -1301,11 +1323,11 @@ select * from t1 where a=20 and b is null;
 a	b
 20	NULL
 drop table t1;
-create table t1 (v varchar(65530), key(v)) engine=maria;
+create table t1 (v varchar(65530), key(v));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 1000 bytes
 drop table if exists t1;
-create table t1 (v varchar(65536)) engine=maria;
+create table t1 (v varchar(65536));
 Warnings:
 Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
@@ -1314,7 +1336,7 @@ t1	CREATE TABLE `t1` (
   `v` mediumtext
 ) ENGINE=MARIA DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (v varchar(65530) character set utf8) engine=maria;
+create table t1 (v varchar(65530) character set utf8);
 Warnings:
 Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
@@ -1323,24 +1345,11 @@ t1	CREATE TABLE `t1` (
   `v` mediumtext CHARACTER SET utf8
 ) ENGINE=MARIA DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (v varchar(65535)) engine=maria;
+create table t1 (v varchar(65535));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
-set storage_engine=MyISAM;
-create table t1 (a int) engine=maria;
-drop table if exists t1;
-Warnings:
-Error	2	Can't find file: 't1' (errno: 2)
-create table t1 (a int) engine=maria;
-drop table t1;
-Got one of the listed errors
-create table t1 (a int) engine=maria;
-drop table t1;
-Got one of the listed errors
-drop table t1;
-ERROR 42S02: Unknown table 't1'
 set @save_concurrent_insert=@@concurrent_insert;
 set global concurrent_insert=1;
-create table t1 (a int) engine=maria;
+create table t1 (a int);
 insert into t1 values (1),(2),(3),(4),(5);
 lock table t1 read local;
 insert into t1 values(6),(7);
@@ -1367,7 +1376,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
-create table t1 (a int, b varchar(30) default "hello") engine=maria;
+create table t1 (a int, b varchar(30) default "hello");
 insert into t1 (a) values (1),(2),(3),(4),(5);
 lock table t1 read local;
 insert into t1 (a) values(6),(7);
@@ -1395,7 +1404,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 set global concurrent_insert=@save_concurrent_insert;
-create table t1 (a int, key(a)) engine=maria;
+create table t1 (a int, key(a));
 insert into t1 values (1),(2),(3),(4),(NULL),(NULL),(NULL),(NULL);
 analyze table t1;
 Table	Op	Msg_type	Msg_text
@@ -1409,9 +1418,172 @@ show keys from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	1	a	1	a	A	8	NULL	NULL	YES	BTREE	
 drop table t1;
-create table t1 (c1 int) engine=maria pack_keys=0;
-create table t2 (c1 int) engine=maria pack_keys=1;
-create table t3 (c1 int) engine=maria pack_keys=default;
-create table t4 (c1 int) engine=maria pack_keys=2;
+show create table t1;
+show create table t1;
+create table t1 (a int) select 42 a;
+select * from t1;
+a
+9
+select * from t1;
+a
+99
+select * from t1;
+a
+42
+drop table t1;
+End of 4.1 tests
+create table t1 (c1 int) pack_keys=0;
+create table t2 (c1 int) pack_keys=1;
+create table t3 (c1 int) pack_keys=default;
+create table t4 (c1 int) pack_keys=2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
 drop table t1, t2, t3;
+End of 5.0 tests
+create table t1 (a int not null, key `a` (a) key_block_size=1024);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=1024
+) ENGINE=MARIA DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a int not null, key `a` (a) key_block_size=2048);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=2048
+) ENGINE=MARIA DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a varchar(2048), key `a` (a));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(2048) DEFAULT NULL,
+  KEY `a` (`a`(1000))
+) ENGINE=MARIA DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a varchar(2048), key `a` (a) key_block_size=1024);
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(2048) DEFAULT NULL,
+  KEY `a` (`a`(1000)) KEY_BLOCK_SIZE=4096
+) ENGINE=MARIA DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=1024;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(2048) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=4096
+) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=1024
+alter table t1 key_block_size=2048;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(2048) DEFAULT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
+  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=4096
+) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=2048
+alter table t1 add c int, add key (c);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(2048) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
+  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=4096,
+  KEY `c` (`c`)
+) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=2048
+alter table t1 key_block_size=0;
+alter table t1 add d int, add key (d);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(2048) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
+  KEY `b` (`b`(1000)) KEY_BLOCK_SIZE=4096,
+  KEY `c` (`c`) KEY_BLOCK_SIZE=2048,
+  KEY `d` (`d`)
+) ENGINE=MARIA DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=8192;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(2048) DEFAULT NULL,
+  KEY `a` (`a`),
+  KEY `b` (`b`(1000))
+) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=8192
+drop table t1;
+create table t1 (a int not null, b varchar(2048), key (a) key_block_size=1024, key(b)) key_block_size=8192;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(2048) DEFAULT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
+  KEY `b` (`b`(1000))
+) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=8192
+drop table t1;
+create table t1 (a int not null, b int, key (a) key_block_size=1024, key(b) key_block_size=8192) key_block_size=16384;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
+  KEY `b` (`b`) KEY_BLOCK_SIZE=8192
+) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=16384
+drop table t1;
+create table t1 (a int not null, key `a` (a) key_block_size=512);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=1024
+) ENGINE=MARIA DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(2048) DEFAULT NULL,
+  KEY `a` (`a`(1000)) KEY_BLOCK_SIZE=8192
+) ENGINE=MARIA DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a int not null, key `a` (a) key_block_size=1025);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  KEY `a` (`a`) KEY_BLOCK_SIZE=2048
+) ENGINE=MARIA DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 (a int not null, key key_block_size=1024 (a));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1
+create table t1 (a int not null, key `a` key_block_size=1024 (a));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_block_size=1024 (a))' at line 1
+End of 5.1 tests
+set global storage_engine=MyISAM;

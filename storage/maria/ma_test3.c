@@ -77,6 +77,7 @@ int main(int argc,char **argv)
   keyinfo[0].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[0].keysegs=1;
   keyinfo[0].flag = (uint8) HA_PACK_KEY;
+  keyinfo[0].block_length= 0;                   /* Default block length */
   keyinfo[1].seg= &keyseg[1][0];
   keyinfo[1].seg[0].start=8;
   keyinfo[1].seg[0].length=4;		/* Long is always 4 in maria */
@@ -85,6 +86,7 @@ int main(int argc,char **argv)
   keyinfo[1].key_alg=HA_KEY_ALG_BTREE;
   keyinfo[1].keysegs=1;
   keyinfo[1].flag =HA_NOSAME;
+  keyinfo[1].block_length= 0;                   /* Default block length */
 
   recinfo[0].type=0;
   recinfo[0].length=sizeof(record.id);

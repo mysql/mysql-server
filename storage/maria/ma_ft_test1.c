@@ -90,6 +90,7 @@ static int run_test(const char *filename)
   /* Define a key over the first column */
   keyinfo[0].seg=keyseg;
   keyinfo[0].keysegs=1;
+  keyinfo[0].block_length= 0;                   /* Default block length */
   keyinfo[0].seg[0].type= key_type;
   keyinfo[0].seg[0].flag= (key_field == FIELD_BLOB) ? HA_BLOB_PART:
 			  (key_field == FIELD_VARCHAR) ? HA_VAR_LENGTH_PART:0;

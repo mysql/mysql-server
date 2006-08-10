@@ -47,29 +47,6 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function, void *extra_arg
   DBUG_PRINT("enter",("function: %d",(int) function));
 
   switch (function) {
-  case HA_EXTRA_RESET:
-    /*
-      Free buffers and reset the following flags:
-      EXTRA_CACHE, EXTRA_WRITE_CACHE, EXTRA_KEYREAD, EXTRA_QUICK
-
-      If the row buffer cache is large (for dynamic tables), reduce it
-      to save memory.
-    */
-    if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
-    {
-      info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
-      error=end_io_cache(&info->rec_cache);
-    }
-    if (share->base.blobs)
-      _ma_alloc_rec_buff(info, -1, &info->rec_buff);
-#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
-    if (info->opt_flag & MEMMAP_USED)
-      madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
-#endif
-    info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
-    info->quick_mode=0;
-    /* Fall through */
-
   case HA_EXTRA_RESET_STATE:		/* Reset state (don't free buffers) */
     info->lastinx= 0;			/* Use first index as def */
     info->last_search_keypage=info->lastpos= HA_OFFSET_ERROR;
@@ -422,4 +399,38 @@ static void maria_extra_keyflag(MARIA_HA *info, enum ha_extra_function function)
       break;
     }
   }
+}
+
+
+int maria_reset(MARIA_HA *info)
+{
+  int error= 0;
+  MARIA_SHARE *share=info->s;
+  DBUG_ENTER("maria_reset");
+  /*
+    Free buffers and reset the following flags:
+    EXTRA_CACHE, EXTRA_WRITE_CACHE, EXTRA_KEYREAD, EXTRA_QUICK
+
+    If the row buffer cache is large (for dynamic tables), reduce it
+    to save memory.
+  */
+  if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
+  {
+    info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
+    error= end_io_cache(&info->rec_cache);
+  }
+  if (share->base.blobs)
+    _ma_alloc_rec_buff(info, -1, &info->rec_buff);
+#if defined(HAVE_MMAP) && defined(HAVE_MADVISE)
+  if (info->opt_flag & MEMMAP_USED)
+    madvise(share->file_map,share->state.state.data_file_length,MADV_RANDOM);
+#endif
+  info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
+  info->quick_mode=0;
+  info->lastinx= 0;			/* Use first index as def */
+  info->last_search_keypage= info->lastpos= HA_OFFSET_ERROR;
+  info->page_changed= 1;
+  info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
+                 HA_STATE_PREV_FOUND);
+  DBUG_RETURN(error);
 }

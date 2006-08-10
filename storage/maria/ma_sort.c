@@ -442,6 +442,7 @@ err:
   close_cached_file(&info->tempfile_for_exceptions);
 
 ok:
+  free_root(&info->wordroot, MYF(0));
   remove_io_thread(&info->read_cache);
   pthread_mutex_lock(&info->sort_info->mutex);
   info->sort_info->threads_running--;

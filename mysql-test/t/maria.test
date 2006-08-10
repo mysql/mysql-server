@@ -3,6 +3,10 @@
 #
 -- source include/have_maria.inc
 
+let $default=`select @@global.storage_engine`;
+set global storage_engine=maria;
+set session storage_engine=maria;
+
 # Initialise
 --disable_warnings
 drop table if exists t1,t2;
@@ -16,7 +20,7 @@ SET SQL_WARNINGS=1;
 CREATE TABLE t1 (
   STRING_DATA char(255) default NULL,
   KEY string_data (STRING_DATA)
-) ENGINE=MARIA;
+);
 
 INSERT INTO t1 VALUES ('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
 INSERT INTO t1 VALUES ('DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD');
@@ -31,7 +35,7 @@ drop table t1;
 # Test problem with rows that are 65517-65520 bytes long
 #
 
-create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a)) engine=maria;
+create table t1 (a tinyint not null auto_increment, b blob not null, primary key (a));
 
 let $1=100;
 disable_query_log;
@@ -57,7 +61,7 @@ drop table t1;
 # Test bug: Two optimize in a row reset index cardinality
 #
 
-create table t1 (a int not null auto_increment, b int not null, primary key (a), index(b)) engine=maria;
+create table t1 (a int not null auto_increment, b int not null, primary key (a), index(b));
 insert into t1 (b) values (1),(2),(2),(2),(2);
 optimize table t1;
 show index from t1;
@@ -69,7 +73,7 @@ drop table t1;
 # Test of how ORDER BY works when doing it on the whole table
 #
 
-create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) engine=maria;
+create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b));
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
 explain select * from t1 order by a;
 explain select * from t1 order by b;
@@ -84,7 +88,7 @@ drop table t1;
 #
 # Test of OPTIMIZE of locked and modified tables
 #
-CREATE TABLE t1 (a INT) engine=maria;
+CREATE TABLE t1 (a INT);
 INSERT INTO  t1 VALUES (1), (2), (3);
 LOCK TABLES t1 WRITE;
 INSERT INTO  t1 VALUES (1), (2), (3);
@@ -96,7 +100,7 @@ DROP TABLE t1;
 # in ha_maria::repair, and index size is changed (decreased).
 #
 
-create table t1 ( t1 char(255), key(t1(250))) engine=maria;
+create table t1 ( t1 char(255), key(t1(250)));
 insert t1 values ('137513751375137513751375137513751375137569516951695169516951695169516951695169');
 insert t1 values ('178417841784178417841784178417841784178403420342034203420342034203420342034203');
 insert t1 values ('213872387238723872387238723872387238723867376737673767376737673767376737673767');
@@ -258,7 +262,7 @@ int, i967 int, i968 int, i969 int, i970 int, i971 int, i972 int, i973 int, i974
 int, i975 int, i976 int, i977 int, i978 int, i979 int, i980 int, i981 int, i982
 int, i983 int, i984 int, i985 int, i986 int, i987 int, i988 int, i989 int, i990
 int, i991 int, i992 int, i993 int, i994 int, i995 int, i996 int, i997 int, i998
-int, i999 int, i1000 int, b blob) row_format=dynamic engine=maria;
+int, i999 int, i1000 int, b blob) row_format=dynamic;
 insert into t1 values (1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -325,7 +329,7 @@ CREATE TABLE `t1` (
   KEY `poster_login` (`poster_login`),
   KEY `topic_id` (`topic_id`),
   FULLTEXT KEY `post_text` (`post_text`)
-) ENGINE=MARIA;
+);
 
 INSERT INTO t1 (post_text) VALUES ('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test'),('ceci est un test');
 
@@ -338,8 +342,8 @@ drop table t1;
 #
 
 --error 1071
-CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255), KEY t1 (a, b, c, d, e)) engine=maria;
-CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255)) engine=maria;
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255), KEY t1 (a, b, c, d, e));
+CREATE TABLE t1 (a varchar(255), b varchar(255), c varchar(255), d varchar(255), e varchar(255));
 --error 1071
 ALTER TABLE t1 ADD INDEX t1 (a, b, c, d, e);
 DROP TABLE t1;
@@ -348,9 +352,9 @@ DROP TABLE t1;
 # Test of cardinality of keys with NULL
 #
 
-CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a)) engine=maria;
+CREATE TABLE t1 (a int not null, b int, c int, key(b), key(c), key(a,b), key(c,a));
 INSERT into t1 values (0, null, 0), (0, null, 1), (0, null, 2), (0, null,3), (1,1,4);
-create table t2 (a int not null, b int, c int, key(b), key(c), key(a)) engine=maria;
+create table t2 (a int not null, b int, c int, key(b), key(c), key(a));
 INSERT into t2 values (1,1,1), (2,2,2);
 optimize table t1;
 show index from t1;
@@ -369,7 +373,7 @@ drop table t1,t2;
 # Test bug when updating a split dynamic row where keys are not changed
 #
 
-create table t1 (a int not null auto_increment primary key, b varchar(255)) engine=maria;
+create table t1 (a int not null auto_increment primary key, b varchar(255));
 insert into t1 (b) values (repeat('a',100)),(repeat('b',100)),(repeat('c',100));
 update t1 set b=repeat(left(b,1),200) where a=1;
 delete from t1 where (a & 1)= 0;
@@ -402,7 +406,7 @@ drop table t1;
 #
 # two bugs in maria-space-stripping feature
 #
-create table t1 ( a text not null, key a (a(20))) engine=maria;
+create table t1 ( a text not null, key a (a(20)));
 insert into t1 values ('aaa   '),('aaa'),('aa');
 check table t1;
 repair table t1;
@@ -416,7 +420,7 @@ drop table t1;
 # Third bug in the same code (BUG#2295)
 #
 
-create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10))) engine=maria;
+create table t1(a text not null, b text not null, c text not null, index (a(10),b(10),c(10)));
 insert into t1 values('807780', '477', '165');
 insert into t1 values('807780', '477', '162');
 insert into t1 values('807780', '472', '162');
@@ -427,7 +431,7 @@ drop table t1;
 # space-stripping in _mi_prefix_search: BUG#5284
 #
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a)) engine=maria;
+CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a));
 INSERT t1 VALUES ("can \tcan"); 
 INSERT t1 VALUES ("can   can"); 
 INSERT t1 VALUES ("can"); 
@@ -438,7 +442,7 @@ DROP TABLE t1;
 #
 # Verify blob handling
 #
-create table t1 (a blob) engine=maria;
+create table t1 (a blob);
 insert into t1 values('a '),('a');
 select concat(a,'.') from t1 where a='a';
 select concat(a,'.') from t1 where a='a ';
@@ -450,7 +454,7 @@ drop table t1;
 #
 # Test text and unique
 #
-create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20))) engine=maria;
+create table t1 (a int not null auto_increment primary key, b text not null, unique b (b(20)));
 insert into t1 (b) values ('a'),('b'),('c');
 select concat(b,'.') from t1;
 update t1 set b='b ' where a=2;
@@ -466,8 +470,8 @@ drop table t1;
 #
 # Test keys with 0 segments. (Bug #3203)
 #
-create table t1 (a int not null) engine=maria;
-create table t2 (a int not null, primary key (a)) engine=maria;
+create table t1 (a int not null);
+create table t2 (a int not null, primary key (a));
 insert into t1 values (1);
 insert into t2 values (1),(2);
 select sql_big_result distinct t1.a from t1,t2 order by t2.a;
@@ -483,7 +487,7 @@ drop table t1,t2;
 create table t1 (
   c1 varchar(32),
   key (c1)
-) engine=maria;
+);
 alter table t1 disable keys;
 insert into t1 values ('a'), ('b');
 select c1 from t1 order by c1 limit 1;
@@ -493,13 +497,13 @@ drop table t1;
 # Test RTREE index
 #
 --error 1235, 1289
-CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) ENGINE=MARIA;
+CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`));
 # INSERT INTO t1 VALUES (1,1),(1,1);
 # DELETE FROM rt WHERE a<1;
 # DROP TABLE IF EXISTS t1;
 
-create table t1 (a int, b varchar(200), c text not null) checksum=1 engine=maria;
-create table t2 (a int, b varchar(200), c text not null) checksum=0 engine=maria;
+create table t1 (a int, b varchar(200), c text not null) checksum=1;
+create table t2 (a int, b varchar(200), c text not null) checksum=0;
 insert t1 values (1, "aaa", "bbb"), (NULL, "", "ccccc"), (0, NULL, "");
 insert t2 select * from t1;
 checksum table t1, t2, t3 quick;
@@ -508,11 +512,11 @@ checksum table t1, t2, t3 extended;
 #show table status;
 drop table t1,t2;
 
-create table t1 (a int, key (a)) engine=maria;
+create table t1 (a int, key (a));
 show keys from t1;
 alter table t1 disable keys;
 show keys from t1;
-create table t2 (a int) engine=maria;
+create table t2 (a int);
 let $i=1000;
 set @@rand_seed1=31415926,@@rand_seed2=2718281828;
 --disable_query_log
@@ -534,7 +538,7 @@ drop table t1,t2;
 #
 # index search for NULL in blob. Bug #4816
 #
-create table t1 ( a tinytext, b char(1), index idx (a(1),b))  engine=maria;
+create table t1 ( a tinytext, b char(1), index idx (a(1),b) );
 insert into t1 values (null,''), (null,'');
 explain select count(*) from t1 where a is null;
 select count(*) from t1 where a is null;
@@ -544,7 +548,7 @@ drop table t1;
 # bug9188 - Corruption Can't open file: 'table.MYI' (errno: 145)
 #
 create table t1 (c1 int, c2 varchar(4) not null default '',
-                 key(c2(3))) default charset=utf8 engine=maria;
+                 key(c2(3))) default charset=utf8;
 insert into t1 values (1,'A'), (2, 'B'), (3, 'A');
 update t1 set c2='A  B' where c1=2;
 check table t1;
@@ -555,11 +559,11 @@ drop table t1;
 # Bug#12296 - CHECKSUM TABLE reports 0 for the table
 # This happened if the first record was marked as deleted.
 #
-create table t1 (c1 int) engine=maria;
+create table t1 (c1 int);
 insert into t1 values (1),(2),(3),(4);
 checksum table t1;
 delete from t1 where c1 = 1;
-create table t2 engine=maria as select * from t1;
+create table t2 as select * from t1;
 # The following returns 0 with the bug in place.
 checksum table t1;
 # The above should give the same number as the following.
@@ -572,7 +576,7 @@ drop table t1, t2;
 
 show variables like 'maria_stats_method';
 
-create table t1 (a int, key(a)) engine=maria;
+create table t1 (a int, key(a));
 insert into t1 values (0),(1),(2),(3),(4);
 insert into t1 select NULL from t1;
 
@@ -623,7 +627,7 @@ show variables like 'maria_stats_method';
 create table t1 (
   a char(3), b char(4), c char(5), d char(6),
   key(a,b,c,d)
-) engine=maria;
+);
 insert into t1 values ('bcd','def1', NULL, 'zz');
 insert into t1 values ('bcd','def2', NULL, 'zz');
 insert into t1 values ('bce','def1', 'yuu', NULL);
@@ -644,7 +648,7 @@ create table t1(
   time TIME NOT NULL,
   score INT NOT NULL DEFAULT 0,
   bob TINYBLOB
-) engine=maria;
+);
 
 insert into t1 (cip, time) VALUES (1, '00:01'), (2, '00:02'), (3,'00:03');
 insert into t1 (cip, bob, time) VALUES (4, 'a', '00:04'), (5, 'b', '00:05'), 
@@ -663,7 +667,7 @@ create table t1 (
   t text not null,
   primary key  (id1),
   key x (id2, t(32))
-) engine=maria;
+) engine=maria; # engine clause is redundant but it's to test its parsing
 insert into t1 (id2, t) values
 (10, 'abc'), (10, 'abc'), (10, 'abc'),
 (20, 'abc'), (20, 'abc'), (20, 'def'),
@@ -672,51 +676,49 @@ select count(*)   from t1 where id2 = 10;
 select count(id1) from t1 where id2 = 10;
 drop table t1;
 
-# End of 4.1 tests
+#
+# BUG##20357 - Got error 124 from storage engine using MIN and MAX functions
+#              in queries
+#
+CREATE TABLE t1(a TINYINT, KEY(a));
+INSERT INTO t1 VALUES(1);
+SELECT MAX(a) FROM t1 IGNORE INDEX(a);
+ALTER TABLE t1 DISABLE KEYS;
+SELECT MAX(a) FROM t1;
+SELECT MAX(a) FROM t1 IGNORE INDEX(a);
+DROP TABLE t1;
+
+#
+# BUG#18036 - update of table joined to self reports table as crashed
+#
+CREATE TABLE t1(a CHAR(9), b VARCHAR(7));
+INSERT INTO t1(a) VALUES('xxxxxxxxx'),('xxxxxxxxx');
+UPDATE t1 AS ta1,t1 AS ta2 SET ta1.b='aaaaaa',ta2.b='bbbbbb';
+SELECT * FROM t1;
+DROP TABLE t1;
 
 #
 # Test varchar
 #
 
-let $default=`select @@storage_engine`;
-set storage_engine=MARIA;
 source include/varchar.inc;
 
 #
 # Some errors/warnings on create
 #
 
-create table t1 (v varchar(65530), key(v)) engine=maria;
+create table t1 (v varchar(65530), key(v));
 drop table if exists t1;
-create table t1 (v varchar(65536)) engine=maria;
+create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
-create table t1 (v varchar(65530) character set utf8) engine=maria;
+create table t1 (v varchar(65530) character set utf8);
 show create table t1;
 drop table t1;
 
 # MARIA specific varchar tests
 --error 1118
-create table t1 (v varchar(65535)) engine=maria;
-
-eval set storage_engine=$default;
-
-#
-# Test how DROP TABLE works if the index or data file doesn't exists
-
-create table t1 (a int) engine=maria;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.MAI ;
-drop table if exists t1;
-create table t1 (a int) engine=maria;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.MAI ;
---error 1051,6
-drop table t1;
-create table t1 (a int) engine=maria;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.MAD ;
---error 1105,6,29
-drop table t1;
---error 1051
-drop table t1;
+create table t1 (v varchar(65535));
 
 #
 # Test concurrent insert
@@ -724,7 +726,7 @@ drop table t1;
 #
 set @save_concurrent_insert=@@concurrent_insert;
 set global concurrent_insert=1;
-create table t1 (a int) engine=maria;
+create table t1 (a int);
 insert into t1 values (1),(2),(3),(4),(5);
 lock table t1 read local;
 connect (con1,localhost,root,,);
@@ -749,7 +751,7 @@ drop table t1;
 disconnect con1;
 
 # Same test with dynamic record length
-create table t1 (a int, b varchar(30) default "hello") engine=maria;
+create table t1 (a int, b varchar(30) default "hello");
 insert into t1 (a) values (1),(2),(3),(4),(5);
 lock table t1 read local;
 connect (con1,localhost,root,,);
@@ -777,7 +779,7 @@ set global concurrent_insert=@save_concurrent_insert;
 
 # BUG#9622 - ANALYZE TABLE and ALTER TABLE .. ENABLE INDEX produce
 # different statistics on the same table with NULL values.
-create table t1 (a int, key(a)) engine=maria;
+create table t1 (a int, key(a));
 
 insert into t1 values (1),(2),(3),(4),(NULL),(NULL),(NULL),(NULL);
 analyze table t1;
@@ -790,13 +792,119 @@ show keys from t1;
 drop table t1;
 
 #
+# Bug#8706 - temporary table with data directory option fails
+#
+connect (session1,localhost,root,,);
+connect (session2,localhost,root,,);
+
+connection session1;
+disable_query_log;
+eval create temporary table t1 (a int) data directory="$MYSQLTEST_VARDIR/tmp" select 9 a;
+enable_query_log;
+disable_result_log;
+show create table t1;
+enable_result_log;
+
+connection session2;
+disable_query_log;
+eval create temporary table t1 (a int) data directory="$MYSQLTEST_VARDIR/tmp" select 99 a;
+enable_query_log;
+disable_result_log;
+show create table t1;
+enable_result_log;
+
+connection default;
+create table t1 (a int) select 42 a;
+
+connection session1;
+select * from t1;
+disconnect session1;
+connection session2;
+select * from t1;
+disconnect session2;
+connection default;
+select * from t1;
+drop table t1;
+
+--echo End of 4.1 tests
+
+#
 # Bug#10056 - PACK_KEYS option take values greater than 1 while creating table
 #
-create table t1 (c1 int) engine=maria pack_keys=0;
-create table t2 (c1 int) engine=maria pack_keys=1;
-create table t3 (c1 int) engine=maria pack_keys=default;
+create table t1 (c1 int) pack_keys=0;
+create table t2 (c1 int) pack_keys=1;
+create table t3 (c1 int) pack_keys=default;
 --error 1064
-create table t4 (c1 int) engine=maria pack_keys=2;
+create table t4 (c1 int) pack_keys=2;
 drop table t1, t2, t3;
+
+--echo End of 5.0 tests
+
+#
+# Test of key_block_size
+#
+
+create table t1 (a int not null, key `a` (a) key_block_size=1024);
+show create table t1;
+drop table t1;
+
+create table t1 (a int not null, key `a` (a) key_block_size=2048);
+show create table t1;
+drop table t1;
+
+create table t1 (a varchar(2048), key `a` (a));
+show create table t1;
+drop table t1;
+
+create table t1 (a varchar(2048), key `a` (a) key_block_size=1024);
+show create table t1;
+drop table t1;
+
+create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=1024;
+show create table t1;
+alter table t1 key_block_size=2048;
+show create table t1;
+alter table t1 add c int, add key (c);
+show create table t1;
+alter table t1 key_block_size=0;
+alter table t1 add d int, add key (d);
+show create table t1;
+drop table t1;
+
+create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=8192;
+show create table t1;
+drop table t1;
+
+create table t1 (a int not null, b varchar(2048), key (a) key_block_size=1024, key(b)) key_block_size=8192;
+show create table t1;
+drop table t1;
+
+create table t1 (a int not null, b int, key (a) key_block_size=1024, key(b) key_block_size=8192) key_block_size=16384;
+show create table t1;
+drop table t1;
+
+
+# Test limits and errors of key_block_size
+
+create table t1 (a int not null, key `a` (a) key_block_size=512);
+show create table t1;
+drop table t1;
+
+create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
+show create table t1;
+drop table t1;
+
+create table t1 (a int not null, key `a` (a) key_block_size=1025);
+show create table t1;
+drop table t1;
+
+--error 1064
+create table t1 (a int not null, key key_block_size=1024 (a));
+--error 1064
+create table t1 (a int not null, key `a` key_block_size=1024 (a));
+
+--echo End of 5.1 tests
+
+eval set global storage_engine=$default;
 
 # End of 5.2 tests

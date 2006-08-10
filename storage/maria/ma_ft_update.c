@@ -95,9 +95,8 @@ uint _ma_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
 
 /* parses a document i.e. calls maria_ft_parse for every keyseg */
 
-uint _ma_ft_parse(TREE *parsed, MARIA_HA *info, uint keynr,
-                  const byte *record, my_bool with_alloc,
-                  MYSQL_FTPARSER_PARAM *param)
+uint _ma_ft_parse(TREE *parsed, MARIA_HA *info, uint keynr, const byte *record,
+                  MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
   FT_SEG_ITERATOR ftsi;
   struct st_mysql_ftparser *parser;
@@ -110,25 +109,27 @@ uint _ma_ft_parse(TREE *parsed, MARIA_HA *info, uint keynr,
   while (_ma_ft_segiterator(&ftsi))
   {
     if (ftsi.pos)
-      if (maria_ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, with_alloc, parser,
-                   param))
+      if (maria_ft_parse(parsed, (byte *)ftsi.pos, ftsi.len, parser, param,
+                         mem_root))
         DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
-FT_WORD * _ma_ft_parserecord(MARIA_HA *info, uint keynr, const byte *record)
+FT_WORD * _ma_ft_parserecord(MARIA_HA *info, uint keynr, const byte *record,
+                             MEM_ROOT *mem_root)
 {
   TREE ptree;
   MYSQL_FTPARSER_PARAM *param;
   DBUG_ENTER("_ma_ft_parserecord");
-  if (! (param= maria_ftparser_call_initializer(info, keynr)))
+  if (! (param= maria_ftparser_call_initializer(info, keynr, 0)))
     DBUG_RETURN(NULL);
   bzero((char*) &ptree, sizeof(ptree));
-  if (_ma_ft_parse(&ptree, info, keynr, record, 0, param))
+  param->flags= 0;
+  if (_ma_ft_parse(&ptree, info, keynr, record, param, mem_root))
     DBUG_RETURN(NULL);
 
-  DBUG_RETURN(maria_ft_linearize(&ptree));
+  DBUG_RETURN(maria_ft_linearize(&ptree, mem_root));
 }
 
 static int _ma_ft_store(MARIA_HA *info, uint keynr, byte *keybuf,
@@ -174,10 +175,6 @@ int _ma_ft_cmp(MARIA_HA *info, uint keynr, const byte *rec1, const byte *rec2)
   FT_SEG_ITERATOR ftsi1, ftsi2;
   CHARSET_INFO *cs=info->s->keyinfo[keynr].seg->charset;
   DBUG_ENTER("_ma_ft_cmp");
-#ifndef MYSQL_HAS_TRUE_CTYPE_IMPLEMENTATION
-  if (cs->mbmaxlen > 1)
-    DBUG_RETURN(THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT);
-#endif
 
   _ma_ft_segiterator_init(info, keynr, rec1, &ftsi1);
   _ma_ft_segiterator_init(info, keynr, rec2, &ftsi2);
@@ -206,10 +203,11 @@ int _ma_ft_update(MARIA_HA *info, uint keynr, byte *keybuf,
   int cmp, cmp2;
   DBUG_ENTER("_ma_ft_update");
 
-  if (!(old_word=oldlist= _ma_ft_parserecord(info, keynr, oldrec)))
-    goto err0;
-  if (!(new_word=newlist= _ma_ft_parserecord(info, keynr, newrec)))
-    goto err1;
+  if (!(old_word=oldlist=_ma_ft_parserecord(info, keynr, oldrec,
+                                            &info->ft_memroot)) ||
+      !(new_word=newlist=_ma_ft_parserecord(info, keynr, newrec,
+                                            &info->ft_memroot)))
+    goto err;
 
   error=0;
   while(old_word->pos && new_word->pos)
@@ -222,13 +220,13 @@ int _ma_ft_update(MARIA_HA *info, uint keynr, byte *keybuf,
     {
       key_length= _ma_ft_make_key(info,keynr,keybuf,old_word,pos);
       if ((error= _ma_ck_delete(info,keynr,(uchar*) keybuf,key_length)))
-        goto err2;
+        goto err;
     }
     if (cmp > 0 || cmp2)
     {
       key_length= _ma_ft_make_key(info,keynr,keybuf,new_word,pos);
       if ((error= _ma_ck_write(info,keynr,(uchar*) keybuf,key_length)))
-        goto err2;
+        goto err;
     }
     if (cmp<=0) old_word++;
     if (cmp>=0) new_word++;
@@ -238,11 +236,8 @@ int _ma_ft_update(MARIA_HA *info, uint keynr, byte *keybuf,
  else if (new_word->pos)
    error= _ma_ft_store(info,keynr,keybuf,new_word,pos);
 
-err2:
-    my_free((char*) newlist,MYF(0));
-err1:
-    my_free((char*) oldlist,MYF(0));
-err0:
+err:
+  free_root(&info->ft_memroot, MYF(MY_MARK_BLOCKS_FREE));
   DBUG_RETURN(error);
 }
 
@@ -255,12 +250,12 @@ int _ma_ft_add(MARIA_HA *info, uint keynr, byte *keybuf, const byte *record,
   int error= -1;
   FT_WORD *wlist;
   DBUG_ENTER("_ma_ft_add");
+  DBUG_PRINT("enter",("keynr: %d",keynr));
 
-  if ((wlist= _ma_ft_parserecord(info, keynr, record)))
-  {
+  if ((wlist= _ma_ft_parserecord(info, keynr, record, &info->ft_memroot)))
     error= _ma_ft_store(info,keynr,keybuf,wlist,pos);
-    my_free((char*) wlist,MYF(0));
-  }
+  free_root(&info->ft_memroot, MYF(MY_MARK_BLOCKS_FREE));
+  DBUG_PRINT("exit",("Return: %d",error));
   DBUG_RETURN(error);
 }
 
@@ -275,11 +270,9 @@ int _ma_ft_del(MARIA_HA *info, uint keynr, byte *keybuf, const byte *record,
   DBUG_ENTER("_ma_ft_del");
   DBUG_PRINT("enter",("keynr: %d",keynr));
 
-  if ((wlist= _ma_ft_parserecord(info, keynr, record)))
-  {
+  if ((wlist= _ma_ft_parserecord(info, keynr, record, &info->ft_memroot)))
     error= _ma_ft_erase(info,keynr,keybuf,wlist,pos);
-    my_free((char*) wlist,MYF(0));
-  }
+  free_root(&info->ft_memroot, MYF(MY_MARK_BLOCKS_FREE));
   DBUG_PRINT("exit",("Return: %d",error));
   DBUG_RETURN(error);
 }

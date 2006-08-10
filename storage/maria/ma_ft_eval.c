@@ -55,6 +55,7 @@ int main(int argc, char *argv[])
   /* Define a key over the first column */
   keyinfo[0].seg=keyseg;
   keyinfo[0].keysegs=1;
+  keyinfo[0].block_length= 0;                   /* Default block length */
   keyinfo[0].seg[0].type= HA_KEYTYPE_TEXT;
   keyinfo[0].seg[0].flag= HA_BLOB_PART;
   keyinfo[0].seg[0].start=recinfo[0].length;

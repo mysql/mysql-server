@@ -2968,7 +2968,7 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length
   maria_clear_all_keys_active(share->state.key_map);
   for (key=0 ; key < share->base.keys ; key++)
     share->state.key_root[key]= HA_OFFSET_ERROR;
-  for (key=0 ; key < share->state.header.max_block_size ; key++)
+  for (key=0 ; key < share->state.header.max_block_size_index ; key++)
     share->state.key_del[key]= HA_OFFSET_ERROR;
   isam_file->state->checksum=crc;       /* Save crc here */
   share->changed=1;			/* Force write of header */
@@ -3035,7 +3035,7 @@ static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
   {
     isam_info= *(info->current=info->file);
     info->end=info->current+info->count;
-    maria_extra(isam_info, HA_EXTRA_RESET, 0);
+    maria_reset(isam_info);
     maria_extra(isam_info, HA_EXTRA_CACHE, 0);
     filepos=isam_info->s->pack.header_length;
   }
@@ -3058,7 +3058,7 @@ static int mrg_rrnd(PACK_MRG_INFO *info,byte *buf)
     info->current++;
     isam_info= *info->current;
     filepos=isam_info->s->pack.header_length;
-    maria_extra(isam_info,HA_EXTRA_RESET, 0);
+    maria_reset(isam_info);
     maria_extra(isam_info,HA_EXTRA_CACHE, 0);
   }
 }

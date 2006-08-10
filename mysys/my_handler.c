@@ -524,7 +524,6 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
     case HA_KEYTYPE_VARTEXT1:
     case HA_KEYTYPE_VARTEXT2:
     case HA_KEYTYPE_VARBINARY1:
-    case HA_KEYTYPE_VARTEXT2:
     case HA_KEYTYPE_VARBINARY2:
       {
         int a_length;

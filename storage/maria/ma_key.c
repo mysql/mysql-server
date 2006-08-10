@@ -127,7 +127,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
     }
     if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
-      uint pack_length= keyseg->bit_start;
+      uint pack_length= (keyseg->bit_start == 1 ? 1 : 2);
       uint tmp_length= (pack_length == 1 ? (uint) *(uchar*) pos :
                         uint2korr(pos));
       pos+= pack_length;			/* Skip VARCHAR length */
@@ -509,20 +509,19 @@ int _ma_read_key_record(MARIA_HA *info, my_off_t filepos, byte *buf)
 
 
 /*
-  Update auto_increment info
+  Retrieve auto_increment info
 
   SYNOPSIS
-    _ma_update_auto_increment()
-    info			MARIA handler
+    retrieve_auto_increment()
+    info			Maria handler
     record			Row to update
 
   IMPLEMENTATION
-    Only replace the auto_increment value if it is higher than the previous
-    one. For signed columns we don't update the auto increment value if it's
+    For signed columns we don't retrieve the auto increment value if it's
     less than zero.
 */
 
-void _ma_update_auto_increment(MARIA_HA *info,const byte *record)
+ulonglong ma_retrieve_auto_increment(MARIA_HA *info,const byte *record)
 {
   ulonglong value= 0;			/* Store unsigned values here */
   longlong s_value= 0;			/* Store signed values here */
@@ -587,6 +586,5 @@ void _ma_update_auto_increment(MARIA_HA *info,const byte *record)
     and if s_value == 0 then value will contain either s_value or the
     correct value.
   */
-  set_if_bigger(info->s->state.auto_increment,
-                (s_value > 0) ? (ulonglong) s_value : value);
+  return (s_value > 0) ? (ulonglong) s_value : value;
 }
