@@ -5950,6 +5950,33 @@ call bug15217()|
 drop table t3|
 drop procedure bug15217|
 
+
+#
+# Bug#21002 "Derived table not selecting from a "real" table fails in JOINs"
+#         
+# A regression caused by the fix for Bug#18444: for derived tables we should
+# set an empty string as the current database. They do not belong to any
+# database and must be usable even if there is no database
+# selected.
+--disable_warnings
+drop table if exists t3|
+drop database if exists mysqltest1|
+--enable_warnings
+create table t3 (a int)|
+insert into t3 (a) values (1), (2)|
+
+create database mysqltest1|
+use mysqltest1|
+drop database mysqltest1|
+
+# No current database
+select database()|
+
+select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
+use test|
+drop table t3|
+
+
 #
 # BUG#19862: Sort with filesort by function evaluates function twice
 #
@@ -5968,6 +5995,8 @@ SELECT bug19862(a) FROM t12 ORDER BY 1|
 SELECT * FROM t11|
 DROP TABLE t11, t12|
 DROP FUNCTION bug19862|
+
+
 #
 # BUG#NNNN: New bug synopsis
 #
