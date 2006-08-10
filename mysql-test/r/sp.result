@@ -3620,11 +3620,18 @@ call bug11333(10)|
 drop procedure bug11333|
 drop table t3|
 drop function if exists bug9048|
+create function bug9048(f1 char binary) returns char
+begin
+set f1= concat( 'hello', f1 );
+return f1;
+end|
+drop function bug9048|
 create function bug9048(f1 char binary) returns char binary
 begin
 set f1= concat( 'hello', f1 );
 return f1;
 end|
+ERROR 42000: This version of MySQL doesn't yet support 'return value collation'
 drop procedure if exists bug12849_1|
 create procedure bug12849_1(inout x char) select x into x|
 set @var='a'|
