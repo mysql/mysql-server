@@ -1687,7 +1687,7 @@ then
   AC_MSG_ERROR("MySQL needs a long long type.")
 fi
 # off_t is not a builtin type
-MYSQL_CHECK_SIZEOF(off_t, 4)
+AC_CHECK_SIZEOF(off_t, 4)
 if test "$ac_cv_sizeof_off_t" -eq 0
 then
   AC_MSG_ERROR("MySQL needs a off_t type.")
