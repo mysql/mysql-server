@@ -50,7 +50,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_manager.h sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			ha_heap.h ha_myisam.h ha_myisammrg.h ha_partition.h \
-			ha_innodb.h  ha_berkeley.h ha_federated.h \
+			ha_innodb.h  ha_federated.h \
 			ha_ndbcluster.h ha_ndbcluster_binlog.h \
 			ha_ndbcluster_tables.h \
 			opt_range.h protocol.h rpl_tblmap.h \
@@ -88,7 +88,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			discover.cc time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
 			ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
-			ha_partition.cc ha_innodb.cc ha_berkeley.cc \
+			ha_partition.cc ha_innodb.cc \
 			ha_federated.cc \
                         ha_ndbcluster.cc ha_ndbcluster_binlog.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
@@ -161,9 +161,6 @@ lex_hash.h:	gen_lex_hash$(EXEEXT)
 		./gen_lex_hash$(EXEEXT) > $@
 
 # the following three should eventually be moved out of this directory
-ha_berkeley.o:	ha_berkeley.cc ha_berkeley.h
-		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
-
 ha_ndbcluster.o:ha_ndbcluster.cc ha_ndbcluster.h
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
