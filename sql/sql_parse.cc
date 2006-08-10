@@ -6380,12 +6380,14 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (check_table_name(table->table.str,table->table.length))
+  if (check_table_name(table->table.str, table->table.length))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
     DBUG_RETURN(0);
   }
-  if (table->db.str && check_db_name(table->db.str))
+
+  if (table->is_derived_table() == FALSE && table->db.str &&
+      check_db_name(table->db.str))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), table->db.str);
     DBUG_RETURN(0);

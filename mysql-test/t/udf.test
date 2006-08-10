@@ -1,6 +1,6 @@
 --source include/have_udf.inc
 #
-# To run this tests the "sql/udf_example.cc" need to be compiled into
+# To run this tests the "sql/udf_example.c" need to be compiled into
 # udf_example.so and LD_LIBRARY_PATH should be setup to point out where
 # the library are.
 #
