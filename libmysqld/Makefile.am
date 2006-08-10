@@ -98,7 +98,7 @@ endif
 # Storage engine specific compilation options
 
 ha_berkeley.o:  ha_berkeley.cc
-		$(CXXCOMPILE) @bdb_includes@ $(LM_CFLAGS) -c $<
+		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
 ha_ndbcluster.o:ha_ndbcluster.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
