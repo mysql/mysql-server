@@ -1,7 +1,3 @@
-1
-1
-ERROR 1064 (42000) at line 3: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-ERROR at line 1: USE must be followed by a database name
 ?         (\?) Synonym for `help'.
 clear     (\c) Clear command.
 connect   (\r) Reconnect to the server. Optional arguments are db and host.
@@ -46,7 +42,3 @@ system    (\!) Execute a system shell command.
 tee       (\T) Set outfile [to_outfile]. Append everything into given outfile.
 use       (\u) Use another database. Takes database name as argument.
 charset_name(\C) Switch to another charset. Might be needed for processing binlog.
-\
-\\
-';
-';
