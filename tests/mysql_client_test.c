@@ -3976,6 +3976,7 @@ static void test_fetch_date()
                                                         c7 timestamp(6))");
   myquery(rc);
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
   rc= mysql_query(mysql, "INSERT INTO test_bind_result VALUES('2002-01-02', \
                                                               '12:49:00', \
                                                               '2002-01-02 17:46:59', \
@@ -8350,6 +8351,7 @@ static void test_bug19671()
   int rc;
   myheader("test_bug19671");
 
+  mysql_query(mysql, "set sql_mode=''");
   rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
 
@@ -8920,7 +8922,7 @@ static void test_bug1500()
   rc= mysql_query(mysql, "DROP TABLE test_bg1500");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE test_bg1500 (s VARCHAR(25), FULLTEXT(s))");
+  rc= mysql_query(mysql, "CREATE TABLE test_bg1500 (s VARCHAR(25), FULLTEXT(s)) engine=MyISAM");
   myquery(rc);
 
   rc= mysql_query(mysql,
@@ -12020,6 +12022,7 @@ static void test_bug6096()
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
   myquery(rc);
 
+  mysql_query(mysql, "set sql_mode=''");
   stmt_text= "create table t1 (c_tinyint tinyint, c_smallint smallint, "
                              " c_mediumint mediumint, c_int int, "
                              " c_bigint bigint, c_float float, "
@@ -12904,7 +12907,9 @@ static void test_bug8378()
   /* No escaping should have actually happened. */
   DIE_UNLESS(memcmp(out, TEST_BUG8378_OUT, len) == 0);
 
-  sprintf(buf, "SELECT '%s'", out);
+  strcpy(buf, "SELECT '");
+  memcpy(buf+8, out, len);
+  buf[8+len] = '\'';
   rc=mysql_real_query(mysql, buf, strlen(buf));
   myquery(rc);
 
