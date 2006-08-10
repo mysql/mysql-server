@@ -9331,7 +9331,6 @@ user:
 keyword:
 	keyword_sp		{}
 	| ASCII_SYM		{}
-	| AUTHORS_SYM		{}
 	| BACKUP_SYM		{}
 	| BEGIN_SYM		{}
 	| BYTE_SYM		{}
@@ -9389,6 +9388,7 @@ keyword_sp:
 	| ALGORITHM_SYM		{}
 	| ANY_SYM		{}
 	| AT_SYM                {}
+	| AUTHORS_SYM		{}
 	| AUTO_INC		{}
 	| AUTOEXTEND_SIZE_SYM   {}
 	| AVG_ROW_LENGTH	{}
@@ -9414,6 +9414,7 @@ keyword_sp:
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CONSISTENT_SYM	{}
+	| CONTRIBUTORS_SYM	{}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATAFILE_SYM          {}

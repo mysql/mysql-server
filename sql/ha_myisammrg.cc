@@ -477,7 +477,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
         an embedded server without changing the paths in the .MRG file.
       */
       uint length= build_table_filename(buff, sizeof(buff),
-                                        tables->db, tables->table_name, "");
+                                        tables->db, tables->table_name, "", 0);
       /*
         If a MyISAM table is in the same directory as the MERGE table,
         we use the table name without a path. This means that the
