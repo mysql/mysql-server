@@ -27,6 +27,7 @@
 #endif
 #include "maria_def.h"
 #include <m_ctype.h>
+#include <my_bit.h>
 
 #define STANDARD_LENGTH 37
 #define MARIA_KEYS 6

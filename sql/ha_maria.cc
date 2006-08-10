@@ -22,6 +22,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <myisampack.h>
+#include <my_bit.h>
 #include "ha_maria.h"
 #ifndef MASTER
 #include "../srclib/maria/maria_def.h"
