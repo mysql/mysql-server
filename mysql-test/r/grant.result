@@ -525,7 +525,7 @@ Db	char(64)	NO	PRI
 User	char(16)	NO	PRI		
 Table_name	char(64)	NO	PRI		
 Grantor	char(77)	NO	MUL		
-Timestamp	timestamp	YES		CURRENT_TIMESTAMP	
+Timestamp	timestamp	NO		CURRENT_TIMESTAMP	
 Table_priv	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view')	NO			
 Column_priv	set('Select','Insert','Update','References')	NO			
 use test;
