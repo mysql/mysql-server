@@ -1672,6 +1672,17 @@ create_function_tail:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
+            /*
+              This was disabled in 5.1.12. See bug #20701
+              When collation support in SP is implemented, then this test
+              should be removed.
+            */
+            if (($8 == FIELD_TYPE_STRING || $8 == MYSQL_TYPE_VARCHAR)
+                && (lex->type & BINCMP_FLAG))
+            {
+              my_error(ER_NOT_SUPPORTED_YET, MYF(0), "return value collation");
+              YYABORT;
+            }
 
             if (sp->fill_field_definition(YYTHD, lex,
                                           (enum enum_field_types) $8,
