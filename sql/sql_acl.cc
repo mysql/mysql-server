@@ -2962,7 +2962,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       {
         char buf[FN_REFLEN];
         build_table_filename(buf, sizeof(buf), table_list->db,
-                             table_list->table_name, reg_ext);
+                             table_list->table_name, reg_ext, 0);
         fn_format(buf, buf, "", "", MY_UNPACK_FILENAME  | MY_RESOLVE_SYMLINKS |
                                     MY_RETURN_REAL_PATH | MY_APPEND_EXT);
         if (access(buf,F_OK))

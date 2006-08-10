@@ -482,3 +482,57 @@ SELECT * FROM t1;
 ALTER TABLE t1 MODIFY COLUMN v VARCHAR(4);
 SELECT * FROM t1;
 DROP TABLE t1;
+
+# End of 5.0 tests
+
+#
+# Bug#18775 - Temporary table from alter table visible to other threads
+#
+# Check if special characters work and duplicates are detected.
+--disable_warnings
+DROP TABLE IF EXISTS `t+1`, `t+2`;
+--enable_warnings
+CREATE TABLE `t+1` (c1 INT);
+ALTER TABLE  `t+1` RENAME `t+2`;
+CREATE TABLE `t+1` (c1 INT);
+--error ER_TABLE_EXISTS_ERROR
+ALTER TABLE  `t+1` RENAME `t+2`;
+DROP TABLE   `t+1`, `t+2`;
+#
+# Same for temporary tables though these names do not become file names.
+CREATE TEMPORARY TABLE `tt+1` (c1 INT);
+ALTER TABLE  `tt+1` RENAME `tt+2`;
+CREATE TEMPORARY TABLE `tt+1` (c1 INT);
+--error ER_TABLE_EXISTS_ERROR
+ALTER TABLE  `tt+1` RENAME `tt+2`;
+SHOW CREATE TABLE `tt+1`;
+SHOW CREATE TABLE `tt+2`;
+DROP TABLE   `tt+1`, `tt+2`;
+#
+# Check if special characters as in tmp_file_prefix work.
+CREATE TABLE `#sql1` (c1 INT);
+CREATE TABLE `@0023sql2` (c1 INT);
+SHOW TABLES;
+RENAME TABLE `#sql1`     TO `@0023sql1`;
+RENAME TABLE `@0023sql2` TO `#sql2`;
+SHOW TABLES;
+ALTER TABLE `@0023sql1`  RENAME `#sql-1`;
+ALTER TABLE `#sql2`      RENAME `@0023sql-2`;
+SHOW TABLES;
+INSERT INTO `#sql-1`     VALUES (1);
+INSERT INTO `@0023sql-2` VALUES (2);
+DROP TABLE `#sql-1`, `@0023sql-2`;
+#
+# Same for temporary tables though these names do not become file names.
+CREATE TEMPORARY TABLE `#sql1` (c1 INT);
+CREATE TEMPORARY TABLE `@0023sql2` (c1 INT);
+SHOW TABLES;
+ALTER TABLE `#sql1`      RENAME `@0023sql1`;
+ALTER TABLE `@0023sql2`  RENAME `#sql2`;
+SHOW TABLES;
+INSERT INTO `#sql2`      VALUES (1);
+INSERT INTO `@0023sql1`  VALUES (2);
+SHOW CREATE TABLE `#sql2`;
+SHOW CREATE TABLE `@0023sql1`;
+DROP TABLE `#sql2`, `@0023sql1`;
+
