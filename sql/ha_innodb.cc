@@ -4570,7 +4570,7 @@ ha_innobase::read_time(
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object. */
 
-void
+int
 ha_innobase::info(
 /*==============*/
 	uint flag)	/* in: what information MySQL requests */
@@ -4593,7 +4593,7 @@ ha_innobase::info(
 
         if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
-                DBUG_VOID_RETURN;
+                DBUG_RETURN(HA_ERR_CRASHED);
         }
 
 	/* We do not know if MySQL can call this function before calling
@@ -4758,7 +4758,7 @@ ha_innobase::info(
 
 	prebuilt->trx->op_info = (char*)"";
 
-  	DBUG_VOID_RETURN;
+  	DBUG_RETURN(0);
 }
 
 /**************************************************************************

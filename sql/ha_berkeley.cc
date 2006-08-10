@@ -1715,7 +1715,7 @@ void ha_berkeley::position(const byte *record)
 }
 
 
-void ha_berkeley::info(uint flag)
+int ha_berkeley::info(uint flag)
 {
   DBUG_ENTER("ha_berkeley::info");
   if (flag & HA_STATUS_VARIABLE)
@@ -1735,7 +1735,7 @@ void ha_berkeley::info(uint flag)
   /* Don't return key if we got an error for the internal primary key */
   if (flag & HA_STATUS_ERRKEY && last_dup_key < table->keys)
     errkey= last_dup_key;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 

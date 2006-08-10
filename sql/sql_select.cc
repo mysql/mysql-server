@@ -537,6 +537,8 @@ JOIN::optimize()
     {
       if (res > 1)
       {
+        thd->fatal_error();
+        error= res;
 	DBUG_RETURN(1);
       }
       if (res < 0)
