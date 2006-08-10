@@ -348,10 +348,7 @@ int	__void__;
 #endif
 
 /* Define some useful general macros */
-#if defined(__cplusplus) && defined(__GNUC__)
-#define max(a, b)	((a) >? (b))
-#define min(a, b)	((a) <? (b))
-#elif !defined(max)
+#if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
 #endif

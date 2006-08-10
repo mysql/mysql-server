@@ -549,3 +549,7 @@ support-files/my-innodb-heavy-4G.cnf
 ac_available_languages_fragment
 support-files/MacOSX/postflight
 support-files/MacOSX/preflight
+*/.deps
+*.Po
+*.Plo
+*/.libs/*
