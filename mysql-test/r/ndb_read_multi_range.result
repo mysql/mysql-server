@@ -286,10 +286,10 @@ INSERT INTO t1 VALUES
 (406990,67,'2006-02-23 18:01:45'),(148815,67,'2005-10-25 15:34:17'),
 (148812,67,'2005-10-25 15:30:01'),(245651,67,'2005-12-08 15:58:27'),
 (154503,67,'2005-10-28 11:52:38');
-create table t11 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 asc;
-create table t12 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 desc;
+create table t11 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 asc;
+create table t12 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 desc;
 create table t21 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 asc;
-create table t22 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
+create table t22 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
 select * from t11 order by 1,2,3;
 a	b	c
 254	67	NULL
@@ -366,4 +366,65 @@ a	b	c
 406993	67	2006-02-27 11:20:57
 406994	67	2006-02-27 11:26:46
 406995	67	2006-02-28 11:55:00
+select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null order by t12.a;
+a
+255
+256
+update t22 set c = '2005-12-08 15:58:27' where a = 255;
+select * from t22 order by 1,2,3;
+a	b	c
+1	67	2006-02-23 15:01:35
+254	67	NULL
+255	67	2005-12-08 15:58:27
+256	67	NULL
+1120	67	NULL
+1133	67	NULL
+4101	67	NULL
+9199	67	NULL
+223456	67	NULL
+245651	67	2005-12-08 15:58:27
+245652	67	2005-12-08 15:58:27
+245653	67	2005-12-08 15:59:07
+245654	67	2005-12-08 15:59:08
+245655	67	2005-12-08 15:59:08
+398340	67	2006-02-20 04:38:53
+398341	67	2006-02-20 04:48:44
+398545	67	2006-02-20 04:53:13
+406631	67	2006-02-23 10:49:42
+406988	67	2006-02-23 17:07:22
+406989	67	2006-02-23 17:08:46
+406990	67	2006-02-23 18:01:45
+406991	67	2006-02-24 16:42:32
+406992	67	2006-02-24 16:47:18
+406993	67	2006-02-27 11:20:57
+406994	67	2006-02-27 11:26:46
+406995	67	2006-02-28 11:55:00
+select t21.* from t21,t22 where t21.a = t22.a and 
+t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+a	b	c
+256	67	NULL
+delete from t22 where a > 245651;
+update t22 set b = a + 1;
+select * from t22 order by 1,2,3;
+a	b	c
+1	2	2006-02-23 15:01:35
+254	255	NULL
+255	256	2005-12-08 15:58:27
+256	257	NULL
+1120	1121	NULL
+1133	1134	NULL
+4101	4102	NULL
+9199	9200	NULL
+223456	223457	NULL
+245651	245652	2005-12-08 15:58:27
+select c, count(*)
+from t21 
+inner join t22 using (a)
+where t22.b in (2,256,257,1121,1134,4102,9200,223457,245652)
+group by c
+order by c;
+c	count(*)
+NULL	7
+2005-12-08 15:58:27	1
+2006-02-23 15:01:35	1
 DROP TABLE t1, t11, t12, t21, t22;
