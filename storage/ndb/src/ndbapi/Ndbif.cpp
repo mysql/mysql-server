@@ -742,9 +742,12 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     const Uint32 oid = sdata->senderData;
     NdbEventOperationImpl *op= (NdbEventOperationImpl*)int2void(oid);
 
-    if (op->m_magic_number != NDB_EVENT_OP_MAGIC_NUMBER)
+    if (unlikely(op == 0 || op->m_magic_number != NDB_EVENT_OP_MAGIC_NUMBER))
+    {
       g_eventLogger.error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
 			  "number");
+      return ;
+    }
 
     // Accumulate DIC_TAB_INFO for TE_ALTER events
     if (sdata->operation == NdbDictionary::Event::_TE_ALTER &&
