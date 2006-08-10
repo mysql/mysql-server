@@ -1106,15 +1106,16 @@ void Log_to_csv_event_handler::
   THD *log_thd, *curr= current_thd;
   TABLE_LIST *table;
 
-  if (!logger.is_log_tables_initialized)
-    return;                                     /* do nothing */
-
   switch (log_table_type) {
   case QUERY_LOG_GENERAL:
+    if (!logger.is_general_log_table_enabled())
+      return;                                     /* do nothing */
     log_thd= general_log_thd;
     table= &general_log;
     break;
   case QUERY_LOG_SLOW:
+    if (!logger.is_slow_log_table_enabled())
+      return;                                     /* do nothing */
     log_thd= slow_log_thd;
     table= &slow_log;
     break;

@@ -103,7 +103,7 @@ enum Constants
     MAX_ALGO_SIZE =  9,
     MAX_DIGEST_SZ = 25,    // SHA + enum(Bit or Octet) + length(4)
     DSA_SIG_SZ    = 40,
-    NAME_MAX      = 512    // max total of all included names
+    ASN_NAME_MAX  = 512    // max total of all included names
 };
 
 
@@ -216,7 +216,7 @@ enum { SHA_SIZE = 20 };
 // A Signing Authority
 class Signer {
     PublicKey key_;
-    char      name_[NAME_MAX];
+    char      name_[ASN_NAME_MAX];
     byte      hash_[SHA_SIZE];
 public:
     Signer(const byte* k, word32 kSz, const char* n, const byte* h);
@@ -270,8 +270,8 @@ private:
     byte      subjectHash_[SHA_SIZE];   // hash of all Names
     byte      issuerHash_[SHA_SIZE];    // hash of all Names
     byte*     signature_;
-    char      issuer_[NAME_MAX];        // Names
-    char      subject_[NAME_MAX];       // Names
+    char      issuer_[ASN_NAME_MAX];    // Names
+    char      subject_[ASN_NAME_MAX];   // Names
     char      beforeDate_[MAX_DATE_SZ]; // valid before date
     char      afterDate_[MAX_DATE_SZ];  // valid after date
     bool      verify_;                  // Default to yes, but could be off

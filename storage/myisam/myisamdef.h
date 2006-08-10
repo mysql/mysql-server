@@ -201,6 +201,9 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   uint	blocksize;			/* blocksize of keyfile */
   myf write_flag;
   enum data_file_type data_file_type;
+  /* Below flag is needed to make log tables work with concurrent insert */
+  my_bool is_log_table;
+
   my_bool  changed,			/* If changed since lock */
     global_changed,			/* If changed since open */
     not_flushed,
