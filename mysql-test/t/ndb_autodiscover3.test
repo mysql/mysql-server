@@ -2,6 +2,9 @@
 -- source include/have_multi_ndb.inc
 -- source include/not_embedded.inc
 
+# see bug#21563
+-- source include/have_binlog_format_row.inc
+
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
