@@ -32,7 +32,6 @@ sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
 sinclude(config/ac-macros/compiler_flag.m4)
 sinclude(config/ac-macros/plugins.m4)
-sinclude(config/ac-macros/ha_berkeley.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
@@ -2138,12 +2137,6 @@ MYSQL_CHECK_SSL
 # Has to be done late, as the plugin may need to check for existence of
 # functions tested above
 #--------------------------------------------------------------------
-
-MYSQL_STORAGE_ENGINE(berkeley,  berkeley-db, [BerkeleyDB Storage Engine],
-        [Transactional Tables using BerkeleyDB], [max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(berkeley,[storage/bdb])
-MYSQL_PLUGIN_STATIC(berkeley,   [[\$(bdb_libs_with_path)]])
-MYSQL_PLUGIN_ACTIONS(berkeley,  [MYSQL_SETUP_BERKELEY_DB])
 
 MYSQL_STORAGE_ENGINE(blackhole,,[Blackhole Storage Engine],
         [Basic Write-only Read-never tables], [max,max-no-ndb])
