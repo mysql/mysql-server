@@ -162,7 +162,7 @@ lex_hash.h:	gen_lex_hash$(EXEEXT)
 
 # the following three should eventually be moved out of this directory
 ha_berkeley.o:	ha_berkeley.cc ha_berkeley.h
-		$(CXXCOMPILE) @bdb_includes@ $(LM_CFLAGS) -c $<
+		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
 ha_ndbcluster.o:ha_ndbcluster.cc ha_ndbcluster.h
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
