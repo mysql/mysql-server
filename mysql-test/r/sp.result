@@ -3620,12 +3620,18 @@ call bug11333(10)|
 drop procedure bug11333|
 drop table t3|
 drop function if exists bug9048|
-create function bug9048(f1 char binary) returns char binary
+create function bug9048(f1 char binary) returns char
 begin
 set f1= concat( 'hello', f1 );
 return f1;
 end|
 drop function bug9048|
+create function bug9048(f1 char binary) returns char binary
+begin
+set f1= concat( 'hello', f1 );
+return f1;
+end|
+ERROR 42000: This version of MySQL doesn't yet support 'return value collation'
 drop procedure if exists bug12849_1|
 create procedure bug12849_1(inout x char) select x into x|
 set @var='a'|
@@ -4074,7 +4080,7 @@ select res;
 end|
 create table t3 (a int)|
 insert into t3 values (0)|
-create view v1 as select a from t3;
+create view v1 as select a from t3|
 create procedure bug10100pt(level int, lim int)
 begin
 if level < lim then
@@ -4095,7 +4101,7 @@ else
 select * from v1;
 end if;
 end|
-prepare stmt2 from "select * from t3;";
+prepare stmt2 from "select * from t3;"|
 create procedure bug10100pd(level int, lim int)
 begin
 if level < lim then
@@ -4465,7 +4471,7 @@ Error	1347	'test.v1' is not BASE TABLE
 Error	1347	'test.v1' is not BASE TABLE
 Error	1347	'test.v1' is not BASE TABLE
 drop procedure bug13012|
-drop view v1;
+drop view v1|
 select * from t1 order by data|
 id	data
 aa	0
@@ -5051,6 +5057,21 @@ concat('data was: /', var1, '/')
 data was: /1/
 drop table t3|
 drop procedure bug15217|
+drop table if exists t3|
+drop database if exists mysqltest1|
+create table t3 (a int)|
+insert into t3 (a) values (1), (2)|
+create database mysqltest1|
+use mysqltest1|
+drop database mysqltest1|
+select database()|
+database()
+NULL
+select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
+a
+1
+use test|
+drop table t3|
 drop procedure if exists bug19862|
 CREATE TABLE t11 (a INT)|
 CREATE TABLE t12 (a INT)|
