@@ -18,7 +18,8 @@
 ## Process this file with automake to create Makefile.in
 
 man1_MANS =   @man1_files@
-EXTRA_DIST =  $(man1_MANS)
+man8_MANS =   @man8_files@
+EXTRA_DIST =  $(man1_MANS) $(man8_MANS)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
