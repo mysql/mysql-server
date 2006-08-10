@@ -7222,6 +7222,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields)
   param->copy_funcs.empty();
   while ((pos=li++))
   {
+    Field *field;
+    char *tmp;
     if (pos->type() == Item::FIELD_ITEM)
     {
       Item_field *item=(Item_field*) pos;
@@ -7245,13 +7247,21 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields)
       }
 
       /* set up save buffer and change result_field to point at saved value */
-      Field *field= item->field;
+      field= item->field;
       item->result_field=field->new_field(&thd->mem_root,field->table);
-      char *tmp=(char*) sql_alloc(field->pack_length()+1);
+      /*
+        We need to allocate one extra byte for null handling and
+        another extra byte to not get warnings from purify in
+        Field_string::val_int
+      */
+      tmp= (char*) sql_alloc(field->pack_length()+2);
       if (!tmp)
 	goto err;
       copy->set(tmp, item->result_field);
       item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
+#ifdef HAVE_purify
+      copy->to_ptr[copy->from_length]= 0;
+#endif
       copy++;
     }
     else if ((pos->type() == Item::FUNC_ITEM ||
