@@ -310,7 +310,7 @@ static bool lower_case_table_names_used= 0;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
-static my_bool opt_bdb, opt_isam, opt_ndbcluster, opt_merge;
+static my_bool opt_isam, opt_ndbcluster, opt_merge;
 static my_bool opt_short_log_format= 0;
 static uint kill_cached_threads, wake_thread;
 static ulong killed_threads, thread_created;
@@ -331,10 +331,6 @@ static struct passwd *user_info;
 static I_List<THD> thread_cache;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
-
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-static my_bool opt_sync_bdb_logs;
-#endif
 
 /* Global variables */
 
@@ -404,22 +400,6 @@ extern ulong srv_thread_concurrency;
 extern ulong srv_commit_concurrency;
 extern ulong srv_flush_log_at_trx_commit;
 }
-#endif
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-#ifndef HAVE_U_INT32_T
-typedef unsigned int  u_int32_t;
-#endif
-extern const u_int32_t bdb_DB_TXN_NOSYNC, bdb_DB_RECOVER, bdb_DB_PRIVATE,
-                       bdb_DB_DIRECT_DB, bdb_DB_DIRECT_LOG;
-extern bool berkeley_shared_data;
-extern u_int32_t berkeley_init_flags,berkeley_env_flags, berkeley_lock_type,
-                 berkeley_lock_types[];
-extern ulong berkeley_max_lock, berkeley_log_buffer_size;
-extern ulonglong berkeley_cache_size;
-extern ulong berkeley_region_size, berkeley_cache_parts;
-extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
-extern long berkeley_lock_scan_time;
-extern TYPELIB berkeley_lock_typelib;
 #endif
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -3350,11 +3330,7 @@ server.");
 
 static void create_maintenance_thread()
 {
-  if (
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-      (have_berkeley_db == SHOW_OPTION_YES) ||
-#endif
-      (flush_time && flush_time != ~(ulong) 0L))
+  if (flush_time && flush_time != ~(ulong) 0L)
   {
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
@@ -4896,38 +4872,6 @@ struct my_option my_long_options[] =
    "Path to installation directory. All paths are usually resolved relative to this.",
    (gptr*) &mysql_home_ptr, (gptr*) &mysql_home_ptr, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"bdb", OPT_BDB, "Enable Berkeley DB (if this version of MySQL supports it). \
-Disable with --skip-bdb (will save memory).",
-   (gptr*) &opt_bdb, (gptr*) &opt_bdb, 0, GET_BOOL, NO_ARG, OPT_BDB_DEFAULT, 0, 0,
-   0, 0, 0},
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-  {"bdb-data-direct", OPT_BDB_DATA_DIRECT,
-   "Turn off system buffering of BDB database files to avoid double caching.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"bdb-home", OPT_BDB_HOME, "Berkeley home directory.", (gptr*) &berkeley_home,
-   (gptr*) &berkeley_home, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"bdb-lock-detect", OPT_BDB_LOCK,
-   "Berkeley lock detect (DEFAULT, OLDEST, RANDOM or YOUNGEST, # sec).",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"bdb-log-direct", OPT_BDB_LOG_DIRECT,
-   "Turn off system buffering of BDB log files to avoid double caching.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"bdb-logdir", OPT_BDB_LOG, "Berkeley DB log file directory.",
-   (gptr*) &berkeley_logdir, (gptr*) &berkeley_logdir, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"bdb-no-recover", OPT_BDB_NO_RECOVER,
-   "Don't try to recover Berkeley DB tables on start.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"bdb-no-sync", OPT_BDB_NOSYNC,
-   "This option is deprecated, use --skip-sync-bdb-logs instead",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"bdb-shared-data", OPT_BDB_SHARED,
-   "Start Berkeley DB in multi-process mode.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-   0, 0, 0, 0, 0},
-  {"bdb-tmpdir", OPT_BDB_TMP, "Berkeley DB tempfile name.",
-   (gptr*) &berkeley_tmpdir, (gptr*) &berkeley_tmpdir, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif /* WITH_BERKELEY_STORAGE_ENGINE */
   {"big-tables", OPT_BIG_TABLES,
    "Allow big result sets by saving all temporary sets on file (Solves most 'table full' errors).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -5742,31 +5686,6 @@ log and this option does nothing anymore.",
     "The number of outstanding connection requests MySQL can have. This comes into play when the main MySQL thread gets very many connection requests in a very short time.",
     (gptr*) &back_log, (gptr*) &back_log, 0, GET_ULONG,
     REQUIRED_ARG, 50, 1, 65535, 0, 1, 0 },
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-  { "bdb_cache_parts", OPT_BDB_CACHE_PARTS,
-    "Number of parts to use for BDB cache.",
-    (gptr*) &berkeley_cache_parts, (gptr*) &berkeley_cache_parts, 0, GET_ULONG,
-    REQUIRED_ARG, 1, 1, 1024, 0, 1, 0},
-  { "bdb_cache_size", OPT_BDB_CACHE_SIZE,
-    "The buffer that is allocated to cache index and rows for BDB tables.",
-    (gptr*) &berkeley_cache_size, (gptr*) &berkeley_cache_size, 0, GET_ULL,
-    REQUIRED_ARG, KEY_CACHE_SIZE, 20*1024, (ulonglong) ~0, 0, IO_SIZE, 0},
-  {"bdb_lock_max", OPT_BDB_MAX_LOCK, "Synonym for bdb_max_lock.",
-   (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
-   REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},
-  {"bdb_log_buffer_size", OPT_BDB_LOG_BUFFER_SIZE,
-   "The buffer that is allocated to cache index and rows for BDB tables.",
-   (gptr*) &berkeley_log_buffer_size, (gptr*) &berkeley_log_buffer_size, 0,
-   GET_ULONG, REQUIRED_ARG, 0, 256*1024L, ~0L, 0, 1024, 0},
-  {"bdb_max_lock", OPT_BDB_MAX_LOCK,
-   "The maximum number of locks you can have active on a BDB table.",
-   (gptr*) &berkeley_max_lock, (gptr*) &berkeley_max_lock, 0, GET_ULONG,
-   REQUIRED_ARG, 10000, 0, (long) ~0, 0, 1, 0},
-  {"bdb_region_size", OPT_BDB_REGION_SIZE,
-    "The size of the underlying logging area of the Berkeley DB environment.",
-    (gptr*) &berkeley_region_size, (gptr*) &berkeley_region_size, 0, GET_ULONG,
-    OPT_ARG, 60*1024L, 60*1024L, (long) ~0, 0, 1, 0},
-#endif /* WITH_BERKELEY_STORAGE_ENGINE */
   {"binlog_cache_size", OPT_BINLOG_CACHE_SIZE,
    "The size of the cache to hold the SQL statements for the binary log during a transaction. If you often use big, multi-statement transactions you can increase this to get more performance.",
    (gptr*) &binlog_cache_size, (gptr*) &binlog_cache_size, 0, GET_ULONG,
@@ -6258,12 +6177,6 @@ The minimum value for this variable is 4096.",
    (gptr*) &max_system_variables.sortbuff_size, 0, GET_ULONG, REQUIRED_ARG,
    MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0L, MALLOC_OVERHEAD,
    1, 0},
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-  {"sync-bdb-logs", OPT_BDB_SYNC,
-   "Synchronously flush Berkeley DB logs. Enabled by default",
-   (gptr*) &opt_sync_bdb_logs, (gptr*) &opt_sync_bdb_logs, 0, GET_BOOL,
-   NO_ARG, 1, 0, 0, 0, 0, 0},
-#endif /* WITH_BERKELEY_STORAGE_ENGINE */
   {"sync-binlog", OPT_SYNC_BINLOG,
    "Synchronously flush binary log to disk after every #th event. "
    "Use 0 (default) to disable synchronous flushing.",
@@ -7578,59 +7491,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       have_merge_db= SHOW_OPTION_YES;
     else
       have_merge_db= SHOW_OPTION_DISABLED;
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-  case OPT_BDB_NOSYNC:
-    /* Deprecated option */
-    opt_sync_bdb_logs= 0;
-    /* Fall through */
-  case OPT_BDB_SYNC:
-    if (!opt_sync_bdb_logs)
-      berkeley_env_flags|= bdb_DB_TXN_NOSYNC;
-    else
-      berkeley_env_flags&= ~bdb_DB_TXN_NOSYNC;
-    break;
-  case OPT_BDB_LOG_DIRECT:
-    berkeley_env_flags|= bdb_DB_DIRECT_DB;
-    break;
-  case OPT_BDB_DATA_DIRECT:
-    berkeley_env_flags|= bdb_DB_DIRECT_LOG;
-    break;
-  case OPT_BDB_NO_RECOVER:
-    berkeley_init_flags&= ~(bdb_DB_RECOVER);
-    break;
-  case OPT_BDB_LOCK:
-  {
-    int type;
-    if ((type=find_type(argument, &berkeley_lock_typelib, 2)) > 0)
-      berkeley_lock_type=berkeley_lock_types[type-1];
-    else
-    {
-      int err;
-      char *end;
-      uint length= strlen(argument);
-      long value= my_strntol(&my_charset_latin1, argument, length, 10, &end, &err);
-      if (end == argument+length)
-	berkeley_lock_scan_time= value;
-      else
-      {
-	fprintf(stderr,"Unknown lock type: %s\n",argument);
-	exit(1);
-      }
-    }
-    break;
-  }
-  case OPT_BDB_SHARED:
-    berkeley_init_flags&= ~(bdb_DB_PRIVATE);
-    berkeley_shared_data= 1;
-    break;
-#endif /* WITH_BERKELEY_STORAGE_ENGINE */
   case OPT_BDB:
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-    if (opt_bdb)
-      have_berkeley_db= SHOW_OPTION_YES;
-    else
-      have_berkeley_db= SHOW_OPTION_DISABLED;
-#endif
     break;
   case OPT_NDBCLUSTER:
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -7863,10 +7724,6 @@ static void get_options(int argc,char **argv)
 #ifndef WITH_ISAM_STORAGE_ENGINE
   if (opt_isam)
     sql_print_warning("this binary does not contain ISAM storage engine");
-#endif
-#ifndef WITH_BERKELEY_STORAGE_ENGINE
-  if (opt_bdb)
-    sql_print_warning("this binary does not contain BDB storage engine");
 #endif
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes) &&
       !opt_slow_log)
@@ -8210,7 +8067,6 @@ void refresh_status(THD *thd)
 /*****************************************************************************
   Instantiate have_xyx for missing storage engines
 *****************************************************************************/
-#undef have_berkeley_db
 #undef have_innodb
 #undef have_ndbcluster
 #undef have_example_db
@@ -8220,7 +8076,6 @@ void refresh_status(THD *thd)
 #undef have_partition_db
 #undef have_blackhole_db
 
-SHOW_COMP_OPTION have_berkeley_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_example_db= SHOW_OPTION_NO;
@@ -8229,14 +8084,6 @@ SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_federated_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
-
-#ifndef WITH_BERKELEY_STORAGE_ENGINE
-bool berkeley_shared_data;
-ulong berkeley_max_lock, berkeley_log_buffer_size;
-ulonglong berkeley_cache_size;
-ulong berkeley_region_size, berkeley_cache_parts;
-char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
-#endif
 
 #ifndef WITH_INNOBASE_STORAGE_ENGINE
 uint innobase_flush_log_at_trx_commit;
