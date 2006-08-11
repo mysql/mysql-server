@@ -4871,8 +4871,8 @@ ER_WARN_TOO_MANY_RECORDS 01000
 	por "Conta de registro é maior que a conta de coluna na linha %ld"
 	spa "Línea %ld fué truncada; La misma contine mas datos que las que existen en las columnas de entrada"
 ER_WARN_NULL_TO_NOTNULL 22004 
-	eng "Column set to default value; NULL supplied to NOT NULL column '%s' at row %ld"
-	ger "Feld auf Vorgabewert gesetzt, da NULL für NOT-NULL-Feld '%s' in Zeile %ld angegeben"
+	eng "Column was set to data type implicit default; NULL supplied for NOT NULL column '%s' at row %ld"
+	ger "Feld auf Datentyp-spezifischen Vorgabewert gesetzt; da NULL für NOT-NULL-Feld '%s' in Zeile %ld angegeben"
 	por "Dado truncado, NULL fornecido para NOT NULL coluna '%s' na linha %ld"
 	spa "Datos truncado, NULL suministrado para NOT NULL columna '%s' en la línea %ld"
 ER_WARN_DATA_OUT_OF_RANGE 22003 
