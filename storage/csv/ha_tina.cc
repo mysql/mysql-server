@@ -180,7 +180,7 @@ static int tina_done_func()
   }
   return 0;
 }
-	
+
 
 /*
   Simple lock controls.
