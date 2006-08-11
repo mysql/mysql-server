@@ -5008,7 +5008,6 @@ ha_innobase::delete_all_rows(void)
 {
 	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
 	int		error;
-	trx_t*		trx;
 	THD*		thd		= current_thd;
 
 	DBUG_ENTER("ha_innobase::delete_all_rows");
@@ -5023,11 +5022,11 @@ ha_innobase::delete_all_rows(void)
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created, and update prebuilt->trx */
 
-	update_thd(current_thd);
+	update_thd(thd);
 
 	/* Truncate the table in InnoDB */
 
-	error = row_truncate_table_for_mysql(prebuilt->table, trx);
+	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
 	if (error == DB_ERROR) {
 		/* Cannot truncate; resort to ha_innobase::delete_row() */
 		goto fallback;
