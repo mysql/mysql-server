@@ -41,7 +41,10 @@ class Item_func_md5 :public Item_str_func
 {
   String tmp_value;
 public:
-  Item_func_md5(Item *a) :Item_str_func(a) {}
+  Item_func_md5(Item *a) :Item_str_func(a)
+  {
+    collation.set(&my_charset_bin);
+  }
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "md5"; }
@@ -51,7 +54,10 @@ public:
 class Item_func_sha :public Item_str_func
 {
 public:
-  Item_func_sha(Item *a) :Item_str_func(a) {}  
+  Item_func_sha(Item *a) :Item_str_func(a)
+  {
+    collation.set(&my_charset_bin);
+  }
   String *val_str(String *);    
   void fix_length_and_dec();      
   const char *func_name() const { return "sha"; }	
@@ -306,9 +312,21 @@ public:
 class Item_func_encrypt :public Item_str_func
 {
   String tmp_value;
+
+  /* Encapsulate common constructor actions */
+  void constructor_helper()
+  {
+    collation.set(&my_charset_bin);
+  }
 public:
-  Item_func_encrypt(Item *a) :Item_str_func(a) {}
-  Item_func_encrypt(Item *a, Item *b): Item_str_func(a,b) {}
+  Item_func_encrypt(Item *a) :Item_str_func(a)
+  {
+    constructor_helper();
+  }
+  Item_func_encrypt(Item *a, Item *b): Item_str_func(a,b)
+  {
+    constructor_helper();
+  }
   String *val_str(String *);
   void fix_length_and_dec() { maybe_null=1; max_length = 13; }
   const char *func_name() const { return "ecrypt"; }
