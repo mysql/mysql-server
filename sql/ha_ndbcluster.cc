@@ -179,6 +179,7 @@ static int update_status_variables(Ndb_cluster_connection *c)
   ndb_connected_host=          c->get_connected_host();
   ndb_number_of_replicas=      0;
   ndb_number_of_ready_data_nodes= c->get_no_ready();
+  ndb_number_of_data_nodes=     c->no_db_nodes();
   ndb_connect_count= c->get_connect_count();
   return 0;
 }
@@ -9618,14 +9619,14 @@ ndbcluster_show_status(THD* thd, stat_print_fn *stat_print,
                 "cluster_node_id=%u, "
                 "connected_host=%s, "
                 "connected_port=%u, "
-                "number_of_storage_nodes=%u, "
-                "number_of_ready_storage_nodes=%u, "
+                "number_of_data_nodes=%u, "
+                "number_of_ready_data_nodes=%u, "
                 "connect_count=%u",
                 ndb_cluster_node_id,
                 ndb_connected_host,
                 ndb_connected_port,
-                ndb_number_of_storage_nodes,
-                ndb_number_of_ready_storage_nodes,
+                ndb_number_of_data_nodes,
+                ndb_number_of_ready_data_nodes,
                 ndb_connect_count);
   if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                  STRING_WITH_LEN("connection"), buf, buflen))
