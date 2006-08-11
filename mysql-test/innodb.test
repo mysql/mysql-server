@@ -1071,7 +1071,7 @@ drop table t1,t2,t3;
 #
 create table t1 (id int,  name char(10) not null,  name2 char(10) not null) engine=innodb;
 insert into t1 values(1,'first','fff'),(2,'second','sss'),(3,'third','ttt');
-select name2 from t1  union all  select name from t1 union all select id from t1;
+select trim(name2) from t1  union all  select trim(name) from t1 union all select trim(id) from t1;
 drop table t1;
 
 #
@@ -1294,6 +1294,15 @@ select count(*) from t1 where x > -16;
 select * from t1 where x > -16;
 select count(*) from t1 where x = 18446744073709551601;
 drop table t1;
+
+
+# Test for testable InnoDB status variables. This test
+# uses previous ones(pages_created, rows_deleted, ...).
+show status like "Innodb_buffer_pool_pages_total";
+show status like "Innodb_page_size";
+show status like "Innodb_rows_deleted";
+show status like "Innodb_rows_inserted";
+show status like "Innodb_rows_updated";
 
 # Test for row locks InnoDB status variables.
 show status like "Innodb_row_lock_waits";
@@ -2443,3 +2452,66 @@ drop table t1, t2, t3, t5, t6, t8, t9;
 # bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
 --error 1005
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
+
+#
+# Bug #17152: Wrong result with BINARY comparison on aliased column
+#
+
+CREATE TABLE t1 (
+   a BIGINT(20) NOT NULL,
+    PRIMARY KEY  (a)
+ ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+
+CREATE TABLE t2 (
+  a BIGINT(20) NOT NULL,
+  b VARCHAR(128) NOT NULL,
+  c TEXT NOT NULL,
+  PRIMARY KEY  (a,b),
+  KEY idx_t2_b_c (b,c(200)),
+  CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a) 
+   ON DELETE CASCADE
+ ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1, 'bar', 'vbar');
+INSERT INTO t2 VALUES (1, 'BAR2', 'VBAR');
+INSERT INTO t2 VALUES (1, 'bar_bar', 'bibi');
+INSERT INTO t2 VALUES (1, 'customer_over', '1');
+
+SELECT * FROM t2 WHERE b = 'customer_over';
+SELECT * FROM t2 WHERE BINARY b = 'customer_over';
+SELECT DISTINCT p0.a FROM t2 p0 WHERE p0.b = 'customer_over';
+/* Bang: Empty result set, above was expected: */
+SELECT DISTINCT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+SELECT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
+
+drop table t2, t1;
+
+#
+# Bug #15680 (SPATIAL key in innodb)
+#
+--error ER_TABLE_CANT_HANDLE_SPKEYS
+create table t1 (g geometry not null, spatial gk(g)) engine=innodb;
+
+#
+# Test optimize on table with open transaction
+#
+
+CREATE TABLE t1 ( a int ) ENGINE=innodb;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+OPTIMIZE TABLE t1;
+DROP TABLE t1;
+
+#######################################################################
+#                                                                     #
+# Please, DO NOT TOUCH this file as well as the innodb.result file.   #
+# These files are to be modified ONLY BY INNOBASE guys.               #
+#                                                                     #
+# Use innodb_mysql.[test|result] files instead.                       #
+#                                                                     #
+# If nevertheless you need to make some changes here, please, forward #
+# your commit message To: dev@innodb.com Cc: dev-innodb@mysql.com     #
+# (otherwise your changes may be erased).                             #
+#                                                                     #
+#######################################################################
