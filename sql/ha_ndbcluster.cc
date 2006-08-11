@@ -168,8 +168,8 @@ static long ndb_cluster_node_id= 0;
 static const char * ndb_connected_host= 0;
 static long ndb_connected_port= 0;
 static long ndb_number_of_replicas= 0;
-long ndb_number_of_storage_nodes= 0;
-long ndb_number_of_ready_storage_nodes= 0;
+long ndb_number_of_data_nodes= 0;
+long ndb_number_of_ready_data_nodes= 0;
 long ndb_connect_count= 0;
 
 static int update_status_variables(Ndb_cluster_connection *c)
@@ -178,8 +178,7 @@ static int update_status_variables(Ndb_cluster_connection *c)
   ndb_connected_port=          c->get_connected_port();
   ndb_connected_host=          c->get_connected_host();
   ndb_number_of_replicas=      0;
-  ndb_number_of_storage_nodes= c->no_db_nodes();
-  ndb_number_of_ready_storage_nodes= c->get_no_ready();
+  ndb_number_of_ready_data_nodes= c->get_no_ready();
   ndb_connect_count= c->get_connect_count();
   return 0;
 }
@@ -189,7 +188,7 @@ SHOW_VAR ndb_status_variables[]= {
   {"config_from_host",         (char*) &ndb_connected_host,      SHOW_CHAR_PTR},
   {"config_from_port",         (char*) &ndb_connected_port,          SHOW_LONG},
 //  {"number_of_replicas",     (char*) &ndb_number_of_replicas,      SHOW_LONG},
-  {"number_of_storage_nodes",(char*) &ndb_number_of_storage_nodes, SHOW_LONG},
+  {"number_of_data_nodes",(char*) &ndb_number_of_data_nodes, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
