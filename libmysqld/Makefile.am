@@ -45,7 +45,7 @@ noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
-	ha_innodb.cc ha_berkeley.cc ha_federated.cc ha_ndbcluster.cc \
+	ha_innodb.cc ha_federated.cc ha_ndbcluster.cc \
 	ha_ndbcluster_binlog.cc ha_partition.cc \
 	handler.cc sql_handler.cc \
 	hostname.cc init.cc password.c \
@@ -96,10 +96,6 @@ yassl_inc_libs=	$(top_srcdir)/extra/yassl/src/.libs/libyassl.a \
 endif
 
 # Storage engine specific compilation options
-
-ha_berkeley.o:  ha_berkeley.cc
-		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
-
 ha_ndbcluster.o:ha_ndbcluster.cc
 		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 

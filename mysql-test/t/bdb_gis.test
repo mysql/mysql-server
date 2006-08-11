@@ -1,3 +1,0 @@
--- source include/have_bdb.inc
-SET storage_engine=bdb;
---source include/gis_generic.inc
