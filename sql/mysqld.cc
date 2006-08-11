@@ -378,6 +378,7 @@ key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
+char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 struct passwd *user_info;
@@ -5936,7 +5937,7 @@ static void mysql_init_variables(void)
   /* Variables in libraries */
   charsets_dir= 0;
   default_character_set_name= (char*) MYSQL_DEFAULT_CHARSET_NAME;
-  default_collation_name= (char*) MYSQL_DEFAULT_COLLATION_NAME;
+  default_collation_name= compiled_default_collation_name;
   sys_charset_system.value= (char*) system_charset_info->csname;
 
 
@@ -6091,7 +6092,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
     break;
   case 'C':
-    default_collation_name= 0;
+    if (default_collation_name == compiled_default_collation_name)
+      default_collation_name= 0;
     break;
   case 'l':
     opt_log=1;
