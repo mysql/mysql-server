@@ -123,6 +123,12 @@ post_init_event_thread(THD *thd)
     VOID(sigemptyset(&set));                    // Get mask in use
   VOID(pthread_sigmask(SIG_UNBLOCK,&set,&thd->block_signals));
 #endif
+  pthread_mutex_lock(&LOCK_thread_count);
+  threads.append(thd);
+  thread_count++;
+  thread_running++;
+  pthread_mutex_unlock(&LOCK_thread_count);
+
   return FALSE;
 }
 
@@ -182,9 +188,6 @@ pre_init_event_thread(THD* thd)
   thd->client_capabilities|= CLIENT_MULTI_RESULTS;
   pthread_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thread_id++;
-  threads.append(thd);
-  thread_count++;
-  thread_running++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   /*
