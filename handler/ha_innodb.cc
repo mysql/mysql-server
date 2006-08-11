@@ -168,7 +168,6 @@ char*	innobase_unix_file_flush_method		= NULL;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
-uint	innobase_flush_log_at_trx_commit	= 1;
 ulong	innobase_fast_shutdown			= 1;
 my_bool innobase_log_archive			= FALSE;/* unused */
 my_bool innobase_use_doublewrite		= TRUE;
@@ -1518,7 +1517,6 @@ innobase_init(void)
 	srv_log_archive_on = (ulint) innobase_log_archive;
 #endif /* UNIV_LOG_ARCHIVE */
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
-	srv_flush_log_at_trx_commit = (ulint) innobase_flush_log_at_trx_commit;
 
 	/* We set srv_pool_size here in units of 1 kB. InnoDB internally
 	changes the value so that it becomes the number of database pages. */
@@ -1975,7 +1973,7 @@ innobase_commit_complete(
 
 		trx->active_trans = 0;
 
-		if (srv_flush_log_at_trx_commit == 0) {
+		if (UNIV_UNLIKELY(srv_flush_log_at_trx_commit == 0)) {
 
 			return(0);
 		}
@@ -2367,8 +2365,7 @@ ha_innobase::open(
 				"have forgotten\nto delete the corresponding "
 				".frm files of InnoDB tables, or you\n"
 				"have moved .frm files to another database?\n"
-				"Look from section 15.1 of "
-				"http://www.innodb.com/ibman.html\n"
+				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -2385,8 +2382,7 @@ ha_innobase::open(
 				"Have you deleted the .ibd file from the "
 				"database directory under\nthe MySQL datadir, "
 				"or have you used DISCARD TABLESPACE?\n"
-				"Look from section 15.1 of "
-				"http://www.innodb.com/ibman.html\n"
+				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -3667,7 +3663,7 @@ ha_innobase::update_row(
 
 	DBUG_ENTER("ha_innobase::update_row");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -3728,7 +3724,7 @@ ha_innobase::delete_row(
 
 	DBUG_ENTER("ha_innobase::delete_row");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (last_query_id != user_thd->query_id) {
@@ -3825,6 +3821,9 @@ ha_innobase::try_semi_consistent_read(bool yes)
 /*===========================================*/
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	/* Row read type is set to semi consistent read if this was
 	requested by the MySQL and either innodb_locks_unsafe_for_binlog
@@ -3990,7 +3989,7 @@ ha_innobase::index_read(
 
 	DBUG_ENTER("index_read");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	statistic_increment(current_thd->status_var.ha_read_key_count,
@@ -4105,7 +4104,7 @@ ha_innobase::change_active_index(
 	DBUG_ENTER("change_active_index");
 
 	ut_ad(user_thd == current_thd);
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	active_index = keynr;
@@ -4195,7 +4194,7 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
@@ -4431,7 +4430,7 @@ ha_innobase::rnd_pos(
 	statistic_increment(current_thd->status_var.ha_read_rnd_count,
 		&LOCK_status);
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (prebuilt->clust_index_was_generated) {
@@ -4481,7 +4480,7 @@ ha_innobase::position(
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	uint		len;
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (prebuilt->clust_index_was_generated) {
@@ -5018,7 +5017,6 @@ ha_innobase::delete_all_rows(void)
 {
 	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
 	int		error;
-	trx_t*		trx;
 	THD*		thd		= current_thd;
 
 	DBUG_ENTER("ha_innobase::delete_all_rows");
@@ -5031,13 +5029,13 @@ ha_innobase::delete_all_rows(void)
 	}
 
 	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
+	if not yet created, and update prebuilt->trx */
 
-	trx = check_trx_exists(thd);
+	update_thd(thd);
 
 	/* Truncate the table in InnoDB */
 
-	error = row_truncate_table_for_mysql(prebuilt->table, trx);
+	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
 	if (error == DB_ERROR) {
 		/* Cannot truncate; resort to ha_innobase::delete_row() */
 		goto fallback;
@@ -5319,6 +5317,9 @@ ha_innobase::records_in_range(
 	void*		heap2;
 
 	DBUG_ENTER("records_in_range");
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	prebuilt->trx->op_info = (char*)"estimating records in index range";
 
@@ -5616,13 +5617,14 @@ ha_innobase::info(
 		for (i = 0; i < table->s->keys; i++) {
 			if (index == NULL) {
 				ut_print_timestamp(stderr);
-				sql_print_error("Table %s contains less "
+				sql_print_error("Table %s contains fewer "
 						"indexes inside InnoDB than "
 						"are defined in the MySQL "
 						".frm file. Have you mixed up "
 						".frm files from different "
-						"installations? See section "
-						"15.1 at http://www.innodb.com/ibman.html",
+						"installations? See "
+"http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
+
 						ib_table->name);
 				break;
 			}
@@ -5631,17 +5633,11 @@ ha_innobase::info(
 
 				if (j + 1 > index->n_uniq) {
 					ut_print_timestamp(stderr);
-					sql_print_error("Index %s of %s has "
-							"%lu columns unique "
-							"inside InnoDB, but "
-							"MySQL is asking "
-							"statistics for %lu "
-							"columns. Have you "
-							"mixed up .frm files "
-							"from different "
-							"installations? See "
-							"section 15.1 at "
-							"http://www.innodb.com/ibman.html",
+					sql_print_error(
+"Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking "
+"statistics for %lu columns. Have you mixed up .frm files from different "
+"installations? "
+"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
 							index->name,
 							ib_table->name,
 							(unsigned long)
@@ -6047,6 +6043,10 @@ ha_innobase::can_switch_engines(void)
 	bool	can_switch;
 
 	DBUG_ENTER("ha_innobase::can_switch_engines");
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+
 	prebuilt->trx->op_info =
 			"determining if there are foreign key constraints";
 	row_mysql_lock_data_dictionary(prebuilt->trx);
@@ -6183,14 +6183,6 @@ ha_innobase::start_stmt(
 	INSERT, for example. */
 
 	innobase_release_stat_resources(trx);
-
-	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-						&& trx->global_read_view) {
-		/* At low transaction isolation levels we let
-		each consistent read set its own snapshot */
-
-		read_view_close_for_mysql(trx);
-	}
 
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
@@ -6450,7 +6442,7 @@ ha_innobase::transactional_table_lock(
 "table %s does not exist.\n"
 "Have you deleted the .ibd file from the database directory under\n"
 "the MySQL datadir?"
-"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
+"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "how you can resolve the problem.\n",
 				prebuilt->table->name);
 		DBUG_RETURN(HA_ERR_CRASHED);
@@ -6804,7 +6796,15 @@ ha_innobase::store_lock(
 						TL_IGNORE */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-	trx_t*		trx		= prebuilt->trx;
+	trx_t*		trx;
+
+	/* Call update_thd() to update prebuilt->trx to point to the trx
+	object of thd! Failure to do this caused a serious memory
+	corruption bug in 5.1.11. */
+
+	update_thd(thd);
+
+	trx = prebuilt->trx;
 
 	/* NOTE: MySQL	can call this function with lock 'type' TL_IGNORE!
 	Be careful to ignore TL_IGNORE if we are going to do something with
@@ -6989,9 +6989,10 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	int		error;
 
 	ut_a(prebuilt);
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 	ut_a(prebuilt->table);
+
+	/* Prepare prebuilt->trx in the table handle */
+	update_thd(current_thd);
 
 	if (prebuilt->trx->conc_state == TRX_NOT_STARTED) {
 		trx_was_not_started = TRUE;
@@ -7127,6 +7128,9 @@ void ha_innobase::get_auto_increment(
 	longlong	nr;
 	int		error;
 
+	/* Prepare prebuilt->trx in the table handle */
+	update_thd(current_thd);
+
 	error = innobase_read_and_init_auto_inc(&nr);
 
 	if (error) {
@@ -7154,6 +7158,8 @@ ha_innobase::reset_auto_increment(ulonglong value)
 
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	int		error;
+
+	update_thd(current_thd);
 
 	error = row_lock_table_autoinc_for_mysql(prebuilt);
 
@@ -7195,7 +7201,7 @@ ha_innobase::cmp_ref(
 	const mysql_byte* ref2)	/* in: an (internal) primary key value in the
 				MySQL key value format */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	enum_field_types mysql_type;
 	Field*		field;
 	KEY_PART_INFO*	key_part;
