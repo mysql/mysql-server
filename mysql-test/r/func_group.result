@@ -990,3 +990,17 @@ FROM t1 t, t2 c WHERE t.a = c.b;
 minid
 NULL
 DROP TABLE t1,t2;
+create table t1 select variance(0);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `variance(0)` double(8,4) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1 select stddev(0);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `stddev(0)` double(8,4) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;

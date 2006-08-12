@@ -440,6 +440,13 @@ select-me
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz error query' at line 1
 drop table t1;
 drop table t1;
+sleep;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sleep' at line 1
+sleep;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sleep' at line 1
+;
+ERROR 42000: Query was empty
+End of 5.0 tests
 select "b" as col1, "c" as col2;
 col1	col2
 b	c
