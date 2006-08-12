@@ -441,3 +441,55 @@ SELECT Host,User,Password FROM mysql.user WHERE User='user19857';
 Host	User	Password
 localhost	user19857	*82DC221D557298F6CE9961037DB1C90604792F5C
 DROP USER user19857@localhost;
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP FUNCTION IF EXISTS f_suid;
+DROP PROCEDURE IF EXISTS p_suid;
+DROP FUNCTION IF EXISTS f_evil;
+DELETE FROM mysql.user WHERE user LIKE 'mysqltest\_%';
+DELETE FROM mysql.db WHERE user LIKE 'mysqltest\_%';
+DELETE FROM mysql.tables_priv WHERE user LIKE 'mysqltest\_%';
+DELETE FROM mysql.columns_priv WHERE user LIKE 'mysqltest\_%';
+FLUSH PRIVILEGES;
+CREATE TABLE t1 (i INT);
+CREATE FUNCTION f_suid(i INT) RETURNS INT SQL SECURITY DEFINER RETURN 0;
+CREATE PROCEDURE p_suid(IN i INT) SQL SECURITY DEFINER SET @c:= 0;
+CREATE USER mysqltest_u1@localhost;
+GRANT EXECUTE ON test.* TO mysqltest_u1@localhost;
+CREATE DEFINER=mysqltest_u1@localhost FUNCTION f_evil () RETURNS INT
+SQL SECURITY INVOKER
+BEGIN
+SET @a:= CURRENT_USER();
+SET @b:= (SELECT COUNT(*) FROM t1);
+RETURN @b;
+END|
+CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT f_evil();
+SELECT COUNT(*) FROM t1;
+ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+SELECT f_evil();
+ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+SELECT @a, @b;
+@a	@b
+mysqltest_u1@localhost	NULL
+SELECT f_suid(f_evil());
+ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+SELECT @a, @b;
+@a	@b
+mysqltest_u1@localhost	NULL
+CALL p_suid(f_evil());
+ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 't1'
+SELECT @a, @b;
+@a	@b
+mysqltest_u1@localhost	NULL
+SELECT * FROM v1;
+ERROR 42000: SELECT command denied to user 'mysqltest_u1'@'localhost' for table 'v1'
+SELECT @a, @b;
+@a	@b
+mysqltest_u1@localhost	NULL
+DROP VIEW v1;
+DROP FUNCTION f_evil;
+DROP USER mysqltest_u1@localhost;
+DROP PROCEDURE p_suid;
+DROP FUNCTION f_suid;
+DROP TABLE t1;
+End of 5.0 tests.

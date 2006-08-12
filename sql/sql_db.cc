@@ -408,7 +408,6 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   create	Where to store the read options
 
   DESCRIPTION
-    For now, only default-character-set is read.
 
   RETURN VALUES
   0	File found
@@ -493,6 +492,50 @@ err2:
   my_close(file,MYF(0));
 err1:
   DBUG_RETURN(error);
+}
+
+
+/*
+  Retrieve database options by name. Load database options file or fetch from
+  cache.
+
+  SYNOPSIS
+    load_db_opt_by_name()
+    db_name         Database name
+    db_create_info  Where to store the database options
+
+  DESCRIPTION
+    load_db_opt_by_name() is a shortcut for load_db_opt().
+
+  NOTE
+    Although load_db_opt_by_name() (and load_db_opt()) returns status of
+    the operation, it is useless usually and should be ignored. The problem
+    is that there are 1) system databases ("mysql") and 2) virtual
+    databases ("information_schema"), which do not contain options file.
+    So, load_db_opt[_by_name]() returns FALSE for these databases, but this
+    is not an error.
+
+    load_db_opt[_by_name]() clears db_create_info structure in any case, so
+    even on failure it contains valid data. So, common use case is just
+    call load_db_opt[_by_name]() without checking return value and use
+    db_create_info right after that.
+
+  RETURN VALUES (read NOTE!)
+    FALSE   Success
+    TRUE    Failed to retrieve options
+*/
+
+bool load_db_opt_by_name(THD *thd, const char *db_name,
+                         HA_CREATE_INFO *db_create_info)
+{
+  char db_opt_path[FN_REFLEN];
+
+  strxnmov(db_opt_path, sizeof (db_opt_path) - 1, mysql_data_home, "/",
+           db_name, "/", MY_DB_OPT_FILE, NullS);
+
+  unpack_filename(db_opt_path, db_opt_path);
+
+  return load_db_opt(thd, db_opt_path, db_create_info);
 }
 
 
@@ -1254,8 +1297,6 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 {
   int path_length, db_length;
   char *db_name;
-  char	path[FN_REFLEN];
-  HA_CREATE_INFO create;
   bool system_db= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
@@ -1324,15 +1365,14 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
     }
   }
 #endif
-  path_length= build_table_filename(path, sizeof(path), db_name, "", "");
-  if (path_length && path[path_length-1] == FN_LIBCHAR)
-    path[path_length-1]= '\0';                  // remove ending '\'
-  if (my_access(path,F_OK))
+
+  if (check_db_dir_existence(db_name))
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), db_name);
     my_free(db_name, MYF(0));
     DBUG_RETURN(1);
   }
+
 end:
   x_free(thd->db);
   DBUG_ASSERT(db_name == NULL || db_name[0] != '\0');
@@ -1348,8 +1388,10 @@ end:
   }
   else
   {
-    strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
-    load_db_opt(thd, path, &create);
+    HA_CREATE_INFO create;
+
+    load_db_opt_by_name(thd, db_name, &create);
+
     thd->db_charset= create.default_table_charset ?
       create.default_table_charset :
       thd->variables.collation_server;
@@ -1665,4 +1707,32 @@ exit:
   pthread_mutex_unlock(&LOCK_lock_db);
 
   DBUG_RETURN(error);
+}
+
+/*
+  Check if there is directory for the database name.
+
+  SYNOPSIS
+    check_db_dir_existence()
+    db_name   database name
+
+  RETURN VALUES
+    FALSE   There is directory for the specified database name.
+    TRUE    The directory does not exist.
+*/
+
+bool check_db_dir_existence(const char *db_name)
+{
+  char db_dir_path[FN_REFLEN];
+  uint db_dir_path_len;
+
+  db_dir_path_length=  build_table_filename(path, sizeof(path),
+                                            db_name, "", "", 0);
+
+  if (db_dir_path_len && db_dir_path[db_dir_path_len - 1] == FN_LIBCHAR)
+    db_dir_path[db_dir_path_len - 1]= 0;
+
+  /* Check access. */
+
+  return my_access(db_dir_path, F_OK);
 }
