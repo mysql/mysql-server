@@ -1278,11 +1278,10 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
                              sizeof(double)*2) + sizeof(longlong),
                             0, name, &my_charset_bin);
   }
-  else if (hybrid_type == DECIMAL_RESULT)
-    field= new Field_new_decimal(max_length, maybe_null, name,
-                                 decimals, unsigned_flag);
   else
-    field= new Field_double(max_length, maybe_null, name, decimals);
+  {
+    field= new Field_double(max_length, maybe_null,name,table,decimals);
+  }
   if (field)
     field->init(table);
   return field;

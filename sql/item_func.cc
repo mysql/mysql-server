@@ -3412,6 +3412,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->length=0;
     entry->update_query_id=0;
     entry->collation.set(NULL, DERIVATION_IMPLICIT);
+    entry->unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
       variable. Imagine it is this:
@@ -3498,6 +3499,7 @@ Item_func_set_user_var::fix_length_and_dec()
     type     - type of new value
     cs       - charset info for new value
     dv       - derivation for new value
+    unsigned_arg - indiates if a value of type INT_RESULT is unsigned
 
   RETURN VALUE
     False - success, True - failure
@@ -3505,7 +3507,8 @@ Item_func_set_user_var::fix_length_and_dec()
 
 static bool
 update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
-            Item_result type, CHARSET_INFO *cs, Derivation dv)
+            Item_result type, CHARSET_INFO *cs, Derivation dv,
+            bool unsigned_arg)
 {
   if (set_null)
   {
@@ -3553,6 +3556,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
     entry->collation.set(cs, dv);
+    entry->unsigned_flag= unsigned_arg;
   }
   entry->type=type;
   return 0;
@@ -3561,7 +3565,8 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
 
 bool
 Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
-                                    CHARSET_INFO *cs, Derivation dv)
+                                    CHARSET_INFO *cs, Derivation dv,
+                                    bool unsigned_arg)
 {
   /*
     If we set a variable explicitely to NULL then keep the old
@@ -3570,7 +3575,7 @@ Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
   if ((null_value= args[0]->null_value) && null_item)
     type= entry->type;                          // Don't change type of item
   if (::update_hash(entry, (null_value= args[0]->null_value),
-                    ptr, length, type, cs, dv))
+                    ptr, length, type, cs, dv, unsigned_arg))
   {
     current_thd->fatal_error();     // Probably end of memory
     null_value= 1;
@@ -3652,7 +3657,10 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
     str->set_real(*(double*) value, decimals, &my_charset_bin);
     break;
   case INT_RESULT:
-    str->set(*(longlong*) value, &my_charset_bin);
+    if (!unsigned_flag)
+      str->set(*(longlong*) value, &my_charset_bin);
+    else
+      str->set(*(ulonglong*) value, &my_charset_bin);
     break;
   case DECIMAL_RESULT:
     my_decimal2string(E_DEC_FATAL_ERROR, (my_decimal *)value, 0, 0, 0, str);
@@ -3723,6 +3731,7 @@ Item_func_set_user_var::check()
   case INT_RESULT:
   {
     save_result.vint= args[0]->val_int();
+    unsigned_flag= args[0]->unsigned_flag;
     break;
   }
   case STRING_RESULT:
@@ -3778,7 +3787,8 @@ Item_func_set_user_var::update()
   case INT_RESULT:
   {
     res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
-		     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
+		     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT,
+                     unsigned_flag);
     break;
   }
   case STRING_RESULT:
@@ -4157,7 +4167,7 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 void Item_user_var_as_out_param::set_null_value(CHARSET_INFO* cs)
 {
   if (::update_hash(entry, TRUE, 0, 0, STRING_RESULT, cs,
-                    DERIVATION_IMPLICIT))
+                    DERIVATION_IMPLICIT, 0 /* unsigned_arg */))
     current_thd->fatal_error();			// Probably end of memory
 }
 
@@ -4166,7 +4176,7 @@ void Item_user_var_as_out_param::set_value(const char *str, uint length,
                                            CHARSET_INFO* cs)
 {
   if (::update_hash(entry, FALSE, (void*)str, length, STRING_RESULT, cs,
-                    DERIVATION_IMPLICIT))
+                    DERIVATION_IMPLICIT, 0 /* unsigned_arg */))
     current_thd->fatal_error();			// Probably end of memory
 }
 
@@ -4837,7 +4847,9 @@ Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
 {
   bool err_status= TRUE;
   Sub_statement_state statement_state;
-  Security_context *save_security_ctx= thd->security_ctx, *save_ctx_func;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  Security_context *save_security_ctx= thd->security_ctx;
+#endif
 
   DBUG_ENTER("Item_func_sp::execute_impl");
 
@@ -4848,7 +4860,7 @@ Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
     thd->security_ctx= context->security_ctx;
   }
 #endif
-  if (find_and_check_access(thd, EXECUTE_ACL, &save_ctx_func))
+  if (find_and_check_access(thd))
     goto error;
 
   /*
@@ -4860,13 +4872,11 @@ Item_func_sp::execute_impl(THD *thd, Field *return_value_fld)
   err_status= m_sp->execute_function(thd, args, arg_count, return_value_fld);
   thd->restore_sub_statement_state(&statement_state);
 
+error:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  sp_restore_security_context(thd, save_ctx_func);
-error:
   thd->security_ctx= save_security_ctx;
-#else
-error:
 #endif
+
   DBUG_RETURN(err_status);
 }
 
@@ -4983,69 +4993,37 @@ Item_func_sp::tmp_table_field(TABLE *t_arg)
   SYNOPSIS
     find_and_check_access()
     thd           thread handler
-    want_access   requested access
-    save          backup of security context
 
   RETURN
     FALSE    Access granted
     TRUE     Requested access can't be granted or function doesn't exists
-	     In this case security context is not changed and *save = 0
 
   NOTES
     Checks if requested access to function can be granted to user.
     If function isn't found yet, it searches function first.
     If function can't be found or user don't have requested access
     error is raised.
-    If security context sp_ctx is provided and access can be granted then
-    switch back to previous context isn't performed.
-    In case of access error or if context is not provided then
-    find_and_check_access() switches back to previous security context.
 */
 
 bool
-Item_func_sp::find_and_check_access(THD *thd, ulong want_access,
-                                    Security_context **save)
+Item_func_sp::find_and_check_access(THD *thd)
 {
-  bool res= TRUE;
-
-  *save= 0;                                     // Safety if error
   if (! m_sp && ! (m_sp= sp_find_routine(thd, TYPE_ENUM_FUNCTION, m_name,
                                          &thd->sp_func_cache, TRUE)))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION", m_name->m_qname.str);
-    goto error;
+    return TRUE;
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (check_routine_access(thd, want_access,
+  if (check_routine_access(thd, EXECUTE_ACL,
 			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
-    goto error;
-
-  sp_change_security_context(thd, m_sp, save);
-  /*
-    If we changed context to run as another user, we need to check the
-    access right for the new context again as someone may have deleted
-    this person the right to use the procedure
-
-    TODO:
-      Cache if the definer has the right to use the object on the first
-      usage and only reset the cache if someone does a GRANT statement
-      that 'may' affect this.
-  */
-  if (*save &&
-      check_routine_access(thd, want_access,
-			   m_sp->m_db.str, m_sp->m_name.str, 0, FALSE))
-  {
-    sp_restore_security_context(thd, *save);
-    *save= 0;                                   // Safety
-    goto error;
-  }
+    return TRUE;
 #endif
-  res= FALSE;                                   // no error
 
-error:
-  return res;
+  return FALSE;
 }
+
 
 bool
 Item_func_sp::fix_fields(THD *thd, Item **ref)
@@ -5057,19 +5035,23 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   {
     /*
       Here we check privileges of the stored routine only during view
-      creation, in order to validate the view. A runtime check is perfomed
-      in Item_func_sp::execute(), and this method is not called during
-      context analysis. We do not need to restore the security context
-      changed in find_and_check_access because all view structures created
-      in CREATE VIEW are not used for execution.  Notice, that during view
-      creation we do not infer into stored routine bodies and do not check
-      privileges of its statements, which would probably be a good idea
-      especially if the view has SQL SECURITY DEFINER and the used stored
-      procedure has SQL SECURITY DEFINER
+      creation, in order to validate the view.  A runtime check is
+      perfomed in Item_func_sp::execute(), and this method is not
+      called during context analysis.  Notice, that during view
+      creation we do not infer into stored routine bodies and do not
+      check privileges of its statements, which would probably be a
+      good idea especially if the view has SQL SECURITY DEFINER and
+      the used stored procedure has SQL SECURITY DEFINER.
     */
-    Security_context *save_ctx;
-    if (!(res= find_and_check_access(thd, EXECUTE_ACL, &save_ctx)))
-      sp_restore_security_context(thd, save_ctx);
+    res= find_and_check_access(thd);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+    Security_context *save_secutiry_ctx;
+    if (!res && !(res= set_routine_security_ctx(thd, m_sp, false,
+                                                &save_secutiry_ctx)))
+    {
+      sp_restore_security_context(thd, save_secutiry_ctx);
+    }
+#endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
   return res;
 }

@@ -2756,6 +2756,8 @@ longlong Item_func_timestamp_diff::val_int()
   {
     uint year_beg, year_end, month_beg, month_end, day_beg, day_end;
     uint years= 0;
+    uint second_beg, second_end, microsecond_beg, microsecond_end;
+
     if (neg == -1)
     {
       year_beg= ltime2.year;
@@ -2764,6 +2766,10 @@ longlong Item_func_timestamp_diff::val_int()
       month_end= ltime1.month;
       day_beg= ltime2.day;
       day_end= ltime1.day;
+      second_beg= ltime2.hour * 3600 + ltime2.minute * 60 + ltime2.second;
+      second_end= ltime1.hour * 3600 + ltime1.minute * 60 + ltime1.second;
+      microsecond_beg= ltime2.second_part;
+      microsecond_end= ltime1.second_part;
     }
     else
     {
@@ -2773,6 +2779,10 @@ longlong Item_func_timestamp_diff::val_int()
       month_end= ltime2.month;
       day_beg= ltime1.day;
       day_end= ltime2.day;
+      second_beg= ltime1.hour * 3600 + ltime1.minute * 60 + ltime1.second;
+      second_end= ltime2.hour * 3600 + ltime2.minute * 60 + ltime2.second;
+      microsecond_beg= ltime1.second_part;
+      microsecond_end= ltime2.second_part;
     }
 
     /* calc years */
@@ -2786,7 +2796,12 @@ longlong Item_func_timestamp_diff::val_int()
       months+= 12 - (month_beg - month_end);
     else
       months+= (month_end - month_beg);
+
     if (day_end < day_beg)
+      months-= 1;
+    else if ((day_end == day_beg) &&
+	     ((second_end < second_beg) ||
+	      (second_end == second_beg && microsecond_end < microsecond_beg)))
       months-= 1;
   }
 

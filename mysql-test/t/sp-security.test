@@ -767,4 +767,80 @@ SELECT Host,User,Password FROM mysql.user WHERE User='user19857';
 
 DROP USER user19857@localhost;
 
-# End of 5.0 bugs.
+--disconnect con1root
+--connection default
+
+
+#
+# BUG#18630: Arguments of suid routine calculated in wrong security
+# context
+#
+# Arguments of suid routines were calculated in definer's security
+# context instead of caller's context thus creating security hole.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP FUNCTION IF EXISTS f_suid;
+DROP PROCEDURE IF EXISTS p_suid;
+DROP FUNCTION IF EXISTS f_evil;
+--enable_warnings
+DELETE FROM mysql.user WHERE user LIKE 'mysqltest\_%';
+DELETE FROM mysql.db WHERE user LIKE 'mysqltest\_%';
+DELETE FROM mysql.tables_priv WHERE user LIKE 'mysqltest\_%';
+DELETE FROM mysql.columns_priv WHERE user LIKE 'mysqltest\_%';
+FLUSH PRIVILEGES;
+
+CREATE TABLE t1 (i INT);
+CREATE FUNCTION f_suid(i INT) RETURNS INT SQL SECURITY DEFINER RETURN 0;
+CREATE PROCEDURE p_suid(IN i INT) SQL SECURITY DEFINER SET @c:= 0;
+
+CREATE USER mysqltest_u1@localhost;
+# Thanks to this grant statement privileges of anonymous users on
+# 'test' database are not applicable for mysqltest_u1@localhost.
+GRANT EXECUTE ON test.* TO mysqltest_u1@localhost;
+
+delimiter |;
+CREATE DEFINER=mysqltest_u1@localhost FUNCTION f_evil () RETURNS INT
+  SQL SECURITY INVOKER
+BEGIN
+  SET @a:= CURRENT_USER();
+  SET @b:= (SELECT COUNT(*) FROM t1);
+  RETURN @b;
+END|
+delimiter ;|
+
+CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT f_evil();
+
+connect (conn1, localhost, mysqltest_u1,,);
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT COUNT(*) FROM t1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT f_evil();
+SELECT @a, @b;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT f_suid(f_evil());
+SELECT @a, @b;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+CALL p_suid(f_evil());
+SELECT @a, @b;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM v1;
+SELECT @a, @b;
+
+disconnect conn1;
+connection default;
+
+DROP VIEW v1;
+DROP FUNCTION f_evil;
+DROP USER mysqltest_u1@localhost;
+DROP PROCEDURE p_suid;
+DROP FUNCTION f_suid;
+DROP TABLE t1;
+
+--echo End of 5.0 tests.
