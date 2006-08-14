@@ -950,9 +950,10 @@ int Dbtup::handleReadReq(Signal* signal,
     }
   } else {
     jam();
-    if (likely(interpreterStartLab(signal, req_struct) != -1) {
+    if (likely(interpreterStartLab(signal, req_struct) != -1)) {
       return 0;
     }
+    return -1;
   }
 
   jam();
@@ -1046,9 +1047,10 @@ int Dbtup::handleUpdateReq(Signal* signal,
                                req_struct->attrinfo_len);
   } else {
     jam();
-    retValue= interpreterStartLab(signal, req_struct);
+    if (unlikely(interpreterStartLab(signal, req_struct) == -1))
+      return -1;
   }
-
+  
   if (retValue == -1) {
     goto error;
   }
