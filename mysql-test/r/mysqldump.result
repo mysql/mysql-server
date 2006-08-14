@@ -2914,7 +2914,7 @@ drop view v1;
 drop table t1;
 drop database mysqldump_dbb;
 use test;
-create user mysqltest_1;
+create user mysqltest_1@localhost;
 create table t1(a int, b varchar(34));
 reset master;
 mysqldump: Couldn't execute 'FLUSH TABLES': Access denied; you need the RELOAD privilege for this operation (1227)
@@ -2923,6 +2923,13 @@ grant RELOAD on *.* to mysqltest_1@localhost;
 mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SUPER,REPLICATION CLIENT privilege for this operation (1227)
 mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SUPER,REPLICATION CLIENT privilege for this operation (1227)
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
+CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=537;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL,
+  `b` varchar(34) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+drop table t1;
+drop user mysqltest_1@localhost;
 drop table t1;
 drop user mysqltest_1;
 End of 5.0 tests

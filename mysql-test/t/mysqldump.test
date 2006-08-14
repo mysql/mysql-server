@@ -1287,7 +1287,7 @@ drop database mysqldump_dbb;
 use test;
 
 # Create user without sufficient privs to perform the requested operation
-create user mysqltest_1;
+create user mysqltest_1@localhost;
 create table t1(a int, b varchar(34));
 
 # To get consistent output, reset the master, starts over from first log
@@ -1324,6 +1324,7 @@ grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 
 # Clean up
 drop table t1;
+drop user mysqltest_1@localhost;
 drop user mysqltest_1;
 
 --echo End of 5.0 tests
