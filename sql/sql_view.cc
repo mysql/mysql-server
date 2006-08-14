@@ -179,23 +179,15 @@ static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
   LEX *lex= thd->lex;
-  bool free_view= 1;
+  bool not_used;
   TABLE_LIST decoy;
 
-  if (view->view)
-    free_view= 0;
   memcpy (&decoy, view, sizeof (TABLE_LIST));
-  if ((decoy.table= open_table(thd, &decoy, thd->mem_root, NULL, 0)))
+  if (!open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE) &&
+      !decoy.view)
   {
-    /* It's a table */
-    my_free((gptr)decoy.table, MYF(0));
-    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
     return TRUE;
   }
-  if (!decoy.view)
-    /* An error while opening the view occurs, caller will handle it */
-    return FALSE;
-
   if (!lex->definer)
   {
     view->definer.host= decoy.definer.host;
@@ -207,11 +199,6 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   if (lex->create_view_suid == VIEW_SUID_DEFAULT)
     lex->create_view_suid= decoy.view_suid ? 
       VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
-  if (free_view)
-  {
-    delete decoy.view;
-    lex->cleanup_after_one_table_open();
-  }
 
   return FALSE;
 }
@@ -740,10 +727,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= (char *)skip_rear_comments((uchar *)view->source.str,
-                                                  (uchar *)thd->query +
-                                                  thd->query_length) -
-                        view->source.str;
+  view->source.length= (thd->query_length -
+                        thd->lex->create_view_select_start);
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -830,13 +815,14 @@ loop_out:
     thd			Thread handler
     parser		parser object
     table		TABLE_LIST structure for filling
-
+    flags               flags
   RETURN
     0 ok
     1 error
 */
 
-bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
+bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
+                     uint flags)
 {
   SELECT_LEX *end, *view_select;
   LEX *old_lex, *lex;
@@ -926,6 +912,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
                         ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
                         table->db, table->table_name);
     get_default_definer(thd, &table->definer);
+  }
+  if (flags & OPEN_VIEW_NO_PARSE)
+  {
+    DBUG_RETURN(FALSE);
   }
 
   /*
@@ -1297,11 +1287,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   DBUG_ENTER("mysql_drop_view");
   char path[FN_REFLEN];
   TABLE_LIST *view;
-  frm_type_enum type;
+  bool type= 0;
   db_type not_used;
-  String non_existant_views;
-  char *wrong_object_db= NULL, *wrong_object_name= NULL;
-  bool error= FALSE;
 
   for (view= views; view; view= view->next_local)
   {
@@ -1309,9 +1296,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
              view->table_name, reg_ext, NullS);
     (void) unpack_filename(path, path);
     VOID(pthread_mutex_lock(&LOCK_open));
-    type= FRMTYPE_ERROR;
-    if (access(path, F_OK) || 
-        FRMTYPE_VIEW != (type= mysql_frm_type(thd, path, &not_used)))
+    if (access(path, F_OK) ||
+	(type= (mysql_frm_type(thd, path, &not_used) != FRMTYPE_VIEW)))
     {
       char name[FN_REFLEN];
       my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
@@ -1323,46 +1309,25 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
 	VOID(pthread_mutex_unlock(&LOCK_open));
 	continue;
       }
-      if (type == FRMTYPE_TABLE)
-      {
-        if (!wrong_object_name)
-        {
-          wrong_object_db= view->db;
-          wrong_object_name= view->table_name;
-        }
-      }
+      if (type)
+        my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
       else
-      {
-        if (non_existant_views.length())
-          non_existant_views.append(',');
-        non_existant_views.append(String(view->table_name,system_charset_info));
-      }
-      VOID(pthread_mutex_unlock(&LOCK_open));
-      continue;
+        my_error(ER_BAD_TABLE_ERROR, MYF(0), name);
+      goto err;
     }
     if (my_delete(path, MYF(MY_WME)))
-      error= TRUE;
+      goto err;
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
     VOID(pthread_mutex_unlock(&LOCK_open));
   }
-  if (error)
-  {
-    DBUG_RETURN(TRUE);
-  }
-  if (wrong_object_name)
-  {
-    my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name, 
-             "VIEW");
-    DBUG_RETURN(TRUE);
-  }
-  if (non_existant_views.length())
-  {
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
-    DBUG_RETURN(TRUE);
-  }
   send_ok(thd);
   DBUG_RETURN(FALSE);
+
+err:
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  DBUG_RETURN(TRUE);
+
 }
 
 
