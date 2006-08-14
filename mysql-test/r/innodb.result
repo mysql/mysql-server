@@ -1295,24 +1295,16 @@ insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
 insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
-insert into t2 (a) select b from t1;
-insert into t1 (a) select b from t2;
-insert into t2 (a) select b from t1;
-insert into t1 (a) select b from t2;
-insert into t2 (a) select b from t1;
-insert into t1 (a) select b from t2;
-insert into t2 (a) select b from t1;
-insert into t1 (a) select b from t2;
 select count(*) from t1;
 count(*)
-29267
+623
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	c	c	5	NULL	#	Using where
 update t1 set c=a;
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	#	Using where
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	#	Using where
 drop table t1,t2;
 create table t1 (id int primary key auto_increment, fk int, index index_fk (fk)) engine=innodb;
 insert into t1 (id) values (null),(null),(null),(null),(null);
@@ -1786,10 +1778,10 @@ Variable_name	Value
 Innodb_rows_deleted	2070
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	31727
+Innodb_rows_inserted	3083
 show status like "Innodb_rows_updated";
 Variable_name	Value
-Innodb_rows_updated	29530
+Innodb_rows_updated	886
 show status like "Innodb_row_lock_waits";
 Variable_name	Value
 Innodb_row_lock_waits	0
