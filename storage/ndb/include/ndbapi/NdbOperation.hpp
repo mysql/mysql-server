@@ -482,7 +482,7 @@ public:
 
   /**
    * Interpreted program instruction:
-   * Substract RegSource1 from RegSource2 and put the result in RegDest.
+   * Substract RegSource2 from RegSource1 and put the result in RegDest.
    *
    * @param RegSource1   First register.
    * @param RegSource2   Second register.
