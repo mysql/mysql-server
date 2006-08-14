@@ -992,6 +992,7 @@ sp_find_routine(THD *thd, int type, sp_name *name, sp_cache **cp,
       }
       DBUG_RETURN(sp->m_first_free_instance);
     }
+
     level= sp->m_last_cached_sp->m_recursion_level + 1;
     if (level > depth)
     {
@@ -1161,19 +1162,16 @@ sp_update_procedure(THD *thd, sp_name *name, st_sp_chistics *chistics)
 int
 sp_show_create_procedure(THD *thd, sp_name *name)
 {
+  int ret= SP_KEY_NOT_FOUND;
   sp_head *sp;
   DBUG_ENTER("sp_show_create_procedure");
   DBUG_PRINT("enter", ("name: %.*s", name->m_name.length, name->m_name.str));
 
   if ((sp= sp_find_routine(thd, TYPE_ENUM_PROCEDURE, name,
                            &thd->sp_proc_cache, FALSE)))
-  {
-    int ret= sp->show_create_procedure(thd);
+    ret= sp->show_create_procedure(thd);
 
-    DBUG_RETURN(ret);
-  }
-
-  DBUG_RETURN(SP_KEY_NOT_FOUND);
+  DBUG_RETURN(ret);
 }
 
 
