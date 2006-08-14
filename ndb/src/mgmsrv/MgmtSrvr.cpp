@@ -450,7 +450,10 @@ MgmtSrvr::MgmtSrvr(SocketServer *socket_server,
     // read config locally
     _config= readConfig();
     if (_config == 0) {
-      ndbout << "Unable to read config file" << endl;
+      if (config_filename != NULL)
+        ndbout << "Invalid configuration file: " << config_filename << endl;
+      else
+        ndbout << "Invalid configuration file" << endl;
       exit(-1);
     }
   }
