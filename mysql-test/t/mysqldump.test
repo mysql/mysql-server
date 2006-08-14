@@ -1325,7 +1325,6 @@ grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 # Clean up
 drop table t1;
 drop user mysqltest_1@localhost;
-drop user mysqltest_1;
 
 --echo End of 5.0 tests
 
