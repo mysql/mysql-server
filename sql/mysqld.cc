@@ -867,7 +867,7 @@ static void close_connections(void)
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
     /* We skip slave threads & scheduler on this first loop through. */
-    if (tmp->slave_thread || tmp->system_thread == SYSTEM_THREAD_EVENT_SCHEDULER)
+    if (tmp->slave_thread)
       continue;
 
     tmp->killed= THD::KILL_CONNECTION;
@@ -886,7 +886,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
-  Events::shutdown();
+  Events::get_instance()->deinit();
   end_slave();
 
   if (thread_count)
@@ -1324,7 +1324,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
-  Events::destroy_mutexes();
+  Events::get_instance()->destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -2905,7 +2905,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
-  Events::init_mutexes();
+  Events::get_instance()->init_mutexes();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -3696,7 +3696,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (!opt_noacl)
   {
-    Events::init();
+    if (Events::get_instance()->init())
+      unireg_abort(1);
   }
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();

@@ -57,7 +57,7 @@
 #include <myisam.h>
 #include <my_dir.h>
 
-#include "event_scheduler.h"
+#include "events.h"
 
 /* WITH_BERKELEY_STORAGE_ENGINE */
 extern bool berkeley_shared_data;
@@ -3943,17 +3943,16 @@ byte *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
 bool
 sys_var_event_scheduler::update(THD *thd, set_var *var)
 {
-  enum Event_scheduler::enum_error_code res;
-  Event_scheduler *scheduler= Event_scheduler::get_instance();
+  int res;
   /* here start the thread if not running. */
   DBUG_ENTER("sys_var_event_scheduler::update");
-
-  DBUG_PRINT("new_value", ("%lu", (bool)var->save_result.ulong_value));
-  if (!scheduler->initialized())
+  if (Events::opt_event_scheduler == 0)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=0");
-    DBUG_RETURN(true);
+    DBUG_RETURN(TRUE);
   }
+
+  DBUG_PRINT("new_value", ("%lu", (bool)var->save_result.ulong_value));
 
   if (var->save_result.ulonglong_value < 1 ||
       var->save_result.ulonglong_value > 2)
@@ -3961,12 +3960,15 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
     char buf[64];
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "event_scheduler",
              llstr(var->save_result.ulonglong_value, buf));
-    DBUG_RETURN(true);
+    DBUG_RETURN(TRUE);
   }
-  if ((res= scheduler->suspend_or_resume(var->save_result.ulonglong_value == 1?
-                                         Event_scheduler::RESUME :
-                                         Event_scheduler::SUSPEND)))
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), (uint) res);
+  if (var->save_result.ulonglong_value == 1)
+    res= Events::get_instance()->start_execution_of_events();
+  else
+    res= Events::get_instance()->stop_execution_of_events();
+
+  if (res)
+    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
   DBUG_RETURN((bool) res);
 }
 
@@ -3974,11 +3976,9 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
 byte *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
                                          LEX_STRING *base)
 {
-  Event_scheduler *scheduler= Event_scheduler::get_instance();
-
-  if (!scheduler->initialized())
+  if (Events::opt_event_scheduler == 0)
     thd->sys_var_tmp.long_value= 0;
-  else if (scheduler->get_state() == Event_scheduler::RUNNING)
+  else if (Events::get_instance()->is_started())
     thd->sys_var_tmp.long_value= 1;
   else
     thd->sys_var_tmp.long_value= 2;
