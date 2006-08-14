@@ -468,12 +468,12 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   */
   file.length= build_table_filename(file_buff, FN_REFLEN-1,
                                     tables->db, tables->table_name,
-                                    triggers_file_ext);
+                                    triggers_file_ext, 0);
   file.str= file_buff;
   trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
                                              tables->db,
                                              lex->spname->m_name.str,
-                                             trigname_file_ext);
+                                             trigname_file_ext, 0);
   trigname_file.str= trigname_buff;
 
   /* Use the filesystem to enforce trigger namespace constraints. */
@@ -579,7 +579,7 @@ err_with_cleanup:
 static bool rm_trigger_file(char *path, const char *db,
                             const char *table_name)
 {
-  build_table_filename(path, FN_REFLEN-1, db, table_name, triggers_file_ext);
+  build_table_filename(path, FN_REFLEN-1, db, table_name, triggers_file_ext, 0);
   return my_delete(path, MYF(MY_WME));
 }
 
@@ -602,7 +602,8 @@ static bool rm_trigger_file(char *path, const char *db,
 static bool rm_trigname_file(char *path, const char *db,
                              const char *trigger_name)
 {
-  build_table_filename(path, FN_REFLEN-1, db, trigger_name, trigname_file_ext);
+  build_table_filename(path, FN_REFLEN-1,
+                       db, trigger_name, trigname_file_ext, 0);
   return my_delete(path, MYF(MY_WME));
 }
 
@@ -628,7 +629,7 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
   LEX_STRING file;
 
   file.length= build_table_filename(file_buff, FN_REFLEN-1, db, table_name,
-                                    triggers_file_ext);
+                                    triggers_file_ext, 0);
   file.str= file_buff;
   return sql_create_definition_file(NULL, &file, &triggers_file_type,
                                     (gptr)triggers, triggers_file_parameters,
@@ -803,7 +804,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
   DBUG_ENTER("Table_triggers_list::check_n_load");
 
   path.length= build_table_filename(path_buff, FN_REFLEN-1,
-                                    db, table_name, triggers_file_ext);
+                                    db, table_name, triggers_file_ext, 0);
   path.str= path_buff;
 
   // QQ: should we analyze errno somehow ?
@@ -1159,7 +1160,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
 
   path.length= build_table_filename(path_buff, FN_REFLEN-1,
                                     trig->m_db.str, trig->m_name.str,
-                                    trigname_file_ext);
+                                    trigname_file_ext, 0);
   path.str= path_buff;
 
   if (access(path_buff, F_OK))
@@ -1366,7 +1367,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
   {
     trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
                                                db_name, trigger->str,
-                                               trigname_file_ext);
+                                               trigname_file_ext, 0);
     trigname_file.str= trigname_buff;
 
     trigname.trigger_table= *new_table_name;
