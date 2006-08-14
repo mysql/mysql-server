@@ -172,14 +172,14 @@ create table t1(a int not null, key using btree(a)) engine=heap;
 insert into t1 values (2), (2), (2), (1), (1), (3), (3), (3), (3);
 select a from t1 where a > 2;
 delete from t1 where a < 4;
-select a from t1;
+select a from t1 order by a;
 insert into t1 values (2), (2), (2), (1), (1), (3), (3), (3), (3);
 select a from t1 where a > 4;
 delete from t1 where a > 4;
-select a from t1;
+select a from t1 order by a;
 select a from t1 where a > 3;
 delete from t1 where a >= 2;
-select a from t1;
+select a from t1 order by a;
 drop table t1;
 
 --echo End of 4.1 tests
