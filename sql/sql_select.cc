@@ -5976,7 +5976,8 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
   if (tab->cached_eq_ref_table)			// If cached
     return tab->eq_ref_table;
   tab->cached_eq_ref_table=1;
-  if (tab->type == JT_CONST)			// We can skip const tables
+  /* We can skip const tables only if not an outer table */
+  if (tab->type == JT_CONST && !tab->first_inner)
     return (tab->eq_ref_table=1);		/* purecov: inspected */
   if (tab->type != JT_EQ_REF || tab->table->maybe_null)
     return (tab->eq_ref_table=0);		// We must use this
