@@ -994,13 +994,13 @@ create table t1 select variance(0);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `variance(0)` double(8,4) default NULL
+  `variance(0)` double(8,4) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 select stddev(0);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `stddev(0)` double(8,4) default NULL
+  `stddev(0)` double(8,4) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;

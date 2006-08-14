@@ -1280,7 +1280,7 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table,
   }
   else
   {
-    field= new Field_double(max_length, maybe_null,name,table,decimals);
+    field= new Field_double(max_length, maybe_null,name, decimals);
   }
   if (field)
     field->init(table);

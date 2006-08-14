@@ -11,6 +11,7 @@ drop database if exists client_test_db;
 
 DROP SCHEMA test;
 CREATE SCHEMA test;
+use test;
 #
 # Bug #13783  mysqlcheck tries to optimize and analyze information_schema
 #
