@@ -106,9 +106,9 @@ set global event_scheduler= 1;
 select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Connect	Sleeping	NULL
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60) /*ee_16407_2*/
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60) /*ee_16407_3*/
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60) /*ee_16407_4*/
+root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60)
+root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60)
+root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60)
 select release_lock('ee_16407_2');
 release_lock('ee_16407_2')
 1
@@ -154,8 +154,8 @@ set global event_scheduler= 1;
 select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Connect	Sleeping	NULL
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_5', 60) /*ee_16407_5*/
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_5', 60) /*ee_16407_6*/
+root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_5', 60)
+root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_5', 60)
 select release_lock('ee_16407_5');
 release_lock('ee_16407_5')
 1

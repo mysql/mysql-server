@@ -1017,8 +1017,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
-int mysql_find_files(THD *thd,List<char> *files, const char *db,
-                const char *path, const char *wild, bool dir);
 bool mysqld_show_storage_engines(THD *thd);
 bool mysqld_show_authors(THD *thd);
 bool mysqld_show_contributors(THD *thd);
@@ -1462,7 +1460,11 @@ bool is_keyword(const char *name, uint len);
 #define MY_DB_OPT_FILE "db.opt"
 bool my_database_names_init(void);
 void my_database_names_free(void);
+bool check_db_dir_existence(const char *db_name);
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
+bool load_db_opt_by_name(THD *thd, const char *db_name,
+                         HA_CREATE_INFO *db_create_info);
+bool my_dbopt_init(void);
 void my_dbopt_cleanup(void);
 extern int creating_database; // How many database locks are made
 extern int creating_table;    // How many mysql_create_table() are running
