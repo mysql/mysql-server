@@ -11498,6 +11498,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     We must not try to use disabled keys.
   */
   usable_keys= table->s->keys_in_use;
+  /* we must not consider keys that are disabled by IGNORE INDEX */
+  usable_keys.intersect(table->keys_in_use_for_query);
 
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
