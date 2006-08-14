@@ -949,7 +949,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
 exit:
   (void)sp_drop_db_routines(thd, db); /* QQ Ignore errors for now  */
-  error= Events::drop_schema_events(thd, db);
+  error= Events::get_instance()->drop_schema_events(thd, db);
   /*
     If this database was the client's selected database, we silently
     change the client's selected database to nothing (to have an empty

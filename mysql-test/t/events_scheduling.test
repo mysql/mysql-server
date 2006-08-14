@@ -1,5 +1,6 @@
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
+-- source include/not_valgrind.inc
 
 CREATE DATABASE IF NOT EXISTS events_test;
 USE events_test;
@@ -11,7 +12,6 @@ CREATE TABLE T19170(s1 TIMESTAMP);
 SET GLOBAL event_scheduler=1;
 # We need to have 2 to make it safe with valgrind. This is probably because
 # of when we calculate the timestamp value
-CREATE EVENT E19170 ON SCHEDULE EVERY 2 SECOND DO INSERT INTO T19170 VALUES(CURRENT_TIMESTAMP);
 CREATE EVENT two_sec ON SCHEDULE EVERY 2 SECOND DO INSERT INTO table_1 VALUES(1);
 CREATE EVENT start_n_end
   ON SCHEDULE EVERY 1 SECOND
@@ -34,12 +34,10 @@ DROP EVENT start_n_end;
 --error ER_EVENT_DOES_NOT_EXIST
 DROP EVENT only_one_time;
 --echo "Should be preserved"
-SELECT EVENT_NAME, STATUS FROM INFORMATION_SCHEMA.EVENTS;
+SELECT EVENT_NAME, STATUS FROM INFORMATION_SCHEMA.EVENTS ORDER BY EVENT_NAME;
 DROP EVENT two_time;
 DROP TABLE table_1;
 DROP TABLE table_2;
 DROP TABLE table_3;
 DROP TABLE table_4;
---echo "Checking for multiple executions in one second, should not happen -> 0 as result"
-SELECT COUNT(*) FROM (SELECT s1, COUNT(*) AS cnt FROM T19170 GROUP BY s1) AS tmp WHERE tmp.cnt > 1;
 DROP DATABASE events_test;

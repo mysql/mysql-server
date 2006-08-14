@@ -1,0 +1,9 @@
+use mysqltest_events_test;
+"Should get 3 rows : abc1, abc2, abc3
+select distinct name from execution_log order by name;
+name
+drop event abc1;
+drop event abc2;
+drop event abc3;
+drop table execution_log;
+drop database mysqltest_events_test;
