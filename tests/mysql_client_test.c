@@ -12907,9 +12907,8 @@ static void test_bug8378()
   /* No escaping should have actually happened. */
   DIE_UNLESS(memcmp(out, TEST_BUG8378_OUT, len) == 0);
 
-  strcpy(buf, "SELECT '");
-  memcpy(buf+8, out, len);
-  buf[8+len] = '\'';
+  sprintf(buf, "SELECT '%s'", out);
+  
   rc=mysql_real_query(mysql, buf, strlen(buf));
   myquery(rc);
 
