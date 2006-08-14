@@ -1,6 +1,7 @@
 drop database if exists client_test_db;
 DROP SCHEMA test;
 CREATE SCHEMA test;
+use test;
 cluster.binlog_index                               OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK

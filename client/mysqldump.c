@@ -1333,7 +1333,7 @@ static uint dump_events_for_db(char *db)
   DBUG_ENTER("dump_events_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
 
-  mysql_real_escape_string(sock, db_name_buff, db, strlen(db));
+  mysql_real_escape_string(mysql, db_name_buff, db, strlen(db));
 
   /* nice comments */
   if (opt_comments)
@@ -1344,9 +1344,9 @@ static uint dump_events_for_db(char *db)
     enough privileges to lock mysql.events.
   */
   if (lock_tables)
-    mysql_query(sock, "LOCK TABLES mysql.event READ");
+    mysql_query(mysql, "LOCK TABLES mysql.event READ");
 
-  if (mysql_query_with_error_report(sock, &event_list_res, "show events"))
+  if (mysql_query_with_error_report(mysql, &event_list_res, "show events"))
   {
     safe_exit(EX_MYSQLERR);
     DBUG_RETURN(0);
@@ -1362,7 +1362,7 @@ static uint dump_events_for_db(char *db)
       my_snprintf(query_buff, sizeof(query_buff), "SHOW CREATE EVENT %s", 
           event_name);
 
-      if (mysql_query_with_error_report(sock, &event_res, query_buff))
+      if (mysql_query_with_error_report(mysql, &event_res, query_buff))
         DBUG_RETURN(1);
 
       while ((row= mysql_fetch_row(event_res)) != NULL)
@@ -1395,7 +1395,7 @@ static uint dump_events_for_db(char *db)
   mysql_free_result(event_list_res);
 
   if (lock_tables)
-    VOID(mysql_query_with_error_report(sock, 0, "UNLOCK TABLES"));
+    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
   DBUG_RETURN(0);
 }
 
@@ -2738,7 +2738,7 @@ static int dump_all_tablespaces()
   char buf[FN_REFLEN];
   int first;
 
-  if (mysql_query_with_error_report(sock, &tableres,
+  if (mysql_query_with_error_report(mysql, &tableres,
                                     "SELECT DISTINCT"
                                     " LOGFILE_GROUP_NAME,"
                                     " FILE_NAME,"
@@ -2792,7 +2792,7 @@ static int dump_all_tablespaces()
     }
   }
 
-  if (mysql_query_with_error_report(sock, &tableres,
+  if (mysql_query_with_error_report(mysql, &tableres,
                                     "SELECT DISTINCT"
                                     " TABLESPACE_NAME,"
                                     " FILE_NAME,"
@@ -3035,7 +3035,7 @@ static int dump_all_tables_in_db(char *database)
     }
   }
   if (opt_events && !opt_xml &&
-      mysql_get_server_version(sock) >= 50106)
+      mysql_get_server_version(mysql) >= 50106)
   {
     DBUG_PRINT("info", ("Dumping events for database %s", database));
     dump_events_for_db(database);
@@ -3251,7 +3251,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
       get_view_structure(*pos, db);
   }
   if (opt_events && !opt_xml &&
-      mysql_get_server_version(sock) >= 50106)
+      mysql_get_server_version(mysql) >= 50106)
   {
     DBUG_PRINT("info", ("Dumping events for database %s", db));
     dump_events_for_db(db);

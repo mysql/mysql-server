@@ -716,22 +716,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
   else
   {
-    (void) sprintf(path,"%s/%s",mysql_data_home, dbname);
-    length=unpack_dirname(path,path);		// Convert if not unix
-    found_libchar= 0;
-    if (length && path[length-1] == FN_LIBCHAR)
-    {
-      found_libchar= 1;
-      path[length-1]=0;				// remove ending '\'
-    }
-    if (access(path,F_OK))
-    length= build_table_filename(path, sizeof(path), dbname, "", "");
-    found_libchar= 0;
-    if (length && path[length-1] == FN_LIBCHAR)
-    {
-      found_libchar= 1;
-      path[length-1]=0;				// remove ending '\'
-    }
     if (check_db_dir_existence(dbname))
     {
       my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
@@ -2603,7 +2587,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             may have dropped database, and we may still have a name
             for that directory.
           */
-          if (res == FIND_FILES_DIR && lex->orig_sql_command == SQLCOM_END)
+          if (res == FIND_FILES_DIR && lex->sql_command == SQLCOM_END)
           {
             push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                          thd->net.last_errno, thd->net.last_error);

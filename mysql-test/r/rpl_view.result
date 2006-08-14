@@ -80,3 +80,4 @@ c
 ---> Cleaning up...
 DROP VIEW v1;
 DROP TABLE t1;
+End of 5.0 tests

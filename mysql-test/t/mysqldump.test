@@ -1318,7 +1318,9 @@ grant RELOAD on *.* to mysqltest_1@localhost;
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 
 # Execute mysqldump, should now succeed
+--disable_result_log
 --exec $MYSQL_DUMP --compact --master-data -u mysqltest_1 test 2>&1
+--enable_result_log
 
 # Clean up
 drop table t1;
