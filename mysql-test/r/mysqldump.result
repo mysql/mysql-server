@@ -2876,7 +2876,7 @@ drop view v1;
 drop table t1;
 drop database mysqldump_dbb;
 use test;
-create user mysqltest_1;
+create user mysqltest_1@localhost;
 create table t1(a int, b varchar(34));
 reset master;
 mysqldump: Couldn't execute 'FLUSH TABLES': Access denied; you need the RELOAD privilege for this operation (1227)
@@ -2891,4 +2891,4 @@ CREATE TABLE `t1` (
   `b` varchar(34) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 drop table t1;
-drop user mysqltest_1;
+drop user mysqltest_1@localhost;
