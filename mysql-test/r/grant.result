@@ -426,6 +426,7 @@ revoke all on mysqltest_2.t1 from mysqltest_3@localhost;
 revoke all on mysqltest_2.t2 from mysqltest_3@localhost;
 grant all on mysqltest_2.* to mysqltest_3@localhost;
 grant select on *.* to mysqltest_3@localhost;
+grant select on mysqltest_2.t1 to mysqltest_3@localhost;
 flush privileges;
 use mysqltest_1;
 update mysqltest_2.t1, mysqltest_2.t2 set c=500,d=600;

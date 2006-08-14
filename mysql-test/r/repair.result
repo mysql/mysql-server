@@ -41,9 +41,14 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	warning	Number of rows changed from 0 to 1
 test.t1	repair	status	OK
 drop table t1;
-DROP TABLE IF EXISTS tt1;
-CREATE TEMPORARY TABLE tt1 (c1 INT);
-REPAIR TABLE tt1 USE_FRM;
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
+SET myisam_repair_threads=2;
+REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
-tt1	repair	error	Cannot repair temporary table from .frm file
-DROP TABLE tt1;
+test.t1	repair	status	OK
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	a	1	a	A	5	NULL	NULL	YES	BTREE	
+SET myisam_repair_threads=@@global.myisam_repair_threads;
+DROP TABLE t1;
