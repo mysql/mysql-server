@@ -1265,6 +1265,7 @@ TransporterFacade::get_an_alive_node()
 }
 
 TransporterFacade::ThreadData::ThreadData(Uint32 size){
+  m_use_cnt = 0;
   m_firstFree = END_OF_LIST;
   expand(size);
 }
@@ -1302,6 +1303,7 @@ TransporterFacade::ThreadData::open(void* objRef,
     nextFree = m_firstFree;
   }
   
+  m_use_cnt++;
   m_firstFree = m_statusNext[nextFree];
   
   Object_Execute oe = { objRef , fun };
@@ -1318,11 +1320,19 @@ TransporterFacade::ThreadData::close(int number){
   number= numberToIndex(number);
   assert(getInUse(number));
   m_statusNext[number] = m_firstFree;
+  assert(m_use_cnt);
+  m_use_cnt--;
   m_firstFree = number;
   Object_Execute oe = { 0, 0 };
   m_objectExecute[number] = oe;
   m_statusFunction[number] = 0;
   return 0;
+}
+
+Uint32
+TransporterFacade::get_active_ndb_objects() const
+{
+  return m_threads.m_use_cnt;
 }
 
 PollGuard::PollGuard(TransporterFacade *tp, NdbWaiter *aWaiter,

@@ -68,6 +68,7 @@ public:
   
   // Close this block number
   int close(BlockNumber blockNumber, Uint64 trans_id);
+  Uint32 get_active_ndb_objects() const;
 
   // Only sends to nodes which are alive
   int sendSignal(NdbApiSignal * signal, NodeId nodeId);
@@ -240,6 +241,7 @@ private:
       NodeStatusFunction m_statusFunction;
     };
 
+    Uint32 m_use_cnt;
     Uint32 m_firstFree;
     Vector<Uint32> m_statusNext;
     Vector<Object_Execute> m_objectExecute;
