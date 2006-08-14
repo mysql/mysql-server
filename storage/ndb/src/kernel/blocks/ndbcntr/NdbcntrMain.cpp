@@ -199,10 +199,9 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
 
   case SystemError::CopyFragRefError:
     BaseString::snprintf(buf, sizeof(buf), 
-	     "Node %d killed this node because "
-	     "it could not copy a fragment during node restart. "
-	     "Copy fragment error code: %u.",
-	     killingNode, data1);
+			 "Killed by node %d as "
+			 "copyfrag failed, error: %u",
+			 killingNode, data1);
     break;
 
   case SystemError::StartFragRefError:
@@ -2086,6 +2085,11 @@ void Ndbcntr::execSET_VAR_REQ(Signal* signal) {
 void Ndbcntr::updateNodeState(Signal* signal, const NodeState& newState) const{
   NodeStateRep * const stateRep = (NodeStateRep *)&signal->theData[0];
 
+  if (newState.startLevel == NodeState::SL_STARTED)
+  {
+    CRASH_INSERTION(1000);
+  }
+
   stateRep->nodeState = newState;
   stateRep->nodeState.masterNodeId = cmasterNodeId;
   stateRep->nodeState.setNodeGroup(c_nodeGroup);
@@ -2890,7 +2894,7 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
       cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
     }
   }
-  
+
   signal->theData[0] = NDB_LE_NDBStartCompleted;
   signal->theData[1] = NDB_VERSION;
   cntr.sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);

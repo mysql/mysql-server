@@ -181,24 +181,28 @@ void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
 /*       PROPER AMOUNT OF PAGES WERE NOT FOUND. FIND AS MUCH AS     */
 /*       POSSIBLE.                                                  */
 /* ---------------------------------------------------------------- */
-  for (Uint32 j = firstListToCheck; (Uint32)~j; j--) {
+  if (firstListToCheck)
+  {
     ljam();
-    if (cfreepageList[j] != RNIL) {
+    for (Uint32 j = firstListToCheck - 1; (Uint32)~j; j--) {
       ljam();
+      if (cfreepageList[j] != RNIL) {
+	ljam();
 /* ---------------------------------------------------------------- */
 /*       SOME AREA WAS FOUND, ALLOCATE ALL OF IT.                   */
 /* ---------------------------------------------------------------- */
-      allocPageRef = cfreepageList[j];
-      removeCommonArea(allocPageRef, j);
-      noOfPagesAllocated = 1 << j;
-      findFreeLeftNeighbours(allocPageRef, noOfPagesAllocated, 
-			     noOfPagesToAllocate);
-      findFreeRightNeighbours(allocPageRef, noOfPagesAllocated, 
-			      noOfPagesToAllocate);
-
-      return;
-    }//if
-  }//for
+	allocPageRef = cfreepageList[j];
+	removeCommonArea(allocPageRef, j);
+	noOfPagesAllocated = 1 << j;
+	findFreeLeftNeighbours(allocPageRef, noOfPagesAllocated, 
+			       noOfPagesToAllocate);
+	findFreeRightNeighbours(allocPageRef, noOfPagesAllocated, 
+				noOfPagesToAllocate);
+	
+	return;
+      }//if
+    }//for
+  }
 /* ---------------------------------------------------------------- */
 /*       NO FREE AREA AT ALL EXISTED. RETURN ZERO PAGES             */
 /* ---------------------------------------------------------------- */
