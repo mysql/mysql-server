@@ -412,57 +412,6 @@ void _db_process_(const char *name)
   cs->process= name;
 }
 
-
-/*
- *  FUNCTION
- *
- *      _db_push_       push current debugger settings and set up new one
- *
- *  SYNOPSIS
- *
- *      VOID _db_push_(control)
- *      char *control;
- *
- *  DESCRIPTION
- *
- *      Given pointer to a debug control string in "control", pushes
- *      the current debug settings, parses the control string, and sets
- *      up a new debug settings with _db_set_()
- *
- */
-
-void _db_push_(const char *control)
-{
-  CODE_STATE *cs=0;
-  get_code_state_or_return;
-  PushState(cs);
-  _db_set_(cs, control);
-
-}
-
-/*
- *  FUNCTION
- *
- *      _db_set_init_       set initial debugger settings
- *
- *  SYNOPSIS
- *
- *      VOID _db_set_init_(control)
- *      char *control;
- *
- *  DESCRIPTION
- *      see _db_set_
- *
- */
-
-void _db_set_init_(const char *control)
-{
-  CODE_STATE cs;
-  bzero((char*) &cs,sizeof(cs));
-  cs.stack=&init_settings;
-  _db_set_(&cs, control);
-}
-
 /*
  *  FUNCTION
  *
@@ -717,6 +666,56 @@ void _db_set_(CODE_STATE *cs, const char *control)
     control=end+1;
     end= DbugStrTok(control);
   }
+}
+
+
+/*
+ *  FUNCTION
+ *
+ *      _db_push_       push current debugger settings and set up new one
+ *
+ *  SYNOPSIS
+ *
+ *      VOID _db_push_(control)
+ *      char *control;
+ *
+ *  DESCRIPTION
+ *
+ *      Given pointer to a debug control string in "control", pushes
+ *      the current debug settings, parses the control string, and sets
+ *      up a new debug settings with _db_set_()
+ *
+ */
+
+void _db_push_(const char *control)
+{
+  CODE_STATE *cs=0;
+  get_code_state_or_return;
+  PushState(cs);
+  _db_set_(cs, control);
+}
+
+/*
+ *  FUNCTION
+ *
+ *      _db_set_init_       set initial debugger settings
+ *
+ *  SYNOPSIS
+ *
+ *      VOID _db_set_init_(control)
+ *      char *control;
+ *
+ *  DESCRIPTION
+ *      see _db_set_
+ *
+ */
+
+void _db_set_init_(const char *control)
+{
+  CODE_STATE cs;
+  bzero((char*) &cs,sizeof(cs));
+  cs.stack=&init_settings;
+  _db_set_(&cs, control);
 }
 
 /*
