@@ -19,7 +19,6 @@ basedir	VALUE
 server_id	VALUE
 skip-stack-trace	VALUE
 skip-innodb	VALUE
-skip-bdb	VALUE
 skip-ndbcluster	VALUE
 log-output	VALUE
 SHOW INSTANCE OPTIONS mysqld2;
@@ -38,7 +37,6 @@ basedir	VALUE
 server_id	VALUE
 skip-stack-trace	VALUE
 skip-innodb	VALUE
-skip-bdb	VALUE
 skip-ndbcluster	VALUE
 nonguarded	VALUE
 log-output	VALUE
