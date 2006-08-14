@@ -1,19 +1,5 @@
 #!/usr/bin/perl
 
-# Override _command_line in the standard Perl test harness to prevent
-# it from using "perl" to run the test scripts.
-package MySQL::Straps;
-
-use base qw(Test::Harness::Straps);
-
-use strict;
-
-sub _command_line {
-  return $_[1]
-}
-
-package main;
-
 use Test::Harness qw(&runtests $verbose);
 use File::Find;
 
@@ -36,9 +22,6 @@ unit - Run unit tests in directory
 =cut
 
 my $cmd = shift;
-
-# $Test::Harness::Verbose = 1;
-# $Test::Harness::Debug = 1;
 
 if (defined $cmd && exists $dispatch{$cmd}) {
     $dispatch{$cmd}->(@ARGV);
@@ -95,14 +78,7 @@ sub run_cmd (@) {
     if (@files > 0) {
         # Removing the first './' from the file names
         foreach (@files) { s!^\./!! }
-
-        # Install the strap above instead of the default strap.  Since
-        # we are replacing the straps under the feet of Test::Harness,
-        # we need to do some basic initializations in the new straps.
-        $Test::Harness::Strap = MySQL::Straps->new;
-        $Test::Harness::Strap->{callback} = \&Test::Harness::strap_callback
-          if defined &Test::Harness::strap_callback;
-
+        $ENV{'HARNESS_PERL_SWITCHES'} .= q" -e 'exec @ARGV'";
         runtests @files;
     }
 }
