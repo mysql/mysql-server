@@ -7,7 +7,6 @@ Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
 #include "data0type.h"
-#include "page0zip.h"
 
 /***************************************************************************
 Builds a roll pointer dulint. */
