@@ -599,5 +599,10 @@ Ndb_cluster_connection::get_next_node(Ndb_cluster_connection_node_iter &iter)
   return m_impl.get_next_node(iter);
 }
 
+unsigned
+Ndb_cluster_connection::get_active_ndb_objects() const
+{
+  return m_impl.m_transporter_facade->get_active_ndb_objects();
+}
 template class Vector<Ndb_cluster_connection_impl::Node>;
 

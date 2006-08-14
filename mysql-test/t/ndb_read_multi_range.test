@@ -228,13 +228,32 @@ INSERT INTO t1 VALUES
 (148812,67,'2005-10-25 15:30:01'),(245651,67,'2005-12-08 15:58:27'),
 (154503,67,'2005-10-28 11:52:38');
 
-create table t11 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 asc;
-create table t12 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 desc;
+create table t11 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 asc;
+create table t12 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 desc;
 create table t21 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 asc;
-create table t22 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
+create table t22 engine = ndbcluster select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
 
 select * from t11 order by 1,2,3;
 select * from t12 order by 1,2,3;
 select * from t21 order by 1,2,3;
 select * from t22 order by 1,2,3;
+
+# join tests
+select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null order by t12.a;
+
+update t22 set c = '2005-12-08 15:58:27' where a = 255;
+select * from t22 order by 1,2,3;
+select t21.* from t21,t22 where t21.a = t22.a and 
+t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+
+delete from t22 where a > 245651;
+update t22 set b = a + 1;
+select * from t22 order by 1,2,3;
+select c, count(*)
+from t21 
+inner join t22 using (a)
+where t22.b in (2,256,257,1121,1134,4102,9200,223457,245652)
+group by c
+order by c;
+
 DROP TABLE t1, t11, t12, t21, t22;
