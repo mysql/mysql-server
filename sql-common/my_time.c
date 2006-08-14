@@ -427,7 +427,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
     goto err;
   }
 
-  if (check_date(l_time, not_zero_date, flags, was_cut))
+  if ((my_bool)check_date(l_time, not_zero_date, flags, was_cut))
     goto err;
 
   l_time->time_type= (number_of_fields <= 3 ?
