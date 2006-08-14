@@ -5,10 +5,10 @@ CREATE EVENT Lower_case ON SCHEDULE EVERY 2 MINUTE DO SELECT 2;
 ERROR HY000: Event 'Lower_case' already exists
 DROP EVENT Lower_case;
 SET NAMES cp1251;
-CREATE EVENT äîëåí_ðåãèñòúð_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
-CREATE EVENT ÄîËåÍ_ðåãèñòúð_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
+CREATE EVENT �����_��������_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
+CREATE EVENT �����_��������_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
 ERROR HY000: Event 'ДоЛеН_регистър_1251' already exists
-DROP EVENT ÄîËåÍ_ðåãèñòúð_1251;
+DROP EVENT �����_��������_1251;
 SET NAMES utf8;
 CREATE EVENT долен_регистър_утф8 ON SCHEDULE EVERY 3 YEAR DO SELECT 300;
 CREATE EVENT ДОЛЕН_регистър_утф8 ON SCHEDULE EVERY 4 YEAR DO SELECT 400;
@@ -109,9 +109,9 @@ events_test	ee_16407_4
 select /*2*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	info
 event_scheduler	localhost	NULL	NULL
-root	localhost	events_test	select get_lock('ee_16407_2', 60) /*ee_16407_2*/
-root	localhost	events_test	select get_lock('ee_16407_2', 60) /*ee_16407_3*/
-root	localhost	events_test	select get_lock('ee_16407_2', 60) /*ee_16407_4*/
+root	localhost	events_test	select get_lock('ee_16407_2', 60)
+root	localhost	events_test	select get_lock('ee_16407_2', 60)
+root	localhost	events_test	select get_lock('ee_16407_2', 60)
 select release_lock('ee_16407_2');
 release_lock('ee_16407_2')
 1
@@ -159,8 +159,8 @@ end|
 select /*4*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	info
 event_scheduler	localhost	NULL	NULL
-root	localhost	events_test	select get_lock('ee_16407_5', 60) /*ee_16407_5*/
-root	localhost	events_test	select get_lock('ee_16407_5', 60) /*ee_16407_6*/
+root	localhost	events_test	select get_lock('ee_16407_5', 60)
+root	localhost	events_test	select get_lock('ee_16407_5', 60)
 select release_lock('ee_16407_5');
 release_lock('ee_16407_5')
 1

@@ -1429,6 +1429,7 @@ ev_sql_stmt:
 
             lex->sphead->reset_thd_mem_root(YYTHD);
             lex->sphead->init(lex);
+            lex->sphead->init_sp_name(YYTHD, Lex->event_parse_data->identifier);
 
             lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
 
@@ -1445,8 +1446,7 @@ ev_sql_stmt:
             LEX *lex=Lex;
 
             // return back to the original memory root ASAP
-            lex->sphead->init_strings(YYTHD, lex,
-                                      Lex->event_parse_data->identifier);
+            lex->sphead->init_strings(YYTHD, lex);
             lex->sphead->restore_thd_mem_root(YYTHD);
 
             lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
@@ -1523,6 +1523,17 @@ create_function_tail:
 	  RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
 	  {
 	    LEX *lex=Lex;
+            if (lex->definer != NULL)
+            {
+              /*
+                DEFINER is a concept meaningful when interpreting SQL code.
+                UDF functions are compiled.
+                Using DEFINER with UDF has therefore no semantic,
+                and is considered a parsing error.
+              */
+	      my_error(ER_WRONG_USAGE, MYF(0), "SONAME", "DEFINER");
+              YYABORT;
+            }
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
 	    lex->udf.name = lex->spname->m_name;
 	    lex->udf.returns=(Item_result) $2;
