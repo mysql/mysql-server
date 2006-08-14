@@ -68,6 +68,13 @@ ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
 }
 
 extern "C"
+int
+ndb_logevent_get_fd(const NdbLogEventHandle h)
+{
+  return h->socket;
+}
+
+extern "C"
 void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)
 {
   if( !h )

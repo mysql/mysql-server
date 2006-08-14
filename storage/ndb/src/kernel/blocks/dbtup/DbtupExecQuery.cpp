@@ -938,7 +938,7 @@ int Dbtup::handleReadReq(Signal* signal,
 			     dst,
 			     dstLen,
 			     false);
-    if (ret != -1) {
+    if (likely(ret != -1)) {
 /* ------------------------------------------------------------------------- */
 // We have read all data into coutBuffer. Now send it to the API.
 /* ------------------------------------------------------------------------- */
@@ -948,16 +948,16 @@ int Dbtup::handleReadReq(Signal* signal,
       sendReadAttrinfo(signal, req_struct, TnoOfDataRead, regOperPtr);
       return 0;
     }
-    jam();
-    tupkeyErrorLab(signal);
-    return -1;
   } else {
     jam();
-    if (interpreterStartLab(signal, req_struct) != -1) {
+    if (likely(interpreterStartLab(signal, req_struct) != -1) {
       return 0;
     }
-    return -1;
   }
+
+  jam();
+  tupkeyErrorLab(signal);
+  return -1;
 }
 
 /* ---------------------------------------------------------------- */
@@ -1675,6 +1675,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
 	RlogSize= TnoDataRW;
       } else {
 	jam();
+	tupkeyErrorLab(signal);
 	return -1;
       }
     }

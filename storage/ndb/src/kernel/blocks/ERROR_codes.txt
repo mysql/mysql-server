@@ -6,7 +6,7 @@ Next DBTUP 4024
 Next DBLQH 5045
 Next DBDICT 6007
 Next DBDIH 7177
-Next DBTC 8037
+Next DBTC 8038
 Next CMVMI 9000
 Next BACKUP 10022
 Next DBUTIL 11002
@@ -283,6 +283,7 @@ ABORT OF TCKEYREQ
 
 8032: No free TC records any more
 
+8037 : Invalid schema version in TCINDXREQ
 
 CMVMI
 -----
