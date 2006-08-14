@@ -121,6 +121,8 @@ int openfrm(THD *thd, const char *name, const char *alias, uint db_stat,
     // caller can't process new .frm
     goto err;
   }
+  if (prgflag & OPEN_VIEW_NO_PARSE)
+    goto err;
 
   share->blob_ptr_size= sizeof(char*);
   outparam->db_stat= db_stat;
