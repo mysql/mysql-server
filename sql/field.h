@@ -144,6 +144,11 @@ public:
     table, which is located on disk).
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
+
+  /*
+    data_length() return the "real size" of the data in memory.
+  */
+  virtual uint32 data_length(const char *from) { return pack_length(); }
   virtual uint32 sort_length() const { return pack_length(); }
   virtual void reset(void) { bzero(ptr,pack_length()); }
   virtual void reset_fields() {}
@@ -1115,6 +1120,7 @@ public:
   int key_cmp(const byte *str, uint length);
   uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
+  uint data_length(const char *from);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
