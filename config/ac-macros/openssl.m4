@@ -30,8 +30,8 @@ AC_DEFUN([MYSQL_FIND_OPENSSL], [
         OPENSSL_INCLUDE=-I$incs
       fi
       # Test for libssl using all known library file endings
-      if test -f $d/libssl.a || test -f $d/libssl.so || \
-         test -f $d/libssl.sl || test -f $d/libssl.dylib ; then
+      if test -f $libs/libssl.a || test -f $libs/libssl.so || \
+         test -f $libs/libssl.sl || test -f $libs/libssl.dylib ; then
         OPENSSL_LIB=$libs
       fi
       ;;
