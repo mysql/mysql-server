@@ -22,7 +22,6 @@
 int mi_delete_all_rows(MI_INFO *info)
 {
   uint i;
-  char buf[22];
   MYISAM_SHARE *share=info->s;
   MI_STATE_INFO *state=&share->state;
   DBUG_ENTER("mi_delete_all_rows");
