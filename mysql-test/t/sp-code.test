@@ -190,3 +190,25 @@ delimiter ;//
 show procedure code sudoku_solve;
 
 drop procedure sudoku_solve;
+
+
+#
+# Bug#19207: Final parenthesis omitted for CREATE INDEX in Stored
+# Procedure
+#
+# Wrong criteria was used to distinguish the case when there was no
+# lookahead performed in the parser.  Bug affected only statements
+# ending in one-character token without any optional tail, like CREATE
+# INDEX and CALL.
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE PROCEDURE p1() CREATE INDEX idx ON t1 (c1);
+SHOW PROCEDURE CODE p1;
+
+DROP PROCEDURE p1;
+
+
+--echo End of 5.0 tests.
