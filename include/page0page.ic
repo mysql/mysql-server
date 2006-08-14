@@ -9,6 +9,7 @@ Created 2/2/1994 Heikki Tuuri
 #include "mach0data.h"
 #include "rem0cmp.h"
 #include "mtr0log.h"
+#include "page0zip.h"
 
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
@@ -518,7 +519,8 @@ page_dir_slot_get_rec(
 					/* out: pointer to record */
 	page_dir_slot_t*	slot)	/* in: directory slot */
 {
-	return(ut_align_down(slot, UNIV_PAGE_SIZE) + mach_read_from_2(slot));
+	return((byte*) ut_align_down(slot, UNIV_PAGE_SIZE)
+				+ mach_read_from_2(slot));
 }
 
 /*******************************************************************
