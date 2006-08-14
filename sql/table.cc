@@ -352,7 +352,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   }
   else
     goto err;
-  
+
   /* No handling of text based files yet */
   if (table_type == 1)
   {
