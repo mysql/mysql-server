@@ -852,3 +852,40 @@ b	a
 20	1
 10	2
 DROP TABLE t1;
+CREATE TABLE t1 (a int, b int, PRIMARY KEY  (a));
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+explain SELECT t1.b as a, t2.b as c FROM 
+t1 LEFT JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2) 
+ORDER BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
+SELECT t1.b as a, t2.b as c FROM 
+t1 LEFT JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2) 
+ORDER BY c;
+a	c
+1	NULL
+3	NULL
+2	2
+explain SELECT t1.b as a, t2.b as c FROM 
+t1 JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2)  
+ORDER BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * from t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 SELECT * from t1;
+CREATE TABLE t4 LIKE t1;
+INSERT INTO t4 SELECT * from t1;
+INSERT INTO t1 values (0,0),(4,4);
+SELECT t1.*,t2.* FROM t1 LEFT JOIN (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
+ON (t1.a=t2.a AND t1.b=t3.b) order by t2.b;
+a	b	a	b
+0	0	NULL	NULL
+4	4	NULL	NULL
+1	1	1	1
+2	2	2	2
+3	3	3	3
+DROP TABLE t1,t2,t3,t4;
