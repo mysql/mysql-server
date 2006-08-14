@@ -1,0 +1,6 @@
+use mysqltest_events_test;
+"Should get 0 rows because the queue aborted run
+select distinct name from execution_log order by name;
+name
+delete from mysql.event where name like 'bad%';
+"Now restart the server again"

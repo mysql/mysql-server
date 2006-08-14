@@ -30,19 +30,8 @@ SET NAMES latin1;
 # START - BUG#16408: Events: crash for an event in a procedure
 #
 set @a=3;
+--error 1562
 CREATE PROCEDURE p_16 () CREATE EVENT e_16 ON SCHEDULE EVERY @a SECOND DO SET @a=5;
-call p_16();
---echo "Here we used to crash!"
---error ER_EVENT_ALREADY_EXISTS
-call p_16();
---error ER_EVENT_ALREADY_EXISTS
-call p_16();
-DROP EVENT e_16;
-CALL p_16();
---error ER_EVENT_ALREADY_EXISTS
-CALL p_16();
-DROP PROCEDURE p_16;
-DROP EVENT e_16;
 #
 # END   - BUG#16408: Events: crash for an event in a procedure
 #
@@ -56,6 +45,19 @@ create event e_55 on schedule at 99990101000000 do drop table t;
 create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;
 --error ER_EVENT_ENDS_BEFORE_STARTS
 create event e_55 on schedule every 10 minute ends 99990101000000 do drop table t;
+--error ER_EVENT_EXEC_TIME_IN_THE_PAST
+create event e_55 on schedule at 10000101000000 do drop table t;
+--error ER_EVENT_EXEC_TIME_IN_THE_PAST
+create event e_55 on schedule at 20000101000000 do drop table t;
+--error ER_PARSE_ERROR
+create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
+--error ER_PARSE_ERROR
+create event e_55 on schedule at 20200101000000 ends 10000101000000 do drop table t;
+--error ER_PARSE_ERROR
+create event e_55 on schedule at 20200101000000 starts 10000101000000 ends 10000101000000 do drop table t;
+--error ER_WRONG_VALUE
+create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
+
 #
 # End  -  16396: Events: Distant-future dates become past dates
 #
@@ -64,8 +66,6 @@ create event e_55 on schedule every 10 minute ends 99990101000000 do drop table 
 # Start - 16407: Events: Changes in sql_mode won't be taken into account
 #
 set global event_scheduler=2;
---echo "Wait a bit to settle down"
---sleep 1
 delete from mysql.event;
 set global event_scheduler= 1;
 set @old_sql_mode:=@@sql_mode;
@@ -78,11 +78,13 @@ begin
   drop table "hashed_num";
 end|
 delimiter ;|
---sleep 1
+--sleep 0.8
 --echo "Now if everything is fine the event has compiled and is locked
-select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*1*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('test_bug16407');
+
 set global event_scheduler= 2;
+
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 --echo "Let's check whether we change the sql_mode on ALTER EVENT"
 set sql_mode='traditional';
@@ -90,6 +92,10 @@ alter event e_16407 do select 1;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 drop event e_16407;
 
+set sql_mode="ansi";
+select get_lock('ee_16407_2', 60);
+
+set global event_scheduler= 1;
 --echo "Another sql_mode test"
 set sql_mode="traditional";
 create table events_smode_test(ev_name char(10), a date) engine=myisam;
@@ -98,6 +104,7 @@ delimiter |;
 create event ee_16407_2 on schedule every 60 second do
 begin
   select get_lock('ee_16407_2', 60) /*ee_16407_2*/;
+  select release_lock('ee_16407_2');
   insert into events_test.events_smode_test values('ee_16407_2','1980-19-02');
 end|
 --error ER_TRUNCATED_WRONG_VALUE
@@ -106,6 +113,7 @@ insert into events_smode_test values ('test','1980-19-02')|
 create event ee_16407_3 on schedule every 60 second do
 begin
   select get_lock('ee_16407_2', 60) /*ee_16407_3*/;
+  select release_lock('ee_16407_2');
   insert into events_test.events_smode_test values ('ee_16407_3','1980-02-19');
   insert into events_test.events_smode_test values ('ee_16407_3','1980-02-29');
 end|
@@ -114,18 +122,16 @@ set sql_mode=""|
 create event ee_16407_4 on schedule every 60 second do
 begin
   select get_lock('ee_16407_2', 60) /*ee_16407_4*/;
+  select release_lock('ee_16407_2');
   insert into events_test.events_smode_test values ('ee_16407_4','10-11-1956');
 end|
 delimiter ;|
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
-set sql_mode="ansi";
-select get_lock('ee_16407_2', 60);
-set global event_scheduler= 1;
 --sleep 1
-select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*2*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('ee_16407_2');
---sleep 2
-select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+--sleep 1.2
+select /*3*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 set global event_scheduler= 2;
 select * from events_smode_test order by ev_name, a;
 --echo "OK, last check before we drop them"
@@ -137,6 +143,11 @@ drop event ee_16407_4;
 
 --echo "And now one last test regarding sql_mode and call of SP from an event"
 delete from events_smode_test;
+set sql_mode='ansi';
+select get_lock('ee_16407_5', 60);
+
+set global event_scheduler= 1;
+
 set sql_mode='traditional';
 delimiter |;
 create procedure ee_16407_5_pendant() begin insert into events_test.events_smode_test values('ee_16407_5','2001-02-29'); end|
@@ -144,24 +155,23 @@ create procedure ee_16407_6_pendant() begin insert into events_test.events_smode
 create event ee_16407_5 on schedule every 60 second do
 begin
   select get_lock('ee_16407_5', 60) /*ee_16407_5*/;
+  select release_lock('ee_16407_5');
   call events_test.ee_16407_5_pendant();
 end|
 create event ee_16407_6 on schedule every 60 second do
 begin
   select get_lock('ee_16407_5', 60) /*ee_16407_6*/;
+  select release_lock('ee_16407_5');
   call events_test.ee_16407_6_pendant();
 end|
 delimiter ;|
-set sql_mode='ansi';
-select get_lock('ee_16407_5', 60);
-set global event_scheduler= 1;
 --sleep 1
 --echo "Should have 2 locked processes"
-select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*4*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('ee_16407_5');
---sleep 2
+--sleep 1.3
 --echo "Should have 0 processes locked"
-select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*5*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select * from events_smode_test order by ev_name, a;
 --echo "And here we check one more time before we drop the events"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
@@ -207,6 +217,21 @@ drop user mysqltest_user1@localhost;
 drop database mysqltest_db1;
 #
 # END   - 18897: Events: unauthorized action possible with alter event rename
+#
+
+#
+# START - BUG#16394: Events: Crash if schedule contains SELECT
+#
+--error ER_PARSE_ERROR
+create event e_53 on schedule at (select s1 from ttx) do drop table t;
+--error ER_PARSE_ERROR
+create event e_53 on schedule every (select s1 from ttx) second do drop table t;
+--error ER_PARSE_ERROR
+create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop table t;
+--error ER_PARSE_ERROR
+create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
+#
+# END   - BUG#16394: Events: Crash if schedule contains SELECT
 #
 
 drop database events_test;

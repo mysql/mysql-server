@@ -169,14 +169,15 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
+  lex->spname= NULL;
   lex->sphead= NULL;
   lex->spcont= NULL;
   lex->proc_list.first= 0;
-  lex->escape_used= lex->et_compile_phase= FALSE;
+  lex->escape_used= FALSE;
   lex->reset_query_tables_list(FALSE);
 
   lex->name= 0;
-  lex->et= NULL;
+  lex->event_parse_data= NULL;
 
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;

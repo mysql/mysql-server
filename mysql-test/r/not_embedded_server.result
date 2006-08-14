@@ -1,6 +1,5 @@
 prepare stmt1 from ' show full processlist ';
 execute stmt1;
 Id	User	Host	db	Command	Time	State	Info
-number	event_scheduler	localhost	NULL	Connect	time	Suspended	NULL
 number	root	localhost	test	Query	time	NULL	show full processlist
 deallocate prepare stmt1;

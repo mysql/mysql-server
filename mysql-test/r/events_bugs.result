@@ -5,10 +5,10 @@ CREATE EVENT Lower_case ON SCHEDULE EVERY 2 MINUTE DO SELECT 2;
 ERROR HY000: Event 'Lower_case' already exists
 DROP EVENT Lower_case;
 SET NAMES cp1251;
-CREATE EVENT �����_��������_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
-CREATE EVENT �����_��������_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
+CREATE EVENT äîëåí_ðåãèñòúð_1251 ON SCHEDULE EVERY 1 YEAR DO SELECT 100;
+CREATE EVENT ÄîËåÍ_ðåãèñòúð_1251 ON SCHEDULE EVERY 2 YEAR DO SELECT 200;
 ERROR HY000: Event 'ДоЛеН_регистър_1251' already exists
-DROP EVENT �����_��������_1251;
+DROP EVENT ÄîËåÍ_ðåãèñòúð_1251;
 SET NAMES utf8;
 CREATE EVENT долен_регистър_утф8 ON SCHEDULE EVERY 3 YEAR DO SELECT 300;
 CREATE EVENT ДОЛЕН_регистър_утф8 ON SCHEDULE EVERY 4 YEAR DO SELECT 400;
@@ -17,26 +17,26 @@ DROP EVENT ДОЛЕН_регистър_утф8;
 SET NAMES latin1;
 set @a=3;
 CREATE PROCEDURE p_16 () CREATE EVENT e_16 ON SCHEDULE EVERY @a SECOND DO SET @a=5;
-call p_16();
-"Here we used to crash!"
-call p_16();
-ERROR HY000: Event 'e_16' already exists
-call p_16();
-ERROR HY000: Event 'e_16' already exists
-DROP EVENT e_16;
-CALL p_16();
-CALL p_16();
-ERROR HY000: Event 'e_16' already exists
-DROP PROCEDURE p_16;
-DROP EVENT e_16;
+ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
 create event e_55 on schedule at 99990101000000 do drop table t;
 ERROR HY000: Incorrect AT value: '99990101000000'
 create event e_55 on schedule every 10 hour starts 99990101000000 do drop table t;
 ERROR HY000: Incorrect STARTS value: '99990101000000'
 create event e_55 on schedule every 10 minute ends 99990101000000 do drop table t;
 ERROR HY000: ENDS is either invalid or before STARTS
+create event e_55 on schedule at 10000101000000 do drop table t;
+ERROR HY000: Activation (AT) time is in the past
+create event e_55 on schedule at 20000101000000 do drop table t;
+ERROR HY000: Activation (AT) time is in the past
+create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 do drop table t' at line 1
+create event e_55 on schedule at 20200101000000 ends 10000101000000 do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ends 10000101000000 do drop table t' at line 1
+create event e_55 on schedule at 20200101000000 starts 10000101000000 ends 10000101000000 do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 ends 10000101000000 do drop table t' at line 1
+create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
+ERROR HY000: Incorrect STARTS value: '10000101000000'
 set global event_scheduler=2;
-"Wait a bit to settle down"
 delete from mysql.event;
 set global event_scheduler= 1;
 set @old_sql_mode:=@@sql_mode;
@@ -50,10 +50,10 @@ select get_lock('test_bug16407', 60);
 drop table "hashed_num";
 end|
 "Now if everything is fine the event has compiled and is locked
-select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Sleeping	NULL
-root	localhost	events_test	Connect	User lock	select get_lock('test_bug16407', 60)
+select /*1*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
+root	localhost	events_test	select get_lock('test_bug16407', 60)
 select release_lock('test_bug16407');
 release_lock('test_bug16407')
 1
@@ -68,6 +68,11 @@ select event_schema, event_name, sql_mode from information_schema.events order b
 event_schema	event_name	sql_mode
 events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 drop event e_16407;
+set sql_mode="ansi";
+select get_lock('ee_16407_2', 60);
+get_lock('ee_16407_2', 60)
+1
+set global event_scheduler= 1;
 "Another sql_mode test"
 set sql_mode="traditional";
 create table events_smode_test(ev_name char(10), a date) engine=myisam;
@@ -75,6 +80,7 @@ create table events_smode_test(ev_name char(10), a date) engine=myisam;
 create event ee_16407_2 on schedule every 60 second do
 begin
 select get_lock('ee_16407_2', 60) /*ee_16407_2*/;
+select release_lock('ee_16407_2');
 insert into events_test.events_smode_test values('ee_16407_2','1980-19-02');
 end|
 insert into events_smode_test values ('test','1980-19-02')|
@@ -83,6 +89,7 @@ ERROR 22007: Incorrect date value: '1980-19-02' for column 'a' at row 1
 create event ee_16407_3 on schedule every 60 second do
 begin
 select get_lock('ee_16407_2', 60) /*ee_16407_3*/;
+select release_lock('ee_16407_2');
 insert into events_test.events_smode_test values ('ee_16407_3','1980-02-19');
 insert into events_test.events_smode_test values ('ee_16407_3','1980-02-29');
 end|
@@ -91,6 +98,7 @@ set sql_mode=""|
 create event ee_16407_4 on schedule every 60 second do
 begin
 select get_lock('ee_16407_2', 60) /*ee_16407_4*/;
+select release_lock('ee_16407_2');
 insert into events_test.events_smode_test values ('ee_16407_4','10-11-1956');
 end|
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
@@ -98,23 +106,18 @@ event_schema	event_name	sql_mode
 events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER
 events_test	ee_16407_4	
-set sql_mode="ansi";
-select get_lock('ee_16407_2', 60);
-get_lock('ee_16407_2', 60)
-1
-set global event_scheduler= 1;
-select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Sleeping	NULL
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60)
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60)
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_2', 60)
+select /*2*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
+root	localhost	events_test	select get_lock('ee_16407_2', 60) /*ee_16407_2*/
+root	localhost	events_test	select get_lock('ee_16407_2', 60) /*ee_16407_3*/
+root	localhost	events_test	select get_lock('ee_16407_2', 60) /*ee_16407_4*/
 select release_lock('ee_16407_2');
 release_lock('ee_16407_2')
 1
-select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Sleeping	NULL
+select /*3*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
 set global event_scheduler= 2;
 select * from events_smode_test order by ev_name, a;
 ev_name	a
@@ -132,37 +135,39 @@ drop event ee_16407_3;
 drop event ee_16407_4;
 "And now one last test regarding sql_mode and call of SP from an event"
 delete from events_smode_test;
+set sql_mode='ansi';
+select get_lock('ee_16407_5', 60);
+get_lock('ee_16407_5', 60)
+1
+set global event_scheduler= 1;
 set sql_mode='traditional';
 create procedure ee_16407_5_pendant() begin insert into events_test.events_smode_test values('ee_16407_5','2001-02-29'); end|
 create procedure ee_16407_6_pendant() begin insert into events_test.events_smode_test values('ee_16407_6','2004-02-29'); end|
 create event ee_16407_5 on schedule every 60 second do
 begin
 select get_lock('ee_16407_5', 60) /*ee_16407_5*/;
+select release_lock('ee_16407_5');
 call events_test.ee_16407_5_pendant();
 end|
 create event ee_16407_6 on schedule every 60 second do
 begin
 select get_lock('ee_16407_5', 60) /*ee_16407_6*/;
+select release_lock('ee_16407_5');
 call events_test.ee_16407_6_pendant();
 end|
-set sql_mode='ansi';
-select get_lock('ee_16407_5', 60);
-get_lock('ee_16407_5', 60)
-1
-set global event_scheduler= 1;
 "Should have 2 locked processes"
-select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Sleeping	NULL
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_5', 60)
-root	localhost	events_test	Connect	User lock	select get_lock('ee_16407_5', 60)
+select /*4*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
+root	localhost	events_test	select get_lock('ee_16407_5', 60) /*ee_16407_5*/
+root	localhost	events_test	select get_lock('ee_16407_5', 60) /*ee_16407_6*/
 select release_lock('ee_16407_5');
 release_lock('ee_16407_5')
 1
 "Should have 0 processes locked"
-select /*5*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-user	host	db	command	state	info
-event_scheduler	localhost	NULL	Connect	Sleeping	NULL
+select /*5*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+user	host	db	info
+event_scheduler	localhost	NULL	NULL
 select * from events_smode_test order by ev_name, a;
 ev_name	a
 ee_16407_6	2004-02-29
@@ -201,4 +206,12 @@ events_test	mysqltest_user1	mysqltest_user1@localhost	RECURRING	ENABLED
 drop event events_test.mysqltest_user1;
 drop user mysqltest_user1@localhost;
 drop database mysqltest_db1;
+create event e_53 on schedule at (select s1 from ttx) do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
+create event e_53 on schedule every (select s1 from ttx) second do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) second do drop table t' at line 1
+create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
+create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
 drop database events_test;
