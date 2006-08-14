@@ -4381,12 +4381,23 @@ drop table t3|
 --disable_warnings
 drop function if exists bug9048|
 --enable_warnings
-create function bug9048(f1 char binary) returns char binary
+create function bug9048(f1 char binary) returns char
 begin
   set f1= concat( 'hello', f1 );
   return f1;
 end|
 drop function bug9048|
+#
+# This was disabled in 5.1.12. See bug #20701
+# When collation support in SP is implemented, then this test should
+# be removed.
+#
+--error ER_NOT_SUPPORTED_YET
+create function bug9048(f1 char binary) returns char binary
+begin
+  set f1= concat( 'hello', f1 );
+  return f1;
+end|
 
 # Bug #12849 Stored Procedure: Crash on procedure call with CHAR type
 # 'INOUT' parameter
@@ -4940,7 +4951,7 @@ end|
 # a procedure which use tables and recursion
 create table t3 (a int)|
 insert into t3 values (0)|
-create view v1 as select a from t3;
+create view v1 as select a from t3|
 create procedure bug10100pt(level int, lim int)
 begin
   if level < lim then
@@ -4963,7 +4974,7 @@ begin
   end if;
 end|
 # dynamic sql & recursion
-prepare stmt2 from "select * from t3;";
+prepare stmt2 from "select * from t3;"|
 create procedure bug10100pd(level int, lim int)
 begin
   if level < lim then
@@ -5258,7 +5269,7 @@ call bug13012()|
 call bug13012()|
 call bug13012()|
 drop procedure bug13012|
-drop view v1;
+drop view v1|
 select * from t1 order by data|
 
 #
@@ -5951,7 +5962,6 @@ drop table t3|
 drop procedure bug15217|
 
 
-#
 # Bug#21002 "Derived table not selecting from a "real" table fails in JOINs"
 #         
 # A regression caused by the fix for Bug#18444: for derived tables we should
