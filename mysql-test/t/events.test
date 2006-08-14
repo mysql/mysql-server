@@ -83,7 +83,7 @@ DROP EVENT event_starts_test;
 #
 create table test_nested(a int);
 create event e_43 on schedule every 1 second do set @a = 5;
---error 1562
+--error ER_EVENT_RECURSIVITY_FORBIDDEN
 alter event e_43 do alter event e_43 do set @a = 4;
 delimiter |;
 alter event e_43 do
@@ -339,7 +339,7 @@ drop event закачка21;
 # Bug #16410  Events: CREATE EVENT is legal in a CREATE TRIGGER statement
 #
 create table t_16 (s1 int);
---error 1562
+--error ER_EVENT_RECURSIVITY_FORBIDDEN
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
 drop table t_16;
 #

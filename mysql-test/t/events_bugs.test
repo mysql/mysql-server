@@ -30,7 +30,7 @@ SET NAMES latin1;
 # START - BUG#16408: Events: crash for an event in a procedure
 #
 set @a=3;
---error 1562
+--error ER_EVENT_RECURSIVITY_FORBIDDEN
 CREATE PROCEDURE p_16 () CREATE EVENT e_16 ON SCHEDULE EVERY @a SECOND DO SET @a=5;
 #
 # END   - BUG#16408: Events: crash for an event in a procedure

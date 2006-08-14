@@ -5849,3 +5849,5 @@ ER_BAD_LOG_ENGINE
         eng "One can use only CSV and MyISAM engines for the log tables"
 ER_CANT_DROP_LOG_TABLE
         eng "Cannot drop log table if log is enabled"
+ER_EVENT_RECURSIVITY_FORBIDDEN
+        eng "Recursivity of EVENT DDL statements is forbidden when body is present"
