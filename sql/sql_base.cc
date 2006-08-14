@@ -39,7 +39,7 @@ static bool table_def_inited= 0;
 static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
 			     const char *alias,
                              char *cache_key, uint cache_key_length,
-			     MEM_ROOT *mem_root);
+			     MEM_ROOT *mem_root, uint flags);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
@@ -1763,7 +1763,7 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 
   if (open_unireg_entry(thd, table, table_list, table_name,
                         table->s->table_cache_key.str,
-                        table->s->table_cache_key.length, thd->mem_root))
+                        table->s->table_cache_key.length, thd->mem_root, 0))
   {
     intern_close_table(table);
     /*
@@ -1960,7 +1960,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         table= &tab;
         VOID(pthread_mutex_lock(&LOCK_open));
         if (!open_unireg_entry(thd, table, table_list, alias,
-                              key, key_length, mem_root))
+                              key, key_length, mem_root, 0))
         {
           DBUG_ASSERT(table_list->view != 0);
           VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1997,17 +1997,17 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
        table= (TABLE*) hash_next(&open_cache, (byte*) key, key_length,
                                  &state))
   {
-    if (table->s->version != refresh_version)
+    /*
+      Here we flush tables marked for flush. However we never flush log
+      tables here. They are flushed only on FLUSH LOGS.
+    */
+    if (table->s->version != refresh_version && !table->s->log_table)
     {
       DBUG_PRINT("note",
                  ("Found table '%s.%s' with different refresh version",
                   table_list->db, table_list->table_name));
 
-      /*
-        Don't close tables if we are working with a log table or were
-        asked not to close the table explicitly
-      */
-      if (flags & MYSQL_LOCK_IGNORE_FLUSH || table->s->log_table)
+      if (flags & MYSQL_LOCK_IGNORE_FLUSH)
       {
         /* Force close at once after usage */
         thd->version= table->s->version;
@@ -2044,6 +2044,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   }
   else
   {
+    int error;
     /* Free cache if too big */
     while (open_cache.records > table_cache_size && unused_tables)
       VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
@@ -2055,15 +2056,23 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       DBUG_RETURN(NULL);
     }
 
-    if (open_unireg_entry(thd, table, table_list, alias, key, key_length,
-                          mem_root))
+    error= open_unireg_entry(thd, table, table_list, alias, key, key_length,
+                             mem_root, (flags & OPEN_VIEW_NO_PARSE));
+    if (error > 0)
     {
       my_free((gptr)table, MYF(0));
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
     }
-    if (table_list->view)
+    if (table_list->view || error < 0)
     {
+      /*
+        VIEW not really opened, only frm were read.
+        Set 1 as a flag here
+      */
+      if (error < 0)
+        table_list->view= (st_lex*)1;
+
       my_free((gptr)table, MYF(0));
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(0); // VIEW
@@ -2165,7 +2174,6 @@ static bool reopen_table(TABLE *table)
     sql_print_error("Table %s had a open data handler in reopen_table",
 		    table->alias);
 #endif
-
   table_list.db=         table->s->db.str;
   table_list.table_name= table->s->table_name.str;
   table_list.table=      table;
@@ -2179,7 +2187,7 @@ static bool reopen_table(TABLE *table)
 			table->alias,
                         table->s->table_cache_key.str,
                         table->s->table_cache_key.length,
-                        thd->mem_root))
+                        thd->mem_root, 0))
     goto end;
 
   /* This list copies variables set by open_table */
@@ -2346,7 +2354,11 @@ void close_old_data_files(THD *thd, TABLE *table, bool abort_locks,
 
   for (; table ; table=table->next)
   {
-    if (table->s->version != refresh_version)
+    /*
+      Reopen marked for flush. But close log tables. They are flushed only
+      explicitly on FLUSH LOGS
+    */
+    if (table->s->version != refresh_version && !table->s->log_table)
     {
       found=1;
       if (table->db_stat)
@@ -2613,6 +2625,8 @@ void assign_new_table_id(TABLE_SHARE *share)
     cache_key		Key for share_cache
     cache_key_length	length of cache_key
     mem_root		temporary mem_root for parsing
+    flags               the OPEN_VIEW_NO_PARSE flag to be passed to
+                        openfrm()/open_new_frm()
 
   NOTES
    Extra argument for open is taken from thd->open_options
@@ -2626,7 +2640,7 @@ void assign_new_table_id(TABLE_SHARE *share)
 static int open_unireg_entry(THD *thd, TABLE *entry, TABLE_LIST *table_list,
                              const char *alias,
                              char *cache_key, uint cache_key_length,
-                             MEM_ROOT *mem_root)
+                             MEM_ROOT *mem_root, uint flags)
 {
   int error;
   TABLE_SHARE *share;
@@ -2647,14 +2661,15 @@ retry:
     error= (int) open_new_frm(thd, share, alias,
                               (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                       HA_GET_INDEX | HA_TRY_READ_ONLY),
-                              READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                              READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
+                              (flags & OPEN_VIEW_NO_PARSE),
                               thd->open_options, entry, table_list,
                               mem_root);
     if (error)
       goto err;
     /* TODO: Don't free this */
     release_table_share(share, RELEASE_NORMAL);
-    DBUG_RETURN(0);
+    DBUG_RETURN((flags & OPEN_VIEW_NO_PARSE)? -1 : 0);
   }
 
   while ((error= open_table_from_share(thd, share, alias,
@@ -2707,7 +2722,6 @@ retry:
     }
     if (!entry->s || !entry->s->crashed)
       goto err;
-
      // Code below is for repairing a crashed file
      if ((error= lock_table_name(thd, table_list, TRUE)))
      {
@@ -6339,7 +6353,8 @@ open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
                  "BASE TABLE");
         goto err;
       }
-      if (mysql_make_view(thd, parser, table_desc))
+      if (mysql_make_view(thd, parser, table_desc,
+                          (prgflag & OPEN_VIEW_NO_PARSE)))
         goto err;
     }
     else

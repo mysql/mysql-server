@@ -3858,13 +3858,38 @@ err:
   close_thread_tables(thd);
   pthread_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
+  int ndb_obj_cnt= 1; // g_ndb
+  ndb_obj_cnt+= injector_ndb == 0 ? 0 : 1;
+  ndb_obj_cnt+= schema_ndb == 0 ? 0 : 1;
+  ndb_obj_cnt+= ndbcluster_util_inited ? 1 : 0;
   injector_thd= 0;
   injector_ndb= 0;
   schema_ndb= 0;
   pthread_mutex_unlock(&injector_mutex);
   thd->db= 0; // as not to try to free memory
-  sql_print_information("Stopping Cluster Binlog");
 
+  if (!ndb_extra_logging)
+    sql_print_information("Stopping Cluster Binlog");
+  else
+    sql_print_information("Stopping Cluster Binlog: %u(%u)", 
+			  g_ndb_cluster_connection->get_active_ndb_objects(), 
+			  ndb_obj_cnt);
+
+  /**
+   * Add extra wait loop to make user "user" ndb-object go away...
+   *   otherwise user thread can have ongoing SUB_DATA
+   */
+  int sleep_cnt= 0;
+  while (sleep_cnt < 300 && g_ndb_cluster_connection->get_active_ndb_objects() > ndb_obj_cnt)
+  {
+    my_sleep(10000); // 10ms
+    sleep_cnt++;
+  }
+  if (ndb_extra_logging)
+    sql_print_information("Stopping Cluster Binlog: waited %ums %u(%u)", 
+			  10*sleep_cnt, g_ndb_cluster_connection->get_active_ndb_objects(), 
+			  ndb_obj_cnt);
+  
   if (apply_status_share)
   {
     free_share(&apply_status_share);
