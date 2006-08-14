@@ -578,3 +578,35 @@ INSERT INTO t1 VALUES (1,30), (2,20), (1,10), (2,30), (1,20), (2,10);
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+#
+# Bug#21302: Result not properly sorted when using an ORDER BY on a second 
+#             table in a join
+#
+CREATE TABLE t1 (a int, b int, PRIMARY KEY  (a));
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+
+explain SELECT t1.b as a, t2.b as c FROM 
+ t1 LEFT JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2) 
+ORDER BY c;
+SELECT t1.b as a, t2.b as c FROM 
+ t1 LEFT JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2) 
+ORDER BY c;
+
+# check that it still removes sort of const table
+explain SELECT t1.b as a, t2.b as c FROM 
+ t1 JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2)  
+ORDER BY c;
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * from t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 SELECT * from t1;
+CREATE TABLE t4 LIKE t1;
+INSERT INTO t4 SELECT * from t1;
+INSERT INTO t1 values (0,0),(4,4);
+
+SELECT t1.*,t2.* FROM t1 LEFT JOIN (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
+ON (t1.a=t2.a AND t1.b=t3.b) order by t2.b;
+
+DROP TABLE t1,t2,t3,t4;
