@@ -116,6 +116,19 @@ page_zip_alloc(
 	__attribute__((warn_unused_result, nonnull(1,2,3)));
 
 /**************************************************************************
+Write data to the uncompressed header portion of a page.  The data must
+already have been written to the uncompressed page. */
+UNIV_INLINE
+void
+page_zip_write_header(
+/*==================*/
+	page_zip_des_t*	page_zip,/* in/out: compressed page */
+	const byte*	str,	/* in: address on the uncompressed page */
+	ulint		length,	/* in: length of the data */
+	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	__attribute__((nonnull(1,2)));
+
+/**************************************************************************
 Write an entire record on the compressed page.  The data must already
 have been written to the uncompressed page. */
 
