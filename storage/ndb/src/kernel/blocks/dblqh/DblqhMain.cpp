@@ -3831,6 +3831,7 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
   } 
   else if (activeCreat == Fragrecord::AC_NR_COPY)
   {
+    regTcPtr->totSendlenAi = regTcPtr->totReclenAi;
     handle_nr_copy(signal, tcConnectptr);
   }
   else
@@ -3845,7 +3846,8 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
     signal->theData[0] = regTcPtr->tupConnectrec;
     EXECUTE_DIRECT(DBTUP, GSN_TUP_ABORTREQ, signal, 1);
     jamEntry();
-    
+
+    regTcPtr->totSendlenAi = regTcPtr->totReclenAi;
     packLqhkeyreqLab(signal);
   }
 }
@@ -7180,7 +7182,6 @@ void Dblqh::execACC_ABORTCONF(Signal* signal)
   signal->theData[0] = regTcPtr->tupConnectrec;
   EXECUTE_DIRECT(DBTUP, GSN_TUP_ABORTREQ, signal, 1);
   
-  regTcPtr->totSendlenAi = regTcPtr->totReclenAi;
   continueAbortLab(signal);
   return;
 }//Dblqh::execACC_ABORTCONF()
