@@ -186,8 +186,10 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   if (!open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE) &&
       !decoy.view)
   {
+    /* It's a table */
     return TRUE;
   }
+
   if (!lex->definer)
   {
     view->definer.host= decoy.definer.host;
@@ -646,6 +648,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], file_buff[FN_REFLEN], path_buff[FN_REFLEN];
+  const uchar *endp;
   LEX_STRING dir, file, path;
   DBUG_ENTER("mysql_register_view");
 
@@ -729,8 +732,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= (thd->query_length -
-                        thd->lex->create_view_select_start);
+  endp= (uchar*) view->source.str;
+  endp= skip_rear_comments(endp, (uchar*) (thd->query + thd->query_length));
+  view->source.length= endp - (uchar*) view->source.str;
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
