@@ -255,27 +255,27 @@ a
 3
 3
 delete from t1 where a < 4;
-select a from t1;
+select a from t1 order by a;
 a
 insert into t1 values (2), (2), (2), (1), (1), (3), (3), (3), (3);
 select a from t1 where a > 4;
 a
 delete from t1 where a > 4;
-select a from t1;
+select a from t1 order by a;
 a
-3
-3
 1
-3
-3
 1
 2
 2
 2
+3
+3
+3
+3
 select a from t1 where a > 3;
 a
 delete from t1 where a >= 2;
-select a from t1;
+select a from t1 order by a;
 a
 1
 1
