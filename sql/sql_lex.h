@@ -1190,6 +1190,6 @@ extern void lex_free(void);
 extern void lex_start(THD *thd, const uchar *buf, uint length);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
-extern uchar *skip_rear_comments(uchar *begin, uchar *end);
+extern const uchar *skip_rear_comments(const uchar *ubegin, const uchar *uend);
 
 #endif /* MYSQL_SERVER */

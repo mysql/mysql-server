@@ -519,6 +519,8 @@ sp_head::init_sp_name(THD *thd, sp_name *spname)
   m_qname.length= spname->m_qname.length;
   m_qname.str= strmake_root(thd->mem_root, spname->m_qname.str,
                             m_qname.length);
+
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1284,29 +1286,6 @@ sp_head::execute_trigger(THD *thd, const char *db, const char *table,
   DBUG_ENTER("sp_head::execute_trigger");
   DBUG_PRINT("info", ("trigger %s", m_name.str));
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  Security_context *save_ctx;
-  if (sp_change_security_context(thd, this, &save_ctx))
-    DBUG_RETURN(TRUE);
-
-  /*
-    NOTE: TRIGGER_ACL should be used here.
-  */
-  if (check_global_access(thd, SUPER_ACL))
-  {
-    sp_restore_security_context(thd, save_ctx);
-    DBUG_RETURN(TRUE);
-  }
-
-  /*
-    Fetch information about table-level privileges to GRANT_INFO
-    structure for subject table. Check of privileges that will use it
-    and information about column-level privileges will happen in
-    Item_trigger_field::fix_fields().
-  */
-  fill_effective_table_privileges(thd, grant_info, db, table);
-#endif // NO_EMBEDDED_ACCESS_CHECKS
-
   /*
     Prepare arena and memroot for objects which lifetime is whole
     duration of trigger call (sp_rcontext, it's tables and items,
@@ -1339,9 +1318,6 @@ sp_head::execute_trigger(THD *thd, const char *db, const char *table,
 
 err_with_cleanup:
   thd->restore_active_arena(&call_arena, &backup_arena);
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  sp_restore_security_context(thd, save_ctx);
-#endif // NO_EMBEDDED_ACCESS_CHECKS
   delete nctx;
   call_arena.free_items();
   free_root(&call_mem_root, MYF(0));
@@ -1810,6 +1786,7 @@ sp_head::reset_lex(THD *thd)
   sublex->ptr= oldlex->ptr;
   sublex->end_of_query= oldlex->end_of_query;
   sublex->tok_start= oldlex->tok_start;
+  sublex->tok_end= oldlex->tok_end;
   sublex->yylineno= oldlex->yylineno;
   /* And keep the SP stuff too */
   sublex->sphead= oldlex->sphead;
@@ -1845,6 +1822,7 @@ sp_head::restore_lex(THD *thd)
 
   // Update some state in the old one first
   oldlex->ptr= sublex->ptr;
+  oldlex->tok_end= sublex->tok_end;
   oldlex->next_state= sublex->next_state;
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 

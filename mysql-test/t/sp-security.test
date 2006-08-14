@@ -720,7 +720,6 @@ DROP USER mysqltest_2@localhost;
 
 DROP DATABASE mysqltest;
 
-
 #
 # Bug#19857 - When a user with CREATE ROUTINE priv creates a routine,
 #             it results in NULL p/w
@@ -769,7 +768,7 @@ DROP USER user19857@localhost;
 
 --disconnect con1root
 --connection default
-
+use test;
 
 #
 # BUG#18630: Arguments of suid routine calculated in wrong security

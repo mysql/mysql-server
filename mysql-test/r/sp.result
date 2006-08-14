@@ -5222,40 +5222,6 @@ CHARSET(p3)	COLLATION(p3)
 greek	greek_general_ci
 use test|
 DROP DATABASE mysqltest1|
-drop procedure if exists bug19862|
-CREATE TABLE t11 (a INT)|
-CREATE TABLE t12 (a INT)|
-CREATE FUNCTION bug19862(x INT) RETURNS INT
-BEGIN
-INSERT INTO t11 VALUES (x);
-RETURN x+1;
-END|
-INSERT INTO t12 VALUES (1), (2)|
-SELECT bug19862(a) FROM t12 ORDER BY 1|
-bug19862(a)
-2
-3
-SELECT * FROM t11|
-a
-1
-2
-DROP TABLE t11, t12|
-DROP FUNCTION bug19862|
-drop table if exists t3|
-drop database if exists mysqltest1|
-create table t3 (a int)|
-insert into t3 (a) values (1), (2)|
-create database mysqltest1|
-use mysqltest1|
-drop database mysqltest1|
-select database()|
-database()
-NULL
-select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
-a
-1
-use test|
-drop table t3|
 drop table if exists t3|
 drop database if exists mysqltest1|
 create table t3 (a int)|
@@ -5290,4 +5256,5 @@ a
 2
 DROP TABLE t11, t12|
 DROP FUNCTION bug19862|
+End of 5.0 tests
 drop table t1,t2;

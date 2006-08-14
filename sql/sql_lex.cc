@@ -1077,7 +1077,7 @@ int MYSQLlex(void *arg, void *yythd)
     Pointer to the last non-comment symbol of the statement.
 */
 
-uchar *skip_rear_comments(uchar *begin, uchar *end)
+const uchar *skip_rear_comments(const uchar *begin, const uchar *end)
 {
   while (begin < end && (end[-1] <= ' ' || end[-1] == '*' ||
                          end[-1] == '/' || end[-1] == ';'))

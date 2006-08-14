@@ -530,10 +530,12 @@ bool load_db_opt_by_name(THD *thd, const char *db_name,
 {
   char db_opt_path[FN_REFLEN];
 
-  strxnmov(db_opt_path, sizeof (db_opt_path) - 1, mysql_data_home, "/",
-           db_name, "/", MY_DB_OPT_FILE, NullS);
-
-  unpack_filename(db_opt_path, db_opt_path);
+  /*
+    Pass an empty file name, and the database options file name as extension
+    to avoid table name to file name encoding.
+  */
+  (void) build_table_filename(db_opt_path, sizeof(db_opt_path),
+                              db_name, "", MY_DB_OPT_FILE);
 
   return load_db_opt(thd, db_opt_path, db_create_info);
 }
@@ -1726,8 +1728,8 @@ bool check_db_dir_existence(const char *db_name)
   char db_dir_path[FN_REFLEN];
   uint db_dir_path_len;
 
-  db_dir_path_length=  build_table_filename(path, sizeof(path),
-                                            db_name, "", "", 0);
+  db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path),
+                                        db_name, "", "");
 
   if (db_dir_path_len && db_dir_path[db_dir_path_len - 1] == FN_LIBCHAR)
     db_dir_path[db_dir_path_len - 1]= 0;

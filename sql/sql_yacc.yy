@@ -1530,7 +1530,7 @@ ev_sql_stmt:
             {
               sp_head *sp= lex->sphead;
               // return back to the original memory root ASAP
-              sp->init_strings(YYTHD, lex, NULL);
+              sp->init_strings(YYTHD, lex);
               sp->restore_thd_mem_root(YYTHD);
 
               lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
