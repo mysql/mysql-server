@@ -1778,10 +1778,10 @@ Variable_name	Value
 Innodb_rows_deleted	2070
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	31727
+Innodb_rows_inserted	3083
 show status like "Innodb_rows_updated";
 Variable_name	Value
-Innodb_rows_updated	29530
+Innodb_rows_updated	886
 show status like "Innodb_row_lock_waits";
 Variable_name	Value
 Innodb_row_lock_waits	0
