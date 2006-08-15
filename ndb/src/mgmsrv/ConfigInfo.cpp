@@ -2604,6 +2604,13 @@ transformNode(InitConfigFileParser::Context & ctx, const char * data){
     return false;
   }
 
+  if(id >= MAX_NODES)
+  {
+    ctx.reportError("too many nodes configured, only up to %d nodes supported.",
+            MAX_NODES);
+    return false;
+  } 
+
   // next node id _always_ next numbers after last used id
   ctx.m_userProperties.put("NextNodeId", id+1, true);
 
@@ -3495,11 +3502,11 @@ sanity_checks(Vector<ConfigInfo::ConfigRuleSection>&sections,
   Uint32 mgm_nodes = 0;
   Uint32 api_nodes = 0;
   if (!ctx.m_userProperties.get("DB", &db_nodes)) {
-    ctx.reportError("At least one database node should be defined in config file");
+    ctx.reportError("At least one database node (ndbd) should be defined in config file");
     return false;
   }
   if (!ctx.m_userProperties.get("MGM", &mgm_nodes)) {
-    ctx.reportError("At least one management server node should be defined in config file");
+    ctx.reportError("At least one management server node (ndb_mgmd) should be defined in config file");
     return false;
   }
   if (!ctx.m_userProperties.get("API", &api_nodes)) {
