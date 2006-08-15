@@ -2266,7 +2266,9 @@ buf_validate(void)
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
+#ifdef UNIV_DEBUG_PRINT
 /*************************************************************************
 Prints info of the buffer buf_pool data structure. */
 
@@ -2365,9 +2367,9 @@ buf_print(void)
 	mem_free(index_ids);
 	mem_free(counts);
 
-	ut_a(buf_validate());
+	ut_ad(buf_validate());
 }
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG_PRINT */
 
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
