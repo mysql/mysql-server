@@ -34,7 +34,8 @@ HASH open_cache;				/* Used by mysql_test */
 
 static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 			     const char *name, const char *alias,
-			     TABLE_LIST *table_list, MEM_ROOT *mem_root);
+			     TABLE_LIST *table_list, MEM_ROOT *mem_root,
+                             uint flags);
 static void free_cache_entry(TABLE *entry);
 static void mysql_rm_tmp_tables(void);
 static bool open_new_frm(THD *thd, const char *path, const char *alias,
@@ -1108,7 +1109,7 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   if (open_unireg_entry(thd, table, db, table_name, table_name, 0,
-                        thd->mem_root) ||
+                        thd->mem_root, 0) ||
       !(table->s->table_cache_key= memdup_root(&table->mem_root, (char*) key,
                                                key_length)))
   {
@@ -1311,7 +1312,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
         VOID(pthread_mutex_lock(&LOCK_open));
         if (!open_unireg_entry(thd, table, table_list->db,
                                table_list->table_name,
-                               alias, table_list, mem_root))
+                               alias, table_list, mem_root, 0))
         {
           DBUG_ASSERT(table_list->view != 0);
           VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1391,6 +1392,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   else
   {
     TABLE_SHARE *share;
+    int error;
     /* Free cache if too big */
     while (open_cache.records > table_cache_size && unused_tables)
       VOID(hash_delete(&open_cache,(byte*) unused_tables)); /* purecov: tested */
@@ -1401,9 +1403,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
     }
-    if (open_unireg_entry(thd, table, table_list->db, table_list->table_name,
-			  alias, table_list, mem_root) ||
-	(!table_list->view && 
+    error= open_unireg_entry(thd, table, table_list->db,
+                          table_list->table_name,
+			  alias, table_list, mem_root,
+                          (flags & OPEN_VIEW_NO_PARSE));
+    if ((error > 0) ||
+	(!table_list->view && !error &&
 	 !(table->s->table_cache_key= memdup_root(&table->mem_root,
                                                   (char*) key,
                                                   key_length))))
@@ -1413,8 +1418,15 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(NULL);
     }
-    if (table_list->view)
+    if (table_list->view || error < 0)
     {
+      /*
+        VIEW not really opened, only frm were read.
+        Set 1 as a flag here
+      */
+      if (error < 0)
+        table_list->view= (st_lex*)1;
+
       my_free((gptr)table, MYF(0));
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_RETURN(0); // VIEW
@@ -1521,7 +1533,7 @@ bool reopen_table(TABLE *table,bool locked)
   safe_mutex_assert_owner(&LOCK_open);
 
   if (open_unireg_entry(table->in_use, &tmp, db, table_name,
-			table->alias, 0, table->in_use->mem_root))
+			table->alias, 0, table->in_use->mem_root, 0))
     goto end;
   free_io_cache(table);
 
@@ -1851,6 +1863,8 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
     alias		Alias name
     table_desc		TABLE_LIST descriptor (used with views)
     mem_root		temporary mem_root for parsing
+    flags               the OPEN_VIEW_NO_PARSE flag to be passed to
+                        openfrm()/open_new_frm()
 
   NOTES
    Extra argument for open is taken from thd->open_options
@@ -1861,7 +1875,8 @@ void abort_locked_tables(THD *thd,const char *db, const char *table_name)
 */
 static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 			     const char *name, const char *alias,
-			     TABLE_LIST *table_desc, MEM_ROOT *mem_root)
+			     TABLE_LIST *table_desc, MEM_ROOT *mem_root,
+                             uint flags)
 {
   char path[FN_REFLEN];
   int error;
@@ -1873,14 +1888,16 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
 		         (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
 			         HA_GET_INDEX | HA_TRY_READ_ONLY |
                                  NO_ERR_ON_NEW_FRM),
-		      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+		      READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
+                      (flags & OPEN_VIEW_NO_PARSE),
 		      thd->open_options, entry)) &&
       (error != 5 ||
        (fn_format(path, path, 0, reg_ext, MY_UNPACK_FILENAME),
         open_new_frm(thd, path, alias, db, name,
                      (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                              HA_GET_INDEX | HA_TRY_READ_ONLY),
-                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
+                     (flags & OPEN_VIEW_NO_PARSE),
                      thd->open_options, entry, table_desc, mem_root))))
 
   {
@@ -1962,7 +1979,7 @@ static int open_unireg_entry(THD *thd, TABLE *entry, const char *db,
   }
 
   if (error == 5)
-    DBUG_RETURN(0);	// we have just opened VIEW
+    DBUG_RETURN((flags & OPEN_VIEW_NO_PARSE)? -1 : 0);	// we have just opened VIEW
 
   /*
     We can't mark all tables in 'mysql' database as system since we don't
@@ -5379,7 +5396,8 @@ open_new_frm(THD *thd, const char *path, const char *alias,
         my_error(ER_WRONG_OBJECT, MYF(0), db, table_name, "BASE TABLE");
         goto err;
       }
-      if (mysql_make_view(thd, parser, table_desc))
+      if (mysql_make_view(thd, parser, table_desc,
+                          (prgflag & OPEN_VIEW_NO_PARSE)))
         goto err;
     }
     else
