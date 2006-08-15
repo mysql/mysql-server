@@ -179,22 +179,16 @@ static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
   LEX *lex= thd->lex;
-  bool free_view= 1;
+  bool not_used;
   TABLE_LIST decoy;
 
-  if (view->view)
-    free_view= 0;
   memcpy (&decoy, view, sizeof (TABLE_LIST));
-  if ((decoy.table= open_table(thd, &decoy, thd->mem_root, NULL, 0)))
+  if (!open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE) &&
+      !decoy.view)
   {
     /* It's a table */
-    my_free((gptr)decoy.table, MYF(0));
-    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
     return TRUE;
   }
-  if (!decoy.view)
-    /* An error while opening the view occurs, caller will handle it */
-    return FALSE;
 
   if (!lex->definer)
   {
@@ -207,11 +201,6 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   if (lex->create_view_suid == VIEW_SUID_DEFAULT)
     lex->create_view_suid= decoy.view_suid ? 
       VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
-  if (free_view)
-  {
-    delete decoy.view;
-    lex->cleanup_after_one_table_open();
-  }
 
   return FALSE;
 }
@@ -830,13 +819,14 @@ loop_out:
     thd			Thread handler
     parser		parser object
     table		TABLE_LIST structure for filling
-
+    flags               flags
   RETURN
     0 ok
     1 error
 */
 
-bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
+bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
+                     uint flags)
 {
   SELECT_LEX *end, *view_select;
   LEX *old_lex, *lex;
@@ -926,6 +916,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
                         ER_VIEW_FRM_NO_USER, ER(ER_VIEW_FRM_NO_USER),
                         table->db, table->table_name);
     get_default_definer(thd, &table->definer);
+  }
+  if (flags & OPEN_VIEW_NO_PARSE)
+  {
+    DBUG_RETURN(FALSE);
   }
 
   /*
