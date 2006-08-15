@@ -86,7 +86,7 @@ public:
 
   QUICK_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc=0);
   virtual ~QUICK_SELECT();
-  void reset(void) { next=0; it.rewind(); }
+  void reset(void) { next=0; it.rewind(); range= NULL;}
   int init()
   {
     key_part_info= head->key_info[index].key_part;
