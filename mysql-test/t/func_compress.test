@@ -57,3 +57,17 @@ select uncompress(a), uncompressed_length(a) from t1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug #18539: uncompress(d) is null: impossible?
+#
+create table t1 (a varchar(32) not null);
+insert into t1 values ('foo');
+explain select * from t1 where uncompress(a) is null;
+select * from t1 where uncompress(a) is null;
+explain select *, uncompress(a) from t1;
+select *, uncompress(a) from t1;
+select *, uncompress(a), uncompress(a) is null from t1;
+drop table t1;
+
+--echo End of 5.0 tests

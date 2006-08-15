@@ -301,7 +301,10 @@ end:
           append_definer(thd, &log_query, &definer_user, &definer_host);
         }
 
-        log_query.append(thd->lex->stmt_definition_begin);
+        log_query.append(thd->lex->stmt_definition_begin,
+                         (char *)thd->lex->sphead->m_body_begin -
+                         thd->lex->stmt_definition_begin +
+                         thd->lex->sphead->m_body.length);
       }
 
       /* Such a statement can always go directly to binlog, no trans cache. */
@@ -1497,7 +1500,6 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
       new_field= record1_field;
       old_field= table->field;
     }
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     Security_context *save_ctx;
 
@@ -1531,7 +1533,9 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
 #endif // NO_EMBEDDED_ACCESS_CHECKS
 
     thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
-    err_status= sp_trigger->execute_function(thd, 0, 0, 0);
+    err_status= sp_trigger->execute_trigger
+      (thd, table->s->db.str, table->s->table_name.str,
+       &subject_table_grants[event][time_type]);
     thd->restore_sub_statement_state(&statement_state);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

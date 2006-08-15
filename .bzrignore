@@ -943,6 +943,7 @@ ndb/src/common/mgmcommon/printConfig/*.d
 ndb/src/common/portlib/libportlib.dsp
 ndb/src/common/transporter/libtransporter.dsp
 ndb/src/common/util/libgeneral.dsp
+ndb/src/common/util/testBitmask.cpp
 ndb/src/cw/cpcd/ndb_cpcd
 ndb/src/dummy.cpp
 ndb/src/kernel/blocks/backup/libbackup.dsp

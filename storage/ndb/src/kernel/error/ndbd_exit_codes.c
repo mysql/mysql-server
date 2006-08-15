@@ -252,7 +252,7 @@ int ndbd_exit_string(int err_no, char *str, unsigned int size)
   ndbd_exit_classification cl;
   ndbd_exit_status st;
   const char *msg = ndbd_exit_message(err_no, &cl);
-  if (msg[0] != '\0')
+  if (msg[0] != '\0' && cl != XUE)
   {
     const char *cl_msg = ndbd_exit_classification_message(cl, &st);
     const char *st_msg = ndbd_exit_status_message(st);
