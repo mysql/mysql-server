@@ -110,6 +110,17 @@ SELECT metaphon(v) AS f FROM bug19904;
 DROP TABLE bug19904;
 
 #
+# Bug#21269: DEFINER-clause is allowed for UDF-functions
+#
+
+--error ER_WRONG_USAGE
+CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+
+--error ER_WRONG_USAGE
+CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+#
 # Bug#19862: Sort with filesort by function evaluates function twice
 #
 create table t1(f1 int);

@@ -188,6 +188,24 @@ disconnect con9;
 connection default;
 
 #
+# Bug# 16180 - Setting SQL_LOG_OFF without SUPER privilege is silently ignored
+#
+create database mysqltest_1;
+grant select, insert, update on `mysqltest\_1`.* to mysqltest_1@localhost;
+connect (con10,localhost,mysqltest_1,,);
+connection con10;
+--error 1227
+set sql_log_off = 1;
+--error 1227
+set sql_log_bin = 0;
+disconnect con10;
+connection default;
+delete from mysql.user where user like 'mysqltest\_1';
+delete from mysql.db where user like 'mysqltest\_1';
+drop database mysqltest_1;
+flush privileges;
+
+# End of 4.1 tests
 # Create and drop user
 #
 set sql_mode='maxdb';

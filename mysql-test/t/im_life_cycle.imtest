@@ -7,33 +7,7 @@
 ###########################################################################
 
 --source include/im_check_os.inc
-
-###########################################################################
-#
-# 1.1.1. Check that Instance Manager is able:
-#  - to read definitions of two mysqld-instances;
-#  - to start the first instance;
-#  - to understand 'nonguarded' option and keep the second instance down;
-#
-###########################################################################
-
---echo
---echo --------------------------------------------------------------------
---echo -- 1.1.1.
---echo --------------------------------------------------------------------
-
-# Wait for mysqld1 (guarded instance) to start.
-
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD1_PATH_PID 30 started
-
-# Let IM detect that mysqld1 is online. This delay should be longer than
-# monitoring interval.
-
---sleep 3
-
-# Check that start conditions are as expected.
-
-SHOW INSTANCES;
+--source include/im_check_env.inc
 
 ###########################################################################
 #
@@ -54,9 +28,10 @@ START INSTANCE mysqld2;
 # FIXME: START INSTANCE should be synchronous.
 --exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started
 
-# FIXME: SHOW INSTANCES is not deterministic unless START INSTANCE is
-# synchronous. Even waiting for mysqld to start by looking at its pid file is
-# not enough, because IM may not detect that mysqld has started.
+# FIXME: Result of SHOW INSTANCES here is not deterministic unless START
+# INSTANCE is synchronous. Even waiting for mysqld to start by looking at
+# its pid file is not enough, because it is unknown when IM detects that
+# mysqld has started.
 # SHOW INSTANCES;
 
 --connect (mysql_con,localhost,root,,mysql,$IM_MYSQLD2_PORT,$IM_MYSQLD2_SOCK)
@@ -86,9 +61,10 @@ STOP INSTANCE mysqld2;
 # FIXME: STOP INSTANCE should be synchronous.
 --exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped
 
-# FIXME: SHOW INSTANCES is not deterministic unless START INSTANCE is
-# synchronous. Even waiting for mysqld to start by looking at its pid file is
-# not enough, because IM may not detect that mysqld has started.
+# FIXME: Result of SHOW INSTANCES here is not deterministic unless START
+# INSTANCE is synchronous. Even waiting for mysqld to start by looking at
+# its pid file is not enough, because it is unknown when IM detects that
+# mysqld has started.
 # SHOW INSTANCES;
 
 ###########################################################################
@@ -114,8 +90,8 @@ START INSTANCE mysqld1;
 
 ###########################################################################
 #
-# 1.1.5. Check that Instance Manager reports correct errors for 'STOP INSTANCE'
-# command:
+# 1.1.5. Check that Instance Manager reports correct errors for
+#        'STOP INSTANCE' command:
 #   - if the client tries to start unregistered instance;
 #   - if the client tries to start already stopped instance;
 #   - if the client submits invalid arguments;
@@ -146,12 +122,10 @@ STOP INSTANCE mysqld3;
 --echo -- 1.1.6.
 --echo --------------------------------------------------------------------
 
-SHOW INSTANCES;
-
 --exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD1_PATH_PID restarted 30
 
-# Give some time to IM to detect that mysqld was restarted. It should be longer
-# than monitoring interval.
+# Give some time to IM to detect that mysqld was restarted. It should be
+# longer than monitoring interval.
 
 --sleep 3
 
@@ -172,16 +146,18 @@ START INSTANCE mysqld2;
 # FIXME: START INSTANCE should be synchronous.
 --exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started
 
-# FIXME: SHOW INSTANCES is not deterministic unless START INSTANCE is
-# synchronous. Even waiting for mysqld to start by looking at its pid file is
-# not enough, because IM may not detect that mysqld has started.
+# FIXME: Result of SHOW INSTANCES here is not deterministic unless START
+# INSTANCE is synchronous. Even waiting for mysqld to start by looking at
+# its pid file is not enough, because it is unknown when IM detects that
+# mysqld has started.
 # SHOW INSTANCES;
 
 --exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_MYSQLD2_PATH_PID killed 10
 
-# FIXME: SHOW INSTANCES is not deterministic unless START INSTANCE is
-# synchronous. Even waiting for mysqld to start by looking at its pid file is
-# not enough, because IM may not detect that mysqld has started.
+# FIXME: Result of SHOW INSTANCES here is not deterministic unless START
+# INSTANCE is synchronous. Even waiting for mysqld to start by looking at
+# its pid file is not enough, because it is unknown when IM detects that
+# mysqld has started.
 # SHOW INSTANCES;
 
 ###########################################################################

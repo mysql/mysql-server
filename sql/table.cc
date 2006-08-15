@@ -4046,13 +4046,27 @@ void st_table::mark_columns_needed_for_insert()
     st_table_list::reinit_before_use()
 */
 
-void st_table_list::reinit_before_use(THD * /* thd */)
+void st_table_list::reinit_before_use(THD *thd)
 {
   /*
     Reset old pointers to TABLEs: they are not valid since the tables
     were closed in the end of previous prepare or execute call.
   */
   table= 0;
+  /* Reset is_schema_table_processed value(needed for I_S tables */
+  is_schema_table_processed= FALSE;
+
+  TABLE_LIST *embedded; /* The table at the current level of nesting. */
+  TABLE_LIST *embedding= this; /* The parent nested table reference. */
+  do
+  {
+    embedded= embedding;
+    if (embedded->prep_on_expr)
+      embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
+    embedding= embedded->embedding;
+  }
+  while (embedding &&
+         embedding->nested_join->join_list.head() == embedded);
 }
 
 
