@@ -6498,8 +6498,23 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
         field_item= (Item_field*) right_item;
         const_item= left_item;
       }
+      /* 
+        Disable const propagation for Item_hex_string.
+        This must be done because Item_hex_string->val_int() is not
+        the same as (Item_hex_string->val_str() in BINARY column)->val_int().
+        We cannot simply disable the replacement in a particular context (
+        e.g. <bin_col> = <int_col> AND <bin_col> = <hex_string>) since
+        Items don't know the context they are in and there are functions like 
+        IF (<hex_string>, 'yes', 'no').
+        Note that this will disable some valid cases as well 
+        (e.g. : <bin_col> = <hex_string> AND <bin_col2> = <bin_col>) but 
+        there's no way to distinguish the valid cases without having the
+        Item's parent say something like : Item->set_context(Item::STRING_RESULT)
+        and have all the Items that contain other Items do that consistently.
+      */
       if (const_item &&
-          field_item->result_type() == const_item->result_type())
+          field_item->result_type() == const_item->result_type() &&
+          const_item->type() != Item::VARBIN_ITEM)
       {
         bool copyfl;
 
