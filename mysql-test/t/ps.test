@@ -491,6 +491,7 @@ deallocate prepare stmt;
 drop table t1, t2;
 
 #
+#
 # Bug#19399 "Stored Procedures 'Lost Connection' when dropping/creating
 #            tables"
 # Check that multi-delete tables are also cleaned up before re-execution.
@@ -536,86 +537,6 @@ SELECT FOUND_ROWS();
 execute stmt;                                                                   
 SELECT FOUND_ROWS();                                                            
 deallocate prepare stmt;
-
-#
-# Bug#8115: equality propagation and prepared statements
-#
-
-create table t1 (a char(3) not null, b char(3) not null,
-                 c char(3) not null, primary key  (a, b, c));
-create table t2 like t1;
-
-# reduced query
-prepare stmt from
-  "select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
-  where t1.a=1";
-execute stmt;
-execute stmt;
-execute stmt;
-
-# original query
-prepare stmt from
-"select t1.a, t1.b, t1.c, t2.a, t2.b, t2.c from
-(t1 left outer join t2 on t2.a=? and t1.b=t2.b)
-left outer join t2 t3 on t3.a=? where t1.a=?";
-
-set @a:=1, @b:=1, @c:=1;
-
-execute stmt using @a, @b, @c;
-execute stmt using @a, @b, @c;
-execute stmt using @a, @b, @c;
-
-deallocate prepare stmt;
-
-drop table t1,t2;
-
-
-#
-# Bug#9383: INFORMATION_SCHEMA.COLUMNS, JOIN, Crash, prepared statement
-#
-
-eval SET @aux= "SELECT COUNT(*)
-                FROM INFORMATION_SCHEMA.COLUMNS A,
-                INFORMATION_SCHEMA.COLUMNS B
-                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
-                AND A.TABLE_NAME = B.TABLE_NAME
-                AND A.COLUMN_NAME = B.COLUMN_NAME AND
-                A.TABLE_NAME = 'user'";
-
-let $exec_loop_count= 3;
-eval prepare my_stmt from @aux;
-while ($exec_loop_count)
-{
-  eval execute my_stmt;
-  dec $exec_loop_count;
-}
-deallocate prepare my_stmt;
-
-# Test CALL in prepared mode
-delimiter |;
---disable_warnings
-drop procedure if exists p1|
-drop table if exists t1|
---enable_warnings
-create table t1 (id int)|
-insert into t1 values(1)|
-create procedure p1(a int, b int)
-begin
-  declare c int;
-  select max(id)+1 into c from t1;
-  insert into t1 select a+b;
-  insert into t1 select a-b;
-  insert into t1 select a-c;
-end|
-set @a= 3, @b= 4|
-prepare stmt from "call p1(?, ?)"|
-execute stmt using @a, @b|
-execute stmt using @a, @b|
-select * from t1|
-deallocate prepare stmt|
-drop procedure p1|
-drop table t1|
-delimiter ;|
 
 #
 # Bug#9096 "select doesn't return all matched records if prepared statements
@@ -690,35 +611,6 @@ select t2.id from t2, t1 where (t1.id=1 and t2.t1_id=t1.id);
 
 deallocate prepare stmt;
 drop table t1, t2;
-
-#
-# Bug#7306 LIMIT ?, ? and also WL#1785 " Prepared statements: implement
-# support for placeholders in LIMIT clause."
-# Add basic test coverage for the feature.
-# 
-create table t1 (a int);
-insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-prepare stmt from "select * from t1 limit ?, ?";
-set @offset=0, @limit=1;
-execute stmt using @offset, @limit;
-select * from t1 limit 0, 1;
-set @offset=3, @limit=2;
-execute stmt using @offset, @limit;
-select * from t1 limit 3, 2;
-prepare stmt from "select * from t1 limit ?";
-execute stmt using @limit;
---error 1235
-prepare stmt from "select * from t1 where a in (select a from t1 limit ?)";
-prepare stmt from "select * from t1 union all select * from t1 limit ?, ?";
-set @offset=9;
-set @limit=2;
-execute stmt using @offset, @limit;
-prepare stmt from "(select * from t1 limit ?, ?) union all
-                   (select * from t1 limit ?, ?) order by a limit ?";
-execute stmt using @offset, @limit, @offset, @limit, @limit;
-
-drop table t1;
-deallocate prepare stmt;
 
 #
 # Bug#11060 "Server crashes on calling stored procedure with INSERT SELECT
@@ -837,22 +729,6 @@ select ??;
 select ? from t1;
 --enable_ps_protocol
 drop table t1;
-
-#
-# Bug#12651
-# (Crash on a PS including a subquery which is a select from a simple view)
-#
-CREATE TABLE b12651_T1(a int) ENGINE=MYISAM;
-CREATE TABLE b12651_T2(b int) ENGINE=MYISAM;
-CREATE VIEW  b12651_V1 as SELECT b FROM b12651_T2;
-
-PREPARE b12651 FROM 'SELECT 1 FROM b12651_T1 WHERE a IN (SELECT b FROM b12651_V1)';
-EXECUTE b12651;
-
-DROP VIEW b12651_V1;
-DROP TABLE b12651_T1, b12651_T2;
-DEALLOCATE PREPARE b12651;
-
 #
 # Bug#9359 "Prepared statements take snapshot of system vars at PREPARE
 # time"
@@ -1087,7 +963,172 @@ select @@max_prepared_stmt_count, @@prepared_stmt_count;
 set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
 --enable_ps_protocol
 
-# End of 4.1 tests
+#
+# Bug#19399 "Stored Procedures 'Lost Connection' when dropping/creating
+#            tables"
+# Check that multi-delete tables are also cleaned up before re-execution.
+# 
+--disable_warnings
+drop table if exists t1;
+create temporary table if not exists t1 (a1 int);
+--enable_warnings
+# exact delete syntax is essential
+prepare stmt from "delete t1 from t1 where (cast(a1/3 as unsigned) * 3) = a1";
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+# the server crashed on  the next statement without the fix
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+# the problem was in memory corruption: repeat the test just in case
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+deallocate prepare stmt;
+
+--echo End of 4.1 tests
+############################# 5.0 tests start ################################
+#
+#
+# Bug#6102 "Server crash with prepared statement and blank after
+# function name"
+# ensure that stored functions are cached when preparing a statement
+# before we open tables
+#
+create table t1 (a varchar(20)); 
+insert into t1 values ('foo'); 
+--error 1305
+prepare stmt FROM 'SELECT char_length (a) FROM t1'; 
+drop table t1;
+
+#
+# Bug#8115: equality propagation and prepared statements
+#
+
+create table t1 (a char(3) not null, b char(3) not null,
+                 c char(3) not null, primary key  (a, b, c));
+create table t2 like t1;
+
+# reduced query
+prepare stmt from
+  "select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
+  where t1.a=1";
+execute stmt;
+execute stmt;
+execute stmt;
+
+# original query
+prepare stmt from
+"select t1.a, t1.b, t1.c, t2.a, t2.b, t2.c from
+(t1 left outer join t2 on t2.a=? and t1.b=t2.b)
+left outer join t2 t3 on t3.a=? where t1.a=?";
+
+set @a:=1, @b:=1, @c:=1;
+
+execute stmt using @a, @b, @c;
+execute stmt using @a, @b, @c;
+execute stmt using @a, @b, @c;
+
+deallocate prepare stmt;
+
+drop table t1,t2;
+
+
+#
+# Bug#9383: INFORMATION_SCHEMA.COLUMNS, JOIN, Crash, prepared statement
+#
+
+eval SET @aux= "SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS A,
+                INFORMATION_SCHEMA.COLUMNS B
+                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
+                AND A.TABLE_NAME = B.TABLE_NAME
+                AND A.COLUMN_NAME = B.COLUMN_NAME AND
+                A.TABLE_NAME = 'user'";
+
+let $exec_loop_count= 3;
+eval prepare my_stmt from @aux;
+while ($exec_loop_count)
+{
+  eval execute my_stmt;
+  dec $exec_loop_count;
+}
+deallocate prepare my_stmt;
+
+# Test CALL in prepared mode
+delimiter |;
+--disable_warnings
+drop procedure if exists p1|
+drop table if exists t1|
+--enable_warnings
+create table t1 (id int)|
+insert into t1 values(1)|
+create procedure p1(a int, b int)
+begin
+  declare c int;
+  select max(id)+1 into c from t1;
+  insert into t1 select a+b;
+  insert into t1 select a-b;
+  insert into t1 select a-c;
+end|
+set @a= 3, @b= 4|
+prepare stmt from "call p1(?, ?)"|
+execute stmt using @a, @b|
+execute stmt using @a, @b|
+select * from t1|
+deallocate prepare stmt|
+drop procedure p1|
+drop table t1|
+delimiter ;|
+
+
+#
+# Bug#7306 LIMIT ?, ? and also WL#1785 " Prepared statements: implement
+# support for placeholders in LIMIT clause."
+# Add basic test coverage for the feature.
+# 
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select * from t1 limit ?, ?";
+set @offset=0, @limit=1;
+execute stmt using @offset, @limit;
+select * from t1 limit 0, 1;
+set @offset=3, @limit=2;
+execute stmt using @offset, @limit;
+select * from t1 limit 3, 2;
+prepare stmt from "select * from t1 limit ?";
+execute stmt using @limit;
+--error 1235
+prepare stmt from "select * from t1 where a in (select a from t1 limit ?)";
+prepare stmt from "select * from t1 union all select * from t1 limit ?, ?";
+set @offset=9;
+set @limit=2;
+execute stmt using @offset, @limit;
+prepare stmt from "(select * from t1 limit ?, ?) union all
+                   (select * from t1 limit ?, ?) order by a limit ?";
+execute stmt using @offset, @limit, @offset, @limit, @limit;
+
+drop table t1;
+deallocate prepare stmt;
+
+#
+# Bug#12651
+# (Crash on a PS including a subquery which is a select from a simple view)
+#
+CREATE TABLE b12651_T1(a int) ENGINE=MYISAM;
+CREATE TABLE b12651_T2(b int) ENGINE=MYISAM;
+CREATE VIEW  b12651_V1 as SELECT b FROM b12651_T2;
+
+PREPARE b12651 FROM 'SELECT 1 FROM b12651_T1 WHERE a IN (SELECT b FROM b12651_V1)';
+EXECUTE b12651;
+
+DROP VIEW b12651_V1;
+DROP TABLE b12651_T1, b12651_T2;
+DEALLOCATE PREPARE b12651;
+
+
 
 #
 # Bug #14956: ROW_COUNT() returns incorrect result after EXECUTE of prepared

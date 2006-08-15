@@ -192,3 +192,13 @@ delete t2.*,t3.* from t1,t2,t3 where t1.a=t2.a AND t2.b=t3.a and t1.b=t3.b;
 select * from t3;
 a	b
 drop table t1,t2,t3;
+create table t1(a date not null);
+insert into t1 values (0);
+select * from t1 where a is null;
+a
+0000-00-00
+delete from t1 where a is null;
+select count(*) from t1;
+count(*)
+0
+drop table t1;
