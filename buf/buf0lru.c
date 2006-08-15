@@ -1026,7 +1026,6 @@ buf_LRU_print(void)
 {
 	buf_block_t*	block;
 	buf_frame_t*	frame;
-	ulint		len;
 
 	ut_ad(buf_pool);
 	mutex_enter(&(buf_pool->mutex));
@@ -1034,8 +1033,6 @@ buf_LRU_print(void)
 	fprintf(stderr, "Pool ulint clock %lu\n", (ulong) buf_pool->ulint_clock);
 
 	block = UT_LIST_GET_FIRST(buf_pool->LRU);
-
-	len = 0;
 
 	while (block != NULL) {
 
@@ -1054,23 +1051,18 @@ buf_LRU_print(void)
 			fprintf(stderr, "io_fix %lu ", (ulong) block->io_fix);
 		}
 
-		if (ut_dulint_cmp(block->oldest_modification,
-				ut_dulint_zero) > 0) {
+		if (!ut_dulint_is_zero(block->oldest_modification)) {
 			fputs("modif. ", stderr);
 		}
 
 		frame = buf_block_get_frame(block);
 
-		fprintf(stderr, "LRU pos %lu type %lu index id %lu ",
+		fprintf(stderr, "\nLRU pos %lu type %lu index id %lu\n",
 			(ulong) block->LRU_position,
 			(ulong) fil_page_get_type(frame),
 			(ulong) ut_dulint_get_low(btr_page_get_index_id(frame)));
 
 		block = UT_LIST_GET_NEXT(LRU, block);
-		if (++len == 10) {
-			len = 0;
-			putc('\n', stderr);
-		}
 	}
 
 	mutex_exit(&(buf_pool->mutex));
