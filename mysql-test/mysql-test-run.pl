@@ -2122,7 +2122,6 @@ sub install_db ($$) {
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
-  mtr_add_arg($args, "--skip-bdb");
   mtr_add_arg($args, "--tmpdir=.");
 
   if ( ! $opt_netware )
@@ -2215,7 +2214,6 @@ basedir             = $path_my_basedir
 server_id           = $server_id
 skip-stack-trace
 skip-innodb
-skip-bdb
 skip-ndbcluster
 EOF
 ;
@@ -2629,7 +2627,6 @@ sub mysqld_arguments ($$$$$) {
   if ( $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
-    mtr_add_arg($args, "%s--skip-bdb", $prefix);
   }
 
   my $pidfile;
