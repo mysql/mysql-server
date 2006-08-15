@@ -6571,6 +6571,11 @@ void Field_varstring::sql_type(String &res) const
 }
 
 
+uint Field_varstring::data_length(const char *from)
+{
+  return length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+}
+
 /*
   Functions to create a packed row.
   Here the number of length bytes are depending on the given max_length
@@ -8523,7 +8528,8 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
 
   comment= *fld_comment;
   /*
-    Set flag if this field doesn't have a default value
+    Set NO_DEFAULT_VALUE_FLAG if this field doesn't have a default value and
+    it is NOT NULL, not an AUTO_INCREMENT field and not a TIMESTAMP.
   */
   if (!fld_default_value && !(fld_type_modifier & AUTO_INCREMENT_FLAG) &&
       (fld_type_modifier & NOT_NULL_FLAG) && fld_type != FIELD_TYPE_TIMESTAMP)
@@ -8600,11 +8606,27 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       /* Allow empty as default value. */
       String str,*res;
       res= fld_default_value->val_str(&str);
-      if (res->length())
+      /*
+        A default other than '' is always an error, and any non-NULL
+        specified default is an error in strict mode.
+      */
+      if (res->length() || (thd->variables.sql_mode &
+                            (MODE_STRICT_TRANS_TABLES |
+                             MODE_STRICT_ALL_TABLES)))
       {
         my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0),
                  fld_name); /* purecov: inspected */
         DBUG_RETURN(TRUE);
+      }
+      else
+      {
+        /*
+          Otherwise a default of '' is just a warning.
+        */
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_BLOB_CANT_HAVE_DEFAULT,
+                            ER(ER_BLOB_CANT_HAVE_DEFAULT),
+                            fld_name);
       }
       def= 0;
     }

@@ -795,6 +795,10 @@ typedef struct st_table_list
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
+  /*
+    Cleanup for re-execution in a prepared statement or a stored
+    procedure.
+  */
 } TABLE_LIST;
 
 class Item;

@@ -93,6 +93,12 @@ NULL
 0R
 FR
 DROP TABLE bug19904;
+CREATE DEFINER=CURRENT_USER() FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+ERROR HY000: Incorrect usage of SONAME and DEFINER
+CREATE DEFINER=someone@somewhere FUNCTION should_not_parse
+RETURNS STRING SONAME "should_not_parse.so";
+ERROR HY000: Incorrect usage of SONAME and DEFINER
 create table t1(f1 int);
 insert into t1 values(1),(2);
 explain select myfunc_int(f1) from t1 order by 1;

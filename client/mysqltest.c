@@ -5319,6 +5319,14 @@ int main(int argc, char **argv)
 	  q->require_file=require_file;
 	  save_file[0]=0;
 	}
+        /*
+          To force something being sent as a query to the mysqld one can
+          use the prefix "query". Remove "query" from string before executing
+        */
+        if (strncmp(q->query, "query ", 6) == 0)
+        {
+          q->query= q->first_argument;
+        }
 	run_query(&cur_con->mysql, q, flags);
 	query_executed= 1;
         q->last_argument= q->end;
