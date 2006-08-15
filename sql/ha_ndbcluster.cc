@@ -35,6 +35,7 @@
 // options from from mysqld.cc
 extern my_bool opt_ndb_optimized_node_selection;
 extern const char *opt_ndbcluster_connectstring;
+extern ulong opt_ndb_cache_check_time;
 
 // Default value for parallelism
 static const int parallelism= 0;
@@ -5210,6 +5211,7 @@ bool ndbcluster_init()
   pthread_cond_init(&COND_ndb_util_thread, NULL);
 
 
+  ndb_cache_check_time = opt_ndb_cache_check_time;
   // Create utility thread
   pthread_t tmp;
   if (pthread_create(&tmp, &connection_attrib, ndb_util_thread_func, 0))
