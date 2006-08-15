@@ -5545,7 +5545,7 @@ ST_FIELD_INFO processlist_fields_info[]=
   {"DB", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Db"},
   {"COMMAND", 16, MYSQL_TYPE_STRING, 0, 0, "Command"},
   {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time"},
-  {"STATE", 30, MYSQL_TYPE_STRING, 0, 1, "State"},
+  {"STATE", 64, MYSQL_TYPE_STRING, 0, 1, "State"},
   {"INFO", PROCESS_LIST_INFO_WIDTH, MYSQL_TYPE_STRING, 0, 1, "Info"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
