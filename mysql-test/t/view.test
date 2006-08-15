@@ -2718,3 +2718,12 @@ DROP TABLE t1;
 --disable_warnings
 DROP VIEW IF EXISTS v1;
 --enable_warnings
+
+#
+# Bug #15950: NOW() optimized away in VIEWs
+#
+create table t1 (f1 datetime);
+create view v1 as select * from t1 where f1 between now() and now() + interval 1 minute;
+show create view v1;
+drop view v1;
+drop table t1;
