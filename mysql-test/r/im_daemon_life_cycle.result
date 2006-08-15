@@ -1,4 +1,7 @@
 Success: the process has been started.
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
 SHOW INSTANCES;
 instance_name	state
 mysqld1	online
