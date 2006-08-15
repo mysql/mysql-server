@@ -262,6 +262,8 @@ class ha_ndbcluster: public handler
   void no_uncommitted_rows_init(THD *);
   void no_uncommitted_rows_reset(THD *);
 
+  void release_completed_operations(NdbConnection*);
+
   friend int execute_no_commit(ha_ndbcluster*, NdbConnection*);
   friend int execute_commit(ha_ndbcluster*, NdbConnection*);
   friend int execute_no_commit_ie(ha_ndbcluster*, NdbConnection*);
