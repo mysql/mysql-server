@@ -108,13 +108,13 @@ BACKUP  TABLE `t+1` TO '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t+1	backup	status	OK
 Warnings:
-Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 DROP    TABLE `t+1`;
 RESTORE TABLE `t+1` FROM '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t+1	restore	status	OK
 Warnings:
-Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 SELECT * FROM `t+1`;
 c1
 1
