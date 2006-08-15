@@ -1530,7 +1530,7 @@ ev_sql_stmt:
             {
               sp_head *sp= lex->sphead;
               // return back to the original memory root ASAP
-              sp->init_strings(YYTHD, lex, NULL);
+              sp->init_strings(YYTHD, lex);
               sp->restore_thd_mem_root(YYTHD);
 
               lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
@@ -1613,6 +1613,17 @@ create_function_tail:
 	  RETURNS_SYM udf_type SONAME_SYM TEXT_STRING_sys
 	  {
 	    LEX *lex=Lex;
+            if (lex->definer != NULL)
+            {
+              /*
+                 DEFINER is a concept meaningful when interpreting SQL code.
+                 UDF functions are compiled.
+                 Using DEFINER with UDF has therefore no semantic,
+                 and is considered a parsing error.
+              */
+	      my_error(ER_WRONG_USAGE, MYF(0), "SONAME", "DEFINER");
+              YYABORT;
+            }
 	    lex->sql_command = SQLCOM_CREATE_FUNCTION;
 	    lex->udf.name = lex->spname->m_name;
 	    lex->udf.returns=(Item_result) $2;
@@ -1642,6 +1653,7 @@ create_function_tail:
 	    sp= new sp_head();
 	    sp->reset_thd_mem_root(YYTHD);
 	    sp->init(lex);
+            sp->init_sp_name(YYTHD, lex->spname);
 
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
@@ -1672,6 +1684,17 @@ create_function_tail:
 	  {
 	    LEX *lex= Lex;
 	    sp_head *sp= lex->sphead;
+            /*
+              This was disabled in 5.1.12. See bug #20701
+              When collation support in SP is implemented, then this test
+              should be removed.
+            */
+            if (($8 == FIELD_TYPE_STRING || $8 == MYSQL_TYPE_VARCHAR)
+                && (lex->type & BINCMP_FLAG))
+            {
+              my_error(ER_NOT_SUPPORTED_YET, MYF(0), "return value collation");
+              YYABORT;
+            }
 
             if (sp->fill_field_definition(YYTHD, lex,
                                           (enum enum_field_types) $8,
@@ -1696,7 +1719,7 @@ create_function_tail:
               YYABORT;
 
 	    lex->sql_command= SQLCOM_CREATE_SPFUNCTION;
-	    sp->init_strings(YYTHD, lex, lex->spname);
+	    sp->init_strings(YYTHD, lex);
             if (!(sp->m_flags & sp_head::HAS_RETURN))
             {
               my_error(ER_SP_NORETURN, MYF(0), sp->m_qname.str);
@@ -2291,9 +2314,12 @@ sp_proc_stmt_statement:
               sp_instr_stmt *i=new sp_instr_stmt(sp->instructions(),
                                                  lex->spcont, lex);
 
-              /* Extract the query statement from the tokenizer:
-                 The end is either lex->tok_end or tok->ptr. */
-              if (lex->ptr - lex->tok_end > 1)
+              /*
+                Extract the query statement from the tokenizer.  The
+                end is either lex->ptr, if there was no lookahead,
+                lex->tok_end otherwise.
+              */
+              if (yychar == YYEMPTY)
                 i->m_query.length= lex->ptr - sp->m_tmp_query;
               else
                 i->m_query.length= lex->tok_end - sp->m_tmp_query;
@@ -4446,7 +4472,7 @@ opt_bin_mod:
 	| BINARY { Lex->type|= BINCMP_FLAG; };
 
 opt_bin_charset:
-	/* empty */ { }
+        /* empty */ { Lex->charset= NULL; }
 	| ASCII_SYM	{ Lex->charset=&my_charset_latin1; }
 	| UNICODE_SYM
 	{
@@ -9320,7 +9346,6 @@ user:
 keyword:
 	keyword_sp		{}
 	| ASCII_SYM		{}
-	| AUTHORS_SYM		{}
 	| BACKUP_SYM		{}
 	| BEGIN_SYM		{}
 	| BYTE_SYM		{}
@@ -9378,6 +9403,7 @@ keyword_sp:
 	| ALGORITHM_SYM		{}
 	| ANY_SYM		{}
 	| AT_SYM                {}
+	| AUTHORS_SYM		{}
 	| AUTO_INC		{}
 	| AUTOEXTEND_SIZE_SYM   {}
 	| AVG_ROW_LENGTH	{}
@@ -9403,6 +9429,7 @@ keyword_sp:
 	| COMPRESSED_SYM	{}
 	| CONCURRENT		{}
 	| CONSISTENT_SYM	{}
+	| CONTRIBUTORS_SYM	{}
 	| CUBE_SYM		{}
 	| DATA_SYM		{}
 	| DATAFILE_SYM          {}
@@ -9690,7 +9717,12 @@ option_type_value:
                                          lex)))
                 YYABORT;
 
-              if (lex->ptr - lex->tok_end > 1)
+              /*
+                Extract the query statement from the tokenizer.  The
+                end is either lex->ptr, if there was no lookahead,
+                lex->tok_end otherwise.
+              */
+              if (yychar == YYEMPTY)
                 qbuff.length= lex->ptr - sp->m_tmp_query;
               else
                 qbuff.length= lex->tok_end - sp->m_tmp_query;
@@ -10961,7 +10993,7 @@ trigger_tail:
 	    YYABORT;
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
-
+          sp->init_sp_name(YYTHD, $3);
 	  lex->stmt_definition_begin= $2;
           lex->ident.str= $7;
           lex->ident.length= $10 - $7;
@@ -10989,7 +11021,7 @@ trigger_tail:
 	  sp_head *sp= lex->sphead;
 
 	  lex->sql_command= SQLCOM_CREATE_TRIGGER;
-	  sp->init_strings(YYTHD, lex, $3);
+	  sp->init_strings(YYTHD, lex);
 	  /* Restore flag if it was cleared above */
 
 	  YYTHD->client_capabilities |= $<ulong_num>13;
@@ -11037,13 +11069,14 @@ sp_tail:
 	    my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "PROCEDURE");
 	    YYABORT;
 	  }
-	  
+
 	  lex->stmt_definition_begin= $2;
-	  
+
 	  /* Order is important here: new - reset - init */
 	  sp= new sp_head();
 	  sp->reset_thd_mem_root(YYTHD);
 	  sp->init(lex);
+          sp->init_sp_name(YYTHD, $3);
 
 	  sp->m_type= TYPE_ENUM_PROCEDURE;
 	  lex->sphead= sp;
@@ -11081,7 +11114,7 @@ sp_tail:
 	  LEX *lex= Lex;
 	  sp_head *sp= lex->sphead;
 
-	  sp->init_strings(YYTHD, lex, $3);
+	  sp->init_strings(YYTHD, lex);
 	  lex->sql_command= SQLCOM_CREATE_PROCEDURE;
           /*
             Restore flag if it was cleared above
