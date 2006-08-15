@@ -184,15 +184,17 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     share->table_name_length=length;
     share->table_name=tmp_name;
     strmov(share->table_name,table_name);
-    fn_format(data_file_name, table_name, "", ".CSV",MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    fn_format(data_file_name, table_name, "", ".CSV",
+              MY_REPLACE_EXT | MY_UNPACK_FILENAME);
+
+    if ((share->data_file= my_open(data_file_name, O_RDWR|O_APPEND,
+                                   MYF(0))) == -1)
+      goto error;
+
     if (my_hash_insert(&tina_open_tables, (byte*) share))
       goto error;
     thr_lock_init(&share->lock);
     pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
-
-    if ((share->data_file= my_open(data_file_name, O_RDWR|O_APPEND,
-                                   MYF(0))) == -1)
-      goto error2;
 
     /* We only use share->data_file for writing, so we scan to the end to append */
     if (my_seek(share->data_file, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
@@ -212,6 +214,7 @@ error3:
 error2:
   thr_lock_delete(&share->lock);
   pthread_mutex_destroy(&share->mutex);
+  hash_delete(&tina_open_tables, (byte*) share);
 error:
   pthread_mutex_unlock(&tina_mutex);
   my_free((gptr) share, MYF(0));
