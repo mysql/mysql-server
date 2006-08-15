@@ -9,6 +9,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "mach0data.h"
 #include "mtr0mtr.h"
 #include "mtr0log.h"
+#include "page0zip.h"
 
 #define BTR_MAX_NODE_LEVEL	50	/* used in debug checking */
 
