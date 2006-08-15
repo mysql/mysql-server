@@ -1014,7 +1014,9 @@ buf_LRU_validate(void)
 	mutex_exit(&(buf_pool->mutex));
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
+#ifdef UNIV_DEBUG_PRINT
 /**************************************************************************
 Prints the LRU list. */
 
@@ -1073,4 +1075,4 @@ buf_LRU_print(void)
 
 	mutex_exit(&(buf_pool->mutex));
 }
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG_PRINT */
