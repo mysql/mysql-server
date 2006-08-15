@@ -485,6 +485,8 @@ public:
   void get_connected_nodes(NodeBitmask &connected_nodes) const;
   SocketServer *get_socket_server() { return m_socket_server; }
 
+  void updateStatus();
+
   //**************************************************************************
 private:
   //**************************************************************************
