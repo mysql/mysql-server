@@ -244,9 +244,9 @@ AsyncFile::run()
   }//while
 }//AsyncFile::run()
 
-extern bool Global_useO_SYNC;
-extern bool Global_unlinkO_CREAT;
-extern Uint32 Global_syncFreq;
+#ifdef O_DIRECT
+static char g_odirect_readbuf[2*GLOBAL_PAGE_SIZE -1];
+#endif
 
 void AsyncFile::openReq(Request* request)
 {  
@@ -346,7 +346,7 @@ void AsyncFile::openReq(Request* request)
   }
 #elif defined O_SYNC
   {
-    flags |= OM_SYNC;
+    flags |= FsOpenReq::OM_SYNC;
   }
 #endif
   
@@ -523,8 +523,7 @@ no_odirect:
 #ifdef O_DIRECT
     do {
       int ret;
-      char buf[2*GLOBAL_PAGE_SIZE -1];
-      char * bufptr = (char*)((UintPtr(buf)+(GLOBAL_PAGE_SIZE - 1)) & ~(GLOBAL_PAGE_SIZE - 1));
+      char * bufptr = (char*)((UintPtr(g_odirect_readbuf)+(GLOBAL_PAGE_SIZE - 1)) & ~(GLOBAL_PAGE_SIZE - 1));
       while (((ret = ::read(theFd, bufptr, GLOBAL_PAGE_SIZE)) == -1) && (errno == EINTR));
       if (ret == -1)
       {
