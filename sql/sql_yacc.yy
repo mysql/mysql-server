@@ -146,7 +146,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  BEFORE_SYM
 %token  BEGIN_SYM
 %token  BENCHMARK_SYM
-%token  BERKELEY_DB_SYM
 %token  BIGINT
 %token  BINARY
 %token  BINLOG_SYM
@@ -8354,30 +8353,6 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_COLLATIONS))
               YYABORT;
           }
-	| BERKELEY_DB_SYM LOGS_SYM
-	  {
-	    LEX *lex= Lex;
-	    lex->sql_command= SQLCOM_SHOW_ENGINE_LOGS;
-            if (!(lex->create_info.db_type=
-                  ha_resolve_by_legacy_type(YYTHD, DB_TYPE_BERKELEY_DB)))
-            {
-	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "BerkeleyDB");
-	      YYABORT;
-            }
-	    WARN_DEPRECATED(yythd, "5.2", "SHOW BDB LOGS", "'SHOW ENGINE BDB LOGS'");
-	  }
-	| LOGS_SYM
-	  {
-	    LEX *lex= Lex;
-	    lex->sql_command= SQLCOM_SHOW_ENGINE_LOGS;
-            if (!(lex->create_info.db_type=
-                  ha_resolve_by_legacy_type(YYTHD, DB_TYPE_BERKELEY_DB)))
-            {
-	      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), "BerkeleyDB");
-	      YYABORT;
-            }
-	    WARN_DEPRECATED(yythd, "5.2", "SHOW LOGS", "'SHOW ENGINE BDB LOGS'");
-	  }
 	| GRANTS
 	  {
 	    LEX *lex=Lex;
@@ -9408,7 +9383,6 @@ keyword_sp:
 	| AUTOEXTEND_SIZE_SYM   {}
 	| AVG_ROW_LENGTH	{}
 	| AVG_SYM		{}
-	| BERKELEY_DB_SYM	{}
 	| BINLOG_SYM		{}
 	| BIT_SYM		{}
 	| BOOL_SYM		{}
