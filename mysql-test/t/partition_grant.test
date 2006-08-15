@@ -17,6 +17,14 @@ use mysqltest_1;
 create table t1 (a int) partition by list (a) (partition p1 values in (1), partition p2 values in (2), partition p3 values in (3));
 insert into t1 values (1),(2);
 
+# We don't have DROP USER IF EXISTS. Use this workaround to
+# cleanup possible grants for mysqltest_1 left by previous tests
+# and ensure consistent results of SHOW GRANTS command below.
+--disable_warnings
+grant usage on *.* to mysqltest_1@localhost;
+revoke all privileges on *.* from mysqltest_1@localhost;
+--enable_warnings
+
 grant select,alter on mysqltest_1.* to mysqltest_1@localhost;
 
 connect (conn1,localhost,mysqltest_1,,mysqltest_1);

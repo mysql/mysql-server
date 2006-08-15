@@ -344,7 +344,7 @@ list_dbs(MYSQL *mysql,const char *wild)
   char query[255];
   MYSQL_FIELD *field;
   MYSQL_RES *result;
-  MYSQL_ROW row, rrow;
+  MYSQL_ROW row= NULL, rrow;
 
   if (!(result=mysql_list_dbs(mysql,wild)))
   {
@@ -352,6 +352,26 @@ list_dbs(MYSQL *mysql,const char *wild)
 	    mysql_error(mysql));
     return 1;
   }
+
+  /*
+    If a wildcard was used, but there was only one row and it's name is an
+    exact match, we'll assume they really wanted to see the contents of that
+    database. This is because it is fairly common for database names to
+    contain the underscore (_), like INFORMATION_SCHEMA.
+   */
+  if (wild && mysql_num_rows(result) == 1)
+  {
+    row= mysql_fetch_row(result);
+    if (!my_strcasecmp(&my_charset_latin1, row[0], wild))
+    {
+      mysql_free_result(result);
+      if (opt_status)
+        return list_table_status(mysql, wild, NULL);
+      else
+        return list_tables(mysql, wild, NULL);
+    }
+  }
+
   if (wild)
     printf("Wildcard: %s\n",wild);
 
@@ -368,7 +388,8 @@ list_dbs(MYSQL *mysql,const char *wild)
   else
     print_header(header,length,"Tables",6,"Total Rows",12,NullS);
 
-  while ((row = mysql_fetch_row(result)))
+  /* The first row may have already been read up above. */
+  while (row || (row= mysql_fetch_row(result)))
   {
     counter++;
 
@@ -422,6 +443,8 @@ list_dbs(MYSQL *mysql,const char *wild)
       print_row(row[0],length,tables,6,NullS);
     else
       print_row(row[0],length,tables,6,rows,12,NullS);
+
+    row= NULL;
   }
 
   print_trailer(length,

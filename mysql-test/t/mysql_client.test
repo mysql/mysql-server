@@ -29,6 +29,12 @@
 --exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
 
 #
+# Bug #20328: mysql client interprets commands in comments
+#
+--exec echo 'help' | $MYSQL
+--exec echo 'help ' | $MYSQL
+
+#
 # Bug #20103: Escaping with backslash does not work
 #
 --exec echo "SET SQL_MODE = 'NO_BACKSLASH_ESCAPES';"  > $MYSQLTEST_VARDIR/tmp/bug20103.sql
