@@ -161,8 +161,15 @@ private:
   int try_reconnect;
   int m_error;
   struct NdbThread* m_event_thread;
+  NdbMutex *m_print_mutex;
 };
 
+struct event_thread_param {
+  NdbMgmHandle *m;
+  NdbMutex **p;
+};
+
+NdbMutex* print_mutex;
 
 /*
  * Facade object for CommandInterpreter
@@ -340,6 +347,7 @@ CommandInterpreter::CommandInterpreter(const char *_host,int verbose)
   m_connected= false;
   m_event_thread= 0;
   try_reconnect = 0;
+  m_print_mutex= NdbMutex_Create();
 }
 
 /*
@@ -348,6 +356,7 @@ CommandInterpreter::CommandInterpreter(const char *_host,int verbose)
 CommandInterpreter::~CommandInterpreter() 
 {
   disconnect();
+  NdbMutex_Destroy(m_print_mutex);
 }
 
 static bool 
@@ -384,11 +393,13 @@ CommandInterpreter::printError()
 
 static int do_event_thread;
 static void*
-event_thread_run(void* m)
+event_thread_run(void* p)
 {
   DBUG_ENTER("event_thread_run");
 
-  NdbMgmHandle handle= *(NdbMgmHandle*)m;
+  struct event_thread_param param= *(struct event_thread_param*)p;
+  NdbMgmHandle handle= *(param.m);
+  NdbMutex* printmutex= *(param.p);
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
 		   1, NDB_MGM_EVENT_CATEGORY_STARTUP,
@@ -406,7 +417,11 @@ event_thread_run(void* m)
       {
 	const char ping_token[]= "<PING>";
 	if (memcmp(ping_token,tmp,sizeof(ping_token)-1))
-	  ndbout << tmp;
+	  if(tmp && strlen(tmp))
+          {
+            Guard g(printmutex);
+            ndbout << tmp;
+          }
       }
     } while(do_event_thread);
     NDB_CLOSE_SOCKET(fd);
@@ -459,8 +474,11 @@ CommandInterpreter::connect()
     assert(m_event_thread == 0);
     assert(do_event_thread == 0);
     do_event_thread= 0;
+    struct event_thread_param p;
+    p.m= &m_mgmsrv2;
+    p.p= &m_print_mutex;
     m_event_thread = NdbThread_Create(event_thread_run,
-                                      (void**)&m_mgmsrv2,
+                                      (void**)&p,
                                       32768,
                                       "CommandInterpreted_event_thread",
                                       NDB_THREAD_PRIO_LOW);
@@ -547,6 +565,7 @@ CommandInterpreter::execute(const char *_line, int _try_reconnect,
   int result= execute_impl(_line);
   if (error)
     *error= m_error;
+
   return result;
 }
 
@@ -626,6 +645,7 @@ CommandInterpreter::execute_impl(const char *_line)
     DBUG_RETURN(true);
 
   if (strcasecmp(firstToken, "SHOW") == 0) {
+    Guard g(m_print_mutex);
     executeShow(allAfterFirstToken);
     DBUG_RETURN(true);
   }
@@ -853,6 +873,7 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
     ndbout_c("Trying to start all nodes of system.");
     ndbout_c("Use ALL STATUS to see the system start-up phases.");
   } else {
+    Guard g(m_print_mutex);
     struct ndb_mgm_cluster_state *cl= ndb_mgm_get_status(m_mgmsrv);
     if(cl == 0){
       ndbout_c("Unable get status from management server");
