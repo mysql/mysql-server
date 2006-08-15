@@ -1499,4 +1499,49 @@ drop table t1;
 connection master;
 drop table t1;
 
+#
+# BUG #15133: unique index with nullable value not accepted in federated table 
+#
+
+connection slave;
+--disable_warnings
+DROP TABLE IF EXISTS federated.test;
+CREATE TABLE federated.test (
+  `i` int(11) NOT NULL,
+  `j` int(11) NOT NULL,
+  `c` varchar(30) default NULL,
+  PRIMARY KEY  (`i`,`j`),
+  UNIQUE KEY `i` (`i`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+--enable_warnings
+
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS federated.test1;
+DROP TABLE IF EXISTS federated.test2;
+--enable_warnings
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.test1 (
+        i int not null,
+        j int not null,
+        c varchar(30),
+        primary key (i,j),
+        unique key (i, c))
+engine = federated
+connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/test';
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.test2 (
+        i int default null,
+        j int not null,
+        c varchar(30),
+        key (i))
+engine = federated
+connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/test';
+drop table federated.test1, federated.test2;
+
+connection slave;
+drop table federated.test;
+
 source include/federated_cleanup.inc;

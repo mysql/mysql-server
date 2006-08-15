@@ -997,16 +997,16 @@ ERROR 23000: Column 'col2' cannot be null
 INSERT INTO t1 VALUES (103,'',NULL);
 ERROR 23000: Column 'col3' cannot be null
 UPDATE t1 SET col1=NULL WHERE col1 =100;
-ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'col1' at row 1
+ERROR 22004: Column was set to data type implicit default; NULL supplied for NOT NULL column 'col1' at row 1
 UPDATE t1 SET col2 =NULL WHERE col2 ='hello';
-ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
+ERROR 22004: Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
 UPDATE t1 SET col2 =NULL where col3 IS NOT NULL;
-ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
+ERROR 22004: Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
 INSERT IGNORE INTO t1 values (NULL,NULL,NULL);
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col1' at row 1
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col3' at row 1
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col1' at row 1
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col3' at row 1
 SELECT * FROM t1;
 col1	col2	col3
 100	hello	2004-08-20
@@ -1031,11 +1031,11 @@ ERROR HY000: Field 'col2' doesn't have a default value
 INSERT INTO t1 (col1) SELECT 1;
 ERROR HY000: Field 'col2' doesn't have a default value
 INSERT INTO t1 SELECT 1,NULL;
-ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
+ERROR 22004: Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
 INSERT IGNORE INTO t1 values (NULL,NULL);
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col1' at row 1
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'col2' at row 1
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col1' at row 1
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'col2' at row 1
 INSERT IGNORE INTO t1 (col1) values (3);
 Warnings:
 Warning	1364	Field 'col2' doesn't have a default value
