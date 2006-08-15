@@ -35,7 +35,7 @@ create table t3(a int, KEY a_data (a));
 create table mysqltest.t4(a int);
 create table t5 (id int auto_increment primary key);
 insert into t5 values (10);
-create view v1 (c) as select table_name from information_schema.TABLES;
+create view v1 (c) as select table_name from information_schema.TABLES where table_schema!='cluster';
 select * from v1;
 c
 CHARACTER_SETS
@@ -61,7 +61,6 @@ TABLE_PRIVILEGES
 TRIGGERS
 USER_PRIVILEGES
 VIEWS
-binlog_index
 columns_priv
 db
 event
@@ -744,11 +743,12 @@ create view v1 as select * from t1, t2;
 set @got_val= (select count(*) from information_schema.columns);
 drop view v1;
 drop table t1, t2;
+use test;
 CREATE TABLE t_crashme ( f1 BIGINT);
 CREATE VIEW a1 (t_CRASHME) AS SELECT f1 FROM t_crashme GROUP BY f1;
 CREATE VIEW a2 AS SELECT t_CRASHME FROM a1;
 count(*)
-113
+68
 drop view a2, a1;
 drop table t_crashme;
 select table_schema,table_name, column_name from
@@ -845,9 +845,8 @@ VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
-SELECT table_schema, count(*) FROM information_schema.TABLES GROUP BY TABLE_SCHEMA;
+SELECT table_schema, count(*) FROM information_schema.TABLES where TABLE_SCHEMA!='cluster' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-cluster	1
 information_schema	23
 mysql	21
 create table t1 (i int, j int);
