@@ -1190,8 +1190,6 @@ class Item_func_set_user_var :public Item_func
     String *vstr;
     my_decimal *vdec;
   } save_result;
-  String save_buff;
-  
 
 public:
   LEX_STRING name; // keep it public
@@ -1202,8 +1200,8 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
-  bool update_hash(void *ptr, uint length, enum Item_result type, 
-  		   CHARSET_INFO *cs, Derivation dv);
+  bool update_hash(void *ptr, uint length, enum Item_result type,
+  		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg= 0);
   bool check();
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
@@ -1502,8 +1500,7 @@ public:
     { context= (Name_resolution_context *)cntx; return FALSE; }
 
   void fix_length_and_dec();
-  bool find_and_check_access(THD * thd, ulong want_access,
-                             Security_context **backup);
+  bool find_and_check_access(THD * thd);
   virtual enum Functype functype() const { return FUNC_SP; }
 
   bool fix_fields(THD *thd, Item **ref);
