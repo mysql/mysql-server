@@ -362,6 +362,8 @@ revoke all on mysqltest_2.t2 from mysqltest_3@localhost;
 #test the db/table level privileges
 grant all on mysqltest_2.* to mysqltest_3@localhost;
 grant select on *.* to mysqltest_3@localhost;
+# Next grant is needed to trigger bug#7391. Do not optimize!
+grant select on mysqltest_2.t1 to mysqltest_3@localhost;
 flush privileges;
 disconnect conn1;
 connect (conn2,localhost,mysqltest_3,,);

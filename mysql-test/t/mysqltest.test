@@ -1121,6 +1121,23 @@ drop table t1;
 --exec test -s $MYSQLTEST_VARDIR/tmp/bug11731.out
 drop table t1;
 
+#
+# Bug#19890  	mysqltest: "query" command is broken
+#
+
+# It should be possible to use the command "query" to force mysqltest to
+# send the command to the server although it's a builtin mysqltest command.
+--error 1064
+query sleep;
+
+--error 1064
+--query sleep
+
+# Just an empty query command
+--error 1065
+query ;
+
+--echo End of 5.0 tests
 
 # test for replace_regex
 --replace_regex /at/b/
@@ -1159,3 +1176,5 @@ insert into t1 values (2,4);
 --replace_regex /A/C/ /B/D/i /3/2/ /2/1/
 select * from t1;
 drop table t1;
+
+--echo End of 5.1 tests
