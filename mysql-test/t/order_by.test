@@ -606,7 +606,7 @@ CREATE TABLE t4 LIKE t1;
 INSERT INTO t4 SELECT * from t1;
 INSERT INTO t1 values (0,0),(4,4);
 
-SELECT t1.*,t2.* FROM t1 LEFT JOIN (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
+SELECT t2.b FROM t1 LEFT JOIN (t2, t3 LEFT JOIN t4 ON t3.a=t4.a)
 ON (t1.a=t2.a AND t1.b=t3.b) order by t2.b;
 
 DROP TABLE t1,t2,t3,t4;
