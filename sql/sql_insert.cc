@@ -847,7 +847,7 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
                                     &thd->lex->select_lex.top_join_list,
                                     table_list, where, 
                                     &thd->lex->select_lex.leaf_tables,
-                                    select_insert, SELECT_ACL))
+                                    select_insert, INSERT_ACL, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
   if (insert_into_view && !fields.elements)
