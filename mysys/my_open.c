@@ -334,7 +334,7 @@ File my_sopen(const char *path, int oflag, int shflag, int pmode)
    * try to open/create the file
    */
   if ((osfh= CreateFile(path, fileaccess, fileshare, &SecurityAttributes, 
-                        filecreate, fileattrib, NULL)) == (HANDLE)0xffffffff)
+                        filecreate, fileattrib, NULL)) == INVALID_HANDLE_VALUE)
   {
     /*
      * OS call to open/create file failed! map the error, release
@@ -345,7 +345,7 @@ File my_sopen(const char *path, int oflag, int shflag, int pmode)
     return -1;                      /* return error to caller */
   }
 
-  fh= _open_osfhandle((long)osfh, oflag & (_O_APPEND | _O_RDONLY | _O_TEXT));
+  fh= _open_osfhandle((intptr_t)osfh, oflag & (_O_APPEND | _O_RDONLY | _O_TEXT));
 
   return fh;                        /* return handle */
 }
