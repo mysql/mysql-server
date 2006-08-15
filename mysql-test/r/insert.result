@@ -63,7 +63,7 @@ insert into t1 values(NULL);
 ERROR 23000: Column 'id' cannot be null
 insert into t1 values (1), (NULL), (2);
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'id' at row 2
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'id' at row 2
 select * from t1;
 id
 1
