@@ -5000,3 +5000,13 @@ insert t1 values (1),(2),(3),(4),(5);
 truncate table t1;
 affected rows: 0
 drop table t1;
+create table bug15205 (val int(11) default null) engine=csv;
+create table bug15205_2 (val int(11) default null) engine=csv;
+select * from bug15205;
+ERROR HY000: Got error 1 from storage engine
+select * from bug15205_2;
+val
+select * from bug15205;
+val
+drop table bug15205;
+drop table bug15205_2;
