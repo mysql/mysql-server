@@ -2850,3 +2850,10 @@ Tables_in_test
 t1
 DROP TABLE t1;
 DROP VIEW IF EXISTS v1;
+create table t1 (f1 datetime);
+create view v1 as select * from t1 where f1 between now() and now() + interval 1 minute;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` where (`t1`.`f1` between now() and (now() + interval 1 minute))
+drop view v1;
+drop table t1;
