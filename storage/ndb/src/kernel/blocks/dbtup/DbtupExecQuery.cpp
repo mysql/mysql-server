@@ -1677,7 +1677,9 @@ int Dbtup::interpreterStartLab(Signal* signal,
 	RlogSize= TnoDataRW;
       } else {
 	jam();
-	tupkeyErrorLab(signal);
+	/**
+	 * TUPKEY REF is sent from within interpreter
+	 */
 	return -1;
       }
     }
