@@ -1130,12 +1130,41 @@ void _my_store_blob_length(byte *pos,uint pack_length,uint length)
 }
 
 
-	/* Read record from datafile */
-	/* Returns 0 if ok, -1 if error */
+/*
+  Read record from datafile.
+
+  SYNOPSIS
+    _mi_read_dynamic_record()
+      info                      MI_INFO pointer to table.
+      filepos                   From where to read the record.
+      buf                       Destination for record.
+
+  NOTE
+
+    If a write buffer is active, it needs to be flushed if its contents
+    intersects with the record to read. We always check if the position
+    of the first byte of the write buffer is lower than the position
+    past the last byte to read. In theory this is also true if the write
+    buffer is completely below the read segment. That is, if there is no
+    intersection. But this case is unusual. We flush anyway. Only if the
+    first byte in the write buffer is above the last byte to read, we do
+    not flush.
+
+    A dynamic record may need several reads. So this check must be done
+    before every read. Reading a dynamic record starts with reading the
+    block header. If the record does not fit into the free space of the
+    header, the block may be longer than the header. In this case a
+    second read is necessary. These one or two reads repeat for every
+    part of the record.
+
+  RETURN
+    0           OK
+    -1          Error
+*/
 
 int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
 {
-  int flag;
+  int block_of_record;
   uint b_type,left_length;
   byte *to;
   MI_BLOCK_INFO block_info;
@@ -1147,20 +1176,19 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
     LINT_INIT(to);
     LINT_INIT(left_length);
     file=info->dfile;
-    block_info.next_filepos=filepos;	/* for easyer loop */
-    flag=block_info.second_read=0;
+    block_of_record= 0;   /* First block of record is numbered as zero. */
+    block_info.second_read= 0;
     do
     {
+      /* A corrupted table can have wrong pointers. (Bug# 19835) */
+      if (filepos == HA_OFFSET_ERROR)
+        goto panic;
       if (info->opt_flag & WRITE_CACHE_USED &&
-	  info->rec_cache.pos_in_file <= block_info.next_filepos &&
+	  info->rec_cache.pos_in_file < filepos + MI_BLOCK_INFO_HEADER_LENGTH &&
 	  flush_io_cache(&info->rec_cache))
 	goto err;
-      /* A corrupted table can have wrong pointers. (Bug# 19835) */
-      if (block_info.next_filepos == HA_OFFSET_ERROR)
-        goto panic;
       info->rec_cache.seek_not_done=1;
-      if ((b_type=_mi_get_block_info(&block_info,file,
-				     block_info.next_filepos))
+      if ((b_type= _mi_get_block_info(&block_info, file, filepos))
 	  & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
 	     BLOCK_FATAL_ERROR))
       {
@@ -1168,9 +1196,8 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
 	  my_errno=HA_ERR_RECORD_DELETED;
 	goto err;
       }
-      if (flag == 0)			/* First block */
+      if (block_of_record++ == 0)			/* First block */
       {
-	flag=1;
 	if (block_info.rec_len > (uint) info->s->base.max_pack_length)
 	  goto panic;
 	if (info->s->base.blobs)
@@ -1185,11 +1212,35 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, byte *buf)
       }
       if (left_length < block_info.data_len || ! block_info.data_len)
 	goto panic;			/* Wrong linked record */
-      if (my_pread(file,(byte*) to,block_info.data_len,block_info.filepos,
-		   MYF(MY_NABP)))
-	goto panic;
-      left_length-=block_info.data_len;
-      to+=block_info.data_len;
+      /* copy information that is already read */
+      {
+        uint offset= (uint) (block_info.filepos - filepos);
+        uint prefetch_len= (sizeof(block_info.header) - offset);
+        filepos+= sizeof(block_info.header);
+
+        if (prefetch_len > block_info.data_len)
+          prefetch_len= block_info.data_len;
+        if (prefetch_len)
+        {
+          memcpy((byte*) to, block_info.header + offset, prefetch_len);
+          block_info.data_len-= prefetch_len;
+          left_length-= prefetch_len;
+          to+= prefetch_len;
+        }
+      }
+      /* read rest of record from file */
+      if (block_info.data_len)
+      {
+        if (info->opt_flag & WRITE_CACHE_USED &&
+            info->rec_cache.pos_in_file < filepos + block_info.data_len &&
+            flush_io_cache(&info->rec_cache))
+          goto err;
+        if (my_read(file, (byte*) to, block_info.data_len, MYF(MY_NABP)))
+          goto panic;
+        left_length-=block_info.data_len;
+        to+=block_info.data_len;
+      }
+      filepos= block_info.next_filepos;
     } while (left_length);
 
     info->update|= HA_STATE_AKTIV;	/* We have a aktive record */
@@ -1346,11 +1397,45 @@ err:
 }
 
 
+/*
+  Read record from datafile.
+
+  SYNOPSIS
+    _mi_read_rnd_dynamic_record()
+      info                      MI_INFO pointer to table.
+      buf                       Destination for record.
+      filepos                   From where to read the record.
+      skip_deleted_blocks       If to repeat reading until a non-deleted
+                                record is found.
+
+  NOTE
+
+    If a write buffer is active, it needs to be flushed if its contents
+    intersects with the record to read. We always check if the position
+    of the first byte of the write buffer is lower than the position
+    past the last byte to read. In theory this is also true if the write
+    buffer is completely below the read segment. That is, if there is no
+    intersection. But this case is unusual. We flush anyway. Only if the
+    first byte in the write buffer is above the last byte to read, we do
+    not flush.
+
+    A dynamic record may need several reads. So this check must be done
+    before every read. Reading a dynamic record starts with reading the
+    block header. If the record does not fit into the free space of the
+    header, the block may be longer than the header. In this case a
+    second read is necessary. These one or two reads repeat for every
+    part of the record.
+
+  RETURN
+    0           OK
+    != 0        Error
+*/
+
 int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
 				register my_off_t filepos,
 				my_bool skip_deleted_blocks)
 {
-  int flag,info_read,save_errno;
+  int block_of_record, info_read, save_errno;
   uint left_len,b_type;
   byte *to;
   MI_BLOCK_INFO block_info;
@@ -1376,7 +1461,8 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
   else
     info_read=1;				/* memory-keyinfoblock is ok */
 
-  flag=block_info.second_read=0;
+  block_of_record= 0;   /* First block of record is numbered as zero. */
+  block_info.second_read= 0;
   left_len=1;
   do
   {
@@ -1399,15 +1485,15 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
     {
       if (_mi_read_cache(&info->rec_cache,(byte*) block_info.header,filepos,
 			 sizeof(block_info.header),
-			 (!flag && skip_deleted_blocks ? READING_NEXT : 0) |
-			 READING_HEADER))
+			 (!block_of_record && skip_deleted_blocks ?
+                          READING_NEXT : 0) | READING_HEADER))
 	goto panic;
       b_type=_mi_get_block_info(&block_info,-1,filepos);
     }
     else
     {
       if (info->opt_flag & WRITE_CACHE_USED &&
-	  info->rec_cache.pos_in_file <= filepos &&
+	  info->rec_cache.pos_in_file < filepos + MI_BLOCK_INFO_HEADER_LENGTH &&
 	  flush_io_cache(&info->rec_cache))
 	DBUG_RETURN(my_errno);
       info->rec_cache.seek_not_done=1;
@@ -1432,7 +1518,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
       }
       goto err;
     }
-    if (flag == 0)				/* First block */
+    if (block_of_record == 0)				/* First block */
     {
       if (block_info.rec_len > (uint) share->base.max_pack_length)
 	goto panic;
@@ -1465,7 +1551,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
 	left_len-=tmp_length;
 	to+=tmp_length;
 	filepos+=tmp_length;
-     }
+      }
     }
     /* read rest of record from file */
     if (block_info.data_len)
@@ -1474,11 +1560,17 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
       {
 	if (_mi_read_cache(&info->rec_cache,(byte*) to,filepos,
 			   block_info.data_len,
-			   (!flag && skip_deleted_blocks) ? READING_NEXT :0))
+			   (!block_of_record && skip_deleted_blocks) ?
+                           READING_NEXT : 0))
 	  goto panic;
       }
       else
       {
+        if (info->opt_flag & WRITE_CACHE_USED &&
+            info->rec_cache.pos_in_file <
+            block_info.filepos + block_info.data_len &&
+            flush_io_cache(&info->rec_cache))
+          goto err;
 	/* VOID(my_seek(info->dfile,filepos,MY_SEEK_SET,MYF(0))); */
 	if (my_read(info->dfile,(byte*) to,block_info.data_len,MYF(MY_NABP)))
 	{
@@ -1488,10 +1580,14 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, byte *buf,
 	}
       }
     }
-    if (flag++ == 0)
+    /*
+      Increment block-of-record counter. If it was the first block,
+      remember the position behind the block for the next call.
+    */
+    if (block_of_record++ == 0)
     {
-      info->nextpos=block_info.filepos+block_info.block_len;
-      skip_deleted_blocks=0;
+      info->nextpos= block_info.filepos + block_info.block_len;
+      skip_deleted_blocks= 0;
     }
     left_len-=block_info.data_len;
     to+=block_info.data_len;
@@ -1523,6 +1619,11 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
 
   if (file >= 0)
   {
+    /*
+      We do not use my_pread() here because we want to have the file
+      pointer set to the end of the header after this function.
+      my_pread() may leave the file pointer untouched.
+    */
     VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
     if (my_read(file,(char*) header,sizeof(info->header),MYF(0)) !=
 	sizeof(info->header))
