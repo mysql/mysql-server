@@ -77,7 +77,6 @@
     }\
   }
 
-extern int global_flag_send_heartbeat_now;
 extern int g_no_nodeid_checks;
 extern my_bool opt_core;
 
@@ -1450,6 +1449,12 @@ MgmtSrvr::exitSingleUser(int * stopCount, bool abort)
 
 #include <ClusterMgr.hpp>
 
+void
+MgmtSrvr::updateStatus()
+{
+  theFacade->theClusterMgr->forceHB();
+}
+
 int 
 MgmtSrvr::status(int nodeId, 
                  ndb_mgm_node_status * _status, 
@@ -2260,7 +2265,7 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   if (found_matching_type && !found_free_node) {
     // we have a temporary error which might be due to that 
     // we have got the latest connect status from db-nodes.  Force update.
-    global_flag_send_heartbeat_now= 1;
+    updateStatus();
   }
 
   BaseString type_string, type_c_string;
@@ -2603,7 +2608,7 @@ MgmtSrvr::Allocated_resources::~Allocated_resources()
   if (!m_reserved_nodes.isclear()) {
     m_mgmsrv.m_reserved_nodes.bitANDC(m_reserved_nodes); 
     // node has been reserved, force update signal to ndb nodes
-    global_flag_send_heartbeat_now= 1;
+    m_mgmsrv.updateStatus();
 
     char tmp_str[128];
     m_mgmsrv.m_reserved_nodes.getText(tmp_str);
