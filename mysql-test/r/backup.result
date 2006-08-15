@@ -6,26 +6,26 @@ Table	Op	Msg_type	Msg_text
 test.t4	backup	error	Failed copying .frm file (errno: X)
 test.t4	backup	status	Operation failed
 Warnings:
-Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 Error	1	Can't create/write to file 'MYSQLTEST_VARDIR/bogus/t4.frm' (Errcode: X)
 backup table t4 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t4	backup	status	OK
 Warnings:
-Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 backup table t4 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t4	backup	error	Failed copying .frm file (errno: X)
 test.t4	backup	status	Operation failed
 Warnings:
-Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 Error	1	Can't create/write to file 'MYSQLTEST_VARDIR/tmp/t4.frm' (Errcode: X)
 drop table t4;
 restore table t4 from '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t4	restore	status	OK
 Warnings:
-Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 select count(*) from t4;
 count(*)
 0
@@ -35,19 +35,19 @@ backup table t1 to '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t1	backup	status	OK
 Warnings:
-Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 drop table t1;
 restore table t1 from '../bogus';
 Table	Op	Msg_type	Msg_text
 t1	restore	error	Failed copying .frm file
 Warnings:
-Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 Error	29	File 'MYSQLTEST_VARDIR/bogus/t1.frm' not found (Errcode: X)
 restore table t1 from '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t1	restore	status	OK
 Warnings:
-Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 select n from t1;
 n
 23
@@ -62,7 +62,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	backup	status	OK
 test.t3	backup	status	OK
 Warnings:
-Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 drop table t1,t2,t3;
 restore table t1,t2,t3 from '../tmp';
 Table	Op	Msg_type	Msg_text
@@ -70,7 +70,7 @@ test.t1	restore	status	OK
 test.t2	restore	status	OK
 test.t3	restore	status	OK
 Warnings:
-Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 select n from t1;
 n
 23
@@ -91,7 +91,7 @@ restore table t1 from '../tmp';
 Table	Op	Msg_type	Msg_text
 test.t1	restore	status	OK
 Warnings:
-Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 rename table t1 to t5;
 lock tables t5 write;
 backup table t5 to '../tmp';
@@ -99,7 +99,7 @@ unlock tables;
 Table	Op	Msg_type	Msg_text
 test.t5	backup	status	OK
 Warnings:
-Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead.
+Warning	1541	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 5.2. Please use MySQL Administrator (mysqldump, mysql) instead
 drop table t5;
 DROP TABLE IF EXISTS `t+1`;
 CREATE  TABLE `t+1` (c1 INT);

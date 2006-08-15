@@ -12,7 +12,7 @@ master-bin.000001	367	Xid	1	394	COMMIT /* XID */
 drop table t1;
 drop table if exists t1, t2;
 reset master;
-create table t1 (a int) engine=bdb;
+create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=innodb;
 begin;
 insert t1 values (5);
@@ -22,11 +22,11 @@ insert t2 values (5);
 commit;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=bdb
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; create table t2 (a int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert t1 values (5)
-master-bin.000001	#	Query	1	#	use `test`; COMMIT
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Query	1	#	use `test`; insert t2 values (5)
 master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
