@@ -190,6 +190,7 @@ our $exe_ndb_mgmd;
 our $exe_slave_mysqld;
 our $exe_im;
 our $exe_my_print_defaults;
+our $exe_perror;
 our $lib_udf_example;
 our $exe_libtool;
 
@@ -856,6 +857,12 @@ sub command_line_setup () {
     }
   }
 
+  # Check IM arguments
+  if ( $glob_win32 )
+  {
+    mtr_report("Disable Instance manager - not supported on Windows");
+    $opt_skip_im= 1;
+  }
   # Check valgrind arguments
   if ( $opt_valgrind or $opt_valgrind_path or defined $opt_valgrind_options)
   {
@@ -1164,19 +1171,22 @@ sub executable_setup () {
                                            "$path_client_bindir/mysqld-max",
                                            "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
-                                           "$path_client_bindir/mysqld-debug",
                                            "$path_client_bindir/mysqld-max",
                                            "$glob_basedir/sql/release/mysqld",
                                            "$glob_basedir/sql/debug/mysqld");
+                                           "$path_client_bindir/mysqld-debug",
       $path_language=      mtr_path_exists("$glob_basedir/share/english/",
                                            "$glob_basedir/sql/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets",
                                            "$glob_basedir/sql/share/charsets");
-
       $exe_my_print_defaults=
         mtr_exe_exists("$path_client_bindir/my_print_defaults",
                        "$glob_basedir/extra/release/my_print_defaults",
                        "$glob_basedir/extra/debug/my_print_defaults");
+      $exe_perror=
+	mtr_exe_exists("$path_client_bindir/perror",
+                       "$glob_basedir/extra/release/perror",
+                       "$glob_basedir/extra/debug/perror");
     }
     else
     {
@@ -1190,6 +1200,8 @@ sub executable_setup () {
         "$glob_basedir/server-tools/instance-manager/mysqlmanager");
       $exe_my_print_defaults=
         mtr_exe_exists("$glob_basedir/extra/my_print_defaults");
+      $exe_perror=
+	mtr_exe_exists("$glob_basedir/extra/perror");
     }
 
     if ( $glob_use_embedded_server )
@@ -1244,6 +1256,8 @@ sub executable_setup () {
                         "/usr/bin/false");
     $exe_my_print_defaults=
       mtr_exe_exists("$path_client_bindir/my_print_defaults");
+    $exe_perror=
+      mtr_exe_exists("$path_client_bindir/perror");
 
     $path_language=      mtr_path_exists("$glob_basedir/share/mysql/english/",
                                          "$glob_basedir/share/english/");
@@ -3508,31 +3522,60 @@ sub im_stop($$) {
   }
 
   # Check if all processes shutdown cleanly
-  my $clean_shutdown= 1; # Assum they did
+  my $clean_shutdown= 0;
 
-  if (kill (0, $instance_manager->{'pid'}))
+  while (1)
   {
-    mtr_warning("IM-main is still alive.");
-    $clean_shutdown= 0;
-  }
+    # Check that IM-main died.
 
-  if (defined $instance_manager->{'angel_pid'} &&
-      kill (0, $instance_manager->{'angel_pid'}))
-  {
-    mtr_warning("IM-angel is still alive.");
-    $clean_shutdown= 0;
-  }
-
-  foreach my $pid (@mysqld_pids)
-  {
-    if (kill (0, $pid))
+    if (kill (0, $instance_manager->{'pid'}))
     {
-      mtr_warning("Guarded mysqld ($pid) is still alive.");
-      $clean_shutdown= 0;
+      mtr_debug("IM-main is still alive.");
+      last;
     }
+
+    # Check that IM-angel died.
+
+    if (defined $instance_manager->{'angel_pid'} &&
+        kill (0, $instance_manager->{'angel_pid'}))
+    {
+      mtr_debug("IM-angel is still alive.");
+      last;
+    }
+
+    # Check that all guarded mysqld-instances died.
+
+    my $guarded_mysqlds_dead= 1;
+
+    foreach my $pid (@mysqld_pids)
+    {
+      if (kill (0, $pid))
+      {
+        mtr_debug("Guarded mysqld ($pid) is still alive.");
+        $guarded_mysqlds_dead= 0;
+        last;
+      }
+    }
+
+    last unless $guarded_mysqlds_dead;
+
+    # Ok, all necessary processes are dead.
+
+    $clean_shutdown= 1;
+    last;
   }
 
   # Kill leftovers (the order is important).
+
+  if ($clean_shutdown)
+  {
+    mtr_debug("IM-shutdown was clean -- all processed died.");
+  }
+  else
+  {
+    mtr_debug("IM failed to shutdown gracefully. We have to clean the mess...");
+  }
+
   unless ($clean_shutdown)
   {
 
@@ -3553,17 +3596,24 @@ sub im_stop($$) {
     mtr_kill_processes(\@mysqld_pids);
 
     # Complain in error log so that a warning will be shown.
+    # 
+    # TODO: unless BUG#20761 is fixed, we will print the warning
+    # to stdout, so that it can be seen on console and does not
+    # produce pushbuild error.
 
-    my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
-
-    open (ERRLOG, ">>$errlog") ||
-      mtr_error("Can not open error log ($errlog)");
+    # my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
+    # 
+    # open (ERRLOG, ">>$errlog") ||
+    #   mtr_error("Can not open error log ($errlog)");
+    # 
+    # my $ts= localtime();
+    # print ERRLOG
+    #   "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
+    # 
+    # close ERRLOG;
 
     my $ts= localtime();
-    print ERRLOG
-      "[$where] Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
-
-    close ERRLOG;
+    print "[$where] Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
   }
 
   # That's all.
@@ -3746,6 +3796,7 @@ sub run_mysqltest ($) {
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}=  $exe_my_print_defaults;
   $ENV{'UDF_EXAMPLE_LIB'}=
     ($lib_udf_example ? basename($lib_udf_example) : "");
+  $ENV{'MY_PERROR'}=                 $exe_perror;
 
   $ENV{'NDB_STATUS_OK'}=            $clusters->[0]->{'installed_ok'};
   $ENV{'NDB_SLAVE_STATUS_OK'}=      $clusters->[0]->{'installed_ok'};;

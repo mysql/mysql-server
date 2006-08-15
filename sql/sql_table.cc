@@ -2993,13 +2993,17 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
 static void set_table_default_charset(THD *thd,
 				      HA_CREATE_INFO *create_info, char *db)
 {
+  /*
+    If the table character set was not given explicitly,
+    let's fetch the database default character set and
+    apply it to the table.
+  */
   if (!create_info->default_table_charset)
   {
     HA_CREATE_INFO db_info;
-    char path[FN_REFLEN];
-    /* Abuse build_table_filename() to build the path to the db.opt file */
-    build_table_filename(path, sizeof(path), db, "", MY_DB_OPT_FILE, 0);
-    load_db_opt(thd, path, &db_info);
+
+    load_db_opt_by_name(thd, db, &db_info);
+
     create_info->default_table_charset= db_info.default_table_charset;
   }
 }
