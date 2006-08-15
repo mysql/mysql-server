@@ -101,13 +101,34 @@ static byte* tina_get_key(TINA_SHARE *share,uint *length,
   return (byte*) share->table_name;
 }
 
+
+int free_mmap(TINA_SHARE *share)
+{
+  DBUG_ENTER("ha_tina::free_mmap");
+  if (share->mapped_file)
+  {
+    /*
+      Invalidate the mapped in pages. Some operating systems (eg OpenBSD)
+      would reuse already cached pages even if the file has been altered
+      using fd based I/O. This may be optimized by perhaps only invalidating
+      the last page but optimization of deprecated code is not important.
+    */
+    msync(share->mapped_file, 0, MS_INVALIDATE);
+    if (munmap(share->mapped_file, share->file_stat.st_size))
+      DBUG_RETURN(1);
+  }
+  share->mapped_file= NULL;
+  DBUG_RETURN(0);
+}
+
 /*
   Reloads the mmap file.
 */
 int get_mmap(TINA_SHARE *share, int write)
 {
   DBUG_ENTER("ha_tina::get_mmap");
-  if (share->mapped_file && munmap(share->mapped_file, share->file_stat.st_size))
+  
+  if (free_mmap(share))
     DBUG_RETURN(1);
 
   if (my_fstat(share->data_file, &share->file_stat, MYF(MY_WME)) == -1)
@@ -230,8 +251,7 @@ static int free_share(TINA_SHARE *share)
   int result_code= 0;
   if (!--share->use_count){
     /* Drop the mapped file */
-    if (share->mapped_file) 
-      munmap(share->mapped_file, share->file_stat.st_size);
+    free_mmap(share);
     result_code= my_close(share->data_file,MYF(0));
     hash_delete(&tina_open_tables, (byte*) share);
     thr_lock_delete(&share->lock);
@@ -493,6 +513,13 @@ int ha_tina::write_row(byte * buf)
 
   size= encode_quote(buf);
 
+  /*
+    we are going to alter the file so we must invalidate the in memory pages
+    otherwise we risk a race between the in memory pages and the disk pages.
+  */
+  if (free_mmap(share))
+    DBUG_RETURN(-1);
+
   if (my_write(share->data_file, buffer.ptr(), size, MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
 
@@ -534,8 +561,26 @@ int ha_tina::update_row(const byte * old_data, byte * new_data)
   if (chain_append())
     DBUG_RETURN(-1);
 
+  /*
+    we are going to alter the file so we must invalidate the in memory pages
+    otherwise we risk a race between the in memory pages and the disk pages.
+  */
+  if (free_mmap(share))
+    DBUG_RETURN(-1);
+
   if (my_write(share->data_file, buffer.ptr(), size, MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
+
+  /* 
+    Ok, this is means that we will be doing potentially bad things 
+    during a bulk update on some OS'es. Ideally, we should extend the length
+    of the file, redo the mmap and then write all the updated rows. Upon
+    finishing the bulk update, truncate the file length to the final length.
+    Since this code is all being deprecated, not point now to optimize.
+  */
+  if (get_mmap(share, 0) > 0) 
+    DBUG_RETURN(-1);
+
   DBUG_RETURN(0);
 }
 
@@ -812,15 +857,14 @@ int ha_tina::rnd_end()
       length= length - (size_t)(ptr->end - ptr->begin);
     }
 
+    /* Invalidate all cached mmap pages */
+    if (free_mmap(share))
+      DBUG_RETURN(-1);
+
     /* Truncate the file to the new size */
     if (my_chsize(share->data_file, length, 0, MYF(MY_WME)))
       DBUG_RETURN(-1);
 
-    if (munmap(share->mapped_file, length))
-      DBUG_RETURN(-1);
-
-    /* We set it to null so that get_mmap() won't try to unmap it */
-    share->mapped_file= NULL;
     if (get_mmap(share, 0) > 0) 
       DBUG_RETURN(-1);
   }
@@ -837,6 +881,10 @@ int ha_tina::delete_all_rows()
 
   if (!records_is_known)
     return (my_errno=HA_ERR_WRONG_COMMAND);
+
+  /* Invalidate all cached mmap pages */
+  if (free_mmap(share)) 
+    DBUG_RETURN(-1);
 
   int rc= my_chsize(share->data_file, 0, 0, MYF(MY_WME));
 
