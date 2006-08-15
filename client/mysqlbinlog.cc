@@ -36,6 +36,7 @@
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
 #include "mysql_priv.h" 
 #include "log_event.h"
+#include "sql_common.h"
 
 #define BIN_LOG_HEADER_SIZE	4
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
@@ -1104,7 +1105,7 @@ could be out of memory");
     const char *error_msg;
     Log_event *ev;
 
-    len = net_safe_read(mysql);
+    len= cli_safe_read(mysql);
     if (len == packet_error)
     {
       fprintf(stderr, "Got error reading packet from server: %s\n",
