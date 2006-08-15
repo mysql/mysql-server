@@ -452,6 +452,8 @@ create table t1 select str_to_date("2003-01-02 10:11:12.0012", "%Y-%m-%d %H:%i:%
 str_to_date("10:11:12.0012", "%H:%i:%S.%f") as f2,
 str_to_date("2003-01-02", "%Y-%m-%d") as f3,
 str_to_date("02", "%d") as f4, str_to_date("02 10", "%d %H") as f5;
+Warnings:
+Warning	1265	Data truncated for column 'f4' at row 1
 describe t1;
 Field	Type	Null	Key	Default	Extra
 f1	datetime	YES		NULL	
@@ -461,7 +463,7 @@ f4	date	YES		NULL
 f5	time	YES		NULL	
 select * from t1;
 f1	f2	f3	f4	f5
-2003-01-02 10:11:12	10:11:12	2003-01-02	0000-00-02	58:00:00
+2003-01-02 10:11:12	10:11:12	2003-01-02	0000-00-00	58:00:00
 drop table t1;
 create table t1 select "02 10" as a, "%d %H" as b;
 select str_to_date(a,b) from t1;

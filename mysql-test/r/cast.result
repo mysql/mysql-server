@@ -381,3 +381,14 @@ DROP TABLE t1;
 select cast(NULL as decimal(6)) as t1;
 t1
 NULL
+set names latin1;
+select hex(cast('a' as char(2) binary));
+hex(cast('a' as char(2) binary))
+61
+select hex(cast('a' as binary(2)));
+hex(cast('a' as binary(2)))
+6100
+select hex(cast('a' as char(2) binary));
+hex(cast('a' as char(2) binary))
+61
+End of 5.0 tests
