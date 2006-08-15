@@ -9,6 +9,8 @@ name VARCHAR(80) DEFAULT '' NOT NULL,
 FULLTEXT(url,description,shortdesc,longdesc),
 PRIMARY KEY(gnr)
 );
+Warnings:
+Warning	1101	BLOB/TEXT column 'longdesc' can't have a default value
 insert into test (url,shortdesc,longdesc,description,name) VALUES 
 ("http:/test.at", "kurz", "lang","desc", "name");
 insert into test (url,shortdesc,longdesc,description,name) VALUES 

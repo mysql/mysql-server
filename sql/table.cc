@@ -68,7 +68,7 @@ static byte *get_field_name(Field **buff, uint *length,
 char *fn_rext(char *name)
 {
   char *res= strrchr(name, '.');
-  if (res && !strcmp(res, ".frm"))
+  if (res && !strcmp(res, reg_ext))
     return res;
   return name + strlen(name);
 }
@@ -95,10 +95,13 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
   TABLE_SHARE *share;
   char path[FN_REFLEN];
   uint path_length;
+  DBUG_ENTER("alloc_table_share");
+  DBUG_PRINT("enter", ("table: '%s'.'%s'",
+                       table_list->db, table_list->table_name));
 
   path_length= build_table_filename(path, sizeof(path) - 1,
                                     table_list->db,
-                                    table_list->table_name, "");
+                                    table_list->table_name, "", 0);
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   if ((share= (TABLE_SHARE*) alloc_root(&mem_root,
 					sizeof(*share) + key_length +
@@ -148,7 +151,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&share->cond, NULL);
   }
-  return share;
+  DBUG_RETURN(share);
 }
 
 
@@ -179,6 +182,7 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
                           const char *path)
 {
   DBUG_ENTER("init_tmp_table_share");
+  DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
   bzero((char*) share, sizeof(*share));
   init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
@@ -286,7 +290,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   char	path[FN_REFLEN];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
-  DBUG_PRINT("enter", ("name: '%s.%s'",share->db.str, share->table_name.str));
+  DBUG_PRINT("enter", ("table: '%s'.'%s'  path: '%s'", share->db.str,
+                       share->table_name.str, share->normalized_path.str));
 
   error= 1;
   error_given= 0;
@@ -4041,13 +4046,27 @@ void st_table::mark_columns_needed_for_insert()
     st_table_list::reinit_before_use()
 */
 
-void st_table_list::reinit_before_use(THD * /* thd */)
+void st_table_list::reinit_before_use(THD *thd)
 {
   /*
     Reset old pointers to TABLEs: they are not valid since the tables
     were closed in the end of previous prepare or execute call.
   */
   table= 0;
+  /* Reset is_schema_table_processed value(needed for I_S tables */
+  is_schema_table_processed= FALSE;
+
+  TABLE_LIST *embedded; /* The table at the current level of nesting. */
+  TABLE_LIST *embedding= this; /* The parent nested table reference. */
+  do
+  {
+    embedded= embedding;
+    if (embedded->prep_on_expr)
+      embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
+    embedding= embedded->embedding;
+  }
+  while (embedding &&
+         embedding->nested_join->join_list.head() == embedded);
 }
 
 

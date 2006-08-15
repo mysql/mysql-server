@@ -131,7 +131,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
   storage/myisam/myisamchk$BS storage/myisam/myisampack$BS \
   storage/myisam/myisamlog$BS storage/myisam/myisam_ftdump$BS \
-  sql/mysqld$BS sql/mysqld-debug$BS sql/mysqld-max$BS \
+  sql/mysqld$BS sql/mysqld-debug$BS \
   sql/mysql_tzinfo_to_sql$BS \
   server-tools/instance-manager/mysqlmanager$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
