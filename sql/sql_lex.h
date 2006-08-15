@@ -613,7 +613,7 @@ typedef struct st_lex
   LEX_USER *grant_user;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
-  CHARSET_INFO *charset;
+  CHARSET_INFO *charset, *underscore_charset;
 
   List<key_part_spec> col_list;
   List<key_part_spec> ref_list;
