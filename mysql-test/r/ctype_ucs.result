@@ -730,6 +730,49 @@ id	MIN(s)
 1	ZZZ
 2	ZZZ
 DROP TABLE t1;
+drop table if exists bug20536;
+set names latin1;
+create table bug20536 (id bigint not null auto_increment primary key, name
+varchar(255) character set ucs2 not null);
+insert into `bug20536` (`id`,`name`) values (1, _latin1 x'74657374311a'), (2, "'test\\_2'");
+select md5(name) from bug20536;
+md5(name)
+3417d830fe24ffb2f81a28e54df2d1b3
+48d95db0d8305c2fe11548a3635c9385
+select sha1(name) from bug20536;
+sha1(name)
+72228a6d56efb7a89a09543068d5d8fa4c330881
+677d4d505355eb5b0549b865fcae4b7f0c28aef5
+select make_set(3, name, upper(name)) from bug20536;
+make_set(3, name, upper(name))
+test1,TEST1
+'test\_2','TEST\_2'
+select export_set(5, name, upper(name)) from bug20536;
+export_set(5, name, upper(name))
+test1,TEST1,test1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1,TEST1
+'test\_2','TEST\_2','test\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2','TEST\_2'
+select export_set(5, name, upper(name), ",", 5) from bug20536;
+export_set(5, name, upper(name), ",", 5)
+test1,TEST1,test1,TEST1,TEST1
+'test\_2','TEST\_2','test\_2','TEST\_2','TEST\_2'
+select password(name) from bug20536;
+password(name)
+????????????????????
+????????????????????
+select old_password(name) from bug20536;
+old_password(name)
+????????
+????????
+select encrypt(name, 'SALT') from bug20536;
+encrypt(name, 'SALT')
+SA5pDi1UPZdys
+SA5pDi1UPZdys
+select quote(name) from bug20536;
+quote(name)
+??????????
+????????????????
+drop table bug20536;
+End of 4.1 tests
 CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
 INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
 update t1 set b=a;
@@ -765,3 +808,4 @@ blob	65535	65535
 text	65535	65535
 text	65535	32767
 drop table t1;
+End of 5.0 tests
