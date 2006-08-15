@@ -125,31 +125,39 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
   uchar null_byte;
   Field *field= NULL;
 
-  /* Search for date/time fields/functions */
-  for (i= 0; i < nitems; i++)
+  /*
+    Do not convert items while creating a or showing a view in order
+    to store/display the original query in these cases.
+  */
+  if (thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
+      thd->lex->sql_command != SQLCOM_SHOW_CREATE)
   {
-    if (!items[i]->result_as_longlong())
+    /* Search for date/time fields/functions */
+    for (i= 0; i < nitems; i++)
     {
-      /* Do not convert anything if a string field/function is present */
-      if (!items[i]->const_item() && items[i]->result_type() == STRING_RESULT)
+      if (!items[i]->result_as_longlong())
       {
-        i= nitems;
+        /* Do not convert anything if a string field/function is present */
+        if (!items[i]->const_item() && items[i]->result_type() == STRING_RESULT)
+        {
+          i= nitems;
+          break;
+        }
+        continue;
+      }
+      if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM &&
+          items[i]->result_type() != INT_RESULT)
+      {
+        field= ((Item_field *)items[i]->real_item())->field;
         break;
       }
-      continue;
-    }
-    if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM &&
-        items[i]->result_type() != INT_RESULT)
-    {
-      field= ((Item_field *)items[i]->real_item())->field;
-      break;
-    }
-    else if (res == Item::FUNC_ITEM)
-    {
-      field= items[i]->tmp_table_field_from_field_type(0);
-      if (field)
-        field->move_field(buff, &null_byte, 0);
-      break;
+      else if (res == Item::FUNC_ITEM)
+      {
+        field= items[i]->tmp_table_field_from_field_type(0);
+        if (field)
+          field->move_field(buff, &null_byte, 0);
+        break;
+      }
     }
   }
   if (field)
