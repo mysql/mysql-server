@@ -1062,27 +1062,10 @@ Ndbfs::execCONTINUEB(Signal* signal)
    return;
 }
 
-bool Global_useO_SYNC = true;
-bool Global_unlinkO_CREAT = false;
-Uint32 Global_syncFreq = 1024 * 1024;
-
 void
 Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 {
   if(signal->theData[0] == 19){
-    if(signal->length() > 1){
-      Global_useO_SYNC = signal->theData[1];
-    }
-    if(signal->length() > 2){
-      Global_syncFreq = signal->theData[2] * 1024 * 1024;
-    }
-    if(signal->length() > 3){
-      Global_unlinkO_CREAT = signal->theData[3];
-    }
-    ndbout_c("useO_SYNC = %d syncFreq = %d unlinkO_CREATE = %d",
-	     Global_useO_SYNC,
-	     Global_syncFreq,
-	     Global_unlinkO_CREAT);
     return;
   }
   if(signal->theData[0] == DumpStateOrd::NdbfsDumpFileStat){
