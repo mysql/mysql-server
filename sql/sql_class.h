@@ -43,6 +43,7 @@ enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 
 extern char internal_table_name[2];
+extern char empty_c_string[1];
 extern const char **errmesg;
 
 #define TC_LOG_PAGE_SIZE   8192
@@ -1986,11 +1987,21 @@ public:
   {
     db.str=0;
   }
-  inline Table_ident(SELECT_LEX_UNIT *s) : sel(s) 
+  /*
+    This constructor is used only for the case when we create a derived
+    table. A derived table has no name and doesn't belong to any database.
+    Later, if there was an alias specified for the table, it will be set
+    by add_table_to_list.
+  */
+  inline Table_ident(SELECT_LEX_UNIT *s) : sel(s)
   {
     /* We must have a table name here as this is used with add_table_to_list */
-    db.str=0; table.str= internal_table_name; table.length=1;
+    db.str= empty_c_string;                    /* a subject to casedn_str */
+    db.length= 0;
+    table.str= internal_table_name;
+    table.length=1;
   }
+  bool is_derived_table() const { return test(sel); }
   inline void change_db(char *db_name)
   {
     db.str= db_name; db.length= (uint) strlen(db_name);
@@ -2007,6 +2018,7 @@ class user_var_entry
   ulong length;
   query_id_t update_query_id, used_query_id;
   Item_result type;
+  bool unsigned_flag;
 
   double val_real(my_bool *null_value);
   longlong val_int(my_bool *null_value);

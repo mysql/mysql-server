@@ -754,7 +754,7 @@ int mysql_rm_table_part2_with_lock(THD *thd, TABLE_LIST *tables,
 				   bool if_exists, bool drop_temporary,
 				   bool log_query);
 bool quick_rm_table(handlerton *base,const char *db,
-                    const char *table_name);
+                    const char *table_name, uint flags);
 void close_cached_table(THD *thd, TABLE *table);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent);
 bool mysql_change_db(THD *thd,const char *name,bool no_access_check);
@@ -899,11 +899,9 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool do_send_ok);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              HA_CREATE_INFO *create_info,
                              Table_ident *src_table);
-bool mysql_rename_table(handlerton *base,
-			const char *old_db,
-			const char * old_name,
-			const char *new_db,
-			const char * new_name);
+bool mysql_rename_table(handlerton *base, const char *old_db,
+                        const char * old_name, const char *new_db,
+                        const char * new_name, uint flags);
 bool mysql_create_index(THD *thd, TABLE_LIST *table_list, List<Key> &keys);
 bool mysql_drop_index(THD *thd, TABLE_LIST *table_list,
                       ALTER_INFO *alter_info);
@@ -1019,8 +1017,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
-int mysql_find_files(THD *thd,List<char> *files, const char *db,
-                const char *path, const char *wild, bool dir);
 bool mysqld_show_storage_engines(THD *thd);
 bool mysqld_show_authors(THD *thd);
 bool mysqld_show_contributors(THD *thd);
@@ -1464,7 +1460,11 @@ bool is_keyword(const char *name, uint len);
 #define MY_DB_OPT_FILE "db.opt"
 bool my_database_names_init(void);
 void my_database_names_free(void);
+bool check_db_dir_existence(const char *db_name);
 bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
+bool load_db_opt_by_name(THD *thd, const char *db_name,
+                         HA_CREATE_INFO *db_create_info);
+bool my_dbopt_init(void);
 void my_dbopt_cleanup(void);
 extern int creating_database; // How many database locks are made
 extern int creating_table;    // How many mysql_create_table() are running
@@ -1619,12 +1619,6 @@ extern handlerton innobase_hton;
 #define have_innodb innobase_hton.state
 #else
 extern SHOW_COMP_OPTION have_innodb;
-#endif
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-extern handlerton berkeley_hton;
-#define have_berkeley_db berkeley_hton.state
-#else
-extern SHOW_COMP_OPTION have_berkeley_db;
 #endif
 #ifdef WITH_EXAMPLE_STORAGE_ENGINE
 extern handlerton example_hton;
@@ -1850,7 +1844,12 @@ uint strconvert(CHARSET_INFO *from_cs, const char *from,
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
-                          const char *table, const char *ext);
+                          const char *table, const char *ext, uint flags);
+/* Flags for conversion functions. */
+#define FN_FROM_IS_TMP  (1 << 0)
+#define FN_TO_IS_TMP    (1 << 1)
+#define FN_IS_TMP       (FN_FROM_IS_TMP | FN_TO_IS_TMP)
+
 /* from hostname.cc */
 struct in_addr;
 my_string ip_to_hostname(struct in_addr *in,uint *errors);

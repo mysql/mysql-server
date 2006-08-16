@@ -370,8 +370,9 @@ enum ha_base_keytype {
                                             would lead to a duplicate key
                                             error in some other table. */
 #define HA_ERR_TABLE_NEEDS_UPGRADE 164  /* The table changed in storage engine */
+#define HA_ERR_TABLE_READONLY    165  /* The table is not writable */
 
-#define HA_ERR_LAST              164  /*Copy last error nr.*/
+#define HA_ERR_LAST              165  /*Copy last error nr.*/
 /* Add error numbers before HA_ERR_LAST and change it accordingly. */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
 

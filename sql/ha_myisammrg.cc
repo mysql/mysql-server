@@ -122,6 +122,10 @@ int ha_myisammrg::close(void)
 int ha_myisammrg::write_row(byte * buf)
 {
   statistic_increment(table->in_use->status_var.ha_write_count,&LOCK_status);
+
+  if (file->merge_insert_method == MERGE_INSERT_DISABLED || !file->tables)
+    return (HA_ERR_TABLE_READONLY);
+
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
@@ -473,7 +477,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
         an embedded server without changing the paths in the .MRG file.
       */
       uint length= build_table_filename(buff, sizeof(buff),
-                                        tables->db, tables->table_name, "");
+                                        tables->db, tables->table_name, "", 0);
       /*
         If a MyISAM table is in the same directory as the MERGE table,
         we use the table name without a path. This means that the

@@ -274,6 +274,15 @@ bool ha_myisam::check_if_locking_is_allowed(uint sql_command,
              table->s->table_name.str);
     return FALSE;
   }
+
+  /*
+    Deny locking of the log tables, which is incompatible with
+    concurrent insert. Unless called from a logger THD:
+    general_log_thd or slow_log_thd.
+  */
+  if (!called_by_logger_thread)
+    return check_if_log_table_locking_is_allowed(sql_command, type, table);
+
   return TRUE;
 }
 
@@ -464,10 +473,13 @@ int ha_myisam::restore(THD* thd, HA_CHECK_OPT *check_opt)
   HA_CHECK_OPT tmp_check_opt;
   char *backup_dir= thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  const char *table_name= table->s->table_name.str;
+  char table_name[FN_REFLEN];
   int error;
   const char* errmsg;
   DBUG_ENTER("restore");
+
+  VOID(tablename_to_filename(table->s->table_name.str, table_name,
+                             sizeof(table_name)));
 
   if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
 				      MI_NAME_DEXT))
@@ -504,10 +516,13 @@ int ha_myisam::backup(THD* thd, HA_CHECK_OPT *check_opt)
 {
   char *backup_dir= thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  const char *table_name= table->s->table_name.str;
+  char table_name[FN_REFLEN];
   int error;
   const char *errmsg;
   DBUG_ENTER("ha_myisam::backup");
+
+  VOID(tablename_to_filename(table->s->table_name.str, table_name,
+                             sizeof(table_name)));
 
   if (fn_format_relative_to_data_home(dst_path, table_name, backup_dir,
 				      reg_ext))
