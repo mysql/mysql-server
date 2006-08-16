@@ -1593,208 +1593,6 @@ skip_this_recv_addr:
 	recv_sys_empty_hash();
 }
 
-#ifdef notdefined
-/***********************************************************************
-In the debug version, updates the replica of a file page, based on a log
-record. */
-static
-void
-recv_update_replicate(
-/*==================*/
-	byte	type,	/* in: log record type */
-	ulint	space,	/* in: space id */
-	ulint	page_no,/* in: page number */
-	byte*	body,	/* in: log record body */
-	byte*	end_ptr)/* in: log record end */
-{
-	page_t*	replica;
-	mtr_t	mtr;
-	byte*	ptr;
-
-	mtr_start(&mtr);
-
-	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
-
-	replica = buf_page_get(space + RECV_REPLICA_SPACE_ADD, page_no,
-							RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(replica, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
-
-	ptr = recv_parse_or_apply_log_rec_body(type, body, end_ptr, replica,
-									&mtr);
-	ut_a(ptr == end_ptr);
-
-	/* Notify the buffer manager that the page has been updated */
-
-	buf_flush_recv_note_modification(buf_block_align(replica),
-					log_sys->old_lsn, log_sys->old_lsn);
-
-	/* Make sure that committing mtr does not call log routines, as
-	we currently own the log mutex */
-
-	mtr.modifications = FALSE;
-
-	mtr_commit(&mtr);
-}
-
-/***********************************************************************
-Checks that two strings are identical. */
-static
-void
-recv_check_identical(
-/*=================*/
-	byte*	str1,	/* in: first string */
-	byte*	str2,	/* in: second string */
-	ulint	len)	/* in: length of strings */
-{
-	ulint	i;
-
-	for (i = 0; i < len; i++) {
-
-		if (str1[i] != str2[i]) {
-			fprintf(stderr,
-				"Strings do not match at offset %lu\n", i);
-			ut_print_buf(str1 + i, 16);
-			fprintf(stderr, "\n");
-			ut_print_buf(str2 + i, 16);
-
-			ut_error;
-		}
-	}
-}
-
-/***********************************************************************
-In the debug version, checks that the replica of a file page is identical
-to the original page. */
-static
-void
-recv_compare_replicate(
-/*===================*/
-	ulint	space,	/* in: space id */
-	ulint	page_no)/* in: page number */
-{
-	page_t*	replica;
-	page_t*	page;
-	mtr_t	mtr;
-
-	mtr_start(&mtr);
-
-	mutex_enter(&(buf_pool->mutex));
-
-	page = buf_page_hash_get(space, page_no)->frame;
-
-	mutex_exit(&(buf_pool->mutex));
-
-	replica = buf_page_get(space + RECV_REPLICA_SPACE_ADD, page_no,
-							RW_X_LATCH, &mtr);
-#ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(replica, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
-
-	recv_check_identical(page + FIL_PAGE_DATA,
-			replica + FIL_PAGE_DATA,
-			PAGE_HEADER + PAGE_MAX_TRX_ID - FIL_PAGE_DATA);
-
-	recv_check_identical(page + PAGE_HEADER + PAGE_MAX_TRX_ID + 8,
-			replica + PAGE_HEADER + PAGE_MAX_TRX_ID + 8,
-			UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
-			- PAGE_HEADER - PAGE_MAX_TRX_ID - 8);
-	mtr_commit(&mtr);
-}
-
-/***********************************************************************
-Checks that a replica of a space is identical to the original space. */
-
-void
-recv_compare_spaces(
-/*================*/
-	ulint	space1,	/* in: space id */
-	ulint	space2,	/* in: space id */
-	ulint	n_pages)/* in: number of pages */
-{
-	page_t*	replica;
-	page_t*	page;
-	mtr_t	mtr;
-	page_t*	frame;
-	ulint	page_no;
-
-	replica = buf_frame_alloc();
-	page = buf_frame_alloc();
-
-	for (page_no = 0; page_no < n_pages; page_no++) {
-
-		mtr_start(&mtr);
-
-		frame = buf_page_get_gen(space1, page_no, RW_S_LATCH, NULL,
-						BUF_GET_IF_IN_POOL,
-						__FILE__, __LINE__,
-						&mtr);
-		if (frame) {
-#ifdef UNIV_SYNC_DEBUG
-			buf_page_dbg_add_level(frame, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
-			ut_memcpy(page, frame, UNIV_PAGE_SIZE);
-		} else {
-			/* Read it from file */
-			fil_io(OS_FILE_READ, TRUE, space1, page_no, 0,
-						UNIV_PAGE_SIZE, page, NULL);
-		}
-
-		frame = buf_page_get_gen(space2, page_no, RW_S_LATCH, NULL,
-						BUF_GET_IF_IN_POOL,
-						__FILE__, __LINE__,
-						&mtr);
-		if (frame) {
-#ifdef UNIV_SYNC_DEBUG
-			buf_page_dbg_add_level(frame, SYNC_NO_ORDER_CHECK);
-#endif /* UNIV_SYNC_DEBUG */
-			ut_memcpy(replica, frame, UNIV_PAGE_SIZE);
-		} else {
-			/* Read it from file */
-			fil_io(OS_FILE_READ, TRUE, space2, page_no, 0,
-				UNIV_PAGE_SIZE, replica, NULL);
-		}
-
-		recv_check_identical(page + FIL_PAGE_DATA,
-			replica + FIL_PAGE_DATA,
-			PAGE_HEADER + PAGE_MAX_TRX_ID - FIL_PAGE_DATA);
-
-		recv_check_identical(page + PAGE_HEADER + PAGE_MAX_TRX_ID + 8,
-			replica + PAGE_HEADER + PAGE_MAX_TRX_ID + 8,
-			UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
-			- PAGE_HEADER - PAGE_MAX_TRX_ID - 8);
-
-		mtr_commit(&mtr);
-	}
-
-	buf_frame_free(replica);
-	buf_frame_free(page);
-}
-
-/***********************************************************************
-Checks that a replica of a space is identical to the original space. Disables
-ibuf operations and flushes and invalidates the buffer pool pages after the
-test. This function can be used to check the recovery before dict or trx
-systems are initialized. */
-
-void
-recv_compare_spaces_low(
-/*====================*/
-	ulint	space1,	/* in: space id */
-	ulint	space2,	/* in: space id */
-	ulint	n_pages)/* in: number of pages */
-{
-	mutex_enter(&(log_sys->mutex));
-
-	recv_apply_hashed_log_recs(FALSE);
-
-	mutex_exit(&(log_sys->mutex));
-
-	recv_compare_spaces(space1, space2, n_pages);
-}
-#endif /* UNIV_LOG_REPLICATE */
-
 /***********************************************************************
 Tries to parse a single log record and returns its length. */
 static
@@ -2088,18 +1886,9 @@ loop:
 						ptr + len, old_lsn,
 						recv_sys->recovered_lsn);
 		} else {
-			/* In debug checking, update a replicate page
-			according to the log record, and check that it
-			becomes identical with the original page */
 #ifdef UNIV_LOG_DEBUG
 			recv_check_incomplete_log_recs(ptr, len);
 #endif/* UNIV_LOG_DEBUG */
-#ifdef UNIV_LOG_REPLICATE
-			recv_update_replicate(type, space, page_no, body,
-								ptr + len);
-			recv_compare_replicate(space, page_no);
-#endif /* UNIV_LOG_REPLICATE */
-
 		}
 	} else {
 		/* Check that all the records associated with the single mtr
@@ -2128,15 +1917,9 @@ loop:
 			recv_previous_parsed_rec_is_multi = 1;
 
 			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
-				/* In debug checking, update a replicate page
-				according to the log record */
 #ifdef UNIV_LOG_DEBUG
 				recv_check_incomplete_log_recs(ptr, len);
 #endif /* UNIV_LOG_DEBUG */
-#ifdef UNIV_LOG_REPLICATE
-				recv_update_replicate(type, space, page_no,
-							body, ptr + len);
-#endif /* UNIV_LOG_REPLICATE */
 			}
 
 #ifdef UNIV_DEBUG
@@ -2204,13 +1987,6 @@ loop:
 				recv_add_to_hash_table(type, space, page_no,
 						body, ptr + len, old_lsn,
 						new_recovered_lsn);
-#ifdef UNIV_LOG_REPLICATE
-			} else {
-				/* In debug checking, check that the replicate
-				page has become identical with the original
-				page */
-				recv_compare_replicate(space, page_no);
-#endif /* UNIV_LOG_REPLICATE */
 			}
 
 			ptr += len;

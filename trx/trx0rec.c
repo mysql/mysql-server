@@ -1101,9 +1101,7 @@ trx_undo_report_row_operation(
 		if (offset == 0) {
 			/* The record did not fit on the page. We erase the
 			end segment of the undo log page and write a log
-			record of it: this is to ensure that in the debug
-			version the replicate page constructed using the log
-			records stays identical to the original page */
+			record of it to to ensure deterministic contents. */
 
 			trx_undo_erase_page_end(undo_page, &mtr);
 		}

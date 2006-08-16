@@ -95,18 +95,6 @@ buf_read_page_low(
 		return(0);
 	}
 
-#ifdef UNIV_LOG_DEBUG
-	if (space % 2 == 1) {
-		/* We are updating a replicate space while holding the
-		log mutex: the read must be handled before other reads
-		which might incur ibuf operations and thus write to the log */
-
-		fputs("Log debug: reading replicate page in sync mode\n",
-			stderr);
-
-		sync = TRUE;
-	}
-#endif
 	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
 
 		/* Trx sys header is so low in the latching order that we play
