@@ -118,6 +118,11 @@ public:
   */
   virtual String *val_str(String*,String *)=0;
   String *val_int_as_str(String *val_buffer, my_bool unsigned_flag);
+  /*
+   str_needs_quotes() returns TRUE if the value returned by val_str() needs
+   to be quoted when used in constructing an SQL query.
+  */
+  virtual bool str_needs_quotes() { return FALSE; }
   virtual Item_result result_type () const=0;
   virtual Item_result cmp_type () const { return result_type(); }
   virtual Item_result cast_to_int_type () const { return result_type(); }
@@ -144,6 +149,11 @@ public:
     table, which is located on disk).
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
+
+  /*
+    data_length() return the "real size" of the data in memory.
+  */
+  virtual uint32 data_length(const char *from) { return pack_length(); }
   virtual uint32 sort_length() const { return pack_length(); }
   virtual void reset(void) { bzero(ptr,pack_length()); }
   virtual void reset_fields() {}
@@ -268,8 +278,6 @@ public:
     ptr= old_ptr;
     return str;
   }
-  bool quote_data(String *unquoted_string);
-  bool needs_quotes(void);
   virtual bool send_binary(Protocol *protocol);
   virtual char *pack(char* to, const char *from, uint max_length=~(uint) 0)
   {
@@ -414,6 +422,7 @@ public:
   uint32 max_length() { return field_length; }
   friend class create_field;
   my_decimal *val_decimal(my_decimal *);
+  virtual bool str_needs_quotes() { return TRUE; }
   uint is_equal(create_field *new_field);
 };
 
@@ -1117,6 +1126,7 @@ public:
   int key_cmp(const byte *str, uint length);
   uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
+  uint32 data_length(const char *from);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
@@ -1381,6 +1391,7 @@ public:
   double val_real(void);
   longlong val_int(void);
   String *val_str(String*, String *);
+  virtual bool str_needs_quotes() { return TRUE; }
   my_decimal *val_decimal(my_decimal *);
   int cmp(const char *a, const char *b)
   { return cmp_binary(a, b); }

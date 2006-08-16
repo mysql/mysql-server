@@ -1,6 +1,6 @@
 drop table if exists t1, t2;
 reset master;
-create table t1 (a int) engine=bdb;
+create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=innodb;
 begin;
 insert t1 values (5);
@@ -10,12 +10,12 @@ insert t2 values (5);
 commit;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=bdb
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; create table t2 (a int) engine=innodb
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	1	#	use `test`; COMMIT
+master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F

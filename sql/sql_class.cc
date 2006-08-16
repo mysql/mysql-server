@@ -45,6 +45,7 @@
   table name
 */
 char internal_table_name[2]= "*";
+char empty_c_string[1]= {0};    /* used for not defined db */
 
 const char * const THD::DEFAULT_WHERE= "field list";
 

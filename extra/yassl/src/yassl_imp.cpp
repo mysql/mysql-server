@@ -1172,7 +1172,8 @@ input_buffer& operator>>(input_buffer& input, ServerHello& hello)
     
     // Session
     hello.id_len_ = input[AUTO];
-    input.read(hello.session_id_, ID_LEN);
+    if (hello.id_len_)
+        input.read(hello.session_id_, hello.id_len_);
  
     // Suites
     hello.cipher_suite_[0] = input[AUTO];
@@ -1215,7 +1216,10 @@ void ServerHello::Process(input_buffer&, SSL& ssl)
 {
     ssl.set_pending(cipher_suite_[1]);
     ssl.set_random(random_, server_end);
+    if (id_len_)
     ssl.set_sessionID(session_id_);
+    else
+        ssl.useSecurity().use_connection().sessionID_Set_ = false;
 
     if (ssl.getSecurity().get_resuming())
         if (memcmp(session_id_, ssl.getSecurity().get_resume().GetID(),

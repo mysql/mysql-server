@@ -1,4 +1,3 @@
-
 #!/bin/sh
 # Copyright (C) 2002-2003 MySQL AB
 # For a more info consult the file COPYRIGHT distributed with this file.
@@ -213,7 +212,7 @@ then
 fi
 mysqld_install_cmd_line="$mysqld $defaults $mysqld_opt --bootstrap \
 --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb \
---skip-bdb --skip-ndbcluster $args --max_allowed_packet=8M --net_buffer_length=16K"
+--skip-ndbcluster $args --max_allowed_packet=8M --net_buffer_length=16K"
 if $scriptdir/mysql_create_system_tables $create_option $mdata $hostname $windows \
    | eval "$mysqld_install_cmd_line" 
 then
