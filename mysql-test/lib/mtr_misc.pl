@@ -83,7 +83,14 @@ sub mtr_path_exists (@) {
 sub mtr_script_exists (@) {
   foreach my $path ( @_ )
   {
-    return $path if -x $path;
+    if($::glob_win32)
+    {
+      return $path if -f $path;
+    }
+    else
+    {
+      return $path if -x $path;
+    }
   }
   if ( @_ == 1 )
   {
@@ -108,7 +115,14 @@ sub mtr_exe_exists (@) {
   map {$_.= ".exe"} @path if $::glob_win32;
   foreach my $path ( @path )
   {
-    return $path if -x $path;
+    if($::glob_win32)
+    {
+      return $path if -f $path;
+    }
+    else
+    {
+      return $path if -x $path;
+    }
   }
   if ( @path == 1 )
   {
