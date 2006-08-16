@@ -13,7 +13,7 @@ Warnings:
 Note	1050	Table 't1' already exists
 insert into t1 values (""),(null);
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 2
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'b' at row 2
 select * from t1;
 b
 
