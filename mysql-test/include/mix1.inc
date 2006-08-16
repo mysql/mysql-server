@@ -1,12 +1,13 @@
-# include/mix1.inc 
+# include/mix1.inc
 #
 # The variables
 #     $engine_type       -- storage engine to be tested
 #     $other_engine_type -- storage engine <> $engine_type
-#                           $other_engine_type should be an alltime
-#                           available storage engine like MyISAM or MEMORY
+#                           $other_engine_type must point to an all
+#                           time available storage engine
+#                              2006-08 MySQL 5.1 MyISAM and MEMORY only
 # have to be set before sourcing this script.
-#     
+#
 # Note: The comments/expectations refer to InnoDB.
 #       They might be not valid for other storage engines.
 #
@@ -15,12 +16,12 @@
 #               - shift main code of t/innodb_mysql.test to include/mix1.inc
 #               - replace hardcoded assignment of storage engine by
 #                 use of $engine_type and $other_engine_type variables
-#               - remove redundant replay testcase of 
+#               - remove redundant replay testcase of
 #                 Bug#12882 min/max inconsistent on empty table
 #               - corrected analyze table t1; to analyze table t4;
 #                 Much older versions of this test show that the table
 #                 where just some indexes have been created must be used.
-#                 
+#
 
 eval SET SESSION STORAGE_ENGINE = $engine_type;
 
@@ -44,7 +45,7 @@ create table t1 (
   unique key contacts$c_id (c_id),
   key contacts$org_id (org_id)
 );
-insert into t1 values 
+insert into t1 values
   (2,null),(120,null),(141,null),(218,7), (128,1),
   (151,2),(234,2),(236,2),(243,2),(255,2),(259,2),(232,3),(235,3),(238,3),
   (246,3),(253,3),(269,3),(285,3),(291,3),(293,3),(131,4),(230,4),(231,4);
@@ -75,17 +76,17 @@ insert into t2(slai_id, owner_tbl, owner_id, sla_id) values
 flush tables;
 select si.slai_id
 from t1 c join t2 si on
-  ((si.owner_tbl = 3 and si.owner_id = c.org_id) or 
-   ( si.owner_tbl = 2 and si.owner_id = c.c_id)) 
-where 
+  ((si.owner_tbl = 3 and si.owner_id = c.org_id) or
+   ( si.owner_tbl = 2 and si.owner_id = c.c_id))
+where
   c.c_id = 218 and expiredate is null;
-  
+
 select * from t1 where org_id is null;
 select si.slai_id
 from t1 c join t2 si on
-  ((si.owner_tbl = 3 and si.owner_id = c.org_id) or 
-   ( si.owner_tbl = 2 and si.owner_id = c.c_id)) 
-where 
+  ((si.owner_tbl = 3 and si.owner_id = c.org_id) or
+   ( si.owner_tbl = 2 and si.owner_id = c.c_id))
+where
   c.c_id = 218 and expiredate is null;
 
 drop table t1, t2;
@@ -94,14 +95,14 @@ drop table t1, t2;
 # Bug#17212: results not sorted correctly by ORDER BY when using index
 # (repeatable only w/innodb because of index props)
 #
-CREATE TABLE t1 (a int, b int, KEY b (b)) Engine=InnoDB;
-CREATE TABLE t2 (a int, b int, PRIMARY KEY  (a,b)) Engine=InnoDB;
-CREATE TABLE t3 (a int, b int, c int, PRIMARY KEY  (a), 
-  UNIQUE KEY b (b,c), KEY a (a,b,c)) Engine=InnoDB;
+CREATE TABLE t1 (a int, b int, KEY b (b));
+CREATE TABLE t2 (a int, b int, PRIMARY KEY  (a,b));
+CREATE TABLE t3 (a int, b int, c int, PRIMARY KEY  (a),
+  UNIQUE KEY b (b,c), KEY a (a,b,c));
 
 INSERT INTO t1 VALUES (1, 1);
-INSERT INTO t1 SELECT a + 1, b + 1 FROM t1; 
-INSERT INTO t1 SELECT a + 2, b + 2 FROM t1; 
+INSERT INTO t1 SELECT a + 1, b + 1 FROM t1;
+INSERT INTO t1 SELECT a + 2, b + 2 FROM t1;
 
 INSERT INTO t2 VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8);
 INSERT INTO t2 SELECT a + 1, b FROM t2;
@@ -113,13 +114,13 @@ INSERT INTO t3 SELECT a + 4, a + 4, 3 FROM t3;
 
 # demonstrate a problem when a must-use-sort table flag
 # (sort_by_table=1) is being neglected.
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE 
-  t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2) 
+SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+  t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
   ORDER BY t1.b LIMIT 2;
 
 # demonstrate the problem described in the bug report
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE 
-  t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2) 
+SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+  t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
   ORDER BY t1.b LIMIT 5;
 DROP TABLE t1, t2, t3;
 
@@ -172,7 +173,7 @@ select count(*), min(7), max(7) from t2m, t1i;
 drop table t1m, t1i, t2m, t2i;
 
 #
-# Bug #12882: primary key implcitly included in every innodb index 
+# Bug #12882: primary key implcitly included in every innodb index
 # (was part of group_min_max.test)
 #
 
@@ -230,7 +231,7 @@ select distinct a1 from t4 where pk_col not in (1,2,3,4);
 drop table t1,t4;
 
 #
-# Bug #6142: a problem with the empty innodb table 
+# Bug #6142: a problem with the empty innodb table
 # (was part of group_min_max.test)
 #
 
@@ -243,7 +244,7 @@ select distinct a from t1;
 drop table t1;
 
 #
-# Bug #9798: group by with rollup 
+# Bug #9798: group by with rollup
 # (was part of group_min_max.test)
 #
 
@@ -255,7 +256,7 @@ select a, count(a) from t1 group by a with rollup;
 drop table t1;
 
 #
-# Bug #13293 Wrongly used index results in endless loop.  
+# Bug #13293 Wrongly used index results in endless loop.
 # (was part of group_min_max.test)
 #
 create table t1 (f1 int, f2 char(1), primary key(f1,f2));
@@ -317,7 +318,7 @@ drop table t1,t2;
 #
 # Bug#17530: Incorrect key truncation on table creation caused server crash.
 #
-create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
+create table t1(f1 varchar(800) binary not null, key(f1))
   character set utf8 collate utf8_general_ci;
 insert into t1 values('aaa');
 drop table t1;

@@ -13,5 +13,9 @@
 --source include/not_embedded.inc
 
 let $engine_type= MyISAM;
+let $other_engine_type= MEMORY;
+# There is unfortunately no other all time available storage engine
+# which supports the handler interface
+let $other_handler_engine_type= MyISAM;
 
 --source include/handler.inc

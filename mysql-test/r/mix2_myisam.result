@@ -764,7 +764,7 @@ drop table t1;
 create database mysqltest;
 create table mysqltest.t1 (a int not null) engine= MyISAM;
 insert into mysqltest.t1 values(1);
-create table mysqltest.t2 (a int not null) engine= MyISAM;
+create table mysqltest.t2 (a int not null) engine= MEMORY;
 insert into mysqltest.t2 values(1);
 create table mysqltest.t3 (a int not null) engine= MEMORY;
 insert into mysqltest.t3 values(1);
@@ -1208,7 +1208,7 @@ KEY `id_version` (`id_version`)
 ) ENGINE=MyISAM;
 INSERT INTO t2 VALUES("3524", "1"),("3525", "1"),("1794", "4"),("102", "5"),("1822", "6"),("3382", "9");
 SELECT t2.id, t1.`label` FROM t2 INNER JOIN
-(SELECT t1.id_object as id_object FROM t1 WHERE t1.`label` LIKE '%test%') AS lbl 
+(SELECT t1.id_object as id_object FROM t1 WHERE t1.`label` LIKE '%test%') AS lbl
 ON (t2.id = lbl.id_object) INNER JOIN t1 ON (t2.id = t1.id_object);
 id	label
 3382	Test
@@ -2331,7 +2331,7 @@ hex(ind)	hex(string1)
 1	
 drop table t1,t2;
 create table t2 (
-a int, b char(10), filler char(10), primary key(a, b(2)) 
+a int, b char(10), filler char(10), primary key(a, b(2))
 ) character set utf8 engine = MyISAM;
 insert into t2 values (1,'abcdefg','one');
 insert into t2 values (2,'ijkilmn','two');
@@ -2339,7 +2339,7 @@ insert into t2 values (3, 'qrstuvw','three');
 update t2 set a=5, filler='booo' where a=1;
 drop table t2;
 create table t2 (
-a int, b char(10), filler char(10), primary key(a, b(2)) 
+a int, b char(10), filler char(10), primary key(a, b(2))
 ) character set ucs2 engine = MyISAM;
 insert into t2 values (1,'abcdefg','one');
 insert into t2 values (2,'ijkilmn','two');
@@ -2398,13 +2398,13 @@ insert into t4(a) values (1),(2),(3);
 insert into t3(a) values (5),(7),(8);
 insert into t4(a) values (5),(7),(8);
 insert into t5(a) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12);
-create trigger t1t before insert on t1 for each row begin 
+create trigger t1t before insert on t1 for each row begin
 INSERT INTO t2 SET a = NEW.a;
 end |
 create trigger t2t before insert on t2 for each row begin
 DELETE FROM t3 WHERE a = NEW.a;
 end |
-create trigger t3t before delete on t3 for each row begin  
+create trigger t3t before delete on t3 for each row begin
 UPDATE t4 SET b = b + 1 WHERE a = OLD.a;
 end |
 create trigger t4t before update on t4 for each row begin
