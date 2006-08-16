@@ -2796,11 +2796,12 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
     break;
   case Item_func::OPTIMIZE_KEY:
   {
+    Item **values;
     // BETWEEN, IN, NE
     if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      Item **values= cond_func->arguments()+1;
+      values= cond_func->arguments()+1;
       if (cond_func->functype() == Item_func::NE_FUNC &&
         cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	     !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
@@ -2812,6 +2813,22 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
                            0, values,
                            cond_func->argument_count()-1,
                            usable_tables);
+    }
+    if (cond_func->functype() == Item_func::BETWEEN)
+    {
+      values= cond_func->arguments();
+      for (uint i= 1 ; i < cond_func->argument_count() ; i++)
+      {
+        Item_field *field_item;
+        if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM
+            &&
+            !(cond_func->arguments()[i]->used_tables() & OUTER_REF_TABLE_BIT))
+        {
+          field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
+          add_key_equal_fields(key_fields, *and_level, cond_func,
+                               field_item, 0, values, 1, usable_tables);
+        }
+      }  
     }
     break;
   }

@@ -3580,25 +3580,36 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
     break;
 
   case Item_func::BETWEEN:
-    if (inv)
+  {
+    int i= (int ) value;
+    if (! i)
     {
-      tree= get_ne_mm_tree(param, cond_func, field, cond_func->arguments()[1],
-                           cond_func->arguments()[2], cmp_type);
-    }
-    else
-    {
-      tree= get_mm_parts(param, cond_func, field, Item_func::GE_FUNC,
-		         cond_func->arguments()[1],cmp_type);
-      if (tree)
+      if (inv)
       {
-        tree= tree_and(param, tree, get_mm_parts(param, cond_func, field,
-					         Item_func::LE_FUNC,
-					         cond_func->arguments()[2],
-                                                 cmp_type));
+        tree= get_ne_mm_tree(param, cond_func, field, cond_func->arguments()[1],
+                             cond_func->arguments()[2], cmp_type);
+      }
+      else
+      {
+        tree= get_mm_parts(param, cond_func, field, Item_func::GE_FUNC,
+		           cond_func->arguments()[1],cmp_type);
+        if (tree)
+        {
+          tree= tree_and(param, tree, get_mm_parts(param, cond_func, field,
+					           Item_func::LE_FUNC,
+					           cond_func->arguments()[2],
+                                                   cmp_type));
+        }
       }
     }
+    else
+      tree= get_mm_parts(param, cond_func, field,
+                         (inv ?
+                          (i == 1 ? Item_func::GT_FUNC : Item_func::LT_FUNC) :
+                          (i == 1 ? Item_func::LE_FUNC : Item_func::GE_FUNC)),
+                         cond_func->arguments()[0], cmp_type);
     break;
-
+  }
   case Item_func::IN_FUNC:
   {
     Item_func_in *func=(Item_func_in*) cond_func;
@@ -3768,6 +3779,118 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
   DBUG_RETURN(tree);
 }
 
+
+/*
+  Build conjunction of all SEL_TREEs for a simple predicate applying equalities
+ 
+  SYNOPSIS
+    get_full_func_mm_tree()
+      param       PARAM from SQL_SELECT::test_quick_select
+      cond_func   item for the predicate
+      field_item  field in the predicate
+      value       constant in the predicate
+                  (for BETWEEN it contains the number of the field argument,
+                   for IN it's always 0) 
+      inv         TRUE <> NOT cond_func is considered
+                  (makes sense only when cond_func is BETWEEN or IN)
+
+  DESCRIPTION
+    For a simple SARGable predicate of the form (f op c), where f is a field and
+    c is a constant, the function builds a conjunction of all SEL_TREES that can
+    be obtained by the substitution of f for all different fields equal to f.
+
+  NOTES  
+    If the WHERE condition contains a predicate (fi op c),
+    then not only SELL_TREE for this predicate is built, but
+    the trees for the results of substitution of fi for
+    each fj belonging to the same multiple equality as fi
+    are built as well.
+    E.g. for WHERE t1.a=t2.a AND t2.a > 10 
+    a SEL_TREE for t2.a > 10 will be built for quick select from t2
+    and   
+    a SEL_TREE for t1.a > 10 will be built for quick select from t1.
+
+    A BETWEEN predicate of the form (fi [NOT] BETWEEN c1 AND c2) is treated
+    in a similar way: we build a conjuction of trees for the results
+    of all substitutions of fi for equal fj.
+    Yet a predicate of the form (c BETWEEN f1i AND f2i) is processed
+    differently. It is considered as a conjuction of two SARGable
+    predicates (f1i <= c) and (f2i <=c) and the function get_full_func_mm_tree
+    is called for each of them separately producing trees for 
+       AND j (f1j <=c ) and AND j (f2j <= c) 
+    After this these two trees are united in one conjunctive tree.
+    It's easy to see that the same tree is obtained for
+       AND j,k (f1j <=c AND f2k<=c)
+    which is equivalent to 
+       AND j,k (c BETWEEN f1j AND f2k).
+    The validity of the processing of the predicate (c NOT BETWEEN f1i AND f2i)
+    which equivalent to (f1i > c OR f2i < c) is not so obvious. Here the
+    function get_full_func_mm_tree is called for (f1i > c) and (f2i < c)
+    producing trees for AND j (f1j > c) and AND j (f2j < c). Then this two
+    trees are united in one OR-tree. The expression 
+      (AND j (f1j > c) OR AND j (f2j < c)
+    is equivalent to the expression
+      AND j,k (f1j > c OR f2k < c) 
+    which is just a translation of 
+      AND j,k (c NOT BETWEEN f1j AND f2k)
+
+    In the cases when one of the items f1, f2 is a constant c1 we do not create
+    a tree for it at all. It works for BETWEEN predicates but does not
+    work for NOT BETWEEN predicates as we have to evaluate the expression
+    with it. If it is TRUE then the other tree can be completely ignored.
+    We do not do it now and no trees are built in these cases for
+    NOT BETWEEN predicates.
+
+    As to IN predicates only ones of the form (f IN (c1,...,cn)),
+    where f1 is a field and c1,...,cn are constant, are considered as
+    SARGable. We never try to narrow the index scan using predicates of
+    the form (c IN (c1,...,f,...,cn)). 
+      
+  RETURN 
+    Pointer to the tree representing the built conjunction of SEL_TREEs
+*/
+
+static SEL_TREE *get_full_func_mm_tree(PARAM *param, Item_func *cond_func, 
+                                       Item_field *field_item, Item *value, 
+                                       bool inv)
+{
+  SEL_TREE *tree= 0;
+  SEL_TREE *ftree= 0;
+  table_map ref_tables= 0;
+  table_map param_comp= ~(param->prev_tables | param->read_tables |
+		          param->current_table);
+  DBUG_ENTER("get_full_func_mm_tree");
+
+  for (uint i= 0; i < cond_func->arg_count; i++)
+  {
+    Item *arg= cond_func->arguments()[i]->real_item();
+    if (arg != field_item)
+      ref_tables|= arg->used_tables();
+  }
+  Field *field= field_item->field;
+  Item_result cmp_type= field->cmp_type();
+  if (!((ref_tables | field->table->map) & param_comp))
+    ftree= get_func_mm_tree(param, cond_func, field, value, cmp_type, inv);
+  Item_equal *item_equal= field_item->item_equal;
+  if (item_equal)
+  {
+    Item_equal_iterator it(*item_equal);
+    Item_field *item;
+    while ((item= it++))
+    {
+      Field *f= item->field;
+      if (field->eq(f))
+        continue;
+      if (!((ref_tables | f->table->map) & param_comp))
+      {
+        tree= get_func_mm_tree(param, cond_func, f, value, cmp_type, inv);
+        ftree= !ftree ? tree : tree_and(param, ftree, tree);
+      }
+    }
+  }
+  DBUG_RETURN(ftree);
+}
+
 	/* make a select tree of all keys in condition */
 
 static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
@@ -3776,7 +3899,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
   SEL_TREE *ftree= 0;
   Item_field *field_item= 0;
   bool inv= FALSE;
-  Item *value;
+  Item *value= 0;
   DBUG_ENTER("get_mm_tree");
 
   if (cond->type() == Item::COND_ITEM)
@@ -3856,10 +3979,37 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
 
   switch (cond_func->functype()) {
   case Item_func::BETWEEN:
-    if (cond_func->arguments()[0]->real_item()->type() != Item::FIELD_ITEM)
-      DBUG_RETURN(0);
-    field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
-    value= NULL;
+    if (cond_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM)
+    {
+      field_item= (Item_field*) (cond_func->arguments()[0]->real_item());
+      ftree= get_full_func_mm_tree(param, cond_func, field_item, NULL, inv);
+    }
+
+    /*
+      Concerning the code below see the NOTES section in
+      the comments for the function get_full_func_mm_tree()
+    */
+    for (uint i= 1 ; i < cond_func->arg_count ; i++)
+    {
+     
+      if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM)
+      {
+        field_item= (Item_field*) (cond_func->arguments()[i]->real_item());
+        SEL_TREE *tmp= get_full_func_mm_tree(param, cond_func, 
+                                    field_item, (Item*) i, inv);
+        if (inv)
+          tree= !tree ? tmp : tree_or(param, tree, tmp);
+        else 
+          tree= tree_and(param, tree, tmp);
+      }
+      else if (inv)
+      { 
+        tree= 0;
+        break;
+      }
+    }
+
+    ftree = tree_and(param, ftree, tree);
     break;
   case Item_func::IN_FUNC:
   {
@@ -3867,7 +4017,7 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     if (func->key_item()->real_item()->type() != Item::FIELD_ITEM)
       DBUG_RETURN(0);
     field_item= (Item_field*) (func->key_item()->real_item());
-    value= NULL;
+    ftree= get_full_func_mm_tree(param, cond_func, field_item, NULL, inv);
     break;
   }
   case Item_func::MULT_EQUAL_FUNC:
@@ -3906,47 +4056,9 @@ static SEL_TREE *get_mm_tree(PARAM *param,COND *cond)
     }
     else
       DBUG_RETURN(0);
+    ftree= get_full_func_mm_tree(param, cond_func, field_item, value, inv);
   }
 
-  /* 
-     If the where condition contains a predicate (ti.field op const),
-     then not only SELL_TREE for this predicate is built, but
-     the trees for the results of substitution of ti.field for
-     each tj.field belonging to the same multiple equality as ti.field
-     are built as well.
-     E.g. for WHERE t1.a=t2.a AND t2.a > 10 
-     a SEL_TREE for t2.a > 10 will be built for quick select from t2
-     and   
-     a SEL_TREE for t1.a > 10 will be built for quick select from t1.
-  */
-     
-  for (uint i= 0; i < cond_func->arg_count; i++)
-  {
-    Item *arg= cond_func->arguments()[i]->real_item();
-    if (arg != field_item)
-      ref_tables|= arg->used_tables();
-  }
-  Field *field= field_item->field;
-  Item_result cmp_type= field->cmp_type();
-  if (!((ref_tables | field->table->map) & param_comp))
-    ftree= get_func_mm_tree(param, cond_func, field, value, cmp_type, inv);
-  Item_equal *item_equal= field_item->item_equal;
-  if (item_equal)
-  {
-    Item_equal_iterator it(*item_equal);
-    Item_field *item;
-    while ((item= it++))
-    {
-      Field *f= item->field;
-      if (field->eq(f))
-        continue;
-      if (!((ref_tables | f->table->map) & param_comp))
-      {
-        tree= get_func_mm_tree(param, cond_func, f, value, cmp_type, inv);
-        ftree= !ftree ? tree : tree_and(param, ftree, tree);
-      }
-    }
-  }
   DBUG_RETURN(ftree);
 }
 
