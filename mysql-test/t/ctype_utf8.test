@@ -728,6 +728,24 @@ select repeat(_utf8'+',3) as h union select NULL;
 select ifnull(NULL, _utf8'string');
 
 #
+# Bug#9509 Optimizer: wrong result after AND with comparisons
+#
+set names utf8;
+create table t1 (s1 char(5) character set utf8 collate utf8_lithuanian_ci);
+insert into t1 values ('I'),('K'),('Y');
+select * from t1 where s1 < 'K' and s1 = 'Y';
+select * from t1 where 'K' > s1 and s1 = 'Y';
+drop table t1;
+
+create table t1 (s1 char(5) character set utf8 collate utf8_czech_ci);
+insert into t1 values ('c'),('d'),('h'),('ch'),('CH'),('cH'),('Ch'),('i');
+select * from t1 where s1 > 'd' and s1 = 'CH';
+select * from t1 where 'd' < s1 and s1 = 'CH';
+select * from t1 where s1 = 'cH' and s1 <> 'ch';
+select * from t1 where 'cH' = s1 and s1 <> 'ch';
+drop table t1;
+
+#
 # Bug#10714: Inserting double value into utf8 column crashes server
 #
 create table t1 (a varchar(255)) default character set utf8;
