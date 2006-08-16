@@ -7,6 +7,8 @@ start slave;
 drop database if exists mysqltest1;
 create database mysqltest1;
 use mysqltest1;
+set session binlog_format=row;
+set global binlog_format=row;
 show global variables like "binlog_format%";
 Variable_name	Value
 binlog_format	ROW
@@ -334,6 +336,26 @@ count(*)
 select count(*) from t5;
 count(*)
 58
+SET SESSION BINLOG_FORMAT=STATEMENT;
+CREATE TABLE t11 (song VARCHAR(255));
+LOCK TABLES t11 WRITE;
+SET SESSION BINLOG_FORMAT=ROW;
+INSERT INTO t11 VALUES('Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict');
+SET SESSION BINLOG_FORMAT=STATEMENT;
+INSERT INTO t11 VALUES('Careful With That Axe, Eugene');
+UNLOCK TABLES;
+SELECT * FROM t11;
+song	Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict
+song	Careful With That Axe, Eugene
+USE mysqltest1;
+SELECT * FROM t11;
+song	Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict
+song	Careful With That Axe, Eugene
+SET SESSION BINLOG_FORMAT=MIXED;
+CREATE TABLE t12 (data LONG);
+LOCK TABLES t12 WRITE;
+INSERT INTO t12 VALUES(UUID());
+UNLOCK TABLES;
 select count(*) from t11;
 count(*)
 8
@@ -462,6 +484,13 @@ master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE TABLE t11 (song VARCHAR(255))
+master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t11)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `mysqltest1`; INSERT INTO t11 VALUES('Careful With That Axe, Eugene')
+master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE TABLE t12 (data LONG)
+master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t12)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
