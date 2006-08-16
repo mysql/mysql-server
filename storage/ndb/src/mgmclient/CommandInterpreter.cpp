@@ -375,7 +375,7 @@ static const char* helpTextClusterlogOn =
 "                   Turn the cluster log on.\n"
 "                   It tells management server which severity levels\n"
 "                   messages will be logged.\n\n"
-"                   <severity > can be any one of the following values:\n"
+"                   <severity> can be any one of the following values:\n"
 "                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
 ;
 
@@ -388,7 +388,7 @@ static const char* helpTextClusterlogOff =
 "                   Turn the cluster log off.\n"
 "                   It tells management server which serverity\n"
 "                   levels logging will be disabled.\n\n"
-"                   <severity > can be any one of the following values:\n"
+"                   <severity> can be any one of the following values:\n"
 "                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
 ;
 
@@ -401,7 +401,7 @@ static const char* helpTextClusterlogToggle =
 "                   Toggle serverity filter on/off.\n"
 "                   If a serverity level is already enabled,then it will\n"
 "                   be disabled after you use the command,vice versa.\n\n"
-"                   <severity > can be any one of the following values:\n"
+"                   <severity> can be any one of the following values:\n"
 "                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
 ;
 
@@ -523,7 +523,7 @@ static const char* helpTextClusterlog =
 "                   <level> is represented by one of the numbers \n"
 "                   from 1 to 15 inclusive, where 1 indicates 'most important' \n"
 "                   and 15 'least important'.\n\n"
-"                   <severity > can be any one of the following values:\n"
+"                   <severity> can be any one of the following values:\n"
 "                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
 ;
 
