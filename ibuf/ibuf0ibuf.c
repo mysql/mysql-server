@@ -471,14 +471,6 @@ ibuf_data_init_for_space(
 
 	ut_a(space == 0);
 
-#ifdef UNIV_LOG_DEBUG
-	if (space % 2 == 1) {
-
-		fputs("No ibuf op in replicate space\n", stderr);
-
-		return(NULL);
-	}
-#endif
 	data = mem_alloc(sizeof(ibuf_data_t));
 
 	data->space = space;
@@ -1019,14 +1011,6 @@ ibuf_page_low(
 	page_t*	bitmap_page;
 	ibool	ret;
 
-#ifdef UNIV_LOG_DEBUG
-	if (space % 2 != 0) {
-
-		fputs("No ibuf in a replicate space\n", stderr);
-
-		return(FALSE);
-	}
-#endif
 	if (ibuf_fixed_addr_page(space, page_no)) {
 
 		return(TRUE);
@@ -3058,14 +3042,6 @@ ibuf_merge_or_delete_for_page(
 		return;
 	}
 
-#ifdef UNIV_LOG_DEBUG
-	if (space % 2 != 0) {
-
-		fputs("No ibuf operation in a replicate space\n", stderr);
-
-		return;
-	}
-#endif
 	if (ibuf_fixed_addr_page(space, page_no) || fsp_descr_page(page_no)
 					|| trx_sys_hdr_page(space, page_no)) {
 		return;

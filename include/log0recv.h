@@ -214,27 +214,6 @@ void
 recv_recovery_from_archive_finish(void);
 /*===================================*/
 #endif /* UNIV_LOG_ARCHIVE */
-/***********************************************************************
-Checks that a replica of a space is identical to the original space. */
-
-void
-recv_compare_spaces(
-/*================*/
-	ulint	space1,	/* in: space id */
-	ulint	space2,	/* in: space id */
-	ulint	n_pages);/* in: number of pages */
-/***********************************************************************
-Checks that a replica of a space is identical to the original space. Disables
-ibuf operations and flushes and invalidates the buffer pool pages after the
-test. This function can be used to check the recovery before dict or trx
-systems are initialized. */
-
-void
-recv_compare_spaces_low(
-/*====================*/
-	ulint	space1,	/* in: space id */
-	ulint	space2,	/* in: space id */
-	ulint	n_pages);/* in: number of pages */
 
 /* Block of log record data */
 typedef struct recv_data_struct	recv_data_t;
@@ -360,11 +339,6 @@ roll-forward */
 #define RECV_BEING_READ		72
 #define RECV_BEING_PROCESSED	73
 #define RECV_PROCESSED		74
-
-/* The number which is added to a space id to obtain the replicate space
-in the debug version: spaces with an odd number as the id are replicate
-spaces */
-#define RECV_REPLICA_SPACE_ADD	1
 
 extern ulint	recv_n_pool_free_frames;
 
