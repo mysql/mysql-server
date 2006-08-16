@@ -14,5 +14,7 @@
 
 --source include/have_innodb.inc
 let $engine_type= InnoDB;
+let $other_engine_type= MEMORY;
+let $other_handler_engine_type= MyISAM;
 
 --source include/handler.inc

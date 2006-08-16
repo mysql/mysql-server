@@ -1,7 +1,7 @@
 # include/rowid_order.inc
 #
 # Test for rowid ordering (and comparison) functions.
-# do index_merge select for tables with PK of various types. 
+# do index_merge select for tables with PK of various types.
 #
 # The variable
 #     $engine_type       -- storage engine to be tested
@@ -22,8 +22,8 @@ eval SET SESSION STORAGE_ENGINE = $engine_type;
 drop table if exists t1, t2, t3,t4;
 --enable_warnings
 
-# Signed number as rowid 
-create table t1 ( 
+# Signed number as rowid
+create table t1 (
   pk1 int not NULL,
   key1 int(11),
   key2 int(11),
@@ -40,8 +40,8 @@ explain select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
 select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
 drop table t1;
 
-# Unsigned numbers as rowids 
-create table t1 ( 
+# Unsigned numbers as rowids
+create table t1 (
   pk1 int unsigned not NULL,
   key1 int(11),
   key2 int(11),
@@ -58,7 +58,7 @@ select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
 drop table t1;
 
 # Case-insensitive char(N)
-create table t1 ( 
+create table t1 (
   pk1 char(4) not NULL,
   key1 int(11),
   key2 int(11),
@@ -84,7 +84,7 @@ create table t1 (
   KEY key1 (key1),
   KEY key2 (key2)
 );
-insert into t1 values 
+insert into t1 values
   (1, 'u', 'u',        1, 1),
   (1, 'u', char(0xEC), 1, 1),
   (1, 'u', 'x',        1, 1);

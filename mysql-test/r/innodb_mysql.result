@@ -12,7 +12,7 @@ org_id int(11) default null,
 unique key contacts$c_id (c_id),
 key contacts$org_id (org_id)
 );
-insert into t1 values 
+insert into t1 values
 (2,null),(120,null),(141,null),(218,7), (128,1),
 (151,2),(234,2),(236,2),(243,2),(255,2),(259,2),(232,3),(235,3),(238,3),
 (246,3),(253,3),(269,3),(285,3),(291,3),(293,3),(131,4),(230,4),(231,4);
@@ -41,9 +41,9 @@ insert into t2(slai_id, owner_tbl, owner_id, sla_id) values
 flush tables;
 select si.slai_id
 from t1 c join t2 si on
-((si.owner_tbl = 3 and si.owner_id = c.org_id) or 
-( si.owner_tbl = 2 and si.owner_id = c.c_id)) 
-where 
+((si.owner_tbl = 3 and si.owner_id = c.org_id) or
+( si.owner_tbl = 2 and si.owner_id = c.c_id))
+where
 c.c_id = 218 and expiredate is null;
 slai_id
 12
@@ -54,17 +54,17 @@ c_id	org_id
 141	NULL
 select si.slai_id
 from t1 c join t2 si on
-((si.owner_tbl = 3 and si.owner_id = c.org_id) or 
-( si.owner_tbl = 2 and si.owner_id = c.c_id)) 
-where 
+((si.owner_tbl = 3 and si.owner_id = c.org_id) or
+( si.owner_tbl = 2 and si.owner_id = c.c_id))
+where
 c.c_id = 218 and expiredate is null;
 slai_id
 12
 drop table t1, t2;
-CREATE TABLE t1 (a int, b int, KEY b (b)) Engine=InnoDB;
-CREATE TABLE t2 (a int, b int, PRIMARY KEY  (a,b)) Engine=InnoDB;
-CREATE TABLE t3 (a int, b int, c int, PRIMARY KEY  (a), 
-UNIQUE KEY b (b,c), KEY a (a,b,c)) Engine=InnoDB;
+CREATE TABLE t1 (a int, b int, KEY b (b));
+CREATE TABLE t2 (a int, b int, PRIMARY KEY  (a,b));
+CREATE TABLE t3 (a int, b int, c int, PRIMARY KEY  (a),
+UNIQUE KEY b (b,c), KEY a (a,b,c));
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 SELECT a + 1, b + 1 FROM t1;
 INSERT INTO t1 SELECT a + 2, b + 2 FROM t1;
@@ -74,14 +74,14 @@ DELETE FROM t2 WHERE a = 1 AND b < 2;
 INSERT INTO t3 VALUES (1,1,1),(2,1,2);
 INSERT INTO t3 SELECT a + 2, a + 2, 3 FROM t3;
 INSERT INTO t3 SELECT a + 4, a + 4, 3 FROM t3;
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE 
-t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2) 
+SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
 ORDER BY t1.b LIMIT 2;
 b	a
 1	1
 2	2
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE 
-t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2) 
+SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
 ORDER BY t1.b LIMIT 5;
 b	a
 1	1
@@ -307,7 +307,7 @@ ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
 drop table t1,t2;
-create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
+create table t1(f1 varchar(800) binary not null, key(f1))
 character set utf8 collate utf8_general_ci;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 765 bytes

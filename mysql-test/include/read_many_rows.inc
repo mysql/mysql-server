@@ -3,9 +3,16 @@
 # Test how filesort and buffered-record-reads works
 # This test needs a lot of time.
 #
-# The variable
+# The variables
 #     $engine_type       -- storage engine to be tested
-# has to be set before sourcing this script.
+#     $other_engine_type -- storage engine <> $engine_type, if possible
+#                           1. $other_engine_type must allow to store many rows
+#                              without using non standard server options
+#                              (does not need a t/read_many_rows_*-master.opt file)
+#                           2. $other_engine_type must point to an all time
+#                              available storage engine
+#                              2006-08 MySQL 5.1 MyISAM and MEMORY only
+# have to be set before sourcing this script.
 #
 # Last update:
 # 2006-08-03 ML test refactored (MySQL 5.1)
@@ -18,10 +25,10 @@ eval SET SESSION STORAGE_ENGINE = $engine_type;
 DROP TABLE IF EXISTS t1, t2, t3, t4;
 --enable_warnings
 
-CREATE TABLE t1 (id INTEGER) ENGINE=MYISAM;
+eval CREATE TABLE t1 (id INTEGER) ENGINE=$other_engine_type;
 CREATE TABLE t2 (id INTEGER PRIMARY KEY);
 CREATE TABLE t3 (a CHAR(32) PRIMARY KEY,id INTEGER);
-CREATE TABLE t4 (a CHAR(32) PRIMARY KEY,id INTEGER) ENGINE=MYISAM;
+eval CREATE TABLE t4 (a CHAR(32) PRIMARY KEY,id INTEGER) ENGINE=$other_engine_type;
 
 INSERT INTO t1 (id) VALUES (1);
 INSERT INTO t1 SELECT id+1 FROM t1;

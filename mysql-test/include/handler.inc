@@ -1,8 +1,14 @@
 # include/handler.inc
 #
-# The variable
+# The variables
 #     $engine_type       -- storage engine to be tested
-# has to be set before sourcing this script.
+#     $other_engine_type -- storage engine <> $engine_type
+#     $other_handler_engine_type -- storage engine <> $engine_type, if possible
+#                           1. $other_handler_engine_type must support handler
+#                           2. $other_handler_engine_type must point to an all
+#                              time available storage engine
+#                              2006-08 MySQL 5.1 MyISAM and MEMORY only
+# have to be set before sourcing this script.
 #
 # test of HANDLER ...
 #
@@ -108,7 +114,7 @@ insert into t1 values (17);
 --error 1109
 handler t2 read first;
 handler t1 open as t2;
-alter table t1 engine=MyISAM;
+eval alter table t1 engine=$other_engine_type;
 --error 1109
 handler t2 read first;
 drop table t1;
@@ -327,7 +333,7 @@ insert into t5 values ("t5");
 handler t5 open as h5;
 handler h5 read first limit 9;
 # close first
-alter table t1 engine=MyISAM;
+eval alter table t1 engine=$other_handler_engine_type;
 --error 1109
 handler h1 read first limit 9;
 handler h2 read first limit 9;
@@ -335,7 +341,7 @@ handler h3 read first limit 9;
 handler h4 read first limit 9;
 handler h5 read first limit 9;
 # close last
-alter table t5 engine=MyISAM;
+eval alter table t5 engine=$other_handler_engine_type;
 --error 1109
 handler h1 read first limit 9;
 handler h2 read first limit 9;
@@ -344,7 +350,7 @@ handler h4 read first limit 9;
 --error 1109
 handler h5 read first limit 9;
 # close middle
-alter table t3 engine=MyISAM;
+eval alter table t3 engine=$other_handler_engine_type;
 --error 1109
 handler h1 read first limit 9;
 handler h2 read first limit 9;
@@ -362,7 +368,7 @@ handler t1 open as h1_3;
 handler h1_1 read first limit 9;
 handler h1_2 read first limit 9;
 handler h1_3 read first limit 9;
-alter table t1 engine=MyISAM;
+eval alter table t1 engine=$engine_type;
 --error 1109
 handler h1_1 read first limit 9;
 --error 1109

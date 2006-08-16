@@ -12,5 +12,6 @@
 
 --source include/have_innodb.inc
 let $engine_type= InnoDB;
+let $other_engine_type= MyISAM;
 
 --source include/read_many_rows.inc
