@@ -1,4 +1,4 @@
--- source include/have_binlog_format_row.inc
+-- source include/have_row_based.inc
 -- source include/master-slave.inc
 
 connection master;
@@ -7,6 +7,9 @@ drop database if exists mysqltest1;
 create database mysqltest1;
 --enable_warnings
 use mysqltest1;
+
+set session binlog_format=row;
+set global binlog_format=row;
 
 show global variables like "binlog_format%";
 show session variables like "binlog_format%";
@@ -196,10 +199,38 @@ if ($you_want_to_test_UDF)
   select count(*) from t9;
 }
 
+#
+# Bug#20863 If binlog format is changed between update and unlock of
+#           tables, wrong binlog
+#
+
+connection master;
+SET SESSION BINLOG_FORMAT=STATEMENT;
+CREATE TABLE t11 (song VARCHAR(255));
+LOCK TABLES t11 WRITE;
+SET SESSION BINLOG_FORMAT=ROW;
+INSERT INTO t11 VALUES('Several Species of Small Furry Animals Gathered Together in a Cave and Grooving With a Pict');
+SET SESSION BINLOG_FORMAT=STATEMENT;
+INSERT INTO t11 VALUES('Careful With That Axe, Eugene');
+UNLOCK TABLES;
+
+--query_vertical SELECT * FROM t11
+sync_slave_with_master;
+USE mysqltest1;
+--query_vertical SELECT * FROM t11
+
+connection master;
+SET SESSION BINLOG_FORMAT=MIXED;
+CREATE TABLE t12 (data LONG);
+LOCK TABLES t12 WRITE;
+INSERT INTO t12 VALUES(UUID());
+UNLOCK TABLES;
+
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/
 show binlog events from 102;
 sync_slave_with_master;
+
 # as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
