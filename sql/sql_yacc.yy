@@ -752,10 +752,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
 
 %type <ulong_num>
-	ulong_num merge_insert_types
+	ulong_num real_ulong_num merge_insert_types
 
 %type <ulonglong_number>
-	ulonglong_num size_number
+	ulonglong_num real_ulonglong_num size_number
 
 %type <p_elem_value>
         part_bit_expr
@@ -3097,7 +3097,7 @@ opt_ts_redo_buffer_size:
           };
 
 opt_ts_nodegroup:
-          NODEGROUP_SYM opt_equal ulong_num
+          NODEGROUP_SYM opt_equal real_ulong_num
           {
             LEX *lex= Lex;
             if (lex->alter_tablespace_info->nodegroup_id != UNDEF_NODEGROUP)
@@ -3156,7 +3156,7 @@ ts_wait:
           };
 
 size_number:
-          ulong_num { $$= $1;}
+          real_ulong_num { $$= $1;}
           | IDENT
           {
             ulonglong number, test_number;
@@ -3395,7 +3395,7 @@ sub_part_func:
 
 opt_no_parts:
         /* empty */ {}
-        | PARTITIONS_SYM ulong_num 
+        | PARTITIONS_SYM real_ulong_num 
         { 
           uint no_parts= $2;
           LEX *lex= Lex;
@@ -3459,7 +3459,7 @@ part_func_expr:
 
 opt_no_subparts:
         /* empty */ {}
-        | SUBPARTITIONS_SYM ulong_num
+        | SUBPARTITIONS_SYM real_ulong_num
         {
           uint no_parts= $2;
           LEX *lex= Lex;
@@ -3799,11 +3799,11 @@ opt_part_option:
           lex->part_info->curr_part_elem->engine_type= $4;
           lex->part_info->default_engine_type= $4;
         }
-        | NODEGROUP_SYM opt_equal ulong_num
+        | NODEGROUP_SYM opt_equal real_ulong_num
         { Lex->part_info->curr_part_elem->nodegroup_id= $3; }
-        | MAX_ROWS opt_equal ulonglong_num
+        | MAX_ROWS opt_equal real_ulonglong_num
         { Lex->part_info->curr_part_elem->part_max_rows= $3; }
-        | MIN_ROWS opt_equal ulonglong_num
+        | MIN_ROWS opt_equal real_ulonglong_num
         { Lex->part_info->curr_part_elem->part_min_rows= $3; }
         | DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
         { Lex->part_info->curr_part_elem->data_file_name= $4.str; }
@@ -4933,7 +4933,7 @@ alter_commands:
             lex->check_opt.init();
           }
           opt_mi_repair_type
-        | COALESCE PARTITION_SYM opt_no_write_to_binlog ulong_num
+        | COALESCE PARTITION_SYM opt_no_write_to_binlog real_ulong_num
           {
             LEX *lex= Lex;
 	    lex->alter_info.flags|= ALTER_COALESCE_PARTITION;
@@ -4981,7 +4981,7 @@ add_part_extra:
           LEX *lex= Lex;
           lex->part_info->no_parts= lex->part_info->partitions.elements;
         }
-        | PARTITIONS_SYM ulong_num
+        | PARTITIONS_SYM real_ulong_num
         {
           LEX *lex= Lex;
           lex->part_info->no_parts= $2;
@@ -7516,7 +7516,15 @@ ulong_num:
 	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | DECIMAL_NUM   { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	| FLOAT_NUM	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-	;
+        ;
+
+real_ulong_num:
+          NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| HEX_NUM       { $$= (ulong) strtol($1.str, (char**) 0, 16); }
+	| LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+        | dec_num_error { YYABORT; }
+        ;
 
 ulonglong_num:
 	NUM	    { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
@@ -7525,6 +7533,23 @@ ulonglong_num:
         | DECIMAL_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
 	| FLOAT_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
 	;
+
+real_ulonglong_num:
+	NUM	    { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| LONG_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+        | dec_num_error { YYABORT; }
+        ;
+
+dec_num_error:
+        dec_num
+        { yyerror(ER(ER_ONLY_INTEGERS_ALLOWED)); }
+        ;
+
+dec_num:
+        DECIMAL_NUM
+	| FLOAT_NUM
+        ;
 
 procedure_clause:
 	/* empty */
