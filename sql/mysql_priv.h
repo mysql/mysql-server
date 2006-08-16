@@ -974,6 +974,7 @@ bool setup_tables_and_check_access (THD *thd,
                                     TABLE_LIST *tables, Item **conds, 
                                     TABLE_LIST **leaves, 
                                     bool select_insert,
+                                    ulong want_access_first,
                                     ulong want_access);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
