@@ -860,3 +860,39 @@ a
 13
 15
 drop table t1, t2;
+CREATE TABLE t1 (
+id int NOT NULL DEFAULT '0',
+b int NOT NULL DEFAULT '0',
+c int NOT NULL DEFAULT '0', 
+INDEX idx1(b,c), INDEX idx2(c));
+INSERT INTO t1(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+INSERT INTO t1(b,c) VALUES (3,4), (3,4);
+SELECT * FROM t1 WHERE b<=3 AND 3<=c;
+id	b	c
+0	3	4
+0	3	4
+SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
+id	b	c
+0	3	4
+0	3	4
+EXPLAIN  SELECT * FROM t1 WHERE b<=3 AND 3<=c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using where
+EXPLAIN  SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using where
+SELECT * FROM t1 WHERE 0 < b OR 0 > c;
+id	b	c
+0	3	4
+0	3	4
+SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+id	b	c
+0	3	4
+0	3	4
+EXPLAIN SELECT * FROM t1 WHERE 0 < b OR 0 > c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	4	Using sort_union(idx1,idx2); Using where
+EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	4	Using sort_union(idx1,idx2); Using where
+DROP TABLE t1;
