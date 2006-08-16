@@ -1704,14 +1704,12 @@ uint Item_func_date_format::format_length(const String *format)
       case 'u': /* week (00..52), where week starts with Monday */
       case 'V': /* week 1..53 used with 'x' */
       case 'v': /* week 1..53 used with 'x', where week starts with Monday */
-      case 'H': /* hour (00..23) */
       case 'y': /* year, numeric, 2 digits */
       case 'm': /* month, numeric */
       case 'd': /* day (of the month), numeric */
       case 'h': /* hour (01..12) */
       case 'I': /* --||-- */
       case 'i': /* minutes, numeric */
-      case 'k': /* hour ( 0..23) */
       case 'l': /* hour ( 1..12) */
       case 'p': /* locale's AM or PM */
       case 'S': /* second (00..61) */
@@ -1719,6 +1717,10 @@ uint Item_func_date_format::format_length(const String *format)
       case 'c': /* month (0..12) */
       case 'e': /* day (0..31) */
 	size += 2;
+	break;
+      case 'k': /* hour ( 0..23) */
+      case 'H': /* hour (00..23; value > 23 OK, padding always 2-digit) */
+	size += 7; /* docs allow > 23, range depends on sizeof(unsigned int) */
 	break;
       case 'r': /* time, 12-hour (hh:mm:ss [AP]M) */
 	size += 11;

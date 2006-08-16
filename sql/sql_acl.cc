@@ -4678,6 +4678,32 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
   DBUG_RETURN(0);
 }
 
+ACL_USER *check_acl_user(LEX_USER *user_name,
+			 uint *acl_acl_userdx)
+{
+  ACL_USER *acl_user= 0;
+  uint counter;
+
+  safe_mutex_assert_owner(&acl_cache->lock);
+
+  for (counter= 0 ; counter < acl_users.elements ; counter++)
+  {
+    const char *user,*host;
+    acl_user= dynamic_element(&acl_users, counter, ACL_USER*);
+    if (!(user=acl_user->user))
+      user= "";
+    if (!(host=acl_user->host.hostname))
+      host= "";
+    if (!strcmp(user_name->user.str,user) &&
+	!my_strcasecmp(system_charset_info, user_name->host.str, host))
+      break;
+  }
+  if (counter == acl_users.elements)
+    return 0;
+
+  *acl_acl_userdx= counter;
+  return acl_user;
+}
 
 /*
   Modify a privilege table.
@@ -4701,7 +4727,6 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
 
 static int modify_grant_table(TABLE *table, Field *host_field,
                               Field *user_field, LEX_USER *user_to)
-{
   int error;
   DBUG_ENTER("modify_grant_table");
 
@@ -4722,11 +4747,8 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     if ((error=table->file->delete_row(table->record[0])))
       table->file->print_error(error, MYF(0));
   }
-
   DBUG_RETURN(error);
 }
-
-
 /*
   Handle a privilege table.
 
@@ -4815,14 +4837,12 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     DBUG_PRINT("info",("read result: %d", result));
   }
   else
-  {
     /*
       The non-'user' table do not have indexes on (host, user).
       And their host- and user fields are not consecutive.
       Thus, we need to do a table scan to find all matching records.
     */
     if ((error= table->file->ha_rnd_init(1)))
-    {
       table->file->print_error(error, MYF(0));
       result= -1;
     }
@@ -5026,7 +5046,6 @@ static int handle_grant_struct(uint struct_no, bool drop,
         acl_db->user= strdup_root(&mem, user_to->user.str);
         acl_db->host.hostname= strdup_root(&mem, user_to->host.str);
         break;
-
       case 2:
       case 3:
         grant_name->user= strdup_root(&mem, user_to->user.str);
@@ -5036,7 +5055,6 @@ static int handle_grant_struct(uint struct_no, bool drop,
       }
     }
     else
-    {
       /* If search is requested, we do not need to search further. */
       break;
     }
@@ -5044,7 +5062,6 @@ static int handle_grant_struct(uint struct_no, bool drop,
 #ifdef EXTRA_DEBUG
   DBUG_PRINT("loop",("scan struct: %u  result %d", struct_no, result));
 #endif
-
   DBUG_RETURN(result);
 }
 
@@ -5096,7 +5113,6 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
       /* If search is requested, we do not need to search further. */
       if (! drop && ! user_to)
         goto end;
-    }
   }
 
   /* Handle db table. */
@@ -5155,10 +5171,8 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
 
     /* Handle columns table. */
     if ((found= handle_grant_table(tables, 3, drop, user_from, user_to)) < 0)
-    {
       /* Handle of table failed, don't touch the in-memory array. */
       result= -1;
-    }
     else
     {
       /* Handle columns hash. */
@@ -5206,7 +5220,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
   DBUG_ENTER("mysql_create_user");
-
   /* CREATE USER may be skipped on replication client. */
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
@@ -5235,18 +5248,15 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       for a mention of the new user name.
     */
     if (handle_grant_data(tables, 0, user_name, NULL))
-    {
       append_user(&wrong_users, user_name);
       result= TRUE;
       continue;
     }
-
     sql_mode= thd->variables.sql_mode;
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
       append_user(&wrong_users, user_name);
       result= TRUE;
-    }
   }
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
@@ -5296,12 +5306,9 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
       continue;
     }  
     if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
-    {
       append_user(&wrong_users, user_name);
       result= TRUE;
-    }
   }
-
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
 
@@ -5369,14 +5376,16 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       append_user(&wrong_users, user_from);
       result= TRUE;
     }
-  }
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
 
+
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
+  if (result)
+    my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   DBUG_RETURN(result);
