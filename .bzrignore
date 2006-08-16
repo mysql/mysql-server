@@ -1296,3 +1296,4 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
+ndb/src/common/util/testBitmask.cpp
