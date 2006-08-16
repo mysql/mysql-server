@@ -1,6 +1,6 @@
 SET SESSION STORAGE_ENGINE = InnoDB;
 drop table if exists t1, t2, t3,t4;
-create table t1 ( 
+create table t1 (
 pk1 int not NULL,
 key1 int(11),
 key2 int(11),
@@ -24,7 +24,7 @@ pk1	key1	key2
 3	1	1
 10	1	1
 drop table t1;
-create table t1 ( 
+create table t1 (
 pk1 int unsigned not NULL,
 key1 int(11),
 key2 int(11),
@@ -45,7 +45,7 @@ pk1	key1	key2
 4294967294	1	1
 4294967295	1	1
 drop table t1;
-create table t1 ( 
+create table t1 (
 pk1 char(4) not NULL,
 key1 int(11),
 key2 int(11),
@@ -74,7 +74,7 @@ PRIMARY KEY  (pk1,pk2,pk3),
 KEY key1 (key1),
 KEY key2 (key2)
 );
-insert into t1 values 
+insert into t1 values
 (1, 'u', 'u',        1, 1),
 (1, 'u', char(0xEC), 1, 1),
 (1, 'u', 'x',        1, 1);

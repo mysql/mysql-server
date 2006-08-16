@@ -2,7 +2,7 @@
 #                                                                              #
 # include/mix2.inc                                                             #
 #                                                                              #
-# This is derivate of t/innodb.test and has to be maintained by MySQL          #
+# This is a derivate of t/innodb.test and has to be maintained by MySQL        #
 # guys only.                                                                   #
 #                                                                              #
 # Please, DO NOT create a toplevel testcase mix2_innodb.test, because          #
@@ -11,10 +11,20 @@
 # Variables which have to be set before calling this script:                   #
 #    $engine_type -- Storage engine to be tested                               #
 #    $other_engine_type -- storage engine <> $engine_type                      #
-#                          1. $other_engine_type should be an alltime          #
-#                             available storage engine like MyISAM or MEMORY   #
-#                          2. If $engine_type is transactional than            #
-#                             $other_engine_type must be non transactional     #
+#    $other_engine_type1 -- storage engine <> $engine_type                     #
+#                           storage engine <> $other_engine_type, if possible  #
+#    $other_non_trans_engine_type -- storage engine <> $engine_type            #
+#                           $other_non_trans_engine_type must be a non         #
+#                           transactional storage engine                       #
+#    $other_non_live_chks_engine_type                                          #
+#                         -- storage engine <> $engine_type, if possible       #
+#                            storage engine must not support live checksum     #
+#    $other_live_chks_engine_type                                              #
+#                         -- storage engine <> $engine_type, if possible       #
+#                            storage engine must support live checksum         #
+#         General Note: The $other_*_engine_type variables must point to all   #
+#                       time available storage engines                         #
+#                       2006-08 MySQL 5.1 MyISAM and MEMORY only               #
 #    $test_transactions -- 0, skip transactional tests                         #
 #                       -- 1, do not skip transactional tests                  #
 #    $test_foreign_keys -- 0, skip foreign key tests                           #
@@ -25,7 +35,7 @@
 #                             does not update the internal auto-increment value#
 #                       -- 1, do not skip these tests                          #
 #    $no_spatial_key    -- 0, skip tests where it is expected that keys on     #
-#                             are not allowed                                  #
+#                             spatial data type are not allowed                #
 #                       -- 1, do not skip these tests                          #
 #                                                                              #
 # The comments/expectations refer to InnoDB.                                   #
@@ -33,7 +43,7 @@
 #                                                                              #
 #                                                                              #
 # Last update:                                                                 #
-# 2006-08-15 ML - introduce $other_engine_type variable                        #
+# 2006-08-15 ML - introduce several $variables                                 #
 #               - correct some storage engine assignments                      #
 #               - minor improvements like correct wrong table after analyze    #
 #               - let checksum testcase meet all table variants with/without   #
@@ -87,7 +97,7 @@ update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
 update t1 set id=id+1000;
 -- error 1062,1022
-update t1 set id=1024 where id=1009; 
+update t1 set id=1024 where id=1009;
 select * from t1;
 update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
@@ -245,7 +255,7 @@ drop table t1;
 
 #
 # Simple not autocommit test
-# 
+#
 
 eval CREATE TABLE t1 (id char(8) not null primary key, val int not null) engine=$engine_type;
 insert into t1 values ('pippo', 12);
@@ -440,7 +450,7 @@ INSERT INTO t1 values (179,5,2);
 update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
 update t1 set id=id+1000;
-update t1 set id=1024 where id=1009; 
+update t1 set id=1024 where id=1009;
 select * from t1;
 update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
@@ -528,7 +538,7 @@ eval CREATE TABLE t1 (
   b int1 unsigned NOT NULL,
   UNIQUE (a, b)
 ) ENGINE = $engine_type;
- 
+
 INSERT INTO t1 VALUES (1, 1);
 SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
 drop table t1;
@@ -630,15 +640,15 @@ drop table t1;
 #
 # ML: Test logics
 #     Check that the creation of a table with engine = $engine_type does
-#     in a certain database does not prevent the the dropping of this
-#     database.
+#     in a certain database (already containing some tables using other
+#     storage engines) not prevent the dropping of this database.
 
 create database mysqltest;
 eval create table mysqltest.t1 (a int not null) engine= $engine_type;
 insert into mysqltest.t1 values(1);
-create table mysqltest.t2 (a int not null) engine= MyISAM;
+eval create table mysqltest.t2 (a int not null) engine= $other_engine_type;
 insert into mysqltest.t2 values(1);
-create table mysqltest.t3 (a int not null) engine= MEMORY;
+eval create table mysqltest.t3 (a int not null) engine= $other_engine_type1;
 insert into mysqltest.t3 values(1);
 commit;
 drop database mysqltest;
@@ -752,7 +762,7 @@ select * from t1;
 select * from t2;
 delete t1, t2 from t1 left join t2 on t1.number=t2.number where (t1.carrier_id=90 and t1.number=t2.number) or (t2.carrier_id=90 and t1.number=t2.number) or  (t1.carrier_id=90 and t2.number is null);
 select * from t1;
-select * from t2; 
+select * from t2;
 select * from t2;
 drop table t1,t2;
 
@@ -924,7 +934,7 @@ select * from t1;
 select * from t2;
 
 drop table t1,t2;
-eval CREATE TABLE t2 (  NEXT_T         BIGINT NOT NULL PRIMARY KEY) ENGINE=$other_engine_type;
+eval CREATE TABLE t2 (  NEXT_T         BIGINT NOT NULL PRIMARY KEY) ENGINE=$other_non_trans_engine_type;
 eval CREATE TABLE t1 (  B_ID           INTEGER NOT NULL PRIMARY KEY) ENGINE=$engine_type;
 SET AUTOCOMMIT=0;
 INSERT INTO t1 ( B_ID ) VALUES ( 1 );
@@ -1111,19 +1121,19 @@ eval CREATE TABLE t2 (
 INSERT INTO t2 VALUES("3524", "1"),("3525", "1"),("1794", "4"),("102", "5"),("1822", "6"),("3382", "9");
 
 SELECT t2.id, t1.`label` FROM t2 INNER JOIN
-(SELECT t1.id_object as id_object FROM t1 WHERE t1.`label` LIKE '%test%') AS lbl 
+(SELECT t1.id_object as id_object FROM t1 WHERE t1.`label` LIKE '%test%') AS lbl
 ON (t2.id = lbl.id_object) INNER JOIN t1 ON (t2.id = t1.id_object);
 drop table t1,t2;
 
 # Live checksum feature available + enabled
-create table t1 (a int, b varchar(200), c text not null) checksum=1 engine=MyISAM;
+eval create table t1 (a int, b varchar(200), c text not null) checksum=1 engine=$other_live_chks_engine_type;
 # Live checksum feature available + disabled
-create table t2 (a int, b varchar(200), c text not null) checksum=0 engine=MyISAM;
+eval create table t2 (a int, b varchar(200), c text not null) checksum=0 engine=$other_live_chks_engine_type;
 #
 # Live checksum feature not available + enabled
-create table t3 (a int, b varchar(200), c varchar(200) not null) checksum=1 engine=MEMORY;
+eval create table t3 (a int, b varchar(200), c varchar(200) not null) checksum=1 engine=$other_non_live_chks_engine_type;
 # Live checksum feature not available + disabled
-create table t4 (a int, b varchar(200), c varchar(200) not null) checksum=0 engine=MEMORY;
+eval create table t4 (a int, b varchar(200), c varchar(200) not null) checksum=0 engine=$other_non_live_chks_engine_type;
 #
 # Live checksum feature probably available + enabled
 eval create table t5 (a int, b varchar(200), c text not null) checksum=1 engine=$engine_type;
@@ -1231,7 +1241,7 @@ drop table t2, t1;
 #
 # Let us test binlog_cache_use and binlog_cache_disk_use status vars.
 # Actually this test has nothing to do with innodb per se, it just requires
-# transactional table. 
+# transactional table.
 #
 flush status;
 show status like "binlog_cache_use";
@@ -1239,7 +1249,7 @@ show status like "binlog_cache_disk_use";
 
 eval create table t1 (a int) engine=$engine_type;
 
-# Now we are going to create transaction which is long enough so its 
+# Now we are going to create transaction which is long enough so its
 # transaction binlog will be flushed to disk...
 let $1=2000;
 disable_query_log;
@@ -1297,7 +1307,7 @@ drop table t1;
 if ($fulltext_query_unsupported)
 {
 #
-# BUG#7709 test case - Boolean fulltext query against unsupported 
+# BUG#7709 test case - Boolean fulltext query against unsupported
 #                      engines does not fail
 #
 
@@ -1316,7 +1326,7 @@ if ($test_foreign_keys)
 --disable_warnings
 eval CREATE TABLE t1 (a_id tinyint(4) NOT NULL default '0', PRIMARY KEY  (a_id)) ENGINE=$engine_type DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES (1),(2),(3);
-eval CREATE TABLE t2 (b_id tinyint(4) NOT NULL default '0',b_a tinyint(4) NOT NULL default '0', PRIMARY KEY  (b_id), KEY  (b_a), 
+eval CREATE TABLE t2 (b_id tinyint(4) NOT NULL default '0',b_a tinyint(4) NOT NULL default '0', PRIMARY KEY  (b_id), KEY  (b_a),
                 CONSTRAINT fk_b_a FOREIGN KEY (b_a) REFERENCES t1 (a_id) ON DELETE CASCADE ON UPDATE NO ACTION) ENGINE=$engine_type DEFAULT CHARSET=latin1;
 --enable_warnings
 INSERT INTO t2 VALUES (1,1),(2,1),(3,1),(4,2),(5,2);
@@ -2145,7 +2155,7 @@ drop table t1,t2;
 # tests for bug #14056 Column prefix index on UTF-8 primary key column causes 'Can't find record..'
 
 eval create table t2 (
-  a int, b char(10), filler char(10), primary key(a, b(2)) 
+  a int, b char(10), filler char(10), primary key(a, b(2))
 ) character set utf8 engine = $engine_type;
 
 insert into t2 values (1,'abcdefg','one');
@@ -2154,7 +2164,7 @@ insert into t2 values (3, 'qrstuvw','three');
 update t2 set a=5, filler='booo' where a=1;
 drop table t2;
 eval create table t2 (
-  a int, b char(10), filler char(10), primary key(a, b(2)) 
+  a int, b char(10), filler char(10), primary key(a, b(2))
 ) character set ucs2 engine = $engine_type;
 
 insert into t2 values (1,'abcdefg','one');
@@ -2245,7 +2255,7 @@ insert into t4(a) values (5),(7),(8);
 insert into t5(a) values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12);
 
 delimiter |;
-create trigger t1t before insert on t1 for each row begin 
+create trigger t1t before insert on t1 for each row begin
     INSERT INTO t2 SET a = NEW.a;
 end |
 
@@ -2253,7 +2263,7 @@ create trigger t2t before insert on t2 for each row begin
     DELETE FROM t3 WHERE a = NEW.a;
 end |
 
-create trigger t3t before delete on t3 for each row begin  
+create trigger t3t before delete on t3 for each row begin
     UPDATE t4 SET b = b + 1 WHERE a = OLD.a;
 end |
 
@@ -2379,14 +2389,14 @@ connection a;
 eval create table t1(a int not null, b int, primary key(a)) engine=$engine_type;
 insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2),(7,3);
 commit;
-set autocommit = 0; 
+set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 update t1 set b = 5 where b = 1;
 connection b;
 set autocommit = 0;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 #
-# X-lock to record (7,3) should be released in a update 
+# X-lock to record (7,3) should be released in a update
 #
 select * from t1 where a = 7 and b = 3 for update;
 connection a;
@@ -2411,7 +2421,7 @@ connection a;
 eval create table t1(a int not null, b int, primary key(a)) engine=$engine_type;
 insert into t1 values(1,1),(2,2),(3,1),(4,2),(5,1),(6,2);
 commit;
-set autocommit = 0; 
+set autocommit = 0;
 select * from t1 lock in share mode;
 update t1 set b = 5 where b = 1;
 connection b;
@@ -2467,7 +2477,7 @@ disconnect b;
 drop table t1, t2, t3;
 
 #
-# Consistent read should not be used if 
+# Consistent read should not be used if
 #
 # (a) isolation level is serializable OR
 # (b) select ... lock in share mode OR
@@ -2638,7 +2648,7 @@ eval CREATE TABLE t2 (
   c TEXT NOT NULL,
   PRIMARY KEY  (a,b),
   KEY idx_t2_b_c (b,c(200)),
-  CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a) 
+  CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a)
    ON DELETE CASCADE
  ) ENGINE=$engine_type DEFAULT CHARSET=UTF8;
 

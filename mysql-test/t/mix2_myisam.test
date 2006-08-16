@@ -5,6 +5,13 @@
 
 let $engine_type= MyISAM;
 let $other_engine_type= MEMORY;
+# There are unfortunately only MyISAM and MEMORY all time available
+# Therefore use here MEMORY again.
+let $other_engine_type1= MEMORY;
+let $other_non_trans_engine_type= MEMORY;
+let $other_non_live_chks_engine_type= MEMORY;
+# Therefore use here MyISAM again.
+let $other_live_chks_engine_type= MyISAM;
 # MyISAM does not support transactions
 let $test_transactions= 0;
 # MyISAM does not support FOREIGN KEYFOREIGN KEYs
