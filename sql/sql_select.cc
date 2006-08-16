@@ -4549,6 +4549,8 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
        left_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
+    tmp->collation.set(right_item->collation);
+    
     if (tmp)
     {
       thd->change_item_tree(args + 1, tmp);
@@ -4570,6 +4572,8 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
             right_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
+    tmp->collation.set(left_item->collation);
+    
     if (tmp)
     {
       thd->change_item_tree(args, tmp);
