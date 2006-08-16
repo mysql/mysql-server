@@ -3153,7 +3153,7 @@ int MYSQL_BIN_LOG::
   flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::flush_and_set_pending_rows_event(event)");
-  DBUG_ASSERT(thd->current_stmt_binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(mysql_bin_log.is_open());
   DBUG_PRINT("enter", ("event=%p", event));
 
   int error= 0;
