@@ -680,4 +680,34 @@ prepare stmt1 from @a;
 execute stmt1;
 
 drop table t1, t2;
+
+#
+# Bug #18165: range access for BETWEEN with a constant for the first argument 
+#
+
+CREATE TABLE t1 (
+  id int NOT NULL DEFAULT '0',
+  b int NOT NULL DEFAULT '0',
+  c int NOT NULL DEFAULT '0', 
+  INDEX idx1(b,c), INDEX idx2(c));
+
+INSERT INTO t1(id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+
+INSERT INTO t1(b,c) VALUES (3,4), (3,4);
+
+SELECT * FROM t1 WHERE b<=3 AND 3<=c;
+SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
+
+EXPLAIN  SELECT * FROM t1 WHERE b<=3 AND 3<=c;
+EXPLAIN  SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
+
+SELECT * FROM t1 WHERE 0 < b OR 0 > c;
+SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+
+EXPLAIN SELECT * FROM t1 WHERE 0 < b OR 0 > c;
+EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
+
+DROP TABLE t1;
+
+
 # End of 5.0 tests
