@@ -402,7 +402,7 @@ public:
   friend class st_select_lex_unit;
   friend bool mysql_new_select(struct st_lex *lex, bool move_down);
   friend bool mysql_make_view(THD *thd, File_parser *parser,
-                              TABLE_LIST *table);
+                              TABLE_LIST *table, uint flags);
 private:
   void fast_exclude();
 };
@@ -1190,5 +1190,6 @@ extern void lex_free(void);
 extern void lex_start(THD *thd, const uchar *buf, uint length);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
+extern const uchar *skip_rear_comments(const uchar *ubegin, const uchar *uend);
 
 #endif /* MYSQL_SERVER */

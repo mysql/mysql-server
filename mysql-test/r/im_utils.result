@@ -1,4 +1,7 @@
 Success: the process has been started.
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
 SHOW INSTANCES;
 instance_name	state
 mysqld1	online
@@ -19,7 +22,6 @@ basedir	VALUE
 server_id	VALUE
 skip-stack-trace	VALUE
 skip-innodb	VALUE
-skip-bdb	VALUE
 skip-ndbcluster	VALUE
 log-output	VALUE
 SHOW INSTANCE OPTIONS mysqld2;
@@ -38,7 +40,6 @@ basedir	VALUE
 server_id	VALUE
 skip-stack-trace	VALUE
 skip-innodb	VALUE
-skip-bdb	VALUE
 skip-ndbcluster	VALUE
 nonguarded	VALUE
 log-output	VALUE
