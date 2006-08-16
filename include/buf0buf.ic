@@ -522,16 +522,14 @@ void
 buf_block_buf_fix_inc_debug(
 /*========================*/
 	buf_block_t*	block,	/* in: block to bufferfix */
-	const char*	file __attribute__ ((unused)),	/* in: file name */
-	ulint		line __attribute__ ((unused)))	/* in: line */
+	const char*	file,	/* in: file name */
+	ulint		line)	/* in: line */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ibool	ret;
 
 	ret = rw_lock_s_lock_func_nowait(&(block->debug_latch), file, line);
+	ut_a(ret);
 
-	ut_ad(ret == TRUE);
-#endif
 	block->buf_fix_count++;
 }
 #else /* UNIV_SYNC_DEBUG */
