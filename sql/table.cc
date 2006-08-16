@@ -456,8 +456,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->frm_version= FRM_VER_TRUE_VARCHAR;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  share->default_part_db_type= 
-        ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 0, 0);
+  if (*(head+61) &&
+      !(share->default_part_db_type= 
+        ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 1, 0)))
+    goto err;
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
 #endif
   legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
