@@ -601,13 +601,13 @@ static struct my_option my_long_options[] =
   {"force", 'f', "Continue even if we get an sql error.",
    (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
-  {"no-named-commands", 'g',
-   "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option deprecated; use --disable-named-commands instead.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"named-commands", 'G',
    "Enable named commands. Named commands mean this program's internal commands; see mysql> help . When enabled, the named commands can be used from any line of the query, otherwise only from the first line, before an enter. Disable with --disable-named-commands. This option is disabled by default.",
    (gptr*) &named_cmds, (gptr*) &named_cmds, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
+  {"no-named-commands", 'g',
+   "Named commands are disabled. Use \\* form only, or use named commands only in the beginning of a line ending with a semicolon (;) Since version 10.9 the client now starts with this option ENABLED by default! Disable with '-G'. Long format commands still work from the first line. WARNING: option deprecated; use --disable-named-commands instead.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"ignore-spaces", 'i', "Ignore space after function names.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"local-infile", OPT_LOCAL_INFILE, "Enable/disable LOAD DATA LOCAL INFILE.",
@@ -625,13 +625,6 @@ static struct my_option my_long_options[] =
    (gptr*) &line_numbers, (gptr*) &line_numbers, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},  
   {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is deprecated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef USE_POPEN
-  {"no-pager", OPT_NOPAGER,
-   "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option deprecated; use --disable-pager instead.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-  {"no-tee", OPT_NOTEE, "Disable outfile. See interactive help (\\h) also. WARNING: option deprecated; use --disable-tee instead", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unbuffered", 'n', "Flush buffer after each query.", (gptr*) &unbuffered,
    (gptr*) &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -652,8 +645,11 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef USE_POPEN
   {"pager", OPT_PAGER,
-   "Pager to use to display results. If you don't supply an option the default pager is taken from your ENV variable PAGER. Valid pagers are less, more, cat [> filename], etc. See interactive help (\\h) also. This option does not work in batch mode.",
+   "Pager to use to display results. If you don't supply an option the default pager is taken from your ENV variable PAGER. Valid pagers are less, more, cat [> filename], etc. See interactive help (\\h) also. This option does not work in batch mode. Disable with --disable-pager. This option is disabled by default.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-pager", OPT_NOPAGER,
+   "Disable pager and print to stdout. See interactive help (\\h) also. WARNING: option deprecated; use --disable-pager instead.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's asked from the tty.",
@@ -694,8 +690,10 @@ static struct my_option my_long_options[] =
   {"debug-info", 'T', "Print some debug info at exit.", (gptr*) &info_flag,
    (gptr*) &info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tee", OPT_TEE,
-   "Append everything into outfile. See interactive help (\\h) also. Does not work in batch mode.",
+   "Append everything into outfile. See interactive help (\\h) also. Does not work in batch mode. Disable with --disable-tee. This option is disabled by default.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-tee", OPT_NOTEE, "Disable outfile. See interactive help (\\h) also. WARNING: option deprecated; use --disable-tee instead", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", (gptr*) &current_user,
    (gptr*) &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1821,7 +1819,14 @@ static int com_server_help(String *buffer __attribute__((unused)),
   
   if (help_arg[0] != '\'')
   {
-    (void) strxnmov(cmd_buf, sizeof(cmd_buf), "help '", help_arg, "'", NullS);
+	char *end_arg= strend(help_arg);
+	if(--end_arg)
+	{
+		while (my_isspace(charset_info,*end_arg))
+          end_arg--;
+		*++end_arg= '\0';
+	}
+	(void) strxnmov(cmd_buf, sizeof(cmd_buf), "help '", help_arg, "'", NullS);
     server_cmd= cmd_buf;
   }
   
@@ -1907,9 +1912,13 @@ com_help(String *buffer __attribute__((unused)),
 {
   reg1 int i, j;
   char * help_arg= strchr(line,' '), buff[32], *end;
-
   if (help_arg)
-    return com_server_help(buffer,line,help_arg+1);
+  {
+    while (my_isspace(charset_info,*help_arg))
+      help_arg++;
+	if (*help_arg)	  
+	  return com_server_help(buffer,line,help_arg);
+  }
 
   put_info("\nFor information about MySQL products and services, visit:\n"
            "   http://www.mysql.com/\n"
