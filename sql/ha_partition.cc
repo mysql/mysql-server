@@ -1343,9 +1343,9 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           ones used to be.
         */
         first= FALSE;
-        DBUG_ASSERT(i + m_reorged_parts <= m_file_tot_parts);
+        DBUG_ASSERT(((i*no_subparts) + m_reorged_parts) <= m_file_tot_parts);
         memcpy((void*)m_reorged_file, &m_file[i*no_subparts],
-               sizeof(handler*)*m_reorged_parts*no_subparts);
+               sizeof(handler*)*m_reorged_parts);
       }
     } while (++i < no_parts);
   }
@@ -4183,9 +4183,19 @@ void ha_partition::info(uint flag)
     ulonglong nb_reserved_values;
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
     /* we don't want to reserve any values, it's pure information */
-    get_auto_increment(0, 0, 0, &stats.auto_increment_value,
-                       &nb_reserved_values);
-    release_auto_increment();
+
+    if (table->found_next_number_field)
+    {
+      /*
+        Can only call get_auto_increment for tables that actually
+        have auto_increment columns, otherwise there will be
+        problems in handlers that don't expect get_auto_increment
+        for non-autoincrement tables.
+      */
+      get_auto_increment(0, 0, 0, &stats.auto_increment_value,
+                         &nb_reserved_values);
+      release_auto_increment();
+    }
   }
   if (flag & HA_STATUS_VARIABLE)
   {
@@ -5145,13 +5155,12 @@ void ha_partition::print_error(int error, myf errflag)
   DBUG_ENTER("ha_partition::print_error");
 
   /* Should probably look for my own errors first */
-  /* monty: needs to be called for the last used partition ! */
   DBUG_PRINT("enter", ("error: %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
     m_part_info->print_no_partition_found(table);
   else
-    m_file[0]->print_error(error, errflag);
+    m_file[m_last_part]->print_error(error, errflag);
   DBUG_VOID_RETURN;
 }
 
@@ -5161,8 +5170,7 @@ bool ha_partition::get_error_message(int error, String *buf)
   DBUG_ENTER("ha_partition::get_error_message");
 
   /* Should probably look for my own errors first */
-  /* monty: needs to be called for the last used partition ! */
-  DBUG_RETURN(m_file[0]->get_error_message(error, buf));
+  DBUG_RETURN(m_file[m_last_part]->get_error_message(error, buf));
 }
 
 
@@ -5363,7 +5371,6 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
   if (increment)                                // If not check for values
     *nb_reserved_values= (last_value == ULONGLONG_MAX) ?
       ULONGLONG_MAX : ((last_value - *first_value) / increment);
-
   DBUG_VOID_RETURN;
 }
 
