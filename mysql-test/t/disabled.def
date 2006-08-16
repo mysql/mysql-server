@@ -16,6 +16,7 @@
 #im_instance_conf          : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
 im_options                : Bug#20294 2006-07-24 stewart   Instance manager test im_instance_conf fails randomly
 #im_life_cycle             : Bug#20368 2006-06-10 alik    im_life_cycle test fails
+concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_binlog_ignore_db     : BUG#21279 2006-07-25 ingo    Randomly throws a warning

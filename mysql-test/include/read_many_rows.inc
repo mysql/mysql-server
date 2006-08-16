@@ -1,21 +1,27 @@
+# include/read_many_rows.inc
 #
-# Test some things that takes a long time
+# Test how filesort and buffered-record-reads works
+# This test needs a lot of time.
+#
+# The variable
+#     $engine_type       -- storage engine to be tested
+# has to be set before sourcing this script.
+#
+# Last update:
+# 2006-08-03 ML test refactored (MySQL 5.1)
+#               main code t/innodb-big.test --> include/read_many_rows.inc
+#
 
--- source include/big_test.inc
--- source include/have_innodb.inc
+eval SET SESSION STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2, t3, t4;
 --enable_warnings
 
-#
-# Test test how filesort and buffered-record-reads works with innodb
-#
-
 CREATE TABLE t1 (id INTEGER) ENGINE=MYISAM;
-CREATE TABLE t2 (id INTEGER primary key) ENGINE=INNODB;
-CREATE TABLE t3 (a char(32) primary key,id INTEGER) ENGINE=INNODB;
-CREATE TABLE t4 (a char(32) primary key,id INTEGER) ENGINE=MYISAM;
+CREATE TABLE t2 (id INTEGER PRIMARY KEY);
+CREATE TABLE t3 (a CHAR(32) PRIMARY KEY,id INTEGER);
+CREATE TABLE t4 (a CHAR(32) PRIMARY KEY,id INTEGER) ENGINE=MYISAM;
 
 INSERT INTO t1 (id) VALUES (1);
 INSERT INTO t1 SELECT id+1 FROM t1;
@@ -39,8 +45,10 @@ INSERT INTO t1 SELECT id+131072 FROM t1;
 INSERT INTO t1 SELECT id+262144 FROM t1;
 INSERT INTO t1 SELECT id+524288 FROM t1;
 INSERT INTO t1 SELECT id+1048576 FROM t1;
+
 INSERT INTO t2 SELECT * FROM t1;
-INSERT INTO t3 SELECT concat(id),id from t2 ORDER BY -id;
-INSERT INTO t4 SELECT * from t3 ORDER BY concat(a);
-select sum(id) from t3;
-drop table t1,t2,t3,t4;
+INSERT INTO t3 SELECT CONCAT(id),id FROM t2 ORDER BY -id;
+INSERT INTO t4 SELECT * FROM t3 ORDER BY CONCAT(a);
+SELECT SUM(id) FROM t3;
+
+DROP TABLE t1,t2,t3,t4;

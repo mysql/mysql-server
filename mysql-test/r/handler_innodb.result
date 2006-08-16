@@ -1,3 +1,4 @@
+SET SESSION STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t3,t4,t5;
 create table t1 (a int, b char(10), key a(a), key b(a,b));
 insert into t1 values
@@ -137,6 +138,29 @@ a	b
 handler t2 read last;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 handler t2 close;
+handler t1 open;
+handler t1 read a next;
+a	b
+14	aaa
+handler t1 read a next;
+a	b
+15	bbb
+handler t1 close;
+handler t1 open;
+handler t1 read a prev;
+a	b
+22	iii
+handler t1 read a prev;
+a	b
+21	hhh
+handler t1 close;
+handler t1 open as t2;
+handler t2 read first;
+a	b
+17	ddd
+alter table t1 engine = InnoDB;
+handler t2 read first;
+ERROR 42S02: Unknown table 't2' in HANDLER
 handler t1 open as t2;
 drop table t1;
 create table t1 (a int);
@@ -214,16 +238,16 @@ insert into t1 values ('');
 handler t1 open;
 handler t1 read first limit 9;
 table_id
-test_test.t1
 
+test_test.t1
 create table t2(table_id char(20) primary key);
 insert into t2 values ('test_test.t2');
 insert into t2 values ('');
 handler t2 open;
 handler t2 read first limit 9;
 table_id
-test_test.t2
 
+test_test.t2
 use test;
 drop table if exists t1;
 create table t1(table_id char(20) primary key);
@@ -238,14 +262,14 @@ handler test_test.t1 read first limit 9;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
 handler t1 read first limit 9;
 table_id
-test_test.t1
 
+test_test.t1
 handler test_test.t2 read first limit 9;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
 handler t2 read first limit 9;
 table_id
-test_test.t2
 
+test_test.t2
 handler test_test.t1 close;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
 handler t1 close;
@@ -463,6 +487,15 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 proceed with the normal connection
 drop table t1;
+CREATE TABLE t1 (  no1 smallint(5) NOT NULL default '0',  no2 int(10) NOT NULL default '0',  PRIMARY KEY  (no1,no2));
+INSERT INTO t1 VALUES (1,274),(1,275),(2,6),(2,8),(4,1),(4,2);
+HANDLER t1 OPEN;
+HANDLER t1 READ `primary` = (1, 1000);
+no1	no2
+HANDLER t1 READ `primary` PREV;
+no1	no2
+1	275
+DROP TABLE t1;
 create table t1 (c1 int);
 insert into t1 values (14397);
 flush tables with read lock;
