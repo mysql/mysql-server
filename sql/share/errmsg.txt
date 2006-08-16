@@ -5954,3 +5954,5 @@ ER_BAD_LOG_ENGINE
         eng "One can use only CSV and MyISAM engines for the log tables"
 ER_CANT_DROP_LOG_TABLE
         eng "Cannot drop log table if log is enabled"
+ER_ONLY_INTEGERS_ALLOWED
+        eng "Only normal integers allowed as number here"
