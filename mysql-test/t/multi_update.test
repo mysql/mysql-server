@@ -485,7 +485,7 @@ delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
 drop table t1,t2;
 
 --disable_warnings
-create table t1 ( c char(8) not null ) engine=bdb;
+create table t1 ( c char(8) not null ) engine=innodb;
 --enable_warnings
 
 insert into t1 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9');

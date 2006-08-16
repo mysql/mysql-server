@@ -29,13 +29,13 @@ on (mysql.general_log.command_type = join_test.command_type)
 drop table join_test;
 flush logs;
 lock tables mysql.general_log WRITE;
-ERROR HY000: You can't write-lock a log table. Only read access is possible.
+ERROR HY000: You can't write-lock a log table. Only read access is possible
 lock tables mysql.slow_log WRITE;
-ERROR HY000: You can't write-lock a log table. Only read access is possible.
+ERROR HY000: You can't write-lock a log table. Only read access is possible
 lock tables mysql.general_log READ;
-ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead.
+ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead
 lock tables mysql.slow_log READ;
-ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead.
+ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead
 lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
 unlock tables;
 lock tables mysql.general_log READ LOCAL;
@@ -161,13 +161,13 @@ TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set global slow_query_log='ON'
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.general_log
 flush logs;
 lock tables mysql.general_log WRITE;
-ERROR HY000: You can't write-lock a log table. Only read access is possible.
+ERROR HY000: You can't write-lock a log table. Only read access is possible
 lock tables mysql.slow_log WRITE;
-ERROR HY000: You can't write-lock a log table. Only read access is possible.
+ERROR HY000: You can't write-lock a log table. Only read access is possible
 lock tables mysql.general_log READ;
-ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead.
+ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead
 lock tables mysql.slow_log READ;
-ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead.
+ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL instead
 lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
 unlock tables;
 set global general_log='OFF';
