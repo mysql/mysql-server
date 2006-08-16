@@ -80,7 +80,7 @@ basedir=.
 EXTRA_ARG="--language=../sql/share/english/ --character-sets-dir=../sql/share/charsets/"
 fi
 
-mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb --skip-ndbcluster --skip-bdb --tmpdir=. $EXTRA_ARG"
+mysqld_boot=" $execdir/mysqld --no-defaults --bootstrap --skip-grant-tables --basedir=$basedir --datadir=$ldata --skip-innodb --skip-ndbcluster --tmpdir=. $EXTRA_ARG"
 echo "running $mysqld_boot"
 
 if $scriptdir/mysql_create_system_tables test $mdata $hostname | $mysqld_boot

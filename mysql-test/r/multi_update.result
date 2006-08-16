@@ -492,7 +492,7 @@ create table t2 like t1;
 insert into t2 select * from t1;
 delete t1,t2 from t2,t1 where t1.a<'B' and t2.b=t1.b;
 drop table t1,t2;
-create table t1 ( c char(8) not null ) engine=bdb;
+create table t1 ( c char(8) not null ) engine=innodb;
 insert into t1 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9');
 insert into t1 values ('A'),('B'),('C'),('D'),('E'),('F');
 alter table t1 add b char(8) not null;
