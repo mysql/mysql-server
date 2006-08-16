@@ -2557,7 +2557,8 @@ sub run_testcase ($) {
       # Try to get reason from mysqltest.log
       my $last_line= mtr_lastlinefromfile($path_timefile) if -f $path_timefile;
       my $reason= mtr_match_prefix($last_line, "reason: ");
-      $tinfo->{'comment'}= defined $reason ? $reason : "Detected by testcase(reason unknown) ";
+      $tinfo->{'comment'}=
+	defined $reason ? $reason : "Detected by testcase(reason unknown) ";
       mtr_report_test_skipped($tinfo);
     }
     elsif ( $res == 63 )
