@@ -250,7 +250,7 @@ static const char* helpText =
 " NDB Cluster -- Management Client -- Help\n"
 "---------------------------------------------------------------------------\n"
 "HELP                                   Print help text\n"
-"HELP SHOW                              Help for SHOW command\n"
+"HELP COMMAND                           Print detailed help for COMMAND(e.g. SHOW)\n"
 #ifdef VM_TRACE // DEBUG ONLY
 "HELP DEBUG                             Help for debug compiled version\n"
 #endif
@@ -267,10 +267,10 @@ static const char* helpText =
 "CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging\n"
 "CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
 "CLUSTERLOG INFO                        Print cluster log information\n"
-"<id> START                             Start DB node (started with -n)\n"
-"<id> RESTART [-n] [-i]                 Restart DB node\n"
-"<id> STOP                              Stop DB node\n"
-"ENTER SINGLE USER MODE <api-node>      Enter single user mode\n"
+"<id> START                             Start data node (started with -n)\n"
+"<id> RESTART [-n] [-i]                 Restart data or management server node\n"
+"<id> STOP                              Stop data or management server node\n"
+"ENTER SINGLE USER MODE <id>            Enter single user mode\n"
 "EXIT SINGLE USER MODE                  Exit single user mode\n"
 "<id> STATUS                            Print status\n"
 "<id> CLUSTERLOG {<category>=<level>}+  Set log level for cluster log\n"
@@ -283,13 +283,295 @@ static const char* helpTextShow =
 "---------------------------------------------------------------------------\n"
 " NDB Cluster -- Management Client -- Help for SHOW command\n"
 "---------------------------------------------------------------------------\n"
-"SHOW prints NDB Cluster information\n\n"
-"SHOW               Print information about cluster\n" 
+"SHOW Print information about cluster\n\n"
+"SHOW               Print information about cluster.The status reported is from\n"
+"                   the perspective of the data nodes. API and Management Server nodes\n"
+"                   are only reported as connected once the data nodes have started.\n" 
 #if 0
 "SHOW CONFIG        Print configuration (in initial config file format)\n" 
 "SHOW PARAMETERS    Print information about configuration parameters\n\n"
 #endif
 ;
+
+static const char* helpTextHelp =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for HELP command\n"
+"---------------------------------------------------------------------------\n"
+"HELP List available commands of NDB Cluster Management Client\n\n"
+"HELP               List available commands.\n"
+;
+
+static const char* helpTextBackup =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for BACKUP command\n"
+"---------------------------------------------------------------------------\n"
+"BACKUP  A backup is a snapshot of the database at a given time. \n"
+"        The backup consists of three main parts:\n\n"
+"        Metadata: the names and definitions of all database tables. \n"
+"        Table records: the data actually stored in the database tables \n"
+"        at the time that the backup was made.\n"
+"        Transaction log: a sequential record telling how \n"
+"        and when data was stored in the database.\n\n"
+"        Backups are stored on each data node in the cluster that \n"
+"        participates in the backup.\n\n"
+"        The cluster log records backup related events (such as \n"
+"        backup started, aborted, finished).\n"
+;
+
+static const char* helpTextStartBackup =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for START BACKUP command\n"
+"---------------------------------------------------------------------------\n"
+"START BACKUP  Start a cluster backup\n\n"
+"START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"                   Start a backup for the cluster.\n"
+"                   Each backup gets an ID number that is reported to the\n"
+"                   user. This ID number can help you find the backup on the\n"
+"                   file system, or ABORT BACKUP if you wish to cancel a \n"
+"                   running backup.\n\n"
+"                   NOWAIT \n"
+"                     Start a cluster backup and return immediately.\n"
+"                     The management client will return control directly\n"
+"                     to the user without waiting for the backup\n"
+"                     to have started.\n"
+"                     The status of the backup is recorded in the Cluster log.\n"
+"                   WAIT STARTED\n"
+"                     Start a cluster backup and return until the backup has\n"
+"                     started. The management client will wait for the backup \n"
+"                     to have started before returning control to the user.\n"
+"                   WAIT COMPLETED\n"
+"                     Start a cluster backup and return until the backup has\n"
+"                     completed. The management client will wait for the backup\n"
+"                     to complete before returning control to the user.\n"
+;
+
+static const char* helpTextAbortBackup =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for ABORT BACKUP command\n"
+"---------------------------------------------------------------------------\n"
+"ABORT BACKUP  Abort a cluster backup\n\n"
+"ABORT BACKUP <backup id>  \n"
+"                   Abort a backup that is already in progress.\n"
+"                   The backup id can be seen in the cluster log or in the\n"
+"                   output of the START BACKUP command.\n"
+;
+
+static const char* helpTextShutdown =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for SHUTDOWN command\n"
+"---------------------------------------------------------------------------\n"
+"SHUTDOWN  Shutdown the cluster\n\n"
+"SHUTDOWN           Shutdown the data nodes and management nodes.\n"
+"                   MySQL Servers and NDBAPI nodes are currently not \n"
+"                   shut down by issuing this command.\n"
+;
+
+static const char* helpTextClusterlogOn =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG ON command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG ON  Enable Cluster logging\n\n"
+"CLUSTERLOG ON [<severity>] ... \n"
+"                   Turn the cluster log on.\n"
+"                   It tells management server which severity levels\n"
+"                   messages will be logged.\n\n"
+"                   <severity > can be any one of the following values:\n"
+"                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
+;
+
+static const char* helpTextClusterlogOff =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG OFF command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG OFF  Disable Cluster logging\n\n"
+"CLUSTERLOG OFF [<severity>] ...  \n"
+"                   Turn the cluster log off.\n"
+"                   It tells management server which serverity\n"
+"                   levels logging will be disabled.\n\n"
+"                   <severity > can be any one of the following values:\n"
+"                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
+;
+
+static const char* helpTextClusterlogToggle =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG TOGGLE command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG TOGGLE  Toggle severity filter on/off\n\n"
+"CLUSTERLOG TOGGLE [<severity>] ...  \n"
+"                   Toggle serverity filter on/off.\n"
+"                   If a serverity level is already enabled,then it will\n"
+"                   be disabled after you use the command,vice versa.\n\n"
+"                   <severity > can be any one of the following values:\n"
+"                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
+;
+
+static const char* helpTextClusterlogInfo =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG INFO command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG INFO  Print cluster log information\n\n"
+"CLUSTERLOG INFO    Display which severity levels have been enabled,\n"
+"                   see HELP CLUSTERLOG for list of the severity levels.\n"
+;
+
+static const char* helpTextStart =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for START command\n"
+"---------------------------------------------------------------------------\n"
+"START  Start data node (started with -n)\n\n"
+"<id> START         Start the data node identified by <id>.\n"
+"                   Only starts data nodes that have not\n"
+"                   yet joined the cluster. These are nodes\n"
+"                   launched or restarted with the -n(--nostart)\n"
+"                   option.\n\n"
+"                   It does not launch the ndbd process on a remote\n"
+"                   machine.\n"
+;
+
+static const char* helpTextRestart =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for RESTART command\n"
+"---------------------------------------------------------------------------\n"
+"RESTART  Restart data or management server node\n\n"
+"<id> RESTART [-n] [-i] \n"
+"                   Restart the data or management node <id>(or All data nodes).\n\n"
+"                   -n (--nostart) restarts the node but does not\n"
+"                   make it join the cluster. Use '<id> START' to\n"
+"                   join the node to the cluster.\n\n"
+"                   -i (--initial) perform initial start.\n"
+"                   This cleans the file system (ndb_<id>_fs)\n"
+"                   and the node will copy data from another node\n"
+"                   in the same node group during start up.\n\n"
+"                   Consult the documentation before using -i.\n\n" 
+"                   INCORRECT USE OF -i WILL CAUSE DATA LOSS!\n"
+;
+
+static const char* helpTextStop =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for STOP command\n"
+"---------------------------------------------------------------------------\n"
+"STOP  Stop data or management server node\n\n"
+"<id> STOP          Stop the data or management server node <id>.\n\n"
+"                   ALL STOP will just stop all data nodes.\n\n"
+"                   If you desire to also shut down management servers,\n"
+"                   use SHUTDOWN instead.\n" 
+;
+
+static const char* helpTextEnterSingleUserMode =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for ENTER SINGLE USER MODE command\n"
+"---------------------------------------------------------------------------\n"
+"ENTER SINGLE USER MODE  Enter single user mode\n\n"
+"ENTER SINGLE USER MODE <id> \n"
+"                   Enters single-user mode, whereby only the MySQL Server or NDBAPI\n" 
+"                   node identified by <id> is allowed to access the database. \n"
+;
+
+static const char* helpTextExitSingleUserMode =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for EXIT SINGLE USER MODE command\n"
+"---------------------------------------------------------------------------\n"
+"EXIT SINGLE USER MODE  Exit single user mode\n\n"
+"EXIT SINGLE USER MODE \n"
+"                   Exits single-user mode, allowing all SQL nodes \n"
+"                   (that is, all running mysqld processes) to access the database. \n" 
+;
+
+static const char* helpTextStatus =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for STATUS command\n"
+"---------------------------------------------------------------------------\n"
+"STATUS  Print status\n\n"
+"<id> STATUS        Displays status information for the data node <id>\n"
+"                   or for All data nodes. \n\n"
+"                   e.g.\n"
+"                      ALL STATUS\n"
+"                      1 STATUS\n\n"
+"                   When a node is starting, the start phase will be\n"
+"                   listed.\n\n"
+"                   Start Phase   Meaning\n"
+"                   1             Clear the cluster file system(ndb_<id>_fs). \n"
+"                                 This stage occurs only when the --initial option \n"
+"                                 has been specified.\n"
+"                   2             This stage sets up Cluster connections, establishes \n"
+"                                 inter-node communications and starts Cluster heartbeats.\n"
+"                   3             The arbitrator node is elected.\n"
+"                   4             Initializes a number of internal cluster variables.\n"
+"                   5             For an initial start or initial node restart,\n"
+"                                 the redo log files are created.\n"
+"                   6             If this is an initial start, create internal system tables.\n"
+"                   7             Update internal variables. \n"
+"                   8             In a system restart, rebuild all indexes.\n"
+"                   9             Update internal variables. \n"
+"                   10            The node can be connected by APIs and can receive events.\n"
+"                   11            At this point,event delivery is handed over to\n"
+"                                 the node joining the cluster.\n"
+"(see manual for more information)\n"
+;
+
+static const char* helpTextClusterlog =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG  Set log level for cluster log\n\n"
+" <id> CLUSTERLOG {<category>=<level>}+  \n"
+"                   Logs <category> events with priority less than \n"
+"                   or equal to <level> in the cluster log.\n\n"
+"                   <category> can be any one of the following values:\n"
+"                   STARTUP, SHUTDOWN, STATISTICS, CHECKPOINT, NODERESTART,\n"
+"                   CONNECTION, ERROR, INFO, CONGESTION, DEBUG, or BACKUP. \n\n"
+"                   <level> is represented by one of the numbers \n"
+"                   from 1 to 15 inclusive, where 1 indicates 'most important' \n"
+"                   and 15 'least important'.\n\n"
+"                   <severity > can be any one of the following values:\n"
+"                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
+;
+
+
+static const char* helpTextPurgeStaleSessions =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for PURGE STALE SESSIONS command\n"
+"---------------------------------------------------------------------------\n"
+"PURGE STALE SESSIONS  Reset reserved nodeid's in the mgmt server\n\n"
+"PURGE STALE SESSIONS \n"
+"                   Running this statement forces all reserved \n"
+"                   node IDs to be checked; any that are not \n"
+"                   being used by nodes acutally connected to \n"
+"                   the cluster are then freed.\n\n"   
+"                   This command is not normally needed, but may be\n"
+"                   required in some situations where failed nodes \n"
+"                   cannot rejoin the cluster due to failing to\n"
+"                   allocate a node id.\n" 
+;
+
+static const char* helpTextConnect =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CONNECT command\n"
+"---------------------------------------------------------------------------\n"
+"CONNECT  Connect to management server (reconnect if already connected)\n\n"
+"CONNECT [<connectstring>] \n"
+"                   Connect to management server.\n"
+"                   The optional parameter connectstring specifies the \n"
+"                   connect string to user.\n\n"
+"                   A connect string may be:\n"
+"                       mgm-server\n"
+"                       mgm-server:port\n"
+"                       mgm1:port,mgm2:port\n"
+"                   With multiple management servers comma separated.\n"
+"                   The management client with try to connect to the \n"
+"                   management servers in the order they are listed.\n\n"
+"                   If no connect string is specified, the default \n"
+"                   is used. \n"
+;
+
+static const char* helpTextQuit =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for QUIT command\n"
+"---------------------------------------------------------------------------\n"
+"QUIT  Quit management client\n\n"
+"QUIT               Terminates the management client. \n"                    
+;
+
 
 #ifdef VM_TRACE // DEBUG ONLY
 static const char* helpTextDebug =
@@ -314,6 +596,40 @@ static const char* helpTextDebug =
 "<id>       = ALL | Any database node id\n"
 ;
 #endif
+
+struct {
+  const char *cmd;
+  const char * help;
+}help_items[]={
+  {"SHOW", helpTextShow},
+  {"HELP", helpTextHelp},
+  {"BACKUP", helpTextBackup},
+  {"START BACKUP", helpTextStartBackup},
+  {"START BACKUP NOWAIT", helpTextStartBackup},
+  {"START BACKUP WAIT STARTED", helpTextStartBackup},
+  {"START BACKUP WAIT", helpTextStartBackup},
+  {"START BACKUP WAIT COMPLETED", helpTextStartBackup},
+  {"ABORT BACKUP", helpTextAbortBackup},
+  {"SHUTDOWN", helpTextShutdown},
+  {"CLUSTERLOG ON", helpTextClusterlogOn},
+  {"CLUSTERLOG OFF", helpTextClusterlogOff},
+  {"CLUSTERLOG TOGGLE", helpTextClusterlogToggle},
+  {"CLUSTERLOG INFO", helpTextClusterlogInfo},
+  {"START", helpTextStart},
+  {"RESTART", helpTextRestart},
+  {"STOP", helpTextStop},
+  {"ENTER SINGLE USER MODE", helpTextEnterSingleUserMode},
+  {"EXIT SINGLE USER MODE", helpTextExitSingleUserMode},
+  {"STATUS", helpTextStatus},
+  {"CLUSTERLOG", helpTextClusterlog},
+  {"PURGE STALE SESSIONS", helpTextPurgeStaleSessions},
+  {"CONNECT", helpTextConnect},
+  {"QUIT", helpTextQuit},
+#ifdef VM_TRACE // DEBUG ONLY
+  {"DEBUG", helpTextDebug},
+#endif //VM_TRACE
+  {NULL, NULL}
+};
 
 static bool
 convert(const char* s, int& val) {
@@ -982,14 +1298,19 @@ CommandInterpreter::executeHelp(char* parameters)
     ndbout << "<level>    = " << "0 - 15" << endl;
     ndbout << "<id>       = " << "ALL | Any database node id" << endl;
     ndbout << endl;
-  } else if (strcasecmp(parameters, "SHOW") == 0) {
-    ndbout << helpTextShow;
-#ifdef VM_TRACE // DEBUG ONLY
-  } else if (strcasecmp(parameters, "DEBUG") == 0) {
-    ndbout << helpTextDebug;
-#endif
+    ndbout << "For detailed help on COMMAND, use HELP COMMAND." << endl;
   } else {
-    invalid_command(parameters);
+    int i = 0;
+    for (i = 0; help_items[i].cmd != NULL; i++) 
+    {
+      if (strcasecmp(parameters, help_items[i].cmd) == 0)
+      {
+        ndbout << help_items[i].help;
+        break;
+      }     
+    }
+    if (help_items[i].cmd == NULL)
+      ndbout << "No help for " << parameters << " available" << endl;
   }
 }
 
