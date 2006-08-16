@@ -1,9 +1,18 @@
+# include/handler.inc
+#
+# The variable
+#     $engine_type       -- storage engine to be tested
+# has to be set before sourcing this script.
 #
 # test of HANDLER ...
 #
+# Last update:
+# 2006-07-31 ML test refactored (MySQL 5.1)
+#               code of t/handler.test and t/innodb_handler.test united
+#               main testing code put into include/handler.inc
+#
 
-# should work in embedded server after mysqltest is fixed
--- source include/not_embedded.inc
+eval SET SESSION STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 drop table if exists t1,t3,t4,t5;
@@ -72,6 +81,22 @@ handler t2 read next;
 --error 1064
 handler t2 read last;
 handler t2 close;
+
+handler t1 open;
+handler t1 read a next; # this used to crash as a bug#5373
+handler t1 read a next;
+handler t1 close;
+
+handler t1 open;
+handler t1 read a prev; # this used to crash as a bug#5373
+handler t1 read a prev;
+handler t1 close;
+
+handler t1 open as t2;
+handler t2 read first;
+eval alter table t1 engine = $engine_type;
+--error 1109
+handler t2 read first;
 
 #
 # DROP TABLE / ALTER TABLE
@@ -377,6 +402,13 @@ reap;
 --exec echo proceed with the normal connection
 connection default;
 drop table t1;
+
+CREATE TABLE t1 (  no1 smallint(5) NOT NULL default '0',  no2 int(10) NOT NULL default '0',  PRIMARY KEY  (no1,no2));
+INSERT INTO t1 VALUES (1,274),(1,275),(2,6),(2,8),(4,1),(4,2);
+HANDLER t1 OPEN;
+HANDLER t1 READ `primary` = (1, 1000);
+HANDLER t1 READ `primary` PREV;
+DROP TABLE t1;
 
 # End of 4.1 tests
 

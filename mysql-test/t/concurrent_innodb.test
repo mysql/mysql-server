@@ -1,0 +1,20 @@
+# t/concurrent_innodb.test
+#
+# Concurrent InnoDB tests, mainly in UPDATE's
+# Bug#3300
+# Designed and tested by Sinisa Milivojevic, sinisa@mysql.com
+#
+# two non-interfering UPDATE's not changing result set
+#
+# Last update:
+# 2006-07-26 ML test refactored (MySQL 5.1)
+#               main code t/innodb_concurrent.test -> include/concurrent.inc
+#               new wrapper t/concurrent_innodb.test
+
+# test takes circa 5 minutes to run, so it's big
+--source include/big_test.inc
+
+--source include/have_innodb.inc
+let $engine_type= InnoDB;
+
+--source include/concurrent.inc

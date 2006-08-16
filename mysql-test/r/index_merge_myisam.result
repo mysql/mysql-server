@@ -1,0 +1,1210 @@
+#---------------- Index merge test 1 -------------------------------------------
+SET SESSION STORAGE_ENGINE = MyISAM;
+drop table if exists t0, t1, t2, t3, t4;
+create table t0
+(
+key1 int not null,
+INDEX i1(key1)
+);
+alter table t0 add key2 int not null, add index i2(key2);
+alter table t0 add key3 int not null, add index i3(key3);
+alter table t0 add key4 int not null, add index i4(key4);
+alter table t0 add key5 int not null, add index i5(key5);
+alter table t0 add key6 int not null, add index i6(key6);
+alter table t0 add key7 int not null, add index i7(key7);
+alter table t0 add key8 int not null, add index i8(key8);
+update t0 set key2=key1,key3=key1,key4=key1,key5=key1,key6=key1,key7=key1,key8=1024-key1;
+analyze table t0;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+explain select * from t0 where key1 < 3 or key1 > 1020;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	range	i1	i1	4	NULL	78	Using where
+explain
+select * from t0 where key1 < 3 or key2 > 1020;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	45	Using sort_union(i1,i2); Using where
+select * from t0 where key1 < 3 or key2 > 1020;
+key1	key2	key3	key4	key5	key6	key7	key8
+1	1	1	1	1	1	1	1023
+2	2	2	2	2	2	2	1022
+1021	1021	1021	1021	1021	1021	1021	3
+1022	1022	1022	1022	1022	1022	1022	2
+1023	1023	1023	1023	1023	1023	1023	1
+1024	1024	1024	1024	1024	1024	1024	0
+explain select * from t0 where key1 < 3 or key2 <4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	7	Using sort_union(i1,i2); Using where
+explain
+select * from t0 where (key1 > 30 and key1<35) or (key2 >32 and key2 < 40);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	11	Using sort_union(i1,i2); Using where
+select * from t0 where (key1 > 30 and key1<35) or (key2 >32 and key2 < 40);
+key1	key2	key3	key4	key5	key6	key7	key8
+31	31	31	31	31	31	31	993
+32	32	32	32	32	32	32	992
+33	33	33	33	33	33	33	991
+34	34	34	34	34	34	34	990
+35	35	35	35	35	35	35	989
+36	36	36	36	36	36	36	988
+37	37	37	37	37	37	37	987
+38	38	38	38	38	38	38	986
+39	39	39	39	39	39	39	985
+explain select * from t0 ignore index (i2) where key1 < 3 or key2 <4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ALL	i1	NULL	NULL	NULL	1024	Using where
+explain select * from t0 where (key1 < 3 or key2 <4) and key3 = 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ref	i1,i2,i3	i3	4	const	1	Using where
+explain select * from t0 use index (i1,i2) where (key1 < 3 or key2 <4) and key3 = 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	7	Using sort_union(i1,i2); Using where
+explain select * from t0 where (key1 > 1 or key2  > 2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
+explain select * from t0 force index (i1,i2) where (key1 > 1 or key2  > 2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	1024	Using sort_union(i1,i2); Using where
+explain
+select * from t0 where key1<3 or key2<3 or (key1>5 and key1<8) or
+(key1>10 and key1<12) or (key2>100 and key2<110);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	17	Using sort_union(i1,i2); Using where
+explain select * from t0 where key2 = 45 or key1 <=> null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	range	i1,i2	i2	4	NULL	1	Using where
+explain select * from t0 where key2 = 45 or key1 is not null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
+explain select * from t0 where key2 = 45 or key1 is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ref	i2	i2	4	const	1	
+explain select * from t0 where key2=10 or key3=3 or key4 <=> null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i2,i3,i4	i2,i3	4,4	NULL	2	Using union(i2,i3); Using where
+explain select * from t0 where key2=10 or key3=3 or key4 is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i2,i3	i2,i3	4,4	NULL	2	Using union(i2,i3); Using where
+explain select key1 from t0 where (key1 <=> null) or (key2 < 5) or
+(key3=10) or (key4 <=> null);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3,i4	i2,i3	4,4	NULL	6	Using sort_union(i2,i3); Using where
+explain select key1 from t0 where (key1 <=> null) or (key1 < 5) or
+(key3=10) or (key4 <=> null);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i3,i4	i1,i3	4,4	NULL	6	Using sort_union(i1,i3); Using where
+explain select * from t0 where
+(key1 < 3 or key2 < 3) and (key3 < 4 or key4 < 4) and (key5 < 5 or key6 < 5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3,i4,i5,i6	i1,i2	4,4	NULL	6	Using sort_union(i1,i2); Using where
+explain
+select * from t0 where (key1 < 3 or key2 < 6) and (key1 < 7 or key3 < 4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3	i1,i2	4,4	NULL	9	Using sort_union(i1,i2); Using where
+select * from t0 where (key1 < 3 or key2 < 6) and (key1 < 7 or key3 < 4);
+key1	key2	key3	key4	key5	key6	key7	key8
+1	1	1	1	1	1	1	1023
+2	2	2	2	2	2	2	1022
+3	3	3	3	3	3	3	1021
+4	4	4	4	4	4	4	1020
+5	5	5	5	5	5	5	1019
+explain select * from t0 where
+(key1 < 3 or key2 < 3) and (key3 < 4 or key4 < 4) and (key5 < 2 or key6 < 2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3,i4,i5,i6	i1,i2	4,4	NULL	6	Using sort_union(i1,i2); Using where
+explain select * from t0 where
+(key1 < 3 or key2 < 3) and (key3 < 100);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	range	i1,i2,i3	i3	4	NULL	95	Using where
+explain select * from t0 where
+(key1 < 3 or key2 < 3) and (key3 < 1000);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ALL	i1,i2,i3	NULL	NULL	NULL	1024	Using where
+explain select * from t0 where
+((key1 < 4 or key2 < 4) and (key2 <5 or key3 < 4))
+or
+key2 > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ALL	i1,i2,i3	NULL	NULL	NULL	1024	Using where
+explain select * from t0 where
+((key1 < 4 or key2 < 4) and (key2 <5 or key3 < 4))
+or
+key1 < 7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3	i1,i2	4,4	NULL	10	Using sort_union(i1,i2); Using where
+select * from t0 where
+((key1 < 4 or key2 < 4) and (key2 <5 or key3 < 4))
+or
+key1 < 7;
+key1	key2	key3	key4	key5	key6	key7	key8
+1	1	1	1	1	1	1	1023
+2	2	2	2	2	2	2	1022
+3	3	3	3	3	3	3	1021
+4	4	4	4	4	4	4	1020
+5	5	5	5	5	5	5	1019
+6	6	6	6	6	6	6	1018
+explain select * from t0 where
+((key1 < 4 or key2 < 4) and (key3 <5 or key5 < 4))
+or
+((key5 < 5 or key6 < 6) and (key7 <7 or key8 < 4));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3,i5,i6,i7,i8	i1,i2,i5,i6	4,4,4,4	NULL	19	Using sort_union(i1,i2,i5,i6); Using where
+explain select * from t0 where
+((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
+or
+((key7 <7 or key8 < 4) and (key5 < 5 or key6 < 6));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3,i5,i6,i7,i8	i3,i5,i7,i8	4,4,4,4	NULL	20	Using sort_union(i3,i5,i7,i8); Using where
+explain select * from t0 where
+((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
+or
+((key3 <7 or key5 < 2) and (key5 < 5 or key6 < 6));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3,i5,i6	i3,i5	4,4	NULL	11	Using sort_union(i3,i5); Using where
+explain select * from t0 where
+((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
+or
+(((key3 <7 and key7 < 6) or key5 < 2) and (key5 < 5 or key6 < 6));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3,i5,i6,i7	i3,i5	4,4	NULL	11	Using sort_union(i3,i5); Using where
+explain select * from t0 where
+((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
+or
+((key3 >=5 or key5 < 2) and (key5 < 5 or key6 < 6));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ALL	i1,i2,i3,i5,i6	NULL	NULL	NULL	1024	Using where
+explain select * from t0 force index(i1, i2, i3, i4, i5, i6 ) where
+((key3 <5 or key5 < 4) and (key1 < 4 or key2 < 4))
+or
+((key3 >=5 or key5 < 2) and (key5 < 5 or key6 < 6));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2,i3,i5,i6	i3,i5	0,4	NULL	1024	Using sort_union(i3,i5); Using where
+select * from t0 where key1 < 5 or key8 < 4 order by key1;
+key1	key2	key3	key4	key5	key6	key7	key8
+1	1	1	1	1	1	1	1023
+2	2	2	2	2	2	2	1022
+3	3	3	3	3	3	3	1021
+4	4	4	4	4	4	4	1020
+1021	1021	1021	1021	1021	1021	1021	3
+1022	1022	1022	1022	1022	1022	1022	2
+1023	1023	1023	1023	1023	1023	1023	1
+1024	1024	1024	1024	1024	1024	1024	0
+explain
+select * from t0 where key1 < 5 or key8 < 4 order by key1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i8	i1,i8	4,4	NULL	9	Using sort_union(i1,i8); Using where; Using filesort
+create table t2 like t0;
+insert into t2 select * from t0;
+alter table t2 add index i1_3(key1, key3);
+alter table t2 add index i2_3(key2, key3);
+alter table t2 drop index i1;
+alter table t2 drop index i2;
+alter table t2 add index i321(key3, key2, key1);
+explain select key3 from t2 where key1 = 100 or key2 = 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index_merge	i1_3,i2_3	i1_3,i2_3	4,4	NULL	2	Using sort_union(i1_3,i2_3); Using where
+explain select key3 from t2 where key1 <100 or key2 < 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	i1_3,i2_3	i321	12	NULL	1024	Using where; Using index
+explain select key7 from t2 where key1 <100 or key2 < 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	i1_3,i2_3	NULL	NULL	NULL	1024	Using where
+create table t4 (
+key1a int not null,
+key1b int not null,
+key2  int not null,
+key2_1 int not null,
+key2_2 int not null,
+key3  int not null,
+index i1a (key1a, key1b),
+index i1b (key1b, key1a),
+index i2_1(key2, key2_1),
+index i2_2(key2, key2_1)
+);
+insert into t4 select key1,key1,key1 div 10, key1 % 10, key1 % 10, key1 from t0;
+select * from t4 where key1a = 3 or key1b = 4;
+key1a	key1b	key2	key2_1	key2_2	key3
+3	3	0	3	3	3
+4	4	0	4	4	4
+explain select * from t4 where key1a = 3 or key1b = 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	index_merge	i1a,i1b	i1a,i1b	4,4	NULL	2	Using sort_union(i1a,i1b); Using where
+explain select * from t4 where key2 = 1 and (key2_1 = 1 or key3 = 5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ref	i2_1,i2_2	i2_1	4	const	10	Using where
+explain select * from t4 where key2 = 1 and (key2_1 = 1 or key2_2 = 5);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ref	i2_1,i2_2	i2_1	4	const	10	Using where
+explain select * from t4 where key2_1 = 1 or key2_2 = 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	1024	Using where
+create table t1 like t0;
+insert into t1 select * from t0;
+explain select * from t0 left join t1 on (t0.key1=t1.key1)
+where t0.key1=3 or t0.key2=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
+1	SIMPLE	t1	ref	i1	i1	4	test.t0.key1	1	
+select * from t0 left join t1 on (t0.key1=t1.key1)
+where t0.key1=3 or t0.key2=4;
+key1	key2	key3	key4	key5	key6	key7	key8	key1	key2	key3	key4	key5	key6	key7	key8
+3	3	3	3	3	3	3	1021	3	3	3	3	3	3	3	1021
+4	4	4	4	4	4	4	1020	4	4	4	4	4	4	4	1020
+explain
+select * from t0,t1 where (t0.key1=t1.key1) and ( t0.key1=3 or t0.key2=4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
+1	SIMPLE	t1	ref	i1	i1	4	test.t0.key1	1	
+explain
+select * from t0,t1 where (t0.key1=t1.key1) and
+(t0.key1=3 or t0.key2=4) and t1.key1<200;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ALL	i1,i2	NULL	NULL	NULL	1024	Using where
+1	SIMPLE	t1	ref	i1	i1	4	test.t0.key1	1	
+explain
+select * from t0,t1 where (t0.key1=t1.key1) and
+(t0.key1=3 or t0.key2<4) and t1.key1=2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ref	i1,i2	i1	4	const	1	Using where
+1	SIMPLE	t1	ref	i1	i1	4	const	1	
+explain select * from t0,t1 where t0.key1 = 5 and
+(t1.key1 = t0.key1 or t1.key8 = t0.key1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ref	i1	i1	4	const	1	
+1	SIMPLE	t1	index_merge	i1,i8	i1,i8	4,4	NULL	2	Using union(i1,i8); Using where
+explain select * from t0,t1 where t0.key1 < 3 and
+(t1.key1 = t0.key1 or t1.key8 = t0.key1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	range	i1	i1	4	NULL	3	Using where
+1	SIMPLE	t1	ALL	i1,i8	NULL	NULL	NULL	1024	Range checked for each record (index map: 0x81)
+explain select * from t1 where key1=3 or key2=4
+union select * from t1 where key1<4 or key3=5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
+2	UNION	t1	index_merge	i1,i3	i1,i3	4,4	NULL	5	Using sort_union(i1,i3); Using where
+NULL	UNION RESULT	<union1,2>	ALL	NULL	NULL	NULL	NULL	NULL	
+explain select * from (select * from t1 where key1 = 3 or key2 =3) as Z where key8 >5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
+2	DERIVED	t1	index_merge	i1,i2	i1,i2	4,4	NULL	2	Using union(i1,i2); Using where
+create table t3 like t0;
+insert into t3 select * from t0;
+alter table t3 add key9 int not null, add index i9(key9);
+alter table t3 add keyA int not null, add index iA(keyA);
+alter table t3 add keyB int not null, add index iB(keyB);
+alter table t3 add keyC int not null, add index iC(keyC);
+update t3 set key9=key1,keyA=key1,keyB=key1,keyC=key1;
+explain select * from t3 where
+key1=1 or key2=2 or key3=3 or key4=4 or
+key5=5 or key6=6 or key7=7 or key8=8 or
+key9=9 or keyA=10 or keyB=11 or keyC=12;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	index_merge	i1,i2,i3,i4,i5,i6,i7,i8,i9,iA,iB,iC	i1,i2,i3,i4,i5,i6,i7,i8,i9,iA,iB,iC	4,4,4,4,4,4,4,4,4,4,4,4	NULL	12	Using union(i1,i2,i3,i4,i5,i6,i7,i8,i9,iA,iB,iC); Using where
+select * from t3 where
+key1=1 or key2=2 or key3=3 or key4=4 or
+key5=5 or key6=6 or key7=7 or key8=8 or
+key9=9 or keyA=10 or keyB=11 or keyC=12;
+key1	key2	key3	key4	key5	key6	key7	key8	key9	keyA	keyB	keyC
+1	1	1	1	1	1	1	1023	1	1	1	1
+2	2	2	2	2	2	2	1022	2	2	2	2
+3	3	3	3	3	3	3	1021	3	3	3	3
+4	4	4	4	4	4	4	1020	4	4	4	4
+5	5	5	5	5	5	5	1019	5	5	5	5
+6	6	6	6	6	6	6	1018	6	6	6	6
+7	7	7	7	7	7	7	1017	7	7	7	7
+9	9	9	9	9	9	9	1015	9	9	9	9
+10	10	10	10	10	10	10	1014	10	10	10	10
+11	11	11	11	11	11	11	1013	11	11	11	11
+12	12	12	12	12	12	12	1012	12	12	12	12
+1016	1016	1016	1016	1016	1016	1016	8	1016	1016	1016	1016
+explain select * from t0 where key1 < 3 or key2 < 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	index_merge	i1,i2	i1,i2	4,4	NULL	7	Using sort_union(i1,i2); Using where
+select * from t0 where key1 < 3 or key2 < 4;
+key1	key2	key3	key4	key5	key6	key7	key8
+1	1	1	1	1	1	1	1023
+2	2	2	2	2	2	2	1022
+3	3	3	3	3	3	3	1021
+update t0 set key8=123 where key1 < 3 or key2 < 4;
+select * from t0 where key1 < 3 or key2 < 4;
+key1	key2	key3	key4	key5	key6	key7	key8
+1	1	1	1	1	1	1	123
+2	2	2	2	2	2	2	123
+3	3	3	3	3	3	3	123
+delete from t0 where key1 < 3 or key2 < 4;
+select * from t0 where key1 < 3 or key2 < 4;
+key1	key2	key3	key4	key5	key6	key7	key8
+select count(*) from t0;
+count(*)
+1021
+drop table t4;
+create table t4 (a int);
+insert into t4 values (1),(4),(3);
+set @save_join_buffer_size=@@join_buffer_size;
+set join_buffer_size= 4000;
+explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
+where (A.key1 < 500000 or A.key2 < 3)
+and   (B.key1 < 500000 or B.key2 < 3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1013	Using sort_union(i1,i2); Using where
+select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
+where (A.key1 < 500000 or A.key2 < 3)
+and   (B.key1 < 500000 or B.key2 < 3);
+max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+10240
+update t0 set key1=1;
+explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
+where (A.key1 = 1 or A.key2 = 1)
+and   (B.key1 = 1 or B.key2 = 1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	A	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where
+1	SIMPLE	B	index_merge	i1,i2	i1,i2	4,4	NULL	1020	Using union(i1,i2); Using where
+select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
+where (A.key1 = 1 or A.key2 = 1)
+and   (B.key1 = 1 or B.key2 = 1);
+max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+8194
+alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
+update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
+explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+from t0 as A, t0 as B
+where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
+and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	A	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
+1	SIMPLE	B	index_merge	i1,i2,i3,i4,i5,i6,i7?,i8	i2,i3,i4,i5,i6,i7?,i8	X	NULL	#	Using union(intersect(i2,i3,i4,i5,i6,i7?),i8); Using where
+select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+from t0 as A, t0 as B
+where (A.key1 = 1 and A.key2 = 1 and A.key3 = 1 and A.key4=1 and A.key5=1 and A.key6=1 and A.key7 = 1 or A.key8=1)
+and (B.key1 = 1 and B.key2 = 1 and B.key3 = 1 and B.key4=1 and B.key5=1 and B.key6=1 and B.key7 = 1 or B.key8=1);
+max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
+8186
+set join_buffer_size= @save_join_buffer_size;
+drop table t0, t1, t2, t3, t4;
+CREATE TABLE t1 (
+cola char(3) not null, colb char(3) not null,  filler char(200),
+key(cola), key(colb)
+);
+INSERT INTO t1 VALUES ('foo','bar', 'ZZ'),('fuz','baz', 'ZZ');
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+select count(*) from t1;
+count(*)
+8704
+explain select * from t1 WHERE cola = 'foo' AND colb = 'bar';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	32	Using intersect(cola,colb); Using where
+explain select * from t1 force index(cola,colb) WHERE cola = 'foo' AND colb = 'bar';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	cola,colb	cola,colb	3,3	NULL	32	Using intersect(cola,colb); Using where
+drop table t1;
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (
+a int, b int,
+filler1 char(200), filler2 char(200),
+key(a),key(b)
+);
+insert into t1 select @v:= A.a, @v, 't1', 'filler2' from t0 A, t0 B, t0 C;
+create table t2 like t1;
+create table t3 (
+a int, b int,
+filler1 char(200), filler2 char(200),
+key(a),key(b)
+) engine=merge union=(t1,t2);
+explain select * from t1 where a=1 and b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	a,b	a,b	5,5	NULL	#	Using intersect(a,b); Using where
+explain select * from t3 where a=1 and b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	index_merge	a,b	a,b	5,5	NULL	#	Using intersect(a,b); Using where
+drop table t3;
+drop table t0, t1, t2;
+#---------------- ROR-index_merge tests -----------------------
+SET SESSION STORAGE_ENGINE = MyISAM;
+drop table if exists  t0,t1,t2;
+create table t1
+(
+/* Field names reflect value(rowid) distribution, st=STairs, swt= SaWTooth */
+st_a int not null default 0,
+swt1a int not null default 0,
+swt2a int not null default 0,
+st_b int not null default 0,
+swt1b int not null default 0,
+swt2b int not null default 0,
+/* fields/keys for row retrieval tests */
+key1 int,
+key2 int,
+key3 int,
+key4 int,
+/* make rows much bigger then keys */
+filler1 char (200),
+filler2 char (200),
+filler3 char (200),
+filler4 char (200),
+filler5 char (200),
+filler6 char (200),
+/* order of keys is important */
+key sta_swt12a(st_a,swt1a,swt2a),
+key sta_swt1a(st_a,swt1a),
+key sta_swt2a(st_a,swt2a),
+key sta_swt21a(st_a,swt2a,swt1a),
+key st_a(st_a),
+key stb_swt1a_2b(st_b,swt1b,swt2a),
+key stb_swt1b(st_b,swt1b),
+key st_b(st_b),
+key(key1),
+key(key2),
+key(key3),
+key(key4)
+) ;
+create table t0 as select * from t1;
+# Printing of many insert into t0 values (....) disabled.
+alter table t1 disable keys;
+# Printing of many insert into t1 select .... from t0 disabled.
+# Printing of many insert into t1 (...) values (....) disabled.
+alter table t1 enable keys;
+select count(*) from t1;
+count(*)
+64801
+explain select key1,key2 from t1 where key1=100 and key2=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,5	NULL	77	Using intersect(key1,key2); Using where; Using index
+select key1,key2 from t1 where key1=100 and key2=100;
+key1	key2
+100	100
+explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3,key4	key1,key2,key3,key4	5,5,5,5	NULL	154	Using union(intersect(key1,key2),intersect(key3,key4)); Using where
+select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+key1	key2	key3	key4	filler1
+100	100	100	100	key1-key2-key3-key4
+insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, -1, -1, 'key1-key2');
+insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 100, 100, 'key4-key3');
+explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,5	NULL	77	Using intersect(key1,key2); Using where
+select key1,key2,filler1 from t1 where key1=100 and key2=100;
+key1	key2	filler1
+100	100	key1-key2-key3-key4
+100	100	key1-key2
+explain select key1,key2 from t1 where key1=100 and key2=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,5	NULL	77	Using intersect(key1,key2); Using where; Using index
+select key1,key2 from t1 where key1=100 and key2=100;
+key1	key2
+100	100
+100	100
+explain select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3,key4	key1,key2,key3,key4	5,5,5,5	NULL	154	Using union(intersect(key1,key2),intersect(key3,key4)); Using where
+select key1,key2,key3,key4 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+key1	key2	key3	key4
+100	100	100	100
+100	100	-1	-1
+-1	-1	100	100
+explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3,key4	key1,key2,key3,key4	5,5,5,5	NULL	154	Using union(intersect(key1,key2),intersect(key3,key4)); Using where
+select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+key1	key2	key3	key4	filler1
+100	100	100	100	key1-key2-key3-key4
+100	100	-1	-1	key1-key2
+-1	-1	100	100	key4-key3
+explain select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3	key1,key2,key3	5,5,5	NULL	2	Using intersect(key1,key2,key3); Using where; Using index
+select key1,key2,key3 from t1 where key1=100 and key2=100 and key3=100;
+key1	key2	key3
+100	100	100
+insert into t1 (key1,key2,key3,key4,filler1) values (101,101,101,101, 'key1234-101');
+explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3	key1,key2,key3	5,5,5	NULL	83	Using union(intersect(key1,key2),key3); Using where
+select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=101;
+key1	key2	key3	key4	filler1
+100	100	100	100	key1-key2-key3-key4
+100	100	-1	-1	key1-key2
+101	101	101	101	key1234-101
+select key1,key2, filler1 from t1 where key1=100 and key2=100;
+key1	key2	filler1
+100	100	key1-key2-key3-key4
+100	100	key1-key2
+update t1 set filler1='to be deleted' where key1=100 and key2=100;
+update t1 set key1=200,key2=200 where key1=100 and key2=100;
+delete from t1 where key1=200 and key2=200;
+select key1,key2,filler1 from t1 where key2=100 and key2=200;
+key1	key2	filler1
+explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3,key4	key1,key2,key3,key4	5,5,5,5	NULL	152	Using union(intersect(key1,key2),intersect(key3,key4)); Using where
+select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+key1	key2	key3	key4	filler1
+-1	-1	100	100	key4-key3
+delete from t1 where key3=100 and key4=100;
+explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3,key4	key1,key2,key3,key4	5,5,5,5	NULL	152	Using union(intersect(key1,key2),intersect(key3,key4)); Using where
+select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
+key1	key2	key3	key4	filler1
+explain select key1,key2 from t1 where key1=100 and key2=100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	5,5	NULL	76	Using intersect(key1,key2); Using where; Using index
+select key1,key2 from t1 where key1=100 and key2=100;
+key1	key2
+insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-1');
+insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-2');
+insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-3');
+explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3,key4	key3,key1,key2,key4	5,5,5,5	NULL	136	Using union(key3,intersect(key1,key2),key4); Using where
+select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+key1	key2	key3	key4	filler1
+100	100	200	200	key1-key2-key3-key4-3
+100	100	200	200	key1-key2-key3-key4-2
+100	100	200	200	key1-key2-key3-key4-1
+insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, -1, 200,'key4');
+explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3,key4	key3,key1,key2,key4	5,5,5,5	NULL	146	Using union(key3,intersect(key1,key2),key4); Using where
+select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+key1	key2	key3	key4	filler1
+100	100	200	200	key1-key2-key3-key4-3
+100	100	200	200	key1-key2-key3-key4-2
+100	100	200	200	key1-key2-key3-key4-1
+-1	-1	-1	200	key4
+insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 200, -1,'key3');
+explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2,key3,key4	key3,key1,key2,key4	5,5,5,5	NULL	156	Using union(key3,intersect(key1,key2),key4); Using where
+select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
+key1	key2	key3	key4	filler1
+100	100	200	200	key1-key2-key3-key4-3
+100	100	200	200	key1-key2-key3-key4-2
+100	100	200	200	key1-key2-key3-key4-1
+-1	-1	-1	200	key4
+-1	-1	200	-1	key3
+explain select * from t1 where st_a=1 and st_b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	st_a,st_b	4,4	NULL	3515	Using intersect(st_a,st_b); Using where
+explain select st_a,st_b from t1 where st_a=1 and st_b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	st_a,st_b	4,4	NULL	3515	Using intersect(st_a,st_b); Using where; Using index
+explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,stb_swt1a_2b,stb_swt1b,st_b	st_b	4	const	15093	Using where
+explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a	sta_swt21a	12	const,const,const	971	
+explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	stb_swt1a_2b,stb_swt1b,st_b	stb_swt1a_2b	8	const,const	3879	Using where
+explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	58	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
+explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b)
+where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt12a,stb_swt1b	12,8	NULL	58	Using intersect(sta_swt12a,stb_swt1b); Using where
+explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
+where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt1a,sta_swt2a,stb_swt1b	8,8,8	NULL	57	Using intersect(sta_swt1a,sta_swt2a,stb_swt1b); Using where
+explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
+where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt1a,sta_swt2a,st_a,st_b	sta_swt1a,sta_swt2a,st_b	8,8,4	NULL	223	Using intersect(sta_swt1a,sta_swt2a,st_b); Using where
+explain select * from t1
+where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt12a,stb_swt1a_2b	12,12	NULL	58	Using intersect(sta_swt12a,stb_swt1a_2b); Using where
+explain select * from t1
+where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	232	Using intersect(sta_swt1a,stb_swt1b); Using where
+explain select st_a from t1
+where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	232	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
+explain select st_a from t1
+where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	sta_swt12a,sta_swt1a,sta_swt2a,sta_swt21a,st_a,stb_swt1a_2b,stb_swt1b,st_b	sta_swt1a,stb_swt1b	8,8	NULL	232	Using intersect(sta_swt1a,stb_swt1b); Using where; Using index
+drop table t0,t1;
+create table t2 (
+a char(10),
+b char(10),
+filler1 char(255),
+filler2 char(255),
+key(a(5)),
+key(b(5))
+);
+select count(a) from t2 where a='BBBBBBBB';
+count(a)
+4
+select count(a) from t2 where b='BBBBBBBB';
+count(a)
+4
+expla_or_bin select count(a_or_b) from t2 where a_or_b='AAAAAAAA' a_or_bnd a_or_b='AAAAAAAA';
+id	select_type	ta_or_ba_or_ble	type	possia_or_ble_keys	key	key_len	ref	rows	Extra_or_b
+1	SIMPLE	t2	ref	a_or_b,a_or_b	a_or_b	6	const	4	Using where
+select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
+count(a)
+4
+select count(a) from t2 ignore index(a,b) where a='AAAAAAAA' and b='AAAAAAAA';
+count(a)
+4
+insert into t2 values ('ab', 'ab', 'uh', 'oh');
+explain select a from t2 where a='ab';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	a	a	6	const	1	Using where
+drop table t2;
+#---------------- Index merge test 2 -------------------------------------------
+SET SESSION STORAGE_ENGINE = MyISAM;
+drop table if exists t1,t2;
+create table t1
+(
+key1 int not null,
+key2 int not null,
+INDEX i1(key1),
+INDEX i2(key2)
+);
+explain select * from t1 where key1 < 5 or key2 > 197;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	10	Using sort_union(i1,i2); Using where
+select * from t1 where key1 < 5 or key2 > 197;
+key1	key2
+0	200
+1	199
+2	198
+3	197
+4	196
+explain select * from t1 where key1 < 3 or key2 > 195;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	10	Using sort_union(i1,i2); Using where
+select * from t1 where key1 < 3 or key2 > 195;
+key1	key2
+0	200
+1	199
+2	198
+3	197
+4	196
+alter table t1 add str1 char (255) not null,
+add zeroval int not null default 0,
+add str2 char (255) not null,
+add str3 char (255) not null;
+update t1 set str1='aaa', str2='bbb', str3=concat(key2, '-', key1 div 2, '_' ,if(key1 mod 2 = 0, 'a', 'A'));
+alter table t1 add primary key (str1, zeroval, str2, str3);
+explain select * from t1 where key1 < 5 or key2 > 197;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	10	Using sort_union(i1,i2); Using where
+select * from t1 where key1 < 5 or key2 > 197;
+key1	key2	str1	zeroval	str2	str3
+0	200	aaa	0	bbb	200-0_a
+1	199	aaa	0	bbb	199-0_A
+2	198	aaa	0	bbb	198-1_a
+3	197	aaa	0	bbb	197-1_A
+4	196	aaa	0	bbb	196-2_a
+explain select * from t1 where key1 < 3 or key2 > 195;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	10	Using sort_union(i1,i2); Using where
+select * from t1 where key1 < 3 or key2 > 195;
+key1	key2	str1	zeroval	str2	str3
+0	200	aaa	0	bbb	200-0_a
+1	199	aaa	0	bbb	199-0_A
+2	198	aaa	0	bbb	198-1_a
+3	197	aaa	0	bbb	197-1_A
+4	196	aaa	0	bbb	196-2_a
+drop table t1;
+create table t1 (
+pk    integer not null auto_increment primary key,
+key1  integer,
+key2  integer not null,
+filler char  (200),
+index (key1),
+index (key2)
+);
+show warnings;
+Level	Code	Message
+explain select pk from t1 where key1 = 1 and key2 = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	key1,key2	key1	5	const	4	Using where
+select pk from t1 where key2 = 1 and key1 = 1;
+pk
+26
+27
+select pk from t1 ignore index(key1,key2) where key2 = 1 and key1 = 1;
+pk
+26
+27
+drop table t1;
+create table t1 (
+pk int primary key auto_increment,
+key1a  int,
+key2a  int,
+key1b  int,
+key2b  int,
+dummy1 int,
+dummy2 int,
+dummy3 int,
+dummy4 int,
+key3a  int,
+key3b  int,
+filler1 char (200),
+index i1(key1a, key1b),
+index i2(key2a, key2b),
+index i3(key3a, key3b)
+);
+create table t2 (a int);
+insert into t2 values (0),(1),(2),(3),(4),(NULL);
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
+select A.a, B.a, C.a, D.a, C.a, D.a from t2 A,t2 B,t2 C, t2 D;
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
+select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
+select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select count(*) from t1;
+count(*)
+5184
+explain select count(*) from t1 where
+key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	10,10	NULL	2	Using intersect(i1,i2); Using where; Using index
+select count(*) from t1 where
+key1a = 2 and key1b is null and key2a = 2 and key2b is null;
+count(*)
+4
+explain select count(*) from t1 where
+key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i3	i1,i3	10,10	NULL	2	Using intersect(i1,i3); Using where; Using index
+select count(*) from t1 where
+key1a = 2 and key1b is null and key3a = 2 and key3b is null;
+count(*)
+4
+drop table t1,t2;
+create table t1 (
+id1 int,
+id2 date ,
+index idx2 (id1,id2),
+index idx1 (id2)
+);
+insert into t1 values(1,'20040101'), (2,'20040102');
+select * from t1  where id1 = 1  and id2= '20040101';
+id1	id2
+1	2004-01-01
+drop table t1;
+drop view if exists v1;
+CREATE TABLE t1 (
+`oid` int(11) unsigned NOT NULL auto_increment,
+`fk_bbk_niederlassung` int(11) unsigned NOT NULL,
+`fk_wochentag` int(11) unsigned NOT NULL,
+`uhrzeit_von` time NOT NULL COMMENT 'HH:MM',
+`uhrzeit_bis` time NOT NULL COMMENT 'HH:MM',
+`geloescht` tinyint(4) NOT NULL,
+`version` int(5) NOT NULL,
+PRIMARY KEY  (`oid`),
+KEY `fk_bbk_niederlassung` (`fk_bbk_niederlassung`),
+KEY `fk_wochentag` (`fk_wochentag`),
+KEY `ix_version` (`version`)
+) DEFAULT CHARSET=latin1;
+insert  into t1 values
+(1, 38, 1, '08:00:00', '13:00:00', 0, 1),
+(2, 38, 2, '08:00:00', '13:00:00', 0, 1),
+(3, 38, 3, '08:00:00', '13:00:00', 0, 1),
+(4, 38, 4, '08:00:00', '13:00:00', 0, 1),
+(5, 38, 5, '08:00:00', '13:00:00', 0, 1),
+(6, 38, 5, '08:00:00', '13:00:00', 1, 2),
+(7, 38, 3, '08:00:00', '13:00:00', 1, 2),
+(8, 38, 1, '08:00:00', '13:00:00', 1, 2),
+(9, 38, 2, '08:00:00', '13:00:00', 1, 2),
+(10, 38, 4, '08:00:00', '13:00:00', 1, 2),
+(11, 38, 1, '08:00:00', '13:00:00', 0, 3),
+(12, 38, 2, '08:00:00', '13:00:00', 0, 3),
+(13, 38, 3, '08:00:00', '13:00:00', 0, 3),
+(14, 38, 4, '08:00:00', '13:00:00', 0, 3),
+(15, 38, 5, '08:00:00', '13:00:00', 0, 3),
+(16, 38, 4, '08:00:00', '13:00:00', 0, 4),
+(17, 38, 5, '08:00:00', '13:00:00', 0, 4),
+(18, 38, 1, '08:00:00', '13:00:00', 0, 4),
+(19, 38, 2, '08:00:00', '13:00:00', 0, 4),
+(20, 38, 3, '08:00:00', '13:00:00', 0, 4),
+(21, 7, 1, '08:00:00', '13:00:00', 0, 1),
+(22, 7, 2, '08:00:00', '13:00:00', 0, 1),
+(23, 7, 3, '08:00:00', '13:00:00', 0, 1),
+(24, 7, 4, '08:00:00', '13:00:00', 0, 1),
+(25, 7, 5, '08:00:00', '13:00:00', 0, 1);
+create view v1 as
+select
+zeit1.oid AS oid,
+zeit1.fk_bbk_niederlassung AS fk_bbk_niederlassung,
+zeit1.fk_wochentag AS fk_wochentag,
+zeit1.uhrzeit_von AS uhrzeit_von,
+zeit1.uhrzeit_bis AS uhrzeit_bis,
+zeit1.geloescht AS geloescht,
+zeit1.version AS version
+from
+t1 zeit1
+where
+(zeit1.version =
+(select max(zeit2.version) AS `max(version)`
+   from t1 zeit2
+where
+((zeit1.fk_bbk_niederlassung = zeit2.fk_bbk_niederlassung) and
+(zeit1.fk_wochentag = zeit2.fk_wochentag) and
+(zeit1.uhrzeit_von = zeit2.uhrzeit_von) and
+(zeit1.uhrzeit_bis = zeit2.uhrzeit_bis)
+)
+)
+)
+and (zeit1.geloescht = 0);
+select * from v1 where oid = 21;
+oid	fk_bbk_niederlassung	fk_wochentag	uhrzeit_von	uhrzeit_bis	geloescht	version
+21	7	1	08:00:00	13:00:00	0	1
+drop view v1;
+drop table t1;
+CREATE TABLE t1(
+t_cpac varchar(2) NOT NULL,
+t_vers varchar(4) NOT NULL,
+t_rele varchar(2) NOT NULL,
+t_cust varchar(4) NOT NULL,
+filler1 char(250) default NULL,
+filler2 char(250) default NULL,
+PRIMARY KEY (t_cpac,t_vers,t_rele,t_cust),
+UNIQUE KEY IX_4 (t_cust,t_cpac,t_vers,t_rele),
+KEY IX_5 (t_vers,t_rele,t_cust)
+);
+insert into t1 values
+('tm','2.5 ','a ','    ','',''), ('tm','2.5U','a ','stnd','',''),
+('da','3.3 ','b ','    ','',''), ('da','3.3U','b ','stnd','',''),
+('tl','7.6 ','a ','    ','',''), ('tt','7.6 ','a ','    ','',''),
+('bc','B61 ','a ','    ','',''), ('bp','B61 ','a ','    ','',''),
+('ca','B61 ','a ','    ','',''), ('ci','B61 ','a ','    ','',''),
+('cp','B61 ','a ','    ','',''), ('dm','B61 ','a ','    ','',''),
+('ec','B61 ','a ','    ','',''), ('ed','B61 ','a ','    ','',''),
+('fm','B61 ','a ','    ','',''), ('nt','B61 ','a ','    ','',''),
+('qm','B61 ','a ','    ','',''), ('tc','B61 ','a ','    ','',''),
+('td','B61 ','a ','    ','',''), ('tf','B61 ','a ','    ','',''),
+('tg','B61 ','a ','    ','',''), ('ti','B61 ','a ','    ','',''),
+('tp','B61 ','a ','    ','',''), ('ts','B61 ','a ','    ','',''),
+('wh','B61 ','a ','    ','',''), ('bc','B61U','a ','stnd','',''),
+('bp','B61U','a ','stnd','',''), ('ca','B61U','a ','stnd','',''),
+('ci','B61U','a ','stnd','',''), ('cp','B61U','a ','stnd','',''),
+('dm','B61U','a ','stnd','',''), ('ec','B61U','a ','stnd','',''),
+('fm','B61U','a ','stnd','',''), ('nt','B61U','a ','stnd','',''),
+('qm','B61U','a ','stnd','',''), ('tc','B61U','a ','stnd','',''),
+('td','B61U','a ','stnd','',''), ('tf','B61U','a ','stnd','',''),
+('tg','B61U','a ','stnd','',''), ('ti','B61U','a ','stnd','',''),
+('tp','B61U','a ','stnd','',''), ('ts','B61U','a ','stnd','',''),
+('wh','B61U','a ','stnd','','');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `t_cpac` varchar(2) NOT NULL,
+  `t_vers` varchar(4) NOT NULL,
+  `t_rele` varchar(2) NOT NULL,
+  `t_cust` varchar(4) NOT NULL,
+  `filler1` char(250) DEFAULT NULL,
+  `filler2` char(250) DEFAULT NULL,
+  PRIMARY KEY (`t_cpac`,`t_vers`,`t_rele`,`t_cust`),
+  UNIQUE KEY `IX_4` (`t_cust`,`t_cpac`,`t_vers`,`t_rele`),
+  KEY `IX_5` (`t_vers`,`t_rele`,`t_cust`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select t_vers,t_rele,t_cust,filler1 from t1 where t_vers = '7.6';
+t_vers	t_rele	t_cust	filler1
+7.6 	a 	    	
+7.6 	a 	    	
+select t_vers,t_rele,t_cust,filler1 from t1 where t_vers = '7.6'
+  and t_rele='a' and t_cust = ' ';
+t_vers	t_rele	t_cust	filler1
+7.6 	a 	    	
+7.6 	a 	    	
+drop table t1;
+create table t1 (
+pk int(11) not null auto_increment,
+a int(11) not null default '0',
+b int(11) not null default '0',
+c int(11) not null default '0',
+filler1 datetime, filler2 varchar(15),
+filler3 longtext,
+kp1 varchar(4), kp2 varchar(7),
+kp3 varchar(2), kp4 varchar(4),
+kp5 varchar(7),
+filler4 char(1),
+primary key (pk),
+key idx1(a,b,c),
+key idx2(c),
+key idx3(kp1,kp2,kp3,kp4,kp5)
+) default charset=latin1;
+set @fill=NULL;
+SELECT COUNT(*) FROM t1 WHERE b = 0 AND a = 0 AND c = 13286427 AND
+kp1='279' AND kp2='ELM0678' AND kp3='6' AND kp4='10' AND  kp5 = 'R        ';
+COUNT(*)
+1
+drop table t1;
+#---------------- 2-sweeps read Index merge test 2 -------------------------------
+SET SESSION STORAGE_ENGINE = MyISAM;
+drop table if exists t1;
+create table t1 (
+pk int primary key,
+key1 int,
+key2 int,
+filler char(200),
+filler2 char(200),
+index(key1),
+index(key2)
+);
+select * from t1 where (key1 >= 2 and key1 <= 10) or (pk >= 4 and pk <=8 );
+pk	key1	key2	filler	filler2
+10	10	10	filler-data	filler-data-2
+9	9	9	filler-data	filler-data-2
+8	8	8	filler-data	filler-data-2
+7	7	7	filler-data	filler-data-2
+6	6	6	filler-data	filler-data-2
+5	5	5	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+set @maxv=1000;
+select * from t1 where
+(pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
+or key1=18 or key1=60;
+pk	key1	key2	filler	filler2
+1000	1000	1000	filler-data	filler-data-2
+999	999	999	filler-data	filler-data-2
+998	998	998	filler-data	filler-data-2
+997	997	997	filler-data	filler-data-2
+996	996	996	filler-data	filler-data-2
+995	995	995	filler-data	filler-data-2
+994	994	994	filler-data	filler-data-2
+993	993	993	filler-data	filler-data-2
+992	992	992	filler-data	filler-data-2
+991	991	991	filler-data	filler-data-2
+60	60	60	filler-data	filler-data-2
+54	54	54	filler-data	filler-data-2
+53	53	53	filler-data	filler-data-2
+52	52	52	filler-data	filler-data-2
+51	51	51	filler-data	filler-data-2
+50	50	50	filler-data	filler-data-2
+18	18	18	filler-data	filler-data-2
+14	14	14	filler-data	filler-data-2
+13	13	13	filler-data	filler-data-2
+12	12	12	filler-data	filler-data-2
+11	11	11	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+1	1	1	filler-data	filler-data-2
+select * from t1 where
+(pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
+or key1 < 3 or key1 > @maxv-11;
+pk	key1	key2	filler	filler2
+1000	1000	1000	filler-data	filler-data-2
+999	999	999	filler-data	filler-data-2
+998	998	998	filler-data	filler-data-2
+997	997	997	filler-data	filler-data-2
+996	996	996	filler-data	filler-data-2
+995	995	995	filler-data	filler-data-2
+994	994	994	filler-data	filler-data-2
+993	993	993	filler-data	filler-data-2
+992	992	992	filler-data	filler-data-2
+991	991	991	filler-data	filler-data-2
+990	990	990	filler-data	filler-data-2
+54	54	54	filler-data	filler-data-2
+53	53	53	filler-data	filler-data-2
+52	52	52	filler-data	filler-data-2
+51	51	51	filler-data	filler-data-2
+50	50	50	filler-data	filler-data-2
+14	14	14	filler-data	filler-data-2
+13	13	13	filler-data	filler-data-2
+12	12	12	filler-data	filler-data-2
+11	11	11	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+1	1	1	filler-data	filler-data-2
+select * from t1 where
+(pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
+or
+(key1 < 5) or (key1 > 10 and key1 < 15) or (key1 >= 50 and key1 < 55 ) or (key1 > @maxv-10);
+pk	key1	key2	filler	filler2
+1000	1000	1000	filler-data	filler-data-2
+999	999	999	filler-data	filler-data-2
+998	998	998	filler-data	filler-data-2
+997	997	997	filler-data	filler-data-2
+996	996	996	filler-data	filler-data-2
+995	995	995	filler-data	filler-data-2
+994	994	994	filler-data	filler-data-2
+993	993	993	filler-data	filler-data-2
+992	992	992	filler-data	filler-data-2
+991	991	991	filler-data	filler-data-2
+54	54	54	filler-data	filler-data-2
+53	53	53	filler-data	filler-data-2
+52	52	52	filler-data	filler-data-2
+51	51	51	filler-data	filler-data-2
+50	50	50	filler-data	filler-data-2
+14	14	14	filler-data	filler-data-2
+13	13	13	filler-data	filler-data-2
+12	12	12	filler-data	filler-data-2
+11	11	11	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+1	1	1	filler-data	filler-data-2
+select * from t1 where
+(pk > 10 and pk < 15) or (pk >= 50 and pk < 55 )
+or
+(key1 < 5) or (key1 > @maxv-10);
+pk	key1	key2	filler	filler2
+1000	1000	1000	filler-data	filler-data-2
+999	999	999	filler-data	filler-data-2
+998	998	998	filler-data	filler-data-2
+997	997	997	filler-data	filler-data-2
+996	996	996	filler-data	filler-data-2
+995	995	995	filler-data	filler-data-2
+994	994	994	filler-data	filler-data-2
+993	993	993	filler-data	filler-data-2
+992	992	992	filler-data	filler-data-2
+991	991	991	filler-data	filler-data-2
+54	54	54	filler-data	filler-data-2
+53	53	53	filler-data	filler-data-2
+52	52	52	filler-data	filler-data-2
+51	51	51	filler-data	filler-data-2
+50	50	50	filler-data	filler-data-2
+14	14	14	filler-data	filler-data-2
+13	13	13	filler-data	filler-data-2
+12	12	12	filler-data	filler-data-2
+11	11	11	filler-data	filler-data-2
+4	4	4	filler-data	filler-data-2
+3	3	3	filler-data	filler-data-2
+2	2	2	filler-data	filler-data-2
+1	1	1	filler-data	filler-data-2
+drop table t1;
+#---------------- Clustered PK ROR-index_merge tests -----------------------------
+SET SESSION STORAGE_ENGINE = MyISAM;
+drop table if exists  t1;
+create table t1
+(
+pk1 int not null,
+pk2 int not null,
+key1 int not null,
+key2 int not null,
+pktail1ok  int not null,
+pktail2ok  int not null,
+pktail3bad int not null,
+pktail4bad int not null,
+pktail5bad int not null,
+pk2copy int not null,
+badkey  int not null,
+filler1 char (200),
+filler2 char (200),
+key (key1),
+key (key2),
+/* keys with tails from CPK members */
+key (pktail1ok, pk1),
+key (pktail2ok, pk1, pk2),
+key (pktail3bad, pk2, pk1),
+key (pktail4bad, pk1, pk2copy),
+key (pktail5bad, pk1, pk2, pk2copy),
+primary key (pk1, pk2)
+);
+explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,key1	PRIMARY	8	NULL	7	Using where
+select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
+pk1	pk2	key1	key2	pktail1ok	pktail2ok	pktail3bad	pktail4bad	pktail5bad	pk2copy	badkey	filler1	filler2
+1	10	0	0	0	0	0	0	0	10	0	filler-data-10	filler2
+1	11	0	0	0	0	0	0	0	11	0	filler-data-11	filler2
+1	12	0	0	0	0	0	0	0	12	0	filler-data-12	filler2
+1	13	0	0	0	0	0	0	0	13	0	filler-data-13	filler2
+1	14	0	0	0	0	0	0	0	14	0	filler-data-14	filler2
+1	15	0	0	0	0	0	0	0	15	0	filler-data-15	filler2
+1	16	0	0	0	0	0	0	0	16	0	filler-data-16	filler2
+1	17	0	0	0	0	0	0	0	17	0	filler-data-17	filler2
+1	18	0	0	0	0	0	0	0	18	0	filler-data-18	filler2
+1	19	0	0	0	0	0	0	0	19	0	filler-data-19	filler2
+explain select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	4,4	NULL	1	Using intersect(key1,key2); Using where
+select pk1,pk2 from t1 where key1 = 10 and key2=10 and 2*pk1+1 < 2*96+1;
+pk1	pk2
+95	59
+95	58
+95	57
+95	56
+95	55
+95	54
+95	53
+95	52
+95	51
+95	50
+explain select * from t1 where badkey=1 and key1=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	key1	key1	4	const	91	Using where
+explain select * from t1 where pk1 < 7500 and key1 = 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	PRIMARY,key1	key1	4	const	ROWS	Using where
+explain select * from t1 where pktail1ok=1 and key1=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	key1,pktail1ok	pktail1ok	4	const	76	Using where
+explain select * from t1 where pktail2ok=1 and key1=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	key1,pktail2ok	pktail2ok	4	const	82	Using where
+explain select * from t1 where (pktail2ok=1 and pk1< 50000) or key1=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	PRIMARY,key1,pktail2ok	pktail2ok,key1	8,4	NULL	173	Using sort_union(pktail2ok,key1); Using where
+explain select * from t1 where pktail3bad=1 and key1=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	key1,pktail3bad	pktail3bad	4	const	73	Using where
+explain select * from t1 where pktail4bad=1 and key1=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	key1,pktail4bad	pktail4bad	4	const	82	Using where
+explain select * from t1 where pktail5bad=1 and key1=10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	key1,pktail5bad	pktail5bad	4	const	70	Using where
+explain select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	key1,key2	key1,key2	4,4	NULL	1	Using intersect(key1,key2); Using where
+select pk1,pk2,key1,key2 from t1 where key1 = 10 and key2=10 limit 10;
+pk1	pk2	key1	key2
+104	49	10	10
+104	48	10	10
+104	47	10	10
+104	46	10	10
+104	45	10	10
+104	44	10	10
+104	43	10	10
+104	42	10	10
+104	41	10	10
+104	40	10	10
+drop table t1;
+create table t1
+(
+RUNID varchar(22),
+SUBMITNR varchar(5),
+ORDERNR char(1),
+PROGRAMM varchar(8),
+TESTID varchar(4),
+UCCHECK char(1),
+ETEXT varchar(80),
+ETEXT_TYPE char(1),
+INFO char(1),
+SEVERITY tinyint(3),
+TADIRFLAG char(1),
+PRIMARY KEY  (RUNID,SUBMITNR,ORDERNR,PROGRAMM,TESTID,UCCHECK),
+KEY `TVERM~KEY`  (PROGRAMM,TESTID,UCCHECK)
+) DEFAULT CHARSET=latin1;
+update t1 set `ETEXT` = '', `ETEXT_TYPE`='', `INFO`='', `SEVERITY`='', `TADIRFLAG`=''
+WHERE
+`RUNID`= '' AND `SUBMITNR`= '' AND `ORDERNR`='' AND `PROGRAMM`='' AND
+`TESTID`='' AND `UCCHECK`='';
+drop table t1;

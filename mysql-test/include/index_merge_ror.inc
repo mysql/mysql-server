@@ -1,10 +1,27 @@
+# include/index_merge_ror.inc
 #
-#  ROR-index_merge tests. 
+#  ROR-index_merge tests.
 #
+# The variable
+#     $engine_type       -- storage engine to be tested
+# has to be set before sourcing this script.
+#
+# Note: The comments/expectations refer to MyISAM.
+#       They might be not valid for other storage engines.
+#
+# Last update:
+# 2006-08-02 ML test refactored
+#               old name was t/index_merge_ror.test
+#               main code went into include/index_merge_ror.inc
+#
+
+--echo #---------------- ROR-index_merge tests -----------------------
+
+eval SET SESSION STORAGE_ENGINE = $engine_type;
+
 --disable_warnings
 drop table if exists  t0,t1,t2;
 --enable_warnings
---disable_query_log
 create table t1
 (
   /* Field names reflect value(rowid) distribution, st=STairs, swt= SaWTooth */
@@ -29,7 +46,7 @@ create table t1
   filler4 char (200),
   filler5 char (200),
   filler6 char (200),
-  
+
   /* order of keys is important */
   key sta_swt12a(st_a,swt1a,swt2a),
   key sta_swt1a(st_a,swt1a),
@@ -47,21 +64,26 @@ create table t1
   key(key4)
 ) ;
 
-# Fill table 
+# Fill table
 create table t0 as select * from t1;
+--disable_query_log
+--echo # Printing of many insert into t0 values (....) disabled.
 let $cnt=1000;
 while ($cnt)
 {
   eval insert into t0 values (1, 2, 3, 1, 2, 3, 0, 0, 0, 0, 'data1', 'data2', 'data3', 'data4', 'data5', 'data6');
   dec $cnt;
 }
+--enable_query_log
 
 alter table t1 disable keys;
+--disable_query_log
+--echo # Printing of many insert into t1 select .... from t0 disabled.
 let $1=4;
 while ($1)
 {
   let $2=4;
-  while ($2) 
+  while ($2)
   {
     let $3=4;
     while ($3)
@@ -74,6 +96,7 @@ while ($1)
  dec $1;
 }
 
+--echo # Printing of many insert into t1 (...) values (....) disabled.
 # Row retrieval tests
 # -1 is used for values 'out of any range we are using'
 # insert enough rows for index intersection to be used for (key1,key2)
@@ -90,17 +113,17 @@ while ($cnt)
   eval insert into t1 (key1, key2, key3, key4, filler1) values (-1, 100, -1, 100,'key2-key4');
   dec $cnt;
 }
-alter table t1 enable keys;
 --enable_query_log
+alter table t1 enable keys;
 select count(*) from t1;
 
-# One row results tests for cases where a single row matches all conditions 
+# One row results tests for cases where a single row matches all conditions
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
-# Several-rows results 
+# Several-rows results
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, -1, -1, 'key1-key2');
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 100, 100, 'key4-key3');
 
@@ -150,7 +173,7 @@ explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
 
 # ROR-union tests with various cases.
-#  All scans returning duplicate rows: 
+#  All scans returning duplicate rows:
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-1');
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-2');
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-3');
@@ -169,7 +192,7 @@ explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 a
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
 ##
-## Optimizer tests 
+## Optimizer tests
 ##
 
 # Check that the shortest key is used for ROR-intersection, covering and non-covering.
@@ -179,9 +202,9 @@ explain select st_a,st_b from t1 where st_a=1 and st_b=1;
 # Check if "ingore index" syntax works
 explain select st_a from t1 ignore index (st_a) where st_a=1 and st_b=1;
 
-# Do many tests 
+# Do many tests
 # Check that keys that don't improve selectivity are skipped.
-# 
+#
 
 # Different value on 32 and 64 bit
 --replace_result sta_swt12a sta_swt21a sta_swt12a, sta_swt12a,
@@ -191,25 +214,25 @@ explain select * from t1 where st_b=1 and swt1b=1 and swt2b=1;
 
 explain select * from t1 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
-explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b) 
+explain select * from t1 ignore index (sta_swt21a, stb_swt1a_2b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
-explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b) 
+explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
-explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b) 
+explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 
-explain select * from t1 
+explain select * from t1
   where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1;
 
-explain select * from t1 
+explain select * from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
-explain select st_a from t1 
+explain select st_a from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
-explain select st_a from t1 
+explain select st_a from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1;
 
 drop table t0,t1;
@@ -240,7 +263,7 @@ insert into t2 select * from t2;
 select count(a) from t2 where a='BBBBBBBB';
 select count(a) from t2 where b='BBBBBBBB';
 
-# BUG#1: 
+# BUG#1:
 --replace_result a a_or_b b a_or_b
 explain select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
