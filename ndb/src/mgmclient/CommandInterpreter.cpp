@@ -1245,6 +1245,7 @@ CommandInterpreter::executeShow(char* parameters)
 
     if(it == 0){
       ndbout_c("Unable to create config iterator");
+      ndb_mgm_destroy_configuration(conf);
       return;
     }
     NdbAutoPtr<ndb_mgm_configuration_iterator> ptr(it);
@@ -1291,6 +1292,7 @@ CommandInterpreter::executeShow(char* parameters)
     print_nodes(state, it, "ndb_mgmd", mgm_nodes, NDB_MGM_NODE_TYPE_MGM, 0);
     print_nodes(state, it, "mysqld",   api_nodes, NDB_MGM_NODE_TYPE_API, 0);
     //    ndbout << helpTextShow;
+    ndb_mgm_destroy_configuration(conf);
     return;
   } else if (strcasecmp(parameters, "PROPERTIES") == 0 ||
 	     strcasecmp(parameters, "PROP") == 0) {
