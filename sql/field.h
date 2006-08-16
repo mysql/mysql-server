@@ -1126,7 +1126,7 @@ public:
   int key_cmp(const byte *str, uint length);
   uint packed_col_length(const char *to, uint length);
   uint max_packed_col_length(uint max_length);
-  uint data_length(const char *from);
+  uint32 data_length(const char *from);
   uint size_of() const { return sizeof(*this); }
   enum_field_types real_type() const { return MYSQL_TYPE_VARCHAR; }
   bool has_charset(void) const
