@@ -1,5 +1,47 @@
 drop table if exists t1;
 create table t1 (a int)
+partition by key(a)
+partitions 0.2+e1;
+ERROR 42000: Only normal integers allowed as number here near '0.2+e1' at line 3
+create table t1 (a int)
+partition by key(a)
+partitions -1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 3
+create table t1 (a int)
+partition by key(a)
+partitions 1.5;
+ERROR 42000: Only normal integers allowed as number here near '1.5' at line 3
+create table t1 (a int)
+partition by key(a)
+partitions 1e+300;
+ERROR 42000: Only normal integers allowed as number here near '1e+300' at line 3
+create table t1 (a int)
+engine = innodb
+partition by key (a);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	2	8192	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+insert into t1 values (0), (1), (2), (3);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	4	4096	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
+create table t1 (a int auto_increment primary key)
+engine = innodb
+partition by key (a);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	2	8192	16384	0	0	0	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	4	4096	16384	0	0	0	5	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	8	2048	16384	0	0	0	9	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
+create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
 create procedure pz()
@@ -1116,5 +1158,33 @@ hello/master-data/tmpinx/t1#P#p1#SP#subpart10.MYI
 hello/master-data/tmpinx/t1#P#p1#SP#subpart11.MYI
 hello/master-data/tmpinx/t1#P#p2#SP#subpart20.MYI
 hello/master-data/tmpinx/t1#P#p2#SP#subpart21.MYI
+drop table t1;
+create table t1 (a bigint unsigned not null, primary key(a))
+engine = myisam
+partition by key (a)
+partitions 10;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) PARTITIONS 10  */
+insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE),
+(18446744073709551613), (18446744073709551612);
+select * from t1;
+a
+18446744073709551612
+18446744073709551613
+18446744073709551614
+18446744073709551615
+select * from t1 where a = 18446744073709551615;
+a
+18446744073709551615
+delete from t1 where a = 18446744073709551615;
+select * from t1;
+a
+18446744073709551612
+18446744073709551613
+18446744073709551614
 drop table t1;
 End of 5.1 tests
