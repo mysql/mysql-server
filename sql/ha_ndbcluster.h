@@ -435,6 +435,11 @@ class Ndb_cond_traverse_context
   Ndb_rewrite_context *rewrite_stack;
 };
 
+typedef enum ndb_query_state_bits {
+  NDB_QUERY_NORMAL = 0,
+  NDB_QUERY_MULTI_READ_RANGE = 1
+} NDB_QUERY_STATE_BITS;
+
 /*
   Place holder for ha_ndbcluster thread specific data
 */
@@ -451,6 +456,7 @@ class Thd_ndb
   NdbTransaction *stmt;
   int error;
   List<NDB_SHARE> changed_tables;
+  uint query_state;
 };
 
 class ha_ndbcluster: public handler
@@ -672,8 +678,8 @@ private:
                            NdbScanOperation* op);
 
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
+  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
 
   NdbTransaction *m_active_trans;
   NdbScanOperation *m_active_cursor;
@@ -716,6 +722,8 @@ private:
   bool m_force_send;
   ha_rows m_autoincrement_prefetch;
   bool m_transaction_on;
+  void release_completed_operations(NdbTransaction*, bool);
+
   Ndb_cond_stack *m_cond_stack;
   bool m_disable_multi_read;
   byte *m_multi_range_result_ptr;

@@ -140,6 +140,7 @@ class NdbTransaction
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbBlob;
+  friend class ha_ndbcluster;
 #endif
 
 public:
@@ -791,6 +792,7 @@ private:
   // optim: any blobs
   bool theBlobFlag;
   Uint8 thePendingBlobOps;
+  inline bool hasBlobOperation() { return theBlobFlag; }
 
   static void sendTC_COMMIT_ACK(NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
