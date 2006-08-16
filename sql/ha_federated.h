@@ -196,7 +196,9 @@ public:
     /* fix server to be able to get remote server table flags */
     return (HA_NOT_EXACT_COUNT |
             HA_PRIMARY_KEY_IN_READ_INDEX | HA_FILE_BASED | HA_REC_NOT_IN_SEQ |
-            HA_AUTO_PART_KEY | HA_CAN_INDEX_BLOBS| HA_NO_PREFIX_CHAR_KEYS);
+            HA_AUTO_PART_KEY | HA_CAN_INDEX_BLOBS| HA_NO_PREFIX_CHAR_KEYS |
+	    HA_NULL_IN_KEY
+	);
   }
   /*
     This is a bitmap of flags that says how the storage engine
