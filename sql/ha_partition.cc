@@ -4183,9 +4183,19 @@ void ha_partition::info(uint flag)
     ulonglong nb_reserved_values;
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
     /* we don't want to reserve any values, it's pure information */
-    get_auto_increment(0, 0, 0, &stats.auto_increment_value,
-                       &nb_reserved_values);
-    release_auto_increment();
+
+    if (table->found_next_number_field)
+    {
+      /*
+        Can only call get_auto_increment for tables that actually
+        have auto_increment columns, otherwise there will be
+        problems in handlers that don't expect get_auto_increment
+        for non-autoincrement tables.
+      */
+      get_auto_increment(0, 0, 0, &stats.auto_increment_value,
+                         &nb_reserved_values);
+      release_auto_increment();
+    }
   }
   if (flag & HA_STATUS_VARIABLE)
   {
@@ -5363,7 +5373,6 @@ void ha_partition::get_auto_increment(ulonglong offset, ulonglong increment,
   if (increment)                                // If not check for values
     *nb_reserved_values= (last_value == ULONGLONG_MAX) ?
       ULONGLONG_MAX : ((last_value - *first_value) / increment);
-
   DBUG_VOID_RETURN;
 }
 
