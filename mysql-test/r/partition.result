@@ -16,6 +16,32 @@ partition by key(a)
 partitions 1e+300;
 ERROR 42000: Only normal integers allowed as number here near '1e+300' at line 3
 create table t1 (a int)
+engine = innodb
+partition by key (a);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	2	8192	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+insert into t1 values (0), (1), (2), (3);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	4	4096	16384	0	0	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
+create table t1 (a int auto_increment primary key)
+engine = innodb
+partition by key (a);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	2	8192	16384	0	0	0	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	4	4096	16384	0	0	0	5	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+insert into t1 values (NULL), (NULL), (NULL), (NULL);
+show table status;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	InnoDB	10	Compact	8	2048	16384	0	0	0	9	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+drop table t1;
+create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
 create procedure pz()
