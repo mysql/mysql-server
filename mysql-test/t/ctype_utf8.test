@@ -1037,6 +1037,20 @@ ALTER TABLE t1 ADD KEY idx (tid,val(11));
 SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLNÝ ADSL'; 
 
 DROP TABLE t1;
+
+#
+# Bug 20709: problem with utf8 fields in temporary tables
+#
+
+create table t1(a char(200) collate utf8_unicode_ci NOT NULL default '')
+  default charset=utf8 collate=utf8_unicode_ci;
+insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
+explain select distinct a from t1;
+select distinct a from t1;
+explain select a from t1 group by a;
+select a from t1 group by a;
+drop table t1;
+
 # End of 4.1 tests
 
 #
