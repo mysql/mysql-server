@@ -1178,28 +1178,33 @@ sub executable_setup () {
 
 sub environment_setup () {
 
-  # --------------------------------------------------------------------------
-  # We might not use a standard installation directory, like /usr/lib.
-  # Set LD_LIBRARY_PATH to make sure we find our installed libraries.
-  # --------------------------------------------------------------------------
+  my $extra_ld_library_paths;
 
-  unless ( $opt_source_dist )
+  # --------------------------------------------------------------------------
+  # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
+  # are used in favor of the system installed ones
+  # --------------------------------------------------------------------------
+  if ( $opt_source_dist )
   {
-    $ENV{'LD_LIBRARY_PATH'}=
-      "$glob_basedir/lib" .
-        ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-    $ENV{'DYLD_LIBRARY_PATH'}=
-      "$glob_basedir/lib" .
-        ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+    $extra_ld_library_paths= "$glob_basedir/libmysql/.libs/";
+  }
+  else
+  {
+    $extra_ld_library_paths= "$glob_basedir/lib";
   }
 
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find udf_example.so
   # --------------------------------------------------------------------------
-  $ENV{'LD_LIBRARY_PATH'}=
-    ($lib_udf_example ?  dirname($lib_udf_example) : "") .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+  $extra_ld_library_paths .= ":" .
+    ($lib_udf_example ?  dirname($lib_udf_example) : "");
 
+  $ENV{'LD_LIBRARY_PATH'}=
+    "$extra_ld_library_paths" .
+      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+  $ENV{'DYLD_LIBRARY_PATH'}=
+    "$extra_ld_library_paths" .
+      ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
