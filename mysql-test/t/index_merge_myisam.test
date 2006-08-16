@@ -1,4 +1,4 @@
-# t/index_merge_innodb.test
+# t/index_merge_myisam.test
 #
 # Index merge tests
 #
@@ -10,15 +10,12 @@
 #               include/index_merge*.inc files
 #
 
---source include/have_innodb.inc
-let $engine_type= InnoDB;
-# InnoDB does not support Merge tables (affects include/index_merge1.inc)
-let $merge_table_support= 0;
+let $engine_type= MyISAM;
+# MyISAM supports Merge tables
+let $merge_table_support= 1;
 
-# Tests disabled because of open Bug#21277 and non deterministic explain output.
-# --source include/index_merge1.inc
-# --source include/index_merge_ror.inc
-
+--source include/index_merge1.inc
+--source include/index_merge_ror.inc
 --source include/index_merge2.inc
 --source include/index_merge_2sweeps.inc
 --source include/index_merge_ror_cpk.inc

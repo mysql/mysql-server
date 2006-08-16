@@ -1,0 +1,19 @@
+# t/mix2_myisam.test
+#
+# Last update: 2006-07-26 ML create this test as derivate from innodb.test
+#
+
+let $engine_type= MyISAM;
+let $other_engine_type= MEMORY;
+# MyISAM does not support transactions
+let $test_transactions= 0;
+# MyISAM does not support FOREIGN KEYFOREIGN KEYs
+let $test_foreign_keys= 0;
+# MyISAM supports fulltext queries
+let $fulltext_query_unsupported= 0;
+# MyISAM internal autoincrement values are updated during updates
+let $no_autoinc_update= 0;
+# MyISAM supports keys on spatial data types
+let $no_spatial_key= 0;
+
+-- source include/mix2.inc

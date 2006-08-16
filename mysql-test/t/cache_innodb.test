@@ -1,0 +1,16 @@
+# t/cache_innodb.test
+#
+# Last update:
+# 2006-07-26 ML test refactored (MySQL 5.1)
+#               main code t/innodb_cache.test --> include/query_cache.inc
+#               new wrapper t/cache_innodb.test
+#
+
+--source include/have_query_cache.inc
+
+--source include/have_innodb.inc
+let $engine_type= InnoDB;
+# InnoDB supports FOREIGN KEYs
+let $test_foreign_keys= 1;
+
+--source include/query_cache.inc
