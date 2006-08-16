@@ -2410,7 +2410,7 @@ CommandInterpreter::executeStartBackup(char* parameters)
   }
 
   if (result != 0) {
-    ndbout << "Start of backup failed" << endl;
+    ndbout << "Backup failed" << endl;
     printError();
 #if 0
     close(fd);
