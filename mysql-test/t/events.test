@@ -270,7 +270,7 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 select definer, name, db from mysql.event;
 
 --echo "Should be only 1 process"
-select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*1*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
 select release_lock("test_lock1");
 drop event закачка;
 --echo "Should have 0 events"
@@ -287,7 +287,7 @@ create event закачка on schedule every 10 hour do select get_lock("test_l
 --echo "Let some time pass to the event starts"
 --sleep 1
 --echo "Should have only 2 processes: the scheduler and the locked event"
-select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;--echo "Release the mutex, the event worker should finish."
+select /*2*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;--echo "Release the mutex, the event worker should finish."
 --echo "Release the mutex, the event worker should finish."
 select release_lock("test_lock2");
 drop event закачка;
@@ -305,10 +305,10 @@ select get_lock("test_lock2_1", 20);
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
 --sleep 1
 --echo "Should have only 3 processes: the scheduler, our conn and the locked event"
-select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*3*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
 set global event_scheduler=2;
 --echo "Should have only our process now:"
-select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*4*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
 drop event закачка21;
 
 ####

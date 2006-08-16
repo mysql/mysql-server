@@ -9,10 +9,15 @@
 # To not show other connections, this must be the first test and we must
 # have a server restart before this one
 #
+# We don't have any 4.1 tests as we use I_S to query the PROCESSLIST to
+# exclude system threads that may/may not be active in the server
+# (namely the ndb injector thread)
+#
+# End of 4.1 tests
 
-prepare stmt1 from ' show full processlist ';
+prepare stmt1 from ' SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND!=\'Daemon\' ';
 --replace_column 1 number 6 time 3 localhost
 execute stmt1;
 deallocate prepare stmt1;
 
-# End of 4.1 tests
+# End of 5.1 tests
