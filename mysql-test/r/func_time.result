@@ -891,6 +891,27 @@ t1	CREATE TABLE `t1` (
   `from_unixtime(1) + 0` double(23,6) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H);
+H
+120
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%k') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%k') As H);
+H
+120
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%H') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%H') As H);
+H
+05
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%k') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%k') As H);
+H
+5
+End of 4.1 tests
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
