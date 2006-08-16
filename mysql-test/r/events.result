@@ -309,7 +309,7 @@ select definer, name, db from mysql.event;
 definer	name	db
 root@localhost	закачка	events_test
 "Should be only 1 process"
-select /*1*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*1*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Connect	Suspended	NULL
 select release_lock("test_lock1");
@@ -329,7 +329,7 @@ get_lock("test_lock2", 20)
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
 "Let some time pass to the event starts"
 "Should have only 2 processes: the scheduler and the locked event"
-select /*2*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*2*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Connect	Sleeping	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2", 20)
@@ -345,13 +345,13 @@ get_lock("test_lock2_1", 20)
 1
 create event закачка21 on schedule every 10 hour do select get_lock("test_lock2_1", 20);
 "Should have only 3 processes: the scheduler, our conn and the locked event"
-select /*3*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*3*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Connect	Sleeping	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
 set global event_scheduler=2;
 "Should have only our process now:"
-select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
+select /*4*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Connect	Suspended	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
