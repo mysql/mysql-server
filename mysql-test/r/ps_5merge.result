@@ -1330,7 +1330,7 @@ set @arg00=NULL;
 set @arg01=2;
 execute stmt1 using @arg00, @arg01;
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 1
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'a' at row 1
 select a,b from t1 order by a;
 a	b
 0	two
@@ -4344,7 +4344,7 @@ set @arg00=NULL;
 set @arg01=2;
 execute stmt1 using @arg00, @arg01;
 Warnings:
-Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'a' at row 1
+Warning	1263	Column was set to data type implicit default; NULL supplied for NOT NULL column 'a' at row 1
 select a,b from t1 order by a;
 a	b
 0	two
