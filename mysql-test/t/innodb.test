@@ -904,14 +904,6 @@ insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
 insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
-insert into t2 (a) select b from t1;
-insert into t1 (a) select b from t2;
-insert into t2 (a) select b from t1;
-insert into t1 (a) select b from t2;
-insert into t2 (a) select b from t1;
-insert into t1 (a) select b from t2;
-insert into t2 (a) select b from t1;
-insert into t1 (a) select b from t2;
 select count(*) from t1;
 --replace_column 9 #
 explain select * from t1 where c between 1 and 2500;

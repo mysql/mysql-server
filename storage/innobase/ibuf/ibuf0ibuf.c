@@ -373,7 +373,6 @@ ibuf_init_at_db_start(void)
 
 	ibuf->max_size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE
 						/ IBUF_POOL_SIZE_PER_MAX_SIZE;
-	ibuf->meter = IBUF_THRESHOLD + 1;
 
 	UT_LIST_INIT(ibuf->data_list);
 
@@ -3517,21 +3516,9 @@ ibuf_print(
 	data = UT_LIST_GET_FIRST(ibuf->data_list);
 
 	while (data) {
-	fprintf(file,
-	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,",
-		(ulong) data->space, (ulong) data->size,
-		(ulong) data->free_list_len,
-		(ulong) data->seg_size);
-
-		if (data->empty) {
-			fputs(" is empty\n", file);
-		} else {
-			fputs(" is not empty\n", file);
-		}
 		fprintf(file,
-	"Ibuf for space %lu: size %lu, free list len %lu, seg size %lu,\n"
-			"%lu inserts, %lu merged recs, %lu merges\n",
-			(ulong) data->space,
+	"Ibuf: size %lu, free list len %lu, seg size %lu,\n"
+	"%lu inserts, %lu merged recs, %lu merges\n",
 			(ulong) data->size,
 			(ulong) data->free_list_len,
 			(ulong) data->seg_size,
