@@ -14927,7 +14927,7 @@ static void test_bug17667()
     { "insert into bug17667 (c) values ('5 NULs=\0\0\0\0\0')", 48 },
     { "/* NUL=\0 with comment */ insert into bug17667 (c) values ('encore')", 67 },
     { "drop table bug17667", 19 },
-    { NULL, 0 } };  
+    { NULL, 0 } };
 
   struct buffer_and_length *statement_cursor;
   FILE *log_file;
@@ -14957,8 +14957,8 @@ static void test_bug17667()
 
     for (statement_cursor= statements; statement_cursor->buffer != NULL;
         statement_cursor++) {
-     char line_buffer[MAX_TEST_QUERY_LENGTH*2]; 
-     /* more than enough room for the query and some marginalia. */
+      char line_buffer[MAX_TEST_QUERY_LENGTH*2];
+      /* more than enough room for the query and some marginalia. */
 
       do {
         memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
