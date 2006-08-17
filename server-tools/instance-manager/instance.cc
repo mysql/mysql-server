@@ -512,7 +512,6 @@ int Instance::stop()
       */
       waitchild= options.shutdown_delay_val;
     }
-  }
 
     kill_instance(SIGTERM);
     /* sleep on condition to wait for SIGCHLD */
