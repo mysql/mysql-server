@@ -52,10 +52,7 @@ btr_cur_get_page(
 				/* out: pointer to page */
 	btr_cur_t*	cursor)	/* in: tree cursor */
 {
-	page_t*	page = buf_frame_align(page_cur_get_rec(&(cursor->page_cur)));
-	ut_ad(!!page_is_comp(page)
-		== dict_table_is_comp(cursor->index->table));
-	return(page);
+	return(buf_frame_align(page_cur_get_rec(&(cursor->page_cur))));
 }
 
 /*************************************************************
