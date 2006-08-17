@@ -464,12 +464,15 @@ if ($you_want_to_test_UDF)
   select count(*) from t9;
 }
 
+sync_slave_with_master;
+
 #
 # Bug#20863 If binlog format is changed between update and unlock of
 #           tables, wrong binlog
 #
 
 connection master;
+DROP TABLE IF EXISTS t11;
 SET SESSION BINLOG_FORMAT=STATEMENT;
 CREATE TABLE t11 (song VARCHAR(255));
 LOCK TABLES t11 WRITE;
@@ -485,6 +488,7 @@ USE mysqltest1;
 --query_vertical SELECT * FROM t11
 
 connection master;
+DROP TABLE IF EXISTS t12;
 SET SESSION BINLOG_FORMAT=MIXED;
 CREATE TABLE t12 (data LONG);
 LOCK TABLES t12 WRITE;
