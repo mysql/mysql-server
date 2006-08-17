@@ -36,11 +36,11 @@
 extern pthread_attr_t connection_attrib;
 
 static
-LEX_STRING scheduler_states_names[] =
+const LEX_STRING scheduler_states_names[] =
 {
-  { C_STRING_WITH_LEN("INITIALIZED")},
-  { C_STRING_WITH_LEN("RUNNING")},
-  { C_STRING_WITH_LEN("STOPPING")}
+  { C_STRING_WITH_LEN("INITIALIZED") },
+  { C_STRING_WITH_LEN("RUNNING") },
+  { C_STRING_WITH_LEN("STOPPING") }
 };
 
 struct scheduler_param {

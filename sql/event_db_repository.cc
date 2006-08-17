@@ -27,98 +27,98 @@ static
 time_t mysql_event_last_create_time= 0L;
 
 static
-TABLE_FIELD_W_TYPE const event_table_fields[ET_FIELD_COUNT] =
+const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
 {
   {
-    {(char *) STRING_WITH_LEN("db")},
-    {(char *) STRING_WITH_LEN("char(64)")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("db") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("name")},
-    {(char *) STRING_WITH_LEN("char(64)")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("name") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("body")},
-    {(char *) STRING_WITH_LEN("longblob")},
+    { C_STRING_WITH_LEN("body") },
+    { C_STRING_WITH_LEN("longblob") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("definer")},
-    {(char *) STRING_WITH_LEN("char(77)")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("definer") },
+    { C_STRING_WITH_LEN("char(77)") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("execute_at")},
-    {(char *) STRING_WITH_LEN("datetime")},
+    { C_STRING_WITH_LEN("execute_at") },
+    { C_STRING_WITH_LEN("datetime") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("interval_value")},
-    {(char *) STRING_WITH_LEN("int(11)")},
+    { C_STRING_WITH_LEN("interval_value") },
+    { C_STRING_WITH_LEN("int(11)") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("interval_field")},
-    {(char *) STRING_WITH_LEN("enum('YEAR','QUARTER','MONTH','DAY',"
+    { C_STRING_WITH_LEN("interval_field") },
+    { C_STRING_WITH_LEN("enum('YEAR','QUARTER','MONTH','DAY',"
     "'HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR',"
     "'DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND',"
     "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
-    "'SECOND_MICROSECOND')")},
+    "'SECOND_MICROSECOND')") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("created")},
-    {(char *) STRING_WITH_LEN("timestamp")},
+    { C_STRING_WITH_LEN("created") },
+    { C_STRING_WITH_LEN("timestamp") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("modified")},
-    {(char *) STRING_WITH_LEN("timestamp")},
+    { C_STRING_WITH_LEN("modified") },
+    { C_STRING_WITH_LEN("timestamp") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("last_executed")},
-    {(char *) STRING_WITH_LEN("datetime")},
+    { C_STRING_WITH_LEN("last_executed") },
+    { C_STRING_WITH_LEN("datetime") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("starts")},
-    {(char *) STRING_WITH_LEN("datetime")},
+    { C_STRING_WITH_LEN("starts") },
+    { C_STRING_WITH_LEN("datetime") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("ends")},
-    {(char *) STRING_WITH_LEN("datetime")},
+    { C_STRING_WITH_LEN("ends") },
+    { C_STRING_WITH_LEN("datetime") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("status")},
-    {(char *) STRING_WITH_LEN("enum('ENABLED','DISABLED')")},
+    { C_STRING_WITH_LEN("status") },
+    { C_STRING_WITH_LEN("enum('ENABLED','DISABLED')") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("on_completion")},
-    {(char *) STRING_WITH_LEN("enum('DROP','PRESERVE')")},
+    { C_STRING_WITH_LEN("on_completion") },
+    { C_STRING_WITH_LEN("enum('DROP','PRESERVE')") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("sql_mode")},
-    {(char *) STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
+    { C_STRING_WITH_LEN("sql_mode") },
+    { C_STRING_WITH_LEN("set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
     "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION',"
     "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
     "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
     "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
     "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
     "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
-    "'HIGH_NOT_PRECEDENCE')")},
+    "'HIGH_NOT_PRECEDENCE')") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("comment")},
-    {(char *) STRING_WITH_LEN("char(64)")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("comment") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
   }
 };
 
