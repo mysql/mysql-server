@@ -105,8 +105,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			tztime.cc my_time.c my_user.c my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
-                        event_scheduler.cc events.cc event_data_objects.cc \
-                        event_queue.cc event_db_repository.cc \
+                        event_scheduler.cc event_data_objects.cc \
+                        event_queue.cc event_db_repository.cc events.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc
 

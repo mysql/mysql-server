@@ -70,6 +70,15 @@ TYPELIB Events::opt_typelib=
   NULL
 };
 
+static
+Event_queue events_event_queue;
+
+static
+Event_scheduler events_event_scheduler;
+
+static
+Event_db_repository events_event_db_repository;
+
 Events Events::singleton;
 
 ulong Events::opt_event_scheduler= 2;
@@ -218,7 +227,7 @@ common_1_lev_code:
     expr= tmp_expr - (tmp_expr/60)*60;
     /* the code after the switch will finish */
   }
-    break;  
+    break;
   case INTERVAL_DAY_MICROSECOND:
   case INTERVAL_HOUR_MICROSECOND:
   case INTERVAL_MINUTE_MICROSECOND:
@@ -247,6 +256,22 @@ common_1_lev_code:
   return 0;
 }
 
+/*
+  Constructor of Events class. It's called when events.o
+  is loaded. Assigning addressed of static variables in this
+  object file.
+
+  SYNOPSIS
+    Events::Events()
+*/
+
+Events::Events()
+{
+  scheduler=     &events_event_scheduler;
+  event_queue=   &events_event_queue;
+  db_repository= &events_event_db_repository;
+}
+
 
 /*
   Opens mysql.event table with specified lock
@@ -265,7 +290,7 @@ common_1_lev_code:
 
 int
 Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
-                                   TABLE **table)
+                         TABLE **table)
 {
   return db_repository->open_event_table(thd, lock_type, table);
 }
@@ -277,25 +302,30 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
   SYNOPSIS
     Events::create_event()
       thd            [in]  THD
-      et             [in]  Event's data from parsing stage
+      parse_data     [in]  Event's data from parsing stage
       if_not_exists  [in]  Whether IF NOT EXISTS was specified in the DDL
       rows_affected  [out] How many rows were affected
 
   RETURN VALUE
-    0   OK
-    !0  Error (Reported)
+    FALSE  OK
+    TRUE   Error (Reported)
 
   NOTES
     In case there is an event with the same name (db) and 
     IF NOT EXISTS is specified, an warning is put into the stack.
 */
 
-int
+bool
 Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
                      uint *rows_affected)
 {
   int ret;
   DBUG_ENTER("Events::create_event");
+  if (unlikely(check_system_tables_error))
+  {
+    my_error(ER_EVENTS_DB_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
@@ -321,13 +351,13 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
   SYNOPSIS
     Events::update_event()
       thd           [in]  THD
-      et            [in]  Event's data from parsing stage
+      parse_data    [in]  Event's data from parsing stage
       rename_to     [in]  Set in case of RENAME TO.
       rows_affected [out] How many rows were affected.
 
   RETURN VALUE
-    0   OK
-    !0  Error
+    FALSE  OK
+    TRUE   Error
 
   NOTES
     et contains data about dbname and event name. 
@@ -335,14 +365,19 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
     that RENAME TO was specified in the query
 */
 
-int
+bool
 Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to,
                      uint *rows_affected)
 {
   int ret;
   DBUG_ENTER("Events::update_event");
-  LEX_STRING *new_dbname= rename_to? &rename_to->m_db: NULL;
-  LEX_STRING *new_name= rename_to? &rename_to->m_name: NULL;
+  LEX_STRING *new_dbname= rename_to ? &rename_to->m_db : NULL;
+  LEX_STRING *new_name= rename_to ? &rename_to->m_name : NULL;
+  if (unlikely(check_system_tables_error))
+  {
+    my_error(ER_EVENTS_DB_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
@@ -378,16 +413,21 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to,
                             removal from memory queue.
 
   RETURN VALUE
-     0  OK
-    !0  Error (reported)
+    FALSE  OK
+    TRUE   Error (reported)
 */
 
-int
+bool
 Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
                    uint *rows_affected, bool only_from_disk)
 {
   int ret;
   DBUG_ENTER("Events::drop_event");
+  if (unlikely(check_system_tables_error))
+  {
+    my_error(ER_EVENTS_DB_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
@@ -409,27 +449,27 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
     Events::drop_schema_events()
       thd  Thread
       db   ASCIIZ schema name
-
-  RETURN VALUE
-    0   OK
-    !0  Error
 */
 
-int
+void
 Events::drop_schema_events(THD *thd, char *db)
 {
-  int ret= 0;
-  LEX_STRING db_lex= {db, strlen(db)};
+  LEX_STRING const db_lex= { db, strlen(db) };
   
   DBUG_ENTER("Events::drop_schema_events");  
   DBUG_PRINT("enter", ("dropping events from %s", db));
+  if (unlikely(check_system_tables_error))
+  {
+    my_error(ER_EVENTS_DB_ERROR, MYF(0));
+    DBUG_VOID_RETURN;
+  }
 
   pthread_mutex_lock(&LOCK_event_metadata);
   event_queue->drop_schema_events(thd, db_lex);
-  ret= db_repository->drop_schema_events(thd, db_lex);
+  db_repository->drop_schema_events(thd, db_lex);
   pthread_mutex_unlock(&LOCK_event_metadata);
 
-  DBUG_RETURN(ret);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -438,15 +478,15 @@ Events::drop_schema_events(THD *thd, char *db)
 
   SYNOPSIS
     Events::show_create_event()
-      thd        THD
-      spn        the name of the event (db, name)
+      thd   Thread context
+      spn   The name of the event (db, name)
 
   RETURN VALUE
-    0  OK
-    1  Error during writing to the wire
+    FALSE  OK
+    TRUE   Error during writing to the wire
 */
 
-int
+bool
 Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 {
   CHARSET_INFO *scs= system_charset_info;
@@ -455,6 +495,11 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
   DBUG_ENTER("Events::show_create_event");
   DBUG_PRINT("enter", ("name: %s@%s", dbname.str, name.str));
+  if (unlikely(check_system_tables_error))
+  {
+    my_error(ER_EVENTS_DB_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
 
   ret= db_repository->load_named_event(thd, dbname, name, et);
 
@@ -481,8 +526,8 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
     field_list.push_back(new Item_empty_string("sql_mode", sql_mode_len));
 
-    field_list.
-        push_back(new Item_empty_string("Create Event", show_str.length()));
+    field_list.push_back(new Item_empty_string("Create Event",
+                                               show_str.length()));
 
     if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
                                            Protocol::SEND_EOF))
@@ -501,7 +546,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
   DBUG_RETURN(ret);
 err:
   delete et;
-  DBUG_RETURN(1);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -511,7 +556,7 @@ err:
 
   SYNOPSIS
     Events::fill_schema_events()
-      thd     Thread
+      thd     Thread context
       tables  The schema table
       cond    Unused
 
@@ -525,6 +570,13 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
 {
   char *db= NULL;
   DBUG_ENTER("Events::fill_schema_events");
+  Events *myself= get_instance();
+  if (unlikely(myself->check_system_tables_error))
+  {
+    my_error(ER_EVENTS_DB_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
   /*
     If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
     be NULL. Let's do an assert anyway.
@@ -537,8 +589,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
       DBUG_RETURN(1);
     db= thd->lex->select_lex.db;
   }
-  DBUG_RETURN(get_instance()->db_repository->
-                                      fill_schema_events(thd, tables, db));
+  DBUG_RETURN(myself->db_repository->fill_schema_events(thd, tables, db));
 }
 
 
@@ -552,31 +603,60 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
     This function is not synchronized.
 
   RETURN VALUE
-    0  OK
-    1  Error in case the scheduler can't start
+    FALSE  OK
+    TRUE   Error in case the scheduler can't start
 */
 
 bool
 Events::init()
 {
-  int res;
+  THD *thd;
+  bool res= FALSE;
   DBUG_ENTER("Events::init");
-  if (event_queue->init_queue(db_repository, scheduler))
+
+  /* We need a temporary THD during boot */
+  if (!(thd= new THD()))
   {
-    sql_print_information("SCHEDULER: Error while loading from disk.");
-    DBUG_RETURN(TRUE);
+    res= TRUE;
+    goto end;
+  }
+  /*
+    The thread stack does not start from this function but we cannot
+    guess the real value. So better some value that doesn't assert than
+    no value.
+  */
+  thd->thread_stack= (char*) &thd;
+  thd->store_globals();
+
+  if (check_system_tables(thd))
+  {
+    check_system_tables_error= TRUE;
+    sql_print_error("SCHEDULER: The system tables are damaged. "
+                    "The scheduler subsystem will be unusable during this run.");
+    goto end;
+  }
+  check_system_tables_error= FALSE;
+
+  if (event_queue->init_queue(thd, db_repository, scheduler))
+  {
+    sql_print_error("SCHEDULER: Error while loading from disk.");
+    goto end;
   }
   scheduler->init_scheduler(event_queue);
 
-  /* it should be an assignment! */
   if (opt_event_scheduler)
   {
     DBUG_ASSERT(opt_event_scheduler == 1 || opt_event_scheduler == 2);
     if (opt_event_scheduler == 1)
-      DBUG_RETURN(scheduler->start());
+      res= scheduler->start();
   }
 
-  DBUG_RETURN(FALSE);
+end:
+  delete thd;
+  /* Remember that we don't have a THD */
+  my_pthread_setspecific_ptr(THR_THD,  NULL);
+
+  DBUG_RETURN(res);
 }
 
 
@@ -595,10 +675,13 @@ Events::deinit()
 {
   DBUG_ENTER("Events::deinit");
 
-  scheduler->stop();
-  scheduler->deinit_scheduler();
+  if (likely(!check_system_tables_error))
+  {
+    scheduler->stop();
+    scheduler->deinit_scheduler();
 
-  event_queue->deinit_queue();
+    event_queue->deinit_queue();
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -616,13 +699,7 @@ void
 Events::init_mutexes()
 {
   pthread_mutex_init(&LOCK_event_metadata, MY_MUTEX_INIT_FAST);
-
-  db_repository= new Event_db_repository;
-
-  event_queue= new Event_queue;
   event_queue->init_mutexes();
-
-  scheduler= new Event_scheduler;
   scheduler->init_mutexes();
 }
 
@@ -639,11 +716,6 @@ Events::destroy_mutexes()
 {
   event_queue->deinit_mutexes();
   scheduler->deinit_mutexes();
-
-  delete scheduler;
-  delete db_repository;
-  delete event_queue;
-
   pthread_mutex_destroy(&LOCK_event_metadata);
 }
 
@@ -700,6 +772,11 @@ bool
 Events::start_execution_of_events()
 {
   DBUG_ENTER("Events::start_execution_of_events");
+  if (unlikely(check_system_tables_error))
+  {
+    my_error(ER_EVENTS_DB_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(scheduler->start());
 }
 
@@ -721,6 +798,11 @@ bool
 Events::stop_execution_of_events()
 {
   DBUG_ENTER("Events::stop_execution_of_events");
+  if (unlikely(check_system_tables_error))
+  {
+    my_error(ER_EVENTS_DB_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(scheduler->stop());
 }
 
@@ -737,8 +819,86 @@ Events::stop_execution_of_events()
 */
 
 bool
-Events::is_started()
+Events::is_execution_of_events_started()
 {
-  DBUG_ENTER("Events::is_started");
+  DBUG_ENTER("Events::is_execution_of_events_started");
+  if (unlikely(check_system_tables_error))
+  {
+    my_error(ER_EVENTS_DB_ERROR, MYF(0));
+    DBUG_RETURN(FALSE);
+  }
   DBUG_RETURN(scheduler->get_state() == Event_scheduler::RUNNING);
+}
+
+
+
+/*
+  Opens mysql.db and mysql.user and checks whether:
+    1. mysql.db has column Event_priv at column 20 (0 based);
+    2. mysql.user has column Event_priv at column 29 (0 based);
+
+  SYNOPSIS
+    Events::check_system_tables()
+      thd  Thread
+
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error
+*/
+
+bool
+Events::check_system_tables(THD *thd)
+{
+  TABLE_LIST tables;
+  bool not_used;
+  Open_tables_state backup;
+  bool ret= FALSE;
+
+  DBUG_ENTER("Events::check_system_tables");
+  DBUG_PRINT("enter", ("thd=0x%lx", thd));
+
+  thd->reset_n_backup_open_tables_state(&backup);
+
+  bzero((char*) &tables, sizeof(tables));
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*) "db";
+  tables.lock_type= TL_READ;
+
+  if ((ret= simple_open_n_lock_tables(thd, &tables)))
+  {
+    sql_print_error("SCHEDULER: Cannot open mysql.db");
+    ret= TRUE;
+  }
+  ret= table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT,
+                          mysql_db_table_fields, &mysql_db_table_last_check,
+                          ER_CANNOT_LOAD_FROM_TABLE);
+  close_thread_tables(thd);
+
+  bzero((char*) &tables, sizeof(tables));
+  tables.db= (char*) "mysql";
+  tables.table_name= tables.alias= (char*) "user";
+  tables.lock_type= TL_READ;
+
+  if (simple_open_n_lock_tables(thd, &tables))
+  {
+    sql_print_error("SCHEDULER: Cannot open mysql.user");
+    ret= TRUE;
+  }
+  else
+  {
+    if (tables.table->s->fields < 29 ||
+        strncmp(tables.table->field[29]->field_name,
+                STRING_WITH_LEN("Event_priv")))
+    {
+      sql_print_error("mysql.user has no `Event_priv` column at position %d",
+                      29);
+      ret= TRUE;
+    }
+    close_thread_tables(thd);
+  }
+
+end:
+  thd->restore_backup_open_tables_state(&backup);
+
+  DBUG_RETURN(ret);
 }

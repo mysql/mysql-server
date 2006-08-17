@@ -22,14 +22,12 @@
 #include "sp.h"
 #include "sp_head.h"
 
-#define EVEX_DB_FIELD_LEN 64
-#define EVEX_NAME_FIELD_LEN 64
 
-
+static
 time_t mysql_event_last_create_time= 0L;
 
 static
-TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
+TABLE_FIELD_W_TYPE const event_table_fields[ET_FIELD_COUNT] =
 {
   {
     {(char *) STRING_WITH_LEN("db")},
@@ -250,18 +248,18 @@ err_truncate:
 /*
   Performs an index scan of event_table (mysql.event) and fills schema_table.
 
-  Synopsis
+  SYNOPSIS
     Event_db_repository::index_read_for_db_for_i_s()
       thd          Thread
       schema_table The I_S.EVENTS table
       event_table  The event table to use for loading (mysql.event)
 
-  Returns
+  RETURN VALUE
     0  OK
     1  Error
 */
 
-int
+bool
 Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
                                                TABLE *event_table, char *db)
 {
@@ -305,33 +303,34 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   event_table->file->ha_index_end(); 
   /*  ret is guaranteed to be != 0 */
   if (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND)
-    DBUG_RETURN(0);
-  DBUG_RETURN(1);
+    DBUG_RETURN(FALSE);
+
+  DBUG_RETURN(TRUE);
 }
 
 
 /*
   Performs a table scan of event_table (mysql.event) and fills schema_table.
 
-  Synopsis
+  SYNOPSIS
     Events_db_repository::table_scan_all_for_i_s()
       thd          Thread
       schema_table The I_S.EVENTS in memory table
       event_table  The event table to use for loading.
 
-  Returns
-    0  OK
-    1  Error
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error
 */
 
-int
+bool
 Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
                                             TABLE *event_table)
 {
   int ret;
   READ_RECORD read_record_info;
-
   DBUG_ENTER("Event_db_repository::table_scan_all_for_i_s");
+
   init_read_record(&read_record_info, thd, event_table, NULL, 1, 0);
 
   /*
@@ -350,7 +349,7 @@ Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
   end_read_record(&read_record_info);
 
   /*  ret is guaranteed to be != 0 */
-  DBUG_RETURN(ret == -1? 0:1);
+  DBUG_RETURN(ret == -1? FALSE:TRUE);
 }
 
 
@@ -358,15 +357,15 @@ Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
   Fills I_S.EVENTS with data loaded from mysql.event. Also used by
   SHOW EVENTS
 
-  Synopsis
+  SYNOPSIS
     Event_db_repository::fill_schema_events()
       thd     Thread
       tables  The schema table
       db      If not NULL then get events only from this schema
 
-  Returns
-    0  OK
-    1  Error
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error
 */
 
 int
@@ -455,16 +454,16 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
 
 
 /*
-   Checks parameters which we got from the parsing phase.
+  Checks parameters which we got from the parsing phase.
 
-   SYNOPSIS
-     check_parse_params()
-       thd            THD
-       et             event's data
+  SYNOPSIS
+    check_parse_params()
+      thd         Thread context
+      parse_data  Event's data
   
-   RETURNS
-     0                OK
-     EVEX_BAD_PARAMS  Error (reported)
+  RETURN VALUE
+    FALSE  OK
+    TRUE   Error (reported)
 */
 
 static int
@@ -504,7 +503,7 @@ check_parse_params(THD *thd, Event_parse_data *parse_data)
   SYNOPSIS
     Event_db_repository::create_event()
       thd             [in]  THD
-      et              [in]  Object containing info about the event
+      parse_data      [in]  Object containing info about the event
       create_if_not   [in]  Whether to generate anwarning in case event exists
       rows_affected   [out] How many rows were affected
 
@@ -517,7 +516,7 @@ check_parse_params(THD *thd, Event_parse_data *parse_data)
     ::update_event. The name of the event is inside "et".
 */
 
-int
+bool
 Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
                                   my_bool create_if_not, uint *rows_affected)
 {
@@ -531,6 +530,9 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   DBUG_ENTER("Event_db_repository::create_event");
 
   *rows_affected= 0;
+  if (check_parse_params(thd, parse_data))
+    goto err;
+
   DBUG_PRINT("info", ("open mysql.event for update"));
   if (open_event_table(thd, TL_WRITE, &table))
   {
@@ -538,8 +540,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     goto err;
   }
 
-  if (check_parse_params(thd, parse_data))
-    goto err;
 
   DBUG_PRINT("info", ("name: %.*s", parse_data->name.length,
              parse_data->name.str));
@@ -570,16 +570,17 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 
   if (system_charset_info->cset->
         numchars(system_charset_info, parse_data->dbname.str,
-                 parse_data->dbname.str +
-                 parse_data->dbname.length) > EVEX_DB_FIELD_LEN)
+                 parse_data->dbname.str + parse_data->dbname.length) >
+      table->field[ET_FIELD_DB]->char_length())
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), parse_data->dbname.str);
     goto err;
   }
+
   if (system_charset_info->cset->
         numchars(system_charset_info, parse_data->name.str,
-                 parse_data->name.str +
-                 parse_data->name.length) > EVEX_DB_FIELD_LEN)
+                 parse_data->name.str + parse_data->name.length) >
+      table->field[ET_FIELD_NAME]->char_length())
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), parse_data->name.str);
     goto err;
@@ -622,36 +623,18 @@ ok:
   if (dbchanged)
     (void) mysql_change_db(thd, old_db.str, 1);
   /*
-    When valgrinded, the following call may lead to the following error:
-    
-    Syscall param pwrite64(buf) points to uninitialised byte(s)
-      at 0x406003B: do_pwrite64 (in /lib/tls/libpthread.so.0)
-      by 0x40600EF: pwrite64 (in /lib/tls/libpthread.so.0)
-      by 0x856FF74: my_pwrite (my_pread.c:146)
-      by 0x85734E1: flush_cached_blocks (mf_keycache.c:2280)
-    ....
-    Address 0x6618110 is 56 bytes inside a block of size 927,772 alloc'd
-     at 0x401C451: malloc (vg_replace_malloc.c:149)
-      by 0x8578CDC: _mymalloc (safemalloc.c:138)
-      by 0x858E5E2: my_large_malloc (my_largepage.c:65)
-      by 0x8570634: init_key_cache (mf_keycache.c:343)
-      by 0x82EDA51: ha_init_key_cache(char const*, st_key_cache*) (handler.cc:2509)
-      by 0x8212071: process_key_caches(int (*)(char const*, st_key_cache*))
-                                                                  (set_var.cc:3824)
-      by 0x8206D75: init_server_components() (mysqld.cc:3304)
-      by 0x8207163: main (mysqld.cc:3578)
-
-    I think it is safe not to think about it.
+    This statement may cause a spooky valgrind warning at startup
+    inside init_key_cache on my system (ahristov, 2006/08/10) 
   */
   close_thread_tables(thd);
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 err:
   if (dbchanged)
     (void) mysql_change_db(thd, old_db.str, 1);
   if (table)
     close_thread_tables(thd);
-  DBUG_RETURN(EVEX_GENERAL_ERROR);
+  DBUG_RETURN(TRUE);
 }
 
 
@@ -665,8 +648,8 @@ err:
       et       event's data
 
   RETURN VALUE
-    0  OK
-    EVEX_GENERAL_ERROR  Error occured and reported
+    FALSE  OK
+    TRUE   Error (reported)
 
   NOTES
     sp_name is passed since this is the name of the event to
@@ -679,7 +662,6 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
 {
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
-  int ret;
   DBUG_ENTER("Event_db_repository::update_event");
 
   if (open_event_table(thd, TL_WRITE, &table))
@@ -698,7 +680,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     DBUG_PRINT("info", ("rename to: %s@%s", new_dbname->str, new_name->str));
 
   /* first look whether we overwrite */
-  if (new_dbname)
+  if (new_name)
   {
     if (!sortcmp_lex_string(parse_data->name, *new_name, scs) &&
         !sortcmp_lex_string(parse_data->dbname, *new_dbname, scs))
@@ -747,9 +729,10 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   if (end_active_trans(thd))
     goto err;
 
-  if (table->file->ha_update_row(table->record[1], table->record[0]))
+  int res;
+  if ((res= table->file->ha_update_row(table->record[1], table->record[0])))
   {
-    my_error(ER_EVENT_STORE_FAILED, MYF(0), parse_data->name.str, ret);
+    my_error(ER_EVENT_STORE_FAILED, MYF(0), parse_data->name.str, res);
     goto err;
   }
 
@@ -887,16 +870,14 @@ Event_db_repository::find_named_event(THD *thd, LEX_STRING db, LEX_STRING name,
     Event_db_repository::drop_schema_events()
       thd     Thread
       schema  The database to clean from events
-
-  RETURN VALUE
-    0  OK
-   !0  Error (Reported)
 */
 
-int
+void
 Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
 {
-  return drop_events_by_field(thd, ET_FIELD_DB, schema);
+  DBUG_ENTER("Event_db_repository::drop_schema_events");
+  drop_events_by_field(thd, ET_FIELD_DB, schema);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -909,28 +890,29 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
       table       mysql.event TABLE
       field       Which field of the row to use for matching
       field_value The value that should match
-
-  RETURN VALUE
-     0  OK
-    !0  Error from ha_delete_row
 */
 
-int
+void
 Event_db_repository::drop_events_by_field(THD *thd,  
                                           enum enum_events_table_field field,
                                           LEX_STRING field_value)
 {
   int ret= 0;
   TABLE *table= NULL;
-  Open_tables_state backup;
   READ_RECORD read_record_info;
   DBUG_ENTER("Event_db_repository::drop_events_by_field");  
   DBUG_PRINT("enter", ("field=%d field_value=%s", field, field_value.str));
 
   if (open_event_table(thd, TL_WRITE, &table))
   {
-    my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
-    DBUG_RETURN(1);
+    /*
+      Currently being used only for DROP DATABASE - In this case we don't need
+      error message since the OK packet has been sent. But for DROP USER we
+      could need it.
+
+      my_error(ER_EVENT_OPEN_TABLE_FAILED, MYF(0));
+    */
+    DBUG_VOID_RETURN;
   }
 
   /* only enabled events are in memory, so we go now and delete the rest */
@@ -939,22 +921,20 @@ Event_db_repository::drop_events_by_field(THD *thd,
   {
     char *et_field= get_field(thd->mem_root, table->field[field]);
 
-    LEX_STRING et_field_lex= {et_field, strlen(et_field)};
+    LEX_STRING et_field_lex= { et_field, strlen(et_field) };
     DBUG_PRINT("info", ("Current event %s name=%s", et_field,
                get_field(thd->mem_root, table->field[ET_FIELD_NAME])));
 
     if (!sortcmp_lex_string(et_field_lex, field_value, system_charset_info))
     {
       DBUG_PRINT("info", ("Dropping"));
-      if ((ret= table->file->ha_delete_row(table->record[0])))
-        my_error(ER_EVENT_DROP_FAILED, MYF(0),
-                 get_field(thd->mem_root, table->field[ET_FIELD_NAME]));
+      ret= table->file->ha_delete_row(table->record[0]);
     }
   }
   end_read_record(&read_record_info);
-  thd->version--;   /* Force close to free memory */
+  close_thread_tables(thd);
 
-  DBUG_RETURN(ret);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -964,10 +944,10 @@ Event_db_repository::drop_events_by_field(THD *thd,
 
   SYNOPSIS
     Event_db_repository::load_named_event()
-      thd      [in]  THD
+      thd      [in]  Thread context
       dbname   [in]  Event's db name
       name     [in]  Event's name
-      etn_new  [out] The loaded event
+      etn      [out] The loaded event
 
   RETURN VALUE
     FALSE  OK

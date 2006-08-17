@@ -31,12 +31,12 @@ public:
 
   void
   init_mutexes();
-  
+
   void
   deinit_mutexes();
-  
+
   bool
-  init_queue(Event_db_repository *db_repo, Event_scheduler *sched);
+  init_queue(THD *thd, Event_db_repository *db_repo, Event_scheduler *sched);
   
   void
   deinit_queue();
@@ -57,9 +57,6 @@ public:
   drop_schema_events(THD *thd, LEX_STRING schema);
 
   void
-  check_system_tables(THD *thd);
-
-  void
   recalculate_activation_times(THD *thd);
 
   bool
@@ -72,7 +69,7 @@ public:
   load_events_from_db(THD *thd);
 
 protected:
-  Event_queue_element *
+  void
   find_n_remove_event(LEX_STRING db, LEX_STRING name);
 
 
@@ -107,7 +104,7 @@ protected:
   const char* mutex_last_attempted_lock_in_func;
   bool mutex_queue_data_locked;
   bool mutex_queue_data_attempting_lock;
-  
+
   /* helper functions for working with mutexes & conditionals */
   void
   lock_data(const char *func, uint line);

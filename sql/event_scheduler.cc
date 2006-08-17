@@ -384,7 +384,7 @@ Event_scheduler::start()
 
   if (!(new_thd= new THD))
   {
-    sql_print_error("SCHEDULER: Cannot init manager event thread.");
+    sql_print_error("SCHEDULER: Cannot init manager event thread");
     ret= TRUE;
     goto end;
   }
@@ -441,7 +441,7 @@ end:
 bool
 Event_scheduler::run(THD *thd)
 {
-  int res;
+  int res= FALSE;
   struct timespec abstime;
   Event_job_data *job_data;
   DBUG_ENTER("Event_scheduler::run");
@@ -464,7 +464,7 @@ Event_scheduler::run(THD *thd)
                                              &job_data, &abstime))
     {
       sql_print_information("SCHEDULER: Serious error during getting next"
-                            " event to execute. Stopping.");
+                            " event to execute. Stopping");
       break;
     }
 
@@ -532,7 +532,7 @@ Event_scheduler::execute_top(THD *thd, Event_job_data *job_data)
   pthread_t th;
   int res= 0;
   DBUG_ENTER("Event_scheduler::execute_top");
-  if (!(new_thd= new THD))
+  if (!(new_thd= new THD()))
     goto error;
 
   pre_init_event_thread(new_thd);

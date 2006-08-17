@@ -965,9 +965,9 @@ typedef struct st_table_field_w_type
 
 
 my_bool
-table_check_intact(TABLE *table, uint table_f_count,
-                   TABLE_FIELD_W_TYPE *table_def, time_t *last_create_time,
-                   int error_num);
+table_check_intact(TABLE *table, const uint table_f_count,
+                   const TABLE_FIELD_W_TYPE * const table_def,
+                   time_t *last_create_time, int error_num);
 
 static inline my_bitmap_map *tmp_use_all_columns(TABLE *table,
                                                  MY_BITMAP *bitmap)
