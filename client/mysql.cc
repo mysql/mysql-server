@@ -3665,12 +3665,14 @@ static const char* construct_prompt()
       case 'U':
 	if (!full_username)
 	  init_username();
-	processed_prompt.append(full_username);
+        processed_prompt.append(full_username ? full_username :
+                                (current_user ?  current_user : "(unknown)"));
 	break;
       case 'u':
 	if (!full_username)
 	  init_username();
-	processed_prompt.append(part_username);
+        processed_prompt.append(part_username ? part_username :
+                                (current_user ?  current_user : "(unknown)"));
 	break;
       case PROMPT_CHAR:
 	processed_prompt.append(PROMPT_CHAR);
