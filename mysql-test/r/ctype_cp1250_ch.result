@@ -43,3 +43,11 @@ id	str
 6	aaaaaa
 7	aaaaaaa
 drop table t1;
+set names cp1250;
+create table t1 (a varchar(15) collate cp1250_czech_cs NOT NULL, primary key(a));
+insert into t1 values("abcdefgh·");
+insert into t1 values("··ËË");
+select a from t1 where a like "abcdefgh·";
+a
+abcdefgh·
+drop table t1;
