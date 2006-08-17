@@ -18,7 +18,6 @@
   extensible hash
 
   TODO
-     dummy nodes use element_size=0
      try to get rid of dummy nodes ?
 */
 #include <my_global.h>
@@ -241,7 +240,10 @@ void lf_hash_destroy(LF_HASH *hash)
   while (el)
   {
     intptr next=el->link;
-    lf_alloc_real_free(&hash->alloc, el);
+    if (el->hashnr & 1)
+      lf_alloc_real_free(&hash->alloc, el);
+    else
+      my_free((void *)el, MYF(0));
     el=(LF_SLIST *)next;
   }
   lf_alloc_destroy(&hash->alloc);
@@ -263,7 +265,7 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
   lf_lock_by_pins(pins);
   node=(LF_SLIST *)_lf_alloc_new(pins);
   memcpy(node+1, data, hash->element_size);
-  node->key= hash_key(hash, node+1, &node->keylen);
+  node->key= hash_key(hash, (uchar *)(node+1), &node->keylen);
   hashnr= calc_hash(hash, node->key, node->keylen);
   bucket= hashnr % hash->size;
   el=_lf_dynarray_lvalue(&hash->array, bucket);
@@ -329,17 +331,20 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   return found+1;
 }
 
+static char *dummy_key="";
+
 static void initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
                               uint bucket, LF_PINS *pins)
 {
   uint parent= my_clear_highest_bit(bucket);
-  LF_SLIST *dummy=_lf_alloc_new(pins), **tmp=0, *cur;
+  LF_SLIST *dummy=(LF_SLIST *)my_malloc(sizeof(LF_SLIST), MYF(MY_WME));
+  LF_SLIST **tmp=0, *cur;
   LF_SLIST * volatile *el=_lf_dynarray_lvalue(&hash->array, parent);
   if (*el == NULL && bucket)
     initialize_bucket(hash, el, parent, pins);
   dummy->hashnr=my_reverse_bits(bucket);
-  LINT_INIT(dummy->key);
-  LINT_INIT(dummy->keylen);
+  dummy->key=dummy_key;
+  dummy->keylen=0;
   if ((cur= linsert(el, dummy, pins, 0)))
   {
     _lf_alloc_free(pins, dummy);
