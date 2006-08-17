@@ -228,14 +228,14 @@ void lf_hash_init(LF_HASH *hash, uint element_size, uint flags,
   hash->count=0;
   hash->element_size=element_size;
   hash->flags=flags;
-  hash->charset=charset;
+  hash->charset=charset ? charset : &my_charset_bin;
   hash->key_offset=key_offset;
   hash->key_length=key_length;
   hash->get_key=get_key;
   DBUG_ASSERT(get_key ? !key_offset && !key_length : key_length);
 }
 
-void lf_hash_end(LF_HASH *hash)
+void lf_hash_destroy(LF_HASH *hash)
 {
   LF_SLIST *el=*(LF_SLIST **)_lf_dynarray_lvalue(&hash->array, 0);
   while (el)
@@ -244,109 +244,89 @@ void lf_hash_end(LF_HASH *hash)
     lf_alloc_real_free(&hash->alloc, el);
     el=(LF_SLIST *)next;
   }
-  lf_alloc_end(&hash->alloc);
-  lf_dynarray_end(&hash->array);
+  lf_alloc_destroy(&hash->alloc);
+  lf_dynarray_destroy(&hash->array);
 }
 
 /*
+  RETURN
+    0 - inserted
+    1 - didn't (unique key conflict)
   NOTE
-   see linsert() for pin usage
+    see linsert() for pin usage notes
 */
 int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
 {
-  uint csize, bucket, hashnr, keylen;
+  uint csize, bucket, hashnr;
   LF_SLIST *node, * volatile *el;
-  const uchar *key;
 
-  key= hash_key(hash, data, &keylen);
-  hashnr= calc_hash(hash, key, keylen);
-  bucket= hashnr % hash->size;
   lf_lock_by_pins(pins);
   node=(LF_SLIST *)_lf_alloc_new(pins);
   memcpy(node+1, data, hash->element_size);
+  node->key= hash_key(hash, node+1, &node->keylen);
+  hashnr= calc_hash(hash, node->key, node->keylen);
+  bucket= hashnr % hash->size;
   el=_lf_dynarray_lvalue(&hash->array, bucket);
   if (*el == NULL)
     initialize_bucket(hash, el, bucket, pins);
   node->hashnr=my_reverse_bits(hashnr) | 1;
-  node->key=((char *)(node+1))+(key-(uchar *)data);
-  node->keylen=keylen;
   if (linsert(el, node, pins, hash->flags))
   {
     _lf_alloc_free(pins, node);
     lf_unlock_by_pins(pins);
-    return 0;
+    return 1;
   }
   csize= hash->size;
   if ((my_atomic_add32(&hash->count, 1)+1.0) / csize > MAX_LOAD)
     my_atomic_cas32(&hash->size, &csize, csize*2);
-#if 0
-  node=*(LF_SLIST **)_lf_dynarray_lvalue(&hash->array, 0);
-  hashnr=0;
-  while (node)
-  {
-    assert (node->hashnr >= hashnr);
-    hashnr=node->hashnr;
-    node=(LF_SLIST *)node->link;
-  }
-#endif
   lf_unlock_by_pins(pins);
-  return 1;
+  return 0;
 }
 
 /*
+  RETURN
+    0 - deleted
+    1 - didn't (not found)
   NOTE
-   see ldelete() for pin usage
+    see ldelete() for pin usage notes
 */
-int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const uchar *key, uint keylen)
+int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
 {
   LF_SLIST * volatile *el;
-  uint bucket, hashnr=calc_hash(hash, key, keylen);
+  uint bucket, hashnr=calc_hash(hash, (uchar *)key, keylen);
 
   bucket= hashnr % hash->size;
   lf_lock_by_pins(pins);
   el=_lf_dynarray_lvalue(&hash->array, bucket);
   if (*el == NULL)
     initialize_bucket(hash, el, bucket, pins);
-  if (ldelete(el, my_reverse_bits(hashnr) | 1, key, keylen, pins))
+  if (ldelete(el, my_reverse_bits(hashnr) | 1, (uchar *)key, keylen, pins))
   {
     lf_unlock_by_pins(pins);
-    return 0;
+    return 1;
   }
   my_atomic_add32(&hash->count, -1);
-#if 0
-  {
-  LF_SLIST *node=*(LF_SLIST **)_lf_dynarray_lvalue(&hash->array, 0);
-  hashnr=0;
-  while (node)
-  {
-    assert (node->hashnr >= hashnr);
-    hashnr=node->hashnr;
-    node=(LF_SLIST *)node->link;
-  }
-  }
-#endif
   lf_unlock_by_pins(pins);
-  return 1;
+  return 0;
 }
 
 /*
   NOTE
-   see lsearch() for pin usage
+    see lsearch() for pin usage notes
 */
-int lf_hash_search(LF_HASH *hash, LF_PINS *pins, const uchar *key, uint keylen)
+void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
 {
-  int res;
-  LF_SLIST * volatile *el;
-  uint bucket, hashnr=calc_hash(hash, key, keylen);
+  LF_SLIST * volatile *el, *found;
+  uint bucket, hashnr=calc_hash(hash, (uchar *)key, keylen);
 
   bucket= hashnr % hash->size;
   lf_lock_by_pins(pins);
   el=_lf_dynarray_lvalue(&hash->array, bucket);
   if (*el == NULL)
     initialize_bucket(hash, el, bucket, pins);
-  res=NULL != lsearch(el, my_reverse_bits(hashnr) | 1, key, keylen, pins);
+  found= lsearch(el, my_reverse_bits(hashnr) | 1, (uchar *)key, keylen, pins);
   lf_unlock_by_pins(pins);
-  return res;
+  return found+1;
 }
 
 static void initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,

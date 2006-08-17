@@ -2537,7 +2537,7 @@ AC_SUBST(MAKE_BINARY_DISTRIBUTION_OPTIONS)
 # Output results
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
- unittest/mysys/Makefile unittest/examples/Makefile dnl
+ unittest/mysys/Makefile unittest/examples/Makefile unittest/maria/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
  man/Makefile BUILD/Makefile vio/Makefile dnl
  libmysql/Makefile client/Makefile dnl

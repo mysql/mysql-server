@@ -57,7 +57,7 @@ static void recursive_free(void **alloc, int level)
     my_free(alloc[-1], MYF(0));
 }
 
-void lf_dynarray_end(LF_DYNARRAY *array)
+void lf_dynarray_destroy(LF_DYNARRAY *array)
 {
   int i;
   for (i=0; i < LF_DYNARRAY_LEVELS; i++)

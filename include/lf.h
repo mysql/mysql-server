@@ -66,7 +66,7 @@ typedef struct {
 typedef int (*lf_dynarray_func)(void *, void *);
 
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size);
-void lf_dynarray_end(LF_DYNARRAY *array);
+void lf_dynarray_destroy(LF_DYNARRAY *array);
 
 nolock_wrap(lf_dynarray_nr, int,
             (LF_DYNARRAY *array, void *el),
@@ -139,15 +139,15 @@ typedef struct {
 #define _lf_unpin(PINS, PIN)      _lf_pin(PINS, PIN, NULL)
 #define lf_pin(PINS, PIN, ADDR)   \
   do {                            \
-    lf_lock_pins(PINS);           \
+    lf_lock_by_pins(PINS);        \
     _lf_pin(PINS, PIN, ADDR);     \
-    lf_unlock_pins(PINS);         \
+    lf_unlock_by_pins(PINS);      \
   } while (0)
 #define lf_unpin(PINS, PIN)  lf_pin(PINS, PIN, NULL)
 
 void lf_pinbox_init(LF_PINBOX *pinbox, lf_pinbox_free_func *free_func,
                     void * free_func_arg);
-void lf_pinbox_end(LF_PINBOX *pinbox);
+void lf_pinbox_destroy(LF_PINBOX *pinbox);
 
 lock_wrap(lf_pinbox_get_pins, LF_PINS *,
           (LF_PINBOX *pinbox),
@@ -180,7 +180,7 @@ typedef struct st_lf_allocator {
 } LF_ALLOCATOR;
 
 void lf_alloc_init(LF_ALLOCATOR *allocator, uint size);
-void lf_alloc_end(LF_ALLOCATOR *allocator);
+void lf_alloc_destroy(LF_ALLOCATOR *allocator);
 uint lf_alloc_in_pool(LF_ALLOCATOR *allocator);
 #define _lf_alloc_free(PINS, PTR)   _lf_pinbox_free((PINS), (PTR))
 #define lf_alloc_free(PINS, PTR)    lf_pinbox_free((PINS), (PTR))
@@ -216,10 +216,10 @@ typedef struct {
 void lf_hash_init(LF_HASH *hash, uint element_size, uint flags,
                   uint key_offset, uint key_length, hash_get_key get_key,
                   CHARSET_INFO *charset);
-void lf_hash_end(LF_HASH *hash);
+void lf_hash_destroy(LF_HASH *hash);
 int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data);
-int lf_hash_search(LF_HASH *hash, LF_PINS *pins, const uchar *key, uint keylen);
-int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const uchar *key, uint keylen);
+void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
+int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen);
 #define _lf_hash_get_pins(HASH)   _lf_alloc_get_pins(&(HASH)->alloc)
 #define lf_hash_get_pins(HASH)    lf_alloc_get_pins(&(HASH)->alloc)
 #define _lf_hash_put_pins(PINS)   _lf_pinbox_put_pins(PINS)

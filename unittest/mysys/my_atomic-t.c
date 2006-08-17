@@ -14,9 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-//#define MY_ATOMIC_MODE_RWLOCKS
-//#define MY_ATOMIC_MODE_DUMMY
-
 #include <tap.h>
 
 #include <my_global.h>
@@ -41,7 +38,7 @@ pthread_handler_t test_atomic_add_handler(void *arg)
   int32 x;
   for (x=((int)(intptr)(&m)); m ; m--)
   {
-    x=x*m+0x87654321;
+    x=(x*m+0x87654321) & INT_MAX32;
     my_atomic_rwlock_wrlock(&rwl);
     my_atomic_add32(&a32, x);
     my_atomic_rwlock_wrunlock(&rwl);
@@ -111,7 +108,7 @@ pthread_handler_t test_atomic_cas_handler(void *arg)
     my_atomic_rwlock_wrlock(&rwl);
     y=my_atomic_load32(&a32);
     my_atomic_rwlock_wrunlock(&rwl);
-    x=x*m+0x87654321;
+    x=(x*m+0x87654321) & INT_MAX32;
     do {
       my_atomic_rwlock_wrlock(&rwl);
       ok=my_atomic_cas32(&a32, &y, y+x);
@@ -171,7 +168,7 @@ pthread_handler_t test_lf_alloc(void *arg)
   for (x=((int)(intptr)(&m)); m ; m--)
   {
     TLA *node1, *node2;
-    x=x*m+0x87654321;
+    x=(x*m+0x87654321) & INT_MAX32;
     node1=(TLA *)lf_alloc_new(pins);
     node1->data=x;
     y+=node1->data;
@@ -217,7 +214,7 @@ pthread_handler_t test_lf_hash(void *arg)
     y=x;
     for (i=0; i < N_TLH; i++)
     {
-      x=x*(m+i)+0x87654321;
+      x=(x*(m+i)+0x87654321) & INT_MAX32;
       z=(x<0) ? -x : x;
       if (lf_hash_insert(&lf_hash, pins, &z))
       {
@@ -227,7 +224,7 @@ pthread_handler_t test_lf_hash(void *arg)
     }
     for (i=0; i < N_TLH; i++)
     {
-      y=y*(m+i)+0x87654321;
+      y=(y*(m+i)+0x87654321) & INT_MAX32;
       z=(y<0) ? -y : y;
       if (lf_hash_delete(&lf_hash, pins, (uchar *)&z, sizeof(z)))
         sum-=z;
@@ -307,8 +304,8 @@ int main()
   test_atomic("lf_alloc",         test_lf_alloc,              THREADS,CYCLES);
   test_atomic("lf_hash",          test_lf_hash,               THREADS,CYCLES);
 
-  lf_hash_end(&lf_hash);
-  lf_alloc_end(&lf_allocator);
+  lf_hash_destroy(&lf_hash);
+  lf_alloc_destroy(&lf_allocator);
   pthread_mutex_destroy(&mutex);
   pthread_cond_destroy(&cond);
   pthread_attr_destroy(&thr_attr);

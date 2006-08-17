@@ -54,9 +54,9 @@ void lf_pinbox_init(LF_PINBOX *pinbox, lf_pinbox_free_func *free_func,
   pinbox->free_func_arg=free_func_arg;
 }
 
-void lf_pinbox_end(LF_PINBOX *pinbox)
+void lf_pinbox_destroy(LF_PINBOX *pinbox)
 {
-  lf_dynarray_end(&pinbox->pinstack);
+  lf_dynarray_destroy(&pinbox->pinstack);
 }
 
 LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
@@ -292,7 +292,7 @@ void lf_alloc_init(LF_ALLOCATOR *allocator, uint size)
   DBUG_ASSERT(size >= (int)sizeof(void *));
 }
 
-void lf_alloc_end(LF_ALLOCATOR *allocator)
+void lf_alloc_destroy(LF_ALLOCATOR *allocator)
 {
   void *el=allocator->top;
   while (el)
@@ -301,7 +301,7 @@ void lf_alloc_end(LF_ALLOCATOR *allocator)
     my_free(el, MYF(0));
     el=tmp;
   }
-  lf_pinbox_end(&allocator->pinbox);
+  lf_pinbox_destroy(&allocator->pinbox);
   allocator->top=0;
 }
 
