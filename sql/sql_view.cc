@@ -1001,7 +1001,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       }
     }
     else if (!table->prelocking_placeholder &&
-             old_lex->sql_command == SQLCOM_SHOW_CREATE)
+             old_lex->sql_command == SQLCOM_SHOW_CREATE &&
+             !table->belong_to_view)
     {
       if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
         goto err;
