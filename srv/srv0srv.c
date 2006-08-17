@@ -2564,5 +2564,7 @@ suspend_thread:
 	main thread goes back to loop. */
 
 	goto loop;
+
+	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
 #endif /* !UNIV_HOTBACKUP */
