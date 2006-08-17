@@ -1445,11 +1445,11 @@ ev_sql_stmt:
           {
             LEX *lex=Lex;
 
-            // return back to the original memory root ASAP
+            /* return back to the original memory root ASAP */
             lex->sphead->init_strings(YYTHD, lex);
             lex->sphead->restore_thd_mem_root(YYTHD);
 
-            lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
+            lex->sp_chistics.suid= SP_IS_SUID;  //always the definer!
 
             Lex->event_parse_data->init_body(YYTHD);
           }
@@ -1568,10 +1568,10 @@ create_function_tail:
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
 	    /*
-	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	     * stored procedure, otherwise yylex will chop it into pieces
-	     * at each ';'.
-	     */
+	      We have to turn off CLIENT_MULTI_QUERIES while parsing a
+	      stored procedure, otherwise yylex will chop it into pieces
+	      at each ';'.
+	    */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	    lex->sphead->m_param_begin= lex->tok_start+1;
@@ -4673,25 +4673,24 @@ alter:
 	  {}
 	| ALTER EVENT_SYM sp_name
           /*
-             BE CAREFUL when you add a new rule to update the block where
-             YYTHD->client_capabilities is set back to original value
+            BE CAREFUL when you add a new rule to update the block where
+            YYTHD->client_capabilities is set back to original value
           */
           {
             /* 
-               It is safe to use Lex->spname because
-               ALTER EVENT xxx RENATE TO yyy DO ALTER EVENT RENAME TO
-               is not allowed. Lex->spname is used in the case of RENAME TO
-               If it had to be supported spname had to be added to
-               Event_parse_data.
+              It is safe to use Lex->spname because
+              ALTER EVENT xxx RENATE TO yyy DO ALTER EVENT RENAME TO
+              is not allowed. Lex->spname is used in the case of RENAME TO
+              If it had to be supported spname had to be added to
+              Event_parse_data.
             */
-            Lex->spname= NULL;
 
             if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
               YYABORT;
             Lex->event_parse_data->identifier= $3;
 
             /*
-              We have to turn of CLIENT_MULTI_QUERIES while parsing a
+              We have to turn off CLIENT_MULTI_QUERIES while parsing a
               stored procedure, otherwise yylex will chop it into pieces
               at each ';'.
             */
@@ -4757,9 +4756,11 @@ ev_alter_on_schedule_completion: /* empty */ { $$= 0;}
 opt_ev_rename_to: /* empty */ { $$= 0;}
         | RENAME TO_SYM sp_name
           {
-            LEX *lex=Lex;
-            lex->spname= $3; //use lex's spname to hold the new name
-	                     //the original name is in the Event_parse_data object
+            /*
+              Use lex's spname to hold the new name.
+              The original name is in the Event_parse_data object
+            */
+            Lex->spname= $3; 
             $$= 1;
           }
       ;
@@ -4783,7 +4784,7 @@ alter_commands:
         | remove_partitioning
         | partitioning
 /*
-  This part was added for release 5.1 by Mikael RonstrÃ¶m.
+  This part was added for release 5.1 by Mikael Ronström.
   From here we insert a number of commands to manage the partitions of a
   partitioned table such as adding partitions, dropping partitions,
   reorganising partitions in various manners. In future releases the list

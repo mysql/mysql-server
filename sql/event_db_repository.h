@@ -47,9 +47,6 @@ events_table_index_read_for_db(THD *thd, TABLE *schema_table,
 int
 events_table_scan_all(THD *thd, TABLE *schema_table, TABLE *event_table);
 
-int
-fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
-
 class Event_basic;
 class Event_parse_data;
 
@@ -58,7 +55,7 @@ class Event_db_repository
 public:
   Event_db_repository(){}
 
-  int
+  bool
   create_event(THD *thd, Event_parse_data *parse_data, my_bool create_if_not,
                uint *rows_affected);
 
@@ -70,7 +67,7 @@ public:
   drop_event(THD *thd, LEX_STRING db, LEX_STRING name, bool drop_if_exists,
              uint *rows_affected);
 
-  int
+  void
   drop_schema_events(THD *thd, LEX_STRING schema);
 
   bool
@@ -79,7 +76,6 @@ public:
   bool
   load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name, Event_basic *et);
 
-
   int
   open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
@@ -87,14 +83,14 @@ public:
   fill_schema_events(THD *thd, TABLE_LIST *tables, char *db);
 
 private:
-  int
+  void
   drop_events_by_field(THD *thd, enum enum_events_table_field field,
                        LEX_STRING field_value);
-  int
+  bool
   index_read_for_db_for_i_s(THD *thd, TABLE *schema_table, TABLE *event_table,
                             char *db);
 
-  int
+  bool
   table_scan_all_for_i_s(THD *thd, TABLE *schema_table, TABLE *event_table);
 
   static bool

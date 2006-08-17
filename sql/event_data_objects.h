@@ -37,7 +37,7 @@ public:
   LEX_STRING dbname;
   LEX_STRING name;
   LEX_STRING definer;// combination of user and host
-  
+
   Event_basic();
   virtual ~Event_basic();
 
@@ -90,7 +90,7 @@ public:
 
   Event_queue_element();
   virtual ~Event_queue_element();
-  
+
   virtual int
   load_from_row(TABLE *table);
 
@@ -187,7 +187,7 @@ private:
   int
   get_fake_create_event(THD *thd, String *buf);
 
-  Event_job_data(const Event_job_data &);	/* Prevent use of these */
+  Event_job_data(const Event_job_data &);       /* Prevent use of these */
   void operator=(Event_job_data &);
 };
 
@@ -237,7 +237,7 @@ public:
   new_instance(THD *thd);
 
   bool
-  check_parse_data(THD *);
+  check_parse_data(THD *thd);
 
   void
   init_body(THD *thd);

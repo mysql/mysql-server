@@ -59,19 +59,17 @@ Event_parse_data::new_instance(THD *thd)
 */
 
 Event_parse_data::Event_parse_data()
+  :on_completion(ON_COMPLETION_DROP), status(ENABLED),
+   item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
+   starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
+   item_expression(NULL), expression(0)
 {
   DBUG_ENTER("Event_parse_data::Event_parse_data");
-
-  item_execute_at= item_expression= item_starts= item_ends= NULL;
-  status= ENABLED;
-  on_completion= ON_COMPLETION_DROP;
-  expression= 0;
 
   /* Actually in the parser STARTS is always set */
   set_zero_time(&starts, MYSQL_TIMESTAMP_DATETIME);
   set_zero_time(&ends, MYSQL_TIMESTAMP_DATETIME);
   set_zero_time(&execute_at, MYSQL_TIMESTAMP_DATETIME);
-  starts_null= ends_null= execute_at_null= TRUE;
 
   body.str= comment.str= NULL;
   body.length= comment.length= 0;
@@ -161,7 +159,7 @@ Event_parse_data::init_body(THD *thd)
     */
     if ((*(body_end - 1) == '*') && (*body_end == '/'))
     {
-      DBUG_PRINT("info", ("consumend one '*" "/' comment in the query '%s'", 
+      DBUG_PRINT("info", ("consumend one '*" "/' comment in the query '%s'",
           body_begin));
       body.length-= 2;
       body_end-= 2;
@@ -217,7 +215,7 @@ Event_parse_data::init_execute_at(THD *thd)
   DBUG_ASSERT(starts_null && ends_null);
 
   /* let's check whether time is in the past */
-  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp, 
+  thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp,
                                             (my_time_t) thd->query_start());
 
   if ((not_used= item_execute_at->get_date(&ltime, TIME_NO_ZERO_DATE)))
@@ -736,8 +734,8 @@ Event_timed::~Event_timed()
     Event_job_data::Event_job_data()
 */
 
-Event_job_data::Event_job_data():
-  thd(NULL), sphead(NULL), sql_mode(0)
+Event_job_data::Event_job_data()
+  :thd(NULL), sphead(NULL), sql_mode(0)
 {
 }
 
@@ -1073,7 +1071,7 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
   {
     longlong seconds_diff;
     long microsec_diff;
-    
+
     if (calc_time_diff(time_now, start, 1, &seconds_diff, &microsec_diff))
     {
       DBUG_PRINT("error", ("negative difference"));
@@ -1115,14 +1113,16 @@ bool get_next_time(TIME *next, TIME *start, TIME *time_now, TIME *last_exec,
     interval.month= (diff_months / months)*months;
     /*
       Check if the same month as last_exec (always set - prerequisite)
-      An event happens at most once per month so there is no way to schedule
-      it two times for the current month. This saves us from two calls to
-      date_add_interval() if the event was just executed.  But if the scheduler
-      is started and there was at least 1 scheduled date skipped this one does
-      not help and two calls to date_add_interval() will be done, which is a
-      bit more expensive but compared to the rareness of the case is neglectable.
+      An event happens at most once per month so there is no way to
+      schedule it two times for the current month. This saves us from two
+      calls to date_add_interval() if the event was just executed.  But if
+      the scheduler is started and there was at least 1 scheduled date
+      skipped this one does not help and two calls to date_add_interval()
+      will be done, which is a bit more expensive but compared to the
+      rareness of the case is neglectable.
     */
-    if (time_now->year==last_exec->year && time_now->month==last_exec->month)
+    if (time_now->year == last_exec->year &&
+        time_now->month == last_exec->month)
       interval.month+= months;
 
     tmp= *start;
@@ -1289,7 +1289,7 @@ Event_queue_element::compute_next_execution_time()
     }
     goto ret;
   }
-  else if (starts_null && ends_null) 
+  else if (starts_null && ends_null)
   {
     /* starts is always set, so this is a dead branch !! */
     DBUG_PRINT("info", ("Neither STARTS nor ENDS are set"));
@@ -1333,7 +1333,7 @@ Event_queue_element::compute_next_execution_time()
 
       {
         TIME next_exec;
-        if (get_next_time(&next_exec, &starts, &time_now, 
+        if (get_next_time(&next_exec, &starts, &time_now,
                           last_executed.year? &last_executed:&starts,
                           expression, interval))
           goto err;
@@ -1454,7 +1454,8 @@ Event_queue_element::drop(THD *thd)
 
   RETURN VALUE
     FALSE   OK
-    TRUE    Error while opening mysql.event for writing or during write on disk
+    TRUE    Error while opening mysql.event for writing or during
+            write on disk
 */
 
 bool
@@ -1645,9 +1646,9 @@ Event_job_data::execute(THD *thd)
   event_change_security_context(thd, definer_user, definer_host, dbname,
                                 &save_ctx);
   /*
-    THD::~THD will clean this or if there is DROP DATABASE in the SP then
-    it will be free there. It should not point to our buffer which is allocated
-    on a mem_root.
+    THD::~THD will clean this or if there is DROP DATABASE in the
+    SP then it will be free there. It should not point to our buffer
+    which is allocated on a mem_root.
   */
   thd->db= my_strdup(dbname.str, MYF(0));
   thd->db_length= dbname.length;
@@ -1719,7 +1720,6 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
 
   switch (get_fake_create_event(thd, &show_create)) {
   case EVEX_MICROSECOND_UNSUP:
-    sql_print_error("Scheduler");
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
   case 0:
     break;
@@ -1769,7 +1769,8 @@ Event_job_data::compile(THD *thd, MEM_ROOT *mem_root)
       Free lex associated resources
       QQ: Do we really need all this stuff here?
     */
-    sql_print_error("error during compile of %s.%s or thd->is_fatal_error=%d",
+    sql_print_error("SCHEDULER: Error during compilation of %s.%s or "
+                    "thd->is_fatal_error=%d",
                     dbname.str, name.str, thd->is_fatal_error);
 
     lex.unit.cleanup();
@@ -1832,10 +1833,13 @@ event_basic_db_equal(LEX_STRING db, Event_basic *et)
 
 
 /*
-  Checks whether two events are equal by identifiers
+  Checks whether an event has equal `db` and `name`
 
   SYNOPSIS
     event_basic_identifier_equal()
+      db   Schema
+      name Name
+      et   The event object
 
   RETURN VALUE
     TRUE   Equal
@@ -1851,7 +1855,8 @@ event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b)
 
 
 /*
-  Switches the security context
+  Switches the security context.
+
   SYNOPSIS
     event_change_security_context()
       thd     Thread
@@ -1859,7 +1864,7 @@ event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b)
       host    The host of the user
       db      The schema for which the security_ctx will be loaded
       backup  Where to store the old context
-  
+
   RETURN VALUE
     FALSE  OK
     TRUE   Error (generates error too)
@@ -1887,7 +1892,8 @@ event_change_security_context(THD *thd, LEX_STRING user, LEX_STRING host,
 
 
 /*
-  Restores the security context
+  Restores the security context.
+
   SYNOPSIS
     event_restore_security_context()
       thd     Thread
