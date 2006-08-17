@@ -926,25 +926,6 @@ buf_awe_map_page_to_frame(
 }
 
 /************************************************************************
-Allocates a buffer block. */
-UNIV_INLINE
-buf_block_t*
-buf_block_alloc(
-/*============*/
-				/* out, own: the allocated block; also if AWE
-				is used it is guaranteed that the page is
-				mapped to a frame */
-	ulint	zip_size)	/* in: compressed page size in bytes,
-				or 0 if uncompressed tablespace */
-{
-	buf_block_t*	block;
-
-	block = buf_LRU_get_free_block(zip_size);
-
-	return(block);
-}
-
-/************************************************************************
 Moves to the block to the start of the LRU list if there is a danger
 that the block would drift out of the buffer pool. */
 UNIV_INLINE
@@ -984,45 +965,6 @@ buf_page_make_young(
 	buf_LRU_make_block_young(block);
 
 	mutex_exit(&(buf_pool->mutex));
-}
-
-/************************************************************************
-Frees a buffer block which does not contain a file page. */
-UNIV_INLINE
-void
-buf_block_free(
-/*===========*/
-	buf_block_t*	block)	/* in, own: block to be freed */
-{
-	ut_a(block->state != BUF_BLOCK_FILE_PAGE);
-
-	mutex_enter(&(buf_pool->mutex));
-
-	buf_LRU_block_free_non_file_page(block);
-
-	mutex_exit(&(buf_pool->mutex));
-}
-
-/*************************************************************************
-Allocates a buffer frame. */
-
-buf_frame_t*
-buf_frame_alloc(void)
-/*=================*/
-				/* out: buffer frame */
-{
-	return(buf_block_alloc(0)->frame);
-}
-
-/*************************************************************************
-Frees a buffer frame which does not contain a file page. */
-
-void
-buf_frame_free(
-/*===========*/
-	buf_frame_t*	frame)	/* in: buffer frame */
-{
-	buf_block_free(buf_block_align(frame));
 }
 
 /************************************************************************

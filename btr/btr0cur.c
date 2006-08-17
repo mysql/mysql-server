@@ -1229,6 +1229,7 @@ btr_cur_pessimistic_insert(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	dict_index_t*	index		= cursor->index;
+	ulint		zip_size	= dict_table_zip_size(index->table);
 	big_rec_t*	big_rec_vec	= NULL;
 	mem_heap_t*	heap		= NULL;
 	page_t*		page;
@@ -1289,8 +1290,7 @@ btr_cur_pessimistic_insert(
 	}
 
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry),
-			page_is_comp(page),
-			dict_table_zip_size(index->table))) {
+			page_is_comp(page), zip_size)) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
 
@@ -1324,6 +1324,47 @@ btr_cur_pessimistic_insert(
 		}
 
 		ext = more_ext;
+	}
+
+	if (UNIV_UNLIKELY(zip_size)) {
+		/* Estimate the free space of an empty compressed page.
+		The space needed for compressing the index information
+		is estimated. */
+		ulint	free_space_zip = zip_size
+				- PAGE_DATA - cursor->index->n_fields / 2;
+
+		if (UNIV_UNLIKELY(rec_get_converted_size(index, entry)
+				> free_space_zip)) {
+			/* Try to insert the record by itself on a new page.
+			If it fails, no amount of splitting will help. */
+			buf_block_t*	temp_block
+					= buf_block_alloc(zip_size);
+			page_t*		temp_page
+					= page_create_zip(temp_block->frame,
+					&temp_block->page_zip, index, 0, NULL);
+			page_cur_t	temp_cursor;
+			rec_t*		temp_rec;
+
+			page_cur_position(temp_page + PAGE_NEW_INFIMUM, &temp_cursor);
+
+			temp_rec = page_cur_tuple_insert(&temp_cursor,
+					&temp_block->page_zip, entry, index,
+					ext, n_ext, NULL);
+			buf_block_free(temp_block);
+
+			if (UNIV_UNLIKELY(!temp_rec)) {
+				if (big_rec_vec) {
+					dtuple_convert_back_big_rec(
+						index, entry, big_rec_vec);
+				}
+
+				if (heap) {
+					mem_heap_free(heap);
+				}
+
+				return(DB_TOO_BIG_RECORD);
+			}
+		}
 	}
 
 	if (dict_tree_get_page(index->tree)

@@ -897,7 +897,7 @@ page_cur_insert_rec_low(
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in vec */
-	mtr_t*		mtr)	/* in: mini-transaction handle */
+	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
 	byte*		insert_buf	= NULL;
 	ulint		rec_size;
@@ -909,7 +909,7 @@ page_cur_insert_rec_low(
 					new record is inserted */
 	page_zip_des_t*	page_zip_orig	= page_zip;
 
-	ut_ad(cursor && mtr);
+	ut_ad(cursor);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	page = page_cur_get_page(cursor);
@@ -1150,8 +1150,10 @@ use_heap:
 	}
 
 	/* 9. Write log record of the insert */
-	page_cur_insert_rec_write_log(insert_rec, rec_size, current_rec,
+	if (UNIV_LIKELY(mtr != NULL)) {
+		page_cur_insert_rec_write_log(insert_rec, rec_size, current_rec,
 				index, mtr);
+	}
 
 	return(insert_rec);
 }
