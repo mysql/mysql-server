@@ -7,12 +7,12 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (CAST(YEAR(f_date) AS SIGNED INTEGER)) PARTITIONS 2  */
+hello/master-data/test/t1.frm
+hello/master-data/test/t1.par
 hello/master-data/test/t1#P#p0.MYD
 hello/master-data/test/t1#P#p0.MYI
 hello/master-data/test/t1#P#p1.MYD
 hello/master-data/test/t1#P#p1.MYI
-hello/master-data/test/t1.frm
-hello/master-data/test/t1.par
 ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -20,10 +20,10 @@ t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (CAST(YEAR(f_date) AS SIGNED INTEGER)) PARTITIONS 1  */
-hello/master-data/test/t1#P#p0.MYD
-hello/master-data/test/t1#P#p0.MYI
 hello/master-data/test/t1.frm
 hello/master-data/test/t1.par
+hello/master-data/test/t1#P#p0.MYD
+hello/master-data/test/t1#P#p0.MYI
 drop table t1;
 create table t1 (a int)
 partition by list (a)

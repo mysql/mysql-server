@@ -216,8 +216,8 @@ buf_block_align(
 "InnoDB: Error: trying to access a stray pointer %p\n"
 "InnoDB: buf pool start is at %p, end at %p\n"
 "InnoDB: Probable reason is database corruption or memory\n"
-"InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
-"InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
+"InnoDB: corruption. If this happens in an InnoDB database recovery, see\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html\n"
 "InnoDB: how to force recovery.\n",
 			ptr, frame_zero,
 			buf_pool->high_end);
@@ -252,8 +252,8 @@ buf_frame_align(
 "InnoDB: Error: trying to access a stray pointer %p\n"
 "InnoDB: buf pool start is at %p, end at %p\n"
 "InnoDB: Probable reason is database corruption or memory\n"
-"InnoDB: corruption. If this happens in an InnoDB database recovery,\n"
-"InnoDB: you can look from section 6.1 at http://www.innodb.com/ibman.html\n"
+"InnoDB: corruption. If this happens in an InnoDB database recovery, see\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html\n"
 "InnoDB: how to force recovery.\n",
 			ptr, buf_pool->frame_zero,
 			buf_pool->high_end);
