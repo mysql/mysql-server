@@ -3978,7 +3978,7 @@ byte *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
 {
   if (Events::opt_event_scheduler == 0)
     thd->sys_var_tmp.long_value= 0;
-  else if (Events::get_instance()->is_started())
+  else if (Events::get_instance()->is_execution_of_events_started())
     thd->sys_var_tmp.long_value= 1;
   else
     thd->sys_var_tmp.long_value= 2;

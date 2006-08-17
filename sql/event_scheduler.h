@@ -31,12 +31,13 @@ deinit_event_thread(THD *thd);
 class Event_scheduler
 {
 public:
-  Event_scheduler(){}
+  Event_scheduler():state(UNINITIALIZED){}
   ~Event_scheduler(){}
 
   enum enum_state
   {
-    INITIALIZED = 0,
+    UNINITIALIZED = 0,
+    INITIALIZED,
     RUNNING,
     STOPPING
   };
@@ -50,12 +51,12 @@ public:
   stop();
 
   /*
-    Need to be public because has to be called from the function 
+    Need to be public because has to be called from the function
     passed to pthread_create.
   */
   bool
   run(THD *thd);
-  
+
   void 
   init_scheduler(Event_queue *queue);
 
@@ -64,7 +65,7 @@ public:
 
   void
   init_mutexes();
-  
+
   void
   deinit_mutexes();
 
@@ -112,7 +113,7 @@ private:
   ulong thread_id;
 
   pthread_cond_t COND_state;
-  
+
   Event_queue *queue;
 
   uint mutex_last_locked_at_line;
@@ -121,7 +122,7 @@ private:
   const char* mutex_last_unlocked_in_func;
   bool mutex_scheduler_data_locked;
   bool waiting_on_cond;
-  
+
   ulonglong started_events;
 
 private:

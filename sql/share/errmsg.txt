@@ -5851,3 +5851,5 @@ ER_CANT_DROP_LOG_TABLE
         eng "Cannot drop log table if log is enabled"
 ER_EVENT_RECURSIVITY_FORBIDDEN
         eng "Recursivity of EVENT DDL statements is forbidden when body is present"
+ER_EVENTS_DB_ERROR
+        eng "Cannot proceed because the tables used by events were found damaged at server start"
