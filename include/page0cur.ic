@@ -186,7 +186,7 @@ page_cur_tuple_insert(
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in vec */
-	mtr_t*		mtr)	/* in: mini-transaction handle */
+	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
 	mem_heap_t*	heap;
 	ulint*		offsets;
@@ -221,7 +221,7 @@ page_cur_rec_insert(
 	rec_t*		rec,	/* in: record to insert */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr)	/* in: mini-transaction handle */
+	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
 	return(page_cur_insert_rec_low(cursor, page_zip,
 					index, rec, offsets, NULL, 0, mtr));

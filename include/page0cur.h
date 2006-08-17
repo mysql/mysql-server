@@ -135,7 +135,7 @@ page_cur_tuple_insert(
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in vec */
-	mtr_t*		mtr);	/* in: mini-transaction handle */
+	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
@@ -151,7 +151,7 @@ page_cur_rec_insert(
 	rec_t*		rec,	/* in: record to insert */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
-	mtr_t*		mtr);	/* in: mini-transaction handle */
+	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The record to be
@@ -170,7 +170,7 @@ page_cur_insert_rec_low(
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in vec */
-	mtr_t*		mtr);	/* in: mini-transaction handle */
+	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
 /*****************************************************************
 Copies records from page to a newly created page, from a given record onward,
 including that record. Infimum and supremum records are not copied. */
