@@ -567,23 +567,20 @@ int MYSQLlex(void *arg, void *yythd)
 
     case MY_LEX_IDENT_OR_NCHAR:
       if (yyPeek() != '\'')
-      {					// Found x'hex-number'
+      {					
 	state= MY_LEX_IDENT;
 	break;
       }
-      yyGet();				// Skip '
-      while ((c = yyGet()) && (c !='\'')) ;
-      length=(lex->ptr - lex->tok_start);	// Length of hexnum+3
-      if (c != '\'')
+      /* Found N'string' */
+      lex->tok_start++;                 // Skip N
+      yySkip();                         // Skip '
+      if (!(yylval->lex_str.str = get_text(lex)))
       {
-	return(ABORT_SYM);		// Illegal hex constant
+	state= MY_LEX_CHAR;             // Read char by char
+	break;
       }
-      yyGet();				// get_token makes an unget
-      yylval->lex_str=get_token(lex,length);
-      yylval->lex_str.str+=2;		// Skip x'
-      yylval->lex_str.length-=3;	// Don't count x' and last '
-      lex->yytoklen-=3;
-      return (NCHAR_STRING);
+      yylval->lex_str.length= lex->yytoklen;
+      return(NCHAR_STRING);
 
     case MY_LEX_IDENT_OR_HEX:
       if (yyPeek() == '\'')

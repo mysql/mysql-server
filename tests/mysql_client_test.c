@@ -3976,6 +3976,7 @@ static void test_fetch_date()
                                                         c7 timestamp(6))");
   myquery(rc);
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
   rc= mysql_query(mysql, "INSERT INTO test_bind_result VALUES('2002-01-02', \
                                                               '12:49:00', \
                                                               '2002-01-02 17:46:59', \
@@ -8350,6 +8351,7 @@ static void test_bug19671()
   int rc;
   myheader("test_bug19671");
 
+  mysql_query(mysql, "set sql_mode=''");
   rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
 
@@ -8920,7 +8922,7 @@ static void test_bug1500()
   rc= mysql_query(mysql, "DROP TABLE test_bg1500");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE test_bg1500 (s VARCHAR(25), FULLTEXT(s))");
+  rc= mysql_query(mysql, "CREATE TABLE test_bg1500 (s VARCHAR(25), FULLTEXT(s)) engine=MyISAM");
   myquery(rc);
 
   rc= mysql_query(mysql,
@@ -10996,7 +10998,8 @@ static void test_view()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(1 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(1 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11038,7 +11041,8 @@ static void test_view_where()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(4 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(4 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11120,7 +11124,8 @@ static void test_view_2where()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  assert(0 == my_process_stmt_result(stmt));
+  rc= my_process_stmt_result(stmt);
+  assert(0 == rc);
 
   mysql_stmt_close(stmt);
 
@@ -11172,7 +11177,8 @@ static void test_view_star()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(0 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(0 == rc);
   }
 
   mysql_stmt_close(stmt);
@@ -11226,6 +11232,7 @@ static void test_view_insert()
 
   for (i= 0; i < 3; i++)
   {
+    int rowcount= 0;
     my_val= i;
 
     rc= mysql_stmt_execute(insert_stmt);
@@ -11233,7 +11240,8 @@ static void test_view_insert()
 
     rc= mysql_stmt_execute(select_stmt);
     check_execute(select_stmt, rc);
-    assert(i + 1 == (int) my_process_stmt_result(select_stmt));
+    rowcount= (int)my_process_stmt_result(select_stmt);
+    assert((i+1) == rowcount);
   }
   mysql_stmt_close(insert_stmt);
   mysql_stmt_close(select_stmt);
@@ -11273,7 +11281,8 @@ static void test_left_join_view()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(3 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(3 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11348,7 +11357,8 @@ static void test_view_insert_fields()
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  assert(1 == my_process_stmt_result(stmt));
+  rc= my_process_stmt_result(stmt);
+  assert(1 == rc);
 
   mysql_stmt_close(stmt);
   rc= mysql_query(mysql, "DROP VIEW v1");
@@ -12012,6 +12022,7 @@ static void test_bug6096()
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
   myquery(rc);
 
+  mysql_query(mysql, "set sql_mode=''");
   stmt_text= "create table t1 (c_tinyint tinyint, c_smallint smallint, "
                              " c_mediumint mediumint, c_int int, "
                              " c_bigint bigint, c_float float, "
@@ -12897,6 +12908,7 @@ static void test_bug8378()
   DIE_UNLESS(memcmp(out, TEST_BUG8378_OUT, len) == 0);
 
   sprintf(buf, "SELECT '%s'", out);
+  
   rc=mysql_real_query(mysql, buf, strlen(buf));
   myquery(rc);
 

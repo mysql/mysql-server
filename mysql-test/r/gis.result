@@ -574,11 +574,11 @@ INSERT INTO t1 VALUES(GeomFromText('POINT(367894677 368542487)'));
 INSERT INTO t1 VALUES(GeomFromText('POINT(580848489 219587743)'));
 INSERT INTO t1 VALUES(GeomFromText('POINT(11247614 782797569)'));
 drop table t1;
-create table t1 select POINT(1,3);
+create table t1 select GeomFromWKB(POINT(1,3));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `POINT(1,3)` longblob NOT NULL
+  `GeomFromWKB(POINT(1,3))` geometry NOT NULL default ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
@@ -705,4 +705,9 @@ select asbinary(g) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					asbinary(g)	252	8192	0	Y	128	0	63
 asbinary(g)
+drop table t1;
+create table t1 select GeomFromText('point(1 1)');
+desc t1;
+Field	Type	Null	Key	Default	Extra
+GeomFromText('point(1 1)')	geometry	NO			
 drop table t1;

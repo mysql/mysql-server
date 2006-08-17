@@ -69,3 +69,6 @@ START INSTANCE mysqld1,mysqld2,mysqld3;
 ERROR 42000: You have an error in your command syntax. Check the manual that corresponds to your MySQL Instance Manager version for the right syntax to use
 STOP INSTANCE mysqld1,mysqld2,mysqld3;
 ERROR 42000: You have an error in your command syntax. Check the manual that corresponds to your MySQL Instance Manager version for the right syntax to use
+STOP INSTANCE mysqld2;
+ERROR HY000: Cannot stop instance. Perhaps the instance is not started, or was started manually, so IM cannot find the pidfile.
+End of 5.0 tests
