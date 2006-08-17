@@ -42,6 +42,15 @@ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	I
 t1	InnoDB	10	Compact	8	2048	16384	0	0	0	9	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
+partition by key (a)
+(partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
+ERROR 42000: Incorrect table name 'part-data'
+create table t1 (a int)
+partition by key (a)
+(partition p0,
+partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
+ERROR 42000: Incorrect table name 'part-data'
+create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
 create procedure pz()
