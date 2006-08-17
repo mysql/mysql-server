@@ -20,6 +20,19 @@ Created June 2005 by Marko Makela
 #include "ut0byte.h"
 
 /**************************************************************************
+Determine if a record is so big that it needs to be stored externally. */
+UNIV_INLINE
+ibool
+page_zip_rec_needs_ext(
+/*===================*/
+				/* out: FALSE if the entire record
+				can be stored locally on the page */
+	ulint	rec_size,	/* in: length of the record in bytes */
+	ulint	comp,		/* in: nonzero=compact format */
+	ulint	zip_size)	/* in: compressed page size in bytes, or 0 */
+	__attribute__((const));
+
+/**************************************************************************
 Initialize a compressed page descriptor. */
 UNIV_INLINE
 void

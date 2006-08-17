@@ -1026,6 +1026,7 @@ btr_cur_optimistic_insert(
 
 	page = btr_cur_get_page(cursor);
 	index = cursor->index;
+	page_zip = buf_block_get_page_zip(buf_block_align(page));
 
 	if (!dtuple_check_typed_no_assert(entry)) {
 		fputs("InnoDB: Error in a tuple to insert into ", stderr);
@@ -1047,9 +1048,8 @@ calculate_sizes_again:
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry);
 
-	if (rec_size >=
-		ut_min(page_get_free_space_of_empty(page_is_comp(page)) / 2,
-		REC_MAX_DATA_SIZE)) {
+	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
+			page_zip ? page_zip->size : 0)) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1130,7 +1130,6 @@ calculate_sizes_again:
 	}
 
 	/* Now, try the insert */
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
 
 	*rec = page_cur_tuple_insert(page_cursor, page_zip,
 					entry, index, ext, n_ext, mtr);
@@ -1289,10 +1288,9 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (rec_get_converted_size(index, entry) >=
-		ut_min(page_get_free_space_of_empty(page_is_comp(page)) / 2,
-		REC_MAX_DATA_SIZE)) {
-
+	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry),
+			page_is_comp(page),
+			dict_table_zip_size(index->table))) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
 
@@ -2059,9 +2057,8 @@ btr_cur_pessimistic_update(
 					ULINT_UNDEFINED, &heap);
 	n_ext_vect = btr_push_update_extern_fields(ext_vect, offsets, update);
 
-	if (UNIV_UNLIKELY(rec_get_converted_size(index, new_entry) >=
-		ut_min(page_get_free_space_of_empty(page_is_comp(page)) / 2,
-		REC_MAX_DATA_SIZE))) {
+	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry),
+			page_is_comp(page), page_zip ? page_zip->size : 0)) {
 		ulint	i;
 
 		big_rec_vec = dtuple_convert_big_rec(index, new_entry,
