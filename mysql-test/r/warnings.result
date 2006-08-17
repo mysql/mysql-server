@@ -72,7 +72,7 @@ drop table t1;
 create table t1(a tinyint, b int not null, c date, d char(5));
 load data infile '../std_data_ln/warnings_loaddata.dat' into table t1 fields terminated by ',';
 Warnings:
-Warning	1263    Column was set to data type implicit default; NULL supplied for NOT NULL column 'b' at row 2
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 3
 Warning	1265	Data truncated for column 'c' at row 4
 Warning	1261	Row 5 doesn't contain data for all columns
