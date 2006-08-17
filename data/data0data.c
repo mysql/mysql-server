@@ -433,15 +433,20 @@ dfield_print_also_hex(
 
 /*****************************************************************
 Print a dfield value using ut_print_buf. */
-
+static
 void
 dfield_print_raw(
 /*=============*/
 	FILE*		f,		/* in: output stream */
 	dfield_t*	dfield)		/* in: dfield */
 {
-	if (dfield->len != UNIV_SQL_NULL) {
-		ut_print_buf(f, dfield->data, dfield->len);
+	ulint	len	= dfield->len;
+	if (len != UNIV_SQL_NULL) {
+		ulint	print_len = ut_min(len, 1000);
+		ut_print_buf(f, dfield->data, print_len);
+		if (len != print_len) {
+			fprintf(f, "(total %lu bytes)", (ulong) len);
+		}
 	} else {
 		fputs(" SQL NULL", f);
 	}
