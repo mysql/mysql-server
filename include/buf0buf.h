@@ -108,16 +108,34 @@ buf_pool_get_oldest_modification(void);
 /*==================================*/
 				/* out: oldest modification in pool,
 				ut_dulint_zero if none */
+/************************************************************************
+Allocates a buffer block. */
+UNIV_INLINE
+buf_block_t*
+buf_block_alloc(
+/*============*/
+				/* out, own: the allocated block; also if AWE
+				is used it is guaranteed that the page is
+				mapped to a frame */
+	ulint	zip_size);	/* in: compressed page size in bytes,
+				or 0 if uncompressed tablespace */
+/************************************************************************
+Frees a buffer block which does not contain a file page. */
+UNIV_INLINE
+void
+buf_block_free(
+/*===========*/
+	buf_block_t*	block);	/* in, own: block to be freed */
 /*************************************************************************
 Allocates a buffer frame. */
-
+UNIV_INLINE
 buf_frame_t*
 buf_frame_alloc(void);
 /*==================*/
 				/* out: buffer frame */
 /*************************************************************************
 Frees a buffer frame which does not contain a file page. */
-
+UNIV_INLINE
 void
 buf_frame_free(
 /*===========*/
