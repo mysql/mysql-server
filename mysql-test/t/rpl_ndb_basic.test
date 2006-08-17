@@ -116,7 +116,7 @@ UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 # we do this 2 times, once with few retries to verify that we 
 # get a failure with the set sleep, and once with the _same_
 # sleep, but with more retries to get it to succeed
---sleep 5
+--sleep 15
 
 # replication should have stopped, since max retries where not enough
 # verify with show slave status
@@ -131,7 +131,7 @@ set GLOBAL slave_transaction_retries=10;
 START SLAVE;
 # wait for deadlock to be detected and retried
 # should be the same sleep as above for test to be valid
---sleep 5
+--sleep 15
 
 # commit transaction to release lock on row and let replication succeed
 select * from t1 order by nid;
