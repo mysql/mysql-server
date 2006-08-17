@@ -25,9 +25,9 @@ char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
 const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  { (char *)STRING_WITH_LEN("UDF") },
-  { (char *)STRING_WITH_LEN("STORAGE ENGINE") },
-  { (char *)STRING_WITH_LEN("FTPARSER") }
+  { C_STRING_WITH_LEN("UDF") },
+  { C_STRING_WITH_LEN("STORAGE ENGINE") },
+  { C_STRING_WITH_LEN("FTPARSER") }
 };
 
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
