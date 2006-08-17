@@ -49,7 +49,7 @@ show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 show table status;
 drop table t1;
->>>>>>>
+
 #
 # Bug 19309 Partitions: Crash if double procedural alter
 #
