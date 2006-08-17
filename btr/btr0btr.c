@@ -1300,20 +1300,20 @@ btr_page_get_sure_split_rec(
 					should be made */
 	dtuple_t*	tuple)		/* in: tuple to insert */
 {
-	page_t*	page;
+	page_t*		page;
 	page_zip_des_t*	page_zip;
-	ulint	insert_size;
-	ulint	free_space;
-	ulint	total_data;
-	ulint	total_n_recs;
-	ulint	total_space;
-	ulint	incl_data;
-	rec_t*	ins_rec;
-	rec_t*	rec;
-	rec_t*	next_rec;
-	ulint	n;
-	mem_heap_t* heap;
-	ulint*	offsets;
+	ulint		insert_size;
+	ulint		free_space;
+	ulint		total_data;
+	ulint		total_n_recs;
+	ulint		total_space;
+	ulint		incl_data;
+	rec_t*		ins_rec;
+	rec_t*		rec;
+	rec_t*		next_rec;
+	ulint		n;
+	mem_heap_t*	heap;
+	ulint*		offsets;
 
 	page = btr_cur_get_page(cursor);
 
