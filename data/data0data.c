@@ -532,10 +532,9 @@ dtuple_convert_big_rec(
 
 	n_fields = 0;
 
-	while (rec_get_converted_size(index, entry)
-		>= ut_min(page_get_free_space_of_empty(
-				  dict_table_is_comp(index->table)) / 2,
-			REC_MAX_DATA_SIZE)) {
+	while (page_zip_rec_needs_ext(rec_get_converted_size(index, entry),
+			dict_table_is_comp(index->table),
+			dict_table_zip_size(index->table))) {
 
 		longest = 0;
 		for (i = dict_index_get_n_unique_in_tree(index);

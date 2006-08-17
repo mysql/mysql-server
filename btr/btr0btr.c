@@ -1301,6 +1301,7 @@ btr_page_get_sure_split_rec(
 	dtuple_t*	tuple)		/* in: tuple to insert */
 {
 	page_t*	page;
+	page_zip_des_t*	page_zip;
 	ulint	insert_size;
 	ulint	free_space;
 	ulint	total_data;
@@ -1318,6 +1319,20 @@ btr_page_get_sure_split_rec(
 
 	insert_size = rec_get_converted_size(cursor->index, tuple);
 	free_space  = page_get_free_space_of_empty(page_is_comp(page));
+
+	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	if (UNIV_LIKELY_NULL(page_zip)) {
+		/* Estimate the free space of an empty compressed page.
+		The space needed for compressing the index information
+		is estimated. */
+		ulint	free_space_zip = page_zip->size
+				- PAGE_DATA - cursor->index->n_fields / 2;
+
+		if (UNIV_LIKELY(free_space > free_space_zip)) {
+			free_space = free_space_zip;
+			ut_a(insert_size <= free_space);
+		}
+	}
 
 	/* free_space is now the free space of a created new page */
 
