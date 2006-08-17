@@ -65,7 +65,7 @@ static bool make_datetime(date_time_format_types format, TIME *ltime,
 			       ltime->hour, ltime->minute, ltime->second);
     break;
   case TIME_MICROSECOND:
-    length= cs->cset->snprintf(cs, buff, length, "%s%02d:%02d:%02d.%06d",
+    length= cs->cset->snprintf(cs, buff, length, "%s%02d:%02d:%02d.%06ld",
 			       ltime->neg ? "-" : "",
 			       ltime->hour, ltime->minute, ltime->second,
 			       ltime->second_part);
@@ -82,7 +82,7 @@ static bool make_datetime(date_time_format_types format, TIME *ltime,
     break;
   case DATE_TIME_MICROSECOND:
     length= cs->cset->snprintf(cs, buff, length,
-			       "%04d-%02d-%02d %02d:%02d:%02d.%06d",
+			       "%04d-%02d-%02d %02d:%02d:%02d.%06ld",
 			       ltime->year, ltime->month, ltime->day,
 			       ltime->hour, ltime->minute, ltime->second,
 			       ltime->second_part);

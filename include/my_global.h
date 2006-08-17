@@ -414,12 +414,32 @@ typedef unsigned short ushort;
 #define function_volatile	volatile
 #define my_reinterpret_cast(A) reinterpret_cast<A>
 #define my_const_cast(A) const_cast<A>
+# ifndef GCC_VERSION
+#  define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
+# endif
 #elif !defined(my_reinterpret_cast)
 #define my_reinterpret_cast(A) (A)
 #define my_const_cast(A) (A)
 #endif
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+
+/*
+  Disable __attribute__() on GCC < 2.7 and non-GCC compilers
+*/
+#if !defined(__attribute__) && (!defined(__GNUC__) || GCC_VERSION < 2007)
 #define __attribute__(A)
+#endif
+
+/*
+  __attribute__((format(...))) is only supported in gcc >= 2.8 and g++ >= 3.4
+*/
+#ifndef ATTRIBUTE_FORMAT
+# if defined(__GNUC__) && \
+     ((!defined(__cplusplus__) && GCC_VERSION >= 2008) || \
+      GCC_VERSION >= 3004)
+#  define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))
+# else
+#  define ATTRIBUTE_FORMAT(style, m, n)
+# endif
 #endif
 
 /* From old s-system.h */
