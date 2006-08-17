@@ -1409,7 +1409,7 @@ static void network_init(void)
   uint  waited;
   uint  this_wait;
   uint  retry;
-  DBUG_ENTER("server_init");
+  DBUG_ENTER("network_init");
   LINT_INIT(ret);
 
   set_ports();
