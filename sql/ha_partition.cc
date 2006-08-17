@@ -1134,7 +1134,9 @@ int ha_partition::prepare_new_partition(TABLE *table,
   bool open_flag= FALSE;
   DBUG_ENTER("prepare_new_partition");
 
-  set_up_table_before_create(table, part_name, create_info, 0, p_elem);
+  if ((error= set_up_table_before_create(table, part_name, create_info,
+                                         0, p_elem)))
+    goto error;
   if ((error= file->create(part_name, table, create_info)))
     goto error;
   create_flag= TRUE;
@@ -1633,7 +1635,7 @@ uint ha_partition::del_ren_cre_table(const char *from,
   char from_buff[FN_REFLEN], to_buff[FN_REFLEN];
   char *name_buffer_ptr;
   uint i;
-  handler **file;
+  handler **file, **abort_file;
   DBUG_ENTER("del_ren_cre_table()");
 
   if (get_from_handler_file(from, current_thd->mem_root))
@@ -1657,8 +1659,10 @@ uint ha_partition::del_ren_cre_table(const char *from,
       error= (*file)->delete_table((const char*) from_buff);
     else
     {
-      set_up_table_before_create(table_arg, from_buff, create_info, i, NULL);
-      error= (*file)->create(from_buff, table_arg, create_info);
+      if ((error= set_up_table_before_create(table_arg, from_buff,
+                                             create_info, i, NULL)) ||
+          ((error= (*file)->create(from_buff, table_arg, create_info))))
+        goto create_error;
     }
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
     if (error)
@@ -1666,6 +1670,16 @@ uint ha_partition::del_ren_cre_table(const char *from,
     i++;
   } while (*(++file));
   DBUG_RETURN(save_error);
+create_error:
+  name_buffer_ptr= m_name_buffer_ptr;
+  for (abort_file= file, file= m_file; file < abort_file; file++)
+  {
+    create_partition_name(from_buff, from, name_buffer_ptr, NORMAL_PART_NAME,
+                          FALSE);
+    VOID((*file)->delete_table((const char*) from_buff));
+    name_buffer_ptr= strend(name_buffer_ptr) + 1;
+  }
+  DBUG_RETURN(error);
 }
 
 /*
@@ -1720,7 +1734,8 @@ partition_element *ha_partition::find_partition_element(uint part_id)
      part_id                     Partition id of partition to set-up
 
    RETURN VALUE
-     NONE
+     TRUE                        Error
+     FALSE                       Success
 
    DESCRIPTION
      Set up
@@ -1730,31 +1745,40 @@ partition_element *ha_partition::find_partition_element(uint part_id)
      4) Data file name on partition
 */
 
-void ha_partition::set_up_table_before_create(TABLE *table,
-                   const char *partition_name_with_path, 
-                   HA_CREATE_INFO *info,
-                   uint part_id,
-                   partition_element *part_elem)
+int ha_partition::set_up_table_before_create(TABLE *table,
+                    const char *partition_name_with_path, 
+                    HA_CREATE_INFO *info,
+                    uint part_id,
+                    partition_element *part_elem)
 {
+  int error= 0;
+  const char *partition_name;
+  THD *thd= current_thd;
+  DBUG_ENTER("set_up_table_before_create");
+
   if (!part_elem)
   {
     part_elem= find_partition_element(part_id);
     if (!part_elem)
-      return;                                   // Fatal error
+      DBUG_RETURN(1);                             // Fatal error
   }
   table->s->max_rows= part_elem->part_max_rows;
   table->s->min_rows= part_elem->part_min_rows;
-  const char *partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
-  if (part_elem->index_file_name)
-    append_file_to_dir(current_thd,
-                       (const char**)&part_elem->index_file_name,
-                       partition_name+1);
-  if (part_elem->data_file_name)
-    append_file_to_dir(current_thd,
-                       (const char**)&part_elem->data_file_name,
-                       partition_name+1);
+  partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
+  if ((part_elem->index_file_name &&
+      (error= append_file_to_dir(thd,
+                                 (const char**)&part_elem->index_file_name,
+                                 partition_name+1))) ||
+      (part_elem->data_file_name &&
+      (error= append_file_to_dir(thd,
+                                 (const char**)&part_elem->data_file_name,
+                                 partition_name+1))))
+  {
+    DBUG_RETURN(error);
+  }
   info->index_file_name= part_elem->index_file_name;
   info->data_file_name= part_elem->data_file_name;
+  DBUG_RETURN(0);
 }
 
 
