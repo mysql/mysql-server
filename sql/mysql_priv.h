@@ -712,7 +712,8 @@ void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level, uint code,
                           const char *msg);
 void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
-			 uint code, const char *format, ...);
+                         uint code, const char *format, ...)
+  ATTRIBUTE_FORMAT(printf,4,5);
 void mysql_reset_errors(THD *thd);
 my_bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
@@ -847,10 +848,10 @@ bool init_errmessage(void);
 void sql_perror(const char *message);
 
 void vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
-void sql_print_error(const char *format, ...);
-void sql_print_warning(const char *format, ...);
-void sql_print_information(const char *format, ...);
-
+void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_information(const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 
 
 bool fn_format_relative_to_data_home(my_string to, const char *name,
