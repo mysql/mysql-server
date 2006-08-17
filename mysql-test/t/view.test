@@ -2723,6 +2723,7 @@ DROP VIEW IF EXISTS v1;
 # Bug #21261: Wrong access rights was required for an insert to a view
 #
 CREATE DATABASE bug21261DB;
+USE bug21261DB;
 CONNECT (root,localhost,root,,bug21261DB);
 CONNECTION root;
 
@@ -2748,6 +2749,7 @@ DROP USER 'user21261'@'localhost';
 DROP VIEW v1;
 DROP TABLE t1;
 DROP DATABASE bug21261DB;
+USE test;
 
 #
 # Bug #15950: NOW() optimized away in VIEWs

@@ -2851,6 +2851,7 @@ t1
 DROP TABLE t1;
 DROP VIEW IF EXISTS v1;
 CREATE DATABASE bug21261DB;
+USE bug21261DB;
 CREATE TABLE t1 (x INT);
 CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
 GRANT INSERT, UPDATE ON v1 TO 'user21261'@'localhost';
@@ -2869,6 +2870,7 @@ DROP USER 'user21261'@'localhost';
 DROP VIEW v1;
 DROP TABLE t1;
 DROP DATABASE bug21261DB;
+USE test;
 create table t1 (f1 datetime);
 create view v1 as select * from t1 where f1 between now() and now() + interval 1 minute;
 show create view v1;
