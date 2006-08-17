@@ -16,7 +16,6 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include 
-		    ${CMAKE_SOURCE_DIR}/storage/bdb/build_win32
                     ${CMAKE_SOURCE_DIR}/zlib 
 )
 
@@ -84,9 +83,6 @@ ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(mysqlserver innobase)
 ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
-IF(WITH_BERKELEY_STORAGE_ENGINE)
-  ADD_DEPENDENCIES(mysqlserver bdb)
-ENDIF(WITH_BERKELEY_STORAGE_ENGINE)
 
 ADD_LIBRARY(libmysqld MODULE cmake_dummy.c libmysqld.def)
 TARGET_LINK_LIBRARIES(libmysqld wsock32)

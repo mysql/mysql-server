@@ -479,7 +479,7 @@ drop table t1;
 create table t1 (
 c char(10) character set utf8,
 unique key a (c(1))
-) engine=bdb;
+) engine=innodb;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'aa' for key 'a'
@@ -637,7 +637,7 @@ drop table t1;
 create table t1 (
 c char(10) character set utf8 collate utf8_bin,
 unique key a (c(1))
-) engine=bdb;
+) engine=innodb;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'aa' for key 'a'
@@ -707,7 +707,7 @@ drop table t1;
 create table t1 (
 str varchar(255) character set utf8 not null,
 key str (str(2))
-) engine=bdb;
+) engine=innodb;
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -796,7 +796,7 @@ insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
 a	b
 2	foobar
-alter table t1 engine=bdb;
+alter table t1 engine=innodb;
 select * from t1 where b like 'foob%';
 a	b
 2	foobar
@@ -1281,6 +1281,22 @@ id	tid	val
 42749	72	VOLNÝ ADSL
 44205	72	VOLNÝ ADSL
 DROP TABLE t1;
+create table t1(a char(200) collate utf8_unicode_ci NOT NULL default '')
+default charset=utf8 collate=utf8_unicode_ci;
+insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
+explain select distinct a from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+select distinct a from t1;
+a
+e
+explain select a from t1 group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+select a from t1 group by a;
+a
+e
+drop table t1;
 CREATE TABLE t1(id varchar(20) NOT NULL) DEFAULT CHARSET=utf8;
 INSERT INTO t1 VALUES ('xxx'), ('aa'), ('yyy'), ('aa');
 SELECT id FROM t1;
