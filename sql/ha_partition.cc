@@ -1752,6 +1752,8 @@ int ha_partition::set_up_table_before_create(TABLE *table,
                     partition_element *part_elem)
 {
   int error= 0;
+  const char *partition_name;
+  THD *thd= current_thd;
   DBUG_ENTER("set_up_table_before_create");
 
   if (!part_elem)
@@ -1762,17 +1764,16 @@ int ha_partition::set_up_table_before_create(TABLE *table,
   }
   table->s->max_rows= part_elem->part_max_rows;
   table->s->min_rows= part_elem->part_min_rows;
-  const char *partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
+  partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
   if ((part_elem->index_file_name &&
-      (error= append_file_to_dir(current_thd,
+      (error= append_file_to_dir(thd,
                                  (const char**)&part_elem->index_file_name,
                                  partition_name+1))) ||
       (part_elem->data_file_name &&
-      (error= append_file_to_dir(current_thd,
+      (error= append_file_to_dir(thd,
                                  (const char**)&part_elem->data_file_name,
                                  partition_name+1))))
   {
-    DBUG_ASSERT(error);
     DBUG_RETURN(error);
   }
   info->index_file_name= part_elem->index_file_name;
