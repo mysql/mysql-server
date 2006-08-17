@@ -907,7 +907,6 @@ private:
   bool m_force_send;
   ha_rows m_autoincrement_prefetch;
   bool m_transaction_on;
-  void release_completed_operations(NdbTransaction*, bool);
 
   Ndb_cond_stack *m_cond_stack;
   bool m_disable_multi_read;

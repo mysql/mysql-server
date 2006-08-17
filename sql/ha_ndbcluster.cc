@@ -9611,24 +9611,6 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
   DBUG_RETURN(0);
 }
 
-
-void 
-ha_ndbcluster::release_completed_operations(NdbTransaction *trans,
-					    bool force_release)
-{
-  if (!force_release)
-  {
-    if (get_thd_ndb(current_thd)->query_state & NDB_QUERY_MULTI_READ_RANGE)
-    {
-      /* We are batching reads and have not consumed all fetched
-	 rows yet, releasing operation records is unsafe 
-      */
-      return;
-    }
-  }
-  trans->releaseCompletedOperations();
-}
-
 /*
   get table space info for SHOW CREATE TABLE
 */
