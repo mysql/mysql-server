@@ -588,8 +588,8 @@ extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
 extern int my_sync(File fd, myf my_flags);
 extern int my_error _VARARGS((int nr,myf MyFlags, ...));
 extern int my_printf_error _VARARGS((uint my_err, const char *format,
-				     myf MyFlags, ...)
-				    __attribute__ ((format (printf, 2, 4))));
+				     myf MyFlags, ...))
+                                    ATTRIBUTE_FORMAT(printf, 2, 4);
 extern int my_message(uint my_err, const char *str,myf MyFlags);
 extern int my_message_no_curses(uint my_err, const char *str,myf MyFlags);
 extern int my_message_curses(uint my_err, const char *str,myf MyFlags);

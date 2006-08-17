@@ -247,7 +247,8 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 
 extern int my_vsnprintf( char *str, size_t n,
                                 const char *format, va_list ap );
-extern int my_snprintf(char* to, size_t n, const char* fmt, ...);
+extern int my_snprintf(char *to, size_t n, const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 3, 4);
 
 #if defined(__cplusplus) && !defined(OS2)
 }

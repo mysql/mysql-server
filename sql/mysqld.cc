@@ -952,8 +952,8 @@ extern "C" sig_handler print_signal_warning(int sig)
   if (!DBUG_IN_USE)
   {
     if (global_system_variables.log_warnings)
-      sql_print_warning("Got signal %d from thread %d",
-		      sig,my_thread_id());
+      sql_print_warning("Got signal %d from thread %ld",
+                        sig, my_thread_id());
   }
 #ifdef DONT_REMEMBER_SIGNAL
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
@@ -1443,8 +1443,8 @@ static void server_init(void)
 
     if (strlen(mysqld_unix_port) > (sizeof(UNIXaddr.sun_path) - 1))
     {
-      sql_print_error("The socket file path is too long (> %d): %s",
-                    sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
+      sql_print_error("The socket file path is too long (> %lu): %s",
+                      sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
       unireg_abort(1);
     }
     if ((unix_sock= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
@@ -2786,9 +2786,9 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
     sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
     abort();
   }
-  if (err) 
+  if (err)
   {
-    sql_print_error("Fatal: can't %s OpenSSL %s lock", what);
+    sql_print_error("Fatal: can't %s OpenSSL lock", what);
     abort();
   }
 }
@@ -6549,14 +6549,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(1);
     }
     switch (method-1) {
-    case 0: 
-      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
+    case 2:
+      method_conv= MI_STATS_METHOD_IGNORE_NULLS;
       break;
     case 1:
       method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
       break;
-    case 2:
-      method_conv= MI_STATS_METHOD_IGNORE_NULLS;
+    case 0:
+    default:
+      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
       break;
     }
     global_system_variables.myisam_stats_method= method_conv;
