@@ -8,8 +8,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql 
                     ${CMAKE_SOURCE_DIR}/regex 
                     ${CMAKE_SOURCE_DIR}/zlib
-                    ${CMAKE_SOURCE_DIR}/storage/bdb/build_win32
-                    ${CMAKE_SOURCE_DIR}/storage/bdb/dbinc)
+)
 
 SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/message.rc 
 							${CMAKE_SOURCE_DIR}/sql/message.h 
@@ -29,7 +28,7 @@ ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DMYSQL_SERVER
 ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
                filesort.cc gstream.cc  ha_heap.cc ha_myisam.cc ha_myisammrg.cc
-               ha_innodb.cc ha_partition.cc ha_federated.cc ha_berkeley.cc
+               ha_innodb.cc ha_partition.cc ha_federated.cc
                handler.cc hash_filo.cc hash_filo.h 
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
@@ -79,9 +78,6 @@ ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld innobase)
 ENDIF(WITH_INNOBASE_STORAGE_ENGINE)
-IF(WITH_BERKELEY_STORAGE_ENGINE)
-  TARGET_LINK_LIBRARIES(mysqld bdb)
-ENDIF(WITH_BERKELEY_STORAGE_ENGINE)
 
 ADD_DEPENDENCIES(mysqld GenError)
 

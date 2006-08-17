@@ -256,7 +256,7 @@ int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
 }
 
 inline
-int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans, 
+int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 		      bool force_release)
 {
 #ifdef NOT_USED
@@ -299,7 +299,7 @@ int execute_commit(THD *thd, NdbTransaction *trans)
 }
 
 inline
-int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans, 
+int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 			 bool force_release)
 {
 #ifdef NOT_USED
@@ -7585,6 +7585,30 @@ int ha_ndbcluster::write_ndb_file(const char *name)
   DBUG_RETURN(error);
 }
 
+void 
+ha_ndbcluster::release_completed_operations(NdbTransaction *trans,
+					    bool force_release)
+{
+  if (trans->hasBlobOperation())
+  {
+    /* We are reading/writing BLOB fields, 
+       releasing operation records is unsafe
+    */
+    return;
+  }
+  if (!force_release)
+  {
+    if (get_thd_ndb(current_thd)->query_state & NDB_QUERY_MULTI_READ_RANGE)
+    {
+      /* We are batching reads and have not consumed all fetched
+	 rows yet, releasing operation records is unsafe 
+      */
+      return;
+    }
+  }
+  trans->releaseCompletedOperations();
+}
+
 int
 ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                       KEY_MULTI_RANGE *ranges, 
@@ -7786,7 +7810,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
    */
   m_current_multi_operation= 
     lastOp ? lastOp->next() : m_active_trans->getFirstDefinedOperation();
-  if (!(res= execute_no_commit_ie(this, m_active_trans,true)))
+  if (!(res= execute_no_commit_ie(this, m_active_trans, true)))
   {
     m_multi_range_defined= multi_range_curr;
     multi_range_curr= ranges;
