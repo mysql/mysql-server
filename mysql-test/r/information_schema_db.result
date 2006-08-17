@@ -104,3 +104,50 @@ v2	VIEW	View 'test.v2' references invalid table(s) or column(s) or function(s) o
 drop function f1;
 drop function f2;
 drop view v1, v2;
+create database testdb_1;
+create user testdb_1@localhost;
+grant all on testdb_1.* to testdb_1@localhost with grant option;
+create user testdb_2@localhost;
+grant all on test.* to testdb_2@localhost with grant option;
+use testdb_1;
+create table t1 (f1 char(4));
+create view v1 as select f1 from t1;
+grant insert on v1 to testdb_2@localhost;
+create table t3 (f1 char(4), f2 char(4));
+create view v3 as select f1,f2 from t3;
+grant insert(f1), insert(f2) on v3 to testdb_2@localhost;
+create view v2 as select f1 from testdb_1.v1;
+create view v4 as select f1,f2 from testdb_1.v3;
+revoke insert(f1) on v3 from testdb_2@localhost;
+show create view v4;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+show fields from v4;
+ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
+show fields from v2;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show fields from testdb_1.v1;
+Field	Type	Null	Key	Default	Extra
+f1	char(4)	YES		NULL	
+show create view v2;
+View	Create View
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`testdb_2`@`localhost` SQL SECURITY DEFINER VIEW `test`.`v2` AS select `v1`.`f1` AS `f1` from `testdb_1`.`v1`
+show create view testdb_1.v1;
+ERROR 42000: SHOW VIEW command denied to user 'testdb_2'@'localhost' for table 'v1'
+select table_name from information_schema.columns a 
+where a.table_name = 'v2';
+table_name
+v2
+select view_definition from information_schema.views a 
+where a.table_name = 'v2';
+view_definition
+/* ALGORITHM=UNDEFINED */ select `v1`.`f1` AS `f1` from `testdb_1`.`v1`
+select view_definition from information_schema.views a 
+where a.table_name = 'testdb_1.v1';
+view_definition
+select * from v2;
+ERROR HY000: View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+drop view testdb_1.v1,v2, testdb_1.v3, v4;
+drop database testdb_1;
+drop user testdb_1@localhost;
+drop user testdb_2@localhost;
