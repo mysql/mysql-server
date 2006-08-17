@@ -501,44 +501,46 @@ int Instance::stop()
   struct timespec timeout;
   uint waitchild= (uint)  DEFAULT_SHUTDOWN_DELAY;
 
-  if (options.shutdown_delay)
+  if (is_running())
   {
-    /*
-      NOTE: it is important to check shutdown_delay here, but use
-      shutdown_delay_val. The idea is that if the option is unset,
-      shutdown_delay will be NULL, but shutdown_delay_val will not be reset.
-    */
-    waitchild= options.shutdown_delay_val;
+    if (options.shutdown_delay)
+    {
+      /*
+        NOTE: it is important to check shutdown_delay here, but use
+        shutdown_delay_val. The idea is that if the option is unset,
+        shutdown_delay will be NULL, but shutdown_delay_val will not be reset.
+      */
+      waitchild= options.shutdown_delay_val;
+    }
   }
 
-  kill_instance(SIGTERM);
-  /* sleep on condition to wait for SIGCHLD */
+    kill_instance(SIGTERM);
+    /* sleep on condition to wait for SIGCHLD */
 
-  timeout.tv_sec= time(NULL) + waitchild;
-  timeout.tv_nsec= 0;
-  if (pthread_mutex_lock(&LOCK_instance))
-    goto err;
+    timeout.tv_sec= time(NULL) + waitchild;
+    timeout.tv_nsec= 0;
+    if (pthread_mutex_lock(&LOCK_instance))
+      return ER_STOP_INSTANCE;
 
-  while (options.get_pid() != 0)              /* while server isn't stopped */
-  {
-    int status;
+    while (options.get_pid() != 0)              /* while server isn't stopped */
+    {
+      int status;
 
-    status= pthread_cond_timedwait(&COND_instance_stopped,
-                                   &LOCK_instance,
-                                   &timeout);
-    if (status == ETIMEDOUT || status == ETIME)
-      break;
+      status= pthread_cond_timedwait(&COND_instance_stopped,
+                                     &LOCK_instance,
+                                     &timeout);
+      if (status == ETIMEDOUT || status == ETIME)
+        break;
+    }
+
+    pthread_mutex_unlock(&LOCK_instance);
+
+    kill_instance(SIGKILL);
+
+    return 0;
   }
-
-  pthread_mutex_unlock(&LOCK_instance);
-
-  kill_instance(SIGKILL);
-
-  return 0;
 
   return ER_INSTANCE_IS_NOT_STARTED;
-err:
-  return ER_STOP_INSTANCE;
 }
 
 #ifdef __WIN__
