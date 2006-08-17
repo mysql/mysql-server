@@ -5410,7 +5410,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       result= TRUE;
     }
   }
-
+  
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
 
