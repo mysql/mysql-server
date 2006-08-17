@@ -1004,7 +1004,7 @@ bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item **it)
 *****************************************************************************/
 
 Item_case_expr::Item_case_expr(int case_expr_id)
-  :Item_sp_variable((char *) STRING_WITH_LEN("case_expr")),
+  :Item_sp_variable( C_STRING_WITH_LEN("case_expr")),
    m_case_expr_id(case_expr_id)
 {
 }
