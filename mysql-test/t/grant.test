@@ -682,4 +682,10 @@ drop table t2;
 
 drop table t1;
 
+#
+# Bug #10668: CREATE USER does not enforce username length limit
+#
+--error ER_CANNOT_USER
+create user mysqltest1_thisisreallytoolong;
 
+--echo End of 5.0 tests
