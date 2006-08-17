@@ -446,6 +446,24 @@ create table t1 select now() - now(), curtime() - curtime(),
 show create table t1;
 drop table t1;
 
+#
+# Bug #19844 time_format in Union truncates values
+#
+
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H);
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%k') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%k') As H);
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%H') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%H') As H);
+
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%k') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%k') As H);
+
 --echo End of 4.1 tests
 
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,

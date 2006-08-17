@@ -1,7 +1,11 @@
 #ifndef INCLUDES_MYSQL_INSTANCE_MANAGER_PORTABILITY_H
 #define INCLUDES_MYSQL_INSTANCE_MANAGER_PORTABILITY_H
 
-#if defined(_SCO_DS) && !defined(SHUT_RDWR)
+#if (defined(_SCO_DS) || defined(UNIXWARE_7)) && !defined(SHUT_RDWR)
+/*
+   SHUT_* functions are defined only if
+   "(defined(_XOPEN_SOURCE) && _XOPEN_SOURCE_EXTENDED - 0 >= 1)"
+*/
 #define SHUT_RDWR 2
 #endif
 
