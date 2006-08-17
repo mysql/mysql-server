@@ -1620,12 +1620,6 @@ extern handlerton innobase_hton;
 #else
 extern SHOW_COMP_OPTION have_innodb;
 #endif
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-extern handlerton berkeley_hton;
-#define have_berkeley_db berkeley_hton.state
-#else
-extern SHOW_COMP_OPTION have_berkeley_db;
-#endif
 #ifdef WITH_EXAMPLE_STORAGE_ENGINE
 extern handlerton example_hton;
 #define have_example_db example_hton.state

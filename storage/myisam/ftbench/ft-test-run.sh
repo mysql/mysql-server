@@ -65,7 +65,7 @@ for batch in t/* ; do
   done
 
   echo "=====================================" >> var/ft_test.log
-  $MYSQLD $OPTS --basedir=$BASE --skip-bdb --pid-file=$PID \
+  $MYSQLD $OPTS --basedir=$BASE --pid-file=$PID \
                 --language=$ROOT/sql/share/english \
                 --skip-grant-tables --skip-innodb \
                 --skip-networking --tmpdir=$DATA >> var/ft_test.log 2>&1 &
