@@ -547,7 +547,7 @@ handle_new_error:
 	    "InnoDB: tables and recreate the whole InnoDB tablespace.\n"
 	    "InnoDB: If the mysqld server crashes after the startup or when\n"
 	    "InnoDB: you dump the tables, look at\n"
-	    "InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html"
+	    "InnoDB: http://dev.mysql.com/doc/refman/5.0/en/forcing-recovery.html"
 	    " for help.\n", stderr);
 
 	} else {
@@ -1077,7 +1077,7 @@ row_insert_for_mysql(
 "InnoDB: Have you deleted the .ibd file from the database directory under\n"
 "InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
 "InnoDB: Look from\n"
-"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
 		return(DB_ERROR);
@@ -1312,7 +1312,7 @@ row_update_for_mysql(
 "InnoDB: Have you deleted the .ibd file from the database directory under\n"
 "InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
 "InnoDB: Look from\n"
-"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
 		return(DB_ERROR);
@@ -1964,8 +1964,8 @@ row_create_table_for_mysql(
      "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
      "InnoDB: succeed.\n"
      "InnoDB: You can look for further help from\n"
-     "InnoDB: http://dev.mysql.com/doc/mysql/en/"
-     "InnoDB_troubleshooting_datadict.html\n", stderr);
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+				stderr);
 		}
 		
 		/* We may also get err == DB_ERROR if the .ibd file for the
@@ -3207,8 +3207,8 @@ row_drop_table_for_mysql(
      	"InnoDB: Have you copied the .frm file of the table to the\n"
 	"InnoDB: MySQL database directory from another database?\n"
 	"InnoDB: You can look for further help from\n"
-	"InnoDB: http://dev.mysql.com/doc/mysql/en/"
-	"InnoDB_troubleshooting_datadict.html\n", stderr);
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+				stderr);
 		goto funct_exit;
 	}
 
@@ -3675,8 +3675,8 @@ row_rename_table_for_mysql(
      	"InnoDB: Have you copied the .frm file of the table to the\n"
 	"InnoDB: MySQL database directory from another database?\n"
 	"InnoDB: You can look for further help from\n"
-        "InnoDB: http://dev.mysql.com/doc/mysql/en/"
-	"InnoDB_troubleshooting_datadict.html\n", stderr);
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+				stderr);
 		goto funct_exit;
 	}
 
@@ -3689,8 +3689,8 @@ row_rename_table_for_mysql(
                 fputs(
 	" does not have an .ibd file in the database directory.\n"
 	"InnoDB: You can look for further help from\n"
-        "InnoDB: http://dev.mysql.com/doc/mysql/en/"
-	"InnoDB_troubleshooting_datadict.html\n", stderr);
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+			stderr);
 		goto funct_exit;
 	}
 
@@ -3829,8 +3829,7 @@ row_rename_table_for_mysql(
 		fputs(" to it.\n"
      "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n"
      "InnoDB: You can look for further help from\n"
-     "InnoDB: http://dev.mysql.com/doc/mysql/en/"
-     "InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
      "InnoDB: If table ", stderr);
 			ut_print_name(stderr, trx, new_name);
 			fputs(
@@ -4081,7 +4080,7 @@ row_check_table_for_mysql(
 "InnoDB: Have you deleted the .ibd file from the database directory under\n"
 "InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
 "InnoDB: Look from\n"
-"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
 		return(DB_ERROR);
