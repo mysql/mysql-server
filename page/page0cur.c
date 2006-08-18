@@ -976,7 +976,7 @@ too_small:
 				} else if (UNIV_UNLIKELY(extra_size_diff)) {
 					/* Do not allow extra_size to grow */
 
-					goto use_heap;
+					goto too_small;
 				}
 			}
 
