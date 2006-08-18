@@ -3101,7 +3101,7 @@ row_search_for_mysql(
 "InnoDB: Have you deleted the .ibd file from the database directory under\n"
 "InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
 "InnoDB: Look from\n"
-"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
 
