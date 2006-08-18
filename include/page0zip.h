@@ -224,16 +224,6 @@ page_zip_write_trx_id_and_roll_ptr(
 	__attribute__((nonnull));
 
 /**************************************************************************
-Populate the dense page directory on the compressed page
-from the sparse directory on the uncompressed row_format=compact page. */
-void
-page_zip_dir_rewrite(
-/*=================*/
-	page_zip_des_t*	page_zip,/* out: dense directory on compressed page */
-	const page_t*	page)	/* in: uncompressed page  */
-	__attribute__((nonnull));
-
-/**************************************************************************
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
 
@@ -256,6 +246,20 @@ page_zip_rec_set_owned(
 	const byte*	rec,	/* in: record on the uncompressed page */
 	ulint		flag)	/* in: the owned flag (nonzero=TRUE) */
 	__attribute__((nonnull));
+
+/**************************************************************************
+Insert a record to the dense page directory. */
+
+void
+page_zip_dir_insert(
+/*================*/
+	page_zip_des_t*	page_zip,/* in/out: compressed page */
+	const byte*	prev_rec,/* in: record after which to insert */
+	const byte*	free_rec,/* in: record from which rec was
+				allocated, or NULL */
+	byte*		rec,	/* in: record to insert */
+	dict_index_t*	index,	/* in: index of rec */
+	const ulint*	offsets);/* in: rec_get_offsets(rec) */
 
 /**************************************************************************
 Shift the dense page directory and the array of BLOB pointers

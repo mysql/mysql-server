@@ -1308,14 +1308,12 @@ page_dir_split_slot(
 	/* 3. We store the appropriate values to the new slot. */
 
 	page_dir_slot_set_rec(new_slot, rec);
-	/* Pass page_zip==NULL here, because the caller will rewrite
-	the dense page directory by invoking page_zip_dir_rewrite(). */
-	page_dir_slot_set_n_owned(new_slot, NULL, n_owned / 2);
+	page_dir_slot_set_n_owned(new_slot, page_zip, n_owned / 2);
 
 	/* 4. Finally, we update the number of records field of the
 	original slot */
 
-	page_dir_slot_set_n_owned(slot, NULL, n_owned - (n_owned / 2));
+	page_dir_slot_set_n_owned(slot, page_zip, n_owned - (n_owned / 2));
 }
 
 /*****************************************************************
