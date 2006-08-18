@@ -15,6 +15,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0rec.h"
 #include "rem0cmp.h"
 #include "page0page.h"
+#include "page0zip.h"
 #include "dict0dict.h"
 #include "btr0cur.h"
 
