@@ -338,7 +338,7 @@ static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
 static sig_handler mysql_end(int sig);
-static sig_handler mysql_sigint(int sig);
+static sig_handler handle_sigint(int sig);
 
 int main(int argc,char *argv[])
 {
@@ -421,7 +421,6 @@ int main(int argc,char *argv[])
     signal(SIGINT, SIG_IGN);
   else
     signal(SIGINT, handle_sigint);              // Catch SIGINT to clean up
-
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
 
   /*
@@ -487,28 +486,6 @@ int main(int argc,char *argv[])
 #ifndef _lint
   DBUG_RETURN(0);				// Keep compiler happy
 #endif
-}
-
-sig_handler mysql_sigint(int sig)
-{
-  char kill_buffer[40];
-  MYSQL *kill_mysql= NULL;
-
-  signal(SIGINT, mysql_sigint);
-
-  /* terminate if no query being executed, or we already tried interrupting */
-  if (!executing_query || interrupted_query++)
-    mysql_end(sig);
-
-  kill_mysql= mysql_init(kill_mysql);
-  if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
-                          "", opt_mysql_port, opt_mysql_unix_port,0))
-    mysql_end(sig);
-  /* kill_buffer is always big enough because max length of %lu is 15 */
-  sprintf(kill_buffer, "KILL /*!50000 QUERY */ %lu", mysql_thread_id(&mysql));
-  mysql_real_query(kill_mysql, kill_buffer, strlen(kill_buffer));
-  mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Query aborted by Ctrl+C\n");
 }
 
 sig_handler mysql_end(int sig)
@@ -1057,8 +1034,6 @@ static int read_and_execute(bool interactive)
 			     "    \"> "));
       if (opt_outfile && glob_buffer.is_empty())
 	fflush(OUTFILE);
-
-      interrupted_query= 0;
 
 #if defined( __WIN__) || defined(__NETWARE__)
       tee_fputs(prompt, stdout);
@@ -2041,9 +2016,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
 
   timer=start_timer();
-
   executing_query= 1;
-
   error= mysql_real_query_for_lazy(buffer->ptr(),buffer->length());
 
 #ifdef HAVE_READLINE
@@ -2059,7 +2032,6 @@ com_go(String *buffer,char *line __attribute__((unused)))
   {
     executing_query= 0;
     buffer->length(0); // Remove query on error
-    executing_query= 0;
     return error;
   }
   error=0;
@@ -2143,9 +2115,6 @@ com_go(String *buffer,char *line __attribute__((unused)))
       fflush(stdout);
     mysql_free_result(result);
   } while (!(err= mysql_next_result(&mysql)));
-
-  executing_query= 0;
-
   if (err >= 1)
     error= put_error(&mysql);
 
