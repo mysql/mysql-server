@@ -2171,7 +2171,7 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 
 
 /* INFORMATION_SCHEMA name */
-LEX_STRING information_schema_name= {(char*)"information_schema", 18};
+LEX_STRING information_schema_name= { C_STRING_WITH_LEN("information_schema")};
 
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
@@ -3214,10 +3214,10 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
     if (!(wild && wild[0] &&
           wild_case_compare(scs, plugin->name.str,wild)))
     {
-      LEX_STRING state[2]= {{(char*) STRING_WITH_LEN("ENABLED")},
-                            {(char*) STRING_WITH_LEN("DISABLED")}};
-      LEX_STRING yesno[2]= {{(char*) STRING_WITH_LEN("NO")},
-                            {(char*) STRING_WITH_LEN("YES")}};
+      LEX_STRING state[2]= {{ C_STRING_WITH_LEN("ENABLED") },
+                            { C_STRING_WITH_LEN("DISABLED") }};
+      LEX_STRING yesno[2]= {{ C_STRING_WITH_LEN("NO") },
+                            { C_STRING_WITH_LEN("YES") }};
       LEX_STRING *tmp;
       restore_record(table, s->default_values);
 
