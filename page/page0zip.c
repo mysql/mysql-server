@@ -2780,20 +2780,6 @@ page_zip_clear_rec(
 }
 
 /**************************************************************************
-Populate the dense page directory on the compressed page
-from the sparse directory on the uncompressed row_format=compact page. */
-void
-page_zip_dir_rewrite(
-/*=================*/
-	page_zip_des_t*	page_zip,/* out: dense directory on compressed page */
-	const page_t*	page)	/* in: uncompressed page  */
-{
-	ut_ad(page_zip_simple_validate(page_zip));
-
-	page_zip_dir_encode(page, page_zip->data + page_zip->size, NULL);
-}
-
-/**************************************************************************
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
 
@@ -2833,6 +2819,76 @@ page_zip_rec_set_owned(
 	} else {
 		*slot &= ~(PAGE_ZIP_DIR_SLOT_OWNED >> 8);
 	}
+}
+
+/**************************************************************************
+Insert a record to the dense page directory. */
+
+void
+page_zip_dir_insert(
+/*================*/
+	page_zip_des_t*	page_zip,/* in/out: compressed page */
+	const byte*	prev_rec,/* in: record after which to insert */
+	const byte*	free_rec,/* in: record from which rec was
+				allocated, or NULL */
+	byte*		rec,	/* in: record to insert */
+	dict_index_t*	index,	/* in: index of rec */
+	const ulint*	offsets)/* in: rec_get_offsets(rec) */
+{
+	ulint	n_dense;
+	byte*	slot_rec;
+	byte*	slot_free;
+
+	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(rec_offs_comp(offsets));
+	ut_ad(prev_rec != rec);
+	ut_ad(page_rec_get_next((rec_t*) prev_rec) == rec);
+
+	if (page_rec_is_infimum(prev_rec)) {
+		/* Use the first slot. */
+		slot_rec = page_zip->data + page_zip->size;
+	} else {
+		slot_rec = page_zip_dir_find(page_zip,
+				ut_align_offset(prev_rec, UNIV_PAGE_SIZE));
+		ut_a(slot_rec);
+	}
+
+	/* Read the old n_dense (n_heap may have been incremented).
+	Subtract 2 for the infimum and supremum records. */
+	n_dense = page_dir_get_n_heap(page_zip->data) - 3;
+
+	if (UNIV_LIKELY_NULL(free_rec)) {
+		/* The record was allocated from the free list.
+		Shift the dense directory only up to that slot.
+		Note that in this case, n_dense is actually
+		off by one, because page_cur_insert_rec_low()
+		did not increment n_heap. */
+		ut_ad(rec_get_heap_no_new(rec) < n_dense + 1
+				+ 2/* infimum and supremum */);
+		ut_ad(rec >= free_rec);
+		slot_free = page_zip_dir_find(page_zip,
+				ut_align_offset(free_rec, UNIV_PAGE_SIZE));
+		ut_ad(slot_free);
+		slot_free += PAGE_ZIP_DIR_SLOT_SIZE;
+	} else {
+		/* The record was allocated from the heap.
+		Shift the entire dense directory. */
+		ut_ad(rec_get_heap_no_new(rec) == n_dense
+				+ 2/* infimum and supremum */);
+
+		/* Shift to the end of the dense page directory. */
+		slot_free = page_zip->data + page_zip->size
+				- PAGE_ZIP_DIR_SLOT_SIZE * n_dense;
+	}
+
+	/* Shift the dense directory to allocate place for rec. */
+	memmove(slot_free - PAGE_ZIP_DIR_SLOT_SIZE, slot_free,
+			slot_rec - slot_free);
+
+	/* Write the entry for the inserted record.
+	The "owned" and "deleted" flags must be zero. */
+	mach_write_to_2(slot_rec - PAGE_ZIP_DIR_SLOT_SIZE,
+			ut_align_offset(rec, UNIV_PAGE_SIZE));
 }
 
 /**************************************************************************

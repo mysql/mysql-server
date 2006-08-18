@@ -903,6 +903,8 @@ page_cur_insert_rec_low(
 	ulint		rec_size;
 	byte*		page;		/* the relevant page */
 	rec_t*		last_insert;	/* cursor position at previous insert */
+	rec_t*		free_rec;	/* a free record that was reused,
+					or NULL */
 	rec_t*		insert_rec;	/* inserted record */
 	ulint		heap_no;	/* heap number of the inserted record */
 	rec_t*		current_rec;	/* current record after which the
@@ -932,10 +934,9 @@ page_cur_insert_rec_low(
 		page_zip = NULL;
 	}
 
-	insert_buf = page_header_get_ptr(page, PAGE_FREE);
-	if (insert_buf) {
+	free_rec = page_header_get_ptr(page, PAGE_FREE);
+	if (UNIV_LIKELY_NULL(free_rec)) {
 		/* Try to allocate from the head of the free list. */
-		rec_t*		free_rec	= insert_buf;
 		ulint		foffsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*		foffsets	= foffsets_;
 		mem_heap_t*	heap		= NULL;
@@ -953,7 +954,7 @@ too_small:
 			goto use_heap;
 		}
 
-		insert_buf -= rec_offs_extra_size(foffsets);
+		insert_buf = free_rec - rec_offs_extra_size(foffsets);
 
 		if (page_is_comp(page)) {
 			if (UNIV_LIKELY_NULL(page_zip)) {
@@ -997,6 +998,7 @@ too_small:
 		}
 	} else {
 use_heap:
+		free_rec = NULL;
 		insert_buf = page_mem_alloc_heap(
 				page, page_zip, rec_size, &heap_no);
 
@@ -1047,7 +1049,12 @@ use_heap:
 	if (page_is_comp(page)) {
 		rec_set_n_owned_new(insert_rec, NULL, 0);
 		rec_set_heap_no_new(insert_rec, heap_no);
+		if (UNIV_LIKELY_NULL(page_zip)) {
+			page_zip_dir_insert(page_zip, current_rec, free_rec,
+					insert_rec, index, offsets);
+		}
 	} else {
+		ut_ad(!page_zip);
 		rec_set_n_owned_old(insert_rec, 0);
 		rec_set_heap_no_old(insert_rec, heap_no);
 	}
@@ -1093,7 +1100,7 @@ use_heap:
 		ulint	n_owned;
 		if (page_is_comp(page)) {
 			n_owned = rec_get_n_owned_new(owner_rec);
-			rec_set_n_owned_new(owner_rec, NULL, n_owned + 1);
+			rec_set_n_owned_new(owner_rec, page_zip, n_owned + 1);
 		} else {
 			n_owned = rec_get_n_owned_old(owner_rec);
 			rec_set_n_owned_old(owner_rec, n_owned + 1);
@@ -1110,9 +1117,6 @@ use_heap:
 	}
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		/* TODO: something similar to page_zip_dir_delete() */
-		page_zip_dir_rewrite(page_zip, page);
-
 		page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
 	} else if (UNIV_LIKELY_NULL(page_zip_orig)) {
 		ut_a(page_is_comp(page));
