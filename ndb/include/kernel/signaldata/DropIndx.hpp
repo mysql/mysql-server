@@ -168,6 +168,7 @@ public:
     NoError = 0,
     InvalidIndexVersion = 241,
     Busy = 701,
+    BusyWithNR = 711,
     NotMaster = 702,
     IndexNotFound = 4243,
     BadRequestType = 4247,
