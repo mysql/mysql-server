@@ -147,6 +147,8 @@ public:
    * @param iter - An "uninitialized" iterator
    */
   bool next(Uint32 bucket, Iterator & iter) const;
+
+  inline bool isEmpty() const { Iterator iter; return ! first(iter); }
   
 private:
   Uint32 mask;

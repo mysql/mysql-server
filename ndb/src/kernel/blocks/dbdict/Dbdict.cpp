@@ -6520,9 +6520,18 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
     }
     if (signal->getLength() == CreateIndxReq::SignalLength) {
       jam();
+      CreateIndxRef::ErrorCode tmperr = CreateIndxRef::NoError;
       if (getOwnNodeId() != c_masterNodeId) {
         jam();
-	
+        tmperr = CreateIndxRef::NotMaster;
+      } else if (c_blockState == BS_NODE_RESTART) {
+        jam();
+        tmperr = CreateIndxRef::BusyWithNR;
+      } else if (c_blockState != BS_IDLE) {
+        jam();
+        tmperr = CreateIndxRef::Busy;
+      }
+      if (tmperr != CreateIndxRef::NoError) {
 	releaseSections(signal);
 	OpCreateIndex opBusy;
 	opPtr.p = &opBusy;
@@ -6530,13 +6539,12 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
 	opPtr.p->m_isMaster = (senderRef == reference());
 	opPtr.p->key = 0;
 	opPtr.p->m_requestType = CreateIndxReq::RT_DICT_PREPARE;
-	opPtr.p->m_errorCode = CreateIndxRef::NotMaster;
+	opPtr.p->m_errorCode = tmperr;
 	opPtr.p->m_errorLine = __LINE__;
 	opPtr.p->m_errorNode = c_masterNodeId;
 	createIndex_sendReply(signal, opPtr, true);
 	return;
       }
-      
       // forward initial request plus operation key to all
       req->setOpKey(++c_opRecordSequence);
       NodeReceiverGroup rg(DBDICT, c_aliveNodes);
@@ -7082,10 +7090,19 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
     jam();
     if (signal->getLength() == DropIndxReq::SignalLength) {
       jam();
+      DropIndxRef::ErrorCode tmperr = DropIndxRef::NoError;
       if (getOwnNodeId() != c_masterNodeId) {
         jam();
-
-	err = DropIndxRef::NotMaster;
+        tmperr = DropIndxRef::NotMaster;
+      } else if (c_blockState == BS_NODE_RESTART) {
+        jam();
+        tmperr = DropIndxRef::BusyWithNR;
+      } else if (c_blockState != BS_IDLE) {
+        jam();
+        tmperr = DropIndxRef::Busy;
+      }
+      if (tmperr != DropIndxRef::NoError) {
+	err = tmperr;
 	goto error;
       }
       // forward initial request plus operation key to all
@@ -10130,6 +10147,17 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
     sendDictLockInfoEvent(lockPtr, "lock request by node");
 }
 
+// only table and index ops are checked
+bool
+Dbdict::hasDictLockSchemaOp()
+{
+  return
+    ! c_opCreateTable.isEmpty() ||
+    ! c_opDropTable.isEmpty() ||
+    ! c_opCreateIndex.isEmpty() ||
+    ! c_opDropIndex.isEmpty();
+}
+
 void
 Dbdict::checkDictLockQueue(Signal* signal, bool poll)
 {
@@ -10150,7 +10178,7 @@ Dbdict::checkDictLockQueue(Signal* signal, bool poll)
       break;
     }
 
-    if (c_opRecordPool.getNoOfFree() != c_opRecordPool.getSize()) {
+    if (hasDictLockSchemaOp()) {
       jam();
       break;
     }
@@ -10183,7 +10211,7 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   if (lockPtr.p->locked) {
     jam();
     ndbrequire(c_blockState == lockPtr.p->lt->blockState);
-    ndbrequire(c_opRecordPool.getNoOfFree() == c_opRecordPool.getSize());
+    ndbrequire(! hasDictLockSchemaOp());
     ndbrequire(! c_dictLockQueue.hasPrev(lockPtr));
 
     c_blockState = BS_IDLE;
@@ -10279,7 +10307,7 @@ Dbdict::removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes)
       if (lockPtr.p->locked) {
         jam();
         ndbrequire(c_blockState == lockPtr.p->lt->blockState);
-        ndbrequire(c_opRecordPool.getNoOfFree() == c_opRecordPool.getSize());
+        ndbrequire(! hasDictLockSchemaOp());
         ndbrequire(! c_dictLockQueue.hasPrev(lockPtr));
 
         c_blockState = BS_IDLE;
