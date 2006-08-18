@@ -2228,8 +2228,8 @@ dict_foreign_error_report(
 	if (fk->foreign_index) {
 		fputs("The index in the foreign key in table is ", file);
 		ut_print_name(file, NULL, fk->foreign_index->name);
-		fputs(
-"\nSee http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+		fputs("\n"
+"See http://dev.mysql.com/doc/refman/5.0/en/innodb-foreign-key-constraints.html\n"
 "for correct foreign key definition.\n",
 		file);
 	}
@@ -3131,7 +3131,7 @@ col_loop1:
 		ut_print_name(ef, NULL, name);
 		fprintf(ef, " where the columns appear\n"
 "as the first columns. Constraint:\n%s\n"
-"See http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"See http://dev.mysql.com/doc/refman/5.0/en/innodb-foreign-key-constraints.html\n"
 "for correct foreign key definition.\n",
 			start_of_latest_foreign);
 		mutex_exit(&dict_foreign_err_mutex);
@@ -3399,7 +3399,7 @@ try_find_index:
 "Note that the internal storage type of ENUM and SET changed in\n"
 "tables created with >= InnoDB-4.1.12, and such columns in old tables\n"
 "cannot be referenced by such columns in new tables.\n"
-"See http://dev.mysql.com/doc/mysql/en/InnoDB_foreign_key_constraints.html\n"
+"See http://dev.mysql.com/doc/refman/5.0/en/innodb-foreign-key-constraints.html\n"
 "for correct foreign key definition.\n",
 				start_of_latest_foreign);
 			mutex_exit(&dict_foreign_err_mutex);
@@ -4059,8 +4059,7 @@ dict_update_statistics_low(
 		fprintf(stderr,
 			"  InnoDB: cannot calculate statistics for table %s\n"
 "InnoDB: because the .ibd file is missing.  For help, please refer to\n"
-"InnoDB: "
-"http://dev.mysql.com/doc/mysql/en/InnoDB_troubleshooting_datadict.html\n",
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
 			table->name);
 
 		return;
