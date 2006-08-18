@@ -1650,6 +1650,9 @@ private:
   void sendDictLockInfoEvent(Uint32 pollCount);
   void sendDictLockInfoEvent(DictLockPtr lockPtr, const char* text);
 
+  // check if any schema op exists (conflicting with dict lock)
+  bool hasDictLockSchemaOp();
+
   void checkDictLockQueue(Signal* signal, bool poll);
   void sendDictLockConf(Signal* signal, DictLockPtr lockPtr);
   void sendDictLockRef(Signal* signal, DictLockReq req, Uint32 errorCode);

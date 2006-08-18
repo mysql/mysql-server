@@ -799,6 +799,17 @@ NDBT_Tables::getNumTables(){
   return numTestTables;
 }
 
+const char**
+NDBT_Tables::getIndexes(const char* table)
+{
+  Uint32 i = 0;
+  for (i = 0; indexes[i].m_table != 0; i++) {
+    if (strcmp(indexes[i].m_table, table) == 0)
+      return indexes[i].m_indexes;
+  }
+  return 0;
+}
+
 int
 NDBT_Tables::createAllTables(Ndb* pNdb, bool _temp, bool existsOk){
   
