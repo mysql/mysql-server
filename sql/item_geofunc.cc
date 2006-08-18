@@ -27,8 +27,11 @@
 
 Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
 {
-  return new Field_geom(max_length, maybe_null, name, t_arg->s,
-                        (Field::geometry_type) get_geometry_type());
+  Field *result;
+  if ((result= new Field_geom(max_length, maybe_null, name, t_arg->s,
+                              (Field::geometry_type) get_geometry_type())))
+    result->init(t_arg);
+  return result;
 }
 
 void Item_geometry_func::fix_length_and_dec()

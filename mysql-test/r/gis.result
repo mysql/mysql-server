@@ -578,7 +578,7 @@ create table t1 select GeomFromWKB(POINT(1,3));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `GeomFromWKB(POINT(1,3))` geometry NOT NULL default ''
+  `GeomFromWKB(POINT(1,3))` geometry NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
