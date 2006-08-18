@@ -149,11 +149,11 @@ enum enum_sp_data_access
 
 const LEX_STRING sp_data_access_name[]=
 {
-  { (char*) STRING_WITH_LEN("") },
-  { (char*) STRING_WITH_LEN("CONTAINS SQL") },
-  { (char*) STRING_WITH_LEN("NO SQL") },
-  { (char*) STRING_WITH_LEN("READS SQL DATA") },
-  { (char*) STRING_WITH_LEN("MODIFIES SQL DATA") }
+  { C_STRING_WITH_LEN("") },
+  { C_STRING_WITH_LEN("CONTAINS SQL") },
+  { C_STRING_WITH_LEN("NO SQL") },
+  { C_STRING_WITH_LEN("READS SQL DATA") },
+  { C_STRING_WITH_LEN("MODIFIES SQL DATA") }
 };
 
 #define DERIVED_SUBQUERY	1
