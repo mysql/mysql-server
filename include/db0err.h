@@ -29,9 +29,10 @@ Created 5/24/1996 Heikki Tuuri
 #define DB_MUST_GET_MORE_FILE_SPACE 32	/* the database has to be stopped
 					and restarted with more file space */
 #define DB_TABLE_IS_BEING_USED	33
-#define DB_TOO_BIG_RECORD	34	/* a record in an index would become
-					bigger than 1/2 free space in a page
-					frame */
+#define DB_TOO_BIG_RECORD	34	/* a record in an index would not fit
+					on a compressed page, or it would
+					become bigger than 1/2 free space in
+					an uncompressed page frame */
 #define DB_LOCK_WAIT_TIMEOUT	35	/* lock wait lasted too long */
 #define DB_NO_REFERENCED_ROW	36	/* referenced key value not found
 					for a foreign key in an insert or
