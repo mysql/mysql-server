@@ -299,12 +299,8 @@ TODO list:
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
-#include "ha_myisammrg.h"
-#ifndef MASTER
-#include "../srclib/myisammrg/myrg_def.h"
-#else
+#include "../storage/myisammrg/ha_myisammrg.h"
 #include "../storage/myisammrg/myrg_def.h"
-#endif
 
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
