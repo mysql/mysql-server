@@ -1,0 +1,6 @@
+MYSQL_STORAGE_ENGINE(blackhole,,[Blackhole Storage Engine],
+        [Basic Write-only Read-never tables], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(blackhole, [storage/blackhole])
+MYSQL_PLUGIN_STATIC(blackhole,  [libblackhole.a])
+MYSQL_PLUGIN_DYNAMIC(blackhole, [ha_blackhole.la])
+

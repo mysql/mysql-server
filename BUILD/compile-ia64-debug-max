@@ -1,5 +1,5 @@
 gmake -k clean || true 
-/bin/rm -f */.deps/*.P config.cache storage/innobase/config.cache storage/bdb/build_unix/config.cache
+/bin/rm -f */.deps/*.P config.cache storage/innobase/config.cache
 
 path=`dirname $0`
 . "$path/autorun.sh"

@@ -1,0 +1,5 @@
+MYSQL_STORAGE_ENGINE(myisammrg,no,[MyISAM MERGE Engine],
+        [Merge multiple MySQL tables into one])
+MYSQL_PLUGIN_DIRECTORY(myisammrg,[storage/myisammrg])
+MYSQL_PLUGIN_STATIC(myisammrg,  [libmyisammrg.a])
+MYSQL_PLUGIN_MANDATORY(myisammrg)

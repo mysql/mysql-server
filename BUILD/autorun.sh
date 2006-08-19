@@ -11,7 +11,6 @@ if [ -f /usr/bin/glibtoolize ]
     LIBTOOLIZE=libtoolize
 fi
 
-(cd storage/bdb/dist && sh s_all)
 (cd storage/innobase && aclocal && autoheader && \
     $LIBTOOLIZE --automake --force --copy && \
     automake --force --add-missing --copy && autoconf)

@@ -1,0 +1,5 @@
+MYSQL_STORAGE_ENGINE(csv,,      [CSV Storage Engine],
+        [Stores tables in text CSV format])
+MYSQL_PLUGIN_DIRECTORY(csv,     [storage/csv])
+MYSQL_PLUGIN_STATIC(csv,        [libcsv.a])
+MYSQL_PLUGIN_MANDATORY(csv)     dnl Used for logging
