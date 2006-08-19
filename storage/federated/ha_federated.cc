@@ -333,7 +333,10 @@
 */
 
 
+#define MYSQL_SERVER 1
 #include "mysql_priv.h"
+#include <mysql/plugin.h>
+
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation                          // gcc: Class implementation
 #endif

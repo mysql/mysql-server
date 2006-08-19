@@ -1,0 +1,6 @@
+MYSQL_STORAGE_ENGINE(heap,no,   [Memory Storage Engine],
+        [Volatile memory based tables])
+MYSQL_PLUGIN_DIRECTORY(heap,    [storage/heap])
+MYSQL_PLUGIN_STATIC(heap,       [libheap.a])
+MYSQL_PLUGIN_MANDATORY(heap)    dnl Memory tables
+

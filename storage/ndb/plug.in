@@ -1,0 +1,6 @@
+MYSQL_STORAGE_ENGINE(ndbcluster, ndbcluster, [Cluster Storage Engine],
+        [High Availability Clustered tables], [max])
+MYSQL_PLUGIN_DIRECTORY(ndbcluster,[storage/ndb])
+MYSQL_PLUGIN_STATIC(ndbcluster, [[\$(ndbcluster_libs) \$(ndbcluster_system_libs) \$(NDB_SCI_LIBS)]])
+MYSQL_PLUGIN_ACTIONS(ndbcluster,[MYSQL_SETUP_NDBCLUSTER])
+MYSQL_PLUGIN_DEPENDS(ndbcluster, [partition])
