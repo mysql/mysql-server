@@ -1,0 +1,6 @@
+MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
+        [Traditional non-transactional MySQL tables])
+MYSQL_PLUGIN_DIRECTORY(myisam,  [storage/myisam])
+MYSQL_PLUGIN_STATIC(myisam,     [libmyisam.a])
+MYSQL_PLUGIN_MANDATORY(myisam)  dnl Default
+

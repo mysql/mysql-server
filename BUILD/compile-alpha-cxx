@@ -1,7 +1,7 @@
 /bin/rm -f */.deps/*.P */*.o
 make -k clean
 /bin/rm -f */.deps/*.P */*.o
-/bin/rm -f */.deps/*.P config.cache storage/innobase/config.cache storage/bdb/build_unix/config.cache mysql-*.tar.gz
+/bin/rm -f */.deps/*.P config.cache storage/innobase/config.cache mysql-*.tar.gz
 
 path=`dirname $0`
 . "$path/autorun.sh"
