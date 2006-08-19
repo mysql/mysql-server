@@ -23,7 +23,6 @@
 
 #include "mysql_priv.h"
 #include "rpl_filter.h"
-#include "ha_heap.h"
 #include "ha_myisam.h"
 #include "ha_myisammrg.h"
 
