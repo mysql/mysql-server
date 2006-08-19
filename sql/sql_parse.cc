@@ -5776,27 +5776,6 @@ void mysql_init_multi_delete(LEX *lex)
   lex->query_tables_last= &lex->query_tables;
 }
 
-#ifndef DBUG_OFF
-static void turn_parser_debug_on()
-{
-  /*
-     MYSQLdebug is in sql/sql_yacc.cc, in bison generated code.
-     Turning this option on is **VERY** verbose, and should be
-     used when investigating a syntax error problem only.
-
-     The syntax to run with bison traces is as follows :
-     - Starting a server manually :
-       mysqld --debug="d,parser_debug" ...
-     - Running a test :
-       mysql-test-run.pl --mysqld="--debug=d,parser_debug" ...
-
-     The result will be in the process stderr (var/log/master.err)
-   */
-  extern int MYSQLdebug;
-  MYSQLdebug= 1;
-}
-#endif
-
 /*
   When you modify mysql_parse(), you may need to mofify
   mysql_test_parse_for_slave() in this same file.

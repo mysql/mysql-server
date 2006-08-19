@@ -1501,6 +1501,9 @@ void free_list(I_List <i_string> *list);
 
 /* sql_yacc.cc */
 extern int MYSQLparse(void *thd);
+#ifndef DBUG_OFF
+extern void turn_parser_debug_on();
+#endif
 
 /* frm_crypt.cc */
 #ifdef HAVE_CRYPTED_FRM
