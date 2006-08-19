@@ -48,6 +48,8 @@ libheap_a_SOURCES =	hp_open.c hp_extra.c hp_close.c hp_panic.c hp_info.c \
 			hp_rkey.c hp_block.c \
 			ha_heap.cc \
 			hp_hash.c _check.c _rectest.c hp_static.c
+
+
 EXTRA_DIST =		CMakeLists.txt
 
 # Don't update the files from bitkeeper
