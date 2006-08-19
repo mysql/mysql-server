@@ -119,11 +119,7 @@ BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
 EXTRA_DIST =		$(BUILT_SOURCES)
 DISTCLEANFILES =        lex_hash.h sql_yacc.output
 
-AM_YFLAGS =		-d
-
-if MYSQL_CONF_DEBUG
-AM_YFLAGS +=		--debug --verbose
-endif
+AM_YFLAGS =		-d --debug --verbose
 
 mysql_tzinfo_to_sql.cc:
 	rm -f mysql_tzinfo_to_sql.cc
