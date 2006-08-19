@@ -68,6 +68,34 @@ inline Item *is_truth_value(Item *A, bool v1, bool v2)
 	new Item_int((char *) (v1 ? "FALSE" : "TRUE"),!v1, 1));
 }
 
+#ifndef DBUG_OFF
+#define YYDEBUG 1
+#else
+#define YYDEBUG 0
+#endif
+
+#ifndef DBUG_OFF
+void turn_parser_debug_on()
+{
+  /*
+     MYSQLdebug is in sql/sql_yacc.cc, in bison generated code.
+     Turning this option on is **VERY** verbose, and should be
+     used when investigating a syntax error problem only.
+
+     The syntax to run with bison traces is as follows :
+     - Starting a server manually :
+       mysqld --debug="d,parser_debug" ...
+     - Running a test :
+       mysql-test-run.pl --mysqld="--debug=d,parser_debug" ...
+
+     The result will be in the process stderr (var/log/master.err)
+   */
+
+  extern int yydebug;
+  yydebug= 1;
+}
+#endif
+
 %}
 %union {
   int  num;

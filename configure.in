@@ -1667,7 +1667,6 @@ else
   CFLAGS="$OPTIMIZE_CFLAGS -DDBUG_OFF $CFLAGS"
   CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
 fi
-AM_CONDITIONAL(MYSQL_CONF_DEBUG, test "x$with_debug" != "xno")
 
 # Force static compilation to avoid linking problems/get more speed
 AC_ARG_WITH(mysqld-ldflags,
