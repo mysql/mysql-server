@@ -487,7 +487,7 @@ sys_var_const_str	sys_version_compile_os("version_compile_os",
                                                SYSTEM_TYPE);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
-
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 sys_var_long_ptr	sys_innodb_fast_shutdown("innodb_fast_shutdown",
 						 &innobase_fast_shutdown);
 sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
@@ -513,7 +513,7 @@ sys_var_long_ptr  sys_innodb_commit_concurrency("innodb_commit_concurrency",
 sys_var_long_ptr  sys_innodb_flush_log_at_trx_commit(
                                         "innodb_flush_log_at_trx_commit",
                                         &srv_flush_log_at_trx_commit);
-
+#endif
 /* Condition pushdown to storage engine */
 sys_var_thd_bool
 sys_engine_condition_pushdown("engine_condition_pushdown",
@@ -816,6 +816,7 @@ SHOW_VAR init_vars[]= {
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
   {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
   {"innodb_buffer_pool_awe_mem_mb", (char*) &innobase_buffer_pool_awe_mem_mb, SHOW_LONG },
@@ -849,6 +850,7 @@ SHOW_VAR init_vars[]= {
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
   {sys_innodb_flush_log_at_trx_commit.name, (char*) &sys_innodb_flush_log_at_trx_commit, SHOW_SYS},
+#endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},
