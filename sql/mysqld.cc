@@ -26,7 +26,7 @@
 #include "mysys_err.h"
 #include "events.h"
 
-#include "ha_myisam.h"
+#include "../storage/myisam/ha_myisam.h"
 
 #ifdef HAVE_ROW_BASED_REPLICATION
 #include "rpl_injector.h"
