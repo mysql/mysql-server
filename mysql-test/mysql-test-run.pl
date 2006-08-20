@@ -1392,8 +1392,6 @@ sub environment_setup () {
   $ENV{'NDBCLUSTER_PORT'}=          $opt_ndbcluster_port;
   $ENV{'NDBCLUSTER_PORT_SLAVE'}=    $opt_ndbcluster_port_slave;
 
-  $ENV{'NDB_STATUS_OK'}=            $clusters->[0]->{'installed_ok'};
-  $ENV{'NDB_SLAVE_STATUS_OK'}=      $clusters->[0]->{'installed_ok'};;
   $ENV{'NDB_EXTRA_TEST'}=           $opt_ndb_extra_test;
 
   $ENV{'NDB_BACKUP_DIR'}=           $clusters->[0]->{'data_dir'};
@@ -2259,6 +2257,9 @@ sub mysql_install_db () {
       $cluster_started_ok= 0;
     }
   }
+
+  $ENV{'NDB_STATUS_OK'}=            $clusters->[0]->{'installed_ok'};
+  $ENV{'NDB_SLAVE_STATUS_OK'}=      $clusters->[1]->{'installed_ok'};;
 
   if ( ! $cluster_started_ok )
   {
