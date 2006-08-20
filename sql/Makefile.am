@@ -49,7 +49,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
-			ha_myisam.h ha_partition.h \
+			ha_partition.h \
 			ha_innodb.h  \
 			ha_ndbcluster.h ha_ndbcluster_binlog.h \
 			ha_ndbcluster_tables.h \
@@ -87,7 +87,6 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			unireg.cc des_key_file.cc \
 			discover.cc time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
-			ha_myisam.cc \
 			ha_partition.cc ha_innodb.cc \
                         ha_ndbcluster.cc ha_ndbcluster_binlog.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \

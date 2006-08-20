@@ -27,7 +27,7 @@ ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DMYSQL_SERVER
 
 ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
-               filesort.cc gstream.cc  ha_myisam.cc
+               filesort.cc gstream.cc
                ha_innodb.cc ha_partition.cc
                handler.cc hash_filo.cc hash_filo.h 
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
