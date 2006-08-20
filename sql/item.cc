@@ -3777,7 +3777,18 @@ Item *Item_field::equal_fields_propagator(byte *arg)
   Item *item= 0;
   if (item_equal)
     item= item_equal->get_const();
-  if (!item)
+  /*
+    Disable const propagation for items used in different comparison contexts.
+    This must be done because, for example, Item_hex_string->val_int() is not
+    the same as (Item_hex_string->val_str() in BINARY column)->val_int().
+    We cannot simply disable the replacement in a particular context (
+    e.g. <bin_col> = <int_col> AND <bin_col> = <hex_string>) since
+    Items don't know the context they are in and there are functions like 
+    IF (<hex_string>, 'yes', 'no').
+    The same problem occurs when comparing a DATE/TIME field with a
+    DATE/TIME represented as an int and as a string.
+  */
+  if (!item || item->cmp_context != cmp_context)
     item= this;
   return item;
 }
