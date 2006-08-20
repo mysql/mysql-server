@@ -405,7 +405,8 @@ void Item_bool_func2::fix_length_and_dec()
       agg_arg_charsets(coll, args, 2, MY_COLL_CMP_CONV, 1))
     return;
     
- 
+  args[0]->cmp_context= args[1]->cmp_context=
+    item_cmp_type(args[0]->result_type(), args[1]->result_type());
   // Make a special case of compare with fields to get nicer DATE comparisons
 
   if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
@@ -426,6 +427,7 @@ void Item_bool_func2::fix_length_and_dec()
         {
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT);		// Works for all types.
+          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
           return;
         }
       }
@@ -440,6 +442,7 @@ void Item_bool_func2::fix_length_and_dec()
         {
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT); // Works for all types.
+          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
           return;
         }
       }
