@@ -44,7 +44,6 @@ libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 
 sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
-	ha_myisam.cc \
 	ha_innodb.cc ha_ndbcluster.cc \
 	ha_ndbcluster_binlog.cc ha_partition.cc \
 	handler.cc sql_handler.cc \

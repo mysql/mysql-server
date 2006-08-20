@@ -19,17 +19,15 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#define MYSQL_SERVER 1
 #include "mysql_priv.h"
+#include <mysql/plugin.h>
 #include <m_ctype.h>
 #include <myisampack.h>
 #include "ha_myisam.h"
 #include <stdarg.h>
-#ifndef MASTER
-#include "../srclib/myisam/myisamdef.h"
-#else
-#include "../storage/myisam/myisamdef.h"
-#include "../storage/myisam/rt_index.h"
-#endif
+#include "myisamdef.h"
+#include "rt_index.h"
 
 #include <mysql/plugin.h>
 
