@@ -1378,8 +1378,6 @@ bool mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 
 /* sql_manager.cc */
-/* bits set in manager_status */
-#define MANAGER_BERKELEY_LOG_CLEANUP    (1L << 0)
 extern ulong volatile manager_status;
 extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
