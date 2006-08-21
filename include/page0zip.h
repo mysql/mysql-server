@@ -257,9 +257,7 @@ page_zip_dir_insert(
 	const byte*	prev_rec,/* in: record after which to insert */
 	const byte*	free_rec,/* in: record from which rec was
 				allocated, or NULL */
-	byte*		rec,	/* in: record to insert */
-	dict_index_t*	index,	/* in: index of rec */
-	const ulint*	offsets);/* in: rec_get_offsets(rec) */
+	byte*		rec);	/* in: record to insert */
 
 /**************************************************************************
 Shift the dense page directory and the array of BLOB pointers
