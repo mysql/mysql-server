@@ -9,37 +9,48 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-#events_bugs              : BUG#17619 2006-02-21 andrey  Race conditions
-#events_stress            : BUG#17619 2006-02-21 andrey  Race conditions
-#events                   : BUG#17619 2006-02-21 andrey  Race conditions
-#events_scheduling        : BUG#19170 2006-04-26 andrey  Test case of 19170 fails on some platforms. Has to be checked.
-#im_instance_conf          : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
-im_options                : Bug#20294 2006-07-24 stewart   Instance manager test im_instance_conf fails randomly
-#im_life_cycle             : Bug#20368 2006-06-10 alik    im_life_cycle test fails
+events_bugs              : BUG#17619 2006-02-21 andrey  Race conditions
+events_stress            : BUG#17619 2006-02-21 andrey  Race conditions
+events                   : BUG#17619 2006-02-21 andrey  Race conditions
+events_scheduling        : BUG#18958 2006-04-13 andrey  Test case unstable
+events_logs_tests        : BUG#18953 2006-04-12 kent    Test is randomly failing
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
-ndb_binlog_ignore_db     : BUG#21279 2006-07-25 ingo    Randomly throws a warning
-ndb_load                 : BUG#17233 2006-05-04 tomas failed load data from infile causes mysqld dbug_assert, binlog not flushed
-ndb_restore_compat       : BUG#21283 2006-07-26 ingo    Test fails randomly
+ndb_cache2               : BUG#18597 2006-03-28 brian simultaneous drop table and ndb statistics update triggers node failure
+ndb_cache_multi2         : BUG#18597 2006-04-10 kent  simultaneous drop table and ndb statistics update triggers node failure
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller create table like does not obtain LOCK_open
-rpl_ndb_2innodb          : BUG#19227 2006-04-20 pekka pk delete apparently not replicated
-rpl_ndb_2myisam          : BUG#19227 Seems to pass currently
-#rpl_ndb_commit_afterflush : BUG#19328 2006-05-04 tomas Slave timeout with COM_REGISTER_SLAVE error causing stop
-rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails on s/AMD
-rpl_ndb_ddl              : BUG#18946 result file needs update + test needs to checked
-rpl_ndb_innodb2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
-#rpl_ndb_log              : BUG#18947 2006-03-21 tomas CRBR: order in binlog of create table and insert (on different table) not determ
-rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
+rpl_deadlock_innodb      : BUG#16920 2006-04-12 kent    fails in show slave status (randomly)
+rpl_ndb_2innodb          : BUG#19004 2006-03-22 tomas ndb: partition by range and update hangs
+rpl_ndb_2myisam          : BUG#19004 2006-03-22 tomas ndb: partition by range and update hangs
+rpl_ndb_auto_inc         : BUG#17086 2006-02-16 jmiller CR: auto_increment_increment and auto_increment_offset produce duplicate key er
+rpl_ndb_commit_afterflush : LOCK TABLES cases hang in ndb injector thread
+rpl_ndb_ddl              : result file needs update + test needs to checked
+rpl_ndb_innodb2ndb       : BUG#18094 2006-03-16 mats Slave caches invalid table definition after atlters causes select failure
+rpl_ndb_log              : BUG#18947 2006-03-21 tomas CRBR: order in binlog of create table and insert (on different table) not determ
+rpl_ndb_myisam2ndb       : BUG#18094 2006-03-16 mats   Slave caches invalid table definition after atlters causes select failure
+rpl_ndb_relay_space      : BUG#16993 2006-02-16 jmiller RBR: ALTER TABLE ZEROFILL AUTO_INCREMENT is not replicated correctly
+rpl_switch_stm_row_mixed : BUG#18590 2006-03-28 brian
+rpl_row_basic_7ndb       : BUG#17400 2006-04-09 brian   Cluster Replication: delete & update of rows in table without pk fails on slave.
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
-rpl_row_func003          : BUG#19074 2006-13-04 andrei  test failed
+rpl_row_func003		 : BUG#19074 2006-13-04 andrei  test failed
+rpl_row_inexist_tbl      : BUG#18948 2006-03-09 mats    Disabled since patch makes this test wait forever
 rpl_sp                   : BUG#16456 2006-02-16 jmiller
-rpl_sp_effects           : BUG#19862 2006-06-15 mkindahl
+rpl_until                : BUG#15886 2006-02-16 jmiller Unstable test case
+sp-goto                  : BUG#18949 2006-02-16 jmiller GOTO is currently is disabled - will be fixed in the future
+mysqldump                : BUG#18078 2006-03-10 lars
+udf                      : BUG#18564 2006-03-27 ian     (Permission by Brian)
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
-rpl_ndb_idempotent       : BUG#21298 2006-07-27 msvensson
-rpl_row_basic_7ndb       : BUG#21298 2006-07-27 msvensson
-rpl_truncate_7ndb        : BUG#21298 2006-07-27 msvensson
 
-rpl_ndb_dd_advance       : BUG#18679 2006-07-28 jimw (Test fails randomly)
+# the below ndb failures have not been objerved for > 5 push builds, close bugs
+#ndb_gis                  : BUG#18600 2006-03-28 brian ndb_gis test failure
+#ndb_load                 : BUG#17233 2006-02-16 jmiller failed load data from infile causes mysqld dbug_assert, binlog not flushed
+#rpl_ndb_basic            : BUG#18592 2006-03-28 brian rpl_ndb_basic failure
+#rpl_ndb_dd_advance       : BUG#18924 2006-04-09 brian rpl_ndb_dd_advance failure
+#rpl_ndb_dd_basic         : BUG#18569 2006-03-28 brian rpl_ndb_dd_basic failure
+#rpl_ndb_insert_ignore    : BUG#18567 2006-03-28 brian rpl_ndb_insert_ignore failure
+#rpl_ndb_multi_update2    : BUG#18928 2006-04-09 brian   rpl_ndb_multi_update2 failed
+#rpl_ndb_multi_update3    : BUG#18627 2006-03-29 monty   Cluster Replication: rpl_ndb_multi_update3 fails on Intel 64 bit
+#rpl_ndb_trig004          : BUG#18977 2006-04-10 kent    Test fails randomly

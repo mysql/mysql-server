@@ -1255,6 +1255,12 @@ void Field::hash(ulong *nr, ulong *nr2)
     CHARSET_INFO *cs= charset();
     cs->coll->hash_sort(cs, (uchar*) ptr, len, nr, nr2);
   }
+
+my_size_t
+Field::do_last_null_byte() const
+{
+  DBUG_ASSERT(null_ptr == NULL || (byte*) null_ptr >= table->record[0]);
+  return null_ptr ? (byte*) null_ptr - table->record[0] + 1 : 0;
 }
 
 
@@ -8168,6 +8174,30 @@ Field_bit::Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
 }
 
 
+my_size_t
+Field_bit::do_last_null_byte() const
+{
+  /*
+    Code elsewhere is assuming that bytes are 8 bits, so I'm using
+    that value instead of the correct one: CHAR_BIT.
+
+    REFACTOR SUGGESTION (Matz): Change to use the correct number of
+    bits. On systems with CHAR_BIT > 8 (not very common), the storage
+    will lose the extra bits.
+  */
+  DBUG_PRINT("debug", ("bit_ofs=%d, bit_len=%d, bit_ptr=%p",
+                       bit_ofs, bit_len, bit_ptr));
+  uchar *result;
+  if (bit_len == 0)
+    result= null_ptr;
+  else if (bit_ofs + bit_len > 8)
+    result= bit_ptr + 1;
+  else
+    result= bit_ptr;
+
+  return result ? (byte*) result - table->record[0] + 1 : 0;
+}
+
 Field *Field_bit::new_key_field(MEM_ROOT *root,
                                 struct st_table *new_table,
                                 char *new_ptr, uchar *new_null_ptr,
@@ -8418,6 +8448,14 @@ const char *Field_bit::unpack(char *to, const char *from)
   return from + bytes_in_rec;
 }
 
+
+void Field_bit::set_default()
+{
+  my_ptrdiff_t const offset= table->s->default_values - table->record[0];
+  uchar bits= get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
+  set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
+  Field::set_default();
+}
 
 /*
   Bit field support for non-MyISAM tables.

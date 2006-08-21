@@ -207,6 +207,19 @@ public:
     { if (null_ptr) null_ptr[row_offset]&= (uchar) ~null_bit; }
   inline bool maybe_null(void) { return null_ptr != 0 || table->maybe_null; }
   inline bool real_maybe_null(void) { return null_ptr != 0; }
+
+  /*
+    Return a pointer to the last byte of the null bytes where the
+    field conceptually is placed.  In the case that the field does not
+    use any bits of the null bytes, a null pointer is returned.
+   */
+  my_size_t last_null_byte() const {
+    my_size_t bytes= do_last_null_byte();
+    DBUG_PRINT("debug", ("last_null_byte() ==> %d", bytes));
+    DBUG_ASSERT(bytes <= table->s->null_bytes);
+    return bytes;
+  }
+
   virtual void make_field(Send_field *);
   virtual void sort_string(char *buff,uint length)=0;
   virtual bool optimize_range(uint idx, uint part);
@@ -369,6 +382,9 @@ public:
   friend class Item_sum_min;
   friend class Item_sum_max;
   friend class Item_func_group_concat;
+
+private:
+  virtual my_size_t do_last_null_byte() const;
 };
 
 
@@ -1384,6 +1400,8 @@ public:
   void sql_type(String &str) const;
   char *pack(char *to, const char *from, uint max_length=~(uint) 0);
   const char *unpack(char* to, const char *from);
+  virtual void set_default();
+
   Field *new_key_field(MEM_ROOT *root, struct st_table *new_table,
                        char *new_ptr, uchar *new_null_ptr,
                        uint new_null_bit);
@@ -1404,6 +1422,9 @@ public:
     Field::move_field_offset(ptr_diff);
     bit_ptr= ADD_TO_PTR(bit_ptr, ptr_diff, uchar*);
   }
+
+private:
+  virtual my_size_t do_last_null_byte() const;
 };
 
 
