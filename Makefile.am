@@ -39,11 +39,7 @@ BUILT_SOURCES = linked_client_sources linked_server_sources \
 		 @linked_libmysqld_targets@ \
 		 linked_include_sources @linked_netware_sources@
 
-# The db.h file is a bit special, see note in "configure.in".
-# In the case we didn't compile with bdb, a dummy file is put
-# there, but will not be removed by the bdb make file becuase
-# it will never be called.
-CLEANFILES = $(BUILT_SOURCES) bdb/build_unix/db.h
+CLEANFILES = $(BUILT_SOURCES)
 DISTCLEANFILES = ac_available_languages_fragment
 
 linked_include_sources:
