@@ -1051,7 +1051,7 @@ use_heap:
 		rec_set_heap_no_new(insert_rec, heap_no);
 		if (UNIV_LIKELY_NULL(page_zip)) {
 			page_zip_dir_insert(page_zip, current_rec, free_rec,
-					insert_rec, index, offsets);
+					insert_rec);
 		}
 	} else {
 		ut_ad(!page_zip);
