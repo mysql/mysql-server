@@ -173,11 +173,13 @@ page_zip_get_trailer_len(
 	if (UNIV_UNLIKELY(!page_is_leaf((page_t*) page_zip->data))) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
 				+ REC_NODE_PTR_SIZE;
+		ut_ad(!page_zip->n_blobs);
 	} else if (dict_index_is_clust(index)) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
 				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 	} else {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE;
+		ut_ad(!page_zip->n_blobs);
 	}
 
 	if (entry_size) {
