@@ -4957,9 +4957,6 @@ int main(int argc, char **argv)
     die("No queries executed but result file found!");
   }
 
-
-  dynstr_free(&ds_res);
-
   if (!got_end_timer)
     timer_output();				/* No end_timer cmd, end it */
   free_used_memory();
