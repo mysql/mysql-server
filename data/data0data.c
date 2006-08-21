@@ -488,7 +488,8 @@ dtuple_convert_big_rec(
 				/* out, own: created big record vector,
 				NULL if we are not able to shorten
 				the entry enough, i.e., if there are
-				too many short fields in entry */
+				too many fixed-length or short fields
+				in entry or the index is clustered */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry */
 	const ulint*	ext_vec,/* in: array of externally stored fields,
@@ -506,6 +507,10 @@ dtuple_convert_big_rec(
 	ulint		longest_i		= ULINT_MAX;
 	ulint		i;
 	ulint		j;
+
+	if (UNIV_UNLIKELY(!dict_index_is_clust(index))) {
+		return(NULL);
+	}
 
 	ut_a(dtuple_check_typed_no_assert(entry));
 
