@@ -5407,7 +5407,16 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     {
       result= TRUE;
       continue;
-    }  
+    }
+
+    if (user_name->host.length > HOSTNAME_LENGTH ||
+	user_name->user.length > USERNAME_LENGTH)
+    {
+      append_user(&wrong_users, user_name);
+      result= TRUE;
+      continue;
+    }
+
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
@@ -5548,7 +5557,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       result= TRUE;
     }
   }
-
+  
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
 
