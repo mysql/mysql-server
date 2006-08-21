@@ -1299,10 +1299,8 @@ sub executable_setup () {
     $path_ndb_tools_dir=  "$glob_basedir/bin";
     $exe_ndb_mgm=         "$glob_basedir/bin/ndb_mgm";
     $exe_ndb_waiter=      "$glob_basedir/bin/ndb_waiter";
-    $exe_ndbd=            mtr_exe_exists("$glob_basedir/libexec/ndbd",
-                                         "$glob_basedir/bin/ndbd");
-    $exe_ndb_mgmd=        mtr_exe_exists("$glob_basedir/libexec/ndb_mgmd",
-                                         "$glob_basedir/bin/ndb_mgmd");
+    $exe_ndbd=            "$glob_basedir/bin/ndbd";
+    $exe_ndb_mgmd=        "$glob_basedir/bin/ndb_mgmd";
   }
 
   $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
