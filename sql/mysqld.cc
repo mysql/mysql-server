@@ -438,6 +438,7 @@ key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
+char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 char *mysql_data_home= mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
