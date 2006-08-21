@@ -21,6 +21,9 @@
   except the part which must be in the server and in the client.
 */
 
+#ifndef MYSQL_PRIV_H
+#define MYSQL_PRIV_H
+
 #ifndef MYSQL_CLIENT
 
 #include <my_global.h>
@@ -2019,3 +2022,5 @@ bool schema_table_store_record(THD *thd, TABLE *table);
 
 #endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */
+
+#endif /* MYSQL_PRIV_H */
