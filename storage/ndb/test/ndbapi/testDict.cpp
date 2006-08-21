@@ -1022,8 +1022,8 @@ int verifyTablesAreEqual(const NdbDictionary::Table* pTab, const NdbDictionary::
   
   if (!pTab->equal(*pTab2)){
     g_err << "equal failed" << endl;
-    g_info << *pTab;
-    g_info << *pTab2;
+    g_info << *(NDBT_Table*)pTab; // gcc-4.1.2
+    g_info << *(NDBT_Table*)pTab2;
     return NDBT_FAILED;
   }
   return NDBT_OK;
@@ -1033,7 +1033,7 @@ int runGetPrimaryKey(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table* pTab = ctx->getTab();
   ndbout << "|- " << pTab->getName() << endl;
-  g_info << *pTab;
+  g_info << *(NDBT_Table*)pTab;
   // Try to create table in db
   if (pTab->createTableInDb(pNdb) != 0){
     return NDBT_FAILED;
@@ -1985,7 +1985,53 @@ runDictOps(NDBT_Context* ctx, NDBT_Step* step)
     // replace by the Retrieved table
     pTab = pTab2;
 
-    int records = ctx->getNumRecords();
+    // create indexes
+    const char** indlist = NDBT_Tables::getIndexes(tabName);
+    uint indnum = 0;
+    while (*indlist != 0) {
+      uint count = 0;
+    try_create_index:
+      count++;
+      if (count == 1)
+        g_info << "2: create index " << indnum << " " << *indlist << endl;
+      NdbDictionary::Index ind;
+      char indName[200];
+      sprintf(indName, "%s_X%u", tabName, indnum);
+      ind.setName(indName);
+      ind.setTable(tabName);
+      if (strcmp(*indlist, "UNIQUE") == 0) {
+        ind.setType(NdbDictionary::Index::UniqueHashIndex);
+        ind.setLogging(pTab->getLogging());
+      } else if (strcmp(*indlist, "ORDERED") == 0) {
+        ind.setType(NdbDictionary::Index::OrderedIndex);
+        ind.setLogging(false);
+      } else {
+        assert(false);
+      }
+      const char** indtemp = indlist;
+      while (*++indtemp != 0) {
+        ind.addColumn(*indtemp);
+      }
+      if (pDic->createIndex(ind) != 0) {
+        const NdbError err = pDic->getNdbError();
+        if (count == 1)
+          g_err << "2: " << indName << ": create failed: " << err << endl;
+        if (err.code != 711) {
+          result = NDBT_FAILED;
+          break;
+        }
+        NdbSleep_MilliSleep(myRandom48(maxsleep));
+        goto try_create_index;
+      }
+      indlist = ++indtemp;
+      indnum++;
+    }
+    if (result == NDBT_FAILED)
+      break;
+
+    uint indcount = indnum;
+
+    int records = myRandom48(ctx->getNumRecords());
     g_info << "2: load " << records << " records" << endl;
     HugoTransactions hugoTrans(*pTab);
     if (hugoTrans.loadTable(pNdb, records) != 0) {
@@ -1995,6 +2041,32 @@ runDictOps(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
     NdbSleep_MilliSleep(myRandom48(maxsleep));
+
+    // drop indexes
+    indnum = 0;
+    while (indnum < indcount) {
+      uint count = 0;
+    try_drop_index:
+      count++;
+      if (count == 1)
+        g_info << "2: drop index " << indnum << endl;
+      char indName[200];
+      sprintf(indName, "%s_X%u", tabName, indnum);
+      if (pDic->dropIndex(indName, tabName) != 0) {
+        const NdbError err = pDic->getNdbError();
+        if (count == 1)
+          g_err << "2: " << indName << ": drop failed: " << err << endl;
+        if (err.code != 711) {
+          result = NDBT_FAILED;
+          break;
+        }
+        NdbSleep_MilliSleep(myRandom48(maxsleep));
+        goto try_drop_index;
+      }
+      indnum++;
+    }
+    if (result == NDBT_FAILED)
+      break;
 
     g_info << "2: drop" << endl;
     {
