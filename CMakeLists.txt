@@ -49,10 +49,6 @@ IF(WITH_FEDERATED_STORAGE_ENGINE)
   ADD_DEFINITIONS(-D WITH_FEDERATED_STORAGE_ENGINE)
   SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_federated_plugin")
 ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
-IF(WITH_BERKELEY_STORAGE_ENGINE)
-  ADD_DEFINITIONS(-D WITH_BERKELEY_STORAGE_ENGINE)
-  SET (mysql_plugin_defs "${mysql_plugin_defs},builtin_berkeley_plugin")
-ENDIF(WITH_BERKELEY_STORAGE_ENGINE)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc.in 
                ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc @ONLY)
