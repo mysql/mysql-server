@@ -2831,16 +2831,12 @@ page_zip_dir_insert(
 	const byte*	prev_rec,/* in: record after which to insert */
 	const byte*	free_rec,/* in: record from which rec was
 				allocated, or NULL */
-	byte*		rec,	/* in: record to insert */
-	dict_index_t*	index,	/* in: index of rec */
-	const ulint*	offsets)/* in: rec_get_offsets(rec) */
+	byte*		rec)	/* in: record to insert */
 {
 	ulint	n_dense;
 	byte*	slot_rec;
 	byte*	slot_free;
 
-	ut_ad(rec_offs_validate(rec, index, offsets));
-	ut_ad(rec_offs_comp(offsets));
 	ut_ad(prev_rec != rec);
 	ut_ad(page_rec_get_next((rec_t*) prev_rec) == rec);
 
