@@ -2600,6 +2600,9 @@ loop:
     else 
     {
       // error set by get filegroup
+      if (m_error.code == 723)
+	m_error.code = 755;
+      
       NdbMem_Free((void*)tmpTab);
       DBUG_RETURN(-1);
     }
