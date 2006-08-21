@@ -360,6 +360,7 @@ sub install_db ($$);
 sub run_testcase ($);
 sub run_testcase_stop_servers ($$$);
 sub run_testcase_start_servers ($);
+sub run_testcase_check_skip_test($);
 sub report_failure_and_restart ($);
 sub do_before_start_master ($$);
 sub do_before_start_slave ($$);
@@ -2156,6 +2157,8 @@ sub run_suite () {
 
   foreach my $tinfo ( @$tests )
   {
+    next if run_testcase_check_skip_test($tinfo);
+
     mtr_timer_start($glob_timers,"testcase", 60 * $opt_testcase_timeout);
     run_testcase($tinfo);
     mtr_timer_stop($glob_timers,"testcase");
@@ -2440,6 +2443,45 @@ sub im_prepare_data_dir($) {
   }
 }
 
+sub run_testcase_check_skip_test($)
+{
+  my ($tinfo)= @_;
+
+  # ----------------------------------------------------------------------
+  # If marked to skip, just print out and return.
+  # Note that a test case not marked as 'skip' can still be
+  # skipped later, because of the test case itself in cooperation
+  # with the mysqltest program tells us so.
+  # ----------------------------------------------------------------------
+
+  if ( $tinfo->{'skip'} )
+  {
+    mtr_report_test_name($tinfo);
+    mtr_report_test_skipped($tinfo);
+    return 1;
+  }
+
+  # If test needs cluster, check that master installed ok
+  if ( $tinfo->{'ndb_test'}  and $clusters->[0]->{'installed_ok'} eq "NO" )
+  {
+    mtr_report_test_name($tinfo);
+    mtr_report_test_failed($tinfo);
+    return 1;
+  }
+
+  # If test needs slave cluster, check that it installed ok
+  if ( $tinfo->{'ndb_test'}  and $tinfo->{'slave_num'} and
+       $clusters->[1]->{'installed_ok'} eq "NO" )
+  {
+    mtr_report_test_name($tinfo);
+    mtr_report_test_failed($tinfo);
+    return 1;
+  }
+
+  return 0;
+}
+
+
 
 ##############################################################################
 #
@@ -2466,37 +2508,6 @@ sub run_testcase ($) {
 
   # output current test to ndbcluster log file to enable diagnostics
   mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
-
-  # ----------------------------------------------------------------------
-  # If marked to skip, just print out and return.
-  # Note that a test case not marked as 'skip' can still be
-  # skipped later, because of the test case itself in cooperation
-  # with the mysqltest program tells us so.
-  # ----------------------------------------------------------------------
-
-  if ( $tinfo->{'skip'} )
-  {
-    mtr_report_test_name($tinfo);
-    mtr_report_test_skipped($tinfo);
-    return;
-  }
-
-  # If test needs cluster, check that master installed ok
-  if ( $tinfo->{'ndb_test'}  and $clusters->[0]->{'installed_ok'} eq "NO" )
-  {
-    mtr_report_test_name($tinfo);
-    mtr_report_test_failed($tinfo);
-    return;
-  }
-
-  # If test needs slave cluster, check that it installed ok
-  if ( $tinfo->{'ndb_test'}  and $tinfo->{'slave_num'} and
-       $clusters->[1]->{'installed_ok'} eq "NO" )
-  {
-    mtr_report_test_name($tinfo);
-    mtr_report_test_failed($tinfo);
-    return;
-  }
 
   my $master_restart= run_testcase_need_master_restart($tinfo);
   my $slave_restart= run_testcase_need_slave_restart($tinfo);
