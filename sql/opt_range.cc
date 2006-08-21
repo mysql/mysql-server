@@ -7584,16 +7584,10 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   QUICK_RANGE_SELECT* cur_quick;
   int result;
   Unique *unique;
-  MY_BITMAP *save_read_set, *save_write_set;
   handler *file= head->file;
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::read_keys_and_merge");
 
-  /* We're going to just read rowids. */
-  save_read_set=  head->read_set;
-  save_write_set= head->write_set;
   file->extra(HA_EXTRA_KEYREAD);
-  bitmap_clear_all(&head->tmp_set);
-  head->column_bitmaps_set(&head->tmp_set, &head->tmp_set);
   head->prepare_for_position();
 
   cur_quick_it.rewind();
@@ -7658,7 +7652,6 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   doing_pk_scan= FALSE;
   /* index_merge currently doesn't support "using index" at all */
   file->extra(HA_EXTRA_NO_KEYREAD);
-  head->column_bitmaps_set(save_read_set, save_write_set);
   /* start table scan */
   init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1, 1);
   DBUG_RETURN(result);
