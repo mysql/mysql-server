@@ -14963,6 +14963,8 @@ static void test_bug17667()
             DIE("Read error");
           }
         }
+        /* Print the line */
+        printf("%s", line_buffer);
 
       } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
             statement_cursor->buffer, statement_cursor->length) == NULL);
