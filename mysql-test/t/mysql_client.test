@@ -29,10 +29,9 @@
 --exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
 
 #
-# Bug #20328: mysql client interprets commands in comments
-#
---exec echo 'help' | $MYSQL
---exec echo 'help ' | $MYSQL
+# Bug #20328: mysql client: dumb about trailing spaces on 'help' command
+--exec echo 'help' | $MYSQL   >  $MYSQLTEST_VARDIR/tmp/bug20328.tmp
+--exec echo 'help ' | $MYSQL  >  $MYSQLTEST_VARDIR/tmp/bug20328.tmp
 
 #
 # Bug #20103: Escaping with backslash does not work
