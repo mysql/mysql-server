@@ -762,12 +762,89 @@ page_zip_compress(
 
 	storage = buf_end - n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
 
-	if (UNIV_UNLIKELY(!n_dense)) {
-		goto recs_done;
-	}
-
 	/* Compress the records in heap_no order. */
-	if (page_is_leaf(page)) {
+	if (UNIV_UNLIKELY(!n_dense)) {
+	} else if (!page_is_leaf(page)) {
+		/* This is a node pointer page. */
+		do {
+			rec_t*	rec = (rec_t*) *recs++;
+
+			offsets = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
+			ut_ad(rec_offs_n_fields(offsets) == n_fields + 1);
+			/* Non-leaf nodes should not have any externally
+			stored columns. */
+			ut_ad(!rec_offs_any_extern(offsets));
+
+			/* Compress the extra bytes. */
+			c_stream.avail_in = rec - REC_N_NEW_EXTRA_BYTES
+					- c_stream.next_in;
+
+			if (c_stream.avail_in) {
+				err = deflate(&c_stream, Z_NO_FLUSH);
+				if (err != Z_OK) {
+					goto zlib_error;
+				}
+			}
+			ut_ad(!c_stream.avail_in);
+
+			/* Compress the data bytes, except node_ptr. */
+			c_stream.next_in = rec;
+			c_stream.avail_in = rec_offs_data_size(offsets)
+					- REC_NODE_PTR_SIZE;
+			ut_ad(c_stream.avail_in);
+
+			err = deflate(&c_stream, Z_NO_FLUSH);
+			if (err != Z_OK) {
+				goto zlib_error;
+			}
+
+			ut_ad(!c_stream.avail_in);
+
+			memcpy(storage - REC_NODE_PTR_SIZE
+					* (rec_get_heap_no_new(rec) - 1),
+					c_stream.next_in, REC_NODE_PTR_SIZE);
+			c_stream.next_in += REC_NODE_PTR_SIZE;
+		} while (--n_dense);
+	} else if (UNIV_LIKELY(trx_id_col == ULINT_UNDEFINED)) {
+		/* This is a leaf page in a non-clustered index. */
+		ulint	slot	= 0;
+
+		do {
+			rec_t*	rec = (rec_t*) *recs++;
+
+			offsets = rec_get_offsets(rec, index, offsets,
+					ULINT_UNDEFINED, &heap);
+			ut_ad(rec_offs_n_fields(offsets) == n_fields);
+
+			/* Compress the extra bytes. */
+			c_stream.avail_in = rec - REC_N_NEW_EXTRA_BYTES
+					- c_stream.next_in;
+
+			if (c_stream.avail_in) {
+				err = deflate(&c_stream, Z_NO_FLUSH);
+				if (err != Z_OK) {
+					goto zlib_error;
+				}
+			}
+			ut_ad(!c_stream.avail_in);
+			ut_ad(c_stream.next_in == rec - REC_N_NEW_EXTRA_BYTES);
+
+			/* Compress the data bytes. */
+
+			c_stream.next_in = rec;
+			c_stream.avail_in = rec_offs_data_size(offsets);
+
+			if (c_stream.avail_in) {
+				err = deflate(&c_stream, Z_NO_FLUSH);
+				if (err != Z_OK) {
+					goto zlib_error;
+				}
+			}
+			ut_ad(!c_stream.avail_in);
+		} while (++slot < n_dense);
+	} else {
+		/* This is a leaf page in a clustered index. */
 		/* BTR_EXTERN_FIELD_REF storage */
 		byte*	externs	= storage - n_dense
 				* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
@@ -913,51 +990,8 @@ page_zip_compress(
 			}
 			ut_ad(!c_stream.avail_in);
 		} while (++slot < n_dense);
-	} else {
-		/* This is a node pointer page. */
-		do {
-			rec_t*	rec = (rec_t*) *recs++;
-
-			offsets = rec_get_offsets(rec, index, offsets,
-					ULINT_UNDEFINED, &heap);
-			ut_ad(rec_offs_n_fields(offsets) == n_fields + 1);
-			/* Non-leaf nodes should not have any externally
-			stored columns. */
-			ut_ad(!rec_offs_any_extern(offsets));
-
-			/* Compress the extra bytes. */
-			c_stream.avail_in = rec - REC_N_NEW_EXTRA_BYTES
-					- c_stream.next_in;
-
-			if (c_stream.avail_in) {
-				err = deflate(&c_stream, Z_NO_FLUSH);
-				if (err != Z_OK) {
-					goto zlib_error;
-				}
-			}
-			ut_ad(!c_stream.avail_in);
-
-			/* Compress the data bytes, except node_ptr. */
-			c_stream.next_in = rec;
-			c_stream.avail_in = rec_offs_data_size(offsets)
-					- REC_NODE_PTR_SIZE;
-			ut_ad(c_stream.avail_in);
-
-			err = deflate(&c_stream, Z_NO_FLUSH);
-			if (err != Z_OK) {
-				goto zlib_error;
-			}
-
-			ut_ad(!c_stream.avail_in);
-
-			memcpy(storage - REC_NODE_PTR_SIZE
-					* (rec_get_heap_no_new(rec) - 1),
-					c_stream.next_in, REC_NODE_PTR_SIZE);
-			c_stream.next_in += REC_NODE_PTR_SIZE;
-		} while (--n_dense);
 	}
 
-recs_done:
 	/* Finish the compression. */
 	ut_ad(!c_stream.avail_in);
 	/* Compress any trailing garbage, in case the last record was
@@ -1684,7 +1718,37 @@ page_zip_decompress_low(
 		offsets = rec_get_offsets(rec, index, offsets,
 					ULINT_UNDEFINED, &heap);
 
-		if (page_is_leaf(page)) {
+		if (!page_is_leaf(page)) {
+			/* Non-leaf nodes should not have any externally
+			stored columns. */
+			ut_ad(!rec_offs_any_extern(offsets));
+
+			/* Decompress the data bytes, except node_ptr. */
+			d_stream.avail_out = rec_offs_data_size(offsets)
+					- REC_NODE_PTR_SIZE;
+
+			switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
+			case Z_STREAM_END:
+			case Z_OK:
+			case Z_BUF_ERROR:
+				if (!d_stream.avail_out) {
+					break;
+				}
+				/* fall through */
+			default:
+				goto zlib_error;
+			}
+
+			/* Clear the node pointer in case the record
+			will be deleted and the space will be reallocated
+			to a smaller record. */
+			memset(d_stream.next_out, 0, REC_NODE_PTR_SIZE);
+			d_stream.next_out += REC_NODE_PTR_SIZE;
+		} else if (UNIV_LIKELY(trx_id_col == ULINT_UNDEFINED)) {
+			/* This is a leaf page in a non-clustered index. */
+			goto decompress_tail;
+		} else {
+			/* This is a leaf page in a clustered index. */
 			ulint	i;
 
 			/* Check if there are any externally stored columns.
@@ -1779,6 +1843,7 @@ page_zip_decompress_low(
 				}
 			}
 
+decompress_tail:
 			/* Decompress the last bytes of the record. */
 			d_stream.avail_out = rec_get_end(rec, offsets)
 					- d_stream.next_out;
@@ -1794,32 +1859,6 @@ page_zip_decompress_low(
 			default:
 				goto zlib_error;
 			}
-		} else {
-			/* Non-leaf nodes should not have any externally
-			stored columns. */
-			ut_ad(!rec_offs_any_extern(offsets));
-
-			/* Decompress the data bytes, except node_ptr. */
-			d_stream.avail_out = rec_offs_data_size(offsets)
-					- REC_NODE_PTR_SIZE;
-
-			switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
-			case Z_STREAM_END:
-			case Z_OK:
-			case Z_BUF_ERROR:
-				if (!d_stream.avail_out) {
-					break;
-				}
-				/* fall through */
-			default:
-				goto zlib_error;
-			}
-
-			/* Clear the node pointer in case the record
-			will be deleted and the space will be reallocated
-			to a smaller record. */
-			memset(d_stream.next_out, 0, REC_NODE_PTR_SIZE);
-			d_stream.next_out += REC_NODE_PTR_SIZE;
 		}
 
 		ut_ad(d_stream.next_out == rec_get_end(rec, offsets));
