@@ -624,8 +624,10 @@ void close_temporary_tables(THD *thd)
 
   if (!mysql_bin_log.is_open())
   {
-    for (table= thd->temporary_tables; table; table= table->next)
+    TABLE *next;
+    for (table= thd->temporary_tables; table; table= next)
     {
+      next= table->next;
       close_temporary(table, 1);
     }
     thd->temporary_tables= 0;
