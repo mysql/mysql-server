@@ -253,6 +253,7 @@ err_truncate:
       thd          Thread
       schema_table The I_S.EVENTS table
       event_table  The event table to use for loading (mysql.event)
+      db           For which schema to do an index scan.
 
   RETURN VALUE
     0  OK
@@ -261,7 +262,8 @@ err_truncate:
 
 bool
 Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
-                                               TABLE *event_table, char *db)
+                                               TABLE *event_table,
+                                               const char *db)
 {
   int ret=0;
   CHARSET_INFO *scs= system_charset_info;
@@ -369,7 +371,8 @@ Event_db_repository::table_scan_all_for_i_s(THD *thd, TABLE *schema_table,
 */
 
 int
-Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables, char *db)
+Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *tables,
+                                        const char *db)
 {
   TABLE *schema_table= tables->table;
   TABLE *event_table= NULL;

@@ -80,7 +80,7 @@ public:
   open_event_table(THD *thd, enum thr_lock_type lock_type, TABLE **table);
 
   int
-  fill_schema_events(THD *thd, TABLE_LIST *tables, char *db);
+  fill_schema_events(THD *thd, TABLE_LIST *tables, const char *db);
 
 private:
   void
@@ -88,7 +88,7 @@ private:
                        LEX_STRING field_value);
   bool
   index_read_for_db_for_i_s(THD *thd, TABLE *schema_table, TABLE *event_table,
-                            char *db);
+                            const char *db);
 
   bool
   table_scan_all_for_i_s(THD *thd, TABLE *schema_table, TABLE *event_table);
