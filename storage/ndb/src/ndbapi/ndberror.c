@@ -376,7 +376,7 @@ ErrorBundle ErrorCodes[] = {
   { 752,  DMEC, SE, "Invalid file format" },
   { 753,  IE, SE, "Invalid filegroup for file" },
   { 754,  IE, SE, "Invalid filegroup version when creating file" },
-  { 755,  DMEC, SE, "Invalid tablespace" },
+  { 755,  HA_WRONG_CREATE_OPTION, SE, "Invalid tablespace" },
   { 756,  DMEC, SE, "Index on disk column is not supported" },
   { 757,  DMEC, SE, "Varsize bitfield not supported" },
   { 758,  DMEC, SE, "Tablespace has changed" },
