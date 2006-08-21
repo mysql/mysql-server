@@ -3,11 +3,23 @@
 
 # Consider making these part of the basic RBR tests.
 
--- source include/have_binlog_format_row.inc
--- source include/master-slave.inc
+connection master;
+--disable_warnings
+--disable_query_log
+DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
+DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t9;
+--enable_query_log
+--enable_warnings
+sync_slave_with_master;
+STOP SLAVE;
+SET GLOBAL SQL_MODE='STRICT_ALL_TABLES';
+START SLAVE;
 
 connection master;
-eval CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t1_int (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t1_bit (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t1_char (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
+eval CREATE TABLE t1_nodef (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
 eval CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
 eval CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
 eval CREATE TABLE t4 (a INT) ENGINE=$engine_type;
@@ -15,15 +27,25 @@ eval CREATE TABLE t5 (a INT, b INT, c INT) ENGINE=$engine_type;
 eval CREATE TABLE t6 (a INT, b INT, c INT) ENGINE=$engine_type;
 
 # Table used to detect that slave is running
-eval CREATE TABLE t9 (a INT PRIMARY KEY) ENGINE=$engine_type;
+eval CREATE TABLE t9 (a INT) ENGINE=$engine_type;
 
 sync_slave_with_master;
-# On the slave, we add one column last in table 't1',
-ALTER TABLE t1 ADD x INT DEFAULT 42;
-# ... add one column in the middle of table 't2', and
-ALTER TABLE t2 ADD x INT DEFAULT 42 AFTER a;
-# ... add one column first in table 't3'.
-ALTER TABLE t3 ADD x INT DEFAULT 42 FIRST;
+
+# On the slave, we add one INT column last in table 't1_int',
+ALTER TABLE t1_int ADD x INT DEFAULT 42;
+# ... and add BIT columns last in table 't1_bit' to ensure that we
+# have at least one extra null byte on the slave,
+ALTER TABLE t1_bit
+  ADD x BIT(3) DEFAULT b'011',
+  ADD y BIT(5) DEFAULT b'10101',
+  ADD z BIT(2) DEFAULT b'10';
+# ... and add one CHAR column last in table 't1_char',
+ALTER TABLE t1_char ADD x CHAR(20) DEFAULT 'Just a test';
+# ... and add one non-nullable INT column last in table 't1_text'
+#     with no default,
+ALTER TABLE t1_nodef ADD x INT NOT NULL;
+# ... and remove the last column in t2
+ALTER TABLE t2 DROP b;
 # ... change the type of the single column in table 't4'
 ALTER TABLE t4 MODIFY a FLOAT;
 # ... change the type of the middle column of table 't5'
@@ -31,19 +53,56 @@ ALTER TABLE t5 MODIFY b FLOAT;
 # ... change the type of the last column of table 't6'
 ALTER TABLE t6 MODIFY c FLOAT;
 
-# Each of these should generate an error and stop the slave
+# Insert some values for tables on slave side. These should not be
+# modified when the row from the master is applied.
+INSERT INTO t1_int  VALUES (2, 4, 4711);
+INSERT INTO t1_char VALUES (2, 4, 'Foo is a bar');
+INSERT INTO t1_bit  VALUES (2, 4, b'101', b'11100', b'01');
+
+--echo **** On Master ****
 connection master;
-INSERT INTO t9 VALUES (1);
+INSERT INTO t1_int VALUES (1,2);
+INSERT INTO t1_int VALUES (2,5);
+INSERT INTO t1_bit VALUES (1,2);
+INSERT INTO t1_bit VALUES (2,5);
+INSERT INTO t1_char VALUES (1,2);
+INSERT INTO t1_char VALUES (2,5);
+SELECT * FROM t1_int;
+SELECT * FROM t1_bit;
+SELECT * FROM t1_char;
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT a,b,x FROM t1_int;
+SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit;
+SELECT a,b,x FROM t1_char;
+
+--echo **** On Master ****
+connection master;
+UPDATE t1_int  SET b=2*b WHERE a=2;
+UPDATE t1_char SET b=2*b WHERE a=2;
+UPDATE t1_bit  SET b=2*b WHERE a=2;
+SELECT * FROM t1_int;
+SELECT * FROM t1_bit;
+SELECT * FROM t1_char;
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT a,b,x FROM t1_int;
+SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit;
+SELECT a,b,x FROM t1_char;
+
+# Each of these should generate an error and stop the slave
+
+connection master;
+INSERT INTO t9 VALUES (2);
 sync_slave_with_master;
 # Now slave is guaranteed to be running
 connection master;
-INSERT INTO t1 VALUES (1,2);
+INSERT INTO t1_nodef VALUES (1,2);
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
---vertical_results
-SHOW SLAVE STATUS;
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -56,24 +115,8 @@ INSERT INTO t2 VALUES (2,4);
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
---vertical_results
-SHOW SLAVE STATUS;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
-START SLAVE;
-
-connection master;
-INSERT INTO t9 VALUES (3);
-sync_slave_with_master;
-# Now slave is guaranteed to be running
-connection master;
-INSERT INTO t3 VALUES (3,6);
-connection slave;
-wait_for_slave_to_stop;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
---vertical_results
-SHOW SLAVE STATUS;
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -86,9 +129,8 @@ INSERT INTO t4 VALUES (4);
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
---vertical_results
-SHOW SLAVE STATUS;
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -101,9 +143,8 @@ INSERT INTO t5 VALUES (5,10,25);
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
---vertical_results
-SHOW SLAVE STATUS;
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -116,14 +157,14 @@ INSERT INTO t6 VALUES (6,12,36);
 connection slave;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 #
---vertical_results
-SHOW SLAVE STATUS;
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
 connection master;
 --disable_warnings
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t9;
+DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
+DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t9;
 --enable_warnings
 sync_slave_with_master;
