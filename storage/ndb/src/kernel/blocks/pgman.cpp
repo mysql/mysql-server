@@ -442,13 +442,15 @@ Pgman::release_page_entry(Ptr<Page_entry>& ptr)
 #endif
   Page_state state = ptr.p->m_state;
 
-  ndbrequire(! (state & Page_entry::REQUEST));
   ndbrequire(ptr.p->m_requests.isEmpty());
 
   ndbrequire(! (state & Page_entry::ONSTACK));
   ndbrequire(! (state & Page_entry::ONQUEUE));
   ndbrequire(ptr.p->m_real_page_i == RNIL);
 
+  if (! (state & Page_entry::LOCKED))
+    ndbrequire(! (state & Page_entry::REQUEST));
+  
   set_page_state(ptr, 0);
   m_page_hashlist.remove(ptr);
   m_page_entry_pool.release(ptr);
@@ -1476,7 +1478,7 @@ Pgman::fsreadreq(Signal* signal, Ptr<Page_entry> ptr)
 				FsReadWriteReq::fsFormatGlobalPage);
   req->data.pageData[0] = ptr.p->m_real_page_i;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
-	     FsReadWriteReq::FixedLength + 1, JBB);
+	     FsReadWriteReq::FixedLength + 1, JBA);
 }
 
 void
@@ -1518,8 +1520,19 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   FsReadWriteReq::setFormatFlag(req->operationFlag,
 				FsReadWriteReq::fsFormatGlobalPage);
   req->data.pageData[0] = ptr.p->m_real_page_i;
+
+#if ERROR_INSERT_CODE
+  if (ptr.p->m_state & Page_entry::LOCKED)
+  {
+    sendSignalWithDelay(NDBFS_REF, GSN_FSWRITEREQ, signal,
+			3000, FsReadWriteReq::FixedLength + 1);
+    ndbout_c("pageout locked (3s)");
+    return;
+  }
+#endif
+  
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
-	     FsReadWriteReq::FixedLength + 1, JBB);
+	     FsReadWriteReq::FixedLength + 1, JBA);
 }
 
 void
@@ -1635,8 +1648,8 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
       return ptr.p->m_real_page_i;
     }
   }
-  
-  if (! (req_flags & Page_request::LOCK_PAGE))
+
+  if (! (req_flags & (Page_request::LOCK_PAGE | Page_request::UNLOCK_PAGE)))
   {
     ndbrequire(! (state & Page_entry::LOCKED));
   }
@@ -1675,7 +1688,7 @@ Pgman::get_page(Signal* signal, Ptr<Page_entry> ptr, Page_request page_req)
 
   if (req_flags & Page_request::UNLOCK_PAGE)
   {
-    state &= ~ Page_entry::LOCKED;
+    // keep it locked
   }
   
   ptr.p->m_busy_count += busy_count;
