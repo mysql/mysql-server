@@ -318,6 +318,9 @@ rec_init_offsets(
 						offs += len & 0x3fff;
 						if (UNIV_UNLIKELY(len
 								& 0x4000)) {
+							ut_ad(
+							dict_index_is_clust(
+								index));
 							len = offs
 							| REC_OFFS_EXTERNAL;
 						} else {
