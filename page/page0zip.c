@@ -1148,6 +1148,8 @@ page_zip_fields_decode(
 
 		if (!val) {
 			val = ULINT_UNDEFINED;
+		} else {
+			index->type = DICT_CLUSTERED;
 		}
 
 		*trx_id_col = val;
