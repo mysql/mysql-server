@@ -1860,6 +1860,7 @@ zlib_done:
 	/* The dense directory excludes the infimum and supremum records. */
 	n_dense = page_dir_get_n_heap(page) - 2;
 
+	page_zip->n_blobs = 0;
 	page_zip->m_start = PAGE_DATA + d_stream.total_in;
 
 	/* Apply the modification log. */
@@ -1874,7 +1875,7 @@ zlib_done:
 			goto err_exit;
 		}
 		page_zip->m_end = mod_log_ptr - page_zip->data;
-		ut_ad(page_zip_get_trailer_len(page_zip, index, NULL)
+		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
 				+ page_zip->m_end < page_zip->size);
 	}
 
@@ -1888,7 +1889,6 @@ err_exit:
 
 	/* Copy the uncompressed fields. */
 
-	page_zip->n_blobs = 0;
 	storage = page_zip->data + page_zip->size
 			- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
 
