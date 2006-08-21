@@ -265,6 +265,7 @@ page_zip_get_n_prev_extern(
 	ut_ad(page_is_leaf(page));
 	ut_ad(page_is_comp(page));
 	ut_ad(dict_table_is_comp(index->table));
+	ut_ad(dict_index_is_clust(index));
 
 	heap_no = rec_get_heap_no_new((rec_t*) rec);
 	ut_ad(heap_no >= 2);	/* exclude infimum and supremum */
@@ -768,15 +769,9 @@ page_zip_compress(
 	/* Compress the records in heap_no order. */
 	if (page_is_leaf(page)) {
 		/* BTR_EXTERN_FIELD_REF storage */
-		byte*	externs;
-		ulint	slot	= 0;
-
-		if (UNIV_UNLIKELY(trx_id_col != ULINT_UNDEFINED)) {
-			externs = storage - n_dense
+		byte*	externs	= storage - n_dense
 				* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-		} else {
-			externs = storage;
-		}
+		ulint	slot	= 0;
 
 		do {
 			ulint	i;
@@ -849,14 +844,16 @@ page_zip_compress(
 				} else if (rec_offs_nth_extern(offsets, i)) {
 				    src = rec_get_nth_field(rec, offsets,
 								i, &len);
-				    ut_ad(len > BTR_EXTERN_FIELD_REF_SIZE);
+				    ut_ad(dict_index_is_clust(index));
+				    ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 				    src += len - BTR_EXTERN_FIELD_REF_SIZE;
 
 				    c_stream.avail_in = src - c_stream.next_in;
-				    ut_ad(c_stream.avail_in);
-				    err = deflate(&c_stream, Z_NO_FLUSH);
-				    if (err != Z_OK) {
-					goto zlib_error;
+				    if (UNIV_LIKELY(c_stream.avail_in)) {
+					err = deflate(&c_stream, Z_NO_FLUSH);
+					if (err != Z_OK) {
+					    goto zlib_error;
+					}
 				    }
 
 				    ut_ad(!c_stream.avail_in);
@@ -1901,14 +1898,8 @@ err_exit:
 	/* Restore the uncompressed columns in heap_no order. */
 
 	if (page_is_leaf(page)) {
-		const byte*	externs;
-
-		if (UNIV_UNLIKELY(trx_id_col != ULINT_UNDEFINED)) {
-			externs = storage - n_dense
+		const byte*	externs	= storage - n_dense
 				* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-		} else {
-			externs = storage;
-		}
 
 		do {
 			ulint	i;
@@ -2185,20 +2176,20 @@ page_zip_write_rec(
 			* PAGE_ZIP_DIR_SLOT_SIZE;
 
 	if (page_is_leaf(page)) {
-		ulint		i;
 		ulint		len;
 		const byte*	start	= rec;
-		byte*		externs;
-		ulint		trx_id_col;
-		ulint		n_ext	= rec_offs_n_extern(offsets);
 
 		if (dict_index_is_clust(index)) {
+			ulint		i;
+			byte*		externs	= storage;
+			ulint		trx_id_col;
+			ulint		n_ext	= rec_offs_n_extern(offsets);
+
 			trx_id_col = dict_index_get_sys_col_pos(
 					index, DATA_TRX_ID);
 			ut_ad(trx_id_col != ULINT_UNDEFINED);
 
-			externs = storage
-					- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
+			externs -= (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
 					* (page_dir_get_n_heap(page) - 2);
 
 			/* Note that this will not take into account
@@ -2209,96 +2200,94 @@ page_zip_write_rec(
 					< externs
 					- BTR_EXTERN_FIELD_REF_SIZE
 					* page_zip->n_blobs);
-		} else {
-			trx_id_col = ULINT_UNDEFINED;
-			ut_ad(dict_index_get_sys_col_pos(
-					index, DATA_TRX_ID)
-					== ULINT_UNDEFINED);
-			externs = storage;
-			/* Note that this will not take into account
-			the BLOB columns of rec if create==TRUE */
-			ut_ad(data + rec_offs_data_size(offsets)
-					- n_ext * BTR_EXTERN_FIELD_REF_SIZE
-					< externs
-					- BTR_EXTERN_FIELD_REF_SIZE
-					* page_zip->n_blobs);
-		}
 
-		if (UNIV_UNLIKELY(n_ext)) {
-			ulint	blob_no	= page_zip_get_n_prev_extern(
-					page_zip, rec, index);
-			byte*	ext_end = externs - page_zip->n_blobs
-					* BTR_EXTERN_FIELD_REF_SIZE;
-			ut_ad(blob_no <= page_zip->n_blobs);
-			externs -= blob_no * BTR_EXTERN_FIELD_REF_SIZE;
+			if (UNIV_UNLIKELY(n_ext)) {
+				ulint	blob_no	= page_zip_get_n_prev_extern(
+						page_zip, rec, index);
+				byte*	ext_end = externs - page_zip->n_blobs
+						* BTR_EXTERN_FIELD_REF_SIZE;
+				ut_ad(blob_no <= page_zip->n_blobs);
+				externs -= blob_no * BTR_EXTERN_FIELD_REF_SIZE;
 
-			if (create) {
-				page_zip->n_blobs += n_ext;
-				ut_ad(!memcmp(ext_end - n_ext
+				if (create) {
+					page_zip->n_blobs += n_ext;
+					ut_ad(!memcmp(ext_end - n_ext
 						* BTR_EXTERN_FIELD_REF_SIZE,
 						zero,
 						BTR_EXTERN_FIELD_REF_SIZE));
-				memmove(ext_end - n_ext
+					memmove(ext_end - n_ext
 						* BTR_EXTERN_FIELD_REF_SIZE,
 						ext_end,
 						externs - ext_end);
+				}
+
+				ut_a(blob_no + n_ext <= page_zip->n_blobs);
 			}
 
-			ut_a(blob_no + n_ext <= page_zip->n_blobs);
-		}
+			/* Store separately trx_id, roll_ptr and
+			the BTR_EXTERN_FIELD_REF of each BLOB column. */
 
-		/* Store separately trx_id, roll_ptr and
-		the BTR_EXTERN_FIELD_REF of each BLOB column. */
+			for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+				const byte*	src;
 
-		for (i = 0; i < rec_offs_n_fields(offsets); i++) {
-			const byte*	src;
+				if (UNIV_UNLIKELY(i == trx_id_col)) {
+					ut_ad(!rec_offs_nth_extern(
+							offsets, i));
+					ut_ad(!rec_offs_nth_extern(
+							offsets, i + 1));
+					/* Locate trx_id and roll_ptr. */
+					src = rec_get_nth_field((rec_t*) rec,
+							offsets, i, &len);
+					ut_ad(len == DATA_TRX_ID_LEN);
+					ut_ad(src + DATA_TRX_ID_LEN
+						== rec_get_nth_field((rec_t*)
+						rec, offsets, i + 1, &len));
+					ut_ad(len == DATA_ROLL_PTR_LEN);
 
-			if (UNIV_UNLIKELY(i == trx_id_col)) {
-				ut_ad(!rec_offs_nth_extern(offsets, i));
-				ut_ad(!rec_offs_nth_extern(offsets, i + 1));
-				/* Store trx_id and roll_ptr separately. */
-				src = rec_get_nth_field((rec_t*) rec,
-						offsets, i, &len);
-				ut_ad(len == DATA_TRX_ID_LEN);
-				ut_ad(src + DATA_TRX_ID_LEN
-					== rec_get_nth_field((rec_t*) rec,
-					offsets, i + 1, &len));
-				ut_ad(len == DATA_ROLL_PTR_LEN);
+					/* Log the preceding fields. */
+					ut_ad(!memcmp(data, zero, ut_min(
+						src - start, sizeof zero)));
+					memcpy(data, start, src - start);
+					data += src - start;
+					start = src + (DATA_TRX_ID_LEN
+							+ DATA_ROLL_PTR_LEN);
 
-				/* Log the preceding fields. */
-				ut_ad(!memcmp(data, zero,
-					ut_min(src - start, sizeof zero)));
-				memcpy(data, start, src - start);
-				data += src - start;
-				start = src + (DATA_TRX_ID_LEN
+					/* Store trx_id and roll_ptr. */
+					memcpy(storage - (DATA_TRX_ID_LEN
+							+ DATA_ROLL_PTR_LEN)
+							* (heap_no - 1),
+						src, DATA_TRX_ID_LEN
 						+ DATA_ROLL_PTR_LEN);
+					i++; /* skip also roll_ptr */
+				} else if (rec_offs_nth_extern(offsets, i)) {
+					src = rec_get_nth_field((rec_t*) rec,
+							offsets, i, &len);
 
-				/* Store trx_id and roll_ptr separately. */
-				memcpy(storage
-					- (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
-					* (heap_no - 1),
-					src,
-					DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-				i++; /* skip also roll_ptr */
-			} else if (rec_offs_nth_extern(offsets, i)) {
-				src = rec_get_nth_field((rec_t*) rec,
-						offsets, i, &len);
+					ut_ad(dict_index_is_clust(index));
+					ut_ad(len
+						>= BTR_EXTERN_FIELD_REF_SIZE);
+					src += len - BTR_EXTERN_FIELD_REF_SIZE;
 
-				ut_ad(len > BTR_EXTERN_FIELD_REF_SIZE);
-				src += len - BTR_EXTERN_FIELD_REF_SIZE;
+					ut_ad(!memcmp(data, zero, ut_min(
+						src - start, sizeof zero)));
+					memcpy(data, start, src - start);
+					data += src - start;
+					start = src
+						+ BTR_EXTERN_FIELD_REF_SIZE;
 
-				ut_ad(!memcmp(data, zero,
-					ut_min(src - start, sizeof zero)));
-				memcpy(data, start, src - start);
-				data += src - start;
-				start = src + BTR_EXTERN_FIELD_REF_SIZE;
-
-				/* Store the BLOB pointer separately. */
-				externs -= BTR_EXTERN_FIELD_REF_SIZE;
-				ut_ad(data < externs);
-				memcpy(externs, src,
+					/* Store the BLOB pointer. */
+					externs -= BTR_EXTERN_FIELD_REF_SIZE;
+					ut_ad(data < externs);
+					memcpy(externs, src,
 						BTR_EXTERN_FIELD_REF_SIZE);
+				}
 			}
+		} else {
+			/* Leaf page of a secondary index:
+			no externally stored columns */
+			ut_ad(dict_index_get_sys_col_pos(index, DATA_TRX_ID)
+					== ULINT_UNDEFINED);
+			ut_ad(!rec_offs_any_extern(offsets));
 		}
 
 		/* Log the last bytes of the record. */
@@ -2432,22 +2421,17 @@ page_zip_write_blob_ptr(
 	ut_ad(page_zip_header_cmp(page_zip, page));
 
 	ut_ad(page_is_leaf(page));
+	ut_ad(dict_index_is_clust(index));
 
 	blob_no = page_zip_get_n_prev_extern(page_zip, rec, index)
 			+ rec_get_n_extern_new(rec, index, n);
 	ut_a(blob_no < page_zip->n_blobs);
 
 	/* The heap number of the first user record is 2. */
-	if (dict_index_is_clust(index)) {
-		externs = page_zip->data + page_zip->size
+	externs = page_zip->data + page_zip->size
 			- (page_dir_get_n_heap(page) - 2)
 			* (PAGE_ZIP_DIR_SLOT_SIZE
 			+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-	} else {
-		externs = page_zip->data + page_zip->size
-			- (page_dir_get_n_heap(page) - 2)
-			* PAGE_ZIP_DIR_SLOT_SIZE;
-	}
 
 	field = rec_get_nth_field((rec_t*) rec, offsets, n, &len);
 
@@ -2758,7 +2742,7 @@ page_zip_clear_rec(
 		ut_ad(!*data);
 		ut_ad((ulint) (data - page_zip->data) < page_zip->size);
 		page_zip->m_end = data - page_zip->data;
-	} else {
+	} else if (page_is_leaf(page) && dict_index_is_clust(index)) {
 		/* Do not clear the record, because there is not enough space
 		to log the operation. */
 
@@ -2942,6 +2926,11 @@ page_zip_dir_delete(
 	The "owned" and "deleted" flags will be cleared. */
 	mach_write_to_2(slot_free, ut_align_offset(rec, UNIV_PAGE_SIZE));
 
+	if (!page_is_leaf(page) || !dict_index_is_clust(index)) {
+		ut_ad(!rec_offs_any_extern(offsets));
+		goto skip_blobs;
+	}
+
 	n_ext = rec_offs_n_extern(offsets);
 	if (UNIV_UNLIKELY(n_ext)) {
 		/* Shift and zero fill the array of BLOB pointers. */
@@ -2952,16 +2941,10 @@ page_zip_dir_delete(
 		blob_no = page_zip_get_n_prev_extern(page_zip, rec, index);
 		ut_a(blob_no + n_ext <= page_zip->n_blobs);
 
-		if (dict_index_is_clust(index)) {
-			externs = page_zip->data + page_zip->size
+		externs = page_zip->data + page_zip->size
 				- (page_dir_get_n_heap(page) - 2)
 				* (PAGE_ZIP_DIR_SLOT_SIZE
 				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-		} else {
-			externs = page_zip->data + page_zip->size
-				- (page_dir_get_n_heap(page) - 2)
-				* PAGE_ZIP_DIR_SLOT_SIZE;
-		}
 
 		ext_end = externs - page_zip->n_blobs
 				* BTR_EXTERN_FIELD_REF_SIZE;
@@ -2975,6 +2958,7 @@ page_zip_dir_delete(
 		memset(ext_end, 0, n_ext * BTR_EXTERN_FIELD_REF_SIZE);
 	}
 
+skip_blobs:
 	/* The compression algorithm expects info_bits and n_owned
 	to be 0 for deleted records. */
 	rec[-REC_N_NEW_EXTRA_BYTES] = 0; /* info_bits and n_owned */
@@ -3217,6 +3201,10 @@ page_zip_copy(
 	ut_a(page_zip_validate(src_zip, src));
 #endif /* UNIV_ZIP_DEBUG */
 	ut_a(page_zip->size == src_zip->size);
+	if (UNIV_UNLIKELY(src_zip->n_blobs)) {
+		ut_a(page_is_leaf((page_t*) src));
+		ut_a(dict_index_is_clust(index));
+	}
 
 	/* Skip the file page header and trailer. */
 	memcpy(page + FIL_PAGE_DATA, src + FIL_PAGE_DATA,
