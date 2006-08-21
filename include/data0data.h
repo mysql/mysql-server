@@ -348,7 +348,8 @@ dtuple_convert_big_rec(
 				/* out, own: created big record vector,
 				NULL if we are not able to shorten
 				the entry enough, i.e., if there are
-				too many short fields in entry */
+				too many fixed-length or short fields
+				in entry or the index is clustered */
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry */
 	const ulint*	ext_vec,/* in: array of externally stored fields,
