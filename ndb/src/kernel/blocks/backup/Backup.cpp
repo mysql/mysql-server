@@ -274,36 +274,48 @@ Backup::execCONTINUEB(Signal* signal)
 
     BackupRecordPtr ptr;
     c_backupPool.getPtr(ptr, ptr_I);
-    TablePtr tabPtr;
-    ptr.p->tables.getPtr(tabPtr, tabPtr_I);
-    FragmentPtr fragPtr;
-    tabPtr.p->fragments.getPtr(fragPtr, fragPtr_I);
 
-    BackupFilePtr filePtr;
-    ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
-
-    const Uint32 sz = sizeof(BackupFormat::CtlFile::FragmentInfo) >> 2;
-    Uint32 * dst;
-    if (!filePtr.p->operation.dataBuffer.getWritePtr(&dst, sz))
+    if (tabPtr_I == RNIL)
     {
-      sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 100, 4);
+      closeFiles(signal, ptr);
       return;
     }
+    jam();
+    TablePtr tabPtr;
+    ptr.p->tables.getPtr(tabPtr, tabPtr_I);
+    jam();
+    if(tabPtr.p->fragments.getSize())
+    {
+      FragmentPtr fragPtr;
+      tabPtr.p->fragments.getPtr(fragPtr, fragPtr_I);
 
-    BackupFormat::CtlFile::FragmentInfo * fragInfo = 
-      (BackupFormat::CtlFile::FragmentInfo*)dst;
-    fragInfo->SectionType = htonl(BackupFormat::FRAGMENT_INFO);
-    fragInfo->SectionLength = htonl(sz);
-    fragInfo->TableId = htonl(fragPtr.p->tableId);
-    fragInfo->FragmentNo = htonl(fragPtr_I);
-    fragInfo->NoOfRecordsLow = htonl(fragPtr.p->noOfRecords & 0xFFFFFFFF);
-    fragInfo->NoOfRecordsHigh = htonl(fragPtr.p->noOfRecords >> 32);
-    fragInfo->FilePosLow = htonl(0 & 0xFFFFFFFF);
-    fragInfo->FilePosHigh = htonl(0 >> 32);
+      BackupFilePtr filePtr;
+      ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
 
-    filePtr.p->operation.dataBuffer.updateWritePtr(sz);
+      const Uint32 sz = sizeof(BackupFormat::CtlFile::FragmentInfo) >> 2;
+      Uint32 * dst;
+      if (!filePtr.p->operation.dataBuffer.getWritePtr(&dst, sz))
+      {
+        sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 100, 4);
+        return;
+      }
 
-    fragPtr_I++;
+      BackupFormat::CtlFile::FragmentInfo * fragInfo = 
+        (BackupFormat::CtlFile::FragmentInfo*)dst;
+      fragInfo->SectionType = htonl(BackupFormat::FRAGMENT_INFO);
+      fragInfo->SectionLength = htonl(sz);
+      fragInfo->TableId = htonl(fragPtr.p->tableId);
+      fragInfo->FragmentNo = htonl(fragPtr_I);
+      fragInfo->NoOfRecordsLow = htonl(fragPtr.p->noOfRecords & 0xFFFFFFFF);
+      fragInfo->NoOfRecordsHigh = htonl(fragPtr.p->noOfRecords >> 32);
+      fragInfo->FilePosLow = htonl(0 & 0xFFFFFFFF);
+      fragInfo->FilePosHigh = htonl(0 >> 32);
+
+      filePtr.p->operation.dataBuffer.updateWritePtr(sz);
+
+      fragPtr_I++;
+    }
+
     if (fragPtr_I == tabPtr.p->fragments.getSize())
     {
       signal->theData[0] = tabPtr.p->tableId;
@@ -4242,6 +4254,12 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
     {
       TablePtr tabPtr;
       ptr.p->tables.first(tabPtr);
+
+      if (tabPtr.i == RNIL)
+      {
+        closeFiles(signal, ptr);
+        return;
+      }
 
       signal->theData[0] = BackupContinueB::BACKUP_FRAGMENT_INFO;
       signal->theData[1] = ptr.i;
