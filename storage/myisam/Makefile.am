@@ -49,7 +49,9 @@ myisampack_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 rt_test sp_test #ft_test1 ft_eval
-noinst_HEADERS =	myisamdef.h rt_index.h rt_key.h rt_mbr.h sp_defs.h fulltext.h ftdefs.h ft_test1.h ft_eval.h
+noinst_HEADERS =	myisamdef.h rt_index.h rt_key.h rt_mbr.h sp_defs.h \
+			fulltext.h ftdefs.h ft_test1.h ft_eval.h \
+			ha_myisam.h
 mi_test1_DEPENDENCIES=	$(LIBRARIES)
 mi_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
 			$(top_builddir)/mysys/libmysys.a \

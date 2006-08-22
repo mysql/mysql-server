@@ -29,8 +29,6 @@
 #include "myisamdef.h"
 #include "rt_index.h"
 
-#include <mysql/plugin.h>
-
 ulong myisam_recover_options= HA_RECOVER_NONE;
 
 /* bits in myisam_recover_options */
