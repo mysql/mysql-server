@@ -42,8 +42,6 @@ have disables the InnoDB inlining in this file. */
 
 #define MAX_ULONG_BIT ((ulong) 1 << (sizeof(ulong)*8-1))
 
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-
 #include "ha_innodb.h"
 
 pthread_mutex_t innobase_share_mutex,	/* to protect innobase_open_files */
@@ -311,7 +309,8 @@ SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_rows_read,		  SHOW_LONG},
   {"rows_updated",
   (char*) &export_vars.innodb_rows_updated,		  SHOW_LONG},
-  {NullS, NullS, SHOW_LONG}};
+  {NullS, NullS, SHOW_LONG}
+};
 
 /* General functions */
 
@@ -7599,6 +7598,19 @@ bool ha_innobase::check_if_incompatible_data(
 	return COMPATIBLE_DATA_YES;
 }
 
+static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
+{
+  innodb_export_status();
+  var->type= SHOW_ARRAY;
+  var->value= (char *) &innodb_status_variables;
+  return 0;
+}
+
+SHOW_VAR innodb_status_variables_export[]= {
+  {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
+  {NullS, NullS, SHOW_LONG}
+};
+
 struct st_mysql_storage_engine innobase_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION, &innobase_hton};
 
@@ -7612,9 +7624,7 @@ mysql_declare_plugin(innobase)
   innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  0
+  innodb_status_variables_export
 }
 mysql_declare_plugin_end;
-
-#endif
 
