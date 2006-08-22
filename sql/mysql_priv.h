@@ -110,7 +110,7 @@ typedef struct my_locale_st
                TYPELIB *month_names_par, TYPELIB *ab_month_names_par,
                TYPELIB *day_names_par, TYPELIB *ab_day_names_par) : 
     name(name_par), description(descr_par), is_ascii(is_ascii_par),
-    month_names(month_names_par), ab_month_names(ab_month_names),
+    month_names(month_names_par), ab_month_names(ab_month_names_par),
     day_names(day_names_par), ab_day_names(ab_day_names_par)
   {}
 #endif
