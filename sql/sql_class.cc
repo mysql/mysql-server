@@ -223,7 +223,7 @@ THD::THD()
 #endif
   client_capabilities= 0;                       // minimalistic client
   net.last_error[0]=0;                          // If error on boot
-  net.query_cache_query=0;                      // If error on boot
+  query_cache_init_query(&net);                 // If error on boot
   ull=0;
   system_thread= cleanup_done= abort_on_warning= no_warnings_for_error= 0;
   peer_port= 0;					// For SHOW PROCESSLIST
