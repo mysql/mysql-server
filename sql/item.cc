@@ -1492,7 +1492,7 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       been created in prepare. In this case register the change for
       rollback.
     */
-    if (arena)
+    if (thd->is_stmt_prepare())
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);
