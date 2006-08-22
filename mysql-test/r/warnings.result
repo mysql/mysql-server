@@ -175,7 +175,7 @@ Warning	1266	Using storage engine MyISAM for table 't1'
 drop table t1;
 set table_type=MYISAM;
 Warnings:
-Warning	1541	The syntax 'table_type' is deprecated and will be removed in MySQL 5.2. Please use 'storage_engine' instead.
+Warning	1541	The syntax 'table_type' is deprecated and will be removed in MySQL 5.2. Please use 'storage_engine' instead
 create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 update t1 set a='abc';

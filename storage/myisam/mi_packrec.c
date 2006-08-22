@@ -1178,7 +1178,6 @@ static int _mi_read_rnd_mempack_record(MI_INFO*, byte *,my_off_t, my_bool);
 
 my_bool _mi_memmap_file(MI_INFO *info)
 {
-  byte *file_map;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("mi_memmap_file");
 
