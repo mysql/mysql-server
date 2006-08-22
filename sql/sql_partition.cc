@@ -868,9 +868,13 @@ int check_signed_flag(partition_info *part_info)
 bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
                           bool is_sub_part, bool is_field_to_be_setup)
 {
+  MEM_ROOT new_mem_root;
+  Query_arena partition_arena(&new_mem_root, Query_arena::INITIALIZED);
+  Query_arena backup_arena;
   partition_info *part_info= table->part_info;
   uint dir_length, home_dir_length;
   bool result= TRUE;
+  bool is_prepare;
   TABLE_LIST tables;
   TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
   int error;
@@ -917,7 +921,25 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   func_expr->walk(&Item::change_context_processor, 0, (byte*) context);
   save_where= thd->where;
   thd->where= "partition function";
+  /*
+    In execution we must avoid the use of thd->change_item_tree since
+    we might release memory before statement is completed. We do this
+    by temporarily setting the stmt_arena->mem_root to be the mem_root
+    of the table object, this also ensures that any memory allocated
+    during fix_fields will not be released at end of execution of this
+    statement. Thus the item tree will remain valid also in subsequent
+    executions of this table object. We do however not at the moment
+    support allocations during execution of val_int so any item class
+    that does this during val_int must be disallowed as partition
+    function.
+    SEE Bug #21658
+  */
+  /*
+    This is a tricky call to prepare for since it can have a large number
+    of interesting side effects, both desirable and undesirable.
+  */
   error= func_expr->fix_fields(thd, (Item**)0);
+
   context->table_list= save_table_list;
   context->first_name_resolution_table= save_first_table;
   context->last_name_resolution_table= save_last_table;
@@ -1422,7 +1444,6 @@ bool fix_partition_func(THD *thd, TABLE *table,
       DBUG_RETURN(TRUE);
     }
   }
-  thd->free_list= part_info->item_free_list;
   if (part_info->is_sub_partitioned())
   {
     DBUG_ASSERT(part_info->subpart_type == HASH_PARTITION);
@@ -1530,7 +1551,6 @@ bool fix_partition_func(THD *thd, TABLE *table,
   set_up_range_analysis_info(part_info);
   result= FALSE;
 end:
-  thd->free_list= thd_free_list;
   thd->mark_used_columns= save_mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   DBUG_RETURN(result);
@@ -3368,7 +3388,6 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
                             TABLE* table, bool is_create_table_ind,
                             handlerton *default_db_type)
 {
-  Item *thd_free_list= thd->free_list;
   bool result= TRUE;
   partition_info *part_info;
   CHARSET_INFO *old_character_set_client= thd->variables.character_set_client;
@@ -3396,7 +3415,6 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
     Thus we move away the current list temporarily and start a new list that
     we then save in the partition info structure.
   */
-  thd->free_list= NULL;
   lex.part_info= new partition_info();/* Indicates MYSQLparse from this place */
   if (!lex.part_info)
   {
@@ -3409,6 +3427,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   if (MYSQLparse((void*)thd) || thd->is_fatal_error)
   {
     free_items(thd->free_list);
+    thd->free_list= NULL;
     goto end;
   }
   /*
@@ -3477,7 +3496,6 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
   DBUG_ASSERT(part_info->default_engine_type == default_db_type);
-  part_info->item_free_list= thd->free_list;
 
   {
   /*
@@ -3500,7 +3518,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
     {
       mem_alloc_error(part_func_len);
       free_items(thd->free_list);
-      part_info->item_free_list= 0;
+      thd->free_list= NULL;
       goto end;
     }
     if (part_func_len)
@@ -3515,7 +3533,6 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   result= FALSE;
 end:
   lex_end(thd->lex);
-  thd->free_list= thd_free_list;
   thd->lex= old_lex;
   thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(result);
