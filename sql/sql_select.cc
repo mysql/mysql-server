@@ -13388,7 +13388,9 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
   {
     Field *field;
     
-    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
+    if ((item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM) ||
+        (item->type() == Item::FUNC_ITEM &&
+         ((Item_func*)item)->functype() == Item_func::SUSERVAR_FUNC))
       item_field= item;
     else
     {
