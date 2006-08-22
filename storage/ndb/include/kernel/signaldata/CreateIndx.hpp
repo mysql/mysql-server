@@ -192,6 +192,7 @@ public:
   enum ErrorCode {
     NoError = 0,
     Busy = 701,
+    BusyWithNR = 711,
     NotMaster = 702,
     IndexOnDiskAttributeError = 756,
     TriggerNotFound = 4238,

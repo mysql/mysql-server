@@ -44,6 +44,8 @@ public:
   static const NdbDictionary::Table* getTable(int _num);
   static int getNumTables();
 
+  static const char** getIndexes(const char* table);
+
   static int create_default_tablespace(Ndb* pNdb);
 
 private:
