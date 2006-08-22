@@ -305,6 +305,7 @@ Item::Item():
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
   with_subselect= 0;
+  cmp_context= (Item_result)-1;
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
@@ -343,7 +344,8 @@ Item::Item(THD *thd, Item *item):
   unsigned_flag(item->unsigned_flag),
   with_sum_func(item->with_sum_func),
   fixed(item->fixed),
-  collation(item->collation)
+  collation(item->collation),
+  cmp_context(item->cmp_context)
 {
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
@@ -3788,7 +3790,8 @@ Item *Item_field::equal_fields_propagator(byte *arg)
     The same problem occurs when comparing a DATE/TIME field with a
     DATE/TIME represented as an int and as a string.
   */
-  if (!item || item->cmp_context != cmp_context)
+  if (!item ||
+      (cmp_context != (Item_result)-1 && item->cmp_context != cmp_context))
     item= this;
   return item;
 }

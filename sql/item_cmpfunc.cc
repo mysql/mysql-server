@@ -1220,6 +1220,7 @@ void Item_func_between::fix_length_and_dec()
   if (!args[0] || !args[1] || !args[2])
     return;
   agg_cmp_type(thd, &cmp_type, args, 3);
+  args[0]->cmp_context= args[1]->cmp_context= args[2]->cmp_context= cmp_type;
 
   if (cmp_type == STRING_RESULT)
       agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV, 1);
