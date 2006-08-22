@@ -6141,6 +6141,68 @@ SET @v3 = 'c'|
 CALL bug16676_p1('a', @v2, @v3)|
 CALL bug16676_p2('a', @v2, @v3)|
 
+#
+# BUG#8153: Stored procedure with subquery and continue handler, wrong result
+#
+
+--disable_warnings
+drop table if exists t3, t4, t5|
+drop procedure if exists bug8153_subselect|
+drop procedure if exists bug8153_function|
+--enable_warnings
+
+create table t3 (a int)|
+create table t4 (a int)|
+insert into t3 values (1)|
+insert into t4 values (1), (1)|
+
+## Testing the use case reported in Bug#8153
+
+create procedure bug8153_subselect()
+begin
+  declare continue handler for sqlexception
+  begin
+    select 'statement failed';
+  end;
+  update t3 set a=a+1 where (select a from t4 where a=1) is null;
+  select 'statement after update';
+end|
+
+call bug8153_subselect()|
+select * from t3|
+
+call bug8153_subselect()|
+select * from t3|
+
+drop procedure bug8153_subselect|
+
+## Testing extra use cases, found while investigating
+## This is related to BUG#18787, with a non local handler
+
+create procedure bug8153_function_a()
+begin
+  declare continue handler for sqlexception
+  begin
+    select 'in continue handler';
+  end;
+
+  select 'reachable code a1';
+  call bug8153_function_b();
+  select 'reachable code a2';
+end|
+
+create procedure bug8153_function_b()
+begin
+  select 'reachable code b1';
+  select no_such_function();
+  select 'unreachable code b2';
+end|
+
+call bug8153_function_a()|
+
+drop procedure bug8153_function_a|
+drop procedure bug8153_function_b|
+
 # Cleanup.
 
 use test|
