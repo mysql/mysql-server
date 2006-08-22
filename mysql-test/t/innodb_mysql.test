@@ -282,3 +282,23 @@ explain select distinct f1 a, f1 b from t1;
 explain select distinct f1, f2 from t1;
 drop table t1;
 
+#
+# Test for bug #17164: ORed FALSE blocked conversion of outer join into join
+# 
+
+CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
+                 INDEX (name)) ENGINE=InnoDB;
+CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11),
+                 FOREIGN KEY (fkey) REFERENCES t2(id)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
+INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,3),(5,3);
+
+EXPLAIN
+SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id 
+  WHERE t1.name LIKE 'A%';
+
+EXPLAIN
+SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id 
+  WHERE t1.name LIKE 'A%' OR FALSE;
+
+DROP TABLE t1,t2;
