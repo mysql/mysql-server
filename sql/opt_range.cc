@@ -442,6 +442,7 @@ typedef struct st_qsel_param {
 
   uint fields_bitmap_size;
   MY_BITMAP needed_fields;    /* bitmask of fields needed by the query */
+  MY_BITMAP tmp_covered_fields;
 
   key_map *needed_reg;        /* ptr to SQL_SELECT::needed_reg */
 
@@ -1765,6 +1766,7 @@ static int fill_used_fields_bitmap(PARAM *param)
   param->fields_bitmap_size= (table->s->fields/8 + 1);
   uchar *tmp;
   uint pk;
+  param->tmp_covered_fields.bitmap= 0;
   if (!(tmp= (uchar*)alloc_root(param->mem_root,param->fields_bitmap_size)) ||
       bitmap_init(&param->needed_fields, tmp, param->fields_bitmap_size*8,
                   FALSE))
@@ -3202,11 +3204,14 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
   /*I=set of all covering indexes */
   ror_scan_mark= tree->ror_scans;
 
-  uchar buf[MAX_KEY/8+1];
-  MY_BITMAP covered_fields;
-  if (bitmap_init(&covered_fields, buf, nbits, FALSE))
+  MY_BITMAP *covered_fields= &param->tmp_covered_fields;
+  if (!covered_fields->bitmap) 
+    covered_fields->bitmap= (uchar*)alloc_root(param->mem_root,
+                                               param->fields_bitmap_size);
+  if (!covered_fields->bitmap ||
+      bitmap_init(covered_fields, covered_fields->bitmap, nbits, FALSE))
     DBUG_RETURN(0);
-  bitmap_clear_all(&covered_fields);
+  bitmap_clear_all(covered_fields);
 
   double total_cost= 0.0f;
   ha_rows records=0;
@@ -3225,7 +3230,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
     */
     for (ROR_SCAN_INFO **scan= ror_scan_mark; scan != ror_scans_end; ++scan)
     {
-      bitmap_subtract(&(*scan)->covered_fields, &covered_fields);
+      bitmap_subtract(&(*scan)->covered_fields, covered_fields);
       (*scan)->used_fields_covered=
         bitmap_bits_set(&(*scan)->covered_fields);
       (*scan)->first_uncovered_field=
@@ -3247,8 +3252,8 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
     if (total_cost > read_time)
       DBUG_RETURN(NULL);
     /* F=F-covered by first(I) */
-    bitmap_union(&covered_fields, &(*ror_scan_mark)->covered_fields);
-    all_covered= bitmap_is_subset(&param->needed_fields, &covered_fields);
+    bitmap_union(covered_fields, &(*ror_scan_mark)->covered_fields);
+    all_covered= bitmap_is_subset(&param->needed_fields, covered_fields);
   } while ((++ror_scan_mark < ror_scans_end) && !all_covered);
   
   if (!all_covered || (ror_scan_mark - tree->ror_scans) == 1)
