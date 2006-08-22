@@ -879,6 +879,17 @@ DROP TABLE t2;
 DROP TABLE t1;
 
 #
+# Bug#17313: N'xxx' and _utf8'xxx' are not equivalent
+#
+CREATE TABLE t1 (item varchar(255)) default character set utf8;
+INSERT INTO t1 VALUES (N'\\');
+INSERT INTO t1 VALUES (_utf8'\\');
+INSERT INTO t1 VALUES (N'Cote d\'Ivoire');
+INSERT INTO t1 VALUES (_utf8'Cote d\'Ivoire');
+SELECT item FROM t1 ORDER BY item;
+DROP TABLE t1;
+
+#
 # Bug#17705: Corruption of compressed index when index length changes between
 # 254 and 256
 #

@@ -17,6 +17,14 @@
 #include "client_priv.h"
 #include <my_dir.h>
 
+#ifdef __WIN__
+const char *mysqlcheck_name= "mysqlcheck.exe";
+const char *mysql_name= "mysql.exe";
+#else
+const char *mysqlcheck_name= "mysqlcheck";
+const char *mysql_name= "mysql";
+#endif /*__WIN__*/
+
 static my_bool opt_force= 0, opt_verbose= 0, tty_password= 0;
 static char *user= (char*) "root", *basedir= 0, *datadir= 0, *opt_password= 0;
 static my_bool upgrade_defaults_created= 0;
@@ -65,7 +73,7 @@ static struct my_option my_long_options[]=
 };
 static const char *load_default_groups[]=
 {
-  "mysql_upgrade", "client", 0
+  "mysql_upgrade", 0
 };
 
 #include <help_end.h>
@@ -272,7 +280,7 @@ int main(int argc, char **argv)
   strmake(bindir_end, "/bin", sizeof(bindir) - (int) (bindir_end - bindir)-1);
 
   if (!test_file_exists_res
-      (bindir, "mysqlcheck", mysqlcheck_line, &mysqlcheck_end))
+      (bindir, mysqlcheck_name, mysqlcheck_line, &mysqlcheck_end))
   {
     printf("Can't find program '%s'\n", mysqlcheck_line);
     puts("Please restart with --basedir=mysql-install-directory");
@@ -342,7 +350,8 @@ int main(int argc, char **argv)
     goto err_exit;
 
 fix_priv_tables:
-  if (!test_file_exists_res(bindir, "mysql", fix_priv_tables_cmd, &fix_cmd_end))
+  if (!test_file_exists_res(bindir, mysql_name,
+                            fix_priv_tables_cmd, &fix_cmd_end))
   {
     puts("Could not find MySQL command-line client (mysql).");
     puts
