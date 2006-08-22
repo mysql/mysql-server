@@ -911,7 +911,7 @@ ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table '
 SHOW CREATE TABLE mysqltest2.t_nn;
 Table	Create Table
 t_nn	CREATE TABLE `t_nn` (
-  `c1` int(11) default NULL
+  `c1` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW CREATE VIEW  mysqltest2.t_nn;
 ERROR HY000: 'mysqltest2.t_nn' is not VIEW
@@ -930,7 +930,7 @@ v_nn	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER 
 SHOW CREATE TABLE mysqltest2.t_nn;
 Table	Create Table
 t_nn	CREATE TABLE `t_nn` (
-  `c1` int(11) default NULL
+  `c1` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW CREATE VIEW mysqltest2.t_nn;
 ERROR HY000: 'mysqltest2.t_nn' is not VIEW
