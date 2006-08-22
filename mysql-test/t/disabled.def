@@ -36,6 +36,7 @@ rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 rpl_row_func003		 : BUG#19074 2006-13-04 andrei  test failed
 rpl_row_inexist_tbl      : BUG#18948 2006-03-09 mats    Disabled since patch makes this test wait forever
 rpl_sp                   : BUG#16456 2006-02-16 jmiller
+rpl_sp_effects           : BUG#19862 2006-08-22 mats    Bug appear to be fixed
 rpl_until                : BUG#15886 2006-02-16 jmiller Unstable test case
 sp-goto                  : BUG#18949 2006-02-16 jmiller GOTO is currently is disabled - will be fixed in the future
 mysqldump                : BUG#18078 2006-03-10 lars
