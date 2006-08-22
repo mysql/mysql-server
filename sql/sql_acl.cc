@@ -874,6 +874,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
             sql_print_information("X509 issuer mismatch: should be '%s' "
 			      "but is '%s'", acl_user->x509_issuer, ptr);
           free(ptr);
+          user_access=NO_ACCESS;
           break;
         }
         user_access= acl_user->access;
@@ -889,11 +890,13 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
         if (strcmp(acl_user->x509_subject,ptr))
         {
           if (global_system_variables.log_warnings)
-            sql_print_information("X509 subject mismatch: '%s' vs '%s'",
+            sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
                             acl_user->x509_subject, ptr);
+          free(ptr);
+          user_access=NO_ACCESS;
+          break;
         }
-        else
-          user_access= acl_user->access;
+        user_access= acl_user->access;
         free(ptr);
       }
       break;
