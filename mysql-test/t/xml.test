@@ -354,3 +354,9 @@ DROP PROCEDURE p2;
 select extractValue('<ns:element xmlns:ns="myns"/>','count(ns:element)');
 select extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element');
 select extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element/@xmlns:ns');
+
+#
+# Bug#20795 extractvalue() won't accept names containing a dot (.)
+#
+select extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/foo.bar');
+select extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/something');
