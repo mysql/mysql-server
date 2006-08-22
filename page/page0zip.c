@@ -88,44 +88,15 @@ page_zip_dir_user_size(
 }
 
 /*****************************************************************
-Find the slot of the given non-free record in the dense page directory. */
+Find the slot of the given record in the dense page directory. */
 UNIV_INLINE
 byte*
-page_zip_dir_find(
-/*==============*/
-						/* out: dense directory slot,
-						or NULL if record not found */
-	page_zip_des_t*	page_zip,		/* in: compressed page */
-	ulint		offset)			/* in: offset of user record */
-{
-	byte*	slot;
-	byte*	end;
-
-	ut_ad(page_zip_simple_validate(page_zip));
-
-	end = page_zip->data + page_zip->size;
-	slot = end - page_zip_dir_user_size(page_zip);
-
-	for (; slot < end; slot += PAGE_ZIP_DIR_SLOT_SIZE) {
-		if ((mach_read_from_2(slot) & PAGE_ZIP_DIR_SLOT_MASK)
-				== offset) {
-			return(slot);
-		}
-	}
-
-	return(NULL);
-}
-
-/*****************************************************************
-Find the slot of the given free record in the dense page directory. */
-UNIV_INLINE
-byte*
-page_zip_dir_find_free_low(
-/*=======================*/
+page_zip_dir_find_low(
+/*==================*/
 					/* out: dense directory slot,
 					or NULL if record not found */
-	byte*	slot,			/* in: start of deleted records */
-	byte*	end,			/* in: end of deleted records */
+	byte*	slot,			/* in: start of records */
+	byte*	end,			/* in: end of records */
 	ulint	offset)			/* in: offset of user record */
 {
 	ut_ad(slot <= end);
@@ -138,6 +109,26 @@ page_zip_dir_find_free_low(
 	}
 
 	return(NULL);
+}
+
+/*****************************************************************
+Find the slot of the given non-free record in the dense page directory. */
+UNIV_INLINE
+byte*
+page_zip_dir_find(
+/*==============*/
+						/* out: dense directory slot,
+						or NULL if record not found */
+	page_zip_des_t*	page_zip,		/* in: compressed page */
+	ulint		offset)			/* in: offset of user record */
+{
+	byte*	end	= page_zip->data + page_zip->size;
+
+	ut_ad(page_zip_simple_validate(page_zip));
+
+	return(page_zip_dir_find_low(
+			end - page_zip_dir_user_size(page_zip),
+			end, offset));
 }
 
 /*****************************************************************
@@ -155,7 +146,7 @@ page_zip_dir_find_free(
 
 	ut_ad(page_zip_simple_validate(page_zip));
 
-	return(page_zip_dir_find_free_low(
+	return(page_zip_dir_find_low(
 			end - page_zip_dir_size(page_zip),
 			end - page_zip_dir_user_size(page_zip), offset));
 }
@@ -956,7 +947,7 @@ page_zip_compress(
 
 				    /* Skip deleted records. */
 				    if (UNIV_LIKELY_NULL(
-					page_zip_dir_find_free_low(
+					page_zip_dir_find_low(
 					buf_end - PAGE_ZIP_DIR_SLOT_SIZE
 					* n_dense,
 					buf_end - PAGE_ZIP_DIR_SLOT_SIZE
@@ -2864,12 +2855,24 @@ page_zip_dir_insert(
 
 	ut_ad(prev_rec != rec);
 	ut_ad(page_rec_get_next((rec_t*) prev_rec) == rec);
+	ut_ad(page_zip_simple_validate(page_zip));
 
 	if (page_rec_is_infimum(prev_rec)) {
 		/* Use the first slot. */
 		slot_rec = page_zip->data + page_zip->size;
 	} else {
-		slot_rec = page_zip_dir_find(page_zip,
+		byte*	end	= page_zip->data + page_zip->size;
+		byte*	start	= end - page_zip_dir_user_size(page_zip);
+
+		if (UNIV_LIKELY(!free_rec)) {
+			/* PAGE_N_RECS was already incremented
+			in page_cur_insert_rec_low(), but the
+			dense directory slot at that position
+			contains garbage.  Skip it. */
+			start += PAGE_ZIP_DIR_SLOT_SIZE;
+		}
+
+		slot_rec = page_zip_dir_find_low(start, end,
 				ut_align_offset(prev_rec, UNIV_PAGE_SIZE));
 		ut_a(slot_rec);
 	}
