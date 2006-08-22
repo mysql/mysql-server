@@ -292,3 +292,12 @@ SELECT @a;
 @a
 18446744071710965857
 drop table bigfailure;
+create table t1(f1 int, f2 int);
+insert into t1 values (1,2),(2,3),(3,1);
+select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
+@var:=f2
+3
+select @var;
+@var
+3
+drop table t1;
