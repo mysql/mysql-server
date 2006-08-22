@@ -3897,6 +3897,19 @@ bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg)
   return Item::send(protocol, str_arg);
 }
 
+void Item_func_set_user_var::make_field(Send_field *tmp_field)
+{
+  if (result_field)
+  {
+    result_field->make_field(tmp_field);
+    DBUG_ASSERT(tmp_field->table_name != 0);
+    if (Item::name)
+      tmp_field->col_name=Item::name;               // Use user supplied name
+  }
+  else
+    Item::make_field(tmp_field);
+}
+
 String *
 Item_func_get_user_var::val_str(String *str)
 {
