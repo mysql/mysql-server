@@ -361,7 +361,6 @@ int mysql_install_db(int argc, char *argv[])
 	add_arg(&al, "--bootstrap");
 	add_arg(&al, "--skip-grant-tables");
 	add_arg(&al, "--skip-innodb");
-	add_arg(&al, "--skip-bdb");
 
   // spawn mysqld
   err = spawn(mysqld, &al, TRUE, sql_file, out_log, err_log);

@@ -3,7 +3,6 @@
 #
 
 -- source include/not_embedded.inc
--- source include/have_bdb.inc
 -- source include/have_innodb.inc
 -- source include/have_debug.inc
 
@@ -12,7 +11,7 @@ drop table if exists t1, t2;
 --enable_warnings
 reset master;
 
-create table t1 (a int) engine=bdb;
+create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=innodb;
 begin;
 insert t1 values (5);

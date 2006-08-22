@@ -71,7 +71,7 @@ LINK32=xilink6.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /Zi /Od /D "NDB_WIN32" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /D "NDB_WIN32" /I "../bdb/build_win32" /I "../include" /I "../regex" /I "../zlib" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "HAVE_INNOBASE_DB" /D "HAVE_BERKELEY_DB" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /FD /c
+# ADD CPP /nologo /G6 /MTd /W3 /Z7 /Od /D "NDB_WIN32" /I "../include" /I "../regex" /I "../zlib" /D "_DEBUG" /D "SAFEMALLOC" /D "SAFE_MUTEX" /D "HAVE_INNOBASE_DB" /D "MYSQL_SERVER" /D "_WINDOWS" /D "_CONSOLE" /D "_MBCS" /D "HAVE_DLOPEN" /FD /c
 # ADD BASE CPP @includes@
 # ADD CPP @includes@
 # SUBTRACT CPP /Fr /YX
