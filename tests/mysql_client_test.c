@@ -122,6 +122,7 @@ static void client_disconnect();
 void die(const char *file, int line, const char *expr)
 {
   fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
+  fflush(NULL);
   abort();
 }
 
@@ -3976,6 +3977,7 @@ static void test_fetch_date()
                                                         c7 timestamp(6))");
   myquery(rc);
 
+  rc= mysql_query(mysql, "SET SQL_MODE=''");
   rc= mysql_query(mysql, "INSERT INTO test_bind_result VALUES('2002-01-02', \
                                                               '12:49:00', \
                                                               '2002-01-02 17:46:59', \
@@ -8350,6 +8352,7 @@ static void test_bug19671()
   int rc;
   myheader("test_bug19671");
 
+  mysql_query(mysql, "set sql_mode=''");
   rc= mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
 
@@ -8920,7 +8923,7 @@ static void test_bug1500()
   rc= mysql_query(mysql, "DROP TABLE test_bg1500");
   myquery(rc);
 
-  rc= mysql_query(mysql, "CREATE TABLE test_bg1500 (s VARCHAR(25), FULLTEXT(s))");
+  rc= mysql_query(mysql, "CREATE TABLE test_bg1500 (s VARCHAR(25), FULLTEXT(s)) engine=MyISAM");
   myquery(rc);
 
   rc= mysql_query(mysql,
@@ -10996,7 +10999,8 @@ static void test_view()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(1 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(1 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11038,7 +11042,8 @@ static void test_view_where()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(4 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(4 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11120,7 +11125,8 @@ static void test_view_2where()
 
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  assert(0 == my_process_stmt_result(stmt));
+  rc= my_process_stmt_result(stmt);
+  assert(0 == rc);
 
   mysql_stmt_close(stmt);
 
@@ -11172,7 +11178,8 @@ static void test_view_star()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(0 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(0 == rc);
   }
 
   mysql_stmt_close(stmt);
@@ -11226,6 +11233,7 @@ static void test_view_insert()
 
   for (i= 0; i < 3; i++)
   {
+    int rowcount= 0;
     my_val= i;
 
     rc= mysql_stmt_execute(insert_stmt);
@@ -11233,7 +11241,8 @@ static void test_view_insert()
 
     rc= mysql_stmt_execute(select_stmt);
     check_execute(select_stmt, rc);
-    assert(i + 1 == (int) my_process_stmt_result(select_stmt));
+    rowcount= (int)my_process_stmt_result(select_stmt);
+    assert((i+1) == rowcount);
   }
   mysql_stmt_close(insert_stmt);
   mysql_stmt_close(select_stmt);
@@ -11273,7 +11282,8 @@ static void test_left_join_view()
   {
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
-    assert(3 == my_process_stmt_result(stmt));
+    rc= my_process_stmt_result(stmt);
+    assert(3 == rc);
   }
   mysql_stmt_close(stmt);
 
@@ -11348,7 +11358,8 @@ static void test_view_insert_fields()
   check_execute(stmt, rc);
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-  assert(1 == my_process_stmt_result(stmt));
+  rc= my_process_stmt_result(stmt);
+  assert(1 == rc);
 
   mysql_stmt_close(stmt);
   rc= mysql_query(mysql, "DROP VIEW v1");
@@ -12012,6 +12023,7 @@ static void test_bug6096()
   rc= mysql_real_query(mysql, stmt_text, strlen(stmt_text));
   myquery(rc);
 
+  mysql_query(mysql, "set sql_mode=''");
   stmt_text= "create table t1 (c_tinyint tinyint, c_smallint smallint, "
                              " c_mediumint mediumint, c_int int, "
                              " c_bigint bigint, c_float float, "
@@ -12897,6 +12909,7 @@ static void test_bug8378()
   DIE_UNLESS(memcmp(out, TEST_BUG8378_OUT, len) == 0);
 
   sprintf(buf, "SELECT '%s'", out);
+  
   rc=mysql_real_query(mysql, buf, strlen(buf));
   myquery(rc);
 
@@ -14932,7 +14945,7 @@ static void test_bug17667()
     { "insert into bug17667 (c) values ('5 NULs=\0\0\0\0\0')", 48 },
     { "/* NUL=\0 with comment */ insert into bug17667 (c) values ('encore')", 67 },
     { "drop table bug17667", 19 },
-    { NULL, 0 } };  
+    { NULL, 0 } };
 
   struct buffer_and_length *statement_cursor;
   FILE *log_file;
@@ -14947,11 +14960,14 @@ static void test_bug17667()
     myquery(rc);
   }
 
-  sleep(1); /* The server may need time to flush the data to the log. */
+  /* Make sure the server has written the logs to disk before reading it */
+  rc= mysql_query(mysql, "flush logs");
+  myquery(rc);
 
   master_log_filename = (char *) malloc(strlen(opt_vardir) + strlen("/log/master.log") + 1);
   strcpy(master_log_filename, opt_vardir);
   strcat(master_log_filename, "/log/master.log");
+  printf("Opening '%s'\n", master_log_filename);
   log_file= fopen(master_log_filename, "r");
   free(master_log_filename);
 
@@ -14959,18 +14975,30 @@ static void test_bug17667()
 
     for (statement_cursor= statements; statement_cursor->buffer != NULL;
         statement_cursor++) {
-     char line_buffer[MAX_TEST_QUERY_LENGTH*2]; 
-     /* more than enough room for the query and some marginalia. */
+      char line_buffer[MAX_TEST_QUERY_LENGTH*2];
+      /* more than enough room for the query and some marginalia. */
 
       do {
         memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
 
-        DIE_UNLESS(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) !=
-            NULL);
-        /* If we reach EOF before finishing the statement list, then we failed. */
+        if(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) == NULL)
+        {
+          /* If fgets returned NULL, it indicates either error or EOF */
+          if (feof(log_file))
+            DIE("Found EOF before all statements where found");
+          else
+          {
+            fprintf(stderr, "Got error %d while reading from file\n",
+                    ferror(log_file));
+            DIE("Read error");
+          }
+        }
 
       } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
             statement_cursor->buffer, statement_cursor->length) == NULL);
+
+      printf("Found statement starting with \"%s\"\n",
+             statement_cursor->buffer);
     }
 
     printf("success.  All queries found intact in the log.\n");

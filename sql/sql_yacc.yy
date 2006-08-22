@@ -6075,6 +6075,8 @@ simple_expr:
                                  lex->length ? atoi(lex->length) : -1,
                                  lex->dec ? atoi(lex->dec) : 0,
                                  lex->charset);
+            if (!$$)
+              YYABORT;
 	  }
 	| CASE_SYM opt_expr WHEN_SYM when_list opt_else END
 	  { $$= new Item_func_case(* $4, $2, $5 ); }
@@ -6084,6 +6086,8 @@ simple_expr:
 				 Lex->length ? atoi(Lex->length) : -1,
                                  Lex->dec ? atoi(Lex->dec) : 0,
 				 Lex->charset);
+            if (!$$)
+              YYABORT;
 	  }
 	| CONVERT_SYM '(' expr USING charset_name ')'
 	  { $$= new Item_func_conv_charset($3,$5); }

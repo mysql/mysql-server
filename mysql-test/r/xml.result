@@ -704,3 +704,9 @@ a
 select extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element/@xmlns:ns');
 extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element/@xmlns:ns')
 myns
+select extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/foo.bar');
+extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/foo.bar')
+Data
+select extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/something');
+extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/something')
+Otherdata
