@@ -1255,6 +1255,7 @@ void Field::hash(ulong *nr, ulong *nr2)
     CHARSET_INFO *cs= charset();
     cs->coll->hash_sort(cs, (uchar*) ptr, len, nr, nr2);
   }
+}
 
 my_size_t
 Field::do_last_null_byte() const
