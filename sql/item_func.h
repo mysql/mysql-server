@@ -1175,6 +1175,7 @@ public:
   bool update_hash(void *ptr, uint length, enum Item_result type,
   		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg= 0);
   bool send(Protocol *protocol, String *str_arg);
+  void make_field(Send_field *tmp_field);
   bool check(bool use_result_field);
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
