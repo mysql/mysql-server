@@ -70,13 +70,13 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
     DBUG_PRINT("info", ("sending error messages prohibited"));
     DBUG_VOID_RETURN;
   }
-  if (thd->spcont && thd->spcont->find_handler(sql_errno,
-                                               MYSQL_ERROR::WARN_LEVEL_ERROR))
+
+  if (thd->spcont &&
+      thd->spcont->handle_error(sql_errno, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
   {
-    if (! thd->spcont->found_handler_here())
-      thd->net.report_error= 1; /* Make "select" abort correctly */ 
     DBUG_VOID_RETURN;
   }
+
   thd->query_error=  1; // needed to catch query errors during replication
   if (!err)
   {
@@ -143,13 +143,12 @@ net_printf_error(THD *thd, uint errcode, ...)
     DBUG_VOID_RETURN;
   }
 
-  if (thd->spcont && thd->spcont->find_handler(errcode,
-                                               MYSQL_ERROR::WARN_LEVEL_ERROR))
+  if (thd->spcont &&
+      thd->spcont->handle_error(errcode, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
   {
-    if (! thd->spcont->found_handler_here())
-      thd->net.report_error= 1; /* Make "select" abort correctly */ 
     DBUG_VOID_RETURN;
   }
+
   thd->query_error=  1; // needed to catch query errors during replication
 #ifndef EMBEDDED_LIBRARY
   query_cache_abort(net);	// Safety
