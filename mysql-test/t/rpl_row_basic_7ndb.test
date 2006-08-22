@@ -2,3 +2,4 @@
 let $type= 'NDB' ;
 let $extra_index= ;
 -- source include/rpl_row_basic.inc
+-- source include/master-slave-end.inc
