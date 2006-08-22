@@ -20,7 +20,7 @@ let $mysql_errno= 1;
 while ($mysql_errno)
 {
   # Table t1 is readonly until the mysqld has reconnected properly
-  --error 0,1036
+  --error 0,1036,1296
   insert into t1 values(1);
   if ($mysql_errno)
   {
