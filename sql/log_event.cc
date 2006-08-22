@@ -5293,21 +5293,39 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
 /*
   Unpack a row into a record.
   
-  The row is assumed to only consist of the fields for which the
-  bitset represented by 'arr' and 'bits'; the other parts of the
-  record are left alone.
+  SYNOPSIS
+    unpack_row()
+    rli     Relay log info
+    table   Table to unpack into
+    colcnt  Number of columns to read from record
+    record  Record where the data should be unpacked
+    row     Packed row data
+    cols    Pointer to columns data to fill in
+    row_end Pointer to variable that will hold the value of the
+            one-after-end position for the row
+    master_reclength
+            Pointer to variable that will hold the length of the
+            record on the master side
+    rw_set  Pointer to bitmap that holds either the read_set or the
+            write_set of the table
 
-  At most 'colcnt' columns are read: if the table is larger than that,
-  the remaining fields are not filled in.
+  DESCRIPTION
+
+      The row is assumed to only consist of the fields for which the
+      bitset represented by 'arr' and 'bits'; the other parts of the
+      record are left alone.
+
+      At most 'colcnt' columns are read: if the table is larger than
+      that, the remaining fields are not filled in.
  */
 static int
 unpack_row(RELAY_LOG_INFO *rli,
            TABLE *table, uint const colcnt, byte *record,
            char const *row, MY_BITMAP const *cols,
-           char const **row_end, ulong *master_reclength)
+           char const **row_end, ulong *master_reclength,
+           MY_BITMAP* const rw_set)
 {
   DBUG_ASSERT(record && row);
-  MY_BITMAP *write_set= table->write_set;
   my_ptrdiff_t const offset= record - (byte*) table->record[0];
   my_size_t master_null_bytes= table->s->null_bytes;
 
@@ -5326,7 +5344,7 @@ unpack_row(RELAY_LOG_INFO *rli,
   memcpy(record, row, master_null_bytes);            // [1]
   int error= 0;
 
-  bitmap_set_all(write_set);
+  bitmap_set_all(rw_set);
 
   Field **const begin_ptr = table->field;
   Field **field_ptr;
@@ -5339,11 +5357,12 @@ unpack_row(RELAY_LOG_INFO *rli,
 
       if (bitmap_is_set(cols, field_ptr -  begin_ptr))
       {
-        /* Field...::unpack() cannot return 0 */
         ptr= f->unpack(f->ptr + offset, ptr);
+        /* Field...::unpack() cannot return 0 */
+        DBUG_ASSERT(ptr != NULL);
       }
       else
-        bitmap_clear_bit(write_set, (field_ptr - begin_ptr) + 1);
+        bitmap_clear_bit(rw_set, field_ptr - begin_ptr);
     }
 
     *row_end = ptr;
@@ -6102,27 +6121,6 @@ void Table_map_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
 }
 #endif
 
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-#ifndef DBUG_OFF
-static void
-print_column_values(char const *text, THD *thd, TABLE *table)
-{
-  THD *old_thd= table->in_use;
-  if (table->in_use == NULL)
-    table->in_use= thd;
-  for (Field **fptr= table->field ; *fptr ; ++fptr)
-  {
-    char buf[MAX_FIELD_WIDTH];
-    String str(buf, sizeof(buf), system_charset_info);
-    (*fptr)->val_str(&str);
-    DBUG_PRINT("info", ("%s for column %d is '%s'", 
-                        text, fptr - table->field, str.c_ptr()));
-  }
-  table->in_use= old_thd;
-}
-#endif
-#endif
-
 /**************************************************************************
 	Write_rows_log_event member functions
 **************************************************************************/
@@ -6219,10 +6217,9 @@ int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   int error;
   error= unpack_row(rli,
                     table, m_width, table->record[0],
-                    row_start, &m_cols, row_end, &m_master_reclength);
-#ifndef DBUG_OFF
-  print_column_values("Unpacked value", thd, table);
-#endif
+                    row_start, &m_cols, row_end, &m_master_reclength,
+                    table->write_set);
+  bitmap_copy(table->read_set, table->write_set);
   return error;
 }
 
@@ -6345,17 +6342,22 @@ copy_extra_record_fields(TABLE *table,
 /*
   Replace the provided record in the database.
 
-  Similar to how it is done in <code>mysql_insert()</code>, we first
-  try to do a <code>ha_write_row()</code> and of that fails due to
-  duplicated keys (or indices), we do an <code>ha_update_row()</code>
-  or a <code>ha_delete_row()</code> instead.
+  SYNOPSIS
+      replace_record()
+      thd    Thread context for writing the record.
+      table  Table to which record should be written.
+      master_reclength
+             Offset to first column that is not present on the master,
+             alternatively the length of the record on the master
+             side.
 
-  @param thd    Thread context for writing the record.
-  @param table  Table to which record should be written.
-  @param master_reclength
-         Offset to first column that is not present on the master,
-         alternatively the length of the record on the master side.
-  @return Error code on failure, 0 on success.
+  RETURN VALUE
+      Error code on failure, 0 on success.
+
+  DESCRIPTION
+      Similar to how it is done in mysql_insert(), we first try to do
+      a ha_write_row() and of that fails due to duplicated keys (or
+      indices), we do an ha_update_row() or a ha_delete_row() instead.
  */
 static int
 replace_record(THD *thd, TABLE *table,
@@ -6368,10 +6370,6 @@ replace_record(THD *thd, TABLE *table,
   int error;
   int keynum;
   auto_afree_ptr<char> key(NULL);
-
-#ifndef DBUG_OFF
-  print_column_values("Starting write value", thd, table);
-#endif
 
   while ((error= table->file->ha_write_row(table->record[0])))
   {
@@ -6766,7 +6764,8 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
 
   error= unpack_row(rli,
                     table, m_width, table->record[0], 
-                    row_start, &m_cols, row_end, &m_master_reclength);
+                    row_start, &m_cols, row_end, &m_master_reclength,
+                    table->read_set);
   /*
     If we will access rows using the random access method, m_key will
     be set to NULL, so we do not need to make a key copy in that case.
@@ -6908,12 +6907,14 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   /* record[0] is the before image for the update */
   error= unpack_row(rli,
                     table, m_width, table->record[0],
-                    row_start, &m_cols, row_end, &m_master_reclength);
+                    row_start, &m_cols, row_end, &m_master_reclength,
+                    table->read_set);
   row_start = *row_end;
   /* m_after_image is the after image for the update */
   error= unpack_row(rli,
                     table, m_width, m_after_image,
-                    row_start, &m_cols, row_end, &m_master_reclength);
+                    row_start, &m_cols, row_end, &m_master_reclength,
+                    table->write_set);
 
   /*
     If we will access rows using the random access method, m_key will
