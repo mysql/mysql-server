@@ -18,7 +18,7 @@ im_options                : Bug#20294 2006-07-24 stewart   Instance manager test
 #im_life_cycle             : Bug#20368 2006-06-10 alik    im_life_cycle test fails
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
-ndb_binlog_ignore_db     : BUG#21279 2006-07-25 ingo    Randomly throws a warning
+#ndb_binlog_ignore_db     : BUG#21279 2006-07-25 ingo    Randomly throws a warning
 ndb_load                 : BUG#17233 2006-05-04 tomas failed load data from infile causes mysqld dbug_assert, binlog not flushed
 partition                : BUG#21658 2006-08-16 Partition test fails, --ps-protocol
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
