@@ -218,11 +218,9 @@ client/server version.
 %{see_base}
 
 %prep
-# We unpack the source three times, for 'debug', 'max' and 'release' build.
+# We unpack the source two times, for 'debug' and 'release' build.
 %setup -T -a 0 -c -n mysql-%{mysql_version}
 mv mysql-%{mysql_version} mysql-debug-%{mysql_version}
-%setup -D -T -a 0 -n mysql-%{mysql_version}
-mv mysql-%{mysql_version} mysql-max-%{mysql_version}
 %setup -D -T -a 0 -n mysql-%{mysql_version}
 mv mysql-%{mysql_version} mysql-release-%{mysql_version}
 
@@ -332,35 +330,6 @@ fi
 (cd mysql-debug-%{mysql_version} ; \
  ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force ; \
  true)
-##############################################################################
-#
-#  Build the max binary
-#
-##############################################################################
-
-(cd mysql-max-%{mysql_version} &&
-CFLAGS="${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" \
-CXXFLAGS="${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" \
-BuildMySQL "--enable-shared \
-		--with-berkeley-db \
-		--with-ndbcluster \
-		--with-archive-storage-engine \
-		--with-csv-storage-engine \
-		--with-example-storage-engine \
-		--with-blackhole-storage-engine \
-		--with-federated-storage-engine \
-		--with-big-tables \
-		--with-comment=\"MySQL Community Server - Max (GPL)\"")
-
-# We might want to save the config log file
-if test -n "$MYSQL_MAXCONFLOG_DEST"
-then
-  cp -fp  mysql-max-%{mysql_version}/config.log "$MYSQL_MAXCONFLOG_DEST"
-fi
-
-(cd mysql-max-%{mysql_version} ; \
- ./mysql-test-run.pl --comment=max --skip-ndbcluster --do-test=bdb --force ; \
- true)
 
 ##############################################################################
 #
@@ -417,13 +386,10 @@ install -d $RBR%{_sbindir}
 # the same here.
 mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
 
-# install "mysqld-debug" and "mysqld-max"
+# install "mysqld-debug"
 $MBD/libtool --mode=execute install -m 755 \
                  $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
                  $RBR%{_sbindir}/mysqld-debug
-$MBD/libtool --mode=execute install -m 755 \
-                 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-max-%{mysql_version}/sql/mysqld \
-                 $RBR%{_sbindir}/mysqld-max
 
 # install saved perror binary with NDB support (BUG#13740)
 install -m 755 $MBD/extra/perror $RBR%{_bindir}/perror
@@ -601,7 +567,6 @@ fi
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
-%attr(755, root, root) %{_sbindir}/mysqld-max
 %attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
 
@@ -707,6 +672,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Tue Aug 15 2006 Joerg Bruehe <joerg@mysql.com>
+
+- The "max" server is removed from packages, effective from 5.1.12-beta.
+  Delete all steps to build, package, or install it.
+
 * Mon Jul 10 2006 Joerg Bruehe <joerg@mysql.com>
 
 - Fix a typing error in the "make" target for the Perl script to run the tests.

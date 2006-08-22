@@ -48,6 +48,7 @@ int decimal_bin_size(int precision, int scale);
 int decimal_result_size(decimal_t *from1, decimal_t *from2, char op,
                         int param);
 
+int decimal_intg(decimal_t *from);
 int decimal_add(decimal_t *from1, decimal_t *from2, decimal_t *to);
 int decimal_sub(decimal_t *from1, decimal_t *from2, decimal_t *to);
 int decimal_cmp(decimal_t *from1, decimal_t *from2);

@@ -332,6 +332,7 @@
 
 */
 
+
 #include "mysql_priv.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation                          // gcc: Class implementation
@@ -1142,7 +1143,7 @@ bool ha_federated::create_where_from_key(String *to,
       Field *field= key_part->field;
       uint store_length= key_part->store_length;
       uint part_length= min(store_length, length);
-      needs_quotes= 1;
+      needs_quotes= field->str_needs_quotes();
       DBUG_DUMP("key, start of loop", (char *) ptr, length);
 
       if (key_part->null_bit)
@@ -1663,22 +1664,21 @@ int ha_federated::write_row(byte *buf)
     {
       commas_added= TRUE;
       if ((*field)->is_null())
-        insert_field_value_string.append(STRING_WITH_LEN(" NULL "));
+        values_string.append(STRING_WITH_LEN(" NULL "));
       else
       {
+        bool needs_quote= (*field)->str_needs_quotes();
         (*field)->val_str(&insert_field_value_string);
-        values_string.append('\'');
+        if (needs_quote)
+          values_string.append('\'');
         insert_field_value_string.print(&values_string);
-        values_string.append('\'');
+        if (needs_quote)
+          values_string.append('\'');
 
         insert_field_value_string.length(0);
       }
       /* append the field name */
       insert_string.append((*field)->field_name);
-
-      /* append the value */
-      values_string.append(insert_field_value_string);
-      insert_field_value_string.length(0);
 
       /* append commas between both fields and fieldnames */
       /*
@@ -1884,12 +1884,15 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
         update_string.append(STRING_WITH_LEN(" NULL "));
       else
       {
-        my_bitmap_map *old_map= tmp_use_all_columns(table, table->read_set);
         /* otherwise = */
+        my_bitmap_map *old_map= tmp_use_all_columns(table, table->read_set);
+        bool needs_quote= (*field)->str_needs_quotes();
 	(*field)->val_str(&field_value);
-        update_string.append('\'');
+        if (needs_quote)
+          update_string.append('\'');
         field_value.print(&update_string);
-        update_string.append('\'');
+        if (needs_quote)
+          update_string.append('\'');
         field_value.length(0);
         tmp_restore_column_map(table->read_set, old_map);
       }
@@ -1903,12 +1906,15 @@ int ha_federated::update_row(const byte *old_data, byte *new_data)
         where_string.append(STRING_WITH_LEN(" IS NULL "));
       else
       {
+        bool needs_quote= (*field)->str_needs_quotes();
         where_string.append(STRING_WITH_LEN(" = "));
         (*field)->val_str(&field_value,
                           (char*) (old_data + (*field)->offset()));
-	where_string.append('\'');
+        if (needs_quote)
+          where_string.append('\'');
         field_value.print(&where_string);
-	where_string.append('\'');
+        if (needs_quote)
+          where_string.append('\'');
         field_value.length(0);
       }
       where_string.append(STRING_WITH_LEN(" AND "));
@@ -1983,11 +1989,14 @@ int ha_federated::delete_row(const byte *buf)
       }
       else
       {
-      delete_string.append(STRING_WITH_LEN(" = "));
-      cur_field->val_str(&data_string);
-      delete_string.append('\'');
-      data_string.print(&delete_string);
-      delete_string.append('\'');
+        bool needs_quote= cur_field->str_needs_quotes();
+        delete_string.append(STRING_WITH_LEN(" = "));
+        cur_field->val_str(&data_string);
+        if (needs_quote)
+          delete_string.append('\'');
+        data_string.print(&delete_string);
+        if (needs_quote)
+          delete_string.append('\'');
       }
       delete_string.append(STRING_WITH_LEN(" AND "));
     }

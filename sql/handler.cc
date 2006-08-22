@@ -74,7 +74,6 @@ static const LEX_STRING sys_table_aliases[]=
 {
   {(char*)STRING_WITH_LEN("INNOBASE")},  {(char*)STRING_WITH_LEN("INNODB")},
   {(char*)STRING_WITH_LEN("NDB")},       {(char*)STRING_WITH_LEN("NDBCLUSTER")},
-  {(char*)STRING_WITH_LEN("BDB")},       {(char*)STRING_WITH_LEN("BERKELEYDB")},
   {(char*)STRING_WITH_LEN("HEAP")},      {(char*)STRING_WITH_LEN("MEMORY")},
   {(char*)STRING_WITH_LEN("MERGE")},     {(char*)STRING_WITH_LEN("MRG_MYISAM")},
   {NullS, 0}
@@ -1508,7 +1507,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 
 /*
   Read first row (only) from a table
-  This is never called for InnoDB or BDB tables, as these table types
+  This is never called for InnoDB tables, as these table types
   has the HA_STATS_RECORDS_IS_EXACT set.
 */
 
