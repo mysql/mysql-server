@@ -14950,7 +14950,7 @@ static void test_bug17667()
   strcpy(master_log_filename, opt_vardir);
   strcat(master_log_filename, "/log/master.log");
   printf("Opening '%s'\n", master_log_filename);
-  log_file= fopen(master_log_filename, "r");
+  log_file= my_fopen(master_log_filename, (int) (O_RDONLY | O_BINARY), MYF(MY_WME));
   free(master_log_filename);
 
   if (log_file != NULL) {
@@ -14995,7 +14995,7 @@ static void test_bug17667()
   }
 
   if (log_file != NULL)
-    fclose(log_file);
+    my_fclose(log_file, MYF(0));
 
 }
 
