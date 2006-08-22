@@ -7810,6 +7810,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
    */
   m_current_multi_operation= 
     lastOp ? lastOp->next() : m_active_trans->getFirstDefinedOperation();
+  if (!(res= execute_no_commit_ie(this, m_active_trans,true)))
   {
     m_multi_range_defined= multi_range_curr;
     multi_range_curr= ranges;
