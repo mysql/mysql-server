@@ -5,5 +5,66 @@ MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
 MYSQL_PLUGIN_ACTIONS(innobase,  [
   AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
   AC_SUBST(innodb_system_libs)
-])
+  AC_PROG_CC
+  AC_PROG_RANLIB
+  AC_PROG_INSTALL
+  AC_PROG_LIBTOOL
+  AC_CHECK_HEADERS(aio.h sched.h)
+  AC_CHECK_SIZEOF(int, 4)
+  AC_CHECK_SIZEOF(long, 4)
+  AC_CHECK_SIZEOF(void*, 4)
+  AC_CHECK_FUNCS(sched_yield)
+  AC_CHECK_FUNCS(fdatasync)
+  AC_CHECK_FUNCS(localtime_r)
+  AC_C_BIGENDIAN
+  case "$target_os" in
+         lin*)
+           CFLAGS="$CFLAGS -DUNIV_LINUX";;
+         hpux10*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;
+         hp*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX";;
+         aix*)
+           CFLAGS="$CFLAGS -DUNIV_AIX";;
+         irix*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+         osf*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+         sysv5uw7*)
+           # Problem when linking on SCO
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+         openbsd*)
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
+  esac
+  AC_CONFIG_FILES(
+      storage/innobase/ut/Makefile
+      storage/innobase/btr/Makefile
+      storage/innobase/buf/Makefile
+      storage/innobase/data/Makefile
+      storage/innobase/dict/Makefile
+      storage/innobase/dyn/Makefile
+      storage/innobase/eval/Makefile
+      storage/innobase/fil/Makefile
+      storage/innobase/fsp/Makefile
+      storage/innobase/fut/Makefile
+      storage/innobase/ha/Makefile
+      storage/innobase/ibuf/Makefile
+      storage/innobase/lock/Makefile
+      storage/innobase/log/Makefile
+      storage/innobase/mach/Makefile
+      storage/innobase/mem/Makefile
+      storage/innobase/mtr/Makefile
+      storage/innobase/os/Makefile
+      storage/innobase/page/Makefile
+      storage/innobase/pars/Makefile
+      storage/innobase/que/Makefile
+      storage/innobase/read/Makefile
+      storage/innobase/rem/Makefile
+      storage/innobase/row/Makefile
+      storage/innobase/srv/Makefile
+      storage/innobase/sync/Makefile
+      storage/innobase/thr/Makefile
+      storage/innobase/trx/Makefile
+      storage/innobase/usr/Makefile)
+  ])
 
