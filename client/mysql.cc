@@ -2353,7 +2353,6 @@ print_table_data(MYSQL_RES *result)
       const char *buffer;
       uint data_length;
       uint field_max_length;
-      bool right_justified;
       uint visible_length;
       uint extra_padding;
 
