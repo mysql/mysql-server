@@ -11,10 +11,6 @@ if [ -f /usr/bin/glibtoolize ]
     LIBTOOLIZE=libtoolize
 fi
 
-(cd storage/innobase && aclocal && autoheader && \
-    $LIBTOOLIZE --automake --force --copy && \
-    automake --force --add-missing --copy && autoconf)
-
 aclocal || die "Can't execute aclocal" 
 autoheader || die "Can't execute autoheader"
 # --force means overwrite ltmain.sh script if it already exists 

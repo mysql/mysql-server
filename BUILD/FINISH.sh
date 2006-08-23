@@ -5,7 +5,7 @@ configure="./configure $base_configs $extra_configs"
 
 commands="\
 $make -k distclean || true 
-/bin/rm -rf */.deps/*.P config.cache storage/innobase/config.cache autom4te.cache innobase/autom4te.cache;
+/bin/rm -rf */.deps/*.P config.cache autom4te.cache;
 
 path=`dirname $0`
 . \"$path/autorun.sh\""
