@@ -3513,10 +3513,10 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 int handler::ha_reset()
 {
   DBUG_ENTER("ha_reset");
-  /* Check that we have called all proper delallocation functions */
+  /* Check that we have called all proper deallocation functions */
   DBUG_ASSERT((byte*) table->def_read_set.bitmap +
               table->s->column_bitmap_size ==
-              (char*) table->def_write_set.bitmap);
+              (byte*) table->def_write_set.bitmap);
   DBUG_ASSERT(bitmap_is_set_all(&table->s->all_set));
   DBUG_ASSERT(table->key_read == 0);
   /* ensure that ha_index_end / ha_rnd_end has been called */
