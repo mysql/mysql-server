@@ -8,7 +8,7 @@ TRX active_list_min, active_list_max,
        committed_list_min, committed_list_max, *pool;
 
 pthread_mutex_t LOCK_trx_list;
-uint active_transactions;
+uint trxman_active_transactions, trxman_allocated_transactions;
 TrID global_trid_generator;
 
 TRX **short_id_to_trx;
@@ -30,7 +30,8 @@ int trxman_init()
   active_list_max.next= active_list_min.prev= 0;
   active_list_max.prev= &active_list_min;
   active_list_min.next= &active_list_max;
-  active_transactions= 0;
+  trxman_active_transactions= 0;
+  trxman_allocated_transactions= 0;
 
   committed_list_max.commit_trid= ~0;
   committed_list_max.next= committed_list_min.prev= 0;
@@ -54,7 +55,7 @@ int trxman_init()
 int trxman_destroy()
 {
   DBUG_ASSERT(trid_to_trx.count == 0);
-  DBUG_ASSERT(active_transactions == 0);
+  DBUG_ASSERT(trxman_active_transactions == 0);
   DBUG_ASSERT(active_list_max.prev == &active_list_min);
   DBUG_ASSERT(active_list_min.next == &active_list_max);
   DBUG_ASSERT(committed_list_max.prev == &committed_list_min);
@@ -62,7 +63,7 @@ int trxman_destroy()
   while (pool)
   {
     TRX *tmp=pool->next;
-    my_free(pool, MYF(0));
+    my_free((void *)pool, MYF(0));
     pool=tmp;
   }
   lf_hash_destroy(&trid_to_trx);
@@ -93,21 +94,17 @@ static void set_short_id(TRX *trx)
   trx->short_id= i;
 }
 
-extern int global_malloc;
 TRX *trxman_new_trx()
 {
   TRX *trx;
 
-  my_atomic_add32(&active_transactions, 1);
+  my_atomic_add32(&trxman_active_transactions, 1);
 
   /*
-    we need a mutex here to ensure that
-    transactions in the active list are ordered by the trid.
-    So, incrementing global_trid_generator and
-    adding to the list must be atomic.
+    see trxman_end_trx to see why we need a mutex here
 
     and as we have a mutex, we can as well do everything
-    under it - allocating a TRX, incrementing active_transactions,
+    under it - allocating a TRX, incrementing trxman_active_transactions,
     setting trx->min_read_from.
 
     Note that all the above is fast. generating short_id may be slow,
@@ -123,7 +120,7 @@ TRX *trxman_new_trx()
   if (!trx)
   {
     trx=(TRX *)my_malloc(sizeof(TRX), MYF(MY_WME));
-    global_malloc++;
+    trxman_allocated_transactions++;
   }
   if (!trx)
     return 0;
@@ -213,7 +210,7 @@ void trxman_end_trx(TRX *trx, my_bool commit)
   }
   pthread_mutex_unlock(&LOCK_trx_list);
 
-  my_atomic_add32(&active_transactions, -1);
+  my_atomic_add32(&trxman_active_transactions, -1);
 
   while (free_me)
   {

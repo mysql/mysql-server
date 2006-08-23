@@ -106,7 +106,6 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
   ok(litmus == 0, "tested %s in %g secs (%d)", test, ((double)now)/1e7, litmus);
 }
 
-int global_malloc=0;
 int main()
 {
   plan(1);
@@ -127,7 +126,7 @@ int main()
   trxman_init();
   run_test("trxman", test_trxman, THREADS,CYCLES);
   trxman_destroy();
-  diag("mallocs: %d\n", global_malloc);
+  diag("mallocs: %d\n", trxman_allocated_transactions);
 
   pthread_mutex_destroy(&rt_mutex);
   pthread_cond_destroy(&rt_cond);

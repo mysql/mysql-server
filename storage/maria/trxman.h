@@ -12,7 +12,7 @@ typedef struct st_transaction
 
 #define SHORT_ID_MAX 65535
 
-extern uint active_transactions;
+extern uint trxman_active_transactions, trxman_allocated_transactions;
 
 extern TRX **short_id_to_trx;
 extern my_atomic_rwlock_t LOCK_short_id_to_trx;
