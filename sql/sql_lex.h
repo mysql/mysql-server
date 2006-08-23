@@ -958,6 +958,14 @@ typedef struct st_lex : public Query_tables_list
   */
   nesting_map allow_sum_func;
   enum_sql_command sql_command;
+  /*
+    Usually `expr` rule of yacc is quite reused but some commands better
+    not support subqueries which comes standard with this rule, like
+    KILL, HA_READ, CREATE/ALTER EVENT etc. Set this to `false` to get
+    syntax error back.
+  */
+  bool expr_allows_subselect;
+
   thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum my_lex_states next_state;
