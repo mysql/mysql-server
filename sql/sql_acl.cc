@@ -5560,8 +5560,6 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }  
     if (!find_acl_user(lex_user->host.str, lex_user->user.str, TRUE))
     {
-      sql_print_error("REVOKE ALL PRIVILEGES, GRANT: User '%s'@'%s' does not "
-                      "exists", lex_user->user.str, lex_user->host.str);
       result= -1;
       continue;
     }
