@@ -2861,6 +2861,7 @@ GRANT SELECT ON t2 TO 'user21261'@'localhost';
 INSERT INTO v1 (x) VALUES (5);
 UPDATE v1 SET x=1;
 GRANT SELECT ON v1 TO 'user21261'@'localhost';
+GRANT SELECT ON t1 TO 'user21261'@'localhost';
 UPDATE v1,t2 SET x=1 WHERE x=y;
 SELECT * FROM t1;
 x
