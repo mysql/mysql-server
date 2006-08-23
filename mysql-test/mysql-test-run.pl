@@ -2157,7 +2157,10 @@ sub run_suite () {
 
   foreach my $tinfo ( @$tests )
   {
-    next if run_testcase_check_skip_test($tinfo);
+    if (run_testcase_check_skip_test($tinfo))
+    {
+      next;
+    }
 
     mtr_timer_start($glob_timers,"testcase", 60 * $opt_testcase_timeout);
     run_testcase($tinfo);
@@ -2482,6 +2485,47 @@ sub run_testcase_check_skip_test($)
 }
 
 
+sub do_before_run_mysqltest($)
+{
+  my $tinfo= shift;
+  my $tname= $tinfo->{'name'};
+
+  # Remove old reject file
+  if ( $opt_suite eq "main" )
+  {
+    unlink("r/$tname.reject");
+  }
+  else
+  {
+    unlink("suite/$opt_suite/r/$tname.reject");
+  }
+
+
+# MASV cleanup...
+  mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
+
+  # output current test to ndbcluster log file to enable diagnostics
+  mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
+
+  mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+  if ( $master->[1]->{'pid'} )
+  {
+    mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+  }
+}
+
+sub do_after_run_mysqltest($)
+{
+  my $tinfo= shift;
+  my $tname= $tinfo->{'name'};
+
+  #MASV cleanup
+    # Save info from this testcase run to mysqltest.log
+    my $testcase_log= mtr_fromfile($path_timefile) if -f $path_timefile;
+    mtr_tofile($path_mysqltest_log,"CURRENT TEST $tname\n");
+    mtr_tofile($path_mysqltest_log, $testcase_log);
+  }
+
 
 ##############################################################################
 #
@@ -2502,13 +2546,6 @@ sub run_testcase_check_skip_test($)
 sub run_testcase ($) {
   my $tinfo=  shift;
 
-  my $tname= $tinfo->{'name'};
-
-  mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
-
-  # output current test to ndbcluster log file to enable diagnostics
-  mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
-
   my $master_restart= run_testcase_need_master_restart($tinfo);
   my $slave_restart= run_testcase_need_slave_restart($tinfo);
 
@@ -2517,26 +2554,7 @@ sub run_testcase ($) {
     run_testcase_stop_servers($tinfo, $master_restart, $slave_restart);
   }
 
-  # ----------------------------------------------------------------------
-  # Prepare to start masters. Even if we use embedded, we want to run
-  # the preparation.
-  # ----------------------------------------------------------------------
-
-  mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-  if ( $master->[1]->{'pid'} )
-  {
-    mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-  }
-
-  # ----------------------------------------------------------------------
-  # If any mysqld servers running died, we have to know
-  # ----------------------------------------------------------------------
-
   my $died= mtr_record_dead_children();
-
-  # ----------------------------------------------------------------------
-  # Start masters needed by the testcase
-  # ----------------------------------------------------------------------
   if ($died or $master_restart or $slave_restart)
   {
     run_testcase_start_servers($tinfo);
@@ -2546,28 +2564,14 @@ sub run_testcase ($) {
   # If --start-and-exit or --start-dirty given, stop here to let user manually
   # run tests
   # ----------------------------------------------------------------------
-
   if ( $opt_start_and_exit or $opt_start_dirty )
   {
     mtr_report("\nServers started, exiting");
     exit(0);
   }
 
-  # ----------------------------------------------------------------------
-  # Run the test case
-  # ----------------------------------------------------------------------
-
   {
-    # remove the old reject file
-    if ( $opt_suite eq "main" )
-    {
-      unlink("r/$tname.reject");
-    }
-    else
-    {
-      unlink("suite/$opt_suite/r/$tname.reject");
-    }
-    unlink($path_timefile);
+    do_before_run_mysqltest($tinfo);
 
     my $res= run_mysqltest($tinfo);
     mtr_report_test_name($tinfo);
@@ -2603,10 +2607,8 @@ sub run_testcase ($) {
 
       report_failure_and_restart($tinfo);
     }
-    # Save info from this testcase run to mysqltest.log
-    my $testcase_log= mtr_fromfile($path_timefile) if -f $path_timefile;
-    mtr_tofile($path_mysqltest_log,"CURRENT TEST $tname\n");
-    mtr_tofile($path_mysqltest_log, $testcase_log);
+
+    do_after_run_mysqltest($tinfo);
   }
 
   # ----------------------------------------------------------------------
