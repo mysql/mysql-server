@@ -323,7 +323,8 @@ buf_page_is_corrupted(
 "InnoDB: is in the future! Current system log sequence number %lu %lu.\n"
 "InnoDB: Your database may be corrupt or you may have copied the InnoDB\n"
 "InnoDB: tablespace but not the InnoDB log files. See\n"
-"http://dev.mysql.com/doc/mysql/en/backing-up.html for more information.\n",
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html\n"
+"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
 				(ulong) ut_dulint_get_high(
 					mach_read_from_8(read_buf + FIL_PAGE_LSN)),
@@ -1923,7 +1924,7 @@ buf_page_io_complete(
 		"InnoDB: the corrupt table. You can use CHECK\n"
 		"InnoDB: TABLE to scan your table for corruption.\n"
 		"InnoDB: See also "
-		"http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html\n"
 		"InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
