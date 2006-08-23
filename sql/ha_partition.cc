@@ -1579,6 +1579,17 @@ void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 }
 
 
+void ha_partition::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
+{
+  handler **file_array= m_file;
+  table= table_arg;
+  table_share= share;
+  do
+  {
+    (*file_array)->change_table_ptr(table_arg, share);
+  } while (*(++file_array));
+}
+
 /*
   Change comments specific to handler
 
