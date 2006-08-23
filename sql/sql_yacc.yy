@@ -7511,6 +7511,9 @@ user:
 	  $$->user = $1;
 	  $$->host.str= (char *) "%";
 	  $$->host.length= 1;
+
+	  if (check_string_length(&$$->user, ER(ER_USERNAME), USERNAME_LENGTH))
+	    YYABORT;
 	}
 	| ident_or_text '@' ident_or_text
 	  {
@@ -7518,6 +7521,11 @@ user:
 	    if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
+
+	    if (check_string_length(&$$->user, ER(ER_USERNAME), USERNAME_LENGTH) ||
+	        check_string_length(&$$->host, ER(ER_HOSTNAME),
+					       HOSTNAME_LENGTH))
+	      YYABORT;
 	  }
 	| CURRENT_USER optional_braces
 	{
@@ -8995,15 +9003,9 @@ definer:
            */
           YYTHD->lex->definer= 0;
 	}
-	| DEFINER_SYM EQ CURRENT_USER optional_braces
+	| DEFINER_SYM EQ user
 	{
-          if (! (YYTHD->lex->definer= create_default_definer(YYTHD)))
-            YYABORT;
-	}
-	| DEFINER_SYM EQ ident_or_text '@' ident_or_text
-	{
-          if (!(YYTHD->lex->definer= create_definer(YYTHD, &$3, &$5)))
-            YYABORT;
+	  YYTHD->lex->definer= get_current_user(YYTHD, $3);
 	}
 	;
 
