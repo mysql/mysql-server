@@ -2915,7 +2915,6 @@ ha_innobase::store_key_val_for_row(
 
 			CHARSET_INFO*	cs;
 			ulint		key_len;
-			ulint		len;
 			ulint		true_len;
 			int		error=0;
 			ulint		blob_len;
