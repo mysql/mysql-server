@@ -1477,7 +1477,7 @@ extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
-extern LEX_STRING command_name[];
+extern const LEX_STRING command_name[];
 extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
