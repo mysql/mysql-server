@@ -6141,19 +6141,28 @@ SET @v3 = 'c'|
 CALL bug16676_p1('a', @v2, @v3)|
 CALL bug16676_p2('a', @v2, @v3)|
 
+# Cleanup.
+
+use test|
+
+DROP DATABASE mysqltest1|
 #
 # BUG#8153: Stored procedure with subquery and continue handler, wrong result
 #
 
 --disable_warnings
-drop table if exists t3, t4, t5|
+drop table if exists t3|
+drop table if exists t4|
 drop procedure if exists bug8153_subselect|
-drop procedure if exists bug8153_function|
+drop procedure if exists bug8153_subselect_a|
+drop procedure if exists bug8153_subselect_b|
+drop procedure if exists bug8153_proc_a|
+drop procedure if exists bug8153_proc_b|
 --enable_warnings
 
 create table t3 (a int)|
 create table t4 (a int)|
-insert into t3 values (1)|
+insert into t3 values (1), (1), (2), (3)|
 insert into t4 values (1), (1)|
 
 ## Testing the use case reported in Bug#8153
@@ -6176,10 +6185,9 @@ select * from t3|
 
 drop procedure bug8153_subselect|
 
-## Testing extra use cases, found while investigating
-## This is related to BUG#18787, with a non local handler
+## Testing a subselect with a non local handler
 
-create procedure bug8153_function_a()
+create procedure bug8153_subselect_a()
 begin
   declare continue handler for sqlexception
   begin
@@ -6187,27 +6195,55 @@ begin
   end;
 
   select 'reachable code a1';
-  call bug8153_function_b();
+  call bug8153_subselect_b();
   select 'reachable code a2';
 end|
 
-create procedure bug8153_function_b()
+create procedure bug8153_subselect_b()
+begin
+  select 'reachable code b1';
+  update t3 set a=a+1 where (select a from t4 where a=1) is null;
+  select 'unreachable code b2';
+end|
+
+call bug8153_subselect_a()|
+select * from t3|
+
+call bug8153_subselect_a()|
+select * from t3|
+
+drop procedure bug8153_subselect_a|
+drop procedure bug8153_subselect_b|
+
+## Testing extra use cases, found while investigating
+## This is related to BUG#18787, with a non local handler
+
+create procedure bug8153_proc_a()
+begin
+  declare continue handler for sqlexception
+  begin
+    select 'in continue handler';
+  end;
+
+  select 'reachable code a1';
+  call bug8153_proc_b();
+  select 'reachable code a2';
+end|
+
+create procedure bug8153_proc_b()
 begin
   select 'reachable code b1';
   select no_such_function();
   select 'unreachable code b2';
 end|
 
-call bug8153_function_a()|
+call bug8153_proc_a()|
 
-drop procedure bug8153_function_a|
-drop procedure bug8153_function_b|
+drop procedure bug8153_proc_a|
+drop procedure bug8153_proc_b|
+drop table t3|
+drop table t4|
 
-# Cleanup.
-
-use test|
-
-DROP DATABASE mysqltest1|
 #
 # BUG#19862: Sort with filesort by function evaluates function twice
 #
