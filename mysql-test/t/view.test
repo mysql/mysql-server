@@ -2718,3 +2718,30 @@ DROP TABLE t1;
 --disable_warnings
 DROP VIEW IF EXISTS v1;
 --enable_warnings
+
+
+#
+# Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
+#
+
+# Prepare.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+--enable_warnings
+
+CREATE TABLE t1(a INT, b INT);
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=1234567890abcdefGHIKL@localhost
+  VIEW v1 AS SELECT a FROM t1;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+  VIEW v2 AS SELECT b FROM t1;
+
+# Cleanup.
+
+DROP TABLE t1;
