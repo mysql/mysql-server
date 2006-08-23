@@ -3671,17 +3671,11 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
   {
     if (!(acl_user= check_acl_user(user_name, &counter)))
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; No such user",
-		      user_name->user.str,
-		      user_name->host.str);
       result= -1;
       continue;
     }
     if ((acl_user->access & ~0))
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Global privileges exists",
-		      user_name->user.str,
-		      user_name->host.str);
       result= -1;
       continue;
     }
@@ -3702,9 +3696,6 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if (counter != acl_dbs.elements)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s'; Database privileges exists",
-		      user_name->user.str,
-		      user_name->host.str);
       result= -1;
       continue;
     }
@@ -3725,9 +3716,6 @@ int mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }
     if (counter != column_priv_hash.records)
     {
-      sql_print_error("DROP USER: Can't drop user: '%s'@'%s';  Table privileges exists",
-		      user_name->user.str,
-		      user_name->host.str);
       result= -1;
       continue;
     }
@@ -3793,9 +3781,6 @@ int mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   {
     if (!check_acl_user(lex_user, &counter))
     {
-      sql_print_error("REVOKE ALL PRIVILEGES, GRANT: User '%s'@'%s' not exists",
-		      lex_user->user.str,
-		      lex_user->host.str);
       result= -1;
       continue;
     }
