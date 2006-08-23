@@ -157,17 +157,29 @@ static int create_defaults_file(const char *path, const char *our_defaults_path)
   File our_defaults_file, defaults_file;
   char buffer[512];
   char *buffer_end;
+  int failed_to_open_count= 0;
   int error;
 
   /* check if the defaults file is needed at all */
   if (!opt_password)
     return 0;
 
-  defaults_file= my_open(path, O_BINARY | O_CREAT | O_WRONLY,
+retry_open:
+  defaults_file= my_open(path, O_BINARY | O_CREAT | O_WRONLY | O_EXCL,
                          MYF(MY_FAE | MY_WME));
 
   if (defaults_file < 0)
-    return 1;
+  {
+    if (failed_to_open_count == 0)
+    {
+      remove(path);
+      failed_to_open_count+= 1;
+      goto retry_open;
+    }
+    else
+      return 1;
+  }
+
   upgrade_defaults_created= 1;
   if (our_defaults_path)
   {
