@@ -39,19 +39,11 @@ struct ibuf_data_struct{
 	ulint		n_merged_recs;/* number of records merged */
 };
 
-/* If the ibuf meter exceeds this value, then the suitable inserts are made to
-the insert buffer instead of directly to the disk page */
-#define IBUF_THRESHOLD	50
-
 struct ibuf_struct{
 	ulint		size;		/* current size of the ibuf index
 					trees in pages */
 	ulint		max_size;	/* recommended maximum size in pages
 					for the ibuf index tree */
-	ulint		meter;		/* heuristic meter which measures
-					desirability of doing inserts to the
-					insert buffer instead of directly to
-					the disk page */
 	UT_LIST_BASE_NODE_T(ibuf_data_t) data_list;
 					/* list of ibuf data structs for
 					each tablespace */
@@ -88,8 +80,7 @@ ibuf_should_try(
 						decide */
 {
 	if (!(index->type & DICT_CLUSTERED)
-		&& (ignore_sec_unique || !(index->type & DICT_UNIQUE))
-		&& ibuf->meter > IBUF_THRESHOLD) {
+		&& (ignore_sec_unique || !(index->type & DICT_UNIQUE))) {
 
 		ibuf_flush_count++;
 
