@@ -473,8 +473,10 @@ static inline SYMBOL *get_hash_symbol(const char *s,\n\
   if (len == 0) {\n\
     DBUG_PRINT(\"warning\", (\"get_hash_symbol() received a request for a zero-length symbol, which is probably a mistake.\"));\
     return(NULL);\n\
-  }\
-\n\
+  }\n"
+);
+
+  printf("\
   if (function){\n\
     if (len>sql_functions_max_len) return 0;\n\
     hash_map= sql_functions_map;\n\
@@ -505,7 +507,10 @@ static inline SYMBOL *get_hash_symbol(const char *s,\n\
       cur_struct= uint4korr(hash_map+\n\
                         (((uint16)cur_struct + cur_char - first_char)*4));\n\
       cur_str++;\n\
-    }\n\
+    }\n"
+);
+
+  printf("\
   }else{\n\
     if (len>symbols_max_len) return 0;\n\
     hash_map= symbols_map;\n\
