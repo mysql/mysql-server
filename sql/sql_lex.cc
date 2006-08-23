@@ -175,6 +175,7 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
   lex->reset_query_tables_list(FALSE);
+  lex->expr_allows_subselect= TRUE;
 
   lex->name= 0;
   lex->event_parse_data= NULL;

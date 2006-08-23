@@ -1302,8 +1302,9 @@ event_tail:
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 
-            /* We need that for disallowing subqueries */
             Lex->sql_command= SQLCOM_CREATE_EVENT;
+            /* We need that for disallowing subqueries */
+            Lex->expr_allows_subselect= FALSE;
           }
           ON SCHEDULE_SYM ev_schedule_time
           opt_ev_on_completion
@@ -1325,6 +1326,7 @@ event_tail:
               can overwrite it
             */
             Lex->sql_command= SQLCOM_CREATE_EVENT;
+            Lex->expr_allows_subselect= TRUE;
           }
 
 
@@ -4697,8 +4699,9 @@ alter:
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 
-            /* we need that for disallowing subqueries */
             Lex->sql_command= SQLCOM_ALTER_EVENT;
+            /* we need that for disallowing subqueries */
+            Lex->expr_allows_subselect= FALSE;
           }
           ev_alter_on_schedule_completion
           opt_ev_rename_to
@@ -4724,6 +4727,7 @@ alter:
               can overwrite it
             */
             Lex->sql_command= SQLCOM_ALTER_EVENT;
+            Lex->expr_allows_subselect= TRUE;
           }
         | ALTER TABLESPACE alter_tablespace_info
           {
@@ -7048,10 +7052,7 @@ select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables|= DERIVED_SUBQUERY;
-          if (lex->sql_command == SQLCOM_HA_READ ||
-              lex->sql_command == SQLCOM_KILL ||
-              lex->sql_command == SQLCOM_CREATE_EVENT ||
-              lex->sql_command == SQLCOM_ALTER_EVENT)
+          if (!lex->expr_allows_subselect)
 	  {
 	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
@@ -8554,11 +8555,17 @@ purge_option:
 /* kill threads */
 
 kill:
-	KILL_SYM { Lex->sql_command= SQLCOM_KILL; } kill_option expr
+	KILL_SYM
+        {
+          Lex->sql_command= SQLCOM_KILL;
+          Lex->expr_allows_subselect= FALSE;
+        }
+        kill_option expr
 	{
 	  LEX *lex=Lex;
 	  lex->value_list.empty();
 	  lex->value_list.push_front($4);
+          Lex->expr_allows_subselect= TRUE;
 	};
 
 kill_option:
@@ -10038,6 +10045,7 @@ handler:
 	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
 	    YYABORT;
 	  }
+          lex->expr_allows_subselect= FALSE;
 	  lex->sql_command = SQLCOM_HA_READ;
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
 	  lex->current_select->select_limit= new Item_int((int32) 1);
@@ -10045,7 +10053,10 @@ handler:
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
         }
-        handler_read_or_scan where_clause opt_limit_clause {}
+        handler_read_or_scan where_clause opt_limit_clause
+        {
+          Lex->expr_allows_subselect= TRUE;
+        }
         ;
 
 handler_read_or_scan:
@@ -10670,10 +10681,7 @@ subselect_start:
 	'(' SELECT_SYM
 	{
 	  LEX *lex=Lex;
-          if (lex->sql_command == SQLCOM_HA_READ ||
-              lex->sql_command == SQLCOM_KILL ||
-              lex->sql_command == SQLCOM_CREATE_EVENT ||
-              lex->sql_command == SQLCOM_ALTER_EVENT)
+          if (!lex->expr_allows_subselect)
 	  {
             yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
