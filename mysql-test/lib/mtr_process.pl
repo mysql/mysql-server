@@ -633,7 +633,7 @@ sub mtr_check_stop_servers ($) {
       }
       else
       {
-	mtr_verbose("All ports where free, continuing");
+	mtr_verbose("All ports were free, continuing");
       }
     }
   }
@@ -896,6 +896,7 @@ sub check_expected_crash_and_restart($)
 
 sub mtr_record_dead_children () {
 
+  my $process_died= 0;
   my $ret_pid;
 
   # Wait without blockinng to see if any processes had died
@@ -904,7 +905,9 @@ sub mtr_record_dead_children () {
   {
     mtr_warning("mtr_record_dead_children: $ret_pid");
     mark_process_dead($ret_pid);
+    $process_died= 1;
   }
+  return $process_died;
 }
 
 sub start_reap_all {
