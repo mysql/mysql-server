@@ -13779,15 +13779,9 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
 
     if(lcpNo == ZNIL)
     {
-      for (Uint32 i = 0; i<MAX_FRAG_PER_NODE; i++)
-      {
-	if (tabptr.p->fragrec[i] != RNIL)
-	{
-	  signal->theData[0] = tabptr.i;
-	  signal->theData[1] = tabptr.p->fragid[i];
-	  sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
-	}
-      }
+      signal->theData[0] = tabptr.i;
+      signal->theData[1] = fragId;
+      sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
     }
     
     return;
@@ -13854,21 +13848,17 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
    */
   tabptr.i = fragptr.p->tabRef;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  for (Uint32 i = 0; i<MAX_FRAG_PER_NODE; i++)
-  {
-    if (tabptr.p->fragrec[i] != RNIL)
-    {
-      signal->theData[0] = tabptr.i;
-      signal->theData[1] = tabptr.p->fragid[i];
-      sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
-    }
-  }
+
+  signal->theData[0] = fragptr.p->tabRef;
+  signal->theData[1] = fragptr.p->fragId;
+  sendSignal(DBACC_REF, GSN_EXPANDCHECK2, signal, 2, JBB);
   
   if (!c_lcp_waiting_fragments.isEmpty())
   {
     send_restore_lcp(signal);
     return;
   }
+
   if (c_lcp_restoring_fragments.isEmpty() && cstartRecReq == ZTRUE)
   {
     jam();
