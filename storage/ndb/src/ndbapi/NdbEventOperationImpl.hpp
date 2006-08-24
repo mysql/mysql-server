@@ -225,7 +225,8 @@ void EventBufData_list::append_used_data(EventBufData *data)
 inline
 void EventBufData_list::append_data(EventBufData *data)
 {
-  Gci_op g = { data->m_event_op, 1 << (Uint32)data->sdata->operation };
+  Gci_op g = { data->m_event_op, 
+	       1 << SubTableData::getOperation(data->sdata->requestInfo) };
   add_gci_op(g);
 
   append_used_data(data);
