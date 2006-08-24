@@ -3609,8 +3609,10 @@ static SEL_TREE *get_func_mm_tree(PARAM *param, Item_func *cond_func,
     else
       tree= get_mm_parts(param, cond_func, field,
                          (inv ?
-                          (value == 1 ? Item_func::GT_FUNC : Item_func::LT_FUNC) :
-                          (value == 1 ? Item_func::LE_FUNC : Item_func::GE_FUNC)),
+                          (value == (Item*)1 ? Item_func::GT_FUNC :
+                                               Item_func::LT_FUNC):
+                          (value == (Item*)1 ? Item_func::LE_FUNC :
+                                               Item_func::GE_FUNC)),
                          cond_func->arguments()[0], cmp_type);
     break;
   }
