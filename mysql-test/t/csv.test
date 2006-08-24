@@ -1533,6 +1533,30 @@ truncate table t1;              -- truncate
 drop table t1;
 
 #
+# Bug #15205   Select from CSV table without the datafile causes crash
+#
+# NOTE: the bug is not deterministic
+
+# The crash happens because the necessary cleanup after an error wasn't
+# performed. Namely, the table share, inserted in the hash during table
+# open, was not deleted from hash. At the same time the share was freed
+# when an error was encountered. Thus, subsequent access to the hash
+# resulted in scanning through deleted memory and we were geting a crash.
+# that's why we need two tables in the bugtest
+
+create table bug15205 (val int(11) default null) engine=csv;
+create table bug15205_2 (val int(11) default null) engine=csv;
+--exec rm $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+# system error (can't open the datafile)
+--error ER_GET_ERRNO
+select * from bug15205;
+select * from bug15205_2;
+--exec touch $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
+select * from bug15205;
+drop table bug15205;
+drop table bug15205_2;
+
+#
 # Some additional tests for new, faster alter table.  Note that most of the
 # whole alter table code is being tested all around the test suite already.
 #
