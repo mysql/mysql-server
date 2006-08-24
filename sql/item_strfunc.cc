@@ -2051,6 +2051,26 @@ String *Item_func_make_set::val_str(String *str)
 }
 
 
+Item *Item_func_make_set::transform(Item_transformer transformer, byte *arg)
+{
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  Item *new_item= item->transform(transformer, arg);
+  if (!new_item)
+    return 0;
+
+  /*
+    THD::change_item_tree() should be called only if the tree was
+    really transformed, i.e. when a new item has been created.
+    Otherwise we'll be allocating a lot of unnecessary memory for
+    change records at each execution.
+  */
+  if (item != new_item)
+    current_thd->change_item_tree(&item, new_item);
+  return Item_str_func::transform(transformer, arg);
+}
+
+
 void Item_func_make_set::print(String *str)
 {
   str->append(STRING_WITH_LEN("make_set("));
