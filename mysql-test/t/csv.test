@@ -1575,7 +1575,7 @@ create table bug15205 (val int(11) default null) engine=csv;
 create table bug15205_2 (val int(11) default null) engine=csv;
 --exec rm $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
 # system error (can't open the datafile)
---error ER_GET_ERRNO
+--error 13
 select * from bug15205;
 select * from bug15205_2;
 --exec touch $MYSQLTEST_VARDIR/master-data/test/bug15205.CSV
