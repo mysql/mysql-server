@@ -1215,9 +1215,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     store_key_options(thd, packet, table, key_info);
     if (key_info->parser)
     {
-      packet->append(" WITH PARSER ", 13);
+      packet->append(STRING_WITH_LEN(" /*!50100 WITH PARSER "));
       append_identifier(thd, packet, key_info->parser->name.str,
                         key_info->parser->name.length);
+      packet->append(STRING_WITH_LEN(" */ "));
     }
   }
 
@@ -1243,9 +1244,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if ((for_str= file->get_tablespace_name(thd)))
     {
-      packet->append(" TABLESPACE ");
+      packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
       packet->append(for_str, strlen(for_str));
-      packet->append(" STORAGE DISK");
+      packet->append(STRING_WITH_LEN(" STORAGE DISK */"));
       my_free(for_str, MYF(0));
     }
 
@@ -1284,7 +1285,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if(create_info.auto_increment_value > 1)
     {
-      packet->append(" AUTO_INCREMENT=", 16);
+      packet->append(STRING_WITH_LEN(" AUTO_INCREMENT="));
       end= longlong10_to_str(create_info.auto_increment_value, buff,10);
       packet->append(buff, (uint) (end - buff));
     }
