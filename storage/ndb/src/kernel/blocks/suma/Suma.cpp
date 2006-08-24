@@ -2642,12 +2642,16 @@ Suma::sendSubStopComplete(Signal* signal, SubscriberPtr subbPtr)
     SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
     data->gci            = m_last_complete_gci + 1; // XXX ???
     data->tableId        = 0;
-    data->operation      = NdbDictionary::Event::_TE_STOP;
+    data->requestInfo    = 0;
+    SubTableData::setOperation(data->requestInfo, 
+			       NdbDictionary::Event::_TE_STOP);
+    SubTableData::setNdbdNodeId(data->requestInfo,
+				getOwnNodeId());
     data->senderData     = subbPtr.p->m_senderData;
     sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
 	       SubTableData::SignalLength, JBB);
   }
-
+  
   SubStopConf * const conf = (SubStopConf*)signal->getDataPtrSend();
   
   conf->senderRef= reference();
@@ -2681,11 +2685,14 @@ Suma::reportAllSubscribers(Signal *signal,
   {
     data->gci            = m_last_complete_gci + 1;
     data->tableId        = subPtr.p->m_tableId;
-    data->operation      = NdbDictionary::Event::_TE_ACTIVE;
-    data->ndbd_nodeid    = refToNode(reference());
+    data->requestInfo    = 0;
+    SubTableData::setOperation(data->requestInfo, 
+			       NdbDictionary::Event::_TE_ACTIVE);
+    SubTableData::setNdbdNodeId(data->requestInfo, getOwnNodeId());
+    SubTableData::setReqNodeId(data->requestInfo, 
+			       refToNode(subbPtr.p->m_senderRef));
     data->changeMask     = 0;
     data->totalLen       = 0;
-    data->req_nodeid     = refToNode(subbPtr.p->m_senderRef);
     data->senderData     = subbPtr.p->m_senderData;
     sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
                SubTableData::SignalLength, JBB);
@@ -2707,8 +2714,9 @@ Suma::reportAllSubscribers(Signal *signal,
 //#endif
   data->gci            = m_last_complete_gci + 1;
   data->tableId        = subPtr.p->m_tableId;
-  data->operation      = table_event;
-  data->ndbd_nodeid    = refToNode(reference());
+  data->requestInfo    = 0;
+  SubTableData::setOperation(data->requestInfo, table_event);
+  SubTableData::setNdbdNodeId(data->requestInfo, getOwnNodeId());
   data->changeMask     = 0;
   data->totalLen       = 0;
   
@@ -2720,7 +2728,8 @@ Suma::reportAllSubscribers(Signal *signal,
   {
     if (i_subbPtr.p->m_subPtrI == subPtr.i)
     {
-      data->req_nodeid = refToNode(subbPtr.p->m_senderRef);
+      SubTableData::setReqNodeId(data->requestInfo, 
+				 refToNode(subbPtr.p->m_senderRef));
       data->senderData = i_subbPtr.p->m_senderData;
       sendSignal(i_subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
                  SubTableData::SignalLength, JBB);
@@ -2729,12 +2738,14 @@ Suma::reportAllSubscribers(Signal *signal,
                table_event == NdbDictionary::Event::_TE_SUBSCRIBE ?
                "SUBSCRIBE" : "UNSUBSCRIBE", (int) table_event,
                refToNode(i_subbPtr.p->m_senderRef),
-               data->req_nodeid, data->senderData
+               refToNode(subbPtr.p->m_senderRef), data->senderData
                );
 //#endif
       if (i_subbPtr.i != subbPtr.i)
       {
-        data->req_nodeid = refToNode(i_subbPtr.p->m_senderRef);
+	SubTableData::setReqNodeId(data->requestInfo, 
+				   refToNode(i_subbPtr.p->m_senderRef));
+	
         data->senderData = subbPtr.p->m_senderData;
         sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
                    SubTableData::SignalLength, JBB);
@@ -2743,7 +2754,7 @@ Suma::reportAllSubscribers(Signal *signal,
                  table_event == NdbDictionary::Event::_TE_SUBSCRIBE ?
                  "SUBSCRIBE" : "UNSUBSCRIBE", (int) table_event,
                  refToNode(subbPtr.p->m_senderRef),
-                 data->req_nodeid, data->senderData
+                 refToNode(i_subbPtr.p->m_senderRef), data->senderData
                  );
 //#endif
       }
@@ -3146,7 +3157,9 @@ Suma::execTRANSID_AI(Signal* signal)
   Uint32 ref = subPtr.p->m_senderRef;
   sdata->tableId = syncPtr.p->m_currentTableId;
   sdata->senderData = subPtr.p->m_senderData;
-  sdata->operation = NdbDictionary::Event::_TE_SCAN; // Scan
+  sdata->requestInfo = 0;
+  SubTableData::setOperation(sdata->requestInfo, 
+			     NdbDictionary::Event::_TE_SCAN); // Scan
   sdata->gci = 0; // Undefined
 #if PRINT_ONLY
   ndbout_c("GSN_SUB_TABLE_DATA (scan) #attr: %d len: %d", attribs, sum);
@@ -3362,7 +3375,8 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
     data->gci            = gci;
     data->tableId        = tabPtr.p->m_tableId;
-    data->operation      = event;
+    data->requestInfo    = 0;
+    SubTableData::setOperation(data->requestInfo, event);
     data->logType        = 0;
     data->changeMask     = 0;
     data->totalLen       = ptrLen;
@@ -3588,8 +3602,9 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
   data->gci            = m_last_complete_gci+1;
   data->tableId        = tableId;
-  data->operation      = NdbDictionary::Event::_TE_DROP;
-  data->req_nodeid     = refToNode(senderRef);
+  data->requestInfo    = 0;
+  SubTableData::setOperation(data->requestInfo,NdbDictionary::Event::_TE_DROP);
+  SubTableData::setReqNodeId(data->requestInfo, refToNode(senderRef));
   
   {
     LocalDLList<Subscriber> subbs(c_subscriberPool,tabPtr.p->c_subscribers);
@@ -3667,8 +3682,10 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
   data->gci            = m_last_complete_gci+1;
   data->tableId        = tableId;
-  data->operation      = NdbDictionary::Event::_TE_ALTER;
-  data->req_nodeid     = refToNode(senderRef);
+  data->requestInfo    = 0;
+  SubTableData::setOperation(data->requestInfo, 
+			     NdbDictionary::Event::_TE_ALTER);
+  SubTableData::setReqNodeId(data->requestInfo, refToNode(senderRef));
   data->logType        = 0;
   data->changeMask     = changeMask;
   data->totalLen       = tabInfoPtr.sz;
@@ -4898,7 +4915,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
       SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
       data->gci            = last_gci;
       data->tableId        = tabPtr.p->m_tableId;
-      data->operation      = event;
+      data->requestInfo    = 0;
+      SubTableData::setOperation(data->requestInfo, event);
       data->logType        = 0;
       data->changeMask     = 0;
       data->totalLen       = ptrLen;
