@@ -192,12 +192,12 @@ void * NdbEventOperation::getCustomData() const
 
 int NdbEventOperation::getReqNodeId() const
 {
-  return m_impl.m_data_item->sdata->req_nodeid;
+  return SubTableData::getReqNodeId(m_impl.m_data_item->sdata->requestInfo);
 }
 
 int NdbEventOperation::getNdbdNodeId() const
 {
-  return m_impl.m_data_item->sdata->ndbd_nodeid;
+  return SubTableData::getNdbdNodeId(m_impl.m_data_item->sdata->requestInfo);
 }
 
 /*
