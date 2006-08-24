@@ -229,6 +229,11 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
               MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     fn_format(meta_file_name, table_name, "", CSM_EXT,
               MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+
+    if (my_stat(share->data_file_name, &file_stat, MYF(MY_WME)) == NULL)
+      goto error;
+    share->saved_data_file_length= file_stat.st_size;
+
     if (my_hash_insert(&tina_open_tables, (byte*) share))
       goto error;
     thr_lock_init(&share->lock);
@@ -250,10 +255,6 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     */
     if (read_meta_file(share->meta_file, &share->rows_recorded))
       share->crashed= TRUE;
-
-    if (my_stat(share->data_file_name, &file_stat, MYF(MY_WME)) == NULL)
-      goto error2;
-    share->saved_data_file_length= file_stat.st_size;
   }
   share->use_count++;
   pthread_mutex_unlock(&tina_mutex);
@@ -263,7 +264,6 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
 error2:
   thr_lock_delete(&share->lock);
   pthread_mutex_destroy(&share->mutex);
-  hash_delete(&tina_open_tables, (byte*) share);
 error:
   pthread_mutex_unlock(&tina_mutex);
   my_free((gptr) share, MYF(0));

@@ -72,38 +72,38 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
-LEX_STRING command_name[]={
-  (char *)STRING_WITH_LEN("Sleep"),
-  (char *)STRING_WITH_LEN("Quit"),
-  (char *)STRING_WITH_LEN("Init DB"),
-  (char *)STRING_WITH_LEN("Query"),
-  (char *)STRING_WITH_LEN("Field List"),
-  (char *)STRING_WITH_LEN("Create DB"),
-  (char *)STRING_WITH_LEN("Drop DB"),
-  (char *)STRING_WITH_LEN("Refresh"),
-  (char *)STRING_WITH_LEN("Shutdown"),
-  (char *)STRING_WITH_LEN("Statistics"),
-  (char *)STRING_WITH_LEN("Processlist"),
-  (char *)STRING_WITH_LEN("Connect"),
-  (char *)STRING_WITH_LEN("Kill"),
-  (char *)STRING_WITH_LEN("Debug"),
-  (char *)STRING_WITH_LEN("Ping"),
-  (char *)STRING_WITH_LEN("Time"),
-  (char *)STRING_WITH_LEN("Delayed insert"),
-  (char *)STRING_WITH_LEN("Change user"),
-  (char *)STRING_WITH_LEN("Binlog Dump"),
-  (char *)STRING_WITH_LEN("Table Dump"),
-  (char *)STRING_WITH_LEN("Connect Out"),
-  (char *)STRING_WITH_LEN("Register Slave"),
-  (char *)STRING_WITH_LEN("Prepare"),
-  (char *)STRING_WITH_LEN("Execute"),
-  (char *)STRING_WITH_LEN("Long Data"),
-  (char *)STRING_WITH_LEN("Close stmt"),
-  (char *)STRING_WITH_LEN("Reset stmt"),
-  (char *)STRING_WITH_LEN("Set option"),
-  (char *)STRING_WITH_LEN("Fetch"),
-  (char *)STRING_WITH_LEN("Daemon"),
-  (char *)STRING_WITH_LEN("Error")  // Last command number
+const LEX_STRING command_name[]={
+  C_STRING_WITH_LEN("Sleep"),
+  C_STRING_WITH_LEN("Quit"),
+  C_STRING_WITH_LEN("Init DB"),
+  C_STRING_WITH_LEN("Query"),
+  C_STRING_WITH_LEN("Field List"),
+  C_STRING_WITH_LEN("Create DB"),
+  C_STRING_WITH_LEN("Drop DB"),
+  C_STRING_WITH_LEN("Refresh"),
+  C_STRING_WITH_LEN("Shutdown"),
+  C_STRING_WITH_LEN("Statistics"),
+  C_STRING_WITH_LEN("Processlist"),
+  C_STRING_WITH_LEN("Connect"),
+  C_STRING_WITH_LEN("Kill"),
+  C_STRING_WITH_LEN("Debug"),
+  C_STRING_WITH_LEN("Ping"),
+  C_STRING_WITH_LEN("Time"),
+  C_STRING_WITH_LEN("Delayed insert"),
+  C_STRING_WITH_LEN("Change user"),
+  C_STRING_WITH_LEN("Binlog Dump"),
+  C_STRING_WITH_LEN("Table Dump"),
+  C_STRING_WITH_LEN("Connect Out"),
+  C_STRING_WITH_LEN("Register Slave"),
+  C_STRING_WITH_LEN("Prepare"),
+  C_STRING_WITH_LEN("Execute"),
+  C_STRING_WITH_LEN("Long Data"),
+  C_STRING_WITH_LEN("Close stmt"),
+  C_STRING_WITH_LEN("Reset stmt"),
+  C_STRING_WITH_LEN("Set option"),
+  C_STRING_WITH_LEN("Fetch"),
+  C_STRING_WITH_LEN("Daemon"),
+  C_STRING_WITH_LEN("Error")  // Last command number
 };
 
 const char *xa_state_names[]={
@@ -4924,9 +4924,9 @@ end_with_restore_list:
       {
         String buff;
         const LEX_STRING command[3]=
-          {{(char *)STRING_WITH_LEN("CREATE ")},
-           {(char *)STRING_WITH_LEN("ALTER ")},
-           {(char *)STRING_WITH_LEN("CREATE OR REPLACE ")}};
+          {{ C_STRING_WITH_LEN("CREATE ") },
+           { C_STRING_WITH_LEN("ALTER ") },
+           { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
         thd->clear_error();
 
         buff.append(command[thd->lex->create_view_mode].str,
