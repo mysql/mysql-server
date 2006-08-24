@@ -1861,4 +1861,16 @@ select * from t1 where NOT(s1+1 = ANY (select s1 from t1));
 select * from t1 where (s1 = ALL (select s1/s1 from t1));
 select * from t1 where NOT(s1 = ALL (select s1/s1 from t1));
 drop table t1;
+
+#
+# Bug #16255: Subquery in where
+#
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a,b));
+
+INSERT INTO t1 VALUES(26, 1), (48, 2);
+
+SELECT * FROM t1 r WHERE (r.a,r.b) IN (SELECT a,MAX(b) FROM t1 GROUP BY a);
+SELECT * FROM t1 r WHERE (r.a,r.b) IN (SELECT a + 0,MAX(b) FROM t1 GROUP BY a);
+
+DROP TABLE t1;
 # End of 4.1 tests
