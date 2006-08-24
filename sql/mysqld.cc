@@ -6227,7 +6227,7 @@ The minimum value for this variable is 4096.",
    "If an in-memory temporary table exceeds this size, MySQL will automatically convert it to an on-disk MyISAM table.",
    (gptr*) &global_system_variables.tmp_table_size,
    (gptr*) &max_system_variables.tmp_table_size, 0, GET_ULONG,
-   REQUIRED_ARG, 32*1024*1024L, 1024, ~0L, 0, 1, 0},
+   REQUIRED_ARG, 16*1024*1024L, 1024, ~0L, 0, 1, 0},  /* See  max_heap_table_size . */
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (gptr*) &global_system_variables.trans_alloc_block_size,
