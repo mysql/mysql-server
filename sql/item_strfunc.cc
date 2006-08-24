@@ -2624,8 +2624,8 @@ void Item_func_export_set::fix_length_and_dec()
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
 
-  if (agg_arg_charsets(collation, args+1, min(4,arg_count)-1),
-                       MY_COLL_ALLOW_CONV)
+  if (agg_arg_charsets(collation, args+1, min(4,arg_count)-1,
+                       MY_COLL_ALLOW_CONV))
     return;
 }
 
