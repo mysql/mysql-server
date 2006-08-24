@@ -5987,6 +5987,32 @@ select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
 use test|
 drop table t3|
 
+
+#
+# Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
+#
+
+# Prepare.
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug16899_p1|
+DROP FUNCTION IF EXISTS bug16899_f1|
+--enable_warnings
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=1234567890abcdefGHIKL@localhost PROCEDURE bug16899_p1()
+BEGIN
+  SET @a = 1;
+END|
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+  FUNCTION bug16899_f1() RETURNS INT
+BEGIN
+  RETURN 1;
+END|
+
+
 #
 # BUG#NNNN: New bug synopsis
 #

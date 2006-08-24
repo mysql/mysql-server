@@ -1301,6 +1301,36 @@ create trigger wont_work after update on event for each row
 begin
  set @a:= 1;
 end|
+use test|
 delimiter ;|
+
+
+#
+# Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
+#
+
+# Prepare.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+CREATE TABLE t1(c INT);
+CREATE TABLE t2(c INT);
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=1234567890abcdefGHIKL@localhost
+  TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+  TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW SET @a = 2;
+
+# Cleanup.
+
+DROP TABLE t1;
+DROP TABLE t2;
+
 
 --echo End of 5.0 tests

@@ -7499,3 +7499,29 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 
   return definer;
 }
+
+
+/*
+  Check that length of a string does not exceed some limit.
+
+  SYNOPSIS
+    check_string_length()
+      str         string to be checked
+      err_msg     error message to be displayed if the string is too long
+      max_length  max length
+
+  RETURN
+    FALSE   the passed string is not longer than max_length
+    TRUE    the passed string is longer than max_length
+*/
+
+bool check_string_length(LEX_STRING *str, const char *err_msg,
+                         uint max_length)
+{
+  if (str->length <= max_length)
+    return FALSE;
+
+  my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_length);
+
+  return TRUE;
+}
