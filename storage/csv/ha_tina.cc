@@ -263,6 +263,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
 error2:
   thr_lock_delete(&share->lock);
   pthread_mutex_destroy(&share->mutex);
+  hash_delete(&tina_open_tables, (byte*) share);
 error:
   pthread_mutex_unlock(&tina_mutex);
   my_free((gptr) share, MYF(0));
