@@ -5387,4 +5387,11 @@ BEGIN
 RETURN 1;
 END|
 ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+drop procedure if exists bug21416|
+create procedure bug21416() show create procedure bug21416|
+call bug21416()|
+Procedure	sql_mode	Create Procedure
+bug21416		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug21416`()
+show create procedure bug21416
+drop procedure bug21416|
 drop table t1,t2;
