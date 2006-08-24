@@ -750,17 +750,19 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
     }
 
     // Accumulate DIC_TAB_INFO for TE_ALTER events
-    if (sdata->operation == NdbDictionary::Event::_TE_ALTER &&
+    if (SubTableData::getOperation(sdata->requestInfo) == 
+	NdbDictionary::Event::_TE_ALTER &&
         !op->execSUB_TABLE_DATA(aSignal, ptr))
       return;
-
+    
     for (int i= aSignal->m_noOfSections;i < 3; i++) {
       ptr[i].p = NULL;
       ptr[i].sz = 0;
     }
     DBUG_PRINT("info",("oid=senderData: %d, gci: %d, operation: %d, "
 		       "tableId: %d",
-		       sdata->senderData, sdata->gci, sdata->operation,
+		       sdata->senderData, sdata->gci, 
+		       SubTableData::getOperation(sdata->requestInfo),
 		       sdata->tableId));
 
     theEventBuffer->insertDataL(op,sdata, ptr);

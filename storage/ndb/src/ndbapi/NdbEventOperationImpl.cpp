@@ -54,7 +54,8 @@ static const Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 static void
 print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 {
-  printf("addr=%p gci=%d op=%d\n", (void*)sdata, sdata->gci, sdata->operation);
+  printf("addr=%p gci=%d op=%d\n", (void*)sdata, sdata->gci, 
+	 SubTableData::getOperation(sdata->requestInfo));
   for (int i = 0; i <= 2; i++) {
     printf("sec=%d addr=%p sz=%d\n", i, (void*)ptr[i].p, ptr[i].sz);
     for (int j = 0; j < ptr[i].sz; j++)
@@ -672,7 +673,8 @@ NdbEventOperationImpl::execSUB_TABLE_DATA(NdbApiSignal * signal,
 int
 NdbEventOperationImpl::receive_event()
 {
-  Uint32 operation= (Uint32)m_data_item->sdata->operation;
+  Uint32 operation= 
+    SubTableData::getOperation(m_data_item->sdata->requestInfo);
   if (unlikely(operation >= NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT))
   {
     DBUG_ENTER("NdbEventOperationImpl::receive_event");
@@ -869,7 +871,7 @@ NdbDictionary::Event::TableEvent
 NdbEventOperationImpl::getEventType()
 {
   return (NdbDictionary::Event::TableEvent)
-    (1 << (unsigned)m_data_item->sdata->operation);
+    (1 << SubTableData::getOperation(m_data_item->sdata->requestInfo));
 }
 
 
@@ -1207,7 +1209,8 @@ NdbEventBuffer::nextEvent()
         }
         assert(gci_ops && (op->getGCI() == gci_ops->m_gci));
         // to return TE_NUL it should be made into data event
-        if (data->sdata->operation == NdbDictionary::Event::_TE_NUL)
+        if (SubTableData::getOperation(data->sdata->requestInfo) == 
+	    NdbDictionary::Event::_TE_NUL)
         {
           DBUG_PRINT_EVENT("info", ("skip _TE_NUL"));
           continue;
@@ -1574,9 +1577,11 @@ NdbEventBuffer::report_node_connected(Uint32 node_id)
   bzero(ptr, sizeof(ptr));
 
   data.tableId = ~0;
-  data.operation = NdbDictionary::Event::_TE_ACTIVE;
-  data.req_nodeid = (Uint8)node_id;
-  data.ndbd_nodeid = (Uint8)node_id;
+  data.requestInfo = 0;
+  SubTableData::setOperation(data.requestInfo,
+			     NdbDictionary::Event::_TE_ACTIVE);
+  SubTableData::setReqNodeId(data.requestInfo, node_id);
+  SubTableData::setNdbdNodeId(data.requestInfo, node_id);
   data.logType = SubTableData::LOG;
   data.gci = m_latestGCI + 1;
   /**
@@ -1614,9 +1619,11 @@ NdbEventBuffer::report_node_failure(Uint32 node_id)
   bzero(ptr, sizeof(ptr));
 
   data.tableId = ~0;
-  data.operation = NdbDictionary::Event::_TE_NODE_FAILURE;
-  data.req_nodeid = (Uint8)node_id;
-  data.ndbd_nodeid = (Uint8)node_id;
+  data.requestInfo = 0;
+  SubTableData::setOperation(data.requestInfo, 
+			     NdbDictionary::Event::_TE_NODE_FAILURE);
+  SubTableData::setReqNodeId(data.requestInfo, node_id);
+  SubTableData::setNdbdNodeId(data.requestInfo, node_id);
   data.logType = SubTableData::LOG;
   data.gci = m_latestGCI + 1;
   /**
@@ -1654,7 +1661,9 @@ NdbEventBuffer::completeClusterFailed()
   bzero(ptr, sizeof(ptr));
 
   data.tableId = ~0;
-  data.operation = NdbDictionary::Event::_TE_CLUSTER_FAILURE;
+  data.requestInfo = 0;
+  SubTableData::setOperation(data.requestInfo,
+			     NdbDictionary::Event::_TE_CLUSTER_FAILURE);
   data.logType = SubTableData::LOG;
   data.gci = m_latestGCI + 1;
   
@@ -1757,19 +1766,21 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 			    LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::insertDataL");
+  const Uint32 ri = sdata->requestInfo;
+  const Uint32 operation = SubTableData::getOperation(ri);
   Uint64 gci= sdata->gci;
-  const bool is_data_event =
-    sdata->operation < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT;
+  const bool is_data_event = 
+    operation < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT;
 
   if (!is_data_event)
   {
-    switch (sdata->operation)
+    switch (operation)
     {
     case NdbDictionary::Event::_TE_NODE_FAILURE:
-      op->m_node_bit_mask.clear(sdata->ndbd_nodeid);
+      op->m_node_bit_mask.clear(SubTableData::getNdbdNodeId(ri));
       break;
     case NdbDictionary::Event::_TE_ACTIVE:
-      op->m_node_bit_mask.set(sdata->ndbd_nodeid);
+      op->m_node_bit_mask.set(SubTableData::getNdbdNodeId(ri));
       // internal event, do not relay to user
       DBUG_RETURN_EVENT(0);
       break;
@@ -1780,7 +1791,8 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       DBUG_PRINT("info", ("m_ref_count: %u for op: %p", op->m_ref_count, op));
       break;
     case NdbDictionary::Event::_TE_STOP:
-      op->m_node_bit_mask.clear(sdata->ndbd_nodeid);
+      ndbout_c("sdata->ndbd_nodeid: %d", SubTableData::getNdbdNodeId(ri));
+      op->m_node_bit_mask.clear(SubTableData::getNdbdNodeId(ri));
       if (op->m_node_bit_mask.isclear())
       {
         DBUG_ASSERT(op->m_ref_count > 0);
@@ -1792,19 +1804,20 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       break;
     }
   }
-
-  if ( likely((Uint32)op->mi_type & (1 << (Uint32)sdata->operation)) )
+  
+  if ( likely((Uint32)op->mi_type & (1 << operation)))
   {
     Gci_container* bucket= find_bucket(&m_active_gci, gci
 #ifdef VM_TRACE
                                        , m_flush_gci
 #endif
                                        );
-      
+    
     DBUG_PRINT_EVENT("info", ("data insertion in eventId %d", op->m_eventId));
     DBUG_PRINT_EVENT("info", ("gci=%d tab=%d op=%d node=%d",
-                              sdata->gci, sdata->tableId, sdata->operation,
-                              sdata->req_nodeid));
+                              sdata->gci, sdata->tableId, 
+			      SubTableData::getOperation(sdata->requestInfo),
+                              SubTableData::getReqNodeId(sdata->requestInfo)));
 
     if (unlikely(bucket == 0))
     {
@@ -1824,7 +1837,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       DBUG_PRINT_EVENT("info", ("ignore non-data event on blob table"));
       DBUG_RETURN_EVENT(0);
     }
-
+    
     // find position in bucket hash table
     EventBufData* data = 0;
     EventBufData_hash::Pos hpos;
@@ -1833,7 +1846,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       bucket->m_data_hash.search(hpos, op, ptr);
       data = hpos.data;
     }
-
+    
     if (data == 0)
     {
       // allocate new result buffer
@@ -1901,20 +1914,22 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         // since the flags represent multiple ops on multiple PKs
         // XXX fix by doing merge at end of epoch (extra mem cost)
         {
-          EventBufData_list::Gci_op g = { op, (1 << sdata->operation) };
+          EventBufData_list::Gci_op g = { op, (1 << operation) };
           bucket->m_data.add_gci_op(g);
         }
         {
-          EventBufData_list::Gci_op g = { op, (1 << data->sdata->operation) };
+          EventBufData_list::Gci_op 
+	    g = { op, 
+		  (1 << SubTableData::getOperation(data->sdata->requestInfo))};
           bucket->m_data.add_gci_op(g);
         }
       }
     }
     DBUG_RETURN_EVENT(0);
   }
-
+  
 #ifdef VM_TRACE
-  if ((Uint32)op->m_eventImpl->mi_type & (1 << (Uint32)sdata->operation))
+  if ((Uint32)op->m_eventImpl->mi_type & (1 << operation))
   {
     DBUG_PRINT_EVENT("info",("Data arrived before ready eventId", op->m_eventId));
     DBUG_RETURN_EVENT(0);
@@ -2100,8 +2115,8 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
 
   Uint32 nkey = data->m_event_op->m_eventImpl->m_tableImpl->m_noOfKeys;
 
-  int t1 = data->sdata->operation;
-  int t2 = sdata->operation;
+  int t1 = SubTableData::getOperation(data->sdata->requestInfo);
+  int t2 = SubTableData::getOperation(sdata->requestInfo);
   if (t1 == Ev_t::enum_NUL)
     DBUG_RETURN_EVENT(copy_data(sdata, ptr2, data));
 
@@ -2165,7 +2180,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
         goto end;
       }
       *data->sdata = *sdata;
-      data->sdata->operation = tp->t3;
+      SubTableData::setOperation(data->sdata->requestInfo, tp->t3);
     }
 
     ptr[0].sz = ptr[1].sz = ptr[2].sz = 0;
@@ -2357,7 +2372,7 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
     DBUG_RETURN_EVENT(-1);
   SubTableData sdata = *blob_data->sdata;
   sdata.tableId = main_op->m_eventImpl->m_tableImpl->m_id;
-  sdata.operation = NdbDictionary::Event::_TE_NUL;
+  SubTableData::setOperation(sdata.requestInfo, NdbDictionary::Event::_TE_NUL);
   if (copy_data(&sdata, ptr, main_data) != 0)
     DBUG_RETURN_EVENT(-1);
   hpos.data = main_data;
