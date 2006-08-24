@@ -1957,6 +1957,9 @@ com_charset(String *buffer __attribute__((unused)), char *line)
   if (new_cs)
   {
     charset_info= new_cs;
+    mysql_set_character_set(&mysql, charset_info->csname);
+    default_charset= (char *)charset_info->csname;
+    default_charset_used= 1;
     put_info("Charset changed", INFO_INFO);
   }
   else put_info("Charset is not found", INFO_INFO);

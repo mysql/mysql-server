@@ -150,3 +150,4 @@
 #define MD5_Init yaMD5_Init
 #define MD5_Update yaMD5_Update
 #define MD5_Final yaMD5_Final
+#define SSL_peek yaSSL_peek
