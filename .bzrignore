@@ -913,6 +913,7 @@ ndb/src/common/mgmcommon/printConfig/*.d
 ndb/src/common/portlib/libportlib.dsp
 ndb/src/common/transporter/libtransporter.dsp
 ndb/src/common/util/libgeneral.dsp
+ndb/src/common/util/testBitmask.cpp
 ndb/src/cw/cpcd/ndb_cpcd
 ndb/src/dummy.cpp
 ndb/src/kernel/blocks/backup/libbackup.dsp
@@ -1138,6 +1139,7 @@ sql/*.ds?
 sql/*.vcproj
 sql/.gdbinit
 sql/client.c
+sql/f.c
 sql/gen_lex_hash
 sql/gmon.out
 sql/lex_hash.h
@@ -1296,4 +1298,3 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
-ndb/src/common/util/testBitmask.cpp
