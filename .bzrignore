@@ -1170,6 +1170,7 @@ sql/*.ds?
 sql/*.vcproj
 sql/.gdbinit
 sql/client.c
+sql/f.c
 sql/gen_lex_hash
 sql/gmon.out
 sql/handlerton.cc
