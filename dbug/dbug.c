@@ -71,13 +71,10 @@
  *
  */
 
-#include <my_global.h>
-
-/* This file won't compile unless DBUG_OFF is undefined locally */
 #ifdef DBUG_OFF
 #undef DBUG_OFF
 #endif
-
+#include <my_global.h>
 #include <m_string.h>
 #include <errno.h>
 #if defined(MSDOS) || defined(__WIN__)
