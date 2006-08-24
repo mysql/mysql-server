@@ -1791,7 +1791,6 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
       DBUG_PRINT("info", ("m_ref_count: %u for op: %p", op->m_ref_count, op));
       break;
     case NdbDictionary::Event::_TE_STOP:
-      ndbout_c("sdata->ndbd_nodeid: %d", SubTableData::getNdbdNodeId(ri));
       op->m_node_bit_mask.clear(SubTableData::getNdbdNodeId(ri));
       if (op->m_node_bit_mask.isclear())
       {
