@@ -52,8 +52,8 @@ drop table t1;
 --exec $MYSQL --default-character-set=cp932 test -e "charset utf8;"
 
 # its usage to switch internally in mysql to requested charset
---exec $MYSQL --default-character-set=utf8 test -e "charset cp932; set @@session.character_set_client= cp932; select 'ソ'; create table t1 (c_cp932 TEXT CHARACTER SET cp932); insert into t1 values('ソ'); select * from t1;  drop table t1;"
---exec $MYSQL --default-character-set=utf8 test -e "charset cp932; set character_set_client= cp932; select 'ソ'"
+--exec $MYSQL --default-character-set=utf8 test -e "charset cp932; select 'ソ'; create table t1 (c_cp932 TEXT CHARACTER SET cp932); insert into t1 values('ソ'); select * from t1;  drop table t1;"
+--exec $MYSQL --default-character-set=utf8 test -e "charset cp932; select 'ソ'"
 --exec $MYSQL --default-character-set=utf8 test -e "/*charset cp932 */; set character_set_client= cp932; select 'ソ'"
 --exec $MYSQL --default-character-set=utf8 test -e "/*!\C cp932 */; set character_set_client= cp932; select 'ソ'"
 
