@@ -6783,17 +6783,8 @@ flush:
 	FLUSH_SYM opt_no_write_to_binlog
 	{
 	  LEX *lex=Lex;
-	  if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-	  {
-            /*
-              Note that both FLUSH TABLES and FLUSH PRIVILEGES will break
-              execution in prelocked mode. So it is better to disable
-              FLUSH in stored functions and triggers completely.
-            */
-            my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
-	    YYABORT;
-	  }
-	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
+	  lex->sql_command= SQLCOM_FLUSH;
+          lex->type= 0;
           lex->no_write_to_binlog= $2;
 	}
 	flush_options
