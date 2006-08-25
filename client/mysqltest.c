@@ -5528,8 +5528,6 @@ int main(int argc, char **argv)
     dump_progress(result_file);
   dynstr_free(&ds_progress);
 
-  dynstr_free(&ds_res);
-
   if (!got_end_timer)
     timer_output();				/* No end_timer cmd, end it */
   free_used_memory();
