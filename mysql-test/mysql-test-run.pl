@@ -233,6 +233,7 @@ our $opt_result_ext;
 
 our $opt_skip;
 our $opt_skip_rpl;
+our $opt_skip_im; # --skip-im on command line will just be ignored
 our $opt_skip_test;
 
 our $opt_sleep;
@@ -519,6 +520,7 @@ sub command_line_setup () {
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
+	     'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
 
              # Specify ports
