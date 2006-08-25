@@ -720,7 +720,7 @@ failure:
 "InnoDB: To get mysqld to start up, set innodb_thread_concurrency in my.cnf\n"
 "InnoDB: to a lower value, for example, to 8. After an ERROR-FREE shutdown\n"
 "InnoDB: of mysqld you can adjust the size of ib_logfiles, as explained in\n"
-"InnoDB: http://dev.mysql.com/doc/mysql/en/Adding_and_removing.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/adding-and-removing.html\n"
 "InnoDB: Cannot continue operation. Calling exit(1).\n",
 			(ulong)srv_thread_concurrency);
 
