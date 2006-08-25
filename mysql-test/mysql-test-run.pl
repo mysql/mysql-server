@@ -898,7 +898,8 @@ sub executable_setup () {
       $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-debug",
-                                           "$path_client_bindir/mysqld-max");
+                                           "$path_client_bindir/mysqld-max",
+					   "$path_client_bindir/mysqld-max-nt");
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
       $exe_my_print_defaults=
