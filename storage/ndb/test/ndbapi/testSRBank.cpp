@@ -124,6 +124,7 @@ int runBankSum(NDBT_Context* ctx, NDBT_Step* step){
   result = NDBT_FAILED; \
   continue; } 
 
+static
 int
 restart_cluster(NDBT_Context* ctx, NDBT_Step* step, NdbRestarter& restarter)
 {
@@ -177,6 +178,7 @@ restart_cluster(NDBT_Context* ctx, NDBT_Step* step, NdbRestarter& restarter)
   return result;
 }
 
+static
 ndb_mgm_node_state*
 select_node_to_stop(Vector<ndb_mgm_node_state>& nodes)
 {
@@ -215,6 +217,7 @@ select_node_to_stop(Vector<ndb_mgm_node_state>& nodes)
   }
 }
 
+static
 ndb_mgm_node_state*
 select_node_to_start(Vector<ndb_mgm_node_state>& nodes)
 {
@@ -294,23 +297,27 @@ loop:
 	goto loop;
       
       if (action == AA_RestartNode)
-      {
 	g_err << "Restarting " << node->node_id << endl;
-	if (restarter.restartOneDbNode(node->node_id, false, false, true))
-	  return NDBT_FAILED;
-      }
-      if (action == AA_StopNode)
-      {
+      else
 	g_err << "Stopping " << node->node_id << endl;
-	if (restarter.restartOneDbNode(node->node_id, false, true, true))
-	  return NDBT_FAILED;
-	node->node_status = NDB_MGM_NODE_STATUS_NOT_STARTED;
-      }
-      break;
+
+      if (restarter.restartOneDbNode(node->node_id, false, true, true))
+	return NDBT_FAILED;
+      
+      if (restarter.waitNodesNoStart(&node->node_id, 1))
+	return NDBT_FAILED;
+      
+      node->node_status = NDB_MGM_NODE_STATUS_NOT_STARTED;
+      
+      if (action == AA_StopNode)
+	break;
+      else
+	goto start;
     }
     case AA_StartNode:
       if ((node = select_node_to_start(nodes)) == 0)
 	goto loop;
+  start:
       g_err << "Starting " << node->node_id << endl;
       if (restarter.startNodes(&node->node_id, 1))
 	return NDBT_FAILED;
@@ -321,7 +328,26 @@ loop:
       break;
     }
   }
+
+  Vector<int> not_started;
+  {
+    ndb_mgm_node_state* node = 0;
+    while((node = select_node_to_start(nodes)))
+    {
+      not_started.push_back(node->node_id);
+      node->node_status = NDB_MGM_NODE_STATUS_STARTED;
+    }
+  }
   
+  if (not_started.size())
+  {
+    g_err << "Starting stopped nodes " << endl;
+    if (restarter.startNodes(not_started.getBase(), not_started.size()))
+      return NDBT_FAILED;
+    if (restarter.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+
   ctx->stopTest();
   return NDBT_OK;
 }
