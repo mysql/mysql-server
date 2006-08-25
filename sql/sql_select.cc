@@ -2205,6 +2205,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   int ref_changed;
   do
   {
+  more_const_tables_found:
     ref_changed = 0;
     found_ref=0;
 
@@ -2216,6 +2217,30 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
       table=s->table;
+
+      /* 
+        If equi-join condition by a key is null rejecting and after a
+        substitution of a const table the key value happens to be null
+        then we can state that there are no matches for this equi-join.
+      */  
+      if ((keyuse= s->keyuse) && *s->on_expr_ref)
+      {
+        while (keyuse->table == table)
+        {
+          if (!(keyuse->val->used_tables() & ~join->const_table_map) &&
+              keyuse->val->is_null() && keyuse->null_rejecting)
+          {
+            s->type= JT_CONST;
+            mark_as_null_row(table);
+            found_const_table_map|= table->map;
+	    join->const_table_map|= table->map;
+	    set_position(join,const_count++,s,(KEYUSE*) 0);
+            goto more_const_tables_found;
+           }
+	  keyuse++;
+        }
+      }
+
       if (s->dependent)				// If dependent on some table
       {
 	// All dep. must be constants
@@ -2266,34 +2291,38 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
-	      ((table->key_info[key].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
-	       HA_NOSAME) &&
               !table->fulltext_searched && 
               !table->pos_in_table_list->embedding)
 	  {
-	    if (const_ref == eq_part)
-	    {					// Found everything for ref.
-	      int tmp;
-	      ref_changed = 1;
-	      s->type= JT_CONST;
-	      join->const_table_map|=table->map;
-	      set_position(join,const_count++,s,start_keyuse);
-	      if (create_ref_for_key(join, s, start_keyuse,
-				     found_const_table_map))
-		DBUG_RETURN(1);
-	      if ((tmp=join_read_const_table(s,
-                                             join->positions+const_count-1)))
-	      {
-		if (tmp > 0)
-		  DBUG_RETURN(1);			// Fatal error
+            if ((table->key_info[key].flags & (HA_NOSAME | HA_END_SPACE_KEY))
+                 == HA_NOSAME)
+            {
+	      if (const_ref == eq_part)
+	      {					// Found everything for ref.
+	        int tmp;
+	        ref_changed = 1;
+	        s->type= JT_CONST;
+	        join->const_table_map|=table->map;
+	        set_position(join,const_count++,s,start_keyuse);
+	        if (create_ref_for_key(join, s, start_keyuse,
+				       found_const_table_map))
+		  DBUG_RETURN(1);
+	        if ((tmp=join_read_const_table(s,
+                                               join->positions+const_count-1)))
+	        {
+		  if (tmp > 0)
+		    DBUG_RETURN(1);			// Fatal error
+	        }
+	        else
+		  found_const_table_map|= table->map;
+	        break;
 	      }
 	      else
-		found_const_table_map|= table->map;
-	      break;
+	        found_ref|= refs;      // Table is const if all refs are const
 	    }
-	    else
-	      found_ref|= refs;		// Table is const if all refs are const
-	  }
+            else if (const_ref == eq_part)
+              s->const_keys.set_bit(key);
+          }
 	}
       }
     }
@@ -2696,7 +2725,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     We use null_rejecting in add_not_null_conds() to add
     'othertbl.field IS NOT NULL' to tab->select_cond.
   */
-  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC) &&
+  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC ||
+                                   cond->functype() == Item_func::MULT_EQUAL_FUNC) &&
                                   ((*value)->type() == Item::FIELD_ITEM) &&
                                   ((Item_field*)*value)->field->maybe_null());
   (*key_fields)++;
@@ -3461,7 +3491,7 @@ best_access_path(JOIN      *join,
                                                  keyuse->used_tables));
             if (tmp < best_prev_record_reads)
             {
-              best_part_found_ref= keyuse->used_tables;
+              best_part_found_ref= keyuse->used_tables & ~join->const_table_map;
               best_prev_record_reads= tmp;
             }
             if (rec > keyuse->ref_table_rows)
