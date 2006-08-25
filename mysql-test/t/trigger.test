@@ -651,17 +651,105 @@ drop table t1;
 # of functions and triggers.
 create table t1 (id int);
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row reset query cache;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row reset master;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row reset slave;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush hosts;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush tables with read lock;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush logs;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush status;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush slave;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush master;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush des_key_file;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create trigger t1_ai after insert on t1 for each row flush user_resources;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row flush tables;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row flush privileges;
-create procedure p1() flush tables;
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+
 create trigger t1_ai after insert on t1 for each row call p1();
+create procedure p1() flush tables;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() reset query cache;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() reset master;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() reset slave;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() flush hosts;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
 drop procedure p1;
 create procedure p1() flush privileges;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() flush tables with read lock;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() flush tables;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() flush logs;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() flush status;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() flush slave;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() flush master;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() flush des_key_file;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
+drop procedure p1;
+create procedure p1() flush user_resources;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+insert into t1 values (0);
+
 drop procedure p1;
 drop table t1;
 

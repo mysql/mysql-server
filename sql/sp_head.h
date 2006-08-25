@@ -115,7 +115,9 @@ public:
     IS_INVOKED= 32,             // Is set if this sp_head is being used
     HAS_SET_AUTOCOMMIT_STMT= 64,// Is set if a procedure with 'set autocommit'
     /* Is set if a procedure with COMMIT (implicit or explicit) | ROLLBACK */
-    HAS_COMMIT_OR_ROLLBACK= 128
+    HAS_COMMIT_OR_ROLLBACK= 128,
+    HAS_SQLCOM_RESET= 2048,
+    HAS_SQLCOM_FLUSH= 4096
   };
 
   /* TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
@@ -335,14 +337,16 @@ public:
       my_error(ER_SP_NO_RETSET, MYF(0), where);
     else if (m_flags & HAS_SET_AUTOCOMMIT_STMT)
       my_error(ER_SP_CANT_SET_AUTOCOMMIT, MYF(0));
-    else if (m_type != TYPE_ENUM_PROCEDURE &&
-             (m_flags & sp_head::HAS_COMMIT_OR_ROLLBACK))
-    {
+    else if (m_flags & HAS_COMMIT_OR_ROLLBACK)
       my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
-      return TRUE;
-    }
+    else if (m_flags & HAS_SQLCOM_RESET)
+      my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "RESET");
+    else if (m_flags & HAS_SQLCOM_FLUSH)
+      my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
+
     return test(m_flags &
-		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT));
+		(CONTAINS_DYNAMIC_SQL|MULTI_RESULTS|HAS_SET_AUTOCOMMIT_STMT|
+                 HAS_COMMIT_OR_ROLLBACK|HAS_SQLCOM_RESET|HAS_SQLCOM_FLUSH));
   }
 
 #ifndef DBUG_OFF
