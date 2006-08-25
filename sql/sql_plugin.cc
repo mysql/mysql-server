@@ -927,7 +927,7 @@ my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
 {
   uint idx;
   struct st_plugin_int *plugin;
-  DBUG_ENTER("mysql_uninstall_plugin");
+  DBUG_ENTER("plugin_foreach");
   rw_rdlock(&THR_LOCK_plugin);
 
   if (type == MYSQL_ANY_PLUGIN)

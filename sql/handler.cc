@@ -2705,18 +2705,41 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
     >0 : error.  frmblob and frmlen may not be set
 */
 
+typedef struct st_discover_args
+{
+  const char *db;
+  const char *name;
+  const void** frmblob; 
+  uint* frmlen;
+};
+
+static my_bool discover_handlerton(THD *thd, st_plugin_int *plugin,
+                                   void *arg)
+{
+  st_discover_args *vargs= (st_discover_args *)arg;
+  handlerton *hton= (handlerton *)plugin->data;
+  if (hton->state == SHOW_OPTION_YES && hton->discover &&
+      (!(hton->discover(thd, vargs->db, vargs->name, vargs->frmblob, vargs->frmlen))))
+    return TRUE;
+
+  return FALSE;
+}
+
 int ha_discover(THD *thd, const char *db, const char *name,
 		const void **frmblob, uint *frmlen)
 {
   int error= -1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
+  st_discover_args args= {db, name, frmblob, frmlen};
+
   if (is_prefix(name,tmp_file_prefix)) /* skip temporary tables */
     DBUG_RETURN(error);
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_discover(thd, db, name, frmblob, frmlen);
-#endif
+
+  if (plugin_foreach(thd, discover_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args))
+    error= 0;
+
   if (!error)
     statistic_increment(thd->status_var.ha_discover_count,&LOCK_status);
   DBUG_RETURN(error);
