@@ -421,11 +421,10 @@ void Item::rename(char *new_name)
 
 
 /*
-  transform() - traverse item tree possibly transforming it (replacing
-                items)
+  Traverse item tree possibly transforming it (replacing items).
 
   SYNOPSIS
-    transform()
+    Item::transform()
       transformer    functor that performs transformation of a subtree
       arg            opaque argument passed to the functor
 
@@ -450,9 +449,9 @@ void Item::rename(char *new_name)
     it, please use Item::walk() instead.
 
 
-  RETURN
+  RETURN VALUE
     Returns pointer to the new subtree root.  THD::change_item_tree()
-    should be called for it if transformation took place, i.e. if
+    should be called for it if transformation took place, i.e. if a
     pointer to newly allocated item is returned.
 */
 
@@ -5339,9 +5338,10 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
 
 
 /* 
-   This method like the walk method traverses the item tree, but at
-   the same time it can replace some nodes in the tree
+  This method like the walk method traverses the item tree, but at the
+  same time it can replace some nodes in the tree
 */ 
+
 Item *Item_default_value::transform(Item_transformer transformer, byte *args)
 {
   DBUG_ASSERT(!current_thd->is_stmt_prepare());
