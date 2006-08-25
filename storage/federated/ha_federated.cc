@@ -341,7 +341,6 @@
 #pragma implementation                          // gcc: Class implementation
 #endif
 
-#ifdef WITH_FEDERATED_STORAGE_ENGINE
 #include "ha_federated.h"
 
 #include "m_string.h"
@@ -2901,4 +2900,3 @@ mysql_declare_plugin(federated)
 }
 mysql_declare_plugin_end;
 
-#endif
