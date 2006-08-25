@@ -1389,15 +1389,15 @@ static bool time_zone_tables_exist= 1;
 
 static const LEX_STRING tz_tables_names[MY_TZ_TABLES_COUNT]=
 {
-  {(char *) STRING_WITH_LEN("time_zone_name")},
-  {(char *) STRING_WITH_LEN("time_zone")},
-  {(char *) STRING_WITH_LEN("time_zone_transition_type")},
-  {(char *) STRING_WITH_LEN("time_zone_transition")}
+  { C_STRING_WITH_LEN("time_zone_name")},
+  { C_STRING_WITH_LEN("time_zone")},
+  { C_STRING_WITH_LEN("time_zone_transition_type")},
+  { C_STRING_WITH_LEN("time_zone_transition")}
 };
 
 /* Name of database to which those tables belong. */
 
-static const LEX_STRING tz_tables_db_name= {(char *) STRING_WITH_LEN("mysql")};
+static const LEX_STRING tz_tables_db_name= { C_STRING_WITH_LEN("mysql")};
 
 
 class Tz_names_entry: public Sql_alloc

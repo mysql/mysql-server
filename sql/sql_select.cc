@@ -8645,8 +8645,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();
   share->keys_in_use.init();
-  /* For easier error reporting */
-  share->table_cache_key= share->db;
 
   /* Calculate which type of fields we will store in the temporary table */
 
