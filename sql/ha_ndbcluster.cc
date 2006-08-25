@@ -6387,6 +6387,7 @@ static int ndbcluster_init()
     ndbcluster_binlog_init_handlerton();
 #endif
     h.flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
+    h.discover=         ndbcluster_discover;
   }
 
   if (have_ndbcluster != SHOW_OPTION_YES)
