@@ -45,3 +45,4 @@ rpl_sp_effects           : BUG#19862 2006-06-15 mkindahl
 crash_commit_before      : 2006-08-02 msvensson
 rpl_ndb_dd_advance       : BUG#18679 2006-07-28 jimw (Test fails randomly)
 ndb_binlog_discover      : bug#21806 2006-08-24
+ndb_autodiscover3        : bug#21806
