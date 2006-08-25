@@ -157,6 +157,7 @@ static int tina_init_func()
     VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
     (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
                      (hash_get_key) tina_get_key,0,0);
+    bzero(&tina_hton, sizeof(handlerton));
     tina_hton.state= SHOW_OPTION_YES;
     tina_hton.db_type= DB_TYPE_CSV_DB;
     tina_hton.create= tina_create_handler;

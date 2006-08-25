@@ -667,6 +667,8 @@ struct handlerton
    enum handler_create_iterator_result
      (*create_iterator)(enum handler_iterator_type type,
                         struct handler_iterator *fill_this_in);
+   int (*discover)(THD* thd, const char *db, const char *name,
+                           const void** frmblob, uint* frmlen);
 };
 
 
@@ -1589,7 +1591,6 @@ private:
 
 	/* Some extern variables used with handlers */
 
-extern handlerton *sys_table_types[];
 extern const char *ha_row_type[];
 extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
