@@ -21,8 +21,6 @@
 #ifndef TAP_H
 #define TAP_H
 
-#include "my_global.h"
-
 /*
   @defgroup MyTAP MySQL support for performing unit tests according to TAP.
 
@@ -66,6 +64,10 @@ extern "C" {
    <code>NO_PLAN</code>.  If the function is not called, it is as if
    it was called with <code>NO_PLAN</code>, i.e., the test plan will
    be printed after all the test lines.
+
+   The plan() function will install signal handlers for all signals
+   that generate a core, so if you want to override these signals, do
+   it <em>after</em> you have called the plan() function.
 
    @param count The planned number of tests to run. 
 */
@@ -130,10 +132,9 @@ void skip(int how_many, char const *reason, ...)
      for (i = 0 ; i < 2 ; ++i)
        ok(duck[i] == paddling, "is duck %d paddling?", i);
    }
+   @endcode
 
    @see skip
-
-   @endcode
  */
 #define SKIP_BLOCK_IF(SKIP_IF_TRUE, COUNT, REASON) \
   if (SKIP_IF_TRUE) skip((COUNT),(REASON)); else
@@ -145,6 +146,24 @@ void skip(int how_many, char const *reason, ...)
  */
 void diag(char const *fmt, ...)
   __attribute__((format(printf,1,2)));
+
+/**
+   Print a bail out message.
+
+   A bail out message can be issued when no further testing can be
+   done, e.g., when there are missing dependencies.
+
+   The test will exit with status 255.  This function does not return.
+
+   @note A bail out message is printed if a signal that generates a
+   core is raised.
+
+   @param fmt Bail out message in printf() format.
+*/
+
+void BAIL_OUT(char const *fmt, ...)
+  __attribute__((noreturn, format(printf,1,2)));
+
 
 /**
    Print summary report and return exit status.
