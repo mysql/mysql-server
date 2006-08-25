@@ -6,10 +6,9 @@ CLEANFILES = unit
 
 unittests = mytap mysys
 
-test: unit
-	./unit run $(unittests)
+test:
+	perl unit.pl run $(unittests)
 
 unit: $(srcdir)/unit.pl
-	cp $(srcdir)/unit.pl $@
-	chmod 700 $@
+	install $(srcdir)/unit.pl $@
 
