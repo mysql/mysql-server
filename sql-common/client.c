@@ -1502,7 +1502,6 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   mysql->options.ssl_ca=     strdup_if_not_null(ca);
   mysql->options.ssl_capath= strdup_if_not_null(capath);
   mysql->options.ssl_cipher= strdup_if_not_null(cipher);
-  mysql->options.ssl_verify_server_cert= FALSE; /* Off by default */
 #endif /* HAVE_OPENSSL */
   DBUG_RETURN(0);
 }
@@ -2162,7 +2161,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     DBUG_PRINT("info", ("IO layer change done!"));
 
     /* Verify server cert */
-    if (mysql->options.ssl_verify_server_cert &&
+    if ((client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
         ssl_verify_server_cert(mysql->net.vio, mysql->host))
     {
       set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
@@ -2909,7 +2908,10 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     mysql->reconnect= *(my_bool *) arg;
     break;
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
-    mysql->options.ssl_verify_server_cert= *(my_bool *) arg;
+    if (!arg || test(*(uint*) arg))
+      mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
+    else
+      mysql->options.client_flag&= ~CLIENT_SSL_VERIFY_SERVER_CERT;
     break;
   default:
     DBUG_RETURN(1);
