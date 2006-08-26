@@ -423,3 +423,18 @@ alter table t1 modify a binary(5);
 select hex(a) from t1 order by a;
 select hex(concat(a,'\0')) as b from t1 order by concat(a,'\0');
 drop table t1;
+
+#
+# Bug #19489: Inconsistent support for DEFAULT in TEXT columns
+#
+create table t1 (a text default '');
+show create table t1;
+insert into t1 values (default);
+select * from t1;
+drop table t1;
+set @@sql_mode='TRADITIONAL';
+--error ER_BLOB_CANT_HAVE_DEFAULT
+create table t1 (a text default '');
+set @@sql_mode='';
+
+--echo End of 5.0 tests

@@ -7,7 +7,6 @@
 # package" that is used as the basis for all other binary builds.
 #
 test -f Makefile && make distclean
-(cd storage/bdb/dist && sh s_all)
 (cd storage/innobase && aclocal && autoheader && \
     libtoolize --automake --force --copy && \
     automake --force --add-missing --copy && autoconf)
@@ -52,7 +51,6 @@ fi
   --with-csv-storage-engine \
   --with-example-storage-engine \
   --with-federated-storage-engine \
-  --with-berkeley-db \
   --with-innodb \
   --with-ssl \
   --enable-thread-safe-client \

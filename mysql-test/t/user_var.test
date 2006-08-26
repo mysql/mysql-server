@@ -171,3 +171,34 @@ set @first_var= cast(NULL as CHAR);
 create table t1 select @first_var;
 show create table t1;
 drop table t1;
+
+#
+# Bug #7498 User variable SET saves SIGNED BIGINT as UNSIGNED BIGINT
+#
+
+# First part, set user var to large number and select it
+set @a=18446744071710965857;
+select @a;
+
+# Second part, set user var from large number in table
+# then select it
+CREATE TABLE `bigfailure` (
+  `afield` BIGINT UNSIGNED NOT NULL
+);
+INSERT INTO `bigfailure` VALUES (18446744071710965857);
+SELECT * FROM bigfailure;
+select * from (SELECT afield FROM bigfailure) as b;
+select * from bigfailure where afield = (SELECT afield FROM bigfailure);
+select * from bigfailure where afield = 18446744071710965857;
+# This is fixed in 5.0, to be uncommented there
+#select * from bigfailure where afield = '18446744071710965857';
+select * from bigfailure where afield = 18446744071710965856+1;
+
+SET @a := (SELECT afield FROM bigfailure);
+SELECT @a;
+SET @a := (select afield from (SELECT afield FROM bigfailure) as b);
+SELECT @a;
+SET @a := (select * from bigfailure where afield = (SELECT afield FROM bigfailure));
+SELECT @a;
+
+drop table bigfailure;

@@ -1680,14 +1680,12 @@ uint Item_func_date_format::format_length(const String *format)
       case 'u': /* week (00..52), where week starts with Monday */
       case 'V': /* week 1..53 used with 'x' */
       case 'v': /* week 1..53 used with 'x', where week starts with Monday */
-      case 'H': /* hour (00..23) */
       case 'y': /* year, numeric, 2 digits */
       case 'm': /* month, numeric */
       case 'd': /* day (of the month), numeric */
       case 'h': /* hour (01..12) */
       case 'I': /* --||-- */
       case 'i': /* minutes, numeric */
-      case 'k': /* hour ( 0..23) */
       case 'l': /* hour ( 1..12) */
       case 'p': /* locale's AM or PM */
       case 'S': /* second (00..61) */
@@ -1695,6 +1693,10 @@ uint Item_func_date_format::format_length(const String *format)
       case 'c': /* month (0..12) */
       case 'e': /* day (0..31) */
 	size += 2;
+	break;
+      case 'k': /* hour ( 0..23) */
+      case 'H': /* hour (00..23; value > 23 OK, padding always 2-digit) */
+	size += 7; /* docs allow > 23, range depends on sizeof(unsigned int) */
 	break;
       case 'r': /* time, 12-hour (hh:mm:ss [AP]M) */
 	size += 11;
@@ -2756,6 +2758,8 @@ longlong Item_func_timestamp_diff::val_int()
   {
     uint year_beg, year_end, month_beg, month_end, day_beg, day_end;
     uint years= 0;
+    uint second_beg, second_end, microsecond_beg, microsecond_end;
+
     if (neg == -1)
     {
       year_beg= ltime2.year;
@@ -2764,6 +2768,10 @@ longlong Item_func_timestamp_diff::val_int()
       month_end= ltime1.month;
       day_beg= ltime2.day;
       day_end= ltime1.day;
+      second_beg= ltime2.hour * 3600 + ltime2.minute * 60 + ltime2.second;
+      second_end= ltime1.hour * 3600 + ltime1.minute * 60 + ltime1.second;
+      microsecond_beg= ltime2.second_part;
+      microsecond_end= ltime1.second_part;
     }
     else
     {
@@ -2773,6 +2781,10 @@ longlong Item_func_timestamp_diff::val_int()
       month_end= ltime2.month;
       day_beg= ltime1.day;
       day_end= ltime2.day;
+      second_beg= ltime1.hour * 3600 + ltime1.minute * 60 + ltime1.second;
+      second_end= ltime2.hour * 3600 + ltime2.minute * 60 + ltime2.second;
+      microsecond_beg= ltime1.second_part;
+      microsecond_end= ltime2.second_part;
     }
 
     /* calc years */
@@ -2786,7 +2798,12 @@ longlong Item_func_timestamp_diff::val_int()
       months+= 12 - (month_beg - month_end);
     else
       months+= (month_end - month_beg);
+
     if (day_end < day_beg)
+      months-= 1;
+    else if ((day_end == day_beg) &&
+	     ((second_end < second_beg) ||
+	      (second_end == second_beg && microsecond_end < microsecond_beg)))
       months-= 1;
   }
 

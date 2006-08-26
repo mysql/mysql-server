@@ -104,4 +104,22 @@ c_cp932
 |    2 | NULL | 
 |    3 |      | 
 +------+------+
+create table t1(a int, b varchar(255), c int);
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	int(11)	YES		NULL	
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	varchar(255)	YES		NULL	
+c	int(11)	YES		NULL	
+drop table t1;
+1
+1
+ERROR 1064 (42000) at line 3: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ERROR at line 1: USE must be followed by a database name
+\
+\\
+';
+';
 End of 5.0 tests

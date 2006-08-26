@@ -157,14 +157,14 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
       new_alias= new_table->table_name;
     }
     build_table_filename(name, sizeof(name),
-                         new_table->db, new_alias, reg_ext);
+                         new_table->db, new_alias, reg_ext, 0);
     if (!access(name,F_OK))
     {
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
       DBUG_RETURN(ren_table);			// This can't be skipped
     }
     build_table_filename(name, sizeof(name),
-                         ren_table->db, old_alias, reg_ext);
+                         ren_table->db, old_alias, reg_ext, 0);
 
     frm_type= mysql_frm_type(thd, name, &table_type);
     switch (frm_type)
@@ -178,7 +178,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
           if (!(rc= mysql_rename_table(ha_resolve_by_legacy_type(thd,
                                                                  table_type),
                                        ren_table->db, old_alias,
-                                       new_table->db, new_alias)))
+                                       new_table->db, new_alias, 0)))
           {
             if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
                                                             old_alias,
@@ -194,7 +194,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
               (void) mysql_rename_table(ha_resolve_by_legacy_type(thd,
                                                                   table_type),
                                         new_table->db, new_alias,
-                                        ren_table->db, old_alias);
+                                        ren_table->db, old_alias, 0);
             }
           }
         }

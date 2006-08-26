@@ -2823,7 +2823,7 @@ static ulong read_event(MYSQL* mysql, MASTER_INFO *mi, bool* suppress_warnings)
     DBUG_RETURN(packet_error);
 #endif
 
-  len = net_safe_read(mysql);
+  len = cli_safe_read(mysql);
   if (len == packet_error || (long) len < 1)
   {
     if (mysql_errno(mysql) == ER_NET_READ_INTERRUPTED)
@@ -3051,7 +3051,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       rli->is_until_satisfied())
   {
     char buf[22];
-    sql_print_error("Slave SQL thread stopped because it reached its"
+    sql_print_information("Slave SQL thread stopped because it reached its"
                     " UNTIL position %s", llstr(rli->until_pos(), buf));
     /*
       Setting abort_slave flag because we do not want additional message about

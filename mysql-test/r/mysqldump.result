@@ -2279,7 +2279,7 @@ INSERT INTO t1 VALUES(1), (2), (3), (4), (5);
 CREATE FUNCTION `bug9056_func1`(a INT, b INT) RETURNS int(11) RETURN a+b //
 CREATE PROCEDURE `bug9056_proc1`(IN a INT, IN b INT, OUT c INT)
 BEGIN SELECT a+b INTO c; end  //
-create function bug9056_func2(f1 char binary) returns char binary
+create function bug9056_func2(f1 char binary) returns char
 begin
 set f1= concat( 'hello', f1 );
 return f1;
@@ -2324,7 +2324,7 @@ RETURN a+b */;;
 /*!50003 SET SESSION SQL_MODE=@OLD_SQL_MODE*/;;
 /*!50003 DROP FUNCTION IF EXISTS `bug9056_func2` */;;
 /*!50003 SET SESSION SQL_MODE=""*/;;
-/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 FUNCTION `bug9056_func2`(f1 char binary) RETURNS char(1)
+/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 FUNCTION `bug9056_func2`(f1 char binary) RETURNS char(1) CHARSET latin1
 begin
 set f1= concat( 'hello', f1 );
 return f1;
@@ -2574,6 +2574,8 @@ DROP TABLE IF EXISTS `v2`;
   `b` varchar(32),
   `c` varchar(32)
 ) */;
+
+USE `test`;
 /*!50001 DROP TABLE IF EXISTS `v0`*/;
 /*!50001 DROP VIEW IF EXISTS `v0`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
@@ -2827,6 +2829,8 @@ DROP TABLE IF EXISTS `v1`;
 /*!50001 CREATE TABLE `v1` (
   `id` int(11)
 ) */;
+
+USE `mysqldump_test_db`;
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
@@ -2852,60 +2856,75 @@ create database mysqldump_views;
 use mysqldump_views;
 create view nasishnasifu as select mysqldump_tables.basetable.id from mysqldump_tables.basetable;
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
 CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_tables` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
 USE `mysqldump_tables`;
-DROP TABLE IF EXISTS `basetable`;
 CREATE TABLE `basetable` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `tag` varchar(64) DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
-LOCK TABLES `basetable` WRITE;
-/*!40000 ALTER TABLE `basetable` DISABLE KEYS */;
-/*!40000 ALTER TABLE `basetable` ENABLE KEYS */;
-UNLOCK TABLES;
-
 CREATE DATABASE /*!32312 IF NOT EXISTS*/ `mysqldump_views` /*!40100 DEFAULT CHARACTER SET latin1 */;
 
 USE `mysqldump_views`;
-DROP TABLE IF EXISTS `nasishnasifu`;
-/*!50001 DROP VIEW IF EXISTS `nasishnasifu`*/;
 /*!50001 CREATE TABLE `nasishnasifu` (
   `id` bigint(20) unsigned
 ) */;
-/*!50001 DROP TABLE IF EXISTS `nasishnasifu`*/;
-/*!50001 DROP VIEW IF EXISTS `nasishnasifu`*/;
+
+USE `mysqldump_tables`;
+
+USE `mysqldump_views`;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
 /*!50001 VIEW `mysqldump_views`.`nasishnasifu` AS select `mysqldump_tables`.`basetable`.`id` AS `id` from `mysqldump_tables`.`basetable` */;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
 drop view nasishnasifu;
 drop database mysqldump_views;
 drop table mysqldump_tables.basetable;
 drop database mysqldump_tables;
+create database mysqldump_dba;
+use mysqldump_dba;
+create table t1 (f1 int, f2 int);
+insert into t1 values (1,1);
+create view v1 as select f1, f2 from t1;
+create database mysqldump_dbb;
+use mysqldump_dbb;
+create table t1 (f1 int, f2 int);
+insert into t1 values (2,2);
+create view v1 as select f1, f2 from t1;
+drop view v1;
+drop table t1;
+drop database mysqldump_dbb;
+use mysqldump_dba;
+drop view v1;
+drop table t1;
+drop database mysqldump_dba;
+select * from mysqldump_dba.v1;
+f1	f2
+1	1
+select * from mysqldump_dbb.v1;
+f1	f2
+2	2
+use mysqldump_dba;
+drop view v1;
+drop table t1;
+drop database mysqldump_dba;
+use mysqldump_dbb;
+drop view v1;
+drop table t1;
+drop database mysqldump_dbb;
 use test;
+create user mysqltest_1@localhost;
+create table t1(a int, b varchar(34));
+reset master;
+mysqldump: Couldn't execute 'FLUSH TABLES': Access denied; you need the RELOAD privilege for this operation (1227)
+mysqldump: Couldn't execute 'FLUSH TABLES': Access denied; you need the RELOAD privilege for this operation (1227)
+grant RELOAD on *.* to mysqltest_1@localhost;
+mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SUPER,REPLICATION CLIENT privilege for this operation (1227)
+mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SUPER,REPLICATION CLIENT privilege for this operation (1227)
+grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
+drop table t1;
+drop user mysqltest_1@localhost;
 End of 5.0 tests
 create table t1 (a text , b text);
 create table t2 (a text , b text);
@@ -3159,6 +3178,8 @@ DROP TABLE IF EXISTS `v1`;
 /*!50001 CREATE TABLE `v1` (
   `id` int(11)
 ) */;
+
+USE `mysqldump_test_db`;
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
 /*!50001 DROP VIEW IF EXISTS `v1`*/;
 /*!50001 CREATE ALGORITHM=UNDEFINED */

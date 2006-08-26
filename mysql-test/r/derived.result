@@ -276,7 +276,7 @@ select * from t1;
 N	M
 3	0
 delete P1.*,p2.* from `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS p2 ON P1.N = p2.N;
-ERROR HY000: The target table p2 of the DELETE is not updatable
+ERROR 42S02: Unknown table 'p2' in MULTI DELETE
 delete P1.* from `t1` AS P1 INNER JOIN (SELECT aaa FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N;
 ERROR 42S22: Unknown column 'aaa' in 'field list'
 drop table t1;

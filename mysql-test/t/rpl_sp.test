@@ -433,5 +433,92 @@ SELECT * FROM t1;
 # Cleanup
 connection master;
 DROP PROCEDURE p1;
+
+
+#
+# BUG#20438: CREATE statements for views, stored routines and triggers can be
+# not replicable.
+#
+
+--echo
+--echo ---> Test for BUG#20438
+
+# Prepare environment.
+
+--echo
+--echo ---> Preparing environment...
+--echo ---> connection: master
+--connection master
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+--echo
+--echo ---> Synchronizing slave with master...
+
+--save_master_pos
+--connection slave
+--sync_with_master
+
+--echo
+--echo ---> connection: master
+--connection master
+
+# Test.
+
+--echo
+--echo ---> Creating procedure...
+
+/*!50003 CREATE PROCEDURE p1() SET @a = 1 */;
+
+/*!50003 CREATE FUNCTION f1() RETURNS INT RETURN 0 */;
+
+--echo
+--echo ---> Checking on master...
+
+SHOW CREATE PROCEDURE p1;
+SHOW CREATE FUNCTION f1;
+
+--echo
+--echo ---> Synchronizing slave with master...
+
+--save_master_pos
+--connection slave
+--sync_with_master
+
+--echo ---> connection: master
+
+--echo
+--echo ---> Checking on slave...
+
+SHOW CREATE PROCEDURE p1;
+SHOW CREATE FUNCTION f1;
+
+# Cleanup.
+
+--echo
+--echo ---> connection: master
+--connection master
+
+--echo
+--echo ---> Cleaning up...
+
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+
+--save_master_pos
+--connection slave
+--sync_with_master
+--connection master
+
+
+# cleanup
+connection master;
 drop table t1;
 sync_slave_with_master;
+
+--echo End of 5.0 tests
+--echo End of 5.1 tests
+

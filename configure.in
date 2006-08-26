@@ -32,7 +32,6 @@ sinclude(config/ac-macros/check_cpu.m4)
 sinclude(config/ac-macros/character_sets.m4)
 sinclude(config/ac-macros/compiler_flag.m4)
 sinclude(config/ac-macros/plugins.m4)
-sinclude(config/ac-macros/ha_berkeley.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
@@ -1531,17 +1530,20 @@ AC_ARG_WITH(debug,
 if test "$with_debug" = "yes"
 then
   # Medium debug.
-  CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DDBUG_ON -DSAFE_MUTEX $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DDBUG_ON -DSAFE_MUTEX $CXXFLAGS"
+  AC_DEFINE([DBUG_ON], [1], [Use libdbug])
+  CFLAGS="$DEBUG_CFLAGS $DEBUG_OPTIMIZE_CC -DSAFE_MUTEX $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS $DEBUG_OPTIMIZE_CXX -DSAFE_MUTEX $CXXFLAGS"
 elif test "$with_debug" = "full"
 then
   # Full debug. Very slow in some cases
-  CFLAGS="$DEBUG_CFLAGS -DDBUG_ON -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
-  CXXFLAGS="$DEBUG_CXXFLAGS -DDBUG_ON -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
+  AC_DEFINE([DBUG_ON], [1], [Use libdbug])
+  CFLAGS="$DEBUG_CFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CFLAGS"
+  CXXFLAGS="$DEBUG_CXXFLAGS -DSAFE_MUTEX -DSAFEMALLOC $CXXFLAGS"
 else
   # Optimized version. No debug
-  CFLAGS="$OPTIMIZE_CFLAGS -DDBUG_OFF $CFLAGS"
-  CXXFLAGS="$OPTIMIZE_CXXFLAGS -DDBUG_OFF $CXXFLAGS"
+  AC_DEFINE([DBUG_OFF], [1], [Don't use libdbug])
+  CFLAGS="$OPTIMIZE_CFLAGS $CFLAGS"
+  CXXFLAGS="$OPTIMIZE_CXXFLAGS $CXXFLAGS"
 fi
 
 # If we should allow error injection tests
@@ -1687,7 +1689,7 @@ then
   AC_MSG_ERROR("MySQL needs a long long type.")
 fi
 # off_t is not a builtin type
-MYSQL_CHECK_SIZEOF(off_t, 4)
+AC_CHECK_SIZEOF(off_t, 4)
 if test "$ac_cv_sizeof_off_t" -eq 0
 then
   AC_MSG_ERROR("MySQL needs a off_t type.")
@@ -2139,12 +2141,6 @@ MYSQL_CHECK_SSL
 # functions tested above
 #--------------------------------------------------------------------
 
-MYSQL_STORAGE_ENGINE(berkeley,  berkeley-db, [BerkeleyDB Storage Engine],
-        [Transactional Tables using BerkeleyDB], [max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(berkeley,[storage/bdb])
-MYSQL_PLUGIN_STATIC(berkeley,   [[\$(bdb_libs_with_path)]])
-MYSQL_PLUGIN_ACTIONS(berkeley,  [MYSQL_SETUP_BERKELEY_DB])
-
 MYSQL_STORAGE_ENGINE(blackhole,,[Blackhole Storage Engine],
         [Basic Write-only Read-never tables], [max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(blackhole, [storage/blackhole])
@@ -2316,12 +2312,16 @@ then
   man_dirs="man"
   man1_files=`ls -1 $srcdir/man/*.1 | sed -e 's;^.*man/;;'`
   man1_files=`echo $man1_files`
+  man8_files=`ls -1 $srcdir/man/*.8 | sed -e 's;^.*man/;;'`
+  man8_files=`echo $man8_files`
 else
   man_dirs=""
   man1_files=""
+  man8_files=""
 fi
 AC_SUBST(man_dirs)
 AC_SUBST(man1_files)
+AC_SUBST(man8_files)
 
 # Don't build readline, i have it already
 AC_ARG_WITH(readline,

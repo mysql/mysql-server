@@ -72,11 +72,10 @@ ulong savepoint_alloc_size= 0;
 
 static const LEX_STRING sys_table_aliases[]=
 {
-  {(char*)STRING_WITH_LEN("INNOBASE")},  {(char*)STRING_WITH_LEN("INNODB")},
-  {(char*)STRING_WITH_LEN("NDB")},       {(char*)STRING_WITH_LEN("NDBCLUSTER")},
-  {(char*)STRING_WITH_LEN("BDB")},       {(char*)STRING_WITH_LEN("BERKELEYDB")},
-  {(char*)STRING_WITH_LEN("HEAP")},      {(char*)STRING_WITH_LEN("MEMORY")},
-  {(char*)STRING_WITH_LEN("MERGE")},     {(char*)STRING_WITH_LEN("MRG_MYISAM")},
+  { C_STRING_WITH_LEN("INNOBASE") },  { C_STRING_WITH_LEN("INNODB") },
+  { C_STRING_WITH_LEN("NDB") },       { C_STRING_WITH_LEN("NDBCLUSTER") },
+  { C_STRING_WITH_LEN("HEAP") },      { C_STRING_WITH_LEN("MEMORY") },
+  { C_STRING_WITH_LEN("MERGE") },     { C_STRING_WITH_LEN("MRG_MYISAM") },
   {NullS, 0}
 };
 
@@ -344,6 +343,7 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_TABLE_DEF_CHANGED,      ER(ER_TABLE_DEF_CHANGED));
   SETMSG(HA_ERR_FOREIGN_DUPLICATE_KEY,  "FK constraint would lead to duplicate key");
   SETMSG(HA_ERR_TABLE_NEEDS_UPGRADE,    ER(ER_TABLE_NEEDS_UPGRADE));
+  SETMSG(HA_ERR_TABLE_READONLY,         ER(ER_OPEN_AS_READONLY));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1422,6 +1422,34 @@ void handler::ha_statistic_increment(ulong SSV::*offset) const
   statistic_increment(table->in_use->status_var.*offset, &LOCK_status);
 }
 
+
+bool handler::check_if_log_table_locking_is_allowed(uint sql_command,
+                                                    ulong type, TABLE *table)
+{
+  /*
+    Deny locking of the log tables, which is incompatible with
+    concurrent insert. Unless called from a logger THD:
+    general_log_thd or slow_log_thd.
+  */
+  if (table->s->log_table &&
+      sql_command != SQLCOM_TRUNCATE &&
+      sql_command != SQLCOM_ALTER_TABLE &&
+      !(sql_command == SQLCOM_FLUSH &&
+        type & REFRESH_LOG) &&
+      (table->reginfo.lock_type >= TL_READ_NO_INSERT))
+  {
+    /*
+      The check  >= TL_READ_NO_INSERT denies all write locks
+      plus the only read lock (TL_READ_NO_INSERT itself)
+    */
+    table->reginfo.lock_type == TL_READ_NO_INSERT ?
+      my_error(ER_CANT_READ_LOCK_LOG_TABLE, MYF(0)) :
+        my_error(ER_CANT_WRITE_LOCK_LOG_TABLE, MYF(0));
+    return FALSE;
+  }
+  return TRUE;
+}
+
 /*
   Open database-handler.
 
@@ -1479,7 +1507,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
 
 /*
   Read first row (only) from a table
-  This is never called for InnoDB or BDB tables, as these table types
+  This is never called for InnoDB tables, as these table types
   has the HA_STATS_RECORDS_IS_EXACT set.
 */
 
@@ -2114,6 +2142,9 @@ void handler::print_error(int error, myf errflag)
   }
   case HA_ERR_TABLE_NEEDS_UPGRADE:
     textno=ER_TABLE_NEEDS_UPGRADE;
+    break;
+  case HA_ERR_TABLE_READONLY:
+    textno= ER_OPEN_AS_READONLY;
     break;
   default:
     {

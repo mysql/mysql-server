@@ -24,7 +24,6 @@ try
         switch (parts[0])
         {
             case "WITH_ARCHIVE_STORAGE_ENGINE":
-            case "WITH_BERKELEY_STORAGE_ENGINE":
             case "WITH_BLACKHOLE_STORAGE_ENGINE":
             case "WITH_EXAMPLE_STORAGE_ENGINE":
             case "WITH_FEDERATED_STORAGE_ENGINE":
@@ -66,8 +65,6 @@ try
 
     configfile.Close();
     
-    //ConfigureBDB();
-
     fso = null;
 
     WScript.Echo("done!");
@@ -134,33 +131,4 @@ function GetVersionId(version)
         id += '0';
     id += build;
     return id;
-}
-
-function ConfigureBDB() 
-{
-    // read in the Unix configure.in file
-    var dbIncTS = fso.OpenTextFile("..\\bdb\\dbinc\\db.in", ForReading);
-    var dbIn = dbIncTS.ReadAll();
-    dbIncTS.Close();
-
-    dbIn = dbIn.replace("@DB_VERSION_MAJOR@", "$DB_VERSION_MAJOR");
-    dbIn = dbIn.replace("@DB_VERSION_MINOR@", "$DB_VERSION_MINOR");
-    dbIn = dbIn.replace("@DB_VERSION_PATCH@", "$DB_VERSION_PATCH");
-    dbIn = dbIn.replace("@DB_VERSION_STRING@", "$DB_VERSION_STRING");
-
-    dbIn = dbIn.replace("@u_int8_decl@", "typedef unsigned char u_int8_t;");
-    dbIn = dbIn.replace("@int16_decl@", "typedef short int16_t;");
-    dbIn = dbIn.replace("@u_int16_decl@", "typedef unsigned short u_int16_t;");
-    dbIn = dbIn.replace("@int32_decl@", "typedef int int32_t;");
-    dbIn = dbIn.replace("@u_int32_decl@", "typedef unsigned int u_int32_t;");
-
-    dbIn = dbIn.replace("@u_char_decl@", "{\r\n#if !defined(_WINSOCKAPI_)\r\n" +
-        "typedef unsigned char u_char;");
-    dbIn = dbIn.replace("@u_short_decl@", "typedef unsigned short u_short;");
-    dbIn = dbIn.replace("@u_int_decl@", "typedef unsigned int u_int;");
-    dbIn = dbIn.replace("@u_long_decl@", "typedef unsigned long u_long;");
-    
-    dbIn = dbIn.replace("@ssize_t_decl@", "#endif\r\n#if defined(_WIN64)\r\n" +
-        "typedef __int64 ssize_t;\r\n#else\r\n" +
-        "typedef int ssize_t;\r\n#endif");
 }

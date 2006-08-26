@@ -3,6 +3,8 @@ create schema mysqltest_1;
 use mysqltest_1;
 create table t1 (a int) partition by list (a) (partition p1 values in (1), partition p2 values in (2), partition p3 values in (3));
 insert into t1 values (1),(2);
+grant usage on *.* to mysqltest_1@localhost;
+revoke all privileges on *.* from mysqltest_1@localhost;
 grant select,alter on mysqltest_1.* to mysqltest_1@localhost;
 show grants for current_user;
 Grants for mysqltest_1@localhost

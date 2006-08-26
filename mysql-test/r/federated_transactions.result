@@ -16,7 +16,7 @@ CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(32) NOT NULL default ''
     )
-DEFAULT CHARSET=latin1 ENGINE=BerkeleyDB;
+DEFAULT CHARSET=latin1 ENGINE=innodb;
 DROP TABLE IF EXISTS federated.t1;
 Warnings:
 Note	1051	Unknown table 't1'

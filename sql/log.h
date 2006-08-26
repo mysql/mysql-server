@@ -497,6 +497,14 @@ public:
   {}
   void lock() { (void) pthread_mutex_lock(&LOCK_logger); }
   void unlock() { (void) pthread_mutex_unlock(&LOCK_logger); }
+  bool is_general_log_table_enabled()
+  {
+    return table_log_handler && table_log_handler->general_log.table != 0;
+  }
+  bool is_slow_log_table_enabled()
+  {
+    return table_log_handler && table_log_handler->slow_log.table != 0;
+  }
   /*
     We want to initialize all log mutexes as soon as possible,
     but we cannot do it in constructor, as safe_mutex relies on

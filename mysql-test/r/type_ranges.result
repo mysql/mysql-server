@@ -38,6 +38,9 @@ KEY (ulong),
 KEY (ulonglong,ulong),
 KEY (options,flags)
 );
+Warnings:
+Warning	1101	BLOB/TEXT column 'mediumblob_col' can't have a default value
+Warning	1101	BLOB/TEXT column 'longblob_col' can't have a default value
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 auto	int(5) unsigned	NULL	NO	PRI	NULL	auto_increment	#	
@@ -54,7 +57,7 @@ ushort	smallint(5) unsigned zerofill	NULL	NO	MUL	00000		#
 umedium	mediumint(8) unsigned	NULL	NO	MUL	0		#	
 ulong	int(11) unsigned	NULL	NO	MUL	0		#	
 ulonglong	bigint(13) unsigned	NULL	NO	MUL	0		#	
-time_stamp	timestamp	NULL	YES		CURRENT_TIMESTAMP		#	
+time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP		#	
 date_field	date	NULL	YES		NULL		#	
 time_field	time	NULL	YES		NULL		#	
 date_time	datetime	NULL	YES		NULL		#	
@@ -226,7 +229,7 @@ ushort	smallint(5) unsigned zerofill	NULL	NO		00000		#
 umedium	mediumint(8) unsigned	NULL	NO	MUL	0		#	
 ulong	int(11) unsigned	NULL	NO	MUL	0		#	
 ulonglong	bigint(13) unsigned	NULL	NO	MUL	0		#	
-time_stamp	timestamp	NULL	YES		CURRENT_TIMESTAMP		#	
+time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP		#	
 date_field	char(10)	latin1_swedish_ci	YES		NULL		#	
 time_field	time	NULL	YES		NULL		#	
 date_time	datetime	NULL	YES		NULL		#	
@@ -252,7 +255,7 @@ ushort	smallint(5) unsigned zerofill	NULL	NO		00000		#
 umedium	mediumint(8) unsigned	NULL	NO		0		#	
 ulong	int(11) unsigned	NULL	NO		0		#	
 ulonglong	bigint(13) unsigned	NULL	NO		0		#	
-time_stamp	timestamp	NULL	YES		0000-00-00 00:00:00		#	
+time_stamp	timestamp	NULL	NO		0000-00-00 00:00:00		#	
 date_field	char(10)	latin1_swedish_ci	YES		NULL		#	
 time_field	time	NULL	YES		NULL		#	
 date_time	datetime	NULL	YES		NULL		#	

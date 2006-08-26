@@ -34,4 +34,28 @@ repair table t1;
 repair table t1 use_frm;
 drop table t1;
 
+#
+# BUG#18874 - Setting myisam_repair_threads > 1, index cardinality always 1
+#
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
+SET myisam_repair_threads=2;
+REPAIR TABLE t1;
+SHOW INDEX FROM t1;
+SET myisam_repair_threads=@@global.myisam_repair_threads;
+DROP TABLE t1;
+
 # End of 4.1 tests
+# End of 5.0 tests
+
+#
+# Bug#18775 - Temporary table from alter table visible to other threads
+#
+# REPAIR TABLE ... USE_FRM on temporary table crashed the table or server.
+--disable_warnings
+DROP TABLE IF EXISTS tt1;
+--enable_warnings
+CREATE TEMPORARY TABLE tt1 (c1 INT);
+REPAIR TABLE tt1 USE_FRM;
+DROP TABLE tt1;
+

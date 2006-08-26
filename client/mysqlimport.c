@@ -538,7 +538,7 @@ pthread_handler_t worker_thread(void *arg)
     goto error;
   }
 
-  if (mysql_query(mysql, "set @@character_set_database=binary;"))
+  if (mysql_query(mysql, "/*!40101 set @@character_set_database=binary */;"))
   {
     db_error(mysql); /* We shall countinue here, if --force was given */
     goto error;
@@ -644,7 +644,7 @@ int main(int argc, char **argv)
       return(1); /* purecov: deadcode */
     }
 
-    if (mysql_query(mysql, "set @@character_set_database=binary;"))
+    if (mysql_query(mysql, "/*!40101 set @@character_set_database=binary */;"))
     {
       db_error(mysql); /* We shall countinue here, if --force was given */
       return(1);

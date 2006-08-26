@@ -4214,14 +4214,14 @@ greedy_search(JOIN      *join,
   double    read_time=    0.0;
   uint      idx= join->const_tables; // index into 'join->best_ref'
   uint      best_idx;
-  uint      rem_size;    // cardinality of remaining_tables
+  uint      size_remain;    // cardinality of remaining_tables
   POSITION  best_pos;
   JOIN_TAB  *best_table; // the next plan node to be added to the curr QEP
 
   DBUG_ENTER("greedy_search");
 
   /* number of tables that remain to be optimized */
-  rem_size= my_count_bits(remaining_tables);
+  size_remain= my_count_bits(remaining_tables);
 
   do {
     /* Find the extension of the current QEP with the lowest cost */
@@ -4229,7 +4229,7 @@ greedy_search(JOIN      *join,
     best_extension_by_limited_search(join, remaining_tables, idx, record_count,
                                      read_time, search_depth, prune_level);
 
-    if (rem_size <= search_depth)
+    if (size_remain <= search_depth)
     {
       /*
         'join->best_positions' contains a complete optimal extension of the
@@ -4265,7 +4265,7 @@ greedy_search(JOIN      *join,
     read_time+=    join->positions[idx].read_time;
 
     remaining_tables&= ~(best_table->table->map);
-    --rem_size;
+    --size_remain;
     ++idx;
 
     DBUG_EXECUTE("opt", print_plan(join, join->tables,
@@ -8599,13 +8599,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         &bitmaps, bitmap_buffer_size(field_count)*2,
                         NullS))
   {
-    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
+    if (temp_pool_slot != MY_BIT_NONE)
+      bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   /* Copy_field belongs to TMP_TABLE_PARAM, allocate it in THD mem_root */
   if (!(param->copy_field= copy= new (thd->mem_root) Copy_field[field_count]))
   {
-    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
+    if (temp_pool_slot != MY_BIT_NONE)
+      bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     free_root(&own_root, MYF(0));               /* purecov: inspected */
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
@@ -8643,8 +8645,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();
   share->keys_in_use.init();
-  /* For easier error reporting */
-  share->table_cache_key= share->db;
 
   /* Calculate which type of fields we will store in the temporary table */
 
@@ -9132,7 +9132,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 err:
   thd->mem_root= mem_root_save;
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
+  if (temp_pool_slot != MY_BIT_NONE)
+    bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -9420,7 +9421,8 @@ free_tmp_table(THD *thd, TABLE *entry)
     (*ptr)->free();
   free_io_cache(entry);
 
-  bitmap_lock_clear_bit(&temp_pool, entry->temp_pool_slot);
+  if (entry->temp_pool_slot != MY_BIT_NONE)
+    bitmap_lock_clear_bit(&temp_pool, entry->temp_pool_slot);
 
   free_root(&own_root, MYF(0)); /* the table is allocated in its own root */
   thd->proc_info=save_proc_info;

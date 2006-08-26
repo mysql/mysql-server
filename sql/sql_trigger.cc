@@ -22,7 +22,7 @@
 #include "parse_file.h"
 
 static const LEX_STRING triggers_file_type=
-  {(char *) STRING_WITH_LEN("TRIGGERS")};
+  { C_STRING_WITH_LEN("TRIGGERS") };
 
 const char * const triggers_file_ext= ".TRG";
 
@@ -35,17 +35,17 @@ const char * const triggers_file_ext= ".TRG";
 static File_option triggers_file_parameters[]=
 {
   {
-    {(char *) STRING_WITH_LEN("triggers") },
+    { C_STRING_WITH_LEN("triggers") },
     offsetof(class Table_triggers_list, definitions_list),
     FILE_OPTIONS_STRLIST
   },
   {
-    {(char *) STRING_WITH_LEN("sql_modes") },
+    { C_STRING_WITH_LEN("sql_modes") },
     offsetof(class Table_triggers_list, definition_modes_list),
     FILE_OPTIONS_ULLLIST
   },
   {
-    {(char *) STRING_WITH_LEN("definers") },
+    { C_STRING_WITH_LEN("definers") },
     offsetof(class Table_triggers_list, definers_list),
     FILE_OPTIONS_STRLIST
   },
@@ -54,7 +54,7 @@ static File_option triggers_file_parameters[]=
 
 File_option sql_modes_parameters=
 {
-  {(char*) STRING_WITH_LEN("sql_modes") },
+  { C_STRING_WITH_LEN("sql_modes") },
   offsetof(class Table_triggers_list, definition_modes_list),
   FILE_OPTIONS_ULLLIST
 };
@@ -78,14 +78,14 @@ struct st_trigname
 };
 
 static const LEX_STRING trigname_file_type=
-  {(char *) STRING_WITH_LEN("TRIGGERNAME")};
+  { C_STRING_WITH_LEN("TRIGGERNAME") };
 
 const char * const trigname_file_ext= ".TRN";
 
 static File_option trigname_file_parameters[]=
 {
   {
-    {(char *) STRING_WITH_LEN("trigger_table")},
+    { C_STRING_WITH_LEN("trigger_table")},
     offsetof(struct st_trigname, trigger_table),
     FILE_OPTIONS_ESTRING
   },
@@ -95,15 +95,15 @@ static File_option trigname_file_parameters[]=
 
 const LEX_STRING trg_action_time_type_names[]=
 {
-  { (char *) STRING_WITH_LEN("BEFORE") },
-  { (char *) STRING_WITH_LEN("AFTER") }
+  { C_STRING_WITH_LEN("BEFORE") },
+  { C_STRING_WITH_LEN("AFTER") }
 };
 
 const LEX_STRING trg_event_type_names[]=
 {
-  { (char *) STRING_WITH_LEN("INSERT") },
-  { (char *) STRING_WITH_LEN("UPDATE") },
-  { (char *) STRING_WITH_LEN("DELETE") }
+  { C_STRING_WITH_LEN("INSERT") },
+  { C_STRING_WITH_LEN("UPDATE") },
+  { C_STRING_WITH_LEN("DELETE") }
 };
 
 
@@ -301,7 +301,10 @@ end:
           append_definer(thd, &log_query, &definer_user, &definer_host);
         }
 
-        log_query.append(thd->lex->stmt_definition_begin);
+        log_query.append(thd->lex->stmt_definition_begin,
+                         (char *)thd->lex->sphead->m_body_begin -
+                         thd->lex->stmt_definition_begin +
+                         thd->lex->sphead->m_body.length);
       }
 
       /* Such a statement can always go directly to binlog, no trans cache. */
@@ -468,12 +471,12 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   */
   file.length= build_table_filename(file_buff, FN_REFLEN-1,
                                     tables->db, tables->table_name,
-                                    triggers_file_ext);
+                                    triggers_file_ext, 0);
   file.str= file_buff;
   trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
                                              tables->db,
                                              lex->spname->m_name.str,
-                                             trigname_file_ext);
+                                             trigname_file_ext, 0);
   trigname_file.str= trigname_buff;
 
   /* Use the filesystem to enforce trigger namespace constraints. */
@@ -579,7 +582,7 @@ err_with_cleanup:
 static bool rm_trigger_file(char *path, const char *db,
                             const char *table_name)
 {
-  build_table_filename(path, FN_REFLEN-1, db, table_name, triggers_file_ext);
+  build_table_filename(path, FN_REFLEN-1, db, table_name, triggers_file_ext, 0);
   return my_delete(path, MYF(MY_WME));
 }
 
@@ -602,7 +605,8 @@ static bool rm_trigger_file(char *path, const char *db,
 static bool rm_trigname_file(char *path, const char *db,
                              const char *trigger_name)
 {
-  build_table_filename(path, FN_REFLEN-1, db, trigger_name, trigname_file_ext);
+  build_table_filename(path, FN_REFLEN-1,
+                       db, trigger_name, trigname_file_ext, 0);
   return my_delete(path, MYF(MY_WME));
 }
 
@@ -628,7 +632,7 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
   LEX_STRING file;
 
   file.length= build_table_filename(file_buff, FN_REFLEN-1, db, table_name,
-                                    triggers_file_ext);
+                                    triggers_file_ext, 0);
   file.str= file_buff;
   return sql_create_definition_file(NULL, &file, &triggers_file_type,
                                     (gptr)triggers, triggers_file_parameters,
@@ -803,7 +807,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
   DBUG_ENTER("Table_triggers_list::check_n_load");
 
   path.length= build_table_filename(path_buff, FN_REFLEN-1,
-                                    db, table_name, triggers_file_ext);
+                                    db, table_name, triggers_file_ext, 0);
   path.str= path_buff;
 
   // QQ: should we analyze errno somehow ?
@@ -1159,7 +1163,7 @@ static TABLE_LIST *add_table_for_trigger(THD *thd, sp_name *trig)
 
   path.length= build_table_filename(path_buff, FN_REFLEN-1,
                                     trig->m_db.str, trig->m_name.str,
-                                    trigname_file_ext);
+                                    trigname_file_ext, 0);
   path.str= path_buff;
 
   if (access(path_buff, F_OK))
@@ -1366,7 +1370,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *db_name,
   {
     trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
                                                db_name, trigger->str,
-                                               trigname_file_ext);
+                                               trigname_file_ext, 0);
     trigname_file.str= trigname_buff;
 
     trigname.trigger_table= *new_table_name;
@@ -1496,7 +1500,6 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
       new_field= record1_field;
       old_field= table->field;
     }
-
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     Security_context *save_ctx;
 
@@ -1530,7 +1533,9 @@ bool Table_triggers_list::process_triggers(THD *thd, trg_event_type event,
 #endif // NO_EMBEDDED_ACCESS_CHECKS
 
     thd->reset_sub_statement_state(&statement_state, SUB_STMT_TRIGGER);
-    err_status= sp_trigger->execute_function(thd, 0, 0, 0);
+    err_status= sp_trigger->execute_trigger
+      (thd, table->s->db.str, table->s->table_name.str,
+       &subject_table_grants[event][time_type]);
     thd->restore_sub_statement_state(&statement_state);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

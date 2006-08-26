@@ -316,6 +316,7 @@ prepare stmt4 from ' show table status from test like ''t9%'' ';
 --replace_column 8 # 12 # 13 # 14 #
 # Bug#4288
 execute stmt4;
+--replace_column 2 #
 prepare stmt4 from ' show status like ''Threads_running'' ';
 execute stmt4;
 prepare stmt4 from ' show variables like ''sql_mode'' ';
@@ -329,17 +330,11 @@ prepare stmt4 from ' show engine bdb logs ';
 execute stmt4;
 --enable_result_log
 prepare stmt4 from ' show grants for user ';
---error 1295
 prepare stmt4 from ' show create table t2 ';
---error 1295
 prepare stmt4 from ' show master status ';
---error 1295
 prepare stmt4 from ' show master logs ';
---error 1295
 prepare stmt4 from ' show slave status ';
---error 1295
 prepare stmt4 from ' show warnings limit 20 ';
---error 1295
 prepare stmt4 from ' show errors limit 20 ';
 prepare stmt4 from ' show storage engines ';
 # The output depends upon the precise order in which
@@ -426,14 +421,12 @@ prepare stmt1 from ' execute stmt2 ' ;
 prepare stmt1 from ' deallocate prepare never_prepared ' ;
 
 ## switch the database connection
---error 1295
+--error ER_UNSUPPORTED_PS
 prepare stmt4 from ' use test ' ;
 
 ## create/drop database
---error 1295
 prepare stmt3 from ' create database mysqltest ';
 create database mysqltest ;
---error 1295
 prepare stmt3 from ' drop database mysqltest ';
 drop database mysqltest ;
 
@@ -445,12 +438,12 @@ drop table t2 ;
 --error 1146
 execute stmt3;
 ## lock/unlock
---error 1295
+--error ER_UNSUPPORTED_PS
 prepare stmt3 from ' lock tables t1 read ' ;
---error 1295
+--error ER_UNSUPPORTED_PS
 prepare stmt3 from ' unlock tables ' ;
 ## Load/Unload table contents
---error 1295
+--error ER_UNSUPPORTED_PS
 prepare stmt1 from ' load data infile ''data.txt''
 into table t1 fields terminated by ''\t'' ';
 prepare stmt1 from ' select * into outfile ''data.txt'' from t1 ';
@@ -458,13 +451,12 @@ execute stmt1 ;
 ## 
 prepare stmt1 from ' optimize table t1 ' ;
 prepare stmt1 from ' analyze table t1 ' ;
---error 1295
 prepare stmt1 from ' checksum table t1 ' ;
 prepare stmt1 from ' repair table t1 ' ;
---error 1295
+--error ER_UNSUPPORTED_PS
 prepare stmt1 from ' restore table t1 from ''data.txt'' ' ;
 ## handler
---error 1295
+--error ER_UNSUPPORTED_PS
 prepare stmt1 from ' handler t1 open ';
 
 
@@ -490,11 +482,8 @@ SET sql_mode=ansi;
 execute stmt5;
 SET sql_mode="";
 
---error 1295
 prepare stmt1 from ' flush local privileges ' ;
---error 1295
 prepare stmt1 from ' reset query cache ' ;
---error 1295
 prepare stmt1 from ' KILL 0 ';
 
 ## simple explain

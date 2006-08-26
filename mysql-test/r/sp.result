@@ -3620,12 +3620,18 @@ call bug11333(10)|
 drop procedure bug11333|
 drop table t3|
 drop function if exists bug9048|
-create function bug9048(f1 char binary) returns char binary
+create function bug9048(f1 char binary) returns char
 begin
 set f1= concat( 'hello', f1 );
 return f1;
 end|
 drop function bug9048|
+create function bug9048(f1 char binary) returns char binary
+begin
+set f1= concat( 'hello', f1 );
+return f1;
+end|
+ERROR 42000: This version of MySQL doesn't yet support 'return value collation'
 drop procedure if exists bug12849_1|
 create procedure bug12849_1(inout x char) select x into x|
 set @var='a'|
@@ -4074,7 +4080,7 @@ select res;
 end|
 create table t3 (a int)|
 insert into t3 values (0)|
-create view v1 as select a from t3;
+create view v1 as select a from t3|
 create procedure bug10100pt(level int, lim int)
 begin
 if level < lim then
@@ -4095,7 +4101,7 @@ else
 select * from v1;
 end if;
 end|
-prepare stmt2 from "select * from t3;";
+prepare stmt2 from "select * from t3;"|
 create procedure bug10100pd(level int, lim int)
 begin
 if level < lim then
@@ -4465,7 +4471,7 @@ Error	1347	'test.v1' is not BASE TABLE
 Error	1347	'test.v1' is not BASE TABLE
 Error	1347	'test.v1' is not BASE TABLE
 drop procedure bug13012|
-drop view v1;
+drop view v1|
 select * from t1 order by data|
 id	data
 aa	0
@@ -5051,6 +5057,186 @@ concat('data was: /', var1, '/')
 data was: /1/
 drop table t3|
 drop procedure bug15217|
+DROP PROCEDURE IF EXISTS bug21013 |
+CREATE PROCEDURE bug21013(IN lim INT)
+BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE (i < lim) DO
+SET @b = LOCATE(_latin1'b', @a, 1);
+SET i = i + 1;
+END WHILE;
+END |
+SET @a = _latin2"aaaaaaaaaa" |
+CALL bug21013(10) |
+DROP PROCEDURE bug21013 |
+DROP DATABASE IF EXISTS mysqltest1|
+DROP DATABASE IF EXISTS mysqltest2|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8|
+use mysqltest1|
+CREATE FUNCTION bug16211_f1() RETURNS CHAR(10)
+RETURN ""|
+CREATE FUNCTION bug16211_f2() RETURNS CHAR(10) CHARSET koi8r
+RETURN ""|
+CREATE FUNCTION mysqltest2.bug16211_f3() RETURNS CHAR(10)
+RETURN ""|
+CREATE FUNCTION mysqltest2.bug16211_f4() RETURNS CHAR(10) CHARSET koi8r
+RETURN ""|
+SHOW CREATE FUNCTION bug16211_f1|
+Function	sql_mode	Create Function
+bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8
+RETURN ""
+SHOW CREATE FUNCTION bug16211_f2|
+Function	sql_mode	Create Function
+bug16211_f2		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f2`() RETURNS char(10) CHARSET koi8r
+RETURN ""
+SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
+Function	sql_mode	Create Function
+bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8
+RETURN ""
+SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
+Function	sql_mode	Create Function
+bug16211_f4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f4`() RETURNS char(10) CHARSET koi8r
+RETURN ""
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
+dtd_identifier
+char(10) CHARSET utf8
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
+dtd_identifier
+char(10) CHARSET koi8r
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
+dtd_identifier
+char(10) CHARSET utf8
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
+dtd_identifier
+char(10) CHARSET koi8r
+SELECT CHARSET(bug16211_f1())|
+CHARSET(bug16211_f1())
+utf8
+SELECT CHARSET(bug16211_f2())|
+CHARSET(bug16211_f2())
+koi8r
+SELECT CHARSET(mysqltest2.bug16211_f3())|
+CHARSET(mysqltest2.bug16211_f3())
+utf8
+SELECT CHARSET(mysqltest2.bug16211_f4())|
+CHARSET(mysqltest2.bug16211_f4())
+koi8r
+ALTER DATABASE mysqltest1 CHARACTER SET cp1251|
+ALTER DATABASE mysqltest2 CHARACTER SET cp1251|
+SHOW CREATE FUNCTION bug16211_f1|
+Function	sql_mode	Create Function
+bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8
+RETURN ""
+SHOW CREATE FUNCTION bug16211_f2|
+Function	sql_mode	Create Function
+bug16211_f2		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f2`() RETURNS char(10) CHARSET koi8r
+RETURN ""
+SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
+Function	sql_mode	Create Function
+bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8
+RETURN ""
+SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
+Function	sql_mode	Create Function
+bug16211_f4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f4`() RETURNS char(10) CHARSET koi8r
+RETURN ""
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
+dtd_identifier
+char(10) CHARSET utf8
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
+dtd_identifier
+char(10) CHARSET koi8r
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
+dtd_identifier
+char(10) CHARSET utf8
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
+dtd_identifier
+char(10) CHARSET koi8r
+SELECT CHARSET(bug16211_f1())|
+CHARSET(bug16211_f1())
+utf8
+SELECT CHARSET(bug16211_f2())|
+CHARSET(bug16211_f2())
+koi8r
+SELECT CHARSET(mysqltest2.bug16211_f3())|
+CHARSET(mysqltest2.bug16211_f3())
+utf8
+SELECT CHARSET(mysqltest2.bug16211_f4())|
+CHARSET(mysqltest2.bug16211_f4())
+koi8r
+use test|
+DROP DATABASE mysqltest1|
+DROP DATABASE mysqltest2|
+DROP DATABASE IF EXISTS mysqltest1|
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
+use mysqltest1|
+CREATE PROCEDURE bug16676_p1(
+IN p1 CHAR(10),
+INOUT p2 CHAR(10),
+OUT p3 CHAR(10))
+BEGIN
+SELECT CHARSET(p1), COLLATION(p1);
+SELECT CHARSET(p2), COLLATION(p2);
+SELECT CHARSET(p3), COLLATION(p3);
+END|
+CREATE PROCEDURE bug16676_p2(
+IN p1 CHAR(10) CHARSET koi8r,
+INOUT p2 CHAR(10) CHARSET cp1251,
+OUT p3 CHAR(10) CHARSET greek)
+BEGIN
+SELECT CHARSET(p1), COLLATION(p1);
+SELECT CHARSET(p2), COLLATION(p2);
+SELECT CHARSET(p3), COLLATION(p3);
+END|
+SET @v2 = 'b'|
+SET @v3 = 'c'|
+CALL bug16676_p1('a', @v2, @v3)|
+CHARSET(p1)	COLLATION(p1)
+utf8	utf8_general_ci
+CHARSET(p2)	COLLATION(p2)
+utf8	utf8_general_ci
+CHARSET(p3)	COLLATION(p3)
+utf8	utf8_general_ci
+CALL bug16676_p2('a', @v2, @v3)|
+CHARSET(p1)	COLLATION(p1)
+koi8r	koi8r_general_ci
+CHARSET(p2)	COLLATION(p2)
+cp1251	cp1251_general_ci
+CHARSET(p3)	COLLATION(p3)
+greek	greek_general_ci
+use test|
+DROP DATABASE mysqltest1|
+drop table if exists t3|
+drop database if exists mysqltest1|
+create table t3 (a int)|
+insert into t3 (a) values (1), (2)|
+create database mysqltest1|
+use mysqltest1|
+drop database mysqltest1|
+select database()|
+database()
+NULL
+select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
+a
+1
+use test|
+drop table t3|
 drop procedure if exists bug19862|
 CREATE TABLE t11 (a INT)|
 CREATE TABLE t12 (a INT)|
@@ -5070,4 +5256,5 @@ a
 2
 DROP TABLE t11, t12|
 DROP FUNCTION bug19862|
+End of 5.0 tests
 drop table t1,t2;

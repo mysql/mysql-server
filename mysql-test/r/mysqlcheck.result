@@ -1,6 +1,7 @@
 drop database if exists client_test_db;
 DROP SCHEMA test;
 CREATE SCHEMA test;
+use test;
 cluster.binlog_index                               OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
@@ -48,3 +49,10 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+create table t1 (a int);
+create view v1 as select * from t1;
+test.t1                                            OK
+test.t1                                            OK
+drop view v1;
+drop table t1;
+End of 5.0 tests

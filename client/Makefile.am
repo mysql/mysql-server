@@ -62,13 +62,13 @@ mysqlimport_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 				@CLIENT_EXTRA_LDFLAGS@ \
 				$(LIBMYSQLCLIENT_LA) \
 				$(top_builddir)/mysys/libmysys.a 
-mysqlcheck_SOURCES=		 mysqlcheck.c $(yassl_dummy_link_fix)
+mysqlcheck_SOURCES=		mysqlcheck.c $(yassl_dummy_link_fix)
 mysqlshow_SOURCES=		mysqlshow.c $(yassl_dummy_link_fix)
-mysqlslap_SOURCES=		mysqlslap.c \
-				$(yassl_dummy_link_fix)
-mysqldump_SOURCES=		mysqldump.c my_user.c $(yassl_dummy_link_fix)
-mysqlimport_SOURCES=		mysqlimport.c \
-				$(yassl_dummy_link_fix)
+mysqlslap_SOURCES=		mysqlslap.c $(yassl_dummy_link_fix)
+mysqldump_SOURCES=              mysqldump.c my_user.c \
+	                        $(top_srcdir)/mysys/mf_getdate.c \
+                                $(yassl_dummy_link_fix)
+mysqlimport_SOURCES=		mysqlimport.c $(yassl_dummy_link_fix)
 mysql_upgrade_SOURCES=          mysql_upgrade.c $(yassl_dummy_link_fix)
 sql_src=log_event.h mysql_priv.h log_event.cc my_decimal.h my_decimal.cc
 strings_src=decimal.c
