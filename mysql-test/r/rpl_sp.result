@@ -420,4 +420,48 @@ SELECT * FROM t1;
 col
 test
 DROP PROCEDURE p1;
+
+---> Test for BUG#20438
+
+---> Preparing environment...
+---> connection: master
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+
+---> Synchronizing slave with master...
+
+---> connection: master
+
+---> Creating procedure...
+/*!50003 CREATE PROCEDURE p1() SET @a = 1 */;
+/*!50003 CREATE FUNCTION f1() RETURNS INT RETURN 0 */;
+
+---> Checking on master...
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure
+p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SET @a = 1
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function
+f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+RETURN 0
+
+---> Synchronizing slave with master...
+---> connection: master
+
+---> Checking on slave...
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure
+p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+SET @a = 1
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function
+f1		CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+RETURN 0
+
+---> connection: master
+
+---> Cleaning up...
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
 drop table t1;

@@ -36,7 +36,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check,
                      MYSQL_STMT *stmt);
-
+unsigned long cli_safe_read(MYSQL *mysql);
 void set_stmt_errmsg(MYSQL_STMT * stmt, const char *err, int errcode,
 		     const char *sqlstate);
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);

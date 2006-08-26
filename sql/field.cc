@@ -1572,104 +1572,6 @@ Field *Field::new_key_field(MEM_ROOT *root, struct st_table *new_table,
 }
 
 
-/* 
-  SYNOPSIS
-  Field::quote_data()
-     unquoted_string    Pointer pointing to the value of a field
-
-  DESCRIPTION
-    Simple method that passes the field type to the method "type_quote"
-    To get a true/false value as to whether the value in string1 needs 
-    to be enclosed with quotes. This ensures that values in the final 
-    sql statement to be passed to the remote server will be quoted properly
-
-  RETURN_VALUE
-    void      Immediately - if string doesn't need quote
-    void      Upon prepending/appending quotes on each side of variable
-
-*/
-
-bool Field::quote_data(String *unquoted_string)
-{
-  char escaped_string[IO_SIZE];
-  DBUG_ENTER("Field::quote_data");
-
-  if (!needs_quotes())
-    DBUG_RETURN(0);
-
-  // this is the same call that mysql_real_escape_string() calls
-  if (escape_string_for_mysql(&my_charset_bin, (char *)escaped_string,
-                              sizeof(escaped_string), unquoted_string->ptr(),
-                              unquoted_string->length()) == (ulong)~0)
-    DBUG_RETURN(1);
-
-  // reset string, then re-append with quotes and escaped values
-  unquoted_string->length(0);
-  if (unquoted_string->append('\'') ||
-      unquoted_string->append((char *)escaped_string) ||
-      unquoted_string->append('\''))
-    DBUG_RETURN(1);
-  DBUG_RETURN(0);
-}
-
-
-/*
-  Quote a field type if needed
-
-  SYNOPSIS
-    Field::type_quote
-
-  DESCRIPTION 
-    Simple method to give true/false whether a field should be quoted. 
-    Used when constructing INSERT and UPDATE queries to the remote server
-    see write_row and update_row
-
-   RETURN VALUE
-      0   if value is of type NOT needing quotes
-      1   if value is of type needing quotes
-*/
-
-bool Field::needs_quotes(void)
-{
-  DBUG_ENTER("Field::type_quote");
-
-  switch (type()) {
-    //FIX this when kernel is fixed
-  case MYSQL_TYPE_VARCHAR :
-  case FIELD_TYPE_STRING :
-  case FIELD_TYPE_VAR_STRING :
-  case FIELD_TYPE_YEAR :
-  case FIELD_TYPE_NEWDATE :
-  case FIELD_TYPE_TIME :
-  case FIELD_TYPE_TIMESTAMP :
-  case FIELD_TYPE_DATE :
-  case FIELD_TYPE_DATETIME :
-  case FIELD_TYPE_TINY_BLOB :
-  case FIELD_TYPE_BLOB :
-  case FIELD_TYPE_MEDIUM_BLOB :
-  case FIELD_TYPE_LONG_BLOB :
-  case FIELD_TYPE_GEOMETRY :
-  case FIELD_TYPE_BIT:
-    DBUG_RETURN(1);
-
-  case FIELD_TYPE_DECIMAL : 
-  case FIELD_TYPE_TINY :
-  case FIELD_TYPE_SHORT :
-  case FIELD_TYPE_INT24 :
-  case FIELD_TYPE_LONG :
-  case FIELD_TYPE_FLOAT :
-  case FIELD_TYPE_DOUBLE :
-  case FIELD_TYPE_LONGLONG :
-  case FIELD_TYPE_NULL :
-  case FIELD_TYPE_SET :
-  case FIELD_TYPE_ENUM : 
-    DBUG_RETURN(0);
-  default:
-    DBUG_RETURN(0);
-  }
-}
-
-
 /* This is used to generate a field in TABLE from TABLE_SHARE */
 
 Field *Field::clone(MEM_ROOT *root, struct st_table *new_table)
@@ -4820,7 +4722,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   thd->time_zone_used= 1;
 
   temp= time_tmp.year % 100;
-  if (temp < YY_PART_YEAR)
+  if (temp < YY_PART_YEAR - 1)
   {
     *to++= '2';
     *to++= '0';
@@ -6668,6 +6570,11 @@ void Field_varstring::sql_type(String &res) const
     res.append(STRING_WITH_LEN(" binary"));
 }
 
+
+uint32 Field_varstring::data_length(const char *from)
+{
+  return length_bytes == 1 ? (uint) (uchar) *ptr : uint2korr(ptr);
+}
 
 /*
   Functions to create a packed row.
@@ -8621,7 +8528,8 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
 
   comment= *fld_comment;
   /*
-    Set flag if this field doesn't have a default value
+    Set NO_DEFAULT_VALUE_FLAG if this field doesn't have a default value and
+    it is NOT NULL, not an AUTO_INCREMENT field and not a TIMESTAMP.
   */
   if (!fld_default_value && !(fld_type_modifier & AUTO_INCREMENT_FLAG) &&
       (fld_type_modifier & NOT_NULL_FLAG) && fld_type != FIELD_TYPE_TIMESTAMP)
@@ -8698,11 +8606,27 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
       /* Allow empty as default value. */
       String str,*res;
       res= fld_default_value->val_str(&str);
-      if (res->length())
+      /*
+        A default other than '' is always an error, and any non-NULL
+        specified default is an error in strict mode.
+      */
+      if (res->length() || (thd->variables.sql_mode &
+                            (MODE_STRICT_TRANS_TABLES |
+                             MODE_STRICT_ALL_TABLES)))
       {
         my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0),
                  fld_name); /* purecov: inspected */
         DBUG_RETURN(TRUE);
+      }
+      else
+      {
+        /*
+          Otherwise a default of '' is just a warning.
+        */
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_BLOB_CANT_HAVE_DEFAULT,
+                            ER(ER_BLOB_CANT_HAVE_DEFAULT),
+                            fld_name);
       }
       def= 0;
     }

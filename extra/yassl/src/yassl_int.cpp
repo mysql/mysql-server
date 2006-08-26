@@ -709,6 +709,7 @@ void SSL::set_masterSecret(const opaque* sec)
 void SSL::set_sessionID(const opaque* sessionID)
 {
     memcpy(secure_.use_connection().sessionID_, sessionID, ID_LEN);
+    secure_.use_connection().sessionID_Set_ = true;
 }
 
 
@@ -1423,8 +1424,10 @@ typedef Mutex::Lock Lock;
  
 void Sessions::add(const SSL& ssl) 
 {
+    if (ssl.getSecurity().get_connection().sessionID_Set_) {
     Lock guard(mutex_);
     list_.push_back(NEW_YS SSL_SESSION(ssl, random_));
+    }
 }
 
 

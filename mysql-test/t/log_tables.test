@@ -171,6 +171,149 @@ select sleep(2);
 --replace_column 1 TIMESTAMP 2 USER_HOST 3 QUERY_TIME
 select * from mysql.slow_log;
 
+#
+# Bug #18559 log tables cannot change engine, and gets deadlocked when
+# dropping w/ log on
+#
+
+# check that appropriate error messages are given when one attempts to alter
+# or drop a log tables, while corresponding logs are enabled
+--error ER_CANT_ALTER_LOG_TABLE
+alter table mysql.general_log engine=myisam;
+--error ER_CANT_ALTER_LOG_TABLE
+alter table mysql.slow_log engine=myisam;
+
+--error ER_CANT_DROP_LOG_TABLE
+drop table mysql.general_log;
+--error ER_CANT_DROP_LOG_TABLE
+drop table mysql.slow_log;
+
+# check that one can alter log tables to MyISAM
+set global general_log='OFF';
+
+# cannot convert another log table
+--error ER_CANT_ALTER_LOG_TABLE
+alter table mysql.slow_log engine=myisam;
+
+# alter both tables
+set global slow_query_log='OFF';
+# check that both tables use CSV engine
+show create table mysql.general_log;
+show create table mysql.slow_log;
+
+alter table mysql.general_log engine=myisam;
+alter table mysql.slow_log engine=myisam;
+
+# check that the tables were converted
+show create table mysql.general_log;
+show create table mysql.slow_log;
+
+# enable log tables and chek that new tables indeed work
+set global general_log='ON';
+set global slow_query_log='ON';
+
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
+select * from mysql.general_log;
+
+# check that flush of myisam-based log tables work fine
+flush logs;
+
+# check locking of myisam-based log tables
+
+--error ER_CANT_WRITE_LOCK_LOG_TABLE
+lock tables mysql.general_log WRITE;
+
+--error ER_CANT_WRITE_LOCK_LOG_TABLE
+lock tables mysql.slow_log WRITE;
+
+#
+# This attemts to get TL_READ_NO_INSERT lock, which is incompatible with
+# TL_WRITE_CONCURRENT_INSERT. This should fail. We issue this error as log
+# tables are always opened and locked by the logger.
+#
+
+--error ER_CANT_READ_LOCK_LOG_TABLE
+lock tables mysql.general_log READ;
+
+--error ER_CANT_READ_LOCK_LOG_TABLE
+lock tables mysql.slow_log READ;
+
+#
+# This call should result in TL_READ lock on the log table. This is ok and
+# should pass.
+#
+
+lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
+
+unlock tables;
+
+# check that we can drop them
+set global general_log='OFF';
+set global slow_query_log='OFF';
+
+# check that alter table doesn't work for other engines
+--error ER_BAD_LOG_ENGINE
+alter table mysql.slow_log engine=ndb;
+--error ER_BAD_LOG_ENGINE
+alter table mysql.slow_log engine=innodb;
+--error ER_BAD_LOG_ENGINE
+alter table mysql.slow_log engine=archive;
+--error ER_BAD_LOG_ENGINE
+alter table mysql.slow_log engine=blackhole;
+
+drop table mysql.slow_log;
+drop table mysql.general_log;
+
+# check that table share cleanup is performed correctly (double drop)
+
+--error ER_BAD_TABLE_ERROR
+drop table mysql.general_log;
+--error ER_BAD_TABLE_ERROR
+drop table mysql.slow_log;
+
+# recreate tables and enable logs
+
+use mysql;
+
+CREATE TABLE `general_log` (
+  `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+                         ON UPDATE CURRENT_TIMESTAMP,
+  `user_host` mediumtext,
+  `thread_id` int(11) DEFAULT NULL,
+  `server_id` int(11) DEFAULT NULL,
+  `command_type` varchar(64) DEFAULT NULL,
+  `argument` mediumtext
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
+
+CREATE TABLE `slow_log` (
+  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+                         ON UPDATE CURRENT_TIMESTAMP,
+  `user_host` mediumtext NOT NULL,
+  `query_time` time NOT NULL,
+  `lock_time` time NOT NULL,
+  `rows_sent` int(11) NOT NULL,
+  `rows_examined` int(11) NOT NULL,
+  `db` varchar(512) DEFAULT NULL,
+  `last_insert_id` int(11) DEFAULT NULL,
+  `insert_id` int(11) DEFAULT NULL,
+  `server_id` int(11) DEFAULT NULL,
+  `sql_text` mediumtext NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log';
+
+set global general_log='ON';
+set global slow_query_log='ON';
+use test;
+
+#
+# Bug #20139 Infinite loop after "FLUSH" and "LOCK tabX, general_log"
+#
+
+flush tables with read lock;
+unlock tables;
+use mysql;
+lock tables general_log read local, help_category read local;
+unlock tables;
+
 # kill all connections
 disconnect con1;
 disconnect con2;

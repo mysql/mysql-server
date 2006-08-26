@@ -36,114 +36,114 @@ time_t mysql_db_table_last_check= 0L;
 
 TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
-    {(char *) STRING_WITH_LEN("Host")},            
-    {(char *) STRING_WITH_LEN("char(60)")},
+    { C_STRING_WITH_LEN("Host") },            
+    { C_STRING_WITH_LEN("char(60)") },
     {NULL, 0}
   }, 
   {
-    {(char *) STRING_WITH_LEN("Db")},            
-    {(char *) STRING_WITH_LEN("char(64)")},
+    { C_STRING_WITH_LEN("Db") },            
+    { C_STRING_WITH_LEN("char(64)") },
     {NULL, 0}
   }, 
   {
-    {(char *) STRING_WITH_LEN("User")},
-    {(char *) STRING_WITH_LEN("char(16)")},
+    { C_STRING_WITH_LEN("User") },
+    { C_STRING_WITH_LEN("char(16)") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("Select_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Select_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Insert_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Insert_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Update_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Update_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Delete_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Delete_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Create_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Create_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Drop_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Drop_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Grant_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Grant_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("References_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("References_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Index_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Index_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Alter_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Alter_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Create_tmp_table_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Create_tmp_table_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Lock_tables_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Lock_tables_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Create_view_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Create_view_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Show_view_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Show_view_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Create_routine_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Create_routine_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Alter_routine_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Alter_routine_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Execute_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Execute_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Event_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Event_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Trigger_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Trigger_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   }
 };
 
@@ -2962,7 +2962,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       {
         char buf[FN_REFLEN];
         build_table_filename(buf, sizeof(buf), table_list->db,
-                             table_list->table_name, reg_ext);
+                             table_list->table_name, reg_ext, 0);
         fn_format(buf, buf, "", "", MY_UNPACK_FILENAME  | MY_RESOLVE_SYMLINKS |
                                     MY_RETURN_REAL_PATH | MY_APPEND_EXT);
         if (access(buf,F_OK))
@@ -3932,9 +3932,24 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
   if (table_ref->view || table_ref->field_translation)
   {
     /* View or derived information schema table. */
+    ulong view_privs;
     grant= &(table_ref->grant);
     db_name= table_ref->view_db.str;
     table_name= table_ref->view_name.str;
+    if (table_ref->belong_to_view && 
+        (thd->lex->sql_command == SQLCOM_SHOW_FIELDS ||
+         thd->lex->sql_command == SQLCOM_SHOW_CREATE))
+    {
+      view_privs= get_column_grant(thd, grant, db_name, table_name, name);
+      if (view_privs & VIEW_ANY_ACL)
+      {
+        table_ref->belong_to_view->allowed_show= TRUE;
+        return FALSE;
+      }
+      table_ref->belong_to_view->allowed_show= FALSE;
+      my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+      return TRUE;
+    }
   }
   else
   {
@@ -4823,6 +4838,32 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
   DBUG_RETURN(0);
 }
 
+ACL_USER *check_acl_user(LEX_USER *user_name,
+			 uint *acl_acl_userdx)
+{
+  ACL_USER *acl_user= 0;
+  uint counter;
+
+  safe_mutex_assert_owner(&acl_cache->lock);
+
+  for (counter= 0 ; counter < acl_users.elements ; counter++)
+  {
+    const char *user,*host;
+    acl_user= dynamic_element(&acl_users, counter, ACL_USER*);
+    if (!(user=acl_user->user))
+      user= "";
+    if (!(host=acl_user->host.hostname))
+      host= "";
+    if (!strcmp(user_name->user.str,user) &&
+	!my_strcasecmp(system_charset_info, user_name->host.str, host))
+      break;
+  }
+  if (counter == acl_users.elements)
+    return 0;
+
+  *acl_acl_userdx= counter;
+  return acl_user;
+}
 
 /*
   Modify a privilege table.
@@ -4870,7 +4911,6 @@ static int modify_grant_table(TABLE *table, Field *host_field,
 
   DBUG_RETURN(error);
 }
-
 
 /*
   Handle a privilege table.
@@ -5367,7 +5407,16 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     {
       result= TRUE;
       continue;
-    }  
+    }
+
+    if (user_name->host.length > HOSTNAME_LENGTH ||
+	user_name->user.length > USERNAME_LENGTH)
+    {
+      append_user(&wrong_users, user_name);
+      result= TRUE;
+      continue;
+    }
+
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
@@ -5508,7 +5557,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
       result= TRUE;
     }
   }
-
+  
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
 

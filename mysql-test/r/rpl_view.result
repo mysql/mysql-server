@@ -43,3 +43,41 @@ drop view v1;
 select * from v1 order by a;
 ERROR 42S02: Table 'test.v1' doesn't exist
 drop table t1;
+
+---> Test for BUG#20438
+
+---> Preparing environment...
+---> connection: master
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+
+---> Synchronizing slave with master...
+
+---> connection: master
+
+---> Creating objects...
+CREATE TABLE t1(c INT);
+/*!50003 CREATE VIEW v1 AS SELECT * FROM t1 */;
+
+---> Inserting value...
+INSERT INTO t1 VALUES(1);
+
+---> Checking on master...
+SELECT * FROM t1;
+c
+1
+
+---> Synchronizing slave with master...
+---> connection: master
+
+---> Checking on slave...
+SELECT * FROM t1;
+c
+1
+
+---> connection: master
+
+---> Cleaning up...
+DROP VIEW v1;
+DROP TABLE t1;
+End of 5.0 tests

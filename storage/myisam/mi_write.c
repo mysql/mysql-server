@@ -163,6 +163,18 @@ int mi_write(MI_INFO *info, byte *record)
     (*info->invalidator)(info->filename);
     info->invalidator=0;
   }
+
+  /*
+    Update status of the table. We need to do so after each row write
+    for the log tables, as we want the new row to become visible to
+    other threads as soon as possible. We lock mutex here to follow
+    pthread memory visibility rules.
+  */
+  pthread_mutex_lock(&share->intern_lock);
+  if (share->is_log_table)
+    mi_update_status((void*) info);
+  pthread_mutex_unlock(&share->intern_lock);
+
   allow_break();				/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 

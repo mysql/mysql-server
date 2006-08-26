@@ -7,36 +7,17 @@
 ###########################################################################
 
 --source include/im_check_os.inc
+--source include/im_check_env.inc
 
 ###########################################################################
 
 #
-# Check starting conditions. This test case assumes that:
-#  - two mysqld-instances are registered;
-#  - the first instance is online;
-#  - the second instance is offline;
+# Check 'SHOW INSTANCE OPTIONS' command.
 #
-
-# Wait for mysqld1 (guarded instance) to start.
-
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD1_PATH_PID 30 started
-
-# Let IM detect that mysqld1 is online. This delay should be longer than
-# monitoring interval.
-
---sleep 3
-
-# Check that start conditions are as expected.
-
-SHOW INSTANCES;
-
-#
-# Check 'SHOW INSTANCE OPTIONS' command:
-#  - check that options of both offline and online instances are accessible;
-#  - since configuration of an mysqld-instance contains directories, we should
-#    completely ignore the second column (values) in order to make the test
-#    case produce the same results on different installations;
-#    TODO: ignore values of only directory-specific options.
+# Since configuration of an mysqld-instance contains directories, we should
+# completely ignore the second column (values) in order to make the test
+# case produce the same results on different installations;
+# TODO: ignore values of only directory-specific options.
 #
 
 --replace_column 2 VALUE

@@ -210,7 +210,6 @@ void install_db(char *datadir)
   add_arg(&al, "--basedir=%s", base_dir);
   add_arg(&al, "--datadir=%s", datadir);
   add_arg(&al, "--skip-innodb");
-  add_arg(&al, "--skip-bdb");
 
   // spawn
   if ((err = spawn(mysqld_file, &al, TRUE, input, output, error)) != 0)

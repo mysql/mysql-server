@@ -713,6 +713,15 @@ select * from t1 order by f1;
 select * from t1 order by f2;
 select * from t1 order by f3;
 drop table t1;
+# Bug#16561 Unknown ERROR msg "ERROR 1186 (HY000): Binlog closed" by perror
+#
+
+# As long there is no error code 1186 defined by NDB
+# we should get a message "Illegal ndb error code: 1186"
+--error 1
+--exec $MY_PERROR --ndb 1186 2>&1
+
+--echo End of 5.0 tests
 
 #
 # Bug #18483 Cannot create table with FK constraint
@@ -727,3 +736,5 @@ CREATE TABLE t2(a VARCHAR(255) NOT NULL,
                 CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
                 CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
 drop table t1, t2;
+
+--echo End of 5.1 tests

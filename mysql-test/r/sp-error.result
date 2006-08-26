@@ -1174,6 +1174,20 @@ drop procedure bug15091;
 drop function if exists bug16896;
 create aggregate function bug16896() returns int return 1;
 ERROR 42000: AGGREGATE is not supported for stored functions
+DROP PROCEDURE IF EXISTS bug14702;
+CREATE IF NOT EXISTS PROCEDURE bug14702()
+BEGIN
+END;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS PROCEDURE bug14702()
+BEGIN
+END' at line 1
+CREATE PROCEDURE IF NOT EXISTS bug14702()
+BEGIN
+END;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS bug14702()
+BEGIN
+END' at line 1
+End of 5.0 tests
 drop function if exists bug16164;
 create function bug16164() returns int
 begin
@@ -1181,3 +1195,9 @@ show authors;
 return 42;
 end|
 ERROR 0A000: Not allowed to return a result set from a function
+drop function if exists bug20701|
+create function bug20701() returns varchar(25) binary return "test"|
+ERROR 42000: This version of MySQL doesn't yet support 'return value collation'
+create function bug20701() returns varchar(25) return "test"|
+drop function bug20701|
+End of 5.1 tests

@@ -180,7 +180,7 @@ static int tina_done_func()
   }
   return 0;
 }
-	
+
 
 /*
   Simple lock controls.
@@ -229,6 +229,11 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
               MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     fn_format(meta_file_name, table_name, "", CSM_EXT,
               MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+
+    if (my_stat(share->data_file_name, &file_stat, MYF(MY_WME)) == NULL)
+      goto error;
+    share->saved_data_file_length= file_stat.st_size;
+
     if (my_hash_insert(&tina_open_tables, (byte*) share))
       goto error;
     thr_lock_init(&share->lock);
@@ -250,10 +255,6 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     */
     if (read_meta_file(share->meta_file, &share->rows_recorded))
       share->crashed= TRUE;
-
-    if (my_stat(share->data_file_name, &file_stat, MYF(MY_WME)) == NULL)
-      goto error2;
-    share->saved_data_file_length= file_stat.st_size;
   }
   share->use_count++;
   pthread_mutex_unlock(&tina_mutex);
@@ -817,27 +818,9 @@ bool ha_tina::check_if_locking_is_allowed(uint sql_command,
                                           uint count,
                                           bool called_by_logger_thread)
 {
-  /*
-    Deny locking of the log tables, which is incompatible with
-    concurrent insert. Unless called from a logger THD:
-    general_log_thd or slow_log_thd.
-  */
-  if (table->s->log_table &&
-      sql_command != SQLCOM_TRUNCATE &&
-      !(sql_command == SQLCOM_FLUSH &&
-        type & REFRESH_LOG) &&
-      !called_by_logger_thread &&
-      (table->reginfo.lock_type >= TL_READ_NO_INSERT))
-  {
-    /*
-      The check  >= TL_READ_NO_INSERT denies all write locks
-      plus the only read lock (TL_READ_NO_INSERT itself)
-    */
-    table->reginfo.lock_type == TL_READ_NO_INSERT ?
-      my_error(ER_CANT_READ_LOCK_LOG_TABLE, MYF(0)) :
-        my_error(ER_CANT_WRITE_LOCK_LOG_TABLE, MYF(0));
-    return FALSE;
-  }
+  if (!called_by_logger_thread)
+    return check_if_log_table_locking_is_allowed(sql_command, type, table);
+
   return TRUE;
 }
 
@@ -1126,7 +1109,7 @@ int ha_tina::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_tina::rnd_pos");
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
-  current_position= my_get_ptr(pos,ref_length);
+  current_position= (off_t)my_get_ptr(pos,ref_length);
   DBUG_RETURN(find_current_row(buf));
 }
 

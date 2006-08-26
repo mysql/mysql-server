@@ -77,6 +77,67 @@ drop table t1;
 #
 --exec $MYSQL -t test -e "create table b19564 (i int, s1 char(1)); insert into b19564 values (1, 'x'); insert into b19564 values (2, NULL); insert into b19564 values (3, ' '); select * from b19564 order by i; drop table b19564;" 
 
+#
+# Bug#19265 describe command does not work from mysql prompt
+#
+
+create table t1(a int, b varchar(255), c int);
+--exec $MYSQL test -e "desc t1"
+--exec $MYSQL test -e "desc t1\g"
+drop table t1;
+
+--disable_parsing
+#
+# Bug#21042  	mysql client segfaults on importing a mysqldump export
+#
+--error 1
+--exec $MYSQL test -e "connect verylongdatabasenamethatshouldblowthe256byteslongbufferincom_connectfunctionxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxkxendcccccccdxxxxxxxxxxxxxxxxxkskskskskkskskskskskskskskskskkskskskskkskskskskskskskskskend" 2>&1
+--enable_parsing
+
+
+#
+# Bug #20432: mysql client interprets commands in comments
+#
+
+# if the client sees the 'use' within the comment, we haven't fixed
+--exec echo "/*"          >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "use"         >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "*/"          >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+
+# SQL can have embedded comments => workie
+--exec echo "select /*"   >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "use"         >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "*/ 1"        >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+
+# client commands on the other hand must be at BOL => error
+--exec echo "/*"          >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "xxx"         >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec echo "*/ use"      >> $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--error 1
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+
+# client comment recognized, but parameter missing => error
+--exec echo "use"         >  $MYSQLTEST_VARDIR/tmp/bug20432.sql
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20432.sql 2>&1
+
+#
+# Bug #20328: mysql client interprets commands in comments
+#
+--exec $MYSQL -e 'help' > $MYSQLTEST_VARDIR/tmp/bug20328_1.result
+--exec $MYSQL -e 'help ' > $MYSQLTEST_VARDIR/tmp/bug20328_2.result
+--exec diff $MYSQLTEST_VARDIR/tmp/bug20328_1.result $MYSQLTEST_VARDIR/tmp/bug20328_2.result
+
+#
+# Bug #20103: Escaping with backslash does not work
+#
+--exec echo "SET SQL_MODE = 'NO_BACKSLASH_ESCAPES';"  > $MYSQLTEST_VARDIR/tmp/bug20103.sql
+--exec echo "SELECT '\';" >> $MYSQLTEST_VARDIR/tmp/bug20103.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug20103.sql 2>&1
+
+--exec echo "SET SQL_MODE = '';"  > $MYSQLTEST_VARDIR/tmp/bug20103.sql
+--exec echo "SELECT '\';';" >> $MYSQLTEST_VARDIR/tmp/bug20103.sql
+--exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20103.sql 2>&1
+
 --echo End of 5.0 tests
-
-

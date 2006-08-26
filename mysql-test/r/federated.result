@@ -967,6 +967,8 @@ CREATE TABLE federated.t1 (
 `blurb` text default '',
 PRIMARY KEY (blurb_id))
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1101	BLOB/TEXT column 'blurb' can't have a default value
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `blurb_id` int NOT NULL DEFAULT 0,
@@ -975,6 +977,8 @@ PRIMARY KEY (blurb_id))
 ENGINE="FEDERATED"
   DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1101	BLOB/TEXT column 'blurb' can't have a default value
 INSERT INTO federated.t1 VALUES (1, " MySQL supports a number of column types in several categories: numeric types, date and time types, and string (character) types.  This chapter first gives an overview of these column types, and then provides a more detailed description of the properties of the types in each category, and a summary of the column type storage requirements.  The overview is intentionally brief.  The more detailed descriptions should be consulted for additional information about particular column types, such as the allowable formats in which you can specify values.");
 INSERT INTO federated.t1 VALUES (2, "All arithmetic is done using signed BIGINT or DOUBLE values, so you should not use unsigned big integers larger than 9223372036854775807 (63 bits) except with bit functions! If you do that, some of the last digits in the result may be wrong because of rounding errors when converting a BIGINT value to a DOUBLE.");
 INSERT INTO federated.t1 VALUES (3, " A floating-point number.  p represents the precision. It can be from 0 to 24 for a single-precision floating-point number and from 25 to 53 for a double-precision floating-point number. These types are like the FLOAT and DOUBLE types described immediately following.  FLOAT(p) has the same range as the corresponding FLOAT and DOUBLE types, but the display size and number of decimals are undefined.  ");
@@ -1603,6 +1607,44 @@ fld_cid	fld_name	fld_parentid	fld_delt
 5	Torkel	0	0
 DROP TABLE federated.t1;
 DROP TABLE federated.bug_17377_table;
+DROP TABLE IF EXISTS federated.test;
+CREATE TABLE federated.test (
+`id` int(11) NOT NULL,
+`val1` varchar(255) NOT NULL,
+`val2` varchar(255) NOT NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.test_local;
+DROP TABLE IF EXISTS federated.test_remote;
+CREATE TABLE federated.test_local (
+`id` int(11) NOT NULL,
+`val1` varchar(255) NOT NULL,
+`val2` varchar(255) NOT NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO federated.test_local VALUES (1, 'foo', 'bar'),
+(2, 'bar', 'foo');
+CREATE TABLE federated.test_remote (
+`id` int(11) NOT NULL,
+`val1` varchar(255) NOT NULL,
+`val2` varchar(255) NOT NULL,
+PRIMARY KEY  (`id`)
+) ENGINE=FEDERATED DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/test';
+insert into federated.test_remote select * from federated.test_local;
+select * from federated.test_remote;
+id	val1	val2
+1	foo	bar
+2	bar	foo
+delete from federated.test_remote where id in (1,2);
+insert into federated.test_remote select * from federated.test_local;
+select * from federated.test_remote;
+id	val1	val2
+2	bar	foo
+1	foo	bar
+DROP TABLE federated.test_local;
+DROP TABLE federated.test_remote;
+DROP TABLE federated.test;
 drop table if exists federated.t1;
 create table federated.t1 (a int, b int, c int);
 drop table if exists federated.t1;
@@ -1733,7 +1775,46 @@ id	val
 2	0
 drop table t1;
 drop table t1;
-End of 5.0 tests
+create table t1 (a longblob not null);
+create table t1
+(a longblob not null) engine=federated
+connection='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+insert into t1 values (repeat('a',5000));
+select length(a) from t1;
+length(a)
+5000
+select length(a) from t1;
+length(a)
+5000
+drop table t1;
+drop table t1;
+DROP TABLE IF EXISTS federated.test;
+CREATE TABLE federated.test (
+`i` int(11) NOT NULL,
+`j` int(11) NOT NULL,
+`c` varchar(30) default NULL,
+PRIMARY KEY  (`i`,`j`),
+UNIQUE KEY `i` (`i`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS federated.test1;
+DROP TABLE IF EXISTS federated.test2;
+create table federated.test1 (
+i int not null,
+j int not null,
+c varchar(30),
+primary key (i,j),
+unique key (i, c))
+engine = federated
+connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/test';
+create table federated.test2 (
+i int default null,
+j int not null,
+c varchar(30),
+key (i))
+engine = federated
+connection='mysql://root@127.0.0.1:SLAVE_PORT/federated/test';
+drop table federated.test1, federated.test2;
+drop table federated.test;
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;

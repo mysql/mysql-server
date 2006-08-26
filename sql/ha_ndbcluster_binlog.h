@@ -23,7 +23,7 @@ typedef NdbDictionary::Index  NDBINDEX;
 typedef NdbDictionary::Dictionary  NDBDICT;
 typedef NdbDictionary::Event  NDBEVENT;
 
-#define IS_TMP_PREFIX(A) (is_prefix(A, tmp_file_prefix) || is_prefix(A, "@0023sql"))
+#define IS_TMP_PREFIX(A) (is_prefix(A, tmp_file_prefix))
 
 extern ulong ndb_extra_logging;
 

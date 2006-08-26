@@ -23,7 +23,6 @@
  */
 
 #include "mysql_priv.h"
-#include "sql_manager.h"
 
 ulong volatile manager_status;
 bool volatile manager_thread_in_use;

@@ -25,7 +25,7 @@
 
 #define MD5_BUFF_LENGTH 33
 
-const LEX_STRING view_type= { (char*) STRING_WITH_LEN("VIEW") };
+const LEX_STRING view_type= { C_STRING_WITH_LEN("VIEW") };
 
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode);
@@ -183,11 +183,13 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   TABLE_LIST decoy;
 
   memcpy (&decoy, view, sizeof (TABLE_LIST));
-  if (!open_table(thd, &decoy, thd->mem_root, &not_used, 0) &&
+  if (!open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE) &&
       !decoy.view)
   {
+    /* It's a table */
     return TRUE;
   }
+
   if (!lex->definer)
   {
     view->definer.host= decoy.definer.host;
@@ -579,40 +581,40 @@ static const int num_view_backups= 3;
   parse()
 */
 static File_option view_parameters[]=
-{{{(char*) STRING_WITH_LEN("query")},
+{{{ C_STRING_WITH_LEN("query")},
   offsetof(TABLE_LIST, query),
   FILE_OPTIONS_ESTRING},
- {{(char*) STRING_WITH_LEN("md5")},
+ {{ C_STRING_WITH_LEN("md5")},
   offsetof(TABLE_LIST, md5),
   FILE_OPTIONS_STRING},
- {{(char*) STRING_WITH_LEN("updatable")},
+ {{ C_STRING_WITH_LEN("updatable")},
   offsetof(TABLE_LIST, updatable_view),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("algorithm")},
+ {{ C_STRING_WITH_LEN("algorithm")},
   offsetof(TABLE_LIST, algorithm),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("definer_user")},
+ {{ C_STRING_WITH_LEN("definer_user")},
   offsetof(TABLE_LIST, definer.user),
   FILE_OPTIONS_STRING},
- {{(char*) STRING_WITH_LEN("definer_host")},
+ {{ C_STRING_WITH_LEN("definer_host")},
   offsetof(TABLE_LIST, definer.host),
   FILE_OPTIONS_STRING},
- {{(char*) STRING_WITH_LEN("suid")},
+ {{ C_STRING_WITH_LEN("suid")},
   offsetof(TABLE_LIST, view_suid),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("with_check_option")},
+ {{ C_STRING_WITH_LEN("with_check_option")},
   offsetof(TABLE_LIST, with_check),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("revision")},
+ {{ C_STRING_WITH_LEN("revision")},
   offsetof(TABLE_LIST, revision),
   FILE_OPTIONS_REV},
- {{(char*) STRING_WITH_LEN("timestamp")},
+ {{ C_STRING_WITH_LEN("timestamp")},
   offsetof(TABLE_LIST, timestamp),
   FILE_OPTIONS_TIMESTAMP},
- {{(char*)STRING_WITH_LEN("create-version")},
+ {{ C_STRING_WITH_LEN("create-version")},
   offsetof(TABLE_LIST, file_version),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("source")},
+ {{ C_STRING_WITH_LEN("source")},
   offsetof(TABLE_LIST, source),
   FILE_OPTIONS_ESTRING},
  {{NullS, 0},			0,
@@ -646,6 +648,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], file_buff[FN_REFLEN], path_buff[FN_REFLEN];
+  const uchar *endp;
   LEX_STRING dir, file, path;
   DBUG_ENTER("mysql_register_view");
 
@@ -662,11 +665,11 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
   /* print file name */
   dir.length= build_table_filename(dir_buff, sizeof(dir_buff),
-                                   view->db, "", "");
+                                   view->db, "", "", 0);
   dir.str= dir_buff;
 
   path.length= build_table_filename(path_buff, sizeof(path_buff),
-                                    view->db, view->table_name, reg_ext);
+                                    view->db, view->table_name, reg_ext, 0);
   path.str= path_buff;
 
   file.str= path.str + dir.length;
@@ -729,8 +732,9 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view->query.str= (char*)str.ptr();
   view->query.length= str.length()-1; // we do not need last \0
   view->source.str= thd->query + thd->lex->create_view_select_start;
-  view->source.length= (thd->query_length -
-                        thd->lex->create_view_select_start);
+  endp= (uchar*) view->source.str;
+  endp= skip_rear_comments(endp, (uchar*) (thd->query + thd->query_length));
+  view->source.length= endp - (uchar*) view->source.str;
   view->file_version= 1;
   view->calc_md5(md5);
   view->md5.str= md5;
@@ -817,13 +821,14 @@ loop_out:
     thd			Thread handler
     parser		parser object
     table		TABLE_LIST structure for filling
-
+    flags               flags
   RETURN
     0 ok
     1 error
 */
 
-bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
+bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
+                     uint flags)
 {
   SELECT_LEX *end, *view_select;
   LEX *old_lex, *lex;
@@ -914,6 +919,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
                         table->db, table->table_name);
     get_default_definer(thd, &table->definer);
   }
+  if (flags & OPEN_VIEW_NO_PARSE)
+  {
+    DBUG_RETURN(FALSE);
+  }
 
   /*
     Save VIEW parameters, which will be wiped out by derived table
@@ -992,7 +1001,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table)
       }
     }
     else if (!table->prelocking_placeholder &&
-             old_lex->sql_command == SQLCOM_SHOW_CREATE)
+             old_lex->sql_command == SQLCOM_SHOW_CREATE &&
+             !table->belong_to_view)
     {
       if (check_table_access(thd, SHOW_VIEW_ACL, table, 0))
         goto err;
@@ -1306,7 +1316,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     TABLE_SHARE *share;
     frm_type_enum type= FRMTYPE_ERROR;
     build_table_filename(path, sizeof(path),
-                         view->db, view->table_name, reg_ext);
+                         view->db, view->table_name, reg_ext, 0);
     VOID(pthread_mutex_lock(&LOCK_open));
 
     if (access(path, F_OK) || 

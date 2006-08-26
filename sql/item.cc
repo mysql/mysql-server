@@ -1004,7 +1004,7 @@ bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item **it)
 *****************************************************************************/
 
 Item_case_expr::Item_case_expr(int case_expr_id)
-  :Item_sp_variable((char *) STRING_WITH_LEN("case_expr")),
+  :Item_sp_variable( C_STRING_WITH_LEN("case_expr")),
    m_case_expr_id(case_expr_id)
 {
 }
@@ -1456,7 +1456,8 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  arena= thd->is_stmt_prepare() ? thd->activate_stmt_arena_if_needed(&backup)
+                                : NULL;
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
@@ -1491,7 +1492,7 @@ bool agg_item_charsets(DTCollation &coll, const char *fname,
       been created in prepare. In this case register the change for
       rollback.
     */
-    if (arena && arena->is_conventional())
+    if (arena)
       *arg= conv;
     else
       thd->change_item_tree(arg, conv);
@@ -6148,14 +6149,13 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
     max_length= my_decimal_precision_to_length(precision, decimals,
                                                unsigned_flag);
   }
-  else
-    max_length= max(max_length, display_length(item));
- 
+
   switch (Field::result_merge_type(fld_type))
   {
   case STRING_RESULT:
   {
     const char *old_cs, *old_derivation;
+    uint32 old_max_chars= max_length / collation.collation->mbmaxlen;
     old_cs= collation.collation->name;
     old_derivation= collation.derivation_name();
     if (collation.aggregate(item->collation, MY_COLL_ALLOW_CONV))
@@ -6167,6 +6167,14 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
 	       "UNION");
       DBUG_RETURN(TRUE);
     }
+    /*
+      To figure out max_length, we have to take into account possible
+      expansion of the size of the values because of character set
+      conversions.
+     */
+    max_length= max(old_max_chars * collation.collation->mbmaxlen,
+                    display_length(item) / item->collation.collation->mbmaxlen *
+                    collation.collation->mbmaxlen);
     break;
   }
   case REAL_RESULT:
@@ -6185,7 +6193,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       max_length= (fld_type == MYSQL_TYPE_FLOAT) ? FLT_DIG+6 : DBL_DIG+7;
     break;
   }
-  default:;
+  default:
+    max_length= max(max_length, display_length(item));
   };
   maybe_null|= item->maybe_null;
   get_full_info(item);

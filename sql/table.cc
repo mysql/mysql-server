@@ -68,7 +68,7 @@ static byte *get_field_name(Field **buff, uint *length,
 char *fn_rext(char *name)
 {
   char *res= strrchr(name, '.');
-  if (res && !strcmp(res, ".frm"))
+  if (res && !strcmp(res, reg_ext))
     return res;
   return name + strlen(name);
 }
@@ -93,29 +93,28 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 {
   MEM_ROOT mem_root;
   TABLE_SHARE *share;
+  char *key_buff, *path_buff;
   char path[FN_REFLEN];
   uint path_length;
+  DBUG_ENTER("alloc_table_share");
+  DBUG_PRINT("enter", ("table: '%s'.'%s'",
+                       table_list->db, table_list->table_name));
 
   path_length= build_table_filename(path, sizeof(path) - 1,
                                     table_list->db,
-                                    table_list->table_name, "");
+                                    table_list->table_name, "", 0);
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  if ((share= (TABLE_SHARE*) alloc_root(&mem_root,
-					sizeof(*share) + key_length +
-                                        path_length +1)))
+  if (multi_alloc_root(&mem_root,
+                       &share, sizeof(*share),
+                       &key_buff, key_length,
+                       &path_buff, path_length + 1,
+                       NULL))
   {
     bzero((char*) share, sizeof(*share));
-    share->table_cache_key.str=    (char*) (share+1);
-    share->table_cache_key.length= key_length;
-    memcpy(share->table_cache_key.str, key, key_length);
 
-    /* Use the fact the key is db/0/table_name/0 */
-    share->db.str=            share->table_cache_key.str;
-    share->db.length=         strlen(share->db.str);
-    share->table_name.str=    share->db.str + share->db.length + 1;
-    share->table_name.length= strlen(share->table_name.str);
+    share->set_table_cache_key(key_buff, key, key_length);
 
-    share->path.str= share->table_cache_key.str+ key_length;
+    share->path.str= path_buff;
     share->path.length= path_length;
     strmov(share->path.str, path);
     share->normalized_path.str=    share->path.str;
@@ -148,7 +147,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
     pthread_cond_init(&share->cond, NULL);
   }
-  return share;
+  DBUG_RETURN(share);
 }
 
 
@@ -179,6 +178,7 @@ void init_tmp_table_share(TABLE_SHARE *share, const char *key,
                           const char *path)
 {
   DBUG_ENTER("init_tmp_table_share");
+  DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
   bzero((char*) share, sizeof(*share));
   init_sql_alloc(&share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
@@ -286,7 +286,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   char	path[FN_REFLEN];
   MEM_ROOT **root_ptr, *old_root;
   DBUG_ENTER("open_table_def");
-  DBUG_PRINT("enter", ("name: '%s.%s'",share->db.str, share->table_name.str));
+  DBUG_PRINT("enter", ("table: '%s'.'%s'  path: '%s'", share->db.str,
+                       share->table_name.str, share->normalized_path.str));
 
   error= 1;
   error_given= 0;
@@ -352,7 +353,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   }
   else
     goto err;
-  
+
   /* No handling of text based files yet */
   if (table_type == 1)
   {
@@ -451,8 +452,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->frm_version= FRM_VER_TRUE_VARCHAR;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  share->default_part_db_type= 
-        ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 0, 0);
+  if (*(head+61) &&
+      !(share->default_part_db_type= 
+        ha_checktype(thd, (enum legacy_db_type) (uint) *(head+61), 1, 0)))
+    goto err;
   DBUG_PRINT("info", ("default_part_db_type = %u", head[61]));
 #endif
   legacy_db_type= (enum legacy_db_type) (uint) *(head+3);
@@ -4041,13 +4044,27 @@ void st_table::mark_columns_needed_for_insert()
     st_table_list::reinit_before_use()
 */
 
-void st_table_list::reinit_before_use(THD * /* thd */)
+void st_table_list::reinit_before_use(THD *thd)
 {
   /*
     Reset old pointers to TABLEs: they are not valid since the tables
     were closed in the end of previous prepare or execute call.
   */
   table= 0;
+  /* Reset is_schema_table_processed value(needed for I_S tables */
+  is_schema_table_processed= FALSE;
+
+  TABLE_LIST *embedded; /* The table at the current level of nesting. */
+  TABLE_LIST *embedding= this; /* The parent nested table reference. */
+  do
+  {
+    embedded= embedding;
+    if (embedded->prep_on_expr)
+      embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
+    embedding= embedded->embedding;
+  }
+  while (embedding &&
+         embedding->nested_join->join_list.head() == embedded);
 }
 
 

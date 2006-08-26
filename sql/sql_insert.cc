@@ -810,11 +810,18 @@ static bool mysql_prepare_insert_check_table(THD *thd, TABLE_LIST *table_list,
   bool insert_into_view= (table_list->view != 0);
   DBUG_ENTER("mysql_prepare_insert_check_table");
 
+  /*
+     first table in list is the one we'll INSERT into, requires INSERT_ACL.
+     all others require SELECT_ACL only. the ACL requirement below is for
+     new leaves only anyway (view-constituents), so check for SELECT rather
+     than INSERT.
+  */
+
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
                                     table_list,
                                     &thd->lex->select_lex.leaf_tables,
-                                    select_insert, INSERT_ACL))
+                                    select_insert, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
   if (insert_into_view && !fields.elements)
@@ -2816,7 +2823,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                 ((thd->prelocked_mode == PRELOCKED) ?
                                  MYSQL_OPEN_IGNORE_LOCKED_TABLES:0)))))
         quick_rm_table(create_info->db_type, create_table->db,
-                       table_case_name(create_info, create_table->table_name));
+                       table_case_name(create_info, create_table->table_name),
+                       0);
     }
     reenable_binlog(thd);
     if (!table)                                   // open failed
@@ -2838,7 +2846,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     hash_delete(&open_cache,(byte*) table);
     VOID(pthread_mutex_unlock(&LOCK_open));
     quick_rm_table(create_info->db_type, create_table->db,
-		   table_case_name(create_info, create_table->table_name));
+		   table_case_name(create_info, create_table->table_name), 0);
     DBUG_RETURN(0);
   }
   table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -3019,7 +3027,8 @@ void select_create::abort()
       table->s->version= 0;
       hash_delete(&open_cache,(byte*) table);
       if (!create_info->table_existed)
-        quick_rm_table(table_type, create_table->db, create_table->table_name);
+        quick_rm_table(table_type, create_table->db,
+                       create_table->table_name, 0);
       /* Tell threads waiting for refresh that something has happened */
       if (version != refresh_version)
         broadcast_refresh();

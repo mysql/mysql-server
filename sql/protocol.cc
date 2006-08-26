@@ -322,7 +322,7 @@ static char eof_buff[1]= { (char) 254 };        /* Marker for end of fields */
     254			Marker (1 byte)
     warning_count	Stored in 2 bytes; New in 4.1 protocol
     status_flag		Stored in 2 bytes;
-			For flags like SERVER_STATUS_MORE_RESULTS
+			For flags like SERVER_MORE_RESULTS_EXISTS
 
     Note that the warning count will not be sent if 'no_flush' is set as
     we don't want to report the warning count until all data is sent to the

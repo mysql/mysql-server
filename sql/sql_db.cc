@@ -408,7 +408,6 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   create	Where to store the read options
 
   DESCRIPTION
-    For now, only default-character-set is read.
 
   RETURN VALUES
   0	File found
@@ -497,6 +496,52 @@ err1:
 
 
 /*
+  Retrieve database options by name. Load database options file or fetch from
+  cache.
+
+  SYNOPSIS
+    load_db_opt_by_name()
+    db_name         Database name
+    db_create_info  Where to store the database options
+
+  DESCRIPTION
+    load_db_opt_by_name() is a shortcut for load_db_opt().
+
+  NOTE
+    Although load_db_opt_by_name() (and load_db_opt()) returns status of
+    the operation, it is useless usually and should be ignored. The problem
+    is that there are 1) system databases ("mysql") and 2) virtual
+    databases ("information_schema"), which do not contain options file.
+    So, load_db_opt[_by_name]() returns FALSE for these databases, but this
+    is not an error.
+
+    load_db_opt[_by_name]() clears db_create_info structure in any case, so
+    even on failure it contains valid data. So, common use case is just
+    call load_db_opt[_by_name]() without checking return value and use
+    db_create_info right after that.
+
+  RETURN VALUES (read NOTE!)
+    FALSE   Success
+    TRUE    Failed to retrieve options
+*/
+
+bool load_db_opt_by_name(THD *thd, const char *db_name,
+                         HA_CREATE_INFO *db_create_info)
+{
+  char db_opt_path[FN_REFLEN];
+
+  /*
+    Pass an empty file name, and the database options file name as extension
+    to avoid table name to file name encoding.
+  */
+  (void) build_table_filename(db_opt_path, sizeof(db_opt_path),
+                              db_name, "", MY_DB_OPT_FILE, 0);
+
+  return load_db_opt(thd, db_opt_path, db_create_info);
+}
+
+
+/*
   Create a database
 
   SYNOPSIS
@@ -560,7 +605,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
   /* Check directory */
-  path_len= build_table_filename(path, sizeof(path), db, "", "");
+  path_len= build_table_filename(path, sizeof(path), db, "", "", 0);
   path[path_len-1]= 0;                    // Remove last '/' from path
 
   if (my_stat(path,&stat_info,MYF(0)))
@@ -704,7 +749,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
      We pass MY_DB_OPT_FILE as "extension" to avoid
      "table name to file name" encoding.
   */
-  build_table_filename(path, sizeof(path), db, "", MY_DB_OPT_FILE);
+  build_table_filename(path, sizeof(path), db, "", MY_DB_OPT_FILE, 0);
   if ((error=write_db_opt(thd, path, create_info)))
     goto exit;
 
@@ -797,7 +842,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
   VOID(pthread_mutex_lock(&LOCK_mysql_create_db));
 
-  length= build_table_filename(path, sizeof(path), db, "", "");
+  length= build_table_filename(path, sizeof(path), db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
   path[length]= '\0';				// Remove file name
@@ -1254,8 +1299,6 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 {
   int path_length, db_length;
   char *db_name;
-  char	path[FN_REFLEN];
-  HA_CREATE_INFO create;
   bool system_db= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
@@ -1324,15 +1367,14 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
     }
   }
 #endif
-  path_length= build_table_filename(path, sizeof(path), db_name, "", "");
-  if (path_length && path[path_length-1] == FN_LIBCHAR)
-    path[path_length-1]= '\0';                  // remove ending '\'
-  if (my_access(path,F_OK))
+
+  if (check_db_dir_existence(db_name))
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), db_name);
     my_free(db_name, MYF(0));
     DBUG_RETURN(1);
   }
+
 end:
   x_free(thd->db);
   DBUG_ASSERT(db_name == NULL || db_name[0] != '\0');
@@ -1348,8 +1390,10 @@ end:
   }
   else
   {
-    strmov(path+unpack_dirname(path,path), MY_DB_OPT_FILE);
-    load_db_opt(thd, path, &create);
+    HA_CREATE_INFO create;
+
+    load_db_opt_by_name(thd, db_name, &create);
+
     thd->db_charset= create.default_table_charset ?
       create.default_table_charset :
       thd->variables.collation_server;
@@ -1469,11 +1513,12 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
   if (thd->db && !strcmp(thd->db, old_db->str))
     change_to_newdb= 1;
 
-  build_table_filename(path, sizeof(path)-1, old_db->str, "", MY_DB_OPT_FILE);
+  build_table_filename(path, sizeof(path)-1,
+                       old_db->str, "", MY_DB_OPT_FILE, 0);
   if ((load_db_opt(thd, path, &create_info)))
     create_info.default_table_charset= thd->variables.collation_server;
 
-  length= build_table_filename(path, sizeof(path)-1, old_db->str, "", "");
+  length= build_table_filename(path, sizeof(path)-1, old_db->str, "", "", 0);
   if (length && path[length-1] == FN_LIBCHAR)
     path[length-1]=0;                            // remove ending '\'
   if ((error= my_access(path,F_OK)))
@@ -1538,9 +1583,10 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
       If some tables were left in the new directory, rmdir() will fail.
       It garantees we never loose any tables.
     */
-    build_table_filename(path, sizeof(path)-1, new_db->str,"",MY_DB_OPT_FILE);
+    build_table_filename(path, sizeof(path)-1,
+                         new_db->str,"",MY_DB_OPT_FILE, 0);
     my_delete(path, MYF(MY_WME));
-    length= build_table_filename(path, sizeof(path)-1, new_db->str, "", "");
+    length= build_table_filename(path, sizeof(path)-1, new_db->str, "", "", 0);
     if (length && path[length-1] == FN_LIBCHAR)
       path[length-1]=0;                            // remove ending '\'
     rmdir(path);
@@ -1592,9 +1638,9 @@ bool mysql_rename_db(THD *thd, LEX_STRING *old_db, LEX_STRING *new_db)
 
       /* pass empty file name, and file->name as extension to avoid encoding */
       build_table_filename(oldname, sizeof(oldname)-1,
-                           old_db->str, "", file->name);
+                           old_db->str, "", file->name, 0);
       build_table_filename(newname, sizeof(newname)-1,
-                           new_db->str, "", file->name);
+                           new_db->str, "", file->name, 0);
       my_rename(oldname, newname, MYF(MY_WME));
     }
     my_dirend(dirp);  
@@ -1665,4 +1711,32 @@ exit:
   pthread_mutex_unlock(&LOCK_lock_db);
 
   DBUG_RETURN(error);
+}
+
+/*
+  Check if there is directory for the database name.
+
+  SYNOPSIS
+    check_db_dir_existence()
+    db_name   database name
+
+  RETURN VALUES
+    FALSE   There is directory for the specified database name.
+    TRUE    The directory does not exist.
+*/
+
+bool check_db_dir_existence(const char *db_name)
+{
+  char db_dir_path[FN_REFLEN];
+  uint db_dir_path_len;
+
+  db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path),
+                                        db_name, "", "", 0);
+
+  if (db_dir_path_len && db_dir_path[db_dir_path_len - 1] == FN_LIBCHAR)
+    db_dir_path[db_dir_path_len - 1]= 0;
+
+  /* Check access. */
+
+  return my_access(db_dir_path, F_OK);
 }

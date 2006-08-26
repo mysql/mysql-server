@@ -218,8 +218,11 @@ int main(int argc,char *argv[])
       On some system, like NETWARE, strerror(unknown_error) returns a
       string 'Unknown Error'.  To avoid printing it we try to find the
       error string by asking for an impossible big error message.
+
+      On Solaris 2.8 it might return NULL
     */
-    msg= strerror(10000);
+    if ((msg= strerror(10000)) == NULL)
+      msg= "Unknown Error";
 
     /*
       Allocate a buffer for unknown_error since strerror always returns
@@ -258,7 +261,7 @@ int main(int argc,char *argv[])
         found= 1;
         msg= 0;
       }
-      else 
+      else
 #endif
 	msg = strerror(code);
 
@@ -278,20 +281,23 @@ int main(int argc,char *argv[])
 	else
 	  puts(msg);
       }
-      if (!(msg=get_ha_error_msg(code)))
+
+      if (!found)
       {
-	if (!found)
-	{
+        /* Error message still not found, look in handler error codes */
+        if (!(msg=get_ha_error_msg(code)))
+        {
 	  fprintf(stderr,"Illegal error code: %d\n",code);
 	  error=1;
-	}
-      }
-      else
-      {
-	if (verbose)
-	  printf("MySQL error code %3d: %s\n",code,msg);
-	else
-	  puts(msg);
+        }
+        else
+        {
+          found= 1;
+          if (verbose)
+            printf("MySQL error code %3d: %s\n",code,msg);
+          else
+            puts(msg);
+        }
       }
     }
   }

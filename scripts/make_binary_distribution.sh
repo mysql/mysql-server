@@ -98,7 +98,7 @@ mkdir $BASE $BASE/bin $BASE/docs \
 
 if [ $BASE_SYSTEM != "netware" ] ; then
  mkdir $BASE/share/mysql $BASE/tests $BASE/man \
-  $BASE/man/man1 $BASE/data $BASE/data/mysql $BASE/data/test
+  $BASE/man/man1 $BASE/man/man8 $BASE/data $BASE/data/mysql $BASE/data/test
 
  chmod o-rwx $BASE/data $BASE/data/*
 fi
@@ -131,7 +131,7 @@ BIN_FILES="extra/comp_err$BS extra/replace$BS extra/perror$BS \
   extra/resolve_stack_dump$BS extra/mysql_waitpid$BS \
   storage/myisam/myisamchk$BS storage/myisam/myisampack$BS \
   storage/myisam/myisamlog$BS storage/myisam/myisam_ftdump$BS \
-  sql/mysqld$BS sql/mysqld-debug$BS sql/mysqld-max$BS \
+  sql/mysqld$BS sql/mysqld-debug$BS \
   sql/mysql_tzinfo_to_sql$BS \
   server-tools/instance-manager/mysqlmanager$BS \
   client/mysql$BS client/mysqlshow$BS client/mysqladmin$BS \
@@ -222,6 +222,7 @@ if [ $BASE_SYSTEM != "netware" ] ; then
   fi
   if [ -d man ] ; then
     $CP man/*.1 $BASE/man/man1
+    $CP man/*.8 $BASE/man/man8
   fi
 fi
 
@@ -311,6 +312,11 @@ if [ $BASE_SYSTEM = "netware" ] ; then
         $BASE/MySQLEULA.txt
 else
     rm -f $BASE/README.NW
+fi
+
+# Make safe_mysqld a symlink to mysqld_safe for backwards portability
+if [ $BASE_SYSTEM != "netware" ] ; then
+  (cd $BASE/bin ; ln -s mysqld_safe safe_mysqld )
 fi
 
 # Clean up if we did this from a bk tree

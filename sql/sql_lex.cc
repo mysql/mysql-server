@@ -127,6 +127,7 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->param_list.empty();
   lex->view_list.empty();
   lex->prepared_stmt_params.empty();
+  lex->auxiliary_table_list.empty();
   lex->unit.next= lex->unit.master=
     lex->unit.link_next= lex->unit.return_to= 0;
   lex->unit.prev= lex->unit.link_prev= 0;
@@ -566,23 +567,20 @@ int MYSQLlex(void *arg, void *yythd)
 
     case MY_LEX_IDENT_OR_NCHAR:
       if (yyPeek() != '\'')
-      {					// Found x'hex-number'
+      {					
 	state= MY_LEX_IDENT;
 	break;
       }
-      yyGet();				// Skip '
-      while ((c = yyGet()) && (c !='\'')) ;
-      length=(lex->ptr - lex->tok_start);	// Length of hexnum+3
-      if (c != '\'')
+      /* Found N'string' */
+      lex->tok_start++;                 // Skip N
+      yySkip();                         // Skip '
+      if (!(yylval->lex_str.str = get_text(lex)))
       {
-	return(ABORT_SYM);		// Illegal hex constant
+	state= MY_LEX_CHAR;             // Read char by char
+	break;
       }
-      yyGet();				// get_token makes an unget
-      yylval->lex_str=get_token(lex,length);
-      yylval->lex_str.str+=2;		// Skip x'
-      yylval->lex_str.length-=3;	// Don't count x' and last '
-      lex->yytoklen-=3;
-      return (NCHAR_STRING);
+      yylval->lex_str.length= lex->yytoklen;
+      return(NCHAR_STRING);
 
     case MY_LEX_IDENT_OR_HEX:
       if (yyPeek() == '\'')
@@ -1058,6 +1056,30 @@ int MYSQLlex(void *arg, void *yythd)
       return(result_state);
     }
   }
+}
+
+
+/*
+  Skip comment in the end of statement.
+
+  SYNOPSIS
+    skip_rear_comments()
+      begin   pointer to the beginning of statement
+      end     pointer to the end of statement
+
+  DESCRIPTION
+    The function is intended to trim comments at the end of the statement.
+
+  RETURN
+    Pointer to the last non-comment symbol of the statement.
+*/
+
+const uchar *skip_rear_comments(const uchar *begin, const uchar *end)
+{
+  while (begin < end && (end[-1] <= ' ' || end[-1] == '*' ||
+                         end[-1] == '/' || end[-1] == ';'))
+    end-= 1;
+  return end;
 }
 
 /*

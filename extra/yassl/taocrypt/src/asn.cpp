@@ -665,7 +665,7 @@ void CertDecoder::GetName(NameType nt)
 
     SHA    sha;
     word32 length = GetSequence();  // length of all distinguished names
-    assert (length < NAME_MAX);
+    assert (length < ASN_NAME_MAX);
     length += source_.get_index();
 
     char*  ptr = (nt == ISSUER) ? issuer_ : subject_;

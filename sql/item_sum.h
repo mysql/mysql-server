@@ -688,7 +688,7 @@ public:
     { return sample ? "var_samp(" : "variance("; }
   Item *copy_or_same(THD* thd);
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
-  enum Item_result result_type () const { return hybrid_type; }
+  enum Item_result result_type () const { return REAL_RESULT; }
 };
 
 class Item_sum_std;

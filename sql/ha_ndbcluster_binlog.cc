@@ -737,7 +737,7 @@ static int ndbcluster_create_apply_status_table(THD *thd)
   */
   {
     build_table_filename(buf, sizeof(buf),
-                         NDB_REP_DB, NDB_APPLY_TABLE, reg_ext);
+                         NDB_REP_DB, NDB_APPLY_TABLE, reg_ext, 0);
     my_delete(buf, MYF(0));
   }
 
@@ -786,7 +786,7 @@ static int ndbcluster_create_schema_table(THD *thd)
   */
   {
     build_table_filename(buf, sizeof(buf),
-                         NDB_REP_DB, NDB_SCHEMA_TABLE, reg_ext);
+                         NDB_REP_DB, NDB_SCHEMA_TABLE, reg_ext, 0);
     my_delete(buf, MYF(0));
   }
 
@@ -1247,7 +1247,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   {
     char key[FN_REFLEN];
-    build_table_filename(key, sizeof(key), db, table_name, "");
+    build_table_filename(key, sizeof(key), db, table_name, "", 0);
     ndb_schema_object= ndb_get_schema_object(key, TRUE, FALSE);
   }
 
@@ -1577,7 +1577,7 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
     
     DBUG_PRINT("info", ("Detected frm change of table %s.%s",
                         dbname, tabname));
-    build_table_filename(key, FN_LEN-1, dbname, tabname, NullS);
+    build_table_filename(key, FN_LEN-1, dbname, tabname, NullS, 0);
     /*
       If the frm of the altered table is different than the one on
       disk then overwrite it with the new table definition
@@ -1775,7 +1775,8 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
 	case SOT_TRUNCATE_TABLE:
         {
           char key[FN_REFLEN];
-          build_table_filename(key, sizeof(key), schema->db, schema->name, "");
+          build_table_filename(key, sizeof(key),
+                               schema->db, schema->name, "", 0);
           NDB_SHARE *share= get_share(key, 0, FALSE, FALSE);
           // invalidation already handled by binlog thread
           if (!share || !share->op)
@@ -1979,7 +1980,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
     {
       enum SCHEMA_OP_TYPE schema_type= (enum SCHEMA_OP_TYPE)schema->type;
       char key[FN_REFLEN];
-      build_table_filename(key, sizeof(key), schema->db, schema->name, "");
+      build_table_filename(key, sizeof(key), schema->db, schema->name, "", 0);
       if (schema_type == SOT_CLEAR_SLOCK)
       {
         pthread_mutex_lock(&ndbcluster_mutex);

@@ -475,7 +475,7 @@ static int process_all_tables_in_db(char *database)
   LINT_INIT(res);
   if (use_db(database))
     return 1;
-  if (mysql_query(sock, "SHOW TABLES") ||
+  if (mysql_query(sock, "SHOW TABLE STATUS") ||
 	!((res= mysql_store_result(sock))))
     return 1;
 
@@ -501,8 +501,12 @@ static int process_all_tables_in_db(char *database)
     }
     for (end = tables + 1; (row = mysql_fetch_row(res)) ;)
     {
-      end= fix_table_name(end, row[0]);
-      *end++= ',';
+      /* Skip tables with an engine of NULL (probably a view). */
+      if (row[1])
+      {
+        end= fix_table_name(end, row[0]);
+        *end++= ',';
+      }
     }
     *--end = 0;
     if (tot_length)
@@ -512,7 +516,11 @@ static int process_all_tables_in_db(char *database)
   else
   {
     while ((row = mysql_fetch_row(res)))
-      handle_request_for_tables(row[0], strlen(row[0]));
+      /* Skip tables with an engine of NULL (probably a view). */
+      if (row[1])
+      {
+        handle_request_for_tables(row[0], strlen(row[0]));
+      }
   }
   mysql_free_result(res);
   return 0;

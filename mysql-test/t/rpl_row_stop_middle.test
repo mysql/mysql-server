@@ -4,8 +4,8 @@
 # forget to close its tables.
 
 # Can be run with statement-based but no interest (and long test)
-source include/have_binlog_format_row.inc;
-source include/master-slave.inc;
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
 
 connection master;
 create table t1 (a int not null auto_increment primary key, b int, key(b));
