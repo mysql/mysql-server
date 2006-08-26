@@ -2053,7 +2053,7 @@ sub mysqld_arguments ($$$$$) {
     }
   }
 
-  if ( $opt_with_ndbcluster && !$opt_skip_ndbcluster)
+  if ( $opt_with_ndbcluster && !$opt_skip_ndbcluster  && $type eq 'master')
   {
     mtr_add_arg($args, "%s--ndbcluster", $prefix);
     mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
