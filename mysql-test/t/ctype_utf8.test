@@ -879,6 +879,17 @@ DROP TABLE t2;
 DROP TABLE t1;
 
 #
+# Bug#17313: N'xxx' and _utf8'xxx' are not equivalent
+#
+CREATE TABLE t1 (item varchar(255)) default character set utf8;
+INSERT INTO t1 VALUES (N'\\');
+INSERT INTO t1 VALUES (_utf8'\\');
+INSERT INTO t1 VALUES (N'Cote d\'Ivoire');
+INSERT INTO t1 VALUES (_utf8'Cote d\'Ivoire');
+SELECT item FROM t1 ORDER BY item;
+DROP TABLE t1;
+
+#
 # Bug#17705: Corruption of compressed index when index length changes between
 # 254 and 256
 #
@@ -1026,6 +1037,20 @@ ALTER TABLE t1 ADD KEY idx (tid,val(11));
 SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLNÝ ADSL'; 
 
 DROP TABLE t1;
+
+#
+# Bug 20709: problem with utf8 fields in temporary tables
+#
+
+create table t1(a char(200) collate utf8_unicode_ci NOT NULL default '')
+  default charset=utf8 collate=utf8_unicode_ci;
+insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
+explain select distinct a from t1;
+select distinct a from t1;
+explain select a from t1 group by a;
+select a from t1 group by a;
+drop table t1;
+
 # End of 4.1 tests
 
 #
