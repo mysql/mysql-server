@@ -37,7 +37,7 @@
 				OutputFile="../../client_debug/mysqlmanager.exe"
 				LinkIncremental="2"
 				GenerateDebugInformation="TRUE"
-				ProgramDatabaseFile="$(OutDir)/mysqlmanager.pdb"
+				ProgramDatabaseFile="../../client_debug/mysqlmanager.pdb"
 				SubSystem="1"
 				TargetMachine="1"/>
 			<Tool

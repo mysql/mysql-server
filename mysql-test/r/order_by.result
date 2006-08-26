@@ -280,6 +280,8 @@ info text NOT NULL default '',
 ipnr varchar(30) NOT NULL default '',
 PRIMARY KEY  (member_id)
 ) ENGINE=MyISAM PACK_KEYS=1;
+Warnings:
+Warning	1101	BLOB/TEXT column 'info' can't have a default value
 insert into t1 (member_id) values (1),(2),(3);
 select member_id, nickname, voornaam FROM t1
 ORDER by lastchange_datum DESC LIMIT 2;

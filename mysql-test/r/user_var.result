@@ -256,3 +256,39 @@ t1	CREATE TABLE `t1` (
   `@first_var` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+set @a=18446744071710965857;
+select @a;
+@a
+18446744071710965857
+CREATE TABLE `bigfailure` (
+`afield` BIGINT UNSIGNED NOT NULL
+);
+INSERT INTO `bigfailure` VALUES (18446744071710965857);
+SELECT * FROM bigfailure;
+afield
+18446744071710965857
+select * from (SELECT afield FROM bigfailure) as b;
+afield
+18446744071710965857
+select * from bigfailure where afield = (SELECT afield FROM bigfailure);
+afield
+18446744071710965857
+select * from bigfailure where afield = 18446744071710965857;
+afield
+18446744071710965857
+select * from bigfailure where afield = 18446744071710965856+1;
+afield
+18446744071710965857
+SET @a := (SELECT afield FROM bigfailure);
+SELECT @a;
+@a
+18446744071710965857
+SET @a := (select afield from (SELECT afield FROM bigfailure) as b);
+SELECT @a;
+@a
+18446744071710965857
+SET @a := (select * from bigfailure where afield = (SELECT afield FROM bigfailure));
+SELECT @a;
+@a
+18446744071710965857
+drop table bigfailure;

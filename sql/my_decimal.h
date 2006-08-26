@@ -383,5 +383,13 @@ int my_decimal_cmp(const my_decimal *a, const my_decimal *b)
   return decimal_cmp((decimal_t*) a, (decimal_t*) b);
 }
 
+
+inline
+int my_decimal_intg(const my_decimal *a)
+{
+  return decimal_intg((decimal_t*) a);
+}
+
+
 #endif /*my_decimal_h*/
 

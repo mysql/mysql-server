@@ -59,13 +59,6 @@
 
 #include "event_scheduler.h"
 
-/* WITH_BERKELEY_STORAGE_ENGINE */
-extern bool berkeley_shared_data;
-extern ulong berkeley_max_lock, berkeley_log_buffer_size;
-extern ulonglong berkeley_cache_size;
-extern ulong berkeley_region_size, berkeley_cache_parts;
-extern char *berkeley_home, *berkeley_tmpdir, *berkeley_logdir;
-
 /* WITH_INNOBASE_STORAGE_ENGINE */
 extern uint innobase_flush_log_at_trx_commit;
 extern ulong innobase_fast_shutdown;
@@ -494,7 +487,7 @@ sys_var_const_str	sys_version_compile_os("version_compile_os",
                                                SYSTEM_TYPE);
 sys_var_thd_ulong	sys_net_wait_timeout("wait_timeout",
 					     &SV::net_wait_timeout);
-
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 sys_var_long_ptr	sys_innodb_fast_shutdown("innodb_fast_shutdown",
 						 &innobase_fast_shutdown);
 sys_var_long_ptr        sys_innodb_max_dirty_pages_pct("innodb_max_dirty_pages_pct",
@@ -520,7 +513,7 @@ sys_var_long_ptr  sys_innodb_commit_concurrency("innodb_commit_concurrency",
 sys_var_long_ptr  sys_innodb_flush_log_at_trx_commit(
                                         "innodb_flush_log_at_trx_commit",
                                         &srv_flush_log_at_trx_commit);
-
+#endif
 /* Condition pushdown to storage engine */
 sys_var_thd_bool
 sys_engine_condition_pushdown("engine_condition_pushdown",
@@ -589,7 +582,8 @@ static sys_var_thd_bit	sys_sql_big_tables("sql_big_tables", 0,
 static sys_var_thd_bit	sys_big_selects("sql_big_selects", 0,
 					set_option_bit,
 					OPTION_BIG_SELECTS);
-static sys_var_thd_bit	sys_log_off("sql_log_off", 0,
+static sys_var_thd_bit	sys_log_off("sql_log_off",
+				    check_log_update,
 				    set_option_bit,
 				    OPTION_LOG_OFF);
 static sys_var_thd_bit	sys_log_update("sql_log_update",
@@ -668,7 +662,6 @@ sys_var_thd_time_zone            sys_time_zone("time_zone");
 /* Read only variables */
 
 sys_var_have_variable sys_have_archive_db("have_archive", &have_archive_db);
-sys_var_have_variable sys_have_berkeley_db("have_bdb", &have_berkeley_db);
 sys_var_have_variable sys_have_blackhole_db("have_blackhole_engine",
                                             &have_blackhole_db);
 sys_var_have_variable sys_have_compress("have_compress", &have_compress);
@@ -681,6 +674,7 @@ sys_var_have_variable sys_have_federated_db("have_federated_engine",
                                             &have_federated_db);
 sys_var_have_variable sys_have_geometry("have_geometry", &have_geometry);
 sys_var_have_variable sys_have_innodb("have_innodb", &have_innodb);
+sys_var_have_variable sys_have_merge_db("have_merge", &have_merge_db);
 sys_var_have_variable sys_have_ndbcluster("have_ndbcluster", &have_ndbcluster);
 sys_var_have_variable sys_have_openssl("have_openssl", &have_openssl);
 sys_var_have_variable sys_have_partition_db("have_partitioning",
@@ -758,15 +752,6 @@ SHOW_VAR init_vars[]= {
   {sys_automatic_sp_privileges.name,(char*) &sys_automatic_sp_privileges,       SHOW_SYS},
   {"back_log",                (char*) &back_log,                    SHOW_LONG},
   {sys_basedir.name,          (char*) &sys_basedir,                 SHOW_SYS},
-  {"bdb_cache_parts",         (char*) &berkeley_cache_parts,        SHOW_LONG},
-  {"bdb_cache_size",          (char*) &berkeley_cache_size,         SHOW_LONGLONG},
-  {"bdb_home",                (char*) &berkeley_home,               SHOW_CHAR_PTR},
-  {"bdb_log_buffer_size",     (char*) &berkeley_log_buffer_size,    SHOW_LONG},
-  {"bdb_logdir",              (char*) &berkeley_logdir,             SHOW_CHAR_PTR},
-  {"bdb_max_lock",            (char*) &berkeley_max_lock,	    SHOW_LONG},
-  {"bdb_region_size",         (char*) &berkeley_region_size,	    SHOW_LONG},
-  {"bdb_shared_data",	      (char*) &berkeley_shared_data,	    SHOW_BOOL},
-  {"bdb_tmpdir",              (char*) &berkeley_tmpdir,             SHOW_CHAR_PTR},
   {sys_binlog_cache_size.name,(char*) &sys_binlog_cache_size,	    SHOW_SYS},
   {sys_binlog_format.name,    (char*) &sys_binlog_format,	    SHOW_SYS},
   {sys_bulk_insert_buff_size.name,(char*) &sys_bulk_insert_buff_size,SHOW_SYS},
@@ -811,7 +796,6 @@ SHOW_VAR init_vars[]= {
   {sys_var_general_log_path.name, (char*) &sys_var_general_log_path,  SHOW_SYS},
   {sys_group_concat_max_len.name, (char*) &sys_group_concat_max_len,  SHOW_SYS},
   {sys_have_archive_db.name,  (char*) &have_archive_db,             SHOW_HAVE},
-  {sys_have_berkeley_db.name, (char*) &have_berkeley_db,            SHOW_HAVE},
   {sys_have_blackhole_db.name,(char*) &have_blackhole_db,           SHOW_HAVE},
   {sys_have_compress.name,    (char*) &have_compress,               SHOW_HAVE},
   {sys_have_crypt.name,       (char*) &have_crypt,                  SHOW_HAVE},
@@ -821,6 +805,7 @@ SHOW_VAR init_vars[]= {
   {sys_have_federated_db.name,(char*) &have_federated_db,           SHOW_HAVE},
   {sys_have_geometry.name,    (char*) &have_geometry,               SHOW_HAVE},
   {sys_have_innodb.name,      (char*) &have_innodb,                 SHOW_HAVE},
+  {sys_have_merge_db.name,    (char*) &have_merge_db,               SHOW_HAVE},
   {sys_have_ndbcluster.name,  (char*) &have_ndbcluster,             SHOW_HAVE},
   {sys_have_openssl.name,     (char*) &have_openssl,                SHOW_HAVE},
   {sys_have_partition_db.name,(char*) &have_partition_db,           SHOW_HAVE},
@@ -831,6 +816,7 @@ SHOW_VAR init_vars[]= {
   {"init_connect",            (char*) &sys_init_connect,            SHOW_SYS},
   {"init_file",               (char*) &opt_init_file,               SHOW_CHAR_PTR},
   {"init_slave",              (char*) &sys_init_slave,              SHOW_SYS},
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   {"innodb_additional_mem_pool_size", (char*) &innobase_additional_mem_pool_size, SHOW_LONG },
   {sys_innodb_autoextend_increment.name, (char*) &sys_innodb_autoextend_increment, SHOW_SYS},
   {"innodb_buffer_pool_awe_mem_mb", (char*) &innobase_buffer_pool_awe_mem_mb, SHOW_LONG },
@@ -864,6 +850,7 @@ SHOW_VAR init_vars[]= {
   {sys_innodb_thread_concurrency.name, (char*) &sys_innodb_thread_concurrency, SHOW_SYS},
   {sys_innodb_thread_sleep_delay.name, (char*) &sys_innodb_thread_sleep_delay, SHOW_SYS},
   {sys_innodb_flush_log_at_trx_commit.name, (char*) &sys_innodb_flush_log_at_trx_commit, SHOW_SYS},
+#endif
   {sys_interactive_timeout.name,(char*) &sys_interactive_timeout,   SHOW_SYS},
   {sys_join_buffer_size.name,   (char*) &sys_join_buffer_size,	    SHOW_SYS},
   {sys_key_buffer_size.name,	(char*) &sys_key_buffer_size,	    SHOW_SYS},

@@ -901,6 +901,28 @@ int ha_archive::write_row(byte *buf)
     if (init_archive_writer())
       DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
+  /*
+    Varchar structures are constant in size but are not cleaned up request
+    to request. The following sets all unused space to null to improve
+    compression.
+  */
+  for (Field **field=table->field ; *field ; field++)
+  {
+    DBUG_PRINT("archive",("Pack is %d\n", (*field)->pack_length()));
+    DBUG_PRINT("archive",("MyPack is %d\n", (*field)->data_length((char*) buf + (*field)->offset())));
+    if ((*field)->real_type() == MYSQL_TYPE_VARCHAR) 
+    {
+      uint actual_length= (*field)->data_length((char*) buf + (*field)->offset());
+      uint offset= (*field)->offset() + actual_length + 
+        (actual_length > 255 ? 2 : 1);
+      DBUG_PRINT("archive",("Offset is %d -> %d\n", actual_length, offset));
+      /*
+      if ((*field)->pack_length() + (*field)->offset() != offset)
+        bzero(buf + offset, (size_t)((*field)->pack_length() + (actual_length > 255 ? 2 : 1) - (*field)->data_length));
+    */
+    }
+  }
+
   share->rows_recorded++;
   rc= real_write_row(buf, &(share->archive_write));
 error:

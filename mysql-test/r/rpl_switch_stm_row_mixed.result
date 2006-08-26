@@ -416,7 +416,7 @@ master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE TABLE `t2` (
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t2)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	use `mysqltest1`; CREATE TABLE `t3` (
-  `1` varbinary(108) NOT NULL DEFAULT ''
+  `1` varbinary(36) NOT NULL DEFAULT ''
 )
 master-bin.000001	#	Table_map	1	#	table_id: # (mysqltest1.t3)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F

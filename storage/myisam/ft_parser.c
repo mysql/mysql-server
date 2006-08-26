@@ -280,7 +280,7 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
 
 
 static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
-                             byte *doc, int doc_len)
+                             char *doc, int doc_len)
 {
   byte   *end=doc+doc_len;
   MY_FT_PARSER_PARAM *ft_param=param->mysql_ftparam;

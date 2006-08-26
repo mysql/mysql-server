@@ -1366,6 +1366,62 @@ drop table federated.t1, federated.t2;
 connection master;
 --enable_parsing
 
+#
+# BUG #18764: Delete conditions causing inconsistencies in Federated tables
+#
+connection slave;
+--disable_warnings
+DROP TABLE IF EXISTS federated.test;
+--enable_warnings
+CREATE TABLE federated.test (
+    `id` int(11) NOT NULL,
+    `val1` varchar(255) NOT NULL,
+    `val2` varchar(255) NOT NULL,
+    PRIMARY KEY  (`id`)
+    ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS federated.test_local;
+DROP TABLE IF EXISTS federated.test_remote;
+--enable_warnings
+CREATE TABLE federated.test_local (
+  `id` int(11) NOT NULL,
+  `val1` varchar(255) NOT NULL,
+  `val2` varchar(255) NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+INSERT INTO federated.test_local VALUES (1, 'foo', 'bar'),
+(2, 'bar', 'foo');
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE federated.test_remote (
+  `id` int(11) NOT NULL,
+  `val1` varchar(255) NOT NULL,
+  `val2` varchar(255) NOT NULL,
+  PRIMARY KEY  (`id`)
+) ENGINE=FEDERATED DEFAULT CHARSET=latin1
+CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/test';
+
+insert into federated.test_remote select * from federated.test_local;
+
+select * from federated.test_remote;
+
+delete from federated.test_remote where id in (1,2);
+
+insert into federated.test_remote select * from federated.test_local;
+
+select * from federated.test_remote;
+--disable_warnings
+DROP TABLE federated.test_local;
+DROP TABLE federated.test_remote;
+--enable_warnings
+connection slave;
+--disable_warnings
+DROP TABLE federated.test;
+--enable_warnings
+
 # 
 # Additional test for bug#18437 "Wrong values inserted with a before
 # update trigger on NDB table". SQL-layer didn't properly inform
@@ -1479,7 +1535,67 @@ drop table t1;
 connection master;
 drop table t1;
 
---echo End of 5.0 tests
+#
+# Bug #17608: String literals lost during INSERT query on FEDERATED table
+#
+connection slave;
+create table t1 (a longblob not null);
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table t1
+  (a longblob not null) engine=federated
+  connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
+insert into t1 values (repeat('a',5000));
+select length(a) from t1;
+connection slave;
+select length(a) from t1;
+drop table t1;
+connection master;
+drop table t1;
+
+#
+# BUG #15133: unique index with nullable value not accepted in federated table 
+#
+
+connection slave;
+--disable_warnings
+DROP TABLE IF EXISTS federated.test;
+CREATE TABLE federated.test (
+  `i` int(11) NOT NULL,
+  `j` int(11) NOT NULL,
+  `c` varchar(30) default NULL,
+  PRIMARY KEY  (`i`,`j`),
+  UNIQUE KEY `i` (`i`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+--enable_warnings
+
+connection master;
+--disable_warnings
+DROP TABLE IF EXISTS federated.test1;
+DROP TABLE IF EXISTS federated.test2;
+--enable_warnings
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.test1 (
+        i int not null,
+        j int not null,
+        c varchar(30),
+        primary key (i,j),
+        unique key (i, c))
+engine = federated
+connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/test';
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval create table federated.test2 (
+        i int default null,
+        j int not null,
+        c varchar(30),
+        key (i))
+engine = federated
+connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/test';
+drop table federated.test1, federated.test2;
+
+connection slave;
+drop table federated.test;
 
 source include/federated_cleanup.inc;
-

@@ -64,17 +64,26 @@ pk	u	o
 insert into t1 values (1,1,1);
 drop table t1;
 create table t1 (x integer not null primary key, y varchar(32), z integer, key(z)) engine = ndb;
-insert into t1 values (1,'one',1), (2,'two',2),(3,"three",3);
+insert into t1 values (1,'one',1);
 begin;
 select * from t1 where x = 1 for update;
 x	y	z
 1	one	1
 begin;
+select * from t1 where x = 1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+rollback;
+insert into t1 values (2,'two',2),(3,"three",3);
+begin;
+select * from t1 where x = 1 for update;
+x	y	z
+1	one	1
+select * from t1 where x = 1 for update;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from t1 where x = 2 for update;
 x	y	z
 2	two	2
-select * from t1 where x = 1 for update;
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 rollback;
 commit;
 begin;

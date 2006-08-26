@@ -804,6 +804,8 @@ INSERT INTO t2 SELECT GeomFromText(st) FROM t1;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 drop table t1, t2;
 CREATE TABLE t1 (`geometry` geometry NOT NULL default '',SPATIAL KEY `gndx` (`geometry`(32))) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1101	BLOB/TEXT column 'geometry' can't have a default value
 INSERT INTO t1 (geometry) VALUES
 (PolygonFromText('POLYGON((-18.6086111000 -66.9327777000, -18.6055555000
 -66.8158332999, -18.7186111000 -66.8102777000, -18.7211111000 -66.9269443999,
@@ -820,6 +822,8 @@ CREATE TABLE t1 (
 c1 geometry NOT NULL default '',
 SPATIAL KEY i1 (c1(32))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1101	BLOB/TEXT column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
 PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
                             -18.6055555000 -66.8158332999,
@@ -834,6 +838,8 @@ CREATE TABLE t1 (
 c1 geometry NOT NULL default '',
 SPATIAL KEY i1 (c1(32))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1101	BLOB/TEXT column 'c1' can't have a default value
 INSERT INTO t1 (c1) VALUES (
 PolygonFromText('POLYGON((-18.6086111000 -66.9327777000,
                             -18.6055555000 -66.8158332999,

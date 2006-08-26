@@ -1740,6 +1740,20 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_SHOW_ENGINE_MUTEX:
   case SQLCOM_SHOW_CREATE_DB:
   case SQLCOM_SHOW_GRANTS:
+  case SQLCOM_SHOW_BINLOG_EVENTS:
+  case SQLCOM_SHOW_MASTER_STAT:
+  case SQLCOM_SHOW_SLAVE_STAT:
+  case SQLCOM_SHOW_CREATE_PROC:
+  case SQLCOM_SHOW_CREATE_FUNC:
+  case SQLCOM_SHOW_CREATE_EVENT:
+  case SQLCOM_SHOW_CREATE:
+  case SQLCOM_SHOW_PROC_CODE:
+  case SQLCOM_SHOW_FUNC_CODE:
+  case SQLCOM_SHOW_AUTHORS:
+  case SQLCOM_SHOW_CONTRIBUTORS:
+  case SQLCOM_SHOW_WARNS:
+  case SQLCOM_SHOW_ERRORS:
+  case SQLCOM_SHOW_BINLOGS:
   case SQLCOM_DROP_TABLE:
   case SQLCOM_RENAME_TABLE:
   case SQLCOM_ALTER_TABLE:
@@ -1754,6 +1768,25 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_REPAIR:
   case SQLCOM_ANALYZE:
   case SQLCOM_OPTIMIZE:
+  case SQLCOM_CHANGE_MASTER:
+  case SQLCOM_RESET:
+  case SQLCOM_FLUSH:
+  case SQLCOM_SLAVE_START:
+  case SQLCOM_SLAVE_STOP:
+  case SQLCOM_INSTALL_PLUGIN:
+  case SQLCOM_UNINSTALL_PLUGIN:
+  case SQLCOM_CREATE_DB:
+  case SQLCOM_DROP_DB:
+  case SQLCOM_RENAME_DB:
+  case SQLCOM_CHECKSUM:
+  case SQLCOM_CREATE_USER:
+  case SQLCOM_RENAME_USER:
+  case SQLCOM_DROP_USER:
+  case SQLCOM_ASSIGN_TO_KEYCACHE:
+  case SQLCOM_PRELOAD_KEYS:
+  case SQLCOM_GRANT:
+  case SQLCOM_REVOKE:
+  case SQLCOM_KILL:
     break;
 
   default:
@@ -2134,29 +2167,21 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
     they have their own table list).
   */
   for (TABLE_LIST *tables= lex->query_tables;
-         tables;
-         tables= tables->next_global)
+       tables;
+       tables= tables->next_global)
   {
-    /*
-      Reset old pointers to TABLEs: they are not valid since the tables
-      were closed in the end of previous prepare or execute call.
-    */
     tables->reinit_before_use(thd);
-
-    /* Reset is_schema_table_processed value(needed for I_S tables */
-    tables->is_schema_table_processed= FALSE;
-
-    TABLE_LIST *embedded; /* The table at the current level of nesting. */
-    TABLE_LIST *embedding= tables; /* The parent nested table reference. */
-    do
-    {
-      embedded= embedding;
-      if (embedded->prep_on_expr)
-        embedded->on_expr= embedded->prep_on_expr->copy_andor_structure(thd);
-      embedding= embedded->embedding;
-    }
-    while (embedding &&
-           embedding->nested_join->join_list.head() == embedded);
+  }
+  /*
+    Cleanup of the special case of DELETE t1, t2 FROM t1, t2, t3 ...
+    (multi-delete).  We do a full clean up, although at the moment all we
+    need to clean in the tables of MULTI-DELETE list is 'table' member.
+  */
+  for (TABLE_LIST *tables= (TABLE_LIST*) lex->auxiliary_table_list.first;
+       tables;
+       tables= tables->next_global)
+  {
+    tables->reinit_before_use(thd);
   }
   lex->current_select= &lex->select_lex;
 
@@ -2171,7 +2196,7 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   }
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
-  DBUG_VOID_RETURN;  
+  DBUG_VOID_RETURN;
 }
 
 

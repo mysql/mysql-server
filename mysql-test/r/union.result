@@ -1318,7 +1318,7 @@ t2	CREATE TABLE `t2` (
   `f5` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `f6` varchar(1) CHARACTER SET utf8 DEFAULT NULL,
   `f7` text,
-  `f8` text CHARACTER SET utf8
+  `f8` mediumtext CHARACTER SET utf8
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
@@ -1366,3 +1366,8 @@ drop table t1, t2;
 (select avg(1)) union (select avg(1)) union (select avg(1));
 avg(1)
 NULL
+select _utf8'12' union select _latin1'12345';
+12
+12
+12345
+End of 5.0 tests

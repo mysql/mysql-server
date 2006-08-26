@@ -7,21 +7,7 @@
 ###########################################################################
 
 --source include/im_check_os.inc
-
-###########################################################################
-
-# Wait for mysqld1 (guarded instance) to start.
-
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD1_PATH_PID 30 started
-
-# Let IM detect that mysqld1 is online. This delay should be longer than
-# monitoring interval.
-
---sleep 3
-
-# Check that start conditions are as expected.
-
-SHOW INSTANCES;
+--source include/im_check_env.inc
 
 ###########################################################################
 

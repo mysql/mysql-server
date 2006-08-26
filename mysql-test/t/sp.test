@@ -4381,12 +4381,23 @@ drop table t3|
 --disable_warnings
 drop function if exists bug9048|
 --enable_warnings
-create function bug9048(f1 char binary) returns char binary
+create function bug9048(f1 char binary) returns char
 begin
   set f1= concat( 'hello', f1 );
   return f1;
 end|
 drop function bug9048|
+#
+# This was disabled in 5.1.12. See bug #20701
+# When collation support in SP is implemented, then this test should
+# be removed.
+#
+--error ER_NOT_SUPPORTED_YET
+create function bug9048(f1 char binary) returns char binary
+begin
+  set f1= concat( 'hello', f1 );
+  return f1;
+end|
 
 # Bug #12849 Stored Procedure: Crash on procedure call with CHAR type
 # 'INOUT' parameter
@@ -4940,7 +4951,7 @@ end|
 # a procedure which use tables and recursion
 create table t3 (a int)|
 insert into t3 values (0)|
-create view v1 as select a from t3;
+create view v1 as select a from t3|
 create procedure bug10100pt(level int, lim int)
 begin
   if level < lim then
@@ -4963,7 +4974,7 @@ begin
   end if;
 end|
 # dynamic sql & recursion
-prepare stmt2 from "select * from t3;";
+prepare stmt2 from "select * from t3;"|
 create procedure bug10100pd(level int, lim int)
 begin
   if level < lim then
@@ -5258,7 +5269,7 @@ call bug13012()|
 call bug13012()|
 call bug13012()|
 drop procedure bug13012|
-drop view v1;
+drop view v1|
 select * from t1 order by data|
 
 #
@@ -5950,6 +5961,215 @@ call bug15217()|
 drop table t3|
 drop procedure bug15217|
 
+
+#
+# BUG#21013: Performance Degrades when importing data that uses
+# Trigger and Stored Procedure
+#
+# This is a performance and memory leak test.  Run with large number
+# passed to bug21013() procedure.
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug21013 |
+--enable_warnings
+
+CREATE PROCEDURE bug21013(IN lim INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE (i < lim) DO
+    SET @b = LOCATE(_latin1'b', @a, 1);
+    SET i = i + 1;
+  END WHILE;
+END |
+
+SET @a = _latin2"aaaaaaaaaa" |
+CALL bug21013(10) |
+
+DROP PROCEDURE bug21013 |
+
+
+#
+# BUG#16211: Stored function return type for strings is ignored
+#
+
+# Prepare: create database with fixed, pre-defined character set.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1|
+DROP DATABASE IF EXISTS mysqltest2|
+--enable_warnings
+
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
+CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8|
+
+# Test case:
+
+use mysqltest1|
+
+#   - Create two stored functions -- with and without explicit CHARSET-clause
+#     for return value;
+
+CREATE FUNCTION bug16211_f1() RETURNS CHAR(10)
+  RETURN ""|
+
+CREATE FUNCTION bug16211_f2() RETURNS CHAR(10) CHARSET koi8r
+  RETURN ""|
+
+CREATE FUNCTION mysqltest2.bug16211_f3() RETURNS CHAR(10)
+  RETURN ""|
+
+CREATE FUNCTION mysqltest2.bug16211_f4() RETURNS CHAR(10) CHARSET koi8r
+  RETURN ""|
+
+#   - Check that CHARSET-clause is specified for the second function;
+
+SHOW CREATE FUNCTION bug16211_f1|
+SHOW CREATE FUNCTION bug16211_f2|
+
+SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
+SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
+
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
+
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
+
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
+
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
+
+SELECT CHARSET(bug16211_f1())|
+SELECT CHARSET(bug16211_f2())|
+
+SELECT CHARSET(mysqltest2.bug16211_f3())|
+SELECT CHARSET(mysqltest2.bug16211_f4())|
+
+#   - Alter database character set.
+
+ALTER DATABASE mysqltest1 CHARACTER SET cp1251|
+ALTER DATABASE mysqltest2 CHARACTER SET cp1251|
+
+#   - Check that CHARSET-clause has not changed.
+
+SHOW CREATE FUNCTION bug16211_f1|
+SHOW CREATE FUNCTION bug16211_f2|
+
+SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
+SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
+
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f1"|
+
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest1" AND ROUTINE_NAME = "bug16211_f2"|
+
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f3"|
+
+SELECT dtd_identifier
+FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = "mysqltest2" AND ROUTINE_NAME = "bug16211_f4"|
+
+SELECT CHARSET(bug16211_f1())|
+SELECT CHARSET(bug16211_f2())|
+
+SELECT CHARSET(mysqltest2.bug16211_f3())|
+SELECT CHARSET(mysqltest2.bug16211_f4())|
+
+# Cleanup.
+
+use test|
+
+DROP DATABASE mysqltest1|
+DROP DATABASE mysqltest2|
+
+
+#
+# BUG#16676: Database CHARSET not used for stored procedures
+#
+
+# Prepare: create database with fixed, pre-defined character set.
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1|
+--enable_warnings
+
+CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
+
+# Test case:
+
+use mysqltest1|
+
+#   - Create two stored procedures -- with and without explicit CHARSET-clause;
+
+CREATE PROCEDURE bug16676_p1(
+  IN p1 CHAR(10),
+  INOUT p2 CHAR(10),
+  OUT p3 CHAR(10))
+BEGIN
+  SELECT CHARSET(p1), COLLATION(p1);
+  SELECT CHARSET(p2), COLLATION(p2);
+  SELECT CHARSET(p3), COLLATION(p3);
+END|
+
+CREATE PROCEDURE bug16676_p2(
+  IN p1 CHAR(10) CHARSET koi8r,
+  INOUT p2 CHAR(10) CHARSET cp1251,
+  OUT p3 CHAR(10) CHARSET greek)
+BEGIN
+  SELECT CHARSET(p1), COLLATION(p1);
+  SELECT CHARSET(p2), COLLATION(p2);
+  SELECT CHARSET(p3), COLLATION(p3);
+END|
+
+#   - Call procedures.
+
+SET @v2 = 'b'|
+SET @v3 = 'c'|
+
+CALL bug16676_p1('a', @v2, @v3)|
+CALL bug16676_p2('a', @v2, @v3)|
+
+# Cleanup.
+
+use test|
+
+DROP DATABASE mysqltest1|
+# Bug#21002 "Derived table not selecting from a "real" table fails in JOINs"
+#         
+# A regression caused by the fix for Bug#18444: for derived tables we should
+# set an empty string as the current database. They do not belong to any
+# database and must be usable even if there is no database
+# selected.
+--disable_warnings
+drop table if exists t3|
+drop database if exists mysqltest1|
+--enable_warnings
+create table t3 (a int)|
+insert into t3 (a) values (1), (2)|
+
+create database mysqltest1|
+use mysqltest1|
+drop database mysqltest1|
+
+# No current database
+select database()|
+
+select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
+use test|
+drop table t3|
+
+
 #
 # BUG#19862: Sort with filesort by function evaluates function twice
 #
@@ -5968,6 +6188,8 @@ SELECT bug19862(a) FROM t12 ORDER BY 1|
 SELECT * FROM t11|
 DROP TABLE t11, t12|
 DROP FUNCTION bug19862|
+
+--echo End of 5.0 tests
 #
 # BUG#NNNN: New bug synopsis
 #

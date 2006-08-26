@@ -491,6 +491,17 @@ SHOW CREATE VIEW v1;
 DROP PROCEDURE p1;
 DROP VIEW v1;
 
+
+#
+# Check that SHOW TABLES and SHOW COLUMNS give a error if there is no
+# referenced database and table respectively.
+#
+--error ER_BAD_DB_ERROR
+SHOW TABLES FROM no_such_database;
+--error ER_NO_SUCH_TABLE
+SHOW COLUMNS FROM no_such_table;
+
+# End of 5.0 tests.
 --echo End of 5.0 tests.
 
 --disable_result_log

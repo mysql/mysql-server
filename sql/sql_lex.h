@@ -149,11 +149,11 @@ enum enum_sp_data_access
 
 const LEX_STRING sp_data_access_name[]=
 {
-  { (char*) STRING_WITH_LEN("") },
-  { (char*) STRING_WITH_LEN("CONTAINS SQL") },
-  { (char*) STRING_WITH_LEN("NO SQL") },
-  { (char*) STRING_WITH_LEN("READS SQL DATA") },
-  { (char*) STRING_WITH_LEN("MODIFIES SQL DATA") }
+  { C_STRING_WITH_LEN("") },
+  { C_STRING_WITH_LEN("CONTAINS SQL") },
+  { C_STRING_WITH_LEN("NO SQL") },
+  { C_STRING_WITH_LEN("READS SQL DATA") },
+  { C_STRING_WITH_LEN("MODIFIES SQL DATA") }
 };
 
 #define DERIVED_SUBQUERY	1
@@ -402,7 +402,7 @@ public:
   friend class st_select_lex_unit;
   friend bool mysql_new_select(struct st_lex *lex, bool move_down);
   friend bool mysql_make_view(THD *thd, File_parser *parser,
-                              TABLE_LIST *table);
+                              TABLE_LIST *table, uint flags);
 private:
   void fast_exclude();
 };
@@ -1190,5 +1190,6 @@ extern void lex_free(void);
 extern void lex_start(THD *thd, const uchar *buf, uint length);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
+extern const uchar *skip_rear_comments(const uchar *ubegin, const uchar *uend);
 
 #endif /* MYSQL_SERVER */

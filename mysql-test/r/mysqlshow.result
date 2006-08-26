@@ -75,3 +75,66 @@ Database: test
 2 rows in set.
 
 DROP TABLE t1, t2;
+Database: information_schema
++---------------------------------------+
+|                Tables                 |
++---------------------------------------+
+| CHARACTER_SETS                        |
+| COLLATIONS                            |
+| COLLATION_CHARACTER_SET_APPLICABILITY |
+| COLUMNS                               |
+| COLUMN_PRIVILEGES                     |
+| ENGINES                               |
+| EVENTS                                |
+| FILES                                 |
+| KEY_COLUMN_USAGE                      |
+| PARTITIONS                            |
+| PLUGINS                               |
+| PROCESSLIST                           |
+| REFERENTIAL_CONSTRAINTS               |
+| ROUTINES                              |
+| SCHEMATA                              |
+| SCHEMA_PRIVILEGES                     |
+| STATISTICS                            |
+| TABLES                                |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
+| TRIGGERS                              |
+| USER_PRIVILEGES                       |
+| VIEWS                                 |
++---------------------------------------+
+Database: INFORMATION_SCHEMA
++---------------------------------------+
+|                Tables                 |
++---------------------------------------+
+| CHARACTER_SETS                        |
+| COLLATIONS                            |
+| COLLATION_CHARACTER_SET_APPLICABILITY |
+| COLUMNS                               |
+| COLUMN_PRIVILEGES                     |
+| ENGINES                               |
+| EVENTS                                |
+| FILES                                 |
+| KEY_COLUMN_USAGE                      |
+| PARTITIONS                            |
+| PLUGINS                               |
+| PROCESSLIST                           |
+| REFERENTIAL_CONSTRAINTS               |
+| ROUTINES                              |
+| SCHEMATA                              |
+| SCHEMA_PRIVILEGES                     |
+| STATISTICS                            |
+| TABLES                                |
+| TABLE_CONSTRAINTS                     |
+| TABLE_PRIVILEGES                      |
+| TRIGGERS                              |
+| USER_PRIVILEGES                       |
+| VIEWS                                 |
++---------------------------------------+
+Wildcard: inf_rmation_schema
++--------------------+
+|     Databases      |
++--------------------+
+| information_schema |
++--------------------+
+End of 5.0 tests

@@ -524,11 +524,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
-  if (
-#ifdef HAVE_BERKELEY_DB
-      (have_berkeley_db == SHOW_OPTION_YES) ||
-#endif
-      (flush_time && flush_time != ~(ulong) 0L))
+  if (flush_time && flush_time != ~(ulong) 0L)
   {
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_manager,0))
@@ -894,10 +890,14 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
     }
     else
     {
+      uint max_char_len;
       /* With conversion */
       client_field->charsetnr= thd_cs->number;
-      uint char_len= server_field.length / item->collation.collation->mbmaxlen;
-      client_field->length= char_len * thd_cs->mbmaxlen;
+      max_char_len= (server_field.type >= (int) MYSQL_TYPE_TINY_BLOB &&
+                     server_field.type <= (int) MYSQL_TYPE_BLOB) ?
+                     server_field.length / item->collation.collation->mbminlen :
+                     server_field.length / item->collation.collation->mbmaxlen;
+      client_field->length= max_char_len * thd_cs->mbmaxlen;
     }
     client_field->type=   server_field.type;
     client_field->flags= server_field.flags;

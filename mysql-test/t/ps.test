@@ -491,6 +491,7 @@ deallocate prepare stmt;
 drop table t1, t2;
 
 #
+#
 # Bug#19399 "Stored Procedures 'Lost Connection' when dropping/creating
 #            tables"
 # Check that multi-delete tables are also cleaned up before re-execution.
@@ -536,86 +537,6 @@ SELECT FOUND_ROWS();
 execute stmt;                                                                   
 SELECT FOUND_ROWS();                                                            
 deallocate prepare stmt;
-
-#
-# Bug#8115: equality propagation and prepared statements
-#
-
-create table t1 (a char(3) not null, b char(3) not null,
-                 c char(3) not null, primary key  (a, b, c));
-create table t2 like t1;
-
-# reduced query
-prepare stmt from
-  "select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
-  where t1.a=1";
-execute stmt;
-execute stmt;
-execute stmt;
-
-# original query
-prepare stmt from
-"select t1.a, t1.b, t1.c, t2.a, t2.b, t2.c from
-(t1 left outer join t2 on t2.a=? and t1.b=t2.b)
-left outer join t2 t3 on t3.a=? where t1.a=?";
-
-set @a:=1, @b:=1, @c:=1;
-
-execute stmt using @a, @b, @c;
-execute stmt using @a, @b, @c;
-execute stmt using @a, @b, @c;
-
-deallocate prepare stmt;
-
-drop table t1,t2;
-
-
-#
-# Bug#9383: INFORMATION_SCHEMA.COLUMNS, JOIN, Crash, prepared statement
-#
-
-eval SET @aux= "SELECT COUNT(*)
-                FROM INFORMATION_SCHEMA.COLUMNS A,
-                INFORMATION_SCHEMA.COLUMNS B
-                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
-                AND A.TABLE_NAME = B.TABLE_NAME
-                AND A.COLUMN_NAME = B.COLUMN_NAME AND
-                A.TABLE_NAME = 'user'";
-
-let $exec_loop_count= 3;
-eval prepare my_stmt from @aux;
-while ($exec_loop_count)
-{
-  eval execute my_stmt;
-  dec $exec_loop_count;
-}
-deallocate prepare my_stmt;
-
-# Test CALL in prepared mode
-delimiter |;
---disable_warnings
-drop procedure if exists p1|
-drop table if exists t1|
---enable_warnings
-create table t1 (id int)|
-insert into t1 values(1)|
-create procedure p1(a int, b int)
-begin
-  declare c int;
-  select max(id)+1 into c from t1;
-  insert into t1 select a+b;
-  insert into t1 select a-b;
-  insert into t1 select a-c;
-end|
-set @a= 3, @b= 4|
-prepare stmt from "call p1(?, ?)"|
-execute stmt using @a, @b|
-execute stmt using @a, @b|
-select * from t1|
-deallocate prepare stmt|
-drop procedure p1|
-drop table t1|
-delimiter ;|
 
 #
 # Bug#9096 "select doesn't return all matched records if prepared statements
@@ -690,35 +611,6 @@ select t2.id from t2, t1 where (t1.id=1 and t2.t1_id=t1.id);
 
 deallocate prepare stmt;
 drop table t1, t2;
-
-#
-# Bug#7306 LIMIT ?, ? and also WL#1785 " Prepared statements: implement
-# support for placeholders in LIMIT clause."
-# Add basic test coverage for the feature.
-# 
-create table t1 (a int);
-insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-prepare stmt from "select * from t1 limit ?, ?";
-set @offset=0, @limit=1;
-execute stmt using @offset, @limit;
-select * from t1 limit 0, 1;
-set @offset=3, @limit=2;
-execute stmt using @offset, @limit;
-select * from t1 limit 3, 2;
-prepare stmt from "select * from t1 limit ?";
-execute stmt using @limit;
---error 1235
-prepare stmt from "select * from t1 where a in (select a from t1 limit ?)";
-prepare stmt from "select * from t1 union all select * from t1 limit ?, ?";
-set @offset=9;
-set @limit=2;
-execute stmt using @offset, @limit;
-prepare stmt from "(select * from t1 limit ?, ?) union all
-                   (select * from t1 limit ?, ?) order by a limit ?";
-execute stmt using @offset, @limit, @offset, @limit, @limit;
-
-drop table t1;
-deallocate prepare stmt;
 
 #
 # Bug#11060 "Server crashes on calling stored procedure with INSERT SELECT
@@ -837,22 +729,6 @@ select ??;
 select ? from t1;
 --enable_ps_protocol
 drop table t1;
-
-#
-# Bug#12651
-# (Crash on a PS including a subquery which is a select from a simple view)
-#
-CREATE TABLE b12651_T1(a int) ENGINE=MYISAM;
-CREATE TABLE b12651_T2(b int) ENGINE=MYISAM;
-CREATE VIEW  b12651_V1 as SELECT b FROM b12651_T2;
-
-PREPARE b12651 FROM 'SELECT 1 FROM b12651_T1 WHERE a IN (SELECT b FROM b12651_V1)';
-EXECUTE b12651;
-
-DROP VIEW b12651_V1;
-DROP TABLE b12651_T1, b12651_T2;
-DEALLOCATE PREPARE b12651;
-
 #
 # Bug#9359 "Prepared statements take snapshot of system vars at PREPARE
 # time"
@@ -1087,7 +963,172 @@ select @@max_prepared_stmt_count, @@prepared_stmt_count;
 set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
 --enable_ps_protocol
 
-# End of 4.1 tests
+#
+# Bug#19399 "Stored Procedures 'Lost Connection' when dropping/creating
+#            tables"
+# Check that multi-delete tables are also cleaned up before re-execution.
+# 
+--disable_warnings
+drop table if exists t1;
+create temporary table if not exists t1 (a1 int);
+--enable_warnings
+# exact delete syntax is essential
+prepare stmt from "delete t1 from t1 where (cast(a1/3 as unsigned) * 3) = a1";
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+# the server crashed on  the next statement without the fix
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+# the problem was in memory corruption: repeat the test just in case
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+deallocate prepare stmt;
+
+--echo End of 4.1 tests
+############################# 5.0 tests start ################################
+#
+#
+# Bug#6102 "Server crash with prepared statement and blank after
+# function name"
+# ensure that stored functions are cached when preparing a statement
+# before we open tables
+#
+create table t1 (a varchar(20)); 
+insert into t1 values ('foo'); 
+--error 1305
+prepare stmt FROM 'SELECT char_length (a) FROM t1'; 
+drop table t1;
+
+#
+# Bug#8115: equality propagation and prepared statements
+#
+
+create table t1 (a char(3) not null, b char(3) not null,
+                 c char(3) not null, primary key  (a, b, c));
+create table t2 like t1;
+
+# reduced query
+prepare stmt from
+  "select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
+  where t1.a=1";
+execute stmt;
+execute stmt;
+execute stmt;
+
+# original query
+prepare stmt from
+"select t1.a, t1.b, t1.c, t2.a, t2.b, t2.c from
+(t1 left outer join t2 on t2.a=? and t1.b=t2.b)
+left outer join t2 t3 on t3.a=? where t1.a=?";
+
+set @a:=1, @b:=1, @c:=1;
+
+execute stmt using @a, @b, @c;
+execute stmt using @a, @b, @c;
+execute stmt using @a, @b, @c;
+
+deallocate prepare stmt;
+
+drop table t1,t2;
+
+
+#
+# Bug#9383: INFORMATION_SCHEMA.COLUMNS, JOIN, Crash, prepared statement
+#
+
+eval SET @aux= "SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS A,
+                INFORMATION_SCHEMA.COLUMNS B
+                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
+                AND A.TABLE_NAME = B.TABLE_NAME
+                AND A.COLUMN_NAME = B.COLUMN_NAME AND
+                A.TABLE_NAME = 'user'";
+
+let $exec_loop_count= 3;
+eval prepare my_stmt from @aux;
+while ($exec_loop_count)
+{
+  eval execute my_stmt;
+  dec $exec_loop_count;
+}
+deallocate prepare my_stmt;
+
+# Test CALL in prepared mode
+delimiter |;
+--disable_warnings
+drop procedure if exists p1|
+drop table if exists t1|
+--enable_warnings
+create table t1 (id int)|
+insert into t1 values(1)|
+create procedure p1(a int, b int)
+begin
+  declare c int;
+  select max(id)+1 into c from t1;
+  insert into t1 select a+b;
+  insert into t1 select a-b;
+  insert into t1 select a-c;
+end|
+set @a= 3, @b= 4|
+prepare stmt from "call p1(?, ?)"|
+execute stmt using @a, @b|
+execute stmt using @a, @b|
+select * from t1|
+deallocate prepare stmt|
+drop procedure p1|
+drop table t1|
+delimiter ;|
+
+
+#
+# Bug#7306 LIMIT ?, ? and also WL#1785 " Prepared statements: implement
+# support for placeholders in LIMIT clause."
+# Add basic test coverage for the feature.
+# 
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select * from t1 limit ?, ?";
+set @offset=0, @limit=1;
+execute stmt using @offset, @limit;
+select * from t1 limit 0, 1;
+set @offset=3, @limit=2;
+execute stmt using @offset, @limit;
+select * from t1 limit 3, 2;
+prepare stmt from "select * from t1 limit ?";
+execute stmt using @limit;
+--error 1235
+prepare stmt from "select * from t1 where a in (select a from t1 limit ?)";
+prepare stmt from "select * from t1 union all select * from t1 limit ?, ?";
+set @offset=9;
+set @limit=2;
+execute stmt using @offset, @limit;
+prepare stmt from "(select * from t1 limit ?, ?) union all
+                   (select * from t1 limit ?, ?) order by a limit ?";
+execute stmt using @offset, @limit, @offset, @limit, @limit;
+
+drop table t1;
+deallocate prepare stmt;
+
+#
+# Bug#12651
+# (Crash on a PS including a subquery which is a select from a simple view)
+#
+CREATE TABLE b12651_T1(a int) ENGINE=MYISAM;
+CREATE TABLE b12651_T2(b int) ENGINE=MYISAM;
+CREATE VIEW  b12651_V1 as SELECT b FROM b12651_T2;
+
+PREPARE b12651 FROM 'SELECT 1 FROM b12651_T1 WHERE a IN (SELECT b FROM b12651_V1)';
+EXECUTE b12651;
+
+DROP VIEW b12651_V1;
+DROP TABLE b12651_T1, b12651_T2;
+DEALLOCATE PREPARE b12651;
+
+
 
 #
 # Bug #14956: ROW_COUNT() returns incorrect result after EXECUTE of prepared
@@ -1289,3 +1330,874 @@ create temporary table t1 (i int);
 #
 use test;
 # End of 5.0 tests
+
+
+#
+# Bug #20665: All commands supported in Stored Procedures should work in
+# Prepared Statements
+#
+create procedure proc_1() reset query cache;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+create function func_1() returns int begin reset query cache; return 1; end|
+delimiter ;|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+select func_1(), func_1(), func_1() from dual;
+drop function func_1;
+prepare abc from "reset query cache";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() reset master;
+drop procedure proc_1;
+delimiter |;
+create function func_1() returns int begin reset master; return 1; end|
+delimiter ;|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+select func_1(), func_1(), func_1() from dual;
+drop function func_1;
+prepare abc from "reset master";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() reset slave;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+create function func_1() returns int begin reset slave; return 1; end|
+delimiter ;|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+select func_1(), func_1(), func_1() from dual;
+drop function func_1;
+prepare abc from "reset slave";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1(a integer) kill a;
+--error ER_NO_SUCH_THREAD
+call proc_1(0);
+--error ER_NO_SUCH_THREAD
+call proc_1(0);
+--error ER_NO_SUCH_THREAD
+call proc_1(0);
+drop procedure proc_1;
+delimiter |;
+create function func_1() returns int begin kill 0; return 1; end|
+delimiter ;|
+--error ER_NO_SUCH_THREAD
+select func_1() from dual;
+--error ER_NO_SUCH_THREAD
+select func_1() from dual;
+--error ER_NO_SUCH_THREAD
+select func_1() from dual;
+drop function func_1;
+prepare abc from "kill 0";
+--error ER_NO_SUCH_THREAD
+execute abc;
+--error ER_NO_SUCH_THREAD
+execute abc;
+--error ER_NO_SUCH_THREAD
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() flush hosts;
+call proc_1();
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush hosts; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "flush hosts";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() flush privileges;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush privileges; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "flush privileges";
+deallocate prepare abc;
+
+
+create procedure proc_1() flush tables with read lock;
+call proc_1();
+unlock tables;
+call proc_1();
+unlock tables;
+call proc_1();
+unlock tables;
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush tables with read lock; return 1; end|
+delimiter ;|
+prepare abc from "flush tables with read lock";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+unlock tables;
+
+
+create procedure proc_1() flush tables;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush tables; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "flush tables";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() flush tables;
+flush tables;
+show open tables from mysql;
+select Host, User from mysql.user limit 0;
+select Host, Db from mysql.host limit 0;
+show open tables from mysql;
+call proc_1();
+show open tables from mysql;
+select Host, User from mysql.user limit 0;
+select Host, Db from mysql.host limit 0;
+show open tables from mysql;
+call proc_1();
+show open tables from mysql;
+select Host, User from mysql.user limit 0;
+select Host, Db from mysql.host limit 0;
+show open tables from mysql;
+call proc_1();
+show open tables from mysql;
+select Host, User from mysql.user limit 0;
+select Host, Db from mysql.host limit 0;
+show open tables from mysql;
+flush tables;
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush tables; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+flush tables;
+select Host, User from mysql.user limit 0;
+select Host, Db from mysql.host limit 0;
+show open tables from mysql;
+prepare abc from "flush tables";
+execute abc;
+show open tables from mysql;
+select Host, User from mysql.user limit 0;
+select Host, Db from mysql.host limit 0;
+show open tables from mysql;
+execute abc;
+show open tables from mysql;
+select Host, User from mysql.user limit 0;
+select Host, Db from mysql.host limit 0;
+show open tables from mysql;
+execute abc;
+show open tables from mysql;
+select Host, User from mysql.user limit 0;
+select Host, Db from mysql.host limit 0;
+show open tables from mysql;
+flush tables;
+deallocate prepare abc;
+
+
+create procedure proc_1() flush logs;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush logs; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "flush logs";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() flush status;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush status; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "flush status";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() flush slave;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush slave; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "flush slave";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() flush master;
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush master; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "flush master";
+deallocate prepare abc;
+
+
+create procedure proc_1() flush des_key_file;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush des_key_file; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "flush des_key_file";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() flush user_resources;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin flush user_resources; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "flush user_resources";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() start slave;
+drop procedure proc_1;
+delimiter |;
+create function func_1() returns int begin start slave; return 1; end|
+delimiter ;|
+drop function func_1;
+prepare abc from "start slave";
+deallocate prepare abc;
+
+
+create procedure proc_1() stop slave;
+drop procedure proc_1;
+delimiter |;
+create function func_1() returns int begin stop slave; return 1; end|
+delimiter ;|
+drop function func_1;
+prepare abc from "stop slave";
+deallocate prepare abc;
+
+
+create procedure proc_1() show binlog events;
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show binlog events; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "show binlog events";
+deallocate prepare abc;
+
+
+create procedure proc_1() show slave status;
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show slave status; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "show slave status";
+deallocate prepare abc;
+
+
+create procedure proc_1() show master status;
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show master status; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "show master status";
+deallocate prepare abc;
+
+
+create procedure proc_1() show master logs;
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show master logs; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "show master logs";
+deallocate prepare abc;
+
+
+create procedure proc_1() show events;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show events; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "show events";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() show scheduler status;
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show scheduler status; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+--error ER_UNSUPPORTED_PS
+prepare abc from "show scheduler status";
+--error ER_UNKNOWN_STMT_HANDLER
+deallocate prepare abc;
+
+
+--disable_warnings
+drop procedure if exists a;
+--enable_warnings
+create procedure a() select 42;
+create procedure proc_1(a char(2)) show create procedure a;
+call proc_1("bb");
+call proc_1("bb");
+call proc_1("bb");
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show create procedure a; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "show create procedure a";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+drop procedure a;
+
+
+--disable_warnings
+drop function if exists a;
+--enable_warnings
+create function a() returns int return 42+13;
+create procedure proc_1(a char(2)) show create function a;
+call proc_1("bb");
+call proc_1("bb");
+call proc_1("bb");
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show create function a; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "show create function a";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+drop function a;
+
+
+--disable_warnings
+drop table if exists tab1;
+--enable_warnings
+create table tab1(a int, b char(1), primary key(a,b));
+create procedure proc_1() show create table tab1;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show create table tab1; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "show create table tab1";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+drop table tab1;
+
+
+--disable_warnings
+drop view if exists v1;
+drop table if exists t1;
+--enable_warnings
+create table t1(a int, b char(5));
+insert into t1 values (1, "one"), (1, "edno"), (2, "two"), (2, "dve");
+create view v1 as
+    (select a, count(*) from t1 group by a)
+    union all
+    (select b, count(*) from t1 group by b);
+create procedure proc_1() show create view v1;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show create view v1; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "show create view v1";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+drop view v1;
+drop table t1;
+
+
+create procedure proc_1() install plugin my_plug soname '/root/some_plugin.so';
+--error ER_UDF_NO_PATHS
+call proc_1();
+--error ER_UDF_NO_PATHS
+call proc_1();
+--error ER_UDF_NO_PATHS
+call proc_1();
+drop procedure proc_1;
+create procedure proc_1() install plugin my_plug soname 'some_plugin.so';
+--error ER_CANT_OPEN_LIBRARY
+call proc_1();
+--error ER_CANT_OPEN_LIBRARY
+call proc_1();
+--error ER_CANT_OPEN_LIBRARY
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin install plugin my_plug soname '/tmp/plugin'; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "install plugin my_plug soname '/root/some_plugin.so'";
+--error ER_UDF_NO_PATHS
+execute abc;
+--error ER_UDF_NO_PATHS
+execute abc;
+deallocate prepare abc;
+prepare abc from "install plugin my_plug soname 'some_plugin.so'";
+deallocate prepare abc;
+
+
+create procedure proc_1() uninstall plugin my_plug;
+--error ER_SP_DOES_NOT_EXIST
+call proc_1();
+--error ER_SP_DOES_NOT_EXIST
+call proc_1();
+--error ER_SP_DOES_NOT_EXIST
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin uninstall plugin my_plug; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "uninstall plugin my_plug";
+--error ER_SP_DOES_NOT_EXIST
+execute abc;
+--error ER_SP_DOES_NOT_EXIST
+execute abc;
+--error ER_SP_DOES_NOT_EXIST
+execute abc;
+deallocate prepare abc;
+
+
+--disable_warnings
+drop database if exists mysqltest_xyz;
+--enable_warnings
+create procedure proc_1() create database mysqltest_xyz;
+call proc_1();
+drop database if exists mysqltest_xyz;
+call proc_1();
+--error ER_DB_CREATE_EXISTS
+call proc_1();
+drop database if exists mysqltest_xyz;
+call proc_1();
+drop database if exists mysqltest_xyz;
+drop procedure proc_1;
+delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin create database mysqltest_xyz; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "create database mysqltest_xyz";
+execute abc;
+drop database if exists mysqltest_xyz;
+execute abc;
+--error ER_DB_CREATE_EXISTS
+execute abc;
+drop database if exists mysqltest_xyz;
+execute abc;
+drop database if exists mysqltest_xyz;
+deallocate prepare abc;
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int, b char(5));
+insert into t1 values (1, "one"), (2, "two"), (3, "three");
+create procedure proc_1() checksum table xyz;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin checksum table t1; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "checksum table t1";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+
+
+create procedure proc_1() create user pstest_xyz@localhost;
+call proc_1();
+drop user pstest_xyz@localhost;
+call proc_1();
+--error ER_CANNOT_USER
+call proc_1();
+drop user pstest_xyz@localhost;
+call proc_1();
+drop user pstest_xyz@localhost;
+drop procedure proc_1;
+delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin create user pstest_xyz@localhost; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+prepare abc from "create user pstest_xyz@localhost";
+execute abc;
+drop user pstest_xyz@localhost;
+execute abc;
+--error ER_CANNOT_USER
+execute abc;
+drop user pstest_xyz@localhost;
+execute abc;
+drop user pstest_xyz@localhost;
+deallocate prepare abc;
+
+
+--disable_warnings
+drop event if exists xyz;
+--enable_warnings
+#create procedure proc_1() create event xyz on schedule every 5 minute disable do select 123;
+#call proc_1();
+#drop event xyz;
+#call proc_1();
+#--error ER_EVENT_ALREADY_EXISTS
+#call proc_1();
+#drop event xyz;
+#call proc_1();
+#drop event xyz;
+#drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin create event xyz on schedule at now() do select 123; return 1; end|
+delimiter ;|
+--error ER_SP_DOES_NOT_EXIST
+select func_1(), func_1(), func_1() from dual;
+--error ER_SP_DOES_NOT_EXIST
+drop function func_1;
+--error ER_UNSUPPORTED_PS
+prepare abc from "create event xyz on schedule at now() do select 123";
+--error ER_UNKNOWN_STMT_HANDLER
+deallocate prepare abc;
+
+
+--disable_warnings
+drop event if exists xyz;
+create event xyz on schedule every 5 minute disable do select 123;
+--enable_warnings
+create procedure proc_1() alter event xyz comment 'xyz';
+call proc_1();
+drop event xyz;
+create event xyz on schedule every 5 minute disable do select 123;
+call proc_1();
+drop event xyz;
+create event xyz on schedule every 5 minute disable do select 123;
+call proc_1();
+drop event xyz;
+drop procedure proc_1;
+delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin alter event xyz comment 'xyz'; return 1; end|
+delimiter ;|
+--error ER_UNSUPPORTED_PS
+prepare abc from "alter event xyz comment 'xyz'";
+--error ER_UNKNOWN_STMT_HANDLER
+deallocate prepare abc;
+
+
+--disable_warnings
+drop event if exists xyz;
+create event xyz on schedule every 5 minute disable do select 123;
+--enable_warnings
+create procedure proc_1() drop event xyz;
+call proc_1();
+create event xyz on schedule every 5 minute disable do select 123;
+call proc_1();
+--error ER_EVENT_DOES_NOT_EXIST
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+create function func_1() returns int begin drop event xyz; return 1; end|
+delimiter ;|
+--error ER_UNSUPPORTED_PS
+prepare abc from "drop event xyz";
+--error ER_UNKNOWN_STMT_HANDLER
+deallocate prepare abc;
+
+
+--disable_warnings
+drop table if exists t1;
+create table t1 (a int, b char(5)) engine=myisam;
+insert into t1 values (1, "one"), (2, "two"), (3, "three");
+--enable_warnings
+SET GLOBAL new_cache.key_buffer_size=128*1024;
+create procedure proc_1() cache index t1 in new_cache;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+SET GLOBAL second_cache.key_buffer_size=128*1024;
+prepare abc from "cache index t1 in second_cache";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+drop table t1;
+
+--disable_warnings
+drop table if exists t1;
+drop table if exists t2;
+create table t1 (a int, b char(5)) engine=myisam;
+insert into t1 values (1, "one"), (2, "two"), (3, "three");
+create table t2 (a int, b char(5)) engine=myisam;
+insert into t2 values (1, "one"), (2, "two"), (3, "three");
+--enable_warnings
+create procedure proc_1() load index into cache t1 ignore leaves;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin load index into cache t1 ignore leaves; return 1; end|
+delimiter ;|
+prepare abc from "load index into cache t2 ignore leaves";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+drop table t1, t2;
+
+#
+# Bug #21422: GRANT/REVOKE possible inside stored function, probably in a trigger
+# This is disabled for now till it is resolved in 5.0
+#
+
+#create procedure proc_1() grant all on *.* to abc@host;
+#drop procedure proc_1;
+#delimiter |;
+#--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+#create function func_1() returns int begin grant all on *.* to abc@host; return 1; end|
+#delimiter ;|
+#prepare abc from "grant all on *.* to abc@host";
+#
+#create procedure proc_1() revoke all on *.* from abc@host;
+#drop procedure proc_1;
+#delimiter |;#--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+#create function func_1() returns int begin revoke all on *.* from abc@host; return 1; end|
+#delimiter ;|
+#prepare abc from "revoke all on *.* from abc@host";
+
+create procedure proc_1() show errors;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show errors; return 1; end|
+delimiter ;|
+prepare abc from "show errors";
+deallocate prepare abc;
+
+--disable_warnings
+drop table if exists t1;
+drop table if exists t2;
+--enable_warnings
+create procedure proc_1() show warnings;
+drop table if exists t1;
+call proc_1();
+drop table if exists t2;
+call proc_1();
+drop table if exists t1, t2;
+call proc_1();
+drop procedure proc_1;
+delimiter |;
+--error ER_SP_NO_RETSET
+create function func_1() returns int begin show warnings; return 1; end|
+delimiter ;|
+prepare abc from "show warnings";
+drop table if exists t1;
+execute abc;
+drop table if exists t2;
+execute abc;
+drop table if exists t1, t2;
+execute abc;
+deallocate prepare abc;
+

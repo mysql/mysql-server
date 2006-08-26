@@ -598,6 +598,8 @@ id int(11) DEFAULT '0' NOT NULL,
 name tinytext DEFAULT '' NOT NULL,
 UNIQUE id (id)
 );
+Warnings:
+Warning	1101	BLOB/TEXT column 'name' can't have a default value
 INSERT INTO t1 VALUES (1,'yes'),(2,'no');
 CREATE TABLE t2 (
 id int(11) DEFAULT '0' NOT NULL,
