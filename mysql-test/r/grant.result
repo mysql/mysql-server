@@ -528,7 +528,7 @@ Db	char(64)	NO	PRI
 User	char(16)	NO	PRI		
 Table_name	char(64)	NO	PRI		
 Grantor	char(77)	NO	MUL		
-Timestamp	timestamp	YES		CURRENT_TIMESTAMP	
+Timestamp	timestamp	NO		CURRENT_TIMESTAMP	
 Table_priv	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')	NO			
 Column_priv	set('Select','Insert','Update','References')	NO			
 use test;
@@ -870,3 +870,81 @@ insert into mysql.user select * from t2;
 flush privileges;
 drop table t2;
 drop table t1;
+CREATE DATABASE mysqltest3;
+use mysqltest3;
+CREATE TABLE t_nn (c1 INT);
+CREATE VIEW  v_nn AS SELECT * FROM t_nn;
+CREATE DATABASE mysqltest2;
+use mysqltest2;
+CREATE TABLE t_nn (c1 INT);
+CREATE VIEW  v_nn AS SELECT * FROM t_nn;
+CREATE VIEW  v_yn AS SELECT * FROM t_nn;
+CREATE VIEW  v_gy AS SELECT * FROM t_nn;
+CREATE VIEW  v_ny AS SELECT * FROM t_nn;
+CREATE VIEW  v_yy AS SELECT * FROM t_nn WHERE c1=55;
+GRANT SHOW VIEW        ON mysqltest2.v_ny TO 'mysqltest_1'@'localhost' IDENTIFIED BY 'mysqltest_1';
+GRANT SELECT           ON mysqltest2.v_yn TO 'mysqltest_1'@'localhost' IDENTIFIED BY 'mysqltest_1';
+GRANT SELECT           ON mysqltest2.*    TO 'mysqltest_1'@'localhost' IDENTIFIED BY 'mysqltest_1';
+GRANT SHOW VIEW,SELECT ON mysqltest2.v_yy TO 'mysqltest_1'@'localhost' IDENTIFIED BY 'mysqltest_1';
+SHOW CREATE VIEW  mysqltest2.v_nn;
+ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v_nn'
+SHOW CREATE TABLE mysqltest2.v_nn;
+ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v_nn'
+SHOW CREATE VIEW  mysqltest2.v_yn;
+ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v_yn'
+SHOW CREATE TABLE mysqltest2.v_yn;
+ERROR 42000: SHOW VIEW command denied to user 'mysqltest_1'@'localhost' for table 'v_yn'
+SHOW CREATE TABLE mysqltest2.v_ny;
+View	Create View
+v_ny	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_ny` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn`
+SHOW CREATE VIEW  mysqltest2.v_ny;
+View	Create View
+v_ny	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_ny` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn`
+SHOW CREATE TABLE mysqltest3.t_nn;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 't_nn'
+SHOW CREATE VIEW  mysqltest3.t_nn;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 't_nn'
+SHOW CREATE VIEW  mysqltest3.v_nn;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'v_nn'
+SHOW CREATE TABLE mysqltest3.v_nn;
+ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'v_nn'
+SHOW CREATE TABLE mysqltest2.t_nn;
+Table	Create Table
+t_nn	CREATE TABLE `t_nn` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE VIEW  mysqltest2.t_nn;
+ERROR HY000: 'mysqltest2.t_nn' is not VIEW
+SHOW CREATE VIEW mysqltest2.v_yy;
+View	Create View
+v_yy	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_yy` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn` where (`mysqltest2`.`t_nn`.`c1` = 55)
+SHOW CREATE TABLE mysqltest2.v_yy;
+View	Create View
+v_yy	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest2`.`v_yy` AS select `mysqltest2`.`t_nn`.`c1` AS `c1` from `mysqltest2`.`t_nn` where (`mysqltest2`.`t_nn`.`c1` = 55)
+SHOW CREATE TABLE mysqltest2.v_nn;
+View	Create View
+v_nn	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_nn` AS select `t_nn`.`c1` AS `c1` from `t_nn`
+SHOW CREATE VIEW  mysqltest2.v_nn;
+View	Create View
+v_nn	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_nn` AS select `t_nn`.`c1` AS `c1` from `t_nn`
+SHOW CREATE TABLE mysqltest2.t_nn;
+Table	Create Table
+t_nn	CREATE TABLE `t_nn` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE VIEW mysqltest2.t_nn;
+ERROR HY000: 'mysqltest2.t_nn' is not VIEW
+DROP VIEW  mysqltest2.v_nn;
+DROP VIEW  mysqltest2.v_yn;
+DROP VIEW  mysqltest2.v_ny;
+DROP VIEW  mysqltest2.v_yy;
+DROP TABLE mysqltest2.t_nn;
+DROP DATABASE mysqltest2;
+DROP VIEW  mysqltest3.v_nn;
+DROP TABLE mysqltest3.t_nn;
+DROP DATABASE mysqltest3;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysqltest_1'@'localhost';
+DROP USER 'mysqltest_1'@'localhost';
+create user mysqltest1_thisisreallytoolong;
+ERROR HY000: Operation CREATE USER failed for 'mysqltest1_thisisreallytoolong'@'%'
+End of 5.0 tests

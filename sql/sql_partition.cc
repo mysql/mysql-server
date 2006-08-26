@@ -46,12 +46,12 @@
 */
 const LEX_STRING partition_keywords[]=
 {
-  { (char *) STRING_WITH_LEN("HASH") },
-  { (char *) STRING_WITH_LEN("RANGE") },
-  { (char *) STRING_WITH_LEN("LIST") }, 
-  { (char *) STRING_WITH_LEN("KEY") },
-  { (char *) STRING_WITH_LEN("MAXVALUE") },
-  { (char *) STRING_WITH_LEN("LINEAR ") }
+  { C_STRING_WITH_LEN("HASH") },
+  { C_STRING_WITH_LEN("RANGE") },
+  { C_STRING_WITH_LEN("LIST") }, 
+  { C_STRING_WITH_LEN("KEY") },
+  { C_STRING_WITH_LEN("MAXVALUE") },
+  { C_STRING_WITH_LEN("LINEAR ") }
 };
 static const char *part_str= "PARTITION";
 static const char *sub_str= "SUB";

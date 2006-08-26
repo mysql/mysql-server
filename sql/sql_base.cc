@@ -634,6 +634,7 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 static void close_handle_and_leave_table_as_lock(TABLE *table)
 {
   TABLE_SHARE *share, *old_share= table->s;
+  char *key_buff;
   MEM_ROOT *mem_root= &table->mem_root;
   DBUG_ENTER("close_handle_and_leave_table_as_lock");
 
@@ -642,20 +643,14 @@ static void close_handle_and_leave_table_as_lock(TABLE *table)
     This has to be done to ensure that the table share is removed from
     the table defintion cache as soon as the last instance is removed
   */
-  if ((share= (TABLE_SHARE*) alloc_root(mem_root, sizeof(*share))))
+  if (multi_alloc_root(mem_root,
+                       &share, sizeof(*share),
+                       &key_buff, old_share->table_cache_key.length,
+                       NULL))
   {
     bzero((char*) share, sizeof(*share));
-    share->db.str= memdup_root(mem_root, old_share->db.str,
-                               old_share->db.length+1);
-    share->db.length= old_share->db.length;
-    share->table_name.str= memdup_root(mem_root,
-                                       old_share->table_name.str,
-                                       old_share->table_name.length+1);
-    share->table_name.length= old_share->table_name.length;
-    share->table_cache_key.str= memdup_root(mem_root,
-                                            old_share->table_cache_key.str,
-                                            old_share->table_cache_key.length);
-    share->table_cache_key.length= old_share->table_cache_key.length;
+    share->set_table_cache_key(key_buff, old_share->table_cache_key.str,
+                               old_share->table_cache_key.length);
     share->tmp_table= INTERNAL_TMP_TABLE;       // for intern_close_table()
   }
 
@@ -1603,28 +1598,18 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 			    const char *table_name)
 {
   char *key;
+  uint key_length;
   TABLE_SHARE *share= table->s;
   TABLE_LIST table_list;
-  uint db_length, table_length;
   DBUG_ENTER("rename_temporary_table");
 
-  if (!(key=(char*) alloc_root(&share->mem_root,
-			       (uint) (db_length= strlen(db))+
-			       (uint) (table_length= strlen(table_name))+6+4)))
+  if (!(key=(char*) alloc_root(&share->mem_root, MAX_DBKEY_LENGTH)))
     DBUG_RETURN(1);				/* purecov: inspected */
 
   table_list.db= (char*) db;
   table_list.table_name= (char*) table_name;
-  share->db.str= share->table_cache_key.str= key;
-  share->db.length= db_length;
-  share->table_cache_key.length= create_table_def_key(thd, key,
-                                                      &table_list, 1);
-  /*
-    Here we use the fact that table_name is stored as the second component
-    in the 'key' (after db_name), where components are separated with \0
-  */
-  share->table_name.str=    key+db_length+1;
-  share->table_name.length= table_length;
+  key_length= create_table_def_key(thd, key, &table_list, 1);
+  share->set_table_cache_key(key, key_length);
   DBUG_RETURN(0);
 }
 
@@ -1749,10 +1734,7 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
 {
   TABLE *table= table_list->table;
   TABLE_SHARE *share;
-  char *db= table_list->db;
   char *table_name= table_list->table_name;
-  char key[MAX_DBKEY_LENGTH];
-  uint key_length;
   TABLE orig_table;
   DBUG_ENTER("reopen_name_locked_table");
 
@@ -1762,7 +1744,6 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
     DBUG_RETURN(TRUE);
 
   orig_table= *table;
-  key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
 
   if (open_unireg_entry(thd, table, table_list, table_name,
                         table->s->table_cache_key.str,

@@ -199,6 +199,7 @@ public:
     *no_parts= m_tot_parts;
     DBUG_RETURN(0);
   }
+  virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);
 private:
   int prepare_for_delete();
   int copy_partitions(ulonglong *copied, ulonglong *deleted);

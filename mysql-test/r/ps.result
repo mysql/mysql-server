@@ -1277,3 +1277,885 @@ ERROR 3D000: No database selected
 create temporary table t1 (i int);
 ERROR 3D000: No database selected
 use test;
+create procedure proc_1() reset query cache;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin reset query cache; return 1; end|
+select func_1(), func_1(), func_1() from dual;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop function func_1;
+prepare abc from "reset query cache";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1() reset master;
+drop procedure proc_1;
+create function func_1() returns int begin reset master; return 1; end|
+select func_1(), func_1(), func_1() from dual;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop function func_1;
+prepare abc from "reset master";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1() reset slave;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin reset slave; return 1; end|
+select func_1(), func_1(), func_1() from dual;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop function func_1;
+prepare abc from "reset slave";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1(a integer) kill a;
+call proc_1(0);
+ERROR HY000: Unknown thread id: 0
+call proc_1(0);
+ERROR HY000: Unknown thread id: 0
+call proc_1(0);
+ERROR HY000: Unknown thread id: 0
+drop procedure proc_1;
+create function func_1() returns int begin kill 0; return 1; end|
+select func_1() from dual;
+ERROR HY000: Unknown thread id: 0
+select func_1() from dual;
+ERROR HY000: Unknown thread id: 0
+select func_1() from dual;
+ERROR HY000: Unknown thread id: 0
+drop function func_1;
+prepare abc from "kill 0";
+execute abc;
+ERROR HY000: Unknown thread id: 0
+execute abc;
+ERROR HY000: Unknown thread id: 0
+execute abc;
+ERROR HY000: Unknown thread id: 0
+deallocate prepare abc;
+create procedure proc_1() flush hosts;
+call proc_1();
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin flush hosts; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "flush hosts";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1() flush privileges;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin flush privileges; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "flush privileges";
+deallocate prepare abc;
+create procedure proc_1() flush tables with read lock;
+call proc_1();
+unlock tables;
+call proc_1();
+unlock tables;
+call proc_1();
+unlock tables;
+drop procedure proc_1;
+create function func_1() returns int begin flush tables with read lock; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+prepare abc from "flush tables with read lock";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+unlock tables;
+create procedure proc_1() flush tables;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin flush tables; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "flush tables";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1() flush tables;
+flush tables;
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	general_log	1	0
+select Host, User from mysql.user limit 0;
+Host	User
+select Host, Db from mysql.host limit 0;
+Host	Db
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+mysql	general_log	1	0
+mysql	host	0	0
+call proc_1();
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	general_log	1	0
+select Host, User from mysql.user limit 0;
+Host	User
+select Host, Db from mysql.host limit 0;
+Host	Db
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+mysql	general_log	1	0
+mysql	host	0	0
+call proc_1();
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	general_log	1	0
+select Host, User from mysql.user limit 0;
+Host	User
+select Host, Db from mysql.host limit 0;
+Host	Db
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+mysql	general_log	1	0
+mysql	host	0	0
+call proc_1();
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	general_log	1	0
+select Host, User from mysql.user limit 0;
+Host	User
+select Host, Db from mysql.host limit 0;
+Host	Db
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+mysql	general_log	1	0
+mysql	host	0	0
+flush tables;
+drop procedure proc_1;
+create function func_1() returns int begin flush tables; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+flush tables;
+select Host, User from mysql.user limit 0;
+Host	User
+select Host, Db from mysql.host limit 0;
+Host	Db
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+mysql	general_log	1	0
+mysql	host	0	0
+prepare abc from "flush tables";
+execute abc;
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	general_log	1	0
+select Host, User from mysql.user limit 0;
+Host	User
+select Host, Db from mysql.host limit 0;
+Host	Db
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+mysql	general_log	1	0
+mysql	host	0	0
+execute abc;
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	general_log	1	0
+select Host, User from mysql.user limit 0;
+Host	User
+select Host, Db from mysql.host limit 0;
+Host	Db
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+mysql	general_log	1	0
+mysql	host	0	0
+execute abc;
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	general_log	1	0
+select Host, User from mysql.user limit 0;
+Host	User
+select Host, Db from mysql.host limit 0;
+Host	Db
+show open tables from mysql;
+Database	Table	In_use	Name_locked
+mysql	user	0	0
+mysql	general_log	1	0
+mysql	host	0	0
+flush tables;
+deallocate prepare abc;
+create procedure proc_1() flush logs;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin flush logs; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "flush logs";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1() flush status;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin flush status; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "flush status";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1() flush slave;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin flush slave; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "flush slave";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1() flush master;
+drop procedure proc_1;
+create function func_1() returns int begin flush master; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "flush master";
+deallocate prepare abc;
+create procedure proc_1() flush des_key_file;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin flush des_key_file; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "flush des_key_file";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1() flush user_resources;
+call proc_1();
+call proc_1();
+call proc_1();
+drop procedure proc_1;
+create function func_1() returns int begin flush user_resources; return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "flush user_resources";
+execute abc;
+execute abc;
+execute abc;
+deallocate prepare abc;
+create procedure proc_1() start slave;
+drop procedure proc_1;
+create function func_1() returns int begin start slave; return 1; end|
+drop function func_1;
+prepare abc from "start slave";
+deallocate prepare abc;
+create procedure proc_1() stop slave;
+drop procedure proc_1;
+create function func_1() returns int begin stop slave; return 1; end|
+drop function func_1;
+prepare abc from "stop slave";
+deallocate prepare abc;
+create procedure proc_1() show binlog events;
+drop procedure proc_1;
+create function func_1() returns int begin show binlog events; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show binlog events";
+deallocate prepare abc;
+create procedure proc_1() show slave status;
+drop procedure proc_1;
+create function func_1() returns int begin show slave status; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show slave status";
+deallocate prepare abc;
+create procedure proc_1() show master status;
+drop procedure proc_1;
+create function func_1() returns int begin show master status; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show master status";
+deallocate prepare abc;
+create procedure proc_1() show master logs;
+drop procedure proc_1;
+create function func_1() returns int begin show master logs; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show master logs";
+deallocate prepare abc;
+create procedure proc_1() show events;
+call proc_1();
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+call proc_1();
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+call proc_1();
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+drop procedure proc_1;
+create function func_1() returns int begin show events; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show events";
+execute abc;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+execute abc;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+execute abc;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
+deallocate prepare abc;
+create procedure proc_1() show scheduler status;
+drop procedure proc_1;
+create function func_1() returns int begin show scheduler status; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show scheduler status";
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+deallocate prepare abc;
+ERROR HY000: Unknown prepared statement handler (abc) given to DEALLOCATE PREPARE
+drop procedure if exists a;
+create procedure a() select 42;
+create procedure proc_1(a char(2)) show create procedure a;
+call proc_1("bb");
+Procedure	sql_mode	Create Procedure
+a		CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+select 42
+call proc_1("bb");
+Procedure	sql_mode	Create Procedure
+a		CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+select 42
+call proc_1("bb");
+Procedure	sql_mode	Create Procedure
+a		CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+select 42
+drop procedure proc_1;
+create function func_1() returns int begin show create procedure a; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show create procedure a";
+execute abc;
+Procedure	sql_mode	Create Procedure
+a		CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+select 42
+execute abc;
+Procedure	sql_mode	Create Procedure
+a		CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+select 42
+execute abc;
+Procedure	sql_mode	Create Procedure
+a		CREATE DEFINER=`root`@`localhost` PROCEDURE `a`()
+select 42
+deallocate prepare abc;
+drop procedure a;
+drop function if exists a;
+create function a() returns int return 42+13;
+create procedure proc_1(a char(2)) show create function a;
+call proc_1("bb");
+Function	sql_mode	Create Function
+a		CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+return 42+13
+call proc_1("bb");
+Function	sql_mode	Create Function
+a		CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+return 42+13
+call proc_1("bb");
+Function	sql_mode	Create Function
+a		CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+return 42+13
+drop procedure proc_1;
+create function func_1() returns int begin show create function a; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show create function a";
+execute abc;
+Function	sql_mode	Create Function
+a		CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+return 42+13
+execute abc;
+Function	sql_mode	Create Function
+a		CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+return 42+13
+execute abc;
+Function	sql_mode	Create Function
+a		CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+return 42+13
+deallocate prepare abc;
+drop function a;
+drop table if exists tab1;
+create table tab1(a int, b char(1), primary key(a,b));
+create procedure proc_1() show create table tab1;
+call proc_1();
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` char(1) NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+call proc_1();
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` char(1) NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+call proc_1();
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` char(1) NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop procedure proc_1;
+create function func_1() returns int begin show create table tab1; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show create table tab1";
+execute abc;
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` char(1) NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+execute abc;
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` char(1) NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+execute abc;
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` char(1) NOT NULL DEFAULT '',
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+deallocate prepare abc;
+drop table tab1;
+drop view if exists v1;
+drop table if exists t1;
+create table t1(a int, b char(5));
+insert into t1 values (1, "one"), (1, "edno"), (2, "two"), (2, "dve");
+create view v1 as
+(select a, count(*) from t1 group by a)
+union all
+(select b, count(*) from t1 group by b);
+create procedure proc_1() show create view v1;
+call proc_1();
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)
+call proc_1();
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)
+call proc_1();
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)
+drop procedure proc_1;
+create function func_1() returns int begin show create view v1; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "show create view v1";
+execute abc;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)
+execute abc;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)
+execute abc;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)
+deallocate prepare abc;
+drop view v1;
+drop table t1;
+create procedure proc_1() install plugin my_plug soname '/root/some_plugin.so';
+call proc_1();
+ERROR HY000: No paths allowed for shared library
+call proc_1();
+ERROR HY000: No paths allowed for shared library
+call proc_1();
+ERROR HY000: No paths allowed for shared library
+drop procedure proc_1;
+create procedure proc_1() install plugin my_plug soname 'some_plugin.so';
+call proc_1();
+ERROR HY000: Can't open shared library '/work/mysql-5.1-runtime/mysql-test/lib/mysql/some_plugin.so' (errno: 0 cannot open shared object file: No such file or directory)
+call proc_1();
+ERROR HY000: Can't open shared library '/work/mysql-5.1-runtime/mysql-test/lib/mysql/some_plugin.so' (errno: 22 cannot open shared object file: No such file or directory)
+call proc_1();
+ERROR HY000: Can't open shared library '/work/mysql-5.1-runtime/mysql-test/lib/mysql/some_plugin.so' (errno: 22 cannot open shared object file: No such file or directory)
+drop procedure proc_1;
+create function func_1() returns int begin install plugin my_plug soname '/tmp/plugin'; return 1; end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "install plugin my_plug soname '/root/some_plugin.so'";
+execute abc;
+ERROR HY000: No paths allowed for shared library
+execute abc;
+ERROR HY000: No paths allowed for shared library
+deallocate prepare abc;
+prepare abc from "install plugin my_plug soname 'some_plugin.so'";
+deallocate prepare abc;
+create procedure proc_1() uninstall plugin my_plug;
+call proc_1();
+ERROR 42000: PLUGIN my_plug does not exist
+call proc_1();
+ERROR 42000: PLUGIN my_plug does not exist
+call proc_1();
+ERROR 42000: PLUGIN my_plug does not exist
+drop procedure proc_1;
+create function func_1() returns int begin uninstall plugin my_plug; return 1; end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "uninstall plugin my_plug";
+execute abc;
+ERROR 42000: PLUGIN my_plug does not exist
+execute abc;
+ERROR 42000: PLUGIN my_plug does not exist
+execute abc;
+ERROR 42000: PLUGIN my_plug does not exist
+deallocate prepare abc;
+drop database if exists mysqltest_xyz;
+create procedure proc_1() create database mysqltest_xyz;
+call proc_1();
+drop database if exists mysqltest_xyz;
+call proc_1();
+call proc_1();
+ERROR HY000: Can't create database 'mysqltest_xyz'; database exists
+drop database if exists mysqltest_xyz;
+call proc_1();
+drop database if exists mysqltest_xyz;
+drop procedure proc_1;
+create function func_1() returns int begin create database mysqltest_xyz; return 1; end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "create database mysqltest_xyz";
+execute abc;
+drop database if exists mysqltest_xyz;
+execute abc;
+execute abc;
+ERROR HY000: Can't create database 'mysqltest_xyz'; database exists
+drop database if exists mysqltest_xyz;
+execute abc;
+drop database if exists mysqltest_xyz;
+deallocate prepare abc;
+drop table if exists t1;
+create table t1 (a int, b char(5));
+insert into t1 values (1, "one"), (2, "two"), (3, "three");
+create procedure proc_1() checksum table xyz;
+call proc_1();
+Table	Checksum
+test.xyz	NULL
+Warnings:
+Error	1146	Table 'test.xyz' doesn't exist
+call proc_1();
+Table	Checksum
+test.xyz	NULL
+Warnings:
+Error	1146	Table 'test.xyz' doesn't exist
+call proc_1();
+Table	Checksum
+test.xyz	NULL
+Warnings:
+Error	1146	Table 'test.xyz' doesn't exist
+drop procedure proc_1;
+create function func_1() returns int begin checksum table t1; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "checksum table t1";
+execute abc;
+Table	Checksum
+test.t1	645809265
+execute abc;
+Table	Checksum
+test.t1	645809265
+execute abc;
+Table	Checksum
+test.t1	645809265
+deallocate prepare abc;
+create procedure proc_1() create user pstest_xyz@localhost;
+call proc_1();
+drop user pstest_xyz@localhost;
+call proc_1();
+call proc_1();
+ERROR HY000: Operation CREATE USER failed for 'pstest_xyz'@'localhost'
+drop user pstest_xyz@localhost;
+call proc_1();
+drop user pstest_xyz@localhost;
+drop procedure proc_1;
+create function func_1() returns int begin create user pstest_xyz@localhost; return 1; end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "create user pstest_xyz@localhost";
+execute abc;
+drop user pstest_xyz@localhost;
+execute abc;
+execute abc;
+ERROR HY000: Operation CREATE USER failed for 'pstest_xyz'@'localhost'
+drop user pstest_xyz@localhost;
+execute abc;
+drop user pstest_xyz@localhost;
+deallocate prepare abc;
+drop event if exists xyz;
+create function func_1() returns int begin create event xyz on schedule at now() do select 123; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+select func_1(), func_1(), func_1() from dual;
+ERROR 42000: FUNCTION test.func_1 does not exist
+drop function func_1;
+ERROR 42000: FUNCTION test.func_1 does not exist
+prepare abc from "create event xyz on schedule at now() do select 123";
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+deallocate prepare abc;
+ERROR HY000: Unknown prepared statement handler (abc) given to DEALLOCATE PREPARE
+drop event if exists xyz;
+create event xyz on schedule every 5 minute disable do select 123;
+create procedure proc_1() alter event xyz comment 'xyz';
+call proc_1();
+drop event xyz;
+create event xyz on schedule every 5 minute disable do select 123;
+call proc_1();
+drop event xyz;
+create event xyz on schedule every 5 minute disable do select 123;
+call proc_1();
+drop event xyz;
+drop procedure proc_1;
+create function func_1() returns int begin alter event xyz comment 'xyz'; return 1; end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+prepare abc from "alter event xyz comment 'xyz'";
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+deallocate prepare abc;
+ERROR HY000: Unknown prepared statement handler (abc) given to DEALLOCATE PREPARE
+drop event if exists xyz;
+create event xyz on schedule every 5 minute disable do select 123;
+create procedure proc_1() drop event xyz;
+call proc_1();
+create event xyz on schedule every 5 minute disable do select 123;
+call proc_1();
+call proc_1();
+ERROR HY000: Unknown event 'xyz'
+drop procedure proc_1;
+create function func_1() returns int begin drop event xyz; return 1; end|
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+prepare abc from "drop event xyz";
+ERROR HY000: This command is not supported in the prepared statement protocol yet
+deallocate prepare abc;
+ERROR HY000: Unknown prepared statement handler (abc) given to DEALLOCATE PREPARE
+drop table if exists t1;
+create table t1 (a int, b char(5)) engine=myisam;
+insert into t1 values (1, "one"), (2, "two"), (3, "three");
+SET GLOBAL new_cache.key_buffer_size=128*1024;
+create procedure proc_1() cache index t1 in new_cache;
+call proc_1();
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+call proc_1();
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+call proc_1();
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+drop procedure proc_1;
+SET GLOBAL second_cache.key_buffer_size=128*1024;
+prepare abc from "cache index t1 in second_cache";
+execute abc;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+execute abc;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+execute abc;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+deallocate prepare abc;
+drop table t1;
+drop table if exists t1;
+drop table if exists t2;
+create table t1 (a int, b char(5)) engine=myisam;
+insert into t1 values (1, "one"), (2, "two"), (3, "three");
+create table t2 (a int, b char(5)) engine=myisam;
+insert into t2 values (1, "one"), (2, "two"), (3, "three");
+create procedure proc_1() load index into cache t1 ignore leaves;
+call proc_1();
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+call proc_1();
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+call proc_1();
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+drop procedure proc_1;
+create function func_1() returns int begin load index into cache t1 ignore leaves; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+prepare abc from "load index into cache t2 ignore leaves";
+execute abc;
+Table	Op	Msg_type	Msg_text
+test.t2	preload_keys	status	OK
+execute abc;
+Table	Op	Msg_type	Msg_text
+test.t2	preload_keys	status	OK
+execute abc;
+Table	Op	Msg_type	Msg_text
+test.t2	preload_keys	status	OK
+deallocate prepare abc;
+drop table t1, t2;
+create procedure proc_1() show errors;
+call proc_1();
+Level	Code	Message
+call proc_1();
+Level	Code	Message
+call proc_1();
+Level	Code	Message
+drop procedure proc_1;
+create function func_1() returns int begin show errors; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+prepare abc from "show errors";
+deallocate prepare abc;
+drop table if exists t1;
+drop table if exists t2;
+create procedure proc_1() show warnings;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+call proc_1();
+Level	Code	Message
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+call proc_1();
+Level	Code	Message
+drop table if exists t1, t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+call proc_1();
+Level	Code	Message
+drop procedure proc_1;
+create function func_1() returns int begin show warnings; return 1; end|
+ERROR 0A000: Not allowed to return a result set from a function
+prepare abc from "show warnings";
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+execute abc;
+Level	Code	Message
+Note	1051	Unknown table 't1'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 't2'
+execute abc;
+Level	Code	Message
+Note	1051	Unknown table 't2'
+drop table if exists t1, t2;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+execute abc;
+Level	Code	Message
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+deallocate prepare abc;
