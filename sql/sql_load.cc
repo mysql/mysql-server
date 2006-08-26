@@ -157,6 +157,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                                     &thd->lex->select_lex.top_join_list,
                                     table_list, &unused_conds,
                                     &thd->lex->select_lex.leaf_tables, FALSE,
+                                    INSERT_ACL | UPDATE_ACL,
                                     INSERT_ACL | UPDATE_ACL))
      DBUG_RETURN(-1);
   if (!table_list->table ||               // do not suport join view

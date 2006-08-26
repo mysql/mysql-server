@@ -125,31 +125,39 @@ static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
   uchar null_byte;
   Field *field= NULL;
 
-  /* Search for date/time fields/functions */
-  for (i= 0; i < nitems; i++)
+  /*
+    Do not convert items while creating a or showing a view in order
+    to store/display the original query in these cases.
+  */
+  if (thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
+      thd->lex->sql_command != SQLCOM_SHOW_CREATE)
   {
-    if (!items[i]->result_as_longlong())
+    /* Search for date/time fields/functions */
+    for (i= 0; i < nitems; i++)
     {
-      /* Do not convert anything if a string field/function is present */
-      if (!items[i]->const_item() && items[i]->result_type() == STRING_RESULT)
+      if (!items[i]->result_as_longlong())
       {
-        i= nitems;
+        /* Do not convert anything if a string field/function is present */
+        if (!items[i]->const_item() && items[i]->result_type() == STRING_RESULT)
+        {
+          i= nitems;
+          break;
+        }
+        continue;
+      }
+      if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM &&
+          items[i]->result_type() != INT_RESULT)
+      {
+        field= ((Item_field *)items[i]->real_item())->field;
         break;
       }
-      continue;
-    }
-    if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM &&
-        items[i]->result_type() != INT_RESULT)
-    {
-      field= ((Item_field *)items[i]->real_item())->field;
-      break;
-    }
-    else if (res == Item::FUNC_ITEM)
-    {
-      field= items[i]->tmp_table_field_from_field_type(0);
-      if (field)
-        field->move_field(buff, &null_byte, 0);
-      break;
+      else if (res == Item::FUNC_ITEM)
+      {
+        field= items[i]->tmp_table_field_from_field_type(0);
+        if (field)
+          field->move_field(buff, &null_byte, 0);
+        break;
+      }
     }
   }
   if (field)
@@ -397,7 +405,8 @@ void Item_bool_func2::fix_length_and_dec()
       agg_arg_charsets(coll, args, 2, MY_COLL_CMP_CONV, 1))
     return;
     
- 
+  args[0]->cmp_context= args[1]->cmp_context=
+    item_cmp_type(args[0]->result_type(), args[1]->result_type());
   // Make a special case of compare with fields to get nicer DATE comparisons
 
   if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
@@ -418,6 +427,7 @@ void Item_bool_func2::fix_length_and_dec()
         {
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT);		// Works for all types.
+          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
           return;
         }
       }
@@ -432,6 +442,7 @@ void Item_bool_func2::fix_length_and_dec()
         {
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT); // Works for all types.
+          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
           return;
         }
       }
@@ -1209,6 +1220,7 @@ void Item_func_between::fix_length_and_dec()
   if (!args[0] || !args[1] || !args[2])
     return;
   agg_cmp_type(thd, &cmp_type, args, 3);
+  args[0]->cmp_context= args[1]->cmp_context= args[2]->cmp_context= cmp_type;
 
   if (cmp_type == STRING_RESULT)
       agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV, 1);
