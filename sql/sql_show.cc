@@ -2171,7 +2171,7 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 
 
 /* INFORMATION_SCHEMA name */
-LEX_STRING information_schema_name= {(char*)"information_schema", 18};
+LEX_STRING information_schema_name= { C_STRING_WITH_LEN("information_schema")};
 
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
@@ -3070,9 +3070,7 @@ static int get_schema_column_record(THD *thd, struct st_table_list *tables,
       table->field[5]->store("",0, cs);
       table->field[5]->set_notnull();
     }
-    pos=(byte*) ((flags & NOT_NULL_FLAG) &&
-                 field->type() != FIELD_TYPE_TIMESTAMP ?
-                 "NO" : "YES");
+    pos=(byte*) ((flags & NOT_NULL_FLAG) ?  "NO" : "YES");
     table->field[6]->store((const char*) pos,
                            strlen((const char*) pos), cs);
     is_blob= (field->type() == FIELD_TYPE_BLOB);
@@ -3214,10 +3212,10 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
     if (!(wild && wild[0] &&
           wild_case_compare(scs, plugin->name.str,wild)))
     {
-      LEX_STRING state[2]= {{(char*) STRING_WITH_LEN("ENABLED")},
-                            {(char*) STRING_WITH_LEN("DISABLED")}};
-      LEX_STRING yesno[2]= {{(char*) STRING_WITH_LEN("NO")},
-                            {(char*) STRING_WITH_LEN("YES")}};
+      LEX_STRING state[2]= {{ C_STRING_WITH_LEN("ENABLED") },
+                            { C_STRING_WITH_LEN("DISABLED") }};
+      LEX_STRING yesno[2]= {{ C_STRING_WITH_LEN("NO") },
+                            { C_STRING_WITH_LEN("YES") }};
       LEX_STRING *tmp;
       restore_record(table, s->default_values);
 
@@ -3549,31 +3547,18 @@ static int get_schema_views_record(THD *thd, struct st_table_list *tables,
   if (tables->view)
   {
     Security_context *sctx= thd->security_ctx;
-    ulong grant= SHOW_VIEW_ACL;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    char *save_table_name= tables->table_name;
-    if (!my_strcasecmp(system_charset_info, tables->definer.user.str,
-                       sctx->priv_user) &&
-        !my_strcasecmp(system_charset_info, tables->definer.host.str,
-                       sctx->priv_host))
-      grant= SHOW_VIEW_ACL;
-    else
+    if (!tables->allowed_show)
     {
-      tables->table_name= tables->view_name.str;
-      if (check_access(thd, SHOW_VIEW_ACL , base_name,
-                       &tables->grant.privilege, 0, 1,
-                       test(tables->schema_table)))
-        grant= get_table_grant(thd, tables);
-      else
-        grant= tables->grant.privilege;
+      if (!my_strcasecmp(system_charset_info, tables->definer.user.str,
+                         sctx->priv_user) &&
+          !my_strcasecmp(system_charset_info, tables->definer.host.str,
+                         sctx->priv_host))
+        tables->allowed_show= TRUE;
     }
-    tables->table_name= save_table_name;
-#endif
-
     restore_record(table, s->default_values);
     table->field[1]->store(tables->view_db.str, tables->view_db.length, cs);
     table->field[2]->store(tables->view_name.str, tables->view_name.length, cs);
-    if (grant & SHOW_VIEW_ACL)
+    if (tables->allowed_show)
     {
       char buff[2048];
       String qwe_str(buff, sizeof(buff), cs);
