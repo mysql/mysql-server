@@ -61,8 +61,12 @@ void check_thread_lib(void)
 {
   char buf[5];
 
+#ifdef _CS_GNU_LIBPTHREAD_VERSION
   confstr(_CS_GNU_LIBPTHREAD_VERSION, buf, sizeof(buf));
   is_nptl = !strncasecmp(buf, "NPTL", sizeof(buf));
+#else
+  is_nptl = 0;
+#endif
 }
 
 #if defined(__alpha__) && defined(__GNUC__)
