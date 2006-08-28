@@ -9145,10 +9145,9 @@ create_field::create_field(Field *old_field,Field *orig_field)
        old_field->table->timestamp_field != old_field ||  /* timestamp field */ 
        unireg_check == Field::TIMESTAMP_UN_FIELD))        /* has default val */
   {
-    char buff[MAX_FIELD_WIDTH],*pos;
-    String tmp(buff,sizeof(buff), charset), *res;
+    char buff[MAX_FIELD_WIDTH];
+    String tmp(buff,sizeof(buff), charset);
     my_ptrdiff_t diff;
-    bool is_null;
 
     /* Get the value from default_values */
     diff= (my_ptrdiff_t) (orig_field->table->s->default_values-

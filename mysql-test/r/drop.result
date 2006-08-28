@@ -74,3 +74,16 @@ show tables;
 Tables_in_test
 t1
 drop table t1;
+drop database if exists mysqltest;
+drop table if exists t1;
+create table t1 (i int);
+lock tables t1 read;
+create database mysqltest;
+ drop table t1;
+show open tables;
+ drop database mysqltest;
+select 1;
+1
+1
+unlock tables;
+End of 5.0 tests
