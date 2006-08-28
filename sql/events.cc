@@ -304,7 +304,6 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
       thd            [in]  THD
       parse_data     [in]  Event's data from parsing stage
       if_not_exists  [in]  Whether IF NOT EXISTS was specified in the DDL
-      rows_affected  [out] How many rows were affected
 
   RETURN VALUE
     FALSE  OK
@@ -316,8 +315,7 @@ Events::open_event_table(THD *thd, enum thr_lock_type lock_type,
 */
 
 bool
-Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
-                     uint *rows_affected)
+Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists)
 {
   int ret;
   DBUG_ENTER("Events::create_event");
@@ -329,8 +327,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
 
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
-  if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists,
-                                         rows_affected)))
+  if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists)))
   {
     if ((ret= event_queue->create_event(thd, parse_data->dbname,
                                         parse_data->name)))
@@ -353,7 +350,6 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
       thd           [in]  THD
       parse_data    [in]  Event's data from parsing stage
       rename_to     [in]  Set in case of RENAME TO.
-      rows_affected [out] How many rows were affected.
 
   RETURN VALUE
     FALSE  OK
@@ -366,8 +362,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data, bool if_not_exists,
 */
 
 bool
-Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to,
-                     uint *rows_affected)
+Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to)
 {
   int ret;
   DBUG_ENTER("Events::update_event");
@@ -406,7 +401,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to,
       name            [in]  Event's name
       if_exists       [in]  When set and the event does not exist =>
                             warning onto the stack
-      rows_affected   [out] Affected number of rows is returned here
       only_from_disk  [in]  Whether to remove the event from the queue too.
                             In case of Event_job_data::drop() it's needed to
                             do only disk drop because Event_queue will handle
@@ -419,7 +413,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to,
 
 bool
 Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
-                   uint *rows_affected, bool only_from_disk)
+                   bool only_from_disk)
 {
   int ret;
   DBUG_ENTER("Events::drop_event");
@@ -431,8 +425,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
 
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
-  if (!(ret= db_repository->drop_event(thd, dbname, name, if_exists,
-                                       rows_affected)))
+  if (!(ret= db_repository->drop_event(thd, dbname, name, if_exists)))
   {
     if (!only_from_disk)
       event_queue->drop_event(thd, dbname, name);

@@ -56,16 +56,14 @@ public:
   Event_db_repository(){}
 
   bool
-  create_event(THD *thd, Event_parse_data *parse_data, my_bool create_if_not,
-               uint *rows_affected);
+  create_event(THD *thd, Event_parse_data *parse_data, my_bool create_if_not);
 
   bool
   update_event(THD *thd, Event_parse_data *parse_data, LEX_STRING *new_dbname,
                LEX_STRING *new_name);
 
   bool 
-  drop_event(THD *thd, LEX_STRING db, LEX_STRING name, bool drop_if_exists,
-             uint *rows_affected);
+  drop_event(THD *thd, LEX_STRING db, LEX_STRING name, bool drop_if_exists);
 
   void
   drop_schema_events(THD *thd, LEX_STRING schema);

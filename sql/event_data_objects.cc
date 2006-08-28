@@ -1437,11 +1437,10 @@ Event_queue_element::mark_last_executed(THD *thd)
 int
 Event_queue_element::drop(THD *thd)
 {
-  uint tmp= 0;
   DBUG_ENTER("Event_queue_element::drop");
 
   DBUG_RETURN(Events::get_instance()->
-                    drop_event(thd, dbname, name, FALSE, &tmp, TRUE));
+                    drop_event(thd, dbname, name, FALSE, TRUE));
 }
 
 

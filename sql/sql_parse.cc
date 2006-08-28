@@ -3897,24 +3897,23 @@ end_with_restore_list:
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
   {
-    uint affected= 1;
     DBUG_ASSERT(lex->event_parse_data);
     switch (lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
       res= Events::get_instance()->
             create_event(thd, lex->event_parse_data,
-                         lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS,
-                         &affected);
+                         lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS);
       break;
     case SQLCOM_ALTER_EVENT:
-      res= Events::get_instance()->
-             update_event(thd, lex->event_parse_data, lex->spname, &affected);
+      res= Events::get_instance()->update_event(thd, lex->event_parse_data,
+                                                lex->spname);
       break;
-    default:;
+    default:
+      DBUG_ASSERT(0);
     }
-    DBUG_PRINT("info",("DDL error code=%d affected=%d", res, affected));
+    DBUG_PRINT("info",("DDL error code=%d", res));
     if (!res)
-      send_ok(thd, affected);
+      send_ok(thd);
 
     /* Don't do it, if we are inside a SP */
     if (!thd->spcont)
@@ -3956,9 +3955,8 @@ end_with_restore_list:
                                                     lex->spname->m_db,
                                                     lex->spname->m_name,
                                                     lex->drop_if_exists,
-                                                    &affected,
                                                     FALSE)))
-        send_ok(thd, affected);     
+        send_ok(thd);
     }
     break;
   }
