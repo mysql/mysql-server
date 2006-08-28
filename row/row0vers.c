@@ -79,7 +79,7 @@ row_vers_impl_x_locked_off_kernel(
 	reserve purge_latch to lock the bottom of the version stack. */
 
 	clust_rec = row_get_clust_rec(BTR_SEARCH_LEAF, rec, index,
-							&clust_index, &mtr);
+				      &clust_index, &mtr);
 	if (!clust_rec) {
 		/* In a rare case it is possible that no clust rec is found
 		for a secondary index record: if in row0umod.c
@@ -116,7 +116,7 @@ row_vers_impl_x_locked_off_kernel(
 	}
 
 	if (!lock_check_trx_id_sanity(trx_id, clust_rec, clust_index,
-					clust_offsets, TRUE)) {
+				      clust_offsets, TRUE)) {
 		/* Corruption noticed: try to avoid a crash by returning */
 		goto exit_func;
 	}
@@ -153,14 +153,14 @@ row_vers_impl_x_locked_off_kernel(
 		heap2 = heap;
 		heap = mem_heap_create(1024);
 		err = trx_undo_prev_version_build(clust_rec, &mtr, version,
-					clust_index, clust_offsets, heap,
-					&prev_version);
+						  clust_index, clust_offsets,
+						  heap, &prev_version);
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (prev_version) {
-			clust_offsets = rec_get_offsets(prev_version,
-					clust_index, NULL,
-					ULINT_UNDEFINED, &heap);
+			clust_offsets = rec_get_offsets
+				(prev_version, clust_index, NULL,
+				 ULINT_UNDEFINED, &heap);
 			row = row_build(ROW_COPY_POINTERS, clust_index,
 					prev_version, clust_offsets, heap);
 			entry = row_build_index_entry(row, index, heap);
@@ -232,7 +232,7 @@ row_vers_impl_x_locked_off_kernel(
 		}
 
 		prev_trx_id = row_get_rec_trx_id(prev_version, clust_index,
-								clust_offsets);
+						 clust_offsets);
 
 		if (0 != ut_dulint_cmp(trx_id, prev_trx_id)) {
 			/* The versions modified by the trx_id transaction end
@@ -313,8 +313,8 @@ row_vers_old_has_index_entry(
 	ulint		comp;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
-		|| mtr_memo_contains(mtr, buf_block_align(rec),
-						MTR_MEMO_PAGE_S_FIX));
+	      || mtr_memo_contains(mtr, buf_block_align(rec),
+				   MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -330,7 +330,7 @@ row_vers_old_has_index_entry(
 
 	if (also_curr && !rec_get_deleted_flag(rec, comp)) {
 		row = row_build(ROW_COPY_POINTERS, clust_index,
-						rec, clust_offsets, heap);
+				rec, clust_offsets, heap);
 		entry = row_build_index_entry(row, index, heap);
 
 		/* NOTE that we cannot do the comparison as binary
@@ -353,8 +353,8 @@ row_vers_old_has_index_entry(
 		heap2 = heap;
 		heap = mem_heap_create(1024);
 		err = trx_undo_prev_version_build(rec, mtr, version,
-					clust_index, clust_offsets, heap,
-					&prev_version);
+						  clust_index, clust_offsets,
+						  heap, &prev_version);
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (err != DB_SUCCESS || !prev_version) {
@@ -428,8 +428,8 @@ row_vers_build_for_consistent_read(
 
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
-		|| mtr_memo_contains(mtr, buf_block_align(rec),
-						MTR_MEMO_PAGE_S_FIX));
+	      || mtr_memo_contains(mtr, buf_block_align(rec),
+				   MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -455,23 +455,24 @@ row_vers_build_for_consistent_read(
 		the record we see this record only in the case when
 		undo_no of the record is < undo_no in the view. */
 
-		if (view->type == VIEW_HIGH_GRANULARITY 
-		&& ut_dulint_cmp(view->creator_trx_id, trx_id) == 0) {
+		if (view->type == VIEW_HIGH_GRANULARITY
+		    && ut_dulint_cmp(view->creator_trx_id, trx_id) == 0) {
 
-			roll_ptr = row_get_rec_roll_ptr(version, index, 
-								*offsets);
+			roll_ptr = row_get_rec_roll_ptr(version, index,
+							*offsets);
 			undo_rec = trx_undo_get_undo_rec_low(roll_ptr, heap);
 			undo_no = trx_undo_rec_get_undo_no(undo_rec);
 			mem_heap_empty(heap);
 
 			if (ut_dulint_cmp(view->undo_no, undo_no) > 0) {
-				/* The view already sees this version: we can 
+				/* The view already sees this version: we can
 				copy it to in_heap and return */
 
-				buf = mem_heap_alloc(in_heap, 
-						rec_offs_size(*offsets));
+				buf = mem_heap_alloc(in_heap,
+						     rec_offs_size(*offsets));
 				*old_vers = rec_copy(buf, version, *offsets);
-				rec_offs_make_valid(*old_vers, index, *offsets);
+				rec_offs_make_valid(*old_vers, index,
+						    *offsets);
 				err = DB_SUCCESS;
 
 				break;
@@ -479,7 +480,8 @@ row_vers_build_for_consistent_read(
 		}
 
 		err = trx_undo_prev_version_build(rec, mtr, version, index,
-						*offsets, heap, &prev_version);
+						  *offsets, heap,
+						  &prev_version);
 		if (heap2) {
 			mem_heap_free(heap2); /* free version */
 		}
@@ -497,7 +499,7 @@ row_vers_build_for_consistent_read(
 		}
 
 		*offsets = rec_get_offsets(prev_version, index, *offsets,
-					ULINT_UNDEFINED, offset_heap);
+					   ULINT_UNDEFINED, offset_heap);
 
 		trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
 
@@ -557,8 +559,8 @@ row_vers_build_for_semi_consistent_read(
 
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
-		|| mtr_memo_contains(mtr, buf_block_align(rec),
-						MTR_MEMO_PAGE_S_FIX));
+	      || mtr_memo_contains(mtr, buf_block_align(rec),
+				   MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -579,8 +581,7 @@ row_vers_build_for_semi_consistent_read(
 		rec_t*		prev_version;
 		dulint		version_trx_id;
 
-		version_trx_id = row_get_rec_trx_id(
-					version, index, *offsets);
+		version_trx_id = row_get_rec_trx_id(version, index, *offsets);
 		if (rec == version) {
 			rec_trx_id = version_trx_id;
 		}
@@ -590,8 +591,8 @@ row_vers_build_for_semi_consistent_read(
 		mutex_exit(&kernel_mutex);
 
 		if (!version_trx
-			|| version_trx->conc_state == TRX_NOT_STARTED
-			|| version_trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
+		    || version_trx->conc_state == TRX_NOT_STARTED
+		    || version_trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
 
 			/* We found a version that belongs to a
 			committed transaction: return it. */
@@ -615,8 +616,9 @@ row_vers_build_for_semi_consistent_read(
 
 				version = rec;
 				*offsets = rec_get_offsets(version,
-					index, *offsets,
-					ULINT_UNDEFINED, offset_heap);
+							   index, *offsets,
+							   ULINT_UNDEFINED,
+							   offset_heap);
 			}
 
 			buf = mem_heap_alloc(in_heap, rec_offs_size(*offsets));
@@ -631,7 +633,8 @@ row_vers_build_for_semi_consistent_read(
 		heap = mem_heap_create(1024);
 
 		err = trx_undo_prev_version_build(rec, mtr, version, index,
-						*offsets, heap, &prev_version);
+						  *offsets, heap,
+						  &prev_version);
 		if (heap2) {
 			mem_heap_free(heap2); /* free version */
 		}
@@ -650,7 +653,7 @@ row_vers_build_for_semi_consistent_read(
 
 		version = prev_version;
 		*offsets = rec_get_offsets(version, index, *offsets,
-					ULINT_UNDEFINED, offset_heap);
+					   ULINT_UNDEFINED, offset_heap);
 	}/* for (;;) */
 
 	if (heap) {
