@@ -21,9 +21,6 @@
 */
 
 #include "mysql_priv.h"
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-#include "ha_innodb.h"
-#endif
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sql_trigger.h"

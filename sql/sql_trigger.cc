@@ -22,7 +22,7 @@
 #include "parse_file.h"
 
 static const LEX_STRING triggers_file_type=
-  {(char *) STRING_WITH_LEN("TRIGGERS")};
+  { C_STRING_WITH_LEN("TRIGGERS") };
 
 const char * const triggers_file_ext= ".TRG";
 
@@ -35,17 +35,17 @@ const char * const triggers_file_ext= ".TRG";
 static File_option triggers_file_parameters[]=
 {
   {
-    {(char *) STRING_WITH_LEN("triggers") },
+    { C_STRING_WITH_LEN("triggers") },
     offsetof(class Table_triggers_list, definitions_list),
     FILE_OPTIONS_STRLIST
   },
   {
-    {(char *) STRING_WITH_LEN("sql_modes") },
+    { C_STRING_WITH_LEN("sql_modes") },
     offsetof(class Table_triggers_list, definition_modes_list),
     FILE_OPTIONS_ULLLIST
   },
   {
-    {(char *) STRING_WITH_LEN("definers") },
+    { C_STRING_WITH_LEN("definers") },
     offsetof(class Table_triggers_list, definers_list),
     FILE_OPTIONS_STRLIST
   },
@@ -54,7 +54,7 @@ static File_option triggers_file_parameters[]=
 
 File_option sql_modes_parameters=
 {
-  {(char*) STRING_WITH_LEN("sql_modes") },
+  { C_STRING_WITH_LEN("sql_modes") },
   offsetof(class Table_triggers_list, definition_modes_list),
   FILE_OPTIONS_ULLLIST
 };
@@ -78,14 +78,14 @@ struct st_trigname
 };
 
 static const LEX_STRING trigname_file_type=
-  {(char *) STRING_WITH_LEN("TRIGGERNAME")};
+  { C_STRING_WITH_LEN("TRIGGERNAME") };
 
 const char * const trigname_file_ext= ".TRN";
 
 static File_option trigname_file_parameters[]=
 {
   {
-    {(char *) STRING_WITH_LEN("trigger_table")},
+    { C_STRING_WITH_LEN("trigger_table")},
     offsetof(struct st_trigname, trigger_table),
     FILE_OPTIONS_ESTRING
   },
@@ -95,15 +95,15 @@ static File_option trigname_file_parameters[]=
 
 const LEX_STRING trg_action_time_type_names[]=
 {
-  { (char *) STRING_WITH_LEN("BEFORE") },
-  { (char *) STRING_WITH_LEN("AFTER") }
+  { C_STRING_WITH_LEN("BEFORE") },
+  { C_STRING_WITH_LEN("AFTER") }
 };
 
 const LEX_STRING trg_event_type_names[]=
 {
-  { (char *) STRING_WITH_LEN("INSERT") },
-  { (char *) STRING_WITH_LEN("UPDATE") },
-  { (char *) STRING_WITH_LEN("DELETE") }
+  { C_STRING_WITH_LEN("INSERT") },
+  { C_STRING_WITH_LEN("UPDATE") },
+  { C_STRING_WITH_LEN("DELETE") }
 };
 
 

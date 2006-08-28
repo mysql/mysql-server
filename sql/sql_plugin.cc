@@ -25,9 +25,9 @@ char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
 const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  { (char *)STRING_WITH_LEN("UDF") },
-  { (char *)STRING_WITH_LEN("STORAGE ENGINE") },
-  { (char *)STRING_WITH_LEN("FTPARSER") }
+  { C_STRING_WITH_LEN("UDF") },
+  { C_STRING_WITH_LEN("STORAGE ENGINE") },
+  { C_STRING_WITH_LEN("FTPARSER") }
 };
 
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
@@ -927,7 +927,7 @@ my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
 {
   uint idx;
   struct st_plugin_int *plugin;
-  DBUG_ENTER("mysql_uninstall_plugin");
+  DBUG_ENTER("plugin_foreach");
   rw_rdlock(&THR_LOCK_plugin);
 
   if (type == MYSQL_ANY_PLUGIN)

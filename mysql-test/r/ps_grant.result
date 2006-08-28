@@ -78,13 +78,10 @@ ERROR 42000: There is no such grant defined for user 'second_user' on host 'loca
 drop database mysqltest;
 prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
 identified by ''looser'' ';
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 grant all on test.t1 to drop_user@localhost
 identified by 'looser' ;
 prepare stmt3 from ' revoke all privileges on test.t1 from 
 drop_user@localhost ';
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 revoke all privileges on test.t1 from drop_user@localhost ;
 prepare stmt3 from ' drop user drop_user@localhost ';
-ERROR HY000: This command is not supported in the prepared statement protocol yet
 drop user drop_user@localhost;
