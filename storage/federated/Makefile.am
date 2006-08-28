@@ -14,6 +14,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+#called from the top level Makefile
+
 MYSQLDATAdir =          $(localstatedir)
 MYSQLSHAREdir =         $(pkgdatadir)
 MYSQLBASEdir=           $(prefix)
@@ -27,19 +29,24 @@ WRAPLIBS=
 LDADD =
 
 DEFS =                  @DEFS@
-pkglib_LIBRARIES =	libmyisammrg.a
-noinst_HEADERS =	myrg_def.h ha_myisammrg.h
-noinst_LIBRARIES =	libmyisammrg.a
-libmyisammrg_a_SOURCES = myrg_open.c myrg_extra.c myrg_info.c myrg_locking.c \
-			myrg_rrnd.c myrg_update.c myrg_delete.c myrg_rsame.c \
-			myrg_panic.c myrg_close.c myrg_create.c myrg_static.c \
-			myrg_rkey.c myrg_rfirst.c myrg_rlast.c myrg_rnext.c \
-			myrg_rprev.c myrg_queue.c myrg_write.c myrg_range.c \
-			ha_myisammrg.cc \
-			myrg_rnext_same.c
+
+noinst_HEADERS =	ha_federated.h
+
+EXTRA_LTLIBRARIES =	ha_federated.la
+pkglib_LTLIBRARIES =	@plugin_federated_shared_target@
+ha_federated_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
+ha_federated_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_federated_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
+ha_federated_la_SOURCES =	ha_federated.cc
+
+
+EXTRA_LIBRARIES =	libfederated.a
+noinst_LIBRARIES =	@plugin_federated_static_target@
+libfederated_a_CXXFLAGS =	$(AM_CFLAGS)
+libfederated_a_CFLAGS =	$(AM_CFLAGS)
+libfederated_a_SOURCES=	ha_federated.cc
 
 
 EXTRA_DIST =		CMakeLists.txt
-
 # Don't update the files from bitkeeper
 %::SCCS/s.%
