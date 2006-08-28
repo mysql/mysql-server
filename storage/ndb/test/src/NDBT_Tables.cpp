@@ -985,7 +985,7 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
 loop:   
     r = pNdb->getDictionary()->createTable(tmpTab);
     if(r == -1){
-      if(pNdb->getDictionary()->getNdbError().code == 723)
+      if(pNdb->getDictionary()->getNdbError().code == 755)
       {
 	if (create_default_tablespace(pNdb) == 0)
 	{
