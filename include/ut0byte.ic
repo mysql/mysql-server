@@ -62,7 +62,7 @@ ut_conv_dulint_to_longlong(
 	dulint	d)	/* in: dulint */
 {
 	return((ib_longlong)d.low
-		+ (((ib_longlong)d.high) << 32));
+	       + (((ib_longlong)d.high) << 32));
 }
 
 /***********************************************************

@@ -60,11 +60,11 @@ open_step(
 
 	if (node->op_type == ROW_SEL_OPEN_CURSOR) {
 
-/*		if (sel_node->state == SEL_NODE_CLOSED) { */
+		/*		if (sel_node->state == SEL_NODE_CLOSED) { */
 
-			sel_node_reset_cursor(sel_node);
-/*		} else {
-			err = DB_ERROR;
+		sel_node_reset_cursor(sel_node);
+		/*		} else {
+		err = DB_ERROR;
 		} */
 	} else {
 		if (sel_node->state != SEL_NODE_CLOSED) {

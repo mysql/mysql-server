@@ -162,11 +162,11 @@ page_cur_search(
 	ut_ad(dtuple_check_typed(tuple));
 
 	page_cur_search_with_match(page, index, tuple, mode,
-					&up_matched_fields,
-					&up_matched_bytes,
-					&low_matched_fields,
-					&low_matched_bytes,
-					cursor);
+				   &up_matched_fields,
+				   &up_matched_bytes,
+				   &low_matched_fields,
+				   &low_matched_bytes,
+				   cursor);
 	return(low_matched_fields);
 }
 
@@ -205,6 +205,6 @@ page_cur_rec_insert(
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	return(page_cur_insert_rec_low(cursor, NULL, index, rec,
-				offsets, mtr));
+				       offsets, mtr));
 }
 

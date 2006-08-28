@@ -101,8 +101,8 @@ btr_cur_compress_recommendation(
 	page = btr_cur_get_page(cursor);
 
 	if ((page_get_data_size(page) < BTR_CUR_PAGE_COMPRESS_LIMIT)
-		|| ((btr_page_get_next(page, mtr) == FIL_NULL)
-			&& (btr_page_get_prev(page, mtr) == FIL_NULL))) {
+	    || ((btr_page_get_next(page, mtr) == FIL_NULL)
+		&& (btr_page_get_prev(page, mtr) == FIL_NULL))) {
 
 		/* The page fillfactor has dropped below a predefined
 		minimum value OR the level in the B-tree contains just
@@ -110,7 +110,7 @@ btr_cur_compress_recommendation(
 		root page. */
 
 		if (dict_tree_get_page((cursor->index)->tree)
-			== buf_frame_get_page_no(page)) {
+		    == buf_frame_get_page_no(page)) {
 
 			/* It is the root page */
 
@@ -144,9 +144,9 @@ btr_cur_can_delete_without_compress(
 	page = btr_cur_get_page(cursor);
 
 	if ((page_get_data_size(page) - rec_size < BTR_CUR_PAGE_COMPRESS_LIMIT)
-		|| ((btr_page_get_next(page, mtr) == FIL_NULL)
-			&& (btr_page_get_prev(page, mtr) == FIL_NULL))
-		|| (page_get_n_recs(page) < 2)) {
+	    || ((btr_page_get_next(page, mtr) == FIL_NULL)
+		&& (btr_page_get_prev(page, mtr) == FIL_NULL))
+	    || (page_get_n_recs(page) < 2)) {
 
 		/* The page fillfactor will drop below a predefined
 		minimum value, OR the level in the B-tree contains just
@@ -154,7 +154,7 @@ btr_cur_can_delete_without_compress(
 		compression if this is not the root page. */
 
 		if (dict_tree_get_page((cursor->index)->tree)
-			== buf_frame_get_page_no(page)) {
+		    == buf_frame_get_page_no(page)) {
 
 			/* It is the root page */
 

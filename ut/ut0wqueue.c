@@ -76,7 +76,7 @@ ib_wqueue_wait(
 
 			if (!ib_list_get_first(wq->items)) {
 				/* We must reset the event when the list
-				 gets emptied. */
+				gets emptied. */
 				os_event_reset(wq->event);
 			}
 
