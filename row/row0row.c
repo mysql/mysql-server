@@ -128,8 +128,8 @@ row_build_index_entry(
 	if (index->type & DICT_UNIVERSAL) {
 		dtuple_set_n_fields_cmp(entry, entry_len);
 	} else {
-		dtuple_set_n_fields_cmp(entry,
-				dict_index_get_n_unique_in_tree(index));
+		dtuple_set_n_fields_cmp
+			(entry, dict_index_get_n_unique_in_tree(index));
 	}
 
 	for (i = 0; i < entry_len; i++) {
@@ -144,15 +144,14 @@ row_build_index_entry(
 
 		/* If a column prefix index, take only the prefix */
 		if (ind_field->prefix_len > 0
-			&& dfield_get_len(dfield2) != UNIV_SQL_NULL) {
+		    && dfield_get_len(dfield2) != UNIV_SQL_NULL) {
 
-			cur_type = dict_col_get_type(
-				dict_field_get_col(ind_field));
+			cur_type = dict_col_get_type
+				(dict_field_get_col(ind_field));
 
-			storage_len = dtype_get_at_most_n_mbchars(
-				cur_type,
-				ind_field->prefix_len,
-				dfield_get_len(dfield2), dfield2->data);
+			storage_len = dtype_get_at_most_n_mbchars
+				(cur_type, ind_field->prefix_len,
+				 dfield_get_len(dfield2), dfield2->data);
 
 			dfield_set_len(dfield, storage_len);
 		}
@@ -211,7 +210,7 @@ row_build(
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
-					ULINT_UNDEFINED, &tmp_heap);
+					  ULINT_UNDEFINED, &tmp_heap);
 	} else {
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
@@ -229,8 +228,8 @@ row_build(
 
 	row = dtuple_create(heap, row_len);
 
-	dtuple_set_info_bits(row, rec_get_info_bits(rec,
-			dict_table_is_comp(table)));
+	dtuple_set_info_bits(row, rec_get_info_bits
+			     (rec, dict_table_is_comp(table)));
 
 	n_fields = rec_offs_n_fields(offsets);
 
@@ -243,14 +242,14 @@ row_build(
 
 			col = dict_field_get_col(ind_field);
 			dfield = dtuple_get_nth_field(row,
-						dict_col_get_no(col));
+						      dict_col_get_no(col));
 			field = rec_get_nth_field(rec, offsets, i, &len);
 
 			if (type == ROW_COPY_ALSO_EXTERNALS
-				&& rec_offs_nth_extern(offsets, i)) {
+			    && rec_offs_nth_extern(offsets, i)) {
 
-				field = btr_rec_copy_externally_stored_field(
-						rec, offsets, i, &len, heap);
+				field = btr_rec_copy_externally_stored_field
+					(rec, offsets, i, &len, heap);
 			}
 
 			dfield_set_data(dfield, field, len);
@@ -305,7 +304,7 @@ row_rec_to_index_entry(
 	ut_ad(rec && heap && index);
 
 	offsets = rec_get_offsets(rec, index, offsets,
-					ULINT_UNDEFINED, &tmp_heap);
+				  ULINT_UNDEFINED, &tmp_heap);
 
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
@@ -326,7 +325,7 @@ row_rec_to_index_entry(
 	dict_index_copy_types(entry, index, rec_len);
 
 	dtuple_set_info_bits(entry,
-			rec_get_info_bits(rec, rec_offs_comp(offsets)));
+			     rec_get_info_bits(rec, rec_offs_comp(offsets)));
 
 	for (i = 0; i < rec_len; i++) {
 
@@ -387,7 +386,7 @@ row_build_row_ref(
 	ut_ad(index && rec && heap);
 
 	offsets = rec_get_offsets(rec, index, offsets,
-					ULINT_UNDEFINED, &tmp_heap);
+				  ULINT_UNDEFINED, &tmp_heap);
 
 	if (type == ROW_COPY_DATA) {
 		/* Take a copy of rec to heap */
@@ -432,9 +431,10 @@ row_build_row_ref(
 			if (len != UNIV_SQL_NULL) {
 
 				dfield_set_len(dfield,
-				  dtype_get_at_most_n_mbchars(
-					dfield_get_type(dfield),
-					clust_col_prefix_len, len, (char*) field));
+					       dtype_get_at_most_n_mbchars
+					       (dfield_get_type(dfield),
+						clust_col_prefix_len, len,
+						(char*) field));
 			}
 		}
 	}
@@ -482,7 +482,7 @@ row_build_row_ref_in_tuple(
 
 	if (UNIV_UNLIKELY(!index->table)) {
 		fputs("InnoDB: table ", stderr);
-	notfound:
+notfound:
 		ut_print_name(stderr, trx, TRUE, index->table_name);
 		fputs(" for index ", stderr);
 		ut_print_name(stderr, trx, FALSE, index->name);
@@ -528,9 +528,10 @@ row_build_row_ref_in_tuple(
 			if (len != UNIV_SQL_NULL) {
 
 				dfield_set_len(dfield,
-				  dtype_get_at_most_n_mbchars(
-					dfield_get_type(dfield),
-					clust_col_prefix_len, len, (char*) field));
+					       dtype_get_at_most_n_mbchars
+					       (dfield_get_type(dfield),
+						clust_col_prefix_len, len,
+						(char*) field));
 			}
 		}
 	}
@@ -585,15 +586,14 @@ row_build_row_ref_from_row(
 		dfield_copy(dfield, dfield2);
 
 		if (field->prefix_len > 0
-			&& dfield->len != UNIV_SQL_NULL) {
+		    && dfield->len != UNIV_SQL_NULL) {
 
-			cur_type = dict_col_get_type(
-				dict_field_get_col(field));
+			cur_type = dict_col_get_type
+				(dict_field_get_col(field));
 
-			dfield->len = dtype_get_at_most_n_mbchars(
-				cur_type,
-				field->prefix_len,
-				dfield->len, dfield->data);
+			dfield->len = dtype_get_at_most_n_mbchars
+				(cur_type, field->prefix_len,
+				 dfield->len, dfield->data);
 		}
 	}
 

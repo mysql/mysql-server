@@ -66,25 +66,28 @@ mutex_test_and_set(
 	lw = &(mutex->lock_word);
 
 	__asm	MOV	ECX, lw
-	__asm	MOV	EDX, 1
-	__asm	XCHG	EDX, DWORD PTR [ECX]
-	__asm	MOV	res, EDX
+		__asm	MOV	EDX, 1
+		__asm	XCHG	EDX, DWORD PTR [ECX]
+		__asm	MOV	res, EDX
 
-	/* The fence below would prevent this thread from reading the data
-	structure protected by the mutex before the test-and-set operation is
-	committed, but the fence is apparently not needed:
+		/* The fence below would prevent this thread from
+		reading the data structure protected by the mutex
+		before the test-and-set operation is committed, but
+		the fence is apparently not needed:
 
-	In a posting to comp.arch newsgroup (August 10, 1997) Andy Glew said
-	that in P6 a LOCKed instruction like XCHG establishes a fence with
-	respect to memory reads and writes and thus an explicit fence is not
-	needed. In P5 he seemed to agree with a previous newsgroup poster that
-	LOCKed instructions serialize all instruction execution, and,
-	consequently, also memory operations. This is confirmed in Intel
-	Software Dev. Manual, Vol. 3. */
+		In a posting to comp.arch newsgroup (August 10, 1997)
+		Andy Glew said that in P6 a LOCKed instruction like
+		XCHG establishes a fence with respect to memory reads
+		and writes and thus an explicit fence is not
+		needed. In P5 he seemed to agree with a previous
+		newsgroup poster that LOCKed instructions serialize
+		all instruction execution, and, consequently, also
+		memory operations. This is confirmed in Intel Software
+		Dev. Manual, Vol. 3. */
 
-	/* mutex_fence(); */
+		/* mutex_fence(); */
 
-	return(res);
+		return(res);
 #elif defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
 	ulint*	lw;
 	ulint	res;
@@ -98,8 +101,8 @@ mutex_test_and_set(
 	code, and the second line tells the input to the asm code. */
 
 	asm volatile("movl $1, %%eax; xchgl (%%ecx), %%eax" :
-		"=eax" (res), "=m" (*lw) :
-		"ecx" (lw));
+		     "=eax" (res), "=m" (*lw) :
+		     "ecx" (lw));
 	return(res);
 #else
 	ibool	ret;
@@ -135,10 +138,10 @@ mutex_reset_lock_word(
 	lw = &(mutex->lock_word);
 
 	__asm	MOV	EDX, 0
-	__asm	MOV	ECX, lw
-	__asm	XCHG	EDX, DWORD PTR [ECX]
+		__asm	MOV	ECX, lw
+		__asm	XCHG	EDX, DWORD PTR [ECX]
 #elif defined(not_defined) && defined(__GNUC__) && defined(UNIV_INTEL_X86)
-	ulint*	lw;
+		ulint*	lw;
 
 	lw = &(mutex->lock_word);
 
@@ -147,11 +150,11 @@ mutex_reset_lock_word(
 	syntax. The 'l' after the mnemonics denotes a 32-bit operation. */
 
 	asm volatile("movl $0, %%eax; xchgl (%%ecx), %%eax" :
-		"=m" (*lw) :
-		"ecx" (lw) :
-		"eax");	/* gcc does not seem to understand that our asm code
-			resets eax: tell it explicitly that after the third
-			':' */
+		     "=m" (*lw) :
+		     "ecx" (lw) :
+		     "eax");	/* gcc does not seem to understand
+				that our asm code resets eax: tell it
+				explicitly that after the third ':' */
 #else
 	mutex->lock_word = 0;
 
@@ -167,8 +170,8 @@ mutex_get_lock_word(
 /*================*/
 	mutex_t*	mutex)	/* in: mutex */
 {
-volatile ulint*	ptr;		/* declared volatile to ensure that
-				lock_word is loaded from memory */
+	volatile ulint*	ptr;		/* declared volatile to ensure that
+					lock_word is loaded from memory */
 	ut_ad(mutex);
 
 	ptr = &(mutex->lock_word);
@@ -185,8 +188,8 @@ mutex_get_waiters(
 				/* out: value to set */
 	mutex_t*	mutex)	/* in: mutex */
 {
-volatile ulint*	ptr;		/* declared volatile to ensure that
-				the value is read from memory */
+	volatile ulint*	ptr;		/* declared volatile to ensure that
+					the value is read from memory */
 	ut_ad(mutex);
 
 	ptr = &(mutex->waiters);
@@ -252,10 +255,10 @@ mutex_enter_func(
 	the atomic test_and_set; we could peek, and possibly save time. */
 
 #ifndef UNIV_HOTBACKUP
-  mutex->count_using++;
+	mutex->count_using++;
 #endif /* UNIV_HOTBACKUP */
 
-  if (!mutex_test_and_set(mutex)) {
+	if (!mutex_test_and_set(mutex)) {
 #ifdef UNIV_SYNC_DEBUG
 		mutex_set_debug_info(mutex, file_name, line);
 #endif

@@ -28,7 +28,7 @@ buf_block_peek_if_too_old(
 	buf_block_t*	block)	/* in: block to make younger */
 {
 	return(buf_pool->freed_page_clock >= block->freed_page_clock
-				+ 1 + (buf_pool->curr_size / 1024));
+	       + 1 + (buf_pool->curr_size / 1024));
 }
 
 /*************************************************************************
@@ -82,8 +82,8 @@ buf_pool_is_block(
 	void*	ptr)	/* in: pointer to memory */
 {
 	if ((buf_pool->blocks <= (buf_block_t*)ptr)
-		&& ((buf_block_t*)ptr < buf_pool->blocks
-			+ buf_pool->max_size)) {
+	    && ((buf_block_t*)ptr < buf_pool->blocks
+		+ buf_pool->max_size)) {
 
 		return(TRUE);
 	}
@@ -151,7 +151,7 @@ buf_block_get_frame(
 	ut_ad(block < buf_pool->blocks + buf_pool->max_size);
 	ut_ad(block->state != BUF_BLOCK_NOT_USED);
 	ut_ad((block->state != BUF_BLOCK_FILE_PAGE)
-		|| (block->buf_fix_count > 0));
+	      || (block->buf_fix_count > 0));
 
 	return(block->frame);
 }
@@ -209,16 +209,19 @@ buf_block_align(
 	frame_zero = buf_pool->frame_zero;
 
 	if (UNIV_UNLIKELY((ulint)ptr < (ulint)frame_zero)
-		|| UNIV_UNLIKELY((ulint)ptr > (ulint)(buf_pool->high_end))) {
+	    || UNIV_UNLIKELY((ulint)ptr > (ulint)(buf_pool->high_end))) {
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"InnoDB: Error: trying to access a stray pointer %p\n"
-"InnoDB: buf pool start is at %p, end at %p\n"
-"InnoDB: Probable reason is database corruption or memory\n"
-"InnoDB: corruption. If this happens in an InnoDB database recovery, see\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html\n"
-"InnoDB: how to force recovery.\n",
+			"InnoDB: Error: trying to access a stray pointer %p\n"
+			"InnoDB: buf pool start is at %p, end at %p\n"
+			"InnoDB: Probable reason is database corruption"
+			" or memory\n"
+			"InnoDB: corruption. If this happens in an"
+			" InnoDB database recovery, see\n"
+			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
+			"forcing-recovery.html\n"
+			"InnoDB: how to force recovery.\n",
 			ptr, frame_zero,
 			buf_pool->high_end);
 		ut_error;
@@ -245,16 +248,19 @@ buf_frame_align(
 	frame = ut_align_down(ptr, UNIV_PAGE_SIZE);
 
 	if (UNIV_UNLIKELY((ulint)frame < (ulint)(buf_pool->frame_zero))
-		|| UNIV_UNLIKELY((ulint)frame >= (ulint)(buf_pool->high_end))) {
+	    || UNIV_UNLIKELY((ulint)frame >= (ulint)(buf_pool->high_end))) {
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"InnoDB: Error: trying to access a stray pointer %p\n"
-"InnoDB: buf pool start is at %p, end at %p\n"
-"InnoDB: Probable reason is database corruption or memory\n"
-"InnoDB: corruption. If this happens in an InnoDB database recovery, see\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html\n"
-"InnoDB: how to force recovery.\n",
+			"InnoDB: Error: trying to access a stray pointer %p\n"
+			"InnoDB: buf pool start is at %p, end at %p\n"
+			"InnoDB: Probable reason is database corruption"
+			" or memory\n"
+			"InnoDB: corruption. If this happens in an"
+			" InnoDB database recovery, see\n"
+			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
+			"forcing-recovery.html\n"
+			"InnoDB: how to force recovery.\n",
 			ptr, buf_pool->frame_zero,
 			buf_pool->high_end);
 		ut_error;
@@ -449,7 +455,7 @@ buf_frame_modify_clock_inc(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
-		|| rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
 #endif /*UNIV_SYNC_DEBUG */
 
 	UT_DULINT_INC(block->modify_clock);
@@ -470,7 +476,7 @@ buf_block_modify_clock_inc(
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
-		|| rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
 
 	UT_DULINT_INC(block->modify_clock);
@@ -490,7 +496,7 @@ buf_block_get_modify_clock(
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
-		|| rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
+	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
 
 	return(block->modify_clock);
@@ -551,7 +557,7 @@ buf_page_hash_get(
 	fold = buf_page_address_fold(space, offset);
 
 	HASH_SEARCH(hash, buf_pool->page_hash, fold, block,
-			(block->space == space) && (block->offset == offset));
+		    (block->space == space) && (block->offset == offset));
 	ut_a(block == NULL || block->state == BUF_BLOCK_FILE_PAGE);
 
 	return(block);
@@ -580,9 +586,9 @@ buf_page_get_release_on_io(
 	buf_frame_t*	frame;
 
 	frame = buf_page_get_gen(space, offset, rw_latch, guess,
-				BUF_GET_IF_IN_POOL,
-				__FILE__, __LINE__,
-				mtr);
+				 BUF_GET_IF_IN_POOL,
+				 __FILE__, __LINE__,
+				 mtr);
 	if (frame != NULL) {
 
 		return(frame);
