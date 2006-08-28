@@ -55,11 +55,11 @@ public:
    *
    *   @return true until quit/bye/exit has been typed
    */
-  int execute(const char *_line, int _try_reconnect=-1, int *error= 0);
+  int execute(const char *_line, int _try_reconnect=-1, bool interactive=1, int *error= 0);
 
 private:
   void printError();
-  int execute_impl(const char *_line);
+  int execute_impl(const char *_line, bool interactive=1);
 
   /**
    *   Analyse the command line, after the first token.
@@ -99,7 +99,7 @@ private:
    */
   void executeHelp(char* parameters);
   void executeShow(char* parameters);
-  void executeConnect(char* parameters);
+  void executeConnect(char* parameters, bool interactive);
   void executePurge(char* parameters);
   int  executeShutdown(char* parameters);
   void executeRun(char* parameters);
@@ -137,7 +137,7 @@ public:
   void executeCpc(char * parameters);
 
 public:
-  bool connect();
+  bool connect(bool interactive);
   bool disconnect();
 
   /**
@@ -198,9 +198,9 @@ Ndb_mgmclient::~Ndb_mgmclient()
 {
   delete m_cmd;
 }
-int Ndb_mgmclient::execute(const char *_line, int _try_reconnect, int *error)
+int Ndb_mgmclient::execute(const char *_line, int _try_reconnect, bool interactive, int *error)
 {
-  return m_cmd->execute(_line,_try_reconnect,error);
+  return m_cmd->execute(_line,_try_reconnect,interactive, error);
 }
 int
 Ndb_mgmclient::disconnect()
@@ -246,7 +246,7 @@ extern "C" {
 #include <util/InputStream.hpp>
 #include <util/OutputStream.hpp>
 
-int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect, int *error)
+int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect, bool interactive, int *error)
 {
   if (argc <= 0)
     return 0;
@@ -255,7 +255,7 @@ int Ndb_mgmclient::execute(int argc, char** argv, int _try_reconnect, int *error
   {
     _line.appfmt(" %s", argv[i]);
   }
-  return m_cmd->execute(_line.c_str(),_try_reconnect, error);
+  return m_cmd->execute(_line.c_str(),_try_reconnect, interactive, error);
 }
 
 /*****************************************************************************
@@ -266,7 +266,7 @@ static const char* helpText =
 " NDB Cluster -- Management Client -- Help\n"
 "---------------------------------------------------------------------------\n"
 "HELP                                   Print help text\n"
-"HELP SHOW                              Help for SHOW command\n"
+"HELP COMMAND                           Print detailed help for COMMAND(e.g. SHOW)\n"
 #ifdef HAVE_GLOBAL_REPLICATION
 "HELP REPLICATION                       Help for global replication\n"
 #endif // HAVE_GLOBAL_REPLICATION
@@ -286,10 +286,10 @@ static const char* helpText =
 "CLUSTERLOG OFF [<severity>] ...        Disable Cluster logging\n"
 "CLUSTERLOG TOGGLE [<severity>] ...     Toggle severity filter on/off\n"
 "CLUSTERLOG INFO                        Print cluster log information\n"
-"<id> START                             Start DB node (started with -n)\n"
-"<id> RESTART [-n] [-i]                 Restart DB node\n"
-"<id> STOP                              Stop DB node\n"
-"ENTER SINGLE USER MODE <api-node>      Enter single user mode\n"
+"<id> START                             Start data node (started with -n)\n"
+"<id> RESTART [-n] [-i]                 Restart data or management server node\n"
+"<id> STOP                              Stop data or management server node\n"
+"ENTER SINGLE USER MODE <id>            Enter single user mode\n"
 "EXIT SINGLE USER MODE                  Exit single user mode\n"
 "<id> STATUS                            Print status\n"
 "<id> CLUSTERLOG {<category>=<level>}+  Set log level for cluster log\n"
@@ -305,13 +305,295 @@ static const char* helpTextShow =
 "---------------------------------------------------------------------------\n"
 " NDB Cluster -- Management Client -- Help for SHOW command\n"
 "---------------------------------------------------------------------------\n"
-"SHOW prints NDB Cluster information\n\n"
-"SHOW               Print information about cluster\n" 
+"SHOW Print information about cluster\n\n"
+"SHOW               Print information about cluster.The status reported is from\n"
+"                   the perspective of the data nodes. API and Management Server nodes\n"
+"                   are only reported as connected once the data nodes have started.\n" 
 #if 0
 "SHOW CONFIG        Print configuration (in initial config file format)\n" 
 "SHOW PARAMETERS    Print information about configuration parameters\n\n"
 #endif
 ;
+
+static const char* helpTextHelp =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for HELP command\n"
+"---------------------------------------------------------------------------\n"
+"HELP List available commands of NDB Cluster Management Client\n\n"
+"HELP               List available commands.\n"
+;
+
+static const char* helpTextBackup =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for BACKUP command\n"
+"---------------------------------------------------------------------------\n"
+"BACKUP  A backup is a snapshot of the database at a given time. \n"
+"        The backup consists of three main parts:\n\n"
+"        Metadata: the names and definitions of all database tables. \n"
+"        Table records: the data actually stored in the database tables \n"
+"        at the time that the backup was made.\n"
+"        Transaction log: a sequential record telling how \n"
+"        and when data was stored in the database.\n\n"
+"        Backups are stored on each data node in the cluster that \n"
+"        participates in the backup.\n\n"
+"        The cluster log records backup related events (such as \n"
+"        backup started, aborted, finished).\n"
+;
+
+static const char* helpTextStartBackup =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for START BACKUP command\n"
+"---------------------------------------------------------------------------\n"
+"START BACKUP  Start a cluster backup\n\n"
+"START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"                   Start a backup for the cluster.\n"
+"                   Each backup gets an ID number that is reported to the\n"
+"                   user. This ID number can help you find the backup on the\n"
+"                   file system, or ABORT BACKUP if you wish to cancel a \n"
+"                   running backup.\n\n"
+"                   NOWAIT \n"
+"                     Start a cluster backup and return immediately.\n"
+"                     The management client will return control directly\n"
+"                     to the user without waiting for the backup\n"
+"                     to have started.\n"
+"                     The status of the backup is recorded in the Cluster log.\n"
+"                   WAIT STARTED\n"
+"                     Start a cluster backup and return until the backup has\n"
+"                     started. The management client will wait for the backup \n"
+"                     to have started before returning control to the user.\n"
+"                   WAIT COMPLETED\n"
+"                     Start a cluster backup and return until the backup has\n"
+"                     completed. The management client will wait for the backup\n"
+"                     to complete before returning control to the user.\n"
+;
+
+static const char* helpTextAbortBackup =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for ABORT BACKUP command\n"
+"---------------------------------------------------------------------------\n"
+"ABORT BACKUP  Abort a cluster backup\n\n"
+"ABORT BACKUP <backup id>  \n"
+"                   Abort a backup that is already in progress.\n"
+"                   The backup id can be seen in the cluster log or in the\n"
+"                   output of the START BACKUP command.\n"
+;
+
+static const char* helpTextShutdown =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for SHUTDOWN command\n"
+"---------------------------------------------------------------------------\n"
+"SHUTDOWN  Shutdown the cluster\n\n"
+"SHUTDOWN           Shutdown the data nodes and management nodes.\n"
+"                   MySQL Servers and NDBAPI nodes are currently not \n"
+"                   shut down by issuing this command.\n"
+;
+
+static const char* helpTextClusterlogOn =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG ON command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG ON  Enable Cluster logging\n\n"
+"CLUSTERLOG ON [<severity>] ... \n"
+"                   Turn the cluster log on.\n"
+"                   It tells management server which severity levels\n"
+"                   messages will be logged.\n\n"
+"                   <severity> can be any one of the following values:\n"
+"                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
+;
+
+static const char* helpTextClusterlogOff =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG OFF command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG OFF  Disable Cluster logging\n\n"
+"CLUSTERLOG OFF [<severity>] ...  \n"
+"                   Turn the cluster log off.\n"
+"                   It tells management server which serverity\n"
+"                   levels logging will be disabled.\n\n"
+"                   <severity> can be any one of the following values:\n"
+"                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
+;
+
+static const char* helpTextClusterlogToggle =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG TOGGLE command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG TOGGLE  Toggle severity filter on/off\n\n"
+"CLUSTERLOG TOGGLE [<severity>] ...  \n"
+"                   Toggle serverity filter on/off.\n"
+"                   If a serverity level is already enabled,then it will\n"
+"                   be disabled after you use the command,vice versa.\n\n"
+"                   <severity> can be any one of the following values:\n"
+"                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
+;
+
+static const char* helpTextClusterlogInfo =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG INFO command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG INFO  Print cluster log information\n\n"
+"CLUSTERLOG INFO    Display which severity levels have been enabled,\n"
+"                   see HELP CLUSTERLOG for list of the severity levels.\n"
+;
+
+static const char* helpTextStart =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for START command\n"
+"---------------------------------------------------------------------------\n"
+"START  Start data node (started with -n)\n\n"
+"<id> START         Start the data node identified by <id>.\n"
+"                   Only starts data nodes that have not\n"
+"                   yet joined the cluster. These are nodes\n"
+"                   launched or restarted with the -n(--nostart)\n"
+"                   option.\n\n"
+"                   It does not launch the ndbd process on a remote\n"
+"                   machine.\n"
+;
+
+static const char* helpTextRestart =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for RESTART command\n"
+"---------------------------------------------------------------------------\n"
+"RESTART  Restart data or management server node\n\n"
+"<id> RESTART [-n] [-i] \n"
+"                   Restart the data or management node <id>(or All data nodes).\n\n"
+"                   -n (--nostart) restarts the node but does not\n"
+"                   make it join the cluster. Use '<id> START' to\n"
+"                   join the node to the cluster.\n\n"
+"                   -i (--initial) perform initial start.\n"
+"                   This cleans the file system (ndb_<id>_fs)\n"
+"                   and the node will copy data from another node\n"
+"                   in the same node group during start up.\n\n"
+"                   Consult the documentation before using -i.\n\n" 
+"                   INCORRECT USE OF -i WILL CAUSE DATA LOSS!\n"
+;
+
+static const char* helpTextStop =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for STOP command\n"
+"---------------------------------------------------------------------------\n"
+"STOP  Stop data or management server node\n\n"
+"<id> STOP          Stop the data or management server node <id>.\n\n"
+"                   ALL STOP will just stop all data nodes.\n\n"
+"                   If you desire to also shut down management servers,\n"
+"                   use SHUTDOWN instead.\n" 
+;
+
+static const char* helpTextEnterSingleUserMode =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for ENTER SINGLE USER MODE command\n"
+"---------------------------------------------------------------------------\n"
+"ENTER SINGLE USER MODE  Enter single user mode\n\n"
+"ENTER SINGLE USER MODE <id> \n"
+"                   Enters single-user mode, whereby only the MySQL Server or NDBAPI\n" 
+"                   node identified by <id> is allowed to access the database. \n"
+;
+
+static const char* helpTextExitSingleUserMode =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for EXIT SINGLE USER MODE command\n"
+"---------------------------------------------------------------------------\n"
+"EXIT SINGLE USER MODE  Exit single user mode\n\n"
+"EXIT SINGLE USER MODE \n"
+"                   Exits single-user mode, allowing all SQL nodes \n"
+"                   (that is, all running mysqld processes) to access the database. \n" 
+;
+
+static const char* helpTextStatus =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for STATUS command\n"
+"---------------------------------------------------------------------------\n"
+"STATUS  Print status\n\n"
+"<id> STATUS        Displays status information for the data node <id>\n"
+"                   or for All data nodes. \n\n"
+"                   e.g.\n"
+"                      ALL STATUS\n"
+"                      1 STATUS\n\n"
+"                   When a node is starting, the start phase will be\n"
+"                   listed.\n\n"
+"                   Start Phase   Meaning\n"
+"                   1             Clear the cluster file system(ndb_<id>_fs). \n"
+"                                 This stage occurs only when the --initial option \n"
+"                                 has been specified.\n"
+"                   2             This stage sets up Cluster connections, establishes \n"
+"                                 inter-node communications and starts Cluster heartbeats.\n"
+"                   3             The arbitrator node is elected.\n"
+"                   4             Initializes a number of internal cluster variables.\n"
+"                   5             For an initial start or initial node restart,\n"
+"                                 the redo log files are created.\n"
+"                   6             If this is an initial start, create internal system tables.\n"
+"                   7             Update internal variables. \n"
+"                   8             In a system restart, rebuild all indexes.\n"
+"                   9             Update internal variables. \n"
+"                   10            The node can be connected by APIs and can receive events.\n"
+"                   11            At this point,event delivery is handed over to\n"
+"                                 the node joining the cluster.\n"
+"(see manual for more information)\n"
+;
+
+static const char* helpTextClusterlog =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CLUSTERLOG command\n"
+"---------------------------------------------------------------------------\n"
+"CLUSTERLOG  Set log level for cluster log\n\n"
+" <id> CLUSTERLOG {<category>=<level>}+  \n"
+"                   Logs <category> events with priority less than \n"
+"                   or equal to <level> in the cluster log.\n\n"
+"                   <category> can be any one of the following values:\n"
+"                   STARTUP, SHUTDOWN, STATISTICS, CHECKPOINT, NODERESTART,\n"
+"                   CONNECTION, ERROR, INFO, CONGESTION, DEBUG, or BACKUP. \n\n"
+"                   <level> is represented by one of the numbers \n"
+"                   from 1 to 15 inclusive, where 1 indicates 'most important' \n"
+"                   and 15 'least important'.\n\n"
+"                   <severity> can be any one of the following values:\n"
+"                   ALERT, CRITICAL, ERROR, WARNING, INFO, DEBUG.\n"
+;
+
+
+static const char* helpTextPurgeStaleSessions =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for PURGE STALE SESSIONS command\n"
+"---------------------------------------------------------------------------\n"
+"PURGE STALE SESSIONS  Reset reserved nodeid's in the mgmt server\n\n"
+"PURGE STALE SESSIONS \n"
+"                   Running this statement forces all reserved \n"
+"                   node IDs to be checked; any that are not \n"
+"                   being used by nodes acutally connected to \n"
+"                   the cluster are then freed.\n\n"   
+"                   This command is not normally needed, but may be\n"
+"                   required in some situations where failed nodes \n"
+"                   cannot rejoin the cluster due to failing to\n"
+"                   allocate a node id.\n" 
+;
+
+static const char* helpTextConnect =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for CONNECT command\n"
+"---------------------------------------------------------------------------\n"
+"CONNECT  Connect to management server (reconnect if already connected)\n\n"
+"CONNECT [<connectstring>] \n"
+"                   Connect to management server.\n"
+"                   The optional parameter connectstring specifies the \n"
+"                   connect string to user.\n\n"
+"                   A connect string may be:\n"
+"                       mgm-server\n"
+"                       mgm-server:port\n"
+"                       mgm1:port,mgm2:port\n"
+"                   With multiple management servers comma separated.\n"
+"                   The management client with try to connect to the \n"
+"                   management servers in the order they are listed.\n\n"
+"                   If no connect string is specified, the default \n"
+"                   is used. \n"
+;
+
+static const char* helpTextQuit =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for QUIT command\n"
+"---------------------------------------------------------------------------\n"
+"QUIT  Quit management client\n\n"
+"QUIT               Terminates the management client. \n"                    
+;
+
 
 #ifdef HAVE_GLOBAL_REPLICATION
 static const char* helpTextRep =
@@ -370,6 +652,44 @@ static const char* helpTextDebug =
 ;
 #endif
 
+struct {
+  const char *cmd;
+  const char * help;
+}help_items[]={
+  {"SHOW", helpTextShow},
+  {"HELP", helpTextHelp},
+  {"BACKUP", helpTextBackup},
+  {"START BACKUP", helpTextStartBackup},
+  {"START BACKUP NOWAIT", helpTextStartBackup},
+  {"START BACKUP WAIT STARTED", helpTextStartBackup},
+  {"START BACKUP WAIT", helpTextStartBackup},
+  {"START BACKUP WAIT COMPLETED", helpTextStartBackup},
+  {"ABORT BACKUP", helpTextAbortBackup},
+  {"SHUTDOWN", helpTextShutdown},
+  {"CLUSTERLOG ON", helpTextClusterlogOn},
+  {"CLUSTERLOG OFF", helpTextClusterlogOff},
+  {"CLUSTERLOG TOGGLE", helpTextClusterlogToggle},
+  {"CLUSTERLOG INFO", helpTextClusterlogInfo},
+  {"START", helpTextStart},
+  {"RESTART", helpTextRestart},
+  {"STOP", helpTextStop},
+  {"ENTER SINGLE USER MODE", helpTextEnterSingleUserMode},
+  {"EXIT SINGLE USER MODE", helpTextExitSingleUserMode},
+  {"STATUS", helpTextStatus},
+  {"CLUSTERLOG", helpTextClusterlog},
+  {"PURGE STALE SESSIONS", helpTextPurgeStaleSessions},
+  {"CONNECT", helpTextConnect},
+  {"QUIT", helpTextQuit},
+#ifdef HAVE_GLOBAL_REPLICATION
+  {"REPLICATION", helpTextRep},
+  {"REP", helpTextRep},
+#endif // HAVE_GLOBAL_REPLICATION
+#ifdef VM_TRACE // DEBUG ONLY
+  {"DEBUG", helpTextDebug},
+#endif //VM_TRACE
+  {NULL, NULL}
+};
+
 static bool
 convert(const char* s, int& val) {
   
@@ -400,7 +720,7 @@ CommandInterpreter::CommandInterpreter(const char *_host,int verbose)
 {
   m_constr= _host;
   m_connected= false;
-  m_event_thread= 0;
+  m_event_thread= NULL;
   try_reconnect = 0;
   m_print_mutex= NdbMutex_Create();
 #ifdef HAVE_GLOBAL_REPLICATION
@@ -495,7 +815,7 @@ event_thread_run(void* p)
 }
 
 bool
-CommandInterpreter::connect()
+CommandInterpreter::connect(bool interactive)
 {
   DBUG_ENTER("CommandInterpreter::connect");
 
@@ -507,10 +827,12 @@ CommandInterpreter::connect()
     ndbout_c("Cannot create handle to management server.");
     exit(-1);
   }
-  m_mgmsrv2 = ndb_mgm_create_handle();
-  if(m_mgmsrv2 == NULL) {
-    ndbout_c("Cannot create 2:nd handle to management server.");
-    exit(-1);
+  if (interactive) {
+    m_mgmsrv2 = ndb_mgm_create_handle();
+    if(m_mgmsrv2 == NULL) {
+      ndbout_c("Cannot create 2:nd handle to management server.");
+      exit(-1);
+    }
   }
 
   if (ndb_mgm_set_connectstring(m_mgmsrv, m_constr))
@@ -524,62 +846,64 @@ CommandInterpreter::connect()
 
   const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
   unsigned port= ndb_mgm_get_connected_port(m_mgmsrv);
-  BaseString constr;
-  constr.assfmt("%s:%d",host,port);
-  if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
-     !ndb_mgm_connect(m_mgmsrv2, try_reconnect-1, 5, 1))
-  {
-    DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
-                       host, port));
-    assert(m_event_thread == 0);
-    assert(do_event_thread == 0);
-    do_event_thread= 0;
-    struct event_thread_param p;
-    p.m= &m_mgmsrv2;
-    p.p= &m_print_mutex;
-    m_event_thread = NdbThread_Create(event_thread_run,
-                                      (void**)&p,
-                                      32768,
-                                      "CommandInterpreted_event_thread",
-                                      NDB_THREAD_PRIO_LOW);
-    if (m_event_thread != 0)
+  if (interactive) {
+    BaseString constr;
+    constr.assfmt("%s:%d",host,port);
+    if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
+       !ndb_mgm_connect(m_mgmsrv2, try_reconnect-1, 5, 1))
     {
-      DBUG_PRINT("info",("Thread created ok, waiting for started..."));
-      int iter= 1000; // try for 30 seconds
-      while(do_event_thread == 0 &&
-            iter-- > 0)
-        NdbSleep_MilliSleep(30);
-    }
-    if (m_event_thread == 0 ||
-        do_event_thread == 0 ||
-        do_event_thread == -1)
-    {
-      DBUG_PRINT("info",("Warning, event thread startup failed, "
-                         "degraded printouts as result, errno=%d",
-                         errno));
-      printf("Warning, event thread startup failed, "
-             "degraded printouts as result, errno=%d\n", errno);
+      DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
+                         host, port));
+      assert(m_event_thread == NULL);
+      assert(do_event_thread == 0);
       do_event_thread= 0;
+      struct event_thread_param p;
+      p.m= &m_mgmsrv2;
+      p.p= &m_print_mutex;
+      m_event_thread = NdbThread_Create(event_thread_run,
+                                        (void**)&p,
+                                        32768,
+                                        "CommandInterpreted_event_thread",
+                                        NDB_THREAD_PRIO_LOW);
       if (m_event_thread)
       {
-        void *res;
-        NdbThread_WaitFor(m_event_thread, &res);
-        NdbThread_Destroy(&m_event_thread);
+        DBUG_PRINT("info",("Thread created ok, waiting for started..."));
+        int iter= 1000; // try for 30 seconds
+        while(do_event_thread == 0 &&
+              iter-- > 0)
+          NdbSleep_MilliSleep(30);
       }
-      ndb_mgm_disconnect(m_mgmsrv2);
+      if (m_event_thread == NULL ||
+          do_event_thread == 0 ||
+          do_event_thread == -1)
+      {
+        DBUG_PRINT("info",("Warning, event thread startup failed, "
+                           "degraded printouts as result, errno=%d",
+                           errno));
+        printf("Warning, event thread startup failed, "
+               "degraded printouts as result, errno=%d\n", errno);
+        do_event_thread= 0;
+        if (m_event_thread)
+        {
+          void *res;
+          NdbThread_WaitFor(m_event_thread, &res);
+          NdbThread_Destroy(&m_event_thread);
+        }
+        ndb_mgm_disconnect(m_mgmsrv2);
+      }
     }
-  }
-  else
-  {
-    DBUG_PRINT("warning",
-               ("Could not do 2:nd connect to mgmtserver for event listening"));
-    DBUG_PRINT("info", ("code: %d, msg: %s",
-                        ndb_mgm_get_latest_error(m_mgmsrv2),
-                        ndb_mgm_get_latest_error_msg(m_mgmsrv2)));
-    printf("Warning, event connect failed, degraded printouts as result\n");
-    printf("code: %d, msg: %s\n",
-           ndb_mgm_get_latest_error(m_mgmsrv2),
-           ndb_mgm_get_latest_error_msg(m_mgmsrv2));
+    else
+    {
+      DBUG_PRINT("warning",
+                 ("Could not do 2:nd connect to mgmtserver for event listening"));
+      DBUG_PRINT("info", ("code: %d, msg: %s",
+                          ndb_mgm_get_latest_error(m_mgmsrv2),
+                          ndb_mgm_get_latest_error_msg(m_mgmsrv2)));
+      printf("Warning, event connect failed, degraded printouts as result\n");
+      printf("code: %d, msg: %s\n",
+             ndb_mgm_get_latest_error(m_mgmsrv2),
+             ndb_mgm_get_latest_error_msg(m_mgmsrv2));
+    }
   }
   m_connected= true;
   DBUG_PRINT("info",("Connected to Management Server at: %s:%d", host, port));
@@ -602,7 +926,7 @@ CommandInterpreter::disconnect()
     do_event_thread= 0;
     NdbThread_WaitFor(m_event_thread, &res);
     NdbThread_Destroy(&m_event_thread);
-    m_event_thread= 0;
+    m_event_thread= NULL;
     ndb_mgm_destroy_handle(&m_mgmsrv2);
   }
   if (m_connected)
@@ -618,11 +942,11 @@ CommandInterpreter::disconnect()
 
 int 
 CommandInterpreter::execute(const char *_line, int _try_reconnect,
-			    int *error) 
+			    bool interactive, int *error) 
 {
   if (_try_reconnect >= 0)
     try_reconnect=_try_reconnect;
-  int result= execute_impl(_line);
+  int result= execute_impl(_line, interactive);
   if (error)
     *error= m_error;
 
@@ -637,7 +961,7 @@ invalid_command(const char *cmd)
 }
 
 int 
-CommandInterpreter::execute_impl(const char *_line) 
+CommandInterpreter::execute_impl(const char *_line, bool interactive) 
 {
   DBUG_ENTER("CommandInterpreter::execute_impl");
   DBUG_PRINT("enter",("line=\"%s\"",_line));
@@ -686,7 +1010,7 @@ CommandInterpreter::execute_impl(const char *_line)
     DBUG_RETURN(true);
   }
   else if (strcasecmp(firstToken, "CONNECT") == 0) {
-    executeConnect(allAfterFirstToken);
+    executeConnect(allAfterFirstToken, interactive);
     DBUG_RETURN(true);
   }
   else if (strcasecmp(firstToken, "SLEEP") == 0) {
@@ -701,7 +1025,7 @@ CommandInterpreter::execute_impl(const char *_line)
     DBUG_RETURN(false);
   }
 
-  if (!connect())
+  if (!connect(interactive))
     DBUG_RETURN(true);
 
   if (strcasecmp(firstToken, "SHOW") == 0) {
@@ -1045,19 +1369,19 @@ CommandInterpreter::executeHelp(char* parameters)
     ndbout << "<level>    = " << "0 - 15" << endl;
     ndbout << "<id>       = " << "ALL | Any database node id" << endl;
     ndbout << endl;
-  } else if (strcasecmp(parameters, "SHOW") == 0) {
-    ndbout << helpTextShow;
-#ifdef HAVE_GLOBAL_REPLICATION
-  } else if (strcasecmp(parameters, "REPLICATION") == 0 ||
-	     strcasecmp(parameters, "REP") == 0) {
-    ndbout << helpTextRep;
-#endif // HAVE_GLOBAL_REPLICATION
-#ifdef VM_TRACE // DEBUG ONLY
-  } else if (strcasecmp(parameters, "DEBUG") == 0) {
-    ndbout << helpTextDebug;
-#endif
+    ndbout << "For detailed help on COMMAND, use HELP COMMAND." << endl;
   } else {
-    invalid_command(parameters);
+    int i = 0;
+    for (i = 0; help_items[i].cmd != NULL; i++) 
+    {
+      if (strcasecmp(parameters, help_items[i].cmd) == 0)
+      {
+        ndbout << help_items[i].help;
+        break;
+      }     
+    }
+    if (help_items[i].cmd == NULL)
+      ndbout << "No help for " << parameters << " available" << endl;
   }
 }
 
@@ -1314,13 +1638,13 @@ CommandInterpreter::executeShow(char* parameters)
 }
 
 void
-CommandInterpreter::executeConnect(char* parameters) 
+CommandInterpreter::executeConnect(char* parameters, bool interactive) 
 {
   disconnect();
   if (!emptyString(parameters)) {
     m_constr= BaseString(parameters).trim().c_str();
   }
-  connect();
+  connect(interactive);
 }
 
 //*****************************************************************************
@@ -2161,7 +2485,7 @@ CommandInterpreter::executeStartBackup(char* parameters)
   }
 
   if (result != 0) {
-    ndbout << "Start of backup failed" << endl;
+    ndbout << "Backup failed" << endl;
     printError();
 #if 0
     close(fd);
