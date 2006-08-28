@@ -378,7 +378,7 @@ ErrorBundle ErrorCodes[] = {
   { 1305, IE, "Backup definition not implemented" },
   { 1306, AE, "Backup not supported in diskless mode (change Diskless)" },
 
-  { 1321, IE, "Backup aborted by application" },
+  { 1321, UD, "Backup aborted by user request" },
   { 1322, IE, "Backup already completed" },
   { 1323, IE, "1323" },
   { 1324, IE, "Backup log buffer full" },
