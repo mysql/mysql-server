@@ -508,7 +508,6 @@ check_parse_params(THD *thd, Event_parse_data *parse_data)
       thd             [in]  THD
       parse_data      [in]  Object containing info about the event
       create_if_not   [in]  Whether to generate anwarning in case event exists
-      rows_affected   [out] How many rows were affected
 
   RETURN VALUE
     0                   OK
@@ -521,7 +520,7 @@ check_parse_params(THD *thd, Event_parse_data *parse_data)
 
 bool
 Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
-                                  my_bool create_if_not, uint *rows_affected)
+                                  my_bool create_if_not)
 {
   int ret= 0;
   CHARSET_INFO *scs= system_charset_info;
@@ -532,7 +531,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 
   DBUG_ENTER("Event_db_repository::create_event");
 
-  *rows_affected= 0;
   if (check_parse_params(thd, parse_data))
     goto err;
 
@@ -621,7 +619,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     goto err;
   }
 
-  *rows_affected= 1;
 ok:
   if (dbchanged)
     (void) mysql_change_db(thd, old_db.str, 1);
@@ -760,7 +757,6 @@ err:
       name            [in]  Event's name
       drop_if_exists  [in]  If set and the event not existing => warning
                             onto the stack
-      rows_affected   [out] Affected number of rows is returned heres
 
   RETURN VALUE
     FALSE  OK
@@ -769,7 +765,7 @@ err:
 
 bool
 Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
-                                bool drop_if_exists, uint *rows_affected)
+                                bool drop_if_exists)
 {
   TABLE *table= NULL;
   Open_tables_state backup;

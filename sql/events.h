@@ -77,16 +77,14 @@ public:
   get_instance();
 
   bool
-  create_event(THD *thd, Event_parse_data *parse_data, bool if_exists,
-               uint *rows_affected);
+  create_event(THD *thd, Event_parse_data *parse_data, bool if_exists);
 
   bool
-  update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to,
-               uint *rows_affected);
+  update_event(THD *thd, Event_parse_data *parse_data, sp_name *rename_to);
 
   bool
   drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists,
-             uint *rows_affected, bool only_from_disk);
+             bool only_from_disk);
 
   void
   drop_schema_events(THD *thd, char *db);
