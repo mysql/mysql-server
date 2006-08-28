@@ -17,10 +17,20 @@
 
 # Process this file with automake to create Makefile.in
 
+MYSQLDATAdir =          $(localstatedir)
+MYSQLSHAREdir =         $(pkgdatadir)
+MYSQLBASEdir=           $(prefix)
+MYSQLLIBdir=            $(pkglibdir)
+INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
+			-I$(top_srcdir)/regex \
+			-I$(top_srcdir)/storage/innobase/include \
+			-I$(top_srcdir)/sql \
+                        -I$(srcdir)
+
 AUTOMAKE_OPTIONS =	foreign
 TAR =			gtar
 
-noinst_HEADERS = ib_config.h
+noinst_HEADERS = 
 
 SUBDIRS =		os ut btr buf data dict dyn eval fil fsp fut \
 			ha ibuf lock log mach mem mtr page \

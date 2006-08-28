@@ -138,7 +138,16 @@ typedef struct st_table_share
   CHARSET_INFO *table_charset;		/* Default charset of string fields */
 
   MY_BITMAP all_set;
-  /* A pair "database_name\0table_name\0", widely used as simply a db name */
+  /*
+    Key which is used for looking-up table in table cache and in the list
+    of thread's temporary tables. Has the form of:
+      "database_name\0table_name\0" + optional part for temporary tables.
+
+    Note that all three 'table_cache_key', 'db' and 'table_name' members
+    must be set (and be non-zero) for tables in table cache. They also
+    should correspond to each other.
+    To ensure this one can use set_table_cache() methods.
+  */
   LEX_STRING table_cache_key;
   LEX_STRING db;                        /* Pointer to db */
   LEX_STRING table_name;                /* Table name (for open) */
@@ -223,6 +232,60 @@ typedef struct st_table_share
   uint part_state_len;
   handlerton *default_part_db_type;
 #endif
+
+
+  /*
+    Set share's table cache key and update its db and table name appropriately.
+
+    SYNOPSIS
+      set_table_cache_key()
+        key_buff    Buffer with already built table cache key to be
+                    referenced from share.
+        key_length  Key length.
+
+    NOTES
+      Since 'key_buff' buffer will be referenced from share it should has same
+      life-time as share itself.
+      This method automatically ensures that TABLE_SHARE::table_name/db have
+      appropriate values by using table cache key as their source.
+  */
+
+  void set_table_cache_key(char *key_buff, uint key_length)
+  {
+    table_cache_key.str= key_buff;
+    table_cache_key.length= key_length;
+    /*
+      Let us use the fact that the key is "db/0/table_name/0" + optional
+      part for temporary tables.
+    */
+    db.str=            table_cache_key.str;
+    db.length=         strlen(db.str);
+    table_name.str=    db.str + db.length + 1;
+    table_name.length= strlen(table_name.str);
+  }
+
+
+  /*
+    Set share's table cache key and update its db and table name appropriately.
+
+    SYNOPSIS
+      set_table_cache_key()
+        key_buff    Buffer to be used as storage for table cache key
+                    (should be at least key_length bytes).
+        key         Value for table cache key.
+        key_length  Key length.
+
+    NOTE
+      Since 'key_buff' buffer will be used as storage for table cache key
+      it should has same life-time as share itself.
+  */
+
+  void set_table_cache_key(char *key_buff, const char *key, uint key_length)
+  {
+    memcpy(key_buff, key, key_length);
+    set_table_cache_key(key_buff, key_length);
+  }
+
 } TABLE_SHARE;
 
 

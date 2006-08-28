@@ -19,16 +19,13 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#define MYSQL_SERVER 1
 #include "mysql_priv.h"
+#include <mysql/plugin.h>
 #include <m_ctype.h>
 #include "ha_myisammrg.h"
-#ifndef MASTER
-#include "../srclib/myisammrg/myrg_def.h"
-#else
-#include "../storage/myisammrg/myrg_def.h"
-#endif
+#include "myrg_def.h"
 
-#include <mysql/plugin.h>
 
 /*****************************************************************************
 ** MyISAM MERGE tables
