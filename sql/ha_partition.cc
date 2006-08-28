@@ -361,7 +361,7 @@ bool ha_partition::initialise_partition(MEM_ROOT *mem_root)
     HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_CAN_SQL_HANDLER, HA_DUPLICATE_POS,
     HA_CAN_INSERT_DELAYED is disabled until further investigated.
   */
-  m_table_flags= m_file[0]->table_flags();
+  m_table_flags= (ulong)m_file[0]->table_flags();
   m_low_byte_first= m_file[0]->low_byte_first();
   m_pkey_is_clustered= TRUE;
   file_array= m_file;
