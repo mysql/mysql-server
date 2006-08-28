@@ -1811,7 +1811,7 @@ page_validate(
 			if (!(1 == cmp_rec_rec(rec, old_rec,
 					offsets, old_offsets, index))) {
 				fprintf(stderr,
-				"InnoDB: Records in wrong order on page %lu",
+				"InnoDB: Records in wrong order on page %lu" ,
 					(ulong) buf_frame_get_page_no(page));
 				dict_index_name_print(stderr, NULL, index);
 				fputs("\nInnoDB: previous record ", stderr);
