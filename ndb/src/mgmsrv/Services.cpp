@@ -33,6 +33,7 @@
 #include "../mgmapi/ndb_logevent.hpp"
 
 #include <base64.h>
+#include <ndberror.h>
 
 extern bool g_StopServer;
 extern bool g_RestartServer;
@@ -1325,6 +1326,12 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
     if (ndb_logevent_body[i].index_fn)
       val= (*(ndb_logevent_body[i].index_fn))(val);
     str.appfmt("%s=%d\n",ndb_logevent_body[i].token, val);
+    if(strcmp(ndb_logevent_body[i].token,"error") == 0)
+    {
+      int m_text_len= strlen(m_text);
+      snprintf(m_text+m_text_len, 4 , " - ");
+      ndb_error_string(theData[3], m_text+(m_text_len+3), sizeof(m_text)-m_text_len-3);
+    }
   }
 
   Vector<NDB_SOCKET_TYPE> copy;

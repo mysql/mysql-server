@@ -121,7 +121,7 @@ read_and_execute(int _try_reconnect)
     line_read= strdup(linebuffer);
   }
 #endif
-  return com->execute(line_read,_try_reconnect);
+  return com->execute(line_read, _try_reconnect, 1);
 }
 
 int main(int argc, char** argv){
@@ -163,7 +163,7 @@ int main(int argc, char** argv){
   }
   else
   {
-    com->execute(opt_execute_str,_try_reconnect, &ret);
+    com->execute(opt_execute_str,_try_reconnect, 0, &ret);
   }
   delete com;
 
