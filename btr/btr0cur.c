@@ -237,7 +237,12 @@ NOTE: n_fields_cmp in tuple must be set so that it cannot be compared
 to node pointer page number fields on the upper levels of the tree!
 Note that if mode is PAGE_CUR_LE, which is used in inserts, then
 cursor->up_match and cursor->low_match both will have sensible values.
-If mode is PAGE_CUR_GE, then up_match will a have a sensible value. */
+If mode is PAGE_CUR_GE, then up_match will a have a sensible value.
+
+If mode is PAGE_CUR_LE , cursor is left at the place where an insert of the
+search tuple should be performed in the B-tree. InnoDB does an insert
+immediately after the cursor. Thus, the cursor may end up on a user record,
+or on a page infimum record. */
 
 void
 btr_cur_search_to_nth_level(
