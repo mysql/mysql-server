@@ -223,6 +223,7 @@ Backup::execCONTINUEB(Signal* signal)
   }
   case BackupContinueB::BACKUP_FRAGMENT_INFO:
   {
+    jam();
     const Uint32 ptr_I = Tdata1;
     Uint32 tabPtr_I = Tdata2;
     Uint32 fragPtr_I = signal->theData[3];
@@ -231,48 +232,56 @@ Backup::execCONTINUEB(Signal* signal)
     c_backupPool.getPtr(ptr, ptr_I);
     TablePtr tabPtr;
     ptr.p->tables.getPtr(tabPtr, tabPtr_I);
-    FragmentPtr fragPtr;
-    tabPtr.p->fragments.getPtr(fragPtr, fragPtr_I);
 
-    BackupFilePtr filePtr;
-    ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
-
-    const Uint32 sz = sizeof(BackupFormat::CtlFile::FragmentInfo) >> 2;
-    Uint32 * dst;
-    if (!filePtr.p->operation.dataBuffer.getWritePtr(&dst, sz))
+    if (fragPtr_I != tabPtr.p->fragments.getSize())
     {
-      sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 100, 4);
-      return;
+      jam();
+      FragmentPtr fragPtr;
+      tabPtr.p->fragments.getPtr(fragPtr, fragPtr_I);
+      
+      BackupFilePtr filePtr;
+      ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
+      
+      const Uint32 sz = sizeof(BackupFormat::CtlFile::FragmentInfo) >> 2;
+      Uint32 * dst;
+      if (!filePtr.p->operation.dataBuffer.getWritePtr(&dst, sz))
+      {
+	sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 100, 4);
+	return;
+      }
+      
+      BackupFormat::CtlFile::FragmentInfo * fragInfo = 
+	(BackupFormat::CtlFile::FragmentInfo*)dst;
+      fragInfo->SectionType = htonl(BackupFormat::FRAGMENT_INFO);
+      fragInfo->SectionLength = htonl(sz);
+      fragInfo->TableId = htonl(fragPtr.p->tableId);
+      fragInfo->FragmentNo = htonl(fragPtr_I);
+      fragInfo->NoOfRecordsLow = htonl(fragPtr.p->noOfRecords & 0xFFFFFFFF);
+      fragInfo->NoOfRecordsHigh = htonl(fragPtr.p->noOfRecords >> 32);
+      fragInfo->FilePosLow = htonl(0);
+      fragInfo->FilePosHigh = htonl(0);
+      
+      filePtr.p->operation.dataBuffer.updateWritePtr(sz);
+      
+      fragPtr_I++;
     }
-
-    BackupFormat::CtlFile::FragmentInfo * fragInfo = 
-      (BackupFormat::CtlFile::FragmentInfo*)dst;
-    fragInfo->SectionType = htonl(BackupFormat::FRAGMENT_INFO);
-    fragInfo->SectionLength = htonl(sz);
-    fragInfo->TableId = htonl(fragPtr.p->tableId);
-    fragInfo->FragmentNo = htonl(fragPtr_I);
-    fragInfo->NoOfRecordsLow = htonl(fragPtr.p->noOfRecords & 0xFFFFFFFF);
-    fragInfo->NoOfRecordsHigh = htonl(fragPtr.p->noOfRecords >> 32);
-    fragInfo->FilePosLow = htonl(0);
-    fragInfo->FilePosHigh = htonl(0);
-
-    filePtr.p->operation.dataBuffer.updateWritePtr(sz);
-
-    fragPtr_I++;
+    
     if (fragPtr_I == tabPtr.p->fragments.getSize())
     {
       signal->theData[0] = tabPtr.p->tableId;
       signal->theData[1] = 0; // unlock
       EXECUTE_DIRECT(DBDICT, GSN_BACKUP_FRAGMENT_REQ, signal, 2);
-
+      
       fragPtr_I = 0;
       ptr.p->tables.next(tabPtr);
       if ((tabPtr_I = tabPtr.i) == RNIL)
       {
-        closeFiles(signal, ptr);
-        return;
+	jam();
+	closeFiles(signal, ptr);
+	return;
       }
     }
+    
     signal->theData[0] = BackupContinueB::BACKUP_FRAGMENT_INFO;
     signal->theData[1] = ptr_I;
     signal->theData[2] = tabPtr_I;
@@ -2037,13 +2046,20 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
 
       {
         TablePtr tabPtr;
-        ptr.p->tables.first(tabPtr);
-
-        signal->theData[0] = BackupContinueB::BACKUP_FRAGMENT_INFO;
-        signal->theData[1] = ptr.i;
-        signal->theData[2] = tabPtr.i;
-        signal->theData[3] = 0;
-        sendSignal(BACKUP_REF, GSN_CONTINUEB, signal, 4, JBB);
+        if (ptr.p->tables.first(tabPtr))
+	{
+	  jam();
+	  signal->theData[0] = BackupContinueB::BACKUP_FRAGMENT_INFO;
+	  signal->theData[1] = ptr.i;
+	  signal->theData[2] = tabPtr.i;
+	  signal->theData[3] = 0;
+	  sendSignal(BACKUP_REF, GSN_CONTINUEB, signal, 4, JBB);
+	}
+	else
+	{
+	  jam();
+	  closeFiles(signal, ptr);
+	}
       }
     }
   }
@@ -2362,19 +2378,10 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
     {
       jam();
       ndbrequire(! (filePtr.p->m_flags & BackupFile::BF_FILE_THREAD));
-      ndbrequire(! (filePtr.p->m_flags & BackupFile::BF_CLOSING));
       filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_LCP_META;
       if (filePtr.p->m_flags & BackupFile::BF_OPEN)
       {
-	filePtr.p->m_flags |= BackupFile::BF_CLOSING;
-	FsCloseReq * req = (FsCloseReq *)signal->getDataPtrSend();
-	req->filePointer = filePtr.p->filePointer;
-	req->userPointer = filePtr.i;
-	req->userReference = reference();
-	req->fileFlag = 0;
-	FsCloseReq::setRemoveFileFlag(req->fileFlag, 1);
-	sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 
-		   FsCloseReq::SignalLength, JBA);
+	closeFile(signal, ptr, filePtr);
 	return;
       }
     }
@@ -4080,29 +4087,10 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   
   ndbrequire(flags & BackupFile::BF_OPEN);
   ndbrequire(flags & BackupFile::BF_FILE_THREAD);
-  ndbrequire(! (flags & BackupFile::BF_CLOSING));
   
-  filePtr.p->m_flags |= BackupFile::BF_CLOSING;
-  
-  FsCloseReq * req = (FsCloseReq *)signal->getDataPtrSend();
-  req->filePointer = filePtr.p->filePointer;
-  req->userPointer = filePtr.i;
-  req->userReference = reference();
-  req->fileFlag = 0;
-
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
-  
-  if (ptr.p->errorCode)
-  {
-    FsCloseReq::setRemoveFileFlag(req->fileFlag, 1);
-  }
-
-#ifdef DEBUG_ABORT
-  ndbout_c("***** a FSCLOSEREQ filePtr.i = %u run=%d cl=%d", filePtr.i,
-	   running, closing);
-#endif
-  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
+  closeFile(signal, ptr, filePtr);
 }
 
 
@@ -4367,7 +4355,7 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
     else 
     {
       jam();
-      checkFile(sig, filePtr); // make sure we write everything before closing
+      closeFile(sig, ptr, filePtr);
     }
   }
   
@@ -4375,6 +4363,33 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
     jam();
     closeFilesDone(sig, ptr);
   }//if
+}
+
+void
+Backup::closeFile(Signal* signal, BackupRecordPtr ptr, BackupFilePtr filePtr)
+{
+  ndbrequire(filePtr.p->m_flags & BackupFile::BF_OPEN);
+  ndbrequire(! (filePtr.p->m_flags & BackupFile::BF_OPENING));
+  ndbrequire(! (filePtr.p->m_flags & BackupFile::BF_CLOSING));
+  filePtr.p->m_flags |= BackupFile::BF_CLOSING;
+  
+  FsCloseReq * req = (FsCloseReq *)signal->getDataPtrSend();
+  req->filePointer = filePtr.p->filePointer;
+  req->userPointer = filePtr.i;
+  req->userReference = reference();
+  req->fileFlag = 0;
+  
+  if (ptr.p->errorCode)
+  {
+    FsCloseReq::setRemoveFileFlag(req->fileFlag, 1);
+  }
+
+#ifdef DEBUG_ABORT
+  ndbout_c("***** a FSCLOSEREQ filePtr.i = %u flags: %x", 
+	   filePtr.i, filePtr.p->m_flags);
+#endif
+  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
+
 }
 
 void
