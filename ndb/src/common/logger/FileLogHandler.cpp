@@ -147,6 +147,7 @@ FileLogHandler::createNewFile()
   bool rc = true;	
   int fileNo = 1;
   char newName[PATH_MAX];
+  time_t newMtime, preMtime = 0;
 
   do
   {
@@ -159,7 +160,15 @@ FileLogHandler::createNewFile()
     }		
     BaseString::snprintf(newName, sizeof(newName),
 	       "%s.%d", m_pLogFile->getName(), fileNo++); 
-    
+    newMtime = File_class::mtime(newName);
+    if (newMtime < preMtime) 
+    {
+      break;
+    }
+    else
+    {
+      preMtime = newMtime;
+    }
   } while (File_class::exists(newName));
   
   m_pLogFile->close();	
