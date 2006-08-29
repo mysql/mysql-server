@@ -67,7 +67,7 @@ dict_get_first_table_name_in_db(
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-					BTR_SEARCH_LEAF, &pcur, &mtr);
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
 loop:
 	rec = btr_pcur_get_rec(&pcur);
 
@@ -84,7 +84,7 @@ loop:
 	field = rec_get_nth_field_old(rec, 0, &len);
 
 	if (len < strlen(name)
-		|| ut_memcmp(name, field, strlen(name)) != 0) {
+	    || ut_memcmp(name, field, strlen(name)) != 0) {
 		/* Not found */
 
 		btr_pcur_close(&pcur);
@@ -144,7 +144,7 @@ dict_print(void)
 	sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
 
 	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
-								TRUE, &mtr);
+				    TRUE, &mtr);
 loop:
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
@@ -274,7 +274,7 @@ dict_check_tablespaces_and_store_max_id(
 	ut_a(!dict_table_is_comp(sys_tables));
 
 	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
-								TRUE, &mtr);
+				    TRUE, &mtr);
 loop:
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
@@ -290,7 +290,7 @@ loop:
 		known space id */
 
 		/* printf("Biggest space id in data dictionary %lu\n",
-		   max_space_id); */
+		max_space_id); */
 		fil_set_max_space_id_if_bigger(max_space_id);
 
 		mutex_exit(&(dict_sys->mutex));
@@ -327,7 +327,7 @@ loop:
 			exists; print a warning to the .err log if not */
 
 			fil_space_for_table_exists_in_mem(space_id, name,
-							FALSE, TRUE, TRUE);
+							  FALSE, TRUE, TRUE);
 		}
 
 		if (space_id != 0 && !in_crash_recovery) {
@@ -335,7 +335,8 @@ loop:
 			object and check that the .ibd file exists. */
 
 			fil_open_single_table_tablespace(FALSE, space_id,
-						zip_size_in_k * 1024, name);
+							 zip_size_in_k * 1024,
+							 name);
 		}
 
 		mem_free(name);
@@ -398,7 +399,7 @@ dict_load_columns(
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-						BTR_SEARCH_LEAF, &pcur, &mtr);
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (i = 0; i < table->n_cols - DATA_N_SYS_COLS; i++) {
 
 		rec = btr_pcur_get_rec(&pcur);
@@ -415,9 +416,8 @@ dict_load_columns(
 		ut_ad(len == 4);
 		ut_a(i == mach_read_from_4(field));
 
-		ut_a(0 == ut_strcmp("NAME",
-			dict_field_get_col(
-			dict_index_get_nth_field(sys_index, 4))->name));
+		ut_a(!strcmp("NAME", dict_field_get_col
+			     (dict_index_get_nth_field(sys_index, 4))->name));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
 		name = mem_heap_strdupl(heap, (char*) field, len);
@@ -429,36 +429,37 @@ dict_load_columns(
 		prtype = mach_read_from_4(field);
 
 		if (dtype_get_charset_coll(prtype) == 0
-				&& dtype_is_string_type(mtype)) {
+		    && dtype_is_string_type(mtype)) {
 			/* The table was created with < 4.1.2. */
 
 			if (dtype_is_binary_string_type(mtype, prtype)) {
 				/* Use the binary collation for
 				string columns of binary type. */
 
-				prtype = dtype_form_prtype(prtype,
-					DATA_MYSQL_BINARY_CHARSET_COLL);
+				prtype = dtype_form_prtype
+					(prtype,
+					 DATA_MYSQL_BINARY_CHARSET_COLL);
 			} else {
 				/* Use the default charset for
 				other than binary columns. */
 
-				prtype = dtype_form_prtype(prtype,
-					data_mysql_default_charset_coll);
+				prtype = dtype_form_prtype
+					(prtype,
+					 data_mysql_default_charset_coll);
 			}
 		}
 
 		field = rec_get_nth_field_old(rec, 7, &len);
 		col_len = mach_read_from_4(field);
 
-		ut_a(0 == ut_strcmp("PREC",
-			dict_field_get_col(
-			dict_index_get_nth_field(sys_index, 8))->name));
+		ut_a(!strcmp("PREC", dict_field_get_col
+			     (dict_index_get_nth_field(sys_index, 8))->name));
 
 		field = rec_get_nth_field_old(rec, 8, &len);
 		prec = mach_read_from_4(field);
 
 		dict_mem_table_add_col(table, name, mtype, prtype, col_len,
-									prec);
+				       prec);
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
@@ -531,7 +532,7 @@ dict_load_fields(
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-						BTR_SEARCH_LEAF, &pcur, &mtr);
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (i = 0; i < index->n_fields; i++) {
 
 		rec = btr_pcur_get_rec(&pcur);
@@ -559,24 +560,24 @@ dict_load_fields(
 		pos_and_prefix_len = mach_read_from_4(field);
 
 		ut_a((pos_and_prefix_len & 0xFFFFUL) == i
-			|| (pos_and_prefix_len & 0xFFFF0000UL) == (i << 16));
+		     || (pos_and_prefix_len & 0xFFFF0000UL) == (i << 16));
 
 		if ((i == 0 && pos_and_prefix_len > 0)
-			|| (pos_and_prefix_len & 0xFFFF0000UL) > 0) {
+		    || (pos_and_prefix_len & 0xFFFF0000UL) > 0) {
 
 			prefix_len = pos_and_prefix_len & 0xFFFFUL;
 		} else {
 			prefix_len = 0;
 		}
 
-		ut_a(0 == ut_strcmp("COL_NAME",
-			dict_field_get_col(
-			dict_index_get_nth_field(sys_index, 4))->name));
+		ut_a(!strcmp("COL_NAME", dict_field_get_col
+			     (dict_index_get_nth_field(sys_index, 4))->name));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
 
-		dict_mem_index_add_field(index,
-					 mem_heap_strdupl(heap, (char*) field, len), prefix_len);
+		dict_mem_index_add_field(index, mem_heap_strdupl
+					 (heap, (char*) field, len),
+					 prefix_len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
@@ -622,7 +623,7 @@ dict_load_indexes(
 #endif /* UNIV_SYNC_DEBUG */
 
 	if ((ut_dulint_get_high(table->id) == 0)
-		&& (ut_dulint_get_low(table->id) < DICT_HDR_FIRST_ID)) {
+	    && (ut_dulint_get_low(table->id) < DICT_HDR_FIRST_ID)) {
 		is_sys_table = TRUE;
 	} else {
 		is_sys_table = FALSE;
@@ -644,7 +645,7 @@ dict_load_indexes(
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-						BTR_SEARCH_LEAF, &pcur, &mtr);
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (;;) {
 		if (!btr_pcur_is_on_user_rec(&pcur, &mtr)) {
 
@@ -662,7 +663,7 @@ dict_load_indexes(
 
 		if (rec_get_deleted_flag(rec, 0)) {
 			dict_load_report_deleted_index(table->name,
-				ULINT_UNDEFINED);
+						       ULINT_UNDEFINED);
 
 			btr_pcur_close(&pcur);
 			mtr_commit(&mtr);
@@ -674,9 +675,8 @@ dict_load_indexes(
 		ut_ad(len == 8);
 		id = mach_read_from_8(field);
 
-		ut_a(0 == ut_strcmp("NAME",
-			dict_field_get_col(
-			dict_index_get_nth_field(sys_index, 4))->name));
+		ut_a(!strcmp("NAME", dict_field_get_col
+			     (dict_index_get_nth_field(sys_index, 4))->name));
 
 		field = rec_get_nth_field_old(rec, 4, &name_len);
 		name_buf = mem_heap_strdupl(heap, (char*) field, name_len);
@@ -690,9 +690,8 @@ dict_load_indexes(
 		field = rec_get_nth_field_old(rec, 7, &len);
 		space = mach_read_from_4(field);
 
-		ut_a(0 == ut_strcmp("PAGE_NO",
-			dict_field_get_col(
-			dict_index_get_nth_field(sys_index, 8))->name));
+		ut_a(!strcmp("PAGE_NO", dict_field_get_col
+			     (dict_index_get_nth_field(sys_index, 8))->name));
 
 		field = rec_get_nth_field_old(rec, 8, &len);
 		page_no = mach_read_from_4(field);
@@ -700,8 +699,9 @@ dict_load_indexes(
 		if (page_no == FIL_NULL) {
 
 			fprintf(stderr,
-		"InnoDB: Error: trying to load index %s for table %s\n"
-		"InnoDB: but the index tree has been freed!\n",
+				"InnoDB: Error: trying to load index %s"
+				" for table %s\n"
+				"InnoDB: but the index tree has been freed!\n",
 				name_buf, table->name);
 
 			btr_pcur_close(&pcur);
@@ -711,11 +711,13 @@ dict_load_indexes(
 		}
 
 		if ((type & DICT_CLUSTERED) == 0
-			&& NULL == dict_table_get_first_index(table)) {
+		    && NULL == dict_table_get_first_index(table)) {
 
 			fprintf(stderr,
-		"InnoDB: Error: trying to load index %s for table %s\n"
-		"InnoDB: but the first index is not clustered!\n",
+				"InnoDB: Error: trying to load index %s"
+				" for table %s\n"
+				"InnoDB: but the first index"
+				" is not clustered!\n",
 				name_buf, table->name);
 
 			btr_pcur_close(&pcur);
@@ -725,17 +727,17 @@ dict_load_indexes(
 		}
 
 		if (is_sys_table
-			&& ((type & DICT_CLUSTERED)
+		    && ((type & DICT_CLUSTERED)
 			|| ((table == dict_sys->sys_tables)
-				&& (name_len == (sizeof "ID_IND") - 1)
-				&& (0 == ut_memcmp(name_buf, "ID_IND",
-							name_len))))) {
+			    && (name_len == (sizeof "ID_IND") - 1)
+			    && (0 == ut_memcmp(name_buf, "ID_IND",
+					       name_len))))) {
 
 			/* The index was created in memory already at booting
 			of the database server */
 		} else {
 			index = dict_mem_index_create(table->name, name_buf,
-						space, type, n_fields);
+						      space, type, n_fields);
 			index->id = id;
 
 			dict_load_fields(table, index, heap);
@@ -806,13 +808,13 @@ dict_load_table(
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-					BTR_SEARCH_LEAF, &pcur, &mtr);
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	rec = btr_pcur_get_rec(&pcur);
 
 	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
-			|| rec_get_deleted_flag(rec, 0)) {
+	    || rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
-	err_exit:
+err_exit:
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
 		mem_heap_free(heap);
@@ -828,9 +830,8 @@ dict_load_table(
 		goto err_exit;
 	}
 
-	ut_a(0 == ut_strcmp("SPACE",
-		dict_field_get_col(
-		dict_index_get_nth_field(sys_index, 9))->name));
+	ut_a(!strcmp("SPACE", dict_field_get_col
+		     (dict_index_get_nth_field(sys_index, 9))->name));
 
 	field = rec_get_nth_field_old(rec, 9, &len);
 	space = mach_read_from_4(field);
@@ -841,7 +842,7 @@ dict_load_table(
 		ut_a(zip_size != ULINT_UNDEFINED);
 
 		if (fil_space_for_table_exists_in_mem(space, name, FALSE,
-							FALSE, FALSE)) {
+						      FALSE, FALSE)) {
 			/* Ok; (if we did a crash recovery then the tablespace
 			can already be in the memory cache) */
 		} else {
@@ -851,12 +852,13 @@ dict_load_table(
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: error: space object of table %s,\n"
-"InnoDB: space id %lu did not exist in memory. Retrying an open.\n",
-							name, (ulong)space);
+				"  InnoDB: error: space object of table %s,\n"
+				"InnoDB: space id %lu did not exist in memory."
+				" Retrying an open.\n",
+				name, (ulong)space);
 			/* Try to open the tablespace */
-			if (!fil_open_single_table_tablespace(TRUE,
-						space, zip_size, name)) {
+			if (!fil_open_single_table_tablespace
+			    (TRUE, space, zip_size, name)) {
 				/* We failed to find a sensible tablespace
 				file */
 
@@ -867,9 +869,8 @@ dict_load_table(
 		zip_size = 0;
 	}
 
-	ut_a(0 == ut_strcmp("N_COLS",
-		dict_field_get_col(
-		dict_index_get_nth_field(sys_index, 4))->name));
+	ut_a(!strcmp("N_COLS", dict_field_get_col
+		     (dict_index_get_nth_field(sys_index, 4))->name));
 
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
@@ -882,13 +883,12 @@ dict_load_table(
 	}
 
 	table = dict_mem_table_create(name, space, n_cols & ~0x80000000UL,
-		flags);
+				      flags);
 
 	table->ibd_file_missing = ibd_file_missing;
 
-	ut_a(0 == ut_strcmp("ID",
-		dict_field_get_col(
-		dict_index_get_nth_field(sys_index, 3))->name));
+	ut_a(!strcmp("ID", dict_field_get_col
+		     (dict_index_get_nth_field(sys_index, 3))->name));
 
 	field = rec_get_nth_field_old(rec, 3, &len);
 	table->id = mach_read_from_8(field);
@@ -914,7 +914,7 @@ dict_load_table(
 	dict_load_indexes(table, heap);
 
 	err = dict_load_foreigns(table->name, TRUE);
-/*
+#if 0
 	if (err != DB_SUCCESS) {
 
 		mutex_enter(&dict_foreign_err_mutex);
@@ -922,16 +922,22 @@ dict_load_table(
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-"  InnoDB: Error: could not make a foreign key definition to match\n"
-"InnoDB: the foreign key table or the referenced table!\n"
-"InnoDB: The data dictionary of InnoDB is corrupt. You may need to drop\n"
-"InnoDB: and recreate the foreign key table or the referenced table.\n"
-"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
-"InnoDB: Latest foreign key error printout:\n%s\n", dict_foreign_err_buf);
+			"  InnoDB: Error: could not make a foreign key"
+			" definition to match\n"
+			"InnoDB: the foreign key table"
+			" or the referenced table!\n"
+			"InnoDB: The data dictionary of InnoDB is corrupt."
+			" You may need to drop\n"
+			"InnoDB: and recreate the foreign key table"
+			" or the referenced table.\n"
+			"InnoDB: Submit a detailed bug report"
+			" to http://bugs.mysql.com\n"
+			"InnoDB: Latest foreign key error printout:\n%s\n",
+			dict_foreign_err_buf);
 
 		mutex_exit(&dict_foreign_err_mutex);
 	}
-*/
+#endif /* 0 */
 	mem_heap_free(heap);
 
 	return(table);
@@ -971,8 +977,8 @@ dict_load_table_on_id(
 	/*---------------------------------------------------*/
 	/* Get the secondary index based on ID for table SYS_TABLES */
 	sys_tables = dict_sys->sys_tables;
-	sys_table_ids = dict_table_get_next_index(
-				dict_table_get_first_index(sys_tables));
+	sys_table_ids = dict_table_get_next_index
+		(dict_table_get_first_index(sys_tables));
 	ut_a(!dict_table_is_comp(sys_tables));
 	heap = mem_heap_create(256);
 
@@ -986,11 +992,11 @@ dict_load_table_on_id(
 	dict_index_copy_types(tuple, sys_table_ids, 1);
 
 	btr_pcur_open_on_user_rec(sys_table_ids, tuple, PAGE_CUR_GE,
-						BTR_SEARCH_LEAF, &pcur, &mtr);
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	rec = btr_pcur_get_rec(&pcur);
 
 	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
-			|| rec_get_deleted_flag(rec, 0)) {
+	    || rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
 		btr_pcur_close(&pcur);
@@ -1059,8 +1065,8 @@ static
 void
 dict_load_foreign_cols(
 /*===================*/
-	const char*	id,	/* in: foreign constraint id as a null-
-				terminated string */
+	const char*	id,	/* in: foreign constraint id as a
+				null-terminated string */
 	dict_foreign_t*	foreign)/* in: foreign constraint object */
 {
 	dict_table_t*	sys_foreign_cols;
@@ -1078,11 +1084,11 @@ dict_load_foreign_cols(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
-					foreign->n_fields * sizeof(void*));
+	foreign->foreign_col_names = mem_heap_alloc
+		(foreign->heap, foreign->n_fields * sizeof(void*));
 
-	foreign->referenced_col_names = mem_heap_alloc(foreign->heap,
-					foreign->n_fields * sizeof(void*));
+	foreign->referenced_col_names = mem_heap_alloc
+		(foreign->heap, foreign->n_fields * sizeof(void*));
 	mtr_start(&mtr);
 
 	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
@@ -1096,7 +1102,7 @@ dict_load_foreign_cols(
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-						BTR_SEARCH_LEAF, &pcur, &mtr);
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	for (i = 0; i < foreign->n_fields; i++) {
 
 		rec = btr_pcur_get_rec(&pcur);
@@ -1113,12 +1119,12 @@ dict_load_foreign_cols(
 		ut_a(i == mach_read_from_4(field));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
-		foreign->foreign_col_names[i] =
-			mem_heap_strdupl(foreign->heap, (char*) field, len);
+		foreign->foreign_col_names[i] = mem_heap_strdupl
+			(foreign->heap, (char*) field, len);
 
 		field = rec_get_nth_field_old(rec, 5, &len);
-		foreign->referenced_col_names[i] =
-		  mem_heap_strdupl(foreign->heap, (char*) field, len);
+		foreign->referenced_col_names[i] = mem_heap_strdupl
+			(foreign->heap, (char*) field, len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
@@ -1136,7 +1142,8 @@ dict_load_foreign(
 				/* out: DB_SUCCESS or error code */
 	const char*	id,	/* in: foreign constraint id as a
 				null-terminated string */
-	ibool		check_charsets)/* in: TRUE=check charset compatibility */
+	ibool		check_charsets)
+				/* in: TRUE=check charset compatibility */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -1169,11 +1176,11 @@ dict_load_foreign(
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-					BTR_SEARCH_LEAF, &pcur, &mtr);
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	rec = btr_pcur_get_rec(&pcur);
 
 	if (!btr_pcur_is_on_user_rec(&pcur, &mtr)
-			|| rec_get_deleted_flag(rec, 0)) {
+	    || rec_get_deleted_flag(rec, 0)) {
 		/* Not found */
 
 		fprintf(stderr,
@@ -1210,8 +1217,8 @@ dict_load_foreign(
 
 	foreign = dict_mem_foreign_create();
 
-	foreign->n_fields =
-		mach_read_from_4(rec_get_nth_field_old(rec, 5, &len));
+	foreign->n_fields = mach_read_from_4
+		(rec_get_nth_field_old(rec, 5, &len));
 
 	ut_a(len == 4);
 
@@ -1223,12 +1230,12 @@ dict_load_foreign(
 	foreign->id = mem_heap_strdup(foreign->heap, id);
 
 	field = rec_get_nth_field_old(rec, 3, &len);
-	foreign->foreign_table_name =
-		mem_heap_strdupl(foreign->heap, (char*) field, len);
+	foreign->foreign_table_name = mem_heap_strdupl
+		(foreign->heap, (char*) field, len);
 
 	field = rec_get_nth_field_old(rec, 4, &len);
-	foreign->referenced_table_name =
-		mem_heap_strdupl(foreign->heap, (char*) field, len);
+	foreign->referenced_table_name = mem_heap_strdupl
+		(foreign->heap, (char*) field, len);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1290,7 +1297,8 @@ dict_load_foreigns(
 		/* No foreign keys defined yet in this database */
 
 		fprintf(stderr,
-	"InnoDB: Error: no foreign key system tables in the database\n");
+			"InnoDB: Error: no foreign key system tables"
+			" in the database\n");
 
 		return(DB_ERROR);
 	}
@@ -1301,8 +1309,8 @@ dict_load_foreigns(
 	/* Get the secondary index based on FOR_NAME from table
 	SYS_FOREIGN */
 
-	sec_index = dict_table_get_next_index(
-				dict_table_get_first_index(sys_foreign));
+	sec_index = dict_table_get_next_index
+		(dict_table_get_first_index(sys_foreign));
 start_load:
 	heap = mem_heap_create(256);
 
@@ -1313,7 +1321,7 @@ start_load:
 	dict_index_copy_types(tuple, sec_index, 1);
 
 	btr_pcur_open_on_user_rec(sec_index, tuple, PAGE_CUR_GE,
-						BTR_SEARCH_LEAF, &pcur, &mtr);
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
 loop:
 	rec = btr_pcur_get_rec(&pcur);
 
@@ -1334,8 +1342,8 @@ loop:
 	charset-collation, in a case-insensitive way. */
 
 	if (0 != cmp_data_data(dfield_get_type(dfield),
-			dfield_get_data(dfield), dfield_get_len(dfield),
-			field, len)) {
+			       dfield_get_data(dfield), dfield_get_len(dfield),
+			       field, len)) {
 
 		goto load_next_index;
 	}

@@ -56,10 +56,9 @@ buf_flush_insert_into_flush_list(
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
-		|| (ut_dulint_cmp(
-			(UT_LIST_GET_FIRST(buf_pool->flush_list))
-			->oldest_modification,
-			block->oldest_modification) <= 0));
+	      || (ut_dulint_cmp((UT_LIST_GET_FIRST(buf_pool->flush_list))
+				->oldest_modification,
+				block->oldest_modification) <= 0));
 
 	UT_LIST_ADD_FIRST(flush_list, buf_pool->flush_list, block);
 
@@ -87,7 +86,7 @@ buf_flush_insert_sorted_into_flush_list(
 	b = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
 	while (b && (ut_dulint_cmp(b->oldest_modification,
-					block->oldest_modification) > 0)) {
+				   block->oldest_modification) > 0)) {
 		prev_b = b;
 		b = UT_LIST_GET_NEXT(flush_list, b);
 	}
@@ -96,7 +95,7 @@ buf_flush_insert_sorted_into_flush_list(
 		UT_LIST_ADD_FIRST(flush_list, buf_pool->flush_list, block);
 	} else {
 		UT_LIST_INSERT_AFTER(flush_list, buf_pool->flush_list, prev_b,
-								block);
+				     block);
 	}
 
 	ut_ad(buf_flush_validate_low());
@@ -119,7 +118,8 @@ buf_flush_ready_for_replace(
 	if (block->state != BUF_BLOCK_FILE_PAGE) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Error: buffer block state %lu in the LRU list!\n",
+			"  InnoDB: Error: buffer block state %lu"
+			" in the LRU list!\n",
 			(ulong)block->state);
 		ut_print_buf(stderr, block, sizeof(buf_block_t));
 
@@ -127,8 +127,8 @@ buf_flush_ready_for_replace(
 	}
 
 	if ((ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) > 0)
-		|| (block->buf_fix_count != 0)
-		|| (block->io_fix != 0)) {
+	    || (block->buf_fix_count != 0)
+	    || (block->io_fix != 0)) {
 
 		return(FALSE);
 	}
@@ -153,7 +153,7 @@ buf_flush_ready_for_flush(
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	if ((ut_dulint_cmp(block->oldest_modification, ut_dulint_zero) > 0)
-						&& (block->io_fix == 0)) {
+	    && (block->io_fix == 0)) {
 		if (flush_type != BUF_FLUSH_LRU) {
 
 			return(TRUE);
@@ -203,10 +203,10 @@ buf_flush_write_complete(
 	}
 
 	/* fprintf(stderr, "n pending flush %lu\n",
-		buf_pool->n_flush[block->flush_type]); */
+	buf_pool->n_flush[block->flush_type]); */
 
 	if ((buf_pool->n_flush[block->flush_type] == 0)
-		&& (buf_pool->init_flush[block->flush_type] == FALSE)) {
+	    && (buf_pool->init_flush[block->flush_type] == FALSE)) {
 
 		/* The running flush batch has ended */
 
@@ -260,36 +260,44 @@ buf_flush_buffered_writes(void)
 			continue;
 		}
 
-		if (UNIV_UNLIKELY(memcmp(block->frame + (FIL_PAGE_LSN + 4),
-				block->frame + (UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
+		if (UNIV_UNLIKELY
+		    (memcmp(block->frame + (FIL_PAGE_LSN + 4),
+			    block->frame + (UNIV_PAGE_SIZE
+					    - FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
+			    4))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: ERROR: The page to be written seems corrupt!\n"
-"InnoDB: The lsn fields do not match! Noticed in the buffer pool\n"
-"InnoDB: before posting to the doublewrite buffer.\n");
+				"  InnoDB: ERROR: The page to be written"
+				" seems corrupt!\n"
+				"InnoDB: The lsn fields do not match!"
+				" Noticed in the buffer pool\n"
+				"InnoDB: before posting to the"
+				" doublewrite buffer.\n");
 		}
 
 		if (!block->check_index_page_at_flush) {
 		} else if (page_is_comp(block->frame)) {
-			if (UNIV_UNLIKELY(!page_simple_validate_new(
-						block->frame))) {
+			if (UNIV_UNLIKELY
+			    (!page_simple_validate_new(block->frame))) {
 corrupted_page:
 				buf_page_print(block->frame, 0);
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-	"  InnoDB: Apparent corruption of an index page n:o %lu in space %lu\n"
-	"InnoDB: to be written to data file. We intentionally crash server\n"
-	"InnoDB: to prevent corrupt data from ending up in data\n"
-	"InnoDB: files.\n",
+					"  InnoDB: Apparent corruption of an"
+					" index page n:o %lu in space %lu\n"
+					"InnoDB: to be written to data file."
+					" We intentionally crash server\n"
+					"InnoDB: to prevent corrupt data"
+					" from ending up in data\n"
+					"InnoDB: files.\n",
 					(ulong) block->offset,
 					(ulong) block->space);
 
 				ut_error;
 			}
-		} else if (UNIV_UNLIKELY(!page_simple_validate_old(
-						block->frame))) {
+		} else if (UNIV_UNLIKELY
+			   (!page_simple_validate_old(block->frame))) {
 
 			goto corrupted_page;
 		}
@@ -300,27 +308,30 @@ corrupted_page:
 	srv_dblwr_writes++;
 
 	len = ut_min(TRX_SYS_DOUBLEWRITE_BLOCK_SIZE,
-			trx_doublewrite->first_free) * UNIV_PAGE_SIZE;
+		     trx_doublewrite->first_free) * UNIV_PAGE_SIZE;
 
 	write_buf = trx_doublewrite->write_buf;
 	i = 0;
 
 	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
-			trx_doublewrite->block1, 0, len,
-			(void*) write_buf, NULL);
+	       trx_doublewrite->block1, 0, len,
+	       (void*) write_buf, NULL);
 
 	for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
-			len2 += UNIV_PAGE_SIZE, i++) {
+	     len2 += UNIV_PAGE_SIZE, i++) {
 		block = trx_doublewrite->buf_block_arr[i];
 		if (UNIV_LIKELY(!block->page_zip.data)
-				&& UNIV_UNLIKELY(memcmp(write_buf + len2
-				+ (FIL_PAGE_LSN + 4),
-				write_buf + len2 + (UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
+		    && UNIV_UNLIKELY
+		    (memcmp(write_buf + len2 + (FIL_PAGE_LSN + 4),
+			    write_buf + len2
+			    + (UNIV_PAGE_SIZE
+			       - FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: ERROR: The page to be written seems corrupt!\n"
-"InnoDB: The lsn fields do not match! Noticed in the doublewrite block1.\n");
+				"  InnoDB: ERROR: The page to be written"
+				" seems corrupt!\n"
+				"InnoDB: The lsn fields do not match!"
+				" Noticed in the doublewrite block1.\n");
 		}
 	}
 
@@ -329,28 +340,32 @@ corrupted_page:
 	}
 
 	len = (trx_doublewrite->first_free - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-				* UNIV_PAGE_SIZE;
+		* UNIV_PAGE_SIZE;
 
 	write_buf = trx_doublewrite->write_buf
-			+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
+		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
 	ut_ad(i == TRX_SYS_DOUBLEWRITE_BLOCK_SIZE);
 
 	fil_io(OS_FILE_WRITE, TRUE, TRX_SYS_SPACE, 0,
-			trx_doublewrite->block2, 0, len,
-			(void*) write_buf, NULL);
+	       trx_doublewrite->block2, 0, len,
+	       (void*) write_buf, NULL);
 
 	for (len2 = 0; len2 + UNIV_PAGE_SIZE <= len;
-			len2 += UNIV_PAGE_SIZE, i++) {
+	     len2 += UNIV_PAGE_SIZE, i++) {
 		block = trx_doublewrite->buf_block_arr[i];
 		if (UNIV_LIKELY(!block->page_zip.data)
-				&& UNIV_UNLIKELY(memcmp(write_buf + len2
-				+ (FIL_PAGE_LSN + 4),
-				write_buf + len2 + (UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
+		    && UNIV_UNLIKELY
+		    (memcmp(write_buf + len2 + (FIL_PAGE_LSN + 4),
+			    write_buf + len2
+			    + (UNIV_PAGE_SIZE
+			       - FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: ERROR: The page to be written seems corrupt!\n"
-"InnoDB: The lsn fields do not match! Noticed in the doublewrite block2.\n");
+				"  InnoDB: ERROR: The page to be"
+				" written seems corrupt!\n"
+				"InnoDB: The lsn fields do not match!"
+				" Noticed in"
+				" the doublewrite block2.\n");
 		}
 	}
 
@@ -368,32 +383,38 @@ flush:
 		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 		if (UNIV_UNLIKELY(block->page_zip.size)) {
 			fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-					FALSE, block->space,
-					block->page_zip.size,
-					block->offset, 0,
-					block->page_zip.size,
-					(void*)block->page_zip.data,
-					(void*)block);
+			       FALSE, block->space,
+			       block->page_zip.size,
+			       block->offset, 0,
+			       block->page_zip.size,
+			       (void*)block->page_zip.data,
+			       (void*)block);
 			continue;
-		} else if (UNIV_UNLIKELY(memcmp(
-				block->frame + (FIL_PAGE_LSN + 4),
-				block->frame + (UNIV_PAGE_SIZE
-				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
+		} else if (UNIV_UNLIKELY
+			   (memcmp(block->frame + (FIL_PAGE_LSN + 4),
+				   block->frame
+				   + (UNIV_PAGE_SIZE
+				      - FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
+				   4))) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: ERROR: The page to be written seems corrupt!\n"
-"InnoDB: The lsn fields do not match! Noticed in the buffer pool\n"
-"InnoDB: after posting and flushing the doublewrite buffer.\n"
-"InnoDB: Page buf fix count %lu, io fix %lu, state %lu\n",
+				"  InnoDB: ERROR: The page to be written"
+				" seems corrupt!\n"
+				"InnoDB: The lsn fields do not match!"
+				" Noticed in the buffer pool\n"
+				"InnoDB: after posting and flushing"
+				" the doublewrite buffer.\n"
+				"InnoDB: Page buf fix count %lu,"
+				" io fix %lu, state %lu\n",
 				(ulong)block->buf_fix_count,
 				(ulong)block->io_fix,
 				(ulong)block->state);
 		}
 
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-				FALSE, block->space, 0,
-				block->offset, 0, UNIV_PAGE_SIZE,
-				(void*)block->frame, (void*)block);
+		       FALSE, block->space, 0,
+		       block->offset, 0, UNIV_PAGE_SIZE,
+		       (void*)block->frame, (void*)block);
 	}
 
 	/* Wake possible simulated aio thread to actually post the
@@ -434,7 +455,7 @@ try_again:
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	if (trx_doublewrite->first_free
-				>= 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+	    >= 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		mutex_exit(&(trx_doublewrite->mutex));
 
 		buf_flush_buffered_writes();
@@ -447,15 +468,15 @@ try_again:
 	if (UNIV_UNLIKELY(zip_size)) {
 		/* Copy the compressed page and clear the rest. */
 		memcpy(trx_doublewrite->write_buf
-				+ UNIV_PAGE_SIZE * trx_doublewrite->first_free,
-				block->page_zip.data, zip_size);
+		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
+		       block->page_zip.data, zip_size);
 		memset(trx_doublewrite->write_buf
-				+ UNIV_PAGE_SIZE * trx_doublewrite->first_free
-				+ zip_size, 0, UNIV_PAGE_SIZE - zip_size);
+		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free
+		       + zip_size, 0, UNIV_PAGE_SIZE - zip_size);
 	} else {
 		memcpy(trx_doublewrite->write_buf
-				+ UNIV_PAGE_SIZE * trx_doublewrite->first_free,
-				block->frame, UNIV_PAGE_SIZE);
+		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
+		       block->frame, UNIV_PAGE_SIZE);
 	}
 
 	trx_doublewrite->buf_block_arr[trx_doublewrite->first_free] = block;
@@ -463,7 +484,7 @@ try_again:
 	trx_doublewrite->first_free++;
 
 	if (trx_doublewrite->first_free
-				>= 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+	    >= 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		mutex_exit(&(trx_doublewrite->mutex));
 
 		buf_flush_buffered_writes();
@@ -496,7 +517,7 @@ buf_flush_init_for_writing(
 		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
 		case FIL_PAGE_TYPE_ZBLOB:
 			ut_ad(fil_page_get_type(page_zip->data)
-					== FIL_PAGE_TYPE_ZBLOB);
+			      == FIL_PAGE_TYPE_ZBLOB);
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_OFFSET, page_no);
 			mach_write_to_4(page_zip->data
@@ -506,9 +527,8 @@ buf_flush_init_for_writing(
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums
-					? page_zip_calc_checksum(
-							page_zip->data,
-							zip_size)
+					? page_zip_calc_checksum
+					(page_zip->data, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
 		case FIL_PAGE_TYPE_ALLOCATED:
@@ -536,8 +556,8 @@ buf_flush_init_for_writing(
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums
-					? page_zip_calc_checksum(
-						page_zip->data, zip_size)
+					? page_zip_calc_checksum
+					(page_zip->data, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
 		}
@@ -549,7 +569,7 @@ buf_flush_init_for_writing(
 	mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
 	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-								newest_lsn);
+			newest_lsn);
 	/* Write the page number and the space id */
 
 	mach_write_to_4(page + FIL_PAGE_OFFSET, page_no);
@@ -558,8 +578,9 @@ buf_flush_init_for_writing(
 	/* Store the new formula checksum */
 
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
-					srv_use_checksums ?
-		buf_calc_page_new_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
+			srv_use_checksums
+			? buf_calc_page_new_checksum(page)
+			: BUF_NO_CHECKSUM_MAGIC);
 
 	/* We overwrite the first 4 bytes of the end lsn field to store
 	the old formula checksum. Since it depends also on the field
@@ -567,8 +588,9 @@ buf_flush_init_for_writing(
 	new formula checksum. */
 
 	mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-					srv_use_checksums ?
-		buf_calc_page_old_checksum(page) : BUF_NO_CHECKSUM_MAGIC);
+			srv_use_checksums
+			? buf_calc_page_old_checksum(page)
+			: BUF_NO_CHECKSUM_MAGIC);
 }
 
 /************************************************************************
@@ -594,25 +616,25 @@ buf_flush_write_block_low(
 #ifdef UNIV_LOG_DEBUG
 	if (!univ_log_debug_warned) {
 		univ_log_debug_warned = TRUE;
-		fputs(
-	"Warning: cannot force log to disk if UNIV_LOG_DEBUG is defined!\n"
-	"Crash recovery will not work!\n",
-			stderr);
+		fputs("Warning: cannot force log to disk if"
+		      " UNIV_LOG_DEBUG is defined!\n"
+		      "Crash recovery will not work!\n",
+		      stderr);
 	}
 #else
 	/* Force the log to the disk before writing the modified block */
 	log_write_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
 #endif
 	buf_flush_init_for_writing(block->frame,
-			buf_block_get_page_zip(block),
-			block->newest_modification,
-			block->space, block->offset);
+				   buf_block_get_page_zip(block),
+				   block->newest_modification,
+				   block->space, block->offset);
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-				FALSE, block->space, block->page_zip.size,
-				block->offset, 0, block->page_zip.size
-				? block->page_zip.size : UNIV_PAGE_SIZE,
-				(void*)block->frame, (void*)block);
+		       FALSE, block->space, block->page_zip.size,
+		       block->offset, 0, block->page_zip.size
+		       ? block->page_zip.size : UNIV_PAGE_SIZE,
+		       (void*)block->frame, (void*)block);
 	} else {
 		buf_flush_post_to_doublewrite_buf(block);
 	}
@@ -637,7 +659,7 @@ buf_flush_try_page(
 	ibool		locked;
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST
-				|| flush_type == BUF_FLUSH_SINGLE_PAGE);
+	      || flush_type == BUF_FLUSH_SINGLE_PAGE);
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -646,7 +668,7 @@ buf_flush_try_page(
 	ut_a(!block || block->state == BUF_BLOCK_FILE_PAGE);
 
 	if (flush_type == BUF_FLUSH_LIST
-		&& block && buf_flush_ready_for_flush(block, flush_type)) {
+	    && block && buf_flush_ready_for_flush(block, flush_type)) {
 
 		block->io_fix = BUF_IO_WRITE;
 
@@ -705,7 +727,7 @@ buf_flush_try_page(
 		return(1);
 
 	} else if (flush_type == BUF_FLUSH_LRU && block
-			&& buf_flush_ready_for_flush(block, flush_type)) {
+		   && buf_flush_ready_for_flush(block, flush_type)) {
 
 		/* VERY IMPORTANT:
 		Because any thread may call the LRU flush, even when owning
@@ -752,7 +774,7 @@ buf_flush_try_page(
 		return(1);
 
 	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE && block
-			&& buf_flush_ready_for_flush(block, flush_type)) {
+		   && buf_flush_ready_for_flush(block, flush_type)) {
 
 		block->io_fix = BUF_IO_WRITE;
 
@@ -785,9 +807,10 @@ buf_flush_try_page(
 #ifdef UNIV_DEBUG
 		if (buf_debug_prints) {
 			fprintf(stderr,
-			"Flushing single page space %lu, page no %lu \n",
-						(ulong) block->space,
-						(ulong) block->offset);
+				"Flushing single page space %lu,"
+				" page no %lu \n",
+				(ulong) block->space,
+				(ulong) block->offset);
 		}
 #endif /* UNIV_DEBUG */
 
@@ -844,7 +867,7 @@ buf_flush_try_neighbors(
 		ut_a(!block || block->state == BUF_BLOCK_FILE_PAGE);
 
 		if (block && flush_type == BUF_FLUSH_LRU && i != offset
-			&& !block->old) {
+		    && !block->old) {
 
 			/* We avoid flushing 'non-old' blocks in an LRU flush,
 			because the flushed blocks are soon freed */
@@ -911,13 +934,13 @@ buf_flush_batch(
 	ibool		found;
 
 	ut_ad((flush_type == BUF_FLUSH_LRU)
-					|| (flush_type == BUF_FLUSH_LIST));
+	      || (flush_type == BUF_FLUSH_LIST));
 	ut_ad((flush_type != BUF_FLUSH_LIST)
-					|| sync_thread_levels_empty_gen(TRUE));
+	      || sync_thread_levels_empty_gen(TRUE));
 	mutex_enter(&(buf_pool->mutex));
 
 	if ((buf_pool->n_flush[flush_type] > 0)
-		|| (buf_pool->init_flush[flush_type] == TRUE)) {
+	    || (buf_pool->init_flush[flush_type] == TRUE)) {
 
 		/* There is already a flush batch of the same type running */
 
@@ -945,8 +968,8 @@ buf_flush_batch(
 
 			block = UT_LIST_GET_LAST(buf_pool->flush_list);
 			if (!block
-				|| (ut_dulint_cmp(block->oldest_modification,
-						lsn_limit) >= 0)) {
+			    || (ut_dulint_cmp(block->oldest_modification,
+					      lsn_limit) >= 0)) {
 				/* We have flushed enough */
 
 				break;
@@ -975,9 +998,8 @@ buf_flush_batch(
 				old_page_count = page_count;
 
 				/* Try to flush also all the neighbors */
-				page_count +=
-					buf_flush_try_neighbors(space, offset,
-								flush_type);
+				page_count += buf_flush_try_neighbors
+					(space, offset, flush_type);
 				/* fprintf(stderr,
 				"Flush type %lu, page no %lu, neighb %lu\n",
 				flush_type, offset,
@@ -1005,7 +1027,7 @@ buf_flush_batch(
 	(buf_pool->init_flush)[flush_type] = FALSE;
 
 	if ((buf_pool->n_flush[flush_type] == 0)
-		&& (buf_pool->init_flush[flush_type] == FALSE)) {
+	    && (buf_pool->init_flush[flush_type] == FALSE)) {
 
 		/* The running flush batch has ended */
 
@@ -1019,7 +1041,7 @@ buf_flush_batch(
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && page_count > 0) {
 		ut_a(flush_type == BUF_FLUSH_LRU
-			|| flush_type == BUF_FLUSH_LIST);
+		     || flush_type == BUF_FLUSH_LIST);
 		fprintf(stderr, flush_type == BUF_FLUSH_LRU
 			? "Flushed %lu pages in LRU flush\n"
 			: "Flushed %lu pages in flush list flush\n",
@@ -1069,9 +1091,9 @@ buf_flush_LRU_recommendation(void)
 	block = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while ((block != NULL)
-		&& (n_replaceable < BUF_FLUSH_FREE_BLOCK_MARGIN
-			+ BUF_FLUSH_EXTRA_MARGIN)
-		&& (distance < BUF_LRU_FREE_SEARCH_LEN)) {
+	       && (n_replaceable < BUF_FLUSH_FREE_BLOCK_MARGIN
+		   + BUF_FLUSH_EXTRA_MARGIN)
+	       && (distance < BUF_LRU_FREE_SEARCH_LEN)) {
 
 		if (buf_flush_ready_for_replace(block)) {
 			n_replaceable++;
@@ -1090,7 +1112,7 @@ buf_flush_LRU_recommendation(void)
 	}
 
 	return(BUF_FLUSH_FREE_BLOCK_MARGIN + BUF_FLUSH_EXTRA_MARGIN
-							- n_replaceable);
+	       - n_replaceable);
 }
 
 /*************************************************************************
@@ -1111,7 +1133,7 @@ buf_flush_free_margin(void)
 
 	if (n_to_flush > 0) {
 		n_flushed = buf_flush_batch(BUF_FLUSH_LRU, n_to_flush,
-							ut_dulint_zero);
+					    ut_dulint_zero);
 		if (n_flushed == ULINT_UNDEFINED) {
 			/* There was an LRU type flush batch already running;
 			let us wait for it to end */
@@ -1145,7 +1167,7 @@ buf_flush_validate_low(void)
 
 		if (block) {
 			ut_a(ut_dulint_cmp(om, block->oldest_modification)
-									>= 0);
+			     >= 0);
 		}
 	}
 

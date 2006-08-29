@@ -172,11 +172,11 @@ page_zip_get_trailer_len(
 
 	if (UNIV_UNLIKELY(!page_is_leaf((page_t*) page_zip->data))) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
-				+ REC_NODE_PTR_SIZE;
+			+ REC_NODE_PTR_SIZE;
 		ut_ad(!page_zip->n_blobs);
 	} else if (dict_index_is_clust(index)) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
-				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+			+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 	} else {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE;
 		ut_ad(!page_zip->n_blobs);
@@ -187,8 +187,8 @@ page_zip_get_trailer_len(
 	}
 
 	return((page_dir_get_n_heap((page_t*) page_zip->data) - 2)
-			* uncompressed_size
-			+ page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
+	       * uncompressed_size
+	       + page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
 }
 
 /**************************************************************************
@@ -211,7 +211,7 @@ page_zip_available(
 	ut_ad(length > REC_N_NEW_EXTRA_BYTES);
 
 	trailer_len = page_zip_get_trailer_len(page_zip, index,
-				&uncompressed_size);
+					       &uncompressed_size);
 
 	/* Subtract the fixed extra bytes and add the maximum
 	space needed for identifying the record (encoded heap_no). */
@@ -228,11 +228,10 @@ page_zip_available(
 		trailer_len += uncompressed_size;
 	}
 
-	return(UNIV_LIKELY(
-		length
-		+ trailer_len
-		+ page_zip->m_end
-		< page_zip->size));
+	return(UNIV_LIKELY(length
+			   + trailer_len
+			   + page_zip->m_end
+			   < page_zip->size));
 }
 
 /**************************************************************************

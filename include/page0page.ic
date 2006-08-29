@@ -84,7 +84,7 @@ page_header_set_field(
 	mach_write_to_2(page + PAGE_HEADER + field, val);
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		page_zip_write_header(page_zip,
-				page + PAGE_HEADER + field, 2, NULL);
+				      page + PAGE_HEADER + field, 2, NULL);
 	}
 }
 
@@ -102,8 +102,8 @@ page_header_get_ptr(
 
 	ut_ad(page);
 	ut_ad((field == PAGE_FREE)
-		|| (field == PAGE_LAST_INSERT)
-		|| (field == PAGE_HEAP_TOP));
+	      || (field == PAGE_LAST_INSERT)
+	      || (field == PAGE_HEAP_TOP));
 
 	offs = page_header_get_field(page, field);
 
@@ -133,8 +133,8 @@ page_header_set_ptr(
 
 	ut_ad(page);
 	ut_ad((field == PAGE_FREE)
-		|| (field == PAGE_LAST_INSERT)
-		|| (field == PAGE_HEAP_TOP));
+	      || (field == PAGE_LAST_INSERT)
+	      || (field == PAGE_HEAP_TOP));
 
 	if (ptr == NULL) {
 		offs = 0;
@@ -164,10 +164,11 @@ page_header_reset_last_insert(
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		mach_write_to_2(page + (PAGE_HEADER + PAGE_LAST_INSERT), 0);
 		page_zip_write_header(page_zip,
-			page + (PAGE_HEADER + PAGE_LAST_INSERT), 2, mtr);
+				      page + (PAGE_HEADER + PAGE_LAST_INSERT),
+				      2, mtr);
 	} else {
 		mlog_write_ulint(page + (PAGE_HEADER + PAGE_LAST_INSERT), 0,
-							MLOG_2BYTES, mtr);
+				 MLOG_2BYTES, mtr);
 	}
 }
 
@@ -182,7 +183,7 @@ page_is_comp(
 	page_t*	page)	/* in: index page */
 {
 	return(UNIV_EXPECT(page_header_get_field(page, PAGE_N_HEAP) & 0x8000,
-		0x8000));
+			   0x8000));
 }
 
 /****************************************************************
@@ -276,9 +277,9 @@ page_rec_is_user_rec_low(
 	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
 
 	return(UNIV_LIKELY(offset != PAGE_NEW_SUPREMUM)
-		&& UNIV_LIKELY(offset != PAGE_NEW_INFIMUM)
-		&& UNIV_LIKELY(offset != PAGE_OLD_INFIMUM)
-		&& UNIV_LIKELY(offset != PAGE_OLD_SUPREMUM));
+	       && UNIV_LIKELY(offset != PAGE_NEW_INFIMUM)
+	       && UNIV_LIKELY(offset != PAGE_OLD_INFIMUM)
+	       && UNIV_LIKELY(offset != PAGE_OLD_SUPREMUM));
 }
 
 /****************************************************************
@@ -294,7 +295,7 @@ page_rec_is_supremum_low(
 	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
 
 	return(UNIV_UNLIKELY(offset == PAGE_NEW_SUPREMUM)
-		|| UNIV_UNLIKELY(offset == PAGE_OLD_SUPREMUM));
+	       || UNIV_UNLIKELY(offset == PAGE_OLD_SUPREMUM));
 }
 
 /****************************************************************
@@ -310,7 +311,7 @@ page_rec_is_infimum_low(
 	ut_ad(offset <= UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START);
 
 	return(UNIV_UNLIKELY(offset == PAGE_NEW_INFIMUM)
-		|| UNIV_UNLIKELY(offset == PAGE_OLD_INFIMUM));
+	       || UNIV_UNLIKELY(offset == PAGE_OLD_INFIMUM));
 }
 
 /****************************************************************
@@ -322,8 +323,7 @@ page_rec_is_user_rec(
 				/* out: TRUE if a user record */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_rec_is_user_rec_low(
-			ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	return(page_rec_is_user_rec_low(ut_align_offset(rec, UNIV_PAGE_SIZE)));
 }
 
 /****************************************************************
@@ -335,8 +335,7 @@ page_rec_is_supremum(
 				/* out: TRUE if the supremum record */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_rec_is_supremum_low(
-			ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	return(page_rec_is_supremum_low(ut_align_offset(rec, UNIV_PAGE_SIZE)));
 }
 
 /****************************************************************
@@ -348,8 +347,7 @@ page_rec_is_infimum(
 				/* out: TRUE if the infimum record */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_rec_is_infimum_low(
-			ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	return(page_rec_is_infimum_low(ut_align_offset(rec, UNIV_PAGE_SIZE)));
 }
 
 /*****************************************************************
@@ -388,17 +386,17 @@ page_cmp_dtuple_rec_with_match(
 	rec_offset = ut_align_offset(rec, UNIV_PAGE_SIZE);
 
 	if (UNIV_UNLIKELY(rec_offset == PAGE_NEW_INFIMUM)
-			|| UNIV_UNLIKELY(rec_offset == PAGE_OLD_INFIMUM)) {
+	    || UNIV_UNLIKELY(rec_offset == PAGE_OLD_INFIMUM)) {
 		return(1);
 	}
 	if (UNIV_UNLIKELY(rec_offset == PAGE_NEW_SUPREMUM)
-			|| UNIV_UNLIKELY(rec_offset == PAGE_OLD_SUPREMUM)) {
+	    || UNIV_UNLIKELY(rec_offset == PAGE_OLD_SUPREMUM)) {
 		return(-1);
 	}
 
 	return(cmp_dtuple_rec_with_match(dtuple, rec, offsets,
-						matched_fields,
-						matched_bytes));
+					 matched_fields,
+					 matched_bytes));
 }
 
 /*****************************************************************
@@ -467,10 +465,11 @@ page_dir_set_n_heap(
 {
 	ut_ad(n_heap < 0x8000);
 	ut_ad(!page_zip || n_heap
-		== (page_header_get_field(page, PAGE_N_HEAP) & 0x7fff) + 1);
+	      == (page_header_get_field(page, PAGE_N_HEAP) & 0x7fff) + 1);
 
 	page_header_set_field(page, page_zip, PAGE_N_HEAP, n_heap
-		| (0x8000 & page_header_get_field(page, PAGE_N_HEAP)));
+			      | (0x8000
+				 & page_header_get_field(page, PAGE_N_HEAP)));
 }
 
 /*****************************************************************
@@ -486,7 +485,7 @@ page_dir_get_nth_slot(
 	ut_ad(page_dir_get_n_slots(page) > n);
 
 	return(page + UNIV_PAGE_SIZE - PAGE_DIR
-					- (n + 1) * PAGE_DIR_SLOT_SIZE);
+	       - (n + 1) * PAGE_DIR_SLOT_SIZE);
 }
 
 /******************************************************************
@@ -520,7 +519,7 @@ page_dir_slot_get_rec(
 	page_dir_slot_t*	slot)	/* in: directory slot */
 {
 	return((byte*) ut_align_down(slot, UNIV_PAGE_SIZE)
-				+ mach_read_from_2(slot));
+	       + mach_read_from_2(slot));
 }
 
 /*******************************************************************
@@ -584,7 +583,7 @@ page_dir_calc_reserved_space(
 	ulint	n_recs)		/* in: number of records */
 {
 	return((PAGE_DIR_SLOT_SIZE * n_recs + PAGE_DIR_SLOT_MIN_N_OWNED - 1)
-						/ PAGE_DIR_SLOT_MIN_N_OWNED);
+	       / PAGE_DIR_SLOT_MIN_N_OWNED);
 }
 
 /****************************************************************
@@ -608,13 +607,14 @@ page_rec_get_next_low(
 
 	if (UNIV_UNLIKELY(offs >= UNIV_PAGE_SIZE)) {
 		fprintf(stderr,
-"InnoDB: Next record offset is nonsensical %lu in record at offset %lu\n"
-"InnoDB: rec address %p, first buffer frame %p\n"
-"InnoDB: buffer pool high end %p, buf fix count %lu\n",
-				(ulong)offs, (ulong)(rec - page),
-				rec, buf_pool->frame_zero,
-				buf_pool->high_end,
-				(ulong)buf_block_align(rec)->buf_fix_count);
+			"InnoDB: Next record offset is nonsensical %lu"
+			" in record at offset %lu\n"
+			"InnoDB: rec address %p, first buffer frame %p\n"
+			"InnoDB: buffer pool high end %p, buf fix count %lu\n",
+			(ulong)offs, (ulong)(rec - page),
+			(void*) rec, (void*) buf_pool->frame_zero,
+			(void*) buf_pool->high_end,
+			(ulong) buf_block_align(rec)->buf_fix_count);
 		buf_page_print(page, 0);
 
 		ut_error;
@@ -658,7 +658,7 @@ page_rec_set_next(
 
 	ut_ad(!next || !page_rec_is_infimum(next));
 	ut_ad(!next || ut_align_down(rec, UNIV_PAGE_SIZE)
-			== ut_align_down(next, UNIV_PAGE_SIZE));
+	      == ut_align_down(next, UNIV_PAGE_SIZE));
 
 	if (UNIV_LIKELY(next != NULL)) {
 		offs = ut_align_offset(next, UNIV_PAGE_SIZE);
@@ -774,10 +774,10 @@ page_get_data_size(
 	ulint	ret;
 
 	ret = (ulint)(page_header_get_field(page, PAGE_HEAP_TOP)
-		- (page_is_comp(page)
-			? PAGE_NEW_SUPREMUM_END
-			: PAGE_OLD_SUPREMUM_END)
-		- page_header_get_field(page, PAGE_GARBAGE));
+		      - (page_is_comp(page)
+			 ? PAGE_NEW_SUPREMUM_END
+			 : PAGE_OLD_SUPREMUM_END)
+		      - page_header_get_field(page, PAGE_GARBAGE));
 
 	ut_ad(ret < UNIV_PAGE_SIZE);
 
@@ -826,15 +826,15 @@ page_get_free_space_of_empty(
 {
 	if (UNIV_LIKELY(comp)) {
 		return((ulint)(UNIV_PAGE_SIZE
-		- PAGE_NEW_SUPREMUM_END
-		- PAGE_DIR
-		- 2 * PAGE_DIR_SLOT_SIZE));
+			       - PAGE_NEW_SUPREMUM_END
+			       - PAGE_DIR
+			       - 2 * PAGE_DIR_SLOT_SIZE));
 	}
 
 	return((ulint)(UNIV_PAGE_SIZE
-		- PAGE_OLD_SUPREMUM_END
-		- PAGE_DIR
-		- 2 * PAGE_DIR_SLOT_SIZE));
+		       - PAGE_OLD_SUPREMUM_END
+		       - PAGE_DIR
+		       - 2 * PAGE_DIR_SLOT_SIZE));
 }
 
 /****************************************************************
@@ -857,14 +857,16 @@ page_get_max_insert_size(
 
 	if (page_is_comp(page)) {
 		occupied = page_header_get_field(page, PAGE_HEAP_TOP)
-		- PAGE_NEW_SUPREMUM_END + page_dir_calc_reserved_space(
-			n_recs + page_dir_get_n_heap(page) - 2);
+			- PAGE_NEW_SUPREMUM_END
+			+ page_dir_calc_reserved_space
+			(n_recs + page_dir_get_n_heap(page) - 2);
 
 		free_space = page_get_free_space_of_empty(TRUE);
 	} else {
 		occupied = page_header_get_field(page, PAGE_HEAP_TOP)
-		- PAGE_OLD_SUPREMUM_END + page_dir_calc_reserved_space(
-			n_recs + page_dir_get_n_heap(page) - 2);
+			- PAGE_OLD_SUPREMUM_END
+			+ page_dir_calc_reserved_space
+			(n_recs + page_dir_get_n_heap(page) - 2);
 
 		free_space = page_get_free_space_of_empty(FALSE);
 	}
@@ -933,13 +935,13 @@ page_mem_free(
 	garbage = page_header_get_field(page, PAGE_GARBAGE);
 
 	page_header_set_field(page, page_zip, PAGE_GARBAGE,
-				garbage + rec_offs_size(offsets));
+			      garbage + rec_offs_size(offsets));
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		page_zip_dir_delete(page_zip, rec, index, offsets, free);
 	} else {
 		page_header_set_field(page, page_zip, PAGE_N_RECS,
-				(ulint)(page_get_n_recs(page) - 1));
+				      page_get_n_recs(page) - 1);
 	}
 }
 
