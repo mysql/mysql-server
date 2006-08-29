@@ -1031,7 +1031,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   if (ndb_mgm_check_connection(m_mgmsrv))
   {
     disconnect();
-    connect();
+    connect(interactive);
   }
 
   if (strcasecmp(firstToken, "SHOW") == 0) {
@@ -1653,7 +1653,7 @@ CommandInterpreter::executeConnect(char* parameters, bool interactive)
     basestring= new BaseString(parameters);
     m_constr= basestring->trim().c_str();
   }
-  connect();
+  connect(interactive);
   if (basestring != NULL)
     delete basestring;
 }
