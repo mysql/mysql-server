@@ -460,10 +460,10 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
       auto_increment= ma_retrieve_auto_increment(info, info->rec_buff);
       if (auto_increment > info->s->state.auto_increment)
       {
-	_ma_check_print_warning(param,
-			       "Auto-increment value: %s is smaller than max used value: %s",
-			       llstr(info->s->state.auto_increment,buff2),
-			       llstr(auto_increment, buff));
+	_ma_check_print_warning(param, "Auto-increment value: %s is smaller "
+                                "than max used value: %s",
+                                llstr(info->s->state.auto_increment,buff2),
+                                llstr(auto_increment, buff));
       }
       if (param->testflag & T_AUTO_INC)
       {
@@ -481,8 +481,8 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
       {
 	/* Don't count this as a real warning, as mariachk can't correct it */
 	uint save=param->warning_printed;
-	_ma_check_print_warning(param,
-			       "Found row where the auto_increment column has the value 0");
+	_ma_check_print_warning(param, "Found row where the auto_increment "
+                                "column has the value 0");
 	param->warning_printed=save;
       }
       maria_extra(info,HA_EXTRA_NO_KEYREAD,0);
@@ -1165,8 +1165,9 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
                            SEARCH_SAME, info->s->state.key_root[key]);
               if (search_result)
               {
-                _ma_check_print_error(param,"Record at: %10s  Can't find key for index: %2d",
-                                     llstr(start_recpos,llbuff),key+1);
+                _ma_check_print_error(param,"Record at: %10s  "
+                                      "Can't find key for index: %2d",
+                                      llstr(start_recpos,llbuff),key+1);
                 if (error++ > MAXERR || !(param->testflag & T_VERBOSE))
                   goto err2;
               }
