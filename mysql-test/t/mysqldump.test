@@ -153,7 +153,7 @@ drop database mysqldump_test_db;
 # if it is explicitely set.
 
 CREATE TABLE t1 (a  CHAR(10));
-INSERT INTO t1  VALUES (_latin1 '√Ñ√ñ√ú√ü');
+INSERT INTO t1  VALUES (_latin1 'ƒ÷‹ﬂ');
 --exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments test t1
 #
 # Bug#8063: make test mysqldump [ fail ]
