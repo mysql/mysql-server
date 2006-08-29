@@ -1933,8 +1933,7 @@ buf_page_io_complete(
 				"InnoDB: file read of page %lu.\n",
 				(ulong) block->offset);
 
-			fputs(
-			      "InnoDB: You may have to recover"
+			fputs("InnoDB: You may have to recover"
 			      " from a backup.\n", stderr);
 
 			buf_page_print(block->frame);
@@ -1944,11 +1943,9 @@ buf_page_io_complete(
 				" or a failed\n"
 				"InnoDB: file read of page %lu.\n",
 				(ulong) block->offset);
-			fputs(
-			      "InnoDB: You may have to recover"
+			fputs("InnoDB: You may have to recover"
 			      " from a backup.\n", stderr);
-			fputs(
-			      "InnoDB: It is also possible that"
+			fputs("InnoDB: It is also possible that"
 			      " your operating\n"
 			      "InnoDB: system has corrupted its"
 			      " own file cache\n"
@@ -1970,8 +1967,7 @@ buf_page_io_complete(
 			      "InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
-				fputs(
-				      "InnoDB: Ending processing because of"
+				fputs("InnoDB: Ending processing because of"
 				      " a corrupt database page.\n",
 				      stderr);
 				exit(1);

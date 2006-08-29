@@ -55,8 +55,7 @@ buf_flush_insert_into_flush_list(
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
-	      || (ut_dulint_cmp(
-				(UT_LIST_GET_FIRST(buf_pool->flush_list))
+	      || (ut_dulint_cmp((UT_LIST_GET_FIRST(buf_pool->flush_list))
 				->oldest_modification,
 				block->oldest_modification) <= 0));
 
@@ -513,8 +512,7 @@ buf_flush_write_block_low(
 #ifdef UNIV_LOG_DEBUG
 	if (!univ_log_debug_warned) {
 		univ_log_debug_warned = TRUE;
-		fputs(
-		      "Warning: cannot force log to disk if"
+		fputs("Warning: cannot force log to disk if"
 		      " UNIV_LOG_DEBUG is defined!\n"
 		      "Crash recovery will not work!\n",
 		      stderr);

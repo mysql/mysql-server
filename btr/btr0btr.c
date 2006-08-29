@@ -786,8 +786,8 @@ leaf_loop:
 	/* NOTE: page hash indexes are dropped when a page is freed inside
 	fsp0fsp. */
 
-	finished = fseg_free_step(
-	root + PAGE_HEADER + PAGE_BTR_SEG_LEAF, &mtr);
+	finished = fseg_free_step
+		(root + PAGE_HEADER + PAGE_BTR_SEG_LEAF, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -799,8 +799,8 @@ top_loop:
 
 	root = btr_page_get(space, root_page_no, RW_X_LATCH, &mtr);
 
-	finished = fseg_free_step_not_header(
-	root + PAGE_HEADER + PAGE_BTR_SEG_TOP, &mtr);
+	finished = fseg_free_step_not_header
+		(root + PAGE_HEADER + PAGE_BTR_SEG_TOP, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -827,8 +827,8 @@ btr_free_root(
 
 	btr_search_drop_page_hash_index(root);
 top_loop:
-	finished = fseg_free_step(
-	root + PAGE_HEADER + PAGE_BTR_SEG_TOP, mtr);
+	finished = fseg_free_step
+		(root + PAGE_HEADER + PAGE_BTR_SEG_TOP, mtr);
 	if (!finished) {
 
 		goto top_loop;
@@ -1979,8 +1979,8 @@ btr_lift_page_up(
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
-	father_page = buf_frame_align(
-	btr_page_get_father_node_ptr(tree, page, mtr));
+	father_page = buf_frame_align
+		(btr_page_get_father_node_ptr(tree, page, mtr));
 
 	page_level = btr_page_get_level(page, mtr);
 	index = tree->tree_index;

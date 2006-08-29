@@ -291,8 +291,7 @@ page_rec_is_user_rec(
 				/* out: TRUE if a user record */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_rec_is_user_rec_low(
-					ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	return(page_rec_is_user_rec_low(ut_align_offset(rec, UNIV_PAGE_SIZE)));
 }
 
 /****************************************************************
@@ -304,8 +303,7 @@ page_rec_is_supremum(
 				/* out: TRUE if the supremum record */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_rec_is_supremum_low(
-					ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	return(page_rec_is_supremum_low(ut_align_offset(rec, UNIV_PAGE_SIZE)));
 }
 
 /****************************************************************
@@ -317,8 +315,7 @@ page_rec_is_infimum(
 				/* out: TRUE if the infimum record */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_rec_is_infimum_low(
-				       ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	return(page_rec_is_infimum_low(ut_align_offset(rec, UNIV_PAGE_SIZE)));
 }
 
 /*****************************************************************

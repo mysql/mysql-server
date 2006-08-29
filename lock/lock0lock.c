@@ -1860,8 +1860,7 @@ lock_rec_enqueue_waiting(
 
 	if (trx->dict_operation) {
 		ut_print_timestamp(stderr);
-		fputs(
-		      "  InnoDB: Error: a record lock wait happens"
+		fputs("  InnoDB: Error: a record lock wait happens"
 		      " in a dictionary operation!\n"
 		      "InnoDB: Table name ", stderr);
 		ut_print_name(stderr, trx, TRUE, index->table_name);
@@ -3364,8 +3363,7 @@ lock_deadlock_recursive(
 
 				trx_print(ef, wait_lock->trx, 3000);
 
-				fputs(
-				      "*** (1) WAITING FOR THIS LOCK"
+				fputs("*** (1) WAITING FOR THIS LOCK"
 				      " TO BE GRANTED:\n", ef);
 
 				if (lock_get_type(wait_lock) == LOCK_REC) {
@@ -3386,8 +3384,7 @@ lock_deadlock_recursive(
 					lock_table_print(ef, lock);
 				}
 
-				fputs(
-				      "*** (2) WAITING FOR THIS LOCK"
+				fputs("*** (2) WAITING FOR THIS LOCK"
 				      " TO BE GRANTED:\n", ef);
 
 				if (lock_get_type(start->wait_lock)
@@ -3572,8 +3569,7 @@ lock_table_enqueue_waiting(
 
 	if (trx->dict_operation) {
 		ut_print_timestamp(stderr);
-		fputs(
-		      "  InnoDB: Error: a table lock wait happens"
+		fputs("  InnoDB: Error: a table lock wait happens"
 		      " in a dictionary operation!\n"
 		      "InnoDB: Table name ", stderr);
 		ut_print_name(stderr, trx, TRUE, table->name);
@@ -4284,16 +4280,14 @@ lock_print_info_summary(
 	lock_mutex_enter_kernel();
 
 	if (lock_deadlock_found) {
-		fputs(
-		      "------------------------\n"
+		fputs("------------------------\n"
 		      "LATEST DETECTED DEADLOCK\n"
 		      "------------------------\n", file);
 
 		ut_copy_file(file, lock_latest_err_file);
 	}
 
-	fputs(
-	      "------------\n"
+	fputs("------------\n"
 	      "TRANSACTIONS\n"
 	      "------------\n", file);
 
@@ -4473,8 +4467,7 @@ loop:
 	nth_lock++;
 
 	if (nth_lock >= 10) {
-		fputs(
-		      "10 LOCKS PRINTED FOR THIS TRX:"
+		fputs("10 LOCKS PRINTED FOR THIS TRX:"
 		      " SUPPRESSING FURTHER PRINTS\n",
 		      file);
 

@@ -364,8 +364,7 @@ xdes_get_bit(
 	byte_index = index / 8;
 	bit_index = index % 8;
 
-	return(ut_bit_get_nth(
-			      mtr_read_ulint(descr + XDES_BITMAP + byte_index,
+	return(ut_bit_get_nth(mtr_read_ulint(descr + XDES_BITMAP + byte_index,
 					     MLOG_1BYTE, mtr),
 			      bit_index));
 }
@@ -3008,8 +3007,7 @@ fseg_free_page_low(
 			" InnoDB tables and recreate the whole\n"
 			"InnoDB: database!\n", (ulong) page);
 crash:
-		fputs(
-		      "InnoDB: Please refer to\n"
+		fputs("InnoDB: Please refer to\n"
 		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
 		      "forcing-recovery.html\n"
 		      "InnoDB: about forcing recovery.\n", stderr);
@@ -3152,8 +3150,7 @@ fseg_free_extent(
 	descr = xdes_get_descriptor(space, page, mtr);
 
 	ut_a(xdes_get_state(descr, mtr) == XDES_FSEG);
-	ut_a(0 == ut_dulint_cmp(
-				mtr_read_dulint(descr + XDES_ID, mtr),
+	ut_a(0 == ut_dulint_cmp(mtr_read_dulint(descr + XDES_ID, mtr),
 				mtr_read_dulint(seg_inode + FSEG_ID, mtr)));
 
 	first_page_in_extent = page - (page % FSP_EXTENT_SIZE);

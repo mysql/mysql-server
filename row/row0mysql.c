@@ -514,8 +514,7 @@ handle_new_error:
 
 	} else if (err == DB_MUST_GET_MORE_FILE_SPACE) {
 
-		fputs(
-		      "InnoDB: The database cannot continue"
+		fputs("InnoDB: The database cannot continue"
 		      " operation because of\n"
 		      "InnoDB: lack of space. You must add"
 		      " a new data file to\n"
@@ -524,8 +523,7 @@ handle_new_error:
 		exit(1);
 	} else if (err == DB_CORRUPTION) {
 
-		fputs(
-		      "InnoDB: We detected index corruption"
+		fputs("InnoDB: We detected index corruption"
 		      " in an InnoDB type table.\n"
 		      "InnoDB: You have to dump + drop + reimport"
 		      " the table or, in\n"
@@ -714,8 +712,7 @@ row_prebuilt_free(
 			    || (ROW_PREBUILT_FETCH_MAGIC_N !=
 				mach_read_from_4((prebuilt->fetch_cache[i])
 						 + prebuilt->mysql_row_len))) {
-				fputs(
-				      "InnoDB: Error: trying to free"
+				fputs("InnoDB: Error: trying to free"
 				      " a corrupt fetch buffer.\n", stderr);
 
 				mem_analyze_corruption
@@ -1094,8 +1091,7 @@ row_insert_for_mysql(
 	}
 
 	if (srv_created_new_raw || srv_force_recovery) {
-		fputs(
-		      "InnoDB: A new raw disk partition was initialized or\n"
+		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
 		      "InnoDB: mysqld and edit my.cnf so that"
@@ -1333,8 +1329,7 @@ row_update_for_mysql(
 	}
 
 	if (srv_created_new_raw || srv_force_recovery) {
-		fputs(
-		      "InnoDB: A new raw disk partition was initialized or\n"
+		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
 		      "InnoDB: mysqld and edit my.cnf so that newraw"
@@ -1754,8 +1749,7 @@ row_create_table_for_mysql(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	if (srv_created_new_raw) {
-		fputs(
-		      "InnoDB: A new raw disk partition was initialized or\n"
+		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
 		      "InnoDB: mysqld and edit my.cnf so that newraw"
@@ -2705,8 +2699,7 @@ row_truncate_table_for_mysql(
 	ut_ad(table);
 
 	if (srv_created_new_raw) {
-		fputs(
-		      "InnoDB: A new raw disk partition was initialized or\n"
+		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
 		      "InnoDB: mysqld and edit my.cnf so that newraw"
@@ -2945,8 +2938,7 @@ row_drop_table_for_mysql(
 	ut_a(name != NULL);
 
 	if (srv_created_new_raw) {
-		fputs(
-		      "InnoDB: A new raw disk partition was initialized or\n"
+		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
 		      "InnoDB: mysqld and edit my.cnf so that newraw"
@@ -3361,8 +3353,7 @@ loop:
 			row_mysql_unlock_data_dictionary(trx);
 
 			ut_print_timestamp(stderr);
-			fputs(
-			      "  InnoDB: Warning: MySQL is trying to"
+			fputs("  InnoDB: Warning: MySQL is trying to"
 			      " drop database ", stderr);
 			ut_print_name(stderr, trx, TRUE, name);
 			fputs("\n"
@@ -3497,8 +3488,7 @@ row_rename_table_for_mysql(
 	ut_a(new_name != NULL);
 
 	if (srv_created_new_raw || srv_force_recovery) {
-		fputs(
-		      "InnoDB: A new raw disk partition was initialized or\n"
+		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
 		      "InnoDB: mysqld and edit my.cnf so that newraw"
@@ -3709,8 +3699,7 @@ end:
 	if (err != DB_SUCCESS) {
 		if (err == DB_DUPLICATE_KEY) {
 			ut_print_timestamp(stderr);
-			fputs(
-			      "  InnoDB: Error; possible reasons:\n"
+			fputs("  InnoDB: Error; possible reasons:\n"
 			      "InnoDB: 1) Table rename would cause"
 			      " two FOREIGN KEY constraints\n"
 			      "InnoDB: to have the same internal name"
@@ -3729,8 +3718,7 @@ end:
 			      "innodb-troubleshooting.html\n"
 			      "InnoDB: If table ", stderr);
 			ut_print_name(stderr, trx, TRUE, new_name);
-			fputs(
-			      " is a temporary table #sql..., then"
+			fputs(" is a temporary table #sql..., then"
 			      " it can be that\n"
 			      "InnoDB: there are still queries running"
 			      " on the table, and it will be\n"
@@ -3792,8 +3780,7 @@ end:
 				      " with the new table definition.\n",
 				      stderr);
 			} else {
-				fputs(
-				      "  InnoDB: Error: in RENAME TABLE"
+				fputs("  InnoDB: Error: in RENAME TABLE"
 				      " table ",
 				      stderr);
 				ut_print_name(stderr, trx, TRUE, new_name);

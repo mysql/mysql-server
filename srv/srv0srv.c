@@ -992,8 +992,7 @@ srv_conc_enter_innodb(
 retry:
 	if (trx->declared_to_be_inside_innodb) {
 		ut_print_timestamp(stderr);
-		fputs(
-		      "  InnoDB: Error: trying to declare trx"
+		fputs("  InnoDB: Error: trying to declare trx"
 		      " to enter InnoDB, but\n"
 		      "InnoDB: it already is declared.\n", stderr);
 		trx_print(stderr, trx, 0);
