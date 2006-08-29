@@ -454,6 +454,8 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len, int dec,
 		       CHARSET_INFO *cs)
 {
   Item *res;
+  int tmp_len;
+  LINT_INIT(res);
 
   switch (cast_type) {
   case ITEM_CAST_BINARY: 	res= new Item_func_binary(a); break;
@@ -463,7 +465,13 @@ Item *create_func_cast(Item *a, Cast_target cast_type, int len, int dec,
   case ITEM_CAST_TIME:		res= new Item_time_typecast(a); break;
   case ITEM_CAST_DATETIME:	res= new Item_datetime_typecast(a); break;
   case ITEM_CAST_DECIMAL:
-    res= new Item_decimal_typecast(a, (len>0) ? len : 10, dec ? dec : 2);
+    tmp_len= (len>0) ? len : 10;
+    if (tmp_len < dec)
+    {
+      my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
+      return 0;
+    }
+    res= new Item_decimal_typecast(a, tmp_len, dec);
     break;
   case ITEM_CAST_CHAR:
     res= new Item_char_typecast(a, len, cs ? cs : 

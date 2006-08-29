@@ -496,6 +496,7 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
       
     idx = m_current_api_receiver;
     last = m_api_receivers_count;
+    Uint32 timeout = tp->m_waitfor_timeout;
       
     do {
       if(theError.code){
@@ -521,8 +522,7 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
 	/**
 	 * No completed...
 	 */
-        int ret_code= poll_guard.wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId,
-                                           forceSend);
+        int ret_code= poll_guard.wait_scan(3*timeout, nodeId, forceSend);
 	if (ret_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	  continue;
 	} else {
@@ -1425,13 +1425,13 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
 	return -1;
       Uint32 seq = theNdbCon->theNodeSequence;
       Uint32 nodeId = theNdbCon->theDBnode;
+      Uint32 timeout = tp->m_waitfor_timeout;
       if(seq == tp->getNodeSequence(nodeId) &&
 	 !send_next_scan_ordered(s_idx)){
 	Uint32 tmp = m_sent_receivers_count;
 	s_idx = m_current_api_receiver; 
 	while(m_sent_receivers_count > 0 && !theError.code){
-          int ret_code= poll_guard.wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId,
-                                             forceSend);
+          int ret_code= poll_guard.wait_scan(3*timeout, nodeId, forceSend);
 	  if (ret_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	    continue;
 	  }
@@ -1574,12 +1574,13 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
     return -1;
   }
   
+  Uint32 timeout = tp->m_waitfor_timeout;
   /**
    * Wait for outstanding
    */
   while(theError.code == 0 && m_sent_receivers_count)
   {
-    int return_code= poll_guard->wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId, forceSend);
+    int return_code= poll_guard->wait_scan(3*timeout, nodeId, forceSend);
     switch(return_code){
     case 0:
       break;
@@ -1647,8 +1648,7 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend,
    */
   while(m_sent_receivers_count+m_api_receivers_count+m_conf_receivers_count)
   {
-    int return_code= poll_guard->wait_scan(WAITFOR_SCAN_TIMEOUT, nodeId,
-                                           forceSend);
+    int return_code= poll_guard->wait_scan(3*timeout, nodeId, forceSend);
     switch(return_code){
     case 0:
       break;
