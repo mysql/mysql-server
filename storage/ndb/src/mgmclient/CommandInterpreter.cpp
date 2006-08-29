@@ -964,6 +964,12 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   if (!connect(interactive))
     DBUG_RETURN(true);
 
+  if (ndb_mgm_check_connection(m_mgmsrv))
+  {
+    disconnect();
+    connect(interactive);
+  }
+
   if (strcasecmp(firstToken, "SHOW") == 0) {
     Guard g(m_print_mutex);
     executeShow(allAfterFirstToken);
@@ -1567,11 +1573,16 @@ CommandInterpreter::executeShow(char* parameters)
 void
 CommandInterpreter::executeConnect(char* parameters, bool interactive) 
 {
+  BaseString *basestring = NULL;
+
   disconnect();
   if (!emptyString(parameters)) {
-    m_constr= BaseString(parameters).trim().c_str();
+    basestring= new BaseString(parameters);
+    m_constr= basestring->trim().c_str();
   }
   connect(interactive);
+  if (basestring != NULL)
+    delete basestring;
 }
 
 //*****************************************************************************

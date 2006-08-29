@@ -2364,8 +2364,7 @@ ha_innobase::open(
 				"have forgotten\nto delete the corresponding "
 				".frm files of InnoDB tables, or you\n"
 				"have moved .frm files to another database?\n"
-				"Look from section 15.1 of "
-				"http://www.innodb.com/ibman.html\n"
+				"See http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -2382,8 +2381,7 @@ ha_innobase::open(
 				"Have you deleted the .ibd file from the "
 				"database directory under\nthe MySQL datadir, "
 				"or have you used DISCARD TABLESPACE?\n"
-				"Look from section 15.1 of "
-				"http://www.innodb.com/ibman.html\n"
+				"See http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -5604,13 +5602,14 @@ ha_innobase::info(
 		for (i = 0; i < table->s->keys; i++) {
 			if (index == NULL) {
 				ut_print_timestamp(stderr);
-				sql_print_error("Table %s contains less "
+				sql_print_error("Table %s contains fewer "
 						"indexes inside InnoDB than "
 						"are defined in the MySQL "
 						".frm file. Have you mixed up "
 						".frm files from different "
-						"installations? See section "
-						"15.1 at http://www.innodb.com/ibman.html",
+						"installations? See "
+"http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+
 						ib_table->name);
 				break;
 			}
@@ -5619,17 +5618,11 @@ ha_innobase::info(
 
 				if (j + 1 > index->n_uniq) {
 					ut_print_timestamp(stderr);
-					sql_print_error("Index %s of %s has "
-							"%lu columns unique "
-							"inside InnoDB, but "
-							"MySQL is asking "
-							"statistics for %lu "
-							"columns. Have you "
-							"mixed up .frm files "
-							"from different "
-							"installations? See "
-							"section 15.1 at "
-							"http://www.innodb.com/ibman.html",
+					sql_print_error(
+"Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking "
+"statistics for %lu columns. Have you mixed up .frm files from different "
+"installations? "
+"See http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
 							index->name,
 							ib_table->name,
 							(unsigned long)
@@ -6438,7 +6431,7 @@ ha_innobase::transactional_table_lock(
 "table %s does not exist.\n"
 "Have you deleted the .ibd file from the database directory under\n"
 "the MySQL datadir?"
-"Look from section 15.1 of http://www.innodb.com/ibman.html\n"
+"See http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
 "how you can resolve the problem.\n",
 				prebuilt->table->name);
 		DBUG_RETURN(HA_ERR_CRASHED);
