@@ -822,6 +822,40 @@ JOIN::optimize()
     if (!order && org_order)
       skip_sort_order= 1;
   }
+  /*
+     Check if we can optimize away GROUP BY/DISTINCT.
+     We can do that if there are no aggregate functions and the
+     fields in DISTINCT clause (if present) and/or columns in GROUP BY
+     (if present) contain direct references to all key parts of
+     an unique index (in whatever order).
+     Note that the unique keys for DISTINCT and GROUP BY should not
+     be the same (as long as they are unique).
+
+     The FROM clause must contain a single non-constant table.
+  */
+  if (tables - const_tables == 1 && (group_list || select_distinct) &&
+      !tmp_table_param.sum_func_count &&
+      (!join_tab[const_tables].select ||
+       !join_tab[const_tables].select->quick ||
+       join_tab[const_tables].select->quick->get_type() != 
+       QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
+  {
+    if (group_list &&
+       list_contains_unique_index(join_tab[const_tables].table,
+                                 find_field_in_order_list,
+                                 (void *) group_list))
+    {
+      group_list= 0;
+      group= 0;
+    }
+    if (select_distinct &&
+       list_contains_unique_index(join_tab[const_tables].table,
+                                 find_field_in_item_list,
+                                 (void *) &fields_list))
+    {
+      select_distinct= 0;
+    }
+  }
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
@@ -890,40 +924,6 @@ JOIN::optimize()
 			     &simple_group);
     if (old_group_list && !group_list)
       select_distinct= 0;
-  }
-  /*
-     Check if we can optimize away GROUP BY/DISTINCT.
-     We can do that if there are no aggregate functions and the
-     fields in DISTINCT clause (if present) and/or columns in GROUP BY
-     (if present) contain direct references to all key parts of
-     an unique index (in whatever order).
-     Note that the unique keys for DISTINCT and GROUP BY should not
-     be the same (as long as they are unique).
-
-     The FROM clause must contain a single non-constant table.
-  */
-  if (tables - const_tables == 1 && (group_list || select_distinct) &&
-      !tmp_table_param.sum_func_count &&
-      (!join_tab[const_tables].select ||
-       !join_tab[const_tables].select->quick ||
-       join_tab[const_tables].select->quick->get_type() != 
-       QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
-  {
-    if (group_list &&
-       list_contains_unique_index(join_tab[const_tables].table,
-                                 find_field_in_order_list,
-                                 (void *) group_list))
-    {
-      group_list= 0;
-      group= 0;
-    }
-    if (select_distinct &&
-       list_contains_unique_index(join_tab[const_tables].table,
-                                 find_field_in_item_list,
-                                 (void *) &fields_list))
-    {
-      select_distinct= 0;
-    }
   }
   if (!group_list && group)
   {
@@ -8645,8 +8645,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();
   share->keys_in_use.init();
-  /* For easier error reporting */
-  share->table_cache_key= share->db;
 
   /* Calculate which type of fields we will store in the temporary table */
 
