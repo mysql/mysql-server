@@ -3237,8 +3237,8 @@ fil_load_single_table_tablespaces(void)
 
 				/* We found a symlink or a file */
 				if (strlen(fileinfo.name) > 4
-				    && 0 == strcmp(fileinfo.name +
-						   strlen(fileinfo.name) - 4,
+				    && 0 == strcmp(fileinfo.name
+						   + strlen(fileinfo.name) - 4,
 						   ".ibd")) {
 					/* The name ends in .ibd; try opening
 					the file */
@@ -3684,8 +3684,8 @@ fil_extend_space_to_desired_size(
 		/* Keep the last data file size info up to date, rounded to
 		full megabytes */
 
-		srv_data_file_sizes[srv_n_data_files - 1] =
-			(node->size / pages_per_mb) * pages_per_mb;
+		srv_data_file_sizes[srv_n_data_files - 1]
+			= (node->size / pages_per_mb) * pages_per_mb;
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4129,8 +4129,8 @@ fil_io(
 	offset_low  = ((block_offset << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL)
 		+ byte_offset;
 
-	ut_a(node->size - block_offset >=
-	     (byte_offset + len + (UNIV_PAGE_SIZE - 1)) / UNIV_PAGE_SIZE);
+	ut_a(node->size - block_offset
+	     >= (byte_offset + len + (UNIV_PAGE_SIZE - 1)) / UNIV_PAGE_SIZE);
 
 	/* Do aio */
 

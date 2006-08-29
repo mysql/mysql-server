@@ -285,9 +285,9 @@ mtr_read_ulint(
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
-				MTR_MEMO_PAGE_S_FIX) ||
-	      mtr_memo_contains(mtr, buf_block_align(ptr),
-				MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains(mtr, buf_block_align(ptr),
+				   MTR_MEMO_PAGE_X_FIX));
 	if (type == MLOG_1BYTE) {
 		return(mach_read_from_1(ptr));
 	} else if (type == MLOG_2BYTES) {
@@ -312,9 +312,9 @@ mtr_read_dulint(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(ptr && mtr);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
-				MTR_MEMO_PAGE_S_FIX) ||
-	      mtr_memo_contains(mtr, buf_block_align(ptr),
-				MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains(mtr, buf_block_align(ptr),
+				   MTR_MEMO_PAGE_X_FIX));
 	return(mach_read_from_8(ptr));
 }
 

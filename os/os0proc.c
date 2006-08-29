@@ -411,8 +411,8 @@ os_awe_map_physical_mem_to_window(
 	ut_a(ptr >= os_awe_simulate_window);
 	ut_a(ptr < os_awe_simulate_window + os_awe_simulate_window_size);
 	ut_a(page_info >= os_awe_simulate_page_info);
-	ut_a(page_info < os_awe_simulate_page_info +
-	     (os_awe_simulate_mem_size / 4096));
+	ut_a(page_info < os_awe_simulate_page_info
+	     + (os_awe_simulate_mem_size / 4096));
 
 	/* First look if some other 'physical pages' are mapped at ptr,
 	and copy them back to where they were if yes */

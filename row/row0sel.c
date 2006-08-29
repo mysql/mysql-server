@@ -1951,8 +1951,8 @@ row_sel_step(
 		fetches (currently, we copy them also for non-explicit
 		cursors) */
 
-		if (node->explicit_cursor &&
-		    UT_LIST_GET_FIRST(node->copy_variables)) {
+		if (node->explicit_cursor
+		    && UT_LIST_GET_FIRST(node->copy_variables)) {
 
 			row_sel_copy_input_variable_vals(node);
 		}
@@ -2014,8 +2014,8 @@ fetch_step(
 					(sel_node, node->func->arg);
 
 				if (!ret) {
-					sel_node->state =
-						SEL_NODE_NO_MORE_ROWS;
+					sel_node->state
+						= SEL_NODE_NO_MORE_ROWS;
 				}
 			}
 		}
@@ -2620,8 +2620,8 @@ row_sel_store_mysql_rec(
 
 				heap = prebuilt->blob_heap;
 			} else {
-				extern_field_heap =
-					mem_heap_create(UNIV_PAGE_SIZE);
+				extern_field_heap
+					= mem_heap_create(UNIV_PAGE_SIZE);
 
 				heap = extern_field_heap;
 			}
@@ -2656,8 +2656,8 @@ row_sel_store_mysql_rec(
 			if (templ->mysql_null_bit_mask) {
 				/* It is a nullable column with a non-NULL
 				value */
-				mysql_rec[templ->mysql_null_byte_offset] &=
-					~(byte) (templ->mysql_null_bit_mask);
+				mysql_rec[templ->mysql_null_byte_offset]
+					&= ~(byte) templ->mysql_null_bit_mask;
 			}
 		} else {
 			/* MySQL seems to assume the field for an SQL NULL
@@ -2667,8 +2667,8 @@ row_sel_store_mysql_rec(
 			and DISTINCT could treat NULL values inequal. */
 			int	pad_char;
 
-			mysql_rec[templ->mysql_null_byte_offset] |=
-				(byte) (templ->mysql_null_bit_mask);
+			mysql_rec[templ->mysql_null_byte_offset]
+				|= (byte) templ->mysql_null_bit_mask;
 			switch (templ->type) {
 			case DATA_VARCHAR:
 			case DATA_BINARY:
@@ -2908,8 +2908,8 @@ row_sel_get_clust_rec_for_mysql(
 			clust_rec = NULL;
 		} else {
 #ifdef UNIV_SEARCH_DEBUG
-			ut_a(clust_rec == NULL ||
-			     row_sel_sec_rec_is_for_clust_rec
+			ut_a(clust_rec == NULL
+			     || row_sel_sec_rec_is_for_clust_rec
 			     (rec, sec_index, clust_rec, clust_index));
 #endif
 		}
@@ -3018,8 +3018,8 @@ row_sel_pop_cached_row_for_mysql(
 	if (UNIV_UNLIKELY(prebuilt->keep_other_fields_on_keyread)) {
 		/* Copy cache record field by field, don't touch fields that
 		are not covered by current key */
-		cached_rec =
-			prebuilt->fetch_cache[prebuilt->fetch_cache_first];
+		cached_rec = prebuilt->fetch_cache
+			[prebuilt->fetch_cache_first];
 
 		for (i = 0; i < prebuilt->n_template; i++) {
 			templ = prebuilt->mysql_template + i;
@@ -3397,13 +3397,13 @@ row_search_for_mysql(
 	}
 
 	/* In a search where at most one record in the index may match, we
-	can use a LOCK_REC_NOT_GAP type record lock when locking a non-delete-
-	marked matching record.
+	can use a LOCK_REC_NOT_GAP type record lock when locking a
+	non-delete-marked matching record.
 
-	Note that in a unique secondary index there may be different delete-
-	marked versions of a record where only the primary key values differ:
-	thus in a secondary index we must use next-key locks when locking
-	delete-marked records. */
+	Note that in a unique secondary index there may be different
+	delete-marked versions of a record where only the primary key
+	values differ: thus in a secondary index we must use next-key
+	locks when locking delete-marked records. */
 
 	if (match_mode == ROW_SEL_EXACT
 	    && index->type & DICT_UNIQUE
@@ -3425,8 +3425,8 @@ row_search_for_mysql(
 		1 column. Return immediately if this is not a HANDLER
 		command. */
 
-		if (UNIV_UNLIKELY(direction != 0 &&
-				  !prebuilt->used_in_HANDLER)) {
+		if (UNIV_UNLIKELY(direction != 0
+				  && !prebuilt->used_in_HANDLER)) {
 
 			err = DB_RECORD_NOT_FOUND;
 			goto func_exit;

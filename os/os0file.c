@@ -843,8 +843,9 @@ os_file_create_directory(
 	BOOL	rcode;
 
 	rcode = CreateDirectory((LPCTSTR) pathname, NULL);
-	if (!(rcode != 0 ||
-	      (GetLastError() == ERROR_ALREADY_EXISTS && !fail_if_exists))) {
+	if (!(rcode != 0
+	      || (GetLastError() == ERROR_ALREADY_EXISTS
+		  && !fail_if_exists))) {
 		/* failure */
 		os_file_handle_error(pathname, "CreateDirectory");
 
@@ -1190,8 +1191,8 @@ try_again:
 			/* Do not use unbuffered i/o to log files because
 			value 2 denotes that we do not flush the log at every
 			commit, but only once per second */
-		} else if (srv_win_file_flush_method ==
-			   SRV_WIN_IO_UNBUFFERED) {
+		} else if (srv_win_file_flush_method
+			   == SRV_WIN_IO_UNBUFFERED) {
 			attributes = attributes | FILE_FLAG_NO_BUFFERING;
 		}
 #endif
@@ -1202,8 +1203,8 @@ try_again:
 			/* Do not use unbuffered i/o to log files because
 			value 2 denotes that we do not flush the log at every
 			commit, but only once per second */
-		} else if (srv_win_file_flush_method ==
-			   SRV_WIN_IO_UNBUFFERED) {
+		} else if (srv_win_file_flush_method
+			   == SRV_WIN_IO_UNBUFFERED) {
 			attributes = attributes | FILE_FLAG_NO_BUFFERING;
 		}
 #endif
@@ -3004,14 +3005,14 @@ os_aio_get_segment_no_from_slot(
 		segment = 1;
 
 	} else if (array == os_aio_read_array) {
-		seg_len = os_aio_read_array->n_slots /
-			os_aio_read_array->n_segments;
+		seg_len = os_aio_read_array->n_slots
+			/ os_aio_read_array->n_segments;
 
 		segment = 2 + slot->pos / seg_len;
 	} else {
 		ut_a(array == os_aio_write_array);
-		seg_len = os_aio_write_array->n_slots /
-			os_aio_write_array->n_segments;
+		seg_len = os_aio_write_array->n_slots
+			/ os_aio_write_array->n_segments;
 
 		segment = os_aio_read_array->n_segments + 2
 			+ slot->pos / seg_len;
@@ -3219,8 +3220,8 @@ loop:
 	control->aio_offset = offset;
 	control->aio_reqprio = 0;
 	control->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
-	control->aio_sigevent.sigev_signo =
-		SIGRTMIN + 1 + os_aio_get_array_no(array);
+	control->aio_sigevent.sigev_signo
+		= SIGRTMIN + 1 + os_aio_get_array_no(array);
 	/* TODO: How to choose the signal numbers? */
 	/*
 	fprintf(stderr, "AIO signal number %lu\n",
@@ -4285,8 +4286,8 @@ loop:
 	if (os_n_file_reads == os_n_file_reads_old) {
 		avg_bytes_read = 0.0;
 	} else {
-		avg_bytes_read = (double) os_bytes_read_since_printout /
-			(os_n_file_reads - os_n_file_reads_old);
+		avg_bytes_read = (double) os_bytes_read_since_printout
+			/ (os_n_file_reads - os_n_file_reads_old);
 	}
 
 	fprintf(file,

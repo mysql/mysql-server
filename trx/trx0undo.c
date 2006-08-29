@@ -585,10 +585,10 @@ trx_undo_read_xid(
 {
 	xid->formatID = (long)mach_read_from_4(log_hdr + TRX_UNDO_XA_FORMAT);
 
-	xid->gtrid_length =
-		(long)mach_read_from_4(log_hdr + TRX_UNDO_XA_TRID_LEN);
-	xid->bqual_length =
-		(long)mach_read_from_4(log_hdr + TRX_UNDO_XA_BQUAL_LEN);
+	xid->gtrid_length
+		= (long) mach_read_from_4(log_hdr + TRX_UNDO_XA_TRID_LEN);
+	xid->bqual_length
+		= (long) mach_read_from_4(log_hdr + TRX_UNDO_XA_BQUAL_LEN);
 
 	memcpy(xid->data, log_hdr + TRX_UNDO_XA_XID, XIDDATASIZE);
 }
@@ -1639,8 +1639,8 @@ trx_undo_mark_as_dict_operation(
 
 	hdr_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
 
-	mlog_write_ulint(hdr_page + undo->hdr_offset +
-			 TRX_UNDO_DICT_TRANS,
+	mlog_write_ulint(hdr_page + undo->hdr_offset
+			 + TRX_UNDO_DICT_TRANS,
 			 trx->dict_operation, MLOG_1BYTE, mtr);
 
 	mlog_write_dulint(hdr_page + undo->hdr_offset + TRX_UNDO_TABLE_ID,

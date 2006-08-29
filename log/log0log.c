@@ -710,8 +710,7 @@ log_calc_max_ages(void)
 	log_sys->max_archived_lsn_age = smallest_archive_margin;
 
 	log_sys->max_archived_lsn_age_async = smallest_archive_margin
-		- smallest_archive_margin /
-		LOG_ARCHIVE_RATIO_ASYNC;
+		- smallest_archive_margin / LOG_ARCHIVE_RATIO_ASYNC;
 #endif /* UNIV_LOG_ARCHIVE */
 failure:
 	mutex_exit(&(log_sys->mutex));
@@ -3298,8 +3297,8 @@ log_check_log_recs(
 	ut_memcpy(scan_buf, start, end - start);
 
 	recv_scan_log_recs(TRUE,
-			   (buf_pool->n_frames -
-			    recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
+			   (buf_pool->n_frames
+			    - recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
 			   FALSE, scan_buf, end - start,
 			   ut_dulint_align_down(buf_start_lsn,
 						OS_FILE_LOG_BLOCK_SIZE),

@@ -629,8 +629,8 @@ page_cur_insert_rec_write_log(
 		log_end = &log_ptr[5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
 	}
 
-	if ((rec_get_info_and_status_bits(insert_rec, comp) !=
-	     rec_get_info_and_status_bits(cursor_rec, comp))
+	if ((rec_get_info_and_status_bits(insert_rec, comp)
+	     != rec_get_info_and_status_bits(cursor_rec, comp))
 	    || (extra_size != cur_extra_size)
 	    || (rec_size != cur_rec_size)) {
 

@@ -630,8 +630,8 @@ xdes_calc_descriptor_index(
 				/* out: descriptor index */
 	ulint	offset)		/* in: page offset */
 {
-	return(ut_2pow_remainder(offset, XDES_DESCRIBED_PER_PAGE) /
-	       FSP_EXTENT_SIZE);
+	return(ut_2pow_remainder(offset, XDES_DESCRIBED_PER_PAGE)
+	       / FSP_EXTENT_SIZE);
 }
 
 /************************************************************************
@@ -2259,8 +2259,8 @@ fseg_fill_free_list(
 	for (i = 0; i < FSEG_FREE_LIST_MAX_LEN; i++) {
 		descr = xdes_get_descriptor(space, hint, mtr);
 
-		if ((descr == NULL) ||
-		    (XDES_FREE != xdes_get_state(descr, mtr))) {
+		if ((descr == NULL)
+		    || (XDES_FREE != xdes_get_state(descr, mtr))) {
 
 			/* We cannot allocate the desired extent: stop */
 
@@ -2364,8 +2364,8 @@ fseg_alloc_free_page_low(
 
 	ut_ad(mtr);
 	ut_ad((direction >= FSP_UP) && (direction <= FSP_NO_DIR));
-	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N) ==
-	      FSEG_MAGIC_N_VALUE);
+	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
+	      == FSEG_MAGIC_N_VALUE);
 	seg_id = mtr_read_dulint(seg_inode + FSEG_ID, mtr);
 
 	ut_ad(ut_dulint_cmp(seg_id, ut_dulint_zero) > 0);
@@ -2421,8 +2421,8 @@ fseg_alloc_free_page_low(
 	} else if ((direction != FSP_NO_DIR)
 		   && ((reserved - used) < reserved / FSEG_FILLFACTOR)
 		   && (used >= FSEG_FRAG_LIMIT)
-		   && (!!(ret_descr =
-			  fseg_alloc_free_extent(seg_inode, space, mtr)))) {
+		   && (!!(ret_descr
+			  = fseg_alloc_free_extent(seg_inode, space, mtr)))) {
 
 		/* 3. We take any free extent (which was already assigned above
 		===============================================================
@@ -2926,8 +2926,8 @@ fseg_mark_page_used(
 
 	descr = xdes_get_descriptor(space, page, mtr);
 
-	ut_ad(mtr_read_ulint(seg_inode + FSEG_ID, MLOG_4BYTES, mtr) ==
-	      mtr_read_ulint(descr + XDES_ID, MLOG_4BYTES, mtr));
+	ut_ad(mtr_read_ulint(seg_inode + FSEG_ID, MLOG_4BYTES, mtr)
+	      == mtr_read_ulint(descr + XDES_ID, MLOG_4BYTES, mtr));
 
 	if (xdes_is_free(descr, mtr)) {
 		/* We move the extent from the free list to the
@@ -2981,8 +2981,8 @@ fseg_free_page_low(
 	ulint	i;
 
 	ut_ad(seg_inode && mtr);
-	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N) ==
-	      FSEG_MAGIC_N_VALUE);
+	ut_ad(mach_read_from_4(seg_inode + FSEG_MAGIC_N)
+	      == FSEG_MAGIC_N_VALUE);
 
 	/* Drop search system page hash index if the page is found in
 	the pool and is hashed */
@@ -3656,8 +3656,8 @@ fsp_validate(
 	frag_n_used = mtr_read_ulint(header + FSP_FRAG_N_USED,
 				     MLOG_4BYTES, &mtr);
 
-	n_full_frag_pages = FSP_EXTENT_SIZE *
-		flst_get_len(header + FSP_FULL_FRAG, &mtr);
+	n_full_frag_pages = FSP_EXTENT_SIZE
+		* flst_get_len(header + FSP_FULL_FRAG, &mtr);
 
 	ut_a(free_limit <= size || (space != 0 && size < FSP_EXTENT_SIZE));
 

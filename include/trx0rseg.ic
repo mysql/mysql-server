@@ -72,8 +72,8 @@ trx_rsegf_get_nth_undo(
 		ut_error;
 	}
 
-	return(mtr_read_ulint(rsegf + TRX_RSEG_UNDO_SLOTS +
-			      n * TRX_RSEG_SLOT_SIZE, MLOG_4BYTES, mtr));
+	return(mtr_read_ulint(rsegf + TRX_RSEG_UNDO_SLOTS
+			      + n * TRX_RSEG_SLOT_SIZE, MLOG_4BYTES, mtr));
 }
 
 /*******************************************************************

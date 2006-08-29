@@ -284,8 +284,8 @@ trx_purge_add_update_undo_to_history(
 
 		hist_size = mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
 					   MLOG_4BYTES, mtr);
-		ut_ad(undo->size ==
-		      flst_get_len(seg_header + TRX_UNDO_PAGE_LIST, mtr));
+		ut_ad(undo->size == flst_get_len
+		      (seg_header + TRX_UNDO_PAGE_LIST, mtr));
 
 		mlog_write_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
 				 hist_size + undo->size, MLOG_4BYTES, mtr);

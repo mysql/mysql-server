@@ -333,10 +333,10 @@ eval_predefined_2(
 		ut_ad(len2 >= len1);
 
 		if (len2 > len1) {
-			int_val = (lint)(len1 +
-					 (eval_rnd % (len2 - len1 + 1)));
+			int_val = (lint) (len1
+					 + (eval_rnd % (len2 - len1 + 1)));
 		} else {
-			int_val = (lint)len1;
+			int_val = (lint) len1;
 		}
 
 		eval_rnd = ut_rnd_gen_next_ulint(eval_rnd);

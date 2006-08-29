@@ -768,15 +768,15 @@ dict_init(void)
 
 	mutex_create(&dict_sys->mutex, SYNC_DICT);
 
-	dict_sys->table_hash = hash_create(buf_pool_get_max_size() /
-					   (DICT_POOL_PER_TABLE_HASH *
-					    UNIV_WORD_SIZE));
-	dict_sys->table_id_hash = hash_create(buf_pool_get_max_size() /
-					      (DICT_POOL_PER_TABLE_HASH *
-					       UNIV_WORD_SIZE));
-	dict_sys->col_hash = hash_create(buf_pool_get_max_size() /
-					 (DICT_POOL_PER_COL_HASH *
-					  UNIV_WORD_SIZE));
+	dict_sys->table_hash = hash_create(buf_pool_get_max_size()
+					   / (DICT_POOL_PER_TABLE_HASH
+					      * UNIV_WORD_SIZE));
+	dict_sys->table_id_hash = hash_create(buf_pool_get_max_size()
+					      / (DICT_POOL_PER_TABLE_HASH
+						 * UNIV_WORD_SIZE));
+	dict_sys->col_hash = hash_create(buf_pool_get_max_size()
+					 / (DICT_POOL_PER_COL_HASH
+					    * UNIV_WORD_SIZE));
 	dict_sys->size = 0;
 
 	UT_LIST_INIT(dict_sys->table_LRU);
@@ -1137,8 +1137,8 @@ dict_table_rename_in_cache(
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
 	while (foreign != NULL) {
-		if (ut_strlen(foreign->foreign_table_name) <
-		    ut_strlen(table->name)) {
+		if (ut_strlen(foreign->foreign_table_name)
+		    < ut_strlen(table->name)) {
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
 
@@ -1209,8 +1209,8 @@ dict_table_rename_in_cache(
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
 	while (foreign != NULL) {
-		if (ut_strlen(foreign->referenced_table_name) <
-		    ut_strlen(table->name)) {
+		if (ut_strlen(foreign->referenced_table_name)
+		    < ut_strlen(table->name)) {
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
 
@@ -1544,10 +1544,10 @@ dict_index_add_to_cache(
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
-		new_index->stat_n_diff_key_vals =
-			mem_heap_alloc(new_index->heap,
-				       (1 + dict_index_get_n_unique(new_index))
-				       * sizeof(ib_longlong));
+		new_index->stat_n_diff_key_vals = mem_heap_alloc
+			(new_index->heap,
+			 (1 + dict_index_get_n_unique(new_index))
+			 * sizeof(ib_longlong));
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
@@ -2142,9 +2142,9 @@ dict_foreign_find_index(
 	ulint		n_cols,	/* in: number of columns */
 	dict_index_t*	types_idx, /* in: NULL or an index to whose types the
 				   column types must match */
-	ibool		check_charsets)	/* in: whether to check charsets.
-					only has an effect if types_idx !=
-					NULL. */
+	ibool		check_charsets)
+				/* in: whether to check charsets.
+				only has an effect if types_idx != NULL */
 {
 	dict_index_t*	index;
 	const char*	col_name;
@@ -2777,8 +2777,8 @@ scan_more:
 			/* Starting quote: remember the quote character. */
 			quote = *sptr;
 		} else if (*sptr == '#'
-			   || (sptr[0] == '-' && sptr[1] == '-' &&
-			       sptr[2] == ' ')) {
+			   || (sptr[0] == '-' && sptr[1] == '-'
+			       && sptr[2] == ' ')) {
 			for (;;) {
 				/* In Unix a newline is 0x0A while in Windows
 				it is 0x0D followed by 0x0A */
@@ -3193,8 +3193,8 @@ col_loop1:
 	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
 						    i * sizeof(void*));
 	for (i = 0; i < foreign->n_fields; i++) {
-		foreign->foreign_col_names[i] =
-			mem_heap_strdup(foreign->heap, columns[i]->name);
+		foreign->foreign_col_names[i] = mem_heap_strdup
+			(foreign->heap, columns[i]->name);
 	}
 
 	ptr = dict_scan_table_name(cs, ptr, &referenced_table, name,
@@ -3842,8 +3842,8 @@ dict_tree_build_node_ptr(
 	dtype_set(dfield_get_type(field), DATA_SYS_CHILD, DATA_NOT_NULL, 4, 0);
 
 	rec_copy_prefix_to_dtuple(tuple, rec, ind, n_unique, heap);
-	dtuple_set_info_bits(tuple, dtuple_get_info_bits(tuple) |
-			     REC_STATUS_NODE_PTR);
+	dtuple_set_info_bits(tuple, dtuple_get_info_bits(tuple)
+			     | REC_STATUS_NODE_PTR);
 
 	ut_ad(dtuple_check_typed(tuple));
 

@@ -424,8 +424,8 @@ row_build_row_ref(
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len =
-			dict_index_get_nth_field(clust_index, i)->prefix_len;
+		clust_col_prefix_len = dict_index_get_nth_field
+			(clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {
@@ -521,8 +521,8 @@ notfound:
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len =
-			dict_index_get_nth_field(clust_index, i)->prefix_len;
+		clust_col_prefix_len = dict_index_get_nth_field
+			(clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {
