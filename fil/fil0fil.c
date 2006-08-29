@@ -531,8 +531,8 @@ fil_node_create(
 	if (!space) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Error: Could not find tablespace %lu for\n"
-"InnoDB: file ", (ulong) id);
+			"  InnoDB: Error: Could not find tablespace %lu for\n"
+			"InnoDB: file ", (ulong) id);
 		ut_print_filename(stderr, name);
 		fputs(" in the tablespace memory cache.\n", stderr);
 		mem_free(node->name);
@@ -591,9 +591,9 @@ fil_node_open_file(
 		os_file_read() in Windows to read from a file opened for
 		async I/O! */
 
-		node->handle = os_file_create_simple_no_error_handling(
-						node->name, OS_FILE_OPEN,
-						OS_FILE_READ_ONLY, &success);
+		node->handle = os_file_create_simple_no_error_handling
+			(node->name,
+			 OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
 		if (!success) {
 			/* The following call prints an error message */
 			os_file_get_last_error(TRUE);
@@ -601,8 +601,9 @@ fil_node_open_file(
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
-"  InnoDB: Fatal error: cannot open %s\n."
-"InnoDB: Have you deleted .ibd files under a running mysqld server?\n",
+				"  InnoDB: Fatal error: cannot open %s\n."
+				"InnoDB: Have you deleted .ibd files"
+				" under a running mysqld server?\n",
 				node->name);
 			ut_a(0);
 		}
@@ -610,7 +611,7 @@ fil_node_open_file(
 		os_file_get_size(node->handle, &size_low, &size_high);
 
 		size_bytes = (((ib_longlong)size_high) << 32)
-						+ (ib_longlong)size_low;
+			+ (ib_longlong)size_low;
 #ifdef UNIV_HOTBACKUP
 		node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 
@@ -620,10 +621,15 @@ fil_node_open_file(
 
 		if (size_bytes < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 			fprintf(stderr,
-"InnoDB: Error: the size of single-table tablespace file %s\n"
-"InnoDB: is only %lu %lu, should be at least %lu!\n", node->name,
-			(ulong) size_high,
-			(ulong) size_low, (ulong) (4 * UNIV_PAGE_SIZE));
+				"InnoDB: Error: the size of single-table"
+				" tablespace file %s\n"
+				"InnoDB: is only %lu %lu,"
+				" should be at least %lu!\n",
+				node->name,
+				(ulong) size_high,
+				(ulong) size_low,
+				(ulong) (FIL_IBD_FILE_INITIAL_SIZE
+					 * UNIV_PAGE_SIZE));
 
 			ut_a(0);
 		}
@@ -636,7 +642,7 @@ fil_node_open_file(
 		page = ut_align(buf2, UNIV_PAGE_SIZE);
 
 		success = os_file_read(node->handle, page, 0, 0,
-							UNIV_PAGE_SIZE);
+				       UNIV_PAGE_SIZE);
 		space_id = fsp_header_get_space_id(page);
 		zip_size = fsp_header_get_zip_size(page);
 
@@ -648,25 +654,29 @@ fil_node_open_file(
 
 		if (space_id == ULINT_UNDEFINED || space_id == 0) {
 			fprintf(stderr,
-"InnoDB: Error: tablespace id %lu in file %s is not sensible\n",
-			(ulong) space_id,
-			node->name);
+				"InnoDB: Error: tablespace id %lu"
+				" in file %s is not sensible\n",
+				(ulong) space_id, node->name);
 
 			ut_a(0);
 		}
 
 		if (space_id != space->id) {
 			fprintf(stderr,
-"InnoDB: Error: tablespace id is %lu in the data dictionary\n"
-"InnoDB: but in file %s it is %lu!\n", space->id, node->name, space_id);
+				"InnoDB: Error: tablespace id is %lu"
+				" in the data dictionary\n"
+				"InnoDB: but in file %s it is %lu!\n",
+				space->id, node->name, space_id);
 
 			ut_a(0);
 		}
 
 		if (UNIV_UNLIKELY(zip_size != space->zip_size)) {
 			fprintf(stderr,
-"InnoDB: Error: compressed page size is %lu in the data dictionary\n"
-"InnoDB: but in file %s it is %lu!\n", space->zip_size, node->name, zip_size);
+				"InnoDB: Error: compressed page size is %lu"
+				" in the data dictionary\n"
+				"InnoDB: but in file %s it is %lu!\n",
+				space->zip_size, node->name, zip_size);
 
 			ut_error;
 		}
@@ -693,14 +703,14 @@ fil_node_open_file(
 
 	if (space->purpose == FIL_LOG) {
 		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					OS_FILE_AIO, OS_LOG_FILE, &ret);
+					      OS_FILE_AIO, OS_LOG_FILE, &ret);
 	} else if (node->is_raw_disk) {
 		node->handle = os_file_create(node->name,
-					OS_FILE_OPEN_RAW,
-					OS_FILE_AIO, OS_DATA_FILE, &ret);
+					      OS_FILE_OPEN_RAW,
+					      OS_FILE_AIO, OS_DATA_FILE, &ret);
 	} else {
 		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					OS_FILE_AIO, OS_DATA_FILE, &ret);
+					      OS_FILE_AIO, OS_DATA_FILE, &ret);
 	}
 
 	ut_a(ret);
@@ -779,12 +789,13 @@ fil_try_to_close_file_in_LRU(
 
 	if (print_info) {
 		fprintf(stderr,
-"InnoDB: fil_sys open file LRU len %lu\n", (ulong) UT_LIST_GET_LEN(system->LRU));
+			"InnoDB: fil_sys open file LRU len %lu\n",
+			(ulong) UT_LIST_GET_LEN(system->LRU));
 	}
 
 	while (node != NULL) {
 		if (node->modification_counter == node->flush_counter
-			&& node->n_pending_flushes == 0) {
+		    && node->n_pending_flushes == 0) {
 
 			fil_node_close_file(node, system);
 
@@ -799,7 +810,7 @@ fil_try_to_close_file_in_LRU(
 		}
 
 		if (print_info
-			&& node->modification_counter != node->flush_counter) {
+		    && node->modification_counter != node->flush_counter) {
 			fputs("InnoDB: cannot close file ", stderr);
 			ut_print_filename(stderr, node->name);
 			fprintf(stderr,
@@ -853,7 +864,7 @@ retry:
 	}
 
 	HASH_SEARCH(hash, system->spaces, space_id, space,
-							space->id == space_id);
+		    space->id == space_id);
 	if (space != NULL && space->stop_ios) {
 		/* We are going to do a rename file and want to stop new i/o's
 		for a while */
@@ -906,10 +917,13 @@ close_more:
 	if (count >= 2) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Warning: too many (%lu) files stay open while the maximum\n"
-"InnoDB: allowed value would be %lu.\n"
-"InnoDB: You may need to raise the value of innodb_max_files_open in\n"
-"InnoDB: my.cnf.\n", (ulong) system->n_open, (ulong) system->max_n_open);
+			"  InnoDB: Warning: too many (%lu) files stay open"
+			" while the maximum\n"
+			"InnoDB: allowed value would be %lu.\n"
+			"InnoDB: You may need to raise the value of"
+			" innodb_max_files_open in\n"
+			"InnoDB: my.cnf.\n",
+			(ulong) system->n_open, (ulong) system->max_n_open);
 
 		return;
 	}
@@ -957,13 +971,13 @@ fil_node_free(
 		node->modification_counter = node->flush_counter;
 
 		if (space->is_in_unflushed_spaces
-			&& fil_space_is_flushed(space)) {
+		    && fil_space_is_flushed(space)) {
 
 			space->is_in_unflushed_spaces = FALSE;
 
 			UT_LIST_REMOVE(unflushed_spaces,
-					system->unflushed_spaces,
-					space);
+				       system->unflushed_spaces,
+				       space);
 		}
 
 		fil_node_close_file(node, system);
@@ -1033,7 +1047,7 @@ fil_space_create(
 try_again:
 	/*printf(
 	"InnoDB: Adding tablespace %lu of name %s, purpose %lu\n", id, name,
-	  purpose);*/
+	purpose);*/
 
 	ut_a(system);
 	ut_a(name);
@@ -1041,18 +1055,20 @@ try_again:
 	mutex_enter(&(system->mutex));
 
 	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(name), space,
-					0 == strcmp(name, space->name));
+		    0 == strcmp(name, space->name));
 	if (UNIV_LIKELY_NULL(space)) {
 		ulint	namesake_id;
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Warning: trying to init to the tablespace memory cache\n"
-"InnoDB: a tablespace %lu of name ", (ulong) id);
+			"  InnoDB: Warning: trying to init to the"
+			" tablespace memory cache\n"
+			"InnoDB: a tablespace %lu of name ", (ulong) id);
 		ut_print_filename(stderr, name);
 		fprintf(stderr, ",\n"
-"InnoDB: but a tablespace %lu of the same name\n"
-"InnoDB: already exists in the tablespace memory cache!\n",
+			"InnoDB: but a tablespace %lu of the same name\n"
+			"InnoDB: already exists in the"
+			" tablespace memory cache!\n",
 			(ulong) space->id);
 
 		if (id == 0 || purpose != FIL_TABLESPACE) {
@@ -1063,13 +1079,19 @@ try_again:
 		}
 
 		fprintf(stderr,
-"InnoDB: We assume that InnoDB did a crash recovery, and you had\n"
-"InnoDB: an .ibd file for which the table did not exist in the\n"
-"InnoDB: InnoDB internal data dictionary in the ibdata files.\n"
-"InnoDB: We assume that you later removed the .ibd and .frm files,\n"
-"InnoDB: and are now trying to recreate the table. We now remove the\n"
-"InnoDB: conflicting tablespace object from the memory cache and try\n"
-"InnoDB: the init again.\n");
+			"InnoDB: We assume that InnoDB did a crash recovery,"
+			" and you had\n"
+			"InnoDB: an .ibd file for which the table"
+			" did not exist in the\n"
+			"InnoDB: InnoDB internal data dictionary in the"
+			" ibdata files.\n"
+			"InnoDB: We assume that you later removed the"
+			" .ibd and .frm files,\n"
+			"InnoDB: and are now trying to recreate the table."
+			" We now remove the\n"
+			"InnoDB: conflicting tablespace object"
+			" from the memory cache and try\n"
+			"InnoDB: the init again.\n");
 
 		namesake_id = space->id;
 
@@ -1084,14 +1106,16 @@ try_again:
 
 	if (UNIV_LIKELY_NULL(space)) {
 		fprintf(stderr,
-"InnoDB: Error: trying to add tablespace %lu of name ", (ulong) id);
+			"InnoDB: Error: trying to add tablespace %lu"
+			" of name ", (ulong) id);
 		ut_print_filename(stderr, name);
 		fprintf(stderr, "\n"
-"InnoDB: to the tablespace memory cache, but tablespace\n"
-"InnoDB: %lu of name ", (ulong) space->id);
+			"InnoDB: to the tablespace memory cache,"
+			" but tablespace\n"
+			"InnoDB: %lu of name ", (ulong) space->id);
 		ut_print_filename(stderr, space->name);
 		fputs(" already exists in the tablespace\n"
-"InnoDB: memory cache!\n", stderr);
+		      "InnoDB: memory cache!\n", stderr);
 
 		mutex_exit(&(system->mutex));
 
@@ -1133,7 +1157,7 @@ try_again:
 	HASH_INSERT(fil_space_t, hash, system->spaces, id, space);
 
 	HASH_INSERT(fil_space_t, name_hash, system->name_hash,
-						ut_fold_string(name), space);
+		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = FALSE;
 
 	UT_LIST_ADD_LAST(space_list, system->space_list, space);
@@ -1166,20 +1190,27 @@ fil_assign_new_space_id(void)
 	if (id > (SRV_LOG_SPACE_FIRST_ID / 2) && (id % 1000000UL == 0)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"InnoDB: Warning: you are running out of new single-table tablespace id's.\n"
-"InnoDB: Current counter is %lu and it must not exceed %lu!\n"
-"InnoDB: To reset the counter to zero you have to dump all your tables and\n"
-"InnoDB: recreate the whole InnoDB installation.\n", (ulong) id,
-					(ulong) SRV_LOG_SPACE_FIRST_ID);
+			"InnoDB: Warning: you are running out of new"
+			" single-table tablespace id's.\n"
+			"InnoDB: Current counter is %lu and it"
+			" must not exceed %lu!\n"
+			"InnoDB: To reset the counter to zero"
+			" you have to dump all your tables and\n"
+			"InnoDB: recreate the whole InnoDB installation.\n",
+			(ulong) id,
+			(ulong) SRV_LOG_SPACE_FIRST_ID);
 	}
 
 	if (id >= SRV_LOG_SPACE_FIRST_ID) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"InnoDB: You have run out of single-table tablespace id's!\n"
-"InnoDB: Current counter is %lu.\n"
-"InnoDB: To reset the counter to zero you have to dump all your tables and\n"
-"InnoDB: recreate the whole InnoDB installation.\n", (ulong) id);
+			"InnoDB: You have run out of single-table"
+			" tablespace id's!\n"
+			"InnoDB: Current counter is %lu.\n"
+			"InnoDB: To reset the counter to zero you"
+			" have to dump all your tables and\n"
+			"InnoDB: recreate the whole InnoDB installation.\n",
+			(ulong) id);
 		system->max_assigned_id--;
 
 		id = ULINT_UNDEFINED;
@@ -1213,8 +1244,9 @@ fil_space_free(
 	if (!space) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Error: trying to remove tablespace %lu from the cache but\n"
-"InnoDB: it is not there.\n", (ulong) id);
+			"  InnoDB: Error: trying to remove tablespace %lu"
+			" from the cache but\n"
+			"InnoDB: it is not there.\n", (ulong) id);
 
 		mutex_exit(&(system->mutex));
 
@@ -1224,18 +1256,18 @@ fil_space_free(
 	HASH_DELETE(fil_space_t, hash, system->spaces, id, space);
 
 	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(space->name),
-		namespace, 0 == strcmp(space->name, namespace->name));
+		    namespace, 0 == strcmp(space->name, namespace->name));
 	ut_a(namespace);
 	ut_a(space == namespace);
 
 	HASH_DELETE(fil_space_t, name_hash, system->name_hash,
-					   ut_fold_string(space->name), space);
+		    ut_fold_string(space->name), space);
 
 	if (space->is_in_unflushed_spaces) {
 		space->is_in_unflushed_spaces = FALSE;
 
 		UT_LIST_REMOVE(unflushed_spaces, system->unflushed_spaces,
-								space);
+			       space);
 	}
 
 	UT_LIST_REMOVE(space_list, system->space_list, space);
@@ -1490,15 +1522,26 @@ fil_open_log_and_system_tablespace_files(void)
 			while (node != NULL) {
 				if (!node->open) {
 					fil_node_open_file(node, system,
-									space);
+							   space);
 				}
 				if (system->max_n_open < 10 + system->n_open) {
 					fprintf(stderr,
-"InnoDB: Warning: you must raise the value of innodb_max_open_files in\n"
-"InnoDB: my.cnf! Remember that InnoDB keeps all log files and all system\n"
-"InnoDB: tablespace files open for the whole time mysqld is running, and\n"
-"InnoDB: needs to open also some .ibd files if the file-per-table storage\n"
-"InnoDB: model is used. Current open files %lu, max allowed open files %lu.\n",
+						"InnoDB: Warning: you must"
+						" raise the value of"
+						" innodb_max_open_files in\n"
+						"InnoDB: my.cnf! Remember that"
+						" InnoDB keeps all log files"
+						" and all system\n"
+						"InnoDB: tablespace files open"
+						" for the whole time mysqld is"
+						" running, and\n"
+						"InnoDB: needs to open also"
+						" some .ibd files if the"
+						" file-per-table storage\n"
+						"InnoDB: model is used."
+						" Current open files %lu,"
+						" max allowed"
+						" open files %lu.\n",
 						(ulong) system->n_open,
 						(ulong) system->max_n_open);
 				}
@@ -1555,7 +1598,8 @@ fil_set_max_space_id_if_bigger(
 
 	if (max_id >= SRV_LOG_SPACE_FIRST_ID) {
 		fprintf(stderr,
-"InnoDB: Fatal error: max tablespace id is too high, %lu\n", (ulong) max_id);
+			"InnoDB: Fatal error: max tablespace id"
+			" is too high, %lu\n", (ulong) max_id);
 		ut_a(0);
 	}
 
@@ -1645,16 +1689,15 @@ fil_write_flushed_lsn_to_data_files(
 		always open. */
 
 		if (space->purpose == FIL_TABLESPACE
-			&& space->id == 0) {
+		    && space->id == 0) {
 			sum_of_sizes = 0;
 
 			node = UT_LIST_GET_FIRST(space->chain);
 			while (node) {
 				mutex_exit(&(fil_system->mutex));
 
-				err = fil_write_lsn_and_arch_no_to_file(
-						sum_of_sizes,
-						lsn, arch_log_no);
+				err = fil_write_lsn_and_arch_no_to_file
+					(sum_of_sizes, lsn, arch_log_no);
 				if (err != DB_SUCCESS) {
 
 					return(err);
@@ -1753,7 +1796,8 @@ fil_inc_pending_ibuf_merges(
 
 	if (space == NULL) {
 		fprintf(stderr,
-"InnoDB: Error: trying to do ibuf merge to a dropped tablespace %lu\n",
+			"InnoDB: Error: trying to do ibuf merge to a"
+			" dropped tablespace %lu\n",
 			(ulong) id);
 	}
 
@@ -1787,7 +1831,8 @@ fil_decr_pending_ibuf_merges(
 
 	if (space == NULL) {
 		fprintf(stderr,
-"InnoDB: Error: decrementing ibuf merge of a dropped tablespace %lu\n",
+			"InnoDB: Error: decrementing ibuf merge of a"
+			" dropped tablespace %lu\n",
 			(ulong) id);
 	}
 
@@ -1862,7 +1907,7 @@ fil_op_write_log(
 	}
 
 	log_ptr = mlog_write_initial_log_record_for_file_op(type, space_id, 0,
-								log_ptr, mtr);
+							    log_ptr, mtr);
 	if (type == MLOG_ZIP_FILE_CREATE) {
 		ut_a(zip_size && !(zip_size % 1024) && zip_size <= 16384);
 		mach_write_to_1(log_ptr, zip_size >> 10);
@@ -1975,14 +2020,14 @@ fil_op_log_parse_or_replay(
 	}
 
 	/* We managed to parse a full log record body */
-/*
+	/*
 	printf("Parsed log rec of type %lu space %lu\n"
-		"name %s\n", type, space_id, name);
+	"name %s\n", type, space_id, name);
 
 	if (type == MLOG_FILE_RENAME) {
-		printf("new name %s\n", new_name);
+	printf("new name %s\n", new_name);
 	}
-*/
+	*/
 	if (!space_id) {
 
 		return(ptr);
@@ -2019,11 +2064,13 @@ fil_op_log_parse_or_replay(
 			with the same name */
 
 			if (fil_get_space_id_for_table(new_name)
-				== ULINT_UNDEFINED) {
+			    == ULINT_UNDEFINED) {
 				/* We do not care of the old name, that is
 				why we pass NULL as the first argument */
-				ut_a(fil_rename_tablespace(NULL, space_id,
-								new_name));
+				if (!fil_rename_tablespace(NULL, space_id,
+							   new_name)) {
+					ut_error;
+				}
 			}
 		}
 
@@ -2033,19 +2080,19 @@ fil_op_log_parse_or_replay(
 	case MLOG_ZIP_FILE_CREATE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
 			/* Do nothing */
-		} else if (fil_get_space_id_for_table(name) !=
-							ULINT_UNDEFINED) {
+		} else if (fil_get_space_id_for_table(name)
+			   != ULINT_UNDEFINED) {
 			/* Do nothing */
 		} else {
 			/* Create the database directory for name, if it does
 			not exist yet */
 			fil_create_directory_for_tablename(name);
 
-			ut_a(DB_SUCCESS ==
-				fil_create_new_single_table_tablespace(
-						&space_id, name, FALSE,
-						zip_size,
-						FIL_IBD_FILE_INITIAL_SIZE));
+			if (fil_create_new_single_table_tablespace
+			    (&space_id, name, FALSE, zip_size,
+			     FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
+				ut_error;
+			}
 		}
 
 		break;
@@ -2091,14 +2138,16 @@ stop_ibuf_merges:
 			goto try_again;
 		} else {
 			if (count > 5000) {
-			   ut_print_timestamp(stderr);
-			   fputs(
-"  InnoDB: Warning: trying to delete tablespace ", stderr);
-			   ut_print_filename(stderr, space->name);
-			   fprintf(stderr, ",\n"
-"InnoDB: but there are %lu pending ibuf merges on it.\n"
-"InnoDB: Loop %lu.\n", (ulong) space->n_pending_ibuf_merges,
-				   (ulong) count);
+				ut_print_timestamp(stderr);
+				fputs("  InnoDB: Warning: trying to"
+				      " delete tablespace ", stderr);
+				ut_print_filename(stderr, space->name);
+				fprintf(stderr, ",\n"
+					"InnoDB: but there are %lu pending"
+					" ibuf merges on it.\n"
+					"InnoDB: Loop %lu.\n",
+					(ulong) space->n_pending_ibuf_merges,
+					(ulong) count);
 			}
 
 			mutex_exit(&(system->mutex));
@@ -2121,8 +2170,9 @@ try_again:
 	if (space == NULL) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Error: cannot delete tablespace %lu\n"
-"InnoDB: because it is not found in the tablespace memory cache.\n",
+			"  InnoDB: Error: cannot delete tablespace %lu\n"
+			"InnoDB: because it is not found in the"
+			" tablespace memory cache.\n",
 			(ulong) id);
 
 		mutex_exit(&(system->mutex));
@@ -2141,12 +2191,14 @@ try_again:
 	if (space->n_pending_flushes > 0 || node->n_pending > 0) {
 		if (count > 1000) {
 			ut_print_timestamp(stderr);
-			fputs(
-"  InnoDB: Warning: trying to delete tablespace ", stderr);
+			fputs("  InnoDB: Warning: trying to"
+			      " delete tablespace ", stderr);
 			ut_print_filename(stderr, space->name);
 			fprintf(stderr, ",\n"
-"InnoDB: but there are %lu flushes and %lu pending i/o's on it\n"
-"InnoDB: Loop %lu.\n", (ulong) space->n_pending_flushes,
+				"InnoDB: but there are %lu flushes"
+				" and %lu pending i/o's on it\n"
+				"InnoDB: Loop %lu.\n",
+				(ulong) space->n_pending_flushes,
 				(ulong) node->n_pending,
 				(ulong) count);
 		}
@@ -2229,8 +2281,10 @@ fil_discard_tablespace(
 
 	if (!success) {
 		fprintf(stderr,
-"InnoDB: Warning: cannot delete tablespace %lu in DISCARD TABLESPACE.\n"
-"InnoDB: But let us remove the insert buffer entries for this tablespace.\n",
+			"InnoDB: Warning: cannot delete tablespace %lu"
+			" in DISCARD TABLESPACE.\n"
+			"InnoDB: But let us remove the"
+			" insert buffer entries for this tablespace.\n",
 			(ulong) id);
 	}
 
@@ -2257,7 +2311,7 @@ fil_rename_tablespace_in_mem(
 	const char*	old_name	= space->name;
 
 	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(old_name),
-		space2, 0 == strcmp(old_name, space2->name));
+		    space2, 0 == strcmp(old_name, space2->name));
 	if (space != space2) {
 		fputs("InnoDB: Error: cannot find ", stderr);
 		ut_print_filename(stderr, old_name);
@@ -2267,7 +2321,7 @@ fil_rename_tablespace_in_mem(
 	}
 
 	HASH_SEARCH(name_hash, system->name_hash, ut_fold_string(path),
-		space2, 0 == strcmp(path, space2->name));
+		    space2, 0 == strcmp(path, space2->name));
 	if (space2 != NULL) {
 		fputs("InnoDB: Error: ", stderr);
 		ut_print_filename(stderr, path);
@@ -2277,7 +2331,7 @@ fil_rename_tablespace_in_mem(
 	}
 
 	HASH_DELETE(fil_space_t, name_hash, system->name_hash,
-					   ut_fold_string(space->name), space);
+		    ut_fold_string(space->name), space);
 	mem_free(space->name);
 	mem_free(node->name);
 
@@ -2285,7 +2339,7 @@ fil_rename_tablespace_in_mem(
 	node->name = mem_strdup(path);
 
 	HASH_INSERT(fil_space_t, name_hash, system->name_hash,
-						ut_fold_string(path), space);
+		    ut_fold_string(path), space);
 	return(TRUE);
 }
 
@@ -2371,8 +2425,9 @@ retry:
 
 	if (space == NULL) {
 		fprintf(stderr,
-"InnoDB: Error: cannot find space id %lu from the tablespace memory cache\n"
-"InnoDB: though the table ", (ulong) id);
+			"InnoDB: Error: cannot find space id %lu"
+			" in the tablespace memory cache\n"
+			"InnoDB: though the table ", (ulong) id);
 		ut_print_filename(stderr, old_name);
 		fputs(" in a rename operation should have that id\n", stderr);
 		mutex_exit(&(system->mutex));
@@ -2446,7 +2501,7 @@ retry:
 			to the tablespace memory cache */
 
 			ut_a(fil_rename_tablespace_in_mem(space, node,
-								old_path));
+							  old_path));
 		}
 	}
 
@@ -2464,7 +2519,7 @@ retry:
 		mtr_start(&mtr);
 
 		fil_op_write_log(MLOG_FILE_RENAME, id, 0, old_name, new_name,
-								&mtr);
+				 &mtr);
 		mtr_commit(&mtr);
 	}
 #endif
@@ -2510,7 +2565,7 @@ fil_create_new_single_table_tablespace(
 	path = fil_make_ibd_name(tablename, is_temp);
 
 	file = os_file_create(path, OS_FILE_CREATE, OS_FILE_NORMAL,
-		OS_DATA_FILE, &ret);
+			      OS_DATA_FILE, &ret);
 	if (ret == FALSE) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error creating file ", stderr);
@@ -2522,16 +2577,22 @@ fil_create_new_single_table_tablespace(
 		err = os_file_get_last_error(TRUE);
 
 		if (err == OS_FILE_ALREADY_EXISTS) {
-			fputs(
-"InnoDB: The file already exists though the corresponding table did not\n"
-"InnoDB: exist in the InnoDB data dictionary. Have you moved InnoDB\n"
-"InnoDB: .ibd files around without using the SQL commands\n"
-"InnoDB: DISCARD TABLESPACE and IMPORT TABLESPACE, or did\n"
-"InnoDB: mysqld crash in the middle of CREATE TABLE? You can\n"
-"InnoDB: resolve the problem by removing the file ", stderr);
+			fputs("InnoDB: The file already exists though"
+			      " the corresponding table did not\n"
+			      "InnoDB: exist in the InnoDB data dictionary."
+			      " Have you moved InnoDB\n"
+			      "InnoDB: .ibd files around without using the"
+			      " SQL commands\n"
+			      "InnoDB: DISCARD TABLESPACE and"
+			      " IMPORT TABLESPACE, or did\n"
+			      "InnoDB: mysqld crash in the middle of"
+			      " CREATE TABLE? You can\n"
+			      "InnoDB: resolve the problem by"
+			      " removing the file ", stderr);
 			ut_print_filename(stderr, path);
 			fputs("\n"
-"InnoDB: under the 'datadir' of MySQL.\n", stderr);
+			      "InnoDB: under the 'datadir' of MySQL.\n",
+			      stderr);
 
 			mem_free(path);
 			return(DB_TABLESPACE_ALREADY_EXISTS);
@@ -2570,9 +2631,9 @@ fil_create_new_single_table_tablespace(
 
 	if (*space_id == ULINT_UNDEFINED) {
 		ut_free(buf2);
-	error_exit:
+error_exit:
 		os_file_close(file);
-	error_exit2:
+error_exit2:
 		os_file_delete(path);
 
 		mem_free(path);
@@ -2609,8 +2670,8 @@ fil_create_new_single_table_tablespace(
 	ut_free(buf2);
 
 	if (!ret) {
-		fputs(
-"InnoDB: Error: could not write the first page to tablespace ", stderr);
+		fputs("InnoDB: Error: could not write the first page"
+		      " to tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		putc('\n', stderr);
 		goto error_exit;
@@ -2619,8 +2680,7 @@ fil_create_new_single_table_tablespace(
 	ret = os_file_flush(file);
 
 	if (!ret) {
-		fputs(
-"InnoDB: Error: file flush of tablespace ", stderr);
+		fputs("InnoDB: Error: file flush of tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		fputs(" failed\n", stderr);
 		goto error_exit;
@@ -2642,14 +2702,17 @@ fil_create_new_single_table_tablespace(
 
 #ifndef UNIV_HOTBACKUP
 	{
-	mtr_t		mtr;
+		mtr_t		mtr;
 
-	mtr_start(&mtr);
+		mtr_start(&mtr);
 
-	fil_op_write_log(zip_size ? MLOG_ZIP_FILE_CREATE : MLOG_FILE_CREATE,
-			*space_id, zip_size, tablename, NULL, &mtr);
+		fil_op_write_log(zip_size
+				 ? MLOG_ZIP_FILE_CREATE
+				 : MLOG_FILE_CREATE,
+				 *space_id, zip_size,
+				 tablename, NULL, &mtr);
 
-	mtr_commit(&mtr);
+		mtr_commit(&mtr);
 	}
 #endif
 	mem_free(path);
@@ -2689,17 +2752,17 @@ fil_reset_too_high_lsns(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
-						OS_FILE_READ_WRITE, &success);
+	file = os_file_create_simple_no_error_handling
+		(filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
 
 		ut_print_timestamp(stderr);
 
-		fputs(
-"  InnoDB: Error: trying to open a table, but could not\n"
-"InnoDB: open the tablespace file ", stderr);
+		fputs("  InnoDB: Error: trying to open a table,"
+		      " but could not\n"
+		      "InnoDB: open the tablespace file ", stderr);
 		ut_print_filename(stderr, filepath);
 		fputs("!\n", stderr);
 		mem_free(filepath);
@@ -2734,9 +2797,11 @@ fil_reset_too_high_lsns(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-"  InnoDB: Flush lsn in the tablespace file %lu to be imported\n"
-"InnoDB: is %lu %lu, which exceeds current system lsn %lu %lu.\n"
-"InnoDB: We reset the lsn's in the file ",
+		"  InnoDB: Flush lsn in the tablespace file %lu"
+		" to be imported\n"
+		"InnoDB: is %lu %lu, which exceeds current"
+		" system lsn %lu %lu.\n"
+		"InnoDB: We reset the lsn's in the file ",
 		(ulong) space_id,
 		(ulong) ut_dulint_get_high(flush_lsn),
 		(ulong) ut_dulint_get_low(flush_lsn),
@@ -2753,8 +2818,8 @@ fil_reset_too_high_lsns(
 	/* TODO: page_zip */
 	for (offset = 0; offset < file_size; offset += UNIV_PAGE_SIZE) {
 		success = os_file_read(file, page,
-				(ulint)(offset & 0xFFFFFFFFUL),
-				(ulint)(offset >> 32), UNIV_PAGE_SIZE);
+				       (ulint)(offset & 0xFFFFFFFFUL),
+				       (ulint)(offset >> 32), UNIV_PAGE_SIZE);
 		if (!success) {
 
 			goto func_exit;
@@ -2762,16 +2827,18 @@ fil_reset_too_high_lsns(
 		if (ut_dulint_cmp(mach_read_from_8(page + FIL_PAGE_LSN),
 				  current_lsn) > 0) {
 			/* We have to reset the lsn */
-			space_id = mach_read_from_4(page
-					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+			space_id = mach_read_from_4
+				(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 			page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
 
 			buf_flush_init_for_writing(page,
-					NULL/* TODO: page_zip */,
-					current_lsn, space_id, page_no);
+						   NULL/* TODO: page_zip */,
+						   current_lsn, space_id,
+						   page_no);
 			success = os_file_write(filepath, file, page,
-				(ulint)(offset & 0xFFFFFFFFUL),
-				(ulint)(offset >> 32), UNIV_PAGE_SIZE);
+						(ulint)(offset & 0xFFFFFFFFUL),
+						(ulint)(offset >> 32),
+						UNIV_PAGE_SIZE);
 			if (!success) {
 
 				goto func_exit;
@@ -2845,26 +2912,30 @@ fil_open_single_table_tablespace(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
-						OS_FILE_READ_ONLY, &success);
+	file = os_file_create_simple_no_error_handling
+		(filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
 
 		ut_print_timestamp(stderr);
 
-		fputs(
-"  InnoDB: Error: trying to open a table, but could not\n"
-"InnoDB: open the tablespace file ", stderr);
+		fputs("  InnoDB: Error: trying to open a table,"
+		      " but could not\n"
+		      "InnoDB: open the tablespace file ", stderr);
 		ut_print_filename(stderr, filepath);
 		fputs("!\n"
-"InnoDB: Have you moved InnoDB .ibd files around without using the\n"
-"InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n"
-"InnoDB: It is also possible that this is a temporary table #sql...,\n"
-"InnoDB: and MySQL removed the .ibd file for this.\n"
-"InnoDB: Please refer to\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
-"InnoDB: for how to resolve the issue.\n", stderr);
+		      "InnoDB: Have you moved InnoDB .ibd files around"
+		      " without using the\n"
+		      "InnoDB: commands DISCARD TABLESPACE and"
+		      " IMPORT TABLESPACE?\n"
+		      "InnoDB: It is also possible that this is"
+		      " a temporary table #sql...,\n"
+		      "InnoDB: and MySQL removed the .ibd file for this.\n"
+		      "InnoDB: Please refer to\n"
+		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
+		      "innodb-troubleshooting.html\n"
+		      "InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(filepath);
 
@@ -2894,16 +2965,19 @@ fil_open_single_table_tablespace(
 	if (space_id != id) {
 		ut_print_timestamp(stderr);
 
-		fputs(
-"  InnoDB: Error: tablespace id in file ", stderr);
+		fputs("  InnoDB: Error: tablespace id in file ", stderr);
 		ut_print_filename(stderr, filepath);
 		fprintf(stderr, " is %lu, but in the InnoDB\n"
-"InnoDB: data dictionary it is %lu.\n"
-"InnoDB: Have you moved InnoDB .ibd files around without using the\n"
-"InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n"
-"InnoDB: Please refer to\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
-"InnoDB: for how to resolve the issue.\n", (ulong) space_id, (ulong) id);
+			"InnoDB: data dictionary it is %lu.\n"
+			"InnoDB: Have you moved InnoDB .ibd files"
+			" around without using the\n"
+			"InnoDB: commands DISCARD TABLESPACE and"
+			" IMPORT TABLESPACE?\n"
+			"InnoDB: Please refer to\n"
+			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
+			"innodb-troubleshooting.html\n"
+			"InnoDB: for how to resolve the issue.\n",
+			(ulong) space_id, (ulong) id);
 
 		ret = FALSE;
 
@@ -2976,10 +3050,10 @@ fil_load_single_table_tablespace(
 	fil_space_t*	space;
 #endif
 	filepath = mem_alloc(strlen(dbname) + strlen(filename)
-			+ strlen(fil_path_to_mysql_datadir) + 3);
+			     + strlen(fil_path_to_mysql_datadir) + 3);
 
 	sprintf(filepath, "%s/%s/%s", fil_path_to_mysql_datadir, dbname,
-								filename);
+		filename);
 	srv_normalize_path_for_win(filepath);
 #ifdef __WIN__
 # ifndef UNIV_HOTBACKUP
@@ -2992,34 +3066,46 @@ fil_load_single_table_tablespace(
 	dict_casedn_str(filepath);
 # endif /* !UNIV_HOTBACKUP */
 #endif
-	file = os_file_create_simple_no_error_handling(filepath, OS_FILE_OPEN,
-						OS_FILE_READ_ONLY, &success);
+	file = os_file_create_simple_no_error_handling
+		(filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
 
 		fprintf(stderr,
-"InnoDB: Error: could not open single-table tablespace file\n"
-"InnoDB: %s!\n"
-"InnoDB: We do not continue the crash recovery, because the table may become\n"
-"InnoDB: corrupt if we cannot apply the log records in the InnoDB log to it.\n"
-"InnoDB: To fix the problem and start mysqld:\n"
-"InnoDB: 1) If there is a permission problem in the file and mysqld cannot\n"
-"InnoDB: open the file, you should modify the permissions.\n"
-"InnoDB: 2) If the table is not needed, or you can restore it from a backup,\n"
-"InnoDB: then you can remove the .ibd file, and InnoDB will do a normal\n"
-"InnoDB: crash recovery and ignore that table.\n"
-"InnoDB: 3) If the file system or the disk is broken, and you cannot remove\n"
-"InnoDB: the .ibd file, you can set innodb_force_recovery > 0 in my.cnf\n"
-"InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
+			"InnoDB: Error: could not open single-table tablespace"
+			" file\n"
+			"InnoDB: %s!\n"
+			"InnoDB: We do not continue the crash recovery,"
+			" because the table may become\n"
+			"InnoDB: corrupt if we cannot apply the log records"
+			" in the InnoDB log to it.\n"
+			"InnoDB: To fix the problem and start mysqld:\n"
+			"InnoDB: 1) If there is a permission problem"
+			" in the file and mysqld cannot\n"
+			"InnoDB: open the file, you should"
+			" modify the permissions.\n"
+			"InnoDB: 2) If the table is not needed, or you can"
+			" restore it from a backup,\n"
+			"InnoDB: then you can remove the .ibd file,"
+			" and InnoDB will do a normal\n"
+			"InnoDB: crash recovery and ignore that table.\n"
+			"InnoDB: 3) If the file system or the"
+			" disk is broken, and you cannot remove\n"
+			"InnoDB: the .ibd file, you can set"
+			" innodb_force_recovery > 0 in my.cnf\n"
+			"InnoDB: and force InnoDB to continue crash"
+			" recovery here.\n", filepath);
 
 		mem_free(filepath);
 
 		if (srv_force_recovery > 0) {
 			fprintf(stderr,
-"InnoDB: innodb_force_recovery was set to %lu. Continuing crash recovery\n"
-"InnoDB: even though we cannot access the .ibd file of this table.\n",
-							srv_force_recovery);
+				"InnoDB: innodb_force_recovery"
+				" was set to %lu. Continuing crash recovery\n"
+				"InnoDB: even though we cannot access"
+				" the .ibd file of this table.\n",
+				srv_force_recovery);
 			return;
 		}
 
@@ -3033,28 +3119,40 @@ fil_load_single_table_tablespace(
 		os_file_get_last_error(TRUE);
 
 		fprintf(stderr,
-"InnoDB: Error: could not measure the size of single-table tablespace file\n"
-"InnoDB: %s!\n"
-"InnoDB: We do not continue crash recovery, because the table will become\n"
-"InnoDB: corrupt if we cannot apply the log records in the InnoDB log to it.\n"
-"InnoDB: To fix the problem and start mysqld:\n"
-"InnoDB: 1) If there is a permission problem in the file and mysqld cannot\n"
-"InnoDB: access the file, you should modify the permissions.\n"
-"InnoDB: 2) If the table is not needed, or you can restore it from a backup,\n"
-"InnoDB: then you can remove the .ibd file, and InnoDB will do a normal\n"
-"InnoDB: crash recovery and ignore that table.\n"
-"InnoDB: 3) If the file system or the disk is broken, and you cannot remove\n"
-"InnoDB: the .ibd file, you can set innodb_force_recovery > 0 in my.cnf\n"
-"InnoDB: and force InnoDB to continue crash recovery here.\n", filepath);
+			"InnoDB: Error: could not measure the size"
+			" of single-table tablespace file\n"
+			"InnoDB: %s!\n"
+			"InnoDB: We do not continue crash recovery,"
+			" because the table will become\n"
+			"InnoDB: corrupt if we cannot apply the log records"
+			" in the InnoDB log to it.\n"
+			"InnoDB: To fix the problem and start mysqld:\n"
+			"InnoDB: 1) If there is a permission problem"
+			" in the file and mysqld cannot\n"
+			"InnoDB: access the file, you should"
+			" modify the permissions.\n"
+			"InnoDB: 2) If the table is not needed,"
+			" or you can restore it from a backup,\n"
+			"InnoDB: then you can remove the .ibd file,"
+			" and InnoDB will do a normal\n"
+			"InnoDB: crash recovery and ignore that table.\n"
+			"InnoDB: 3) If the file system or the disk is broken,"
+			" and you cannot remove\n"
+			"InnoDB: the .ibd file, you can set"
+			" innodb_force_recovery > 0 in my.cnf\n"
+			"InnoDB: and force InnoDB to continue"
+			" crash recovery here.\n", filepath);
 
 		os_file_close(file);
 		mem_free(filepath);
 
 		if (srv_force_recovery > 0) {
 			fprintf(stderr,
-"InnoDB: innodb_force_recovery was set to %lu. Continuing crash recovery\n"
-"InnoDB: even though we cannot access the .ibd file of this table.\n",
-							srv_force_recovery);
+				"InnoDB: innodb_force_recovery"
+				" was set to %lu. Continuing crash recovery\n"
+				"InnoDB: even though we cannot access"
+				" the .ibd file of this table.\n",
+				srv_force_recovery);
 			return;
 		}
 
@@ -3071,8 +3169,10 @@ fil_load_single_table_tablespace(
 #ifndef UNIV_HOTBACKUP
 	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 		fprintf(stderr,
-"InnoDB: Error: the size of single-table tablespace file %s\n"
-"InnoDB: is only %lu %lu, should be at least %lu!", filepath,
+			"InnoDB: Error: the size of single-table tablespace"
+			" file %s\n"
+			"InnoDB: is only %lu %lu, should be at least %lu!",
+			filepath,
 			(ulong) size_high,
 			(ulong) size_low, (ulong) (4 * UNIV_PAGE_SIZE));
 		os_file_close(file);
@@ -3102,7 +3202,8 @@ fil_load_single_table_tablespace(
 #ifndef UNIV_HOTBACKUP
 	if (space_id == ULINT_UNDEFINED || space_id == 0) {
 		fprintf(stderr,
-"InnoDB: Error: tablespace id %lu in file %s is not sensible\n",
+			"InnoDB: Error: tablespace id %lu in file %s"
+			" is not sensible\n",
 			(ulong) space_id,
 			filepath);
 		goto func_exit;
@@ -3112,12 +3213,15 @@ fil_load_single_table_tablespace(
 		char*	new_path;
 
 		fprintf(stderr,
-"InnoDB: Renaming tablespace %s of id %lu,\n"
-"InnoDB: to %s_ibbackup_old_vers_<timestamp>\n"
-"InnoDB: because its size %lld is too small (< 4 pages 16 kB each),\n"
-"InnoDB: or the space id in the file header is not sensible.\n"
-"InnoDB: This can happen in an ibbackup run, and is not dangerous.\n",
-				filepath, space_id, filepath, size);
+			"InnoDB: Renaming tablespace %s of id %lu,\n"
+			"InnoDB: to %s_ibbackup_old_vers_<timestamp>\n"
+			"InnoDB: because its size %lld is too small"
+			" (< 4 pages 16 kB each),\n"
+			"InnoDB: or the space id in the file header"
+			" is not sensible.\n"
+			"InnoDB: This can happen in an ibbackup run,"
+			" and is not dangerous.\n",
+			filepath, space_id, filepath, size);
 		os_file_close(file);
 
 		new_path = fil_make_ibbackup_old_name(filepath);
@@ -3145,12 +3249,14 @@ fil_load_single_table_tablespace(
 		char*	new_path;
 
 		fprintf(stderr,
-"InnoDB: Renaming tablespace %s of id %lu,\n"
-"InnoDB: to %s_ibbackup_old_vers_<timestamp>\n"
-"InnoDB: because space %s with the same id\n"
-"InnoDB: was scanned earlier. This can happen if you have renamed tables\n"
-"InnoDB: during an ibbackup run.\n", filepath, space_id, filepath,
-								space->name);
+			"InnoDB: Renaming tablespace %s of id %lu,\n"
+			"InnoDB: to %s_ibbackup_old_vers_<timestamp>\n"
+			"InnoDB: because space %s with the same id\n"
+			"InnoDB: was scanned earlier. This can happen"
+			" if you have renamed tables\n"
+			"InnoDB: during an ibbackup run.\n",
+			filepath, space_id, filepath,
+			space->name);
 		os_file_close(file);
 
 		new_path = fil_make_ibbackup_old_name(filepath);
@@ -3214,9 +3320,11 @@ fil_file_readdir_next_file(
 		}
 
 		fprintf(stderr,
-"InnoDB: Error: os_file_readdir_next_file() returned -1 in\n"
-"InnoDB: directory %s\n"
-"InnoDB: Crash recovery may have failed for some .ibd files!\n", dirname);
+			"InnoDB: Error: os_file_readdir_next_file()"
+			" returned -1 in\n"
+			"InnoDB: directory %s\n"
+			"InnoDB: Crash recovery may have failed"
+			" for some .ibd files!\n", dirname);
 
 		*err = DB_ERROR;
 	}
@@ -3261,13 +3369,13 @@ fil_load_single_table_tablespaces(void)
 	directories of MySQL. */
 
 	ret = fil_file_readdir_next_file(&err, fil_path_to_mysql_datadir, dir,
-								&dbinfo);
+					 &dbinfo);
 	while (ret == 0) {
 		ulint len;
 		/* printf("Looking at %s in datadir\n", dbinfo.name); */
 
 		if (dbinfo.type == OS_FILE_TYPE_FILE
-			|| dbinfo.type == OS_FILE_TYPE_UNKNOWN) {
+		    || dbinfo.type == OS_FILE_TYPE_UNKNOWN) {
 
 			goto next_datadir_item;
 		}
@@ -3276,7 +3384,7 @@ fil_load_single_table_tablespaces(void)
 		if a symlink is a directory */
 
 		len = strlen(fil_path_to_mysql_datadir)
-				+ strlen (dbinfo.name) + 2;
+			+ strlen (dbinfo.name) + 2;
 		if (len > dbpath_len) {
 			dbpath_len = len;
 
@@ -3287,7 +3395,7 @@ fil_load_single_table_tablespaces(void)
 			dbpath = mem_alloc(dbpath_len);
 		}
 		sprintf(dbpath, "%s/%s", fil_path_to_mysql_datadir,
-								dbinfo.name);
+			dbinfo.name);
 		srv_normalize_path_for_win(dbpath);
 
 		dbdir = os_file_opendir(dbpath, FALSE);
@@ -3299,10 +3407,10 @@ fil_load_single_table_tablespaces(void)
 			looking for possible .ibd files in it */
 
 			ret = fil_file_readdir_next_file(&err, dbpath, dbdir,
-								&fileinfo);
+							 &fileinfo);
 			while (ret == 0) {
 				/* printf(
-				   "     Looking at file %s\n", fileinfo.name); */
+				"     Looking at file %s\n", fileinfo.name); */
 
 				if (fileinfo.type == OS_FILE_TYPE_DIR) {
 
@@ -3311,23 +3419,23 @@ fil_load_single_table_tablespaces(void)
 
 				/* We found a symlink or a file */
 				if (strlen(fileinfo.name) > 4
-					&& 0 == strcmp(fileinfo.name +
-						strlen(fileinfo.name) - 4,
-						".ibd")) {
+				    && 0 == strcmp(fileinfo.name
+						   + strlen(fileinfo.name) - 4,
+						   ".ibd")) {
 					/* The name ends in .ibd; try opening
 					the file */
-					fil_load_single_table_tablespace(
-						dbinfo.name, fileinfo.name);
+					fil_load_single_table_tablespace
+						(dbinfo.name, fileinfo.name);
 				}
 next_file_item:
 				ret = fil_file_readdir_next_file(&err,
-								dbpath, dbdir,
-								&fileinfo);
+								 dbpath, dbdir,
+								 &fileinfo);
 			}
 
 			if (0 != os_file_closedir(dbdir)) {
-				fputs(
-"InnoDB: Warning: could not close database directory ", stderr);
+				fputs("InnoDB: Warning: could not"
+				      " close database directory ", stderr);
 				ut_print_filename(stderr, dbpath);
 				putc('\n', stderr);
 
@@ -3337,15 +3445,15 @@ next_file_item:
 
 next_datadir_item:
 		ret = fil_file_readdir_next_file(&err,
-						fil_path_to_mysql_datadir,
-								dir, &dbinfo);
+						 fil_path_to_mysql_datadir,
+						 dir, &dbinfo);
 	}
 
 	mem_free(dbpath);
 
 	if (0 != os_file_closedir(dir)) {
 		fprintf(stderr,
-"InnoDB: Error: could not close MySQL datadir\n");
+			"InnoDB: Error: could not close MySQL datadir\n");
 
 		return(DB_ERROR);
 	}
@@ -3373,11 +3481,12 @@ fil_print_orphaned_tablespaces(void)
 
 	while (space) {
 		if (space->purpose == FIL_TABLESPACE && space->id != 0
-							  && !space->mark) {
+		    && !space->mark) {
 			fputs("InnoDB: Warning: tablespace ", stderr);
 			ut_print_filename(stderr, space->name);
 			fprintf(stderr, " of id %lu has no matching table in\n"
-"InnoDB: the InnoDB data dictionary.\n", (ulong) space->id);
+				"InnoDB: the InnoDB data dictionary.\n",
+				(ulong) space->id);
 		}
 
 		space = UT_LIST_GET_NEXT(space_list, space);
@@ -3416,7 +3525,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 	}
 
 	if (version != ((ib_longlong)-1)
-				&& space->tablespace_version != version) {
+	    && space->tablespace_version != version) {
 		mutex_exit(&(system->mutex));
 
 		return(TRUE);
@@ -3503,8 +3612,8 @@ fil_space_for_table_exists_in_mem(
 	directory path from the datadir to the file */
 
 	HASH_SEARCH(name_hash, system->name_hash,
-					ut_fold_string(path), namespace,
-					0 == strcmp(namespace->name, path));
+		    ut_fold_string(path), namespace,
+		    0 == strcmp(namespace->name, path));
 	if (space && space == namespace) {
 		/* Found */
 
@@ -3532,30 +3641,38 @@ fil_space_for_table_exists_in_mem(
 			fputs("  InnoDB: Error: table ", stderr);
 			ut_print_filename(stderr, name);
 			fprintf(stderr, "\n"
-"InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
-"InnoDB: but tablespace with that id or name does not exist. Have\n"
-"InnoDB: you deleted or moved .ibd files?\n"
-"InnoDB: This may also be a table created with CREATE TEMPORARY TABLE\n"
-"InnoDB: whose .ibd and .frm files MySQL automatically removed, but the\n"
-"InnoDB: table still exists in the InnoDB internal data dictionary.\n",
+				"InnoDB: in InnoDB data dictionary"
+				" has tablespace id %lu,\n"
+				"InnoDB: but tablespace with that id"
+				" or name does not exist. Have\n"
+				"InnoDB: you deleted or moved .ibd files?\n"
+				"InnoDB: This may also be a table created with"
+				" CREATE TEMPORARY TABLE\n"
+				"InnoDB: whose .ibd and .frm files"
+				" MySQL automatically removed, but the\n"
+				"InnoDB: table still exists in the"
+				" InnoDB internal data dictionary.\n",
 				(ulong) id);
 		} else {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: table ", stderr);
 			ut_print_filename(stderr, name);
 			fprintf(stderr, "\n"
-"InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
-"InnoDB: but a tablespace with that id does not exist. There is\n"
-"InnoDB: a tablespace of name %s and id %lu, though. Have\n"
-"InnoDB: you deleted or moved .ibd files?\n",
+				"InnoDB: in InnoDB data dictionary has"
+				" tablespace id %lu,\n"
+				"InnoDB: but a tablespace with that id"
+				" does not exist. There is\n"
+				"InnoDB: a tablespace of name %s and id %lu,"
+				" though. Have\n"
+				"InnoDB: you deleted or moved .ibd files?\n",
 				(ulong) id, namespace->name,
 				(ulong) namespace->id);
 		}
-	error_exit:
-		fputs(
-"InnoDB: Please refer to\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
-"InnoDB: for how to resolve the issue.\n", stderr);
+error_exit:
+		fputs("InnoDB: Please refer to\n"
+		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
+		      "innodb-troubleshooting.html\n"
+		      "InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(path);
 		mutex_exit(&(system->mutex));
@@ -3568,14 +3685,17 @@ fil_space_for_table_exists_in_mem(
 		fputs("  InnoDB: Error: table ", stderr);
 		ut_print_filename(stderr, name);
 		fprintf(stderr, "\n"
-"InnoDB: in InnoDB data dictionary has tablespace id %lu,\n"
-"InnoDB: but the tablespace with that id has name %s.\n"
-"InnoDB: Have you deleted or moved .ibd files?\n", (ulong) id, space->name);
+			"InnoDB: in InnoDB data dictionary has"
+			" tablespace id %lu,\n"
+			"InnoDB: but the tablespace with that id"
+			" has name %s.\n"
+			"InnoDB: Have you deleted or moved .ibd files?\n",
+			(ulong) id, space->name);
 
 		if (namespace != NULL) {
-			fputs(
-"InnoDB: There is a tablespace with the right name\n"
-"InnoDB: ", stderr);
+			fputs("InnoDB: There is a tablespace"
+			      " with the right name\n"
+			      "InnoDB: ", stderr);
 			ut_print_filename(stderr, namespace->name);
 			fprintf(stderr, ", but its id is %lu.\n",
 				(ulong) namespace->id);
@@ -3617,8 +3737,8 @@ fil_get_space_id_for_table(
 	directory path to the file */
 
 	HASH_SEARCH(name_hash, system->name_hash,
-					ut_fold_string(path), namespace,
-					0 == strcmp(namespace->name, path));
+		    ut_fold_string(path), namespace,
+		    0 == strcmp(namespace->name, path));
 	if (namespace) {
 		id = namespace->id;
 	}
@@ -3663,7 +3783,7 @@ fil_extend_space_to_desired_size(
 	fil_mutex_enter_and_prepare_for_io(space_id);
 
 	HASH_SEARCH(hash, system->spaces, space_id, space,
-						space->id == space_id);
+		    space->id == space_id);
 	ut_a(space);
 
 	if (space->size >= size_after_extend) {
@@ -3689,8 +3809,7 @@ fil_extend_space_to_desired_size(
 	file_start_page_no = space->size - node->size;
 
 	/* Extend at most 64 pages at a time */
-	buf_size = ut_min(64, size_after_extend - start_page_no)
-				* page_size;
+	buf_size = ut_min(64, size_after_extend - start_page_no) * page_size;
 	buf2 = mem_alloc(buf_size + page_size);
 	buf = ut_align(buf2, page_size);
 
@@ -3698,23 +3817,23 @@ fil_extend_space_to_desired_size(
 
 	while (start_page_no < size_after_extend) {
 		ulint	n_pages = ut_min(buf_size / page_size,
-				size_after_extend - start_page_no);
+					 size_after_extend - start_page_no);
 
 		offset_high = (start_page_no - file_start_page_no)
-				/ (4096 * ((1024 * 1024) / page_size));
+			/ (4096 * ((1024 * 1024) / page_size));
 		offset_low  = ((start_page_no - file_start_page_no)
-				% (4096 * ((1024 * 1024) / page_size)))
-				* page_size;
+			       % (4096 * ((1024 * 1024) / page_size)))
+			* page_size;
 #ifdef UNIV_HOTBACKUP
 		success = os_file_write(node->name, node->handle, buf,
 					offset_low, offset_high,
 					page_size * n_pages);
 #else
 		success = os_aio(OS_FILE_WRITE, OS_AIO_SYNC,
-			node->name, node->handle, buf,
-			offset_low, offset_high,
-			page_size * n_pages,
-			NULL, NULL);
+				 node->name, node->handle, buf,
+				 offset_low, offset_high,
+				 page_size * n_pages,
+				 NULL, NULL);
 #endif
 		if (success) {
 			node->size += n_pages;
@@ -3726,8 +3845,9 @@ fil_extend_space_to_desired_size(
 			how much we were able to extend it */
 
 			n_pages = ((ulint)
-				(os_file_get_size_as_iblonglong(node->handle)
-				/ page_size)) - node->size;
+				   (os_file_get_size_as_iblonglong
+				    (node->handle)
+				    / page_size)) - node->size;
 
 			node->size += n_pages;
 			space->size += n_pages;
@@ -3751,14 +3871,14 @@ fil_extend_space_to_desired_size(
 		/* Keep the last data file size info up to date, rounded to
 		full megabytes */
 
-		srv_data_file_sizes[srv_n_data_files - 1] =
-				(node->size / pages_per_mb) * pages_per_mb;
+		srv_data_file_sizes[srv_n_data_files - 1]
+			= (node->size / pages_per_mb) * pages_per_mb;
 	}
 #endif /* !UNIV_HOTBACKUP */
 
 	/*
 	printf("Extended %s to %lu, actual size %lu pages\n", space->name,
-					size_after_extend, *actual_size); */
+	size_after_extend, *actual_size); */
 	mutex_exit(&(system->mutex));
 
 	fil_flush(space_id);
@@ -3798,20 +3918,23 @@ fil_extend_tablespaces_to_stored_len(void)
 					      mutex, because this is a
 					      single-threaded operation */
 		error = fil_read(TRUE, space->id, 0, 0, UNIV_PAGE_SIZE, buf,
-									NULL);
+				 NULL);
 		ut_a(error == DB_SUCCESS);
 
 		size_in_header = fsp_get_size_low(buf);
 
-		success = fil_extend_space_to_desired_size(&actual_size,
-						space->id, size_in_header);
+		success = fil_extend_space_to_desired_size
+			(&actual_size, space->id, size_in_header);
 		if (!success) {
 			fprintf(stderr,
-"InnoDB: Error: could not extend the tablespace of %s\n"
-"InnoDB: to the size stored in header, %lu pages;\n"
-"InnoDB: size after extension %lu pages\n"
-"InnoDB: Check that you have free disk space and retry!\n", space->name,
-					size_in_header, actual_size);
+				"InnoDB: Error: could not extend the"
+				" tablespace of %s\n"
+				"InnoDB: to the size stored in header,"
+				" %lu pages;\n"
+				"InnoDB: size after extension %lu pages\n"
+				"InnoDB: Check that you have free disk space"
+				" and retry!\n",
+				space->name, size_in_header, actual_size);
 			exit(1);
 		}
 
@@ -3942,7 +4065,8 @@ fil_node_prepare_for_io(
 	if (system->n_open > system->max_n_open + 5) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Warning: open files %lu exceeds the limit %lu\n",
+			"  InnoDB: Warning: open files %lu"
+			" exceeds the limit %lu\n",
 			(ulong) system->n_open,
 			(ulong) system->max_n_open);
 	}
@@ -3955,7 +4079,7 @@ fil_node_prepare_for_io(
 	}
 
 	if (node->n_pending == 0 && space->purpose == FIL_TABLESPACE
-		&& space->id != 0) {
+	    && space->id != 0) {
 		/* The node is in the LRU list, remove it */
 
 		ut_a(UT_LIST_GET_LEN(system->LRU) > 0);
@@ -3997,13 +4121,13 @@ fil_node_complete_io(
 
 			node->space->is_in_unflushed_spaces = TRUE;
 			UT_LIST_ADD_FIRST(unflushed_spaces,
-					system->unflushed_spaces,
-					node->space);
+					  system->unflushed_spaces,
+					  node->space);
 		}
 	}
 
 	if (node->n_pending == 0 && node->space->purpose == FIL_TABLESPACE
-					&& node->space->id != 0) {
+	    && node->space->id != 0) {
 		/* The node must be put back to the LRU list */
 		UT_LIST_ADD_FIRST(LRU, system->LRU, node);
 	}
@@ -4023,13 +4147,16 @@ fil_report_invalid_page_access(
 	ulint		type)		/* in: I/O type */
 {
 	fprintf(stderr,
-	"InnoDB: Error: trying to access page number %lu in space %lu,\n"
-	"InnoDB: space name %s,\n"
-	"InnoDB: which is outside the tablespace bounds.\n"
-	"InnoDB: Byte offset %lu, len %lu, i/o type %lu.\n"
-	"InnoDB: If you get this error at mysqld startup, please check that\n"
-	"InnoDB: your my.cnf matches the ibdata files that you have in the\n"
-	"InnoDB: MySQL server.\n",
+		"InnoDB: Error: trying to access page number %lu"
+		" in space %lu,\n"
+		"InnoDB: space name %s,\n"
+		"InnoDB: which is outside the tablespace bounds.\n"
+		"InnoDB: Byte offset %lu, len %lu, i/o type %lu.\n"
+		"InnoDB: If you get this error at mysqld startup,"
+		" please check that\n"
+		"InnoDB: your my.cnf matches the ibdata files"
+		" that you have in the\n"
+		"InnoDB: MySQL server.\n",
 		(ulong) block_offset, (ulong) space_id, space_name,
 		(ulong) byte_offset, (ulong) len, (ulong) type);
 }
@@ -4097,17 +4224,17 @@ fil_io(
 #ifndef UNIV_LOG_DEBUG
 	/* ibuf bitmap pages must be read in the sync aio mode: */
 	ut_ad(recv_no_ibuf_operations || (type == OS_FILE_WRITE)
-		|| !ibuf_bitmap_page(zip_size, block_offset)
-		|| sync || is_log);
+	      || !ibuf_bitmap_page(zip_size, block_offset)
+	      || sync || is_log);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
-					|| ibuf_page(space_id, block_offset));
+	      || ibuf_page(space_id, block_offset));
 #endif
 #endif
 	if (sync) {
 		mode = OS_AIO_SYNC;
 	} else if (type == OS_FILE_READ && !is_log
-				&& ibuf_page(space_id, block_offset)) {
+		   && ibuf_page(space_id, block_offset)) {
 		mode = OS_AIO_IBUF;
 	} else if (is_log) {
 		mode = OS_AIO_LOG;
@@ -4127,14 +4254,16 @@ fil_io(
 	fil_mutex_enter_and_prepare_for_io(space_id);
 
 	HASH_SEARCH(hash, system->spaces, space_id, space,
-							space->id == space_id);
+		    space->id == space_id);
 	if (!space) {
 		mutex_exit(&(system->mutex));
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Error: trying to do i/o to a tablespace which does not exist.\n"
-"InnoDB: i/o type %lu, space id %lu, page no. %lu, i/o length %lu bytes\n",
+			"  InnoDB: Error: trying to do i/o"
+			" to a tablespace which does not exist.\n"
+			"InnoDB: i/o type %lu, space id %lu,"
+			" page no. %lu, i/o length %lu bytes\n",
 			(ulong) type, (ulong) space_id, (ulong) block_offset,
 			(ulong) len);
 
@@ -4147,8 +4276,9 @@ fil_io(
 
 	for (;;) {
 		if (UNIV_UNLIKELY(node == NULL)) {
-			fil_report_invalid_page_access(block_offset, space_id,
-				space->name, byte_offset, len, type);
+			fil_report_invalid_page_access
+				(block_offset, space_id,
+				 space->name, byte_offset, len, type);
 
 			ut_error;
 		}
@@ -4177,8 +4307,9 @@ fil_io(
 	if (UNIV_UNLIKELY(node->size <= block_offset)
 	    && space->id != 0 && space->purpose == FIL_TABLESPACE) {
 
-		fil_report_invalid_page_access(block_offset, space_id,
-			space->name, byte_offset, len, type);
+		fil_report_invalid_page_access
+			(block_offset, space_id,
+			 space->name, byte_offset, len, type);
 
 		ut_error;
 	}
@@ -4191,11 +4322,11 @@ fil_io(
 	if (!zip_size) {
 		offset_high = (block_offset >> (32 - UNIV_PAGE_SIZE_SHIFT));
 		offset_low  = ((block_offset << UNIV_PAGE_SIZE_SHIFT)
-				& 0xFFFFFFFFUL) + byte_offset;
+			       & 0xFFFFFFFFUL) + byte_offset;
 
 		ut_a(node->size - block_offset
-				>= (byte_offset + len + (UNIV_PAGE_SIZE - 1))
-				/ UNIV_PAGE_SIZE);
+		     >= ((byte_offset + len + (UNIV_PAGE_SIZE - 1))
+			 / UNIV_PAGE_SIZE));
 	} else {
 		ulint	zip_size_shift;
 		switch (zip_size) {
@@ -4208,9 +4339,9 @@ fil_io(
 		}
 		offset_high = block_offset >> (32 - zip_size_shift);
 		offset_low = (block_offset << zip_size_shift & 0xFFFFFFFFUL)
-				+ byte_offset;
+			+ byte_offset;
 		ut_a(node->size - block_offset
-				>= (len + (zip_size - 1)) / zip_size);
+		     >= (len + (zip_size - 1)) / zip_size);
 	}
 
 	/* Do aio */
@@ -4222,15 +4353,15 @@ fil_io(
 	/* In ibbackup do normal i/o, not aio */
 	if (type == OS_FILE_READ) {
 		ret = os_file_read(node->handle, buf, offset_low, offset_high,
-									len);
+				   len);
 	} else {
 		ret = os_file_write(node->name, node->handle, buf,
-					offset_low, offset_high, len);
+				    offset_low, offset_high, len);
 	}
 #else
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-				offset_low, offset_high, len, node, message);
+		     offset_low, offset_high, len, node, message);
 #endif
 	ut_a(ret);
 
@@ -4274,7 +4405,7 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, &fil_node,
-			&message, &type);
+					    &message, &type);
 #elif defined(POSIX_ASYNC_IO)
 		ret = os_aio_posix_handle(segment, &fil_node, &message);
 #else
@@ -4285,7 +4416,7 @@ fil_aio_wait(
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
 		ret = os_aio_simulated_handle(segment, &fil_node,
-			&message, &type);
+					      &message, &type);
 	}
 
 	ut_a(ret);
@@ -4334,7 +4465,7 @@ fil_flush(
 	mutex_enter(&(system->mutex));
 
 	HASH_SEARCH(hash, system->spaces, space_id, space,
-							space->id == space_id);
+		    space->id == space_id);
 	if (!space || space->is_being_deleted) {
 		mutex_exit(&(system->mutex));
 
@@ -4393,7 +4524,7 @@ retry:
 			mutex_exit(&(system->mutex));
 
 			/* fprintf(stderr, "Flushing to file %s\n",
-				node->name); */
+			node->name); */
 
 			os_file_flush(file);
 
@@ -4405,13 +4536,14 @@ skip_flush:
 				node->flush_counter = old_mod_counter;
 
 				if (space->is_in_unflushed_spaces
-					&& fil_space_is_flushed(space)) {
+				    && fil_space_is_flushed(space)) {
 
 					space->is_in_unflushed_spaces = FALSE;
 
-					UT_LIST_REMOVE(unflushed_spaces,
-						system->unflushed_spaces,
-						space);
+					UT_LIST_REMOVE
+						(unflushed_spaces,
+						 system->unflushed_spaces,
+						 space);
 				}
 			}
 

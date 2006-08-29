@@ -91,11 +91,11 @@ upd_field_set_field_no(
 		dict_index_name_print(stderr, trx, index);
 		fprintf(stderr, "\n"
 			"InnoDB: but index only has %lu fields\n",
-		(ulong) dict_index_get_n_fields(index));
+			(ulong) dict_index_get_n_fields(index));
 	}
 
 	dtype_copy(dfield_get_type(&(upd_field->new_val)),
-				dict_index_get_nth_type(index, field_no));
+		   dict_index_get_nth_type(index, field_no));
 }
 
 /*************************************************************************
@@ -117,13 +117,13 @@ row_upd_rec_sys_fields(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!buf_block_align(rec)->is_hashed
-			|| rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	      || rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		ulint	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
 		page_zip_write_trx_id_and_roll_ptr(page_zip, rec, offsets,
-					pos, trx->id, roll_ptr);
+						   pos, trx->id, roll_ptr);
 	} else {
 		ulint	offset = index->trx_id_offset;
 

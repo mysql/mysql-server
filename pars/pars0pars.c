@@ -156,7 +156,7 @@ pars_func_low(
 	node->args = arg;
 
 	UT_LIST_ADD_LAST(func_node_list, pars_sym_tab_global->func_node_list,
-								node);
+			 node);
 	return(node);
 }
 
@@ -241,17 +241,17 @@ pars_resolve_func_data_type(
 	func = node->func;
 
 	if ((func == PARS_SUM_TOKEN)
-			|| (func == '+') || (func == '-') || (func == '*')
-			|| (func == '/') || (func == '+')) {
+	    || (func == '+') || (func == '-') || (func == '*')
+	    || (func == '/') || (func == '+')) {
 
 		/* Inherit the data type from the first argument (which must
 		not be the SQL null literal whose type is DATA_ERROR) */
 
 		dtype_copy(que_node_get_data_type(node),
-					que_node_get_data_type(arg));
+			   que_node_get_data_type(arg));
 
 		ut_a(dtype_get_mtype(que_node_get_data_type(node))
-								== DATA_INT);
+		     == DATA_INT);
 	} else if (func == PARS_COUNT_TOKEN) {
 		ut_a(arg);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
@@ -259,33 +259,33 @@ pars_resolve_func_data_type(
 	} else if (func == PARS_TO_CHAR_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-							DATA_ENGLISH, 0, 0);
+			  DATA_ENGLISH, 0, 0);
 	} else if (func == PARS_TO_BINARY_TOKEN) {
 		if (dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT) {
 			dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-							DATA_ENGLISH, 0, 0);
+				  DATA_ENGLISH, 0, 0);
 		} else {
 			dtype_set(que_node_get_data_type(node), DATA_BINARY,
-								0, 0, 0);
+				  0, 0, 0);
 		}
 	} else if (func == PARS_TO_NUMBER_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-							== DATA_VARCHAR);
+		     == DATA_VARCHAR);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
 
 	} else if (func == PARS_BINARY_TO_NUMBER_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-							== DATA_VARCHAR);
+		     == DATA_VARCHAR);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
 
 	} else if (func == PARS_LENGTH_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-							== DATA_VARCHAR);
+		     == DATA_VARCHAR);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
 
 	} else if (func == PARS_INSTR_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-							== DATA_VARCHAR);
+		     == DATA_VARCHAR);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
 
 	} else if (func == PARS_SYSDATE_TOKEN) {
@@ -293,12 +293,12 @@ pars_resolve_func_data_type(
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
 
 	} else if ((func == PARS_SUBSTR_TOKEN)
-			|| (func == PARS_CONCAT_TOKEN)) {
+		   || (func == PARS_CONCAT_TOKEN)) {
 
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
-							== DATA_VARCHAR);
+		     == DATA_VARCHAR);
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-							DATA_ENGLISH, 0, 0);
+			  DATA_ENGLISH, 0, 0);
 
 	} else if ((func == '>') || (func == '<') || (func == '=')
 		   || (func == PARS_GE_TOKEN)
@@ -321,7 +321,7 @@ pars_resolve_func_data_type(
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
 
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-							DATA_ENGLISH, 0, 0);
+			  DATA_ENGLISH, 0, 0);
 	} else {
 		ut_error;
 	}
@@ -379,18 +379,18 @@ pars_resolve_exp_variables_and_types(
 
 	while (node) {
 		if (node->resolved
-			&& ((node->token_type == SYM_VAR)
-				|| (node->token_type == SYM_CURSOR)
-				|| (node->token_type == SYM_FUNCTION))
-			&& node->name
-			&& (sym_node->name_len == node->name_len)
-			&& (ut_memcmp(sym_node->name, node->name,
-						node->name_len) == 0)) {
+		    && ((node->token_type == SYM_VAR)
+			|| (node->token_type == SYM_CURSOR)
+			|| (node->token_type == SYM_FUNCTION))
+		    && node->name
+		    && (sym_node->name_len == node->name_len)
+		    && (ut_memcmp(sym_node->name, node->name,
+				  node->name_len) == 0)) {
 
-				/* Found a variable or a cursor declared with
-				the same name */
+			/* Found a variable or a cursor declared with
+			the same name */
 
-				break;
+			break;
 		}
 
 		node = UT_LIST_GET_NEXT(sym_list, node);
@@ -398,7 +398,7 @@ pars_resolve_exp_variables_and_types(
 
 	if (!node) {
 		fprintf(stderr, "PARSER ERROR: Unresolved identifier %s\n",
-							sym_node->name);
+			sym_node->name);
 	}
 
 	ut_a(node);
@@ -410,11 +410,11 @@ pars_resolve_exp_variables_and_types(
 
 	if (select_node) {
 		UT_LIST_ADD_LAST(col_var_list, select_node->copy_variables,
-								sym_node);
+				 sym_node);
 	}
 
 	dfield_set_type(que_node_get_val(sym_node),
-					que_node_get_data_type(node));
+			que_node_get_data_type(node));
 }
 
 /*************************************************************************
@@ -493,8 +493,8 @@ pars_resolve_exp_columns(
 			col = dict_table_get_nth_col(table, i);
 
 			if ((sym_node->name_len == ut_strlen(col->name))
-				&& (0 == ut_memcmp(sym_node->name, col->name,
-						sym_node->name_len))) {
+			    && (0 == ut_memcmp(sym_node->name, col->name,
+					       sym_node->name_len))) {
 				/* Found */
 				sym_node->resolved = TRUE;
 				sym_node->token_type = SYM_COLUMN;
@@ -607,12 +607,11 @@ pars_select_all_columns(
 			col = dict_table_get_nth_col(table, i);
 
 			col_node = sym_tab_add_id(pars_sym_tab_global,
-						(byte*)col->name,
-						ut_strlen(col->name));
+						  (byte*)col->name,
+						  ut_strlen(col->name));
 			select_node->select_list
-					= que_node_list_add_last(
-						select_node->select_list,
-								col_node);
+				= que_node_list_add_last
+				(select_node->select_list, col_node);
 		}
 
 		table_node = que_node_get_next(table_node);
@@ -715,14 +714,14 @@ pars_select_statement(
 
 	if (select_node->into_list) {
 		ut_a(que_node_list_get_len(select_node->into_list)
-			== que_node_list_get_len(select_node->select_list));
+		     == que_node_list_get_len(select_node->select_list));
 	}
 
 	UT_LIST_INIT(select_node->copy_variables);
 
 	pars_resolve_exp_list_columns(table_list, select_node->select_list);
 	pars_resolve_exp_list_variables_and_types(select_node,
-						select_node->select_list);
+						  select_node->select_list);
 	pars_check_aggregate(select_node);
 
 	select_node->search_cond = search_cond;
@@ -806,7 +805,7 @@ pars_function_declaration(
 
 	/* Check that the function exists. */
 	ut_a(pars_info_get_user_func(pars_sym_tab_global->info,
-		     sym_node->name));
+				     sym_node->name));
 
 	return(sym_node);
 }
@@ -849,7 +848,7 @@ pars_column_assignment(
 	col_assign_node_t*	node;
 
 	node = mem_heap_alloc(pars_sym_tab_global->heap,
-						sizeof(col_assign_node_t));
+			      sizeof(col_assign_node_t));
 	node->common.type = QUE_NODE_COL_ASSIGNMENT;
 
 	node->col = column;
@@ -888,17 +887,18 @@ pars_process_assign_list(
 		pars_resolve_exp_columns(table_sym, assign_node->col);
 		pars_resolve_exp_columns(table_sym, assign_node->val);
 		pars_resolve_exp_variables_and_types(NULL, assign_node->val);
-
-		/* ut_a(dtype_get_mtype(dfield_get_type(
-				que_node_get_val(assign_node->col)))
-				== dtype_get_mtype(dfield_get_type(
-				que_node_get_val(assign_node->val)))); */
+#if 0
+		ut_a(dtype_get_mtype
+		     (dfield_get_type(que_node_get_val(assign_node->col)))
+		     == dtype_get_mtype
+		     (dfield_get_type(que_node_get_val(assign_node->val))));
+#endif
 
 		/* Add to the update node all the columns found in assignment
 		values as columns to copy: therefore, TRUE */
 
 		opt_find_all_cols(TRUE, clust_index, &(node->columns), NULL,
-							assign_node->val);
+				  assign_node->val);
 		n_assigns++;
 
 		assign_node = que_node_get_next(assign_node);
@@ -915,15 +915,13 @@ pars_process_assign_list(
 
 		col_sym = assign_node->col;
 
-		upd_field_set_field_no(upd_field,
-				dict_index_get_nth_col_pos(clust_index,
-							col_sym->col_no),
-							clust_index, NULL);
+		upd_field_set_field_no(upd_field, dict_index_get_nth_col_pos
+				       (clust_index, col_sym->col_no),
+				       clust_index, NULL);
 		upd_field->exp = assign_node->val;
 
-		if (!dtype_is_fixed_size(
-			dict_index_get_nth_type(clust_index,
-						upd_field->field_no))) {
+		if (!dtype_is_fixed_size(dict_index_get_nth_type
+					 (clust_index, upd_field->field_no))) {
 			changes_field_size = 0;
 		}
 
@@ -980,7 +978,7 @@ pars_update_statement(
 		sel_node = pars_select_list(NULL, NULL);
 
 		pars_select_statement(sel_node, table_sym, search_cond, NULL,
-			&pars_share_token, NULL);
+				      &pars_share_token, NULL);
 		node->searched_update = TRUE;
 		sel_node->common.parent = node;
 	}
@@ -1027,8 +1025,8 @@ pars_update_statement(
 	}
 
 	if (!node->is_delete && node->searched_update
-			&& (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE)
-			&& (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+	    && (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE)
+	    && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 
 		/* The select node can perform the update in-place */
 
@@ -1070,10 +1068,10 @@ pars_insert_statement(
 	pars_retrieve_table_def(table_sym);
 
 	node = ins_node_create(ins_type, table_sym->table,
-						pars_sym_tab_global->heap);
+			       pars_sym_tab_global->heap);
 
 	row = dtuple_create(pars_sym_tab_global->heap,
-					dict_table_get_n_cols(node->table));
+			    dict_table_get_n_cols(node->table));
 
 	dict_table_copy_types(row, table_sym->table);
 
@@ -1085,7 +1083,7 @@ pars_insert_statement(
 		select->common.parent = node;
 
 		ut_a(que_node_list_get_len(select->select_list)
-			== dict_table_get_n_user_cols(table_sym->table));
+		     == dict_table_get_n_user_cols(table_sym->table));
 	}
 
 	node->values_list = values_list;
@@ -1094,7 +1092,7 @@ pars_insert_statement(
 		pars_resolve_exp_list_variables_and_types(NULL, values_list);
 
 		ut_a(que_node_list_get_len(values_list)
-			== dict_table_get_n_user_cols(table_sym->table));
+		     == dict_table_get_n_user_cols(table_sym->table));
 	}
 
 	return(node);
@@ -1134,17 +1132,17 @@ pars_set_dfield_type(
 		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
-			DATA_ENGLISH | flags, 0, 0);
+			  DATA_ENGLISH | flags, 0, 0);
 	} else if (type == &pars_binary_token) {
 		ut_a(len != 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_FIXBINARY,
-			DATA_BINARY_TYPE | flags, len, 0);
+			  DATA_BINARY_TYPE | flags, len, 0);
 	} else if (type == &pars_blob_token) {
 		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_BLOB,
-			DATA_BINARY_TYPE | flags, 0, 0);
+			  DATA_BINARY_TYPE | flags, 0, 0);
 	} else {
 		ut_error;
 	}
@@ -1382,7 +1380,7 @@ pars_return_statement(void)
 	return_node_t*	node;
 
 	node = mem_heap_alloc(pars_sym_tab_global->heap,
-						sizeof(return_node_t));
+			      sizeof(return_node_t));
 	node->common.type = QUE_NODE_RETURN;
 
 	return(node);
@@ -1401,7 +1399,7 @@ pars_assignment_statement(
 	assign_node_t*	node;
 
 	node = mem_heap_alloc(pars_sym_tab_global->heap,
-						sizeof(assign_node_t));
+			      sizeof(assign_node_t));
 	node->common.type = QUE_NODE_ASSIGNMENT;
 
 	node->var = var;
@@ -1411,7 +1409,7 @@ pars_assignment_statement(
 	pars_resolve_exp_variables_and_types(NULL, val);
 
 	ut_a(dtype_get_mtype(dfield_get_type(que_node_get_val(var)))
-		== dtype_get_mtype(dfield_get_type(que_node_get_val(val))));
+	     == dtype_get_mtype(dfield_get_type(que_node_get_val(val))));
 
 	return(node);
 }
@@ -1467,7 +1465,7 @@ pars_fetch_statement(
 		pars_resolve_exp_variables_and_types(NULL, user_func);
 
 		node->func = pars_info_get_user_func(pars_sym_tab_global->info,
-			user_func->name);
+						     user_func->name);
 		ut_a(node->func);
 
 		node->into_list = NULL;
@@ -1481,8 +1479,7 @@ pars_fetch_statement(
 
 	if (into_list) {
 		ut_a(que_node_list_get_len(into_list)
-			== que_node_list_get_len(
-				node->cursor_def->select_list));
+		     == que_node_list_get_len(node->cursor_def->select_list));
 	}
 
 	return(node);
@@ -1530,7 +1527,7 @@ pars_row_printf_statement(
 	row_printf_node_t*	node;
 
 	node = mem_heap_alloc(pars_sym_tab_global->heap,
-						sizeof(row_printf_node_t));
+			      sizeof(row_printf_node_t));
 	node->common.type = QUE_NODE_ROW_PRINTF;
 
 	node->sel_node = sel_node;
@@ -1587,7 +1584,7 @@ pars_column_def(
 	}
 
 	pars_set_dfield_type(que_node_get_val(sym_node), type, len2,
-		is_unsigned != NULL, is_not_null != NULL);
+			     is_unsigned != NULL, is_not_null != NULL);
 
 	return(sym_node);
 }
@@ -1636,8 +1633,8 @@ pars_create_table(
 		dtype = dfield_get_type(que_node_get_val(column));
 
 		dict_mem_table_add_col(table, column->name, dtype->mtype,
-						dtype->prtype, dtype->len,
-						dtype->prec);
+				       dtype->prtype, dtype->len,
+				       dtype->prec);
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;
 
@@ -1686,7 +1683,7 @@ pars_create_index(
 	}
 
 	index = dict_mem_index_create(table_sym->name, index_sym->name, 0,
-							ind_type, n_fields);
+				      ind_type, n_fields);
 	column = column_list;
 
 	while (column) {
@@ -1787,7 +1784,7 @@ pars_get_lex_chars(
 	int	len;
 
 	len = pars_sym_tab_global->string_len
-				- pars_sym_tab_global->next_char_pos;
+		- pars_sym_tab_global->next_char_pos;
 	if (len == 0) {
 #ifdef YYDEBUG
 		/* fputs("SQL string ends\n", stderr); */
@@ -1808,14 +1805,14 @@ pars_get_lex_chars(
 			len = 5;
 		}
 
-		fwrite(pars_sym_tab_global->sql_string +
-			pars_sym_tab_global->next_char_pos,
-			1, len, stderr);
+		fwrite(pars_sym_tab_global->sql_string
+		       + pars_sym_tab_global->next_char_pos,
+		       1, len, stderr);
 	}
 #endif /* UNIV_SQL_DEBUG */
 
-	ut_memcpy(buf, pars_sym_tab_global->sql_string +
-				pars_sym_tab_global->next_char_pos, len);
+	ut_memcpy(buf, pars_sym_tab_global->sql_string
+		  + pars_sym_tab_global->next_char_pos, len);
 	*result = len;
 
 	pars_sym_tab_global->next_char_pos += len;
@@ -1862,8 +1859,8 @@ pars_sql(
 	pars_sym_tab_global = sym_tab_create(heap);
 
 	pars_sym_tab_global->string_len = strlen(str);
-	pars_sym_tab_global->sql_string = mem_heap_dup(heap, str,
-		pars_sym_tab_global->string_len + 1);
+	pars_sym_tab_global->sql_string = mem_heap_dup
+		(heap, str, pars_sym_tab_global->string_len + 1);
 	pars_sym_tab_global->next_char_pos = 0;
 	pars_sym_tab_global->info = info;
 
@@ -1998,7 +1995,7 @@ pars_info_add_str_literal(
 	const char*	str)		/* in: string */
 {
 	pars_info_add_literal(info, name, str, strlen(str),
-		DATA_VARCHAR, DATA_ENGLISH);
+			      DATA_VARCHAR, DATA_ENGLISH);
 }
 
 /********************************************************************

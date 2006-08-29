@@ -51,10 +51,11 @@ btr_page_set_index_id(
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		mach_write_to_8(page + (PAGE_HEADER + PAGE_INDEX_ID), id);
 		page_zip_write_header(page_zip,
-				page + (PAGE_HEADER + PAGE_INDEX_ID), 8, mtr);
+				      page + (PAGE_HEADER + PAGE_INDEX_ID),
+				      8, mtr);
 	} else {
 		mlog_write_dulint(page + (PAGE_HEADER + PAGE_INDEX_ID),
-				id, mtr);
+				  id, mtr);
 	}
 }
 
@@ -123,10 +124,11 @@ btr_page_set_level(
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		mach_write_to_2(page + (PAGE_HEADER + PAGE_LEVEL), level);
 		page_zip_write_header(page_zip,
-				page + (PAGE_HEADER + PAGE_LEVEL), 2, mtr);
+				      page + (PAGE_HEADER + PAGE_LEVEL),
+				      2, mtr);
 	} else {
 		mlog_write_ulint(page + (PAGE_HEADER + PAGE_LEVEL), level,
-							 MLOG_2BYTES, mtr);
+				 MLOG_2BYTES, mtr);
 	}
 }
 
@@ -142,9 +144,9 @@ btr_page_get_next(
 {
 	ut_ad(page && mtr);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-			MTR_MEMO_PAGE_X_FIX)
-		|| mtr_memo_contains(mtr, buf_block_align(page),
-			MTR_MEMO_PAGE_S_FIX));
+				MTR_MEMO_PAGE_X_FIX)
+	      || mtr_memo_contains(mtr, buf_block_align(page),
+				   MTR_MEMO_PAGE_S_FIX));
 
 	return(mach_read_from_4(page + FIL_PAGE_NEXT));
 }
@@ -226,7 +228,7 @@ btr_node_ptr_get_child_page_no(
 
 	/* The child address is in the last field */
 	field = rec_get_nth_field(rec, offsets,
-					rec_offs_n_fields(offsets) - 1, &len);
+				  rec_offs_n_fields(offsets) - 1, &len);
 
 	ut_ad(len == 4);
 
@@ -234,7 +236,8 @@ btr_node_ptr_get_child_page_no(
 
 	if (UNIV_UNLIKELY(page_no == 0)) {
 		fprintf(stderr,
-"InnoDB: a nonsensical page number 0 in a node ptr record at offset %lu\n",
+			"InnoDB: a nonsensical page number 0"
+			" in a node ptr record at offset %lu\n",
 			(ulong) ut_align_offset(rec, UNIV_PAGE_SIZE));
 		buf_page_print(buf_frame_align(rec), 0);
 	}
@@ -253,13 +256,13 @@ btr_leaf_page_release(
 	mtr_t*	mtr)		/* in: mtr */
 {
 	ut_ad(!mtr_memo_contains(mtr, buf_block_align(page),
-							MTR_MEMO_MODIFY));
+				 MTR_MEMO_MODIFY));
 	if (latch_mode == BTR_SEARCH_LEAF) {
 		mtr_memo_release(mtr, buf_block_align(page),
-							MTR_MEMO_PAGE_S_FIX);
+				 MTR_MEMO_PAGE_S_FIX);
 	} else {
 		ut_ad(latch_mode == BTR_MODIFY_LEAF);
 		mtr_memo_release(mtr, buf_block_align(page),
-							MTR_MEMO_PAGE_X_FIX);
+				 MTR_MEMO_PAGE_X_FIX);
 	}
 }

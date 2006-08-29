@@ -162,11 +162,11 @@ page_cur_search(
 	ut_ad(dtuple_check_typed(tuple));
 
 	page_cur_search_with_match(page, index, tuple, mode,
-					&up_matched_fields,
-					&up_matched_bytes,
-					&low_matched_fields,
-					&low_matched_bytes,
-					cursor);
+				   &up_matched_fields,
+				   &up_matched_bytes,
+				   &low_matched_fields,
+				   &low_matched_bytes,
+				   cursor);
 	return(low_matched_fields);
 }
 
@@ -194,14 +194,15 @@ page_cur_tuple_insert(
 	rec_t*		rec;
 
 	heap = mem_heap_create(size
-		+ (4 + REC_OFFS_HEADER_SIZE + dtuple_get_n_fields(tuple))
-		* sizeof *offsets);
-	rec = rec_convert_dtuple_to_rec(
-			mem_heap_alloc(heap, size), index, tuple);
+			       + (4 + REC_OFFS_HEADER_SIZE
+				  + dtuple_get_n_fields(tuple))
+			       * sizeof *offsets);
+	rec = rec_convert_dtuple_to_rec
+		(mem_heap_alloc(heap, size), index, tuple);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
 	rec = page_cur_insert_rec_low(cursor, page_zip,
-					index, rec, offsets, ext, n_ext, mtr);
+				      index, rec, offsets, ext, n_ext, mtr);
 	mem_heap_free(heap);
 	return(rec);
 }
@@ -224,6 +225,6 @@ page_cur_rec_insert(
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
 	return(page_cur_insert_rec_low(cursor, page_zip,
-					index, rec, offsets, NULL, 0, mtr));
+				       index, rec, offsets, NULL, 0, mtr));
 }
 

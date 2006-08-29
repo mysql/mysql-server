@@ -277,11 +277,11 @@ mutex_free(
 
 		if (UT_LIST_GET_PREV(list, mutex)) {
 			ut_a(UT_LIST_GET_PREV(list, mutex)->magic_n
-							== MUTEX_MAGIC_N);
+			     == MUTEX_MAGIC_N);
 		}
 		if (UT_LIST_GET_NEXT(list, mutex)) {
 			ut_a(UT_LIST_GET_NEXT(list, mutex)->magic_n
-							== MUTEX_MAGIC_N);
+			     == MUTEX_MAGIC_N);
 		}
 
 		UT_LIST_REMOVE(list, mutex_list, mutex);
@@ -351,8 +351,8 @@ mutex_set_waiters(
 	mutex_t*	mutex,	/* in: mutex */
 	ulint		n)	/* in: value to set */
 {
-volatile ulint*	ptr;		/* declared volatile to ensure that
-				the value is stored to memory */
+	volatile ulint*	ptr;		/* declared volatile to ensure that
+					the value is stored to memory */
 	ut_ad(mutex);
 
 	ptr = &(mutex->waiters);
@@ -423,7 +423,8 @@ spin_loop:
 
 #ifdef UNIV_SRV_PRINT_LATCH_WAITS
 	fprintf(stderr,
-		"Thread %lu spin wait mutex at %p cfile %s cline %lu rnds %lu\n",
+		"Thread %lu spin wait mutex at %p"
+		" cfile %s cline %lu rnds %lu\n",
 		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
 		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
 #endif
@@ -458,7 +459,7 @@ spin_loop:
 	}
 
 	sync_array_reserve_cell(sync_primary_wait_array, mutex,
-		SYNC_MUTEX, file_name, line, &index);
+				SYNC_MUTEX, file_name, line, &index);
 
 	mutex_system_call_count++;
 
@@ -476,7 +477,7 @@ spin_loop:
 			/* Succeeded! Free the reserved wait cell */
 
 			sync_array_free_cell_protected(sync_primary_wait_array,
-				index);
+						       index);
 
 #ifdef UNIV_SYNC_DEBUG
 			mutex_set_debug_info(mutex, file_name, line);
@@ -639,8 +640,8 @@ mutex_list_print_info(void)
 	ulint		count		= 0;
 
 	fputs("----------\n"
-		"MUTEX INFO\n"
-		"----------\n", stderr);
+	      "MUTEX INFO\n"
+	      "----------\n", stderr);
 
 	mutex_enter(&mutex_list_mutex);
 
@@ -651,9 +652,10 @@ mutex_list_print_info(void)
 
 		if (mutex_get_lock_word(mutex) != 0) {
 			mutex_get_debug_info(mutex, &file_name, &line,
-								&thread_id);
+					     &thread_id);
 			fprintf(stderr,
-			"Locked mutex: addr %p thread %ld file %s line %ld\n",
+				"Locked mutex: addr %p thread %ld"
+				" file %s line %ld\n",
 				(void*) mutex, os_thread_pf(thread_id),
 				file_name, line);
 		}
@@ -820,8 +822,9 @@ sync_thread_levels_g(
 				mutex = slot->latch;
 
 				fprintf(stderr,
-	"InnoDB error: sync levels should be > %lu but a level is %lu\n",
-				(ulong) limit, (ulong) slot->level);
+					"InnoDB error: sync levels should be"
+					" > %lu but a level is %lu\n",
+					(ulong) limit, (ulong) slot->level);
 
 				if (mutex->magic_n == MUTEX_MAGIC_N) {
 					fprintf(stderr,
@@ -835,15 +838,24 @@ sync_thread_levels_g(
 						ulint		line;
 						os_thread_id_t	thread_id;
 
-						mutex_get_debug_info(mutex,
-						&file_name, &line, &thread_id);
+						mutex_get_debug_info
+							(mutex, &file_name,
+							 &line, &thread_id);
 
 						fprintf(stderr,
-		"InnoDB: Locked mutex: addr %p thread %ld file %s line %ld\n",
-		(void*) mutex, os_thread_pf(thread_id), file_name, (ulong) line);
+							"InnoDB: Locked mutex:"
+							" addr %p thread %ld"
+							" file %s line %ld\n",
+							(void*) mutex,
+							os_thread_pf
+							(thread_id),
+							file_name,
+							(ulong) line);
 #else /* UNIV_SYNC_DEBUG */
 						fprintf(stderr,
-		"InnoDB: Locked mutex: addr %p\n", (void*) mutex);
+							"InnoDB: Locked mutex:"
+							" addr %p\n",
+							(void*) mutex);
 #endif /* UNIV_SYNC_DEBUG */
 					} else {
 						fputs("Not locked\n", stderr);
@@ -931,9 +943,10 @@ sync_thread_levels_empty_gen(
 
 		slot = sync_thread_levels_get_nth(arr, i);
 
-		if (slot->latch != NULL && (!dict_mutex_allowed ||
-				(slot->level != SYNC_DICT
-				&& slot->level != SYNC_DICT_OPERATION))) {
+		if (slot->latch != NULL
+		    && (!dict_mutex_allowed
+			|| (slot->level != SYNC_DICT
+			    && slot->level != SYNC_DICT_OPERATION))) {
 
 			mutex_exit(&sync_thread_mutex);
 			ut_error;
@@ -981,11 +994,11 @@ sync_thread_add_level(
 	}
 
 	if ((latch == (void*)&sync_thread_mutex)
-		|| (latch == (void*)&mutex_list_mutex)
+	    || (latch == (void*)&mutex_list_mutex)
 #ifdef UNIV_SYNC_DEBUG
-		|| (latch == (void*)&rw_lock_debug_mutex)
+	    || (latch == (void*)&rw_lock_debug_mutex)
 #endif /* UNIV_SYNC_DEBUG */
-		|| (latch == (void*)&rw_lock_list_mutex)) {
+	    || (latch == (void*)&rw_lock_list_mutex)) {
 
 		return;
 	}
@@ -1058,8 +1071,8 @@ sync_thread_add_level(
 		break;
 	case SYNC_BUF_BLOCK:
 		ut_a((sync_thread_levels_contain(array, SYNC_BUF_POOL)
-				&& sync_thread_levels_g(array, SYNC_BUF_BLOCK - 1))
-			|| sync_thread_levels_g(array, SYNC_BUF_BLOCK));
+		      && sync_thread_levels_g(array, SYNC_BUF_BLOCK - 1))
+		     || sync_thread_levels_g(array, SYNC_BUF_BLOCK));
 		break;
 	case SYNC_BUF_POOL:
 		ut_a(sync_thread_levels_g(array, SYNC_BUF_POOL));
@@ -1072,16 +1085,16 @@ sync_thread_add_level(
 		break;
 	case SYNC_REC_LOCK:
 		ut_a((sync_thread_levels_contain(array, SYNC_KERNEL)
-				&& sync_thread_levels_g(array, SYNC_REC_LOCK - 1))
-			|| sync_thread_levels_g(array, SYNC_REC_LOCK));
+		      && sync_thread_levels_g(array, SYNC_REC_LOCK - 1))
+		     || sync_thread_levels_g(array, SYNC_REC_LOCK));
 		break;
 	case SYNC_KERNEL:
 		ut_a(sync_thread_levels_g(array, SYNC_KERNEL));
 		break;
 	case SYNC_IBUF_BITMAP:
 		ut_a((sync_thread_levels_contain(array, SYNC_IBUF_BITMAP_MUTEX)
-				&& sync_thread_levels_g(array, SYNC_IBUF_BITMAP - 1))
-			|| sync_thread_levels_g(array, SYNC_IBUF_BITMAP));
+		      && sync_thread_levels_g(array, SYNC_IBUF_BITMAP - 1))
+		     || sync_thread_levels_g(array, SYNC_IBUF_BITMAP));
 		break;
 	case SYNC_IBUF_BITMAP_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_IBUF_BITMAP_MUTEX));
@@ -1091,20 +1104,20 @@ sync_thread_add_level(
 		break;
 	case SYNC_FSP:
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP)
-			|| sync_thread_levels_g(array, SYNC_FSP));
+		     || sync_thread_levels_g(array, SYNC_FSP));
 		break;
 	case SYNC_TRX_UNDO_PAGE:
 		ut_a(sync_thread_levels_contain(array, SYNC_TRX_UNDO)
-			|| sync_thread_levels_contain(array, SYNC_RSEG)
-			|| sync_thread_levels_contain(array, SYNC_PURGE_SYS)
-			|| sync_thread_levels_g(array, SYNC_TRX_UNDO_PAGE));
+		     || sync_thread_levels_contain(array, SYNC_RSEG)
+		     || sync_thread_levels_contain(array, SYNC_PURGE_SYS)
+		     || sync_thread_levels_g(array, SYNC_TRX_UNDO_PAGE));
 		break;
 	case SYNC_RSEG_HEADER:
 		ut_a(sync_thread_levels_contain(array, SYNC_RSEG));
 		break;
 	case SYNC_RSEG_HEADER_NEW:
 		ut_a(sync_thread_levels_contain(array, SYNC_KERNEL)
-			&& sync_thread_levels_contain(array, SYNC_FSP_PAGE));
+		     && sync_thread_levels_contain(array, SYNC_FSP_PAGE));
 		break;
 	case SYNC_RSEG:
 		ut_a(sync_thread_levels_g(array, SYNC_RSEG));
@@ -1120,30 +1133,30 @@ sync_thread_add_level(
 		break;
 	case SYNC_TREE_NODE:
 		ut_a(sync_thread_levels_contain(array, SYNC_INDEX_TREE)
-			|| sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
+		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
 		break;
 	case SYNC_TREE_NODE_NEW:
 		ut_a(sync_thread_levels_contain(array, SYNC_FSP_PAGE)
-			|| sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
+		     || sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
 		break;
 	case SYNC_INDEX_TREE:
 		ut_a((sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
-			&& sync_thread_levels_contain(array, SYNC_FSP)
-			&& sync_thread_levels_g(array, SYNC_FSP_PAGE - 1))
-			|| sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
+		      && sync_thread_levels_contain(array, SYNC_FSP)
+		      && sync_thread_levels_g(array, SYNC_FSP_PAGE - 1))
+		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
 		break;
 	case SYNC_IBUF_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_FSP_PAGE - 1));
 		break;
 	case SYNC_IBUF_PESS_INSERT_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1)
-			&& !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
+		     && !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX));
 		break;
 	case SYNC_IBUF_HEADER:
 		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1)
-			&& !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
-			&& !sync_thread_levels_contain(array,
-				SYNC_IBUF_PESS_INSERT_MUTEX));
+		     && !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
+		     && !sync_thread_levels_contain
+		     (array, SYNC_IBUF_PESS_INSERT_MUTEX));
 		break;
 	case SYNC_DICT_AUTOINC_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_AUTOINC_MUTEX));
@@ -1157,7 +1170,7 @@ sync_thread_add_level(
 	case SYNC_DICT:
 #ifdef UNIV_DEBUG
 		ut_a(buf_debug_prints
-			|| sync_thread_levels_g(array, SYNC_DICT));
+		     || sync_thread_levels_g(array, SYNC_DICT));
 #else /* UNIV_DEBUG */
 		ut_a(sync_thread_levels_g(array, SYNC_DICT));
 #endif /* UNIV_DEBUG */
@@ -1204,11 +1217,11 @@ sync_thread_reset_level(
 	}
 
 	if ((latch == (void*)&sync_thread_mutex)
-		|| (latch == (void*)&mutex_list_mutex)
+	    || (latch == (void*)&mutex_list_mutex)
 #ifdef UNIV_SYNC_DEBUG
-		|| (latch == (void*)&rw_lock_debug_mutex)
+	    || (latch == (void*)&rw_lock_debug_mutex)
 #endif /* UNIV_SYNC_DEBUG */
-		|| (latch == (void*)&rw_lock_list_mutex)) {
+	    || (latch == (void*)&rw_lock_list_mutex)) {
 
 		return(FALSE);
 	}
@@ -1265,13 +1278,13 @@ sync_init(void)
 	mutex */
 
 	sync_primary_wait_array = sync_array_create(OS_THREAD_MAX_N,
-		SYNC_ARRAY_OS_MUTEX);
+						    SYNC_ARRAY_OS_MUTEX);
 
 	/* Create the thread latch level array where the latch levels
 	are stored for each OS thread */
 
 	sync_thread_level_arrays = ut_malloc(OS_THREAD_MAX_N
-						* sizeof(sync_thread_t));
+					     * sizeof(sync_thread_t));
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 
 		thread_slot = sync_thread_level_arrays_get_nth(i);
@@ -1335,15 +1348,16 @@ sync_print_wait_info(
 #endif
 
 	fprintf(file,
-"Mutex spin waits %lu, rounds %lu, OS waits %lu\n"
-"RW-shared spins %lu, OS waits %lu; RW-excl spins %lu, OS waits %lu\n",
-			(ulong) mutex_spin_wait_count,
-			(ulong) mutex_spin_round_count,
-			(ulong) mutex_os_wait_count,
-			(ulong) rw_s_spin_wait_count,
-			(ulong) rw_s_os_wait_count,
-			(ulong) rw_x_spin_wait_count,
-			(ulong) rw_x_os_wait_count);
+		"Mutex spin waits %lu, rounds %lu, OS waits %lu\n"
+		"RW-shared spins %lu, OS waits %lu;"
+		" RW-excl spins %lu, OS waits %lu\n",
+		(ulong) mutex_spin_wait_count,
+		(ulong) mutex_spin_round_count,
+		(ulong) mutex_os_wait_count,
+		(ulong) rw_s_spin_wait_count,
+		(ulong) rw_s_os_wait_count,
+		(ulong) rw_x_spin_wait_count,
+		(ulong) rw_x_os_wait_count);
 }
 
 /***********************************************************************
