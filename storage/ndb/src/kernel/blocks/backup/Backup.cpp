@@ -4860,7 +4860,7 @@ Backup::lcp_open_file(Signal* signal, BackupRecordPtr ptr)
   c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
   ndbrequire(filePtr.p->m_flags == 0);
   filePtr.p->m_flags |= BackupFile::BF_OPENING;
-  
+  filePtr.p->tableId = RNIL; // Will force init
   req->userPointer = filePtr.i;
   FsOpenReq::setVersion(req->fileNumber, 5);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
