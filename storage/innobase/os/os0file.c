@@ -248,7 +248,7 @@ os_file_get_last_error(
 			fprintf(stderr,
   "InnoDB: Some operating system error numbers are described at\n"
   "InnoDB: "
-  "http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
+  "http://dev.mysql.com/doc/refman/5.0/en/operating-system-error-codes.html\n");
 		}
 	}
 
@@ -295,7 +295,7 @@ os_file_get_last_error(
 			fprintf(stderr,
   "InnoDB: Some operating system error numbers are described at\n"
   "InnoDB: "
-  "http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
+  "http://dev.mysql.com/doc/refman/5.0/en/operating-system-error-codes.html\n");
 		}
 	}
 
@@ -688,7 +688,7 @@ next_file:
 /* TODO: test Windows symlinks */
 /* TODO: MySQL has apparently its own symlink implementation in Windows,
 dbname.sym can redirect a database directory:
-http://www.mysql.com/doc/en/Windows_symbolic_links.html */
+http://dev.mysql.com/doc/refman/5.0/en/windows-symbolic-links.html */
 			info->type = OS_FILE_TYPE_LINK;
 		} else if (lpFindFileData->dwFileAttributes
 						& FILE_ATTRIBUTE_DIRECTORY) {
@@ -2343,7 +2343,7 @@ retry:
 "InnoDB: offset %lu %lu. Operating system error number %lu.\n"
 "InnoDB: Some operating system error numbers are described at\n"
 "InnoDB: "
-"http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n",
+"http://dev.mysql.com/doc/refman/5.0/en/operating-system-error-codes.html\n",
 			name, (ulong) offset_high, (ulong) offset,
 			(ulong) GetLastError());
 
@@ -2408,7 +2408,7 @@ retry:
 		fprintf(stderr,
 "InnoDB: Some operating system error numbers are described at\n"
 "InnoDB: "
-"http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
+"http://dev.mysql.com/doc/refman/5.0/en/operating-system-error-codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
@@ -2444,7 +2444,7 @@ retry:
 		fprintf(stderr,
 "InnoDB: Some operating system error numbers are described at\n"
 "InnoDB: "
-"http://dev.mysql.com/doc/mysql/en/Operating_System_error_codes.html\n");
+"http://dev.mysql.com/doc/refman/5.0/en/operating-system-error-codes.html\n");
 
 		os_has_said_disk_full = TRUE;
 	}
