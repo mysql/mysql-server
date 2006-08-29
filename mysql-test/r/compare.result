@@ -42,3 +42,10 @@ CHAR(31) = ''	'' = CHAR(31)
 SELECT CHAR(30) = '', '' = CHAR(30);
 CHAR(30) = ''	'' = CHAR(30)
 0	0
+create table t1 (a tinyint(1),b binary(1));
+insert into t1 values (0x01,0x01);
+select * from t1 where a=b;
+a	b
+select * from t1 where a=b and b=0x01;
+a	b
+drop table if exists t1;

@@ -5482,9 +5482,11 @@ bool setup_tables_and_check_access(THD *thd,
                                    TABLE_LIST *tables,
                                    TABLE_LIST **leaves,
                                    bool select_insert,
+                                   ulong_want_access_first,
                                    ulong want_access)
 {
   TABLE_LIST *leaves_tmp= NULL;
+  bool first_table= true;
 
   if (setup_tables(thd, context, from_clause, tables,
                    &leaves_tmp, select_insert))
@@ -5495,11 +5497,13 @@ bool setup_tables_and_check_access(THD *thd,
   for (; leaves_tmp; leaves_tmp= leaves_tmp->next_leaf)
   {
     if (leaves_tmp->belong_to_view && 
-        check_single_table_access(thd, want_access,  leaves_tmp))
+        check_single_table_access(thd, first_table ? want_access_first :
+                                  want_access,  leaves_tmp))
     {
       tables->hide_view_error(thd);
       return TRUE;
     }
+    first_table= 0;
   }
   return FALSE;
 }
