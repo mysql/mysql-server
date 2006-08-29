@@ -66,6 +66,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
 
   if (fast_mi_readinfo(info))
     goto err;
+
   if (share->concurrent_insert)
     rw_rdlock(&share->key_root_lock[inx]);
 
@@ -77,19 +78,37 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   if (!_mi_search(info,keyinfo, key_buff, use_key_length,
 		  myisam_read_vec[search_flag], info->s->state.key_root[inx]))
   {
-    while (info->lastpos >= info->state->data_file_length)
+    if (info->lastpos >= info->state->data_file_length)
     {
-      /*
-	Skip rows that are inserted by other threads since we got a lock
-	Note that this can only happen if we are not searching after an
-	exact key, because the keys are sorted according to position
-      */
-
-      if  (_mi_search_next(info, keyinfo, info->lastkey,
-			   info->lastkey_length,
-			   myisam_readnext_vec[search_flag],
-			   info->s->state.key_root[inx]))
-	break;
+      do
+      {
+        uint not_used;
+        /*
+          If we are searching for an exact key, abort if we find a bigger
+          key.
+        */
+        if (search_flag == HA_READ_KEY_EXACT &&
+            (use_key_length == USE_WHOLE_KEY ||
+             _mi_key_cmp(keyinfo->seg, key_buff, info->lastkey, use_key_length,
+                         SEARCH_FIND, &not_used)))
+        {
+          my_errno= HA_ERR_END_OF_FILE;
+          info->lastpos= HA_OFFSET_ERROR;
+          break;
+        }
+        /*
+          Skip rows that are inserted by other threads since we got a lock
+          Note that this can only happen if we are not searching after an
+          full length exact key, because the keys are sorted
+          according to position
+        */
+        if  (_mi_search_next(info, keyinfo, info->lastkey,
+                             info->lastkey_length,
+                             myisam_readnext_vec[search_flag],
+                             info->s->state.key_root[inx]))
+          break;
+      }
+      while (info->lastpos >= info->state->data_file_length);
     }
   }
   if (share->concurrent_insert)
