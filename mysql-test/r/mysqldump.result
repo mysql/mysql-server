@@ -434,7 +434,7 @@ USE `mysqldump_test_db`;
 
 drop database mysqldump_test_db;
 CREATE TABLE t1 (a  CHAR(10));
-INSERT INTO t1  VALUES (_latin1 'Ã„Ã–ÃœÃŸ');
+INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -479,7 +479,7 @@ CREATE TABLE `t1` (
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES ('ÂŽÂ™ÂšÃ¡');
+INSERT INTO `t1` VALUES ('Ž™šá');
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -502,7 +502,7 @@ CREATE TABLE `t1` (
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES ('ÂŽÂ™ÂšÃ¡');
+INSERT INTO `t1` VALUES ('Ž™šá');
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -1676,11 +1676,11 @@ create table t1 (a text character set utf8, b text character set latin1);
 insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
 select * from t1;
 a	b
-OsnabrÃ¼ck	KÃ¶ln
+Osnabrück	Köln
 test.t1: Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
 select * from t1;
 a	b
-OsnabrÃ¼ck	KÃ¶ln
+Osnabrück	Köln
 drop table t1;
 create table `t1` (
 t1_name varchar(255) default null,
