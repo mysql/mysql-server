@@ -2356,8 +2356,7 @@ row_sel_convert_mysql_key_to_innobase(
 
 			ut_print_timestamp(stderr);
 
-			fputs(
-			      "  InnoDB: Warning: using a partial-field"
+			fputs("  InnoDB: Warning: using a partial-field"
 			      " key prefix in search.\n"
 			      "InnoDB: ", stderr);
 			dict_index_name_print(stderr, trx, index);
@@ -3024,8 +3023,7 @@ row_sel_pop_cached_row_for_mysql(
 
 		for (i = 0; i < prebuilt->n_template; i++) {
 			templ = prebuilt->mysql_template + i;
-			ut_memcpy(
-				  buf + templ->mysql_col_offset,
+			ut_memcpy(buf + templ->mysql_col_offset,
 				  cached_rec + templ->mysql_col_offset,
 				  templ->mysql_col_len);
 			/* Copy NULL bit of the current field from cached_rec

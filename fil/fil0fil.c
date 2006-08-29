@@ -1982,8 +1982,7 @@ stop_ibuf_merges:
 		} else {
 			if (count > 5000) {
 				ut_print_timestamp(stderr);
-				fputs(
-				      "  InnoDB: Warning: trying to"
+				fputs("  InnoDB: Warning: trying to"
 				      " delete tablespace ", stderr);
 				ut_print_filename(stderr, space->name);
 				fprintf(stderr, ",\n"
@@ -2419,8 +2418,7 @@ fil_create_new_single_table_tablespace(
 		err = os_file_get_last_error(TRUE);
 
 		if (err == OS_FILE_ALREADY_EXISTS) {
-			fputs(
-			      "InnoDB: The file already exists though"
+			fputs("InnoDB: The file already exists though"
 			      " the corresponding table did not\n"
 			      "InnoDB: exist in the InnoDB data dictionary."
 			      " Have you moved InnoDB\n"
@@ -2503,8 +2501,7 @@ error_exit2:
 	ut_free(buf2);
 
 	if (!ret) {
-		fputs(
-		      "InnoDB: Error: could not write the first page"
+		fputs("InnoDB: Error: could not write the first page"
 		      " to tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		putc('\n', stderr);
@@ -2514,8 +2511,7 @@ error_exit2:
 	ret = os_file_flush(file);
 
 	if (!ret) {
-		fputs(
-		      "InnoDB: Error: file flush of tablespace ", stderr);
+		fputs("InnoDB: Error: file flush of tablespace ", stderr);
 		ut_print_filename(stderr, path);
 		fputs(" failed\n", stderr);
 		goto error_exit;
@@ -2592,8 +2588,7 @@ fil_reset_too_high_lsns(
 
 		ut_print_timestamp(stderr);
 
-		fputs(
-		      "  InnoDB: Error: trying to open a table,"
+		fputs("  InnoDB: Error: trying to open a table,"
 		      " but could not\n"
 		      "InnoDB: open the tablespace file ", stderr);
 		ut_print_filename(stderr, filepath);
@@ -2748,8 +2743,7 @@ fil_open_single_table_tablespace(
 
 		ut_print_timestamp(stderr);
 
-		fputs(
-		      "  InnoDB: Error: trying to open a table,"
+		fputs("  InnoDB: Error: trying to open a table,"
 		      " but could not\n"
 		      "InnoDB: open the tablespace file ", stderr);
 		ut_print_filename(stderr, filepath);
@@ -2794,8 +2788,7 @@ fil_open_single_table_tablespace(
 	if (space_id != id) {
 		ut_print_timestamp(stderr);
 
-		fputs(
-		      "  InnoDB: Error: tablespace id in file ", stderr);
+		fputs("  InnoDB: Error: tablespace id in file ", stderr);
 		ut_print_filename(stderr, filepath);
 		fprintf(stderr, " is %lu, but in the InnoDB\n"
 			"InnoDB: data dictionary it is %lu.\n"
@@ -3259,8 +3252,7 @@ next_file_item:
 			}
 
 			if (0 != os_file_closedir(dbdir)) {
-				fputs(
-				      "InnoDB: Warning: could not"
+				fputs("InnoDB: Warning: could not"
 				      " close database directory ", stderr);
 				ut_print_filename(stderr, dbpath);
 				putc('\n', stderr);
@@ -3495,8 +3487,7 @@ fil_space_for_table_exists_in_mem(
 				(ulong) namespace->id);
 		}
 error_exit:
-		fputs(
-		      "InnoDB: Please refer to\n"
+		fputs("InnoDB: Please refer to\n"
 		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
 		      "innodb-troubleshooting.html\n"
 		      "InnoDB: for how to resolve the issue.\n", stderr);

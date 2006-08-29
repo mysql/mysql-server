@@ -2710,10 +2710,10 @@ ibuf_insert_low(
 function_exit:
 #ifdef UNIV_IBUF_DEBUG
 	if (err == DB_SUCCESS) {
-		printf(
-		       "Incrementing ibuf count of space %lu page %lu\n"
-		       "from %lu by 1\n", space, page_no,
-		       ibuf_count_get(space, page_no));
+		fprintf(stderr,
+			"Incrementing ibuf count of space %lu page %lu\n"
+			"from %lu by 1\n", space, page_no,
+			ibuf_count_get(space, page_no));
 
 		ibuf_count_set(space, page_no,
 			       ibuf_count_get(space, page_no) + 1);
@@ -2840,8 +2840,7 @@ ibuf_insert_to_index_page(
 
 	if (UNIV_UNLIKELY(rec_get_n_fields(rec, index)
 			  != dtuple_get_n_fields(entry))) {
-		fputs(
-		      "InnoDB: Trying to insert a record from"
+		fputs("InnoDB: Trying to insert a record from"
 		      " the insert buffer to an index page\n"
 		      "InnoDB: but the number of fields does not match!\n",
 		      stderr);

@@ -933,8 +933,7 @@ row_ins_foreign_check_on_constraint(
 		    || btr_pcur_get_low_match(cascade->pcur)
 		    < dict_index_get_n_unique(clust_index)) {
 
-			fputs(
-			      "InnoDB: error in cascade of a foreign key op\n"
+			fputs("InnoDB: error in cascade of a foreign key op\n"
 			      "InnoDB: ", stderr);
 			dict_index_name_print(stderr, trx, index);
 

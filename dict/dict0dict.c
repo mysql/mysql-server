@@ -3632,8 +3632,7 @@ loop:
 		mutex_enter(&dict_foreign_err_mutex);
 		rewind(ef);
 		ut_print_timestamp(ef);
-		fputs(
-		      " Error in dropping of a foreign key constraint"
+		fputs(" Error in dropping of a foreign key constraint"
 		      " of table ", ef);
 		ut_print_name(ef, NULL, TRUE, table->name);
 		fputs(",\n"
