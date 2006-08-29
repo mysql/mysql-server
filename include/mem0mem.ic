@@ -280,8 +280,8 @@ mem_heap_free_heap_top(
 	/* If free == start, we may free the block if it is not the first
 	one */
 
-	if ((heap != block) && (mem_block_get_free(block) ==
-				mem_block_get_start(block))) {
+	if ((heap != block) && (mem_block_get_free(block)
+				== mem_block_get_start(block))) {
 		mem_heap_block_free(heap, block);
 	}
 }
@@ -366,8 +366,8 @@ mem_heap_free_top(
 	/* If free == start, we may free the block if it is not the first
 	one */
 
-	if ((heap != block) && (mem_block_get_free(block) ==
-				mem_block_get_start(block))) {
+	if ((heap != block) && (mem_block_get_free(block)
+				== mem_block_get_start(block))) {
 		mem_heap_block_free(heap, block);
 	}
 }

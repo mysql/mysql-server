@@ -563,8 +563,8 @@ trx_lists_init_at_db_start(void)
 
 						if (srv_force_recovery == 0) {
 
-							trx->conc_state =
-								TRX_PREPARED;
+							trx->conc_state
+								= TRX_PREPARED;
 						} else {
 							fprintf(stderr,
 								"InnoDB: Since"
@@ -577,8 +577,8 @@ trx_lists_init_at_db_start(void)
 								= TRX_ACTIVE;
 						}
 					} else {
-						trx->conc_state =
-							TRX_COMMITTED_IN_MEMORY;
+						trx->conc_state
+							= TRX_COMMITTED_IN_MEMORY;
 					}
 
 					/* We give a dummy value for the trx
@@ -599,8 +599,8 @@ trx_lists_init_at_db_start(void)
 				trx_list_insert_ordered(trx);
 
 				if (undo->dict_operation) {
-					trx->dict_operation =
-						undo->dict_operation;
+					trx->dict_operation
+						= undo->dict_operation;
 					trx->table_id = undo->table_id;
 				}
 			}
@@ -1757,8 +1757,8 @@ trx_print(
 		fprintf(f, "que state %lu ", (ulong) trx->que_state);
 	}
 
-	if (0 < UT_LIST_GET_LEN(trx->trx_locks) ||
-	    mem_heap_get_size(trx->lock_heap) > 400) {
+	if (0 < UT_LIST_GET_LEN(trx->trx_locks)
+	    || mem_heap_get_size(trx->lock_heap) > 400) {
 		newline = TRUE;
 
 		fprintf(f, "%lu lock struct(s), heap size %lu",

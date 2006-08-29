@@ -103,8 +103,8 @@ mem_field_trailer_set_check(byte* field, ulint check)
 ulint
 mem_field_trailer_get_check(byte* field)
 {
-	return(mach_read_from_4(field +
-				mem_field_header_get_len(field)));
+	return(mach_read_from_4(field
+				+ mem_field_header_get_len(field)));
 }
 
 /**********************************************************************
@@ -486,8 +486,8 @@ mem_heap_validate_or_print(
 			total_len += len;
 			check_field = mem_field_header_get_check(user_field);
 
-			if (check_field !=
-			    mem_field_trailer_get_check(user_field)) {
+			if (check_field
+			    != mem_field_trailer_get_check(user_field)) {
 				/* error */
 
 				fprintf(stderr,

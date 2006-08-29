@@ -565,8 +565,8 @@ dtuple_convert_big_rec(
 
 				dfield = dtuple_get_nth_field(entry, i);
 
-				if (dfield->len != UNIV_SQL_NULL &&
-				    dfield->len > longest) {
+				if (dfield->len != UNIV_SQL_NULL
+				    && dfield->len > longest) {
 
 					longest = dfield->len;
 

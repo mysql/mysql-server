@@ -676,8 +676,8 @@ lock_get_src_table(
 		} else if (!src) {
 			/* This presumably is the source table. */
 			src = tab_lock->table;
-			if (UT_LIST_GET_LEN(src->locks) != 1 ||
-			    UT_LIST_GET_FIRST(src->locks) != lock) {
+			if (UT_LIST_GET_LEN(src->locks) != 1
+			    || UT_LIST_GET_FIRST(src->locks) != lock) {
 				/* We only support the case when
 				there is only one lock on this table. */
 				return(NULL);
@@ -1563,8 +1563,9 @@ lock_rec_other_has_expl_req(
 
 	while (lock) {
 		if (lock->trx != trx
-		    && (gap ||
-			!(lock_rec_get_gap(lock) || page_rec_is_supremum(rec)))
+		    && (gap
+			|| !(lock_rec_get_gap(lock)
+			     || page_rec_is_supremum(rec)))
 		    && (wait || !lock_get_wait(lock))
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)) {
 
@@ -2491,8 +2492,8 @@ lock_rec_inherit_to_gap(
 	while (lock != NULL) {
 		if (!lock_rec_get_insert_intention(lock)
 		    && !((srv_locks_unsafe_for_binlog
-			  || lock->trx->isolation_level ==
-			  TRX_ISO_READ_COMMITTED)
+			  || lock->trx->isolation_level
+			  == TRX_ISO_READ_COMMITTED)
 			 && lock_get_mode(lock) == LOCK_X)) {
 
 			lock_rec_add_to_queue(LOCK_REC | lock_get_mode(lock)
@@ -3954,8 +3955,8 @@ lock_release_off_kernel(
 
 				table = lock->un_member.tab_lock.table;
 
-				table->query_cache_inv_trx_id =
-					trx_sys->max_trx_id;
+				table->query_cache_inv_trx_id
+					= trx_sys->max_trx_id;
 			}
 
 			lock_table_dequeue(lock);

@@ -227,8 +227,8 @@ btr_pcur_restore_position(
 			 btr_pcur_get_btr_cur(cursor)->index, latch_mode,
 			 btr_pcur_get_btr_cur(cursor), mtr);
 
-		cursor->block_when_stored =
-			buf_block_align(btr_pcur_get_page(cursor));
+		cursor->block_when_stored
+			= buf_block_align(btr_pcur_get_page(cursor));
 
 		return(FALSE);
 	}
@@ -320,10 +320,10 @@ btr_pcur_restore_position(
 		the cursor can now be on a different page! But we can retain
 		the value of old_rec */
 
-		cursor->block_when_stored =
-			buf_block_align(btr_pcur_get_page(cursor));
-		cursor->modify_clock =
-			buf_block_get_modify_clock(cursor->block_when_stored);
+		cursor->block_when_stored = buf_block_align
+			(btr_pcur_get_page(cursor));
+		cursor->modify_clock = buf_block_get_modify_clock
+			(cursor->block_when_stored);
 		cursor->old_stored = BTR_PCUR_OLD_STORED;
 
 		mem_heap_free(heap);

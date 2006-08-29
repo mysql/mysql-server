@@ -162,8 +162,8 @@ btr_cur_latch_leaves(
 			     == buf_frame_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 			ut_a(page_is_comp(get_page) == page_is_comp(page));
-			buf_block_align(get_page)->check_index_page_at_flush =
-				TRUE;
+			buf_block_align(get_page)->check_index_page_at_flush
+				= TRUE;
 		}
 
 		get_page = btr_page_get(space, page_no, RW_X_LATCH, mtr);
@@ -179,8 +179,8 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_prev(get_page, mtr)
 			     == buf_frame_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			buf_block_align(get_page)->check_index_page_at_flush =
-				TRUE;
+			buf_block_align(get_page)->check_index_page_at_flush
+				= TRUE;
 		}
 
 	} else if (latch_mode == BTR_SEARCH_PREV) {
@@ -195,8 +195,8 @@ btr_cur_latch_leaves(
 			ut_a(btr_page_get_next(cursor->left_page, mtr)
 			     == buf_frame_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			ut_a(page_is_comp(cursor->left_page) ==
-			     page_is_comp(page));
+			ut_a(page_is_comp(cursor->left_page)
+			     == page_is_comp(page));
 			buf_block_align(cursor->left_page)
 				->check_index_page_at_flush = TRUE;
 		}
@@ -452,9 +452,9 @@ retry_page_get:
 			ut_ad(insert_planned);
 			ut_ad(cursor->thr);
 
-			if (ibuf_should_try(index, ignore_sec_unique) &&
-			    ibuf_insert(tuple, index, space, page_no,
-					cursor->thr)) {
+			if (ibuf_should_try(index, ignore_sec_unique)
+			    && ibuf_insert(tuple, index, space, page_no,
+					   cursor->thr)) {
 				/* Insertion to the insert buffer succeeded */
 				cursor->flag = BTR_CUR_INSERT_TO_IBUF;
 				if (UNIV_LIKELY_NULL(heap)) {
@@ -993,9 +993,9 @@ calculate_sizes_again:
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry);
 
-	if (rec_size >=
-	    ut_min(page_get_free_space_of_empty(page_is_comp(page)) / 2,
-		   REC_MAX_DATA_SIZE)) {
+	if (rec_size
+	    >= ut_min(page_get_free_space_of_empty(page_is_comp(page)) / 2,
+		      REC_MAX_DATA_SIZE)) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1199,9 +1199,9 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (rec_get_converted_size(index, entry) >=
-	    ut_min(page_get_free_space_of_empty(page_is_comp(page)) / 2,
-		   REC_MAX_DATA_SIZE)) {
+	if (rec_get_converted_size(index, entry)
+	    >= ut_min(page_get_free_space_of_empty(page_is_comp(page)) / 2,
+		      REC_MAX_DATA_SIZE)) {
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1911,10 +1911,10 @@ btr_cur_pessimistic_update(
 				  ULINT_UNDEFINED, &heap);
 	n_ext_vect = btr_push_update_extern_fields(ext_vect, offsets, update);
 
-	if (UNIV_UNLIKELY(rec_get_converted_size(index, new_entry) >=
-			  ut_min(page_get_free_space_of_empty
-				 (page_is_comp(page)) / 2,
-				 REC_MAX_DATA_SIZE))) {
+	if (UNIV_UNLIKELY(rec_get_converted_size(index, new_entry)
+			  >= ut_min(page_get_free_space_of_empty
+				    (page_is_comp(page)) / 2,
+				    REC_MAX_DATA_SIZE))) {
 
 		big_rec_vec = dtuple_convert_big_rec(index, new_entry,
 						     ext_vect, n_ext_vect);
@@ -2880,8 +2880,8 @@ btr_estimate_number_of_different_key_vals(
 	ulint*		offsets_rec	= offsets_rec_;
 	ulint*		offsets_next_rec= offsets_next_rec_;
 	*offsets_rec_ = (sizeof offsets_rec_) / sizeof *offsets_rec_;
-	*offsets_next_rec_ =
-		(sizeof offsets_next_rec_) / sizeof *offsets_next_rec_;
+	*offsets_next_rec_
+		= (sizeof offsets_next_rec_) / sizeof *offsets_next_rec_;
 
 	n_cols = dict_index_get_n_unique(index);
 
@@ -2974,9 +2974,8 @@ btr_estimate_number_of_different_key_vals(
 
 		offsets_rec = rec_get_offsets(rec, index, offsets_rec,
 					      ULINT_UNDEFINED, &heap);
-		total_external_size +=
-			btr_rec_get_externally_stored_len(rec,
-							  offsets_rec);
+		total_external_size += btr_rec_get_externally_stored_len
+			(rec, offsets_rec);
 		mtr_commit(&mtr);
 	}
 
@@ -2989,16 +2988,16 @@ btr_estimate_number_of_different_key_vals(
 	included in index->stat_n_leaf_pages) */
 
 	for (j = 0; j <= n_cols; j++) {
-		index->stat_n_diff_key_vals[j] =
-			(n_diff[j]
-			 * (ib_longlong)index->stat_n_leaf_pages
-			 + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1
-			 + total_external_size
-			 + not_empty_flag)
-			/ (BTR_KEY_VAL_ESTIMATE_N_PAGES
-			   + total_external_size);
+		index->stat_n_diff_key_vals[j]
+			= ((n_diff[j]
+			    * (ib_longlong)index->stat_n_leaf_pages
+			    + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1
+			    + total_external_size
+			    + not_empty_flag)
+			   / (BTR_KEY_VAL_ESTIMATE_N_PAGES
+			      + total_external_size));
 
-		/* If the tree is small, smaller than <
+		/* If the tree is small, smaller than
 		10 * BTR_KEY_VAL_ESTIMATE_N_PAGES + total_external_size, then
 		the above estimate is ok. For bigger trees it is common that we
 		do not see any borders between key values in the few pages
@@ -3006,9 +3005,9 @@ btr_estimate_number_of_different_key_vals(
 		different key values, or even more. Let us try to approximate
 		that: */
 
-		add_on = index->stat_n_leaf_pages /
-			(10 * (BTR_KEY_VAL_ESTIMATE_N_PAGES
-			       + total_external_size));
+		add_on = index->stat_n_leaf_pages
+			/ (10 * (BTR_KEY_VAL_ESTIMATE_N_PAGES
+				 + total_external_size));
 
 		if (add_on > BTR_KEY_VAL_ESTIMATE_N_PAGES) {
 			add_on = BTR_KEY_VAL_ESTIMATE_N_PAGES;
@@ -3292,8 +3291,8 @@ btr_push_update_extern_fields(
 
 			if (upd_get_nth_field(update, i)->extern_storage) {
 
-				ext_vect[n_pushed] =
-					upd_get_nth_field(update, i)->field_no;
+				ext_vect[n_pushed] = upd_get_nth_field
+					(update, i)->field_no;
 
 				n_pushed++;
 			}

@@ -2001,10 +2001,10 @@ ibuf_get_merge_page_nos(
 			if ((prev_page_no == first_page_no
 			     && prev_space_id == first_space_id)
 			    || contract
-			    || (volume_for_page >
-				((IBUF_MERGE_THRESHOLD - 1)
-				 * 4 * UNIV_PAGE_SIZE
-				 / IBUF_PAGE_SIZE_PER_FREE_SPACE)
+			    || (volume_for_page
+				> ((IBUF_MERGE_THRESHOLD - 1)
+				   * 4 * UNIV_PAGE_SIZE
+				   / IBUF_PAGE_SIZE_PER_FREE_SPACE)
 				/ IBUF_MERGE_THRESHOLD)) {
 
 				space_ids[*n_stored] = prev_space_id;

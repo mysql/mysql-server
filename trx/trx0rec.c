@@ -1286,9 +1286,9 @@ trx_undo_prev_version_build(
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains(index_mtr, buf_block_align(index_rec),
-				MTR_MEMO_PAGE_S_FIX) ||
-	      mtr_memo_contains(index_mtr, buf_block_align(index_rec),
-				MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains(index_mtr, buf_block_align(index_rec),
+				   MTR_MEMO_PAGE_X_FIX));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (!(index->type & DICT_CLUSTERED)) {

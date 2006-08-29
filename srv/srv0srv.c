@@ -1506,8 +1506,8 @@ srv_suspend_mysql_thread(
 
 	mutex_exit(&kernel_mutex);
 
-	if (srv_lock_wait_timeout < 100000000 &&
-	    wait_time > (double)srv_lock_wait_timeout) {
+	if (srv_lock_wait_timeout < 100000000
+	    && wait_time > (double)srv_lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 	}
@@ -1972,9 +1972,9 @@ loop:
 
 			wait_time = ut_difftime(ut_time(), slot->suspend_time);
 
-			if (srv_lock_wait_timeout < 100000000 &&
-			    (wait_time > (double) srv_lock_wait_timeout
-			     || wait_time < 0)) {
+			if (srv_lock_wait_timeout < 100000000
+			    && (wait_time > (double) srv_lock_wait_timeout
+				|| wait_time < 0)) {
 
 				/* Timeout exceeded or a wrap-around in system
 				time counter: cancel the lock request queued
@@ -2285,8 +2285,8 @@ loop:
 			log_buffer_flush_to_disk();
 		}
 
-		if (buf_get_modified_ratio_pct() >
-		    srv_max_buf_pool_modified_pct) {
+		if (UNIV_UNLIKELY(buf_get_modified_ratio_pct()
+				  > srv_max_buf_pool_modified_pct)) {
 
 			/* Try to keep the number of modified pages in the
 			buffer pool under the limit wished by the user */
@@ -2493,8 +2493,8 @@ flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
 	if (srv_fast_shutdown < 2) {
-		n_pages_flushed =
-			buf_flush_batch(BUF_FLUSH_LIST, 100, ut_dulint_max);
+		n_pages_flushed = buf_flush_batch
+			(BUF_FLUSH_LIST, 100, ut_dulint_max);
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
 		to data files: we set n_pages_flushed to 0 artificially. */
@@ -2560,8 +2560,8 @@ flush_loop:
 
 			goto background_loop;
 		}
-	} else if (n_tables_to_drop +
-		   n_pages_purged + n_bytes_merged + n_pages_flushed
+	} else if (n_tables_to_drop
+		   + n_pages_purged + n_bytes_merged + n_pages_flushed
 		   + n_bytes_archived != 0) {
 		/* In a 'slow' shutdown we run purge and the insert buffer
 		merge to completion */

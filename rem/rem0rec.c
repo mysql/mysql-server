@@ -176,13 +176,13 @@ rec_init_offsets(
 		case REC_STATUS_INFIMUM:
 		case REC_STATUS_SUPREMUM:
 			/* the field is 8 bytes long */
-			rec_offs_base(offsets)[0] =
-				REC_N_NEW_EXTRA_BYTES | REC_OFFS_COMPACT;
+			rec_offs_base(offsets)[0]
+				= REC_N_NEW_EXTRA_BYTES | REC_OFFS_COMPACT;
 			rec_offs_base(offsets)[1] = 8;
 			return;
 		case REC_STATUS_NODE_PTR:
-			n_node_ptr_field =
-				dict_index_get_n_unique_in_tree(index);
+			n_node_ptr_field
+				= dict_index_get_n_unique_in_tree(index);
 			break;
 		case REC_STATUS_ORDINARY:
 			break;
@@ -258,8 +258,8 @@ resolved:
 			rec_offs_base(offsets)[i + 1] = len;
 		} while (++i < rec_offs_n_fields(offsets));
 
-		*rec_offs_base(offsets) =
-			(rec - (lens + 1)) | REC_OFFS_COMPACT;
+		*rec_offs_base(offsets)
+			= (rec - (lens + 1)) | REC_OFFS_COMPACT;
 	} else {
 		/* Old-style record: determine extra size and end offsets */
 		offs = REC_N_OLD_EXTRA_BYTES;
@@ -349,8 +349,8 @@ rec_get_offsets_func(
 
 	size = n + (1 + REC_OFFS_HEADER_SIZE);
 
-	if (UNIV_UNLIKELY(!offsets) ||
-	    UNIV_UNLIKELY(rec_offs_get_n_alloc(offsets) < size)) {
+	if (UNIV_UNLIKELY(!offsets)
+	    || UNIV_UNLIKELY(rec_offs_get_n_alloc(offsets) < size)) {
 		if (!*heap) {
 			*heap = mem_heap_create_func(size * sizeof(ulint),
 						     NULL, MEM_HEAP_DYNAMIC,
@@ -474,8 +474,8 @@ rec_get_converted_size_new(
 		ulint	len	= dtuple_get_nth_field(dtuple, i)->len;
 		field = dict_index_get_nth_field(index, i);
 		type = dict_col_get_type(dict_field_get_col(field));
-		ut_ad(len != UNIV_SQL_NULL ||
-		      !(dtype_get_prtype(type) & DATA_NOT_NULL));
+		ut_ad(len != UNIV_SQL_NULL
+		      || !(dtype_get_prtype(type) & DATA_NOT_NULL));
 
 		if (len == UNIV_SQL_NULL) {
 			/* No length is stored for NULL fields. */

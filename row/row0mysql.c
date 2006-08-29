@@ -406,8 +406,8 @@ row_mysql_convert_row_to_innobase(
 		if (templ->mysql_null_bit_mask != 0) {
 			/* Column may be SQL NULL */
 
-			if (mysql_rec[templ->mysql_null_byte_offset] &
-			    (byte) (templ->mysql_null_bit_mask)) {
+			if (mysql_rec[templ->mysql_null_byte_offset]
+			    & (byte) (templ->mysql_null_bit_mask)) {
 
 				/* It is SQL NULL */
 
@@ -707,11 +707,11 @@ row_prebuilt_free(
 	for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
 		if (prebuilt->fetch_cache[i] != NULL) {
 
-			if ((ROW_PREBUILT_FETCH_MAGIC_N !=
-			     mach_read_from_4((prebuilt->fetch_cache[i]) - 4))
-			    || (ROW_PREBUILT_FETCH_MAGIC_N !=
-				mach_read_from_4((prebuilt->fetch_cache[i])
-						 + prebuilt->mysql_row_len))) {
+			if ((ROW_PREBUILT_FETCH_MAGIC_N != mach_read_from_4
+			     ((prebuilt->fetch_cache[i]) - 4))
+			    || (ROW_PREBUILT_FETCH_MAGIC_N != mach_read_from_4
+				((prebuilt->fetch_cache[i])
+				 + prebuilt->mysql_row_len))) {
 				fputs("InnoDB: Error: trying to free"
 				      " a corrupt fetch buffer.\n", stderr);
 
@@ -3037,9 +3037,9 @@ check_next_foreign:
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
-	if (foreign && trx->check_foreigns &&
-	    !(drop_db && dict_tables_have_same_db
-	      (name, foreign->foreign_table_name))) {
+	if (foreign && trx->check_foreigns
+	    && !(drop_db && dict_tables_have_same_db
+		 (name, foreign->foreign_table_name))) {
 		FILE*	ef	= dict_foreign_err_file;
 
 		/* We only allow dropping a referenced table if
@@ -3232,8 +3232,8 @@ check_next_foreign:
 		space_id = table->space;
 
 		if (table->dir_path_of_temp_table != NULL) {
-			dir_path_of_temp_table =
-				mem_strdup(table->dir_path_of_temp_table);
+			dir_path_of_temp_table = mem_strdup
+				(table->dir_path_of_temp_table);
 			is_path = TRUE;
 			name_or_path = dir_path_of_temp_table;
 		} else {
@@ -3927,8 +3927,9 @@ not_ok:
 			is_ok = FALSE;
 		} else if ((index->type & DICT_UNIQUE)
 			   && !contains_null
-			   && matched_fields >=
-			   dict_index_get_n_ordering_defined_by_user(index)) {
+			   && matched_fields
+			   >= dict_index_get_n_ordering_defined_by_user
+			   (index)) {
 
 			fputs("InnoDB: duplicate key in ", stderr);
 			goto not_ok;

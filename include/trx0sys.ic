@@ -327,8 +327,8 @@ trx_is_active(
 	}
 
 	trx = trx_get_on_id(trx_id);
-	if (trx && (trx->conc_state == TRX_ACTIVE ||
-		    trx->conc_state == TRX_PREPARED)) {
+	if (trx && (trx->conc_state == TRX_ACTIVE
+		    || trx->conc_state == TRX_PREPARED)) {
 
 		return(TRUE);
 	}

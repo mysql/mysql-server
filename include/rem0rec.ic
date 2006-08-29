@@ -1441,11 +1441,11 @@ rec_get_converted_size(
 	ut_ad(dtuple_check_typed(dtuple));
 
 	ut_ad(index->type & DICT_UNIVERSAL
-	      || dtuple_get_n_fields(dtuple) ==
-	      (((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
-		== REC_STATUS_NODE_PTR)
-	       ? dict_index_get_n_unique_in_tree(index) + 1
-	       : dict_index_get_n_fields(index)));
+	      || dtuple_get_n_fields(dtuple)
+	      == (((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
+		   == REC_STATUS_NODE_PTR)
+		  ? dict_index_get_n_unique_in_tree(index) + 1
+		  : dict_index_get_n_fields(index)));
 
 	if (dict_table_is_comp(index->table)) {
 		return(rec_get_converted_size_new(index, dtuple));
