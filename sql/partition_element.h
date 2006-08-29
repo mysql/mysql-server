@@ -56,8 +56,8 @@ class partition_element :public Sql_alloc {
 public:
   List<partition_element> subpartitions;
   List<part_elem_value> list_val_list;
-  ulonglong part_max_rows;
-  ulonglong part_min_rows;
+  ha_rows part_max_rows;
+  ha_rows part_min_rows;
   longlong range_value;
   char *partition_name;
   char *tablespace_name;

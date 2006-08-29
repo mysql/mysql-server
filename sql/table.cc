@@ -93,6 +93,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 {
   MEM_ROOT mem_root;
   TABLE_SHARE *share;
+  char *key_buff, *path_buff;
   char path[FN_REFLEN];
   uint path_length;
   DBUG_ENTER("alloc_table_share");
@@ -103,22 +104,17 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
                                     table_list->db,
                                     table_list->table_name, "", 0);
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  if ((share= (TABLE_SHARE*) alloc_root(&mem_root,
-					sizeof(*share) + key_length +
-                                        path_length +1)))
+  if (multi_alloc_root(&mem_root,
+                       &share, sizeof(*share),
+                       &key_buff, key_length,
+                       &path_buff, path_length + 1,
+                       NULL))
   {
     bzero((char*) share, sizeof(*share));
-    share->table_cache_key.str=    (char*) (share+1);
-    share->table_cache_key.length= key_length;
-    memcpy(share->table_cache_key.str, key, key_length);
 
-    /* Use the fact the key is db/0/table_name/0 */
-    share->db.str=            share->table_cache_key.str;
-    share->db.length=         strlen(share->db.str);
-    share->table_name.str=    share->db.str + share->db.length + 1;
-    share->table_name.length= strlen(share->table_name.str);
+    share->set_table_cache_key(key_buff, key, key_length);
 
-    share->path.str= share->table_cache_key.str+ key_length;
+    share->path.str= path_buff;
     share->path.length= path_length;
     strmov(share->path.str, path);
     share->normalized_path.str=    share->path.str;

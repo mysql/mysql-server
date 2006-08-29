@@ -26,7 +26,7 @@
 #include "mysys_err.h"
 #include "events.h"
 
-#include "ha_myisam.h"
+#include "../storage/myisam/ha_myisam.h"
 
 #ifdef HAVE_ROW_BASED_REPLICATION
 #include "rpl_injector.h"
@@ -357,10 +357,7 @@ my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_innodb;
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
-extern SHOW_VAR innodb_status_variables[];
-extern uint innobase_init_flags, innobase_lock_type;
-extern uint innobase_flush_log_at_trx_commit;
-extern ulong innobase_cache_size, innobase_fast_shutdown;
+extern ulong innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
 extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
 extern long innobase_lock_scan_time;
@@ -384,11 +381,6 @@ extern my_bool innobase_log_archive,
                innobase_use_native_aio,
                innobase_file_per_table, innobase_locks_unsafe_for_binlog,
                innobase_create_status_file;
-extern my_bool innobase_very_fast_shutdown; /* set this to 1 just before
-                                            calling innobase_end() if you want
-                                            InnoDB to shut down without
-                                            flushing the buffer pool: this
-                                            is equivalent to a 'crash' */
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
 extern ulong srv_max_purge_lag;
@@ -417,7 +409,6 @@ ulong ndb_report_thresh_binlog_epoch_slip;
 ulong ndb_report_thresh_binlog_mem_usage;
 #endif
 
-extern SHOW_VAR ndb_status_variables[];
 extern const char *ndb_distribution_names[];
 extern TYPELIB ndb_distribution_typelib;
 extern const char *opt_ndb_distribution;
@@ -6574,16 +6565,6 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 
 #endif /* HAVE_OPENSSL */
 
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-int innodb_export_status(void);
-static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
-{
-  innodb_export_status();
-  var->type= SHOW_ARRAY;
-  var->value= (char *) &innodb_status_variables;
-  return 0;
-}
-#endif
 
 SHOW_VAR status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
@@ -6723,9 +6704,6 @@ SHOW_VAR status_vars[]= {
   {"Handler_savepoint_rollback",(char*) offsetof(STATUS_VAR, ha_savepoint_rollback_count), SHOW_LONG_STATUS},
   {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count), SHOW_LONG_STATUS},
   {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count), SHOW_LONG_STATUS},
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
-#endif /* WITH_INNOBASE_STORAGE_ENGINE */
   {"Key_blocks_not_flushed",   (char*) offsetof(KEY_CACHE, global_blocks_changed), SHOW_KEY_CACHE_LONG},
   {"Key_blocks_unused",        (char*) offsetof(KEY_CACHE, blocks_unused), SHOW_KEY_CACHE_LONG},
   {"Key_blocks_used",          (char*) offsetof(KEY_CACHE, blocks_used), SHOW_KEY_CACHE_LONG},
@@ -6735,9 +6713,6 @@ SHOW_VAR status_vars[]= {
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  {"Ndb",                      (char*) &ndb_status_variables,   SHOW_ARRAY},
-#endif /* WITH_NDBCLUSTER_STORAGE_ENGINE */
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},
