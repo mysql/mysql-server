@@ -7067,10 +7067,16 @@ ha_innobase::innobase_read_and_init_auto_inc(
 		'found_next_number_field' below because MySQL in SHOW TABLE
 		STATUS does not seem to set 'next_number_field'. The comment
 		in table.h says that 'next_number_field' is set when it is
-		'active'. */
+		'active'.
+		Since 5.1 MySQL enforces that we announce fields which we will
+		read; as we only do a val_*() call, dbug_tmp_use_all_columns()
+		with read_set is sufficient. */
 
+		my_bitmap_map *old_map;
+		old_map= dbug_tmp_use_all_columns(table, table->read_set);
 		auto_inc = (longlong) table->found_next_number_field->
 				val_int_offset(table->s->rec_buff_length) + 1;
+		dbug_tmp_restore_column_map(table->read_set, old_map);
 	}
 
 	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
