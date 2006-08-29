@@ -23,8 +23,8 @@ class Ndb_mgmclient
 public:
   Ndb_mgmclient(const char*,int verbose=0);
   ~Ndb_mgmclient();
-  int execute(const char *_line, int _try_reconnect=-1, int *error= 0);
-  int execute(int argc, char** argv, int _try_reconnect=-1, int *error= 0);
+  int execute(const char *_line, int _try_reconnect=-1, bool interactive=1, int *error= 0);
+  int execute(int argc, char** argv, int _try_reconnect=-1, bool interactive=1, int *error= 0);
   int disconnect();
 private:
   CommandInterpreter *m_cmd;
