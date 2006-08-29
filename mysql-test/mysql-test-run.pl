@@ -336,7 +336,7 @@ sub snapshot_setup ();
 sub executable_setup ();
 sub environment_setup ();
 sub kill_running_server ();
-sub kill_and_cleanup ();
+sub cleanup_stale_files ();
 sub check_ssl_support ();
 sub check_running_as_root();
 sub check_ndbcluster_support ();
@@ -356,8 +356,6 @@ sub mysqld_arguments ($$$$$$);
 sub stop_masters_slaves ();
 sub stop_masters ();
 sub stop_slaves ();
-sub im_start ($$);
-sub im_stop ($);
 sub run_mysqltest ($);
 sub usage ($);
 
@@ -499,7 +497,7 @@ sub command_line_setup () {
   my $opt_master_myport= 9306;
   my $opt_slave_myport=  9308;
   $opt_ndbcluster_port=  9350;
-  my $im_port=           9310;
+  my $im_port=           9311;
   my $im_mysqld1_port=   9312;
   my $im_mysqld2_port=   9314;
 
@@ -1303,6 +1301,7 @@ sub kill_running_server () {
 
     mtr_report("Killing Possible Leftover Processes");
     mkpath("$opt_vardir/log"); # Needed for mysqladmin log
+
     mtr_kill_leftovers();
 
     $using_ndbcluster_master= $opt_with_ndbcluster;
@@ -1311,9 +1310,7 @@ sub kill_running_server () {
   }
 }
 
-sub kill_and_cleanup () {
-
-  kill_running_server ();
+sub cleanup_stale_files () {
 
   mtr_report("Removing Stale Files");
 
@@ -1692,13 +1689,11 @@ sub run_suite () {
 sub initialize_servers () {
   if ( ! $glob_use_running_server )
   {
-    if ( $opt_start_dirty )
+    kill_running_server();
+
+    unless ( $opt_start_dirty )
     {
-      kill_running_server();
-    }
-    else
-    {
-      kill_and_cleanup();
+      cleanup_stale_files();
       mysql_install_db();
       if ( $opt_force )
       {
@@ -2100,7 +2095,7 @@ sub run_testcase ($) {
 
       im_create_defaults_file($instance_manager);
 
-      im_start($instance_manager, $tinfo->{im_opts});
+      mtr_im_start($instance_manager, $tinfo->{im_opts});
     }
 
     # ----------------------------------------------------------------------
@@ -2195,10 +2190,9 @@ sub run_testcase ($) {
   # Stop Instance Manager if we are processing an IM-test case.
   # ----------------------------------------------------------------------
 
-  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' and
-       $instance_manager->{'pid'} )
+  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' )
   {
-    im_stop($instance_manager);
+    mtr_im_stop($instance_manager);
   }
 }
 
@@ -2726,11 +2720,8 @@ sub stop_masters_slaves () {
 
   print  "Ending Tests\n";
 
-  if ( $instance_manager->{'pid'} )
-  {
-    print  "Shutting-down Instance Manager\n";
-    im_stop($instance_manager);
-  }
+  print  "Shutting-down Instance Manager\n";
+  mtr_im_stop($instance_manager);
 
   print  "Shutting-down MySQL daemon\n\n";
   stop_masters();
@@ -2791,230 +2782,6 @@ sub stop_slaves () {
 
   mtr_stop_mysqld_servers(\@args);
 }
-
-##############################################################################
-#
-#  Instance Manager management routines.
-#
-##############################################################################
-
-sub im_start($$) {
-  my $instance_manager = shift;
-  my $opts = shift;
-
-  my $args;
-  mtr_init_args(\$args);
-  mtr_add_arg($args, "--defaults-file=%s",
-              $instance_manager->{'defaults_file'});
-
-  foreach my $opt (@{$opts})
-  {
-    mtr_add_arg($args, $opt);
-  }
-
-  $instance_manager->{'pid'} =
-    mtr_spawn(
-      $exe_im,                          # path to the executable
-      $args,                            # cmd-line args
-      '',                               # stdin
-      $instance_manager->{'path_log'},  # stdout
-      $instance_manager->{'path_err'},  # stderr
-      '',                               # pid file path (not used)
-      { append_log_file => 1 }          # append log files
-      );
-
-  if ( ! $instance_manager->{'pid'} )
-  {
-    mtr_report('Could not start Instance Manager');
-    return;
-  }
-
-  # Instance Manager can be run in daemon mode. In this case, it creates
-  # several processes and the parent process, created by mtr_spawn(), exits just
-  # after start. So, we have to obtain Instance Manager PID from the PID file.
-
-  if ( ! sleep_until_file_created(
-                                  $instance_manager->{'path_pid'},
-                                  $instance_manager->{'start_timeout'},
-                                  -1)) # real PID is still unknown
-  {
-    mtr_report("Instance Manager PID file is missing");
-    return;
-  }
-
-  $instance_manager->{'pid'} =
-    mtr_get_pid_from_file($instance_manager->{'path_pid'});
-}
-
-
-sub im_stop($) {
-  my $instance_manager = shift;
-
-  # Obtain mysqld-process pids before we start stopping IM (it can delete pid
-  # files).
-
-  my @mysqld_pids = ();
-  my $instances = $instance_manager->{'instances'};
-
-  push(@mysqld_pids, mtr_get_pid_from_file($instances->[0]->{'path_pid'}))
-    if -r $instances->[0]->{'path_pid'};
-
-  push(@mysqld_pids, mtr_get_pid_from_file($instances->[1]->{'path_pid'}))
-    if -r $instances->[1]->{'path_pid'};
-
-  # Re-read pid from the file, since during tests Instance Manager could have
-  # been restarted, so its pid could have been changed.
-
-  $instance_manager->{'pid'} =
-    mtr_get_pid_from_file($instance_manager->{'path_pid'})
-      if -f $instance_manager->{'path_pid'};
-
-  if (-f $instance_manager->{'path_angel_pid'})
-  {
-    $instance_manager->{'angel_pid'} =
-      mtr_get_pid_from_file($instance_manager->{'path_angel_pid'})
-  }
-  else
-  {
-    $instance_manager->{'angel_pid'} = undef;
-  }
-
-  # Inspired from mtr_stop_mysqld_servers().
-
-  start_reap_all();
-
-  # Try graceful shutdown.
-
-  mtr_debug("IM-main pid: $instance_manager->{'pid'}");
-  mtr_debug("Stopping IM-main...");
-
-  mtr_kill_process($instance_manager->{'pid'}, 'TERM', 10, 1);
-
-  # If necessary, wait for angel process to die.
-
-  if (defined $instance_manager->{'angel_pid'})
-  {
-    mtr_debug("IM-angel pid: $instance_manager->{'angel_pid'}");
-    mtr_debug("Waiting for IM-angel to die...");
-
-    my $total_attempts= 10;
-
-    for (my $cur_attempt=1; $cur_attempt <= $total_attempts; ++$cur_attempt)
-    {
-      unless (kill (0, $instance_manager->{'angel_pid'}))
-      {
-        mtr_debug("IM-angel died.");
-        last;
-      }
-
-      sleep(1);
-    }
-  }
-
-  # Check that all processes died.
-
-  my $clean_shutdown= 0;
-
-  while (1)
-  {
-    # Check that IM-main died.
-
-    if (kill (0, $instance_manager->{'pid'}))
-    {
-      mtr_debug("IM-main is still alive.");
-      last;
-    }
-
-    # Check that IM-angel died.
-
-    if (defined $instance_manager->{'angel_pid'} &&
-        kill (0, $instance_manager->{'angel_pid'}))
-    {
-      mtr_debug("IM-angel is still alive.");
-      last;
-    }
-
-    # Check that all guarded mysqld-instances died.
-
-    my $guarded_mysqlds_dead= 1;
-
-    foreach my $pid (@mysqld_pids)
-    {
-      if (kill (0, $pid))
-      {
-        mtr_debug("Guarded mysqld ($pid) is still alive.");
-        $guarded_mysqlds_dead= 0;
-        last;
-      }
-    }
-
-    last unless $guarded_mysqlds_dead;
-
-    # Ok, all necessary processes are dead.
-
-    $clean_shutdown= 1;
-    last;
-  }
-
-  # Kill leftovers (the order is important).
-
-  if ($clean_shutdown)
-  {
-    mtr_debug("IM-shutdown was clean -- all processed died.");
-  }
-  else
-  {
-    mtr_debug("IM failed to shutdown gracefully. We have to clean the mess...");
-  }
-
-  unless ($clean_shutdown)
-  {
-
-    if (defined $instance_manager->{'angel_pid'})
-    {
-      mtr_debug("Killing IM-angel...");
-      mtr_kill_process($instance_manager->{'angel_pid'}, 'KILL', 10, 1)
-    }
-    
-    mtr_debug("Killing IM-main...");
-    mtr_kill_process($instance_manager->{'pid'}, 'KILL', 10, 1);
-
-    # Shutdown managed mysqld-processes. Some of them may be nonguarded, so IM
-    # will not stop them on shutdown. So, we should firstly try to end them
-    # legally.
-
-    mtr_debug("Killing guarded mysqld(s)...");
-    mtr_kill_processes(\@mysqld_pids);
-
-    # Complain in error log so that a warning will be shown.
-    # 
-    # TODO: unless BUG#20761 is fixed, we will print the warning
-    # to stdout, so that it can be seen on console and does not
-    # produce pushbuild error.
-
-    # my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
-    # 
-    # open (ERRLOG, ">>$errlog") ||
-    #   mtr_error("Can not open error log ($errlog)");
-    # 
-    # my $ts= localtime();
-    # print ERRLOG
-    #   "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
-    # 
-    # close ERRLOG;
-
-    my $ts= localtime();
-    print "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
-  }
-
-  # That's all.
-
-  stop_reap_all();
-
-  $instance_manager->{'pid'} = undef;
-  $instance_manager->{'angel_pid'} = undef;
-}
-
 
 #
 # Run include/check-testcase.test

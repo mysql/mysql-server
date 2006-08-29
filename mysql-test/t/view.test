@@ -2715,9 +2715,80 @@ DROP VIEW t1,v1;
 SHOW TABLES;
 
 DROP TABLE t1;
+
+
+#
+# Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
+#
+
+# Prepare.
+
 --disable_warnings
+DROP TABLE IF EXISTS t1;
 DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
 --enable_warnings
+
+CREATE TABLE t1(a INT, b INT);
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=1234567890abcdefGHIKL@localhost
+  VIEW v1 AS SELECT a FROM t1;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+  VIEW v2 AS SELECT b FROM t1;
+
+# Cleanup.
+
+DROP TABLE t1;
+
+
+#
+# BUG#17591: Updatable view not possible with trigger or stored
+# function 
+#
+# During prelocking phase we didn't update lock type of view tables,
+# hence READ lock was always requested.
+#
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP VIEW IF EXISTS v1, v2;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  INSERT INTO v1 VALUES (0);
+  RETURN 0;
+END |
+delimiter ;|
+
+SELECT f1();
+
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t1;
+
+delimiter |;
+CREATE FUNCTION f2() RETURNS INT
+BEGIN
+  INSERT INTO v2 VALUES (0);
+  RETURN 0;
+END |
+delimiter ;|
+
+--error ER_NON_UPDATABLE_TABLE
+SELECT f2();
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP VIEW v1, v2;
+DROP TABLE t1;
 
 #
 # Bug #21261: Wrong access rights was required for an insert to a view
@@ -2760,3 +2831,4 @@ create view v1 as select * from t1 where f1 between now() and now() + interval 1
 show create view v1;
 drop view v1;
 drop table t1;
+--echo End of 5.0 tests.
