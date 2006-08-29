@@ -181,7 +181,15 @@ flush_one_group_from_LRD()
   */
 }
 
-/* flushes all page from LRD up to approximately rec_lsn>=max_lsn */
+/*
+  Flushes all page from LRD up to approximately rec_lsn>=max_lsn.
+  This is approximate because we flush groups, and because the LRD list may
+  not be exactly sorted by rec_lsn (because for a big row, all pages of the
+  row are inserted into the LRD with rec_lsn being the LSN of the REDO for the
+  first page, so if there are concurrent insertions, the last page of the big
+  row may have a smaller rec_lsn than the previous pages inserted by
+  concurrent inserters).
+*/
 int flush_all_LRD_to_lsn(LSN max_lsn)
 {
   lock(global_LRD_mutex);
@@ -191,7 +199,9 @@ int flush_all_LRD_to_lsn(LSN max_lsn)
   {
     if (flush_one_group_from_LRD()) /* will unlock LRD mutex */
       return 1;
-    /* scheduler may preempt us here so that we don't take full CPU */
+    /*
+      The scheduler may preempt us here as we released the mutex; this is good.
+    */
     lock(global_LRD_mutex);
   }
   unlock(global_LRD_mutex);

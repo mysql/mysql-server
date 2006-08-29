@@ -46,7 +46,8 @@ CHECKPOINT_LEVEL synchronous_checkpoint_in_progress= NONE;
 
 /*
   Used by MySQL client threads requesting a checkpoint (like "ALTER MARIA
-  ENGINE DO CHECKPOINT"), and probably by maria_panic().
+  ENGINE DO CHECKPOINT"), and probably by maria_panic(), and at the end of the
+  UNDO recovery phase.
 */
 my_bool execute_synchronous_checkpoint(CHECKPOINT_LEVEL level)
 {
@@ -342,8 +343,6 @@ log_write_record(...)
   (requestor does not wait for completion, and does not even later check the
   result).
   In real life it will be called by log_write_record().
-  which explicitely wants to do checkpoint (ALTER ENGINE CHECKPOINT
-  checkpoint_level).
 */
 void request_asynchronous_checkpoint(CHECKPOINT_LEVEL level);
 {
@@ -359,7 +358,8 @@ void request_asynchronous_checkpoint(CHECKPOINT_LEVEL level);
       MAX_LOG_BYTES_WRITTEN_BETWEEN_CHECKPOINTS is passed), so it may not be a
       good idea for each of them to broadcast a cond to wake up the background
       checkpoint thread. We just don't broacast a cond, the checkpoint thread
-      will notice our request in max a few seconds.
+      (see least_recently_dirtied.c) will notice our request in max a few
+      seconds.
     */
     checkpoint_request= level; /* post request */
   }

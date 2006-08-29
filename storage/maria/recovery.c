@@ -221,10 +221,6 @@ int recovery()
   /*
     mark that checkpoint requests are now allowed.
   */
-  /*
-    when all rollback threads have terminated, somebody should print "rollback
-    finished" to the error log.
-  */
 }
 
 pthread_handler_decl rollback_background_thread()
@@ -248,13 +244,7 @@ pthread_handler_decl rollback_background_thread()
   {
     /*
       All rollback threads are done.  Print "rollback finished" to the error
-      log.  The UNDO phase has the reputation of being a slow operation
-      (slower than the REDO phase), so taking a checkpoint at the end of it is
-      intelligent, but as this UNDO phase generates REDOs and CLR_ENDs, if it
-      did a lot of work then the "automatic checkpoint when much has been
-      written to the log" will do it; and if the UNDO phase didn't do a lot of
-      work, no need for a checkpoint. If we change our mind and want to force
-      a checkpoint at the end of the UNDO phase, simply call it here.
+      log and take a full checkpoint.
     */
   }
   unlock_mutex(rollback_threads);

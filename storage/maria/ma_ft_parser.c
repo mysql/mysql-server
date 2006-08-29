@@ -204,8 +204,8 @@ byte maria_ft_simple_get_word(CHARSET_INFO *cs, byte **start, const byte *end,
                         FT_WORD *word, my_bool skip_stopwords)
 {
   byte *doc= *start;
-  int ctype;
   uint mwc, length, mbl;
+  int ctype;
   DBUG_ENTER("maria_ft_simple_get_word");
 
   do
