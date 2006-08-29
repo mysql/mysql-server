@@ -50,14 +50,16 @@ ut_dbg_assertion_failed(
 			"InnoDB: Failing assertion: %s\n", expr);
 	}
 
-	fputs(
-"InnoDB: We intentionally generate a memory trap.\n"
-"InnoDB: Submit a detailed bug report to http://bugs.mysql.com.\n"
-"InnoDB: If you get repeated assertion failures or crashes, even\n"
-"InnoDB: immediately after the mysqld startup, there may be\n"
-"InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html\n"
-"InnoDB: about forcing recovery.\n", stderr);
+	fputs("InnoDB: We intentionally generate a memory trap.\n"
+	      "InnoDB: Submit a detailed bug report"
+	      " to http://bugs.mysql.com.\n"
+	      "InnoDB: If you get repeated assertion failures"
+	      " or crashes, even\n"
+	      "InnoDB: immediately after the mysqld startup, there may be\n"
+	      "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
+	      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
+	      "forcing-recovery.html\n"
+	      "InnoDB: about forcing recovery.\n", stderr);
 #if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 	ut_dbg_stop_threads = TRUE;
 #endif

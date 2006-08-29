@@ -21,7 +21,7 @@ fsp_descr_page(
 
 	if (!zip_size) {
 		return(UNIV_UNLIKELY((page_no & (UNIV_PAGE_SIZE - 1))
-				== FSP_XDES_OFFSET));
+				     == FSP_XDES_OFFSET));
 	}
 
 	return(UNIV_UNLIKELY((page_no & (zip_size - 1)) == FSP_XDES_OFFSET));

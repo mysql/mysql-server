@@ -59,7 +59,8 @@ mlog_write_initial_log_record(
 
 	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
+			"InnoDB: Error: trying to write to"
+			" a stray memory location %p\n", (void*) ptr);
 		ut_error;
 	}
 
@@ -162,9 +163,9 @@ mlog_parse_nbytes(
 
 		if (page) {
 			if (UNIV_LIKELY_NULL(page_zip)) {
-				mach_write_to_8(
-					((page_zip_des_t*) page_zip)->data
-					+ offset, dval);
+				mach_write_to_8
+					(((page_zip_des_t*) page_zip)->data
+					 + offset, dval);
 			}
 			mach_write_to_8(page + offset, dval);
 		}
@@ -186,9 +187,9 @@ mlog_parse_nbytes(
 		}
 		if (page) {
 			if (UNIV_LIKELY_NULL(page_zip)) {
-				mach_write_to_1(
-					((page_zip_des_t*) page_zip)->data
-					+ offset, val);
+				mach_write_to_1
+					(((page_zip_des_t*) page_zip)->data
+					 + offset, val);
 			}
 			mach_write_to_1(page + offset, val);
 		}
@@ -199,9 +200,9 @@ mlog_parse_nbytes(
 		}
 		if (page) {
 			if (UNIV_LIKELY_NULL(page_zip)) {
-				mach_write_to_2(
-					((page_zip_des_t*) page_zip)->data
-					+ offset, val);
+				mach_write_to_2
+					(((page_zip_des_t*) page_zip)->data
+					 + offset, val);
 			}
 			mach_write_to_2(page + offset, val);
 		}
@@ -209,9 +210,9 @@ mlog_parse_nbytes(
 	case MLOG_4BYTES:
 		if (page) {
 			if (UNIV_LIKELY_NULL(page_zip)) {
-				mach_write_to_4(
-					((page_zip_des_t*) page_zip)->data
-					+ offset, val);
+				mach_write_to_4
+					(((page_zip_des_t*) page_zip)->data
+					 + offset, val);
 			}
 			mach_write_to_4(page + offset, val);
 		}
@@ -242,7 +243,8 @@ mlog_write_ulint(
 	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
 	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
+			"InnoDB: Error: trying to write to"
+			" a stray memory location %p\n", (void*) ptr);
 		ut_error;
 	}
 
@@ -291,9 +293,11 @@ mlog_write_dulint(
 {
 	byte*	log_ptr;
 
-	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
+	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
+	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
+			"InnoDB: Error: trying to write to"
+			" a stray memory location %p\n", (void*) ptr);
 		ut_error;
 	}
 
@@ -310,7 +314,7 @@ mlog_write_dulint(
 	}
 
 	log_ptr = mlog_write_initial_log_record_fast(ptr, MLOG_8BYTES,
-							log_ptr, mtr);
+						     log_ptr, mtr);
 
 	mach_write_to_2(log_ptr, ptr - buf_frame_align(ptr));
 	log_ptr += 2;
@@ -333,9 +337,10 @@ mlog_write_string(
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
 	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
-		|| UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
+	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
+			"InnoDB: Error: trying to write to"
+			" a stray memory location %p\n", (void*) ptr);
 		ut_error;
 	}
 	ut_ad(ptr && mtr);
@@ -371,7 +376,7 @@ mlog_log_string(
 	}
 
 	log_ptr = mlog_write_initial_log_record_fast(ptr, MLOG_WRITE_STRING,
-								log_ptr, mtr);
+						     log_ptr, mtr);
 	mach_write_to_2(log_ptr, ut_align_offset(ptr, UNIV_PAGE_SIZE));
 	log_ptr += 2;
 
@@ -462,7 +467,7 @@ mlog_open_and_write_index(
 			return(NULL); /* logging is disabled */
 		}
 		log_ptr = mlog_write_initial_log_record_fast(rec, type,
-				log_ptr, mtr);
+							     log_ptr, mtr);
 		log_end = log_ptr + 11 + size;
 	} else {
 		ulint	i;
@@ -480,7 +485,7 @@ mlog_open_and_write_index(
 		}
 		log_end = log_ptr + alloc;
 		log_ptr = mlog_write_initial_log_record_fast(rec, type,
-				log_ptr, mtr);
+							     log_ptr, mtr);
 		mach_write_to_2(log_ptr, n);
 		log_ptr += 2;
 		mach_write_to_2(log_ptr,
@@ -494,7 +499,8 @@ mlog_open_and_write_index(
 			type = dict_col_get_type(dict_field_get_col(field));
 			len = field->fixed_len;
 			ut_ad(len < 0x7fff);
-			if (len == 0 && (dtype_get_len(type) > 255
+			if (len == 0
+			    && (dtype_get_len(type) > 255
 				|| dtype_get_mtype(type) == DATA_BLOB)) {
 				/* variable-length field
 				with maximum length > 255 */
@@ -567,9 +573,9 @@ mlog_parse_index(
 		n = n_uniq = 1;
 	}
 	table = dict_mem_table_create("LOG_DUMMY", DICT_HDR_SPACE, n,
-		comp ? DICT_TF_COMPACT : 0);
+				      comp ? DICT_TF_COMPACT : 0);
 	ind = dict_mem_index_create("LOG_DUMMY", "LOG_DUMMY",
-				DICT_HDR_SPACE, 0, n);
+				    DICT_HDR_SPACE, 0, n);
 	ind->table = table;
 	ind->n_uniq = n_uniq;
 	if (n_uniq != n) {
@@ -583,26 +589,28 @@ mlog_parse_index(
 			/* The high-order bit of len is the NOT NULL flag;
 			the rest is 0 or 0x7fff for variable-length fields,
 			and 1..0x7ffe for fixed-length fields. */
-			dict_mem_table_add_col(table, "DUMMY",
-					((len + 1) & 0x7fff) <= 1
-						? DATA_BINARY
-						: DATA_FIXBINARY,
-					len & 0x8000 ? DATA_NOT_NULL : 0,
-					len & 0x7fff, 0);
-			dict_index_add_col(ind,
-				dict_table_get_nth_col(table, i), 0);
+			dict_mem_table_add_col
+				(table, "DUMMY",
+				 ((len + 1) & 0x7fff) <= 1
+				 ? DATA_BINARY : DATA_FIXBINARY,
+				 len & 0x8000 ? DATA_NOT_NULL : 0,
+				 len & 0x7fff, 0);
+			dict_index_add_col
+				(ind, dict_table_get_nth_col(table, i), 0);
 		}
 		dict_table_add_system_columns(table);
 		if (n_uniq != n) {
 			/* Identify DB_TRX_ID and DB_ROLL_PTR in the index. */
-			ut_a(dtype_get_len(dict_col_get_type(
-				dict_field_get_col(dict_index_get_nth_field(
-				ind, n_uniq + (DATA_TRX_ID - 1)))))
-				== DATA_TRX_ID_LEN);
-			ut_a(dtype_get_len(dict_col_get_type(
-				dict_field_get_col(dict_index_get_nth_field(
-				ind, n_uniq + (DATA_ROLL_PTR - 1)))))
-				== DATA_ROLL_PTR_LEN);
+			ut_a(DATA_TRX_ID_LEN == dtype_get_len
+			     (dict_col_get_type
+			      (dict_field_get_col
+			       (dict_index_get_nth_field
+				(ind, n_uniq + (DATA_TRX_ID - 1))))));
+			ut_a(DATA_ROLL_PTR_LEN == dtype_get_len
+			     (dict_col_get_type
+			      (dict_field_get_col
+			       (dict_index_get_nth_field
+				(ind, n_uniq + (DATA_ROLL_PTR - 1))))));
 			dict_table_get_nth_col(table, i + DATA_TRX_ID)
 				->clust_pos = n_uniq + (DATA_TRX_ID - 1);
 			dict_table_get_nth_col(table, i + DATA_ROLL_PTR)

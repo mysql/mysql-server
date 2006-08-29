@@ -70,7 +70,8 @@ flag value must give the length also! */
 #define MLOG_PAGE_CREATE	((byte)19)	/* create an index page */
 #define	MLOG_UNDO_INSERT	((byte)20)	/* insert entry in an undo
 						log */
-#define MLOG_UNDO_ERASE_END	((byte)21)	/* erase an undo log page end */
+#define MLOG_UNDO_ERASE_END	((byte)21)	/* erase an undo log
+						page end */
 #define	MLOG_UNDO_INIT		((byte)22)	/* initialize a page in an
 						undo log */
 #define MLOG_UNDO_HDR_DISCARD	((byte)23)	/* discard an update undo log

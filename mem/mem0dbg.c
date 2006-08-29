@@ -103,8 +103,8 @@ mem_field_trailer_set_check(byte* field, ulint check)
 ulint
 mem_field_trailer_get_check(byte* field)
 {
-	return(mach_read_from_4(field +
-			mem_field_header_get_len(field)));
+	return(mach_read_from_4(field
+				+ mem_field_header_get_len(field)));
 }
 
 /**********************************************************************
@@ -337,7 +337,8 @@ mem_hash_remove(
 
 	if (node == NULL) {
 		fprintf(stderr,
-	"Memory heap or buffer freed in %s line %lu did not exist.\n",
+			"Memory heap or buffer freed in %s line %lu"
+			" did not exist.\n",
 			file_name, (ulong) line);
 		ut_error;
 	}
@@ -349,18 +350,20 @@ mem_hash_remove(
 
 	/* Validate the heap which will be freed */
 	mem_heap_validate_or_print(node->heap, NULL, FALSE, &error, &size,
-								NULL, NULL);
+				   NULL, NULL);
 	if (error) {
 		fprintf(stderr,
-	"Inconsistency in memory heap or buffer n:o %lu created\n"
-	"in %s line %lu and tried to free in %s line %lu.\n"
-	"Hex dump of 400 bytes around memory heap first block start:\n",
+			"Inconsistency in memory heap or"
+			" buffer n:o %lu created\n"
+			"in %s line %lu and tried to free in %s line %lu.\n"
+			"Hex dump of 400 bytes around memory heap"
+			" first block start:\n",
 			node->nth_heap, node->file_name, (ulong) node->line,
 			file_name, (ulong) line);
 		ut_print_buf(stderr, (byte*)node->heap - 200, 400);
 		fputs("\nDump of the mem heap:\n", stderr);
 		mem_heap_validate_or_print(node->heap, NULL, TRUE, &error,
-							 &size, NULL, NULL);
+					   &size, NULL, NULL);
 		ut_error;
 	}
 
@@ -441,10 +444,12 @@ mem_heap_validate_or_print(
 		phys_len += mem_block_get_len(block);
 
 		if ((block->type == MEM_HEAP_BUFFER)
-			&& (mem_block_get_len(block) > UNIV_PAGE_SIZE)) {
+		    && (mem_block_get_len(block) > UNIV_PAGE_SIZE)) {
 
 			fprintf(stderr,
-"InnoDB: Error: mem block %p length %lu > UNIV_PAGE_SIZE\n", (void*) block,
+				"InnoDB: Error: mem block %p"
+				" length %lu > UNIV_PAGE_SIZE\n",
+				(void*) block,
 				(ulong) mem_block_get_len(block));
 			/* error */
 
@@ -481,15 +486,19 @@ mem_heap_validate_or_print(
 			total_len += len;
 			check_field = mem_field_header_get_check(user_field);
 
-			if (check_field !=
-				mem_field_trailer_get_check(user_field)) {
+			if (check_field
+			    != mem_field_trailer_get_check(user_field)) {
 				/* error */
 
 				fprintf(stderr,
-"InnoDB: Error: block %lx mem field %lx len %lu\n"
-"InnoDB: header check field is %lx but trailer %lx\n", (ulint)block,
-				   (ulint)field, len, check_field,
-				   mem_field_trailer_get_check(user_field));
+					"InnoDB: Error: block %lx mem"
+					" field %lx len %lu\n"
+					"InnoDB: header check field is"
+					" %lx but trailer %lx\n",
+					(ulint)block,
+					(ulint)field, len, check_field,
+					mem_field_trailer_get_check
+					(user_field));
 
 				return;
 			}
@@ -511,9 +520,12 @@ mem_heap_validate_or_print(
 			/* error */
 
 			fprintf(stderr,
-"InnoDB: Error: block %lx end of mem fields %lx\n"
-"InnoDB: but block free at %lx\n", (ulint)block, (ulint)field,
-			(ulint)((byte*)block + mem_block_get_free(block)));
+				"InnoDB: Error: block %lx end of"
+				" mem fields %lx\n"
+				"InnoDB: but block free at %lx\n",
+				(ulint)block, (ulint)field,
+				(ulint)((byte*)block
+					+ mem_block_get_free(block)));
 
 			return;
 		}
@@ -554,11 +566,12 @@ mem_heap_print(
 	ut_ad(mem_heap_check(heap));
 
 	mem_heap_validate_or_print(heap, NULL, TRUE, &error,
-				&us_size, &phys_size, &n_blocks);
+				   &us_size, &phys_size, &n_blocks);
 	fprintf(stderr,
-  "\nheap type: %lu; size: user size %lu; physical size %lu; blocks %lu.\n",
-			(ulong) heap->type, (ulong) us_size,
-			(ulong) phys_size, (ulong) n_blocks);
+		"\nheap type: %lu; size: user size %lu;"
+		" physical size %lu; blocks %lu.\n",
+		(ulong) heap->type, (ulong) us_size,
+		(ulong) phys_size, (ulong) n_blocks);
 	ut_a(!error);
 }
 
@@ -593,7 +606,7 @@ mem_heap_validate(
 	ut_ad(mem_heap_check(heap));
 
 	mem_heap_validate_or_print(heap, NULL, FALSE, &error, &us_size,
-						&phys_size, &n_blocks);
+				   &phys_size, &n_blocks);
 	if (error) {
 		mem_heap_print(heap);
 	}
@@ -670,14 +683,17 @@ mem_validate_no_assert(void)
 			n_heaps++;
 
 			mem_heap_validate_or_print(node->heap, NULL,
-				FALSE, &error, &allocated_mem,
-				&ph_size, &n_blocks);
+						   FALSE, &error,
+						   &allocated_mem,
+						   &ph_size, &n_blocks);
 
 			if (error) {
 				fprintf(stderr,
-		"\nERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\n"
-		"Inconsistency in memory heap or buffer created\n"
-		"in %s line %lu.\n",
+					"\nERROR!!!!!!!!!!!!!!!!!!!"
+					"!!!!!!!!!!!!!!!!!!!!!!!\n\n"
+					"Inconsistency in memory heap"
+					" or buffer created\n"
+					"in %s line %lu.\n",
 					node->file_name, node->line);
 
 				mutex_exit(&mem_hash_mutex);
@@ -741,7 +757,8 @@ mem_analyze_corruption(
 	fputs("InnoDB: Apparent memory corruption: mem dump ", stderr);
 	ut_print_buf(stderr, (byte*)ptr - 250, 500);
 
-	fputs("\nInnoDB: Scanning backward trying to find previous allocated mem blocks\n", stderr);
+	fputs("\nInnoDB: Scanning backward trying to find"
+	      " previous allocated mem blocks\n", stderr);
 
 	p = (byte*)ptr;
 	dist = 0;
@@ -752,18 +769,26 @@ mem_analyze_corruption(
 
 				if (*((ulint*)p) == MEM_BLOCK_MAGIC_N) {
 					fprintf(stderr,
-				"Mem block at - %lu, file %s, line %lu\n",
-				(ulong) dist, (p + sizeof(ulint)),
-				(ulong) (*(ulint*)(p + 8 + sizeof(ulint))));
+						"Mem block at - %lu,"
+						" file %s, line %lu\n",
+						(ulong) dist,
+						(p + sizeof(ulint)),
+						(ulong)
+						(*(ulint*)(p + 8
+							   + sizeof(ulint))));
 
 					break;
 				}
 
 				if (*((ulint*)p) == MEM_FREED_BLOCK_MAGIC_N) {
 					fprintf(stderr,
-				"Freed mem block at - %lu, file %s, line %lu\n",
-				(ulong) dist, (p + sizeof(ulint)),
-				(ulong) (*(ulint*)(p + 8 + sizeof(ulint))));
+						"Freed mem block at - %lu,"
+						" file %s, line %lu\n",
+						(ulong) dist,
+						(p + sizeof(ulint)),
+						(ulong)
+						(*(ulint*)(p + 8
+							   + sizeof(ulint))));
 
 					break;
 				}
@@ -778,7 +803,8 @@ mem_analyze_corruption(
 	}
 
 	fprintf(stderr,
-  "InnoDB: Scanning forward trying to find next allocated mem blocks\n");
+		"InnoDB: Scanning forward trying to find next"
+		" allocated mem blocks\n");
 
 	p = (byte*)ptr;
 	dist = 0;
@@ -789,18 +815,26 @@ mem_analyze_corruption(
 
 				if (*((ulint*)p) == MEM_BLOCK_MAGIC_N) {
 					fprintf(stderr,
-				"Mem block at + %lu, file %s, line %lu\n",
-				(ulong) dist, (p + sizeof(ulint)),
-				(ulong) (*(ulint*)(p + 8 + sizeof(ulint))));
+						"Mem block at + %lu, file %s,"
+						" line %lu\n",
+						(ulong) dist,
+						(p + sizeof(ulint)),
+						(ulong)
+						(*(ulint*)(p + 8
+							   + sizeof(ulint))));
 
 					break;
 				}
 
 				if (*((ulint*)p) == MEM_FREED_BLOCK_MAGIC_N) {
 					fprintf(stderr,
-				"Freed mem block at + %lu, file %s, line %lu\n",
-				(ulong) dist, (p + sizeof(ulint)),
-				(ulong) (*(ulint*)(p + 8 + sizeof(ulint))));
+						"Freed mem block at + %lu,"
+						" file %s, line %lu\n",
+						(ulong) dist,
+						(p + sizeof(ulint)),
+						(ulong)
+						(*(ulint*)(p + 8
+							   + sizeof(ulint))));
 
 					break;
 				}
@@ -878,33 +912,34 @@ mem_print_info_low(
 		}
 
 		mem_heap_validate_or_print(node->heap, NULL,
-				FALSE, &error, &allocated_mem,
-				&ph_size, &n_blocks);
+					   FALSE, &error, &allocated_mem,
+					   &ph_size, &n_blocks);
 		total_allocated_mem += allocated_mem;
 
 		fprintf(outfile,
- "%lu: file %s line %lu of size %lu phys.size %lu with %lu blocks, type %lu\n",
-				node->nth_heap, node->file_name, node->line,
-				allocated_mem, ph_size, n_blocks,
-				(node->heap)->type);
-	next_heap:
+			"%lu: file %s line %lu of size %lu phys.size %lu"
+			" with %lu blocks, type %lu\n",
+			node->nth_heap, node->file_name, node->line,
+			allocated_mem, ph_size, n_blocks,
+			(node->heap)->type);
+next_heap:
 		node = UT_LIST_GET_NEXT(all_list, node);
 	}
 
 	fprintf(outfile, "\n");
 
 	fprintf(outfile, "Current allocated memory              : %lu\n",
-			mem_current_allocated_memory);
+		mem_current_allocated_memory);
 	fprintf(outfile, "Current allocated heaps and buffers   : %lu\n",
-			n_heaps);
+		n_heaps);
 	fprintf(outfile, "Cumulative allocated memory           : %lu\n",
-			mem_total_allocated_memory);
+		mem_total_allocated_memory);
 	fprintf(outfile, "Maximum allocated memory              : %lu\n",
-			mem_max_allocated_memory);
+		mem_max_allocated_memory);
 	fprintf(outfile, "Cumulative created heaps and buffers  : %lu\n",
-			mem_n_created_heaps);
+		mem_n_created_heaps);
 	fprintf(outfile, "Cumulative number of allocations      : %lu\n",
-			mem_n_allocations);
+		mem_n_allocations);
 
 	mem_last_print_info = mem_n_created_heaps;
 
@@ -912,9 +947,9 @@ mem_print_info_low(
 
 	mem_pool_print_info(outfile, mem_comm_pool);
 
-/*	mem_validate(); */
+	/*	mem_validate(); */
 
-/*	fclose(outfile); */
+	/*	fclose(outfile); */
 #endif
 }
 
