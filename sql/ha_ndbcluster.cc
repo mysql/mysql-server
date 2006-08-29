@@ -6387,6 +6387,7 @@ static int ndbcluster_init()
     ndbcluster_binlog_init_handlerton();
 #endif
     h.flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
+    h.discover=         ndbcluster_discover;
   }
 
   if (have_ndbcluster != SHOW_OPTION_YES)
@@ -10577,6 +10578,11 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
   DBUG_RETURN(0);
 }
 
+SHOW_VAR ndb_status_variables_export[]= {
+  {"Ndb",                      (char*) &ndb_status_variables,   SHOW_ARRAY},
+  {NullS, NullS, SHOW_LONG}
+};
+
 struct st_mysql_storage_engine ndbcluster_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION, &ndbcluster_hton };
 
@@ -10590,7 +10596,7 @@ mysql_declare_plugin(ndbcluster)
   ndbcluster_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  0
+  ndb_status_variables_export
 }
 mysql_declare_plugin_end;
 
