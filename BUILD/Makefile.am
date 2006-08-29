@@ -38,7 +38,6 @@ EXTRA_DIST =		FINISH.sh \
 			compile-pentium-debug-max \
 			compile-pentium-debug-max-no-embedded \
 			compile-pentium-debug-max-no-ndb \
-			compile-pentium-debug-no-bdb \
 			compile-pentium-debug-openssl \
 			compile-pentium-debug-yassl \
 			compile-pentium-gcov \

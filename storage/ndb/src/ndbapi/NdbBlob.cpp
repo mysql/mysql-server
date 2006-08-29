@@ -1894,7 +1894,8 @@ int
 NdbBlob::atNextEvent()
 {
   DBUG_ENTER("NdbBlob::atNextEvent");
-  Uint32 optype = theEventOp->m_data_item->sdata->operation;
+  Uint32 optype = 
+    SubTableData::getOperation(theEventOp->m_data_item->sdata->requestInfo);
   DBUG_PRINT("info", ("this=%p op=%p blob op=%p version=%d optype=%u", this, theEventOp, theBlobEventOp, theEventBlobVersion, optype));
   if (theState == Invalid)
     DBUG_RETURN(-1);

@@ -168,10 +168,8 @@ then
 	    if [ -d storage ]
 	    then
 		(cd storage/innobase; aclocal; autoheader; autoconf; automake)
-		(cd storage/bdb/dist; sh s_all)
 	    else
 		(cd innobase; aclocal; autoheader; autoconf; automake)
-		(cd bdb/dist; sh s_all)
 	    fi
 	fi
 	eval $configure --prefix=$install_dir

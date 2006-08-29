@@ -1395,7 +1395,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     MGM_END()
   };
   CHECK_HANDLE(handle, -1);
-  
+
   const char *hostname= ndb_mgm_get_connected_host(handle);
   int port= ndb_mgm_get_connected_port(handle);
   SocketClient s(hostname, port);
@@ -1417,19 +1417,20 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     }
     args.put("filter", tmp.c_str());
   }
-  
+
   int tmp = handle->socket;
   handle->socket = sockfd;
-  
+
   const Properties *reply;
   reply = ndb_mgm_call(handle, stat_reply, "listen event", &args);
-  
+
   handle->socket = tmp;
-  
+
   if(reply == NULL) {
     close(sockfd);
     CHECK_REPLY(reply, -1);
   }
+  delete reply;
   return sockfd;
 }
 
