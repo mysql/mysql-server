@@ -715,3 +715,19 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 # End of 4.1 tests
+# Bug #14400  Join could miss concurrently inserted row
+#
+create table t1 (a int not null, primary key(a));
+create table t2 (a int not null, b int not null, primary key(a,b));
+insert into t1 values (1),(2),(3),(4),(5),(6);
+insert into t2 values (1,1),(2,1);
+lock tables t1 read local, t2 read local;
+select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
+connect (root,localhost,root,,test,$MASTER_MYPORT,master.sock);
+insert into t2 values(2,0);
+disconnect root;
+connection default;
+select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
+drop table t1,t2;
+
+# end of 4.0 tests
