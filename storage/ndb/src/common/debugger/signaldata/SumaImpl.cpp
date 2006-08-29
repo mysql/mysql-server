@@ -174,10 +174,10 @@ printSUB_TABLE_DATA(FILE * output, const Uint32 * theData,
 		    Uint32 len, Uint16 receiverBlockNo) {
   const SubTableData * const sig = (SubTableData *)theData;
   fprintf(output, " senderData: %x\n", sig->senderData);
-  fprintf(output, " senderData: %x\n", sig->senderData);
   fprintf(output, " gci: %x\n", sig->gci);
   fprintf(output, " tableId: %x\n", sig->tableId);
-  fprintf(output, " operation: %x\n", sig->operation);
+  fprintf(output, " operation: %x\n", 
+	  SubTableData::getOperation(sig->requestInfo));
   return false;
 }
 

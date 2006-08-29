@@ -1378,8 +1378,6 @@ bool mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 int write_record(THD *thd, TABLE *table, COPY_INFO *info);
 
 /* sql_manager.cc */
-/* bits set in manager_status */
-#define MANAGER_BERKELEY_LOG_CLEANUP    (1L << 0)
 extern ulong volatile manager_status;
 extern bool volatile manager_thread_in_use, mqh_used;
 extern pthread_t manager_thread;
@@ -1619,12 +1617,6 @@ extern handlerton innobase_hton;
 #define have_innodb innobase_hton.state
 #else
 extern SHOW_COMP_OPTION have_innodb;
-#endif
-#ifdef WITH_BERKELEY_STORAGE_ENGINE
-extern handlerton berkeley_hton;
-#define have_berkeley_db berkeley_hton.state
-#else
-extern SHOW_COMP_OPTION have_berkeley_db;
 #endif
 #ifdef WITH_EXAMPLE_STORAGE_ENGINE
 extern handlerton example_hton;

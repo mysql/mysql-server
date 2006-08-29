@@ -907,6 +907,7 @@ private:
   bool m_force_send;
   ha_rows m_autoincrement_prefetch;
   bool m_transaction_on;
+
   Ndb_cond_stack *m_cond_stack;
   bool m_disable_multi_read;
   byte *m_multi_range_result_ptr;

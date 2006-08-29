@@ -67,3 +67,4 @@ DROP TABLE t1;
 --replace_result $SERVER_VERSION SERVER_VERSION
 SHOW BINLOG EVENTS;
 
+-- source include/master-slave-end.inc

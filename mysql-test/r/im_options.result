@@ -43,7 +43,6 @@ character-sets-dir	option_value
 basedir	option_value
 skip-stack-trace	option_value
 skip-innodb	option_value
-skip-bdb	option_value
 skip-ndbcluster	option_value
 nonguarded	option_value
 log-output	option_value
@@ -64,7 +63,6 @@ character-sets-dir	option_value
 basedir	option_value
 skip-stack-trace	option_value
 skip-innodb	option_value
-skip-bdb	option_value
 skip-ndbcluster	option_value
 nonguarded	option_value
 log-output	option_value

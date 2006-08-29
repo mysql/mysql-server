@@ -212,8 +212,6 @@ inline
 void
 FsBuffer::reset() 
 {
-  assert(m_free = m_size);
-  assert(m_readIndex == m_writeIndex);
   m_readIndex = m_writeIndex = 0;
   m_free = m_size;
   m_eof = 0;

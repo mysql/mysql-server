@@ -1,6 +1,0 @@
-select * from t1;
-objid	tablename	oid
-1	t1	4
-2	metatable	1
-3	metaindex	1
-drop table t1;
