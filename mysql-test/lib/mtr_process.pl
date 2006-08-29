@@ -20,7 +20,29 @@ sub mtr_record_dead_children ();
 sub mtr_exit ($);
 sub sleep_until_file_created ($$$);
 sub mtr_kill_processes ($);
-sub mtr_kill_process ($$$$);
+sub mtr_ping_mysqld_server ($);
+
+# Private IM-related operations.
+
+sub mtr_im_kill_process ($$$$);
+sub mtr_im_load_pids ($);
+sub mtr_im_terminate ($);
+sub mtr_im_check_alive ($);
+sub mtr_im_check_main_alive ($);
+sub mtr_im_check_angel_alive ($);
+sub mtr_im_check_mysqlds_alive ($);
+sub mtr_im_check_mysqld_alive ($$);
+sub mtr_im_cleanup ($);
+sub mtr_im_rm_file ($);
+sub mtr_im_errlog ($);
+sub mtr_im_kill ($);
+sub mtr_im_wait_for_connection ($$$);
+sub mtr_im_wait_for_mysqld($$$);
+
+# Public IM-related operations.
+
+sub mtr_im_start ($$);
+sub mtr_im_stop ($);
 
 # static in C
 sub spawn_impl ($$$$$$$$);
@@ -359,40 +381,51 @@ sub mtr_process_exit_status {
 
 sub mtr_kill_leftovers () {
 
-  # First, kill all masters and slaves that would conflict with
-  # this run. Make sure to remove the PID file, if any.
-  # FIXME kill IM manager first, else it will restart the servers, how?!
+  mtr_debug("mtr_kill_leftovers(): started.");
+
+  mtr_im_stop($::instance_manager);
+
+  # Kill mysqld servers (masters and slaves) that would conflict with this
+  # run. Make sure to remove the PID file, if any.
+  # Don't touch IM-managed mysqld instances -- they should be stopped by
+  # mtr_im_stop().
+
+  mtr_debug("Collecting mysqld-instances to shutdown...");
 
   my @args;
 
-  for ( my $idx; $idx < 2; $idx++ )
+  for ( my $idx= 0; $idx < 2; $idx++ )
   {
+    my $pidfile= $::master->[$idx]->{'path_mypid'};
+    my $sockfile= $::master->[$idx]->{'path_mysock'};
+    my $port= $::master->[$idx]->{'path_myport'};
+
     push(@args,{
                 pid      => 0,          # We don't know the PID
-                pidfile  => $::instance_manager->{'instances'}->[$idx]->{'path_pid'},
-                sockfile => $::instance_manager->{'instances'}->[$idx]->{'path_sock'},
-                port     => $::instance_manager->{'instances'}->[$idx]->{'port'},
+                pidfile  => $pidfile,
+                sockfile => $sockfile,
+                port     => $port,
                });
+
+    mtr_debug("  - Master mysqld " .
+              "(idx: $idx; pid: '$pidfile'; socket: '$sockfile'; port: $port)");
   }
 
-  for ( my $idx; $idx < 2; $idx++ )
+  for ( my $idx= 0; $idx < 3; $idx++ )
   {
-    push(@args,{
-                pid      => 0,          # We don't know the PID
-                pidfile  => $::master->[$idx]->{'path_mypid'},
-                sockfile => $::master->[$idx]->{'path_mysock'},
-                port     => $::master->[$idx]->{'path_myport'},
-               });
-  }
+    my $pidfile= $::slave->[$idx]->{'path_mypid'};
+    my $sockfile= $::slave->[$idx]->{'path_mysock'};
+    my $port= $::slave->[$idx]->{'path_myport'};
 
-  for ( my $idx; $idx < 3; $idx++ )
-  {
     push(@args,{
                 pid       => 0,         # We don't know the PID
-                pidfile   => $::slave->[$idx]->{'path_mypid'},
-                sockfile  => $::slave->[$idx]->{'path_mysock'},
-                port      => $::slave->[$idx]->{'path_myport'},
+                pidfile   => $pidfile,
+                sockfile  => $sockfile,
+                port      => $port,
                });
+
+    mtr_debug("  - Slave mysqld " .
+              "(idx: $idx; pid: '$pidfile'; socket: '$sockfile'; port: $port)");
   }
 
   mtr_mysqladmin_shutdown(\@args, 20);
@@ -413,6 +446,8 @@ sub mtr_kill_leftovers () {
   # FIXME $path_run_dir or something
   my $rundir= "$::opt_vardir/run";
 
+  mtr_debug("Processing PID files in directory '$rundir'...");
+
   if ( -d $rundir )
   {
     opendir(RUNDIR, $rundir)
@@ -426,7 +461,11 @@ sub mtr_kill_leftovers () {
 
       if ( -f $pidfile )
       {
+        mtr_debug("Processing PID file: '$pidfile'...");
+
         my $pid= mtr_get_pid_from_file($pidfile);
+
+        mtr_debug("Got pid: $pid from file '$pidfile'");
 
         # Race, could have been removed between I tested with -f
         # and the unlink() below, so I better check again with -f
@@ -438,7 +477,12 @@ sub mtr_kill_leftovers () {
 
         if ( $::glob_cygwin_perl or kill(0, $pid) )
         {
+          mtr_debug("There is process with pid $pid -- scheduling for kill.");
           push(@pids, $pid);            # We know (cygwin guess) it exists
+        }
+        else
+        {
+          mtr_debug("There is no process with pid $pid -- skipping.");
         }
       }
     }
@@ -446,6 +490,11 @@ sub mtr_kill_leftovers () {
 
     if ( @pids )
     {
+      mtr_debug("Killing the following processes with PID files: " .
+                join(' ', @pids) . "...");
+
+      start_reap_all();
+
       if ( $::glob_cygwin_perl )
       {
         # We have no (easy) way of knowing the Cygwin controlling
@@ -459,6 +508,7 @@ sub mtr_kill_leftovers () {
         my $retries= 10;                    # 10 seconds
         do
         {
+          mtr_debug("Sending SIGKILL to pids: " . join(' ', @pids));
           kill(9, @pids);
           mtr_debug("Sleep 1 second waiting for processes to die");
           sleep(1)                      # Wait one second
@@ -469,19 +519,29 @@ sub mtr_kill_leftovers () {
           mtr_warning("can't kill process(es) " . join(" ", @pids));
         }
       }
+
+      stop_reap_all();
     }
+  }
+  else
+  {
+    mtr_debug("Directory for PID files ($rundir) does not exist.");
   }
 
   # We may have failed everything, bug we now check again if we have
   # the listen ports free to use, and if they are free, just go for it.
 
+  mtr_debug("Checking known mysqld servers...");
+
   foreach my $srv ( @args )
   {
-    if ( mtr_ping_mysqld_server($srv->{'port'}, $srv->{'sockfile'}) )
+    if ( mtr_ping_mysqld_server($srv->{'port'}) )
     {
       mtr_warning("can't kill old mysqld holding port $srv->{'port'}");
     }
   }
+
+  mtr_debug("mtr_kill_leftovers(): finished.");
 }
 
 ##############################################################################
@@ -653,10 +713,15 @@ sub mtr_mysqladmin_shutdown {
   my %mysql_admin_pids;
   my @to_kill_specs;
 
+  mtr_debug("mtr_mysqladmin_shutdown(): starting...");
+  mtr_debug("Collecting mysqld-instances to shutdown...");
+
   foreach my $srv ( @$spec )
   {
-    if ( mtr_ping_mysqld_server($srv->{'port'}, $srv->{'sockfile'}) )
+    if ( mtr_ping_mysqld_server($srv->{'port'}) )
     {
+      mtr_debug("Mysqld (port: $srv->{port}) needs to be stopped.");
+
       push(@to_kill_specs, $srv);
     }
   }
@@ -687,6 +752,9 @@ sub mtr_mysqladmin_shutdown {
     mtr_add_arg($args, "--connect_timeout=5");
     mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
     mtr_add_arg($args, "shutdown");
+
+    mtr_debug("Shutting down mysqld " .
+              "(port: $srv->{port}; socket: '$srv->{sockfile}')...");
 
     my $path_mysqladmin_log= "$::opt_vardir/log/mysqladmin.log";
     my $pid= mtr_spawn($::exe_mysqladmin, $args,
@@ -719,14 +787,18 @@ sub mtr_mysqladmin_shutdown {
   my $res= 1;                           # If we just fall through, we are done
                                         # in the sense that the servers don't
                                         # listen to their ports any longer
+
+  mtr_debug("Waiting for mysqld servers to stop...");
+
  TIME:
   while ( $timeout-- )
   {
     foreach my $srv ( @to_kill_specs )
     {
       $res= 1;                          # We are optimistic
-      if ( mtr_ping_mysqld_server($srv->{'port'}, $srv->{'sockfile'}) )
+      if ( mtr_ping_mysqld_server($srv->{'port'}) )
       {
+        mtr_debug("Mysqld (port: $srv->{port}) is still alive.");
         mtr_debug("Sleep 1 second waiting for processes to stop using port");
         sleep(1);                       # One second
         $res= 0;
@@ -736,7 +808,14 @@ sub mtr_mysqladmin_shutdown {
     last;                               # If we got here, we are done
   }
 
-  $timeout or mtr_debug("At least one server is still listening to its port");
+  if ($res)
+  {
+    mtr_debug("mtr_mysqladmin_shutdown(): All mysqld instances are down.");
+  }
+  else
+  {
+    mtr_debug("mtr_mysqladmin_shutdown(): At least one server is alive.");
+  }
 
   return $res;
 }
@@ -795,7 +874,7 @@ sub stop_reap_all {
   $SIG{CHLD}= 'DEFAULT';
 }
 
-sub mtr_ping_mysqld_server () {
+sub mtr_ping_mysqld_server ($) {
   my $port= shift;
 
   my $remote= "localhost";
@@ -810,13 +889,18 @@ sub mtr_ping_mysqld_server () {
   {
     mtr_error("can't create socket: $!");
   }
+
+  mtr_debug("Pinging server (port: $port)...");
+
   if ( connect(SOCK, $paddr) )
   {
+    mtr_debug("Server (port: $port) is alive.");
     close(SOCK);                        # FIXME check error?
     return 1;
   }
   else
   {
+    mtr_debug("Server (port: $port) is dead.");
     return 0;
   }
 }
@@ -886,34 +970,6 @@ sub mtr_kill_processes ($) {
   }
 }
 
-
-sub mtr_kill_process ($$$$) {
-  my $pid= shift;
-  my $signal= shift;
-  my $total_retries= shift;
-  my $timeout= shift;
-
-  for (my $cur_attempt= 1; $cur_attempt <= $total_retries; ++$cur_attempt)
-  {
-    mtr_debug("Sending $signal to $pid...");
-
-    kill($signal, $pid);
-
-    unless (kill (0, $pid))
-    {
-      mtr_debug("Process $pid died.");
-      return;
-    }
-
-    mtr_debug("Sleeping $timeout second(s) waiting for processes to die...");
-
-    sleep($timeout);
-  }
-
-  mtr_debug("Process $pid is still alive after $total_retries " .
-            "of sending signal $signal.");
-}
-
 ##############################################################################
 #
 #  When we exit, we kill off all children
@@ -942,5 +998,677 @@ sub mtr_exit ($) {
   sleep 2;
   exit($code);
 }
+
+##############################################################################
+#
+#  Instance Manager management routines.
+#
+##############################################################################
+
+sub mtr_im_kill_process ($$$$) {
+  my $pid_lst= shift;
+  my $signal= shift;
+  my $total_retries= shift;
+  my $timeout= shift;
+
+  my %pids;
+
+  foreach my $pid (@{$pid_lst})
+  {
+    $pids{$pid}= 1;
+  }
+
+  for (my $cur_attempt= 1; $cur_attempt <= $total_retries; ++$cur_attempt)
+  {
+    foreach my $pid (keys %pids)
+    {
+      mtr_debug("Sending $signal to $pid...");
+
+      kill($signal, $pid);
+
+      unless (kill (0, $pid))
+      {
+        mtr_debug("Process $pid died.");
+        delete $pids{$pid};
+      }
+    }
+
+    return if scalar keys %pids == 0;
+
+    mtr_debug("Sleeping $timeout second(s) waiting for processes to die...");
+
+    sleep($timeout);
+  }
+
+  mtr_debug("Process(es) " .
+            join(' ', keys %pids) .
+            " is still alive after $total_retries " .
+            "of sending signal $signal.");
+}
+
+###########################################################################
+
+sub mtr_im_load_pids($) {
+  my $instance_manager= shift;
+
+  mtr_debug("Loading PID files...");
+
+  # Obtain mysqld-process pids.
+
+  my $instances = $instance_manager->{'instances'};
+
+  for (my $idx= 0; $idx < 2; ++$idx)
+  {
+    mtr_debug("IM-guarded mysqld[$idx] PID file: '" .
+              $instances->[$idx]->{'path_pid'} . "'.");
+
+    my $mysqld_pid;
+
+    if (-r $instances->[$idx]->{'path_pid'})
+    {
+      $mysqld_pid= mtr_get_pid_from_file($instances->[$idx]->{'path_pid'});
+      mtr_debug("IM-guarded mysqld[$idx] PID: $mysqld_pid.");
+    }
+    else
+    {
+      $mysqld_pid= undef;
+      mtr_debug("IM-guarded mysqld[$idx]: no PID file.");
+    }
+
+    $instances->[$idx]->{'pid'}= $mysqld_pid;
+  }
+
+  # Re-read Instance Manager PIDs from the file, since during tests Instance
+  # Manager could have been restarted, so its PIDs could have been changed.
+
+  #   - IM-main
+
+  mtr_debug("IM-main PID file: '$instance_manager->{path_pid}'.");
+
+  if (-f $instance_manager->{'path_pid'})
+  {
+    $instance_manager->{'pid'} =
+      mtr_get_pid_from_file($instance_manager->{'path_pid'});
+
+    mtr_debug("IM-main PID: $instance_manager->{pid}.");
+  }
+  else
+  {
+    mtr_debug("IM-main: no PID file.");
+    $instance_manager->{'pid'}= undef;
+  }
+
+  #   - IM-angel
+
+  mtr_debug("IM-angel PID file: '$instance_manager->{path_angel_pid}'.");
+
+  if (-f $instance_manager->{'path_angel_pid'})
+  {
+    $instance_manager->{'angel_pid'} =
+      mtr_get_pid_from_file($instance_manager->{'path_angel_pid'});
+
+    mtr_debug("IM-angel PID: $instance_manager->{'angel_pid'}.");
+  }
+  else
+  {
+    mtr_debug("IM-angel: no PID file.");
+    $instance_manager->{'angel_pid'} = undef;
+  }
+}
+
+###########################################################################
+
+sub mtr_im_terminate($) {
+  my $instance_manager= shift;
+
+  # Load pids from pid-files. We should do it first of all, because IM deletes
+  # them on shutdown.
+
+  mtr_im_load_pids($instance_manager);
+
+  mtr_debug("Shutting Instance Manager down...");
+
+  # Ignoring SIGCHLD so that all children could rest in peace.
+
+  start_reap_all();
+
+  # Send SIGTERM to IM-main.
+
+  if (defined $instance_manager->{'pid'})
+  {
+    mtr_debug("IM-main pid: $instance_manager->{pid}.");
+    mtr_debug("Stopping IM-main...");
+
+    mtr_im_kill_process([ $instance_manager->{'pid'} ], 'TERM', 10, 1);
+  }
+  else
+  {
+    mtr_debug("IM-main pid: n/a.");
+  }
+
+  # If IM-angel was alive, wait for it to die.
+
+  if (defined $instance_manager->{'angel_pid'})
+  {
+    mtr_debug("IM-angel pid: $instance_manager->{'angel_pid'}.");
+    mtr_debug("Waiting for IM-angel to die...");
+
+    my $total_attempts= 10;
+
+    for (my $cur_attempt=1; $cur_attempt <= $total_attempts; ++$cur_attempt)
+    {
+      unless (kill (0, $instance_manager->{'angel_pid'}))
+      {
+        mtr_debug("IM-angel died.");
+        last;
+      }
+
+      sleep(1);
+    }
+  }
+  else
+  {
+    mtr_debug("IM-angel pid: n/a.");
+  }
+
+  stop_reap_all();
+
+  # Re-load PIDs.
+
+  mtr_im_load_pids($instance_manager);
+}
+
+###########################################################################
+
+sub mtr_im_check_alive($) {
+  my $instance_manager= shift;
+
+  mtr_debug("Checking whether IM-components are alive...");
+
+  return 1 if mtr_im_check_main_alive($instance_manager);
+
+  return 1 if mtr_im_check_angel_alive($instance_manager);
+
+  return 1 if mtr_im_check_mysqlds_alive($instance_manager);
+
+  return 0;
+}
+
+###########################################################################
+
+sub mtr_im_check_main_alive($) {
+  my $instance_manager= shift;
+
+  # Check that the process, that we know to be IM's, is dead.
+
+  if (defined $instance_manager->{'pid'})
+  {
+    if (kill (0, $instance_manager->{'pid'}))
+    {
+      mtr_debug("IM-main (PID: $instance_manager->{pid}) is alive.");
+      return 1;
+    }
+    else
+    {
+      mtr_debug("IM-main (PID: $instance_manager->{pid}) is dead.");
+    }
+  }
+  else
+  {
+    mtr_debug("No PID file for IM-main.");
+  }
+
+  # Check that IM does not accept client connections.
+
+  if (mtr_ping_mysqld_server($instance_manager->{'port'}))
+  {
+    mtr_debug("IM-main (port: $instance_manager->{port}) " .
+              "is accepting connections.");
+
+    mtr_im_errlog("IM-main is accepting connections on port " .
+                  "$instance_manager->{port}, but there is no " .
+                  "process information.");
+    return 1;
+  }
+  else
+  {
+    mtr_debug("IM-main (port: $instance_manager->{port}) " .
+              "does not accept connections.");
+    return 0;
+  }
+}
+
+###########################################################################
+
+sub mtr_im_check_angel_alive($) {
+  my $instance_manager= shift;
+
+  # Check that the process, that we know to be the Angel, is dead.
+
+  if (defined $instance_manager->{'angel_pid'})
+  {
+    if (kill (0, $instance_manager->{'angel_pid'}))
+    {
+      mtr_debug("IM-angel (PID: $instance_manager->{angel_pid}) is alive.");
+      return 1;
+    }
+    else
+    {
+      mtr_debug("IM-angel (PID: $instance_manager->{angel_pid}) is dead.");
+      return 0;
+    }
+  }
+  else
+  {
+    mtr_debug("No PID file for IM-angel.");
+    return 0;
+  }
+}
+
+###########################################################################
+
+sub mtr_im_check_mysqlds_alive($) {
+  my $instance_manager= shift;
+
+  mtr_debug("Checking for IM-guarded mysqld instances...");
+
+  my $instances = $instance_manager->{'instances'};
+
+  for (my $idx= 0; $idx < 2; ++$idx)
+  {
+    mtr_debug("Checking mysqld[$idx]...");
+
+    return 1
+      if mtr_im_check_mysqld_alive($instance_manager, $instances->[$idx]);
+  }
+}
+
+###########################################################################
+
+sub mtr_im_check_mysqld_alive($$) {
+  my $instance_manager= shift;
+  my $mysqld_instance= shift;
+
+  # Check that the process is dead.
+
+  if (defined $instance_manager->{'pid'})
+  {
+    if (kill (0, $instance_manager->{'pid'}))
+    {
+      mtr_debug("Mysqld instance (PID: $mysqld_instance->{pid}) is alive.");
+      return 1;
+    }
+    else
+    {
+      mtr_debug("Mysqld instance (PID: $mysqld_instance->{pid}) is dead.");
+    }
+  }
+  else
+  {
+    mtr_debug("No PID file for mysqld instance.");
+  }
+
+  # Check that mysqld does not accept client connections.
+
+  if (mtr_ping_mysqld_server($mysqld_instance->{'port'}))
+  {
+    mtr_debug("Mysqld instance (port: $mysqld_instance->{port}) " .
+              "is accepting connections.");
+
+    mtr_im_errlog("Mysqld is accepting connections on port " .
+                  "$mysqld_instance->{port}, but there is no " .
+                  "process information.");
+    return 1;
+  }
+  else
+  {
+    mtr_debug("Mysqld instance (port: $mysqld_instance->{port}) " .
+              "does not accept connections.");
+    return 0;
+  }
+}
+
+###########################################################################
+
+sub mtr_im_cleanup($) {
+  my $instance_manager= shift;
+
+  mtr_im_rm_file($instance_manager->{'path_pid'});
+  mtr_im_rm_file($instance_manager->{'path_sock'});
+
+  mtr_im_rm_file($instance_manager->{'path_angel_pid'});
+
+  for (my $idx= 0; $idx < 2; ++$idx)
+  {
+    mtr_im_rm_file($instance_manager->{'instances'}->[$idx]->{'path_pid'});
+    mtr_im_rm_file($instance_manager->{'instances'}->[$idx]->{'path_sock'});
+  }
+}
+
+###########################################################################
+
+sub mtr_im_rm_file($)
+{
+  my $file_path= shift;
+
+  if (-f $file_path)
+  {
+    mtr_debug("Removing '$file_path'...");
+
+    mtr_warning("Can not remove '$file_path'.")
+      unless unlink($file_path);
+  }
+  else
+  {
+    mtr_debug("File '$file_path' does not exist already.");
+  }
+}
+
+###########################################################################
+
+sub mtr_im_errlog($) {
+  my $msg= shift;
+
+  # Complain in error log so that a warning will be shown.
+  # 
+  # TODO: unless BUG#20761 is fixed, we will print the warning to stdout, so
+  # that it can be seen on console and does not produce pushbuild error.
+
+  # my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
+  # 
+  # open (ERRLOG, ">>$errlog") ||
+  #   mtr_error("Can not open error log ($errlog)");
+  # 
+  # my $ts= localtime();
+  # print ERRLOG
+  #   "Warning: [$ts] $msg\n";
+  # 
+  # close ERRLOG;
+
+  my $ts= localtime();
+  print "Warning: [$ts] $msg\n";
+}
+
+###########################################################################
+
+sub mtr_im_kill($) {
+  my $instance_manager= shift;
+
+  # Re-load PIDs. That can be useful because some processes could have been
+  # restarted.
+
+  mtr_im_load_pids($instance_manager);
+
+  # Ignoring SIGCHLD so that all children could rest in peace.
+
+  start_reap_all();
+
+  # Kill IM-angel first of all.
+
+  if (defined $instance_manager->{'angel_pid'})
+  {
+    mtr_debug("Killing IM-angel (PID: $instance_manager->{angel_pid})...");
+    mtr_im_kill_process([ $instance_manager->{'angel_pid'} ], 'KILL', 10, 1)
+  }
+  else
+  {
+    mtr_debug("IM-angel is dead.");
+  }
+
+  # Re-load PIDs again.
+
+  mtr_im_load_pids($instance_manager);
+
+  # Kill IM-main.
+  
+  if (defined $instance_manager->{'pid'})
+  {
+    mtr_debug("Killing IM-main (PID: $instance_manager->pid})...");
+    mtr_im_kill_process([ $instance_manager->{'pid'} ], 'KILL', 10, 1);
+  }
+  else
+  {
+    mtr_debug("IM-main is dead.");
+  }
+
+  # Re-load PIDs again.
+
+  mtr_im_load_pids($instance_manager);
+
+  # Kill guarded mysqld instances.
+
+  my @mysqld_pids;
+
+  mtr_debug("Collecting PIDs of mysqld instances to kill...");
+
+  for (my $idx= 0; $idx < 2; ++$idx)
+  {
+    my $pid= $instance_manager->{'instances'}->[$idx]->{'pid'};
+
+    next unless defined $pid;
+
+    mtr_debug("  - IM-guarded mysqld[$idx] PID: $pid.");
+
+    push (@mysqld_pids, $pid);
+  }
+
+  if (scalar @mysqld_pids > 0)
+  {
+    mtr_debug("Killing IM-guarded mysqld instances...");
+    mtr_im_kill_process(\@mysqld_pids, 'KILL', 10, 1);
+  }
+
+  # That's all.
+
+  stop_reap_all();
+}
+
+##############################################################################
+
+sub mtr_im_wait_for_connection($$$) {
+  my $instance_manager= shift;
+  my $total_attempts= shift;
+  my $connect_timeout= shift;
+
+  mtr_debug("Waiting for IM on port $instance_manager->{port} " .
+            "to start accepting connections...");
+
+  for (my $cur_attempt= 1; $cur_attempt <= $total_attempts; ++$cur_attempt)
+  {
+    mtr_debug("Trying to connect to IM ($cur_attempt of $total_attempts)...");
+
+    if (mtr_ping_mysqld_server($instance_manager->{'port'}))
+    {
+      mtr_debug("IM is accepting connections " .
+                "on port $instance_manager->{port}.");
+      return 1;
+    }
+
+    mtr_debug("Sleeping $connect_timeout...");
+    sleep($connect_timeout);
+  }
+
+  mtr_debug("IM does not accept connections " .
+            "on port $instance_manager->{port} after " .
+            ($total_attempts * $connect_timeout) . " seconds.");
+
+  return 0;
+}
+
+##############################################################################
+
+sub mtr_im_wait_for_mysqld($$$) {
+  my $mysqld= shift;
+  my $total_attempts= shift;
+  my $connect_timeout= shift;
+
+  mtr_debug("Waiting for IM-guarded mysqld on port $mysqld->{port} " .
+            "to start accepting connections...");
+
+  for (my $cur_attempt= 1; $cur_attempt <= $total_attempts; ++$cur_attempt)
+  {
+    mtr_debug("Trying to connect to mysqld " .
+              "($cur_attempt of $total_attempts)...");
+
+    if (mtr_ping_mysqld_server($mysqld->{'port'}))
+    {
+      mtr_debug("Mysqld is accepting connections " .
+                "on port $mysqld->{port}.");
+      return 1;
+    }
+
+    mtr_debug("Sleeping $connect_timeout...");
+    sleep($connect_timeout);
+  }
+
+  mtr_debug("Mysqld does not accept connections " .
+            "on port $mysqld->{port} after " .
+            ($total_attempts * $connect_timeout) . " seconds.");
+
+  return 0;
+}
+
+##############################################################################
+
+sub mtr_im_start($$) {
+  my $instance_manager = shift;
+  my $opts = shift;
+
+  mtr_debug("Starting Instance Manager...");
+
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--defaults-file=%s",
+              $instance_manager->{'defaults_file'});
+
+  foreach my $opt (@{$opts})
+  {
+    mtr_add_arg($args, $opt);
+  }
+
+  $instance_manager->{'pid'} =
+    mtr_spawn(
+      $::exe_im,                        # path to the executable
+      $args,                            # cmd-line args
+      '',                               # stdin
+      $instance_manager->{'path_log'},  # stdout
+      $instance_manager->{'path_err'},  # stderr
+      '',                               # pid file path (not used)
+      { append_log_file => 1 }          # append log files
+      );
+
+  if ( ! $instance_manager->{'pid'} )
+  {
+    mtr_report('Could not start Instance Manager');
+    return;
+  }
+
+  # Instance Manager can be run in daemon mode. In this case, it creates
+  # several processes and the parent process, created by mtr_spawn(), exits just
+  # after start. So, we have to obtain Instance Manager PID from the PID file.
+
+  if ( ! sleep_until_file_created(
+                                  $instance_manager->{'path_pid'},
+                                  $instance_manager->{'start_timeout'},
+                                  -1)) # real PID is still unknown
+  {
+    mtr_report("Instance Manager PID file is missing");
+    return;
+  }
+
+  $instance_manager->{'pid'} =
+    mtr_get_pid_from_file($instance_manager->{'path_pid'});
+
+  mtr_debug("Instance Manager started. PID: $instance_manager->{pid}.");
+
+  # Wait until we can connect to IM.
+
+  my $IM_CONNECT_TIMEOUT= 30;
+
+  unless (mtr_im_wait_for_connection($instance_manager,
+                                     $IM_CONNECT_TIMEOUT, 1))
+  {
+    mtr_debug("Can not connect to Instance Manager " .
+              "in $IM_CONNECT_TIMEOUT seconds after start.");
+    mtr_debug("Aborting test suite...");
+
+    mtr_kill_leftovers();
+
+    mtr_error("Can not connect to Instance Manager " .
+              "in $IM_CONNECT_TIMEOUT seconds after start.");
+  }
+
+  # Wait until we can connect to guarded mysqld-instances
+  # (in other words -- wait for IM to start guarded instances).
+
+  for (my $idx= 0; $idx < 2; ++$idx)
+  {
+    my $mysqld= $instance_manager->{'instances'}->[$idx];
+
+    next if exists $mysqld->{'nonguarded'};
+
+    mtr_debug("Waiting for mysqld[$idx] to start...");
+
+    unless (mtr_im_wait_for_mysqld($mysqld, 30, 1))
+    {
+      mtr_debug("Can not connect to mysqld[$idx] " .
+                "in $IM_CONNECT_TIMEOUT seconds after start.");
+      mtr_debug("Aborting test suite...");
+
+      mtr_kill_leftovers();
+
+      mtr_error("Can not connect to mysqld[$idx] " .
+                "in $IM_CONNECT_TIMEOUT seconds after start.");
+    }
+
+    mtr_debug("mysqld[$idx] started.");
+  }
+
+  mtr_debug("Instance Manager started.");
+}
+
+##############################################################################
+
+sub mtr_im_stop($) {
+  my $instance_manager= shift;
+
+  mtr_debug("Stopping Instance Manager...");
+
+  # Try graceful shutdown.
+
+  mtr_im_terminate($instance_manager);
+
+  # Check that all processes died.
+
+  unless (mtr_im_check_alive($instance_manager))
+  {
+    mtr_debug("Instance Manager has been stopped successfully.");
+    mtr_im_cleanup($instance_manager);
+    return 1;
+  }
+
+  # Instance Manager don't want to die. We should kill it.
+
+  mtr_im_errlog("Instance Manager did not shutdown gracefully.");
+
+  mtr_im_kill($instance_manager);
+
+  # Check again that all IM-related processes have been killed.
+
+  my $im_is_alive= mtr_im_check_alive($instance_manager);
+
+  mtr_im_cleanup($instance_manager);
+
+  if ($im_is_alive)
+  {
+    mtr_error("Can not kill Instance Manager or its children.");
+    return 0;
+  }
+
+  mtr_debug("Instance Manager has been killed successfully.");
+  return 1;
+}
+
+###########################################################################
 
 1;
