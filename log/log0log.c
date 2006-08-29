@@ -3131,12 +3131,11 @@ loop:
 
 	mutex_enter(&(log_sys->mutex));
 
-	if (
+	if (log_sys->n_pending_checkpoint_writes
 #ifdef UNIV_LOG_ARCHIVE
-	    log_sys->n_pending_archive_ios ||
+	    || log_sys->n_pending_archive_ios
 #endif /* UNIV_LOG_ARCHIVE */
-	    log_sys->n_pending_checkpoint_writes ||
-	    log_sys->n_pending_writes) {
+	    || log_sys->n_pending_writes) {
 
 		mutex_exit(&(log_sys->mutex));
 

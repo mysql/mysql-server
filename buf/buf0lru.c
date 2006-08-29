@@ -103,10 +103,10 @@ scan_again:
 		if (block->space == id) {
 #ifdef UNIV_DEBUG
 			if (buf_debug_prints) {
-				printf(
-				       "Dropping space %lu page %lu\n",
-				       (ulong) block->space,
-				       (ulong) block->offset);
+				fprintf(stderr,
+					"Dropping space %lu page %lu\n",
+					(ulong) block->space,
+					(ulong) block->offset);
 			}
 #endif
 			if (block->is_hashed) {

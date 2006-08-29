@@ -887,11 +887,12 @@ pars_process_assign_list(
 		pars_resolve_exp_columns(table_sym, assign_node->col);
 		pars_resolve_exp_columns(table_sym, assign_node->val);
 		pars_resolve_exp_variables_and_types(NULL, assign_node->val);
-
-		/* ut_a(dtype_get_mtype(dfield_get_type(
-		que_node_get_val(assign_node->col)))
-		== dtype_get_mtype(dfield_get_type(
-		que_node_get_val(assign_node->val)))); */
+#if 0
+		ut_a(dtype_get_mtype
+		     (dfield_get_type(que_node_get_val(assign_node->col)))
+		     == dtype_get_mtype
+		     (dfield_get_type(que_node_get_val(assign_node->val))));
+#endif
 
 		/* Add to the update node all the columns found in assignment
 		values as columns to copy: therefore, TRUE */
@@ -1478,8 +1479,7 @@ pars_fetch_statement(
 
 	if (into_list) {
 		ut_a(que_node_list_get_len(into_list)
-		     == que_node_list_get_len(
-					      node->cursor_def->select_list));
+		     == que_node_list_get_len(node->cursor_def->select_list));
 	}
 
 	return(node);

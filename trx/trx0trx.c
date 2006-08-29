@@ -286,8 +286,7 @@ trx_free(
 
 	if (trx->declared_to_be_inside_innodb) {
 		ut_print_timestamp(stderr);
-		fputs(
-		      "  InnoDB: Error: Freeing a trx which is declared"
+		fputs("  InnoDB: Error: Freeing a trx which is declared"
 		      " to be processing\n"
 		      "InnoDB: inside InnoDB.\n", stderr);
 		trx_print(stderr, trx, 600);

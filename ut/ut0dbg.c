@@ -50,8 +50,7 @@ ut_dbg_assertion_failed(
 			"InnoDB: Failing assertion: %s\n", expr);
 	}
 
-	fputs(
-	      "InnoDB: We intentionally generate a memory trap.\n"
+	fputs("InnoDB: We intentionally generate a memory trap.\n"
 	      "InnoDB: Submit a detailed bug report"
 	      " to http://bugs.mysql.com.\n"
 	      "InnoDB: If you get repeated assertion failures"

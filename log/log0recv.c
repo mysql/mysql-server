@@ -1534,8 +1534,7 @@ recv_apply_log_recs_for_backup(void)
 
 	page = recv_backup_application_page;
 
-	fputs(
-	      "InnoDB: Starting an apply batch of log records"
+	fputs("InnoDB: Starting an apply batch of log records"
 	      " to the database...\n"
 	      "InnoDB: Progress in percents: ", stderr);
 
@@ -1786,8 +1785,7 @@ recv_report_corrupt_log(
 	    && (ulint)(ptr - recv_sys->buf + 100
 		       - recv_previous_parsed_rec_offset)
 	    < 200000) {
-		fputs(
-		      "InnoDB: Hex dump of corrupt log starting"
+		fputs("InnoDB: Hex dump of corrupt log starting"
 		      " 100 bytes before the start\n"
 		      "InnoDB: of the previous log rec,\n"
 		      "InnoDB: and ending 100 bytes after the start"
@@ -1802,8 +1800,7 @@ recv_report_corrupt_log(
 		putc('\n', stderr);
 	}
 
-	fputs(
-	      "InnoDB: WARNING: the log file may have been corrupt and it\n"
+	fputs("InnoDB: WARNING: the log file may have been corrupt and it\n"
 	      "InnoDB: is possible that the log scan did not proceed\n"
 	      "InnoDB: far enough in recovery! Please run CHECK TABLE\n"
 	      "InnoDB: on your InnoDB tables to check that they are ok!\n"

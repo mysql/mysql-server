@@ -1880,8 +1880,7 @@ page_validate(
 			}
 
 			if (page_dir_slot_get_rec(slot) != rec) {
-				fputs(
-				      "InnoDB: Dir slot does not"
+				fputs("InnoDB: Dir slot does not"
 				      " point to right rec\n",
 				      stderr);
 				goto func_exit;
@@ -1962,8 +1961,7 @@ page_validate(
 		for (i = 0; i < rec_offs_size(offsets); i++) {
 
 			if (buf[offs + i] != 0) {
-				fputs(
-				      "InnoDB: Record overlaps another"
+				fputs("InnoDB: Record overlaps another"
 				      " in free list\n", stderr);
 				goto func_exit;
 			}
