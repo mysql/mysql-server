@@ -92,10 +92,8 @@ public:
   }
   ~Table_triggers_list();
 
-  bool create_trigger(THD *thd, TABLE_LIST *table,
-                      LEX_STRING *definer_user,
-                      LEX_STRING *definer_host);
-  bool drop_trigger(THD *thd, TABLE_LIST *table);
+  bool create_trigger(THD *thd, TABLE_LIST *table, String *stmt_query);
+  bool drop_trigger(THD *thd, TABLE_LIST *table, String *stmt_query);
   bool process_triggers(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
                         bool old_row_is_record1);
