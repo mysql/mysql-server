@@ -434,7 +434,7 @@ USE `mysqldump_test_db`;
 
 drop database mysqldump_test_db;
 CREATE TABLE t1 (a  CHAR(10));
-INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
+INSERT INTO t1  VALUES (_latin1 'Ã„Ã–ÃœÃŸ');
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -479,7 +479,7 @@ CREATE TABLE `t1` (
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES ('Ž™šá');
+INSERT INTO `t1` VALUES ('ÂŽÂ™ÂšÃ¡');
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -502,7 +502,7 @@ CREATE TABLE `t1` (
 
 LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT INTO `t1` VALUES ('Ž™šá');
+INSERT INTO `t1` VALUES ('ÂŽÂ™ÂšÃ¡');
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -1676,11 +1676,11 @@ create table t1 (a text character set utf8, b text character set latin1);
 insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
 select * from t1;
 a	b
-Osnabrück	Köln
+OsnabrÃ¼ck	KÃ¶ln
 test.t1: Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
 select * from t1;
 a	b
-Osnabrück	Köln
+OsnabrÃ¼ck	KÃ¶ln
 drop table t1;
 create table `t1` (
 t1_name varchar(255) default null,
@@ -2925,7 +2925,22 @@ mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SU
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 drop table t1;
 drop user mysqltest_1@localhost;
+create database mysqldump_myDB;
+use mysqldump_myDB;
+create user myDB_User;
+grant create view, select on mysqldump_myDB.* to myDB_User@localhost;
+create table t1 (c1 int);
+insert into t1 values (3);
+use mysqldump_myDB;
+create view v1 (c1) as select * from t1;
+use mysqldump_myDB;
+drop view v1;
+drop table t1;
+revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
+drop user myDB_User;
+drop database mysqldump_myDB;
 End of 5.0 tests
+use test;
 create table t1 (a text , b text);
 create table t2 (a text , b text);
 insert t1 values ("Duck, Duck", "goose");
