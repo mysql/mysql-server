@@ -1785,6 +1785,7 @@ dict_index_build_internal_clust(
 	ulint		fixed_size;
 	ulint		trx_id_pos;
 	ulint		i;
+	ibool*		indexed;
 
 	ut_ad(table && index);
 	ut_ad(dict_index_is_clust(index));
@@ -1879,12 +1880,9 @@ dict_index_build_internal_clust(
 
 	}
 
-	/* Set auxiliary variables in table columns as undefined */
-	for (i = 0; i < table->n_cols; i++) {
-
-		col = dict_table_get_nth_col(table, i);
-		col->aux = ULINT_UNDEFINED;
-	}
+	/* Remember the table columns already contained in new_index */
+	indexed = mem_alloc(table->n_cols * sizeof *indexed);
+	memset(indexed, 0, table->n_cols * sizeof *indexed);
 
 	/* Mark with 0 the table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -1896,7 +1894,7 @@ dict_index_build_internal_clust(
 
 		if (field->prefix_len == 0) {
 
-			field->col->aux = 0;
+			indexed[field->col->ind] = TRUE;
 		}
 	}
 
@@ -1907,10 +1905,12 @@ dict_index_build_internal_clust(
 		col = dict_table_get_nth_col(table, i);
 		ut_ad(col->type.mtype != DATA_SYS);
 
-		if (col->aux == ULINT_UNDEFINED) {
+		if (!indexed[col->ind]) {
 			dict_index_add_col(new_index, col, 0);
 		}
 	}
+
+	mem_free(indexed);
 
 	ut_ad((index->type & DICT_IBUF)
 	      || (UT_LIST_GET_LEN(table->indexes) == 0));
@@ -1949,6 +1949,7 @@ dict_index_build_internal_non_clust(
 	dict_index_t*	new_index;
 	dict_index_t*	clust_index;
 	ulint		i;
+	ibool*		indexed;
 
 	ut_ad(table && index);
 	ut_ad(!dict_index_is_clust(index));
@@ -1979,13 +1980,9 @@ dict_index_build_internal_non_clust(
 	/* Copy fields from index to new_index */
 	dict_index_copy(new_index, index, 0, index->n_fields);
 
-	/* Set the auxiliary variables in the clust_index unique columns
-	as undefined */
-	for (i = 0; i < clust_index->n_uniq; i++) {
-
-		field = dict_index_get_nth_field(clust_index, i);
-		field->col->aux = ULINT_UNDEFINED;
-	}
+	/* Remember the table columns already contained in new_index */
+	indexed = mem_alloc(table->n_cols * sizeof *indexed);
+	memset(indexed, 0, table->n_cols * sizeof *indexed);
 
 	/* Mark with 0 table columns already contained in new_index */
 	for (i = 0; i < new_index->n_def; i++) {
@@ -1997,7 +1994,7 @@ dict_index_build_internal_non_clust(
 
 		if (field->prefix_len == 0) {
 
-			field->col->aux = 0;
+			indexed[field->col->ind] = TRUE;
 		}
 	}
 
@@ -2008,11 +2005,13 @@ dict_index_build_internal_non_clust(
 
 		field = dict_index_get_nth_field(clust_index, i);
 
-		if (field->col->aux == ULINT_UNDEFINED) {
+		if (!indexed[field->col->ind]) {
 			dict_index_add_col(new_index, field->col,
 					   field->prefix_len);
 		}
 	}
+
+	mem_free(indexed);
 
 	if ((index->type) & DICT_UNIQUE) {
 		new_index->n_uniq = index->n_fields;
