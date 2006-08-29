@@ -430,12 +430,6 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
       savepoint_alloc_size+= tmp;
       hton->slot= total_ha++;
       hton2plugin[hton->slot]=plugin;
-      /* This is just a temp need until plugin/engine startup is fixed */
-      if (plugin->plugin->status_vars)
-      {
-        add_status_vars(plugin->plugin->status_vars);
-      }
-
       if (hton->prepare)
         total_ha_2pc++;
       break;
