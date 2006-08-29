@@ -71,8 +71,7 @@ ut_rnd_gen_ulint(void)
 
 	n_bits = 8 * sizeof(ulint);
 
-	ut_rnd_ulint_counter =
-		UT_RND1 * ut_rnd_ulint_counter + UT_RND2;
+	ut_rnd_ulint_counter = UT_RND1 * ut_rnd_ulint_counter + UT_RND2;
 
 	rnd = ut_rnd_gen_next_ulint(ut_rnd_ulint_counter);
 

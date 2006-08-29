@@ -160,8 +160,8 @@ and the io-operation for loading the page is queued. The io-handler thread
 releases the X-lock on the frame and resets the io_fix field
 when the io operation completes.
 
-A thread may request the above operation using the buf_page_get-
-function. It may then continue to request a lock on the frame.
+A thread may request the above operation using the function
+buf_page_get(). It may then continue to request a lock on the frame.
 The lock is granted when the io-handler releases the x-lock.
 
 		Read-ahead
@@ -371,8 +371,8 @@ buf_page_is_corrupted(
 		}
 
 		checksum = buf_calc_page_new_checksum(read_buf);
-		checksum_field = mach_read_from_4(read_buf +
-						  FIL_PAGE_SPACE_OR_CHKSUM);
+		checksum_field = mach_read_from_4(read_buf
+						  + FIL_PAGE_SPACE_OR_CHKSUM);
 
 		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
 		(always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
@@ -659,9 +659,9 @@ buf_pool_init(
 		the window */
 
 		os_awe_map_physical_mem_to_window(buf_pool->frame_zero,
-						  n_frames *
-						  (UNIV_PAGE_SIZE
-						   / OS_AWE_X86_PAGE_SIZE),
+						  n_frames
+						  * (UNIV_PAGE_SIZE
+						     / OS_AWE_X86_PAGE_SIZE),
 						  buf_pool->awe_info);
 		/*----------------------------------------*/
 	}
@@ -2112,11 +2112,11 @@ buf_validate(void)
 					n_lru_flush++;
 					ut_a(rw_lock_is_locked
 					     (&block->lock, RW_LOCK_SHARED));
-				} else if (block->flush_type ==
-					   BUF_FLUSH_LIST) {
+				} else if (block->flush_type
+					   == BUF_FLUSH_LIST) {
 					n_list_flush++;
-				} else if (block->flush_type ==
-					   BUF_FLUSH_SINGLE_PAGE) {
+				} else if (block->flush_type
+					   == BUF_FLUSH_SINGLE_PAGE) {
 					n_single_flush++;
 				} else {
 					ut_error;

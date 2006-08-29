@@ -531,14 +531,13 @@ row_ins_cascade_calc_update_vec(
 
 					char*		pad_start;
 					const char*	pad_end;
-					ufield->new_val.data =
-						mem_heap_alloc(heap,
-							       min_size);
-					pad_start =
-						((char*) ufield->new_val.data)
+					ufield->new_val.data = mem_heap_alloc
+						(heap, min_size);
+					pad_start = ((char*) ufield
+						     ->new_val.data)
 						+ ufield->new_val.len;
-					pad_end =
-						((char*) ufield->new_val.data)
+					pad_end = ((char*) ufield
+						   ->new_val.data)
 						+ min_size;
 					ufield->new_val.len = min_size;
 					ut_memcpy(ufield->new_val.data,
@@ -805,9 +804,9 @@ row_ins_foreign_check_on_constraint(
 
 	node = thr->run_node;
 
-	if (node->is_delete && 0 == (foreign->type &
-				     (DICT_FOREIGN_ON_DELETE_CASCADE
-				      | DICT_FOREIGN_ON_DELETE_SET_NULL))) {
+	if (node->is_delete && 0 == (foreign->type
+				     & (DICT_FOREIGN_ON_DELETE_CASCADE
+					| DICT_FOREIGN_ON_DELETE_SET_NULL))) {
 
 		row_ins_foreign_report_err("Trying to delete",
 					   thr, foreign,
@@ -816,9 +815,9 @@ row_ins_foreign_check_on_constraint(
 		return(DB_ROW_IS_REFERENCED);
 	}
 
-	if (!node->is_delete && 0 == (foreign->type &
-				      (DICT_FOREIGN_ON_UPDATE_CASCADE
-				       | DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
+	if (!node->is_delete && 0 == (foreign->type
+				      & (DICT_FOREIGN_ON_UPDATE_CASCADE
+					 | DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
 
 		/* This is an UPDATE */
 

@@ -560,8 +560,8 @@ open_or_create_log_file(
 	srv_log_group_home_dirs[k] = srv_add_path_separator_if_needed
 		(srv_log_group_home_dirs[k]);
 
-	ut_a(strlen(srv_log_group_home_dirs[k]) <
-	     (sizeof name) - 10 - sizeof "ib_logfile");
+	ut_a(strlen(srv_log_group_home_dirs[k])
+	     < (sizeof name) - 10 - sizeof "ib_logfile");
 	sprintf(name, "%s%s%lu", srv_log_group_home_dirs[k],
 		"ib_logfile", (ulong) i);
 
@@ -833,8 +833,7 @@ open_or_create_data_files(
 			if (i == srv_n_data_files - 1
 			    && srv_auto_extend_last_data_file) {
 
-				if (srv_data_file_sizes[i] >
-				    rounded_size_pages
+				if (srv_data_file_sizes[i] > rounded_size_pages
 				    || (srv_last_file_size_max > 0
 					&& srv_last_file_size_max
 					< rounded_size_pages)) {
@@ -1629,8 +1628,8 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the master thread which does purge and other utility
 	operations */
 
-	os_thread_create(&srv_master_thread, NULL, thread_ids + 1 +
-			 SRV_MAX_N_IO_THREADS);
+	os_thread_create(&srv_master_thread, NULL, thread_ids
+			 + (1 + SRV_MAX_N_IO_THREADS));
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */

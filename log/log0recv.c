@@ -2271,10 +2271,10 @@ recv_scan_log_recs(
 			/* We found a point from which to start the parsing
 			of log records */
 
-			recv_sys->parse_start_lsn =
-				ut_dulint_add(scanned_lsn,
-					      log_block_get_first_rec_group
-					      (log_block));
+			recv_sys->parse_start_lsn
+				= ut_dulint_add(scanned_lsn,
+						log_block_get_first_rec_group
+						(log_block));
 			recv_sys->scanned_lsn = recv_sys->parse_start_lsn;
 			recv_sys->recovered_lsn = recv_sys->parse_start_lsn;
 		}
@@ -2302,8 +2302,8 @@ recv_scan_log_recs(
 			}
 
 			recv_sys->scanned_lsn = scanned_lsn;
-			recv_sys->scanned_checkpoint_no =
-				log_block_get_checkpoint_no(log_block);
+			recv_sys->scanned_checkpoint_no
+				= log_block_get_checkpoint_no(log_block);
 		}
 
 		if (data_len < OS_FILE_LOG_BLOCK_SIZE) {

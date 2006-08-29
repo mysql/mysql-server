@@ -143,8 +143,8 @@ btr_root_get(
 	root_page_no = dict_tree_get_page(tree);
 
 	root = btr_page_get(space, root_page_no, RW_X_LATCH, mtr);
-	ut_a((ibool)!!page_is_comp(root) ==
-	     dict_table_is_comp(tree->tree_index->table));
+	ut_a((ibool)!!page_is_comp(root)
+	     == dict_table_is_comp(tree->tree_index->table));
 
 	return(root);
 }
@@ -597,8 +597,8 @@ btr_page_get_father_for_rec(
 	offsets = rec_get_offsets(node_ptr, index, offsets,
 				  ULINT_UNDEFINED, &heap);
 
-	if (btr_node_ptr_get_child_page_no(node_ptr, offsets) !=
-	    buf_frame_get_page_no(page)) {
+	if (UNIV_UNLIKELY(btr_node_ptr_get_child_page_no(node_ptr, offsets)
+			  != buf_frame_get_page_no(page))) {
 		rec_t*	print_rec;
 		fputs("InnoDB: Dump of the child page:\n", stderr);
 		buf_page_print(buf_frame_align(page));
@@ -632,8 +632,8 @@ btr_page_get_father_for_rec(
 		      "Then dump + drop + reimport.\n", stderr);
 	}
 
-	ut_a(btr_node_ptr_get_child_page_no(node_ptr, offsets) ==
-	     buf_frame_get_page_no(page));
+	ut_a(btr_node_ptr_get_child_page_no(node_ptr, offsets)
+	     == buf_frame_get_page_no(page));
 	mem_heap_free(heap);
 
 	return(node_ptr);
@@ -2599,11 +2599,10 @@ btr_index_rec_validate(
 		if ((dict_index_get_nth_field(index, i)->prefix_len == 0
 		     && len != UNIV_SQL_NULL && fixed_size
 		     && len != fixed_size)
-		    ||
-		    (dict_index_get_nth_field(index, i)->prefix_len > 0
-		     && len != UNIV_SQL_NULL
-		     && len >
-		     dict_index_get_nth_field(index, i)->prefix_len)) {
+		    || (dict_index_get_nth_field(index, i)->prefix_len > 0
+			&& len != UNIV_SQL_NULL
+			&& len
+			> dict_index_get_nth_field(index, i)->prefix_len)) {
 
 			btr_index_rec_validate_report(page, rec, index);
 			fprintf(stderr,
@@ -2793,8 +2792,9 @@ loop:
 	left_page_no = btr_page_get_prev(page, &mtr);
 
 	ut_a((page_get_n_recs(page) > 0)
-	     || ((level == 0) &&
-		 (buf_frame_get_page_no(page) == dict_tree_get_page(tree))));
+	     || ((level == 0)
+		 && (buf_frame_get_page_no(page)
+		     == dict_tree_get_page(tree))));
 
 	if (right_page_no != FIL_NULL) {
 		rec_t*	right_rec;
@@ -2949,11 +2949,11 @@ loop:
 		} else {
 			right_node_ptr = btr_page_get_father_node_ptr
 				(tree, right_page, &mtr);
-			if (page_rec_get_next(node_ptr) !=
-			    page_get_supremum_rec(father_page)) {
+			if (page_rec_get_next(node_ptr)
+			    != page_get_supremum_rec(father_page)) {
 
-				if (right_node_ptr !=
-				    page_rec_get_next(node_ptr)) {
+				if (right_node_ptr
+				    != page_rec_get_next(node_ptr)) {
 					ret = FALSE;
 					fputs("InnoDB: node pointer to"
 					      " the right page is wrong\n",

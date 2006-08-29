@@ -1013,8 +1013,8 @@ static
 void
 dict_load_foreign_cols(
 /*===================*/
-	const char*	id,	/* in: foreign constraint id as a null-
-				terminated string */
+	const char*	id,	/* in: foreign constraint id as a
+				null-terminated string */
 	dict_foreign_t*	foreign)/* in: foreign constraint object */
 {
 	dict_table_t*	sys_foreign_cols;
@@ -1067,12 +1067,12 @@ dict_load_foreign_cols(
 		ut_a(i == mach_read_from_4(field));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
-		foreign->foreign_col_names[i] =
-			mem_heap_strdupl(foreign->heap, (char*) field, len);
+		foreign->foreign_col_names[i] = mem_heap_strdupl
+			(foreign->heap, (char*) field, len);
 
 		field = rec_get_nth_field_old(rec, 5, &len);
-		foreign->referenced_col_names[i] =
-			mem_heap_strdupl(foreign->heap, (char*) field, len);
+		foreign->referenced_col_names[i] = mem_heap_strdupl
+			(foreign->heap, (char*) field, len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
@@ -1165,8 +1165,8 @@ dict_load_foreign(
 
 	foreign = dict_mem_foreign_create();
 
-	foreign->n_fields =
-		mach_read_from_4(rec_get_nth_field_old(rec, 5, &len));
+	foreign->n_fields = mach_read_from_4
+		(rec_get_nth_field_old(rec, 5, &len));
 
 	ut_a(len == 4);
 
@@ -1178,12 +1178,12 @@ dict_load_foreign(
 	foreign->id = mem_heap_strdup(foreign->heap, id);
 
 	field = rec_get_nth_field_old(rec, 3, &len);
-	foreign->foreign_table_name =
-		mem_heap_strdupl(foreign->heap, (char*) field, len);
+	foreign->foreign_table_name = mem_heap_strdupl
+		(foreign->heap, (char*) field, len);
 
 	field = rec_get_nth_field_old(rec, 4, &len);
-	foreign->referenced_table_name =
-		mem_heap_strdupl(foreign->heap, (char*) field, len);
+	foreign->referenced_table_name = mem_heap_strdupl
+		(foreign->heap, (char*) field, len);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);

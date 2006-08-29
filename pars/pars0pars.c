@@ -1805,14 +1805,14 @@ pars_get_lex_chars(
 			len = 5;
 		}
 
-		fwrite(pars_sym_tab_global->sql_string +
-		       pars_sym_tab_global->next_char_pos,
+		fwrite(pars_sym_tab_global->sql_string
+		       + pars_sym_tab_global->next_char_pos,
 		       1, len, stderr);
 	}
 #endif /* UNIV_SQL_DEBUG */
 
-	ut_memcpy(buf, pars_sym_tab_global->sql_string +
-		  pars_sym_tab_global->next_char_pos, len);
+	ut_memcpy(buf, pars_sym_tab_global->sql_string
+		  + pars_sym_tab_global->next_char_pos, len);
 	*result = len;
 
 	pars_sym_tab_global->next_char_pos += len;

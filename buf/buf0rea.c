@@ -213,8 +213,8 @@ buf_read_ahead_random(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	if (buf_pool->n_pend_reads >
-	    buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
+	if (buf_pool->n_pend_reads
+	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 		mutex_exit(&(buf_pool->mutex));
 
 		return(0);
@@ -426,8 +426,8 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	if (buf_pool->n_pend_reads >
-	    buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
+	if (buf_pool->n_pend_reads
+	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 		mutex_exit(&(buf_pool->mutex));
 
 		return(0);
@@ -463,8 +463,8 @@ buf_read_ahead_linear(
 		}
 	}
 
-	if (fail_count > BUF_READ_AHEAD_LINEAR_AREA -
-	    BUF_READ_AHEAD_LINEAR_THRESHOLD) {
+	if (fail_count > BUF_READ_AHEAD_LINEAR_AREA
+	    - BUF_READ_AHEAD_LINEAR_THRESHOLD) {
 		/* Too many failures: return */
 
 		mutex_exit(&(buf_pool->mutex));
@@ -615,8 +615,8 @@ buf_read_ibuf_merge_pages(
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(n_stored < UNIV_PAGE_SIZE);
 #endif
-	while (buf_pool->n_pend_reads >
-	       buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
+	while (buf_pool->n_pend_reads
+	       > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 		os_thread_sleep(500000);
 	}
 

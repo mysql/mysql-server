@@ -454,8 +454,9 @@ ut_copy_file(
 
 	rewind(src);
 	do {
-		size_t	maxs =
-			len < (long) sizeof buf ? (size_t) len : sizeof buf;
+		size_t	maxs = len < (long) sizeof buf
+			? (size_t) len
+			: sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
 		fwrite(buf, 1, size, dest);
 		len -= (long) size;

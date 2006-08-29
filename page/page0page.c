@@ -389,8 +389,8 @@ page_create(
 
 	infimum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple);
 
-	ut_a(infimum_rec ==
-	     page + (comp ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
+	ut_a(infimum_rec == page
+	     + (comp ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
 	rec_set_n_owned(infimum_rec, comp, 1);
 	rec_set_heap_no(infimum_rec, comp, 0);
@@ -411,8 +411,8 @@ page_create(
 
 	supremum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple);
 
-	ut_a(supremum_rec ==
-	     page + (comp ? PAGE_NEW_SUPREMUM : PAGE_OLD_SUPREMUM));
+	ut_a(supremum_rec == page
+	     + (comp ? PAGE_NEW_SUPREMUM : PAGE_OLD_SUPREMUM));
 
 	rec_set_n_owned(supremum_rec, comp, 1);
 	rec_set_heap_no(supremum_rec, comp, 1);
@@ -421,8 +421,8 @@ page_create(
 				  ULINT_UNDEFINED, &heap);
 	heap_top = rec_get_end(supremum_rec, offsets);
 
-	ut_ad(heap_top ==
-	      page + (comp ? PAGE_NEW_SUPREMUM_END : PAGE_OLD_SUPREMUM_END));
+	ut_ad(heap_top == page
+	      + (comp ? PAGE_NEW_SUPREMUM_END : PAGE_OLD_SUPREMUM_END));
 
 	mem_heap_free(heap);
 
@@ -1791,8 +1791,8 @@ page_validate(
 
 	n_slots = page_dir_get_n_slots(page);
 
-	if (!(page_header_get_ptr(page, PAGE_HEAP_TOP) <=
-	      page_dir_get_nth_slot(page, n_slots - 1))) {
+	if (!(page_header_get_ptr(page, PAGE_HEAP_TOP)
+	      <= page_dir_get_nth_slot(page, n_slots - 1))) {
 
 		fputs("InnoDB: Record heap and dir overlap on a page ",
 		      stderr);
