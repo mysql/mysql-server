@@ -805,7 +805,7 @@ DROP DATABASE mysqltest3;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysqltest_1'@'localhost';
 DROP USER 'mysqltest_1'@'localhost';
 
-# eestore the original database
+# restore the original database
 use test;
 
 #
