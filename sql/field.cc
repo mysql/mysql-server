@@ -6302,16 +6302,24 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
 {
   Field *field;
   if (type() != MYSQL_TYPE_VAR_STRING || keep_type)
-    return Field::new_field(root, new_table, keep_type);
-
-  /*
-    Old VARCHAR field which should be modified to a VARCHAR on copy
-    This is done to ensure that ALTER TABLE will convert old VARCHAR fields
-    to now VARCHAR fields.
-  */
-  if ((field= new Field_varstring(field_length, maybe_null(), field_name,
-                                  new_table->s, charset())))
+    new_field= Field::new_field(root, new_table, keep_type);
+  else if ((field= new Field_varstring(field_length, maybe_null(), field_name,
+                                       new_table->s, charset())))
+  {
+    /*
+      Old VARCHAR field which should be modified to a VARCHAR on copy
+      This is done to ensure that ALTER TABLE will convert old VARCHAR fields
+      to now VARCHAR fields.
+    */
     field->init(new_table);
+    /*
+      Normally orig_table is different from table only if field was created
+      via ::new_field.  Here we alter the type of field, so ::new_field is
+      not applicable. But we still need to preserve the original field
+      metadata for the client-server protocol.
+    */
+    new_field->orig_table= orig_table;
+  }
   return field;
 }
 
