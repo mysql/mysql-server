@@ -157,6 +157,7 @@ static int tina_init_func()
     VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
     (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
                      (hash_get_key) tina_get_key,0,0);
+    bzero(&tina_hton, sizeof(handlerton));
     tina_hton.state= SHOW_OPTION_YES;
     tina_hton.db_type= DB_TYPE_CSV_DB;
     tina_hton.create= tina_create_handler;
@@ -229,6 +230,11 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
               MY_REPLACE_EXT|MY_UNPACK_FILENAME);
     fn_format(meta_file_name, table_name, "", CSM_EXT,
               MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+
+    if (my_stat(share->data_file_name, &file_stat, MYF(MY_WME)) == NULL)
+      goto error;
+    share->saved_data_file_length= file_stat.st_size;
+
     if (my_hash_insert(&tina_open_tables, (byte*) share))
       goto error;
     thr_lock_init(&share->lock);
@@ -250,10 +256,6 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
     */
     if (read_meta_file(share->meta_file, &share->rows_recorded))
       share->crashed= TRUE;
-
-    if (my_stat(share->data_file_name, &file_stat, MYF(MY_WME)) == NULL)
-      goto error2;
-    share->saved_data_file_length= file_stat.st_size;
   }
   share->use_count++;
   pthread_mutex_unlock(&tina_mutex);

@@ -212,12 +212,12 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
     TRUE  Error sending data to client
 */
 
-LEX_STRING warning_level_names[]=
+const LEX_STRING warning_level_names[]=
 {
-  {(char*) STRING_WITH_LEN("Note")},
-  {(char*) STRING_WITH_LEN("Warning")},
-  {(char*) STRING_WITH_LEN("Error")},
-  {(char*) STRING_WITH_LEN("?")}
+  { C_STRING_WITH_LEN("Note") },
+  { C_STRING_WITH_LEN("Warning") },
+  { C_STRING_WITH_LEN("Error") },
+  { C_STRING_WITH_LEN("?") }
 };
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
