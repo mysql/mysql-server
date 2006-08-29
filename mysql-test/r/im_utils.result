@@ -1,4 +1,3 @@
-Success: the process has been started.
 SHOW VARIABLES LIKE 'server_id';
 Variable_name	Value
 server_id	1

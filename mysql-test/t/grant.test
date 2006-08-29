@@ -682,8 +682,6 @@ drop table t2;
 
 drop table t1;
 
-
-
 #
 # Bug#20214: Incorrect error when user calls SHOW CREATE VIEW on non
 #            privileged view
@@ -815,4 +813,53 @@ DROP USER 'mysqltest_1'@'localhost';
 --error ER_CANNOT_USER
 create user mysqltest1_thisisreallytoolong;
 
+#
+# Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
+#
+# These checks are intended to ensure that appropriate errors are risen when
+# illegal user name or hostname is specified in user-clause of GRANT/REVOKE
+# statements.
+#
+
+# Working with database-level privileges.
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON mysqltest.* TO 1234567890abcdefGHIKL@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON mysqltest.* TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON mysqltest.* FROM 1234567890abcdefGHIKL@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON mysqltest.* FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+
+# Working with table-level privileges.
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON t1 TO 1234567890abcdefGHIKL@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT CREATE ON t1 TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON t1 FROM 1234567890abcdefGHIKL@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE CREATE ON t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+
+# Working with routine-level privileges.
+
+--error ER_WRONG_STRING_LENGTH
+GRANT EXECUTE ON PROCEDURE p1 TO 1234567890abcdefGHIKL@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT EXECUTE ON PROCEDURE p1 TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE EXECUTE ON PROCEDURE p1 FROM 1234567890abcdefGHIKL@localhost;
+
+--error ER_WRONG_STRING_LENGTH
+REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
 --echo End of 5.0 tests
