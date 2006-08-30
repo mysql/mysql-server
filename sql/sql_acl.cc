@@ -2640,7 +2640,11 @@ int mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   while ((Str = str_list++))
   {
     if (Str->host.length > HOSTNAME_LENGTH ||
-	Str->user.length > USERNAME_LENGTH)
+	system_charset_info->cset->charpos(system_charset_info,
+                                           Str->user.str,
+                                           Str->user.str +
+                                           Str->user.length,
+                                           USERNAME_LENGTH) < Str->user.length)
     {
       my_error(ER_GRANT_WRONG_HOST_OR_USER,MYF(0));
       result= -1;
