@@ -1072,4 +1072,20 @@ explain select a from t1 group by a;
 select a from t1 group by a;
 drop table t1;
 
+#
+# Bug#20393: User name truncation in mysql client
+# Bug#21432: Database/Table name limited to 64 bytes, not chars, problems with multi-byte
+#
+set names utf8;
+#create user юзер_юзер@localhost;
+grant select on test.* to юзер_юзер@localhost;
+--exec $MYSQL --default-character-set=utf8 --user=юзер_юзер -e "select user()"
+revoke all on test.* from юзер_юзер@localhost;
+drop user юзер_юзер@localhost;
+
+create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+use имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+select database();
+drop database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+
 # End of 4.1 tests
