@@ -5099,10 +5099,21 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
     return 1;
 
   /* Check rights on tables of subselects and implictly opened tables */
-  TABLE_LIST *subselects_tables;
+  TABLE_LIST *subselects_tables, *view= all_tables->view ? all_tables : 0;
   if ((subselects_tables= all_tables->next_global))
   {
-    if ((check_table_access(thd, SELECT_ACL, subselects_tables, 0)))
+    /*
+      Access rights asked for the first table of a view should be the same
+      as for the view
+    */
+    if (view && subselects_tables->belong_to_view == view)
+    {
+      if (check_single_table_access (thd, privilege, subselects_tables))
+        return 1;
+      subselects_tables= subselects_tables->next_global;
+    }
+    if (subselects_tables &&
+        (check_table_access(thd, SELECT_ACL, subselects_tables, 0)))
       return 1;
   }
   return 0;
