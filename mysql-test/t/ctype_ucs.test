@@ -475,7 +475,7 @@ drop table if exists bug20536;
 set names latin1;
 create table bug20536 (id bigint not null auto_increment primary key, name
 varchar(255) character set ucs2 not null);
-insert into `bug20536` (`id`,`name`) values (1, _latin1 x'74657374311a'), (2, "'test\\_2'");
+insert into `bug20536` (`id`,`name`) values (1, _latin1 x'7465737431'), (2, "'test\\_2'");
 select md5(name) from bug20536;
 select sha1(name) from bug20536;
 select make_set(3, name, upper(name)) from bug20536;
