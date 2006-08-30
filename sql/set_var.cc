@@ -3252,7 +3252,7 @@ int set_var_user::check(THD *thd)
     0 can be passed as last argument (reference on item)
   */
   return (user_var_item->fix_fields(thd, (Item**) 0) ||
-	  user_var_item->check()) ? -1 : 0;
+	  user_var_item->check(0)) ? -1 : 0;
 }
 
 
