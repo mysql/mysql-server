@@ -429,6 +429,8 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_TABLE_DEF_CHANGED,      ER(ER_TABLE_DEF_CHANGED));
   SETMSG(HA_ERR_TABLE_NEEDS_UPGRADE,    ER(ER_TABLE_NEEDS_UPGRADE));
   SETMSG(HA_ERR_TABLE_READONLY,         ER(ER_OPEN_AS_READONLY));
+  SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER(ER_AUTOINC_READ_FAILED));
+  SETMSG(HA_ERR_AUTOINC_ERANGE,         ER(ER_WARN_DATA_OUT_OF_RANGE));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -1542,7 +1544,10 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
 
   RETURN
     0	ok
-    1 	get_auto_increment() was called and returned ~(ulonglong) 0
+    HA_ERR_AUTOINC_READ_FAILED
+     	get_auto_increment() was called and returned ~(ulonglong) 0
+    HA_ERR_AUTOINC_ERANGE
+        storing value in field caused strict mode failure.
 
 
   IMPLEMENTATION
@@ -1586,13 +1591,12 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
     thd->next_insert_id is cleared after it's been used for a statement.
 */
 
-bool handler::update_auto_increment()
+int handler::update_auto_increment()
 {
   ulonglong nr;
   THD *thd= table->in_use;
   struct system_variables *variables= &thd->variables;
   bool auto_increment_field_not_null;
-  bool result= 0;
   DBUG_ENTER("handler::update_auto_increment");
 
   /*
@@ -1616,7 +1620,7 @@ bool handler::update_auto_increment()
   if (!(nr= thd->next_insert_id))
   {
     if ((nr= get_auto_increment()) == ~(ulonglong) 0)
-      result= 1;                                // Mark failure
+      DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
 
     if (variables->auto_increment_increment != 1)
       nr= next_insert_id(nr-1, variables);
@@ -1636,6 +1640,7 @@ bool handler::update_auto_increment()
   if (likely(!table->next_number_field->store((longlong) nr, TRUE)))
     thd->insert_id((ulonglong) nr);
   else
+  if (thd->killed != THD::KILL_BAD_DATA) /* did we fail strict mode? */
   {
     /*
       overflow of the field; we'll use the max value, however we try to
@@ -1646,6 +1651,8 @@ bool handler::update_auto_increment()
     if (unlikely(table->next_number_field->store((longlong) nr, TRUE)))
       thd->insert_id(nr= table->next_number_field->val_int());
   }
+  else
+    DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
 
   /*
     We can't set next_insert_id if the auto-increment key is not the
@@ -1666,7 +1673,7 @@ bool handler::update_auto_increment()
 
   /* Mark that we generated a new value */
   auto_increment_column_changed=1;
-  DBUG_RETURN(result);
+  DBUG_RETURN(0);
 }
 
 /*
@@ -1863,6 +1870,12 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_TABLE_READONLY:
     textno= ER_OPEN_AS_READONLY;
+    break;
+  case HA_ERR_AUTOINC_READ_FAILED:
+    textno= ER_AUTOINC_READ_FAILED;
+    break;
+  case HA_ERR_AUTOINC_ERANGE:
+    textno= ER_WARN_DATA_OUT_OF_RANGE;
     break;
   default:
     {

@@ -953,7 +953,10 @@ int ha_berkeley::write_row(byte * record)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && record == table->record[0])
-    update_auto_increment();
+  {
+    if ((error= update_auto_increment()))
+      DBUG_RETURN(error);
+  }
   if ((error=pack_row(&row, record,1)))
     DBUG_RETURN(error); /* purecov: inspected */
 
