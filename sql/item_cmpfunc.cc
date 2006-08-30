@@ -515,8 +515,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
         which would be transformed to:
         WHERE col= 'j'
       */
-      (*a)->walk(&Item::set_no_const_sub, (byte*) 0);
-      (*b)->walk(&Item::set_no_const_sub, (byte*) 0);
+      (*a)->walk(&Item::set_no_const_sub, FALSE, (byte*) 0);
+      (*b)->walk(&Item::set_no_const_sub, FALSE, (byte*) 0);
     }
     break;
   }
