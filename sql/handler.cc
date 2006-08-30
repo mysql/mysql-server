@@ -28,11 +28,6 @@
 #include <myisampack.h>
 #include <errno.h>
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-#define NDB_MAX_ATTRIBUTES_IN_TABLE 128
-#include "ha_ndbcluster.h"
-#endif
-
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
 #endif
@@ -2745,6 +2740,29 @@ int ha_discover(THD *thd, const char *db, const char *name,
   to ask engine if there are any new tables that should be written to disk 
   or any dropped tables that need to be removed from disk
 */
+typedef struct st_find_files_args
+{
+  const char *db;
+  const char *path;
+  const char *wild;
+  bool dir;
+  List<char> *files;
+};
+
+static my_bool find_files_handlerton(THD *thd, st_plugin_int *plugin,
+                                   void *arg)
+{
+  st_find_files_args *vargs= (st_find_files_args *)arg;
+  handlerton *hton= (handlerton *)plugin->data;
+
+
+  if (hton->state == SHOW_OPTION_YES && hton->find_files)
+      if (hton->find_files(thd, vargs->db, vargs->path, vargs->wild, 
+                          vargs->dir, vargs->files))
+        return TRUE;
+
+  return FALSE;
+}
 
 int
 ha_find_files(THD *thd,const char *db,const char *path,
@@ -2754,10 +2772,11 @@ ha_find_files(THD *thd,const char *db,const char *path,
   DBUG_ENTER("ha_find_files");
   DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d", 
 		       db, path, wild, dir));
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_find_files(thd, db, path, wild, dir, files);
-#endif
+  st_find_files_args args= {db, path, wild, dir, files};
+
+  plugin_foreach(thd, find_files_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args);
+  /* The return value is not currently used */
   DBUG_RETURN(error);
 }
 
@@ -2771,15 +2790,34 @@ ha_find_files(THD *thd,const char *db,const char *path,
     #                   Error code
 
  */
+
+typedef struct st_table_exists_in_engine_args
+{
+  const char *db;
+  const char *name;
+};
+
+static my_bool table_exists_in_engine_handlerton(THD *thd, st_plugin_int *plugin,
+                                   void *arg)
+{
+  st_table_exists_in_engine_args *vargs= (st_table_exists_in_engine_args *)arg;
+  handlerton *hton= (handlerton *)plugin->data;
+
+  if (hton->state == SHOW_OPTION_YES && hton->table_exists_in_engine)
+    if ((hton->table_exists_in_engine(thd, vargs->db, vargs->name)) == 1)
+      return TRUE;
+
+  return FALSE;
+}
+
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
 {
   int error= 0;
   DBUG_ENTER("ha_table_exists_in_engine");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_table_exists_in_engine(thd, db, name);
-#endif
+  st_table_exists_in_engine_args args= {db, name};
+  error= plugin_foreach(thd, table_exists_in_engine_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args);
   DBUG_PRINT("exit", ("error: %d", error));
   DBUG_RETURN(error);
 }
