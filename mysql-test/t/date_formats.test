@@ -6,9 +6,9 @@
 drop table if exists t1;
 --enable_warnings
 
---replace_result ROW <format> STATEMENT <format>
+--replace_result ROW <format> STATEMENT <format> MIXED <format>
 SHOW GLOBAL VARIABLES LIKE "%_format%";
---replace_result ROW <format> STATEMENT <format>
+--replace_result ROW <format> STATEMENT <format> MIXED <format>
 SHOW SESSION VARIABLES LIKE "%_format%";
 
 #
@@ -36,7 +36,7 @@ set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
 set datetime_format= '%h:%i:%s %p %Y-%m-%d';
 set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
 
---replace_result ROW <format> STATEMENT <format>
+--replace_result ROW <format> STATEMENT <format> MIXED <format>
 SHOW SESSION VARIABLES LIKE "%format";
 
 --error 1231
