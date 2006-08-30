@@ -3135,7 +3135,11 @@ with --log-bin instead.");
       global_system_variables.binlog_format= BINLOG_FORMAT_ROW;
     else
 #endif
+#if defined(HAVE_ROW_BASED_REPLICATION)
+      global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
+#else
       global_system_variables.binlog_format= BINLOG_FORMAT_STMT;
+#endif
   }
 
   /* Check that we have not let the format to unspecified at this point */
@@ -4936,7 +4940,13 @@ Disable with --skip-bdb (will save memory).",
    "supports only statement-based binary logging, so only 'statement' is "
    "a legal value."
 #endif
-   , 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+   , 0, 0, 0, GET_STR, REQUIRED_ARG,
+#ifdef HAVE_ROW_BASED_REPLICATION
+   BINLOG_FORMAT_MIXED
+#else
+   BINLOG_FORMAT_STMT
+#endif
+   , 0, 0, 0, 0, 0 },
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

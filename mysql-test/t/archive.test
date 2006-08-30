@@ -3,7 +3,7 @@
 # Taken FROM the select test
 #
 -- source include/have_archive.inc
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 
 --disable_warnings
 drop table if exists t1,t2,t3;
