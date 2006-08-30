@@ -4498,7 +4498,7 @@ TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
 
   MY_BITMAP *covered_fields= &param->tmp_covered_fields;
   if (!covered_fields->bitmap) 
-    covered_fields->bitmap= (uchar*)alloc_root(param->mem_root,
+    covered_fields->bitmap= (my_bitmap_map*)alloc_root(param->mem_root,
                                                param->fields_bitmap_size);
   if (!covered_fields->bitmap ||
       bitmap_init(covered_fields, covered_fields->bitmap,
@@ -5153,7 +5153,8 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
     Pointer to the tree representing the built conjunction of SEL_TREEs
 */
 
-static SEL_TREE *get_full_func_mm_tree(PARAM *param, Item_func *cond_func, 
+static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
+                                       Item_func *cond_func,
                                        Item_field *field_item, Item *value, 
                                        bool inv)
 {

@@ -5482,7 +5482,7 @@ bool setup_tables_and_check_access(THD *thd,
                                    TABLE_LIST *tables,
                                    TABLE_LIST **leaves,
                                    bool select_insert,
-                                   ulong_want_access_first,
+                                   ulong want_access_first,
                                    ulong want_access)
 {
   TABLE_LIST *leaves_tmp= NULL;
