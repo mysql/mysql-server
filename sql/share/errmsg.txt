@@ -5623,3 +5623,5 @@ ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
 	eng "Triggers can not be created on system tables"
 ER_REMOVED_SPACES
         eng "Leading spaces are removed from name '%s'"
+ER_AUTOINC_READ_FAILED
+        eng "Failed to read auto-increment value from storage engine"

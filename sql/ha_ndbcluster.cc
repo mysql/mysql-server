@@ -2130,9 +2130,11 @@ int ha_ndbcluster::write_row(byte *record)
     if (has_auto_increment) 
     {
       THD *thd= table->in_use;
+      int error;
       
       m_skip_auto_increment= FALSE;
-      update_auto_increment();
+      if ((error= update_auto_increment()))
+        DBUG_RETURN(error);
       /* Ensure that handler is always called for auto_increment values */
       thd->next_insert_id= 0;
       m_skip_auto_increment= !auto_increment_column_changed;
