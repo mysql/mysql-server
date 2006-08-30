@@ -10598,7 +10598,9 @@ mysql_declare_plugin(ndbcluster)
   ndbcluster_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  ndb_status_variables_export
+  ndb_status_variables_export,/* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 
