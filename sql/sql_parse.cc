@@ -902,8 +902,8 @@ static int check_connection(THD *thd)
   char *user= end;
   char *passwd= strend(user)+1;
   char *db= passwd;
-  char db_buff[NAME_LEN+1];                     // buffer to store db in utf8
-  char user_buff[USERNAME_LENGTH+1];		// buffer to store user in utf8
+  char db_buff[NAME_BYTE_LEN + 1];              // buffer to store db in utf8
+  char user_buff[USERNAME_BYTE_LENGTH + 1];	// buffer to store user in utf8
   uint dummy_errors;
 
   /*
