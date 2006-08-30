@@ -1,0 +1,246 @@
+##############################################################
+# Author: JBM
+# Date: 2006-01-12
+# Purpose: To test using ndb memory and disk tables together.
+##############################################################
+
+##############################################################
+# Author: Nikolay
+# Date: 2006-05-12
+# Purpose: To test using ndb memory and disk tables together.
+#
+# Select from disk into memory table
+# Select from disk into memory table
+# Create test that loads data, use mysql dump to dump data, drop table,
+# create table and load from mysql dump.
+# Use group by asc and dec; Use having; Use order by
+# ALTER Tests (Meta data testing):
+#  ALTER from InnoDB to Cluster Disk Data
+#  ALTER from MyISAM to Cluster Disk Data
+#  ALTER from Cluster Disk Data to InnoDB
+#  ALTER from Cluster Disk Data to MyISAM
+#  ALTER DD Tables and add columns
+#  ALTER DD Tables and add Indexes
+#  ALTER DD Tables and drop columns
+#
+##############################################################
+# Author: Jonathan
+# Date 2006-08-28
+# Purpose: To take out some of the test that are already
+#          Covered by other tests. Per Jonas
+#          The new purpose of this test is testing "Alter"
+#          Statements. Therefore the name is changed to
+#          ndb_dd_alter.test
+# Removed tests include:
+# Select from disk into memory table
+# Select from disk into memory table
+# Create test that loads data, use mysql dump to dump data, drop table,
+# create table and load from mysql dump.
+# Use group by asc and dec; Use having; Use order by
+##############################################################
+
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS test.t1;
+DROP TABLE IF EXISTS test.t2;
+--enable_warnings
+
+############ Test Setup Section #############
+-- echo **** Test Setup Section ****
+################## ALTER Tests (Meta data testing) ####################
+
+ CREATE LOGFILE GROUP lg
+ ADD UNDOFILE './lg_group/undofile.dat'
+ INITIAL_SIZE 16M
+ UNDO_BUFFER_SIZE = 1M
+ ENGINE=NDB;
+
+ CREATE TABLESPACE ts
+ ADD DATAFILE './table_space/datafile.dat'
+ USE LOGFILE GROUP lg
+ INITIAL_SIZE 12M
+ ENGINE NDB;
+
+#### Try to ALTER from InnoDB to Cluster Disk Data
+
+CREATE TABLE test.t1 (
+  a1 smallint NOT NULL,
+  a2 int NOT NULL,
+  a3 bigint NOT NULL,
+  a4 char(10),
+  a5 decimal(5,1),
+  a6 time,
+  a7 date,
+  a8 datetime,
+  a9 VARCHAR(255),
+  a10 blob,
+  PRIMARY KEY(a1)
+) ENGINE=InnoDB;
+
+let $1=20;
+disable_query_log;
+while ($1)
+{
+ eval insert into test.t1 values($1, $1+1, $1+2000000000, "aaa$1", 34.2, '4:3:2', '2006-1-1', '1971-5-28 16:55:03', "bbbbbbbbbbbbb$1", "binary data");
+ dec $1;
+}
+enable_query_log;
+
+SHOW CREATE TABLE test.t1;
+SELECT * FROM test.t1 ORDER BY a1;
+ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
+SHOW CREATE TABLE test.t1;
+SELECT * FROM test.t1 ORDER BY a1;
+DROP TABLE test.t1;
+
+#### Try to ALTER from MyISAM to Cluster Disk Data
+
+CREATE TABLE test.t1 (
+  a1 smallint NOT NULL,
+  a2 int NOT NULL,
+  a3 bigint NOT NULL,
+  a4 char(10),
+  a5 decimal(5,1),
+  a6 time,
+  a7 date,
+  a8 datetime,
+  a9 VARCHAR(255),
+  a10 blob,
+  PRIMARY KEY(a1)
+) ENGINE=MyISAM;
+
+let $1=20;
+disable_query_log;
+while ($1)
+{
+ eval insert into test.t1 values($1, $1+1, $1+2000000000, "aaa$1", 34.2, '4:3:2', '2006-1-1', '1971-5-28 16:55:03', "bbbbbbbbbbbbb$1", "binary data");
+ dec $1;
+}
+enable_query_log;
+
+SHOW CREATE TABLE test.t1;
+SELECT * FROM test.t1 ORDER BY a1;
+ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
+SHOW CREATE TABLE test.t1;
+SELECT * FROM test.t1 ORDER BY a1;
+
+#### Try to ALTER from Cluster Disk Data to InnoDB
+
+ALTER TABLE test.t1 ENGINE=InnoDB;
+SHOW CREATE TABLE test.t1;
+SELECT * FROM test.t1 ORDER BY a1;
+ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
+
+#### Try to ALTER from Cluster Disk Data to MyISAM
+
+SHOW CREATE TABLE test.t1;
+ALTER TABLE test.t1 ENGINE=MyISAM;
+SHOW CREATE TABLE test.t1;
+DROP TABLE test.t1;
+
+#### Try to ALTER DD Tables and add columns
+
+CREATE TABLE test.t1 (a1 INT PRIMARY KEY) TABLESPACE ts STORAGE DISK ENGINE=NDB;
+
+let $1=20;
+disable_query_log;
+while ($1)
+{
+ eval insert into test.t1 values($1);
+ dec $1;
+}
+enable_query_log;
+
+SELECT * FROM test.t1 ORDER BY a1;
+
+ALTER TABLE test.t1 ADD a2 FLOAT, ADD a3 DOUBLE;
+
+let $1=20;
+disable_query_log;
+while ($1)
+{
+ eval update test.t1 set a2 =  $1+1.2345, a3 = $1+20000000.00 where a1 = $1;
+ dec $1;
+}
+enable_query_log;
+
+SELECT * FROM test.t1 ORDER BY a1;
+
+ALTER TABLE test.t1  ADD a4 BIT, ADD a5 TINYINT, ADD a6 BIGINT, ADD a7 DATE, ADD a8 TIME;
+
+let $1=20;
+disable_query_log;
+while ($1)
+{
+ eval update test.t1 set a4 =  0, a5 = 1, a6 = $1+23456, a7 = '2006-1-1', 
+      a8 = '07:04:00' where a1 = $1;
+ dec $1;
+}
+enable_query_log;
+
+SELECT a1,a2,a3,hex(a4), a5,a6,a7,a8 FROM test.t1 ORDER BY a1;
+
+ALTER TABLE test.t1 ADD a9 DATETIME, ADD a10 TINYTEXT, ADD a11 MEDIUMTEXT, ADD a12 LONGTEXT, ADD a13 TEXT, ADD a14 BLOB;
+
+disable_query_log;
+set @d2 = 'dd2';
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
+enable_query_log;
+
+let $1=20;
+disable_query_log;
+while ($1)
+{
+ eval update test.t1 set a9 =  '1971-5-28 16:55:03', a10 = 'abc', a11 = 'abcdefg', 
+      a12 = 'LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL', a13 = 'Text Field', 
+      a14 = @d2 where a1 = $1;
+ dec $1;
+}
+enable_query_log;
+
+SELECT a1, a2,a3,hex(a4),a5,a6,a7,a8,a9,a10,a11,a12,a13 FROM test.t1 ORDER BY a1;
+SHOW CREATE TABLE test.t1;
+
+#### Try to ALTER DD Tables and add Indexes
+
+ALTER TABLE test.t1 ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
+
+SHOW CREATE TABLE test.t1;
+
+ALTER TABLE test.t1 DROP INDEX a2_i;
+
+SHOW CREATE TABLE test.t1;
+
+
+#### Try to ALTER DD Tables and drop columns
+
+
+ALTER TABLE test.t1 DROP a14;
+ALTER TABLE test.t1 DROP a13;
+ALTER TABLE test.t1 DROP a12;
+ALTER TABLE test.t1 DROP a11;
+ALTER TABLE test.t1 DROP a10;
+ALTER TABLE test.t1 DROP a9;
+ALTER TABLE test.t1 DROP a8;
+ALTER TABLE test.t1 DROP a7;
+ALTER TABLE test.t1 DROP a6;
+ALTER TABLE test.t1 DROP PRIMARY KEY;
+
+SHOW CREATE TABLE test.t1;
+
+DROP TABLE test.t1;
+
+ ALTER TABLESPACE ts
+ DROP DATAFILE './table_space/datafile.dat'
+ ENGINE NDB;
+ DROP TABLESPACE ts ENGINE NDB;
+ DROP LOGFILE GROUP lg ENGINE=NDB;
+
+####################### End section 4 #########################
+#End 5.1 test case
+

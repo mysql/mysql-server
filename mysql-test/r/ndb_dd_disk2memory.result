@@ -299,10 +299,197 @@ usr_id	uniq_id	increment	usr2_id	c_amount	max
 
 DROP TABLE test.t1;
 DROP TABLE test.t2;
-ALTER TABLESPACE table_space1
-DROP DATAFILE './table_space1/datafile.dat'
-ENGINE = NDB;
-DROP TABLESPACE table_space1
-ENGINE = NDB;
-DROP LOGFILE GROUP log_group1
-ENGINE =NDB;
+CREATE TABLE test.t1 (
+a1 smallint NOT NULL,
+a2 int NOT NULL,
+a3 bigint NOT NULL,
+a4 char(10),
+a5 decimal(5,1),
+a6 time,
+a7 date,
+a8 datetime,
+a9 VARCHAR(255),
+a10 blob,
+PRIMARY KEY(a1)
+) TABLESPACE table_space1 STORAGE DISK ENGINE=NDB;
+CREATE TABLE test.t2 (
+b1 smallint NOT NULL,
+b2 int NOT NULL,
+b3 bigint NOT NULL,
+b4 char(10),
+b5 decimal(5,1),
+b6 time,
+b7 date,
+b8 datetime,
+b9 VARCHAR(255),
+b10 blob,
+PRIMARY KEY(b1)
+) ENGINE=NDB;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a1` smallint(6) NOT NULL,
+  `a2` int(11) NOT NULL,
+  `a3` bigint(20) NOT NULL,
+  `a4` char(10) DEFAULT NULL,
+  `a5` decimal(5,1) DEFAULT NULL,
+  `a6` time DEFAULT NULL,
+  `a7` date DEFAULT NULL,
+  `a8` datetime DEFAULT NULL,
+  `a9` varchar(255) DEFAULT NULL,
+  `a10` blob,
+  PRIMARY KEY (`a1`),
+  KEY `a2` (`a2`),
+  KEY `a3` (`a3`),
+  KEY `a8` (`a8`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `b1` smallint(6) NOT NULL,
+  `b2` int(11) NOT NULL,
+  `b3` bigint(20) NOT NULL,
+  `b4` char(10) DEFAULT NULL,
+  `b5` decimal(5,1) DEFAULT NULL,
+  `b6` time DEFAULT NULL,
+  `b7` date DEFAULT NULL,
+  `b8` datetime DEFAULT NULL,
+  `b9` varchar(255) DEFAULT NULL,
+  `b10` blob,
+  PRIMARY KEY (`b1`),
+  KEY `b2` (`b2`),
+  KEY `b3` (`b3`),
+  KEY `b8` (`b8`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+a1	a2	a3	a4	a5	a6	a7	a8	a9	a10
+1	2	2000000001	aaa1	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb1	binary data
+2	3	2000000002	aaa2	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb2	binary data
+3	4	2000000003	aaa3	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb3	binary data
+4	5	2000000004	aaa4	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb4	binary data
+5	6	2000000005	aaa5	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb5	binary data
+6	7	2000000006	aaa6	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb6	binary data
+7	8	2000000007	aaa7	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb7	binary data
+8	9	2000000008	aaa8	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb8	binary data
+9	10	2000000009	aaa9	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb9	binary data
+10	11	2000000010	aaa10	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb10	binary data
+11	12	2000000011	aaa11	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb11	binary data
+12	13	2000000012	aaa12	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb12	binary data
+13	14	2000000013	aaa13	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb13	binary data
+14	15	2000000014	aaa14	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb14	binary data
+15	16	2000000015	aaa15	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb15	binary data
+16	17	2000000016	aaa16	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb16	binary data
+17	18	2000000017	aaa17	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb17	binary data
+18	19	2000000018	aaa18	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb18	binary data
+19	20	2000000019	aaa19	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb19	binary data
+20	21	2000000020	aaa20	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb20	binary data
+b1	b2	b3	b4	b5	b6	b7	b8	b9	b10
+3	4	3000000001	aaa1	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb1	binary data
+4	5	3000000002	aaa2	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb2	binary data
+5	6	3000000003	aaa3	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb3	binary data
+6	7	3000000004	aaa4	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb4	binary data
+7	8	3000000005	aaa5	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb5	binary data
+8	9	3000000006	aaa6	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb6	binary data
+9	10	3000000007	aaa7	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb7	binary data
+10	11	3000000008	aaa8	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb8	binary data
+11	12	3000000009	aaa9	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb9	binary data
+12	13	3000000010	aaa10	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb10	binary data
+13	14	3000000011	aaa11	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb11	binary data
+14	15	3000000012	aaa12	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb12	binary data
+15	16	3000000013	aaa13	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb13	binary data
+16	17	3000000014	aaa14	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb14	binary data
+17	18	3000000015	aaa15	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb15	binary data
+18	19	3000000016	aaa16	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb16	binary data
+19	20	3000000017	aaa17	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb17	binary data
+20	21	3000000018	aaa18	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb18	binary data
+21	22	3000000019	aaa19	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb19	binary data
+22	23	3000000020	aaa20	35.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb20	binary data
+COUNT(a1)	a1	COUNT(a1)*a1
+1	1	1
+1	2	2
+1	3	3
+1	4	4
+1	5	5
+1	6	6
+1	7	7
+1	8	8
+1	9	9
+1	10	10
+1	11	11
+1	12	12
+1	13	13
+1	14	14
+1	15	15
+1	16	16
+1	17	17
+1	18	18
+1	19	19
+1	20	20
+COUNT(a2)	(a2+1)	COUNT(a2)*(a2+0)
+1	3	2
+1	4	3
+1	5	4
+1	6	5
+1	7	6
+1	8	7
+1	9	8
+1	10	9
+1	11	10
+1	12	11
+1	13	12
+1	14	13
+1	15	14
+1	16	15
+1	17	16
+1	18	17
+1	19	18
+1	20	19
+1	21	20
+1	22	21
+a
+4
+3
+a	c
+4	Martin
+4	Clavin
+3	Serge
+3	Pekka
+a
+3
+4
+a	c
+3	Serge
+3	Pekka
+4	Martin
+4	Clavin
+a
+1
+1
+1
+2
+2
+3
+3
+a
+3
+2
+1
+a
+3
+2
+1
+a
+1
+2
+3
+email	shipcode
+test1@testdomain.com	Z001
+test2@testdomain.com	R002
+test2@testdomain.com	Z001
+test3@testdomain.com	Z001
+email
+test1@testdomain.com
+test2@testdomain.com
+test3@testdomain.com
+email	shipcode
+test1@testdomain.com	Z001
+test2@testdomain.com	Z001
+test2@testdomain.com	R002
+test3@testdomain.com	Z001
