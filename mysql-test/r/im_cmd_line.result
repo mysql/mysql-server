@@ -1,3 +1,10 @@
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
+SHOW INSTANCES;
+instance_name	state
+mysqld1	starting
+mysqld2	offline
 --> Listing users...
 im_admin
 

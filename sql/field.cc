@@ -6302,7 +6302,7 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
 {
   Field *field;
   if (type() != MYSQL_TYPE_VAR_STRING || keep_type)
-    new_field= Field::new_field(root, new_table, keep_type);
+    field= Field::new_field(root, new_table, keep_type);
   else if ((field= new Field_varstring(field_length, maybe_null(), field_name,
                                        new_table->s, charset())))
   {
@@ -6318,7 +6318,7 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
       not applicable. But we still need to preserve the original field
       metadata for the client-server protocol.
     */
-    new_field->orig_table= orig_table;
+    field->orig_table= orig_table;
   }
   return field;
 }
