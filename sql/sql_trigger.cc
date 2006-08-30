@@ -158,10 +158,12 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 {
   TABLE *table;
   bool result= TRUE;
-  LEX_STRING definer_user;
-  LEX_STRING definer_host;
+  String stmt_query;
 
   DBUG_ENTER("mysql_create_or_drop_trigger");
+
+  /* Charset of the buffer for statement must be system one. */
+  stmt_query.set_charset(system_charset_info);
 
   /*
     QQ: This function could be merged in mysql_alter_table() function
@@ -264,8 +266,8 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   }
 
   result= (create ?
-           table->triggers->create_trigger(thd, tables, &definer_user, &definer_host):
-           table->triggers->drop_trigger(thd, tables));
+           table->triggers->create_trigger(thd, tables, &stmt_query):
+           table->triggers->drop_trigger(thd, tables, &stmt_query));
 
 end:
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -277,32 +279,9 @@ end:
     {
       thd->clear_error();
 
-      String log_query(thd->query, thd->query_length, system_charset_info);
-
-      if (create)
-      {
-        log_query.set((char *) 0, 0, system_charset_info); /* reset log_query */
-
-        log_query.append(STRING_WITH_LEN("CREATE "));
-
-        if (definer_user.str && definer_host.str)
-        {
-          /*
-            Append definer-clause if the trigger is SUID (a usual trigger in
-            new MySQL versions).
-          */
-
-          append_definer(thd, &log_query, &definer_user, &definer_host);
-        }
-
-        log_query.append(thd->lex->stmt_definition_begin,
-                         (char *)thd->lex->sphead->m_body_begin -
-                         thd->lex->stmt_definition_begin +
-                         thd->lex->sphead->m_body.length);
-      }
-
       /* Such a statement can always go directly to binlog, no trans cache. */
-      Query_log_event qinfo(thd, log_query.ptr(), log_query.length(), 0, FALSE);
+      Query_log_event qinfo(thd, stmt_query.ptr(), stmt_query.length(), 0,
+                            FALSE);
       mysql_bin_log.write(&qinfo);
     }
 
@@ -322,22 +301,8 @@ end:
                      LEX)
       tables       - table list containing one open table for which the
                      trigger is created.
-      definer_user - [out] after a call it points to 0-terminated string or
-                     contains the NULL-string:
-                       - 0-terminated is returned if the trigger is SUID. The
-                         string contains user name part of the actual trigger
-                         definer.
-                       - NULL-string is returned if the trigger is non-SUID.
-                     Anyway, the caller is responsible to provide memory for
-                     storing LEX_STRING object.
-      definer_host - [out] after a call it points to 0-terminated string or
-                     contains the NULL-string:
-                       - 0-terminated string is returned if the trigger is
-                         SUID. The string contains host name part of the
-                         actual trigger definer.
-                       - NULL-string is returned if the trigger is non-SUID.
-                     Anyway, the caller is responsible to provide memory for
-                     storing LEX_STRING object.
+      stmt_query   - [OUT] after successful return, this string contains
+                     well-formed statement for creation this trigger.
 
   NOTE
     - Assumes that trigger name is fully qualified.
@@ -352,8 +317,7 @@ end:
     True  - error
 */
 bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
-                                         LEX_STRING *definer_user,
-                                         LEX_STRING *definer_host)
+                                         String *stmt_query)
 {
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
@@ -361,6 +325,8 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
        trigname_path[FN_REFLEN];
   LEX_STRING dir, file, trigname_file;
   LEX_STRING *trg_def, *name;
+  LEX_STRING definer_user;
+  LEX_STRING definer_host;
   ulonglong *trg_sql_mode;
   char trg_definer_holder[USER_HOST_BUFF_SIZE];
   LEX_STRING *trg_definer;
@@ -508,8 +474,6 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
       definers_list.push_back(trg_definer, &table->mem_root))
     goto err_with_cleanup;
 
-  trg_def->str= thd->query;
-  trg_def->length= thd->query_length;
   *trg_sql_mode= thd->variables.sql_mode;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -529,26 +493,53 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   {
     /* SUID trigger. */
 
-    *definer_user= lex->definer->user;
-    *definer_host= lex->definer->host;
+    definer_user= lex->definer->user;
+    definer_host= lex->definer->host;
 
     trg_definer->str= trg_definer_holder;
-    trg_definer->length= strxmov(trg_definer->str, definer_user->str, "@",
-                                 definer_host->str, NullS) - trg_definer->str;
+    trg_definer->length= strxmov(trg_definer->str, definer_user.str, "@",
+                                 definer_host.str, NullS) - trg_definer->str;
   }
   else
   {
     /* non-SUID trigger. */
 
-    definer_user->str= 0;
-    definer_user->length= 0;
+    definer_user.str= 0;
+    definer_user.length= 0;
 
-    definer_host->str= 0;
-    definer_host->length= 0;
+    definer_host.str= 0;
+    definer_host.length= 0;
 
     trg_definer->str= (char*) "";
     trg_definer->length= 0;
   }
+
+  /*
+    Create well-formed trigger definition query. Original query is not
+    appropriated, because definer-clause can be not truncated.
+  */
+
+  stmt_query->append(STRING_WITH_LEN("CREATE "));
+
+  if (trg_definer)
+  {
+    /*
+      Append definer-clause if the trigger is SUID (a usual trigger in
+      new MySQL versions).
+    */
+
+    append_definer(thd, stmt_query, &definer_user, &definer_host);
+  }
+
+  stmt_query->append(thd->lex->stmt_definition_begin,
+                     (char *) thd->lex->sphead->m_body_begin -
+                     thd->lex->stmt_definition_begin +
+                     thd->lex->sphead->m_body.length);
+
+  trg_def->str= stmt_query->c_ptr();
+  trg_def->length= stmt_query->length();
+
+  /* Create trigger definition file. */
 
   if (!sql_create_definition_file(&dir, &file, &triggers_file_type,
                                   (gptr)this, triggers_file_parameters, 0))
@@ -647,15 +638,19 @@ static bool save_trigger_file(Table_triggers_list *triggers, const char *db,
 
   SYNOPSIS
     drop_trigger()
-      thd    - current thread context (including trigger definition in LEX)
-      tables - table list containing one open table for which trigger is
-               dropped.
+      thd         - current thread context
+                    (including trigger definition in LEX)
+      tables      - table list containing one open table for which trigger
+                    is dropped.
+      stmt_query  - [OUT] after successful return, this string contains
+                    well-formed statement for creation this trigger.
 
   RETURN VALUE
     False - success
     True  - error
 */
-bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
+bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables,
+                                       String *stmt_query)
 {
   LEX *lex= thd->lex;
   LEX_STRING *name;
@@ -664,6 +659,8 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables)
   List_iterator<ulonglong>       it_mod(definition_modes_list);
   List_iterator<LEX_STRING>      it_definer(definers_list);
   char path[FN_REFLEN];
+
+  stmt_query->append(thd->query, thd->query_length);
 
   while ((name= it_name++))
   {

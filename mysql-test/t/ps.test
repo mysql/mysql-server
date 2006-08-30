@@ -1329,4 +1329,33 @@ create temporary table t1 (i int);
 # Restore the old environemnt
 #
 use test;
-# End of 5.0 tests
+
+
+#
+# BUG#21166: Prepared statement causes signal 11 on second execution
+#
+# Changes in an item tree done by optimizer weren't properly
+# registered and went unnoticed, which resulted in preliminary freeing
+# of used memory.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+--enable_warnings
+
+CREATE TABLE t1 (i BIGINT, j BIGINT);
+CREATE TABLE t2 (i BIGINT);
+CREATE TABLE t3 (i BIGINT, j BIGINT);
+
+PREPARE stmt FROM "SELECT * FROM t1 JOIN t2 ON (t2.i = t1.i)
+                   LEFT JOIN t3 ON ((t3.i, t3.j) = (t1.i, t1.j))
+                   WHERE t1.i = ?";
+
+SET @a= 1;
+EXECUTE stmt USING @a;
+EXECUTE stmt USING @a;
+
+DEALLOCATE PREPARE stmt;
+DROP TABLE IF EXISTS t1, t2, t3;
+
+
+--echo End of 5.0 tests.
