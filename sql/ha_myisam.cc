@@ -316,7 +316,11 @@ int ha_myisam::write_row(byte * buf)
     or a new row, then update the auto_increment value in the record.
   */
   if (table->next_number_field && buf == table->record[0])
-    update_auto_increment();
+  {
+    int error;
+    if ((error= update_auto_increment()))
+      return error;
+  }
   return mi_write(file,buf);
 }
 
