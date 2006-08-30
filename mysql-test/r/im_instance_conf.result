@@ -1,18 +1,14 @@
---------------------------------------------------------------------
-server_id           = 1
-server_id           = 2
---------------------------------------------------------------------
+SHOW VARIABLES LIKE 'server_id';
+Variable_name	Value
+server_id	1
 SHOW INSTANCES;
 instance_name	state
 mysqld1	online
 mysqld2	offline
-
----> connection: mysql1_con
-SHOW VARIABLES LIKE 'server_id';
-Variable_name	Value
-server_id	1
-
----> connection: default
+--------------------------------------------------------------------
+server_id           = 1
+server_id           = 2
+--------------------------------------------------------------------
 CREATE INSTANCE mysqld3
 server_id = 3,
 socket = "$MYSQL_TMP_DIR/mysqld_3.sock";

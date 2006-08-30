@@ -270,7 +270,6 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
   case SQLCOM_DROP_EVENT:
-  case SQLCOM_FLUSH:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
