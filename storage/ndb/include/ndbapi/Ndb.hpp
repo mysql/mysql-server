@@ -1095,6 +1095,15 @@ public:
 
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
+   * The current ndb_cluster_connection get_ndb_cluster_connection.
+   *
+   * @return the current connection
+   */
+  Ndb_cluster_connection& get_ndb_cluster_connection();
+#endif
+
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+  /**
    * The current catalog name can be fetched by getCatalogName.
    *
    * @return the current catalog name
