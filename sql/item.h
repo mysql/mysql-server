@@ -465,7 +465,7 @@ public:
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
                                            subselect */
-
+  Item_result cmp_context;              /* Comparison context */
   // alloc & destruct is done as start of select using sql_alloc
   Item();
   /*

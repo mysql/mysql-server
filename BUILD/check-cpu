@@ -93,6 +93,10 @@ check_cpu () {
     *Opteron*)
       cpu_arg="opteron";
       ;;
+    # MacOSX / Intel  
+    *i386*i486*)
+      cpu_arg="pentium-m";
+      ;;
 
     # Intel ia64
     *Itanium*)
@@ -131,7 +135,7 @@ check_cpu () {
   fi
 
   cc_ver=`$cc --version | sed 1q`
-  cc_verno=`echo $cc_ver | sed -e 's/[^0-9. ]//g;	 s/^ *//g; s/ .*//g'`
+  cc_verno=`echo $cc_ver | sed -e 's/^.*gcc/gcc/g; s/[^0-9. ]//g;	 s/^ *//g; s/ .*//g'`
 
   case "$cc_ver--$cc_verno" in
     *GCC*)
