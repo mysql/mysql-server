@@ -422,6 +422,27 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 DROP TABLE t1;
+create table test.t1 (f1 varchar(50) primary key, f2 text,f3 int) 
+TABLESPACE ts1 STORAGE DISK engine=NDB;
+insert into test.t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
+insert into test.t1 (f1,f2,f3)VALUES("222222","bbbbbb",2);
+select * from test.t1 order by f1;
+f1	f2	f3
+111111	aaaaaa	1
+222222	bbbbbb	2
+select f1,f2 from test.t1 order by f2;
+f1	f2
+111111	aaaaaa
+222222	bbbbbb
+select f2 from test.t1 order by f2;
+f2
+aaaaaa
+bbbbbb
+select f1,f2 from test.t1 order by f1;
+f1	f2
+111111	aaaaaa
+222222	bbbbbb
+drop table test.t1;
 ALTER TABLESPACE ts1 
 DROP DATAFILE 'datafile.dat' 
 ENGINE = NDB;

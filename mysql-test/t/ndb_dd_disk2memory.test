@@ -172,6 +172,112 @@ ORDER BY test.t2.c_amount;
 ####################### End Section 3 #########################
 DROP TABLE test.t1;
 DROP TABLE test.t2;
+
+########## Test that use to be in ndb_dd_advance.test #########
+########## ndb_dd_advance.test is now ndb_dd_alter.test #######
+#### Use group by asc and dec; Use having; Use order by. ####
+
+CREATE TABLE test.t1 (
+  a1 smallint NOT NULL,
+  a2 int NOT NULL,
+  a3 bigint NOT NULL,
+  a4 char(10),
+  a5 decimal(5,1),
+  a6 time,
+  a7 date,
+  a8 datetime,
+  a9 VARCHAR(255),
+  a10 blob,
+  PRIMARY KEY(a1)
+) TABLESPACE table_space1 STORAGE DISK ENGINE=NDB;
+
+CREATE TABLE test.t2 (
+  b1 smallint NOT NULL,
+  b2 int NOT NULL,
+  b3 bigint NOT NULL,
+  b4 char(10),
+  b5 decimal(5,1),
+  b6 time,
+  b7 date,
+  b8 datetime,
+  b9 VARCHAR(255),
+  b10 blob,
+  PRIMARY KEY(b1)
+) ENGINE=NDB;
+
+### ADD Some DATA to tables ######
+
+
+let $1=20;
+disable_query_log;
+while ($1)
+{
+ eval insert into test.t1 values($1, $1+1, $1+2000000000, "aaa$1", 34.2, '4:3:2', '2006-1-1', '1971-5-28 16:55:03', "bbbbbbbbbbbbb$1", "binary data");
+ eval insert into test.t2 values($1+2, $1+3, $1+3000000000, "aaa$1", 35.2, '4:3:2', '2006-1-1', '1971-5-28 16:55:03', "bbbbbbbbbbbbb$1", "binary data");
+ dec $1;
+}
+
+ALTER TABLE test.t1 ADD INDEX (a2), ADD INDEX (a3), ADD INDEX (a8);
+ALTER TABLE test.t2 ADD INDEX (b2), ADD INDEX (b3), ADD INDEX (b8);
+SHOW CREATE TABLE test.t1;
+SHOW CREATE TABLE test.t2;
+SELECT * FROM test.t1 order by a1;
+SELECT * FROM test.t2 order by b1;
+SELECT COUNT(a1), a1, COUNT(a1)*a1 FROM test.t1 GROUP BY a1;
+SELECT COUNT(a2), (a2+1), COUNT(a2)*(a2+0) FROM test.t1 GROUP BY a2;
+
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+
+CREATE TABLE test.t1 (a INT NOT NULL,
+b CHAR(5), c TEXT, d INT NOT NULL PRIMARY KEY) TABLESPACE 
+table_space1 STORAGE DISK ENGINE=NDB;
+
+insert into test.t1 (a,b,c,d) values (1,'a','Jonas',1),(2,'b','Tomas',2),
+(3,'c','Pekka',3),(4,'d','Martin',4),(1,'e','Stewart',5),(2,'f','Jeb',6),
+(3,'g','Serge',7),(4,'h','Clavin',8);
+select distinct a from test.t1 group by b,a having a > 2 order by a desc;
+select distinct a,c from test.t1 group by b,c,a having a > 2 order by a desc;
+select distinct a from test.t1 group by b,a having a > 2 order by a asc;
+select distinct a,c from test.t1 group by b,c,a having a > 2 order by a asc;
+drop table test.t1;
+
+create table test.t1 (a char(1), key(a)) TABLESPACE table_space1 
+STORAGE DISK ENGINE=NDB;
+insert into test.t1 values('1'),('1'),('1'),('2'),('2'),('3'),('3');
+select * from test.t1 where a >= '1' order by a;
+select distinct a from test.t1 order by a desc;
+select distinct a from test.t1 where a >= '1' order by a desc;
+select distinct a from test.t1 where a >= '1' order by a asc;
+drop table test.t1;
+
+CREATE TABLE test.t1 (email varchar(50), infoID BIGINT, dateentered DATETIME) 
+TABLESPACE table_space1 STORAGE DISK ENGINE=NDB;
+CREATE TABLE test.t2 (infoID BIGINT, shipcode varchar(10)) ENGINE=NDB;
+
+INSERT INTO test.t1 (email, infoID, dateentered) VALUES
+      ('test1@testdomain.com', 1, '2002-07-30 22:56:38'),
+      ('test1@testdomain.com', 1, '2002-07-27 22:58:16'),
+      ('test2@testdomain.com', 1, '2002-06-19 15:22:19'),
+      ('test2@testdomain.com', 2, '2002-06-18 14:23:47'),
+      ('test3@testdomain.com', 1, '2002-05-19 22:17:32');
+
+INSERT INTO test.t2(infoID, shipcode) VALUES
+      (1, 'Z001'),
+      (2, 'R002');
+
+SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 
+WHERE t1.infoID=t2.infoID order by email, shipcode;
+SELECT DISTINCTROW email FROM test.t1 ORDER BY dateentered DESC;
+SELECT DISTINCTROW email, shipcode FROM test.t1, test.t2 
+WHERE test.t1.infoID=test.t2.infoID ORDER BY dateentered DESC;
+
+DROP TABLE test.t1,test.t2;
+
+#################
+# Test Cleanup
+#################
+
 ALTER TABLESPACE table_space1
 DROP DATAFILE './table_space1/datafile.dat'
 ENGINE = NDB;

@@ -10,13 +10,21 @@
 #    Try to create FK constraints on disk based tables.
 #    Create and use disk based table that use auto inc.
 #    Create test that use transaction (commit, rollback)
-#    Create large disk base table, do random queries, check cache hits, do same
-#    query 10 times check cache hits.
-#    Create test that uses COUNT(), SUM(), MAX(), MIN(), NOW(), USER(), ... other built in #    SQL functions
+#    Create large disk base table, do random queries, check cache hits, 
+#    do same query 10 times check cache hits.
+#    Create test that uses COUNT(), SUM(), MAX(), MIN(), 
+#    NOW(), USER(), ... other built in #    SQL functions
 #    Create test that uses locks.
 #    Create test using truncate.
 ##############################################################
-
+# Author: Jonathan
+# Date: 2006-08-28
+# Change: Remove all the create and drop LFG and TS except
+#         The first create and the last drop to make test 
+#         run faster. 
+#         In addition, renamed test to be to a name that 
+#         gives a better idea of what the test is about
+########################################################### 
 -- source include/have_ndb.inc
 
 --disable_warnings
@@ -25,9 +33,11 @@ DROP TABLE IF EXISTS test.t2;
 DROP TABLE IF EXISTS test.t3;
 --enable_warnings
 
-#### Copy data from table in one table space to table in different table space. ####
+#### Copy data from table in one table space to table in ###
+#### different table space. ####
 --echo *****
---echo **** Copy data from table in one table space to table in different table space
+--echo **** Copy data from table in one table space to table 
+--echo **** in different table space
 --echo *****
 
  CREATE LOGFILE GROUP lg
@@ -39,7 +49,7 @@ DROP TABLE IF EXISTS test.t3;
  CREATE TABLESPACE ts1
  ADD DATAFILE './table_space1/datafile.dat'
  USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
+ INITIAL_SIZE 20M
  ENGINE NDB;
 
  CREATE TABLESPACE ts2
@@ -130,36 +140,10 @@ select length(@x0),length(@b2),length(@d2) from dual;
  
  DROP TABLE test.t1, test.t2;
 
-
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE NDB;
- DROP TABLESPACE ts1 ENGINE NDB;
-
- ALTER TABLESPACE ts2
- DROP DATAFILE './table_space2/datafile.dat'
- ENGINE NDB;
- DROP TABLESPACE ts2 ENGINE NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
-
 #### Insert, Update, Delete from NDB table with BLOB fields ####
 --echo *****
 --echo **** Insert, Update, Delete from NDB table with BLOB fields
 --echo *****
-
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
 
 set @vc1 = repeat('a', 200);
 set @vc2 = repeat('b', 500);
@@ -173,8 +157,10 @@ set @bb3 = repeat('3', 10000);
 set @bb4 = repeat('4', 40000);
 set @bb5 = repeat('5', 50000);
 
-select length(@vc1),length(@vc2),length(@vc3),length(@vc4),length(@vc5) from dual;
-select length(@bb1),length(@bb2),length(@bb3),length(@bb4),length(@bb5) from dual;
+select length(@vc1),length(@vc2),length(@vc3),length(@vc4),length(@vc5) 
+from dual;
+select length(@bb1),length(@bb2),length(@bb3),length(@bb4),length(@bb5) 
+from dual;
 
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(5000), a3 BLOB) 
  TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
@@ -220,30 +206,10 @@ select length(@bb1),length(@bb2),length(@bb3),length(@bb4),length(@bb5) from dua
 
  DROP TABLE test.t1;
 
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE NDB;
- DROP TABLESPACE ts1 ENGINE NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
-
 ##### Create Stored procedures that use disk based tables #####
 --echo *****
 --echo **** Create Stored procedures that use disk based tables
 --echo *****
-
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
 
 delimiter //;
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB)
@@ -272,30 +238,11 @@ delimiter ;//
  DROP PROCEDURE test.sp2;
  DROP TABLE test.t1;
 
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
 
 #### Create function that operate on disk based tables ####
 --echo *****
 --echo ***** Create function that operate on disk based tables
 --echo *****
-
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
 
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB)
  TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
@@ -335,30 +282,10 @@ delimiter //;
  DROP FUNCTION test.fn2;
  DROP TABLE test.t1;
 
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
-
 #### Create triggers that operate on disk based tables ####
 --echo *****
 --echo ***** Create triggers that operate on disk based tables
 --echo *****
-
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
 
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB)
  TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
@@ -382,30 +309,11 @@ delimiter //;
  DROP TRIGGER test.trg1;
  DROP TABLE test.t1;
 
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
-
 #### Create, update views that operate on disk based tables ####
 --echo *****
 --echo ***** Create, update views that operate on disk based tables
 --echo *****
 
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
 
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB)
  TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
@@ -428,32 +336,14 @@ delimiter //;
  DELETE FROM test.t1;
  DROP TABLE test.t1;
 
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
-
 #### Create and use disk based table that use auto inc ####
 --echo *****
 --echo ***** Create and use disk based table that use auto inc
 --echo *****
 
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
-
- CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+ CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+                       a2 VARCHAR(256), a3 BLOB) 
+                       TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
  let $1=10;
  disable_query_log;
  while ($1)
@@ -466,33 +356,16 @@ delimiter //;
  DELETE FROM test.t1;
  DROP TABLE test.t1;
 
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
 
 #### Create test that use transaction (commit, rollback) ####
 --echo *****
 --echo ***** Create test that use transaction (commit, rollback)
 --echo *****
 
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
-
  SET AUTOCOMMIT=0;
- CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+ CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+                       a2 VARCHAR(256), a3 BLOB) 
+                       TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
 
  INSERT INTO test.t1 VALUES(NULL, "aaaaa1", "bbbbb1");
  COMMIT; 
@@ -507,7 +380,9 @@ delimiter //;
 
 # Now do the same thing with START TRANSACTION without using AUTOCOMMIT.
 
- CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+ CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+                       a2 VARCHAR(256), a3 BLOB) 
+                       TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
 
  START TRANSACTION;
  INSERT INTO test.t1 VALUES(NULL, "aaaaa1", "bbbbb1");
@@ -522,14 +397,6 @@ delimiter //;
  DELETE FROM test.t1;
  DROP TABLE test.t1;
 
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
-
 #### Create test that uses locks ####
 --echo *****
 --echo ***** Create test that uses locks
@@ -538,22 +405,12 @@ delimiter //;
  connect (con1,localhost,root,,);
  connect (con2,localhost,root,,);
 
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
-
 # connection con1;
 --disable_warnings
  drop table if exists test.t1;
- CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a2 VARCHAR(256), a3 BLOB) TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
+ CREATE TABLE test.t1 (a1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+                       a2 VARCHAR(256), a3 BLOB) 
+                       TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
 --enable_warnings
 
  LOCK TABLES test.t1 write;
@@ -575,14 +432,6 @@ delimiter //;
  DROP TABLE test.t1;
 
  #connection defualt;
-
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
 
 #### Create large disk base table, do random queries, check cache hits ####
 --echo *****
@@ -626,18 +475,6 @@ set @d2 = concat(@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2,@d2);
 select length(@x0),length(@b1),length(@d1) from dual;
 select length(@x0),length(@b2),length(@d2) from dual;
 
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
-
  CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(1000), a3 BLOB)
  TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
  
@@ -664,38 +501,22 @@ select length(@x0),length(@b2),length(@d2) from dual;
  DELETE FROM test.t1;
  DROP TABLE test.t1;
 
- ALTER TABLESPACE ts1
- DROP DATAFILE './table_space1/datafile.dat'
- ENGINE=NDB;
- DROP TABLESPACE ts1 ENGINE=NDB;
-
- DROP LOGFILE GROUP lg
- ENGINE=NDB;
-
-#### Create test that uses COUNT(), SUM(), MAX(), MIN(), NOW(), USER(), TRUNCATE ####
+#### Create test that uses COUNT(), SUM(), MAX(), ####
+##### MIN(), NOW(), USER(), TRUNCATE ####
 --echo *****
---echo ***** Create test that uses COUNT(), SUM(), MAX(), MIN(), NOW(), USER(), TRUNCATE
+--echo ***** Create test that uses COUNT(), SUM(), MAX(), MIN(), NOW(), 
+--echo ***** USER(), TRUNCATE
 --echo *****
 
- CREATE LOGFILE GROUP lg
- ADD UNDOFILE './lg_group/undofile.dat'
- INITIAL_SIZE 16M
- UNDO_BUFFER_SIZE = 1M
- ENGINE=NDB;
-
- CREATE TABLESPACE ts1
- ADD DATAFILE './table_space1/datafile.dat'
- USE LOGFILE GROUP lg
- INITIAL_SIZE 12M
- ENGINE NDB;
-
- CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256), a3 BLOB, a4 DATE, a5 CHAR(250))
+ CREATE TABLE test.t1 (a1 int NOT NULL PRIMARY KEY, a2 VARCHAR(256),
+                       a3 BLOB, a4 DATE, a5 CHAR(250))
  TABLESPACE ts1 STORAGE DISK  ENGINE=NDB;
  let $1=100;
  disable_query_log;
  while ($1)
  {
-  eval insert into test.t1 values($1, "aaaaaaaaaaaaaaaa$1", "bbbbbbbbbbbbbbbbbb$1", '2006-06-20' , USER());
+  eval insert into test.t1 values($1, "aaaaaaaaaaaaaaaa$1", 
+            "bbbbbbbbbbbbbbbbbb$1", '2006-06-20' , USER());
   dec $1;
  }
  enable_query_log;
@@ -715,6 +536,11 @@ select length(@x0),length(@b2),length(@d2) from dual;
  DROP DATAFILE './table_space1/datafile.dat'
  ENGINE=NDB;
  DROP TABLESPACE ts1 ENGINE=NDB;
+
+ ALTER TABLESPACE ts2
+ DROP DATAFILE './table_space2/datafile.dat'
+ ENGINE=NDB;
+ DROP TABLESPACE ts2 ENGINE=NDB;
 
  DROP LOGFILE GROUP lg
  ENGINE=NDB;
