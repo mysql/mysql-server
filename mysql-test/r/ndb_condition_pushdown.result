@@ -1307,7 +1307,7 @@ select auto from t1 where
 ('1901-01-01 01:01:01' between date_time and date_time) 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	10	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	1	Using where with pushed condition; Using filesort
 select auto from t1 where
 ("aaaa" between string and string) and 
 ("aaaa" between vstring and vstring) and 
@@ -1409,7 +1409,7 @@ select auto from t1 where
 ('1901-01-01 01:01:01' not between date_time and date_time) 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	20	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	3	Using where with pushed condition; Using filesort
 select auto from t1 where
 ("aaaa" not between string and string) and 
 ("aaaa" not between vstring and vstring) and 
@@ -1565,7 +1565,7 @@ time_field not in('01:01:01','03:03:03') and
 date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	2	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	6	Using where with pushed condition; Using filesort
 select auto from t1 where
 string not in("aaaa","cccc") and 
 vstring not in("aaaa","cccc") and 
