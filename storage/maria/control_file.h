@@ -37,7 +37,7 @@ int control_file_create_or_open();
   and when we have written a checkpoint (after syncing this log record).
 */
 int control_file_write_and_force(LSN *checkpoint_lsn, uint32 log_no,
-                                 uint args_to_write);
+                                 uint objs_to_write);
 
 
 /* Free resources taken by control file subsystem */
