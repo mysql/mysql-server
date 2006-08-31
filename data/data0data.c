@@ -506,12 +506,9 @@ dtuple_convert_big_rec(
 	mem_heap_t*	heap;
 	big_rec_t*	vector;
 	dfield_t*	dfield;
+	dict_field_t*	ifield;
 	ulint		size;
 	ulint		n_fields;
-	ulint		longest;
-	ulint		longest_i		= ULINT_MAX;
-	ulint		i;
-	ulint		j;
 
 	if (UNIV_UNLIKELY(!dict_index_is_clust(index))) {
 		return(NULL);
@@ -540,22 +537,58 @@ dtuple_convert_big_rec(
 					* sizeof(big_rec_field_t));
 
 	/* Decide which fields to shorten: the algorithm is to look for
-	the longest field whose type is DATA_BLOB */
+	a variable-length field that yields the biggest savings when
+	stored externally */
 
 	n_fields = 0;
 
 	while (page_zip_rec_needs_ext(rec_get_converted_size(index, entry),
 				      dict_table_is_comp(index->table),
 				      dict_table_zip_size(index->table))) {
+		ulint	i;
+		ulint	longest		= 0;
+		ulint	longest_i	= ULINT_MAX;
 
-		longest = 0;
 		for (i = dict_index_get_n_unique_in_tree(index);
 		     i < dtuple_get_n_fields(entry); i++) {
 
-			/* Skip over fields which already are externally
-			stored */
+			ulint	min_prefix;
+
+			dfield = dtuple_get_nth_field(entry, i);
+			ifield = dict_index_get_nth_field(index, i);
+
+			/* Skip fixed-length or NULL or short columns */
+
+			if (ifield->fixed_len
+			    || dfield->len == UNIV_SQL_NULL
+			    || dfield->len <= (BTR_EXTERN_FIELD_REF_SIZE
+					       + REC_1BYTE_OFFS_LIMIT + 1)) {
+				continue;
+			}
+
+			min_prefix = ifield->col->min_prefix;
+
+			/* Skip indexed columns */
+			if (min_prefix == ULINT_UNDEFINED) {
+				continue;
+			}
+
+			if (min_prefix < (REC_1BYTE_OFFS_LIMIT + 1
+					  - BTR_EXTERN_FIELD_REF_SIZE)) {
+				min_prefix = (REC_1BYTE_OFFS_LIMIT + 1
+					      - BTR_EXTERN_FIELD_REF_SIZE);
+			}
+
+			/* Check that there would be savings */
+			if (longest >= dfield->len - min_prefix) {
+				continue;
+			}
+
+			/* Skip externally stored columns */
 
 			if (ext_vec) {
+				ulint	j;
+
 				for (j = 0; j < n_ext_vec; j++) {
 					if (ext_vec[j] == i) {
 						goto is_externally_stored;
@@ -563,29 +596,14 @@ dtuple_convert_big_rec(
 				}
 			}
 
-			dfield = dtuple_get_nth_field(entry, i);
-
-			if (dfield->len != UNIV_SQL_NULL
-			    && dfield->len > longest) {
-
-				longest = dfield->len;
-
-				longest_i = i;
-			}
+			longest_i = i;
+			longest = dfield->len - min_prefix;
 
 is_externally_stored:
 			continue;
 		}
 
-		/* We do not store externally fields which are smaller than
-		DICT_MAX_INDEX_COL_LEN */
-
-#if DICT_MAX_INDEX_COL_LEN <= REC_1BYTE_OFFS_LIMIT
-# error "DICT_MAX_INDEX_COL_LEN <= REC_1BYTE_OFFS_LIMIT"
-#endif
-
-		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10
-		    + DICT_MAX_INDEX_COL_LEN) {
+		if (!longest) {
 			/* Cannot shorten more */
 
 			mem_heap_free(heap);
@@ -593,36 +611,32 @@ is_externally_stored:
 			return(NULL);
 		}
 
-		/* Move data from field longest_i to big rec vector;
-		we do not let data size of the remaining entry
-		drop below 128 which is the limit for the 2-byte
-		offset storage format in a physical record. This
-		we accomplish by storing 128 bytes of data in entry
-		itself, and only the remaining part to big rec vec.
+		/* Move data from field longest_i to big rec vector.
 
 		We store the first bytes locally to the record. Then
 		we can calculate all ordering fields in all indexes
 		from locally stored data. */
 
 		dfield = dtuple_get_nth_field(entry, longest_i);
+		ifield = dict_index_get_nth_field(index, longest_i);
 		vector->fields[n_fields].field_no = longest_i;
 
-		ut_a(dfield->len > DICT_MAX_INDEX_COL_LEN);
+		vector->fields[n_fields].len
+			= dfield->len - ut_max(REC_1BYTE_OFFS_LIMIT + 1
+					       - BTR_EXTERN_FIELD_REF_SIZE,
+					       ifield->col->min_prefix);
 
-		vector->fields[n_fields].len = dfield->len
-			- DICT_MAX_INDEX_COL_LEN;
-
-		vector->fields[n_fields].data = mem_heap_alloc
-			(heap, vector->fields[n_fields].len);
+		vector->fields[n_fields].data
+			= mem_heap_alloc(heap, vector->fields[n_fields].len);
 
 		/* Copy data (from the end of field) to big rec vector */
 
-		ut_memcpy(vector->fields[n_fields].data,
-			  ((byte*)dfield->data) + dfield->len
-			  - vector->fields[n_fields].len,
-			  vector->fields[n_fields].len);
-		dfield->len = dfield->len - vector->fields[n_fields].len
-			+ BTR_EXTERN_FIELD_REF_SIZE;
+		memcpy(vector->fields[n_fields].data,
+		       ((byte*)dfield->data) + dfield->len
+		       - vector->fields[n_fields].len,
+		       vector->fields[n_fields].len);
+		dfield->len -= vector->fields[n_fields].len
+			- BTR_EXTERN_FIELD_REF_SIZE;
 
 		/* Set the extern field reference in dfield to zero */
 		memset(((byte*)dfield->data)
@@ -657,11 +671,10 @@ dtuple_convert_back_big_rec(
 					      vector->fields[i].field_no);
 		/* Copy data from big rec vector */
 
-		ut_memcpy(((byte*)dfield->data)
-			  + dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
-			vector->fields[i].data,
-			vector->fields[i].len);
-		dfield->len = dfield->len + vector->fields[i].len
+		memcpy((byte*) dfield->data
+		       + dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
+		       vector->fields[i].data, vector->fields[i].len);
+		dfield->len += vector->fields[i].len
 			- BTR_EXTERN_FIELD_REF_SIZE;
 	}
 

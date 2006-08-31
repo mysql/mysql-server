@@ -132,6 +132,10 @@ struct dict_col_struct{
 				clustered index */
 	ulint		ord_part;/* count of how many times this column
 				appears in ordering fields of an index */
+	ulint		min_prefix;/* the longest prefix index defined
+				on the column (in bytes), 0 if no index
+				defined, and ULINT_UNDEFINED if an index
+				is defined on the entire column */
 	const char*	name;	/* name */
 	dtype_t		type;	/* data type */
 	dict_table_t*	table;	/* back pointer to table of this column */
