@@ -225,7 +225,9 @@ mysql_declare_plugin(ftexample)
   simple_parser_plugin_init,  /* init function (when loaded)     */
   simple_parser_plugin_deinit,/* deinit function (when unloaded) */
   0x0001,                     /* version                         */
-  simple_status               /* status variables                */
+  simple_status,              /* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 

@@ -708,6 +708,8 @@ mysql_declare_plugin(heap)
   heap_init,
   NULL,
   0x0100, /* 1.0 */
-  0
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
