@@ -731,7 +731,7 @@ ERROR HY000: Cannot create temporary table with partitions
 create table t1 (a int, b int) partition by list (a)
 (partition p1 values in (1), partition p2 values in (2));
 alter table t1 add primary key (b);
-ERROR HY000: A PRIMARY KEY need to include all fields in the partition function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
