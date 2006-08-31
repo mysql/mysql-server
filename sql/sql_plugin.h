@@ -67,16 +67,13 @@ typedef int (*plugin_type_init)(struct st_plugin_int *);
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
-extern int plugin_init(void);
-extern void plugin_load(void);
-extern void plugin_free(void);
+extern int plugin_init(int);
+extern void plugin_shutdown(void);
 extern my_bool plugin_is_ready(const LEX_STRING *name, int type);
 extern st_plugin_int *plugin_lock(const LEX_STRING *name, int type);
 extern void plugin_unlock(struct st_plugin_int *plugin);
 extern my_bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl);
 extern my_bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name);
-
-extern my_bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 
 typedef my_bool (plugin_foreach_func)(THD *thd,
                                       st_plugin_int *plugin,
