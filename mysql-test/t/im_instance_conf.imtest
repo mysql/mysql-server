@@ -37,7 +37,7 @@
 # Check that the configuration file contains only instances that we expect.
 
 --echo --------------------------------------------------------------------
---exec grep '^server_id\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^server_id[^a-zA-Z0-9_\-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
 
 ###########################################################################
@@ -56,7 +56,7 @@ CREATE INSTANCE mysqld3
 SHOW INSTANCES;
  
 --echo --------------------------------------------------------------------
---exec grep '^server_id\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^server_id[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
 
 # Check that CREATE INSTANCE fails for existing instance. Let's all three
@@ -78,7 +78,7 @@ CREATE INSTANCE mysqld3;
 #   - without values;
 
 --echo --------------------------------------------------------------------
---exec grep '^nonguarded\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep "^nonguarded\$" $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
 
 CREATE INSTANCE mysqld4
@@ -89,15 +89,15 @@ CREATE INSTANCE mysqld4
 SHOW INSTANCES;
 
 --echo --------------------------------------------------------------------
---exec grep '^nonguarded\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep "^nonguarded\$" $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
 
 #   - with value;
 
 --echo --------------------------------------------------------------------
---exec grep '^test-A\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-A[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^test-B\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-B[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 CREATE INSTANCE mysqld5
@@ -109,9 +109,9 @@ CREATE INSTANCE mysqld5
 SHOW INSTANCES;
 
 --echo --------------------------------------------------------------------
---exec grep '^test-A\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-A[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
---exec grep '^test-B\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-B[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
 
 # Check that CREATE INSTANCE parses options and handles grammar errors
@@ -121,7 +121,9 @@ SHOW INSTANCES;
 #   - check handling of extra spaces;
 
 --echo --------------------------------------------------------------------
---exec grep '^test-C\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-C1[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
+--echo --------------------------------------------------------------------
+--exec grep '^test-C2[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 CREATE INSTANCE mysqld6
@@ -133,17 +135,17 @@ CREATE INSTANCE mysqld6
 SHOW INSTANCES;
 
 --echo --------------------------------------------------------------------
---exec grep '^test-C1\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-C1[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
---exec grep '^test-C2\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-C2[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
 
 #   - check handling of grammar error;
 
 --echo --------------------------------------------------------------------
---exec grep '^test-D\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-D[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^test-E\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-E[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 --error ER_SYNTAX_ERROR
@@ -159,21 +161,27 @@ CREATE INSTANCE mysqld8  test-F  =  ;
 SHOW INSTANCES;
 
 --echo --------------------------------------------------------------------
---exec grep '^test-D\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-D[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^test-E\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-E[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 #   - check parsing of string option values
 
 --echo --------------------------------------------------------------------
---exec grep '^test-1\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-1[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^test-2\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-2[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^test-3\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-3[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^test-4\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-4[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
+--echo --------------------------------------------------------------------
+--exec grep '^test-5[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
+--echo --------------------------------------------------------------------
+--exec grep '^test-6[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
+--echo --------------------------------------------------------------------
+--exec grep '^test-7[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 CREATE INSTANCE mysqld9
@@ -210,21 +218,21 @@ CREATE INSTANCE mysqld13 test-bad=' \ ';
 SHOW INSTANCES;
 
 --echo --------------------------------------------------------------------
---exec grep '^test-1\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-1[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
---exec grep '^test-2\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-2[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
---exec grep '^test-3\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-3[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
---exec grep '^test-4\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-4[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
---exec grep '^test-5\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-5[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
---exec grep '^test-6\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-6[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
---exec grep '^test-7\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^test-7[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
---exec grep '^test-bad\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^test-bad' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 
