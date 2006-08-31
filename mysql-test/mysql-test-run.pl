@@ -1955,6 +1955,23 @@ sub mysqld_wait_started($){
 }
 
 
+sub ndb_mgmd_wait_started($) {
+  my ($cluster)= @_;
+
+  my $retries= 100;
+  while (ndbcluster_wait_started($cluster, "--no-contact") and
+	 $retries)
+  {
+    # Millisceond sleep emulated with select
+    select(undef, undef, undef, (0.1));
+
+    $retries--;
+  }
+
+  return $retries == 0;
+
+}
+
 sub ndb_mgmd_start ($) {
   my $cluster= shift;
 
@@ -1975,13 +1992,12 @@ sub ndb_mgmd_start ($) {
 		  "",
 		  { append_log_file => 1 });
 
-
   # FIXME Should not be needed
   # Unfortunately the cluster nodes will fail to start
   # if ndb_mgmd has not started properly
-  while (ndbcluster_wait_started($cluster, "--no-contact"))
+  if (ndb_mgmd_wait_started($cluster))
   {
-    select(undef, undef, undef, 0.1);
+    mtr_error("Failed to wait for start of ndb_mgmd");
   }
 
   # Remember pid of ndb_mgmd
@@ -2046,7 +2062,7 @@ sub ndbcluster_start ($$) {
     mtr_error("Cluster '$cluster->{'name'}' already started");
   }
 
-  my $pid= ndb_mgmd_start($cluster);
+  ndb_mgmd_start($cluster);
 
   for ( my $idx= 0; $idx < $cluster->{'nodes'}; $idx++ )
   {
