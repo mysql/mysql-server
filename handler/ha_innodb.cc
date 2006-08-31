@@ -6789,19 +6789,17 @@ ha_innobase::store_lock(
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
 
-	/* Call update_thd() to update prebuilt->trx to point to the trx
-	object of thd! Failure to do this caused a serious memory
-	corruption bug in 5.1.11. */
+	/* Note that trx in this function is NOT necessarily prebuilt->trx
+	because we call update_thd() later, in ::external_lock()! Failure to
+	understand this caused a serious memory corruption bug in 5.1.11. */
 
-	update_thd(thd);
+	trx = check_trx_exists(thd);
 
-	trx = prebuilt->trx;
-
-	/* NOTE: MySQL	can call this function with lock 'type' TL_IGNORE!
+	/* NOTE: MySQL can call this function with lock 'type' TL_IGNORE!
 	Be careful to ignore TL_IGNORE if we are going to do something with
 	only 'real' locks! */
 
-	/* If no MySQL tables is use we need to set isolation level
+	/* If no MySQL table is in use, we need to set the isolation level
 	of the transaction. */
 
 	if (lock_type != TL_IGNORE
@@ -6811,7 +6809,13 @@ ha_innobase::store_lock(
 						thd->variables.tx_isolation);
 	}
 
-	if ((lock_type == TL_READ && thd->in_lock_tables) ||
+	if (thd->lex->sql_command == SQLCOM_DROP_TABLE) {
+
+		/* MySQL calls this function in DROP TABLE though this table
+		handle may belong to another thd that is running a query. Let
+		us in that case skip any changes to the prebuilt struct. */ 
+
+	} else if ((lock_type == TL_READ && thd->in_lock_tables) ||
 		(lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 		lock_type == TL_READ_WITH_SHARED_LOCKS ||
 		lock_type == TL_READ_NO_INSERT ||
@@ -7071,11 +7075,14 @@ ha_innobase::innobase_read_and_init_auto_inc(
 		in table.h says that 'next_number_field' is set when it is
 		'active'. */
 
-		auto_inc = (longlong) table->found_next_number_field->
-				val_int_offset(table->s->rec_buff_length) + 1;
-	}
+                 my_bitmap_map *old_map;
+                 old_map= dbug_tmp_use_all_columns(table, table->read_set);
+                 auto_inc = (longlong) table->found_next_number_field->
+                                val_int_offset(table->s->rec_buff_length) + 1;
+                 dbug_tmp_restore_column_map(table->read_set, old_map);
+        }
 
-	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
+        dict_table_autoinc_initialize(prebuilt->table, auto_inc);
 
 func_exit:
 	(void) extra(HA_EXTRA_NO_KEYREAD);
