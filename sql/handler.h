@@ -668,7 +668,11 @@ struct handlerton
      (*create_iterator)(enum handler_iterator_type type,
                         struct handler_iterator *fill_this_in);
    int (*discover)(THD* thd, const char *db, const char *name,
-                           const void** frmblob, uint* frmlen);
+                   const void** frmblob, uint* frmlen);
+   int (*find_files)(THD *thd,const char *db,const char *path,
+                     const char *wild, bool dir, List<char> *files);
+   int (*table_exists_in_engine)(THD* thd, const char *db,
+                                 const char *name);
 };
 
 
