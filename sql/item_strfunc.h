@@ -493,14 +493,7 @@ public:
     return item->walk(processor, arg) ||
       Item_str_func::walk(processor, arg);
   }
-  Item *transform(Item_transformer transformer, byte *arg)
-  {
-    Item *new_item= item->transform(transformer, arg);
-    if (!new_item)
-      return 0;
-    item= new_item;
-    return Item_str_func::transform(transformer, arg);
-  }
+  Item *transform(Item_transformer transformer, byte *arg);
   void print(String *str);
 };
 
