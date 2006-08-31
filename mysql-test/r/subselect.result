@@ -3346,3 +3346,28 @@ ORDER BY t1.t DESC LIMIT 1);
 i1	i2	t	i1	i2	t
 24	1	2005-05-27 12:40:30	24	1	2006-06-20 12:29:40
 DROP TABLE t1, t2;
+CREATE TABLE t1 (i INT);
+(SELECT i FROM t1) UNION (SELECT i FROM t1);
+i
+SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS 
+(
+(SELECT i FROM t1) UNION 
+(SELECT i FROM t1)
+);
+i
+SELECT * FROM t1 
+WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
+i
+explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
+from t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'union (select t12.i from t1 t12))
+from t1' at line 1
+explain select * from t1 where not exists 
+((select t11.i from t1 t11) union (select t12.i from t1 t12));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+4	UNION	t12	system	NULL	NULL	NULL	NULL	0	const row not found
+NULL	UNION RESULT	<union2,4>	ALL	NULL	NULL	NULL	NULL	NULL	
+DROP TABLE t1;
