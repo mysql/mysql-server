@@ -945,6 +945,31 @@ DROP TABLE mysqltest3.t_nn;
 DROP DATABASE mysqltest3;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysqltest_1'@'localhost';
 DROP USER 'mysqltest_1'@'localhost';
+use test;
 create user mysqltest1_thisisreallytoolong;
-ERROR HY000: Operation CREATE USER failed for 'mysqltest1_thisisreallytoolong'@'%'
+ERROR HY000: String 'mysqltest1_thisisreallytoolong' is too long for user name (should be no longer than 16)
+GRANT CREATE ON mysqltest.* TO 1234567890abcdefGHIKL@localhost;
+ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+GRANT CREATE ON mysqltest.* TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+REVOKE CREATE ON mysqltest.* FROM 1234567890abcdefGHIKL@localhost;
+ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+REVOKE CREATE ON mysqltest.* FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+GRANT CREATE ON t1 TO 1234567890abcdefGHIKL@localhost;
+ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+GRANT CREATE ON t1 TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+REVOKE CREATE ON t1 FROM 1234567890abcdefGHIKL@localhost;
+ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+REVOKE CREATE ON t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+GRANT EXECUTE ON PROCEDURE p1 TO 1234567890abcdefGHIKL@localhost;
+ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+GRANT EXECUTE ON PROCEDURE p1 TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+REVOKE EXECUTE ON PROCEDURE p1 FROM 1234567890abcdefGHIKL@localhost;
+ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
+ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
 End of 5.0 tests

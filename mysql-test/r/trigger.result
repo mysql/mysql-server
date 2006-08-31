@@ -626,16 +626,87 @@ Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer
 t1_bi	INSERT	t1	set new.a = '2004-01-00'	BEFORE	#		root@localhost
 drop table t1;
 create table t1 (id int);
+create trigger t1_ai after insert on t1 for each row reset query cache;
+ERROR 0A000: RESET is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row reset master;
+ERROR 0A000: RESET is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row reset slave;
+ERROR 0A000: RESET is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush hosts;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush tables with read lock;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush logs;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush status;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush slave;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush master;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush des_key_file;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create trigger t1_ai after insert on t1 for each row flush user_resources;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush tables;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush privileges;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create procedure p1() flush tables;
+drop procedure if exists p1;
 create trigger t1_ai after insert on t1 for each row call p1();
+create procedure p1() flush tables;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() reset query cache;
+insert into t1 values (0);
+ERROR 0A000: RESET is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() reset master;
+insert into t1 values (0);
+ERROR 0A000: RESET is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() reset slave;
+insert into t1 values (0);
+ERROR 0A000: RESET is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush hosts;
 insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() flush privileges;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush tables with read lock;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush tables;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush logs;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush status;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush slave;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush master;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush des_key_file;
+insert into t1 values (0);
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop procedure p1;
+create procedure p1() flush user_resources;
 insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
@@ -1089,4 +1160,17 @@ begin
 set @a:= 1;
 end|
 ERROR HY000: Triggers can not be created on system tables
+use test|
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1(c INT);
+CREATE TABLE t2(c INT);
+CREATE DEFINER=1234567890abcdefGHIKL@localhost
+TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
+ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW SET @a = 2;
+ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+DROP TABLE t1;
+DROP TABLE t2;
 End of 5.0 tests

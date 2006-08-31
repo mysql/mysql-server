@@ -6036,6 +6036,9 @@ void mysql_init_multi_delete(LEX *lex)
 void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
+
+  DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
+
   mysql_init_query(thd, (uchar*) inBuf, length);
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
@@ -6943,11 +6946,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   select_errors=0;				/* Write if more errors */
   bool tmp_write_to_binlog= 1;
 
-  if (thd && thd->in_sub_stmt)
-  {
-    my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
-    return 1;
-  }
+  DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
@@ -7817,16 +7816,34 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 
 LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 {
-  LEX_USER *curr_user;
   if (!user->user.str)  // current_user
-  {
-    if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
-    {
-      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(LEX_USER));
-      return 0;
-    }
-    get_default_definer(thd, curr_user);
-    return curr_user;
-  }
+    return create_default_definer(thd);
+
   return user;
+}
+
+
+/*
+  Check that length of a string does not exceed some limit.
+
+  SYNOPSIS
+    check_string_length()
+      str         string to be checked
+      err_msg     error message to be displayed if the string is too long
+      max_length  max length
+
+  RETURN
+    FALSE   the passed string is not longer than max_length
+    TRUE    the passed string is longer than max_length
+*/
+
+bool check_string_length(LEX_STRING *str, const char *err_msg,
+                         uint max_length)
+{
+  if (str->length <= max_length)
+    return FALSE;
+
+  my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_length);
+
+  return TRUE;
 }
