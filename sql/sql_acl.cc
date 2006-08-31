@@ -3041,14 +3041,6 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       result= TRUE;
       continue;
     }  
-    if (Str->host.length > HOSTNAME_LENGTH ||
-	Str->user.length > USERNAME_LENGTH)
-    {
-      my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
-                 MYF(0));
-      result= TRUE;
-      continue;
-    }
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users,
@@ -3253,15 +3245,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       result= TRUE;
       continue;
     }  
-    if (Str->host.length > HOSTNAME_LENGTH ||
-	Str->user.length > USERNAME_LENGTH)
-    {
-      if (!no_error)
-	my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
-                   MYF(0));
-      result= TRUE;
-      continue;
-    }
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users,
@@ -3387,14 +3370,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= TRUE;
       continue;
     }  
-    if (Str->host.length > HOSTNAME_LENGTH ||
-	Str->user.length > USERNAME_LENGTH)
-    {
-      my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
-                 MYF(0));
-      result= -1;
-      continue;
-    }
     if (replace_user_table(thd, tables[0].table, *Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
                            test(thd->variables.sql_mode &
@@ -4301,14 +4276,6 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   if (!initialized)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(TRUE);
-  }
-
-  if (lex_user->host.length > HOSTNAME_LENGTH ||
-      lex_user->user.length > USERNAME_LENGTH)
-  {
-    my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
-               MYF(0));
     DBUG_RETURN(TRUE);
   }
 
