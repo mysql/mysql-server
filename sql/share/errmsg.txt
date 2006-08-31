@@ -5956,3 +5956,9 @@ ER_CANT_DROP_LOG_TABLE
         eng "Cannot drop log table if log is enabled"
 ER_ONLY_INTEGERS_ALLOWED
         eng "Only normal integers allowed as number here"
+ER_USERNAME
+	eng "user name"
+ER_HOSTNAME
+	eng "host name"
+ER_WRONG_STRING_LENGTH
+	eng "String '%-.70s' is too long for %s (should be no longer than %d)"
