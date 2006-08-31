@@ -9952,8 +9952,9 @@ static void test_ps_i18n()
   const char *stmt_text;
   MYSQL_BIND bind_array[2];
 
-  const char *koi8= "оХ, ЪБ ТЩВБМЛХ";
-  const char *cp1251= "Ну, за рыбалку";
+  /* Represented as numbers to keep UTF8 tools from clobbering them. */
+  const char *koi8= "\xee\xd5\x2c\x20\xda\xc1\x20\xd2\xd9\xc2\xc1\xcc\xcb\xd5";
+  const char *cp1251= "\xcd\xf3\x2c\x20\xe7\xe0\x20\xf0\xfb\xe1\xe0\xeb\xea\xf3";
   char buf1[16], buf2[16];
   ulong buf1_len, buf2_len;
 
