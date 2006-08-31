@@ -847,6 +847,12 @@ trx_sysf_create(
 			   mtr);
 	ut_a(buf_frame_get_page_no(page) == TRX_SYS_PAGE_NO);
 
+	/* Reset the doublewrite buffer magic number to zero so that we
+	know that the doublewrite buffer has not yet been created (this
+	suppresses a Valgrind warning) */
+
+	mach_write_to_4(page + TRX_SYS_DOUBLEWRITE + TRX_SYS_DOUBLEWRITE_MAGIC,
+			0);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TRX_SYS_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
