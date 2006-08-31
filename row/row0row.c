@@ -170,10 +170,9 @@ dtuple_t*
 row_build(
 /*======*/
 				/* out, own: row built; see the NOTE below! */
-	ulint		type,	/* in: ROW_COPY_POINTERS, ROW_COPY_DATA, or
-				ROW_COPY_ALSO_EXTERNALS,
-				the two last copy also the data fields to
-				heap as the first only places pointers to
+	ulint		type,	/* in: ROW_COPY_POINTERS or ROW_COPY_DATA;
+				the latter copies also the data fields to
+				heap while the first only places pointers to
 				data fields on the index page, and thus is
 				more efficient */
 	dict_index_t*	index,	/* in: clustered index */
@@ -244,13 +243,6 @@ row_build(
 			dfield = dtuple_get_nth_field(row,
 						      dict_col_get_no(col));
 			field = rec_get_nth_field(rec, offsets, i, &len);
-
-			if (type == ROW_COPY_ALSO_EXTERNALS
-			    && rec_offs_nth_extern(offsets, i)) {
-
-				field = btr_rec_copy_externally_stored_field
-					(rec, offsets, i, &len, heap);
-			}
 
 			dfield_set_data(dfield, field, len);
 		}
