@@ -36,7 +36,7 @@ public:
   deinit_mutexes();
 
   bool
-  init_queue(THD *thd, Event_db_repository *db_repo, Event_scheduler *sched);
+  init_queue(THD *thd, Event_db_repository *db_repo);
   
   void
   deinit_queue();
@@ -60,8 +60,7 @@ public:
   recalculate_activation_times(THD *thd);
 
   bool
-  get_top_for_execution_if_time(THD *thd, time_t now, Event_job_data **job_data,
-                                struct timespec *abstime);
+  get_top_for_execution_if_time(THD *thd, Event_job_data **job_data);
   bool
   dump_internal_status(THD *thd);
 
@@ -81,13 +80,11 @@ protected:
   empty_queue();
 
   void
-  notify_observers();
-
-  void
   dbug_dump_queue(time_t now);
 
   /* LOCK_event_queue is the mutex which protects the access to the queue. */
   pthread_mutex_t LOCK_event_queue;
+  pthread_cond_t COND_queue_state;
 
   Event_db_repository *db_repository;
 
@@ -95,6 +92,8 @@ protected:
 
   /* The sorted queue with the Event_job_data objects */
   QUEUE queue;
+
+  TIME next_activation_at;
 
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;
@@ -104,6 +103,7 @@ protected:
   const char* mutex_last_attempted_lock_in_func;
   bool mutex_queue_data_locked;
   bool mutex_queue_data_attempting_lock;
+  bool waiting_on_cond;
 
   /* helper functions for working with mutexes & conditionals */
   void
@@ -111,6 +111,10 @@ protected:
 
   void
   unlock_data(const char *func, uint line);
+
+  void
+  cond_wait(THD *thd, struct timespec *abstime, const char* msg,
+            const char *func, uint line);
 };
 
 #endif /* _EVENT_QUEUE_H_ */
