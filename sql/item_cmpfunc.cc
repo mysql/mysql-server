@@ -515,8 +515,8 @@ int Arg_comparator::set_compare_func(Item_bool_func2 *item, Item_result type)
         which would be transformed to:
         WHERE col= 'j'
       */
-      (*a)->transform(&Item::set_no_const_sub, (byte*) 0);
-      (*b)->transform(&Item::set_no_const_sub, (byte*) 0);
+      (*a)->walk(&Item::set_no_const_sub, FALSE, (byte*) 0);
+      (*b)->walk(&Item::set_no_const_sub, FALSE, (byte*) 0);
     }
     break;
   }
@@ -2768,6 +2768,8 @@ bool Item_cond::walk(Item_processor processor, bool walk_subquery, byte *arg)
 
 Item *Item_cond::transform(Item_transformer transformer, byte *arg)
 {
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
   List_iterator<Item> li(list);
   Item *item;
   while ((item= li++))
@@ -2775,8 +2777,15 @@ Item *Item_cond::transform(Item_transformer transformer, byte *arg)
     Item *new_item= item->transform(transformer, arg);
     if (!new_item)
       return 0;
+
+    /*
+      THD::change_item_tree() should be called only if the tree was
+      really transformed, i.e. when a new item has been created.
+      Otherwise we'll be allocating a lot of unnecessary memory for
+      change records at each execution.
+    */
     if (new_item != item)
-      li.replace(new_item);
+      current_thd->change_item_tree(li.ref(), new_item);
   }
   return Item_func::transform(transformer, arg);
 }
@@ -4023,6 +4032,8 @@ bool Item_equal::walk(Item_processor processor, bool walk_subquery, byte *arg)
 
 Item *Item_equal::transform(Item_transformer transformer, byte *arg)
 {
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
   List_iterator<Item_field> it(fields);
   Item *item;
   while ((item= it++))
@@ -4030,8 +4041,15 @@ Item *Item_equal::transform(Item_transformer transformer, byte *arg)
     Item *new_item= item->transform(transformer, arg);
     if (!new_item)
       return 0;
+
+    /*
+      THD::change_item_tree() should be called only if the tree was
+      really transformed, i.e. when a new item has been created.
+      Otherwise we'll be allocating a lot of unnecessary memory for
+      change records at each execution.
+    */
     if (new_item != item)
-      it.replace((Item_field *) new_item);
+      current_thd->change_item_tree((Item **) it.ref(), new_item);
   }
   return Item_func::transform(transformer, arg);
 }
