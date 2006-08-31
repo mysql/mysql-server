@@ -1,5 +1,6 @@
 #define Copyright yaCopyright
 #define yaSSL_CleanUp yayaSSL_CleanUp
+#define BN_bin2bn yaBN_bin2bn
 #define DH_new yaDH_new
 #define DH_free yaDH_free
 #define RSA_free yaRSA_free
@@ -92,6 +93,12 @@
 #define SSL_want_read yaSSL_want_read
 #define SSL_want_write yaSSL_want_write
 #define SSL_pending yaSSL_pending
+#define SSLv3_method yaSSLv3_method
+#define SSLv3_server_method yaSSLv3_server_method
+#define SSLv3_client_method yaSSLv3_client_method
+#define TLSv1_server_method yaTLSv1_server_method
+#define TLSv1_client_method yaTLSv1_client_method
+#define SSLv23_server_method yaSSLv23_server_method
 #define SSL_CTX_use_certificate_file yaSSL_CTX_use_certificate_file
 #define SSL_CTX_use_PrivateKey_file yaSSL_CTX_use_PrivateKey_file
 #define SSL_CTX_set_cipher_list yaSSL_CTX_set_cipher_list
@@ -115,11 +122,13 @@
 #define RAND_write_file yaRAND_write_file
 #define RAND_load_file yaRAND_load_file
 #define RAND_status yaRAND_status
+#define RAND_bytes yaRAND_bytes
 #define DES_set_key yaDES_set_key
 #define DES_set_odd_parity yaDES_set_odd_parity
 #define DES_ecb_encrypt yaDES_ecb_encrypt
 #define SSL_CTX_set_default_passwd_cb_userdata yaSSL_CTX_set_default_passwd_cb_userdata
 #define SSL_SESSION_free yaSSL_SESSION_free
+#define SSL_peek yaSSL_peek
 #define SSL_get_certificate yaSSL_get_certificate
 #define SSL_get_privatekey yaSSL_get_privatekey
 #define X509_get_pubkey yaX509_get_pubkey
@@ -150,4 +159,3 @@
 #define MD5_Init yaMD5_Init
 #define MD5_Update yaMD5_Update
 #define MD5_Final yaMD5_Final
-#define SSL_peek yaSSL_peek
