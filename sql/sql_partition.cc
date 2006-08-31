@@ -869,12 +869,9 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
                           bool is_sub_part, bool is_field_to_be_setup)
 {
   MEM_ROOT new_mem_root;
-  Query_arena partition_arena(&new_mem_root, Query_arena::INITIALIZED);
-  Query_arena backup_arena;
   partition_info *part_info= table->part_info;
   uint dir_length, home_dir_length;
   bool result= TRUE;
-  bool is_prepare;
   TABLE_LIST tables;
   TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
   int error;
@@ -1424,7 +1421,6 @@ bool fix_partition_func(THD *thd, TABLE *table,
   bool result= TRUE;
   partition_info *part_info= table->part_info;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
-  Item *thd_free_list= thd->free_list;
   DBUG_ENTER("fix_partition_func");
 
   if (part_info->fixed)
@@ -3426,8 +3422,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   DBUG_PRINT("info", ("Parse: %s", part_buf));
   if (MYSQLparse((void*)thd) || thd->is_fatal_error)
   {
-    free_items(thd->free_list);
-    thd->free_list= NULL;
+    thd->free_items();
     goto end;
   }
   /*
@@ -3485,9 +3480,8 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
         just to ensure we don't get into strange situations with the
         item objects.
       */
-      free_items(thd->free_list);
+      thd->free_items();
       part_info= thd->work_part_info;
-      thd->free_list= NULL;
       table->s->version= 0UL;
     }
   }
@@ -3517,8 +3511,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
         !((subpart_func_string= thd->alloc(subpart_func_len)))))
     {
       mem_alloc_error(part_func_len);
-      free_items(thd->free_list);
-      thd->free_list= NULL;
+      thd->free_items();
       goto end;
     }
     if (part_func_len)
