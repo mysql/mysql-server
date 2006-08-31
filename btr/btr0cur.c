@@ -1052,7 +1052,6 @@ btr_cur_optimistic_insert(
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
 	level = btr_page_get_level(page, mtr);
 
-calculate_sizes_again:
 	/* Calculate the record size when entry is converted to a record */
 	rec_size = rec_get_converted_size(index, entry);
 
@@ -1061,14 +1060,25 @@ calculate_sizes_again:
 
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
-                big_rec_vec = dtuple_convert_big_rec(index, entry, ext, n_ext);
+		big_rec_vec = dtuple_convert_big_rec(index, entry, ext, n_ext);
 
-		if (big_rec_vec == NULL) {
+		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
 
 			return(DB_TOO_BIG_RECORD);
 		}
 
-		goto calculate_sizes_again;
+		rec_size = rec_get_converted_size(index, entry);
+		if (UNIV_UNLIKELY
+		    (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
+					    page_zip ? page_zip->size : 0)) {
+
+			/* This should never happen, but we handle
+			the situation in a robust manner. */
+			ut_ad(0);
+			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
+
+			return(DB_TOO_BIG_RECORD);
+		}
 	}
 
 	/* If there have been many consecutive inserts, and we are on the leaf
@@ -1302,6 +1312,13 @@ btr_cur_pessimistic_insert(
 				   page_is_comp(page), zip_size)) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
+
+		if (UNIV_LIKELY_NULL(big_rec_vec)) {
+			/* This should never happen, but we handle
+			the situation in a robust manner. */
+			ut_ad(0);
+			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
+		}
 
 		big_rec_vec = dtuple_convert_big_rec(index, entry, NULL, 0);
 
