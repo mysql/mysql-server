@@ -422,3 +422,34 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(f1 CHAR(100) DEFAULT 'test');
 INSERT INTO t1 VALUES(SUBSTR(f1, 1, 3));
 DROP TABLE IF EXISTS t1;
+drop table if exists t1, t2, t3;
+create table t3 (
+id int(11),
+en varchar(255) character set utf8,
+cz varchar(255) character set utf8
+);
+truncate table t3;
+insert into t3 (id, en, cz) values 
+(1,'en string 1','cz string 1'),
+(2,'en string 2','cz string 2'),
+(3,'en string 3','cz string 3');
+create table t1 ( 
+id int(11),
+name_id int(11)
+);
+insert into t1 (id, name_id) values (1,1), (2,3), (3,3);
+create table t2 (id int(11));
+insert into t2 (id) values (1), (2), (3);
+select t1.*, t2.id, t3.en, t3.cz from t1 left join t2 on t1.id=t2.id
+left join t3 on t1.id=t3.id order by t3.id;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	t1	id	id	3	11	1	Y	32768	0	63
+def	test	t1	t1	name_id	name_id	3	11	1	Y	32768	0	63
+def	test	t2	t2	id	id	3	11	1	Y	32768	0	63
+def	test	t3	t3	en	en	253	255	11	Y	0	0	8
+def	test	t3	t3	cz	cz	253	255	11	Y	0	0	8
+id	name_id	id	en	cz
+1	1	1	en string 1	cz string 1
+2	3	2	en string 2	cz string 2
+3	3	3	en string 3	cz string 3
+drop table t1, t2, t3;
