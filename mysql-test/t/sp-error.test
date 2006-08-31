@@ -899,6 +899,45 @@ begin
   flush tables;
   return 5;
 end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin reset query cache;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin reset master;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin reset slave;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush hosts;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush privileges;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush tables with read lock;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush tables;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush logs;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush status;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush slave;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush master;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush des_key_file;
+return 1; end|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+create function bug8409() returns int begin flush user_resources;
+return 1; end|
 
 
 #
