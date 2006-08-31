@@ -10444,8 +10444,8 @@ static void test_ps_i18n()
   const char *stmt_text;
   MYSQL_BIND bind_array[2];
 
-  const char *koi8= "îÕ, ÚÁ ÒÙÂÁÌËÕ";
-  const char *cp1251= "Íó, çà ğûáàëêó";
+  const char *koi8= "Ã®Ã•, ÃšÃ Ã’Ã™Ã‚ÃÃŒÃ‹Ã•";
+  const char *cp1251= "ÃÃ³, Ã§Ã  Ã°Ã»Ã¡Ã Ã«ÃªÃ³";
   char buf1[16], buf2[16];
   ulong buf1_len, buf2_len;
 
