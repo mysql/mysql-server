@@ -211,7 +211,13 @@ typedef struct st_net {
   char last_error[MYSQL_ERRMSG_SIZE], sqlstate[SQLSTATE_LENGTH+1];
   unsigned int last_errno;
   unsigned char error;
+
+  /*
+    'query_cache_query' should be accessed only via query cache
+    functions and methods to maintain proper locking.
+  */
   gptr query_cache_query;
+
   my_bool report_error; /* We should report error (we have unreported error) */
   my_bool return_errno;
 } NET;
