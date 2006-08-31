@@ -765,7 +765,6 @@ DROP TABLE t1,t2;
 
 # Test case moved to join_outer_innodb
 
-
 #
 # Bug 19396: LEFT OUTER JOIN over views in curly braces 
 # 

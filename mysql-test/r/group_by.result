@@ -821,3 +821,12 @@ a	b	real_b
 68	France	France
 DROP VIEW v1;
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT, b INT, KEY(a));
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3,3), (4,4);
+EXPLAIN SELECT a, SUM(b) FROM t1 GROUP BY a LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	a	5	NULL	4	
+EXPLAIN SELECT a, SUM(b) FROM t1 IGNORE INDEX (a) GROUP BY a LIMIT 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using temporary; Using filesort
+DROP TABLE t1;

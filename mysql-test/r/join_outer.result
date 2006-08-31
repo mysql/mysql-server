@@ -737,7 +737,7 @@ explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from
 (t2 s left join t1 m on m.match_id = 1) 
 order by m.match_id desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	s	ALL	NULL	NULL	NULL	NULL	10	Using temporary; Using filesort
 1	SIMPLE	m	const	match_id,match_id_2	match_id	1	const	1	
 explain select s.*, '*', m.*, (s.match_1_h - m.home) UUX from 
 (t2 s left join t1 m on m.match_id = 1) 

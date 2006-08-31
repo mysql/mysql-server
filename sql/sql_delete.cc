@@ -383,7 +383,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
                                     &thd->lex->select_lex.top_join_list,
                                     table_list, 
                                     &select_lex->leaf_tables, FALSE, 
-                                    DELETE_ACL) ||
+                                    DELETE_ACL, SELECT_ACL) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       setup_ftfuncs(select_lex))
     DBUG_RETURN(TRUE);
@@ -446,7 +446,7 @@ bool mysql_multi_delete_prepare(THD *thd)
                                     &thd->lex->select_lex.top_join_list,
                                     lex->query_tables,
                                     &lex->select_lex.leaf_tables, FALSE, 
-                                    DELETE_ACL))
+                                    DELETE_ACL, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
 
