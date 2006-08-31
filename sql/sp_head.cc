@@ -235,6 +235,12 @@ sp_get_flags_for_command(LEX *lex)
     else
       flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
+  case SQLCOM_FLUSH:
+    flags= sp_head::HAS_SQLCOM_FLUSH;
+    break;
+  case SQLCOM_RESET:
+    flags= sp_head::HAS_SQLCOM_RESET;
+    break;
   case SQLCOM_CREATE_INDEX:
   case SQLCOM_CREATE_DB:
   case SQLCOM_CREATE_VIEW:
@@ -264,7 +270,6 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
   case SQLCOM_DROP_EVENT:
-  case SQLCOM_FLUSH:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;

@@ -122,8 +122,8 @@ DEFS =			-DMYSQL_SERVER \
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
 EXTRA_DIST =		udf_example.c $(BUILT_SOURCES) \
 			nt_servc.cc nt_servc.h message.mc CMakeLists.txt
-CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h
-AM_YFLAGS =		-d
+CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h sql_yacc.output
+AM_YFLAGS =		-d --debug --verbose
 
 mysql_tzinfo_to_sql.cc:
 	rm -f mysql_tzinfo_to_sql.cc
