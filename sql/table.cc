@@ -1499,10 +1499,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     if (!tmp)
       tmp= fix_partition_func(thd, outparam, is_create_table);
-    if (!tmp)
-      outparam->part_info->item_free_list= part_func_arena.free_list;
     thd->stmt_arena= backup_stmt_arena_ptr;
     thd->restore_active_arena(&part_func_arena, &backup_arena);
+    if (!tmp)
+      outparam->part_info->item_free_list= part_func_arena.free_list;
     if (tmp)
     {
       if (is_create_table)
