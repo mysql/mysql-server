@@ -5702,9 +5702,7 @@ ER_BLOB_FIELD_IN_PART_FUNC_ERROR
         ger "In der Partitionierungsfunktion sind BLOB-Spalten nicht erlaubt"
         swe "Ett BLOB-fält är inte tillåtet i partitioneringsfunktioner"
 ER_UNIQUE_KEY_NEED_ALL_FIELDS_IN_PF
-        eng "A %-.64s need to include all fields in the partition function"
-        ger "Ein %-.64s muss alle Spalten der Partitionierungsfunktion umfassen"
-        swe "En %-.64s behöver inkludera alla fält i partitioneringsfunktionen för denna lagringsmotor"
+        eng "A %-.64s must include all columns in the table's partitioning function"
 ER_NO_PARTS_ERROR
         eng "Number of %-.64s = 0 is not an allowed value"
         ger "Eine Anzahl von %-.64s = 0 ist kein erlaubter Wert"
@@ -5954,6 +5952,8 @@ ER_BAD_LOG_ENGINE
         eng "One can use only CSV and MyISAM engines for the log tables"
 ER_CANT_DROP_LOG_TABLE
         eng "Cannot drop log table if log is enabled"
+ER_ONLY_INTEGERS_ALLOWED
+        eng "Only normal integers allowed as number here"
 ER_USERNAME
 	eng "user name"
 ER_HOSTNAME
