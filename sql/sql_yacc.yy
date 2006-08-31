@@ -725,8 +725,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	predicate bit_expr bit_term bit_factor value_expr term factor
 	table_wild simple_expr udf_expr
 	expr_or_default set_expr_or_default interval_expr
-	param_marker singlerow_subselect singlerow_subselect_init
-	exists_subselect exists_subselect_init geometry_function
+	param_marker geometry_function
 	signed_literal now_or_signed_literal opt_escape
 	sp_opt_default
 	simple_ident_nospvar simple_ident_q
@@ -791,7 +790,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <variable> internal_variable_name
 
-%type <select_lex> in_subselect in_subselect_init
+%type <select_lex> subselect subselect_init
 	get_select_lex
 
 %type <boolfunc2creator> comp_op
@@ -3914,12 +3913,14 @@ select_paren:
 	      yyerror(ER(ER_SYNTAX_ERROR));
 	      YYABORT;
 	    }
-	  if (sel->linkage == UNION_TYPE &&
-	      !sel->master_unit()->first_select()->braces)
-	  {
-	    yyerror(ER(ER_SYNTAX_ERROR));
-	    YYABORT;
-	  }
+            if (sel->linkage == UNION_TYPE &&
+                !sel->master_unit()->first_select()->braces &&
+                sel->master_unit()->first_select()->linkage ==
+                UNION_TYPE)
+            {
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
             /* select in braces, can't contain global parameters */
 	    if (sel->master_unit()->fake_select_lex)
               sel->master_unit()->global_parameters=
@@ -4177,37 +4178,37 @@ bool_pri:
 	| bool_pri EQUAL_SYM predicate	{ $$= new Item_func_equal($1,$3); }
 	| bool_pri comp_op predicate %prec EQ
 	  { $$= (*$2)(0)->create($1,$3); }
-	| bool_pri comp_op all_or_any in_subselect %prec EQ
-	  { $$= all_any_subquery_creator($1, $2, $3, $4); }
+	| bool_pri comp_op all_or_any '(' subselect ')' %prec EQ
+	  { $$= all_any_subquery_creator($1, $2, $3, $5); }
 	| predicate ;
 
 predicate:
-	 bit_expr IN_SYM '(' expr_list ')'
-	  { 
-            if ($4->elements == 1)
-              $$= new Item_func_eq($1, $4->head());
-            else
-            {
-              $4->push_front($1);
-              $$= new Item_func_in(*$4);
-            }
-          }
-	| bit_expr not IN_SYM '(' expr_list ')'
+        bit_expr IN_SYM '(' subselect ')'
+	  { $$= new Item_in_subselect($1, $4); }
+	| bit_expr not IN_SYM '(' subselect ')'
+          { $$= negate_expression(YYTHD, new Item_in_subselect($1, $5)); }
+        | bit_expr IN_SYM '(' expr ')'
           {
-            if ($5->elements == 1)
-              $$= new Item_func_ne($1, $5->head());
-            else
-            {
-              $5->push_front($1);
-              Item_func_in *item = new Item_func_in(*$5);
+              $$= new Item_func_eq($1, $4);
+          }
+	| bit_expr IN_SYM '(' expr ',' expr_list ')'
+	  { 
+              $6->push_front($4);
+              $6->push_front($1);
+              $$= new Item_func_in(*$6);
+          }
+        | bit_expr not IN_SYM '(' expr ')'
+          {
+              $$= new Item_func_ne($1, $5);
+          }
+	| bit_expr not IN_SYM '(' expr ',' expr_list ')'
+          {
+              $7->push_front($5);
+              $7->push_front($1);
+              Item_func_in *item = new Item_func_in(*$7);
               item->negate();
               $$= item;
-            }            
           }
-        | bit_expr IN_SYM in_subselect
-	  { $$= new Item_in_subselect($1, $3); }
-	| bit_expr not IN_SYM in_subselect
-          { $$= negate_expression(YYTHD, new Item_in_subselect($1, $4)); }
 	| bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
 	  { $$= new Item_func_between($1,$3,$5); }
 	| bit_expr not BETWEEN_SYM bit_expr AND_SYM predicate
@@ -4329,6 +4330,10 @@ simple_expr:
 	| '-' simple_expr %prec NEG	{ $$= new Item_func_neg($2); }
 	| '~' simple_expr %prec NEG	{ $$= new Item_func_bit_neg($2); }
 	| not2 simple_expr %prec NEG	{ $$= negate_expression(YYTHD, $2); }
+	| '(' subselect ')'   
+          { 
+            $$= new Item_singlerow_subselect($2); 
+          }
 	| '(' expr ')'		{ $$= $2; }
 	| '(' expr ',' expr_list ')'
 	  {
@@ -4340,8 +4345,10 @@ simple_expr:
 	    $5->push_front($3);
 	    $$= new Item_row(*$5);
 	  }
-	| EXISTS exists_subselect { $$= $2; }
-	| singlerow_subselect   { $$= $1; }
+	| EXISTS '(' subselect ')' 
+          {
+            $$= new Item_exists_subselect($3); 
+          }
 	| '{' ident expr '}'	{ $$= $3; }
         | MATCH ident_list_arg AGAINST '(' bit_expr fulltext_options ')'
           { $2->push_front($5);
@@ -8863,49 +8870,38 @@ union_option:
 	| ALL       { $$=0; }
         ;
 
-singlerow_subselect:
-	subselect_start singlerow_subselect_init
-	subselect_end
-	{
-	  $$= $2;
-	};
+subselect:
+        SELECT_SYM subselect_start subselect_init subselect_end
+        {
+          $$= $3;
+        }
+        | '(' subselect_start subselect ')'
+          {
+            LEX *lex= Lex;
+	    THD *thd= YYTHD;
+            /*
+              note that a local variable can't be used for
+              $3 as it's used in local variable construction
+              and some compilers can't guarnatee the order
+              in which the local variables are initialized.
+            */
+            List_iterator<Item> it($3->item_list);
+            Item *item;
+            /*
+              we must fill the items list for the "derived table".
+            */
+            while ((item= it++))
+              add_item_to_list(thd, item);
+          }
+          union_clause subselect_end { $$= $3; };
 
-singlerow_subselect_init:
-	select_init2
-	{
-	  $$= new Item_singlerow_subselect(Lex->current_select->
-					   master_unit()->first_select());
-	};
-
-exists_subselect:
-	subselect_start exists_subselect_init
-	subselect_end
-	{
-	  $$= $2;
-	};
-
-exists_subselect_init:
-	select_init2
-	{
-	  $$= new Item_exists_subselect(Lex->current_select->master_unit()->
-					first_select());
-	};
-
-in_subselect:
-  subselect_start in_subselect_init
-  subselect_end
-  {
-    $$= $2;
-  };
-
-in_subselect_init:
+subselect_init:
   select_init2
   {
     $$= Lex->current_select->master_unit()->first_select();
   };
 
 subselect_start:
-	'(' SELECT_SYM
 	{
 	  LEX *lex=Lex;
           if (lex->sql_command == (int)SQLCOM_HA_READ ||
@@ -8914,12 +8910,18 @@ subselect_start:
             yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
 	  }
+          /* 
+            we are making a "derived table" for the parenthesis
+            as we need to have a lex level to fit the union 
+            after the parenthesis, e.g. 
+            (SELECT .. ) UNION ...  becomes 
+            SELECT * FROM ((SELECT ...) UNION ...)
+          */
 	  if (mysql_new_select(Lex, 1))
 	    YYABORT;
 	};
 
 subselect_end:
-	')'
 	{
 	  LEX *lex=Lex;
           lex->pop_context();

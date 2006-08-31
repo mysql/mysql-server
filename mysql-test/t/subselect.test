@@ -2257,3 +2257,29 @@ SELECT * FROM t1,t2
                     ORDER BY t1.t DESC LIMIT 1);
 
 DROP TABLE t1, t2;
+
+#
+# Bug#14654 : Cannot select from the same table twice within a UNION
+# statement 
+#
+CREATE TABLE t1 (i INT);
+
+(SELECT i FROM t1) UNION (SELECT i FROM t1);
+SELECT sql_no_cache * FROM t1 WHERE NOT EXISTS 
+  (
+   (SELECT i FROM t1) UNION 
+   (SELECT i FROM t1)
+  );
+
+SELECT * FROM t1 
+WHERE NOT EXISTS (((SELECT i FROM t1) UNION (SELECT i FROM t1)));
+
+#TODO:not supported
+--error 1064
+explain select ((select t11.i from t1 t11) union (select t12.i from t1 t12))
+  from t1;
+#supported
+explain select * from t1 where not exists 
+  ((select t11.i from t1 t11) union (select t12.i from t1 t12));
+
+DROP TABLE t1;
