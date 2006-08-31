@@ -854,6 +854,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   TABLE *table;
   char  key[MAX_DBKEY_LENGTH];
   char *db= table_list->db;
+  int table_in_key_offset;
   uint  key_length;
   HASH_SEARCH_STATE state;
   DBUG_ENTER("lock_table_name");
@@ -861,8 +862,9 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
 
   safe_mutex_assert_owner(&LOCK_open);
 
-  key_length=(uint) (strmov(strmov(key,db)+1,table_list->table_name)
-		     -key)+ 1;
+  table_in_key_offset= strmov(key, db) - key + 1;
+  key_length= (uint)(strmov(key + table_in_key_offset, table_list->table_name)
+                     - key) + 1;
 
 
   /* Only insert the table if we haven't insert it already */
@@ -883,6 +885,7 @@ int lock_table_name(THD *thd, TABLE_LIST *table_list)
   table->s= &table->share_not_to_be_used;
   memcpy((table->s->table_cache_key= (char*) (table+1)), key, key_length);
   table->s->db= table->s->table_cache_key;
+  table->s->table_name= table->s->table_cache_key + table_in_key_offset;
   table->s->key_length=key_length;
   table->in_use=thd;
   table->locked_by_name=1;
