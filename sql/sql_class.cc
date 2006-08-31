@@ -1983,7 +1983,7 @@ bool select_dumpvar::send_data(List<Item> &items)
     {
       if ((xx=li++))
       {
-        xx->check();
+        xx->check(0);
 	xx->update();
       }
     }
