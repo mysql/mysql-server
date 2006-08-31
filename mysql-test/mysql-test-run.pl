@@ -357,6 +357,7 @@ sub run_benchmarks ($);
 sub initialize_servers ();
 sub mysql_install_db ();
 sub install_db ($$);
+sub copy_install_db ($$);
 sub run_testcase ($);
 sub run_testcase_stop_servers ($$$);
 sub run_testcase_start_servers ($);
@@ -2237,7 +2238,7 @@ sub mysql_install_db () {
 
   # FIXME not exactly true I think, needs improvements
   install_db('master', $master->[0]->{'path_myddir'});
-  install_db('master', $master->[1]->{'path_myddir'});
+  copy_install_db('master', $master->[1]->{'path_myddir'});
 
   if ( $use_slaves )
   {
@@ -2299,6 +2300,18 @@ sub mysql_install_db () {
   stop_all_servers();
 
   return 0;
+}
+
+
+sub copy_install_db ($$) {
+  my $type=      shift;
+  my $data_dir=  shift;
+
+  mtr_report("Installing \u$type Database");
+
+  # Just copy the installed db from first master
+  mtr_copy_dir($master->[0]->{'path_myddir'}, $data_dir);
+
 }
 
 
@@ -2456,7 +2469,7 @@ sub im_prepare_data_dir($) {
 
   foreach my $instance (@{$instance_manager->{'instances'}})
   {
-    install_db(
+    copy_install_db(
       'im_mysqld_' . $instance->{'server_id'},
       $instance->{'path_datadir'});
   }
