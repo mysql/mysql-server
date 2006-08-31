@@ -195,7 +195,6 @@ extern "C"
   byte *query_cache_table_get_key(const byte *record, uint *length,
 				  my_bool not_used);
 }
-void query_cache_insert(NET *thd, const char *packet, ulong length);
 extern "C" void query_cache_invalidate_by_MyISAM_filename(const char* filename);
 
 
@@ -241,6 +240,12 @@ public:
   ulong free_memory, queries_in_cache, hits, inserts, refused,
     free_memory_blocks, total_blocks, lowmem_prunes;
 
+private:
+  pthread_cond_t COND_flush_finished;
+  bool flush_in_progress;
+
+  void free_query_internal(Query_cache_block *point);
+
 protected:
   /*
     The following mutex is locked when searching or changing global
@@ -249,6 +254,12 @@ protected:
     LOCK SEQUENCE (to prevent deadlocks):
       1. structure_guard_mutex
       2. query block (for operation inside query (query block/results))
+
+    Thread doing cache flush releases the mutex once it sets
+    flush_in_progress flag, so other threads may bypass the cache as
+    if it is disabled, not waiting for reset to finish.  The exception
+    is other threads that were going to do cache flush---they'll wait
+    till the end of a flush operation.
   */
   pthread_mutex_t structure_guard_mutex;
   byte *cache;					// cache memory
@@ -358,6 +369,7 @@ protected:
     If query is cacheable return number tables in query
     (query without tables not cached)
   */
+  static
   TABLE_COUNTER_TYPE is_cacheable(THD *thd, uint32 query_len, char *query,
 				  LEX *lex, TABLE_LIST *tables_used,
 				  uint8 *tables_type);
@@ -410,6 +422,7 @@ protected:
 
   void destroy();
 
+  friend void query_cache_init_query(NET *net);
   friend void query_cache_insert(NET *net, const char *packet, ulong length);
   friend void query_cache_end_of_result(THD *thd);
   friend void query_cache_abort(NET *net);
@@ -435,6 +448,8 @@ protected:
 
 extern Query_cache query_cache;
 extern TYPELIB query_cache_type_typelib;
+void query_cache_init_query(NET *net);
+void query_cache_insert(NET *net, const char *packet, ulong length);
 void query_cache_end_of_result(THD *thd);
 void query_cache_abort(NET *net);
 
