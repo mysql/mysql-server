@@ -417,6 +417,49 @@ void Item::rename(char *new_name)
 }
 
 
+/*
+  Traverse item tree possibly transforming it (replacing items).
+
+  SYNOPSIS
+    Item::transform()
+      transformer    functor that performs transformation of a subtree
+      arg            opaque argument passed to the functor
+
+  DESCRIPTION
+    This function is designed to ease transformation of Item trees.
+
+    Re-execution note: every such transformation is registered for
+    rollback by THD::change_item_tree() and is rolled back at the end
+    of execution by THD::rollback_item_tree_changes().
+
+    Therefore:
+
+      - this function can not be used at prepared statement prepare
+        (in particular, in fix_fields!), as only permanent
+        transformation of Item trees are allowed at prepare.
+
+      - the transformer function shall allocate new Items in execution
+        memory root (thd->mem_root) and not anywhere else: allocated
+        items will be gone in the end of execution.
+
+    If you don't need to transform an item tree, but only traverse
+    it, please use Item::walk() instead.
+
+
+  RETURN VALUE
+    Returns pointer to the new subtree root.  THD::change_item_tree()
+    should be called for it if transformation took place, i.e. if a
+    pointer to newly allocated item is returned.
+*/
+
+Item* Item::transform(Item_transformer transformer, byte *arg)
+{
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  return (this->*transformer)(arg);
+}
+
+
 Item_ident::Item_ident(Name_resolution_context *context_arg,
                        const char *db_name_arg,const char *table_name_arg,
 		       const char *field_name_arg)
@@ -3839,11 +3882,11 @@ Item *Item_field::equal_fields_propagator(byte *arg)
   See comments in Arg_comparator::set_compare_func() for details
 */
 
-Item *Item_field::set_no_const_sub(byte *arg)
+bool Item_field::set_no_const_sub(byte *arg)
 {
   if (field->charset() != &my_charset_bin)
     no_const_subst=1;
-  return this;
+  return FALSE;
 }
 
 
@@ -5373,6 +5416,31 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
     return 0;
   }
   return Item_field::save_in_field(field_arg, no_conversions);
+}
+
+
+/* 
+  This method like the walk method traverses the item tree, but at the
+  same time it can replace some nodes in the tree
+*/ 
+
+Item *Item_default_value::transform(Item_transformer transformer, byte *args)
+{
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  Item *new_item= arg->transform(transformer, args);
+  if (!new_item)
+    return 0;
+
+  /*
+    THD::change_item_tree() should be called only if the tree was
+    really transformed, i.e. when a new item has been created.
+    Otherwise we'll be allocating a lot of unnecessary memory for
+    change records at each execution.
+  */
+  if (arg != new_item)
+    current_thd->change_item_tree(&arg, new_item);
+  return (this->*transformer)(args);
 }
 
 
