@@ -630,7 +630,7 @@ Events::init()
   }
   check_system_tables_error= FALSE;
 
-  if (event_queue->init_queue(thd, db_repository, scheduler))
+  if (event_queue->init_queue(thd, db_repository))
   {
     sql_print_error("SCHEDULER: Error while loading from disk.");
     goto end;
@@ -820,7 +820,7 @@ Events::is_execution_of_events_started()
     my_error(ER_EVENTS_DB_ERROR, MYF(0));
     DBUG_RETURN(FALSE);
   }
-  DBUG_RETURN(scheduler->get_state() == Event_scheduler::RUNNING);
+  DBUG_RETURN(scheduler->is_running());
 }
 
 
