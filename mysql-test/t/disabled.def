@@ -13,7 +13,7 @@
 #events_stress            : BUG#17619 2006-02-21 andrey  Race conditions
 #events                   : BUG#17619 2006-02-21 andrey  Race conditions
 #events_scheduling        : BUG#19170 2006-04-26 andrey  Test case of 19170 fails on some platforms. Has to be checked.
-#im_instance_conf          : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
+im_instance_conf          : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
 im_options                : Bug#20294 2006-07-24 stewart   Instance manager test im_instance_conf fails randomly
 #im_life_cycle             : Bug#20368 2006-06-10 alik    im_life_cycle test fails
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
@@ -44,3 +44,7 @@ rpl_row_basic_7ndb       : BUG#21298 2006-07-27 msvensson
 rpl_truncate_7ndb        : BUG#21298 2006-07-27 msvensson
 crash_commit_before      : 2006-08-02 msvensson
 rpl_ndb_dd_advance       : BUG#18679 2006-07-28 jimw (Test fails randomly)
+
+func_group               : BUG#21924 2006-08-30 reggie
+func_in                  : BUG#21925 2006-08-30 reggie
+partition_mgm_err2       : BUG#19107 2006-08-30 reggie
