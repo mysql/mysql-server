@@ -64,6 +64,34 @@ inline Item *is_truth_value(Item *A, bool v1, bool v2)
 	new Item_int((char *) (v1 ? "FALSE" : "TRUE"),!v1, 1));
 }
 
+#ifndef DBUG_OFF
+#define YYDEBUG 1
+#else
+#define YYDEBUG 0
+#endif
+
+#ifndef DBUG_OFF
+void turn_parser_debug_on()
+{
+  /*
+     MYSQLdebug is in sql/sql_yacc.cc, in bison generated code.
+     Turning this option on is **VERY** verbose, and should be
+     used when investigating a syntax error problem only.
+
+     The syntax to run with bison traces is as follows :
+     - Starting a server manually :
+       mysqld --debug="d,parser_debug" ...
+     - Running a test :
+       mysql-test-run.pl --mysqld="--debug=d,parser_debug" ...
+
+     The result will be in the process stderr (var/log/master.err)
+   */
+
+  extern int yydebug;
+  yydebug= 1;
+}
+#endif
+
 %}
 %union {
   int  num;
@@ -8590,17 +8618,8 @@ flush:
 	FLUSH_SYM opt_no_write_to_binlog
 	{
 	  LEX *lex=Lex;
-	  if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-	  {
-            /*
-              Note that both FLUSH TABLES and FLUSH PRIVILEGES will break
-              execution in prelocked mode. So it is better to disable
-              FLUSH in stored functions and triggers completely.
-            */
-            my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
-	    YYABORT;
-	  }
-	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
+	  lex->sql_command= SQLCOM_FLUSH;
+          lex->type= 0;
           lex->no_write_to_binlog= $2;
 	}
 	flush_options
@@ -9326,6 +9345,9 @@ user:
 	  $$->user = $1;
 	  $$->host.str= (char *) "%";
 	  $$->host.length= 1;
+
+	  if (check_string_length(&$$->user, ER(ER_USERNAME), USERNAME_LENGTH))
+	    YYABORT;
 	}
 	| ident_or_text '@' ident_or_text
 	  {
@@ -9333,6 +9355,11 @@ user:
 	    if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
+
+	    if (check_string_length(&$$->user, ER(ER_USERNAME), USERNAME_LENGTH) ||
+	        check_string_length(&$$->host, ER(ER_HOSTNAME),
+					       HOSTNAME_LENGTH))
+	      YYABORT;
 	  }
 	| CURRENT_USER optional_braces
 	{
@@ -10851,15 +10878,9 @@ definer:
            */
           YYTHD->lex->definer= 0;
 	}
-	| DEFINER_SYM EQ CURRENT_USER optional_braces
+	| DEFINER_SYM EQ user
 	{
-          if (! (YYTHD->lex->definer= create_default_definer(YYTHD)))
-            YYABORT;
-	}
-	| DEFINER_SYM EQ ident_or_text '@' ident_or_text
-	{
-          if (!(YYTHD->lex->definer= create_definer(YYTHD, &$3, &$5)))
-            YYABORT;
+	  YYTHD->lex->definer= get_current_user(YYTHD, $3);
 	}
 	;
 
