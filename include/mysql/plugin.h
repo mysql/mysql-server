@@ -60,7 +60,7 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
                  builtin_ ## NAME ## _sizeof_struct_st_plugin, \
                  builtin_ ## NAME ## _plugin)
 
-#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0}}
+#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0}}
 
 /*
   declarations for SHOW STATUS support in plugins
@@ -96,6 +96,8 @@ struct st_mysql_plugin
   int (*deinit)(void);  /* the function to invoke when plugin is unloaded */
   unsigned int version; /* plugin version (for SHOW PLUGINS)            */
   struct st_mysql_show_var *status_vars;
+  void * __reserved1;   /* placeholder for system variables             */
+  void * __reserved2;   /* placeholder for config options               */
 };
 
 /*************************************************************************
