@@ -6610,11 +6610,6 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       Uint16 next_replica_node[MAX_NDB_NODES];
       memset(next_replica_node,0,sizeof(next_replica_node));
       Uint32 default_node_group= c_nextNodeGroup;
-      /**
-       * Default starts at zero, so we must adjust for this by
-       * increasing default_node_group already here.
-       */
-      inc_node_or_group(default_node_group, cnoOfNodeGroups);
       for(Uint32 fragNo = 0; fragNo < noOfFragments; fragNo++)
       {
         jam();
