@@ -1147,8 +1147,13 @@ error_handler:
     theError.code = tOperation->theError.code;
   DBUG_ASSERT(theError.code != 0);
 
+  NdbError savedError;
+  savedError = theError;
+
   if (tConnection != NULL)
     this->closeTransaction(tConnection);
+
+  theError = savedError;
 
   DBUG_RETURN(-1);
 }
