@@ -37,3 +37,12 @@ SELECT CHAR(31) = '', '' = CHAR(31);
 SELECT CHAR(30) = '', '' = CHAR(30);
 
 # End of 4.1 tests
+
+#
+#Bug #21159: Optimizer: wrong result after AND with different data types
+#
+create table t1 (a tinyint(1),b binary(1));
+insert into t1 values (0x01,0x01);
+select * from t1 where a=b;
+select * from t1 where a=b and b=0x01;
+drop table if exists t1;
