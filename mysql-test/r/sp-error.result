@@ -634,6 +634,45 @@ flush tables;
 return 5;
 end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin reset query cache;
+return 1; end|
+ERROR 0A000: RESET is not allowed in stored function or trigger
+create function bug8409() returns int begin reset master;
+return 1; end|
+ERROR 0A000: RESET is not allowed in stored function or trigger
+create function bug8409() returns int begin reset slave;
+return 1; end|
+ERROR 0A000: RESET is not allowed in stored function or trigger
+create function bug8409() returns int begin flush hosts;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin flush privileges;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin flush tables with read lock;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin flush tables;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin flush logs;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin flush status;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin flush slave;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin flush master;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin flush des_key_file;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function bug8409() returns int begin flush user_resources;
+return 1; end|
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create procedure bug9529_901234567890123456789012345678901234567890123456789012345()
 begin
 end|
