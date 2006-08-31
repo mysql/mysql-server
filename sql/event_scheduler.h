@@ -34,14 +34,6 @@ public:
   Event_scheduler():state(UNINITIALIZED){}
   ~Event_scheduler(){}
 
-  enum enum_state
-  {
-    UNINITIALIZED = 0,
-    INITIALIZED,
-    RUNNING,
-    STOPPING
-  };
-
   /* State changing methods follow */
 
   bool
@@ -70,12 +62,8 @@ public:
   deinit_mutexes();
 
   /* Information retrieving methods follow */
-
-  enum enum_state
-  get_state();
-
-  void
-  queue_changed();
+  bool
+  is_running();
 
   bool
   dump_internal_status(THD *thd);
@@ -83,6 +71,7 @@ public:
 private:
   uint
   workers_count();
+
 
   /* helper functions */
   bool
@@ -101,16 +90,18 @@ private:
 
   pthread_mutex_t LOCK_scheduler_state;
 
+  enum enum_state
+  {
+    UNINITIALIZED = 0,
+    INITIALIZED,
+    RUNNING,
+    STOPPING
+  };
+
   /* This is the current status of the life-cycle of the scheduler. */
   enum enum_state state;
 
-  /*
-    Holds the thread id of the executor thread or 0 if the scheduler is not
-    running. It is used by ::shutdown() to know which thread to kill with
-    kill_one_thread(). The latter wake ups a thread if it is waiting on a
-    conditional variable and sets thd->killed to non-zero.
-  */
-  ulong thread_id;
+  THD *scheduler_thd;
 
   pthread_cond_t COND_state;
 
