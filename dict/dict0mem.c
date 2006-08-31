@@ -134,6 +134,7 @@ dict_mem_table_add_col(
 	col->name = mem_heap_strdup(table->heap, name);
 	col->table = table;
 	col->ord_part = 0;
+	col->min_prefix = 0;
 
 	col->clust_pos = ULINT_UNDEFINED;
 
