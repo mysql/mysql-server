@@ -216,7 +216,7 @@ our $opt_embedded_server;
 our $opt_extern;
 our $opt_fast;
 our $opt_force;
-our $opt_reorder;
+our $opt_reorder= 1;
 our $opt_enable_disabled;
 
 our $opt_gcov;
@@ -360,6 +360,7 @@ sub install_db ($$);
 sub run_testcase ($);
 sub run_testcase_stop_servers ($$$);
 sub run_testcase_start_servers ($);
+sub run_testcase_check_skip_test($);
 sub report_failure_and_restart ($);
 sub do_before_start_master ($$);
 sub do_before_start_slave ($$);
@@ -1954,6 +1955,23 @@ sub mysqld_wait_started($){
 }
 
 
+sub ndb_mgmd_wait_started($) {
+  my ($cluster)= @_;
+
+  my $retries= 100;
+  while (ndbcluster_wait_started($cluster, "--no-contact") and
+	 $retries)
+  {
+    # Millisceond sleep emulated with select
+    select(undef, undef, undef, (0.1));
+
+    $retries--;
+  }
+
+  return $retries == 0;
+
+}
+
 sub ndb_mgmd_start ($) {
   my $cluster= shift;
 
@@ -1974,13 +1992,12 @@ sub ndb_mgmd_start ($) {
 		  "",
 		  { append_log_file => 1 });
 
-
   # FIXME Should not be needed
   # Unfortunately the cluster nodes will fail to start
   # if ndb_mgmd has not started properly
-  while (ndbcluster_wait_started($cluster, "--no-contact"))
+  if (ndb_mgmd_wait_started($cluster))
   {
-    select(undef, undef, undef, 0.1);
+    mtr_error("Failed to wait for start of ndb_mgmd");
   }
 
   # Remember pid of ndb_mgmd
@@ -2045,7 +2062,7 @@ sub ndbcluster_start ($$) {
     mtr_error("Cluster '$cluster->{'name'}' already started");
   }
 
-  my $pid= ndb_mgmd_start($cluster);
+  ndb_mgmd_start($cluster);
 
   for ( my $idx= 0; $idx < $cluster->{'nodes'}; $idx++ )
   {
@@ -2156,6 +2173,11 @@ sub run_suite () {
 
   foreach my $tinfo ( @$tests )
   {
+    if (run_testcase_check_skip_test($tinfo))
+    {
+      next;
+    }
+
     mtr_timer_start($glob_timers,"testcase", 60 * $opt_testcase_timeout);
     run_testcase($tinfo);
     mtr_timer_stop($glob_timers,"testcase");
@@ -2440,6 +2462,86 @@ sub im_prepare_data_dir($) {
   }
 }
 
+sub run_testcase_check_skip_test($)
+{
+  my ($tinfo)= @_;
+
+  # ----------------------------------------------------------------------
+  # If marked to skip, just print out and return.
+  # Note that a test case not marked as 'skip' can still be
+  # skipped later, because of the test case itself in cooperation
+  # with the mysqltest program tells us so.
+  # ----------------------------------------------------------------------
+
+  if ( $tinfo->{'skip'} )
+  {
+    mtr_report_test_name($tinfo);
+    mtr_report_test_skipped($tinfo);
+    return 1;
+  }
+
+  # If test needs cluster, check that master installed ok
+  if ( $tinfo->{'ndb_test'}  and $clusters->[0]->{'installed_ok'} eq "NO" )
+  {
+    mtr_report_test_name($tinfo);
+    mtr_report_test_failed($tinfo);
+    return 1;
+  }
+
+  # If test needs slave cluster, check that it installed ok
+  if ( $tinfo->{'ndb_test'}  and $tinfo->{'slave_num'} and
+       $clusters->[1]->{'installed_ok'} eq "NO" )
+  {
+    mtr_report_test_name($tinfo);
+    mtr_report_test_failed($tinfo);
+    return 1;
+  }
+
+  return 0;
+}
+
+
+sub do_before_run_mysqltest($)
+{
+  my $tinfo= shift;
+  my $tname= $tinfo->{'name'};
+
+  # Remove old reject file
+  if ( $opt_suite eq "main" )
+  {
+    unlink("r/$tname.reject");
+  }
+  else
+  {
+    unlink("suite/$opt_suite/r/$tname.reject");
+  }
+
+
+# MASV cleanup...
+  mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
+
+  # output current test to ndbcluster log file to enable diagnostics
+  mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
+
+  mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+  if ( $master->[1]->{'pid'} )
+  {
+    mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+  }
+}
+
+sub do_after_run_mysqltest($)
+{
+  my $tinfo= shift;
+  my $tname= $tinfo->{'name'};
+
+  #MASV cleanup
+    # Save info from this testcase run to mysqltest.log
+    my $testcase_log= mtr_fromfile($path_timefile) if -f $path_timefile;
+    mtr_tofile($path_mysqltest_log,"CURRENT TEST $tname\n");
+    mtr_tofile($path_mysqltest_log, $testcase_log);
+  }
+
 
 ##############################################################################
 #
@@ -2460,44 +2562,6 @@ sub im_prepare_data_dir($) {
 sub run_testcase ($) {
   my $tinfo=  shift;
 
-  my $tname= $tinfo->{'name'};
-
-  mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
-
-  # output current test to ndbcluster log file to enable diagnostics
-  mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
-
-  # ----------------------------------------------------------------------
-  # If marked to skip, just print out and return.
-  # Note that a test case not marked as 'skip' can still be
-  # skipped later, because of the test case itself in cooperation
-  # with the mysqltest program tells us so.
-  # ----------------------------------------------------------------------
-
-  if ( $tinfo->{'skip'} )
-  {
-    mtr_report_test_name($tinfo);
-    mtr_report_test_skipped($tinfo);
-    return;
-  }
-
-  # If test needs cluster, check that master installed ok
-  if ( $tinfo->{'ndb_test'}  and $clusters->[0]->{'installed_ok'} eq "NO" )
-  {
-    mtr_report_test_name($tinfo);
-    mtr_report_test_failed($tinfo);
-    return;
-  }
-
-  # If test needs slave cluster, check that it installed ok
-  if ( $tinfo->{'ndb_test'}  and $tinfo->{'slave_num'} and
-       $clusters->[1]->{'installed_ok'} eq "NO" )
-  {
-    mtr_report_test_name($tinfo);
-    mtr_report_test_failed($tinfo);
-    return;
-  }
-
   my $master_restart= run_testcase_need_master_restart($tinfo);
   my $slave_restart= run_testcase_need_slave_restart($tinfo);
 
@@ -2506,26 +2570,7 @@ sub run_testcase ($) {
     run_testcase_stop_servers($tinfo, $master_restart, $slave_restart);
   }
 
-  # ----------------------------------------------------------------------
-  # Prepare to start masters. Even if we use embedded, we want to run
-  # the preparation.
-  # ----------------------------------------------------------------------
-
-  mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-  if ( $master->[1]->{'pid'} )
-  {
-    mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-  }
-
-  # ----------------------------------------------------------------------
-  # If any mysqld servers running died, we have to know
-  # ----------------------------------------------------------------------
-
   my $died= mtr_record_dead_children();
-
-  # ----------------------------------------------------------------------
-  # Start masters needed by the testcase
-  # ----------------------------------------------------------------------
   if ($died or $master_restart or $slave_restart)
   {
     run_testcase_start_servers($tinfo);
@@ -2535,28 +2580,14 @@ sub run_testcase ($) {
   # If --start-and-exit or --start-dirty given, stop here to let user manually
   # run tests
   # ----------------------------------------------------------------------
-
   if ( $opt_start_and_exit or $opt_start_dirty )
   {
     mtr_report("\nServers started, exiting");
     exit(0);
   }
 
-  # ----------------------------------------------------------------------
-  # Run the test case
-  # ----------------------------------------------------------------------
-
   {
-    # remove the old reject file
-    if ( $opt_suite eq "main" )
-    {
-      unlink("r/$tname.reject");
-    }
-    else
-    {
-      unlink("suite/$opt_suite/r/$tname.reject");
-    }
-    unlink($path_timefile);
+    do_before_run_mysqltest($tinfo);
 
     my $res= run_mysqltest($tinfo);
     mtr_report_test_name($tinfo);
@@ -2592,10 +2623,8 @@ sub run_testcase ($) {
 
       report_failure_and_restart($tinfo);
     }
-    # Save info from this testcase run to mysqltest.log
-    my $testcase_log= mtr_fromfile($path_timefile) if -f $path_timefile;
-    mtr_tofile($path_mysqltest_log,"CURRENT TEST $tname\n");
-    mtr_tofile($path_mysqltest_log, $testcase_log);
+
+    do_after_run_mysqltest($tinfo);
   }
 
   # ----------------------------------------------------------------------

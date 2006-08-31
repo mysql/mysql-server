@@ -94,6 +94,8 @@ sub spawn_impl ($$$$$$$$) {
   my $pid_file=   shift;                 # FIXME
   my $spawn_opts= shift;
 
+  mtr_error("Can't spawn with empty \"path\"") unless defined $path;
+
   if ( $::opt_script_debug )
   {
     print STDERR "\n";
