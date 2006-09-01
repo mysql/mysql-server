@@ -882,6 +882,7 @@ static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
     fprintf(stderr, "%s: Couldn't execute '%s': %s (%d)\n",
             my_progname, query,
             mysql_error(mysql_con), mysql_errno(mysql_con));
+    safe_exit(EX_MYSQLERR);
     return 1;
   }
   return 0;
