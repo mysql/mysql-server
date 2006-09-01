@@ -1682,6 +1682,7 @@ select * from t1;
 a	b
 Osnabrück	Köln
 drop table t1;
+--fields-optionally-enclosed-by="
 create table `t1` (
 t1_name varchar(255) default null,
 t1_id int(10) unsigned not null auto_increment,
