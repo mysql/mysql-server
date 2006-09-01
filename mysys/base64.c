@@ -42,7 +42,7 @@ base64_needed_encoded_length(int length_of_data)
 int
 base64_needed_decoded_length(int length_of_encoded_data)
 {
-  return ceil(length_of_encoded_data * 3 / 4);
+  return (int)ceil(length_of_encoded_data * 3 / 4);
 }
 
 

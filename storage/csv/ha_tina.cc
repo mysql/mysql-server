@@ -180,7 +180,7 @@ static int tina_done_func()
   }
   return 0;
 }
-	
+
 
 /*
   Simple lock controls.
@@ -1108,7 +1108,7 @@ int ha_tina::rnd_pos(byte * buf, byte *pos)
 {
   DBUG_ENTER("ha_tina::rnd_pos");
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
-  current_position= my_get_ptr(pos,ref_length);
+  current_position= (off_t)my_get_ptr(pos,ref_length);
   DBUG_RETURN(find_current_row(buf));
 }
 

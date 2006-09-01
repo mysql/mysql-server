@@ -4215,7 +4215,7 @@ Dbacc::abortSerieQueueOperation(Signal* signal, OperationrecPtr opPtr)
 	{
 	  jam();
 	  ptrCheckGuard(lastOp, coprecsize, operationrec);	
-	  ndbassert(lastOp.p->m_lock_owner_ptr_i = prevS.i);
+	  ndbassert(lastOp.p->m_lock_owner_ptr_i == prevS.i);
 	}
 	else
 	{
