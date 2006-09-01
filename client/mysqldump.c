@@ -852,6 +852,7 @@ static void DB_error(MYSQL *mysql, const char *when)
   DBUG_ENTER("DB_error");
   fprintf(stderr, "%s: Got error: %d: %s %s\n", my_progname,
           mysql_errno(mysql), mysql_error(mysql), when);
+  fflush(stderr);
   safe_exit(EX_MYSQLERR);
   DBUG_VOID_RETURN;
 } /* DB_error */
