@@ -80,14 +80,15 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 
 TransporterRegistry::TransporterRegistry(void * callback,
 					 unsigned _maxTransporters,
-					 unsigned sizeOfLongSignalMemory)
+					 unsigned sizeOfLongSignalMemory) :
+  m_mgm_handle(0),
+  m_transp_count(0)
 {
   DBUG_ENTER("TransporterRegistry::TransporterRegistry");
 
   nodeIdSpecified = false;
   maxTransporters = _maxTransporters;
   sendCounter = 1;
-  m_mgm_handle= 0;
   
   callbackObj=callback;
 
@@ -1002,7 +1003,6 @@ TransporterRegistry::performReceive()
 #endif
 }
 
-static int x = 0;
 void
 TransporterRegistry::performSend()
 {
@@ -1070,7 +1070,7 @@ TransporterRegistry::performSend()
     }
 #endif
 #ifdef NDB_TCP_TRANSPORTER
-  for (i = x; i < nTCPTransporters; i++) 
+  for (i = m_transp_count; i < nTCPTransporters; i++) 
   {
     TCP_Transporter *t = theTCPTransporters[i];
     if (t && t->hasDataToSend() && t->isConnected() &&
@@ -1079,7 +1079,7 @@ TransporterRegistry::performSend()
       t->doSend();
     }
   }
-  for (i = 0; i < x && i < nTCPTransporters; i++) 
+  for (i = 0; i < m_transp_count && i < nTCPTransporters; i++) 
   {
     TCP_Transporter *t = theTCPTransporters[i];
     if (t && t->hasDataToSend() && t->isConnected() &&
@@ -1088,8 +1088,8 @@ TransporterRegistry::performSend()
       t->doSend();
     }
   }
-  x++;
-  if (x == nTCPTransporters) x = 0;
+  m_transp_count++;
+  if (m_transp_count == nTCPTransporters) m_transp_count = 0;
 #endif
 #endif
 #ifdef NDB_SCI_TRANSPORTER

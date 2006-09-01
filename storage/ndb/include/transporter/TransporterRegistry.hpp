@@ -361,6 +361,7 @@ private:
   Uint32 poll_SHM(Uint32 timeOutMillis);
 
   int m_shm_own_pid;
+  int m_transp_count;
 };
 
 #endif // Define of TransporterRegistry_H

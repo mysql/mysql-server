@@ -323,6 +323,8 @@ our $opt_skip_slave_binlog= 0;
 our $exe_ndb_mgm;
 our $exe_ndb_waiter;
 our $path_ndb_tools_dir;
+our $path_ndb_examples_dir;
+our $exe_ndb_example;
 our $file_ndb_testrun_log;
 
 our @data_dir_lst;
@@ -1231,6 +1233,9 @@ sub executable_setup () {
       mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
                         "/usr/bin/false");
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/storage/ndb/tools");
+    $path_ndb_examples_dir= mtr_path_exists("$glob_basedir/storage/ndb/ndbapi-examples");
+    $exe_ndb_example= mtr_exe_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple",
+				    $exe_mysqld);
     $exe_ndb_mgm=        "$glob_basedir/storage/ndb/src/mgmclient/ndb_mgm";
     $exe_ndb_waiter=     "$glob_basedir/storage/ndb/tools/ndb_waiter";
     $exe_ndbd=           "$glob_basedir/storage/ndb/src/kernel/ndbd";
@@ -1295,6 +1300,7 @@ sub executable_setup () {
     }
 
     $path_ndb_tools_dir=  "$glob_basedir/bin";
+    $path_ndb_examples_dir=  "$glob_basedir/ndbapi-examples";
     $exe_ndb_mgm=         "$glob_basedir/bin/ndb_mgm";
     $exe_ndb_waiter=      "$glob_basedir/bin/ndb_waiter";
     $exe_ndbd=            "$glob_basedir/bin/ndbd";
@@ -1346,6 +1352,20 @@ sub environment_setup () {
   $ENV{'DYLD_LIBRARY_PATH'}=
     "$extra_ld_library_paths" .
       ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+  # --------------------------------------------------------------------------
+  # Add the path where libndbclient can be found
+  # --------------------------------------------------------------------------
+  $ENV{'LD_LIBRARY_PATH'}=
+    (mtr_path_exists("$glob_basedir/storage/ndb/src/.libs") ?  "$glob_basedir/storage/ndb/src/.libs" : "") .
+      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+
+  # --------------------------------------------------------------------------
+  # Add the path where libmysqlclient can be found
+  # --------------------------------------------------------------------------
+  $ENV{'LD_LIBRARY_PATH'}=
+    (mtr_path_exists("$glob_basedir/libmysql_r/.libs") ?  "$glob_basedir/libmysql_r/.libs" : "") .
+      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
@@ -1362,6 +1382,7 @@ sub environment_setup () {
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_sock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'port'};
   $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'port'};
+  $ENV{'SLAVE_MYSOCK'}=       $slave->[0]->{'path_sock'};
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'port'};
   $ENV{'SLAVE_MYPORT1'}=      $slave->[1]->{'port'};
   $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'port'};
@@ -3567,7 +3588,10 @@ sub run_mysqltest ($) {
   $ENV{'NDB_BACKUP_DIR'}=           $clusters->[0]->{'data_dir'};
   $ENV{'NDB_DATA_DIR'}=             $clusters->[0]->{'data_dir'};
   $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
+  $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
+  $ENV{'MY_NDB_EXAMPLES_BINARY'}=   ($exe_ndb_example eq "$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple")?$exe_ndb_example:"";
   $ENV{'NDB_TOOLS_OUTPUT'}=         $file_ndb_testrun_log;
+  $ENV{'NDB_EXAMPLES_OUTPUT'}=      $file_ndb_testrun_log;
   $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
   my $exe= $exe_mysqltest;
