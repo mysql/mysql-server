@@ -76,3 +76,17 @@ a
 a
 1
 drop table t1;
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7);
+explain select count(*) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where; Using temporary
+select count(*) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
+c
+7
+explain select sum(a) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where; Using temporary
+select sum(a) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
+c
+28
