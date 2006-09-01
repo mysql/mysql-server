@@ -17,13 +17,13 @@ db_x
 SHOW TABLES FROM db_x;
 Tables_in_db_x
 x_table
-SET GLOBAL event_scheduler=2;
+SET GLOBAL event_scheduler=off;
 DROP EVENT e_x1;
 DROP EVENT e_x2;
 DROP DATABASE db_x;
 DROP USER pauline@localhost;
 USE events_test;
-SET GLOBAL event_scheduler=2;
+SET GLOBAL event_scheduler=off;
 drop event if exists event1;
 Warnings:
 Note	1305	Event event1 does not exist
@@ -94,7 +94,7 @@ begin
 alter event e_43 on schedule every 5 minute;
 insert into test_nested values(1);
 end|
-set global event_scheduler = 1;
+set global event_scheduler = on;
 select db, name, body, status, interval_field, interval_value from mysql.event;
 db	name	body	status	interval_field	interval_value
 events_test	e_43	begin
@@ -113,7 +113,7 @@ drop event non_qualif_ev;
 drop table non_qualif;
 alter event non_existant rename to non_existant_too;
 ERROR HY000: Unknown event 'non_existant'
-set global event_scheduler = 2;
+set global event_scheduler = off;
 create event existant on schedule at now() + interval 1 year do select 12;
 alter event non_existant rename to existant;
 ERROR HY000: Event 'existant' already exists
@@ -315,12 +315,14 @@ ERROR HY000: Incorrect AT value: 'definitely not a datetime'
 set names utf8;
 create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
 drop event задачка;
-set event_scheduler=2;
+set event_scheduler=off;
 ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable and should be set with SET GLOBAL
 set global event_scheduler=3;
 ERROR 42000: Variable 'event_scheduler' can't be set to the value of '3'
+set global event_scheduler=disabled;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of 'disabled'
 "DISABLE the scheduler. Testing that it does not work when the variable is 0"
-set global event_scheduler=2;
+set global event_scheduler=off;
 select definer, name, db from mysql.event;
 definer	name	db
 select get_lock("test_lock1", 20);
@@ -343,7 +345,7 @@ select count(*) from mysql.event;
 count(*)
 0
 "ENABLE the scheduler and get a lock"
-set global event_scheduler=1;
+set global event_scheduler=on;
 select get_lock("test_lock2", 20);
 get_lock("test_lock2", 20)
 1
@@ -371,7 +373,7 @@ select /*3*/ user, host, db, command, state, info from information_schema.proces
 user	host	db	command	state	info
 event_scheduler	localhost	NULL	Daemon	Waiting for next activation	NULL
 root	localhost	events_test	Connect	User lock	select get_lock("test_lock2_1", 20)
-set global event_scheduler=2;
+set global event_scheduler=off;
 "Should have only our process now:"
 select /*4*/ user, host, db, command, state, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	command	state	info
