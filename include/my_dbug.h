@@ -97,6 +97,7 @@ extern	void _db_unlock_file(void);
 #define DBUG_UNLOCK_FILE
 #define DBUG_OUTPUT(A)
 #define DBUG_ASSERT(A) {}
+#define DBUG_LEAVE
 #endif
 #ifdef	__cplusplus
 }
