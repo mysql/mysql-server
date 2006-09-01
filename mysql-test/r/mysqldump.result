@@ -640,6 +640,298 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
+drop table t1;
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1),(2),(3);
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+/*!40000 DROP DATABASE IF EXISTS `test`*/;
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET latin1 */;
+
+USE `test`;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+LOCK TABLES `t1` WRITE;
+/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
+INSERT INTO `t1` VALUES (1),(2),(3);
+/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+UNLOCK TABLES;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+DROP TABLE t1;
+CREATE DATABASE mysqldump_test_db;
+USE mysqldump_test_db;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS `t2`;
+CREATE TABLE `t2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS `t2`;
+CREATE TABLE `t2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+DROP TABLE t1, t2;
+DROP DATABASE mysqldump_test_db;
+create database mysqldump_test_db;
+use mysqldump_test_db;
+create table t1(a varchar(30) primary key, b int not null);
+create table t2(a varchar(30) primary key, b int not null);
+create table t3(a varchar(30) primary key, b int not null);
+test_sequence
+------ Testing with illegal table names ------
+mysqldump: Couldn't find table: "\d-2-1.sql"
+
+mysqldump: Couldn't find table: "\t1"
+
+mysqldump: Couldn't find table: "\t1"
+
+mysqldump: Couldn't find table: "\\t1"
+
+mysqldump: Couldn't find table: "t\1"
+
+mysqldump: Couldn't find table: "t\1"
+
+mysqldump: Couldn't find table: "t/1"
+
+test_sequence
+------ Testing with illegal database names ------
+mysqldump: Got error: 1049: Unknown database 'mysqldump_test_d' when selecting the database
+mysqldump: Got error: 1102: Incorrect database name 'mysqld\ump_test_db' when selecting the database
+drop table t1, t2, t3;
+drop database mysqldump_test_db;
+use test;
+create table t1 (a int(10));
+create table t2 (pk int primary key auto_increment,
+a int(10), b varchar(30), c datetime, d blob, e text);
+insert into t1 values (NULL), (10), (20);
+insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thirty");
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="test">
+	<table_data name="t1">
+	<row>
+		<field name="a" xsi:nil="true" />
+	</row>
+	<row>
+		<field name="a">10</field>
+	</row>
+	<row>
+		<field name="a">20</field>
+	</row>
+	</table_data>
+	<table_data name="t2">
+	<row>
+		<field name="pk">1</field>
+		<field name="a" xsi:nil="true" />
+		<field name="b" xsi:nil="true" />
+		<field name="c" xsi:nil="true" />
+		<field name="d" xsi:nil="true" />
+		<field name="e" xsi:nil="true" />
+	</row>
+	<row>
+		<field name="pk">2</field>
+		<field name="a">10</field>
+		<field name="b" xsi:nil="true" />
+		<field name="c" xsi:nil="true" />
+		<field name="d" xsi:nil="true" />
+		<field name="e" xsi:nil="true" />
+	</row>
+	<row>
+		<field name="pk">3</field>
+		<field name="a" xsi:nil="true" />
+		<field name="b">twenty</field>
+		<field name="c" xsi:nil="true" />
+		<field name="d" xsi:nil="true" />
+		<field name="e" xsi:nil="true" />
+	</row>
+	<row>
+		<field name="pk">4</field>
+		<field name="a">30</field>
+		<field name="b">thirty</field>
+		<field name="c" xsi:nil="true" />
+		<field name="d" xsi:nil="true" />
+		<field name="e" xsi:nil="true" />
+	</row>
+	</table_data>
+</database>
+</mysqldump>
+drop table t1, t2;
+create table t1 (a text character set utf8, b text character set latin1);
+insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
+select * from t1;
+a	b
+Osnabrück	Köln
+test.t1: Records: 1  Deleted: 0  Skipped: 0  Warnings: 0
+select * from t1;
+a	b
+Osnabrück	Köln
+drop table t1;
+--fields-optionally-enclosed-by="
+create table `t1` (
+t1_name varchar(255) default null,
+t1_id int(10) unsigned not null auto_increment,
+key (t1_name),
+primary key (t1_id)
+) auto_increment = 1000 default charset=latin1;
+insert into t1 (t1_name) values('bla');
+insert into t1 (t1_name) values('bla');
+insert into t1 (t1_name) values('bla');
+select * from t1;
+t1_name	t1_id
+bla	1000
+bla	1001
+bla	1002
+show create table `t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `t1_name` varchar(255) default NULL,
+  `t1_id` int(10) unsigned NOT NULL auto_increment,
+  PRIMARY KEY  (`t1_id`),
+  KEY `t1_name` (`t1_name`)
+) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
+DROP TABLE `t1`;
+select * from t1;
+t1_name	t1_id
+bla	1000
+bla	1001
+bla	1002
+show create table `t1`;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `t1_name` varchar(255) default NULL,
+  `t1_id` int(10) unsigned NOT NULL auto_increment,
+  PRIMARY KEY  (`t1_id`),
+  KEY `t1_name` (`t1_name`)
+) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
+drop table `t1`;
+create table t1(a int);
+create table t2(a int);
+create table t3(a int);
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `t3`;
+CREATE TABLE `t3` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+DROP TABLE IF EXISTS `t2`;
+CREATE TABLE `t2` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+drop table t1, t2, t3;
+create table t1 (a int);
+mysqldump: Couldn't execute 'SELECT /*!40001 SQL_NO_CACHE */ * FROM `t1` WHERE xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx': You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 (1064)
+mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+drop table t1;
+End of 4.1 tests
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;

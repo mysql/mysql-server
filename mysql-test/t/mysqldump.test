@@ -614,6 +614,56 @@ drop database db1;
 
 
 #
+# BUG #19025 mysqldump doesn't correctly dump "auto_increment = [int]"
+#
+create table `t1` (
+    t1_name varchar(255) default null,
+    t1_id int(10) unsigned not null auto_increment,
+    key (t1_name),
+    primary key (t1_id)
+) auto_increment = 1000 default charset=latin1;
+
+insert into t1 (t1_name) values('bla');
+insert into t1 (t1_name) values('bla');
+insert into t1 (t1_name) values('bla');
+
+select * from t1;
+
+show create table `t1`;
+
+--exec $MYSQL_DUMP --skip-comments test t1 > $MYSQLTEST_VARDIR/tmp/bug19025.sql
+DROP TABLE `t1`;
+
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug19025.sql
+
+select * from t1;
+
+show create table `t1`;
+
+drop table `t1`;
+
+#
+# Bug #18536: wrong table order
+#
+
+create table t1(a int);
+create table t2(a int);
+create table t3(a int);
+--error 6
+--exec $MYSQL_DUMP --skip-comments --force --no-data test t3 t1 non_existing t2
+drop table t1, t2, t3;
+
+#
+# Bug #21288: mysqldump segmentation fault when using --where
+#
+create table t1 (a int);
+--error 2
+--exec $MYSQL_DUMP --skip-comments --force test t1 --where='xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' 2>&1
+drop table t1;
+
+--echo End of 4.1 tests
+
+#
 # Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
 #
 
