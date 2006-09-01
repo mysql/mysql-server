@@ -6,28 +6,28 @@ DROP TABLE IF EXISTS t0;
 drop database if exists mysqltest;
 --enable_warnings
 
---exec echo Running ndbapi_simple, results in $NDB_EXAMPLES_OUTPUT
+--exec echo Running ndbapi_simple
 --exec $NDB_EXAMPLES_DIR/ndbapi_simple/ndbapi_simple $MASTER_MYSOCK "localhost:$NDBCLUSTER_PORT" >> $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_simple_index, results in $NDB_EXAMPLES_OUTPUT
+--exec echo Running ndbapi_simple_index
 --exec $NDB_EXAMPLES_DIR/ndbapi_simple_index/ndbapi_simple_index $MASTER_MYSOCK "localhost:$NDBCLUSTER_PORT" >> $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_scan, results in $NDB_EXAMPLES_OUTPUT
+--exec echo Running ndbapi_scan
 --exec $NDB_EXAMPLES_DIR/ndbapi_scan/ndbapi_scan $MASTER_MYSOCK "localhost:$NDBCLUSTER_PORT" >> $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_retries, results in $NDB_EXAMPLES_OUTPUT
+--exec echo Running ndbapi_retries
 --exec $NDB_EXAMPLES_DIR/ndbapi_retries/ndbapi_retries $MASTER_MYSOCK "localhost:$NDBCLUSTER_PORT" >> $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_async, results in $NDB_EXAMPLES_OUTPUT
+--exec echo Running ndbapi_async
 --exec $NDB_EXAMPLES_DIR/ndbapi_async/ndbapi_async $MASTER_MYSOCK "localhost:$NDBCLUSTER_PORT" >> $NDB_EXAMPLES_OUTPUT
 
---exec echo Running ndbapi_async1, results in $NDB_EXAMPLES_OUTPUT
+--exec echo Running ndbapi_async1
 --exec $NDB_EXAMPLES_DIR/ndbapi_async1/ndbapi_async1 $MASTER_MYSOCK "localhost:$NDBCLUSTER_PORT" >> $NDB_EXAMPLES_OUTPUT
 
 use TEST_DB;
 create table t0(c0 int, c1 int, c2 char(4), c3 char(4), c4 text,
                 primary key(c0, c2)) engine ndb charset latin1;
-#--exec echo Running ndbapi_event, results in $NDB_EXAMPLES_OUTPUT
+#--exec echo Running ndbapi_event
 #--exec $NDB_EXAMPLES_DIR/ndbapi_event/ndbapi_event "localhost:$NDBCLUSTER_PORT" 1 >> $NDB_EXAMPLES_OUTPUT
 insert into t0 values (1, 2, 'a', 'b', null);
 insert into t0 values (3, 4, 'c', 'd', null);
@@ -40,5 +40,5 @@ update t0 set c0 = 5, c2 = 'H' where c0 = 3; -- update full PK
 delete from t0;
 drop table t0;
 
---exec echo Running mgmapi_logevent, results in $NDB_EXAMPLES_OUTPUT
+--exec echo Running mgmapi_logevent
 --exec $NDB_EXAMPLES_DIR/mgmapi_logevent/mgmapi_logevent "localhost:$NDBCLUSTER_PORT" 1 >> $NDB_EXAMPLES_OUTPUT
