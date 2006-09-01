@@ -323,6 +323,8 @@ our $opt_skip_slave_binlog= 0;
 our $exe_ndb_mgm;
 our $exe_ndb_waiter;
 our $path_ndb_tools_dir;
+our $path_ndb_examples_dir;
+our $exe_ndb_example;
 our $file_ndb_testrun_log;
 
 our @data_dir_lst;
@@ -344,7 +346,7 @@ sub snapshot_setup ();
 sub executable_setup ();
 sub environment_setup ();
 sub kill_running_server ();
-sub kill_and_cleanup ();
+sub cleanup_stale_files ();
 sub check_ssl_support ();
 sub check_running_as_root();
 sub check_ndbcluster_support ();
@@ -368,8 +370,6 @@ sub ndb_mgmd_start ($);
 sub mysqld_start ($$$);
 sub mysqld_arguments ($$$$$);
 sub stop_all_servers ();
-sub im_start ($$);
-sub im_stop ($$);
 sub run_mysqltest ($);
 sub usage ($);
 
@@ -1233,6 +1233,9 @@ sub executable_setup () {
       mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
                         "/usr/bin/false");
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/storage/ndb/tools");
+    $path_ndb_examples_dir= mtr_path_exists("$glob_basedir/storage/ndb/ndbapi-examples");
+    $exe_ndb_example= mtr_exe_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple",
+				    $exe_mysqld);
     $exe_ndb_mgm=        "$glob_basedir/storage/ndb/src/mgmclient/ndb_mgm";
     $exe_ndb_waiter=     "$glob_basedir/storage/ndb/tools/ndb_waiter";
     $exe_ndbd=           "$glob_basedir/storage/ndb/src/kernel/ndbd";
@@ -1297,6 +1300,7 @@ sub executable_setup () {
     }
 
     $path_ndb_tools_dir=  "$glob_basedir/bin";
+    $path_ndb_examples_dir=  "$glob_basedir/ndbapi-examples";
     $exe_ndb_mgm=         "$glob_basedir/bin/ndb_mgm";
     $exe_ndb_waiter=      "$glob_basedir/bin/ndb_waiter";
     $exe_ndbd=            "$glob_basedir/bin/ndbd";
@@ -1348,6 +1352,20 @@ sub environment_setup () {
   $ENV{'DYLD_LIBRARY_PATH'}=
     "$extra_ld_library_paths" .
       ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+  # --------------------------------------------------------------------------
+  # Add the path where libndbclient can be found
+  # --------------------------------------------------------------------------
+  $ENV{'LD_LIBRARY_PATH'}=
+    (mtr_path_exists("$glob_basedir/storage/ndb/src/.libs") ?  "$glob_basedir/storage/ndb/src/.libs" : "") .
+      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+
+  # --------------------------------------------------------------------------
+  # Add the path where libmysqlclient can be found
+  # --------------------------------------------------------------------------
+  $ENV{'LD_LIBRARY_PATH'}=
+    (mtr_path_exists("$glob_basedir/libmysql_r/.libs") ?  "$glob_basedir/libmysql_r/.libs" : "") .
+      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
@@ -1364,6 +1382,7 @@ sub environment_setup () {
   $ENV{'MASTER_MYSOCK1'}=     $master->[1]->{'path_sock'};
   $ENV{'MASTER_MYPORT'}=      $master->[0]->{'port'};
   $ENV{'MASTER_MYPORT1'}=     $master->[1]->{'port'};
+  $ENV{'SLAVE_MYSOCK'}=       $slave->[0]->{'path_sock'};
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'port'};
   $ENV{'SLAVE_MYPORT1'}=      $slave->[1]->{'port'};
   $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'port'};
@@ -1454,14 +1473,13 @@ sub kill_running_server () {
 
     mtr_report("Killing Possible Leftover Processes");
     mkpath("$opt_vardir/log"); # Needed for mysqladmin log
+
     mtr_kill_leftovers();
 
    }
 }
 
-sub kill_and_cleanup () {
-
-  kill_running_server ();
+sub cleanup_stale_files () {
 
   mtr_report("Removing Stale Files");
 
@@ -1999,13 +2017,11 @@ sub run_suite () {
 sub initialize_servers () {
   if ( ! $glob_use_running_server )
   {
-    if ( $opt_start_dirty )
+    kill_running_server();
+
+    unless ( $opt_start_dirty )
     {
-      kill_running_server();
-    }
-    else
-    {
-      kill_and_cleanup();
+      cleanup_stale_files();
       mysql_install_db();
       if ( $opt_force )
       {
@@ -2397,10 +2413,9 @@ sub run_testcase ($) {
   # Stop Instance Manager if we are processing an IM-test case.
   # ----------------------------------------------------------------------
 
-  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' and
-       $instance_manager->{'pid'} )
+  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' )
   {
-    im_stop($instance_manager, $tinfo->{'name'});
+    mtr_im_stop($instance_manager, $tinfo->{'name'});
   }
 }
 
@@ -2937,11 +2952,8 @@ sub stop_all_servers () {
 
   print  "Stopping All Servers\n";
 
-  if ( $instance_manager->{'pid'} )
-  {
-    print  "Shutting-down Instance Manager\n";
-    im_stop($instance_manager, "stop_all_servers");
-  }
+  print  "Shutting-down Instance Manager\n";
+  mtr_im_stop($instance_manager, "stop_all_servers");
 
   my %admin_pids; # hash of admin processes that requests shutdown
   my @kill_pids;  # list of processes to shutdown/kill
@@ -3332,7 +3344,7 @@ sub run_testcase_start_servers($) {
 
     im_create_defaults_file($instance_manager);
 
-    im_start($instance_manager, $tinfo->{im_opts});
+    mtr_im_start($instance_manager, $tinfo->{im_opts});
   }
 
   # ----------------------------------------------------------------------
@@ -3395,236 +3407,6 @@ sub run_testcase_start_servers($) {
     }
   }
 }
-
-
-##############################################################################
-#
-#  Instance Manager management routines.
-#
-##############################################################################
-
-sub im_start($$) {
-  my $instance_manager = shift;
-  my $opts = shift;
-
-  my $args;
-  mtr_init_args(\$args);
-  mtr_add_arg($args, "--defaults-file=%s",
-              $instance_manager->{'defaults_file'});
-
-  if ( $opt_debug )
-  {
-    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/im.trace",
-                $opt_vardir_trace);
-  }
-
-  foreach my $opt (@{$opts})
-  {
-    mtr_add_arg($args, $opt);
-  }
-
-  $instance_manager->{'pid'} =
-    mtr_spawn(
-      $exe_im,                          # path to the executable
-      $args,                            # cmd-line args
-      '',                               # stdin
-      $instance_manager->{'path_log'},  # stdout
-      $instance_manager->{'path_err'},  # stderr
-      '',                               # pid file path (not used)
-      { append_log_file => 1 }          # append log files
-      );
-
-  if ( ! $instance_manager->{'pid'} )
-  {
-    mtr_report('Could not start Instance Manager');
-    return;
-  }
-
-  # Instance Manager can be run in daemon mode. In this case, it creates
-  # several processes and the parent process, created by mtr_spawn(), exits just
-  # after start. So, we have to obtain Instance Manager PID from the PID file.
-
-  if ( ! sleep_until_file_created(
-                                  $instance_manager->{'path_pid'},
-                                  $instance_manager->{'start_timeout'},
-                                  -1)) # real PID is still unknown
-  {
-    mtr_report("Instance Manager PID file is missing");
-    return;
-  }
-
-  my $pid=  mtr_get_pid_from_file($instance_manager->{'path_pid'});
-  $instance_manager->{'pid'} = $pid;
-  mtr_verbose("im_start: pid: $pid");
-}
-
-
-sub im_stop($$) {
-  my $instance_manager = shift;
-  my $where = shift;
-
-  # Obtain mysqld-process pids before we start stopping IM (it can delete pid
-  # files).
-
-  my @mysqld_pids = ();
-  my $instances = $instance_manager->{'instances'};
-
-  push(@mysqld_pids, mtr_get_pid_from_file($instances->[0]->{'path_pid'}))
-    if -r $instances->[0]->{'path_pid'};
-
-  push(@mysqld_pids, mtr_get_pid_from_file($instances->[1]->{'path_pid'}))
-    if -r $instances->[1]->{'path_pid'};
-
-  # Re-read pid from the file, since during tests Instance Manager could have
-  # been restarted, so its pid could have been changed.
-
-  $instance_manager->{'pid'} =
-    mtr_get_pid_from_file($instance_manager->{'path_pid'})
-      if -f $instance_manager->{'path_pid'};
-
-  if (-f $instance_manager->{'path_angel_pid'})
-  {
-    $instance_manager->{'angel_pid'} =
-      mtr_get_pid_from_file($instance_manager->{'path_angel_pid'})
-  }
-  else
-  {
-    $instance_manager->{'angel_pid'} = undef;
-  }
-
-  # Inspired from mtr_stop_mysqld_servers().
-
-  start_reap_all();
-
-  # Try graceful shutdown.
-
-  mtr_verbose("Stopping IM-main, pid: $instance_manager->{'pid'}");
-  mtr_kill_process($instance_manager->{'pid'}, 'TERM', 10);
-
-  # If necessary, wait for angel process to die.
-
-  my $pid= $instance_manager->{'angel_pid'};
-  if (defined $pid)
-  {
-    mtr_verbose("Waiting for IM-angel to die, pid: $pid");
-
-    my $total_attempts= 10;
-
-    for (my $cur_attempt=1; $cur_attempt <= $total_attempts; ++$cur_attempt)
-    {
-      unless (kill (0, $pid))
-      {
-        mtr_verbose("IM-angel died.");
-        last;
-      }
-
-      sleep(1);
-    }
-  }
-
-  # Check if all processes shutdown cleanly
-  my $clean_shutdown= 0;
-
-  while (1)
-  {
-    # Check that IM-main died.
-
-    if (kill (0, $instance_manager->{'pid'}))
-    {
-      mtr_debug("IM-main is still alive.");
-      last;
-    }
-
-    # Check that IM-angel died.
-
-    if (defined $instance_manager->{'angel_pid'} &&
-        kill (0, $instance_manager->{'angel_pid'}))
-    {
-      mtr_debug("IM-angel is still alive.");
-      last;
-    }
-
-    # Check that all guarded mysqld-instances died.
-
-    my $guarded_mysqlds_dead= 1;
-
-    foreach my $pid (@mysqld_pids)
-    {
-      if (kill (0, $pid))
-      {
-        mtr_debug("Guarded mysqld ($pid) is still alive.");
-        $guarded_mysqlds_dead= 0;
-        last;
-      }
-    }
-
-    last unless $guarded_mysqlds_dead;
-
-    # Ok, all necessary processes are dead.
-
-    $clean_shutdown= 1;
-    last;
-  }
-
-  # Kill leftovers (the order is important).
-
-  if ($clean_shutdown)
-  {
-    mtr_debug("IM-shutdown was clean -- all processed died.");
-  }
-  else
-  {
-    mtr_debug("IM failed to shutdown gracefully. We have to clean the mess...");
-  }
-
-  unless ($clean_shutdown)
-  {
-
-    if (defined $instance_manager->{'angel_pid'})
-    {
-      mtr_verbose("Killing IM-angel, pid: $instance_manager->{'angel_pid'}");
-      mtr_kill_process($instance_manager->{'angel_pid'}, 'KILL', 10)
-    }
-
-    mtr_verbose("Killing IM-main, pid: $instance_manager->{'pid'}");
-    mtr_kill_process($instance_manager->{'pid'}, 'KILL', 10);
-
-    # Shutdown managed mysqld-processes. Some of them may be nonguarded, so IM
-    # will not stop them on shutdown. So, we should firstly try to end them
-    # legally.
-
-    mtr_verbose("Killing guarded mysqld(s) " . join(" ", @mysqld_pids));
-    mtr_kill_processes(\@mysqld_pids);
-
-    # Complain in error log so that a warning will be shown.
-    # 
-    # TODO: unless BUG#20761 is fixed, we will print the warning
-    # to stdout, so that it can be seen on console and does not
-    # produce pushbuild error.
-
-    # my $errlog= "$opt_vardir/log/mysql-test-run.pl.err";
-    # 
-    # open (ERRLOG, ">>$errlog") ||
-    #   mtr_error("Can not open error log ($errlog)");
-    # 
-    # my $ts= localtime();
-    # print ERRLOG
-    #   "Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
-    # 
-    # close ERRLOG;
-
-    my $ts= localtime();
-    print "[$where] Warning: [$ts] Instance Manager did not shutdown gracefully.\n";
-  }
-
-  # That's all.
-
-  stop_reap_all();
-
-  $instance_manager->{'pid'} = undef;
-  $instance_manager->{'angel_pid'} = undef;
-}
-
 
 #
 # Run include/check-testcase.test
@@ -3806,7 +3588,10 @@ sub run_mysqltest ($) {
   $ENV{'NDB_BACKUP_DIR'}=           $clusters->[0]->{'data_dir'};
   $ENV{'NDB_DATA_DIR'}=             $clusters->[0]->{'data_dir'};
   $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
+  $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
+  $ENV{'MY_NDB_EXAMPLES_BINARY'}=   ($exe_ndb_example eq "$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple")?$exe_ndb_example:"";
   $ENV{'NDB_TOOLS_OUTPUT'}=         $file_ndb_testrun_log;
+  $ENV{'NDB_EXAMPLES_OUTPUT'}=      $file_ndb_testrun_log;
   $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
   my $exe= $exe_mysqltest;

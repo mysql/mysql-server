@@ -26,7 +26,7 @@
 #
 ###########################################################################
 
---source include/im_check_os.inc
+--source include/im_check_env.inc
 
 ###########################################################################
 #
@@ -39,29 +39,6 @@
 --echo --------------------------------------------------------------------
 --exec grep '^server_id\>' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
-
-# Check that mysqld1 is reported as running.
-
---sleep 3
-# should be longer than monitoring interval and enough to start instance.
-
-SHOW INSTANCES;
-
-# Check that the expected mysqld instance is actually run (check that we can
-# connect and execute something).
-
---echo
---echo ---> connection: mysql1_con
---connect (mysql1_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
---connection mysql1_con
-
-SHOW VARIABLES LIKE 'server_id';
-
---disconnect mysql1_con
-
---echo
---echo ---> connection: default
---connection default
 
 ###########################################################################
 #

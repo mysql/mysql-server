@@ -213,8 +213,8 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 			    Uint32 * eodPtr,
 			    NodeId remoteNodeId,
 			    IOState state) {
-  static SignalHeader signalHeader;
-  static LinearSectionPtr ptr[3];
+  SignalHeader signalHeader;
+  LinearSectionPtr ptr[3];
   Uint32 loop_count = 0;
   if(state == NoHalt || state == HaltOutput){
     while ((readPtr < eodPtr) && (loop_count < MAX_RECEIVED_SIGNALS)) {
