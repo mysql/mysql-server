@@ -137,7 +137,6 @@ Event_queue::deinit_mutexes()
 bool
 Event_queue::init_queue(THD *thd, Event_db_repository *db_repo)
 {
-  pthread_t th;
   bool res;
   struct event_queue_param *event_queue_param_value= NULL;
 
@@ -320,9 +319,8 @@ end:
 void
 Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 {
-  int res;
   DBUG_ENTER("Event_queue::drop_event");
-  DBUG_PRINT("enter", ("thd=0x%lx name=0x%lx", thd, name));
+  DBUG_PRINT("enter", ("thd=0x%lx db=%s name=%s", thd, dbname, name));
 
   LOCK_QUEUE_DATA();
   find_n_remove_event(dbname, name);
@@ -482,8 +480,6 @@ Event_queue::load_events_from_db(THD *thd)
   int ret= -1;
   uint count= 0;
   bool clean_the_queue= TRUE;
-  /* Compile the events on this root but only for syntax check, then discard */
-  MEM_ROOT boot_root;
 
   DBUG_ENTER("Event_queue::load_events_from_db");
   DBUG_PRINT("enter", ("thd=0x%lx", thd));
