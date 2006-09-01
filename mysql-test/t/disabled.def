@@ -45,6 +45,5 @@ crash_commit_before      : 2006-08-02 msvensson
 rpl_ndb_dd_advance       : BUG#18679 2006-07-28 jimw (Test fails randomly)
 func_group               : BUG#21924 2006-08-30 reggie
 func_in                  : BUG#21925 2006-08-30 reggie
-partition_mgm_err2       : BUG#19107 2006-08-30 reggie
 ndb_binlog_discover      : bug#21806 2006-08-24
 ndb_autodiscover3        : bug#21806

@@ -4,6 +4,10 @@
 # Taken fromm the select test
 #
 -- source include/have_partition.inc
+#
+# This test is disabled on Windows due to BUG#19107
+#
+-- source include/not_windows.inc
 
 --disable_warnings
 drop table if exists t1;
