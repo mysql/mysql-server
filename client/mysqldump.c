@@ -430,7 +430,9 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
                         int string_value);
 static int dump_selected_tables(char *db, char **table_names, int tables);
 static int dump_all_tables_in_db(char *db);
-static int init_dumping(char *);
+static int init_dumping_views(char *);
+static int init_dumping_tables(char *);
+static int init_dumping(char *, int init_func(char*));
 static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
@@ -2905,7 +2907,76 @@ static int dump_databases(char **db_names)
 } /* dump_databases */
 
 
-static int init_dumping(char *database)
+/*
+View Specific database initalization.
+
+SYNOPSIS
+  init_dumping_views
+  qdatabase      quoted name of the database
+
+RETURN VALUES
+  0        Success.
+  1        Failure.
+*/
+int init_dumping_views(char *qdatabase)
+{
+    return 0;
+} /* init_dumping_views */
+
+
+/*
+Table Specific database initalization.
+
+SYNOPSIS
+  init_dumping_tables
+  qdatabase      quoted name of the database
+
+RETURN VALUES
+  0        Success.
+  1        Failure.
+*/
+int init_dumping_tables(char *qdatabase)
+{
+  if (!opt_create_db)
+  {
+    char qbuf[256];
+    MYSQL_ROW row;
+    MYSQL_RES *dbinfo;
+
+    my_snprintf(qbuf, sizeof(qbuf),
+                "SHOW CREATE DATABASE IF NOT EXISTS %s",
+                qdatabase);
+
+    if (mysql_query(mysql, qbuf) || !(dbinfo = mysql_store_result(mysql)))
+    {
+      /* Old server version, dump generic CREATE DATABASE */
+      if (opt_drop_database)
+        fprintf(md_result_file,
+                "\n/*!40000 DROP DATABASE IF EXISTS %s;*/\n",
+                qdatabase);
+      fprintf(md_result_file,
+              "\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
+              qdatabase);
+    }
+    else
+    {
+      if (opt_drop_database)
+        fprintf(md_result_file,
+                "\n/*!40000 DROP DATABASE IF EXISTS %s*/;\n",
+                qdatabase);
+      row = mysql_fetch_row(dbinfo);
+      if (row[1])
+      {
+        fprintf(md_result_file,"\n%s;\n",row[1]);
+      }
+    }
+  }
+
+  return 0;
+} /* init_dumping_tables */
+
+
+static int init_dumping(char *database, int init_func(char*))
 {
   if (mysql_get_server_version(mysql) >= 50003 &&
       !my_strcasecmp(&my_charset_latin1, database, "information_schema"))
@@ -2930,40 +3001,10 @@ static int init_dumping(char *database)
         fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", qdatabase);
         check_io(md_result_file);
       }
-      if (!opt_create_db)
-      {
-        char qbuf[256];
-        MYSQL_ROW row;
-        MYSQL_RES *dbinfo;
 
-        my_snprintf(qbuf, sizeof(qbuf),
-                    "SHOW CREATE DATABASE IF NOT EXISTS %s",
-                    qdatabase);
+      /* Call the view or table specific function */
+      init_func(qdatabase);
 
-        if (mysql_query(mysql, qbuf) || !(dbinfo = mysql_store_result(mysql)))
-        {
-          /* Old server version, dump generic CREATE DATABASE */
-          if (opt_drop_database)
-            fprintf(md_result_file,
-                    "\n/*!40000 DROP DATABASE IF EXISTS %s;*/\n",
-                    qdatabase);
-          fprintf(md_result_file,
-                  "\nCREATE DATABASE /*!32312 IF NOT EXISTS*/ %s;\n",
-                  qdatabase);
-        }
-        else
-        {
-          if (opt_drop_database)
-            fprintf(md_result_file,
-                    "\n/*!40000 DROP DATABASE IF EXISTS %s*/;\n",
-                    qdatabase);
-          row = mysql_fetch_row(dbinfo);
-          if (row[1])
-          {
-            fprintf(md_result_file,"\n%s;\n",row[1]);
-          }
-        }
-      }
       fprintf(md_result_file,"\nUSE %s;\n", qdatabase);
       check_io(md_result_file);
     }
@@ -2997,7 +3038,7 @@ static int dump_all_tables_in_db(char *database)
 
   if (!strcmp(database, NDB_REP_DB)) /* Skip cluster internal database */
     return 0;
-  if (init_dumping(database))
+  if (init_dumping(database, init_dumping_tables))
     return 1;
   if (opt_xml)
     print_xml_tag1(md_result_file, "", "database name=", database, "\n");
@@ -3075,23 +3116,8 @@ static my_bool dump_all_views_in_db(char *database)
   uint numrows;
   char table_buff[NAME_LEN*2+3];
 
-  if (mysql_select_db(mysql, database))
-  {
-    DB_error(mysql, "when selecting the database");
+  if (init_dumping(database, init_dumping_views))
     return 1;
-  }
-  if (opt_databases || opt_alldbs)
-  {
-    char quoted_database_buf[NAME_LEN*2+3];
-    char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
-    if (opt_comments)
-    {
-      fprintf(md_result_file,"\n--\n-- Current Database: %s\n--\n", qdatabase);
-      check_io(md_result_file);
-    }
-    fprintf(md_result_file,"\nUSE %s;\n", qdatabase);
-    check_io(md_result_file);
-  }
   if (opt_xml)
     print_xml_tag1(md_result_file, "", "database name=", database, "\n");
   if (lock_tables)
@@ -3186,7 +3212,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   char **dump_tables, **pos, **end;
   DBUG_ENTER("dump_selected_tables");
 
-  if (init_dumping(db))
+  if (init_dumping(db, init_dumping_tables))
     DBUG_RETURN(1);
 
   init_alloc_root(&root, 8192, 0);

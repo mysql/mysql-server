@@ -469,14 +469,6 @@ sub collect_one_test_case($$$$$$$) {
   {
     mtr_options_from_test_file($tinfo,"$testdir/${tname}.test");
 
-    if ( ! $tinfo->{'innodb_test'} )
-    {
-      # mtr_verbose("Adding '--skip-innodb' to $tinfo->{'name'}");
-      # FIXME activate the --skip-innodb only when running with
-      # selected test cases
-      # push(@{$tinfo->{'master_opt'}}, "--skip-innodb");
-    }
-
     if ( $tinfo->{'big_test'} and ! $::opt_big_test )
     {
       $tinfo->{'skip'}= 1;
