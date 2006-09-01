@@ -59,16 +59,38 @@
   eligible for execution.
 */
 
-const char *event_scheduler_state_names[]=
-    { "OFF", "0", "ON", "1", "SUSPEND", "2", NullS };
+/*
+  Keep the order of the first to as in var_typelib
+  sys_var_event_scheduler::value_ptr() references this array. Keep in
+  mind!
+*/
+static const char *opt_event_scheduler_state_names[]=
+    { "OFF", "ON", "0", "1", "DISABLED", NullS };
 
 TYPELIB Events::opt_typelib=
 {
-  array_elements(event_scheduler_state_names)-1,
+  array_elements(opt_event_scheduler_state_names)-1,
   "",
-  event_scheduler_state_names,
+  opt_event_scheduler_state_names,
   NULL
 };
+
+
+/*
+  The order should not be changed. We consider OFF to be equivalent of INT 0
+  And ON of 1. If OFF & ON are interchanged the logic in
+  sys_var_event_scheduler::update() will be broken!
+*/
+static const char *var_event_scheduler_state_names[]= { "OFF", "ON", NullS };
+
+TYPELIB Events::var_typelib=
+{
+  array_elements(var_event_scheduler_state_names)-1,
+  "",
+  var_event_scheduler_state_names,
+  NULL
+};
+
 
 static
 Event_queue events_event_queue;
@@ -81,7 +103,8 @@ Event_db_repository events_event_db_repository;
 
 Events Events::singleton;
 
-ulong Events::opt_event_scheduler= 2;
+enum Events::enum_opt_event_scheduler Events::opt_event_scheduler=
+     Events::EVENTS_OFF;
 
 
 /*
@@ -607,6 +630,9 @@ Events::init()
   bool res= FALSE;
   DBUG_ENTER("Events::init");
 
+  if (opt_event_scheduler == Events::EVENTS_DISABLED)
+    DBUG_RETURN(FALSE);
+
   /* We need a temporary THD during boot */
   if (!(thd= new THD()))
   {
@@ -637,12 +663,10 @@ Events::init()
   }
   scheduler->init_scheduler(event_queue);
 
-  if (opt_event_scheduler)
-  {
-    DBUG_ASSERT(opt_event_scheduler == 1 || opt_event_scheduler == 2);
-    if (opt_event_scheduler == 1)
-      res= scheduler->start();
-  }
+  DBUG_ASSERT(opt_event_scheduler == Events::EVENTS_ON ||
+              opt_event_scheduler == Events::EVENTS_OFF);
+  if (opt_event_scheduler == Events::EVENTS_ON)
+    res= scheduler->start();
 
 end:
   delete thd;
@@ -667,10 +691,11 @@ void
 Events::deinit()
 {
   DBUG_ENTER("Events::deinit");
-
-  if (likely(!check_system_tables_error))
+  if (likely(!check_system_tables_error) &&
+      scheduler->get_state() > Event_scheduler::UNINITIALIZED)
   {
     scheduler->stop();
+    DBUG_ASSERT(scheduler->get_state() == Event_scheduler::INITIALIZED);  
     scheduler->deinit_scheduler();
 
     event_queue->deinit_queue();

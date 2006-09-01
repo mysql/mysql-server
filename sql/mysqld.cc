@@ -5072,9 +5072,9 @@ Disable with --skip-bdb (will save memory).",
    (gptr*) &global_system_variables.engine_condition_pushdown,
    (gptr*) &global_system_variables.engine_condition_pushdown,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  /* See how it's handled in get_one_option() */
   {"event-scheduler", OPT_EVENT_SCHEDULER, "Enable/disable the event scheduler.",
-   (gptr*) &Events::opt_event_scheduler, (gptr*) &Events::opt_event_scheduler, 0, GET_ULONG,
-    REQUIRED_ARG, 2/*default*/, 0/*min-value*/, 2/*max-value*/, 0, 0, 0},
+   NULL,  NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking (disabled by default).  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running. Disable with --skip-external-locking.",
@@ -7423,20 +7423,33 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
   case OPT_EVENT_SCHEDULER:
     if (!argument)
-      Events::opt_event_scheduler= 2;
+      Events::opt_event_scheduler= Events::EVENTS_DISABLED;
     else
     {
       int type;
-      if ((type=find_type(argument, &Events::opt_typelib, 1)) <= 0)
-      {
-	fprintf(stderr,"Unknown option to event-scheduler: %s\n",argument);
-	exit(1);
-      }
       /* 
-        type=  1     2      3   4     5    6
-             (OFF |  0) - (ON | 1) - (2 | SUSPEND)
+        type=     5          1   2      3   4
+             (DISABLE ) - (OFF | ON) - (0 | 1)
       */
-      Events::opt_event_scheduler= (type-1) / 2;
+      switch ((type=find_type(argument, &Events::opt_typelib, 1))) {
+      case 0:
+	fprintf(stderr, "Unknown option to event-scheduler: %s\n",argument);
+	exit(1);
+      case 5: /* OPT_DISABLED */
+        Events::opt_event_scheduler= Events::EVENTS_DISABLED;
+        break;
+      case 2: /* OPT_ON  */
+      case 4: /* 1   */
+        Events::opt_event_scheduler= Events::EVENTS_ON;
+        break;
+      case 1: /* OPT_OFF */
+      case 3: /*  0  */
+        Events::opt_event_scheduler= Events::EVENTS_OFF;
+        break;
+      default:
+        DBUG_ASSERT(0);
+        unireg_abort(1);
+      }
     }
     break;
   case (int) OPT_SKIP_NEW:
