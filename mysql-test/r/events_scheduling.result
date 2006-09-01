@@ -1,11 +1,47 @@
 CREATE DATABASE IF NOT EXISTS events_test;
 USE events_test;
+SET GLOBAL event_scheduler=OFF;
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=1;
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=0;
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=ON;
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=DISABLED;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of 'DISABLED'
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=-1;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of '-1'
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=2;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of '2'
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=5;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of '5'
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
 CREATE TABLE table_1(a int);
 CREATE TABLE table_2(a int);
 CREATE TABLE table_3(a int);
 CREATE TABLE table_4(a int);
 CREATE TABLE T19170(s1 TIMESTAMP);
-SET GLOBAL event_scheduler=1;
+SET GLOBAL event_scheduler=ON;
 CREATE EVENT two_sec ON SCHEDULE EVERY 2 SECOND DO INSERT INTO table_1 VALUES(1);
 CREATE EVENT start_n_end
 ON SCHEDULE EVERY 1 SECOND
