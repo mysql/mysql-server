@@ -479,7 +479,7 @@ drop table t1;
 create table t1 (
 c char(10) character set utf8,
 unique key a (c(1))
-) engine=bdb;
+) engine=innodb;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'aa' for key 'a'
@@ -637,7 +637,7 @@ drop table t1;
 create table t1 (
 c char(10) character set utf8 collate utf8_bin,
 unique key a (c(1))
-) engine=bdb;
+) engine=innodb;
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'aa' for key 'a'
@@ -707,7 +707,7 @@ drop table t1;
 create table t1 (
 str varchar(255) character set utf8 not null,
 key str (str(2))
-) engine=bdb;
+) engine=innodb;
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -796,7 +796,7 @@ insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
 a	b
 2	foobar
-alter table t1 engine=bdb;
+alter table t1 engine=innodb;
 select * from t1 where b like 'foob%';
 a	b
 2	foobar
@@ -1065,6 +1065,18 @@ SELECT LENGTH(bug) FROM t2;
 LENGTH(bug)
 100
 DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (item varchar(255)) default character set utf8;
+INSERT INTO t1 VALUES (N'\\');
+INSERT INTO t1 VALUES (_utf8'\\');
+INSERT INTO t1 VALUES (N'Cote d\'Ivoire');
+INSERT INTO t1 VALUES (_utf8'Cote d\'Ivoire');
+SELECT item FROM t1 ORDER BY item;
+item
+Cote d'Ivoire
+Cote d'Ivoire
+\
+\
 DROP TABLE t1;
 SET NAMES utf8;
 DROP TABLE IF EXISTS t1;

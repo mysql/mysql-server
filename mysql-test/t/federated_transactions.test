@@ -10,7 +10,7 @@ CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
     `name` varchar(32) NOT NULL default ''
     )
-  DEFAULT CHARSET=latin1 ENGINE=InnoDB;
+  DEFAULT CHARSET=latin1 ENGINE=innodb;
 
 connection master;
 DROP TABLE IF EXISTS federated.t1;

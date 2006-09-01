@@ -114,10 +114,6 @@ server-id	= 1
 #tmpdir		= /tmp/		
 #log-update 	= /path-to-dedicated-directory/hostname
 
-# Uncomment the following if you are using BDB tables
-#bdb_cache_size = 256M
-#bdb_max_lock = 100000
-
 # Uncomment the following if you are using InnoDB tables
 #innodb_data_home_dir = @localstatedir@/
 #innodb_data_file_path = ibdata1:10M:autoextend

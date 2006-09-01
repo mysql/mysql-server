@@ -345,10 +345,16 @@ public:
     Uint32 nextList;
     union { Uint32 prevList; Uint32 nextPool; };
     
-    Uint8 fileOpened;
-    Uint8 fileRunning;
-    Uint8 fileClosing;
-    Uint8 scanRunning;
+    enum {
+      BF_OPEN         = 0x1
+      ,BF_OPENING     = 0x2
+      ,BF_CLOSING     = 0x4
+      ,BF_FILE_THREAD = 0x8
+      ,BF_SCAN_THREAD = 0x10
+      ,BF_LCP_META    = 0x20
+    };
+    Uint32 m_flags;
+    Uint32 m_pos;
   }; 
   typedef Ptr<BackupFile> BackupFilePtr;
  
@@ -357,14 +363,14 @@ public:
    * State for BackupRecord
    */
   enum State {
-    INITIAL,
-    DEFINING, // Defining backup content and parameters
-    DEFINED,  // DEFINE_BACKUP_CONF sent in slave, received all in master
-    STARTED,  // Creating triggers
-    SCANNING, // Scanning fragments
-    STOPPING, // Closing files
-    CLEANING, // Cleaning resources
-    ABORTING  // Aborting backup
+    INITIAL  = 0,
+    DEFINING = 1, // Defining backup content and parameters
+    DEFINED  = 2,  // DEFINE_BACKUP_CONF sent in slave, received all in master
+    STARTED  = 3,  // Creating triggers
+    SCANNING = 4, // Scanning fragments
+    STOPPING = 5, // Closing files
+    CLEANING = 6, // Cleaning resources
+    ABORTING = 7  // Aborting backup
   };
 
   static const Uint32 validSlaveTransitionsCount;

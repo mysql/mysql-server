@@ -302,13 +302,32 @@ struct SubTableData {
   Uint32 senderData;
   Uint32 gci;
   Uint32 tableId;
-  Uint8  operation;
-  Uint8  req_nodeid;
-  Uint8  ndbd_nodeid;
-  Uint8  not_used3;
+  Uint32 requestInfo;
   Uint32 logType;
   Uint32 changeMask;
   Uint32 totalLen;
+
+  static void setOperation(Uint32& ri, Uint32 val) { 
+    ri = (ri & 0xFFFFFF00) | val;
+  }
+  static void setReqNodeId(Uint32& ri, Uint32 val) { 
+    ri = (ri & 0xFFFF00FF) | (val << 8);
+  }
+  static void setNdbdNodeId(Uint32& ri, Uint32 val) { 
+    ri = (ri & 0xFF00FFFF) | (val << 16);
+  }
+
+  static Uint32 getOperation(const Uint32 & ri){
+    return (ri & 0xFF);
+  }
+
+  static Uint32 getReqNodeId(const Uint32 & ri){
+    return (ri >> 8) & 0xFF;
+  }
+
+  static Uint32 getNdbdNodeId(const Uint32 & ri){
+    return (ri >> 16) & 0xFF;
+  }
 };
 
 struct SubSyncContinueReq {
