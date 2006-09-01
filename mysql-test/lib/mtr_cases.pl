@@ -82,7 +82,7 @@ sub collect_test_cases ($) {
 
         if ( $mysqld_test_exists and $im_test_exists )
         {
-          mtr_error("Ambiguos test case name ($tname)");
+          mtr_error("Ambiguous test case name ($tname)");
         }
         elsif ( ! $mysqld_test_exists and ! $im_test_exists )
         {
@@ -154,34 +154,38 @@ sub collect_test_cases ($) {
 
   if ( $::opt_reorder )
   {
-    @$cases = sort {
-      if ( ! $a->{'master_restart'} and ! $b->{'master_restart'} )
-      {
-        return $a->{'name'} cmp $b->{'name'};
-      }
 
-      if ( $a->{'master_restart'} and $b->{'master_restart'} )
-      {
-        my $cmp= mtr_cmp_opts($a->{'master_opt'}, $b->{'master_opt'});
-        if ( $cmp == 0 )
-        {
-          return $a->{'name'} cmp $b->{'name'};
-        }
-        else
-        {
-          return $cmp;
-        }
-      }
+    my %sort_criteria;
+    my $tinfo;
 
-      if ( $a->{'master_restart'} )
-      {
-        return 1;                 # Is greater
-      }
-      else
-      {
-        return -1;                # Is less
-      }
-    } @$cases;
+    # Make a mapping of test name to a string that represents how that test
+    # should be sorted among the other tests.  Put the most important criterion
+    # first, then a sub-criterion, then sub-sub-criterion, et c.
+    foreach $tinfo (@$cases) 
+    {
+      my @this_criteria = ();
+
+      # Append the criteria for sorting, in order of importance.
+      push(@this_criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");  # Ending with "~" makes empty sort later than filled
+      push(@this_criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "1" : "0"));
+      push(@this_criteria, "restart=" . ($tinfo->{'master_restart'} ? "1" : "0"));
+      push(@this_criteria, "big_test=" . ($tinfo->{'big_test'} ? "1" : "0"));
+      push(@this_criteria, join("|", sort keys %{$tinfo}));  # Group similar things together.  The values may differ substantially.  FIXME?
+      push(@this_criteria, $tinfo->{'name'});   # Finally, order by the name
+      
+      $sort_criteria{$tinfo->{"name"}} = join(" ", @this_criteria);
+    }
+
+    @$cases = sort { $sort_criteria{$a->{"name"}} cmp $sort_criteria{$b->{"name"}}; } @$cases;
+
+###  For debugging the sort-order
+#    foreach $tinfo (@$cases) 
+#    {
+#      print $sort_criteria{$tinfo->{"name"}};
+#      print " -> \t";
+#      print $tinfo->{"name"};
+#      print "\n";
+#    }
   }
 
   return $cases;
