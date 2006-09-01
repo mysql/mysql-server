@@ -472,10 +472,6 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
 static int
 check_parse_params(THD *thd, Event_parse_data *parse_data)
 {
-  const char *pos= NULL;
-  Item *bad_item;
-  int res;
-
   DBUG_ENTER("check_parse_params");
 
   if (parse_data->check_parse_data(thd))

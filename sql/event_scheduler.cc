@@ -288,7 +288,6 @@ event_worker_thread(void *arg)
     else if (ret == EVEX_MICROSECOND_UNSUP)
       sql_print_information("SCHEDULER: MICROSECOND is not supported");
   }
-end:
   DBUG_PRINT("info", ("BURAN %s.%s is landing!", event->dbname.str,
              event->name.str));
   delete event;

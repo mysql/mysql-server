@@ -866,7 +866,6 @@ bool
 Events::check_system_tables(THD *thd)
 {
   TABLE_LIST tables;
-  bool not_used;
   Open_tables_state backup;
   bool ret= FALSE;
 
@@ -913,7 +912,6 @@ Events::check_system_tables(THD *thd)
     close_thread_tables(thd);
   }
 
-end:
   thd->restore_backup_open_tables_state(&backup);
 
   DBUG_RETURN(ret);
