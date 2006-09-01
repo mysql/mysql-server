@@ -649,7 +649,7 @@ void Ndb_cluster_connection_impl::connect_thread()
 Uint64 *
 Ndb_cluster_connection::get_latest_trans_gci()
 {
-  m_impl.get_latest_trans_gci(); 
+ return m_impl.get_latest_trans_gci(); 
 } 
 
 void
