@@ -258,6 +258,7 @@ our $opt_result_ext;
 our $opt_skip;
 our $opt_skip_rpl;
 our $use_slaves;
+our $use_innodb;
 our $opt_skip_test;
 our $opt_skip_im;
 
@@ -428,6 +429,7 @@ sub main () {
       $need_ndbcluster||= $test->{ndb_test};
       $need_im||= $test->{component_id} eq 'im';
       $use_slaves||= $test->{slave_num};
+      $use_innodb||= $test->{'innodb_test'};
     }
     $opt_skip_ndbcluster= $opt_skip_ndbcluster_slave= 1
       unless $need_ndbcluster;
@@ -2236,8 +2238,9 @@ sub initialize_servers () {
 
 sub mysql_install_db () {
 
-  # FIXME not exactly true I think, needs improvements
   install_db('master', $master->[0]->{'path_myddir'});
+
+  # FIXME check if testcase really is using second master
   copy_install_db('master', $master->[1]->{'path_myddir'});
 
   if ( $use_slaves )
@@ -2252,9 +2255,7 @@ sub mysql_install_db () {
     im_prepare_env($instance_manager);
   }
 
-
   my $cluster_started_ok= 1; # Assume it can be started
-
 
   if (ndbcluster_start_install($clusters->[0]) ||
       $use_slaves && ndbcluster_start_install($clusters->[1]))
@@ -2262,7 +2263,6 @@ sub mysql_install_db () {
     mtr_warning("Failed to start install of cluster");
     $cluster_started_ok= 0;
   }
-
 
   foreach my $cluster (@{$clusters})
   {
@@ -2903,7 +2903,7 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $master->[$idx]->{'path_myddir'});
 
-    if ( $idx > 0 )
+    if ( $idx > 0 or !$use_innodb)
     {
       mtr_add_arg($args, "%s--skip-innodb", $prefix);
     }
