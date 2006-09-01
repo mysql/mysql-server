@@ -565,21 +565,62 @@ byte *query_cache_query_get_key(const byte *record, uint *length,
 *****************************************************************************/
 
 /*
+  Note on double-check locking (DCL) usage.
+
+  Below, in query_cache_insert(), query_cache_abort() and
+  query_cache_end_of_result() we use what is called double-check
+  locking (DCL) for NET::query_cache_query.  I.e. we test it first
+  without a lock, and, if positive, test again under the lock.
+
+  This means that if we see 'NET::query_cache_query == 0' without a
+  lock we will skip the operation.  But this is safe here: when we
+  started to cache a query, we called Query_cache::store_query(), and
+  NET::query_cache_query was set to non-zero in this thread (and the
+  thread always sees results of its memory operations, mutex or not).
+  If later we see 'NET::query_cache_query == 0' without locking a
+  mutex, that may only mean that some other thread have reset it by
+  invalidating the query.  Skipping the operation in this case is the
+  right thing to do, as NET::query_cache_query won't get non-zero for
+  this query again.
+
+  See also comments in Query_cache::store_query() and
+  Query_cache::send_result_to_client().
+
+  NOTE, however, that double-check locking is not applicable in
+  'invalidate' functions, as we may erroneously skip invalidation,
+  because the thread doing invalidation may never see non-zero
+  NET::query_cache_query.
+*/
+
+
+void query_cache_init_query(NET *net)
+{
+  /*
+    It is safe to initialize 'NET::query_cache_query' without a lock
+    here, because before it will be accessed from different threads it
+    will be set in this thread under a lock, and access from the same
+    thread is always safe.
+  */
+  net->query_cache_query= 0;
+}
+
+
+/*
   Insert the packet into the query cache.
-  This should only be called if net->query_cache_query != 0
 */
 
 void query_cache_insert(NET *net, const char *packet, ulong length)
 {
   DBUG_ENTER("query_cache_insert");
 
+  /* See the comment on double-check locking usage above. */
+  if (net->query_cache_query == 0)
+    DBUG_VOID_RETURN;
+
   STRUCT_LOCK(&query_cache.structure_guard_mutex);
-  /*
-    It is very unlikely that following condition is TRUE (it is possible
-    only if other thread is resizing cache), so we check it only after guard
-    mutex lock
-  */
-  if (unlikely(query_cache.query_cache_size == 0))
+
+  if (unlikely(query_cache.query_cache_size == 0 ||
+               query_cache.flush_in_progress))
   {
     STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
     DBUG_VOID_RETURN;
@@ -616,10 +657,10 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
     header->result(result);
     header->last_pkt_nr= net->pkt_nr;
     BLOCK_UNLOCK_WR(query_block);
+    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
   }
   else
     STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
   DBUG_VOID_RETURN;
 }
 
@@ -628,33 +669,33 @@ void query_cache_abort(NET *net)
 {
   DBUG_ENTER("query_cache_abort");
 
-  if (net->query_cache_query != 0)	// Quick check on unlocked structure
-  {
-    STRUCT_LOCK(&query_cache.structure_guard_mutex);
-    /*
-      It is very unlikely that following condition is TRUE (it is possible
-      only if other thread is resizing cache), so we check it only after guard
-      mutex lock
-    */
-    if (unlikely(query_cache.query_cache_size == 0))
-    {
-      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-      DBUG_VOID_RETURN;
-    }
+  /* See the comment on double-check locking usage above. */
+  if (net->query_cache_query == 0)
+    DBUG_VOID_RETURN;
 
-    Query_cache_block *query_block = ((Query_cache_block*)
-				       net->query_cache_query);
-    if (query_block)			// Test if changed by other thread
-    {
-      DUMP(&query_cache);
-      BLOCK_LOCK_WR(query_block);
-      // The following call will remove the lock on query_block
-      query_cache.free_query(query_block);
-    }
-    net->query_cache_query=0;
-    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
+  STRUCT_LOCK(&query_cache.structure_guard_mutex);
+
+  if (unlikely(query_cache.query_cache_size == 0 ||
+               query_cache.flush_in_progress))
+  {
     STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+    DBUG_VOID_RETURN;
   }
+
+  Query_cache_block *query_block= ((Query_cache_block*)
+                                   net->query_cache_query);
+  if (query_block)			// Test if changed by other thread
+  {
+    DUMP(&query_cache);
+    BLOCK_LOCK_WR(query_block);
+    // The following call will remove the lock on query_block
+    query_cache.free_query(query_block);
+    net->query_cache_query= 0;
+    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
+  }
+
+  STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+
   DBUG_VOID_RETURN;
 }
 
@@ -663,60 +704,65 @@ void query_cache_end_of_result(THD *thd)
 {
   DBUG_ENTER("query_cache_end_of_result");
 
-  if (thd->net.query_cache_query != 0)	// Quick check on unlocked structure
-  {
-#ifdef EMBEDDED_LIBRARY
-    query_cache_insert(&thd->net, (char*)thd, 
-		       emb_count_querycache_size(thd));
-#endif
-    STRUCT_LOCK(&query_cache.structure_guard_mutex);
-    /*
-      It is very unlikely that following condition is TRUE (it is possible
-      only if other thread is resizing cache), so we check it only after guard
-      mutex lock
-    */
-    if (unlikely(query_cache.query_cache_size == 0))
-    {
-      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-      DBUG_VOID_RETURN;
-    }
+  /* See the comment on double-check locking usage above. */
+  if (thd->net.query_cache_query == 0)
+    DBUG_VOID_RETURN;
 
-    Query_cache_block *query_block = ((Query_cache_block*)
-				      thd->net.query_cache_query);
-    if (query_block)
-    {
-      DUMP(&query_cache);
-      BLOCK_LOCK_WR(query_block);
-      Query_cache_query *header = query_block->query();
-      Query_cache_block *last_result_block = header->result()->prev;
-      ulong allign_size = ALIGN_SIZE(last_result_block->used);
-      ulong len = max(query_cache.min_allocation_unit, allign_size);
-      if (last_result_block->length >= query_cache.min_allocation_unit + len)
-	query_cache.split_block(last_result_block,len);
-      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+#ifdef EMBEDDED_LIBRARY
+  query_cache_insert(&thd->net, (char*)thd, 
+                     emb_count_querycache_size(thd));
+#endif
+
+  STRUCT_LOCK(&query_cache.structure_guard_mutex);
+
+  if (unlikely(query_cache.query_cache_size == 0 ||
+               query_cache.flush_in_progress))
+  {
+    STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+    DBUG_VOID_RETURN;
+  }
+
+  Query_cache_block *query_block= ((Query_cache_block*)
+                                   thd->net.query_cache_query);
+  if (query_block)
+  {
+    DUMP(&query_cache);
+    BLOCK_LOCK_WR(query_block);
+    Query_cache_query *header= query_block->query();
+    Query_cache_block *last_result_block= header->result()->prev;
+    ulong allign_size= ALIGN_SIZE(last_result_block->used);
+    ulong len= max(query_cache.min_allocation_unit, allign_size);
+    if (last_result_block->length >= query_cache.min_allocation_unit + len)
+      query_cache.split_block(last_result_block,len);
 
 #ifndef DBUG_OFF
-      if (header->result() == 0)
-      {
-	DBUG_PRINT("error", ("end of data whith no result. query '%s'",
-			     header->query()));
-	query_cache.wreck(__LINE__, "");
-	DBUG_VOID_RETURN;
-      }
-#endif
-      header->found_rows(current_thd->limit_found_rows);
-      header->result()->type = Query_cache_block::RESULT;
-      header->writer(0);
-      BLOCK_UNLOCK_WR(query_block);
-    }
-    else
+    if (header->result() == 0)
     {
-      // Cache was flushed or resized and query was deleted => do nothing
+      DBUG_PRINT("error", ("end of data whith no result. query '%s'",
+                           header->query()));
+      query_cache.wreck(__LINE__, "");
+
       STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+
+      DBUG_VOID_RETURN;
     }
-    thd->net.query_cache_query=0;
-    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
+#endif
+    header->found_rows(current_thd->limit_found_rows);
+    header->result()->type= Query_cache_block::RESULT;
+    header->writer(0);
+    thd->net.query_cache_query= 0;
+    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
+
+    STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+
+    BLOCK_UNLOCK_WR(query_block);
   }
+  else
+  {
+    // Cache was flushed or resized and query was deleted => do nothing
+    STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -762,8 +808,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
 			query_cache_size_arg));
   DBUG_ASSERT(initialized);
   STRUCT_LOCK(&structure_guard_mutex);
-  if (query_cache_size > 0)
-    free_cache();
+  free_cache();
   query_cache_size= query_cache_size_arg;
   ::query_cache_size= init_cache();
   STRUCT_UNLOCK(&structure_guard_mutex);
@@ -784,7 +829,15 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   TABLE_COUNTER_TYPE local_tables;
   ulong tot_length;
   DBUG_ENTER("Query_cache::store_query");
-  if (query_cache_size == 0 || thd->locked_tables)
+  /*
+    Testing 'query_cache_size' without a lock here is safe: the thing
+    we may loose is that the query won't be cached, but we save on
+    mutex locking in the case when query cache is disabled or the
+    query is uncachable.
+
+    See also a note on double-check locking usage above.
+  */
+  if (thd->locked_tables || query_cache_size == 0)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
@@ -836,9 +889,9 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
      acquiring the query cache mutex.
     */
     ha_release_temporary_latches(thd);
-    STRUCT_LOCK(&structure_guard_mutex);
 
-    if (query_cache_size == 0)
+    STRUCT_LOCK(&structure_guard_mutex);
+    if (query_cache_size == 0 || flush_in_progress)
     {
       STRUCT_UNLOCK(&structure_guard_mutex);
       DBUG_VOID_RETURN;
@@ -912,11 +965,12 @@ sql mode: 0x%lx, sort len: %lu, conncat len: %lu",
 	double_linked_list_simple_include(query_block, &queries_blocks);
 	inserts++;
 	queries_in_cache++;
-	STRUCT_UNLOCK(&structure_guard_mutex);
-
 	net->query_cache_query= (gptr) query_block;
 	header->writer(net);
 	header->tables_type(tables_type);
+
+	STRUCT_UNLOCK(&structure_guard_mutex);
+
 	// init_n_lock make query block locked
 	BLOCK_UNLOCK_WR(query_block);
       }
@@ -970,12 +1024,16 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   Query_cache_query_flags flags;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
-  if (query_cache_size == 0 || thd->locked_tables ||
-      thd->variables.query_cache_type == 0)
-    goto err;
+  /*
+    Testing 'query_cache_size' without a lock here is safe: the thing
+    we may loose is that the query won't be served from cache, but we
+    save on mutex locking in the case when query cache is disabled.
 
-  /* Check that we haven't forgot to reset the query cache variables */
-  DBUG_ASSERT(thd->net.query_cache_query == 0);
+    See also a note on double-check locking usage above.
+  */
+  if (thd->locked_tables || thd->variables.query_cache_type == 0 ||
+      query_cache_size == 0)
+    goto err;
 
   if (!thd->lex->safe_to_cache_query)
   {
@@ -1011,11 +1069,15 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
   }
 
   STRUCT_LOCK(&structure_guard_mutex);
-  if (query_cache_size == 0)
+  if (query_cache_size == 0 || flush_in_progress)
   {
     DBUG_PRINT("qcache", ("query cache disabled"));
     goto err_unlock;
   }
+
+  /* Check that we haven't forgot to reset the query cache variables */
+  DBUG_ASSERT(thd->net.query_cache_query == 0);
+
   Query_cache_block *query_block;
 
   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
@@ -1241,45 +1303,43 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 			     my_bool using_transactions)
 {
   DBUG_ENTER("Query_cache::invalidate (table list)");
-  if (query_cache_size > 0)
+  STRUCT_LOCK(&structure_guard_mutex);
+  if (query_cache_size > 0 && !flush_in_progress)
   {
-    STRUCT_LOCK(&structure_guard_mutex);
-    if (query_cache_size > 0)
-    {
-      DUMP(this);
+    DUMP(this);
 
-      using_transactions = using_transactions &&
-	(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-      for (; tables_used; tables_used= tables_used->next_local)
-      {
-	DBUG_ASSERT(!using_transactions || tables_used->table!=0);
-	if (tables_used->derived)
-	  continue;
-	if (using_transactions &&
-	   (tables_used->table->file->table_cache_type() ==
-	    HA_CACHE_TBL_TRANSACT))
-	  /*
-	     Tables_used->table can't be 0 in transaction.
-	     Only 'drop' invalidate not opened table, but 'drop'
-	     force transaction finish.
-	  */
-	  thd->add_changed_table(tables_used->table);
-	else
-	  invalidate_table(tables_used);
-      }
+    using_transactions= using_transactions &&
+      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+    for (; tables_used; tables_used= tables_used->next_local)
+    {
+      DBUG_ASSERT(!using_transactions || tables_used->table!=0);
+      if (tables_used->derived)
+        continue;
+      if (using_transactions &&
+         (tables_used->table->file->table_cache_type() ==
+          HA_CACHE_TBL_TRANSACT))
+        /*
+           Tables_used->table can't be 0 in transaction.
+           Only 'drop' invalidate not opened table, but 'drop'
+           force transaction finish.
+        */
+        thd->add_changed_table(tables_used->table);
+      else
+        invalidate_table(tables_used);
     }
-    STRUCT_UNLOCK(&structure_guard_mutex);
   }
+  STRUCT_UNLOCK(&structure_guard_mutex);
+
   DBUG_VOID_RETURN;
 }
 
 void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 {
   DBUG_ENTER("Query_cache::invalidate (changed table list)");
-  if (query_cache_size > 0 && tables_used)
+  if (tables_used)
   {
     STRUCT_LOCK(&structure_guard_mutex);
-    if (query_cache_size > 0)
+    if (query_cache_size > 0 && !flush_in_progress)
     {
       DUMP(this);
       for (; tables_used; tables_used= tables_used->next)
@@ -1309,10 +1369,10 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
 void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
 {
   DBUG_ENTER("Query_cache::invalidate_locked_for_write");
-  if (query_cache_size > 0 && tables_used)
+  if (tables_used)
   {
     STRUCT_LOCK(&structure_guard_mutex);
-    if (query_cache_size > 0)
+    if (query_cache_size > 0 && !flush_in_progress)
     {
       DUMP(this);
       for (; tables_used; tables_used= tables_used->next_local)
@@ -1336,21 +1396,19 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
 {
   DBUG_ENTER("Query_cache::invalidate (table)");
   
-  if (query_cache_size > 0)
+  STRUCT_LOCK(&structure_guard_mutex);
+  if (query_cache_size > 0 && !flush_in_progress)
   {
-    STRUCT_LOCK(&structure_guard_mutex);
-    if (query_cache_size > 0)
-    {
-      using_transactions = using_transactions &&
-	(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
-      if (using_transactions && 
-	  (table->file->table_cache_type() == HA_CACHE_TBL_TRANSACT))
-	thd->add_changed_table(table);
-      else
-	invalidate_table(table);
-    }
-    STRUCT_UNLOCK(&structure_guard_mutex);
+    using_transactions= using_transactions &&
+      (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+    if (using_transactions && 
+        (table->file->table_cache_type() == HA_CACHE_TBL_TRANSACT))
+      thd->add_changed_table(table);
+    else
+      invalidate_table(table);
   }
+  STRUCT_UNLOCK(&structure_guard_mutex);
+
   DBUG_VOID_RETURN;
 }
 
@@ -1359,20 +1417,18 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
 {
   DBUG_ENTER("Query_cache::invalidate (key)");
   
-  if (query_cache_size > 0)
+  STRUCT_LOCK(&structure_guard_mutex);
+  if (query_cache_size > 0 && !flush_in_progress)
   {
-    using_transactions = using_transactions &&
+    using_transactions= using_transactions &&
       (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
     if (using_transactions) // used for innodb => has_transactions() is TRUE
       thd->add_changed_table(key, key_length);
     else
-    {
-      STRUCT_LOCK(&structure_guard_mutex);
-      if (query_cache_size > 0)
-	invalidate_table((byte*)key, key_length);
-      STRUCT_UNLOCK(&structure_guard_mutex);  
-    }
+      invalidate_table((byte*)key, key_length);
   }
+  STRUCT_UNLOCK(&structure_guard_mutex);  
+
   DBUG_VOID_RETURN;
 }
 
@@ -1383,38 +1439,36 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
 void Query_cache::invalidate(char *db)
 {
   DBUG_ENTER("Query_cache::invalidate (db)");
-  if (query_cache_size > 0)
+  STRUCT_LOCK(&structure_guard_mutex);
+  if (query_cache_size > 0 && !flush_in_progress)
   {
-    STRUCT_LOCK(&structure_guard_mutex);
-    if (query_cache_size > 0)
-    {
-      DUMP(this);
+    DUMP(this);
   restart_search:
-      if (tables_blocks)
+    if (tables_blocks)
+    {
+      Query_cache_block *curr= tables_blocks;
+      Query_cache_block *next;
+      do
       {
-	Query_cache_block *curr= tables_blocks;
-	Query_cache_block *next;
-	do
-	{
-	  next= curr->next;
-	  if (strcmp(db, (char*)(curr->table()->db())) == 0)
-	    invalidate_table(curr);
-	  /*
-	    invalidate_table can freed block on which point 'next' (if
-	    table of this block used only in queries which was deleted
-	    by invalidate_table). As far as we do not allocate new blocks
-	    and mark all headers of freed blocks as 'FREE' (even if they are
-	    merged with other blocks) we can just test type of block
-	    to be sure that block is not deleted
-	  */
-	  if (next->type == Query_cache_block::FREE)
-	    goto restart_search;
-	  curr= next;
-	} while (curr != tables_blocks);
-      }
+        next= curr->next;
+        if (strcmp(db, (char*)(curr->table()->db())) == 0)
+          invalidate_table(curr);
+        /*
+          invalidate_table can freed block on which point 'next' (if
+          table of this block used only in queries which was deleted
+          by invalidate_table). As far as we do not allocate new blocks
+          and mark all headers of freed blocks as 'FREE' (even if they are
+          merged with other blocks) we can just test type of block
+          to be sure that block is not deleted
+        */
+        if (next->type == Query_cache_block::FREE)
+          goto restart_search;
+        curr= next;
+      } while (curr != tables_blocks);
     }
-    STRUCT_UNLOCK(&structure_guard_mutex);
   }
+  STRUCT_UNLOCK(&structure_guard_mutex);
+
   DBUG_VOID_RETURN;
 }
 
@@ -1422,23 +1476,22 @@ void Query_cache::invalidate(char *db)
 void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
 {
   DBUG_ENTER("Query_cache::invalidate_by_MyISAM_filename");
-  if (query_cache_size > 0)
+
+  STRUCT_LOCK(&structure_guard_mutex);
+  if (query_cache_size > 0 && !flush_in_progress)
   {
     /* Calculate the key outside the lock to make the lock shorter */
     char key[MAX_DBKEY_LENGTH];
     uint32 db_length;
     uint key_length= filename_2_table_key(key, filename, &db_length);
-    STRUCT_LOCK(&structure_guard_mutex);
-    if (query_cache_size > 0)			// Safety if cache removed
-    {
-      Query_cache_block *table_block;
-      if ((table_block = (Query_cache_block*) hash_search(&tables,
-							  (byte*) key,
-							  key_length)))
-	invalidate_table(table_block);
-    }
-    STRUCT_UNLOCK(&structure_guard_mutex);
+    Query_cache_block *table_block;
+    if ((table_block = (Query_cache_block*) hash_search(&tables,
+      						  (byte*) key,
+      						  key_length)))
+      invalidate_table(table_block);
   }
+  STRUCT_UNLOCK(&structure_guard_mutex);
+
   DBUG_VOID_RETURN;
 }
 
@@ -1483,7 +1536,12 @@ void Query_cache::destroy()
   }
   else
   {
+    /* Underlying code expects the lock. */
+    STRUCT_LOCK(&structure_guard_mutex);
     free_cache();
+    STRUCT_UNLOCK(&structure_guard_mutex);
+
+    pthread_cond_destroy(&COND_flush_finished);
     pthread_mutex_destroy(&structure_guard_mutex);
     initialized = 0;
   }
@@ -1499,6 +1557,8 @@ void Query_cache::init()
 {
   DBUG_ENTER("Query_cache::init");
   pthread_mutex_init(&structure_guard_mutex,MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&COND_flush_finished, NULL);
+  flush_in_progress= FALSE;
   initialized = 1;
   DBUG_VOID_RETURN;
 }
@@ -1694,6 +1754,17 @@ void Query_cache::make_disabled()
 }
 
 
+/*
+  free_cache() - free all resources allocated by the cache.
+
+  SYNOPSIS
+    free_cache()
+
+  DESCRIPTION
+    This function frees all resources allocated by the cache.  You
+    have to call init_cache() before using the cache again.
+*/
+
 void Query_cache::free_cache()
 {
   DBUG_ENTER("Query_cache::free_cache");
@@ -1728,17 +1799,51 @@ void Query_cache::free_cache()
   Free block data
 *****************************************************************************/
 
+
 /*
-  The following assumes we have a lock on the cache
+  flush_cache() - flush the cache.
+
+  SYNOPSIS
+    flush_cache()
+
+  DESCRIPTION
+    This function will flush cache contents.  It assumes we have
+    'structure_guard_mutex' locked.  The function sets the
+    flush_in_progress flag and releases the lock, so other threads may
+    proceed skipping the cache as if it is disabled.  Concurrent
+    flushes are performed in turn.
 */
 
 void Query_cache::flush_cache()
 {
+  /*
+    If there is flush in progress, wait for it to finish, and then do
+    our flush.  This is necessary because something could be added to
+    the cache before we acquire the lock again, and some code (like
+    Query_cache::free_cache()) depends on the fact that after the
+    flush the cache is empty.
+  */
+  while (flush_in_progress)
+    pthread_cond_wait(&COND_flush_finished, &structure_guard_mutex);
+
+  /*
+    Setting 'flush_in_progress' will prevent other threads from using
+    the cache while we are in the middle of the flush, and we release
+    the lock so that other threads won't block.
+  */
+  flush_in_progress= TRUE;
+  STRUCT_UNLOCK(&structure_guard_mutex);
+
+  my_hash_reset(&queries);
   while (queries_blocks != 0)
   {
     BLOCK_LOCK_WR(queries_blocks);
-    free_query(queries_blocks);
+    free_query_internal(queries_blocks);
   }
+
+  STRUCT_LOCK(&structure_guard_mutex);
+  flush_in_progress= FALSE;
+  pthread_cond_signal(&COND_flush_finished);
 }
 
 /*
@@ -1784,36 +1889,48 @@ my_bool Query_cache::free_old_query()
   DBUG_RETURN(1);				// Nothing to remove
 }
 
+
 /*
-  Free query from query cache.
-  query_block must be locked for writing.
-  This function will remove (and destroy) the lock for the query.
+  free_query_internal() - free query from query cache.
+
+  SYNOPSIS
+    free_query_internal()
+      query_block           Query_cache_block representing the query
+
+  DESCRIPTION
+    This function will remove the query from a cache, and place its
+    memory blocks to the list of free blocks.  'query_block' must be
+    locked for writing, this function will release (and destroy) this
+    lock.
+
+  NOTE
+    'query_block' should be removed from 'queries' hash _before_
+    calling this method, as the lock will be destroyed here.
 */
 
-void Query_cache::free_query(Query_cache_block *query_block)
+void Query_cache::free_query_internal(Query_cache_block *query_block)
 {
-  DBUG_ENTER("Query_cache::free_query");
+  DBUG_ENTER("Query_cache::free_query_internal");
   DBUG_PRINT("qcache", ("free query 0x%lx %lu bytes result",
 		      (ulong) query_block,
 		      query_block->query()->length() ));
 
   queries_in_cache--;
-  hash_delete(&queries,(byte *) query_block);
 
-  Query_cache_query *query = query_block->query();
+  Query_cache_query *query= query_block->query();
 
   if (query->writer() != 0)
   {
     /* Tell MySQL that this query should not be cached anymore */
-    query->writer()->query_cache_query = 0;
+    query->writer()->query_cache_query= 0;
     query->writer(0);
   }
   double_linked_list_exclude(query_block, &queries_blocks);
-  Query_cache_block_table *table=query_block->table(0);
+  Query_cache_block_table *table= query_block->table(0);
 
-  for (TABLE_COUNTER_TYPE i=0; i < query_block->n_tables; i++)
+  for (TABLE_COUNTER_TYPE i= 0; i < query_block->n_tables; i++)
     unlink_table(table++);
-  Query_cache_block *result_block = query->result();
+  Query_cache_block *result_block= query->result();
 
   /*
     The following is true when query destruction was called and no results
@@ -1827,11 +1944,11 @@ void Query_cache::free_query(Query_cache_block *query_block)
       refused++;
       inserts--;
     }
-    Query_cache_block *block = result_block;
+    Query_cache_block *block= result_block;
     do
     {
-      Query_cache_block *current = block;
-      block = block->next;
+      Query_cache_block *current= block;
+      block= block->next;
       free_memory_block(current);
     } while (block != result_block);
   }
@@ -1844,6 +1961,32 @@ void Query_cache::free_query(Query_cache_block *query_block)
 
   query->unlock_n_destroy();
   free_memory_block(query_block);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  free_query() - free query from query cache.
+
+  SYNOPSIS
+    free_query()
+      query_block           Query_cache_block representing the query
+
+  DESCRIPTION
+    This function will remove 'query_block' from 'queries' hash, and
+    then call free_query_internal(), which see.
+*/
+
+void Query_cache::free_query(Query_cache_block *query_block)
+{
+  DBUG_ENTER("Query_cache::free_query");
+  DBUG_PRINT("qcache", ("free query 0x%lx %lu bytes result",
+		      (ulong) query_block,
+		      query_block->query()->length() ));
+
+  hash_delete(&queries,(byte *) query_block);
+  free_query_internal(query_block);
 
   DBUG_VOID_RETURN;
 }
@@ -2431,12 +2574,8 @@ Query_cache::allocate_block(ulong len, my_bool not_less, ulong min,
   if (!under_guard)
   {
     STRUCT_LOCK(&structure_guard_mutex);
-    /*
-      It is very unlikely that following condition is TRUE (it is possible
-      only if other thread is resizing cache), so we check it only after
-      guard mutex lock
-    */
-    if (unlikely(query_cache.query_cache_size == 0))
+
+    if (unlikely(query_cache.query_cache_size == 0 || flush_in_progress))
     {
       STRUCT_UNLOCK(&structure_guard_mutex);
       DBUG_RETURN(0);
@@ -2892,11 +3031,9 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
   (query without tables are not cached)
 */
 
-TABLE_COUNTER_TYPE Query_cache::is_cacheable(THD *thd, uint32 query_len,
-					     char *query,
-					     LEX *lex,
-					     TABLE_LIST *tables_used,
-					     uint8 *tables_type)
+TABLE_COUNTER_TYPE
+Query_cache::is_cacheable(THD *thd, uint32 query_len, char *query, LEX *lex,
+                          TABLE_LIST *tables_used, uint8 *tables_type)
 {
   TABLE_COUNTER_TYPE table_count;
   DBUG_ENTER("Query_cache::is_cacheable");
@@ -2979,13 +3116,10 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
 void Query_cache::pack_cache()
 {
   DBUG_ENTER("Query_cache::pack_cache");
+
   STRUCT_LOCK(&structure_guard_mutex);
-  /*
-    It is very unlikely that following condition is TRUE (it is possible
-    only if other thread is resizing cache), so we check it only after
-    guard mutex lock
-  */
-  if (unlikely(query_cache_size == 0))
+
+  if (unlikely(query_cache_size == 0 || flush_in_progress))
   {
     STRUCT_UNLOCK(&structure_guard_mutex);
     DBUG_VOID_RETURN;
@@ -3300,7 +3434,7 @@ my_bool Query_cache::join_results(ulong join_limit)
   DBUG_ENTER("Query_cache::join_results");
 
   STRUCT_LOCK(&structure_guard_mutex);
-  if (queries_blocks != 0)
+  if (queries_blocks != 0 && !flush_in_progress)
   {
     DBUG_ASSERT(query_cache_size > 0);
     Query_cache_block *block = queries_blocks;
@@ -3587,30 +3721,22 @@ void Query_cache::tables_dump()
 }
 
 
-my_bool Query_cache::check_integrity(bool not_locked)
+my_bool Query_cache::check_integrity(bool locked)
 {
   my_bool result = 0;
   uint i;
   DBUG_ENTER("check_integrity");
 
-  if (query_cache_size == 0)
+  if (!locked)
+    STRUCT_LOCK(&structure_guard_mutex);
+
+  if (unlikely(query_cache_size == 0 || flush_in_progress))
   {
+    if (!locked)
+      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
+
     DBUG_PRINT("qcache", ("Query Cache not initialized"));
     DBUG_RETURN(0);
-  }
-  if (!not_locked)
-  {
-    STRUCT_LOCK(&structure_guard_mutex);
-    /*
-      It is very unlikely that following condition is TRUE (it is possible
-      only if other thread is resizing cache), so we check it only after
-      guard mutex lock
-    */
-    if (unlikely(query_cache_size == 0))
-    {
-      STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-      DBUG_RETURN(0);
-    }
   }
 
   if (hash_check(&queries))
@@ -3856,7 +3982,7 @@ my_bool Query_cache::check_integrity(bool not_locked)
     }
   }
   DBUG_ASSERT(result == 0);
-  if (!not_locked)
+  if (!locked)
     STRUCT_UNLOCK(&structure_guard_mutex);
   DBUG_RETURN(result);
 }

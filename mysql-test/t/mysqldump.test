@@ -1309,3 +1309,33 @@ grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 # Clean up
 drop table t1;
 drop user mysqltest_1@localhost;
+
+#
+# Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
+# information_schema database.
+#
+connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection root;
+create database mysqldump_myDB;
+use mysqldump_myDB;
+create user myDB_User;
+grant create view, select on mysqldump_myDB.* to myDB_User@localhost;
+create table t1 (c1 int);
+insert into t1 values (3);
+
+connect (user1,localhost,myDB_User,,mysqldump_myDB,$MASTER_MYPORT,$MASTER_MYSOCK);
+connection user1;
+use mysqldump_myDB;
+create view v1 (c1) as select * from t1;
+
+# Backup should not fail.
+--exec $MYSQL_DUMP --all-databases --add-drop-table > $MYSQLTEST_VARDIR/tmp/bug21527.sql
+
+# Clean up
+connection root;
+use mysqldump_myDB;
+drop view v1;
+drop table t1;
+revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
+drop user myDB_User;
+drop database mysqldump_myDB;

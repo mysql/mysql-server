@@ -677,6 +677,9 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_test_platform
 %attr(755, root, root) %{_bindir}/ndb_config
+%attr(755, root, root) %{_bindir}/ndb_error_reporter
+%attr(755, root, root) %{_bindir}/ndb_size.pl
+%attr(-, root, root) %{_datadir}/mysql/ndb_size.tmpl
 
 %files ndb-extra
 %defattr(-,root,root,0755)
