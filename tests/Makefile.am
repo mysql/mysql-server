@@ -29,7 +29,8 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			insert_and_repair.pl \
 			grant.pl grant.res test_delayed_insert.pl \
 			pmail.pl mail_to_db.pl table_types.pl \
-			udf_test udf_test.res myisam-big-rows.tst
+			udf_test udf_test.res myisam-big-rows.tst \
+			CMakeLists.txt
 
 bin_PROGRAMS =		mysql_client_test
 noinst_PROGRAMS =	insert_test select_test thread_test
