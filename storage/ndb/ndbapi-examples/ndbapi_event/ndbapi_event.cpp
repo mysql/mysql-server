@@ -117,16 +117,23 @@ int myCreateEvent(Ndb* myNdb,
 
 int main(int argc, char** argv)
 {
+  if (argc < 3)
+  {
+    std::cout << "Arguments are <connect_string cluster> <timeout> [m(merge events)|d(debug)].\n";
+    exit(-1);
+  }
+  const char *connectstring = argv[1];
+  int timeout = atoi(argv[2]);
   ndb_init();
-  bool merge_events = argc > 1 && strchr(argv[1], 'm') != 0;
+  bool merge_events = argc > 3 && strchr(argv[3], 'm') != 0;
 #ifdef VM_TRACE
-  bool dbug = argc > 1 && strchr(argv[1], 'd') != 0;
+  bool dbug = argc > 3 && strchr(argv[3], 'd') != 0;
   if (dbug) DBUG_PUSH("d:t:");
   if (dbug) putenv("API_SIGNAL_LOG=-");
 #endif
 
   Ndb_cluster_connection *cluster_connection=
-    new Ndb_cluster_connection(); // Object representing the cluster
+    new Ndb_cluster_connection(connectstring); // Object representing the cluster
 
   int r= cluster_connection->connect(5 /* retries               */,
 				     3 /* delay between retries */,
@@ -179,7 +186,7 @@ int main(int argc, char** argv)
 
   int i, j, k, l;
   j = 0;
-  while (j < 99) {
+  while (j < timeout) {
 
     // Start "transaction" for handling events
     NdbEventOperation* op;
@@ -211,7 +218,7 @@ int main(int argc, char** argv)
     NdbEventOperation* the_op = op;
 
     i= 0;
-    while (i < 40) {
+    while (i < timeout) {
       // printf("now waiting for event...\n");
       int r = myNdb->pollEvents(1000); // wait for event or 1000 ms
       if (r > 0) {
@@ -287,7 +294,7 @@ int main(int argc, char** argv)
           }
 	}
       } else
-	;//printf("timed out\n");
+	printf("timed out (%i)\n", timeout);
     }
     // don't want to listen to events anymore
     if (myNdb->dropEventOperation(the_op)) APIERROR(myNdb->getNdbError());
