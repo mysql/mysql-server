@@ -32,8 +32,6 @@
 #include <signaldata/TcKeyFailConf.hpp>
 #include <signaldata/TcHbRep.hpp>
 
-Uint64 g_latest_trans_gci = 0;
-
 /*****************************************************************************
 NdbTransaction( Ndb* aNdb );
 
@@ -64,6 +62,7 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theTCConPtr(0),
   theTransactionId(0),
   theGlobalCheckpointId(0),
+  p_latest_trans_gci(0),
   theStatus(NotConnected),
   theCompletionStatus(NotCompleted), 
   theCommitStatus(NotStarted),
@@ -129,6 +128,8 @@ NdbTransaction::init()
   theCompletedLastOp	  = NULL;
 
   theGlobalCheckpointId   = 0;
+  p_latest_trans_gci      =
+    theNdb->theImpl->m_ndb_cluster_connection.get_latest_trans_gci();
   theCommitStatus         = Started;
   theCompletionStatus     = NotCompleted;
   m_abortOption           = AbortOnError;
@@ -1572,7 +1573,7 @@ NdbTransaction::receiveTC_COMMITCONF(const TcCommitConf * commitConf)
     theGlobalCheckpointId = commitConf->gci;
     // theGlobalCheckpointId == 0 if NoOp transaction
     if (theGlobalCheckpointId)
-      g_latest_trans_gci = theGlobalCheckpointId;
+      *p_latest_trans_gci = theGlobalCheckpointId;
     return 0;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -1752,7 +1753,7 @@ from other transactions.
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
       assert(tGCI);
-      g_latest_trans_gci = tGCI;
+      *p_latest_trans_gci = tGCI;
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
 
@@ -1930,7 +1931,7 @@ NdbTransaction::receiveTCINDXCONF(const TcIndxConf * indxConf,
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
       assert(tGCI);
-      g_latest_trans_gci = tGCI;
+      *p_latest_trans_gci = tGCI;
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
       /**********************************************************************/

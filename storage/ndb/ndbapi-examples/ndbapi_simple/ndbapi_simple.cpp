@@ -52,15 +52,22 @@ static void run_application(MYSQL &, Ndb_cluster_connection &);
   PRINT_ERROR(error.code,error.message); \
   exit(-1); }
 
-int main()
+int main(int argc, char** argv)
 {
+  if (argc != 3)
+  {
+    std::cout << "Arguments are <socket mysqld> <connect_string cluster>.\n";
+    exit(-1);
+  }
   // ndb_init must be called first
   ndb_init();
 
   // connect to mysql server and cluster and run application
   {
+    char * mysqld_sock  = argv[1];
+    const char *connectstring = argv[2];
     // Object representing the cluster
-    Ndb_cluster_connection cluster_connection;
+    Ndb_cluster_connection cluster_connection(connectstring);
 
     // Connect to cluster management server (ndb_mgmd)
     if (cluster_connection.connect(4 /* retries               */,
@@ -85,7 +92,7 @@ int main()
       exit(-1);
     }
     if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
-			     3306, "/tmp/mysql.sock", 0) )
+			     0, mysqld_sock, 0) )
       MYSQLERROR(mysql);
     
     // run the application code
@@ -94,13 +101,11 @@ int main()
 
   ndb_end(0);
 
-  std::cout << "\nTo drop created table use:\n"
-	    << "echo \"drop table MYTABLENAME\" | mysql TEST_DB_1 -u root\n";
-
   return 0;
 }
 
 static void create_table(MYSQL &);
+static void drop_table(MYSQL &);
 static void do_insert(Ndb &);
 static void do_update(Ndb &);
 static void do_delete(Ndb &);
@@ -130,6 +135,8 @@ static void run_application(MYSQL &mysql,
   do_update(myNdb);
   do_delete(myNdb);
   do_read(myNdb);
+  drop_table(mysql);
+  mysql_query(&mysql, "DROP DATABASE TEST_DB_1");
 }
 
 /*********************************************************
@@ -143,6 +150,17 @@ static void create_table(MYSQL &mysql)
 		  "    (ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,"
 		  "     ATTR2 INT UNSIGNED NOT NULL)"
 		  "  ENGINE=NDB"))
+    MYSQLERROR(mysql);
+}
+
+/***********************************
+ * Drop a table named MYTABLENAME 
+ ***********************************/
+static void drop_table(MYSQL &mysql)
+{
+  if (mysql_query(&mysql, 
+		  "DROP TABLE"
+		  "  MYTABLENAME"))
     MYSQLERROR(mysql);
 }
 
