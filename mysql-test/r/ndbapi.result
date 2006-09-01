@@ -1,11 +1,11 @@
 DROP TABLE IF EXISTS t0;
 drop database if exists mysqltest;
-Running ndbapi_simple, results in /windows/Linux_space/MySQL/mysql-5.1/mysql-test/var/log/ndb_testrun.log
-Running ndbapi_simple_index, results in /windows/Linux_space/MySQL/mysql-5.1/mysql-test/var/log/ndb_testrun.log
-Running ndbapi_scan, results in /windows/Linux_space/MySQL/mysql-5.1/mysql-test/var/log/ndb_testrun.log
-Running ndbapi_retries, results in /windows/Linux_space/MySQL/mysql-5.1/mysql-test/var/log/ndb_testrun.log
-Running ndbapi_async, results in /windows/Linux_space/MySQL/mysql-5.1/mysql-test/var/log/ndb_testrun.log
-Running ndbapi_async1, results in /windows/Linux_space/MySQL/mysql-5.1/mysql-test/var/log/ndb_testrun.log
+Running ndbapi_simple
+Running ndbapi_simple_index
+Running ndbapi_scan
+Running ndbapi_retries
+Running ndbapi_async
+Running ndbapi_async1
 use TEST_DB;
 create table t0(c0 int, c1 int, c2 char(4), c3 char(4), c4 text,
 primary key(c0, c2)) engine ndb charset latin1;
@@ -19,4 +19,4 @@ update t0 set c2 = 'G' where c0 = 1;
 update t0 set c0 = 5, c2 = 'H' where c0 = 3;
 delete from t0;
 drop table t0;
-Running mgmapi_logevent, results in /windows/Linux_space/MySQL/mysql-5.1/mysql-test/var/log/ndb_testrun.log
+Running mgmapi_logevent
