@@ -4,12 +4,34 @@
 
 CREATE DATABASE IF NOT EXISTS events_test;
 USE events_test;
+
+SET GLOBAL event_scheduler=OFF;
+SHOW VARIABLES LIKE 'event_scheduler';
+SET GLOBAL event_scheduler=1;
+SHOW VARIABLES LIKE 'event_scheduler';
+SET GLOBAL event_scheduler=0;
+SHOW VARIABLES LIKE 'event_scheduler';
+SET GLOBAL event_scheduler=ON;
+SHOW VARIABLES LIKE 'event_scheduler';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL event_scheduler=DISABLED;
+SHOW VARIABLES LIKE 'event_scheduler';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL event_scheduler=-1;
+SHOW VARIABLES LIKE 'event_scheduler';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL event_scheduler=2;
+SHOW VARIABLES LIKE 'event_scheduler';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL event_scheduler=5;
+SHOW VARIABLES LIKE 'event_scheduler';
+
 CREATE TABLE table_1(a int);
 CREATE TABLE table_2(a int);
 CREATE TABLE table_3(a int);
 CREATE TABLE table_4(a int);
 CREATE TABLE T19170(s1 TIMESTAMP);
-SET GLOBAL event_scheduler=1;
+SET GLOBAL event_scheduler=ON;
 # We need to have 2 to make it safe with valgrind. This is probably because
 # of when we calculate the timestamp value
 CREATE EVENT two_sec ON SCHEDULE EVERY 2 SECOND DO INSERT INTO table_1 VALUES(1);

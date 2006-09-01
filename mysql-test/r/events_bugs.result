@@ -36,9 +36,9 @@ create event e_55 on schedule at 20200101000000 starts 10000101000000 ends 10000
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 ends 10000101000000 do drop table t' at line 1
 create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
 ERROR HY000: Incorrect STARTS value: '10000101000000'
-set global event_scheduler=2;
+set global event_scheduler=off;
 delete from mysql.event;
-set global event_scheduler= 1;
+set global event_scheduler= on;
 set @old_sql_mode:=@@sql_mode;
 set sql_mode=ansi;
 select get_lock('test_bug16407', 60);
@@ -57,7 +57,7 @@ root	localhost	events_test	select get_lock('test_bug16407', 60)
 select release_lock('test_bug16407');
 release_lock('test_bug16407')
 1
-set global event_scheduler= 2;
+set global event_scheduler= off;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 event_schema	event_name	sql_mode
 events_test	e_16407	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
@@ -118,7 +118,7 @@ release_lock('ee_16407_2')
 select /*3*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 user	host	db	info
 event_scheduler	localhost	NULL	NULL
-set global event_scheduler= 2;
+set global event_scheduler= off;
 select * from events_smode_test order by ev_name, a;
 ev_name	a
 ee_16407_3	1980-02-19
@@ -139,7 +139,7 @@ set sql_mode='ansi';
 select get_lock('ee_16407_5', 60);
 get_lock('ee_16407_5', 60)
 1
-set global event_scheduler= 1;
+set global event_scheduler= on;
 set sql_mode='traditional';
 create procedure ee_16407_5_pendant() begin insert into events_test.events_smode_test values('ee_16407_5','2001-02-29'); end|
 create procedure ee_16407_6_pendant() begin insert into events_test.events_smode_test values('ee_16407_6','2004-02-29'); end|
@@ -180,10 +180,10 @@ drop event ee_16407_5;
 drop event ee_16407_6;
 drop procedure ee_16407_5_pendant;
 drop procedure ee_16407_6_pendant;
-set global event_scheduler= 2;
+set global event_scheduler= off;
 drop table events_smode_test;
 set sql_mode=@old_sql_mode;
-set global event_scheduler=2;
+set global event_scheduler=off;
 delete from mysql.user where User like 'mysqltest_%';
 delete from mysql.db where User like 'mysqltest_%';
 flush privileges;

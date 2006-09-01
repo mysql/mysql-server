@@ -14,7 +14,7 @@ USER_HOST	CREATE procedure select_general_log()
 BEGIN
 SELECT user_host, argument FROM mysql.general_log WHERE argument LIKE '%alabala%';
 END
-SET GLOBAL event_scheduler=1;
+SET GLOBAL event_scheduler=on;
 TRUNCATE mysql.general_log;
 CREATE EVENT log_general ON SCHEDULE EVERY 1 MINUTE DO SELECT 'alabala', SLEEP(1) FROM DUAL;
 "Wait the scheduler to start"
@@ -25,7 +25,7 @@ USER_HOST	CREATE EVENT log_general ON SCHEDULE EVERY 1 MINUTE DO SELECT 'alabala
 USER_HOST	SELECT 'alabala', SLEEP(1) FROM DUAL
 DROP PROCEDURE select_general_log;
 DROP EVENT log_general;
-SET GLOBAL event_scheduler=2;
+SET GLOBAL event_scheduler=off;
 "Check slow query log"
 "Save the values"
 SET @old_global_long_query_time:=(select get_value());
@@ -58,12 +58,12 @@ SET SESSION long_query_time=1;
 SELECT * FROM slow_event_test;
 slo_val	val
 SET SESSION long_query_time=1;
-SET GLOBAL event_scheduler=1;
+SET GLOBAL event_scheduler=on;
 CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(1.5);
 "Sleep some more time than the actual event run will take"
 SHOW VARIABLES LIKE 'event_scheduler';
 Variable_name	Value
-event_scheduler	1
+event_scheduler	ON
 "Check our table. Should see 1 row"
 SELECT * FROM slow_event_test;
 slo_val	val

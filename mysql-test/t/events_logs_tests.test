@@ -15,7 +15,7 @@ delimiter ;|
 --echo "Check General Query Log"
 --replace_column 1 USER_HOST
 CALL select_general_log();
-SET GLOBAL event_scheduler=1;
+SET GLOBAL event_scheduler=on;
 TRUNCATE mysql.general_log;
 CREATE EVENT log_general ON SCHEDULE EVERY 1 MINUTE DO SELECT 'alabala', SLEEP(1) FROM DUAL;
 --echo "Wait the scheduler to start"
@@ -25,7 +25,7 @@ CREATE EVENT log_general ON SCHEDULE EVERY 1 MINUTE DO SELECT 'alabala', SLEEP(1
 CALL select_general_log();
 DROP PROCEDURE select_general_log;
 DROP EVENT log_general;
-SET GLOBAL event_scheduler=2;
+SET GLOBAL event_scheduler=off;
 
 --echo "Check slow query log"
 --disable_query_log
@@ -71,7 +71,7 @@ SET SESSION long_query_time=1;
 --echo "This won't go to the slow log"
 SELECT * FROM slow_event_test;
 SET SESSION long_query_time=1;
-SET GLOBAL event_scheduler=1;
+SET GLOBAL event_scheduler=on;
 CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(1.5);
 --echo "Sleep some more time than the actual event run will take"
 --sleep 2
