@@ -755,10 +755,6 @@ select old_password(name) from bug20536;
 old_password(name)
 ????????
 ????????
-select encrypt(name, 'SALT') from bug20536;
-encrypt(name, 'SALT')
-SA5pDi1UPZdys
-SA5pDi1UPZdys
 select quote(name) from bug20536;
 quote(name)
 ????????
