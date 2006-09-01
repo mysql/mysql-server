@@ -67,7 +67,6 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 static void decrease_user_connections(USER_CONN *uc);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 static bool check_multi_update_lock(THD *thd);
-static void remove_escape(char *name);
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
@@ -1442,7 +1441,6 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name)
   }
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, tbl_name);
-  remove_escape(table_list->table_name);
 
   if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
     DBUG_RETURN(1);
@@ -1909,7 +1907,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, table_list.table_name);
-    remove_escape(table_list.table_name);	// This can't have wildcards
 
     if (check_access(thd,SELECT_ACL,table_list.db,&table_list.grant.privilege,
 		     0, 0, test(table_list.schema_table)))
@@ -2299,7 +2296,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
         DBUG_RETURN(1);
       }
       db= lex->select_lex.db;
-      remove_escape(db);				// Fix escaped '_'
       if (check_db_name(db))
       {
         my_error(ER_WRONG_DB_NAME, MYF(0), db);
@@ -2338,8 +2334,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       lex->query_tables_last= query_tables_last;
       TABLE_LIST *table_list= (TABLE_LIST*) sel->table_list.first;
       char *db= table_list->db;
-      remove_escape(db);			// Fix escaped '_'
-      remove_escape(table_list->table_name);
       if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
                        &table_list->grant.privilege, 0, 0,
                        test(table_list->schema_table)))
@@ -6273,36 +6267,6 @@ add_proc_to_list(THD* thd, Item *item)
   return 0;
 }
 
-
-/* Fix escaping of _, % and \ in database and table names (for ODBC) */
-
-static void remove_escape(char *name)
-{
-  if (!*name)					// For empty DB names
-    return;
-  char *to;
-#ifdef USE_MB
-  char *strend=name+(uint) strlen(name);
-#endif
-  for (to=name; *name ; name++)
-  {
-#ifdef USE_MB
-    int l;
-    if (use_mb(system_charset_info) &&
-        (l = my_ismbchar(system_charset_info, name, strend)))
-    {
-	while (l--)
-	    *to++ = *name++;
-	name--;
-	continue;
-    }
-#endif
-    if (*name == '\\' && name[1])
-      name++;					// Skip '\\'
-    *to++= *name;
-  }
-  *to=0;
-}
 
 /****************************************************************************
 ** save order by and tables in own lists
