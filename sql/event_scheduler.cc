@@ -544,7 +544,7 @@ error:
 
 
 /*
-  Checkes whether the state of the scheduler is RUNNING
+  Checks whether the state of the scheduler is RUNNING
 
   SYNOPSIS
     Event_scheduler::is_running()
