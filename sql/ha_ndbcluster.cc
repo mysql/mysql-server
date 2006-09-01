@@ -49,6 +49,16 @@ extern my_bool opt_ndb_optimized_node_selection;
 extern const char *opt_ndbcluster_connectstring;
 extern ulong opt_ndb_cache_check_time;
 
+// ndb interface initialization/cleanup
+#ifdef  __cplusplus
+extern "C" {
+#endif
+extern void ndb_init_internal();
+extern void ndb_end_internal();
+#ifdef  __cplusplus
+}
+#endif
+
 const char *ndb_distribution_names[]= {"KEYHASH", "LINHASH", NullS};
 TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
                                     "", ndb_distribution_names, NULL };
@@ -6394,6 +6404,9 @@ static int ndbcluster_init()
   if (have_ndbcluster != SHOW_OPTION_YES)
     DBUG_RETURN(0); // nothing else to do
 
+  // Initialize ndb interface
+  ndb_init_internal();
+
   // Set connectstring if specified
   if (opt_ndbcluster_connectstring != 0)
     DBUG_PRINT("connectstring", ("%s", opt_ndbcluster_connectstring));     
@@ -6542,6 +6555,9 @@ static int ndbcluster_end(ha_panic_function type)
   }
   delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
+
+  // cleanup ndb interface
+  ndb_end_internal();
 
   pthread_mutex_destroy(&ndbcluster_mutex);
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
