@@ -216,7 +216,7 @@ our $opt_embedded_server;
 our $opt_extern;
 our $opt_fast;
 our $opt_force;
-our $opt_reorder= 0;
+our $opt_reorder= 1;
 our $opt_enable_disabled;
 
 our $opt_gcov;
