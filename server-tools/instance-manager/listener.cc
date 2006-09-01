@@ -36,6 +36,27 @@
 #include "portability.h"
 
 
+static void set_non_blocking(int socket)
+{
+#ifndef __WIN__
+  int flags= fcntl(socket, F_GETFL, 0);
+  fcntl(socket, F_SETFL, flags | O_NONBLOCK);
+#else
+  u_long arg= 1;
+  ioctlsocket(socket, FIONBIO, &arg);
+#endif
+}
+
+
+static void set_no_inherit(int socket)
+{
+#ifndef __WIN__
+  int flags= fcntl(socket, F_GETFD, 0);
+  fcntl(socket, F_SETFD, flags | FD_CLOEXEC);
+#endif
+}
+
+
 /*
   Listener_thread - incapsulates listening functionality
 */
@@ -157,6 +178,8 @@ void Listener_thread::run()
         /* accept may return -1 (failure or spurious wakeup) */
         if (client_fd >= 0)                    // connection established
         {
+          set_no_inherit(client_fd);
+
           Vio *vio= vio_new(client_fd, socket_index == 0 ?
                             VIO_TYPE_SOCKET : VIO_TYPE_TCPIP,
                             socket_index == 0 ? 1 : 0);
@@ -196,25 +219,6 @@ err:
   thread_registry.request_shutdown();
   my_thread_end();
   return;
-}
-
-void set_non_blocking(int socket)
-{
-#ifndef __WIN__
-  int flags= fcntl(socket, F_GETFL, 0);
-  fcntl(socket, F_SETFL, flags | O_NONBLOCK);
-#else
-  u_long arg= 1;
-  ioctlsocket(socket, FIONBIO, &arg);
-#endif
-}
-
-void set_no_inherit(int socket)
-{
-#ifndef __WIN__
-  int flags= fcntl(socket, F_GETFD, 0);
-  fcntl(socket, F_SETFD, flags | FD_CLOEXEC);
-#endif
 }
 
 int Listener_thread::create_tcp_socket()
