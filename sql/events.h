@@ -48,9 +48,18 @@ public:
     or other scheme will be found.
   */
   friend class Event_queue_element;
+  
+  /* The order should match the order in opt_typelib */
+  enum enum_opt_event_scheduler
+  {
+    EVENTS_OFF= 0,
+    EVENTS_ON= 1,
+    EVENTS_DISABLED= 5,
+  };
 
-  static ulong opt_event_scheduler;
+  static enum_opt_event_scheduler opt_event_scheduler;
   static TYPELIB opt_typelib;
+  static TYPELIB var_typelib;
 
   bool
   init();

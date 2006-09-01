@@ -2,6 +2,9 @@ use mysqltest_events_test;
 "Should get 3 rows : abc1, abc2, abc3
 select distinct name from execution_log order by name;
 name
+abc1
+abc2
+abc3
 drop event abc1;
 drop event abc2;
 drop event abc3;

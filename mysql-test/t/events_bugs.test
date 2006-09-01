@@ -65,9 +65,9 @@ create event e_55 on schedule every 10 hour starts 10000101000000 do drop table 
 #
 # Start - 16407: Events: Changes in sql_mode won't be taken into account
 #
-set global event_scheduler=2;
+set global event_scheduler=off;
 delete from mysql.event;
-set global event_scheduler= 1;
+set global event_scheduler= on;
 set @old_sql_mode:=@@sql_mode;
 set sql_mode=ansi;
 select get_lock('test_bug16407', 60);
@@ -83,7 +83,7 @@ delimiter ;|
 select /*1*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
 select release_lock('test_bug16407');
 
-set global event_scheduler= 2;
+set global event_scheduler= off;
 
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 --echo "Let's check whether we change the sql_mode on ALTER EVENT"
@@ -132,7 +132,7 @@ select /*2*/ user, host, db, info from information_schema.processlist where info
 select release_lock('ee_16407_2');
 --sleep 1.2
 select /*3*/ user, host, db, info from information_schema.processlist where info is null or info not like '%processlist%' order by info;
-set global event_scheduler= 2;
+set global event_scheduler= off;
 select * from events_smode_test order by ev_name, a;
 --echo "OK, last check before we drop them"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
@@ -146,7 +146,7 @@ delete from events_smode_test;
 set sql_mode='ansi';
 select get_lock('ee_16407_5', 60);
 
-set global event_scheduler= 1;
+set global event_scheduler= on;
 
 set sql_mode='traditional';
 delimiter |;
@@ -179,7 +179,7 @@ drop event ee_16407_5;
 drop event ee_16407_6;
 drop procedure ee_16407_5_pendant;
 drop procedure ee_16407_6_pendant;
-set global event_scheduler= 2;
+set global event_scheduler= off;
 drop table events_smode_test;
 set sql_mode=@old_sql_mode;
 #
@@ -189,7 +189,7 @@ set sql_mode=@old_sql_mode;
 #
 # START - 18897: Events: unauthorized action possible with alter event rename
 #
-set global event_scheduler=2;
+set global event_scheduler=off;
 --disable_warnings
 delete from mysql.user where User like 'mysqltest_%';
 delete from mysql.db where User like 'mysqltest_%';
