@@ -489,12 +489,6 @@ select export_set(5, name, upper(name), ",", 5) from bug20536;
 select password(name) from bug20536;
 select old_password(name) from bug20536;
 
-# ENCRYPT relies on OS function crypt() which takes a NUL-terminated string; it
-# doesn't return good results for strings with embedded 0 bytes.  It won't be
-# fixed unless we choose to re-implement the crypt() function ourselves to take
-# an extra size_t string_length argument.
-select encrypt(name, 'SALT') from bug20536;
-
 # QUOTE doesn't work with UCS2 data.  It would require a total rewrite
 # of Item_func_quote::val_str(), which isn't worthwhile until UCS2 is
 # supported fully as a client character set.
