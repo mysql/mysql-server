@@ -1299,8 +1299,8 @@ sub executable_setup () {
     $path_ndb_tools_dir=  "$glob_basedir/bin";
     $exe_ndb_mgm=         "$glob_basedir/bin/ndb_mgm";
     $exe_ndb_waiter=      "$glob_basedir/bin/ndb_waiter";
-    $exe_ndbd=            "$glob_basedir/libexec/ndbd";
-    $exe_ndb_mgmd=        "$glob_basedir/libexec/ndb_mgmd";
+    $exe_ndbd=            "$glob_basedir/bin/ndbd";
+    $exe_ndb_mgmd=        "$glob_basedir/bin/ndb_mgmd";
   }
 
   $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
@@ -1320,30 +1320,34 @@ sub executable_setup () {
 
 sub environment_setup () {
 
+  my $extra_ld_library_paths;
   umask(022);
 
   # --------------------------------------------------------------------------
-  # We might not use a standard installation directory, like /usr/lib.
-  # Set LD_LIBRARY_PATH to make sure we find our installed libraries.
+  # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
+  # are used in favor of the system installed ones
   # --------------------------------------------------------------------------
-
-  unless ( $opt_source_dist )
+  if ( $opt_source_dist )
   {
-    $ENV{'LD_LIBRARY_PATH'}=
-      "$glob_basedir/lib" .
-        ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-    $ENV{'DYLD_LIBRARY_PATH'}=
-      "$glob_basedir/lib" .
-        ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+    $extra_ld_library_paths= "$glob_basedir/libmysql/.libs/";
+  }
+  else
+  {
+    $extra_ld_library_paths= "$glob_basedir/lib";
   }
 
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find udf_example.so
   # --------------------------------------------------------------------------
-  $ENV{'LD_LIBRARY_PATH'}=
-    ($lib_udf_example ?  dirname($lib_udf_example) : "") .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+  $extra_ld_library_paths .= ":" .
+    ($lib_udf_example ?  dirname($lib_udf_example) : "");
 
+  $ENV{'LD_LIBRARY_PATH'}=
+    "$extra_ld_library_paths" .
+      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
+  $ENV{'DYLD_LIBRARY_PATH'}=
+    "$extra_ld_library_paths" .
+      ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
@@ -2122,7 +2126,6 @@ sub install_db ($$) {
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
-  mtr_add_arg($args, "--skip-bdb");
   mtr_add_arg($args, "--tmpdir=.");
 
   if ( ! $opt_netware )
@@ -2215,7 +2218,6 @@ basedir             = $path_my_basedir
 server_id           = $server_id
 skip-stack-trace
 skip-innodb
-skip-bdb
 skip-ndbcluster
 EOF
 ;
@@ -2629,7 +2631,6 @@ sub mysqld_arguments ($$$$$) {
   if ( $opt_valgrind_mysqld )
   {
     mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
-    mtr_add_arg($args, "%s--skip-bdb", $prefix);
   }
 
   my $pidfile;

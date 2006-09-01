@@ -33,6 +33,8 @@ public:
   Item_geometry_func(List<Item> &list) :Item_str_func(list) {}
   void fix_length_and_dec();
   enum_field_types field_type() const  { return MYSQL_TYPE_GEOMETRY; }
+  Field *tmp_table_field(TABLE *t_arg);
+  virtual int get_geometry_type() const;
 };
 
 class Item_func_geometry_from_text: public Item_geometry_func
@@ -89,6 +91,7 @@ public:
   Item_func_centroid(Item *a): Item_geometry_func(a) {}
   const char *func_name() const { return "centroid"; }
   String *val_str(String *);
+  int get_geometry_type() const;
 };
 
 class Item_func_envelope: public Item_geometry_func
@@ -97,6 +100,7 @@ public:
   Item_func_envelope(Item *a): Item_geometry_func(a) {}
   const char *func_name() const { return "envelope"; }
   String *val_str(String *);
+  int get_geometry_type() const;
 };
 
 class Item_func_point: public Item_geometry_func
@@ -106,6 +110,7 @@ public:
   Item_func_point(Item *a, Item *b, Item *srid): Item_geometry_func(a, b, srid) {}
   const char *func_name() const { return "point"; }
   String *val_str(String *);
+  int get_geometry_type() const;
 };
 
 class Item_func_spatial_decomp: public Item_geometry_func

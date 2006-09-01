@@ -536,8 +536,8 @@ while test $# -gt 0; do
     --valgrind | --valgrind-all)
       find_valgrind;
       VALGRIND=$FIND_VALGRIND
-      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc --skip-bdb"
-      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc --skip-bdb"
+      EXTRA_MASTER_MYSQLD_OPT="$EXTRA_MASTER_MYSQLD_OPT --skip-safemalloc"
+      EXTRA_SLAVE_MYSQLD_OPT="$EXTRA_SLAVE_MYSQLD_OPT --skip-safemalloc"
       SLEEP_TIME_AFTER_RESTART=10
       SLEEP_TIME_FOR_DELETE=60
       USE_RUNNING_SERVER=0

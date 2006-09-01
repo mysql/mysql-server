@@ -46,7 +46,7 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
       before seeking to the given offset
     */
 
-    error= (old_offset= lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
+    error= (old_offset= (off_t)lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
            lseek(Filedes, offset, MY_SEEK_SET) == -1L;
 
     if (!error)                                 /* Seek was successful */
@@ -121,7 +121,7 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
       As we cannot change the file pointer, we save the old position,
       before seeking to the given offset
     */
-    error= ((old_offset= lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
+    error= ((old_offset= (off_t)lseek(Filedes, 0L, MY_SEEK_CUR)) == -1L ||
             lseek(Filedes, offset, MY_SEEK_SET) == -1L);
 
     if (!error)                                 /* Seek was successful */

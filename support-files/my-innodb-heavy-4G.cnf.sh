@@ -357,14 +357,6 @@ myisam_repair_threads = 1
 myisam_recover
 
 
-# *** BDB Specific options ***
-
-# Use this option if you run a MySQL server with BDB support enabled but
-# you do not plan to use it. This will save memory and may speed up some
-# things.
-skip-bdb
-
-
 # *** INNODB Specific options ***
 
 # Use this option if you have a MySQL server with InnoDB support enabled

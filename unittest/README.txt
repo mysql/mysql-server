@@ -37,3 +37,10 @@ directory and add the following to the Makefile.am in that directory
 Note, it's important to have "-t" at the end of the filename, otherwise the
 test won't be executed by 'make test' !
 
+
+Documentation
+-------------
+
+There is Doxygen-generated documentation available at:
+
+      https://intranet.mysql.com/~mkindahl/mytap/html/

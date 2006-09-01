@@ -360,7 +360,7 @@ drop table t1;
 create table t1 (
 c char(10) character set utf8,
 unique key a (c(1))
-) engine=bdb;
+) engine=innodb;
 --enable_warnings
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 --error 1062
@@ -483,7 +483,7 @@ drop table t1;
 create table t1 (
 c char(10) character set utf8 collate utf8_bin,
 unique key a (c(1))
-) engine=bdb;
+) engine=innodb;
 --enable_warnings
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 --error 1062
@@ -558,7 +558,7 @@ drop table t1;
 create table t1 (
   str varchar(255) character set utf8 not null,
   key str (str(2))
-) engine=bdb;
+) engine=innodb;
 --enable_warnings
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
@@ -644,7 +644,7 @@ create table t1 (
 insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
 --disable_warnings
-alter table t1 engine=bdb;
+alter table t1 engine=innodb;
 --enable_warnings
 select * from t1 where b like 'foob%';
 drop table t1;
@@ -876,6 +876,17 @@ INSERT INTO t1 VALUES(REPEAT('a', 100));
 CREATE TEMPORARY TABLE t2 SELECT COALESCE(t) AS bug FROM t1;
 SELECT LENGTH(bug) FROM t2;
 DROP TABLE t2;
+DROP TABLE t1;
+
+#
+# Bug#17313: N'xxx' and _utf8'xxx' are not equivalent
+#
+CREATE TABLE t1 (item varchar(255)) default character set utf8;
+INSERT INTO t1 VALUES (N'\\');
+INSERT INTO t1 VALUES (_utf8'\\');
+INSERT INTO t1 VALUES (N'Cote d\'Ivoire');
+INSERT INTO t1 VALUES (_utf8'Cote d\'Ivoire');
+SELECT item FROM t1 ORDER BY item;
 DROP TABLE t1;
 
 #

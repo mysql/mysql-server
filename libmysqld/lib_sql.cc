@@ -524,11 +524,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   (void) thr_setconcurrency(concurrency);	// 10 by default
 
-  if (
-#ifdef HAVE_BERKELEY_DB
-      (have_berkeley_db == SHOW_OPTION_YES) ||
-#endif
-      (flush_time && flush_time != ~(ulong) 0L))
+  if (flush_time && flush_time != ~(ulong) 0L)
   {
     pthread_t hThread;
     if (pthread_create(&hThread,&connection_attrib,handle_manager,0))

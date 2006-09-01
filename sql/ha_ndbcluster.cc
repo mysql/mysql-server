@@ -47,6 +47,7 @@
 // options from from mysqld.cc
 extern my_bool opt_ndb_optimized_node_selection;
 extern const char *opt_ndbcluster_connectstring;
+extern ulong opt_ndb_cache_check_time;
 
 const char *ndb_distribution_names[]= {"KEYHASH", "LINHASH", NullS};
 TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
@@ -256,7 +257,7 @@ int execute_no_commit_ignore_no_key(ha_ndbcluster *h, NdbTransaction *trans)
 }
 
 inline
-int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans, 
+int execute_no_commit(ha_ndbcluster *h, NdbTransaction *trans,
 		      bool force_release)
 {
 #ifdef NOT_USED
@@ -299,7 +300,7 @@ int execute_commit(THD *thd, NdbTransaction *trans)
 }
 
 inline
-int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans, 
+int execute_no_commit_ie(ha_ndbcluster *h, NdbTransaction *trans,
 			 bool force_release)
 {
 #ifdef NOT_USED
@@ -6468,6 +6469,7 @@ static int ndbcluster_init()
   pthread_cond_init(&COND_ndb_util_thread, NULL);
 
 
+  ndb_cache_check_time = opt_ndb_cache_check_time;
   // Create utility thread
   pthread_t tmp;
   if (pthread_create(&tmp, &connection_attrib, ndb_util_thread_func, 0))
@@ -7583,6 +7585,30 @@ int ha_ndbcluster::write_ndb_file(const char *name)
     my_close(file,MYF(0));
   }
   DBUG_RETURN(error);
+}
+
+void 
+ha_ndbcluster::release_completed_operations(NdbTransaction *trans,
+					    bool force_release)
+{
+  if (trans->hasBlobOperation())
+  {
+    /* We are reading/writing BLOB fields, 
+       releasing operation records is unsafe
+    */
+    return;
+  }
+  if (!force_release)
+  {
+    if (get_thd_ndb(current_thd)->query_state & NDB_QUERY_MULTI_READ_RANGE)
+    {
+      /* We are batching reads and have not consumed all fetched
+	 rows yet, releasing operation records is unsafe 
+      */
+      return;
+    }
+  }
+  trans->releaseCompletedOperations();
 }
 
 int
@@ -9585,24 +9611,6 @@ ha_ndbcluster::generate_scan_filter(Ndb_cond_stack *ndb_cond_stack,
   }
 
   DBUG_RETURN(0);
-}
-
-
-void 
-ha_ndbcluster::release_completed_operations(NdbTransaction *trans,
-					    bool force_release)
-{
-  if (!force_release)
-  {
-    if (get_thd_ndb(current_thd)->query_state & NDB_QUERY_MULTI_READ_RANGE)
-    {
-      /* We are batching reads and have not consumed all fetched
-	 rows yet, releasing operation records is unsafe 
-      */
-      return;
-    }
-  }
-  trans->releaseCompletedOperations();
 }
 
 /*
