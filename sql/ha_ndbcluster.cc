@@ -6389,6 +6389,8 @@ static int ndbcluster_init()
 #endif
     h.flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
     h.discover=         ndbcluster_discover;
+    h.find_files= ndbcluster_find_files;
+    h.table_exists_in_engine= ndbcluster_table_exists_in_engine;
   }
 
   if (have_ndbcluster != SHOW_OPTION_YES)
@@ -10598,7 +10600,9 @@ mysql_declare_plugin(ndbcluster)
   ndbcluster_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  ndb_status_variables_export
+  ndb_status_variables_export,/* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 
