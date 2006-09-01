@@ -6351,29 +6351,30 @@ finish:
 
   
 /* 
-  Check whether an item is a simple equality predicate and if so
-  create/find a multiple equality for this predicate
+  Check whether an equality can be used to build multiple equalities
 
   SYNOPSIS
-    check_equality()
-    item       item to check
-    cond_equal multiple equalities that must hold together with the predicate
+    check_simple_equality()
+      left_item   left term of the quality to be checked
+      right_item  right term of the equality to be checked
+      item        equality item if the equality originates from a condition
+                  predicate, 0 if the equality is the result of row elimination
+      cond_equal  multiple equalities that must hold together with the equality
 
   DESCRIPTION
-    This function first checks whether an item is a simple equality i.e.
-    the one that equates a field with another field or a constant
-    (item=constant_item or item=field_item).
-    If this is the case the function looks a for a multiple equality
+    This function first checks whether the equality (left_item=right_item)
+    is a simple equality i.e. the one that equates a field with another field
+    or a constant (field=field_item or field=const_item).
+    If this is the case the function looks for a multiple equality
     in the lists referenced directly or indirectly by cond_equal inferring
     the given simple equality. If it doesn't find any, it builds a multiple
     equality that covers the predicate, i.e. the predicate can be inferred
-    from it.
+    from this multiple equality.
     The built multiple equality could be obtained in such a way:
     create a binary  multiple equality equivalent to the predicate, then
     merge it, if possible, with one of old multiple equalities.
     This guarantees that the set of multiple equalities covering equality
-    predicates will
-    be minimal.
+    predicates will be minimal.
 
   EXAMPLE
     For the where condition
@@ -6391,7 +6392,7 @@ finish:
     and will transform *cond_equal into (ptr(CE),[Item_equal(f,e)]).
 
   NOTES
-    Now only fields that have the same type defintions (verified by
+    Now only fields that have the same type definitions (verified by
     the Field::eq_def method) are placed to the same multiple equalities.
     Because of this some equality predicates are not eliminated and
     can be used in the constant propagation procedure.
@@ -6424,11 +6425,263 @@ finish:
     copying would be much more complicated.
 
   RETURN
-    TRUE  - if the predicate is a simple equality predicate
-    FALSE - otherwise
+    TRUE    if the predicate is a simple equality predicate to be used
+            for building multiple equalities
+    FALSE   otherwise
 */
 
-static bool check_equality(Item *item, COND_EQUAL *cond_equal)
+static bool check_simple_equality(Item *left_item, Item *right_item,
+                                  Item *item, COND_EQUAL *cond_equal)
+{
+  if (left_item->type() == Item::REF_ITEM &&
+      ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
+  {
+    if (((Item_ref*)left_item)->depended_from)
+      return FALSE;
+    left_item= left_item->real_item();
+  }
+  if (right_item->type() == Item::REF_ITEM &&
+      ((Item_ref*)right_item)->ref_type() == Item_ref::VIEW_REF)
+  {
+    if (((Item_ref*)right_item)->depended_from)
+      return FALSE;
+    right_item= right_item->real_item();
+  }
+  if (left_item->type() == Item::FIELD_ITEM &&
+      right_item->type() == Item::FIELD_ITEM &&
+      !((Item_field*)left_item)->depended_from &&
+      !((Item_field*)right_item)->depended_from)
+  {
+    /* The predicate the form field1=field2 is processed */
+
+    Field *left_field= ((Item_field*) left_item)->field;
+    Field *right_field= ((Item_field*) right_item)->field;
+
+    if (!left_field->eq_def(right_field))
+      return FALSE;
+
+    /* Search for multiple equalities containing field1 and/or field2 */
+    bool left_copyfl, right_copyfl;
+    Item_equal *left_item_equal=
+               find_item_equal(cond_equal, left_field, &left_copyfl);
+    Item_equal *right_item_equal= 
+               find_item_equal(cond_equal, right_field, &right_copyfl);
+
+    /* As (NULL=NULL) != TRUE we can't just remove the predicate f=f */
+    if (left_field->eq(right_field)) /* f = f */
+      return (!(left_field->maybe_null() && !left_item_equal)); 
+
+    if (left_item_equal && left_item_equal == right_item_equal)
+    {
+      /* 
+        The equality predicate is inference of one of the existing
+        multiple equalities, i.e the condition is already covered
+        by upper level equalities
+      */
+       return TRUE;
+    }
+      
+    /* Copy the found multiple equalities at the current level if needed */
+    if (left_copyfl)
+    {
+      /* left_item_equal of an upper level contains left_item */
+      left_item_equal= new Item_equal(left_item_equal);
+      cond_equal->current_level.push_back(left_item_equal);
+    }
+    if (right_copyfl)
+    {
+      /* right_item_equal of an upper level contains right_item */
+      right_item_equal= new Item_equal(right_item_equal);
+      cond_equal->current_level.push_back(right_item_equal);
+    }
+
+    if (left_item_equal)
+    { 
+      /* left item was found in the current or one of the upper levels */
+      if (! right_item_equal)
+        left_item_equal->add((Item_field *) right_item);
+      else
+      {
+        /* Merge two multiple equalities forming a new one */
+        left_item_equal->merge(right_item_equal);
+        /* Remove the merged multiple equality from the list */
+        List_iterator<Item_equal> li(cond_equal->current_level);
+        while ((li++) != right_item_equal);
+        li.remove();
+      }
+    }
+    else
+    { 
+      /* left item was not found neither the current nor in upper levels  */
+      if (right_item_equal)
+        right_item_equal->add((Item_field *) left_item);
+      else 
+      {
+        /* None of the fields was found in multiple equalities */
+        Item_equal *item= new Item_equal((Item_field *) left_item,
+                                         (Item_field *) right_item);
+        cond_equal->current_level.push_back(item);
+      }
+    }
+    return TRUE;
+  }
+
+  {
+    /* The predicate of the form field=const/const=field is processed */
+    Item *const_item= 0;
+    Item_field *field_item= 0;
+    if (left_item->type() == Item::FIELD_ITEM &&
+        !((Item_field*)left_item)->depended_from &&
+        right_item->const_item())
+    {
+      field_item= (Item_field*) left_item;
+      const_item= right_item;
+    }
+    else if (right_item->type() == Item::FIELD_ITEM &&
+             !((Item_field*)right_item)->depended_from &&
+             left_item->const_item())
+    {
+      field_item= (Item_field*) right_item;
+      const_item= left_item;
+    }
+
+    if (const_item &&
+        field_item->result_type() == const_item->result_type())
+    {
+      bool copyfl;
+
+      if (field_item->result_type() == STRING_RESULT)
+      {
+        CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
+        if (!item)
+        {
+          Item_func_eq *eq_item;
+          if ((eq_item= new Item_func_eq(left_item, right_item)))
+            return FALSE;
+          eq_item->set_cmp_func();
+          eq_item->quick_fix_field();
+          item= eq_item;
+        }  
+        if ((cs != ((Item_func *) item)->compare_collation()) ||
+            !cs->coll->propagate(cs, 0, 0))
+          return FALSE;
+      }
+
+      Item_equal *item_equal = find_item_equal(cond_equal,
+                                               field_item->field, &copyfl);
+      if (copyfl)
+      {
+        item_equal= new Item_equal(item_equal);
+        cond_equal->current_level.push_back(item_equal);
+      }
+      if (item_equal)
+      {
+        /* 
+          The flag cond_false will be set to 1 after this, if item_equal
+          already contains a constant and its value is  not equal to
+          the value of const_item.
+        */
+        item_equal->add(const_item);
+      }
+      else
+      {
+        item_equal= new Item_equal(const_item, field_item);
+        cond_equal->current_level.push_back(item_equal);
+      }
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
+/* 
+  Convert row equalities into a conjunction of regular equalities
+
+  SYNOPSIS
+    check_row_equality()
+      left_row   left term of the row equality to be processed     
+      right_row  right term of the row equality to be processed
+      cond_equal multiple equalities that must hold together with the predicate
+      eq_list    results of conversions of row equalities that are not simple
+                 enough to form multiple equalities
+
+  DESCRIPTION
+    The function converts a row equality of the form (E1,...,En)=(E'1,...,E'n)
+    into a list of equalities E1=E'1,...,En=E'n. For each of these equalities
+    Ei=E'i the function checks whether it is a simple equality or a row equality.
+    If it is a simple equality it is used to expand multiple equalities of
+    cond_equal. If it is a row equality it converted to a sequence of equalities
+    between row elements. If Ei=E'i is neither a simple equality nor a row
+    equality the item for this predicate is added to eq_list.
+
+  RETURN
+    TRUE    if conversion has succeeded (no fatal error) 
+    FALSE   otherwise  
+*/
+ 
+static bool check_row_equality(Item *left_row, Item_row *right_row,
+                               COND_EQUAL *cond_equal, List<Item>* eq_list)
+{ 
+  uint n= left_row->cols();
+  for (uint i= 0 ; i < n; i++)
+  {
+    bool is_converted;
+    Item *left_item= left_row->el(i);
+    Item *right_item= right_row->el(i);
+    if (left_item->type() == Item::ROW_ITEM &&
+        right_item->type() == Item::ROW_ITEM)
+      is_converted= check_row_equality((Item_row *) left_item,
+	                               (Item_row *) right_item,
+				       cond_equal, eq_list);
+    else 
+      is_converted= check_simple_equality(left_item, right_item, 0, cond_equal);
+
+    if (!is_converted)  
+    {
+      Item_func_eq *eq_item;
+      if (!(eq_item= new Item_func_eq(left_item, right_item)))
+        return FALSE;
+      eq_item->set_cmp_func();
+      eq_item->quick_fix_field();
+      eq_list->push_back(eq_item);
+    }
+  }
+  return TRUE;
+}
+
+
+/* 
+  Eliminate row equalities and form multiple equalities predicates 
+
+  SYNOPSIS
+    check_equality()
+      item       predicate to process     
+      cond_equal multiple equalities that must hold together with the predicate
+      eq_list    results of conversions of row equalities that are not simple
+                 enough to form multiple equalities
+
+  DESCRIPTION
+    This function checks whether the item is a simple equality
+    i.e. the one that equates a field with another field or a constant
+    (field=field_item or field=constant_item), or, a row equality.
+    For a simple equality the function looks for a multiple equality
+    in the lists referenced directly or indirectly by cond_equal inferring
+    the given simple equality. If it doesn't find any, it builds/expands
+    multiple equality that covers the predicate.
+    Row equalities are eliminated substituted for conjunctive regular equalities
+    which are treated in the same way as original equality predicates.
+
+  RETURN
+    TRUE   if re-writing rules have been applied
+    FALSE  otherwise, i.e.
+           if the predicate is not an equality,
+           or, if the equality is neither a simple one nor a row equality,
+           or, if the procedure fails by a fatal error.
+*/
+
+static bool check_equality(Item *item, COND_EQUAL *cond_equal,
+                           List<Item> *eq_list)
 {
   if (item->type() == Item::FUNC_ITEM &&
          ((Item_func*) item)->functype() == Item_func::EQ_FUNC)
@@ -6436,158 +6689,18 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
     Item *left_item= ((Item_func*) item)->arguments()[0];
     Item *right_item= ((Item_func*) item)->arguments()[1];
 
-    if (left_item->type() == Item::REF_ITEM &&
-        ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
-    {
-      if (((Item_ref*)left_item)->depended_from)
-        return FALSE;
-      left_item= left_item->real_item();
-    }
-    if (right_item->type() == Item::REF_ITEM &&
-        ((Item_ref*)right_item)->ref_type() == Item_ref::VIEW_REF)
-    {
-      if (((Item_ref*)right_item)->depended_from)
-        return FALSE;
-      right_item= right_item->real_item();
-    }
-    if (left_item->type() == Item::FIELD_ITEM &&
-        right_item->type() == Item::FIELD_ITEM &&
-        !((Item_field*)left_item)->depended_from &&
-        !((Item_field*)right_item)->depended_from)
-    {
-      /* The predicate the form field1=field2 is processed */
-
-      Field *left_field= ((Item_field*) left_item)->field;
-      Field *right_field= ((Item_field*) right_item)->field;
-
-      if (!left_field->eq_def(right_field))
-        return FALSE;
-
-      if (left_field->eq(right_field))  /* f = f */
-        return TRUE;
-      
-      /* Search for multiple equalities containing field1 and/or field2 */
-      bool left_copyfl, right_copyfl;
-      Item_equal *left_item_equal=
-                 find_item_equal(cond_equal, left_field, &left_copyfl);
-      Item_equal *right_item_equal= 
-                 find_item_equal(cond_equal, right_field, &right_copyfl);
-
-      if (left_item_equal && left_item_equal == right_item_equal)
-      {
-        /* 
-           The equality predicate is inference of one of the existing
-           multiple equalities, i.e the condition is already covered
-           by upper level equalities
-        */
-          return TRUE;
-      }
-      
-      /* Copy the found multiple equalities at the current level if needed */
-      if (left_copyfl)
-      {
-        /* left_item_equal of an upper level contains left_item */
-        left_item_equal= new Item_equal(left_item_equal);
-        cond_equal->current_level.push_back(left_item_equal);
-      }
-      if (right_copyfl)
-      {
-        /* right_item_equal of an upper level contains right_item */
-        right_item_equal= new Item_equal(right_item_equal);
-        cond_equal->current_level.push_back(right_item_equal);
-      }
-
-      if (left_item_equal)
-      { 
-        /* left item was found in the current or one of the upper levels */
-        if (! right_item_equal)
-          left_item_equal->add((Item_field *) right_item);
-        else
-        {
-          /* Merge two multiple equalities forming a new one */
-          left_item_equal->merge(right_item_equal);
-          /* Remove the merged multiple equality from the list */
-          List_iterator<Item_equal> li(cond_equal->current_level);
-          while ((li++) != right_item_equal);
-          li.remove();
-        }
-      }
-      else
-      { 
-        /* left item was not found neither the current nor in upper levels  */
-         if (right_item_equal)
-           right_item_equal->add((Item_field *) left_item);
-         else 
-         {
-           /* None of the fields was found in multiple equalities */
-           Item_equal *item= new Item_equal((Item_field *) left_item,
-                                            (Item_field *) right_item);
-           cond_equal->current_level.push_back(item);
-         }
-      }
-      return TRUE;
-    }
-
-    {
-      /* The predicate of the form field=const/const=field is processed */
-      Item *const_item= 0;
-      Item_field *field_item= 0;
-      if (left_item->type() == Item::FIELD_ITEM &&
-          !((Item_field*)left_item)->depended_from &&
-          right_item->const_item())
-      {
-        field_item= (Item_field*) left_item;
-        const_item= right_item;
-      }
-      else if (right_item->type() == Item::FIELD_ITEM &&
-               !((Item_field*)right_item)->depended_from &&
-               left_item->const_item())
-      {
-        field_item= (Item_field*) right_item;
-        const_item= left_item;
-      }
-
-      if (const_item &&
-          field_item->result_type() == const_item->result_type())
-      {
-        bool copyfl;
-
-        if (field_item->result_type() == STRING_RESULT)
-        {
-          CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
-          if ((cs != ((Item_cond *) item)->compare_collation()) ||
-              !cs->coll->propagate(cs, 0, 0))
-            return FALSE;
-        }
-
-        Item_equal *item_equal = find_item_equal(cond_equal,
-                                                 field_item->field, &copyfl);
-        if (copyfl)
-        {
-          item_equal= new Item_equal(item_equal);
-          cond_equal->current_level.push_back(item_equal);
-        }
-        if (item_equal)
-        {
-          /* 
-            The flag cond_false will be set to 1 after this, if item_equal
-            already contains a constant and its value is  not equal to
-            the value of const_item.
-          */
-          item_equal->add(const_item);
-        }
-        else
-        {
-          item_equal= new Item_equal(const_item, field_item);
-          cond_equal->current_level.push_back(item_equal);
-        }
-        return TRUE;
-      }
-    }
-  }
+    if (left_item->type() == Item::ROW_ITEM &&
+        right_item->type() == Item::ROW_ITEM)
+      return check_row_equality((Item_row *) left_item,
+                                (Item_row *) right_item,
+                                cond_equal, eq_list);
+    else 
+      return check_simple_equality(left_item, right_item, item, cond_equal);
+  } 
   return FALSE;
 }
 
+                          
 /* 
   Replace all equality predicates in a condition by multiple equality items
 
@@ -6659,10 +6772,12 @@ static COND *build_equal_items_for_cond(COND *cond,
   Item_equal *item_equal;
   uint members;
   COND_EQUAL cond_equal;
+  COND *new_cond;
   cond_equal.upper_levels= inherited;
 
   if (cond->type() == Item::COND_ITEM)
   {
+    List<Item> eq_list;
     bool and_level= ((Item_cond*) cond)->functype() ==
       Item_func::COND_AND_FUNC;
     List<Item> *args= ((Item_cond*) cond)->argument_list();
@@ -6685,7 +6800,7 @@ static COND *build_equal_items_for_cond(COND *cond,
           structure here because it's restored before each
           re-execution of any prepared statement/stored procedure.
         */
-        if (check_equality(item, &cond_equal))
+        if (check_equality(item, &cond_equal, &eq_list))
           li.remove();
       }
 
@@ -6732,10 +6847,14 @@ static COND *build_equal_items_for_cond(COND *cond,
       }
     }
     if (and_level)
+    {
+      args->concat(&eq_list);
       args->concat((List<Item> *)&cond_equal.current_level);
+    }
   }
   else if (cond->type() == Item::FUNC_ITEM)
   {
+    List<Item> eq_list;
     /*
       If an equality predicate forms the whole and level,
       we call it standalone equality and it's processed here.
@@ -6746,12 +6865,45 @@ static COND *build_equal_items_for_cond(COND *cond,
       for WHERE a=b AND c=d AND (b=c OR d=5)
       b=c is replaced by =(a,b,c,d).  
      */
-    if (check_equality(cond, &cond_equal) &&
-        (item_equal= cond_equal.current_level.pop()))
+    if (check_equality(cond, &cond_equal, &eq_list))
     {
-      item_equal->fix_length_and_dec();
-      item_equal->update_used_tables();
-      return item_equal;
+      int n= cond_equal.current_level.elements + eq_list.elements;
+      if (n == 0)
+        return new Item_int((longlong) 1,1);
+      else if (n == 1)
+      {
+        if ((item_equal= cond_equal.current_level.pop()))
+        {
+          item_equal->fix_length_and_dec();
+          item_equal->update_used_tables();
+          return item_equal;
+	}
+        else
+          return eq_list.pop();
+      }
+      else
+      {
+        /* 
+          Here a new AND level must be created. It can happen only
+          when a row equality is processed as a standalone predicate.
+	*/
+        Item_cond_and *and_cond= new Item_cond_and(eq_list);
+        and_cond->quick_fix_field();
+        List<Item> *args= and_cond->argument_list();
+        List_iterator_fast<Item_equal> it(cond_equal.current_level);
+        while ((item_equal= it++))
+        {
+          item_equal->fix_length_and_dec();
+          item_equal->update_used_tables();
+          members= item_equal->members();
+          if (cond_equal.max_members < members)
+            cond_equal.max_members= members; 
+        }
+        and_cond->cond_equal= cond_equal;
+        args->concat((List<Item> *)&cond_equal.current_level);
+        
+        return and_cond;
+      }
     }
     /* 
       For each field reference in cond, not from equal item predicates,
@@ -7038,7 +7190,7 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
 
 /* 
   Substitute every field reference in a condition by the best equal field 
-  and eliminate all multiplle equality predicates
+  and eliminate all multiple equality predicates
  
   SYNOPSIS
     substitute_for_best_equal_field()
