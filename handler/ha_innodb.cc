@@ -7075,14 +7075,11 @@ ha_innobase::innobase_read_and_init_auto_inc(
 		in table.h says that 'next_number_field' is set when it is
 		'active'. */
 
-                 my_bitmap_map *old_map;
-                 old_map= dbug_tmp_use_all_columns(table, table->read_set);
-                 auto_inc = (longlong) table->found_next_number_field->
-                                val_int_offset(table->s->rec_buff_length) + 1;
-                 dbug_tmp_restore_column_map(table->read_set, old_map);
-        }
+		auto_inc = (longlong) table->found_next_number_field->
+				val_int_offset(table->s->rec_buff_length) + 1;
+	}
 
-        dict_table_autoinc_initialize(prebuilt->table, auto_inc);
+	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
 
 func_exit:
 	(void) extra(HA_EXTRA_NO_KEYREAD);
