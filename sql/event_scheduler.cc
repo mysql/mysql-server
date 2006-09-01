@@ -554,7 +554,7 @@ error:
     FALSE  Not RUNNING
 */
 
-inline bool
+bool
 Event_scheduler::is_running()
 {
   LOCK_DATA();
