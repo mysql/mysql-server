@@ -29,5 +29,5 @@ libz_la_SOURCES= adler32.c compress.c crc32.c deflate.c gzio.c \
 		 infback.c inffast.c inflate.c inftrees.c trees.c \
 		 uncompr.c zutil.c
 
-EXTRA_DIST= README FAQ INDEX ChangeLog algorithm.txt zlib.3 
+EXTRA_DIST= README FAQ INDEX ChangeLog algorithm.txt zlib.3 CMakeLists.txt
 
