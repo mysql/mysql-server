@@ -691,11 +691,9 @@ void
 Events::deinit()
 {
   DBUG_ENTER("Events::deinit");
-  if (likely(!check_system_tables_error) &&
-      scheduler->get_state() > Event_scheduler::UNINITIALIZED)
+  if (likely(!check_system_tables_error))
   {
     scheduler->stop();
-    DBUG_ASSERT(scheduler->get_state() == Event_scheduler::INITIALIZED);  
     scheduler->deinit_scheduler();
 
     event_queue->deinit_queue();
