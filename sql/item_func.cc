@@ -260,6 +260,8 @@ void Item_func::traverse_cond(Cond_traverser traverser,
 
 Item *Item_func::transform(Item_transformer transformer, byte *argument)
 {
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
   if (arg_count)
   {
     Item **arg,**arg_end;
@@ -268,6 +270,13 @@ Item *Item_func::transform(Item_transformer transformer, byte *argument)
       Item *new_item= (*arg)->transform(transformer, argument);
       if (!new_item)
 	return 0;
+
+      /*
+        THD::change_item_tree() should be called only if the tree was
+        really transformed, i.e. when a new item has been created.
+        Otherwise we'll be allocating a lot of unnecessary memory for
+        change records at each execution.
+      */
       if (*arg != new_item)
         current_thd->change_item_tree(arg, new_item);
     }

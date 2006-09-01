@@ -1070,6 +1070,30 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if (lex->binlog_row_based_if_mixed)
       old_lex->binlog_row_based_if_mixed= TRUE;
 #endif
+    bool view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
+                             lex->can_be_merged());
+    TABLE_LIST *view_main_select_tables;
+    if (view_is_mergeable)
+    {
+      /*
+        Currently 'view_main_select_tables' differs from 'view_tables'
+        only then view has CONVERT_TZ() function in its select list.
+        This may change in future, for example if we enable merging of
+        views with subqueries in select list.
+      */
+      view_main_select_tables=
+        (TABLE_LIST*)lex->select_lex.table_list.first;
+
+      /*
+        Let us set proper lock type for tables of the view's main
+        select since we may want to perform update or insert on
+        view. This won't work for view containing union. But this is
+        ok since we don't allow insert and update on such views
+        anyway.
+      */
+      for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
+        tbl->lock_type= table->lock_type;
+    }
 
     /*
       If we are opening this view as part of implicit LOCK TABLES, then
@@ -1125,23 +1149,15 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       - VIEW SELECT allow merging
       - VIEW used in subquery or command support MERGE algorithm
     */
-    if (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
-	lex->can_be_merged() &&
+    if (view_is_mergeable &&
         (table->select_lex->master_unit() != &old_lex->unit ||
          old_lex->can_use_merged()) &&
         !old_lex->can_not_use_merged())
     {
-      List_iterator_fast<TABLE_LIST> ti(view_select->top_join_list);
-      /*
-        Currently 'view_main_select_tables' differs from 'view_tables'
-        only then view has CONVERT_TZ() function in its select list.
-        This may change in future, for example if we enable merging
-        of views with subqueries in select list.
-      */
-      TABLE_LIST *view_main_select_tables=
-                    (TABLE_LIST*)lex->select_lex.table_list.first;
       /* lex should contain at least one table */
       DBUG_ASSERT(view_main_select_tables != 0);
+
+      List_iterator_fast<TABLE_LIST> ti(view_select->top_join_list);
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
@@ -1149,19 +1165,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       table->effective_with_check=
         old_lex->get_effective_with_check(table);
       table->merge_underlying_list= view_main_select_tables;
-      /*
-        Let us set proper lock type for tables of the view's main select
-        since we may want to perform update or insert on view. This won't
-        work for view containing union. But this is ok since we don't
-        allow insert and update on such views anyway.
 
-        Also we fill correct wanted privileges.
-      */
-      for (tbl= table->merge_underlying_list; tbl; tbl= tbl->next_local)
-      {
-        tbl->lock_type= table->lock_type;
+      /* Fill correct wanted privileges. */
+      for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
         tbl->grant.want_privilege= top_view->grant.orig_want_privilege;
-      }
 
       /* prepare view context */
       lex->select_lex.context.resolve_in_table_list_only(view_main_select_tables);
