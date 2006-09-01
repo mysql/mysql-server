@@ -19,16 +19,20 @@ extern "C" {
 #endif
 
 #ifdef TARGET_OS_LINUX
-#if defined(HAVE_STACKTRACE) || (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__)))
+#if defined(HAVE_STACKTRACE) || (defined (__x86_64__) || defined (__i386__) || (defined(__alpha__) && defined(__GNUC__)))
 #undef HAVE_STACKTRACE
 #define HAVE_STACKTRACE
 
 extern char* __bss_start;
 extern char* heap_start;
 
-#define init_stacktrace() { heap_start = (char*) &__bss_start; }
+#define init_stacktrace() do {                                 \
+                            heap_start = (char*) &__bss_start; \
+                            check_thread_lib();                \
+                          } while(0);
 void print_stacktrace(gptr stack_bottom, ulong thread_stack);
 void safe_print_str(const char* name, const char* val, int max_len);
+void check_thread_lib(void);  
 #endif /* (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))) */
 #endif /* TARGET_OS_LINUX */
 

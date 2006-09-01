@@ -14912,22 +14912,31 @@ static void test_bug15613()
 
 /*
   Bug#17667: An attacker has the opportunity to bypass query logging.
+
+  Note! Also tests Bug#21813, where prepared statements are used to
+  run queries
 */
 static void test_bug17667()
 {
   int rc;
+  MYSQL_STMT *stmt;
+  enum query_type { QT_NORMAL, QT_PREPARED};
   struct buffer_and_length {
+    enum query_type qt;
     const char *buffer;
     const uint length;
   } statements[]= {
-    { "drop table if exists bug17667", 29 },
-    { "create table bug17667 (c varchar(20))", 37 },
-    { "insert into bug17667 (c) values ('regular') /* NUL=\0 with comment */", 68 },
-    { "insert into bug17667 (c) values ('NUL=\0 in value')", 50 },
-    { "insert into bug17667 (c) values ('5 NULs=\0\0\0\0\0')", 48 },
-    { "/* NUL=\0 with comment */ insert into bug17667 (c) values ('encore')", 67 },
-    { "drop table bug17667", 19 },
-    { NULL, 0 } };
+    { QT_NORMAL, "drop table if exists bug17667", 29 },
+    { QT_NORMAL, "create table bug17667 (c varchar(20))", 37 },
+    { QT_NORMAL, "insert into bug17667 (c) values ('regular') /* NUL=\0 with comment */", 68 },
+    { QT_PREPARED,
+      "insert into bug17667 (c) values ('prepared') /* NUL=\0 with comment */", 69, },
+    { QT_NORMAL, "insert into bug17667 (c) values ('NUL=\0 in value')", 50 },
+    { QT_NORMAL, "insert into bug17667 (c) values ('5 NULs=\0\0\0\0\0')", 48 },
+    { QT_PREPARED, "insert into bug17667 (c) values ('6 NULs=\0\0\0\0\0\0')", 50 },
+    { QT_NORMAL, "/* NUL=\0 with comment */ insert into bug17667 (c) values ('encore')", 67 },
+    { QT_NORMAL, "drop table bug17667", 19 },
+    { QT_NORMAL, NULL, 0 } };
 
   struct buffer_and_length *statement_cursor;
   FILE *log_file;
@@ -14937,9 +14946,36 @@ static void test_bug17667()
 
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
       statement_cursor++) {
-    rc= mysql_real_query(mysql, statement_cursor->buffer,
-        statement_cursor->length);
-    myquery(rc);
+    if (statement_cursor->qt == QT_NORMAL)
+    {
+      /* Run statement as normal query */
+      rc= mysql_real_query(mysql, statement_cursor->buffer,
+                           statement_cursor->length);
+      myquery(rc);
+    }
+    else if (statement_cursor->qt == QT_PREPARED)
+    {
+      /*
+         Run as prepared statement
+
+         NOTE! All these queries should be in the log twice,
+         one time for prepare and one time for execute
+      */
+      stmt= mysql_stmt_init(mysql);
+
+      rc= mysql_stmt_prepare(stmt, statement_cursor->buffer,
+                             statement_cursor->length);
+      check_execute(stmt, rc);
+
+      rc= mysql_stmt_execute(stmt);
+      check_execute(stmt, rc);
+
+      mysql_stmt_close(stmt);
+    }
+    else
+    {
+      assert(0==1);
+    }
   }
 
   /* Make sure the server has written the logs to disk before reading it */
@@ -14957,29 +14993,36 @@ static void test_bug17667()
 
     for (statement_cursor= statements; statement_cursor->buffer != NULL;
         statement_cursor++) {
+      int expected_hits= 1, hits= 0;
       char line_buffer[MAX_TEST_QUERY_LENGTH*2];
       /* more than enough room for the query and some marginalia. */
 
-      do {
-        memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
+      /* Prepared statments always occurs twice in log */
+      if (statement_cursor->qt == QT_PREPARED)
+        expected_hits++;
 
-        if(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) == NULL)
-        {
-          /* If fgets returned NULL, it indicates either error or EOF */
-          if (feof(log_file))
-            DIE("Found EOF before all statements where found");
-          else
+      /* Loop until we found expected number of log entries */
+      do {
+        /* Loop until statement is found in log */
+        do {
+          memset(line_buffer, '/', MAX_TEST_QUERY_LENGTH*2);
+
+          if(fgets(line_buffer, MAX_TEST_QUERY_LENGTH*2, log_file) == NULL)
           {
+            /* If fgets returned NULL, it indicates either error or EOF */
+            if (feof(log_file))
+              DIE("Found EOF before all statements where found");
+
             fprintf(stderr, "Got error %d while reading from file\n",
                     ferror(log_file));
             DIE("Read error");
           }
-        }
-        /* Print the line */
-        printf("%s", line_buffer);
 
-      } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
-            statement_cursor->buffer, statement_cursor->length) == NULL);
+        } while (my_memmem(line_buffer, MAX_TEST_QUERY_LENGTH*2,
+                           statement_cursor->buffer,
+                           statement_cursor->length) == NULL);
+        hits++;
+      } while (hits < expected_hits);
 
       printf("Found statement starting with \"%s\"\n",
              statement_cursor->buffer);
