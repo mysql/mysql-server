@@ -2925,7 +2925,22 @@ mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SU
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 drop table t1;
 drop user mysqltest_1@localhost;
+create database mysqldump_myDB;
+use mysqldump_myDB;
+create user myDB_User;
+grant create view, select on mysqldump_myDB.* to myDB_User@localhost;
+create table t1 (c1 int);
+insert into t1 values (3);
+use mysqldump_myDB;
+create view v1 (c1) as select * from t1;
+use mysqldump_myDB;
+drop view v1;
+drop table t1;
+revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
+drop user myDB_User;
+drop database mysqldump_myDB;
 End of 5.0 tests
+use test;
 create table t1 (a text , b text);
 create table t2 (a text , b text);
 insert t1 values ("Duck, Duck", "goose");

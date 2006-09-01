@@ -32,7 +32,6 @@ rpl_ndb_innodb2ndb       : Bug #19710  Cluster replication to partition table fa
 #rpl_ndb_log              : BUG#18947 2006-03-21 tomas CRBR: order in binlog of create table and insert (on different table) not determ
 rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fails on DELETE FROM statement
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
-rpl_row_func003          : BUG#19074 2006-13-04 andrei  test failed
 rpl_sp                   : BUG#16456 2006-02-16 jmiller
 rpl_sp_effects           : BUG#19862 2006-06-15 mkindahl
 
