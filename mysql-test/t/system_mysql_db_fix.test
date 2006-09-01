@@ -1,6 +1,9 @@
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 
+# Windows doesn't support execution of shell scripts (to fix!!)
+--source include/not_windows.inc
+
 #
 # This is the test for mysql_fix_privilege_tables
 #
