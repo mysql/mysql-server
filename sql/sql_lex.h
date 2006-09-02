@@ -834,7 +834,7 @@ typedef struct st_lex : public Query_tables_list
   XID *xid;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
-  CHARSET_INFO *charset;
+  CHARSET_INFO *charset, *underscore_charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
   /* Position (first character index) of SELECT of CREATE VIEW statement */
