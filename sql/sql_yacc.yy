@@ -7069,7 +7069,7 @@ text_literal:
 	| NCHAR_STRING
 	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
 	| UNDERSCORE_CHARSET TEXT_STRING
-	  { $$ = new Item_string($2.str,$2.length,Lex->charset); }
+	  { $$ = new Item_string($2.str,$2.length,Lex->underscore_charset); }
 	| text_literal TEXT_STRING_literal
 	  { ((Item_string*) $1)->append($2.str,$2.length); }
 	;
@@ -7147,7 +7147,7 @@ literal:
 	      (String*) 0;
 	    $$= new Item_string(str ? str->ptr() : "",
 				str ? str->length() : 0,
-				Lex->charset);
+				Lex->underscore_charset);
 	  }
 	| UNDERSCORE_CHARSET BIN_NUM
           {
