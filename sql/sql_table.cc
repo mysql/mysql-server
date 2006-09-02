@@ -715,6 +715,40 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(-1);
     }
 
+    /*
+      Convert the default value from client character
+      set into the column character set if necessary.
+    */
+    if (sql_field->def && 
+        save_cs != sql_field->def->collation.collation &&
+        (sql_field->sql_type == FIELD_TYPE_VAR_STRING ||
+         sql_field->sql_type == FIELD_TYPE_STRING ||
+         sql_field->sql_type == FIELD_TYPE_SET ||
+         sql_field->sql_type == FIELD_TYPE_ENUM))
+    {
+      Query_arena backup_arena;
+      bool need_to_change_arena= !thd->stmt_arena->is_conventional();
+      if (need_to_change_arena)
+      {
+        /* Asser that we don't do that at every PS execute */
+        DBUG_ASSERT(thd->stmt_arena->is_first_stmt_execute() ||
+                    thd->stmt_arena->is_first_sp_execute());
+        thd->set_n_backup_active_arena(thd->stmt_arena, &backup_arena);
+      }
+
+      sql_field->def= sql_field->def->safe_charset_converter(save_cs);
+
+      if (need_to_change_arena)
+        thd->restore_active_arena(thd->stmt_arena, &backup_arena);
+
+      if (sql_field->def == NULL)
+      {
+        /* Could not convert */
+        my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+        DBUG_RETURN(-1);
+      }
+    }
+
     if (sql_field->sql_type == FIELD_TYPE_SET ||
         sql_field->sql_type == FIELD_TYPE_ENUM)
     {
@@ -774,35 +808,6 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
           }
         }
         sql_field->interval_list.empty(); // Don't need interval_list anymore
-      }
-
-      /*
-        Convert the default value from client character
-        set into the column character set if necessary.
-      */
-      if (sql_field->def && cs != sql_field->def->collation.collation)
-      {
-        Query_arena backup_arena;
-        bool need_to_change_arena= !thd->stmt_arena->is_conventional();
-        if (need_to_change_arena)
-        {
-          /* Asser that we don't do that at every PS execute */
-          DBUG_ASSERT(thd->stmt_arena->is_first_stmt_execute() ||
-                      thd->stmt_arena->is_first_sp_execute());
-          thd->set_n_backup_active_arena(thd->stmt_arena, &backup_arena);
-        }
-
-        sql_field->def= sql_field->def->safe_charset_converter(cs);
-
-        if (need_to_change_arena)
-          thd->restore_active_arena(thd->stmt_arena, &backup_arena);
-
-        if (sql_field->def == NULL)
-        {
-          /* Could not convert */
-          my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
-          DBUG_RETURN(-1);
-        }
       }
 
       if (sql_field->sql_type == FIELD_TYPE_SET)

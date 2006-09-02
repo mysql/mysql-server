@@ -850,8 +850,8 @@ static int get_options(int *argc, char ***argv)
 static void DB_error(MYSQL *mysql, const char *when)
 {
   DBUG_ENTER("DB_error");
-  my_printf_error(0,"Got error: %d: %s %s", MYF(0),
-                  mysql_errno(mysql), mysql_error(mysql), when);
+  fprintf(stderr, "%s: Got error: %d: %s %s\n", my_progname,
+          mysql_errno(mysql), mysql_error(mysql), when);
   safe_exit(EX_MYSQLERR);
   DBUG_VOID_RETURN;
 } /* DB_error */
@@ -879,8 +879,9 @@ static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
   if (mysql_query(mysql_con, query) ||
       (res && !((*res)= mysql_store_result(mysql_con))))
   {
-    my_printf_error(0, "Couldn't execute '%s': %s (%d)", MYF(0),
-                    query, mysql_error(mysql_con), mysql_errno(mysql_con));
+    fprintf(stderr, "%s: Couldn't execute '%s': %s (%d)\n",
+            my_progname, query,
+            mysql_error(mysql_con), mysql_errno(mysql_con));
     safe_exit(EX_MYSQLERR);
     return 1;
   }
@@ -2234,7 +2235,10 @@ static void dump_table(char *table, char *db)
       check_io(md_result_file);
     }
     if (mysql_query_with_error_report(mysql, 0, query))
+    {
       DB_error(mysql, "when retrieving data from server");
+      goto err;
+    }
     if (quick)
       res=mysql_use_result(mysql);
     else
