@@ -23,7 +23,7 @@ top_srcdir = @top_srcdir@
 # distdir and top_distdir are set by the calling Makefile
 
 bdb_build = build_unix
-files = LICENSE Makefile Makefile.in README
+files = LICENSE Makefile Makefile.in README CMakeLists.txt
 subdirs = btree build_vxworks build_win32 clib common cxx db dbinc \
   dbinc_auto db185 db_archive db_checkpoint db_deadlock db_dump \
   db_dump185 db_load db_printlog db_recover db_stat db_upgrade \

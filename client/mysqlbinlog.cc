@@ -1490,14 +1490,13 @@ int main(int argc, char** argv)
   the server
 */
 
-#ifdef __WIN__
 #include "my_decimal.h"
 #include "decimal.c"
+
+#if defined(__WIN__) && !defined(CMAKE_BUILD)
 #include "my_decimal.cpp"
 #include "log_event.cpp"
 #else
-#include "my_decimal.h"
-#include "decimal.c"
 #include "my_decimal.cc"
 #include "log_event.cc"
 #endif
