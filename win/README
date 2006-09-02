@@ -1,0 +1,82 @@
+Windows building readme
+======================================
+
+----------------IMPORTANT----------------------------
+This readme outlines the instructions for building 
+MySQL for Windows staring from version 5.0.
+This readme does not apply to MySQL versions 5.1 
+or ealier.
+-----------------------------------------------------
+
+The Windows build system uses a tool named CMake to generate build files for
+a variety of project systems.  This tool is combined with a set of jscript
+files to enable building of MySQL for Windows directly out of a bk clone.
+The steps required are below.
+
+Step 1
+------
+Download and install CMake.  It can be downloaded from http://www.cmake.org. 
+Once it is installed, modify your path to make sure you can execute
+the cmake binary.
+
+Step 2
+------
+Download and install bison for Windows.  It can be downloaded from
+http://gnuwin32.sourceforge.net/packages/bison.htm.  Please download using
+the link named "Complete package, excluding sources".  This includes an
+installer that will install bison.  After the installer finishes, modify
+your path so that you can execute bison.
+
+Step 3
+------
+Clone your bk tree to any location you like.
+
+Step 4
+------
+From the root of your bk clone, execute the command:  win\configure <options>.  
+The options right now are
+
+    WITH_INNOBASE_STORAGE_ENGINE         Enable particular storage engines
+    WITH_PARTITION_STORAGE_ENGINE
+    WITH_ARCHIVE_STORAGE_ENGINE
+    WITH_BERKELEY_STORAGE_ENGINE
+    WITH_BLACKHOLE_STORAGE_ENGINE
+    WITH_EXAMPLE_STORAGE_ENGINE
+    WITH_FEDERATED_STORAGE_ENGINE
+    WITH_INNOBASE_STORAGE_ENGINE
+    __NT__                               Enable named pipe support
+    MYSQL_SERVER_SUFFIX=<suffix>         Server suffix, default none
+    COMPILATION_COMMENT=<comment>        Server comment, default "Source distribution"
+    MYSQL_TCP_PORT=<port>                Server port, default 3306
+    CYBOZU
+
+So the command line could look like:
+
+win\configure WITH_INNOBASE_STORAGE_ENGINE WITH_PARTITION_STORAGE_ENGINE MYSQL_SERVER_SUFFIX=-pro
+
+Step 5
+------
+From the root of your bk clone, execute one of the batch files to generate the type
+of project files you desire.
+
+For Visual Studio 8, do win\build-vs8.
+For Visual Studio 7.1, do win\build-vs71.
+
+We will support building with nmake in the near future.
+
+Step 6
+------
+From the root of your bk clone, start your build.
+
+For Visual Studio, simply execute mysql.sln.  This will start the IDE and you can
+click the build solution menu option.
+
+Current issues
+--------------
+1. After changing configuration (eg. adding or removing a storage engine), it
+may be necessary to clean the build tree to remove any stale objects.
+
+2. To use Visual C++ Express Edition you also need to install the Platform SDK.
+Please see this link: http://msdn.microsoft.com/vstudio/express/visualc/usingpsdk/
+At step 4 you only need to add the libraries advapi32.lib and user32.lib to
+the file "corewin_express.vsprops" in order to avoid link errors.

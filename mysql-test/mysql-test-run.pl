@@ -1042,20 +1042,30 @@ sub executable_setup () {
     if ( $glob_win32 )
     {
       $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
-					   "$glob_basedir/client_debug",
+                                           "$glob_basedir/client_debug",
+                                           "$glob_basedir/client/release",
+                                           "$glob_basedir/client/debug",
                                            "$glob_basedir/bin",);
       $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-max-nt",
                                            "$path_client_bindir/mysqld-max",
                                            "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-debug",
-                                           "$path_client_bindir/mysqld-max");
-      $path_language=      mtr_path_exists("$glob_basedir/share/english/");
-      $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
+                                           "$path_client_bindir/mysqld-max",
+                                           "$glob_basedir/sql/release/mysqld",
+                                           "$glob_basedir/sql/debug/mysqld");
+      $path_language=      mtr_path_exists("$glob_basedir/share/english/",
+                                           "$glob_basedir/sql/share/english/");
+      $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets",
+                                           "$glob_basedir/sql/share/charsets/");      
       $exe_my_print_defaults=
-	mtr_exe_exists("$path_client_bindir/my_print_defaults");
+	mtr_exe_exists("$path_client_bindir/my_print_defaults",
+                   "$glob_basedir/extra/release/my_print_defaults",
+                   "$glob_basedir/extra/debug/my_print_defaults"); 
       $exe_perror=
-	mtr_exe_exists("$path_client_bindir/perror");
+	mtr_exe_exists("$path_client_bindir/perror",
+                   "$glob_basedir/extra/release/perror",
+                   "$glob_basedir/extra/debug/perror");
     }
     else
     {
@@ -1086,6 +1096,9 @@ sub executable_setup () {
       $exe_mysql_client_test=
         mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
                        "$path_client_bindir/mysql_client_test",
+                       "$glob_basedir/tests/release/mysql_client_test",
+                       "$glob_basedir/tests/debug/mysql_client_test",
+                       "$path_client_bindir/mysql_client_test",
 		       "/usr/bin/false");
     }
     $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
@@ -1096,7 +1109,8 @@ sub executable_setup () {
     $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
     $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
     $exe_mysql_fix_system_tables=
-      mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables");
+      mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
+						"/usr/bin/false");
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
     $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
     $lib_udf_example=
@@ -1114,7 +1128,8 @@ sub executable_setup () {
     $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
     $exe_mysql_fix_system_tables=
       mtr_script_exists("$path_client_bindir/mysql_fix_privilege_tables",
-			"$glob_basedir/scripts/mysql_fix_privilege_tables");
+			"$glob_basedir/scripts/mysql_fix_privilege_tables",
+			"/usr/bin/false");
     $exe_my_print_defaults=
       mtr_exe_exists("$path_client_bindir/my_print_defaults");
     $exe_perror=
@@ -1148,7 +1163,9 @@ sub executable_setup () {
     }
     else
     {
-      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
+      $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest",
+                                     "$glob_basedir/client/release/mysqltest",
+                                     "$glob_basedir/client/debug/mysqltest");
       $exe_mysql_client_test=
         mtr_exe_exists("$path_client_bindir/mysql_client_test",
 		       "/usr/bin/false"); # FIXME temporary

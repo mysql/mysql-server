@@ -38,6 +38,6 @@ test_sslclient_LDADD=   @CLIENT_EXTRA_LDFLAGS@	../dbug/libdbug.a libvio.a \
 			../mysys/libmysys.a ../strings/libmystrings.a \
 			$(openssl_libs) $(yassl_libs)
 libvio_a_SOURCES=	vio.c viosocket.c viossl.c viosslfactories.c
-
+EXTRA_DIST=	CMakeLists.txt
 # Don't update the files from bitkeeper
 %::SCCS/s.%

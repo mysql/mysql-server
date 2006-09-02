@@ -14,7 +14,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-EXTRA_DIST =		mi_test_all.sh mi_test_all.res
+EXTRA_DIST =		mi_test_all.sh mi_test_all.res ft_stem.c CMakeLists.txt
 pkgdata_DATA =		mi_test_all mi_test_all.res
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
