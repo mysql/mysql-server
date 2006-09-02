@@ -34,7 +34,7 @@ benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
 EXTRA_SCRIPTS = 	mysql-test-run.sh install_test_db.sh valgrind.supp $(PRESCRIPTS)
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) 
-GENSCRIPTS =		mysql-test-run install_test_db
+GENSCRIPTS =		mysql-test-run install_test_db mtr
 PRESCRIPTS =		mysql-test-run.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
 test_DATA = std_data/client-key.pem std_data/client-cert.pem std_data/cacert.pem \
@@ -111,6 +111,11 @@ std_data/server-cert.pem: $(top_srcdir)/SSL/$(@F)
 	@RM@ -f $@; @CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
 std_data/server-key.pem: $(top_srcdir)/SSL/$(@F)
 	@RM@ -f $@; @CP@ $(top_srcdir)/SSL/$(@F) $(srcdir)/std_data
+
+# mtr - a shortcut for executing mysql-test-run.pl
+mtr:
+	$(RM) -f mtr
+	$(LN_S) mysql-test-run.pl mtr
 
 SUFFIXES = .sh
 
