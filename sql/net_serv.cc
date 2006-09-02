@@ -860,7 +860,7 @@ my_real_read(NET *net, ulong *complen)
 #endif /* EXTRA_DEBUG */
 	  }
 #if defined(THREAD_SAFE_CLIENT) && !defined(MYSQL_SERVER)
-	  if (vio_should_retry(net->vio))
+	  if (vio_errno(net->vio) == SOCKET_EINTR)
 	  {
 	    DBUG_PRINT("warning",("Interrupted read. Retrying..."));
 	    continue;
