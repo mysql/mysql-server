@@ -35,8 +35,6 @@
 #include <EventLogger.hpp>
 EventLogger g_eventLogger;
 
-static int g_run_connect_thread= 0;
-
 #include <NdbMutex.h>
 #ifdef VM_TRACE
 NdbMutex *ndb_print_state_mutex= NULL;
@@ -87,8 +85,9 @@ const char *Ndb_cluster_connection::get_connectstring(char *buf,
 
 pthread_handler_t run_ndb_cluster_connection_connect_thread(void *me)
 {
-  g_run_connect_thread= 1;
-  ((Ndb_cluster_connection_impl*) me)->connect_thread();
+  Ndb_cluster_connection_impl* connection= (Ndb_cluster_connection_impl*) me;
+  connection->m_run_connect_thread= 1;
+  connection->connect_thread();
   return me;
 }
 
@@ -258,9 +257,6 @@ unsigned Ndb_cluster_connection::get_connect_count() const
   return m_impl.get_connect_count();
 }
 
-
-
-
 /*
  * Ndb_cluster_connection_impl
  */
@@ -269,10 +265,16 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
 							 connect_string)
   : Ndb_cluster_connection(*this),
     m_optimized_node_selection(1),
-    m_name(0)
+    m_name(0),
+    m_run_connect_thread(0),
+    m_event_add_drop_mutex(0),
+    m_latest_trans_gci(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%x", this));
+
+  if (!m_event_add_drop_mutex)
+    m_event_add_drop_mutex= NdbMutex_Create();
 
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("NdbApi");
@@ -301,6 +303,33 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
   }
   m_transporter_facade= new TransporterFacade();
   
+  NdbMutex_Lock(g_ndb_connection_mutex);
+  if(g_ndb_connection_count++ == 0){
+    NdbDictionary::Column::FRAGMENT= 
+      NdbColumnImpl::create_pseudo("NDB$FRAGMENT");
+    NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 
+      NdbColumnImpl::create_pseudo("NDB$FRAGMENT_FIXED_MEMORY");
+    NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 
+      NdbColumnImpl::create_pseudo("NDB$FRAGMENT_VARSIZED_MEMORY");
+    NdbDictionary::Column::ROW_COUNT= 
+      NdbColumnImpl::create_pseudo("NDB$ROW_COUNT");
+    NdbDictionary::Column::COMMIT_COUNT= 
+      NdbColumnImpl::create_pseudo("NDB$COMMIT_COUNT");
+    NdbDictionary::Column::ROW_SIZE=
+      NdbColumnImpl::create_pseudo("NDB$ROW_SIZE");
+    NdbDictionary::Column::RANGE_NO= 
+      NdbColumnImpl::create_pseudo("NDB$RANGE_NO");
+    NdbDictionary::Column::DISK_REF= 
+      NdbColumnImpl::create_pseudo("NDB$DISK_REF");
+    NdbDictionary::Column::RECORDS_IN_RANGE= 
+      NdbColumnImpl::create_pseudo("NDB$RECORDS_IN_RANGE");
+    NdbDictionary::Column::ROWID= 
+      NdbColumnImpl::create_pseudo("NDB$ROWID");
+    NdbDictionary::Column::ROW_GCI= 
+      NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
+  }
+  NdbMutex_Unlock(g_ndb_connection_mutex);
+
   DBUG_VOID_RETURN;
 }
 
@@ -314,7 +343,7 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
   if (m_connect_thread)
   {
     void *status;
-    g_run_connect_thread= 0;
+    m_run_connect_thread= 0;
     NdbThread_WaitFor(m_connect_thread, &status);
     NdbThread_Destroy(&m_connect_thread);
     m_connect_thread= 0;
@@ -338,6 +367,36 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
 #endif
   if (m_name)
     free(m_name);
+
+  NdbMutex_Lock(g_ndb_connection_mutex);
+  if(--g_ndb_connection_count == 0){
+    delete NdbDictionary::Column::FRAGMENT; 
+    delete NdbDictionary::Column::FRAGMENT_FIXED_MEMORY;
+    delete NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY;
+    delete NdbDictionary::Column::ROW_COUNT;
+    delete NdbDictionary::Column::COMMIT_COUNT;
+    delete NdbDictionary::Column::ROW_SIZE;
+    delete NdbDictionary::Column::RANGE_NO;
+    delete NdbDictionary::Column::DISK_REF;
+    delete NdbDictionary::Column::RECORDS_IN_RANGE;
+    delete NdbDictionary::Column::ROWID;
+    delete NdbDictionary::Column::ROW_GCI;
+    NdbDictionary::Column::FRAGMENT= 0;
+    NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 0;
+    NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 0;
+    NdbDictionary::Column::ROW_COUNT= 0;
+    NdbDictionary::Column::COMMIT_COUNT= 0;
+    NdbDictionary::Column::ROW_SIZE= 0;
+    NdbDictionary::Column::RANGE_NO= 0;
+    NdbDictionary::Column::DISK_REF= 0;
+    NdbDictionary::Column::RECORDS_IN_RANGE= 0;
+    NdbDictionary::Column::ROWID= 0;
+    NdbDictionary::Column::ROW_GCI= 0;
+  }
+  NdbMutex_Unlock(g_ndb_connection_mutex);
+
+  if (m_event_add_drop_mutex)
+    NdbMutex_Destroy(m_event_add_drop_mutex);
 
   DBUG_VOID_RETURN;
 }
@@ -576,16 +635,22 @@ void Ndb_cluster_connection_impl::connect_thread()
     if (r == -1) {
       printf("Ndb_cluster_connection::connect_thread error\n");
       DBUG_ASSERT(false);
-      g_run_connect_thread= 0;
+      m_run_connect_thread= 0;
     } else {
       // Wait before making a new connect attempt
       NdbSleep_SecSleep(1);
     }
-  } while (g_run_connect_thread);
+  } while (m_run_connect_thread);
   if (m_connect_callback)
     (*m_connect_callback)();
   DBUG_VOID_RETURN;
 }
+
+Uint64 *
+Ndb_cluster_connection::get_latest_trans_gci()
+{
+ return m_impl.get_latest_trans_gci(); 
+} 
 
 void
 Ndb_cluster_connection::init_get_next_node(Ndb_cluster_connection_node_iter &iter)

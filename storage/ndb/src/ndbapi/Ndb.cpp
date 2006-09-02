@@ -1172,6 +1172,12 @@ convertEndian(Uint32 Data)
 }
 
 // <internal>
+Ndb_cluster_connection &
+Ndb::get_ndb_cluster_connection()
+{
+  return theImpl->m_ndb_cluster_connection;
+}
+
 const char * Ndb::getCatalogName() const
 {
   return theImpl->m_dbname.c_str();

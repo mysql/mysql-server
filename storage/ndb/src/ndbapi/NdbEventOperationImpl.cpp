@@ -927,8 +927,6 @@ NdbEventOperationImpl::printAll()
  * Each Ndb object has a Object.
  */
 
-// ToDo ref count this so it get's destroyed
-NdbMutex *NdbEventBuffer::p_add_drop_mutex= 0;
 
 NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_system_nodes(ndb->theImpl->theNoOfDBnodes),
@@ -940,7 +938,8 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_max_free_thresh(100),
   m_gci_slip_thresh(3),
   m_dropped_ev_op(0),
-  m_active_op_count(0)
+  m_active_op_count(0),
+  m_add_drop_mutex(0)
 {
 #ifdef VM_TRACE
   m_latest_command= "NdbEventBuffer::NdbEventBuffer";
@@ -952,16 +951,6 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
     exit(-1);
   }
   m_mutex= ndb->theImpl->theWaiter.m_mutex;
-  lock();
-  if (p_add_drop_mutex == 0)
-  {
-    if ((p_add_drop_mutex = NdbMutex_Create()) == NULL) {
-      ndbout_c("NdbEventBuffer: NdbMutex_Create() failed");
-      exit(-1);
-    }
-  }
-  unlock();
-
   // ToDo set event buffer size
   // pre allocate event data array
   m_sz= 0;
@@ -970,6 +959,10 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
 #endif
   m_free_data= 0;
   m_free_data_sz= 0;
+
+  // get reference to mutex managed by current connection
+  m_add_drop_mutex= 
+    m_ndb->theImpl->m_ndb_cluster_connection.m_event_add_drop_mutex;
 
   // initialize lists
   bzero(&g_empty_gci_container, sizeof(Gci_container));
@@ -1008,14 +1001,6 @@ NdbEventBuffer::~NdbEventBuffer()
   }
 
   NdbCondition_Destroy(p_cond);
-
-  lock();
-  if (p_add_drop_mutex)
-  {
-    NdbMutex_Destroy(p_add_drop_mutex);
-    p_add_drop_mutex = 0;
-  }
-  unlock();
 }
 
 void
