@@ -1194,7 +1194,7 @@ const unsigned int *
 ndb_mgm_get_clusterlog_severity_filter(NdbMgmHandle handle) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_clusterlog_severity_filter");
-  static unsigned int enabled[(int)NDB_MGM_EVENT_SEVERITY_ALL]=
+  unsigned int enabled[(int)NDB_MGM_EVENT_SEVERITY_ALL]=
     {0,0,0,0,0,0,0};
   const ParserRow<ParserDummy> getinfo_reply[] = {
     MGM_CMD("clusterlog", NULL, ""),

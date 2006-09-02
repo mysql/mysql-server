@@ -114,9 +114,19 @@ struct Car
 };
 
 /**
+ * Function to drop table
+ */
+void drop_table(MYSQL &mysql)
+{
+  if (mysql_query(&mysql, "DROP TABLE GARAGE"))
+    MYSQLERROR(mysql);
+}
+
+
+/**
  * Function to create table
  */
-int create_table(MYSQL &mysql) 
+void create_table(MYSQL &mysql) 
 {
   while (mysql_query(&mysql, 
 		  "CREATE TABLE"
@@ -131,15 +141,13 @@ int create_table(MYSQL &mysql)
       MYSQLERROR(mysql);
     std::cout << "MySQL Cluster already has example table: GARAGE. "
 	      << "Dropping it..." << std::endl; 
-    /**************
-     * Drop table *
-     **************/
-    if (mysql_query(&mysql, "DROP TABLE GARAGE"))
-      MYSQLERROR(mysql);
+    /******************
+     * Recreate table *
+     ******************/
+    drop_table(mysql);
+    create_table(mysql);
   }
-  return 1;
 }
-
 
 int populate(Ndb * myNdb)
 {
@@ -721,8 +729,15 @@ int scan_print(Ndb * myNdb)
 }
 
 
-int main()
+int main(int argc, char** argv)
 {
+  if (argc != 3)
+  {
+    std::cout << "Arguments are <socket mysqld> <connect_string cluster>.\n";
+    exit(-1);
+  }
+  char * mysqld_sock  = argv[1];
+  const char *connectstring = argv[2];
   ndb_init();
   MYSQL mysql;
 
@@ -735,7 +750,7 @@ int main()
       exit(-1);
     }
     if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
-			     3306, "/tmp/mysql.sock", 0) )
+			     0, mysqld_sock, 0) )
       MYSQLERROR(mysql);
 
     mysql_query(&mysql, "CREATE DATABASE TEST_DB");
@@ -748,7 +763,7 @@ int main()
    * Connect to ndb cluster                                     *
    **************************************************************/
 
-  Ndb_cluster_connection cluster_connection;
+  Ndb_cluster_connection cluster_connection(connectstring);
   if (cluster_connection.connect(4, 5, 1))
   {
     std::cout << "Unable to connect to cluster within 30 secs." << std::endl;
@@ -820,6 +835,11 @@ int main()
   }
   if(scan_print(&myNdb) > 0)
     std::cout << "scan_print: Success!" << std::endl  << std::endl;
+
+  /**
+   * Drop table
+   */
+  drop_table(mysql);
 
   return 0;
 }
