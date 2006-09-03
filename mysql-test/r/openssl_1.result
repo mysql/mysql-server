@@ -3,9 +3,12 @@ create table t1(f1 int);
 insert into t1 values (5);
 grant select on test.* to ssl_user1@localhost require SSL;
 grant select on test.* to ssl_user2@localhost require cipher "DHE-RSA-AES256-SHA";
-grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/emailAddress=abstract.mysql.developer@mysql.com";
-grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/L=Uppsala/O=MySQL AB/CN=MySQL Client/emailAddress=abstract.mysql.developer@mysql.com" ISSUER "/C=SE/L=Uppsala/O=MySQL AB/CN=Abstract MySQL Developer/emailAddress=abstract.mysql.developer@mysql.com";
+grant select on test.* to ssl_user3@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
+grant select on test.* to ssl_user4@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB" ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
+grant select on test.* to ssl_user5@localhost require cipher "DHE-RSA-AES256-SHA" AND SUBJECT "xxx";
 flush privileges;
+connect(localhost,ssl_user5,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'ssl_user5'@'localhost' (using password: NO)
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
@@ -39,7 +42,7 @@ f1
 delete from t1;
 ERROR 42000: DELETE command denied to user 'ssl_user4'@'localhost' for table 't1'
 drop user ssl_user1@localhost, ssl_user2@localhost,
-ssl_user3@localhost, ssl_user4@localhost;
+ssl_user3@localhost, ssl_user4@localhost, ssl_user5@localhost;
 drop table t1;
 mysqltest: Could not open connection 'default': 2026 SSL connection error
 mysqltest: Could not open connection 'default': 2026 SSL connection error

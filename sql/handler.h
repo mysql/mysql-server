@@ -985,7 +985,7 @@ public:
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
-  void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
+  virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   {
     table= table_arg;
     table_share= share;

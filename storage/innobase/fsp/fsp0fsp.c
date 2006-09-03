@@ -2988,7 +2988,7 @@ fseg_free_page_low(
 	crash:
 		fputs(
 "InnoDB: Please refer to\n"
-"InnoDB: http://dev.mysql.com/doc/mysql/en/Forcing_recovery.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/forcing-recovery.html\n"
 "InnoDB: about forcing recovery.\n", stderr);
 		ut_error;
 	}

@@ -1471,11 +1471,23 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->partition_info_len)
   {
-    MEM_ROOT **root_ptr, *old_root;
+  /*
+    In this execution we must avoid calling thd->change_item_tree since
+    we might release memory before statement is completed. We do this
+    by changing to a new statement arena. As part of this arena we also
+    set the memory root to be the memory root of the table since we
+    call the parser and fix_fields which both can allocate memory for
+    item objects. We keep the arena to ensure that we can release the
+    free_list when closing the table object.
+    SEE Bug #21658
+  */
+
+    Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
+    Query_arena backup_arena;
+    Query_arena part_func_arena(&outparam->mem_root, Query_arena::INITIALIZED);
+    thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
+    thd->stmt_arena= &part_func_arena;
     bool tmp;
-    root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
-    old_root= *root_ptr;
-    *root_ptr= &outparam->mem_root;
 
     tmp= mysql_unpack_partition(thd, share->partition_info,
                                 share->partition_info_len,
@@ -1487,7 +1499,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     if (!tmp)
       tmp= fix_partition_func(thd, outparam, is_create_table);
-    *root_ptr= old_root;
+    thd->stmt_arena= backup_stmt_arena_ptr;
+    thd->restore_active_arena(&part_func_arena, &backup_arena);
+    if (!tmp)
+      outparam->part_info->item_free_list= part_func_arena.free_list;
     if (tmp)
     {
       if (is_create_table)
