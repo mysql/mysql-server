@@ -324,7 +324,10 @@ inline
 void
 RecordPool<T, P>::release(Ptr<T> ptr)
 {
-  m_pool.release(*(Ptr<void>*)&ptr);
+  Ptr<void> tmp;
+  tmp.i = ptr.i;
+  tmp.p = ptr.p;
+  m_pool.release(tmp);
 }
 
 #endif
