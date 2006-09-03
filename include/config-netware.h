@@ -122,6 +122,10 @@ extern "C" {
 /* On NetWare, to fix the problem with the deletion of open files */
 #define CANT_DELETE_OPEN_FILES 1
 
+#define FN_LIBCHAR '\\'
+#define FN_ROOTDIR "\\"
+#define FN_DEVCHAR ':'
+
 /* default directory information */
 #define	DEFAULT_MYSQL_HOME    "sys:/mysql"
 #define PACKAGE               "mysql"
