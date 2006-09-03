@@ -13,14 +13,13 @@
 #events_stress            : BUG#17619 2006-02-21 andrey  Race conditions
 #events                   : BUG#17619 2006-02-21 andrey  Race conditions
 #events_scheduling        : BUG#19170 2006-04-26 andrey  Test case of 19170 fails on some platforms. Has to be checked.
-#im_instance_conf          : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
+im_instance_conf          : Bug#20294 2006-06-06 monty   Instance manager test im_instance_conf fails randomly
 im_options                : Bug#20294 2006-07-24 stewart   Instance manager test im_instance_conf fails randomly
 #im_life_cycle             : Bug#20368 2006-06-10 alik    im_life_cycle test fails
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 #ndb_binlog_ignore_db     : BUG#21279 2006-07-25 ingo    Randomly throws a warning
 ndb_load                 : BUG#17233 2006-05-04 tomas failed load data from infile causes mysqld dbug_assert, binlog not flushed
-partition                : BUG#21658 2006-08-16 Partition test fails, --ps-protocol
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 ps                       : BUG#21524 2006-08-08 pgalbraith 'ps' test fails in --ps-protocol test AMD64 bit
 ps_7ndb                  : BUG#18950 2006-02-16 jmiller create table like does not obtain LOCK_open
@@ -44,5 +43,7 @@ rpl_sp_effects           : BUG#19862 2006-06-15 mkindahl
 #rpl_truncate_7ndb        : BUG#21298 2006-07-27 msvensson
 crash_commit_before      : 2006-08-02 msvensson
 rpl_ndb_dd_advance       : BUG#18679 2006-07-28 jimw (Test fails randomly)
+func_group               : BUG#21924 2006-08-30 reggie
+func_in                  : BUG#21925 2006-08-30 reggie
 ndb_binlog_discover      : bug#21806 2006-08-24
 ndb_autodiscover3        : bug#21806

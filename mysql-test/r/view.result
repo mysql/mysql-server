@@ -2887,3 +2887,32 @@ DROP FUNCTION f2;
 DROP VIEW v1, v2;
 DROP TABLE t1;
 End of 5.0 tests.
+CREATE DATABASE bug21261DB;
+USE bug21261DB;
+CREATE TABLE t1 (x INT);
+CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
+GRANT INSERT, UPDATE ON v1 TO 'user21261'@'localhost';
+GRANT INSERT, UPDATE ON t1 TO 'user21261'@'localhost';
+CREATE TABLE t2 (y INT);
+GRANT SELECT ON t2 TO 'user21261'@'localhost';
+INSERT INTO v1 (x) VALUES (5);
+UPDATE v1 SET x=1;
+GRANT SELECT ON v1 TO 'user21261'@'localhost';
+GRANT SELECT ON t1 TO 'user21261'@'localhost';
+UPDATE v1,t2 SET x=1 WHERE x=y;
+SELECT * FROM t1;
+x
+1
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user21261'@'localhost';
+DROP USER 'user21261'@'localhost';
+DROP VIEW v1;
+DROP TABLE t1;
+DROP DATABASE bug21261DB;
+USE test;
+create table t1 (f1 datetime);
+create view v1 as select * from t1 where f1 between now() and now() + interval 1 minute;
+show create view v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` where (`t1`.`f1` between now() and (now() + interval 1 minute))
+drop view v1;
+drop table t1;
