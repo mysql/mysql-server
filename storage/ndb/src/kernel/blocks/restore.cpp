@@ -57,6 +57,8 @@ Restore::Restore(Block_context& ctx) :
 
   addRecSignal(GSN_LQHKEYREF, &Restore::execLQHKEYREF);
   addRecSignal(GSN_LQHKEYCONF, &Restore::execLQHKEYCONF);
+
+  ndbrequire(sizeof(Column) == 8);
 }
   
 Restore::~Restore()
@@ -794,10 +796,10 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
     return;
   }
   
-  DataBuffer<15> variable(m_databuffer_pool);
-  
   Uint32 null_offset = 0;
-  union { Column c; Uint32 _align[2];};
+  Column c; 
+  Uint32 colstore[sizeof(Column)/sizeof(Uint32)];
+
   for(Uint32 i = 0; i<tmpTab.NoOfAttributes; i++) {
     jam();
     DictTabInfo::Attribute tmp; tmp.init();
@@ -814,10 +816,6 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
     const Uint32 sz32 = (sz * arr + 31) >> 5;
     const bool varsize = tmp.AttributeArrayType != NDB_ARRAYTYPE_FIXED;
     
-    union {
-      Column c;
-      Uint32 _align[2];
-    };
     c.m_id = tmp.AttributeId;
     c.m_size = sz32;
     c.m_flags = (tmp.AttributeKeyFlag ? Column::COL_KEY : 0);
@@ -836,22 +834,19 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
 
     if(!tmp.AttributeNullableFlag && !varsize)
     {
-      if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
-      {
-	parse_error(signal, file_ptr, __LINE__, i);
-	return;
-      }
     }
     else if (true) // null mask dropped in 5.1
     {
       c.m_flags |= (varsize ? Column::COL_VAR : 0);
       c.m_flags |= (tmp.AttributeNullableFlag ? Column::COL_NULL : 0);
-      if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
-      {
-	parse_error(signal, file_ptr, __LINE__, i);
-	return;
-      }
     } 
+
+    memcpy(colstore, &c, sizeof(Column));
+    if(!columns.append(colstore, sizeof(Column)/sizeof(Uint32)))
+    {
+      parse_error(signal, file_ptr, __LINE__, i);
+      return;
+    }
   }
 
   if(lcp)
@@ -861,7 +856,8 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
       c.m_id = AttributeHeader::DISK_REF;
       c.m_size = 2;
       c.m_flags = 0;
-      if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
+      memcpy(colstore, &c, sizeof(Column));
+      if(!columns.append(colstore, sizeof(Column)/sizeof(Uint32)))
       {
 	parse_error(signal, file_ptr, __LINE__, 0);
 	return;
@@ -872,7 +868,8 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
       c.m_id = AttributeHeader::ROWID;
       c.m_size = 2;
       c.m_flags = 0;
-      if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
+      memcpy(colstore, &c, sizeof(Column));
+      if(!columns.append(colstore, sizeof(Column)/sizeof(Uint32)))
       {
 	parse_error(signal, file_ptr, __LINE__, 0);
 	return;
@@ -884,7 +881,8 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
       c.m_id = AttributeHeader::ROW_GCI;
       c.m_size = 2;
       c.m_flags = 0;
-      if(!columns.append(_align, sizeof(Column)/sizeof(Uint32)))
+      memcpy(colstore, &c, sizeof(Column));
+      if(!columns.append(colstore, sizeof(Column)/sizeof(Uint32)))
       {
 	parse_error(signal, file_ptr, __LINE__, 0);
 	return;
@@ -942,7 +940,7 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   Uint32 *attrData = attr_start;
   union {
     Column c;
-    Uint32 _align[2];
+    Uint32 _align[sizeof(Column)/sizeof(Uint32)];
   };
   bool disk = false;
   bool rowid = false;
