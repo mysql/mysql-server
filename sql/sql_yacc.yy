@@ -8954,8 +8954,10 @@ subselect_end:
 	{
 	  LEX *lex=Lex;
           lex->pop_context();
+          SELECT_LEX *child= lex->current_select;
 	  lex->current_select = lex->current_select->return_after_parsing();
           lex->nest_level--;
+          lex->current_select->n_child_sum_items += child->n_sum_items;
 	};
 
 /**************************************************************************

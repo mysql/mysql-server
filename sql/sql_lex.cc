@@ -1524,10 +1524,10 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
   */
   Query_arena *arena= thd->stmt_arena;
   return (ref_pointer_array=
-          (Item **)arena->alloc(sizeof(Item*) *
-                                (item_list.elements +
-                                 select_n_having_items +
-                                 order_group_num)* 5)) == 0;
+          (Item **)arena->alloc(sizeof(Item*) * (n_child_sum_items +
+                                                 item_list.elements +
+                                                 select_n_having_items +
+                                                 order_group_num)*5)) == 0;
 }
 
 

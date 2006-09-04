@@ -548,6 +548,12 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+
+  /* Number of Item_sum-derived objects in this SELECT */
+  uint n_sum_items;
+  /* Number of Item_sum-derived objects in children and descendant SELECTs */
+  uint n_child_sum_items;
+
   /* explicit LIMIT clause was used */
   bool explicit_limit;
   /*
@@ -640,7 +646,7 @@ public:
   bool test_limit();
 
   friend void lex_start(THD *thd, uchar *buf, uint length);
-  st_select_lex() {}
+  st_select_lex() : n_sum_items(0), n_child_sum_items(0) {}
   void make_empty_select()
   {
     init_query();
