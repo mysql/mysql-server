@@ -13,7 +13,7 @@ rm -fr "$TARGETDIR"
 mkdir "$TARGETDIR"
 
 # link the build scripts
-ln -s ../innodb/compile-innodb{,-debug} ../BUILD
+ln -sf ../innodb/compile-innodb{,-debug} ../BUILD
 
 # create the directories
 for dir in */
