@@ -409,6 +409,7 @@ sub mtr_kill_leftovers () {
 
     mtr_debug("  - Master mysqld " .
               "(idx: $idx; pid: '$pidfile'; socket: '$sockfile'; port: $port)");
+    $::master->[$idx]->{'pid'}= 0; # Assume we are done with it
   }
 
   for ( my $idx= 0; $idx < 3; $idx++ )
@@ -426,6 +427,8 @@ sub mtr_kill_leftovers () {
 
     mtr_debug("  - Slave mysqld " .
               "(idx: $idx; pid: '$pidfile'; socket: '$sockfile'; port: $port)");
+
+    $::slave->[$idx]->{'pid'}= 0; # Assume we are done with it
   }
 
   mtr_mysqladmin_shutdown(\@args, 20);
