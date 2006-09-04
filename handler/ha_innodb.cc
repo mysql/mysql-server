@@ -7076,7 +7076,7 @@ ha_innobase::innobase_read_and_init_auto_inc(
 		'active'.
 		Since 5.1 MySQL enforces that we announce fields which we will
 		read; as we only do a val_*() call, dbug_tmp_use_all_columns()
-		is sufficient. */
+		with read_set is sufficient. */
 
 		my_bitmap_map *old_map;
 		old_map= dbug_tmp_use_all_columns(table, table->read_set);
