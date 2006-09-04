@@ -12,8 +12,8 @@ TARGETDIR=../storage/innobase
 rm -fr "$TARGETDIR"
 mkdir "$TARGETDIR"
 
-# copy the build scripts
-cp compile-innodb* ../BUILD
+# link the build scripts
+ln -sf ../innodb/compile-innodb{,-debug} ../BUILD
 
 # create the directories
 for dir in */
@@ -35,7 +35,7 @@ do
   ln -s ../../../innodb/"$dir"* .
   cd ..
 done
-for file in configure.in Makefile.am CMakeLists.txt
+for file in plug.in Makefile.am CMakeLists.txt
 do
   ln -s ../../innodb/"$file" .
 done
