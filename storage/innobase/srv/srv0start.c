@@ -1691,7 +1691,7 @@ NetWare. */
 "InnoDB: You have now successfully upgraded to the multiple tablespaces\n"
 "InnoDB: format. You should NOT DOWNGRADE to an earlier version of\n"
 "InnoDB: InnoDB! But if you absolutely need to downgrade, see\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/multiple-tablespaces.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/multiple-tablespaces.html\n"
 "InnoDB: for instructions.\n");
 	}
 
