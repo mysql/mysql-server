@@ -1,5 +1,5 @@
 # Requires statement logging
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 let $engine_type=MyISAM;
 -- source extra/rpl_tests/rpl_log.test
 

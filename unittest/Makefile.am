@@ -1,15 +1,12 @@
 SUBDIRS      = mytap . mysys examples
 
-noinst_SCRIPTS = unit
 EXTRA_DIST = unit.pl
 CLEANFILES = unit
 
 unittests = mytap mysys
 
-test: unit
-	./unit run $(unittests)
+test:
+	perl unit.pl run $(unittests)
 
-unit: $(srcdir)/unit.pl
-	cp $(srcdir)/unit.pl $@
-	chmod 700 $@
-
+test-verbose:
+	HARNESS_VERBOSE=1 perl unit.pl run $(unittests)
