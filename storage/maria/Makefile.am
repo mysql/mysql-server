@@ -28,7 +28,9 @@ bin_PROGRAMS =		maria_chk maria_pack maria_ftdump
 maria_chk_DEPENDENCIES=	$(LIBRARIES)
 maria_pack_DEPENDENCIES=$(LIBRARIES)
 noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test ma_control_file_test
-noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h ma_sp_defs.h ma_fulltext.h ma_ftdefs.h ma_ft_test1.h ma_ft_eval.h
+noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
+			ma_sp_defs.h ma_fulltext.h ma_ftdefs.h ma_ft_test1.h ma_ft_eval.h \
+			ma_control_file.h
 ma_test1_DEPENDENCIES=	$(LIBRARIES)
 ma_test2_DEPENDENCIES=	$(LIBRARIES)
 ma_test3_DEPENDENCIES=	$(LIBRARIES)

@@ -45,7 +45,8 @@ int main(int argc,char *argv[])
   clean_files();
   run_test_normal();
   run_test_abnormal();
-
+  
+  fprintf(stderr, "All tests succeeded\n");
   exit(0); /* all ok, if some test failed, we will have aborted */
 }
 
@@ -92,7 +93,7 @@ static void run_test_normal()
   uint32 logno;
   uint objs_to_write;
   uint i;
-  char buffer[4];
+  char buffer[17];
 
   /* TEST0: Instance starts from scratch (control file does not exist) */
   DIE_UNLESS(ma_control_file_create_or_open() == 0);
@@ -103,7 +104,7 @@ static void run_test_normal()
 
   /* TEST1: Simulate creation of one log */
 
-  objs_to_write= CONTROL_FILE_WRITE_ONLY_LOGNO;
+  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
   logno= 123;
   DIE_UNLESS(ma_control_file_write_and_force(NULL, logno,
                                           objs_to_write) == 0);
@@ -121,7 +122,7 @@ static void run_test_normal()
 
   /* TEST2: Simulate creation of 5 logs */
 
-  objs_to_write= CONTROL_FILE_WRITE_ONLY_LOGNO;
+  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
   logno= 100;
   for (i= 0; i<5; i++)
   {
@@ -141,7 +142,7 @@ static void run_test_normal()
     log creation.
   */
 
-  objs_to_write= CONTROL_FILE_WRITE_ONLY_LSN;
+  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LSN;
   checkpoint_lsn= (LSN){5, 10000};
   logno= 10;
   DIE_UNLESS(ma_control_file_write_and_force(&checkpoint_lsn, logno,
@@ -152,22 +153,22 @@ static void run_test_normal()
   DIE_UNLESS(last_checkpoint_lsn.file_no == checkpoint_lsn.file_no);
   DIE_UNLESS(last_checkpoint_lsn.rec_offset == checkpoint_lsn.rec_offset);
 
-  objs_to_write= CONTROL_FILE_WRITE_ONLY_LOGNO;
+  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
   checkpoint_lsn= (LSN){5, 20000};
   logno= 17;
   DIE_UNLESS(ma_control_file_write_and_force(&checkpoint_lsn, logno,
                                           objs_to_write) == 0);
   /* Check that checkpoint LSN was not updated */
   DIE_UNLESS(last_checkpoint_lsn.rec_offset != checkpoint_lsn.rec_offset);
-  objs_to_write= CONTROL_FILE_WRITE_ONLY_LSN;
+  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LSN;
   checkpoint_lsn= (LSN){17, 20000};
   DIE_UNLESS(ma_control_file_write_and_force(&checkpoint_lsn, logno,
                                           objs_to_write) == 0);
-  objs_to_write= CONTROL_FILE_WRITE_ONLY_LSN;
+  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LSN;
   checkpoint_lsn= (LSN){17, 45000};
   DIE_UNLESS(ma_control_file_write_and_force(&checkpoint_lsn, logno,
                                           objs_to_write) == 0);
-  objs_to_write= CONTROL_FILE_WRITE_ONLY_LOGNO;
+  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
   logno= 19;
   DIE_UNLESS(ma_control_file_write_and_force(&checkpoint_lsn, logno,
                                           objs_to_write) == 0);
@@ -186,18 +187,21 @@ static void run_test_normal()
     Note that constants (offsets) are hard-coded here, precisely to prevent
     someone from changing them in the control file module and breaking
     backward-compatibility.
+    TODO: when we reach the format-freeze state, we may even just do a
+    comparison with a raw binary string, to not depend on any uint4korr
+    future change/breakage.
   */
 
   DIE_IF((fd= my_open(file_name,
                       O_BINARY | O_RDWR,
                       MYF(MY_WME))) < 0);
-  DIE_IF(my_read(fd, buffer, 16, MYF(MY_FNABP |  MY_WME)) != 0);
-  DIE_IF(my_close(fd, MYF(MY_WME)) != 0);  
-  i= uint4korr(buffer+4);
+  DIE_IF(my_read(fd, buffer, 17, MYF(MY_FNABP |  MY_WME)) != 0);
+  DIE_IF(my_close(fd, MYF(MY_WME)) != 0);
+  i= uint4korr(buffer+5);
   DIE_UNLESS(i == last_checkpoint_lsn.file_no);
-  i= uint4korr(buffer+8);
+  i= uint4korr(buffer+9);
   DIE_UNLESS(i == last_checkpoint_lsn.rec_offset);
-  i= uint4korr(buffer+12);
+  i= uint4korr(buffer+13);
   DIE_UNLESS(i == last_logno);
 
 
@@ -217,15 +221,33 @@ static void run_test_normal()
 
 static void run_test_abnormal()
 {
+  char buffer[4];
   /* Corrupt the control file */
   DIE_IF((fd= my_open(file_name,
                       O_BINARY | O_RDWR,
                       MYF(MY_WME))) < 0);
-  DIE_IF(my_write(fd, "papa", 4, MYF(MY_FNABP |  MY_WME)) != 0);
+  DIE_IF(my_pread(fd, buffer, 4, 0, MYF(MY_FNABP |  MY_WME)) != 0);
+  DIE_IF(my_pwrite(fd, "papa", 4, 0, MYF(MY_FNABP |  MY_WME)) != 0);
   DIE_IF(my_close(fd, MYF(MY_WME)) != 0);
 
   /* Check that control file module sees the problem */
   DIE_IF(ma_control_file_create_or_open() == 0);
+
+  /* Restore it and corrupt it differently */
+  DIE_IF((fd= my_open(file_name,
+                      O_BINARY | O_RDWR,
+                      MYF(MY_WME))) < 0);
+  /* Restore magic string */
+  DIE_IF(my_pwrite(fd, buffer, 4, 0, MYF(MY_FNABP |  MY_WME)) != 0);
+  DIE_IF(my_pread(fd, buffer, 1, 4, MYF(MY_FNABP |  MY_WME)) != 0);
+  buffer[1]= buffer[0]+3; /* mangle checksum */
+  DIE_IF(my_pwrite(fd, buffer+1, 1, 4, MYF(MY_FNABP |  MY_WME)) != 0);
+  DIE_IF(my_close(fd, MYF(MY_WME)) != 0);
+
+  /* Check that control file module sees the problem */
+  DIE_IF(ma_control_file_create_or_open() == 0);
+ 
+  /* Note that control file is left corrupted at this point */
 }
 
 

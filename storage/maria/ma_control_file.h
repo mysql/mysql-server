@@ -62,9 +62,9 @@ int ma_control_file_create_or_open();
   Called when we have created a new log (after syncing this log's creation)
   and when we have written a checkpoint (after syncing this log record).
 */
-#define CONTROL_FILE_WRITE_ALL 0 /* write all 3 objects */
-#define CONTROL_FILE_WRITE_ONLY_LSN 1
-#define CONTROL_FILE_WRITE_ONLY_LOGNO 2
+#define CONTROL_FILE_UPDATE_ALL 0
+#define CONTROL_FILE_UPDATE_ONLY_LSN 1
+#define CONTROL_FILE_UPDATE_ONLY_LOGNO 2
 int ma_control_file_write_and_force(const LSN *checkpoint_lsn, uint32 logno,
                                  uint objs_to_write);
 
