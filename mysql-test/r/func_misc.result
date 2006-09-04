@@ -87,6 +87,10 @@ SELECT IS_USED_LOCK('bug16501');
 IS_USED_LOCK('bug16501')
 NULL
 DROP TABLE t1;
+select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
+export_set(3, _latin1'foo', _utf8'bar', ',', 4)
+foo,foo,bar,bar
+End of 4.1 tests
 create table t1 as select uuid(), length(uuid());
 show create table t1;
 Table	Create Table
@@ -130,3 +134,4 @@ timediff(b, a) >= '00:00:03'
 drop table t2;
 drop table t1;
 set global query_cache_size=default;
+End of 5.0 tests

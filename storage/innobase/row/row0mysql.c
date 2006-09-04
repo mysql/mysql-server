@@ -54,27 +54,6 @@ static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
 static const char S_innodb_table_monitor[] = "innodb_table_monitor";
 static const char S_innodb_mem_validate[] = "innodb_mem_validate";
 
-/* Name suffix for recovered orphaned temporary tables */
-static const char S_recover_innodb_tmp_table[] = "_recover_innodb_tmp_table";
-/***********************************************************************
-Determine if the given name ends in the suffix reserved for recovered
-orphaned temporary tables. */
-static
-ibool
-row_mysql_is_recovered_tmp_table(
-/*=============================*/
-				 /* out: TRUE if table name ends in
-				 the reserved suffix */
-	const char*	name)
-{
-	ulint	namelen	= strlen(name) + 1;
-	return(namelen >= sizeof S_recover_innodb_tmp_table
-		&& !memcmp(name + namelen -
-			sizeof S_recover_innodb_tmp_table,
-			S_recover_innodb_tmp_table,
-			sizeof S_recover_innodb_tmp_table));
-}
-
 /***********************************************************************
 Determine if the given name is a name reserved for MySQL system tables. */
 static
@@ -550,7 +529,7 @@ handle_new_error:
 	"InnoDB: tables and recreate the whole InnoDB tablespace.\n"
 	"InnoDB: If the mysqld server crashes after the startup or when\n"
 	"InnoDB: you dump the tables, look at\n"
-	"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/forcing-recovery.html"
+	"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html"
 	" for help.\n", stderr);
 
 	} else {
@@ -1083,7 +1062,7 @@ row_insert_for_mysql(
 "InnoDB: Have you deleted the .ibd file from the database directory under\n"
 "InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
 "InnoDB: Look from\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
 		return(DB_ERROR);
@@ -1319,7 +1298,7 @@ row_update_for_mysql(
 "InnoDB: Have you deleted the .ibd file from the database directory under\n"
 "InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
 "InnoDB: Look from\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
 		return(DB_ERROR);
@@ -1660,48 +1639,6 @@ row_get_mysql_key_number_for_index(
 }
 
 /*************************************************************************
-Recovers an orphaned tmp table inside InnoDB by renaming it. In the table
-name #sql becomes rsql, and "_recover_innodb_tmp_table" is catenated to
-the end of name. table->name should be of the form
-"dbname/rsql..._recover_innodb_tmp_table". This renames a table whose
-name is "#sql..." */
-static
-int
-row_mysql_recover_tmp_table(
-/*========================*/
-				/* out: error code or DB_SUCCESS */
-	dict_table_t*	table,	/* in: table definition */
-	trx_t*		trx)	/* in: transaction handle */
-{
-	const char*	ptr	= strstr(table->name, "/rsql");
-
-	if (!ptr) {
-		/* table name does not begin with "/rsql" */
-		dict_mem_table_free(table);
-		trx_commit_for_mysql(trx);
-
-		return(DB_ERROR);
-	}
-	else {
-		int	status;
-		int	namelen = (int) strlen(table->name);
-		char*	old_name = mem_strdupl(table->name, namelen);
-		/* replace "rsql" with "#sql" */
-		old_name[ptr - table->name + 1] = '#';
-		/* remove "_recover_innodb_tmp_table" suffix */
-		ut_ad(namelen > (int) sizeof S_recover_innodb_tmp_table);
-		ut_ad(!strcmp(old_name + namelen + 1 -
-			sizeof S_recover_innodb_tmp_table,
-			S_recover_innodb_tmp_table));
-		old_name[namelen + 1 - sizeof S_recover_innodb_tmp_table] = 0;
-		status = row_rename_table_for_mysql(old_name,
-						table->name, trx);
-		mem_free(old_name);
-		return(status);
-	}
-}
-
-/*************************************************************************
 Locks the data dictionary in shared mode from modifications, for performing
 foreign key check, rollback, or other operation invisible to MySQL. */
 
@@ -1845,18 +1782,6 @@ row_create_table_for_mysql(
 
 	trx_start_if_not_started(trx);
 
-	if (row_mysql_is_recovered_tmp_table(table->name)) {
-
-		/* MySQL prevents accessing of tables whose name begins
-		with #sql, that is temporary tables. If mysqld crashes in
-		the middle of an ALTER TABLE, we may get an orphaned
-		#sql-table in the tablespace. We have here a special
-		mechanism to recover such tables by renaming them to
-		rsql... */
-
-		return(row_mysql_recover_tmp_table(table, trx));
-	}
-
 	/* The table name is prefixed with the database name and a '/'.
 	Certain table names starting with 'innodb_' have their special
 	meaning regardless of the database name.  Thus, we need to
@@ -1968,7 +1893,7 @@ row_create_table_for_mysql(
      "InnoDB: Then MySQL thinks the table exists, and DROP TABLE will\n"
      "InnoDB: succeed.\n"
      "InnoDB: You can look for further help from\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
 				stderr);
 		}
 
@@ -2063,11 +1988,6 @@ row_create_index_for_mysql(
 		}
 	}
 
-	if (row_mysql_is_recovered_tmp_table(index->table_name)) {
-
-		return(DB_SUCCESS);
-	}
-
 	heap = mem_heap_create(512);
 
 	trx->dict_operation = TRUE;
@@ -2141,11 +2061,6 @@ row_table_add_foreign_constraints(
 	trx->op_info = "adding foreign keys";
 
 	trx_start_if_not_started(trx);
-
-	if (row_mysql_is_recovered_tmp_table(name)) {
-
-		return(DB_SUCCESS);
-	}
 
 	trx->dict_operation = TRUE;
 
@@ -3054,7 +2969,7 @@ row_drop_table_for_mysql(
 	"InnoDB: Have you copied the .frm file of the table to the\n"
 	"InnoDB: MySQL database directory from another database?\n"
 	"InnoDB: You can look for further help from\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
 				stderr);
 		goto funct_exit;
 	}
@@ -3495,7 +3410,6 @@ row_rename_table_for_mysql(
 	mem_heap_t*	heap			= NULL;
 	const char**	constraints_to_drop	= NULL;
 	ulint		n_constraints_to_drop	= 0;
-	ibool		recovering_temp_table	= FALSE;
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
 
@@ -3533,15 +3447,10 @@ row_rename_table_for_mysql(
 	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
 	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
 
-	if (row_mysql_is_recovered_tmp_table(new_name)) {
+	/* Serialize data dictionary operations with dictionary mutex:
+	no deadlocks can occur then in these operations */
 
-		recovering_temp_table = TRUE;
-	} else {
-		/* Serialize data dictionary operations with dictionary mutex:
-		no deadlocks can occur then in these operations */
-
-		row_mysql_lock_data_dictionary(trx);
-	}
+	row_mysql_lock_data_dictionary(trx);
 
 	table = dict_table_get_low(old_name);
 
@@ -3556,7 +3465,7 @@ row_rename_table_for_mysql(
 	"InnoDB: Have you copied the .frm file of the table to the\n"
 	"InnoDB: MySQL database directory from another database?\n"
 	"InnoDB: You can look for further help from\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
 				stderr);
 		goto funct_exit;
 	}
@@ -3570,7 +3479,7 @@ row_rename_table_for_mysql(
 		fputs(
 	" does not have an .ibd file in the database directory.\n"
 	"InnoDB: You can look for further help from\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
 			stderr);
 		goto funct_exit;
 	}
@@ -3719,7 +3628,7 @@ end:
 		fputs(" to it.\n"
      "InnoDB: Have you deleted the .frm file and not used DROP TABLE?\n"
      "InnoDB: You can look for further help from\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
      "InnoDB: If table ", stderr);
 			ut_print_name(stderr, trx, TRUE, new_name);
 			fputs(
@@ -3747,8 +3656,8 @@ end:
 			trx_general_rollback_for_mysql(trx, FALSE, NULL);
 			trx->error_state = DB_SUCCESS;
 			ut_print_timestamp(stderr);
-			fputs(" InnoDB: Error in table rename, cannot rename ",
-				stderr);
+			fputs(
+"  InnoDB: Error in table rename, cannot rename ", stderr);
 			ut_print_name(stderr, trx, TRUE, old_name);
 			fputs(" to ", stderr);
 			ut_print_name(stderr, trx, TRUE, new_name);
@@ -3796,10 +3705,7 @@ end:
 
 funct_exit:
 	trx_commit_for_mysql(trx);
-
-	if (!recovering_temp_table) {
-		row_mysql_unlock_data_dictionary(trx);
-	}
+	row_mysql_unlock_data_dictionary(trx);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -3967,7 +3873,7 @@ row_check_table_for_mysql(
 "InnoDB: Have you deleted the .ibd file from the database directory under\n"
 "InnoDB: the MySQL datadir, or have you used DISCARD TABLESPACE?\n"
 "InnoDB: Look from\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "InnoDB: how you can resolve the problem.\n",
 				prebuilt->table->name);
 		return(DB_ERROR);
