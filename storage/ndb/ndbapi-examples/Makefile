@@ -5,7 +5,9 @@ BIN_DIRS := 	ndbapi_simple \
 		ndbapi_simple_index \
 		ndbapi_event \
 		ndbapi_scan \
-		mgmapi_logevent
+		mgmapi_logevent \
+		ndbapi_simple_dual \
+		mgmapi_logevent_dual
 
 bins: $(patsubst %, _bins_%, $(BIN_DIRS))
 

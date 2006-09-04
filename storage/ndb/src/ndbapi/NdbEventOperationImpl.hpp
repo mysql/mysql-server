@@ -407,8 +407,8 @@ public:
   void dropEventOperation(NdbEventOperation *);
   static NdbEventOperationImpl* getEventOperationImpl(NdbEventOperation* tOp);
 
-  void add_drop_lock() { NdbMutex_Lock(p_add_drop_mutex); }
-  void add_drop_unlock() { NdbMutex_Unlock(p_add_drop_mutex); }
+  void add_drop_lock() { NdbMutex_Lock(m_add_drop_mutex); }
+  void add_drop_unlock() { NdbMutex_Unlock(m_add_drop_mutex); }
   void lock() { NdbMutex_Lock(m_mutex); }
   void unlock() { NdbMutex_Unlock(m_mutex); }
 
@@ -510,6 +510,7 @@ private:
   NdbEventOperationImpl *m_dropped_ev_op;
 
   Uint32 m_active_op_count;
+  NdbMutex *m_add_drop_mutex;
 };
 
 inline
