@@ -367,6 +367,7 @@ public:
 		   bool need_mutex);
   int find_next_log(LOG_INFO* linfo, bool need_mutex);
   int get_current_log(LOG_INFO* linfo);
+  int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }
