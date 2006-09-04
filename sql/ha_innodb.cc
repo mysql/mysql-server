@@ -7387,7 +7387,9 @@ innobase_xa_prepare(
 	int error = 0;
 	trx_t* trx = check_trx_exists(thd);
 
-	if (thd->lex->sql_command != SQLCOM_XA_PREPARE) {
+	if (thd->lex->sql_command != SQLCOM_XA_PREPARE &&
+	    (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))))
+	{
 
 		/* For ibbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation

@@ -172,8 +172,10 @@ master-bin.000001	#	Intvar	1	#	INSERT_ID=127
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(null)
 master-bin.000001	#	Query	1	#	use `test`; drop table t1
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
-master-bin.000001	#	Query	1	#	use `test`; insert delayed into t1 values (207)
-master-bin.000001	#	Intvar	1	#	INSERT_ID=208
-master-bin.000001	#	Query	1	#	use `test`; insert delayed into t1 values (null)
-master-bin.000001	#	Query	1	#	use `test`; insert delayed into t1 values (300)
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 drop table t1;
