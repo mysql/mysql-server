@@ -5576,10 +5576,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->key_length=0;
     keyinfo->rec_per_key=0;
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
-    for (; group ; group=group->next,key_part_info++)
+    ORDER *cur_group= group;
+    for (; cur_group ; cur_group= cur_group->next, key_part_info++)
     {
-      Field *field=(*group->item)->get_tmp_table_field();
-      bool maybe_null=(*group->item)->maybe_null;
+      Field *field=(*cur_group->item)->get_tmp_table_field();
+      bool maybe_null=(*cur_group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
       key_part_info->offset= field->offset();
@@ -5591,8 +5592,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	0 : FIELDFLAG_BINARY;
       if (!using_unique_constraint)
       {
-	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_field(thd->mem_root,table)))
+	cur_group->buff=(char*) group_buff;
+	if (!(cur_group->field=field->new_field(thd->mem_root,table)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
@@ -5606,11 +5607,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  key_part_info->null_bit=field->null_bit;
 	  key_part_info->null_offset= (uint) (field->null_ptr -
 					      (uchar*) table->record[0]);
-	  group->field->move_field((char*) ++group->buff);
+	  cur_group->field->move_field((char*) ++cur_group->buff);
 	  group_buff++;
 	}
 	else
-	  group->field->move_field((char*) group_buff);
+	  cur_group->field->move_field((char*) group_buff);
 	group_buff+= key_part_info->length;
       }
       keyinfo->key_length+=  key_part_info->length;
