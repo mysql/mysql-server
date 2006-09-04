@@ -248,6 +248,10 @@ bool String::copy(const char *str,uint32 arg_length, CHARSET_INFO *cs)
    0  No conversion needed
    1  Either character set conversion or adding leading  zeros
       (e.g. for UCS-2) must be done
+
+  NOTE
+  to_cs may be NULL for "no conversion" if the system variable
+  character_set_results is NULL.
 */
 
 bool String::needs_conversion(uint32 arg_length,
@@ -256,7 +260,8 @@ bool String::needs_conversion(uint32 arg_length,
 			      uint32 *offset)
 {
   *offset= 0;
-  if ((to_cs == &my_charset_bin) || 
+  if (!to_cs ||
+      (to_cs == &my_charset_bin) || 
       (to_cs == from_cs) ||
       my_charset_same(from_cs, to_cs) ||
       ((from_cs == &my_charset_bin) &&
