@@ -24,6 +24,9 @@ NDB_STD_OPTS_VARS;
 static const char* _dbname = "TEST_DB";
 static int _unqualified = 0;
 static int _partinfo = 0;
+
+const char *load_default_groups[]= { "mysql_cluster",0 };
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
@@ -45,6 +48,8 @@ static void usage()
     "This program list all properties of table(s) in NDB Cluster.\n"\
     "  ex: desc T1 T2 T4\n";
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -53,7 +58,6 @@ static void print_part_info(Ndb* pNdb, NDBT_Table* pTab);
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF

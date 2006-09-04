@@ -63,6 +63,8 @@ static const char* _nowait_nodes;
 extern Uint32 g_start_type;
 extern NdbNodeBitmask g_nowait_nodes;
 
+const char *load_default_groups[]= { "mysql_cluster","ndbd",0 };
+
 /**
  * Arguments to NDB process
  */ 
@@ -108,6 +110,8 @@ static void usage()
 {
   short_usage_sub();
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -115,7 +119,6 @@ static void usage()
 bool
 Configuration::init(int argc, char** argv)
 {  
-  const char *load_default_groups[]= { "mysql_cluster","ndbd",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
 
   int ho_error;

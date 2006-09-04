@@ -27,6 +27,8 @@ static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
 
 NDB_STD_OPTS_VARS;
 
+const char *load_default_groups[]= { "mysql_cluster",0 };
+
 static const char* _dbname = "TEST_DB";
 static my_bool _transactional = false;
 static struct my_option my_long_options[] =
@@ -46,13 +48,14 @@ static void usage()
     "tabname\n"\
     "This program will delete all records in the specified table using scan delete.\n";
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF

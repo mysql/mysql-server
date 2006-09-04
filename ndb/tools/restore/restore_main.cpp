@@ -52,6 +52,8 @@ static int _restore_data = 0;
 static int _restore_meta = 0;
 BaseString g_options("ndb_restore");
 
+const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_restore"),
@@ -104,6 +106,8 @@ static void usage()
 {
   short_usage_sub();
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -136,7 +140,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 bool
 readArguments(int *pargc, char*** pargv) 
 {
-  const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
   load_defaults("my",load_default_groups,pargc,pargv);
   if (handle_options(pargc, pargv, my_long_options, get_one_option))
   {
