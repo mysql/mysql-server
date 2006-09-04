@@ -1070,7 +1070,7 @@ btr_cur_optimistic_insert(
 		rec_size = rec_get_converted_size(index, entry);
 		if (UNIV_UNLIKELY
 		    (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
-					    page_zip ? page_zip->size : 0)) {
+					    page_zip ? page_zip->size : 0))) {
 
 			/* This should never happen, but we handle
 			the situation in a robust manner. */
