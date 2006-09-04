@@ -1306,6 +1306,45 @@ ndb_mgm_get_event_category_string(enum ndb_mgm_event_category status)
   return 0;
 }
 
+static const char *clusterlog_names[]=
+  { "startup", "shutdown", "statistics", "checkpoint", "noderestart", "connection", "info", "warning", "error", "congestion", "debug", "backup" };
+
+extern "C"
+const unsigned int *
+ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle)
+{
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_clusterlog_loglevel");
+  int loglevel_count = CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1 ;
+  static unsigned int loglevel[CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1] = {0,0,0,0,0,0,0,0,0,0,0,0};
+  const ParserRow<ParserDummy> getloglevel_reply[] = {
+    MGM_CMD("get cluster loglevel", NULL, ""),
+    MGM_ARG(clusterlog_names[0], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[1], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[2], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[3], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[4], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[5], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[6], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[7], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[8], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[9], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[10], Int, Mandatory, ""),
+    MGM_ARG(clusterlog_names[11], Int, Mandatory, ""),
+  };
+  CHECK_HANDLE(handle, NULL);
+  CHECK_CONNECTED(handle, NULL);
+
+  Properties args;
+  const Properties *reply;
+  reply = ndb_mgm_call(handle, getloglevel_reply, "get cluster loglevel", &args);
+  CHECK_REPLY(reply, NULL);
+
+  for(int i=0; i < loglevel_count; i++) {
+    reply->get(clusterlog_names[i], &loglevel[i]);
+  }
+  return loglevel;
+}
+
 extern "C"
 int 
 ndb_mgm_set_clusterlog_loglevel(NdbMgmHandle handle, int nodeId,

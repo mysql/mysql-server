@@ -861,6 +861,15 @@ extern "C" {
 				      enum ndb_mgm_event_category category,
 				      int level,
 				      struct ndb_mgm_reply* reply);
+  /**
+   * get log category and levels 
+   *
+   * @param   handle        NDB management handle.
+   * @return                A vector of twelve elements,
+   *                        where each element contains
+   *                        loglevel of corresponding category
+   */
+  const unsigned int *ndb_mgm_get_clusterlog_loglevel(NdbMgmHandle handle);
 
   /** @} *********************************************************************/
   /**
@@ -1130,6 +1139,11 @@ extern "C" {
 				      enum ndb_mgm_event_category c,
 				      int l, struct ndb_mgm_reply* r)
   { return ndb_mgm_set_clusterlog_loglevel(h,n,c,l,r); }
+
+  inline
+  const unsigned int *ndb_mgm_get_loglevel_clusterlog(NdbMgmHandle h)
+  { return ndb_mgm_get_clusterlog_loglevel(h); }
+
 #endif
 
 #ifdef __cplusplus
