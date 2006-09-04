@@ -553,7 +553,7 @@ row_vers_build_for_semi_consistent_read(
 	mem_heap_t*	heap		= NULL;
 	byte*		buf;
 	ulint		err;
-	dulint		rec_trx_id;
+	dulint		rec_trx_id	= ut_dulint_create(0, 0);
 
 	ut_ad(index->type & DICT_CLUSTERED);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)

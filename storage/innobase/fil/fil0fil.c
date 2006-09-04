@@ -251,9 +251,6 @@ struct fil_system_struct {
 initialized. */
 fil_system_t*	fil_system	= NULL;
 
-/* The tablespace memory cache hash table size */
-#define	FIL_SYSTEM_HASH_SIZE	50 /* TODO: make bigger! */
-
 
 /************************************************************************
 NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
@@ -1323,11 +1320,17 @@ fil_init(
 /*=====*/
 	ulint	max_n_open)	/* in: max number of open files */
 {
+	ulint	hash_size;
+
 	ut_a(fil_system == NULL);
 
-	/*printf("Initializing the tablespace cache with max %lu open files\n",
-	  max_n_open); */
-	fil_system = fil_system_create(FIL_SYSTEM_HASH_SIZE, max_n_open);
+	if (srv_file_per_table) {
+		hash_size = 50000;
+	} else {
+		hash_size = 5000;
+	}
+
+	fil_system = fil_system_create(hash_size, max_n_open);
 }
 
 /***********************************************************************
@@ -2560,7 +2563,7 @@ fil_reset_too_high_lsns(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-" InnoDB: Flush lsn in the tablespace file %lu to be imported\n"
+"  InnoDB: Flush lsn in the tablespace file %lu to be imported\n"
 "InnoDB: is %lu %lu, which exceeds current system lsn %lu %lu.\n"
 "InnoDB: We reset the lsn's in the file ",
 		(ulong) space_id,
@@ -2685,7 +2688,7 @@ fil_open_single_table_tablespace(
 "InnoDB: It is also possible that this is a temporary table #sql...,\n"
 "InnoDB: and MySQL removed the .ibd file for this.\n"
 "InnoDB: Please refer to\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(filepath);
@@ -2724,7 +2727,7 @@ fil_open_single_table_tablespace(
 "InnoDB: Have you moved InnoDB .ibd files around without using the\n"
 "InnoDB: commands DISCARD TABLESPACE and IMPORT TABLESPACE?\n"
 "InnoDB: Please refer to\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "InnoDB: for how to resolve the issue.\n", (ulong) space_id, (ulong) id);
 
 		ret = FALSE;
@@ -3371,7 +3374,7 @@ fil_space_for_table_exists_in_mem(
 	error_exit:
 		fputs(
 "InnoDB: Please refer to\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "InnoDB: for how to resolve the issue.\n", stderr);
 
 		mem_free(path);

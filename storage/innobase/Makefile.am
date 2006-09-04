@@ -87,8 +87,7 @@ EXTRA_DIST = 	include/btr0btr.h include/btr0btr.ic include/btr0cur.h include/btr
 		include/ut0byte.h include/ut0byte.ic include/ut0dbg.h include/ut0lst.h \
 		include/ut0mem.h include/ut0mem.ic include/ut0rnd.h include/ut0rnd.ic \
 		include/ut0sort.h include/ut0ut.h include/ut0ut.ic include/ut0vec.h include/ut0vec.ic include/ha_prototypes.h \
-		include/ut0list.h include/ut0list.ic \
-		include/ut0wqueue.h \
+		include/ut0list.h include/ut0list.ic include/ut0wqueue.h \
 		CMakeLists.txt
 
 noinst_LIBRARIES =	libinnobase.a
