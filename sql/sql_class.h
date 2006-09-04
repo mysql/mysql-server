@@ -342,6 +342,7 @@ public:
 		   bool need_mutex);
   int find_next_log(LOG_INFO* linfo, bool need_mutex);
   int get_current_log(LOG_INFO* linfo);
+  int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();
   inline bool is_open() { return log_type != LOG_CLOSED; }
   inline char* get_index_fname() { return index_file_name;}
