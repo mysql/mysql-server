@@ -1,12 +1,11 @@
 -- source include/have_row_based.inc
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/master-slave.inc
 
 # Test that the slave temporarily switches to ROW when seeing binrow
 # events when it is in STATEMENT or MIXED mode
 
 SET BINLOG_FORMAT=MIXED;
-SELECT @@GLOBAL.BINLOG_FORMAT, @@SESSION.BINLOG_FORMAT;
 SET GLOBAL BINLOG_FORMAT=MIXED;
 SELECT @@GLOBAL.BINLOG_FORMAT, @@SESSION.BINLOG_FORMAT;
 

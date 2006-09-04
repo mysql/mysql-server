@@ -1,0 +1,18 @@
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
+insert delayed into t1 values (207);
+insert delayed into t1 values (null);
+insert delayed into t1 values (300);
+select * from t1;
+a
+207
+208
+300
+show binlog events from 102;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int not null auto_increment, primary key (a)) engine=myisam
+master-bin.000001	#	Query	1	#	use `test`; insert delayed into t1 values (207)
+master-bin.000001	#	Intvar	1	#	INSERT_ID=208
+master-bin.000001	#	Query	1	#	use `test`; insert delayed into t1 values (null)
+master-bin.000001	#	Query	1	#	use `test`; insert delayed into t1 values (300)
+drop table t1;
