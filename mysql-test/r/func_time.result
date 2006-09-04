@@ -960,3 +960,15 @@ id	day	id	day
 3	2005-07-01	3	2005-07-15
 DROP TABLE t1,t2;
 set time_zone= @@global.time_zone;
+SET NAMES latin1;
+SET character_set_results = NULL;
+SHOW VARIABLES LIKE 'character_set_results';
+Variable_name	Value
+character_set_results	
+CREATE TABLE testBug8868 (field1 DATE, field2 VARCHAR(32) CHARACTER SET BINARY);
+INSERT INTO testBug8868 VALUES ('2006-09-04', 'abcd');
+SELECT DATE_FORMAT(field1,'%b-%e %l:%i%p') as fmtddate, field2 FROM testBug8868;
+fmtddate	field2
+Sep-4 12:00AM	abcd
+DROP TABLE testBug8868;
+SET NAMES DEFAULT;
