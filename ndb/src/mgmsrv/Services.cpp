@@ -147,6 +147,7 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("get status", &MgmApiSession::getStatus, ""),
 
   MGM_CMD("get info clusterlog", &MgmApiSession::getInfoClusterLog, ""),
+  MGM_CMD("get cluster loglevel", &MgmApiSession::getClusterLogLevel, ""),
 
   MGM_CMD("restart node", &MgmApiSession::restart_v1, ""),
     MGM_ARG("node", String, Mandatory, "Nodes to restart"),
@@ -801,6 +802,32 @@ MgmApiSession::endSession(Parser<MgmApiSession>::Context &,
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
 
   m_output->println("end session reply");
+}
+
+void
+MgmApiSession::getClusterLogLevel(Parser<MgmApiSession>::Context &			, Properties const &) {
+  const char* names[] = { "startup",
+			  "shutdown", 
+			  "statistics", 
+			  "checkpoint", 
+			  "noderestart", 
+			  "connection", 
+			  "info", 
+			  "warning", 
+			  "error", 
+			  "congestion", 
+			  "debug", 
+			  "backup" };
+
+  int loglevel_count = (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1) ;
+  LogLevel::EventCategory category;
+
+  m_output->println("get cluster loglevel");
+  for(int i = 0; i < loglevel_count; i++) {
+    category = (LogLevel::EventCategory) i;
+    m_output->println("%s: %d", names[i], m_mgmsrv.m_event_listner[0].m_logLevel.getLogLevel(category));
+  }
+  m_output->println("");
 }
 
 void
