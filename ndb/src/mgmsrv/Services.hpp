@@ -87,6 +87,8 @@ public:
   void bye(Parser_t::Context &ctx, const class Properties &args);
   void endSession(Parser_t::Context &ctx, const class Properties &args);
   void setLogLevel(Parser_t::Context &ctx, const class Properties &args);
+  void getClusterLogLevel(Parser_t::Context &ctx, 
+			  const class Properties &args);
   void setClusterLogLevel(Parser_t::Context &ctx, 
 			  const class Properties &args);
   void setLogFilter(Parser_t::Context &ctx, const class Properties &args);
