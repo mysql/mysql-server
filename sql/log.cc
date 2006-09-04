@@ -2266,7 +2266,7 @@ int MYSQL_BIN_LOG::get_current_log(LOG_INFO* linfo)
   return ret;
 }
 
-int MYSQL_LOG::raw_get_current_log(LOG_INFO* linfo)
+int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO* linfo)
 {
   strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name)-1);
   linfo->pos = my_b_tell(&log_file);
