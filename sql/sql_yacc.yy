@@ -6319,14 +6319,17 @@ table_wild_one:
 	ident opt_wild opt_table_alias
 	{
 	  if (!Select->add_table_to_list(YYTHD, new Table_ident($1), $3,
-					 TL_OPTION_UPDATING, Lex->lock_option))
+					 TL_OPTION_UPDATING | 
+                                         TL_OPTION_ALIAS, Lex->lock_option))
 	    YYABORT;
         }
 	| ident '.' ident opt_wild opt_table_alias
 	  {
 	    if (!Select->add_table_to_list(YYTHD,
 					   new Table_ident(YYTHD, $1, $3, 0),
-					   $5, TL_OPTION_UPDATING,
+					   $5, 
+                                           TL_OPTION_UPDATING | 
+                                           TL_OPTION_ALIAS,
 					   Lex->lock_option))
 	      YYABORT;
 	  }
