@@ -2822,9 +2822,6 @@ DROP FUNCTION f2;
 DROP VIEW v1, v2;
 DROP TABLE t1;
 
-
---echo End of 5.0 tests.
-
 #
 # Bug #21261: Wrong access rights was required for an insert to a view
 #
@@ -2866,3 +2863,4 @@ create view v1 as select * from t1 where f1 between now() and now() + interval 1
 show create view v1;
 drop view v1;
 drop table t1;
+--echo End of 5.0 tests.
