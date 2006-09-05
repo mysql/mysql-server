@@ -118,7 +118,7 @@ min(7)
 NULL
 select min(7) from DUAL;
 min(7)
-NULL
+7
 explain select min(7) from t2m join t1m;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
@@ -133,7 +133,7 @@ max(7)
 NULL
 select max(7) from DUAL;
 max(7)
-NULL
+7
 explain select max(7) from t2m join t1m;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
@@ -172,7 +172,7 @@ min(7)
 NULL
 select min(7) from DUAL;
 min(7)
-NULL
+7
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
@@ -188,7 +188,7 @@ max(7)
 NULL
 select max(7) from DUAL;
 max(7)
-NULL
+7
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
