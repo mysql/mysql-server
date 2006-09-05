@@ -31,7 +31,7 @@ sub mtr_im_check_alive ($);
 sub mtr_im_check_main_alive ($);
 sub mtr_im_check_angel_alive ($);
 sub mtr_im_check_mysqlds_alive ($);
-sub mtr_im_check_mysqld_alive ($$);
+sub mtr_im_check_mysqld_alive ($);
 sub mtr_im_cleanup ($);
 sub mtr_im_rm_file ($);
 sub mtr_im_errlog ($);
@@ -1282,21 +1282,20 @@ sub mtr_im_check_mysqlds_alive($) {
     mtr_debug("Checking mysqld[$idx]...");
 
     return 1
-      if mtr_im_check_mysqld_alive($instance_manager, $instances->[$idx]);
+      if mtr_im_check_mysqld_alive($instances->[$idx]);
   }
 }
 
 ###########################################################################
 
-sub mtr_im_check_mysqld_alive($$) {
-  my $instance_manager= shift;
+sub mtr_im_check_mysqld_alive($) {
   my $mysqld_instance= shift;
 
   # Check that the process is dead.
 
-  if (defined $instance_manager->{'pid'})
+  if (defined $mysqld_instance->{'pid'})
   {
-    if (kill (0, $instance_manager->{'pid'}))
+    if (kill (0, $mysqld_instance->{'pid'}))
     {
       mtr_debug("Mysqld instance (PID: $mysqld_instance->{pid}) is alive.");
       return 1;
