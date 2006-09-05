@@ -187,7 +187,7 @@ select rpad(c1,3,'ö'), rpad('ö',3,c1) from t1;
 #select case c1 when 'ß' then 'ß' when 'ö' then 'ö' else 'c' end from t1;
 #select export_set(5,c1,'ö'), export_set(5,'ö',c1) from t1;
 drop table t1;
-
+ 
 #
 # Bug 20695: problem with field default value's character set
 #
@@ -199,4 +199,4 @@ drop table t1;
 --error 1067
 create table t1(a char character set latin1 default _cp1251 0xFF);
 
-# End of 4.1 tests
+--echo End of 4.1 tests

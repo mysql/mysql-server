@@ -258,3 +258,4 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1(a char character set latin1 default _cp1251 0xFF);
 ERROR 42000: Invalid default value for 'a'
+End of 4.1 tests
