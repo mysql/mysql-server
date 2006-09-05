@@ -305,6 +305,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #define TL_OPTION_UPDATING	1
 #define TL_OPTION_FORCE_INDEX	2
 #define TL_OPTION_IGNORE_LEAVES 4
+#define TL_OPTION_ALIAS         8
 
 /* Some portable defines */
 
