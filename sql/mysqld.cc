@@ -326,8 +326,6 @@ static char *my_bind_addr_str;
 static char *default_collation_name; 
 static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
-static char mysql_data_home_buff[2];
-static struct passwd *user_info;
 static I_List<THD> thread_cache;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
@@ -508,10 +506,8 @@ key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
-char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 struct passwd *user_info;
-char *mysql_data_home= mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
