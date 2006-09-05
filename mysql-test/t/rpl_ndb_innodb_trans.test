@@ -1,0 +1,66 @@
+# Test of a transaction mixing the two engines
+
+-- source include/have_ndb.inc
+-- source include/have_innodb.inc
+-- source include/master-slave.inc
+
+create table t1 (a int, unique(a)) engine=ndbcluster;
+create table t2 (a int, unique(a)) engine=innodb;
+
+
+begin;
+insert into t1 values(1);
+insert into t2 values(1);
+rollback;
+
+select count(*) from t1;
+select count(*) from t2;
+sync_slave_with_master;
+select count(*) from t1;
+select count(*) from t2;
+connection master;
+
+begin;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t2;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+rollback;
+
+select count(*) from t1;
+select count(*) from t2;
+sync_slave_with_master;
+select count(*) from t1;
+select count(*) from t2;
+connection master;
+
+delete from t1;
+delete from t2;
+begin;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t2;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+rollback;
+
+select count(*) from t1;
+select count(*) from t2;
+sync_slave_with_master;
+select count(*) from t1;
+select count(*) from t2;
+connection master;
+
+delete from t1;
+delete from t2;
+begin;
+insert into t2 values(3),(4);
+insert into t1 values(3),(4);
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t2;
+load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+rollback;
+
+select count(*) from t1;
+select count(*) from t2;
+sync_slave_with_master;
+select count(*) from t1;
+select count(*) from t2;
+connection master;
+
+drop table t1,t2;
+sync_slave_with_master;
