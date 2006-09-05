@@ -80,7 +80,7 @@ ibuf_should_try(
 						decide */
 {
 	if (!(index->type & DICT_CLUSTERED)
-		&& (ignore_sec_unique || !(index->type & DICT_UNIQUE))) {
+	    && (ignore_sec_unique || !(index->type & DICT_UNIQUE))) {
 
 		ibuf_flush_count++;
 
@@ -165,8 +165,8 @@ ibuf_index_page_calc_free(
 			/* out: value for ibuf bitmap bits */
 	page_t*	page)	/* in: non-unique secondary index page */
 {
-	return(ibuf_index_page_calc_free_bits(
-		page_get_max_insert_size_after_reorganize(page, 1)));
+	return(ibuf_index_page_calc_free_bits
+	       (page_get_max_insert_size_after_reorganize(page, 1)));
 }
 
 /****************************************************************************
@@ -201,7 +201,7 @@ ibuf_update_free_bits_if_full(
 # error "ULINT32_UNDEFINED <= UNIV_PAGE_SIZE"
 #endif
 		after = ibuf_index_page_calc_free_bits(max_ins_size
-								- increase);
+						       - increase);
 #ifdef UNIV_IBUF_DEBUG
 		ut_a(after <= ibuf_index_page_calc_free(page));
 #endif
