@@ -2747,8 +2747,51 @@ DROP VIEW t1,v1;
 SHOW TABLES;
 
 DROP TABLE t1;
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
 
+#
+# Bug #21261: Wrong access rights was required for an insert to a view
+#
+CREATE DATABASE bug21261DB;
+USE bug21261DB;
+CONNECT (root,localhost,root,,bug21261DB);
+CONNECTION root;
 
+CREATE TABLE t1 (x INT);
+CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
+GRANT INSERT, UPDATE ON v1 TO 'user21261'@'localhost';
+GRANT INSERT, UPDATE ON t1 TO 'user21261'@'localhost';
+CREATE TABLE t2 (y INT);
+GRANT SELECT ON t2 TO 'user21261'@'localhost';
+
+CONNECT (user21261, localhost, user21261,, bug21261DB);
+CONNECTION user21261;
+INSERT INTO v1 (x) VALUES (5);
+UPDATE v1 SET x=1;
+CONNECTION root;
+GRANT SELECT ON v1 TO 'user21261'@'localhost';
+GRANT SELECT ON t1 TO 'user21261'@'localhost';
+CONNECTION user21261;
+UPDATE v1,t2 SET x=1 WHERE x=y;
+CONNECTION root;
+SELECT * FROM t1;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user21261'@'localhost';
+DROP USER 'user21261'@'localhost';
+DROP VIEW v1;
+DROP TABLE t1;
+DROP DATABASE bug21261DB;
+USE test;
+
+#
+# Bug #15950: NOW() optimized away in VIEWs
+#
+create table t1 (f1 datetime);
+create view v1 as select * from t1 where f1 between now() and now() + interval 1 minute;
+show create view v1;
+drop view v1;
+drop table t1;
 #
 # Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
 #
@@ -2822,45 +2865,5 @@ DROP FUNCTION f2;
 DROP VIEW v1, v2;
 DROP TABLE t1;
 
-#
-# Bug #21261: Wrong access rights was required for an insert to a view
-#
-CREATE DATABASE bug21261DB;
-USE bug21261DB;
-CONNECT (root,localhost,root,,bug21261DB);
-CONNECTION root;
 
-CREATE TABLE t1 (x INT);
-CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
-GRANT INSERT, UPDATE ON v1 TO 'user21261'@'localhost';
-GRANT INSERT, UPDATE ON t1 TO 'user21261'@'localhost';
-CREATE TABLE t2 (y INT);
-GRANT SELECT ON t2 TO 'user21261'@'localhost';
-
-CONNECT (user21261, localhost, user21261,, bug21261DB);
-CONNECTION user21261;
-INSERT INTO v1 (x) VALUES (5);
-UPDATE v1 SET x=1;
-CONNECTION root;
-GRANT SELECT ON v1 TO 'user21261'@'localhost';
-GRANT SELECT ON t1 TO 'user21261'@'localhost';
-CONNECTION user21261;
-UPDATE v1,t2 SET x=1 WHERE x=y;
-CONNECTION root;
-SELECT * FROM t1;
-REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user21261'@'localhost';
-DROP USER 'user21261'@'localhost';
-DROP VIEW v1;
-DROP TABLE t1;
-DROP DATABASE bug21261DB;
-USE test;
-
-#
-# Bug #15950: NOW() optimized away in VIEWs
-#
-create table t1 (f1 datetime);
-create view v1 as select * from t1 where f1 between now() and now() + interval 1 minute;
-show create view v1;
-drop view v1;
-drop table t1;
 --echo End of 5.0 tests.

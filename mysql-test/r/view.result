@@ -2860,17 +2860,6 @@ SHOW TABLES;
 Tables_in_test
 t1
 DROP TABLE t1;
-DROP TABLE IF EXISTS t1;
-DROP VIEW IF EXISTS v1;
-DROP VIEW IF EXISTS v2;
-CREATE TABLE t1(a INT, b INT);
-CREATE DEFINER=1234567890abcdefGHIKL@localhost
-VIEW v1 AS SELECT a FROM t1;
-ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
-CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
-VIEW v2 AS SELECT b FROM t1;
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
-DROP TABLE t1;
 DROP VIEW IF EXISTS v1;
 CREATE DATABASE bug21261DB;
 USE bug21261DB;
@@ -2901,6 +2890,17 @@ View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` where (`t1`.`f1` between now() and (now() + interval 1 minute))
 drop view v1;
 drop table t1;
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+CREATE TABLE t1(a INT, b INT);
+CREATE DEFINER=1234567890abcdefGHIKL@localhost
+VIEW v1 AS SELECT a FROM t1;
+ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
+CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+VIEW v2 AS SELECT b FROM t1;
+ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+DROP TABLE t1;
 DROP FUNCTION IF EXISTS f1;
 DROP FUNCTION IF EXISTS f2;
 DROP VIEW IF EXISTS v1, v2;
