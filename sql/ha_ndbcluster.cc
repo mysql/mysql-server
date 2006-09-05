@@ -6880,11 +6880,13 @@ void ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("FIELD_ITEM"));
             DBUG_PRINT("info", ("table %s", tab->getName()));
             DBUG_PRINT("info", ("column %s", field->field_name));
+            DBUG_PRINT("info", ("type %d", field->type()));
             DBUG_PRINT("info", ("result type %d", field->result_type()));
             
             // Check that we are expecting a field and with the correct
             // result type
             if (context->expecting(Item::FIELD_ITEM) &&
+                context->expecting_field_type(field->type()) &&
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
@@ -7104,6 +7106,9 @@ void ndb_serialize_cond(const Item *item, void *arg)
                                               func_item);      
             context->expect(Item::STRING_ITEM);
             context->expect(Item::FIELD_ITEM);
+            context->expect_only_field_type(MYSQL_TYPE_STRING);
+            context->expect_field_type(MYSQL_TYPE_VAR_STRING);
+            context->expect_field_type(MYSQL_TYPE_VARCHAR);
             context->expect_field_result(STRING_RESULT);
             context->expect(Item::FUNC_ITEM);
             break;
