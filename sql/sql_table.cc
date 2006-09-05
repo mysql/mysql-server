@@ -2225,30 +2225,30 @@ static int mysql_prepare_table(THD *thd, HA_CREATE_INFO *create_info,
     }
 
     /*
-      Convert the default value character
+      Convert the default value from client character
       set into the column character set if necessary.
     */
     if (sql_field->def && 
-        savecs != sql_field->def->collation.collation &&
+        save_cs != sql_field->def->collation.collation &&
         (sql_field->sql_type == FIELD_TYPE_VAR_STRING ||
          sql_field->sql_type == FIELD_TYPE_STRING ||
          sql_field->sql_type == FIELD_TYPE_SET ||
          sql_field->sql_type == FIELD_TYPE_ENUM))
     {
-      Item_arena backup_arena;
-      bool need_to_change_arena=
-        !thd->current_arena->is_conventional_execution();
+      Query_arena backup_arena;
+      bool need_to_change_arena= !thd->stmt_arena->is_conventional();
       if (need_to_change_arena)
       {
-        /* Assert that we don't do that at every PS execute */
-        DBUG_ASSERT(thd->current_arena->is_first_stmt_execute());
-        thd->set_n_backup_item_arena(thd->current_arena, &backup_arena);
+        /* Asser that we don't do that at every PS execute */
+        DBUG_ASSERT(thd->stmt_arena->is_first_stmt_execute() ||
+                    thd->stmt_arena->is_first_sp_execute());
+        thd->set_n_backup_active_arena(thd->stmt_arena, &backup_arena);
       }
 
-      sql_field->def= sql_field->def->safe_charset_converter(savecs);
+      sql_field->def= sql_field->def->safe_charset_converter(save_cs);
 
       if (need_to_change_arena)
-        thd->restore_backup_item_arena(thd->current_arena, &backup_arena);
+        thd->restore_active_arena(thd->stmt_arena, &backup_arena);
 
       if (sql_field->def == NULL)
       {
