@@ -7631,19 +7631,6 @@ SHOW_VAR innodb_status_variables_export[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
-{
-  innodb_export_status();
-  var->type= SHOW_ARRAY;
-  var->value= (char *) &innodb_status_variables;
-  return 0;
-}
-
-SHOW_VAR innodb_status_variables_export[]= {
-  {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
-  {NullS, NullS, SHOW_LONG}
-};
-
 struct st_mysql_storage_engine innobase_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION, &innobase_hton};
 
