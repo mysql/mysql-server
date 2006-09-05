@@ -4229,6 +4229,7 @@ btr_copy_externally_stored_field(
 #endif /* UNIV_SYNC_DEBUG */
 		if (UNIV_UNLIKELY(zip_size)) {
 			int	err;
+			ulint	next_page_no;
 
 			if (UNIV_UNLIKELY(fil_page_get_type(page)
 					  != FIL_PAGE_TYPE_ZBLOB)) {
@@ -4241,7 +4242,7 @@ btr_copy_externally_stored_field(
 					(ulong) page_no, (ulong) space_id);
 			}
 
-			page_no = mach_read_from_4(page + offset);
+			next_page_no = mach_read_from_4(page + offset);
 
 			if (UNIV_LIKELY(offset == FIL_PAGE_NEXT)) {
 				/* When the BLOB begins at page header,
@@ -4260,14 +4261,14 @@ btr_copy_externally_stored_field(
 			case Z_OK:
 				break;
 			case Z_STREAM_END:
-				if (page_no == FIL_NULL) {
+				if (next_page_no == FIL_NULL) {
 					goto end_of_blob;
 				}
 				/* fall through */
 			default:
+inflate_error:
 				mtr_commit(&mtr);
 				inflateEnd(&d_stream);
-inflate_error:
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 					"  InnoDB: inflate() of"
@@ -4279,7 +4280,7 @@ inflate_error:
 				return(buf);
 			}
 
-			if (page_no == FIL_NULL) {
+			if (next_page_no == FIL_NULL) {
 				err = inflate(&d_stream, Z_FINISH);
 				if (UNIV_UNLIKELY(err != Z_STREAM_END)) {
 
@@ -4301,6 +4302,7 @@ end_of_blob:
 			/* On other BLOB pages except the first
 			the BLOB header always is at the page header: */
 
+			page_no = next_page_no;
 			offset = FIL_PAGE_NEXT;
 		} else {
 			byte*	blob_header	= page + offset;
