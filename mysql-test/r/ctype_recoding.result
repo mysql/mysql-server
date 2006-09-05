@@ -248,3 +248,13 @@ select rpad(c1,3,'ö'), rpad('ö',3,c1) from t1;
 rpad(c1,3,'ö')	rpad('ö',3,c1)
 ßöö	ößß
 drop table t1;
+set names koi8r;
+create table t1(a char character set cp1251 default _koi8r 0xFF);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` char(1) character set cp1251 default 'ÿ'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
+create table t1(a char character set latin1 default _cp1251 0xFF);
+ERROR 42000: Invalid default value for 'a'
