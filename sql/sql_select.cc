@@ -1324,7 +1324,7 @@ JOIN::exec()
   }
   (void) result->prepare2(); // Currently, this cannot fail.
 
-  if (!tables_list)
+  if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
     if (select_options & SELECT_DESCRIBE)
       select_describe(this, FALSE, FALSE, FALSE,
@@ -1364,7 +1364,12 @@ JOIN::exec()
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
-  thd->limit_found_rows= thd->examined_row_count= 0;
+  /* 
+    don't reset the found rows count if there're no tables
+    as FOUND_ROWS() may be called.
+  */  
+  if (tables)
+    thd->limit_found_rows= thd->examined_row_count= 0;
 
   if (zero_result_cause)
   {
@@ -1403,7 +1408,8 @@ JOIN::exec()
     having= tmp_having;
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
-		    select_distinct);
+		    select_distinct,
+                    !tables ? "No tables used" : NullS);
     DBUG_VOID_RETURN;
   }
 
@@ -9728,9 +9734,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       table->file->ha_index_init(0);
   }
   /* Set up select_end */
-  join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
+  Next_select_func end_select= setup_end_select_func(join);
+  if (join->tables)
+  {
+    join->join_tab[join->tables-1].next_select= end_select;
 
-  join_tab=join->join_tab+join->const_tables;
+    join_tab=join->join_tab+join->const_tables;
+  }
   join->send_records=0;
   if (join->tables == join->const_tables)
   {
@@ -9740,7 +9750,6 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     */
     if (!join->conds || join->conds->val_int())
     {
-      Next_select_func end_select= join->join_tab[join->tables-1].next_select;
       error= (*end_select)(join,join_tab,0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)
 	error= (*end_select)(join,join_tab,1);
@@ -9754,6 +9763,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   else
   {
+    DBUG_ASSERT(join->tables);
+    DBUG_ASSERT(join_tab);
     error= sub_select(join,join_tab,0);
     if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
       error= sub_select(join,join_tab,1);
