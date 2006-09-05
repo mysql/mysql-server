@@ -1093,7 +1093,7 @@ btr_cur_optimistic_insert(
 	    && (0 == level)
 	    && (btr_page_get_split_rec_to_right(cursor, &dummy_rec)
 		|| btr_page_get_split_rec_to_left(cursor, &dummy_rec))) {
-
+fail:
 		if (big_rec_vec) {
 			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
 		}
@@ -1106,10 +1106,7 @@ btr_cur_optimistic_insert(
 	      || (page_get_max_insert_size(page, 1) >= rec_size)
 	      || (page_get_n_recs(page) <= 1))) {
 
-		if (big_rec_vec) {
-			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
-		}
-		return(DB_FAIL);
+		goto fail;
 	}
 
 	/* Check locks and write to the undo log, if specified */
@@ -1156,7 +1153,7 @@ btr_cur_optimistic_insert(
 		if (UNIV_UNLIKELY(!btr_page_reorganize(page, index, mtr))) {
 			ut_a(page_zip);
 
-			return(DB_FAIL);
+			goto fail;
 		}
 
 		ut_ad(page_get_max_insert_size(page, 1) == max_size);
@@ -1171,7 +1168,7 @@ btr_cur_optimistic_insert(
 		if (UNIV_UNLIKELY(!*rec)) {
 			if (UNIV_LIKELY(page_zip != NULL)) {
 
-				return(DB_FAIL);
+				goto fail;
 			}
 
 			fputs("InnoDB: Error: cannot insert tuple ", stderr);
