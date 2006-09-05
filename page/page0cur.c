@@ -1343,8 +1343,8 @@ page_copy_rec_list_end_to_created_page(
 		count++;
 		n_recs++;
 
-		if (UNIV_UNLIKELY(count ==
-				(PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2)) {
+		if (UNIV_UNLIKELY
+		    (count == (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2)) {
 
 			slot_index++;
 

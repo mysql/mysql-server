@@ -2139,8 +2139,8 @@ btr_cur_pessimistic_update(
 
 		/* Add the externally stored records. */
 		for (i = 0; i < big_rec_vec->n_fields; i++) {
-			ext_vect[n_ext_vect++] =
-				big_rec_vec->fields[i].field_no;
+			ext_vect[n_ext_vect++]
+				= big_rec_vec->fields[i].field_no;
 		}
 	}
 
@@ -4290,8 +4290,8 @@ end_of_blob:
 				ut_a(!d_stream.avail_out);
 
 				inflateEnd(&d_stream);
-				ut_ad(buf + local_len + d_stream.total_out ==
-				      d_stream.next_out);
+				ut_ad(buf + local_len + d_stream.total_out
+				      == d_stream.next_out);
 				*len = d_stream.next_out - buf;
 				return(buf);
 			}
