@@ -5055,19 +5055,6 @@ concat('data was: /', var1, '/')
 data was: /1/
 drop table t3|
 drop procedure bug15217|
-DROP PROCEDURE IF EXISTS bug16899_p1|
-DROP FUNCTION IF EXISTS bug16899_f1|
-CREATE DEFINER=1234567890abcdefGHIKL@localhost PROCEDURE bug16899_p1()
-BEGIN
-SET @a = 1;
-END|
-ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
-CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
-FUNCTION bug16899_f1() RETURNS INT
-BEGIN
-RETURN 1;
-END|
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
 DROP PROCEDURE IF EXISTS bug21013 |
 CREATE PROCEDURE bug21013(IN lim INT)
 BEGIN
