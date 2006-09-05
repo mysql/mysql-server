@@ -6787,19 +6787,17 @@ ha_innobase::store_lock(
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	trx_t*		trx;
 
-	/* Call update_thd() to update prebuilt->trx to point to the trx
-	object of thd! Failure to do this caused a serious memory
-	corruption bug in 5.1.11. */
+	/* Note that trx in this function is NOT necessarily prebuilt->trx
+	because we call update_thd() later, in ::external_lock()! Failure to
+	understand this caused a serious memory corruption bug in 5.1.11. */
 
-	update_thd(thd);
+	trx = check_trx_exists(thd);
 
-	trx = prebuilt->trx;
-
-	/* NOTE: MySQL	can call this function with lock 'type' TL_IGNORE!
+	/* NOTE: MySQL can call this function with lock 'type' TL_IGNORE!
 	Be careful to ignore TL_IGNORE if we are going to do something with
 	only 'real' locks! */
 
-	/* If no MySQL tables is use we need to set isolation level
+	/* If no MySQL table is in use, we need to set the isolation level
 	of the transaction. */
 
 	if (lock_type != TL_IGNORE
@@ -6809,7 +6807,13 @@ ha_innobase::store_lock(
 						thd->variables.tx_isolation);
 	}
 
-	if ((lock_type == TL_READ && thd->in_lock_tables) ||
+	if (thd->lex->sql_command == SQLCOM_DROP_TABLE) {
+
+		/* MySQL calls this function in DROP TABLE though this table
+		handle may belong to another thd that is running a query. Let
+		us in that case skip any changes to the prebuilt struct. */ 
+
+	} else if ((lock_type == TL_READ && thd->in_lock_tables) ||
 		(lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 		lock_type == TL_READ_WITH_SHARED_LOCKS ||
 		lock_type == TL_READ_NO_INSERT ||
@@ -7400,7 +7404,9 @@ innobase_xa_prepare(
 	int error = 0;
 	trx_t* trx = check_trx_exists(thd);
 
-	if (thd->lex->sql_command != SQLCOM_XA_PREPARE) {
+	if (thd->lex->sql_command != SQLCOM_XA_PREPARE &&
+	    (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))))
+	{
 
 		/* For ibbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
@@ -7611,6 +7617,19 @@ bool ha_innobase::check_if_incompatible_data(
 
 	return COMPATIBLE_DATA_YES;
 }
+
+static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
+{
+  innodb_export_status();
+  var->type= SHOW_ARRAY;
+  var->value= (char *) &innodb_status_variables;
+  return 0;
+}
+
+SHOW_VAR innodb_status_variables_export[]= {
+  {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
+  {NullS, NullS, SHOW_LONG}
+};
 
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {

@@ -342,7 +342,7 @@ mem_heap_create_block(
 	ulint		len;
 
 	ut_ad((type == MEM_HEAP_DYNAMIC) || (type == MEM_HEAP_BUFFER)
-		|| (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
+	      || (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
 
 	if (heap && heap->magic_n != MEM_BLOCK_MAGIC_N) {
 		mem_analyze_corruption(heap);
@@ -463,7 +463,7 @@ mem_heap_add_block(
 	}
 
 	new_block = mem_heap_create_block(heap, new_size, NULL, heap->type,
-						heap->file_name, heap->line);
+					  heap->file_name, heap->line);
 	if (new_block == NULL) {
 
 		return(NULL);

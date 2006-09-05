@@ -498,7 +498,8 @@ sync_array_cell_print(
 	type = cell->request_type;
 
 	fprintf(file,
-"--Thread %lu has waited at %s line %lu for %.2f seconds the semaphore:\n",
+		"--Thread %lu has waited at %s line %lu"
+		" for %.2f seconds the semaphore:\n",
 		(ulong) os_thread_pf(cell->thread), cell->file,
 		(ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
@@ -542,7 +543,8 @@ sync_array_cell_print(
 			(ulong) rwlock->cline);
 		if (rwlock->writer != RW_LOCK_NOT_LOCKED) {
 			fprintf(file,
-			"a writer (thread id %lu) has reserved it in mode %s",
+				"a writer (thread id %lu) has"
+				" reserved it in mode %s",
 				(ulong) os_thread_pf(rwlock->writer_thread),
 				rwlock->writer == RW_LOCK_EX
 				? " exclusive\n"
@@ -588,7 +590,7 @@ sync_array_find_thread(
 		cell = sync_array_get_nth_cell(arr, i);
 
 		if ((cell->state == SC_RESERVED)
-			&& os_thread_eq(cell->thread, thread)) {
+		    && os_thread_eq(cell->thread, thread)) {
 
 			return(cell);	/* Found */
 		}
@@ -634,7 +636,7 @@ sync_array_deadlock_step(
 
 		/* Deadlock */
 		fputs("########################################\n"
-			"DEADLOCK of threads detected!\n", stderr);
+		      "DEADLOCK of threads detected!\n", stderr);
 
 		return(TRUE);
 
@@ -697,10 +699,11 @@ sync_array_detect_deadlock(
 			a thread with ID_UNDEFINED value. */
 
 			ret = sync_array_deadlock_step(arr, start, thread, 0,
-								depth);
+						       depth);
 			if (ret) {
 				fprintf(stderr,
-			"Mutex %p owned by thread %lu file %s line %lu\n",
+					"Mutex %p owned by thread %lu"
+					" file %s line %lu\n",
 					(void*) mutex,
 					(ulong) os_thread_pf(mutex->thread_id),
 					mutex->file_name, (ulong) mutex->line);
@@ -723,10 +726,10 @@ sync_array_detect_deadlock(
 			thread = debug->thread_id;
 
 			if (((debug->lock_type == RW_LOCK_EX)
-					&& !os_thread_eq(thread, cell->thread))
-				|| ((debug->lock_type == RW_LOCK_WAIT_EX)
-					&& !os_thread_eq(thread, cell->thread))
-				|| (debug->lock_type == RW_LOCK_SHARED)) {
+			     && !os_thread_eq(thread, cell->thread))
+			    || ((debug->lock_type == RW_LOCK_WAIT_EX)
+				&& !os_thread_eq(thread, cell->thread))
+			    || (debug->lock_type == RW_LOCK_SHARED)) {
 
 				/* The (wait) x-lock request can block
 				infinitely only if someone (can be also cell
@@ -734,10 +737,11 @@ sync_array_detect_deadlock(
 				(cannot be cell thread) (wait) x-lock, and
 				he is blocked by start thread */
 
-				ret = sync_array_deadlock_step(arr, start,
-					thread, debug->pass, depth);
+				ret = sync_array_deadlock_step
+					(arr, start, thread,
+					 debug->pass, depth);
 				if (ret) {
-				print:
+print:
 					fprintf(stderr, "rw-lock %p ",
 						(void*) lock);
 					sync_array_cell_print(stderr, cell);
@@ -761,15 +765,16 @@ sync_array_detect_deadlock(
 			thread = debug->thread_id;
 
 			if ((debug->lock_type == RW_LOCK_EX)
-				|| (debug->lock_type == RW_LOCK_WAIT_EX)) {
+			    || (debug->lock_type == RW_LOCK_WAIT_EX)) {
 
 				/* The s-lock request can block infinitely
 				only if someone (can also be cell thread) is
 				holding (wait) x-lock, and he is blocked by
 				start thread */
 
-				ret = sync_array_deadlock_step(arr, start,
-					thread, debug->pass, depth);
+				ret = sync_array_deadlock_step
+					(arr, start, thread,
+					 debug->pass, depth);
 				if (ret) {
 					goto print;
 				}
@@ -814,14 +819,14 @@ sync_arr_cell_can_wake_up(
 		lock = cell->wait_object;
 
 		if (rw_lock_get_reader_count(lock) == 0
-			&& rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
+		    && rw_lock_get_writer(lock) == RW_LOCK_NOT_LOCKED) {
 
 			return(TRUE);
 		}
 
 		if (rw_lock_get_reader_count(lock) == 0
-			&& rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX
-			&& os_thread_eq(lock->writer_thread, cell->thread)) {
+		    && rw_lock_get_writer(lock) == RW_LOCK_WAIT_EX
+		    && os_thread_eq(lock->writer_thread, cell->thread)) {
 
 			return(TRUE);
 		}
@@ -897,16 +902,16 @@ sync_array_signal_object(
 					sync_cell_t** old_cell_ptr = cell_ptr;
 					size_t old_size, new_size;
 
-					old_size = cell_max_count *
-						sizeof(sync_cell_t*);
+					old_size = cell_max_count
+						* sizeof(sync_cell_t*);
 					cell_max_count *= 2;
-					new_size = cell_max_count *
-						sizeof(sync_cell_t*);
+					new_size = cell_max_count
+						* sizeof(sync_cell_t*);
 
 					cell_ptr = malloc(new_size);
 					ut_a(cell_ptr);
 					memcpy(cell_ptr, old_cell_ptr,
-						old_size);
+					       old_size);
 
 					if (old_cell_ptr != &cells[0]) {
 						free(old_cell_ptr);
@@ -1009,23 +1014,24 @@ sync_array_print_long_waits(void)
 		cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
 		if ((cell->state != SC_FREE)
-			&& difftime(time(NULL), cell->reservation_time) > 240) {
+		    && difftime(time(NULL), cell->reservation_time) > 240) {
 			fputs("InnoDB: Warning: a long semaphore wait:\n",
-				stderr);
+			      stderr);
 			sync_array_cell_print(stderr, cell);
 			noticed = TRUE;
 		}
 
 		if ((cell->state != SC_FREE)
-			&& difftime(time(NULL), cell->reservation_time)
-			> fatal_timeout) {
+		    && difftime(time(NULL), cell->reservation_time)
+		    > fatal_timeout) {
 			fatal = TRUE;
 		}
 	}
 
 	if (noticed) {
 		fprintf(stderr,
-"InnoDB: ###### Starts InnoDB Monitor for 30 secs to print diagnostic info:\n");
+			"InnoDB: ###### Starts InnoDB Monitor"
+			" for 30 secs to print diagnostic info:\n");
 		old_val = srv_print_innodb_monitor;
 
 		/* If some crucial semaphore is reserved, then also the InnoDB
@@ -1035,8 +1041,9 @@ sync_array_print_long_waits(void)
 		now the values of pending calls of these. */
 
 		fprintf(stderr,
-"InnoDB: Pending preads %lu, pwrites %lu\n", (ulong)os_file_n_pending_preads,
-				(ulong)os_file_n_pending_pwrites);
+			"InnoDB: Pending preads %lu, pwrites %lu\n",
+			(ulong)os_file_n_pending_preads,
+			(ulong)os_file_n_pending_pwrites);
 
 		srv_print_innodb_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
@@ -1045,7 +1052,8 @@ sync_array_print_long_waits(void)
 
 		srv_print_innodb_monitor = old_val;
 		fprintf(stderr,
-"InnoDB: ###### Diagnostic info printed to the standard error stream\n");
+			"InnoDB: ###### Diagnostic info printed"
+			" to the standard error stream\n");
 	}
 
 	return(fatal);
@@ -1065,9 +1073,10 @@ sync_array_output_info(
 	ulint		i;
 
 	fprintf(file,
-	"OS WAIT ARRAY INFO: reservation count %ld, signal count %ld\n",
-						(long) arr->res_count,
-						(long) arr->sg_count);
+		"OS WAIT ARRAY INFO: reservation count %ld,"
+		" signal count %ld\n",
+		(long) arr->res_count,
+		(long) arr->sg_count);
 	for (i = 0; i < arr->n_cells; i++) {
 
 		cell = sync_array_get_nth_cell(arr, i);
