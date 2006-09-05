@@ -63,6 +63,8 @@ static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
 static rw_lock_t THR_LOCK_plugin;
 static bool initialized= 0;
 
+static int plugin_array_version=0;
+
 /* prototypes */
 my_bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 void plugin_load(void);
@@ -448,6 +450,7 @@ static my_bool plugin_add(const LEX_STRING *name, const LEX_STRING *dl, int repo
       tmp.state= PLUGIN_IS_UNINITIALIZED;
       if (! (tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
         goto err;
+      plugin_array_version++;
       if (my_hash_insert(&plugin_hash[plugin->type], (byte*)tmp_plugin_ptr))
       {
         tmp_plugin_ptr->state= PLUGIN_IS_FREED;
@@ -504,6 +507,7 @@ static void plugin_del(const LEX_STRING *name)
     hash_delete(&plugin_hash[plugin->plugin->type], (byte*)plugin);
     plugin_dl_del(&plugin->plugin_dl->dl);
     plugin->state= PLUGIN_IS_FREED;
+    plugin_array_version++;
   }
   DBUG_VOID_RETURN;
 }
@@ -639,7 +643,7 @@ static byte *get_hash_key(const byte *buff, uint *length,
 */
 int plugin_init(int skip_dynamic_loading)
 {
-  int i;
+  uint i;
   struct st_mysql_plugin **builtins;
   struct st_mysql_plugin *plugin;
   DBUG_ENTER("plugin_init");
@@ -939,43 +943,61 @@ err:
   DBUG_RETURN(TRUE);
 }
 
-
 my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
                        int type, void *arg)
 {
-  uint idx;
-  struct st_plugin_int *plugin;
+  uint idx, total;
+  struct st_plugin_int *plugin, **plugins;
+  int version=plugin_array_version;
   DBUG_ENTER("plugin_foreach");
-  rw_rdlock(&THR_LOCK_plugin);
 
+  rw_rdlock(&THR_LOCK_plugin);
   if (type == MYSQL_ANY_PLUGIN)
   {
-    for (idx= 0; idx < plugin_array.elements; idx++)
+    total=plugin_array.elements;
+    plugins=(struct st_plugin_int **)my_alloca(total*sizeof(*plugins));
+    for (idx= 0; idx < total; idx++)
     {
       plugin= dynamic_element(&plugin_array, idx, struct st_plugin_int *);
-
-      /* FREED records may have garbage pointers */
-      if ((plugin->state != PLUGIN_IS_FREED) &&
-          func(thd, plugin, arg))
-        goto err;
+      if (plugin->state == PLUGIN_IS_FREED)
+        continue;
+      plugins[idx]= plugin;
     }
   }
   else
   {
     HASH *hash= &plugin_hash[type];
-    for (idx= 0; idx < hash->records; idx++)
+    total=hash->records;
+    plugins=(struct st_plugin_int **)my_alloca(total*sizeof(*plugins));
+    for (idx= 0; idx < total; idx++)
     {
       plugin= (struct st_plugin_int *) hash_element(hash, idx);
-      if ((plugin->state != PLUGIN_IS_FREED) &&
-          (plugin->state != PLUGIN_IS_DELETED) &&
-          func(thd, plugin, arg))
-        goto err;
+      if (plugin->state == PLUGIN_IS_FREED)
+        continue;
+      plugins[idx]= plugin;
     }
   }
-
   rw_unlock(&THR_LOCK_plugin);
+
+  for (idx= 0; idx < total; idx++)
+  {
+    plugin= plugins[idx];
+    if (unlikely(version != plugin_array_version))
+    {
+      rw_rdlock(&THR_LOCK_plugin);
+      for (uint i=idx; i < total; i++)
+        if (plugins[i]->state == PLUGIN_IS_FREED)
+          plugins[i]=0;
+      rw_unlock(&THR_LOCK_plugin);
+    }
+    if (plugin && func(thd, plugin, arg))
+        goto err;
+  }
+
+  my_afree(plugins);
   DBUG_RETURN(FALSE);
 err:
-  rw_unlock(&THR_LOCK_plugin);
+  my_afree(plugins);
   DBUG_RETURN(TRUE);
 }
+
