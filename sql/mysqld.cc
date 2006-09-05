@@ -508,7 +508,6 @@ key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
-char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
 char *language_ptr, *default_collation_name, *default_character_set_name;
 char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
 struct passwd *user_info;
