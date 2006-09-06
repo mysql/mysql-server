@@ -31,13 +31,17 @@ typedef struct st_mysql_show_var SHOW_VAR;
 
 #define MYSQL_ANY_PLUGIN         -1
 
-enum enum_plugin_state
-{
-  PLUGIN_IS_FREED= 0,
-  PLUGIN_IS_DELETED,
-  PLUGIN_IS_UNINITIALIZED,
-  PLUGIN_IS_READY
-};
+/*
+  different values of st_plugin_int::state
+  though they look like a bitmap, plugin may only
+  be in one of those eigenstates, not in a superposition of them :)
+  It's a bitmap, because it makes it easier to test
+  "whether the state is one of those..."
+*/
+#define PLUGIN_IS_FREED         1
+#define PLUGIN_IS_DELETED       2
+#define PLUGIN_IS_UNINITIALIZED 4
+#define PLUGIN_IS_READY         8
 
 /* A handle for the dynamic library containing a plugin or plugins. */
 
@@ -57,7 +61,7 @@ struct st_plugin_int
   LEX_STRING name;
   struct st_mysql_plugin *plugin;
   struct st_plugin_dl *plugin_dl;
-  enum enum_plugin_state state;
+  uint state;
   uint ref_count;               /* number of threads using the plugin */
   void *data;                   /* plugin type specific, e.g. handlerton */
 };
@@ -67,20 +71,18 @@ typedef int (*plugin_type_init)(struct st_plugin_int *);
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
-extern int plugin_init(void);
-extern void plugin_load(void);
-extern void plugin_free(void);
+extern int plugin_init(int);
+extern void plugin_shutdown(void);
 extern my_bool plugin_is_ready(const LEX_STRING *name, int type);
 extern st_plugin_int *plugin_lock(const LEX_STRING *name, int type);
 extern void plugin_unlock(struct st_plugin_int *plugin);
 extern my_bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl);
 extern my_bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name);
 
-extern my_bool plugin_register_builtin(struct st_mysql_plugin *plugin);
-
 typedef my_bool (plugin_foreach_func)(THD *thd,
                                       st_plugin_int *plugin,
                                       void *arg);
-extern my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
-                              int type, void *arg);
+#define plugin_foreach(A,B,C,D) plugin_foreach_with_mask(A,B,C,PLUGIN_IS_READY,D)
+extern my_bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
+                                        int type, uint state_mask, void *arg);
 #endif

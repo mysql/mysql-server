@@ -63,6 +63,12 @@ static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
 static rw_lock_t THR_LOCK_plugin;
 static bool initialized= 0;
 
+static int plugin_array_version=0;
+
+/* prototypes */
+my_bool plugin_register_builtin(struct st_mysql_plugin *plugin);
+void plugin_load(void);
+
 static struct st_plugin_dl *plugin_dl_find(const LEX_STRING *dl)
 {
   uint i;
@@ -366,7 +372,7 @@ struct st_plugin_int *plugin_lock(const LEX_STRING *name, int type)
   rw_wrlock(&THR_LOCK_plugin);
   if ((rc= plugin_find_internal(name, type)))
   {
-    if (rc->state == PLUGIN_IS_READY || rc->state == PLUGIN_IS_UNINITIALIZED)
+    if (rc->state & (PLUGIN_IS_READY | PLUGIN_IS_UNINITIALIZED))
       rc->ref_count++;
     else
       rc= 0;
@@ -442,17 +448,9 @@ static my_bool plugin_add(const LEX_STRING *name, const LEX_STRING *dl, int repo
       tmp.name.length= name_len;
       tmp.ref_count= 0;
       tmp.state= PLUGIN_IS_UNINITIALIZED;
-      if (plugin->status_vars)
-      {
-        SHOW_VAR array[2]= {
-          {plugin->name, (char*)plugin->status_vars, SHOW_ARRAY},
-          {0, 0, SHOW_UNDEF}
-        };
-        if (add_status_vars(array)) // add_status_vars makes a copy
-          goto err;
-      }
       if (! (tmp_plugin_ptr= plugin_insert_or_reuse(&tmp)))
         goto err;
+      plugin_array_version++;
       if (my_hash_insert(&plugin_hash[plugin->type], (byte*)tmp_plugin_ptr))
       {
         tmp_plugin_ptr->state= PLUGIN_IS_FREED;
@@ -466,16 +464,35 @@ static my_bool plugin_add(const LEX_STRING *name, const LEX_STRING *dl, int repo
   if (report & REPORT_TO_LOG)
     sql_print_error(ER(ER_CANT_FIND_DL_ENTRY), name->str);
 err:
-  if (plugin->status_vars)
-  {
-    SHOW_VAR array[2]= {
-      {plugin->name, (char*)plugin->status_vars, SHOW_ARRAY},
-      {0, 0, SHOW_UNDEF}
-    };
-    remove_status_vars(array);
-  }
   plugin_dl_del(dl);
   DBUG_RETURN(TRUE);
+}
+
+
+void plugin_deinitializer(struct st_plugin_int *plugin)
+{
+    if (plugin->plugin->status_vars)
+    {
+      SHOW_VAR array[2]= {
+        {plugin->plugin->name, (char*)plugin->plugin->status_vars, SHOW_ARRAY},
+        {0, 0, SHOW_UNDEF}
+      };
+      remove_status_vars(array);
+    }
+
+    if (plugin->state == PLUGIN_IS_READY)
+    {
+      if (plugin->plugin->deinit)
+      {
+        DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
+        if (plugin->plugin->deinit())
+        {
+          DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
+                                 plugin->name.str));
+        }
+      }
+      plugin->state= PLUGIN_IS_UNINITIALIZED;
+    }
 }
 
 
@@ -486,17 +503,11 @@ static void plugin_del(const LEX_STRING *name)
   DBUG_ENTER("plugin_del");
   if ((plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
   {
-    if (plugin->plugin->status_vars)
-    {
-      SHOW_VAR array[2]= {
-        {plugin->plugin->name, (char*)plugin->plugin->status_vars, SHOW_ARRAY},
-        {0, 0, SHOW_UNDEF}
-      };
-      remove_status_vars(array);
-    }
+    plugin_deinitializer(plugin);
     hash_delete(&plugin_hash[plugin->plugin->type], (byte*)plugin);
     plugin_dl_del(&plugin->plugin_dl->dl);
     plugin->state= PLUGIN_IS_FREED;
+    plugin_array_version++;
   }
   DBUG_VOID_RETURN;
 }
@@ -523,6 +534,26 @@ static int plugin_initialize(struct st_plugin_int *plugin)
 {
   DBUG_ENTER("plugin_initialize");
 
+  if (plugin->plugin->status_vars)
+  {
+#ifdef FIX_LATER
+    /* 
+      We have a problem right now where we can not prepend without
+      breaking backwards compatibility. We will fix this shortly so 
+      that engines have "use names" and we wil use those for
+      CREATE TABLE, and use the plugin name then for adding automatic
+      variable names.
+    */
+    SHOW_VAR array[2]= {
+      {plugin->name, (char*)plugin->status_vars, SHOW_ARRAY},
+      {0, 0, SHOW_UNDEF}
+    };
+    if (add_status_vars(array)) // add_status_vars makes a copy
+      goto err;
+#else
+    add_status_vars(plugin->plugin->status_vars); // add_status_vars makes a copy
+#endif /* FIX_LATER */
+  }
   if (plugin->plugin->init)
   {
     if (plugin->plugin->init())
@@ -539,6 +570,8 @@ static int plugin_initialize(struct st_plugin_int *plugin)
                     plugin->name.str, plugin_type_names[plugin->plugin->type]);
     goto err;
   }
+
+  plugin->state= PLUGIN_IS_READY;
 
   DBUG_RETURN(0);
 err:
@@ -592,52 +625,6 @@ err:
   DBUG_RETURN(1);
 }
 
-static void plugin_call_initializer(void)
-{
-  uint i;
-  DBUG_ENTER("plugin_call_initializer");
-  for (i= 0; i < plugin_array.elements; i++)
-  {
-    struct st_plugin_int *tmp= dynamic_element(&plugin_array, i,
-                                               struct st_plugin_int *);
-    if (tmp->state == PLUGIN_IS_UNINITIALIZED)
-    {
-      if (plugin_initialize(tmp))
-        plugin_del(&tmp->name);
-      else
-        tmp->state= PLUGIN_IS_READY;
-    }
-  }
-  DBUG_VOID_RETURN;
-}
-
-
-static void plugin_call_deinitializer(void)
-{
-  uint i;
-  DBUG_ENTER("plugin_call_deinitializer");
-  for (i= 0; i < plugin_array.elements; i++)
-  {
-    struct st_plugin_int *tmp= dynamic_element(&plugin_array, i,
-                                               struct st_plugin_int *);
-    if (tmp->state == PLUGIN_IS_READY)
-    {
-      if (tmp->plugin->deinit)
-      {
-        DBUG_PRINT("info", ("Deinitializing plugin: '%s'", tmp->name.str));
-        if (tmp->plugin->deinit())
-        {
-          DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
-                                 tmp->name.str));
-        }
-      }
-      tmp->state= PLUGIN_IS_UNINITIALIZED;
-    }
-  }
-  DBUG_VOID_RETURN;
-}
-
-
 static byte *get_hash_key(const byte *buff, uint *length,
                    my_bool not_used __attribute__((unused)))
 {
@@ -647,9 +634,16 @@ static byte *get_hash_key(const byte *buff, uint *length,
 }
 
 
-int plugin_init(void)
+/*
+  The logic is that we first load and initialize all compiled in plugins.
+  From there we load up the dynamic types (assuming we have not been told to
+  skip this part). 
+
+  Finally we inializie everything, aka the dynamic that have yet to initialize.
+*/
+int plugin_init(int skip_dynamic_loading)
 {
-  int i;
+  uint i;
   struct st_mysql_plugin **builtins;
   struct st_mysql_plugin *plugin;
   DBUG_ENTER("plugin_init");
@@ -672,23 +666,45 @@ int plugin_init(void)
       goto err;
   }
 
-  /* Register all the built-in plugins */
+  /* 
+    First we register builtin plugins
+  */
   for (builtins= mysqld_builtins; *builtins; builtins++)
   {
     for (plugin= *builtins; plugin->info; plugin++)
     {
-      if (plugin_register_builtin(plugin))
-        goto err;
-      struct st_plugin_int *tmp=dynamic_element(&plugin_array,
-                                                plugin_array.elements-1,
-                                                struct st_plugin_int *);
-      if (plugin_initialize(tmp))
-        goto err;
-      tmp->state= PLUGIN_IS_READY;
+//      if (!(strcmp(plugin->name, "MyISAM")))
+      {
+        if (plugin_register_builtin(plugin))
+          goto err;
+        struct st_plugin_int *tmp= dynamic_element(&plugin_array,
+                                                   plugin_array.elements-1,
+                                                   struct st_plugin_int *);
+        if (plugin_initialize(tmp))
+          goto err;
+      }
     }
   }
 
+  /* Register all dynamic plugins */
+  if (!skip_dynamic_loading)
+    plugin_load();
+
   initialized= 1;
+
+  /*
+    Now we initialize all remaining plugins
+  */
+  for (i= 0; i < plugin_array.elements; i++)
+  {
+    struct st_plugin_int *tmp= dynamic_element(&plugin_array, i,
+                                               struct st_plugin_int *);
+    if (tmp->state == PLUGIN_IS_UNINITIALIZED)
+    {
+      if (plugin_initialize(tmp))
+        plugin_del(&tmp->name);
+    }
+  }
 
   DBUG_RETURN(0);
 
@@ -734,8 +750,6 @@ void plugin_load(void)
   THD *new_thd;
   DBUG_ENTER("plugin_load");
 
-  DBUG_ASSERT(initialized);
-
   if (!(new_thd= new THD))
   {
     sql_print_error("Can't allocate memory for plugin structures");
@@ -772,7 +786,6 @@ void plugin_load(void)
       DBUG_PRINT("warning", ("Couldn't load plugin named '%s' with soname '%s'.",
                              name.str, dl.str));
   }
-  plugin_call_initializer();
   if (error > 0)
     sql_print_error(ER(ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
@@ -787,11 +800,22 @@ end:
 }
 
 
-void plugin_free(void)
+void plugin_shutdown(void)
 {
   uint i;
-  DBUG_ENTER("plugin_free");
-  plugin_call_deinitializer();
+  DBUG_ENTER("plugin_shutdown");
+
+  /*
+    We loop through all plugins and call deinit() if they have one.
+  */
+  for (i= 0; i < plugin_array.elements; i++)
+  {
+    struct st_plugin_int *tmp= dynamic_element(&plugin_array, i,
+                                               struct st_plugin_int *);
+    plugin_deinitializer(tmp);
+
+  }
+
   for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
     hash_free(&plugin_hash[i]);
   delete_dynamic(&plugin_array);
@@ -840,8 +864,6 @@ my_bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING 
              "Plugin initialization function failed.");
     goto err;
   }
-
-  tmp->state= PLUGIN_IS_READY;
 
   table->use_all_columns();
   restore_record(table, s->default_values);
@@ -921,43 +943,63 @@ err:
   DBUG_RETURN(TRUE);
 }
 
-
-my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
-                       int type, void *arg)
+my_bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
+                       int type, uint state_mask, void *arg)
 {
-  uint idx;
-  struct st_plugin_int *plugin;
-  DBUG_ENTER("plugin_foreach");
-  rw_rdlock(&THR_LOCK_plugin);
+  uint idx, total;
+  struct st_plugin_int *plugin, **plugins;
+  int version=plugin_array_version;
+  DBUG_ENTER("plugin_foreach_with_mask");
 
+  state_mask= ~state_mask; // do it only once
+
+  rw_rdlock(&THR_LOCK_plugin);
   if (type == MYSQL_ANY_PLUGIN)
   {
-    for (idx= 0; idx < plugin_array.elements; idx++)
+    total=plugin_array.elements;
+    plugins=(struct st_plugin_int **)my_alloca(total*sizeof(*plugins));
+    for (idx= 0; idx < total; idx++)
     {
       plugin= dynamic_element(&plugin_array, idx, struct st_plugin_int *);
-
-      /* FREED records may have garbage pointers */
-      if ((plugin->state != PLUGIN_IS_FREED) &&
-          func(thd, plugin, arg))
-        goto err;
+      if (plugin->state & state_mask)
+        continue;
+      plugins[idx]= plugin;
     }
   }
   else
   {
     HASH *hash= &plugin_hash[type];
-    for (idx= 0; idx < hash->records; idx++)
+    total=hash->records;
+    plugins=(struct st_plugin_int **)my_alloca(total*sizeof(*plugins));
+    for (idx= 0; idx < total; idx++)
     {
       plugin= (struct st_plugin_int *) hash_element(hash, idx);
-      if ((plugin->state != PLUGIN_IS_FREED) &&
-          (plugin->state != PLUGIN_IS_DELETED) &&
-          func(thd, plugin, arg))
-        goto err;
+      if (plugin->state & state_mask)
+        continue;
+      plugins[idx]= plugin;
     }
   }
-
   rw_unlock(&THR_LOCK_plugin);
+
+  for (idx= 0; idx < total; idx++)
+  {
+    plugin= plugins[idx];
+    if (unlikely(version != plugin_array_version))
+    {
+      rw_rdlock(&THR_LOCK_plugin);
+      for (uint i=idx; i < total; i++)
+        if (plugins[i]->state & state_mask)
+          plugins[i]=0;
+      rw_unlock(&THR_LOCK_plugin);
+    }
+    if (plugin && func(thd, plugin, arg))
+        goto err;
+  }
+
+  my_afree(plugins);
   DBUG_RETURN(FALSE);
 err:
-  rw_unlock(&THR_LOCK_plugin);
+  my_afree(plugins);
   DBUG_RETURN(TRUE);
 }
+

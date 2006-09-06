@@ -1186,7 +1186,7 @@ void clean_up(bool print_message)
     udf_free();
 #endif
   }
-  plugin_free();
+  plugin_shutdown();
   if (tc_log)
     tc_log->close();
   xid_cache_free();
@@ -2627,7 +2627,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   /*
     Add server status variables to the dynamic list of
     status variables that is shown by SHOW STATUS.
-    Later, in plugin_init, plugin_load, and mysql_install_plugin
+    Later, in plugin_init, and mysql_install_plugin
     new entries could be added to that list.
   */
   if (add_status_vars(status_vars))
@@ -3176,7 +3176,7 @@ server.");
     using_update_log=1;
   }
 
-  if (plugin_init())
+  if (plugin_init(0))
   {
     sql_print_error("Failed to init plugins.");
     return 1;
@@ -3608,7 +3608,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (!opt_noacl)
   {
-    plugin_load();
 #ifdef HAVE_DLOPEN
     udf_init();
 #endif
