@@ -40,6 +40,12 @@
 #define DBUG_DUMP_EVENT(A,B,C)
 #endif
 
+#undef NDB_EVENT_VERIFY_SIZE
+#ifdef VM_TRACE
+// not much effect on performance, leave on
+#define NDB_EVENT_VERIFY_SIZE
+#endif
+
 class NdbEventOperationImpl;
 
 struct EventBufData
@@ -54,9 +60,13 @@ struct EventBufData
 
   /*
    * Blobs are stored in blob list (m_next_blob) where each entry
-   * is list of parts (m_next) in part number order.
+   * is list of parts (m_next).  TODO order by part number
    *
-   * TODO order by part no and link for fast read and free_list
+   * Processed data (m_used_data, m_free_data) keeps the old blob
+   * list intact.  It is reconsumed when new data items are needed.
+   *
+   * Data item lists keep track of item count and sum(sz) and
+   * these include both main items and blob parts.
    */
 
   EventBufData *m_next; // Next wrt to global order or Next blob part
@@ -66,14 +76,22 @@ struct EventBufData
   Uint32 m_pkhash; // PK hash (without op) for fast compare
 
   EventBufData() {}
+
   // Get blob part number from blob data
-  Uint32 get_blob_part_no() {
-    assert(ptr[0].sz > 2);
-    Uint32 pos = AttributeHeader(ptr[0].p[0]).getDataSize() +
-                AttributeHeader(ptr[0].p[1]).getDataSize();
-    Uint32 no = ptr[1].p[pos];
-    return no;
+  Uint32 get_blob_part_no() const;
+
+  /*
+   * Main item does not include summary of parts (space / performance
+   * tradeoff).  The summary is needed when moving single data item.
+   * It is not needed when moving entire list.
+   */
+  void get_full_size(Uint32 & full_count, Uint32 & full_sz) const {
+    full_count = 1;
+    full_sz = sz;
+    if (m_next_blob != 0)
+      add_part_size(full_count, full_sz);
   }
+  void add_part_size(Uint32 & full_count, Uint32 & full_sz) const;
 };
 
 class EventBufData_list
@@ -82,19 +100,22 @@ public:
   EventBufData_list();
   ~EventBufData_list();
 
-  void remove_first();
-  // append data and insert data into Gci_op list with add_gci_op
-  void append_data(EventBufData *data);
+  // remove first and return its size
+  void remove_first(Uint32 & full_count, Uint32 & full_sz);
+  // for remove+append avoid double call to get_full_size()
+  void append_used_data(EventBufData *data, Uint32 full_count, Uint32 full_sz);
   // append data and insert data but ignore Gci_op list
   void append_used_data(EventBufData *data);
+  // append data and insert data into Gci_op list with add_gci_op
+  void append_data(EventBufData *data);
   // append list to another, will call move_gci_ops
   void append_list(EventBufData_list *list, Uint64 gci);
 
   int is_empty();
 
   EventBufData *m_head, *m_tail;
-  unsigned m_count;
-  unsigned m_sz;
+  Uint32 m_count;
+  Uint32 m_sz;
 
   /*
     distinct ops per gci (assume no hash needed)
@@ -193,33 +214,47 @@ int EventBufData_list::is_empty()
 }
 
 inline
-void EventBufData_list::remove_first()
+void EventBufData_list::remove_first(Uint32 & full_count, Uint32 & full_sz)
 {
-  m_count--;
-  m_sz-= m_head->sz;
-  m_head= m_head->m_next;
+  m_head->get_full_size(full_count, full_sz);
+#ifdef VM_TRACE
+  assert(m_count >= full_count);
+  assert(m_sz >= full_sz);
+#endif
+  m_count -= full_count;
+  m_sz -= full_sz;
+  m_head = m_head->m_next;
   if (m_head == 0)
-    m_tail= 0;
+    m_tail = 0;
+}
+
+inline
+void EventBufData_list::append_used_data(EventBufData *data, Uint32 full_count, Uint32 full_sz)
+{
+  data->m_next = 0;
+  if (m_tail)
+    m_tail->m_next = data;
+  else
+  {
+#ifdef VM_TRACE
+    assert(m_head == 0);
+    assert(m_count == 0);
+    assert(m_sz == 0);
+#endif
+    m_head = data;
+  }
+  m_tail = data;
+
+  m_count += full_count;
+  m_sz += full_sz;
 }
 
 inline
 void EventBufData_list::append_used_data(EventBufData *data)
 {
-  data->m_next= 0;
-  if (m_tail)
-    m_tail->m_next= data;
-  else
-  {
-#ifdef VM_TRACE
-    assert(m_count == 0);
-    assert(m_sz == 0);
-#endif
-    m_head= data;
-  }
-  m_tail= data;
-
-  m_count++;
-  m_sz+= data->sz;
+  Uint32 full_count, full_sz;
+  data->get_full_size(full_count, full_sz);
+  append_used_data(data, full_count, full_sz);
 }
 
 inline
@@ -442,17 +477,24 @@ public:
 
   // routines to copy/merge events
   EventBufData* alloc_data();
-  int alloc_mem(EventBufData* data, LinearSectionPtr ptr[3]);
+  int alloc_mem(EventBufData* data,
+                LinearSectionPtr ptr[3],
+                Uint32 * change_sz);
+  void dealloc_mem(EventBufData* data,
+                   Uint32 * change_sz);
   int copy_data(const SubTableData * const sdata,
                 LinearSectionPtr ptr[3],
-                EventBufData* data);
+                EventBufData* data,
+                Uint32 * change_sz);
   int merge_data(const SubTableData * const sdata,
                  LinearSectionPtr ptr[3],
-                 EventBufData* data);
+                 EventBufData* data,
+                 Uint32 * change_sz);
   int get_main_data(Gci_container* bucket,
                     EventBufData_hash::Pos& hpos,
                     EventBufData* blob_data);
-  void add_blob_data(EventBufData* main_data,
+  void add_blob_data(Gci_container* bucket,
+                     EventBufData* main_data,
                      EventBufData* blob_data);
 
   void free_list(EventBufData_list &list);
@@ -478,9 +520,9 @@ public:
   Gci_container m_complete_data;
   EventBufData *m_free_data;
 #ifdef VM_TRACE
-  unsigned m_free_data_count;
+  Uint32 m_free_data_count;
 #endif
-  unsigned m_free_data_sz;
+  Uint32 m_free_data_sz;
 
   // user thread
   EventBufData_list m_available_data;
@@ -493,6 +535,12 @@ public:
   unsigned m_gci_slip_thresh;
 
   NdbError m_error;
+
+#ifdef VM_TRACE
+  static void verify_size(const EventBufData* data, Uint32 count, Uint32 sz);
+  static void verify_size(const EventBufData_list & list);
+#endif
+
 private:
   int expand(unsigned sz);
 
