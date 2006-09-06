@@ -475,6 +475,8 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
       
     idx = m_current_api_receiver;
     last = m_api_receivers_count;
+
+    Uint32 timeout = tp->m_waitfor_timeout;
       
     do {
       if(theError.code){
@@ -502,7 +504,7 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
 	 */
 	theNdb->theImpl->theWaiter.m_node = nodeId;
 	theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
-	int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+	int return_code = theNdb->receiveResponse(3*timeout);
 	if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	  continue;
 	} else {
@@ -1365,6 +1367,7 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
 	return -1;
       Uint32 seq = theNdbCon->theNodeSequence;
       Uint32 nodeId = theNdbCon->theDBnode;
+      Uint32 timeout = tp->m_waitfor_timeout;
       if(seq == tp->getNodeSequence(nodeId) &&
 	 !send_next_scan_ordered(s_idx, forceSend)){
 	Uint32 tmp = m_sent_receivers_count;
@@ -1372,7 +1375,7 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
 	while(m_sent_receivers_count > 0 && !theError.code){
 	  theNdb->theImpl->theWaiter.m_node = nodeId;
 	  theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
-	  int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+	  int return_code = theNdb->receiveResponse(3*timeout);
 	  if (return_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	    continue;
 	  }
@@ -1513,6 +1516,8 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
     return -1;
   }
   
+  Uint32 timeout = tp->m_waitfor_timeout;
+
   /**
    * Wait for outstanding
    */
@@ -1520,7 +1525,7 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
   {
     theNdb->theImpl->theWaiter.m_node = nodeId;
     theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
-    int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+    int return_code = theNdb->receiveResponse(3*timeout);
     switch(return_code){
     case 0:
       break;
@@ -1590,7 +1595,7 @@ NdbScanOperation::close_impl(TransporterFacade* tp, bool forceSend){
   {
     theNdb->theImpl->theWaiter.m_node = nodeId;
     theNdb->theImpl->theWaiter.m_state = WAIT_SCAN;
-    int return_code = theNdb->receiveResponse(WAITFOR_SCAN_TIMEOUT);
+    int return_code = theNdb->receiveResponse(3*timeout);
     switch(return_code){
     case 0:
       break;
