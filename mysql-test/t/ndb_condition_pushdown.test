@@ -1649,6 +1649,16 @@ set engine_condition_pushdown = on;
 explain select * from t5 where b like '%jo%';
 select * from t5 where b like '%jo%' order by a;
 
+# bug#21056  	ndb pushdown equal/setValue error on datetime
+set engine_condition_pushdown = off;
+select auto from t1 where date_time like '1902-02-02 %';
+select auto from t1 where date_time not like '1902-02-02 %';
+set engine_condition_pushdown = on;
+explain select auto from t1 where date_time like '1902-02-02 %';
+select auto from t1 where date_time like '1902-02-02 %';
+explain select auto from t1 where date_time not like '1902-02-02 %';
+select auto from t1 where date_time not like '1902-02-02 %';
+
 # bug#17421 -1
 drop table t1;
 create table t1 (a int, b varchar(3), primary key using hash(a))
