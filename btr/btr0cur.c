@@ -3619,7 +3619,6 @@ btr_store_big_rec_extern_fields(
 	ulint	page_no;
 	page_t*	page;
 	ulint	space_id;
-	page_t*	prev_page;
 	page_t*	rec_page;
 	ulint	prev_page_no;
 	ulint	hint_page_no;
@@ -3706,25 +3705,31 @@ btr_store_big_rec_extern_fields(
 			page_no = buf_frame_get_page_no(page);
 
 			if (prev_page_no != FIL_NULL) {
-				byte*	next_ptr;
+				page_t*	prev_page;
+
 				prev_page = buf_page_get(space_id,
 							 prev_page_no,
 							 RW_X_LATCH, &mtr);
-
 #ifdef UNIV_SYNC_DEBUG
 				buf_page_dbg_add_level(prev_page,
 						       SYNC_EXTERN_STORAGE);
 #endif /* UNIV_SYNC_DEBUG */
 
 				if (UNIV_LIKELY_NULL(page_zip)) {
-					next_ptr = prev_page + FIL_PAGE_NEXT;
+					mlog_write_ulint
+						(prev_page + FIL_PAGE_NEXT,
+						 page_no, MLOG_4BYTES, &mtr);
+					memcpy(buf_block_get_page_zip
+					       (buf_block_align(prev_page))
+					       ->data + FIL_PAGE_NEXT,
+					       prev_page + FIL_PAGE_NEXT, 4);
 				} else {
-					next_ptr = prev_page + FIL_PAGE_DATA
-						+ BTR_BLOB_HDR_NEXT_PAGE_NO;
+					mlog_write_ulint
+						(prev_page + FIL_PAGE_DATA
+						 + BTR_BLOB_HDR_NEXT_PAGE_NO,
+						 page_no, MLOG_4BYTES, &mtr);
 				}
 
-				mlog_write_ulint(next_ptr,
-						 page_no, MLOG_4BYTES, &mtr);
 			}
 
 			if (UNIV_LIKELY_NULL(page_zip)) {
