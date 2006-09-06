@@ -4267,8 +4267,6 @@ btr_copy_externally_stored_field(
 				/* fall through */
 			default:
 inflate_error:
-				mtr_commit(&mtr);
-				inflateEnd(&d_stream);
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
 					"  InnoDB: inflate() of"
@@ -4276,11 +4274,25 @@ inflate_error:
 					" page %lu space %lu returned %d\n",
 					(ulong) page_no, (ulong) space_id,
 					err);
+err_exit:
+				mtr_commit(&mtr);
+				inflateEnd(&d_stream);
 				*len = 0;
 				return(buf);
 			}
 
 			if (next_page_no == FIL_NULL) {
+				if (!d_stream.avail_in) {
+					ut_print_timestamp(stderr);
+					fprintf(stderr,
+						"  InnoDB: unexpected end of"
+						" compressed BLOB"
+						" page %lu space %lu\n",
+						(ulong) page_no,
+						(ulong) space_id);
+					goto err_exit;
+				}
+
 				err = inflate(&d_stream, Z_FINISH);
 				if (UNIV_UNLIKELY(err != Z_STREAM_END)) {
 
