@@ -695,6 +695,18 @@ t1	CREATE TABLE `t1` (
   `from_unixtime(1) + 0` double(23,6) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+SET NAMES latin1;
+SET character_set_results = NULL;
+SHOW VARIABLES LIKE 'character_set_results';
+Variable_name	Value
+character_set_results	
+CREATE TABLE testBug8868 (field1 DATE, field2 VARCHAR(32) CHARACTER SET BINARY);
+INSERT INTO testBug8868 VALUES ('2006-09-04', 'abcd');
+SELECT DATE_FORMAT(field1,'%b-%e %l:%i%p') as fmtddate, field2 FROM testBug8868;
+fmtddate	field2
+Sep-4 12:00AM	abcd
+DROP TABLE testBug8868;
+SET NAMES DEFAULT;
 (select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H)
 union
 (select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H);
