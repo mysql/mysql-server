@@ -44,6 +44,7 @@ void safe_print_str(const char* name, const char* val, int max_len)
 }
 
 #ifdef TARGET_OS_LINUX
+/* Force merge conflict, to avoid bk automerge */
 #define SIGRETURN_FRAME_COUNT  2
 
 #if defined(__alpha__) && defined(__GNUC__)
