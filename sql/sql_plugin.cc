@@ -372,7 +372,7 @@ struct st_plugin_int *plugin_lock(const LEX_STRING *name, int type)
   rw_wrlock(&THR_LOCK_plugin);
   if ((rc= plugin_find_internal(name, type)))
   {
-    if (rc->state == PLUGIN_IS_READY || rc->state == PLUGIN_IS_UNINITIALIZED)
+    if (rc->state & (PLUGIN_IS_READY | PLUGIN_IS_UNINITIALIZED))
       rc->ref_count++;
     else
       rc= 0;
@@ -943,13 +943,15 @@ err:
   DBUG_RETURN(TRUE);
 }
 
-my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
-                       int type, void *arg)
+my_bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
+                       int type, uint state_mask, void *arg)
 {
   uint idx, total;
   struct st_plugin_int *plugin, **plugins;
   int version=plugin_array_version;
-  DBUG_ENTER("plugin_foreach");
+  DBUG_ENTER("plugin_foreach_with_mask");
+
+  state_mask= ~state_mask; // do it only once
 
   rw_rdlock(&THR_LOCK_plugin);
   if (type == MYSQL_ANY_PLUGIN)
@@ -959,7 +961,7 @@ my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
     for (idx= 0; idx < total; idx++)
     {
       plugin= dynamic_element(&plugin_array, idx, struct st_plugin_int *);
-      if (plugin->state == PLUGIN_IS_FREED)
+      if (plugin->state & state_mask)
         continue;
       plugins[idx]= plugin;
     }
@@ -972,7 +974,7 @@ my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
     for (idx= 0; idx < total; idx++)
     {
       plugin= (struct st_plugin_int *) hash_element(hash, idx);
-      if (plugin->state == PLUGIN_IS_FREED)
+      if (plugin->state & state_mask)
         continue;
       plugins[idx]= plugin;
     }
@@ -986,7 +988,7 @@ my_bool plugin_foreach(THD *thd, plugin_foreach_func *func,
     {
       rw_rdlock(&THR_LOCK_plugin);
       for (uint i=idx; i < total; i++)
-        if (plugins[i]->state == PLUGIN_IS_FREED)
+        if (plugins[i]->state & state_mask)
           plugins[i]=0;
       rw_unlock(&THR_LOCK_plugin);
     }
