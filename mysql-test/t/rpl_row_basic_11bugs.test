@@ -54,3 +54,43 @@ UPDATE t1 SET a=99 WHERE a = 0;
 --replace_result $SERVER_VERSION SERVER_VERSION
 --replace_regex /table_id: [0-9]+/table_id: #/
 SHOW BINLOG EVENTS;
+
+DROP TABLE t1;
+
+# BUG#17620: Replicate (Row Based) Fails when Query Cache enabled on
+# slave
+--echo ================ Test for BUG#17620 ================
+--disable_query_log
+--source include/master-slave-reset.inc
+--enable_query_log
+
+--echo **** On Slave **** 
+connection slave;
+SET GLOBAL QUERY_CACHE_SIZE=0;
+
+--echo **** On Master **** 
+connection master;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+
+--echo **** On Slave **** 
+sync_slave_with_master;
+SET GLOBAL QUERY_CACHE_SIZE=16*1024*1024;
+
+--echo **** On Master **** 
+connection master;
+INSERT INTO t1 VALUES (4),(5),(6);
+
+--echo **** On Slave **** 
+sync_slave_with_master;
+SELECT * FROM t1;
+
+--echo **** On Master **** 
+connection master;
+INSERT INTO t1 VALUES (7),(8),(9);
+
+--echo **** On Slave **** 
+sync_slave_with_master;
+SELECT * FROM t1;
+
+DROP TABLE t1;

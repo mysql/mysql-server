@@ -60,3 +60,43 @@ master-bin.000001	4	Format_desc	1	102	Server ver: SERVER_VERSION, Binlog ver: 4
 master-bin.000001	102	Query	1	188	use `test`; CREATE TABLE t1 (a INT)
 master-bin.000001	188	Table_map	1	227	table_id: # (test.t1)
 master-bin.000001	227	Write_rows	1	266	table_id: # flags: STMT_END_F
+DROP TABLE t1;
+================ Test for BUG#17620 ================
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+**** On Slave **** 
+SET GLOBAL QUERY_CACHE_SIZE=0;
+**** On Master **** 
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+**** On Slave **** 
+SET GLOBAL QUERY_CACHE_SIZE=16*1024*1024;
+**** On Master **** 
+INSERT INTO t1 VALUES (4),(5),(6);
+**** On Slave **** 
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+6
+**** On Master **** 
+INSERT INTO t1 VALUES (7),(8),(9);
+**** On Slave **** 
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+9
+DROP TABLE t1;
