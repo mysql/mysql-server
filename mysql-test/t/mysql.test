@@ -63,6 +63,12 @@ drop table t1;
 --exec $MYSQL -t test -e "create table t1 (col1 binary(4), col2 varchar(10), col3 int); insert into t1 values ('a', 'b', 123421),('a ', '0123456789', 4), ('abcd', '', 4); select concat('>',col1,'<'), col2, col3 from t1; drop table t1;" 2>&1
 
 #
+# Bug#17939 Wrong table format when using UTF8 strings
+#
+--exec $MYSQL --default-character-set=utf8 --table -e "SELECT 'John Doe' as '__tañgè Ñãmé'" 2>&1
+--exec $MYSQL --default-character-set=utf8 --table -e "SELECT '__tañgè Ñãmé' as 'John Doe'" 2>&1
+
+#
 # Bug#18265 -- mysql client: No longer right-justifies numeric columns
 #
 --exec $MYSQL -t --default-character-set utf8 test -e "create table t1 (i int, j int, k char(25) charset utf8); insert into t1 (i) values (1); insert into t1 (k) values ('<----------------------->'); insert into t1 (k) values ('<-----'); insert into t1 (k) values ('Τη γλώσσα'); insert into t1 (k) values ('ᛖᚴ ᚷᛖᛏ'); select * from t1; DROP TABLE t1;"
