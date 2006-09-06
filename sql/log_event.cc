@@ -5502,6 +5502,9 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     /*
       When the open and locking succeeded, we add all the tables to
       the table map and remove them from tables to lock.
+
+      We also invalidate the query cache for all the tables, since
+      they will now be changed.
      */
     
     TABLE_LIST *ptr;
@@ -5510,6 +5513,9 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
       rli->m_table_map.set_table(ptr->table_id, ptr->table);
       rli->touching_table(ptr->db, ptr->table_name, ptr->table_id);
     }
+#ifdef HAVE_QUERY_CACHE
+    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+#endif
     rli->clear_tables_to_lock();
   }
 
