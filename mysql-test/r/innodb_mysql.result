@@ -432,22 +432,44 @@ ifnull( c,
 0 ) + 1;
 select last_insert_id();
 last_insert_id()
-1
+2
+select last_insert_id(0);
+last_insert_id(0)
+0
+insert into t2 ( a ) values ( 6 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1;
+select last_insert_id();
+last_insert_id()
+0
 select * from t2;
 k	a	c
-1	6	1
+1	6	2
 2	7	NULL
 insert ignore into t2 values (null,6,1),(10,8,1);
 select last_insert_id();
 last_insert_id()
-1
+0
 insert ignore into t2 values (null,6,1),(null,8,1),(null,15,1),(null,20,1);
 select last_insert_id();
 last_insert_id()
 11
 select * from t2;
 k	a	c
-1	6	1
+1	6	2
+2	7	NULL
+10	8	1
+11	15	1
+12	20	1
+insert into t2 ( a ) values ( 6 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1, k=last_insert_id(k);
+select last_insert_id();
+last_insert_id()
+1
+select * from t2;
+k	a	c
+1	6	3
 2	7	NULL
 10	8	1
 11	15	1
