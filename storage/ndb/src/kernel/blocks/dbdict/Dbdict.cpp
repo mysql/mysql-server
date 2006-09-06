@@ -7295,7 +7295,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   if(objEntry->m_tableType==DictTabInfo::Datafile)
   {
     jam();
-    GetTabInfoReq *req= (GetTabInfoReq*)signal->theData;
+    GetTabInfoReq *req= (GetTabInfoReq*)signal->getDataPtrSend();
     req->senderData= c_retrieveRecord.retrievePage;
     req->senderRef= reference();
     req->requestType= GetTabInfoReq::RequestById;
@@ -7307,7 +7307,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   else if(objEntry->m_tableType==DictTabInfo::LogfileGroup)
   {
     jam();
-    GetTabInfoReq *req= (GetTabInfoReq*)signal->theData;
+    GetTabInfoReq *req= (GetTabInfoReq*)signal->getDataPtrSend();
     req->senderData= c_retrieveRecord.retrievePage;
     req->senderRef= reference();
     req->requestType= GetTabInfoReq::RequestById;

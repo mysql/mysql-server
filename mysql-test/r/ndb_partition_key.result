@@ -17,7 +17,7 @@ drop table t1;
 CREATE TABLE t1 (a int, b int, c int, d int, PRIMARY KEY(a,b))
 ENGINE = NDB
 PARTITION BY KEY (c);
-ERROR HY000: A PRIMARY KEY need to include all fields in the partition function
+ERROR HY000: A PRIMARY KEY must include all columns in the table's partitioning function
 CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY(a,b))
 ENGINE = NDB
 PARTITION BY KEY (a);
