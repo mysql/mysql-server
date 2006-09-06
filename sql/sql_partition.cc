@@ -868,6 +868,7 @@ int check_signed_flag(partition_info *part_info)
 bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
                           bool is_sub_part, bool is_field_to_be_setup)
 {
+  MEM_ROOT new_mem_root;
   partition_info *part_info= table->part_info;
   uint dir_length, home_dir_length;
   bool result= TRUE;
@@ -917,7 +918,25 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   func_expr->walk(&Item::change_context_processor, 0, (byte*) context);
   save_where= thd->where;
   thd->where= "partition function";
+  /*
+    In execution we must avoid the use of thd->change_item_tree since
+    we might release memory before statement is completed. We do this
+    by temporarily setting the stmt_arena->mem_root to be the mem_root
+    of the table object, this also ensures that any memory allocated
+    during fix_fields will not be released at end of execution of this
+    statement. Thus the item tree will remain valid also in subsequent
+    executions of this table object. We do however not at the moment
+    support allocations during execution of val_int so any item class
+    that does this during val_int must be disallowed as partition
+    function.
+    SEE Bug #21658
+  */
+  /*
+    This is a tricky call to prepare for since it can have a large number
+    of interesting side effects, both desirable and undesirable.
+  */
   error= func_expr->fix_fields(thd, (Item**)0);
+
   context->table_list= save_table_list;
   context->first_name_resolution_table= save_first_table;
   context->last_name_resolution_table= save_last_table;
@@ -1402,7 +1421,6 @@ bool fix_partition_func(THD *thd, TABLE *table,
   bool result= TRUE;
   partition_info *part_info= table->part_info;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
-  Item *thd_free_list= thd->free_list;
   DBUG_ENTER("fix_partition_func");
 
   if (part_info->fixed)
@@ -1422,7 +1440,6 @@ bool fix_partition_func(THD *thd, TABLE *table,
       DBUG_RETURN(TRUE);
     }
   }
-  thd->free_list= part_info->item_free_list;
   if (part_info->is_sub_partitioned())
   {
     DBUG_ASSERT(part_info->subpart_type == HASH_PARTITION);
@@ -1530,7 +1547,6 @@ bool fix_partition_func(THD *thd, TABLE *table,
   set_up_range_analysis_info(part_info);
   result= FALSE;
 end:
-  thd->free_list= thd_free_list;
   thd->mark_used_columns= save_mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   DBUG_RETURN(result);
@@ -2573,10 +2589,13 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   }
   else 
   {
-    if (part_func_value == range_array[loc_part_id])
-      loc_part_id += test(include_endpoint);
-    else if (part_func_value > range_array[loc_part_id])
-      loc_part_id++;
+    if (loc_part_id < max_partition)
+    {
+      if (part_func_value == range_array[loc_part_id])
+        loc_part_id += test(include_endpoint);
+      else if (part_func_value > range_array[loc_part_id])
+        loc_part_id++;
+    }
     loc_part_id++;
   }
   DBUG_RETURN(loc_part_id);
@@ -3365,7 +3384,6 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
                             TABLE* table, bool is_create_table_ind,
                             handlerton *default_db_type)
 {
-  Item *thd_free_list= thd->free_list;
   bool result= TRUE;
   partition_info *part_info;
   CHARSET_INFO *old_character_set_client= thd->variables.character_set_client;
@@ -3393,7 +3411,6 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
     Thus we move away the current list temporarily and start a new list that
     we then save in the partition info structure.
   */
-  thd->free_list= NULL;
   lex.part_info= new partition_info();/* Indicates MYSQLparse from this place */
   if (!lex.part_info)
   {
@@ -3405,7 +3422,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   DBUG_PRINT("info", ("Parse: %s", part_buf));
   if (MYSQLparse((void*)thd) || thd->is_fatal_error)
   {
-    free_items(thd->free_list);
+    thd->free_items();
     goto end;
   }
   /*
@@ -3463,23 +3480,16 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
         just to ensure we don't get into strange situations with the
         item objects.
       */
-      free_items(thd->free_list);
+      thd->free_items();
       part_info= thd->work_part_info;
-      thd->free_list= NULL;
       table->s->version= 0UL;
     }
   }
   table->part_info= part_info;
   table->file->set_part_info(part_info);
-  if (part_info->default_engine_type == NULL)
-  {
+  if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
-  }
-  else
-  {
-    DBUG_ASSERT(part_info->default_engine_type == default_db_type);
-  }
-  part_info->item_free_list= thd->free_list;
+  DBUG_ASSERT(part_info->default_engine_type == default_db_type);
 
   {
   /*
@@ -3501,8 +3511,7 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
         !((subpart_func_string= thd->alloc(subpart_func_len)))))
     {
       mem_alloc_error(part_func_len);
-      free_items(thd->free_list);
-      part_info->item_free_list= 0;
+      thd->free_items();
       goto end;
     }
     if (part_func_len)
@@ -3517,7 +3526,6 @@ bool mysql_unpack_partition(THD *thd, const uchar *part_buf,
   result= FALSE;
 end:
   lex_end(thd->lex);
-  thd->free_list= thd_free_list;
   thd->lex= old_lex;
   thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(result);
@@ -4390,6 +4398,13 @@ state of p1.
            (no_parts_new != no_parts_reorged))
       {
         my_error(ER_REORG_HASH_ONLY_ON_SAME_NO, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+      if (tab_part_info->is_sub_partitioned() &&
+          alt_part_info->no_subparts &&
+          alt_part_info->no_subparts != tab_part_info->no_subparts)
+      {
+        my_error(ER_PARTITION_WRONG_NO_SUBPART_ERROR, MYF(0));
         DBUG_RETURN(TRUE);
       }
       check_total_partitions= tab_part_info->no_parts + no_parts_new;
