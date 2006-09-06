@@ -461,8 +461,8 @@ class Ndb_cond_traverse_context
   Ndb_cond_traverse_context(TABLE *tab, void* ndb_tab, Ndb_cond_stack* stack)
     : table(tab), ndb_table(ndb_tab), 
     supported(TRUE), stack_ptr(stack), cond_ptr(NULL),
-    expect_mask(0), expect_field_result_mask(0), skip(0), collation(NULL),
-    rewrite_stack(NULL)
+    expect_mask(0), expect_field_type_mask(0), expect_field_result_mask(0), 
+    skip(0), collation(NULL), rewrite_stack(NULL)
   {
     if (stack)
       cond_ptr= stack->ndb_cond;
@@ -474,6 +474,7 @@ class Ndb_cond_traverse_context
   void expect(Item::Type type)
   {
     expect_mask|= (1 << type);
+    if (type == Item::FIELD_ITEM) expect_all_field_types();
   };
   void dont_expect(Item::Type type)
   {
@@ -491,6 +492,28 @@ class Ndb_cond_traverse_context
   {
     expect_mask= 0;
     expect(type);
+  };
+
+  void expect_field_type(enum_field_types result)
+  {
+    expect_field_type_mask|= (1 << result);
+  };
+  void expect_all_field_types()
+  {
+    expect_field_type_mask= ~0;
+  };
+  bool expecting_field_type(enum_field_types result)
+  {
+    return (expect_field_type_mask & (1 << result));
+  };
+  void expect_no_field_type()
+  {
+    expect_field_type_mask= 0;
+  };
+  void expect_only_field_type(enum_field_types result)
+  {
+    expect_field_type_mask= 0;
+    expect_field_type(result);
   };
 
   void expect_field_result(Item_result result)
@@ -528,6 +551,7 @@ class Ndb_cond_traverse_context
   Ndb_cond_stack* stack_ptr;
   Ndb_cond* cond_ptr;
   uint expect_mask;
+  uint expect_field_type_mask;
   uint expect_field_result_mask;
   uint skip;
   CHARSET_INFO* collation;
