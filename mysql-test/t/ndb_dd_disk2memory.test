@@ -234,12 +234,12 @@ b CHAR(5), c TEXT, d INT NOT NULL PRIMARY KEY) TABLESPACE
 table_space1 STORAGE DISK ENGINE=NDB;
 
 insert into test.t1 (a,b,c,d) values (1,'a','Jonas',1),(2,'b','Tomas',2),
-(3,'c','Pekka',3),(4,'d','Martin',4),(1,'e','Stewart',5),(2,'f','Jeb',6),
-(3,'g','Serge',7),(4,'h','Clavin',8);
-select distinct a from test.t1 group by b,a having a > 2 order by a desc;
+(3,'c','Pekka',3),(4,'d','Martin',4),(5,'e','Stewart',5),(6,'f','Jeb',6),
+(7,'g','Serge',7),(8,'h','Clavin',8);
+select distinct a from test.t1 group by b,a having a > 4 order by a desc;
 select distinct a,c from test.t1 group by b,c,a having a > 2 order by a desc;
-select distinct a from test.t1 group by b,a having a > 2 order by a asc;
-select distinct a,c from test.t1 group by b,c,a having a > 2 order by a asc;
+select distinct a from test.t1 group by b,a having a > 1 order by a asc;
+select distinct a,c from test.t1 group by b,c,a having a > 3 order by a asc;
 drop table test.t1;
 
 create table test.t1 (a char(1), key(a)) TABLESPACE table_space1 
