@@ -6537,10 +6537,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     switch (method-1) {
     case 0: 
-      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
+      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
       break;
     case 1:
-      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
       break;
     case 2:
       method_conv= MI_STATS_METHOD_IGNORE_NULLS;
