@@ -27,7 +27,7 @@ class sp_instr;
 class sp_pcontext;
 class st_alter_tablespace;
 class partition_info;
-class Event_timed;
+class Event_parse_data;
 
 #ifdef MYSQL_SERVER
 /*
@@ -958,6 +958,14 @@ typedef struct st_lex : public Query_tables_list
   */
   nesting_map allow_sum_func;
   enum_sql_command sql_command;
+  /*
+    Usually `expr` rule of yacc is quite reused but some commands better
+    not support subqueries which comes standard with this rule, like
+    KILL, HA_READ, CREATE/ALTER EVENT etc. Set this to `false` to get
+    syntax error back.
+  */
+  bool expr_allows_subselect;
+
   thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum my_lex_states next_state;
@@ -1035,8 +1043,7 @@ typedef struct st_lex : public Query_tables_list
 
   st_sp_chistics sp_chistics;
 
-  Event_timed *et;
-  bool et_compile_phase;
+  Event_parse_data *event_parse_data;
 
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
   /*
