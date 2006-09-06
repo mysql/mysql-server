@@ -14221,9 +14221,12 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(table_name_buffer, len, cs));
       }
       else
-	item_list.push_back(new Item_string(table->alias,
-					    strlen(table->alias),
+      {
+        TABLE_LIST *tab=table->pos_in_table_list; 
+	item_list.push_back(new Item_string(tab->alias,
+					    strlen(tab->alias),
 					    cs));
+      }
       /* type */
       item_list.push_back(new Item_string(join_type_str[tab->type],
 					  strlen(join_type_str[tab->type]),
@@ -14410,8 +14413,8 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
     uint8 uncacheable= (sl->uncacheable & ~UNCACHEABLE_EXPLAIN);
     sl->type= (((&thd->lex->select_lex)==sl)?
-	       ((thd->lex->all_selects_list != sl) ? 
-		primary_key_name : "SIMPLE"):
+	       (sl->first_inner_unit() || sl->next_select() ? 
+		"PRIMARY" : "SIMPLE"):
 	       ((sl == first)?
 		((sl->linkage == DERIVED_TABLE_TYPE) ?
 		 "DERIVED":
