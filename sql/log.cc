@@ -4683,6 +4683,8 @@ mysql_declare_plugin(binlog)
   binlog_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  0
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
