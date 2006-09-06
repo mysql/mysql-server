@@ -65,6 +65,39 @@ print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 }
 #endif
 
+// EventBufData
+
+Uint32
+EventBufData::get_blob_part_no() const
+{
+  assert(ptr[0].sz > 2);
+  Uint32 pos = AttributeHeader(ptr[0].p[0]).getDataSize() +
+              AttributeHeader(ptr[0].p[1]).getDataSize();
+  Uint32 no = ptr[1].p[pos];
+  return no;
+}
+
+void
+EventBufData::add_part_size(Uint32 & full_count, Uint32 & full_sz) const
+{
+  Uint32 tmp_count = 0;
+  Uint32 tmp_sz = 0;
+  const EventBufData* data2 = m_next_blob;
+  while (data2 != 0) {
+    tmp_count++;
+    tmp_sz += data2->sz;
+    const EventBufData* data3 = data2->m_next;
+    while (data3 != 0) {
+      tmp_count++;
+      tmp_sz += data3->sz;
+      data3 = data3->m_next;
+    }
+    data2 = data2->m_next_blob;
+  }
+  full_count += tmp_count;
+  full_sz += tmp_sz;
+}
+
 /*
  * Class NdbEventOperationImpl
  *
@@ -1162,11 +1195,12 @@ NdbEventBuffer::nextEvent()
     // set NdbEventOperation data
     op->m_data_item= data;
 
-    // remove item from m_available_data
-    m_available_data.remove_first();
+    // remove item from m_available_data and return size
+    Uint32 full_count, full_sz;
+    m_available_data.remove_first(full_count, full_sz);
 
     // add it to used list
-    m_used_data.append_used_data(data);
+    m_used_data.append_used_data(data, full_count, full_sz);
 
 #ifdef VM_TRACE
     op->m_data_done_count++;
@@ -1840,7 +1874,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         op->m_has_error = 2;
         DBUG_RETURN_EVENT(-1);
       }
-      if (unlikely(copy_data(sdata, ptr, data)))
+      if (unlikely(copy_data(sdata, ptr, data, NULL)))
       {
         op->m_has_error = 3;
         DBUG_RETURN_EVENT(-1);
@@ -1872,7 +1906,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
           }
         }
         // link blob event under main event
-        add_blob_data(main_data, data);
+        add_blob_data(bucket, main_data, data);
       }
       if (use_hash)
       {
@@ -1886,7 +1920,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     else
     {
       // event with same op, PK found, merge into old buffer
-      if (unlikely(merge_data(sdata, ptr, data)))
+      if (unlikely(merge_data(sdata, ptr, data, & bucket->m_data.m_sz)))
       {
         op->m_has_error = 3;
         DBUG_RETURN_EVENT(-1);
@@ -1909,6 +1943,9 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         }
       }
     }
+#ifdef NDB_EVENT_VERIFY_SIZE
+    verify_size(bucket->m_data);
+#endif
     DBUG_RETURN_EVENT(0);
   }
   
@@ -1962,8 +1999,21 @@ NdbEventBuffer::alloc_data()
   }
 
   // remove data from free list
-  m_free_data = data->m_next;
+  if (data->m_next_blob == 0)
+    m_free_data = data->m_next;
+  else {
+    EventBufData* data2 = data->m_next_blob;
+    if (data2->m_next == 0) {
+      data->m_next_blob = data2->m_next_blob;
+      data = data2;
+    } else {
+      EventBufData* data3 = data2->m_next;
+      data2->m_next = data3->m_next;
+      data = data3;
+    }
+  }
   data->m_next = 0;
+  data->m_next_blob = 0;
 #ifdef VM_TRACE
   m_free_data_count--;
   assert(m_free_data_sz >= data->sz);
@@ -1975,7 +2025,9 @@ NdbEventBuffer::alloc_data()
 // allocate initial or bigger memory area in EventBufData
 // takes sizes from given ptr and sets up data->ptr
 int
-NdbEventBuffer::alloc_mem(EventBufData* data, LinearSectionPtr ptr[3])
+NdbEventBuffer::alloc_mem(EventBufData* data,
+                          LinearSectionPtr ptr[3],
+                          Uint32 * change_sz)
 {
   DBUG_ENTER("NdbEventBuffer::alloc_mem");
   DBUG_PRINT("info", ("ptr sz %u + %u + %u", ptr[0].sz, ptr[1].sz, ptr[2].sz));
@@ -1988,6 +2040,8 @@ NdbEventBuffer::alloc_mem(EventBufData* data, LinearSectionPtr ptr[3])
 
   if (data->sz < alloc_size)
   {
+    Uint32 add_sz = alloc_size - data->sz;
+
     NdbMem_Free((char*)data->memory);
     assert(m_total_alloc >= data->sz);
     m_total_alloc -= data->sz;
@@ -1999,6 +2053,9 @@ NdbEventBuffer::alloc_mem(EventBufData* data, LinearSectionPtr ptr[3])
       DBUG_RETURN(-1);
     data->sz = alloc_size;
     m_total_alloc += data->sz;
+
+    if (change_sz != NULL)
+      *change_sz += add_sz;
   }
 
   Uint32* memptr = data->memory;
@@ -2014,14 +2071,30 @@ NdbEventBuffer::alloc_mem(EventBufData* data, LinearSectionPtr ptr[3])
   DBUG_RETURN(0);
 }
 
+void
+NdbEventBuffer::dealloc_mem(EventBufData* data,
+                            Uint32 * change_sz)
+{
+  NdbMem_Free((char*)data->memory);
+  assert(m_total_alloc >= data->sz);
+  m_total_alloc -= data->sz;
+  if (change_sz != NULL) {
+    assert(*change_sz >= data->sz);
+    *change_sz -= data->sz;
+  }
+  data->memory = 0;
+  data->sz = 0;
+}
+
 int 
 NdbEventBuffer::copy_data(const SubTableData * const sdata,
                           LinearSectionPtr ptr[3],
-                          EventBufData* data)
+                          EventBufData* data,
+                          Uint32 * change_sz)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::copy_data");
 
-  if (alloc_mem(data, ptr) != 0)
+  if (alloc_mem(data, ptr, change_sz) != 0)
     DBUG_RETURN_EVENT(-1);
   memcpy(data->sdata, sdata, sizeof(SubTableData));
   int i;
@@ -2093,7 +2166,8 @@ copy_attr(AttributeHeader ah,
 int 
 NdbEventBuffer::merge_data(const SubTableData * const sdata,
                            LinearSectionPtr ptr2[3],
-                           EventBufData* data)
+                           EventBufData* data,
+                           Uint32 * change_sz)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::merge_data");
 
@@ -2102,7 +2176,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
   int t1 = SubTableData::getOperation(data->sdata->requestInfo);
   int t2 = SubTableData::getOperation(sdata->requestInfo);
   if (t1 == Ev_t::enum_NUL)
-    DBUG_RETURN_EVENT(copy_data(sdata, ptr2, data));
+    DBUG_RETURN_EVENT(copy_data(sdata, ptr2, data, change_sz));
 
   Ev_t* tp = 0;
   int i;
@@ -2142,6 +2216,8 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
     DBUG_RETURN_EVENT(0);
   }
 
+  // TODO: use old data items, avoid malloc/free on each merge
+
   // save old data
   EventBufData olddata = *data;
   data->memory = 0;
@@ -2158,7 +2234,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
   {
     if (loop == 1)
     {
-      if (alloc_mem(data, ptr) != 0)
+      if (alloc_mem(data, ptr, change_sz) != 0)
       {
         result = -1;
         goto end;
@@ -2277,11 +2353,7 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata,
   }
 
 end:
-  // free old data
-  NdbMem_Free((char*)olddata.memory);
-  assert(m_total_alloc >= olddata.sz);
-  m_total_alloc -= olddata.sz;
-
+  dealloc_mem(&olddata, change_sz);
   DBUG_RETURN_EVENT(result);
 }
  
@@ -2357,7 +2429,7 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
   SubTableData sdata = *blob_data->sdata;
   sdata.tableId = main_op->m_eventImpl->m_tableImpl->m_id;
   SubTableData::setOperation(sdata.requestInfo, NdbDictionary::Event::_TE_NUL);
-  if (copy_data(&sdata, ptr, main_data) != 0)
+  if (copy_data(&sdata, ptr, main_data, NULL) != 0)
     DBUG_RETURN_EVENT(-1);
   hpos.data = main_data;
 
@@ -2365,7 +2437,8 @@ NdbEventBuffer::get_main_data(Gci_container* bucket,
 }
 
 void
-NdbEventBuffer::add_blob_data(EventBufData* main_data,
+NdbEventBuffer::add_blob_data(Gci_container* bucket,
+                              EventBufData* main_data,
                               EventBufData* blob_data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::add_blob_data");
@@ -2389,6 +2462,9 @@ NdbEventBuffer::add_blob_data(EventBufData* main_data,
     blob_data->m_next = head->m_next;
     head->m_next = blob_data;
   }
+  // adjust data list size
+  bucket->m_data.m_count += 1;
+  bucket->m_data.m_sz += blob_data->sz;
   DBUG_VOID_RETURN_EVENT;
 }
 
@@ -2424,6 +2500,9 @@ NdbEventBuffer::move_data()
 void
 NdbEventBuffer::free_list(EventBufData_list &list)
 {
+#ifdef NDB_EVENT_VERIFY_SIZE
+  verify_size(list);
+#endif
   // return list to m_free_data
   list.m_tail->m_next= m_free_data;
   m_free_data= list.m_head;
@@ -2432,38 +2511,15 @@ NdbEventBuffer::free_list(EventBufData_list &list)
 #endif
   m_free_data_sz+= list.m_sz;
 
-  // free blobs XXX unacceptable performance, fix later
-  {
-    EventBufData* data = list.m_head;
-    while (1) {
-      while (data->m_next_blob != NULL) {
-        EventBufData* blob_head = data->m_next_blob;
-        data->m_next_blob = blob_head->m_next_blob;
-        blob_head->m_next_blob = NULL;
-        while (blob_head != NULL) {
-          EventBufData* blob_part = blob_head;
-          blob_head = blob_head->m_next;
-          blob_part->m_next = m_free_data;
-          m_free_data = blob_part;
-#ifdef VM_TRACE
-          m_free_data_count++;
-#endif
-          m_free_data_sz += blob_part->sz;
-        }
-      }
-      if (data == list.m_tail)
-        break;
-      data = data->m_next;
-    }
-  }
-
-  // list returned to m_free_data
   list.m_head = list.m_tail = NULL;
   list.m_count = list.m_sz = 0;
 }
 
 void EventBufData_list::append_list(EventBufData_list *list, Uint64 gci)
 {
+#ifdef NDB_EVENT_VERIFY_SIZE
+  NdbEventBuffer::verify_size(*list);
+#endif
   move_gci_ops(list, gci);
 
   if (m_tail)
@@ -2701,6 +2757,29 @@ send_report:
   assert(m_total_alloc >= m_free_data_sz);
 #endif
 }
+
+#ifdef VM_TRACE
+void
+NdbEventBuffer::verify_size(const EventBufData* data, Uint32 count, Uint32 sz)
+{
+  Uint32 tmp_count = 0;
+  Uint32 tmp_sz = 0;
+  while (data != 0) {
+    Uint32 full_count, full_sz;
+    data->get_full_size(full_count, full_sz);
+    tmp_count += full_count;
+    tmp_sz += full_sz;
+    data = data->m_next;
+  }
+  assert(tmp_count == count);
+  assert(tmp_sz == sz);
+}
+void
+NdbEventBuffer::verify_size(const EventBufData_list & list)
+{
+  verify_size(list.m_head, list.m_count, list.m_sz);
+}
+#endif
 
 // hash table routines
 
