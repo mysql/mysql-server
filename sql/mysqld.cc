@@ -838,7 +838,7 @@ static void close_connections(void)
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
     /* We skip slave threads & scheduler on this first loop through. */
-    if (tmp->slave_thread || tmp->system_thread == SYSTEM_THREAD_EVENT_SCHEDULER)
+    if (tmp->slave_thread)
       continue;
 
     tmp->killed= THD::KILL_CONNECTION;
@@ -857,7 +857,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
-  Events::shutdown();
+  Events::get_instance()->deinit();
   end_slave();
 
   if (thread_count)
@@ -1295,7 +1295,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
-  Events::destroy_mutexes();
+  Events::get_instance()->destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -2873,7 +2873,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
-  Events::init_mutexes();
+  Events::get_instance()->init_mutexes();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -3660,7 +3660,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (!opt_noacl)
   {
-    Events::init();
+    if (Events::get_instance()->init())
+      unireg_abort(1);
   }
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
@@ -5003,9 +5004,9 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.engine_condition_pushdown,
    (gptr*) &global_system_variables.engine_condition_pushdown,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  /* See how it's handled in get_one_option() */
   {"event-scheduler", OPT_EVENT_SCHEDULER, "Enable/disable the event scheduler.",
-   (gptr*) &Events::opt_event_scheduler, (gptr*) &Events::opt_event_scheduler, 0, GET_ULONG,
-    REQUIRED_ARG, 2/*default*/, 0/*min-value*/, 2/*max-value*/, 0, 0, 0},
+   NULL,  NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking (disabled by default).  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running. Disable with --skip-external-locking.",
@@ -7307,20 +7308,33 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
   case OPT_EVENT_SCHEDULER:
     if (!argument)
-      Events::opt_event_scheduler= 2;
+      Events::opt_event_scheduler= Events::EVENTS_DISABLED;
     else
     {
       int type;
-      if ((type=find_type(argument, &Events::opt_typelib, 1)) <= 0)
-      {
-	fprintf(stderr,"Unknown option to event-scheduler: %s\n",argument);
-	exit(1);
-      }
       /* 
-        type=  1     2      3   4     5    6
-             (OFF |  0) - (ON | 1) - (2 | SUSPEND)
+        type=     5          1   2      3   4
+             (DISABLE ) - (OFF | ON) - (0 | 1)
       */
-      Events::opt_event_scheduler= (type-1) / 2;
+      switch ((type=find_type(argument, &Events::opt_typelib, 1))) {
+      case 0:
+	fprintf(stderr, "Unknown option to event-scheduler: %s\n",argument);
+	exit(1);
+      case 5: /* OPT_DISABLED */
+        Events::opt_event_scheduler= Events::EVENTS_DISABLED;
+        break;
+      case 2: /* OPT_ON  */
+      case 4: /* 1   */
+        Events::opt_event_scheduler= Events::EVENTS_ON;
+        break;
+      case 1: /* OPT_OFF */
+      case 3: /*  0  */
+        Events::opt_event_scheduler= Events::EVENTS_OFF;
+        break;
+      default:
+        DBUG_ASSERT(0);
+        unireg_abort(1);
+      }
     }
     break;
   case (int) OPT_SKIP_NEW:

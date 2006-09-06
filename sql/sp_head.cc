@@ -657,10 +657,12 @@ sp_head::create(THD *thd)
 
 sp_head::~sp_head()
 {
+  DBUG_ENTER("sp_head::~sp_head");
   destroy();
   delete m_next_cached_sp;
   if (m_thd)
     restore_thd_mem_root(m_thd);
+  DBUG_VOID_RETURN;
 }
 
 void

@@ -27,7 +27,7 @@
 #include "authors.h"
 #include "contributors.h"
 #include "events.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
 #include <my_dir.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -4217,7 +4217,7 @@ extern LEX_STRING interval_type_to_name[];
     1  Error
 */
 
-static int
+int
 copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 {
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -4228,7 +4228,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   restore_record(sch_table, s->default_values);
 
-  if (et.load_from_row(thd->mem_root, event_table))
+  if (et.load_from_row(event_table))
   {
     my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
     DBUG_RETURN(1);
@@ -4349,183 +4349,6 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);
-}
-
-
-/*
-  Performs an index scan of event_table (mysql.event) and fills schema_table.
-
-  Synopsis
-    events_table_index_read_for_db()
-      thd          Thread
-      schema_table The I_S.EVENTS table
-      event_table  The event table to use for loading (mysql.event)
-
-  Returns
-    0  OK
-    1  Error
-*/
-
-static
-int events_table_index_read_for_db(THD *thd, TABLE *schema_table,
-                                TABLE *event_table)
-{
-  int ret=0;
-  CHARSET_INFO *scs= system_charset_info;
-  KEY *key_info;
-  uint key_len;
-  byte *key_buf= NULL;
-  LINT_INIT(key_buf);
-
-  DBUG_ENTER("schema_events_do_index_scan");
-
-  DBUG_PRINT("info", ("Using prefix scanning on PK"));
-  event_table->file->ha_index_init(0, 1);
-  event_table->field[Events::FIELD_DB]->
-        store(thd->lex->select_lex.db, strlen(thd->lex->select_lex.db), scs);
-  key_info= event_table->key_info;
-  key_len= key_info->key_part[0].store_length;
-
-  if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
-  {
-    ret= 1;
-    /* don't send error, it would be done by sql_alloc_error_handler() */
-  }
-  else
-  {
-    key_copy(key_buf, event_table->record[0], key_info, key_len);
-    if (!(ret= event_table->file->index_read(event_table->record[0], key_buf,
-                                             key_len, HA_READ_PREFIX)))
-    {
-      DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
-      do
-      {
-        ret= copy_event_to_schema_table(thd, schema_table, event_table);
-        if (ret == 0)
-          ret= event_table->file->index_next_same(event_table->record[0],
-                                                  key_buf, key_len); 
-      } while (ret == 0);
-    }
-    DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
-  }
-  event_table->file->ha_index_end(); 
-  /*  ret is guaranteed to be != 0 */
-  if (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND)
-    DBUG_RETURN(0);
-  DBUG_RETURN(1);
-}
-
-
-/*
-  Performs a table scan of event_table (mysql.event) and fills schema_table.
-
-  Synopsis
-    events_table_scan_all()
-      thd          Thread
-      schema_table The I_S.EVENTS in memory table
-      event_table  The event table to use for loading.
-
-  Returns
-    0  OK
-    1  Error
-*/
-
-static
-int events_table_scan_all(THD *thd, TABLE *schema_table,
-                                TABLE *event_table)
-{
-  int ret;
-  READ_RECORD read_record_info;
-
-  DBUG_ENTER("schema_events_do_table_scan");
-  init_read_record(&read_record_info, thd, event_table, NULL, 1, 0);
-
-  /*
-    rr_sequential, in read_record(), returns 137==HA_ERR_END_OF_FILE,
-    but rr_handle_error returns -1 for that reason. Thus, read_record()
-    returns -1 eventually.
-  */
-  do
-  {
-    ret= read_record_info.read_record(&read_record_info);
-    if (ret == 0)
-      ret= copy_event_to_schema_table(thd, schema_table, event_table);
-  }
-  while (ret == 0);
-
-  DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
-  end_read_record(&read_record_info);
-
-  /*  ret is guaranteed to be != 0 */
-  DBUG_RETURN(ret == -1? 0:1);
-}
-
-
-/*
-  Fills I_S.EVENTS with data loaded from mysql.event. Also used by
-  SHOW EVENTS
-
-  Synopsis
-    fill_schema_events()
-      thd     Thread
-      tables  The schema table
-      cond    Unused
-
-  Returns
-    0  OK
-    1  Error
-*/
-
-int fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
-{
-  TABLE *schema_table= tables->table;
-  TABLE *event_table= NULL;
-  Open_tables_state backup;
-  int ret= 0;
-
-  DBUG_ENTER("fill_schema_events");
-  /*
-    If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
-    be NULL. Let's do an assert anyway.
-  */
-  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
-  {
-    DBUG_ASSERT(thd->lex->select_lex.db);
-    if (check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
-                     is_schema_db(thd->lex->select_lex.db)))
-      DBUG_RETURN(1);
-  }
-
-  DBUG_PRINT("info",("db=%s", thd->lex->select_lex.db?
-              thd->lex->select_lex.db:"(null)"));
-
-  thd->reset_n_backup_open_tables_state(&backup);
-  if (Events::open_event_table(thd, TL_READ, &event_table))
-  {
-    sql_print_error("Table mysql.event is damaged.");
-    thd->restore_backup_open_tables_state(&backup);
-    DBUG_RETURN(1);
-  }
-
-  /*
-    1. SELECT I_S => use table scan. I_S.EVENTS does not guarantee order
-                     thus we won't order it. OTOH, SHOW EVENTS will be
-                     ordered.
-    2. SHOW EVENTS => PRIMARY KEY with prefix scanning on (db)
-       Reasoning: Events are per schema, therefore a scan over an index
-                  will save use from doing a table scan and comparing
-                  every single row's `db` with the schema which we show.
-  */
-  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
-    ret= events_table_index_read_for_db(thd, schema_table, event_table);
-  else
-    ret= events_table_scan_all(thd, schema_table, event_table);
-
-  close_thread_tables(thd);
-  thd->restore_backup_open_tables_state(&backup);
-
-  DBUG_PRINT("info", ("Return code=%d", ret));
-  DBUG_RETURN(ret);
 }
 
 
@@ -5631,7 +5454,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0},
   {"EVENTS", events_fields_info, create_schema_table,
-   fill_schema_events, make_old_format, 0, -1, -1, 0},
+   Events::fill_schema_events, make_old_format, 0, -1, -1, 0},
   {"FILES", files_fields_info, create_schema_table,
    fill_schema_files, 0, 0, -1, -1, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,

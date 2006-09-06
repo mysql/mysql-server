@@ -18,10 +18,10 @@ CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
 connection default;
 SHOW DATABASES LIKE 'db_x';
 SET GLOBAL event_scheduler=1;
---sleep 1.5
+--sleep 1.2
 SHOW DATABASES LIKE 'db_x';
 SHOW TABLES FROM db_x;
-SET GLOBAL event_scheduler=2;
+SET GLOBAL event_scheduler=off;
 connection priv_conn;
 DROP EVENT e_x1;
 DROP EVENT e_x2;
@@ -33,7 +33,7 @@ USE events_test;
 #
 # END:    BUG #17289 Events: missing privilege check for drop database
 #
-SET GLOBAL event_scheduler=2;
+SET GLOBAL event_scheduler=off;
 drop event if exists event1;
 create event event1 on schedule every 15 minute starts now() ends date_add(now(), interval 5 hour) DO begin end;
 alter event event1 rename to event2 enable;
@@ -81,23 +81,42 @@ SHOW EVENTS;
 DROP EVENT event_starts_test;
 #
 #
+create table test_nested(a int);
 create event e_43 on schedule every 1 second do set @a = 5;
-set global event_scheduler = 1;
---sleep 2
+--error ER_EVENT_RECURSIVITY_FORBIDDEN
 alter event e_43 do alter event e_43 do set @a = 4;
---sleep 2
+delimiter |;
+alter event e_43 do
+begin
+  alter event e_43 on schedule every 5 minute;
+  insert into test_nested values(1);
+end|
+delimiter ;|
+set global event_scheduler = on;
+--sleep 3
 select db, name, body, status, interval_field, interval_value from mysql.event;
 drop event e_43;
---sleep 1
+drop table test_nested;
 
 --echo "Let's check whether we can use non-qualified names"
 create table non_qualif(a int);
 create event non_qualif_ev on schedule every 10 minute do insert into non_qualif values (800219);
---sleep 1
+--sleep 1.1
 select * from non_qualif;
 drop event non_qualif_ev;
 drop table non_qualif;
-set global event_scheduler = 2;
+
+--error ER_EVENT_DOES_NOT_EXIST
+alter event non_existant rename to non_existant_too;
+
+set global event_scheduler = off;
+create event existant on schedule at now() + interval 1 year do select 12;
+--error ER_EVENT_ALREADY_EXISTS
+alter event non_existant rename to existant;
+--error ER_EVENT_SAME_NAME
+alter event existant rename to events_test.existant;
+drop event existant;
+
 
 create table t_event3 (a int, b float);
 drop event if exists event3;
@@ -156,6 +175,10 @@ show create event root22;
 --error ER_NOT_SUPPORTED_YET
 SHOW EVENTS;
 drop event root22;
+--error ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
+create event root23 on schedule every -100 year do select 1;
+--error ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG
+create event root23 on schedule every 222222222222222222222 year do select 1;
 drop event root6;
 drop event root7;
 drop event root8;
@@ -201,34 +224,34 @@ SHOW EVENTS;
 CREATE TABLE event_like LIKE mysql.event;
 INSERT INTO event_like SELECT * FROM mysql.event;
 #sleep a bit or we won't catch the change of time
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 --error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 ALTER TABLE mysql.event MODIFY db char(20) character set utf8 collate utf8_bin default '';
 #wait a bit or we won't see the difference because of seconds resolution
---sleep 1
+--sleep 1.1
 SHOW CREATE TABLE mysql.event;
 --error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event MODIFY db char(64) character set utf8 collate utf8_bin default '';
---sleep 1
+--sleep 1.1
 --echo "This should work"
 --replace_column 8 # 9 #
 SHOW EVENTS;
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event MODIFY db char(64) character set cp1251 default '';
 --error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event MODIFY db varchar(64) character set utf8 collate utf8_bin default '';
---sleep 1
+--sleep 1.1
 --error ER_CANNOT_LOAD_FROM_TABLE
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
---sleep 1
+--sleep 1.1
 ALTER TABLE mysql.event DROP comment, DROP starts;
---sleep 1
+--sleep 1.1
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
 SELECT event_name FROM INFORMATION_SCHEMA.EVENTS;
 DROP TABLE mysql.event;
@@ -246,9 +269,9 @@ create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 drop event e_26;
 --error ER_WRONG_VALUE
-create event e_26 on schedule at NULL disabled do set @a = 5;
+create event e_26 on schedule at NULL disable do set @a = 5;
 --error ER_WRONG_VALUE
-create event e_26 on schedule at 'definitely not a datetime' disabled do set @a = 5;
+create event e_26 on schedule at 'definitely not a datetime' disable do set @a = 5;
 
 set names utf8;
 create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
@@ -256,13 +279,15 @@ drop event задачка;
 
 # event_scheduler is a global var
 --error ER_GLOBAL_VARIABLE
-set event_scheduler=2;
+set event_scheduler=off;
 # event_scheduler could be only either 1 or 2
 --error ER_WRONG_VALUE_FOR_VAR
 set global event_scheduler=3;
+--error ER_WRONG_VALUE_FOR_VAR
+set global event_scheduler=disabled;
 
 --echo "DISABLE the scheduler. Testing that it does not work when the variable is 0"
-set global event_scheduler=2;
+set global event_scheduler=off;
 select definer, name, db from mysql.event;
 select get_lock("test_lock1", 20);
 create event закачка on schedule every 10 hour do select get_lock("test_lock1", 20);
@@ -280,7 +305,7 @@ select count(*) from mysql.event;
 #
 #
 --echo "ENABLE the scheduler and get a lock"
-set global event_scheduler=1;
+set global event_scheduler=on;
 select get_lock("test_lock2", 20);
 --echo "Create an event which tries to acquire a mutex. The event locks on the mutex"
 create event закачка on schedule every 10 hour do select get_lock("test_lock2", 20);
@@ -306,7 +331,8 @@ create event закачка21 on schedule every 10 hour do select get_lock("test
 --sleep 1
 --echo "Should have only 3 processes: the scheduler, our conn and the locked event"
 select /*3*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
-set global event_scheduler=2;
+set global event_scheduler=off;
+--sleep 0.8
 --echo "Should have only our process now:"
 select /*4*/ user, host, db, command, state, info from information_schema.processlist where command!='Daemon' and (info is null or info not like '%processlist%') order by info;
 drop event закачка21;
@@ -315,7 +341,7 @@ drop event закачка21;
 # Bug #16410  Events: CREATE EVENT is legal in a CREATE TRIGGER statement
 #
 create table t_16 (s1 int);
---error 1422
+--error ER_EVENT_RECURSIVITY_FORBIDDEN
 create trigger t_16_bi before insert on t_16 for each row create event  e_16 on schedule every 1 second do set @a=5;
 drop table t_16;
 #
@@ -372,7 +398,7 @@ drop event e1;
 ##drop event закачка4;
 ##select release_lock("test_lock4");
 
-##set global event_scheduler=2;
+##set global event_scheduler=off;
 ##select sleep(2);
 ##--replace_column 1 # 6 #
 ##show processlist;
