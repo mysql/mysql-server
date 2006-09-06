@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 #ifdef TARGET_OS_LINUX
-#if defined(HAVE_STACKTRACE) || (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__)))
+#if defined(HAVE_STACKTRACE) || (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))) /* Force conflict to avoid bk automerge */
 #undef HAVE_STACKTRACE
 #define HAVE_STACKTRACE
 
