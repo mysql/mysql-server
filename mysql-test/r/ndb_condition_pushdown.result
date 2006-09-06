@@ -1782,6 +1782,28 @@ select * from t5 where b like '%jo%' order by a;
 a	b
 1	jonas
 3	johan
+set engine_condition_pushdown = off;
+select auto from t1 where date_time like '1902-02-02 %';
+auto
+2
+select auto from t1 where date_time not like '1902-02-02 %';
+auto
+3
+4
+set engine_condition_pushdown = on;
+explain select auto from t1 where date_time like '1902-02-02 %';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+select auto from t1 where date_time like '1902-02-02 %';
+auto
+2
+explain select auto from t1 where date_time not like '1902-02-02 %';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+select auto from t1 where date_time not like '1902-02-02 %';
+auto
+3
+4
 drop table t1;
 create table t1 (a int, b varchar(3), primary key using hash(a))
 engine=ndb;
