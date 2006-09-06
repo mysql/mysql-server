@@ -220,9 +220,10 @@ int fill_plugins(THD *thd, TABLE_LIST *tables, COND *cond)
   DBUG_ENTER("fill_plugins");
   TABLE *table= tables->table;
 
-  if (plugin_foreach(thd, show_plugins, MYSQL_ANY_PLUGIN, table))
+  if (plugin_foreach_with_mask(thd, show_plugins, MYSQL_ANY_PLUGIN,
+                               ~PLUGIN_IS_FREED, table))
     DBUG_RETURN(1);
-    
+
   DBUG_RETURN(0);
 }
 
