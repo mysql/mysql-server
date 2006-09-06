@@ -27,7 +27,7 @@
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -3896,73 +3896,43 @@ end_with_restore_list:
   }
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
-  case SQLCOM_DROP_EVENT:
   {
-    uint rows_affected= 1;
-    DBUG_ASSERT(lex->et);
-    do {
-      if (! lex->et->dbname.str ||
-          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
-           !lex->spname->m_db.str))
-      {
-        my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-        res= true;
-        break;
-      }
+    DBUG_ASSERT(lex->event_parse_data);
+    switch (lex->sql_command) {
+    case SQLCOM_CREATE_EVENT:
+      res= Events::get_instance()->
+            create_event(thd, lex->event_parse_data,
+                         lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS);
+      break;
+    case SQLCOM_ALTER_EVENT:
+      res= Events::get_instance()->update_event(thd, lex->event_parse_data,
+                                                lex->spname);
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
+    DBUG_PRINT("info",("DDL error code=%d", res));
+    if (!res)
+      send_ok(thd);
 
-      if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
-                       is_schema_db(lex->et->dbname.str)) ||
-          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
-           (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
-                         is_schema_db(lex->spname->m_db.str)))))
-        break;
-
-      if (end_active_trans(thd))
-      {
-        res= -1;
-        break;
-      }
-
-      switch (lex->sql_command) {
-      case SQLCOM_CREATE_EVENT:
-        res= Events::create_event(thd, lex->et,
-                                  (uint) lex->create_info.options,
-                                  &rows_affected);
-        break;
-      case SQLCOM_ALTER_EVENT:
-        res= Events::update_event(thd, lex->et, lex->spname,
-                                  &rows_affected);
-        break;
-      case SQLCOM_DROP_EVENT:
-        res= Events::drop_event(thd, lex->et, lex->drop_if_exists,
-                                &rows_affected);
-      default:;
-      }
-      DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
-                  res, rows_affected));
-      if (!res)
-        send_ok(thd, rows_affected);
-
-      /* lex->unit.cleanup() is called outside, no need to call it here */
-    } while (0);
+    /* Don't do it, if we are inside a SP */
     if (!thd->spcont)
     {
-      lex->et->free_sphead_on_delete= true;
-      lex->et->free_sp();
-      lex->et->deinit_mutexes();
+      delete lex->sphead;
+      lex->sphead= NULL;
     }
-    
+
+    /* lex->unit.cleanup() is called outside, no need to call it here */
     break;
   }
+  case SQLCOM_DROP_EVENT:
   case SQLCOM_SHOW_CREATE_EVENT:
   {
     DBUG_ASSERT(lex->spname);
-    DBUG_ASSERT(lex->et);
     if (! lex->spname->m_db.str)
     {
       my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-      res= true;
-      break;
+      goto error;
     }
     if (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
                      is_schema_db(lex->spname->m_db.str)))
@@ -3971,15 +3941,29 @@ end_with_restore_list:
     if (lex->spname->m_name.length > NAME_LEN)
     {
       my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+      /* this jumps to the end of the function and skips own messaging */
       goto error;
     }
-    res= Events::show_create_event(thd, lex->spname);
+
+    if (lex->sql_command == SQLCOM_SHOW_CREATE_EVENT)
+      res= Events::get_instance()->show_create_event(thd, lex->spname->m_db,
+                                                     lex->spname->m_name);
+    else
+    {
+      uint affected= 1;
+      if (!(res= Events::get_instance()->drop_event(thd,
+                                                    lex->spname->m_db,
+                                                    lex->spname->m_name,
+                                                    lex->drop_if_exists,
+                                                    FALSE)))
+        send_ok(thd);
+    }
     break;
   }
 #ifndef DBUG_OFF
   case SQLCOM_SHOW_SCHEDULER_STATUS:
   {
-    res= Events::dump_internal_status(thd);
+    res= Events::get_instance()->dump_internal_status(thd);
     break;
   }
 #endif
@@ -6073,14 +6057,6 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	{
           delete lex->sphead;
           lex->sphead= NULL;
-          if (lex->et)
-          {
-            lex->et->free_sphead_on_delete= true;
-            /* alloced on thd->mem_root so no real memory free but dtor call */
-            lex->et->free_sp();
-            lex->et->deinit_mutexes();
-            lex->et= NULL;
-          }
 	}
 	else
 	{
@@ -6116,13 +6092,6 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	/* Clean up after failed stored procedure/function */
 	delete lex->sphead;
 	lex->sphead= NULL;
-      }
-      if (lex->et)
-      {
-        lex->et->free_sphead_on_delete= true;
-        lex->et->free_sp();
-        lex->et->deinit_mutexes();
-        lex->et= NULL;
       }
     }
     thd->proc_info="freeing items";

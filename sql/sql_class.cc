@@ -2084,6 +2084,7 @@ bool Security_context::set_user(char *user_arg)
   return user == 0;
 }
 
+
 /****************************************************************************
   Handling of open and locked tables states.
 
