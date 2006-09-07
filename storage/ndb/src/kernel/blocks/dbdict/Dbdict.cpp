@@ -448,6 +448,8 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 	!!(tablePtr.p->m_bits & TableRecord::TR_RowGCI));
   w.add(DictTabInfo::RowChecksumFlag, 
 	!!(tablePtr.p->m_bits & TableRecord::TR_RowChecksum));
+  w.add(DictTabInfo::TableTemporaryFlag, 
+	!!(tablePtr.p->m_bits & TableRecord::TR_Temporary));
   
   w.add(DictTabInfo::MinLoadFactor, tablePtr.p->minLoadFactor);
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
@@ -1086,8 +1088,8 @@ void Dbdict::closeReadTableConf(Signal* signal,
 /* ---------------------------------------------------------------- */
 void
 Dbdict::updateSchemaState(Signal* signal, Uint32 tableId, 
-			  SchemaFile::TableEntry* te, Callback* callback){
-
+			  SchemaFile::TableEntry* te, Callback* callback,
+                          bool savetodisk){
   jam();
   ndbrequire(tableId < c_tableRecordPool.getSize());
   XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
@@ -1130,6 +1132,12 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
     jam();
     ok = true;
     break;
+  case SchemaFile::TEMPORARY_TABLE_COMMITTED:
+    jam();
+    ndbrequire(oldState == SchemaFile::ADD_STARTED ||
+               oldState == SchemaFile::TEMPORARY_TABLE_COMMITTED);
+    ok = true;
+    break;
   case SchemaFile::INIT:
     jam();
     ok = true;
@@ -1140,16 +1148,23 @@ Dbdict::updateSchemaState(Signal* signal, Uint32 tableId,
   * tableEntry = * te;
   computeChecksum(xsf, tableId / NDB_SF_PAGE_ENTRIES);
 
-  ndbrequire(c_writeSchemaRecord.inUse == false);
-  c_writeSchemaRecord.inUse = true;
-  
-  c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
-  c_writeSchemaRecord.newFile = false;
-  c_writeSchemaRecord.firstPage = tableId / NDB_SF_PAGE_ENTRIES;
-  c_writeSchemaRecord.noOfPages = 1;
-  c_writeSchemaRecord.m_callback = * callback;
-
-  startWriteSchemaFile(signal);
+  if (savetodisk)
+  {
+    ndbrequire(c_writeSchemaRecord.inUse == false);
+    c_writeSchemaRecord.inUse = true;
+    
+    c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
+    c_writeSchemaRecord.newFile = false;
+    c_writeSchemaRecord.firstPage = tableId / NDB_SF_PAGE_ENTRIES;
+    c_writeSchemaRecord.noOfPages = 1;
+    c_writeSchemaRecord.m_callback = * callback;
+    
+    startWriteSchemaFile(signal);
+  }
+  else
+  {
+    execute(signal, *callback, 0);
+  }
 }
 
 void Dbdict::startWriteSchemaFile(Signal* signal)
@@ -2722,6 +2737,13 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 	newEntry->m_tableState = SchemaFile::INIT;
 	restartDropTab(signal, tableId);
 	return;
+
+      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
+        // Temporary table is never written to disk, so just set to INIT.
+        jam();
+	ok = true;
+	newEntry->m_tableState = SchemaFile::INIT;
+        break;
       }//switch
       ndbrequire(ok);
       break;
@@ -2752,6 +2774,11 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 	newEntry->m_tableState = SchemaFile::INIT;
 	restartDropTab(signal, tableId);
 	return;
+      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
+        jam();
+	ok = true;
+	newEntry->m_tableState = SchemaFile::INIT;
+        break;
       }
       ndbrequire(ok);
       break;
@@ -2812,6 +2839,17 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 	  restartCreateTab(signal, tableId, oldEntry, newEntry, false);
           return;
         }//if
+      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
+        jam();
+        ok = true;
+        // For NR, we must re-create the table.
+        // For SR, we do nothing as the table was never saved to disk.
+        if(!c_systemRestart)
+        {
+          restartCreateTab(signal, tableId, oldEntry, newEntry, false);
+          return;
+        }
+        break;
       }
       ndbrequire(ok);
       break;
@@ -2839,6 +2877,11 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 	newEntry->m_tableState = SchemaFile::INIT;
 	restartDropTab(signal, tableId);
 	return;
+      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
+        jam();
+        ok = true;
+	newEntry->m_tableState = SchemaFile::INIT;
+        break;
       }
       ndbrequire(ok);
       break;
@@ -2855,6 +2898,15 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 	jam();
       case SchemaFile::DROP_TABLE_COMMITTED:
 	jam();
+      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
+        jam();
+        ok = true;
+        if(!c_systemRestart)
+        {
+          restartCreateTab(signal, tableId, oldEntry, newEntry, false);
+          return;
+        }
+        break;
       case SchemaFile::TABLE_ADD_COMMITTED:
         jam();
 	ok = true;
@@ -2881,6 +2933,37 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 	restartCreateTab(signal, tableId, oldEntry, newEntry, file);
 	
 	return;
+      }
+      ndbrequire(ok);
+      break;
+    }
+    case SchemaFile::TEMPORARY_TABLE_COMMITTED: {
+      jam();
+      bool ok = false;
+      switch(oldSchemaState){
+      case SchemaFile::INIT:
+	jam();
+      case SchemaFile::DROP_TABLE_COMMITTED:
+	jam();
+      case SchemaFile::ADD_STARTED:
+	jam();
+      case SchemaFile::TABLE_ADD_COMMITTED:
+	jam();
+      case SchemaFile::DROP_TABLE_STARTED:
+	jam();
+      case SchemaFile::ALTER_TABLE_COMMITTED:
+	jam();
+      case SchemaFile::TEMPORARY_TABLE_COMMITTED:
+        jam();
+	ok = true;
+        if(!c_systemRestart)
+        {
+          restartCreateTab(signal, tableId, oldEntry, newEntry, false);
+          return;
+        } else {
+          newEntry->m_tableState = SchemaFile::INIT;
+        }          
+	break;
       }
       ndbrequire(ok);
       break;
@@ -3118,6 +3201,8 @@ Dbdict::execGET_TABINFO_CONF(Signal* signal){
   SimplePropertiesSectionReader r(tabInfoPtr, getSectionSegmentPool());
   handleTabInfoInit(r, &parseRecord);
   ndbrequire(parseRecord.errorCode == 0);
+
+  // save to disk
 
   ndbrequire(tableId < c_tableRecordPool.getSize());
   XSchemaFile * xsf = &c_schemaFile[c_schemaRecord.schemaPage != 0];
@@ -4205,6 +4290,7 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
     SegmentedSectionPtr tabInfoPtr;
     signal->getSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
     alterTabPtr.p->m_tabInfoPtrI = tabInfoPtr.i;
+    bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
     
     signal->header.m_noOfSections = 0;
 
@@ -4216,7 +4302,10 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
     SchemaFile::TableEntry tabEntry;
     tabEntry.m_tableVersion = tableVersion;
     tabEntry.m_tableType    = tablePtr.p->tableType;
-    tabEntry.m_tableState   = SchemaFile::ALTER_TABLE_COMMITTED;
+    if (savetodisk)
+      tabEntry.m_tableState   = SchemaFile::ALTER_TABLE_COMMITTED;
+    else
+      tabEntry.m_tableState   = SchemaFile::TEMPORARY_TABLE_COMMITTED;
     tabEntry.m_gcp          = gci;
     tabEntry.m_info_words   = tabInfoPtr.sz;
     memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
@@ -4226,7 +4315,7 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
     callback.m_callbackFunction = 
       safe_cast(&Dbdict::alterTab_writeSchemaConf);
     
-    updateSchemaState(signal, tableId, &tabEntry, &callback);
+    updateSchemaState(signal, tableId, &tabEntry, &callback, savetodisk);
     break;
   }
   case(AlterTabReq::AlterTableRevert): {
@@ -4703,9 +4792,19 @@ Dbdict::alterTab_writeSchemaConf(Signal* signal,
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::alterTab_writeTableConf);
   
-  SegmentedSectionPtr tabInfoPtr;
-  getSection(tabInfoPtr, alterTabPtr.p->m_tabInfoPtrI);
-  writeTableFile(signal, tableId, tabInfoPtr, &callback);
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, tableId);
+  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
+  if (savetodisk)
+  {
+    SegmentedSectionPtr tabInfoPtr;
+    getSection(tabInfoPtr, alterTabPtr.p->m_tabInfoPtrI);
+    writeTableFile(signal, tableId, tabInfoPtr, &callback);
+  }
+  else
+  {
+    execute(signal, callback, 0);
+  }
 }
 
 void
@@ -5136,7 +5235,8 @@ Dbdict::createTab_prepare(Signal* signal, CreateTabReq * req){
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::createTab_writeSchemaConf1);
   
-  updateSchemaState(signal, tableId, &tabEntry, &callback);
+  bool savetodisk = !(tabPtr.p->m_bits & TableRecord::TR_Temporary);
+  updateSchemaState(signal, tableId, &tabEntry, &callback, savetodisk);
 }
 
 void getSection(SegmentedSectionPtr & ptr, Uint32 i);
@@ -5155,9 +5255,19 @@ Dbdict::createTab_writeSchemaConf1(Signal* signal,
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::createTab_writeTableConf);
   
-  SegmentedSectionPtr tabInfoPtr;
-  getSection(tabInfoPtr, createTabPtr.p->m_tabInfoPtrI);
-  writeTableFile(signal, createTabPtr.p->m_tablePtrI, tabInfoPtr, &callback);
+  TableRecordPtr tabPtr;
+  c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
+  bool savetodisk = !(tabPtr.p->m_bits & TableRecord::TR_Temporary);
+  if (savetodisk)
+  {
+    SegmentedSectionPtr tabInfoPtr;
+    getSection(tabInfoPtr, createTabPtr.p->m_tabInfoPtrI);
+    writeTableFile(signal, createTabPtr.p->m_tablePtrI, tabInfoPtr, &callback);
+  }
+  else
+  {
+    execute(signal, callback, 0);
+  }
 #if 0
   createTabPtr.p->m_tabInfoPtrI = RNIL;
   signal->setSection(tabInfoPtr, 0);
@@ -5203,10 +5313,11 @@ Dbdict::createTab_dih(Signal* signal,
   req->fragType = tabPtr.p->fragmentType;
   req->kValue = tabPtr.p->kValue;
   req->noOfReplicas = 0;
-  req->storedTable = !!(tabPtr.p->m_bits & TableRecord::TR_Logged);
+  req->loggedTable = !!(tabPtr.p->m_bits & TableRecord::TR_Logged);
   req->tableType = tabPtr.p->tableType;
   req->schemaVersion = tabPtr.p->tableVersion;
   req->primaryTableId = tabPtr.p->primaryTableId;
+  req->temporaryTable = !!(tabPtr.p->m_bits & TableRecord::TR_Temporary);
 
 /*
   Behöver fiska upp fragDataPtr från table object istället
@@ -5618,11 +5729,16 @@ Dbdict::createTab_commit(Signal * signal, CreateTabReq * req){
 
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_tablePtrI);
-  
+  bool savetodisk = !(tabPtr.p->m_bits & TableRecord::TR_Temporary);
+
   SchemaFile::TableEntry tabEntry;
   tabEntry.m_tableVersion = tabPtr.p->tableVersion;
   tabEntry.m_tableType    = tabPtr.p->tableType;
-  tabEntry.m_tableState   = SchemaFile::TABLE_ADD_COMMITTED;
+  if (savetodisk)
+    tabEntry.m_tableState   = SchemaFile::TABLE_ADD_COMMITTED;
+  else
+    tabEntry.m_tableState   = SchemaFile::TEMPORARY_TABLE_COMMITTED;
+    
   tabEntry.m_gcp          = tabPtr.p->gciTableCreated;
   tabEntry.m_info_words   = tabPtr.p->packedSize;
   memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
@@ -5632,7 +5748,7 @@ Dbdict::createTab_commit(Signal * signal, CreateTabReq * req){
   callback.m_callbackFunction = 
     safe_cast(&Dbdict::createTab_writeSchemaConf2);
   
-  updateSchemaState(signal, tabPtr.i, &tabEntry, &callback);
+  updateSchemaState(signal, tabPtr.i, &tabEntry, &callback, savetodisk);
 }
 
 void
@@ -5967,6 +6083,10 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
 #endif
   }
   
+  // Disallow logging of a temporary table.
+  tabRequire(!(c_tableDesc.TableTemporaryFlag && c_tableDesc.TableLoggedFlag),
+             CreateTableRef::NoLoggingTemporaryTable);
+
   tablePtr.p->noOfAttributes = c_tableDesc.NoOfAttributes;
   tablePtr.p->m_bits |= 
     (c_tableDesc.TableLoggedFlag ? TableRecord::TR_Logged : 0);
@@ -5974,6 +6094,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     (c_tableDesc.RowChecksumFlag ? TableRecord::TR_RowChecksum : 0);
   tablePtr.p->m_bits |= 
     (c_tableDesc.RowGCIFlag ? TableRecord::TR_RowGCI : 0);
+  tablePtr.p->m_bits |= 
+    (c_tableDesc.TableTemporaryFlag ? TableRecord::TR_Temporary : 0);
   tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = c_tableDesc.MaxLoadFactor;
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)c_tableDesc.FragmentType;
@@ -6775,21 +6897,31 @@ Dbdict::execPREP_DROP_TAB_REQ(Signal* signal){
   SchemaFile::TableState tabState = 
     (SchemaFile::TableState)tableEntry->m_tableState;
   ndbrequire(tabState == SchemaFile::TABLE_ADD_COMMITTED ||
-	     tabState == SchemaFile::ALTER_TABLE_COMMITTED);
+             tabState == SchemaFile::ALTER_TABLE_COMMITTED ||
+             tabState == SchemaFile::TEMPORARY_TABLE_COMMITTED);
   tableEntry->m_tableState   = SchemaFile::DROP_TABLE_STARTED;
   computeChecksum(xsf, tablePtr.i / NDB_SF_PAGE_ENTRIES);
-  
-  ndbrequire(c_writeSchemaRecord.inUse == false);
-  c_writeSchemaRecord.inUse = true;
-  
-  c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
-  c_writeSchemaRecord.newFile = false;
-  c_writeSchemaRecord.firstPage = tablePtr.i / NDB_SF_PAGE_ENTRIES;
-  c_writeSchemaRecord.noOfPages = 1;
-  c_writeSchemaRecord.m_callback.m_callbackData = dropTabPtr.p->key;
-  c_writeSchemaRecord.m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::prepDropTab_writeSchemaConf);
-  startWriteSchemaFile(signal);
+
+  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
+  Callback callback;
+  callback.m_callbackData = dropTabPtr.p->key;
+  callback.m_callbackFunction = safe_cast(&Dbdict::prepDropTab_writeSchemaConf);
+  if (savetodisk)
+  {
+    ndbrequire(c_writeSchemaRecord.inUse == false);
+    c_writeSchemaRecord.inUse = true;
+
+    c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
+    c_writeSchemaRecord.newFile = false;
+    c_writeSchemaRecord.firstPage = tablePtr.i / NDB_SF_PAGE_ENTRIES;
+    c_writeSchemaRecord.noOfPages = 1;
+    c_writeSchemaRecord.m_callback = callback;
+    startWriteSchemaFile(signal);
+  }
+  else
+  {
+    execute(signal, callback, 0);
+  }
 }
 
 void
@@ -6960,17 +7092,28 @@ Dbdict::dropTab_complete(Signal* signal,
   ndbrequire(tabState == SchemaFile::DROP_TABLE_STARTED);
   tableEntry->m_tableState = SchemaFile::DROP_TABLE_COMMITTED;
   computeChecksum(xsf, tableId / NDB_SF_PAGE_ENTRIES);
-  
-  ndbrequire(c_writeSchemaRecord.inUse == false);
-  c_writeSchemaRecord.inUse = true;
 
-  c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
-  c_writeSchemaRecord.firstPage = tableId / NDB_SF_PAGE_ENTRIES;
-  c_writeSchemaRecord.noOfPages = 1;
-  c_writeSchemaRecord.m_callback.m_callbackData = dropTabPtr.p->key;
-  c_writeSchemaRecord.m_callback.m_callbackFunction = 
-    safe_cast(&Dbdict::dropTab_writeSchemaConf);
-  startWriteSchemaFile(signal);
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, tableId);
+  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
+  Callback callback;
+  callback.m_callbackData = dropTabPtr.p->key;
+  callback.m_callbackFunction = safe_cast(&Dbdict::dropTab_writeSchemaConf);
+  if (savetodisk)
+  {
+    ndbrequire(c_writeSchemaRecord.inUse == false);
+    c_writeSchemaRecord.inUse = true;
+    
+    c_writeSchemaRecord.pageId = c_schemaRecord.schemaPage;
+    c_writeSchemaRecord.firstPage = tableId / NDB_SF_PAGE_ENTRIES;
+    c_writeSchemaRecord.noOfPages = 1;
+    c_writeSchemaRecord.m_callback = callback;
+    startWriteSchemaFile(signal);
+  }
+  else
+  {
+    execute(signal, callback, 0); 
+  }
 }
 
 void
@@ -7260,9 +7403,12 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
     return;
   }//if
-  
+
+  // If istable/index, allow ADD_STARTED (not to ref)
+
   if (objEntry->m_tableState != SchemaFile::TABLE_ADD_COMMITTED &&
-      objEntry->m_tableState != SchemaFile::ALTER_TABLE_COMMITTED){
+      objEntry->m_tableState != SchemaFile::ALTER_TABLE_COMMITTED &&
+      objEntry->m_tableState != SchemaFile::TEMPORARY_TABLE_COMMITTED){
     jam();
     sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
     return;
@@ -7281,6 +7427,8 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
       sendGET_TABINFOREF(signal, req, GetTabInfoRef::TableNotDefined);
       return;
     }
+    ndbrequire(objEntry->m_tableState == SchemaFile::TEMPORARY_TABLE_COMMITTED ||
+               !(tabPtr.p->m_bits & TableRecord::TR_Temporary));
   }
   
   c_retrieveRecord.busyState = true;
@@ -7463,11 +7611,17 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
 	  break;
 	}
       }
-      // store
+      // Logging status
       if (! (tablePtr.p->m_bits & TableRecord::TR_Logged)) {
-	conf->setTableStore(pos, DictTabInfo::StoreTemporary);
+	conf->setTableStore(pos, DictTabInfo::StoreNotLogged);
       } else {
 	conf->setTableStore(pos, DictTabInfo::StorePermanent);
+      }
+      // Temporary status
+      if (tablePtr.p->m_bits & TableRecord::TR_Temporary) {
+	conf->setTableTemp(pos, NDB_TEMP_TAB_TEMPORARY);
+      } else {
+	conf->setTableTemp(pos, NDB_TEMP_TAB_PERMANENT);
       }
       pos++;
     }
@@ -7489,7 +7643,7 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
 	conf->setTableState(pos, DictTabInfo::StateBroken);
 	break;
       }
-      conf->setTableStore(pos, DictTabInfo::StoreTemporary);
+      conf->setTableStore(pos, DictTabInfo::StoreNotLogged);
       pos++;
     }
     if (DictTabInfo::isFilegroup(type)){
@@ -7666,7 +7820,8 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
       return;
     }
     memcpy(opPtr.p->m_indexName, c_tableDesc.TableName, MAX_TAB_NAME_SIZE);
-    opPtr.p->m_storedIndex = c_tableDesc.TableLoggedFlag;
+    opPtr.p->m_loggedIndex = c_tableDesc.TableLoggedFlag;
+    opPtr.p->m_temporaryIndex = c_tableDesc.TableTemporaryFlag;
     releaseSections(signal);
     // master expects to hear from all
     if (opPtr.p->m_isMaster)
@@ -7828,6 +7983,34 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
     opPtr.p->m_errorLine = __LINE__;
     return;
   }
+
+  // Check that the temporary status of index is compatible with table.
+  if (!opPtr.p->m_temporaryIndex &&
+      tablePtr.p->m_bits & TableRecord::TR_Temporary)
+  {
+    jam();
+    opPtr.p->m_errorCode= CreateIndxRef::TableIsTemporary;
+    opPtr.p->m_errorLine= __LINE__;
+    return;
+  }
+  if (opPtr.p->m_temporaryIndex &&
+      !(tablePtr.p->m_bits & TableRecord::TR_Temporary))
+  {
+    // This could be implemented later, but mysqld does currently not detect
+    // that the index disappears after SR, and it appears not too useful.
+    jam();
+    opPtr.p->m_errorCode= CreateIndxRef::TableIsNotTemporary;
+    opPtr.p->m_errorLine= __LINE__;
+    return;
+  }
+  if (opPtr.p->m_temporaryIndex && opPtr.p->m_loggedIndex)
+  {
+    jam();
+    opPtr.p->m_errorCode= CreateIndxRef::NoLoggingTemporaryIndex;
+    opPtr.p->m_errorLine= __LINE__;
+    return;
+  }
+
   // compute index table record
   TableRecord indexRec;
   TableRecordPtr indexPtr;
@@ -7836,16 +8019,20 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   initialiseTableRecord(indexPtr);
   indexPtr.p->m_bits = TableRecord::TR_RowChecksum;
   if (req->getIndexType() == DictTabInfo::UniqueHashIndex) {
-    indexPtr.p->m_bits |= (opPtr.p->m_storedIndex ? TableRecord::TR_Logged:0);
+    indexPtr.p->m_bits |= (opPtr.p->m_loggedIndex ? TableRecord::TR_Logged:0);
+    indexPtr.p->m_bits |=
+      (opPtr.p->m_temporaryIndex ? TableRecord::TR_Temporary : 0);
     indexPtr.p->fragmentType = DictTabInfo::DistrKeyUniqueHashIndex;
   } else if (req->getIndexType() == DictTabInfo::OrderedIndex) {
     // first version will not supported logging
-    if (opPtr.p->m_storedIndex) {
+    if (opPtr.p->m_loggedIndex) {
       jam();
       opPtr.p->m_errorCode = CreateIndxRef::InvalidIndexType;
       opPtr.p->m_errorLine = __LINE__;
       return;
     }
+    indexPtr.p->m_bits |=
+      (opPtr.p->m_temporaryIndex ? TableRecord::TR_Temporary : 0);
     indexPtr.p->fragmentType = DictTabInfo::DistrKeyOrderedIndex;
   } else {
     jam();
@@ -7930,6 +8117,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, OpCreateIndexPtr opPtr)
   // write index table
   w.add(DictTabInfo::TableName, opPtr.p->m_indexName);
   w.add(DictTabInfo::TableLoggedFlag, !!(indexPtr.p->m_bits & TableRecord::TR_Logged));
+  w.add(DictTabInfo::TableTemporaryFlag, !!(indexPtr.p->m_bits & TableRecord::TR_Temporary));
   w.add(DictTabInfo::FragmentTypeVal, indexPtr.p->fragmentType);
   w.add(DictTabInfo::TableTypeVal, indexPtr.p->tableType);
   Rope name(c_rope_pool, tablePtr.p->tableName);

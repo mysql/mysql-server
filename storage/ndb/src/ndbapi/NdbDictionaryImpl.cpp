@@ -452,6 +452,7 @@ NdbTableImpl::init(){
   m_primaryTable.clear();
   m_default_no_part_flag = 1;
   m_logging= true;
+  m_temporary = false;
   m_row_gci = true;
   m_row_checksum = true;
   m_kvalue= 6;
@@ -568,6 +569,12 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
   if(m_logging != obj.m_logging)
   {
     DBUG_PRINT("info",("m_logging %d != %d",m_logging,obj.m_logging));
+    DBUG_RETURN(false);
+  }
+
+  if(m_temporary != obj.m_temporary)
+  {
+    DBUG_PRINT("info",("m_temporary %d != %d",m_temporary,obj.m_temporary));
     DBUG_RETURN(false);
   }
 
@@ -711,6 +718,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_max_rows = org.m_max_rows;
   m_default_no_part_flag = org.m_default_no_part_flag;
   m_logging = org.m_logging;
+  m_temporary = org.m_temporary;
   m_row_gci = org.m_row_gci;
   m_row_checksum = org.m_row_checksum;
   m_kvalue = org.m_kvalue;
@@ -1080,6 +1088,7 @@ void NdbIndexImpl::init()
   m_id= RNIL;
   m_type= NdbDictionary::Object::TypeUndefined;
   m_logging= true;
+  m_temporary= false;
   m_table= NULL;
 }
 
@@ -1951,7 +1960,7 @@ objectStateMapping[] = {
 static const
 ApiKernelMapping
 objectStoreMapping[] = {
-  { DictTabInfo::StoreTemporary,     NdbDictionary::Object::StoreTemporary },
+  { DictTabInfo::StoreNotLogged,     NdbDictionary::Object::StoreNotLogged },
   { DictTabInfo::StorePermanent,     NdbDictionary::Object::StorePermanent },
   { -1, -1 }
 };
@@ -2030,6 +2039,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_default_no_part_flag = tableDesc->DefaultNoPartFlag;
   impl->m_linear_flag = tableDesc->LinearHashFlag;
   impl->m_logging = tableDesc->TableLoggedFlag;
+  impl->m_temporary = tableDesc->TableTemporaryFlag;
   impl->m_row_gci = tableDesc->RowGCIFlag;
   impl->m_row_checksum = tableDesc->RowChecksumFlag;
   impl->m_kvalue = tableDesc->TableKValue;
@@ -2472,6 +2482,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 
   tmpTab->FragmentCount= impl.m_fragmentCount;
   tmpTab->TableLoggedFlag = impl.m_logging;
+  tmpTab->TableTemporaryFlag = impl.m_temporary;
   tmpTab->RowGCIFlag = impl.m_row_gci;
   tmpTab->RowChecksumFlag = impl.m_row_checksum;
   tmpTab->TableKValue = impl.m_kvalue;
@@ -2990,6 +3001,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   idx->m_tableName.assign(prim->m_externalName);
   NdbDictionary::Object::Type type = idx->m_type = tab->m_indexType;
   idx->m_logging = tab->m_logging;
+  idx->m_temporary = tab->m_temporary;
   // skip last attribute (NDB$PK or NDB$TNODE)
 
   const Uint32 distKeys = prim->m_noOfDistributionKeys;
@@ -3081,6 +3093,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
     ndb.internalize_index_name(&table, impl.getName()));
   w.add(DictTabInfo::TableName, internalName.c_str());
   w.add(DictTabInfo::TableLoggedFlag, impl.m_logging);
+  w.add(DictTabInfo::TableTemporaryFlag, impl.m_temporary);
 
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
@@ -4064,6 +4077,7 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
       getApiConstant(ListTablesConf::getTableState(d), objectStateMapping, 0);
     element.store = (NdbDictionary::Object::Store)
       getApiConstant(ListTablesConf::getTableStore(d), objectStoreMapping, 0);
+    element.temp = ListTablesConf::getTableTemp(d);
     // table or index name
     Uint32 n = (data[pos++] + 3) >> 2;
     BaseString databaseName;
