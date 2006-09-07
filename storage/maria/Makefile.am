@@ -14,31 +14,87 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+MYSQLDATAdir =          $(localstatedir)
+MYSQLSHAREdir =         $(pkgdatadir)
+MYSQLBASEdir=           $(prefix)
+MYSQLLIBdir=            $(pkglibdir)
+INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
+			-I$(top_srcdir)/regex \
+			-I$(top_srcdir)/sql \
+                        -I$(srcdir)
+WRAPLIBS=
+
+LDADD =
+
+DEFS =                  @DEFS@
+
 EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_ft_stem.c CMakeLists.txt
 pkgdata_DATA =		ma_test_all ma_test_all.res
-
-INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
-LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
-			$(top_builddir)/storage/myisam/libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 pkglib_LIBRARIES =	libmaria.a
 bin_PROGRAMS =		maria_chk maria_pack maria_ftdump
 maria_chk_DEPENDENCIES=	$(LIBRARIES)
+# Only reason to link with libmyisam.a here is that it's where some fulltext
+# pieces are (but soon we'll remove fulltext dependencies from Maria).
+# For now, it imposes that storage/myisam be built before storage/maria.
+maria_chk_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 maria_pack_DEPENDENCIES=$(LIBRARIES)
+maria_pack_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test ma_control_file_test
 noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_sp_defs.h ma_fulltext.h ma_ftdefs.h ma_ft_test1.h ma_ft_eval.h \
-			ma_control_file.h
+			ma_control_file.h ha_maria.h
 ma_test1_DEPENDENCIES=	$(LIBRARIES)
+ma_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 ma_test2_DEPENDENCIES=	$(LIBRARIES)
+ma_test2_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 ma_test3_DEPENDENCIES=	$(LIBRARIES)
+ma_test3_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 #ma_ft_test1_DEPENDENCIES=	$(LIBRARIES)
 #ma_ft_eval_DEPENDENCIES=	$(LIBRARIES)
 maria_ftdump_DEPENDENCIES=	$(LIBRARIES)
+maria_ftdump_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 ma_rt_test_DEPENDENCIES=	$(LIBRARIES)
+ma_rt_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 ma_sp_test_DEPENDENCIES=	$(LIBRARIES)
+ma_sp_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+ma_control_file_test_DEPENDENCIES=	$(LIBRARIES)
+ma_control_file_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_rnext.c ma_rnext_same.c \
 			ma_search.c ma_page.c ma_key.c ma_locking.c \
@@ -53,12 +109,11 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_delete_table.c ma_rename.c  ma_check.c \
 			ma_keycache.c ma_preload.c ma_ft_parser.c \
 			ma_ft_update.c ma_ft_boolean_search.c \
-			ma_ft_nlq_search.c ma_sort.c \
+			ma_ft_nlq_search.c ft_maria.c ma_sort.c \
+			ha_maria.cc \
 			ma_rt_index.c ma_rt_key.c ma_rt_mbr.c ma_rt_split.c \
-			ma_sp_key.c \
-			ma_control_file.c
+			ma_sp_key.c ma_control_file.c
 CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA? maria_control
-DEFS =
 
 SUFFIXES = .sh
 

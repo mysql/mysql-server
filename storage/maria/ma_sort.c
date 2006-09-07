@@ -479,12 +479,6 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
     if (!got_error)
     {
       maria_set_key_active(share->state.key_map, sinfo->key);
-      if (param->testflag & T_STATISTICS)
-        maria_update_key_parts(sinfo->keyinfo, rec_per_key_part, sinfo->unique,
-                         param->stats_method == MI_STATS_METHOD_IGNORE_NULLS?
-                         sinfo->notnull: NULL,
-                         (ulonglong) info->state->records);
-
 
       if (!sinfo->buffpek.elements)
       {
@@ -497,6 +491,11 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
             flush_maria_ft_buf(sinfo) || _ma_flush_pending_blocks(sinfo))
           got_error=1;
       }
+      if (!got_error && param->testflag & T_STATISTICS)
+        maria_update_key_parts(sinfo->keyinfo, rec_per_key_part, sinfo->unique,
+                         param->stats_method == MI_STATS_METHOD_IGNORE_NULLS?
+                         sinfo->notnull: NULL,
+                         (ulonglong) info->state->records);
     }
     my_free((gptr) sinfo->sort_keys,MYF(0));
     my_free(_ma_get_rec_buff_ptr(info, sinfo->rec_buff),

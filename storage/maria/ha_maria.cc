@@ -19,18 +19,15 @@
 #pragma implementation                          // gcc: Class implementation
 #endif
 
+#define MYSQL_SERVER 1
 #include "mysql_priv.h"
+#include <mysql/plugin.h>
 #include <m_ctype.h>
 #include <myisampack.h>
 #include "ha_maria.h"
-#ifndef MASTER
-#include "../srclib/maria/maria_def.h"
-#else
-#include "../storage/maria/maria_def.h"
-#include "../storage/maria/ma_rt_index.h"
-#endif
 
-#include <mysql/plugin.h>
+#include "maria_def.h"
+#include "ma_rt_index.h"
 
 ulong maria_recover_options= HA_RECOVER_NONE;
 
@@ -288,6 +285,15 @@ bool ha_maria::check_if_locking_is_allowed(uint sql_command,
              table->s->table_name.str);
     return FALSE;
   }
+
+  /*
+    Deny locking of the log tables, which is incompatible with
+    concurrent insert. Unless called from a logger THD:
+    general_log_thd or slow_log_thd.
+  */
+  if (!called_by_logger_thread)
+    return check_if_log_table_locking_is_allowed(sql_command, type, table);
+
   return TRUE;
 }
 
@@ -486,10 +492,13 @@ int ha_maria::restore(THD * thd, HA_CHECK_OPT *check_opt)
   HA_CHECK_OPT tmp_check_opt;
   char *backup_dir= thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  const char *table_name= table->s->table_name.str;
+  char table_name[FN_REFLEN];
   int error;
   const char *errmsg;
   DBUG_ENTER("restore");
+
+  VOID(tablename_to_filename(table->s->table_name.str, table_name,
+                             sizeof(table_name)));
 
   if (fn_format_relative_to_data_home(src_path, table_name, backup_dir,
                                       MARIA_NAME_DEXT))
@@ -526,10 +535,13 @@ int ha_maria::backup(THD * thd, HA_CHECK_OPT *check_opt)
 {
   char *backup_dir= thd->lex->backup_dir;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN];
-  const char *table_name= table->s->table_name.str;
+  char table_name[FN_REFLEN];
   int error;
   const char *errmsg;
   DBUG_ENTER("ha_maria::backup");
+
+  VOID(tablename_to_filename(table->s->table_name.str, table_name,
+                             sizeof(table_name)));
 
   if (fn_format_relative_to_data_home(dst_path, table_name, backup_dir,
                                       reg_ext))

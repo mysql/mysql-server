@@ -171,7 +171,18 @@ int maria_update(register MARIA_HA *info, const byte *oldrec, byte *newrec)
 
   info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED | HA_STATE_AKTIV |
 		 key_changed);
-  VOID(_ma_writeinfo(info,key_changed ?  WRITEINFO_UPDATE_KEYFILE : 0));
+
+  /*
+    Every Maria function that updates Maria table must end with
+    call to _ma_writeinfo(). If operation (second param of
+    _ma_writeinfo()) is not 0 it sets share->changed to 1, that is
+    flags that data has changed. If operation is 0, this function
+    equals to no-op in this case.
+
+    ma_update() must always pass !0 value as operation, since even if
+    there is no index change there could be data change.
+  */
+  VOID(_ma_writeinfo(info, WRITEINFO_UPDATE_KEYFILE));
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (info->invalidator != 0)
   {

@@ -475,6 +475,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       share->data_file_type = DYNAMIC_RECORD;
     my_afree((gptr) disk_cache);
     _ma_setup_functions(share);
+    share->is_log_table= FALSE;
 #ifdef THREAD
     thr_lock_init(&share->lock);
     VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
