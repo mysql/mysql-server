@@ -1340,6 +1340,18 @@ select a from t1 group by a;
 a
 e
 drop table t1;
+set names utf8;
+grant select on test.* to �<8e>зе�<80>_�<8e>зе�<80>@localhost;
+user()
+�<8e>зе�<80>_�<8e>зе�<80>@localhost
+revoke all on test.* from �<8e>зе�<80>_�<8e>зе�<80>@localhost;
+drop user �<8e>зе�<80>_�<8e>зе�<80>@localhost;
+create database им�<8f>_баз�<8b>_в_коди�<80>овке_�<83>�<82>�<84>8_длиной_бол�<8c>�<88>е_�<87>ем_45;
+use им�<8f>_баз�<8b>_в_коди�<80>овке_�<83>�<82>�<84>8_длиной_бол�<8c>�<88>е_�<87>ем_45;
+select database();
+database()
+им�<8f>_баз�<8b>_в_коди�<80>овке_�<83>�<82>�<84>8_длиной_бол�<8c>�<88>е_�<87>ем_45
+drop database им�<8f>_баз�<8b>_в_коди�<80>овке_�<83>�<82>�<84>8_длиной_бол�<8c>�<88>е_�<87>ем_45;
 CREATE TABLE t1(id varchar(20) NOT NULL) DEFAULT CHARSET=utf8;
 INSERT INTO t1 VALUES ('xxx'), ('aa'), ('yyy'), ('aa');
 SELECT id FROM t1;
