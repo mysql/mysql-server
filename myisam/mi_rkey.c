@@ -78,24 +78,18 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
   if (!_mi_search(info,keyinfo, key_buff, use_key_length,
 		  myisam_read_vec[search_flag], info->s->state.key_root[inx]))
   {
-    if (info->lastpos >= info->state->data_file_length)
+    /*
+      If we searching for a partial key (or using >, >=, < or <=) and
+      the data is outside of the data file, we need to continue searching
+      for the first key inside the data file
+    */
+    if (info->lastpos >= info->state->data_file_length &&
+        (search_flag != HA_READ_KEY_EXACT ||
+         last_used_keyseg != keyinfo->seg + keyinfo->keysegs))
     {
       do
       {
         uint not_used;
-        /*
-          If we are searching for an exact key, abort if we find a bigger
-          key.
-        */
-        if (search_flag == HA_READ_KEY_EXACT &&
-            (use_key_length == USE_WHOLE_KEY ||
-             _mi_key_cmp(keyinfo->seg, key_buff, info->lastkey, use_key_length,
-                         SEARCH_FIND, &not_used)))
-        {
-          my_errno= HA_ERR_END_OF_FILE;
-          info->lastpos= HA_OFFSET_ERROR;
-          break;
-        }
         /*
           Skip rows that are inserted by other threads since we got a lock
           Note that this can only happen if we are not searching after an
@@ -107,8 +101,20 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
                              myisam_readnext_vec[search_flag],
                              info->s->state.key_root[inx]))
           break;
-      }
-      while (info->lastpos >= info->state->data_file_length);
+        /*
+          Check that the found key does still match the search.
+          _mi_search_next() delivers the next key regardless of its
+          value.
+        */
+        if (search_flag == HA_READ_KEY_EXACT &&
+            _mi_key_cmp(keyinfo->seg, key_buff, info->lastkey, use_key_length,
+                        SEARCH_FIND, &not_used))
+        {
+          my_errno= HA_ERR_KEY_NOT_FOUND;
+          info->lastpos= HA_OFFSET_ERROR;
+          break;
+        }
+      } while (info->lastpos >= info->state->data_file_length);
     }
   }
   if (share->concurrent_insert)
