@@ -47,8 +47,8 @@ class ha_myisammrg: public handler
             HA_READ_ORDER | HA_KEYREAD_ONLY);
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
-  uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
+  uint max_supported_key_length()    const { return HA_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length() const { return HA_MAX_KEY_LENGTH; }
   double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
 

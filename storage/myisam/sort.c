@@ -16,7 +16,7 @@
 
 /*
   Creates a index for a database by reading keys, sorting them and outputing
-  them in sorted order through SORT_INFO functions.
+  them in sorted order through MI_SORT_INFO functions.
 */
 
 #include "fulltext.h"
@@ -460,8 +460,8 @@ ok:
 
 int thr_write_keys(MI_SORT_PARAM *sort_param)
 {
-  SORT_INFO *sort_info=sort_param->sort_info;
-  MI_CHECK *param=sort_info->param;
+  MI_SORT_INFO *sort_info=sort_param->sort_info;
+  HA_CHECK *param=sort_info->param;
   ulong length, keys;
   ulong *rec_per_key_part=param->rec_per_key_part;
   int got_error=sort_info->got_error;
@@ -869,7 +869,6 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
   volatile int *killed= killed_ptr(info->sort_info->param);
-
   DBUG_ENTER("merge_buffers");
 
   count=error=0;

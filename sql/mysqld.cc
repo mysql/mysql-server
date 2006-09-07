@@ -27,6 +27,9 @@
 #include "events.h"
 
 #include "../storage/myisam/ha_myisam.h"
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include "../storage/maria/ha_maria.h"
+#endif
 
 #ifdef HAVE_ROW_BASED_REPLICATION
 #include "rpl_injector.h"
@@ -514,6 +517,7 @@ char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
 const char *myisam_recover_options_str="OFF";
 const char *myisam_stats_method_str="nulls_unequal";
+const char *maria_stats_method_str="nulls_unequal";
 /* name of reference on left espression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
 /* name of additional condition */
@@ -4732,10 +4736,17 @@ enum options_mysqld
   OPT_MAX_LENGTH_FOR_SORT_DATA,
   OPT_MAX_WRITE_LOCK_COUNT, OPT_BULK_INSERT_BUFFER_SIZE,
   OPT_MAX_ERROR_COUNT, OPT_MULTI_RANGE_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
+
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
-  OPT_MYISAM_USE_MMAP,
+  OPT_MYISAM_USE_MMAP, OPT_MYISAM_REPAIR_THREADS,
   OPT_MYISAM_STATS_METHOD,
+
+  OPT_MARIA_BLOCK_SIZE,
+  OPT_MARIA_MAX_SORT_FILE_SIZE, OPT_MARIA_SORT_BUFFER_SIZE,
+  OPT_MARIA_USE_MMAP, OPT_MARIA_REPAIR_THREADS,
+  OPT_MARIA_STATS_METHOD,
+
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
   OPT_OPEN_FILES_LIMIT,
@@ -4749,7 +4760,7 @@ enum options_mysqld
   OPT_SORT_BUFFER, OPT_TABLE_OPEN_CACHE, OPT_TABLE_DEF_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-  OPT_WAIT_TIMEOUT, OPT_MYISAM_REPAIR_THREADS,
+  OPT_WAIT_TIMEOUT, 
   OPT_INNODB_MIRRORED_LOG_GROUPS,
   OPT_INNODB_LOG_FILES_IN_GROUP,
   OPT_INNODB_LOG_FILE_SIZE,
@@ -5892,6 +5903,49 @@ log and this option does nothing anymore.",
     0
 #endif
    , 0, 2, 0, 1, 0},
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  {"maria_block_size", OPT_MARIA_BLOCK_SIZE,
+   "Block size to be used for MARIA index pages.",
+   (gptr*) &maria_block_size,
+   (gptr*) &maria_block_size, 0, GET_ULONG, REQUIRED_ARG,
+   MARIA_KEY_BLOCK_LENGTH, MARIA_MIN_KEY_BLOCK_LENGTH,
+   MARIA_MAX_KEY_BLOCK_LENGTH,
+   0, MARIA_MIN_KEY_BLOCK_LENGTH, 0},
+  {"maria_key_buffer_size", OPT_KEY_BUFFER_SIZE,
+   "The size of the buffer used for index blocks for Maria tables. Increase "
+   "this to get better index handling (for all reads and multiple writes) to "
+   "as much as you can afford; 64M on a 256M machine that mainly runs MySQL "
+   "is quite common.",
+   (gptr*) &maria_key_cache_var.param_buff_size, (gptr*) 0,
+   0, (GET_ULL | GET_ASK_ADDR),
+   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, MALLOC_OVERHEAD,
+   IO_SIZE, 0},
+  {"maria_max_sort_file_size", OPT_MARIA_MAX_SORT_FILE_SIZE,
+   "Don't use the fast sort index method to created index if the temporary "
+   "file would get bigger than this.",
+   (gptr*) &global_system_variables.maria_max_sort_file_size,
+   (gptr*) &max_system_variables.maria_max_sort_file_size, 0,
+   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, (ulonglong) MAX_FILE_SIZE,
+   0, 1024*1024, 0},
+  {"maria_repair_threads", OPT_MARIA_REPAIR_THREADS,
+   "Number of threads to use when repairing maria tables. The value of 1 "
+   "disables parallel repair.",
+   (gptr*) &global_system_variables.maria_repair_threads,
+   (gptr*) &max_system_variables.maria_repair_threads, 0,
+   GET_ULONG, REQUIRED_ARG, 1, 1, ~0L, 0, 1, 0},
+  {"maria_sort_buffer_size", OPT_MARIA_SORT_BUFFER_SIZE,
+   "The buffer that is allocated when sorting the index when doing a REPAIR "
+   "or when creating indexes with CREATE INDEX or ALTER TABLE.",
+   (gptr*) &global_system_variables.maria_sort_buff_size,
+   (gptr*) &max_system_variables.maria_sort_buff_size, 0,
+   GET_ULONG, REQUIRED_ARG, 8192*1024, 4, ~0L, 0, 1, 0},
+  {"maria_stats_method", OPT_MARIA_STATS_METHOD,
+   "Specifies how maria index statistics collection code should threat NULLs. "
+   "Possible values of name are \"nulls_unequal\" (default behavior for 4.1/5.0), "
+   "\"nulls_equal\" (emulate 4.0 behavior), and \"nulls_ignored\".",
+   (gptr*) &maria_stats_method_str, (gptr*) &maria_stats_method_str, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packetlength to send/receive from to server.",
    (gptr*) &global_system_variables.max_allowed_packet,
@@ -5992,12 +6046,6 @@ The minimum value for this variable is 4096.",
    (gptr*) &myisam_data_pointer_size,
    (gptr*) &myisam_data_pointer_size, 0, GET_ULONG, REQUIRED_ARG,
    6, 2, 7, 0, 1, 0},
-  {"myisam_max_extra_sort_file_size", OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
-   "Deprecated option",
-   (gptr*) &global_system_variables.myisam_max_extra_sort_file_size,
-   (gptr*) &max_system_variables.myisam_max_extra_sort_file_size,
-   0, GET_ULL, REQUIRED_ARG, (ulonglong) MI_MAX_TEMP_LENGTH,
-   0, (ulonglong) MAX_FILE_SIZE, 0, 1, 0},
   {"myisam_max_sort_file_size", OPT_MYISAM_MAX_SORT_FILE_SIZE,
    "Don't use the fast sort index method to created index if the temporary file would get bigger than this.",
    (gptr*) &global_system_variables.myisam_max_sort_file_size,
@@ -6929,15 +6977,24 @@ static void mysql_init_variables(void)
   query_id= thread_id= 1L;
   strmov(server_version, MYSQL_SERVER_VERSION);
   myisam_recover_options_str= sql_mode_str= "OFF";
-  myisam_stats_method_str= "nulls_unequal";
+  myisam_stats_method_str= maria_stats_method_str= "nulls_unequal";
   my_bind_addr = htonl(INADDR_ANY);
   threads.empty();
   thread_cache.empty();
   key_caches.empty();
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
-					       default_key_cache_base.length)))
+                                                default_key_cache_base.length)))
     exit(1);
-  multi_keycache_init(); /* set key_cache_hash.default_value = dflt_key_cache */
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  if (!(maria_key_cache= get_or_create_key_cache(maria_key_cache_base.str,
+                                                 maria_key_cache_base.length)))
+    exit(1);
+  maria_key_cache->param_buff_size=      maria_key_cache_var.param_buff_size;
+  maria_key_cache->param_block_size=     maria_block_size;
+#endif
+
+ /* set key_cache_hash.default_value = dflt_key_cache */
+  multi_keycache_init();
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
@@ -7585,7 +7642,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     int method;
     LINT_INIT(method_conv);
 
-    myisam_stats_method_str= argument;
     if ((method=find_type(argument, &myisam_stats_method_typelib, 2)) <= 0)
     {
       fprintf(stderr, "Invalid value of myisam_stats_method: %s.\n", argument);

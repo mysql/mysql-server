@@ -448,7 +448,7 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       /* The above changed info->lastkey2. Inform mi_rnext_same(). */
       info->update&= ~HA_STATE_RNEXT_SAME;
 
-      _my_store_blob_length(record+keyseg->start,
+      _mi_store_blob_length(record+keyseg->start,
 			    (uint) keyseg->bit_start,length);
       key+=length;
     }

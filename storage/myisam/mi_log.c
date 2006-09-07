@@ -134,7 +134,7 @@ void _myisam_log_record(enum myisam_log_commands command, MI_INFO *info,
   if (!info->s->base.blobs)
     length=info->s->base.reclength;
   else
-    length=info->s->base.reclength+ _my_calc_total_blob_length(info,record);
+    length=info->s->base.reclength+ _mi_calc_total_blob_length(info,record);
   buff[0]=(char) command;
   mi_int2store(buff+1,info->dfile);
   mi_int4store(buff+3,pid);

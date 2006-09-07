@@ -245,7 +245,7 @@ int _mi_write_blob_record(MI_INFO *info, const byte *record)
   extra= (ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
 	  MI_DYN_DELETE_BLOCK_HEADER+1);
   reclength= (info->s->base.pack_reclength +
-	      _my_calc_total_blob_length(info,record)+ extra);
+	      _mi_calc_total_blob_length(info,record)+ extra);
 #ifdef NOT_USED					/* We now support big rows */
   if (reclength > MI_DYN_MAX_ROW_LENGTH)
   {
@@ -279,7 +279,7 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const byte *record)
   extra= (ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER)+MI_SPLIT_LENGTH+
 	  MI_DYN_DELETE_BLOCK_HEADER);
   reclength= (info->s->base.pack_reclength+
-	      _my_calc_total_blob_length(info,record)+ extra);
+	      _mi_calc_total_blob_length(info,record)+ extra);
 #ifdef NOT_USED					/* We now support big rows */
   if (reclength > MI_DYN_MAX_ROW_LENGTH)
   {
@@ -1249,7 +1249,7 @@ err:
 
 	/* Calc length of blob. Update info in blobs->length */
 
-ulong _my_calc_total_blob_length(MI_INFO *info, const byte *record)
+ulong _mi_calc_total_blob_length(MI_INFO *info, const byte *record)
 {
   ulong length;
   MI_BLOB *blob,*end;
@@ -1283,7 +1283,7 @@ ulong _mi_calc_blob_length(uint length, const byte *pos)
 }
 
 
-void _my_store_blob_length(byte *pos,uint pack_length,uint length)
+void _mi_store_blob_length(byte *pos,uint pack_length,uint length)
 {
   switch (pack_length) {
   case 1:
@@ -1496,7 +1496,7 @@ int _mi_cmp_dynamic_record(register MI_INFO *info, register const byte *record)
     if (info->s->base.blobs)
     {
       if (!(buffer=(byte*) my_alloca(info->s->base.pack_reclength+
-				     _my_calc_total_blob_length(info,record))))
+				     _mi_calc_total_blob_length(info,record))))
 	DBUG_RETURN(-1);
     }
     reclength=_mi_rec_pack(info,buffer,record);

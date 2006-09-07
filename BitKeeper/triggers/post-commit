@@ -5,7 +5,7 @@ FROM=$USER@mysql.com
 COMMITS=commits@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
-VERSION="5.1"
+VERSION="maria"
 
 if [ "$REAL_EMAIL" = "" ]
 then
@@ -65,51 +65,6 @@ EOF
   bk changes -v -r+
   bk cset -r+ -d
  ) | $SENDMAIL -t
-
-#++
-# commits@ mail
-#--
- echo "Notifying commits list at $COMMITS"
- (
-   cat <<EOF
-List-ID: <bk.mysql-$VERSION>
-From: $FROM
-To: $COMMITS
-Subject: bk commit into $VERSION tree ($CHANGESET)$BS
-X-CSetKey: <$CSETKEY>
-$BH
-Below is the list of changes that have just been committed into a local
-$VERSION repository of $USER. When $USER does a push these changes will
-be propagated to the main repository and, within 24 hours after the
-push, to the public repository.
-For information on how to access the public repository
-see http://dev.mysql.com/doc/mysql/en/installing-source-tree.html
-
-EOF
-  bk changes -v -r+
-  bk cset -r+ -d
- ) | head -n $LIMIT | $SENDMAIL -t
-
-#++
-# docs-commit@ mail
-# Picks up anything under the Docs subdirectory (relevant for docs team).
-#--
- bk changes -v -r+ | grep -q "  Docs/"
- if [ $? -eq 0 ]
- then
-  echo "Notifying docs list at $DOCS"
-  (
-    cat <<EOF
-List-ID: <bk.mysql-$VERSION>
-From: $FROM
-To: $DOCS
-Subject: bk commit - $VERSION tree (Manual) ($CHANGESET)$BS
-
-EOF
-  bk changes -v -r+
-  bk cset -r+ -d
- ) | $SENDMAIL -t
- fi
 
 else
   echo "commit failed because '$BK_STATUS', you may need to re-clone..." 

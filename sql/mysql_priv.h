@@ -1676,6 +1676,13 @@ extern handlerton myisammrg_hton;
 /* MRG_MYISAM handler is always built, but may be skipped */
 #define have_merge_db myisammrg_hton.state
 
+#ifdef WITH_MARIA_STORAGE_ENGINE
+extern handlerton maria_hton;
+#define have_maria maria_hton.state
+#else
+extern SHOW_COMP_OPTION have_maria;
+#endif
+
 extern handlerton myisam_hton;
 extern handlerton myisammrg_hton;
 extern handlerton heap_hton;

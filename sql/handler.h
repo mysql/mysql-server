@@ -21,6 +21,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
 
@@ -255,6 +256,7 @@ enum legacy_db_type
   DB_TYPE_BLACKHOLE_DB,
   DB_TYPE_PARTITION_DB,
   DB_TYPE_BINLOG,
+  DB_TYPE_MARIA,
   DB_TYPE_FIRST_DYNAMIC=32,
   DB_TYPE_DEFAULT=127 // Must be last
 };
