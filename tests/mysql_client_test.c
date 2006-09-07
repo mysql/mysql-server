@@ -11931,6 +11931,19 @@ static void test_cursors_with_union()
   fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_STORE_RESULT);
 }
 
+
+static void test_cursors_with_procedure()
+{
+  const char *queries[]=
+  {
+    "SELECT * FROM t1 procedure analyse()"
+  };
+  myheader("test_cursors_with_procedure");
+  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_ROW_BY_ROW_FETCH);
+  fetch_n(queries, sizeof(queries)/sizeof(*queries), USE_STORE_RESULT);
+}
+
+
 /*
   Altough mysql_create_db(), mysql_rm_db() are deprecated since 4.0 they
   should not crash server and should not hang in case of errors.
@@ -15297,6 +15310,7 @@ static struct my_tests_st my_tests[]= {
   { "test_view_insert_fields", test_view_insert_fields },
   { "test_basic_cursors", test_basic_cursors },
   { "test_cursors_with_union", test_cursors_with_union },
+  { "test_cursors_with_procedure", test_cursors_with_procedure },
   { "test_truncation", test_truncation },
   { "test_truncation_option", test_truncation_option },
   { "test_client_character_set", test_client_character_set },
