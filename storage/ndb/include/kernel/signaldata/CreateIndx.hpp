@@ -211,7 +211,7 @@ public:
     DuplicateAttributes = 4258,
     TableIsTemporary = 776,
     TableIsNotTemporary = 777,
-    NoLoggingTemporaryIndex = 778,
+    NoLoggingTemporaryIndex = 778
   };
 
   CreateIndxConf m_conf;
