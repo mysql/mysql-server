@@ -208,7 +208,10 @@ public:
     NotUnique = 4251,
     AllocationError = 4252,
     CreateIndexTableFailed = 4253,
-    DuplicateAttributes = 4258
+    DuplicateAttributes = 4258,
+    TableIsTemporary = 776,
+    TableIsNotTemporary = 777,
+    NoLoggingTemporaryIndex = 778,
   };
 
   CreateIndxConf m_conf;

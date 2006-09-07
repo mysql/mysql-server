@@ -54,7 +54,8 @@ struct SchemaFile {
     TABLE_ADD_COMMITTED = 2,
     DROP_TABLE_STARTED = 3,
     DROP_TABLE_COMMITTED = 4,
-    ALTER_TABLE_COMMITTED = 5
+    ALTER_TABLE_COMMITTED = 5,
+    TEMPORARY_TABLE_COMMITTED = 6
   };
 
   // entry size 32 bytes

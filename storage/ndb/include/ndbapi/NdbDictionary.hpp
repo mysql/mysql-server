@@ -136,7 +136,7 @@ public:
      */
     enum Store {
       StoreUndefined = 0,     ///< Undefined
-      StoreTemporary = 1,     ///< Object or data deleted on system restart
+      StoreNotLogged = 1,     ///< Object or data deleted on system restart
       StorePermanent = 2      ///< Permanent. logged to disk
     };
 
@@ -917,6 +917,9 @@ public:
     int createTableInDb(Ndb*, bool existingEqualIsOk = true) const ;
 
     int getReplicaCount() const ;
+
+    bool getTemporary();
+    void setTemporary(bool); 
 #endif
 
   private:
@@ -1104,6 +1107,9 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     void setStoredIndex(bool x) { setLogging(x); }
     bool getStoredIndex() const { return getLogging(); }
+
+    bool getTemporary();
+    void setTemporary(bool); 
 #endif
     
     /** @} *******************************************************************/
@@ -1564,7 +1570,8 @@ public:
 	unsigned id;            ///< Id of object
         Object::Type type;      ///< Type of object
         Object::State state;    ///< State of object
-        Object::Store store;    ///< How object is stored
+        Object::Store store;    ///< How object is logged
+        Uint32 temp;            ///< Temporary status of object
 	char * database;        ///< In what database the object resides 
 	char * schema;          ///< What schema the object is defined in
 	char * name;            ///< Name of object
@@ -1573,6 +1580,7 @@ public:
           type(Object::TypeUndefined),
           state(Object::StateUndefined),
           store(Object::StoreUndefined),
+          temp(NDB_TEMP_TAB_PERMANENT),
 	  database(0),
 	  schema(0),
           name(0) {

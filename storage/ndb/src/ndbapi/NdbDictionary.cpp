@@ -632,6 +632,16 @@ NdbDictionary::Table::getReplicaCount() const {
   return m_impl.m_replicaCount;
 }
 
+bool
+NdbDictionary::Table::getTemporary() {
+  return m_impl.m_temporary;
+}
+
+void
+NdbDictionary::Table::setTemporary(bool val) {
+  m_impl.m_temporary = val;
+}
+
 int
 NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {  
   const NdbDictionary::Table * pTab = 
@@ -806,6 +816,16 @@ NdbDictionary::Index::getType() const {
 void
 NdbDictionary::Index::setLogging(bool val){
   m_impl.m_logging = val;
+}
+
+bool
+NdbDictionary::Index::getTemporary(){
+  return m_impl.m_temporary;
+}
+
+void
+NdbDictionary::Index::setTemporary(bool val){
+  m_impl.m_temporary = val;
 }
 
 bool 
