@@ -539,4 +539,17 @@ show plugin;
 show plugins;
 --enable_result_log
 
+#
+# Bug #19874: SHOW COLUMNS and SHOW KEYS handle identifiers containing
+# \ incorrectly
+#
+create database `mysqlttest\1`;
+create table `mysqlttest\1`.`a\b` (a int);
+show tables from `mysqlttest\1`;
+show fields from `mysqlttest\1`.`a\b`;
+show columns from `a\b` from `mysqlttest\1`;
+show keys from `mysqlttest\1`.`a\b`;
+drop table `mysqlttest\1`.`a\b`;
+drop database `mysqlttest\1`;
+
 --echo End of 5.1 tests
