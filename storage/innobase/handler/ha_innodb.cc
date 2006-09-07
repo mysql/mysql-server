@@ -31,8 +31,7 @@ have disables the InnoDB inlining in this file. */
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
-#include "slave.h"
+#include <mysql_priv.h>
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -1689,7 +1688,7 @@ innobase_commit_low(
 		return;
 	}
 
-#ifdef HAVE_REPLICATION
+#ifdef DISABLED_HAVE_REPLICATION
 	THD *thd=current_thd;
 
 	if (thd && thd->slave_thread) {
