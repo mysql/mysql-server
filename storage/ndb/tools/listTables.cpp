@@ -249,7 +249,7 @@ static int _loops;
 static int _type;
 enum options_ndb_show_tables
 {
-  OPT_SHOW_TMP_STATUS=256,
+  OPT_SHOW_TMP_STATUS=256
 };
 static struct my_option my_long_options[] =
 {
