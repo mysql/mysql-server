@@ -404,16 +404,16 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 {
   LEX *old_lex= thd->lex, newlex;
   String defstr;
-  char old_db_buf[NAME_LEN+1];
+  char old_db_buf[NAME_BYTE_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   ulong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
   
-  char definer_user_name_holder[USERNAME_LENGTH + 1];
+  char definer_user_name_holder[USERNAME_BYTE_LENGTH + 1];
   LEX_STRING_WITH_INIT definer_user_name(definer_user_name_holder,
-                                         USERNAME_LENGTH);
+                                         USERNAME_BYTE_LENGTH);
 
   char definer_host_name_holder[HOSTNAME_LENGTH + 1];
   LEX_STRING_WITH_INIT definer_host_name(definer_host_name_holder,
@@ -511,7 +511,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  char old_db_buf[NAME_LEN+1];
+  char old_db_buf[NAME_BYTE_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   DBUG_ENTER("db_create_routine");
