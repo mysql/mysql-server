@@ -32,6 +32,7 @@ static Ndb* ndb = 0;
 static const NdbDictionary::Dictionary * dic = 0;
 static int _unqualified = 0;
 static int _parsable = 0;
+static int show_temp_status = 0;
 
 static void
 fatal(char const* fmt, ...)
@@ -80,9 +81,19 @@ list(const char * tabname,
     if (!_parsable)
     {
       if (ndb->usingFullyQualifiedNames())
-        ndbout_c("%-5s %-20s %-8s %-7s %-12s %-8s %s", "id", "type", "state", "logging", "database", "schema", "name");
+      {
+        if (show_temp_status)
+          ndbout_c("%-5s %-20s %-8s %-7s %-4s %-12s %-8s %s", "id", "type", "state", "logging", "temp", "database", "schema", "name");
+        else
+          ndbout_c("%-5s %-20s %-8s %-7s %-12s %-8s %s", "id", "type", "state", "logging", "database", "schema", "name");
+      }
       else
-        ndbout_c("%-5s %-20s %-8s %-7s %s", "id", "type", "state", "logging", "name");
+      {
+        if (show_temp_status)
+          ndbout_c("%-5s %-20s %-8s %-7s %-4s %s", "id", "type", "state", "logging", "temp", "name");
+        else
+          ndbout_c("%-5s %-20s %-8s %-7s %s", "id", "type", "state", "logging", "name");
+      }
     }
     for (unsigned i = 0; i < list.count; i++) {
 	NdbDictionary::Dictionary::List::Element& elt = list.elements[i];
@@ -162,30 +173,69 @@ list(const char * tabname,
 	    strcpy(store, "-");
 	else {
 	    switch (elt.store) {
-	    case NdbDictionary::Object::StoreTemporary:
+	    case NdbDictionary::Object::StoreNotLogged:
 		strcpy(store, "No");
 		break;
 	    case NdbDictionary::Object::StorePermanent:
 		strcpy(store, "Yes");
 		break;
 	    default:
-		sprintf(state, "%d", (int)elt.store);
+		sprintf(store, "%d", (int)elt.store);
 		break;
 	    }
 	}
+        char temp[100];
+        if (show_temp_status)
+        {
+          if (! isTable)
+              strcpy(temp, "-");
+          else {
+              switch (elt.temp) {
+              case NDB_TEMP_TAB_PERMANENT:
+                  strcpy(temp, "No");
+                  break;
+              case NDB_TEMP_TAB_TEMPORARY:
+                  strcpy(temp, "Yes");
+                  break;
+              default:
+                  sprintf(temp, "%d", (int)elt.temp);
+                  break;
+              }
+          }
+        }
 	if (ndb->usingFullyQualifiedNames())
         {
           if (_parsable)
-            ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
+          {
+            if (show_temp_status)
+              ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, temp, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
+            else
+              ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
+          }
           else
-            ndbout_c("%-5d %-20s %-8s %-7s %-12s %-8s %s", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
+          {
+            if (show_temp_status)
+              ndbout_c("%-5d %-20s %-8s %-7s %-4s %-12s %-8s %s", elt.id, type, state, store, temp, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
+            else
+              ndbout_c("%-5d %-20s %-8s %-7s %-12s %-8s %s", elt.id, type, state, store, (elt.database)?elt.database:"", (elt.schema)?elt.schema:"", elt.name);
+          }
         }
         else
         {
           if (_parsable)
-            ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, elt.name);
+          {
+            if (show_temp_status)
+              ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, temp, elt.name);
+            else
+              ndbout_c("%d\t'%s'\t'%s'\t'%s'\t'%s'", elt.id, type, state, store, elt.name);
+          }
           else
-            ndbout_c("%-5d %-20s %-8s %-7s %s", elt.id, type, state, store, elt.name);
+          {
+            if (show_temp_status)
+              ndbout_c("%-5d %-20s %-8s %-7s %-4s %s", elt.id, type, state, store, temp, elt.name);
+            else
+              ndbout_c("%-5d %-20s %-8s %-7s %s", elt.id, type, state, store, elt.name);
+          }
         }
     }
     if (_parsable)
@@ -197,6 +247,10 @@ NDB_STD_OPTS_VARS;
 static const char* _dbname = "TEST_DB";
 static int _loops;
 static int _type;
+enum options_ndb_show_tables
+{
+  OPT_SHOW_TMP_STATUS=256,
+};
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_show_tables"),
@@ -215,6 +269,9 @@ static struct my_option my_long_options[] =
   { "parsable", 'p', "Return output suitable for mysql LOAD DATA INFILE",
     (gptr*) &_parsable, (gptr*) &_parsable, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
+  { "show-temp-status", OPT_SHOW_TMP_STATUS, "Show table temporary flag",
+    (gptr*) &show_temp_status, (gptr*) &show_temp_status, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void usage()

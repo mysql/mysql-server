@@ -198,6 +198,7 @@ public:
   Uint32 m_default_no_part_flag;
   bool m_linear_flag;
   bool m_logging;
+  bool m_temporary;
   bool m_row_gci;
   bool m_row_checksum;
   int m_kvalue;
@@ -273,6 +274,7 @@ public:
   Vector<int> m_key_ids;
 
   bool m_logging;
+  bool m_temporary;
   
   NdbTableImpl * m_table;
   

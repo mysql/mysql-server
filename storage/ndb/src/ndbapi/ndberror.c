@@ -421,6 +421,9 @@ ErrorBundle ErrorCodes[] = {
   
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
+  { 776,  DMEC, AE, "Index created on temporary table must itself be temporary" },
+  { 777,  DMEC, AE, "Cannot create a temporary index on a non-temporary table" },
+  { 778,  DMEC, AE, "A temporary table or index must be specified as not logging" },
   
   /**
    * FunctionNotImplemented
@@ -611,7 +614,7 @@ ErrorBundle ErrorCodes[] = {
   { 4272, DMEC, AE, "Table definition has undefined column" },
   { 4273, DMEC, IE, "No blob table in dict cache" },
   { 4274, DMEC, IE, "Corrupted main table PK in blob operation" },
-  { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" }
+  { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" },
 };
 
 static
