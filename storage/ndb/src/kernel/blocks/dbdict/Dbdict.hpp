@@ -238,7 +238,8 @@ public:
     {
       TR_Logged = 0x1,
       TR_RowGCI = 0x2,
-      TR_RowChecksum = 0x4
+      TR_RowChecksum = 0x4,
+      TR_Temporary = 0x8
     };
     Uint16 m_bits;
 
@@ -1238,7 +1239,8 @@ private:
     CreateIndxReq m_request;
     AttributeList m_attrList;
     char m_indexName[MAX_TAB_NAME_SIZE];
-    bool m_storedIndex;
+    bool m_loggedIndex;
+    bool m_temporaryIndex;
     // coordinator DICT
     Uint32 m_coordinatorRef;
     bool m_isMaster;
@@ -2194,7 +2196,8 @@ private:
   // Read/Write Schema and Table files
   /* ------------------------------------------------------------ */
   void updateSchemaState(Signal* signal, Uint32 tableId, 
-			 SchemaFile::TableEntry*, Callback*);
+			 SchemaFile::TableEntry*, Callback*,
+                         bool savetodisk = 1);
   void startWriteSchemaFile(Signal* signal);
   void openSchemaFile(Signal* signal,
                       Uint32 fileNo,

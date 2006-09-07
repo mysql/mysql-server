@@ -97,7 +97,8 @@ public:
     VarsizeBitfieldNotSupported = 757,
     NotATablespace = 758,
     InvalidTablespaceVersion = 759,
-    OutOfStringBuffer = 773
+    OutOfStringBuffer = 773,
+    NoLoggingTemporaryTable = 778,
   };
 
 private:
