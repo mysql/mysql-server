@@ -410,7 +410,8 @@ public:
 };
 
 
-typedef bool (Item::*Item_processor)(byte *arg);
+typedef bool (Item::*Item_processor) (byte *arg);
+typedef bool (Item::*Item_analyzer) (byte **argp);
 typedef Item* (Item::*Item_transformer) (byte *arg);
 typedef void (*Cond_traverser) (const Item *item, void *arg);
 
@@ -739,6 +740,14 @@ public:
     return (this->*transformer)(arg);
   }
 
+  virtual Item* compile(Item_analyzer analyzer, byte **arg_p,
+                        Item_transformer transformer, byte *arg_t)
+  {
+    if ((this->*analyzer) (arg_p))
+      return ((this->*transformer) (arg_t));
+    return 0;
+  }
+
    virtual void traverse_cond(Cond_traverser traverser,
                               void *arg, traverse_order order)
    {
@@ -753,6 +762,12 @@ public:
   virtual bool change_context_processor(byte *context) { return 0; }
   virtual bool reset_query_id_processor(byte *query_id) { return 0; }
   virtual bool is_expensive_processor(byte *arg) { return 0; }
+  virtual bool subst_argument_checker(byte **arg)
+  { 
+    if (*arg)
+      *arg= NULL; 
+    return TRUE;     
+  }
 
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual Item *set_no_const_sub(byte *arg) { return this; }
@@ -1254,6 +1269,7 @@ public:
     return field->can_be_compared_as_longlong();
   }
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
+  bool subst_argument_checker(byte **arg);
   Item *equal_fields_propagator(byte *arg);
   Item *set_no_const_sub(byte *arg);
   Item *replace_equal_field(byte *arg);

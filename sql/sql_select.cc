@@ -6593,8 +6593,8 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
 
   SYNOPSIS
     build_equal_items_for_cond()
-    cond       condition(expression) where to make replacement
-    inherited  path to all inherited multiple equality items
+      cond       condition(expression) where to make replacement
+      inherited  path to all inherited multiple equality items
 
   DESCRIPTION
     At each 'and' level the function detects items for equality predicates
@@ -6608,7 +6608,9 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
     The function also traverses the cond tree and and for each field reference
     sets a pointer to the multiple equality item containing the field, if there
     is any. If this multiple equality equates fields to a constant the
-    function replace the field reference by the constant.
+    function replaces the field reference by the constant in the cases 
+    when the field is not of a string type or when the field reference is
+    just an argument of a comparison predicate.
     The function also determines the maximum number of members in 
     equality lists of each Item_cond_and object assigning it to
     cond_equal->max_members of this object and updating accordingly
@@ -6756,9 +6758,14 @@ static COND *build_equal_items_for_cond(COND *cond,
     /* 
       For each field reference in cond, not from equal item predicates,
       set a pointer to the multiple equality it belongs to (if there is any)
+      as soon the field is not of a string type or the field reference is
+      an argument of a comparison predicate. 
     */ 
-    cond= cond->transform(&Item::equal_fields_propagator,
-                            (byte *) inherited);
+    byte *dummy;
+    cond= cond->compile(&Item::subst_argument_checker,
+                        &dummy, 
+                        &Item::equal_fields_propagator,
+                        (byte *) inherited);
     cond->update_used_tables();
   }
   return cond;

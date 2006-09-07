@@ -2747,16 +2747,16 @@ bool Item_cond::walk(Item_processor processor, byte *arg)
    
   SYNOPSIS
     transform()
-    transformer   the transformer callback function to be applied to the nodes
-                  of the tree of the object
-    arg           parameter to be passed to the transformer
+      transformer   the transformer callback function to be applied to the nodes
+                    of the tree of the object
+      arg           parameter to be passed to the transformer
   
   DESCRIPTION
-    The function recursively applies the transform method with the
-    same transformer to each member item of the condition list.
+    The function recursively applies the transform method to each
+     member item of the condition list.
     If the call of the method for a member item returns a new item
     the old item is substituted for a new one.
-    After this the transform method is applied to the root node
+    After this the transformer is applied to the root node
     of the Item_cond object. 
      
   RETURN VALUES
@@ -2776,6 +2776,55 @@ Item *Item_cond::transform(Item_transformer transformer, byte *arg)
       li.replace(new_item);
   }
   return Item_func::transform(transformer, arg);
+}
+
+
+/*
+  Compile Item_cond object with a processor and a transformer callback functions
+   
+  SYNOPSIS
+    compile()
+      analyzer      the analyzer callback function to be applied to the nodes
+                    of the tree of the object
+      arg_p         in/out parameter to be passed to the analyzer
+      transformer   the transformer callback function to be applied to the nodes
+                    of the tree of the object
+      arg_t         parameter to be passed to the transformer
+  
+  DESCRIPTION
+    First the function applies the analyzer to the root node of
+    the Item_func object. Then if the analyzer succeeeds (returns TRUE)
+    the function recursively applies the compile method to member
+    item of the condition list.
+    If the call of the method for a member item returns a new item
+    the old item is substituted for a new one.
+    After this the transformer is applied to the root node
+    of the Item_cond object. 
+     
+  RETURN VALUES
+    Item returned as the result of transformation of the root node 
+*/
+
+Item *Item_cond::compile(Item_analyzer analyzer, byte **arg_p,
+                         Item_transformer transformer, byte *arg_t)
+{
+  if (!(this->*analyzer)(arg_p))
+    return 0;
+  
+  byte *arg_v= *arg_p;
+  List_iterator<Item> li(list);
+  Item *item;
+  while ((item= li++))
+  {
+    /* 
+      The same parameter value of arg_p must be passed
+      to analyze any argument of the condition formula.
+    */   
+    Item *new_item= item->compile(analyzer, &arg_v, transformer, arg_t);
+    if (new_item && new_item != item)
+      li.replace(new_item);
+  }
+  return Item_func::transform(transformer, arg_t);
 }
 
 void Item_cond::traverse_cond(Cond_traverser traverser,
