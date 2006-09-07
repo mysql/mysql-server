@@ -234,22 +234,21 @@ void Item_func::traverse_cond(Cond_traverser traverser,
 }
 
 
-
 /*
   Transform an Item_func object with a transformer callback function
    
   SYNOPSIS
     transform()
-    transformer   the transformer callback function to be applied to the nodes
-                  of the tree of the object
-    argument      parameter to be passed to the transformer
+      transformer   the transformer callback function to be applied to the nodes
+                    of the tree of the object
+      argument      parameter to be passed to the transformer
   
   DESCRIPTION
-    The function recursively applies the transform method with the
-    same transformer to each argument the function.
-    If the call of the method for a member item returns a new item
+    The function recursively applies the transform method to each
+    argument of the Item_func node.
+    If the call of the method for an argument item returns a new item
     the old item is substituted for a new one.
-    After this the transform method is applied to the root node
+    After this the transformer is applied to the root node
     of the Item_func object. 
      
   RETURN VALUES
@@ -273,6 +272,55 @@ Item *Item_func::transform(Item_transformer transformer, byte *argument)
   return (this->*transformer)(argument);
 }
 
+
+/*
+  Compile Item_func object with a processor and a transformer callback functions
+   
+  SYNOPSIS
+    compile()
+      analyzer      the analyzer callback function to be applied to the nodes
+                    of the tree of the object
+      arg_p         in/out parameter to be passed to the processor
+      transformer   the transformer callback function to be applied to the nodes
+                    of the tree of the object
+      arg_t         parameter to be passed to the transformer
+  
+  DESCRIPTION
+    First the function applies the analyzer to the root node of
+    the Item_func object. Then if the analizer succeeeds (returns TRUE)
+    the function recursively applies the compile method to each argument
+    of the Item_func node.
+    If the call of the method for an argument item returns a new item
+    the old item is substituted for a new one.
+    After this the transformer is applied to the root node
+    of the Item_func object. 
+     
+  RETURN VALUES
+    Item returned as the result of transformation of the root node 
+*/
+
+Item *Item_func::compile(Item_analyzer analyzer, byte **arg_p,
+                         Item_transformer transformer, byte *arg_t)
+{
+  if (!(this->*analyzer)(arg_p))
+    return 0;
+  byte *arg_v= *arg_p;
+  if (arg_count)
+  {
+    Item **arg,**arg_end;
+    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
+    {
+      /* 
+        The same parameter value of arg_p must be passed
+        to analyze any argument of the condition formula.
+      */   
+      Item *new_item= (*arg)->compile(analyzer, &arg_v, transformer, arg_t);
+      if (new_item && *arg != new_item)
+        current_thd->change_item_tree(arg, new_item);
+    }
+  }
+  return (this->*transformer)(arg_t);
+}
 
 /* See comments in Item_cmp_func::split_sum_func() */
 
