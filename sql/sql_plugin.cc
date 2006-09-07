@@ -40,7 +40,7 @@ static const char *plugin_interface_version_sym=
 static const char *sizeof_st_plugin_sym=
                    "_mysql_sizeof_struct_st_plugin_";
 static const char *plugin_declarations_sym= "_mysql_plugin_declarations_";
-static int min_plugin_interface_version= 0x0000;
+static int min_plugin_interface_version= MYSQL_PLUGIN_INTERFACE_VERSION & ~0xFF;
 /* Note that 'int version' must be the first field of every plugin
    sub-structure (plugin->info).
 */
