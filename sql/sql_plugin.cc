@@ -35,6 +35,11 @@ plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   0,ha_initialize_handlerton,0
 };
 
+plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
+{
+  0,ha_finalize_handlerton,0
+};
+
 static const char *plugin_interface_version_sym=
                    "_mysql_plugin_interface_version_";
 static const char *sizeof_st_plugin_sym=
@@ -469,49 +474,67 @@ err:
 }
 
 
-void plugin_deinitializer(struct st_plugin_int *plugin)
+void plugin_deinitialize(struct st_plugin_int *plugin)
 {
-    if (plugin->plugin->status_vars)
-    {
-      SHOW_VAR array[2]= {
-        {plugin->plugin->name, (char*)plugin->plugin->status_vars, SHOW_ARRAY},
-        {0, 0, SHOW_UNDEF}
-      };
-      remove_status_vars(array);
-    }
 
-    if (plugin->state == PLUGIN_IS_READY)
+  if (plugin_type_deinitialize[plugin->plugin->type] &&
+      (*plugin_type_deinitialize[plugin->plugin->type])(plugin))
+  {
+    sql_print_error("Plugin '%s' of type %s failed deinitialization",
+                    plugin->name.str, plugin_type_names[plugin->plugin->type]);
+  }
+
+  if (plugin->plugin->status_vars)
+  {
+#ifdef FIX_LATER
+    /*
+      We have a problem right now where we can not prepend without
+      breaking backwards compatibility. We will fix this shortly so
+      that engines have "use names" and we wil use those for
+      CREATE TABLE, and use the plugin name then for adding automatic
+      variable names.
+    */
+    SHOW_VAR array[2]= {
+      {plugin->plugin->name, (char*)plugin->plugin->status_vars, SHOW_ARRAY},
+      {0, 0, SHOW_UNDEF}
+    };
+    remove_status_vars(array);
+#else
+    remove_status_vars(plugin->plugin->status_vars);
+#endif /* FIX_LATER */
+  }
+
+  if (plugin->plugin->deinit)
+  {
+    DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
+    if (plugin->plugin->deinit())
     {
-      if (plugin->plugin->deinit)
-      {
-        DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-        if (plugin->plugin->deinit())
-        {
-          DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
-                                 plugin->name.str));
-        }
-      }
-      plugin->state= PLUGIN_IS_UNINITIALIZED;
+      DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
+                             plugin->name.str));
     }
+  }
+  plugin->state= PLUGIN_IS_UNINITIALIZED;
 }
 
 
-static void plugin_del(const LEX_STRING *name)
+static void plugin_del(struct st_plugin_int *plugin)
 {
-  uint i;
-  struct st_plugin_int *plugin;
-  DBUG_ENTER("plugin_del");
-  if ((plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
-  {
-    plugin_deinitializer(plugin);
-    hash_delete(&plugin_hash[plugin->plugin->type], (byte*)plugin);
-    plugin_dl_del(&plugin->plugin_dl->dl);
-    plugin->state= PLUGIN_IS_FREED;
-    plugin_array_version++;
-  }
+  DBUG_ENTER("plugin_del(plugin)");
+  hash_delete(&plugin_hash[plugin->plugin->type], (byte*)plugin);
+  plugin_dl_del(&plugin->plugin_dl->dl);
+  plugin->state= PLUGIN_IS_FREED;
+  plugin_array_version++;
   DBUG_VOID_RETURN;
 }
 
+static void plugin_del(const LEX_STRING *name)
+{
+  struct st_plugin_int *plugin;
+  DBUG_ENTER("plugin_del(name)");
+  if ((plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
+    plugin_del(plugin);
+  DBUG_VOID_RETURN;
+}
 
 void plugin_unlock(struct st_plugin_int *plugin)
 {
@@ -521,9 +544,8 @@ void plugin_unlock(struct st_plugin_int *plugin)
   plugin->ref_count--;
   if (plugin->state == PLUGIN_IS_DELETED && ! plugin->ref_count)
   {
-    if (plugin->plugin->deinit)
-      plugin->plugin->deinit();
-    plugin_del(&plugin->name);
+    plugin_deinitialize(plugin);
+    plugin_del(plugin);
   }
   rw_unlock(&THR_LOCK_plugin);
   DBUG_VOID_RETURN;
@@ -537,15 +559,15 @@ static int plugin_initialize(struct st_plugin_int *plugin)
   if (plugin->plugin->status_vars)
   {
 #ifdef FIX_LATER
-    /* 
+    /*
       We have a problem right now where we can not prepend without
-      breaking backwards compatibility. We will fix this shortly so 
+      breaking backwards compatibility. We will fix this shortly so
       that engines have "use names" and we wil use those for
       CREATE TABLE, and use the plugin name then for adding automatic
       variable names.
     */
     SHOW_VAR array[2]= {
-      {plugin->name, (char*)plugin->status_vars, SHOW_ARRAY},
+      {plugin->plugin->name, (char*)plugin->plugin->status_vars, SHOW_ARRAY},
       {0, 0, SHOW_UNDEF}
     };
     if (add_status_vars(array)) // add_status_vars makes a copy
@@ -578,53 +600,6 @@ err:
   DBUG_RETURN(1);
 }
 
-static int plugin_finalize(THD *thd, struct st_plugin_int *plugin)
-{
-  int rc;
-  DBUG_ENTER("plugin_finalize");
-
-  if (plugin->ref_count)
-  {
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                 "Plugin is busy and will be uninstalled on shutdown");
-    goto err;
-  }
-
-  switch (plugin->plugin->type)
-  {
-  case MYSQL_STORAGE_ENGINE_PLUGIN:
-    if (ha_finalize_handlerton(plugin))
-    {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "Storage engine shutdown failed. "
-                   "It will be uninstalled on shutdown");
-      sql_print_warning("Storage engine '%s' shutdown failed. "
-                        "It will be uninstalled on shutdown", plugin->name.str);
-      goto err;
-    }
-    break;
-  default:
-    break;
-  }
-
-  if (plugin->plugin->deinit)
-  {
-    if ((rc= plugin->plugin->deinit()))
-    {
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "Plugin deinit failed. "
-                   "It will be uninstalled on shutdown");
-      sql_print_warning("Plugin '%s' deinit failed. "
-                        "It will be uninstalled on shutdown", plugin->name.str);
-      goto err;
-    }
-  }
-
-  DBUG_RETURN(0);
-err:
-  DBUG_RETURN(1);
-}
-
 static byte *get_hash_key(const byte *buff, uint *length,
                    my_bool not_used __attribute__((unused)))
 {
@@ -637,7 +612,7 @@ static byte *get_hash_key(const byte *buff, uint *length,
 /*
   The logic is that we first load and initialize all compiled in plugins.
   From there we load up the dynamic types (assuming we have not been told to
-  skip this part). 
+  skip this part).
 
   Finally we inializie everything, aka the dynamic that have yet to initialize.
 */
@@ -666,7 +641,7 @@ int plugin_init(int skip_dynamic_loading)
       goto err;
   }
 
-  /* 
+  /*
     First we register builtin plugins
   */
   for (builtins= mysqld_builtins; *builtins; builtins++)
@@ -702,7 +677,10 @@ int plugin_init(int skip_dynamic_loading)
     if (tmp->state == PLUGIN_IS_UNINITIALIZED)
     {
       if (plugin_initialize(tmp))
-        plugin_del(&tmp->name);
+      {
+        plugin_deinitialize(tmp);
+        plugin_del(tmp);
+      }
     }
   }
 
@@ -812,7 +790,7 @@ void plugin_shutdown(void)
   {
     struct st_plugin_int *tmp= dynamic_element(&plugin_array, i,
                                                struct st_plugin_int *);
-    plugin_deinitializer(tmp);
+    plugin_deinitialize(tmp);
 
   }
 
@@ -862,7 +840,7 @@ my_bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING 
   {
     my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
              "Plugin initialization function failed.");
-    goto err;
+    goto deinit;
   }
 
   table->use_all_columns();
@@ -879,10 +857,9 @@ my_bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING 
   rw_unlock(&THR_LOCK_plugin);
   DBUG_RETURN(FALSE);
 deinit:
-  if (tmp->plugin->deinit)
-    tmp->plugin->deinit();
+  plugin_deinitialize(tmp);
 err:
-  plugin_del(name);
+  plugin_del(tmp);
   rw_unlock(&THR_LOCK_plugin);
   DBUG_RETURN(TRUE);
 }
@@ -917,10 +894,17 @@ my_bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     goto err;
   }
 
-  if (!plugin_finalize(thd, plugin))
-    plugin_del(name);
-  else
+  if (plugin->ref_count)
+  {
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                 "Plugin is busy and will be uninstalled on shutdown");
     plugin->state= PLUGIN_IS_DELETED;
+  }
+  else
+  {
+    plugin_deinitialize(plugin);
+    plugin_del(plugin);
+  }
 
   table->use_all_columns();
   table->field[0]->store(name->str, name->length, system_charset_info);
