@@ -200,7 +200,7 @@ class MYSQL_LOG: public TC_LOG
   IO_CACHE log_file;
   IO_CACHE index_file;
   char *name;
-  char time_buff[20],db[NAME_LEN+1];
+  char time_buff[20],db[NAME_BYTE_LEN+1];
   char log_file_name[FN_REFLEN],index_file_name[FN_REFLEN];
   /*
      The max size before rotation (usable only if log_type == LOG_BIN: binary

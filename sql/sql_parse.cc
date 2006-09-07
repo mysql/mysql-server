@@ -1662,7 +1662,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
     */
-    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8
+    char db_buff[NAME_BYTE_LEN+1];               // buffer to store db in utf8
     char *db= passwd;
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
       *passwd++ : strlen(passwd);
@@ -7564,7 +7564,10 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 bool check_string_length(LEX_STRING *str, const char *err_msg,
                          uint max_length)
 {
-  if (str->length <= max_length)
+
+  if (system_charset_info->cset->charpos(system_charset_info, str->str,
+                                         str->str + str->length, max_length) >=
+      str->length)
     return FALSE;
 
   my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_length);
