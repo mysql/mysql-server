@@ -3968,7 +3968,13 @@ void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
     return an error (e.g. logging to the log tables)
 */
 
-int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
+#ifdef EMBEDDED_LIBRARY
+void vprint_msg_to_log(enum loglevel level __attribute__((unused)),
+                       const char *format __attribute__((unused)),
+                       va_list argsi __attribute__((unused)))
+{}
+#else /*!EMBEDDED_LIBRARY*/
+void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
   uint length;
@@ -3984,6 +3990,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 
   DBUG_RETURN(0);
 }
+#endif /*EMBEDDED_LIBRARY*/
 
 
 void sql_print_error(const char *format, ...) 
