@@ -5507,7 +5507,7 @@ void Dbdih::removeNodeFromTable(Signal* signal,
 
   //const Uint32 lcpId = SYSFILE->latestLCP_ID;
   const bool lcpOngoingFlag = (tabPtr.p->tabLcpStatus== TabRecord::TLS_ACTIVE);
-  const bool temporary = !tabPtr.p->storedTable;
+  const bool unlogged = (tabPtr.p->tabStorage != TabRecord::ST_NORMAL);
   
   FragmentstorePtr fragPtr;
   for(Uint32 fragNo = 0; fragNo < tabPtr.p->totalfragments; fragNo++){
@@ -5528,7 +5528,7 @@ void Dbdih::removeNodeFromTable(Signal* signal,
         jam();
 	found = true;
 	noOfRemovedReplicas++;
-	removeNodeFromStored(nodeId, fragPtr, replicaPtr, temporary);
+	removeNodeFromStored(nodeId, fragPtr, replicaPtr, unlogged);
 	if(replicaPtr.p->lcpOngoingFlag){
 	  jam();
 	  /**
@@ -6796,7 +6796,12 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   /* BUT THEY DO NOT HAVE ANY INFORMATION ABOUT ANY TABLE*/
   /*%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%*/
   tabPtr.p->tabStatus = TabRecord::TS_CREATING;
-  tabPtr.p->storedTable = req->storedTable;
+  if(req->loggedTable)
+    tabPtr.p->tabStorage= TabRecord::ST_NORMAL;
+  else if(req->temporaryTable)
+    tabPtr.p->tabStorage= TabRecord::ST_TEMPORARY;
+  else
+    tabPtr.p->tabStorage= TabRecord::ST_NOLOGGING;
   tabPtr.p->kvalue = req->kValue;
 
   switch ((DictTabInfo::FragmentType)fragType)
@@ -6961,7 +6966,7 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
     ndbrequire(replicaPtr.p->procNode == getOwnNodeId());
 
     Uint32 requestInfo = 0;
-    if(!tabPtr.p->storedTable){
+    if(tabPtr.p->tabStorage != TabRecord::ST_NORMAL){
       requestInfo |= LqhFragReq::TemporaryTable;
     }
     
@@ -8391,9 +8396,9 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
       continue;
     }
 
-    if (tabPtr.p->storedTable == 0) {
+    if (tabPtr.p->tabStorage != TabRecord::ST_NORMAL) {
       /**
-       * Temporary table
+       * Table is not logged
        */
       jam();
       tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
@@ -8881,10 +8886,10 @@ void Dbdih::readPagesIntoTableLab(Signal* signal, Uint32 tableId)
   rf.rwfTabPtr.p->kvalue = readPageWord(&rf);
   rf.rwfTabPtr.p->mask = readPageWord(&rf);
   rf.rwfTabPtr.p->method = (TabRecord::Method)readPageWord(&rf);
-  /* ---------------------------------- */
-  /* Type of table, 2 = temporary table */
-  /* ---------------------------------- */
-  rf.rwfTabPtr.p->storedTable = readPageWord(&rf); 
+  /* ------------- */
+  /* Type of table */
+  /* ------------- */
+  rf.rwfTabPtr.p->tabStorage = (TabRecord::Storage)(readPageWord(&rf)); 
 
   Uint32 noOfFrags = rf.rwfTabPtr.p->totalfragments;
   ndbrequire(noOfFrags > 0);
@@ -8975,7 +8980,7 @@ void Dbdih::packTableIntoPagesLab(Signal* signal, Uint32 tableId)
   writePageWord(&wf, tabPtr.p->kvalue);
   writePageWord(&wf, tabPtr.p->mask);
   writePageWord(&wf, tabPtr.p->method);
-  writePageWord(&wf, tabPtr.p->storedTable);
+  writePageWord(&wf, tabPtr.p->tabStorage);
 
   signal->theData[0] = DihContinueB::ZPACK_FRAG_INTO_PAGES;
   signal->theData[1] = tabPtr.i;
@@ -9180,7 +9185,7 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
       continue;
     }
     
-    if(tabPtr.p->storedTable == 0){
+    if(tabPtr.p->tabStorage != TabRecord::ST_NORMAL){
       jam();
       TloopCount++;
       tableId++;
@@ -9805,7 +9810,7 @@ void Dbdih::calculateKeepGciLab(Signal* signal, Uint32 tableId, Uint32 fragId)
     }//if
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
     if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE || 
-	tabPtr.p->storedTable == 0) {
+	tabPtr.p->tabStorage != TabRecord::ST_NORMAL) {
       if (TloopCount > 100) {
         jam();
         signal->theData[0] = DihContinueB::ZCALCULATE_KEEP_GCI;
@@ -10723,6 +10728,14 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
 /* ------------------------------------------------------------------------- */
 void Dbdih::tableUpdateLab(Signal* signal, TabRecordPtr tabPtr) {
   FileRecordPtr filePtr;
+  if(tabPtr.p->tabStorage == TabRecord::ST_TEMPORARY) {
+    // For temporary tables we do not write to disk. Mark both copies 0 and 1
+    // as done, and go straight to the after-close code.
+    filePtr.i = tabPtr.p->tabFile[1];
+    ptrCheckGuard(filePtr, cfileFileSize, fileRecord);
+    tableCloseLab(signal, filePtr);
+    return;
+  }
   filePtr.i = tabPtr.p->tabFile[0];
   ptrCheckGuard(filePtr, cfileFileSize, fileRecord);
   createFileRw(signal, filePtr);
@@ -11758,7 +11771,7 @@ void Dbdih::initTable(TabRecordPtr tabPtr)
   tabPtr.p->kvalue = 0;
   tabPtr.p->hashpointer = (Uint32)-1;
   tabPtr.p->mask = 0;
-  tabPtr.p->storedTable = 1;
+  tabPtr.p->tabStorage = TabRecord::ST_NORMAL;
   tabPtr.p->tabErrorCode = 0;
   tabPtr.p->schemaVersion = (Uint32)-1;
   tabPtr.p->tabRemoveNode = RNIL;
