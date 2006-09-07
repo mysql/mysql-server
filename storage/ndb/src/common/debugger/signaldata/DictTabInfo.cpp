@@ -26,6 +26,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAPS(Table, PrimaryTable, PrimaryTable, 0, MAX_TAB_NAME_SIZE),
   DTIMAP(Table, PrimaryTableId, PrimaryTableId),
   DTIMAP2(Table, TableLoggedFlag, TableLoggedFlag, 0, 1),
+  DTIMAP2(Table, TableTemporaryFlag, TableTemporaryFlag, 0, 1),
   DTIMAP2(Table, TableKValue, TableKValue,         6, 6),
   DTIMAP2(Table, MinLoadFactor, MinLoadFactor,     0, 90),
   DTIMAP2(Table, MaxLoadFactor, MaxLoadFactor,    25, 110),
@@ -122,6 +123,7 @@ DictTabInfo::Table::init(){
   memset(PrimaryTable, 0, sizeof(PrimaryTable));//PrimaryTable[0] = 0; // Only used when "index"
   PrimaryTableId = RNIL;
   TableLoggedFlag = 1;
+  TableTemporaryFlag = 0;
   NoOfKeyAttr = 0;
   NoOfAttributes = 0;
   NoOfNullable = 0;
