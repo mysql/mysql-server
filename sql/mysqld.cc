@@ -7331,9 +7331,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       case 3: /*  0  */
         Events::opt_event_scheduler= Events::EVENTS_OFF;
         break;
-      default:
-        DBUG_ASSERT(0);
-        unireg_abort(1);
       }
     }
     break;
