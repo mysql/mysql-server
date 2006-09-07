@@ -53,7 +53,7 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_delete_table.c ma_rename.c  ma_check.c \
 			ma_keycache.c ma_preload.c ma_ft_parser.c \
 			ma_ft_update.c ma_ft_boolean_search.c \
-			ma_ft_nlq_search.c ft_maria.c ma_sort.c \
+			ma_ft_nlq_search.c ma_sort.c \
 			ma_rt_index.c ma_rt_key.c ma_rt_mbr.c ma_rt_split.c \
 			ma_sp_key.c \
 			ma_control_file.c

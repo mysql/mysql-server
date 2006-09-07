@@ -134,10 +134,8 @@ echo "ma_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135"
 ./ma_test2$suffix $silent -m10000 -e16384 -E16384 -K -L
 ./maria_chk$suffix -sm test2
 
-./ma_test2$suffix $silent -L -K -W -P -m50 -l
-./maria_log$suffix
-./ma_test2$suffix $silent -L -K -W -P -m50 -l -b100
-./maria_log$suffix
+./ma_test2$suffix $silent -L -K -W -P -m50
+./ma_test2$suffix $silent -L -K -W -P -m50 -b100
 time ./ma_test2$suffix $silent
 time ./ma_test2$suffix $silent -K -B
 time ./ma_test2$suffix $silent -L -B

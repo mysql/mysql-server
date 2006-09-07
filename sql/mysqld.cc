@@ -28,7 +28,7 @@
 
 #include "ha_myisam.h"
 #ifdef WITH_MARIA_STORAGE_ENGINE
-#include "ha_maria.h"
+#include "../storage/maria/ha_maria.h"
 #endif
 
 #ifdef HAVE_ROW_BASED_REPLICATION
