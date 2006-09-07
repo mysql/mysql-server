@@ -75,119 +75,14 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
     This function aggregates result types from the array of items. Found type
     supposed to be used later for comparison of values of these items.
     Aggregation itself is performed by the item_cmp_type() function.
-
-  NOTES
-    Aggregation rules:
-    If there are DATE/TIME fields/functions in the list and no string
-    fields/functions in the list then:
-      The INT_RESULT type will be used for aggregation instead of original
-      result type of any DATE/TIME field/function in the list
-      All constant items in the list will be converted to a DATE/TIME using
-      found field or result field of found function.
-
-    Implementation notes:
-      The code is equivalent to:
-      1. Check the list for presence of a STRING field/function.
-         Collect the is_const flag.
-      2. Get a Field* object to use for type coercion
-      3. Perform type conversion.
-      1 and 2 are implemented in 2 loops. The first searches for a DATE/TIME
-      field/function and checks presence of a STRING field/function.
-      The second loop works only if a DATE/TIME field/function is found.
-      It checks presence of a STRING field/function in the rest of the list.
-
-  TODO
-    1) The current implementation can produce false comparison results for
-    expressions like:
-      date_time_field BETWEEN string_field_with_dates AND string_constant
-    if the string_constant will omit some of leading zeroes.
-    In order to fully implement correct comparison of DATE/TIME the new
-    DATETIME_RESULT result type should be introduced and agg_cmp_type()
-    should return the DATE/TIME field used for the conversion. Later
-    this field can be used by comparison functions like Item_func_between to
-    convert string values to ints on the fly and thus return correct results.
-    This modification will affect functions BETWEEN, IN and CASE.
-
-    2) If in the list a DATE field/function and a DATETIME field/function
-    are present in the list then the first found field/function will be
-    used for conversion. This may lead to wrong results and probably should
-    be fixed.
 */
 
 static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
 {
   uint i;
-  Item::Type res= (Item::Type)0;
-  /* Used only for date/time fields, max_length = 19 */
-  char buff[20];
-  uchar null_byte;
-  Field *field= NULL;
-
-  /* Search for date/time fields/functions */
-  for (i= 0; i < nitems; i++)
-  {
-    if (!items[i]->result_as_longlong())
-    {
-      /* Do not convert anything if a string field/function is present */
-      if (!items[i]->const_item() && items[i]->result_type() == STRING_RESULT)
-      {
-        i= nitems;
-        break;
-      }
-      continue;
-    }
-    if ((res= items[i]->real_item()->type()) == Item::FIELD_ITEM &&
-        items[i]->result_type() != INT_RESULT)
-    {
-      field= ((Item_field *)items[i]->real_item())->field;
-      break;
-    }
-    else if (res == Item::FUNC_ITEM)
-    {
-      field= items[i]->tmp_table_field_from_field_type(0);
-      if (field)
-        field->move_field(buff, &null_byte, 0);
-      break;
-    }
-  }
-  if (field)
-  {
-    /* Check the rest of the list for presence of a string field/function. */
-    for (i++ ; i < nitems; i++)
-    {
-      if (!items[i]->const_item() && items[i]->result_type() == STRING_RESULT &&
-          !items[i]->result_as_longlong())
-      {
-        if (res == Item::FUNC_ITEM)
-          delete field;
-        field= 0;
-        break;
-      }
-    }
-  }
-  /*
-    If the first item is a date/time function then its result should be
-    compared as int
-  */
-  if (field)
-    /* Suppose we are comparing dates */
-    type[0]= INT_RESULT;
-  else
-    type[0]= items[0]->result_type();
-
-  for (i= 0; i < nitems ; i++)
-  {
-    Item_result result= items[i]->result_type();
-    if (field &&
-         ((!items[i]->const_item() && items[i]->result_as_longlong()) ||
-         (items[i]->const_item() && convert_constant_item(thd, field,
-                                                          &items[i]))))
-      result= INT_RESULT;
-    type[0]= item_cmp_type(type[0], result);
-  }
-
-  if (res == Item::FUNC_ITEM && field)
-    delete field;
+  type[0]= items[0]->result_type();
+  for (i= 1 ; i < nitems ; i++)
+    type[0]= item_cmp_type(type[0], items[i]->result_type());
 }
 
 static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
