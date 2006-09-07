@@ -753,4 +753,31 @@ select cast(rtrim(ltrim('  20.06 ')) as decimal(19,2));
 select conv("18383815659218730760",10,10) + 0;
 select "18383815659218730760" + 0;
 
+#
+# Bug #21698: substitution of a string field for a constant under a function 
+#
+
+CREATE TABLE t1 (code varchar(10));
+INSERT INTO t1 VALUES ('a12'), ('A12'), ('a13');
+
+SELECT ASCII(code), code FROM t1 WHERE code='A12';
+SELECT ASCII(code), code FROM t1 WHERE code='A12' AND ASCII(code)=65;
+
+INSERT INTO t1 VALUES ('a12 '), ('A12  ');
+
+SELECT LENGTH(code), code FROM t1 WHERE code='A12';
+SELECT LENGTH(code), code FROM t1 WHERE code='A12' AND LENGTH(code)=5;
+
+ALTER TABLE t1 ADD INDEX (code);
+CREATE TABLE t2 (id varchar(10) PRIMARY KEY);
+INSERT INTO t2 VALUES ('a11'), ('a12'), ('a13'), ('a14');
+
+SELECT * FROM t1 INNER JOIN t2 ON t1.code=t2.id 
+  WHERE t2.id='a12' AND (code < 'a00' OR LENGTH(code)=5);
+EXPLAIN EXTENDED 
+SELECT * FROM t1 INNER JOIN t2 ON code=id 
+  WHERE id='a12' AND (code < 'a00' OR LENGTH(code)=5);
+
+DROP TABLE t1,t2;
+
 --echo End of 5.0 tests
