@@ -2,7 +2,7 @@
 #SET(CMAKE_C_FLAGS_DEBUG "-DSAFEMALLOC -DSAFE_MUTEX")
 ADD_DEFINITIONS(-DMYSQL_SERVER -D_WIN32 -DWIN32 -D_LIB)
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/handler include)
 ADD_LIBRARY(innobase btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c 
 					 buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c 
 					 data/data0data.c data/data0type.c 
@@ -23,6 +23,7 @@ ADD_LIBRARY(innobase btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 					 os/os0file.c os/os0proc.c os/os0sync.c os/os0thread.c 
 					 page/page0cur.c page/page0page.c 
 					 que/que0que.c 
+					 handler/ha_innodb.cc
 					 read/read0read.c 
 					 rem/rem0cmp.c rem/rem0rec.c
 					 row/row0ins.c row/row0mysql.c row/row0purge.c row/row0row.c row/row0sel.c row/row0uins.c 
