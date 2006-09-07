@@ -6322,6 +6322,47 @@ create procedure bug21416() show create procedure bug21416|
 call bug21416()|
 drop procedure bug21416|
 
+
+#
+# BUG#20492: Subsequent calls to stored procedure yeild incorrect
+# result if join is used 
+#
+# Optimized ON expression in join wasn't properly saved for reuse.
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1|
+DROP VIEW IF EXISTS v1, v2|
+DROP TABLE IF EXISTS t3, t4|
+--enable_warnings
+
+CREATE TABLE t3 (t3_id INT)|
+
+INSERT INTO t3 VALUES (0)|
+INSERT INTO t3 VALUES (1)|
+
+CREATE TABLE t4 (t4_id INT)|
+
+INSERT INTO t4 VALUES (2)|
+
+CREATE VIEW v1 AS
+SELECT t3.t3_id, t4.t4_id
+FROM t3 JOIN t4 ON t3.t3_id = 0|
+
+CREATE VIEW v2 AS
+SELECT t3.t3_id AS t3_id_1, v1.t3_id AS t3_id_2, v1.t4_id
+FROM t3 LEFT JOIN v1 ON t3.t3_id = 0|
+
+CREATE PROCEDURE p1() SELECT * FROM v2|
+
+# Results should not differ.
+CALL p1()|
+CALL p1()|
+
+DROP PROCEDURE p1|
+DROP VIEW v1, v2|
+DROP TABLE t3, t4|
+
+
 #
 # BUG#NNNN: New bug synopsis
 #
