@@ -1,0 +1,49 @@
+This is our bugs database for now, until we switch to something
+better.
+
+MARIABUG#1
+reported by Guilhem on 2006-09-07
+status: VERIFIED
+==========================================================
+
+ma_test_all shows table corruption messages like this one:
+
+"error: key delete-link-chain corrupted" in table test2.
+
+For a simpler testcase extracted from ma_test_all, just run:
+
+rm -f test2.M*; ./ma_test2; ./maria_chk test2
+
+While the similar MyISAM commands don't show any problem.
+
+You can make MyISAM show this same problem with just this patch:
+===== myisam.h 1.80 vs edited =====
+*** /tmp/bk_myisam.h-1.80_O9fSEo        2006-09-07 18:30:28 +02:00
+--- edited/myisam.h     2006-09-07 18:25:54 +02:00
+***************
+*** 52,58 ****
+  #define MI_MAX_TEMP_LENGTH    2*1024L*1024L*1024L
+
+  /* Possible values for myisam_block_size (must be power of 2) */
+! #define MI_KEY_BLOCK_LENGTH   1024    /* default key block length */
+  #define MI_MIN_KEY_BLOCK_LENGTH       1024    /* Min key block length */
+  #define MI_MAX_KEY_BLOCK_LENGTH       16384
+
+--- 52,58 ----
+  #define MI_MAX_TEMP_LENGTH    2*1024L*1024L*1024L
+
+  /* Possible values for myisam_block_size (must be power of 2) */
+! #define MI_KEY_BLOCK_LENGTH   8192    /* default key block length */
+  #define MI_MIN_KEY_BLOCK_LENGTH       1024    /* Min key block length */
+  #define MI_MAX_KEY_BLOCK_LENGTH       16384
+
+(Maria has 8192, and also 32768 for the max_key_block_length define).
+
+So it's not Maria-specific.
+
+I noticed that the corruption appears only for "recant>=64" (where
+recant is a variable defined in mi_test2.c).
+
+For MyISAM we don't care as it's using 1024, but for Maria we have a
+problem...
+=====================================================================
