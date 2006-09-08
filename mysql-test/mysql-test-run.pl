@@ -2114,7 +2114,10 @@ sub run_testcase ($) {
 
       unless ( mtr_im_start($instance_manager, $tinfo->{im_opts}) )
       {
-        mtr_error("Failed to start Instance Manager.")
+        report_failure_and_restart($tinfo);
+        mtr_report("Failed to start Instance Manager. " .
+                   "The test '$tname' is marked as failed.");
+        return;
       }
     }
 
