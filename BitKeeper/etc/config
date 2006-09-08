@@ -75,5 +75,6 @@ hours:
 [tomas:]checkout:get
 [guilhem:]checkout:get
 [pekka:]checkout:get
+[msvensson:]checkout:get
 checkout:edit
 eoln:unix
