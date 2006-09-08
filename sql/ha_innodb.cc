@@ -32,6 +32,8 @@ have disables the InnoDB inlining in this file. */
 #endif
 
 #include "mysql_priv.h"
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+
 #include "slave.h"
 
 #include <m_ctype.h>
@@ -7622,3 +7624,4 @@ mysql_declare_plugin(innobase)
 }
 mysql_declare_plugin_end;
 
+#endif
