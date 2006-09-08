@@ -1333,7 +1333,8 @@ sub environment_setup () {
   # --------------------------------------------------------------------------
   if ( $opt_source_dist )
   {
-    $extra_ld_library_paths= "$glob_basedir/libmysql/.libs/";
+    $extra_ld_library_paths= "$glob_basedir/libmysql/.libs/" .
+                             ":$glob_basedir/libmysql_r/.libs/";
   }
   else
   {
@@ -1346,26 +1347,20 @@ sub environment_setup () {
   $extra_ld_library_paths .= ":" .
     ($lib_udf_example ?  dirname($lib_udf_example) : "");
 
+  # --------------------------------------------------------------------------
+  # Add the path where libndbclient can be found
+  # --------------------------------------------------------------------------
+  if ( $opt_ndbcluster_supported )
+  {
+    $extra_ld_library_paths .= ":$glob_basedir/storage/ndb/src/.libs";
+  }
+
   $ENV{'LD_LIBRARY_PATH'}=
     "$extra_ld_library_paths" .
       ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
   $ENV{'DYLD_LIBRARY_PATH'}=
     "$extra_ld_library_paths" .
       ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
-  # --------------------------------------------------------------------------
-  # Add the path where libndbclient can be found
-  # --------------------------------------------------------------------------
-  $ENV{'LD_LIBRARY_PATH'}=
-    (mtr_path_exists("$glob_basedir/storage/ndb/src/.libs") ?  "$glob_basedir/storage/ndb/src/.libs" : "") .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-
-  # --------------------------------------------------------------------------
-  # Add the path where libmysqlclient can be found
-  # --------------------------------------------------------------------------
-  $ENV{'LD_LIBRARY_PATH'}=
-    (mtr_path_exists("$glob_basedir/libmysql_r/.libs") ?  "$glob_basedir/libmysql_r/.libs" : "") .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
