@@ -65,7 +65,7 @@ mach_read_from_2(
 	ut_ad(b);
 	return( ((ulint)(b[0]) << 8)
 		+ (ulint)(b[1])
-	);
+		);
 }
 
 /************************************************************
@@ -131,7 +131,7 @@ mach_read_from_3(
 	return( ((ulint)(b[0]) << 16)
 		+ ((ulint)(b[1]) << 8)
 		+ (ulint)(b[2])
-	);
+		);
 }
 
 /***********************************************************
@@ -146,22 +146,10 @@ mach_write_to_4(
 {
 	ut_ad(b);
 
-#if (0 == 1) && !defined(__STDC__) && defined(UNIV_INTEL) && (UNIV_WORD_SIZE == 4) && defined(UNIV_VISUALC)
-
-	/* We do not use this even on Intel, because unaligned accesses may
-	be slow */
-
-	__asm	MOV	EAX, n
-	__asm	BSWAP	EAX	/* Intel is little-endian, must swap bytes */
-	__asm	MOV	n, EAX
-
-	*((ulint*)b) = n;
-#else
 	b[0] = (byte)(n >> 24);
 	b[1] = (byte)(n >> 16);
 	b[2] = (byte)(n >> 8);
 	b[3] = (byte)n;
-#endif
 }
 
 /************************************************************
@@ -174,28 +162,12 @@ mach_read_from_4(
 			/* out: ulint integer */
 	byte*	b)	/* in: pointer to four bytes */
 {
-#if (0 == 1) && !defined(__STDC__) && defined(UNIV_INTEL) && (UNIV_WORD_SIZE == 4) && defined(UNIV_VISUALC)
-	/* We do not use this even on Intel, because unaligned accesses may
-	be slow */
-
-	ulint	res;
-
-	ut_ad(b);
-
-	__asm	MOV	EDX, b
-	__asm	MOV	ECX, DWORD PTR [EDX]
-	__asm	BSWAP	ECX	/* Intel is little-endian, must swap bytes */
-	__asm	MOV	res, ECX
-
-	return(res);
-#else
 	ut_ad(b);
 	return( ((ulint)(b[0]) << 24)
 		+ ((ulint)(b[1]) << 16)
 		+ ((ulint)(b[2]) << 8)
 		+ (ulint)(b[3])
-	);
-#endif
+		);
 }
 
 /*************************************************************
@@ -492,7 +464,7 @@ mach_dulint_get_much_compressed_size(
 	}
 
 	return(1 + mach_get_compressed_size(ut_dulint_get_high(n))
-		+ mach_get_compressed_size(ut_dulint_get_low(n)));
+	       + mach_get_compressed_size(ut_dulint_get_low(n)));
 }
 
 /*************************************************************

@@ -160,8 +160,8 @@ and the io-operation for loading the page is queued. The io-handler thread
 releases the X-lock on the frame and resets the io_fix field
 when the io operation completes.
 
-A thread may request the above operation using the buf_page_get-
-function. It may then continue to request a lock on the frame.
+A thread may request the above operation using the function
+buf_page_get(). It may then continue to request a lock on the frame.
 The lock is granted when the io-handler releases the x-lock.
 
 		Read-ahead
@@ -253,10 +253,10 @@ buf_calc_page_new_checksum(
 	there we store the old formula checksum. */
 
 	checksum = ut_fold_binary(page + FIL_PAGE_OFFSET,
-				 FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
-		   + ut_fold_binary(page + FIL_PAGE_DATA,
-					   UNIV_PAGE_SIZE - FIL_PAGE_DATA
-					   - FIL_PAGE_END_LSN_OLD_CHKSUM);
+				  FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
+		+ ut_fold_binary(page + FIL_PAGE_DATA,
+				 UNIV_PAGE_SIZE - FIL_PAGE_DATA
+				 - FIL_PAGE_END_LSN_OLD_CHKSUM);
 	checksum = checksum & 0xFFFFFFFFUL;
 
 	return(checksum);
@@ -302,11 +302,11 @@ buf_page_is_corrupted(
 	dulint	current_lsn;
 #endif
 	if (mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
-		!= mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-			- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
+	    != mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+				- FIL_PAGE_END_LSN_OLD_CHKSUM + 4)) {
 
 		/* Stored log sequence numbers at the start and the end
-		   of page do not match */
+		of page do not match */
 
 		return(TRUE);
 	}
@@ -314,22 +314,28 @@ buf_page_is_corrupted(
 #ifndef UNIV_HOTBACKUP
 	if (recv_lsn_checks_on && log_peek_lsn(&current_lsn)) {
 		if (ut_dulint_cmp(current_lsn,
-				mach_read_from_8(read_buf + FIL_PAGE_LSN))
-			< 0) {
+				  mach_read_from_8(read_buf + FIL_PAGE_LSN))
+		    < 0) {
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
-"  InnoDB: Error: page %lu log sequence number %lu %lu\n"
-"InnoDB: is in the future! Current system log sequence number %lu %lu.\n"
-"InnoDB: Your database may be corrupt or you may have copied the InnoDB\n"
-"InnoDB: tablespace but not the InnoDB log files. See\n"
-"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html\n"
-"InnoDB: for more information.\n",
-				(ulong) mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
-				(ulong) ut_dulint_get_high(
-					mach_read_from_8(read_buf + FIL_PAGE_LSN)),
-				(ulong) ut_dulint_get_low(
-					mach_read_from_8(read_buf + FIL_PAGE_LSN)),
+				"  InnoDB: Error: page %lu log sequence number"
+				" %lu %lu\n"
+				"InnoDB: is in the future! Current system "
+				"log sequence number %lu %lu.\n"
+				"InnoDB: Your database may be corrupt or "
+				"you may have copied the InnoDB\n"
+				"InnoDB: tablespace but not the InnoDB "
+				"log files. See\n"
+				"InnoDB: http://dev.mysql.com/doc/refman/"
+				"5.1/en/forcing-recovery.html\n"
+				"InnoDB: for more information.\n",
+				(ulong) mach_read_from_4(read_buf
+							 + FIL_PAGE_OFFSET),
+				(ulong) ut_dulint_get_high
+				(mach_read_from_8(read_buf + FIL_PAGE_LSN)),
+				(ulong) ut_dulint_get_low
+				(mach_read_from_8(read_buf + FIL_PAGE_LSN)),
 				(ulong) ut_dulint_get_high(current_lsn),
 				(ulong) ut_dulint_get_low(current_lsn));
 		}
@@ -344,8 +350,9 @@ buf_page_is_corrupted(
 	if (srv_use_checksums) {
 		old_checksum = buf_calc_page_old_checksum(read_buf);
 
-		old_checksum_field = mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-			- FIL_PAGE_END_LSN_OLD_CHKSUM);
+		old_checksum_field = mach_read_from_4
+			(read_buf + UNIV_PAGE_SIZE
+			 - FIL_PAGE_END_LSN_OLD_CHKSUM);
 
 		/* There are 2 valid formulas for old_checksum_field:
 
@@ -356,22 +363,22 @@ buf_page_is_corrupted(
 		there. */
 
 		if (old_checksum_field != mach_read_from_4(read_buf
-				+ FIL_PAGE_LSN)
-			&& old_checksum_field != old_checksum
-			&& old_checksum_field != BUF_NO_CHECKSUM_MAGIC) {
+							   + FIL_PAGE_LSN)
+		    && old_checksum_field != old_checksum
+		    && old_checksum_field != BUF_NO_CHECKSUM_MAGIC) {
 
 			return(TRUE);
 		}
 
 		checksum = buf_calc_page_new_checksum(read_buf);
-		checksum_field = mach_read_from_4(read_buf +
-			FIL_PAGE_SPACE_OR_CHKSUM);
+		checksum_field = mach_read_from_4(read_buf
+						  + FIL_PAGE_SPACE_OR_CHKSUM);
 
 		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
 		(always equal to 0), to FIL_PAGE_SPACE_SPACE_OR_CHKSUM */
 
 		if (checksum_field != 0 && checksum_field != checksum
-			&& checksum_field != BUF_NO_CHECKSUM_MAGIC) {
+		    && checksum_field != BUF_NO_CHECKSUM_MAGIC) {
 
 			return(TRUE);
 		}
@@ -398,37 +405,41 @@ buf_page_print(
 	ut_print_buf(stderr, read_buf, UNIV_PAGE_SIZE);
 	fputs("InnoDB: End of page dump\n", stderr);
 
-	checksum = srv_use_checksums ?
-		buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
-	old_checksum = srv_use_checksums ?
-		buf_calc_page_old_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
+	checksum = srv_use_checksums
+		? buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
+	old_checksum = srv_use_checksums
+		? buf_calc_page_old_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-"  InnoDB: Page checksum %lu, prior-to-4.0.14-form checksum %lu\n"
-"InnoDB: stored checksum %lu, prior-to-4.0.14-form stored checksum %lu\n",
-			(ulong) checksum, (ulong) old_checksum,
-			(ulong) mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
-			(ulong) mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN_OLD_CHKSUM));
-	fprintf(stderr,
-"InnoDB: Page lsn %lu %lu, low 4 bytes of lsn at page end %lu\n"
-"InnoDB: Page number (if stored to page already) %lu,\n"
-"InnoDB: space id (if created with >= MySQL-4.1.1 and stored already) %lu\n",
+		"  InnoDB: Page checksum %lu, prior-to-4.0.14-form"
+		" checksum %lu\n"
+		"InnoDB: stored checksum %lu, prior-to-4.0.14-form"
+		" stored checksum %lu\n"
+		"InnoDB: Page lsn %lu %lu, low 4 bytes of lsn"
+		" at page end %lu\n"
+		"InnoDB: Page number (if stored to page already) %lu,\n"
+		"InnoDB: space id (if created with >= MySQL-4.1.1"
+		" and stored already) %lu\n",
+		(ulong) checksum, (ulong) old_checksum,
+		(ulong) mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
+		(ulong) mach_read_from_4(read_buf + UNIV_PAGE_SIZE
+					 - FIL_PAGE_END_LSN_OLD_CHKSUM),
 		(ulong) mach_read_from_4(read_buf + FIL_PAGE_LSN),
 		(ulong) mach_read_from_4(read_buf + FIL_PAGE_LSN + 4),
 		(ulong) mach_read_from_4(read_buf + UNIV_PAGE_SIZE
-					- FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
+					 - FIL_PAGE_END_LSN_OLD_CHKSUM + 4),
 		(ulong) mach_read_from_4(read_buf + FIL_PAGE_OFFSET),
-		(ulong) mach_read_from_4(read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
+		(ulong) mach_read_from_4(read_buf
+					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 
 	if (mach_read_from_2(read_buf + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE)
-		== TRX_UNDO_INSERT) {
+	    == TRX_UNDO_INSERT) {
 		fprintf(stderr,
 			"InnoDB: Page may be an insert undo log page\n");
 	} else if (mach_read_from_2(read_buf + TRX_UNDO_PAGE_HDR
-						+ TRX_UNDO_PAGE_TYPE)
-		== TRX_UNDO_UPDATE) {
+				    + TRX_UNDO_PAGE_TYPE)
+		   == TRX_UNDO_UPDATE) {
 		fprintf(stderr,
 			"InnoDB: Page may be an update undo log page\n");
 	}
@@ -436,17 +447,20 @@ buf_page_print(
 	switch (fil_page_get_type(read_buf)) {
 	case FIL_PAGE_INDEX:
 		fprintf(stderr,
-"InnoDB: Page may be an index page where index id is %lu %lu\n",
-			(ulong) ut_dulint_get_high(btr_page_get_index_id(read_buf)),
-			(ulong) ut_dulint_get_low(btr_page_get_index_id(read_buf)));
+			"InnoDB: Page may be an index page where"
+			" index id is %lu %lu\n",
+			(ulong) ut_dulint_get_high
+			(btr_page_get_index_id(read_buf)),
+			(ulong) ut_dulint_get_low
+			(btr_page_get_index_id(read_buf)));
 
 		/* If the code is in ibbackup, dict_sys may be uninitialized,
 		i.e., NULL */
 
 		if (dict_sys != NULL) {
 
-			index = dict_index_find_on_id_low(
-					btr_page_get_index_id(read_buf));
+			index = dict_index_find_on_id_low
+				(btr_page_get_index_id(read_buf));
 			if (index) {
 				fputs("InnoDB: (", stderr);
 				dict_index_name_print(stderr, NULL, index);
@@ -459,35 +473,35 @@ buf_page_print(
 		break;
 	case FIL_PAGE_IBUF_FREE_LIST:
 		fputs("InnoDB: Page may be an insert buffer free list page\n",
-			stderr);
+		      stderr);
 		break;
 	case FIL_PAGE_TYPE_ALLOCATED:
 		fputs("InnoDB: Page may be a freshly allocated page\n",
-			stderr);
+		      stderr);
 		break;
 	case FIL_PAGE_IBUF_BITMAP:
 		fputs("InnoDB: Page may be an insert buffer bitmap page\n",
-			stderr);
+		      stderr);
 		break;
 	case FIL_PAGE_TYPE_SYS:
 		fputs("InnoDB: Page may be a system page\n",
-			stderr);
+		      stderr);
 		break;
 	case FIL_PAGE_TYPE_TRX_SYS:
 		fputs("InnoDB: Page may be a transaction system page\n",
-			stderr);
+		      stderr);
 		break;
 	case FIL_PAGE_TYPE_FSP_HDR:
 		fputs("InnoDB: Page may be a file space header page\n",
-			stderr);
+		      stderr);
 		break;
 	case FIL_PAGE_TYPE_XDES:
 		fputs("InnoDB: Page may be an extent descriptor page\n",
-			stderr);
+		      stderr);
 		break;
 	case FIL_PAGE_TYPE_BLOB:
 		fputs("InnoDB: Page may be a BLOB page\n",
-			stderr);
+		      stderr);
 		break;
 	}
 }
@@ -561,9 +575,12 @@ buf_pool_init(
 
 	if (n_frames > curr_size) {
 		fprintf(stderr,
-"InnoDB: AWE: Error: you must specify in my.cnf .._awe_mem_mb larger\n"
-"InnoDB: than .._buffer_pool_size. Now the former is %lu pages,\n"
-"InnoDB: the latter %lu pages.\n", (ulong) curr_size, (ulong) n_frames);
+			"InnoDB: AWE: Error: you must specify in my.cnf"
+			" .._awe_mem_mb larger\n"
+			"InnoDB: than .._buffer_pool_size. Now the former"
+			" is %lu pages,\n"
+			"InnoDB: the latter %lu pages.\n",
+			(ulong) curr_size, (ulong) n_frames);
 
 		return(NULL);
 	}
@@ -571,7 +588,7 @@ buf_pool_init(
 	buf_pool = mem_alloc(sizeof(buf_pool_t));
 
 	/* 1. Initialize general fields
-	   ---------------------------- */
+	---------------------------- */
 	mutex_create(&buf_pool->mutex, SYNC_BUF_POOL);
 
 	mutex_enter(&(buf_pool->mutex));
@@ -581,8 +598,8 @@ buf_pool_init(
 		/* Allocate the virtual address space window, i.e., the
 		buffer pool frames */
 
-		buf_pool->frame_mem = os_awe_allocate_virtual_mem_window(
-					UNIV_PAGE_SIZE * (n_frames + 1));
+		buf_pool->frame_mem = os_awe_allocate_virtual_mem_window
+			(UNIV_PAGE_SIZE * (n_frames + 1));
 
 		/* Allocate the physical memory for AWE and the AWE info array
 		for buf_pool */
@@ -590,23 +607,26 @@ buf_pool_init(
 		if ((curr_size % ((1024 * 1024) / UNIV_PAGE_SIZE)) != 0) {
 
 			fprintf(stderr,
-"InnoDB: AWE: Error: physical memory must be allocated in full megabytes.\n"
-"InnoDB: Trying to allocate %lu database pages.\n",
-			  (ulong) curr_size);
+				"InnoDB: AWE: Error: physical memory must be"
+				" allocated in full megabytes.\n"
+				"InnoDB: Trying to allocate %lu"
+				" database pages.\n",
+				(ulong) curr_size);
 
 			return(NULL);
 		}
 
 		if (!os_awe_allocate_physical_mem(&(buf_pool->awe_info),
-			curr_size / ((1024 * 1024) / UNIV_PAGE_SIZE))) {
+						  curr_size
+						  / ((1024 * 1024)
+						     / UNIV_PAGE_SIZE))) {
 
 			return(NULL);
 		}
 		/*----------------------------------------*/
 	} else {
-		buf_pool->frame_mem = os_mem_alloc_large(
-					UNIV_PAGE_SIZE * (n_frames + 1),
-					TRUE, FALSE);
+		buf_pool->frame_mem = os_mem_alloc_large
+			(UNIV_PAGE_SIZE * (n_frames + 1), TRUE, FALSE);
 	}
 
 	if (buf_pool->frame_mem == NULL) {
@@ -639,9 +659,10 @@ buf_pool_init(
 		the window */
 
 		os_awe_map_physical_mem_to_window(buf_pool->frame_zero,
-				n_frames *
-				(UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE),
-					buf_pool->awe_info);
+						  n_frames
+						  * (UNIV_PAGE_SIZE
+						     / OS_AWE_X86_PAGE_SIZE),
+						  buf_pool->awe_info);
 		/*----------------------------------------*/
 	}
 
@@ -697,7 +718,7 @@ buf_pool_init(
 	buf_pool->n_pages_awe_remapped_old = 0;
 
 	/* 2. Initialize flushing fields
-	   ---------------------------- */
+	---------------------------- */
 	UT_LIST_INIT(buf_pool->flush_list);
 
 	for (i = BUF_FLUSH_LRU; i <= BUF_FLUSH_LIST; i++) {
@@ -712,7 +733,7 @@ buf_pool_init(
 	buf_pool->freed_page_clock = 0;
 
 	/* 3. Initialize LRU fields
-	   ---------------------------- */
+	---------------------------- */
 	UT_LIST_INIT(buf_pool->LRU);
 
 	buf_pool->LRU_old = NULL;
@@ -738,7 +759,8 @@ buf_pool_init(
 				frames */
 
 				UT_LIST_ADD_LAST(awe_LRU_free_mapped,
-					buf_pool->awe_LRU_free_mapped, block);
+						 buf_pool->awe_LRU_free_mapped,
+						 block);
 			}
 		}
 
@@ -749,8 +771,8 @@ buf_pool_init(
 	mutex_exit(&(buf_pool->mutex));
 
 	if (srv_use_adaptive_hash_indexes) {
-		btr_search_sys_create(
-			  curr_size * UNIV_PAGE_SIZE / sizeof(void*) / 64);
+		btr_search_sys_create(curr_size * UNIV_PAGE_SIZE
+				      / sizeof(void*) / 64);
 	} else {
 		/* Create only a small dummy system */
 		btr_search_sys_create(1000);
@@ -792,35 +814,36 @@ buf_awe_map_page_to_frame(
 
 	while (bck) {
 		if (bck->state == BUF_BLOCK_FILE_PAGE
-			&& (bck->buf_fix_count != 0 || bck->io_fix != 0)) {
+		    && (bck->buf_fix_count != 0 || bck->io_fix != 0)) {
 
 			/* We have to skip this */
 			bck = UT_LIST_GET_PREV(awe_LRU_free_mapped, bck);
 		} else {
 			/* We can map block to the frame of bck */
 
-			os_awe_map_physical_mem_to_window(
-				bck->frame,
-				UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE,
-				block->awe_info);
+			os_awe_map_physical_mem_to_window
+				(bck->frame,
+				 UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE,
+				 block->awe_info);
 
 			block->frame = bck->frame;
 
 			*(buf_pool->blocks_of_frames
-				+ (((ulint)(block->frame
-						- buf_pool->frame_zero))
-						>> UNIV_PAGE_SIZE_SHIFT))
+			  + (((ulint)(block->frame
+				      - buf_pool->frame_zero))
+			     >> UNIV_PAGE_SIZE_SHIFT))
 				= block;
 
 			bck->frame = NULL;
 			UT_LIST_REMOVE(awe_LRU_free_mapped,
-					buf_pool->awe_LRU_free_mapped,
-					bck);
+				       buf_pool->awe_LRU_free_mapped,
+				       bck);
 
 			if (add_to_mapped_list) {
-				UT_LIST_ADD_FIRST(awe_LRU_free_mapped,
-					buf_pool->awe_LRU_free_mapped,
-					block);
+				UT_LIST_ADD_FIRST
+					(awe_LRU_free_mapped,
+					 buf_pool->awe_LRU_free_mapped,
+					 block);
 			}
 
 			buf_pool->n_pages_awe_remapped++;
@@ -830,8 +853,8 @@ buf_awe_map_page_to_frame(
 	}
 
 	fprintf(stderr,
-"InnoDB: AWE: Fatal error: cannot find a page to unmap\n"
-"InnoDB: awe_LRU_free_mapped list length %lu\n",
+		"InnoDB: AWE: Fatal error: cannot find a page to unmap\n"
+		"InnoDB: awe_LRU_free_mapped list length %lu\n",
 		(ulong) UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
 
 	ut_a(0);
@@ -864,7 +887,7 @@ buf_block_make_young(
 	buf_block_t*	block)	/* in: block to make younger */
 {
 	if (buf_pool->freed_page_clock >= block->freed_page_clock
-				+ 1 + (buf_pool->curr_size / 1024)) {
+	    + 1 + (buf_pool->curr_size / 1024)) {
 
 		/* There has been freeing activity in the LRU list:
 		best to move to the head of the LRU list */
@@ -1118,11 +1141,11 @@ buf_page_get_gen(
 
 	ut_ad(mtr);
 	ut_ad((rw_latch == RW_S_LATCH)
-		|| (rw_latch == RW_X_LATCH)
-		|| (rw_latch == RW_NO_LATCH));
+	      || (rw_latch == RW_X_LATCH)
+	      || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode != BUF_GET_NO_LATCH) || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
-		|| (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
+	      || (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
 #ifndef UNIV_LOG_DEBUG
 	ut_ad(!ibuf_inside() || ibuf_page(space, offset));
 #endif
@@ -1136,7 +1159,7 @@ loop:
 		block = buf_block_align(guess);
 
 		if ((offset != block->offset) || (space != block->space)
-				|| (block->state != BUF_BLOCK_FILE_PAGE)) {
+		    || (block->state != BUF_BLOCK_FILE_PAGE)) {
 
 			block = NULL;
 		}
@@ -1229,12 +1252,12 @@ loop:
 	if (mode == BUF_GET_NOWAIT) {
 		if (rw_latch == RW_S_LATCH) {
 			success = rw_lock_s_lock_func_nowait(&(block->lock),
-								file, line);
+							     file, line);
 			fix_type = MTR_MEMO_PAGE_S_FIX;
 		} else {
 			ut_ad(rw_latch == RW_X_LATCH);
 			success = rw_lock_x_lock_func_nowait(&(block->lock),
-					file, line);
+							     file, line);
 			fix_type = MTR_MEMO_PAGE_X_FIX;
 		}
 
@@ -1331,8 +1354,8 @@ buf_page_optimistic_get_func(
 	/* If AWE is used, block may have a different frame now, e.g., NULL */
 
 	if (UNIV_UNLIKELY(block->state != BUF_BLOCK_FILE_PAGE)
-			|| UNIV_UNLIKELY(block->frame != guess)) {
-	exit_func:
+	    || UNIV_UNLIKELY(block->frame != guess)) {
+exit_func:
 		mutex_exit(&(buf_pool->mutex));
 
 		return(FALSE);
@@ -1357,11 +1380,11 @@ buf_page_optimistic_get_func(
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_func_nowait(&(block->lock),
-								file, line);
+						     file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
 		success = rw_lock_x_lock_func_nowait(&(block->lock),
-								file, line);
+						     file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 	}
 
@@ -1414,7 +1437,7 @@ buf_page_optimistic_get_func(
 		read-ahead */
 
 		buf_read_ahead_linear(buf_frame_get_space_id(guess),
-					buf_frame_get_page_no(guess));
+				      buf_frame_get_page_no(guess));
 	}
 
 #ifdef UNIV_IBUF_DEBUG
@@ -1482,11 +1505,11 @@ buf_page_get_known_nowait(
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_func_nowait(&(block->lock),
-								file, line);
+						     file, line);
 		fix_type = MTR_MEMO_PAGE_S_FIX;
 	} else {
 		success = rw_lock_x_lock_func_nowait(&(block->lock),
-								file, line);
+						     file, line);
 		fix_type = MTR_MEMO_PAGE_X_FIX;
 	}
 
@@ -1519,7 +1542,7 @@ buf_page_get_known_nowait(
 
 #ifdef UNIV_IBUF_DEBUG
 	ut_a((mode == BUF_KEEP_OLD)
-		|| (ibuf_count_get(block->space, block->offset) == 0));
+	     || (ibuf_count_get(block->space, block->offset) == 0));
 #endif
 	buf_pool->n_page_gets++;
 
@@ -1598,7 +1621,8 @@ buf_page_init(
 
 	if (buf_page_hash_get(space, offset)) {
 		fprintf(stderr,
-"InnoDB: Error: page %lu %lu already found from the hash table\n",
+			"InnoDB: Error: page %lu %lu already found"
+			" in the hash table\n",
 			(ulong) space,
 			(ulong) offset);
 #ifdef UNIV_DEBUG
@@ -1611,7 +1635,7 @@ buf_page_init(
 	}
 
 	HASH_INSERT(buf_block_t, hash, buf_pool->page_hash,
-				buf_page_address_fold(space, offset), block);
+		    buf_page_address_fold(space, offset), block);
 
 	block->freed_page_clock = 0;
 
@@ -1686,27 +1710,28 @@ buf_page_init_for_read(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	if (fil_tablespace_deleted_or_being_deleted_in_mem(space,
-							tablespace_version)) {
+	if (fil_tablespace_deleted_or_being_deleted_in_mem
+	    (space, tablespace_version)) {
 		*err = DB_TABLESPACE_DELETED;
 	}
 
 	if (*err == DB_TABLESPACE_DELETED
-		|| NULL != buf_page_hash_get(space, offset)) {
+	    || NULL != buf_page_hash_get(space, offset)) {
 
-		/* The page belongs to a space which has been deleted or is
-		being deleted, or the page is already in buf_pool, return */
+		    /* The page belongs to a space which has been
+		    deleted or is being deleted, or the page is
+		    already in buf_pool, return */
 
-		mutex_exit(&(buf_pool->mutex));
-		buf_block_free(block);
+		    mutex_exit(&(buf_pool->mutex));
+		    buf_block_free(block);
 
-		if (mode == BUF_READ_IBUF_PAGES_ONLY) {
+		    if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 
-			mtr_commit(&mtr);
-		}
+			    mtr_commit(&mtr);
+		    }
 
-		return(NULL);
-	}
+		    return(NULL);
+	    }
 
 	ut_ad(block);
 
@@ -1866,23 +1891,24 @@ buf_page_io_complete(
 		/* If this page is not uninitialized and not in the
 		doublewrite buffer, then the page number and space id
 		should be the same as in block. */
-		ulint	read_page_no = mach_read_from_4((block->frame)
-						+ FIL_PAGE_OFFSET);
-		ulint	read_space_id = mach_read_from_4((block->frame)
-					 + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		ulint	read_page_no = mach_read_from_4
+			(block->frame + FIL_PAGE_OFFSET);
+		ulint	read_space_id = mach_read_from_4
+			(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-		if (!block->space && trx_doublewrite_page_inside(
-				block->offset)) {
+		if (!block->space
+		    && trx_doublewrite_page_inside(block->offset)) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: Error: reading page %lu\n"
-"InnoDB: which is in the doublewrite buffer!\n",
+				"  InnoDB: Error: reading page %lu\n"
+				"InnoDB: which is in the"
+				" doublewrite buffer!\n",
 				(ulong) block->offset);
 		} else if (!read_space_id && !read_page_no) {
 			/* This is likely an uninitialized page. */
 		} else if ((block->space && block->space != read_space_id)
-				|| block->offset != read_page_no) {
+			   || block->offset != read_page_no) {
 			/* We did not compare space_id to read_space_id
 			if block->space == 0, because the field on the
 			page may contain garbage in MySQL < 4.1.1,
@@ -1890,59 +1916,73 @@ buf_page_io_complete(
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: Error: space id and page n:o stored in the page\n"
-"InnoDB: read in are %lu:%lu, should be %lu:%lu!\n",
+				"  InnoDB: Error: space id and page n:o"
+				" stored in the page\n"
+				"InnoDB: read in are %lu:%lu,"
+				" should be %lu:%lu!\n",
 				(ulong) read_space_id, (ulong) read_page_no,
 				(ulong) block->space, (ulong) block->offset);
 		}
 		/* From version 3.23.38 up we store the page checksum
-		   to the 4 first bytes of the page end lsn field */
+		to the 4 first bytes of the page end lsn field */
 
 		if (buf_page_is_corrupted(block->frame)) {
 			fprintf(stderr,
-		"InnoDB: Database page corruption on disk or a failed\n"
-		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
+				"InnoDB: Database page corruption on disk"
+				" or a failed\n"
+				"InnoDB: file read of page %lu.\n",
+				(ulong) block->offset);
 
-			fputs(
-		"InnoDB: You may have to recover from a backup.\n", stderr);
+			fputs("InnoDB: You may have to recover"
+			      " from a backup.\n", stderr);
 
 			buf_page_print(block->frame);
 
 			fprintf(stderr,
-		"InnoDB: Database page corruption on disk or a failed\n"
-		"InnoDB: file read of page %lu.\n", (ulong) block->offset);
-			fputs(
-		"InnoDB: You may have to recover from a backup.\n", stderr);
-			fputs(
-		"InnoDB: It is also possible that your operating\n"
-		"InnoDB: system has corrupted its own file cache\n"
-		"InnoDB: and rebooting your computer removes the\n"
-		"InnoDB: error.\n"
-		"InnoDB: If the corrupt page is an index page\n"
-		"InnoDB: you can also try to fix the corruption\n"
-		"InnoDB: by dumping, dropping, and reimporting\n"
-		"InnoDB: the corrupt table. You can use CHECK\n"
-		"InnoDB: TABLE to scan your table for corruption.\n"
-		"InnoDB: See also "
-"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/forcing-recovery.html\n"
-		"InnoDB: about forcing recovery.\n", stderr);
+				"InnoDB: Database page corruption on disk"
+				" or a failed\n"
+				"InnoDB: file read of page %lu.\n",
+				(ulong) block->offset);
+			fputs("InnoDB: You may have to recover"
+			      " from a backup.\n", stderr);
+			fputs("InnoDB: It is also possible that"
+			      " your operating\n"
+			      "InnoDB: system has corrupted its"
+			      " own file cache\n"
+			      "InnoDB: and rebooting your computer"
+			      " removes the\n"
+			      "InnoDB: error.\n"
+			      "InnoDB: If the corrupt page is an index page\n"
+			      "InnoDB: you can also try to"
+			      " fix the corruption\n"
+			      "InnoDB: by dumping, dropping,"
+			      " and reimporting\n"
+			      "InnoDB: the corrupt table."
+			      " You can use CHECK\n"
+			      "InnoDB: TABLE to scan your"
+			      " table for corruption.\n"
+			      "InnoDB: See also"
+			      " http://dev.mysql.com/doc/refman/5.1/en/"
+			      "forcing-recovery.html\n"
+			      "InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
-				fputs(
-	"InnoDB: Ending processing because of a corrupt database page.\n",
-					stderr);
+				fputs("InnoDB: Ending processing because of"
+				      " a corrupt database page.\n",
+				      stderr);
 				exit(1);
 			}
 		}
 
 		if (recv_recovery_is_on()) {
 			recv_recover_page(FALSE, TRUE, block->frame,
-						block->space, block->offset);
+					  block->space, block->offset);
 		}
 
 		if (!recv_no_ibuf_operations) {
-			ibuf_merge_or_delete_for_page(block->frame,
-					block->space, block->offset, TRUE);
+			ibuf_merge_or_delete_for_page
+				(block->frame, block->space,
+				 block->offset, TRUE);
 		}
 	}
 
@@ -2058,25 +2098,25 @@ buf_validate(void)
 		if (block->state == BUF_BLOCK_FILE_PAGE) {
 
 			ut_a(buf_page_hash_get(block->space,
-						block->offset) == block);
+					       block->offset) == block);
 			n_page++;
 
 #ifdef UNIV_IBUF_DEBUG
 			ut_a((block->io_fix == BUF_IO_READ)
-				|| ibuf_count_get(block->space, block->offset)
-				== 0);
+			     || ibuf_count_get(block->space, block->offset)
+			     == 0);
 #endif
 			if (block->io_fix == BUF_IO_WRITE) {
 
 				if (block->flush_type == BUF_FLUSH_LRU) {
 					n_lru_flush++;
-					ut_a(rw_lock_is_locked(&(block->lock),
-							RW_LOCK_SHARED));
-				} else if (block->flush_type ==
-						BUF_FLUSH_LIST) {
+					ut_a(rw_lock_is_locked
+					     (&block->lock, RW_LOCK_SHARED));
+				} else if (block->flush_type
+					   == BUF_FLUSH_LIST) {
 					n_list_flush++;
-				} else if (block->flush_type ==
-						BUF_FLUSH_SINGLE_PAGE) {
+				} else if (block->flush_type
+					   == BUF_FLUSH_SINGLE_PAGE) {
 					n_single_flush++;
 				} else {
 					ut_error;
@@ -2085,14 +2125,14 @@ buf_validate(void)
 			} else if (block->io_fix == BUF_IO_READ) {
 
 				ut_a(rw_lock_is_locked(&(block->lock),
-							RW_LOCK_EX));
+						       RW_LOCK_EX));
 			}
 
 			n_lru++;
 
 			if (ut_dulint_cmp(block->oldest_modification,
-						ut_dulint_zero) > 0) {
-					n_flush++;
+					  ut_dulint_zero) > 0) {
+				n_flush++;
 			}
 
 		} else if (block->state == BUF_BLOCK_NOT_USED) {
@@ -2101,14 +2141,16 @@ buf_validate(void)
 	}
 
 	if (n_lru + n_free > buf_pool->curr_size) {
-		fprintf(stderr, "n LRU %lu, n free %lu\n", (ulong) n_lru, (ulong) n_free);
+		fprintf(stderr, "n LRU %lu, n free %lu\n",
+			(ulong) n_lru, (ulong) n_free);
 		ut_error;
 	}
 
 	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
 	if (UT_LIST_GET_LEN(buf_pool->free) != n_free) {
 		fprintf(stderr, "Free list len %lu, free blocks %lu\n",
-			(ulong) UT_LIST_GET_LEN(buf_pool->free), (ulong) n_free);
+			(ulong) UT_LIST_GET_LEN(buf_pool->free),
+			(ulong) n_free);
 		ut_error;
 	}
 	ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == n_flush);
@@ -2233,9 +2275,9 @@ Returns the number of latched pages in the buffer pool. */
 ulint
 buf_get_latched_pages_number(void)
 {
-	buf_block_t* block;
-	ulint i;
-	ulint fixed_pages_number = 0;
+	buf_block_t*	block;
+	ulint		i;
+	ulint		fixed_pages_number = 0;
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -2243,9 +2285,10 @@ buf_get_latched_pages_number(void)
 
 		block = buf_pool_get_nth_block(buf_pool, i);
 
-		if (((block->buf_fix_count != 0) || (block->io_fix != 0)) &&
-			block->magic_n == BUF_BLOCK_MAGIC_N )
+		if (((block->buf_fix_count != 0) || (block->io_fix != 0))
+		    && block->magic_n == BUF_BLOCK_MAGIC_N) {
 			fixed_pages_number++;
+		}
 	}
 
 	mutex_exit(&(buf_pool->mutex));
@@ -2261,9 +2304,9 @@ buf_get_n_pending_ios(void)
 /*=======================*/
 {
 	return(buf_pool->n_pend_reads
-		+ buf_pool->n_flush[BUF_FLUSH_LRU]
-		+ buf_pool->n_flush[BUF_FLUSH_LIST]
-		+ buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
+	       + buf_pool->n_flush[BUF_FLUSH_LRU]
+	       + buf_pool->n_flush[BUF_FLUSH_LIST]
+	       + buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
 }
 
 /*************************************************************************
@@ -2280,7 +2323,7 @@ buf_get_modified_ratio_pct(void)
 
 	ratio = (100 * UT_LIST_GET_LEN(buf_pool->flush_list))
 		/ (1 + UT_LIST_GET_LEN(buf_pool->LRU)
-			+ UT_LIST_GET_LEN(buf_pool->free));
+		   + UT_LIST_GET_LEN(buf_pool->free));
 
 	/* 1 + is there to avoid division by zero */
 
@@ -2308,12 +2351,14 @@ buf_print_io(
 
 	if (srv_use_awe) {
 		fprintf(stderr,
-		"AWE: Buffer pool memory frames                        %lu\n",
-				(ulong) buf_pool->n_frames);
+			"AWE: Buffer pool memory frames %lu\n",
+			(ulong) buf_pool->n_frames);
 
 		fprintf(stderr,
-		"AWE: Database pages and free buffers mapped in frames %lu\n",
-				(ulong) UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
+			"AWE: Database pages and free buffers"
+			" mapped in frames %lu\n",
+			(ulong)
+			UT_LIST_GET_LEN(buf_pool->awe_LRU_free_mapped));
 	}
 	fprintf(file,
 		"Buffer pool size   %lu\n"
@@ -2328,14 +2373,14 @@ buf_print_io(
 		(ulong) UT_LIST_GET_LEN(buf_pool->flush_list),
 		(ulong) buf_pool->n_pend_reads,
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU]
-			+ buf_pool->init_flush[BUF_FLUSH_LRU],
+		+ buf_pool->init_flush[BUF_FLUSH_LRU],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST]
-			+ buf_pool->init_flush[BUF_FLUSH_LIST],
+		+ buf_pool->init_flush[BUF_FLUSH_LIST],
 		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
 
 	current_time = time(NULL);
 	time_elapsed = 0.001 + difftime(current_time,
-						buf_pool->last_printout_time);
+					buf_pool->last_printout_time);
 	buf_pool->last_printout_time = current_time;
 
 	fprintf(file,
@@ -2353,19 +2398,21 @@ buf_print_io(
 
 	if (srv_use_awe) {
 		fprintf(file, "AWE: %.2f page remaps/s\n",
-		(buf_pool->n_pages_awe_remapped
-				- buf_pool->n_pages_awe_remapped_old)
+			(buf_pool->n_pages_awe_remapped
+			 - buf_pool->n_pages_awe_remapped_old)
 			/ time_elapsed);
 	}
 
 	if (buf_pool->n_page_gets > buf_pool->n_page_gets_old) {
 		fprintf(file, "Buffer pool hit rate %lu / 1000\n",
-			(ulong) (1000 -
-			((1000 * (buf_pool->n_pages_read - buf_pool->n_pages_read_old))
-			/ (buf_pool->n_page_gets - buf_pool->n_page_gets_old))));
+			(ulong)
+			(1000 - ((1000 * (buf_pool->n_pages_read
+					  - buf_pool->n_pages_read_old))
+				 / (buf_pool->n_page_gets
+				    - buf_pool->n_page_gets_old))));
 	} else {
 		fputs("No buffer pool page gets since the last printout\n",
-			file);
+		      file);
 	}
 
 	buf_pool->n_page_gets_old = buf_pool->n_page_gets;
@@ -2416,7 +2463,8 @@ buf_all_freed(void)
 
 				fprintf(stderr,
 					"Page %lu %lu still fixed or dirty\n",
-					(ulong) block->space, (ulong) block->offset);
+					(ulong) block->space,
+					(ulong) block->offset);
 				ut_error;
 			}
 		}
@@ -2441,8 +2489,8 @@ buf_pool_check_no_pending_io(void)
 	mutex_enter(&(buf_pool->mutex));
 
 	if (buf_pool->n_pend_reads + buf_pool->n_flush[BUF_FLUSH_LRU]
-				+ buf_pool->n_flush[BUF_FLUSH_LIST]
-				+ buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]) {
+	    + buf_pool->n_flush[BUF_FLUSH_LIST]
+	    + buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]) {
 		ret = FALSE;
 	} else {
 		ret = TRUE;

@@ -157,7 +157,7 @@ trx_rollback_last_sql_stat_for_mysql(
 	trx->op_info = "rollback of SQL statement";
 
 	err = trx_general_rollback_for_mysql(trx, TRUE,
-						&(trx->last_sql_stat_start));
+					     &(trx->last_sql_stat_start));
 	/* The following call should not be needed, but we play safe: */
 	trx_mark_sql_stat_end(trx);
 
@@ -422,7 +422,8 @@ trx_rollback_or_clean_all_without_sess(
 	if (UT_LIST_GET_FIRST(trx_sys->trx_list)) {
 
 		fprintf(stderr,
-"InnoDB: Starting in background the rollback of uncommitted transactions\n");
+			"InnoDB: Starting in background the rollback"
+			" of uncommitted transactions\n");
 	} else {
 		goto leave_function;
 	}
@@ -450,7 +451,8 @@ loop:
 	if (trx == NULL) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-		"  InnoDB: Rollback of non-prepared transactions completed\n");
+			"  InnoDB: Rollback of non-prepared transactions"
+			" completed\n");
 
 		mem_heap_free(heap);
 
@@ -461,8 +463,8 @@ loop:
 
 	if (trx->conc_state == TRX_COMMITTED_IN_MEMORY) {
 		fprintf(stderr, "InnoDB: Cleaning up trx with id %lu %lu\n",
-					(ulong) ut_dulint_get_high(trx->id),
-					(ulong) ut_dulint_get_low(trx->id));
+			(ulong) ut_dulint_get_high(trx->id),
+			(ulong) ut_dulint_get_low(trx->id));
 
 		trx_cleanup_at_db_startup(trx);
 
@@ -499,10 +501,11 @@ loop:
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-"  InnoDB: Rolling back trx with id %lu %lu, %lu%s rows to undo\n",
-					(ulong) ut_dulint_get_high(trx->id),
-					(ulong) ut_dulint_get_low(trx->id),
-					(ulong) rows_to_undo, unit);
+		"  InnoDB: Rolling back trx with id %lu %lu, %lu%s"
+		" rows to undo\n",
+		(ulong) ut_dulint_get_high(trx->id),
+		(ulong) ut_dulint_get_low(trx->id),
+		(ulong) rows_to_undo, unit);
 	mutex_exit(&kernel_mutex);
 
 	trx->mysql_thread_id = os_thread_get_curr_id();
@@ -522,8 +525,8 @@ loop:
 		mutex_exit(&kernel_mutex);
 
 		fprintf(stderr,
-		"InnoDB: Waiting for rollback of trx id %lu to end\n",
-					(ulong) ut_dulint_get_low(trx->id));
+			"InnoDB: Waiting for rollback of trx id %lu to end\n",
+			(ulong) ut_dulint_get_low(trx->id));
 		os_thread_sleep(100000);
 
 		mutex_enter(&kernel_mutex);
@@ -536,7 +539,8 @@ loop:
 		drop the relevant table, if it still exists */
 
 		fprintf(stderr,
-"InnoDB: Dropping table with id %lu %lu in recovery if it exists\n",
+			"InnoDB: Dropping table with id %lu %lu"
+			" in recovery if it exists\n",
 			(ulong) ut_dulint_get_high(trx->table_id),
 			(ulong) ut_dulint_get_low(trx->table_id));
 
@@ -558,8 +562,8 @@ loop:
 	}
 
 	fprintf(stderr, "\nInnoDB: Rolling back of trx id %lu %lu completed\n",
-					(ulong) ut_dulint_get_high(trx->id),
-					(ulong) ut_dulint_get_low(trx->id));
+		(ulong) ut_dulint_get_high(trx->id),
+		(ulong) ut_dulint_get_low(trx->id));
 	mem_heap_free(heap);
 
 	trx_roll_crash_recv_trx	= NULL;
@@ -591,7 +595,7 @@ trx_undo_arr_create(void)
 	arr = mem_heap_alloc(heap, sizeof(trx_undo_arr_t));
 
 	arr->infos = mem_heap_alloc(heap, sizeof(trx_undo_inf_t)
-						* UNIV_MAX_PARALLELISM);
+				    * UNIV_MAX_PARALLELISM);
 	arr->n_cells = UNIV_MAX_PARALLELISM;
 	arr->n_used = 0;
 
@@ -701,7 +705,7 @@ trx_undo_arr_remove_info(
 		cell = trx_undo_arr_get_nth_info(arr, i);
 
 		if (cell->in_use
-			&& 0 == ut_dulint_cmp(cell->undo_no, undo_no)) {
+		    && 0 == ut_dulint_cmp(cell->undo_no, undo_no)) {
 
 			cell->in_use = FALSE;
 
@@ -817,13 +821,13 @@ trx_roll_pop_top_rec(
 						undo->top_page_no, mtr);
 	offset = undo->top_offset;
 
-/*	fprintf(stderr, "Thread %lu undoing trx %lu undo record %lu\n",
-		os_thread_get_curr_id(), ut_dulint_get_low(trx->id),
-		ut_dulint_get_low(undo->top_undo_no)); */
+	/*	fprintf(stderr, "Thread %lu undoing trx %lu undo record %lu\n",
+	os_thread_get_curr_id(), ut_dulint_get_low(trx->id),
+	ut_dulint_get_low(undo->top_undo_no)); */
 
 	prev_rec = trx_undo_get_prev_rec(undo_page + offset,
-					undo->hdr_page_no, undo->hdr_offset,
-									mtr);
+					 undo->hdr_page_no, undo->hdr_offset,
+					 mtr);
 	if (prev_rec == NULL) {
 
 		undo->empty = TRUE;
@@ -899,7 +903,7 @@ try_again:
 	}
 
 	if (!undo || undo->empty
-			|| (ut_dulint_cmp(limit, undo->top_undo_no) > 0)) {
+	    || (ut_dulint_cmp(limit, undo->top_undo_no) > 0)) {
 
 		if ((trx->undo_no_arr)->n_used == 0) {
 			/* Rollback is ending */
@@ -923,7 +927,8 @@ try_again:
 	}
 
 	*roll_ptr = trx_undo_build_roll_ptr(is_insert, (undo->rseg)->id,
-					undo->top_page_no, undo->top_offset);
+					    undo->top_page_no,
+					    undo->top_offset);
 	mtr_start(&mtr);
 
 	undo_rec = trx_roll_pop_top_rec(trx, undo, &mtr);
@@ -938,15 +943,16 @@ try_again:
 	if (trx == trx_roll_crash_recv_trx && trx_roll_max_undo_no > 1000) {
 
 		progress_pct = 100 - (ulint)
-				((ut_conv_dulint_to_longlong(undo_no) * 100)
-				/ trx_roll_max_undo_no);
+			((ut_conv_dulint_to_longlong(undo_no) * 100)
+			 / trx_roll_max_undo_no);
 		if (progress_pct != trx_roll_progress_printed_pct) {
 			if (trx_roll_progress_printed_pct == 0) {
 				fprintf(stderr,
-"\nInnoDB: Progress in percents: %lu", (ulong) progress_pct);
+					"\nInnoDB: Progress in percents:"
+					" %lu", (ulong) progress_pct);
 			} else {
 				fprintf(stderr,
-				" %lu", (ulong) progress_pct);
+					" %lu", (ulong) progress_pct);
 			}
 			fflush(stderr);
 			trx_roll_progress_printed_pct = progress_pct;
@@ -1034,7 +1040,7 @@ trx_rollback(
 {
 	que_t*		roll_graph;
 	que_thr_t*	thr;
-/*	que_thr_t*	thr2; */
+	/*	que_thr_t*	thr2; */
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -1077,16 +1083,16 @@ trx_rollback(
 
 	ut_ad(thr);
 
-/*	thr2 = que_fork_start_command(roll_graph);
+	/*	thr2 = que_fork_start_command(roll_graph);
 
 	ut_ad(thr2); */
 
 	if (next_thr && (*next_thr == NULL)) {
 		*next_thr = thr;
-/*		srv_que_task_enqueue_low(thr2); */
+		/*		srv_que_task_enqueue_low(thr2); */
 	} else {
 		srv_que_task_enqueue_low(thr);
-/*		srv_que_task_enqueue_low(thr2); */
+		/*		srv_que_task_enqueue_low(thr2); */
 	}
 }
 
@@ -1105,7 +1111,7 @@ trx_roll_graph_build(
 	mem_heap_t*	heap;
 	que_fork_t*	fork;
 	que_thr_t*	thr;
-/*	que_thr_t*	thr2; */
+	/*	que_thr_t*	thr2; */
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -1116,10 +1122,10 @@ trx_roll_graph_build(
 	fork->trx = trx;
 
 	thr = que_thr_create(fork, heap);
-/*	thr2 = que_thr_create(fork, heap); */
+	/*	thr2 = que_thr_create(fork, heap); */
 
 	thr->child = row_undo_node_create(trx, thr, heap);
-/*	thr2->child = row_undo_node_create(trx, thr2, heap); */
+	/*	thr2->child = row_undo_node_create(trx, thr2, heap); */
 
 	return(fork);
 }
@@ -1231,7 +1237,7 @@ trx_finish_rollback_off_kernel(
 #ifdef UNIV_DEBUG
 	if (lock_print_waits) {
 		fprintf(stderr, "Trx %lu rollback finished\n",
-						(ulong) ut_dulint_get_low(trx->id));
+			(ulong) ut_dulint_get_low(trx->id));
 	}
 #endif /* UNIV_DEBUG */
 
@@ -1313,7 +1319,7 @@ trx_rollback_step(
 		/* Send a rollback signal to the transaction */
 
 		trx_sig_send(thr_get_trx(thr), sig_no, TRX_SIG_SELF, thr,
-			savept, NULL);
+			     savept, NULL);
 
 		thr->state = QUE_THR_SIG_REPLY_WAIT;
 

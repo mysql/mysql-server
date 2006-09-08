@@ -663,8 +663,9 @@ int MYSQLlex(void *arg, void *yythd)
       */
 
       if ((yylval->lex_str.str[0]=='_') && 
-          (lex->charset=get_charset_by_csname(yylval->lex_str.str+1,
-					      MY_CS_PRIMARY,MYF(0))))
+          (lex->underscore_charset=
+             get_charset_by_csname(yylval->lex_str.str + 1,
+                                   MY_CS_PRIMARY,MYF(0))))
         return(UNDERSCORE_CHARSET);
       return(result_state);			// IDENT or IDENT_QUOTED
 

@@ -33,9 +33,9 @@ flst_add_to_empty(
 	ut_ad(mtr && base && node);
 	ut_ad(base != node);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	len = flst_get_len(base, mtr);
 	ut_a(len == 0);
 
@@ -72,9 +72,9 @@ flst_add_last(
 	ut_ad(mtr && base && node);
 	ut_ad(base != node);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	len = flst_get_len(base, mtr);
 	last_addr = flst_get_last(base, mtr);
 
@@ -86,7 +86,7 @@ flst_add_last(
 			last_node = buf_frame_align(node) + last_addr.boffset;
 		} else {
 			last_node = fut_get_ptr(space, last_addr, RW_X_LATCH,
-									mtr);
+						mtr);
 		}
 
 		flst_insert_after(base, last_node, node, mtr);
@@ -115,9 +115,9 @@ flst_add_first(
 	ut_ad(mtr && base && node);
 	ut_ad(base != node);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	len = flst_get_len(base, mtr);
 	first_addr = flst_get_first(base, mtr);
 
@@ -127,10 +127,10 @@ flst_add_first(
 	if (len != 0) {
 		if (first_addr.page == node_addr.page) {
 			first_node = buf_frame_align(node)
-							+ first_addr.boffset;
+				+ first_addr.boffset;
 		} else {
 			first_node = fut_get_ptr(space, first_addr,
-							RW_X_LATCH, mtr);
+						 RW_X_LATCH, mtr);
 		}
 
 		flst_insert_before(base, node, first_node, mtr);
@@ -163,11 +163,11 @@ flst_insert_after(
 	ut_ad(base != node2);
 	ut_ad(node2 != node1);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node1),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 
 	buf_ptr_get_fsp_addr(node1, &space, &node1_addr);
 	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
@@ -218,11 +218,11 @@ flst_insert_before(
 	ut_ad(base != node3);
 	ut_ad(node2 != node3);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node3),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 
 	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
 	buf_ptr_get_fsp_addr(node3, &space, &node3_addr);
@@ -270,9 +270,9 @@ flst_remove(
 
 	ut_ad(mtr && node2 && base);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 
 	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
 
@@ -288,7 +288,7 @@ flst_remove(
 			node1 = buf_frame_align(node2) + node1_addr.boffset;
 		} else {
 			node1 = fut_get_ptr(space, node1_addr, RW_X_LATCH,
-									mtr);
+					    mtr);
 		}
 
 		ut_ad(node1 != node2);
@@ -307,7 +307,7 @@ flst_remove(
 			node3 = buf_frame_align(node2) + node3_addr.boffset;
 		} else {
 			node3 = fut_get_ptr(space, node3_addr, RW_X_LATCH,
-									mtr);
+					    mtr);
 		}
 
 		ut_ad(node2 != node3);
@@ -347,9 +347,9 @@ flst_cut_end(
 
 	ut_ad(mtr && node2 && base);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(n_nodes > 0);
 
 	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
@@ -365,7 +365,7 @@ flst_cut_end(
 			node1 = buf_frame_align(node2) + node1_addr.boffset;
 		} else {
 			node1 = fut_get_ptr(space, node1_addr, RW_X_LATCH,
-									mtr);
+					    mtr);
 		}
 
 		flst_write_addr(node1 + FLST_NEXT, fil_addr_null, mtr);
@@ -402,9 +402,9 @@ flst_truncate_end(
 
 	ut_ad(mtr && node2 && base);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-						MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	if (n_nodes == 0) {
 
 		ut_ad(fil_addr_is_null(flst_get_next_addr(node2, mtr)));
@@ -446,7 +446,7 @@ flst_validate(
 
 	ut_ad(base);
 	ut_ad(mtr_memo_contains(mtr1, buf_block_align(base),
-							MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 
 	/* We use two mini-transaction handles: the first is used to
 	lock the base node, and prevent other threads from modifying the
@@ -504,7 +504,7 @@ flst_print(
 
 	ut_ad(base && mtr);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-			MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	frame = buf_frame_align(base);
 
 	len = flst_get_len(base, mtr);
