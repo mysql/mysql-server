@@ -96,6 +96,8 @@ field_length_from_packed(enum_field_types const field_type,
     length= ~0UL;                               // NYI
     break;
   }
+
+  return length;
 }
 
 /*********************************************************************
