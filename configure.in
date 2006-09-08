@@ -19,7 +19,7 @@ SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=25
+NDB_VERSION_BUILD=26
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -2826,8 +2826,9 @@ AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  include/mysql_version.h dnl
  cmd-line-utils/Makefile dnl
  cmd-line-utils/libedit/Makefile dnl
+ win/Makefile dnl
  zlib/Makefile dnl
- cmd-line-utils/readline/Makefile win/Makefile)
+ cmd-line-utils/readline/Makefile)
  AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h)
  AC_OUTPUT
 
