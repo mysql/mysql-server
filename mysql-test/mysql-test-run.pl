@@ -88,6 +88,7 @@ use strict;
 #use diagnostics;
 
 require "lib/mtr_cases.pl";
+require "lib/mtr_im.pl";
 require "lib/mtr_process.pl";
 require "lib/mtr_timer.pl";
 require "lib/mtr_io.pl";
@@ -964,6 +965,7 @@ sub command_line_setup () {
    path_datadir => "$opt_vardir/im_mysqld_1.data",
    path_sock    => "$sockdir/mysqld_1.sock",
    path_pid     => "$opt_vardir/run/mysqld_1.pid",
+   start_timeout => 400, # enough time create innodb tables
   };
 
   $instance_manager->{'instances'}->[1]=
@@ -974,6 +976,7 @@ sub command_line_setup () {
    path_sock    => "$sockdir/mysqld_2.sock",
    path_pid     => "$opt_vardir/run/mysqld_2.pid",
    nonguarded   => 1,
+   start_timeout => 400, # enough time create innodb tables
   };
 
   if ( $opt_extern )
@@ -1315,9 +1318,6 @@ sub kill_running_server () {
     # This is different from terminating processes we have
     # started from ths run of the script, this is terminating
     # leftovers from previous runs.
-
-    mtr_report("Killing Possible Leftover Processes");
-    mkpath("$opt_vardir/log"); # Needed for mysqladmin log
 
     mtr_kill_leftovers();
 
@@ -2112,7 +2112,10 @@ sub run_testcase ($) {
 
       im_create_defaults_file($instance_manager);
 
-      mtr_im_start($instance_manager, $tinfo->{im_opts});
+      unless ( mtr_im_start($instance_manager, $tinfo->{im_opts}) )
+      {
+        mtr_error("Failed to start Instance Manager.")
+      }
     }
 
     # ----------------------------------------------------------------------
@@ -2209,7 +2212,10 @@ sub run_testcase ($) {
 
   if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' )
   {
-    mtr_im_stop($instance_manager);
+    unless ( mtr_im_stop($instance_manager) )
+    {
+      mtr_error("Failed to stop Instance Manager.")
+    }
   }
 }
 
@@ -2738,7 +2744,10 @@ sub stop_masters_slaves () {
   print  "Ending Tests\n";
 
   print  "Shutting-down Instance Manager\n";
-  mtr_im_stop($instance_manager);
+  unless ( mtr_im_stop($instance_manager) )
+  {
+    mtr_error("Failed to stop Instance Manager.")
+  }
 
   print  "Shutting-down MySQL daemon\n\n";
   stop_masters();
