@@ -924,7 +924,7 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char old_db_buf[NAME_LEN+1];
+  char old_db_buf[NAME_BYTE_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   sp_rcontext *ctx;
@@ -1957,8 +1957,8 @@ sp_head::set_info(longlong created, longlong modified,
 void
 sp_head::set_definer(const char *definer, uint definerlen)
 {
-  char user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING_WITH_INIT user_name(user_name_holder, USERNAME_LENGTH);
+  char user_name_holder[USERNAME_BYTE_LENGTH + 1];
+  LEX_STRING_WITH_INIT user_name(user_name_holder, USERNAME_BYTE_LENGTH);
 
   char host_name_holder[HOSTNAME_LENGTH + 1];
   LEX_STRING_WITH_INIT host_name(host_name_holder, HOSTNAME_LENGTH);
