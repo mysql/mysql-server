@@ -997,7 +997,7 @@ SELECT SQL_NO_CACHE
 WHERE ttt.a = ccc.b AND ttt.a = t.a GROUP BY ttt.a) AS minid   
 FROM t1 t, t2 c WHERE t.a = c.b;
 minid
-NULL
+1
 DROP TABLE t1,t2;
 create table t1 select variance(0);
 show create table t1;
