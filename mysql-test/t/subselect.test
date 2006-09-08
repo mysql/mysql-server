@@ -2280,3 +2280,34 @@ SELECT * FROM t1,t2
                     ORDER BY t1.t DESC LIMIT 1);
 
 DROP TABLE t1, t2;
+
+#
+# Bug #21540: Subqueries with no from and aggregate functions return 
+#              wrong results
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 values (1);
+INSERT INTO t1 VALUES (1,1),(1,2),(2,3),(3,4);
+SELECT (SELECT COUNT(DISTINCT t1.b) from t2) FROM t1 GROUP BY t1.a;
+SELECT (SELECT COUNT(DISTINCT t1.b) from t2 union select 1 from t2 where 12 < 3)
+  FROM t1 GROUP BY t1.a;
+SELECT COUNT(DISTINCT t1.b), (SELECT COUNT(DISTINCT t1.b)) FROM t1 GROUP BY t1.a;
+SELECT COUNT(DISTINCT t1.b), 
+       (SELECT COUNT(DISTINCT t1.b) union select 1 from DUAL where 12 < 3)
+  FROM t1 GROUP BY t1.a;
+SELECT (
+    SELECT (
+      SELECT COUNT(DISTINCT t1.b)
+    )
+) 
+FROM t1 GROUP BY t1.a;
+SELECT (
+  SELECT (
+      SELECT (
+        SELECT COUNT(DISTINCT t1.b)
+      )
+  ) 
+  FROM t1 GROUP BY t1.a LIMIT 1) 
+FROM t1 t2
+GROUP BY t2.a;
+DROP TABLE t1,t2;  
