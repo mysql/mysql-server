@@ -1360,6 +1360,7 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
   i= 0;
   part_count= 0;
   orig_count= 0;
+  first= TRUE;
   part_it.rewind();
   do
   {
@@ -1387,9 +1388,16 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
           DBUG_RETURN(ER_OUTOFMEMORY);
         }
       } while (++j < no_subparts);
+      if (part_elem->part_state == PART_CHANGED)
+        orig_count+= no_subparts;
+      else if (temp_partitions && first)
+      {
+        orig_count+= (no_subparts * temp_partitions);
+        first= FALSE;
+      }
     }
   } while (++i < no_parts);
-
+  first= FALSE;
   /*
     Step 5:
       Create the new partitions and also open, lock and call external_lock
