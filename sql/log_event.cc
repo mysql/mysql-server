@@ -5369,7 +5369,7 @@ unpack_row(RELAY_LOG_INFO *rli,
     if (master_reclength)
     {
       if (*field_ptr)
-        *master_reclength = (*field_ptr)->ptr - table->record[0];
+        *master_reclength = (*field_ptr)->ptr - (char*) table->record[0];
       else
         *master_reclength = table->s->reclength;
     }
