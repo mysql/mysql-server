@@ -54,7 +54,7 @@ static byte* acl_entry_get_key(acl_entry *entry,uint *length,
 }
 
 #define IP_ADDR_STRLEN (3+1+3+1+3+1+3)
-#define ACL_KEY_LENGTH (IP_ADDR_STRLEN+1+NAME_LEN+1+USERNAME_LENGTH+1)
+#define ACL_KEY_LENGTH (IP_ADDR_STRLEN+1+NAME_BYTE_LEN+1+USERNAME_BYTE_LENGTH+1)
 
 static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
 static MEM_ROOT mem, memex;
@@ -197,7 +197,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   READ_RECORD read_record_info;
   my_bool return_val= 1;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  char tmp_name[NAME_LEN+1];
+  char tmp_name[NAME_BYTE_LEN+1];
   int password_length;
   DBUG_ENTER("acl_load");
 
@@ -2264,7 +2264,7 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
 				      const char *user, const char *tname,
 				      bool exact)
 {
-  char helping [NAME_LEN*2+USERNAME_LENGTH+3];
+  char helping [NAME_BYTE_LEN*2+USERNAME_BYTE_LENGTH+3];
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
@@ -3167,7 +3167,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 {
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str, *tmp_Str;
-  char tmp_db[NAME_LEN+1];
+  char tmp_db[NAME_BYTE_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
   DBUG_ENTER("mysql_grant");
@@ -3867,7 +3867,7 @@ err2:
 bool check_grant_db(THD *thd,const char *db)
 {
   Security_context *sctx= thd->security_ctx;
-  char helping [NAME_LEN+USERNAME_LENGTH+2];
+  char helping [NAME_BYTE_LEN+USERNAME_BYTE_LENGTH+2];
   uint len;
   bool error= 1;
 
