@@ -80,10 +80,9 @@ dtuple_t*
 row_build(
 /*======*/
 				/* out, own: row built; see the NOTE below! */
-	ulint		type,	/* in: ROW_COPY_POINTERS, ROW_COPY_DATA, or
-				ROW_COPY_ALSO_EXTERNALS,
-				the two last copy also the data fields to
-				heap as the first only places pointers to
+	ulint		type,	/* in: ROW_COPY_POINTERS or ROW_COPY_DATA;
+				the latter copies also the data fields to
+				heap while the first only places pointers to
 				data fields on the index page, and thus is
 				more efficient */
 	dict_index_t*	index,	/* in: clustered index */
@@ -235,7 +234,6 @@ row_search_index_entry(
 
 #define ROW_COPY_DATA		1
 #define ROW_COPY_POINTERS	2
-#define ROW_COPY_ALSO_EXTERNALS	3
 
 /* The allowed latching order of index records is the following:
 (1) a secondary index record ->

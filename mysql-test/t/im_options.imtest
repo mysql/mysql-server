@@ -43,7 +43,7 @@
 # - check the configuration file;
 
 --echo --------------------------------------------------------------------
---exec grep '^server_id\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep '^server_id[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
 
 # - check the running instances.
@@ -133,25 +133,25 @@ UNSET mysqld2.server_id = 11;
 SET mysqld2.aaa, mysqld3.bbb, mysqld2.ccc = 0010, mysqld3.ddd = 0020;
 
 --echo --------------------------------------------------------------------
---exec grep '^aaa\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep "^aaa\$" $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
---exec grep '^bbb\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep "^bbb\$" $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
---exec grep '^ccc\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep '^ccc[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
---exec grep '^ddd\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep '^ddd[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
 
 UNSET mysqld2.aaa, mysqld3.bbb, mysqld2.ccc, mysqld3.ddd;
 
 --echo --------------------------------------------------------------------
---exec grep '^aaa\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep "^aaa\$" $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^bbb\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep "^bbb\$" $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^ccc\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^ccc[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^ddd\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^ddd[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 # - check that if some instance name is invalid or the active is active,
@@ -161,22 +161,22 @@ UNSET mysqld2.aaa, mysqld3.bbb, mysqld2.ccc, mysqld3.ddd;
 SET mysqld2.aaa, mysqld3.bbb, mysqld.ccc = 0010;
 
 --echo --------------------------------------------------------------------
---exec grep '^aaa\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep "^aaa\$" $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^bbb\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep "^bbb\$" $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^ccc\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^ccc[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 --error 3015 # ER_INSTANCE_IS_ACTIVE
 SET mysqld2.aaa, mysqld3.bbb, mysqld1.ccc = 0010;
 
 --echo --------------------------------------------------------------------
---exec grep '^aaa\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep "^aaa\$" $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^bbb\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep "^bbb\$" $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^ccc\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep '^ccc[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 # - check that if some instance name is invalid or the active is active,
@@ -186,14 +186,14 @@ SET mysqld2.aaa, mysqld3.bbb, mysqld1.ccc = 0010;
 UNSET mysqld2.server_id, mysqld3.server_id, mysqld.ccc;
 
 --echo --------------------------------------------------------------------
---exec grep '^server_id\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^server_id[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
 
 --error 3015 # ER_INSTANCE_IS_ACTIVE
 UNSET mysqld2.server_id, mysqld3.server_id, mysqld1.ccc;
 
 --echo --------------------------------------------------------------------
---exec grep '^server_id\>' $MYSQLTEST_VARDIR/im.cnf;
+--exec grep '^server_id[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf;
 --echo --------------------------------------------------------------------
 
 DROP INSTANCE mysqld3;
@@ -207,21 +207,21 @@ SET   mysqld2  .  server_id  =  222  ;
 SET   mysqld2  .  server_id  =  222  , mysqld2  .  aaa  , mysqld2  .  bbb  ;
 
 --echo --------------------------------------------------------------------
---exec grep '^server_id\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep '^server_id[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
---exec grep '^aaa\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep "^aaa\$" $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
---exec grep '^bbb\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep "^bbb\$" $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
 
 UNSET mysqld2  . aaa  ,  mysqld2  .  bbb ;
 
 --echo --------------------------------------------------------------------
---exec grep '^server_id\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep '^server_id[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
---exec grep '^aaa\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep "^aaa\$" $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
---exec grep '^bbb\>' $MYSQLTEST_VARDIR/im.cnf || true;
+--exec grep "^bbb\$" $MYSQLTEST_VARDIR/im.cnf || true;
 --echo --------------------------------------------------------------------
 
 ###########################################################################
@@ -235,7 +235,7 @@ UNSET mysqld2  . aaa  ,  mysqld2  .  bbb ;
 #     server_id=SERVER_ID for mysqld2);
 
 --echo --------------------------------------------------------------------
---exec grep '^server_id\>' $MYSQLTEST_VARDIR/im.cnf ;
+--exec grep '^server_id[^a-zA-Z0-9_-]' $MYSQLTEST_VARDIR/im.cnf ;
 --echo --------------------------------------------------------------------
 
 #   - (for mysqld1) check that the running instance has not been affected:

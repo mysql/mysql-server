@@ -71,15 +71,17 @@
  *
  */
 
-#ifdef DBUG_OFF
-#undef DBUG_OFF
-#endif
+
 #include <my_global.h>
 #include <m_string.h>
 #include <errno.h>
 #if defined(MSDOS) || defined(__WIN__)
 #include <process.h>
 #endif
+
+
+#ifndef DBUG_OFF
+
 
 /*
  *            Manifest constants which may be "tuned" if desired.
@@ -312,6 +314,7 @@ static unsigned long Clock(void);
 #ifndef MSDOS
 #define ChangeOwner(cs,name)
 #endif
+
 
 /*
 ** Macros to allow dbugging with threads
@@ -2351,3 +2354,5 @@ va_list ap;
 }
 
 #endif  /* NO_VARARGS */
+
+#endif
