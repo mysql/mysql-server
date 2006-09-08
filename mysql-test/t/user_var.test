@@ -141,4 +141,10 @@ select @@global.version;
 --replace_column 1 #
 select @@session.VERSION;
 
+#
+# Bug #20924 SET on a user variable saves UNSIGNED as SIGNED
+#
+set @a=18446744073709551615;
+select @a;
+
 # End of 4.1 tests

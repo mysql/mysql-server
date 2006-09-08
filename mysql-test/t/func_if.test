@@ -73,4 +73,14 @@ SELECT a, NULLIF(a,'') FROM t1 WHERE NULLIF(a,'') IS NULL;
 
 DROP TABLE t1;
 
+#
+# Bug #20924: UNSIGNED values in IF() are treated as SIGNED
+#
+SELECT IF(1 != 0, 18446744073709551615, 1);
+
+#
+# Bug #20924: UNSIGNED values in IFNULL() are treated as SIGNED
+#
+SELECT IFNULL(NULL, 18446744073709551615);
+
 # End of 4.1 tests

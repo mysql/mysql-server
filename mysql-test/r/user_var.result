@@ -203,3 +203,7 @@ select @@global.version;
 select @@session.VERSION;
 @@session.VERSION
 #
+set @a=18446744073709551615;
+select @a;
+@a
+18446744073709551615
