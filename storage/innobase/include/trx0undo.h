@@ -26,7 +26,7 @@ trx_undo_build_roll_ptr(
 	ibool	is_insert,	/* in: TRUE if insert undo log */
 	ulint	rseg_id,	/* in: rollback segment id */
 	ulint	page_no,	/* in: page number */
-	ulint	offset);		/* in: offset of the undo entry within page */
+	ulint	offset);	/* in: offset of the undo entry within page */
 /***************************************************************************
 Decodes a roll pointer dulint. */
 UNIV_INLINE
@@ -96,7 +96,7 @@ trx_undo_page_get_prev_rec(
 				/* out: pointer to record, NULL if none */
 	trx_undo_rec_t*	rec,	/* in: undo log record */
 	ulint		page_no,/* in: undo log header page number */
-	ulint		offset);	/* in: undo log header offset on page */
+	ulint		offset);/* in: undo log header offset on page */
 /**********************************************************************
 Returns the next undo log record on the page in the specified log, or
 NULL if none exists. */
@@ -107,7 +107,7 @@ trx_undo_page_get_next_rec(
 				/* out: pointer to record, NULL if none */
 	trx_undo_rec_t*	rec,	/* in: undo log record */
 	ulint		page_no,/* in: undo log header page number */
-	ulint		offset);	/* in: undo log header offset on page */
+	ulint		offset);/* in: undo log header offset on page */
 /**********************************************************************
 Returns the last undo record on the page in the specified undo log, or
 NULL if none exists. */
@@ -129,7 +129,7 @@ trx_undo_page_get_first_rec(
 			/* out: pointer to record, NULL if none */
 	page_t*	undo_page,/* in: undo log page */
 	ulint	page_no,/* in: undo log header page number */
-	ulint	offset);	/* in: undo log header offset on page */
+	ulint	offset);/* in: undo log header offset on page */
 /***************************************************************************
 Gets the previous record in an undo log. */
 
