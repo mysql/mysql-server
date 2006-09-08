@@ -320,14 +320,6 @@ void
 dfield_print_also_hex(
 /*==================*/
 	dfield_t*	dfield);	 /* in: dfield */
-/*****************************************************************
-Print a dfield value using ut_print_buf. */
-
-void
-dfield_print_raw(
-/*=============*/
-	FILE*		f,		/* in: output stream */
-	dfield_t*	dfield);	/* in: dfield */
 /**************************************************************
 The following function prints the contents of a tuple. */
 

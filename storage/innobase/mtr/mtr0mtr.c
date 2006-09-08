@@ -90,7 +90,7 @@ mtr_memo_pop_all(
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_COMMITTING); /* Currently only used in
-								commit */
+					     commit */
 	memo = &(mtr->memo);
 
 	offset = dyn_array_get_data_size(memo);
@@ -126,13 +126,14 @@ mtr_log_reserve_and_write(
 	if (mtr->n_log_recs > 1) {
 		mlog_catenate_ulint(mtr, MLOG_MULTI_REC_END, MLOG_1BYTE);
 	} else {
-		*first_data = (byte)((ulint)*first_data | MLOG_SINGLE_REC_FLAG);
+		*first_data = (byte)((ulint)*first_data
+				     | MLOG_SINGLE_REC_FLAG);
 	}
 
 	if (mlog->heap == NULL) {
-		mtr->end_lsn = log_reserve_and_write_fast(first_data,
-						dyn_block_get_used(mlog),
-						&(mtr->start_lsn), &success);
+		mtr->end_lsn = log_reserve_and_write_fast
+			(first_data, dyn_block_get_used(mlog),
+			 &(mtr->start_lsn), &success);
 		if (success) {
 
 			return;
@@ -150,7 +151,7 @@ mtr_log_reserve_and_write(
 
 		while (block != NULL) {
 			log_write_low(dyn_block_get_data(block),
-					dyn_block_get_used(block));
+				      dyn_block_get_used(block));
 			block = dyn_array_get_next_block(mlog, block);
 		}
 	} else {
@@ -284,9 +285,9 @@ mtr_read_ulint(
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
-			MTR_MEMO_PAGE_S_FIX) ||
-		mtr_memo_contains(mtr, buf_block_align(ptr),
-			MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains(mtr, buf_block_align(ptr),
+				   MTR_MEMO_PAGE_X_FIX));
 	if (type == MLOG_1BYTE) {
 		return(mach_read_from_1(ptr));
 	} else if (type == MLOG_2BYTES) {
@@ -311,9 +312,9 @@ mtr_read_dulint(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(ptr && mtr);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
-			MTR_MEMO_PAGE_S_FIX) ||
-		mtr_memo_contains(mtr, buf_block_align(ptr),
-			MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains(mtr, buf_block_align(ptr),
+				   MTR_MEMO_PAGE_X_FIX));
 	return(mach_read_from_8(ptr));
 }
 
@@ -326,7 +327,8 @@ mtr_print(
 	mtr_t*	mtr)	/* in: mtr */
 {
 	fprintf(stderr,
-	"Mini-transaction handle: memo size %lu bytes log size %lu bytes\n",
+		"Mini-transaction handle: memo size %lu bytes"
+		" log size %lu bytes\n",
 		(ulong) dyn_array_get_data_size(&(mtr->memo)),
 		(ulong) dyn_array_get_data_size(&(mtr->log)));
 }

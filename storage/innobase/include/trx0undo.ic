@@ -61,7 +61,7 @@ trx_undo_decode_roll_ptr(
 	*rseg_id = (high / (256 * 256)) % 128;
 
 	*page_no = (high % (256 * 256)) * 256 * 256
-		   + (low / 256) / 256;
+		+ (low / 256) / 256;
 }
 
 /***************************************************************************
@@ -179,7 +179,7 @@ trx_undo_page_get_start(
 	if (page_no == buf_frame_get_page_no(undo_page)) {
 
 		start = mach_read_from_2(offset + undo_page
-						+ TRX_UNDO_LOG_START);
+					 + TRX_UNDO_LOG_START);
 	} else {
 		start = TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE;
 	}
@@ -210,11 +210,11 @@ trx_undo_page_get_end(
 
 		if (end == 0) {
 			end = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-						+ TRX_UNDO_PAGE_FREE);
+					       + TRX_UNDO_PAGE_FREE);
 		}
 	} else {
 		end = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-						+ TRX_UNDO_PAGE_FREE);
+				       + TRX_UNDO_PAGE_FREE);
 	}
 
 	return(end);

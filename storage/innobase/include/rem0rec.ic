@@ -289,10 +289,10 @@ rec_get_next_offs(
 		(int16_t) field_value + ut_align_offset(...) < UNIV_PAGE_SIZE
 		*/
 		ut_ad((field_value >= 32768
-				? field_value - 65536
-				: field_value)
-			+ ut_align_offset(rec, UNIV_PAGE_SIZE)
-			< UNIV_PAGE_SIZE);
+		       ? field_value - 65536
+		       : field_value)
+		      + ut_align_offset(rec, UNIV_PAGE_SIZE)
+		      < UNIV_PAGE_SIZE);
 #endif
 		if (field_value == 0) {
 
@@ -336,7 +336,8 @@ rec_set_next_offs(
 			as a non-negative number */
 
 			field_value = (ulint)((lint)next
-				- (lint)ut_align_offset(rec, UNIV_PAGE_SIZE));
+					      - (lint)ut_align_offset
+					      (rec, UNIV_PAGE_SIZE));
 			field_value &= REC_NEXT_MASK;
 		} else {
 			field_value = 0;
@@ -363,7 +364,8 @@ rec_get_n_fields_old(
 	ut_ad(rec);
 
 	ret = rec_get_bit_field_2(rec, REC_OLD_N_FIELDS,
-				REC_OLD_N_FIELDS_MASK, REC_OLD_N_FIELDS_SHIFT);
+				  REC_OLD_N_FIELDS_MASK,
+				  REC_OLD_N_FIELDS_SHIFT);
 	ut_ad(ret <= REC_MAX_N_FIELDS);
 	ut_ad(ret > 0);
 
@@ -385,7 +387,7 @@ rec_set_n_fields_old(
 	ut_ad(n_fields > 0);
 
 	rec_set_bit_field_2(rec, n_fields, REC_OLD_N_FIELDS,
-		REC_OLD_N_FIELDS_MASK, REC_OLD_N_FIELDS_SHIFT);
+			    REC_OLD_N_FIELDS_MASK, REC_OLD_N_FIELDS_SHIFT);
 }
 
 /**********************************************************
@@ -402,7 +404,7 @@ rec_get_status(
 	ut_ad(rec);
 
 	ret = rec_get_bit_field_1(rec, REC_NEW_STATUS,
-				REC_NEW_STATUS_MASK, REC_NEW_STATUS_SHIFT);
+				  REC_NEW_STATUS_MASK, REC_NEW_STATUS_SHIFT);
 	ut_ad((ret & ~REC_NEW_STATUS_MASK) == 0);
 
 	return(ret);
@@ -456,8 +458,8 @@ rec_get_n_owned(
 	ut_ad(rec);
 
 	ret = rec_get_bit_field_1(rec,
-				comp ? REC_NEW_N_OWNED : REC_OLD_N_OWNED,
-				REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
+				  comp ? REC_NEW_N_OWNED : REC_OLD_N_OWNED,
+				  REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
 	ut_ad(ret <= REC_MAX_N_OWNED);
 
 	return(ret);
@@ -477,8 +479,8 @@ rec_set_n_owned(
 	ut_ad(n_owned <= REC_MAX_N_OWNED);
 
 	rec_set_bit_field_1(rec, n_owned,
-				comp ? REC_NEW_N_OWNED : REC_OLD_N_OWNED,
-				REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
+			    comp ? REC_NEW_N_OWNED : REC_OLD_N_OWNED,
+			    REC_N_OWNED_MASK, REC_N_OWNED_SHIFT);
 }
 
 /**********************************************************
@@ -496,8 +498,8 @@ rec_get_info_bits(
 	ut_ad(rec);
 
 	ret = rec_get_bit_field_1(rec,
-				comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
-				REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
+				  comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
+				  REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
 	ut_ad((ret & ~REC_INFO_BITS_MASK) == 0);
 
 	return(ret);
@@ -517,8 +519,8 @@ rec_set_info_bits(
 	ut_ad((bits & ~REC_INFO_BITS_MASK) == 0);
 
 	rec_set_bit_field_1(rec, bits,
-				comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
-				REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
+			    comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
+			    REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
 }
 
 /**********************************************************
@@ -534,7 +536,7 @@ rec_set_status(
 	ut_ad((bits & ~REC_NEW_STATUS_MASK) == 0);
 
 	rec_set_bit_field_1(rec, bits, REC_NEW_STATUS,
-				REC_NEW_STATUS_MASK, REC_NEW_STATUS_SHIFT);
+			    REC_NEW_STATUS_MASK, REC_NEW_STATUS_SHIFT);
 }
 
 /**********************************************************
@@ -595,13 +597,15 @@ rec_get_deleted_flag(
 	ulint	comp)	/* in: nonzero=compact page format */
 {
 	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
-		return(UNIV_UNLIKELY(rec_get_bit_field_1(rec,
-				REC_NEW_INFO_BITS, REC_INFO_DELETED_FLAG,
-				REC_INFO_BITS_SHIFT)));
+		return(UNIV_UNLIKELY
+		       (rec_get_bit_field_1(rec, REC_NEW_INFO_BITS,
+					    REC_INFO_DELETED_FLAG,
+					    REC_INFO_BITS_SHIFT)));
 	} else {
-		return(UNIV_UNLIKELY(rec_get_bit_field_1(rec,
-				REC_OLD_INFO_BITS, REC_INFO_DELETED_FLAG,
-				REC_INFO_BITS_SHIFT)));
+		return(UNIV_UNLIKELY
+		       (rec_get_bit_field_1(rec, REC_OLD_INFO_BITS,
+					    REC_INFO_DELETED_FLAG,
+					    REC_INFO_BITS_SHIFT)));
 	}
 }
 
@@ -656,8 +660,8 @@ rec_get_heap_no(
 	ut_ad(rec);
 
 	ret = rec_get_bit_field_2(rec,
-				comp ? REC_NEW_HEAP_NO : REC_OLD_HEAP_NO,
-				REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
+				  comp ? REC_NEW_HEAP_NO : REC_OLD_HEAP_NO,
+				  REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
 	ut_ad(ret <= REC_MAX_HEAP_NO);
 
 	return(ret);
@@ -676,8 +680,8 @@ rec_set_heap_no(
 	ut_ad(heap_no <= REC_MAX_HEAP_NO);
 
 	rec_set_bit_field_2(rec, heap_no,
-				comp ? REC_NEW_HEAP_NO : REC_OLD_HEAP_NO,
-				REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
+			    comp ? REC_NEW_HEAP_NO : REC_OLD_HEAP_NO,
+			    REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT);
 }
 
 /**********************************************************
@@ -695,7 +699,7 @@ rec_get_1byte_offs_flag(
 #endif
 
 	return(rec_get_bit_field_1(rec, REC_OLD_SHORT, REC_OLD_SHORT_MASK,
-							REC_OLD_SHORT_SHIFT));
+				   REC_OLD_SHORT_SHIFT));
 }
 
 /**********************************************************
@@ -713,7 +717,7 @@ rec_set_1byte_offs_flag(
 	ut_ad(flag <= TRUE);
 
 	rec_set_bit_field_1(rec, flag, REC_OLD_SHORT, REC_OLD_SHORT_MASK,
-							REC_OLD_SHORT_SHIFT);
+			    REC_OLD_SHORT_SHIFT);
 }
 
 /**********************************************************
@@ -814,7 +818,7 @@ rec_offs_n_fields(
 	ut_ad(n_fields > 0);
 	ut_ad(n_fields <= REC_MAX_N_FIELDS);
 	ut_ad(n_fields + REC_OFFS_HEADER_SIZE
-		<= rec_offs_get_n_alloc(offsets));
+	      <= rec_offs_get_n_alloc(offsets));
 	return(n_fields);
 }
 
@@ -842,16 +846,16 @@ rec_offs_validate(
 	if (index) {
 		ulint max_n_fields;
 		ut_ad((ulint) index == offsets[3]);
-		max_n_fields = ut_max(
-				dict_index_get_n_fields(index),
-				dict_index_get_n_unique_in_tree(index) + 1);
+		max_n_fields = ut_max
+			(dict_index_get_n_fields(index),
+			 dict_index_get_n_unique_in_tree(index) + 1);
 		if (comp && rec) {
 			switch (rec_get_status(rec)) {
 			case REC_STATUS_ORDINARY:
 				break;
 			case REC_STATUS_NODE_PTR:
-				max_n_fields =
-				dict_index_get_n_unique_in_tree(index) + 1;
+				max_n_fields = dict_index_get_n_unique_in_tree
+					(index) + 1;
 				break;
 			case REC_STATUS_INFIMUM:
 			case REC_STATUS_SUPREMUM:
@@ -960,7 +964,7 @@ rec_offs_nth_extern(
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
 	return(UNIV_UNLIKELY(rec_offs_base(offsets)[1 + n]
-				& REC_OFFS_EXTERNAL));
+			     & REC_OFFS_EXTERNAL));
 }
 
 /**********************************************************
@@ -976,7 +980,7 @@ rec_offs_nth_sql_null(
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
 	return(UNIV_UNLIKELY(rec_offs_base(offsets)[1 + n]
-				& REC_OFFS_SQL_NULL));
+			     & REC_OFFS_SQL_NULL));
 }
 
 /**********************************************************
@@ -992,7 +996,7 @@ rec_offs_nth_size(
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	ut_ad(n < rec_offs_n_fields(offsets));
 	return((rec_offs_base(offsets)[1 + n] - rec_offs_base(offsets)[n])
-			& REC_OFFS_MASK);
+	       & REC_OFFS_MASK);
 }
 
 /**********************************************************
@@ -1129,7 +1133,7 @@ rec_1_get_field_start_offs(
 	}
 
 	return(rec_1_get_prev_field_end_info(rec, n)
-						& ~REC_1BYTE_SQL_NULL_MASK);
+	       & ~REC_1BYTE_SQL_NULL_MASK);
 }
 
 /**********************************************************
@@ -1152,7 +1156,7 @@ rec_2_get_field_start_offs(
 	}
 
 	return(rec_2_get_prev_field_end_info(rec, n)
-		& ~(REC_2BYTE_SQL_NULL_MASK | REC_2BYTE_EXTERN_MASK));
+	       & ~(REC_2BYTE_SQL_NULL_MASK | REC_2BYTE_EXTERN_MASK));
 }
 
 /**********************************************************
@@ -1282,7 +1286,7 @@ rec_offs_set_n_fields(
 	ut_ad(n_fields > 0);
 	ut_ad(n_fields <= REC_MAX_N_FIELDS);
 	ut_ad(n_fields + REC_OFFS_HEADER_SIZE
-		<= rec_offs_get_n_alloc(offsets));
+	      <= rec_offs_get_n_alloc(offsets));
 	offsets[1] = n_fields;
 }
 
@@ -1302,7 +1306,7 @@ rec_offs_data_size(
 
 	ut_ad(rec_offs_validate(NULL, NULL, offsets));
 	size = rec_offs_base(offsets)[rec_offs_n_fields(offsets)]
-			& REC_OFFS_MASK;
+		& REC_OFFS_MASK;
 	ut_ad(size < UNIV_PAGE_SIZE);
 	return(size);
 }
@@ -1437,11 +1441,11 @@ rec_get_converted_size(
 	ut_ad(dtuple_check_typed(dtuple));
 
 	ut_ad(index->type & DICT_UNIVERSAL
-		|| dtuple_get_n_fields(dtuple) ==
-		(((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
-			== REC_STATUS_NODE_PTR)
-				? dict_index_get_n_unique_in_tree(index) + 1
-				: dict_index_get_n_fields(index)));
+	      || dtuple_get_n_fields(dtuple)
+	      == (((dtuple_get_info_bits(dtuple) & REC_NEW_STATUS_MASK)
+		   == REC_STATUS_NODE_PTR)
+		  ? dict_index_get_n_unique_in_tree(index) + 1
+		  : dict_index_get_n_fields(index)));
 
 	if (dict_table_is_comp(index->table)) {
 		return(rec_get_converted_size_new(index, dtuple));
@@ -1449,8 +1453,8 @@ rec_get_converted_size(
 
 	data_size = dtuple_get_data_size(dtuple);
 
-	extra_size = rec_get_converted_extra_size(
-				data_size, dtuple_get_n_fields(dtuple));
+	extra_size = rec_get_converted_extra_size
+		(data_size, dtuple_get_n_fields(dtuple));
 
 	return(data_size + extra_size);
 }
