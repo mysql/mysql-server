@@ -108,4 +108,10 @@ select 5.1 mod 3, 5.1 mod -3, -5.1 mod 3, -5.1 mod -3;
 
 select 5 mod 3, 5 mod -3, -5 mod 3, -5 mod -3;
 
+#
+# Bug #20924: UNSIGNED values in GREATEST() and LEAST() are treated as SIGNED
+#
+SELECT GREATEST(1, 18446744073709551615);
+SELECT LEAST(1, 18446744073709551615);
+
 # End of 4.1 tests
