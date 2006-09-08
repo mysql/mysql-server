@@ -548,71 +548,6 @@ INSERT INTO t1 VALUES (1),(2),(3);
 --exec $MYSQL_DUMP --add-drop-database --skip-comments --databases test
 DROP TABLE t1;
 
-
-#
-# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
-#
-
-create database db1;
-use db1;
-
-CREATE TABLE t2 (
-  a varchar(30) default NULL,
-  KEY a (a(5))
-);
-
-INSERT INTO t2 VALUES ('alfred');
-INSERT INTO t2 VALUES ('angie');
-INSERT INTO t2 VALUES ('bingo');
-INSERT INTO t2 VALUES ('waffle');
-INSERT INTO t2 VALUES ('lemon');
-create view v2 as select * from t2 where a like 'a%' with check option;
---exec $MYSQL_DUMP  --skip-comments db1
-drop table t2;
-drop view v2;
-drop database db1;
-
-#
-# Bug 10713 mysqldump includes database in create view and referenced tables
-#
-
-# create table and views in db2
-create database db2;
-use db2;
-create table t1 (a int);
-create table t2 (a int, b varchar(10), primary key(a));
-insert into t2 values (1, "on"), (2, "off"), (10, "pol"), (12, "meg");
-insert into t1 values (289), (298), (234), (456), (789);
-create view v1 as select * from t2;
-create view v2 as select * from t1;
-
-# dump tables and view from db2
---exec $MYSQL_DUMP db2 > $MYSQLTEST_VARDIR/tmp/bug10713.sql
-
-# drop the db, tables and views
-drop table t1, t2;
-drop view v1, v2;
-drop database db2;
-
-# create db1 and reload dump
-create database db1;
-use db1;
---exec $MYSQL db1 < $MYSQLTEST_VARDIR/tmp/bug10713.sql
-
-# check that all tables and views could be created
-show tables;
-select * from t2 order by a;
-
-drop table t1, t2;
-drop database db1;
-
-#
-# BUG#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
-#
-
---exec $MYSQL_MY_PRINT_DEFAULTS --defaults-file=$MYSQL_TEST_DIR/std_data/bug15328.cnf mysqldump
-
-
 #
 # Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
 #
@@ -720,6 +655,12 @@ select * from t1;
 drop table t1;
 
 #
+# BUG#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
+#
+
+--exec $MYSQL_MY_PRINT_DEFAULTS --config-file=$MYSQL_TEST_DIR/std_data/bug15328.cnf mysqldump
+
+#
 # BUG #19025 mysqldump doesn't correctly dump "auto_increment = [int]"
 #
 create table `t1` (
@@ -760,14 +701,74 @@ create table t3(a int);
 drop table t1, t2, t3;
 
 #
-# Bug #13318: Bad result with empty field and --hex-blob
-# 
-create table t1 (a binary(1), b blob);
-insert into t1 values ('','');
---exec $MYSQL_DUMP --skip-comments --skip-extended-insert --hex-blob test t1
---exec $MYSQL_DUMP --skip-comments --hex-blob test t1
+# Bug #21288: mysqldump segmentation fault when using --where
+#
+create table t1 (a int);
+--error 2
+--exec $MYSQL_DUMP --skip-comments --force test t1 --where='xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' 2>&1
 drop table t1;
 
+--echo End of 4.1 tests
+
+#
+# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+#
+
+create database db1;
+use db1;
+
+CREATE TABLE t2 (
+  a varchar(30) default NULL,
+  KEY a (a(5))
+);
+
+INSERT INTO t2 VALUES ('alfred');
+INSERT INTO t2 VALUES ('angie');
+INSERT INTO t2 VALUES ('bingo');
+INSERT INTO t2 VALUES ('waffle');
+INSERT INTO t2 VALUES ('lemon');
+create view v2 as select * from t2 where a like 'a%' with check option;
+--exec $MYSQL_DUMP  --skip-comments db1
+drop table t2;
+drop view v2;
+drop database db1;
+use test;
+
+#
+# Bug 10713 mysqldump includes database in create view and referenced tables
+#
+
+# create table and views in db2
+create database db2;
+use db2;
+create table t1 (a int);
+create table t2 (a int, b varchar(10), primary key(a));
+insert into t2 values (1, "on"), (2, "off"), (10, "pol"), (12, "meg");
+insert into t1 values (289), (298), (234), (456), (789);
+create view v1 as select * from t2;
+create view v2 as select * from t1;
+
+# dump tables and view from db2
+--exec $MYSQL_DUMP db2 > $MYSQLTEST_VARDIR/tmp/bug10713.sql
+
+# drop the db, tables and views
+drop table t1, t2;
+drop view v1, v2;
+drop database db2;
+use test;
+
+# create db1 and reload dump
+create database db1;
+use db1;
+--exec $MYSQL db1 < $MYSQLTEST_VARDIR/tmp/bug10713.sql
+
+# check that all tables and views could be created
+show tables;
+select * from t2 order by a;
+
+drop table t1, t2;
+drop database db1;
+use test;
 
 #
 # dump of view
@@ -832,6 +833,7 @@ select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
 
 drop view v1, v2, v3;
 drop table t1;
+
 #
 # Test for dumping triggers
 #
@@ -1057,20 +1059,6 @@ drop view v0;
 drop view v1;
 drop table t1;
 
-# Check new --replace option
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
-
-CREATE TABLE t1(a int, b int);
-INSERT INTO t1 VALUES (1,1);
-INSERT INTO t1 VALUES (2,3);
-INSERT INTO t1 VALUES (3,4), (4,5);
---exec $MYSQL_DUMP --replace --skip-comments test t1
-DROP TABLE t1;
-
-
 #
 # BUG#14554 - mysqldump does not separate words "ROW" and "BEGIN"
 # for tables with trigger created in the IGNORE_SPACE sql mode.
@@ -1095,7 +1083,14 @@ SET SQL_MODE = @old_sql_mode;
 DROP TRIGGER tr1;
 DROP TABLE t1;
 
---echo End of 4.1 tests
+#
+# Bug #13318: Bad result with empty field and --hex-blob
+# 
+create table t1 (a binary(1), b blob);
+insert into t1 values ('','');
+--exec $MYSQL_DUMP --skip-comments --skip-extended-insert --hex-blob test t1
+--exec $MYSQL_DUMP --skip-comments --hex-blob test t1
+drop table t1;
 
 #
 # Bug 14871 Invalid view dump output
@@ -1125,7 +1120,6 @@ select * from v3 order by a;
 
 drop table t1;
 drop view v1, v2, v3, v4, v5;
-
 
 #
 # Bug #16878 dump of trigger
@@ -1281,10 +1275,11 @@ use mysqldump_dbb;
 drop view v1;
 drop table t1;
 drop database mysqldump_dbb;
+use test;
+
 #
 # Bug#21215 mysqldump creating incomplete backups without warning
 #
-use test;
 
 # Create user without sufficient privs to perform the requested operation
 create user mysqltest_1@localhost;
@@ -1355,8 +1350,23 @@ drop table t1;
 revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
 drop user myDB_User;
 drop database mysqldump_myDB;
---echo End of 5.0 tests
 use test;
+
+--echo End of 5.0 tests
+
+# Check new --replace option
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1(a int, b int);
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 VALUES (2,3);
+INSERT INTO t1 VALUES (3,4), (4,5);
+--exec $MYSQL_DUMP --replace --skip-comments test t1
+DROP TABLE t1;
+
 #
 # Added for use-thread option
 #

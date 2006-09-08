@@ -326,8 +326,6 @@ static char *my_bind_addr_str;
 static char *default_collation_name; 
 static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
-static char mysql_data_home_buff[2];
-static struct passwd *user_info;
 static I_List<THD> thread_cache;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
@@ -508,7 +506,8 @@ key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
-char *mysql_data_home= mysql_real_data_home;
+char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
+struct passwd *user_info;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
@@ -7593,10 +7592,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     switch (method-1) {
     case 0: 
-      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
+      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
       break;
     case 1:
-      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
       break;
     case 2:
       method_conv= MI_STATS_METHOD_IGNORE_NULLS;

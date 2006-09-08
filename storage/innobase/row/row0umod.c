@@ -101,18 +101,19 @@ row_undo_mod_clust_low(
 	if (mode == BTR_MODIFY_LEAF) {
 
 		err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG
-					| BTR_NO_UNDO_LOG_FLAG
-					| BTR_KEEP_SYS_FLAG,
-					btr_cur, node->update,
-					node->cmpl_info, thr, mtr);
+						| BTR_NO_UNDO_LOG_FLAG
+						| BTR_KEEP_SYS_FLAG,
+						btr_cur, node->update,
+						node->cmpl_info, thr, mtr);
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
-		err = btr_cur_pessimistic_update(BTR_NO_LOCKING_FLAG
-					| BTR_NO_UNDO_LOG_FLAG
-					| BTR_KEEP_SYS_FLAG,
-					btr_cur, &dummy_big_rec, node->update,
-					node->cmpl_info, thr, mtr);
+		err = btr_cur_pessimistic_update
+			(BTR_NO_LOCKING_FLAG
+			 | BTR_NO_UNDO_LOG_FLAG
+			 | BTR_KEEP_SYS_FLAG,
+			 btr_cur, &dummy_big_rec, node->update,
+			 node->cmpl_info, thr, mtr);
 	}
 
 	return(err);
@@ -149,7 +150,7 @@ row_undo_mod_remove_clust_low(
 	/* Find out if we can remove the whole clustered index record */
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
-		&& !row_vers_must_preserve_del_marked(node->new_trx_id, mtr)) {
+	    && !row_vers_must_preserve_del_marked(node->new_trx_id, mtr)) {
 
 		/* Ok, we can remove */
 	} else {
@@ -234,7 +235,7 @@ row_undo_mod_clust(
 		mtr_start(&mtr);
 
 		err = row_undo_mod_remove_clust_low(node, thr, &mtr,
-							BTR_MODIFY_LEAF);
+						    BTR_MODIFY_LEAF);
 		if (err != DB_SUCCESS) {
 			btr_pcur_commit_specify_mtr(pcur, &mtr);
 
@@ -244,7 +245,7 @@ row_undo_mod_clust(
 			mtr_start(&mtr);
 
 			err = row_undo_mod_remove_clust_low(node, thr, &mtr,
-							BTR_MODIFY_TREE);
+							    BTR_MODIFY_TREE);
 		}
 
 		btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -318,15 +319,15 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	mtr_start(&mtr_vers);
 
 	success = btr_pcur_restore_position(BTR_SEARCH_LEAF, &(node->pcur),
-								&mtr_vers);
+					    &mtr_vers);
 	ut_a(success);
 
 	old_has = row_vers_old_has_index_entry(FALSE,
-					btr_pcur_get_rec(&(node->pcur)),
-					&mtr_vers, index, entry);
+					       btr_pcur_get_rec(&(node->pcur)),
+					       &mtr_vers, index, entry);
 	if (old_has) {
 		err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
-						btr_cur, TRUE, thr, &mtr);
+						   btr_cur, TRUE, thr, &mtr);
 		ut_ad(err == DB_SUCCESS);
 	} else {
 		/* Remove the index record */
@@ -342,7 +343,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 			ut_ad(mode == BTR_MODIFY_TREE);
 
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
-								TRUE, &mtr);
+						   TRUE, &mtr);
 
 			/* The delete operation may fail if we have little
 			file space left: TODO: easiest to crash the database
@@ -378,14 +379,14 @@ row_undo_mod_del_mark_or_remove_sec(
 	ulint	err;
 
 	err = row_undo_mod_del_mark_or_remove_sec_low(node, thr, index,
-						entry, BTR_MODIFY_LEAF);
+						      entry, BTR_MODIFY_LEAF);
 	if (err == DB_SUCCESS) {
 
 		return(err);
 	}
 
 	err = row_undo_mod_del_mark_or_remove_sec_low(node, thr, index,
-						entry, BTR_MODIFY_TREE);
+						      entry, BTR_MODIFY_TREE);
 	return(err);
 }
 
@@ -422,28 +423,29 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 	if (!found) {
 		fputs("InnoDB: error in sec index entry del undo in\n"
-			"InnoDB: ", stderr);
+		      "InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
 		fputs("\n"
-			"InnoDB: tuple ", stderr);
+		      "InnoDB: tuple ", stderr);
 		dtuple_print(stderr, entry);
 		fputs("\n"
-			"InnoDB: record ", stderr);
+		      "InnoDB: record ", stderr);
 		rec_print(stderr, btr_pcur_get_rec(&pcur), index);
 		putc('\n', stderr);
 		trx_print(stderr, trx, 0);
 		fputs("\n"
-"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n", stderr);
+		      "InnoDB: Submit a detailed bug report"
+		      " to http://bugs.mysql.com\n", stderr);
 	} else {
 		btr_cur_t*	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 		err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
-						btr_cur, FALSE, thr, &mtr);
+						   btr_cur, FALSE, thr, &mtr);
 		ut_a(err == DB_SUCCESS);
 		heap = mem_heap_create(100);
 
-		update = row_upd_build_sec_rec_difference_binary(index, entry,
-			btr_cur_get_rec(btr_cur), trx, heap);
+		update = row_upd_build_sec_rec_difference_binary
+			(index, entry, btr_cur_get_rec(btr_cur), trx, heap);
 		if (upd_get_n_fields(update) == 0) {
 
 			/* Do nothing */
@@ -452,18 +454,18 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			/* Try an optimistic updating of the record, keeping
 			changes within the page */
 
-			err = btr_cur_optimistic_update(BTR_KEEP_SYS_FLAG
-							| BTR_NO_LOCKING_FLAG,
-						btr_cur, update, 0, thr, &mtr);
+			err = btr_cur_optimistic_update
+				(BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
+				 btr_cur, update, 0, thr, &mtr);
 			if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
 				err = DB_FAIL;
 			}
 		} else {
 			ut_a(mode == BTR_MODIFY_TREE);
-			err = btr_cur_pessimistic_update(BTR_KEEP_SYS_FLAG
-							| BTR_NO_LOCKING_FLAG,
-						btr_cur, &dummy_big_rec,
-						update, 0, thr, &mtr);
+			err = btr_cur_pessimistic_update
+				(BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
+				 btr_cur, &dummy_big_rec,
+				 update, 0, thr, &mtr);
 		}
 
 		mem_heap_free(heap);
@@ -498,7 +500,7 @@ row_undo_mod_upd_del_sec(
 		entry = row_build_index_entry(node->row, index, heap);
 
 		err = row_undo_mod_del_mark_or_remove_sec(node, thr, index,
-								entry);
+							  entry);
 		if (err != DB_SUCCESS) {
 
 			mem_heap_free(heap);
@@ -536,13 +538,11 @@ row_undo_mod_del_mark_sec(
 
 		entry = row_build_index_entry(node->row, index, heap);
 
-		err = row_undo_mod_del_unmark_sec_and_undo_update(
-						BTR_MODIFY_LEAF,
-						thr, index, entry);
+		err = row_undo_mod_del_unmark_sec_and_undo_update
+			(BTR_MODIFY_LEAF, thr, index, entry);
 		if (err == DB_FAIL) {
-			err = row_undo_mod_del_unmark_sec_and_undo_update(
-						BTR_MODIFY_TREE,
-						thr, index, entry);
+			err = row_undo_mod_del_unmark_sec_and_undo_update
+				(BTR_MODIFY_TREE, thr, index, entry);
 		}
 
 		if (err != DB_SUCCESS) {
@@ -587,7 +587,7 @@ row_undo_mod_upd_exist_sec(
 		index = node->index;
 
 		if (row_upd_changes_ord_field_binary(node->row, node->index,
-							node->update)) {
+						     node->update)) {
 
 			/* Build the newest version of the index entry */
 			entry = row_build_index_entry(node->row, index, heap);
@@ -603,7 +603,8 @@ row_undo_mod_upd_exist_sec(
 			through which we do the search is delete-marked. */
 
 			err = row_undo_mod_del_mark_or_remove_sec(node, thr,
-								index, entry);
+								  index,
+								  entry);
 			if (err != DB_SUCCESS) {
 				mem_heap_free(heap);
 
@@ -618,15 +619,12 @@ row_undo_mod_upd_exist_sec(
 			'abc' -> 'aBc'. */
 
 			row_upd_index_replace_new_col_vals(entry, index,
-							node->update, NULL);
-			err = row_undo_mod_del_unmark_sec_and_undo_update(
-						BTR_MODIFY_LEAF,
-						thr, index, entry);
+							   node->update, NULL);
+			err = row_undo_mod_del_unmark_sec_and_undo_update
+				(BTR_MODIFY_LEAF, thr, index, entry);
 			if (err == DB_FAIL) {
-				err =
-				   row_undo_mod_del_unmark_sec_and_undo_update(
-						BTR_MODIFY_TREE,
-						thr, index, entry);
+				err = row_undo_mod_del_unmark_sec_and_undo_update
+					(BTR_MODIFY_TREE, thr, index, entry);
 			}
 
 			if (err != DB_SUCCESS) {
@@ -668,7 +666,7 @@ row_undo_mod_parse_undo_rec(
 	ut_ad(node && thr);
 	trx = thr_get_trx(thr);
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
-					&dummy_extern, &undo_no, &table_id);
+				    &dummy_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
 	node->table = dict_table_get_on_id(table_id, trx);
@@ -691,14 +689,14 @@ row_undo_mod_parse_undo_rec(
 	clust_index = dict_table_get_first_index(node->table);
 
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,
-								&info_bits);
+					       &info_bits);
 
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
-								node->heap);
+				       node->heap);
 
 	trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
-					roll_ptr, info_bits, trx,
-					node->heap, &(node->update));
+				       roll_ptr, info_bits, trx,
+				       node->heap, &(node->update));
 	node->new_roll_ptr = roll_ptr;
 	node->new_trx_id = trx_id;
 	node->cmpl_info = cmpl_info;
@@ -738,8 +736,8 @@ row_undo_mod(
 		return(DB_SUCCESS);
 	}
 
-	node->index = dict_table_get_next_index(
-				dict_table_get_first_index(node->table));
+	node->index = dict_table_get_next_index
+		(dict_table_get_first_index(node->table));
 
 	if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 

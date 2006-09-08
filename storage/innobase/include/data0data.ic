@@ -52,7 +52,7 @@ dfield_get_data(
 {
 	ut_ad(field);
 	ut_ad((field->len == UNIV_SQL_NULL)
-		|| (field->data != &data_error));
+	      || (field->data != &data_error));
 
 	return(field->data);
 }
@@ -69,7 +69,7 @@ dfield_get_len(
 {
 	ut_ad(field);
 	ut_ad((field->len == UNIV_SQL_NULL)
-		|| (field->data != &data_error));
+	      || (field->data != &data_error));
 
 	return(field->len);
 }
@@ -146,9 +146,9 @@ dfield_datas_are_binary_equal(
 	len = field1->len;
 
 	if ((len != field2->len)
-		|| ((len != UNIV_SQL_NULL)
-			&& (0 != ut_memcmp(field1->data, field2->data,
-					len)))) {
+	    || ((len != UNIV_SQL_NULL)
+		&& (0 != ut_memcmp(field1->data, field2->data,
+				   len)))) {
 
 		return(FALSE);
 	}
@@ -262,7 +262,7 @@ dtuple_create(
 	ut_ad(heap);
 
 	tuple = (dtuple_t*) mem_heap_alloc(heap, sizeof(dtuple_t)
-		+ n_fields * sizeof(dfield_t));
+					   + n_fields * sizeof(dfield_t));
 	tuple->info_bits = 0;
 	tuple->n_fields = n_fields;
 	tuple->n_fields_cmp = n_fields;
@@ -426,7 +426,7 @@ dtuple_contains_null(
 
 	for (i = 0; i < n; i++) {
 		if (dfield_get_len(dtuple_get_nth_field(tuple, i))
-			== UNIV_SQL_NULL) {
+		    == UNIV_SQL_NULL) {
 
 			return(TRUE);
 		}

@@ -583,9 +583,11 @@ to know struct size! */
 struct btr_cur_struct {
 	dict_index_t*	index;		/* index where positioned */
 	page_cur_t	page_cur;	/* page cursor */
-	page_t*		left_page;	/* this field is used to store a pointer
-					to the left neighbor page, in the cases
-					BTR_SEARCH_PREV and BTR_MODIFY_PREV */
+	page_t*		left_page;	/* this field is used to store
+					a pointer to the left neighbor
+					page, in the cases
+					BTR_SEARCH_PREV and
+					BTR_MODIFY_PREV */
 	/*------------------------------*/
 	que_thr_t*	thr;		/* this field is only used when
 					btr_cur_search_... is called for an
