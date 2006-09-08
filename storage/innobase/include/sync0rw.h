@@ -61,9 +61,9 @@ Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized
 to the non-locked state. Explicit freeing of the rw-lock with rw_lock_free
 is necessary only if the memory block containing it is freed. */
-#define rw_lock_create(L, level) rw_lock_create_func((L), (level), __FILE__, __LINE__, #L)
+#define rw_lock_create(L, level) 					\
+	rw_lock_create_func((L), (level), __FILE__, __LINE__, #L)
 
-/*=====================*/
 /**********************************************************************
 Creates, or rather, initializes an rw-lock object in a specified memory
 location (which must be appropriately aligned). The rw-lock is initialized

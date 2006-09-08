@@ -663,8 +663,9 @@ int MYSQLlex(void *arg, void *yythd)
       */
 
       if ((yylval->lex_str.str[0]=='_') && 
-          (lex->charset=get_charset_by_csname(yylval->lex_str.str+1,
-					      MY_CS_PRIMARY,MYF(0))))
+          (lex->underscore_charset=
+             get_charset_by_csname(yylval->lex_str.str + 1,
+                                   MY_CS_PRIMARY,MYF(0))))
         return(UNDERSCORE_CHARSET);
       return(result_state);			// IDENT or IDENT_QUOTED
 
@@ -1047,6 +1048,8 @@ int MYSQLlex(void *arg, void *yythd)
       if (c == '.')
 	lex->next_state=MY_LEX_IDENT_SEP;
       length= (uint) (lex->ptr - lex->tok_start)-1;
+      if (length == 0) 
+        return(ABORT_SYM);              // Names must be nonempty.
       if ((tokval= find_keyword(lex,length,0)))
       {
 	yyUnget();				// Put back 'c'
