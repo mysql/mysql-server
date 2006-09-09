@@ -411,6 +411,17 @@ public:
 
 
 typedef bool (Item::*Item_processor) (byte *arg);
+/*
+  Analyzer function
+    SYNOPSIS
+      argp   in/out IN:  Analysis parameter
+                    OUT: Parameter to be passed to the transformer
+
+    RETURN 
+      TRUE   Invoke the transformer
+      FALSE  Don't do it
+
+*/
 typedef bool (Item::*Item_analyzer) (byte **argp);
 typedef Item* (Item::*Item_transformer) (byte *arg);
 typedef void (*Cond_traverser) (const Item *item, void *arg);
@@ -740,6 +751,22 @@ public:
     return (this->*transformer)(arg);
   }
 
+  /*
+    This function performs a generic "compilation" of the Item tree.
+    The process of compilation is assumed to go as follows: 
+    
+    compile()
+    { 
+      if (this->*some_analyzer(...))
+      {
+        compile children if any;
+        this->*some_transformer(...);
+      }
+    }
+
+    i.e. analysis is performed top-down while transformation is done
+    bottom-up.      
+  */
   virtual Item* compile(Item_analyzer analyzer, byte **arg_p,
                         Item_transformer transformer, byte *arg_t)
   {

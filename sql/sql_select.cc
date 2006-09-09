@@ -6919,9 +6919,9 @@ static COND *build_equal_items_for_cond(COND *cond,
       as soon the field is not of a string type or the field reference is
       an argument of a comparison predicate. 
     */ 
-    byte *dummy;
+    byte *is_subst_valid= (byte *) 1;
     cond= cond->compile(&Item::subst_argument_checker,
-                        &dummy, 
+                        &is_subst_valid, 
                         &Item::equal_fields_propagator,
                         (byte *) inherited);
     cond->update_used_tables();
