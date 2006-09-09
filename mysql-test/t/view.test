@@ -2760,3 +2760,21 @@ create view v1 as select * from t1 where f1 between now() and now() + interval 1
 show create view v1;
 drop view v1;
 drop table t1;
+
+#
+# Bug #5500: wrong select_type in EXPLAIN output for queries over views
+#
+
+CREATE TABLE t1 (s1 int); 
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+EXPLAIN SELECT * FROM t1;
+EXPLAIN SELECT * FROM v1;
+
+INSERT INTO t1 VALUES (1), (3), (2);
+
+EXPLAIN SELECT * FROM t1 t WHERE t.s1+1 < (SELECT MAX(t1.s1) FROM t1); 
+EXPLAIN SELECT * FROM v1 t WHERE t.s1+1 < (SELECT MAX(t1.s1) FROM t1); 
+
+DROP VIEW v1;
+DROP TABLE t1;
