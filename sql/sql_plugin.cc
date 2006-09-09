@@ -967,7 +967,6 @@ my_bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
 
   for (idx= 0; idx < total; idx++)
   {
-    plugin= plugins[idx];
     if (unlikely(version != plugin_array_version))
     {
       rw_rdlock(&THR_LOCK_plugin);
@@ -976,6 +975,7 @@ my_bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
           plugins[i]=0;
       rw_unlock(&THR_LOCK_plugin);
     }
+    plugin= plugins[idx];
     if (plugin && func(thd, plugin, arg))
         goto err;
   }
