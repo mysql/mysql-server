@@ -1136,12 +1136,12 @@ ALTER TABLE t1 ADD INDEX (code);
 CREATE TABLE t2 (id varchar(10) PRIMARY KEY);
 INSERT INTO t2 VALUES ('a11'), ('a12'), ('a13'), ('a14');
 SELECT * FROM t1 INNER JOIN t2 ON t1.code=t2.id 
-WHERE t2.id='a12' AND (code < 'a00' OR LENGTH(code)=5);
+WHERE t2.id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 code	id
 A12  	a12
 EXPLAIN EXTENDED 
 SELECT * FROM t1 INNER JOIN t2 ON code=id 
-WHERE id='a12' AND (code < 'a00' OR LENGTH(code)=5);
+WHERE id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	code	code	13	const	3	Using where; Using index
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	12	const	1	Using where; Using index
