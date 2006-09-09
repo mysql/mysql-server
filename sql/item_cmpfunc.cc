@@ -2811,7 +2811,6 @@ Item *Item_cond::compile(Item_analyzer analyzer, byte **arg_p,
   if (!(this->*analyzer)(arg_p))
     return 0;
   
-  byte *arg_v= *arg_p;
   List_iterator<Item> li(list);
   Item *item;
   while ((item= li++))
@@ -2820,6 +2819,7 @@ Item *Item_cond::compile(Item_analyzer analyzer, byte **arg_p,
       The same parameter value of arg_p must be passed
       to analyze any argument of the condition formula.
     */   
+    byte *arg_v= *arg_p;
     Item *new_item= item->compile(analyzer, &arg_v, transformer, arg_t);
     if (new_item && new_item != item)
       li.replace(new_item);
