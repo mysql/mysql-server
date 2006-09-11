@@ -51,7 +51,7 @@ parse_options()
 
 ########################################################################
 
-if ! test -f sql/mysqld.cc
+if test ! -f sql/mysqld.cc
 then
   echo "You must run this script from the MySQL top-level directory"
   exit 1
@@ -185,12 +185,6 @@ fi
 # (returns 0 if finds lines)
 if ccache -V > /dev/null 2>&1
 then
-  if ! (echo "$CC" | grep "ccache" > /dev/null)
-  then
-    CC="ccache $CC"
-  fi
-  if ! (echo "$CXX" | grep "ccache" > /dev/null)
-  then
-    CXX="ccache $CXX"
-  fi
+  echo "$CC" | grep "ccache" > /dev/null || CC="ccache $CC"
+  echo "$CXX" | grep "ccache" > /dev/null || CXX="ccache $CXX"
 fi

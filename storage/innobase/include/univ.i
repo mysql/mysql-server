@@ -96,8 +96,6 @@ memory is read outside the allocated blocks. */
 #define UNIV_BTR_DEBUG
 #define UNIV_LIGHT_MEM_DEBUG
 
-#define YYDEBUG			1
-
 #ifdef HAVE_purify
 /* The following sets all new allocated memory to zero before use:
 this can be used to eliminate unnecessary Purify warnings, but note that

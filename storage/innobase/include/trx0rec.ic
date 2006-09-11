@@ -77,7 +77,7 @@ trx_undo_rec_copy(
 	trx_undo_rec_t*	rec_copy;
 
 	len = mach_read_from_2(undo_rec) + buf_frame_align(undo_rec)
-								- undo_rec;
+		- undo_rec;
 	rec_copy = mem_heap_alloc(heap, len);
 
 	ut_memcpy(rec_copy, undo_rec, len);

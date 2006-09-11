@@ -465,7 +465,51 @@ INSERT INTO t1 VALUES (1, 'ZZZZZ'), (1, 'ZZZ'), (2, 'ZZZ'), (2, 'ZZZZZ');
 SELECT id, MIN(s) FROM t1 GROUP BY id;
 
 DROP TABLE t1;
-# End of 4.1 tests
+
+#
+# Bug #20536: md5() with GROUP BY and UCS2 return different results on myisam/innodb
+#
+
+--disable_warnings
+drop table if exists bug20536;
+--enable_warnings
+
+set names latin1;
+create table bug20536 (id bigint not null auto_increment primary key, name
+varchar(255) character set ucs2 not null);
+insert into `bug20536` (`id`,`name`) values (1, _latin1 x'7465737431'), (2, "'test\\_2'");
+select md5(name) from bug20536;
+select sha1(name) from bug20536;
+select make_set(3, name, upper(name)) from bug20536;
+select export_set(5, name, upper(name)) from bug20536;
+select export_set(5, name, upper(name), ",", 5) from bug20536;
+
+# Some broken functions:  add these tests just to document current behavior.
+
+# PASSWORD and OLD_PASSWORD don't work with UCS2 strings, but to fix it would
+# not be backwards compatible in all cases, so it's best to leave it alone
+select password(name) from bug20536;
+select old_password(name) from bug20536;
+
+# Disable test case as encrypt relies on 'crypt' function.
+# "decrypt" is noramlly tested in func_crypt.test which have a
+# "have_crypt.inc" test
+--disable_parsing
+# ENCRYPT relies on OS function crypt() which takes a NUL-terminated string; it
+# doesn't return good results for strings with embedded 0 bytes.  It won't be
+# fixed unless we choose to re-implement the crypt() function ourselves to take
+# an extra size_t string_length argument.
+select encrypt(name, 'SALT') from bug20536;
+--enable_parsing
+
+# QUOTE doesn't work with UCS2 data.  It would require a total rewrite
+# of Item_func_quote::val_str(), which isn't worthwhile until UCS2 is
+# supported fully as a client character set.
+select quote(name) from bug20536;
+
+drop table bug20536;
+
+--echo End of 4.1 tests
 
 #
 # Conversion from an UCS2 string to a decimal column
@@ -497,3 +541,5 @@ create table t1(a blob, b text charset utf8, c text charset ucs2);
 select data_type, character_octet_length, character_maximum_length
   from information_schema.columns where table_name='t1';
 drop table t1;
+
+--echo End of 5.0 tests
