@@ -6873,6 +6873,9 @@ load:   LOAD DATA_SYM
 	    YYABORT;
 	  }
           lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
+          WARN_DEPRECATED(yythd, "5.2", "LOAD TABLE FROM MASTER",
+                          "mysqldump or future "
+                          "BACKUP/RESTORE DATABASE facility");
           if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
             YYABORT;
         };
@@ -6911,6 +6914,9 @@ load_data:
 	FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
+          WARN_DEPRECATED(yythd, "5.2", "LOAD DATA FROM MASTER",
+                          "mysqldump or future "
+                          "BACKUP/RESTORE DATABASE facility");
         };
 
 opt_local:
