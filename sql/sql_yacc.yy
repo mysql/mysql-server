@@ -7507,7 +7507,8 @@ user:
 	  $$->host.str= (char *) "%";
 	  $$->host.length= 1;
 
-	  if (check_string_length(&$$->user, ER(ER_USERNAME), USERNAME_LENGTH))
+	  if (check_string_length(system_charset_info, &$$->user,
+                                  ER(ER_USERNAME), USERNAME_LENGTH))
 	    YYABORT;
 	}
 	| ident_or_text '@' ident_or_text
@@ -7517,9 +7518,10 @@ user:
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
 
-	    if (check_string_length(&$$->user, ER(ER_USERNAME), USERNAME_LENGTH) ||
-	        check_string_length(&$$->host, ER(ER_HOSTNAME),
-					       HOSTNAME_LENGTH))
+	    if (check_string_length(system_charset_info, &$$->user,
+                                    ER(ER_USERNAME), USERNAME_LENGTH) ||
+	        check_string_length(&my_charset_latin1, &$$->host,
+                                    ER(ER_HOSTNAME), HOSTNAME_LENGTH))
 	      YYABORT;
 	  }
 	| CURRENT_USER optional_braces
