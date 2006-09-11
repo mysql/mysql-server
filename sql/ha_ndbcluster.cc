@@ -3526,7 +3526,14 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   if (lock_type != F_UNLCK)
   {
     DBUG_PRINT("info", ("lock_type != F_UNLCK"));
-    if (!thd->transaction.on)
+    if (thd->lex->sql_command == SQLCOM_LOAD)
+    {
+      m_transaction_on= FALSE;
+      /* Would be simpler if has_transactions() didn't always say "yes" */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update= TRUE;
+    }
+    else if (!thd->transaction.on)
       m_transaction_on= FALSE;
     else
       m_transaction_on= thd->variables.ndb_use_transactions;

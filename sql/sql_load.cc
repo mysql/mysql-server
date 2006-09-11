@@ -147,10 +147,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	       MYF(0));
     DBUG_RETURN(TRUE);
   }
-  /*
-    This needs to be done before external_lock
-  */
-  ha_enable_transaction(thd, FALSE); 
   if (open_and_lock_tables(thd, table_list))
     DBUG_RETURN(TRUE);
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
@@ -394,7 +390,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     table->next_number_field=0;
   }
-  ha_enable_transaction(thd, TRUE);
   if (file >= 0)
     my_close(file,MYF(0));
   free_blobs(table);				/* if pack_blob was used */
