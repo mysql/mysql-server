@@ -422,6 +422,26 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 DROP TABLE t1;
+CREATE TABLE t1 (
+a int NOT NULL,
+b varchar(4000),  -- must use 2 pages undo
+PRIMARY KEY using hash (a)
+)
+TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
+set autocommit = 0;
+insert into t1 values(0,'x');
+insert into t1 values(1,'x');
+insert into t1 values(2,'x');
+insert into t1 values(3,'x');
+insert into t1 values(4,'x');
+insert into t1 values(5,'x');
+insert into t1 values(6,'x');
+insert into t1 values(7,'x');
+insert into t1 values(8,'x');
+delete from t1 where a = 0;
+commit;
+set autocommit = 1;
+drop table t1;
 create table test.t1 (f1 varchar(50) primary key, f2 text,f3 int) 
 TABLESPACE ts1 STORAGE DISK engine=NDB;
 insert into test.t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
