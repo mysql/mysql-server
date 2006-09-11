@@ -45,6 +45,7 @@ typedef struct ErrStruct {
 
 static const ErrStruct errArray[] =
 {
+   {NDBD_EXIT_GENERIC, XRE, "Generic error"},
    {NDBD_EXIT_PRGERR, XIE, "Assertion"},
    {NDBD_EXIT_NODE_NOT_IN_CONFIG, XCE,
     "node id in the configuration has the wrong type, (i.e. not an NDB node)"},
@@ -68,6 +69,8 @@ static const ErrStruct errArray[] =
     "No more free UNDO log, increase UndoIndexBuffer"},
    {NDBD_EXIT_SR_UNDOLOG, XFI,
     "Error while reading the datapages and UNDO log"},
+   {NDBD_EXIT_SINGLE_USER_MODE, XRE, "Data node is not allowed to get added "
+    "to the cluster while it is in single user mode"},
    {NDBD_EXIT_MEMALLOC, XCE, "Memory allocation failure, "
     "please decrease some configuration parameters"},
    {NDBD_EXIT_BLOCK_JBUFCONGESTION, XIE, "Job buffer congestion"},
