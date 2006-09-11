@@ -1238,8 +1238,7 @@ sub executable_setup () {
                         "/usr/bin/false");
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/storage/ndb/tools");
     $path_ndb_examples_dir= mtr_path_exists("$glob_basedir/storage/ndb/ndbapi-examples");
-    $exe_ndb_example= mtr_exe_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple",
-				    $exe_mysqld);
+    $exe_ndb_example=    mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
     $exe_ndb_mgm=        "$glob_basedir/storage/ndb/src/mgmclient/ndb_mgm";
     $exe_ndb_waiter=     "$glob_basedir/storage/ndb/tools/ndb_waiter";
     $exe_ndbd=           "$glob_basedir/storage/ndb/src/kernel/ndbd";
@@ -1419,7 +1418,7 @@ sub environment_setup () {
   $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
   $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
-  $ENV{'MY_NDB_EXAMPLES_BINARY'}=   ($exe_ndb_example eq "$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple")?$exe_ndb_example:"";
+  $ENV{'MY_NDB_EXAMPLES_BINARY'}=   $exe_ndb_example;
   $ENV{'NDB_EXAMPLES_OUTPUT'}=      $file_ndb_testrun_log;
 
   # ----------------------------------------------------
