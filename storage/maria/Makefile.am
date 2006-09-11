@@ -47,7 +47,7 @@ maria_pack_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test ma_control_file_test
+noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test
 noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_sp_defs.h ma_fulltext.h ma_ftdefs.h ma_ft_test1.h ma_ft_eval.h \
 			ma_control_file.h ha_maria.h
@@ -89,12 +89,6 @@ ma_sp_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-ma_control_file_test_DEPENDENCIES=	$(LIBRARIES)
-ma_control_file_test_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
-                        $(top_builddir)/storage/myisam/libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_rnext.c ma_rnext_same.c \
 			ma_search.c ma_page.c ma_key.c ma_locking.c \
@@ -113,7 +107,7 @@ libmaria_a_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ha_maria.cc \
 			ma_rt_index.c ma_rt_key.c ma_rt_mbr.c ma_rt_split.c \
 			ma_sp_key.c ma_control_file.c
-CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA? maria_control
+CLEANFILES =		test?.MA? FT?.MA? isam.log ma_test_all ma_rt_test.MA? sp_test.MA?
 
 SUFFIXES = .sh
 

@@ -24,6 +24,7 @@ typedef struct st_lsn {
 #define maria_data_root "."
 #endif
 
+#define CONTROL_FILE_BASE_NAME "maria_control"
 /*
   indicate absence of the log file number; first log is always number 1, 0 is
   impossible.
@@ -55,7 +56,15 @@ extern uint32 last_logno;
   If present, read it to find out last checkpoint's LSN and last log.
   Called at engine's start.
 */
-int ma_control_file_create_or_open();
+typedef enum enum_control_file_error {
+  CONTROL_FILE_OK= 0,
+  CONTROL_FILE_TOO_SMALL,
+  CONTROL_FILE_TOO_BIG,
+  CONTROL_FILE_BAD_MAGIC_STRING,
+  CONTROL_FILE_BAD_CHECKSUM,
+  CONTROL_FILE_UNKNOWN_ERROR /* any other error */
+} CONTROL_FILE_ERROR;
+CONTROL_FILE_ERROR ma_control_file_create_or_open();
 
 /*
   Write information durably to the control file.
@@ -66,10 +75,10 @@ int ma_control_file_create_or_open();
 #define CONTROL_FILE_UPDATE_ONLY_LSN 1
 #define CONTROL_FILE_UPDATE_ONLY_LOGNO 2
 int ma_control_file_write_and_force(const LSN *checkpoint_lsn, uint32 logno,
-                                 uint objs_to_write);
+                                    uint objs_to_write);
 
 
 /* Free resources taken by control file subsystem */
-void ma_control_file_end();
+int ma_control_file_end();
 
 #endif

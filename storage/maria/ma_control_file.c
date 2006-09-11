@@ -41,7 +41,7 @@ uint32 last_logno;
   Control file is less then  512 bytes (a disk sector),
   to be as atomic as possible
 */
-static int control_file_fd;
+static int control_file_fd= -1;
 
 static void lsn8store(char *buffer, const LSN *lsn)
 {
@@ -87,15 +87,16 @@ static char simple_checksum(char *buffer, uint size)
 
   RETURN
     0 - OK
-    1 - Error
+    1 - Error (in which case the file is left closed)
 */
-int ma_control_file_create_or_open()
+CONTROL_FILE_ERROR ma_control_file_create_or_open()
 {
   char buffer[CONTROL_FILE_SIZE];
   char name[FN_REFLEN];
   MY_STAT stat_buff;
   my_bool create_file;
   int open_flags= O_BINARY | /*O_DIRECT |*/ O_RDWR;
+  int error= CONTROL_FILE_UNKNOWN_ERROR;
   DBUG_ENTER("ma_control_file_create_or_open");
 
   /*
@@ -106,16 +107,19 @@ int ma_control_file_create_or_open()
   DBUG_ASSERT(CONTROL_FILE_LSN_SIZE == (4+4));
   DBUG_ASSERT(CONTROL_FILE_FILENO_SIZE == 4);
 
-  /* name is concatenation of Maria's home dir and "control" */
-  if (fn_format(name, "control", maria_data_root, "", MYF(MY_WME)) == NullS)
-    DBUG_RETURN(1);
+  if (control_file_fd >= 0) /* already open */
+    DBUG_RETURN(0);
+
+  if (fn_format(name, CONTROL_FILE_BASE_NAME,
+                maria_data_root, "", MYF(MY_WME)) == NullS)
+    DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
 
   create_file= test(my_access(name,F_OK));
 
   if (create_file)
   {
     if ((control_file_fd= my_create(name, 0, open_flags, MYF(0))) < 0)
-      DBUG_RETURN(1);
+      DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
     /*
       TODO: from "man fsync" on Linux:
       "fsync does not necessarily ensure that the entry in  the  directory
@@ -127,10 +131,10 @@ int ma_control_file_create_or_open()
       To be safer we should make sure that there are no logs or data/index
       files around (indeed it could be that the control file alone was deleted
       or not restored, and we should not go on with life at this point).
-      
+
       TODO: For now we trust (this is alpha version), but for beta if would
       be great to verify.
-      
+
       We could have a tool which can rebuild the control file, by reading the
       directory of logs, finding the newest log, reading it to find last
       checkpoint... Slow but can save your db.
@@ -138,7 +142,7 @@ int ma_control_file_create_or_open()
 
     LSN imposs_lsn= CONTROL_FILE_IMPOSSIBLE_LSN;
     uint32 imposs_logno= CONTROL_FILE_IMPOSSIBLE_FILENO;
-    
+
     /* init the file with these "undefined" values */
     DBUG_RETURN(ma_control_file_write_and_force(&imposs_lsn, imposs_logno,
                                                 CONTROL_FILE_UPDATE_ALL));
@@ -147,12 +151,12 @@ int ma_control_file_create_or_open()
   /* Otherwise, file exists */
 
   if ((control_file_fd= my_open(name, open_flags, MYF(MY_WME))) < 0)
-    DBUG_RETURN(1);
-  
-  if (my_stat(name, &stat_buff, MYF(MY_WME)) == NULL)
-    DBUG_RETURN(1);
+    goto err;
 
-  if ((uint)stat_buff.st_size != CONTROL_FILE_SIZE)
+  if (my_stat(name, &stat_buff, MYF(MY_WME)) == NULL)
+    goto err;
+
+  if ((uint)stat_buff.st_size < CONTROL_FILE_SIZE)
   {
     /*
       Given that normally we write only a sector and it's atomic, the only
@@ -165,31 +169,43 @@ int ma_control_file_create_or_open()
       disk/filesystem has a problem.
       So let's be rigid.
     */
-    my_message(0, "wrong file size", MYF(0)); /* TODO: improve errors */
-    my_error(HA_ERR_CRASHED, MYF(0), name);
-    DBUG_RETURN(1);
+    my_message(0, "too small file", MYF(0)); /* TODO: improve errors */
+    error= CONTROL_FILE_TOO_SMALL;
+    goto err;
+  }
+
+  if ((uint)stat_buff.st_size > CONTROL_FILE_SIZE)
+  {
+    my_message(0, "too big file", MYF(0)); /* TODO: improve errors */
+    error= CONTROL_FILE_TOO_BIG;
+    goto err;
   }
 
   if (my_read(control_file_fd, buffer, CONTROL_FILE_SIZE,
               MYF(MY_FNABP | MY_WME)))
-    DBUG_RETURN(1);
+    goto err;
   if (memcmp(buffer + CONTROL_FILE_MAGIC_STRING_OFFSET,
              CONTROL_FILE_MAGIC_STRING, CONTROL_FILE_MAGIC_STRING_SIZE))
   {
     my_message(0, "bad magic string", MYF(0));
-    DBUG_RETURN(1);
+    error= CONTROL_FILE_BAD_MAGIC_STRING;
+    goto err;
   }
   if (simple_checksum(buffer + CONTROL_FILE_LSN_OFFSET,
                       CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET) !=
       buffer[CONTROL_FILE_CHECKSUM_OFFSET])
   {
     my_message(0, "checksum mismatch", MYF(0));
-    DBUG_RETURN(1);
+    error= CONTROL_FILE_BAD_CHECKSUM;
+    goto err;
   }
   last_checkpoint_lsn= lsn8korr(buffer + CONTROL_FILE_LSN_OFFSET);
   last_logno= uint4korr(buffer + CONTROL_FILE_FILENO_OFFSET);
 
   DBUG_RETURN(0);
+err:
+  ma_control_file_end();
+  DBUG_RETURN(error);
 }
 
 
@@ -227,6 +243,8 @@ int ma_control_file_write_and_force(const LSN *checkpoint_lsn, uint32 logno,
   my_bool update_checkpoint_lsn= FALSE, update_logno= FALSE;
   DBUG_ENTER("ma_control_file_write_and_force");
 
+  DBUG_ASSERT(control_file_fd >= 0); /* must be open */
+
   memcpy(buffer + CONTROL_FILE_MAGIC_STRING_OFFSET,
          CONTROL_FILE_MAGIC_STRING, CONTROL_FILE_MAGIC_STRING_SIZE);
 
@@ -259,7 +277,7 @@ int ma_control_file_write_and_force(const LSN *checkpoint_lsn, uint32 logno,
                 0, MYF(MY_FNABP |  MY_WME)) ||
       my_sync(control_file_fd, MYF(MY_WME)))
     DBUG_RETURN(1);
-  
+
   /* TODO: you need some protection to be able to write last_* global vars */
   if (update_checkpoint_lsn)
     last_checkpoint_lsn= *checkpoint_lsn;
@@ -277,15 +295,26 @@ int ma_control_file_write_and_force(const LSN *checkpoint_lsn, uint32 logno,
     ma_control_file_end()
 */
 
-void ma_control_file_end()
+int ma_control_file_end()
 {
+  int close_error;
   DBUG_ENTER("ma_control_file_end");
-  my_close(control_file_fd, MYF(MY_WME));
+
+  if (control_file_fd < 0) /* already closed */
+    DBUG_RETURN(0);
+
+  close_error= my_close(control_file_fd, MYF(MY_WME));
+  /*
+    As my_close() frees structures even if close() fails, we do the same,
+    i.e. we mark the file as closed in all cases.
+  */
+  control_file_fd= -1;
   /*
     As this module owns these variables, closing the module forbids access to
     them (just a safety):
   */
   last_checkpoint_lsn= CONTROL_FILE_IMPOSSIBLE_LSN;
   last_logno= CONTROL_FILE_IMPOSSIBLE_FILENO;
-  DBUG_VOID_RETURN;
+
+  DBUG_RETURN(close_error);
 }
