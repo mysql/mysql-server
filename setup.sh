@@ -19,7 +19,6 @@ ln -sf ../innodb/compile-innodb{,-debug} ../BUILD
 for dir in */
 do
   case "$dir" in
-      handler/) ;;
       mysql-test/) ;;
       *.svn*) ;;
       *to-mysql*) ;;
@@ -40,11 +39,7 @@ do
   ln -s ../../innodb/"$file" .
 done
 
-cd ..
-ln -sf ../innodb/handler/ha_innodb.h ../sql/
-ln -sf ../innodb/handler/ha_innodb.cc ../sql/
-
-cd ../mysql-test/t
+cd ../../mysql-test/t
 ln -sf ../../innodb/mysql-test/*.test ../../innodb/mysql-test/*.opt ./
 ln -sf ../../innodb/mysql-test/*.result ../r/
 ln -sf ../../innodb/mysql-test/*.inc ../include/
