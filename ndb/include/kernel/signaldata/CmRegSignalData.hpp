@@ -90,7 +90,11 @@ public:
     ZNOT_PRESIDENT = 5, /* We are not president */
     ZNOT_DEAD = 6,       /* We are not dead when we are starting  */
     ZINCOMPATIBLE_VERSION = 7,
-    ZINCOMPATIBLE_START_TYPE = 8
+    ZINCOMPATIBLE_START_TYPE = 8,
+    ZSINGLE_USER_MODE = 9, /* The cluster is in single user mode,
+			    * data node is not allowed to get added
+			    * in the cluster while in single user mode */
+    ZGENERIC = 100 /* The generic error code */
   };
 private:
   
