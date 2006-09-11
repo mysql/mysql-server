@@ -31,8 +31,7 @@ have disables the InnoDB inlining in this file. */
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
-#include "slave.h"
+#include <mysql_priv.h>
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -1600,21 +1599,6 @@ innobase_init(void)
 	pthread_cond_init(&commit_cond, NULL);
 	innodb_inited= 1;
 
-	/* If this is a replication slave and we needed to do a crash recovery,
-	set the master binlog position to what InnoDB internally knew about
-	how far we got transactions durable inside InnoDB. There is a
-	problem here: if the user used also MyISAM tables, InnoDB might not
-	know the right position for them.
-
-	THIS DOES NOT WORK CURRENTLY because replication seems to initialize
-	glob_mi also after innobase_init. */
-
-/*	if (trx_sys_mysql_master_log_pos != -1) {
-		ut_memcpy(glob_mi.log_file_name, trx_sys_mysql_master_log_name,
-				1 + ut_strlen(trx_sys_mysql_master_log_name));
-		glob_mi.pos = trx_sys_mysql_master_log_pos;
-	}
-*/
 	DBUG_RETURN(FALSE);
 error:
 	have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
@@ -1688,19 +1672,6 @@ innobase_commit_low(
 
 		return;
 	}
-
-#ifdef HAVE_REPLICATION
-	THD *thd=current_thd;
-
-	if (thd && thd->slave_thread) {
-		/* Update the replication position info inside InnoDB */
-
-		trx->mysql_master_log_file_name
-					= active_mi->rli.group_master_log_name;
-		trx->mysql_master_log_pos = ((ib_longlong)
-				active_mi->rli.future_group_master_log_pos);
-	}
-#endif /* HAVE_REPLICATION */
 
 	trx_commit_for_mysql(trx);
 }

@@ -65,6 +65,7 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
       storage/innobase/sync/Makefile
       storage/innobase/thr/Makefile
       storage/innobase/trx/Makefile
+      storage/innobase/handler/Makefile
       storage/innobase/usr/Makefile)
   ])
 
