@@ -304,7 +304,6 @@ Item *Item_func::compile(Item_analyzer analyzer, byte **arg_p,
 {
   if (!(this->*analyzer)(arg_p))
     return 0;
-  byte *arg_v= *arg_p;
   if (arg_count)
   {
     Item **arg,**arg_end;
@@ -314,6 +313,7 @@ Item *Item_func::compile(Item_analyzer analyzer, byte **arg_p,
         The same parameter value of arg_p must be passed
         to analyze any argument of the condition formula.
       */   
+      byte *arg_v= *arg_p;
       Item *new_item= (*arg)->compile(analyzer, &arg_v, transformer, arg_t);
       if (new_item && *arg != new_item)
         current_thd->change_item_tree(arg, new_item);
