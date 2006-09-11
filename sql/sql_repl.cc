@@ -420,6 +420,8 @@ impossible position";
     goto err;
   }
   packet->set("\0", 1, &my_charset_bin);
+  /* dump thread  the whole header size of query_log_event */
+  thd->variables.max_allowed_packet+= MAX_LOG_EVENT_HEADER;
 
   while (!net->error && net->vio != 0 && !thd->killed)
   {
