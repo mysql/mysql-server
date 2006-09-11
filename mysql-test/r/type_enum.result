@@ -1745,3 +1745,12 @@ create table t1 (a set('x','y') default 'x');
 alter table t1 alter a set default 'z';
 ERROR 42000: Invalid default value for 'a'
 drop table t1;
+create table t1 (f1 int);
+alter table t1 add f2 enum(0xFFFF);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) default NULL,
+  `f2` enum('ÿÿ') default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
