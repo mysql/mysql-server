@@ -77,7 +77,7 @@ void
 mem_block_set_type(mem_block_t* block, ulint type)
 {
 	ut_ad((type == MEM_HEAP_DYNAMIC) || (type == MEM_HEAP_BUFFER)
-		|| (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
+	      || (type == MEM_HEAP_BUFFER + MEM_HEAP_BTR_SEARCH));
 
 	block->type = type;
 }
@@ -150,7 +150,7 @@ mem_heap_alloc(
 	block to the heap */
 
 	if (mem_block_get_len(block)
-			< mem_block_get_free(block) + MEM_SPACE_NEEDED(n)) {
+	    < mem_block_get_free(block) + MEM_SPACE_NEEDED(n)) {
 
 		block = mem_heap_add_block(heap, n);
 
@@ -228,12 +228,12 @@ mem_heap_free_heap_top(
 
 	/* Validate the heap and get its total allocated size */
 	mem_heap_validate_or_print(heap, NULL, FALSE, &error, &total_size,
-								NULL, NULL);
+				   NULL, NULL);
 	ut_a(!error);
 
 	/* Get the size below top pointer */
 	mem_heap_validate_or_print(heap, old_top, FALSE, &error, &size, NULL,
-									NULL);
+				   NULL);
 	ut_a(!error);
 
 #endif
@@ -242,7 +242,7 @@ mem_heap_free_heap_top(
 
 	while (block != NULL) {
 		if (((byte*)block + mem_block_get_free(block) >= old_top)
-						&& ((byte*)block <= old_top)) {
+		    && ((byte*)block <= old_top)) {
 			/* Found the right block */
 
 			break;
@@ -280,8 +280,8 @@ mem_heap_free_heap_top(
 	/* If free == start, we may free the block if it is not the first
 	one */
 
-	if ((heap != block) && (mem_block_get_free(block) ==
-						mem_block_get_start(block))) {
+	if ((heap != block) && (mem_block_get_free(block)
+				== mem_block_get_start(block))) {
 		mem_heap_block_free(heap, block);
 	}
 }
@@ -354,7 +354,7 @@ mem_heap_free_top(
 
 	/* Subtract the free field of block */
 	mem_block_set_free(block, mem_block_get_free(block)
-						- MEM_SPACE_NEEDED(n));
+			   - MEM_SPACE_NEEDED(n));
 #ifdef UNIV_MEM_DEBUG
 
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
@@ -366,8 +366,8 @@ mem_heap_free_top(
 	/* If free == start, we may free the block if it is not the first
 	one */
 
-	if ((heap != block) && (mem_block_get_free(block) ==
-					mem_block_get_start(block))) {
+	if ((heap != block) && (mem_block_get_free(block)
+				== mem_block_get_start(block))) {
 		mem_heap_block_free(heap, block);
 	}
 }
@@ -407,10 +407,11 @@ mem_heap_create_func(
 
 	if (n > 0) {
 		block = mem_heap_create_block(NULL, n, init_block, type,
-							file_name, line);
+					      file_name, line);
 	} else {
 		block = mem_heap_create_block(NULL, MEM_BLOCK_START_SIZE,
-					init_block, type, file_name, line);
+					      init_block, type,
+					      file_name, line);
 	}
 
 	if (block == NULL) {
@@ -496,7 +497,7 @@ mem_alloc_func(
 	void*		buf;
 
 	heap = mem_heap_create_func(n, NULL, MEM_HEAP_DYNAMIC, file_name,
-									line);
+				    line);
 
 	/* Note that as we created the first block in the heap big enough
 	for the buffer requested by the caller, the buffer will be in the
@@ -506,7 +507,7 @@ mem_alloc_func(
 	buf = mem_heap_alloc(heap, n);
 
 	ut_a((byte*)heap == (byte*)buf - MEM_BLOCK_HEADER_SIZE
-					- MEM_FIELD_HEADER_SIZE);
+	     - MEM_FIELD_HEADER_SIZE);
 	return(buf);
 }
 
@@ -526,7 +527,7 @@ mem_free_func(
 	mem_heap_t*   heap;
 
 	heap = (mem_heap_t*)((byte*)ptr - MEM_BLOCK_HEADER_SIZE
-						- MEM_FIELD_HEADER_SIZE);
+			     - MEM_FIELD_HEADER_SIZE);
 	mem_heap_free_func(heap, file_name, line);
 }
 

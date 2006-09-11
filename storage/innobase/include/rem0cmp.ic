@@ -40,9 +40,10 @@ cmp_dfield_dfield(
 {
 	ut_ad(dfield_check_typed(dfield1));
 
-	return(cmp_data_data(dfield_get_type(dfield1),
-			dfield_get_data(dfield1), dfield_get_len(dfield1),
-			dfield_get_data(dfield2), dfield_get_len(dfield2)));
+	return(cmp_data_data
+	       (dfield_get_type(dfield1),
+		dfield_get_data(dfield1), dfield_get_len(dfield1),
+		dfield_get_data(dfield2), dfield_get_len(dfield2)));
 }
 
 /*****************************************************************
@@ -65,5 +66,5 @@ cmp_rec_rec(
 	ulint	match_b		= 0;
 
 	return(cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index,
-					&match_f, &match_b));
+				      &match_f, &match_b));
 }
