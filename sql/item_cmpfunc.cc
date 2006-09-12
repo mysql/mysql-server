@@ -619,11 +619,7 @@ int Arg_comparator::compare_int_signed_unsigned()
     if (!(*b)->null_value)
     {
       owner->null_value= 0;
-      if (sval1 < 0 || (ulonglong)sval1 < uval2)
-        return -1;
-      if ((ulonglong)sval1 == uval2)
-        return 0;
-      return 1;
+      return ::compare_int_signed_unsigned(sval1, uval2);
     }
   }
   owner->null_value= 1;
@@ -644,13 +640,7 @@ int Arg_comparator::compare_int_unsigned_signed()
     if (!(*b)->null_value)
     {
       owner->null_value= 0;
-      if (sval2 < 0)
-        return 1;
-      if (uval1 < (ulonglong)sval2)
-        return -1;
-      if (uval1 == (ulonglong)sval2)
-        return 0;
-      return 1;
+      return ::compare_int_unsigned_signed(uval1, sval2);
     }
   }
   owner->null_value= 1;
@@ -1162,11 +1152,13 @@ Item_func_ifnull::val_int()
   if (!args[0]->null_value)
   {
     null_value=0;
+    unsigned_flag= args[0]->unsigned_flag;
     return value;
   }
   value=args[1]->val_int();
   if ((null_value=args[1]->null_value))
     return 0;
+  unsigned_flag= args[1]->unsigned_flag;
   return value;
 }
 
@@ -1286,6 +1278,7 @@ Item_func_if::val_int()
   Item *arg= args[0]->val_int() ? args[1] : args[2];
   longlong value=arg->val_int();
   null_value=arg->null_value;
+  unsigned_flag= arg->unsigned_flag;
   return value;
 }
 
@@ -1492,6 +1485,7 @@ longlong Item_func_case::val_int()
   }
   res=item->val_int();
   null_value=item->null_value;
+  unsigned_flag= item->unsigned_flag;
   return res;
 }
 
@@ -1623,7 +1617,10 @@ longlong Item_func_coalesce::val_int()
   {
     longlong res=args[i]->val_int();
     if (!args[i]->null_value)
+    {
+      unsigned_flag= args[i]->unsigned_flag;  
       return res;
+    }
   }
   null_value=1;
   return 0;
