@@ -132,8 +132,6 @@ struct dict_col_struct{
 	const char*	name;	/* name */
 	dtype_t		type;	/* data type */
 	dict_table_t*	table;	/* back pointer to table of this column */
-	ulint		aux;	/* this is used as an auxiliary variable
-				in some of the functions below */
 };
 
 /* DICT_MAX_INDEX_COL_LEN is measured in bytes and is the max index column

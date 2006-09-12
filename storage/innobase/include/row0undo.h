@@ -86,7 +86,8 @@ struct undo_node_struct{
 				clustered index record */
 	dict_table_t*	table;	/* table where undo is done */
 	ulint		cmpl_info;/* compiler analysis of an update */
-	upd_t*		update;	/* update vector for a clustered index record */
+	upd_t*		update;	/* update vector for a clustered index
+				record */
 	dtuple_t*	ref;	/* row reference to the next row to handle */
 	dtuple_t*	row;	/* a copy (also fields copied to heap) of the
 				row to handle */

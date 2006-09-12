@@ -695,4 +695,19 @@ Level	Code	Message
 Warning	1541	The syntax 'SHOW PLUGIN' is deprecated and will be removed in MySQL 5.2. Please use 'SHOW PLUGINS' instead
 show plugin;
 show plugins;
+create database `mysqlttest\1`;
+create table `mysqlttest\1`.`a\b` (a int);
+show tables from `mysqlttest\1`;
+Tables_in_mysqlttest\1
+a\b
+show fields from `mysqlttest\1`.`a\b`;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+show columns from `a\b` from `mysqlttest\1`;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+show keys from `mysqlttest\1`.`a\b`;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+drop table `mysqlttest\1`.`a\b`;
+drop database `mysqlttest\1`;
 End of 5.1 tests
