@@ -1372,6 +1372,15 @@ int ha_delete_table(THD *thd, enum db_type table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
+handler *handler::clone(MEM_ROOT *mem_root)
+{
+  handler *new_handler= get_new_handler(table, mem_root, table->s->db_type);
+  if (new_handler && !new_handler->ha_open(table->s->path, table->db_stat,
+                                           HA_OPEN_IGNORE_IF_LOCKED))
+    return new_handler;
+  return NULL;
+}
+
 
 	/* Open database-handler. Try O_RDONLY if can't open as O_RDWR */
 	/* Don't wait for locks if not HA_OPEN_WAIT_IF_LOCKED is set */
