@@ -3574,7 +3574,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
 
 bool
 Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
-                                    CHARSET_INFO *cs, Derivation dv
+                                    CHARSET_INFO *cs, Derivation dv,
                                     bool unsigned_arg)
 {
   /*
@@ -3816,11 +3816,11 @@ Item_func_set_user_var::update()
   {
     if (!save_result.vdec)					// Null value
       res= update_hash((void*) 0, 0, DECIMAL_RESULT, &my_charset_bin,
-                       DERIVATION_IMPLICIT);
+                       DERIVATION_IMPLICIT, 0);
     else
       res= update_hash((void*) save_result.vdec,
                        sizeof(my_decimal), DECIMAL_RESULT,
-                       &my_charset_bin, DERIVATION_IMPLICIT);
+                       &my_charset_bin, DERIVATION_IMPLICIT, 0);
     break;
   }
   case ROW_RESULT:
@@ -4176,7 +4176,7 @@ bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 void Item_user_var_as_out_param::set_null_value(CHARSET_INFO* cs)
 {
   if (::update_hash(entry, TRUE, 0, 0, STRING_RESULT, cs,
-                    DERIVATION_IMPLICIT))
+                    DERIVATION_IMPLICIT, 0))
     current_thd->fatal_error();			// Probably end of memory
 }
 
@@ -4185,7 +4185,7 @@ void Item_user_var_as_out_param::set_value(const char *str, uint length,
                                            CHARSET_INFO* cs)
 {
   if (::update_hash(entry, FALSE, (void*)str, length, STRING_RESULT, cs,
-                    DERIVATION_IMPLICIT))
+                    DERIVATION_IMPLICIT, 0))
     current_thd->fatal_error();			// Probably end of memory
 }
 
