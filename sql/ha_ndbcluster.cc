@@ -4715,16 +4715,16 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   List<char> delete_list;
   while ((file_name=it++))
   {
+    bool file_on_disk= false;
     DBUG_PRINT("info", ("%s", file_name));     
     if (hash_search(&ndb_tables, file_name, strlen(file_name)))
     {
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name));
       // File existed in NDB and as frm file, put in ok_tables list
-      my_hash_insert(&ok_tables, (byte*)file_name);
-      continue;
+      file_on_disk= true;
     }
     
-    // File is not in NDB, check for .ndb file with this name
+    // Check for .ndb file with this name
     (void)strxnmov(name, FN_REFLEN, 
 		   mysql_data_home,"/",db,"/",file_name,ha_ndb_ext,NullS);
     DBUG_PRINT("info", ("Check access for %s", name));
@@ -4732,9 +4732,18 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     {
       DBUG_PRINT("info", ("%s did not exist on disk", name));     
       // .ndb file did not exist on disk, another table type
+      if (file_on_disk)
+	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			    ER_TABLE_EXISTS_ERROR,
+			    "Local table %s.%s shadows ndb table",
+			    db, file_name);
       continue;
     }
-
+    if (file_on_disk) 
+    {
+      my_hash_insert(&ok_tables, (byte*)file_name);
+      continue;
+    }
     DBUG_PRINT("info", ("%s existed on disk", name));     
     // The .ndb file exists on disk, but it's not in list of tables in ndb
     // Verify that handler agrees table is gone.
