@@ -1758,7 +1758,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
-  char		buff[NAME_LEN+USERNAME_LENGTH+100];
+  char		buff[NAME_BYTE_LEN+USERNAME_BYTE_LENGTH+100];
   char		*end,*host_info;
   my_socket	sock;
   in_addr_t	ip_addr;
@@ -2217,7 +2217,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		     mysql->server_status, client_flag));
   /* This needs to be changed as it's not useful with big packets */
   if (user && user[0])
-    strmake(end,user,USERNAME_LENGTH);          /* Max user name */
+    strmake(end,user,USERNAME_BYTE_LENGTH);          /* Max user name */
   else
     read_user_name((char*) end);
 
@@ -2247,7 +2247,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
-    end= strmake(end, db, NAME_LEN) + 1;
+    end= strmake(end, db, NAME_BYTE_LEN) + 1;
     mysql->db= my_strdup(db,MYF(MY_WME));
     db= 0;
   }
