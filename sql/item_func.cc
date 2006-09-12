@@ -1252,8 +1252,7 @@ longlong Item_func_min_max::val_int()
     {
       if (args[i]->null_value)
         continue;
-      if (unsigned_flag && arg_unsigned_flag ||
-          (!unsigned_flag && !arg_unsigned_flag))
+      if (unsigned_flag == arg_unsigned_flag)
         cmp= tmp < value;
       else if (unsigned_flag)
         cmp= compare_int_signed_unsigned(tmp, value) < 0;
@@ -2614,26 +2613,26 @@ Item_func_set_user_var::update()
   case REAL_RESULT:
   {
     res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
-		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
+		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT, 0);
     break;
   }
   case INT_RESULT:
   {
     res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
-         INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT,
-         unsigned_flag);
+                     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT,
+                     unsigned_flag);
     break;
   }
   case STRING_RESULT:
   {
     if (!save_result.vstr)					// Null value
       res= update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin,
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     else
       res= update_hash((void*) save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
 		       save_result.vstr->charset(),
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     break;
   }
   case ROW_RESULT:
