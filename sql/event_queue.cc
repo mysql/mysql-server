@@ -907,7 +907,7 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
     do but we need to obey cond_wait()
   */
   thd->exit_cond("");
-  LOCK_QUEUE_DATA();
+  lock_data(func, line);
 
   DBUG_VOID_RETURN;
 }
@@ -918,102 +918,31 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
 
   SYNOPSIS
     Event_queue::dump_internal_status()
-      thd  Thread
-
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error
 */
 
-bool
-Event_queue::dump_internal_status(THD *thd)
+void
+Event_queue::dump_internal_status()
 {
   DBUG_ENTER("Event_queue::dump_internal_status");
-#ifndef DBUG_OFF
-  CHARSET_INFO *scs= system_charset_info;
-  Protocol *protocol= thd->protocol;
-  List<Item> field_list;
-  int ret;
-  char tmp_buff[5*STRING_BUFFER_USUAL_SIZE];
-  char int_buff[STRING_BUFFER_USUAL_SIZE];
-  String tmp_string(tmp_buff, sizeof(tmp_buff), scs);
-  String int_string(int_buff, sizeof(int_buff), scs);
-  tmp_string.length(0);
-  int_string.length(0);
 
-  /* workers_count */
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("queue element count"), scs);
-  int_string.set((longlong) queue.elements, scs);
-  protocol->store(&int_string);
-  ret= protocol->write();
+  /* element count */
+  puts("");
+  puts("Event queue status:");
+  printf("Element count   : %u\n", queue.elements);
+  printf("Data locked     : %s\n", mutex_queue_data_locked? "YES":"NO");
+  printf("Attempting lock : %s\n", mutex_queue_data_attempting_lock? "YES":"NO");
+  printf("LLA             : %s:%u\n", mutex_last_locked_in_func,
+                                        mutex_last_locked_at_line);
+  printf("LUA             : %s:%u\n", mutex_last_unlocked_in_func,
+                                        mutex_last_unlocked_at_line);
+  if (mutex_last_attempted_lock_at_line)
+    printf("Last lock attempt at: %s:%u\n", mutex_last_attempted_lock_in_func,
+                                            mutex_last_attempted_lock_at_line);
+  printf("WOC             : %s\n", waiting_on_cond? "YES":"NO");
+  printf("Next activation : %04d-%02d-%02d %02d:%02d:%02d\n",
+         next_activation_at.year, next_activation_at.month,
+         next_activation_at.day, next_activation_at.hour,
+         next_activation_at.minute, next_activation_at.second);
 
-  /* queue_data_locked */
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("queue data locked"), scs);
-  int_string.set((longlong) mutex_queue_data_locked, scs);
-  protocol->store(&int_string);
-  ret= protocol->write();
-
-  /* queue_data_attempting_lock */
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("queue data attempting lock"), scs);
-  int_string.set((longlong) mutex_queue_data_attempting_lock, scs);
-  protocol->store(&int_string);
-  ret= protocol->write();
-
-  /* last locked at*/
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("queue last locked at"), scs);
-  tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
-                                        tmp_string.alloced_length(), "%s::%d",
-                                        mutex_last_locked_in_func,
-                                        mutex_last_locked_at_line));
-  protocol->store(&tmp_string);
-  ret= protocol->write();
-
-  /* last unlocked at*/
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("queue last unlocked at"), scs);
-  tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
-                                        tmp_string.alloced_length(), "%s::%d",
-                                        mutex_last_unlocked_in_func,
-                                        mutex_last_unlocked_at_line));
-  protocol->store(&tmp_string);
-  ret= protocol->write();
-
-  /* last attempted lock  at*/
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("queue last attempted lock at"), scs);
-  tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
-                                        tmp_string.alloced_length(), "%s::%d",
-                                        mutex_last_attempted_lock_in_func,
-                                        mutex_last_attempted_lock_at_line));
-  protocol->store(&tmp_string);
-  ret= protocol->write();
-
-  /* waiting on */
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("queue waiting on condition"), scs);
-  int_string.set((longlong) waiting_on_cond, scs);
-  protocol->store(&int_string);
-  ret= protocol->write();
-
-  protocol->prepare_for_resend();
-  protocol->store(STRING_WITH_LEN("next activation at"), scs);
-  tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
-                                        tmp_string.alloced_length(),
-                                        "%4d-%02d-%02d %02d:%02d:%02d",
-                                        next_activation_at.year,
-                                        next_activation_at.month,
-                                        next_activation_at.day,
-                                        next_activation_at.hour,
-                                        next_activation_at.minute,
-                                        next_activation_at.second
-                                        ));
-  protocol->store(&tmp_string);
-  ret= protocol->write();
-
-#endif
-  DBUG_RETURN(FALSE);
+  DBUG_VOID_RETURN;
 }

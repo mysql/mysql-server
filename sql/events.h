@@ -112,8 +112,8 @@ public:
   static int
   fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */);
 
-  bool
-  dump_internal_status(THD *thd);
+  void
+  dump_internal_status();
 
 private:
   bool

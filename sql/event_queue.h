@@ -61,8 +61,9 @@ public:
 
   bool
   get_top_for_execution_if_time(THD *thd, Event_job_data **job_data);
-  bool
-  dump_internal_status(THD *thd);
+
+  void
+  dump_internal_status();
 
   int
   load_events_from_db(THD *thd);

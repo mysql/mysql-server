@@ -38,6 +38,7 @@ extern pthread_attr_t connection_attrib;
 static
 const LEX_STRING scheduler_states_names[] =
 {
+  { C_STRING_WITH_LEN("UNINITIALIZED") },
   { C_STRING_WITH_LEN("INITIALIZED") },
   { C_STRING_WITH_LEN("RUNNING") },
   { C_STRING_WITH_LEN("STOPPING") }
@@ -757,106 +758,25 @@ Event_scheduler::cond_wait(THD *thd, struct timespec *abstime, const char* msg,
 
   SYNOPSIS
     Event_scheduler::dump_internal_status()
-      thd  Thread
-
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error
 */
 
-bool
-Event_scheduler::dump_internal_status(THD *thd)
+void
+Event_scheduler::dump_internal_status()
 {
-  int ret= 0;
   DBUG_ENTER("Event_scheduler::dump_internal_status");
 
-#ifndef DBUG_OFF
-  CHARSET_INFO *scs= system_charset_info;
-  Protocol *protocol= thd->protocol;
-  char tmp_buff[5*STRING_BUFFER_USUAL_SIZE];
-  char int_buff[STRING_BUFFER_USUAL_SIZE];
-  String tmp_string(tmp_buff, sizeof(tmp_buff), scs);
-  String int_string(int_buff, sizeof(int_buff), scs);
-  tmp_string.length(0);
-  int_string.length(0);
+  puts("");
+  puts("Event scheduler status:");
+  printf("State      : %s\n", scheduler_states_names[state].str);
+  printf("Thread id  : %lu\n", scheduler_thd? scheduler_thd->thread_id : 0);
+  printf("LLA        : %s:%u\n", mutex_last_locked_in_func,
+                                 mutex_last_locked_at_line);
+  printf("LUA        : %s:%u\n", mutex_last_unlocked_in_func,
+                                 mutex_last_unlocked_at_line);
+  printf("WOC        : %s\n", waiting_on_cond? "YES":"NO");
+  printf("Workers    : %u\n", workers_count());
+  printf("Executed   : %llu\n", started_events);
+  printf("Data locked: %s\n", mutex_scheduler_data_locked ? "YES":"NO");
 
-  do
-  {
-    protocol->prepare_for_resend();
-    protocol->store(STRING_WITH_LEN("scheduler state"), scs);
-    protocol->store(scheduler_states_names[state].str,
-                    scheduler_states_names[state].length, scs);
-
-    if ((ret= protocol->write()))
-      break;
-
-    /* thread_id */
-    protocol->prepare_for_resend();
-    protocol->store(STRING_WITH_LEN("thread_id"), scs);
-    if (thread_id)
-    {
-      int_string.set((longlong) scheduler_thd->thread_id, scs);
-      protocol->store(&int_string);
-    }
-    else
-      protocol->store_null();
-    if ((ret= protocol->write()))
-      break;
-
-    /* last locked at*/
-    protocol->prepare_for_resend();
-    protocol->store(STRING_WITH_LEN("scheduler last locked at"), scs);
-    tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
-                                          tmp_string.alloced_length(), "%s::%d",
-                                          mutex_last_locked_in_func,
-                                          mutex_last_locked_at_line));
-    protocol->store(&tmp_string);
-    if ((ret= protocol->write()))
-      break;
-
-    /* last unlocked at*/
-    protocol->prepare_for_resend();
-    protocol->store(STRING_WITH_LEN("scheduler last unlocked at"), scs);
-    tmp_string.length(scs->cset->snprintf(scs, (char*) tmp_string.ptr(),
-                                          tmp_string.alloced_length(), "%s::%d",
-                                          mutex_last_unlocked_in_func,
-                                          mutex_last_unlocked_at_line));
-    protocol->store(&tmp_string);
-    if ((ret= protocol->write()))
-      break;
-
-    /* waiting on */
-    protocol->prepare_for_resend();
-    protocol->store(STRING_WITH_LEN("scheduler waiting on condition"), scs);
-    int_string.set((longlong) waiting_on_cond, scs);
-    protocol->store(&int_string);
-    if ((ret= protocol->write()))
-      break;
-
-    /* workers_count */
-    protocol->prepare_for_resend();
-    protocol->store(STRING_WITH_LEN("scheduler workers count"), scs);
-    int_string.set((longlong) workers_count(), scs);
-    protocol->store(&int_string);
-    if ((ret= protocol->write()))
-      break;
-
-    /* workers_count */
-    protocol->prepare_for_resend();
-    protocol->store(STRING_WITH_LEN("scheduler executed events"), scs);
-    int_string.set((longlong) started_events, scs);
-    protocol->store(&int_string);
-    if ((ret= protocol->write()))
-      break;
-
-    /* scheduler_data_locked */
-    protocol->prepare_for_resend();
-    protocol->store(STRING_WITH_LEN("scheduler data locked"), scs);
-    int_string.set((longlong) mutex_scheduler_data_locked, scs);
-    protocol->store(&int_string);
-    ret= protocol->write();
-  } while (0);
-#endif
-
-  DBUG_RETURN(ret);
+  DBUG_VOID_RETURN;
 }
