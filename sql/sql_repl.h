@@ -22,7 +22,7 @@ typedef struct st_slave_info
   uint32 server_id;
   uint32 rpl_recovery_rank, master_id;
   char host[HOSTNAME_LENGTH+1];
-  char user[USERNAME_LENGTH+1];
+  char user[USERNAME_BYTE_LENGTH+1];
   char password[MAX_PASSWORD_LENGTH+1];
   uint16 port;
   THD* thd;
