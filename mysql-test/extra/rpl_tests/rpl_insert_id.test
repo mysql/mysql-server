@@ -289,8 +289,30 @@ select * from t1;
 select * from t2;
 
 connection master;
-drop table t1, t2;
+drop table t1;
 drop function insid;
 
-sync_slave_with_master;
+truncate table t2;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+delimiter |;
+create procedure foo()
+begin
+  insert into t1 values(null,10);
+  insert ignore into t1 values(null,10);
+  insert ignore into t1 values(null,10);
+  insert into t2 values(null,3);
+end|
+delimiter ;|
+call foo();
+select * from t1;
+select * from t2;
 
+sync_slave_with_master;
+select * from t1;
+select * from t2;
+
+connection master;
+drop table t1, t2;
+drop procedure foo;
+sync_slave_with_master;
