@@ -381,7 +381,7 @@ page_create(
 
 	dfield_set_data(field, "infimum", 8);
 	dtype_set(dfield_get_type(field),
-		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, 8, 0);
+		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, 8);
 	/* Set the corresponding physical record to its place in the page
 	record heap */
 
@@ -407,7 +407,7 @@ page_create(
 
 	dfield_set_data(field, "supremum", comp ? 8 : 9);
 	dtype_set(dfield_get_type(field),
-		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, comp ? 8 : 9, 0);
+		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, comp ? 8 : 9);
 
 	supremum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple);
 

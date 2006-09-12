@@ -58,9 +58,13 @@ dtype_set_mblen(
 	ut_ad(type);
 	if (dtype_is_string_type(type->mtype)) {
 #ifndef UNIV_HOTBACKUP
+		ulint	mbminlen, mbmaxlen;
+
 		innobase_get_cset_width(dtype_get_charset_coll(type->prtype),
-					&type->mbminlen, &type->mbmaxlen);
-		ut_ad(type->mbminlen <= type->mbmaxlen);
+					&mbminlen, &mbmaxlen);
+		ut_ad(mbminlen <= mbmaxlen);
+		type->mbminlen = mbminlen;
+		type->mbmaxlen = mbmaxlen;
 #else /* !UNIV_HOTBACKUP */
 #ifdef notdefined
 		printf("ibbackup: DEBUG: type->mtype=%lu, type->prtype=%lu\n",
@@ -86,8 +90,7 @@ dtype_set(
 	dtype_t*	type,	/* in: type struct to init */
 	ulint		mtype,	/* in: main data type */
 	ulint		prtype,	/* in: precise type */
-	ulint		len,	/* in: length of type */
-	ulint		prec)	/* in: precision of type */
+	ulint		len)	/* in: precision of type */
 {
 	ut_ad(type);
 	ut_ad(mtype <= DATA_MTYPE_MAX);
@@ -95,7 +98,6 @@ dtype_set(
 	type->mtype = mtype;
 	type->prtype = prtype;
 	type->len = len;
-	type->prec = prec;
 
 	dtype_set_mblen(type);
 	ut_ad(dtype_validate(type));
@@ -152,19 +154,6 @@ dtype_get_len(
 	ut_ad(type);
 
 	return(type->len);
-}
-
-/*************************************************************************
-Gets the type precision. */
-UNIV_INLINE
-ulint
-dtype_get_prec(
-/*===========*/
-	dtype_t*	type)
-{
-	ut_ad(type);
-
-	return(type->prec);
 }
 
 /*************************************************************************

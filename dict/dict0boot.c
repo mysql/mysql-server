@@ -247,14 +247,14 @@ dict_boot(void)
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0);
 
-	dict_mem_table_add_col(table, "NAME", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "ID", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "N_COLS", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "TYPE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "MIX_ID", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "MIX_LEN", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "CLUSTER_NAME", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "SPACE", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "NAME", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "N_COLS", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "TYPE", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "MIX_ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "MIX_LEN", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "CLUSTER_NAME", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "SPACE", DATA_INT, 0, 4);
 
 	table->id = DICT_TABLES_ID;
 
@@ -287,13 +287,13 @@ dict_boot(void)
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE, 7, 0);
 
-	dict_mem_table_add_col(table, "TABLE_ID", DATA_BINARY,0,0,0);
-	dict_mem_table_add_col(table, "POS", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "NAME", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "MTYPE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "PRTYPE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "LEN", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "PREC", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "TABLE_ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "POS", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "NAME", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "MTYPE", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "PRTYPE", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "LEN", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "PREC", DATA_INT, 0, 4);
 
 	table->id = DICT_COLUMNS_ID;
 
@@ -315,13 +315,13 @@ dict_boot(void)
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE, 7, 0);
 
-	dict_mem_table_add_col(table, "TABLE_ID", DATA_BINARY, 0,0,0);
-	dict_mem_table_add_col(table, "ID", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "NAME", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "N_FIELDS", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "TYPE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "SPACE", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "PAGE_NO", DATA_INT, 0, 4, 0);
+	dict_mem_table_add_col(table, "TABLE_ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "NAME", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "N_FIELDS", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "TYPE", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "SPACE", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "PAGE_NO", DATA_INT, 0, 4);
 
 	/* The '+ 2' below comes from the 2 system fields */
 #if DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2
@@ -353,9 +353,9 @@ dict_boot(void)
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0);
 
-	dict_mem_table_add_col(table, "INDEX_ID", DATA_BINARY, 0,0,0);
-	dict_mem_table_add_col(table, "POS", DATA_INT, 0, 4, 0);
-	dict_mem_table_add_col(table, "COL_NAME", DATA_BINARY, 0,0,0);
+	dict_mem_table_add_col(table, "INDEX_ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "POS", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, "COL_NAME", DATA_BINARY, 0, 0);
 
 	table->id = DICT_FIELDS_ID;
 	dict_table_add_to_cache(table);

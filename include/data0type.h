@@ -224,8 +224,7 @@ dtype_set(
 	dtype_t*	type,	/* in: type struct to init */
 	ulint		mtype,	/* in: main data type */
 	ulint		prtype,	/* in: precise type */
-	ulint		len,	/* in: length of type */
-	ulint		prec);	/* in: precision of type */
+	ulint		len);	/* in: precision of type */
 /*************************************************************************
 Copies a data type structure. */
 UNIV_INLINE
@@ -278,13 +277,6 @@ UNIV_INLINE
 ulint
 dtype_get_len(
 /*==========*/
-	dtype_t*	type);
-/*************************************************************************
-Gets the type precision. */
-UNIV_INLINE
-ulint
-dtype_get_prec(
-/*===========*/
 	dtype_t*	type);
 /*************************************************************************
 Gets the minimum length of a character, in bytes. */
@@ -415,8 +407,8 @@ dtype_new_read_for_order_and_null_size()
 sym_tab_add_null_lit() */
 
 struct dtype_struct{
-	ulint	mtype;		/* main data type */
-	ulint	prtype;		/* precise type; MySQL data type, charset code,
+	ulint	mtype:8;	/* main data type */
+	ulint	prtype:24;	/* precise type; MySQL data type, charset code,
 				flags to indicate nullability, signedness,
 				whether this is a binary string, whether this
 				is a true VARCHAR where MySQL uses 2 bytes to
@@ -424,16 +416,15 @@ struct dtype_struct{
 
 	/* the remaining fields do not affect alphabetical ordering: */
 
-	ulint	len;		/* length; for MySQL data this is
+	ulint	mbminlen:3;	/* minimum length of a character, in bytes */
+	ulint	mbmaxlen:3;	/* maximum length of a character, in bytes */
+
+	ulint	len:16;		/* length; for MySQL data this is
 				field->pack_length(), except that for a
 				>= 5.0.3 type true VARCHAR this is the
 				maximum byte length of the string data
 				(in addition to the string, MySQL uses 1 or
 				2 bytes to store the string length) */
-	ulint	prec;		/* precision */
-
-	ulint	mbminlen;	/* minimum length of a character, in bytes */
-	ulint	mbmaxlen;	/* maximum length of a character, in bytes */
 };
 
 #ifndef UNIV_NONINL
