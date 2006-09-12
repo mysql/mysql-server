@@ -2136,18 +2136,33 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
+  my_bool arg_unsigned_flag;
+  my_bool cmp;
   for (uint i=0; i < arg_count ; i++)
   {
-    if (i == 0)
-      value=args[i]->val_int();
-    else
-    {
-      longlong tmp=args[i]->val_int();
-      if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
-	value=tmp;
-    }
+    longlong tmp= args[i]->val_int();
     if ((null_value= args[i]->null_value))
       break;
+    arg_unsigned_flag= args[i]->unsigned_flag;
+    if (i == 0)
+    {
+      value= tmp;
+      unsigned_flag= arg_unsigned_flag;
+    }
+    else
+    {
+      if (unsigned_flag == arg_unsigned_flag)
+        cmp= tmp < value;
+      else if (unsigned_flag)
+        cmp= compare_int_signed_unsigned(tmp, value) < 0;
+      else
+        cmp= compare_int_unsigned_signed(tmp, value) < 0;
+      if ((cmp ? cmp_sign : -cmp_sign) > 0)
+      {
+        value= tmp;
+        unsigned_flag= arg_unsigned_flag;
+      }
+    }
   }
   return value;
 }
@@ -3406,6 +3421,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->length=0;
     entry->update_query_id=0;
     entry->collation.set(NULL, DERIVATION_IMPLICIT);
+    entry->unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
       variable. Imagine it is this:
@@ -3492,6 +3508,7 @@ Item_func_set_user_var::fix_length_and_dec()
     type     - type of new value
     cs       - charset info for new value
     dv       - derivation for new value
+    unsigned_arg - indiates if a value of type INT_RESULT is unsigned
 
   RETURN VALUE
     False - success, True - failure
@@ -3499,7 +3516,8 @@ Item_func_set_user_var::fix_length_and_dec()
 
 static bool
 update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
-            Item_result type, CHARSET_INFO *cs, Derivation dv)
+            Item_result type, CHARSET_INFO *cs, Derivation dv,
+            bool unsigned_arg)
 {
   if (set_null)
   {
@@ -3547,6 +3565,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
     entry->collation.set(cs, dv);
+    entry->unsigned_flag= unsigned_arg;
   }
   entry->type=type;
   return 0;
@@ -3555,7 +3574,8 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
 
 bool
 Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
-                                    CHARSET_INFO *cs, Derivation dv)
+                                    CHARSET_INFO *cs, Derivation dv
+                                    bool unsigned_arg)
 {
   /*
     If we set a variable explicitely to NULL then keep the old
@@ -3564,7 +3584,7 @@ Item_func_set_user_var::update_hash(void *ptr, uint length, Item_result type,
   if ((null_value= args[0]->null_value) && null_item)
     type= entry->type;                          // Don't change type of item
   if (::update_hash(entry, (null_value= args[0]->null_value),
-                    ptr, length, type, cs, dv))
+                    ptr, length, type, cs, dv, unsigned_arg))
   {
     current_thd->fatal_error();     // Probably end of memory
     null_value= 1;
@@ -3646,7 +3666,10 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
     str->set(*(double*) value, decimals, &my_charset_bin);
     break;
   case INT_RESULT:
-    str->set(*(longlong*) value, &my_charset_bin);
+    if (!unsigned_flag)
+      str->set(*(longlong*) value, &my_charset_bin);
+    else
+      str->set(*(ulonglong*) value, &my_charset_bin);
     break;
   case DECIMAL_RESULT:
     my_decimal2string(E_DEC_FATAL_ERROR, (my_decimal *)value, 0, 0, 0, str);
@@ -3717,6 +3740,7 @@ Item_func_set_user_var::check()
   case INT_RESULT:
   {
     save_result.vint= args[0]->val_int();
+    unsigned_flag= args[0]->unsigned_flag;
     break;
   }
   case STRING_RESULT:
@@ -3766,25 +3790,26 @@ Item_func_set_user_var::update()
   case REAL_RESULT:
   {
     res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
-		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
+		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT, 0);
     break;
   }
   case INT_RESULT:
   {
     res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
-		     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
+                     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT,
+                     unsigned_flag);
     break;
   }
   case STRING_RESULT:
   {
     if (!save_result.vstr)					// Null value
       res= update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin,
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     else
       res= update_hash((void*) save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
 		       save_result.vstr->charset(),
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     break;
   }
   case DECIMAL_RESULT:
