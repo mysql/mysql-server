@@ -147,6 +147,14 @@ ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
    can_enable_indexes(1)
 {}
 
+handler *ha_myisam::clone(MEM_ROOT *mem_root)
+{
+  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(mem_root));
+  if (new_handler)
+    new_handler->file->state= file->state;
+  return new_handler;
+}
+
 
 static const char *ha_myisam_exts[] = {
   ".MYI",
