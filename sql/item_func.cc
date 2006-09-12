@@ -2169,18 +2169,33 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
+  my_bool arg_unsigned_flag;
+  my_bool cmp;
   for (uint i=0; i < arg_count ; i++)
   {
-    if (i == 0)
-      value=args[i]->val_int();
-    else
-    {
-      longlong tmp=args[i]->val_int();
-      if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
-	value=tmp;
-    }
+    longlong tmp= args[i]->val_int();
     if ((null_value= args[i]->null_value))
       break;
+    arg_unsigned_flag= args[i]->unsigned_flag;
+    if (i == 0)
+    {
+      value= tmp;
+      unsigned_flag= arg_unsigned_flag;
+    }
+    else
+    {
+      if (unsigned_flag == arg_unsigned_flag)
+        cmp= tmp < value;
+      else if (unsigned_flag)
+        cmp= compare_int_signed_unsigned(tmp, value) < 0;
+      else
+        cmp= compare_int_unsigned_signed(tmp, value) < 0;
+      if ((cmp ? cmp_sign : -cmp_sign) > 0)
+      {
+        value= tmp;
+        unsigned_flag= arg_unsigned_flag;
+      }
+    }
   }
   return value;
 }
@@ -3821,7 +3836,7 @@ Item_func_set_user_var::update()
   case REAL_RESULT:
   {
     res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
-		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
+		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT, 0);
     break;
   }
   case INT_RESULT:
@@ -3835,23 +3850,23 @@ Item_func_set_user_var::update()
   {
     if (!save_result.vstr)					// Null value
       res= update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin,
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     else
       res= update_hash((void*) save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
 		       save_result.vstr->charset(),
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     break;
   }
   case DECIMAL_RESULT:
   {
     if (!save_result.vdec)					// Null value
       res= update_hash((void*) 0, 0, DECIMAL_RESULT, &my_charset_bin,
-                       DERIVATION_IMPLICIT);
+                       DERIVATION_IMPLICIT, 0);
     else
       res= update_hash((void*) save_result.vdec,
                        sizeof(my_decimal), DECIMAL_RESULT,
-                       &my_charset_bin, DERIVATION_IMPLICIT);
+                       &my_charset_bin, DERIVATION_IMPLICIT, 0);
     break;
   }
   case ROW_RESULT:
