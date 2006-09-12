@@ -230,9 +230,9 @@ que_thr_peek_stop(
 	trx = graph->trx;
 
 	if (graph->state != QUE_FORK_ACTIVE
-		|| trx->que_state == TRX_QUE_LOCK_WAIT
-		|| (UT_LIST_GET_LEN(trx->signals) > 0
-			&& trx->que_state == TRX_QUE_RUNNING)) {
+	    || trx->que_state == TRX_QUE_LOCK_WAIT
+	    || (UT_LIST_GET_LEN(trx->signals) > 0
+		&& trx->que_state == TRX_QUE_RUNNING)) {
 
 		return(TRUE);
 	}
@@ -250,7 +250,7 @@ que_graph_is_select(
 	que_t*		graph)		/* in: graph */
 {
 	if (graph->fork_type == QUE_FORK_SELECT_SCROLL
-			|| graph->fork_type == QUE_FORK_SELECT_NON_SCROLL) {
+	    || graph->fork_type == QUE_FORK_SELECT_NON_SCROLL) {
 
 		return(TRUE);
 	}

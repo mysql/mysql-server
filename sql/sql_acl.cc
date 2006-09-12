@@ -5379,14 +5379,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    if (user_name->host.length > HOSTNAME_LENGTH ||
-	user_name->user.length > USERNAME_LENGTH)
-    {
-      append_user(&wrong_users, user_name);
-      result= TRUE;
-      continue;
-    }
-
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
@@ -5579,8 +5571,6 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }  
     if (!find_acl_user(lex_user->host.str, lex_user->user.str, TRUE))
     {
-      sql_print_error("REVOKE ALL PRIVILEGES, GRANT: User '%s'@'%s' does not "
-                      "exists", lex_user->user.str, lex_user->host.str);
       result= -1;
       continue;
     }

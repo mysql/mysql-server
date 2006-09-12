@@ -145,17 +145,16 @@ trx_undo_get_prev_rec_from_prev_page(
 	undo_page = buf_frame_align(rec);
 
 	prev_page_no = flst_get_prev_addr(undo_page + TRX_UNDO_PAGE_HDR
-						+ TRX_UNDO_PAGE_NODE, mtr)
-					.page;
+					  + TRX_UNDO_PAGE_NODE, mtr)
+		.page;
 
 	if (prev_page_no == FIL_NULL) {
 
 		return(NULL);
 	}
 
-	prev_page = trx_undo_page_get_s_latched(
-					buf_frame_get_space_id(undo_page),
-					prev_page_no, mtr);
+	prev_page = trx_undo_page_get_s_latched
+		(buf_frame_get_space_id(undo_page), prev_page_no, mtr);
 
 	return(trx_undo_page_get_last_rec(prev_page, page_no, offset));
 }
@@ -186,7 +185,7 @@ trx_undo_get_prev_rec(
 	previous record */
 
 	return(trx_undo_get_prev_rec_from_prev_page(rec, page_no, offset,
-									mtr));
+						    mtr));
 }
 
 /***************************************************************************
@@ -223,8 +222,8 @@ trx_undo_get_next_rec_from_next_page(
 	space = buf_frame_get_space_id(undo_page);
 
 	next_page_no = flst_get_next_addr(undo_page + TRX_UNDO_PAGE_HDR
-						+ TRX_UNDO_PAGE_NODE, mtr)
-					.page;
+					  + TRX_UNDO_PAGE_NODE, mtr)
+		.page;
 	if (next_page_no == FIL_NULL) {
 
 		return(NULL);
@@ -232,7 +231,7 @@ trx_undo_get_next_rec_from_next_page(
 
 	if (mode == RW_S_LATCH) {
 		next_page = trx_undo_page_get_s_latched(space, next_page_no,
-									mtr);
+							mtr);
 	} else {
 		ut_ad(mode == RW_X_LATCH);
 		next_page = trx_undo_page_get(space, next_page_no, mtr);
@@ -263,8 +262,8 @@ trx_undo_get_next_rec(
 	}
 
 	return(trx_undo_get_next_rec_from_next_page(buf_frame_align(rec),
-							page_no, offset,
-							RW_S_LATCH, mtr));
+						    page_no, offset,
+						    RW_S_LATCH, mtr));
 }
 
 /***************************************************************************
@@ -297,7 +296,7 @@ trx_undo_get_first_rec(
 	}
 
 	return(trx_undo_get_next_rec_from_next_page(undo_page, page_no, offset,
-								mode, mtr));
+						    mode, mtr));
 }
 
 /*============== UNDO LOG FILE COPY CREATION AND FREEING ==================*/
@@ -362,9 +361,9 @@ trx_undo_page_init(
 	mach_write_to_2(page_hdr + TRX_UNDO_PAGE_TYPE, type);
 
 	mach_write_to_2(page_hdr + TRX_UNDO_PAGE_START,
-				TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
+			TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
 	mach_write_to_2(page_hdr + TRX_UNDO_PAGE_FREE,
-				TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
+			TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
 
 	fil_page_set_type(undo_page, FIL_PAGE_UNDO_LOG);
 
@@ -400,16 +399,18 @@ trx_undo_seg_create(
 	ut_ad(mutex_own(&(rseg->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-/*	fputs(type == TRX_UNDO_INSERT
-		? "Creating insert undo log segment\n"
-		: "Creating update undo log segment\n", stderr); */
+	/*	fputs(type == TRX_UNDO_INSERT
+	? "Creating insert undo log segment\n"
+	: "Creating update undo log segment\n", stderr); */
 	slot_no = trx_rsegf_undo_find_free(rseg_hdr, mtr);
 
 	if (slot_no == ULINT_UNDEFINED) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"InnoDB: Warning: cannot find a free slot for an undo log. Do you have too\n"
-"InnoDB: many active transactions running concurrently?\n");
+			"InnoDB: Warning: cannot find a free slot for"
+			" an undo log. Do you have too\n"
+			"InnoDB: many active transactions"
+			" running concurrently?\n");
 
 		return(NULL);
 	}
@@ -417,7 +418,7 @@ trx_undo_seg_create(
 	space = buf_frame_get_space_id(rseg_hdr);
 
 	success = fsp_reserve_free_extents(&n_reserved, space, 2, FSP_UNDO,
-									mtr);
+					   mtr);
 	if (!success) {
 
 		return(NULL);
@@ -425,7 +426,8 @@ trx_undo_seg_create(
 
 	/* Allocate a new file segment for the undo log */
 	undo_page = fseg_create_general(space, 0,
-			TRX_UNDO_SEG_HDR + TRX_UNDO_FSEG_HEADER, TRUE, mtr);
+					TRX_UNDO_SEG_HDR
+					+ TRX_UNDO_FSEG_HEADER, TRUE, mtr);
 
 	fil_space_release_free_extents(space, n_reserved);
 
@@ -445,18 +447,18 @@ trx_undo_seg_create(
 	trx_undo_page_init(undo_page, type, mtr);
 
 	mlog_write_ulint(page_hdr + TRX_UNDO_PAGE_FREE,
-				TRX_UNDO_SEG_HDR + TRX_UNDO_SEG_HDR_SIZE,
-				MLOG_2BYTES, mtr);
+			 TRX_UNDO_SEG_HDR + TRX_UNDO_SEG_HDR_SIZE,
+			 MLOG_2BYTES, mtr);
 
 	mlog_write_ulint(seg_hdr + TRX_UNDO_LAST_LOG, 0, MLOG_2BYTES, mtr);
 
 	flst_init(seg_hdr + TRX_UNDO_PAGE_LIST, mtr);
 
 	flst_add_last(seg_hdr + TRX_UNDO_PAGE_LIST,
-					page_hdr + TRX_UNDO_PAGE_NODE, mtr);
+		      page_hdr + TRX_UNDO_PAGE_NODE, mtr);
 
 	trx_rsegf_set_nth_undo(rseg_hdr, slot_no,
-				buf_frame_get_page_no(undo_page), mtr);
+			       buf_frame_get_page_no(undo_page), mtr);
 	*id = slot_no;
 
 	return(undo_page);
@@ -560,16 +562,16 @@ trx_undo_write_xid(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	mlog_write_ulint(log_hdr + TRX_UNDO_XA_FORMAT,
-			(ulint)xid->formatID, MLOG_4BYTES, mtr);
+			 (ulint)xid->formatID, MLOG_4BYTES, mtr);
 
 	mlog_write_ulint(log_hdr + TRX_UNDO_XA_TRID_LEN,
-			(ulint)xid->gtrid_length, MLOG_4BYTES, mtr);
+			 (ulint)xid->gtrid_length, MLOG_4BYTES, mtr);
 
 	mlog_write_ulint(log_hdr + TRX_UNDO_XA_BQUAL_LEN,
-			(ulint)xid->bqual_length, MLOG_4BYTES, mtr);
+			 (ulint)xid->bqual_length, MLOG_4BYTES, mtr);
 
 	mlog_write_string(log_hdr + TRX_UNDO_XA_XID, (const byte*) xid->data,
-							XIDDATASIZE, mtr);
+			  XIDDATASIZE, mtr);
 }
 
 /************************************************************************
@@ -583,10 +585,10 @@ trx_undo_read_xid(
 {
 	xid->formatID = (long)mach_read_from_4(log_hdr + TRX_UNDO_XA_FORMAT);
 
-	xid->gtrid_length =
-			(long)mach_read_from_4(log_hdr + TRX_UNDO_XA_TRID_LEN);
-	xid->bqual_length =
-		  (long)mach_read_from_4(log_hdr + TRX_UNDO_XA_BQUAL_LEN);
+	xid->gtrid_length
+		= (long) mach_read_from_4(log_hdr + TRX_UNDO_XA_TRID_LEN);
+	xid->bqual_length
+		= (long) mach_read_from_4(log_hdr + TRX_UNDO_XA_BQUAL_LEN);
 
 	memcpy(xid->data, log_hdr + TRX_UNDO_XA_XID, XIDDATASIZE);
 }
@@ -614,19 +616,19 @@ trx_undo_header_add_space_for_xid(
 	ut_a(free == (ulint)(log_hdr - undo_page) + TRX_UNDO_LOG_OLD_HDR_SIZE);
 
 	new_free = free + (TRX_UNDO_LOG_XA_HDR_SIZE
-						- TRX_UNDO_LOG_OLD_HDR_SIZE);
+			   - TRX_UNDO_LOG_OLD_HDR_SIZE);
 
 	/* Add space for a XID after the header, update the free offset
 	fields on the undo log page and in the undo log header */
 
 	mlog_write_ulint(page_hdr + TRX_UNDO_PAGE_START, new_free,
-							MLOG_2BYTES, mtr);
+			 MLOG_2BYTES, mtr);
 
 	mlog_write_ulint(page_hdr + TRX_UNDO_PAGE_FREE, new_free,
-							MLOG_2BYTES, mtr);
+			 MLOG_2BYTES, mtr);
 
 	mlog_write_ulint(log_hdr + TRX_UNDO_LOG_START, new_free,
-							MLOG_2BYTES, mtr);
+			 MLOG_2BYTES, mtr);
 }
 
 /**************************************************************************
@@ -715,8 +717,8 @@ trx_undo_insert_header_reuse(
 	the space on the page */
 
 	ut_a(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-					+ TRX_UNDO_PAGE_TYPE)
-						== TRX_UNDO_INSERT);
+			      + TRX_UNDO_PAGE_TYPE)
+	     == TRX_UNDO_INSERT);
 
 	mach_write_to_2(page_hdr + TRX_UNDO_PAGE_START, new_free);
 
@@ -800,7 +802,8 @@ trx_undo_discard_latest_update_undo(
 		prev_log_hdr = undo_page + prev_hdr_offset;
 
 		mach_write_to_2(page_hdr + TRX_UNDO_PAGE_START,
-			mach_read_from_2(prev_log_hdr + TRX_UNDO_LOG_START));
+				mach_read_from_2(prev_log_hdr
+						 + TRX_UNDO_LOG_START));
 		mach_write_to_2(prev_log_hdr + TRX_UNDO_NEXT_LOG, 0);
 	}
 
@@ -849,16 +852,16 @@ trx_undo_add_page(
 	header_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
 
 	success = fsp_reserve_free_extents(&n_reserved, undo->space, 1,
-							FSP_UNDO, mtr);
+					   FSP_UNDO, mtr);
 	if (!success) {
 
 		return(FIL_NULL);
 	}
 
 	page_no = fseg_alloc_free_page_general(header_page + TRX_UNDO_SEG_HDR
-						+ TRX_UNDO_FSEG_HEADER,
-					undo->top_page_no + 1, FSP_UP,
-					TRUE, mtr);
+					       + TRX_UNDO_FSEG_HEADER,
+					       undo->top_page_no + 1, FSP_UP,
+					       TRUE, mtr);
 
 	fil_space_release_free_extents(undo->space, n_reserved);
 
@@ -876,7 +879,7 @@ trx_undo_add_page(
 	trx_undo_page_init(new_page, undo->type, mtr);
 
 	flst_add_last(header_page + TRX_UNDO_SEG_HDR + TRX_UNDO_PAGE_LIST,
-		new_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr);
+		      new_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr);
 	undo->size++;
 	rseg->curr_size++;
 
@@ -918,23 +921,23 @@ trx_undo_free_page(
 	header_page = trx_undo_page_get(space, hdr_page_no, mtr);
 
 	flst_remove(header_page + TRX_UNDO_SEG_HDR + TRX_UNDO_PAGE_LIST,
-		undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr);
+		    undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr);
 
 	fseg_free_page(header_page + TRX_UNDO_SEG_HDR + TRX_UNDO_FSEG_HEADER,
-							space, page_no, mtr);
+		       space, page_no, mtr);
 
 	last_addr = flst_get_last(header_page + TRX_UNDO_SEG_HDR
-						+ TRX_UNDO_PAGE_LIST, mtr);
+				  + TRX_UNDO_PAGE_LIST, mtr);
 	rseg->curr_size--;
 
 	if (in_history) {
 		rseg_header = trx_rsegf_get(space, rseg->page_no, mtr);
 
 		hist_size = mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
-							MLOG_4BYTES, mtr);
+					   MLOG_4BYTES, mtr);
 		ut_ad(hist_size > 0);
 		mlog_write_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
-					hist_size - 1, MLOG_4BYTES, mtr);
+				 hist_size - 1, MLOG_4BYTES, mtr);
 	}
 
 	return(last_addr.page);
@@ -963,7 +966,7 @@ trx_undo_free_page_in_rollback(
 #endif /* UNIV_SYNC_DEBUG */
 
 	last_page_no = trx_undo_free_page(undo->rseg, FALSE, undo->space,
-					undo->hdr_page_no, page_no, mtr);
+					  undo->hdr_page_no, page_no, mtr);
 
 	undo->last_page_no = last_page_no;
 	undo->size--;
@@ -1030,7 +1033,7 @@ trx_undo_truncate_end(
 		undo_page = trx_undo_page_get(undo->space, last_page_no, &mtr);
 
 		rec = trx_undo_page_get_last_rec(undo_page, undo->hdr_page_no,
-							undo->hdr_offset);
+						 undo->hdr_offset);
 		for (;;) {
 			if (rec == NULL) {
 				if (last_page_no == undo->hdr_page_no) {
@@ -1038,13 +1041,13 @@ trx_undo_truncate_end(
 					goto function_exit;
 				}
 
-				trx_undo_free_page_in_rollback(trx, undo,
-							last_page_no, &mtr);
+				trx_undo_free_page_in_rollback
+					(trx, undo, last_page_no, &mtr);
 				break;
 			}
 
 			if (ut_dulint_cmp(trx_undo_rec_get_undo_no(rec), limit)
-				>= 0) {
+			    >= 0) {
 				/* Truncate at least this record off, maybe
 				more */
 				trunc_here = rec;
@@ -1053,8 +1056,8 @@ trx_undo_truncate_end(
 			}
 
 			rec = trx_undo_page_get_prev_rec(rec,
-							undo->hdr_page_no,
-							undo->hdr_offset);
+							 undo->hdr_page_no,
+							 undo->hdr_offset);
 		}
 
 		mtr_commit(&mtr);
@@ -1063,8 +1066,8 @@ trx_undo_truncate_end(
 function_exit:
 	if (trunc_here) {
 		mlog_write_ulint(undo_page + TRX_UNDO_PAGE_HDR
-							+ TRX_UNDO_PAGE_FREE,
-				trunc_here - undo_page, MLOG_2BYTES, &mtr);
+				 + TRX_UNDO_PAGE_FREE,
+				 trunc_here - undo_page, MLOG_2BYTES, &mtr);
 	}
 
 	mtr_commit(&mtr);
@@ -1105,7 +1108,7 @@ loop:
 	mtr_start(&mtr);
 
 	rec = trx_undo_get_first_rec(space, hdr_page_no, hdr_offset,
-							RW_X_LATCH, &mtr);
+				     RW_X_LATCH, &mtr);
 	if (rec == NULL) {
 		/* Already empty */
 
@@ -1117,7 +1120,7 @@ loop:
 	undo_page = buf_frame_align(rec);
 
 	last_rec = trx_undo_page_get_last_rec(undo_page, hdr_page_no,
-								hdr_offset);
+					      hdr_offset);
 	if (ut_dulint_cmp(trx_undo_rec_get_undo_no(last_rec), limit) >= 0) {
 
 		mtr_commit(&mtr);
@@ -1129,10 +1132,10 @@ loop:
 
 	if (page_no == hdr_page_no) {
 		trx_undo_empty_header_page(space, hdr_page_no, hdr_offset,
-									&mtr);
+					   &mtr);
 	} else {
 		trx_undo_free_page(rseg, TRUE, space, hdr_page_no,
-								page_no, &mtr);
+				   page_no, &mtr);
 	}
 
 	mtr_commit(&mtr);
@@ -1167,7 +1170,7 @@ trx_undo_seg_free(
 		mutex_enter(&(rseg->mutex));
 
 		seg_header = trx_undo_page_get(undo->space, undo->hdr_page_no,
-			&mtr) + TRX_UNDO_SEG_HDR;
+					       &mtr) + TRX_UNDO_SEG_HDR;
 
 		file_seg = seg_header + TRX_UNDO_FSEG_HEADER;
 
@@ -1176,9 +1179,9 @@ trx_undo_seg_free(
 		if (finished) {
 			/* Update the rseg header */
 			rseg_header = trx_rsegf_get(rseg->space, rseg->page_no,
-									&mtr);
+						    &mtr);
 			trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL,
-									&mtr);
+					       &mtr);
 		}
 
 		mutex_exit(&(rseg->mutex));
@@ -1219,7 +1222,7 @@ trx_undo_mem_create_at_db_start(
 
 	if (id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
-		"InnoDB: Error: undo->id is %lu\n", (ulong) id);
+			"InnoDB: Error: undo->id is %lu\n", (ulong) id);
 		ut_error;
 	}
 
@@ -1228,7 +1231,7 @@ trx_undo_mem_create_at_db_start(
 	page_header = undo_page + TRX_UNDO_PAGE_HDR;
 
 	type = mtr_read_ulint(page_header + TRX_UNDO_PAGE_TYPE, MLOG_2BYTES,
-									mtr);
+			      mtr);
 	seg_header = undo_page + TRX_UNDO_SEG_HDR;
 
 	state = mach_read_from_2(seg_header + TRX_UNDO_STATE);
@@ -1240,7 +1243,7 @@ trx_undo_mem_create_at_db_start(
 	trx_id = mtr_read_dulint(undo_header + TRX_UNDO_TRX_ID, mtr);
 
 	xid_exists = mtr_read_ulint(undo_header + TRX_UNDO_XID_EXISTS,
-						MLOG_1BYTE, mtr);
+				    MLOG_1BYTE, mtr);
 
 	/* Read X/Open XA transaction identification if it exists, or
 	set it to NULL. */
@@ -1255,12 +1258,11 @@ trx_undo_mem_create_at_db_start(
 	mutex_enter(&(rseg->mutex));
 
 	undo = trx_undo_mem_create(rseg, id, type, trx_id, &xid,
-						page_no, offset);
+				   page_no, offset);
 	mutex_exit(&(rseg->mutex));
 
-	undo->dict_operation =	mtr_read_ulint(
-					undo_header + TRX_UNDO_DICT_TRANS,
-					MLOG_1BYTE, mtr);
+	undo->dict_operation =	mtr_read_ulint
+		(undo_header + TRX_UNDO_DICT_TRANS, MLOG_1BYTE, mtr);
 
 	undo->table_id = mtr_read_dulint(undo_header + TRX_UNDO_TABLE_ID, mtr);
 	undo->state = state;
@@ -1292,19 +1294,19 @@ add_to_list:
 	if (type == TRX_UNDO_INSERT) {
 		if (state != TRX_UNDO_CACHED) {
 			UT_LIST_ADD_LAST(undo_list, rseg->insert_undo_list,
-									undo);
+					 undo);
 		} else {
 			UT_LIST_ADD_LAST(undo_list, rseg->insert_undo_cached,
-									undo);
+					 undo);
 		}
 	} else {
 		ut_ad(type == TRX_UNDO_UPDATE);
 		if (state != TRX_UNDO_CACHED) {
 			UT_LIST_ADD_LAST(undo_list, rseg->update_undo_list,
-									undo);
+					 undo);
 		} else {
 			UT_LIST_ADD_LAST(undo_list, rseg->update_undo_cached,
-									undo);
+					 undo);
 		}
 	}
 
@@ -1348,10 +1350,10 @@ trx_undo_lists_init(
 		high */
 
 		if (page_no != FIL_NULL
-			&& srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+		    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
 
 			undo = trx_undo_mem_create_at_db_start(rseg, i,
-								page_no, &mtr);
+							       page_no, &mtr);
 			size += undo->size;
 
 			mtr_commit(&mtr);
@@ -1359,7 +1361,7 @@ trx_undo_lists_init(
 			mtr_start(&mtr);
 
 			rseg_header = trx_rsegf_get(rseg->space,
-							rseg->page_no, &mtr);
+						    rseg->page_no, &mtr);
 		}
 	}
 
@@ -1393,7 +1395,7 @@ trx_undo_mem_create(
 
 	if (id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
-		"InnoDB: Error: undo->id is %lu\n", (ulong) id);
+			"InnoDB: Error: undo->id is %lu\n", (ulong) id);
 		ut_error;
 	}
 
@@ -1468,7 +1470,7 @@ trx_undo_mem_free(
 {
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr,
-		"InnoDB: Error: undo->id is %lu\n", (ulong) undo->id);
+			"InnoDB: Error: undo->id is %lu\n", (ulong) undo->id);
 		ut_error;
 	}
 
@@ -1528,11 +1530,11 @@ trx_undo_create(
 
 	if (trx->support_xa) {
 		trx_undo_header_add_space_for_xid(undo_page,
-					undo_page + offset, mtr);
+						  undo_page + offset, mtr);
 	}
 
 	undo = trx_undo_mem_create(rseg, id, type, trx_id, xid,
-							page_no, offset);
+				   page_no, offset);
 	return(undo);
 }
 
@@ -1599,19 +1601,19 @@ trx_undo_reuse_cached(
 		offset = trx_undo_insert_header_reuse(undo_page, trx_id, mtr);
 
 		if (trx->support_xa) {
-			trx_undo_header_add_space_for_xid(undo_page,
-						undo_page + offset, mtr);
+			trx_undo_header_add_space_for_xid
+				(undo_page, undo_page + offset, mtr);
 		}
 	} else {
 		ut_a(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-					+ TRX_UNDO_PAGE_TYPE)
-						== TRX_UNDO_UPDATE);
+				      + TRX_UNDO_PAGE_TYPE)
+		     == TRX_UNDO_UPDATE);
 
 		offset = trx_undo_header_create(undo_page, trx_id, mtr);
 
 		if (trx->support_xa) {
-			trx_undo_header_add_space_for_xid(undo_page,
-						undo_page + offset, mtr);
+			trx_undo_header_add_space_for_xid
+				(undo_page, undo_page + offset, mtr);
 		}
 	}
 
@@ -1637,12 +1639,12 @@ trx_undo_mark_as_dict_operation(
 
 	hdr_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
 
-	mlog_write_ulint(hdr_page + undo->hdr_offset +
-				TRX_UNDO_DICT_TRANS,
-				trx->dict_operation, MLOG_1BYTE, mtr);
+	mlog_write_ulint(hdr_page + undo->hdr_offset
+			 + TRX_UNDO_DICT_TRANS,
+			 trx->dict_operation, MLOG_1BYTE, mtr);
 
 	mlog_write_dulint(hdr_page + undo->hdr_offset + TRX_UNDO_TABLE_ID,
-			trx->table_id, mtr);
+			  trx->table_id, mtr);
 
 	undo->dict_operation = trx->dict_operation;
 	undo->table_id = trx->table_id;
@@ -1681,10 +1683,10 @@ trx_undo_assign_undo(
 	mutex_enter(&(rseg->mutex));
 
 	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
-									&mtr);
+				     &mtr);
 	if (undo == NULL) {
 		undo = trx_undo_create(trx, rseg, type, trx->id, &trx->xid,
-									&mtr);
+				       &mtr);
 		if (undo == NULL) {
 			/* Did not succeed */
 
@@ -1747,7 +1749,7 @@ trx_undo_set_state_at_finish(
 	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
 
 	if (undo->size == 1 && mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE)
-						< TRX_UNDO_PAGE_REUSE_LIMIT) {
+	    < TRX_UNDO_PAGE_REUSE_LIMIT) {
 		state = TRX_UNDO_CACHED;
 
 	} else if (undo->type == TRX_UNDO_INSERT) {
@@ -1808,7 +1810,7 @@ trx_undo_set_state_at_prepare(
 	undo_header = undo_page + offset;
 
 	mlog_write_ulint(undo_header + TRX_UNDO_XID_EXISTS,
-					TRUE, MLOG_1BYTE, mtr);
+			 TRUE, MLOG_1BYTE, mtr);
 
 	trx_undo_write_xid(undo_header, &undo->xid, mtr);
 
