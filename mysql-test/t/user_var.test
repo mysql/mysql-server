@@ -142,9 +142,11 @@ select @@global.version;
 select @@session.VERSION;
 
 #
-# Bug #20924 SET on a user variable saves UNSIGNED as SIGNED
+# Bug #20924: CAST(expr as UNSIGNED) returns SIGNED value when used in various
+# functions
+# - SET on a user variable saves UNSIGNED as SIGNED
 #
 set @a=18446744073709551615;
 select @a;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
