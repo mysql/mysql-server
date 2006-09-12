@@ -103,17 +103,22 @@ row_build_index_entry(
 		dfield_copy(dfield, dfield2);
 
 		/* If a column prefix index, take only the prefix */
-		if (ind_field->prefix_len > 0
-		    && dfield_get_len(dfield2) != UNIV_SQL_NULL) {
+		if (ind_field->prefix_len) {
+			if (dfield_get_len(dfield2) != UNIV_SQL_NULL) {
 
-			cur_type = dict_col_get_type
-				(dict_field_get_col(ind_field));
+				cur_type = dict_col_get_type
+					(dict_field_get_col(ind_field));
 
-			storage_len = dtype_get_at_most_n_mbchars
-				(cur_type, ind_field->prefix_len,
-				 dfield_get_len(dfield2), dfield2->data);
+				storage_len = dtype_get_at_most_n_mbchars
+					(cur_type,
+					 ind_field->prefix_len,
+					 dfield_get_len(dfield2),
+					 dfield2->data);
 
-			dfield_set_len(dfield, storage_len);
+				dfield_set_len(dfield, storage_len);
+			}
+
+			dfield_get_type(dfield)->len = ind_field->prefix_len;
 		}
 	}
 
