@@ -35,6 +35,7 @@ enum enum_events_error_code
   OP_ALREADY_EXISTS
 };
 
+
 int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 
