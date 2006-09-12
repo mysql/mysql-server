@@ -682,8 +682,6 @@ drop table t2;
 
 drop table t1;
 
-
-
 #
 # Bug#20214: Incorrect error when user calls SHOW CREATE VIEW on non
 #            privileged view

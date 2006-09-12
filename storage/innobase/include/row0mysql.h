@@ -602,9 +602,10 @@ struct row_prebuilt_struct {
 					selects */
 	dtuple_t*	search_tuple;	/* prebuilt dtuple used in selects */
 	byte		row_id[DATA_ROW_ID_LEN];
-					/* if the clustered index was generated,
-					the row id of the last row fetched is
-					stored here */
+					/* if the clustered index was
+					generated, the row id of the
+					last row fetched is stored
+					here */
 	dtuple_t*	clust_ref;	/* prebuilt dtuple used in
 					sel/upd/del */
 	ulint		select_lock_type;/* LOCK_NONE, LOCK_S, or LOCK_X */
