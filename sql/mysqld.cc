@@ -326,8 +326,6 @@ static char *my_bind_addr_str;
 static char *default_collation_name; 
 static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
-static char mysql_data_home_buff[2];
-static struct passwd *user_info;
 static I_List<THD> thread_cache;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
@@ -508,7 +506,8 @@ key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
-char *mysql_data_home= mysql_real_data_home;
+char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
+struct passwd *user_info;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
@@ -6215,7 +6214,7 @@ The minimum value for this variable is 4096.",
    "If an in-memory temporary table exceeds this size, MySQL will automatically convert it to an on-disk MyISAM table.",
    (gptr*) &global_system_variables.tmp_table_size,
    (gptr*) &max_system_variables.tmp_table_size, 0, GET_ULONG,
-   REQUIRED_ARG, 32*1024*1024L, 1024, ~0L, 0, 1, 0},
+   REQUIRED_ARG, 16*1024*1024L, 1024, ~0L, 0, 1, 0},  /* See  max_heap_table_size . */
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (gptr*) &global_system_variables.trans_alloc_block_size,
@@ -7592,10 +7591,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     switch (method-1) {
     case 0: 
-      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
+      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
       break;
     case 1:
-      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
       break;
     case 2:
       method_conv= MI_STATS_METHOD_IGNORE_NULLS;

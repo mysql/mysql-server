@@ -1916,7 +1916,8 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     thd->stmt_map.erase(stmt);
   }
   else
-    general_log_print(thd, COM_STMT_PREPARE, "[%lu] %s", stmt->id, packet);
+    general_log_print(thd, COM_STMT_PREPARE, "[%lu] %.*b", stmt->id,
+                      stmt->query_length, stmt->query);
 
   /* check_prepared_statemnt sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
@@ -2291,7 +2292,8 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   if (error == 0)
-    general_log_print(thd, COM_STMT_EXECUTE, "[%lu] %s", stmt->id, thd->query);
+    general_log_print(thd, COM_STMT_EXECUTE, "[%lu] %.*b", stmt->id,
+                      thd->query_length, thd->query);
 
   DBUG_VOID_RETURN;
 
