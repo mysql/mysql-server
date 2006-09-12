@@ -916,8 +916,30 @@ void Item_func_between::fix_length_and_dec()
   if (!args[0] || !args[1] || !args[2])
     return;
   agg_cmp_type(thd, &cmp_type, args, 3);
-  if (cmp_type == STRING_RESULT)
-      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV);
+  if (cmp_type == STRING_RESULT &&
+      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV))
+   return;
+
+  /*
+    Make a special case of compare with date/time and longlong fields.
+    They are compared as integers, so for const item this time-consuming
+    conversion can be done only once, not for every single comparison
+  */
+  if (args[0]->type() == FIELD_ITEM)
+  {
+    Field *field=((Item_field*) args[0])->field;
+    if (field->can_be_compared_as_longlong())
+    {
+      /*
+        The following can't be recoded with || as convert_constant_item
+        changes the argument
+      */
+      if (convert_constant_item(thd, field,&args[1]))
+	cmp_type=INT_RESULT;			// Works for all types.
+      if (convert_constant_item(thd, field,&args[2]))
+	cmp_type=INT_RESULT;			// Works for all types.
+    }
+  }
 }
 
 
