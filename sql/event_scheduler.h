@@ -65,8 +65,8 @@ public:
   bool
   is_running();
 
-  bool
-  dump_internal_status(THD *thd);
+  void
+  dump_internal_status();
 
 private:
   uint

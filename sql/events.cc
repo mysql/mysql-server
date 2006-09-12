@@ -744,32 +744,20 @@ Events::destroy_mutexes()
 
   SYNOPSIS
     Events::dump_internal_status()
-      thd  Thread
-
-  RETURN VALUE
-    FALSE  OK
-    TRUE   Error
 */
 
-bool
-Events::dump_internal_status(THD *thd)
+void
+Events::dump_internal_status()
 {
   DBUG_ENTER("Events::dump_internal_status");
-  Protocol *protocol= thd->protocol;
-  List<Item> field_list;
+  puts("\n\n\nEvents status:");
+  puts("LLA = Last Locked At  LUA = Last Unlocked At");
+  puts("WOC = Waiting On Condition  DL = Data Locked");
 
-  field_list.push_back(new Item_empty_string("Name", 30));
-  field_list.push_back(new Item_empty_string("Value",20));
-  if (protocol->send_fields(&field_list, Protocol::SEND_NUM_ROWS |
-                                         Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+  scheduler->dump_internal_status();
+  event_queue->dump_internal_status();
 
-  if (scheduler->dump_internal_status(thd) ||
-      event_queue->dump_internal_status(thd))
-    DBUG_RETURN(TRUE);
-
-  send_eof(thd);
-  DBUG_RETURN(FALSE);
+  DBUG_VOID_RETURN;
 }
 
 
