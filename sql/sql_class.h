@@ -1464,6 +1464,7 @@ class user_var_entry
   char *value;
   ulong length, update_query_id, used_query_id;
   Item_result type;
+  bool unsigned_flag;
 
   double val(my_bool *null_value);
   longlong val_int(my_bool *null_value);
