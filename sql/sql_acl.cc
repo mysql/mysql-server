@@ -202,7 +202,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   DBUG_ENTER("acl_load");
 
   grant_version++; /* Privileges updated */
-  mysql_proc_table_exists= 1;			// Assume mysql.proc exists
 
   acl_cache->clear(1);				// Clear locked hostname cache
 
