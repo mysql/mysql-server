@@ -1170,7 +1170,7 @@ public:
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   bool update_hash(void *ptr, uint length, enum Item_result type, 
-  		   CHARSET_INFO *cs, Derivation dv);
+  		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool check();
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
