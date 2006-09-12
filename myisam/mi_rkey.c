@@ -93,28 +93,42 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
                     myisam_read_vec[search_flag], info->s->state.key_root[inx]))
     {
       /*
-        If we are searching for an exact key (including the data pointer)
-        and this was added by an concurrent insert,
-        then the result is "key not found".
+        If we searching for a partial key (or using >, >=, < or <=) and
+        the data is outside of the data file, we need to continue searching
+        for the first key inside the data file
       */
-      if ((search_flag == HA_READ_KEY_EXACT) &&
-          (info->lastpos >= info->state->data_file_length))
+      if (info->lastpos >= info->state->data_file_length &&
+          (search_flag != HA_READ_KEY_EXACT ||
+           last_used_keyseg != keyinfo->seg + keyinfo->keysegs))
       {
-        my_errno= HA_ERR_KEY_NOT_FOUND;
-        info->lastpos= HA_OFFSET_ERROR;
-      }
-      else while (info->lastpos >= info->state->data_file_length)
-      {
-        /*
-	  Skip rows that are inserted by other threads since we got a lock
-	  Note that this can only happen if we are not searching after an
-	  exact key, because the keys are sorted according to position
-        */
-        if  (_mi_search_next(info, keyinfo, info->lastkey,
-                             info->lastkey_length,
-                             myisam_readnext_vec[search_flag],
-                             info->s->state.key_root[inx]))
-	  break;
+        do
+        {
+          uint not_used;
+          /*
+            Skip rows that are inserted by other threads since we got a lock
+            Note that this can only happen if we are not searching after an
+            full length exact key, because the keys are sorted
+            according to position
+          */
+          if  (_mi_search_next(info, keyinfo, info->lastkey,
+                               info->lastkey_length,
+                               myisam_readnext_vec[search_flag],
+                               info->s->state.key_root[inx]))
+            break;
+          /*
+            Check that the found key does still match the search.
+            _mi_search_next() delivers the next key regardless of its
+            value.
+          */
+          if (search_flag == HA_READ_KEY_EXACT &&
+              ha_key_cmp(keyinfo->seg, key_buff, info->lastkey, use_key_length,
+                         SEARCH_FIND, &not_used))
+          {
+            my_errno= HA_ERR_KEY_NOT_FOUND;
+            info->lastpos= HA_OFFSET_ERROR;
+            break;
+          }
+        } while (info->lastpos >= info->state->data_file_length);
       }
     }
   }
