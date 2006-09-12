@@ -634,6 +634,12 @@ bool THD::store_globals()
 
 void THD::cleanup_after_query()
 {
+  if (!in_sub_stmt) /* stored functions and triggers are a special case */
+  {
+    /* Forget those values, for next binlogger: */
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
+    auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+  }
   if (first_successful_insert_id_in_cur_stmt > 0)
   {
     /* set what LAST_INSERT_ID() will return */

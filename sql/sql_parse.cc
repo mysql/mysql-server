@@ -5861,9 +5861,14 @@ void mysql_reset_thd_for_next_command(THD *thd)
   DBUG_ASSERT(!thd->spcont); /* not for substatements of routines */
   thd->free_list= 0;
   thd->select_number= 1;
+  /*
+    Those two lines below are theoretically unneeded as
+    THD::cleanup_after_query() should take care of this already.
+  */
   thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
-  thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 
-    thd->query_start_used= 0;
+  thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
+
+  thd->query_start_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
