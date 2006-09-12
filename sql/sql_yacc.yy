@@ -590,7 +590,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RTREE_SYM
 %token  SAVEPOINT_SYM
 %token  SCHEDULE_SYM
-%token  SCHEDULER_SYM
 %token  SECOND_MICROSECOND_SYM
 %token  SECOND_SYM
 %token  SECURITY_SYM
@@ -8112,15 +8111,6 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                YYABORT;
            }
-         | SCHEDULER_SYM STATUS_SYM
-           {
-#ifndef DBUG_OFF
-             Lex->sql_command= SQLCOM_SHOW_SCHEDULER_STATUS;
-#else
-             yyerror(ER(ER_SYNTAX_ERROR));
-             YYABORT;           
-#endif
-           }         
          | TABLE_SYM STATUS_SYM opt_db wild_and_where
            {
              LEX *lex= Lex;
@@ -9503,7 +9493,6 @@ keyword_sp:
 	| ROW_SYM		{}
 	| RTREE_SYM		{}
 	| SCHEDULE_SYM		{}	
-	| SCHEDULER_SYM		{}	
 	| SECOND_SYM		{}
 	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}

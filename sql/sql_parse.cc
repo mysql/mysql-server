@@ -3960,13 +3960,6 @@ end_with_restore_list:
     }
     break;
   }
-#ifndef DBUG_OFF
-  case SQLCOM_SHOW_SCHEDULER_STATUS:
-  {
-    res= Events::get_instance()->dump_internal_status(thd);
-    break;
-  }
-#endif
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
