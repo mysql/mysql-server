@@ -563,7 +563,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   free_underlaid_joins(thd, &thd->lex->select_lex);
   joins_freed= TRUE;
-  table->file->ha_release_auto_increment();
 
   /*
     Now all rows are inserted.  Time to update logs and sends response to
@@ -582,6 +581,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   else
 #endif
   {
+    /*
+      Do not do this release if this is a delayed insert, it would steal
+      auto_inc values from the delayed_insert thread as they share TABLE.
+    */
+    table->file->ha_release_auto_increment();
     if (!thd->prelocked_mode && table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno,MYF(0));
@@ -2106,6 +2110,16 @@ bool delayed_insert::handle_inserts(void)
 
     thd.start_time=row->start_time;
     thd.query_start_used=row->query_start_used;
+    /*
+      To get the exact auto_inc interval to store in the binlog we must not
+      use values from the previous interval (of the previous rows).
+    */
+    bool log_query= (row->log_query && row->query.str != NULL);
+    if (log_query)
+    {
+      table->file->ha_release_auto_increment();
+      thd.auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+    }
     thd.first_successful_insert_id_in_prev_stmt= 
       row->first_successful_insert_id_in_prev_stmt;
     thd.stmt_depends_on_first_successful_insert_id_in_prev_stmt= 
@@ -2146,7 +2160,7 @@ bool delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     }
 
-    if (row->log_query && row->query.str != NULL && mysql_bin_log.is_open())
+    if (log_query && mysql_bin_log.is_open())
     {
       /*
         If the query has several rows to insert, only the first row will come
@@ -2542,7 +2556,6 @@ bool select_insert::send_data(List<Item> &values)
       table->next_number_field->reset();
     }
   }
-  table->file->ha_release_auto_increment();
   DBUG_RETURN(error);
 }
 
@@ -2616,6 +2629,7 @@ void select_insert::send_error(uint errcode,const char *err)
     }
   }
   ha_rollback_stmt(thd);
+  table->file->ha_release_auto_increment();
   DBUG_VOID_RETURN;
 }
 
@@ -2666,6 +2680,7 @@ bool select_insert::send_eof()
   }
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
     error=error2;
+  table->file->ha_release_auto_increment();
   if (error)
   {
     table->file->print_error(error,MYF(0));
