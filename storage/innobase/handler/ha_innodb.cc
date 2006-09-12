@@ -31,9 +31,9 @@ have disables the InnoDB inlining in this file. */
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-
 #include <mysql_priv.h>
+
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 
 #include <m_ctype.h>
 #include <hash.h>
