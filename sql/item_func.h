@@ -1202,7 +1202,7 @@ public:
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   bool update_hash(void *ptr, uint length, enum Item_result type,
-  		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg= 0);
+  		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool send(Protocol *protocol, String *str_arg);
   void make_field(Send_field *tmp_field);
   bool check(bool use_result_field);
