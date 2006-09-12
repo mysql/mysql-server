@@ -58,7 +58,7 @@ row_get_rec_trx_id(
 		return(trx_read_trx_id(rec + offset));
 	} else {
 		return(row_get_rec_sys_field(DATA_TRX_ID,
-				rec, index, offsets));
+					     rec, index, offsets));
 	}
 }
 
@@ -84,7 +84,7 @@ row_get_rec_roll_ptr(
 		return(trx_read_roll_ptr(rec + offset + DATA_TRX_ID_LEN));
 	} else {
 		return(row_get_rec_sys_field(DATA_ROLL_PTR,
-				rec, index, offsets));
+					     rec, index, offsets));
 	}
 }
 
@@ -110,7 +110,7 @@ row_set_rec_trx_id(
 		trx_write_trx_id(rec + offset, trx_id);
 	} else {
 		row_set_rec_sys_field(DATA_TRX_ID,
-				rec, index, offsets, trx_id);
+				      rec, index, offsets, trx_id);
 	}
 }
 
@@ -136,7 +136,7 @@ row_set_rec_roll_ptr(
 		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
 	} else {
 		row_set_rec_sys_field(DATA_ROLL_PTR,
-				rec, index, offsets, roll_ptr);
+				      rec, index, offsets, roll_ptr);
 	}
 }
 
@@ -175,7 +175,7 @@ row_build_row_ref_fast(
 		if (field_no != ULINT_UNDEFINED) {
 
 			field = rec_get_nth_field(rec, offsets,
-						field_no, &len);
+						  field_no, &len);
 			dfield_set_data(dfield, field, len);
 		}
 	}

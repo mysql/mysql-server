@@ -59,7 +59,8 @@ mlog_write_initial_log_record(
 
 	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
+			"InnoDB: Error: trying to write to"
+			" a stray memory location %p\n", (void*) ptr);
 		ut_error;
 	}
 
@@ -222,7 +223,8 @@ mlog_write_ulint(
 
 	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
+			"InnoDB: Error: trying to write to"
+			" a stray memory location %p\n", (void*) ptr);
 		ut_error;
 	}
 
@@ -266,9 +268,11 @@ mlog_write_dulint(
 {
 	byte*	log_ptr;
 
-	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
+	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
+	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
+			"InnoDB: Error: trying to write to"
+			" a stray memory location %p\n", (void*) ptr);
 		ut_error;
 	}
 
@@ -285,7 +289,7 @@ mlog_write_dulint(
 	}
 
 	log_ptr = mlog_write_initial_log_record_fast(ptr, MLOG_8BYTES,
-							log_ptr, mtr);
+						     log_ptr, mtr);
 
 	mach_write_to_2(log_ptr, ptr - buf_frame_align(ptr));
 	log_ptr += 2;
@@ -310,9 +314,10 @@ mlog_write_string(
 	byte*	log_ptr;
 
 	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
-		|| UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
+	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
 		fprintf(stderr,
-	"InnoDB: Error: trying to write to a stray memory location %p\n", ptr);
+			"InnoDB: Error: trying to write to"
+			" a stray memory location %p\n", (void*) ptr);
 		ut_error;
 	}
 	ut_ad(ptr && mtr);
@@ -329,7 +334,7 @@ mlog_write_string(
 	}
 
 	log_ptr = mlog_write_initial_log_record_fast(ptr, MLOG_WRITE_STRING,
-								log_ptr, mtr);
+						     log_ptr, mtr);
 	mach_write_to_2(log_ptr, ptr - buf_frame_align(ptr));
 	log_ptr += 2;
 
@@ -415,7 +420,7 @@ mlog_open_and_write_index(
 			return(NULL); /* logging is disabled */
 		}
 		log_ptr = mlog_write_initial_log_record_fast(rec, type,
-				log_ptr, mtr);
+							     log_ptr, mtr);
 		log_end = log_ptr + 11 + size;
 	} else {
 		ulint	i;
@@ -433,7 +438,7 @@ mlog_open_and_write_index(
 		}
 		log_end = log_ptr + alloc;
 		log_ptr = mlog_write_initial_log_record_fast(rec, type,
-				log_ptr, mtr);
+							     log_ptr, mtr);
 		mach_write_to_2(log_ptr, n);
 		log_ptr += 2;
 		mach_write_to_2(log_ptr,
@@ -447,7 +452,8 @@ mlog_open_and_write_index(
 			type = dict_col_get_type(dict_field_get_col(field));
 			len = field->fixed_len;
 			ut_ad(len < 0x7fff);
-			if (len == 0 && (dtype_get_len(type) > 255
+			if (len == 0
+			    && (dtype_get_len(type) > 255
 				|| dtype_get_mtype(type) == DATA_BLOB)) {
 				/* variable-length field
 				with maximum length > 255 */
@@ -519,9 +525,9 @@ mlog_parse_index(
 		n = n_uniq = 1;
 	}
 	table = dict_mem_table_create("LOG_DUMMY", DICT_HDR_SPACE, n,
-		comp ? DICT_TF_COMPACT : 0);
+				      comp ? DICT_TF_COMPACT : 0);
 	ind = dict_mem_index_create("LOG_DUMMY", "LOG_DUMMY",
-				DICT_HDR_SPACE, 0, n);
+				    DICT_HDR_SPACE, 0, n);
 	ind->table = table;
 	ind->n_uniq = n_uniq;
 	if (n_uniq != n) {
@@ -535,14 +541,14 @@ mlog_parse_index(
 			/* The high-order bit of len is the NOT NULL flag;
 			the rest is 0 or 0x7fff for variable-length fields,
 			and 1..0x7ffe for fixed-length fields. */
-			dict_mem_table_add_col(table, "DUMMY",
-					((len + 1) & 0x7fff) <= 1
-						? DATA_BINARY
-						: DATA_FIXBINARY,
-					len & 0x8000 ? DATA_NOT_NULL : 0,
-					len & 0x7fff, 0);
-			dict_index_add_col(ind,
-				dict_table_get_nth_col(table, i), 0);
+			dict_mem_table_add_col
+				(table, "DUMMY",
+				 ((len + 1) & 0x7fff) <= 1
+				 ? DATA_BINARY : DATA_FIXBINARY,
+				 len & 0x8000 ? DATA_NOT_NULL : 0,
+				 len & 0x7fff, 0);
+			dict_index_add_col
+				(ind, dict_table_get_nth_col(table, i), 0);
 		}
 		ptr += 2;
 	}

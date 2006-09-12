@@ -27,5 +27,5 @@ ut_dulint_sort(dulint* arr, dulint* aux_arr, ulint low, ulint high)
 /*===============================================================*/
 {
 	UT_SORT_FUNCTION_BODY(ut_dulint_sort, arr, aux_arr, low, high,
-				ut_dulint_cmp);
+			      ut_dulint_cmp);
 }

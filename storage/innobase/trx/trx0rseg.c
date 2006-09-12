@@ -64,7 +64,7 @@ trx_rseg_header_create(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space),
-							MTR_MEMO_X_LOCK));
+				MTR_MEMO_X_LOCK));
 	sys_header = trx_sysf_get(mtr);
 
 	*slot_no = trx_sysf_rseg_find_free(mtr);
@@ -93,7 +93,8 @@ trx_rseg_header_create(
 	rsegf = trx_rsegf_get_new(space, page_no, mtr);
 
 	/* Initialize max size field */
-	mlog_write_ulint(rsegf + TRX_RSEG_MAX_SIZE, max_size, MLOG_4BYTES, mtr);
+	mlog_write_ulint(rsegf + TRX_RSEG_MAX_SIZE, max_size,
+			 MLOG_4BYTES, mtr);
 
 	/* Initialize the history list */
 
@@ -156,34 +157,32 @@ trx_rseg_mem_create(
 	rseg_header = trx_rsegf_get_new(space, page_no, mtr);
 
 	rseg->max_size = mtr_read_ulint(rseg_header + TRX_RSEG_MAX_SIZE,
-							MLOG_4BYTES, mtr);
+					MLOG_4BYTES, mtr);
 
 	/* Initialize the undo log lists according to the rseg header */
 
 	sum_of_undo_sizes = trx_undo_lists_init(rseg);
 
 	rseg->curr_size = mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
-							MLOG_4BYTES, mtr)
-			  + 1 + sum_of_undo_sizes;
+					 MLOG_4BYTES, mtr)
+		+ 1 + sum_of_undo_sizes;
 
 	len = flst_get_len(rseg_header + TRX_RSEG_HISTORY, mtr);
 	if (len > 0) {
 		trx_sys->rseg_history_len += len;
 
-		node_addr = trx_purge_get_log_from_hist(
-			flst_get_last(rseg_header + TRX_RSEG_HISTORY,
-									mtr));
+		node_addr = trx_purge_get_log_from_hist
+			(flst_get_last(rseg_header + TRX_RSEG_HISTORY, mtr));
 		rseg->last_page_no = node_addr.page;
 		rseg->last_offset = node_addr.boffset;
 
 		undo_log_hdr = trx_undo_page_get(rseg->space, node_addr.page,
-			mtr) + node_addr.boffset;
+						 mtr) + node_addr.boffset;
 
-		rseg->last_trx_no = mtr_read_dulint(
-					undo_log_hdr + TRX_UNDO_TRX_NO, mtr);
-		rseg->last_del_marks = mtr_read_ulint(
-					undo_log_hdr + TRX_UNDO_DEL_MARKS,
-					MLOG_2BYTES, mtr);
+		rseg->last_trx_no = mtr_read_dulint
+			(undo_log_hdr + TRX_UNDO_TRX_NO, mtr);
+		rseg->last_del_marks = mtr_read_ulint
+			(undo_log_hdr + TRX_UNDO_DEL_MARKS, MLOG_2BYTES, mtr);
 	} else {
 		rseg->last_page_no = FIL_NULL;
 	}
