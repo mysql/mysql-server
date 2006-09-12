@@ -563,6 +563,7 @@ public:
     pushed_cond(NULL)
     {}
   virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
+  virtual handler *clone(MEM_ROOT *mem_root);
   int ha_open(const char *name, int mode, int test_if_locked);
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
