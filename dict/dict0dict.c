@@ -1726,8 +1726,6 @@ dict_index_copy_types(
 	dict_index_t*	index,		/* in: index */
 	ulint		n_fields)	/* in: number of field types to copy */
 {
-	dtype_t*	dfield_type;
-	dtype_t*	type;
 	ulint		i;
 
 	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
@@ -1737,10 +1735,17 @@ dict_index_copy_types(
 	}
 
 	for (i = 0; i < n_fields; i++) {
+		dict_field_t*	ifield;
+		dtype_t*	dfield_type;
+		dtype_t*	type;
+
+		ifield = dict_index_get_nth_field(index, i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
-		type = dict_col_get_type(dict_field_get_col
-					 (dict_index_get_nth_field(index, i)));
+		type = dict_col_get_type(dict_field_get_col(ifield));
 		*dfield_type = *type;
+		if (UNIV_UNLIKELY(ifield->prefix_len)) {
+			dfield_type->len = ifield->prefix_len;
+		}
 	}
 }
 
