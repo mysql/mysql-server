@@ -411,11 +411,11 @@ dnl Although this is "pretty", it breaks libmysqld build
           [AC_CONFIG_SUBDIRS($6)],
           [
             AC_CONFIG_FILES($6/Makefile)
-            m4_syscmd(test -d "unittest/$6")
+            m4_syscmd(test -d "$6/unittest")
             ifelse(m4_sysval, 0,
             [
-              mysql_use_plugin_unittest_dir="$6"
-              AC_CONFIG_FILES(unittest/$6/Makefile)
+              mysql_use_plugin_unittest_dir="$6/unittest"
+              AC_CONFIG_FILES($6/unittest/Makefile)
             ], [])
           ]
         )
@@ -424,7 +424,7 @@ dnl Although this is "pretty", it breaks libmysqld build
             [mysql_se_name="]m4_substr($6, 8)"
             mysql_se_dirs="$mysql_se_dirs $mysql_se_name"
             if test -n "$mysql_use_plugin_unittest_dir" ; then
-              mysql_se_unittest_dirs="$mysql_se_unitest_dirs $mysql_se_name"
+              mysql_se_unittest_dirs="$mysql_se_unitest_dirs ../$mysql_use_plugin_unittest_dir"
             fi
           ],
           m4_substr($6, 0, 7), [plugin/],

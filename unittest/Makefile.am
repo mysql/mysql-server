@@ -1,10 +1,10 @@
-SUBDIRS      = mytap . mysys storage examples
+SUBDIRS      = mytap . mysys examples
 
 noinst_SCRIPTS = unit
 EXTRA_DIST = unit.pl
 CLEANFILES = unit
 
-unittests = mytap mysys storage
+unittests = mytap mysys @mysql_se_unittest_dirs@
 
 test: unit
 	./unit run $(unittests)

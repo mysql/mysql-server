@@ -28,6 +28,9 @@ LDADD =
 
 DEFS =                  @DEFS@
 
+# "." is needed first because tests in unittest need libmaria
+SUBDIRS =		. unittest
+
 EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_ft_stem.c CMakeLists.txt
 pkgdata_DATA =		ma_test_all ma_test_all.res
 pkglib_LIBRARIES =	libmaria.a
