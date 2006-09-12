@@ -9,6 +9,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "dict0load.h"
 #include "trx0undo.h"
 #include "trx0sys.h"
+#include "rem0types.h"
 
 /*************************************************************************
 Gets the column data type. */
@@ -46,7 +47,9 @@ dict_col_get_clust_pos(
 {
 	ut_ad(col);
 
-	return(col->clust_pos);
+	return(col->clust_pos == REC_MAX_N_FIELDS
+	       ? ULINT_UNDEFINED
+	       : col->clust_pos);
 }
 
 /************************************************************************
@@ -321,7 +324,7 @@ dict_index_get_sys_col_pos(
 
 	if (index->type & DICT_CLUSTERED) {
 
-		return(col->clust_pos);
+		return(dict_col_get_clust_pos(col));
 	}
 
 	return(dict_index_get_nth_col_pos

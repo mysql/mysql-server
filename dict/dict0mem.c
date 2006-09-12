@@ -76,7 +76,9 @@ dict_mem_table_create(
 	UT_LIST_INIT(table->foreign_list);
 	UT_LIST_INIT(table->referenced_list);
 
+#ifdef UNIV_DEBUG
 	table->does_not_fit_in_memory = FALSE;
+#endif /* UNIV_DEBUG */
 
 	table->stat_initialized = FALSE;
 
@@ -87,9 +89,9 @@ dict_mem_table_create(
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc_inited = FALSE;
-
+#ifdef UNIV_DEBUG
 	table->magic_n = DICT_TABLE_MAGIC_N;
-
+#endif /* UNIV_DEBUG */
 	return(table);
 }
 
@@ -118,8 +120,7 @@ dict_mem_table_add_col(
 	const char*	name,	/* in: column name */
 	ulint		mtype,	/* in: main datatype */
 	ulint		prtype,	/* in: precise type */
-	ulint		len,	/* in: length */
-	ulint		prec)	/* in: precision */
+	ulint		len)	/* in: precision */
 {
 	dict_col_t*	col;
 	dtype_t*	type;
@@ -136,11 +137,11 @@ dict_mem_table_add_col(
 	col->table = table;
 	col->ord_part = 0;
 
-	col->clust_pos = ULINT_UNDEFINED;
+	col->clust_pos = REC_MAX_N_FIELDS;
 
 	type = dict_col_get_type(col);
 
-	dtype_set(type, mtype, prtype, len, prec);
+	dtype_set(type, mtype, prtype, len);
 }
 
 /**************************************************************************
@@ -183,8 +184,9 @@ dict_mem_index_create(
 	index->stat_n_diff_key_vals = NULL;
 
 	index->cached = FALSE;
+#ifdef UNIV_DEBUG
 	index->magic_n = DICT_INDEX_MAGIC_N;
-
+#endif /* UNIV_DEBUG */
 	return(index);
 }
 

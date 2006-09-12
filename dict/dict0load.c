@@ -331,7 +331,6 @@ dict_load_columns(
 	ulint		mtype;
 	ulint		prtype;
 	ulint		col_len;
-	ulint		prec;
 	ulint		i;
 	mtr_t		mtr;
 
@@ -356,7 +355,7 @@ dict_load_columns(
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
-	for (i = 0; i < table->n_cols - DATA_N_SYS_COLS; i++) {
+	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
 
 		rec = btr_pcur_get_rec(&pcur);
 
@@ -411,11 +410,7 @@ dict_load_columns(
 		ut_a(!strcmp("PREC", dict_field_get_col
 			     (dict_index_get_nth_field(sys_index, 8))->name));
 
-		field = rec_get_nth_field_old(rec, 8, &len);
-		prec = mach_read_from_4(field);
-
-		dict_mem_table_add_col(table, name, mtype, prtype, col_len,
-				       prec);
+		dict_mem_table_add_col(table, name, mtype, prtype, col_len);
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 

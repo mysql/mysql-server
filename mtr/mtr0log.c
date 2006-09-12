@@ -546,7 +546,7 @@ mlog_parse_index(
 				 ((len + 1) & 0x7fff) <= 1
 				 ? DATA_BINARY : DATA_FIXBINARY,
 				 len & 0x8000 ? DATA_NOT_NULL : 0,
-				 len & 0x7fff, 0);
+				 len & 0x7fff);
 			dict_index_add_col
 				(ind, dict_table_get_nth_col(table, i), 0);
 		}

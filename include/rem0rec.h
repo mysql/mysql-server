@@ -14,11 +14,6 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0types.h"
 #include "mtr0types.h"
 
-/* Maximum values for various fields (for non-blob tuples) */
-#define REC_MAX_N_FIELDS	(1024 - 1)
-#define REC_MAX_HEAP_NO		(2 * 8192 - 1)
-#define REC_MAX_N_OWNED		(16 - 1)
-
 /* Info bit denoting the predefined minimum record: this bit is set
 if and only if the record is the first user record on a non-leaf
 B-tree page that is the leftmost page on its level
