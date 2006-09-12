@@ -440,15 +440,14 @@ struct rw_lock_struct {
 	UT_LIST_BASE_NODE_T(rw_lock_debug_t) debug_list;
 				/* In the debug version: pointer to the debug
 				info list of the lock */
-#endif /* UNIV_SYNC_DEBUG */
-
 	ulint	level;		/* Level in the global latching order. */
+#endif /* UNIV_SYNC_DEBUG */
 	const char*	cfile_name;/* File name where lock created */
-	ulint	cline;		/* Line where created */
+	ulint	cline:14;	/* Line where created */
 	const char*	last_s_file_name;/* File name where last s-locked */
 	const char*	last_x_file_name;/* File name where last x-locked */
-	ulint	last_s_line;	/* Line number where last time s-locked */
-	ulint	last_x_line;	/* Line number where last time x-locked */
+	ulint	last_s_line:14;	/* Line number where last time s-locked */
+	ulint	last_x_line:14;	/* Line number where last time x-locked */
 	ulint	magic_n;
 };
 

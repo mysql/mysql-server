@@ -3164,8 +3164,8 @@ include_field:
 		templ->col_no = i;
 
 		if (index == clust_index) {
-			templ->rec_field_no = (index->table->cols + i)
-								->clust_pos;
+			templ->rec_field_no = dict_col_get_clust_pos
+				(&index->table->cols[i]);
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 								index, i);
@@ -3224,8 +3224,8 @@ skip_field:
 		for (i = 0; i < n_requested_fields; i++) {
 			templ = prebuilt->mysql_template + i;
 
-			templ->rec_field_no =
-				(index->table->cols + templ->col_no)->clust_pos;
+			templ->rec_field_no = dict_col_get_clust_pos
+				(&index->table->cols[templ->col_no]);
 		}
 	}
 }
@@ -3598,7 +3598,8 @@ calc_row_difference(
 			}
 
 			ufield->exp = NULL;
-			ufield->field_no = prebuilt->table->cols[i].clust_pos;
+			ufield->field_no = dict_col_get_clust_pos
+				(&prebuilt->table->cols[i]);
 			n_changed++;
 		}
 	}
@@ -4578,8 +4579,7 @@ create_table_def(
 				| nulls_allowed | unsigned_type
 				| binary_type | long_true_varchar,
 				charset_no),
-			col_len,
-			0);
+			col_len);
 	}
 
 	error = row_create_table_for_mysql(table, trx);

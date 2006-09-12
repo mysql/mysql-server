@@ -524,8 +524,8 @@ ibuf_data_init_for_space(
 	/* use old-style record format for the insert buffer */
 	table = dict_mem_table_create(buf, space, 2, 0);
 
-	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0);
 
 	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
@@ -1145,8 +1145,7 @@ ibuf_dummy_index_add_col(
 	dict_mem_table_add_col(index->table, "DUMMY",
 			       dtype_get_mtype(type),
 			       dtype_get_prtype(type),
-			       dtype_get_len(type),
-			       dtype_get_prec(type));
+			       dtype_get_len(type));
 	dict_index_add_col(index,
 			   dict_table_get_nth_col(index->table, i), len);
 }

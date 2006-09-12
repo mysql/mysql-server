@@ -181,7 +181,7 @@ dict_create_sys_columns_tuple(
 	dfield = dtuple_get_nth_field(entry, 6);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, (column->type).prec);
+	mach_write_to_4(ptr, 0/* unused */);
 
 	dfield_set_data(dfield, ptr, 4);
 	/*---------------------------------*/

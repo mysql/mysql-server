@@ -556,7 +556,7 @@ dict_index_get_nth_col_pos(
 
 	if (index->type & DICT_CLUSTERED) {
 
-		return(col->clust_pos);
+		return(dict_col_get_clust_pos(col));
 	}
 
 	n_fields = dict_index_get_n_fields(index);
@@ -884,25 +884,25 @@ dict_table_add_to_cache(
 
 	dict_mem_table_add_col(table, "DB_ROW_ID", DATA_SYS,
 			       DATA_ROW_ID | DATA_NOT_NULL,
-			       DATA_ROW_ID_LEN, 0);
+			       DATA_ROW_ID_LEN);
 #if DATA_ROW_ID != 0
 #error "DATA_ROW_ID != 0"
 #endif
 	dict_mem_table_add_col(table, "DB_TRX_ID", DATA_SYS,
 			       DATA_TRX_ID | DATA_NOT_NULL,
-			       DATA_TRX_ID_LEN, 0);
+			       DATA_TRX_ID_LEN);
 #if DATA_TRX_ID != 1
 #error "DATA_TRX_ID != 1"
 #endif
 	dict_mem_table_add_col(table, "DB_ROLL_PTR", DATA_SYS,
 			       DATA_ROLL_PTR | DATA_NOT_NULL,
-			       DATA_ROLL_PTR_LEN, 0);
+			       DATA_ROLL_PTR_LEN);
 #if DATA_ROLL_PTR != 2
 #error "DATA_ROLL_PTR != 2"
 #endif
 	dict_mem_table_add_col(table, "DB_MIX_ID", DATA_SYS,
 			       DATA_MIX_ID | DATA_NOT_NULL,
-			       DATA_MIX_ID_LEN, 0);
+			       DATA_MIX_ID_LEN);
 #if DATA_MIX_ID != 3
 #error "DATA_MIX_ID != 3"
 #endif
@@ -1815,7 +1815,7 @@ dict_index_build_internal_clust(
 	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		/* No fixed number of fields determines an entry uniquely */
 
-		new_index->n_uniq = ULINT_MAX;
+		new_index->n_uniq = REC_MAX_N_FIELDS;
 
 	} else if (index->type & DICT_UNIQUE) {
 		/* Only the fields defined so far are needed to identify
@@ -1902,7 +1902,7 @@ dict_index_build_internal_clust(
 
 	/* Add to new_index non-system columns of table not yet included
 	there */
-	for (i = 0; i < table->n_cols - DATA_N_SYS_COLS; i++) {
+	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
 
 		col = dict_table_get_nth_col(table, i);
 		ut_ad(col->type.mtype != DATA_SYS);
@@ -3741,7 +3741,9 @@ dict_tree_create(
 
 	tree->tree_index = NULL;
 
+#ifdef UNIV_DEBUG
 	tree->magic_n = DICT_TREE_MAGIC_N;
+#endif /* UNIV_DEBUG */
 
 	rw_lock_create(&tree->lock, SYNC_INDEX_TREE);
 
@@ -3843,7 +3845,7 @@ dict_tree_build_node_ptr(
 	field = dtuple_get_nth_field(tuple, n_unique);
 	dfield_set_data(field, buf, 4);
 
-	dtype_set(dfield_get_type(field), DATA_SYS_CHILD, DATA_NOT_NULL, 4, 0);
+	dtype_set(dfield_get_type(field), DATA_SYS_CHILD, DATA_NOT_NULL, 4);
 
 	rec_copy_prefix_to_dtuple(tuple, rec, ind, n_unique, heap);
 	dtuple_set_info_bits(tuple, dtuple_get_info_bits(tuple)
@@ -4167,7 +4169,7 @@ dict_table_print_low(
 		(ulong) UT_LIST_GET_LEN(table->indexes),
 		(ulong) table->stat_n_rows);
 
-	for (i = 0; i < table->n_cols - 1; i++) {
+	for (i = 0; i + 1 < (ulint) table->n_cols; i++) {
 		dict_col_print_low(dict_table_get_nth_col(table, i));
 		fputs("; ", stderr);
 	}

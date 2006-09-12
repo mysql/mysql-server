@@ -972,7 +972,8 @@ row_upd_index_replace_new_col_vals(
 
 			upd_field = upd_get_nth_field(update, i);
 
-			if (upd_field->field_no == field->col->clust_pos) {
+			if (upd_field->field_no
+			    == dict_col_get_clust_pos(field->col)) {
 
 				dfield = dtuple_get_nth_field(entry, j);
 

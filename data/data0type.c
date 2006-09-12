@@ -40,7 +40,7 @@ charset-collation code for them. */
 
 ulint	data_mysql_default_charset_coll		= 99999999;
 
-dtype_t		dtype_binary_val = {DATA_BINARY, 0, 0, 0, 0, 0};
+dtype_t		dtype_binary_val = {DATA_BINARY, 0, 0, 0, 0};
 dtype_t*	dtype_binary	= &dtype_binary_val;
 
 /*************************************************************************
@@ -291,7 +291,7 @@ dtype_print(
 		}
 	}
 
-	fprintf(stderr, " len %lu prec %lu", (ulong) len, (ulong) type->prec);
+	fprintf(stderr, " len %lu", (ulong) len);
 }
 
 /***************************************************************************

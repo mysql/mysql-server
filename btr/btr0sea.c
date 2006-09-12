@@ -322,7 +322,8 @@ btr_search_update_block_hash_info(
 				the block is recommended */
 	btr_search_t*	info,	/* in: search info */
 	buf_block_t*	block,	/* in: buffer block */
-	btr_cur_t*	cursor)	/* in: cursor */
+	btr_cur_t*	cursor __attribute__((unused)))
+				/* in: cursor */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
@@ -362,9 +363,11 @@ btr_search_update_block_hash_info(
 		block->side = info->side;
 	}
 
+#ifdef UNIV_DEBUG
 	if (cursor->index->table->does_not_fit_in_memory) {
 		block->n_hash_helps = 0;
 	}
+#endif /* UNIV_DEBUG */
 
 	if ((block->n_hash_helps > page_get_n_recs(block->frame)
 	     / BTR_SEARCH_PAGE_BUILD_LIMIT)
