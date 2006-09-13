@@ -961,7 +961,7 @@ public:
   longlong val_int();
   String *val_str(String *str);
   bool update_hash(void *ptr, uint length, enum Item_result type, 
-  		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
+  		   CHARSET_INFO *cs, Derivation dv);
   bool check();
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
