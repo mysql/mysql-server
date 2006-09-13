@@ -16,3 +16,8 @@
 --exec $NDB_TOOLS_DIR/ndb_config --defaults-group-suffix=.cluster1 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
 --exec $NDB_TOOLS_DIR/ndb_config --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --query=type,nodeid,host --mycnf 2> /dev/null
 --exec $NDB_TOOLS_DIR/ndb_config --defaults-group-suffix=.cluster2 --defaults-file=$MYSQL_TEST_DIR/std_data/ndb_config_mycnf2.cnf --ndb-shm --connections --query=type,nodeid1,nodeid2,group,nodeidserver --mycnf 2> /dev/null
+
+
+--exec $NDB_TOOLS_DIR/ndb_config --no-defaults --query=nodeid --host=localhost --config-file=$NDB_BACKUP_DIR/config.ini 2> /dev/null
+--exec $NDB_TOOLS_DIR/ndb_config --no-defaults --query=nodeid --host=1.2.3.4   --config-file=$NDB_BACKUP_DIR/config.ini 2> /dev/null
+--exec $NDB_TOOLS_DIR/ndb_config --no-defaults --query=nodeid --host=127.0.0.1 --config-file=$NDB_BACKUP_DIR/config.ini 2> /dev/null
