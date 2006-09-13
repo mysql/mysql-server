@@ -19,6 +19,8 @@
  */
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
+
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
@@ -47,34 +49,15 @@ static int g_mycnf = 0;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
 
-int g_print_full_config, opt_ndb_shm;
-my_bool opt_core;
+NDB_STD_OPTS_VARS;
+
+int g_print_full_config;
 
 typedef ndb_mgm_configuration_iterator Iter;
 
-static void ndb_std_print_version()
-{
-  printf("MySQL distrib %s, for %s (%s)\n",
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 static struct my_option my_long_options[] =
 {
-  { "usage", '?', "Display this help and exit.", 
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "help", '?', "Display this help and exit.", 
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "version", 'V', "Output version information and exit.", 0, 0, 0, 
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "ndb-connectstring", 256,
-    "Set connect string for connecting to ndb_mgmd. " 
-    "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " 
-    "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg", 
-    (gptr*) &g_connectstring, (gptr*) &g_connectstring, 
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "ndb-shm", 256, "Print nodes",
-    (gptr*) &opt_ndb_shm, (gptr*) &opt_ndb_shm,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  NDB_STD_OPTS("ndb_config"),
   { "nodes", 256, "Print nodes",
     (gptr*) &g_nodes, (gptr*) &g_nodes,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -120,21 +103,6 @@ static void usage()
   puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
-}
-static my_bool
-ndb_std_get_one_option(int optid,
-		       const struct my_option *opt __attribute__((unused)),
-		       char *argument)
-{
-  switch (optid) {
-  case 'V':
-    ndb_std_print_version();
-    exit(0);
-  case '?':
-    usage();
-    exit(0);
-  }
-  return 0;
 }
 
 /**
