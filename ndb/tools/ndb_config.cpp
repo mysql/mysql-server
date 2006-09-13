@@ -45,6 +45,8 @@ static const char * g_row_delimiter=" ";
 static const char * g_config_file = 0;
 static int g_mycnf = 0;
 
+const char *load_default_groups[]= { "mysql_cluster",0 };
+
 int g_print_full_config, opt_ndb_shm;
 my_bool opt_core;
 
@@ -114,6 +116,8 @@ static void usage()
   char desc[] = 
     "This program will retreive config options for a ndb cluster\n";
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -176,7 +180,6 @@ static ndb_mgm_configuration* load_configuration();
 int
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
