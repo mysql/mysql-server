@@ -4720,7 +4720,6 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     if (hash_search(&ndb_tables, file_name, strlen(file_name)))
     {
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name));
-      // File existed in NDB and as frm file, put in ok_tables list
       file_on_disk= true;
     }
     
@@ -4733,14 +4732,21 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
       DBUG_PRINT("info", ("%s did not exist on disk", name));     
       // .ndb file did not exist on disk, another table type
       if (file_on_disk)
+      {
+	// Ignore this ndb table
+	gptr record=  hash_search(&ndb_tables, file_name, strlen(file_name));
+	DBUG_ASSERT(record);
+	hash_delete(&ndb_tables, record);
 	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			    ER_TABLE_EXISTS_ERROR,
 			    "Local table %s.%s shadows ndb table",
 			    db, file_name);
+      }
       continue;
     }
     if (file_on_disk) 
     {
+      // File existed in NDB and as frm file, put in ok_tables list
       my_hash_insert(&ok_tables, (byte*)file_name);
       continue;
     }
