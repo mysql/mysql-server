@@ -36,6 +36,7 @@ SUBDIRS =		os ut btr buf data dict dyn eval fil fsp fut \
 			ha ibuf lock log mach mem mtr page \
 			handler \
 			pars que read rem row srv sync thr trx usr
+EXTRA_DIST = CMakeLists.txt
 
 EXTRA_DIST = 	include/btr0btr.h include/btr0btr.ic include/btr0cur.h include/btr0cur.ic \
 		include/btr0pcur.h include/btr0pcur.ic include/btr0sea.h include/btr0sea.ic \
