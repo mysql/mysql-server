@@ -59,7 +59,7 @@ buf_flush_note_modification(
 		buf_flush_insert_into_flush_list(block);
 	} else {
 		ut_ad(ut_dulint_cmp(block->oldest_modification,
-							mtr->start_lsn) <= 0);
+				    mtr->start_lsn) <= 0);
 	}
 
 	++srv_buf_pool_write_requests;
@@ -99,7 +99,7 @@ buf_flush_recv_note_modification(
 		buf_flush_insert_sorted_into_flush_list(block);
 	} else {
 		ut_ad(ut_dulint_cmp(block->oldest_modification,
-							start_lsn) <= 0);
+				    start_lsn) <= 0);
 	}
 
 	mutex_exit(&(buf_pool->mutex));

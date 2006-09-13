@@ -44,7 +44,7 @@ eval_node_alloc_val_buf(
 	byte*		data;
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_SYMBOL
-		|| que_node_get_type(node) == QUE_NODE_FUNC);
+	      || que_node_get_type(node) == QUE_NODE_FUNC);
 
 	dfield = que_node_get_val(node);
 
@@ -81,7 +81,7 @@ eval_node_free_val_buf(
 	byte*		data;
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_SYMBOL
-		|| que_node_get_type(node) == QUE_NODE_FUNC);
+	      || que_node_get_type(node) == QUE_NODE_FUNC);
 
 	dfield = que_node_get_val(node);
 
@@ -115,7 +115,7 @@ eval_cmp(
 	arg2 = que_node_get_next(arg1);
 
 	res = cmp_dfield_dfield(que_node_get_val(arg1),
-						que_node_get_val(arg2));
+				que_node_get_val(arg2));
 	val = TRUE;
 
 	func = cmp_node->func;
@@ -317,7 +317,7 @@ eval_predefined_2(
 
 		if (!eval_node_get_ibool_val(arg1)) {
 			fputs("SQL assertion fails in a stored procedure!\n",
-				stderr);
+			      stderr);
 		}
 
 		ut_a(eval_node_get_ibool_val(arg1));
@@ -333,10 +333,10 @@ eval_predefined_2(
 		ut_ad(len2 >= len1);
 
 		if (len2 > len1) {
-			int_val = (lint)(len1 +
-					(eval_rnd % (len2 - len1 + 1)));
+			int_val = (lint) (len1
+					 + (eval_rnd % (len2 - len1 + 1)));
 		} else {
-			int_val = (lint)len1;
+			int_val = (lint) len1;
 		}
 
 		eval_rnd = ut_rnd_gen_next_ulint(eval_rnd);
@@ -385,7 +385,7 @@ eval_notfound(
 	if (cursor->token_type == SYM_LIT) {
 
 		ut_ad(ut_memcmp(dfield_get_data(que_node_get_val(cursor)),
-							"SQL", 3) == 0);
+				"SQL", 3) == 0);
 
 		sel_node = cursor->sym_table->query_graph->last_sel_node;
 	} else {
@@ -466,7 +466,7 @@ eval_replstr(
 	len2 = (ulint)eval_node_get_int_val(arg4);
 
 	if ((dfield_get_len(que_node_get_val(arg1)) < len1 + len2)
-			|| (dfield_get_len(que_node_get_val(arg2)) < len2)) {
+	    || (dfield_get_len(que_node_get_val(arg2)) < len2)) {
 
 		ut_error;
 	}
@@ -741,19 +741,20 @@ eval_predefined(
 				uint_val = (ulint) int_val;
 			}
 			for (tmp = int_len; uint_val > 0; uint_val /= 10) {
-				data[--tmp] = (byte) ('0' + (byte)(uint_val % 10));
+				data[--tmp] = (byte)
+					('0' + (byte)(uint_val % 10));
 			}
 		}
 
 		dfield_set_len((dfield_t*) que_node_get_val(func_node),
-			int_len);
+			       int_len);
 
 		return;
 
 	} else if (func == PARS_TO_NUMBER_TOKEN) {
 
 		int_val = atoi((char*)
-			dfield_get_data(que_node_get_val(arg1)));
+			       dfield_get_data(que_node_get_val(arg1)));
 
 	} else if (func == PARS_SYSDATE_TOKEN) {
 		int_val = (lint)ut_time();
@@ -793,9 +794,9 @@ eval_func(
 		values, except for eval_cmp and notfound */
 
 		if ((dfield_get_len(que_node_get_val(arg)) == UNIV_SQL_NULL)
-					&& (class != PARS_FUNC_CMP)
-					&& (func != PARS_NOTFOUND_TOKEN)
-					&& (func != PARS_PRINTF_TOKEN)) {
+		    && (class != PARS_FUNC_CMP)
+		    && (func != PARS_NOTFOUND_TOKEN)
+		    && (func != PARS_PRINTF_TOKEN)) {
 			ut_error;
 		}
 
