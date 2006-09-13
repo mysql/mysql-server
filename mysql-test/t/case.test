@@ -130,12 +130,4 @@ select min(a), min(case when 1=1 then a else NULL end),
 from t1 where b=3 group by b;
 drop table t1;
 
-#
-# Bug #20924: CAST(expr as UNSIGNED) returns SIGNED value when used in various
-# functions
-# - UNSIGNED values in CASE and COALESCE are treated as SIGNED
-#
-SELECT CASE 1 WHEN 1 THEN 18446744073709551615 ELSE 1 END;
-SELECT COALESCE(18446744073709551615);
-
---echo End of 4.1 tests
+# End of 4.1 tests
