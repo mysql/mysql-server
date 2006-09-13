@@ -18,7 +18,8 @@ INCLUDES= @ZLIB_INCLUDES@ -I$(top_srcdir)/include \
 	@openssl_includes@ -I$(top_builddir)/include
 
 DEFS= -DMYSQL_INSTANCE_MANAGER -DMYSQL_SERVER
-
+EXTRA_DIST = IMService.cpp IMService.h WindowsService.cpp WindowsService.h \
+	CMakeLists.txt
 # As all autoconf variables depend from ${prefix} and being resolved only when
 # make is run, we can not put these defines to a header file (e.g. to
 # default_options.h, generated from default_options.h.in)
