@@ -201,9 +201,6 @@ struct dict_index_struct{
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/* list of indexes of the table */
 	dict_tree_t*	tree;	/* index tree struct */
-	UT_LIST_NODE_T(dict_index_t)
-			tree_indexes; /* list of indexes of the same index
-				tree */
 	btr_search_t*	search_info; /* info used in optimistic searches */
 	/*----------------------*/
 	ib_longlong*	stat_n_diff_key_vals;
