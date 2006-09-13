@@ -1804,7 +1804,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
 	  if (ndbcluster_check_if_local_table(schema->db, schema->name))
 	  {
 	    DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
-				schema->db, schema->name, schema->query));
+				schema->db, schema->name));
             sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
                             "binlog schema event '%s' from node %d. ",
                             schema->db, schema->name, schema->query,
@@ -2064,7 +2064,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
 	  if (ndbcluster_check_if_local_table(schema->db, schema->name))
 	  {
 	    DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
-				schema->db, schema->name, schema->query));
+				schema->db, schema->name));
             sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
                             "binlog schema event '%s' from node %d. ",
                             schema->db, schema->name, schema->query,
