@@ -7615,7 +7615,9 @@ mysql_declare_plugin(innobase)
   innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  innodb_status_variables_export
+  innodb_status_variables_export,
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 
