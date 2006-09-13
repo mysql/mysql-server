@@ -6980,7 +6980,7 @@ static void mysql_init_variables(void)
 #endif
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   have_ndbcluster=SHOW_OPTION_DISABLED;
-  global_system_variables.ndb_index_stat_enable=TRUE;
+  global_system_variables.ndb_index_stat_enable=FALSE;
   max_system_variables.ndb_index_stat_enable=TRUE;
   global_system_variables.ndb_index_stat_cache_entries=32;
   max_system_variables.ndb_index_stat_cache_entries=~0L;
