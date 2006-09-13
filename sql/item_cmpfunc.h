@@ -1411,17 +1411,3 @@ inline Item *and_conds(Item *a, Item *b)
 }
 
 Item *and_expressions(Item *a, Item *b, Item **org_item);
-
-inline int compare_int_signed_unsigned(longlong sval, ulonglong uval)
-{
-  if (sval < 0 || (ulonglong)sval < uval)
-    return -1;
-  if ((ulonglong)sval == uval)
-    return 0;
-  return 1;
-}
-
-inline int compare_int_unsigned_signed(ulonglong uval, longlong sval)
-{
-  return -compare_int_signed_unsigned(sval, uval);
-}

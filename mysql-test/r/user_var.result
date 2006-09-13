@@ -301,4 +301,3 @@ select @var;
 @var
 3
 drop table t1;
-End of 4.1 tests
