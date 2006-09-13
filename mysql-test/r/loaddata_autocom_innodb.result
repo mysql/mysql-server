@@ -1,8 +1,8 @@
 SET SESSION STORAGE_ENGINE = InnoDB;
 drop table if exists t1;
-create table t1 (a text, b text);
+create table t1 (id int unsigned not null auto_increment primary key, a text, b text);
 start transaction;
-load data infile '../std_data_ln/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+load data infile '../std_data_ln/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''' (a, b);
 Warnings:
 Warning	1261	Row 3 doesn't contain data for all columns
 commit;
@@ -11,7 +11,7 @@ count(*)
 4
 truncate table t1;
 start transaction;
-load data infile '../std_data_ln/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''';
+load data infile '../std_data_ln/loaddata2.dat' into table t1 fields terminated by ',' enclosed by '''' (a, b);
 Warnings:
 Warning	1261	Row 3 doesn't contain data for all columns
 rollback;
