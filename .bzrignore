@@ -5,6 +5,7 @@
 *.bbg
 *.bin
 *.core
+*.cmake
 *.d
 *.da
 *.exe
@@ -17,6 +18,7 @@
 *.map
 *.o
 *.obj
+*.old
 *.pch
 *.pdb
 *.reject
@@ -25,11 +27,18 @@
 *.so
 *.so.*
 *.spec
+*.user
+*.vcproj
+*/debug/*
+*/release/*
+*/*.dir/*
 */*_pure_*warnings
 */.pure
 *~
 .*.swp
 ./README.build-files
+./CMakeCache.txt
+./cmakecache.txt
 ./config.h
 ./copy_mysql_files.bat
 ./fix-project-files
@@ -37,6 +46,9 @@
 ./mysql.ncb
 ./mysql.sln
 ./mysql.suo
+./MySql.ncb
+./MySql.sln
+./MySql.suo
 ./prepare
 .defs.mk
 .depend
@@ -67,6 +79,7 @@ BitKeeper/tmp/bkr3sAHD
 BitKeeper/tmp/gone
 COPYING
 COPYING.LIB
+CMakeFiles/*
 Docs/#manual.texi#
 Docs/INSTALL-BINARY
 Docs/Images/myaccess-odbc.txt
@@ -1201,6 +1214,7 @@ support-files/MacOSX/postinstall
 support-files/MacOSX/preflight
 support-files/MacOSX/preinstall
 support-files/binary-configure
+support-files/*.ini
 support-files/my-huge.cnf
 support-files/my-innodb-heavy-4G.cnf
 support-files/my-large.cnf
@@ -1294,5 +1308,8 @@ vio/test-sslserver
 vio/viotest-ssl
 vio/viotest-sslconnect.cpp
 vio/viotest.cpp
+win/configure.data
+win/vs8cache.txt
+win/vs71cache.txt
 zlib/*.ds?
 zlib/*.vcproj
