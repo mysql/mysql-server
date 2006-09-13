@@ -572,4 +572,34 @@ def	test	t1	t1	a	a	16	7	1	Y	0	0	63
 a
 `
 drop table t1;
+create table bug15583(b BIT(8), n INT);
+insert into bug15583 values(128, 128);
+insert into bug15583 values(null, null);
+insert into bug15583 values(0, 0);
+insert into bug15583 values(255, 255);
+select hex(b), bin(b), oct(b), hex(n), bin(n), oct(n) from bug15583;
+hex(b)	bin(b)	oct(b)	hex(n)	bin(n)	oct(n)
+80	10000000	200	80	10000000	200
+NULL	NULL	NULL	NULL	NULL	NULL
+0	0	0	0	0	0
+FF	11111111	377	FF	11111111	377
+select hex(b)=hex(n) as should_be_onetrue, bin(b)=bin(n) as should_be_onetrue, oct(b)=oct(n) as should_be_onetrue from bug15583;
+should_be_onetrue	should_be_onetrue	should_be_onetrue
+1	1	1
+NULL	NULL	NULL
+1	1	1
+1	1	1
+select hex(b + 0), bin(b + 0), oct(b + 0), hex(n), bin(n), oct(n) from bug15583;
+hex(b + 0)	bin(b + 0)	oct(b + 0)	hex(n)	bin(n)	oct(n)
+80	10000000	200	80	10000000	200
+NULL	NULL	NULL	NULL	NULL	NULL
+0	0	0	0	0	0
+FF	11111111	377	FF	11111111	377
+select conv(b, 10, 2), conv(b + 0, 10, 2) from bug15583;
+conv(b, 10, 2)	conv(b + 0, 10, 2)
+10000000	10000000
+NULL	NULL
+0	0
+11111111	11111111
+drop table bug15583;
 End of 5.0 tests
