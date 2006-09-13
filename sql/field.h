@@ -208,10 +208,24 @@ public:
   inline bool maybe_null(void) { return null_ptr != 0 || table->maybe_null; }
   inline bool real_maybe_null(void) { return null_ptr != 0; }
 
+  enum {
+    LAST_NULL_BYTE_UNDEF= 0
+  };
+
   /*
-    Return a pointer to the last byte of the null bytes where the
-    field conceptually is placed.  In the case that the field does not
-    use any bits of the null bytes, a null pointer is returned.
+    Find the position of the last null byte for the field.
+
+    SYNOPSIS
+      last_null_byte()
+
+    DESCRIPTION
+      Return a pointer to the last byte of the null bytes where the
+      field conceptually is placed.
+
+    RETURN VALUE
+      The position of the last null byte relative to the beginning of
+      the record. If the field does not use any bits of the null
+      bytes, the value 0 (LAST_NULL_BYTE_UNDEF) is returned.
    */
   my_size_t last_null_byte() const {
     my_size_t bytes= do_last_null_byte();
@@ -384,6 +398,17 @@ public:
   friend class Item_func_group_concat;
 
 private:
+  /*
+    Primitive for implementing last_null_byte().
+
+    SYNOPSIS
+      do_last_null_byte()
+
+    DESCRIPTION
+      Primitive for the implementation of the last_null_byte()
+      function. This represents the inheritance interface and can be
+      overridden by subclasses.
+   */
   virtual my_size_t do_last_null_byte() const;
 };
 

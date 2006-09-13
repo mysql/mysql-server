@@ -107,11 +107,6 @@ field_length_from_packed(enum_field_types const field_type,
 /*
   Is the definition compatible with a table?
 
-  Compare the definition with a table to see if it is compatible with
-  it.  A table definition is compatible with a table if
-  - the columns types of the table definition is a (not necessarily
-    proper) prefix of the column type of the table, or
-  - the other way around
 */
 int
 table_def::compatible_with(RELAY_LOG_INFO *rli, TABLE *table)
