@@ -141,12 +141,4 @@ select @@global.version;
 --replace_column 1 #
 select @@session.VERSION;
 
-#
-# Bug #20924: CAST(expr as UNSIGNED) returns SIGNED value when used in various
-# functions
-# - SET on a user variable saves UNSIGNED as SIGNED
-#
-set @a=18446744073709551615;
-select @a;
-
---echo End of 4.1 tests
+# End of 4.1 tests
