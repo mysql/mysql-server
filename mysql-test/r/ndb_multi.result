@@ -88,7 +88,7 @@ show tables;
 Tables_in_test
 t1
 Warnings:
-Warning	1050	Local table t1 shadows cluster table
+Warning	1050	Local table test.t1 shadows ndb table
 select * from t1 order by c1;
 c1
 100
