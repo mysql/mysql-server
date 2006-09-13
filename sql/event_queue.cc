@@ -320,7 +320,7 @@ void
 Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 {
   DBUG_ENTER("Event_queue::drop_event");
-  DBUG_PRINT("enter", ("thd=0x%lx db=%s name=%s", thd, dbname, name));
+  DBUG_PRINT("enter", ("thd=0x%lx db=%s name=%s", thd, dbname.str, name.str));
 
   LOCK_QUEUE_DATA();
   find_n_remove_event(dbname, name);
