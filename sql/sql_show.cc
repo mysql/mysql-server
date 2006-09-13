@@ -4277,7 +4277,7 @@ ST_FIELD_INFO triggers_fields_info[]=
 ST_FIELD_INFO variables_fields_info[]=
 {
   {"Variable_name", 80, MYSQL_TYPE_STRING, 0, 0, "Variable_name"},
-  {"Value", 255, MYSQL_TYPE_STRING, 0, 0, "Value"},
+  {"Value", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, "Value"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
