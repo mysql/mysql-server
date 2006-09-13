@@ -31,6 +31,7 @@
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <ConfigInfo.hpp>
+#include <NdbAutoPtr.hpp>
 
 static int g_verbose = 0;
 static int try_reconnect = 3;
@@ -381,7 +382,6 @@ HostMatch::eval(const Iter& iter)
   {
 	  struct hostent *h1, *h2, copy1;
 	  char *addr1;
-	  int stat;
 
 	  h1 = gethostbyname(m_value.c_str());
 	  if (h1 == NULL) {
@@ -392,30 +392,24 @@ HostMatch::eval(const Iter& iter)
 	  // so we need to copy the results before doing the next call
 	  memcpy(&copy1, h1, sizeof(struct hostent));
 	  addr1 = (char *)malloc(copy1.h_length);
+	  NdbAutoPtr<char> tmp_aptr(addr1);
 	  memcpy(addr1, h1->h_addr, copy1.h_length);
 
 	  h2 = gethostbyname(valc);
 	  if (h2 == NULL) {
-		  free(addr1);
 		  return 0;
 	  }
 
 	  if (copy1.h_addrtype != h2->h_addrtype) {
-		  free(addr1);
 		  return 0;
 	  }
 
 	  if (copy1.h_length != h2->h_length) 
 	  {
-		  free(addr1);
 		  return 0;
 	  }
 	  
-	  stat = memcmp(addr1, h2->h_addr, copy1.h_length);
-	  
-	  free(addr1);
-	  
-	  return (stat == 0);
+	  return 0 ==  memcmp(addr1, h2->h_addr, copy1.h_length);	  
   }
 
   return 0;
