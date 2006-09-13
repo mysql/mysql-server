@@ -26,6 +26,9 @@
 #define USERNAME_LENGTH 16
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
+#define SYSTEM_CHARSET_MBMAXLEN 3
+#define NAME_BYTE_LEN   NAME_LEN*SYSTEM_CHARSET_MBMAXLEN
+#define USERNAME_BYTE_LENGTH USERNAME_LENGTH*SYSTEM_CHARSET_MBMAXLEN
 
 /*
   USER_HOST_BUFF_SIZE -- length of string buffer, that is enough to contain
@@ -33,7 +36,7 @@
   MySQL standard format:
   user_name_part@host_name_part\0
 */
-#define USER_HOST_BUFF_SIZE HOSTNAME_LENGTH + USERNAME_LENGTH + 2
+#define USER_HOST_BUFF_SIZE HOSTNAME_LENGTH + USERNAME_BYTE_LENGTH + 2
 
 #define LOCAL_HOST	"localhost"
 #define LOCAL_HOST_NAMEDPIPE "."
