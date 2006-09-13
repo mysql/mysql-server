@@ -6,6 +6,7 @@ COMMITS=commits@lists.mysql.com
 DOCS=docs-commit@mysql.com
 LIMIT=10000
 VERSION="5.0"
+BKROOT=`bk root`
 
 if [ "$REAL_EMAIL" = "" ]
 then
@@ -58,7 +59,9 @@ $BH
 EOF
   bk changes -v -r+
   bk cset -r+ -d
- ) | /usr/sbin/sendmail -t
+ ) > $BKROOT/BitKeeper/tmp/dev_public.txt
+
+bk sendmail -t < $BKROOT/BitKeeper/tmp/dev_public.txt
 
 #++
 # commits@ mail
@@ -82,7 +85,9 @@ see http://dev.mysql.com/doc/mysql/en/installing-source-tree.html
 EOF
   bk changes -v -r+
   bk cset -r+ -d
- ) | head -n $LIMIT | /usr/sbin/sendmail -t
+ ) | bk sed -e ${LIMIT}q > $BKROOT/BitKeeper/tmp/commits.txt
+
+bk sendmail -t < $BKROOT/BitKeeper/tmp/commits.txt
 
 #++
 # docs-commit@ mail
@@ -102,7 +107,8 @@ Subject: bk commit - $VERSION tree (Manual) ($CHANGESET)$BS
 EOF
   bk changes -v -r+
   bk cset -r+ -d
- ) | /usr/sbin/sendmail -t
+ ) > $BKROOT/BitKeeper/tmp/docs.txt
+ bk sendmail -t < $BKROOT/BitKeeper/tmp/docs.txt
  fi
 
 else
