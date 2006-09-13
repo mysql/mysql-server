@@ -5,6 +5,7 @@
 *.bb
 *.bbg
 *.bin
+*.cmake
 *.core
 *.d
 *.da
@@ -20,6 +21,7 @@
 *.map
 *.o
 *.obj
+*.old
 *.pch
 *.pdb
 *.reject
@@ -28,11 +30,21 @@
 *.so
 *.so.*
 *.spec
+*.user
+*.vcproj
+*/*.dir/*
 */*_pure_*warnings
 */.pure
+*/debug/*
+*/release/*
 *~
 .*.swp
+./CMakeCache.txt
+./MySql.ncb
+./MySql.sln
+./MySql.suo
 ./README.build-files
+./cmakecache.txt
 ./config.h
 ./copy_mysql_files.bat
 ./fix-project-files
@@ -68,6 +80,7 @@ BitKeeper/post-commit-manual
 BitKeeper/tmp/*
 BitKeeper/tmp/bkr3sAHD
 BitKeeper/tmp/gone
+CMakeFiles/*
 COPYING
 COPYING.LIB
 Docs/#manual.texi#
@@ -1685,6 +1698,7 @@ strings/ctype_autoconf.c
 strings/ctype_extra_sources.c
 strings/str_test
 strings/test_decimal
+support-files/*.ini
 support-files/MacOSX/Description.plist
 support-files/MacOSX/Info.plist
 support-files/MacOSX/ReadMe.txt
@@ -1791,5 +1805,8 @@ vio/test-sslserver
 vio/viotest-ssl
 vio/viotest-sslconnect.cpp
 vio/viotest.cpp
+win/configure.data
+win/vs71cache.txt
+win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
