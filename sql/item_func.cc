@@ -1235,34 +1235,19 @@ longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   longlong value=0;
-  my_bool arg_unsigned_flag;
-  my_bool cmp;
   null_value=1;
   for (uint i=0; i < arg_count ; i++)
   {
-    longlong tmp= args[i]->val_int();
-    arg_unsigned_flag= args[i]->unsigned_flag;
     if (null_value)
     {
-      value= tmp;
+      value=args[i]->val_int();
       null_value=args[i]->null_value;
-      unsigned_flag= arg_unsigned_flag;
     }
     else
     {
-      if (args[i]->null_value)
-        continue;
-      if (unsigned_flag == arg_unsigned_flag)
-        cmp= tmp < value;
-      else if (unsigned_flag)
-        cmp= compare_int_signed_unsigned(tmp, value) < 0;
-      else
-        cmp= compare_int_unsigned_signed(tmp, value) < 0;
-      if ((cmp ? cmp_sign : -cmp_sign) > 0)
-      {
-        value= tmp;
-        unsigned_flag= arg_unsigned_flag;
-      }
+      longlong tmp=args[i]->val_int();
+      if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
+	value=tmp;
     }
   }
   return value;
@@ -2328,7 +2313,6 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->length=0;
     entry->update_query_id=0;
     entry->collation.set(NULL, DERIVATION_IMPLICIT);
-    entry->unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
       variable. Imagine it is this:
@@ -2406,7 +2390,7 @@ Item_func_set_user_var::fix_length_and_dec()
 bool Item_func_set_user_var::update_hash(void *ptr, uint length,
 					 Item_result type,
 					 CHARSET_INFO *cs,
-					 Derivation dv, bool unsigned_arg)
+					 Derivation dv)
 {
   if ((null_value=args[0]->null_value))
   {
@@ -2453,7 +2437,6 @@ bool Item_func_set_user_var::update_hash(void *ptr, uint length,
     entry->length= length;
     entry->type=type;
     entry->collation.set(cs, dv);
-    entry->unsigned_flag= unsigned_arg;
   }
   return 0;
 
@@ -2524,10 +2507,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
     str->set(*(double*) value, decimals, &my_charset_bin);
     break;
   case INT_RESULT:
-      if (!unsigned_flag)
-        str->set(*(longlong*) value, &my_charset_bin);
-      else
-        str->set(*(ulonglong*) value, &my_charset_bin);
+    str->set(*(longlong*) value, &my_charset_bin);
     break;
   case STRING_RESULT:
     if (str->copy(value, length, collation.collation))
@@ -2568,7 +2548,6 @@ Item_func_set_user_var::check()
   case INT_RESULT:
   {
     save_result.vint= args[0]->val_int();
-    unsigned_flag= args[0]->unsigned_flag;
     break;
   }
   case STRING_RESULT:
@@ -2613,26 +2592,25 @@ Item_func_set_user_var::update()
   case REAL_RESULT:
   {
     res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
-		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT, 0);
+		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
     break;
   }
   case INT_RESULT:
   {
     res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
-                     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT,
-                     unsigned_flag);
+		     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
     break;
   }
   case STRING_RESULT:
   {
     if (!save_result.vstr)					// Null value
       res= update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin,
-		       DERIVATION_IMPLICIT, 0);
+		       DERIVATION_IMPLICIT);
     else
       res= update_hash((void*) save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
 		       save_result.vstr->charset(),
-		       DERIVATION_IMPLICIT, 0);
+		       DERIVATION_IMPLICIT);
     break;
   }
   case ROW_RESULT:
