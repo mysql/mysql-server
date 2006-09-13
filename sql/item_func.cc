@@ -3422,6 +3422,7 @@ static user_var_entry *get_variable(HASH *hash, LEX_STRING &name,
     entry->length=0;
     entry->update_query_id=0;
     entry->collation.set(NULL, DERIVATION_IMPLICIT);
+    entry->unsigned_flag= 0;
     /*
       If we are here, we were called from a SET or a query which sets a
       variable. Imagine it is this:
@@ -3565,6 +3566,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
     entry->collation.set(cs, dv);
+    entry->unsigned_flag= unsigned_arg;
   }
   entry->type=type;
   return 0;
@@ -3797,7 +3799,7 @@ Item_func_set_user_var::update()
   case REAL_RESULT:
   {
     res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
-		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
+		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT, 0);
     break;
   }
   case INT_RESULT:
@@ -3811,12 +3813,12 @@ Item_func_set_user_var::update()
   {
     if (!save_result.vstr)					// Null value
       res= update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin,
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     else
       res= update_hash((void*) save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
 		       save_result.vstr->charset(),
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     break;
   }
   case DECIMAL_RESULT:
