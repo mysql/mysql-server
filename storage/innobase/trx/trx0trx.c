@@ -75,7 +75,7 @@ trx_set_detailed_error_from_file(
 	FILE*	file)	/* in: file to read message from */
 {
 	os_file_read_string(file, trx->detailed_error,
-		sizeof(trx->detailed_error));
+			    sizeof(trx->detailed_error));
 }
 
 /********************************************************************
@@ -286,21 +286,21 @@ trx_free(
 
 	if (trx->declared_to_be_inside_innodb) {
 		ut_print_timestamp(stderr);
-		fputs(
-"  InnoDB: Error: Freeing a trx which is declared to be processing\n"
-"InnoDB: inside InnoDB.\n", stderr);
+		fputs("  InnoDB: Error: Freeing a trx which is declared"
+		      " to be processing\n"
+		      "InnoDB: inside InnoDB.\n", stderr);
 		trx_print(stderr, trx, 600);
 		putc('\n', stderr);
 	}
 
 	if (trx->n_mysql_tables_in_use != 0
-		|| trx->mysql_n_tables_locked != 0) {
+	    || trx->mysql_n_tables_locked != 0) {
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Error: MySQL is freeing a thd\n"
-"InnoDB: though trx->n_mysql_tables_in_use is %lu\n"
-"InnoDB: and trx->mysql_n_tables_locked is %lu.\n",
+			"  InnoDB: Error: MySQL is freeing a thd\n"
+			"InnoDB: though trx->n_mysql_tables_in_use is %lu\n"
+			"InnoDB: and trx->mysql_n_tables_locked is %lu.\n",
 			(ulong)trx->n_mysql_tables_in_use,
 			(ulong)trx->mysql_n_tables_locked);
 
@@ -428,7 +428,7 @@ trx_list_insert_ordered(
 			UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
 		} else {
 			UT_LIST_INSERT_AFTER(trx_list, trx_sys->trx_list,
-								trx2, trx);
+					     trx2, trx);
 		}
 	} else {
 		UT_LIST_ADD_LAST(trx_list, trx_sys->trx_list, trx);
@@ -478,22 +478,28 @@ trx_lists_init_at_db_start(void)
 				if (undo->state == TRX_UNDO_PREPARED) {
 
 					fprintf(stderr,
-"InnoDB: Transaction %lu %lu was in the XA prepared state.\n",
-					ut_dulint_get_high(trx->id),
-					ut_dulint_get_low(trx->id));
+						"InnoDB: Transaction %lu %lu"
+						" was in the"
+						" XA prepared state.\n",
+						ut_dulint_get_high(trx->id),
+						ut_dulint_get_low(trx->id));
 
 					if (srv_force_recovery == 0) {
 
 						trx->conc_state = TRX_PREPARED;
 					} else {
 						fprintf(stderr,
-"InnoDB: Since innodb_force_recovery > 0, we will rollback it anyway.\n");
+							"InnoDB: Since"
+							" innodb_force_recovery"
+							" > 0, we will"
+							" rollback it"
+							" anyway.\n");
 
 						trx->conc_state = TRX_ACTIVE;
 					}
 				} else {
-					trx->conc_state =
-						TRX_COMMITTED_IN_MEMORY;
+					trx->conc_state
+						= TRX_COMMITTED_IN_MEMORY;
 				}
 
 				/* We give a dummy value for the trx no;
@@ -520,7 +526,7 @@ trx_lists_init_at_db_start(void)
 
 			if (!undo->empty) {
 				trx->undo_no = ut_dulint_add(undo->top_undo_no,
-									1);
+							     1);
 			}
 
 			trx_list_insert_ordered(trx);
@@ -547,24 +553,32 @@ trx_lists_init_at_db_start(void)
 
 					if (undo->state == TRX_UNDO_PREPARED) {
 						fprintf(stderr,
-"InnoDB: Transaction %lu %lu was in the XA prepared state.\n",
-						ut_dulint_get_high(trx->id),
-						ut_dulint_get_low(trx->id));
+							"InnoDB: Transaction"
+							" %lu %lu was in the"
+							" XA prepared state.\n",
+							ut_dulint_get_high
+							(trx->id),
+							ut_dulint_get_low
+							(trx->id));
 
 						if (srv_force_recovery == 0) {
 
-							trx->conc_state =
-								TRX_PREPARED;
+							trx->conc_state
+								= TRX_PREPARED;
 						} else {
 							fprintf(stderr,
-"InnoDB: Since innodb_force_recovery > 0, we will rollback it anyway.\n");
+								"InnoDB: Since"
+								" innodb_force_recovery"
+								" > 0, we will"
+								" rollback it"
+								" anyway.\n");
 
-							trx->conc_state =
-								TRX_ACTIVE;
+							trx->conc_state
+								= TRX_ACTIVE;
 						}
 					} else {
-						trx->conc_state =
-							TRX_COMMITTED_IN_MEMORY;
+						trx->conc_state
+							= TRX_COMMITTED_IN_MEMORY;
 					}
 
 					/* We give a dummy value for the trx
@@ -585,8 +599,8 @@ trx_lists_init_at_db_start(void)
 				trx_list_insert_ordered(trx);
 
 				if (undo->dict_operation) {
-					trx->dict_operation =
-							undo->dict_operation;
+					trx->dict_operation
+						= undo->dict_operation;
 					trx->table_id = undo->table_id;
 				}
 			}
@@ -594,11 +608,11 @@ trx_lists_init_at_db_start(void)
 			trx->update_undo = undo;
 
 			if ((!undo->empty)
-				&& (ut_dulint_cmp(undo->top_undo_no,
-						trx->undo_no) >= 0)) {
+			    && (ut_dulint_cmp(undo->top_undo_no,
+					      trx->undo_no) >= 0)) {
 
 				trx->undo_no = ut_dulint_add(undo->top_undo_no,
-					1);
+							     1);
 			}
 
 			undo = UT_LIST_GET_NEXT(undo_list, undo);
@@ -635,7 +649,7 @@ loop:
 	it */
 
 	if ((rseg->id == TRX_SYS_SYSTEM_RSEG_ID)
-			&& (UT_LIST_GET_LEN(trx_sys->rseg_list) > 1)) {
+	    && (UT_LIST_GET_LEN(trx_sys->rseg_list) > 1)) {
 		goto loop;
 	}
 
@@ -761,7 +775,7 @@ trx_commit_off_kernel(
 
 		if (trx->insert_undo != NULL) {
 			trx_undo_set_state_at_finish(trx, trx->insert_undo,
-									&mtr);
+						     &mtr);
 		}
 
 		undo = trx->update_undo;
@@ -776,8 +790,8 @@ trx_commit_off_kernel(
 			because only a single OS thread is allowed to do the
 			transaction commit for this transaction. */
 
-			update_hdr_page = trx_undo_set_state_at_finish(trx,
-								undo, &mtr);
+			update_hdr_page = trx_undo_set_state_at_finish
+				(trx, undo, &mtr);
 
 			/* We have to do the cleanup for the update log while
 			holding the rseg mutex because update log headers
@@ -794,20 +808,20 @@ trx_commit_off_kernel(
 		server is a MySQL replication slave */
 
 		if (trx->mysql_log_file_name
-				&& trx->mysql_log_file_name[0] != '\0') {
-			trx_sys_update_mysql_binlog_offset(
-					trx->mysql_log_file_name,
-					trx->mysql_log_offset,
-					TRX_SYS_MYSQL_LOG_INFO, &mtr);
+		    && trx->mysql_log_file_name[0] != '\0') {
+			trx_sys_update_mysql_binlog_offset
+				(trx->mysql_log_file_name,
+				 trx->mysql_log_offset,
+				 TRX_SYS_MYSQL_LOG_INFO, &mtr);
 			trx->mysql_log_file_name = NULL;
 		}
 
 		if (trx->mysql_master_log_file_name[0] != '\0') {
 			/* This database server is a MySQL replication slave */
-			trx_sys_update_mysql_binlog_offset(
-				trx->mysql_master_log_file_name,
-				trx->mysql_master_log_pos,
-				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
+			trx_sys_update_mysql_binlog_offset
+				(trx->mysql_master_log_file_name,
+				 trx->mysql_master_log_pos,
+				 TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
 		}
 
 		/* The following call commits the mini-transaction, making the
@@ -836,7 +850,7 @@ trx_commit_off_kernel(
 	}
 
 	ut_ad(trx->conc_state == TRX_ACTIVE
-					|| trx->conc_state == TRX_PREPARED);
+	      || trx->conc_state == TRX_PREPARED);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
@@ -916,7 +930,7 @@ trx_commit_off_kernel(
 				/* Write the log but do not flush it to disk */
 
 				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP,
-									FALSE);
+						FALSE);
 			} else {
 				/* Write the log to the log files AND flush
 				them to disk */
@@ -996,8 +1010,8 @@ trx_assign_read_view(
 	mutex_enter(&kernel_mutex);
 
 	if (!trx->read_view) {
-		trx->read_view = read_view_open_now(trx->id,
-					trx->global_read_view_heap);
+		trx->read_view = read_view_open_now
+			(trx->id, trx->global_read_view_heap);
 		trx->global_read_view = trx->read_view;
 	}
 
@@ -1286,7 +1300,7 @@ trx_sig_send(
 		receiver_trx = thr_get_trx(receiver_thr);
 
 		UT_LIST_ADD_LAST(reply_signals, receiver_trx->reply_signals,
-									sig);
+				 sig);
 	}
 
 	if (trx->sess->state == SESS_ERROR) {
@@ -1411,7 +1425,7 @@ loop:
 		trx_handle_commit_sig_off_kernel(trx, next_thr);
 
 	} else if ((type == TRX_SIG_TOTAL_ROLLBACK)
-				|| (type == TRX_SIG_ROLLBACK_TO_SAVEPT)) {
+		   || (type == TRX_SIG_ROLLBACK_TO_SAVEPT)) {
 
 		trx_rollback(trx, sig, next_thr);
 
@@ -1467,7 +1481,7 @@ trx_sig_reply(
 		receiver_trx = thr_get_trx(sig->receiver);
 
 		UT_LIST_REMOVE(reply_signals, receiver_trx->reply_signals,
-									sig);
+			       sig);
 		ut_ad(receiver_trx->sess->state != SESS_ERROR);
 
 		que_thr_end_wait(sig->receiver, next_thr);
@@ -1551,7 +1565,7 @@ trx_commit_step(
 		/* Send the commit signal to the transaction */
 
 		trx_sig_send(thr_get_trx(thr), TRX_SIG_COMMIT, TRX_SIG_SELF,
-			thr, NULL, &next_thr);
+			     thr, NULL, &next_thr);
 
 		mutex_exit(&kernel_mutex);
 
@@ -1679,25 +1693,25 @@ trx_print(
 
 	fprintf(f, "TRANSACTION %lu %lu",
 		(ulong) ut_dulint_get_high(trx->id),
-		 (ulong) ut_dulint_get_low(trx->id));
+		(ulong) ut_dulint_get_low(trx->id));
 
 	switch (trx->conc_state) {
-		case TRX_NOT_STARTED:
-			fputs(", not started", f);
-			break;
-		case TRX_ACTIVE:
-			fprintf(f, ", ACTIVE %lu sec",
-				(ulong)difftime(time(NULL), trx->start_time));
-			break;
-		case TRX_PREPARED:
-			fprintf(f, ", ACTIVE (PREPARED) %lu sec",
-				(ulong)difftime(time(NULL), trx->start_time));
-			break;
-		case TRX_COMMITTED_IN_MEMORY:
-			fputs(", COMMITTED IN MEMORY", f);
-			break;
-		default:
-			fprintf(f, " state %lu", (ulong) trx->conc_state);
+	case TRX_NOT_STARTED:
+		fputs(", not started", f);
+		break;
+	case TRX_ACTIVE:
+		fprintf(f, ", ACTIVE %lu sec",
+			(ulong)difftime(time(NULL), trx->start_time));
+		break;
+	case TRX_PREPARED:
+		fprintf(f, ", ACTIVE (PREPARED) %lu sec",
+			(ulong)difftime(time(NULL), trx->start_time));
+		break;
+	case TRX_COMMITTED_IN_MEMORY:
+		fputs(", COMMITTED IN MEMORY", f);
+		break;
+	default:
+		fprintf(f, " state %lu", (ulong) trx->conc_state);
 	}
 
 #ifdef UNIV_LINUX
@@ -1724,27 +1738,27 @@ trx_print(
 
 	if (trx->n_mysql_tables_in_use > 0 || trx->mysql_n_tables_locked > 0) {
 		fprintf(f, "mysql tables in use %lu, locked %lu\n",
-					(ulong) trx->n_mysql_tables_in_use,
-					(ulong) trx->mysql_n_tables_locked);
+			(ulong) trx->n_mysql_tables_in_use,
+			(ulong) trx->mysql_n_tables_locked);
 	}
 
 	newline = TRUE;
 
 	switch (trx->que_state) {
-		case TRX_QUE_RUNNING:
-			newline = FALSE; break;
-		case TRX_QUE_LOCK_WAIT:
-			fputs("LOCK WAIT ", f); break;
-		case TRX_QUE_ROLLING_BACK:
-			fputs("ROLLING BACK ", f); break;
-		case TRX_QUE_COMMITTING:
-			fputs("COMMITTING ", f); break;
-		default:
-			fprintf(f, "que state %lu ", (ulong) trx->que_state);
+	case TRX_QUE_RUNNING:
+		newline = FALSE; break;
+	case TRX_QUE_LOCK_WAIT:
+		fputs("LOCK WAIT ", f); break;
+	case TRX_QUE_ROLLING_BACK:
+		fputs("ROLLING BACK ", f); break;
+	case TRX_QUE_COMMITTING:
+		fputs("COMMITTING ", f); break;
+	default:
+		fprintf(f, "que state %lu ", (ulong) trx->que_state);
 	}
 
-	if (0 < UT_LIST_GET_LEN(trx->trx_locks) ||
-		mem_heap_get_size(trx->lock_heap) > 400) {
+	if (0 < UT_LIST_GET_LEN(trx->trx_locks)
+	    || mem_heap_get_size(trx->lock_heap) > 400) {
 		newline = TRUE;
 
 		fprintf(f, "%lu lock struct(s), heap size %lu",
@@ -1817,12 +1831,12 @@ trx_prepare_off_kernel(
 			transaction prepare for this transaction. */
 
 			trx_undo_set_state_at_prepare(trx, trx->insert_undo,
-									&mtr);
+						      &mtr);
 		}
 
 		if (trx->update_undo) {
-			update_hdr_page = trx_undo_set_state_at_prepare(trx,
-						trx->update_undo, &mtr);
+			update_hdr_page = trx_undo_set_state_at_prepare
+				(trx, trx->update_undo, &mtr);
 		}
 
 		mutex_exit(&(rseg->mutex));
@@ -1872,7 +1886,7 @@ trx_prepare_off_kernel(
 				/* Write the log but do not flush it to disk */
 
 				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP,
-								FALSE);
+						FALSE);
 			} else {
 				/* Write the log to the log files AND flush
 				them to disk */
@@ -1954,19 +1968,23 @@ trx_recover_for_mysql(
 			if (count == 0) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-"  InnoDB: Starting recovery for XA transactions...\n");
+					"  InnoDB: Starting recovery for"
+					" XA transactions...\n");
 			}
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: Transaction %lu %lu in prepared state after recovery\n",
+				"  InnoDB: Transaction %lu %lu in"
+				" prepared state after recovery\n",
 				(ulong) ut_dulint_get_high(trx->id),
 				(ulong) ut_dulint_get_low(trx->id));
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: Transaction contains changes to %lu rows\n",
-			(ulong)ut_conv_dulint_to_longlong(trx->undo_no));
+				"  InnoDB: Transaction contains changes"
+				" to %lu rows\n",
+				(ulong) ut_conv_dulint_to_longlong
+				(trx->undo_no));
 
 			count++;
 
@@ -1983,7 +2001,8 @@ trx_recover_for_mysql(
 	if (count > 0){
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: %lu transactions in prepared state after recovery\n",
+			"  InnoDB: %lu transactions in prepared state"
+			" after recovery\n",
 			(ulong) count);
 	}
 
@@ -2017,11 +2036,10 @@ trx_get_trx_by_xid(
 		of gtrid_lenght+bqual_length bytes should be
 		the same */
 
-		if (xid->gtrid_length == trx->xid.gtrid_length &&
-			xid->bqual_length == trx->xid.bqual_length &&
-			memcmp(xid->data, trx->xid.data,
-				xid->gtrid_length +
-				xid->bqual_length) == 0) {
+		if (xid->gtrid_length == trx->xid.gtrid_length
+		    && xid->bqual_length == trx->xid.bqual_length
+		    && memcmp(xid->data, trx->xid.data,
+			      xid->gtrid_length + xid->bqual_length) == 0) {
 			break;
 		}
 

@@ -71,8 +71,7 @@ ut_rnd_gen_ulint(void)
 
 	n_bits = 8 * sizeof(ulint);
 
-	ut_rnd_ulint_counter =
-			UT_RND1 * ut_rnd_ulint_counter + UT_RND2;
+	ut_rnd_ulint_counter = UT_RND1 * ut_rnd_ulint_counter + UT_RND2;
 
 	rnd = ut_rnd_gen_next_ulint(ut_rnd_ulint_counter);
 
@@ -151,7 +150,7 @@ ut_fold_ulint_pair(
 	ulint	n2)	/* in: ulint */
 {
 	return(((((n1 ^ n2 ^ UT_HASH_RANDOM_MASK2) << 8) + n1)
-						^ UT_HASH_RANDOM_MASK) + n2);
+		^ UT_HASH_RANDOM_MASK) + n2);
 }
 
 /*****************************************************************
@@ -164,7 +163,7 @@ ut_fold_dulint(
 	dulint	d)	/* in: dulint */
 {
 	return(ut_fold_ulint_pair(ut_dulint_get_low(d),
-						ut_dulint_get_high(d)));
+				  ut_dulint_get_high(d)));
 }
 
 /*****************************************************************
