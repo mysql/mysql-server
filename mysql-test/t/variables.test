@@ -83,16 +83,24 @@ drop table t1;
 set GLOBAL max_join_size=10;
 set max_join_size=100;
 show variables like 'max_join_size';
+select * from information_schema.session_variables where variable_name like 'max_join_size';
 --replace_result 18446744073709551615 HA_POS_ERROR 4294967295 HA_POS_ERROR
 show global variables like 'max_join_size';
+--replace_result 18446744073709551615 HA_POS_ERROR 4294967295 HA_POS_ERROR
+select * from information_schema.global_variables where variable_name like 'max_join_size';
 set GLOBAL max_join_size=2000;
 show global variables like 'max_join_size';
+select * from information_schema.global_variables where variable_name like 'max_join_size';
 set max_join_size=DEFAULT;
 --replace_result 18446744073709551615 HA_POS_ERROR 4294967295 HA_POS_ERROR
 show variables like 'max_join_size';
+--replace_result 18446744073709551615 HA_POS_ERROR 4294967295 HA_POS_ERROR
+select * from information_schema.session_variables where variable_name like 'max_join_size';
 set GLOBAL max_join_size=DEFAULT;
 --replace_result 18446744073709551615 HA_POS_ERROR 4294967295 HA_POS_ERROR
 show global variables like 'max_join_size';
+--replace_result 18446744073709551615 HA_POS_ERROR 4294967295 HA_POS_ERROR
+select * from information_schema.global_variables where variable_name like 'max_join_size';
 set @@max_join_size=1000, @@global.max_join_size=2000;
 select @@local.max_join_size, @@global.max_join_size;
 select @@identity,  length(@@version)>0;
@@ -106,50 +114,68 @@ set big_tables=OFF, big_tables=ON, big_tables=0, big_tables=1, big_tables="OFF",
 
 set global concurrent_insert=2;
 show variables like 'concurrent_insert';
+select * from information_schema.session_variables where variable_name like 'concurrent_insert';
 set global concurrent_insert=1;
 show variables like 'concurrent_insert';
+select * from information_schema.session_variables where variable_name like 'concurrent_insert';
 set global concurrent_insert=0;
 show variables like 'concurrent_insert';
+select * from information_schema.session_variables where variable_name like 'concurrent_insert';
 set global concurrent_insert=DEFAULT;
 select @@concurrent_insert;
 
 set global timed_mutexes=ON;
 show variables like 'timed_mutexes';
+select * from information_schema.session_variables where variable_name like 'timed_mutexes';
 set global timed_mutexes=0;
 show variables like 'timed_mutexes';
+select * from information_schema.session_variables where variable_name like 'timed_mutexes';
 
 set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="MERGE";
 show local variables like 'storage_engine';
+select * from information_schema.session_variables where variable_name like 'storage_engine';
 show global variables like 'storage_engine';
+select * from information_schema.global_variables where variable_name like 'storage_engine';
 set GLOBAL query_cache_size=100000;
 
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
+select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
 set GLOBAL myisam_max_sort_file_size=default;
 --replace_result 2147483647 FILE_SIZE 9223372036854775807 FILE_SIZE
 show variables like 'myisam_max_sort_file_size';
+--replace_result 2147483647 FILE_SIZE 9223372036854775807 FILE_SIZE
+select * from information_schema.session_variables where variable_name like 'myisam_max_sort_file_size';
 
 set global net_retry_count=10, session net_retry_count=10;
 set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;
 set session net_buffer_length=2048, net_write_timeout=500, net_read_timeout=600;
 show global variables like 'net_%';
+select * from information_schema.global_variables where variable_name like 'net_%';
 show session variables like 'net_%';
+select * from information_schema.session_variables where variable_name like 'net_%';
 set session net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
 show global variables like 'net_%';
+select * from information_schema.global_variables where variable_name like 'net_%';
 show session variables like 'net_%';
+select * from information_schema.session_variables where variable_name like 'net_%';
 set net_buffer_length=1;
 show variables like 'net_buffer_length';
+select * from information_schema.session_variables where variable_name like 'net_buffer_length';
 set net_buffer_length=2000000000;
 show variables like 'net_buffer_length';
+select * from information_schema.session_variables where variable_name like 'net_buffer_length';
 
 set character set cp1251_koi8;
 show variables like "character_set_client";
+select * from information_schema.session_variables where variable_name like 'character_set_client';
 select @@timestamp>0;
 
 set @@rand_seed1=10000000,@@rand_seed2=1000000;
 select ROUND(RAND(),5);
 
 show variables like '%alloc%';
+select * from information_schema.session_variables where variable_name like '%alloc%';
 set @@range_alloc_block_size=1024*16;
 set @@query_alloc_block_size=1024*17+2;
 set @@query_prealloc_size=1024*18;
@@ -157,10 +183,12 @@ set @@transaction_alloc_block_size=1024*20-1;
 set @@transaction_prealloc_size=1024*21-1;
 select @@query_alloc_block_size;
 show variables like '%alloc%';
+select * from information_schema.session_variables where variable_name like '%alloc%';
 set @@range_alloc_block_size=default;
 set @@query_alloc_block_size=default, @@query_prealloc_size=default;
 set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
 show variables like '%alloc%';
+select * from information_schema.session_variables where variable_name like '%alloc%';
 
 #
 # Bug #10904 Illegal mix of collations between
@@ -363,6 +391,8 @@ set global ft_boolean_syntax = @@init_connect;
 set global myisam_max_sort_file_size=4294967296;
 --replace_result 4294967296 MAX_FILE_SIZE 2146435072 MAX_FILE_SIZE
 show global variables like 'myisam_max_sort_file_size';
+--replace_result 4294967296 MAX_FILE_SIZE 2146435072 MAX_FILE_SIZE
+select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
 set global myisam_max_sort_file_size=default;
 
 #
@@ -398,12 +428,16 @@ SELECT @@global.local.key_buffer_size;
 # BUG#5135: cannot turn on log_warnings with SET in 4.1 (and 4.0)
 set @tstlw = @@log_warnings;
 show global variables like 'log_warnings';
+select * from information_schema.global_variables where variable_name like 'log_warnings';
 set global log_warnings = 0;
 show global variables like 'log_warnings';
+select * from information_schema.global_variables where variable_name like 'log_warnings';
 set global log_warnings = 42;
 show global variables like 'log_warnings';
+select * from information_schema.global_variables where variable_name like 'log_warnings';
 set global log_warnings = @tstlw;
 show global variables like 'log_warnings';
+select * from information_schema.global_variables where variable_name like 'log_warnings';
 
 #
 # BUG#4788 show create table provides incorrect statement
@@ -435,6 +469,7 @@ drop table t1;
 
 SET GLOBAL MYISAM_DATA_POINTER_SIZE= 7;
 SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'MYISAM_DATA_POINTER_SIZE';
 
 #
 # Bug #6958: negative arguments to integer options wrap around
@@ -442,6 +477,7 @@ SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
 
 SET GLOBAL table_open_cache=-1;
 SHOW VARIABLES LIKE 'table_open_cache';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'table_open_cache';
 SET GLOBAL table_open_cache=DEFAULT;
 
 #
@@ -527,6 +563,7 @@ select @@global.character_set_filesystem;
 set @old_sql_big_selects = @@sql_big_selects;
 set @@sql_big_selects = 1;
 show variables like 'sql_big_selects';
+select * from information_schema.session_variables where variable_name like 'sql_big_selects';
 set @@sql_big_selects = @old_sql_big_selects;
 
 #
@@ -535,10 +572,14 @@ set @@sql_big_selects = @old_sql_big_selects;
 # 
 set @@sql_notes = 0, @@sql_warnings = 0;
 show variables like 'sql_notes';
+select * from information_schema.session_variables where variable_name like 'sql_notes';
 show variables like 'sql_warnings';
+select * from information_schema.session_variables where variable_name like 'sql_warnings';
 set @@sql_notes = 1, @@sql_warnings = 1;
 show variables like 'sql_notes';
+select * from information_schema.session_variables where variable_name like 'sql_notes';
 show variables like 'sql_warnings';
+select * from information_schema.session_variables where variable_name like 'sql_warnings';
 
 #
 # Bug #12792: @@system_time_zone is not SELECTable.
@@ -565,9 +606,15 @@ select @@basedir, @@datadir, @@tmpdir;
 --replace_column 2 #
 show variables like 'basedir';
 --replace_column 2 #
+select * from information_schema.session_variables where variable_name like 'basedir';
+--replace_column 2 #
 show variables like 'datadir';
 --replace_column 2 #
+select * from information_schema.session_variables where variable_name like 'datadir';
+--replace_column 2 #
 show variables like 'tmpdir';
+--replace_column 2 #
+select * from information_schema.session_variables where variable_name like 'tmpdir';
 
 #
 # Bug #19606: make ssl settings available via SHOW VARIABLES and @@variables
@@ -577,6 +624,8 @@ show variables like 'tmpdir';
 select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
 --replace_column 2 #
 show variables like 'ssl%';
+--replace_column 2 #
+select * from information_schema.session_variables where variable_name like 'ssl%';
 
 #
 # Bug #19616: make log_queries_not_using_indexes available in SHOW VARIABLES
@@ -584,6 +633,7 @@ show variables like 'ssl%';
 #
 select @@log_queries_not_using_indexes;
 show variables like 'log_queries_not_using_indexes';
+select * from information_schema.session_variables where variable_name like 'log_queries_not_using_indexes';
 
 --echo End of 5.0 tests
 

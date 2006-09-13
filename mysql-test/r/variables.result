@@ -103,21 +103,36 @@ set max_join_size=100;
 show variables like 'max_join_size';
 Variable_name	Value
 max_join_size	100
+select * from information_schema.session_variables where variable_name like 'max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_JOIN_SIZE	100
 show global variables like 'max_join_size';
 Variable_name	Value
 max_join_size	10
+select * from information_schema.global_variables where variable_name like 'max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_JOIN_SIZE	10
 set GLOBAL max_join_size=2000;
 show global variables like 'max_join_size';
 Variable_name	Value
 max_join_size	2000
+select * from information_schema.global_variables where variable_name like 'max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_JOIN_SIZE	2000
 set max_join_size=DEFAULT;
 show variables like 'max_join_size';
 Variable_name	Value
 max_join_size	2000
+select * from information_schema.session_variables where variable_name like 'max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_JOIN_SIZE	2000
 set GLOBAL max_join_size=DEFAULT;
 show global variables like 'max_join_size';
 Variable_name	Value
 max_join_size	HA_POS_ERROR
+select * from information_schema.global_variables where variable_name like 'max_join_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_JOIN_SIZE	HA_POS_ERROR
 set @@max_join_size=1000, @@global.max_join_size=2000;
 select @@local.max_join_size, @@global.max_join_size;
 @@local.max_join_size	@@global.max_join_size
@@ -149,14 +164,23 @@ set global concurrent_insert=2;
 show variables like 'concurrent_insert';
 Variable_name	Value
 concurrent_insert	2
+select * from information_schema.session_variables where variable_name like 'concurrent_insert';
+VARIABLE_NAME	VARIABLE_VALUE
+CONCURRENT_INSERT	2
 set global concurrent_insert=1;
 show variables like 'concurrent_insert';
 Variable_name	Value
 concurrent_insert	1
+select * from information_schema.session_variables where variable_name like 'concurrent_insert';
+VARIABLE_NAME	VARIABLE_VALUE
+CONCURRENT_INSERT	1
 set global concurrent_insert=0;
 show variables like 'concurrent_insert';
 Variable_name	Value
 concurrent_insert	0
+select * from information_schema.session_variables where variable_name like 'concurrent_insert';
+VARIABLE_NAME	VARIABLE_VALUE
+CONCURRENT_INSERT	0
 set global concurrent_insert=DEFAULT;
 select @@concurrent_insert;
 @@concurrent_insert
@@ -165,26 +189,44 @@ set global timed_mutexes=ON;
 show variables like 'timed_mutexes';
 Variable_name	Value
 timed_mutexes	ON
+select * from information_schema.session_variables where variable_name like 'timed_mutexes';
+VARIABLE_NAME	VARIABLE_VALUE
+TIMED_MUTEXES	ON
 set global timed_mutexes=0;
 show variables like 'timed_mutexes';
 Variable_name	Value
 timed_mutexes	OFF
+select * from information_schema.session_variables where variable_name like 'timed_mutexes';
+VARIABLE_NAME	VARIABLE_VALUE
+TIMED_MUTEXES	OFF
 set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="MERGE";
 show local variables like 'storage_engine';
 Variable_name	Value
 storage_engine	MEMORY
+select * from information_schema.session_variables where variable_name like 'storage_engine';
+VARIABLE_NAME	VARIABLE_VALUE
+STORAGE_ENGINE	MEMORY
 show global variables like 'storage_engine';
 Variable_name	Value
 storage_engine	MRG_MYISAM
+select * from information_schema.global_variables where variable_name like 'storage_engine';
+VARIABLE_NAME	VARIABLE_VALUE
+STORAGE_ENGINE	MRG_MYISAM
 set GLOBAL query_cache_size=100000;
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
 myisam_max_sort_file_size	1048576
+select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MYISAM_MAX_SORT_FILE_SIZE	1048576
 set GLOBAL myisam_max_sort_file_size=default;
 show variables like 'myisam_max_sort_file_size';
 Variable_name	Value
 myisam_max_sort_file_size	FILE_SIZE
+select * from information_schema.session_variables where variable_name like 'myisam_max_sort_file_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MYISAM_MAX_SORT_FILE_SIZE	FILE_SIZE
 set global net_retry_count=10, session net_retry_count=10;
 set global net_buffer_length=1024, net_write_timeout=200, net_read_timeout=300;
 set session net_buffer_length=2048, net_write_timeout=500, net_read_timeout=600;
@@ -194,12 +236,24 @@ net_buffer_length	1024
 net_read_timeout	300
 net_retry_count	10
 net_write_timeout	200
+select * from information_schema.global_variables where variable_name like 'net_%';
+VARIABLE_NAME	VARIABLE_VALUE
+NET_BUFFER_LENGTH	1024
+NET_READ_TIMEOUT	300
+NET_RETRY_COUNT	10
+NET_WRITE_TIMEOUT	200
 show session variables like 'net_%';
 Variable_name	Value
 net_buffer_length	2048
 net_read_timeout	600
 net_retry_count	10
 net_write_timeout	500
+select * from information_schema.session_variables where variable_name like 'net_%';
+VARIABLE_NAME	VARIABLE_VALUE
+NET_BUFFER_LENGTH	2048
+NET_READ_TIMEOUT	600
+NET_RETRY_COUNT	10
+NET_WRITE_TIMEOUT	500
 set session net_buffer_length=8000, global net_read_timeout=900, net_write_timeout=1000;
 show global variables like 'net_%';
 Variable_name	Value
@@ -207,24 +261,45 @@ net_buffer_length	1024
 net_read_timeout	900
 net_retry_count	10
 net_write_timeout	1000
+select * from information_schema.global_variables where variable_name like 'net_%';
+VARIABLE_NAME	VARIABLE_VALUE
+NET_BUFFER_LENGTH	1024
+NET_READ_TIMEOUT	900
+NET_RETRY_COUNT	10
+NET_WRITE_TIMEOUT	1000
 show session variables like 'net_%';
 Variable_name	Value
 net_buffer_length	7168
 net_read_timeout	600
 net_retry_count	10
 net_write_timeout	500
+select * from information_schema.session_variables where variable_name like 'net_%';
+VARIABLE_NAME	VARIABLE_VALUE
+NET_BUFFER_LENGTH	7168
+NET_READ_TIMEOUT	600
+NET_RETRY_COUNT	10
+NET_WRITE_TIMEOUT	500
 set net_buffer_length=1;
 show variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1024
+select * from information_schema.session_variables where variable_name like 'net_buffer_length';
+VARIABLE_NAME	VARIABLE_VALUE
+NET_BUFFER_LENGTH	1024
 set net_buffer_length=2000000000;
 show variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1048576
+select * from information_schema.session_variables where variable_name like 'net_buffer_length';
+VARIABLE_NAME	VARIABLE_VALUE
+NET_BUFFER_LENGTH	1048576
 set character set cp1251_koi8;
 show variables like "character_set_client";
 Variable_name	Value
 character_set_client	cp1251
+select * from information_schema.session_variables where variable_name like 'character_set_client';
+VARIABLE_NAME	VARIABLE_VALUE
+CHARACTER_SET_CLIENT	cp1251
 select @@timestamp>0;
 @@timestamp>0
 1
@@ -239,6 +314,13 @@ query_prealloc_size	8192
 range_alloc_block_size	2048
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
+select * from information_schema.session_variables where variable_name like '%alloc%';
+VARIABLE_NAME	VARIABLE_VALUE
+QUERY_ALLOC_BLOCK_SIZE	8192
+QUERY_PREALLOC_SIZE	8192
+RANGE_ALLOC_BLOCK_SIZE	2048
+TRANSACTION_ALLOC_BLOCK_SIZE	8192
+TRANSACTION_PREALLOC_SIZE	4096
 set @@range_alloc_block_size=1024*16;
 set @@query_alloc_block_size=1024*17+2;
 set @@query_prealloc_size=1024*18;
@@ -254,6 +336,13 @@ query_prealloc_size	18432
 range_alloc_block_size	16384
 transaction_alloc_block_size	19456
 transaction_prealloc_size	20480
+select * from information_schema.session_variables where variable_name like '%alloc%';
+VARIABLE_NAME	VARIABLE_VALUE
+QUERY_ALLOC_BLOCK_SIZE	17408
+QUERY_PREALLOC_SIZE	18432
+RANGE_ALLOC_BLOCK_SIZE	16384
+TRANSACTION_ALLOC_BLOCK_SIZE	19456
+TRANSACTION_PREALLOC_SIZE	20480
 set @@range_alloc_block_size=default;
 set @@query_alloc_block_size=default, @@query_prealloc_size=default;
 set transaction_alloc_block_size=default, @@transaction_prealloc_size=default;
@@ -264,6 +353,13 @@ query_prealloc_size	8192
 range_alloc_block_size	2048
 transaction_alloc_block_size	8192
 transaction_prealloc_size	4096
+select * from information_schema.session_variables where variable_name like '%alloc%';
+VARIABLE_NAME	VARIABLE_VALUE
+QUERY_ALLOC_BLOCK_SIZE	8192
+QUERY_PREALLOC_SIZE	8192
+RANGE_ALLOC_BLOCK_SIZE	2048
+TRANSACTION_ALLOC_BLOCK_SIZE	8192
+TRANSACTION_PREALLOC_SIZE	4096
 SELECT @@version LIKE 'non-existent';
 @@version LIKE 'non-existent'
 0
@@ -485,6 +581,9 @@ set global myisam_max_sort_file_size=4294967296;
 show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
 myisam_max_sort_file_size	MAX_FILE_SIZE
+select * from information_schema.global_variables where variable_name like 'myisam_max_sort_file_size';
+VARIABLE_NAME	VARIABLE_VALUE
+MYISAM_MAX_SORT_FILE_SIZE	MAX_FILE_SIZE
 set global myisam_max_sort_file_size=default;
 select @@global.max_user_connections,@@local.max_join_size;
 @@global.max_user_connections	@@local.max_join_size
@@ -524,18 +623,30 @@ set @tstlw = @@log_warnings;
 show global variables like 'log_warnings';
 Variable_name	Value
 log_warnings	1
+select * from information_schema.global_variables where variable_name like 'log_warnings';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_WARNINGS	1
 set global log_warnings = 0;
 show global variables like 'log_warnings';
 Variable_name	Value
 log_warnings	0
+select * from information_schema.global_variables where variable_name like 'log_warnings';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_WARNINGS	0
 set global log_warnings = 42;
 show global variables like 'log_warnings';
 Variable_name	Value
 log_warnings	42
+select * from information_schema.global_variables where variable_name like 'log_warnings';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_WARNINGS	42
 set global log_warnings = @tstlw;
 show global variables like 'log_warnings';
 Variable_name	Value
 log_warnings	1
+select * from information_schema.global_variables where variable_name like 'log_warnings';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_WARNINGS	1
 create table t1 (
 c1 tinyint,
 c2 smallint,
@@ -567,10 +678,16 @@ SET GLOBAL MYISAM_DATA_POINTER_SIZE= 7;
 SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
 Variable_name	Value
 myisam_data_pointer_size	7
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'MYISAM_DATA_POINTER_SIZE';
+VARIABLE_NAME	VARIABLE_VALUE
+MYISAM_DATA_POINTER_SIZE	7
 SET GLOBAL table_open_cache=-1;
 SHOW VARIABLES LIKE 'table_open_cache';
 Variable_name	Value
 table_open_cache	1
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE 'table_open_cache';
+VARIABLE_NAME	VARIABLE_VALUE
+TABLE_OPEN_CACHE	1
 SET GLOBAL table_open_cache=DEFAULT;
 set character_set_results=NULL;
 select ifnull(@@character_set_results,"really null");
@@ -639,21 +756,36 @@ set @@sql_big_selects = 1;
 show variables like 'sql_big_selects';
 Variable_name	Value
 sql_big_selects	ON
+select * from information_schema.session_variables where variable_name like 'sql_big_selects';
+VARIABLE_NAME	VARIABLE_VALUE
+SQL_BIG_SELECTS	ON
 set @@sql_big_selects = @old_sql_big_selects;
 set @@sql_notes = 0, @@sql_warnings = 0;
 show variables like 'sql_notes';
 Variable_name	Value
 sql_notes	OFF
+select * from information_schema.session_variables where variable_name like 'sql_notes';
+VARIABLE_NAME	VARIABLE_VALUE
+SQL_NOTES	OFF
 show variables like 'sql_warnings';
 Variable_name	Value
 sql_warnings	OFF
+select * from information_schema.session_variables where variable_name like 'sql_warnings';
+VARIABLE_NAME	VARIABLE_VALUE
+SQL_WARNINGS	OFF
 set @@sql_notes = 1, @@sql_warnings = 1;
 show variables like 'sql_notes';
 Variable_name	Value
 sql_notes	ON
+select * from information_schema.session_variables where variable_name like 'sql_notes';
+VARIABLE_NAME	VARIABLE_VALUE
+SQL_NOTES	ON
 show variables like 'sql_warnings';
 Variable_name	Value
 sql_warnings	ON
+select * from information_schema.session_variables where variable_name like 'sql_warnings';
+VARIABLE_NAME	VARIABLE_VALUE
+SQL_WARNINGS	ON
 select @@system_time_zone;
 @@system_time_zone
 #
@@ -667,12 +799,21 @@ select @@basedir, @@datadir, @@tmpdir;
 show variables like 'basedir';
 Variable_name	Value
 basedir	#
+select * from information_schema.session_variables where variable_name like 'basedir';
+VARIABLE_NAME	VARIABLE_VALUE
+BASEDIR	#
 show variables like 'datadir';
 Variable_name	Value
 datadir	#
+select * from information_schema.session_variables where variable_name like 'datadir';
+VARIABLE_NAME	VARIABLE_VALUE
+DATADIR	#
 show variables like 'tmpdir';
 Variable_name	Value
 tmpdir	#
+select * from information_schema.session_variables where variable_name like 'tmpdir';
+VARIABLE_NAME	VARIABLE_VALUE
+TMPDIR	#
 select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
 @@ssl_ca	@@ssl_capath	@@ssl_cert	@@ssl_cipher	@@ssl_key
 #	#	#	#	#
@@ -683,12 +824,22 @@ ssl_capath	#
 ssl_cert	#
 ssl_cipher	#
 ssl_key	#
+select * from information_schema.session_variables where variable_name like 'ssl%';
+VARIABLE_NAME	VARIABLE_VALUE
+SSL_CA	#
+SSL_CAPATH	#
+SSL_CERT	#
+SSL_CIPHER	#
+SSL_KEY	#
 select @@log_queries_not_using_indexes;
 @@log_queries_not_using_indexes
 0
 show variables like 'log_queries_not_using_indexes';
 Variable_name	Value
 log_queries_not_using_indexes	OFF
+select * from information_schema.session_variables where variable_name like 'log_queries_not_using_indexes';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_QUERIES_NOT_USING_INDEXES	OFF
 End of 5.0 tests
 set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
