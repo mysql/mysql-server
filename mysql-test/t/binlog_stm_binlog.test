@@ -13,6 +13,6 @@ drop table t1;
 # For both statement and row based bin logs 9/19/2005 [jbm]
 
 -- source include/not_embedded.inc
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed.inc
 -- source extra/binlog_tests/binlog.test
 

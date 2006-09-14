@@ -114,7 +114,7 @@ test-unit:
 
 test-ps:
 	cd mysql-test ; \
-	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=statement
+	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=mixed
 
 test-nr:
 	cd mysql-test ; \
@@ -125,6 +125,10 @@ test-pr:
 	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=row
 
 test-ns:
+	cd mysql-test ; \
+	./mysql-test-run.pl $(force) --mysqld=--binlog-format=mixed
+
+test-binlog-statement:
 	cd mysql-test ; \
 	./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
 

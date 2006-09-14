@@ -7,7 +7,7 @@
 # in row-based, it hangs waiting for an offset which is never
 # reached (the "sync_with_master 1"), logically.
 
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_mixed_or_statement.inc
 source include/master-slave.inc;
 save_master_pos;
 connection slave;
