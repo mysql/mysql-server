@@ -144,7 +144,7 @@ rw_lock_s_lock_low(
 
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_add_debug_info(lock, pass, RW_LOCK_SHARED, file_name,
-									line);
+				       line);
 #endif
 		lock->last_s_file_name = file_name;
 		lock->last_s_line = line;
@@ -280,7 +280,7 @@ rw_lock_s_lock_func_nowait(
 
 #ifdef UNIV_SYNC_DEBUG
 		rw_lock_add_debug_info(lock, 0, RW_LOCK_SHARED, file_name,
-									line);
+				       line);
 #endif
 
 		lock->last_s_file_name = file_name;
@@ -313,11 +313,11 @@ rw_lock_x_lock_func_nowait(
 
 	if (UNIV_UNLIKELY(rw_lock_get_reader_count(lock) != 0)) {
 	} else if (UNIV_LIKELY(rw_lock_get_writer(lock)
-			== RW_LOCK_NOT_LOCKED)) {
+			       == RW_LOCK_NOT_LOCKED)) {
 		rw_lock_set_writer(lock, RW_LOCK_EX);
 		lock->writer_thread = curr_thread;
 		lock->pass = 0;
-	relock:
+relock:
 		lock->writer_count++;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -329,8 +329,8 @@ rw_lock_x_lock_func_nowait(
 
 		success = TRUE;
 	} else if (rw_lock_get_writer(lock) == RW_LOCK_EX
-			&& lock->pass == 0
-			&& os_thread_eq(lock->writer_thread, curr_thread)) {
+		   && lock->pass == 0
+		   && os_thread_eq(lock->writer_thread, curr_thread)) {
 		goto relock;
 	}
 
@@ -373,7 +373,7 @@ rw_lock_s_unlock_func(
 	signal the object */
 
 	if (UNIV_UNLIKELY(lock->waiters)
-			&& lock->reader_count == 0) {
+	    && lock->reader_count == 0) {
 		sg = TRUE;
 
 		rw_lock_set_waiters(lock, 0);
@@ -453,7 +453,7 @@ rw_lock_x_unlock_func(
 
 	/* If there may be waiters, signal the lock */
 	if (UNIV_UNLIKELY(lock->waiters)
-			&& lock->writer_count == 0) {
+	    && lock->writer_count == 0) {
 
 		sg = TRUE;
 		rw_lock_set_waiters(lock, 0);

@@ -65,7 +65,7 @@ dict_mem_table_create(
 	table->cached = FALSE;
 
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
-							* sizeof(dict_col_t));
+				     * sizeof(dict_col_t));
 	UT_LIST_INIT(table->indexes);
 
 	table->auto_inc_lock = mem_heap_alloc(heap, lock_get_size());
@@ -177,9 +177,9 @@ dict_mem_index_create(
 	index->n_def = index->n_nullable = 0;
 	index->n_fields = n_fields;
 	index->fields = mem_heap_alloc(heap, 1 + n_fields
-						* sizeof(dict_field_t));
-					/* The '1 +' above prevents allocation
-					of an empty mem block */
+				       * sizeof(dict_field_t));
+	/* The '1 +' above prevents allocation
+	of an empty mem block */
 	index->stat_n_diff_key_vals = NULL;
 
 	index->cached = FALSE;

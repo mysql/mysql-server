@@ -1579,10 +1579,12 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
                         dbname, tabname));
     build_table_filename(key, FN_LEN-1, dbname, tabname, NullS, 0);
     /*
-      If the frm of the altered table is different than the one on
-      disk then overwrite it with the new table definition
+      If the there is no local table shadowing the altered table and 
+      it has an frm that is different than the one on disk then 
+      overwrite it with the new table definition
     */
-    if (readfrm(key, &data, &length) == 0 &&
+    if (!ndbcluster_check_if_local_table(dbname, tabname) &&
+	readfrm(key, &data, &length) == 0 &&
         packfrm(data, length, &pack_data, &pack_length) == 0 &&
         cmp_frm(altered_table, pack_data, pack_length))
     {
@@ -1799,7 +1801,16 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         // fall through
         case SOT_CREATE_TABLE:
           pthread_mutex_lock(&LOCK_open);
-          if (ndb_create_table_from_engine(thd, schema->db, schema->name))
+	  if (ndbcluster_check_if_local_table(schema->db, schema->name))
+	  {
+	    DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
+				schema->db, schema->name));
+            sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
+                            "binlog schema event '%s' from node %d. ",
+                            schema->db, schema->name, schema->query,
+                            schema->node_id);
+	  }
+          else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
             sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
                             "binlog schema event '%s' from node %d. "
@@ -2050,9 +2061,18 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share= 0;
           }
           pthread_mutex_lock(&LOCK_open);
-          if (ndb_create_table_from_engine(thd, schema->db, schema->name))
-          {
-            sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
+	  if (ndbcluster_check_if_local_table(schema->db, schema->name))
+	  {
+	    DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
+				schema->db, schema->name));
+            sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
+                            "binlog schema event '%s' from node %d. ",
+                            schema->db, schema->name, schema->query,
+                            schema->node_id);
+	  }
+          else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
+	  {
+	    sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
                             "binlog schema event '%s' from node %d. my_errno: %d",
                             schema->db, schema->name, schema->query,
                             schema->node_id, my_errno);
@@ -2288,6 +2308,28 @@ ndb_rep_event_name(String *event_name,const char *db, const char *tbl)
     event_name->append('/');
     event_name->append(tbl);
   }
+}
+
+bool
+ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
+{
+  char key[FN_REFLEN];
+  char ndb_file[FN_REFLEN];
+
+  DBUG_ENTER("ndbcluster_check_if_local_table");
+  build_table_filename(key, FN_LEN-1, dbname, tabname, reg_ext, 0);
+  build_table_filename(ndb_file, FN_LEN-1, dbname, tabname, ha_ndb_ext, 0);
+  /* Check that any defined table is an ndb table */
+  DBUG_PRINT("info", ("Looking for file %s and %s", key, ndb_file));
+  if ((! my_access(key, F_OK)) && my_access(ndb_file, F_OK))
+  {
+    DBUG_PRINT("info", ("table file %s not on disk, local table", ndb_file));   
+  
+  
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
 }
 
 /*

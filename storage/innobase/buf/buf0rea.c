@@ -81,32 +81,21 @@ buf_read_page_low(
 	mode = mode & ~OS_AIO_SIMULATED_WAKE_LATER;
 
 	if (trx_doublewrite && space == TRX_SYS_SPACE
-		&& (   (offset >= trx_doublewrite->block1
-				&& offset < trx_doublewrite->block1
-				+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-			|| (offset >= trx_doublewrite->block2
-				&& offset < trx_doublewrite->block2
-				+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE))) {
+	    && (   (offset >= trx_doublewrite->block1
+		    && offset < trx_doublewrite->block1
+		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
+		   || (offset >= trx_doublewrite->block2
+		       && offset < trx_doublewrite->block2
+		       + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE))) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Warning: trying to read doublewrite buffer page %lu\n",
+			"  InnoDB: Warning: trying to read"
+			" doublewrite buffer page %lu\n",
 			(ulong) offset);
 
 		return(0);
 	}
 
-#ifdef UNIV_LOG_DEBUG
-	if (space % 2 == 1) {
-		/* We are updating a replicate space while holding the
-		log mutex: the read must be handled before other reads
-		which might incur ibuf operations and thus write to the log */
-
-		fputs("Log debug: reading replicate page in sync mode\n",
-			stderr);
-
-		sync = TRUE;
-	}
-#endif
 	if (ibuf_bitmap_page(offset) || trx_sys_hdr_page(space, offset)) {
 
 		/* Trx sys header is so low in the latching order that we play
@@ -123,7 +112,7 @@ buf_read_page_low(
 	pool for read, then DISCARD cannot proceed until the read has
 	completed */
 	block = buf_page_init_for_read(err, mode, space, tablespace_version,
-								offset);
+				       offset);
 	if (block == NULL) {
 
 		return(0);
@@ -133,17 +122,17 @@ buf_read_page_low(
 	if (buf_debug_prints) {
 		fprintf(stderr,
 			"Posting read request for page %lu, sync %lu\n",
-							   (ulong) offset,
-							   (ulong) sync);
+			(ulong) offset,
+			(ulong) sync);
 	}
 #endif
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 	*err = fil_io(OS_FILE_READ | wake_later,
-			sync, space,
-			offset, 0, UNIV_PAGE_SIZE,
-			(void*)block->frame, (void*)block);
+		      sync, space,
+		      offset, 0, UNIV_PAGE_SIZE,
+		      (void*)block->frame, (void*)block);
 	ut_a(*err == DB_SUCCESS);
 
 	if (sync) {
@@ -208,9 +197,9 @@ buf_read_ahead_random(
 	tablespace_version = fil_space_get_version(space);
 
 	low  = (offset / BUF_READ_AHEAD_RANDOM_AREA)
-					* BUF_READ_AHEAD_RANDOM_AREA;
+		* BUF_READ_AHEAD_RANDOM_AREA;
 	high = (offset / BUF_READ_AHEAD_RANDOM_AREA + 1)
-					* BUF_READ_AHEAD_RANDOM_AREA;
+		* BUF_READ_AHEAD_RANDOM_AREA;
 	if (high > fil_space_get_size(space)) {
 
 		high = fil_space_get_size(space);
@@ -224,8 +213,8 @@ buf_read_ahead_random(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	if (buf_pool->n_pend_reads >
-			buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
+	if (buf_pool->n_pend_reads
+	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 		mutex_exit(&(buf_pool->mutex));
 
 		return(0);
@@ -238,8 +227,8 @@ buf_read_ahead_random(
 		block = buf_page_hash_get(space, i);
 
 		if ((block)
-			&& (block->LRU_position > LRU_recent_limit)
-			&& block->accessed) {
+		    && (block->LRU_position > LRU_recent_limit)
+		    && block->accessed) {
 
 			recent_blocks++;
 		}
@@ -268,15 +257,18 @@ buf_read_ahead_random(
 		mode: hence FALSE as the first parameter */
 
 		if (!ibuf_bitmap_page(i)) {
-			count += buf_read_page_low(&err, FALSE, ibuf_mode
-					| OS_AIO_SIMULATED_WAKE_LATER,
-					space, tablespace_version, i);
+			count += buf_read_page_low
+				(&err, FALSE,
+				 ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+				 space, tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-"  InnoDB: Warning: in random readahead trying to access tablespace\n"
-"InnoDB: %lu page no. %lu,\n"
-"InnoDB: but the tablespace does not exist or is just being dropped.\n",
+					"  InnoDB: Warning: in random"
+					" readahead trying to access\n"
+					"InnoDB: tablespace %lu page %lu,\n"
+					"InnoDB: but the tablespace does not"
+					" exist or is just being dropped.\n",
 					(ulong) space, (ulong) i);
 			}
 		}
@@ -292,8 +284,8 @@ buf_read_ahead_random(
 	if (buf_debug_prints && (count > 0)) {
 		fprintf(stderr,
 			"Random read-ahead space %lu offset %lu pages %lu\n",
-						(ulong) space, (ulong) offset,
-						(ulong) count);
+			(ulong) space, (ulong) offset,
+			(ulong) count);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -329,14 +321,16 @@ buf_read_page(
 	switches: hence TRUE */
 
 	count2 = buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
-					tablespace_version, offset);
+				   tablespace_version, offset);
 	srv_buf_pool_reads+= count2;
 	if (err == DB_TABLESPACE_DELETED) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: Error: trying to access tablespace %lu page no. %lu,\n"
-"InnoDB: but the tablespace does not exist or is just being dropped.\n",
-				 (ulong) space, (ulong) offset);
+			"  InnoDB: Error: trying to access"
+			" tablespace %lu page no. %lu,\n"
+			"InnoDB: but the tablespace does not exist"
+			" or is just being dropped.\n",
+			(ulong) space, (ulong) offset);
 	}
 
 	/* Flush pages from the end of the LRU list if necessary */
@@ -407,9 +401,9 @@ buf_read_ahead_linear(
 	}
 
 	low  = (offset / BUF_READ_AHEAD_LINEAR_AREA)
-					* BUF_READ_AHEAD_LINEAR_AREA;
+		* BUF_READ_AHEAD_LINEAR_AREA;
 	high = (offset / BUF_READ_AHEAD_LINEAR_AREA + 1)
-					* BUF_READ_AHEAD_LINEAR_AREA;
+		* BUF_READ_AHEAD_LINEAR_AREA;
 
 	if ((offset != low) && (offset != high - 1)) {
 		/* This is not a border page of the area: return */
@@ -432,8 +426,8 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	if (buf_pool->n_pend_reads >
-			buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
+	if (buf_pool->n_pend_reads
+	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 		mutex_exit(&(buf_pool->mutex));
 
 		return(0);
@@ -459,9 +453,9 @@ buf_read_ahead_linear(
 			fail_count++;
 
 		} else if (pred_block
-			&& (ut_ulint_cmp(block->LRU_position,
-					pred_block->LRU_position)
-				!= asc_or_desc)) {
+			   && (ut_ulint_cmp(block->LRU_position,
+					    pred_block->LRU_position)
+			       != asc_or_desc)) {
 			/* Accesses not in the right order */
 
 			fail_count++;
@@ -469,8 +463,8 @@ buf_read_ahead_linear(
 		}
 	}
 
-	if (fail_count > BUF_READ_AHEAD_LINEAR_AREA -
-			 BUF_READ_AHEAD_LINEAR_THRESHOLD) {
+	if (fail_count > BUF_READ_AHEAD_LINEAR_AREA
+	    - BUF_READ_AHEAD_LINEAR_THRESHOLD) {
 		/* Too many failures: return */
 
 		mutex_exit(&(buf_pool->mutex));
@@ -518,9 +512,9 @@ buf_read_ahead_linear(
 	}
 
 	low  = (new_offset / BUF_READ_AHEAD_LINEAR_AREA)
-					* BUF_READ_AHEAD_LINEAR_AREA;
+		* BUF_READ_AHEAD_LINEAR_AREA;
 	high = (new_offset / BUF_READ_AHEAD_LINEAR_AREA + 1)
-					* BUF_READ_AHEAD_LINEAR_AREA;
+		* BUF_READ_AHEAD_LINEAR_AREA;
 
 	if ((new_offset != low) && (new_offset != high - 1)) {
 		/* This is not a border page of the area: return */
@@ -555,16 +549,19 @@ buf_read_ahead_linear(
 		aio mode: hence FALSE as the first parameter */
 
 		if (!ibuf_bitmap_page(i)) {
-			count += buf_read_page_low(&err, FALSE, ibuf_mode
-					| OS_AIO_SIMULATED_WAKE_LATER,
-					space,	tablespace_version, i);
+			count += buf_read_page_low
+				(&err, FALSE,
+				 ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+				 space, tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
-"  InnoDB: Warning: in linear readahead trying to access tablespace\n"
-"InnoDB: %lu page no. %lu,\n"
-"InnoDB: but the tablespace does not exist or is just being dropped.\n",
-				 (ulong) space, (ulong) i);
+					"  InnoDB: Warning: in"
+					" linear readahead trying to access\n"
+					"InnoDB: tablespace %lu page %lu,\n"
+					"InnoDB: but the tablespace does not"
+					" exist or is just being dropped.\n",
+					(ulong) space, (ulong) i);
 			}
 		}
 	}
@@ -581,8 +578,8 @@ buf_read_ahead_linear(
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && (count > 0)) {
 		fprintf(stderr,
-		"LINEAR read-ahead space %lu offset %lu pages %lu\n",
-		(ulong) space, (ulong) offset, (ulong) count);
+			"LINEAR read-ahead space %lu offset %lu pages %lu\n",
+			(ulong) space, (ulong) offset, (ulong) count);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -618,26 +615,24 @@ buf_read_ibuf_merge_pages(
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(n_stored < UNIV_PAGE_SIZE);
 #endif
-	while (buf_pool->n_pend_reads >
-			buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
+	while (buf_pool->n_pend_reads
+	       > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 		os_thread_sleep(500000);
 	}
 
 	for (i = 0; i < n_stored; i++) {
-		if ((i + 1 == n_stored) && sync) {
-			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE,
-				space_ids[i], space_versions[i], page_nos[i]);
-		} else {
-			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE,
-				space_ids[i], space_versions[i], page_nos[i]);
-		}
+		buf_read_page_low(&err,
+				  (i + 1 == n_stored) && sync,
+				  BUF_READ_ANY_PAGE,
+				  space_ids[i], space_versions[i],
+				  page_nos[i]);
 
 		if (err == DB_TABLESPACE_DELETED) {
 			/* We have deleted or are deleting the single-table
 			tablespace: remove the entries for that page */
 
 			ibuf_merge_or_delete_for_page(NULL, space_ids[i],
-							page_nos[i], FALSE);
+						      page_nos[i], FALSE);
 		}
 	}
 
@@ -650,7 +645,7 @@ buf_read_ibuf_merge_pages(
 	if (buf_debug_prints) {
 		fprintf(stderr,
 			"Ibuf merge read-ahead space %lu pages %lu\n",
-				(ulong) space_ids[0], (ulong) n_stored);
+			(ulong) space_ids[0], (ulong) n_stored);
 	}
 #endif /* UNIV_DEBUG */
 }
@@ -691,11 +686,14 @@ buf_read_recv_pages(
 
 			if (count > 100) {
 				fprintf(stderr,
-"InnoDB: Error: InnoDB has waited for 50 seconds for pending\n"
-"InnoDB: reads to the buffer pool to be finished.\n"
-"InnoDB: Number of pending reads %lu, pending pread calls %lu\n",
-				(ulong) buf_pool->n_pend_reads,
-				(ulong)os_file_n_pending_preads);
+					"InnoDB: Error: InnoDB has waited for"
+					" 50 seconds for pending\n"
+					"InnoDB: reads to the buffer pool to"
+					" be finished.\n"
+					"InnoDB: Number of pending reads %lu,"
+					" pending pread calls %lu\n",
+					(ulong) buf_pool->n_pend_reads,
+					(ulong)os_file_n_pending_preads);
 
 				os_aio_print_debug = TRUE;
 			}
@@ -704,12 +702,14 @@ buf_read_recv_pages(
 		os_aio_print_debug = FALSE;
 
 		if ((i + 1 == n_stored) && sync) {
-			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE, space,
-				tablespace_version, page_nos[i]);
+			buf_read_page_low(&err, TRUE, BUF_READ_ANY_PAGE,
+					  space, tablespace_version,
+					  page_nos[i]);
 		} else {
 			buf_read_page_low(&err, FALSE, BUF_READ_ANY_PAGE
-				| OS_AIO_SIMULATED_WAKE_LATER,
-				space, tablespace_version, page_nos[i]);
+					  | OS_AIO_SIMULATED_WAKE_LATER,
+					  space, tablespace_version,
+					  page_nos[i]);
 		}
 	}
 
@@ -721,7 +721,8 @@ buf_read_recv_pages(
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints) {
 		fprintf(stderr,
-			"Recovery applies read-ahead pages %lu\n", (ulong) n_stored);
+			"Recovery applies read-ahead pages %lu\n",
+			(ulong) n_stored);
 	}
 #endif /* UNIV_DEBUG */
 }

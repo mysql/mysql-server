@@ -78,7 +78,13 @@ connection default;
 
 DROP TABLE t1;
 
-# End of 4.1 tests
+#
+# Bug #21531: EXPORT_SET() doesn't accept args with coercible character sets
+#
+select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
+
+--echo End of 4.1 tests
+
 
 #
 # Test for BUG#9535
@@ -87,7 +93,9 @@ create table t1 as select uuid(), length(uuid());
 show create table t1;
 drop table t1;
 
+#
 # Bug #6760: Add SLEEP() function
+#
 create table t1 (a timestamp default '2005-05-05 01:01:01',
                  b timestamp default '2005-05-05 01:01:01');
 insert into t1 set a = now();
@@ -117,4 +125,4 @@ drop table t2;
 drop table t1;
 set global query_cache_size=default;
 
-# End of 5.0 tests
+--echo End of 5.0 tests

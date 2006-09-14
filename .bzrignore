@@ -692,6 +692,7 @@ mysql-test/*.ds?
 mysql-test/*.vcproj
 mysql-test/gmon.out
 mysql-test/install_test_db
+mysql-test/mtr
 mysql-test/mysql-test-run
 mysql-test/mysql-test-run.log
 mysql-test/mysql_test_run_new
@@ -1170,6 +1171,7 @@ sql/*.ds?
 sql/*.vcproj
 sql/.gdbinit
 sql/client.c
+sql/f.c
 sql/gen_lex_hash
 sql/gmon.out
 sql/handlerton.cc
