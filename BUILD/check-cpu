@@ -113,6 +113,10 @@ case "$cpu_family--$model_name" in
     cpu_arg='powerpc'
     ;;
 
+  *SunOS*)
+    cpu_arg=''
+    ;;
+
   # unknown
   *)
     cpu_arg="";
