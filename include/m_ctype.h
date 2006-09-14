@@ -109,7 +109,7 @@ enum my_lex_states
 struct charset_info_st;
 
 
-/* See strings/CHARSET_INFO.txt about information on this structure  */
+/* See strings/CHARSET_INFO.txt for information about this structure  */
 typedef struct my_collation_handler_st
 {
   my_bool (*init)(struct charset_info_st *, void *(*alloc)(uint));
