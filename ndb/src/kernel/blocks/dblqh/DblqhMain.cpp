@@ -9192,11 +9192,6 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
 
   Uint32 i;
   NdbNodeBitmask mask;
-  for (i = 0; i<nodeCount; i++)
-  {
-    ndbout_c("nodeList: %d", nodeList[i]);
-    mask.set(nodeList[i]);
-  }
   ndbrequire(mask.get(getOwnNodeId()));
   ndbrequire(mask.get(nodeId)); // cpy dest
   if (!mask.isclear())
@@ -9213,7 +9208,6 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
 #elif NDB_VERSION >= MAKE_VERSION(5,0,0)
       Uint32 checkversion =  NDBD_UPDATE_FRAG_DIST_KEY_50;
 #endif
-      checkversion = NDB_VERSION;
       if (getNodeInfo(i).m_version >=  checkversion)
 	sendSignal(calcLqhBlockRef(i), GSN_UPDATE_FRAG_DIST_KEY_ORD,
 		   signal, UpdateFragDistKeyOrd::SignalLength, JBB);
@@ -9232,11 +9226,6 @@ Dblqh::execUPDATE_FRAG_DIST_KEY_ORD(Signal * signal)
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   ndbrequire(getFragmentrec(signal, ord->fragId));
   fragptr.p->fragDistributionKey = ord->fragDistributionKey;
-
-  ndbout_c("UpdateFragDistKeyOrd tab: %d frag: %d key: %d",
-	   tabptr.i,
-	   ord->fragId,
-	   ord->fragDistributionKey);
 }
 
 void Dblqh::accScanConfCopyLab(Signal* signal) 
