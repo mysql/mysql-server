@@ -674,10 +674,14 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     }
     else
     {
+      uint max_char_len;
       /* With conversion */
       client_field->charsetnr= thd_cs->number;
-      uint char_len= server_field.length / item->collation.collation->mbmaxlen;
-      client_field->length= char_len * thd_cs->mbmaxlen;
+      max_char_len= (server_field.type >= (int) MYSQL_TYPE_TINY_BLOB &&
+                     server_field.type <= (int) MYSQL_TYPE_BLOB) ?
+                     server_field.length / item->collation.collation->mbminlen :
+                     server_field.length / item->collation.collation->mbmaxlen;
+      client_field->length= max_char_len * thd_cs->mbmaxlen;
     }
     client_field->type=   server_field.type;
     client_field->flags= server_field.flags;

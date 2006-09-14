@@ -697,5 +697,20 @@ SELECT a, CONCAT(a,' ',a) AS c FROM t1
                      INSTR(REVERSE(CONCAT(a,' ',a))," ")) = a;
 
 DROP TABLE t1;
+
+#
+# Bug#17526: WRONG PRINT for TRIM FUNCTION with two arguments
+#
+
+CREATE TABLE t1 (s varchar(10));
+INSERT INTO t1 VALUES ('yadda'), ('yaddy');
+
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(s) > 'ab';
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
+EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
+
+DROP TABLE t1;
  
 --echo End of 4.1 tests

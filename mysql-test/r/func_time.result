@@ -636,6 +636,13 @@ select monthname(str_to_date(null, '%m')), monthname(str_to_date(null, '%m')),
 monthname(str_to_date(1, '%m')), monthname(str_to_date(0, '%m'));
 monthname(str_to_date(null, '%m'))	monthname(str_to_date(null, '%m'))	monthname(str_to_date(1, '%m'))	monthname(str_to_date(0, '%m'))
 NULL	NULL	January	NULL
+set time_zone='-6:00';
+create table t1(a timestamp);
+insert into t1 values (19691231190001);
+select * from t1;
+a
+1969-12-31 19:00:01
+drop table t1;
 create table t1(f1 date, f2 time, f3 datetime);
 insert into t1 values ("2006-01-01", "12:01:01", "2006-01-01 12:01:01");
 insert into t1 values ("2006-01-02", "12:01:02", "2006-01-02 12:01:02");
@@ -688,3 +695,24 @@ t1	CREATE TABLE `t1` (
   `from_unixtime(1) + 0` double(23,6) default NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%H') As H);
+H
+120
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%k') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 DAY)),'%k') As H);
+H
+120
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%H') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%H') As H);
+H
+05
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%k') As H)
+union
+(select time_format(timediff(now(), DATE_SUB(now(),INTERVAL 5 HOUR)),'%k') As H);
+H
+5
+End of 4.1 tests

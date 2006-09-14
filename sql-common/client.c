@@ -1544,11 +1544,18 @@ C_MODE_START
 int mysql_init_character_set(MYSQL *mysql)
 {
   NET		*net= &mysql->net;
+  const char *default_collation_name;
+  
   /* Set character set */
-  if (!mysql->options.charset_name &&
-      !(mysql->options.charset_name= 
+  if (!mysql->options.charset_name)
+  {
+    default_collation_name= MYSQL_DEFAULT_COLLATION_NAME;
+    if (!(mysql->options.charset_name= 
        my_strdup(MYSQL_DEFAULT_CHARSET_NAME,MYF(MY_WME))))
     return 1;
+  }
+  else
+    default_collation_name= NULL;
   
   {
     const char *save= charsets_dir;
@@ -1556,6 +1563,28 @@ int mysql_init_character_set(MYSQL *mysql)
       charsets_dir=mysql->options.charset_dir;
     mysql->charset=get_charset_by_csname(mysql->options.charset_name,
                                          MY_CS_PRIMARY, MYF(MY_WME));
+    if (mysql->charset && default_collation_name)
+    {
+      CHARSET_INFO *collation;
+      if ((collation= 
+           get_charset_by_name(default_collation_name, MYF(MY_WME))))
+      {
+        if (!my_charset_same(mysql->charset, collation))
+        {
+          my_printf_error(ER_UNKNOWN_ERROR, 
+                         "COLLATION %s is not valid for CHARACTER SET %s",
+                         MYF(0),
+                         default_collation_name, mysql->options.charset_name);
+          mysql->charset= NULL;
+        }
+        else
+        {
+          mysql->charset= collation;
+        }
+      }
+      else
+        mysql->charset= NULL;
+    }
     charsets_dir= save;
   }
   
@@ -1589,7 +1618,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
-  char		buff[NAME_LEN+USERNAME_LENGTH+100];
+  char		buff[NAME_BYTE_LEN+USERNAME_BYTE_LENGTH+100];
   char		*end,*host_info;
   my_socket	sock;
   in_addr_t	ip_addr;
@@ -2034,7 +2063,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		     mysql->server_status, client_flag));
   /* This needs to be changed as it's not useful with big packets */
   if (user && user[0])
-    strmake(end,user,USERNAME_LENGTH);          /* Max user name */
+    strmake(end,user,USERNAME_BYTE_LENGTH);          /* Max user name */
   else
     read_user_name((char*) end);
 
@@ -2064,7 +2093,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
-    end= strmake(end, db, NAME_LEN) + 1;
+    end= strmake(end, db, NAME_BYTE_LEN) + 1;
     mysql->db= my_strdup(db,MYF(MY_WME));
     db= 0;
   }

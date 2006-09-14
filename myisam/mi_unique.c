@@ -185,7 +185,7 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT)
     {
       if (mi_compare_text(keyseg->charset, (uchar *) pos_a, length,
-                                           (uchar *) pos_b, length, 0, 0))
+                                           (uchar *) pos_b, length, 0, 1))
 	  return 1;
     }
     else

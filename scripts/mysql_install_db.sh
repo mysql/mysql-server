@@ -1,4 +1,3 @@
-
 #!/bin/sh
 # Copyright (C) 2002-2003 MySQL AB
 # For a more info consult the file COPYRIGHT distributed with this file.

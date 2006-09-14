@@ -251,14 +251,13 @@ public:
 /* ALL/ANY/SOME subselect */
 class Item_allany_subselect :public Item_in_subselect
 {
-protected:
-  Comp_creator *func;
-
 public:
+  chooser_compare_func_creator func_creator;
+  Comp_creator *func;
   bool all;
 
-  Item_allany_subselect(Item * left_expr, Comp_creator *f,
-		     st_select_lex *select_lex, bool all);
+  Item_allany_subselect(Item * left_expr, chooser_compare_func_creator fc,
+                        st_select_lex *select_lex, bool all);
 
   // only ALL subquery has upper not
   subs_type substype() { return all?ALL_SUBS:ANY_SUBS; }

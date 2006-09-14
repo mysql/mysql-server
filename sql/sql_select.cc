@@ -547,6 +547,24 @@ JOIN::optimize()
       }
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
+      /*
+        Extract all table-independent conditions and replace the WHERE
+        clause with them. All other conditions were computed by opt_sum_query
+        and the MIN/MAX/COUNT function(s) have been replaced by constants,
+        so there is no need to compute the whole WHERE clause again.
+        Notice that make_cond_for_table() will always succeed to remove all
+        computed conditions, because opt_sum_query() is applicable only to
+        conjunctions.
+      */
+      if (conds)
+      {
+        COND *table_independent_conds=
+          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0);
+        DBUG_EXECUTE("where",
+                     print_where(table_independent_conds,
+                                 "where after opt_sum_query()"););
+        conds= table_independent_conds;
+      }
     }
   }
   if (!tables_list)
@@ -630,6 +648,36 @@ JOIN::optimize()
     if (!order && org_order)
       skip_sort_order= 1;
   }
+  /*
+     Check if we can optimize away GROUP BY/DISTINCT.
+     We can do that if there are no aggregate functions and the
+     fields in DISTINCT clause (if present) and/or columns in GROUP BY
+     (if present) contain direct references to all key parts of
+     an unique index (in whatever order).
+     Note that the unique keys for DISTINCT and GROUP BY should not
+     be the same (as long as they are unique).
+
+     The FROM clause must contain a single non-constant table.
+  */
+  if (tables - const_tables == 1 && (group_list || select_distinct) &&
+      !tmp_table_param.sum_func_count)
+  {
+    if (group_list &&
+       list_contains_unique_index(join_tab[const_tables].table,
+                                 find_field_in_order_list,
+                                 (void *) group_list))
+    {
+      group_list= 0;
+      group= 0;
+    }
+    if (select_distinct &&
+       list_contains_unique_index(join_tab[const_tables].table,
+                                 find_field_in_item_list,
+                                 (void *) &fields_list))
+    {
+      select_distinct= 0;
+    }
+  }
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
@@ -698,36 +746,6 @@ JOIN::optimize()
 			     &simple_group);
     if (old_group_list && !group_list)
       select_distinct= 0;
-  }
-  /*
-     Check if we can optimize away GROUP BY/DISTINCT.
-     We can do that if there are no aggregate functions and the
-     fields in DISTINCT clause (if present) and/or columns in GROUP BY
-     (if present) contain direct references to all key parts of
-     an unique index (in whatever order).
-     Note that the unique keys for DISTINCT and GROUP BY should not
-     be the same (as long as they are unique).
-
-     The FROM clause must contain a single non-constant table.
-  */
-  if (tables - const_tables == 1 && (group_list || select_distinct) &&
-      !tmp_table_param.sum_func_count)
-  {
-    if (group_list &&
-       list_contains_unique_index(join_tab[const_tables].table,
-                                 find_field_in_order_list,
-                                 (void *) group_list))
-    {
-      group_list= 0;
-      group= 0;
-    }
-    if (select_distinct &&
-       list_contains_unique_index(join_tab[const_tables].table,
-                                 find_field_in_item_list,
-                                 (void *) &fields_list))
-    {
-      select_distinct= 0;
-    }
   }
   if (!group_list && group)
   {
@@ -2143,8 +2161,11 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	  /* field = expression OR field IS NULL */
 	  old->level= and_level;
 	  old->optimize= KEY_OPTIMIZE_REF_OR_NULL;
-	  /* Remember the NOT NULL value */
-	  if (old->val->is_null())
+	  /*
+            Remember the NOT NULL value unless the value does not depend
+            on other tables.
+          */
+	  if (!old->val->used_tables() && old->val->is_null())
 	    old->val= new_fields->val;
           /* The referred expression can be NULL: */ 
           old->null_rejecting= 0;
@@ -4452,10 +4473,16 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
   DBUG_RETURN(0);
 }
 
-
+/*
+  used only in JOIN::clear
+*/
 static void clear_tables(JOIN *join)
 {
-  for (uint i=0 ; i < join->tables ; i++)
+  /* 
+    must clear only the non-const tables, as const tables
+    are not re-calculated.
+  */
+  for (uint i=join->const_tables ; i < join->tables ; i++)
     mark_as_null_row(join->table[i]);		// All fields are NULL
 }
 
@@ -4522,6 +4549,8 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
        left_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
+    tmp->collation.set(right_item->collation);
+    
     if (tmp)
     {
       thd->change_item_tree(args + 1, tmp);
@@ -4543,6 +4572,8 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
             right_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
+    tmp->collation.set(left_item->collation);
+    
     if (tmp)
     {
       thd->change_item_tree(args, tmp);
@@ -5240,12 +5271,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 		       param->group_length : 0,
 		       NullS))
   {
-    bitmap_clear_bit(&temp_pool, temp_pool_slot);
+    if (temp_pool_slot != MY_BIT_NONE)
+      bitmap_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
   if (!(param->copy_field=copy=new Copy_field[field_count]))
   {
-    bitmap_clear_bit(&temp_pool, temp_pool_slot);
+    if (temp_pool_slot != MY_BIT_NONE)
+      bitmap_clear_bit(&temp_pool, temp_pool_slot);
     my_free((gptr) table,MYF(0));		/* purecov: inspected */
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
@@ -5543,10 +5576,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->key_length=0;
     keyinfo->rec_per_key=0;
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
-    for (; group ; group=group->next,key_part_info++)
+    ORDER *cur_group= group;
+    for (; cur_group ; cur_group= cur_group->next, key_part_info++)
     {
-      Field *field=(*group->item)->get_tmp_table_field();
-      bool maybe_null=(*group->item)->maybe_null;
+      Field *field=(*cur_group->item)->get_tmp_table_field();
+      bool maybe_null=(*cur_group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
       key_part_info->offset= field->offset();
@@ -5558,8 +5592,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	0 : FIELDFLAG_BINARY;
       if (!using_unique_constraint)
       {
-	group->buff=(char*) group_buff;
-	if (!(group->field=field->new_field(thd->mem_root,table)))
+	cur_group->buff=(char*) group_buff;
+	if (!(cur_group->field=field->new_field(thd->mem_root,table)))
 	  goto err; /* purecov: inspected */
 	if (maybe_null)
 	{
@@ -5573,20 +5607,15 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  key_part_info->null_bit=field->null_bit;
 	  key_part_info->null_offset= (uint) (field->null_ptr -
 					      (uchar*) table->record[0]);
-	  group->field->move_field((char*) ++group->buff);
+	  cur_group->field->move_field((char*) ++cur_group->buff);
 	  group_buff++;
 	}
 	else
-	  group->field->move_field((char*) group_buff);
+	  cur_group->field->move_field((char*) group_buff);
 	group_buff+= key_part_info->length;
       }
       keyinfo->key_length+=  key_part_info->length;
     }
-  }
-  else
-  {
-    set_if_smaller(table->max_rows, rows_limit);
-    param->end_write_records= rows_limit;
   }
 
   if (distinct && field_count != param->hidden_field_count)
@@ -5650,6 +5679,20 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	0 : FIELDFLAG_BINARY;
     }
   }
+
+  /*
+    Push the LIMIT clause to the temporary table creation, so that we
+    materialize only up to 'rows_limit' records instead of all result records.
+    This optimization is not applicable when there is GROUP BY or there is
+    no GROUP BY, but there are aggregate functions, because both must be
+    computed for all result rows.
+  */
+  if (!group && !thd->lex->current_select->with_sum_func)
+  {
+    set_if_smaller(table->max_rows, rows_limit);
+    param->end_write_records= rows_limit;
+  }
+
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   table->db_record_offset=1;
@@ -5668,7 +5711,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   */
   *table->blob_field= 0;
   free_tmp_table(thd,table);                    /* purecov: inspected */
-  bitmap_clear_bit(&temp_pool, temp_pool_slot);
+  if (temp_pool_slot != MY_BIT_NONE)
+    bitmap_clear_bit(&temp_pool, temp_pool_slot);
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
@@ -5831,7 +5875,8 @@ free_tmp_table(THD *thd, TABLE *entry)
   my_free((gptr) entry->record[0],MYF(0));
   free_io_cache(entry);
 
-  bitmap_clear_bit(&temp_pool, entry->temp_pool_slot);
+  if (entry->temp_pool_slot != MY_BIT_NONE)
+    bitmap_clear_bit(&temp_pool, entry->temp_pool_slot);
 
   my_free((gptr) entry,MYF(0));
   thd->proc_info=save_proc_info;

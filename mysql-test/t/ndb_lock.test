@@ -73,7 +73,7 @@ drop table t1;
 
 create table t1 (x integer not null primary key, y varchar(32), z integer, key(z)) engine = ndb;
 
-insert into t1 values (1,'one',1), (2,'two',2),(3,"three",3); 
+insert into t1 values (1,'one',1);
 
 # PK access
 connection con1;
@@ -82,9 +82,20 @@ select * from t1 where x = 1 for update;
 
 connection con2;
 begin;
-select * from t1 where x = 2 for update;
 --error 1205
 select * from t1 where x = 1 for update;
+rollback;
+
+connection con1;
+rollback;
+insert into t1 values (2,'two',2),(3,"three",3); 
+begin;
+select * from t1 where x = 1 for update;
+
+connection con2;
+--error 1205
+select * from t1 where x = 1 for update;
+select * from t1 where x = 2 for update;
 rollback;
 
 connection con1;

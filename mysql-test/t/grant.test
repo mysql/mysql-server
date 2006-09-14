@@ -323,7 +323,7 @@ connection conn1;
 show grants for mysqltest_3@localhost;
 --error 1143
 update mysqltest_1.t1, mysqltest_1.t2 set q=10 where b=1;
---error 1143
+--error 1142
 update mysqltest_1.t1, mysqltest_2.t2 set d=20 where d=1;
 --error 1143
 update mysqltest_2.t1, mysqltest_1.t2 set c=20 where b=1;
@@ -343,6 +343,8 @@ revoke all on mysqltest_2.t2 from mysqltest_3@localhost;
 #test the db/table level privileges
 grant all on mysqltest_2.* to mysqltest_3@localhost;
 grant select on *.* to mysqltest_3@localhost;
+# Next grant is needed to trigger bug#7391. Do not optimize!
+grant select on mysqltest_2.t1 to mysqltest_3@localhost;
 flush privileges;
 disconnect conn1;
 connect (conn2,localhost,mysqltest_3,,);
@@ -354,11 +356,11 @@ update mysqltest_2.t1, mysqltest_2.t2 set c=500,d=600;
 update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
 use mysqltest_2;
 #the following used to succeed, it must fail now.
---error 1044
+--error 1142
 update mysqltest_1.t1, mysqltest_1.t2 set a=100,b=200;
---error 1044
+--error 1142
 update mysqltest_2.t1, mysqltest_1.t2 set c=100,b=200;
---error 1044
+--error 1142
 update mysqltest_1.t1, mysqltest_2.t2 set a=100,d=200;
 #lets see the result
 connection master;

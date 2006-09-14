@@ -634,11 +634,11 @@ my_like_range_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
       ptr++;					/* Skip escape */
     else if (*ptr == w_one || *ptr == w_many)	/* '_' or '%' in SQL */
       break;
-    *min_str = like_range_prefix_min_win1250ch[(uint)(*ptr)];
+    *min_str = like_range_prefix_min_win1250ch[(uint) (uchar) (*ptr)];
     if (*min_str != min_sort_char)
       only_min_found= 0;
     min_str++;
-    *max_str++ = like_range_prefix_max_win1250ch[(uint)(*ptr)];
+    *max_str++ = like_range_prefix_max_win1250ch[(uint) (uchar) (*ptr)];
   }
 
   *min_length = (uint) (min_str - min_org);
