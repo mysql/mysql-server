@@ -3165,7 +3165,7 @@ include_field:
 
 		if (index == clust_index) {
 			templ->rec_field_no = dict_col_get_clust_pos
-				(&index->table->cols[i]);
+				(&index->table->cols[i], index);
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 								index, i);
@@ -3225,7 +3225,8 @@ skip_field:
 			templ = prebuilt->mysql_template + i;
 
 			templ->rec_field_no = dict_col_get_clust_pos
-				(&index->table->cols[templ->col_no]);
+				(&index->table->cols[templ->col_no],
+				 clust_index);
 		}
 	}
 }
@@ -3491,9 +3492,11 @@ calc_row_difference(
 	ulint		col_type;
 	ulint		n_changed = 0;
 	dfield_t	dfield;
+	dict_index_t*	clust_index;
 	uint		i;
 
 	n_fields = table->s->fields;
+	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
 
 	/* We use upd_buff to convert changed fields */
 	buf = (byte*) upd_buff;
@@ -3599,7 +3602,7 @@ calc_row_difference(
 
 			ufield->exp = NULL;
 			ufield->field_no = dict_col_get_clust_pos
-				(&prebuilt->table->cols[i]);
+				(&prebuilt->table->cols[i], clust_index);
 			n_changed++;
 		}
 	}

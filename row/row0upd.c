@@ -952,28 +952,32 @@ row_upd_index_replace_new_col_vals(
 				copy the new values, set this as NULL if you
 				do not want allocation */
 {
-	dict_field_t*	field;
 	upd_field_t*	upd_field;
 	dfield_t*	dfield;
 	dfield_t*	new_val;
 	ulint		j;
 	ulint		i;
 	dtype_t*	cur_type;
+	dict_index_t*	clust_index;
 
 	ut_ad(index);
+
+	clust_index = dict_table_get_first_index(index->table);
 
 	dtuple_set_info_bits(entry, update->info_bits);
 
 	for (j = 0; j < dict_index_get_n_fields(index); j++) {
 
-		field = dict_index_get_nth_field(index, j);
+		ulint		clust_pos;
+		dict_field_t*	field = dict_index_get_nth_field(index, j);
+
+		clust_pos = dict_col_get_clust_pos(field->col, clust_index);
 
 		for (i = 0; i < upd_get_n_fields(update); i++) {
 
 			upd_field = upd_get_nth_field(update, i);
 
-			if (upd_field->field_no
-			    == dict_col_get_clust_pos(field->col)) {
+			if (upd_field->field_no == clust_pos) {
 
 				dfield = dtuple_get_nth_field(entry, j);
 
@@ -1026,30 +1030,33 @@ row_upd_changes_ord_field_binary(
 				field numbers in this MUST be clustered index
 				positions! */
 {
-	upd_field_t*	upd_field;
-	dict_field_t*	ind_field;
-	dict_col_t*	col;
 	ulint		n_unique;
 	ulint		n_upd_fields;
-	ulint		col_pos;
-	ulint		col_no;
 	ulint		i, j;
+	dict_index_t*	clust_index;
 
 	ut_ad(update && index);
 
 	n_unique = dict_index_get_n_unique(index);
 	n_upd_fields = upd_get_n_fields(update);
 
+	clust_index = dict_table_get_first_index(index->table);
+
 	for (i = 0; i < n_unique; i++) {
 
-		ind_field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(ind_field);
-		col_pos = dict_col_get_clust_pos(col);
-		col_no = dict_col_get_no(col);
+		dict_field_t*	ind_field
+			= dict_index_get_nth_field(index, i);
+		dict_col_t*	col
+			= dict_field_get_col(ind_field);
+		ulint		col_pos
+			= dict_col_get_clust_pos(col, clust_index);
+		ulint		col_no
+			= dict_col_get_no(col);
 
 		for (j = 0; j < n_upd_fields; j++) {
 
-			upd_field = upd_get_nth_field(update, j);
+			upd_field_t*	upd_field
+				= upd_get_nth_field(update, j);
 
 			/* Note that if the index field is a column prefix
 			then it may be that row does not contain an externally
@@ -1118,29 +1125,31 @@ row_upd_changes_first_fields_binary(
 	upd_t*		update,	/* in: update vector for the row */
 	ulint		n)	/* in: how many first fields to check */
 {
-	upd_field_t*	upd_field;
-	dict_field_t*	ind_field;
-	dict_col_t*	col;
 	ulint		n_upd_fields;
-	ulint		col_pos;
 	ulint		i, j;
+	dict_index_t*	clust_index;
 
-	ut_a(update && index);
-	ut_a(n <= dict_index_get_n_fields(index));
+	ut_ad(update && index);
+	ut_ad(n <= dict_index_get_n_fields(index));
 
 	n_upd_fields = upd_get_n_fields(update);
+	clust_index = dict_table_get_first_index(index->table);
 
 	for (i = 0; i < n; i++) {
 
-		ind_field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(ind_field);
-		col_pos = dict_col_get_clust_pos(col);
+		dict_field_t*	ind_field
+			= dict_index_get_nth_field(index, i);
+		dict_col_t*	col
+			= dict_field_get_col(ind_field);
+		ulint		col_pos
+			= dict_col_get_clust_pos(col, clust_index);
 
 		ut_a(ind_field->prefix_len == 0);
 
 		for (j = 0; j < n_upd_fields; j++) {
 
-			upd_field = upd_get_nth_field(update, j);
+			upd_field_t*	upd_field
+				= upd_get_nth_field(update, j);
 
 			if (col_pos == upd_field->field_no
 			    && !dfield_datas_are_binary_equal

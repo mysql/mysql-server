@@ -123,8 +123,6 @@ dict_mem_foreign_create(void);
 struct dict_col_struct{
 	ulint		ind:10;	/* table column position (they are numbered
 				starting from 0) */
-	ulint		clust_pos:10;/* position of the column in the
-				clustered index */
 	ulint		ord_part:1;/* nonzero if this column appears
 				in ordering fields of an index */
 	const char*	name;	/* name */

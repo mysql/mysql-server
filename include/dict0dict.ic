@@ -43,13 +43,23 @@ UNIV_INLINE
 ulint
 dict_col_get_clust_pos(
 /*===================*/
-	dict_col_t*	col)
+	const dict_col_t*	col,		/* in: table column */
+	const dict_index_t*	clust_index)	/* in: clustered index */
 {
-	ut_ad(col);
+	ulint	i;
 
-	return(col->clust_pos == REC_MAX_N_FIELDS
-	       ? ULINT_UNDEFINED
-	       : col->clust_pos);
+	ut_ad(col);
+	ut_ad(clust_index && clust_index->type & DICT_CLUSTERED);
+
+	for (i = 0; i < clust_index->n_def; i++) {
+		const dict_field_t*	field = &clust_index->fields[i];
+
+		if (!field->prefix_len && field->col == col) {
+			return(i);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
 }
 
 /************************************************************************
@@ -324,7 +334,7 @@ dict_index_get_sys_col_pos(
 
 	if (index->type & DICT_CLUSTERED) {
 
-		return(dict_col_get_clust_pos(col));
+		return(dict_col_get_clust_pos(col, index));
 	}
 
 	return(dict_index_get_nth_col_pos

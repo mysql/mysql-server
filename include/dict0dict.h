@@ -96,7 +96,8 @@ UNIV_INLINE
 ulint
 dict_col_get_clust_pos(
 /*===================*/
-	dict_col_t*	col);
+	const dict_col_t*	col,		/* in: table column */
+	const dict_index_t*	clust_index);	/* in: clustered index */
 /********************************************************************
 If the given column name is reserved for InnoDB system columns, return
 TRUE. */
