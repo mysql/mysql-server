@@ -3078,7 +3078,10 @@ void Dbdih::execCREATE_FRAGCONF(Signal* signal)
     copyFragReq->nodeId = takeOverPtr.p->toStartingNode;
     copyFragReq->schemaVersion = tabPtr.p->schemaVersion;
     copyFragReq->distributionKey = fragPtr.p->distributionKey;
-    sendSignal(ref, GSN_COPY_FRAGREQ, signal, CopyFragReq::SignalLength, JBB);
+    copyFragReq->nodeCount = extractNodeInfo(fragPtr.p, 
+					     copyFragReq->nodeList);
+    sendSignal(ref, GSN_COPY_FRAGREQ, signal, 
+	       CopyFragReq::SignalLength +  copyFragReq->nodeCount, JBB);
   } else {
     ndbrequire(takeOverPtr.p->toMasterStatus == TakeOverRecord::COMMIT_CREATE);
     jam();
