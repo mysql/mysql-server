@@ -876,23 +876,26 @@ dict_table_add_to_cache(
 #error "DATA_N_SYS_COLS != 3"
 #endif
 
+/* The lower limit for what we consider a "big" row */
+#define BIG_ROW_SIZE 1024
+
 	row_len = 0;
 	for (i = 0; i < table->n_def; i++) {
 		ulint	col_len = dtype_get_max_size
 			(dict_col_get_type(dict_table_get_nth_col(table, i)));
 
+		row_len += col_len;
+
 		/* If we have a single unbounded field, or several gigantic
-		fields, mark the maximum row size as ULINT_MAX. */
-		if (ut_max(col_len, row_len) >= (ULINT_MAX / 2)) {
-			row_len = ULINT_MAX;
+		fields, mark the maximum row size as BIG_ROW_SIZE. */
+		if (row_len >= BIG_ROW_SIZE || col_len >= BIG_ROW_SIZE) {
+			row_len = BIG_ROW_SIZE;
 
 			break;
 		}
-
-		row_len += col_len;
 	}
 
-	table->max_row_size = row_len;
+	table->big_rows = row_len >= BIG_ROW_SIZE;
 
 	/* Look for a table with the same name: error if such exists */
 	{
