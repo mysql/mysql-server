@@ -2393,7 +2393,7 @@ btr_print_recursive(
 		(ulong) btr_page_get_level(page, mtr),
 		(ulong) buf_frame_get_page_no(page));
 
-	index = UT_LIST_GET_FIRST(tree->tree_indexes);
+	index = tree->tree_index;
 	page_print(page, index, width, width);
 
 	n_recs = page_get_n_recs(page);

@@ -426,13 +426,6 @@ struct rw_lock_struct {
 				waiters (readers or writers) in the global
 				wait array, waiting for this rw_lock.
 				Otherwise, == 0. */
-	ibool	writer_is_wait_ex;
-				/* This is TRUE if the writer field is
-				RW_LOCK_WAIT_EX; this field is located far
-				from the memory update hotspot fields which
-				are at the start of this struct, thus we can
-				peek this field without causing much memory
-				bus traffic */
 	UT_LIST_NODE_T(rw_lock_t) list;
 				/* All allocated rw locks are put into a
 				list */
@@ -443,11 +436,18 @@ struct rw_lock_struct {
 	ulint	level;		/* Level in the global latching order. */
 #endif /* UNIV_SYNC_DEBUG */
 	const char*	cfile_name;/* File name where lock created */
-	ulint	cline:14;	/* Line where created */
 	const char*	last_s_file_name;/* File name where last s-locked */
 	const char*	last_x_file_name;/* File name where last x-locked */
-	ulint	last_s_line:14;	/* Line number where last time s-locked */
-	ulint	last_x_line:14;	/* Line number where last time x-locked */
+	unsigned	writer_is_wait_ex:1;
+				/* This is TRUE if the writer field is
+				RW_LOCK_WAIT_EX; this field is located far
+				from the memory update hotspot fields which
+				are at the start of this struct, thus we can
+				peek this field without causing much memory
+				bus traffic */
+	unsigned	cline:14;	/* Line where created */
+	unsigned	last_s_line:14;	/* Line number where last time s-locked */
+	unsigned	last_x_line:14;	/* Line number where last time x-locked */
 	ulint	magic_n;
 };
 
