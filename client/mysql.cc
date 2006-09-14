@@ -2301,10 +2301,8 @@ print_table_data(MYSQL_RES *result)
   MYSQL_ROW	cur;
   MYSQL_FIELD	*field;
   bool		*num_flag;
-  bool		*not_null_flag;
 
   num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
-  not_null_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
   if (info_flag)
   {
     print_field_types(result);
@@ -2343,7 +2341,6 @@ print_table_data(MYSQL_RES *result)
                                             MAX_COLUMN_LENGTH),
                   field->name);
       num_flag[off]= IS_NUM(field->type);
-      not_null_flag[off]= IS_NOT_NULL(field->flags);
     }
     (void) tee_fputs("\n", PAGER);
     tee_puts((char*) separator.ptr(), PAGER);
@@ -2364,7 +2361,7 @@ print_table_data(MYSQL_RES *result)
       uint visible_length;
       uint extra_padding;
 
-      if (! not_null_flag[off] && (cur[off] == NULL))
+      if (cur[off] == NULL)
       {
         buffer= "NULL";
         data_length= 4;
@@ -2404,7 +2401,6 @@ print_table_data(MYSQL_RES *result)
   }
   tee_puts((char*) separator.ptr(), PAGER);
   my_afree((gptr) num_flag);
-  my_afree((gptr) not_null_flag);
 }
 
 
