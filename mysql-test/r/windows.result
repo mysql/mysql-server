@@ -6,31 +6,3 @@ use prn;
 ERROR 42000: Unknown database 'prn'
 create table nu (a int);
 drop table nu;
-CREATE TABLE `t1` (
-`TIM` datetime NOT NULL,
-`VAL` double default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-CREATE TABLE `t2` (
-`TIM` datetime NOT NULL,
-`VAL` double default NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-CREATE TABLE `mt` (
-`TIM` datetime NOT NULL,
-`VAL` double default NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST
-UNION=(`t1`,`t2`);
-INSERT INTO mt VALUES ('2006-01-01',0);
-ALTER TABLE `t2` RENAME TO `t`;
-INSERT INTO mt VALUES ('2006-01-01',0);
-ERROR HY000: Can't lock file (errno: 155)
-select * from mt;
-ERROR HY000: Can't lock file (errno: 155)
-FLUSH TABLES;
-select * from mt;
-ERROR HY000: Can't find file: 'mt' (errno: 2)
-ALTER TABLE `t` RENAME TO `t2`;
-INSERT INTO mt VALUES ('2006-01-01',0);
-select * from mt;
-TIM	VAL
-2006-01-01 00:00:00	0
-2006-01-01 00:00:00	0
