@@ -1403,6 +1403,17 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
+handler *handler::clone(MEM_ROOT *mem_root)
+{
+  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type);
+  if (new_handler && !new_handler->ha_open(table,
+                                           table->s->normalized_path.str,
+                                           table->db_stat,
+                                           HA_OPEN_IGNORE_IF_LOCKED))
+    return new_handler;
+  return NULL;
+}
+
 
 
 void handler::ha_statistic_increment(ulong SSV::*offset) const

@@ -1,25 +1,33 @@
+# Establish connection con1 (user=root)
+# Establish connection con2 (user=root)
 drop table if exists t1,t2;
-create table t1 (id integer, x integer) engine=INNODB;
+# Switch to connection con1
+create table t1 (id integer, x integer) engine = InnoDB;
 insert into t1 values(0, 0);
 set autocommit=0;
 SELECT * from t1 where id = 0 FOR UPDATE;
 id	x
 0	0
+# Switch to connection con2
 set autocommit=0;
 update t1 set x=2 where id = 0;
+# Switch to connection con1
 update t1 set x=1 where id = 0;
 select * from t1;
 id	x
 0	1
 commit;
+# Switch to connection con2
 commit;
+# Switch to connection con1
 select * from t1;
 id	x
 0	2
 commit;
 drop table t1;
-create table t1 (id integer, x integer) engine=INNODB;
-create table t2 (b integer, a integer) engine=INNODB;
+# Switch to connection con1
+create table t1 (id integer, x integer) engine = InnoDB;
+create table t2 (b integer, a integer) engine = InnoDB;
 insert into t1 values(0, 0), (300, 300);
 insert into t2 values(0, 10), (1, 20), (2, 30);
 commit;
@@ -39,26 +47,31 @@ select * from t1;
 id	x
 0	0
 300	300
+# Switch to connection con2
 set autocommit=0;
 update t1 set x=2 where id = 0;
+# Switch to connection con1
 update t1 set x=1 where id = 0;
 select * from t1;
 id	x
 0	1
 300	300
 commit;
+# Switch to connection con2
 commit;
+# Switch to connection con1
 select * from t1;
 id	x
 0	2
 300	300
 commit;
 drop table t1, t2;
-create table t1 (id integer, x integer) engine=INNODB;
-create table t2 (b integer, a integer) engine=INNODB;
+create table t1 (id integer, x integer) engine = InnoDB;
+create table t2 (b integer, a integer) engine = InnoDB;
 insert into t1 values(0, 0), (300, 300);
 insert into t2 values(0, 0), (1, 20), (2, 30);
 commit;
+# Switch to connection con1
 select a,b from t2 UNION SELECT id, x from t1 FOR UPDATE;
 a	b
 0	0
@@ -74,6 +87,7 @@ select * from t1;
 id	x
 0	0
 300	300
+# Switch to connection con2
 update t2 set a=2 where b = 0;
 select * from t2;
 b	a
@@ -81,16 +95,20 @@ b	a
 1	20
 2	30
 update t1 set x=2 where id = 0;
+# Switch to connection con1
 update t1 set x=1 where id = 0;
 select * from t1;
 id	x
 0	1
 300	300
 commit;
+# Switch to connection con2
 commit;
+# Switch to connection con1
 select * from t1;
 id	x
 0	2
 300	300
 commit;
+# Switch to connection default + disconnect con1 and con2
 drop table t1, t2;
