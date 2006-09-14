@@ -2365,28 +2365,28 @@ bool check_column_name(const char *name)
   Checks whether a table is intact. Should be done *just* after the table has
   been opened.
   
-  Synopsis
+  SYNOPSIS
     table_check_intact()
-      table         - the table to check
-      table_f_count - expected number of columns in the table
-      table_def     - expected structure of the table (column name and type)
-    last_create_time- the table->file->create_time of the table in memory
-                      we have checked last time
-      error_num     - ER_XXXX from the error messages file. When 0 no error
-                      is sent to the client in case types does not match.
-                      If different col number either 
-                      ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE or 
-                      ER_COL_COUNT_DOESNT_MATCH_CORRUPTED is used
+      table             The table to check
+      table_f_count     Expected number of columns in the table
+      table_def         Expected structure of the table (column name and type)
+      last_create_time  The table->file->create_time of the table in memory
+                        we have checked last time
+      error_num         ER_XXXX from the error messages file. When 0 no error
+                        is sent to the client in case types does not match.
+                        If different col number either 
+                        ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE or 
+                        ER_COL_COUNT_DOESNT_MATCH_CORRUPTED is used
 
   RETURNS
-    0   - OK
-    1   - There was an error
+    FALSE  OK
+    TRUE   There was an error
 */
 
 my_bool
-table_check_intact(TABLE *table, uint table_f_count,
-                   TABLE_FIELD_W_TYPE *table_def, time_t *last_create_time,
-                   int error_num)
+table_check_intact(TABLE *table, const uint table_f_count,
+                   const TABLE_FIELD_W_TYPE *table_def,
+                   time_t *last_create_time, int error_num)
 {
   uint i;
   my_bool error= FALSE;
@@ -2401,7 +2401,7 @@ table_check_intact(TABLE *table, uint table_f_count,
     DBUG_PRINT("info", ("I am suspecting, checking table"));
     if (fields_diff_count)
     {
-      // previous MySQL version
+      /* previous MySQL version */
       error= TRUE;
       if (MYSQL_VERSION_ID > table->s->mysql_version)
       {
@@ -2424,22 +2424,22 @@ table_check_intact(TABLE *table, uint table_f_count,
       else
       {
         /*
-          moving from newer mysql to older one -> let's say not an error but
+          Moving from newer mysql to older one -> let's say not an error but
           will check the definition afterwards. If a column was added at the
           end then we don't care much since it's not in the middle.
         */
         error= FALSE;
       }
     }
-    //definitely something has changed
+    /* definitely something has changed */
     char buffer[255];
     for (i=0 ; i < table_f_count; i++, table_def++)
     {      
       String sql_type(buffer, sizeof(buffer), system_charset_info);
       sql_type.length(0);
       /*
-        name changes are not fatal, we use sequence numbers => no prob for us
-        but this can show tampered table or broken table.
+        Name changes are not fatal, we use sequence numbers => no problem
+        for us but this can show tampered table or broken table.
       */
       if (i < table->s->fields)
       {
@@ -2453,7 +2453,7 @@ table_check_intact(TABLE *table, uint table_f_count,
         }
                         
         /*
-          IF the type does not match than something is really wrong
+          If the type does not match than something is really wrong
           Check up to length - 1. Why?
           1. datetime -> datetim -> the same
           2. int(11) -> int(11  -> the same
