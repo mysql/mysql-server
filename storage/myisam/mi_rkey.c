@@ -104,7 +104,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
       {
         do
         {
-          uint not_used;
+          uint not_used[2];
           /*
             Skip rows that are inserted by other threads since we got a lock
             Note that this can only happen if we are not searching after an
@@ -123,7 +123,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
           */
           if (search_flag == HA_READ_KEY_EXACT &&
               ha_key_cmp(keyinfo->seg, key_buff, info->lastkey, use_key_length,
-                         SEARCH_FIND, &not_used))
+                         SEARCH_FIND, not_used))
           {
             my_errno= HA_ERR_KEY_NOT_FOUND;
             info->lastpos= HA_OFFSET_ERROR;
