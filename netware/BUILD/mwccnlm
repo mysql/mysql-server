@@ -7,4 +7,7 @@ set -e
 # convert it to "-I../include"
 args=" "`echo $* | sed -e 's/-I.\/../-I../g'`
 
-wine --debugmsg -all -- mwccnlm $args
+# NOTE: Option 'pipefail' is not standard sh
+set -o pipefail
+wine --debugmsg -all -- mwccnlm $args | \
+perl -pe 's/\r//g; s/^\e.*\e(\[J|>)?//; s/[[^:print:]]//g'

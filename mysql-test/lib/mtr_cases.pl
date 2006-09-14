@@ -193,6 +193,28 @@ sub collect_one_test_case($$$$$$) {
     $tinfo->{'slave_restart'}= 1;
   }
 
+  # Cluster is needed by test case if testname contains ndb
+  if ( defined mtr_match_substring($tname,"ndb") )
+  {
+    $tinfo->{'ndb_test'}= 1;
+    if ( $::opt_skip_ndbcluster )
+    {
+      # Skip all ndb tests
+      $tinfo->{'skip'}= 1;
+      return;
+    }
+    if ( ! $::opt_with_ndbcluster )
+    {
+      # Ndb is not supported, skip them
+      $tinfo->{'skip'}= 1;
+      return;
+    }
+  }
+  else
+  {
+    $tinfo->{'ndb_test'}= 0;
+  }
+
   # FIXME what about embedded_server + ndbcluster, skip ?!
 
   my $master_opt_file= "$testdir/$tname-master.opt";

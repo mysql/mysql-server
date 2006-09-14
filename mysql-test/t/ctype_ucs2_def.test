@@ -1,4 +1,9 @@
 #
+# MySQL Bug#15276: MySQL ignores collation-server
+#
+show variables like 'collation_server';
+
+#
 # Bug#18004 Connecting crashes server when default charset is UCS2
 #
 show variables like "%character_set_ser%";

@@ -130,3 +130,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 5	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX	PRIMARY	32	func	1	Using index; Using where
 6	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,FFOLDERID_IDX,CMFLDRPARNT_IDX	PRIMARY	32	func	1	Using index; Using where
 drop table t1, t2, t3, t4;
+CREATE TABLE t1 (a int(10) , PRIMARY KEY (a)) Engine=InnoDB;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (a int(10), PRIMARY KEY (a)) Engine=InnoDB;
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 (a int(10), b int(10), c int(10),
+PRIMARY KEY (a)) Engine=InnoDB;
+INSERT INTO t3 VALUES (1,2,1);
+SELECT t1.* FROM t1 WHERE (SELECT COUNT(*) FROM t3,t2 WHERE t3.c=t2.a 
+and t2.a='1' AND t1.a=t3.b) > 0;
+a
+2
+DROP TABLE t1,t2,t3;

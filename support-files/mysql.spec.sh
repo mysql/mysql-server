@@ -546,7 +546,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisampack.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_explain_log.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqld.1*
+%doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_fix_privilege_tables.1*
@@ -649,6 +649,8 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_test_platform
 %attr(755, root, root) %{_bindir}/ndb_config
+%attr(755, root, root) %{_bindir}/ndb_size.pl
+%attr(-, root, root) %{_datadir}/mysql/ndb_size.tmpl
 
 %files ndb-extra
 %defattr(-,root,root,0755)

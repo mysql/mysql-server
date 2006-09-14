@@ -161,6 +161,7 @@ int execute_no_commit(ha_ndbcluster *h, NdbConnection *trans)
   if (m_batch_execute)
     return 0;
 #endif
+  h->release_completed_operations(trans);
   return trans->execute(NoCommit,AbortOnError,h->m_force_send);
 }
 
@@ -194,6 +195,7 @@ int execute_no_commit_ie(ha_ndbcluster *h, NdbConnection *trans)
   if (m_batch_execute)
     return 0;
 #endif
+  h->release_completed_operations(trans);
   return trans->execute(NoCommit, AO_IgnoreError,h->m_force_send);
 }
 
@@ -2747,6 +2749,25 @@ int ha_ndbcluster::close_scan()
   if (!cursor)
     DBUG_RETURN(1);
 
+  if (m_lock_tuple)
+  {
+    /*
+      Lock level m_lock.type either TL_WRITE_ALLOW_WRITE
+      (SELECT FOR UPDATE) or TL_READ_WITH_SHARED_LOCKS (SELECT
+      LOCK WITH SHARE MODE) and row was not explictly unlocked 
+      with unlock_row() call
+    */
+      NdbOperation *op;
+      // Lock row
+      DBUG_PRINT("info", ("Keeping lock on scanned row"));
+      
+      if (!(op= m_active_cursor->lockTuple()))
+      {
+	m_lock_tuple= false;
+	ERR_RETURN(trans->getNdbError());
+      }
+      m_ops_pending++;      
+  }
   m_lock_tuple= false;
   if (m_ops_pending)
   {
@@ -5348,6 +5369,19 @@ int ha_ndbcluster::write_ndb_file()
     my_close(file,MYF(0));
   }
   DBUG_RETURN(error);
+}
+
+void 
+ha_ndbcluster::release_completed_operations(NdbConnection *trans)
+{
+  if (trans->hasBlobOperation())
+  {
+    /* We are reading/writing BLOB fields, 
+       releasing operation records is unsafe
+    */
+    return;
+  }
+  trans->releaseCompletedOperations();
 }
 
 int

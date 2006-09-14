@@ -1,7 +1,12 @@
-#!/usr/bin/perl
+#!@PERL@
+#
+# Copyright (C) 2003 MySQL AB
+# For a more info consult the file COPYRIGHT distributed with this file.
+#
 # fill_func_tables - parse ../Docs/manual.texi 
-
-# Original version by vva 
+#
+# Original version by Victor Vagin <vva@mysql.com>
+#
 
 my $cat_name= "";
 my $func_name= "";

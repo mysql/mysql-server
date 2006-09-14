@@ -728,6 +728,24 @@ select repeat(_utf8'+',3) as h union select NULL;
 select ifnull(NULL, _utf8'string');
 
 #
+# Bug#9509 Optimizer: wrong result after AND with comparisons
+#
+set names utf8;
+create table t1 (s1 char(5) character set utf8 collate utf8_lithuanian_ci);
+insert into t1 values ('I'),('K'),('Y');
+select * from t1 where s1 < 'K' and s1 = 'Y';
+select * from t1 where 'K' > s1 and s1 = 'Y';
+drop table t1;
+
+create table t1 (s1 char(5) character set utf8 collate utf8_czech_ci);
+insert into t1 values ('c'),('d'),('h'),('ch'),('CH'),('cH'),('Ch'),('i');
+select * from t1 where s1 > 'd' and s1 = 'CH';
+select * from t1 where 'd' < s1 and s1 = 'CH';
+select * from t1 where s1 = 'cH' and s1 <> 'ch';
+select * from t1 where 'cH' = s1 and s1 <> 'ch';
+drop table t1;
+
+#
 # Bug#10714: Inserting double value into utf8 column crashes server
 #
 create table t1 (a varchar(255)) default character set utf8;
@@ -1110,4 +1128,34 @@ ALTER TABLE t1 ADD KEY idx (tid,val(11));
 SELECT * FROM t1 WHERE tid=72 and val LIKE 'VOLN� ADSL'; 
 
 DROP TABLE t1;
+
+#
+# Bug 20709: problem with utf8 fields in temporary tables
+#
+
+create table t1(a char(200) collate utf8_unicode_ci NOT NULL default '')
+  default charset=utf8 collate=utf8_unicode_ci;
+insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
+explain select distinct a from t1;
+select distinct a from t1;
+explain select a from t1 group by a;
+select a from t1 group by a;
+drop table t1;
+
+#
+# Bug#20393: User name truncation in mysql client
+# Bug#21432: Database/Table name limited to 64 bytes, not chars, problems with multi-byte
+#
+set names utf8;
+#create user юзер_юзер@localhost;
+grant select on test.* to юзер_юзер@localhost;
+--exec $MYSQL --default-character-set=utf8 --user=юзер_юзер -e "select user()"
+revoke all on test.* from юзер_юзер@localhost;
+drop user юзер_юзер@localhost;
+
+create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+use имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+select database();
+drop database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+
 # End of 4.1 tests
