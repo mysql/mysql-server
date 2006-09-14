@@ -1832,7 +1832,7 @@ row_upd(
 
 	ut_ad(node && thr);
 
-	if (node->in_mysql_interface) {
+	if (UNIV_LIKELY(node->in_mysql_interface)) {
 
 		/* We do not get the cmpl_info value from the MySQL
 		interpreter: we must calculate it on the fly: */

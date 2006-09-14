@@ -1388,7 +1388,7 @@ dict_index_add_to_cache(
 
 		field = dict_index_get_nth_field(new_index, i);
 
-		dict_field_get_col(field)->ord_part++;
+		dict_field_get_col(field)->ord_part = 1;
 	}
 
 	/* Create an index tree memory object for the index */
@@ -1431,9 +1431,7 @@ dict_index_remove_from_cache(
 	dict_table_t*	table,	/* in: table */
 	dict_index_t*	index)	/* in, own: index */
 {
-	dict_field_t*	field;
 	ulint		size;
-	ulint		i;
 
 	ut_ad(table && index);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -1444,15 +1442,6 @@ dict_index_remove_from_cache(
 
 	ut_ad(index->tree->tree_index);
 	dict_tree_free(index->tree);
-
-	/* Decrement the ord_part counts in columns which are ordering */
-	for (i = 0; i < dict_index_get_n_unique(index); i++) {
-
-		field = dict_index_get_nth_field(index, i);
-
-		ut_ad(dict_field_get_col(field)->ord_part > 0);
-		(dict_field_get_col(field)->ord_part)--;
-	}
 
 	/* Remove the index from the list of indexes of the table */
 	UT_LIST_REMOVE(indexes, table->indexes, index);

@@ -125,8 +125,8 @@ struct dict_col_struct{
 				starting from 0) */
 	ulint		clust_pos:10;/* position of the column in the
 				clustered index */
-	ulint		ord_part:12;/* count of how many times this column
-				appears in ordering fields of an index */
+	ulint		ord_part:1;/* nonzero if this column appears
+				in ordering fields of an index */
 	const char*	name;	/* name */
 	dtype_t		type;	/* data type */
 };
