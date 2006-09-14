@@ -84,7 +84,7 @@ dict_mem_table_create(
 
 	table->stat_modified_counter = 0;
 
-	table->max_row_size = 0;
+	table->big_rows = 0;
 
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 

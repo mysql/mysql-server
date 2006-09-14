@@ -331,12 +331,6 @@ struct dict_table_struct{
 				had an IX lock on */
 	UT_LIST_BASE_NODE_T(lock_t)
 			locks; /* list of locks on the table */
-	ulint		max_row_size;
-				/* maximum size of a single row in the
-				table, not guaranteed to be especially
-				accurate. it's ULINT_MAX if there are
-				unbounded variable-width fields. initialized
-				in dict_table_add_to_cache. */
 #ifdef UNIV_DEBUG
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;
@@ -350,6 +344,13 @@ struct dict_table_struct{
 				the table definition from disk */
 #endif /* UNIV_DEBUG */
 	/*----------------------*/
+	unsigned	big_rows:1;
+				/* flag: TRUE if the maximum length of
+				a single row exceeds BIG_ROW_SIZE;
+				initialized in dict_table_add_to_cache() */
+	unsigned	stat_initialized:1; /* TRUE if statistics have
+				been calculated the first time
+				after database startup or table creation */
 	ib_longlong	stat_n_rows;
 				/* approximate number of rows in the table;
 				we periodically calculate new estimates */
@@ -358,9 +359,6 @@ struct dict_table_struct{
 				database pages */
 	ulint		stat_sum_of_other_index_sizes;
 				/* other indexes in database pages */
-	ibool		stat_initialized:1; /* TRUE if statistics have
-				been calculated the first time
-				after database startup or table creation */
 	ulint		stat_modified_counter;
 				/* when a row is inserted, updated, or deleted,
 				we add 1 to this number; we calculate new
