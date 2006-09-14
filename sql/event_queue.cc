@@ -707,6 +707,9 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
   bool ret= FALSE;
   struct timespec top_time;
   struct timespec *abstime;
+  Event_queue_element *top= NULL;
+  bool to_free= FALSE;
+  bool to_drop= FALSE;
   *job_data= NULL;
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
 
@@ -715,7 +718,6 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
   for (;;)
   {
     int res;
-    Event_queue_element *top= NULL;
 
     thd->end_time();
     time_t now= thd->query_start();
@@ -788,9 +790,8 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
       sql_print_information("SCHEDULER: Last execution of %s.%s. %s",
                             top->dbname.str, top->name.str,
                             top->dropped? "Dropping.":"");
-      if (top->dropped)
-        top->drop(thd);
-      delete top;
+      to_free= TRUE;
+      to_drop= top->dropped;
       queue_remove(&queue, 0);
     }
     else
@@ -801,7 +802,14 @@ Event_queue::get_top_for_execution_if_time(THD *thd, Event_job_data **job_data)
   }
 end:
   UNLOCK_QUEUE_DATA();
-  
+  if (to_drop)
+  {
+    DBUG_PRINT("info", ("Dropping from disk"));
+    top->drop(thd);
+  }
+  if (to_free)
+    delete top;
+
   DBUG_PRINT("info", ("returning %d. et_new=0x%lx abstime.tv_sec=%d ",
              ret, *job_data, abstime? abstime->tv_sec:0));
 
