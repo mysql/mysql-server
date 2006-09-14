@@ -101,6 +101,7 @@ void
 Event_queue::init_mutexes()
 {
   pthread_mutex_init(&LOCK_event_queue, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&COND_queue_state, NULL);
 }
 
 
@@ -115,6 +116,7 @@ void
 Event_queue::deinit_mutexes()
 {
   pthread_mutex_destroy(&LOCK_event_queue);
+  pthread_cond_destroy(&COND_queue_state);
 }
 
 
