@@ -1514,11 +1514,8 @@ btr_cur_update_in_place(
 		row_upd_rec_sys_fields(rec, index, offsets, trx, roll_ptr);
 	}
 
-	/* FIXME: in a mixed tree, all records may not have enough ordering
-	fields for btr search: */
-
-	was_delete_marked = rec_get_deleted_flag
-		(rec, page_is_comp(buf_block_get_frame(block)));
+	was_delete_marked = rec_get_deleted_flag(
+		rec, page_is_comp(buf_block_get_frame(block)));
 
 	row_upd_rec_in_place(rec, offsets, update);
 

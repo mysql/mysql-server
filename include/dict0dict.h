@@ -727,9 +727,7 @@ dict_tree_t*
 dict_tree_create(
 /*=============*/
 				/* out, own: created tree */
-	dict_index_t*	index,	/* in: the index for which to create: in the
-				case of a mixed tree, this should be the
-				index of the cluster object */
+	dict_index_t*	index,	/* in: the index for which to create */
 	ulint		page_no);/* in: root page number of the index */
 /**************************************************************************
 Frees an index tree struct. */

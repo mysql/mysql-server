@@ -974,8 +974,6 @@ retry:
 	offsets = NULL;
 
 	while (!page_rec_is_supremum(rec)) {
-		/* FIXME: in a mixed tree, not all records may have enough
-		ordering fields: */
 		offsets = rec_get_offsets(rec, index, offsets,
 					  n_fields + (n_bytes > 0), &heap);
 		ut_a(rec_offs_n_fields(offsets) == n_fields + (n_bytes > 0));
@@ -1191,8 +1189,6 @@ btr_search_build_page_hash_index(
 		}
 	}
 
-	/* FIXME: in a mixed tree, all records may not have enough ordering
-	fields: */
 	fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
 
 	if (side == BTR_SEARCH_LEFT_SIDE) {
