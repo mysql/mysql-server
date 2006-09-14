@@ -1,3 +1,19 @@
+/* Copyright (C) 2006 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 /*
   WL#3071 Maria checkpoint
   First version written by Guilhem Bichot on 2006-04-27.
@@ -110,7 +126,7 @@ my_bool execute_checkpoint(CHECKPOINT_LEVEL level)
   LSN candidate_max_rec_lsn_at_last_checkpoint;
   /* to avoid { lock + no-op + unlock } in the common (==indirect) case */
   my_bool need_log_mutex;
-                    
+
   DBUG_ENTER("execute_checkpoint");
 
   safemutex_assert_owner(log_mutex);
@@ -120,7 +136,7 @@ my_bool execute_checkpoint(CHECKPOINT_LEVEL level)
   {
     /* much I/O work to do, release log mutex */
     unlock(log_mutex);
-    
+
     switch (level)
     {
     case FULL:
@@ -167,6 +183,13 @@ my_bool execute_checkpoint(CHECKPOINT_LEVEL level)
 }
 
 
+/*
+  Does an indirect checpoint (collects data from data structures, writes into
+  a checkpoint log record).
+  Returns the largest LSN of the LRD when the checkpoint happened (this is a
+  fuzzy definition), or LSN_IMPOSSIBLE on error. That LSN is used for the
+  "two-checkpoint rule" (MEDIUM checkpoints).
+*/
 LSN checkpoint_indirect(my_bool need_log_mutex)
 {
   DBUG_ENTER("checkpoint_indirect");
@@ -180,6 +203,7 @@ LSN checkpoint_indirect(my_bool need_log_mutex)
   LSN checkpoint_lsn;
   LSN candidate_max_rec_lsn_at_last_checkpoint= 0;
   list_element *el;   /* to scan lists */
+  ulong stored_LRD_size= 0;
 
 
   DBUG_ASSERT(sizeof(byte *) <= 8);
@@ -192,27 +216,70 @@ LSN checkpoint_indirect(my_bool need_log_mutex)
 
   DBUG_PRINT("info",("checkpoint_start_lsn %lu", checkpoint_start_lsn));
 
-  lock(global_LRD_mutex);
-  string1.length= 8+8+(8+8)*LRD->count;
+  /* STEP 1: fetch information about dirty pages */
+
+  /*
+    We lock the entire cache but will be quick, just reading/writing a few MBs
+    of memory at most.
+  */
+  pagecache_pthread_mutex_lock(&pagecache->cache_lock);
+
+  /*
+    This is an over-estimation, as in theory blocks_changed may contain
+    non-PAGECACHE_LSN_PAGE pages, which we don't want to store into the
+    checkpoint record; the true number of page-LRD-info we'll store into the
+    record is stored_LRD_size.
+  */
+  string1.length= 8+8+(8+8)*pagecache->blocks_changed;
   if (NULL == (string1.str= my_malloc(string1.length)))
     goto err;
   ptr= string1.str;
   int8store(ptr, checkpoint_start_lsn);
-  ptr+= 8;
-  int8store(ptr, LRD->count);
-  ptr+= 8;
-  if (LRD->count)
+  ptr+= 8+8; /* don't store stored_LRD_size now, wait */
+  if (pagecache->blocks_changed > 0)
   {
-    candidate_max_rec_lsn_at_last_checkpoint= LRD->last->rec_lsn;
-    for (el= LRD->first; el; el= el->next)
+    /*
+      There are different ways to scan the dirty blocks;
+      flush_all_key_blocks() uses a loop over pagecache->used_last->next_used,
+      and for each element of the loop, loops into
+      pagecache->changed_blocks[FILE_HASH(file of the element)].
+      This has the drawback that used_last includes non-dirty blocks, and it's
+      two loops over many elements. Here we try something simpler.
+      If there are no blocks in changed_blocks[file_hash], we should hit
+      zeroes and skip them.
+    */
+    uint file_hash;
+    for (file_hash= 0; file_hash < PAGECACHE_CHANGED_BLOCKS_HASH; file_hash++)
     {
-      int8store(ptr, el->page_id);
-      ptr+= 8;
-      int8store(ptr, el->rec_lsn);
-      ptr+= 8;
+      PAGECACHE_BLOCK_LINK *block;
+      for (block= pagecache->changed_blocks[file_hash] ;
+           block;
+           block= block->next_changed)
+      {
+        DBUG_ASSERT(block->hash_link != NULL);
+        DBUG_ASSERT(block->status & BLOCK_CHANGED);
+        if (block->type != PAGECACHE_LSN_PAGE)
+        {
+          /* no need to store it in the checkpoint record */
+          continue;
+        }
+        /* Q: two "block"s cannot have the same "hash_link", right? */
+        int8store(ptr, block->hash_link->pageno);
+        ptr+= 8;
+        /* I assume rec_lsn will be member of "block", not of "hash_link" */
+        int8store(ptr, block->rec_lsn);
+        ptr+= 8;
+        stored_LRD_size++;
+        set_if_bigger(candidate_max_rec_lsn_at_last_checkpoint,
+                      block->rec_lsn);
+      }
     }
-  }
-  unlock(global_LRD_mutex);
+  pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
+  DBUG_ASSERT(stored_LRD_size <= pagecache->blocks_changed);
+  int8store(string1.str+8, stored_LRD_size);
+  string1.length= 8+8+(8+8)*stored_LRD_size;
+
+  /* STEP 2: fetch information about transactions */
 
   /*
     If trx are in more than one list (e.g. three:
@@ -253,19 +320,28 @@ LSN checkpoint_indirect(my_bool need_log_mutex)
   }
   unlock(global_transactions_list_mutex);
 
+  /* STEP 3: fetch information about table files */
+
+  /* This global mutex is in fact THR_LOCK_maria (see ma_open()) */
   lock(global_share_list_mutex);
   string3.length= 8+(8+8)*share_list->count;
   if (NULL == (string3.str= my_malloc(string3.length)))
     goto err;
   ptr= string3.str;
-  /* possibly latch each MARIA_SHARE */
+  /* possibly latch each MARIA_SHARE, one by one, like this: */
+  pthread_mutex_lock(&share->intern_lock);
+  /*
+    We'll copy the file id (a bit like share->kfile), the file name
+    (like share->unique_file_name[_length]).
+  */
   make_copy_of_global_share_list_to_array;
+  pthread_mutex_unlock(&share->intern_lock);
   unlock(global_share_list_mutex);
 
   /* work on copy */
   int8store(ptr, elements_in_array);
   ptr+= 8;
-  for (scan_array)
+  for (el in array)
   {
     int8store(ptr, array[...].file_id);
     ptr+= 8;
@@ -273,9 +349,11 @@ LSN checkpoint_indirect(my_bool need_log_mutex)
     ptr+= ...;
     /*
       these two are long ops (involving disk I/O) that's why we copied the
-      list:
+      list, to not keep the list locked for long:
     */
     flush_bitmap_pages(el);
+    /* TODO: and also autoinc counter, logical file end, free page list */
+
     /*
       fsyncs the fd, that's the loooong operation (e.g. max 150 fsync per
       second, so if you have touched 1000 files it's 7 seconds).
@@ -283,7 +361,8 @@ LSN checkpoint_indirect(my_bool need_log_mutex)
     force_file(el);
   }
 
-  /* now write the record */
+  /* LAST STEP: now write the checkpoint log record */
+
   string_array[0]= string1;
   string_array[1]= string2;
   string_array[2]= string3;
@@ -291,6 +370,11 @@ LSN checkpoint_indirect(my_bool need_log_mutex)
 
   checkpoint_lsn= log_write_record(LOGREC_CHECKPOINT,
                                    &system_trans, string_array);
+
+  /*
+    Do nothing between the log write and the control file write, for the
+    "repair control file" tool to be possible one day.
+  */
 
   if (LSN_IMPOSSIBLE == checkpoint_lsn)
     goto err;

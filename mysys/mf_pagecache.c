@@ -2937,6 +2937,10 @@ restart:
       }
       pagecache->blocks_changed--;
       pagecache->global_blocks_changed--;
+      /*
+        free_block() will change the status of the block so no need to change
+        it here.
+      */
 
     }
     /* Cache is locked, so we can relese page before freeing it */

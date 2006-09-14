@@ -1,3 +1,19 @@
+/* Copyright (C) 2006 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 /*
   WL#3234 Maria control file
   First version written by Guilhem Bichot on 2006-04-27.
@@ -137,7 +153,10 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
 
       We could have a tool which can rebuild the control file, by reading the
       directory of logs, finding the newest log, reading it to find last
-      checkpoint... Slow but can save your db.
+      checkpoint... Slow but can save your db. For this to be possible, we
+      must always write to the control file right after writing the checkpoint
+      log record, and do nothing in between (i.e. the checkpoint must be
+      usable as soon as it has been written to the log).
     */
 
     LSN imposs_lsn= CONTROL_FILE_IMPOSSIBLE_LSN;
