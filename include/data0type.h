@@ -412,7 +412,7 @@ struct dtype_struct{
 
 	/* the remaining fields do not affect alphabetical ordering: */
 
-	ulint	mbminlen:3;	/* minimum length of a character, in bytes */
+	ulint	mbminlen:2;	/* minimum length of a character, in bytes */
 	ulint	mbmaxlen:3;	/* maximum length of a character, in bytes */
 
 	ulint	len:16;		/* length; for MySQL data this is
