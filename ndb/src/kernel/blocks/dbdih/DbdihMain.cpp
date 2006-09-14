@@ -6488,7 +6488,13 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal){
         }//for
       }
     }
-    ndbrequire(count == (2 + noOfReplicas * noOfFragments)); 
+    if(count != (2 + noOfReplicas * noOfFragments)){
+        char buf[255];
+        BaseString::snprintf(buf, sizeof(buf),
+                           "Illegal configuration change: NoOfReplicas."
+                           " Can't be applied online ");
+        progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
+    }
     
     CreateFragmentationConf * const conf = 
       (CreateFragmentationConf*)signal->getDataPtrSend();
