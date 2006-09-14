@@ -528,7 +528,7 @@ dict_index_get_nth_col_pos(
 
 	if (index->type & DICT_CLUSTERED) {
 
-		return(dict_col_get_clust_pos(col));
+		return(dict_col_get_clust_pos(col, index));
 	}
 
 	n_fields = dict_index_get_n_fields(index);
@@ -1755,18 +1755,6 @@ dict_index_build_internal_clust(
 
 	ut_ad((index->type & DICT_IBUF)
 	      || (UT_LIST_GET_LEN(table->indexes) == 0));
-
-	/* Store to the column structs the position of the table columns
-	in the clustered index */
-
-	for (i = 0; i < new_index->n_def; i++) {
-		field = dict_index_get_nth_field(new_index, i);
-
-		if (field->prefix_len == 0) {
-
-			field->col->clust_pos = i;
-		}
-	}
 
 	new_index->cached = TRUE;
 
