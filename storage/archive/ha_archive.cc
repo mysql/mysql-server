@@ -728,7 +728,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
       goto error;
     }
   }
-  if (!azdopen(&archive, dup(create_file), O_WRONLY|O_BINARY))
+  if (!azdopen(&archive, create_file, O_WRONLY|O_BINARY))
   {
     error= errno;
     goto error2;
