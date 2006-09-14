@@ -17,6 +17,10 @@
 #include <ctype.h>
 #include <mysql/plugin.h>
 
+#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+#define __attribute__(A)
+#endif
+
 static long number_of_calls= 0; /* for SHOW STATUS, see below */
 
 /*
@@ -225,7 +229,9 @@ mysql_declare_plugin(ftexample)
   simple_parser_plugin_init,  /* init function (when loaded)     */
   simple_parser_plugin_deinit,/* deinit function (when unloaded) */
   0x0001,                     /* version                         */
-  simple_status               /* status variables                */
+  simple_status,              /* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 

@@ -21,6 +21,7 @@
 
 #ifdef HAVE_STACKTRACE
 #include <unistd.h>
+#include <strings.h>
 
 #define PTR_SANE(p) ((p) && (char*)(p) >= heap_start && (char*)(p) <= heap_end)
 
@@ -44,7 +45,29 @@ void safe_print_str(const char* name, const char* val, int max_len)
 }
 
 #ifdef TARGET_OS_LINUX
-#define SIGRETURN_FRAME_COUNT  2
+
+#ifdef __i386__
+#define SIGRETURN_FRAME_OFFSET 17
+#endif
+
+#ifdef __x86_64__
+#define SIGRETURN_FRAME_OFFSET 23
+#endif
+
+static my_bool is_nptl;
+
+/* Check if we are using NPTL or LinuxThreads on Linux */
+void check_thread_lib(void)
+{
+  char buf[5];
+
+#ifdef _CS_GNU_LIBPTHREAD_VERSION
+  confstr(_CS_GNU_LIBPTHREAD_VERSION, buf, sizeof(buf));
+  is_nptl = !strncasecmp(buf, "NPTL", sizeof(buf));
+#else
+  is_nptl = 0;
+#endif
+}
 
 #if defined(__alpha__) && defined(__GNUC__)
 /*
@@ -90,7 +113,7 @@ inline uint32* find_prev_pc(uint32* pc, uchar** fp)
 void  print_stacktrace(gptr stack_bottom, ulong thread_stack)
 {
   uchar** fp;
-  uint frame_count = 0;
+  uint frame_count = 0, sigreturn_frame_count;
 #if defined(__alpha__) && defined(__GNUC__)
   uint32* pc;
 #endif
@@ -100,28 +123,27 @@ void  print_stacktrace(gptr stack_bottom, ulong thread_stack)
 Attempting backtrace. You can use the following information to find out\n\
 where mysqld died. If you see no messages after this, something went\n\
 terribly wrong...\n");
-#ifdef __i386__  
+#ifdef __i386__
   __asm __volatile__ ("movl %%ebp,%0"
 		      :"=r"(fp)
 		      :"r"(fp));
-  if (!fp)
-  {
-    fprintf(stderr, "frame pointer (ebp) is NULL, did you compile with\n\
--fomit-frame-pointer? Aborting backtrace!\n");
-    return;
-  }
+#endif
+#ifdef __x86_64__
+  __asm __volatile__ ("movq %%rbp,%0"
+		      :"=r"(fp)
+		      :"r"(fp));
 #endif
 #if defined(__alpha__) && defined(__GNUC__) 
   __asm __volatile__ ("mov $30,%0"
 		      :"=r"(fp)
 		      :"r"(fp));
+#endif
   if (!fp)
   {
-    fprintf(stderr, "frame pointer (fp) is NULL, did you compile with\n\
+    fprintf(stderr, "frame pointer is NULL, did you compile with\n\
 -fomit-frame-pointer? Aborting backtrace!\n");
     return;
   }
-#endif /* __alpha__ */
 
   if (!stack_bottom || (gptr) stack_bottom > (gptr) &fp)
   {
@@ -151,13 +173,16 @@ terribly wrong...\n");
 		      :"r"(pc));
 #endif  /* __alpha__ */
 
+  /* We are 1 frame above signal frame with NPTL and 2 frames above with LT */
+  sigreturn_frame_count = is_nptl ? 1 : 2;
+  
   while (fp < (uchar**) stack_bottom)
   {
-#ifdef __i386__    
+#if defined(__i386__) || defined(__x86_64__)
     uchar** new_fp = (uchar**)*fp;
-    fprintf(stderr, "%p\n", frame_count == SIGRETURN_FRAME_COUNT ?
-	    *(fp+17) : *(fp+1));
-#endif /* __386__ */
+    fprintf(stderr, "%p\n", frame_count == sigreturn_frame_count ?
+	    *(fp + SIGRETURN_FRAME_OFFSET) : *(fp + 1));
+#endif /* defined(__386__)  || defined(__x86_64__) */
 
 #if defined(__alpha__) && defined(__GNUC__)
     uchar** new_fp = find_prev_fp(pc, fp);

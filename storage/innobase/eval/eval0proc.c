@@ -51,7 +51,8 @@ if_step(
 			for (;;) {
 				eval_exp(elsif_node->cond);
 
-				if (eval_node_get_ibool_val(elsif_node->cond)) {
+				if (eval_node_get_ibool_val
+				    (elsif_node->cond)) {
 
 					/* The condition evaluated to TRUE:
 					start execution from the first
@@ -104,7 +105,7 @@ while_step(
 	ut_ad(que_node_get_type(node) == QUE_NODE_WHILE);
 
 	ut_ad((thr->prev_node == que_node_get_parent(node))
-			|| (que_node_get_next(thr->prev_node) == NULL));
+	      || (que_node_get_next(thr->prev_node) == NULL));
 
 	/* Evaluate the condition */
 
@@ -192,8 +193,8 @@ for_step(
 
 		loop_var_value = eval_node_get_int_val(node->loop_start_limit);
 
-		node->loop_end_value = eval_node_get_int_val(
-							node->loop_end_limit);
+		node->loop_end_value
+			= eval_node_get_int_val(node->loop_end_limit);
 	}
 
 	/* Check if we should do another loop */

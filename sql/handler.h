@@ -255,7 +255,12 @@ enum legacy_db_type
   DB_TYPE_BLACKHOLE_DB,
   DB_TYPE_PARTITION_DB,
   DB_TYPE_BINLOG,
-  DB_TYPE_FIRST_DYNAMIC=32,
+  DB_TYPE_SOLID,
+  DB_TYPE_PBXT,
+  DB_TYPE_TABLE_FUNCTION,
+  DB_TYPE_MEMCACHE,
+  DB_TYPE_FALCON,
+  DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
 
@@ -668,7 +673,11 @@ struct handlerton
      (*create_iterator)(enum handler_iterator_type type,
                         struct handler_iterator *fill_this_in);
    int (*discover)(THD* thd, const char *db, const char *name,
-                           const void** frmblob, uint* frmlen);
+                   const void** frmblob, uint* frmlen);
+   int (*find_files)(THD *thd,const char *db,const char *path,
+                     const char *wild, bool dir, List<char> *files);
+   int (*table_exists_in_engine)(THD* thd, const char *db,
+                                 const char *name);
 };
 
 
