@@ -134,7 +134,6 @@ dict_mem_table_add_col(
 
 	col->ind = table->n_def - 1;
 	col->name = mem_heap_strdup(table->heap, name);
-	col->table = table;
 	col->ord_part = 0;
 
 	col->clust_pos = REC_MAX_N_FIELDS;
