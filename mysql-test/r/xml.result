@@ -570,7 +570,7 @@ select extractvalue('<a>a<b>B</b></a>','a|/b');
 extractvalue('<a>a<b>B</b></a>','a|/b')
 a
 select extractvalue('<a>A</a>','/<a>');
-ERROR HY000: XPATH syntax error: '<a>'
+ERROR HY000: XPATH error: comparison of two nodesets is not supported: '<a>'
 select extractvalue('<a><b>b</b><b!>b!</b!></a>','//b!');
 ERROR HY000: XPATH syntax error: '!'
 select extractvalue('<a>A<b>B<c>C</c></b></a>','/a/descendant::*');
@@ -710,3 +710,29 @@ Data
 select extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/something');
 extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/something')
 Otherdata
+select extractValue('<zot><tim0><01>10:39:15</01><02>140</02></tim0></zot>','/zot/tim0/02');
+ERROR HY000: XPATH syntax error: '02'
+select extractValue('<zot><tim0><01>10:39:15</01><02>140</02></tim0></zot>','//*');
+extractValue('<zot><tim0><01>10:39:15</01><02>140</02></tim0></zot>','//*')
+NULL
+Warnings:
+Warning	1512	Incorrect XML value: 'parse error at line 1 pos 13: unknown token unexpected (ident or '/' wanted)'
+select extractValue('<.>test</.>','//*');
+extractValue('<.>test</.>','//*')
+NULL
+Warnings:
+Warning	1512	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
+select extractValue('<->test</->','//*');
+extractValue('<->test</->','//*')
+NULL
+Warnings:
+Warning	1512	Incorrect XML value: 'parse error at line 1 pos 2: unknown token unexpected (ident or '/' wanted)'
+select extractValue('<:>test</:>','//*');
+extractValue('<:>test</:>','//*')
+test
+select extractValue('<_>test</_>','//*');
+extractValue('<_>test</_>','//*')
+test
+select extractValue('<x.-_:>test</x.-_:>','//*');
+extractValue('<x.-_:>test</x.-_:>','//*')
+test
