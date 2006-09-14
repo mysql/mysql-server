@@ -387,7 +387,21 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
                                                         count)))
         goto err_not_open;
       for (count= 0; count < interval->count; count++)
-        interval->type_lengths[count]= strlen(interval->type_names[count]);
+      {
+        char *val= (char*) interval->type_names[count];
+        interval->type_lengths[count]= strlen(val);
+        /*
+          Replace all ',' symbols with NAMES_SEP_CHAR.
+          See the comment in unireg.cc, pack_fields() function
+          for details.
+        */
+        for (uint cnt= 0 ; cnt < interval->type_lengths[count] ; cnt++)
+        {
+          char c= val[cnt];
+          if (c == ',')
+            val[cnt]= NAMES_SEP_CHAR;
+        }       
+      }
       interval->type_lengths[count]= 0;
     }
   }
