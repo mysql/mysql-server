@@ -48,8 +48,6 @@ rw_lock_t	dict_operation_lock;	/* table create, drop, etc. reserve
 					creating a table or index object */
 #define DICT_POOL_PER_TABLE_HASH 512	/* buffer pool max size per table
 					hash table fixed size in bytes */
-#define DICT_POOL_PER_COL_HASH	128	/* buffer pool max size per column
-					hash table fixed size in bytes */
 #define DICT_POOL_PER_VARYING	4	/* buffer pool max size per data
 					dictionary varying size in bytes */
 
@@ -130,32 +128,6 @@ innobase_get_charset(
 #endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************************
-Adds a column to the data dictionary hash table. */
-static
-void
-dict_col_add_to_cache(
-/*==================*/
-	dict_table_t*	table,	/* in: table */
-	dict_col_t*	col);	/* in: column */
-/**************************************************************************
-Repositions a column in the data dictionary hash table when the table name
-changes. */
-static
-void
-dict_col_reposition_in_cache(
-/*=========================*/
-	dict_table_t*	table,		/* in: table */
-	dict_col_t*	col,		/* in: column */
-	const char*	new_name);	/* in: new table name */
-/**************************************************************************
-Removes a column from the data dictionary hash table. */
-static
-void
-dict_col_remove_from_cache(
-/*=======================*/
-	dict_table_t*	table,	/* in: table */
-	dict_col_t*	col);	/* in: column */
-/**************************************************************************
 Removes an index from the dictionary cache. */
 static
 void
@@ -174,7 +146,7 @@ dict_index_copy(
 	ulint		start,	/* in: first position to copy */
 	ulint		end);	/* in: last position to copy */
 /***********************************************************************
-Tries to find column names for the index in the column hash table and
+Tries to find column names for the index and
 sets the col field of the index. */
 static
 ibool
@@ -774,9 +746,6 @@ dict_init(void)
 	dict_sys->table_id_hash = hash_create(buf_pool_get_max_size()
 					      / (DICT_POOL_PER_TABLE_HASH
 						 * UNIV_WORD_SIZE));
-	dict_sys->col_hash = hash_create(buf_pool_get_max_size()
-					 / (DICT_POOL_PER_COL_HASH
-					    * UNIV_WORD_SIZE));
 	dict_sys->size = 0;
 
 	UT_LIST_INIT(dict_sys->table_LRU);
@@ -941,11 +910,6 @@ dict_table_add_to_cache(
 		ut_a(table2 == NULL);
 	}
 
-	/* Add the columns to the column hash table */
-	for (i = 0; i < table->n_cols; i++) {
-		dict_col_add_to_cache(table, dict_table_get_nth_col(table, i));
-	}
-
 	/* Add table to hash table of tables */
 	HASH_INSERT(dict_table_t, name_hash, dict_sys->table_hash, fold,
 		    table);
@@ -1013,7 +977,6 @@ dict_table_rename_in_cache(
 	ulint		old_size;
 	char*		old_name;
 	ibool		success;
-	ulint		i;
 
 	ut_ad(table);
 #ifdef UNIV_SYNC_DEBUG
@@ -1058,15 +1021,6 @@ dict_table_rename_in_cache(
 
 			return(FALSE);
 		}
-	}
-
-	/* Reposition the columns in the column hash table; they are hashed
-	according to the pair (table name, column name) */
-
-	for (i = 0; i < table->n_cols; i++) {
-		dict_col_reposition_in_cache(table,
-					     dict_table_get_nth_col(table, i),
-					     new_name);
 	}
 
 	/* Remove table from the hash tables of tables */
@@ -1258,7 +1212,6 @@ dict_table_remove_from_cache(
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
 	ulint		size;
-	ulint		i;
 
 	ut_ad(table);
 #ifdef UNIV_SYNC_DEBUG
@@ -1299,12 +1252,6 @@ dict_table_remove_from_cache(
 		index = UT_LIST_GET_LAST(table->indexes);
 	}
 
-	/* Remove the columns of the table from the cache */
-	for (i = 0; i < table->n_cols; i++) {
-		dict_col_remove_from_cache(table,
-					   dict_table_get_nth_col(table, i));
-	}
-
 	/* Remove table from the hash tables of tables */
 	HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
 		    ut_fold_string(table->name), table);
@@ -1321,92 +1268,6 @@ dict_table_remove_from_cache(
 	dict_sys->size -= size;
 
 	dict_mem_table_free(table);
-}
-
-/**************************************************************************
-Adds a column to the data dictionary hash table. */
-static
-void
-dict_col_add_to_cache(
-/*==================*/
-	dict_table_t*	table,	/* in: table */
-	dict_col_t*	col)	/* in: column */
-{
-	ulint	fold;
-
-	ut_ad(table && col);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	fold = ut_fold_ulint_pair(ut_fold_string(table->name),
-				  ut_fold_string(col->name));
-
-	/* Look for a column with same table name and column name: error */
-	{
-		dict_col_t*	col2;
-		HASH_SEARCH(hash, dict_sys->col_hash, fold, col2,
-			    (ut_strcmp(col->name, col2->name) == 0)
-			    && (ut_strcmp((col2->table)->name, table->name)
-				== 0));
-		ut_a(col2 == NULL);
-	}
-
-	HASH_INSERT(dict_col_t, hash, dict_sys->col_hash, fold, col);
-}
-
-/**************************************************************************
-Removes a column from the data dictionary hash table. */
-static
-void
-dict_col_remove_from_cache(
-/*=======================*/
-	dict_table_t*	table,	/* in: table */
-	dict_col_t*	col)	/* in: column */
-{
-	ulint		fold;
-
-	ut_ad(table && col);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	fold = ut_fold_ulint_pair(ut_fold_string(table->name),
-				  ut_fold_string(col->name));
-
-	HASH_DELETE(dict_col_t, hash, dict_sys->col_hash, fold, col);
-}
-
-/**************************************************************************
-Repositions a column in the data dictionary hash table when the table name
-changes. */
-static
-void
-dict_col_reposition_in_cache(
-/*=========================*/
-	dict_table_t*	table,		/* in: table */
-	dict_col_t*	col,		/* in: column */
-	const char*	new_name)	/* in: new table name */
-{
-	ulint		fold;
-
-	ut_ad(table && col);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
-
-	fold = ut_fold_ulint_pair(ut_fold_string(table->name),
-				  ut_fold_string(col->name));
-
-	HASH_DELETE(dict_col_t, hash, dict_sys->col_hash, fold, col);
-
-	fold = ut_fold_ulint_pair(ut_fold_string(new_name),
-				  ut_fold_string(col->name));
-
-	HASH_INSERT(dict_col_t, hash, dict_sys->col_hash, fold, col);
 }
 
 /********************************************************************
@@ -1606,7 +1467,7 @@ dict_index_remove_from_cache(
 }
 
 /***********************************************************************
-Tries to find column names for the index in the column hash table and
+Tries to find column names for the index and
 sets the col field of the index. */
 static
 ibool
@@ -1616,9 +1477,6 @@ dict_index_find_cols(
 	dict_table_t*	table,	/* in: table */
 	dict_index_t*	index)	/* in: index */
 {
-	dict_col_t*	col;
-	dict_field_t*	field;
-	ulint		fold;
 	ulint		i;
 
 	ut_ad(table && index);
@@ -1628,21 +1486,19 @@ dict_index_find_cols(
 #endif /* UNIV_SYNC_DEBUG */
 
 	for (i = 0; i < index->n_fields; i++) {
-		field = dict_index_get_nth_field(index, i);
+		ulint		j;
+		dict_field_t*	field = dict_index_get_nth_field(index, i);
 
-		fold = ut_fold_ulint_pair(ut_fold_string(table->name),
-					  ut_fold_string(field->name));
-
-		HASH_SEARCH(hash, dict_sys->col_hash, fold, col,
-			    (ut_strcmp(col->name, field->name) == 0)
-			    && (ut_strcmp((col->table)->name, table->name)
-				== 0));
-		if (col == NULL) {
-
-			return(FALSE);
-		} else {
-			field->col = col;
+		for (j = 0; j < table->n_cols; j++) {
+			dict_col_t*	col = dict_table_get_nth_col(table, j);
+			if (!strcmp(col->name, field->name)) {
+				field->col = col;
+				goto found;
+			}
 		}
+
+		return(FALSE);
+found:		;
 	}
 
 	return(TRUE);
