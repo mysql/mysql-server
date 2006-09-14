@@ -449,13 +449,20 @@ static void my_hash_sort_mb_bin(CHARSET_INFO *cs __attribute__((unused)),
 
 
 /* 
-  Write max key:
-- for non-Unicode character sets:
-  just set to 255.
-- for Unicode character set (utf-8):
-  create a buffer with multibyte
-  representation of the max_sort_char character,
-  and copy it into max_str in a loop. 
+  Fill the given buffer with 'maximum character' for given charset
+  SYNOPSIS
+      pad_max_char()
+      cs   Character set
+      str  Start of buffer to fill
+      end  End of buffer to fill
+
+  DESCRIPTION
+      Write max key:
+      - for non-Unicode character sets:
+        just set to 255.
+      - for Unicode character set (utf-8):
+        create a buffer with multibyte representation of the max_sort_char
+        character, and copy it into max_str in a loop. 
 */
 static void pad_max_char(CHARSET_INFO *cs, char *str, char *end)
 {
