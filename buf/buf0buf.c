@@ -1583,7 +1583,7 @@ buf_page_init_for_backup_restore(
 	block->is_hashed	= FALSE;
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
-	block->side		= BTR_SEARCH_LEFT_SIDE;
+	block->left_side	= TRUE;
 
 	block->file_page_was_freed = FALSE;
 }
@@ -1650,7 +1650,7 @@ buf_page_init(
 	block->is_hashed	= FALSE;
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
-	block->side		= BTR_SEARCH_LEFT_SIDE;
+	block->left_side	= TRUE;
 
 	block->file_page_was_freed = FALSE;
 }

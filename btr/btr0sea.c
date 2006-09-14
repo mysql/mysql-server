@@ -74,7 +74,7 @@ btr_search_build_page_hash_index(
 	ulint		n_fields,/* in: hash this many full fields */
 	ulint		n_bytes,/* in: hash this many bytes from the next
 				field */
-	ulint		side);	/* in: hash for searches from this side */
+	ibool		left_side);/* in: hash for searches from left side? */
 
 /*********************************************************************
 This function should be called before reserving any btr search mutex, if
@@ -157,10 +157,10 @@ btr_search_info_create(
 
 	info = mem_heap_alloc(heap, sizeof(btr_search_t));
 
+#ifdef UNIV_DEBUG
 	info->magic_n = BTR_SEARCH_MAGIC_N;
+#endif /* UNIV_DEBUG */
 
-	info->last_search = NULL;
-	info->n_direction = 0;
 	info->root_guess = NULL;
 
 	info->hash_analysis = 0;
@@ -179,7 +179,7 @@ btr_search_info_create(
 	info->n_fields = 1;
 	info->n_bytes = 0;
 
-	info->side = BTR_SEARCH_LEFT_SIDE;
+	info->left_side = TRUE;
 
 	return(info);
 }
@@ -224,7 +224,7 @@ btr_search_info_update_hash(
 	hash prefix */
 
 	if (info->n_fields >= n_unique && cursor->up_match >= n_unique) {
-
+increment_potential:
 		info->n_hash_potential++;
 
 		return;
@@ -233,8 +233,7 @@ btr_search_info_update_hash(
 	cmp = ut_pair_cmp(info->n_fields, info->n_bytes,
 			  cursor->low_match, cursor->low_bytes);
 
-	if ((info->side == BTR_SEARCH_LEFT_SIDE && cmp <= 0)
-	    || (info->side == BTR_SEARCH_RIGHT_SIDE && cmp > 0)) {
+	if (info->left_side ? cmp <= 0 : cmp > 0) {
 
 		goto set_new_recomm;
 	}
@@ -242,15 +241,10 @@ btr_search_info_update_hash(
 	cmp = ut_pair_cmp(info->n_fields, info->n_bytes,
 			  cursor->up_match, cursor->up_bytes);
 
-	if ((info->side == BTR_SEARCH_LEFT_SIDE && cmp > 0)
-	    || (info->side == BTR_SEARCH_RIGHT_SIDE && cmp <= 0)) {
+	if (info->left_side ? cmp <= 0 : cmp > 0) {
 
-		goto set_new_recomm;
+		goto increment_potential;
 	}
-
-	info->n_hash_potential++;
-
-	return;
 
 set_new_recomm:
 	/* We have to set a new recommendation; skip the hash analysis
@@ -269,7 +263,7 @@ set_new_recomm:
 		info->n_fields = 1;
 		info->n_bytes = 0;
 
-		info->side = BTR_SEARCH_LEFT_SIDE;
+		info->left_side = TRUE;
 
 	} else if (cmp > 0) {
 		info->n_hash_potential = 1;
@@ -288,7 +282,7 @@ set_new_recomm:
 			info->n_bytes = cursor->low_bytes + 1;
 		}
 
-		info->side = BTR_SEARCH_LEFT_SIDE;
+		info->left_side = TRUE;
 	} else {
 		info->n_hash_potential = 1;
 
@@ -306,7 +300,7 @@ set_new_recomm:
 			info->n_bytes = cursor->up_bytes + 1;
 		}
 
-		info->side = BTR_SEARCH_RIGHT_SIDE;
+		info->left_side = FALSE;
 	}
 }
 
@@ -336,18 +330,18 @@ btr_search_update_block_hash_info(
 	info->last_hash_succ = FALSE;
 
 	ut_a(block->magic_n == BUF_BLOCK_MAGIC_N);
-	ut_a(info->magic_n == BTR_SEARCH_MAGIC_N);
+	ut_ad(info->magic_n == BTR_SEARCH_MAGIC_N);
 
 	if ((block->n_hash_helps > 0)
 	    && (info->n_hash_potential > 0)
 	    && (block->n_fields == info->n_fields)
 	    && (block->n_bytes == info->n_bytes)
-	    && (block->side == info->side)) {
+	    && (block->left_side == info->left_side)) {
 
 		if ((block->is_hashed)
 		    && (block->curr_n_fields == info->n_fields)
 		    && (block->curr_n_bytes == info->n_bytes)
-		    && (block->curr_side == info->side)) {
+		    && (block->curr_left_side == info->left_side)) {
 
 			/* The search would presumably have succeeded using
 			the hash index */
@@ -360,7 +354,7 @@ btr_search_update_block_hash_info(
 		block->n_hash_helps = 1;
 		block->n_fields = info->n_fields;
 		block->n_bytes = info->n_bytes;
-		block->side = info->side;
+		block->left_side = info->left_side;
 	}
 
 #ifdef UNIV_DEBUG
@@ -378,7 +372,7 @@ btr_search_update_block_hash_info(
 			> 2 * page_get_n_recs(block->frame))
 		    || (block->n_fields != block->curr_n_fields)
 		    || (block->n_bytes != block->curr_n_bytes)
-		    || (block->side != block->curr_side)) {
+		    || (block->left_side != block->curr_left_side)) {
 
 			/* Build a new hash index on the page */
 
@@ -422,7 +416,7 @@ btr_search_update_hash_ref(
 	    && (info->n_hash_potential > 0)
 	    && (block->curr_n_fields == info->n_fields)
 	    && (block->curr_n_bytes == info->n_bytes)
-	    && (block->curr_side == info->side)) {
+	    && (block->curr_left_side == info->left_side)) {
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
@@ -512,7 +506,7 @@ btr_search_info_update_slow(
 		params = mem_alloc(3 * sizeof(ulint));
 		params[0] = block->n_fields;
 		params[1] = block->n_bytes;
-		params[2] = block->side;
+		params[2] = block->left_side;
 
 		/* Make sure the compiler cannot deduce the values and do
 		optimizations */
@@ -1102,7 +1096,7 @@ btr_search_build_page_hash_index(
 	ulint		n_fields,/* in: hash this many full fields */
 	ulint		n_bytes,/* in: hash this many bytes from the next
 				field */
-	ulint		side)	/* in: hash for searches from this side */
+	ibool		left_side)/* in: hash for searches from left side? */
 {
 	hash_table_t*	table;
 	buf_block_t*	block;
@@ -1136,7 +1130,7 @@ btr_search_build_page_hash_index(
 
 	if (block->is_hashed && ((block->curr_n_fields != n_fields)
 				 || (block->curr_n_bytes != n_bytes)
-				 || (block->curr_side != side))) {
+				 || (block->curr_left_side != left_side))) {
 
 		rw_lock_s_unlock(&btr_search_latch);
 
@@ -1191,7 +1185,7 @@ btr_search_build_page_hash_index(
 
 	fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
 
-	if (side == BTR_SEARCH_LEFT_SIDE) {
+	if (left_side) {
 
 		folds[n_cached] = fold;
 		recs[n_cached] = rec;
@@ -1203,7 +1197,7 @@ btr_search_build_page_hash_index(
 
 		if (page_rec_is_supremum(next_rec)) {
 
-			if (side == BTR_SEARCH_RIGHT_SIDE) {
+			if (!left_side) {
 
 				folds[n_cached] = fold;
 				recs[n_cached] = rec;
@@ -1221,7 +1215,7 @@ btr_search_build_page_hash_index(
 		if (fold != next_fold) {
 			/* Insert an entry into the hash index */
 
-			if (side == BTR_SEARCH_LEFT_SIDE) {
+			if (left_side) {
 
 				folds[n_cached] = next_fold;
 				recs[n_cached] = next_rec;
@@ -1243,7 +1237,7 @@ btr_search_build_page_hash_index(
 
 	if (block->is_hashed && ((block->curr_n_fields != n_fields)
 				 || (block->curr_n_bytes != n_bytes)
-				 || (block->curr_side != side))) {
+				 || (block->curr_left_side != left_side))) {
 		goto exit_func;
 	}
 
@@ -1252,7 +1246,7 @@ btr_search_build_page_hash_index(
 
 	block->curr_n_fields = n_fields;
 	block->curr_n_bytes = n_bytes;
-	block->curr_side = side;
+	block->curr_left_side = left_side;
 	block->index = index;
 
 	for (i = 0; i < n_cached; i++) {
@@ -1291,7 +1285,7 @@ btr_search_move_or_delete_hash_entries(
 	buf_block_t*	new_block;
 	ulint		n_fields;
 	ulint		n_bytes;
-	ulint		side;
+	ibool		left_side;
 
 	block = buf_block_align(page);
 	new_block = buf_block_align(new_page);
@@ -1319,22 +1313,23 @@ btr_search_move_or_delete_hash_entries(
 
 		n_fields = block->curr_n_fields;
 		n_bytes = block->curr_n_bytes;
-		side = block->curr_side;
+		left_side = block->curr_left_side;
 
 		new_block->n_fields = block->curr_n_fields;
 		new_block->n_bytes = block->curr_n_bytes;
-		new_block->side = block->curr_side;
+		new_block->left_side = left_side;
 
 		rw_lock_s_unlock(&btr_search_latch);
 
 		ut_a(n_fields + n_bytes > 0);
 
 		btr_search_build_page_hash_index(index, new_page, n_fields,
-						 n_bytes, side);
+						 n_bytes, left_side);
+#if 1 /* TODO: safe to remove? */
 		ut_a(n_fields == block->curr_n_fields);
 		ut_a(n_bytes == block->curr_n_bytes);
-		ut_a(side == block->curr_side);
-
+		ut_a(left_side == block->curr_left_side);
+#endif
 		return;
 	}
 
@@ -1428,7 +1423,7 @@ btr_search_update_hash_node_on_insert(
 	if ((cursor->flag == BTR_CUR_HASH)
 	    && (cursor->n_fields == block->curr_n_fields)
 	    && (cursor->n_bytes == block->curr_n_bytes)
-	    && (block->curr_side == BTR_SEARCH_RIGHT_SIDE)) {
+	    && !block->curr_left_side) {
 
 		table = btr_search_sys->hash_index;
 
@@ -1465,7 +1460,7 @@ btr_search_update_hash_on_insert(
 	ulint		next_fold = 0; /* remove warning (??? bug ???) */
 	ulint		n_fields;
 	ulint		n_bytes;
-	ulint		side;
+	ibool		left_side;
 	ibool		locked		= FALSE;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -1495,7 +1490,7 @@ btr_search_update_hash_on_insert(
 
 	n_fields = block->curr_n_fields;
 	n_bytes = block->curr_n_bytes;
-	side = block->curr_side;
+	left_side = block->curr_left_side;
 
 	ins_rec = page_rec_get_next(rec);
 	next_rec = page_rec_get_next(ins_rec);
@@ -1516,7 +1511,7 @@ btr_search_update_hash_on_insert(
 					  n_fields + (n_bytes > 0), &heap);
 		fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
 	} else {
-		if (side == BTR_SEARCH_LEFT_SIDE) {
+		if (left_side) {
 
 			rw_lock_x_lock(&btr_search_latch);
 
@@ -1537,7 +1532,7 @@ btr_search_update_hash_on_insert(
 			locked = TRUE;
 		}
 
-		if (side == BTR_SEARCH_RIGHT_SIDE) {
+		if (!left_side) {
 			ha_insert_for_fold(table, fold, rec);
 		} else {
 			ha_insert_for_fold(table, ins_fold, ins_rec);
@@ -1547,7 +1542,7 @@ btr_search_update_hash_on_insert(
 check_next_rec:
 	if (page_rec_is_supremum(next_rec)) {
 
-		if (side == BTR_SEARCH_RIGHT_SIDE) {
+		if (!left_side) {
 
 			if (!locked) {
 				rw_lock_x_lock(&btr_search_latch);
@@ -1570,7 +1565,7 @@ check_next_rec:
 			locked = TRUE;
 		}
 
-		if (side == BTR_SEARCH_RIGHT_SIDE) {
+		if (!left_side) {
 
 			ha_insert_for_fold(table, ins_fold, ins_rec);
 			/*
@@ -1680,7 +1675,7 @@ btr_search_validate(void)
 					(void*) page, (ulong) block->is_hashed,
 					(ulong) block->curr_n_fields,
 					(ulong) block->curr_n_bytes,
-					(ulong) block->curr_side);
+					(ulong) block->curr_left_side);
 
 				if (n_page_dumps < 20) {
 					buf_page_print(page);
