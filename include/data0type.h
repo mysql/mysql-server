@@ -124,11 +124,7 @@ be less than 256 */
 #define	DATA_ROLL_PTR	2	/* rollback data pointer: 7 bytes */
 #define DATA_ROLL_PTR_LEN 7
 
-#define DATA_MIX_ID	3	/* mixed index label: a dulint, stored in
-				a row in a compressed form */
-#define DATA_MIX_ID_LEN	9	/* maximum stored length for mix id (in a
-				compressed dulint form) */
-#define	DATA_N_SYS_COLS 4	/* number of system columns defined above */
+#define	DATA_N_SYS_COLS 3	/* number of system columns defined above */
 
 /* Flags ORed to the precise data type */
 #define DATA_NOT_NULL	256	/* this is ORed to the precise type when

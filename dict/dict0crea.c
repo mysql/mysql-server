@@ -78,14 +78,14 @@ dict_create_sys_tables_tuple(
 	mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
 
 	dfield_set_data(dfield, ptr, 4);
-	/* 6: MIX_ID ---------------------------*/
+	/* 6: MIX_ID (obsolete) ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4);
 
 	ptr = mem_heap_alloc(heap, 8);
 	memset(ptr, 0, 8);
 
 	dfield_set_data(dfield, ptr, 8);
-	/* 7: MIX_LEN --------------------------*/
+	/* 7: MIX_LEN (obsolete) --------------------------*/
 
 	dfield = dtuple_get_nth_field(entry, 5);
 

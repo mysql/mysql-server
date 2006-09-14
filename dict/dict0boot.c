@@ -58,8 +58,7 @@ dict_hdr_get_new_id(
 	dulint		id;
 	mtr_t		mtr;
 
-	ut_ad((type == DICT_HDR_TABLE_ID) || (type == DICT_HDR_INDEX_ID)
-	      || (type == DICT_HDR_MIX_ID));
+	ut_ad((type == DICT_HDR_TABLE_ID) || (type == DICT_HDR_INDEX_ID));
 
 	mtr_start(&mtr);
 
@@ -141,6 +140,7 @@ dict_hdr_create(
 	mlog_write_dulint(dict_header + DICT_HDR_INDEX_ID,
 			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 
+	/* Obsolete, but we must initialize it to 0 anyway. */
 	mlog_write_dulint(dict_header + DICT_HDR_MIX_ID,
 			  ut_dulint_create(0, DICT_HDR_FIRST_ID), mtr);
 

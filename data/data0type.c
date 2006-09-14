@@ -270,8 +270,6 @@ dtype_print(
 		} else if (prtype == DATA_TRX_ID) {
 			fputs("DATA_TRX_ID", stderr);
 			len = DATA_TRX_ID_LEN;
-		} else if (prtype == DATA_MIX_ID) {
-			fputs("DATA_MIX_ID", stderr);
 		} else if (prtype == DATA_ENGLISH) {
 			fputs("DATA_ENGLISH", stderr);
 		} else {

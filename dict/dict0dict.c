@@ -900,17 +900,11 @@ dict_table_add_to_cache(
 #if DATA_ROLL_PTR != 2
 #error "DATA_ROLL_PTR != 2"
 #endif
-	dict_mem_table_add_col(table, "DB_MIX_ID", DATA_SYS,
-			       DATA_MIX_ID | DATA_NOT_NULL,
-			       DATA_MIX_ID_LEN);
-#if DATA_MIX_ID != 3
-#error "DATA_MIX_ID != 3"
-#endif
 
 	/* This check reminds that if a new system column is added to
 	the program, it should be dealt with here */
-#if DATA_N_SYS_COLS != 4
-#error "DATA_N_SYS_COLS != 4"
+#if DATA_N_SYS_COLS != 3
+#error "DATA_N_SYS_COLS != 3"
 #endif
 
 	row_len = 0;
@@ -1427,12 +1421,12 @@ dict_col_name_is_reserved(
 {
 	/* This check reminds that if a new system column is added to
 	the program, it should be dealt with here. */
-#if DATA_N_SYS_COLS != 4
-#error "DATA_N_SYS_COLS != 4"
+#if DATA_N_SYS_COLS != 3
+#error "DATA_N_SYS_COLS != 3"
 #endif
 
 	static const char*	reserved_names[] = {
-		"DB_ROW_ID", "DB_TRX_ID", "DB_ROLL_PTR", "DB_MIX_ID"
+		"DB_ROW_ID", "DB_TRX_ID", "DB_ROLL_PTR"
 	};
 
 	ulint			i;
@@ -3722,9 +3716,7 @@ dict_tree_t*
 dict_tree_create(
 /*=============*/
 				/* out, own: created tree */
-	dict_index_t*	index,	/* in: the index for which to create: in the
-				case of a mixed tree, this should be the
-				index of the cluster object */
+	dict_index_t*	index,	/* in: the index for which to create */
 	ulint		page_no)/* in: root page number of the index */
 {
 	dict_tree_t*	tree;
