@@ -4800,14 +4800,16 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING_sys
 	LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
+	  WARN_DEPRECATED("LOAD TABLE FROM MASTER", "mysqldump or future BACKUP/RESTORE DATABASE facility");
 	  if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
-
+	  
         }
         |
 	LOAD DATA_SYM FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
+	  WARN_DEPRECATED("LOAD DATA FROM MASTER", "mysqldump or future BACKUP/RESTORE DATABASE facility");
         };
 
 opt_local:
