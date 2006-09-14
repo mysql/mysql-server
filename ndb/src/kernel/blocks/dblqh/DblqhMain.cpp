@@ -9109,7 +9109,12 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   ndbrequire(cfirstfreeTcConrec != RNIL);
   ndbrequire(fragptr.p->m_scanNumberMask.get(NR_ScanNo));
 
-  fragptr.p->fragDistributionKey = copyFragReq->distributionKey;
+  Uint32 key = fragptr.p->fragDistributionKey = copyFragReq->distributionKey;
+  
+  Uint32 nodeCount = copyFragReq->nodeCount;
+  Uint32 nodeList[MAX_REPLICAS];
+  ndbrequire(nodeCount <= MAX_REPLICAS);
+  memcpy(nodeList, copyFragReq->nodeList, 4*nodeCount);
 
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
     jam();
@@ -9184,8 +9189,55 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   req->savePointId = tcConnectptr.p->savePointId;
   sendSignal(tcConnectptr.p->tcAccBlockref, GSN_ACC_SCANREQ, signal, 
 	     AccScanReq::SignalLength, JBB);
+
+  Uint32 i;
+  NdbNodeBitmask mask;
+  for (i = 0; i<nodeCount; i++)
+  {
+    ndbout_c("nodeList: %d", nodeList[i]);
+    mask.set(nodeList[i]);
+  }
+  ndbrequire(mask.get(getOwnNodeId()));
+  ndbrequire(mask.get(nodeId)); // cpy dest
+  if (!mask.isclear())
+  {
+    UpdateFragDistKeyOrd* ord =(UpdateFragDistKeyOrd*)signal->getDataPtrSend();
+    ord->tableId = tabptr.i;
+    ord->fragId = fragId;
+    ord->fragDistributionKey = key;
+    i = 0;
+    while ((i = mask.find(i+1)) != NdbNodeBitmask::NotFound)
+    {
+#ifdef NDB_VERSION >= MAKE_VERSION(5,1,0)
+      Uint32 checkversion =  NDBD_UPDATE_FRAG_DIST_KEY_51;
+#elif NDB_VERSION >= MAKE_VERSION(5,0,0)
+      Uint32 checkversion =  NDBD_UPDATE_FRAG_DIST_KEY_50;
+#endif
+      checkversion = NDB_VERSION;
+      if (getNodeInfo(i).m_version >=  checkversion)
+	sendSignal(calcLqhBlockRef(i), GSN_UPDATE_FRAG_DIST_KEY_ORD,
+		   signal, UpdateFragDistKeyOrd::SignalLength, JBB);
+    }
+  }
   return;
 }//Dblqh::execCOPY_FRAGREQ()
+
+void
+Dblqh::execUPDATE_FRAG_DIST_KEY_ORD(Signal * signal)
+{
+  jamEntry();
+  UpdateFragDistKeyOrd* ord =(UpdateFragDistKeyOrd*)signal->getDataPtr();
+
+  tabptr.i = ord->tableId;
+  ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+  ndbrequire(getFragmentrec(signal, ord->fragId));
+  fragptr.p->fragDistributionKey = ord->fragDistributionKey;
+
+  ndbout_c("UpdateFragDistKeyOrd tab: %d frag: %d key: %d",
+	   tabptr.i,
+	   ord->fragId,
+	   ord->fragDistributionKey);
+}
 
 void Dblqh::accScanConfCopyLab(Signal* signal) 
 {
@@ -18437,6 +18489,18 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       if(tabPtr.p->tableStatus != Tablerec::NOT_DEFINED){
 	infoEvent("Table %d Status: %d Usage: %d",
 		  i, tabPtr.p->tableStatus, tabPtr.p->usageCount);
+
+	for (Uint32 j = 0; j<MAX_FRAG_PER_NODE; j++)
+	{
+	  FragrecordPtr fragPtr;
+	  if ((fragPtr.i = tabPtr.p->fragrec[j]) != RNIL)
+	  {
+	    ptrCheckGuard(fragPtr, cfragrecFileSize, fragrecord);
+	    infoEvent("  frag: %d distKey: %u", 
+		      tabPtr.p->fragid[j],
+		      fragPtr.p->fragDistributionKey);
+	  }
+	}
       }
     }
     return;
