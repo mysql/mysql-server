@@ -3022,8 +3022,9 @@ ha_innobase::store_key_val_for_row(
 /******************************************************************
 Builds a 'template' to the prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
+static
 void
-ha_innobase::build_template(
+build_template(
 /*===========*/
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	THD*		thd,		/* in: current user thread, used
