@@ -1195,6 +1195,31 @@ SOURCE=.\sql_load.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\sql_locale.cpp
+
+!IF  "$(CFG)" == "mysqldmax - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "mysqldmax - Win32 Debug"
+
+# ADD CPP /G5 /Od
+# SUBTRACT CPP /YX /Yc /Yu
+
+!ELSEIF  "$(CFG)" == "mysqldmax - Win32 nt"
+
+!ELSEIF  "$(CFG)" == "mysqldmax - WinIA64 Release"
+
+!ELSEIF  "$(CFG)" == "mysqldmax - WinIA64 Debug"
+
+# ADD CPP /G5 /Od /G2 /EHsc /D"_IA64_" /Zi /D"WIN64" /D"WIN32" /D"_AFX_NO_DAO_SUPPORT" /Wp64 /Zm600
+# SUBTRACT CPP /YX /Yc /Yu
+
+!ELSEIF  "$(CFG)" == "mysqldmax - WinIA64 nt"
+
+!ENDIF
+
+# End Source File
+# Begin Source File
+
 SOURCE=.\sql_manager.cpp
 # End Source File
 # Begin Source File

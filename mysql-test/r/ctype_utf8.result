@@ -924,6 +924,37 @@ NULL
 select ifnull(NULL, _utf8'string');
 ifnull(NULL, _utf8'string')
 string
+set names utf8;
+create table t1 (s1 char(5) character set utf8 collate utf8_lithuanian_ci);
+insert into t1 values ('I'),('K'),('Y');
+select * from t1 where s1 < 'K' and s1 = 'Y';
+s1
+I
+Y
+select * from t1 where 'K' > s1 and s1 = 'Y';
+s1
+I
+Y
+drop table t1;
+create table t1 (s1 char(5) character set utf8 collate utf8_czech_ci);
+insert into t1 values ('c'),('d'),('h'),('ch'),('CH'),('cH'),('Ch'),('i');
+select * from t1 where s1 > 'd' and s1 = 'CH';
+s1
+ch
+CH
+Ch
+select * from t1 where 'd' < s1 and s1 = 'CH';
+s1
+ch
+CH
+Ch
+select * from t1 where s1 = 'cH' and s1 <> 'ch';
+s1
+cH
+select * from t1 where 'cH' = s1 and s1 <> 'ch';
+s1
+cH
+drop table t1;
 create table t1 (a varchar(255)) default character set utf8;
 insert into t1 values (1.0);
 drop table t1;
@@ -1368,3 +1399,31 @@ id	tid	val
 42749	72	VOLN� ADSL
 44205	72	VOLN� ADSL
 DROP TABLE t1;
+create table t1(a char(200) collate utf8_unicode_ci NOT NULL default '')
+default charset=utf8 collate=utf8_unicode_ci;
+insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
+explain select distinct a from t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+select distinct a from t1;
+a
+e
+explain select a from t1 group by a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary; Using filesort
+select a from t1 group by a;
+a
+e
+drop table t1;
+set names utf8;
+grant select on test.* to юзер_юзер@localhost;
+user()
+юзер_юзер@localhost
+revoke all on test.* from юзер_юзер@localhost;
+drop user юзер_юзер@localhost;
+create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+use имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+select database();
+database()
+имя_базы_в_кодировке_утф8_длиной_больше_чем_45
+drop database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;

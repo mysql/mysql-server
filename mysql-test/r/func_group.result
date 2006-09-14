@@ -824,6 +824,7 @@ select 1, min(a) from t1m where 1=99;
 1	NULL
 select 1, min(1) from t1m where a=99;
 1	min(1)
+1	NULL
 select 1, min(1) from t1m where 1=99;
 1	min(1)
 1	NULL
@@ -835,6 +836,7 @@ select 1, max(a) from t1m where 1=99;
 1	NULL
 select 1, max(1) from t1m where a=99;
 1	max(1)
+1	NULL
 select 1, max(1) from t1m where 1=99;
 1	max(1)
 1	NULL

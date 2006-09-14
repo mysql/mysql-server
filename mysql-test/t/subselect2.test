@@ -150,3 +150,21 @@ EXPLAIN SELECT t2.*, t4.DOCTYPENAME, t1.CONTENTSIZE,t1.MIMETYPE FROM t2 INNER JO
 
 drop table t1, t2, t3, t4;
 # End of 4.1 tests
+
+#
+# Bug #20792: Incorrect results from aggregate subquery
+#
+CREATE TABLE t1 (a int(10) , PRIMARY KEY (a)) Engine=InnoDB;
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2 (a int(10), PRIMARY KEY (a)) Engine=InnoDB;
+INSERT INTO t2 VALUES (1);
+
+CREATE TABLE t3 (a int(10), b int(10), c int(10),
+                PRIMARY KEY (a)) Engine=InnoDB;
+INSERT INTO t3 VALUES (1,2,1);
+
+SELECT t1.* FROM t1 WHERE (SELECT COUNT(*) FROM t3,t2 WHERE t3.c=t2.a 
+                           and t2.a='1' AND t1.a=t3.b) > 0;
+
+DROP TABLE t1,t2,t3;
