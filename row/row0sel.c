@@ -45,9 +45,6 @@ to que_run_threads: this is to allow canceling runaway queries */
 
 #define SEL_COST_LIMIT	100
 
-/* The lower limit for what we consider a "big" row */
-#define BIG_ROW_SIZE	1024
-
 /* Flags for search shortcut */
 #define SEL_FOUND	0
 #define	SEL_EXHAUSTED	1
@@ -1247,7 +1244,7 @@ table_loop:
 
 	if (consistent_read && plan->unique_search && !plan->pcur_is_open
 	    && !plan->must_get_clust
-	    && (plan->table->max_row_size < BIG_ROW_SIZE)) {
+	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
 			rw_lock_s_lock(&btr_search_latch);
 
@@ -1652,7 +1649,7 @@ skip_lock:
 
 	if ((plan->n_rows_fetched <= SEL_PREFETCH_LIMIT)
 	    || plan->unique_search || plan->no_prefetch
-	    || (plan->table->max_row_size >= BIG_ROW_SIZE)) {
+	    || plan->table->big_rows) {
 
 		/* No prefetch in operation: go to the next table */
 
