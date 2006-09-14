@@ -6470,6 +6470,7 @@ void Dblqh::execACC_ABORTCONF(Signal* signal)
      * A NORMAL EVENT DURING CREATION OF A FRAGMENT. WE NOW NEED TO CONTINUE
      * WITH NORMAL COMMIT PROCESSING.
      * ---------------------------------------------------------------------- */
+    regTcPtr->totSendlenAi = regTcPtr->totReclenAi;
     if (regTcPtr->currTupAiLen == regTcPtr->totReclenAi) {
       jam();
       regTcPtr->abortState = TcConnectionrec::ABORT_IDLE;
@@ -12579,19 +12580,17 @@ void Dblqh::lastWriteInFileLab(Signal* signal)
 
 void Dblqh::writePageZeroLab(Signal* signal) 
 {
-  if (false && logPartPtr.p->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM) 
+  if (logPartPtr.p->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM) 
   {
     if (logPartPtr.p->firstLogQueue == RNIL) 
     {
       jam();
       logPartPtr.p->logPartState = LogPartRecord::IDLE;
-      ndbout_c("resetting logPartState to IDLE");
     } 
     else 
     {
       jam();
       logPartPtr.p->logPartState = LogPartRecord::ACTIVE;
-      ndbout_c("resetting logPartState to ACTIVE");
     }
   }
   
@@ -14623,6 +14622,8 @@ void Dblqh::execSr(Signal* signal)
   LogFileRecordPtr nextLogFilePtr;
   LogPageRecordPtr tmpLogPagePtr;
   Uint32 logWord;
+  Uint32 line;
+  const char * crash_msg = 0;
 
   jamEntry();
   logPartPtr.i = signal->theData[0];
@@ -14833,8 +14834,14 @@ void Dblqh::execSr(Signal* signal)
 /* PLACE THAN IN THE FIRST PAGE OF A NEW FILE IN THE FIRST POSITION AFTER THE*/
 /* HEADER.                                                                   */
 /*---------------------------------------------------------------------------*/
-      ndbrequire(logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] == 
-	  (ZPAGE_HEADER_SIZE + ZPOS_NO_FD));
+      if (unlikely(logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX] != 
+		   (ZPAGE_HEADER_SIZE + ZPOS_NO_FD)))
+      {
+	line = __LINE__;
+	logWord = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
+	crash_msg = "ZFD_TYPE at incorrect position!";
+	goto crash;
+      }
       {
         Uint32 noFdDescriptors = 
 	  logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_NO_FD];
@@ -14871,19 +14878,10 @@ void Dblqh::execSr(Signal* signal)
 /*---------------------------------------------------------------------------*/
 /* SEND A SIGNAL TO THE SIGNAL LOG AND THEN CRASH THE SYSTEM.                */
 /*---------------------------------------------------------------------------*/
-          signal->theData[0] = RNIL;
-          signal->theData[1] = logPartPtr.i;
-	  Uint32 tmp = logFilePtr.p->fileName[3];
-	  tmp = (tmp >> 8) & 0xff;// To get the Directory, DXX.
-	  signal->theData[2] = tmp;
-          signal->theData[3] = logFilePtr.p->fileNo;
-          signal->theData[4] = logFilePtr.p->currentFilepage;
-          signal->theData[5] = logFilePtr.p->currentMbyte;
-          signal->theData[6] = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
-	  signal->theData[7] = ~0;
-	  signal->theData[8] = __LINE__;
-          sendSignal(cownref, GSN_DEBUG_SIG, signal, 9, JBA);
-          return;
+	  line = __LINE__;
+	  logWord = ZNEXT_MBYTE_TYPE;
+	  crash_msg = "end of log wo/ having found last GCI";
+	  goto crash;
         }//if
       }//if
 /*---------------------------------------------------------------------------*/
@@ -14938,19 +14936,9 @@ void Dblqh::execSr(Signal* signal)
 /*---------------------------------------------------------------------------*/
 /* SEND A SIGNAL TO THE SIGNAL LOG AND THEN CRASH THE SYSTEM.                */
 /*---------------------------------------------------------------------------*/
-      signal->theData[0] = RNIL;
-      signal->theData[1] = logPartPtr.i;
-      Uint32 tmp = logFilePtr.p->fileName[3];
-      tmp = (tmp >> 8) & 0xff;// To get the Directory, DXX.
-      signal->theData[2] = tmp;
-      signal->theData[3] = logFilePtr.p->fileNo;
-      signal->theData[4] = logFilePtr.p->currentMbyte;
-      signal->theData[5] = logFilePtr.p->currentFilepage;
-      signal->theData[6] = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
-      signal->theData[7] = logWord;
-      signal->theData[8] = __LINE__;
-      sendSignal(cownref, GSN_DEBUG_SIG, signal, 9, JBA);
-      return;
+      line = __LINE__;
+      crash_msg = "Invalid logword";
+      goto crash;
       break;
     }//switch
 /*---------------------------------------------------------------------------*/
@@ -14958,6 +14946,35 @@ void Dblqh::execSr(Signal* signal)
 // that we reach a new page.
 /*---------------------------------------------------------------------------*/
   } while (1);
+  return;
+  
+crash:
+  signal->theData[0] = RNIL;
+  signal->theData[1] = logPartPtr.i;
+  Uint32 tmp = logFilePtr.p->fileName[3];
+  tmp = (tmp >> 8) & 0xff;// To get the Directory, DXX.
+  signal->theData[2] = tmp;
+  signal->theData[3] = logFilePtr.p->fileNo;
+  signal->theData[4] = logFilePtr.p->currentMbyte;
+  signal->theData[5] = logFilePtr.p->currentFilepage;
+  signal->theData[6] = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
+  signal->theData[7] = logWord;
+  signal->theData[8] = line;
+  
+  char buf[255];
+  BaseString::snprintf(buf, sizeof(buf), 
+		       "Error while reading REDO log. from %d\n"
+		       "D=%d, F=%d Mb=%d FP=%d W1=%d W2=%d : %s",
+		       signal->theData[8],
+		       signal->theData[2], 
+		       signal->theData[3], 
+		       signal->theData[4],
+		       signal->theData[5], 
+		       signal->theData[6], 
+		       signal->theData[7],
+		       crash_msg ? crash_msg : "");
+  
+  progError(__LINE__, NDBD_EXIT_SR_REDOLOG, buf);  
 }//Dblqh::execSr()
 
 /*---------------------------------------------------------------------------*/
@@ -14973,8 +14990,8 @@ void Dblqh::execDEBUG_SIG(Signal* signal)
   UintR tdebug;
 
   jamEntry();
-  logPagePtr.i = signal->theData[0];
-  tdebug = logPagePtr.p->logPageWord[0];
+  //logPagePtr.i = signal->theData[0];
+  //tdebug = logPagePtr.p->logPageWord[0];
 
   char buf[100];
   BaseString::snprintf(buf, 100, 
