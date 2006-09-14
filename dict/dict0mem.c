@@ -136,8 +136,6 @@ dict_mem_table_add_col(
 	col->name = mem_heap_strdup(table->heap, name);
 	col->ord_part = 0;
 
-	col->clust_pos = REC_MAX_N_FIELDS;
-
 	type = dict_col_get_type(col);
 
 	dtype_set(type, mtype, prtype, len);

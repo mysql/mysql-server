@@ -102,9 +102,10 @@ row_sel_sec_rec_is_for_clust_rec(
 		ifield = dict_index_get_nth_field(sec_index, i);
 		col = dict_field_get_col(ifield);
 
-		clust_field = rec_get_nth_field(clust_rec, clust_offs,
-						dict_col_get_clust_pos(col),
-						&clust_len);
+		clust_field = rec_get_nth_field
+			(clust_rec, clust_offs,
+			 dict_col_get_clust_pos(col, clust_index),
+			 &clust_len);
 		sec_field = rec_get_nth_field(sec_rec, sec_offs, i, &sec_len);
 
 		if (ifield->prefix_len > 0
