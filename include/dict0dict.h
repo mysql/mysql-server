@@ -943,7 +943,6 @@ struct dict_sys_struct{
 					on name */
 	hash_table_t*	table_id_hash;	/* hash table of the tables, based
 					on id */
-	hash_table_t*	col_hash;	/* hash table of the columns */
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_LRU;	/* LRU list of tables */
 	ulint		size;		/* varying space in bytes occupied

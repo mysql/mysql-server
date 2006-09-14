@@ -121,7 +121,6 @@ dict_mem_foreign_create(void);
 
 /* Data structure for a column in a table */
 struct dict_col_struct{
-	hash_node_t	hash;	/* hash chain node */
 	ulint		ind:10;	/* table column position (they are numbered
 				starting from 0) */
 	ulint		clust_pos:10;/* position of the column in the
@@ -130,7 +129,6 @@ struct dict_col_struct{
 				appears in ordering fields of an index */
 	const char*	name;	/* name */
 	dtype_t		type;	/* data type */
-	dict_table_t*	table;	/* back pointer to table of this column */
 };
 
 /* DICT_MAX_INDEX_COL_LEN is measured in bytes and is the max index column
