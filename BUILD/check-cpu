@@ -3,213 +3,216 @@
 # Check cpu of current machine and find the
 # best compiler optimization flags for gcc
 #
-#
 
-if test -r /proc/cpuinfo ; then
-  # on Linux (and others?) we can get detailed CPU information out of /proc
-  cpuinfo="cat /proc/cpuinfo"
+check_cpu () {
+  if test -r /proc/cpuinfo ; then
+    # on Linux (and others?) we can get detailed CPU information out of /proc
+    cpuinfo="cat /proc/cpuinfo"
 
-  # detect CPU family
-  cpu_family=`$cpuinfo | grep 'family' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
-  if test -z "$cpu_family" ; then
-    cpu_family=`$cpuinfo | grep 'cpu' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
+    # detect CPU family
+    cpu_family=`$cpuinfo | grep 'family' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
+    if test -z "$cpu_family" ; then
+      cpu_family=`$cpuinfo | grep 'cpu' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
+    fi
+
+    # detect CPU vendor and model
+    cpu_vendor=`$cpuinfo | grep 'vendor_id' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
+    model_name=`$cpuinfo | grep 'model name' | cut -d ':' -f 2 | head -1`
+    if test -z "$model_name" ; then
+      model_name=`$cpuinfo | grep 'cpu model' | cut -d ':' -f 2 | head -1`
+    fi
+
+    # fallback: get CPU model from uname output
+    if test -z "$model_name" ; then
+      model_name=`uname -m`
+    fi
+
+    # parse CPU flags
+    for flag in `$cpuinfo | grep '^flags' | sed -e 's/^flags.*: //'`; do 
+          eval cpu_flag_$flag=yes
+    done
+  else
+    # Fallback when there is no /proc/cpuinfo
+    case "`uname -s`" in
+      FreeBSD|OpenBSD)
+        cpu_family=`uname -m`;
+        model_name=`sysctl -n hw.model`
+        ;;
+      Darwin)
+        cpu_family=`uname -p`
+        model_name=`machine`
+        ;;
+      *)
+        cpu_family=`uname -m`;
+        model_name=`uname -p`;
+        ;;
+    esac
   fi
 
-  # detect CPU vendor and model
-  cpu_vendor=`$cpuinfo | grep 'vendor_id' | cut -d ':' -f 2 | cut -d ' ' -f 2 | head -1`
-  model_name=`$cpuinfo | grep 'model name' | cut -d ':' -f 2 | head -1`
-  if test -z "$model_name" ; then
-    model_name=`$cpuinfo | grep 'cpu model' | cut -d ':' -f 2 | head -1`
-  fi
-
-  # fallback: get CPU model from uname output
-  if test -z "$model_name" ; then
-    model_name=`uname -m`
-  fi
-
-  # parse CPU flags
-  for flag in `$cpuinfo | grep '^flags' | sed -e 's/^flags.*: //'`; do 
-	eval cpu_flag_$flag=yes
-  done
-else
-  # Fallback when there is no /proc/cpuinfo
-  case "`uname -s`" in
-    FreeBSD|OpenBSD)
-      cpu_family=`uname -m`;
-      model_name=`sysctl -n hw.model`
+  # detect CPU shortname as used by gcc options 
+  # this list is not complete, feel free to add further entries
+  cpu_arg=""
+  case "$cpu_family--$model_name" in
+    # DEC Alpha
+    Alpha*EV6*)
+      cpu_arg="ev6";
       ;;
-    Darwin)
-      cpu_family=`uname -p`
-      model_name=`machine`
+
+    # Intel ia32
+    *X[eE][oO][nN]*)
+      # a Xeon is just another pentium4 ...
+      # ... unless it has the "lm" (long-mode) flag set, 
+      # in that case it's a Xeon with EM64T support 
+          if [ -z "$cpu_flag_lm" ]; then
+        cpu_arg="pentium4";
+          else
+        cpu_arg="nocona";
+      fi
       ;;
+    *Pentium*4*Mobile*)
+      cpu_arg="pentium4m";
+    ;;
+    *Pentium*4*)
+      cpu_arg="pentium4";
+      ;;
+    *Pentium*III*Mobile*)
+      cpu_arg="pentium3m";
+    ;;
+    *Pentium*III*)
+      cpu_arg="pentium3";
+    ;;
+    *Pentium*M*pro*)
+      cpu_arg="pentium-m";
+    ;;
+    *Athlon*64*)
+      cpu_arg="athlon64";
+      ;;
+    *Athlon*)
+      cpu_arg="athlon";
+      ;;
+    *Opteron*)
+      cpu_arg="opteron";
+      ;;
+    # MacOSX / Intel  
+    *i386*i486*)
+      cpu_arg="pentium-m";
+      ;;
+
+    # Intel ia64
+    *Itanium*)
+      # Don't need to set any flags for itanium(at the moment)
+      cpu_arg="";
+      ;;
+
+    #
+    *ppc*)
+      cpu_arg='powerpc'
+      ;;
+   
+    *powerpc*)
+      cpu_arg='powerpc'
+      ;;
+
+    # unknown
     *)
-      cpu_family=`uname -m`;
-      model_name=`uname -p`;
+      cpu_arg="";
       ;;
   esac
-fi
-
-# detect CPU shortname as used by gcc options 
-# this list is not complete, feel free to add further entries
-cpu_arg=""
-case "$cpu_family--$model_name" in
-  # DEC Alpha
-  Alpha*EV6*)
-    cpu_arg="ev6";
-    ;;
-
-  # Intel ia32
-  *X[eE][oO][nN]*)
-    # a Xeon is just another pentium4 ...
-    # ... unless it has the "lm" (long-mode) flag set, 
-    # in that case it's a Xeon with EM64T support 
-	if [ -z "$cpu_flag_lm" ]; then
-      cpu_arg="pentium4";
-	else
-      cpu_arg="nocona";
-    fi
-    ;;
-  *Pentium*4*Mobile*)
-    cpu_arg="pentium4m";
-  ;;
-  *Pentium*4*)
-    cpu_arg="pentium4";
-    ;;
-  *Pentium*III*Mobile*)
-    cpu_arg="pentium3m";
-  ;;
-  *Pentium*III*)
-    cpu_arg="pentium3";
-  ;;
-  *Pentium*M*pro*)
-    cpu_arg="pentium-m";
-  ;;
-  *Athlon*64*)
-    cpu_arg="athlon64";
-    ;;
-  *Athlon*)
-    cpu_arg="athlon";
-    ;;
-  *Opteron*)
-    cpu_arg="opteron";
-    ;;
-  # MacOSX / Intel  
-  *i386*i486*)
-    cpu_arg="pentium-m";
-    ;;
-
-  # Intel ia64
-  *Itanium*)
-    # Don't need to set any flags for itanium(at the moment)
-    cpu_arg="";
-    ;;
-
-  #
-  *ppc*)
-    cpu_arg='powerpc'
-    ;;
- 
-  *powerpc*)
-    cpu_arg='powerpc'
-    ;;
-
-  # unknown
-  *)
-    cpu_arg="";
-    ;;
-esac
 
 
-if test -z "$cpu_arg"; then
-  echo "BUILD/check-cpu: Oops, could not find out what kind of cpu this machine is using."
-  check_cpu_cflags=""
-  return
-fi
-
-# different compiler versions have different option names
-# for CPU specific command line options
-if test -z "$CC" ; then
-  cc="gcc";
-else
-  cc=$CC
-fi
-
-cc_ver=`$cc --version | sed 1q`
-cc_verno=`echo $cc_ver | sed -e 's/^.*gcc/gcc/g; s/[^0-9. ]//g;	 s/^ *//g; s/ .*//g'`
-
-case "$cc_ver--$cc_verno" in
-  *GCC*)
-      # different gcc backends (and versions) have different CPU flags
-      case `gcc -dumpmachine` in
-        i?86-*)
-   	      case "$cc_verno" in
-		    3.4*|3.5*|4.*)
-			  check_cpu_args='-mtune=$cpu_arg -march=$cpu_arg'
-			  ;;
-		    *)
-			  check_cpu_args='-mcpu=$cpu_arg -march=$cpu_arg'
-			  ;;
-          esac
-          ;;
-        ppc-*)
-		  check_cpu_args='-mcpu=$cpu_arg -mtune=$cpu_arg'
-          ;;
-        x86_64-*)
-		  check_cpu_args='-mtune=$cpu_arg'
-          ;;
-        *)
-          check_cpu_cflags=""
-          return
-          ;;
-      esac
-    ;;
-  2.95.*)
-    # GCC 2.95 doesn't expose its name in --version output
-    check_cpu_args='-m$cpu_arg'
-    ;;
-  *)
+  if test -z "$cpu_arg"; then
+    echo "BUILD/check-cpu: Oops, could not find out what kind of cpu this machine is using." >&2
     check_cpu_cflags=""
     return
-    ;;
-esac
-
-# now we check whether the compiler really understands the cpu type
-touch __test.c
-
-while [ "$cpu_arg" ] ; do
-  echo -n testing $cpu_arg "... "
-	
-  # compile check
-  check_cpu_cflags=`eval echo $check_cpu_args`
-  if $cc -c $check_cpu_cflags __test.c 2>/dev/null; then
-	  echo ok
-      break;
   fi
 
-  echo failed
-  check_cpu_cflags=""
+  # different compiler versions have different option names
+  # for CPU specific command line options
+  if test -z "$CC" ; then
+    cc="gcc";
+  else
+    cc=$CC
+  fi
 
-  # if compile failed: check whether it supports a predecessor of this CPU
-  # this list is not complete, feel free to add further entries
-  case "$cpu_arg" in
-    # Intel ia32
-    nocona)     cpu_arg=pentium4    ;; 
-    prescott)   cpu_arg=pentium4    ;;
-    pentium4m)  cpu_arg=pentium4    ;;
-    pentium4)   cpu_arg=pentium3    ;;
-    pentium3m)  cpu_arg=pentium3    ;;
-    pentium3)   cpu_arg=pentium2    ;;
-    pentium2)   cpu_arg=pentiumpro  ;;
-    pentiumpro) cpu_arg=pentium     ;;
-    pentium)    cpu_arg=i486        ;;
-    i486)       cpu_arg=i386        ;;
+  cc_ver=`$cc --version | sed 1q`
+  cc_verno=`echo $cc_ver | sed -e 's/^.*gcc/gcc/g; s/[^0-9. ]//g;	 s/^ *//g; s/ .*//g'`
 
-	# power / powerPC
-	7450)       cpu_arg=7400        ;;
-
-    *)          cpu_arg=""          ;;
+  case "$cc_ver--$cc_verno" in
+    *GCC*)
+        # different gcc backends (and versions) have different CPU flags
+        case `gcc -dumpmachine` in
+          i?86-*)
+                case "$cc_verno" in
+                      3.4*|3.5*|4.*)
+                            check_cpu_args='-mtune=$cpu_arg -march=$cpu_arg'
+                            ;;
+                      *)
+                            check_cpu_args='-mcpu=$cpu_arg -march=$cpu_arg'
+                            ;;
+            esac
+            ;;
+          ppc-*)
+                    check_cpu_args='-mcpu=$cpu_arg -mtune=$cpu_arg'
+            ;;
+          x86_64-*)
+                    check_cpu_args='-mtune=$cpu_arg'
+            ;;
+          *)
+            check_cpu_cflags=""
+            return
+            ;;
+        esac
+      ;;
+    2.95.*)
+      # GCC 2.95 doesn't expose its name in --version output
+      check_cpu_args='-m$cpu_arg'
+      ;;
+    *)
+      check_cpu_cflags=""
+      return
+      ;;
   esac
-done
 
-rm __test.*
+  # now we check whether the compiler really understands the cpu type
+  touch __test.c
 
+  while [ "$cpu_arg" ] ; do
+    # FIXME: echo -n isn't portable - see contortions autoconf goes through
+    echo -n testing $cpu_arg "... " >&2
+          
+    # compile check
+    check_cpu_cflags=`eval echo $check_cpu_args`
+    if $cc -c $check_cpu_cflags __test.c 2>/dev/null; then
+            echo ok >&2
+        break;
+    fi
+
+    echo failed >&2
+    check_cpu_cflags=""
+
+    # if compile failed: check whether it supports a predecessor of this CPU
+    # this list is not complete, feel free to add further entries
+    case "$cpu_arg" in
+      # Intel ia32
+      nocona)     cpu_arg=pentium4    ;; 
+      prescott)   cpu_arg=pentium4    ;;
+      pentium4m)  cpu_arg=pentium4    ;;
+      pentium4)   cpu_arg=pentium3    ;;
+      pentium3m)  cpu_arg=pentium3    ;;
+      pentium3)   cpu_arg=pentium2    ;;
+      pentium2)   cpu_arg=pentiumpro  ;;
+      pentiumpro) cpu_arg=pentium     ;;
+      pentium)    cpu_arg=i486        ;;
+      i486)       cpu_arg=i386        ;;
+
+      # power / powerPC
+      7450)       cpu_arg=7400        ;;
+
+      *)          cpu_arg=""          ;;
+    esac
+  done
+
+  rm __test.*
+}
+ 
+check_cpu

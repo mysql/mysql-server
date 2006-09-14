@@ -1263,7 +1263,6 @@ bool ha_federated::create_where_from_key(String *to,
       if (tmp.append(STRING_WITH_LEN(") ")))
         goto err;
 
-next_loop:
       if (store_length >= length)
         break;
       DBUG_PRINT("info", ("remainder %d", remainder));
@@ -2016,8 +2015,8 @@ int ha_federated::delete_row(const byte *buf)
   {
     DBUG_RETURN(stash_remote_error());
   }
-  stats.deleted+= mysql->affected_rows;
-  stats.records-= mysql->affected_rows;
+  stats.deleted+= (ha_rows)mysql->affected_rows;
+  stats.records-= (ha_rows)mysql->affected_rows;
   DBUG_PRINT("info",
              ("rows deleted %d rows deleted for all time %d",
              int(mysql->affected_rows), stats.deleted));
@@ -2373,7 +2372,6 @@ int ha_federated::rnd_next(byte *buf)
 int ha_federated::read_next(byte *buf, MYSQL_RES *result)
 {
   int retval;
-  my_ulonglong num_rows;
   MYSQL_ROW row;
   DBUG_ENTER("ha_federated::read_next");
 
@@ -2867,7 +2865,7 @@ int ha_federated::connection_autocommit(bool state)
 {
   const char *text;
   DBUG_ENTER("ha_federated::connection_autocommit");
-  text= (state == true) ? "SET AUTOCOMMIT=1" : "SET AUTOCOMMIT=0";
+  text= (state == TRUE) ? "SET AUTOCOMMIT=1" : "SET AUTOCOMMIT=0";
   DBUG_RETURN(execute_simple_query(text, 16));
 }
 
@@ -2896,7 +2894,9 @@ mysql_declare_plugin(federated)
   federated_db_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  0
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 

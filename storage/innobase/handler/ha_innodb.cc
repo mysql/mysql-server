@@ -31,8 +31,9 @@ have disables the InnoDB inlining in this file. */
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
-#include "slave.h"
+#include <mysql_priv.h>
+
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -206,6 +207,7 @@ static handler *innobase_create_handler(TABLE_SHARE *table,
                                         MEM_ROOT *mem_root);
 
 static const char innobase_hton_name[]= "InnoDB";
+
 handlerton innobase_hton;
 
 static handler *innobase_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
@@ -1600,21 +1602,6 @@ innobase_init(void)
 	pthread_cond_init(&commit_cond, NULL);
 	innodb_inited= 1;
 
-	/* If this is a replication slave and we needed to do a crash recovery,
-	set the master binlog position to what InnoDB internally knew about
-	how far we got transactions durable inside InnoDB. There is a
-	problem here: if the user used also MyISAM tables, InnoDB might not
-	know the right position for them.
-
-	THIS DOES NOT WORK CURRENTLY because replication seems to initialize
-	glob_mi also after innobase_init. */
-
-/*	if (trx_sys_mysql_master_log_pos != -1) {
-		ut_memcpy(glob_mi.log_file_name, trx_sys_mysql_master_log_name,
-				1 + ut_strlen(trx_sys_mysql_master_log_name));
-		glob_mi.pos = trx_sys_mysql_master_log_pos;
-	}
-*/
 	DBUG_RETURN(FALSE);
 error:
 	have_innodb= SHOW_OPTION_DISABLED;	// If we couldn't use handler
@@ -1688,19 +1675,6 @@ innobase_commit_low(
 
 		return;
 	}
-
-#ifdef HAVE_REPLICATION
-	THD *thd=current_thd;
-
-	if (thd && thd->slave_thread) {
-		/* Update the replication position info inside InnoDB */
-
-		trx->mysql_master_log_file_name
-					= active_mi->rli.group_master_log_name;
-		trx->mysql_master_log_pos = ((ib_longlong)
-				active_mi->rli.future_group_master_log_pos);
-	}
-#endif /* HAVE_REPLICATION */
 
 	trx_commit_for_mysql(trx);
 }
@@ -2363,7 +2337,7 @@ ha_innobase::open(
 				"have forgotten\nto delete the corresponding "
 				".frm files of InnoDB tables, or you\n"
 				"have moved .frm files to another database?\n"
-				"See http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -2380,7 +2354,7 @@ ha_innobase::open(
 				"Have you deleted the .ibd file from the "
 				"database directory under\nthe MySQL datadir, "
 				"or have you used DISCARD TABLESPACE?\n"
-				"See http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+				"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
@@ -3660,7 +3634,7 @@ ha_innobase::update_row(
 
 	DBUG_ENTER("ha_innobase::update_row");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -3721,7 +3695,7 @@ ha_innobase::delete_row(
 
 	DBUG_ENTER("ha_innobase::delete_row");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (last_query_id != user_thd->query_id) {
@@ -3818,6 +3792,9 @@ ha_innobase::try_semi_consistent_read(bool yes)
 /*===========================================*/
 {
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	/* Row read type is set to semi consistent read if this was
 	requested by the MySQL and either innodb_locks_unsafe_for_binlog
@@ -3983,7 +3960,7 @@ ha_innobase::index_read(
 
 	DBUG_ENTER("index_read");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	statistic_increment(current_thd->status_var.ha_read_key_count,
@@ -4098,7 +4075,7 @@ ha_innobase::change_active_index(
 	DBUG_ENTER("change_active_index");
 
 	ut_ad(user_thd == current_thd);
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	active_index = keynr;
@@ -4188,7 +4165,7 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
@@ -4424,7 +4401,7 @@ ha_innobase::rnd_pos(
 	statistic_increment(current_thd->status_var.ha_read_rnd_count,
 		&LOCK_status);
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (prebuilt->clust_index_was_generated) {
@@ -4474,7 +4451,7 @@ ha_innobase::position(
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	uint		len;
 
-	ut_ad(prebuilt->trx ==
+	ut_a(prebuilt->trx ==
 		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	if (prebuilt->clust_index_was_generated) {
@@ -5002,7 +4979,6 @@ ha_innobase::delete_all_rows(void)
 {
 	row_prebuilt_t*	prebuilt	= (row_prebuilt_t*)innobase_prebuilt;
 	int		error;
-	trx_t*		trx;
 	THD*		thd		= current_thd;
 
 	DBUG_ENTER("ha_innobase::delete_all_rows");
@@ -5015,13 +4991,13 @@ ha_innobase::delete_all_rows(void)
 	}
 
 	/* Get the transaction associated with the current thd, or create one
-	if not yet created */
+	if not yet created, and update prebuilt->trx */
 
-	trx = check_trx_exists(thd);
+	update_thd(thd);
 
 	/* Truncate the table in InnoDB */
 
-	error = row_truncate_table_for_mysql(prebuilt->table, trx);
+	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
 	if (error == DB_ERROR) {
 		/* Cannot truncate; resort to ha_innobase::delete_row() */
 		goto fallback;
@@ -5303,6 +5279,9 @@ ha_innobase::records_in_range(
 	void*		heap2;
 
 	DBUG_ENTER("records_in_range");
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 
 	prebuilt->trx->op_info = (char*)"estimating records in index range";
 
@@ -5606,7 +5585,7 @@ ha_innobase::info(
 						".frm file. Have you mixed up "
 						".frm files from different "
 						"installations? See "
-"http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+"http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
 
 						ib_table->name);
 				break;
@@ -5620,7 +5599,7 @@ ha_innobase::info(
 "Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking "
 "statistics for %lu columns. Have you mixed up .frm files from different "
 "installations? "
-"See http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n",
+"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n",
 							index->name,
 							ib_table->name,
 							(unsigned long)
@@ -6026,6 +6005,10 @@ ha_innobase::can_switch_engines(void)
 	bool	can_switch;
 
 	DBUG_ENTER("ha_innobase::can_switch_engines");
+
+	ut_a(prebuilt->trx ==
+		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+
 	prebuilt->trx->op_info =
 			"determining if there are foreign key constraints";
 	row_mysql_lock_data_dictionary(prebuilt->trx);
@@ -6162,14 +6145,6 @@ ha_innobase::start_stmt(
 	INSERT, for example. */
 
 	innobase_release_stat_resources(trx);
-
-	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
-						&& trx->global_read_view) {
-		/* At low transaction isolation levels we let
-		each consistent read set its own snapshot */
-
-		read_view_close_for_mysql(trx);
-	}
 
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->hint_need_to_fetch_extra_cols = 0;
@@ -6429,7 +6404,7 @@ ha_innobase::transactional_table_lock(
 "table %s does not exist.\n"
 "Have you deleted the .ibd file from the database directory under\n"
 "the MySQL datadir?"
-"See http://dev.mysql.com/doc/refman/5.0/en/innodb-troubleshooting.html\n"
+"See http://dev.mysql.com/doc/refman/5.1/en/innodb-troubleshooting.html\n"
 "how you can resolve the problem.\n",
 				prebuilt->table->name);
 		DBUG_RETURN(HA_ERR_CRASHED);
@@ -6783,13 +6758,19 @@ ha_innobase::store_lock(
 						TL_IGNORE */
 {
 	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
-	trx_t*		trx		= prebuilt->trx;
+	trx_t*		trx;
 
-	/* NOTE: MySQL	can call this function with lock 'type' TL_IGNORE!
+	/* Note that trx in this function is NOT necessarily prebuilt->trx
+	because we call update_thd() later, in ::external_lock()! Failure to
+	understand this caused a serious memory corruption bug in 5.1.11. */
+
+	trx = check_trx_exists(thd);
+
+	/* NOTE: MySQL can call this function with lock 'type' TL_IGNORE!
 	Be careful to ignore TL_IGNORE if we are going to do something with
 	only 'real' locks! */
 
-	/* If no MySQL tables is use we need to set isolation level
+	/* If no MySQL table is in use, we need to set the isolation level
 	of the transaction. */
 
 	if (lock_type != TL_IGNORE
@@ -6799,7 +6780,13 @@ ha_innobase::store_lock(
 						thd->variables.tx_isolation);
 	}
 
-	if ((lock_type == TL_READ && thd->in_lock_tables) ||
+	if (thd->lex->sql_command == SQLCOM_DROP_TABLE) {
+
+		/* MySQL calls this function in DROP TABLE though this table
+		handle may belong to another thd that is running a query. Let
+		us in that case skip any changes to the prebuilt struct. */ 
+
+	} else if ((lock_type == TL_READ && thd->in_lock_tables) ||
 		(lock_type == TL_READ_HIGH_PRIORITY && thd->in_lock_tables) ||
 		lock_type == TL_READ_WITH_SHARED_LOCKS ||
 		lock_type == TL_READ_NO_INSERT ||
@@ -6900,28 +6887,28 @@ ha_innobase::store_lock(
 		stored function call (MySQL does have thd->in_lock_tables
 		TRUE there). */
 
-    		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT
-		    && lock_type <= TL_WRITE)
-		    && !(thd->in_lock_tables
-			    && thd->lex->sql_command == SQLCOM_LOCK_TABLES)
-		    && !thd->tablespace_op
-		    && thd->lex->sql_command != SQLCOM_TRUNCATE
-		    && thd->lex->sql_command != SQLCOM_OPTIMIZE
+		if ((lock_type >= TL_WRITE_CONCURRENT_INSERT
+		&& lock_type <= TL_WRITE)
+		&& !(thd->in_lock_tables
+			&& thd->lex->sql_command == SQLCOM_LOCK_TABLES)
+		&& !thd->tablespace_op
+		&& thd->lex->sql_command != SQLCOM_TRUNCATE
+		&& thd->lex->sql_command != SQLCOM_OPTIMIZE
+
 #ifdef __WIN__
-                /* 
-                   for alter table on win32 for succesfull operation 
-                   completion it is used TL_WRITE(=10) lock instead of
-                   TL_WRITE_ALLOW_READ(=6), however here in innodb handler
-                   TL_WRITE is lifted to TL_WRITE_ALLOW_WRITE, which causes
-                   race condition when several clients do alter table 
-                   simultaneously (bug #17264). This fix avoids the problem.
-                */
-                    && thd->lex->sql_command != SQLCOM_ALTER_TABLE
+                /* For alter table on win32 for succesful operation
+                completion it is used TL_WRITE(=10) lock instead of
+                TL_WRITE_ALLOW_READ(=6), however here in innodb handler
+                TL_WRITE is lifted to TL_WRITE_ALLOW_WRITE, which causes
+                race condition when several clients do alter table
+                simultaneously (bug #17264). This fix avoids the problem. */
+                && thd->lex->sql_command != SQLCOM_ALTER_TABLE
 #endif
-		    && thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
+
+		&& thd->lex->sql_command != SQLCOM_CREATE_TABLE) {
 
 			lock_type = TL_WRITE_ALLOW_WRITE;
-      		}
+		}
 
 		/* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
 		MySQL would use the lock TL_READ_NO_INSERT on t2, and that
@@ -6968,9 +6955,10 @@ ha_innobase::innobase_read_and_init_auto_inc(
 	int		error;
 
 	ut_a(prebuilt);
-	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
 	ut_a(prebuilt->table);
+
+	/* Prepare prebuilt->trx in the table handle */
+	update_thd(current_thd);
 
 	if (prebuilt->trx->conc_state == TRX_NOT_STARTED) {
 		trx_was_not_started = TRUE;
@@ -7056,10 +7044,16 @@ ha_innobase::innobase_read_and_init_auto_inc(
 		'found_next_number_field' below because MySQL in SHOW TABLE
 		STATUS does not seem to set 'next_number_field'. The comment
 		in table.h says that 'next_number_field' is set when it is
-		'active'. */
+		'active'.
+		Since 5.1 MySQL enforces that we announce fields which we will
+		read; as we only do a val_*() call, dbug_tmp_use_all_columns()
+		with read_set is sufficient. */
 
+		my_bitmap_map *old_map;
+		old_map= dbug_tmp_use_all_columns(table, table->read_set);
 		auto_inc = (longlong) table->found_next_number_field->
 				val_int_offset(table->s->rec_buff_length) + 1;
+		dbug_tmp_restore_column_map(table->read_set, old_map);
 	}
 
 	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
@@ -7106,6 +7100,9 @@ void ha_innobase::get_auto_increment(
 	longlong	nr;
 	int		error;
 
+	/* Prepare prebuilt->trx in the table handle */
+	update_thd(current_thd);
+
 	error = innobase_read_and_init_auto_inc(&nr);
 
 	if (error) {
@@ -7133,6 +7130,8 @@ ha_innobase::reset_auto_increment(ulonglong value)
 
 	row_prebuilt_t* prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 	int		error;
+
+	update_thd(current_thd);
 
 	error = row_lock_table_autoinc_for_mysql(prebuilt);
 
@@ -7174,7 +7173,7 @@ ha_innobase::cmp_ref(
 	const mysql_byte* ref2)	/* in: an (internal) primary key value in the
 				MySQL key value format */
 {
-	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
+	row_prebuilt_t* prebuilt	= (row_prebuilt_t*) innobase_prebuilt;
 	enum_field_types mysql_type;
 	Field*		field;
 	KEY_PART_INFO*	key_part;
@@ -7378,7 +7377,9 @@ innobase_xa_prepare(
 	int error = 0;
 	trx_t* trx = check_trx_exists(thd);
 
-	if (thd->lex->sql_command != SQLCOM_XA_PREPARE) {
+	if (thd->lex->sql_command != SQLCOM_XA_PREPARE &&
+	    (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))))
+	{
 
 		/* For ibbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
@@ -7616,7 +7617,10 @@ mysql_declare_plugin(innobase)
   innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  innodb_status_variables_export
+  innodb_status_variables_export,/* status variables             */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 
+#endif

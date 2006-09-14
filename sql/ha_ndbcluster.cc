@@ -6399,6 +6399,8 @@ static int ndbcluster_init()
 #endif
     h.flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
     h.discover=         ndbcluster_discover;
+    h.find_files= ndbcluster_find_files;
+    h.table_exists_in_engine= ndbcluster_table_exists_in_engine;
   }
 
   if (have_ndbcluster != SHOW_OPTION_YES)
@@ -8590,11 +8592,13 @@ void ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("FIELD_ITEM"));
             DBUG_PRINT("info", ("table %s", tab->getName()));
             DBUG_PRINT("info", ("column %s", field->field_name));
+            DBUG_PRINT("info", ("type %d", field->type()));
             DBUG_PRINT("info", ("result type %d", field->result_type()));
             
             // Check that we are expecting a field and with the correct
             // result type
             if (context->expecting(Item::FIELD_ITEM) &&
+                context->expecting_field_type(field->type()) &&
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
@@ -8814,6 +8818,9 @@ void ndb_serialize_cond(const Item *item, void *arg)
                                               func_item);      
             context->expect(Item::STRING_ITEM);
             context->expect(Item::FIELD_ITEM);
+            context->expect_only_field_type(MYSQL_TYPE_STRING);
+            context->expect_field_type(MYSQL_TYPE_VAR_STRING);
+            context->expect_field_type(MYSQL_TYPE_VARCHAR);
             context->expect_field_result(STRING_RESULT);
             context->expect(Item::FUNC_ITEM);
             break;
@@ -10614,7 +10621,9 @@ mysql_declare_plugin(ndbcluster)
   ndbcluster_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  ndb_status_variables_export
+  ndb_status_variables_export,/* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 

@@ -107,11 +107,11 @@ os_thread_create(
 	os_mutex_exit(os_sync_mutex);
 
 	thread = CreateThread(NULL,	/* no security attributes */
-				0,	/* default size stack */
-				(LPTHREAD_START_ROUTINE)start_f,
-				arg,
-				0,	/* thread runs immediately */
-				&win_thread_id);
+			      0,	/* default size stack */
+			      (LPTHREAD_START_ROUTINE)start_f,
+			      arg,
+			      0,	/* thread runs immediately */
+			      &win_thread_id);
 
 	if (srv_set_thread_priorities) {
 
@@ -142,21 +142,23 @@ os_thread_create(
 	AIX is always big enough. An empirical test on AIX-4.3 suggested
 	the size was 96 kB, though. */
 
-	ret = pthread_attr_setstacksize(&attr,
-		(size_t)(PTHREAD_STACK_MIN + 32 * 1024));
+	ret = pthread_attr_setstacksize
+		(&attr, (size_t)(PTHREAD_STACK_MIN + 32 * 1024));
 	if (ret) {
-		 fprintf(stderr,
-	  "InnoDB: Error: pthread_attr_setstacksize returned %d\n", ret);
-		 exit(1);
+		fprintf(stderr,
+			"InnoDB: Error: pthread_attr_setstacksize"
+			" returned %d\n", ret);
+		exit(1);
 	}
 #endif
 #ifdef __NETWARE__
 	ret = pthread_attr_setstacksize(&attr,
 					(size_t) NW_THD_STACKSIZE);
 	if (ret) {
-		 fprintf(stderr,
-	  "InnoDB: Error: pthread_attr_setstacksize returned %d\n", ret);
-		 exit(1);
+		fprintf(stderr,
+			"InnoDB: Error: pthread_attr_setstacksize"
+			" returned %d\n", ret);
+		exit(1);
 	}
 #endif
 	os_mutex_enter(os_sync_mutex);
@@ -169,9 +171,9 @@ os_thread_create(
 	ret = pthread_create(&pthread, &attr, start_f, arg);
 #endif
 	if (ret) {
-		 fprintf(stderr,
-	  "InnoDB: Error: pthread_create returned %d\n", ret);
-		 exit(1);
+		fprintf(stderr,
+			"InnoDB: Error: pthread_create returned %d\n", ret);
+		exit(1);
 	}
 
 #if !(defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10))
@@ -220,7 +222,7 @@ os_thread_join(
 /*===========*/
   os_thread_id_t  thread_id)	/* in: id of the thread to join */
 {
-  return(pthread_join(thread_id, NULL));
+	return(pthread_join(thread_id, NULL));
 }
 #endif
 /*********************************************************************
