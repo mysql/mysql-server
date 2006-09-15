@@ -1004,7 +1004,6 @@ dict_create_index_step(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	ind_node_t*	node;
-	ibool		success;
 	ulint		err	= DB_ERROR;
 	trx_t*		trx;
 
@@ -1088,10 +1087,8 @@ dict_create_index_step(
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
 
-		success = dict_index_add_to_cache(node->table, node->index,
-						  node->page_no);
-
-		ut_a(success);
+		dict_index_add_to_cache(node->table, node->index,
+					node->page_no);
 
 		err = DB_SUCCESS;
 	}
