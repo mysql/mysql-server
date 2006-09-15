@@ -1791,3 +1791,4 @@ vio/viotest-sslconnect.cpp
 vio/viotest.cpp
 zlib/*.ds?
 zlib/*.vcproj
+mysql-test/t/rpl_truncate_4ndb.test
