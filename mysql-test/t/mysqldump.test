@@ -1325,28 +1325,59 @@ drop user mysqltest_1@localhost;
 # Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
 # information_schema database.
 #
+# Bug #21424 mysqldump failing to export/import views
+#
+
+# Do as root
 connect (root,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection root;
 create database mysqldump_myDB;
 use mysqldump_myDB;
 create user myDB_User;
-grant create view, select on mysqldump_myDB.* to myDB_User@localhost;
+grant create, create view, select, insert on mysqldump_myDB.* to myDB_User@localhost;
 create table t1 (c1 int);
 insert into t1 values (3);
 
+# Do as a user
 connect (user1,localhost,myDB_User,,mysqldump_myDB,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection user1;
 use mysqldump_myDB;
+create table u1 (f1 int);
+insert into u1 values (4);
 create view v1 (c1) as select * from t1;
 
-# Backup should not fail.
---exec $MYSQL_DUMP --all-databases --add-drop-table > $MYSQLTEST_VARDIR/tmp/bug21527.sql
+# Backup should not fail for Bug #21527. Flush priviliges test begins.
+--exec $MYSQL_DUMP --skip-comments --add-drop-table --flush-privileges --ignore-table=mysql.general_log --ignore-table=mysql.slow_log --databases mysqldump_myDB mysql > $MYSQLTEST_VARDIR/tmp/bug21527.sql
 
 # Clean up
 connection root;
 use mysqldump_myDB;
 drop view v1;
 drop table t1;
+drop table u1;
+revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
+drop user myDB_User;
+drop database mysqldump_myDB;
+flush privileges;
+
+# Bug #21424 continues from here.
+# Restore. Flush Privileges test ends.  
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21527.sql;
+
+# Do as a user
+connection user1;
+use mysqldump_myDB;
+
+# Ultimate test for correct data.
+select * from mysqldump_myDB.v1;
+select * from mysqldump_myDB.u1;
+
+#Final cleanup.
+connection root;
+use mysqldump_myDB;
+drop view v1;
+drop table t1;
+drop table u1;
 revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
 drop user myDB_User;
 drop database mysqldump_myDB;
