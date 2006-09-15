@@ -4,7 +4,7 @@ noinst_SCRIPTS = unit
 EXTRA_DIST = unit.pl
 CLEANFILES = unit
 
-unittests = mytap mysys @mysql_se_unittest_dirs@
+unittests = mytap mysys @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@
 
 test: unit
 	./unit run $(unittests)

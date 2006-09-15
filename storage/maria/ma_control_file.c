@@ -188,14 +188,17 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
       disk/filesystem has a problem.
       So let's be rigid.
     */
-    my_message(0, "too small file", MYF(0)); /* TODO: improve errors */
+    /*
+      TODO: store a message "too small file" somewhere, so that it goes to
+      MySQL's error log at startup.
+    */
     error= CONTROL_FILE_TOO_SMALL;
     goto err;
   }
 
   if ((uint)stat_buff.st_size > CONTROL_FILE_SIZE)
   {
-    my_message(0, "too big file", MYF(0)); /* TODO: improve errors */
+    /* TODO: store "too big file" message */
     error= CONTROL_FILE_TOO_BIG;
     goto err;
   }
@@ -206,7 +209,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
   if (memcmp(buffer + CONTROL_FILE_MAGIC_STRING_OFFSET,
              CONTROL_FILE_MAGIC_STRING, CONTROL_FILE_MAGIC_STRING_SIZE))
   {
-    my_message(0, "bad magic string", MYF(0));
+    /* TODO: store message "bad magic string" somewhere */
     error= CONTROL_FILE_BAD_MAGIC_STRING;
     goto err;
   }
@@ -214,7 +217,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
                       CONTROL_FILE_SIZE - CONTROL_FILE_LSN_OFFSET) !=
       buffer[CONTROL_FILE_CHECKSUM_OFFSET])
   {
-    my_message(0, "checksum mismatch", MYF(0));
+    /* TODO: store message "checksum mismatch" somewhere */
     error= CONTROL_FILE_BAD_CHECKSUM;
     goto err;
   }

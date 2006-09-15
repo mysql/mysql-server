@@ -281,6 +281,7 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[
     AC_SUBST([mysql_se_dirs])
     AC_SUBST([mysql_pg_dirs])
     AC_SUBST([mysql_se_unittest_dirs])
+    AC_SUBST([mysql_pg_unittest_dirs])
    ])
  ])
 ])
@@ -316,7 +317,6 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
  ])
  AC_MSG_CHECKING([whether to use ]$3)
  mysql_use_plugin_dir=""
- mysql_use_plugin_unittest_dir=""
  m4_ifdef([$10],[
   if test "X[$mysql_plugin_]$2" = Xyes -a \
           "X[$with_plugin_]$2" != Xno -o \
@@ -409,26 +409,18 @@ dnl Although this is "pretty", it breaks libmysqld build
         m4_syscmd(test -f "$6/configure")
         ifelse(m4_sysval, 0,
           [AC_CONFIG_SUBDIRS($6)],
-          [
-            AC_CONFIG_FILES($6/Makefile)
-            m4_syscmd(test -d "$6/unittest")
-            ifelse(m4_sysval, 0,
-            [
-              mysql_use_plugin_unittest_dir="$6/unittest"
-              AC_CONFIG_FILES($6/unittest/Makefile)
-            ], [])
-          ]
+          [AC_CONFIG_FILES($6/Makefile)]
         )
         ifelse(m4_substr($6, 0, 8), [storage/],
           [
-            [mysql_se_name="]m4_substr($6, 8)"
-            mysql_se_dirs="$mysql_se_dirs $mysql_se_name"
-            if test -n "$mysql_use_plugin_unittest_dir" ; then
-              mysql_se_unittest_dirs="$mysql_se_unitest_dirs ../$mysql_use_plugin_unittest_dir"
-            fi
+            [mysql_se_dirs="$mysql_se_dirs ]m4_substr($6, 8)"
+             mysql_se_unittest_dirs="$mysql_se_unittest_dirs ../$6"
           ],
           m4_substr($6, 0, 7), [plugin/],
-          [mysql_pg_dirs="$mysql_pg_dirs ]m4_substr($6, 7)",
+          [
+            [mysql_pg_dirs="$mysql_pg_dirs ]m4_substr($6, 7)"
+             mysql_pg_unittest_dirs="$mysql_pg_unittest_dirs ../$6"
+          ],
           [AC_FATAL([don't know how to handle plugin dir ]$6)])
       fi
     ])

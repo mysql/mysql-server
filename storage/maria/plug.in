@@ -1,7 +1,7 @@
 MYSQL_STORAGE_ENGINE(maria, no, [Maria Storage Engine],
         [Traditional transactional MySQL tables], [max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(maria,  [storage/maria])
+MYSQL_PLUGIN_ACTIONS(maria, [AC_CONFIG_FILES(storage/maria/unittest/Makefile)])
 MYSQL_PLUGIN_STATIC(maria,     [libmaria.a])
 # Maria will probably go first into max builds, not all builds,
 # so we don't declare it mandatory.
-
