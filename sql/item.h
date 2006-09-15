@@ -2184,7 +2184,11 @@ public:
   {
     return Item_field::save_in_field(field_arg, no_conversions);
   }
-  table_map used_tables() const { return (table_map)0L; }
+  /* 
+   We use RAND_TABLE_BIT to prevent Item_insert_value from
+   being treated as a constant and precalculated before execution
+  */
+  table_map used_tables() const { return RAND_TABLE_BIT; }
 
   bool walk(Item_processor processor, byte *args)
   {
