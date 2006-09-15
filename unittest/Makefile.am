@@ -3,7 +3,7 @@ SUBDIRS      = mytap . mysys examples
 EXTRA_DIST = unit.pl
 CLEANFILES = unit
 
-unittests = mytap mysys
+unittests = mytap mysys @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@
 
 test:
 	perl unit.pl run $(unittests)
