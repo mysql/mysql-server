@@ -632,7 +632,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (!strncmp(next_chunk + 2, "partition", str_db_type_length))
         {
           /* Use partition handler */
-          share->db_type= &partition_hton;
+          share->db_type= partition_hton;
           DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                               str_db_type_length, next_chunk + 2,
                               ha_legacy_type(share->db_type)));

@@ -2925,7 +2925,7 @@ static int get_schema_tables_record(THD *thd, struct st_table_list *tables,
                   ha_row_type[(uint) share->row_type],
                   NullS);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (show_table->s->db_type == &partition_hton && 
+    if (show_table->s->db_type == partition_hton && 
         show_table->part_info != NULL && 
         show_table->part_info->no_parts > 0)
       ptr= strmov(ptr, " partitioned");

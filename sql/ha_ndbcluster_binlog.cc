@@ -662,9 +662,9 @@ static int ndbcluster_binlog_func(THD *thd, enum_binlog_func fn, void *arg)
 
 void ndbcluster_binlog_init_handlerton()
 {
-  handlerton &h= ndbcluster_hton;
-  h.binlog_func=      ndbcluster_binlog_func;
-  h.binlog_log_query= ndbcluster_binlog_log_query;
+  handlerton *h= ndbcluster_hton;
+  h->binlog_func=      ndbcluster_binlog_func;
+  h->binlog_log_query= ndbcluster_binlog_log_query;
 }
 
 
@@ -3431,7 +3431,7 @@ restart:
 
     if (thd_ndb == NULL)
     {
-      DBUG_ASSERT(ndbcluster_hton.slot != ~(uint)0);
+      DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
       if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
       {
         sql_print_error("Could not allocate Thd_ndb object");
