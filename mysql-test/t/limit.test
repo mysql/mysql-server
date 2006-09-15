@@ -60,4 +60,14 @@ select 1 as a from t1 union all select 1 from dual limit 1;
 (select 1 as a from t1) union all (select 1 from dual) limit 1;
 drop table t1;
 
+#
+# Bug #21787: COUNT(*) + ORDER BY + LIMIT returns wrong result
+#
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7);
+explain select count(*) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
+select count(*) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
+explain select sum(a) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
+select sum(a) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
+
 # End of 4.1 tests

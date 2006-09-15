@@ -86,7 +86,7 @@ static char *alloc_query_str(ulong size);
 static char *field_escape(char *to,const char *from,uint length);
 static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 quick= 1, extended_insert= 1,
-                lock_tables=1,ignore_errors=0,flush_logs=0,
+                lock_tables=1,ignore_errors=0,flush_logs=0,flush_privileges=0,
                 opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
                 opt_alldbs=0,opt_create_db=0,opt_lock_all_tables=0,
@@ -265,6 +265,12 @@ static struct my_option my_long_options[] =
    "the log flush to happen at the same exact moment you should use "
    "--lock-all-tables or --master-data with --flush-logs",
    (gptr*) &flush_logs, (gptr*) &flush_logs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"flush-privileges", OPT_ESC, "Emit a FLUSH PRIVILEGES statement "
+   "after dumping the mysql database.  This option should be used any "
+   "time the dump contains the mysql database and any other database "
+   "that depends on the data in the mysql database for proper restore. ",
+   (gptr*) &flush_privileges, (gptr*) &flush_privileges, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"force", 'f', "Continue even if we get an sql-error.",
    (gptr*) &ignore_errors, (gptr*) &ignore_errors, 0, GET_BOOL, NO_ARG,
@@ -3037,6 +3043,7 @@ static int dump_all_tables_in_db(char *database)
 
   char hash_key[2*NAME_LEN+2];  /* "db.tablename" */
   char *afterdot;
+  int using_mysql_db= my_strcasecmp(&my_charset_latin1, database, "mysql");
 
   afterdot= strmov(hash_key, database);
   *afterdot++= '.';
@@ -3099,6 +3106,11 @@ static int dump_all_tables_in_db(char *database)
   }
   if (lock_tables)
     VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+  if (flush_privileges && using_mysql_db == 0)
+  {
+    fprintf(md_result_file,"\n--\n-- Flush Grant Tables \n--\n");
+    fprintf(md_result_file,"\n/*! FLUSH PRIVILEGES */;\n");
+  }
   return 0;
 } /* dump_all_tables_in_db */
 

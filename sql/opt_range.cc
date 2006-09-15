@@ -5427,6 +5427,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   MEM_ROOT *alloc= param->mem_root;
   char *str;
   ulong orig_sql_mode;
+  int err;
   DBUG_ENTER("get_mm_leaf");
 
   /*
@@ -5581,7 +5582,13 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       (field->type() == FIELD_TYPE_DATE ||
        field->type() == FIELD_TYPE_DATETIME))
     field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
-  if (value->save_in_field_no_warnings(field, 1) < 0)
+  err= value->save_in_field_no_warnings(field, 1);
+  if (err > 0 && field->cmp_type() != value->result_type())
+  {
+    tree= 0;
+    goto end;
+  } 
+  if (err < 0)
   {
     field->table->in_use->variables.sql_mode= orig_sql_mode;
     /* This happens when we try to insert a NULL field in a not null column */
