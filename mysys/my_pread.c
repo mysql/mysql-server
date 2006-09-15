@@ -52,8 +52,12 @@ uint my_pread(File Filedes, byte *Buffer, uint Count, my_off_t offset,
       DBUG_PRINT("warning",("Read only %ld bytes off %ld from %d, errno: %d",
 			    readbytes,Count,Filedes,my_errno));
 #ifdef THREAD
-      if (readbytes == 0 && errno == EINTR)
-	continue;				/* Interrupted */
+      if ((readbytes == 0 || (int) readbytes == -1) && errno == EINTR)
+      {
+        DBUG_PRINT("debug", ("my_pread() was interrupted and returned %d",
+                             (int) readbytes));
+        continue;                              /* Interrupted */
+      }
 #endif
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
@@ -124,8 +128,8 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
       VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
       continue;
     }
-    if ((writenbytes == 0 && my_errno == EINTR) ||
-	(writenbytes > 0 && (uint) writenbytes != (uint) -1))
+    if ((writenbytes > 0 && (uint) writenbytes != (uint) -1) ||
+        my_errno == EINTR)
       continue;					/* Retry */
 #endif
     if (MyFlags & (MY_NABP | MY_FNABP))
