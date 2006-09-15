@@ -876,7 +876,7 @@ dict_table_add_to_cache(
 #error "DATA_N_SYS_COLS != 3"
 #endif
 
-/* The lower limit for what we consider a "big" row */
+	/* The lower limit for what we consider a "big" row */
 #define BIG_ROW_SIZE 1024
 
 	row_len = 0;
