@@ -70,12 +70,20 @@ drop table t1;
 #
 # "DESCRIBE" commands may return strange NULLness flags.
 #
+--exec $MYSQL --default-character-set utf8 test -e "create table t1 (i int, j int not null, k int); insert into t1 values (null, 1, null); select * from t1; describe t1; drop table t1;"
 --exec $MYSQL -t --default-character-set utf8 test -e "create table t1 (i int, j int not null, k int); insert into t1 values (null, 1, null); select * from t1; describe t1; drop table t1;"
 
 #
 # Bug#19564: mysql displays NULL instead of space
 #
+--exec $MYSQL test -e "create table b19564 (i int, s1 char(1)); insert into b19564 values (1, 'x'); insert into b19564 values (2, NULL); insert into b19564 values (3, ' '); select * from b19564 order by i; drop table b19564;" 
 --exec $MYSQL -t test -e "create table b19564 (i int, s1 char(1)); insert into b19564 values (1, 'x'); insert into b19564 values (2, NULL); insert into b19564 values (3, ' '); select * from b19564 order by i; drop table b19564;" 
+
+#
+# Bug#21618: NULL shown as empty string in client
+#
+--exec $MYSQL test -e "select unhex('zz');" 
+--exec $MYSQL -t test -e "select unhex('zz');" 
 
 #
 # Bug#19265 describe command does not work from mysql prompt
