@@ -401,7 +401,7 @@ btr_search_update_hash_ref(
 {
 	ulint	fold;
 	rec_t*	rec;
-	dulint	tree_id;
+	dulint	index_id;
 
 	ut_ad(cursor->flag == BTR_CUR_HASH_FAIL);
 #ifdef UNIV_SYNC_DEBUG
@@ -428,12 +428,12 @@ btr_search_update_hash_ref(
 			return;
 		}
 
-		tree_id = ((cursor->index)->tree)->id;
+		index_id = cursor->index->id;
 		fold = rec_fold(rec,
 				rec_get_offsets(rec, cursor->index, offsets_,
 						ULINT_UNDEFINED, &heap),
 				block->curr_n_fields,
-				block->curr_n_bytes, tree_id);
+				block->curr_n_bytes, index_id);
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -699,7 +699,7 @@ btr_search_guess_on_hash(
 	page_t*		page;
 	ulint		fold;
 	ulint		tuple_n_fields;
-	dulint		tree_id;
+	dulint		index_id;
 	ibool		can_only_compare_to_cursor_rec = TRUE;
 #ifdef notdefined
 	btr_cur_t	cursor2;
@@ -733,12 +733,12 @@ btr_search_guess_on_hash(
 		return(FALSE);
 	}
 
-	tree_id = (index->tree)->id;
+	index_id = index->id;
 
 #ifdef UNIV_SEARCH_PERF_STAT
 	info->n_hash_succ++;
 #endif
-	fold = dtuple_fold(tuple, cursor->n_fields, cursor->n_bytes, tree_id);
+	fold = dtuple_fold(tuple, cursor->n_fields, cursor->n_bytes, index_id);
 
 	cursor->fold = fold;
 	cursor->flag = BTR_CUR_HASH;
@@ -798,7 +798,8 @@ btr_search_guess_on_hash(
 	is positioned on. We cannot look at the next of the previous
 	record to determine if our guess for the cursor position is
 	right. */
-	if (UNIV_EXPECT(ut_dulint_cmp(tree_id, btr_page_get_index_id(page)), 0)
+	if (UNIV_EXPECT
+	    (ut_dulint_cmp(index_id, btr_page_get_index_id(page)), 0)
 	    || !btr_search_check_guess(cursor,
 				       can_only_compare_to_cursor_rec,
 				       tuple, mode, mtr)) {
@@ -901,7 +902,7 @@ btr_search_drop_page_hash_index(
 	rec_t*		rec;
 	ulint		fold;
 	ulint		prev_fold;
-	dulint		tree_id;
+	dulint		index_id;
 	ulint		n_cached;
 	ulint		n_recs;
 	ulint*		folds;
@@ -958,9 +959,9 @@ retry:
 	rec = page_get_infimum_rec(page);
 	rec = page_rec_get_next(rec);
 
-	tree_id = btr_page_get_index_id(page);
+	index_id = btr_page_get_index_id(page);
 
-	ut_a(0 == ut_dulint_cmp(tree_id, index->id));
+	ut_a(0 == ut_dulint_cmp(index_id, index->id));
 
 	prev_fold = 0;
 
@@ -971,7 +972,7 @@ retry:
 		offsets = rec_get_offsets(rec, index, offsets,
 					  n_fields + (n_bytes > 0), &heap);
 		ut_a(rec_offs_n_fields(offsets) == n_fields + (n_bytes > 0));
-		fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
+		fold = rec_fold(rec, offsets, n_fields, n_bytes, index_id);
 
 		if (fold == prev_fold && prev_fold != 0) {
 
@@ -1104,7 +1105,7 @@ btr_search_build_page_hash_index(
 	rec_t*		next_rec;
 	ulint		fold;
 	ulint		next_fold;
-	dulint		tree_id;
+	dulint		index_id;
 	ulint		n_cached;
 	ulint		n_recs;
 	ulint*		folds;
@@ -1167,7 +1168,7 @@ btr_search_build_page_hash_index(
 
 	n_cached = 0;
 
-	tree_id = btr_page_get_index_id(page);
+	index_id = btr_page_get_index_id(page);
 
 	rec = page_get_infimum_rec(page);
 	rec = page_rec_get_next(rec);
@@ -1183,7 +1184,7 @@ btr_search_build_page_hash_index(
 		}
 	}
 
-	fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
+	fold = rec_fold(rec, offsets, n_fields, n_bytes, index_id);
 
 	if (left_side) {
 
@@ -1210,7 +1211,7 @@ btr_search_build_page_hash_index(
 		offsets = rec_get_offsets(next_rec, index, offsets,
 					  n_fields + (n_bytes > 0), &heap);
 		next_fold = rec_fold(next_rec, offsets, n_fields,
-				     n_bytes, tree_id);
+				     n_bytes, index_id);
 
 		if (fold != next_fold) {
 			/* Insert an entry into the hash index */
@@ -1350,7 +1351,7 @@ btr_search_update_hash_on_delete(
 	buf_block_t*	block;
 	rec_t*		rec;
 	ulint		fold;
-	dulint		tree_id;
+	dulint		index_id;
 	ibool		found;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	mem_heap_t*	heap		= NULL;
@@ -1374,10 +1375,10 @@ btr_search_update_hash_on_delete(
 
 	table = btr_search_sys->hash_index;
 
-	tree_id = cursor->index->tree->id;
+	index_id = cursor->index->id;
 	fold = rec_fold(rec, rec_get_offsets(rec, cursor->index, offsets_,
 					     ULINT_UNDEFINED, &heap),
-			block->curr_n_fields, block->curr_n_bytes, tree_id);
+			block->curr_n_fields, block->curr_n_bytes, index_id);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -1454,7 +1455,7 @@ btr_search_update_hash_on_insert(
 	rec_t*		rec;
 	rec_t*		ins_rec;
 	rec_t*		next_rec;
-	dulint		tree_id;
+	dulint		index_id;
 	ulint		fold;
 	ulint		ins_fold;
 	ulint		next_fold = 0; /* remove warning (??? bug ???) */
@@ -1486,7 +1487,7 @@ btr_search_update_hash_on_insert(
 
 	ut_a(block->index == cursor->index);
 
-	tree_id = ((cursor->index)->tree)->id;
+	index_id = cursor->index->id;
 
 	n_fields = block->curr_n_fields;
 	n_bytes = block->curr_n_bytes;
@@ -1497,19 +1498,19 @@ btr_search_update_hash_on_insert(
 
 	offsets = rec_get_offsets(ins_rec, cursor->index, offsets,
 				  ULINT_UNDEFINED, &heap);
-	ins_fold = rec_fold(ins_rec, offsets, n_fields, n_bytes, tree_id);
+	ins_fold = rec_fold(ins_rec, offsets, n_fields, n_bytes, index_id);
 
 	if (!page_rec_is_supremum(next_rec)) {
 		offsets = rec_get_offsets(next_rec, cursor->index, offsets,
 					  n_fields + (n_bytes > 0), &heap);
 		next_fold = rec_fold(next_rec, offsets, n_fields,
-				     n_bytes, tree_id);
+				     n_bytes, index_id);
 	}
 
 	if (!page_rec_is_infimum(rec)) {
 		offsets = rec_get_offsets(rec, cursor->index, offsets,
 					  n_fields + (n_bytes > 0), &heap);
-		fold = rec_fold(rec, offsets, n_fields, n_bytes, tree_id);
+		fold = rec_fold(rec, offsets, n_fields, n_bytes, index_id);
 	} else {
 		if (left_side) {
 

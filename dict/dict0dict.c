@@ -945,7 +945,7 @@ dict_index_find_on_id_low(
 		index = dict_table_get_first_index(table);
 
 		while (index) {
-			if (0 == ut_dulint_cmp(id, index->tree->id)) {
+			if (0 == ut_dulint_cmp(id, index->id)) {
 				/* Found */
 
 				return(index);
@@ -1316,7 +1316,6 @@ dict_index_add_to_cache(
 	ulint		page_no)/* in: root page number of the index */
 {
 	dict_index_t*	new_index;
-	dict_tree_t*	tree;
 	dict_field_t*	field;
 	ulint		n_ord;
 	ulint		i;
@@ -1385,11 +1384,8 @@ dict_index_add_to_cache(
 		dict_field_get_col(field)->ord_part = 1;
 	}
 
-	/* Create an index tree memory object for the index */
-	tree = dict_tree_create(new_index, page_no);
-	ut_ad(tree);
-
-	new_index->tree = tree;
+	new_index->page = page_no;
+	rw_lock_create(&new_index->lock, SYNC_INDEX_TREE);
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
@@ -1405,9 +1401,6 @@ dict_index_add_to_cache(
 			new_index->stat_n_diff_key_vals[i] = 100;
 		}
 	}
-
-	/* Add the index to the list of indexes stored in the tree */
-	tree->tree_index = new_index;
 
 	dict_sys->size += mem_heap_get_size(new_index->heap);
 
@@ -1432,8 +1425,7 @@ dict_index_remove_from_cache(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_ad(index->tree->tree_index);
-	dict_tree_free(index->tree);
+	rw_lock_free(&index->lock);
 
 	/* Remove the index from the list of indexes of the table */
 	UT_LIST_REMOVE(indexes, table->indexes, index);
@@ -3536,68 +3528,18 @@ found:
 	return(index);
 }
 
-/**************************************************************************
-Creates an index tree struct. */
-
-dict_tree_t*
-dict_tree_create(
-/*=============*/
-				/* out, own: created tree */
-	dict_index_t*	index,	/* in: the index for which to create */
-	ulint		page_no)/* in: root page number of the index */
-{
-	dict_tree_t*	tree;
-
-	tree = mem_alloc(sizeof(dict_tree_t));
-
-	/* Inherit info from the index */
-
-	tree->type = index->type;
-	tree->space = index->space;
-	tree->page = page_no;
-
-	tree->id = index->id;
-
-	tree->tree_index = NULL;
-
-#ifdef UNIV_DEBUG
-	tree->magic_n = DICT_TREE_MAGIC_N;
-#endif /* UNIV_DEBUG */
-
-	rw_lock_create(&tree->lock, SYNC_INDEX_TREE);
-
-	return(tree);
-}
-
-/**************************************************************************
-Frees an index tree struct. */
-
-void
-dict_tree_free(
-/*===========*/
-	dict_tree_t*	tree)	/* in, own: index tree */
-{
-	ut_a(tree);
-	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
-
-	rw_lock_free(&(tree->lock));
-	mem_free(tree);
-}
-
 #ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer. */
 
 ibool
-dict_tree_check_search_tuple(
-/*=========================*/
+dict_index_check_search_tuple(
+/*==========================*/
 				/* out: TRUE if ok */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	dtuple_t*	tuple)	/* in: tuple used in a search */
 {
-	dict_index_t*	index	= tree->tree_index;
-
 	ut_a(index);
 	ut_a(dtuple_get_n_fields_cmp(tuple)
 	     <= dict_index_get_n_unique_in_tree(index));
@@ -3609,10 +3551,10 @@ dict_tree_check_search_tuple(
 Builds a node pointer out of a physical record and a page number. */
 
 dtuple_t*
-dict_tree_build_node_ptr(
-/*=====================*/
+dict_index_build_node_ptr(
+/*======================*/
 				/* out, own: node pointer */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	rec_t*		rec,	/* in: record for which to build node
 				pointer */
 	ulint		page_no,/* in: page number to put in node pointer */
@@ -3621,20 +3563,17 @@ dict_tree_build_node_ptr(
 				level */
 {
 	dtuple_t*	tuple;
-	dict_index_t*	ind;
 	dfield_t*	field;
 	byte*		buf;
 	ulint		n_unique;
 
-	ind = tree->tree_index;
-
-	if (UNIV_UNLIKELY(tree->type & DICT_UNIVERSAL)) {
+	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		/* In a universal index tree, we take the whole record as
 		the node pointer if the reord is on the leaf level,
 		on non-leaf levels we remove the last field, which
 		contains the page number of the child page */
 
-		ut_a(!dict_table_is_comp(ind->table));
+		ut_a(!dict_table_is_comp(index->table));
 		n_unique = rec_get_n_fields_old(rec);
 
 		if (level > 0) {
@@ -3642,7 +3581,7 @@ dict_tree_build_node_ptr(
 			n_unique--;
 		}
 	} else {
-		n_unique = dict_index_get_n_unique_in_tree(ind);
+		n_unique = dict_index_get_n_unique_in_tree(index);
 	}
 
 	tuple = dtuple_create(heap, n_unique + 1);
@@ -3655,7 +3594,7 @@ dict_tree_build_node_ptr(
 
 	dtuple_set_n_fields_cmp(tuple, n_unique);
 
-	dict_index_copy_types(tuple, ind, n_unique);
+	dict_index_copy_types(tuple, index, n_unique);
 
 	buf = mem_heap_alloc(heap, 4);
 
@@ -3666,7 +3605,7 @@ dict_tree_build_node_ptr(
 
 	dtype_set(dfield_get_type(field), DATA_SYS_CHILD, DATA_NOT_NULL, 4);
 
-	rec_copy_prefix_to_dtuple(tuple, rec, ind, n_unique, heap);
+	rec_copy_prefix_to_dtuple(tuple, rec, index, n_unique, heap);
 	dtuple_set_info_bits(tuple, dtuple_get_info_bits(tuple)
 			     | REC_STATUS_NODE_PTR);
 
@@ -3680,23 +3619,21 @@ Copies an initial segment of a physical record, long enough to specify an
 index entry uniquely. */
 
 rec_t*
-dict_tree_copy_rec_order_prefix(
-/*============================*/
+dict_index_copy_rec_order_prefix(
+/*=============================*/
 				/* out: pointer to the prefix record */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	rec_t*		rec,	/* in: record for which to copy prefix */
 	ulint*		n_fields,/* out: number of fields copied */
 	byte**		buf,	/* in/out: memory buffer for the copied prefix,
 				or NULL */
 	ulint*		buf_size)/* in/out: buffer size */
 {
-	dict_index_t*	index;
 	ulint		n;
 
 	UNIV_PREFETCH_R(rec);
-	index = tree->tree_index;
 
-	if (UNIV_UNLIKELY(tree->type & DICT_UNIVERSAL)) {
+	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		ut_a(!dict_table_is_comp(index->table));
 		n = rec_get_n_fields_old(rec);
 	} else {
@@ -3711,27 +3648,24 @@ dict_tree_copy_rec_order_prefix(
 Builds a typed data tuple out of a physical record. */
 
 dtuple_t*
-dict_tree_build_data_tuple(
-/*=======================*/
+dict_index_build_data_tuple(
+/*========================*/
 				/* out, own: data tuple */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	rec_t*		rec,	/* in: record for which to build data tuple */
 	ulint		n_fields,/* in: number of data fields */
 	mem_heap_t*	heap)	/* in: memory heap where tuple created */
 {
 	dtuple_t*	tuple;
-	dict_index_t*	ind;
 
-	ind = tree->tree_index;
-
-	ut_ad(dict_table_is_comp(ind->table)
+	ut_ad(dict_table_is_comp(index->table)
 	      || n_fields <= rec_get_n_fields_old(rec));
 
 	tuple = dtuple_create(heap, n_fields);
 
-	dict_index_copy_types(tuple, ind, n_fields);
+	dict_index_copy_types(tuple, index, n_fields);
 
-	rec_copy_prefix_to_dtuple(tuple, rec, ind, n_fields, heap);
+	rec_copy_prefix_to_dtuple(tuple, rec, index, n_fields, heap);
 
 	ut_ad(dtuple_check_typed(tuple));
 
@@ -4045,15 +3979,12 @@ dict_index_print_low(
 /*=================*/
 	dict_index_t*	index)	/* in: index */
 {
-	dict_tree_t*	tree;
 	ib_longlong	n_vals;
 	ulint		i;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
-
-	tree = index->tree;
 
 	if (index->n_user_defined_cols > 0) {
 		n_vals = index->stat_n_diff_key_vals
@@ -4069,13 +4000,13 @@ dict_index_print_low(
 		" leaf pages %lu, size pages %lu\n"
 		"   FIELDS: ",
 		index->name,
-		(ulong) ut_dulint_get_high(tree->id),
-		(ulong) ut_dulint_get_low(tree->id),
+		(ulong) ut_dulint_get_high(index->id),
+		(ulong) ut_dulint_get_low(index->id),
 		(ulong) index->n_user_defined_cols,
 		(ulong) index->n_fields,
 		(ulong) index->n_uniq,
 		(ulong) index->type,
-		(ulong) tree->page,
+		(ulong) index->page,
 		(ulong) n_vals,
 		(ulong) index->stat_n_leaf_pages,
 		(ulong) index->stat_index_size);
@@ -4087,9 +4018,9 @@ dict_index_print_low(
 	putc('\n', stderr);
 
 #ifdef UNIV_BTR_PRINT
-	btr_print_size(tree);
+	btr_print_size(index);
 
-	btr_print_tree(tree, 7);
+	btr_print_index(index, 7);
 #endif /* UNIV_BTR_PRINT */
 }
 

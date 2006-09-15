@@ -77,16 +77,6 @@ make them consecutive on disk if possible. From the other file segment
 we allocate pages for the non-leaf levels of the tree.
 */
 
-/******************************************************************
-Creates a new index page to the tree (not the root, and also not
-used in page reorganization). */
-static
-void
-btr_page_create(
-/*============*/
-	page_t*		page,	/* in: page to be created */
-	dict_tree_t*	tree,	/* in: index tree */
-	mtr_t*		mtr);	/* in: mtr */
 /****************************************************************
 Returns the upper level node pointer to a page. It is assumed that
 mtr holds an x-latch on the tree. */
@@ -95,7 +85,7 @@ rec_t*
 btr_page_get_father_node_ptr(
 /*=========================*/
 				/* out: pointer to node pointer record */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page: must contain at least one
 				user record */
 	mtr_t*		mtr);	/* in: mtr */
@@ -132,19 +122,18 @@ page_t*
 btr_root_get(
 /*=========*/
 				/* out: root page, x-latched */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ulint	space;
 	ulint	root_page_no;
 	page_t*	root;
 
-	space = dict_tree_get_space(tree);
-	root_page_no = dict_tree_get_page(tree);
+	space = dict_index_get_space(index);
+	root_page_no = dict_index_get_page(index);
 
 	root = btr_page_get(space, root_page_no, RW_X_LATCH, mtr);
-	ut_a((ibool)!!page_is_comp(root)
-	     == dict_table_is_comp(tree->tree_index->table));
+	ut_a((ibool)!!page_is_comp(root) == dict_table_is_comp(index->table));
 
 	return(root);
 }
@@ -254,23 +243,22 @@ btr_get_next_user_rec(
 }
 
 /******************************************************************
-Creates a new index page to the tree (not the root, and also not used in
-page reorganization). */
+Creates a new index page (not the root, and also not
+used in page reorganization). */
 static
 void
 btr_page_create(
 /*============*/
 	page_t*		page,	/* in: page to be created */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
-	page_create(page, mtr,
-		    dict_table_is_comp(tree->tree_index->table));
+	page_create(page, mtr, dict_table_is_comp(index->table));
 	buf_block_align(page)->check_index_page_at_flush = TRUE;
 
-	btr_page_set_index_id(page, tree->id, mtr);
+	btr_page_set_index_id(page, index->id, mtr);
 }
 
 /******************************************************************
@@ -281,20 +269,20 @@ page_t*
 btr_page_alloc_for_ibuf(
 /*====================*/
 				/* out: new allocated page, x-latched */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	fil_addr_t	node_addr;
 	page_t*		root;
 	page_t*		new_page;
 
-	root = btr_root_get(tree, mtr);
+	root = btr_root_get(index, mtr);
 
 	node_addr = flst_get_first(root + PAGE_HEADER
 				   + PAGE_BTR_IBUF_FREE_LIST, mtr);
 	ut_a(node_addr.page != FIL_NULL);
 
-	new_page = buf_page_get(dict_tree_get_space(tree), node_addr.page,
+	new_page = buf_page_get(dict_index_get_space(index), node_addr.page,
 				RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(new_page, SYNC_TREE_NODE_NEW);
@@ -318,7 +306,7 @@ btr_page_alloc(
 /*===========*/
 					/* out: new allocated page, x-latched;
 					NULL if out of space */
-	dict_tree_t*	tree,		/* in: index tree */
+	dict_index_t*	index,		/* in: index */
 	ulint		hint_page_no,	/* in: hint of a good page */
 	byte		file_direction,	/* in: direction where a possible
 					page split is made */
@@ -331,12 +319,12 @@ btr_page_alloc(
 	page_t*		new_page;
 	ulint		new_page_no;
 
-	if (tree->type & DICT_IBUF) {
+	if (index->type & DICT_IBUF) {
 
-		return(btr_page_alloc_for_ibuf(tree, mtr));
+		return(btr_page_alloc_for_ibuf(index, mtr));
 	}
 
-	root = btr_root_get(tree, mtr);
+	root = btr_root_get(index, mtr);
 
 	if (level == 0) {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
@@ -355,7 +343,7 @@ btr_page_alloc(
 		return(NULL);
 	}
 
-	new_page = buf_page_get(dict_tree_get_space(tree), new_page_no,
+	new_page = buf_page_get(dict_index_get_space(index), new_page_no,
 				RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(new_page, SYNC_TREE_NODE_NEW);
@@ -382,9 +370,9 @@ btr_get_size(
 
 	mtr_start(&mtr);
 
-	mtr_s_lock(dict_tree_get_lock(index->tree), &mtr);
+	mtr_s_lock(dict_index_get_lock(index), &mtr);
 
-	root = btr_root_get(index->tree, &mtr);
+	root = btr_root_get(index, &mtr);
 
 	if (flag == BTR_N_LEAF_PAGES) {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
@@ -415,7 +403,7 @@ static
 void
 btr_page_free_for_ibuf(
 /*===================*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page to be freed, x-latched */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -423,7 +411,7 @@ btr_page_free_for_ibuf(
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
-	root = btr_root_get(tree, mtr);
+	root = btr_root_get(index, mtr);
 
 	flst_add_first(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 		       page + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE, mtr);
@@ -440,7 +428,7 @@ argument. */
 void
 btr_page_free_low(
 /*==============*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page to be freed, x-latched */
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr)	/* in: mtr */
@@ -457,14 +445,14 @@ btr_page_free_low(
 
 	buf_frame_modify_clock_inc(page);
 
-	if (tree->type & DICT_IBUF) {
+	if (index->type & DICT_IBUF) {
 
-		btr_page_free_for_ibuf(tree, page, mtr);
+		btr_page_free_for_ibuf(index, page, mtr);
 
 		return;
 	}
 
-	root = btr_root_get(tree, mtr);
+	root = btr_root_get(index, mtr);
 
 	if (level == 0) {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
@@ -485,7 +473,7 @@ storage pages because the page must contain info on its level. */
 void
 btr_page_free(
 /*==========*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page to be freed, x-latched */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -495,7 +483,7 @@ btr_page_free(
 				MTR_MEMO_PAGE_X_FIX));
 	level = btr_page_get_level(page, mtr);
 
-	btr_page_free_low(tree, page, level, mtr);
+	btr_page_free_low(index, page, level, mtr);
 }
 
 /******************************************************************
@@ -558,7 +546,7 @@ btr_page_get_father_for_rec(
 /*========================*/
 				/* out: pointer to node pointer record,
 				its page x-latched */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page: must contain at least one
 				user record */
 	rec_t*		user_rec,/* in: user_record on page */
@@ -568,22 +556,20 @@ btr_page_get_father_for_rec(
 	dtuple_t*	tuple;
 	btr_cur_t	cursor;
 	rec_t*		node_ptr;
-	dict_index_t*	index;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_a(page_rec_is_user_rec(user_rec));
 
-	ut_ad(dict_tree_get_page(tree) != buf_frame_get_page_no(page));
+	ut_ad(dict_index_get_page(index) != buf_frame_get_page_no(page));
 
 	heap = mem_heap_create(100);
 
-	tuple = dict_tree_build_node_ptr(tree, user_rec, 0, heap,
-					 btr_page_get_level(page, mtr));
-	index = tree->tree_index;
+	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap,
+					  btr_page_get_level(page, mtr));
 
 	/* In the following, we choose just any index from the tree as the
 	first parameter for btr_cur_search_to_nth_level. */
@@ -647,13 +633,13 @@ rec_t*
 btr_page_get_father_node_ptr(
 /*=========================*/
 				/* out: pointer to node pointer record */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page: must contain at least one
 				user record */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	return(btr_page_get_father_for_rec
-	       (tree, page,
+	       (index, page,
 		page_rec_get_next(page_get_infimum_rec(page)), mtr));
 }
 
@@ -1000,7 +986,7 @@ btr_root_raise_and_insert(
 	dtuple_t*	tuple,	/* in: tuple to insert */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	dict_tree_t*	tree;
+	dict_index_t*	index;
 	page_t*		root;
 	page_t*		new_page;
 	ulint		new_page_no;
@@ -1012,10 +998,10 @@ btr_root_raise_and_insert(
 	page_cur_t*	page_cursor;
 
 	root = btr_cur_get_page(cursor);
-	tree = btr_cur_get_tree(cursor);
+	index = btr_cur_get_index(cursor);
 
-	ut_ad(dict_tree_get_page(tree) == buf_frame_get_page_no(root));
-	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
+	ut_ad(dict_index_get_page(index) == buf_frame_get_page_no(root));
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(root),
 				MTR_MEMO_PAGE_X_FIX));
@@ -1025,10 +1011,10 @@ btr_root_raise_and_insert(
 	moving the root records to the new page, emptying the root, putting
 	a node pointer to the new page, and then splitting the new page. */
 
-	new_page = btr_page_alloc(tree, 0, FSP_NO_DIR,
+	new_page = btr_page_alloc(index, 0, FSP_NO_DIR,
 				  btr_page_get_level(root, mtr), mtr);
 
-	btr_page_create(new_page, tree, mtr);
+	btr_page_create(new_page, index, mtr);
 
 	level = btr_page_get_level(root, mtr);
 
@@ -1043,7 +1029,7 @@ btr_root_raise_and_insert(
 	/* Move the records from root to the new page */
 
 	page_move_rec_list_end(new_page, root, page_get_infimum_rec(root),
-			       cursor->index, mtr);
+			       index, mtr);
 	/* If this is a pessimistic insert which is actually done to
 	perform a pessimistic update then we have stored the lock
 	information of the record to be inserted on the infimum of the
@@ -1060,10 +1046,10 @@ btr_root_raise_and_insert(
 	/* Build the node pointer (= node key and page address) for the
 	child */
 
-	node_ptr = dict_tree_build_node_ptr(tree, rec, new_page_no, heap,
-					    level);
+	node_ptr = dict_index_build_node_ptr(index, rec, new_page_no, heap,
+					     level);
 	/* Reorganize the root to get free space */
-	btr_page_reorganize(root, cursor->index, mtr);
+	btr_page_reorganize(root, index, mtr);
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
@@ -1072,7 +1058,7 @@ btr_root_raise_and_insert(
 	page_cur_set_before_first(root, page_cursor);
 
 	node_ptr_rec = page_cur_tuple_insert(page_cursor, node_ptr,
-					     cursor->index, mtr);
+					     index, mtr);
 
 	ut_ad(node_ptr_rec);
 
@@ -1092,9 +1078,9 @@ btr_root_raise_and_insert(
 		buf_frame_get_page_no(new_page));
 #endif
 
-	ibuf_reset_free_bits(tree->tree_index, new_page);
+	ibuf_reset_free_bits(index, new_page);
 	/* Reposition the cursor to the child node */
-	page_cur_search(new_page, cursor->index, tuple,
+	page_cur_search(new_page, index, tuple,
 			PAGE_CUR_LE, page_cursor);
 
 	/* Split the child and insert tuple */
@@ -1419,7 +1405,7 @@ that mtr holds an x-latch on the tree. */
 void
 btr_insert_on_non_leaf_level(
 /*=========================*/
-	dict_tree_t*	tree,	/* in: tree */
+	dict_index_t*	index,	/* in: index */
 	ulint		level,	/* in: level, must be > 0 */
 	dtuple_t*	tuple,	/* in: the record to be inserted */
 	mtr_t*		mtr)	/* in: mtr */
@@ -1431,11 +1417,7 @@ btr_insert_on_non_leaf_level(
 
 	ut_ad(level > 0);
 
-	/* In the following, choose just any index from the tree as the
-	first parameter for btr_cur_search_to_nth_level. */
-
-	btr_cur_search_to_nth_level(tree->tree_index,
-				    level, tuple, PAGE_CUR_LE,
+	btr_cur_search_to_nth_level(index, level, tuple, PAGE_CUR_LE,
 				    BTR_CONT_MODIFY_TREE,
 				    &cursor, 0, mtr);
 
@@ -1454,7 +1436,7 @@ static
 void
 btr_attach_half_pages(
 /*==================*/
-	dict_tree_t*	tree,		/* in: the index tree */
+	dict_index_t*	index,		/* in: the index tree */
 	page_t*		page,		/* in: page to be split */
 	rec_t*		split_rec,	/* in: first record on upper
 					half page */
@@ -1493,14 +1475,14 @@ btr_attach_half_pages(
 		lower_page = new_page;
 		upper_page = page;
 
-		/* Look from the tree for the node pointer to page */
-		node_ptr = btr_page_get_father_node_ptr(tree, page, mtr);
+		/* Look up the index for the node pointer to page */
+		node_ptr = btr_page_get_father_node_ptr(index, page, mtr);
 
 		/* Replace the address of the old child node (= page) with the
 		address of the new lower half */
 
 		btr_node_ptr_set_child_page_no(node_ptr, rec_get_offsets
-					       (node_ptr, tree->tree_index,
+					       (node_ptr, index,
 						NULL, ULINT_UNDEFINED, &heap),
 					       lower_page_no, mtr);
 		mem_heap_empty(heap);
@@ -1517,13 +1499,13 @@ btr_attach_half_pages(
 	/* Build the node pointer (= node key and page address) for the upper
 	half */
 
-	node_ptr_upper = dict_tree_build_node_ptr(tree, split_rec,
-						  upper_page_no, heap, level);
+	node_ptr_upper = dict_index_build_node_ptr(index, split_rec,
+						   upper_page_no, heap, level);
 
 	/* Insert it next to the pointer to the lower half. Note that this
 	may generate recursion leading to a split on the higher level. */
 
-	btr_insert_on_non_leaf_level(tree, level + 1, node_ptr_upper, mtr);
+	btr_insert_on_non_leaf_level(index, level + 1, node_ptr_upper, mtr);
 
 	/* Free the memory heap */
 	mem_heap_free(heap);
@@ -1585,7 +1567,6 @@ btr_page_split_and_insert(
 	dtuple_t*	tuple,	/* in: tuple to insert */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	dict_tree_t*	tree;
 	page_t*		page;
 	ulint		page_no;
 	byte		direction;
@@ -1611,12 +1592,11 @@ btr_page_split_and_insert(
 func_start:
 	mem_heap_empty(heap);
 	offsets = NULL;
-	tree = btr_cur_get_tree(cursor);
 
-	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(cursor->index),
 				MTR_MEMO_X_LOCK));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_tree_get_lock(tree), RW_LOCK_EX));
+	ut_ad(rw_lock_own(dict_index_get_lock(cursor->index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	page = btr_cur_get_page(cursor);
@@ -1649,10 +1629,10 @@ func_start:
 		split_rec = page_get_middle_rec(page);
 	}
 
-	/* 2. Allocate a new page to the tree */
-	new_page = btr_page_alloc(tree, hint_page_no, direction,
+	/* 2. Allocate a new page to the index */
+	new_page = btr_page_alloc(cursor->index, hint_page_no, direction,
 				  btr_page_get_level(page, mtr), mtr);
-	btr_page_create(new_page, tree, mtr);
+	btr_page_create(new_page, cursor->index, mtr);
 
 	/* 3. Calculate the first record on the upper half-page, and the
 	first record (move_limit) on original page which ends up on the
@@ -1671,7 +1651,8 @@ func_start:
 
 	/* 4. Do first the modifications in the tree structure */
 
-	btr_attach_half_pages(tree, page, first_rec, new_page, direction, mtr);
+	btr_attach_half_pages(cursor->index, page, first_rec,
+			      new_page, direction, mtr);
 
 	if (split_rec == NULL) {
 		mem_free(buf);
@@ -1697,7 +1678,7 @@ func_start:
 
 	if (insert_will_fit && (btr_page_get_level(page, mtr) == 0)) {
 
-		mtr_memo_release(mtr, dict_tree_get_lock(tree),
+		mtr_memo_release(mtr, dict_index_get_lock(cursor->index),
 				 MTR_MEMO_X_LOCK);
 	}
 
@@ -1797,8 +1778,8 @@ func_start:
 		buf_frame_get_page_no(right_page));
 #endif
 
-	ut_ad(page_validate(left_page, tree->tree_index));
-	ut_ad(page_validate(right_page, tree->tree_index));
+	ut_ad(page_validate(left_page, cursor->index));
+	ut_ad(page_validate(right_page, cursor->index));
 
 	mem_heap_free(heap);
 	return(rec);
@@ -1810,7 +1791,6 @@ static
 void
 btr_level_list_remove(
 /*==================*/
-	dict_tree_t*	tree __attribute__((unused)), /* in: index tree */
 	page_t*		page,	/* in: page to remove */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -1820,7 +1800,7 @@ btr_level_list_remove(
 	ulint	next_page_no;
 	page_t*	next_page;
 
-	ut_ad(tree && page && mtr);
+	ut_ad(page && mtr);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
 	/* Get the previous and next page numbers of page */
@@ -1932,7 +1912,7 @@ Deletes on the upper level the node pointer to a page. */
 void
 btr_node_ptr_delete(
 /*================*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page whose node pointer is deleted */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -1945,9 +1925,9 @@ btr_node_ptr_delete(
 				MTR_MEMO_PAGE_X_FIX));
 	/* Delete node pointer on father page */
 
-	node_ptr = btr_page_get_father_node_ptr(tree, page, mtr);
+	node_ptr = btr_page_get_father_node_ptr(index, page, mtr);
 
-	btr_cur_position(tree->tree_index, node_ptr, &cursor);
+	btr_cur_position(index, node_ptr, &cursor);
 	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor, FALSE,
 						mtr);
 	ut_a(err == DB_SUCCESS);
@@ -1964,7 +1944,7 @@ static
 void
 btr_lift_page_up(
 /*=============*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page which is the only on its level;
 				must not be empty: use
 				btr_discard_only_page_on_level if the last
@@ -1973,17 +1953,15 @@ btr_lift_page_up(
 {
 	page_t*		father_page;
 	ulint		page_level;
-	dict_index_t*	index;
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
 	father_page = buf_frame_align
-		(btr_page_get_father_node_ptr(tree, page, mtr));
+		(btr_page_get_father_node_ptr(index, page, mtr));
 
 	page_level = btr_page_get_level(page, mtr);
-	index = tree->tree_index;
 
 	btr_search_drop_page_hash_index(page);
 
@@ -1998,12 +1976,12 @@ btr_lift_page_up(
 	btr_page_set_level(father_page, page_level, mtr);
 
 	/* Free the file page */
-	btr_page_free(tree, page, mtr);
+	btr_page_free(index, page, mtr);
 
 	/* We play safe and reset the free bits for the father */
 	ibuf_reset_free_bits(index, father_page);
 	ut_ad(page_validate(father_page, index));
-	ut_ad(btr_check_node_ptr(tree, father_page, mtr));
+	ut_ad(btr_check_node_ptr(index, father_page, mtr));
 }
 
 /*****************************************************************
@@ -2026,7 +2004,7 @@ btr_compress(
 				empty */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	dict_tree_t*	tree;
+	dict_index_t*	index;
 	ulint		space;
 	ulint		left_page_no;
 	ulint		right_page_no;
@@ -2045,16 +2023,16 @@ btr_compress(
 	ulint		comp;
 
 	page = btr_cur_get_page(cursor);
-	tree = btr_cur_get_tree(cursor);
+	index = btr_cur_get_index(cursor);
 	comp = page_is_comp(page);
-	ut_a((ibool)!!comp == dict_table_is_comp(cursor->index->table));
+	ut_a((ibool)!!comp == dict_table_is_comp(index->table));
 
-	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
 	level = btr_page_get_level(page, mtr);
-	space = dict_tree_get_space(tree);
+	space = dict_index_get_space(index);
 
 	left_page_no = btr_page_get_prev(page, mtr);
 	right_page_no = btr_page_get_next(page, mtr);
@@ -2064,7 +2042,7 @@ btr_compress(
 		left_page_no, right_page_no);
 #endif
 
-	node_ptr = btr_page_get_father_node_ptr(tree, page, mtr);
+	node_ptr = btr_page_get_father_node_ptr(index, page, mtr);
 	ut_ad(!comp || rec_get_status(node_ptr) == REC_STATUS_NODE_PTR);
 	father_page = buf_frame_align(node_ptr);
 	ut_a(comp == page_is_comp(father_page));
@@ -2093,7 +2071,7 @@ btr_compress(
 	} else {
 		/* The page is the only one on the level, lift the records
 		to the father */
-		btr_lift_page_up(tree, page, mtr);
+		btr_lift_page_up(index, page, mtr);
 
 		return;
 	}
@@ -2111,7 +2089,7 @@ btr_compress(
 		return;
 	}
 
-	ut_ad(page_validate(merge_page, cursor->index));
+	ut_ad(page_validate(merge_page, index));
 
 	max_ins_size = page_get_max_insert_size(merge_page, n_recs);
 
@@ -2119,11 +2097,11 @@ btr_compress(
 
 		/* We have to reorganize merge_page */
 
-		btr_page_reorganize(merge_page, cursor->index, mtr);
+		btr_page_reorganize(merge_page, index, mtr);
 
 		max_ins_size = page_get_max_insert_size(merge_page, n_recs);
 
-		ut_ad(page_validate(merge_page, cursor->index));
+		ut_ad(page_validate(merge_page, index));
 		ut_ad(page_get_max_insert_size(merge_page, n_recs)
 		      == max_ins_size_reorg);
 	}
@@ -2138,10 +2116,10 @@ btr_compress(
 	btr_search_drop_page_hash_index(page);
 
 	/* Remove the page from the level list */
-	btr_level_list_remove(tree, page, mtr);
+	btr_level_list_remove(page, mtr);
 
 	if (is_left) {
-		btr_node_ptr_delete(tree, page, mtr);
+		btr_node_ptr_delete(index, page, mtr);
 	} else {
 		mem_heap_t*	heap		= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -2150,14 +2128,14 @@ btr_compress(
 		address of the merge page to the right */
 
 		btr_node_ptr_set_child_page_no(node_ptr, rec_get_offsets
-					       (node_ptr, cursor->index,
+					       (node_ptr, index,
 						offsets_, ULINT_UNDEFINED, 
 						&heap),
 					       right_page_no, mtr);
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
-		btr_node_ptr_delete(tree, merge_page, mtr);
+		btr_node_ptr_delete(index, merge_page, mtr);
 	}
 
 	/* Move records to the merge page */
@@ -2166,7 +2144,7 @@ btr_compress(
 			(page_get_supremum_rec(merge_page));
 		page_copy_rec_list_start(merge_page, page,
 					 page_get_supremum_rec(page),
-					 cursor->index, mtr);
+					 index, mtr);
 
 		lock_update_merge_left(merge_page, orig_pred, page);
 	} else {
@@ -2174,21 +2152,21 @@ btr_compress(
 			(page_get_infimum_rec(merge_page));
 		page_copy_rec_list_end(merge_page, page,
 				       page_get_infimum_rec(page),
-				       cursor->index, mtr);
+				       index, mtr);
 
 		lock_update_merge_right(orig_succ, page);
 	}
 
 	/* We have added new records to merge_page: update its free bits */
-	ibuf_update_free_bits_if_full(cursor->index, merge_page,
+	ibuf_update_free_bits_if_full(index, merge_page,
 				      UNIV_PAGE_SIZE, ULINT_UNDEFINED);
 
-	ut_ad(page_validate(merge_page, cursor->index));
+	ut_ad(page_validate(merge_page, index));
 
 	/* Free the file page */
-	btr_page_free(tree, page, mtr);
+	btr_page_free(index, page, mtr);
 
-	ut_ad(btr_check_node_ptr(tree, merge_page, mtr));
+	ut_ad(btr_check_node_ptr(index, merge_page, mtr));
 }
 
 /*****************************************************************
@@ -2197,7 +2175,7 @@ static
 void
 btr_discard_only_page_on_level(
 /*===========================*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page which is the only on its level */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -2211,7 +2189,7 @@ btr_discard_only_page_on_level(
 				MTR_MEMO_PAGE_X_FIX));
 	btr_search_drop_page_hash_index(page);
 
-	node_ptr = btr_page_get_father_node_ptr(tree, page, mtr);
+	node_ptr = btr_page_get_father_node_ptr(index, page, mtr);
 	father_page = buf_frame_align(node_ptr);
 
 	page_level = btr_page_get_level(page, mtr);
@@ -2221,19 +2199,19 @@ btr_discard_only_page_on_level(
 	btr_page_set_level(father_page, page_level, mtr);
 
 	/* Free the file page */
-	btr_page_free(tree, page, mtr);
+	btr_page_free(index, page, mtr);
 
-	if (buf_frame_get_page_no(father_page) == dict_tree_get_page(tree)) {
+	if (buf_frame_get_page_no(father_page) == dict_index_get_page(index)) {
 		/* The father is the root page */
 
 		btr_page_empty(father_page, mtr);
 
 		/* We play safe and reset the free bits for the father */
-		ibuf_reset_free_bits(tree->tree_index, father_page);
+		ibuf_reset_free_bits(index, father_page);
 	} else {
 		ut_ad(page_get_n_recs(father_page) == 1);
 
-		btr_discard_only_page_on_level(tree, father_page, mtr);
+		btr_discard_only_page_on_level(index, father_page, mtr);
 	}
 }
 
@@ -2249,7 +2227,7 @@ btr_discard_page(
 				the root page */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	dict_tree_t*	tree;
+	dict_index_t*	index;
 	ulint		space;
 	ulint		left_page_no;
 	ulint		right_page_no;
@@ -2258,14 +2236,14 @@ btr_discard_page(
 	rec_t*		node_ptr;
 
 	page = btr_cur_get_page(cursor);
-	tree = btr_cur_get_tree(cursor);
+	index = btr_cur_get_index(cursor);
 
-	ut_ad(dict_tree_get_page(tree) != buf_frame_get_page_no(page));
-	ut_ad(mtr_memo_contains(mtr, dict_tree_get_lock(tree),
+	ut_ad(dict_index_get_page(index) != buf_frame_get_page_no(page));
+	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
-	space = dict_tree_get_space(tree);
+	space = dict_index_get_space(index);
 
 	/* Decide the page which will inherit the locks */
 
@@ -2287,7 +2265,7 @@ btr_discard_page(
 		     == buf_frame_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 	} else {
-		btr_discard_only_page_on_level(tree, page, mtr);
+		btr_discard_only_page_on_level(index, page, mtr);
 
 		return;
 	}
@@ -2307,10 +2285,10 @@ btr_discard_page(
 		btr_set_min_rec_mark(node_ptr, page_is_comp(merge_page), mtr);
 	}
 
-	btr_node_ptr_delete(tree, page, mtr);
+	btr_node_ptr_delete(index, page, mtr);
 
 	/* Remove the page from the level list */
-	btr_level_list_remove(tree, page, mtr);
+	btr_level_list_remove(page, mtr);
 
 	if (left_page_no != FIL_NULL) {
 		lock_update_discard(page_get_supremum_rec(merge_page), page);
@@ -2320,9 +2298,9 @@ btr_discard_page(
 	}
 
 	/* Free the file page */
-	btr_page_free(tree, page, mtr);
+	btr_page_free(index, page, mtr);
 
-	ut_ad(btr_check_node_ptr(tree, merge_page, mtr));
+	ut_ad(btr_check_node_ptr(index, merge_page, mtr));
 }
 
 #ifdef UNIV_BTR_PRINT
@@ -2332,13 +2310,13 @@ Prints size info of a B-tree. */
 void
 btr_print_size(
 /*===========*/
-	dict_tree_t*	tree)	/* in: index tree */
+	dict_index_t*	index)	/* in: index tree */
 {
 	page_t*		root;
 	fseg_header_t*	seg;
 	mtr_t		mtr;
 
-	if (tree->type & DICT_IBUF) {
+	if (index->type & DICT_IBUF) {
 		fputs("Sorry, cannot print info of an ibuf tree:"
 		      " use ibuf functions\n", stderr);
 
@@ -2347,14 +2325,14 @@ btr_print_size(
 
 	mtr_start(&mtr);
 
-	root = btr_root_get(tree, &mtr);
+	root = btr_root_get(index, &mtr);
 
 	seg = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 
 	fputs("INFO OF THE NON-LEAF PAGE SEGMENT\n", stderr);
 	fseg_print(seg, &mtr);
 
-	if (!(tree->type & DICT_UNIVERSAL)) {
+	if (!(index->type & DICT_UNIVERSAL)) {
 
 		seg = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
 
@@ -2371,7 +2349,7 @@ static
 void
 btr_print_recursive(
 /*================*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: index page */
 	ulint		width,	/* in: print this many entries from start
 				and end */
@@ -2385,7 +2363,6 @@ btr_print_recursive(
 	mtr_t		mtr2;
 	rec_t*		node_ptr;
 	page_t*		child;
-	dict_index_t*	index;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
@@ -2393,7 +2370,6 @@ btr_print_recursive(
 		(ulong) btr_page_get_level(page, mtr),
 		(ulong) buf_frame_get_page_no(page));
 
-	index = tree->tree_index;
 	page_print(page, index, width, width);
 
 	n_recs = page_get_n_recs(page);
@@ -2417,7 +2393,7 @@ btr_print_recursive(
 						   ULINT_UNDEFINED, heap);
 			child = btr_node_ptr_get_child(node_ptr,
 						       *offsets, &mtr2);
-			btr_print_recursive(tree, child, width,
+			btr_print_recursive(index, child, width,
 					    heap, offsets, &mtr2);
 			mtr_commit(&mtr2);
 		}
@@ -2431,9 +2407,9 @@ btr_print_recursive(
 Prints directories and other info of all nodes in the tree. */
 
 void
-btr_print_tree(
-/*===========*/
-	dict_tree_t*	tree,	/* in: tree */
+btr_print_index(
+/*============*/
+	dict_index_t*	index,	/* in: index */
 	ulint		width)	/* in: print this many entries from start
 				and end */
 {
@@ -2449,16 +2425,16 @@ btr_print_tree(
 
 	mtr_start(&mtr);
 
-	root = btr_root_get(tree, &mtr);
+	root = btr_root_get(index, &mtr);
 
-	btr_print_recursive(tree, root, width, &heap, &offsets, &mtr);
+	btr_print_recursive(index, root, width, &heap, &offsets, &mtr);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
 	mtr_commit(&mtr);
 
-	btr_validate_tree(tree, NULL);
+	btr_validate_index(index, NULL);
 }
 #endif /* UNIV_BTR_PRINT */
 
@@ -2470,7 +2446,7 @@ ibool
 btr_check_node_ptr(
 /*===============*/
 				/* out: TRUE */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: index page */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -2480,12 +2456,12 @@ btr_check_node_ptr(
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
-	if (dict_tree_get_page(tree) == buf_frame_get_page_no(page)) {
+	if (dict_index_get_page(index) == buf_frame_get_page_no(page)) {
 
 		return(TRUE);
 	}
 
-	node_ptr = btr_page_get_father_node_ptr(tree, page, mtr);
+	node_ptr = btr_page_get_father_node_ptr(index, page, mtr);
 
 	if (btr_page_get_level(page, mtr) == 0) {
 
@@ -2494,12 +2470,12 @@ btr_check_node_ptr(
 
 	heap = mem_heap_create(256);
 
-	node_ptr_tuple = dict_tree_build_node_ptr
-		(tree, page_rec_get_next(page_get_infimum_rec(page)),
+	node_ptr_tuple = dict_index_build_node_ptr
+		(index, page_rec_get_next(page_get_infimum_rec(page)),
 		 0, heap, btr_page_get_level(page, mtr));
 
 	ut_a(!cmp_dtuple_rec(node_ptr_tuple, node_ptr,
-			     rec_get_offsets(node_ptr, tree->tree_index,
+			     rec_get_offsets(node_ptr, index,
 					     NULL, ULINT_UNDEFINED, &heap)));
 
 	mem_heap_free(heap);
@@ -2670,6 +2646,7 @@ Report an error on one page of an index tree. */
 static
 void
 btr_validate_report1(
+/*=================*/
 				/* out: TRUE if ok */
 	dict_index_t*	index,	/* in: index */
 	ulint		level,	/* in: B-tree level */
@@ -2689,6 +2666,7 @@ Report an error on two pages of an index tree. */
 static
 void
 btr_validate_report2(
+/*=================*/
 				/* out: TRUE if ok */
 	dict_index_t*	index,	/* in: index */
 	ulint		level,	/* in: B-tree level */
@@ -2712,7 +2690,7 @@ ibool
 btr_validate_level(
 /*===============*/
 				/* out: TRUE if ok */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	trx_t*		trx,	/* in: transaction or NULL */
 	ulint		level)	/* in: level number */
 {
@@ -2729,7 +2707,6 @@ btr_validate_level(
 	page_cur_t	cursor;
 	dtuple_t*	node_ptr_tuple;
 	ibool		ret	= TRUE;
-	dict_index_t*	index;
 	mtr_t		mtr;
 	mem_heap_t*	heap	= mem_heap_create(256);
 	ulint*		offsets	= NULL;
@@ -2737,13 +2714,11 @@ btr_validate_level(
 
 	mtr_start(&mtr);
 
-	mtr_x_lock(dict_tree_get_lock(tree), &mtr);
+	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
-	page = btr_root_get(tree, &mtr);
+	page = btr_root_get(index, &mtr);
 
 	space = buf_frame_get_space_id(page);
-
-	index = tree->tree_index;
 
 	while (level != btr_page_get_level(page, &mtr)) {
 
@@ -2768,7 +2743,7 @@ loop:
 	}
 	mem_heap_empty(heap);
 	offsets = offsets2 = NULL;
-	mtr_x_lock(dict_tree_get_lock(tree), &mtr);
+	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
 	/* Check ordering etc. of records */
 
@@ -2794,7 +2769,7 @@ loop:
 	ut_a((page_get_n_recs(page) > 0)
 	     || ((level == 0)
 		 && (buf_frame_get_page_no(page)
-		     == dict_tree_get_page(tree))));
+		     == dict_index_get_page(index))));
 
 	if (right_page_no != FIL_NULL) {
 		rec_t*	right_rec;
@@ -2862,11 +2837,11 @@ loop:
 		      page_is_comp(page)));
 	}
 
-	if (buf_frame_get_page_no(page) != dict_tree_get_page(tree)) {
+	if (buf_frame_get_page_no(page) != dict_index_get_page(index)) {
 
 		/* Check father node pointers */
 
-		node_ptr = btr_page_get_father_node_ptr(tree, page, &mtr);
+		node_ptr = btr_page_get_father_node_ptr(index, page, &mtr);
 		father_page = buf_frame_align(node_ptr);
 		offsets	= rec_get_offsets(node_ptr, index,
 					  offsets, ULINT_UNDEFINED, &heap);
@@ -2874,7 +2849,7 @@ loop:
 		if (btr_node_ptr_get_child_page_no(node_ptr, offsets)
 		    != buf_frame_get_page_no(page)
 		    || node_ptr != btr_page_get_father_for_rec
-		    (tree, page,
+		    (index, page,
 		     page_rec_get_prev(page_get_supremum_rec(page)), &mtr)) {
 			btr_validate_report1(index, level, page);
 
@@ -2894,7 +2869,7 @@ loop:
 
 			fputs("InnoDB: record on page ", stderr);
 			rec = btr_page_get_father_for_rec
-				(tree, page, page_rec_get_prev
+				(index, page, page_rec_get_prev
 				 (page_get_supremum_rec(page)), &mtr);
 			rec_print(stderr, rec, index);
 			putc('\n', stderr);
@@ -2908,8 +2883,8 @@ loop:
 						  offsets, ULINT_UNDEFINED,
 						  &heap);
 
-			node_ptr_tuple = dict_tree_build_node_ptr
-				(tree,
+			node_ptr_tuple = dict_index_build_node_ptr
+				(index,
 				 page_rec_get_next(page_get_infimum_rec(page)),
 				 0, heap, btr_page_get_level(page, &mtr));
 
@@ -2948,7 +2923,7 @@ loop:
 			ut_a(btr_page_get_next(father_page, &mtr) == FIL_NULL);
 		} else {
 			right_node_ptr = btr_page_get_father_node_ptr
-				(tree, right_page, &mtr);
+				(index, right_page, &mtr);
 			if (page_rec_get_next(node_ptr)
 			    != page_get_supremum_rec(father_page)) {
 
@@ -3029,10 +3004,10 @@ node_ptr_fails:
 Checks the consistency of an index tree. */
 
 ibool
-btr_validate_tree(
-/*==============*/
+btr_validate_index(
+/*===============*/
 				/* out: TRUE if ok */
-	dict_tree_t*	tree,	/* in: tree */
+	dict_index_t*	index,	/* in: index */
 	trx_t*		trx)	/* in: transaction or NULL */
 {
 	mtr_t	mtr;
@@ -3041,13 +3016,13 @@ btr_validate_tree(
 	ulint	n;
 
 	mtr_start(&mtr);
-	mtr_x_lock(dict_tree_get_lock(tree), &mtr);
+	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
-	root = btr_root_get(tree, &mtr);
+	root = btr_root_get(index, &mtr);
 	n = btr_page_get_level(root, &mtr);
 
 	for (i = 0; i <= n && !trx_is_interrupted(trx); i++) {
-		if (!btr_validate_level(tree, trx, n - i)) {
+		if (!btr_validate_level(index, trx, n - i)) {
 
 			mtr_commit(&mtr);
 
