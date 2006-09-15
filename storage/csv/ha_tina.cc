@@ -162,7 +162,7 @@ static int tina_init_func()
     tina_hton.db_type= DB_TYPE_CSV_DB;
     tina_hton.create= tina_create_handler;
     tina_hton.panic= tina_end;
-    tina_hton.flags= HTON_CAN_RECREATE;
+    tina_hton.flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   }
   return 0;
 }
