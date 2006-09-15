@@ -1946,7 +1946,7 @@ esac
 
 # isinf() could be a function or a macro (HPUX)
 AC_MSG_CHECKING(for isinf with <math.h>)
-AC_TRY_LINK([#include <math.h>], [float f = 0.0; isinf(f)],
+AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
  AC_MSG_RESULT(yes)
  AC_DEFINE(HAVE_ISINF, [1], [isinf() macro or function]),
  AC_MSG_RESULT(no))
