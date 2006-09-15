@@ -172,6 +172,10 @@ a
 0
 2
 DROP TABLE t1;
+create table t1 (a int);
+delete `4.t1` from t1 as `4.t1` where `4.t1`.a = 5;
+delete FROM `4.t1` USING t1 as `4.t1` where `4.t1`.a = 5;
+drop table t1;
 CREATE TABLE t1 (a int not null,b int not null);
 CREATE TABLE t2 (a int not null, b int not null, primary key (a,b));
 CREATE TABLE t3 (a int not null, b int not null, primary key (a,b));

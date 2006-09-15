@@ -187,6 +187,8 @@ public:
   }
   bool walk(Item_processor processor, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
+  Item* compile(Item_analyzer analyzer, byte **arg_p,
+                Item_transformer transformer, byte *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
   bool is_expensive_processor(byte *arg);
