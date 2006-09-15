@@ -305,7 +305,7 @@ ibuf_tree_root_get(
 	ut_a(space == 0);
 	ut_ad(ibuf_inside());
 
-	mtr_x_lock(dict_tree_get_lock((data->index)->tree), mtr);
+	mtr_x_lock(dict_index_get_lock(data->index), mtr);
 
 	page = buf_page_get(space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
 			    mtr);
@@ -2994,7 +2994,7 @@ ibuf_delete_rec(
 		btr_pcur_commit_specify_mtr(pcur, mtr);
 
 		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
-		if (!btr_validate_tree(ibuf_data->index->tree, NULL)) {
+		if (!btr_validate_index(ibuf_data->index, NULL)) {
 			ut_error;
 		}
 

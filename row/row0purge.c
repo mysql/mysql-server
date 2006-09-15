@@ -430,7 +430,7 @@ skip_secondaries:
 
 			index = dict_table_get_first_index(node->table);
 
-			mtr_x_lock(dict_tree_get_lock(index->tree), &mtr);
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
 
 			/* NOTE: we must also acquire an X-latch to the
 			root page of the tree. We will need it when we
@@ -441,7 +441,7 @@ skip_secondaries:
 			latching order if we would only later latch the
 			root page of such a tree! */
 
-			btr_root_get(index->tree, &mtr);
+			btr_root_get(index, &mtr);
 
 			/* We assume in purge of externally stored fields
 			that the space id of the undo log record is 0! */

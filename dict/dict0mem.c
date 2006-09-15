@@ -169,6 +169,7 @@ dict_mem_index_create(
 
 	index->type = type;
 	index->space = space;
+	index->page = 0;
 	index->name = mem_heap_strdup(heap, index_name);
 	index->table_name = table_name;
 	index->table = NULL;
@@ -181,6 +182,7 @@ dict_mem_index_create(
 	index->stat_n_diff_key_vals = NULL;
 
 	index->cached = FALSE;
+	memset(&index->lock, 0, sizeof index->lock);
 #ifdef UNIV_DEBUG
 	index->magic_n = DICT_INDEX_MAGIC_N;
 #endif /* UNIV_DEBUG */

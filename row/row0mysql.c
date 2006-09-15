@@ -4004,7 +4004,7 @@ row_check_table_for_mysql(
 		ut_print_name(stderr, trx, FALSE, index->name);
 		putc('\n', stderr); */
 
-		if (!btr_validate_tree(index->tree, prebuilt->trx)) {
+		if (!btr_validate_index(index, prebuilt->trx)) {
 			ret = DB_ERROR;
 		} else {
 			if (!row_scan_and_check_index(prebuilt,
