@@ -3383,8 +3383,6 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
-    /* Skip first table, which is the table we are inserting in */
-    select_lex->context.table_list= first_table->next_local;
 
     if (!thd->locked_tables &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
