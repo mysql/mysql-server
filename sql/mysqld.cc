@@ -3247,7 +3247,7 @@ server.");
                         default_storage_engine_str);
         unireg_abort(1);
       }
-      hton= &myisam_hton;
+      hton= myisam_hton;
     }
     global_system_variables.table_type= hton;
   }
@@ -6964,7 +6964,7 @@ static void mysql_init_variables(void)
 
   /* Set default values for some option variables */
   default_storage_engine_str= (char*) "MyISAM";
-  global_system_variables.table_type= &myisam_hton;
+  global_system_variables.table_type= myisam_hton;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
   max_system_variables.select_limit=    (ulonglong) HA_POS_ERROR;
@@ -6985,6 +6985,51 @@ static void mysql_init_variables(void)
 			     "d:t:i:o,/tmp/mysqld.trace");
 #endif
   opt_error_log= IF_WIN(1,0);
+#ifdef WITH_MYISAMMRG_STORAGE_ENGINE
+  have_merge_db= SHOW_OPTION_YES;
+#else
+  have_merge_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+  have_innodb= SHOW_OPTION_YES;
+#else
+  have_innodb= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_EXAMPLE_STORAGE_ENGINE
+  have_example_db= SHOW_OPTION_YES;
+#else
+  have_example_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_ARCHIVE_STORAGE_ENGINE
+  have_archive_db= SHOW_OPTION_YES;
+#else
+  have_archive_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_BLACKHOLE_STORAGE_ENGINE
+  have_blackhole_db= SHOW_OPTION_YES;
+#else
+  have_blackhole_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_FEDERATED_STORAGE_ENGINE
+  have_federated_db= SHOW_OPTION_YES;
+#else
+  have_federated_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_CSV_STORAGE_ENGINE
+  have_csv_db= SHOW_OPTION_YES;
+#else
+  have_csv_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+    have_ndbcluster= SHOW_OPTION_DISABLED;
+#else
+    have_ndbcluster= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    have_partition_db= SHOW_OPTION_YES;
+#else
+    have_partition_db= SHOW_OPTION_NO;
+#endif
 #ifdef HAVE_ROW_BASED_REPLICATION
   have_row_based_replication= SHOW_OPTION_YES;
 #else
@@ -8061,6 +8106,7 @@ void refresh_status(THD *thd)
 #undef have_federated_db
 #undef have_partition_db
 #undef have_blackhole_db
+#undef have_merge_db
 
 SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
@@ -8070,6 +8116,7 @@ SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_federated_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_merge_db= SHOW_OPTION_NO;
 
 #ifndef WITH_INNOBASE_STORAGE_ENGINE
 uint innobase_flush_log_at_trx_commit;

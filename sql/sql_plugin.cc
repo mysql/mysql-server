@@ -477,13 +477,6 @@ err:
 void plugin_deinitialize(struct st_plugin_int *plugin)
 {
 
-  if (plugin_type_deinitialize[plugin->plugin->type] &&
-      (*plugin_type_deinitialize[plugin->plugin->type])(plugin))
-  {
-    sql_print_error("Plugin '%s' of type %s failed deinitialization",
-                    plugin->name.str, plugin_type_names[plugin->plugin->type]);
-  }
-
   if (plugin->plugin->status_vars)
   {
 #ifdef FIX_LATER
@@ -504,10 +497,18 @@ void plugin_deinitialize(struct st_plugin_int *plugin)
 #endif /* FIX_LATER */
   }
 
-  if (plugin->plugin->deinit)
+  if (plugin_type_deinitialize[plugin->plugin->type])
+  {
+    if ((*plugin_type_deinitialize[plugin->plugin->type])(plugin))
+    {
+      sql_print_error("Plugin '%s' of type %s failed deinitialization",
+                      plugin->name.str, plugin_type_names[plugin->plugin->type]);
+    } 
+  }
+  else if (plugin->plugin->deinit)
   {
     DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
-    if (plugin->plugin->deinit())
+    if (plugin->plugin->deinit(NULL))
     {
       DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
                              plugin->name.str));
@@ -556,6 +557,27 @@ static int plugin_initialize(struct st_plugin_int *plugin)
 {
   DBUG_ENTER("plugin_initialize");
 
+  if (plugin_type_initialize[plugin->plugin->type])
+  {
+    if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
+    {
+      sql_print_error("Plugin '%s' registration as a %s failed.",
+                      plugin->name.str, plugin_type_names[plugin->plugin->type]);
+      goto err;
+    }
+  }
+  else if (plugin->plugin->init)
+  {
+    if (plugin->plugin->init(NULL))
+    {
+      sql_print_error("Plugin '%s' init function returned error.",
+                      plugin->name.str);
+      goto err;
+    }
+  }
+
+  plugin->state= PLUGIN_IS_READY;
+
   if (plugin->plugin->status_vars)
   {
 #ifdef FIX_LATER
@@ -576,24 +598,6 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     add_status_vars(plugin->plugin->status_vars); // add_status_vars makes a copy
 #endif /* FIX_LATER */
   }
-  if (plugin->plugin->init)
-  {
-    if (plugin->plugin->init())
-    {
-      sql_print_error("Plugin '%s' init function returned error.",
-                      plugin->name.str);
-      goto err;
-    }
-  }
-  if (plugin_type_initialize[plugin->plugin->type] &&
-      (*plugin_type_initialize[plugin->plugin->type])(plugin))
-  {
-    sql_print_error("Plugin '%s' registration as a %s failed.",
-                    plugin->name.str, plugin_type_names[plugin->plugin->type]);
-    goto err;
-  }
-
-  plugin->state= PLUGIN_IS_READY;
 
   DBUG_RETURN(0);
 err:
