@@ -75,7 +75,6 @@ pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
 static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
-static int tina_init_func();
 
 off_t Transparent_file::read_next()
 {
@@ -124,7 +123,7 @@ char Transparent_file::get_value(off_t offset)
     return buff[0];
   }
 }
-handlerton tina_hton;
+handlerton *tina_hton;
 
 /*****************************************************************************
  ** TINA tables
@@ -149,25 +148,25 @@ static byte* tina_get_key(TINA_SHARE *share,uint *length,
   return (byte*) share->table_name;
 }
 
-static int tina_init_func()
+static int tina_init_func(void *p)
 {
   if (!tina_init)
   {
+    tina_hton= (handlerton *)p;
     tina_init++;
     VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
     (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
                      (hash_get_key) tina_get_key,0,0);
-    bzero(&tina_hton, sizeof(handlerton));
-    tina_hton.state= SHOW_OPTION_YES;
-    tina_hton.db_type= DB_TYPE_CSV_DB;
-    tina_hton.create= tina_create_handler;
-    tina_hton.panic= tina_end;
-    tina_hton.flags= HTON_CAN_RECREATE;
+    tina_hton->state= SHOW_OPTION_YES;
+    tina_hton->db_type= DB_TYPE_CSV_DB;
+    tina_hton->create= tina_create_handler;
+    tina_hton->panic= tina_end;
+    tina_hton->flags= HTON_CAN_RECREATE;
   }
   return 0;
 }
 
-static int tina_done_func()
+static int tina_done_func(void *p)
 {
   if (tina_init)
   {
@@ -195,7 +194,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
   uint length;
 
   if (!tina_init)
-     tina_init_func();
+     tina_init_func(NULL);
 
   pthread_mutex_lock(&tina_mutex);
   length=(uint) strlen(table_name);
@@ -452,7 +451,7 @@ static int free_share(TINA_SHARE *share)
 
 int tina_end(ha_panic_function type)
 {
-  return tina_done_func();
+  return tina_done_func(NULL);
 }
 
 
@@ -501,7 +500,7 @@ static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 
 
 ha_tina::ha_tina(TABLE_SHARE *table_arg)
-  :handler(&tina_hton, table_arg),
+  :handler(tina_hton, table_arg),
   /*
     These definitions are found in handler.h
     They are not probably completely right.
@@ -1517,7 +1516,7 @@ bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 struct st_mysql_storage_engine csv_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &tina_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, tina_hton };
 
 mysql_declare_plugin(csv)
 {

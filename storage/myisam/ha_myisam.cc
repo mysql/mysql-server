@@ -134,7 +134,7 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 
 
 ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
-  :handler(&myisam_hton, table_arg), file(0),
+  :handler(myisam_hton, table_arg), file(0),
   int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
@@ -1775,20 +1775,21 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-handlerton myisam_hton;
+handlerton *myisam_hton;
 
-static int myisam_init()
+static int myisam_init(void *p)
 {
-  myisam_hton.state=SHOW_OPTION_YES;
-  myisam_hton.db_type=DB_TYPE_MYISAM;
-  myisam_hton.create=myisam_create_handler;
-  myisam_hton.panic=mi_panic;
-  myisam_hton.flags=HTON_CAN_RECREATE;
+  myisam_hton= (handlerton *)p;
+  myisam_hton->state=SHOW_OPTION_YES;
+  myisam_hton->db_type=DB_TYPE_MYISAM;
+  myisam_hton->create=myisam_create_handler;
+  myisam_hton->panic=mi_panic;
+  myisam_hton->flags=HTON_CAN_RECREATE;
   return 0;
 }
 
 struct st_mysql_storage_engine myisam_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &myisam_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, myisam_hton };
 
 mysql_declare_plugin(myisam)
 {
