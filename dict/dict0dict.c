@@ -146,13 +146,12 @@ dict_index_copy(
 	ulint		start,	/* in: first position to copy */
 	ulint		end);	/* in: last position to copy */
 /***********************************************************************
-Tries to find column names for the index and
-sets the col field of the index. */
+Tries to find column names for the index and sets the col field of the
+index. */
 static
-ibool
+void
 dict_index_find_cols(
 /*=================*/
-				/* out: TRUE if success */
 	dict_table_t*	table,	/* in: table */
 	dict_index_t*	index);	/* in: index */
 /***********************************************************************
@@ -1308,10 +1307,9 @@ dict_col_name_is_reserved(
 /**************************************************************************
 Adds an index to the dictionary cache. */
 
-ibool
+void
 dict_index_add_to_cache(
 /*====================*/
-				/* out: TRUE if success */
 	dict_table_t*	table,	/* in: table on which the index is */
 	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
@@ -1321,7 +1319,6 @@ dict_index_add_to_cache(
 	dict_tree_t*	tree;
 	dict_field_t*	field;
 	ulint		n_ord;
-	ibool		success;
 	ulint		i;
 
 	ut_ad(index);
@@ -1349,13 +1346,7 @@ dict_index_add_to_cache(
 	ut_a(!(index->type & DICT_CLUSTERED)
 	     || UT_LIST_GET_LEN(table->indexes) == 0);
 
-	success = dict_index_find_cols(table, index);
-
-	if (!success) {
-		dict_mem_index_free(index);
-
-		return(FALSE);
-	}
+	dict_index_find_cols(table, index);
 
 	/* Build the cache internal representation of the index,
 	containing also the added system fields */
@@ -1421,8 +1412,6 @@ dict_index_add_to_cache(
 	dict_sys->size += mem_heap_get_size(new_index->heap);
 
 	dict_mem_index_free(index);
-
-	return(TRUE);
 }
 
 /**************************************************************************
@@ -1459,13 +1448,12 @@ dict_index_remove_from_cache(
 }
 
 /***********************************************************************
-Tries to find column names for the index and
-sets the col field of the index. */
+Tries to find column names for the index and sets the col field of the
+index. */
 static
-ibool
+void
 dict_index_find_cols(
 /*=================*/
-				/* out: TRUE if success */
 	dict_table_t*	table,	/* in: table */
 	dict_index_t*	index)	/* in: index */
 {
@@ -1483,17 +1471,20 @@ dict_index_find_cols(
 
 		for (j = 0; j < table->n_cols; j++) {
 			dict_col_t*	col = dict_table_get_nth_col(table, j);
+
 			if (!strcmp(col->name, field->name)) {
 				field->col = col;
+
 				goto found;
 			}
 		}
 
-		return(FALSE);
-found:		;
-	}
+		/* It is an error not to find a matching column. */
+		ut_error;
 
-	return(TRUE);
+	found:
+		;
+	}
 }
 
 /***********************************************************************

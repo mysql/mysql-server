@@ -550,12 +550,11 @@ dict_index_find_on_id_low(
 			/* out: index or NULL if not found from cache */
 	dulint	id);	/* in: index id */
 /**************************************************************************
-Adds an index to dictionary cache. */
+Adds an index to the dictionary cache. */
 
-ibool
+void
 dict_index_add_to_cache(
 /*====================*/
-				/* out: TRUE if success */
 	dict_table_t*	table,	/* in: table on which the index is */
 	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */

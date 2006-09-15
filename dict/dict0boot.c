@@ -214,7 +214,6 @@ dict_boot(void)
 	dict_index_t*	index;
 	dict_hdr_t*	dict_hdr;
 	mtr_t		mtr;
-	ibool		success;
 
 	mtr_start(&mtr);
 
@@ -269,21 +268,20 @@ dict_boot(void)
 
 	index->id = DICT_TABLES_ID;
 
-	success = dict_index_add_to_cache(table, index, mtr_read_ulint
-					  (dict_hdr + DICT_HDR_TABLES,
-					   MLOG_4BYTES, &mtr));
-	ut_a(success);
+	dict_index_add_to_cache(table, index,
+				mtr_read_ulint(dict_hdr + DICT_HDR_TABLES,
+					       MLOG_4BYTES, &mtr));
+
 	/*-------------------------*/
 	index = dict_mem_index_create("SYS_TABLES", "ID_IND",
 				      DICT_HDR_SPACE, DICT_UNIQUE, 1);
 	dict_mem_index_add_field(index, "ID", 0);
 
 	index->id = DICT_TABLE_IDS_ID;
-	success = dict_index_add_to_cache(table, index,
-					  mtr_read_ulint
-					  (dict_hdr + DICT_HDR_TABLE_IDS,
-					   MLOG_4BYTES, &mtr));
-	ut_a(success);
+	dict_index_add_to_cache(table, index,
+				mtr_read_ulint(dict_hdr + DICT_HDR_TABLE_IDS,
+					       MLOG_4BYTES, &mtr));
+
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE, 7, 0);
 
@@ -308,10 +306,10 @@ dict_boot(void)
 	dict_mem_index_add_field(index, "POS", 0);
 
 	index->id = DICT_COLUMNS_ID;
-	success = dict_index_add_to_cache(table, index, mtr_read_ulint
-					  (dict_hdr + DICT_HDR_COLUMNS,
-					   MLOG_4BYTES, &mtr));
-	ut_a(success);
+	dict_index_add_to_cache(table, index,
+				mtr_read_ulint(dict_hdr + DICT_HDR_COLUMNS,
+					       MLOG_4BYTES, &mtr));
+
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE, 7, 0);
 
@@ -346,10 +344,10 @@ dict_boot(void)
 	dict_mem_index_add_field(index, "ID", 0);
 
 	index->id = DICT_INDEXES_ID;
-	success = dict_index_add_to_cache(table, index, mtr_read_ulint
-					  (dict_hdr + DICT_HDR_INDEXES,
-					   MLOG_4BYTES, &mtr));
-	ut_a(success);
+	dict_index_add_to_cache(table, index,
+				mtr_read_ulint(dict_hdr + DICT_HDR_INDEXES,
+					       MLOG_4BYTES, &mtr));
+
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0);
 
@@ -369,10 +367,9 @@ dict_boot(void)
 	dict_mem_index_add_field(index, "POS", 0);
 
 	index->id = DICT_FIELDS_ID;
-	success = dict_index_add_to_cache(table, index, mtr_read_ulint
-					  (dict_hdr + DICT_HDR_FIELDS,
-					   MLOG_4BYTES, &mtr));
-	ut_a(success);
+	dict_index_add_to_cache(table, index,
+				mtr_read_ulint(dict_hdr + DICT_HDR_FIELDS,
+					       MLOG_4BYTES, &mtr));
 
 	mtr_commit(&mtr);
 	/*-------------------------*/
