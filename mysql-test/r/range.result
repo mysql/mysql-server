@@ -896,3 +896,48 @@ EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	4	Using sort_union(idx1,idx2); Using where
 DROP TABLE t1;
+CREATE TABLE t1 (                                      
+item char(20) NOT NULL default '',                          
+started datetime NOT NULL default '0000-00-00 00:00:00', 
+price decimal(16,3) NOT NULL default '0.000',                 
+PRIMARY KEY (item,started)                     
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES
+('A1','2005-11-01 08:00:00',1000),
+('A1','2005-11-15 00:00:00',2000),
+('A1','2005-12-12 08:00:00',3000),
+('A2','2005-12-01 08:00:00',1000);
+EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	20	const	2	Using where
+Warnings:
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+item	started	price
+A1	2005-11-01 08:00:00	1000.000
+A1	2005-11-15 00:00:00	2000.000
+Warnings:
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
+item	started	price
+A1	2005-11-01 08:00:00	1000.000
+A1	2005-11-15 00:00:00	2000.000
+DROP INDEX `PRIMARY` ON t1;
+EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
+Warnings:
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+item	started	price
+A1	2005-11-01 08:00:00	1000.000
+A1	2005-11-15 00:00:00	2000.000
+Warnings:
+Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
+SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
+item	started	price
+A1	2005-11-01 08:00:00	1000.000
+A1	2005-11-15 00:00:00	2000.000
+DROP TABLE t1;

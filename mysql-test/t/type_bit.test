@@ -238,4 +238,19 @@ select * from t1;
 --disable_metadata
 drop table t1;
 
+#
+# Bug#15583: BIN()/OCT()/CONV() do not work with BIT values
+#
+create table bug15583(b BIT(8), n INT);
+insert into bug15583 values(128, 128);
+insert into bug15583 values(null, null);
+insert into bug15583 values(0, 0);
+insert into bug15583 values(255, 255);
+select hex(b), bin(b), oct(b), hex(n), bin(n), oct(n) from bug15583;
+select hex(b)=hex(n) as should_be_onetrue, bin(b)=bin(n) as should_be_onetrue, oct(b)=oct(n) as should_be_onetrue from bug15583;
+select hex(b + 0), bin(b + 0), oct(b + 0), hex(n), bin(n), oct(n) from bug15583; 
+select conv(b, 10, 2), conv(b + 0, 10, 2) from bug15583;
+drop table bug15583;
+
+
 --echo End of 5.0 tests
