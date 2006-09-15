@@ -57,7 +57,7 @@
 #include <myisam.h>
 #include <my_dir.h>
 
-#include "event_scheduler.h"
+#include "events.h"
 
 /* WITH_INNOBASE_STORAGE_ENGINE */
 extern uint innobase_flush_log_at_trx_commit;
@@ -3899,6 +3899,7 @@ bool sys_var_thd_dbug::update(THD *thd, set_var *var)
   return 0;
 }
 
+
 byte *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
 {
   char buf[256];
@@ -3907,6 +3908,12 @@ byte *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
   else
     DBUG_EXPLAIN(buf, sizeof(buf));
   return (byte*) thd->strdup(buf);
+}
+
+
+bool sys_var_event_scheduler::check(THD *thd, set_var *var)
+{
+  return check_enum(thd, var, &Events::var_typelib);
 }
 
 
@@ -3928,30 +3935,30 @@ byte *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
 bool
 sys_var_event_scheduler::update(THD *thd, set_var *var)
 {
-  enum Event_scheduler::enum_error_code res;
-  Event_scheduler *scheduler= Event_scheduler::get_instance();
+  int res;
   /* here start the thread if not running. */
   DBUG_ENTER("sys_var_event_scheduler::update");
+  if (Events::opt_event_scheduler == Events::EVENTS_DISABLED)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=DISABLED");
+    DBUG_RETURN(TRUE);
+  }
 
   DBUG_PRINT("new_value", ("%lu", (bool)var->save_result.ulong_value));
-  if (!scheduler->initialized())
-  {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--event-scheduler=0");
-    DBUG_RETURN(true);
-  }
 
-  if (var->save_result.ulonglong_value < 1 ||
-      var->save_result.ulonglong_value > 2)
+  Item_result var_type= var->value->result_type();
+
+  if (var->save_result.ulong_value == Events::EVENTS_ON)
+    res= Events::get_instance()->start_execution_of_events();
+  else if (var->save_result.ulong_value == Events::EVENTS_OFF)
+    res= Events::get_instance()->stop_execution_of_events();
+  else
   {
-    char buf[64];
-    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "event_scheduler",
-             llstr(var->save_result.ulonglong_value, buf));
-    DBUG_RETURN(true);
+    DBUG_ASSERT(0);
   }
-  if ((res= scheduler->suspend_or_resume(var->save_result.ulonglong_value == 1?
-                                         Event_scheduler::RESUME :
-                                         Event_scheduler::SUSPEND)))
-    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0), (uint) res);
+  if (res)
+    my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
+
   DBUG_RETURN((bool) res);
 }
 
@@ -3959,16 +3966,15 @@ sys_var_event_scheduler::update(THD *thd, set_var *var)
 byte *sys_var_event_scheduler::value_ptr(THD *thd, enum_var_type type,
                                          LEX_STRING *base)
 {
-  Event_scheduler *scheduler= Event_scheduler::get_instance();
-
-  if (!scheduler->initialized())
-    thd->sys_var_tmp.long_value= 0;
-  else if (scheduler->get_state() == Event_scheduler::RUNNING)
-    thd->sys_var_tmp.long_value= 1;
+  int state;
+  if (Events::opt_event_scheduler == Events::EVENTS_DISABLED)
+    state= Events::EVENTS_DISABLED;              // This should be DISABLED
+  else if (Events::get_instance()->is_execution_of_events_started())
+    state= Events::EVENTS_ON;                    // This should be ON
   else
-    thd->sys_var_tmp.long_value= 2;
+    state= Events::EVENTS_OFF;                   // This should be OFF
 
-  return (byte*) &thd->sys_var_tmp;
+  return (byte*) Events::opt_typelib.type_names[state];
 }
 
 

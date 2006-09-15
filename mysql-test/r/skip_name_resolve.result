@@ -10,6 +10,5 @@ user()
 #
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
-<id>	event_scheduler	<host>	NULL	<command>	<time>	<state>	<info>
 <id>	root	<host>	test	<command>	<time>	<state>	<info>
 <id>	root	<host>	test	<command>	<time>	<state>	<info>
