@@ -1,4 +1,5 @@
 -- source include/have_row_based.inc
+-- source include/not_ndb_default.inc
 -- source include/master-slave.inc
 
 connection master;
