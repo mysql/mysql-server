@@ -1628,7 +1628,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
          (!my_strcasecmp(system_charset_info, table->table_name, "slow_log")
           && opt_slow_log && logger.is_slow_log_table_enabled())))
     {
-      my_error(ER_CANT_DROP_LOG_TABLE, MYF(0));
+      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "drop");
       DBUG_RETURN(1);
     }
   }
@@ -5174,7 +5174,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
        (table_kind == SLOW_LOG && opt_slow_log &&
          logger.is_slow_log_table_enabled()))
     {
-      my_error(ER_CANT_ALTER_LOG_TABLE, MYF(0));
+      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "alter");
       DBUG_RETURN(TRUE);
     }
 
@@ -5182,10 +5182,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if ((table_kind == GENERAL_LOG || table_kind == SLOW_LOG) &&
         (lex_create_info->used_fields & HA_CREATE_USED_ENGINE) &&
         (!lex_create_info->db_type || /* unknown engine */
-        !(lex_create_info->db_type->db_type == DB_TYPE_MYISAM ||
-          lex_create_info->db_type->db_type == DB_TYPE_CSV_DB)))
+        !(lex_create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
     {
-      my_error(ER_BAD_LOG_ENGINE, MYF(0));
+      my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
       DBUG_RETURN(TRUE);
     }
   }
