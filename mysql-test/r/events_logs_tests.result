@@ -1,5 +1,5 @@
-create database if not exists events_test;
-use events_test;
+CREATE DATABASE IF NOT EXISTS events_test;
+USE events_test;
 "We use procedure here because its statements won't be logged into the general log"
 "If we had used normal select that are logged in different ways depending on whether"
 "the test suite is run in normal mode or with --ps-protocol"
@@ -8,21 +8,24 @@ BEGIN
 SELECT user_host, argument FROM mysql.general_log WHERE argument LIKE '%alabala%';
 END|
 "Check General Query Log"
-SET GLOBAL event_scheduler=2;
-create event log_general on schedule every 1 minute do SELect 'alabala', sleep(3) from dual;
+CALL select_general_log();
+user_host	argument
+USER_HOST	CREATE procedure select_general_log()
+BEGIN
+SELECT user_host, argument FROM mysql.general_log WHERE argument LIKE '%alabala%';
+END
+SET GLOBAL event_scheduler=on;
 TRUNCATE mysql.general_log;
-"1 row, the current statement!"
-call select_general_log();
-user_host	argument
-SET GLOBAL event_scheduler=1;
+CREATE EVENT log_general ON SCHEDULE EVERY 1 MINUTE DO SELECT 'alabala', SLEEP(1) FROM DUAL;
 "Wait the scheduler to start"
-"Should see 3 rows - the 'SELect' is in the middle. The other two are selects from general_log"
-call select_general_log();
+"Should see 2 rows - the 'SELECT' is in the middle. The other two are selects from general_log"
+CALL select_general_log();
 user_host	argument
-USER_HOST	SELect 'alabala', sleep(3) from dual
+USER_HOST	CREATE EVENT log_general ON SCHEDULE EVERY 1 MINUTE DO SELECT 'alabala', SLEEP(1) FROM DUAL
+USER_HOST	SELECT 'alabala', SLEEP(1) FROM DUAL
 DROP PROCEDURE select_general_log;
 DROP EVENT log_general;
-SET GLOBAL event_scheduler=2;
+SET GLOBAL event_scheduler=off;
 "Check slow query log"
 "Save the values"
 SET @old_global_long_query_time:=(select get_value());
@@ -52,19 +55,20 @@ TRUNCATE mysql.slow_log;
 CREATE TABLE slow_event_test (slo_val tinyint, val tinyint);
 SET SESSION long_query_time=1;
 "This won't go to the slow log"
-CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(3);
 SELECT * FROM slow_event_test;
 slo_val	val
-SET GLOBAL event_scheduler=1;
+SET SESSION long_query_time=1;
+SET GLOBAL event_scheduler=on;
+CREATE EVENT long_event ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO slow_event_test SELECT @@long_query_time, SLEEP(1.5);
 "Sleep some more time than the actual event run will take"
 SHOW VARIABLES LIKE 'event_scheduler';
 Variable_name	Value
-event_scheduler	1
+event_scheduler	ON
 "Check our table. Should see 1 row"
 SELECT * FROM slow_event_test;
 slo_val	val
 4	0
-"Check slow log. Should not see anything because 3 is under the threshold of 4 for GLOBAL, though over SESSION which is 2"
+"Check slow log. Should not see anything because 1.5 is under the threshold of 300 for GLOBAL, though over SESSION which is 2"
 SELECT user_host, query_time, db, sql_text FROM mysql.slow_log;
 user_host	query_time	db	sql_text
 "This should go to the slow log"
@@ -89,4 +93,4 @@ TRUNCATE mysql.slow_log;
 DROP TABLE slow_event_test;
 SET GLOBAL  long_query_time =@old_global_long_query_time;
 SET SESSION long_query_time =@old_session_long_query_time;
-drop database events_test;
+DROP DATABASE events_test;
