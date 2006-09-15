@@ -798,7 +798,7 @@ dict_truncate_index_tree(
 
 	root_page_no = btr_create(type, space, index_id, comp, mtr);
 	if (index) {
-		index->tree->page = root_page_no;
+		index->page = root_page_no;
 	} else {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,

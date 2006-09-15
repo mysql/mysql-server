@@ -342,21 +342,6 @@ dict_index_get_sys_col_pos(
 }
 
 /*************************************************************************
-Gets the index tree where the index is stored. */
-UNIV_INLINE
-dict_tree_t*
-dict_index_get_tree(
-/*================*/
-				/* out: index tree */
-	dict_index_t*	index)	/* in: index */
-{
-	ut_ad(index);
-	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
-
-	return(index->tree);
-}
-
-/*************************************************************************
 Gets the field column. */
 UNIV_INLINE
 dict_col_t*
@@ -401,90 +386,90 @@ dict_index_get_nth_col_no(
 Gets the space id of the root of the index tree. */
 UNIV_INLINE
 ulint
-dict_tree_get_space(
-/*================*/
+dict_index_get_space(
+/*=================*/
 				/* out: space id */
-	dict_tree_t*	tree)	/* in: tree */
+	dict_index_t*	index)	/* in: index */
 {
-	ut_ad(tree);
-	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(tree->space);
+	return(index->space);
 }
 
 /*************************************************************************
 Sets the space id of the root of the index tree. */
 UNIV_INLINE
 void
-dict_tree_set_space(
-/*================*/
-	dict_tree_t*	tree,	/* in: tree */
+dict_index_set_space(
+/*=================*/
+	dict_index_t*	index,	/* in: index */
 	ulint		space)	/* in: space id */
 {
-	ut_ad(tree);
-	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	tree->space = space;
+	index->space = space;
 }
 
 /*************************************************************************
 Gets the page number of the root of the index tree. */
 UNIV_INLINE
 ulint
-dict_tree_get_page(
-/*===============*/
+dict_index_get_page(
+/*================*/
 				/* out: page number */
-	dict_tree_t*	tree)	/* in: tree */
+	dict_index_t*	index)	/* in: index */
 {
-	ut_ad(tree);
-	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(tree->page);
+	return(index->page);
 }
 
 /*************************************************************************
 Sets the page number of the root of index tree. */
 UNIV_INLINE
 void
-dict_tree_set_page(
-/*===============*/
-	dict_tree_t*	tree,	/* in: tree */
+dict_index_set_page(
+/*================*/
+	dict_index_t*	index,	/* in: index */
 	ulint		page)	/* in: page number */
 {
-	ut_ad(tree);
-	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	tree->page = page;
+	index->page = page;
 }
 
 /*************************************************************************
 Gets the type of the index tree. */
 UNIV_INLINE
 ulint
-dict_tree_get_type(
-/*===============*/
+dict_index_get_type(
+/*================*/
 				/* out: type */
-	dict_tree_t*	tree)	/* in: tree */
+	dict_index_t*	index)	/* in: index */
 {
-	ut_ad(tree);
-	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(tree->type);
+	return(index->type);
 }
 
 /*************************************************************************
 Gets the read-write lock of the index tree. */
 UNIV_INLINE
 rw_lock_t*
-dict_tree_get_lock(
-/*===============*/
+dict_index_get_lock(
+/*================*/
 				/* out: read-write lock */
-	dict_tree_t*	tree)	/* in: tree */
+	dict_index_t*	index)	/* in: index */
 {
-	ut_ad(tree);
-	ut_ad(tree->magic_n == DICT_TREE_MAGIC_N);
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return(&(tree->lock));
+	return(&(index->lock));
 }
 
 /************************************************************************
@@ -493,16 +478,11 @@ relevant only in the case of many consecutive inserts, as updates
 which make the records bigger might fragment the index. */
 UNIV_INLINE
 ulint
-dict_tree_get_space_reserve(
-/*========================*/
+dict_index_get_space_reserve(void)
+/*==============================*/
 				/* out: number of free bytes on page,
 				reserved for updates */
-	dict_tree_t*	tree)	/* in: a tree */
 {
-	ut_ad(tree);
-
-	UT_NOT_USED(tree);
-
 	return(UNIV_PAGE_SIZE / 16);
 }
 

@@ -706,36 +706,12 @@ dict_index_copy_types(
 	dict_index_t*	index,		/* in: index */
 	ulint		n_fields);	/* in: number of field types to copy */
 /*************************************************************************
-Gets the index tree where the index is stored. */
-UNIV_INLINE
-dict_tree_t*
-dict_index_get_tree(
-/*================*/
-				/* out: index tree */
-	dict_index_t*	index);	/* in: index */
-/*************************************************************************
 Gets the field column. */
 UNIV_INLINE
 dict_col_t*
 dict_field_get_col(
 /*===============*/
 	dict_field_t*	field);
-/**************************************************************************
-Creates an index tree struct. */
-
-dict_tree_t*
-dict_tree_create(
-/*=============*/
-				/* out, own: created tree */
-	dict_index_t*	index,	/* in: the index for which to create */
-	ulint		page_no);/* in: root page number of the index */
-/**************************************************************************
-Frees an index tree struct. */
-
-void
-dict_tree_free(
-/*===========*/
-	dict_tree_t*	tree);	/* in, own: index tree */
 /**************************************************************************
 In an index tree, finds the index corresponding to a record in the tree. */
 
@@ -753,20 +729,20 @@ Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer. */
 
 ibool
-dict_tree_check_search_tuple(
-/*=========================*/
+dict_index_check_search_tuple(
+/*==========================*/
 				/* out: TRUE if ok */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index */
 	dtuple_t*	tuple);	/* in: tuple used in a search */
 #endif /* UNIV_DEBUG */
 /**************************************************************************
 Builds a node pointer out of a physical record and a page number. */
 
 dtuple_t*
-dict_tree_build_node_ptr(
-/*=====================*/
+dict_index_build_node_ptr(
+/*======================*/
 				/* out, own: node pointer */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index */
 	rec_t*		rec,	/* in: record for which to build node
 				pointer */
 	ulint		page_no,/* in: page number to put in node pointer */
@@ -778,10 +754,10 @@ Copies an initial segment of a physical record, long enough to specify an
 index entry uniquely. */
 
 rec_t*
-dict_tree_copy_rec_order_prefix(
-/*============================*/
+dict_index_copy_rec_order_prefix(
+/*=============================*/
 				/* out: pointer to the prefix record */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index */
 	rec_t*		rec,	/* in: record for which to copy prefix */
 	ulint*		n_fields,/* out: number of fields copied */
 	byte**		buf,	/* in/out: memory buffer for the copied prefix,
@@ -791,10 +767,10 @@ dict_tree_copy_rec_order_prefix(
 Builds a typed data tuple out of a physical record. */
 
 dtuple_t*
-dict_tree_build_data_tuple(
-/*=======================*/
+dict_index_build_data_tuple(
+/*========================*/
 				/* out, own: data tuple */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index */
 	rec_t*		rec,	/* in: record for which to build data tuple */
 	ulint		n_fields,/* in: number of data fields */
 	mem_heap_t*	heap);	/* in: memory heap where tuple created */
@@ -802,61 +778,60 @@ dict_tree_build_data_tuple(
 Gets the space id of the root of the index tree. */
 UNIV_INLINE
 ulint
-dict_tree_get_space(
-/*================*/
+dict_index_get_space(
+/*=================*/
 				/* out: space id */
-	dict_tree_t*	tree);	/* in: tree */
+	dict_index_t*	index);	/* in: index */
 /*************************************************************************
 Sets the space id of the root of the index tree. */
 UNIV_INLINE
 void
-dict_tree_set_space(
-/*================*/
-	dict_tree_t*	tree,	/* in: tree */
+dict_index_set_space(
+/*=================*/
+	dict_index_t*	index,	/* in: index */
 	ulint		space);	/* in: space id */
 /*************************************************************************
 Gets the page number of the root of the index tree. */
 UNIV_INLINE
 ulint
-dict_tree_get_page(
-/*===============*/
+dict_index_get_page(
+/*================*/
 				/* out: page number */
-	dict_tree_t*	tree);	/* in: tree */
+	dict_index_t*	tree);	/* in: index */
 /*************************************************************************
 Sets the page number of the root of index tree. */
 UNIV_INLINE
 void
-dict_tree_set_page(
-/*===============*/
-	dict_tree_t*	tree,	/* in: tree */
+dict_index_set_page(
+/*================*/
+	dict_index_t*	index,	/* in: index */
 	ulint		page);	/* in: page number */
 /*************************************************************************
 Gets the type of the index tree. */
 UNIV_INLINE
 ulint
-dict_tree_get_type(
-/*===============*/
+dict_index_get_type(
+/*================*/
 				/* out: type */
-	dict_tree_t*	tree);	/* in: tree */
+	dict_index_t*	index);	/* in: index */
 /*************************************************************************
 Gets the read-write lock of the index tree. */
 UNIV_INLINE
 rw_lock_t*
-dict_tree_get_lock(
-/*===============*/
+dict_index_get_lock(
+/*================*/
 				/* out: read-write lock */
-	dict_tree_t*	tree);	/* in: tree */
+	dict_index_t*	index);	/* in: index */
 /************************************************************************
 Returns free space reserved for future updates of records. This is
 relevant only in the case of many consecutive inserts, as updates
 which make the records bigger might fragment the index. */
 UNIV_INLINE
 ulint
-dict_tree_get_space_reserve(
-/*========================*/
+dict_index_get_space_reserve(void);
+/*==============================*/
 				/* out: number of free bytes on page,
 				reserved for updates */
-	dict_tree_t*	tree);	/* in: a tree */
 /*************************************************************************
 Calculates the minimum record length in an index. */
 

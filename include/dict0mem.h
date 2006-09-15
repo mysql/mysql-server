@@ -152,22 +152,6 @@ struct dict_field_struct{
 					DICT_MAX_INDEX_COL_LEN */
 };
 
-/* Data structure for an index tree */
-struct dict_tree_struct{
-	ulint		type;	/* tree type */
-	dulint		id;	/* id of the index stored in the tree */
-	ulint		space;	/* space of index tree */
-	ulint		page;	/* index tree root page number */
-	rw_lock_t	lock;	/* read-write lock protecting the upper levels
-				of the index tree */
-	dict_index_t*	tree_index; /* the index stored in the
-				index tree */
-#ifdef UNIV_DEBUG
-	ulint		magic_n;/* magic number */
-# define DICT_TREE_MAGIC_N	7545676
-#endif /* UNIV_DEBUG */
-};
-
 /* Data structure for an index */
 struct dict_index_struct{
 	dulint		id;	/* id of the index */
@@ -176,27 +160,28 @@ struct dict_index_struct{
 	const char*	name;	/* index name */
 	const char*	table_name; /* table name */
 	dict_table_t*	table;	/* back pointer to table */
-	ulint		space;	/* space where the index tree is placed */
-	ulint		trx_id_offset:10;/* position of the the trx id column
+	unsigned	space:32;
+				/* space where the index tree is placed */
+	unsigned	page:32;/* index tree root page number */
+	unsigned	trx_id_offset:10;/* position of the the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,
 				0 otherwise */
-	ulint		n_user_defined_cols:10;
+	unsigned	n_user_defined_cols:10;
 				/* number of columns the user defined to
 				be in the index: in the internal
 				representation we add more columns */
-	ulint		n_uniq:10;/* number of fields from the beginning
+	unsigned	n_uniq:10;/* number of fields from the beginning
 				which are enough to determine an index
 				entry uniquely */
-	ulint		n_def:10;/* number of fields defined so far */
-	ulint		n_fields:10;/* number of fields in the index */
-	ulint		n_nullable:10;/* number of nullable fields */
-	ibool		cached:1;/* TRUE if the index object is in the
+	unsigned	n_def:10;/* number of fields defined so far */
+	unsigned	n_fields:10;/* number of fields in the index */
+	unsigned	n_nullable:10;/* number of nullable fields */
+	unsigned	cached:1;/* TRUE if the index object is in the
 				dictionary cache */
 	dict_field_t*	fields;	/* array of field descriptions */
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/* list of indexes of the table */
-	dict_tree_t*	tree;	/* index tree struct */
 	btr_search_t*	search_info; /* info used in optimistic searches */
 	/*----------------------*/
 	ib_longlong*	stat_n_diff_key_vals;
@@ -209,6 +194,8 @@ struct dict_index_struct{
 	ulint		stat_n_leaf_pages;
 				/* approximate number of leaf pages in the
 				index tree */
+	rw_lock_t	lock;	/* read-write lock protecting the upper levels
+				of the index tree */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
 # define DICT_INDEX_MAGIC_N	76789786
