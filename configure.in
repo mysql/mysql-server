@@ -454,7 +454,7 @@ AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
 PS=$ac_cv_path_PS
 # Linux style
-if $PS p $$ 2> /dev/null | grep $0 > /dev/null
+if $PS p $$ 2> /dev/null | grep `echo $0 | sed s/\-//` > /dev/null
 then
   FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 # Solaris
