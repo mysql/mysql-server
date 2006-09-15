@@ -840,6 +840,12 @@ log_queries_not_using_indexes	OFF
 select * from information_schema.session_variables where variable_name like 'log_queries_not_using_indexes';
 VARIABLE_NAME	VARIABLE_VALUE
 LOG_QUERIES_NOT_USING_INDEXES	OFF
+select @@"";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '""' at line 1
+select @@&;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '&' at line 1
+select @@@;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@' at line 1
 End of 5.0 tests
 set global binlog_cache_size         =@my_binlog_cache_size;
 set global connect_timeout           =@my_connect_timeout;
