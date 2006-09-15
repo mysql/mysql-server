@@ -25,7 +25,7 @@ SocketClient::SocketClient(const char *server_name, unsigned short port, SocketA
 {
   m_auth= sa;
   m_port= port;
-  m_server_name= strdup(server_name);
+  m_server_name= server_name ? strdup(server_name) : 0;
   m_sockfd= NDB_INVALID_SOCKET;
 }
 
@@ -45,13 +45,16 @@ SocketClient::init()
   if (m_sockfd != NDB_INVALID_SOCKET)
     NDB_CLOSE_SOCKET(m_sockfd);
 
-  memset(&m_servaddr, 0, sizeof(m_servaddr));
-  m_servaddr.sin_family = AF_INET;
-  m_servaddr.sin_port = htons(m_port);
-  // Convert ip address presentation format to numeric format
-  if (Ndb_getInAddr(&m_servaddr.sin_addr, m_server_name))
-    return false;
-
+  if (m_server_name)
+  {
+    memset(&m_servaddr, 0, sizeof(m_servaddr));
+    m_servaddr.sin_family = AF_INET;
+    m_servaddr.sin_port = htons(m_port);
+    // Convert ip address presentation format to numeric format
+    if (Ndb_getInAddr(&m_servaddr.sin_addr, m_server_name))
+      return false;
+  }
+  
   m_sockfd= socket(AF_INET, SOCK_STREAM, 0);
   if (m_sockfd == NDB_INVALID_SOCKET) {
     return false;
@@ -62,8 +65,45 @@ SocketClient::init()
   return true;
 }
 
+int
+SocketClient::bind(const char* bindaddress, unsigned short localport)
+{
+  if (m_sockfd == NDB_INVALID_SOCKET)
+    return -1;
+
+  struct sockaddr_in local;
+  memset(&local, 0, sizeof(local));
+  local.sin_family = AF_INET;
+  local.sin_port = htons(localport);
+  // Convert ip address presentation format to numeric format
+  if (Ndb_getInAddr(&local.sin_addr, bindaddress))
+  {
+    return errno ? errno : EINVAL;
+  }
+  
+  const int on = 1;
+  if (setsockopt(m_sockfd, SOL_SOCKET, SO_REUSEADDR, 
+		 (const char*)&on, sizeof(on)) == -1) {
+
+    int ret = errno;
+    NDB_CLOSE_SOCKET(m_sockfd);
+    m_sockfd= NDB_INVALID_SOCKET;
+    return errno;
+  }
+  
+  if (::bind(m_sockfd, (struct sockaddr*)&local, sizeof(local)) == -1) 
+  {
+    int ret = errno;
+    NDB_CLOSE_SOCKET(m_sockfd);
+    m_sockfd= NDB_INVALID_SOCKET;
+    return ret;
+  }
+  
+  return 0;
+}
+
 NDB_SOCKET_TYPE
-SocketClient::connect()
+SocketClient::connect(const char *toaddress, unsigned short toport)
 {
   if (m_sockfd == NDB_INVALID_SOCKET)
   {
@@ -74,6 +114,21 @@ SocketClient::connect()
       return NDB_INVALID_SOCKET;
     }
   }
+
+  if (toaddress)
+  {
+    if (m_server_name)
+      free(m_server_name);
+    m_server_name = strdup(toaddress);
+    m_port = toport;
+    memset(&m_servaddr, 0, sizeof(m_servaddr));
+    m_servaddr.sin_family = AF_INET;
+    m_servaddr.sin_port = htons(toport);
+    // Convert ip address presentation format to numeric format
+    if (Ndb_getInAddr(&m_servaddr.sin_addr, m_server_name))
+      return NDB_INVALID_SOCKET;
+  }
+  
   const int r = ::connect(m_sockfd, (struct sockaddr*) &m_servaddr, sizeof(m_servaddr));
   if (r == -1) {
     NDB_CLOSE_SOCKET(m_sockfd);
