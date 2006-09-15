@@ -55,3 +55,4 @@ func_group               : BUG#21924 2006-08-30 reggie
 func_in                  : BUG#21925 2006-08-30 reggie
 ndb_binlog_discover      : bug#21806 2006-08-24
 ndb_autodiscover3        : bug#21806
+rpl_ndb_dd_partitions    : BUG#19259 2006-04-21 rpl_ndb_dd_partitions fails because of limitation
