@@ -5990,3 +5990,7 @@ ER_HOSTNAME
 	eng "host name"
 ER_WRONG_STRING_LENGTH
 	eng "String '%-.70s' is too long for %s (should be no longer than %d)"
+ER_UNSUPORTED_LOG_ENGINE
+        eng "This storage engine cannot be used for log tables""
+ER_BAD_LOG_STATEMENT
+        eng "You cannot %s a log table if logging is enabled"
