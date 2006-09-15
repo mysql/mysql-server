@@ -26,6 +26,8 @@ uint32 my_lwrite(int Filedes, const byte *Buffer, uint32 Count, myf MyFlags)
   DBUG_PRINT("my",("Fd: %d  Buffer: 0x%lx  Count: %ld  MyFlags: %d",
 		   Filedes, Buffer, Count, MyFlags));
 
+  DBUG_PRINT("error", ("Deprecated my_lwrite() function should not be used."));
+
   /* Temp hack to get count to int32 while write wants int */
   if ((writenbytes = (uint32) write(Filedes, Buffer, (uint) Count)) != Count)
   {
