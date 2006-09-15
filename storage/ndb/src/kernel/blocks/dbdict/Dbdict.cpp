@@ -2876,10 +2876,10 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 	
 	// On NR get index from master because index state is not on file
 	Uint32 type= oldEntry->m_tableType;
-	const bool file = c_systemRestart || !DictTabInfo::isIndex(type);
+        const bool file = (* newEntry == * oldEntry) &&
+	          (c_systemRestart || !DictTabInfo::isIndex(type);
 	newEntry->m_info_words= oldEntry->m_info_words;
 	restartCreateTab(signal, tableId, oldEntry, newEntry, file);
-	
 	return;
       }
       ndbrequire(ok);
