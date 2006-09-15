@@ -776,6 +776,7 @@ mysql-test/r/udf.log
 mysql-test/share/mysql
 mysql-test/std_data/*.pem
 mysql-test/t/index_merge.load
+mysql-test/t/rpl_truncate_4ndb.test
 mysql-test/var
 mysql-test/var/*
 mysql.kdevprj
