@@ -4082,6 +4082,23 @@ no_gap_lock:
 			row_unlock_for_mysql(prebuilt, TRUE);
 		}
 
+		/* This is an optimization to skip setting the next key lock
+		on the record that follows this delete-marked record. This
+		optimization works because of the unique search criteria
+		which precludes the presence of a range lock between this
+		delete marked record and the record following it.
+
+		For now this is applicable only to clustered indexes while
+		doing a unique search. There is scope for further optimization
+		applicable to unique secondary indexes. Current behaviour is
+		to widen the scope of a lock on an already delete marked record
+		if the same record is deleted twice by the same transaction */
+		if (index == clust_index && unique_search) {
+			err = DB_RECORD_NOT_FOUND;
+
+			goto normal_return;
+		}
+
 		goto next_rec;
 	}
 
