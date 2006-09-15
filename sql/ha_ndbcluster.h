@@ -362,76 +362,95 @@ class Ndb_cond_traverse_context
   Ndb_cond_traverse_context(TABLE *tab, void* ndb_tab, Ndb_cond_stack* stack)
     : table(tab), ndb_table(ndb_tab), 
     supported(TRUE), stack_ptr(stack), cond_ptr(NULL),
-    expect_mask(0), expect_field_type_mask(0), expect_field_result_mask(0), 
     skip(0), collation(NULL), rewrite_stack(NULL)
   {
+    // Allocate type checking bitmaps   
+    bitmap_init(&expect_mask, 0, 512, TRUE);
+    bitmap_init(&expect_field_type_mask, 0, 512, TRUE);
+    bitmap_init(&expect_field_result_mask, 0, 512, TRUE);
+
     if (stack)
       cond_ptr= stack->ndb_cond;
   };
   ~Ndb_cond_traverse_context()
   {
+    bitmap_free(&expect_mask);
+    bitmap_free(&expect_field_type_mask);
+    bitmap_free(&expect_field_result_mask);
     if (rewrite_stack) delete rewrite_stack;
   }
   void expect(Item::Type type)
   {
-    expect_mask|= (1 << type);
+    bitmap_set_bit(&expect_mask, (uint) type);
     if (type == Item::FIELD_ITEM) expect_all_field_types();
   };
   void dont_expect(Item::Type type)
   {
-    expect_mask&= ~(1 << type);
+    bitmap_clear_bit(&expect_mask, (uint) type);
   };
   bool expecting(Item::Type type)
   {
-    return (expect_mask & (1 << type));
+    return bitmap_is_set(&expect_mask, (uint) type);
   };
   void expect_nothing()
   {
-    expect_mask= 0;
+    bitmap_clear_all(&expect_mask);
   };
+  bool expecting_nothing()
+  {
+    return bitmap_is_clear_all(&expect_mask);
+  }
   void expect_only(Item::Type type)
   {
-    expect_mask= 0;
+    expect_nothing();
     expect(type);
   };
 
-  void expect_field_type(enum_field_types result)
+  void expect_field_type(enum_field_types type)
   {
-    expect_field_type_mask|= (1 << result);
+    bitmap_set_bit(&expect_field_type_mask, (uint) type);
   };
   void expect_all_field_types()
   {
-    expect_field_type_mask= ~0;
+    bitmap_set_all(&expect_field_type_mask);
   };
-  bool expecting_field_type(enum_field_types result)
+  bool expecting_field_type(enum_field_types type)
   {
-    return (expect_field_type_mask & (1 << result));
+    return bitmap_is_set(&expect_field_type_mask, (uint) type);
   };
   void expect_no_field_type()
   {
-    expect_field_type_mask= 0;
+    bitmap_clear_all(&expect_field_type_mask);
   };
+  bool expecting_no_field_type()
+  {
+    return bitmap_is_clear_all(&expect_field_type_mask);
+  }
   void expect_only_field_type(enum_field_types result)
   {
-    expect_field_type_mask= 0;
+    expect_no_field_type();
     expect_field_type(result);
   };
 
   void expect_field_result(Item_result result)
   {
-    expect_field_result_mask|= (1 << result);
+    bitmap_set_bit(&expect_field_result_mask, (uint) result);
   };
   bool expecting_field_result(Item_result result)
   {
-    return (expect_field_result_mask & (1 << result));
+    return bitmap_is_set(&expect_field_result_mask, (uint) result);
   };
   void expect_no_field_result()
   {
-    expect_field_result_mask= 0;
+    bitmap_clear_all(&expect_field_result_mask);
   };
+  bool expecting_no_field_result()
+  {
+    return bitmap_is_clear_all(&expect_field_result_mask);
+  }
   void expect_only_field_result(Item_result result)
   {
-    expect_field_result_mask= 0;
+    expect_no_field_result();
     expect_field_result(result);
   };
   void expect_collation(CHARSET_INFO* col)
@@ -451,9 +470,9 @@ class Ndb_cond_traverse_context
   bool supported;
   Ndb_cond_stack* stack_ptr;
   Ndb_cond* cond_ptr;
-  uint expect_mask;
-  uint expect_field_type_mask;
-  uint expect_field_result_mask;
+  MY_BITMAP expect_mask;
+  MY_BITMAP expect_field_type_mask;
+  MY_BITMAP expect_field_result_mask;
   uint skip;
   CHARSET_INFO* collation;
   Ndb_rewrite_context *rewrite_stack;
