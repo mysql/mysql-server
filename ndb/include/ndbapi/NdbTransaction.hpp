@@ -657,8 +657,11 @@ private:
   // Release all cursor operations in connection
   void releaseOps(NdbOperation*);	
   void releaseScanOperations(NdbIndexScanOperation*);	
+  bool releaseScanOperation(NdbIndexScanOperation** listhead,
+			    NdbIndexScanOperation** listtail,
+			    NdbIndexScanOperation* op);
   void releaseExecutedScanOperation(NdbIndexScanOperation*);
-
+  
   // Set the transaction identity of the transaction
   void		setTransactionId(Uint64 aTransactionId);
 
