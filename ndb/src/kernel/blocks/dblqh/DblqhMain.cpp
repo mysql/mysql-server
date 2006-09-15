@@ -9098,6 +9098,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   const CopyFragReq * const copyFragReq = (CopyFragReq *)&signal->theData[0];
   tabptr.i = copyFragReq->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+  Uint32 i;
   const Uint32 fragId = copyFragReq->fragId;
   const Uint32 copyPtr = copyFragReq->userPtr;
   const Uint32 userRef = copyFragReq->userRef;
@@ -9111,11 +9112,18 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
 
   Uint32 key = fragptr.p->fragDistributionKey = copyFragReq->distributionKey;
   
+  Uint32 checkversion = NDB_VERSION >= MAKE_VERSION(5,1,0) ?
+    NDBD_UPDATE_FRAG_DIST_KEY_51 :  NDBD_UPDATE_FRAG_DIST_KEY_50;
+  
   Uint32 nodeCount = copyFragReq->nodeCount;
-  Uint32 nodeList[MAX_REPLICAS];
-  ndbrequire(nodeCount <= MAX_REPLICAS);
-  memcpy(nodeList, copyFragReq->nodeList, 4*nodeCount);
-
+  NdbNodeBitmask nodemask;
+  if (getNodeInfo(refToNode(userRef)).m_version >= checkversion)
+  {
+    ndbrequire(nodeCount <= MAX_REPLICAS);
+    for (i = 0; i<nodeCount; i++)
+      nodemask.set(copyFragReq->nodeList[i]);
+  }
+    
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
     jam();
     /**
@@ -9189,25 +9197,22 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   req->savePointId = tcConnectptr.p->savePointId;
   sendSignal(tcConnectptr.p->tcAccBlockref, GSN_ACC_SCANREQ, signal, 
 	     AccScanReq::SignalLength, JBB);
-
-  Uint32 i;
-  NdbNodeBitmask mask;
-  ndbrequire(mask.get(getOwnNodeId()));
-  ndbrequire(mask.get(nodeId)); // cpy dest
-  if (!mask.isclear())
+  
+  if (! nodemask.isclear())
   {
-    UpdateFragDistKeyOrd* ord =(UpdateFragDistKeyOrd*)signal->getDataPtrSend();
+    ndbrequire(nodemask.get(getOwnNodeId()));
+    ndbrequire(nodemask.get(nodeId)); // cpy dest
+    nodemask.clear(getOwnNodeId());
+    nodemask.clear(nodeId);
+    
+    UpdateFragDistKeyOrd* 
+      ord = (UpdateFragDistKeyOrd*)signal->getDataPtrSend();
     ord->tableId = tabptr.i;
     ord->fragId = fragId;
     ord->fragDistributionKey = key;
     i = 0;
-    while ((i = mask.find(i+1)) != NdbNodeBitmask::NotFound)
+    while ((i = nodemask.find(i+1)) != NdbNodeBitmask::NotFound)
     {
-#ifdef NDB_VERSION >= MAKE_VERSION(5,1,0)
-      Uint32 checkversion =  NDBD_UPDATE_FRAG_DIST_KEY_51;
-#elif NDB_VERSION >= MAKE_VERSION(5,0,0)
-      Uint32 checkversion =  NDBD_UPDATE_FRAG_DIST_KEY_50;
-#endif
       if (getNodeInfo(i).m_version >=  checkversion)
 	sendSignal(calcLqhBlockRef(i), GSN_UPDATE_FRAG_DIST_KEY_ORD,
 		   signal, UpdateFragDistKeyOrd::SignalLength, JBB);
