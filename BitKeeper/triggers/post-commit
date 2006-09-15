@@ -8,6 +8,12 @@ LIMIT=10000
 VERSION="5.1"
 BKROOT=`bk root`
 
+if [ -x /usr/sbin/sendmail ]; then
+  SENDMAIL=/usr/sbin/sendmail
+else
+  SENDMAIL=sendmail
+fi
+
 if [ "$REAL_EMAIL" = "" ]
 then
  echo "Warning: you must set REAL_EMAIL in your profile"
@@ -61,7 +67,7 @@ EOF
   bk cset -r+ -d
  ) > $BKROOT/BitKeeper/tmp/dev_public.txt
 
-bk sendmail -t < $BKROOT/BitKeeper/tmp/dev_public.txt
+$SENDMAIL -t < $BKROOT/BitKeeper/tmp/dev_public.txt
 
 #++
 # commits@ mail
@@ -87,7 +93,7 @@ EOF
   bk cset -r+ -d
  ) | bk sed -e ${LIMIT}q > $BKROOT/BitKeeper/tmp/commits.txt
 
-bk sendmail -t < $BKROOT/BitKeeper/tmp/commits.txt
+$SENDMAIL -t < $BKROOT/BitKeeper/tmp/commits.txt
 
 #++
 # docs-commit@ mail
@@ -108,7 +114,7 @@ EOF
   bk changes -v -r+
   bk cset -r+ -d
  ) > $BKROOT/BitKeeper/tmp/docs.txt
- bk sendmail -t < $BKROOT/BitKeeper/tmp/docs.txt
+ $SENDMAIL -t < $BKROOT/BitKeeper/tmp/docs.txt
  fi
 
 else
