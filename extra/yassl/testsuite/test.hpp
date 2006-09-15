@@ -27,7 +27,7 @@
 #endif /* _WIN32 */
 
 
-#if !defined(_SOCKLEN_T) && (defined(__MACH__) || defined(_WIN32))
+#if !defined(_SOCKLEN_T) && defined(_WIN32)
     typedef int socklen_t;
 #endif
 
