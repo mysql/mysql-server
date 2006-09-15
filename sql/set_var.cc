@@ -3591,7 +3591,7 @@ byte *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
 void sys_var_thd_storage_engine::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
-    global_system_variables.*offset= &myisam_hton;
+    global_system_variables.*offset= myisam_hton;
   else
     thd->variables.*offset= global_system_variables.*offset;
 }
