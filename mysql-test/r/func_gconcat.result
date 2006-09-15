@@ -566,14 +566,14 @@ COUNT(*)	GROUP_CONCAT(DISTINCT t2.somename SEPARATOR ' |')
 DROP TABLE t1,t2;
 select * from (select group_concat('c') from DUAL) t;
 group_concat('c')
-NULL
+c
 create table t1 ( a int not null default 0);
 select * from (select group_concat(a) from t1) t2;
 group_concat(a)
 NULL
 select group_concat('x') UNION ALL select 1;
 group_concat('x')
-NULL
+x
 1
 drop table t1;
 CREATE TABLE t1 (id int, a varchar(9));
