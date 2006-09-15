@@ -9094,11 +9094,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       keyinfo->key_length+=  key_part_info->length;
     }
   }
-  else
-  {
-    set_if_smaller(table->s->max_rows, rows_limit);
-    param->end_write_records= rows_limit;
-  }
 
   if (distinct && field_count != param->hidden_field_count)
   {
@@ -9113,8 +9108,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     null_pack_length-=hidden_null_pack_length;
     keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 test(null_pack_length));
-    set_if_smaller(share->max_rows, rows_limit);
-    param->end_write_records= rows_limit;
     table->distinct= 1;
     share->keys= 1;
     if (blob_count)
@@ -9169,6 +9162,20 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	0 : FIELDFLAG_BINARY;
     }
   }
+
+  /*
+    Push the LIMIT clause to the temporary table creation, so that we
+    materialize only up to 'rows_limit' records instead of all result records.
+    This optimization is not applicable when there is GROUP BY or there is
+    no GROUP BY, but there are aggregate functions, because both must be
+    computed for all result rows.
+  */
+  if (!group && !thd->lex->current_select->with_sum_func)
+  {
+    set_if_smaller(table->s->max_rows, rows_limit);
+    param->end_write_records= rows_limit;
+  }
+
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   share->db_record_offset= 1;
