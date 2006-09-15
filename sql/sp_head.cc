@@ -196,7 +196,6 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_PRIVILEGES:
   case SQLCOM_SHOW_PROCESSLIST:
   case SQLCOM_SHOW_PROC_CODE:
-  case SQLCOM_SHOW_SCHEDULER_STATUS:
   case SQLCOM_SHOW_SLAVE_HOSTS:
   case SQLCOM_SHOW_SLAVE_STAT:
   case SQLCOM_SHOW_STATUS:
@@ -657,10 +656,12 @@ sp_head::create(THD *thd)
 
 sp_head::~sp_head()
 {
+  DBUG_ENTER("sp_head::~sp_head");
   destroy();
   delete m_next_cached_sp;
   if (m_thd)
     restore_thd_mem_root(m_thd);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -953,7 +954,7 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char old_db_buf[NAME_LEN+1];
+  char old_db_buf[NAME_BYTE_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   sp_rcontext *ctx;
@@ -1998,8 +1999,8 @@ sp_head::set_info(longlong created, longlong modified,
 void
 sp_head::set_definer(const char *definer, uint definerlen)
 {
-  char user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
+  char user_name_holder[USERNAME_BYTE_LENGTH + 1];
+  LEX_STRING user_name= { user_name_holder, USERNAME_BYTE_LENGTH };
 
   char host_name_holder[HOSTNAME_LENGTH + 1];
   LEX_STRING host_name= { host_name_holder, HOSTNAME_LENGTH };
