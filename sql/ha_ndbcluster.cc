@@ -6938,7 +6938,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
               curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
               context->dont_expect(Item::FIELD_ITEM);
               context->expect_no_field_result();
-              if (context->expect_mask)
+              if (! context->expecting_nothing())
               {
                 // We have not seen second argument yet
                 if (type == MYSQL_TYPE_TIME ||
@@ -7243,7 +7243,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::STRING_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item); 
-                if (context->expect_field_result_mask)
+                if (! context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -7273,7 +7273,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::REAL_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-                if (context->expect_field_result_mask) 
+                if (! context->expecting_no_field_result()) 
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -7296,7 +7296,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::INT_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-                if (context->expect_field_result_mask) 
+                if (! context->expecting_no_field_result()) 
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -7319,7 +7319,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::DECIMAL_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-                if (context->expect_field_result_mask) 
+                if (! context->expecting_no_field_result()) 
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -7369,7 +7369,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::STRING_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
-            if (context->expect_field_result_mask)
+            if (! context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -7402,7 +7402,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::INT_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-            if (context->expect_field_result_mask) 
+            if (! context->expecting_no_field_result()) 
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -7429,7 +7429,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::REAL_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-            if (context->expect_field_result_mask) 
+            if (! context->expecting_no_field_result()) 
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -7452,7 +7452,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::VARBIN_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
-            if (context->expect_field_result_mask)
+            if (! context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -7477,7 +7477,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::DECIMAL_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-            if (context->expect_field_result_mask) 
+            if (! context->expecting_no_field_result()) 
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
