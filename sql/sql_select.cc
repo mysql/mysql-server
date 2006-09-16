@@ -382,11 +382,13 @@ JOIN::prepare(Item ***rref_pointer_array,
       if ((res= subselect->select_transformer(this)) !=
 	  Item_subselect::RES_OK)
       {
-        select_lex->fix_prepare_information(thd, &conds);
+        select_lex->fix_prepare_information(thd, &conds, &having);
 	DBUG_RETURN((res == Item_subselect::RES_ERROR));
       }
     }
   }
+
+  select_lex->fix_prepare_information(thd, &conds, &having);
 
   if (having && having->with_sum_func)
     having->split_sum_func2(thd, ref_pointer_array, all_fields,
@@ -499,7 +501,6 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (alloc_func_list())
     goto err;
 
-  select_lex->fix_prepare_information(thd, &conds);
   DBUG_RETURN(0); // All OK
 
 err:
@@ -618,7 +619,6 @@ JOIN::optimize()
     build_bitmap_for_nested_joins(join_list, 0);
 
     sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
-    sel->prep_having= having ? having->copy_andor_structure(thd) : 0;
 
     if (arena)
       thd->restore_active_arena(arena, &backup);
