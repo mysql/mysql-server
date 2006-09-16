@@ -36,7 +36,7 @@ static handler *myisammrg_create_handler(TABLE_SHARE *table,
 
 /* MyISAM MERGE handlerton */
 
-handlerton myisammrg_hton;
+handlerton *myisammrg_hton;
 
 static handler *myisammrg_create_handler(TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
@@ -46,7 +46,7 @@ static handler *myisammrg_create_handler(TABLE_SHARE *table,
 
 
 ha_myisammrg::ha_myisammrg(TABLE_SHARE *table_arg)
-  :handler(&myisammrg_hton, table_arg), file(0)
+  :handler(myisammrg_hton, table_arg), file(0)
 {}
 
 static const char *ha_myisammrg_exts[] = {
@@ -550,18 +550,21 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_NO;
 }
 
-static int myisammrg_init()
+static int myisammrg_init(void *p)
 {
-  myisammrg_hton.state=have_merge_db;
-  myisammrg_hton.db_type=DB_TYPE_MRG_MYISAM;
-  myisammrg_hton.create=myisammrg_create_handler;
-  myisammrg_hton.panic=myrg_panic;
-  myisammrg_hton.flags= HTON_CAN_RECREATE;
+  myisammrg_hton= (handlerton *)p;
+
+  myisammrg_hton->state=have_merge_db;
+  myisammrg_hton->db_type=DB_TYPE_MRG_MYISAM;
+  myisammrg_hton->create=myisammrg_create_handler;
+  myisammrg_hton->panic=myrg_panic;
+  myisammrg_hton->flags= HTON_CAN_RECREATE;
+
   return 0;
 }
 
 struct st_mysql_storage_engine myisammrg_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &myisammrg_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, myisammrg_hton };
 
 mysql_declare_plugin(myisammrg)
 {

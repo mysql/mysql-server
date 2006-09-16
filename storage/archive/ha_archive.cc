@@ -145,7 +145,7 @@ static handler *archive_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
 */
 #define ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT 2
 
-handlerton archive_hton;
+handlerton *archive_hton;
 
 static handler *archive_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
@@ -168,24 +168,24 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
 
   SYNOPSIS
     archive_db_init()
-    void
+    void *
 
   RETURN
     FALSE       OK
     TRUE        Error
 */
 
-int archive_db_init()
+int archive_db_init(void *p)
 {
   DBUG_ENTER("archive_db_init");
   if (archive_inited)
     DBUG_RETURN(FALSE);
-
-  archive_hton.state=SHOW_OPTION_YES;
-  archive_hton.db_type=DB_TYPE_ARCHIVE_DB;
-  archive_hton.create=archive_create_handler;
-  archive_hton.panic=archive_db_end;
-  archive_hton.flags=HTON_NO_FLAGS;
+  archive_hton= (handlerton *)p;
+  archive_hton->state=SHOW_OPTION_YES;
+  archive_hton->db_type=DB_TYPE_ARCHIVE_DB;
+  archive_hton->create=archive_create_handler;
+  archive_hton->panic=archive_db_end;
+  archive_hton->flags=HTON_NO_FLAGS;
 
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
     goto error;
@@ -214,7 +214,7 @@ error:
     FALSE       OK
 */
 
-int archive_db_done()
+int archive_db_done(void *p)
 {
   if (archive_inited)
   {
@@ -228,11 +228,11 @@ int archive_db_done()
 
 int archive_db_end(ha_panic_function type)
 {
-  return archive_db_done();
+  return archive_db_done(NULL);
 }
 
 ha_archive::ha_archive(TABLE_SHARE *table_arg)
-  :handler(&archive_hton, table_arg), delayed_insert(0), bulk_insert(0)
+  :handler(archive_hton, table_arg), delayed_insert(0), bulk_insert(0)
 {
   /* Set our original buffer from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
@@ -1571,7 +1571,7 @@ bool ha_archive::check_and_repair(THD *thd)
 }
 
 struct st_mysql_storage_engine archive_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &archive_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, archive_hton };
 
 mysql_declare_plugin(archive)
 {
