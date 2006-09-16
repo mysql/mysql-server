@@ -5256,4 +5256,67 @@ a
 1
 use test|
 drop table t3|
+CREATE TABLE t3 (
+Member_ID varchar(15) NOT NULL,
+PRIMARY KEY (Member_ID)
+)|
+CREATE TABLE t4 (
+ID int(10) unsigned NOT NULL auto_increment,
+Member_ID varchar(15) NOT NULL default '',
+Action varchar(12) NOT NULL,
+Action_Date datetime NOT NULL,
+Track varchar(15) default NULL,
+User varchar(12) default NULL,
+Date_Updated timestamp NOT NULL default CURRENT_TIMESTAMP on update
+CURRENT_TIMESTAMP,
+PRIMARY KEY (ID),
+KEY Action (Action),
+KEY Action_Date (Action_Date)
+)|
+INSERT INTO t3(Member_ID) VALUES
+('111111'), ('222222'), ('333333'), ('444444'), ('555555'), ('666666')|
+INSERT INTO t4(Member_ID, Action, Action_Date, Track) VALUES
+('111111', 'Disenrolled', '2006-03-01', 'CAD' ),
+('111111', 'Enrolled', '2006-03-01', 'CAD' ),
+('111111', 'Disenrolled', '2006-07-03', 'CAD' ),
+('222222', 'Enrolled', '2006-03-07', 'CAD' ),
+('222222', 'Enrolled', '2006-03-07', 'CHF' ),
+('222222', 'Disenrolled', '2006-08-02', 'CHF' ),
+('333333', 'Enrolled', '2006-03-01', 'CAD' ),
+('333333', 'Disenrolled', '2006-03-01', 'CAD' ),
+('444444', 'Enrolled', '2006-03-01', 'CAD' ),
+('555555', 'Disenrolled', '2006-03-01', 'CAD' ),
+('555555', 'Enrolled', '2006-07-21', 'CAD' ),
+('555555', 'Disenrolled', '2006-03-01', 'CHF' ),
+('666666', 'Enrolled', '2006-02-09', 'CAD' ),
+('666666', 'Enrolled', '2006-05-12', 'CHF' ),
+('666666', 'Disenrolled', '2006-06-01', 'CAD' )|
+DROP FUNCTION IF EXISTS bug21493|
+Warnings:
+Note	1305	FUNCTION bug21493 does not exist
+CREATE FUNCTION bug21493(paramMember VARCHAR(15)) RETURNS varchar(45)
+BEGIN
+DECLARE tracks VARCHAR(45);
+SELECT GROUP_CONCAT(Track SEPARATOR ', ') INTO tracks FROM t4
+WHERE Member_ID=paramMember AND Action='Enrolled' AND 
+(Track,Action_Date) IN (SELECT Track, MAX(Action_Date) FROM t4
+WHERE Member_ID=paramMember GROUP BY Track);
+RETURN tracks;
+END|
+SELECT bug21493('111111')|
+bug21493('111111')
+NULL
+SELECT bug21493('222222')|
+bug21493('222222')
+CAD
+SELECT bug21493(Member_ID) FROM t3|
+bug21493(Member_ID)
+NULL
+CAD
+CAD
+CAD
+CAD
+CHF
+DROP FUNCTION bug21493|
+DROP TABLE t3,t4|
 drop table t1,t2;
