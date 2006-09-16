@@ -4677,7 +4677,7 @@ the generated partition syntax in a correct manner.
         DBUG_PRINT("info", ("partition changed"));
         *partition_changed= TRUE;
       }
-      if (create_info->db_type == &partition_hton)
+      if (create_info->db_type == partition_hton)
         part_info->default_engine_type= table->part_info->default_engine_type;
       else
         part_info->default_engine_type= create_info->db_type;
@@ -4689,7 +4689,7 @@ the generated partition syntax in a correct manner.
       if (!is_native_partitioned)
       {
         DBUG_ASSERT(create_info->db_type);
-        create_info->db_type= &partition_hton;
+        create_info->db_type= partition_hton;
       }
     }
   }
