@@ -835,7 +835,6 @@ use test;
 --echo # Dump of view
 --echo #
 
->>>>>>>
 create table t1(a int);
 create view v1 as select * from t1;
 --exec $MYSQL_DUMP --skip-comments test
