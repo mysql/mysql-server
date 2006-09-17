@@ -2877,7 +2877,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--console", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
-  mtr_add_arg($args, "%s--core", $prefix);
+
   mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
   mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
@@ -2938,8 +2938,6 @@ sub mysqld_arguments ($$$$$) {
 
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
-    # FIXME slave get this option twice?!
-    mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
     if (! $opt_skip_slave_binlog)
     {
@@ -3057,9 +3055,22 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--user=root", $prefix);
   }
 
+  my $found_skip_core= 0;
   foreach my $arg ( @opt_extra_mysqld_opt, @$extra_opt )
   {
-    mtr_add_arg($args, "%s%s", $prefix, $arg);
+    # Allow --skip-core-file to be set in master.opt file
+    if ($arg eq "--skip-core-file")
+    {
+      $found_skip_core= 1;
+    }
+    else
+    {
+      mtr_add_arg($args, "%s%s", $prefix, $arg);
+    }
+  }
+  if ( !$found_skip_core )
+  {
+    mtr_add_arg($args, "%s%s", $prefix, "--core-file");
   }
 
   if ( $opt_bench )
@@ -3069,7 +3080,6 @@ sub mysqld_arguments ($$$$$) {
   }
   elsif ( $type eq 'master' )
   {
-    mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--open-files-limit=1024", $prefix);
     mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
   }
