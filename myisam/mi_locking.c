@@ -223,18 +223,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
     default:
       break;				/* Impossible */
     }
-  } 
-#ifdef __WIN__
-  else
-  {
-    /*
-      The file has been closed and kfile is -1.
-      See mi_extra.c about implementation of
-      HA_EXTRA_PREPARE_FOR_DELETE.
-    */
-    error=HA_ERR_NO_SUCH_TABLE;
   }
-#endif
   pthread_mutex_unlock(&share->intern_lock);
 #if defined(FULL_LOG) || defined(_lint)
   lock_type|=(int) (flag << 8);		/* Set bit to set if real lock */
