@@ -1,0 +1,14 @@
+# Can't test with embedded server that doesn't support grants
+-- source include/not_embedded.inc
+
+use mysqltest_events_test;
+--sleep 2
+--echo "Should get 3 rows : abc1, abc2, abc3
+select distinct name from execution_log order by name;
+
+drop event abc1;
+drop event abc2;
+drop event abc3;
+drop table execution_log;
+
+drop database mysqltest_events_test;
