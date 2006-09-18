@@ -719,6 +719,12 @@ select * from t1;
 drop table t1;
 
 --echo #
+--echo # BUG#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
+--echo #
+
+--exec $MYSQL_MY_PRINT_DEFAULTS --config-file=$MYSQL_TEST_DIR/std_data/bug15328.cnf mysqldump
+
+--echo #
 --echo # Bug #19025 mysqldump doesn't correctly dump "auto_increment = [int]"
 --echo #
 create table `t1` (
@@ -1539,6 +1545,25 @@ drop database third;
 # revert back to normal settings
 set time_zone = 'SYSTEM';
 use test;
+
+#####
+#
+# BUG#17201 Spurious 'DROP DATABASE' in output,
+# also confusion between tables and views.
+# Example code from Markus Popp
+
+create database mysqldump_test_db;
+use mysqldump_test_db;
+create table t1 (id int);
+create view v1 as select * from t1;
+insert into t1 values (1232131);
+insert into t1 values (4711);
+insert into t1 values (3231);
+insert into t1 values (0815);
+--exec $MYSQL_DUMP --skip-comments --add-drop-database --databases mysqldump_test_db
+drop view v1;
+drop table t1;
+drop database mysqldump_test_db;
 
 --echo #
 --echo # End of 5.1 tests
