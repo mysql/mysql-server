@@ -88,7 +88,7 @@ btr_pcur_store_position(
 	page_cursor = btr_pcur_get_page_cur(cursor);
 
 	rec = page_cur_get_rec(page_cursor);
-	page = ut_align_down(rec, UNIV_PAGE_SIZE);
+	page = page_align(rec);
 	offs = ut_align_offset(rec, UNIV_PAGE_SIZE);
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),

@@ -1318,7 +1318,7 @@ btr_cur_update_in_place_log(
 	mtr_t*		mtr)		/* in: mtr */
 {
 	byte*	log_ptr;
-	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
+	page_t*	page	= page_align(rec);
 	ut_ad(flags < 256);
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
