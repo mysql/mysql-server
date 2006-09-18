@@ -1,19 +1,30 @@
+# include/concurrent.inc
 #
-# Concurrent InnoDB tests, mainly in UPDATE's
+# Concurrent tests for transactional storage engines, mainly in UPDATE's
 # Bug#3300
 # Designed and tested by Sinisa Milivojevic, sinisa@mysql.com
 #
 # two non-interfering UPDATE's not changing result set
 #
-
-# test takes circa 5 minutes to run, so it's big
--- source include/big_test.inc
+# The variable
+#     $engine_type       -- storage engine to be tested
+# has to be set before sourcing this script.
+#
+# Last update:
+# 2006-08-02 ML test refactored
+#               old name was t/innodb_concurrent.test
+#               main code went into include/concurrent.inc
+#
 
 connection default;
+eval SET SESSION STORAGE_ENGINE = $engine_type;
+--disable_warnings
 drop table if exists t1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
+--enable_warnings
+create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 connect (thread1, localhost, mysqltest,,);
 connection thread1;
+eval SET SESSION STORAGE_ENGINE = $engine_type;
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -57,7 +68,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -103,7 +114,7 @@ drop table t1;
 
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1 (a int not null, b int not null) engine=innodb;
+create table t1 (a int not null, b int not null);
 insert into t1 values (1,1),(2,1),(3,1),(4,1);
 select get_lock("hello2",1000);
 #connect (thread2, localhost, mysqltest,,);
@@ -132,7 +143,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -175,7 +186,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -218,7 +229,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -261,7 +272,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -305,7 +316,7 @@ drop table t1;
 #
 #connect (thread1, localhost, mysqltest,,);
 connection thread1;
-create table t1(eta int(11) not null, tipo int(11), c varchar(255)) engine=innodb;
+create table t1(eta int(11) not null, tipo int(11), c varchar(255));
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
