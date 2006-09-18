@@ -262,23 +262,27 @@ struct dict_table_struct{
 				innodb_file_per_table is defined in my.cnf;
 				in Unix this is usually /tmp/..., in Windows
 				\temp\... */
-	ulint		space;	/* space where the clustered index of the
+	unsigned	space:32;
+				/* space where the clustered index of the
 				table is placed */
-	ibool		ibd_file_missing:1;/* TRUE if this is in a single-table
+	unsigned	ibd_file_missing:1;
+				/* TRUE if this is in a single-table
 				tablespace and the .ibd file is missing; then
 				we must return in ha_innodb.cc an error if the
 				user tries to query such an orphaned table */
-	ibool		tablespace_discarded:1;/* this flag is set TRUE when the
-				user calls DISCARD TABLESPACE on this table,
-				and reset to FALSE in IMPORT TABLESPACE */
-	ibool		cached:1;/* TRUE if the table object has been added
+	unsigned	tablespace_discarded:1;
+				/* this flag is set TRUE when the user
+				calls DISCARD TABLESPACE on this
+				table, and reset to FALSE in IMPORT
+				TABLESPACE */
+	unsigned	cached:1;/* TRUE if the table object has been added
 				to the dictionary cache */
-	ulint		flags:8;/* DICT_TF_COMPACT, ... */
-	hash_node_t	name_hash; /* hash chain node */
-	hash_node_t	id_hash; /* hash chain node */
+	unsigned	flags:8;/* DICT_TF_COMPACT, ... */
 	ulint		n_def:10;/* number of columns defined so far */
 	ulint		n_cols:10;/* number of columns */
 	dict_col_t*	cols;	/* array of column descriptions */
+	hash_node_t	name_hash; /* hash chain node */
+	hash_node_t	id_hash; /* hash chain node */
 	UT_LIST_BASE_NODE_T(dict_index_t)
 			indexes; /* list of indexes of the table */
 	UT_LIST_BASE_NODE_T(dict_foreign_t)
@@ -362,7 +366,7 @@ struct dict_table_struct{
 	mutex_t		autoinc_mutex;
 				/* mutex protecting the autoincrement
 				counter */
-	ibool		autoinc_inited:1;
+	ibool		autoinc_inited;
 				/* TRUE if the autoinc counter has been
 				inited; MySQL gets the init value by executing
 				SELECT MAX(auto inc column) */
