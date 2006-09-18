@@ -1843,6 +1843,7 @@ CommandInterpreter::executeStop(int processId, const char *parameters,
     tmp.split(command_list);
     for (unsigned i= 0; i < command_list.size();)
       command_list[i].c_str()[0] ? i++ : (command_list.erase(i),0);
+  }
   if (all)
     retval = executeStop(command_list, 0, 0, 0);
   else
