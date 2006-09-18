@@ -6724,15 +6724,6 @@ int QUICK_RANGE_SELECT::get_next()
   }
 }
 
-void QUICK_SELECT::reset(void) 
-{
-  next= 0; 
-  it.rewind();
-  range= 0; 
-  if (file->inited == handler::NONE) 
-    file->ha_index_init(index);
-}
-
 /*
   Get the next record with a different prefix.
 
@@ -9384,12 +9375,6 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
     tmp.append(STRING_WITH_LEN("(empty)"));
   DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
   DBUG_VOID_RETURN;
-}
-
-void QUICK_SELECT_DESC::reset(void)
-{ 
-  rev_it.rewind();
-  QUICK_SELECT::reset();
 }
 
 /*****************************************************************************
