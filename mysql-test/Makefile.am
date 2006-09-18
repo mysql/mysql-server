@@ -22,9 +22,9 @@ DIST_SUBDIRS=ndb
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
-EXTRA_SCRIPTS = 	mysql-test-run.sh install_test_db.sh valgrind.supp $(PRESCRIPTS)
+EXTRA_SCRIPTS = 	mysql-test-run_shell.sh install_test_db.sh valgrind.supp $(PRESCRIPTS)
 EXTRA_DIST = 		$(EXTRA_SCRIPTS) 
-GENSCRIPTS =		mysql-test-run install_test_db mtr
+GENSCRIPTS =		mysql-test-run-shell install_test_db mtr mysql-test-run
 PRESCRIPTS =		mysql-test-run.pl
 test_SCRIPTS = 		$(GENSCRIPTS) $(PRESCRIPTS)
 test_DATA =		std_data/client-key.pem std_data/client-cert.pem \
@@ -117,6 +117,11 @@ uninstall-local:
 mtr:
 	$(RM) -f mtr
 	$(LN_S) mysql-test-run.pl mtr
+
+# mysql-test-run - a shortcut for executing mysql-test-run.pl
+mysql-test-run:
+	$(RM) -f mysql-test-run
+	$(LN_S) mysql-test-run.pl mysql-test-run
 
 SUFFIXES = .sh
 
