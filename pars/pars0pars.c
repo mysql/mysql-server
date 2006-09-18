@@ -450,7 +450,6 @@ pars_resolve_exp_columns(
 	sym_node_t*	sym_node;
 	dict_table_t*	table;
 	sym_node_t*	t_node;
-	dict_col_t*	col;
 	ulint		n_cols;
 	ulint		i;
 
@@ -490,10 +489,12 @@ pars_resolve_exp_columns(
 		n_cols = dict_table_get_n_cols(table);
 
 		for (i = 0; i < n_cols; i++) {
-			col = dict_table_get_nth_col(table, i);
+			dict_col_t*	col = dict_table_get_nth_col(table, i);
+			const char*	col_name = dict_table_get_col_name(
+				table, i);
 
-			if ((sym_node->name_len == ut_strlen(col->name))
-			    && (0 == ut_memcmp(sym_node->name, col->name,
+			if ((sym_node->name_len == ut_strlen(col_name))
+			    && (0 == ut_memcmp(sym_node->name, col_name,
 					       sym_node->name_len))) {
 				/* Found */
 				sym_node->resolved = TRUE;
@@ -592,7 +593,6 @@ pars_select_all_columns(
 	sym_node_t*	col_node;
 	sym_node_t*	table_node;
 	dict_table_t*	table;
-	dict_col_t*	col;
 	ulint		i;
 
 	select_node->select_list = NULL;
@@ -603,15 +603,15 @@ pars_select_all_columns(
 		table = table_node->table;
 
 		for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
-
-			col = dict_table_get_nth_col(table, i);
+			const char*	col_name = dict_table_get_col_name(
+				table, i);
 
 			col_node = sym_tab_add_id(pars_sym_tab_global,
-						  (byte*)col->name,
-						  ut_strlen(col->name));
-			select_node->select_list
-				= que_node_list_add_last
-				(select_node->select_list, col_node);
+						  (byte*)col_name,
+						  ut_strlen(col_name));
+
+			select_node->select_list = que_node_list_add_last(
+				select_node->select_list, col_node);
 		}
 
 		table_node = que_node_get_next(table_node);

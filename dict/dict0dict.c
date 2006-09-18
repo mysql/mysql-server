@@ -143,6 +143,7 @@ dict_index_copy(
 /*============*/
 	dict_index_t*	index1,	/* in: index to copy to */
 	dict_index_t*	index2,	/* in: index to copy from */
+	dict_table_t*	table,	/* in: table */
 	ulint		start,	/* in: first position to copy */
 	ulint		end);	/* in: last position to copy */
 /***********************************************************************
@@ -191,6 +192,7 @@ static
 void
 dict_col_print_low(
 /*===============*/
+	dict_table_t*	table,	/* in: table */
 	dict_col_t*	col);	/* in: column */
 /**************************************************************************
 Prints an index data. */
@@ -371,6 +373,25 @@ dict_table_get_index_noninline(
 	const char*	name)	/* in: index name */
 {
 	return(dict_table_get_index(table, name));
+}
+
+/**************************************************************************
+Returns a column's name. */
+
+const char*
+dict_table_get_col_name(
+/*====================*/
+				/* out: column name. NOTE: not guaranteed to
+				stay valid if table is modified in any way
+				(columns added, etc.). */
+	dict_table_t*	table,	/* in: table */
+	ulint		i)	/* in: column number */
+{
+	ut_ad(table);
+	ut_ad(i < table->n_def);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	return(dict_table_get_nth_col(table, i)->name);
 }
 
 /************************************************************************
@@ -1474,10 +1495,9 @@ dict_index_find_cols(
 		dict_field_t*	field = dict_index_get_nth_field(index, i);
 
 		for (j = 0; j < table->n_cols; j++) {
-			dict_col_t*	col = dict_table_get_nth_col(table, j);
-
-			if (!strcmp(col->name, field->name)) {
-				field->col = col;
+			if (!strcmp(dict_table_get_col_name(table, j),
+				    field->name)) {
+				field->col = dict_table_get_nth_col(table, j);
 
 				goto found;
 			}
@@ -1498,12 +1518,16 @@ void
 dict_index_add_col(
 /*===============*/
 	dict_index_t*	index,		/* in: index */
+	dict_table_t*	table,		/* in: table */
 	dict_col_t*	col,		/* in: column */
 	ulint		prefix_len)	/* in: column prefix length */
 {
 	dict_field_t*	field;
+	const char*	col_name;
 
-	dict_mem_index_add_field(index, col->name, prefix_len);
+	col_name = dict_table_get_col_name(table, dict_col_get_no(col));
+
+	dict_mem_index_add_field(index, col_name, prefix_len);
 
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
@@ -1535,6 +1559,7 @@ dict_index_copy(
 /*============*/
 	dict_index_t*	index1,	/* in: index to copy to */
 	dict_index_t*	index2,	/* in: index to copy from */
+	dict_table_t*	table,	/* in: table */
 	ulint		start,	/* in: first position to copy */
 	ulint		end)	/* in: last position to copy */
 {
@@ -1546,7 +1571,8 @@ dict_index_copy(
 	for (i = start; i < end; i++) {
 
 		field = dict_index_get_nth_field(index2, i);
-		dict_index_add_col(index1, field->col, field->prefix_len);
+		dict_index_add_col(index1, table, field->col,
+				   field->prefix_len);
 	}
 }
 
@@ -1647,7 +1673,7 @@ dict_index_build_internal_clust(
 	new_index->id = index->id;
 
 	/* Copy the fields of index */
-	dict_index_copy(new_index, index, 0, index->n_fields);
+	dict_index_copy(new_index, index, table, 0, index->n_fields);
 
 	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		/* No fixed number of fields determines an entry uniquely */
@@ -1682,19 +1708,21 @@ dict_index_build_internal_clust(
 #endif
 
 		if (!(index->type & DICT_UNIQUE)) {
-			dict_index_add_col(new_index,
-					   dict_table_get_sys_col
-					   (table, DATA_ROW_ID), 0);
+			dict_index_add_col(new_index, table,
+					   dict_table_get_sys_col(
+						   table, DATA_ROW_ID),
+					   0);
 			trx_id_pos++;
 		}
 
-		dict_index_add_col(new_index,
-				   dict_table_get_sys_col
-				   (table, DATA_TRX_ID), 0);
+		dict_index_add_col(new_index, table,
+				   dict_table_get_sys_col(table, DATA_TRX_ID),
+				   0);
 
-		dict_index_add_col(new_index,
-				   dict_table_get_sys_col
-				   (table, DATA_ROLL_PTR), 0);
+		dict_index_add_col(new_index, table,
+				   dict_table_get_sys_col(table,
+							  DATA_ROLL_PTR),
+				   0);
 
 		for (i = 0; i < trx_id_pos; i++) {
 
@@ -1745,7 +1773,7 @@ dict_index_build_internal_clust(
 		ut_ad(col->type.mtype != DATA_SYS);
 
 		if (!indexed[col->ind]) {
-			dict_index_add_col(new_index, col, 0);
+			dict_index_add_col(new_index, table, col, 0);
 		}
 	}
 
@@ -1805,7 +1833,7 @@ dict_index_build_internal_non_clust(
 	new_index->id = index->id;
 
 	/* Copy fields from index to new_index */
-	dict_index_copy(new_index, index, 0, index->n_fields);
+	dict_index_copy(new_index, index, table, 0, index->n_fields);
 
 	/* Remember the table columns already contained in new_index */
 	indexed = mem_alloc(table->n_cols * sizeof *indexed);
@@ -1833,7 +1861,7 @@ dict_index_build_internal_non_clust(
 		field = dict_index_get_nth_field(clust_index, i);
 
 		if (!indexed[field->col->ind]) {
-			dict_index_add_col(new_index, field->col,
+			dict_index_add_col(new_index, table, field->col,
 					   field->prefix_len);
 		}
 	}
@@ -1976,6 +2004,7 @@ dict_foreign_find_index(
 				only has an effect if types_idx != NULL */
 {
 	dict_index_t*	index;
+	dict_field_t*	field;
 	const char*	col_name;
 	ulint		i;
 
@@ -1985,10 +2014,12 @@ dict_foreign_find_index(
 		if (dict_index_get_n_fields(index) >= n_cols) {
 
 			for (i = 0; i < n_cols; i++) {
-				col_name = dict_index_get_nth_field(index, i)
-					->col->name;
-				if (dict_index_get_nth_field(index, i)
-				    ->prefix_len != 0) {
+				field = dict_index_get_nth_field(index, i);
+
+				col_name = dict_table_get_col_name(
+					table, dict_col_get_no(field->col));
+
+				if (field->prefix_len != 0) {
 					/* We do not accept column prefix
 					indexes here */
 
@@ -2400,7 +2431,6 @@ dict_scan_col(
 	const char**	name)	/* out,own: the column name; NULL if no name
 				was scannable */
 {
-	dict_col_t*	col;
 	ulint		i;
 
 	*success = FALSE;
@@ -2418,14 +2448,15 @@ dict_scan_col(
 	} else {
 		for (i = 0; i < dict_table_get_n_cols(table); i++) {
 
-			col = dict_table_get_nth_col(table, i);
+			const char*	col_name = dict_table_get_col_name(
+				table, i);
 
-			if (0 == innobase_strcasecmp(col->name, *name)) {
+			if (0 == innobase_strcasecmp(col_name, *name)) {
 				/* Found */
 
 				*success = TRUE;
-				*column = col;
-				strcpy((char*) *name, col->name);
+				*column = dict_table_get_nth_col(table, i);
+				strcpy((char*) *name, col_name);
 
 				break;
 			}
@@ -3022,8 +3053,10 @@ col_loop1:
 	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
 						    i * sizeof(void*));
 	for (i = 0; i < foreign->n_fields; i++) {
-		foreign->foreign_col_names[i] = mem_heap_strdup
-			(foreign->heap, columns[i]->name);
+		foreign->foreign_col_names[i] = mem_heap_strdup(
+			foreign->heap,
+			dict_table_get_col_name(table,
+						dict_col_get_no(columns[i])));
 	}
 
 	ptr = dict_scan_table_name(cs, ptr, &referenced_table, name,
@@ -3935,7 +3968,7 @@ dict_table_print_low(
 		(ulong) table->stat_n_rows);
 
 	for (i = 0; i + 1 < (ulint) table->n_cols; i++) {
-		dict_col_print_low(dict_table_get_nth_col(table, i));
+		dict_col_print_low(table, dict_table_get_nth_col(table, i));
 		fputs("; ", stderr);
 	}
 
@@ -3969,6 +4002,7 @@ static
 void
 dict_col_print_low(
 /*===============*/
+	dict_table_t*	table,	/* in: table */
 	dict_col_t*	col)	/* in: column */
 {
 	dtype_t*	type;
@@ -3978,7 +4012,8 @@ dict_col_print_low(
 #endif /* UNIV_SYNC_DEBUG */
 
 	type = dict_col_get_type(col);
-	fprintf(stderr, "%s: ", col->name);
+	fprintf(stderr, "%s: ", dict_table_get_col_name(table,
+							dict_col_get_no(col)));
 
 	dtype_print(type);
 }

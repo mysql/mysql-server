@@ -26,6 +26,25 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 
+/********************************************************************
+Returns TRUE if index's i'th column's name is 'name' .*/
+static
+ibool
+name_of_col_is(
+/*===========*/
+				/* out: */
+	dict_table_t*	table,	/* in: table */
+	dict_index_t*	index,	/* in: index */
+	ulint		i,	/* in:  */
+	const char*	name)	/* in: name to compare to */
+{
+	ulint	tmp = dict_col_get_no(dict_field_get_col(
+					      dict_index_get_nth_field(
+						      index, i)));
+
+	return(strcmp(name, dict_table_get_col_name(table, tmp)) == 0);
+}
+
 /************************************************************************
 Finds the first table name in the given database. */
 
@@ -371,8 +390,7 @@ dict_load_columns(
 		ut_ad(len == 4);
 		ut_a(i == mach_read_from_4(field));
 
-		ut_a(!strcmp("NAME", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 4))->name));
+		ut_a(name_of_col_is(sys_columns, sys_index, 4, "NAME"));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
 		name = mem_heap_strdupl(heap, (char*) field, len);
@@ -407,8 +425,7 @@ dict_load_columns(
 		field = rec_get_nth_field_old(rec, 7, &len);
 		col_len = mach_read_from_4(field);
 
-		ut_a(!strcmp("PREC", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 8))->name));
+		ut_a(name_of_col_is(sys_columns, sys_index, 8, "PREC"));
 
 		dict_mem_table_add_col(table, name, mtype, prtype, col_len);
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
@@ -521,8 +538,7 @@ dict_load_fields(
 			prefix_len = 0;
 		}
 
-		ut_a(!strcmp("COL_NAME", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 4))->name));
+		ut_a(name_of_col_is(sys_fields, sys_index, 4, "COL_NAME"));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
 
@@ -626,8 +642,7 @@ dict_load_indexes(
 		ut_ad(len == 8);
 		id = mach_read_from_8(field);
 
-		ut_a(!strcmp("NAME", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 4))->name));
+		ut_a(name_of_col_is(sys_indexes, sys_index, 4, "NAME"));
 
 		field = rec_get_nth_field_old(rec, 4, &name_len);
 		name_buf = mem_heap_strdupl(heap, (char*) field, name_len);
@@ -641,8 +656,7 @@ dict_load_indexes(
 		field = rec_get_nth_field_old(rec, 7, &len);
 		space = mach_read_from_4(field);
 
-		ut_a(!strcmp("PAGE_NO", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 8))->name));
+		ut_a(name_of_col_is(sys_indexes, sys_index, 8, "PAGE_NO"));
 
 		field = rec_get_nth_field_old(rec, 8, &len);
 		page_no = mach_read_from_4(field);
@@ -780,8 +794,7 @@ err_exit:
 		goto err_exit;
 	}
 
-	ut_a(!strcmp("SPACE", dict_field_get_col
-		     (dict_index_get_nth_field(sys_index, 9))->name));
+	ut_a(name_of_col_is(sys_tables, sys_index, 9, "SPACE"));
 
 	field = rec_get_nth_field_old(rec, 9, &len);
 	space = mach_read_from_4(field);
@@ -814,8 +827,7 @@ err_exit:
 		}
 	}
 
-	ut_a(!strcmp("N_COLS", dict_field_get_col
-		     (dict_index_get_nth_field(sys_index, 4))->name));
+	ut_a(name_of_col_is(sys_tables, sys_index, 4, "N_COLS"));
 
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
@@ -832,8 +844,7 @@ err_exit:
 
 	table->ibd_file_missing = ibd_file_missing;
 
-	ut_a(!strcmp("ID", dict_field_get_col
-		     (dict_index_get_nth_field(sys_index, 3))->name));
+	ut_a(name_of_col_is(sys_tables, sys_index, 3, "ID"));
 
 	field = rec_get_nth_field_old(rec, 3, &len);
 	table->id = mach_read_from_8(field);

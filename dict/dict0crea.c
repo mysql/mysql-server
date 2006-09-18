@@ -129,6 +129,7 @@ dict_create_sys_columns_tuple(
 	dict_col_t*	column;
 	dfield_t*	dfield;
 	byte*		ptr;
+	const char*	col_name;
 
 	ut_ad(table && heap);
 
@@ -155,7 +156,8 @@ dict_create_sys_columns_tuple(
 	/* 4: NAME ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 2);
 
-	dfield_set_data(dfield, column->name, ut_strlen(column->name));
+	col_name = dict_table_get_col_name(table, i);
+	dfield_set_data(dfield, col_name, ut_strlen(col_name));
 	/* 5: MTYPE --------------------------*/
 	dfield = dtuple_get_nth_field(entry, 3);
 
