@@ -8139,7 +8139,6 @@ end:
   DBUG_RETURN(result);
 }
 
-
 /*
   Get the next record with a different prefix.
 
@@ -10790,7 +10789,6 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
   DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
   DBUG_VOID_RETURN;
 }
-
 
 /*****************************************************************************
 ** Print a quick range for debugging

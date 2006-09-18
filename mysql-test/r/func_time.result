@@ -840,39 +840,38 @@ drop table t1;
 create table t1(f1 date, f2 time, f3 datetime);
 insert into t1 values ("2006-01-01", "12:01:01", "2006-01-01 12:01:01");
 insert into t1 values ("2006-01-02", "12:01:02", "2006-01-02 12:01:02");
-select f1 from t1 where f1 between "2006-1-1" and 20060101;
+select f1 from t1 where f1 between CAST("2006-1-1" as date) and CAST(20060101 as date);
 f1
 2006-01-01
-select f1 from t1 where f1 between "2006-1-1" and "2006.1.1";
+select f1 from t1 where f1 between cast("2006-1-1" as date) and cast("2006.1.1" as date);
 f1
 2006-01-01
-select f1 from t1 where date(f1) between "2006-1-1" and "2006.1.1";
+select f1 from t1 where date(f1) between cast("2006-1-1" as date) and cast("2006.1.1" as date);
 f1
 2006-01-01
-select f2 from t1 where f2 between "12:1:2" and "12:2:2";
+select f2 from t1 where f2 between cast("12:1:2" as time) and cast("12:2:2" as time);
 f2
 12:01:02
-select f2 from t1 where time(f2) between "12:1:2" and "12:2:2";
+select f2 from t1 where time(f2) between cast("12:1:2" as time) and cast("12:2:2" as time);
 f2
 12:01:02
-select f3 from t1 where f3 between "2006-1-1 12:1:1" and "2006-1-1 12:1:2";
+select f3 from t1 where f3 between cast("2006-1-1 12:1:1" as datetime) and cast("2006-1-1 12:1:2" as datetime);
 f3
 2006-01-01 12:01:01
-select f3 from t1 where timestamp(f3) between "2006-1-1 12:1:1" and "2006-1-1 12:1:2";
+select f3 from t1 where timestamp(f3) between cast("2006-1-1 12:1:1" as datetime) and cast("2006-1-1 12:1:2" as datetime);
 f3
 2006-01-01 12:01:01
-select f1 from t1 where "2006-1-1" between f1 and f3;
+select f1 from t1 where cast("2006-1-1" as date) between f1 and f3;
 f1
 2006-01-01
-select f1 from t1 where "2006-1-1" between date(f1) and date(f3);
+select f1 from t1 where cast("2006-1-1" as date) between date(f1) and date(f3);
 f1
 2006-01-01
-select f1 from t1 where "2006-1-1" between f1 and 'zzz';
+select f1 from t1 where cast("2006-1-1" as date) between f1 and cast('zzz' as date);
 f1
 Warnings:
-Warning	1292	Incorrect date value: 'zzz' for column 'f1' at row 1
-Warning	1292	Truncated incorrect DOUBLE value: 'zzz'
-Warning	1292	Truncated incorrect DOUBLE value: 'zzz'
+Warning	1292	Truncated incorrect datetime value: 'zzz'
+Warning	1292	Truncated incorrect datetime value: 'zzz'
 select f1 from t1 where makedate(2006,1) between date(f1) and date(f3);
 f1
 2006-01-01
