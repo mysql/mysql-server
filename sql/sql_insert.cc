@@ -975,7 +975,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(TRUE);
     }
-    select_lex->fix_prepare_information(thd, &fake_conds);
+    select_lex->fix_prepare_information(thd, &fake_conds, &fake_conds);
     select_lex->first_execution= 0;
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
