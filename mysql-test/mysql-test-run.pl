@@ -1541,7 +1541,8 @@ sub environment_setup () {
   my $cmdline_mysql=
     "$exe_mysql --no-defaults --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'port'} " .
-    "--socket=$master->[0]->{'path_sock'}";
+    "--socket=$master->[0]->{'path_mysock'} ".
+    "--character-sets-dir=$path_charsetsdir";
 
   $ENV{'MYSQL'}= $cmdline_mysql;
 
@@ -3722,7 +3723,6 @@ sub run_check_testcase ($$) {
 
 sub run_mysqltest ($) {
   my ($tinfo)= @_;
-
   my $exe= $exe_mysqltest;
   my $args;
 
