@@ -3276,7 +3276,7 @@ bool mysql_create_table_internal(THD *thd,
         goto err;
       }
     }
-    if ((part_engine_type == &partition_hton) &&
+    if ((part_engine_type == partition_hton) &&
         part_info->default_engine_type)
     {
       /*
@@ -3319,7 +3319,7 @@ bool mysql_create_table_internal(THD *thd,
     part_info->part_info_len= syntax_len;
     if ((!(engine_type->partition_flags &&
            engine_type->partition_flags() & HA_CAN_PARTITION)) ||
-        create_info->db_type == &partition_hton)
+        create_info->db_type == partition_hton)
     {
       /*
         The handler assigned to the table cannot handle partitioning.
@@ -3328,7 +3328,7 @@ bool mysql_create_table_internal(THD *thd,
       DBUG_PRINT("info", ("db_type: %d",
                           ha_legacy_type(create_info->db_type)));
       delete file;
-      create_info->db_type= &partition_hton;
+      create_info->db_type= partition_hton;
       if (!(file= get_ha_partition(part_info)))
       {
         DBUG_RETURN(TRUE);
@@ -6779,7 +6779,7 @@ static bool check_engine(THD *thd, const char *table_name,
       *new_engine= 0;
       return TRUE;
     }
-    *new_engine= &myisam_hton;
+    *new_engine= myisam_hton;
   }
   return FALSE;
 }
