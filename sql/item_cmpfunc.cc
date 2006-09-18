@@ -1112,7 +1112,9 @@ void Item_func_between::fix_length_and_dec()
     They are compared as integers, so for const item this time-consuming
     conversion can be done only once, not for every single comparison
   */
-  if (args[0]->type() == FIELD_ITEM)
+  if (args[0]->type() == FIELD_ITEM &&
+      thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
+      thd->lex->sql_command != SQLCOM_SHOW_CREATE)
   {
     Field *field=((Item_field*) args[0])->field;
     if (field->can_be_compared_as_longlong())
