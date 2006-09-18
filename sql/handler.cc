@@ -97,7 +97,7 @@ handlerton *ha_default_handlerton(THD *thd)
   return (thd->variables.table_type != NULL) ?
           thd->variables.table_type :
           (global_system_variables.table_type != NULL ?
-           global_system_variables.table_type : &myisam_hton);
+           global_system_variables.table_type : myisam_hton);
 }
 
 
@@ -378,16 +378,45 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
       DBUG_RETURN(1);
     break;
   };
+
+  if (plugin->plugin->deinit)
+  {
+    /*
+      Today we have no defined/special behavior for uninstalling
+      engine plugins.
+    */
+    DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
+    if (plugin->plugin->deinit(NULL))
+    {
+      DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
+                             plugin->name.str));
+    }
+  }
+
+  my_free((gptr)hton, MYF(0));
+
   DBUG_RETURN(0);
 }
 
 
 int ha_initialize_handlerton(st_plugin_int *plugin)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton;
   DBUG_ENTER("ha_initialize_handlerton");
 
+  hton= (handlerton *)my_malloc(sizeof(handlerton),
+                                MYF(MY_WME | MY_ZEROFILL));
+  /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
+  if (plugin->plugin->init)
+  {
+    if (plugin->plugin->init(hton))
+    {
+      sql_print_error("Plugin '%s' init function returned error.",
+                      plugin->name.str);
+      goto err;
+    }
+  }
 
   /*
     the switch below and hton->state should be removed when
@@ -435,6 +464,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     break;
   }
   DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
 }
 
 int ha_init()
