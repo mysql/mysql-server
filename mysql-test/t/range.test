@@ -711,3 +711,30 @@ DROP TABLE t1;
 
 
 # End of 5.0 tests
+
+# BUG#22393 fix: Adjust 'ref' estimate if we have 'range' estimate for
+#                a smaller scan interval
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (a int, b int, filler char(100));
+insert into t2 select A.a + 10 * (B.a + 10 * C.a), 10, 'filler' from t1 A,
+t1 B, t1 C where A.a < 5;
+
+insert into t2 select 1000, b, 'filler' from t2;
+alter table t2 add index (a,b);
+# t2 values 
+#  ( 1  , 10, 'filler')
+#  ( 2  , 10, 'filler')
+#  ( 3  , 10, 'filler')
+#  (... , 10, 'filler')
+#   ...
+#  (1000, 10, 'filler') - 500 times
+
+# 500 rows, 1 row
+
+select 'In following EXPLAIN the access method should be ref, #rows~=500 (and not 2)' Z;
+explain select * from t2 where a=1000 and b<11;
+
+drop table t1, t2;
+
