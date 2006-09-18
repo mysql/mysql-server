@@ -1295,7 +1295,8 @@ loop:
 	following call does the comparison in the latin1_swedish_ci
 	charset-collation, in a case-insensitive way. */
 
-	if (0 != cmp_data_data(dfield_get_type(dfield),
+	if (0 != cmp_data_data(dfield_get_type(dfield)->mtype,
+			       dfield_get_type(dfield)->prtype,
 			       dfield_get_data(dfield), dfield_get_len(dfield),
 			       field, len)) {
 

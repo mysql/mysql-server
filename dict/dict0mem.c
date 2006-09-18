@@ -123,22 +123,28 @@ dict_mem_table_add_col(
 	ulint		len)	/* in: precision */
 {
 	dict_col_t*	col;
-	dtype_t*	type;
+	ulint		mbminlen;
+	ulint		mbmaxlen;
 
 	ut_ad(table && name);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	table->n_def++;
 
-	col = dict_table_get_nth_col(table, table->n_def - 1);
+	col = (dict_col_t*) dict_table_get_nth_col(table, table->n_def - 1);
 
 	col->ind = table->n_def - 1;
 	col->name = mem_heap_strdup(table->heap, name);
 	col->ord_part = 0;
 
-	type = dict_col_get_type(col);
+	col->mtype = mtype;
+	col->prtype = prtype;
+	col->len = len;
 
-	dtype_set(type, mtype, prtype, len);
+	dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
+
+	col->mbminlen = mbminlen;
+	col->mbmaxlen = mbmaxlen;
 }
 
 /**************************************************************************

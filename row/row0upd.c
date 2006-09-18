@@ -388,9 +388,9 @@ row_upd_changes_field_size_or_external(
 			this fix also to 4.0. The merge to 5.0 will be made
 			manually immediately after we commit this to 4.1. */
 
-			new_len = dtype_get_sql_null_size
-				(dict_index_get_nth_type(index,
-							 upd_field->field_no));
+			new_len = dict_col_get_sql_null_size(
+				dict_index_get_nth_col(index,
+						       upd_field->field_no));
 		}
 
 		old_len = rec_offs_nth_size(offsets, upd_field->field_no);
@@ -884,7 +884,6 @@ row_upd_index_replace_new_col_vals_index_pos(
 	ulint		j;
 	ulint		i;
 	ulint		n_fields;
-	dtype_t*	cur_type;
 
 	ut_ad(index);
 
@@ -922,13 +921,17 @@ row_upd_index_replace_new_col_vals_index_pos(
 				if (field->prefix_len > 0
 				    && new_val->len != UNIV_SQL_NULL) {
 
-					cur_type = dict_col_get_type
-						(dict_field_get_col(field));
+					const dict_col_t*	col
+						= dict_field_get_col(field);
 
 					dfield->len
-						= dtype_get_at_most_n_mbchars
-						(cur_type, field->prefix_len,
-						 new_val->len, new_val->data);
+						= dtype_get_at_most_n_mbchars(
+							col->prtype,
+							col->mbminlen,
+							col->mbmaxlen,
+							field->prefix_len,
+							new_val->len,
+							new_val->data);
 				}
 			}
 		}
@@ -957,7 +960,6 @@ row_upd_index_replace_new_col_vals(
 	dfield_t*	new_val;
 	ulint		j;
 	ulint		i;
-	dtype_t*	cur_type;
 	dict_index_t*	clust_index;
 
 	ut_ad(index);
@@ -995,13 +997,17 @@ row_upd_index_replace_new_col_vals(
 				if (field->prefix_len > 0
 				    && new_val->len != UNIV_SQL_NULL) {
 
-					cur_type = dict_col_get_type
-						(dict_field_get_col(field));
+					const dict_col_t*	col
+						= dict_field_get_col(field);
 
 					dfield->len
-						= dtype_get_at_most_n_mbchars
-						(cur_type, field->prefix_len,
-						 new_val->len, new_val->data);
+						= dtype_get_at_most_n_mbchars(
+							col->prtype,
+							col->mbminlen,
+							col->mbmaxlen,
+							field->prefix_len,
+							new_val->len,
+							new_val->data);
 				}
 			}
 		}
@@ -1044,14 +1050,15 @@ row_upd_changes_ord_field_binary(
 
 	for (i = 0; i < n_unique; i++) {
 
-		dict_field_t*	ind_field
-			= dict_index_get_nth_field(index, i);
-		dict_col_t*	col
-			= dict_field_get_col(ind_field);
-		ulint		col_pos
-			= dict_col_get_clust_pos(col, clust_index);
-		ulint		col_no
-			= dict_col_get_no(col);
+		const dict_field_t*	ind_field;
+		const dict_col_t*	col;
+		ulint			col_pos;
+		ulint			col_no;
+
+		ind_field = dict_index_get_nth_field(index, i);
+		col = dict_field_get_col(ind_field);
+		col_pos = dict_col_get_clust_pos(col, clust_index);
+		col_no = dict_col_get_no(col);
 
 		for (j = 0; j < n_upd_fields; j++) {
 
@@ -1137,12 +1144,13 @@ row_upd_changes_first_fields_binary(
 
 	for (i = 0; i < n; i++) {
 
-		dict_field_t*	ind_field
-			= dict_index_get_nth_field(index, i);
-		dict_col_t*	col
-			= dict_field_get_col(ind_field);
-		ulint		col_pos
-			= dict_col_get_clust_pos(col, clust_index);
+		const dict_field_t*	ind_field;
+		const dict_col_t*	col;
+		ulint			col_pos;
+
+		ind_field = dict_index_get_nth_field(index, i);
+		col = dict_field_get_col(ind_field);
+		col_pos = dict_col_get_clust_pos(col, clust_index);
 
 		ut_a(ind_field->prefix_len == 0);
 

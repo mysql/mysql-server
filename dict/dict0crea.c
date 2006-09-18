@@ -124,11 +124,11 @@ dict_create_sys_columns_tuple(
 	mem_heap_t*	heap)	/* in: memory heap from which the memory for
 				the built tuple is allocated */
 {
-	dict_table_t*	sys_columns;
-	dtuple_t*	entry;
-	dict_col_t*	column;
-	dfield_t*	dfield;
-	byte*		ptr;
+	dict_table_t*		sys_columns;
+	dtuple_t*		entry;
+	const dict_col_t*	column;
+	dfield_t*		dfield;
+	byte*			ptr;
 	const char*	col_name;
 
 	ut_ad(table && heap);
@@ -162,21 +162,21 @@ dict_create_sys_columns_tuple(
 	dfield = dtuple_get_nth_field(entry, 3);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, (column->type).mtype);
+	mach_write_to_4(ptr, column->mtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: PRTYPE -------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, (column->type).prtype);
+	mach_write_to_4(ptr, column->prtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 7: LEN ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, (column->type).len);
+	mach_write_to_4(ptr, column->len);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: PREC ---------------------------*/
@@ -224,8 +224,7 @@ dict_build_table_def_step(
 
 	row_len = 0;
 	for (i = 0; i < table->n_def; i++) {
-		row_len += dtype_get_min_size(dict_col_get_type
-					      (&table->cols[i]));
+		row_len += dict_col_get_min_size(&table->cols[i]);
 	}
 	if (row_len > BTR_PAGE_MAX_REC_SIZE) {
 		return(DB_TOO_BIG_RECORD);
