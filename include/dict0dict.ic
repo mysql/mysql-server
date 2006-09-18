@@ -10,18 +10,73 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0undo.h"
 #include "trx0sys.h"
 #include "rem0types.h"
+#include "data0type.h"
 
 /*************************************************************************
 Gets the column data type. */
 UNIV_INLINE
-dtype_t*
-dict_col_get_type(
-/*==============*/
-	dict_col_t*	col)
+void
+dict_col_copy_type(
+/*===============*/
+	const dict_col_t*	col,	/* in: column */
+	dtype_t*		type)	/* out: data type */
 {
-	ut_ad(col);
+	ut_ad(col && type);
 
-	return(&col->type);
+	type->mtype = col->mtype;
+	type->prtype = col->prtype;
+	type->len = col->len;
+	type->mbminlen = col->mbminlen;
+	type->mbmaxlen = col->mbmaxlen;
+}
+
+/***************************************************************************
+Returns the minimum size of the column. */
+UNIV_INLINE
+ulint
+dict_col_get_min_size(
+/*==================*/
+					/* out: minimum size */
+	const dict_col_t*	col)	/* in: column */
+{
+	return(dtype_get_min_size_low(col->mtype, col->prtype, col->len,
+				      col->mbminlen, col->mbmaxlen));
+}
+/***************************************************************************
+Returns the maximum size of the column. */
+UNIV_INLINE
+ulint
+dict_col_get_max_size(
+/*==================*/
+					/* out: maximum size */
+	const dict_col_t*	col)	/* in: column */
+{
+	return(dtype_get_max_size_low(col->mtype, col->len));
+}
+/***************************************************************************
+Returns the size of a fixed size column, 0 if not a fixed size column. */
+UNIV_INLINE
+ulint
+dict_col_get_fixed_size(
+/*====================*/
+					/* out: fixed size, or 0 */
+	const dict_col_t*	col)	/* in: column */
+{
+	return(dtype_get_fixed_size_low(col->mtype, col->prtype, col->len,
+					col->mbminlen, col->mbmaxlen));
+}
+/***************************************************************************
+Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
+For fixed length types it is the fixed length of the type, otherwise 0. */
+UNIV_INLINE
+ulint
+dict_col_get_sql_null_size(
+/*=======================*/
+					/* out: SQL null storage size
+					in ROW_FORMAT=REDUNDANT */
+	const dict_col_t*	col)	/* in: column */
+{
+	return(dict_col_get_fixed_size(col));
 }
 
 /*************************************************************************
@@ -30,7 +85,7 @@ UNIV_INLINE
 ulint
 dict_col_get_no(
 /*============*/
-	dict_col_t*	col)
+	const dict_col_t*	col)
 {
 	ut_ad(col);
 
@@ -145,12 +200,12 @@ dict_table_get_n_cols(
 /************************************************************************
 Gets the nth column of a table. */
 UNIV_INLINE
-dict_col_t*
+const dict_col_t*
 dict_table_get_nth_col(
 /*===================*/
-				/* out: pointer to column object */
-	dict_table_t*	table,	/* in: table */
-	ulint		pos)	/* in: position of column */
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			pos)	/* in: position of column */
 {
 	ut_ad(table);
 	ut_ad(pos < table->n_def);
@@ -162,14 +217,14 @@ dict_table_get_nth_col(
 /************************************************************************
 Gets the given system column of a table. */
 UNIV_INLINE
-dict_col_t*
+const dict_col_t*
 dict_table_get_sys_col(
 /*===================*/
-				/* out: pointer to column object */
-	dict_table_t*	table,	/* in: table */
-	ulint		sys)	/* in: DATA_ROW_ID, ... */
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			sys)	/* in: DATA_ROW_ID, ... */
 {
-	dict_col_t*	col;
+	const dict_col_t*	col;
 
 	ut_ad(table);
 	ut_ad(sys < DATA_N_SYS_COLS);
@@ -177,8 +232,8 @@ dict_table_get_sys_col(
 
 	col = dict_table_get_nth_col(table, table->n_cols
 				     - DATA_N_SYS_COLS + sys);
-	ut_ad(col->type.mtype == DATA_SYS);
-	ut_ad(col->type.prtype == (sys | DATA_NOT_NULL));
+	ut_ad(col->mtype == DATA_SYS);
+	ut_ad(col->prtype == (sys | DATA_NOT_NULL));
 
 	return(col);
 }
@@ -324,30 +379,28 @@ dict_index_get_sys_col_pos(
 	dict_index_t*	index,	/* in: index */
 	ulint		type)	/* in: DATA_ROW_ID, ... */
 {
-	dict_col_t*	col;
-
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(!(index->type & DICT_UNIVERSAL));
 
-	col = dict_table_get_sys_col(index->table, type);
-
 	if (index->type & DICT_CLUSTERED) {
 
-		return(dict_col_get_clust_pos(col, index));
+		return(dict_col_get_clust_pos(
+			       dict_table_get_sys_col(index->table, type),
+			       index));
 	}
 
-	return(dict_index_get_nth_col_pos
-	       (index, dict_table_get_sys_col_no(index->table, type)));
+	return(dict_index_get_nth_col_pos(
+		       index, dict_table_get_sys_col_no(index->table, type)));
 }
 
 /*************************************************************************
 Gets the field column. */
 UNIV_INLINE
-dict_col_t*
+const dict_col_t*
 dict_field_get_col(
 /*===============*/
-	dict_field_t*	field)
+	const dict_field_t*	field)
 {
 	ut_ad(field);
 
@@ -355,17 +408,17 @@ dict_field_get_col(
 }
 
 /************************************************************************
-Gets pointer to the nth field data type in an index. */
+Gets pointer to the nth column in an index. */
 UNIV_INLINE
-dtype_t*
-dict_index_get_nth_type(
-/*====================*/
-				/* out: data type */
-	dict_index_t*	index,	/* in: index */
-	ulint		pos)	/* in: position of the field */
+const dict_col_t*
+dict_index_get_nth_col(
+/*===================*/
+					/* out: column */
+	const dict_index_t*	index,	/* in: index */
+	ulint			pos)	/* in: position of the field */
 {
-	return(dict_col_get_type(dict_field_get_col
-				 (dict_index_get_nth_field(index, pos))));
+	return(dict_field_get_col(dict_index_get_nth_field((dict_index_t*)
+							   index, pos)));
 }
 
 /************************************************************************
@@ -374,12 +427,11 @@ UNIV_INLINE
 ulint
 dict_index_get_nth_col_no(
 /*======================*/
-				/* out: column number */
-	dict_index_t*	index,	/* in: index */
-	ulint		pos)	/* in: position of the field */
+					/* out: column number */
+	const dict_index_t*	index,	/* in: index */
+	ulint			pos)	/* in: position of the field */
 {
-	return(dict_col_get_no(dict_field_get_col
-			       (dict_index_get_nth_field(index, pos))));
+	return(dict_col_get_no(dict_index_get_nth_col(index, pos)));
 }
 
 /*************************************************************************

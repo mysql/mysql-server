@@ -79,17 +79,61 @@ dict_load_space_id_list(void);
 /*************************************************************************
 Gets the column data type. */
 UNIV_INLINE
-dtype_t*
-dict_col_get_type(
-/*==============*/
-	dict_col_t*	col);
+void
+dict_col_copy_type(
+/*===============*/
+	const dict_col_t*	col,	/* in: column */
+	dtype_t*		type);	/* out: data type */
+/*************************************************************************
+Gets the column data type. */
+
+void
+dict_col_copy_type_noninline(
+/*=========================*/
+	const dict_col_t*	col,	/* in: column */
+	dtype_t*		type);	/* out: data type */
+/***************************************************************************
+Returns the minimum size of the column. */
+UNIV_INLINE
+ulint
+dict_col_get_min_size(
+/*==================*/
+					/* out: minimum size */
+	const dict_col_t*	col);	/* in: column */
+/***************************************************************************
+Returns the maximum size of the column. */
+UNIV_INLINE
+ulint
+dict_col_get_max_size(
+/*==================*/
+					/* out: maximum size */
+	const dict_col_t*	col);	/* in: column */
+/***************************************************************************
+Returns the size of a fixed size column, 0 if not a fixed size column. */
+UNIV_INLINE
+ulint
+dict_col_get_fixed_size(
+/*====================*/
+					/* out: fixed size, or 0 */
+	const dict_col_t*	col);	/* in: column */
+/***************************************************************************
+Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
+For fixed length types it is the fixed length of the type, otherwise 0. */
+UNIV_INLINE
+ulint
+dict_col_get_sql_null_size(
+/*=======================*/
+					/* out: SQL null storage size
+					in ROW_FORMAT=REDUNDANT */
+	const dict_col_t*	col);	/* in: column */
+
 /*************************************************************************
 Gets the column number. */
 UNIV_INLINE
 ulint
 dict_col_get_no(
 /*============*/
-	dict_col_t*	col);
+	const dict_col_t*	col);
 /*************************************************************************
 Gets the column position in the clustered index. */
 UNIV_INLINE
@@ -368,11 +412,12 @@ Returns a column's name. */
 const char*
 dict_table_get_col_name(
 /*====================*/
-				/* out: column name. NOTE: not guaranteed to
-				stay valid if table is modified in any way
-				(columns added, etc.). */
-	dict_table_t*	table,	/* in: table */
-	ulint		i);	/* in: column number */
+					/* out: column name. NOTE: not
+					guaranteed to stay valid if
+					table is modified in any way
+					(columns added, etc.). */
+	const dict_table_t*	table,	/* in: table */
+	ulint			i);	/* in: column number */
 /**************************************************************************
 Prints a table definition. */
 
@@ -488,30 +533,30 @@ dict_table_get_n_cols(
 /************************************************************************
 Gets the nth column of a table. */
 UNIV_INLINE
-dict_col_t*
+const dict_col_t*
 dict_table_get_nth_col(
 /*===================*/
-				/* out: pointer to column object */
-	dict_table_t*	table,	/* in: table */
-	ulint		pos);	/* in: position of column */
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			pos);	/* in: position of column */
 /************************************************************************
 Gets the nth column of a table. */
 
-dict_col_t*
+const dict_col_t*
 dict_table_get_nth_col_noninline(
 /*=============================*/
-				/* out: pointer to column object */
-	dict_table_t*	table,	/* in: table */
-	ulint		pos);	/* in: position of column */
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			pos);	/* in: position of column */
 /************************************************************************
 Gets the given system column of a table. */
 UNIV_INLINE
-dict_col_t*
+const dict_col_t*
 dict_table_get_sys_col(
 /*===================*/
-				/* out: pointer to column object */
-	dict_table_t*	table,	/* in: table */
-	ulint		sys);	/* in: DATA_ROW_ID, ... */
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			sys);	/* in: DATA_ROW_ID, ... */
 /************************************************************************
 Gets the given system column number of a table. */
 UNIV_INLINE
@@ -633,23 +678,23 @@ dict_index_get_nth_field(
 	dict_index_t*	index,	/* in: index */
 	ulint		pos);	/* in: position of field */
 /************************************************************************
-Gets pointer to the nth field data type in an index. */
+Gets pointer to the nth column in an index. */
 UNIV_INLINE
-dtype_t*
-dict_index_get_nth_type(
-/*====================*/
-				/* out: data type */
-	dict_index_t*	index,	/* in: index */
-	ulint		pos);	/* in: position of the field */
+const dict_col_t*
+dict_index_get_nth_col(
+/*===================*/
+					/* out: column */
+	const dict_index_t*	index,	/* in: index */
+	ulint			pos);	/* in: position of the field */
 /************************************************************************
 Gets the column number of the nth field in an index. */
 UNIV_INLINE
 ulint
 dict_index_get_nth_col_no(
 /*======================*/
-				/* out: column number */
-	dict_index_t*	index,	/* in: index */
-	ulint		pos);	/* in: position of the field */
+					/* out: column number */
+	const dict_index_t*	index,	/* in: index */
+	ulint			pos);	/* in: position of the field */
 /************************************************************************
 Looks for column n in an index. */
 
@@ -728,10 +773,10 @@ dict_index_copy_types(
 /*************************************************************************
 Gets the field column. */
 UNIV_INLINE
-dict_col_t*
+const dict_col_t*
 dict_field_get_col(
 /*===============*/
-	dict_field_t*	field);
+	const dict_field_t*	field);
 /**************************************************************************
 In an index tree, finds the index corresponding to a record in the tree. */
 

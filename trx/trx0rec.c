@@ -413,7 +413,6 @@ trx_undo_page_report_modify(
 {
 	dict_table_t*	table;
 	upd_field_t*	upd_field;
-	dict_col_t*	col;
 	ulint		first_free;
 	byte*		ptr;
 	ulint		len;
@@ -627,7 +626,8 @@ trx_undo_page_report_modify(
 		for (col_no = 0; col_no < dict_table_get_n_cols(table);
 		     col_no++) {
 
-			col = dict_table_get_nth_col(table, col_no);
+			const dict_col_t*	col
+				= dict_table_get_nth_col(table, col_no);
 
 			if (col->ord_part > 0) {
 

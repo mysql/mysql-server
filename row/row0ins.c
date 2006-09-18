@@ -135,12 +135,12 @@ row_ins_alloc_sys_fields(
 /*=====================*/
 	ins_node_t*	node)	/* in: insert node */
 {
-	dtuple_t*	row;
-	dict_table_t*	table;
-	mem_heap_t*	heap;
-	dict_col_t*	col;
-	dfield_t*	dfield;
-	byte*		ptr;
+	dtuple_t*		row;
+	dict_table_t*		table;
+	mem_heap_t*		heap;
+	const dict_col_t*	col;
+	dfield_t*		dfield;
+	byte*			ptr;
 
 	row = node->row;
 	table = node->table;
@@ -445,7 +445,6 @@ row_ins_cascade_calc_update_vec(
 	upd_field_t*	parent_ufield;
 	ulint		n_fields_updated;
 	ulint		parent_field_no;
-	dtype_t*	type;
 	ulint		i;
 	ulint		j;
 
@@ -479,7 +478,10 @@ row_ins_cascade_calc_update_vec(
 
 			if (parent_ufield->field_no == parent_field_no) {
 
-				ulint	min_size;
+				ulint			min_size;
+				const dict_col_t*	col;
+
+				col = dict_index_get_nth_col(index, i);
 
 				/* A field in the parent index record is
 				updated. Let us make the update vector
@@ -488,20 +490,17 @@ row_ins_cascade_calc_update_vec(
 				ufield = update->fields + n_fields_updated;
 
 				ufield->field_no
-					= dict_table_get_nth_col_pos
-					(table,
-					 dict_index_get_nth_col_no(index, i));
+					= dict_table_get_nth_col_pos(
+					table, dict_col_get_no(col));
 				ufield->exp = NULL;
 
 				ufield->new_val = parent_ufield->new_val;
-
-				type = dict_index_get_nth_type(index, i);
 
 				/* Do not allow a NOT NULL column to be
 				updated as NULL */
 
 				if (ufield->new_val.len == UNIV_SQL_NULL
-				    && (type->prtype & DATA_NOT_NULL)) {
+				    && (col->prtype & DATA_NOT_NULL)) {
 
 					return(ULINT_UNDEFINED);
 				}
@@ -510,9 +509,12 @@ row_ins_cascade_calc_update_vec(
 				column, do not allow the update */
 
 				if (ufield->new_val.len != UNIV_SQL_NULL
-				    && dtype_get_at_most_n_mbchars
-				    (type, dtype_get_len(type),
-				     ufield->new_val.len, ufield->new_val.data)
+				    && dtype_get_at_most_n_mbchars(
+					col->prtype,
+					col->mbminlen, col->mbmaxlen,
+					col->len,
+					ufield->new_val.len,
+					ufield->new_val.data)
 				    < ufield->new_val.len) {
 
 					return(ULINT_UNDEFINED);
@@ -523,7 +525,7 @@ row_ins_cascade_calc_update_vec(
 				need to pad with spaces the new value of the
 				child column */
 
-				min_size = dtype_get_min_size(type);
+				min_size = dict_col_get_min_size(col);
 
 				if (min_size
 				    && ufield->new_val.len != UNIV_SQL_NULL
@@ -544,14 +546,13 @@ row_ins_cascade_calc_update_vec(
 						  parent_ufield->new_val.data,
 						  parent_ufield->new_val.len);
 
-					switch (UNIV_EXPECT(dtype_get_mbminlen
-							    (type), 1)) {
+					switch (UNIV_EXPECT(col->mbminlen,1)) {
 					default:
 						ut_error;
 					case 1:
 						if (UNIV_UNLIKELY
-						    (dtype_get_charset_coll
-						     (dtype_get_prtype(type))
+						    (dtype_get_charset_coll(
+							    col->prtype)
 						     == DATA_MYSQL_BINARY_CHARSET_COLL)) {
 							/* Do not pad BINARY
 							columns. */
@@ -2211,7 +2212,6 @@ row_ins_index_entry_set_vals(
 	dfield_t*	row_field;
 	ulint		n_fields;
 	ulint		i;
-	dtype_t*	cur_type;
 
 	ut_ad(entry && row);
 
@@ -2227,12 +2227,13 @@ row_ins_index_entry_set_vals(
 		if (ind_field->prefix_len > 0
 		    && dfield_get_len(row_field) != UNIV_SQL_NULL) {
 
-			cur_type = dict_col_get_type
-				(dict_field_get_col(ind_field));
+			const	dict_col_t*	col
+				= dict_field_get_col(ind_field);
 
-			field->len = dtype_get_at_most_n_mbchars
-				(cur_type, ind_field->prefix_len,
-				 dfield_get_len(row_field), row_field->data);
+			field->len = dtype_get_at_most_n_mbchars(
+				col->prtype, col->mbminlen, col->mbmaxlen,
+				ind_field->prefix_len,
+				row_field->len, row_field->data);
 		} else {
 			field->len = row_field->len;
 		}

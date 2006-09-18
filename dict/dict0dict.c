@@ -192,8 +192,8 @@ static
 void
 dict_col_print_low(
 /*===============*/
-	dict_table_t*	table,	/* in: table */
-	dict_col_t*	col);	/* in: column */
+	const dict_table_t*	table,	/* in: table */
+	const dict_col_t*	col);	/* in: column */
 /**************************************************************************
 Prints an index data. */
 static
@@ -325,15 +325,27 @@ dict_table_decrement_handle_count(
 	mutex_exit(&(dict_sys->mutex));
 }
 
+/*************************************************************************
+Gets the column data type. */
+
+void
+dict_col_copy_type_noninline(
+/*=========================*/
+	const dict_col_t*	col,	/* in: column */
+	dtype_t*		type)	/* out: data type */
+{
+	return(dict_col_copy_type(col, type));
+}
+
 /************************************************************************
 Gets the nth column of a table. */
 
-dict_col_t*
+const dict_col_t*
 dict_table_get_nth_col_noninline(
 /*=============================*/
-				/* out: pointer to column object */
-	dict_table_t*	table,	/* in: table */
-	ulint		pos)	/* in: position of column */
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			pos)	/* in: position of column */
 {
 	return(dict_table_get_nth_col(table, pos));
 }
@@ -381,11 +393,12 @@ Returns a column's name. */
 const char*
 dict_table_get_col_name(
 /*====================*/
-				/* out: column name. NOTE: not guaranteed to
-				stay valid if table is modified in any way
-				(columns added, etc.). */
-	dict_table_t*	table,	/* in: table */
-	ulint		i)	/* in: column number */
+					/* out: column name. NOTE: not
+					guaranteed to stay valid if
+					table is modified in any way
+					(columns added, etc.). */
+	const dict_table_t*	table,	/* in: table */
+	ulint			i)	/* in: column number */
 {
 	ut_ad(table);
 	ut_ad(i < table->n_def);
@@ -536,10 +549,10 @@ dict_index_get_nth_col_pos(
 	dict_index_t*	index,	/* in: index */
 	ulint		n)	/* in: column number */
 {
-	dict_field_t*	field;
-	dict_col_t*	col;
-	ulint		pos;
-	ulint		n_fields;
+	const dict_field_t*	field;
+	const dict_col_t*	col;
+	ulint			pos;
+	ulint			n_fields;
 
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -576,10 +589,10 @@ dict_index_contains_col_or_prefix(
 	dict_index_t*	index,	/* in: index */
 	ulint		n)	/* in: column number */
 {
-	dict_field_t*	field;
-	dict_col_t*	col;
-	ulint		pos;
-	ulint		n_fields;
+	const dict_field_t*	field;
+	const dict_col_t*	col;
+	ulint			pos;
+	ulint			n_fields;
 
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -723,11 +736,11 @@ dict_table_col_in_clustered_key(
 	dict_table_t*	table,	/* in: table */
 	ulint		n)	/* in: column number */
 {
-	dict_index_t*	index;
-	dict_field_t*	field;
-	dict_col_t*	col;
-	ulint		pos;
-	ulint		n_fields;
+	dict_index_t*		index;
+	const dict_field_t*	field;
+	const dict_col_t*	col;
+	ulint			pos;
+	ulint			n_fields;
 
 	ut_ad(table);
 
@@ -901,8 +914,8 @@ dict_table_add_to_cache(
 
 	row_len = 0;
 	for (i = 0; i < table->n_def; i++) {
-		ulint	col_len = dtype_get_max_size
-			(dict_col_get_type(dict_table_get_nth_col(table, i)));
+		ulint	col_len = dict_col_get_max_size(
+			dict_table_get_nth_col(table, i));
 
 		row_len += col_len;
 
@@ -1349,7 +1362,6 @@ dict_index_add_to_cache(
 	ulint		page_no)/* in: root page number of the index */
 {
 	dict_index_t*	new_index;
-	dict_field_t*	field;
 	ulint		n_ord;
 	ulint		i;
 
@@ -1412,9 +1424,7 @@ dict_index_add_to_cache(
 
 	for (i = 0; i < n_ord; i++) {
 
-		field = dict_index_get_nth_field(new_index, i);
-
-		dict_field_get_col(field)->ord_part = 1;
+		dict_index_get_nth_field(new_index, i)->col->ord_part = 1;
 	}
 
 	new_index->page = page_no;
@@ -1497,7 +1507,8 @@ dict_index_find_cols(
 		for (j = 0; j < table->n_cols; j++) {
 			if (!strcmp(dict_table_get_col_name(table, j),
 				    field->name)) {
-				field->col = dict_table_get_nth_col(table, j);
+				field->col = (dict_col_t*)
+					dict_table_get_nth_col(table, j);
 
 				goto found;
 			}
@@ -1532,7 +1543,7 @@ dict_index_add_col(
 	field = dict_index_get_nth_field(index, index->n_def - 1);
 
 	field->col = col;
-	field->fixed_len = dtype_get_fixed_size(&col->type);
+	field->fixed_len = dict_col_get_fixed_size(col);
 
 	if (prefix_len && field->fixed_len > prefix_len) {
 		field->fixed_len = prefix_len;
@@ -1546,7 +1557,7 @@ dict_index_add_col(
 		field->fixed_len = 0;
 	}
 
-	if (!(dtype_get_prtype(&col->type) & DATA_NOT_NULL)) {
+	if (!(col->prtype & DATA_NOT_NULL)) {
 		index->n_nullable++;
 	}
 }
@@ -1597,12 +1608,10 @@ dict_index_copy_types(
 	for (i = 0; i < n_fields; i++) {
 		dict_field_t*	ifield;
 		dtype_t*	dfield_type;
-		dtype_t*	type;
 
 		ifield = dict_index_get_nth_field(index, i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
-		type = dict_col_get_type(dict_field_get_col(ifield));
-		*dfield_type = *type;
+		dict_col_copy_type(dict_field_get_col(ifield), dfield_type);
 		if (UNIV_UNLIKELY(ifield->prefix_len)) {
 			dfield_type->len = ifield->prefix_len;
 		}
@@ -1619,15 +1628,13 @@ dict_table_copy_types(
 	dict_table_t*	table)	/* in: index */
 {
 	dtype_t*	dfield_type;
-	dtype_t*	type;
 	ulint		i;
 
 	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
 
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
-		type = dict_col_get_type(dict_table_get_nth_col(table, i));
-
-		*dfield_type = *type;
+		dict_col_copy_type(dict_table_get_nth_col(table, i),
+				   dfield_type);
 	}
 }
 
@@ -1646,7 +1653,6 @@ dict_index_build_internal_clust(
 {
 	dict_index_t*	new_index;
 	dict_field_t*	field;
-	dict_col_t*	col;
 	ulint		fixed_size;
 	ulint		trx_id_pos;
 	ulint		i;
@@ -1708,26 +1714,26 @@ dict_index_build_internal_clust(
 #endif
 
 		if (!(index->type & DICT_UNIQUE)) {
-			dict_index_add_col(new_index, table,
+			dict_index_add_col(new_index, table, (dict_col_t*)
 					   dict_table_get_sys_col(
 						   table, DATA_ROW_ID),
 					   0);
 			trx_id_pos++;
 		}
 
-		dict_index_add_col(new_index, table,
+		dict_index_add_col(new_index, table, (dict_col_t*)
 				   dict_table_get_sys_col(table, DATA_TRX_ID),
 				   0);
 
-		dict_index_add_col(new_index, table,
+		dict_index_add_col(new_index, table, (dict_col_t*)
 				   dict_table_get_sys_col(table,
 							  DATA_ROLL_PTR),
 				   0);
 
 		for (i = 0; i < trx_id_pos; i++) {
 
-			fixed_size = dtype_get_fixed_size
-				(dict_index_get_nth_type(new_index, i));
+			fixed_size = dict_col_get_fixed_size(
+				dict_index_get_nth_col(new_index, i));
 
 			if (fixed_size == 0) {
 				new_index->trx_id_offset = 0;
@@ -1769,8 +1775,9 @@ dict_index_build_internal_clust(
 	there */
 	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
 
-		col = dict_table_get_nth_col(table, i);
-		ut_ad(col->type.mtype != DATA_SYS);
+		dict_col_t*	col = (dict_col_t*)
+			dict_table_get_nth_col(table, i);
+		ut_ad(col->mtype != DATA_SYS);
 
 		if (!indexed[col->ind]) {
 			dict_index_add_col(new_index, table, col, 0);
@@ -2031,10 +2038,11 @@ dict_foreign_find_index(
 					break;
 				}
 
-				if (types_idx && !cmp_types_are_equal
-				    (dict_index_get_nth_type(index, i),
-				     dict_index_get_nth_type(types_idx, i),
-				     check_charsets)) {
+				if (types_idx && !cmp_cols_are_equal(
+					    dict_index_get_nth_col(index, i),
+					    dict_index_get_nth_col(types_idx,
+								   i),
+					    check_charsets)) {
 
 					break;
 				}
@@ -2421,15 +2429,15 @@ static
 const char*
 dict_scan_col(
 /*==========*/
-				/* out: scanned to */
-	struct charset_info_st*	cs,/* in: the character set of ptr */
-	const char*	ptr,	/* in: scanned to */
-	ibool*		success,/* out: TRUE if success */
-	dict_table_t*	table,	/* in: table in which the column is */
-	dict_col_t**	column,	/* out: pointer to column if success */
-	mem_heap_t*	heap,	/* in: heap where to allocate the name */
-	const char**	name)	/* out,own: the column name; NULL if no name
-				was scannable */
+					/* out: scanned to */
+	struct charset_info_st*	cs,	/* in: the character set of ptr */
+	const char*		ptr,	/* in: scanned to */
+	ibool*			success,/* out: TRUE if success */
+	dict_table_t*		table,	/* in: table in which the column is */
+	const dict_col_t**	column,	/* out: pointer to column if success */
+	mem_heap_t*		heap,	/* in: heap where to allocate */
+	const char**		name)	/* out,own: the column name;
+					NULL if no name was scannable */
 {
 	ulint		i;
 
@@ -2794,7 +2802,7 @@ dict_create_foreign_constraints_low(
 	ibool		is_on_delete;
 	ulint		n_on_deletes;
 	ulint		n_on_updates;
-	dict_col_t*	columns[500];
+	const dict_col_t*columns[500];
 	const char*	column_names[500];
 	const char*	referenced_table_name;
 
@@ -3216,8 +3224,7 @@ scan_on_conditions:
 	}
 
 	for (j = 0; j < foreign->n_fields; j++) {
-		if ((dict_index_get_nth_type
-		     (foreign->foreign_index, j)->prtype)
+		if ((dict_index_get_nth_col(foreign->foreign_index, j)->prtype)
 		    & DATA_NOT_NULL) {
 
 			/* It is not sensible to define SET NULL
@@ -3732,15 +3739,17 @@ dict_index_calc_min_rec_len(
 		ulint nullable = 0;
 		sum = REC_N_NEW_EXTRA_BYTES;
 		for (i = 0; i < dict_index_get_n_fields(index); i++) {
-			dtype_t*t = dict_index_get_nth_type(index, i);
-			ulint	size = dtype_get_fixed_size(t);
+			const dict_col_t*	col
+				= dict_index_get_nth_col(index, i);
+			ulint	size = dict_col_get_fixed_size(col);
 			sum += size;
 			if (!size) {
-				size = dtype_get_len(t);
+				size = col->len;
 				sum += size < 128 ? 1 : 2;
 			}
-			if (!(dtype_get_prtype(t) & DATA_NOT_NULL))
+			if (!(col->prtype & DATA_NOT_NULL)) {
 				nullable++;
+			}
 		}
 
 		/* round the NULL flags up to full bytes */
@@ -3750,7 +3759,8 @@ dict_index_calc_min_rec_len(
 	}
 
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
-		sum += dtype_get_fixed_size(dict_index_get_nth_type(index, i));
+		sum += dict_col_get_fixed_size(
+			dict_index_get_nth_col(index, i));
 	}
 
 	if (sum > 127) {
@@ -4002,20 +4012,20 @@ static
 void
 dict_col_print_low(
 /*===============*/
-	dict_table_t*	table,	/* in: table */
-	dict_col_t*	col)	/* in: column */
+	const dict_table_t*	table,	/* in: table */
+	const dict_col_t*	col)	/* in: column */
 {
-	dtype_t*	type;
+	dtype_t	type;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	type = dict_col_get_type(col);
+	dict_col_copy_type(col, &type);
 	fprintf(stderr, "%s: ", dict_table_get_col_name(table,
 							dict_col_get_no(col)));
 
-	dtype_print(type);
+	dtype_print(&type);
 }
 
 /**************************************************************************

@@ -121,12 +121,43 @@ dict_mem_foreign_create(void);
 
 /* Data structure for a column in a table */
 struct dict_col_struct{
-	ulint		ind:10;	/* table column position (they are numbered
-				starting from 0) */
-	ulint		ord_part:1;/* nonzero if this column appears
-				in ordering fields of an index */
-	const char*	name;	/* name */
-	dtype_t		type;	/* data type */
+	/*----------------------*/
+	/* The following are copied from dtype_t,
+	so that all bit-fields can be packed tightly. */
+	unsigned	mtype:8;	/* main data type */
+	unsigned	prtype:24;	/* precise type; MySQL data
+					type, charset code, flags to
+					indicate nullability,
+					signedness, whether this is a
+					binary string, whether this is
+					a true VARCHAR where MySQL
+					uses 2 bytes to store the length */
+
+	/* the remaining fields do not affect alphabetical ordering: */
+
+	unsigned	len:16;		/* length; for MySQL data this
+					is field->pack_length(),
+					except that for a >= 5.0.3
+					type true VARCHAR this is the
+					maximum byte length of the
+					string data (in addition to
+					the string, MySQL uses 1 or 2
+					bytes to store the string length) */
+
+	unsigned	mbminlen:2;	/* minimum length of a
+					character, in bytes */
+	unsigned	mbmaxlen:3;	/* maximum length of a
+					character, in bytes */
+	/*----------------------*/
+	/* End of definitions copied from dtype_t */
+
+	unsigned	ind:10;		/* table column position
+					(starting from 0) */
+	unsigned	ord_part:1;	/* nonzero if this column
+					appears in the ordering fields
+					of an index */
+
+	const char*	name;		/* name */
 };
 
 /* DICT_MAX_INDEX_COL_LEN is measured in bytes and is the max index column
