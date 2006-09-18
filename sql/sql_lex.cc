@@ -2158,15 +2158,25 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
 
 
 /*
-  fix some structures at the end of preparation
+  Save WHERE/HAVING/ON clauses and replace them with disposable copies
 
   SYNOPSIS
     st_select_lex::fix_prepare_information
-    thd   thread handler
-    conds pointer on conditions which will be used for execution statement
+      thd          thread handler
+      conds        in/out pointer to WHERE condition to be met at execution
+      having_conds in/out pointer to HAVING condition to be met at execution
+  
+  DESCRIPTION
+    The passed WHERE and HAVING are to be saved for the future executions.
+    This function saves it, and returns a copy which can be thrashed during
+    this execution of the statement. By saving/thrashing here we mean only
+    AND/OR trees.
+    The function also calls fix_prepare_info_in_table_list that saves all
+    ON expressions.    
 */
 
-void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
+void st_select_lex::fix_prepare_information(THD *thd, Item **conds, 
+                                            Item **having_conds)
 {
   if (!thd->stmt_arena->is_conventional() && first_execution)
   {
@@ -2175,6 +2185,11 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds)
     {
       prep_where= *conds;
       *conds= where= prep_where->copy_andor_structure(thd);
+    }
+    if (*having_conds)
+    {
+      prep_having= *having_conds;
+      *having_conds= having= prep_having->copy_andor_structure(thd);
     }
     fix_prepare_info_in_table_list(thd, (TABLE_LIST *)table_list.first);
   }

@@ -566,6 +566,19 @@ INSERT INTO t1 VALUES
 SELECT MAX(b) FROM t1;
 EXPLAIN SELECT MAX(b) FROM t1;
 DROP TABLE t1;
+#
+# Bug #16792  query with subselect, join, and group not returning proper values
+#
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(1,2),(2,3);
+
+SELECT (SELECT COUNT(DISTINCT t1.b)) FROM t1 GROUP BY t1.a;
+SELECT (SELECT COUNT(DISTINCT 12)) FROM t1 GROUP BY t1.a;
+# an attempt to test all aggregate function with no table.
+SELECT AVG(2), BIT_AND(2), BIT_OR(2), BIT_XOR(2), COUNT(*), COUNT(12),
+       COUNT(DISTINCT 12), MIN(2),MAX(2),STD(2), VARIANCE(2),SUM(2),
+       GROUP_CONCAT(2),GROUP_CONCAT(DISTINCT 2);
+DROP TABLE t1;
 
 # End of 4.1 tests
 
