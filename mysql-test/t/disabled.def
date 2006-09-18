@@ -17,9 +17,6 @@ im_options                : Bug#20294 2006-07-24 stewart   Instance manager test
 #im_life_cycle             : Bug#20368 2006-06-10 alik    im_life_cycle test fails
 im_daemon_life_cycle     : BUG#22379 2006-09-15 ingo    im_daemon_life_cycle.test fails on merge of 5.1 -> 5.1-engines
 im_instance_conf         : BUG#20294 2006-09-16 ingo    Instance manager test im_instance_conf fails randomly
-index_merge_innodb       : BUG#22398 2006-09-15 ingo    index_merge_innodb.test fails on wrong result file
-index_merge_myisam       : BUG#22404 2006-09-15 ingo    index_merge_myisam.test fails on wrong result file
-innodb_mysql             : BUG#22405 2006-09-15 ingo    innodb_mysql.test fails on wrong result file
 concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
 ndb_autodiscover         : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
 ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t binlog
