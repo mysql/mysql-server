@@ -896,3 +896,17 @@ EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	4	Using sort_union(idx1,idx2); Using where
 DROP TABLE t1;
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, filler char(100));
+insert into t2 select A.a + 10 * (B.a + 10 * C.a), 10, 'filler' from t1 A,
+t1 B, t1 C where A.a < 5;
+insert into t2 select 1000, b, 'filler' from t2;
+alter table t2 add index (a,b);
+select 'In following EXPLAIN the access method should be ref, #rows~=500 (and not 2)' Z;
+Z
+In following EXPLAIN the access method should be ref, #rows~=500 (and not 2)
+explain select * from t2 where a=1000 and b<11;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ref	a	a	5	const	502	Using where
+drop table t1, t2;
