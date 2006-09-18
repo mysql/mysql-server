@@ -489,9 +489,10 @@ pars_resolve_exp_columns(
 		n_cols = dict_table_get_n_cols(table);
 
 		for (i = 0; i < n_cols; i++) {
-			dict_col_t*	col = dict_table_get_nth_col(table, i);
-			const char*	col_name = dict_table_get_col_name(
-				table, i);
+			const dict_col_t*	col
+				= dict_table_get_nth_col(table, i);
+			const char*		col_name
+				= dict_table_get_col_name(table, i);
 
 			if ((sym_node->name_len == ut_strlen(col_name))
 			    && (0 == ut_memcmp(sym_node->name, col_name,
@@ -503,8 +504,10 @@ pars_resolve_exp_columns(
 				sym_node->col_no = i;
 				sym_node->prefetch_buf = NULL;
 
-				dfield_set_type(&(sym_node->common.val),
-						dict_col_get_type(col));
+				dict_col_copy_type(
+					col,
+					dfield_get_type(&sym_node
+							->common.val));
 
 				return;
 			}
@@ -920,8 +923,9 @@ pars_process_assign_list(
 				       clust_index, NULL);
 		upd_field->exp = assign_node->val;
 
-		if (!dtype_is_fixed_size(dict_index_get_nth_type
-					 (clust_index, upd_field->field_no))) {
+		if (!dict_col_get_fixed_size(
+			    dict_index_get_nth_col(clust_index,
+						   upd_field->field_no))) {
 			changes_field_size = 0;
 		}
 

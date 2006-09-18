@@ -2564,8 +2564,8 @@ btr_index_rec_validate(
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
 	for (i = 0; i < n; i++) {
-		dtype_t*	type = dict_index_get_nth_type(index, i);
-		ulint		fixed_size = dtype_get_fixed_size(type);
+		ulint	fixed_size = dict_col_get_fixed_size(
+			dict_index_get_nth_col(index, i));
 
 		rec_get_nth_field(rec, offsets, i, &len);
 
@@ -2584,8 +2584,7 @@ btr_index_rec_validate(
 			fprintf(stderr,
 				"InnoDB: field %lu len is %lu,"
 				" should be %lu\n",
-				(ulong) i, (ulong) len,
-				(ulong) dtype_get_fixed_size(type));
+				(ulong) i, (ulong) len, (ulong) fixed_size);
 
 			if (dump_on_error) {
 				buf_page_print(page);

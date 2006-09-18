@@ -1146,7 +1146,7 @@ ibuf_dummy_index_add_col(
 			       dtype_get_mtype(type),
 			       dtype_get_prtype(type),
 			       dtype_get_len(type));
-	dict_index_add_col(index, index->table,
+	dict_index_add_col(index, index->table, (dict_col_t*)
 			   dict_table_get_nth_col(index->table, i), len);
 }
 /************************************************************************

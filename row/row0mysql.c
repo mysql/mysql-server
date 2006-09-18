@@ -1607,16 +1607,11 @@ row_table_got_default_clust_index(
 /*==============================*/
 	dict_table_t*	table)
 {
-	dict_index_t*	clust_index;
+	const dict_index_t*	clust_index;
 
 	clust_index = dict_table_get_first_index(table);
 
-	if (dtype_get_mtype(dict_index_get_nth_type(clust_index, 0))
-	    == DATA_SYS) {
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(dict_index_get_nth_col(clust_index, 0)->mtype == DATA_SYS);
 }
 
 /*************************************************************************

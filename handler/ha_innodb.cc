@@ -3195,7 +3195,7 @@ include_field:
 			mysql_prefix_len = templ->mysql_col_offset
 				+ templ->mysql_col_len;
 		}
-		templ->type = index->table->cols[i].type.mtype;
+		templ->type = index->table->cols[i].mtype;
 		templ->mysql_type = (ulint)field->type();
 
 		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
@@ -3204,10 +3204,10 @@ include_field:
 		}
 
 		templ->charset = dtype_get_charset_coll_noninline(
-				index->table->cols[i].type.prtype);
-		templ->mbminlen = index->table->cols[i].type.mbminlen;
-		templ->mbmaxlen = index->table->cols[i].type.mbmaxlen;
-		templ->is_unsigned = index->table->cols[i].type.prtype
+				index->table->cols[i].prtype);
+		templ->mbminlen = index->table->cols[i].mbminlen;
+		templ->mbmaxlen = index->table->cols[i].mbmaxlen;
+		templ->is_unsigned = index->table->cols[i].prtype
 							& DATA_UNSIGNED;
 		if (templ->type == DATA_BLOB) {
 			prebuilt->templ_contains_blob = TRUE;
@@ -3528,7 +3528,7 @@ calc_row_difference(
 
 		field_mysql_type = field->type();
 
-		col_type = prebuilt->table->cols[i].type.mtype;
+		col_type = prebuilt->table->cols[i].mtype;
 
 		switch (col_type) {
 
@@ -3583,7 +3583,8 @@ calc_row_difference(
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dfield.type = (prebuilt->table->cols + i)->type;
+			dict_col_copy_type_noninline(prebuilt->table->cols + i,
+						     &dfield.type);
 
 			if (n_len != UNIV_SQL_NULL) {
 				buf = row_mysql_store_col_in_innobase_format(

@@ -69,15 +69,12 @@ row_sel_sec_rec_is_for_clust_rec(
 	rec_t*		clust_rec,	/* in: clustered index record */
 	dict_index_t*	clust_index)	/* in: clustered index */
 {
-	dict_field_t*	ifield;
-	dict_col_t*	col;
 	byte*		sec_field;
 	ulint		sec_len;
 	byte*		clust_field;
 	ulint		clust_len;
 	ulint		n;
 	ulint		i;
-	dtype_t*	cur_type;
 	mem_heap_t*	heap		= NULL;
 	ulint		clust_offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint		sec_offsets_[REC_OFFS_SMALL_SIZE];
@@ -96,27 +93,26 @@ row_sel_sec_rec_is_for_clust_rec(
 	n = dict_index_get_n_ordering_defined_by_user(sec_index);
 
 	for (i = 0; i < n; i++) {
+		const dict_field_t*	ifield;
+		const dict_col_t*	col;
+
 		ifield = dict_index_get_nth_field(sec_index, i);
 		col = dict_field_get_col(ifield);
 
-		clust_field = rec_get_nth_field
-			(clust_rec, clust_offs,
-			 dict_col_get_clust_pos(col, clust_index),
-			 &clust_len);
+		clust_field = rec_get_nth_field(
+			clust_rec, clust_offs,
+			dict_col_get_clust_pos(col, clust_index), &clust_len);
 		sec_field = rec_get_nth_field(sec_rec, sec_offs, i, &sec_len);
 
-		if (ifield->prefix_len > 0
-		    && clust_len != UNIV_SQL_NULL) {
+		if (ifield->prefix_len > 0 && clust_len != UNIV_SQL_NULL) {
 
-			cur_type = dict_col_get_type
-				(dict_field_get_col(ifield));
-
-			clust_len = dtype_get_at_most_n_mbchars
-				(cur_type, ifield->prefix_len,
-				 clust_len, (char*) clust_field);
+			clust_len = dtype_get_at_most_n_mbchars(
+				col->prtype, col->mbminlen, col->mbmaxlen,
+				ifield->prefix_len,
+				clust_len, (char*) clust_field);
 		}
 
-		if (0 != cmp_data_data(dict_col_get_type(col),
+		if (0 != cmp_data_data(col->mtype, col->prtype,
 				       clust_field, clust_len,
 				       sec_field, sec_len)) {
 			is_equal = FALSE;
@@ -2247,8 +2243,7 @@ row_sel_convert_mysql_key_to_innobase(
 
 	while (key_ptr < key_end) {
 
-		ut_a(dict_col_get_type(field->col)->mtype
-		     == dfield_get_type(dfield)->mtype);
+		ut_a(field->col->mtype == dfield_get_type(dfield)->mtype);
 
 		data_offset = 0;
 		is_null = FALSE;

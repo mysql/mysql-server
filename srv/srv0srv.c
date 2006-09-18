@@ -903,7 +903,7 @@ srv_init(void)
 
 	srv_sys->dummy_ind1 = dict_mem_index_create
 		("SYS_DUMMY1", "SYS_DUMMY1", DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(srv_sys->dummy_ind1, table,
+	dict_index_add_col(srv_sys->dummy_ind1, table, (dict_col_t*)
 			   dict_table_get_nth_col(table, 0), 0);
 	srv_sys->dummy_ind1->table = table;
 	/* create dummy table and index for new-style infimum and supremum */
@@ -913,7 +913,7 @@ srv_init(void)
 			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 	srv_sys->dummy_ind2 = dict_mem_index_create
 		("SYS_DUMMY2", "SYS_DUMMY2", DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(srv_sys->dummy_ind2, table,
+	dict_index_add_col(srv_sys->dummy_ind2, table, (dict_col_t*)
 			   dict_table_get_nth_col(table, 0), 0);
 	srv_sys->dummy_ind2->table = table;
 
