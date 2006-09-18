@@ -1064,7 +1064,7 @@ sub command_line_setup () {
    connect_string  => "$opt_ndbconnectstring",
    path_pid        => "$data_dir/ndb_3.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
-   installed_ok    => 'NO',
+   installed_ok    => 0,
   };
 
   $data_dir= "$opt_vardir/ndbcluster-$opt_ndbcluster_port_slave";
@@ -1077,7 +1077,7 @@ sub command_line_setup () {
    connect_string  => "$opt_ndbconnectstring_slave",
    path_pid        => "$data_dir/ndb_2.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
-   installed_ok    => 'NO',
+   installed_ok    => 0,
   };
 
   # Init pids of ndbd's
@@ -2278,20 +2278,17 @@ sub mysql_install_db () {
 
     next if !$cluster->{'pid'};
 
-    $cluster->{'installed_ok'}= "YES"; # Assume install suceeds
+    $cluster->{'installed_ok'}= 1; # Assume install suceeds
 
     if (ndbcluster_wait_started($cluster, ""))
     {
       # failed to install, disable usage and flag that its no ok
       mtr_report("ndbcluster_install of $cluster->{'name'} failed");
-      $cluster->{"installed_ok"}= "NO";
+      $cluster->{"installed_ok"}= 0;
 
       $cluster_started_ok= 0;
     }
   }
-
-  $ENV{'NDB_STATUS_OK'}=            $clusters->[0]->{'installed_ok'};
-  $ENV{'NDB_SLAVE_STATUS_OK'}=      $clusters->[1]->{'installed_ok'};
 
   if ( ! $cluster_started_ok )
   {
@@ -2503,7 +2500,7 @@ sub run_testcase_check_skip_test($)
   }
 
   # If test needs cluster, check that master installed ok
-  if ( $tinfo->{'ndb_test'}  and $clusters->[0]->{'installed_ok'} eq "NO" )
+  if ( $tinfo->{'ndb_test'}  and !$clusters->[0]->{'installed_ok'} )
   {
     mtr_report_test_name($tinfo);
     mtr_report_test_failed($tinfo);
@@ -2512,7 +2509,7 @@ sub run_testcase_check_skip_test($)
 
   # If test needs slave cluster, check that it installed ok
   if ( $tinfo->{'ndb_test'}  and $tinfo->{'slave_num'} and
-       $clusters->[1]->{'installed_ok'} eq "NO" )
+       !$clusters->[1]->{'installed_ok'} )
   {
     mtr_report_test_name($tinfo);
     mtr_report_test_failed($tinfo);
