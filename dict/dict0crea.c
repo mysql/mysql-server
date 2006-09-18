@@ -240,7 +240,7 @@ dict_build_table_def_step(
 		- page 3 will contain the root of the clustered index of the
 		table we create here. */
 
-		table->space = 0;	/* reset to zero for the call below */
+		ulint	space = 0;	/* reset to zero for the call below */
 
 		if (table->dir_path_of_temp_table) {
 			/* We place tables created with CREATE TEMPORARY
@@ -253,9 +253,11 @@ dict_build_table_def_step(
 			is_path = FALSE;
 		}
 
-		error = fil_create_new_single_table_tablespace
-			(&table->space, path_or_name, is_path,
-			 FIL_IBD_FILE_INITIAL_SIZE);
+		error = fil_create_new_single_table_tablespace(
+			&space, path_or_name, is_path,
+			FIL_IBD_FILE_INITIAL_SIZE);
+		table->space = space;
+
 		if (error != DB_SUCCESS) {
 
 			return(error);
