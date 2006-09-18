@@ -6,3 +6,7 @@ libyassl_la_SOURCES = buffer.cpp cert_wrapper.cpp crypto_wrapper.cpp \
 	template_instnt.cpp timer.cpp yassl_imp.cpp yassl_error.cpp yassl_int.cpp
 EXTRA_DIST = $(wildcard ../include/*.hpp) $(wildcard ../include/openssl/*.h)
 AM_CXXFLAGS = -DYASSL_PURE_C -DYASSL_PREFIX
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%
+
