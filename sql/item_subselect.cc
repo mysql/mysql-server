@@ -976,18 +976,18 @@ Item_in_subselect::row_value_transformer(JOIN *join)
         DBUG_RETURN(RES_ERROR);
       Item *item_eq=
         new Item_func_eq(new
-                         Item_direct_ref((*optimizer->get_cache())->
+                         Item_ref((*optimizer->get_cache())->
                                          addr(i),
                                          (char *)"<no matter>",
                                          (char *)in_left_expr_name),
                          new
-                         Item_direct_ref(select_lex->ref_pointer_array + i,
+                         Item_ref(select_lex->ref_pointer_array + i,
                                          (char *)"<no matter>",
                                          (char *)"<list ref>")
                         );
       Item *item_isnull=
         new Item_func_isnull(new
-                             Item_direct_ref( select_lex->
+                             Item_ref( select_lex->
                                               ref_pointer_array+i,
                                               (char *)"<no matter>",
                                               (char *)"<list ref>")
@@ -1000,7 +1000,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
                   new
                   Item_is_not_null_test(this,
                                         new
-                                        Item_direct_ref(select_lex->
+                                        Item_ref(select_lex->
                                                         ref_pointer_array + i,
                                                         (char *)"<no matter>",
                                                         (char *)"<list ref>")
@@ -1057,7 +1057,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
                     new
                     Item_is_not_null_test(this,
                                           new
-                                          Item_direct_ref(select_lex->
+                                          Item_ref(select_lex->
                                                           ref_pointer_array + i,
                                                           (char *)"<no matter>",
                                                           (char *)"<list ref>")
