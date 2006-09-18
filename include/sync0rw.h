@@ -438,7 +438,7 @@ struct rw_lock_struct {
 	const char*	cfile_name;/* File name where lock created */
 	const char*	last_s_file_name;/* File name where last s-locked */
 	const char*	last_x_file_name;/* File name where last x-locked */
-	unsigned	writer_is_wait_ex:1;
+	ibool		writer_is_wait_ex;
 				/* This is TRUE if the writer field is
 				RW_LOCK_WAIT_EX; this field is located far
 				from the memory update hotspot fields which
