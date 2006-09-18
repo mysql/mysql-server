@@ -363,6 +363,17 @@ dict_table_get_index_noninline(
 	dict_table_t*	table,	/* in: table */
 	const char*	name);	/* in: index name */
 /**************************************************************************
+Returns a column's name. */
+
+const char*
+dict_table_get_col_name(
+/*====================*/
+				/* out: column name. NOTE: not guaranteed to
+				stay valid if table is modified in any way
+				(columns added, etc.). */
+	dict_table_t*	table,	/* in: table */
+	ulint		i);	/* in: column number */
+/**************************************************************************
 Prints a table definition. */
 
 void
@@ -702,6 +713,7 @@ void
 dict_index_add_col(
 /*===============*/
 	dict_index_t*	index,		/* in: index */
+	dict_table_t*	table,		/* in: table */
 	dict_col_t*	col,		/* in: column */
 	ulint		prefix_len);	/* in: column prefix length */
 /***********************************************************************
