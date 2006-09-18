@@ -563,9 +563,10 @@ public:
     pushed_cond(NULL)
     {}
   virtual ~handler(void) { /* TODO: DBUG_ASSERT(inited == NONE); */ }
+  virtual handler *clone(MEM_ROOT *mem_root);
   int ha_open(const char *name, int mode, int test_if_locked);
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
-  bool update_auto_increment();
+  int update_auto_increment();
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);

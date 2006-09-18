@@ -1,0 +1,27 @@
+set @org_mode=@@sql_mode;
+create table t1
+(
+`a` tinyint(4) NOT NULL auto_increment,
+primary key (`a`)
+) engine = 'InnoDB'  ;
+set @@sql_mode='strict_all_tables';
+insert into t1 values(1000);
+ERROR 22003: Out of range value adjusted for column 'a' at row 1
+select count(*) from t1;
+count(*)
+0
+set auto_increment_increment=1000;
+set auto_increment_offset=700;
+insert into t1 values(null);
+ERROR 22003: Out of range value adjusted for column 'a' at row 1
+select count(*) from t1;
+count(*)
+0
+set @@sql_mode=@org_mode;
+insert into t1 values(null);
+Warnings:
+Warning	1264	Out of range value adjusted for column 'a' at row 1
+select * from t1;
+a
+127
+drop table t1;
