@@ -718,7 +718,7 @@ public:
     
     // Index data
     
-    bool isIndexOp;      // Used to mark on-going TcKeyReq as indx table access
+    Uint8 isIndexOp;      // Used to mark on-going TcKeyReq as indx table access
     bool indexOpReturn;
     UintR noIndexOp;     // No outstanding index ops
 
@@ -806,7 +806,7 @@ public:
     UintR savedState[LqhKeyConf::SignalLength];
     
     // Index data
-    bool isIndexOp; // Used to mark on-going TcKeyReq as index table access
+    Uint8 isIndexOp; // Used to mark on-going TcKeyReq as index table access
     UintR indexOp;
     UintR currentIndexId;
     UintR attrInfoLen;

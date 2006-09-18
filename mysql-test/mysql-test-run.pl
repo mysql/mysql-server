@@ -233,6 +233,7 @@ our $opt_result_ext;
 
 our $opt_skip;
 our $opt_skip_rpl;
+our $opt_skip_im; # --skip-im on command line will just be ignored
 our $opt_skip_test;
 
 our $opt_sleep;
@@ -519,6 +520,7 @@ sub command_line_setup () {
              'do-test=s'                => \$opt_do_test,
              'suite=s'                  => \$opt_suite,
              'skip-rpl'                 => \$opt_skip_rpl,
+	     'skip-im'                  => \$opt_skip_im,
              'skip-test=s'              => \$opt_skip_test,
 
              # Specify ports
@@ -898,7 +900,8 @@ sub executable_setup () {
       $exe_mysqld=         mtr_exe_exists ("$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-debug",
-                                           "$path_client_bindir/mysqld-max");
+                                           "$path_client_bindir/mysqld-max",
+					   "$path_client_bindir/mysqld-max-nt");
       $path_language=      mtr_path_exists("$glob_basedir/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets");
       $exe_my_print_defaults=
@@ -1581,6 +1584,16 @@ sub run_testcase ($) {
     {
       $do_restart= 1;           # Always restart if script to run
     }
+    elsif ( $tinfo->{'ndb_test'} and $master->[0]->{'ndbcluster'} == 1 )
+    {
+      $do_restart= 1;           # Restart with cluster
+      # print "Restarting because cluster need to be enabled\n";
+    }
+    elsif ($tinfo->{'ndb_test'} == 0 and $master->[0]->{'ndbcluster'} == 0)
+    {
+      $do_restart= 1;           # Restart without cluster
+      # print "Restarting because cluster need to be disabled\n";
+    }
     elsif ( $master->[0]->{'running_master_is_special'} and
             $master->[0]->{'running_master_is_special'}->{'timezone'} eq
             $tinfo->{'timezone'} and
@@ -1646,7 +1659,7 @@ sub run_testcase ($) {
 
     if ( ! $opt_local_master )
     {
-      if ( $master->[0]->{'ndbcluster'} )
+      if ( $master->[0]->{'ndbcluster'} && $tinfo->{'ndb_test'})
       {
 	$master->[0]->{'ndbcluster'}= ndbcluster_start();
         if ( $master->[0]->{'ndbcluster'} )
@@ -1659,8 +1672,22 @@ sub run_testcase ($) {
       {
         # FIXME not correct location for do_before_start_master()
         do_before_start_master($tname,$tinfo->{'master_sh'});
+
+	# Save skip_ndbcluster
+	my $save_opt_skip_ndbcluster= $opt_skip_ndbcluster;
+	if (!$tinfo->{'ndb_test'})
+	{
+	  # Modify skip_ndbcluster so cluster is skipped for this
+          # and subsequent testcases(until we find one that does not cluster)
+	  $opt_skip_ndbcluster= 1;
+	}
+
         $master->[0]->{'pid'}=
           mysqld_start('master',0,$tinfo->{'master_opt'},[]);
+
+	# Restore skip_ndbcluster
+	$opt_skip_ndbcluster= $save_opt_skip_ndbcluster;
+
         if ( ! $master->[0]->{'pid'} )
         {
           report_failure_and_restart($tinfo);
@@ -2026,7 +2053,7 @@ sub mysqld_arguments ($$$$$) {
     }
   }
 
-  if ( $opt_with_ndbcluster )
+  if ( $opt_with_ndbcluster && !$opt_skip_ndbcluster  && $type eq 'master')
   {
     mtr_add_arg($args, "%s--ndbcluster", $prefix);
     mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
