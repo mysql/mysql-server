@@ -1,0 +1,17 @@
+# t/read_many_rows_innodb.test
+#
+# Check how filesort and buffered-record-reads works with InnoDB.
+# This test takes a long time.
+#
+# Last update:
+# 2006-08-03 ML test refactored (MySQL 5.1)
+#               main code --> include/read_many_rows_innodb.inc
+#
+
+--source include/big_test.inc
+
+--source include/have_innodb.inc
+let $engine_type= InnoDB;
+let $other_engine_type= MyISAM;
+
+--source include/read_many_rows.inc
