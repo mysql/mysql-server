@@ -2897,7 +2897,8 @@ sub run_mysqltest ($) {
   my $cmdline_mysql=
     "$exe_mysql --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'path_myport'} " .
-    "--socket=$master->[0]->{'path_mysock'}";
+    "--socket=$master->[0]->{'path_mysock'} ".
+    "--character-sets-dir=$path_charsetsdir";
 
   my $cmdline_mysql_client_test=
     "$exe_mysql_client_test --no-defaults --testcase --user=root --silent " .
