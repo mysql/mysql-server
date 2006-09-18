@@ -3711,7 +3711,30 @@ best_access_path(JOIN      *join,
             {
               /* Check if we have statistic about the distribution */
               if ((records= keyinfo->rec_per_key[max_key_part-1]))
+              {
+                /* 
+                  Fix for the case where the index statistics is too
+                  optimistic: If 
+                  (1) We're considering ref(const) and there is quick select
+                      on the same index, 
+                  (2) and that quick select uses more keyparts (i.e. it will
+                      scan equal/smaller interval then this ref(const))
+                  (3) and E(#rows) for quick select is higher then our
+                      estimate,
+                  Then 
+                    We'll use E(#rows) from quick select.
+
+                  Q: Why do we choose to use 'ref'? Won't quick select be
+                  cheaper in some cases ?
+                  TODO: figure this out and adjust the plan choice if needed.
+                */
+                if (!found_ref && table->quick_keys.is_set(key) &&    // (1)
+                    table->quick_key_parts[key] > max_key_part &&     // (2)
+                    records < (double)table->quick_rows[key])         // (3)
+                  records= (double)table->quick_rows[key];
+
                 tmp= records;
+              }
               else
               {
                 /*
