@@ -5379,41 +5379,6 @@ Procedure	sql_mode	Create Procedure
 bug21416		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug21416`()
 show create procedure bug21416
 drop procedure bug21416|
-drop table if exists t3|
-drop database if exists mysqltest1|
-create table t3 (a int)|
-insert into t3 (a) values (1), (2)|
-create database mysqltest1|
-use mysqltest1|
-drop database mysqltest1|
-select database()|
-database()
-NULL
-select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
-a
-1
-use test|
-drop table t3|
-DROP PROCEDURE IF EXISTS bug16899_p1|
-DROP FUNCTION IF EXISTS bug16899_f1|
-CREATE DEFINER=1234567890abcdefGHIKL@localhost PROCEDURE bug16899_p1()
-BEGIN
-SET @a = 1;
-END|
-ERROR HY000: String '1234567890abcdefGHIKL' is too long for user name (should be no longer than 16)
-CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
-FUNCTION bug16899_f1() RETURNS INT
-BEGIN
-RETURN 1;
-END|
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
-drop procedure if exists bug21416|
-create procedure bug21416() show create procedure bug21416|
-call bug21416()|
-Procedure	sql_mode	Create Procedure
-bug21416		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug21416`()
-show create procedure bug21416
-drop procedure bug21416|
 CREATE TABLE t3 (
 Member_ID varchar(15) NOT NULL,
 PRIMARY KEY (Member_ID)

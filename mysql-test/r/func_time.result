@@ -870,8 +870,8 @@ f1
 select f1 from t1 where cast("2006-1-1" as date) between f1 and cast('zzz' as date);
 f1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: 'zzz'
-Warning	1292	Truncated incorrect datetime value: 'zzz'
+Warning	1292	Incorrect datetime value: 'zzz'
+Warning	1292	Incorrect datetime value: 'zzz'
 select f1 from t1 where makedate(2006,1) between date(f1) and date(f3);
 f1
 2006-01-01
