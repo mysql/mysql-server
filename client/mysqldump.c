@@ -2747,6 +2747,7 @@ static int dump_all_tablespaces()
                                     " ENGINE"
                                     " FROM INFORMATION_SCHEMA.FILES"
                                     " WHERE FILE_TYPE = \"UNDO LOG\""
+                                    " AND FILE_NAME IS NOT NULL"
                                     " ORDER BY LOGFILE_GROUP_NAME"))
     return 1;
 
