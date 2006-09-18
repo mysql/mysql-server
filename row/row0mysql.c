@@ -1782,9 +1782,8 @@ row_create_table_for_mysql(
 
 	/* Check that no reserved column names are used. */
 	for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
-		dict_col_t*	col = dict_table_get_nth_col(table, i);
-
-		if (dict_col_name_is_reserved(col->name)) {
+		if (dict_col_name_is_reserved(
+			    dict_table_get_col_name(table, i))) {
 
 			dict_mem_table_free(table);
 			trx_commit_for_mysql(trx);
