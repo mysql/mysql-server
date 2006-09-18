@@ -1272,6 +1272,18 @@ dict_table_remove_from_cache(
 	dict_mem_table_free(table);
 }
 
+/*************************************************************************
+Gets the column position in the clustered index. */
+
+ulint
+dict_col_get_clust_pos_noninline(
+/*=============================*/
+	const dict_col_t*	col,		/* in: table column */
+	const dict_index_t*	clust_index)	/* in: clustered index */
+{
+	return(dict_col_get_clust_pos(col, clust_index));
+}
+
 /********************************************************************
 If the given column name is reserved for InnoDB system columns, return
 TRUE. */
