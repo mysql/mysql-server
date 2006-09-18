@@ -156,7 +156,11 @@ sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
 		@echo "If it fails, re-run configure with --with-low-memory"
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
-lex_hash.h:	gen_lex_hash$(EXEEXT)
+# This generates lex_hash.h
+# NOTE Built sources should depend on their sources not the tool
+# this avoid the rebuild of the built files in a source dist
+lex_hash.h:	gen_lex_hash.cc lex.h
+		$(MAKE) $(AM_MAKEFLAGS) gen_lex_hash$(EXEEXT)
 		./gen_lex_hash$(EXEEXT) > $@
 
 # the following three should eventually be moved out of this directory
