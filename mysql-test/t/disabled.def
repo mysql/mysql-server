@@ -36,7 +36,6 @@ rpl_ndb_myisam2ndb       : Bug #19710  Cluster replication to partition table fa
 rpl_row_blob_innodb      : BUG#18980 2006-04-10 kent    Test fails randomly
 rpl_row_func003          : BUG#19074 2006-13-04 andrei  test failed
 rpl_sp                   : BUG#16456 2006-02-16 jmiller
-rpl_sp_effects           : BUG#19862 2006-06-15 mkindahl
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
