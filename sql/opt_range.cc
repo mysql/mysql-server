@@ -2980,6 +2980,14 @@ int QUICK_SELECT::get_next()
   }
 }
 
+void QUICK_SELECT::reset(void) 
+{
+  next= 0; 
+  it.rewind();
+  range= 0; 
+  if (file->inited == handler::NONE) 
+    file->ha_index_init(index);
+}
 
 /* Get next for geometrical indexes */
 
@@ -3201,7 +3209,11 @@ bool QUICK_SELECT_DESC::test_if_null_range(QUICK_RANGE *range_arg,
   return 0;
 }
 #endif
-
+void QUICK_SELECT_DESC::reset(void)
+{ 
+  rev_it.rewind();
+  QUICK_SELECT::reset();
+}
 
 /*****************************************************************************
 ** Print a quick range for debugging
