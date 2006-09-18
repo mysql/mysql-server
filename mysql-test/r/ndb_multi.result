@@ -67,6 +67,8 @@ c1
 1
 3
 5
+show tables;
+Tables_in_test
 create table t1(c1 int key)ENGINE=MyISAM;
 insert into t1 values(100),(344),(533);
 select * from t1 order by c1;
