@@ -171,14 +171,14 @@ UTF-8 charset. In that charset, a character may take at most 3 bytes. */
 struct dict_field_struct{
 	dict_col_t*	col;		/* pointer to the table column */
 	const char*	name;		/* name of the column */
-	ulint		prefix_len:10;	/* 0 or the length of the column
+	unsigned	prefix_len:10;	/* 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
 					must be smaller than
 					DICT_MAX_INDEX_COL_LEN; NOTE that
 					in the UTF-8 charset, MySQL sets this
 					to 3 * the prefix len in UTF-8 chars */
-	ulint		fixed_len:10;	/* 0 or the fixed length of the
+	unsigned	fixed_len:10;	/* 0 or the fixed length of the
 					column if smaller than
 					DICT_MAX_INDEX_COL_LEN */
 };
@@ -241,13 +241,13 @@ struct dict_foreign_struct{
 					this memory heap */
 	char*		id;		/* id of the constraint as a
 					null-terminated string */
-	ulint		n_fields:10;	/* number of indexes' first fields
+	unsigned	n_fields:10;	/* number of indexes' first fields
 					for which the the foreign key
 					constraint is defined: we allow the
 					indexes to contain more fields than
 					mentioned in the constraint, as long
 					as the first fields are as mentioned */
-	ulint		type:6;		/* 0 or DICT_FOREIGN_ON_DELETE_CASCADE
+	unsigned	type:6;		/* 0 or DICT_FOREIGN_ON_DELETE_CASCADE
 					or DICT_FOREIGN_ON_DELETE_SET_NULL */
 	char*		foreign_table_name;/* foreign table name */
 	dict_table_t*	foreign_table;	/* table where the foreign key is */
@@ -309,8 +309,8 @@ struct dict_table_struct{
 	unsigned	cached:1;/* TRUE if the table object has been added
 				to the dictionary cache */
 	unsigned	flags:8;/* DICT_TF_COMPACT, ... */
-	ulint		n_def:10;/* number of columns defined so far */
-	ulint		n_cols:10;/* number of columns */
+	unsigned	n_def:10;/* number of columns defined so far */
+	unsigned	n_cols:10;/* number of columns */
 	dict_col_t*	cols;	/* array of column descriptions */
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
