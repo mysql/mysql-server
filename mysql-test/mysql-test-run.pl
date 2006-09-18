@@ -2291,7 +2291,7 @@ sub mysql_install_db () {
   }
 
   $ENV{'NDB_STATUS_OK'}=            $clusters->[0]->{'installed_ok'};
-  $ENV{'NDB_SLAVE_STATUS_OK'}=      $clusters->[1]->{'installed_ok'};;
+  $ENV{'NDB_SLAVE_STATUS_OK'}=      $clusters->[1]->{'installed_ok'};
 
   if ( ! $cluster_started_ok )
   {
