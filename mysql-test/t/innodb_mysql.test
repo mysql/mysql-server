@@ -8,5 +8,7 @@
 -- source include/have_innodb.inc
 let $engine_type= InnoDB;
 let $other_engine_type= MEMORY;
+# InnoDB does support FOREIGN KEYFOREIGN KEYs
+let $test_foreign_keys= 1;
 
 --source include/mix1.inc
