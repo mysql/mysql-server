@@ -464,9 +464,9 @@ class Ndb_cond_traverse_context
     skip(0), collation(NULL), rewrite_stack(NULL)
   {
     // Allocate type checking bitmaps   
-    bitmap_init(&expect_mask, 0, 512, TRUE);
-    bitmap_init(&expect_field_type_mask, 0, 512, TRUE);
-    bitmap_init(&expect_field_result_mask, 0, 512, TRUE);
+    bitmap_init(&expect_mask, 0, 512, FALSE);
+    bitmap_init(&expect_field_type_mask, 0, 512, FALSE);
+    bitmap_init(&expect_field_result_mask, 0, 512, FALSE);
 
     if (stack)
       cond_ptr= stack->ndb_cond;
