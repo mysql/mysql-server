@@ -98,6 +98,14 @@ dict_col_get_clust_pos(
 /*===================*/
 	const dict_col_t*	col,		/* in: table column */
 	const dict_index_t*	clust_index);	/* in: clustered index */
+/*************************************************************************
+Gets the column position in the clustered index. */
+
+ulint
+dict_col_get_clust_pos_noninline(
+/*=============================*/
+	const dict_col_t*	col,		/* in: table column */
+	const dict_index_t*	clust_index);	/* in: clustered index */
 /********************************************************************
 If the given column name is reserved for InnoDB system columns, return
 TRUE. */
