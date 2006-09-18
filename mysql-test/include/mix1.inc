@@ -6,6 +6,8 @@
 #                           $other_engine_type must point to an all
 #                           time available storage engine
 #                              2006-08 MySQL 5.1 MyISAM and MEMORY only
+#    $test_foreign_keys -- 0, skip foreign key tests
+#                       -- 1, do not skip foreign key tests
 # have to be set before sourcing this script.
 #
 # Note: The comments/expectations refer to InnoDB.
@@ -138,9 +140,9 @@ CREATE TABLE `t2` (
   `id4` INT NOT NULL,
   UNIQUE (`id2`,`id4`),
   KEY (`id1`)
-) ENGINE=InnoDB;
+);
 
-INSERT INTO `t2`(`id1`,`id2`,`id3`,`id4`) VALUES 
+INSERT INTO `t2`(`id1`,`id2`,`id3`,`id4`) VALUES
 (1,1,1,0),
 (1,1,2,1),
 (5,1,2,2),
@@ -150,6 +152,7 @@ INSERT INTO `t2`(`id1`,`id2`,`id3`,`id4`) VALUES
 
 SELECT `id1` FROM `t1` WHERE `id1` NOT IN (SELECT `id1` FROM `t2` WHERE `id2` = 1 AND `id3` = 2);
 DROP TABLE t1, t2;
+
 #
 # Bug #12882  	min/max inconsistent on empty table
 #
@@ -294,21 +297,26 @@ drop table t1;
 
 #
 # Test for bug #17164: ORed FALSE blocked conversion of outer join into join
-# 
+#
 
 CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
-                 INDEX (name)) ENGINE=InnoDB;
-CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11),
-                 FOREIGN KEY (fkey) REFERENCES t2(id)) ENGINE=InnoDB;
+                 INDEX (name));
+CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11));
+# CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11),
+#                  FOREIGN KEY (fkey) REFERENCES t2(id));
+if ($test_foreign_keys)
+{
+   ALTER TABLE t2 ADD FOREIGN KEY (fkey) REFERENCES t2(id);
+}
 INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
 INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,3),(5,3);
 
 EXPLAIN
-SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id 
+SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
   WHERE t1.name LIKE 'A%';
 
 EXPLAIN
-SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id 
+SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
   WHERE t1.name LIKE 'A%' OR FALSE;
 
 DROP TABLE t1,t2;
@@ -378,8 +386,8 @@ CREATE TABLE `t2` (
   `c` int(11) default NULL,
   PRIMARY KEY  (`k`),
   UNIQUE KEY `idx_1` (`a`)
-) ENGINE=InnoDB;
- insert into t2 ( a ) values ( 6 ) on duplicate key update c =
+);
+insert into t2 ( a ) values ( 6 ) on duplicate key update c =
 ifnull( c,
 0 ) + 1;
 insert into t2 ( a ) values ( 7 ) on duplicate key update c =
