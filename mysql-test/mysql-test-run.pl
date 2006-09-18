@@ -1537,7 +1537,7 @@ sub environment_setup () {
   my $cmdline_mysql=
     "$exe_mysql --no-defaults --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'port'} " .
-    "--socket=$master->[0]->{'path_mysock'} ".
+    "--socket=$master->[0]->{'path_sock'} ".
     "--character-sets-dir=$path_charsetsdir";
 
   $ENV{'MYSQL'}= $cmdline_mysql;
