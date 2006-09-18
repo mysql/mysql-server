@@ -15,6 +15,17 @@ Created 2/2/1994 Heikki Tuuri
 #define UNIV_INLINE
 #endif
 
+/****************************************************************
+Gets the start of a page. */
+UNIV_INLINE
+page_t*
+page_align(
+/*=======*/
+			/* out: start of the page */
+	void*	ptr)	/* in: pointer to page frame */
+{
+	return((page_t*) ut_align_down(ptr, UNIV_PAGE_SIZE));
+}
 /*****************************************************************
 Returns the max trx id field value. */
 UNIV_INLINE
@@ -175,7 +186,7 @@ page_rec_is_comp(
 				/* out: nonzero if in compact format */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_is_comp(ut_align_down((rec_t*) rec, UNIV_PAGE_SIZE)));
+	return(page_is_comp(page_align((rec_t*) rec)));
 }
 
 /****************************************************************
@@ -550,7 +561,7 @@ page_rec_get_next(
 
 	ut_ad(page_rec_check(rec));
 
-	page = ut_align_down(rec, UNIV_PAGE_SIZE);
+	page = page_align(rec);
 
 	offs = rec_get_next_offs(rec, page_is_comp(page));
 
@@ -592,11 +603,11 @@ page_rec_set_next(
 
 	ut_ad(page_rec_check(rec));
 	ut_ad(!page_rec_is_supremum(rec));
-	page = ut_align_down(rec, UNIV_PAGE_SIZE);
+	page = page_align(rec);
 
 	if (next) {
 		ut_ad(!page_rec_is_infimum(next));
-		ut_ad(page == ut_align_down(next, UNIV_PAGE_SIZE));
+		ut_ad(page == page_align(next));
 		offs = (ulint) (next - page);
 	} else {
 		offs = 0;
@@ -623,7 +634,7 @@ page_rec_get_prev(
 
 	ut_ad(page_rec_check(rec));
 
-	page = ut_align_down(rec, UNIV_PAGE_SIZE);
+	page = page_align(rec);
 
 	ut_ad(!page_rec_is_infimum(rec));
 
