@@ -22,7 +22,7 @@ DIST_SUBDIRS=ndb
 
 benchdir_root=		$(prefix)
 testdir =	        $(benchdir_root)/mysql-test
-EXTRA_SCRIPTS = 	mysql-test-run_shell.sh install_test_db.sh \
+EXTRA_SCRIPTS = 	mysql-test-run-shell.sh install_test_db.sh \
 			valgrind.supp $(PRESCRIPTS)
 EXTRA_DIST = 		$(EXTRA_SCRIPTS)
 GENSCRIPTS =		mysql-test-run-shell install_test_db mtr mysql-test-run
