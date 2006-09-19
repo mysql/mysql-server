@@ -650,7 +650,7 @@ page_delete_rec_list_write_log(
 	log_ptr = mlog_open_and_write_index(mtr, rec, index, type, 2);
 	if (log_ptr) {
 		/* Write the parameter as a 2-byte ulint */
-		mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
+		mach_write_to_2(log_ptr, page_offset(rec));
 		mlog_close(mtr, log_ptr + 2);
 	}
 }

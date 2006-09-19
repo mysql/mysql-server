@@ -3752,7 +3752,7 @@ wrong_offs:
 				"InnoDB: Index corruption: rec offs %lu"
 				" next offs %lu, page no %lu,\n"
 				"InnoDB: ",
-				(ulong) ut_align_offset(rec, UNIV_PAGE_SIZE),
+				(ulong) page_offset(rec),
 				(ulong) next_offs,
 				(ulong) buf_frame_get_page_no(rec));
 			dict_index_name_print(stderr, trx, index);
@@ -3772,7 +3772,7 @@ wrong_offs:
 				"InnoDB: Index corruption: rec offs %lu"
 				" next offs %lu, page no %lu,\n"
 				"InnoDB: ",
-				(ulong) ut_align_offset(rec, UNIV_PAGE_SIZE),
+				(ulong) page_offset(rec),
 				(ulong) next_offs,
 				(ulong) buf_frame_get_page_no(rec));
 			dict_index_name_print(stderr, trx, index);
@@ -3797,7 +3797,7 @@ wrong_offs:
 				"InnoDB: Index corruption: rec offs %lu"
 				" next offs %lu, page no %lu,\n"
 				"InnoDB: ",
-				(ulong) ut_align_offset(rec, UNIV_PAGE_SIZE),
+				(ulong) page_offset(rec),
 				(ulong) next_offs,
 				(ulong) buf_frame_get_page_no(rec));
 			dict_index_name_print(stderr, trx, index);
