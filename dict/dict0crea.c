@@ -771,8 +771,8 @@ dict_truncate_index_tree(
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	comp = page_is_comp(btr_page_get
-			    (space, root_page_no, RW_X_LATCH, mtr));
+	comp = page_is_comp(btr_page_get(space, root_page_no, RW_X_LATCH,
+					 mtr));
 
 	btr_free_root(space, root_page_no, mtr);
 	/* We will temporarily write FIL_NULL to the PAGE_NO field
@@ -1328,13 +1328,14 @@ dict_create_add_foreign_field_to_dictionary(
 	pars_info_add_str_literal(info, "ref_col_name",
 				  foreign->referenced_col_names[field_nr]);
 
-	return(dict_foreign_eval_sql
-	       (info, "PROCEDURE P () IS\n"
-		"BEGIN\n"
-		"INSERT INTO SYS_FOREIGN_COLS VALUES"
-		"(:id, :pos, :for_col_name, :ref_col_name);\n"
-		"END;\n",
-		table, foreign, trx));
+	return(dict_foreign_eval_sql(
+		       info,
+		       "PROCEDURE P () IS\n"
+		       "BEGIN\n"
+		       "INSERT INTO SYS_FOREIGN_COLS VALUES"
+		       "(:id, :pos, :for_col_name, :ref_col_name);\n"
+		       "END;\n",
+		       table, foreign, trx));
 }
 
 /************************************************************************
@@ -1393,8 +1394,8 @@ dict_create_add_foreign_to_dictionary(
 	}
 
 	for (i = 0; i < foreign->n_fields; i++) {
-		error = dict_create_add_foreign_field_to_dictionary
-			(i, table, foreign, trx);
+		error = dict_create_add_foreign_field_to_dictionary(
+			i, table, foreign, trx);
 
 		if (error != DB_SUCCESS) {
 
@@ -1450,8 +1451,8 @@ dict_create_add_foreigns_to_dictionary(
 	     foreign;
 	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-		error = dict_create_add_foreign_to_dictionary
-			(&number, table, foreign, trx);
+		error = dict_create_add_foreign_to_dictionary(&number, table,
+							      foreign, trx);
 
 		if (error != DB_SUCCESS) {
 
