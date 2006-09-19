@@ -2273,7 +2273,33 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   {
     NdbNodeBitmask tmp;
     tmp.assign(NdbNodeBitmask::Size, stopReq.nodes);
+
+    NdbNodeBitmask ndbStopNodes;
+    ndbStopNodes.assign(NdbNodeBitmask::Size, stopReq.nodes);
+    ndbStopNodes.bitAND(ndbMask);
+    ndbStopNodes.copyto(NdbNodeBitmask::Size, stopReq.nodes);
+
     ndbMask.bitANDC(tmp);
+
+    bool allNodesStopped = true;
+    int i ;
+    for( i = 0; i<  NdbNodeBitmask::Size; i++ ){
+      if ( stopReq.nodes[i] != 0 ){
+        allNodesStopped = false;
+        break;
+      }
+    }
+  
+    if ( allNodesStopped ) {
+      StopConf * const stopConf = (StopConf *)&signal->theData[0];
+      stopConf->senderData = stopReq.senderData;
+      stopConf->nodeState  = (Uint32) NodeState::SL_NOTHING;
+      cntr.sendSignal(stopReq.senderRef, GSN_STOP_CONF, signal,
+                       StopConf::SignalLength, JBB);
+      stopReq.senderRef = 0;
+      return false;
+    }
+
   }
   else
   {
