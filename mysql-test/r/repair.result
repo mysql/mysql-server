@@ -31,7 +31,7 @@ create table t1 engine=myisam SELECT 1,"table 1";
 flush tables;
 repair table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	error	Can't open file: 't1.MYI' (errno: 130)
+test.t1	repair	error	Got error 130 from storage engine
 repair table t1 use_frm;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	warning	Number of rows changed from 0 to 1
