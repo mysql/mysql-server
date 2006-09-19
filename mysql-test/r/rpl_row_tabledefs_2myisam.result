@@ -16,6 +16,8 @@ CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE='MyISAM';
 CREATE TABLE t4 (a INT) ENGINE='MyISAM';
 CREATE TABLE t5 (a INT, b INT, c INT) ENGINE='MyISAM';
 CREATE TABLE t6 (a INT, b INT, c INT) ENGINE='MyISAM';
+CREATE TABLE t7 (a INT NOT NULL) ENGINE='MyISAM';
+CREATE TABLE t8 (a INT NOT NULL) ENGINE='MyISAM';
 CREATE TABLE t9 (a INT) ENGINE='MyISAM';
 ALTER TABLE t1_int ADD x INT DEFAULT 42;
 ALTER TABLE t1_bit
@@ -28,6 +30,12 @@ ALTER TABLE t2 DROP b;
 ALTER TABLE t4 MODIFY a FLOAT;
 ALTER TABLE t5 MODIFY b FLOAT;
 ALTER TABLE t6 MODIFY c FLOAT;
+ALTER TABLE t7 ADD e1 INT, ADD e2 INT, ADD e3 INT, ADD e4 INT,
+ADD e5 INT, ADD e6 INT, ADD e7 INT, ADD e8 INT;
+ALTER TABLE t8 ADD e1 INT NOT NULL DEFAULT 0, ADD e2 INT NOT NULL DEFAULT 0,
+ADD e3 INT NOT NULL DEFAULT 0, ADD e4 INT NOT NULL DEFAULT 0,
+ADD e5 INT NOT NULL DEFAULT 0, ADD e6 INT NOT NULL DEFAULT 0,
+ADD e7 INT NOT NULL DEFAULT 0, ADD e8 INT NOT NULL DEFAULT 0;
 INSERT INTO t1_int  VALUES (2, 4, 4711);
 INSERT INTO t1_char VALUES (2, 4, 'Foo is a bar');
 INSERT INTO t1_bit  VALUES (2, 4, b'101', b'11100', b'01');
@@ -282,5 +290,92 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
+INSERT INTO t9 VALUES (6);
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+INSERT INTO t7 VALUES (1),(2),(3);
+INSERT INTO t8 VALUES (1),(2),(3);
+SELECT * FROM t7;
+a
+1
+2
+3
+SELECT * FROM t8;
+a
+1
+2
+3
+SELECT * FROM t7;
+a	e1	e2	e3	e4	e5	e6	e7	e8
+1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+SELECT * FROM t8;
+a	e1	e2	e3	e4	e5	e6	e7	e8
+1	0	0	0	0	0	0	0	0
+2	0	0	0	0	0	0	0	0
+3	0	0	0	0	0	0	0	0
+**** On Master ****
+TRUNCATE t1_nodef;
+SET SQL_LOG_BIN=0;
+INSERT INTO t1_nodef VALUES (1,2);
+INSERT INTO t1_nodef VALUES (2,4);
+SET SQL_LOG_BIN=1;
+**** On Slave ****
+INSERT INTO t1_nodef VALUES (1,2,3);
+INSERT INTO t1_nodef VALUES (2,4,6);
+**** On Master ****
+UPDATE t1_nodef SET b=2*b WHERE a=1;
+SELECT * FROM t1_nodef;
+a	b
+1	4
+2	4
+**** On Slave ****
+SELECT * FROM t1_nodef;
+a	b	x
+1	4	3
+2	4	6
+**** On Master ****
+DELETE FROM t1_nodef WHERE a=2;
+SELECT * FROM t1_nodef;
+a	b
+1	4
+**** On Slave ****
+SELECT * FROM t1_nodef;
+a	b	x
+1	4	3
+**** Cleanup ****
 DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
-DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t9;
+DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t7,t8,t9;

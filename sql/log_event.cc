@@ -5304,7 +5304,7 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
     row_end Pointer to variable that will hold the value of the
             one-after-end position for the row
     master_reclength
-            Pointer to variable that will hold the length of the
+            Pointer to variable that will be set to the length of the
             record on the master side
     rw_set  Pointer to bitmap that holds either the read_set or the
             write_set of the table
@@ -5317,13 +5317,22 @@ int Rows_log_event::do_add_row_data(byte *const row_data,
 
       At most 'colcnt' columns are read: if the table is larger than
       that, the remaining fields are not filled in.
+
+  RETURN VALUE
+
+      Error code, or zero if no error. The following error codes can
+      be returned:
+
+      ER_NO_DEFAULT_FOR_FIELD
+        Returned if one of the fields existing on the slave but not on
+        the master does not have a default value (and isn't nullable)
  */
 static int
 unpack_row(RELAY_LOG_INFO *rli,
            TABLE *table, uint const colcnt, byte *record,
            char const *row, MY_BITMAP const *cols,
            char const **row_end, ulong *master_reclength,
-           MY_BITMAP* const rw_set)
+           MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
   DBUG_ASSERT(record && row);
   my_ptrdiff_t const offset= record - (byte*) table->record[0];
@@ -5334,10 +5343,20 @@ unpack_row(RELAY_LOG_INFO *rli,
     Field **fptr= &table->field[colcnt-1];
     do
       master_null_bytes= (*fptr)->last_null_byte();
-    while (master_null_bytes == 0 && fptr-- > table->field);
+    while (master_null_bytes == Field::LAST_NULL_BYTE_UNDEF &&
+           fptr-- > table->field);
 
-    if (master_null_bytes == 0)
-      master_null_bytes= table->s->null_bytes;
+    /*
+      If master_null_bytes is LAST_NULL_BYTE_UNDEF (0) at this time,
+      there were no nullable fields nor BIT fields at all in the
+      columns that are common to the master and the slave. In that
+      case, there is only one null byte holding the X bit.
+
+      OBSERVE! There might still be nullable columns following the
+      common columns, so table->s->null_bytes might be greater than 1.
+     */
+    if (master_null_bytes == Field::LAST_NULL_BYTE_UNDEF)
+      master_null_bytes= 1;
   }
 
   DBUG_ASSERT(master_null_bytes <= table->s->null_bytes);
@@ -5348,31 +5367,29 @@ unpack_row(RELAY_LOG_INFO *rli,
 
   Field **const begin_ptr = table->field;
   Field **field_ptr;
+  char const *ptr= row + master_null_bytes;
+  Field **const end_ptr= begin_ptr + colcnt;
+  for (field_ptr= begin_ptr ; field_ptr < end_ptr ; ++field_ptr)
   {
-    char const *ptr= row + master_null_bytes;
-    Field **const end_ptr= begin_ptr + colcnt;
-    for (field_ptr= begin_ptr ; field_ptr < end_ptr ; ++field_ptr)
-    {
-      Field *const f= *field_ptr;
+    Field *const f= *field_ptr;
 
-      if (bitmap_is_set(cols, field_ptr -  begin_ptr))
-      {
-        ptr= f->unpack(f->ptr + offset, ptr);
-        /* Field...::unpack() cannot return 0 */
-        DBUG_ASSERT(ptr != NULL);
-      }
-      else
-        bitmap_clear_bit(rw_set, field_ptr - begin_ptr);
-    }
-
-    *row_end = ptr;
-    if (master_reclength)
+    if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
-      if (*field_ptr)
-        *master_reclength = (*field_ptr)->ptr - (char*) table->record[0];
-      else
-        *master_reclength = table->s->reclength;
+      ptr= f->unpack(f->ptr + offset, ptr);
+      /* Field...::unpack() cannot return 0 */
+      DBUG_ASSERT(ptr != NULL);
     }
+    else
+      bitmap_clear_bit(rw_set, field_ptr - begin_ptr);
+  }
+
+  *row_end = ptr;
+  if (master_reclength)
+  {
+    if (*field_ptr)
+      *master_reclength = (*field_ptr)->ptr - (char*) table->record[0];
+    else
+      *master_reclength = table->s->reclength;
   }
 
   /*
@@ -5381,16 +5398,26 @@ unpack_row(RELAY_LOG_INFO *rli,
     it was not there already. We iterate over all remaining columns,
     even if there were an error, to get as many error messages as
     possible.  We are still able to return a pointer to the next row,
-    so wedo that.
+    so redo that.
+
+    This generation of error messages is only relevant when inserting
+    new rows.
    */
   for ( ; *field_ptr ; ++field_ptr)
   {
-    if ((*field_ptr)->flags & (NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG))
+    uint32 const mask= NOT_NULL_FLAG | NO_DEFAULT_VALUE_FLAG;
+
+    DBUG_PRINT("debug", ("flags = 0x%x, mask = 0x%x, flags & mask = 0x%x",
+                         (*field_ptr)->flags, mask,
+                         (*field_ptr)->flags & mask));
+
+    if (event_type == WRITE_ROWS_EVENT &&
+        ((*field_ptr)->flags & mask) == mask)
     {
-      slave_print_msg(ERROR_LEVEL, rli, ER_NO_DEFAULT_FOR_FIELD, 
+      slave_print_msg(ERROR_LEVEL, rli, ER_NO_DEFAULT_FOR_FIELD,
                       "Field `%s` of table `%s`.`%s` "
                       "has no default value and cannot be NULL",
-                      (*field_ptr)->field_name, table->s->db.str, 
+                      (*field_ptr)->field_name, table->s->db.str,
                       table->s->table_name.str);
       error = ER_NO_DEFAULT_FOR_FIELD;
     }
@@ -5562,8 +5589,8 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     {
       char const *row_end= NULL;
       if ((error= do_prepare_row(thd, rli, table, row_start, &row_end)))
-        break; // We should to the after-row operation even in the
-               // case of error
+        break; // We should perform the after-row operation even in
+               // the case of error
       
       DBUG_ASSERT(row_end != NULL); // cannot happen
       DBUG_ASSERT(row_end <= (const char*)m_rows_end);
@@ -6224,7 +6251,7 @@ int Write_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   error= unpack_row(rli,
                     table, m_width, table->record[0],
                     row_start, &m_cols, row_end, &m_master_reclength,
-                    table->write_set);
+                    table->write_set, WRITE_ROWS_EVENT);
   bitmap_copy(table->read_set, table->write_set);
   return error;
 }
@@ -6285,10 +6312,17 @@ copy_extra_record_fields(TABLE *table,
                          my_size_t master_reclength,
                          my_ptrdiff_t master_fields)
 {
-  DBUG_PRINT("info", ("Copying to %p from field %d at offset %u to field %d at offset %u", 
-                      table->record[0], 
+  DBUG_PRINT("info", ("Copying to %p "
+                      "from field %d at offset %u "
+                      "to field %d at offset %u",
+                      table->record[0],
                       master_fields, master_reclength,
                       table->s->fields, table->s->reclength));
+  /*
+    Copying the extra fields of the slave that does not exist on
+    master into record[0] (which are basically the default values).
+  */
+  DBUG_ASSERT(master_reclength <= table->s->reclength);
   if (master_reclength < table->s->reclength)
     bmove_align(table->record[0] + master_reclength,
                 table->record[1] + master_reclength,
@@ -6771,7 +6805,7 @@ int Delete_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   error= unpack_row(rli,
                     table, m_width, table->record[0], 
                     row_start, &m_cols, row_end, &m_master_reclength,
-                    table->read_set);
+                    table->read_set, DELETE_ROWS_EVENT);
   /*
     If we will access rows using the random access method, m_key will
     be set to NULL, so we do not need to make a key copy in that case.
@@ -6914,13 +6948,13 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
   error= unpack_row(rli,
                     table, m_width, table->record[0],
                     row_start, &m_cols, row_end, &m_master_reclength,
-                    table->read_set);
+                    table->read_set, UPDATE_ROWS_EVENT);
   row_start = *row_end;
   /* m_after_image is the after image for the update */
   error= unpack_row(rli,
                     table, m_width, m_after_image,
                     row_start, &m_cols, row_end, &m_master_reclength,
-                    table->write_set);
+                    table->write_set, UPDATE_ROWS_EVENT);
 
   /*
     If we will access rows using the random access method, m_key will

@@ -25,6 +25,8 @@ eval CREATE TABLE t3 (a INT PRIMARY KEY, b INT) ENGINE=$engine_type;
 eval CREATE TABLE t4 (a INT) ENGINE=$engine_type;
 eval CREATE TABLE t5 (a INT, b INT, c INT) ENGINE=$engine_type;
 eval CREATE TABLE t6 (a INT, b INT, c INT) ENGINE=$engine_type;
+eval CREATE TABLE t7 (a INT NOT NULL) ENGINE=$engine_type;
+eval CREATE TABLE t8 (a INT NOT NULL) ENGINE=$engine_type;
 
 # Table used to detect that slave is running
 eval CREATE TABLE t9 (a INT) ENGINE=$engine_type;
@@ -53,6 +55,17 @@ ALTER TABLE t5 MODIFY b FLOAT;
 # ... change the type of the last column of table 't6'
 ALTER TABLE t6 MODIFY c FLOAT;
 
+# ... add one byte worth of null bytes to the table on the slave
+ALTER TABLE t7 ADD e1 INT, ADD e2 INT, ADD e3 INT, ADD e4 INT,
+               ADD e5 INT, ADD e6 INT, ADD e7 INT, ADD e8 INT;
+
+# ... add 8 columns that are nullable: t8 will not be entirely
+#     nullable and have no null bits (just an X bit)
+ALTER TABLE t8 ADD e1 INT NOT NULL DEFAULT 0, ADD e2 INT NOT NULL DEFAULT 0,
+               ADD e3 INT NOT NULL DEFAULT 0, ADD e4 INT NOT NULL DEFAULT 0,
+               ADD e5 INT NOT NULL DEFAULT 0, ADD e6 INT NOT NULL DEFAULT 0,
+               ADD e7 INT NOT NULL DEFAULT 0, ADD e8 INT NOT NULL DEFAULT 0;
+        
 # Insert some values for tables on slave side. These should not be
 # modified when the row from the master is applied.
 INSERT INTO t1_int  VALUES (2, 4, 4711);
@@ -90,7 +103,7 @@ SELECT a,b,x FROM t1_int;
 SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit;
 SELECT a,b,x FROM t1_char;
 
-# Each of these should generate an error and stop the slave
+# Each of these inserts should generate an error and stop the slave
 
 connection master;
 INSERT INTO t9 VALUES (2);
@@ -163,8 +176,59 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
 connection master;
+INSERT INTO t9 VALUES (6);
+sync_slave_with_master;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 # 33 #
+--query_vertical SHOW SLAVE STATUS
+
+# Testing some tables extra field that can be null and cannot be null
+# (but have default values)
+
+connection master;
+INSERT INTO t7 VALUES (1),(2),(3);
+INSERT INTO t8 VALUES (1),(2),(3);
+SELECT * FROM t7;
+SELECT * FROM t8;
+sync_slave_with_master;
+SELECT * FROM t7;
+SELECT * FROM t8;
+
+# We will now try to update and then delete a row on the master where
+# the extra field on the slave does not have a default value. This
+# update should not generate an error even though there is no default
+# for the extra column. 
+
+--echo **** On Master ****
+connection master;
+TRUNCATE t1_nodef;
+SET SQL_LOG_BIN=0;
+INSERT INTO t1_nodef VALUES (1,2);
+INSERT INTO t1_nodef VALUES (2,4);
+SET SQL_LOG_BIN=1;
+--echo **** On Slave ****
+connection slave;
+INSERT INTO t1_nodef VALUES (1,2,3);
+INSERT INTO t1_nodef VALUES (2,4,6);
+--echo **** On Master ****
+connection master;
+UPDATE t1_nodef SET b=2*b WHERE a=1;
+SELECT * FROM t1_nodef;
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT * FROM t1_nodef;
+--echo **** On Master ****
+connection master;
+DELETE FROM t1_nodef WHERE a=2;
+SELECT * FROM t1_nodef;
+--echo **** On Slave ****
+sync_slave_with_master;
+SELECT * FROM t1_nodef;
+
+--echo **** Cleanup ****
+connection master;
 --disable_warnings
 DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
-DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t9;
+DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 sync_slave_with_master;

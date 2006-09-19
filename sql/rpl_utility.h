@@ -32,29 +32,95 @@ field_length_from_packed(enum_field_types const field_type,
 
   RESPONSIBILITIES
 
-  - Extract table definition data from the table map event
+  - Extract and decode table definition data from the table map event
   - Check if table definition in table map is compatible with table
     definition on slave
+
+  DESCRIPTION
+
+    Currently, the only field type data available is an array of the
+    type operators that are present in the table map event.
+
+  TODO
+
+    Add type operands to this structure to allow detection of
+    difference between, e.g., BIT(5) and BIT(10).
  */
 
 class table_def
 {
 public:
+  /*
+    Convenience declaration of the type of the field type data in a
+    table map event.
+  */
   typedef unsigned char field_type;
 
-  table_def(field_type *t, my_size_t s)
-    : m_type(t), m_size(s)
+  /*
+    Constructor.
+
+    SYNOPSIS
+      table_def()
+      types Array of types
+      size  Number of elements in array 'types'
+   */
+  table_def(field_type *types, my_size_t size)
+    : m_type(types), m_size(size)
   {
   }
 
+  /*
+    Return the number of fields there is type data for.
+
+    SYNOPSIS
+      size()
+
+    RETURN VALUE
+      The number of fields that there is type data for.
+   */
   my_size_t size() const { return m_size; }
+
+  /*
+    Return a representation of the type data for one field.
+
+    SYNOPSIS
+      type()
+      i   Field index to return data for
+
+    RETURN VALUE
+
+      Will return a representation of the type data for field
+      'i'. Currently, only the type identifier is returned.
+   */
   field_type type(my_ptrdiff_t i) const { return m_type[i]; }
 
+  /*
+    Decide if the table definition is compatible with a table.
+
+    SYNOPSIS
+      compatible_with()
+      rli   Pointer to relay log info
+      table Pointer to table to compare with.
+
+    DESCRIPTION
+
+      Compare the definition with a table to see if it is compatible
+      with it.  A table definition is compatible with a table if:
+
+      - the columns types of the table definition is a (not
+        necessarily proper) prefix of the column type of the table, or
+
+      - the other way around
+
+    RETURN VALUE
+      1  if the table definition is not compatible with 'table'
+      0  if the table definition is compatible with 'table'
+  */
   int compatible_with(RELAY_LOG_INFO *rli, TABLE *table) const;
 
 private:
-  my_size_t m_size;
-  field_type *m_type;
+  my_size_t m_size;           // Number of elements in the types array
+  field_type *m_type;                     // Array of type descriptors
 };
 
 #endif /* RPL_UTILITY_H */

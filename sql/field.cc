@@ -1261,7 +1261,10 @@ my_size_t
 Field::do_last_null_byte() const
 {
   DBUG_ASSERT(null_ptr == NULL || (byte*) null_ptr >= table->record[0]);
-  return null_ptr ? (byte*) null_ptr - table->record[0] + 1 : 0;
+  if (null_ptr)
+    return (byte*) null_ptr - table->record[0] + 1;
+  else
+    return LAST_NULL_BYTE_UNDEF;
 }
 
 
@@ -8122,7 +8125,10 @@ Field_bit::do_last_null_byte() const
   else
     result= bit_ptr;
 
-  return result ? (byte*) result - table->record[0] + 1 : 0;
+  if (result)
+    return (byte*) result - table->record[0] + 1;
+  else
+    return LAST_NULL_BYTE_UNDEF;
 }
 
 Field *Field_bit::new_key_field(MEM_ROOT *root,
