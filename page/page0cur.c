@@ -1160,6 +1160,7 @@ use_heap:
 			if (!page_zip_decompress(page_zip_orig, page)) {
 				ut_error; /* Memory corrupted? */
 			}
+			ut_ad(page_validate(page, index));
 			return(NULL);
 		}
 
