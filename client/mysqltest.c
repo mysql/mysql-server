@@ -1625,16 +1625,25 @@ int do_save_master_pos()
 
     if (have_ndbcluster)
     {
-      ulonglong epoch=0, tmp_epoch= 0;
+      ulonglong start_epoch= 0, applied_epoch= 0,
+	latest_epoch=0, latest_trans_epoch=0, 
+	latest_handled_binlog_epoch= 0, latest_received_binlog_epoch= 0,
+	latest_applied_binlog_epoch= 0;
       int count= 0;
       int do_continue= 1;
       while (do_continue)
       {
         const char binlog[]= "binlog";
-        const char latest_trans_epoch[]=
+	const char latest_epoch_str[]=
+          "latest_epoch=";
+        const char latest_trans_epoch_str[]=
           "latest_trans_epoch=";
-        const char latest_handled_binlog_epoch[]=
+	const char latest_received_binlog_epoch_str[]=
+	  "latest_received_binlog_epoch";
+        const char latest_handled_binlog_epoch_str[]=
           "latest_handled_binlog_epoch=";
+        const char latest_applied_binlog_epoch_str[]=
+          "latest_applied_binlog_epoch=";
         if (count)
           sleep(1);
         if (mysql_query(mysql, query= "show engine ndb status"))
@@ -1648,45 +1657,87 @@ int do_save_master_pos()
           if (strcmp(row[1], binlog) == 0)
           {
             const char *status= row[2];
-            /* latest_trans_epoch */
-            if (count == 0)
+
+	    // latest_epoch
+	    while (*status && strncmp(status, latest_epoch_str,
+				      sizeof(latest_epoch_str)-1))
+	      status++;
+	    if (*status)
             {
-              while (*status && strncmp(status, latest_trans_epoch,
-                                        sizeof(latest_trans_epoch)-1))
-                status++;
-              if (*status)
-              {
-                status+= sizeof(latest_trans_epoch)-1;
-                epoch= strtoull(status, (char**) 0, 10);
-              }
-              else
-                die("line %u: result does not contain '%s' in '%s'",
-                    start_lineno, latest_trans_epoch, query);
-            }
-            /* latest_applied_binlog_epoch */
-            while (*status && strncmp(status, latest_handled_binlog_epoch,
-                                      sizeof(latest_handled_binlog_epoch)-1))
-              status++;
-            if (*status)
-            {
-              status+= sizeof(latest_handled_binlog_epoch)-1;
-              tmp_epoch= strtoull(status, (char**) 0, 10);
-            }
-            else
-              die("line %u: result does not contain '%s' in '%s'",
-                  start_lineno, latest_handled_binlog_epoch, query);
-            break;
-          }
-        }
-        if (!row)
-          die("line %u: result does not contain '%s' in '%s'",
-              start_lineno, binlog, query);
-        count++;
-        if (tmp_epoch >= epoch)
+	      status+= sizeof(latest_epoch_str)-1;
+	      latest_epoch= strtoull(status, (char**) 0, 10);
+	    }
+	    else
+	      die("line %u: result does not contain '%s' in '%s'",
+		  start_lineno, latest_epoch_str, query);
+	    // latest_trans_epoch
+	    while (*status && strncmp(status, latest_trans_epoch_str,
+				      sizeof(latest_trans_epoch_str)-1))
+	      status++;
+	    if (*status)
+	    {
+	      status+= sizeof(latest_trans_epoch_str)-1;
+	      latest_trans_epoch= strtoull(status, (char**) 0, 10);
+	    }
+	    else
+	      die("line %u: result does not contain '%s' in '%s'",
+		  start_lineno, latest_trans_epoch_str, query);
+	    /* latest_received_binlog_epoch */
+	    while (*status && 
+		   strncmp(status, latest_received_binlog_epoch_str,
+			   sizeof(latest_received_binlog_epoch_str)-1))
+	      status++;
+	    if (*status)
+	    {
+	      status+= sizeof(latest_received_binlog_epoch_str)-1;
+	      latest_received_binlog_epoch= strtoull(status, (char**) 0, 10);
+	    }
+	    else
+	      die("line %u: result does not contain '%s' in '%s'",
+		  start_lineno, latest_received_binlog_epoch_str, query);
+	    /* latest_handled_binlog */
+	    while (*status && 
+		   strncmp(status, latest_handled_binlog_epoch_str,
+			   sizeof(latest_handled_binlog_epoch_str)-1))
+	      status++;
+	    if (*status)
+	    {
+	      status+= sizeof(latest_handled_binlog_epoch_str)-1;
+	      latest_handled_binlog_epoch= strtoull(status, (char**) 0, 10);
+	    }
+	    else
+	      die("line %u: result does not contain '%s' in '%s'",
+		  start_lineno, latest_handled_binlog_epoch_str, query);
+	    /* latest_applied_binlog_epoch */
+	    while (*status && 
+		   strncmp(status, latest_applied_binlog_epoch_str,
+			   sizeof(latest_applied_binlog_epoch_str)-1))
+	      status++;
+	    if (*status)
+	    {
+	      status+= sizeof(latest_applied_binlog_epoch_str)-1;
+	      latest_applied_binlog_epoch= strtoull(status, (char**) 0, 10);
+	    }
+	    else
+	      die("line %u: result does not contain '%s' in '%s'",
+		  start_lineno, latest_applied_binlog_epoch_str, query);
+	    if (count == 0)
+	      start_epoch= latest_trans_epoch;
+	    break;
+	  }
+	}
+	if (!row)
+	  die("line %u: result does not contain '%s' in '%s'",
+	      start_lineno, binlog, query);
+	if (latest_applied_binlog_epoch > applied_epoch)
+	  count= 0;
+	applied_epoch= latest_applied_binlog_epoch;
+	count++;
+	if (latest_handled_binlog_epoch >= start_epoch)
           do_continue= 0;
         else if (count > 30)
-        {
-          break;
+	{
+	  break;
         }
         mysql_free_result(res);
       }
