@@ -254,43 +254,43 @@ pars_resolve_func_data_type(
 		     == DATA_INT);
 	} else if (func == PARS_COUNT_TOKEN) {
 		ut_a(arg);
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
+		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 
 	} else if (func == PARS_TO_CHAR_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-			  DATA_ENGLISH, 0, 0);
+			  DATA_ENGLISH, 0);
 	} else if (func == PARS_TO_BINARY_TOKEN) {
 		if (dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT) {
 			dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-				  DATA_ENGLISH, 0, 0);
+				  DATA_ENGLISH, 0);
 		} else {
 			dtype_set(que_node_get_data_type(node), DATA_BINARY,
-				  0, 0, 0);
+				  0, 0);
 		}
 	} else if (func == PARS_TO_NUMBER_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
 		     == DATA_VARCHAR);
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
+		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 
 	} else if (func == PARS_BINARY_TO_NUMBER_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
 		     == DATA_VARCHAR);
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
+		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 
 	} else if (func == PARS_LENGTH_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
 		     == DATA_VARCHAR);
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
+		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 
 	} else if (func == PARS_INSTR_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
 		     == DATA_VARCHAR);
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
+		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 
 	} else if (func == PARS_SYSDATE_TOKEN) {
 		ut_a(arg == NULL);
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
+		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 
 	} else if ((func == PARS_SUBSTR_TOKEN)
 		   || (func == PARS_CONCAT_TOKEN)) {
@@ -298,7 +298,7 @@ pars_resolve_func_data_type(
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg))
 		     == DATA_VARCHAR);
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-			  DATA_ENGLISH, 0, 0);
+			  DATA_ENGLISH, 0);
 
 	} else if ((func == '>') || (func == '<') || (func == '=')
 		   || (func == PARS_GE_TOKEN)
@@ -310,18 +310,18 @@ pars_resolve_func_data_type(
 		   || (func == PARS_NOTFOUND_TOKEN)) {
 
 		/* We currently have no iboolean type: use integer type */
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
+		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 
 	} else if (func == PARS_RND_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
 
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4, 0);
+		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 
 	} else if (func == PARS_RND_STR_TOKEN) {
 		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
 
 		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-			  DATA_ENGLISH, 0, 0);
+			  DATA_ENGLISH, 0);
 	} else {
 		ut_error;
 	}
@@ -450,7 +450,6 @@ pars_resolve_exp_columns(
 	sym_node_t*	sym_node;
 	dict_table_t*	table;
 	sym_node_t*	t_node;
-	dict_col_t*	col;
 	ulint		n_cols;
 	ulint		i;
 
@@ -490,10 +489,13 @@ pars_resolve_exp_columns(
 		n_cols = dict_table_get_n_cols(table);
 
 		for (i = 0; i < n_cols; i++) {
-			col = dict_table_get_nth_col(table, i);
+			const dict_col_t*	col
+				= dict_table_get_nth_col(table, i);
+			const char*		col_name
+				= dict_table_get_col_name(table, i);
 
-			if ((sym_node->name_len == ut_strlen(col->name))
-			    && (0 == ut_memcmp(sym_node->name, col->name,
+			if ((sym_node->name_len == ut_strlen(col_name))
+			    && (0 == ut_memcmp(sym_node->name, col_name,
 					       sym_node->name_len))) {
 				/* Found */
 				sym_node->resolved = TRUE;
@@ -502,8 +504,10 @@ pars_resolve_exp_columns(
 				sym_node->col_no = i;
 				sym_node->prefetch_buf = NULL;
 
-				dfield_set_type(&(sym_node->common.val),
-						dict_col_get_type(col));
+				dict_col_copy_type(
+					col,
+					dfield_get_type(&sym_node
+							->common.val));
 
 				return;
 			}
@@ -592,7 +596,6 @@ pars_select_all_columns(
 	sym_node_t*	col_node;
 	sym_node_t*	table_node;
 	dict_table_t*	table;
-	dict_col_t*	col;
 	ulint		i;
 
 	select_node->select_list = NULL;
@@ -603,15 +606,15 @@ pars_select_all_columns(
 		table = table_node->table;
 
 		for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
-
-			col = dict_table_get_nth_col(table, i);
+			const char*	col_name = dict_table_get_col_name(
+				table, i);
 
 			col_node = sym_tab_add_id(pars_sym_tab_global,
-						  (byte*)col->name,
-						  ut_strlen(col->name));
-			select_node->select_list
-				= que_node_list_add_last
-				(select_node->select_list, col_node);
+						  (byte*)col_name,
+						  ut_strlen(col_name));
+
+			select_node->select_list = que_node_list_add_last(
+				select_node->select_list, col_node);
 		}
 
 		table_node = que_node_get_next(table_node);
@@ -888,10 +891,12 @@ pars_process_assign_list(
 		pars_resolve_exp_columns(table_sym, assign_node->val);
 		pars_resolve_exp_variables_and_types(NULL, assign_node->val);
 #if 0
-		ut_a(dtype_get_mtype
-		     (dfield_get_type(que_node_get_val(assign_node->col)))
-		     == dtype_get_mtype
-		     (dfield_get_type(que_node_get_val(assign_node->val))));
+		ut_a(dtype_get_mtype(
+			     dfield_get_type(que_node_get_val(
+						     assign_node->col)))
+		     == dtype_get_mtype(
+			     dfield_get_type(que_node_get_val(
+						     assign_node->val))));
 #endif
 
 		/* Add to the update node all the columns found in assignment
@@ -915,13 +920,14 @@ pars_process_assign_list(
 
 		col_sym = assign_node->col;
 
-		upd_field_set_field_no(upd_field, dict_index_get_nth_col_pos
-				       (clust_index, col_sym->col_no),
+		upd_field_set_field_no(upd_field, dict_index_get_nth_col_pos(
+					       clust_index, col_sym->col_no),
 				       clust_index, NULL);
 		upd_field->exp = assign_node->val;
 
-		if (!dtype_is_fixed_size(dict_index_get_nth_type
-					 (clust_index, upd_field->field_no))) {
+		if (!dict_col_get_fixed_size(
+			    dict_index_get_nth_col(clust_index,
+						   upd_field->field_no))) {
 			changes_field_size = 0;
 		}
 
@@ -1126,23 +1132,23 @@ pars_set_dfield_type(
 	if (type == &pars_int_token) {
 		ut_a(len == 0);
 
-		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 4, 0);
+		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 4);
 
 	} else if (type == &pars_char_token) {
 		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
-			  DATA_ENGLISH | flags, 0, 0);
+			  DATA_ENGLISH | flags, 0);
 	} else if (type == &pars_binary_token) {
 		ut_a(len != 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_FIXBINARY,
-			  DATA_BINARY_TYPE | flags, len, 0);
+			  DATA_BINARY_TYPE | flags, len);
 	} else if (type == &pars_blob_token) {
 		ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_BLOB,
-			  DATA_BINARY_TYPE | flags, 0, 0);
+			  DATA_BINARY_TYPE | flags, 0);
 	} else {
 		ut_error;
 	}
@@ -1599,7 +1605,8 @@ pars_create_table(
 	sym_node_t*	table_sym,	/* in: table name node in the symbol
 					table */
 	sym_node_t*	column_defs,	/* in: list of column names */
-	void*		not_fit_in_memory)/* in: a non-NULL pointer means that
+	void*		not_fit_in_memory __attribute__((unused)))
+					/* in: a non-NULL pointer means that
 					this is a table which in simulations
 					should be simulated as not fitting
 					in memory; thread is put to sleep
@@ -1623,18 +1630,18 @@ pars_create_table(
 	create tables in the old (not compact) record format. */
 	table = dict_mem_table_create(table_sym->name, 0, n_cols, 0);
 
+#ifdef UNIV_DEBUG
 	if (not_fit_in_memory != NULL) {
 		table->does_not_fit_in_memory = TRUE;
 	}
-
+#endif /* UNIV_DEBUG */
 	column = column_defs;
 
 	while (column) {
 		dtype = dfield_get_type(que_node_get_val(column));
 
 		dict_mem_table_add_col(table, column->name, dtype->mtype,
-				       dtype->prtype, dtype->len,
-				       dtype->prec);
+				       dtype->prtype, dtype->len);
 		column->resolved = TRUE;
 		column->token_type = SYM_COLUMN;
 
@@ -1859,8 +1866,8 @@ pars_sql(
 	pars_sym_tab_global = sym_tab_create(heap);
 
 	pars_sym_tab_global->string_len = strlen(str);
-	pars_sym_tab_global->sql_string = mem_heap_dup
-		(heap, str, pars_sym_tab_global->string_len + 1);
+	pars_sym_tab_global->sql_string = mem_heap_dup(
+		heap, str, pars_sym_tab_global->string_len + 1);
 	pars_sym_tab_global->next_char_pos = 0;
 	pars_sym_tab_global->info = info;
 
