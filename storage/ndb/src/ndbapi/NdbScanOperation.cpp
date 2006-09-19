@@ -525,6 +525,8 @@ int NdbScanOperation::nextResultImpl(bool fetchAllowed, bool forceSend)
         int ret_code= poll_guard.wait_scan(3*timeout, nodeId, forceSend);
 	if (ret_code == 0 && seq == tp->getNodeSequence(nodeId)) {
 	  continue;
+	} else if(return_code == -1){
+	  retVal = -1;
 	} else {
 	  idx = last;
 	  retVal = -2; //return_code;
@@ -1436,7 +1438,11 @@ NdbIndexScanOperation::next_result_ordered(bool fetchAllowed,
 	    continue;
 	  }
 	  if(DEBUG_NEXT_RESULT) ndbout_c("return -1");
-	  setErrorCode(4028);
+	  if(return_code == -1){
+	    setErrorCode(4008);
+	  } else {
+	    setErrorCode(4028);
+	  }
 	  return -1;
 	}
 	
