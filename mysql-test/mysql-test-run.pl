@@ -1720,14 +1720,15 @@ sub initialize_servers () {
 sub mysql_install_db () {
 
   # FIXME not exactly true I think, needs improvements
-  install_db('master', $master->[0]->{'path_myddir'});
-  install_db('master', $master->[1]->{'path_myddir'});
+  install_db('master1', $master->[0]->{'path_myddir'});
+
+  install_db('master2', $master->[1]->{'path_myddir'});
 
   if ( $use_slaves )
   {
-    install_db('slave',  $slave->[0]->{'path_myddir'});
-    install_db('slave',  $slave->[1]->{'path_myddir'});
-    install_db('slave',  $slave->[2]->{'path_myddir'});
+    install_db('slave1',  $slave->[0]->{'path_myddir'});
+    install_db('slave2',  $slave->[1]->{'path_myddir'});
+    install_db('slave3',  $slave->[2]->{'path_myddir'});
   }
 
   if ( ! $opt_skip_im )
@@ -1802,6 +1803,12 @@ sub install_db ($$) {
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
   mtr_add_arg($args, "--skip-bdb");
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/bootstrap_%s.trace",
+		$opt_vardir_trace, $type);
+  }
 
   if ( ! $opt_netware )
   {
@@ -2399,7 +2406,7 @@ sub do_before_start_slave ($$) {
 
 sub mysqld_arguments ($$$$$$) {
   my $args=              shift;
-  my $type=              shift;        # master/slave/bootstrap
+  my $type=              shift;        # master/slave
   my $idx=               shift;
   my $extra_opt=         shift;
   my $slave_master_info= shift;
@@ -2628,7 +2635,7 @@ sub mysqld_arguments ($$$$$$) {
 ##############################################################################
 
 sub mysqld_start ($$$$$) {
-  my $type=              shift;        # master/slave/bootstrap
+  my $type=              shift;        # master/slave
   my $idx=               shift;
   my $extra_opt=         shift;
   my $slave_master_info= shift;
@@ -2649,7 +2656,7 @@ sub mysqld_start ($$$$$) {
   }
   else
   {
-    $exe= $exe_mysqld;
+    mtr_error("Unknown 'type' passed to mysqld_start");
   }
 
   mtr_init_args(\$args);
