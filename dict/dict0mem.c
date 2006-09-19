@@ -66,6 +66,7 @@ dict_mem_table_create(
 
 	table->cols = mem_heap_alloc(heap, (n_cols + DATA_N_SYS_COLS)
 				     * sizeof(dict_col_t));
+	table->col_names = NULL;
 	UT_LIST_INIT(table->indexes);
 
 	table->auto_inc_lock = mem_heap_alloc(heap, lock_get_size());
@@ -107,7 +108,72 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	mutex_free(&(table->autoinc_mutex));
+
+	if (table->col_names && (table->n_def < table->n_cols)) {
+		ut_free((void*)table->col_names);
+	}
+
 	mem_heap_free(table->heap);
+}
+
+/********************************************************************
+Add 'name' to end of the col_names array (see dict_table_t::col_names). Call
+ut_free on col_names (if not NULL), allocate new array (if heap, from it,
+otherwise with ut_malloc), and copy col_names + name to it. */
+static
+const char*
+dict_add_col_name(
+/*==============*/
+					/* out: new column names array */
+	const char*	col_names,	/* in: existing column names, or
+					NULL */
+	ulint		cols,		/* in: number of existing columns */
+	const char*	name,		/* in: new column name */
+	mem_heap_t*	heap)		/* in: heap, or NULL */
+{
+	ulint		i;
+	ulint		old_len;
+	ulint		new_len;
+	ulint		total_len;
+	const char*	s;
+	char*		res;
+
+	ut_a(((cols == 0) && !col_names) || ((cols > 0) && col_names));
+	ut_a(*name);
+
+	/* Find out length of existing array. */
+	if (col_names) {
+		s = col_names;
+
+		for (i = 0; i < cols; i++) {
+			s += strlen(s) + 1;
+		}
+
+		old_len = s - col_names;
+	} else {
+		old_len = 0;
+	}
+
+	new_len = strlen(name) + 1;
+	total_len = old_len + new_len;
+
+	if (heap) {
+		res = mem_heap_alloc(heap, total_len);
+	} else {
+		res = ut_malloc(total_len);
+	}
+
+	if (old_len > 0) {
+		memcpy(res, col_names, old_len);
+	}
+
+	memcpy(res + old_len, name, new_len);
+
+	if (col_names) {
+		ut_free((char*)col_names);
+	}
+
+	return(res);
 }
 
 /**************************************************************************
@@ -125,16 +191,21 @@ dict_mem_table_add_col(
 	dict_col_t*	col;
 	ulint		mbminlen;
 	ulint		mbmaxlen;
+	mem_heap_t*	heap;
 
 	ut_ad(table && name);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	table->n_def++;
 
+	heap = table->n_def < table->n_cols ? NULL : table->heap;
+	table->col_names = dict_add_col_name(table->col_names,
+					     table->n_def - 1,
+					     name, heap);
+
 	col = (dict_col_t*) dict_table_get_nth_col(table, table->n_def - 1);
 
 	col->ind = table->n_def - 1;
-	col->name = mem_heap_strdup(table->heap, name);
 	col->ord_part = 0;
 
 	col->mtype = mtype;
