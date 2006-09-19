@@ -911,7 +911,7 @@ sub command_line_setup () {
   if ( ! $opt_suite_timeout )
   {
     $opt_suite_timeout= $default_suite_timeout;
-    $opt_suite_timeout*= 4 if defined $opt_valgrind;
+    $opt_suite_timeout*= 6 if defined $opt_valgrind;
   }
 
   # Increase times to wait for executables to start if using valgrind
