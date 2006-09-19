@@ -123,10 +123,10 @@ row_purge_remove_clust_if_poss_low(
 
 	rec = btr_pcur_get_rec(pcur);
 
-	if (0 != ut_dulint_cmp(node->roll_ptr, row_get_rec_roll_ptr
-			       (rec, index, rec_get_offsets
-				(rec, index, offsets_,
-				 ULINT_UNDEFINED, &heap)))) {
+	if (0 != ut_dulint_cmp(node->roll_ptr, row_get_rec_roll_ptr(
+				       rec, index, rec_get_offsets(
+					       rec, index, offsets_,
+					       ULINT_UNDEFINED, &heap)))) {
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -248,9 +248,9 @@ row_purge_remove_sec_if_poss_low(
 	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, mtr_vers);
 
 	if (success) {
-		old_has = row_vers_old_has_index_entry
-			(TRUE, btr_pcur_get_rec(&(node->pcur)),
-			 mtr_vers, index, entry);
+		old_has = row_vers_old_has_index_entry(
+			TRUE, btr_pcur_get_rec(&(node->pcur)),
+			mtr_vers, index, entry);
 	}
 
 	btr_pcur_commit_specify_mtr(&(node->pcur), mtr_vers);
@@ -618,8 +618,8 @@ row_purge(
 	if (purge_needed) {
 		node->found_clust = FALSE;
 
-		node->index = dict_table_get_next_index
-			(dict_table_get_first_index(node->table));
+		node->index = dict_table_get_next_index(
+			dict_table_get_first_index(node->table));
 
 		if (node->rec_type == TRX_UNDO_DEL_MARK_REC) {
 			row_purge_del_mark(node);

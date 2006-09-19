@@ -3483,9 +3483,9 @@ try_again:
 #endif
 		} else {
 			if (!wake_later) {
-				os_aio_simulated_wake_handler_thread
-					(os_aio_get_segment_no_from_slot
-					 (array, slot));
+				os_aio_simulated_wake_handler_thread(
+					os_aio_get_segment_no_from_slot(
+						array, slot));
 			}
 		}
 	} else if (type == OS_FILE_WRITE) {
@@ -3501,9 +3501,9 @@ try_again:
 #endif
 		} else {
 			if (!wake_later) {
-				os_aio_simulated_wake_handler_thread
-					(os_aio_get_segment_no_from_slot
-					 (array, slot));
+				os_aio_simulated_wake_handler_thread(
+					os_aio_get_segment_no_from_slot(
+						array, slot));
 			}
 		}
 	} else {

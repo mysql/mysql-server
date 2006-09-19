@@ -133,13 +133,13 @@ btr_pcur_store_position(
 	}
 
 	cursor->old_stored = BTR_PCUR_OLD_STORED;
-	cursor->old_rec = dict_index_copy_rec_order_prefix
-		(index, rec, &cursor->old_n_fields,
-		 &cursor->old_rec_buf, &cursor->buf_size);
+	cursor->old_rec = dict_index_copy_rec_order_prefix(
+		index, rec, &cursor->old_n_fields,
+		&cursor->old_rec_buf, &cursor->buf_size);
 
 	cursor->block_when_stored = buf_block_align(page);
-	cursor->modify_clock = buf_block_get_modify_clock
-		(cursor->block_when_stored);
+	cursor->modify_clock = buf_block_get_modify_clock(
+		cursor->block_when_stored);
 }
 
 /******************************************************************
@@ -217,16 +217,16 @@ btr_pcur_restore_position(
 		ut_error;
 	}
 
-	if (UNIV_UNLIKELY
-	    (cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
-	     || cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE)) {
+	if (UNIV_UNLIKELY(
+		    cursor->rel_pos == BTR_PCUR_AFTER_LAST_IN_TREE
+		    || cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE)) {
 
 		/* In these cases we do not try an optimistic restoration,
 		but always do a search */
 
-		btr_cur_open_at_index_side
-			(cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE,
-			 index, latch_mode, btr_pcur_get_btr_cur(cursor), mtr);
+		btr_cur_open_at_index_side(
+			cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE,
+			index, latch_mode, btr_pcur_get_btr_cur(cursor), mtr);
 
 		cursor->block_when_stored
 			= buf_block_align(btr_pcur_get_page(cursor));
@@ -243,10 +243,10 @@ btr_pcur_restore_position(
 	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
 		/* Try optimistic restoration */
 
-		if (UNIV_LIKELY
-		    (buf_page_optimistic_get(latch_mode,
-					     cursor->block_when_stored, page,
-					     cursor->modify_clock, mtr))) {
+		if (UNIV_LIKELY(buf_page_optimistic_get(
+					latch_mode,
+					cursor->block_when_stored, page,
+					cursor->modify_clock, mtr))) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 #ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(page, SYNC_TREE_NODE);
@@ -262,12 +262,12 @@ btr_pcur_restore_position(
 				rec = btr_pcur_get_rec(cursor);
 
 				heap = mem_heap_create(256);
-				offsets1 = rec_get_offsets
-					(cursor->old_rec, index, NULL,
-					 cursor->old_n_fields, &heap);
-				offsets2 = rec_get_offsets
-					(rec, index, NULL,
-					 cursor->old_n_fields, &heap);
+				offsets1 = rec_get_offsets(
+					cursor->old_rec, index, NULL,
+					cursor->old_n_fields, &heap);
+				offsets2 = rec_get_offsets(
+					rec, index, NULL,
+					cursor->old_n_fields, &heap);
 
 				ut_ad(!cmp_rec_rec(cursor->old_rec,
 						   rec, offsets1, offsets2,
@@ -309,18 +309,18 @@ btr_pcur_restore_position(
 	if (cursor->rel_pos == BTR_PCUR_ON
 	    && btr_pcur_is_on_user_rec(cursor, mtr)
 	    && 0 == cmp_dtuple_rec(tuple, btr_pcur_get_rec(cursor),
-				   rec_get_offsets
-				   (btr_pcur_get_rec(cursor), index,
-				    NULL, ULINT_UNDEFINED, &heap))) {
+				   rec_get_offsets(
+					   btr_pcur_get_rec(cursor), index,
+					   NULL, ULINT_UNDEFINED, &heap))) {
 
 		/* We have to store the NEW value for the modify clock, since
 		the cursor can now be on a different page! But we can retain
 		the value of old_rec */
 
-		cursor->block_when_stored = buf_block_align
-			(btr_pcur_get_page(cursor));
-		cursor->modify_clock = buf_block_get_modify_clock
-			(cursor->block_when_stored);
+		cursor->block_when_stored = buf_block_align(
+			btr_pcur_get_page(cursor));
+		cursor->modify_clock = buf_block_get_modify_clock(
+			cursor->block_when_stored);
 		cursor->old_stored = BTR_PCUR_OLD_STORED;
 
 		mem_heap_free(heap);

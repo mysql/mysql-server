@@ -541,12 +541,12 @@ mlog_parse_index(
 			/* The high-order bit of len is the NOT NULL flag;
 			the rest is 0 or 0x7fff for variable-length fields,
 			and 1..0x7ffe for fixed-length fields. */
-			dict_mem_table_add_col
-				(table, "DUMMY",
-				 ((len + 1) & 0x7fff) <= 1
-				 ? DATA_BINARY : DATA_FIXBINARY,
-				 len & 0x8000 ? DATA_NOT_NULL : 0,
-				 len & 0x7fff);
+			dict_mem_table_add_col(
+				table, "DUMMY",
+				((len + 1) & 0x7fff) <= 1
+				? DATA_BINARY : DATA_FIXBINARY,
+				len & 0x8000 ? DATA_NOT_NULL : 0,
+				len & 0x7fff);
 
 			dict_index_add_col(ind, table, (dict_col_t*)
 					   dict_table_get_nth_col(table, i),

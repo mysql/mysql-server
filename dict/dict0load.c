@@ -409,16 +409,16 @@ dict_load_columns(
 				/* Use the binary collation for
 				string columns of binary type. */
 
-				prtype = dtype_form_prtype
-					(prtype,
-					 DATA_MYSQL_BINARY_CHARSET_COLL);
+				prtype = dtype_form_prtype(
+					prtype,
+					DATA_MYSQL_BINARY_CHARSET_COLL);
 			} else {
 				/* Use the default charset for
 				other than binary columns. */
 
-				prtype = dtype_form_prtype
-					(prtype,
-					 data_mysql_default_charset_coll);
+				prtype = dtype_form_prtype(
+					prtype,
+					data_mysql_default_charset_coll);
 			}
 		}
 
@@ -542,8 +542,9 @@ dict_load_fields(
 
 		field = rec_get_nth_field_old(rec, 4, &len);
 
-		dict_mem_index_add_field(index, mem_heap_strdupl
-					 (heap, (char*) field, len),
+		dict_mem_index_add_field(index,
+					 mem_heap_strdupl(heap,
+							  (char*) field, len),
 					 prefix_len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
@@ -931,8 +932,8 @@ dict_load_table_on_id(
 	/*---------------------------------------------------*/
 	/* Get the secondary index based on ID for table SYS_TABLES */
 	sys_tables = dict_sys->sys_tables;
-	sys_table_ids = dict_table_get_next_index
-		(dict_table_get_first_index(sys_tables));
+	sys_table_ids = dict_table_get_next_index(
+		dict_table_get_first_index(sys_tables));
 	ut_a(!dict_table_is_comp(sys_tables));
 	heap = mem_heap_create(256);
 
@@ -1038,11 +1039,11 @@ dict_load_foreign_cols(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	foreign->foreign_col_names = mem_heap_alloc
-		(foreign->heap, foreign->n_fields * sizeof(void*));
+	foreign->foreign_col_names = mem_heap_alloc(
+		foreign->heap, foreign->n_fields * sizeof(void*));
 
-	foreign->referenced_col_names = mem_heap_alloc
-		(foreign->heap, foreign->n_fields * sizeof(void*));
+	foreign->referenced_col_names = mem_heap_alloc(
+		foreign->heap, foreign->n_fields * sizeof(void*));
 	mtr_start(&mtr);
 
 	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
@@ -1073,12 +1074,12 @@ dict_load_foreign_cols(
 		ut_a(i == mach_read_from_4(field));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
-		foreign->foreign_col_names[i] = mem_heap_strdupl
-			(foreign->heap, (char*) field, len);
+		foreign->foreign_col_names[i] = mem_heap_strdupl(
+			foreign->heap, (char*) field, len);
 
 		field = rec_get_nth_field_old(rec, 5, &len);
-		foreign->referenced_col_names[i] = mem_heap_strdupl
-			(foreign->heap, (char*) field, len);
+		foreign->referenced_col_names[i] = mem_heap_strdupl(
+			foreign->heap, (char*) field, len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
@@ -1171,8 +1172,8 @@ dict_load_foreign(
 
 	foreign = dict_mem_foreign_create();
 
-	foreign->n_fields = mach_read_from_4
-		(rec_get_nth_field_old(rec, 5, &len));
+	foreign->n_fields = mach_read_from_4(
+		rec_get_nth_field_old(rec, 5, &len));
 
 	ut_a(len == 4);
 
@@ -1184,12 +1185,12 @@ dict_load_foreign(
 	foreign->id = mem_heap_strdup(foreign->heap, id);
 
 	field = rec_get_nth_field_old(rec, 3, &len);
-	foreign->foreign_table_name = mem_heap_strdupl
-		(foreign->heap, (char*) field, len);
+	foreign->foreign_table_name = mem_heap_strdupl(
+		foreign->heap, (char*) field, len);
 
 	field = rec_get_nth_field_old(rec, 4, &len);
-	foreign->referenced_table_name = mem_heap_strdupl
-		(foreign->heap, (char*) field, len);
+	foreign->referenced_table_name = mem_heap_strdupl(
+		foreign->heap, (char*) field, len);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1263,8 +1264,8 @@ dict_load_foreigns(
 	/* Get the secondary index based on FOR_NAME from table
 	SYS_FOREIGN */
 
-	sec_index = dict_table_get_next_index
-		(dict_table_get_first_index(sys_foreign));
+	sec_index = dict_table_get_next_index(
+		dict_table_get_first_index(sys_foreign));
 start_load:
 	heap = mem_heap_create(256);
 

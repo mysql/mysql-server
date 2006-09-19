@@ -768,8 +768,8 @@ rec_convert_dtuple_to_rec_old(
 			len = dfield_get_len(field);
 
 			if (len == UNIV_SQL_NULL) {
-				len = dtype_get_sql_null_size
-					(dfield_get_type(field));
+				len = dtype_get_sql_null_size(
+					dfield_get_type(field));
 				data_write_sql_null(rec + end_offset, len);
 
 				end_offset += len;
@@ -796,8 +796,8 @@ rec_convert_dtuple_to_rec_old(
 			len = dfield_get_len(field);
 
 			if (len == UNIV_SQL_NULL) {
-				len = dtype_get_sql_null_size
-					(dfield_get_type(field));
+				len = dtype_get_sql_null_size(
+					dfield_get_type(field));
 				data_write_sql_null(rec + end_offset, len);
 
 				end_offset += len;
@@ -1058,8 +1058,8 @@ rec_copy_prefix_to_dtuple(
 	ut_ad(rec_validate(rec, offsets));
 	ut_ad(dtuple_check_typed(tuple));
 
-	dtuple_set_info_bits(tuple, rec_get_info_bits
-			     (rec, dict_table_is_comp(index->table)));
+	dtuple_set_info_bits(tuple, rec_get_info_bits(
+				     rec, dict_table_is_comp(index->table)));
 
 	for (i = 0; i < n_fields; i++) {
 
@@ -1147,10 +1147,10 @@ rec_copy_prefix_to_buf(
 
 	if (!dict_table_is_comp(index->table)) {
 		ut_ad(rec_validate_old(rec));
-		return(rec_copy_prefix_to_buf_old
-		       (rec, n_fields,
-			rec_get_field_start_offs(rec, n_fields),
-			buf, buf_size));
+		return(rec_copy_prefix_to_buf_old(
+			       rec, n_fields,
+			       rec_get_field_start_offs(rec, n_fields),
+			       buf, buf_size));
 	}
 
 	status = rec_get_status(rec);

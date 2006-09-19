@@ -615,8 +615,8 @@ btr_search_check_guess(
 		prev_rec = page_rec_get_prev(rec);
 
 		if (page_rec_is_infimum(prev_rec)) {
-			success = btr_page_get_prev
-				(buf_frame_align(prev_rec), mtr) == FIL_NULL;
+			success = btr_page_get_prev(
+				buf_frame_align(prev_rec), mtr) == FIL_NULL;
 
 			goto exit_func;
 		}
@@ -640,8 +640,9 @@ btr_search_check_guess(
 		next_rec = page_rec_get_next(rec);
 
 		if (page_rec_is_supremum(next_rec)) {
-			if (btr_page_get_next
-			    (buf_frame_align(next_rec), mtr) == FIL_NULL) {
+			if (btr_page_get_next(
+				    buf_frame_align(next_rec), mtr)
+			    == FIL_NULL) {
 
 				cursor->up_match = 0;
 				success = TRUE;
@@ -760,10 +761,11 @@ btr_search_guess_on_hash(
 
 	if (UNIV_LIKELY(!has_search_latch)) {
 
-		if (UNIV_UNLIKELY
-		    (!buf_page_get_known_nowait(latch_mode, page,
-						BUF_MAKE_YOUNG,
-						__FILE__, __LINE__, mtr))) {
+		if (UNIV_UNLIKELY(
+			    !buf_page_get_known_nowait(latch_mode, page,
+						       BUF_MAKE_YOUNG,
+						       __FILE__, __LINE__,
+						       mtr))) {
 			goto failure_unlock;
 		}
 
@@ -798,8 +800,8 @@ btr_search_guess_on_hash(
 	is positioned on. We cannot look at the next of the previous
 	record to determine if our guess for the cursor position is
 	right. */
-	if (UNIV_EXPECT
-	    (ut_dulint_cmp(index_id, btr_page_get_index_id(page)), 0)
+	if (UNIV_EXPECT(
+		    ut_dulint_cmp(index_id, btr_page_get_index_id(page)), 0)
 	    || !btr_search_check_guess(cursor,
 				       can_only_compare_to_cursor_rec,
 				       tuple, mode, mtr)) {
@@ -1654,17 +1656,17 @@ btr_search_validate(void)
 					" node fold %lu, rec fold %lu\n",
 					(ulong) buf_frame_get_page_no(page),
 					node->data,
-					(ulong) ut_dulint_get_high
-					(btr_page_get_index_id(page)),
-					(ulong) ut_dulint_get_low
-					(btr_page_get_index_id(page)),
+					(ulong) ut_dulint_get_high(
+						btr_page_get_index_id(page)),
+					(ulong) ut_dulint_get_low(
+						btr_page_get_index_id(page)),
 					(ulong) node->fold,
 					(ulong) rec_fold((rec_t*)(node->data),
 							 offsets,
 							 block->curr_n_fields,
 							 block->curr_n_bytes,
-							 btr_page_get_index_id
-							 (page)));
+							 btr_page_get_index_id(
+								 page)));
 
 				fputs("InnoDB: Record ", stderr);
 				rec_print_new(stderr, (rec_t*)node->data,

@@ -126,8 +126,8 @@ row_build_index_entry(
 	if (index->type & DICT_UNIVERSAL) {
 		dtuple_set_n_fields_cmp(entry, entry_len);
 	} else {
-		dtuple_set_n_fields_cmp
-			(entry, dict_index_get_n_unique_in_tree(index));
+		dtuple_set_n_fields_cmp(
+			entry, dict_index_get_n_unique_in_tree(index));
 	}
 
 	for (i = 0; i < entry_len; i++) {
@@ -227,8 +227,8 @@ row_build(
 
 	row = dtuple_create(heap, row_len);
 
-	dtuple_set_info_bits(row, rec_get_info_bits
-			     (rec, dict_table_is_comp(table)));
+	dtuple_set_info_bits(row, rec_get_info_bits(
+				     rec, dict_table_is_comp(table)));
 
 	n_fields = rec_offs_n_fields(offsets);
 
@@ -418,8 +418,8 @@ row_build_row_ref(
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len = dict_index_get_nth_field
-			(clust_index, i)->prefix_len;
+		clust_col_prefix_len = dict_index_get_nth_field(
+			clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {
@@ -520,8 +520,8 @@ notfound:
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len = dict_index_get_nth_field
-			(clust_index, i)->prefix_len;
+		clust_col_prefix_len = dict_index_get_nth_field(
+			clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {

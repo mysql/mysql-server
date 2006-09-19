@@ -259,10 +259,10 @@ cmp_whole_field(
 		/* fall through */
 	case DATA_VARMYSQL:
 	case DATA_MYSQL:
-		return(innobase_mysql_cmp
-		       ((int)(prtype & DATA_MYSQL_TYPE_MASK),
-			(uint)dtype_get_charset_coll(prtype),
-			a, a_length, b, b_length));
+		return(innobase_mysql_cmp(
+			       (int)(prtype & DATA_MYSQL_TYPE_MASK),
+			       (uint)dtype_get_charset_coll(prtype),
+			       a, a_length, b, b_length));
 	default:
 		fprintf(stderr,
 			"InnoDB: unknown type number %lu\n",
@@ -696,8 +696,8 @@ cmp_dtuple_is_prefix_of_rec(
 	}
 
 	if (matched_fields == n_fields - 1
-	    && matched_bytes == dfield_get_len
-	    (dtuple_get_nth_field(dtuple, n_fields - 1))) {
+	    && matched_bytes == dfield_get_len(
+		    dtuple_get_nth_field(dtuple, n_fields - 1))) {
 		return(TRUE);
 	}
 
