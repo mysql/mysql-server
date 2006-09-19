@@ -1658,7 +1658,7 @@ int do_save_master_pos()
           {
             const char *status= row[2];
 
-	    // latest_epoch
+	    /* latest_epoch */
 	    while (*status && strncmp(status, latest_epoch_str,
 				      sizeof(latest_epoch_str)-1))
 	      status++;
@@ -1670,7 +1670,7 @@ int do_save_master_pos()
 	    else
 	      die("line %u: result does not contain '%s' in '%s'",
 		  start_lineno, latest_epoch_str, query);
-	    // latest_trans_epoch
+	    /* latest_trans_epoch */
 	    while (*status && strncmp(status, latest_trans_epoch_str,
 				      sizeof(latest_trans_epoch_str)-1))
 	      status++;
