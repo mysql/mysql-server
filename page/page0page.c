@@ -620,6 +620,7 @@ page_copy_rec_list_end(
 							  new_page))) {
 					ut_error;
 				}
+				ut_ad(page_validate(new_page, index));
 				return(NULL);
 			} else {
 				/* The page was reorganized:
@@ -729,7 +730,7 @@ page_copy_rec_list_start(
 							  new_page))) {
 					ut_error;
 				}
-
+				ut_ad(page_validate(new_page, index));
 				return(NULL);
 			} else {
 				/* The page was reorganized:
