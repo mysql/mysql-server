@@ -911,7 +911,7 @@ sub command_line_setup () {
   if ( ! $opt_suite_timeout )
   {
     $opt_suite_timeout= $default_suite_timeout;
-    $opt_suite_timeout*= 4 if defined $opt_valgrind;
+    $opt_suite_timeout*= 6 if defined $opt_valgrind;
   }
 
   # Increase times to wait for executables to start if using valgrind
@@ -943,6 +943,7 @@ sub command_line_setup () {
 
   $master->[0]=
   {
+   pid           => 0,
    type          => "master",
    idx           => 0,
    path_myddir   => "$opt_vardir/master-data",
@@ -958,6 +959,7 @@ sub command_line_setup () {
 
   $master->[1]=
   {
+   pid           => 0,
    type          => "master",
    idx           => 1,
    path_myddir   => "$opt_vardir/master1-data",
@@ -973,6 +975,7 @@ sub command_line_setup () {
 
   $slave->[0]=
   {
+   pid           => 0,
    type          => "slave",
    idx           => 0,
    path_myddir   => "$opt_vardir/slave-data",
@@ -989,6 +992,7 @@ sub command_line_setup () {
 
   $slave->[1]=
   {
+   pid           => 0,
    type          => "slave",
    idx           => 1,
    path_myddir   => "$opt_vardir/slave1-data",
@@ -1004,6 +1008,7 @@ sub command_line_setup () {
 
   $slave->[2]=
   {
+   pid           => 0,
    type          => "slave",
    idx           => 2,
    path_myddir   => "$opt_vardir/slave2-data",
@@ -1172,9 +1177,9 @@ sub executable_setup () {
                                            "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-max",
+                                           "$path_client_bindir/mysqld-debug",
                                            "$glob_basedir/sql/release/mysqld",
                                            "$glob_basedir/sql/debug/mysqld");
-                                           "$path_client_bindir/mysqld-debug",
       $path_language=      mtr_path_exists("$glob_basedir/share/english/",
                                            "$glob_basedir/sql/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets",
@@ -1661,7 +1666,7 @@ sub kill_running_server () {
   {
     # Ensure that no old mysqld test servers are running
     # This is different from terminating processes we have
-    # started from ths run of the script, this is terminating
+    # started from this run of the script, this is terminating
     # leftovers from previous runs.
 
     mtr_report("Killing Possible Leftover Processes");
@@ -2255,9 +2260,9 @@ sub mysql_install_db () {
 
   if ( $use_slaves )
   {
-    install_db('slave',  $slave->[0]->{'path_myddir'});
-    install_db('slave',  $slave->[1]->{'path_myddir'});
-    install_db('slave',  $slave->[2]->{'path_myddir'});
+    install_db('slave1',  $slave->[0]->{'path_myddir'});
+    install_db('slave2',  $slave->[1]->{'path_myddir'});
+    install_db('slave3',  $slave->[2]->{'path_myddir'});
   }
 
   if ( ! $opt_skip_im )
@@ -2367,6 +2372,12 @@ sub install_db ($$) {
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/bootstrap_%s.trace",
+		$opt_vardir_trace, $type);
+  }
 
   if ( ! $opt_netware )
   {
@@ -3115,7 +3126,7 @@ sub mysqld_start ($$$) {
   }
   else
   {
-    $exe= $exe_mysqld;
+    mtr_error("Unknown 'type' passed to mysqld_start");
   }
 
   mtr_init_args(\$args);
@@ -3415,7 +3426,6 @@ sub run_testcase_stop_servers($$$) {
   my $pid;
   my %admin_pids; # hash of admin processes that requests shutdown
   my @kill_pids;  # list of processes to shutdown/kill
-
 
   # Remember if we restarted for this test case
   $tinfo->{'restarted'}= $do_restart;
