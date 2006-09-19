@@ -77,6 +77,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
   my_string record;
   const char **int_array;
   bool	 use_hash, null_field_first;
+  bool   error_reported= FALSE;
   File	 file;
   Field  **field_ptr,*reg_field;
   KEY	 *keyinfo;
@@ -791,6 +792,11 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	error= 1;
 	my_errno= ENOENT;
       }
+      else
+      {
+        outparam->file->print_error(err, MYF(0));
+        error_reported= TRUE;
+      }
       goto err_not_open; /* purecov: inspected */
     }
   }
@@ -812,7 +818,8 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
  err_end:					/* Here when no file */
   delete crypted;
   *root_ptr= old_root;
-  frm_error(error, outparam, name, ME_ERROR + ME_WAITTANG, errarg);
+  if (!error_reported)
+    frm_error(error, outparam, name, ME_ERROR + ME_WAITTANG, errarg);
   delete outparam->file;
   outparam->file=0;				// For easyer errorchecking
   outparam->db_stat=0;
