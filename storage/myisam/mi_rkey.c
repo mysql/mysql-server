@@ -133,7 +133,6 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
       }
     }
   }
-
   if (share->concurrent_insert)
     rw_unlock(&share->key_root_lock[inx]);
 
