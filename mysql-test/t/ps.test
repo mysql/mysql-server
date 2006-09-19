@@ -259,8 +259,8 @@ set names utf8;
 prepare `ü` from 'select 1234';
 execute `ü` ;
 set names latin1;
-execute `ü`;
-deallocate prepare `ü`;
+execute `�`;
+deallocate prepare `�`;
 set names default;
 
 
@@ -563,58 +563,6 @@ set @a=200887, @b=860;
 # this query did not return all matching rows
 execute stmt using @a, @b;
 deallocate prepare stmt;
-#
-# BUG#22085: Crash on the execution of a prepared statement that
-#            uses an IN subquery with aggregate functions in HAVING 
-#
-
-CREATE TABLE t1(
-  ID int(10) unsigned NOT NULL auto_increment,
-  Member_ID varchar(15) NOT NULL default '',
-  Action varchar(12) NOT NULL,
-  Action_Date datetime NOT NULL,
-  Track varchar(15) default NULL,
-  User varchar(12) default NULL,
-  Date_Updated timestamp NOT NULL default CURRENT_TIMESTAMP on update
-    CURRENT_TIMESTAMP,
-  PRIMARY KEY (ID),
-  KEY Action (Action),
-  KEY Action_Date (Action_Date)
-);
-
-INSERT INTO t1(Member_ID, Action, Action_Date, Track) VALUES
-  ('111111', 'Disenrolled', '2006-03-01', 'CAD' ),
-  ('111111', 'Enrolled', '2006-03-01', 'CAD' ),
-  ('111111', 'Disenrolled', '2006-07-03', 'CAD' ),
-  ('222222', 'Enrolled', '2006-03-07', 'CAD' ),
-  ('222222', 'Enrolled', '2006-03-07', 'CHF' ),
-  ('222222', 'Disenrolled', '2006-08-02', 'CHF' ),
-  ('333333', 'Enrolled', '2006-03-01', 'CAD' ),
-  ('333333', 'Disenrolled', '2006-03-01', 'CAD' ),
-  ('444444', 'Enrolled', '2006-03-01', 'CAD' ),
-  ('555555', 'Disenrolled', '2006-03-01', 'CAD' ),
-  ('555555', 'Enrolled', '2006-07-21', 'CAD' ),
-  ('555555', 'Disenrolled', '2006-03-01', 'CHF' ),
-  ('666666', 'Enrolled', '2006-02-09', 'CAD' ),
-  ('666666', 'Enrolled', '2006-05-12', 'CHF' ),
-  ('666666', 'Disenrolled', '2006-06-01', 'CAD' );
-
-PREPARE STMT FROM
-"SELECT GROUP_CONCAT(Track SEPARATOR ', ') FROM t1
-  WHERE Member_ID=? AND Action='Enrolled' AND
-        (Track,Action_Date) IN (SELECT Track, MAX(Action_Date) FROM t1
-                                  WHERE Member_ID=?
-                                    GROUP BY Track 
-                                      HAVING Track>='CAD' AND
-                                             MAX(Action_Date)>'2006-03-01')";
-SET @id='111111';
-EXECUTE STMT USING @id,@id;
-SET @id='222222';
-EXECUTE STMT USING @id,@id;
-
-DEALLOCATE PREPARE STMT;
-DROP TABLE t1;
-
 
 drop table t1;
 
@@ -1039,6 +987,58 @@ create temporary table if not exists t1 (a1 int);
 execute stmt;
 drop temporary table t1;
 deallocate prepare stmt;
+
+#
+# BUG#22085: Crash on the execution of a prepared statement that
+#            uses an IN subquery with aggregate functions in HAVING 
+#
+
+CREATE TABLE t1(
+  ID int(10) unsigned NOT NULL auto_increment,
+  Member_ID varchar(15) NOT NULL default '',
+  Action varchar(12) NOT NULL,
+  Action_Date datetime NOT NULL,
+  Track varchar(15) default NULL,
+  User varchar(12) default NULL,
+  Date_Updated timestamp NOT NULL default CURRENT_TIMESTAMP on update
+    CURRENT_TIMESTAMP,
+  PRIMARY KEY (ID),
+  KEY Action (Action),
+  KEY Action_Date (Action_Date)
+);
+
+INSERT INTO t1(Member_ID, Action, Action_Date, Track) VALUES
+  ('111111', 'Disenrolled', '2006-03-01', 'CAD' ),
+  ('111111', 'Enrolled', '2006-03-01', 'CAD' ),
+  ('111111', 'Disenrolled', '2006-07-03', 'CAD' ),
+  ('222222', 'Enrolled', '2006-03-07', 'CAD' ),
+  ('222222', 'Enrolled', '2006-03-07', 'CHF' ),
+  ('222222', 'Disenrolled', '2006-08-02', 'CHF' ),
+  ('333333', 'Enrolled', '2006-03-01', 'CAD' ),
+  ('333333', 'Disenrolled', '2006-03-01', 'CAD' ),
+  ('444444', 'Enrolled', '2006-03-01', 'CAD' ),
+  ('555555', 'Disenrolled', '2006-03-01', 'CAD' ),
+  ('555555', 'Enrolled', '2006-07-21', 'CAD' ),
+  ('555555', 'Disenrolled', '2006-03-01', 'CHF' ),
+  ('666666', 'Enrolled', '2006-02-09', 'CAD' ),
+  ('666666', 'Enrolled', '2006-05-12', 'CHF' ),
+  ('666666', 'Disenrolled', '2006-06-01', 'CAD' );
+
+PREPARE STMT FROM
+"SELECT GROUP_CONCAT(Track SEPARATOR ', ') FROM t1
+  WHERE Member_ID=? AND Action='Enrolled' AND
+        (Track,Action_Date) IN (SELECT Track, MAX(Action_Date) FROM t1
+                                  WHERE Member_ID=?
+                                    GROUP BY Track 
+                                      HAVING Track>='CAD' AND
+                                             MAX(Action_Date)>'2006-03-01')";
+SET @id='111111';
+EXECUTE STMT USING @id,@id;
+SET @id='222222';
+EXECUTE STMT USING @id,@id;
+
+DEALLOCATE PREPARE STMT;
+DROP TABLE t1;
 
 --echo End of 4.1 tests
 ############################# 5.0 tests start ################################
