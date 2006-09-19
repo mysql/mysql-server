@@ -13231,14 +13231,15 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	tmp= (char*) sql_alloc(field->pack_length()+2);
 	if (!tmp)
 	  goto err;
-      if (copy)
-      {
-        copy->set(tmp, item->result_field);
-        item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
+        if (copy)
+        {
+          copy->set(tmp, item->result_field);
+          item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
 #ifdef HAVE_purify
-        copy->to_ptr[copy->from_length]= 0;
+          copy->to_ptr[copy->from_length]= 0;
 #endif
-        copy++;
+          copy++;
+        }
       }
     }
     else if ((real_pos->type() == Item::FUNC_ITEM ||
