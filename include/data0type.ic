@@ -417,9 +417,9 @@ dtype_get_fixed_size_low(
 
 			ulint	i_mbminlen, i_mbmaxlen;
 
-			innobase_get_cset_width
-				(dtype_get_charset_coll(prtype),
-				 &i_mbminlen, &i_mbmaxlen);
+			innobase_get_cset_width(
+				dtype_get_charset_coll(prtype),
+				&i_mbminlen, &i_mbmaxlen);
 
 			if (UNIV_UNLIKELY(mbminlen != i_mbminlen)
 			    || UNIV_UNLIKELY(mbmaxlen != i_mbmaxlen)) {

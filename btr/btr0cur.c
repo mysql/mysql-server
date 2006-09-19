@@ -504,9 +504,9 @@ retry_page_get:
 
 				/* Release the tree s-latch */
 
-				mtr_release_s_latch_at_savepoint
-					(mtr, savepoint,
-					 dict_index_get_lock(index));
+				mtr_release_s_latch_at_savepoint(
+					mtr, savepoint,
+					dict_index_get_lock(index));
 			}
 
 			page_mode = mode;
@@ -522,8 +522,8 @@ retry_page_get:
 
 		/* If this is the desired level, leave the loop */
 
-		ut_ad(height == btr_page_get_level
-		      (page_cur_get_page(page_cursor), mtr));
+		ut_ad(height == btr_page_get_level(
+			      page_cur_get_page(page_cursor), mtr));
 
 		if (level == height) {
 
@@ -662,9 +662,9 @@ btr_cur_open_at_index_side(
 
 				/* Release the tree s-latch */
 
-				mtr_release_s_latch_at_savepoint
-					(mtr, savepoint,
-					 dict_index_get_lock(index));
+				mtr_release_s_latch_at_savepoint(
+					mtr, savepoint,
+					dict_index_get_lock(index));
 			}
 		}
 
@@ -1282,10 +1282,10 @@ btr_cur_upd_lock_and_undo(
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-		err = lock_clust_rec_modify_check_and_lock
-			(flags, rec, index,
-			 rec_get_offsets(rec, index, offsets_,
-					 ULINT_UNDEFINED, &heap), thr);
+		err = lock_clust_rec_modify_check_and_lock(
+			flags, rec, index,
+			rec_get_offsets(rec, index, offsets_,
+					ULINT_UNDEFINED, &heap), thr);
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -1516,8 +1516,8 @@ btr_cur_update_in_place(
 	btr_cur_update_in_place_log(flags, rec, index, update, trx, roll_ptr,
 				    mtr);
 	if (was_delete_marked
-	    && !rec_get_deleted_flag(rec, page_is_comp
-				     (buf_block_get_frame(block)))) {
+	    && !rec_get_deleted_flag(rec, page_is_comp(
+					     buf_block_get_frame(block)))) {
 		/* The new updated record owns its possible externally
 		stored fields */
 
@@ -1897,8 +1897,8 @@ btr_cur_pessimistic_update(
 	n_ext_vect = btr_push_update_extern_fields(ext_vect, offsets, update);
 
 	if (UNIV_UNLIKELY(rec_get_converted_size(index, new_entry)
-			  >= ut_min(page_get_free_space_of_empty
-				    (page_is_comp(page)) / 2,
+			  >= ut_min(page_get_free_space_of_empty(
+					    page_is_comp(page)) / 2,
 				    REC_MAX_DATA_SIZE))) {
 
 		big_rec_vec = dtuple_convert_big_rec(index, new_entry,
@@ -2114,10 +2114,10 @@ btr_cur_parse_del_mark_set_clust_rec(
 			ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 			*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-			row_upd_rec_sys_fields_in_recovery
-				(rec, rec_get_offsets(rec, index, offsets_,
-						      ULINT_UNDEFINED, &heap),
-				 pos, trx_id, roll_ptr);
+			row_upd_rec_sys_fields_in_recovery(
+				rec, rec_get_offsets(rec, index, offsets_,
+						     ULINT_UNDEFINED, &heap),
+				pos, trx_id, roll_ptr);
 			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);
 			}
@@ -2246,8 +2246,8 @@ btr_cur_del_mark_set_sec_rec_log(
 		return;
 	}
 
-	log_ptr = mlog_write_initial_log_record_fast
-		(rec, MLOG_REC_SEC_DELETE_MARK, log_ptr, mtr);
+	log_ptr = mlog_write_initial_log_record_fast(
+		rec, MLOG_REC_SEC_DELETE_MARK, log_ptr, mtr);
 	mach_write_to_1(log_ptr, val);
 	log_ptr++;
 
@@ -2468,8 +2468,8 @@ btr_cur_optimistic_delete(
 				  ULINT_UNDEFINED, &heap);
 
 	no_compress_needed = !rec_offs_any_extern(offsets)
-		&& btr_cur_can_delete_without_compress
-		(cursor, rec_offs_size(offsets), mtr);
+		&& btr_cur_can_delete_without_compress(
+			cursor, rec_offs_size(offsets), mtr);
 
 	if (no_compress_needed) {
 
@@ -2477,8 +2477,8 @@ btr_cur_optimistic_delete(
 
 		btr_search_update_hash_on_delete(cursor);
 
-		max_ins_size = page_get_max_insert_size_after_reorganize
-			(page, 1);
+		max_ins_size = page_get_max_insert_size_after_reorganize(
+			page, 1);
 		page_cur_delete_rec(btr_cur_get_page_cur(cursor),
 				    cursor->index, offsets, mtr);
 
@@ -2593,8 +2593,8 @@ btr_cur_pessimistic_delete(
 	level = btr_page_get_level(page, mtr);
 
 	if (level > 0
-	    && UNIV_UNLIKELY(rec == page_rec_get_next
-			     (page_get_infimum_rec(page)))) {
+	    && UNIV_UNLIKELY(rec == page_rec_get_next(
+				     page_get_infimum_rec(page)))) {
 
 		rec_t*	next_rec = page_rec_get_next(rec);
 
@@ -2614,9 +2614,9 @@ btr_cur_pessimistic_delete(
 
 			btr_node_ptr_delete(index, page, mtr);
 
-			node_ptr = dict_index_build_node_ptr
-				(index, next_rec, buf_frame_get_page_no(page),
-				 heap, level);
+			node_ptr = dict_index_build_node_ptr(
+				index, next_rec, buf_frame_get_page_no(page),
+				heap, level);
 
 			btr_insert_on_non_leaf_level(index,
 						     level + 1, node_ptr, mtr);
@@ -2921,8 +2921,8 @@ btr_estimate_number_of_different_key_vals(
 			}
 
 			total_external_size
-				+= btr_rec_get_externally_stored_len
-				(rec, offsets_rec);
+				+= btr_rec_get_externally_stored_len(
+					rec, offsets_rec);
 
 			rec = next_rec;
 			/* Initialize offsets_rec for the next round
@@ -2956,8 +2956,8 @@ btr_estimate_number_of_different_key_vals(
 
 		offsets_rec = rec_get_offsets(rec, index, offsets_rec,
 					      ULINT_UNDEFINED, &heap);
-		total_external_size += btr_rec_get_externally_stored_len
-			(rec, offsets_rec);
+		total_external_size += btr_rec_get_externally_stored_len(
+			rec, offsets_rec);
 		mtr_commit(&mtr);
 	}
 
@@ -3119,8 +3119,8 @@ btr_cur_mark_extern_inherited_fields(
 			}
 
 			if (!is_updated) {
-				btr_cur_set_ownership_of_extern_field
-					(rec, offsets, i, FALSE, mtr);
+				btr_cur_set_ownership_of_extern_field(
+					rec, offsets, i, FALSE, mtr);
 			}
 		}
 	}
@@ -3273,8 +3273,8 @@ btr_push_update_extern_fields(
 
 			if (upd_get_nth_field(update, i)->extern_storage) {
 
-				ext_vect[n_pushed] = upd_get_nth_field
-					(update, i)->field_no;
+				ext_vect[n_pushed] = upd_get_nth_field(
+					update, i)->field_no;
 
 				n_pushed++;
 			}
@@ -3491,10 +3491,10 @@ btr_store_big_rec_extern_fields(
 				/* Set the bit denoting that this field
 				in rec is stored externally */
 
-				rec_set_nth_field_extern_bit
-					(rec, index,
-					 big_rec_vec->fields[i].field_no,
-					 TRUE, &mtr);
+				rec_set_nth_field_extern_bit(
+					rec, index,
+					big_rec_vec->fields[i].field_no,
+					TRUE, &mtr);
 			}
 
 			prev_page_no = page_no;

@@ -638,9 +638,9 @@ btr_page_get_father_node_ptr(
 				user record */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	return(btr_page_get_father_for_rec
-	       (index, page,
-		page_rec_get_next(page_get_infimum_rec(page)), mtr));
+	return(btr_page_get_father_for_rec(
+		       index, page,
+		       page_rec_get_next(page_get_infimum_rec(page)), mtr));
 }
 
 /****************************************************************
@@ -669,8 +669,8 @@ btr_create(
 
 	if (type & DICT_IBUF) {
 		/* Allocate first the ibuf header page */
-		ibuf_hdr_frame = fseg_create
-			(space, 0, IBUF_HEADER + IBUF_TREE_SEG_HEADER, mtr);
+		ibuf_hdr_frame = fseg_create(
+			space, 0, IBUF_HEADER + IBUF_TREE_SEG_HEADER, mtr);
 
 #ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(ibuf_hdr_frame, SYNC_TREE_NODE_NEW);
@@ -772,8 +772,8 @@ leaf_loop:
 	/* NOTE: page hash indexes are dropped when a page is freed inside
 	fsp0fsp. */
 
-	finished = fseg_free_step
-		(root + PAGE_HEADER + PAGE_BTR_SEG_LEAF, &mtr);
+	finished = fseg_free_step(root + PAGE_HEADER + PAGE_BTR_SEG_LEAF,
+				  &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -785,8 +785,8 @@ top_loop:
 
 	root = btr_page_get(space, root_page_no, RW_X_LATCH, &mtr);
 
-	finished = fseg_free_step_not_header
-		(root + PAGE_HEADER + PAGE_BTR_SEG_TOP, &mtr);
+	finished = fseg_free_step_not_header(
+		root + PAGE_HEADER + PAGE_BTR_SEG_TOP, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -813,8 +813,7 @@ btr_free_root(
 
 	btr_search_drop_page_hash_index(root);
 top_loop:
-	finished = fseg_free_step
-		(root + PAGE_HEADER + PAGE_BTR_SEG_TOP, mtr);
+	finished = fseg_free_step(root + PAGE_HEADER + PAGE_BTR_SEG_TOP, mtr);
 	if (!finished) {
 
 		goto top_loop;
@@ -1481,9 +1480,11 @@ btr_attach_half_pages(
 		/* Replace the address of the old child node (= page) with the
 		address of the new lower half */
 
-		btr_node_ptr_set_child_page_no(node_ptr, rec_get_offsets
-					       (node_ptr, index,
-						NULL, ULINT_UNDEFINED, &heap),
+		btr_node_ptr_set_child_page_no(node_ptr,
+					       rec_get_offsets(
+						       node_ptr, index,
+						       NULL, ULINT_UNDEFINED,
+						       &heap),
 					       lower_page_no, mtr);
 		mem_heap_empty(heap);
 	} else {
@@ -1847,8 +1848,8 @@ btr_set_min_rec_mark_log(
 	ulint	comp,	/* nonzero=compact record format */
 	mtr_t*	mtr)	/* in: mtr */
 {
-	mlog_write_initial_log_record
-		(rec, comp ? MLOG_COMP_REC_MIN_MARK : MLOG_REC_MIN_MARK, mtr);
+	mlog_write_initial_log_record(
+		rec, comp ? MLOG_COMP_REC_MIN_MARK : MLOG_REC_MIN_MARK, mtr);
 
 	/* Write rec offset as a 2-byte ulint */
 	mlog_catenate_ulint(mtr, page_offset(rec), MLOG_2BYTES);
@@ -1957,8 +1958,8 @@ btr_lift_page_up(
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
-	father_page = buf_frame_align
-		(btr_page_get_father_node_ptr(index, page, mtr));
+	father_page = buf_frame_align(
+		btr_page_get_father_node_ptr(index, page, mtr));
 
 	page_level = btr_page_get_level(page, mtr);
 
@@ -2079,8 +2080,8 @@ btr_compress(
 	data_size = page_get_data_size(page);
 	ut_a(page_is_comp(merge_page) == comp);
 
-	max_ins_size_reorg = page_get_max_insert_size_after_reorganize
-		(merge_page, n_recs);
+	max_ins_size_reorg = page_get_max_insert_size_after_reorganize(
+		merge_page, n_recs);
 	if (data_size > max_ins_size_reorg) {
 
 		/* No space for merge */
@@ -2126,10 +2127,12 @@ btr_compress(
 		/* Replace the address of the old child node (= page) with the
 		address of the merge page to the right */
 
-		btr_node_ptr_set_child_page_no(node_ptr, rec_get_offsets
-					       (node_ptr, index,
-						offsets_, ULINT_UNDEFINED, 
-						&heap),
+		btr_node_ptr_set_child_page_no(node_ptr,
+					       rec_get_offsets(
+						       node_ptr, index,
+						       offsets_,
+						       ULINT_UNDEFINED,
+						       &heap),
 					       right_page_no, mtr);
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
@@ -2139,16 +2142,16 @@ btr_compress(
 
 	/* Move records to the merge page */
 	if (is_left) {
-		orig_pred = page_rec_get_prev
-			(page_get_supremum_rec(merge_page));
+		orig_pred = page_rec_get_prev(
+			page_get_supremum_rec(merge_page));
 		page_copy_rec_list_start(merge_page, page,
 					 page_get_supremum_rec(page),
 					 index, mtr);
 
 		lock_update_merge_left(merge_page, orig_pred, page);
 	} else {
-		orig_succ = page_rec_get_next
-			(page_get_infimum_rec(merge_page));
+		orig_succ = page_rec_get_next(
+			page_get_infimum_rec(merge_page));
 		page_copy_rec_list_end(merge_page, page,
 				       page_get_infimum_rec(page),
 				       index, mtr);
@@ -2292,8 +2295,9 @@ btr_discard_page(
 	if (left_page_no != FIL_NULL) {
 		lock_update_discard(page_get_supremum_rec(merge_page), page);
 	} else {
-		lock_update_discard(page_rec_get_next
-				    (page_get_infimum_rec(merge_page)), page);
+		lock_update_discard(page_rec_get_next(
+					    page_get_infimum_rec(merge_page)),
+				    page);
 	}
 
 	/* Free the file page */
@@ -2469,9 +2473,9 @@ btr_check_node_ptr(
 
 	heap = mem_heap_create(256);
 
-	node_ptr_tuple = dict_index_build_node_ptr
-		(index, page_rec_get_next(page_get_infimum_rec(page)),
-		 0, heap, btr_page_get_level(page, mtr));
+	node_ptr_tuple = dict_index_build_node_ptr(
+		index, page_rec_get_next(page_get_infimum_rec(page)), 0, heap,
+		btr_page_get_level(page, mtr));
 
 	ut_a(!cmp_dtuple_rec(node_ptr_tuple, node_ptr,
 			     rec_get_offsets(node_ptr, index,
@@ -2797,8 +2801,8 @@ loop:
 		}
 
 		rec = page_rec_get_prev(page_get_supremum_rec(page));
-		right_rec = page_rec_get_next(page_get_infimum_rec
-					      (right_page));
+		right_rec = page_rec_get_next(page_get_infimum_rec(
+						      right_page));
 		offsets = rec_get_offsets(rec, index,
 					  offsets, ULINT_UNDEFINED, &heap);
 		offsets2 = rec_get_offsets(right_rec, index,
@@ -2820,8 +2824,8 @@ loop:
 			rec_print(stderr, rec, index);
 			putc('\n', stderr);
 			fputs("InnoDB: record ", stderr);
-			rec = page_rec_get_next
-				(page_get_infimum_rec(right_page));
+			rec = page_rec_get_next(
+				page_get_infimum_rec(right_page));
 			rec_print(stderr, rec, index);
 			putc('\n', stderr);
 
@@ -2830,9 +2834,9 @@ loop:
 	}
 
 	if (level > 0 && left_page_no == FIL_NULL) {
-		ut_a(REC_INFO_MIN_REC_FLAG & rec_get_info_bits
-		     (page_rec_get_next(page_get_infimum_rec(page)),
-		      page_is_comp(page)));
+		ut_a(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
+			     page_rec_get_next(page_get_infimum_rec(page)),
+			     page_is_comp(page)));
 	}
 
 	if (buf_frame_get_page_no(page) != dict_index_get_page(index)) {
@@ -2846,9 +2850,10 @@ loop:
 
 		if (btr_node_ptr_get_child_page_no(node_ptr, offsets)
 		    != buf_frame_get_page_no(page)
-		    || node_ptr != btr_page_get_father_for_rec
-		    (index, page,
-		     page_rec_get_prev(page_get_supremum_rec(page)), &mtr)) {
+		    || node_ptr != btr_page_get_father_for_rec(
+			    index, page,
+			    page_rec_get_prev(page_get_supremum_rec(page)),
+			    &mtr)) {
 			btr_validate_report1(index, level, page);
 
 			fputs("InnoDB: node pointer to the page is wrong\n",
@@ -2866,9 +2871,10 @@ loop:
 				(node_ptr, offsets));
 
 			fputs("InnoDB: record on page ", stderr);
-			rec = btr_page_get_father_for_rec
-				(index, page, page_rec_get_prev
-				 (page_get_supremum_rec(page)), &mtr);
+			rec = btr_page_get_father_for_rec(
+				index, page,
+				page_rec_get_prev(page_get_supremum_rec(page)),
+				&mtr);
 			rec_print(stderr, rec, index);
 			putc('\n', stderr);
 			ret = FALSE;
@@ -2881,15 +2887,15 @@ loop:
 						  offsets, ULINT_UNDEFINED,
 						  &heap);
 
-			node_ptr_tuple = dict_index_build_node_ptr
-				(index,
-				 page_rec_get_next(page_get_infimum_rec(page)),
-				 0, heap, btr_page_get_level(page, &mtr));
+			node_ptr_tuple = dict_index_build_node_ptr(
+				index,
+				page_rec_get_next(page_get_infimum_rec(page)),
+				0, heap, btr_page_get_level(page, &mtr));
 
 			if (cmp_dtuple_rec(node_ptr_tuple, node_ptr,
 					   offsets)) {
-				rec_t*	first_rec	= page_rec_get_next
-					(page_get_infimum_rec(page));
+				rec_t*	first_rec	= page_rec_get_next(
+					page_get_infimum_rec(page));
 
 				btr_validate_report1(index, level, page);
 
@@ -2910,18 +2916,18 @@ loop:
 		}
 
 		if (left_page_no == FIL_NULL) {
-			ut_a(node_ptr == page_rec_get_next
-			     (page_get_infimum_rec(father_page)));
+			ut_a(node_ptr == page_rec_get_next(
+				     page_get_infimum_rec(father_page)));
 			ut_a(btr_page_get_prev(father_page, &mtr) == FIL_NULL);
 		}
 
 		if (right_page_no == FIL_NULL) {
-			ut_a(node_ptr == page_rec_get_prev
-			     (page_get_supremum_rec(father_page)));
+			ut_a(node_ptr == page_rec_get_prev(
+				     page_get_supremum_rec(father_page)));
 			ut_a(btr_page_get_next(father_page, &mtr) == FIL_NULL);
 		} else {
-			right_node_ptr = btr_page_get_father_node_ptr
-				(index, right_page, &mtr);
+			right_node_ptr = btr_page_get_father_node_ptr(
+				index, right_page, &mtr);
 			if (page_rec_get_next(node_ptr)
 			    != page_get_supremum_rec(father_page)) {
 
@@ -2940,12 +2946,12 @@ loop:
 					buf_page_print(right_page);
 				}
 			} else {
-				right_father_page = buf_frame_align
-					(right_node_ptr);
+				right_father_page = buf_frame_align(
+					right_node_ptr);
 
-				if (right_node_ptr != page_rec_get_next
-				    (page_get_infimum_rec
-				     (right_father_page))) {
+				if (right_node_ptr != page_rec_get_next(
+					    page_get_infimum_rec(
+						    right_father_page))) {
 					ret = FALSE;
 					fputs("InnoDB: node pointer 2 to"
 					      " the right page is wrong\n",

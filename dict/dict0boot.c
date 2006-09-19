@@ -235,11 +235,11 @@ dict_boot(void)
 	..._MARGIN, it will immediately be updated to the disk-based
 	header. */
 
-	dict_sys->row_id = ut_dulint_add
-		(ut_dulint_align_up(mtr_read_dulint
-				    (dict_hdr + DICT_HDR_ROW_ID, &mtr),
-				    DICT_HDR_ROW_ID_WRITE_MARGIN),
-		 DICT_HDR_ROW_ID_WRITE_MARGIN);
+	dict_sys->row_id = ut_dulint_add(
+		ut_dulint_align_up(mtr_read_dulint(dict_hdr + DICT_HDR_ROW_ID,
+						   &mtr),
+				   DICT_HDR_ROW_ID_WRITE_MARGIN),
+		DICT_HDR_ROW_ID_WRITE_MARGIN);
 
 	/* Insert into the dictionary cache the descriptions of the basic
 	system tables */

@@ -891,10 +891,12 @@ pars_process_assign_list(
 		pars_resolve_exp_columns(table_sym, assign_node->val);
 		pars_resolve_exp_variables_and_types(NULL, assign_node->val);
 #if 0
-		ut_a(dtype_get_mtype
-		     (dfield_get_type(que_node_get_val(assign_node->col)))
-		     == dtype_get_mtype
-		     (dfield_get_type(que_node_get_val(assign_node->val))));
+		ut_a(dtype_get_mtype(
+			     dfield_get_type(que_node_get_val(
+						     assign_node->col)))
+		     == dtype_get_mtype(
+			     dfield_get_type(que_node_get_val(
+						     assign_node->val))));
 #endif
 
 		/* Add to the update node all the columns found in assignment
@@ -918,8 +920,8 @@ pars_process_assign_list(
 
 		col_sym = assign_node->col;
 
-		upd_field_set_field_no(upd_field, dict_index_get_nth_col_pos
-				       (clust_index, col_sym->col_no),
+		upd_field_set_field_no(upd_field, dict_index_get_nth_col_pos(
+					       clust_index, col_sym->col_no),
 				       clust_index, NULL);
 		upd_field->exp = assign_node->val;
 
@@ -1864,8 +1866,8 @@ pars_sql(
 	pars_sym_tab_global = sym_tab_create(heap);
 
 	pars_sym_tab_global->string_len = strlen(str);
-	pars_sym_tab_global->sql_string = mem_heap_dup
-		(heap, str, pars_sym_tab_global->string_len + 1);
+	pars_sym_tab_global->sql_string = mem_heap_dup(
+		heap, str, pars_sym_tab_global->string_len + 1);
 	pars_sym_tab_global->next_char_pos = 0;
 	pars_sym_tab_global->info = info;
 

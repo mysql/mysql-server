@@ -757,15 +757,15 @@ page_get_max_insert_size(
 	if (page_is_comp(page)) {
 		occupied = page_header_get_field(page, PAGE_HEAP_TOP)
 			- PAGE_NEW_SUPREMUM_END
-			+ page_dir_calc_reserved_space
-			(n_recs + page_dir_get_n_heap(page) - 2);
+			+ page_dir_calc_reserved_space(
+				n_recs + page_dir_get_n_heap(page) - 2);
 
 		free_space = page_get_free_space_of_empty(TRUE);
 	} else {
 		occupied = page_header_get_field(page, PAGE_HEAP_TOP)
 			- PAGE_OLD_SUPREMUM_END
-			+ page_dir_calc_reserved_space
-			(n_recs + page_dir_get_n_heap(page) - 2);
+			+ page_dir_calc_reserved_space(
+				n_recs + page_dir_get_n_heap(page) - 2);
 
 		free_space = page_get_free_space_of_empty(FALSE);
 	}

@@ -1058,8 +1058,8 @@ dict_table_rename_in_cache(
 				table->name, table->dir_path_of_temp_table);
 			success = FALSE;
 		} else {
-			success = fil_rename_tablespace
-				(table->name, table->space, new_name);
+			success = fil_rename_tablespace(
+				table->name, table->space, new_name);
 		}
 
 		if (!success) {
@@ -1160,10 +1160,10 @@ dict_table_rename_in_cache(
 				/* This is a generated >= 4.0.18 format id */
 
 				if (strlen(table->name) > strlen(old_name)) {
-					foreign->id = mem_heap_alloc
-						(foreign->heap,
-						 strlen(table->name)
-						 + strlen(old_id) + 1);
+					foreign->id = mem_heap_alloc(
+						foreign->heap,
+						strlen(table->name)
+						+ strlen(old_id) + 1);
 				}
 
 				/* Replace the prefix 'databasename/tablename'
@@ -1179,9 +1179,9 @@ dict_table_rename_in_cache(
 				if (dict_get_db_name_len(table->name)
 				    > dict_get_db_name_len(foreign->id)) {
 
-					foreign->id = mem_heap_alloc
-						(foreign->heap,
-						 db_len + strlen(old_id) + 1);
+					foreign->id = mem_heap_alloc(
+						foreign->heap,
+						db_len + strlen(old_id) + 1);
 				}
 
 				/* Replace the database prefix in id with the
@@ -1207,8 +1207,8 @@ dict_table_rename_in_cache(
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
 
-			foreign->referenced_table_name = mem_heap_alloc
-				(foreign->heap, strlen(table->name) + 1);
+			foreign->referenced_table_name = mem_heap_alloc(
+				foreign->heap, strlen(table->name) + 1);
 		}
 
 		strcpy(foreign->referenced_table_name, table->name);
@@ -1441,10 +1441,10 @@ dict_index_add_to_cache(
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
-		new_index->stat_n_diff_key_vals = mem_heap_alloc
-			(new_index->heap,
-			 (1 + dict_index_get_n_unique(new_index))
-			 * sizeof(ib_longlong));
+		new_index->stat_n_diff_key_vals = mem_heap_alloc(
+			new_index->heap,
+			(1 + dict_index_get_n_unique(new_index))
+			* sizeof(ib_longlong));
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
@@ -1837,9 +1837,9 @@ dict_index_build_internal_non_clust(
 	ut_ad(!(clust_index->type & DICT_UNIVERSAL));
 
 	/* Create a new index */
-	new_index = dict_mem_index_create
-		(table->name, index->name, index->space, index->type,
-		 index->n_fields + 1 + clust_index->n_uniq);
+	new_index = dict_mem_index_create(
+		table->name, index->name, index->space, index->type,
+		index->n_fields + 1 + clust_index->n_uniq);
 
 	/* Copy other relevant data from the old index
 	struct to the new struct: it inherits the values */
@@ -2138,11 +2138,11 @@ dict_foreign_add_to_cache(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	for_table = dict_table_check_if_in_cache_low
-		(foreign->foreign_table_name);
+	for_table = dict_table_check_if_in_cache_low(
+		foreign->foreign_table_name);
 
-	ref_table = dict_table_check_if_in_cache_low
-		(foreign->referenced_table_name);
+	ref_table = dict_table_check_if_in_cache_low(
+		foreign->referenced_table_name);
 	ut_a(for_table || ref_table);
 
 	if (for_table) {
@@ -2161,21 +2161,21 @@ dict_foreign_add_to_cache(
 	}
 
 	if (for_in_cache->referenced_table == NULL && ref_table) {
-		index = dict_foreign_find_index
-			(ref_table,
-			 (const char**) for_in_cache->referenced_col_names,
-			 for_in_cache->n_fields,
-			 for_in_cache->foreign_index, check_charsets);
+		index = dict_foreign_find_index(
+			ref_table,
+			(const char**) for_in_cache->referenced_col_names,
+			for_in_cache->n_fields, for_in_cache->foreign_index,
+			check_charsets);
 
 		if (index == NULL) {
-			dict_foreign_error_report
-				(ef, for_in_cache,
-				 "there is no index in referenced table"
-				 " which would contain\n"
-				 "the columns as the first columns,"
-				 " or the data types in the\n"
-				 "referenced table do not match"
-				 " the ones in table.");
+			dict_foreign_error_report(
+				ef, for_in_cache,
+				"there is no index in referenced table"
+				" which would contain\n"
+				"the columns as the first columns,"
+				" or the data types in the\n"
+				"referenced table do not match"
+				" the ones in table.");
 
 			if (for_in_cache == foreign) {
 				mem_heap_free(foreign->heap);
@@ -2193,28 +2193,28 @@ dict_foreign_add_to_cache(
 	}
 
 	if (for_in_cache->foreign_table == NULL && for_table) {
-		index = dict_foreign_find_index
-			(for_table,
-			 (const char**) for_in_cache->foreign_col_names,
-			 for_in_cache->n_fields,
-			 for_in_cache->referenced_index, check_charsets);
+		index = dict_foreign_find_index(
+			for_table,
+			(const char**) for_in_cache->foreign_col_names,
+			for_in_cache->n_fields,
+			for_in_cache->referenced_index, check_charsets);
 
 		if (index == NULL) {
-			dict_foreign_error_report
-				(ef, for_in_cache,
-				 "there is no index in the table"
-				 " which would contain\n"
-				 "the columns as the first columns,"
-				 " or the data types in the\n"
-				 "table do not match"
-				 " the ones in the referenced table.");
+			dict_foreign_error_report(
+				ef, for_in_cache,
+				"there is no index in the table"
+				" which would contain\n"
+				"the columns as the first columns,"
+				" or the data types in the\n"
+				"table do not match"
+				" the ones in the referenced table.");
 
 			if (for_in_cache == foreign) {
 				if (added_to_referenced_list) {
-					UT_LIST_REMOVE
-						(referenced_list,
-						 ref_table->referenced_list,
-						 for_in_cache);
+					UT_LIST_REMOVE(
+						referenced_list,
+						ref_table->referenced_list,
+						for_in_cache);
 				}
 
 				mem_heap_free(foreign->heap);
@@ -2875,8 +2875,8 @@ dict_create_foreign_constraints_low(
 	if (table_to_alter == NULL) {
 		highest_id_so_far = 0;
 	} else {
-		highest_id_so_far = dict_table_get_highest_foreign_id
-			(table_to_alter);
+		highest_id_so_far = dict_table_get_highest_foreign_id(
+			table_to_alter);
 	}
 
 	/* Scan for foreign key declarations in a loop */
@@ -2932,8 +2932,8 @@ loop:
 		/* The following call adds the foreign key constraints
 		to the data dictionary system tables on disk */
 
-		error = dict_create_add_foreigns_to_dictionary
-			(highest_id_so_far, table, trx);
+		error = dict_create_add_foreigns_to_dictionary(
+			highest_id_so_far, table, trx);
 		return(error);
 	}
 
@@ -2963,8 +2963,8 @@ loop:
 		ptr = dict_skip_word(cs, ptr, &success);
 
 		if (!success) {
-			dict_foreign_report_syntax_err
-				(name, start_of_latest_foreign, ptr);
+			dict_foreign_report_syntax_err(
+				name, start_of_latest_foreign, ptr);
 
 			return(DB_CANNOT_ADD_CONSTRAINT);
 		}
@@ -3007,8 +3007,8 @@ col_loop1:
 	ptr = dict_accept(cs, ptr, ")", &success);
 
 	if (!success) {
-		dict_foreign_report_syntax_err
-			(name, start_of_latest_foreign, ptr);
+		dict_foreign_report_syntax_err(
+			name, start_of_latest_foreign, ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
@@ -3035,8 +3035,8 @@ col_loop1:
 	ptr = dict_accept(cs, ptr, "REFERENCES", &success);
 
 	if (!success || !my_isspace(cs, *ptr)) {
-		dict_foreign_report_syntax_err
-			(name, start_of_latest_foreign, ptr);
+		dict_foreign_report_syntax_err(
+			name, start_of_latest_foreign, ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
 	}
 
@@ -3054,8 +3054,8 @@ col_loop1:
 
 		db_len = dict_get_db_name_len(table->name);
 
-		foreign->id = mem_heap_alloc
-			(foreign->heap, db_len + strlen(constraint_name) + 2);
+		foreign->id = mem_heap_alloc(
+			foreign->heap, db_len + strlen(constraint_name) + 2);
 
 		ut_memcpy(foreign->id, table->name, db_len);
 		foreign->id[db_len] = '/';
@@ -3162,8 +3162,8 @@ scan_on_conditions:
 		if (!success) {
 			dict_foreign_free(foreign);
 
-			dict_foreign_report_syntax_err
-				(name, start_of_latest_foreign, ptr);
+			dict_foreign_report_syntax_err(
+				name, start_of_latest_foreign, ptr);
 			return(DB_CANNOT_ADD_CONSTRAINT);
 		}
 
@@ -3199,8 +3199,8 @@ scan_on_conditions:
 
 		if (!success) {
 			dict_foreign_free(foreign);
-			dict_foreign_report_syntax_err
-				(name, start_of_latest_foreign, ptr);
+			dict_foreign_report_syntax_err(
+				name, start_of_latest_foreign, ptr);
 
 			return(DB_CANNOT_ADD_CONSTRAINT);
 		}
@@ -3398,9 +3398,9 @@ dict_create_foreign_constraints(
 	str = dict_strip_comments(sql_string);
 	heap = mem_heap_create(10000);
 
-	err = dict_create_foreign_constraints_low
-		(trx, heap, innobase_get_charset(trx->mysql_thd),
-		 str, name, reject_fks);
+	err = dict_create_foreign_constraints_low(
+		trx, heap, innobase_get_charset(trx->mysql_thd), str, name,
+		reject_fks);
 
 	mem_heap_free(heap);
 	mem_free(str);
@@ -4158,8 +4158,9 @@ dict_print_info_on_foreign_key_in_create_format(
 	if (dict_tables_have_same_db(foreign->foreign_table_name,
 				     foreign->referenced_table_name)) {
 		/* Do not print the database name of the referenced table */
-		ut_print_name(file, trx, TRUE, dict_remove_db_name
-			      (foreign->referenced_table_name));
+		ut_print_name(file, trx, TRUE,
+			      dict_remove_db_name(
+				      foreign->referenced_table_name));
 	} else {
 		/* Look for the '/' in the table name */
 
@@ -4243,8 +4244,8 @@ dict_print_info_on_foreign_keys(
 
 	while (foreign != NULL) {
 		if (create_table_format) {
-			dict_print_info_on_foreign_key_in_create_format
-				(file, trx, foreign, TRUE);
+			dict_print_info_on_foreign_key_in_create_format(
+				file, trx, foreign, TRUE);
 		} else {
 			ulint	i;
 			fputs("; (", file);
