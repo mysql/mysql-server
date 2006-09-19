@@ -2737,6 +2737,12 @@ static int dump_all_tablespaces()
   MYSQL_RES *tableres;
   char buf[FN_REFLEN];
   int first;
+  /*
+    The following are used for parsing the EXTRA field
+  */
+  char extra_format[]= "UNDO_BUFFER_SIZE=";
+  char *ubs;
+  char *endsemi;
 
   if (mysql_query_with_error_report(mysql, &tableres,
                                     "SELECT DISTINCT"
@@ -2744,9 +2750,11 @@ static int dump_all_tablespaces()
                                     " FILE_NAME,"
                                     " TOTAL_EXTENTS,"
                                     " INITIAL_SIZE,"
-                                    " ENGINE"
+                                    " ENGINE,"
+                                    " EXTRA"
                                     " FROM INFORMATION_SCHEMA.FILES"
                                     " WHERE FILE_TYPE = \"UNDO LOG\""
+                                    " AND FILE_NAME IS NOT NULL"
                                     " ORDER BY LOGFILE_GROUP_NAME"))
     return 1;
 
@@ -2775,9 +2783,16 @@ static int dump_all_tablespaces()
             row[1]);
     if (first)
     {
+      ubs= strstr(row[5],extra_format);
+      if(!ubs)
+        break;
+      ubs+= strlen(extra_format);
+      endsemi= strstr(ubs,";");
+      if(endsemi)
+        endsemi[0]= '\0';
       fprintf(md_result_file,
               "  UNDO_BUFFER_SIZE %s\n",
-              row[2]);
+              ubs);
     }
     fprintf(md_result_file,
             "  INITIAL_SIZE %s\n"
