@@ -2259,9 +2259,9 @@ sub mysql_install_db () {
 
   if ( $use_slaves )
   {
-    install_db('slave',  $slave->[0]->{'path_myddir'});
-    install_db('slave',  $slave->[1]->{'path_myddir'});
-    install_db('slave',  $slave->[2]->{'path_myddir'});
+    install_db('slave1',  $slave->[0]->{'path_myddir'});
+    install_db('slave2',  $slave->[1]->{'path_myddir'});
+    install_db('slave3',  $slave->[2]->{'path_myddir'});
   }
 
   if ( ! $opt_skip_im )
@@ -2374,6 +2374,12 @@ sub install_db ($$) {
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/bootstrap_%s.trace",
+		$opt_vardir_trace, $type);
+  }
 
   if ( ! $opt_netware )
   {
@@ -3112,7 +3118,7 @@ sub mysqld_start ($$$) {
   }
   else
   {
-    $exe= $exe_mysqld;
+    mtr_error("Unknown 'type' passed to mysqld_start");
   }
 
   mtr_init_args(\$args);
