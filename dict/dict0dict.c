@@ -3630,7 +3630,7 @@ dict_index_build_node_ptr(
 
 	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		/* In a universal index tree, we take the whole record as
-		the node pointer if the reord is on the leaf level,
+		the node pointer if the record is on the leaf level,
 		on non-leaf levels we remove the last field, which
 		contains the page number of the child page */
 
