@@ -31,6 +31,8 @@
 *.vcproj
 */*.dir/*
 */*_pure_*warnings
+*/.deps
+*/.libs/*
 */.pure
 */debug/*
 */release/*
