@@ -1309,7 +1309,7 @@ sub kill_running_server () {
   {
     # Ensure that no old mysqld test servers are running
     # This is different from terminating processes we have
-    # started from ths run of the script, this is terminating
+    # started from this run of the script, this is terminating
     # leftovers from previous runs.
 
     mtr_report("Killing Possible Leftover Processes");
@@ -2748,7 +2748,7 @@ sub stop_masters () {
 
   my @args;
 
-  for ( my $idx; $idx < 2; $idx++ )
+  for ( my $idx= 0; $idx < 2; $idx++ )
   {
     # FIXME if we hit ^C before fully started, this test will prevent
     # the mysqld process from being killed
@@ -2779,7 +2779,7 @@ sub stop_slaves () {
 
   my @args;
 
-  for ( my $idx; $idx < 3; $idx++ )
+  for ( my $idx= 0; $idx < 3; $idx++ )
   {
     if ( $slave->[$idx]->{'pid'} )
     {
