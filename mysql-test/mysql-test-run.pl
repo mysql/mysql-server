@@ -850,7 +850,7 @@ sub command_line_setup () {
   if ( ! $opt_suite_timeout )
   {
     $opt_suite_timeout= $default_suite_timeout;
-    $opt_suite_timeout*= 4 if defined $opt_valgrind;
+    $opt_suite_timeout*= 6 if defined $opt_valgrind;
   }
 
   # Increase times to wait for executables to start if using valgrind
@@ -1309,7 +1309,7 @@ sub kill_running_server () {
   {
     # Ensure that no old mysqld test servers are running
     # This is different from terminating processes we have
-    # started from ths run of the script, this is terminating
+    # started from this run of the script, this is terminating
     # leftovers from previous runs.
 
     mtr_report("Killing Possible Leftover Processes");
@@ -1720,14 +1720,15 @@ sub initialize_servers () {
 sub mysql_install_db () {
 
   # FIXME not exactly true I think, needs improvements
-  install_db('master', $master->[0]->{'path_myddir'});
-  install_db('master', $master->[1]->{'path_myddir'});
+  install_db('master1', $master->[0]->{'path_myddir'});
+
+  install_db('master2', $master->[1]->{'path_myddir'});
 
   if ( $use_slaves )
   {
-    install_db('slave',  $slave->[0]->{'path_myddir'});
-    install_db('slave',  $slave->[1]->{'path_myddir'});
-    install_db('slave',  $slave->[2]->{'path_myddir'});
+    install_db('slave1',  $slave->[0]->{'path_myddir'});
+    install_db('slave2',  $slave->[1]->{'path_myddir'});
+    install_db('slave3',  $slave->[2]->{'path_myddir'});
   }
 
   if ( ! $opt_skip_im )
@@ -1802,6 +1803,12 @@ sub install_db ($$) {
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
   mtr_add_arg($args, "--skip-bdb");
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/bootstrap_%s.trace",
+		$opt_vardir_trace, $type);
+  }
 
   if ( ! $opt_netware )
   {
@@ -2399,7 +2406,7 @@ sub do_before_start_slave ($$) {
 
 sub mysqld_arguments ($$$$$$) {
   my $args=              shift;
-  my $type=              shift;        # master/slave/bootstrap
+  my $type=              shift;        # master/slave
   my $idx=               shift;
   my $extra_opt=         shift;
   my $slave_master_info= shift;
@@ -2628,7 +2635,7 @@ sub mysqld_arguments ($$$$$$) {
 ##############################################################################
 
 sub mysqld_start ($$$$$) {
-  my $type=              shift;        # master/slave/bootstrap
+  my $type=              shift;        # master/slave
   my $idx=               shift;
   my $extra_opt=         shift;
   my $slave_master_info= shift;
@@ -2649,7 +2656,7 @@ sub mysqld_start ($$$$$) {
   }
   else
   {
-    $exe= $exe_mysqld;
+    mtr_error("Unknown 'type' passed to mysqld_start");
   }
 
   mtr_init_args(\$args);
@@ -2748,7 +2755,7 @@ sub stop_masters () {
 
   my @args;
 
-  for ( my $idx; $idx < 2; $idx++ )
+  for ( my $idx= 0; $idx < 2; $idx++ )
   {
     # FIXME if we hit ^C before fully started, this test will prevent
     # the mysqld process from being killed
@@ -2779,7 +2786,7 @@ sub stop_slaves () {
 
   my @args;
 
-  for ( my $idx; $idx < 3; $idx++ )
+  for ( my $idx= 0; $idx < 3; $idx++ )
   {
     if ( $slave->[$idx]->{'pid'} )
     {
