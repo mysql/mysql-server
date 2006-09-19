@@ -3422,3 +3422,64 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 4	UNION	t12	system	NULL	NULL	NULL	NULL	0	const row not found
 NULL	UNION RESULT	<union2,4>	ALL	NULL	NULL	NULL	NULL	NULL	
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 values (1);
+INSERT INTO t1 VALUES (1,1),(1,2),(2,3),(3,4);
+SELECT (SELECT COUNT(DISTINCT t1.b) from t2) FROM t1 GROUP BY t1.a;
+(SELECT COUNT(DISTINCT t1.b) from t2)
+2
+1
+1
+SELECT (SELECT COUNT(DISTINCT t1.b) from t2 union select 1 from t2 where 12 < 3)
+FROM t1 GROUP BY t1.a;
+(SELECT COUNT(DISTINCT t1.b) from t2 union select 1 from t2 where 12 < 3)
+2
+1
+1
+SELECT COUNT(DISTINCT t1.b), (SELECT COUNT(DISTINCT t1.b)) FROM t1 GROUP BY t1.a;
+COUNT(DISTINCT t1.b)	(SELECT COUNT(DISTINCT t1.b))
+2	2
+1	1
+1	1
+SELECT COUNT(DISTINCT t1.b), 
+(SELECT COUNT(DISTINCT t1.b) union select 1 from DUAL where 12 < 3)
+FROM t1 GROUP BY t1.a;
+COUNT(DISTINCT t1.b)	(SELECT COUNT(DISTINCT t1.b) union select 1 from DUAL where 12 < 3)
+2	2
+1	1
+1	1
+SELECT (
+SELECT (
+SELECT COUNT(DISTINCT t1.b)
+)
+) 
+FROM t1 GROUP BY t1.a;
+(
+SELECT (
+SELECT COUNT(DISTINCT t1.b)
+)
+)
+2
+1
+1
+SELECT (
+SELECT (
+SELECT (
+SELECT COUNT(DISTINCT t1.b)
+)
+) 
+FROM t1 GROUP BY t1.a LIMIT 1) 
+FROM t1 t2
+GROUP BY t2.a;
+(
+SELECT (
+SELECT (
+SELECT COUNT(DISTINCT t1.b)
+)
+) 
+FROM t1 GROUP BY t1.a LIMIT 1)
+2
+2
+2
+DROP TABLE t1,t2;
