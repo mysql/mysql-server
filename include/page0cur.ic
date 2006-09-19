@@ -197,8 +197,8 @@ page_cur_tuple_insert(
 			       + (4 + REC_OFFS_HEADER_SIZE
 				  + dtuple_get_n_fields(tuple))
 			       * sizeof *offsets);
-	rec = rec_convert_dtuple_to_rec
-		(mem_heap_alloc(heap, size), index, tuple);
+	rec = rec_convert_dtuple_to_rec(mem_heap_alloc(heap, size),
+					index, tuple);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
 	rec = page_cur_insert_rec_low(cursor, page_zip,

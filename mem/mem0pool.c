@@ -501,8 +501,8 @@ mem_area_free(
 
 		ulint	next_size;
 
-		next_size = mem_area_get_size
-			((mem_area_t*)(((byte*)area) + size));
+		next_size = mem_area_get_size(
+			(mem_area_t*)(((byte*)area) + size));
 		if (UNIV_UNLIKELY(!next_size || !ut_is_2pow(next_size))) {
 			fprintf(stderr,
 				"InnoDB: Error: Memory area size %lu,"

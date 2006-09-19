@@ -74,10 +74,8 @@ row_build_index_entry(
 	dict_field_t*	ind_field;
 	dfield_t*	dfield;
 	dfield_t*	dfield2;
-	dict_col_t*	col;
 	ulint		i;
 	ulint		storage_len;
-	dtype_t*	cur_type;
 
 	ut_ad(row && index && heap);
 	ut_ad(dtuple_check_typed(row));
@@ -88,13 +86,13 @@ row_build_index_entry(
 	if (index->type & DICT_UNIVERSAL) {
 		dtuple_set_n_fields_cmp(entry, entry_len);
 	} else {
-		dtuple_set_n_fields_cmp
-			(entry, dict_index_get_n_unique_in_tree(index));
+		dtuple_set_n_fields_cmp(
+			entry, dict_index_get_n_unique_in_tree(index));
 	}
 
 	for (i = 0; i < entry_len; i++) {
 		ind_field = dict_index_get_nth_field(index, i);
-		col = ind_field->col;
+		const dict_col_t*	col = ind_field->col;
 
 		dfield = dtuple_get_nth_field(entry, i);
 
@@ -106,14 +104,12 @@ row_build_index_entry(
 		if (ind_field->prefix_len) {
 			if (dfield_get_len(dfield2) != UNIV_SQL_NULL) {
 
-				cur_type = dict_col_get_type
-					(dict_field_get_col(ind_field));
-
-				storage_len = dtype_get_at_most_n_mbchars
-					(cur_type,
-					 ind_field->prefix_len,
-					 dfield_get_len(dfield2),
-					 dfield2->data);
+				storage_len = dtype_get_at_most_n_mbchars(
+					col->prtype,
+					col->mbminlen, col->mbmaxlen,
+					ind_field->prefix_len,
+					dfield_get_len(dfield2),
+					dfield2->data);
 
 				dfield_set_len(dfield, storage_len);
 			}
@@ -157,7 +153,6 @@ row_build(
 	dtuple_t*	row;
 	dict_table_t*	table;
 	dict_field_t*	ind_field;
-	dict_col_t*	col;
 	dfield_t*	dfield;
 	ulint		n_fields;
 	byte*		field;
@@ -192,8 +187,8 @@ row_build(
 
 	row = dtuple_create(heap, row_len);
 
-	dtuple_set_info_bits(row, rec_get_info_bits
-			     (rec, dict_table_is_comp(table)));
+	dtuple_set_info_bits(row, rec_get_info_bits(
+				     rec, dict_table_is_comp(table)));
 
 	n_fields = rec_offs_n_fields(offsets);
 
@@ -204,7 +199,9 @@ row_build(
 
 		if (ind_field->prefix_len == 0) {
 
-			col = dict_field_get_col(ind_field);
+			const dict_col_t*	col
+				= dict_field_get_col(ind_field);
+
 			dfield = dtuple_get_nth_field(row,
 						      dict_col_get_no(col));
 			field = rec_get_nth_field(rec, offsets, i, &len);
@@ -381,17 +378,22 @@ row_build_row_ref(
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len = dict_index_get_nth_field
-			(clust_index, i)->prefix_len;
+		clust_col_prefix_len = dict_index_get_nth_field(
+			clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {
 
+				const dtype_t*	dtype
+					= dfield_get_type(dfield);
+
 				dfield_set_len(dfield,
-					       dtype_get_at_most_n_mbchars
-					       (dfield_get_type(dfield),
-						clust_col_prefix_len, len,
-						(char*) field));
+					       dtype_get_at_most_n_mbchars(
+						       dtype->prtype,
+						       dtype->mbminlen,
+						       dtype->mbmaxlen,
+						       clust_col_prefix_len,
+						       len, (char*) field));
 			}
 		}
 	}
@@ -478,17 +480,22 @@ notfound:
 		column, or the full column, and we must adjust the length
 		accordingly. */
 
-		clust_col_prefix_len = dict_index_get_nth_field
-			(clust_index, i)->prefix_len;
+		clust_col_prefix_len = dict_index_get_nth_field(
+			clust_index, i)->prefix_len;
 
 		if (clust_col_prefix_len > 0) {
 			if (len != UNIV_SQL_NULL) {
 
+				const dtype_t*	dtype
+					= dfield_get_type(dfield);
+
 				dfield_set_len(dfield,
-					       dtype_get_at_most_n_mbchars
-					       (dfield_get_type(dfield),
-						clust_col_prefix_len, len,
-						(char*) field));
+					       dtype_get_at_most_n_mbchars(
+						       dtype->prtype,
+						       dtype->mbminlen,
+						       dtype->mbmaxlen,
+						       clust_col_prefix_len,
+						       len, (char*) field));
 			}
 		}
 	}
@@ -515,13 +522,8 @@ row_build_row_ref_from_row(
 				directly into data of this row */
 {
 	dict_index_t*	clust_index;
-	dict_field_t*	field;
-	dfield_t*	dfield;
-	dfield_t*	dfield2;
-	dict_col_t*	col;
 	ulint		ref_len;
 	ulint		i;
-	dtype_t*	cur_type;
 
 	ut_ad(ref && table && row);
 
@@ -532,6 +534,11 @@ row_build_row_ref_from_row(
 	ut_ad(ref_len == dtuple_get_n_fields(ref));
 
 	for (i = 0; i < ref_len; i++) {
+		const dict_col_t*	col;
+		dict_field_t*		field;
+		dfield_t*		dfield;
+		dfield_t*		dfield2;
+
 		dfield = dtuple_get_nth_field(ref, i);
 
 		field = dict_index_get_nth_field(clust_index, i);
@@ -545,12 +552,9 @@ row_build_row_ref_from_row(
 		if (field->prefix_len > 0
 		    && dfield->len != UNIV_SQL_NULL) {
 
-			cur_type = dict_col_get_type
-				(dict_field_get_col(field));
-
-			dfield->len = dtype_get_at_most_n_mbchars
-				(cur_type, field->prefix_len,
-				 dfield->len, dfield->data);
+			dfield->len = dtype_get_at_most_n_mbchars(
+				col->prtype, col->mbminlen, col->mbmaxlen,
+				field->prefix_len, dfield->len, dfield->data);
 		}
 	}
 
