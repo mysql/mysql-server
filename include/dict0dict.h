@@ -413,11 +413,12 @@ const char*
 dict_table_get_col_name(
 /*====================*/
 					/* out: column name. NOTE: not
-					guaranteed to stay valid if
-					table is modified in any way
-					(columns added, etc.). */
+					guaranteed to stay valid if table is
+					modified in any way (columns added,
+					etc.). */
 	const dict_table_t*	table,	/* in: table */
-	ulint			i);	/* in: column number */
+	ulint			col_nr);/* in: column number */
+
 /**************************************************************************
 Prints a table definition. */
 
