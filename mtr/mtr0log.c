@@ -272,7 +272,7 @@ mlog_write_ulint(
 
 	log_ptr = mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr);
 
-	mach_write_to_2(log_ptr, ut_align_offset(ptr, UNIV_PAGE_SIZE));
+	mach_write_to_2(log_ptr, page_offset(ptr));
 	log_ptr += 2;
 
 	log_ptr += mach_write_compressed(log_ptr, val);
@@ -377,7 +377,7 @@ mlog_log_string(
 
 	log_ptr = mlog_write_initial_log_record_fast(ptr, MLOG_WRITE_STRING,
 						     log_ptr, mtr);
-	mach_write_to_2(log_ptr, ut_align_offset(ptr, UNIV_PAGE_SIZE));
+	mach_write_to_2(log_ptr, page_offset(ptr));
 	log_ptr += 2;
 
 	mach_write_to_2(log_ptr, len);
@@ -492,21 +492,21 @@ mlog_open_and_write_index(
 				dict_index_get_n_unique_in_tree(index));
 		log_ptr += 2;
 		for (i = 0; i < n; i++) {
-			dict_field_t*	field;
-			dtype_t*	type;
-			ulint		len;
+			dict_field_t*		field;
+			const dict_col_t*	col;
+			ulint			len;
+
 			field = dict_index_get_nth_field(index, i);
-			type = dict_col_get_type(dict_field_get_col(field));
+			col = dict_field_get_col(field);
 			len = field->fixed_len;
 			ut_ad(len < 0x7fff);
 			if (len == 0
-			    && (dtype_get_len(type) > 255
-				|| dtype_get_mtype(type) == DATA_BLOB)) {
+			    && (col->len > 255 || col->mtype == DATA_BLOB)) {
 				/* variable-length field
 				with maximum length > 255 */
 				len = 0x7fff;
 			}
-			if (dtype_get_prtype(type) & DATA_NOT_NULL) {
+			if (col->prtype & DATA_NOT_NULL) {
 				len |= 0x8000;
 			}
 			if (log_ptr + 2 > log_end) {
@@ -589,33 +589,18 @@ mlog_parse_index(
 			/* The high-order bit of len is the NOT NULL flag;
 			the rest is 0 or 0x7fff for variable-length fields,
 			and 1..0x7ffe for fixed-length fields. */
-			dict_mem_table_add_col
-				(table, "DUMMY",
-				 ((len + 1) & 0x7fff) <= 1
-				 ? DATA_BINARY : DATA_FIXBINARY,
-				 len & 0x8000 ? DATA_NOT_NULL : 0,
-				 len & 0x7fff, 0);
-			dict_index_add_col
-				(ind, dict_table_get_nth_col(table, i), 0);
+			dict_mem_table_add_col(
+				table, "DUMMY",
+				((len + 1) & 0x7fff) <= 1
+				? DATA_BINARY : DATA_FIXBINARY,
+				len & 0x8000 ? DATA_NOT_NULL : 0,
+				len & 0x7fff);
+
+			dict_index_add_col(ind, table, (dict_col_t*)
+					   dict_table_get_nth_col(table, i),
+					   0);
 		}
 		dict_table_add_system_columns(table);
-		if (n_uniq != n) {
-			/* Identify DB_TRX_ID and DB_ROLL_PTR in the index. */
-			ut_a(DATA_TRX_ID_LEN == dtype_get_len
-			     (dict_col_get_type
-			      (dict_field_get_col
-			       (dict_index_get_nth_field
-				(ind, n_uniq + (DATA_TRX_ID - 1))))));
-			ut_a(DATA_ROLL_PTR_LEN == dtype_get_len
-			     (dict_col_get_type
-			      (dict_field_get_col
-			       (dict_index_get_nth_field
-				(ind, n_uniq + (DATA_ROLL_PTR - 1))))));
-			dict_table_get_nth_col(table, i + DATA_TRX_ID)
-				->clust_pos = n_uniq + (DATA_TRX_ID - 1);
-			dict_table_get_nth_col(table, i + DATA_ROLL_PTR)
-				->clust_pos = n_uniq + (DATA_ROLL_PTR - 1);
-		}
 	}
 	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
 	ind->cached = TRUE;

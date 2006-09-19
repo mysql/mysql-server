@@ -561,16 +561,16 @@ buf_LRU_old_adjust_len(void)
 
 		if (old_len < new_len - BUF_LRU_OLD_TOLERANCE) {
 
-			buf_pool->LRU_old = UT_LIST_GET_PREV
-				(LRU, buf_pool->LRU_old);
-			(buf_pool->LRU_old)->old = TRUE;
+			buf_pool->LRU_old = UT_LIST_GET_PREV(
+				LRU, buf_pool->LRU_old);
+			buf_pool->LRU_old->old = TRUE;
 			buf_pool->LRU_old_len++;
 
 		} else if (old_len > new_len + BUF_LRU_OLD_TOLERANCE) {
 
-			(buf_pool->LRU_old)->old = FALSE;
-			buf_pool->LRU_old = UT_LIST_GET_NEXT
-				(LRU, buf_pool->LRU_old);
+			buf_pool->LRU_old->old = FALSE;
+			buf_pool->LRU_old = UT_LIST_GET_NEXT(
+				LRU, buf_pool->LRU_old);
 			buf_pool->LRU_old_len--;
 		} else {
 			ut_a(buf_pool->LRU_old); /* Check that we did not
@@ -638,7 +638,7 @@ buf_LRU_remove_block(
 		tolerance value from strict 3/8 of the LRU list length. */
 
 		buf_pool->LRU_old = UT_LIST_GET_PREV(LRU, block);
-		(buf_pool->LRU_old)->old = TRUE;
+		buf_pool->LRU_old->old = TRUE;
 
 		buf_pool->LRU_old_len++;
 		ut_a(buf_pool->LRU_old);
@@ -923,12 +923,12 @@ buf_LRU_block_remove_hashed_page(
 			fprintf(stderr,
 				"InnoDB: In hash table we find block"
 				" %p of %lu %lu which is not %p\n",
-				(void*) buf_page_hash_get
-				(block->space, block->offset),
-				(ulong) buf_page_hash_get
-				(block->space, block->offset)->space,
-				(ulong) buf_page_hash_get
-				(block->space, block->offset)->offset,
+				(void*) buf_page_hash_get(
+					block->space, block->offset),
+				(ulong) buf_page_hash_get(
+					block->space, block->offset)->space,
+				(ulong) buf_page_hash_get(
+					block->space, block->offset)->offset,
 				(void*) block);
 		}
 
@@ -1086,8 +1086,8 @@ buf_LRU_print(void)
 		fprintf(stderr, "\nLRU pos %lu type %lu index id %lu\n",
 			(ulong) block->LRU_position,
 			(ulong) fil_page_get_type(frame),
-			(ulong) ut_dulint_get_low
-			(btr_page_get_index_id(frame)));
+			(ulong) ut_dulint_get_low(
+				btr_page_get_index_id(frame)));
 
 		block = UT_LIST_GET_NEXT(LRU, block);
 	}

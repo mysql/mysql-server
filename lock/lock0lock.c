@@ -1041,8 +1041,8 @@ lock_has_to_wait(
 
 			return(lock_rec_has_to_wait(lock1->trx,
 						    lock1->type_mode, lock2,
-						    lock_rec_get_nth_bit
-						    (lock1, 1)));
+						    lock_rec_get_nth_bit(
+							    lock1, 1)));
 		}
 
 		return(TRUE);
@@ -1990,9 +1990,9 @@ lock_rec_add_to_queue(
 		if one is found and there are no waiting lock requests,
 		we can just set the bit */
 
-		lock = lock_rec_find_similar_on_page
-			(type_mode, heap_no,
-			 lock_rec_get_first_on_page(rec), trx);
+		lock = lock_rec_find_similar_on_page(
+			type_mode, heap_no,
+			lock_rec_get_first_on_page(rec), trx);
 
 		if (lock) {
 
@@ -2712,18 +2712,19 @@ lock_move_reorganize_page(
 		for (;;) {
 			ut_ad(comp || !memcmp(page_cur_get_rec(&cur1),
 					      page_cur_get_rec(&cur2),
-					      rec_get_data_size_old
-					      (page_cur_get_rec(&cur2))));
+					      rec_get_data_size_old(
+						      page_cur_get_rec(
+							      &cur2))));
 			if (UNIV_LIKELY(comp)) {
-				old_heap_no = rec_get_heap_no_new
-					(page_cur_get_rec(&cur2));
-				new_heap_no = rec_get_heap_no_new
-					(page_cur_get_rec(&cur1));
+				old_heap_no = rec_get_heap_no_new(
+					page_cur_get_rec(&cur2));
+				new_heap_no = rec_get_heap_no_new(
+					page_cur_get_rec(&cur1));
 			} else {
-				old_heap_no = rec_get_heap_no_old
-					(page_cur_get_rec(&cur2));
-				new_heap_no = rec_get_heap_no_old
-					(page_cur_get_rec(&cur1));
+				old_heap_no = rec_get_heap_no_old(
+					page_cur_get_rec(&cur2));
+				new_heap_no = rec_get_heap_no_old(
+					page_cur_get_rec(&cur1));
 			}
 
 			if (lock_rec_get_nth_bit(lock, old_heap_no)) {
@@ -2816,14 +2817,14 @@ lock_move_rec_list_end(
 			ut_ad(page_is_comp(page)
 			      || !memcmp(page_cur_get_rec(&cur1),
 					 page_cur_get_rec(&cur2),
-					 rec_get_data_size_old
-					 (page_cur_get_rec(&cur2))));
+					 rec_get_data_size_old(
+						 page_cur_get_rec(&cur2))));
 			if (page_is_comp(page)) {
-				heap_no = rec_get_heap_no_new
-					(page_cur_get_rec(&cur1));
+				heap_no = rec_get_heap_no_new(
+					page_cur_get_rec(&cur1));
 			} else {
-				heap_no = rec_get_heap_no_old
-					(page_cur_get_rec(&cur1));
+				heap_no = rec_get_heap_no_old(
+					page_cur_get_rec(&cur1));
 			}
 
 			if (lock_rec_get_nth_bit(lock, heap_no)) {
@@ -2836,11 +2837,11 @@ lock_move_rec_list_end(
 				}
 
 				if (page_is_comp(page)) {
-					heap_no = rec_get_heap_no_new
-						(page_cur_get_rec(&cur2));
+					heap_no = rec_get_heap_no_new(
+						page_cur_get_rec(&cur2));
 				} else {
-					heap_no = rec_get_heap_no_old
-						(page_cur_get_rec(&cur2));
+					heap_no = rec_get_heap_no_old(
+						page_cur_get_rec(&cur2));
 				}
 
 				lock_rec_add_to_queue(type_mode,
@@ -2909,14 +2910,14 @@ lock_move_rec_list_start(
 			ut_ad(page_is_comp(page)
 			      || !memcmp(page_cur_get_rec(&cur1),
 					 page_cur_get_rec(&cur2),
-					 rec_get_data_size_old
-					 (page_cur_get_rec(&cur2))));
+					 rec_get_data_size_old(
+						 page_cur_get_rec(&cur2))));
 			if (page_is_comp(page)) {
-				heap_no = rec_get_heap_no_new
-					(page_cur_get_rec(&cur1));
+				heap_no = rec_get_heap_no_new(
+					page_cur_get_rec(&cur1));
 			} else {
-				heap_no = rec_get_heap_no_old
-					(page_cur_get_rec(&cur1));
+				heap_no = rec_get_heap_no_old(
+					page_cur_get_rec(&cur1));
 			}
 
 			if (lock_rec_get_nth_bit(lock, heap_no)) {
@@ -2929,11 +2930,11 @@ lock_move_rec_list_start(
 				}
 
 				if (page_is_comp(page)) {
-					heap_no = rec_get_heap_no_new
-						(page_cur_get_rec(&cur2));
+					heap_no = rec_get_heap_no_new(
+						page_cur_get_rec(&cur2));
 				} else {
-					heap_no = rec_get_heap_no_old
-						(page_cur_get_rec(&cur2));
+					heap_no = rec_get_heap_no_old(
+						page_cur_get_rec(&cur2));
 				}
 
 				lock_rec_add_to_queue(type_mode,
@@ -2981,8 +2982,8 @@ lock_update_split_right(
 	of the infimum on right page */
 
 	lock_rec_inherit_to_gap(page_get_supremum_rec(left_page),
-				page_rec_get_next
-				(page_get_infimum_rec(right_page)));
+				page_rec_get_next(
+					page_get_infimum_rec(right_page)));
 
 	lock_mutex_exit_kernel();
 }
@@ -3083,8 +3084,8 @@ lock_update_split_left(
 	successor of the infimum on the right page */
 
 	lock_rec_inherit_to_gap(page_get_supremum_rec(left_page),
-				page_rec_get_next
-				(page_get_infimum_rec(right_page)));
+				page_rec_get_next(
+					page_get_infimum_rec(right_page)));
 
 	lock_mutex_exit_kernel();
 }
@@ -3522,9 +3523,9 @@ lock_deadlock_recursive(
 				incompatible mode, and is itself waiting for
 				a lock */
 
-				ret = lock_deadlock_recursive
-					(start, lock_trx,
-					 lock_trx->wait_lock, cost, depth + 1);
+				ret = lock_deadlock_recursive(
+					start, lock_trx,
+					lock_trx->wait_lock, cost, depth + 1);
 				if (ret != 0) {
 
 					return(ret);
@@ -4306,9 +4307,9 @@ lock_rec_print(
 			if (page) {
 				rec_t*	rec
 					= page_find_rec_with_heap_no(page, i);
-				offsets = rec_get_offsets
-					(rec, lock->index, offsets,
-					 ULINT_UNDEFINED, &heap);
+				offsets = rec_get_offsets(
+					rec, lock->index, offsets,
+					ULINT_UNDEFINED, &heap);
 				rec_print_new(file, rec, offsets);
 			}
 
@@ -4465,14 +4466,14 @@ loop:
 			fprintf(file,
 				"Trx read view will not see trx with"
 				" id >= %lu %lu, sees < %lu %lu\n",
-				(ulong) ut_dulint_get_high
-				(trx->read_view->low_limit_id),
-				(ulong) ut_dulint_get_low
-				(trx->read_view->low_limit_id),
-				(ulong) ut_dulint_get_high
-				(trx->read_view->up_limit_id),
-				(ulong) ut_dulint_get_low
-				(trx->read_view->up_limit_id));
+				(ulong) ut_dulint_get_high(
+					trx->read_view->low_limit_id),
+				(ulong) ut_dulint_get_low(
+					trx->read_view->low_limit_id),
+				(ulong) ut_dulint_get_high(
+					trx->read_view->up_limit_id),
+				(ulong) ut_dulint_get_low(
+					trx->read_view->up_limit_id));
 		}
 
 		fprintf(file,
@@ -4530,8 +4531,8 @@ loop:
 
 			mtr_start(&mtr);
 
-			page = buf_page_get_with_no_latch
-				(space, page_no, &mtr);
+			page = buf_page_get_with_no_latch(
+				space, page_no, &mtr);
 
 			mtr_commit(&mtr);
 
@@ -4597,8 +4598,9 @@ lock_table_queue_validate(
 
 			ut_a(!is_waiting);
 
-			ut_a(!lock_table_other_has_incompatible
-			     (lock->trx, 0, table, lock_get_mode(lock)));
+			ut_a(!lock_table_other_has_incompatible(
+				     lock->trx, 0, table,
+				     lock_get_mode(lock)));
 		} else {
 			is_waiting = TRUE;
 
@@ -4675,8 +4677,8 @@ lock_rec_queue_validate(
 
 		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
 
-		if (impl_trx && lock_rec_other_has_expl_req
-		    (LOCK_S, 0, LOCK_WAIT, rec, heap_no, impl_trx)) {
+		if (impl_trx && lock_rec_other_has_expl_req(
+			    LOCK_S, 0, LOCK_WAIT, rec, heap_no, impl_trx)) {
 
 			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 					       rec, heap_no, impl_trx));
@@ -4687,11 +4689,11 @@ lock_rec_queue_validate(
 		next function call: we have to release lock table mutex
 		to obey the latching order */
 
-		impl_trx = lock_sec_rec_some_has_impl_off_kernel
-			(rec, index, offsets);
+		impl_trx = lock_sec_rec_some_has_impl_off_kernel(
+			rec, index, offsets);
 
-		if (impl_trx && lock_rec_other_has_expl_req
-		    (LOCK_S, 0, LOCK_WAIT, rec, heap_no, impl_trx)) {
+		if (impl_trx && lock_rec_other_has_expl_req(
+			    LOCK_S, 0, LOCK_WAIT, rec, heap_no, impl_trx)) {
 
 			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 					       rec, heap_no, impl_trx));
@@ -4719,8 +4721,8 @@ lock_rec_queue_validate(
 			} else {
 				mode = LOCK_S;
 			}
-			ut_a(!lock_rec_other_has_expl_req
-			     (mode, 0, 0, rec, heap_no, lock->trx));
+			ut_a(!lock_rec_other_has_expl_req(
+				     mode, 0, 0, rec, heap_no, lock->trx));
 
 		} else if (lock_get_wait(lock) && !lock_rec_get_gap(lock)) {
 
@@ -4857,8 +4859,8 @@ lock_validate(void)
 		while (lock) {
 			if (lock_get_type(lock) & LOCK_TABLE) {
 
-				lock_table_queue_validate
-					(lock->un_member.tab_lock.table);
+				lock_table_queue_validate(
+					lock->un_member.tab_lock.table);
 			}
 
 			lock = UT_LIST_GET_NEXT(trx_locks, lock);
@@ -4880,9 +4882,9 @@ lock_validate(void)
 				space = lock->un_member.rec_lock.space;
 				page_no = lock->un_member.rec_lock.page_no;
 
-				if (ut_dulint_cmp
-				    (ut_dulint_create(space, page_no),
-				     limit) >= 0) {
+				if (ut_dulint_cmp(
+					    ut_dulint_create(space, page_no),
+					    limit) >= 0) {
 					break;
 				}
 
@@ -4991,9 +4993,9 @@ lock_rec_insert_check_and_lock(
 	had to wait for their insert. Both had waiting gap type lock requests
 	on the successor, which produced an unnecessary deadlock. */
 
-	if (lock_rec_other_has_conflicting
-	    (LOCK_X | LOCK_GAP | LOCK_INSERT_INTENTION,
-	     next_rec, next_rec_heap_no, trx)) {
+	if (lock_rec_other_has_conflicting(
+		    LOCK_X | LOCK_GAP | LOCK_INSERT_INTENTION,
+		    next_rec, next_rec_heap_no, trx)) {
 
 		/* Note that we may get DB_SUCCESS also here! */
 		err = lock_rec_enqueue_waiting(LOCK_X | LOCK_GAP
@@ -5057,8 +5059,8 @@ lock_rec_convert_impl_to_expl(
 	if (dict_index_is_clust(index)) {
 		impl_trx = lock_clust_rec_some_has_impl(rec, index, offsets);
 	} else {
-		impl_trx = lock_sec_rec_some_has_impl_off_kernel
-			(rec, index, offsets);
+		impl_trx = lock_sec_rec_some_has_impl_off_kernel(
+			rec, index, offsets);
 	}
 
 	if (impl_trx) {
@@ -5076,9 +5078,9 @@ lock_rec_convert_impl_to_expl(
 		if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, rec,
 				       heap_no, impl_trx)) {
 
-			lock_rec_add_to_queue
-				(LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP,
-				 rec, heap_no, index, impl_trx);
+			lock_rec_add_to_queue(
+				LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP,
+				rec, heap_no, index, impl_trx);
 		}
 	}
 }

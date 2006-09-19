@@ -317,7 +317,7 @@ page_zip_write_header(
 	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)str)) == page_zip);
 	ut_ad(page_zip_simple_validate(page_zip));
 
-	pos = ut_align_offset(str, UNIV_PAGE_SIZE);
+	pos = page_offset(str);
 
 	ut_ad(pos < PAGE_DATA);
 

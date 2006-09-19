@@ -191,7 +191,7 @@ buf_flush_write_complete(
 
 	ut_d(UT_LIST_VALIDATE(flush_list, buf_block_t, buf_pool->flush_list));
 
-	(buf_pool->n_flush[block->flush_type])--;
+	buf_pool->n_flush[block->flush_type]--;
 
 	if (block->flush_type == BUF_FLUSH_LRU) {
 		/* Put the block to the end of the LRU list to wait to be
@@ -527,8 +527,8 @@ buf_flush_init_for_writing(
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums
-					? page_zip_calc_checksum
-					(page_zip->data, zip_size)
+					? page_zip_calc_checksum(
+						page_zip->data, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
 		case FIL_PAGE_TYPE_ALLOCATED:
@@ -556,8 +556,8 @@ buf_flush_init_for_writing(
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
 					srv_use_checksums
-					? page_zip_calc_checksum
-					(page_zip->data, zip_size)
+					? page_zip_calc_checksum(
+						page_zip->data, zip_size)
 					: BUF_NO_CHECKSUM_MAGIC);
 			return;
 		}
@@ -692,7 +692,7 @@ buf_flush_try_page(
 			os_event_reset(buf_pool->no_flush[flush_type]);
 		}
 
-		(buf_pool->n_flush[flush_type])++;
+		buf_pool->n_flush[flush_type]++;
 
 		locked = FALSE;
 
@@ -759,7 +759,7 @@ buf_flush_try_page(
 			os_event_reset(buf_pool->no_flush[flush_type]);
 		}
 
-		(buf_pool->n_flush[flush_type])++;
+		buf_pool->n_flush[flush_type]++;
 
 		rw_lock_s_lock_gen(&(block->lock), BUF_IO_WRITE);
 
@@ -798,7 +798,7 @@ buf_flush_try_page(
 			os_event_reset(buf_pool->no_flush[block->flush_type]);
 		}
 
-		(buf_pool->n_flush[flush_type])++;
+		buf_pool->n_flush[flush_type]++;
 
 		mutex_exit(&(buf_pool->mutex));
 
@@ -949,7 +949,7 @@ buf_flush_batch(
 		return(ULINT_UNDEFINED);
 	}
 
-	(buf_pool->init_flush)[flush_type] = TRUE;
+	buf_pool->init_flush[flush_type] = TRUE;
 
 	for (;;) {
 		/* If we have flushed enough, leave the loop */
@@ -998,8 +998,8 @@ buf_flush_batch(
 				old_page_count = page_count;
 
 				/* Try to flush also all the neighbors */
-				page_count += buf_flush_try_neighbors
-					(space, offset, flush_type);
+				page_count += buf_flush_try_neighbors(
+					space, offset, flush_type);
 				/* fprintf(stderr,
 				"Flush type %lu, page no %lu, neighb %lu\n",
 				flush_type, offset,
@@ -1024,7 +1024,7 @@ buf_flush_batch(
 		}
 	}
 
-	(buf_pool->init_flush)[flush_type] = FALSE;
+	buf_pool->init_flush[flush_type] = FALSE;
 
 	if ((buf_pool->n_flush[flush_type] == 0)
 	    && (buf_pool->init_flush[flush_type] == FALSE)) {

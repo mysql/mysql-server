@@ -155,7 +155,7 @@ page_dir_slot_check(
 
 	ut_a(slot);
 
-	page = ut_align_down(slot, UNIV_PAGE_SIZE);
+	page = page_align(slot);
 
 	n_slots = page_dir_get_n_slots(page);
 
@@ -354,7 +354,7 @@ page_create_low(
 
 	dfield_set_data(field, "infimum", 8);
 	dtype_set(dfield_get_type(field),
-		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, 8, 0);
+		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, 8);
 	/* Set the corresponding physical record to its place in the page
 	record heap */
 
@@ -387,7 +387,7 @@ page_create_low(
 
 	dfield_set_data(field, "supremum", comp ? 8 : 9);
 	dtype_set(dfield_get_type(field),
-		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, comp ? 8 : 9, 0);
+		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, comp ? 8 : 9);
 
 	supremum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple);
 
@@ -525,8 +525,7 @@ page_copy_rec_list_end_no_locks(
 	     == dict_table_is_comp(index->table));
 	ut_a(page_is_comp(new_page) == page_rec_is_comp(rec));
 	ut_a(mach_read_from_2(new_page + UNIV_PAGE_SIZE - 10) == (ulint)
-	     (page_is_comp(new_page)
-	      ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
+	     (page_is_comp(new_page) ? PAGE_NEW_INFIMUM : PAGE_OLD_INFIMUM));
 
 	page_cur_set_before_first(new_page, &cur2);
 
@@ -542,17 +541,15 @@ page_copy_rec_list_end_no_locks(
 			list on June 18th, 2003 */
 
 			buf_page_print(new_page, 0);
-			buf_page_print(ut_align_down(rec, UNIV_PAGE_SIZE), 0);
+			buf_page_print(page_align(rec), 0);
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
 				"InnoDB: rec offset %lu, cur1 offset %lu,"
 				" cur2 offset %lu\n",
-				(ulong)ut_align_offset(rec, UNIV_PAGE_SIZE),
-				(ulong)ut_align_offset(page_cur_get_rec(&cur1),
-						       UNIV_PAGE_SIZE),
-				(ulong)ut_align_offset(page_cur_get_rec(&cur2),
-						       UNIV_PAGE_SIZE));
+				(ulong) page_offset(rec),
+				(ulong) page_offset(page_cur_get_rec(&cur1)),
+				(ulong) page_offset(page_cur_get_rec(&cur2)));
 			ut_error;
 		}
 
@@ -584,7 +581,7 @@ page_copy_rec_list_end(
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	page_t*	page	= ut_align_down(rec, UNIV_PAGE_SIZE);
+	page_t*	page	= page_align(rec);
 	rec_t*	ret	= page_rec_get_next(page_get_infimum_rec(new_page));
 	ulint	log_mode= 0; /* remove warning */
 
@@ -615,12 +612,12 @@ page_copy_rec_list_end(
 				= page_rec_get_n_recs_before(ret);
 
 			if (UNIV_UNLIKELY
-			    (!page_zip_reorganize
-			     (new_page_zip, new_page, index, mtr))) {
+			    (!page_zip_reorganize(new_page_zip, new_page,
+						  index, mtr))) {
 
 				if (UNIV_UNLIKELY
-				    (!page_zip_decompress
-				     (new_page_zip, new_page))) {
+				    (!page_zip_decompress(new_page_zip,
+							  new_page))) {
 					ut_error;
 				}
 				return(NULL);
@@ -672,8 +669,8 @@ page_copy_rec_list_start(
 	page_t*		page;
 	ulint		log_mode	= 0 /* remove warning */;
 	mem_heap_t*	heap		= NULL;
-	rec_t*		ret		= page_rec_get_prev
-		(page_get_supremum_rec(new_page));
+	rec_t*		ret
+		= page_rec_get_prev(page_get_supremum_rec(new_page));
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
@@ -687,7 +684,7 @@ page_copy_rec_list_start(
 		log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 	}
 
-	page = ut_align_down(rec, UNIV_PAGE_SIZE);
+	page = page_align(rec);
 
 	page_cur_set_before_first(page, &cur1);
 	page_cur_move_to_next(&cur1);
@@ -724,12 +721,12 @@ page_copy_rec_list_start(
 				= page_rec_get_n_recs_before(ret);
 
 			if (UNIV_UNLIKELY
-			    (!page_zip_reorganize
-			     (new_page_zip, new_page, index, mtr))) {
+			    (!page_zip_reorganize(new_page_zip, new_page,
+						  index, mtr))) {
 
 				if (UNIV_UNLIKELY
-				    (!page_zip_decompress
-				     (new_page_zip, new_page))) {
+				    (!page_zip_decompress(new_page_zip,
+							  new_page))) {
 					ut_error;
 				}
 
@@ -779,7 +776,7 @@ page_delete_rec_list_write_log(
 	log_ptr = mlog_open_and_write_index(mtr, rec, index, type, 2);
 	if (log_ptr) {
 		/* Write the parameter as a 2-byte ulint */
-		mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
+		mach_write_to_2(log_ptr, page_offset(rec));
 		mlog_close(mtr, log_ptr + 2);
 	}
 }
@@ -861,7 +858,7 @@ page_delete_rec_list_end(
 	rec_t*		last_rec;
 	rec_t*		prev_rec;
 	ulint		n_owned;
-	page_t*		page		= ut_align_down(rec, UNIV_PAGE_SIZE);
+	page_t*		page		= page_align(rec);
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -916,8 +913,7 @@ page_delete_rec_list_end(
 #endif /* UNIV_ZIP_DEBUG */
 			page_cur_delete_rec(&cur, index, offsets,
 					    page_zip, mtr);
-		} while (ut_align_offset(rec, UNIV_PAGE_SIZE)
-			 != PAGE_NEW_SUPREMUM);
+		} while (page_offset(rec) != PAGE_NEW_SUPREMUM);
 
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
@@ -1057,7 +1053,7 @@ page_delete_rec_list_start(
 
 	page_delete_rec_list_write_log(rec, index, type, mtr);
 
-	page_cur_set_before_first(ut_align_down(rec, UNIV_PAGE_SIZE), &cur1);
+	page_cur_set_before_first(page_align(rec), &cur1);
 	page_cur_move_to_next(&cur1);
 
 	/* Individual deletes are not logged */
@@ -1107,8 +1103,7 @@ page_move_rec_list_end(
 	old_n_recs = page_get_n_recs(new_page);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!new_page_zip || page_zip_validate(new_page_zip, new_page));
-	ut_a(!page_zip || page_zip_validate
-	     (page_zip, ut_align_down(split_rec, UNIV_PAGE_SIZE)));
+	ut_a(!page_zip || page_zip_validate(page_zip, page_align(split_rec)));
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
@@ -1704,7 +1699,7 @@ page_rec_validate(
 	ulint	heap_no;
 	page_t*	page;
 
-	page = ut_align_down(rec, UNIV_PAGE_SIZE);
+	page = page_align(rec);
 	ut_a(!page_is_comp(page) == !rec_offs_comp(offsets));
 
 	page_rec_check(rec);

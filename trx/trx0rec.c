@@ -50,8 +50,8 @@ trx_undof_page_add_undo_rec_log(
 	}
 
 	log_end = &log_ptr[11 + 13 + MLOG_BUF_MARGIN];
-	log_ptr = mlog_write_initial_log_record_fast
-		(undo_page, MLOG_UNDO_INSERT, log_ptr, mtr);
+	log_ptr = mlog_write_initial_log_record_fast(
+		undo_page, MLOG_UNDO_INSERT, log_ptr, mtr);
 	len = new_free - old_free - 4;
 
 	mach_write_to_2(log_ptr, len);
@@ -413,7 +413,6 @@ trx_undo_page_report_modify(
 {
 	dict_table_t*	table;
 	upd_field_t*	upd_field;
-	dict_col_t*	col;
 	ulint		first_free;
 	byte*		ptr;
 	ulint		len;
@@ -486,13 +485,13 @@ trx_undo_page_report_modify(
 
 	/* Store the values of the system columns */
 	field = rec_get_nth_field(rec, offsets,
-				  dict_index_get_sys_col_pos
-				  (index, DATA_TRX_ID), &len);
+				  dict_index_get_sys_col_pos(
+					  index, DATA_TRX_ID), &len);
 	ut_ad(len == DATA_TRX_ID_LEN);
 	trx_id = trx_read_trx_id(field);
 	field = rec_get_nth_field(rec, offsets,
-				  dict_index_get_sys_col_pos
-				  (index, DATA_ROLL_PTR), &len);
+				  dict_index_get_sys_col_pos(
+					  index, DATA_ROLL_PTR), &len);
 	ut_ad(len == DATA_ROLL_PTR_LEN);
 	roll_ptr = trx_read_roll_ptr(field);
 
@@ -567,9 +566,9 @@ trx_undo_page_report_modify(
 				/* If a field has external storage, we add
 				to flen the flag */
 
-				len = mach_write_compressed
-					(ptr,
-					 UNIV_EXTERN_STORAGE_FIELD + flen);
+				len = mach_write_compressed(
+					ptr,
+					UNIV_EXTERN_STORAGE_FIELD + flen);
 
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
@@ -627,7 +626,8 @@ trx_undo_page_report_modify(
 		for (col_no = 0; col_no < dict_table_get_n_cols(table);
 		     col_no++) {
 
-			col = dict_table_get_nth_col(table, col_no);
+			const dict_col_t*	col
+				= dict_table_get_nth_col(table, col_no);
 
 			if (col->ord_part > 0) {
 
@@ -826,9 +826,9 @@ trx_undo_update_rec_get_update(
 	buf = mem_heap_alloc(heap, DATA_ROLL_PTR_LEN);
 	trx_write_roll_ptr(buf, roll_ptr);
 
-	upd_field_set_field_no
-		(upd_field, dict_index_get_sys_col_pos(index, DATA_ROLL_PTR),
-		 index, trx);
+	upd_field_set_field_no(
+		upd_field, dict_index_get_sys_col_pos(index, DATA_ROLL_PTR),
+		index, trx);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_ROLL_PTR_LEN);
 
 	/* Store then the updated ordinary columns to the update vector */
@@ -1094,14 +1094,14 @@ trx_undo_report_row_operation(
 #endif /* UNIV_SYNC_DEBUG */
 
 		if (op_type == TRX_UNDO_INSERT_OP) {
-			offset = trx_undo_page_report_insert
-				(undo_page, trx, index, clust_entry, &mtr);
+			offset = trx_undo_page_report_insert(
+				undo_page, trx, index, clust_entry, &mtr);
 		} else {
 			offsets = rec_get_offsets(rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
-			offset = trx_undo_page_report_modify
-				(undo_page, trx, index, rec, offsets,
-				 update, cmpl_info, &mtr);
+			offset = trx_undo_page_report_modify(
+				undo_page, trx, index, rec, offsets, update,
+				cmpl_info, &mtr);
 		}
 
 		if (offset == 0) {

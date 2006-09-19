@@ -335,10 +335,12 @@ buf_page_is_corrupted(
 				"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf
 							 + FIL_PAGE_OFFSET),
-				(ulong) ut_dulint_get_high
-				(mach_read_from_8(read_buf + FIL_PAGE_LSN)),
-				(ulong) ut_dulint_get_low
-				(mach_read_from_8(read_buf + FIL_PAGE_LSN)),
+				(ulong) ut_dulint_get_high(
+					mach_read_from_8(read_buf
+							 + FIL_PAGE_LSN)),
+				(ulong) ut_dulint_get_low(
+					mach_read_from_8(read_buf
+							 + FIL_PAGE_LSN)),
 				(ulong) ut_dulint_get_high(current_lsn),
 				(ulong) ut_dulint_get_low(current_lsn));
 		}
@@ -360,9 +362,9 @@ buf_page_is_corrupted(
 			       != page_zip_calc_checksum(read_buf, zip_size));
 		}
 
-		old_checksum_field = mach_read_from_4
-			(read_buf + UNIV_PAGE_SIZE
-			 - FIL_PAGE_END_LSN_OLD_CHKSUM);
+		old_checksum_field = mach_read_from_4(
+			read_buf + UNIV_PAGE_SIZE
+			- FIL_PAGE_END_LSN_OLD_CHKSUM);
 
 		/* There are 2 valid formulas for old_checksum_field:
 
@@ -439,16 +441,16 @@ buf_page_print(
 				"InnoDB: space id (if stored"
 				" to page already) %lu\n",
 				(ulong) checksum,
-				(ulong) mach_read_from_4
-				(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
-				(ulong) mach_read_from_4
-				(read_buf + FIL_PAGE_LSN),
-				(ulong) mach_read_from_4
-				(read_buf + (FIL_PAGE_LSN + 4)),
-				(ulong) mach_read_from_4
-				(read_buf + FIL_PAGE_OFFSET),
-				(ulong) mach_read_from_4
-				(read_buf + FIL_PAGE_ZBLOB_SPACE_ID));
+				(ulong) mach_read_from_4(
+					read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
+				(ulong) mach_read_from_4(
+					read_buf + FIL_PAGE_LSN),
+				(ulong) mach_read_from_4(
+					read_buf + (FIL_PAGE_LSN + 4)),
+				(ulong) mach_read_from_4(
+					read_buf + FIL_PAGE_OFFSET),
+				(ulong) mach_read_from_4(
+					read_buf + FIL_PAGE_ZBLOB_SPACE_ID));
 			return;
 		default:
 			ut_print_timestamp(stderr);
@@ -472,16 +474,17 @@ buf_page_print(
 				"InnoDB: space id (if stored"
 				" to page already) %lu\n",
 				(ulong) checksum,
-				(ulong) mach_read_from_4
-				(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
-				(ulong) mach_read_from_4
-				(read_buf + FIL_PAGE_LSN),
-				(ulong) mach_read_from_4
-				(read_buf + (FIL_PAGE_LSN + 4)),
-				(ulong) mach_read_from_4
-				(read_buf + FIL_PAGE_OFFSET),
-				(ulong) mach_read_from_4
-				(read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
+				(ulong) mach_read_from_4(
+					read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
+				(ulong) mach_read_from_4(
+					read_buf + FIL_PAGE_LSN),
+				(ulong) mach_read_from_4(
+					read_buf + (FIL_PAGE_LSN + 4)),
+				(ulong) mach_read_from_4(
+					read_buf + FIL_PAGE_OFFSET),
+				(ulong) mach_read_from_4(
+					read_buf
+					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 			return;
 		case FIL_PAGE_TYPE_XDES:
 			/* This is an uncompressed page. */
@@ -533,10 +536,10 @@ buf_page_print(
 		fprintf(stderr,
 			"InnoDB: Page may be an index page where"
 			" index id is %lu %lu\n",
-			(ulong) ut_dulint_get_high
-			(btr_page_get_index_id(read_buf)),
-			(ulong) ut_dulint_get_low
-			(btr_page_get_index_id(read_buf)));
+			(ulong) ut_dulint_get_high(
+				btr_page_get_index_id(read_buf)),
+			(ulong) ut_dulint_get_low(
+				btr_page_get_index_id(read_buf)));
 
 #ifdef UNIV_HOTBACKUP
 		/* If the code is in ibbackup, dict_sys may be uninitialized,
@@ -547,8 +550,8 @@ buf_page_print(
 		}
 #endif /* UNIV_HOTBACKUP */
 
-		index = dict_index_find_on_id_low
-			(btr_page_get_index_id(read_buf));
+		index = dict_index_find_on_id_low(
+			btr_page_get_index_id(read_buf));
 		if (index) {
 			fputs("InnoDB: (", stderr);
 			dict_index_name_print(stderr, NULL, index);
@@ -691,8 +694,8 @@ buf_pool_init(
 		/* Allocate the virtual address space window, i.e., the
 		buffer pool frames */
 
-		buf_pool->frame_mem = os_awe_allocate_virtual_mem_window
-			(UNIV_PAGE_SIZE * (n_frames + 1));
+		buf_pool->frame_mem = os_awe_allocate_virtual_mem_window(
+			UNIV_PAGE_SIZE * (n_frames + 1));
 
 		/* Allocate the physical memory for AWE and the AWE info array
 		for buf_pool */
@@ -718,8 +721,8 @@ buf_pool_init(
 		}
 		/*----------------------------------------*/
 	} else {
-		buf_pool->frame_mem = os_mem_alloc_large
-			(UNIV_PAGE_SIZE * (n_frames + 1), TRUE, FALSE);
+		buf_pool->frame_mem = os_mem_alloc_large(
+			UNIV_PAGE_SIZE * (n_frames + 1), TRUE, FALSE);
 	}
 
 	if (buf_pool->frame_mem == NULL) {
@@ -914,10 +917,10 @@ buf_awe_map_page_to_frame(
 		} else {
 			/* We can map block to the frame of bck */
 
-			os_awe_map_physical_mem_to_window
-				(bck->frame,
-				 UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE,
-				 block->awe_info);
+			os_awe_map_physical_mem_to_window(
+				bck->frame,
+				UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE,
+				block->awe_info);
 
 			block->frame = bck->frame;
 
@@ -933,10 +936,10 @@ buf_awe_map_page_to_frame(
 				       bck);
 
 			if (add_to_mapped_list) {
-				UT_LIST_ADD_FIRST
-					(awe_LRU_free_mapped,
-					 buf_pool->awe_LRU_free_mapped,
-					 block);
+				UT_LIST_ADD_FIRST(
+					awe_LRU_free_mapped,
+					buf_pool->awe_LRU_free_mapped,
+					block);
 			}
 
 			buf_pool->n_pages_awe_remapped++;
@@ -1621,7 +1624,7 @@ buf_page_init_for_backup_restore(
 	block->is_hashed	= FALSE;
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
-	block->side		= BTR_SEARCH_LEFT_SIDE;
+	block->left_side	= TRUE;
 	page_zip_des_init(&block->page_zip);
 	/* TODO: allocate page_zip->data? */
 
@@ -1691,7 +1694,7 @@ buf_page_init(
 	block->is_hashed	= FALSE;
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
-	block->side		= BTR_SEARCH_LEFT_SIDE;
+	block->left_side	= TRUE;
 
 	block->file_page_was_freed = FALSE;
 }
@@ -1752,8 +1755,8 @@ buf_page_init_for_read(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	if (fil_tablespace_deleted_or_being_deleted_in_mem
-	    (space, tablespace_version)) {
+	if (fil_tablespace_deleted_or_being_deleted_in_mem(
+		    space, tablespace_version)) {
 		*err = DB_TABLESPACE_DELETED;
 	}
 
@@ -1944,8 +1947,9 @@ buf_page_io_complete(
 			switch (fil_page_get_type(frame)) {
 			case FIL_PAGE_INDEX:
 				if (block->frame) {
-					if (!page_zip_decompress
-					    (&block->page_zip, block->frame)) {
+					if (!page_zip_decompress(
+						    &block->page_zip,
+						    block->frame)) {
 						goto corrupt;
 					}
 				}
@@ -1978,12 +1982,12 @@ buf_page_io_complete(
 		read_page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
 		switch (fil_page_get_type(frame)) {
 		case FIL_PAGE_TYPE_ZBLOB:
-			read_space_id = mach_read_from_4
-				(frame + FIL_PAGE_ZBLOB_SPACE_ID);
+			read_space_id = mach_read_from_4(
+				frame + FIL_PAGE_ZBLOB_SPACE_ID);
 			break;
 		default:
-			read_space_id = mach_read_from_4
-				(frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+			read_space_id = mach_read_from_4(
+				frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 		}
 
 		if (!block->space
@@ -2069,9 +2073,9 @@ corrupt:
 		}
 
 		if (!recv_no_ibuf_operations) {
-			ibuf_merge_or_delete_for_page
-				(block->frame, block->space,
-				 block->offset, TRUE);
+			ibuf_merge_or_delete_for_page(
+				block->frame, block->space, block->offset,
+				TRUE);
 		}
 	}
 
@@ -2199,8 +2203,9 @@ buf_validate(void)
 
 				if (block->flush_type == BUF_FLUSH_LRU) {
 					n_lru_flush++;
-					ut_a(rw_lock_is_locked
-					     (&block->lock, RW_LOCK_SHARED));
+					ut_a(rw_lock_is_locked(
+						     &block->lock,
+						     RW_LOCK_SHARED));
 				} else if (block->flush_type
 					   == BUF_FLUSH_LIST) {
 					n_list_flush++;
@@ -2320,7 +2325,7 @@ buf_print(void)
 			while (j < n_found) {
 
 				if (ut_dulint_cmp(index_ids[j], id) == 0) {
-					(counts[j])++;
+					counts[j]++;
 
 					break;
 				}
