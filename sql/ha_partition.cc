@@ -3663,7 +3663,10 @@ int ha_partition::read_range_first(const key_range *start_key,
 
   if (!start_key)				// Read first record
   {
-    m_index_scan_type= partition_index_first;
+    if (m_ordered)
+      m_index_scan_type= partition_index_first;
+    else
+      m_index_scan_type= partition_index_first_unordered;
     error= common_first_last(m_rec0);
   }
   else
@@ -3876,6 +3879,18 @@ int ha_partition::handle_unordered_scan_next_partition(byte * buf)
     case partition_index_first:
       DBUG_PRINT("info", ("index_first on partition %d", i));
       error= file->index_first(buf);
+      break;
+    case partition_index_first_unordered:
+      /*
+        We perform a scan without sorting and this means that we
+        should not use the index_first since not all handlers
+        support it and it is also unnecessary to restrict sort
+        order.
+      */
+      DBUG_PRINT("info", ("read_range_first on partition %d", i));
+      table->record[0]= buf;
+      error= file->read_range_first(0, end_range, eq_range, 0);
+      table->record[0]= m_rec0;
       break;
     default:
       DBUG_ASSERT(FALSE);
