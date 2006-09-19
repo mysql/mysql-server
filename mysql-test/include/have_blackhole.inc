@@ -1,4 +1,4 @@
--- require r/have_blackhole.require
 disable_query_log;
-show variables like "have_blackhole_engine";
+--require r/true.require
+select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'blackhole';
 enable_query_log;
