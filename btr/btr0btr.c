@@ -1851,8 +1851,7 @@ btr_set_min_rec_mark_log(
 		(rec, comp ? MLOG_COMP_REC_MIN_MARK : MLOG_REC_MIN_MARK, mtr);
 
 	/* Write rec offset as a 2-byte ulint */
-	mlog_catenate_ulint(mtr, ut_align_offset(rec, UNIV_PAGE_SIZE),
-			    MLOG_2BYTES);
+	mlog_catenate_ulint(mtr, page_offset(rec), MLOG_2BYTES);
 }
 
 /********************************************************************

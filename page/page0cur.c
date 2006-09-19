@@ -1278,7 +1278,7 @@ page_cur_delete_rec_write_log(
 	}
 
 	/* Write the cursor rec offset as a 2-byte ulint */
-	mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
+	mach_write_to_2(log_ptr, page_offset(rec));
 
 	mlog_close(mtr, log_ptr + 2);
 }

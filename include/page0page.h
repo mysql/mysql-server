@@ -141,6 +141,15 @@ page_align(
 			/* out: start of the page */
 	void*	ptr)	/* in: pointer to page frame */
 		__attribute__((const));
+/****************************************************************
+Gets the offset within a page. */
+UNIV_INLINE
+ulint
+page_offset(
+/*========*/
+				/* out: offset from the start of the page */
+	const void*	ptr)	/* in: pointer to page frame */
+		__attribute__((const));
 /*****************************************************************
 Returns the max trx id field value. */
 UNIV_INLINE

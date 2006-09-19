@@ -26,6 +26,17 @@ page_align(
 {
 	return((page_t*) ut_align_down(ptr, UNIV_PAGE_SIZE));
 }
+/****************************************************************
+Gets the offset within a page. */
+UNIV_INLINE
+ulint
+page_offset(
+/*========*/
+				/* out: offset from the start of the page */
+	const void*	ptr)	/* in: pointer to page frame */
+{
+	return(ut_align_offset(ptr, UNIV_PAGE_SIZE));
+}
 /*****************************************************************
 Returns the max trx id field value. */
 UNIV_INLINE
@@ -302,7 +313,7 @@ page_rec_is_user_rec(
 				/* out: TRUE if a user record */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_rec_is_user_rec_low(ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	return(page_rec_is_user_rec_low(page_offset(rec)));
 }
 
 /****************************************************************
@@ -314,7 +325,7 @@ page_rec_is_supremum(
 				/* out: TRUE if the supremum record */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_rec_is_supremum_low(ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	return(page_rec_is_supremum_low(page_offset(rec)));
 }
 
 /****************************************************************
@@ -326,7 +337,7 @@ page_rec_is_infimum(
 				/* out: TRUE if the infimum record */
 	const rec_t*	rec)	/* in: record */
 {
-	return(page_rec_is_infimum_low(ut_align_offset(rec, UNIV_PAGE_SIZE)));
+	return(page_rec_is_infimum_low(page_offset(rec)));
 }
 
 /*****************************************************************
@@ -362,7 +373,7 @@ page_cmp_dtuple_rec_with_match(
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(!rec_offs_comp(offsets) == !page_rec_is_comp(rec));
 
-	rec_offset = ut_align_offset(rec, UNIV_PAGE_SIZE);
+	rec_offset = page_offset(rec);
 
 	if (UNIV_UNLIKELY(rec_offset == PAGE_NEW_INFIMUM)
 	    || UNIV_UNLIKELY(rec_offset == PAGE_OLD_INFIMUM)) {
@@ -503,7 +514,7 @@ page_dir_slot_set_rec(
 {
 	ut_ad(page_rec_check(rec));
 
-	mach_write_to_2(slot, ut_align_offset(rec, UNIV_PAGE_SIZE));
+	mach_write_to_2(slot, page_offset(rec));
 }
 
 /*******************************************************************

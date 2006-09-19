@@ -1345,7 +1345,7 @@ btr_cur_update_in_place_log(
 
 	log_ptr = row_upd_write_sys_vals_to_log(index, trx, roll_ptr, log_ptr,
 						mtr);
-	mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
+	mach_write_to_2(log_ptr, page_offset(rec));
 	log_ptr += 2;
 
 	row_upd_index_write_log(update, log_ptr, mtr);
@@ -2049,7 +2049,7 @@ btr_cur_del_mark_set_clust_rec_log(
 
 	log_ptr = row_upd_write_sys_vals_to_log(index, trx, roll_ptr, log_ptr,
 						mtr);
-	mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
+	mach_write_to_2(log_ptr, page_offset(rec));
 	log_ptr += 2;
 
 	mlog_close(mtr, log_ptr);
@@ -2251,7 +2251,7 @@ btr_cur_del_mark_set_sec_rec_log(
 	mach_write_to_1(log_ptr, val);
 	log_ptr++;
 
-	mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
+	mach_write_to_2(log_ptr, page_offset(rec));
 	log_ptr += 2;
 
 	mlog_close(mtr, log_ptr);
