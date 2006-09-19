@@ -943,6 +943,7 @@ sub command_line_setup () {
 
   $master->[0]=
   {
+   pid           => 0,
    type          => "master",
    idx           => 0,
    path_myddir   => "$opt_vardir/master-data",
@@ -958,6 +959,7 @@ sub command_line_setup () {
 
   $master->[1]=
   {
+   pid           => 0,
    type          => "master",
    idx           => 1,
    path_myddir   => "$opt_vardir/master1-data",
@@ -973,6 +975,7 @@ sub command_line_setup () {
 
   $slave->[0]=
   {
+   pid           => 0,
    type          => "slave",
    idx           => 0,
    path_myddir   => "$opt_vardir/slave-data",
@@ -989,6 +992,7 @@ sub command_line_setup () {
 
   $slave->[1]=
   {
+   pid           => 0,
    type          => "slave",
    idx           => 1,
    path_myddir   => "$opt_vardir/slave1-data",
@@ -1004,6 +1008,7 @@ sub command_line_setup () {
 
   $slave->[2]=
   {
+   pid           => 0,
    type          => "slave",
    idx           => 2,
    path_myddir   => "$opt_vardir/slave2-data",
@@ -1172,9 +1177,9 @@ sub executable_setup () {
                                            "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-max",
+                                           "$path_client_bindir/mysqld-debug",
                                            "$glob_basedir/sql/release/mysqld",
                                            "$glob_basedir/sql/debug/mysqld");
-                                           "$path_client_bindir/mysqld-debug",
       $path_language=      mtr_path_exists("$glob_basedir/share/english/",
                                            "$glob_basedir/sql/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets",
