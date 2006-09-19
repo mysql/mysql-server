@@ -32,8 +32,7 @@ DIST_SUBDIRS=           yassl
 # NOTE Built files should depend on their sources to avoid
 # the built files being rebuilt in source dist
 $(top_builddir)/include/mysqld_error.h: comp_err.c \
-			$(top_srcdir)/sql/share/errmsg.txt \
-			$(wildcard $(top_srcdir)/sql/share/charsets/*.xml)
+			$(top_srcdir)/sql/share/errmsg.txt
 	$(MAKE) $(AM_MAKEFLAGS) comp_err$(EXEEXT)
 	$(top_builddir)/extra/comp_err$(EXEEXT) \
 	--charset=$(top_srcdir)/sql/share/charsets \
