@@ -394,17 +394,26 @@ const char*
 dict_table_get_col_name(
 /*====================*/
 					/* out: column name. NOTE: not
-					guaranteed to stay valid if
-					table is modified in any way
-					(columns added, etc.). */
+					guaranteed to stay valid if table is
+					modified in any way (columns added,
+					etc.). */
 	const dict_table_t*	table,	/* in: table */
-	ulint			i)	/* in: column number */
+	ulint			col_nr)	/* in: column number */
 {
+	ulint		i;
+	const char*	s;
+
 	ut_ad(table);
-	ut_ad(i < table->n_def);
+	ut_ad(col_nr < table->n_def);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(dict_table_get_nth_col(table, i)->name);
+	s = table->col_names;
+
+	for (i = 0; i < col_nr; i++) {
+		s += strlen(s) + 1;
+	}
+
+	return(s);
 }
 
 /************************************************************************
