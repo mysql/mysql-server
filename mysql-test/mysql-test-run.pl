@@ -1666,7 +1666,7 @@ sub kill_running_server () {
   {
     # Ensure that no old mysqld test servers are running
     # This is different from terminating processes we have
-    # started from ths run of the script, this is terminating
+    # started from this run of the script, this is terminating
     # leftovers from previous runs.
 
     mtr_report("Killing Possible Leftover Processes");
@@ -3420,7 +3420,6 @@ sub run_testcase_stop_servers($$$) {
   my $pid;
   my %admin_pids; # hash of admin processes that requests shutdown
   my @kill_pids;  # list of processes to shutdown/kill
-
 
   # Remember if we restarted for this test case
   $tinfo->{'restarted'}= $do_restart;
