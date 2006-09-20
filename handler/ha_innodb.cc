@@ -6177,24 +6177,10 @@ ha_innobase::start_stmt(
 			1) ::store_lock(),
 			2) ::external_lock(),
 			3) ::init_table_handle_for_HANDLER(), and
-			4) :.transactional_table_lock(). */
+			4) ::transactional_table_lock(). */
 
 			prebuilt->select_lock_type =
 				prebuilt->stored_select_lock_type;
-		}
-
-		if (prebuilt->stored_select_lock_type != LOCK_S
-			&& prebuilt->stored_select_lock_type != LOCK_X) {
-			sql_print_error(
-				"stored_select_lock_type is %lu inside "
-				"::start_stmt()!",
-				prebuilt->stored_select_lock_type);
-
-			/* Set the value to LOCK_X: this is just fault
-			tolerance, we do not know what the correct value
-			should be! */
-
-			prebuilt->select_lock_type = LOCK_X;
 		}
 	}
 
