@@ -96,3 +96,4 @@ a	b
 1	6
 drop table t1;
 drop view v1;
+End of 5.0 tests
