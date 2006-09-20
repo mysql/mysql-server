@@ -1332,14 +1332,12 @@ btr_page_get_sure_split_rec(
 
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		/* Estimate the free space of an empty compressed page.
-		The space needed for compressing the index information
-		is estimated. */
-		ulint	free_space_zip = page_zip->size
-			- PAGE_DATA - cursor->index->n_fields / 2;
+		/* Estimate the free space of an empty compressed page. */
+		ulint	free_space_zip = page_zip_empty_size(
+			cursor->index->n_fields, page_zip->size);
 
-		if (UNIV_LIKELY(free_space > free_space_zip)) {
-			free_space = free_space_zip;
+		if (UNIV_LIKELY(free_space > (ulint) free_space_zip)) {
+			free_space = (ulint) free_space_zip;
 			ut_a(insert_size <= free_space);
 		}
 	}
@@ -1746,7 +1744,7 @@ func_start:
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(page_get_n_recs(page) >= 2);
+	ut_ad(page_get_n_recs(page) >= 1);
 
 	page_no = buf_frame_get_page_no(page);
 
