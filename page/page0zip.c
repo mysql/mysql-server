@@ -52,6 +52,30 @@ static const byte supremum_extra_data[] = {
 static const byte zero[BTR_EXTERN_FIELD_REF_SIZE] = { 0, };
 #endif
 
+/**************************************************************************
+Determine the guaranteed free space on an empty page. */
+
+ulint
+page_zip_empty_size(
+/*================*/
+				/* out: minimum payload size on the page */
+	ulint	n_fields,	/* in: number of columns in the index */
+	ulint	zip_size)	/* in: compressed page size in bytes */
+{
+	lint	size = zip_size
+		/* subtract the page header and the longest
+		uncompressed data needed for one record */
+		- (PAGE_DATA
+		   + PAGE_ZIP_DIR_SLOT_SIZE
+		   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN
+		   + 1/* encoded heap_no==2 in page_zip_write_rec() */
+		   + 1/* end of modification log */
+		   - REC_N_NEW_EXTRA_BYTES/* omitted bytes */)
+		/* subtract the space for page_zip_fields_encode() */
+		- compressBound(2 * (n_fields + 1));
+	return(size > 0 ? (ulint) size : 0);
+}
+
 /*****************************************************************
 Gets the size of the compressed page trailer (the dense page directory),
 including deleted records (the free list). */
