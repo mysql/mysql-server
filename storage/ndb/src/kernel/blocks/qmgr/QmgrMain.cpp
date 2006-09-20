@@ -153,6 +153,7 @@ void Qmgr::execCONTINUEB(Signal* signal)
       return;
     }
     Uint64 now = NdbTick_CurrentMillisecond();
+
     if (now > (c_start_election_time + c_restartFailureTimeout))
     {
       jam();
@@ -698,7 +699,40 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZNOT_IN_CFG);
     return;
   } 
-  
+
+  if (getNodeState().getSingleUserMode()) 
+  {
+    /** 
+     * The cluster is in single user mode.
+     * Data node is not allowed to get added in the cluster 
+     * while in single user mode.
+     */
+    // handle rolling upgrade
+    {
+      unsigned int get_major = getMajor(startingVersion);
+      unsigned int get_minor = getMinor(startingVersion);
+      unsigned int get_build = getBuild(startingVersion);
+
+      if (startingVersion < NDBD_QMGR_SINGLEUSER_VERSION_5) {
+        jam();
+
+        infoEvent("QMGR: detect upgrade: new node %u old version %u.%u.%u",
+          (unsigned int)addNodePtr.i, get_major, get_minor, get_build);
+        /** 
+         * The new node is old version, send ZINCOMPATIBLE_VERSION instead
+         * of ZSINGLE_USER_MODE.
+         */
+        sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
+      } else {
+        jam();
+
+        sendCmRegrefLab(signal, Tblockref, CmRegRef::ZSINGLE_USER_MODE);
+      }//if
+    }
+
+    return;
+  }//if
+
   ptrCheckGuard(addNodePtr, MAX_NDB_NODES, nodeRec);
   Phase phase = addNodePtr.p->phase;
   if (phase != ZINIT)
@@ -1092,6 +1126,19 @@ void Qmgr::execCM_REGREF(Signal* signal)
   case CmRegRef::ZNOT_DEAD:
     jam();
     progError(__LINE__, NDBD_EXIT_NODE_NOT_DEAD);
+    break;
+  case CmRegRef::ZSINGLE_USER_MODE:
+    jam();
+    progError(__LINE__, NDBD_EXIT_SINGLE_USER_MODE);
+    break;
+  /**
+   * For generic refuse error.
+   * e.g. in online upgrade, we can use this error code instead
+   * of the incompatible error code.
+   */
+  case CmRegRef::ZGENERIC:
+    jam();
+    progError(__LINE__, NDBD_EXIT_GENERIC);
     break;
   case CmRegRef::ZELECTION:
     jam();
@@ -2025,7 +2072,7 @@ void Qmgr::initData(Signal* signal)
 			    &c_restartPartionedTimeout);
   ndb_mgm_get_int_parameter(p, CFG_DB_START_FAILURE_TIMEOUT,
 			    &c_restartFailureTimeout);
-  
+ 
   if(c_restartPartialTimeout == 0)
   {
     c_restartPartialTimeout = ~0;
