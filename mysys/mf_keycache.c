@@ -43,6 +43,7 @@
 #include <keycache.h>
 #include "my_static.h"
 #include <m_string.h>
+#include <my_bit.h>
 #include <errno.h>
 #include <stdarg.h>
 

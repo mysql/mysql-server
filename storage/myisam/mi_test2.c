@@ -27,6 +27,7 @@
 #endif
 #include "myisamdef.h"
 #include <m_ctype.h>
+#include <my_bit.h>
 
 #define STANDARD_LENGTH 37
 #define MYISAM_KEYS 6

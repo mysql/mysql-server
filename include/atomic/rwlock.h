@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-typedef struct {pthread_rwlock_t rw;} my_atomic_rwlock_t;
+typedef struct {pthread_mutex_t rw;} my_atomic_rwlock_t;
 
 #ifdef MY_ATOMIC_MODE_DUMMY
 /*
@@ -32,13 +32,18 @@ typedef struct {pthread_rwlock_t rw;} my_atomic_rwlock_t;
 #define my_atomic_rwlock_wrunlock(name)
 #define MY_ATOMIC_MODE "dummy (non-atomic)"
 #else
-#define my_atomic_rwlock_destroy(name)     pthread_rwlock_destroy(& (name)->rw)
-#define my_atomic_rwlock_init(name)        pthread_rwlock_init(& (name)->rw, 0)
-#define my_atomic_rwlock_rdlock(name)      pthread_rwlock_rdlock(& (name)->rw)
-#define my_atomic_rwlock_wrlock(name)      pthread_rwlock_wrlock(& (name)->rw)
-#define my_atomic_rwlock_rdunlock(name)    pthread_rwlock_unlock(& (name)->rw)
-#define my_atomic_rwlock_wrunlock(name)    pthread_rwlock_unlock(& (name)->rw)
-#define MY_ATOMIC_MODE "rwlocks"
+/*
+  we're using read-write lock macros but map them to mutex locks, and they're
+  faster. Still, having semantically rich API we can change the
+  underlying implementation, if necessary.
+*/
+#define my_atomic_rwlock_destroy(name)     pthread_mutex_destroy(& (name)->rw)
+#define my_atomic_rwlock_init(name)        pthread_mutex_init(& (name)->rw, 0)
+#define my_atomic_rwlock_rdlock(name)      pthread_mutex_lock(& (name)->rw)
+#define my_atomic_rwlock_wrlock(name)      pthread_mutex_lock(& (name)->rw)
+#define my_atomic_rwlock_rdunlock(name)    pthread_mutex_unlock(& (name)->rw)
+#define my_atomic_rwlock_wrunlock(name)    pthread_mutex_unlock(& (name)->rw)
+#define MY_ATOMIC_MODE "mutex"
 #endif
 
 #define make_atomic_add_body(S)     int ## S sav; sav= *a; *a+= v; v=sav;

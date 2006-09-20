@@ -18,6 +18,7 @@
 
 #include "ftdefs.h"
 #include "sp_defs.h"
+#include <my_bit.h>
 
 #if defined(MSDOS) || defined(__WIN__)
 #ifdef __WIN__
@@ -432,7 +433,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       share.state.rec_per_key_part[key_segs-1]=1L;
     length+=key_length;
     /* Get block length for key, if defined by user */
-    block_length= (keydef->block_length ? 
+    block_length= (keydef->block_length ?
                    my_round_up_to_next_power(keydef->block_length) :
                    myisam_block_size);
     block_length= max(block_length, MI_MIN_KEY_BLOCK_LENGTH);

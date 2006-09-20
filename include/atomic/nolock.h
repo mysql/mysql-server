@@ -14,19 +14,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#if defined(__i386__) || defined(_M_IX86)
+#if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__)
 
-#ifdef MY_ATOMIC_MODE_DUMMY
-#  define LOCK ""
-#else
-#  define LOCK "lock"
-#endif
+#  ifdef MY_ATOMIC_MODE_DUMMY
+#    define LOCK ""
+#  else
+#    define LOCK "lock"
+#  endif
 
-#ifdef __GNUC__
-#include "x86-gcc.h"
-#elif defined(_MSC_VER)
-#include "x86-msvc.h"
-#endif
+#  ifdef __GNUC__
+#    include "x86-gcc.h"
+#  elif defined(_MSC_VER)
+#    error Broken!
+#    include "x86-msvc.h"
+#  endif
 #endif
 
 #ifdef make_atomic_cas_body

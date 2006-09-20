@@ -18,11 +18,10 @@
 #include <my_pthread.h>
 
 #ifndef HAVE_INLINE
-/*
-  the following will cause all inline functions to be instantiated
-*/
+/* the following will cause all inline functions to be instantiated */
 #define HAVE_INLINE
-#define static extern
+#undef STATIC_INLINE
+#define STATIC_INLINE extern
 #endif
 
 #include <my_atomic.h>

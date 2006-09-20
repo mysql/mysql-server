@@ -192,6 +192,8 @@
 #endif
 #undef inline_test_2
 #undef inline_test_1
+/* helper macro for "instantiating" inline functions */
+#define STATIC_INLINE static inline
 
 /*
   The following macros are used to control inlining a bit more than

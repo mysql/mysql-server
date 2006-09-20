@@ -20,10 +20,18 @@
   architectures support double-word (128-bit) cas.
 */
 
-#ifdef MY_ATOMIC_NO_XADD
-#define MY_ATOMIC_MODE "gcc-x86" LOCK "-no-xadd"
+#ifdef __x86_64__
+#  ifdef MY_ATOMIC_NO_XADD
+#    define MY_ATOMIC_MODE "gcc-amd64" LOCK "-no-xadd"
+#  else
+#    define MY_ATOMIC_MODE "gcc-amd64" LOCK
+#  endif
 #else
-#define MY_ATOMIC_MODE "gcc-x86" LOCK
+#  ifdef MY_ATOMIC_NO_XADD
+#    define MY_ATOMIC_MODE "gcc-x86" LOCK "-no-xadd"
+#  else
+#    define MY_ATOMIC_MODE "gcc-x86" LOCK
+#  endif
 #endif
 
 /* fix -ansi errors while maintaining readability */
@@ -54,6 +62,9 @@
   asm volatile (LOCK "; cmpxchg %2, %0"				\
                : "+m" (*a), "+a" (ret): "r" (ret))
 #define make_atomic_store_body(S)				\
-  asm volatile ("; xchg %0, %1;" : "+m" (*a) : "r" (v))
+  asm volatile ("; xchg %0, %1;" : "+m" (*a), "+r" (v))
 #endif
+
+/* TODO test on intel whether the below helps. on AMD it makes no difference */
+//#define LF_BACKOFF ({asm volatile ("rep; nop"); 1; })
 
