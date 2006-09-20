@@ -3120,13 +3120,13 @@ sub mysqld_start ($$$) {
   {
     $exe= $exe_master_mysqld;
   }
-  if ( $type eq 'slave' )
+  elsif ( $type eq 'slave' )
   {
     $exe= $exe_slave_mysqld;
   }
   else
   {
-    mtr_error("Unknown 'type' passed to mysqld_start");
+    mtr_error("Unknown 'type' \"$type\" passed to mysqld_start");
   }
 
   mtr_init_args(\$args);
