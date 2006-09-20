@@ -47,6 +47,6 @@ libfederated_a_CFLAGS =	$(AM_CFLAGS)
 libfederated_a_SOURCES=	ha_federated.cc
 
 
-EXTRA_DIST =		CMakeLists.txt
+EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
 %::SCCS/s.%
