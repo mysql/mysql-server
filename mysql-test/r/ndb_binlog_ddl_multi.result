@@ -27,13 +27,13 @@ master-bin1.000001	#	Query	#	#	use `test`; alter table t2 add column (b int)
 reset master;
 reset master;
 ALTER DATABASE mysqltest CHARACTER SET latin1;
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
-show binlog events from <binlog_start>;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
 drop table mysqltest.t1;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	ALTER DATABASE mysqltest CHARACTER SET latin1
 reset master;
 reset master;
 use test;
