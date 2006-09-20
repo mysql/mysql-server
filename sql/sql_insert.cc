@@ -1330,6 +1330,9 @@ public:
   bool query_start_used, ignore, log_query;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
   ulonglong first_successful_insert_id_in_prev_stmt;
+  ulonglong next_insert_id;
+  ulong auto_increment_increment;
+  ulong auto_increment_offset;
   timestamp_auto_set_type timestamp_field_type;
   LEX_STRING query;
 
@@ -1743,6 +1746,22 @@ write_delayed(THD *thd,TABLE *table, enum_duplicates duplic,
     thd->first_successful_insert_id_in_prev_stmt;
   row->timestamp_field_type=    table->timestamp_field_type;
 
+  /* The session variable settings can always be copied. */
+  row->auto_increment_increment= thd->variables.auto_increment_increment;
+  row->auto_increment_offset=    thd->variables.auto_increment_offset;
+  /*
+    Next insert id must be set for the first value in a multi-row insert
+    only. So clear it after the first use. Assume a multi-row insert.
+    Since the user thread doesn't really execute the insert,
+    thd->next_insert_id is left untouched between the rows. If we copy
+    the same insert id to every row of the multi-row insert, the delayed
+    insert thread would copy this before inserting every row. Thus it
+    tries to insert all rows with the same insert id. This fails on the
+    unique constraint. So just the first row would be really inserted.
+  */
+  row->next_insert_id= thd->next_insert_id;
+  thd->next_insert_id= 0;
+
   di->rows.push_back(row);
   di->stacked_inserts++;
   di->status=1;
@@ -2122,6 +2141,14 @@ bool delayed_insert::handle_inserts(void)
       row->stmt_depends_on_first_successful_insert_id_in_prev_stmt;
     table->timestamp_field_type= row->timestamp_field_type;
 
+    /* The session variable settings can always be copied. */
+    thd.variables.auto_increment_increment= row->auto_increment_increment;
+    thd.variables.auto_increment_offset=    row->auto_increment_offset;
+    /* Next insert id must be used only if non-zero. */
+    if (row->next_insert_id)
+      thd.next_insert_id= row->next_insert_id;
+    DBUG_PRINT("loop", ("next_insert_id: %lu", (ulong) thd.next_insert_id));
+
     info.ignore= row->ignore;
     info.handle_duplicates= row->dup;
     if (info.ignore ||
@@ -2143,6 +2170,20 @@ bool delayed_insert::handle_inserts(void)
       info.error_count++;				// Ignore errors
       thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
       row->log_query = 0;
+      /*
+        We must reset next_insert_id. Otherwise all following rows may
+        become duplicates. If write_record() failed on a duplicate and
+        next_insert_id would be left unchanged, the next rows would also
+        be tried with the same insert id and would fail. Since the end
+        of a multi-row statement is unknown here, all following rows in
+        the queue would be dropped, regardless which thread added them.
+        After the queue is used up, next_insert_id is cleared and the
+        next run will succeed. This could even happen if these come from
+        the same multi-row statement as the current queue contents. That
+        way it would look somewhat random which rows are rejected after
+        a duplicate.
+      */
+      thd.next_insert_id= 0;
     }
 
     if (using_ignore)
@@ -2199,6 +2240,7 @@ bool delayed_insert::handle_inserts(void)
 	  /* This should never happen */
 	  table->file->print_error(error,MYF(0));
 	  sql_print_error("%s",thd.net.last_error);
+          DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed in loop"));
 	  goto err;
 	}
 	query_cache_invalidate3(&thd, table, 1);
@@ -2241,6 +2283,7 @@ bool delayed_insert::handle_inserts(void)
   {						// This shouldn't happen
     table->file->print_error(error,MYF(0));
     sql_print_error("%s",thd.net.last_error);
+    DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed after loop"));
     goto err;
   }
   query_cache_invalidate3(&thd, table, 1);
@@ -2248,13 +2291,16 @@ bool delayed_insert::handle_inserts(void)
   DBUG_RETURN(0);
 
  err:
+  DBUG_EXECUTE("error", max_rows= 0;);
   /* Remove all not used rows */
   while ((row=rows.get()))
   {
     delete row;
     thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
     stacked_inserts--;
+    DBUG_EXECUTE("error", max_rows++;);
   }
+  DBUG_PRINT("error", ("dropped %lu rows after an error", max_rows));
   thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
   pthread_mutex_lock(&mutex);
   DBUG_RETURN(1);
