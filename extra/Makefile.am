@@ -41,9 +41,10 @@ $(top_builddir)/include/mysqld_error.h: comp_err.c \
 $(top_builddir)/include/mysqld_ername.h: $(top_builddir)/include/mysqld_error.h
 $(top_builddir)/include/sql_state.h: $(top_builddir)/include/mysqld_error.h
 
-bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
+bin_PROGRAMS =		replace perror resolveip my_print_defaults \
 			resolve_stack_dump mysql_waitpid innochecksum
 noinst_PROGRAMS =	charset2html
+EXTRA_PROGRAMS =	comp_err
 EXTRA_DIST =		CMakeLists.txt
 
 perror.o: perror.c 
