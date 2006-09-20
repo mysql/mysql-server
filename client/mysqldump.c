@@ -783,8 +783,8 @@ static int get_options(int *argc, char ***argv)
 static void DBerror(MYSQL *mysql, const char *when)
 {
   DBUG_ENTER("DBerror");
-  my_printf_error(0,"Got error: %d: %s %s", MYF(0),
-		  mysql_errno(mysql), mysql_error(mysql), when);
+  fprintf(stderr, "%s: Got error: %d: %s %s\n", my_progname,
+          mysql_errno(mysql), mysql_error(mysql), when);
   safe_exit(EX_MYSQLERR);
   DBUG_VOID_RETURN;
 } /* DBerror */
@@ -811,9 +811,9 @@ static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
   if (mysql_query(mysql_con, query) ||
       (res && !((*res)= mysql_store_result(mysql_con))))
   {
-    my_printf_error(0, "%s: Couldn't execute '%s': %s (%d)",
-                    MYF(0), my_progname, query,
-                    mysql_error(mysql_con), mysql_errno(mysql_con));
+    fprintf(stderr, "%s: Couldn't execute '%s': %s (%d)\n",
+            my_progname, query,
+            mysql_error(mysql_con), mysql_errno(mysql_con));
     return 1;
   }
   return 0;
@@ -1705,13 +1705,19 @@ static void dumpTable(uint numFields, char *table)
       check_io(md_result_file);
     }
     if (mysql_query_with_error_report(sock, 0, query))
+    {
       DBerror(sock, "when retrieving data from server");
+      goto err;
+    }
     if (quick)
       res=mysql_use_result(sock);
     else
       res=mysql_store_result(sock);
     if (!res)
+    {
       DBerror(sock, "when retrieving data from server");
+      goto err;
+    }
     if (verbose)
       fprintf(stderr, "-- Retrieving rows...\n");
     if (mysql_num_fields(res) != numFields)

@@ -1861,4 +1861,28 @@ select * from t1 where NOT(s1+1 = ANY (select s1 from t1));
 select * from t1 where (s1 = ALL (select s1/s1 from t1));
 select * from t1 where NOT(s1 = ALL (select s1/s1 from t1));
 drop table t1;
+
+#
+# Bug #16255: Subquery in where
+#
+create table t1 (
+  retailerID varchar(8) NOT NULL,
+  statusID   int(10) unsigned NOT NULL,
+  changed    datetime NOT NULL,
+  UNIQUE KEY retailerID (retailerID, statusID, changed)
+);
+
+INSERT INTO t1 VALUES("0026", "1", "2005-12-06 12:18:56");
+INSERT INTO t1 VALUES("0026", "2", "2006-01-06 12:25:53");
+INSERT INTO t1 VALUES("0037", "1", "2005-12-06 12:18:56");
+INSERT INTO t1 VALUES("0037", "2", "2006-01-06 12:25:53");
+INSERT INTO t1 VALUES("0048", "1", "2006-01-06 12:37:50");
+INSERT INTO t1 VALUES("0059", "1", "2006-01-06 12:37:50");
+
+select * from t1 r1 
+  where (r1.retailerID,(r1.changed)) in 
+         (SELECT r2.retailerId,(max(changed)) from t1 r2 
+          group by r2.retailerId);
+drop table t1;
+
 # End of 4.1 tests

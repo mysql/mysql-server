@@ -734,14 +734,20 @@ connect (session2,localhost,root,,);
 
 connection session1;
 disable_query_log;
-eval create temporary table t1 (a int) engine=myisam data directory="$MYSQL_TEST_DIR/var/tmp" select 9 a;
+eval create temporary table t1 (a int) engine=myisam data directory="$MYSQL_TEST_DIR/var/log" select 9 a;
 enable_query_log;
+# If running test suite with a non standard tmp dir, the "show create table"
+# will print "DATA_DIRECTORY=". Use replace_result to mask it out
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 show create table t1;
 
 connection session2;
 disable_query_log;
-eval create temporary table t1 (a int) engine=myisam data directory="$MYSQL_TEST_DIR/var/tmp" select 99 a;
+eval create temporary table t1 (a int) engine=myisam data directory="$MYSQL_TEST_DIR/var/log" select 99 a;
 enable_query_log;
+# If running test suite with a non standard tmp dir, the "show create table"
+# will print "DATA_DIRECTORY=". Use replace_result to mask it out
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 show create table t1;
 
 connection default;

@@ -159,8 +159,7 @@ public:
     return agg_item_collations_for_comparison(c, func_name(),
                                               items, nitems, flags);
   }
-  bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems,
-                        uint flags= 0)
+  bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems, uint flags)
   {
     return agg_item_charsets(c, func_name(), items, nitems, flags);
   }
