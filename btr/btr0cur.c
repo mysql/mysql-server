@@ -1341,11 +1341,9 @@ btr_cur_pessimistic_insert(
 	}
 
 	if (UNIV_UNLIKELY(zip_size)) {
-		/* Estimate the free space of an empty compressed page.
-		The space needed for compressing the index information
-		is estimated. */
-		ulint	free_space_zip = zip_size
-			- PAGE_DATA - cursor->index->n_fields / 2;
+		/* Estimate the free space of an empty compressed page. */
+		ulint	free_space_zip = page_zip_empty_size(
+			cursor->index->n_fields, zip_size);
 
 		if (UNIV_UNLIKELY(rec_get_converted_size(index, entry)
 				  > free_space_zip)) {

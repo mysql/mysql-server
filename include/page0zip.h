@@ -33,6 +33,17 @@ page_zip_rec_needs_ext(
 	__attribute__((const));
 
 /**************************************************************************
+Determine the guaranteed free space on an empty page. */
+
+ulint
+page_zip_empty_size(
+/*================*/
+				/* out: minimum payload size on the page */
+	ulint	n_fields,	/* in: number of columns in the index */
+	ulint	zip_size)	/* in: compressed page size in bytes */
+	__attribute__((const));
+
+/**************************************************************************
 Initialize a compressed page descriptor. */
 UNIV_INLINE
 void
