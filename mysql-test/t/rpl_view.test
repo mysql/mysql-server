@@ -149,3 +149,4 @@ drop view v1;
 
 sync_slave_with_master;
 
+--echo End of 5.0 tests
