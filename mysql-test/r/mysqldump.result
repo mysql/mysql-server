@@ -23,6 +23,9 @@ INSERT INTO t1 VALUES (1), (2);
 </database>
 </mysqldump>
 DROP TABLE t1;
+#
+# Bug #2005
+#
 CREATE TABLE t1 (a decimal(64, 20));
 INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 ("0987654321098765432109876543210987654321");
@@ -31,6 +34,9 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 INSERT INTO `t1` VALUES ('1234567890123456789012345678901234567890.00000000000000000000'),('987654321098765432109876543210987654321.00000000000000000000');
 DROP TABLE t1;
+#
+# Bug #2055
+#
 CREATE TABLE t1 (a double);
 INSERT INTO t1 VALUES ('-9e999999');
 Warnings:
@@ -40,6 +46,9 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 INSERT INTO `t1` VALUES (RES);
 DROP TABLE t1;
+#
+# Bug #3361 mysqldump quotes DECIMAL values inconsistently
+#
 CREATE TABLE t1 (a DECIMAL(10,5), b FLOAT);
 INSERT INTO t1 VALUES (1.2345, 2.3456);
 INSERT INTO t1 VALUES ('1.2345', 2.3456);
@@ -137,6 +146,9 @@ INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
 </database>
 </mysqldump>
 DROP TABLE t1;
+#
+# Bug #1707
+#
 CREATE TABLE t1 (`a"b"` char(2));
 INSERT INTO t1 VALUES ("1\""), ("\"2");
 <?xml version="1.0"?>
@@ -156,6 +168,10 @@ INSERT INTO t1 VALUES ("1\""), ("\"2");
 </database>
 </mysqldump>
 DROP TABLE t1;
+#
+# Bug #1994
+# Bug #4261
+#
 CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
 INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5'), (NULL);
 
@@ -191,6 +207,9 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
+#
+# Bug #2634
+#
 CREATE TABLE t1 (a int) ENGINE=MYISAM;
 INSERT INTO t1 VALUES (1), (2);
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
@@ -240,11 +259,17 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
+#
+# Bug #2592 'mysqldump doesn't quote "tricky" names correctly'
+#
 create table ```a` (i int);
 CREATE TABLE ```a` (
   `i` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 drop table ```a`;
+#
+# Bug #2591 "mysqldump quotes names inconsistently"
+#
 create table t1(a int);
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -353,6 +378,9 @@ UNLOCK TABLES;
 
 set global sql_mode='';
 drop table t1;
+#
+# Bug #2705 'mysqldump --tab extra output'
+#
 create table t1(a int);
 insert into t1 values (1),(2),(3);
 
@@ -381,6 +409,9 @@ CREATE TABLE `t1` (
 2
 3
 drop table t1;
+#
+# Bug #6101: create database problem
+#
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -433,6 +464,12 @@ USE `mysqldump_test_db`;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 drop database mysqldump_test_db;
+#
+# Bug #7020
+# Check that we don't dump in UTF8 in compatible mode by default,
+# but use the default compiled values, or the values given in
+# --default-character-set=xxx. However, we should dump in UTF8
+# if it is explicitely set.
 CREATE TABLE t1 (a  CHAR(10));
 INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
 
@@ -466,6 +503,13 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
+#
+# Bug#8063: make test mysqldump [ fail ]
+# We cannot tes this command because its output depends
+# on --default-character-set incompiled into "mysqldump" program.
+# If the future we can move this command into a separate test with
+# checking that "mysqldump" is compiled with "latin1"
+#
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -536,6 +580,9 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
+#
+# WL #2319: Exclude Tables from dump
+#
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
@@ -573,6 +620,9 @@ UNLOCK TABLES;
 
 DROP TABLE t1;
 DROP TABLE t2;
+#
+#  Bug  #8830
+#
 CREATE TABLE t1 (`b` blob);
 INSERT INTO `t1` VALUES (0x602010000280100005E71A);
 
@@ -607,6 +657,9 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
+#
+# Test for --insert-ignore
+#
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
 INSERT INTO t1 VALUES (4),(5),(6);
@@ -671,6 +724,10 @@ INSERT  DELAYED IGNORE INTO `t1` VALUES (1),(2),(3),(4),(5),(6);
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
+#
+# Bug #10286: mysqldump -c crashes on table that has many fields with long
+# names
+# 
 create table t1 (
 F_c4ca4238a0b923820dcc509a6f75849b int,
 F_c81e728d9d4c2f636f067f89cc14862c int,
@@ -1364,6 +1421,9 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 drop table t1;
+#
+# Test for --add-drop-database
+#
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
 
@@ -1404,6 +1464,9 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
+#
+# Bug #9558 mysqldump --no-data db t1 t2 format still dumps data
+#
 CREATE DATABASE mysqldump_test_db;
 USE mysqldump_test_db;
 CREATE TABLE t1 ( a INT );
@@ -1492,6 +1555,11 @@ CREATE TABLE `t2` (
 </mysqldump>
 DROP TABLE t1, t2;
 DROP DATABASE mysqldump_test_db;
+#
+#  Testing with tables and databases that don't exists
+#  or contains illegal characters
+# (Bug #9358 mysqldump crashes if tablename starts with \)
+#
 create database mysqldump_test_db;
 use mysqldump_test_db;
 create table t1(a varchar(30) primary key, b int not null);
@@ -1530,6 +1598,9 @@ mysqldump: Got error: 1049: Unknown database 'mysqld\ump_test_db' when selecting
 drop table t1, t2, t3;
 drop database mysqldump_test_db;
 use test;
+#
+# Bug #9657 mysqldump xml ( -x ) does not format NULL fields correctly
+#
 create table t1 (a int(10));
 create table t2 (pk int primary key auto_increment,
 a int(10), b varchar(30), c datetime, d blob, e text);
@@ -1586,6 +1657,9 @@ insert into t2 (a, b) values (NULL, NULL),(10, NULL),(NULL, "twenty"),(30, "thir
 </database>
 </mysqldump>
 drop table t1, t2;
+#
+# BUG #12123
+#
 create table t1 (a text character set utf8, b text character set latin1);
 insert t1 values (0x4F736E616272C3BC636B, 0x4BF66C6E);
 select * from t1;
@@ -1596,7 +1670,13 @@ select * from t1;
 a	b
 Osnabrück	Köln
 drop table t1;
+#
+# BUG#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
+#
 --fields-optionally-enclosed-by="
+#
+# BUG #19025 mysqldump doesn't correctly dump "auto_increment = [int]"
+#
 create table `t1` (
 t1_name varchar(255) default null,
 t1_id int(10) unsigned not null auto_increment,
@@ -1634,6 +1714,9 @@ t1	CREATE TABLE `t1` (
   KEY `t1_name` (`t1_name`)
 ) ENGINE=MyISAM AUTO_INCREMENT=1003 DEFAULT CHARSET=latin1
 drop table `t1`;
+#
+# Bug #18536: wrong table order
+#
 create table t1(a int);
 create table t2(a int);
 create table t3(a int);
@@ -1834,6 +1917,9 @@ DROP TABLE IF EXISTS `v1`;
 
 drop view v1;
 drop table t1;
+#
+# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+#
 create database mysqldump_test_db;
 use mysqldump_test_db;
 CREATE TABLE t2 (
@@ -1893,6 +1979,9 @@ drop table t2;
 drop view v2;
 drop database mysqldump_test_db;
 use test;
+#
+# Bug #9756
+#
 CREATE TABLE t1 (a char(10));
 INSERT INTO t1 VALUES ('\'');
 
@@ -1927,6 +2016,9 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 DROP TABLE t1;
+#
+# Bug #10927 mysqldump: Can't reload dump with view that consist of other view
+#
 create table t1(a int, b int, c varchar(30));
 insert into t1 values(1, 2, "one"), (2, 4, "two"), (3, 6, "three");
 create view v3 as
@@ -2004,6 +2096,9 @@ DROP TABLE IF EXISTS `v3`;
 
 drop view v1, v2, v3;
 drop table t1;
+#
+# Test for dumping triggers
+#
 CREATE TABLE t1 (a int, b bigint default NULL);
 CREATE TABLE t2 (a int);
 create trigger trg1 before insert on t1 for each row
@@ -2202,8 +2297,14 @@ set @fired:= "No";
 end if;
 end	BEFORE	#	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER	root@localhost
 DROP TABLE t1, t2;
+#
+# Bugs #9136, #12917: problems with --defaults-extra-file option
+#
 --port=1234
 --port=1234
+#
+# Test of fix to BUG 12597
+#
 DROP TABLE IF EXISTS `test1`;
 Warnings:
 Note	1051	Unknown table 'test1'
@@ -2235,6 +2336,9 @@ a2
 DROP TRIGGER testref;
 DROP TABLE test1;
 DROP TABLE test2;
+#
+# BUG#9056 - mysqldump does not dump routines
+#
 DROP TABLE IF EXISTS t1;
 DROP FUNCTION IF EXISTS bug9056_func1;
 DROP FUNCTION IF EXISTS bug9056_func2;
@@ -2331,6 +2435,9 @@ DROP PROCEDURE bug9056_proc1;
 DROP PROCEDURE bug9056_proc2;
 DROP PROCEDURE `a'b`;
 drop table t1;
+#
+# BUG# 13052 - mysqldump timestamp reloads broken
+#
 drop table if exists t1;
 create table t1 (`d` timestamp, unique (`d`));
 set time_zone='+00:00';
@@ -2417,6 +2524,9 @@ UNLOCK TABLES;
 drop table t1;
 set global time_zone=default;
 set time_zone=default;
+#
+# Test of fix to BUG 13146 - ansi quotes break loading of triggers 
+#
 DROP TABLE IF EXISTS `t1 test`;
 DROP TABLE IF EXISTS `t2 test`;
 CREATE TABLE `t1 test` (
@@ -2480,6 +2590,9 @@ UNLOCK TABLES;
 DROP TRIGGER `test trig`;
 DROP TABLE `t1 test`;
 DROP TABLE `t2 test`;
+#
+# BUG# 12838 mysqldump -x with views exits with error 
+#
 drop table if exists t1;
 create table t1 (a int, b varchar(32), c varchar(32));
 insert into t1 values (1, 'first value', 'xxxx');
@@ -2720,6 +2833,9 @@ a
 789
 drop table t1;
 drop view v1, v2, v3, v4, v5;
+#
+# Bug #16878 dump of trigger
+#
 create table t1 (a int, created datetime);
 create table t2 (b int, created datetime);
 create trigger tr1 before insert on t1 for each row set
@@ -2742,6 +2858,9 @@ end	AFTER	#		root@localhost
 drop trigger tr1;
 drop trigger tr2;
 drop table t1, t2;
+#
+# Bug#18462 mysqldump does not dump view structures correctly
+#
 create table t (qty int, price int);
 insert into t values(3, 50);
 insert into t values(5, 51);
@@ -2761,6 +2880,10 @@ mysqldump {
 drop view v1;
 drop view v2;
 drop table t;
+#
+# Bug#14857 Reading dump files with single statement stored routines fails.
+# fixed by patch for bug#16878
+#
 /*!50003 CREATE FUNCTION `f`() RETURNS bigint(20)
 return 42 */|
 /*!50003 CREATE PROCEDURE `p`()
@@ -2775,6 +2898,9 @@ p		CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 select 42
 drop function f;
 drop procedure p;
+#
+# Bug #17371 Unable to dump a schema with invalid views
+#
 create table t1 ( id serial );
 create view v1 as select * from t1;
 drop table t1;
@@ -2844,6 +2970,9 @@ USE `mysqldump_test_db`;
 drop view v1;
 drop table t1;
 drop database mysqldump_test_db;
+#
+# Bug21014 Segmentation fault of mysqldump on view
+#
 create database mysqldump_tables;
 use mysqldump_tables;
 create table basetable ( id serial, tag varchar(64) );
@@ -2877,6 +3006,9 @@ drop view nasishnasifu;
 drop database mysqldump_views;
 drop table mysqldump_tables.basetable;
 drop database mysqldump_tables;
+#
+# Bug20221 Dumping of multiple databases containing view(s) yields maleformed dumps
+#
 create database mysqldump_dba;
 use mysqldump_dba;
 create table t1 (f1 int, f2 int);
@@ -2909,6 +3041,9 @@ drop view v1;
 drop table t1;
 drop database mysqldump_dbb;
 use test;
+#
+# Bug#21215 mysqldump creating incomplete backups without warning
+#
 create user mysqltest_1@localhost;
 create table t1(a int, b varchar(34));
 reset master;
@@ -3374,4 +3509,5 @@ drop view v1;
 drop table t1;
 drop database mysqldump_test_db;
 End of 5.1 tests
+
 
