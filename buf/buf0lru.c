@@ -448,6 +448,7 @@ loop:
 		}
 
 		block->state = BUF_BLOCK_READY_FOR_USE;
+		UNIV_MEM_VALID(block->frame, UNIV_PAGE_SIZE);
 
 		mutex_exit(&(buf_pool->mutex));
 
@@ -881,6 +882,9 @@ buf_LRU_block_free_non_file_page(
 
 		UT_LIST_ADD_FIRST(awe_LRU_free_mapped,
 				  buf_pool->awe_LRU_free_mapped, block);
+		UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
+	} else {
+		UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 	}
 }
 
