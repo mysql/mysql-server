@@ -24,11 +24,11 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common \
 			@thread_dirs@ pstack \
-			@sql_union_dirs@ storage plugin \
+			@sql_union_dirs@ unittest storage plugin \
 			@sql_server@ scripts @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files @tools_dirs@ \
-			unittest win
+			win
 
 DIST_SUBDIRS =		$(SUBDIRS) BUILD
 
@@ -114,7 +114,7 @@ test-unit:
 
 test-ps:
 	cd mysql-test ; \
-	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=statement
+	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=mixed
 
 test-nr:
 	cd mysql-test ; \
@@ -125,6 +125,10 @@ test-pr:
 	./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=row
 
 test-ns:
+	cd mysql-test ; \
+	./mysql-test-run.pl $(force) --mysqld=--binlog-format=mixed
+
+test-binlog-statement:
 	cd mysql-test ; \
 	./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
 
