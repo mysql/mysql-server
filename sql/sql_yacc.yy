@@ -8670,6 +8670,9 @@ load_data:
 	FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
+          WARN_DEPRECATED(yythd, "5.2", "LOAD DATA FROM MASTER",
+                          "mysqldump or future "
+                          "BACKUP/RESTORE DATABASE facility");
         };
 
 opt_local:
