@@ -154,7 +154,6 @@ struct st_pagecache_hash_link
 #define BLOCK_IN_FLUSH   16 /* block is in flush operation                 */
 #define BLOCK_CHANGED    32 /* block buffer contains a dirty page          */
 #define BLOCK_WRLOCK     64 /* write locked block                          */
-#define BLOCK_CPYWRT    128 /* block buffer is in copy&write (see also cpyrd) */
 
 /* page status, returned by find_key_block */
 #define PAGE_READ               0
