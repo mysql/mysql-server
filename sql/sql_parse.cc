@@ -4912,6 +4912,19 @@ end_with_restore_list:
         }
         append_identifier(thd, &buff, first_table->table_name,
                           first_table->table_name_length);
+        if (lex->view_list.elements)
+        {
+          List_iterator_fast<LEX_STRING> names(lex->view_list);
+          LEX_STRING *name;
+          int i;
+          
+          for (i= 0; name= names++; i++)
+          {
+            buff.append(i ? ", " : "(");
+            append_identifier(thd, &buff, name->str, name->length);
+          }
+          buff.append(')');
+        }
         buff.append(STRING_WITH_LEN(" AS "));
         buff.append(first_table->source.str, first_table->source.length);
 
