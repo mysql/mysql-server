@@ -2486,9 +2486,11 @@ int ha_ndbcluster::write_row(byte *record)
     if (has_auto_increment) 
     {
       THD *thd= table->in_use;
+      int error;
 
       m_skip_auto_increment= FALSE;
-      update_auto_increment();
+      if ((error= update_auto_increment()))
+        DBUG_RETURN(error);
       m_skip_auto_increment= (insert_id_for_cur_row == 0);
     }
   }
