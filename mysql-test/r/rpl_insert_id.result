@@ -267,5 +267,30 @@ select * from t2;
 id	last_id
 4	0
 8	0
-drop table t1, t2;
+drop table t1;
 drop function insid;
+truncate table t2;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+create procedure foo()
+begin
+insert into t1 values(null,10);
+insert ignore into t1 values(null,10);
+insert ignore into t1 values(null,10);
+insert into t2 values(null,3);
+end|
+call foo();
+select * from t1;
+n	b
+1	10
+select * from t2;
+id	last_id
+1	3
+select * from t1;
+n	b
+1	10
+select * from t2;
+id	last_id
+1	3
+drop table t1, t2;
+drop procedure foo;
