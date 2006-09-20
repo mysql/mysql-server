@@ -83,6 +83,7 @@ memory is read outside the allocated blocks. */
 /* Make a non-inline debug version */
 
 #if 0
+#define UNIV_DEBUG_VALGRIND
 #define UNIV_DEBUG_PRINT
 #define UNIV_DEBUG
 #define UNIV_MEM_DEBUG
@@ -292,5 +293,13 @@ typedef void* os_thread_ret_t;
 #include "ut0dbg.h"
 #include "ut0ut.h"
 #include "db0err.h"
+#ifdef UNIV_DEBUG_VALGRIND
+# include <valgrind/memcheck.h>
+# define UNIV_MEM_VALID(addr, size) VALGRIND_MAKE_MEM_DEFINED(addr, size)
+# define UNIV_MEM_INVALID(addr, size) VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
+#else
+# define UNIV_MEM_VALID(addr, size) do {} while(0)
+# define UNIV_MEM_INVALID(addr, size) do {} while(0)
+#endif
 
 #endif
