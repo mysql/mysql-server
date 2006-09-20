@@ -638,7 +638,7 @@ page_zip_compress(
 
 	ut_a(page_is_comp((page_t*) page));
 	ut_a(fil_page_get_type((page_t*) page) == FIL_PAGE_INDEX);
-	ut_ad(page_validate((page_t*) page, index));
+	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
 
 	/* Check the data that will be omitted. */
@@ -2146,7 +2146,7 @@ page_zip_write_rec(
 	page = page_align((rec_t*) rec);
 
 	ut_ad(page_zip_header_cmp(page_zip, page));
-	ut_ad(page_validate(page, index));
+	ut_ad(page_simple_validate_new(page));
 
 	slot = page_zip_dir_find(page_zip, page_offset(rec));
 	ut_a(slot);
@@ -2441,7 +2441,7 @@ page_zip_write_blob_ptr(
 	ulint	len;
 
 	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)rec)) == page_zip);
-	ut_ad(page_validate(page, index));
+	ut_ad(page_simple_validate_new(page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
 	ut_ad(rec_offs_comp(offsets));
