@@ -5984,6 +5984,8 @@ ER_EVENTS_DB_ERROR
         eng "Cannot proceed because the tables used by events were found damaged at server start"
 ER_ONLY_INTEGERS_ALLOWED
         eng "Only normal integers allowed as number here"
+ER_AUTOINC_READ_FAILED
+        eng "Failed to read auto-increment value from storage engine"
 ER_USERNAME
 	eng "user name"
 ER_HOSTNAME
