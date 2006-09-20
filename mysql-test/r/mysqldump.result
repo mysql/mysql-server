@@ -2954,6 +2954,115 @@ drop user myDB_User;
 drop database mysqldump_myDB;
 use test;
 End of 5.0 tests
+#
+# Bug #13926: --order-by-primary fails if PKEY contains quote character
+#
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+`a b` INT,
+`c"d` INT,
+`e``f` INT,
+PRIMARY KEY (`a b`, `c"d`, `e``f`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+insert into t1 values (0815, 4711, 2006);
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO,ANSI' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS "t1";
+CREATE TABLE "t1" (
+  "a b" int(11) NOT NULL default '0',
+  "c""d" int(11) NOT NULL default '0',
+  "e`f" int(11) NOT NULL default '0',
+  PRIMARY KEY  ("a b","c""d","e`f")
+);
+
+LOCK TABLES "t1" WRITE;
+/*!40000 ALTER TABLE "t1" DISABLE KEYS */;
+INSERT INTO "t1" VALUES (815,4711,2006);
+/*!40000 ALTER TABLE "t1" ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `t1`;
+CREATE TABLE `t1` (
+  `a b` int(11) NOT NULL default '0',
+  `c"d` int(11) NOT NULL default '0',
+  `e``f` int(11) NOT NULL default '0',
+  PRIMARY KEY  (`a b`,`c"d`,`e``f`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+LOCK TABLES `t1` WRITE;
+/*!40000 ALTER TABLE `t1` DISABLE KEYS */;
+INSERT INTO `t1` VALUES (815,4711,2006);
+/*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+DROP TABLE `t1`;
+#
+# End of 5.0 tests
+#
+create database mysqldump_myDB;
+use mysqldump_myDB;
+create user myDB_User;
+grant create, create view, select, insert on mysqldump_myDB.* to myDB_User@localhost;
+create table t1 (c1 int);
+insert into t1 values (3);
+use mysqldump_myDB;
+create table u1 (f1 int);
+insert into u1 values (4);
+create view v1 (c1) as select * from t1;
+use mysqldump_myDB;
+drop view v1;
+drop table t1;
+drop table u1;
+revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
+drop user myDB_User;
+drop database mysqldump_myDB;
+flush privileges;
+use mysqldump_myDB;
+select * from mysqldump_myDB.v1;
+c1
+3
+select * from mysqldump_myDB.u1;
+f1
+4
+use mysqldump_myDB;
+drop view v1;
+drop table t1;
+drop table u1;
+revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
+drop user myDB_User;
+drop database mysqldump_myDB;
+use test;
+End of 5.0 tests
 drop table if exists t1;
 CREATE TABLE t1(a int, b int);
 INSERT INTO t1 VALUES (1,1);
@@ -3265,3 +3374,4 @@ drop view v1;
 drop table t1;
 drop database mysqldump_test_db;
 End of 5.1 tests
+
