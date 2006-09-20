@@ -34,4 +34,15 @@ repair table t1;
 repair table t1 use_frm;
 drop table t1;
 
+#
+# BUG#18874 - Setting myisam_repair_threads > 1, index cardinality always 1
+#
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES(1),(2),(3),(4),(5);
+SET myisam_repair_threads=2;
+REPAIR TABLE t1;
+SHOW INDEX FROM t1;
+SET myisam_repair_threads=@@global.myisam_repair_threads;
+DROP TABLE t1;
+
 # End of 4.1 tests
