@@ -65,6 +65,7 @@ typedef ndbd_exit_status_enum ndbd_exit_status;
 typedef ndbd_exit_classification_enum ndbd_exit_classification;
 
 /* Errorcodes before block division was used */
+#define NDBD_EXIT_GENERIC                     2300
 #define NDBD_EXIT_PRGERR                      2301
 #define NDBD_EXIT_NODE_NOT_IN_CONFIG          2302
 #define NDBD_EXIT_SYSTEM_ERROR                2303
@@ -79,6 +80,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_NO_MORE_UNDOLOG             2312 
 #define NDBD_EXIT_SR_UNDOLOG                  2313 
 #define NDBD_EXIT_SR_SCHEMAFILE               2310
+#define NDBD_EXIT_SINGLE_USER_MODE            2314 
 #define NDBD_EXIT_MEMALLOC                    2327
 #define NDBD_EXIT_BLOCK_JBUFCONGESTION        2334
 #define NDBD_EXIT_TIME_QUEUE_SHORT            2335
