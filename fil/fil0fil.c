@@ -2607,7 +2607,7 @@ fil_create_new_single_table_tablespace(
 		return(DB_ERROR);
 	}
 
-	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE + zip_size);
 	/* Align the memory for file i/o if we might have O_DIRECT set */
 	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
@@ -2658,7 +2658,8 @@ error_exit2:
 	} else {
 		page_zip_des_t	page_zip;
 		page_zip.size = zip_size;
-		page_zip.data = page;
+		page_zip.data = page + UNIV_PAGE_SIZE;
+		memset(page_zip.data, 0, zip_size);
 		page_zip.n_blobs = page_zip.m_start = page_zip.m_end = 0;
 		buf_flush_init_for_writing(page, &page_zip,
 				ut_dulint_zero, *space_id, 0);
