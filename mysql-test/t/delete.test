@@ -153,6 +153,16 @@ DELETE FROM t1 WHERE t1.a > 0 ORDER BY t1.a LIMIT 1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #21392: multi-table delete with alias table name fails with 
+# 1003: Incorrect table name
+#
+
+create table t1 (a int);
+delete `4.t1` from t1 as `4.t1` where `4.t1`.a = 5;
+delete FROM `4.t1` USING t1 as `4.t1` where `4.t1`.a = 5;
+drop table t1;
+
 # End of 4.1 tests
 
 #
