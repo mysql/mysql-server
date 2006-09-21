@@ -312,13 +312,31 @@ NdbOperation::setValue(Uint32 anAttrId, const char* aValuePassed)
 NdbBlob*
 NdbOperation::getBlobHandle(const char* anAttrName)
 {
-  return getBlobHandle(theNdbCon, m_currentTable->getColumn(anAttrName));
+  const NdbColumnImpl* col = m_currentTable->getColumn(anAttrName);
+  if (col == NULL)
+  {
+    setErrorCode(4004);
+    return NULL;
+  }
+  else
+  {
+    return getBlobHandle(theNdbCon, col);
+  }
 }
 
 NdbBlob*
 NdbOperation::getBlobHandle(Uint32 anAttrId)
 {
-  return getBlobHandle(theNdbCon, m_currentTable->getColumn(anAttrId));
+  const NdbColumnImpl* col = m_currentTable->getColumn(anAttrId);
+  if (col == NULL)
+  {
+    setErrorCode(4004);
+    return NULL;
+  }
+  else
+  {
+    return getBlobHandle(theNdbCon, col);
+  }
 }
 
 int
