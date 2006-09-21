@@ -1421,4 +1421,23 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 
+#
+# Bug#20670 "UPDATE using key and invoking trigger that modifies
+#            this key does not stop"
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int, j int key);
+insert into t1 values (1,1), (2,2), (3,3);
+create trigger t1_bu before update on t1 for each row
+  set new.j = new.j + 10;
+# This should not work indefinitely and should cause
+# expected result
+update t1 set i= i+ 10 where j > 2;
+select * from t1;
+drop table t1;
+
+
 --echo End of 5.0 tests
