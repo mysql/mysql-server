@@ -1402,7 +1402,7 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
 bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
-bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
+bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);
 int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
 int key_rec_cmp(void *key_info, byte *a, byte *b);
 
