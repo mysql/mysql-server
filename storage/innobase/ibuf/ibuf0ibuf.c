@@ -305,7 +305,7 @@ ibuf_tree_root_get(
 	ut_a(space == 0);
 	ut_ad(ibuf_inside());
 
-	mtr_x_lock(dict_tree_get_lock((data->index)->tree), mtr);
+	mtr_x_lock(dict_index_get_lock(data->index), mtr);
 
 	page = buf_page_get(space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
 			    mtr);
@@ -524,16 +524,16 @@ ibuf_data_init_for_space(
 	/* use old-style record format for the insert buffer */
 	table = dict_mem_table_create(buf, space, 2, 0);
 
-	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0, 0);
-	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0, 0);
+	dict_mem_table_add_col(table, "PAGE_NO", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, "TYPES", DATA_BINARY, 0, 0);
 
 	table->id = ut_dulint_add(DICT_IBUF_ID_MIN, space);
 
 	dict_table_add_to_cache(table);
 
-	index = dict_mem_index_create
-		(buf, "CLUST_IND", space,
-		 DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF, 2);
+	index = dict_mem_index_create(
+		buf, "CLUST_IND", space,
+		DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF, 2);
 
 	dict_mem_index_add_field(index, "PAGE_NO", 0);
 	dict_mem_index_add_field(index, "TYPES", 0);
@@ -768,9 +768,9 @@ ibuf_set_free_bits_low(
 		return;
 	}
 
-	bitmap_page = ibuf_bitmap_get_map_page
-		(buf_frame_get_space_id(page),
-		 buf_frame_get_page_no(page), mtr);
+	bitmap_page = ibuf_bitmap_get_map_page(
+		buf_frame_get_space_id(page),
+		buf_frame_get_page_no(page), mtr);
 #ifdef UNIV_IBUF_DEBUG
 # if 0
 	fprintf(stderr,
@@ -818,17 +818,17 @@ ibuf_set_free_bits(
 
 	mtr_start(&mtr);
 
-	bitmap_page = ibuf_bitmap_get_map_page
-		(buf_frame_get_space_id(page),
-		 buf_frame_get_page_no(page), &mtr);
+	bitmap_page = ibuf_bitmap_get_map_page(
+		buf_frame_get_space_id(page), buf_frame_get_page_no(page),
+		&mtr);
 
 	if (max_val != ULINT_UNDEFINED) {
 #ifdef UNIV_IBUF_DEBUG
 		ulint	old_val;
 
-		old_val = ibuf_bitmap_page_get_bits
-			(bitmap_page, buf_frame_get_page_no(page),
-			 IBUF_BITMAP_FREE, &mtr);
+		old_val = ibuf_bitmap_page_get_bits(
+			bitmap_page, buf_frame_get_page_no(page),
+			IBUF_BITMAP_FREE, &mtr);
 # if 0
 		if (old_val != max_val) {
 			fprintf(stderr,
@@ -1145,9 +1145,8 @@ ibuf_dummy_index_add_col(
 	dict_mem_table_add_col(index->table, "DUMMY",
 			       dtype_get_mtype(type),
 			       dtype_get_prtype(type),
-			       dtype_get_len(type),
-			       dtype_get_prec(type));
-	dict_index_add_col(index,
+			       dtype_get_len(type));
+	dict_index_add_col(index, index->table, (dict_col_t*)
 			   dict_table_get_nth_col(index->table, i), len);
 }
 /************************************************************************
@@ -1164,6 +1163,11 @@ ibuf_dummy_index_free(
 	dict_mem_index_free(index);
 	dict_mem_table_free(table);
 }
+
+void
+dict_index_print_low(
+/*=================*/
+	dict_index_t*	index);	/* in: index */
 
 /*************************************************************************
 Builds the entry to insert into a non-clustered index when we have the
@@ -1213,9 +1217,9 @@ ibuf_build_entry_from_ibuf_rec(
 
 			dfield_set_data(field, data, len);
 
-			dtype_read_for_order_and_null_size
-				(dfield_get_type(field),
-				 types + i * DATA_ORDER_NULL_TYPE_BUF_SIZE);
+			dtype_read_for_order_and_null_size(
+				dfield_get_type(field),
+				types + i * DATA_ORDER_NULL_TYPE_BUF_SIZE);
 		}
 
 		*pindex = ibuf_dummy_index_create(n_fields, FALSE);
@@ -1235,8 +1239,8 @@ ibuf_build_entry_from_ibuf_rec(
 	types = rec_get_nth_field_old(ibuf_rec, 3, &len);
 
 	ut_a(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE <= 1);
-	index = ibuf_dummy_index_create
-		(n_fields, len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+	index = ibuf_dummy_index_create(
+		n_fields, len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 
 	if (len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE) {
 		/* compact record format */
@@ -1254,9 +1258,9 @@ ibuf_build_entry_from_ibuf_rec(
 
 		dfield_set_data(field, data, len);
 
-		dtype_new_read_for_order_and_null_size
-			(dfield_get_type(field),
-			 types + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+		dtype_new_read_for_order_and_null_size(
+			dfield_get_type(field),
+			types + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 
 		ibuf_dummy_index_add_col(index, dfield_get_type(field), len);
 	}
@@ -1315,8 +1319,8 @@ ibuf_rec_get_volume(
 			ulint		volume;
 			dict_index_t*	dummy_index;
 			mem_heap_t*	heap = mem_heap_create(500);
-			dtuple_t*	entry = ibuf_build_entry_from_ibuf_rec
-				(ibuf_rec, heap, &dummy_index);
+			dtuple_t*	entry = ibuf_build_entry_from_ibuf_rec(
+				ibuf_rec, heap, &dummy_index);
 			volume = rec_get_converted_size(dummy_index, entry);
 			ibuf_dummy_index_free(dummy_index);
 			mem_heap_free(heap);
@@ -1332,15 +1336,15 @@ ibuf_rec_get_volume(
 		if (new_format) {
 			data = rec_get_nth_field_old(ibuf_rec, i + 4, &len);
 
-			dtype_new_read_for_order_and_null_size
-				(&dtype, types + i
-				 * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
+			dtype_new_read_for_order_and_null_size(
+				&dtype, types + i
+				* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 		} else {
 			data = rec_get_nth_field_old(ibuf_rec, i + 2, &len);
 
-			dtype_read_for_order_and_null_size
-				(&dtype, types + i
-				 * DATA_ORDER_NULL_TYPE_BUF_SIZE);
+			dtype_read_for_order_and_null_size(
+				&dtype, types + i
+				* DATA_ORDER_NULL_TYPE_BUF_SIZE);
 		}
 
 		if (len == UNIV_SQL_NULL) {
@@ -1365,8 +1369,8 @@ ibuf_entry_build(
 				index tree; NOTE that the original entry
 				must be kept because we copy pointers to its
 				fields */
+	dict_index_t*	index,	/* in: non-clustered index */
 	dtuple_t*	entry,	/* in: entry for a non-clustered index */
-	ibool		comp,	/* in: flag: TRUE=compact record format */
 	ulint		space,	/* in: space id */
 	ulint		page_no,/* in: index page number where entry should
 				be inserted */
@@ -1430,13 +1434,12 @@ ibuf_entry_build(
 
 	dfield_set_data(field, buf, 4);
 
-	ut_ad(comp == 0 || comp == 1);
 	/* Store the type info in buf2, and add the fields from entry to
 	tuple */
 	buf2 = mem_heap_alloc(heap, n_fields
 			      * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
-			      + comp);
-	if (comp) {
+			      + dict_table_is_comp(index->table));
+	if (dict_table_is_comp(index->table)) {
 		*buf2++ = 0; /* write the compact format indicator */
 	}
 	for (i = 0; i < n_fields; i++) {
@@ -1447,22 +1450,23 @@ ibuf_entry_build(
 		entry_field = dtuple_get_nth_field(entry, i);
 		dfield_copy(field, entry_field);
 
-		dtype_new_store_for_order_and_null_size
-			(buf2 + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
-			 dfield_get_type(entry_field));
+		dtype_new_store_for_order_and_null_size(
+			buf2 + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
+			dfield_get_type(entry_field),
+			dict_index_get_nth_field(index, i)->prefix_len);
 	}
 
 	/* Store the type info in buf2 to field 3 of tuple */
 
 	field = dtuple_get_nth_field(tuple, 3);
 
-	if (comp) {
+	if (dict_table_is_comp(index->table)) {
 		buf2--;
 	}
 
 	dfield_set_data(field, buf2, n_fields
 			* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
-			+ comp);
+			+ dict_table_is_comp(index->table));
 	/* Set all the types in the new tuple binary */
 
 	dtuple_set_types_binary(tuple, n_fields + 4);
@@ -2605,8 +2609,7 @@ ibuf_insert_low(
 	the first fields and the type information for other fields, and which
 	will be inserted to the insert buffer. */
 
-	ibuf_entry = ibuf_entry_build(entry, dict_table_is_comp(index->table),
-				      space, page_no, heap);
+	ibuf_entry = ibuf_entry_build(index, entry, space, page_no, heap);
 
 	/* Open a cursor to the insert buffer tree to calculate if we can add
 	the new entry to it without exceeding the free space limit for the
@@ -2879,8 +2882,9 @@ dump:
 					PAGE_CUR_LE, &page_cur);
 
 			/* This time the record must fit */
-			if (UNIV_UNLIKELY(!page_cur_tuple_insert
-					  (&page_cur, entry, index, mtr))) {
+			if (UNIV_UNLIKELY(!page_cur_tuple_insert(
+						  &page_cur, entry, index,
+						  mtr))) {
 
 				ut_print_timestamp(stderr);
 
@@ -2888,10 +2892,10 @@ dump:
 					"InnoDB: Error: Insert buffer insert"
 					" fails; page free %lu,"
 					" dtuple size %lu\n",
-					(ulong) page_get_max_insert_size
-					(page, 1),
-					(ulong) rec_get_converted_size
-					(index, entry));
+					(ulong) page_get_max_insert_size(
+						page, 1),
+					(ulong) rec_get_converted_size(
+						index, entry));
 				fputs("InnoDB: Cannot insert index record ",
 				      stderr);
 				dtuple_print(stderr, entry);
@@ -2901,14 +2905,14 @@ dump:
 				      " Please run CHECK TABLE on\n"
 				      "InnoDB: that table.\n", stderr);
 
-				bitmap_page = ibuf_bitmap_get_map_page
-					(buf_frame_get_space_id(page),
-					 buf_frame_get_page_no(page),
-					 mtr);
-				old_bits = ibuf_bitmap_page_get_bits
-					(bitmap_page,
-					 buf_frame_get_page_no(page),
-					 IBUF_BITMAP_FREE, mtr);
+				bitmap_page = ibuf_bitmap_get_map_page(
+					buf_frame_get_space_id(page),
+					buf_frame_get_page_no(page),
+					mtr);
+				old_bits = ibuf_bitmap_page_get_bits(
+					bitmap_page,
+					buf_frame_get_page_no(page),
+					IBUF_BITMAP_FREE, mtr);
 
 				fprintf(stderr, "Bitmap bits %lu\n",
 					(ulong) old_bits);
@@ -2996,7 +3000,7 @@ ibuf_delete_rec(
 		btr_pcur_commit_specify_mtr(pcur, mtr);
 
 		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
-		if (!btr_validate_tree(ibuf_data->index->tree, NULL)) {
+		if (!btr_validate_index(ibuf_data->index, NULL)) {
 			ut_error;
 		}
 
@@ -3235,12 +3239,12 @@ loop:
 			keep the latch to the ibuf_rec page until the
 			insertion is finished! */
 			dict_index_t*	dummy_index;
-			dulint		max_trx_id = page_get_max_trx_id
-				(buf_frame_align(ibuf_rec));
+			dulint		max_trx_id = page_get_max_trx_id(
+				buf_frame_align(ibuf_rec));
 			page_update_max_trx_id(page, max_trx_id);
 
-			entry = ibuf_build_entry_from_ibuf_rec
-				(ibuf_rec, heap, &dummy_index);
+			entry = ibuf_build_entry_from_ibuf_rec(
+				ibuf_rec, heap, &dummy_index);
 #ifdef UNIV_IBUF_DEBUG
 			volume += rec_get_converted_size(dummy_index, entry)
 				+ page_dir_calc_reserved_space(1);
@@ -3283,15 +3287,15 @@ reset_bit:
 		ibuf_bitmap_page_set_bits(bitmap_page, page_no,
 					  IBUF_BITMAP_BUFFERED, FALSE, &mtr);
 		if (page) {
-			ulint old_bits = ibuf_bitmap_page_get_bits
-				(bitmap_page, page_no, IBUF_BITMAP_FREE, &mtr);
+			ulint old_bits = ibuf_bitmap_page_get_bits(
+				bitmap_page, page_no, IBUF_BITMAP_FREE, &mtr);
 			ulint new_bits = ibuf_index_page_calc_free(page);
 #if 0 /* defined UNIV_IBUF_DEBUG */
 			fprintf(stderr, "Old bits %lu new bits %lu"
 				" max size %lu\n",
 				old_bits, new_bits,
-				page_get_max_insert_size_after_reorganize
-				(page, 1));
+				page_get_max_insert_size_after_reorganize(
+					page, 1));
 #endif
 			if (old_bits != new_bits) {
 				ibuf_bitmap_page_set_bits(bitmap_page, page_no,
