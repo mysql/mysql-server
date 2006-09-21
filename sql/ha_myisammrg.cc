@@ -139,7 +139,11 @@ int ha_myisammrg::write_row(byte * buf)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
-      update_auto_increment();
+  {
+    int error;
+    if ((error= update_auto_increment()))
+      return error;
+  }
   return myrg_write(file,buf);
 }
 

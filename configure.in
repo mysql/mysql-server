@@ -1216,6 +1216,7 @@ EOF
     #
     echo -n "making sure specific build files are writable... "
     for file in \
+        Docs/manual.chm \
         Docs/mysql.info \
         Docs/INSTALL-BINARY \
         INSTALL-SOURCE \
