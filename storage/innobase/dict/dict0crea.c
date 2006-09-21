@@ -78,14 +78,14 @@ dict_create_sys_tables_tuple(
 	mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
 
 	dfield_set_data(dfield, ptr, 4);
-	/* 6: MIX_ID ---------------------------*/
+	/* 6: MIX_ID (obsolete) ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4);
 
 	ptr = mem_heap_alloc(heap, 8);
 	memset(ptr, 0, 8);
 
 	dfield_set_data(dfield, ptr, 8);
-	/* 7: MIX_LEN --------------------------*/
+	/* 7: MIX_LEN (obsolete) --------------------------*/
 
 	dfield = dtuple_get_nth_field(entry, 5);
 
@@ -124,11 +124,12 @@ dict_create_sys_columns_tuple(
 	mem_heap_t*	heap)	/* in: memory heap from which the memory for
 				the built tuple is allocated */
 {
-	dict_table_t*	sys_columns;
-	dtuple_t*	entry;
-	dict_col_t*	column;
-	dfield_t*	dfield;
-	byte*		ptr;
+	dict_table_t*		sys_columns;
+	dtuple_t*		entry;
+	const dict_col_t*	column;
+	dfield_t*		dfield;
+	byte*			ptr;
+	const char*	col_name;
 
 	ut_ad(table && heap);
 
@@ -155,33 +156,34 @@ dict_create_sys_columns_tuple(
 	/* 4: NAME ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 2);
 
-	dfield_set_data(dfield, column->name, ut_strlen(column->name));
+	col_name = dict_table_get_col_name(table, i);
+	dfield_set_data(dfield, col_name, ut_strlen(col_name));
 	/* 5: MTYPE --------------------------*/
 	dfield = dtuple_get_nth_field(entry, 3);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, (column->type).mtype);
+	mach_write_to_4(ptr, column->mtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: PRTYPE -------------------------*/
 	dfield = dtuple_get_nth_field(entry, 4);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, (column->type).prtype);
+	mach_write_to_4(ptr, column->prtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 7: LEN ----------------------------*/
 	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, (column->type).len);
+	mach_write_to_4(ptr, column->len);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: PREC ---------------------------*/
 	dfield = dtuple_get_nth_field(entry, 6);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, (column->type).prec);
+	mach_write_to_4(ptr, 0/* unused */);
 
 	dfield_set_data(dfield, ptr, 4);
 	/*---------------------------------*/
@@ -222,8 +224,7 @@ dict_build_table_def_step(
 
 	row_len = 0;
 	for (i = 0; i < table->n_def; i++) {
-		row_len += dtype_get_min_size(dict_col_get_type
-					      (&table->cols[i]));
+		row_len += dict_col_get_min_size(&table->cols[i]);
 	}
 	if (row_len > BTR_PAGE_MAX_REC_SIZE) {
 		return(DB_TOO_BIG_RECORD);
@@ -238,7 +239,7 @@ dict_build_table_def_step(
 		- page 3 will contain the root of the clustered index of the
 		table we create here. */
 
-		table->space = 0;	/* reset to zero for the call below */
+		ulint	space = 0;	/* reset to zero for the call below */
 
 		if (table->dir_path_of_temp_table) {
 			/* We place tables created with CREATE TEMPORARY
@@ -251,9 +252,11 @@ dict_build_table_def_step(
 			is_path = FALSE;
 		}
 
-		error = fil_create_new_single_table_tablespace
-			(&table->space, path_or_name, is_path,
-			 FIL_IBD_FILE_INITIAL_SIZE);
+		error = fil_create_new_single_table_tablespace(
+			&space, path_or_name, is_path,
+			FIL_IBD_FILE_INITIAL_SIZE);
+		table->space = space;
+
 		if (error != DB_SUCCESS) {
 
 			return(error);
@@ -768,8 +771,8 @@ dict_truncate_index_tree(
 	appropriate field in the SYS_INDEXES record: this mini-transaction
 	marks the B-tree totally truncated */
 
-	comp = page_is_comp(btr_page_get
-			    (space, root_page_no, RW_X_LATCH, mtr));
+	comp = page_is_comp(btr_page_get(space, root_page_no, RW_X_LATCH,
+					 mtr));
 
 	btr_free_root(space, root_page_no, mtr);
 	/* We will temporarily write FIL_NULL to the PAGE_NO field
@@ -798,7 +801,7 @@ dict_truncate_index_tree(
 
 	root_page_no = btr_create(type, space, index_id, comp, mtr);
 	if (index) {
-		index->tree->page = root_page_no;
+		index->page = root_page_no;
 	} else {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -1004,7 +1007,6 @@ dict_create_index_step(
 	que_thr_t*	thr)	/* in: query thread */
 {
 	ind_node_t*	node;
-	ibool		success;
 	ulint		err	= DB_ERROR;
 	trx_t*		trx;
 
@@ -1088,10 +1090,8 @@ dict_create_index_step(
 
 	if (node->state == INDEX_ADD_TO_CACHE) {
 
-		success = dict_index_add_to_cache(node->table, node->index,
-						  node->page_no);
-
-		ut_a(success);
+		dict_index_add_to_cache(node->table, node->index,
+					node->page_no);
 
 		err = DB_SUCCESS;
 	}
@@ -1328,13 +1328,14 @@ dict_create_add_foreign_field_to_dictionary(
 	pars_info_add_str_literal(info, "ref_col_name",
 				  foreign->referenced_col_names[field_nr]);
 
-	return(dict_foreign_eval_sql
-	       (info, "PROCEDURE P () IS\n"
-		"BEGIN\n"
-		"INSERT INTO SYS_FOREIGN_COLS VALUES"
-		"(:id, :pos, :for_col_name, :ref_col_name);\n"
-		"END;\n",
-		table, foreign, trx));
+	return(dict_foreign_eval_sql(
+		       info,
+		       "PROCEDURE P () IS\n"
+		       "BEGIN\n"
+		       "INSERT INTO SYS_FOREIGN_COLS VALUES"
+		       "(:id, :pos, :for_col_name, :ref_col_name);\n"
+		       "END;\n",
+		       table, foreign, trx));
 }
 
 /************************************************************************
@@ -1393,8 +1394,8 @@ dict_create_add_foreign_to_dictionary(
 	}
 
 	for (i = 0; i < foreign->n_fields; i++) {
-		error = dict_create_add_foreign_field_to_dictionary
-			(i, table, foreign, trx);
+		error = dict_create_add_foreign_field_to_dictionary(
+			i, table, foreign, trx);
 
 		if (error != DB_SUCCESS) {
 
@@ -1450,8 +1451,8 @@ dict_create_add_foreigns_to_dictionary(
 	     foreign;
 	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-		error = dict_create_add_foreign_to_dictionary
-			(&number, table, foreign, trx);
+		error = dict_create_add_foreign_to_dictionary(&number, table,
+							      foreign, trx);
 
 		if (error != DB_SUCCESS) {
 

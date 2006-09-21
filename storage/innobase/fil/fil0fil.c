@@ -529,9 +529,8 @@ fil_node_open_file(
 		os_file_read() in Windows to read from a file opened for
 		async I/O! */
 
-		node->handle = os_file_create_simple_no_error_handling
-			(node->name,
-			 OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+		node->handle = os_file_create_simple_no_error_handling(
+			node->name, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
 		if (!success) {
 			/* The following call prints an error message */
 			os_file_get_last_error(TRUE);
@@ -1564,9 +1563,9 @@ fil_write_flushed_lsn_to_data_files(
 			while (node) {
 				mutex_exit(&(fil_system->mutex));
 
-				err = fil_write_lsn_and_arch_no_to_file
-					(space->id, sum_of_sizes,
-					 lsn, arch_log_no);
+				err = fil_write_lsn_and_arch_no_to_file(
+					space->id, sum_of_sizes, lsn,
+					arch_log_no);
 				if (err != DB_SUCCESS) {
 
 					return(err);
@@ -1936,9 +1935,9 @@ fil_op_log_parse_or_replay(
 
 			ut_a(space_id != 0);
 
-			if (fil_create_new_single_table_tablespace
-			    (&space_id, name, FALSE,
-			     FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
+			if (fil_create_new_single_table_tablespace(
+				    &space_id, name, FALSE,
+				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_error;
 			}
 		}
@@ -2580,8 +2579,8 @@ fil_reset_too_high_lsns(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	file = os_file_create_simple_no_error_handling
-		(filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+	file = os_file_create_simple_no_error_handling(
+		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -2654,8 +2653,8 @@ fil_reset_too_high_lsns(
 		if (ut_dulint_cmp(mach_read_from_8(page + FIL_PAGE_LSN),
 				  current_lsn) > 0) {
 			/* We have to reset the lsn */
-			space_id = mach_read_from_4
-				(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+			space_id = mach_read_from_4(
+				page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 			page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
 
 			buf_flush_init_for_writing(page, current_lsn, space_id,
@@ -2735,8 +2734,8 @@ fil_open_single_table_tablespace(
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
-	file = os_file_create_simple_no_error_handling
-		(filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+	file = os_file_create_simple_no_error_handling(
+		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -2887,8 +2886,8 @@ fil_load_single_table_tablespace(
 	dict_casedn_str(filepath);
 # endif /* !UNIV_HOTBACKUP */
 #endif
-	file = os_file_create_simple_no_error_handling
-		(filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+	file = os_file_create_simple_no_error_handling(
+		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -3242,8 +3241,8 @@ fil_load_single_table_tablespaces(void)
 						   ".ibd")) {
 					/* The name ends in .ibd; try opening
 					the file */
-					fil_load_single_table_tablespace
-						(dbinfo.name, fileinfo.name);
+					fil_load_single_table_tablespace(
+						dbinfo.name, fileinfo.name);
 				}
 next_file_item:
 				ret = fil_file_readdir_next_file(&err,
@@ -3736,8 +3735,8 @@ fil_extend_tablespaces_to_stored_len(void)
 
 		size_in_header = fsp_get_size_low(buf);
 
-		success = fil_extend_space_to_desired_size
-			(&actual_size, space->id, size_in_header);
+		success = fil_extend_space_to_desired_size(
+			&actual_size, space->id, size_in_header);
 		if (!success) {
 			fprintf(stderr,
 				"InnoDB: Error: could not extend the"
@@ -4082,9 +4081,9 @@ fil_io(
 
 	for (;;) {
 		if (node == NULL) {
-			fil_report_invalid_page_access
-				(block_offset, space_id,
-				 space->name, byte_offset, len, type);
+			fil_report_invalid_page_access(
+				block_offset, space_id, space->name,
+				byte_offset, len, type);
 
 			ut_error;
 		}
@@ -4113,9 +4112,9 @@ fil_io(
 	if (space->purpose == FIL_TABLESPACE && space->id != 0
 	    && node->size <= block_offset) {
 
-		fil_report_invalid_page_access
-			(block_offset, space_id,
-			 space->name, byte_offset, len, type);
+		fil_report_invalid_page_access(
+			block_offset, space_id, space->name, byte_offset,
+			len, type);
 
 		ut_error;
 	}
@@ -4384,10 +4383,10 @@ skip_flush:
 
 					space->is_in_unflushed_spaces = FALSE;
 
-					UT_LIST_REMOVE
-						(unflushed_spaces,
-						 system->unflushed_spaces,
-						 space);
+					UT_LIST_REMOVE(
+						unflushed_spaces,
+						system->unflushed_spaces,
+						space);
 				}
 			}
 
