@@ -401,7 +401,7 @@ ErrorBundle ErrorCodes[] = {
    * Still uncategorized
    */
   { 720,  AE, "Attribute name reused in table definition" },
-  { 4004, AE, "Attribute name not found in the Table" },
+  { 4004, AE, "Attribute name or id not found in the table" },
   
   { 4100, AE, "Status Error in NDB" },
   { 4101, AE, "No connections to NDB available and connect failed" },
