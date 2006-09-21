@@ -52,7 +52,7 @@ page_t*
 btr_root_get(
 /*=========*/
 				/* out: root page, x-latched */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	mtr_t*		mtr);	/* in: mtr */
 /******************************************************************
 Gets a buffer page and declares its latching order level. */
@@ -255,7 +255,7 @@ that mtr holds an x-latch on the tree. */
 void
 btr_insert_on_non_leaf_level(
 /*=========================*/
-	dict_tree_t*	tree,	/* in: tree */
+	dict_index_t*	index,	/* in: index */
 	ulint		level,	/* in: level, must be > 0 */
 	dtuple_t*	tuple,	/* in: the record to be inserted */
 	mtr_t*		mtr);	/* in: mtr */
@@ -274,7 +274,7 @@ Deletes on the upper level the node pointer to a page. */
 void
 btr_node_ptr_delete(
 /*================*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page whose node pointer is deleted */
 	mtr_t*		mtr);	/* in: mtr */
 #ifdef UNIV_DEBUG
@@ -285,7 +285,7 @@ ibool
 btr_check_node_ptr(
 /*===============*/
 				/* out: TRUE */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: index page */
 	mtr_t*		mtr);	/* in: mtr */
 #endif /* UNIV_DEBUG */
@@ -361,7 +361,7 @@ btr_page_alloc(
 /*===========*/
 					/* out: new allocated page, x-latched;
 					NULL if out of space */
-	dict_tree_t*	tree,		/* in: index tree */
+	dict_index_t*	index,		/* in: index tree */
 	ulint		hint_page_no,	/* in: hint of a good page */
 	byte		file_direction,	/* in: direction where a possible
 					page split is made */
@@ -375,7 +375,7 @@ storage pages because the page must contain info on its level. */
 void
 btr_page_free(
 /*==========*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page to be freed, x-latched */
 	mtr_t*		mtr);	/* in: mtr */
 /******************************************************************
@@ -386,7 +386,7 @@ argument. */
 void
 btr_page_free_low(
 /*==============*/
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index tree */
 	page_t*		page,	/* in: page to be freed, x-latched */
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr);	/* in: mtr */
@@ -397,14 +397,14 @@ Prints size info of a B-tree. */
 void
 btr_print_size(
 /*===========*/
-	dict_tree_t*	tree);	/* in: index tree */
+	dict_index_t*	index);	/* in: index tree */
 /******************************************************************
-Prints directories and other info of all nodes in the tree. */
+Prints directories and other info of all nodes in the index. */
 
 void
-btr_print_tree(
-/*===========*/
-	dict_tree_t*	tree,	/* in: tree */
+btr_print_index(
+/*============*/
+	dict_index_t*	index,	/* in: index */
 	ulint		width);	/* in: print this many entries from start
 				and end */
 #endif /* UNIV_BTR_PRINT */
@@ -425,10 +425,10 @@ btr_index_rec_validate(
 Checks the consistency of an index tree. */
 
 ibool
-btr_validate_tree(
-/*==============*/
+btr_validate_index(
+/*===============*/
 				/* out: TRUE if ok */
-	dict_tree_t*	tree,	/* in: tree */
+	dict_index_t*	index,	/* in: index */
 	trx_t*		trx);	/* in: transaction or NULL */
 
 #define BTR_N_LEAF_PAGES	1

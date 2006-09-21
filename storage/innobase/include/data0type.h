@@ -18,10 +18,6 @@ extern ulint	data_mysql_default_charset_coll;
 /* SQL data type struct */
 typedef struct dtype_struct		dtype_t;
 
-/* This variable is initialized as the standard binary variable length
-data type */
-extern dtype_t*		dtype_binary;
-
 /*-------------------------------------------*/
 /* The 'MAIN TYPE' of a column */
 #define	DATA_VARCHAR	1	/* character varying of the
@@ -124,11 +120,7 @@ be less than 256 */
 #define	DATA_ROLL_PTR	2	/* rollback data pointer: 7 bytes */
 #define DATA_ROLL_PTR_LEN 7
 
-#define DATA_MIX_ID	3	/* mixed index label: a dulint, stored in
-				a row in a compressed form */
-#define DATA_MIX_ID_LEN	9	/* maximum stored length for mix id (in a
-				compressed dulint form) */
-#define	DATA_N_SYS_COLS 4	/* number of system columns defined above */
+#define	DATA_N_SYS_COLS 3	/* number of system columns defined above */
 
 /* Flags ORed to the precise data type */
 #define DATA_NOT_NULL	256	/* this is ORed to the precise type when
@@ -176,7 +168,11 @@ dtype_get_at_most_n_mbchars(
 /*========================*/
 					/* out: length of the prefix,
 					in bytes */
-	const dtype_t*	dtype,		/* in: data type */
+	ulint		prtype,		/* in: precise type */
+	ulint		mbminlen,	/* in: minimum length of a
+					multi-byte character */
+	ulint		mbmaxlen,	/* in: maximum length of a
+					multi-byte character */
 	ulint		prefix_len,	/* in: length of the requested
 					prefix, in characters, multiplied by
 					dtype_get_mbmaxlen(dtype) */
@@ -224,8 +220,7 @@ dtype_set(
 	dtype_t*	type,	/* in: type struct to init */
 	ulint		mtype,	/* in: main data type */
 	ulint		prtype,	/* in: precise type */
-	ulint		len,	/* in: length of type */
-	ulint		prec);	/* in: precision of type */
+	ulint		len);	/* in: precision of type */
 /*************************************************************************
 Copies a data type structure. */
 UNIV_INLINE
@@ -233,7 +228,7 @@ void
 dtype_copy(
 /*=======*/
 	dtype_t*	type1,	/* in: type struct to copy to */
-	dtype_t*	type2);	/* in: type struct to copy from */
+	const dtype_t*	type2);	/* in: type struct to copy from */
 /*************************************************************************
 Gets the SQL main data type. */
 UNIV_INLINE
@@ -248,6 +243,18 @@ ulint
 dtype_get_prtype(
 /*=============*/
 	dtype_t*	type);
+/*************************************************************************
+Compute the mbminlen and mbmaxlen members of a data type structure. */
+UNIV_INLINE
+void
+dtype_get_mblen(
+/*============*/
+	ulint	mtype,		/* in: main type */
+	ulint	prtype,		/* in: precise type (and collation) */
+	ulint*	mbminlen,	/* out: minimum length of a
+				multi-byte character */
+	ulint*	mbmaxlen);	/* out: maximum length of a
+				multi-byte character */
 /*************************************************************************
 Gets the MySQL charset-collation code for MySQL string types. */
 
@@ -280,13 +287,6 @@ dtype_get_len(
 /*==========*/
 	dtype_t*	type);
 /*************************************************************************
-Gets the type precision. */
-UNIV_INLINE
-ulint
-dtype_get_prec(
-/*===========*/
-	dtype_t*	type);
-/*************************************************************************
 Gets the minimum length of a character, in bytes. */
 UNIV_INLINE
 ulint
@@ -312,50 +312,52 @@ dtype_get_pad_char(
 /*===============*/
 				/* out: padding character code, or
 				ULINT_UNDEFINED if no padding specified */
-	const dtype_t*	type);	/* in: type */
+	ulint	mtype,		/* in: main type */
+	ulint	prtype);	/* in: precise type */
 /***************************************************************************
 Returns the size of a fixed size data type, 0 if not a fixed size type. */
 UNIV_INLINE
 ulint
-dtype_get_fixed_size(
-/*=================*/
+dtype_get_fixed_size_low(
+/*=====================*/
 				/* out: fixed size, or 0 */
-	dtype_t*	type);	/* in: type */
+	ulint	mtype,		/* in: main type */
+	ulint	prtype,		/* in: precise type */
+	ulint	len,		/* in: length */
+	ulint	mbminlen,	/* in: minimum length of a multibyte char */
+	ulint	mbmaxlen);	/* in: maximum length of a multibyte char */
 /***************************************************************************
 Returns the minimum size of a data type. */
 UNIV_INLINE
 ulint
-dtype_get_min_size(
-/*===============*/
+dtype_get_min_size_low(
+/*===================*/
 				/* out: minimum size */
-	const dtype_t*	type);	/* in: type */
+	ulint	mtype,		/* in: main type */
+	ulint	prtype,		/* in: precise type */
+	ulint	len,		/* in: length */
+	ulint	mbminlen,	/* in: minimum length of a multibyte char */
+	ulint	mbmaxlen);	/* in: maximum length of a multibyte char */
 /***************************************************************************
 Returns the maximum size of a data type. Note: types in system tables may be
 incomplete and return incorrect information. */
-
+UNIV_INLINE
 ulint
-dtype_get_max_size(
-/*===============*/
-				/* out: maximum size (ULINT_MAX for
-				unbounded types) */
-	const dtype_t*	type);	/* in: type */
+dtype_get_max_size_low(
+/*===================*/
+				/* out: maximum size */
+	ulint	mtype,		/* in: main type */
+	ulint	len);		/* in: length */
 /***************************************************************************
-Returns a stored SQL NULL size for a type. For fixed length types it is
-the fixed length of the type, otherwise 0. */
+Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a type.
+For fixed length types it is the fixed length of the type, otherwise 0. */
 UNIV_INLINE
 ulint
 dtype_get_sql_null_size(
 /*====================*/
-				/* out: SQL null storage size */
-	dtype_t*	type);	/* in: type */
-/***************************************************************************
-Returns TRUE if a type is of a fixed size. */
-UNIV_INLINE
-ibool
-dtype_is_fixed_size(
-/*================*/
-				/* out: TRUE if fixed size */
-	dtype_t*	type);	/* in: type */
+				/* out: SQL null storage size
+				in ROW_FORMAT=REDUNDANT */
+	const dtype_t*	type);	/* in: type */
 /**************************************************************************
 Reads to a type the stored information which determines its alphabetical
 ordering and the storage size of an SQL NULL value. */
@@ -376,7 +378,9 @@ dtype_new_store_for_order_and_null_size(
 	byte*		buf,	/* in: buffer for
 				DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
 				bytes where we store the info */
-	dtype_t*	type);	/* in: type struct */
+	dtype_t*	type,	/* in: type struct */
+	ulint		prefix_len);/* in: prefix length to
+				replace type->len, or 0 */
 /**************************************************************************
 Reads to a type the stored information which determines its alphabetical
 ordering and the storage size of an SQL NULL value. This is the 4.1.x storage
@@ -413,25 +417,30 @@ dtype_new_read_for_order_and_null_size()
 sym_tab_add_null_lit() */
 
 struct dtype_struct{
-	ulint	mtype;		/* main data type */
-	ulint	prtype;		/* precise type; MySQL data type, charset code,
-				flags to indicate nullability, signedness,
-				whether this is a binary string, whether this
-				is a true VARCHAR where MySQL uses 2 bytes to
-				store the length */
+	unsigned	mtype:8;	/* main data type */
+	unsigned	prtype:24;	/* precise type; MySQL data
+					type, charset code, flags to
+					indicate nullability,
+					signedness, whether this is a
+					binary string, whether this is
+					a true VARCHAR where MySQL
+					uses 2 bytes to store the length */
 
 	/* the remaining fields do not affect alphabetical ordering: */
 
-	ulint	len;		/* length; for MySQL data this is
-				field->pack_length(), except that for a
-				>= 5.0.3 type true VARCHAR this is the
-				maximum byte length of the string data
-				(in addition to the string, MySQL uses 1 or
-				2 bytes to store the string length) */
-	ulint	prec;		/* precision */
+	unsigned	len:16;		/* length; for MySQL data this
+					is field->pack_length(),
+					except that for a >= 5.0.3
+					type true VARCHAR this is the
+					maximum byte length of the
+					string data (in addition to
+					the string, MySQL uses 1 or 2
+					bytes to store the string length) */
 
-	ulint	mbminlen;	/* minimum length of a character, in bytes */
-	ulint	mbmaxlen;	/* maximum length of a character, in bytes */
+	unsigned	mbminlen:2;	/* minimum length of a
+					character, in bytes */
+	unsigned	mbmaxlen:3;	/* maximum length of a
+					character, in bytes */
 };
 
 #ifndef UNIV_NONINL
