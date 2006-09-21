@@ -50,7 +50,7 @@ libheap_a_SOURCES =	hp_open.c hp_extra.c hp_close.c hp_panic.c hp_info.c \
 			hp_hash.c _check.c _rectest.c hp_static.c
 
 
-EXTRA_DIST =		CMakeLists.txt
+EXTRA_DIST =		CMakeLists.txt plug.in
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
