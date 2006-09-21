@@ -1102,12 +1102,22 @@ void handler::print_error(int error, myf errflag)
       /* Write the dupplicated key in the error message */
       char key[MAX_KEY_LENGTH];
       String str(key,sizeof(key),system_charset_info);
-      key_unpack(&str,table,(uint) key_nr);
-      uint max_length=MYSQL_ERRMSG_SIZE-(uint) strlen(ER(ER_DUP_ENTRY));
-      if (str.length() >= max_length)
+
+      if (key_nr == MAX_KEY)
       {
-	str.length(max_length-4);
-	str.append("...");
+	/* Key is unknown */
+	str.length(0);
+	key_nr= -1;
+      }
+      else
+      {
+	key_unpack(&str,table,(uint) key_nr);
+	uint max_length=MYSQL_ERRMSG_SIZE-(uint) strlen(ER(ER_DUP_ENTRY));
+	if (str.length() >= max_length)
+	  {
+	    str.length(max_length-4);
+	    str.append("...");
+	  }
       }
       my_error(ER_DUP_ENTRY,MYF(0),str.c_ptr(),key_nr+1);
       DBUG_VOID_RETURN;
