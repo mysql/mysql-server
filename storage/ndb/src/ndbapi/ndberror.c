@@ -486,7 +486,7 @@ ErrorBundle ErrorCodes[] = {
 
   { 1420, DMEC, TR, "Subscriber manager busy with adding/removing a table" },
 
-  { 4004, DMEC, AE, "Attribute name not found in the Table" },
+  { 4004, DMEC, AE, "Attribute name or id not found in the table" },
   
   { 4100, DMEC, AE, "Status Error in NDB" },
   { 4101, DMEC, AE, "No connections to NDB available and connect failed" },
