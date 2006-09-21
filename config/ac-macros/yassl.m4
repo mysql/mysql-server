@@ -18,7 +18,8 @@ AC_DEFUN([MYSQL_CHECK_YASSL], [
     fi
     AC_MSG_RESULT([using bundled yaSSL])
     yassl_dir="extra/yassl"
-    yassl_libs="-L\$(top_srcdir)/extra/yassl/src -lyassl -L\$(top_srcdir)/extra/yassl/taocrypt/src -ltaocrypt"
+    yassl_libs="\$(top_builddir)/extra/yassl/src/libyassl.la \
+                \$(top_builddir)/extra/yassl/taocrypt/src/libtaocrypt.la"
     AC_DEFINE([HAVE_OPENSSL], [1], [Defined by configure. Using yaSSL for OpenSSL emulation.])
     AC_DEFINE([HAVE_YASSL], [1], [Defined by configure. Using yaSSL for OpenSSL emulation.])
     # System specific checks
