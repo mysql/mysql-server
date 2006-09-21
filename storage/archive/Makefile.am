@@ -57,6 +57,6 @@ archive_test_LDADD =	$(top_builddir)/mysys/libmysys.a \
 archive_test_LDFLAGS = @NOINST_LDFLAGS@
 
 
-EXTRA_DIST =		CMakeLists.txt
+EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
 %::SCCS/s.%
