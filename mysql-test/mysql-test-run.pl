@@ -3120,7 +3120,7 @@ sub mysqld_start ($$$) {
   {
     $exe= $exe_master_mysqld;
   }
-  if ( $type eq 'slave' )
+  elsif ( $type eq 'slave' )
   {
     $exe= $exe_slave_mysqld;
   }
