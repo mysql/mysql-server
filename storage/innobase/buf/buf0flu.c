@@ -890,8 +890,8 @@ buf_flush_batch(
 				old_page_count = page_count;
 
 				/* Try to flush also all the neighbors */
-				page_count += buf_flush_try_neighbors
-					(space, offset, flush_type);
+				page_count += buf_flush_try_neighbors(
+					space, offset, flush_type);
 				/* fprintf(stderr,
 				"Flush type %lu, page no %lu, neighb %lu\n",
 				flush_type, offset,

@@ -334,7 +334,7 @@ dtuple_set_types_binary(
 
 	for (i = 0; i < n; i++) {
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
-		dtype_set(dfield_type, DATA_BINARY, 0, 0, 0);
+		dtype_set(dfield_type, DATA_BINARY, 0, 0);
 	}
 }
 

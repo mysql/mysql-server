@@ -3025,8 +3025,9 @@ ha_innobase::store_key_val_for_row(
 /******************************************************************
 Builds a 'template' to the prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
+static
 void
-ha_innobase::build_template(
+build_template(
 /*===========*/
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	THD*		thd,		/* in: current user thread, used
@@ -3167,8 +3168,8 @@ include_field:
 		templ->col_no = i;
 
 		if (index == clust_index) {
-			templ->rec_field_no = (index->table->cols + i)
-								->clust_pos;
+			templ->rec_field_no = dict_col_get_clust_pos_noninline(
+				&index->table->cols[i], index);
 		} else {
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 								index, i);
@@ -3197,7 +3198,7 @@ include_field:
 			mysql_prefix_len = templ->mysql_col_offset
 				+ templ->mysql_col_len;
 		}
-		templ->type = index->table->cols[i].type.mtype;
+		templ->type = index->table->cols[i].mtype;
 		templ->mysql_type = (ulint)field->type();
 
 		if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
@@ -3206,10 +3207,10 @@ include_field:
 		}
 
 		templ->charset = dtype_get_charset_coll_noninline(
-				index->table->cols[i].type.prtype);
-		templ->mbminlen = index->table->cols[i].type.mbminlen;
-		templ->mbmaxlen = index->table->cols[i].type.mbmaxlen;
-		templ->is_unsigned = index->table->cols[i].type.prtype
+				index->table->cols[i].prtype);
+		templ->mbminlen = index->table->cols[i].mbminlen;
+		templ->mbmaxlen = index->table->cols[i].mbmaxlen;
+		templ->is_unsigned = index->table->cols[i].prtype
 							& DATA_UNSIGNED;
 		if (templ->type == DATA_BLOB) {
 			prebuilt->templ_contains_blob = TRUE;
@@ -3227,8 +3228,9 @@ skip_field:
 		for (i = 0; i < n_requested_fields; i++) {
 			templ = prebuilt->mysql_template + i;
 
-			templ->rec_field_no =
-				(index->table->cols + templ->col_no)->clust_pos;
+			templ->rec_field_no = dict_col_get_clust_pos_noninline(
+				&index->table->cols[templ->col_no],
+				clust_index);
 		}
 	}
 }
@@ -3494,9 +3496,11 @@ calc_row_difference(
 	ulint		col_type;
 	ulint		n_changed = 0;
 	dfield_t	dfield;
+	dict_index_t*	clust_index;
 	uint		i;
 
 	n_fields = table->s->fields;
+	clust_index = dict_table_get_first_index_noninline(prebuilt->table);
 
 	/* We use upd_buff to convert changed fields */
 	buf = (byte*) upd_buff;
@@ -3527,7 +3531,7 @@ calc_row_difference(
 
 		field_mysql_type = field->type();
 
-		col_type = prebuilt->table->cols[i].type.mtype;
+		col_type = prebuilt->table->cols[i].mtype;
 
 		switch (col_type) {
 
@@ -3582,7 +3586,8 @@ calc_row_difference(
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
-			dfield.type = (prebuilt->table->cols + i)->type;
+			dict_col_copy_type_noninline(prebuilt->table->cols + i,
+						     &dfield.type);
 
 			if (n_len != UNIV_SQL_NULL) {
 				buf = row_mysql_store_col_in_innobase_format(
@@ -3601,7 +3606,8 @@ calc_row_difference(
 			}
 
 			ufield->exp = NULL;
-			ufield->field_no = prebuilt->table->cols[i].clust_pos;
+			ufield->field_no = dict_col_get_clust_pos_noninline(
+				&prebuilt->table->cols[i], clust_index);
 			n_changed++;
 		}
 	}
@@ -4581,8 +4587,7 @@ create_table_def(
 				| nulls_allowed | unsigned_type
 				| binary_type | long_true_varchar,
 				charset_no),
-			col_len,
-			0);
+			col_len);
 	}
 
 	error = row_create_table_for_mysql(table, trx);
@@ -6175,24 +6180,10 @@ ha_innobase::start_stmt(
 			1) ::store_lock(),
 			2) ::external_lock(),
 			3) ::init_table_handle_for_HANDLER(), and
-			4) :.transactional_table_lock(). */
+			4) ::transactional_table_lock(). */
 
 			prebuilt->select_lock_type =
 				prebuilt->stored_select_lock_type;
-		}
-
-		if (prebuilt->stored_select_lock_type != LOCK_S
-			&& prebuilt->stored_select_lock_type != LOCK_X) {
-			sql_print_error(
-				"stored_select_lock_type is %lu inside "
-				"::start_stmt()!",
-				prebuilt->stored_select_lock_type);
-
-			/* Set the value to LOCK_X: this is just fault
-			tolerance, we do not know what the correct value
-			should be! */
-
-			prebuilt->select_lock_type = LOCK_X;
 		}
 	}
 

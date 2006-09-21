@@ -51,8 +51,8 @@ if_step(
 			for (;;) {
 				eval_exp(elsif_node->cond);
 
-				if (eval_node_get_ibool_val
-				    (elsif_node->cond)) {
+				if (eval_node_get_ibool_val(
+					    elsif_node->cond)) {
 
 					/* The condition evaluated to TRUE:
 					start execution from the first
