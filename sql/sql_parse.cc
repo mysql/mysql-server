@@ -6085,6 +6085,7 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
     table_options	A set of the following bits:
 			TL_OPTION_UPDATING	Table will be updated
 			TL_OPTION_FORCE_INDEX	Force usage of index
+			TL_OPTION_ALIAS	        an alias in multi table DELETE
     lock_type		How table should be locked
     use_index		List of indexed used in USE INDEX
     ignore_index	List of indexed used in IGNORE INDEX
@@ -6113,7 +6114,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (check_table_name(table->table.str, table->table.length))
+  if (!test(table_options & TL_OPTION_ALIAS) && 
+      check_table_name(table->table.str, table->table.length))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
     DBUG_RETURN(0);
