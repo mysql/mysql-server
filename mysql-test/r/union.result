@@ -1365,7 +1365,7 @@ drop table t1, t2;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
 (select avg(1)) union (select avg(1)) union (select avg(1));
 avg(1)
-NULL
+1.0000
 select _utf8'12' union select _latin1'12345';
 12
 12
