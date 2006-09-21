@@ -2021,18 +2021,17 @@ close_file:
   SYNOPSIS
     partition_key_modified
     table                TABLE object for which partition fields are set-up
-    fields               A list of the to be modifed
+    fields               Bitmap representing fields to be modified
 
   RETURN VALUES
     TRUE                 Need special handling of UPDATE
     FALSE                Normal UPDATE handling is ok
 */
 
-bool partition_key_modified(TABLE *table, List<Item> &fields)
+bool partition_key_modified(TABLE *table, const MY_BITMAP *fields)
 {
-  List_iterator_fast<Item> f(fields);
+  Field **fld;
   partition_info *part_info= table->part_info;
-  Item_field *item_field;
   DBUG_ENTER("partition_key_modified");
 
   if (!part_info)
@@ -2040,9 +2039,8 @@ bool partition_key_modified(TABLE *table, List<Item> &fields)
   if (table->s->db_type->partition_flags &&
       (table->s->db_type->partition_flags() & HA_CAN_UPDATE_PARTITION_KEY))
     DBUG_RETURN(FALSE);
-  f.rewind();
-  while ((item_field=(Item_field*) f++))
-    if (item_field->field->flags & FIELD_IN_PART_FUNC_FLAG)
+  for (fld= part_info->full_part_field_array; *fld; fld++)
+    if (bitmap_is_set(fields, (*fld)->field_index))
       DBUG_RETURN(TRUE);
   DBUG_RETURN(FALSE);
 }
