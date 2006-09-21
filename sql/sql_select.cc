@@ -13360,6 +13360,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   param->copy_funcs.empty();
   for (i= 0; (pos= li++); i++)
   {
+    Field *field;
+    char *tmp;
     Item *real_pos= pos->real_item();
     if (real_pos->type() == Item::FIELD_ITEM)
     {
@@ -13390,17 +13392,25 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   set up save buffer and change result_field to point at 
 	   saved value
 	*/
-	Field *field= item->field;
+	field= item->field;
 	item->result_field=field->new_field(thd->mem_root,field->table, 1);
-	char *tmp=(char*) sql_alloc(field->pack_length()+1);
+        /*
+          We need to allocate one extra byte for null handling and
+          another extra byte to not get warnings from purify in
+          Field_string::val_int
+        */
+	tmp= (char*) sql_alloc(field->pack_length()+2);
 	if (!tmp)
 	  goto err;
-      if (copy)
-      {
-        copy->set(tmp, item->result_field);
-        item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-        copy++;
-      }				
+        if (copy)
+        {
+          copy->set(tmp, item->result_field);
+          item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
+#ifdef HAVE_purify
+          copy->to_ptr[copy->from_length]= 0;
+#endif
+          copy++;
+        }
       }
     }
     else if ((real_pos->type() == Item::FUNC_ITEM ||
