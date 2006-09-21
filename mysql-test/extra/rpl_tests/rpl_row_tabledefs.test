@@ -206,21 +206,27 @@ SET SQL_LOG_BIN=0;
 INSERT INTO t1_nodef VALUES (1,2);
 INSERT INTO t1_nodef VALUES (2,4);
 SET SQL_LOG_BIN=1;
+sync_slave_with_master;
+
 --echo **** On Slave ****
 connection slave;
 INSERT INTO t1_nodef VALUES (1,2,3);
 INSERT INTO t1_nodef VALUES (2,4,6);
+
 --echo **** On Master ****
 connection master;
 UPDATE t1_nodef SET b=2*b WHERE a=1;
 SELECT * FROM t1_nodef;
+
 --echo **** On Slave ****
 sync_slave_with_master;
 SELECT * FROM t1_nodef;
+
 --echo **** On Master ****
 connection master;
 DELETE FROM t1_nodef WHERE a=2;
 SELECT * FROM t1_nodef;
+
 --echo **** On Slave ****
 sync_slave_with_master;
 SELECT * FROM t1_nodef;
