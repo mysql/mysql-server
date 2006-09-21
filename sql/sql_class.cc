@@ -2530,7 +2530,9 @@ my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data,
     {
       my_ptrdiff_t const offset=
         field->is_null(rec_offset) ? def_offset : rec_offset;
-      ptr= (byte*)field->pack((char *) ptr, field->ptr + offset);
+      field->move_field_offset(offset);
+      ptr= (byte*)field->pack((char *) ptr, field->ptr);
+      field->move_field_offset(-offset);
     }
   }
   return (static_cast<my_size_t>(ptr - row_data));
@@ -2615,12 +2617,19 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   my_size_t const after_size= pack_row(table, cols, after_row, 
                                        after_record);
   
+  DBUG_DUMP("before_record", before_record, table->s->reclength);
+  DBUG_DUMP("after_record", after_record, table->s->reclength);
+  DBUG_DUMP("before_row", before_row, before_size);
+  DBUG_DUMP("after_row", after_row, after_size);
+
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
 				      before_size + after_size, is_trans,
 				      static_cast<Update_rows_log_event*>(0));
 
-  error= (unlikely(!ev)) || ev->add_row_data(before_row, before_size) ||
+  error=
+    unlikely(!ev) ||
+    ev->add_row_data(before_row, before_size) ||
     ev->add_row_data(after_row, after_size);
 
   if (!table->write_row_record)
