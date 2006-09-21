@@ -9,8 +9,21 @@
 # column and index but without primary key.
 ##############################################################
 
+--echo #
+--echo # Setup
+--echo #
 
-# We also check how the foreign_key_check variable is replicated
+use test;
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+--echo #
+--echo # See if queries that use both auto_increment and LAST_INSERT_ID()
+--echo # are replicated well
+--echo #
+--echo # We also check how the foreign_key_check variable is replicated
+--echo #
 
 -- source include/master-slave.inc
 #should work for both SBR and RBR
@@ -49,7 +62,9 @@ select * from t1;
 select * from t2;
 connection master;
 
-# check if INSERT SELECT in auto_increment is well replicated (bug #490)
+--echo #
+--echo # check if INSERT SELECT in auto_increment is well replicated (bug #490)
+--echo #
 
 drop table t2;
 drop table t1;
@@ -72,10 +87,11 @@ save_master_pos;
 connection slave;
 sync_with_master;
 
-#
-# Bug#8412: Error codes reported in binary log for CHARACTER SET,
-#           FOREIGN_KEY_CHECKS
-#
+--echo #
+--echo # Bug#8412: Error codes reported in binary log for CHARACTER SET,
+--echo #           FOREIGN_KEY_CHECKS
+--echo #
+
 connection master;
 SET TIMESTAMP=1000000000;
 CREATE TABLE t1 ( a INT UNIQUE );
@@ -88,11 +104,10 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 
-# End of 4.1 tests
- 
-#
-# Bug#14553: NULL in WHERE resets LAST_INSERT_ID
-#
+--echo #
+--echo # Bug#14553: NULL in WHERE resets LAST_INSERT_ID
+--echo #
+
 connection master;
 create table t1(a int auto_increment, key(a));
 create table t2(a int);
@@ -107,11 +122,16 @@ connection master;
 drop table t1;
 drop table t2;
 
-#
-# BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
-#
-# The solution is not to reset last_insert_id on enter to sub-statement.
-#
+--echo #
+--echo # End of 4.1 tests
+--echo #
+
+--echo #
+--echo # BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
+--echo #
+--echo # The solution is not to reset last_insert_id on enter to sub-statement.
+--echo #
+
 connection master;
 --disable_warnings
 drop function if exists bug15728;
@@ -254,12 +274,16 @@ select * from t1 order by n;
 
 connection master;
 drop table t1;
+sync_slave_with_master;
 
-# End of 5.0 tests
+--echo #
+--echo # End of 5.0 tests
+--echo #
 
 # Test for BUG#20341 "stored function inserting into one
 # auto_increment puts bad data in slave"
 
+connection master;
 truncate table t2;
 create table t1 (id tinyint primary key); # no auto_increment
 
