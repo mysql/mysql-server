@@ -1240,7 +1240,9 @@ sub executable_setup () {
     $exe_ndbd=           "$glob_basedir/storage/ndb/src/kernel/ndbd";
     $exe_ndb_mgmd=       "$glob_basedir/storage/ndb/src/mgmsrv/ndb_mgmd";
     $lib_udf_example=
-      mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so");
+      mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so",
+                      "$glob_basedir/sql/release/udf_example.dll",
+                      "$glob_basedir/sql/debug/udf_example.dll");
   }
   else
   {
