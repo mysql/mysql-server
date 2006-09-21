@@ -417,13 +417,13 @@ row_mysql_convert_row_to_innobase(
 			}
 		}
 
-		row_mysql_store_col_in_innobase_format
-			(dfield,
-			 prebuilt->ins_upd_rec_buff + templ->mysql_col_offset,
-			 TRUE, /* MySQL row format data */
-			 mysql_rec + templ->mysql_col_offset,
-			 templ->mysql_col_len,
-			 dict_table_is_comp(prebuilt->table));
+		row_mysql_store_col_in_innobase_format(
+			dfield,
+			prebuilt->ins_upd_rec_buff + templ->mysql_col_offset,
+			TRUE, /* MySQL row format data */
+			mysql_rec + templ->mysql_col_offset,
+			templ->mysql_col_len,
+			dict_table_is_comp(prebuilt->table));
 next_column:
 		;
 	}
@@ -619,8 +619,8 @@ row_create_prebuilt(
 
 	prebuilt->sel_graph = NULL;
 
-	prebuilt->search_tuple = dtuple_create
-		(heap, 2 * dict_table_get_n_cols(table));
+	prebuilt->search_tuple = dtuple_create(
+		heap, 2 * dict_table_get_n_cols(table));
 
 	clust_index = dict_table_get_first_index(table);
 
@@ -707,16 +707,16 @@ row_prebuilt_free(
 	for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
 		if (prebuilt->fetch_cache[i] != NULL) {
 
-			if ((ROW_PREBUILT_FETCH_MAGIC_N != mach_read_from_4
-			     ((prebuilt->fetch_cache[i]) - 4))
-			    || (ROW_PREBUILT_FETCH_MAGIC_N != mach_read_from_4
-				((prebuilt->fetch_cache[i])
-				 + prebuilt->mysql_row_len))) {
+			if ((ROW_PREBUILT_FETCH_MAGIC_N != mach_read_from_4(
+				     (prebuilt->fetch_cache[i]) - 4))
+			    || (ROW_PREBUILT_FETCH_MAGIC_N != mach_read_from_4(
+					(prebuilt->fetch_cache[i])
+					+ prebuilt->mysql_row_len))) {
 				fputs("InnoDB: Error: trying to free"
 				      " a corrupt fetch buffer.\n", stderr);
 
-				mem_analyze_corruption
-					(prebuilt->fetch_cache[i]);
+				mem_analyze_corruption(
+					prebuilt->fetch_cache[i]);
 
 				ut_error;
 			}
@@ -811,8 +811,8 @@ row_get_prebuilt_insert_row(
 		prebuilt->ins_node = node;
 
 		if (prebuilt->ins_upd_rec_buff == NULL) {
-			prebuilt->ins_upd_rec_buff = mem_heap_alloc
-				(prebuilt->heap, prebuilt->mysql_row_len);
+			prebuilt->ins_upd_rec_buff = mem_heap_alloc(
+				prebuilt->heap, prebuilt->mysql_row_len);
 		}
 
 		row = dtuple_create(prebuilt->heap,
@@ -830,10 +830,10 @@ row_get_prebuilt_insert_row(
 
 		ins_node_set_new_row(node, row);
 
-		prebuilt->ins_graph = que_node_get_parent
-			(pars_complete_graph_for_exec(node,
-						      prebuilt->trx,
-						      prebuilt->heap));
+		prebuilt->ins_graph = que_node_get_parent(
+			pars_complete_graph_for_exec(node,
+						     prebuilt->trx,
+						     prebuilt->heap));
 		prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
 	}
 
@@ -1188,10 +1188,10 @@ row_prebuild_sel_graph(
 
 		node = sel_node_create(prebuilt->heap);
 
-		prebuilt->sel_graph = que_node_get_parent
-			(pars_complete_graph_for_exec(node,
-						      prebuilt->trx,
-						      prebuilt->heap));
+		prebuilt->sel_graph = que_node_get_parent(
+			pars_complete_graph_for_exec(node,
+						     prebuilt->trx,
+						     prebuilt->heap));
 
 		prebuilt->sel_graph->state = QUE_FORK_ACTIVE;
 	}
@@ -1260,10 +1260,10 @@ row_get_prebuilt_update_vector(
 
 		prebuilt->upd_node = node;
 
-		prebuilt->upd_graph = que_node_get_parent
-			(pars_complete_graph_for_exec(node,
-						      prebuilt->trx,
-						      prebuilt->heap));
+		prebuilt->upd_graph = que_node_get_parent(
+			pars_complete_graph_for_exec(node,
+						     prebuilt->trx,
+						     prebuilt->heap));
 		prebuilt->upd_graph->state = QUE_FORK_ACTIVE;
 	}
 
@@ -1607,16 +1607,11 @@ row_table_got_default_clust_index(
 /*==============================*/
 	dict_table_t*	table)
 {
-	dict_index_t*	clust_index;
+	const dict_index_t*	clust_index;
 
 	clust_index = dict_table_get_first_index(table);
 
-	if (dtype_get_mtype(dict_index_get_nth_type(clust_index, 0))
-	    == DATA_SYS) {
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(dict_index_get_nth_col(clust_index, 0)->mtype == DATA_SYS);
 }
 
 /*************************************************************************
@@ -1782,9 +1777,8 @@ row_create_table_for_mysql(
 
 	/* Check that no reserved column names are used. */
 	for (i = 0; i < dict_table_get_n_user_cols(table); i++) {
-		dict_col_t*	col = dict_table_get_nth_col(table, i);
-
-		if (dict_col_name_is_reserved(col->name)) {
+		if (dict_col_name_is_reserved(
+			    dict_table_get_col_name(table, i))) {
 
 			dict_mem_table_free(table);
 			trx_commit_for_mysql(trx);
@@ -1975,16 +1969,16 @@ row_create_index_for_mysql(
 
 	for (i = 0; i < dict_index_get_n_fields(index); i++) {
 		for (j = 0; j < i; j++) {
-			if (0 == ut_strcmp
-			    (dict_index_get_nth_field(index, j)->name,
-			     dict_index_get_nth_field(index, i)->name)) {
+			if (0 == ut_strcmp(
+				    dict_index_get_nth_field(index, j)->name,
+				    dict_index_get_nth_field(index, i)->name)) {
 
 				ut_print_timestamp(stderr);
 
 				fputs("  InnoDB: Error: column ", stderr);
 				ut_print_name(stderr, trx, FALSE,
-					      dict_index_get_nth_field
-					      (index, i)->name);
+					      dict_index_get_nth_field(
+						      index, i)->name);
 				fputs(" appears twice in ", stderr);
 				dict_index_name_print(stderr, trx, index);
 				fputs("\n"
@@ -2205,8 +2199,8 @@ loop:
 		goto already_dropped;
 	}
 
-	if (DB_SUCCESS != row_drop_table_for_mysql_in_background
-	    (drop->table_name)) {
+	if (DB_SUCCESS != row_drop_table_for_mysql_in_background(
+		    drop->table_name)) {
 		/* If the DROP fails for some table, we return, and let the
 		main thread retry later */
 
@@ -2835,9 +2829,9 @@ row_truncate_table_for_mysql(
 		rec = btr_pcur_get_rec(&pcur);
 
 		if (root_page_no != FIL_NULL) {
-			page_rec_write_index_page_no
-				(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
-				 root_page_no, &mtr);
+			page_rec_write_index_page_no(
+				rec, DICT_SYS_INDEXES_PAGE_NO_FIELD,
+				root_page_no, &mtr);
 			/* We will need to commit and restart the
 			mini-transaction in order to avoid deadlocks.
 			The dict_truncate_index_tree() call has allocated
@@ -3038,8 +3032,8 @@ check_next_foreign:
 	}
 
 	if (foreign && trx->check_foreigns
-	    && !(drop_db && dict_tables_have_same_db
-		 (name, foreign->foreign_table_name))) {
+	    && !(drop_db && dict_tables_have_same_db(
+			 name, foreign->foreign_table_name))) {
 		FILE*	ef	= dict_foreign_err_file;
 
 		/* We only allow dropping a referenced table if
@@ -3232,8 +3226,8 @@ check_next_foreign:
 		space_id = table->space;
 
 		if (table->dir_path_of_temp_table != NULL) {
-			dir_path_of_temp_table = mem_strdup
-				(table->dir_path_of_temp_table);
+			dir_path_of_temp_table = mem_strdup(
+				table->dir_path_of_temp_table);
 			is_path = TRUE;
 			name_or_path = dir_path_of_temp_table;
 		} else {
@@ -3447,8 +3441,8 @@ row_delete_constraint(
 	ulint		err;
 
 	/* New format constraints have ids <databasename>/<constraintname>. */
-	err = row_delete_constraint_low
-		(mem_heap_strcat(heap, database_name, id), trx);
+	err = row_delete_constraint_low(
+		mem_heap_strcat(heap, database_name, id), trx);
 
 	if ((err == DB_SUCCESS) && !strchr(id, '/')) {
 		/* Old format < 4.0.18 constraints have constraint ids
@@ -3570,9 +3564,9 @@ row_rename_table_for_mysql(
 
 		heap = mem_heap_create(100);
 
-		err = dict_foreign_parse_drop_constraints
-			(heap, trx, table,
-			 &n_constraints_to_drop, &constraints_to_drop);
+		err = dict_foreign_parse_drop_constraints(
+			heap, trx, table, &n_constraints_to_drop,
+			&constraints_to_drop);
 
 		if (err != DB_SUCCESS) {
 
@@ -3611,71 +3605,71 @@ row_rename_table_for_mysql(
 		pars_info_add_str_literal(info, "new_table_name", new_name);
 		pars_info_add_str_literal(info, "old_table_name", old_name);
 
-		err = que_eval_sql
-			(info,
-			 "PROCEDURE RENAME_CONSTRAINT_IDS () IS\n"
-			 "gen_constr_prefix CHAR;\n"
-			 "new_db_name CHAR;\n"
-			 "foreign_id CHAR;\n"
-			 "new_foreign_id CHAR;\n"
-			 "old_db_name_len INT;\n"
-			 "old_t_name_len INT;\n"
-			 "new_db_name_len INT;\n"
-			 "id_len INT;\n"
-			 "found INT;\n"
-			 "BEGIN\n"
-			 "found := 1;\n"
-			 "old_db_name_len := INSTR(:old_table_name, '/')-1;\n"
-			 "new_db_name_len := INSTR(:new_table_name, '/')-1;\n"
-			 "new_db_name := SUBSTR(:new_table_name, 0,\n"
-			 "                      new_db_name_len);\n"
-			 "old_t_name_len := LENGTH(:old_table_name);\n"
-			 "gen_constr_prefix := CONCAT(:old_table_name,\n"
-			 "                            '_ibfk_');\n"
-			 "WHILE found = 1 LOOP\n"
-			 "       SELECT ID INTO foreign_id\n"
-			 "        FROM SYS_FOREIGN\n"
-			 "        WHERE FOR_NAME = :old_table_name\n"
-			 "         AND TO_BINARY(FOR_NAME)\n"
-			 "           = TO_BINARY(:old_table_name)\n"
-			 "         LOCK IN SHARE MODE;\n"
-			 "       IF (SQL % NOTFOUND) THEN\n"
-			 "        found := 0;\n"
-			 "       ELSE\n"
-			 "        UPDATE SYS_FOREIGN\n"
-			 "        SET FOR_NAME = :new_table_name\n"
-			 "         WHERE ID = foreign_id;\n"
-			 "        id_len := LENGTH(foreign_id);\n"
-			 "        IF (INSTR(foreign_id, '/') > 0) THEN\n"
-			 "               IF (INSTR(foreign_id,\n"
-			 "                         gen_constr_prefix) > 0)\n"
-			 "               THEN\n"
-			 "                new_foreign_id :=\n"
-			 "                CONCAT(:new_table_name,\n"
-			 "                SUBSTR(foreign_id, old_t_name_len,\n"
-			 "                       id_len - old_t_name_len));\n"
-			 "               ELSE\n"
-			 "                new_foreign_id :=\n"
-			 "                CONCAT(new_db_name,\n"
-			 "                SUBSTR(foreign_id,\n"
-			 "                       old_db_name_len,\n"
-			 "                       id_len - old_db_name_len));\n"
-			 "               END IF;\n"
-			 "               UPDATE SYS_FOREIGN\n"
-			 "                SET ID = new_foreign_id\n"
-			 "                WHERE ID = foreign_id;\n"
-			 "               UPDATE SYS_FOREIGN_COLS\n"
-			 "                SET ID = new_foreign_id\n"
-			 "                WHERE ID = foreign_id;\n"
-			 "        END IF;\n"
-			 "       END IF;\n"
-			 "END LOOP;\n"
-			 "UPDATE SYS_FOREIGN SET REF_NAME = :new_table_name\n"
-			 "WHERE REF_NAME = :old_table_name\n"
-			 "  AND TO_BINARY(REF_NAME)\n"
-			 "    = TO_BINARY(:old_table_name);\n"
-			 "END;\n"
-			 , FALSE, trx);
+		err = que_eval_sql(
+			info,
+			"PROCEDURE RENAME_CONSTRAINT_IDS () IS\n"
+			"gen_constr_prefix CHAR;\n"
+			"new_db_name CHAR;\n"
+			"foreign_id CHAR;\n"
+			"new_foreign_id CHAR;\n"
+			"old_db_name_len INT;\n"
+			"old_t_name_len INT;\n"
+			"new_db_name_len INT;\n"
+			"id_len INT;\n"
+			"found INT;\n"
+			"BEGIN\n"
+			"found := 1;\n"
+			"old_db_name_len := INSTR(:old_table_name, '/')-1;\n"
+			"new_db_name_len := INSTR(:new_table_name, '/')-1;\n"
+			"new_db_name := SUBSTR(:new_table_name, 0,\n"
+			"                      new_db_name_len);\n"
+			"old_t_name_len := LENGTH(:old_table_name);\n"
+			"gen_constr_prefix := CONCAT(:old_table_name,\n"
+			"                            '_ibfk_');\n"
+			"WHILE found = 1 LOOP\n"
+			"       SELECT ID INTO foreign_id\n"
+			"        FROM SYS_FOREIGN\n"
+			"        WHERE FOR_NAME = :old_table_name\n"
+			"         AND TO_BINARY(FOR_NAME)\n"
+			"           = TO_BINARY(:old_table_name)\n"
+			"         LOCK IN SHARE MODE;\n"
+			"       IF (SQL % NOTFOUND) THEN\n"
+			"        found := 0;\n"
+			"       ELSE\n"
+			"        UPDATE SYS_FOREIGN\n"
+			"        SET FOR_NAME = :new_table_name\n"
+			"         WHERE ID = foreign_id;\n"
+			"        id_len := LENGTH(foreign_id);\n"
+			"        IF (INSTR(foreign_id, '/') > 0) THEN\n"
+			"               IF (INSTR(foreign_id,\n"
+			"                         gen_constr_prefix) > 0)\n"
+			"               THEN\n"
+			"                new_foreign_id :=\n"
+			"                CONCAT(:new_table_name,\n"
+			"                SUBSTR(foreign_id, old_t_name_len,\n"
+			"                       id_len - old_t_name_len));\n"
+			"               ELSE\n"
+			"                new_foreign_id :=\n"
+			"                CONCAT(new_db_name,\n"
+			"                SUBSTR(foreign_id,\n"
+			"                       old_db_name_len,\n"
+			"                       id_len - old_db_name_len));\n"
+			"               END IF;\n"
+			"               UPDATE SYS_FOREIGN\n"
+			"                SET ID = new_foreign_id\n"
+			"                WHERE ID = foreign_id;\n"
+			"               UPDATE SYS_FOREIGN_COLS\n"
+			"                SET ID = new_foreign_id\n"
+			"                WHERE ID = foreign_id;\n"
+			"        END IF;\n"
+			"       END IF;\n"
+			"END LOOP;\n"
+			"UPDATE SYS_FOREIGN SET REF_NAME = :new_table_name\n"
+			"WHERE REF_NAME = :old_table_name\n"
+			"  AND TO_BINARY(REF_NAME)\n"
+			"    = TO_BINARY(:old_table_name);\n"
+			"END;\n"
+			, FALSE, trx);
 
 	} else if (n_constraints_to_drop > 0) {
 		/* Drop some constraints of tmp tables. */
@@ -3763,8 +3757,8 @@ end:
 		/* We only want to switch off some of the type checking in
 		an ALTER, not in a RENAME. */
 
-		err = dict_load_foreigns
-			(new_name, old_is_tmp ? trx->check_foreigns : TRUE);
+		err = dict_load_foreigns(
+			new_name, old_is_tmp ? trx->check_foreigns : TRUE);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);
@@ -3904,8 +3898,8 @@ func_exit:
 		for (i = 0;
 		     i < dict_index_get_n_ordering_defined_by_user(index);
 		     i++) {
-			if (UNIV_SQL_NULL == dfield_get_len
-			    (dtuple_get_nth_field(prev_entry, i))) {
+			if (UNIV_SQL_NULL == dfield_get_len(
+				    dtuple_get_nth_field(prev_entry, i))) {
 
 				contains_null = TRUE;
 			}
@@ -3928,8 +3922,8 @@ not_ok:
 		} else if ((index->type & DICT_UNIQUE)
 			   && !contains_null
 			   && matched_fields
-			   >= dict_index_get_n_ordering_defined_by_user
-			   (index)) {
+			   >= dict_index_get_n_ordering_defined_by_user(
+				   index)) {
 
 			fputs("InnoDB: duplicate key in ", stderr);
 			goto not_ok;
@@ -4004,7 +3998,7 @@ row_check_table_for_mysql(
 		ut_print_name(stderr, trx, FALSE, index->name);
 		putc('\n', stderr); */
 
-		if (!btr_validate_tree(index->tree, prebuilt->trx)) {
+		if (!btr_validate_index(index, prebuilt->trx)) {
 			ret = DB_ERROR;
 		} else {
 			if (!row_scan_and_check_index(prebuilt,
