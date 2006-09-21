@@ -1,12 +1,6 @@
 #
 # Setup
 #
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
 use test;
 drop table if exists t1, t2, t3;
 #
@@ -15,6 +9,12 @@ drop table if exists t1, t2, t3;
 #
 # We also check how the foreign_key_check variable is replicated
 #
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
 create table t1(a int auto_increment, key(a));
 create table t2(b int auto_increment, c int, key(b));
 insert into t1 values (1),(2),(3);
@@ -110,6 +110,11 @@ drop table t1;
 drop table t2;
 #
 # End of 4.1 tests
+#
+#
+# BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
+#
+# The solution is not to reset last_insert_id on enter to sub-statement.
 #
 drop function if exists bug15728;
 drop function if exists bug15728_insert;
@@ -258,9 +263,9 @@ n	b
 2	100
 3	350
 drop table t1;
-
+#
 # End of 5.0 tests
-
+#
 truncate table t2;
 create table t1 (id tinyint primary key);
 create function insid() returns int

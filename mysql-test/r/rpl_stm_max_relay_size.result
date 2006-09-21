@@ -27,7 +27,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	72952
+Read_Master_Log_Pos	72956
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -36,13 +36,13 @@ Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	72952
+Exec_Master_Log_Pos	72956
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -70,7 +70,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	72952
+Read_Master_Log_Pos	72956
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -79,13 +79,13 @@ Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	72952
+Exec_Master_Log_Pos	72956
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -113,7 +113,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	72952
+Read_Master_Log_Pos	72956
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -122,13 +122,13 @@ Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	72952
+Exec_Master_Log_Pos	72956
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -162,7 +162,7 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
@@ -194,7 +194,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	73038
+Read_Master_Log_Pos	73042
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -203,13 +203,13 @@ Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	73038
+Exec_Master_Log_Pos	73042
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -233,7 +233,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	73114
+Read_Master_Log_Pos	73118
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -242,13 +242,13 @@ Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	73114
+Exec_Master_Log_Pos	73118
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -263,8 +263,8 @@ Seconds_Behind_Master	#
 flush logs;
 show master status;
 File	master-bin.000002
-Position	98
-Binlog_Do_DB	
+Position	102
+Binlog_Do_DB	<Binlog_Ignore_DB>
 Binlog_Ignore_DB	
 #
 # End of 4.1 tests
