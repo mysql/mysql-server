@@ -1754,6 +1754,9 @@ CREATE TABLE `t2` (
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 drop table t1, t2, t3;
+#
+# Bug #21288: mysqldump segmentation fault when using --where
+#
 create table t1 (a int);
 mysqldump: Couldn't execute 'SELECT /*!40001 SQL_NO_CACHE */ * FROM `t1` WHERE xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx': You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 (1064)
 mysqldump: Got error: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' at line 1 when retrieving data from server
@@ -1785,6 +1788,9 @@ CREATE TABLE `t1` (
 
 drop table t1;
 End of 4.1 tests
+#
+# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+#
 create database db1;
 use db1;
 CREATE TABLE t2 (
@@ -1844,6 +1850,9 @@ drop table t2;
 drop view v2;
 drop database db1;
 use test;
+#
+# Bug 10713 mysqldump includes database in create view and referenced tables
+#
 create database db2;
 use db2;
 create table t1 (a int);
@@ -1873,6 +1882,9 @@ a	b
 drop table t1, t2;
 drop database db1;
 use test;
+#
+# dump of view
+#
 create table t1(a int);
 create view v1 as select * from t1;
 
@@ -2685,6 +2697,10 @@ drop view v2;
 drop view v0;
 drop view v1;
 drop table t1;
+#
+# BUG#14554 - mysqldump does not separate words "ROW" and "BEGIN"
+# for tables with trigger created in the IGNORE_SPACE sql mode.
+#
 SET @old_sql_mode = @@SQL_MODE;
 SET SQL_MODE = IGNORE_SPACE;
 CREATE TABLE t1 (a INT);
@@ -2740,6 +2756,9 @@ DELIMITER ;
 
 DROP TRIGGER tr1;
 DROP TABLE t1;
+#
+# Bug #13318: Bad result with empty field and --hex-blob
+# 
 create table t1 (a binary(1), b blob);
 insert into t1 values ('','');
 
@@ -2807,6 +2826,9 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 drop table t1;
+#
+# Bug 14871 Invalid view dump output
+#
 create table t1 (a int);
 insert into t1 values (289), (298), (234), (456), (789);
 create definer = CURRENT_USER view v1 as select * from t1;
@@ -2910,6 +2932,9 @@ mysqldump {
 
 } mysqldump
 drop view v1;
+# BUG#17201 Spurious 'DROP DATABASE' in output,
+# also confusion between tables and views.
+# Example code from Markus Popp
 create database mysqldump_test_db;
 use mysqldump_test_db;
 create table t1 (id int);
@@ -3055,6 +3080,12 @@ mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need the SU
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 drop table t1;
 drop user mysqltest_1@localhost;
+#
+# Bug #21527 mysqldump incorrectly tries to LOCK TABLES on the 
+# information_schema database.
+#
+# Bug #21424 mysqldump failing to export/import views
+#
 create database mysqldump_myDB;
 use mysqldump_myDB;
 create user myDB_User;
@@ -3073,6 +3104,9 @@ revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
 drop user myDB_User;
 drop database mysqldump_myDB;
 flush privileges;
+# Bug #21424 continues from here.
+# Restore. Flush Privileges test ends.  
+#
 use mysqldump_myDB;
 select * from mysqldump_myDB.v1;
 c1
@@ -3088,9 +3122,8 @@ revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
 drop user myDB_User;
 drop database mysqldump_myDB;
 use test;
-End of 5.0 tests
 #
-# Bug #13926: --order-by-primary fails if PKEY contains quote character
+# BUG#13926: --order-by-primary fails if PKEY contains quote character
 #
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
@@ -3108,10 +3141,10 @@ insert into t1 values (0815, 4711, 2006);
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS "t1";
 CREATE TABLE "t1" (
-  "a b" int(11) NOT NULL default '0',
-  "c""d" int(11) NOT NULL default '0',
-  "e`f" int(11) NOT NULL default '0',
-  PRIMARY KEY  ("a b","c""d","e`f")
+  "a b" int(11) NOT NULL DEFAULT '0',
+  "c""d" int(11) NOT NULL DEFAULT '0',
+  "e`f" int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY ("a b","c""d","e`f")
 );
 
 LOCK TABLES "t1" WRITE;
@@ -3139,10 +3172,10 @@ UNLOCK TABLES;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 DROP TABLE IF EXISTS `t1`;
 CREATE TABLE `t1` (
-  `a b` int(11) NOT NULL default '0',
-  `c"d` int(11) NOT NULL default '0',
-  `e``f` int(11) NOT NULL default '0',
-  PRIMARY KEY  (`a b`,`c"d`,`e``f`)
+  `a b` int(11) NOT NULL DEFAULT '0',
+  `c"d` int(11) NOT NULL DEFAULT '0',
+  `e``f` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a b`,`c"d`,`e``f`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 LOCK TABLES `t1` WRITE;
@@ -3164,40 +3197,6 @@ DROP TABLE `t1`;
 #
 # End of 5.0 tests
 #
-create database mysqldump_myDB;
-use mysqldump_myDB;
-create user myDB_User;
-grant create, create view, select, insert on mysqldump_myDB.* to myDB_User@localhost;
-create table t1 (c1 int);
-insert into t1 values (3);
-use mysqldump_myDB;
-create table u1 (f1 int);
-insert into u1 values (4);
-create view v1 (c1) as select * from t1;
-use mysqldump_myDB;
-drop view v1;
-drop table t1;
-drop table u1;
-revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
-drop user myDB_User;
-drop database mysqldump_myDB;
-flush privileges;
-use mysqldump_myDB;
-select * from mysqldump_myDB.v1;
-c1
-3
-select * from mysqldump_myDB.u1;
-f1
-4
-use mysqldump_myDB;
-drop view v1;
-drop table t1;
-drop table u1;
-revoke all privileges on mysqldump_myDB.* from myDB_User@localhost;
-drop user myDB_User;
-drop database mysqldump_myDB;
-use test;
-End of 5.0 tests
 drop table if exists t1;
 CREATE TABLE t1(a int, b int);
 INSERT INTO t1 VALUES (1,1);
@@ -3411,6 +3410,9 @@ mysql-import: Error: 1146, Table 'test.words' doesn't exist, when using table: w
 drop table t1;
 drop table t2;
 drop table words2;
+#
+# BUG# 16853: mysqldump doesn't show events
+#
 create database first;
 use first;
 set time_zone = 'UTC';
@@ -3448,6 +3450,11 @@ third	ee3	root@localhost	ONE TIME	2030-12-31 22:01:23	NULL	NULL	NULL	NULL	ENABLE
 drop database third;
 set time_zone = 'SYSTEM';
 use test;
+#
+# BUG#17201 Spurious 'DROP DATABASE' in output,
+# also confusion between tables and views.
+# Example code from Markus Popp
+#
 create database mysqldump_test_db;
 use mysqldump_test_db;
 create table t1 (id int);
@@ -3508,6 +3515,6 @@ USE `mysqldump_test_db`;
 drop view v1;
 drop table t1;
 drop database mysqldump_test_db;
-End of 5.1 tests
-
-
+#
+# End of 5.1 tests
+#
