@@ -202,8 +202,7 @@ rec_init_offsets(
 			}
 
 			field = dict_index_get_nth_field(index, i);
-			if (!(dtype_get_prtype(dict_col_get_type
-					       (dict_field_get_col(field)))
+			if (!(dict_field_get_col(field)->prtype
 			      & DATA_NOT_NULL)) {
 				/* nullable field => read the null flag */
 
@@ -226,11 +225,11 @@ rec_init_offsets(
 
 			if (UNIV_UNLIKELY(!field->fixed_len)) {
 				/* Variable-length field: read the length */
-				dtype_t*	type = dict_col_get_type
-					(dict_field_get_col(field));
+				const dict_col_t*	col
+					= dict_field_get_col(field);
 				len = *lens--;
-				if (UNIV_UNLIKELY(dtype_get_len(type) > 255)
-				    || UNIV_UNLIKELY(dtype_get_mtype(type)
+				if (UNIV_UNLIKELY(col->len > 255)
+				    || UNIV_UNLIKELY(col->mtype
 						     == DATA_BLOB)) {
 					if (len & 0x80) {
 						/* 1exxxxxxx xxxxxxxx */
@@ -442,8 +441,6 @@ rec_get_converted_size_new(
 {
 	ulint		size		= REC_N_NEW_EXTRA_BYTES
 		+ (index->n_nullable + 7) / 8;
-	dict_field_t*	field;
-	dtype_t*	type;
 	ulint		i;
 	ulint		n_fields;
 	ut_ad(index && dtuple);
@@ -471,25 +468,27 @@ rec_get_converted_size_new(
 
 	/* read the lengths of fields 0..n */
 	for (i = 0; i < n_fields; i++) {
-		ulint	len	= dtuple_get_nth_field(dtuple, i)->len;
+		dict_field_t*		field;
+		ulint			len;
+		const dict_col_t*	col;
+
 		field = dict_index_get_nth_field(index, i);
-		type = dict_col_get_type(dict_field_get_col(field));
-		ut_ad(len != UNIV_SQL_NULL
-		      || !(dtype_get_prtype(type) & DATA_NOT_NULL));
+		len = dtuple_get_nth_field(dtuple, i)->len;
+		col = dict_field_get_col(field);
+
+		ut_ad(len != UNIV_SQL_NULL || !(col->prtype & DATA_NOT_NULL));
 
 		if (len == UNIV_SQL_NULL) {
 			/* No length is stored for NULL fields. */
 			continue;
 		}
 
-		ut_ad(len <= dtype_get_len(type)
-		      || dtype_get_mtype(type) == DATA_BLOB);
+		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
 		ut_ad(!field->fixed_len || len == field->fixed_len);
 
 		if (field->fixed_len) {
 		} else if (len < 128
-			   || (dtype_get_len(type) < 256
-			       && dtype_get_mtype(type) != DATA_BLOB)) {
+			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
 			size++;
 		} else {
 			size += 2;
@@ -588,8 +587,6 @@ rec_set_nth_field_extern_bit_new(
 {
 	byte*		nulls	= rec - (REC_N_NEW_EXTRA_BYTES + 1);
 	byte*		lens	= nulls - (index->n_nullable + 7) / 8;
-	dict_field_t*	field;
-	dtype_t*	type;
 	ulint		i;
 	ulint		n_fields;
 	ulint		null_mask	= 1;
@@ -603,9 +600,13 @@ rec_set_nth_field_extern_bit_new(
 
 	/* read the lengths of fields 0..n */
 	for (i = 0; i < n_fields; i++) {
+		const dict_field_t*	field;
+		const dict_col_t*	col;
+
 		field = dict_index_get_nth_field(index, i);
-		type = dict_col_get_type(dict_field_get_col(field));
-		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
+		col = dict_field_get_col(field);
+
+		if (!(col->prtype & DATA_NOT_NULL)) {
 			if (UNIV_UNLIKELY(!(byte) null_mask)) {
 				nulls--;
 				null_mask = 1;
@@ -629,8 +630,7 @@ rec_set_nth_field_extern_bit_new(
 			continue;
 		}
 		lens--;
-		if (dtype_get_len(type) > 255
-		    || dtype_get_mtype(type) == DATA_BLOB) {
+		if (col->len > 255 || col->mtype == DATA_BLOB) {
 			ulint	len = lens[1];
 			if (len & 0x80) { /* 1exxxxxx: 2-byte length */
 				if (i == ith) {
@@ -640,9 +640,10 @@ rec_set_nth_field_extern_bit_new(
 					/* toggle the extern bit */
 					len ^= 0x40;
 					if (mtr) {
-						mlog_write_ulint
-							(lens + 1, len,
-							 MLOG_1BYTE, mtr);
+						mlog_write_ulint(lens + 1,
+								 len,
+								 MLOG_1BYTE,
+								 mtr);
 					} else {
 						lens[1] = (byte) len;
 					}
@@ -767,8 +768,8 @@ rec_convert_dtuple_to_rec_old(
 			len = dfield_get_len(field);
 
 			if (len == UNIV_SQL_NULL) {
-				len = dtype_get_sql_null_size
-					(dfield_get_type(field));
+				len = dtype_get_sql_null_size(
+					dfield_get_type(field));
 				data_write_sql_null(rec + end_offset, len);
 
 				end_offset += len;
@@ -795,8 +796,8 @@ rec_convert_dtuple_to_rec_old(
 			len = dfield_get_len(field);
 
 			if (len == UNIV_SQL_NULL) {
-				len = dtype_get_sql_null_size
-					(dfield_get_type(field));
+				len = dtype_get_sql_null_size(
+					dfield_get_type(field));
 				data_write_sql_null(rec + end_offset, len);
 
 				end_offset += len;
@@ -1057,8 +1058,8 @@ rec_copy_prefix_to_dtuple(
 	ut_ad(rec_validate(rec, offsets));
 	ut_ad(dtuple_check_typed(tuple));
 
-	dtuple_set_info_bits(tuple, rec_get_info_bits
-			     (rec, dict_table_is_comp(index->table)));
+	dtuple_set_info_bits(tuple, rec_get_info_bits(
+				     rec, dict_table_is_comp(index->table)));
 
 	for (i = 0; i < n_fields; i++) {
 
@@ -1137,8 +1138,6 @@ rec_copy_prefix_to_buf(
 {
 	byte*		nulls;
 	byte*		lens;
-	dict_field_t*	field;
-	dtype_t*	type;
 	ulint		i;
 	ulint		prefix_len;
 	ulint		null_mask;
@@ -1148,10 +1147,10 @@ rec_copy_prefix_to_buf(
 
 	if (!dict_table_is_comp(index->table)) {
 		ut_ad(rec_validate_old(rec));
-		return(rec_copy_prefix_to_buf_old
-		       (rec, n_fields,
-			rec_get_field_start_offs(rec, n_fields),
-			buf, buf_size));
+		return(rec_copy_prefix_to_buf_old(
+			       rec, n_fields,
+			       rec_get_field_start_offs(rec, n_fields),
+			       buf, buf_size));
 	}
 
 	status = rec_get_status(rec);
@@ -1180,9 +1179,13 @@ rec_copy_prefix_to_buf(
 
 	/* read the lengths of fields 0..n */
 	for (i = 0; i < n_fields; i++) {
+		const dict_field_t*	field;
+		const dict_col_t*	col;
+
 		field = dict_index_get_nth_field(index, i);
-		type = dict_col_get_type(dict_field_get_col(field));
-		if (!(dtype_get_prtype(type) & DATA_NOT_NULL)) {
+		col = dict_field_get_col(field);
+
+		if (!(col->prtype & DATA_NOT_NULL)) {
 			/* nullable field => read the null flag */
 			if (UNIV_UNLIKELY(!(byte) null_mask)) {
 				nulls--;
@@ -1201,8 +1204,7 @@ rec_copy_prefix_to_buf(
 			prefix_len += field->fixed_len;
 		} else {
 			ulint	len = *lens--;
-			if (dtype_get_len(type) > 255
-			    || dtype_get_mtype(type) == DATA_BLOB) {
+			if (col->len > 255 || col->mtype == DATA_BLOB) {
 				if (len & 0x80) {
 					/* 1exxxxxx */
 					len &= 0x3f;
