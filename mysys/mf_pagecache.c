@@ -523,13 +523,13 @@ static int ___pagecache_pthread_cond_signal(pthread_cond_t *cond);
 
 
 /*
-  Read page from the disk
+  Write page to the disk
 
   SYNOPSIS
     pagecache_fwrite()
     pagecache - page cache pointer
     filedesc  - pagecache file descriptor structure
-    buffer    - buffer in which we will read
+    buffer    - buffer which we will write
     type      - page type (plain or with LSN)
     flags     - MYF() flags
 
@@ -571,6 +571,10 @@ uint pagecache_fwrite(PAGECACHE *pagecache,
            (pageno)<<(pagecache->shift), flags)
 
 
+/*
+  next_power(value) is 2 at the power of (1+floor(log2(value)));
+  e.g. next_power(2)=4, next_power(3)=4.
+*/
 static uint next_power(uint value)
 {
   uint old_value= 1;
@@ -2167,9 +2171,9 @@ my_bool pagecache_lock_block(PAGECACHE *pagecache,
   DBUG_RETURN(0);
 }
 
-void pagecache_ulock_block(PAGECACHE_BLOCK_LINK *block)
+void pagecache_unlock_block(PAGECACHE_BLOCK_LINK *block)
 {
-  DBUG_ENTER("pagecache_ulock_block");
+  DBUG_ENTER("pagecache_unlock_block");
   BLOCK_INFO(block);
   DBUG_ASSERT(block->status & BLOCK_WRLOCK);
   block->status&= ~BLOCK_WRLOCK;
@@ -2234,7 +2238,7 @@ my_bool pagecache_make_lock_and_pin(PAGECACHE *pagecache,
       Removes writelog and puts read lock (which is nothing in our
       implementation)
     */
-    pagecache_ulock_block(block);
+    pagecache_unlock_block(block);
   case PAGECACHE_LOCK_READ_UNLOCK:         /* read  -> free  */
   case PAGECACHE_LOCK_LEFT_READLOCKED:     /* read  -> read  */
 #ifndef DBUG_OFF
@@ -2247,8 +2251,9 @@ my_bool pagecache_make_lock_and_pin(PAGECACHE *pagecache,
     if (lock == PAGECACHE_LOCK_WRITE_TO_READ)
     {
       pagecache_change_lock(block, 0);
-    } else if (lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
-	       lock == PAGECACHE_LOCK_READ_UNLOCK)
+    }
+    else if (lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+             lock == PAGECACHE_LOCK_READ_UNLOCK)
     {
       pagecache_remove_lock(block);
     }
@@ -2422,8 +2427,8 @@ void pagecache_unlock_page(PAGECACHE *pagecache,
 
   pagecache_pthread_mutex_lock(&pagecache->cache_lock);
   /*
-    As soon as we keep lock cache can be used, and we have lock bacause want
-    aunlock.
+    As soon as we keep lock cache can be used, and we have lock because want
+    to unlock.
   */
   DBUG_ASSERT(pagecache->can_be_used);
 
@@ -2891,7 +2896,7 @@ restart:
     link= get_present_hash_link(pagecache, file, pageno, &unused_start);
     if (!link)
     {
-      DBUG_PRINT("info", ("There is no fuch page in the cache"));
+      DBUG_PRINT("info", ("There is no such page in the cache"));
       DBUG_RETURN(0);
     }
     block= link->block;
