@@ -13,7 +13,6 @@ typedef struct dict_sys_struct		dict_sys_t;
 typedef struct dict_col_struct		dict_col_t;
 typedef struct dict_field_struct	dict_field_t;
 typedef struct dict_index_struct	dict_index_t;
-typedef struct dict_tree_struct		dict_tree_t;
 typedef struct dict_table_struct	dict_table_t;
 typedef struct dict_foreign_struct	dict_foreign_t;
 

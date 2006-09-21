@@ -75,8 +75,7 @@ dict_mem_table_add_col(
 	const char*	name,	/* in: column name */
 	ulint		mtype,	/* in: main datatype */
 	ulint		prtype,	/* in: precise type */
-	ulint		len,	/* in: length */
-	ulint		prec);	/* in: precision */
+	ulint		len);	/* in: precision */
 /**************************************************************************
 Creates an index memory object. */
 
@@ -122,16 +121,41 @@ dict_mem_foreign_create(void);
 
 /* Data structure for a column in a table */
 struct dict_col_struct{
-	hash_node_t	hash;	/* hash chain node */
-	ulint		ind;	/* table column position (they are numbered
-				starting from 0) */
-	ulint		clust_pos;/* position of the column in the
-				clustered index */
-	ulint		ord_part;/* count of how many times this column
-				appears in ordering fields of an index */
-	const char*	name;	/* name */
-	dtype_t		type;	/* data type */
-	dict_table_t*	table;	/* back pointer to table of this column */
+	/*----------------------*/
+	/* The following are copied from dtype_t,
+	so that all bit-fields can be packed tightly. */
+	unsigned	mtype:8;	/* main data type */
+	unsigned	prtype:24;	/* precise type; MySQL data
+					type, charset code, flags to
+					indicate nullability,
+					signedness, whether this is a
+					binary string, whether this is
+					a true VARCHAR where MySQL
+					uses 2 bytes to store the length */
+
+	/* the remaining fields do not affect alphabetical ordering: */
+
+	unsigned	len:16;		/* length; for MySQL data this
+					is field->pack_length(),
+					except that for a >= 5.0.3
+					type true VARCHAR this is the
+					maximum byte length of the
+					string data (in addition to
+					the string, MySQL uses 1 or 2
+					bytes to store the string length) */
+
+	unsigned	mbminlen:2;	/* minimum length of a
+					character, in bytes */
+	unsigned	mbmaxlen:3;	/* maximum length of a
+					character, in bytes */
+	/*----------------------*/
+	/* End of definitions copied from dtype_t */
+
+	unsigned	ind:10;		/* table column position
+					(starting from 0) */
+	unsigned	ord_part:1;	/* nonzero if this column
+					appears in the ordering fields
+					of an index */
 };
 
 /* DICT_MAX_INDEX_COL_LEN is measured in bytes and is the max index column
@@ -145,34 +169,17 @@ UTF-8 charset. In that charset, a character may take at most 3 bytes. */
 struct dict_field_struct{
 	dict_col_t*	col;		/* pointer to the table column */
 	const char*	name;		/* name of the column */
-	ulint		prefix_len;	/* 0 or the length of the column
+	unsigned	prefix_len:10;	/* 0 or the length of the column
 					prefix in bytes in a MySQL index of
 					type, e.g., INDEX (textcol(25));
 					must be smaller than
 					DICT_MAX_INDEX_COL_LEN; NOTE that
 					in the UTF-8 charset, MySQL sets this
 					to 3 * the prefix len in UTF-8 chars */
-	ulint		fixed_len;	/* 0 or the fixed length of the
+	unsigned	fixed_len:10;	/* 0 or the fixed length of the
 					column if smaller than
 					DICT_MAX_INDEX_COL_LEN */
 };
-
-/* Data structure for an index tree */
-struct dict_tree_struct{
-	ulint		type;	/* tree type */
-	dulint		id;	/* id of the index stored in the tree */
-	ulint		space;	/* space of index tree */
-	ulint		page;	/* index tree root page number */
-	byte		pad[64];/* Padding to prevent other memory hotspots on
-				the same memory cache line */
-	rw_lock_t	lock;	/* read-write lock protecting the upper levels
-				of the index tree */
-	dict_index_t*	tree_index; /* the index stored in the
-				index tree */
-	ulint		magic_n;/* magic number */
-};
-
-#define	DICT_TREE_MAGIC_N	7545676
 
 /* Data structure for an index */
 struct dict_index_struct{
@@ -182,30 +189,28 @@ struct dict_index_struct{
 	const char*	name;	/* index name */
 	const char*	table_name; /* table name */
 	dict_table_t*	table;	/* back pointer to table */
-	ulint		space;	/* space where the index tree is placed */
-	ulint		trx_id_offset;/* position of the the trx id column
+	unsigned	space:32;
+				/* space where the index tree is placed */
+	unsigned	page:32;/* index tree root page number */
+	unsigned	trx_id_offset:10;/* position of the the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,
 				0 otherwise */
-	ulint		n_user_defined_cols;
+	unsigned	n_user_defined_cols:10;
 				/* number of columns the user defined to
 				be in the index: in the internal
 				representation we add more columns */
-	ulint		n_uniq;	/* number of fields from the beginning
+	unsigned	n_uniq:10;/* number of fields from the beginning
 				which are enough to determine an index
 				entry uniquely */
-	ulint		n_def;	/* number of fields defined so far */
-	ulint		n_fields;/* number of fields in the index */
+	unsigned	n_def:10;/* number of fields defined so far */
+	unsigned	n_fields:10;/* number of fields in the index */
+	unsigned	n_nullable:10;/* number of nullable fields */
+	unsigned	cached:1;/* TRUE if the index object is in the
+				dictionary cache */
 	dict_field_t*	fields;	/* array of field descriptions */
-	ulint		n_nullable;/* number of nullable fields */
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/* list of indexes of the table */
-	dict_tree_t*	tree;	/* index tree struct */
-	UT_LIST_NODE_T(dict_index_t)
-			tree_indexes; /* list of indexes of the same index
-				tree */
-	ibool		cached;	/* TRUE if the index object is in the
-				dictionary cache */
 	btr_search_t*	search_info; /* info used in optimistic searches */
 	/*----------------------*/
 	ib_longlong*	stat_n_diff_key_vals;
@@ -218,7 +223,12 @@ struct dict_index_struct{
 	ulint		stat_n_leaf_pages;
 				/* approximate number of leaf pages in the
 				index tree */
+	rw_lock_t	lock;	/* read-write lock protecting the upper levels
+				of the index tree */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
+# define DICT_INDEX_MAGIC_N	76789786
+#endif
 };
 
 /* Data structure for a foreign key constraint; an example:
@@ -229,7 +239,13 @@ struct dict_foreign_struct{
 					this memory heap */
 	char*		id;		/* id of the constraint as a
 					null-terminated string */
-	ulint		type;		/* 0 or DICT_FOREIGN_ON_DELETE_CASCADE
+	unsigned	n_fields:10;	/* number of indexes' first fields
+					for which the the foreign key
+					constraint is defined: we allow the
+					indexes to contain more fields than
+					mentioned in the constraint, as long
+					as the first fields are as mentioned */
+	unsigned	type:6;		/* 0 or DICT_FOREIGN_ON_DELETE_CASCADE
 					or DICT_FOREIGN_ON_DELETE_SET_NULL */
 	char*		foreign_table_name;/* foreign table name */
 	dict_table_t*	foreign_table;	/* table where the foreign key is */
@@ -240,12 +256,6 @@ struct dict_foreign_struct{
 					is */
 	const char**	referenced_col_names;/* names of the referenced
 					columns in the referenced table */
-	ulint		n_fields;	/* number of indexes' first fields
-					for which the the foreign key
-					constraint is defined: we allow the
-					indexes to contain more fields than
-					mentioned in the constraint, as long
-					as the first fields are as mentioned */
 	dict_index_t*	foreign_index;	/* foreign index; we require that
 					both tables contain explicitly defined
 					indexes for the constraint: InnoDB
@@ -270,12 +280,9 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32
 
 
-#define	DICT_INDEX_MAGIC_N	76789786
-
 /* Data structure for a database table */
 struct dict_table_struct{
 	dulint		id;	/* id of the table */
-	ulint		flags;	/* DICT_TF_COMPACT, ... */
 	mem_heap_t*	heap;	/* memory heap */
 	const char*	name;	/* table name */
 	const char*	dir_path_of_temp_table;/* NULL or the directory path
@@ -284,20 +291,33 @@ struct dict_table_struct{
 				innodb_file_per_table is defined in my.cnf;
 				in Unix this is usually /tmp/..., in Windows
 				\temp\... */
-	ulint		space;	/* space where the clustered index of the
+	unsigned	space:32;
+				/* space where the clustered index of the
 				table is placed */
-	ibool		ibd_file_missing;/* TRUE if this is in a single-table
+	unsigned	ibd_file_missing:1;
+				/* TRUE if this is in a single-table
 				tablespace and the .ibd file is missing; then
 				we must return in ha_innodb.cc an error if the
 				user tries to query such an orphaned table */
-	ibool		tablespace_discarded;/* this flag is set TRUE when the
-				user calls DISCARD TABLESPACE on this table,
-				and reset to FALSE in IMPORT TABLESPACE */
+	unsigned	tablespace_discarded:1;
+				/* this flag is set TRUE when the user
+				calls DISCARD TABLESPACE on this
+				table, and reset to FALSE in IMPORT
+				TABLESPACE */
+	unsigned	cached:1;/* TRUE if the table object has been added
+				to the dictionary cache */
+	unsigned	flags:8;/* DICT_TF_COMPACT, ... */
+	unsigned	n_def:10;/* number of columns defined so far */
+	unsigned	n_cols:10;/* number of columns */
+	dict_col_t*	cols;	/* array of column descriptions */
+	const char*	col_names;
+				/* n_def column names packed in an
+				"name1\0name2\0...nameN\0" array. until
+				n_def reaches n_cols, this is allocated with
+				ut_malloc, and the final size array is
+				allocated through the table's heap. */
 	hash_node_t	name_hash; /* hash chain node */
 	hash_node_t	id_hash; /* hash chain node */
-	ulint		n_def;	/* number of columns defined so far */
-	ulint		n_cols;	/* number of columns */
-	dict_col_t*	cols;	/* array of column descriptions */
 	UT_LIST_BASE_NODE_T(dict_index_t)
 			indexes; /* list of indexes of the table */
 	UT_LIST_BASE_NODE_T(dict_foreign_t)
@@ -321,8 +341,6 @@ struct dict_table_struct{
 				on the table: we cannot drop the table while
 				there are foreign key checks running on
 				it! */
-	ibool		cached;	/* TRUE if the table object has been added
-				to the dictionary cache */
 	lock_t*		auto_inc_lock;/* a buffer for an auto-inc lock
 				for this table: we allocate the memory here
 				so that individual transactions can get it
@@ -339,12 +357,7 @@ struct dict_table_struct{
 				had an IX lock on */
 	UT_LIST_BASE_NODE_T(lock_t)
 			locks; /* list of locks on the table */
-	ulint		max_row_size;
-				/* maximum size of a single row in the
-				table, not guaranteed to be especially
-				accurate. it's ULINT_MAX if there are
-				unbounded variable-width fields. initialized
-				in dict_table_add_to_cache. */
+#ifdef UNIV_DEBUG
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;
 				/* this field is used to specify in simulations
@@ -355,7 +368,15 @@ struct dict_table_struct{
 				dictionary on disk, and the database will
 				forget about value TRUE if it has to reload
 				the table definition from disk */
+#endif /* UNIV_DEBUG */
 	/*----------------------*/
+	unsigned	big_rows:1;
+				/* flag: TRUE if the maximum length of
+				a single row exceeds BIG_ROW_SIZE;
+				initialized in dict_table_add_to_cache() */
+	unsigned	stat_initialized:1; /* TRUE if statistics have
+				been calculated the first time
+				after database startup or table creation */
 	ib_longlong	stat_n_rows;
 				/* approximate number of rows in the table;
 				we periodically calculate new estimates */
@@ -364,9 +385,6 @@ struct dict_table_struct{
 				database pages */
 	ulint		stat_sum_of_other_index_sizes;
 				/* other indexes in database pages */
-	ibool		stat_initialized; /* TRUE if statistics have
-				been calculated the first time
-				after database startup or table creation */
 	ulint		stat_modified_counter;
 				/* when a row is inserted, updated, or deleted,
 				we add 1 to this number; we calculate new
@@ -389,9 +407,11 @@ struct dict_table_struct{
 				SELECT MAX(auto inc column) */
 	ib_longlong	autoinc;/* autoinc counter value to give to the
 				next inserted row */
+#ifdef UNIV_DEBUG
 	ulint		magic_n;/* magic number */
+# define DICT_TABLE_MAGIC_N	76333786
+#endif /* UNIV_DEBUG */
 };
-#define	DICT_TABLE_MAGIC_N	76333786
 
 #ifndef UNIV_NONINL
 #include "dict0mem.ic"
