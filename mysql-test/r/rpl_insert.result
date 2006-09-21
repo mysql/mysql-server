@@ -1,3 +1,6 @@
+#
+# Bug#20821: INSERT DELAYED fails to write some rows to binlog
+#
 stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
@@ -13,4 +16,8 @@ COUNT(*)
 SELECT COUNT(*) FROM mysqlslap.t1;
 COUNT(*)
 5000
-DROP SCHEMA IF EXISTS mysqlslap;
+#
+# Cleanup
+#
+USE test;
+DROP SCHEMA mysqlslap;
