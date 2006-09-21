@@ -639,10 +639,10 @@ ibuf_bitmap_page_get_bits(
 
 	if (!zip_size) {
 		bit_offset = (page_no % UNIV_PAGE_SIZE) * IBUF_BITS_PER_PAGE
-				+ bit;
+			+ bit;
 	} else {
 		bit_offset = (page_no & (zip_size - 1)) * IBUF_BITS_PER_PAGE
-				+ bit;
+			+ bit;
 	}
 
 	byte_offset = bit_offset / 8;
@@ -695,10 +695,10 @@ ibuf_bitmap_page_set_bits(
 #endif
 	if (!zip_size) {
 		bit_offset = (page_no % UNIV_PAGE_SIZE) * IBUF_BITS_PER_PAGE
-				+ bit;
+			+ bit;
 	} else {
 		bit_offset = (page_no & (zip_size - 1)) * IBUF_BITS_PER_PAGE
-				+ bit;
+			+ bit;
 	}
 
 	byte_offset = bit_offset / 8;
@@ -2930,7 +2930,7 @@ dump:
 		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
 		rec = page_cur_tuple_insert(&page_cur, page_zip,
-					entry, index, NULL, 0, mtr);
+					    entry, index, NULL, 0, mtr);
 
 		if (UNIV_UNLIKELY(rec == NULL)) {
 			/* If the record did not fit, reorganize */
@@ -3134,7 +3134,7 @@ ibuf_merge_or_delete_for_page(
 #ifdef UNIV_IBUF_DEBUG
 	ulint		volume;
 #endif
-	ulint		zip_size;
+	ulint		zip_size		= 0; /* remove bogus warning */
 	page_zip_des_t*	page_zip		= NULL;
 	ibool		tablespace_being_deleted = FALSE;
 	ibool		corruption_noticed	= FALSE;
@@ -3149,10 +3149,10 @@ ibuf_merge_or_delete_for_page(
 		return;
 	}
 
-	zip_size = fil_space_get_zip_size(space);
-
-	if (ibuf_fixed_addr_page(space, zip_size, page_no)
-	    || fsp_descr_page(zip_size, page_no)) {
+	/* The following assumes that the uncompressed page size
+	is a power-of-2 multiple of zip_size. */
+	if (ibuf_fixed_addr_page(space, 0, page_no)
+	    || fsp_descr_page(0, page_no)) {
 		return;
 	}
 
@@ -3170,6 +3170,16 @@ ibuf_merge_or_delete_for_page(
 
 			page = NULL;
 			update_ibuf_bitmap = FALSE;
+		}
+	}
+
+	if (update_ibuf_bitmap || page) {
+		zip_size = fil_space_get_zip_size(space);
+		ut_a(ut_is_2pow(zip_size));
+
+		if (ibuf_fixed_addr_page(space, zip_size, page_no)
+		    || fsp_descr_page(zip_size, page_no)) {
+			return;
 		}
 	}
 
@@ -3362,15 +3372,17 @@ reset_bit:
 						       zip_size, &mtr);
 		ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 					  IBUF_BITMAP_BUFFERED, FALSE, &mtr);
-	if (page) {
-		ulint old_bits = ibuf_bitmap_page_get_bits(
-			bitmap_page, page_no, zip_size,
-			IBUF_BITMAP_FREE, &mtr);
-		ulint new_bits = ibuf_index_page_calc_free(page);
+		if (page) {
+			ulint old_bits = ibuf_bitmap_page_get_bits(
+				bitmap_page, page_no, zip_size,
+				IBUF_BITMAP_FREE, &mtr);
+			ulint new_bits = ibuf_index_page_calc_free(page);
 #if 0 /* defined UNIV_IBUF_DEBUG */
-		fprintf(stderr, "Old bits %lu new bits %lu max size %lu\n",
-			old_bits, new_bits,
-			page_get_max_insert_size_after_reorganize(page, 1));
+			fprintf(stderr, "Old bits %lu new bits %lu"
+				" max size %lu\n",
+				old_bits, new_bits,
+				page_get_max_insert_size_after_reorganize(
+					page, 1));
 #endif
 			if (old_bits != new_bits) {
 				ibuf_bitmap_page_set_bits(bitmap_page, page_no,
