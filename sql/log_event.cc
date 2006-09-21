@@ -5375,7 +5375,9 @@ unpack_row(RELAY_LOG_INFO *rli,
 
     if (bitmap_is_set(cols, field_ptr -  begin_ptr))
     {
-      ptr= f->unpack(f->ptr + offset, ptr);
+      f->move_field_offset(offset);
+      ptr= f->unpack(f->ptr, ptr);
+      f->move_field_offset(-offset);
       /* Field...::unpack() cannot return 0 */
       DBUG_ASSERT(ptr != NULL);
     }
@@ -6589,7 +6591,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
     /* We have a key: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
       return error;
-    
+
     /*
       We need to set the null bytes to ensure that the filler bit are
       all set when returning.  There are storage engines that just set
@@ -6675,6 +6677,7 @@ static int find_and_fetch_row(TABLE *table, byte *key)
         table->s->null_bytes > 0 ? table->s->null_bytes - 1 : 0;
       table->record[1][pos]= 0xFF;
       error= table->file->rnd_next(table->record[1]);
+
       switch (error)
       {
       case 0:
@@ -6955,6 +6958,10 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                     table, m_width, m_after_image,
                     row_start, &m_cols, row_end, &m_master_reclength,
                     table->write_set, UPDATE_ROWS_EVENT);
+
+  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
+  DBUG_DUMP("m_after_image", m_after_image, table->s->reclength);
+
 
   /*
     If we will access rows using the random access method, m_key will
