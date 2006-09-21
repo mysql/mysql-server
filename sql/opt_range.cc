@@ -6020,42 +6020,42 @@ static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
 }
 
 
-bool QUICK_SELECT_I::check_if_keys_used(List<Item> *fields)
+bool QUICK_SELECT_I::is_keys_used(List<Item> *fields)
 {
-  return check_if_key_used(head, index, *fields);
+  return is_key_used(head, index, *fields);
 }
 
-bool QUICK_INDEX_MERGE_SELECT::check_if_keys_used(List<Item> *fields)
-{
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  while ((quick= it++))
-  {
-    if (check_if_key_used(head, quick->index, *fields))
-      return 1;
-  }
-  return 0;
-}
-
-bool QUICK_ROR_INTERSECT_SELECT::check_if_keys_used(List<Item> *fields)
+bool QUICK_INDEX_MERGE_SELECT::is_keys_used(List<Item> *fields)
 {
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
   while ((quick= it++))
   {
-    if (check_if_key_used(head, quick->index, *fields))
+    if (is_key_used(head, quick->index, *fields))
       return 1;
   }
   return 0;
 }
 
-bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
+bool QUICK_ROR_INTERSECT_SELECT::is_keys_used(List<Item> *fields)
+{
+  QUICK_RANGE_SELECT *quick;
+  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+  while ((quick= it++))
+  {
+    if (is_key_used(head, quick->index, *fields))
+      return 1;
+  }
+  return 0;
+}
+
+bool QUICK_ROR_UNION_SELECT::is_keys_used(List<Item> *fields)
 {
   QUICK_SELECT_I *quick;
   List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
   while ((quick= it++))
   {
-    if (quick->check_if_keys_used(fields))
+    if (quick->is_keys_used(fields))
       return 1;
   }
   return 0;
