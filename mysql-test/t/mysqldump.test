@@ -16,9 +16,9 @@ INSERT INTO t1 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-create --skip-comments -X test t1
 DROP TABLE t1;
 
-#
-# Bug #2005
-#
+--echo #
+--echo # Bug #2005
+--echo #
 
 CREATE TABLE t1 (a decimal(64, 20));
 INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
@@ -26,9 +26,9 @@ INSERT INTO t1 VALUES ("1234567890123456789012345678901234567890"),
 --exec $MYSQL_DUMP --compact test t1
 DROP TABLE t1;
 
-#
-# Bug #2055
-#
+--echo #
+--echo # Bug #2055
+--echo #
 
 CREATE TABLE t1 (a double);
 INSERT INTO t1 VALUES ('-9e999999');
@@ -38,9 +38,9 @@ INSERT INTO t1 VALUES ('-9e999999');
 --exec $MYSQL_DUMP --compact test t1
 DROP TABLE t1;
 
-#
-# Bug #3361 mysqldump quotes DECIMAL values inconsistently
-#
+--echo #
+--echo # Bug #3361 mysqldump quotes DECIMAL values inconsistently
+--echo #
 
 CREATE TABLE t1 (a DECIMAL(10,5), b FLOAT);
 
@@ -69,28 +69,28 @@ INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
 --exec $MYSQL_DUMP --skip-create --compact -X test t1
 DROP TABLE t1;
 
-#
-# Bug #1707
-#
+--echo #
+--echo # Bug #1707
+--echo #
 
 CREATE TABLE t1 (`a"b"` char(2));
 INSERT INTO t1 VALUES ("1\""), ("\"2");
 --exec $MYSQL_DUMP --compact --skip-create -X test t1
 DROP TABLE t1;
 
-#
-# Bug #1994
-# Bug #4261
-#
+--echo #
+--echo # Bug #1994
+--echo # Bug #4261
+--echo #
 
 CREATE TABLE t1 (a  VARCHAR(255)) DEFAULT CHARSET koi8r;
 INSERT INTO t1  VALUES (_koi8r x'C1C2C3C4C5'), (NULL);
 --exec $MYSQL_DUMP --skip-comments --skip-extended-insert test t1
 DROP TABLE t1;
 
-#
-# Bug #2634
-#
+--echo #
+--echo # Bug #2634
+--echo #
 
 CREATE TABLE t1 (a int) ENGINE=MYISAM;
 INSERT INTO t1 VALUES (1), (2);
@@ -98,17 +98,17 @@ INSERT INTO t1 VALUES (1), (2);
 --exec $MYSQL_DUMP --skip-comments --compatible=mysql323 test t1
 DROP TABLE t1;
 
-#
-# Bug #2592 'mysqldump doesn't quote "tricky" names correctly'
-#
+--echo #
+--echo # Bug #2592 'mysqldump doesn't quote "tricky" names correctly'
+--echo #
 
 create table ```a` (i int);
 --exec $MYSQL_DUMP --compact test
 drop table ```a`;
 
-#
-# Bug #2591 "mysqldump quotes names inconsistently"
-#
+--echo #
+--echo # Bug #2591 "mysqldump quotes names inconsistently"
+--echo #
 
 create table t1(a int);
 --exec $MYSQL_DUMP --comments=0 test
@@ -119,9 +119,9 @@ set global sql_mode='ANSI_QUOTES';
 set global sql_mode='';
 drop table t1;
 
-#
-# Bug #2705 'mysqldump --tab extra output'
-#
+--echo #
+--echo # Bug #2705 'mysqldump --tab extra output'
+--echo #
 
 create table t1(a int);
 insert into t1 values (1),(2),(3);
@@ -135,9 +135,9 @@ insert into t1 values (1),(2),(3);
 --exec rm $MYSQLTEST_VARDIR/tmp/t1.txt
 drop table t1;
 
-#
-# Bug #6101: create database problem
-#
+--echo #
+--echo # Bug #6101: create database problem
+--echo #
 
 --exec $MYSQL_DUMP --skip-comments --databases test
 
@@ -145,12 +145,12 @@ create database mysqldump_test_db character set latin2 collate latin2_bin;
 --exec $MYSQL_DUMP --skip-comments --databases mysqldump_test_db
 drop database mysqldump_test_db;
 
-#
-# Bug #7020
-# Check that we don't dump in UTF8 in compatible mode by default,
-# but use the default compiled values, or the values given in
-# --default-character-set=xxx. However, we should dump in UTF8
-# if it is explicitely set.
+--echo #
+--echo # Bug #7020
+--echo # Check that we don't dump in UTF8 in compatible mode by default,
+--echo # but use the default compiled values, or the values given in
+--echo # --default-character-set=xxx. However, we should dump in UTF8
+--echo # if it is explicitely set.
 
 CREATE TABLE t1 (a  CHAR(10));
 INSERT INTO t1  VALUES (_latin1 'ÄÖÜß');
@@ -191,9 +191,9 @@ INSERT INTO `t1` VALUES (0x602010000280100005E71A);
 --exec $MYSQL_DUMP --skip-extended-insert --hex-blob test --skip-comments t1
 DROP TABLE t1;
 
-#
-# Test for --insert-ignore
-#
+--echo #
+--echo # Test for --insert-ignore
+--echo #
 
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
@@ -541,9 +541,9 @@ insert into t1 (F_8d3bba7425e7c98c50f52ca1b52d3735) values (1);
 --exec $MYSQL_DUMP --skip-comments -c test
 drop table t1;
 
-#
-# Test for --add-drop-database
-#
+--echo #
+--echo # Test for --add-drop-database
+--echo #
 
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1),(2),(3);
@@ -631,9 +631,9 @@ drop database mysqldump_test_db;
 use test;
 
 
-#
-# Bug #9657 mysqldump xml ( -x ) does not format NULL fields correctly
-#
+--echo #
+--echo # Bug #9657 mysqldump xml ( -x ) does not format NULL fields correctly
+--echo #
 
 create table t1 (a int(10));
 create table t2 (pk int primary key auto_increment,
@@ -775,18 +775,19 @@ drop table t1, t2;
 drop database db1;
 use test;
 
-#
-# dump of view
-#
+--echo #
+--echo # dump of view
+--echo #
+
 create table t1(a int);
 create view v1 as select * from t1;
 --exec $MYSQL_DUMP --skip-comments test
 drop view v1;
 drop table t1;
 
-#
-# Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
-#
+--echo #
+--echo # Bug #10213 mysqldump crashes when dumping VIEWs(on MacOS X)
+--echo #
 
 create database mysqldump_test_db;
 use mysqldump_test_db;
@@ -808,18 +809,18 @@ drop view v2;
 drop database mysqldump_test_db;
 use test;
 
-#
-# Bug #9756
-#
+--echo #
+--echo # Bug #9756
+--echo #
 
 CREATE TABLE t1 (a char(10));
 INSERT INTO t1 VALUES ('\'');
 --exec $MYSQL_DUMP --skip-comments test t1
 DROP TABLE t1;
 
-#
-# Bug #10927 mysqldump: Can't reload dump with view that consist of other view
-#
+--echo #
+--echo # Bug #10927 mysqldump: Can't reload dump with view that consist of other view
+--echo #
 
 create table t1(a int, b int, c varchar(30));
 
@@ -889,9 +890,9 @@ show tables;
 show triggers;
 DROP TABLE t1, t2;
 
-#
-# Bugs #9136, #12917: problems with --defaults-extra-file option
-#
+--echo #
+--echo # Bugs #9136, #12917: problems with --defaults-extra-file option
+--echo #
 
 --system echo '[mysqltest1]' > $MYSQLTEST_VARDIR/tmp/tmp.cnf
 --system echo 'port=1234' >> $MYSQLTEST_VARDIR/tmp/tmp.cnf
@@ -1129,9 +1130,9 @@ select * from v3 order by a;
 drop table t1;
 drop view v1, v2, v3, v4, v5;
 
-#
-# Bug #16878 dump of trigger
-#
+--echo #
+--echo # Bug #16878 dump of trigger
+--echo #
 
 create table t1 (a int, created datetime);
 create table t2 (b int, created datetime);
@@ -1195,10 +1196,10 @@ show create procedure p;
 drop function f;
 drop procedure p;
 
-#
-# Bug #17371 Unable to dump a schema with invalid views
-#
-#
+--echo #
+--echo # Bug #17371 Unable to dump a schema with invalid views
+--echo #
+
 create table t1 ( id serial );
 create view v1 as select * from t1;
 drop table t1;
@@ -1470,9 +1471,10 @@ drop table t2;
 
 drop table words2;
 
-#
-# BUG# 16853: mysqldump doesn't show events
-#
+--echo #
+--echo # BUG# 16853: mysqldump doesn't show events
+--echo #
+
 create database first;
 use first;
 set time_zone = 'UTC';
@@ -1508,11 +1510,11 @@ drop database third;
 set time_zone = 'SYSTEM';
 use test;
 
-#####
-#
-# BUG#17201 Spurious 'DROP DATABASE' in output,
-# also confusion between tables and views.
-# Example code from Markus Popp
+--echo #
+--echo # BUG#17201 Spurious 'DROP DATABASE' in output,
+--echo # also confusion between tables and views.
+--echo # Example code from Markus Popp
+--echo #
 
 create database mysqldump_test_db;
 use mysqldump_test_db;
