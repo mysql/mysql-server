@@ -146,5 +146,7 @@ ADD_SUBDIRECTORY(sql)
 ADD_SUBDIRECTORY(server-tools/instance-manager)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(tests)
-ADD_SUBDIRECTORY(libmysqld)
-ADD_SUBDIRECTORY(libmysqld/examples)
+
+# disable libmysqld until it's fixed, so we can use Cmake 2.2 and 2.4
+#ADD_SUBDIRECTORY(libmysqld)
+#ADD_SUBDIRECTORY(libmysqld/examples)
