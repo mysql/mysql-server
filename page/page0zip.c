@@ -1630,6 +1630,579 @@ page_zip_apply_log(
 }
 
 /**************************************************************************
+Decompress the records of a node pointer page. */
+static
+ibool
+page_zip_decompress_node_ptrs(
+/*==========================*/
+					/* out: TRUE on success,
+					FALSE on failure */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page */
+	z_stream*	d_stream,	/* in/out: compressed page stream */
+	rec_t**		recs,		/* in: dense page directory
+					sorted by address */
+	ulint		n_dense,	/* in: size of recs[] */
+	dict_index_t*	index,		/* in: the index of the page */
+	ulint*		offsets,	/* in/out: temporary offsets */
+	mem_heap_t*	heap)		/* in: temporary memory heap */
+{
+	ulint		heap_status = REC_STATUS_NODE_PTR
+		| 2 << REC_HEAP_NO_SHIFT;
+	ulint		slot;
+	const byte*	storage;
+
+	/* Subtract the space reserved for uncompressed data. */
+	d_stream->avail_in -= n_dense
+		* (PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE);
+
+	/* Decompress the records in heap_no order. */
+	for (slot = 0; slot < n_dense; slot++) {
+		rec_t*	rec = recs[slot];
+
+		d_stream->avail_out = rec - REC_N_NEW_EXTRA_BYTES
+			- d_stream->next_out;
+
+		ut_ad(d_stream->avail_out < UNIV_PAGE_SIZE
+		      - PAGE_ZIP_START - PAGE_DIR);
+		switch (inflate(d_stream, Z_SYNC_FLUSH)) {
+		case Z_STREAM_END:
+			/* Apparently, n_dense has grown
+			since the time the page was last compressed. */
+			goto zlib_done;
+		case Z_OK:
+		case Z_BUF_ERROR:
+			if (!d_stream->avail_out) {
+				break;
+			}
+			/* fall through */
+		default:
+			goto zlib_error;
+		}
+
+		ut_ad(d_stream->next_out == rec - REC_N_NEW_EXTRA_BYTES);
+		/* Prepare to decompress the data bytes. */
+		d_stream->next_out = rec;
+		/* Set heap_no and the status bits. */
+		mach_write_to_2(rec - REC_NEW_HEAP_NO, heap_status);
+		heap_status += 1 << REC_HEAP_NO_SHIFT;
+
+		/* Read the offsets. The status bits are needed here. */
+		offsets = rec_get_offsets(rec, index, offsets,
+					  ULINT_UNDEFINED, &heap);
+
+		/* Non-leaf nodes should not have any externally
+		stored columns. */
+		ut_ad(!rec_offs_any_extern(offsets));
+
+		/* Decompress the data bytes, except node_ptr. */
+		d_stream->avail_out = rec_offs_data_size(offsets)
+			- REC_NODE_PTR_SIZE;
+
+		switch (inflate(d_stream, Z_SYNC_FLUSH)) {
+		case Z_STREAM_END:
+			goto zlib_done;
+		case Z_OK:
+		case Z_BUF_ERROR:
+			if (!d_stream->avail_out) {
+				break;
+			}
+			/* fall through */
+		default:
+			goto zlib_error;
+		}
+
+		/* Clear the node pointer in case the record
+		will be deleted and the space will be reallocated
+		to a smaller record. */
+		memset(d_stream->next_out, 0, REC_NODE_PTR_SIZE);
+		d_stream->next_out += REC_NODE_PTR_SIZE;
+
+		ut_ad(d_stream->next_out == rec_get_end(rec, offsets));
+	}
+
+	/* Decompress any trailing garbage, in case the last record was
+	allocated from an originally longer space on the free list. */
+	d_stream->avail_out = page_header_get_field(page_zip->data,
+						    PAGE_HEAP_TOP)
+		- page_offset(d_stream->next_out);
+	if (UNIV_UNLIKELY(d_stream->avail_out > UNIV_PAGE_SIZE
+			  - PAGE_ZIP_START - PAGE_DIR)) {
+
+		goto zlib_error;
+	}
+
+	if (UNIV_UNLIKELY(inflate(d_stream, Z_FINISH) != Z_STREAM_END)) {
+zlib_error:
+		inflateEnd(d_stream);
+		return(FALSE);
+	}
+
+	/* Note that d_stream->avail_out > 0 may hold here
+	if the modification log is nonempty. */
+
+zlib_done:
+	if (UNIV_UNLIKELY(inflateEnd(d_stream) != Z_OK)) {
+		ut_error;
+	}
+
+	{
+		page_t*	page = page_align(d_stream->next_out);
+
+		/* Clear the unused heap space on the uncompressed page. */
+		memset(d_stream->next_out, 0,
+		       page_dir_get_nth_slot(page,
+					     page_dir_get_n_slots(page) - 1)
+		       - d_stream->next_out);
+	}
+
+	page_zip->m_start = PAGE_DATA + d_stream->total_in;
+
+	/* Apply the modification log. */
+	{
+		const byte*	mod_log_ptr;
+		mod_log_ptr = page_zip_apply_log(page_zip->data
+						 + page_zip->m_start,
+						 d_stream->avail_in + 1,
+						 recs, n_dense,
+						 ULINT_UNDEFINED, heap_status,
+						 index, offsets);
+
+		if (UNIV_UNLIKELY(!mod_log_ptr)) {
+			return(FALSE);
+		}
+		page_zip->m_end = mod_log_ptr - page_zip->data;
+		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
+		     + page_zip->m_end < page_zip->size);
+	}
+
+	/* Restore the uncompressed columns in heap_no order. */
+	storage	= page_zip->data + page_zip->size
+		- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
+
+	for (slot = 0; slot < n_dense; slot++) {
+		rec_t*		rec	= recs[slot];
+
+		offsets = rec_get_offsets(rec, index, offsets,
+					  ULINT_UNDEFINED, &heap);
+		/* Non-leaf nodes should not have any externally
+		stored columns. */
+		ut_ad(!rec_offs_any_extern(offsets));
+		storage -= REC_NODE_PTR_SIZE;
+
+		memcpy(rec_get_end(rec, offsets) - REC_NODE_PTR_SIZE,
+		       storage, REC_NODE_PTR_SIZE);
+	}
+
+	return(TRUE);
+}
+
+/**************************************************************************
+Decompress the records of a leaf node of a secondary index. */
+static
+ibool
+page_zip_decompress_sec(
+/*====================*/
+					/* out: TRUE on success,
+					FALSE on failure */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page */
+	z_stream*	d_stream,	/* in/out: compressed page stream */
+	rec_t**		recs,		/* in: dense page directory
+					sorted by address */
+	ulint		n_dense,	/* in: size of recs[] */
+	dict_index_t*	index,		/* in: the index of the page */
+	ulint*		offsets)	/* in/out: temporary offsets */
+{
+	ulint	heap_status	= REC_STATUS_ORDINARY | 2 << REC_HEAP_NO_SHIFT;
+	ulint	slot;
+
+	/* Subtract the space reserved for uncompressed data. */
+	d_stream->avail_in -= n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
+
+	for (slot = 0; slot < n_dense; slot++) {
+		rec_t*	rec = recs[slot];
+
+		/* Decompress everything up to this record. */
+		d_stream->avail_out = rec - REC_N_NEW_EXTRA_BYTES
+			- d_stream->next_out;
+
+		if (UNIV_LIKELY(d_stream->avail_out)) {
+			switch (inflate(d_stream, Z_SYNC_FLUSH)) {
+			case Z_STREAM_END:
+				/* Apparently, n_dense has grown
+				since the time the page was last compressed. */
+				goto zlib_done;
+			case Z_OK:
+			case Z_BUF_ERROR:
+				if (!d_stream->avail_out) {
+					break;
+				}
+				/* fall through */
+			default:
+				goto zlib_error;
+			}
+		}
+
+		ut_ad(d_stream->next_out == rec - REC_N_NEW_EXTRA_BYTES);
+
+		/* Skip the REC_N_NEW_EXTRA_BYTES. */
+
+		d_stream->next_out = rec;
+
+		/* Set heap_no and the status bits. */
+		mach_write_to_2(rec - REC_NEW_HEAP_NO, heap_status);
+		heap_status += 1 << REC_HEAP_NO_SHIFT;
+	}
+
+	/* Decompress the data of the last record and any trailing garbage,
+	in case the last record was allocated from an originally longer space
+	on the free list. */
+	d_stream->avail_out = page_header_get_field(page_zip->data,
+						    PAGE_HEAP_TOP)
+		- page_offset(d_stream->next_out);
+	if (UNIV_UNLIKELY(d_stream->avail_out > UNIV_PAGE_SIZE
+			  - PAGE_ZIP_START - PAGE_DIR)) {
+
+		goto zlib_error;
+	}
+
+	if (UNIV_UNLIKELY(inflate(d_stream, Z_FINISH) != Z_STREAM_END)) {
+zlib_error:
+		inflateEnd(d_stream);
+		return(FALSE);
+	}
+
+	/* Note that d_stream->avail_out > 0 may hold here
+	if the modification log is nonempty. */
+
+zlib_done:
+	if (UNIV_UNLIKELY(inflateEnd(d_stream) != Z_OK)) {
+		ut_error;
+	}
+
+	{
+		page_t*	page = page_align(d_stream->next_out);
+
+		/* Clear the unused heap space on the uncompressed page. */
+		memset(d_stream->next_out, 0,
+		       page_dir_get_nth_slot(page,
+					     page_dir_get_n_slots(page) - 1)
+		       - d_stream->next_out);
+	}
+
+	page_zip->m_start = PAGE_DATA + d_stream->total_in;
+
+	/* Apply the modification log. */
+	{
+		const byte*	mod_log_ptr;
+		mod_log_ptr = page_zip_apply_log(page_zip->data
+						 + page_zip->m_start,
+						 d_stream->avail_in + 1,
+						 recs, n_dense,
+						 ULINT_UNDEFINED, heap_status,
+						 index, offsets);
+
+		if (UNIV_UNLIKELY(!mod_log_ptr)) {
+			return(FALSE);
+		}
+		page_zip->m_end = mod_log_ptr - page_zip->data;
+		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
+		     + page_zip->m_end < page_zip->size);
+	}
+
+	/* There are no uncompressed columns on leaf pages of
+	secondary indexes. */
+
+	return(TRUE);
+}
+
+/**************************************************************************
+Compress the records of a leaf node of a clustered index. */
+static
+ibool
+page_zip_decompress_clust(
+/*======================*/
+					/* out: TRUE on success,
+					FALSE on failure */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page */
+	z_stream*	d_stream,	/* in/out: compressed page stream */
+	rec_t**		recs,		/* in: dense page directory
+					sorted by address */
+	ulint		n_dense,	/* in: size of recs[] */
+	dict_index_t*	index,		/* in: the index of the page */
+	ulint		trx_id_col,	/* index of the trx_id column */
+	ulint*		offsets,	/* in/out: temporary offsets */
+	mem_heap_t*	heap)		/* in: temporary memory heap */
+{
+	int		err;
+	ulint		slot;
+	ulint		heap_status	= REC_STATUS_ORDINARY
+		| 2 << REC_HEAP_NO_SHIFT;
+	const byte*	storage;
+	const byte*	externs;
+
+	/* Subtract the space reserved for uncompressed data. */
+	d_stream->avail_in -= n_dense * (PAGE_ZIP_DIR_SLOT_SIZE
+					 + DATA_TRX_ID_LEN
+					 + DATA_ROLL_PTR_LEN);
+
+	/* Decompress the records in heap_no order. */
+	for (slot = 0; slot < n_dense; slot++) {
+		rec_t*	rec	= recs[slot];
+
+		d_stream->avail_out = rec - REC_N_NEW_EXTRA_BYTES
+			- d_stream->next_out;
+
+		ut_ad(d_stream->avail_out < UNIV_PAGE_SIZE
+		      - PAGE_ZIP_START - PAGE_DIR);
+		err = inflate(d_stream, Z_SYNC_FLUSH);
+		switch (err) {
+		case Z_STREAM_END:
+			/* Apparently, n_dense has grown
+			since the time the page was last compressed. */
+			goto zlib_done;
+		case Z_OK:
+		case Z_BUF_ERROR:
+			if (UNIV_LIKELY(!d_stream->avail_out)) {
+				break;
+			}
+			/* fall through */
+		default:
+			goto zlib_error;
+		}
+
+		ut_ad(d_stream->next_out == rec - REC_N_NEW_EXTRA_BYTES);
+		/* Prepare to decompress the data bytes. */
+		d_stream->next_out = rec;
+		/* Set heap_no and the status bits. */
+		mach_write_to_2(rec - REC_NEW_HEAP_NO, heap_status);
+		heap_status += 1 << REC_HEAP_NO_SHIFT;
+
+		/* Read the offsets. The status bits are needed here. */
+		offsets = rec_get_offsets(rec, index, offsets,
+					  ULINT_UNDEFINED, &heap);
+
+		/* This is a leaf page in a clustered index. */
+		ulint	i;
+
+		/* Check if there are any externally stored columns.
+		For each externally stored column, restore the
+		BTR_EXTERN_FIELD_REF separately. */
+
+		for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+			ulint	len;
+			byte*	dst;
+
+			if (UNIV_UNLIKELY(i == trx_id_col)) {
+				/* Skip trx_id and roll_ptr */
+				dst = rec_get_nth_field(rec, offsets, i, &len);
+				if (UNIV_UNLIKELY(len < DATA_TRX_ID_LEN
+						  + DATA_ROLL_PTR_LEN)
+				    || rec_offs_nth_extern(offsets, i)) {
+
+					goto zlib_error;
+				}
+
+				d_stream->avail_out = dst - d_stream->next_out;
+
+				switch (inflate(d_stream, Z_SYNC_FLUSH)) {
+				case Z_STREAM_END:
+				case Z_OK:
+				case Z_BUF_ERROR:
+					if (!d_stream->avail_out) {
+						break;
+					}
+					/* fall through */
+				default:
+					goto zlib_error;
+				}
+
+				ut_ad(d_stream->next_out == dst);
+
+				d_stream->next_out += DATA_TRX_ID_LEN
+					+ DATA_ROLL_PTR_LEN;
+			} else if (rec_offs_nth_extern(offsets, i)) {
+				dst = rec_get_nth_field(rec, offsets, i, &len);
+				ut_ad(len > BTR_EXTERN_FIELD_REF_SIZE);
+				dst += len - BTR_EXTERN_FIELD_REF_SIZE;
+
+				d_stream->avail_out = dst - d_stream->next_out;
+				switch (inflate(d_stream,
+						Z_SYNC_FLUSH)) {
+				case Z_STREAM_END:
+				case Z_OK:
+				case Z_BUF_ERROR:
+					if (!d_stream->avail_out) {
+						break;
+					}
+					/* fall through */
+				default:
+					goto zlib_error;
+				}
+
+				ut_ad(d_stream->next_out == dst);
+
+				/* Reserve space for the data at
+				the end of the space reserved for
+				the compressed data and the
+				page modification log. */
+
+				if (UNIV_UNLIKELY
+				    (d_stream->avail_in
+				     <= BTR_EXTERN_FIELD_REF_SIZE)) {
+					/* out of space */
+					goto zlib_error;
+				}
+
+				/* Clear the BLOB pointer in case
+				the record will be deleted and the
+				space will not be reused.  Note that
+				the final initialization of the BLOB
+				pointers (copying from "externs"
+				or clearing) will have to take place
+				only after the page modification log
+				has been applied.  Otherwise, we
+				could end up with an uninitialized
+				BLOB pointer when a record is deleted,
+				reallocated and deleted. */
+				memset(d_stream->next_out, 0,
+				       BTR_EXTERN_FIELD_REF_SIZE);
+				d_stream->next_out
+					+= BTR_EXTERN_FIELD_REF_SIZE;
+			}
+		}
+
+		/* Decompress the last bytes of the record. */
+		d_stream->avail_out = rec_get_end(rec, offsets)
+			- d_stream->next_out;
+
+		switch (inflate(d_stream, Z_SYNC_FLUSH)) {
+		case Z_STREAM_END:
+		case Z_OK:
+		case Z_BUF_ERROR:
+			if (!d_stream->avail_out) {
+				break;
+			}
+			/* fall through */
+		default:
+			goto zlib_error;
+		}
+	}
+
+	/* Decompress any trailing garbage, in case the last record was
+	allocated from an originally longer space on the free list. */
+	d_stream->avail_out = page_header_get_field(page_zip->data,
+						    PAGE_HEAP_TOP)
+		- page_offset(d_stream->next_out);
+	if (UNIV_UNLIKELY(d_stream->avail_out > UNIV_PAGE_SIZE
+			  - PAGE_ZIP_START - PAGE_DIR)) {
+
+		goto zlib_error;
+	}
+
+	if (UNIV_UNLIKELY(inflate(d_stream, Z_FINISH) != Z_STREAM_END)) {
+zlib_error:
+		inflateEnd(d_stream);
+		return(FALSE);
+	}
+
+	/* Note that d_stream->avail_out > 0 may hold here
+	if the modification log is nonempty. */
+
+zlib_done:
+	if (UNIV_UNLIKELY(inflateEnd(d_stream) != Z_OK)) {
+		ut_error;
+	}
+
+	{
+		page_t*	page = page_align(d_stream->next_out);
+
+		/* Clear the unused heap space on the uncompressed page. */
+		memset(d_stream->next_out, 0,
+		       page_dir_get_nth_slot(page,
+					     page_dir_get_n_slots(page) - 1)
+		       - d_stream->next_out);
+	}
+
+	page_zip->m_start = PAGE_DATA + d_stream->total_in;
+
+	/* Apply the modification log. */
+	{
+		const byte*	mod_log_ptr;
+		mod_log_ptr = page_zip_apply_log(page_zip->data
+						 + page_zip->m_start,
+						 d_stream->avail_in + 1,
+						 recs, n_dense,
+						 trx_id_col, heap_status,
+						 index, offsets);
+
+		if (UNIV_UNLIKELY(!mod_log_ptr)) {
+			return(FALSE);
+		}
+		page_zip->m_end = mod_log_ptr - page_zip->data;
+		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
+		     + page_zip->m_end < page_zip->size);
+	}
+
+	storage = page_zip->data + page_zip->size
+		- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
+
+	externs = storage - n_dense
+		* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+
+	/* Restore the uncompressed columns in heap_no order. */
+
+	for (slot = 0; slot < n_dense; slot++) {
+		ulint	i;
+		ulint	len;
+		byte*	dst;
+		rec_t*	rec	= recs[slot];
+		ibool	exists	= !page_zip_dir_find_free(
+			page_zip, page_offset(rec));
+		offsets = rec_get_offsets(rec, index, offsets,
+					  ULINT_UNDEFINED, &heap);
+
+		dst = rec_get_nth_field(rec, offsets,
+					trx_id_col, &len);
+		ut_ad(len >= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+		storage -= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+		memcpy(dst, storage,
+		       DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+
+		/* Check if there are any externally stored
+		columns in this record.  For each externally
+		stored column, restore or clear the
+		BTR_EXTERN_FIELD_REF. */
+
+		for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+			if (!rec_offs_nth_extern(offsets, i)) {
+				continue;
+			}
+			dst = rec_get_nth_field(rec, offsets, i, &len);
+			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+			dst += len - BTR_EXTERN_FIELD_REF_SIZE;
+
+			if (UNIV_LIKELY(exists)) {
+				/* Existing record:
+				restore the BLOB pointer */
+				externs -= BTR_EXTERN_FIELD_REF_SIZE;
+
+				memcpy(dst, externs,
+				       BTR_EXTERN_FIELD_REF_SIZE);
+
+				page_zip->n_blobs++;
+			} else {
+				/* Deleted record:
+				clear the BLOB pointer */
+				memset(dst, 0,
+				       BTR_EXTERN_FIELD_REF_SIZE);
+			}
+		}
+	}
+
+	return(TRUE);
+}
+
+/**************************************************************************
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected. */
@@ -1645,14 +2218,10 @@ page_zip_decompress(
 	z_stream	d_stream;
 	dict_index_t*	index	= NULL;
 	rec_t**		recs;	/* dense page directory, sorted by address */
-	ulint		slot;
-	ulint		heap_status;/* heap_no and status bits */
 	ulint		n_dense;/* number of user records on the page */
 	ulint		trx_id_col = ULINT_UNDEFINED;
 	mem_heap_t*	heap;
-	ulint*		offsets	= NULL;
-	ulint		info_bits = 0;
-	const byte*	storage;
+	ulint*		offsets;
 
 	ut_ad(page_zip_simple_validate(page_zip));
 
@@ -1674,9 +2243,9 @@ page_zip_decompress(
 	memcpy(page, page_zip->data, PAGE_DATA);
 
 	/* Copy the page directory. */
-	if (UNIV_UNLIKELY
-	    (!page_zip_dir_decode(page_zip, page,
-				  recs, recs + n_dense, n_dense))) {
+	if (UNIV_UNLIKELY(!page_zip_dir_decode(page_zip, page, recs,
+					       recs + n_dense, n_dense))) {
+zlib_error:
 		mem_heap_free(heap);
 		return(FALSE);
 	}
@@ -1729,378 +2298,67 @@ page_zip_decompress(
 	}
 
 	/* Decompress the user records. */
+	page_zip->n_blobs = 0;
 	d_stream.next_out = page + PAGE_ZIP_START;
 
 	{
-		/* Pre-allocate the offsets
-		for rec_get_offsets_reverse(). */
-		ulint	n;
-
-		if (page_is_leaf(page)) {
-			n = dict_index_get_n_fields(index);
-			heap_status = REC_STATUS_ORDINARY
-				| 2 << REC_HEAP_NO_SHIFT;
-
-			/* Subtract the space reserved
-			for uncompressed data. */
-			if (trx_id_col != ULINT_UNDEFINED) {
-				d_stream.avail_in -= n_dense
-					* (PAGE_ZIP_DIR_SLOT_SIZE
-					   + DATA_TRX_ID_LEN
-					   + DATA_ROLL_PTR_LEN);
-			} else {
-				d_stream.avail_in -= n_dense
-					* PAGE_ZIP_DIR_SLOT_SIZE;
-			}
-		} else {
-			n = dict_index_get_n_unique_in_tree(index) + 1;
-			heap_status = REC_STATUS_NODE_PTR
-				| 2 << REC_HEAP_NO_SHIFT;
-
-			if (UNIV_UNLIKELY
-			    (mach_read_from_4(page + FIL_PAGE_PREV)
-			     == FIL_NULL)) {
-				info_bits = REC_INFO_MIN_REC_FLAG;
-			}
-
-			/* Subtract the space reserved
-			for uncompressed data. */
-			d_stream.avail_in -= n_dense
-				* (PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE);
-		}
-
-		n += 1 + REC_OFFS_HEADER_SIZE;
+		/* Pre-allocate the offsets for rec_get_offsets_reverse(). */
+		ulint	n = 1 + 1/* node ptr */ + REC_OFFS_HEADER_SIZE
+			+ dict_index_get_n_fields(index);
 		offsets = mem_heap_alloc(heap, n * sizeof(ulint));
 		*offsets = n;
 	}
 
 	/* Decompress the records in heap_no order. */
-	for (slot = 0; slot < n_dense; slot++) {
-		rec_t*		rec	= recs[slot];
+	if (!page_is_leaf(page)) {
+		/* This is a node pointer page. */
+		ulint	info_bits;
 
-		d_stream.avail_out = rec - REC_N_NEW_EXTRA_BYTES
-			- d_stream.next_out;
-
-		ut_ad(d_stream.avail_out < UNIV_PAGE_SIZE
-		      - PAGE_ZIP_START - PAGE_DIR);
-		switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
-		case Z_STREAM_END:
-			/* Apparently, n_dense has grown
-			since the time the page was last compressed. */
-			goto zlib_done;
-		case Z_OK:
-		case Z_BUF_ERROR:
-			if (!d_stream.avail_out) {
-				break;
-			}
-		default:
-			goto zlib_error;
-		}
-
-		ut_ad(d_stream.next_out == rec - REC_N_NEW_EXTRA_BYTES);
-		/* Prepare to decompress the data bytes. */
-		d_stream.next_out = rec;
-		/* Set heap_no and the status bits. */
-		mach_write_to_2(rec - REC_NEW_HEAP_NO, heap_status);
-		heap_status += 1 << REC_HEAP_NO_SHIFT;
-
-		/* Read the offsets. The status bits are needed here. */
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-
-		if (!page_is_leaf(page)) {
-			/* Non-leaf nodes should not have any externally
-			stored columns. */
-			ut_ad(!rec_offs_any_extern(offsets));
-
-			/* Decompress the data bytes, except node_ptr. */
-			d_stream.avail_out = rec_offs_data_size(offsets)
-				- REC_NODE_PTR_SIZE;
-
-			switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
-			case Z_STREAM_END:
-			case Z_OK:
-			case Z_BUF_ERROR:
-				if (!d_stream.avail_out) {
-					break;
-				}
-				/* fall through */
-			default:
-				goto zlib_error;
-			}
-
-			/* Clear the node pointer in case the record
-			will be deleted and the space will be reallocated
-			to a smaller record. */
-			memset(d_stream.next_out, 0, REC_NODE_PTR_SIZE);
-			d_stream.next_out += REC_NODE_PTR_SIZE;
-		} else if (UNIV_LIKELY(trx_id_col == ULINT_UNDEFINED)) {
-			/* This is a leaf page in a non-clustered index. */
-			goto decompress_tail;
-		} else {
-			/* This is a leaf page in a clustered index. */
-			ulint	i;
-
-			/* Check if there are any externally stored columns.
-			For each externally stored column, restore the
-			BTR_EXTERN_FIELD_REF separately. */
-
-			for (i = 0; i < rec_offs_n_fields(offsets); i++) {
-				ulint	len;
-				byte*	dst;
-
-				if (UNIV_UNLIKELY(i == trx_id_col)) {
-					/* Skip trx_id and roll_ptr */
-					dst = rec_get_nth_field(rec, offsets,
-								i, &len);
-					if (UNIV_UNLIKELY(len < DATA_TRX_ID_LEN
-							  + DATA_ROLL_PTR_LEN)
-					    || rec_offs_nth_extern(offsets,
-								   i)) {
-
-						goto zlib_error;
-					}
-
-					d_stream.avail_out = dst
-						- d_stream.next_out;
-
-					switch (inflate(&d_stream,
-							Z_SYNC_FLUSH)) {
-					case Z_STREAM_END:
-					case Z_OK:
-					case Z_BUF_ERROR:
-						if (!d_stream.avail_out) {
-							break;
-						}
-						/* fall through */
-					default:
-						goto zlib_error;
-					}
-
-					ut_ad(d_stream.next_out == dst);
-
-					d_stream.next_out += DATA_TRX_ID_LEN
-						+ DATA_ROLL_PTR_LEN;
-				} else if (rec_offs_nth_extern(offsets, i)) {
-					dst = rec_get_nth_field(rec, offsets,
-								i, &len);
-					ut_ad(len > BTR_EXTERN_FIELD_REF_SIZE);
-					dst += len - BTR_EXTERN_FIELD_REF_SIZE;
-
-					d_stream.avail_out = dst
-						- d_stream.next_out;
-					switch (inflate(&d_stream,
-							Z_SYNC_FLUSH)) {
-					case Z_STREAM_END:
-					case Z_OK:
-					case Z_BUF_ERROR:
-						if (!d_stream.avail_out) {
-							break;
-						}
-						/* fall through */
-					default:
-						goto zlib_error;
-					}
-
-					ut_ad(d_stream.next_out == dst);
-
-					/* Reserve space for the data at
-					the end of the space reserved for
-					the compressed data and the
-					page modification log. */
-
-					if (UNIV_UNLIKELY
-					    (d_stream.avail_in
-					     <= BTR_EXTERN_FIELD_REF_SIZE)) {
-						/* out of space */
-						goto zlib_error;
-					}
-
-					/* Clear the BLOB pointer in case
-					the record will be deleted and the
-					space will not be reused.  Note that
-					the final initialization of the BLOB
-					pointers (copying from "externs"
-					or clearing) will have to take place
-					only after the page modification log
-					has been applied.  Otherwise, we
-					could end up with an uninitialized
-					BLOB pointer when a record is deleted,
-					reallocated and deleted. */
-					memset(d_stream.next_out, 0,
-					       BTR_EXTERN_FIELD_REF_SIZE);
-					d_stream.next_out
-						+= BTR_EXTERN_FIELD_REF_SIZE;
-				}
-			}
-
-decompress_tail:
-			/* Decompress the last bytes of the record. */
-			d_stream.avail_out = rec_get_end(rec, offsets)
-				- d_stream.next_out;
-
-			switch (inflate(&d_stream, Z_SYNC_FLUSH)) {
-			case Z_STREAM_END:
-			case Z_OK:
-			case Z_BUF_ERROR:
-				if (!d_stream.avail_out) {
-					break;
-				}
-				/* fall through */
-			default:
-				goto zlib_error;
-			}
-		}
-
-		ut_ad(d_stream.next_out == rec_get_end(rec, offsets));
-	}
-
-	/* Decompress any trailing garbage, in case the last record was
-	allocated from an originally longer space on the free list. */
-	d_stream.avail_out = page_header_get_field(page, PAGE_HEAP_TOP)
-		- (d_stream.next_out - page);
-	if (UNIV_UNLIKELY(d_stream.avail_out > UNIV_PAGE_SIZE
-			  - PAGE_ZIP_START - PAGE_DIR)) {
-
-		goto zlib_error;
-	}
-
-	if (UNIV_UNLIKELY(inflate(&d_stream, Z_FINISH) != Z_STREAM_END)) {
-zlib_error:
-		inflateEnd(&d_stream);
-		goto err_exit;
-	}
-
-	/* Note that d_stream.avail_out > 0 may hold here
-	if the modification log is nonempty. */
-
-zlib_done:
-	if (UNIV_UNLIKELY(inflateEnd(&d_stream) != Z_OK)) {
-		ut_error;
-	}
-
-	ut_ad(page_zip->data + PAGE_DATA + d_stream.total_in
-	      == d_stream.next_in);
-
-	/* Clear the unused heap space on the uncompressed page. */
-	memset(d_stream.next_out, 0,
-	       page_dir_get_nth_slot(page, page_dir_get_n_slots(page) - 1)
-	       - d_stream.next_out);
-
-	/* The dense directory excludes the infimum and supremum records. */
-	n_dense = page_dir_get_n_heap(page) - 2;
-
-	page_zip->n_blobs = 0;
-	page_zip->m_start = PAGE_DATA + d_stream.total_in;
-
-	/* Apply the modification log. */
-	{
-		const byte*	mod_log_ptr;
-		mod_log_ptr = page_zip_apply_log(page_zip->data
-						 + page_zip->m_start,
-						 d_stream.avail_in + 1,
-						 recs, n_dense,
-						 trx_id_col, heap_status,
-						 index, offsets);
-
-		if (UNIV_UNLIKELY(!mod_log_ptr)) {
+		if (UNIV_UNLIKELY
+		    (!page_zip_decompress_node_ptrs(page_zip, &d_stream,
+						    recs, n_dense, index,
+						    offsets, heap))) {
 			goto err_exit;
 		}
-		page_zip->m_end = mod_log_ptr - page_zip->data;
-		ut_a(page_zip_get_trailer_len(page_zip, index, NULL)
-		     + page_zip->m_end < page_zip->size);
-	}
 
-	if (UNIV_UNLIKELY(!page_zip_set_extra_bytes(page_zip, page,
-						    info_bits))) {
+		info_bits = mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL
+			? REC_INFO_MIN_REC_FLAG : 0;
+
+		if (UNIV_UNLIKELY(!page_zip_set_extra_bytes(page_zip, page,
+							    info_bits))) {
+			goto err_exit;
+		}
+	} else if (UNIV_LIKELY(trx_id_col == ULINT_UNDEFINED)) {
+		/* This is a leaf page in a secondary index. */
+		if (UNIV_UNLIKELY(!page_zip_decompress_sec(page_zip, &d_stream,
+							   recs, n_dense,
+							   index, offsets))) {
+			goto err_exit;
+		}
+
+		if (UNIV_UNLIKELY(!page_zip_set_extra_bytes(page_zip,
+							    page, 0))) {
 err_exit:
-		page_zip_fields_free(index);
-		mem_heap_free(heap);
-		return(FALSE);
-	}
-
-	/* Copy the uncompressed fields. */
-
-	storage = page_zip->data + page_zip->size
-		- n_dense * PAGE_ZIP_DIR_SLOT_SIZE;
-
-	if (UNIV_UNLIKELY(!n_dense)) {
-		goto recs_done;
-	}
-
-	/* Restore the uncompressed columns in heap_no order. */
-
-	if (page_is_leaf(page)) {
-		const byte*	externs	= storage - n_dense
-			* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-
-		do {
-			ulint	i;
-			ulint	len;
-			byte*	dst;
-			rec_t*	rec	= *recs++;
-			ibool	exists	= !page_zip_dir_find_free(
-				page_zip, page_offset(rec));
-			offsets = rec_get_offsets(rec, index, offsets,
-						  ULINT_UNDEFINED, &heap);
-
-			if (UNIV_UNLIKELY(trx_id_col != ULINT_UNDEFINED)) {
-				dst = rec_get_nth_field(rec, offsets,
-							trx_id_col, &len);
-				ut_ad(len >= DATA_TRX_ID_LEN
-				      + DATA_ROLL_PTR_LEN);
-				storage -= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
-				memcpy(dst, storage,
-				       DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
-			}
-
-			/* Check if there are any externally stored
-			columns in this record.  For each externally
-			stored column, restore or clear the
-			BTR_EXTERN_FIELD_REF. */
-
-			for (i = 0; i < rec_offs_n_fields(offsets); i++) {
-				if (!rec_offs_nth_extern(offsets, i)) {
-					continue;
-				}
-				dst = rec_get_nth_field(rec, offsets, i, &len);
-				ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
-				dst += len - BTR_EXTERN_FIELD_REF_SIZE;
-
-				if (UNIV_LIKELY(exists)) {
-					/* Existing record:
-					restore the BLOB pointer */
-					externs -= BTR_EXTERN_FIELD_REF_SIZE;
-
-					memcpy(dst, externs,
-					       BTR_EXTERN_FIELD_REF_SIZE);
-
-					page_zip->n_blobs++;
-				} else {
-					/* Deleted record:
-					clear the BLOB pointer */
-					memset(dst, 0,
-					       BTR_EXTERN_FIELD_REF_SIZE);
-				}
-			}
-		} while (--n_dense);
+			page_zip_fields_free(index);
+			mem_heap_free(heap);
+			return(FALSE);
+		}
 	} else {
-		do {
-			rec_t*	rec	= *recs++;
+		/* This is a leaf page in a clustered index. */
+		if (UNIV_UNLIKELY(!page_zip_decompress_clust(page_zip,
+							     &d_stream, recs,
+							     n_dense, index,
+							     trx_id_col,
+							     offsets, heap))) {
+			goto err_exit;
+		}
 
-			offsets = rec_get_offsets(rec, index, offsets,
-						  ULINT_UNDEFINED, &heap);
-			/* Non-leaf nodes should not have any externally
-			stored columns. */
-			ut_ad(!rec_offs_any_extern(offsets));
-			storage -= REC_NODE_PTR_SIZE;
-
-			memcpy(rec_get_end(rec, offsets) - REC_NODE_PTR_SIZE,
-			       storage, REC_NODE_PTR_SIZE);
-		} while (--n_dense);
+		if (UNIV_UNLIKELY(!page_zip_set_extra_bytes(page_zip,
+							    page, 0))) {
+			goto err_exit;
+		}
 	}
 
-recs_done:
 	ut_a(page_is_comp(page));
 
 	page_zip_fields_free(index);
