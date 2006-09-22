@@ -1014,6 +1014,11 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
     {
       nodeId= node_ids[i];
       ndbout << "asked to stop " << nodeId << endl;
+
+      if ((getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
+          &&(getNodeType(nodeId) != NDB_MGM_NODE_TYPE_NDB))
+          return WRONG_PROCESS_TYPE;
+
       if (getNodeType(nodeId) != NDB_MGM_NODE_TYPE_MGM)
         nodes_to_stop.set(nodeId);
       else if (nodeId != getOwnNodeId())
