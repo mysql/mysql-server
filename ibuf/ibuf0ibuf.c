@@ -3157,6 +3157,14 @@ ibuf_merge_or_delete_for_page(
 	}
 
 	if (update_ibuf_bitmap) {
+		zip_size = fil_space_get_zip_size(space);
+		ut_a(ut_is_2pow(zip_size));
+
+		if (ibuf_fixed_addr_page(space, zip_size, page_no)
+		    || fsp_descr_page(zip_size, page_no)) {
+			return;
+		}
+
 		/* If the following returns FALSE, we get the counter
 		incremented, and must decrement it when we leave this
 		function. When the counter is > 0, that prevents tablespace
@@ -3170,10 +3178,27 @@ ibuf_merge_or_delete_for_page(
 
 			page = NULL;
 			update_ibuf_bitmap = FALSE;
-		}
-	}
+		} else {
+			mtr_start(&mtr);
+			bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
+							       zip_size, &mtr);
 
-	if (update_ibuf_bitmap || page) {
+			if (!ibuf_bitmap_page_get_bits(bitmap_page, page_no,
+						       zip_size,
+						       IBUF_BITMAP_BUFFERED,
+						       &mtr)) {
+				/* No inserts buffered for this page */
+				mtr_commit(&mtr);
+
+				if (!tablespace_being_deleted) {
+					fil_decr_pending_ibuf_merges(space);
+				}
+
+				return;
+			}
+			mtr_commit(&mtr);
+		}
+	} else if (page) {
 		zip_size = fil_space_get_zip_size(space);
 		ut_a(ut_is_2pow(zip_size));
 
@@ -3181,25 +3206,6 @@ ibuf_merge_or_delete_for_page(
 		    || fsp_descr_page(zip_size, page_no)) {
 			return;
 		}
-	}
-
-	if (update_ibuf_bitmap) {
-		mtr_start(&mtr);
-		bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
-						       zip_size, &mtr);
-
-		if (!ibuf_bitmap_page_get_bits(bitmap_page, page_no, zip_size,
-					       IBUF_BITMAP_BUFFERED, &mtr)) {
-			/* No inserts buffered for this page */
-			mtr_commit(&mtr);
-
-			if (!tablespace_being_deleted) {
-				fil_decr_pending_ibuf_merges(space);
-			}
-
-			return;
-		}
-		mtr_commit(&mtr);
 	}
 
 	/* Currently the insert buffer of space 0 takes care of inserts to all
