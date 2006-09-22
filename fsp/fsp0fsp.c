@@ -1183,11 +1183,10 @@ fsp_try_extend_data_file(
 			    < srv_data_file_sizes[srv_n_data_files - 1]) {
 
 				fprintf(stderr,
-					"InnoDB: Error: Last data file"
-					" size is %lu,"
-					" max size allowed %lu\n",
-					(ulong) srv_data_file_sizes
-					[srv_n_data_files - 1],
+					"InnoDB: Error: Last data file size"
+					" is %lu, max size allowed %lu\n",
+					(ulong) srv_data_file_sizes[
+						srv_n_data_files - 1],
 					(ulong) srv_last_file_size_max);
 			}
 

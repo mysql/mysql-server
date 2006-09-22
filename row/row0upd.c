@@ -1387,8 +1387,8 @@ func_exit:
 }
 
 /***************************************************************
-Updates secondary index record if it is changed in the row update. This
-should be quite rare in database applications. */
+Updates the secondary index record if it is changed in the row update or
+deletes it if this is a delete. */
 UNIV_INLINE
 ulint
 row_upd_sec_step(
