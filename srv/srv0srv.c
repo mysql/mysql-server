@@ -2177,7 +2177,7 @@ srv_master_thread(
 	time_t		last_flush_time;
 	time_t		current_time;
 	ulint		old_activity_count;
-	ulint		n_pages_purged;
+	ulint		n_pages_purged	= 0;
 	ulint		n_bytes_merged;
 	ulint		n_pages_flushed;
 	ulint		n_bytes_archived;
@@ -2347,11 +2347,9 @@ loop:
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
 
-	n_pages_purged = 1;
-
 	last_flush_time = time(NULL);
 
-	while (n_pages_purged) {
+	do {
 
 		if (srv_fast_shutdown && srv_shutdown_state > 0) {
 
@@ -2369,7 +2367,7 @@ loop:
 			log_buffer_flush_to_disk();
 			last_flush_time = current_time;
 		}
-	}
+	} while (n_pages_purged);
 
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
@@ -2440,11 +2438,9 @@ background_loop:
 
 	/* Run a full purge */
 
-	n_pages_purged = 1;
-
 	last_flush_time = time(NULL);
 
-	while (n_pages_purged) {
+	do {
 		if (srv_fast_shutdown && srv_shutdown_state > 0) {
 
 			break;
@@ -2461,7 +2457,7 @@ background_loop:
 			log_buffer_flush_to_disk();
 			last_flush_time = current_time;
 		}
-	}
+	} while (n_pages_purged);
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
