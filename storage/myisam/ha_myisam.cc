@@ -134,7 +134,7 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 
 
 ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
-  :handler(&myisam_hton, table_arg), file(0),
+  :handler(myisam_hton, table_arg), file(0),
   int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
@@ -142,6 +142,14 @@ ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
    can_enable_indexes(1)
 {}
+
+handler *ha_myisam::clone(MEM_ROOT *mem_root)
+{
+  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(mem_root));
+  if (new_handler)
+    new_handler->file->state= file->state;
+  return new_handler;
+}
 
 
 static const char *ha_myisam_exts[] = {
@@ -335,7 +343,11 @@ int ha_myisam::write_row(byte * buf)
     or a new row, then update the auto_increment value in the record.
   */
   if (table->next_number_field && buf == table->record[0])
-    update_auto_increment();
+  {
+    int error;
+    if ((error= update_auto_increment()))
+      return error;
+  }
   return mi_write(file,buf);
 }
 
@@ -1775,20 +1787,21 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-handlerton myisam_hton;
+handlerton *myisam_hton;
 
-static int myisam_init()
+static int myisam_init(void *p)
 {
-  myisam_hton.state=SHOW_OPTION_YES;
-  myisam_hton.db_type=DB_TYPE_MYISAM;
-  myisam_hton.create=myisam_create_handler;
-  myisam_hton.panic=mi_panic;
-  myisam_hton.flags=HTON_CAN_RECREATE;
+  myisam_hton= (handlerton *)p;
+  myisam_hton->state=SHOW_OPTION_YES;
+  myisam_hton->db_type=DB_TYPE_MYISAM;
+  myisam_hton->create=myisam_create_handler;
+  myisam_hton->panic=mi_panic;
+  myisam_hton->flags=HTON_CAN_RECREATE;
   return 0;
 }
 
 struct st_mysql_storage_engine myisam_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &myisam_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, myisam_hton };
 
 mysql_declare_plugin(myisam)
 {

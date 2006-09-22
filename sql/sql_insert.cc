@@ -975,7 +975,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(TRUE);
     }
-    select_lex->fix_prepare_information(thd, &fake_conds);
+    select_lex->fix_prepare_information(thd, &fake_conds, &fake_conds);
     select_lex->first_execution= 0;
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
@@ -2767,8 +2767,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   tmp_table.s->db_create_options=0;
   tmp_table.s->blob_ptr_size= portable_sizeof_char_ptr;
   tmp_table.s->db_low_byte_first= 
-        test(create_info->db_type == &myisam_hton ||
-             create_info->db_type == &heap_hton);
+        test(create_info->db_type == myisam_hton ||
+             create_info->db_type == heap_hton);
   tmp_table.null_row=tmp_table.maybe_null=0;
 
   while ((item=it++))

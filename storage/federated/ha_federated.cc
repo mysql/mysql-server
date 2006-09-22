@@ -366,7 +366,7 @@ static int federated_rollback(THD *thd, bool all);
 
 /* Federated storage engine handlerton */
 
-handlerton federated_hton;
+handlerton *federated_hton;
 
 static handler *federated_create_handler(TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
@@ -396,17 +396,17 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
     TRUE        Error
 */
 
-int federated_db_init()
+int federated_db_init(void *p)
 {
   DBUG_ENTER("federated_db_init");
-
-  federated_hton.state= SHOW_OPTION_YES;
-  federated_hton.db_type= DB_TYPE_FEDERATED_DB;
-  federated_hton.commit= federated_commit;
-  federated_hton.rollback= federated_rollback;
-  federated_hton.create= federated_create_handler;
-  federated_hton.panic= federated_db_end;
-  federated_hton.flags= HTON_ALTER_NOT_SUPPORTED;
+  federated_hton= (handlerton *)p;
+  federated_hton->state= SHOW_OPTION_YES;
+  federated_hton->db_type= DB_TYPE_FEDERATED_DB;
+  federated_hton->commit= federated_commit;
+  federated_hton->rollback= federated_rollback;
+  federated_hton->create= federated_create_handler;
+  federated_hton->panic= federated_db_end;
+  federated_hton->flags= HTON_ALTER_NOT_SUPPORTED;
 
   if (pthread_mutex_init(&federated_mutex, MY_MUTEX_INIT_FAST))
     goto error;
@@ -724,7 +724,7 @@ error:
 *****************************************************************************/
 
 ha_federated::ha_federated(TABLE_SHARE *table_arg)
-  :handler(&federated_hton, table_arg),
+  :handler(federated_hton, table_arg),
   mysql(0), stored_result(0)
 {
   trx_next= 0;
@@ -2736,7 +2736,7 @@ bool ha_federated::get_error_message(int error, String* buf)
 int ha_federated::external_lock(THD *thd, int lock_type)
 {
   int error= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton.slot];
+  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton->slot];
   DBUG_ENTER("ha_federated::external_lock");
 
   if (lock_type != F_UNLCK)
@@ -2754,7 +2754,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
         DBUG_PRINT("info", ("error setting autocommit TRUE: %d", error));
         DBUG_RETURN(error);
       }
-      trans_register_ha(thd, FALSE, &federated_hton);
+      trans_register_ha(thd, FALSE, federated_hton);
     }
     else 
     { 
@@ -2770,8 +2770,8 @@ int ha_federated::external_lock(THD *thd, int lock_type)
           DBUG_PRINT("info", ("error setting autocommit FALSE: %d", error));
           DBUG_RETURN(error);
         }
-        thd->ha_data[federated_hton.slot]= this;
-        trans_register_ha(thd, TRUE, &federated_hton);
+        thd->ha_data[federated_hton->slot]= this;
+        trans_register_ha(thd, TRUE, federated_hton);
         /*
           Send a lock table to the remote end.
           We do not support this at the moment
@@ -2799,7 +2799,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
 static int federated_commit(THD *thd, bool all)
 {
   int return_val= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton.slot];
+  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton->slot];
   DBUG_ENTER("federated_commit");
 
   if (all)
@@ -2814,7 +2814,7 @@ static int federated_commit(THD *thd, bool all)
       if (error && !return_val);
         return_val= error;
     }
-    thd->ha_data[federated_hton.slot]= NULL;
+    thd->ha_data[federated_hton->slot]= NULL;
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));
@@ -2825,7 +2825,7 @@ static int federated_commit(THD *thd, bool all)
 static int federated_rollback(THD *thd, bool all)
 {
   int return_val= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton.slot];
+  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton->slot];
   DBUG_ENTER("federated_rollback");
 
   if (all)
@@ -2840,7 +2840,7 @@ static int federated_rollback(THD *thd, bool all)
       if (error && !return_val)
         return_val= error;
     }
-    thd->ha_data[federated_hton.slot]= NULL;
+    thd->ha_data[federated_hton->slot]= NULL;
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));
@@ -2882,7 +2882,7 @@ int ha_federated::execute_simple_query(const char *query, int len)
 }
 
 struct st_mysql_storage_engine federated_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &federated_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, federated_hton };
 
 mysql_declare_plugin(federated)
 {

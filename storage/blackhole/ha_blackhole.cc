@@ -24,7 +24,7 @@
 
 /* Static declarations for handlerton */
 
-handlerton blackhole_hton;
+handlerton *blackhole_hton;
 static handler *blackhole_create_handler(TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
 {
@@ -37,7 +37,7 @@ static handler *blackhole_create_handler(TABLE_SHARE *table,
 *****************************************************************************/
 
 ha_blackhole::ha_blackhole(TABLE_SHARE *table_arg)
-  :handler(&blackhole_hton, table_arg)
+  :handler(blackhole_hton, table_arg)
 {}
 
 
@@ -201,17 +201,18 @@ int ha_blackhole::index_last(byte * buf)
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
-static int blackhole_init()
+static int blackhole_init(void *p)
 {
-  blackhole_hton.state= SHOW_OPTION_YES;
-  blackhole_hton.db_type= DB_TYPE_BLACKHOLE_DB;
-  blackhole_hton.create= blackhole_create_handler;
-  blackhole_hton.flags= HTON_CAN_RECREATE;
+  blackhole_hton= (handlerton *)p;
+  blackhole_hton->state= SHOW_OPTION_YES;
+  blackhole_hton->db_type= DB_TYPE_BLACKHOLE_DB;
+  blackhole_hton->create= blackhole_create_handler;
+  blackhole_hton->flags= HTON_CAN_RECREATE;
   return 0;
 }
 
 struct st_mysql_storage_engine blackhole_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &blackhole_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, blackhole_hton };
 
 mysql_declare_plugin(blackhole)
 {

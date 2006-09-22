@@ -275,7 +275,7 @@ int vio_close(Vio * vio)
  if (vio->type != VIO_CLOSED)
   {
     DBUG_ASSERT(vio->sd >= 0);
-    if (shutdown(vio->sd,2))
+    if (shutdown(vio->sd, SHUT_RDWR))
       r= -1;
     if (closesocket(vio->sd))
       r= -1;

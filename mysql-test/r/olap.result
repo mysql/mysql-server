@@ -611,7 +611,7 @@ C
 NULL
 EXPLAIN SELECT type FROM v1 GROUP BY type WITH ROLLUP;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	Using filesort
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (a int(11) NOT NULL);
