@@ -67,7 +67,7 @@ static struct my_option my_long_options[] =
   { "ndb-connectstring", 256,
     "Set connect string for connecting to ndb_mgmd. " 
     "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " 
-    "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg", 
+    "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf", 
     (gptr*) &g_connectstring, (gptr*) &g_connectstring, 
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "ndb-shm", 256, "Print nodes",
