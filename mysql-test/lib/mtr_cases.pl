@@ -503,6 +503,13 @@ sub collect_one_test_case($$$$$$$) {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test need debug binaries";
     }
+
+    if ( $tinfo->{'innodb_test'} && ! $::glob_innodb_supported )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test need innodb";
+    }
+
   }
 
   # We can't restart a running server that may be in use
