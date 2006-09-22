@@ -131,8 +131,9 @@ row_build_index_entry(
 	}
 
 	for (i = 0; i < entry_len; i++) {
+		const dict_col_t*	col;
 		ind_field = dict_index_get_nth_field(index, i);
-		const dict_col_t*	col = ind_field->col;
+		col = ind_field->col;
 
 		dfield = dtuple_get_nth_field(entry, i);
 
