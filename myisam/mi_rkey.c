@@ -86,6 +86,7 @@ int mi_rkey(MI_INFO *info, byte *buf, int inx, const byte *key, uint key_len,
     if (info->lastpos >= info->state->data_file_length &&
         (search_flag != HA_READ_KEY_EXACT ||
          last_used_keyseg != keyinfo->seg + keyinfo->keysegs))
+    {
       do
       {
         uint not_used;
