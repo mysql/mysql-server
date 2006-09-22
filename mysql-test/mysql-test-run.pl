@@ -332,6 +332,7 @@ our @data_dir_lst;
 our $used_binlog_format;
 our $debug_compiled_binaries;
 our $glob_tot_real_time= 0;
+our $glob_innodb_supported;
 
 ######################################################################
 #
@@ -350,6 +351,7 @@ sub cleanup_stale_files ();
 sub check_ssl_support ();
 sub check_running_as_root();
 sub check_ndbcluster_support ();
+sub check_innodb_support ();
 sub rm_ndbcluster_tables ($);
 sub ndbcluster_start_install ($);
 sub ndbcluster_start ($$);
@@ -390,6 +392,7 @@ sub main () {
   executable_setup();
 
   check_ndbcluster_support();
+  check_innodb_support();
   check_ssl_support();
   check_debug_support();
 
@@ -1831,6 +1834,25 @@ sub check_debug_support () {
   }
   mtr_report("Binaries are debug compiled");
   $debug_compiled_binaries= 1;
+}
+
+sub check_innodb_support () {
+
+  # check innodb support by testing using a switch
+  # that is only available in that case
+  if ( mtr_run($exe_mysqld,
+	       ["--no-defaults",
+	        "--innodb-data-file-path",
+	        "--help"],
+	       "", "/dev/null", "/dev/null", "") != 0 )
+  {
+    # mtr_report("Binaries does not support innodb");
+    $glob_innodb_supported= 0;
+
+    return;
+  }
+  mtr_report("Using innodb when necessary");
+  $glob_innodb_supported= 1;
 }
 
 ##############################################################################
