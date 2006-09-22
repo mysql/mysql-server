@@ -3878,21 +3878,27 @@ void Item::make_field(Send_field *tmp_field)
 }
 
 
-void Item_empty_string::make_field(Send_field *tmp_field)
+enum_field_types Item::string_field_type() const
 {
   enum_field_types type= FIELD_TYPE_VAR_STRING;
   if (max_length >= 16777216)
     type= FIELD_TYPE_LONG_BLOB;
   else if (max_length >= 65536)
     type= FIELD_TYPE_MEDIUM_BLOB;
-  init_make_field(tmp_field, type);
+  return type;
+}
+
+
+void Item_empty_string::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field, string_field_type());
 }
 
 
 enum_field_types Item::field_type() const
 {
   switch (result_type()) {
-  case STRING_RESULT:  return MYSQL_TYPE_VARCHAR;
+  case STRING_RESULT:  return string_field_type();
   case INT_RESULT:     return FIELD_TYPE_LONGLONG;
   case DECIMAL_RESULT: return FIELD_TYPE_NEWDECIMAL;
   case REAL_RESULT:    return FIELD_TYPE_DOUBLE;
