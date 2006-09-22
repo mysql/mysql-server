@@ -3881,8 +3881,8 @@ dict_update_statistics_low(
 
 	index = dict_table_get_first_index(table);
 
-	table->stat_n_rows = index->stat_n_diff_key_vals
-		[dict_index_get_n_unique(index)];
+	table->stat_n_rows = index->stat_n_diff_key_vals[
+		dict_index_get_n_unique(index)];
 
 	table->stat_clustered_index_size = index->stat_index_size;
 
@@ -4080,8 +4080,8 @@ dict_index_print_low(
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (index->n_user_defined_cols > 0) {
-		n_vals = index->stat_n_diff_key_vals
-			[index->n_user_defined_cols];
+		n_vals = index->stat_n_diff_key_vals[
+			index->n_user_defined_cols];
 	} else {
 		n_vals = index->stat_n_diff_key_vals[1];
 	}
@@ -4295,9 +4295,9 @@ dict_print_info_on_foreign_keys(
 				if (i) {
 					putc(' ', file);
 				}
-				ut_print_name(file, trx, FALSE,
-					      foreign->referenced_col_names
-					      [i]);
+				ut_print_name(
+					file, trx, FALSE,
+					foreign->referenced_col_names[i]);
 			}
 
 			putc(')', file);
