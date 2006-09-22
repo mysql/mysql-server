@@ -38,7 +38,6 @@ do
 done
 
 cd to-mysql/storage/innobase
-mv handler ../../sql
 
 mv mysql-test/*.test mysql-test/*.opt ../../mysql-test/t
 mv mysql-test/*.result ../../mysql-test/r
