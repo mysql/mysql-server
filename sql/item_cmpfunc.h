@@ -241,6 +241,7 @@ public:
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
   bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool subst_argument_checker(byte **arg) { return TRUE; }
 };
 
 class Item_func_not :public Item_bool_func
@@ -1186,6 +1187,9 @@ public:
   void traverse_cond(Cond_traverser, void *arg, traverse_order order);
   void neg_arguments(THD *thd);
   bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool subst_argument_checker(byte **arg) { return TRUE; }
+  Item *compile(Item_analyzer analyzer, byte **arg_p,
+                Item_transformer transformer, byte *arg_t);
 };
 
 

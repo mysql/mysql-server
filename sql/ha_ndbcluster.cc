@@ -74,13 +74,13 @@ static const int max_transactions= 3; // should really be 2 but there is a trans
 
 static uint ndbcluster_partition_flags();
 static uint ndbcluster_alter_table_flags(uint flags);
-static int ndbcluster_init(void);
+static int ndbcluster_init(void *);
 static int ndbcluster_end(ha_panic_function flag);
 static bool ndbcluster_show_status(THD*,stat_print_fn *,enum ha_stat_type);
 static int ndbcluster_alter_tablespace(THD* thd, st_alter_tablespace *info);
 static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond);
 
-handlerton ndbcluster_hton;
+handlerton *ndbcluster_hton;
 
 static handler *ndbcluster_create_handler(TABLE_SHARE *table,
                                           MEM_ROOT *mem_root)
@@ -2486,9 +2486,11 @@ int ha_ndbcluster::write_row(byte *record)
     if (has_auto_increment) 
     {
       THD *thd= table->in_use;
+      int error;
 
       m_skip_auto_increment= FALSE;
-      update_auto_increment();
+      if ((error= update_auto_increment()))
+        DBUG_RETURN(error);
       m_skip_auto_increment= (insert_id_for_cur_row == 0);
     }
   }
@@ -4012,7 +4014,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
         thd_ndb->init_open_tables();
         thd_ndb->stmt= trans;
 	thd_ndb->query_state&= NDB_QUERY_NORMAL;
-        trans_register_ha(thd, FALSE, &ndbcluster_hton);
+        trans_register_ha(thd, FALSE, ndbcluster_hton);
       } 
       else 
       { 
@@ -4028,7 +4030,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
           thd_ndb->init_open_tables();
           thd_ndb->all= trans; 
 	  thd_ndb->query_state&= NDB_QUERY_NORMAL;
-          trans_register_ha(thd, TRUE, &ndbcluster_hton);
+          trans_register_ha(thd, TRUE, ndbcluster_hton);
 
           /*
             If this is the start of a LOCK TABLE, a table look 
@@ -4182,7 +4184,7 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
       ERR_RETURN(ndb->getNdbError());
     no_uncommitted_rows_reset(thd);
     thd_ndb->stmt= trans;
-    trans_register_ha(thd, FALSE, &ndbcluster_hton);
+    trans_register_ha(thd, FALSE, ndbcluster_hton);
   }
   thd_ndb->query_state&= NDB_QUERY_NORMAL;
   m_active_trans= trans;
@@ -5551,7 +5553,7 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                 HA_HAS_RECORDS
 
 ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
-  handler(&ndbcluster_hton, table_arg),
+  handler(ndbcluster_hton, table_arg),
   m_active_trans(NULL),
   m_active_cursor(NULL),
   m_table(NULL),
@@ -6394,35 +6396,36 @@ static int connect_callback()
 
 extern int ndb_dictionary_is_mysqld;
 
-static int ndbcluster_init()
+static int ndbcluster_init(void *p)
 {
   int res;
   DBUG_ENTER("ndbcluster_init");
 
   ndb_dictionary_is_mysqld= 1;
+  ndbcluster_hton= (handlerton *)p;
 
   {
-    handlerton &h= ndbcluster_hton;
-    h.state=            have_ndbcluster;
-    h.db_type=          DB_TYPE_NDBCLUSTER;
-    h.close_connection= ndbcluster_close_connection;
-    h.commit=           ndbcluster_commit;
-    h.rollback=         ndbcluster_rollback;
-    h.create=           ndbcluster_create_handler; /* Create a new handler */
-    h.drop_database=    ndbcluster_drop_database;  /* Drop a database */
-    h.panic=            ndbcluster_end;            /* Panic call */
-    h.show_status=      ndbcluster_show_status;    /* Show status */
-    h.alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
-    h.partition_flags=  ndbcluster_partition_flags; /* Partition flags */
-    h.alter_table_flags=ndbcluster_alter_table_flags; /* Alter table flags */
-    h.fill_files_table= ndbcluster_fill_files_table;
+    handlerton *h= ndbcluster_hton;
+    h->state=            have_ndbcluster;
+    h->db_type=          DB_TYPE_NDBCLUSTER;
+    h->close_connection= ndbcluster_close_connection;
+    h->commit=           ndbcluster_commit;
+    h->rollback=         ndbcluster_rollback;
+    h->create=           ndbcluster_create_handler; /* Create a new handler */
+    h->drop_database=    ndbcluster_drop_database;  /* Drop a database */
+    h->panic=            ndbcluster_end;            /* Panic call */
+    h->show_status=      ndbcluster_show_status;    /* Show status */
+    h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
+    h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
+    h->alter_table_flags=ndbcluster_alter_table_flags; /* Alter table flags */
+    h->fill_files_table= ndbcluster_fill_files_table;
 #ifdef HAVE_NDB_BINLOG
     ndbcluster_binlog_init_handlerton();
 #endif
-    h.flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
-    h.discover=         ndbcluster_discover;
-    h.find_files= ndbcluster_find_files;
-    h.table_exists_in_engine= ndbcluster_table_exists_in_engine;
+    h->flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
+    h->discover=         ndbcluster_discover;
+    h->find_files= ndbcluster_find_files;
+    h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
   }
 
   if (have_ndbcluster != SHOW_OPTION_YES)
@@ -6531,6 +6534,8 @@ ndbcluster_init_error:
     delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
   have_ndbcluster= SHOW_OPTION_DISABLED;	// If we couldn't use handler
+  ndbcluster_hton->state= SHOW_OPTION_DISABLED;               // If we couldn't use handler
+
   DBUG_RETURN(TRUE);
 }
 
@@ -8135,7 +8140,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     Wait for cluster to start
   */
   pthread_mutex_lock(&LOCK_ndb_util_thread);
-  while (!ndb_cluster_node_id && (ndbcluster_hton.slot != ~(uint)0))
+  while (!ndb_cluster_node_id && (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
     set_timespec(abstime, 1);
@@ -10744,7 +10749,7 @@ SHOW_VAR ndb_status_variables_export[]= {
 };
 
 struct st_mysql_storage_engine ndbcluster_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &ndbcluster_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, ndbcluster_hton };
 
 mysql_declare_plugin(ndbcluster)
 {

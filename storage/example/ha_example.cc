@@ -78,7 +78,7 @@ static int example_init_func();
 static bool example_init_func_for_handlerton();
 static int example_panic(enum ha_panic_function flag);
 
-handlerton example_hton;
+handlerton *example_hton;
 
 /* Variables for example share methods */
 static HASH example_open_tables; // Hash used to track open tables
@@ -96,25 +96,26 @@ static byte* example_get_key(EXAMPLE_SHARE *share,uint *length,
   return (byte*) share->table_name;
 }
 
-static int example_init_func()
+static int example_init_func(void *p)
 {
   DBUG_ENTER("example_init_func");
   if (!example_init)
   {
+    example_hton= (handlerton *)p;
     example_init= 1;
     VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
     (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
                      (hash_get_key) example_get_key,0,0);
 
-    example_hton.state=   SHOW_OPTION_YES;
-    example_hton.db_type= DB_TYPE_EXAMPLE_DB;
-    example_hton.create=  example_create_handler;
-    example_hton.flags=   HTON_CAN_RECREATE;
+    example_hton->state=   SHOW_OPTION_YES;
+    example_hton->db_type= DB_TYPE_EXAMPLE_DB;
+    example_hton->create=  example_create_handler;
+    example_hton->flags=   HTON_CAN_RECREATE;
   }
   DBUG_RETURN(0);
 }
 
-static int example_done_func()
+static int example_done_func(void *p)
 {
   int error= 0;
   DBUG_ENTER("example_done_func");
@@ -207,7 +208,7 @@ static handler* example_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 
 
 ha_example::ha_example(TABLE_SHARE *table_arg)
-  :handler(&example_hton, table_arg)
+  :handler(example_hton, table_arg)
 {}
 
 /*
@@ -702,7 +703,7 @@ int ha_example::create(const char *name, TABLE *table_arg,
 }
 
 struct st_mysql_storage_engine example_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &example_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, example_hton };
 
 
 mysql_declare_plugin(example)
