@@ -1102,7 +1102,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
       int node_id;
       if (convert(command_list[pos].c_str(), node_id))
       {
-        if (node_id <= 0) {
+        if (node_id <= 0 || node_id > MAX_NODES) {
           ndbout << "Invalid node ID: " << command_list[pos].c_str()
                  << "." << endl;
           DBUG_RETURN(true);
