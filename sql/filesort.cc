@@ -626,6 +626,7 @@ static inline void store_length(uchar *to, uint length, uint pack_length)
     break;
   case 3:
     mi_int3store(to, length);
+    break;
   default:
     mi_int4store(to, length);
     break;
