@@ -179,4 +179,13 @@ show warnings;
 desc t3;
 drop table t1,t2,t3;
 
-# End of 4.1 tests
+#
+# Bug #22129: A small double precision number becomes zero
+#
+# check if underflows are detected correctly
+select 1e-308, 1.00000001e-300, 100000000e-300;
+
+# check if overflows are detected correctly
+select 10e307;
+
+--echo End of 4.1 tests
