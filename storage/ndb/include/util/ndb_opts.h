@@ -58,7 +58,7 @@ const char *opt_debug= 0;
   { "ndb-connectstring", OPT_NDB_CONNECTSTRING, \
     "Set connect string for connecting to ndb_mgmd. " \
     "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " \
-    "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg", \
+    "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf", \
     (gptr*) &opt_ndb_connectstring, (gptr*) &opt_ndb_connectstring, \
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   { "ndb-mgmd-host", OPT_NDB_MGMD, \
