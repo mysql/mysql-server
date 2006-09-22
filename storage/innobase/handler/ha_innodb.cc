@@ -208,7 +208,7 @@ static handler *innobase_create_handler(TABLE_SHARE *table,
 
 static const char innobase_hton_name[]= "InnoDB";
 
-handlerton innobase_hton;
+handlerton *innobase_hton;
 
 static handler *innobase_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
@@ -389,7 +389,7 @@ innobase_release_temporary_latches(
 		return 0;
 	}
 
-	trx = (trx_t*) thd->ha_data[innobase_hton.slot];
+	trx = (trx_t*) thd->ha_data[innobase_hton->slot];
 
 	if (trx) {
 		innobase_release_stat_resources(trx);
@@ -847,7 +847,7 @@ check_trx_exists(
 
 	ut_ad(thd == current_thd);
 
-	trx = (trx_t*) thd->ha_data[innobase_hton.slot];
+	trx = (trx_t*) thd->ha_data[innobase_hton->slot];
 
 	if (trx == NULL) {
 		DBUG_ASSERT(thd != NULL);
@@ -861,7 +861,7 @@ check_trx_exists(
 		CPU time */
 		trx->support_xa = (ibool)(thd->variables.innodb_support_xa);
 
-		thd->ha_data[innobase_hton.slot] = trx;
+		thd->ha_data[innobase_hton->slot] = trx;
 	} else {
 		if (trx->magic_n != TRX_MAGIC_N) {
 			mem_analyze_corruption(trx);
@@ -890,7 +890,7 @@ check_trx_exists(
 Construct ha_innobase handler. */
 
 ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
-  :handler(&innobase_hton, table_arg),
+  :handler(innobase_hton, table_arg),
   int_table_flags(HA_REC_NOT_IN_SEQ |
 		  HA_NULL_IN_KEY |
 		  HA_CAN_INDEX_BLOBS |
@@ -941,7 +941,7 @@ innobase_register_stmt(
 	THD*	thd)	/* in: MySQL thd (connection) object */
 {
 	/* Register the statement */
-	trans_register_ha(thd, FALSE, &innobase_hton);
+	trans_register_ha(thd, FALSE, innobase_hton);
 }
 
 /*************************************************************************
@@ -965,7 +965,7 @@ innobase_register_trx_and_stmt(
 	if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
 		/* No autocommit mode, register for a transaction */
-		trans_register_ha(thd, TRUE, &innobase_hton);
+		trans_register_ha(thd, TRUE, innobase_hton);
 	}
 }
 
@@ -1329,7 +1329,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 Opens an InnoDB database. */
 
 int
-innobase_init(void)
+innobase_init(void *p)
 /*===============*/
 {
 	static char	current_dir[3];		/* Set if using current lib */
@@ -1338,31 +1338,32 @@ innobase_init(void)
 	char		*default_path;
 
 	DBUG_ENTER("innobase_init");
+        innobase_hton= (handlerton *)p;
 
-        innobase_hton.state=have_innodb;
-        innobase_hton.db_type= DB_TYPE_INNODB;
-        innobase_hton.savepoint_offset=sizeof(trx_named_savept_t);
-        innobase_hton.close_connection=innobase_close_connection;
-        innobase_hton.savepoint_set=innobase_savepoint;
-        innobase_hton.savepoint_rollback=innobase_rollback_to_savepoint;
-        innobase_hton.savepoint_release=innobase_release_savepoint;
-        innobase_hton.commit=innobase_commit;
-        innobase_hton.rollback=innobase_rollback;
-        innobase_hton.prepare=innobase_xa_prepare;
-        innobase_hton.recover=innobase_xa_recover;
-        innobase_hton.commit_by_xid=innobase_commit_by_xid;
-        innobase_hton.rollback_by_xid=innobase_rollback_by_xid;
-        innobase_hton.create_cursor_read_view=innobase_create_cursor_view;
-        innobase_hton.set_cursor_read_view=innobase_set_cursor_view;
-        innobase_hton.close_cursor_read_view=innobase_close_cursor_view;
-        innobase_hton.create=innobase_create_handler;
-        innobase_hton.drop_database=innobase_drop_database;
-        innobase_hton.panic=innobase_end;
-        innobase_hton.start_consistent_snapshot=innobase_start_trx_and_assign_read_view;
-        innobase_hton.flush_logs=innobase_flush_logs;
-        innobase_hton.show_status=innobase_show_status;
-        innobase_hton.flags=HTON_NO_FLAGS;
-        innobase_hton.release_temporary_latches=innobase_release_temporary_latches;
+        innobase_hton->state=have_innodb;
+        innobase_hton->db_type= DB_TYPE_INNODB;
+        innobase_hton->savepoint_offset=sizeof(trx_named_savept_t);
+        innobase_hton->close_connection=innobase_close_connection;
+        innobase_hton->savepoint_set=innobase_savepoint;
+        innobase_hton->savepoint_rollback=innobase_rollback_to_savepoint;
+        innobase_hton->savepoint_release=innobase_release_savepoint;
+        innobase_hton->commit=innobase_commit;
+        innobase_hton->rollback=innobase_rollback;
+        innobase_hton->prepare=innobase_xa_prepare;
+        innobase_hton->recover=innobase_xa_recover;
+        innobase_hton->commit_by_xid=innobase_commit_by_xid;
+        innobase_hton->rollback_by_xid=innobase_rollback_by_xid;
+        innobase_hton->create_cursor_read_view=innobase_create_cursor_view;
+        innobase_hton->set_cursor_read_view=innobase_set_cursor_view;
+        innobase_hton->close_cursor_read_view=innobase_close_cursor_view;
+        innobase_hton->create=innobase_create_handler;
+        innobase_hton->drop_database=innobase_drop_database;
+        innobase_hton->panic=innobase_end;
+        innobase_hton->start_consistent_snapshot=innobase_start_trx_and_assign_read_view;
+        innobase_hton->flush_logs=innobase_flush_logs;
+        innobase_hton->show_status=innobase_show_status;
+        innobase_hton->flags=HTON_NO_FLAGS;
+        innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
 
 	 if (have_innodb != SHOW_OPTION_YES)
 	   DBUG_RETURN(0); // nothing else to do
@@ -1939,7 +1940,7 @@ innobase_commit_complete(
 {
 	trx_t*	trx;
 
-	trx = (trx_t*) thd->ha_data[innobase_hton.slot];
+	trx = (trx_t*) thd->ha_data[innobase_hton->slot];
 
 	if (trx && trx->active_trans) {
 
@@ -2158,7 +2159,7 @@ innobase_close_connection(
 {
 	trx_t*	trx;
 
-	trx = (trx_t*)thd->ha_data[innobase_hton.slot];
+	trx = (trx_t*)thd->ha_data[innobase_hton->slot];
 
 	ut_a(trx);
 
@@ -3251,11 +3252,11 @@ ha_innobase::write_row(
 	DBUG_ENTER("ha_innobase::write_row");
 
 	if (prebuilt->trx !=
-			(trx_t*) current_thd->ha_data[innobase_hton.slot]) {
+			(trx_t*) current_thd->ha_data[innobase_hton->slot]) {
 	  sql_print_error("The transaction object for the table handle is at "
 			  "%p, but for the current thread it is at %p",
 			  prebuilt->trx,
-			  (trx_t*) current_thd->ha_data[innobase_hton.slot]);
+			  (trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
 		ut_print_buf(stderr, ((const byte*)prebuilt) - 100, 200);
@@ -3263,7 +3264,7 @@ ha_innobase::write_row(
 			"InnoDB: Dump of 200 bytes around transaction.all: ",
 			stderr);
 		ut_print_buf(stderr,
-		 ((byte*)(&(current_thd->ha_data[innobase_hton.slot]))) - 100,
+		 ((byte*)(&(current_thd->ha_data[innobase_hton->slot]))) - 100,
 								200);
 		putc('\n', stderr);
 		ut_error;
@@ -3400,7 +3401,8 @@ no_commit:
 		/* We must use the handler code to update the auto-increment
 		value to be sure that we increment it correctly. */
 
-		update_auto_increment();
+    		if ((error= update_auto_increment()))
+			goto func_exit;
 		auto_inc_used = 1;
 
 	}
@@ -3635,7 +3637,7 @@ ha_innobase::update_row(
 	DBUG_ENTER("ha_innobase::update_row");
 
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
 		table->timestamp_field->set_time();
@@ -3696,7 +3698,7 @@ ha_innobase::delete_row(
 	DBUG_ENTER("ha_innobase::delete_row");
 
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	if (last_query_id != user_thd->query_id) {
 		prebuilt->sql_stat_start = TRUE;
@@ -3794,7 +3796,7 @@ ha_innobase::try_semi_consistent_read(bool yes)
 	row_prebuilt_t*	prebuilt = (row_prebuilt_t*) innobase_prebuilt;
 
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	/* Row read type is set to semi consistent read if this was
 	requested by the MySQL and either innodb_locks_unsafe_for_binlog
@@ -3961,7 +3963,7 @@ ha_innobase::index_read(
 	DBUG_ENTER("index_read");
 
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	statistic_increment(current_thd->status_var.ha_read_key_count,
 		&LOCK_status);
@@ -4076,7 +4078,7 @@ ha_innobase::change_active_index(
 
 	ut_ad(user_thd == current_thd);
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	active_index = keynr;
 
@@ -4166,7 +4168,7 @@ ha_innobase::general_fetch(
 	DBUG_ENTER("general_fetch");
 
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	innodb_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -4402,7 +4404,7 @@ ha_innobase::rnd_pos(
 		&LOCK_status);
 
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -4452,7 +4454,7 @@ ha_innobase::position(
 	uint		len;
 
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	if (prebuilt->clust_index_was_generated) {
 		/* No primary key was defined for the table and we
@@ -4953,7 +4955,7 @@ ha_innobase::discard_or_import_tablespace(
 
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	dict_table = prebuilt->table;
 	trx = prebuilt->trx;
@@ -5281,7 +5283,7 @@ ha_innobase::records_in_range(
 	DBUG_ENTER("records_in_range");
 
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	prebuilt->trx->op_info = (char*)"estimating records in index range";
 
@@ -5723,7 +5725,7 @@ ha_innobase::check(
 
 	ut_a(prebuilt->trx && prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	if (prebuilt->mysql_template == NULL) {
 		/* Build the template; we will use a dummy template
@@ -6007,7 +6009,7 @@ ha_innobase::can_switch_engines(void)
 	DBUG_ENTER("ha_innobase::can_switch_engines");
 
 	ut_a(prebuilt->trx ==
-		(trx_t*) current_thd->ha_data[innobase_hton.slot]);
+		(trx_t*) current_thd->ha_data[innobase_hton->slot]);
 
 	prebuilt->trx->op_info =
 			"determining if there are foreign key constraints";
@@ -7605,7 +7607,7 @@ SHOW_VAR innodb_status_variables_export[]= {
 };
 
 struct st_mysql_storage_engine innobase_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &innobase_hton};
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, innobase_hton};
 
 mysql_declare_plugin(innobase)
 {

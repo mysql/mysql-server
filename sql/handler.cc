@@ -97,7 +97,7 @@ handlerton *ha_default_handlerton(THD *thd)
   return (thd->variables.table_type != NULL) ?
           thd->variables.table_type :
           (global_system_variables.table_type != NULL ?
-           global_system_variables.table_type : &myisam_hton);
+           global_system_variables.table_type : myisam_hton);
 }
 
 
@@ -332,6 +332,8 @@ static int ha_init_errors(void)
   SETMSG(HA_ERR_FOREIGN_DUPLICATE_KEY,  "FK constraint would lead to duplicate key");
   SETMSG(HA_ERR_TABLE_NEEDS_UPGRADE,    ER(ER_TABLE_NEEDS_UPGRADE));
   SETMSG(HA_ERR_TABLE_READONLY,         ER(ER_OPEN_AS_READONLY));
+  SETMSG(HA_ERR_AUTOINC_READ_FAILED,    ER(ER_AUTOINC_READ_FAILED));
+  SETMSG(HA_ERR_AUTOINC_ERANGE,         ER(ER_WARN_DATA_OUT_OF_RANGE));
 
   /* Register the error messages for use with my_error(). */
   return my_error_register(errmsgs, HA_ERR_FIRST, HA_ERR_LAST);
@@ -378,16 +380,45 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
       DBUG_RETURN(1);
     break;
   };
+
+  if (plugin->plugin->deinit)
+  {
+    /*
+      Today we have no defined/special behavior for uninstalling
+      engine plugins.
+    */
+    DBUG_PRINT("info", ("Deinitializing plugin: '%s'", plugin->name.str));
+    if (plugin->plugin->deinit(NULL))
+    {
+      DBUG_PRINT("warning", ("Plugin '%s' deinit function returned error.",
+                             plugin->name.str));
+    }
+  }
+
+  my_free((gptr)hton, MYF(0));
+
   DBUG_RETURN(0);
 }
 
 
 int ha_initialize_handlerton(st_plugin_int *plugin)
 {
-  handlerton *hton= ((st_mysql_storage_engine *)plugin->plugin->info)->handlerton;
+  handlerton *hton;
   DBUG_ENTER("ha_initialize_handlerton");
 
+  hton= (handlerton *)my_malloc(sizeof(handlerton),
+                                MYF(MY_WME | MY_ZEROFILL));
+  /* Historical Requirement */
   plugin->data= hton; // shortcut for the future
+  if (plugin->plugin->init)
+  {
+    if (plugin->plugin->init(hton))
+    {
+      sql_print_error("Plugin '%s' init function returned error.",
+                      plugin->name.str);
+      goto err;
+    }
+  }
 
   /*
     the switch below and hton->state should be removed when
@@ -435,6 +466,8 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     break;
   }
   DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
 }
 
 int ha_init()
@@ -1403,6 +1436,17 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
+handler *handler::clone(MEM_ROOT *mem_root)
+{
+  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type);
+  if (new_handler && !new_handler->ha_open(table,
+                                           table->s->normalized_path.str,
+                                           table->db_stat,
+                                           HA_OPEN_IGNORE_IF_LOCKED))
+    return new_handler;
+  return NULL;
+}
+
 
 
 void handler::ha_statistic_increment(ulong SSV::*offset) const
@@ -1614,7 +1658,10 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
 
   RETURN
     0	ok
-    1 	get_auto_increment() was called and returned ~(ulonglong) 0
+    HA_ERR_AUTOINC_READ_FAILED
+     	get_auto_increment() was called and returned ~(ulonglong) 0
+    HA_ERR_AUTOINC_ERANGE
+        storing value in field caused strict mode failure.
     
 
   IMPLEMENTATION
@@ -1683,14 +1730,13 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
 #define AUTO_INC_DEFAULT_NB_MAX_BITS 16
 #define AUTO_INC_DEFAULT_NB_MAX ((1 << AUTO_INC_DEFAULT_NB_MAX_BITS) - 1)
 
-bool handler::update_auto_increment()
+int handler::update_auto_increment()
 {
   ulonglong nr, nb_reserved_values;
   bool append= FALSE;
   THD *thd= table->in_use;
   struct system_variables *variables= &thd->variables;
   bool auto_increment_field_not_null;
-  bool result= 0;
   DBUG_ENTER("handler::update_auto_increment");
 
   /*
@@ -1767,7 +1813,7 @@ bool handler::update_auto_increment()
                          nb_desired_values, &nr,
                          &nb_reserved_values);
       if (nr == ~(ulonglong) 0)
-        result= 1;                                // Mark failure
+        DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
       
       /*
         That rounding below should not be needed when all engines actually
@@ -1802,6 +1848,12 @@ bool handler::update_auto_increment()
   if (unlikely(table->next_number_field->store((longlong) nr, TRUE)))
   {
     /*
+      first test if the query was aborted due to strict mode constraints
+    */
+    if (thd->killed == THD::KILL_BAD_DATA)
+      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
+
+    /*
       field refused this value (overflow) and truncated it, use the result of
       the truncation (which is going to be inserted); however we try to
       decrease it to honour auto_increment_* variables.
@@ -1819,7 +1871,6 @@ bool handler::update_auto_increment()
                                           variables->auto_increment_increment);
     /* Row-based replication does not need to store intervals in binlog */
     if (!thd->current_stmt_binlog_row_based)
-      result= result ||
         thd->auto_inc_intervals_in_cur_stmt_for_binlog.append(auto_inc_interval_for_cur_row.minimum(),
                                                               auto_inc_interval_for_cur_row.values(),
                                                               variables->auto_increment_increment);
@@ -1839,7 +1890,7 @@ bool handler::update_auto_increment()
   */
   set_next_insert_id(compute_next_insert_id(nr, variables));
 
-  DBUG_RETURN(result);
+  DBUG_RETURN(0);
 }
 
 
@@ -2133,6 +2184,12 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_TABLE_READONLY:
     textno= ER_OPEN_AS_READONLY;
+    break;
+  case HA_ERR_AUTOINC_READ_FAILED:
+    textno= ER_AUTOINC_READ_FAILED;
+    break;
+  case HA_ERR_AUTOINC_ERANGE:
+    textno= ER_WARN_DATA_OUT_OF_RANGE;
     break;
   default:
     {

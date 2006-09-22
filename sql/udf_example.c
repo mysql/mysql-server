@@ -674,10 +674,14 @@ longlong sequence(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
 **
 ****************************************************************************/
 
+#ifdef __WIN__
+#include <winsock.h>
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#endif
 
 my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void lookup_deinit(UDF_INIT *initid);

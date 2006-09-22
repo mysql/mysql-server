@@ -103,7 +103,7 @@ extern pthread_mutex_t injector_mutex;
 extern pthread_cond_t  injector_cond;
 
 extern unsigned char g_node_id_map[max_ndb_nodes];
-extern handlerton ndbcluster_hton;
+extern handlerton *ndbcluster_hton;
 extern pthread_t ndb_util_thread;
 extern pthread_mutex_t LOCK_ndb_util_thread;
 extern pthread_cond_t COND_ndb_util_thread;
@@ -214,10 +214,10 @@ inline void real_free_share(NDB_SHARE **share)
 
 inline
 Thd_ndb *
-get_thd_ndb(THD *thd) { return (Thd_ndb *) thd->ha_data[ndbcluster_hton.slot]; }
+get_thd_ndb(THD *thd) { return (Thd_ndb *) thd->ha_data[ndbcluster_hton->slot]; }
 
 inline
 void
-set_thd_ndb(THD *thd, Thd_ndb *thd_ndb) { thd->ha_data[ndbcluster_hton.slot]= thd_ndb; }
+set_thd_ndb(THD *thd, Thd_ndb *thd_ndb) { thd->ha_data[ndbcluster_hton->slot]= thd_ndb; }
 
 Ndb* check_ndb_in_thd(THD* thd);

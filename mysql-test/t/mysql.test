@@ -85,7 +85,6 @@ drop table t1;
 --exec $MYSQL test -e "select unhex('zz');" 
 --exec $MYSQL -t test -e "select unhex('zz');" 
 
-#
 # Bug#19265 describe command does not work from mysql prompt
 #
 

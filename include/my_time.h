@@ -33,7 +33,12 @@ extern uchar days_in_month[];
   Portable time_t replacement.
   Should be signed and hold seconds for 1902-2038 range.
 */
+#if defined(_WIN64) || defined(WIN64)
+/* on Win64 long is still 4 bytes (not 8!) */
+typedef LONG64 my_time_t;
+#else
 typedef long my_time_t;
+#endif
 
 #define MY_TIME_T_MAX LONG_MAX
 #define MY_TIME_T_MIN LONG_MIN

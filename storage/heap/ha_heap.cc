@@ -27,15 +27,17 @@
 
 static handler *heap_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
 
-handlerton heap_hton;
+handlerton *heap_hton;
 
-int heap_init()
+int heap_init(void *p)
 {
-  heap_hton.state=      SHOW_OPTION_YES;
-  heap_hton.db_type=    DB_TYPE_HEAP;
-  heap_hton.create=     heap_create_handler;
-  heap_hton.panic=      heap_panic;
-  heap_hton.flags=      HTON_CAN_RECREATE;
+  heap_hton= (handlerton *)p;
+  heap_hton->state=      SHOW_OPTION_YES;
+  heap_hton->db_type=    DB_TYPE_HEAP;
+  heap_hton->create=     heap_create_handler;
+  heap_hton->panic=      heap_panic;
+  heap_hton->flags=      HTON_CAN_RECREATE;
+
   return 0;
 }
 
@@ -50,7 +52,7 @@ static handler *heap_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 *****************************************************************************/
 
 ha_heap::ha_heap(TABLE_SHARE *table_arg)
-  :handler(&heap_hton, table_arg), file(0), records_changed(0),
+  :handler(heap_hton, table_arg), file(0), records_changed(0),
   key_stat_version(0)
 {}
 
@@ -174,7 +176,10 @@ int ha_heap::write_row(byte * buf)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
-    update_auto_increment();
+  {
+    if ((res= update_auto_increment()))
+      return res;
+  }
   res= heap_write(file,buf);
   if (!res && (++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
                file->s->records))
@@ -696,7 +701,7 @@ bool ha_heap::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 struct st_mysql_storage_engine heap_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &heap_hton};
+{ MYSQL_HANDLERTON_INTERFACE_VERSION, heap_hton};
 
 mysql_declare_plugin(heap)
 {
