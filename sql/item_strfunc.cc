@@ -88,6 +88,7 @@ String *Item_func_md5::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
+  str->set_charset(&my_charset_bin);
   if (sptr)
   {
     my_MD5_CTX context;
@@ -134,6 +135,7 @@ String *Item_func_sha::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
+  str->set_charset(&my_charset_bin);
   if (sptr)  /* If we got value different from NULL */
   {
     SHA1_CONTEXT context;  /* Context used to generate SHA1 hash */
@@ -1546,7 +1548,7 @@ String *Item_func_encrypt::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  str->set(tmp,(uint) strlen(tmp),res->charset());
+  str->set(tmp, (uint) strlen(tmp), &my_charset_bin);
   str->copy();
   pthread_mutex_unlock(&LOCK_crypt);
   return str;
@@ -1943,7 +1945,7 @@ String *Item_func_make_set::val_str(String *str)
 	      return &my_empty_string;
 	    result= &tmp_str;
 	  }
-	  if (tmp_str.append(',') || tmp_str.append(*res))
+	  if (tmp_str.append(",", 1, &my_charset_bin) || tmp_str.append(*res))
 	    return &my_empty_string;
 	}
       }
@@ -2609,8 +2611,12 @@ String* Item_func_export_set::val_str(String* str)
     }
     break;
   case 3:
-    sep_buf.set(",", 1, default_charset());
-    sep = &sep_buf;
+    {
+      /* errors is not checked - assume "," can always be converted */
+      uint errors;
+      sep_buf.copy(",", 1, &my_charset_bin, collation.collation, &errors);
+      sep = &sep_buf;
+    }
     break;
   default:
     DBUG_ASSERT(0); // cannot happen
@@ -2635,8 +2641,8 @@ void Item_func_export_set::fix_length_and_dec()
   uint sep_length=(arg_count > 3 ? args[3]->max_length : 1);
   max_length=length*64+sep_length*63;
 
-  if (agg_arg_charsets(collation, args+1, min(4,arg_count)-1),
-                       MY_COLL_ALLOW_CONV)
+  if (agg_arg_charsets(collation, args+1, min(4,arg_count)-1,
+                       MY_COLL_ALLOW_CONV))
     return;
 }
 

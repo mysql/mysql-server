@@ -1359,10 +1359,14 @@ int show_binlogs(THD* thd)
                                            MYSQL_TYPE_LONGLONG));
   if (protocol->send_fields(&field_list, 1))
     DBUG_RETURN(1);
+  
+  pthread_mutex_lock(mysql_bin_log.get_log_lock());
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
-
-  mysql_bin_log.get_current_log(&cur);
+  
+  mysql_bin_log.raw_get_current_log(&cur); // dont take mutex
+  pthread_mutex_unlock(mysql_bin_log.get_log_lock()); // lockdep, OK
+  
   cur_dir_len= dirname_length(cur.log_file_name);
 
   reinit_io_cache(index_file, READ_CACHE, (my_off_t) 0, 0, 0);
