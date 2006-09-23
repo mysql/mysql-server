@@ -905,13 +905,13 @@ sub command_line_setup () {
   if ( ! $opt_testcase_timeout )
   {
     $opt_testcase_timeout= $default_testcase_timeout;
-    $opt_testcase_timeout*= 10 if defined $opt_valgrind;
+    $opt_testcase_timeout*= 10 if $opt_valgrind;
   }
 
   if ( ! $opt_suite_timeout )
   {
     $opt_suite_timeout= $default_suite_timeout;
-    $opt_suite_timeout*= 4 if defined $opt_valgrind;
+    $opt_suite_timeout*= 6 if $opt_valgrind;
   }
 
   # Increase times to wait for executables to start if using valgrind
@@ -943,6 +943,7 @@ sub command_line_setup () {
 
   $master->[0]=
   {
+   pid           => 0,
    type          => "master",
    idx           => 0,
    path_myddir   => "$opt_vardir/master-data",
@@ -958,6 +959,7 @@ sub command_line_setup () {
 
   $master->[1]=
   {
+   pid           => 0,
    type          => "master",
    idx           => 1,
    path_myddir   => "$opt_vardir/master1-data",
@@ -973,6 +975,7 @@ sub command_line_setup () {
 
   $slave->[0]=
   {
+   pid           => 0,
    type          => "slave",
    idx           => 0,
    path_myddir   => "$opt_vardir/slave-data",
@@ -989,6 +992,7 @@ sub command_line_setup () {
 
   $slave->[1]=
   {
+   pid           => 0,
    type          => "slave",
    idx           => 1,
    path_myddir   => "$opt_vardir/slave1-data",
@@ -1004,6 +1008,7 @@ sub command_line_setup () {
 
   $slave->[2]=
   {
+   pid           => 0,
    type          => "slave",
    idx           => 2,
    path_myddir   => "$opt_vardir/slave2-data",
@@ -1064,7 +1069,7 @@ sub command_line_setup () {
    connect_string  => "$opt_ndbconnectstring",
    path_pid        => "$data_dir/ndb_3.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
-   installed_ok    => 'NO',
+   installed_ok    => 0,
   };
 
   $data_dir= "$opt_vardir/ndbcluster-$opt_ndbcluster_port_slave";
@@ -1077,7 +1082,7 @@ sub command_line_setup () {
    connect_string  => "$opt_ndbconnectstring_slave",
    path_pid        => "$data_dir/ndb_2.pid", # Nodes + 1
    pid             => 0, # pid of ndb_mgmd
-   installed_ok    => 'NO',
+   installed_ok    => 0,
   };
 
   # Init pids of ndbd's
@@ -1172,9 +1177,9 @@ sub executable_setup () {
                                            "$path_client_bindir/mysqld-nt",
                                            "$path_client_bindir/mysqld",
                                            "$path_client_bindir/mysqld-max",
+                                           "$path_client_bindir/mysqld-debug",
                                            "$glob_basedir/sql/release/mysqld",
                                            "$glob_basedir/sql/debug/mysqld");
-                                           "$path_client_bindir/mysqld-debug",
       $path_language=      mtr_path_exists("$glob_basedir/share/english/",
                                            "$glob_basedir/sql/share/english/");
       $path_charsetsdir=   mtr_path_exists("$glob_basedir/share/charsets",
@@ -1539,7 +1544,8 @@ sub environment_setup () {
   my $cmdline_mysql=
     "$exe_mysql --no-defaults --host=localhost  --user=root --password= " .
     "--port=$master->[0]->{'port'} " .
-    "--socket=$master->[0]->{'path_sock'}";
+    "--socket=$master->[0]->{'path_sock'} ".
+    "--character-sets-dir=$path_charsetsdir";
 
   $ENV{'MYSQL'}= $cmdline_mysql;
 
@@ -1662,7 +1668,7 @@ sub kill_running_server () {
   {
     # Ensure that no old mysqld test servers are running
     # This is different from terminating processes we have
-    # started from ths run of the script, this is terminating
+    # started from this run of the script, this is terminating
     # leftovers from previous runs.
 
     mtr_report("Killing Possible Leftover Processes");
@@ -2256,9 +2262,9 @@ sub mysql_install_db () {
 
   if ( $use_slaves )
   {
-    install_db('slave',  $slave->[0]->{'path_myddir'});
-    install_db('slave',  $slave->[1]->{'path_myddir'});
-    install_db('slave',  $slave->[2]->{'path_myddir'});
+    install_db('slave1',  $slave->[0]->{'path_myddir'});
+    install_db('slave2',  $slave->[1]->{'path_myddir'});
+    install_db('slave3',  $slave->[2]->{'path_myddir'});
   }
 
   if ( ! $opt_skip_im )
@@ -2280,20 +2286,17 @@ sub mysql_install_db () {
 
     next if !$cluster->{'pid'};
 
-    $cluster->{'installed_ok'}= "YES"; # Assume install suceeds
+    $cluster->{'installed_ok'}= 1; # Assume install suceeds
 
     if (ndbcluster_wait_started($cluster, ""))
     {
       # failed to install, disable usage and flag that its no ok
       mtr_report("ndbcluster_install of $cluster->{'name'} failed");
-      $cluster->{"installed_ok"}= "NO";
+      $cluster->{"installed_ok"}= 0;
 
       $cluster_started_ok= 0;
     }
   }
-
-  $ENV{'NDB_STATUS_OK'}=            $clusters->[0]->{'installed_ok'};
-  $ENV{'NDB_SLAVE_STATUS_OK'}=      $clusters->[1]->{'installed_ok'};;
 
   if ( ! $cluster_started_ok )
   {
@@ -2371,6 +2374,12 @@ sub install_db ($$) {
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/bootstrap_%s.trace",
+		$opt_vardir_trace, $type);
+  }
 
   if ( ! $opt_netware )
   {
@@ -2505,7 +2514,7 @@ sub run_testcase_check_skip_test($)
   }
 
   # If test needs cluster, check that master installed ok
-  if ( $tinfo->{'ndb_test'}  and $clusters->[0]->{'installed_ok'} eq "NO" )
+  if ( $tinfo->{'ndb_test'}  and !$clusters->[0]->{'installed_ok'} )
   {
     mtr_report_test_name($tinfo);
     mtr_report_test_failed($tinfo);
@@ -2514,7 +2523,7 @@ sub run_testcase_check_skip_test($)
 
   # If test needs slave cluster, check that it installed ok
   if ( $tinfo->{'ndb_test'}  and $tinfo->{'slave_num'} and
-       $clusters->[1]->{'installed_ok'} eq "NO" )
+       !$clusters->[1]->{'installed_ok'} )
   {
     mtr_report_test_name($tinfo);
     mtr_report_test_failed($tinfo);
@@ -2879,7 +2888,7 @@ sub mysqld_arguments ($$$$$) {
   mtr_add_arg($args, "%s--console", $prefix);
   mtr_add_arg($args, "%s--basedir=%s", $prefix, $path_my_basedir);
   mtr_add_arg($args, "%s--character-sets-dir=%s", $prefix, $path_charsetsdir);
-  mtr_add_arg($args, "%s--core", $prefix);
+
   mtr_add_arg($args, "%s--log-bin-trust-function-creators", $prefix);
   mtr_add_arg($args, "%s--default-character-set=latin1", $prefix);
   mtr_add_arg($args, "%s--language=%s", $prefix, $path_language);
@@ -2940,8 +2949,6 @@ sub mysqld_arguments ($$$$$) {
 
     mtr_add_arg($args, "%s--datadir=%s", $prefix,
                 $slave->[$idx]->{'path_myddir'});
-    # FIXME slave get this option twice?!
-    mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--init-rpl-role=slave", $prefix);
     if (! $opt_skip_slave_binlog)
     {
@@ -3059,9 +3066,22 @@ sub mysqld_arguments ($$$$$) {
     mtr_add_arg($args, "%s--user=root", $prefix);
   }
 
+  my $found_skip_core= 0;
   foreach my $arg ( @opt_extra_mysqld_opt, @$extra_opt )
   {
-    mtr_add_arg($args, "%s%s", $prefix, $arg);
+    # Allow --skip-core-file to be set in master.opt file
+    if ($arg eq "--skip-core-file")
+    {
+      $found_skip_core= 1;
+    }
+    else
+    {
+      mtr_add_arg($args, "%s%s", $prefix, $arg);
+    }
+  }
+  if ( !$found_skip_core )
+  {
+    mtr_add_arg($args, "%s%s", $prefix, "--core-file");
   }
 
   if ( $opt_bench )
@@ -3071,7 +3091,6 @@ sub mysqld_arguments ($$$$$) {
   }
   elsif ( $type eq 'master' )
   {
-    mtr_add_arg($args, "%s--exit-info=256", $prefix);
     mtr_add_arg($args, "%s--open-files-limit=1024", $prefix);
     mtr_add_arg($args, "%s--log=%s", $prefix, $master->[0]->{'path_mylog'});
   }
@@ -3103,13 +3122,13 @@ sub mysqld_start ($$$) {
   {
     $exe= $exe_master_mysqld;
   }
-  if ( $type eq 'slave' )
+  elsif ( $type eq 'slave' )
   {
     $exe= $exe_slave_mysqld;
   }
   else
   {
-    $exe= $exe_mysqld;
+    mtr_error("Unknown 'type' \"$type\" passed to mysqld_start");
   }
 
   mtr_init_args(\$args);
@@ -3409,7 +3428,6 @@ sub run_testcase_stop_servers($$$) {
   my $pid;
   my %admin_pids; # hash of admin processes that requests shutdown
   my @kill_pids;  # list of processes to shutdown/kill
-
 
   # Remember if we restarted for this test case
   $tinfo->{'restarted'}= $do_restart;
@@ -3720,7 +3738,6 @@ sub run_check_testcase ($$) {
 
 sub run_mysqltest ($) {
   my ($tinfo)= @_;
-
   my $exe= $exe_mysqltest;
   my $args;
 
