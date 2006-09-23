@@ -20,10 +20,13 @@
 
 #include "tap.h"
 
+#include "my_config.h"
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 
 /**
    Test data structure.
@@ -70,7 +73,7 @@ emit_tap(int pass, char const *fmt, va_list ap)
 /**
    Emit a TAP directive.
 
-   TAP directives are comments after a have the form
+   TAP directives are comments after that have the form:
 
    @code
    ok 1 # skip reason for skipping
@@ -96,6 +99,25 @@ emit_endl()
   fprintf(tapout, "\n");
 }
 
+static void
+handle_core_signal(int signo)
+{
+  BAIL_OUT("Signal %d thrown", signo);
+}
+
+void
+BAIL_OUT(char const *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  fprintf(tapout, "Bail out! ");
+  vfprintf(tapout, fmt, ap);
+  emit_endl();
+  va_end(ap);
+  exit(255);
+}
+
+
 void
 diag(char const *fmt, ...)
 {
@@ -103,14 +125,38 @@ diag(char const *fmt, ...)
   va_start(ap, fmt);
   fprintf(tapout, "# ");
   vfprintf(tapout, fmt, ap);
-  fprintf(tapout, "\n");
+  emit_endl();
   va_end(ap);
 }
 
+typedef struct signal_entry {
+  int signo;
+  void (*handler)(int);
+} signal_entry;
+
+static signal_entry install_signal[]= {
+  { SIGQUIT, handle_core_signal },
+  { SIGILL,  handle_core_signal },
+  { SIGABRT, handle_core_signal },
+  { SIGFPE,  handle_core_signal },
+  { SIGSEGV, handle_core_signal },
+  { SIGBUS,  handle_core_signal },
+  { SIGXCPU, handle_core_signal },
+  { SIGXFSZ, handle_core_signal },
+  { SIGSYS,  handle_core_signal },
+  { SIGTRAP, handle_core_signal }
+};
 
 void
 plan(int const count)
 {
+  /*
+    Install signal handler
+  */
+  size_t i;
+  for (i= 0; i < sizeof(install_signal)/sizeof(*install_signal); ++i)
+    signal(install_signal[i].signo, install_signal[i].handler);
+
   g_test.plan= count;
   switch (count)
   {
