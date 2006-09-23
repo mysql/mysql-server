@@ -127,7 +127,14 @@ typedef long long longlong;
 #else
 #include <my_global.h>
 #include <my_sys.h>
+#if defined(MYSQL_SERVER)
 #include <m_string.h>		/* To get strmov() */
+#else
+/* when compiled as standalone */
+#define strmov(a,b) strcpy(a,b)
+#define bzero(a,b) memset(a,0,b)
+#define memcpy_fixed(a,b,c) memcpy(a,b,c)
+#endif
 #endif
 #include <mysql.h>
 #include <ctype.h>
