@@ -334,7 +334,7 @@ eval_predefined_2(
 
 		if (len2 > len1) {
 			int_val = (lint) (len1
-					 + (eval_rnd % (len2 - len1 + 1)));
+					  + (eval_rnd % (len2 - len1 + 1)));
 		} else {
 			int_val = (lint) len1;
 		}

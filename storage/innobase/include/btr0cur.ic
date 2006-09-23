@@ -56,15 +56,15 @@ btr_cur_get_page(
 }
 
 /*************************************************************
-Returns the tree of a cursor. */
+Returns the index of a cursor. */
 UNIV_INLINE
-dict_tree_t*
-btr_cur_get_tree(
-/*=============*/
-				/* out: tree */
-	btr_cur_t*	cursor)	/* in: tree cursor */
+dict_index_t*
+btr_cur_get_index(
+/*==============*/
+				/* out: index */
+	btr_cur_t*	cursor)	/* in: B-tree cursor */
 {
-	return((cursor->index)->tree);
+	return(cursor->index);
 }
 
 /*************************************************************
@@ -109,15 +109,8 @@ btr_cur_compress_recommendation(
 		one page: we recommend compression if this is not the
 		root page. */
 
-		if (dict_tree_get_page((cursor->index)->tree)
-		    == buf_frame_get_page_no(page)) {
-
-			/* It is the root page */
-
-			return(FALSE);
-		}
-
-		return(TRUE);
+		return(dict_index_get_page(cursor->index)
+		       != buf_frame_get_page_no(page));
 	}
 
 	return(FALSE);
@@ -153,15 +146,8 @@ btr_cur_can_delete_without_compress(
 		one page, OR the page will become empty: we recommend
 		compression if this is not the root page. */
 
-		if (dict_tree_get_page((cursor->index)->tree)
-		    == buf_frame_get_page_no(page)) {
-
-			/* It is the root page */
-
-			return(TRUE);
-		}
-
-		return(FALSE);
+		return(dict_index_get_page(cursor->index)
+		       == buf_frame_get_page_no(page));
 	}
 
 	return(TRUE);
