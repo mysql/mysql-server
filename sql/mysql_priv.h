@@ -1625,67 +1625,34 @@ extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
 
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-extern handlerton *innobase_hton;
 extern SHOW_COMP_OPTION have_innodb;
-#else
-extern SHOW_COMP_OPTION have_innodb;
-#endif
-#ifdef WITH_EXAMPLE_STORAGE_ENGINE
-extern handlerton *example_hton;
 extern SHOW_COMP_OPTION have_example_db;
-#else
-extern SHOW_COMP_OPTION have_example_db;
-#endif
-#ifdef WITH_ARCHIVE_STORAGE_ENGINE
-extern handlerton *archive_hton;
 extern SHOW_COMP_OPTION have_archive_db;
-#else
-extern SHOW_COMP_OPTION have_archive_db;
-#endif
+extern SHOW_COMP_OPTION have_csv_db;
+extern SHOW_COMP_OPTION have_federated_db;
+extern SHOW_COMP_OPTION have_blackhole_db;
+extern SHOW_COMP_OPTION have_ndbcluster;
+extern SHOW_COMP_OPTION have_partition_db;
+extern SHOW_COMP_OPTION have_merge_db;
+
 #ifdef WITH_CSV_STORAGE_ENGINE
 extern handlerton *tina_hton;
-extern SHOW_COMP_OPTION have_csv_db;
-#else
-extern SHOW_COMP_OPTION have_csv_db;
-#endif
-#ifdef WITH_FEDERATED_STORAGE_ENGINE
-extern handlerton *federated_hton;
-extern SHOW_COMP_OPTION have_federated_db;
-#else
-extern SHOW_COMP_OPTION have_federated_db;
-#endif
-#ifdef WITH_BLACKHOLE_STORAGE_ENGINE
-extern handlerton *blackhole_hton;
-extern SHOW_COMP_OPTION have_blackhole_db;
-#else
-extern SHOW_COMP_OPTION have_blackhole_db;
 #endif
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 extern handlerton *ndbcluster_hton;
-extern SHOW_COMP_OPTION have_ndbcluster;
-#else
-extern SHOW_COMP_OPTION have_ndbcluster;
 #endif
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 extern handlerton *partition_hton;
-extern SHOW_COMP_OPTION have_partition_db;
-#else
-extern SHOW_COMP_OPTION have_partition_db;
 #endif
-
 #ifdef WITH_MYISAMMRG_STORAGE_ENGINE
 extern handlerton *myisammrg_hton;
-extern SHOW_COMP_OPTION have_merge_db;
-#else
-extern SHOW_COMP_OPTION have_merge_db;
 #endif
 
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
 
 extern SHOW_COMP_OPTION have_row_based_replication;
-extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
