@@ -606,6 +606,7 @@ err:
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
+  Item *fake_conds= 0;
   TABLE *table= table_list->table;
   TABLE_LIST tables;
   List<Item> all_fields;
@@ -645,7 +646,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
     }
   }
-  select_lex->fix_prepare_information(thd, conds);
+  select_lex->fix_prepare_information(thd, conds, &fake_conds);
   DBUG_RETURN(FALSE);
 }
 
