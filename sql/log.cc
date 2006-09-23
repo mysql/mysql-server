@@ -3171,7 +3171,7 @@ int MYSQL_BIN_LOG::
   flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::flush_and_set_pending_rows_event(event)");
-  DBUG_ASSERT(thd->current_stmt_binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(mysql_bin_log.is_open());
   DBUG_PRINT("enter", ("event=%p", event));
 
   int error= 0;
@@ -3416,9 +3416,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
           }
         }
       }
-      /* Forget those values, for next binlogger: */
-      thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
-      thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     }
 
     /*
