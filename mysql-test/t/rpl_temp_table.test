@@ -1,7 +1,7 @@
 # drop table t1 t2 t3 are included int master-slave.inc
 #  meaningful only in statement-based:
 
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/master-slave.inc
 
 

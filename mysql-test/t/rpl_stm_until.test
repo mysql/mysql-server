@@ -1,4 +1,4 @@
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/master-slave.inc
 
 # Test is dependent on binlog positions
