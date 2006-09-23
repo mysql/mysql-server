@@ -1,5 +1,5 @@
 # Requires statement logging
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 
 # See if replication of a "LOAD DATA in an autoincrement column"
 # Honours autoincrement values

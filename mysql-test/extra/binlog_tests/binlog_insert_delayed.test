@@ -1,0 +1,28 @@
+# Test of binlogging of INSERT_ID with INSERT DELAYED
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+# First, avoid BUG#20627:
+set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
+# Verify that only one INSERT_ID event is binlogged.
+# Note, that because of WL#3368 mixed mode binlog records RBR events for the delayed
+insert delayed into t1 values (207);
+
+# We use sleeps between statements, that's the only way to get a
+# repeatable binlog in a normal test run and under Valgrind. The
+# reason is that without sleeps, rows of different INSERT DELAYEDs
+# sometimes group together and sometimes not, so the table may be
+# unlocked/relocked causing a different number of table map log
+# events.
+sleep 2;
+insert delayed into t1 values (null);
+sleep 2;
+insert delayed into t1 values (300);
+sleep 2; # time for the delayed queries to reach disk
+insert delayed into t1 values (null),(null),(null),(null);
+sleep 2;
+insert delayed into t1 values (null),(null),(400),(null);
+sleep 2;
+select * from t1;
+--replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
+show binlog events from 102;
+drop table t1;

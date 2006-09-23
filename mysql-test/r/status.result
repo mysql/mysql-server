@@ -3,6 +3,10 @@ show status like 'Table_lock%';
 Variable_name	Value
 Table_locks_immediate	0
 Table_locks_waited	0
+select * from information_schema.session_status where variable_name like 'Table_lock%';
+VARIABLE_NAME	VARIABLE_VALUE
+TABLE_LOCKS_IMMEDIATE	0.0000000
+TABLE_LOCKS_WAITED	0.0000000
 SET SQL_LOG_BIN=0;
 drop table if exists t1;
 create table t1(n int) engine=myisam;
@@ -16,6 +20,10 @@ show status like 'Table_lock%';
 Variable_name	Value
 Table_locks_immediate	3
 Table_locks_waited	1
+select * from information_schema.session_status where variable_name like 'Table_lock%';
+VARIABLE_NAME	VARIABLE_VALUE
+TABLE_LOCKS_IMMEDIATE	3.0000000
+TABLE_LOCKS_WAITED	1.0000000
 drop table t1;
 select 1;
 1
@@ -53,21 +61,36 @@ FLUSH STATUS;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	1
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	1.0000000
 SET @save_thread_cache_size=@@thread_cache_size;
 SET GLOBAL thread_cache_size=3;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	3
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	3.0000000
 FLUSH STATUS;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	2
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	2.0000000
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	3
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	3.0000000
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	4
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+VARIABLE_NAME	VARIABLE_VALUE
+MAX_USED_CONNECTIONS	4.0000000
 SET GLOBAL thread_cache_size=@save_thread_cache_size;
 show status like 'com_show_status';
 Variable_name	Value
