@@ -252,6 +252,7 @@ insert delayed into t1 values (null);
 insert delayed into t1 values (300);
 insert delayed into t1 values (null),(null),(null),(null);
 insert delayed into t1 values (null),(null),(400),(null);
+11 == 11
 select * from t1;
 a
 207
