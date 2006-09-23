@@ -1,7 +1,7 @@
 # Check that server is compiled and started with support for NDB
--- require r/have_ndb.require
 disable_query_log;
-show variables like "have_ndbcluster";
+--require r/true.require
+select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 enable_query_log;
 
 # Check that NDB is installed and known to be working
