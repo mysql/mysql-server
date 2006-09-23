@@ -1,5 +1,5 @@
 # TBF - difference in row level logging
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/master-slave.inc
 
 --disable_warnings

@@ -280,6 +280,8 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[
     _MYSQL_EMIT_PLUGIN_ACTIONS(m4_bpatsubst(__mysql_plugin_list__, :, [,]))
     AC_SUBST([mysql_se_dirs])
     AC_SUBST([mysql_pg_dirs])
+    AC_SUBST([mysql_se_unittest_dirs])
+    AC_SUBST([mysql_pg_unittest_dirs])
    ])
  ])
 ])
@@ -410,9 +412,15 @@ dnl Although this is "pretty", it breaks libmysqld build
           [AC_CONFIG_FILES($6/Makefile)]
         )
         ifelse(m4_substr($6, 0, 8), [storage/],
-          [mysql_se_dirs="$mysql_se_dirs ]m4_substr($6, 8)",
+          [
+            [mysql_se_dirs="$mysql_se_dirs ]m4_substr($6, 8)"
+             mysql_se_unittest_dirs="$mysql_se_unittest_dirs ../$6"
+          ],
           m4_substr($6, 0, 7), [plugin/],
-          [mysql_pg_dirs="$mysql_pg_dirs ]m4_substr($6, 7)",
+          [
+            [mysql_pg_dirs="$mysql_pg_dirs ]m4_substr($6, 7)"
+             mysql_pg_unittest_dirs="$mysql_pg_unittest_dirs ../$6"
+          ],
           [AC_FATAL([don't know how to handle plugin dir ]$6)])
       fi
     ])
