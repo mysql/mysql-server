@@ -694,4 +694,12 @@ create table t3(a int);
 --exec $MYSQL_DUMP --skip-comments --force --no-data test t3 t1 non_existing t2
 drop table t1, t2, t3;
 
+#
+# Bug #21288: mysqldump segmentation fault when using --where
+#
+create table t1 (a int);
+--error 2
+--exec $MYSQL_DUMP --skip-comments --force test t1 --where='xx xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' 2>&1
+drop table t1;
+
 --echo End of 4.1 tests
