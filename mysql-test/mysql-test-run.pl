@@ -1110,7 +1110,9 @@ sub executable_setup () {
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
     $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
     $lib_udf_example=
-      mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so");
+      mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so",
+                      "$glob_basedir/sql/release/udf_example.dll",
+                      "$glob_basedir/sql/debug/udf_example.dll");
   }
   else
   {

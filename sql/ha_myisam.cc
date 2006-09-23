@@ -169,6 +169,14 @@ ha_myisam::ha_myisam(TABLE *table_arg)
   can_enable_indexes(1)
 {}
 
+handler *ha_myisam::clone(MEM_ROOT *mem_root)
+{
+  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(mem_root));
+  if (new_handler)
+    new_handler->file->state= file->state;
+  return new_handler;
+}
+
 
 static const char *ha_myisam_exts[] = {
   ".MYI",
@@ -316,7 +324,11 @@ int ha_myisam::write_row(byte * buf)
     or a new row, then update the auto_increment value in the record.
   */
   if (table->next_number_field && buf == table->record[0])
-    update_auto_increment();
+  {
+    int error;
+    if ((error= update_auto_increment()))
+      return error;
+  }
   return mi_write(file,buf);
 }
 

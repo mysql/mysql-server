@@ -1034,10 +1034,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   THD *thd= current_thd;
-  if (!(file= get_new_handler(head, thd->mem_root, head->s->db_type)))
-    goto failure;
-  DBUG_PRINT("info", ("Allocated new handler %p", file));
-  if (file->ha_open(head->s->path, head->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
+  if (!(file= head->file->clone(thd->mem_root)))
   {
     /* Caller will free the memory */
     goto failure;
@@ -6724,7 +6721,6 @@ int QUICK_RANGE_SELECT::get_next()
   }
 }
 
-
 /*
   Get the next record with a different prefix.
 
@@ -9377,7 +9373,6 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
   DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
   DBUG_VOID_RETURN;
 }
-
 
 /*****************************************************************************
 ** Print a quick range for debugging
