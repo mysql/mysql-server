@@ -1,5 +1,5 @@
 # depends on the binlog output
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_mixed_or_statement.inc
 
 let $rename_event_pos= 652;
 -- source extra/rpl_tests/rpl_flsh_tbls.test

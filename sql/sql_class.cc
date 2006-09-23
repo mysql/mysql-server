@@ -634,6 +634,12 @@ bool THD::store_globals()
 
 void THD::cleanup_after_query()
 {
+  if (!in_sub_stmt) /* stored functions and triggers are a special case */
+  {
+    /* Forget those values, for next binlogger: */
+    stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
+    auto_inc_intervals_in_cur_stmt_for_binlog.empty();
+  }
   if (first_successful_insert_id_in_cur_stmt > 0)
   {
     /* set what LAST_INSERT_ID() will return */
@@ -2524,7 +2530,9 @@ my_size_t THD::pack_row(TABLE *table, MY_BITMAP const* cols, byte *row_data,
     {
       my_ptrdiff_t const offset=
         field->is_null(rec_offset) ? def_offset : rec_offset;
-      ptr= (byte*)field->pack((char *) ptr, field->ptr + offset);
+      field->move_field_offset(offset);
+      ptr= (byte*)field->pack((char *) ptr, field->ptr);
+      field->move_field_offset(-offset);
     }
   }
   return (static_cast<my_size_t>(ptr - row_data));
@@ -2609,12 +2617,19 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   my_size_t const after_size= pack_row(table, cols, after_row, 
                                        after_record);
   
+  DBUG_DUMP("before_record", before_record, table->s->reclength);
+  DBUG_DUMP("after_record", after_record, table->s->reclength);
+  DBUG_DUMP("before_row", before_row, before_size);
+  DBUG_DUMP("after_row", after_row, after_size);
+
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
 				      before_size + after_size, is_trans,
 				      static_cast<Update_rows_log_event*>(0));
 
-  error= (unlikely(!ev)) || ev->add_row_data(before_row, before_size) ||
+  error=
+    unlikely(!ev) ||
+    ev->add_row_data(before_row, before_size) ||
     ev->add_row_data(after_row, after_size);
 
   if (!table->write_row_record)
@@ -2661,7 +2676,12 @@ int THD::binlog_delete_row(TABLE* table, bool is_trans,
 int THD::binlog_flush_pending_rows_event(bool stmt_end)
 {
   DBUG_ENTER("THD::binlog_flush_pending_rows_event");
-  if (!current_stmt_binlog_row_based || !mysql_bin_log.is_open())
+  /*
+    We shall flush the pending event even if we are not in row-based
+    mode: it might be the case that we left row-based mode before
+    flushing anything (e.g., if we have explicitly locked tables).
+   */
+  if (!mysql_bin_log.is_open())
     DBUG_RETURN(0);
 
   /*
@@ -2727,6 +2747,21 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
   DBUG_PRINT("enter", ("qtype=%d, query='%s'", qtype, query));
   DBUG_ASSERT(query && mysql_bin_log.is_open());
 
+  /*
+    If we are not in prelocked mode, mysql_unlock_tables() will be
+    called after this binlog_query(), so we have to flush the pending
+    rows event with the STMT_END_F set to unlock all tables at the
+    slave side as well.
+
+    If we are in prelocked mode, the flushing will be done inside the
+    top-most close_thread_tables().
+  */
+#ifdef HAVE_ROW_BASED_REPLICATION
+  if (this->prelocked_mode == NON_PRELOCKED)
+    if (int error= binlog_flush_pending_rows_event(TRUE))
+      DBUG_RETURN(error);
+#endif /*HAVE_ROW_BASED_REPLICATION*/
+
   switch (qtype) {
   case THD::MYSQL_QUERY_TYPE:
     /*
@@ -2740,25 +2775,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype,
   case THD::ROW_QUERY_TYPE:
 #ifdef HAVE_ROW_BASED_REPLICATION
     if (current_stmt_binlog_row_based)
-    {
-      /*
-        If thd->lock is set, then we are not inside a stored function.
-        In that case, mysql_unlock_tables() will be called after this
-        binlog_query(), so we have to flush the pending rows event
-        with the STMT_END_F set to unlock all tables at the slave side
-        as well.
-
-        We will not flush the pending event, if thd->lock is NULL.
-        This means that we are inside a stored function or trigger, so
-        the flushing will be done inside the top-most
-        close_thread_tables().
-       */
-#ifdef HAVE_ROW_BASED_REPLICATION
-      if (this->lock)
-        DBUG_RETURN(binlog_flush_pending_rows_event(TRUE));
-#endif /*HAVE_ROW_BASED_REPLICATION*/
       DBUG_RETURN(0);
-    }
 #endif
     /* Otherwise, we fall through */
   case THD::STMT_QUERY_TYPE:
