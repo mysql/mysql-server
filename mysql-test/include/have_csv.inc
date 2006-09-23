@@ -1,4 +1,4 @@
--- require r/have_csv.require
 disable_query_log;
-show variables like "have_csv";
+--require r/true.require
+select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'csv';
 enable_query_log;
