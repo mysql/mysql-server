@@ -1413,7 +1413,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 bool check_db_name(char *name)
 {
-  char *start=name;
+  uint name_length= 0;  // name length in symbols
   /* Used to catch empty names and names with end space */
   bool last_char_is_space= TRUE;
 
@@ -1430,6 +1430,7 @@ bool check_db_name(char *name)
 		name+system_charset_info->mbmaxlen);
       if (len)
       {
+        name_length++;
         name += len;
         continue;
       }
@@ -1437,12 +1438,13 @@ bool check_db_name(char *name)
 #else
     last_char_is_space= *name==' ';
 #endif
+    name_length++;
     if (*name == '/' || *name == '\\' || *name == FN_LIBCHAR ||
 	*name == FN_EXTCHAR)
       return 1;
     name++;
   }
-  return last_char_is_space || (uint) (name - start) > NAME_LEN;
+  return (last_char_is_space || name_length > NAME_LEN);
 }
 
 
