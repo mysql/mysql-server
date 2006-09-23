@@ -461,6 +461,7 @@ drop table t1;
 #
 # Bug #14400  Join could miss concurrently inserted row
 #
+# Partial key.
 create table t1 (a int not null, primary key(a));
 create table t2 (a int not null, b int not null, primary key(a,b));
 insert into t1 values (1),(2),(3),(4),(5),(6);
@@ -473,5 +474,22 @@ disconnect root;
 connection default;
 select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
 drop table t1,t2;
+#
+# Full key.
+CREATE TABLE t1 (c1 varchar(250) NOT NULL);
+CREATE TABLE t2 (c1 varchar(250) NOT NULL, PRIMARY KEY (c1));
+INSERT INTO t1 VALUES ('test000001'), ('test000002'), ('test000003');
+INSERT INTO t2 VALUES ('test000002'), ('test000003'), ('test000004');
+LOCK TABLES t1 READ LOCAL, t2 READ LOCAL;
+SELECT t1.c1 AS t1c1, t2.c1 AS t2c1 FROM t1, t2
+  WHERE t1.c1 = t2.c1 HAVING t1c1 != t2c1;
+connect (con1,localhost,root,,);
+connection con1;
+INSERT INTO t2 VALUES ('test000001'), ('test000005');
+disconnect con1;
+connection default;
+SELECT t1.c1 AS t1c1, t2.c1 AS t2c1 FROM t1, t2
+  WHERE t1.c1 = t2.c1 HAVING t1c1 != t2c1;
+DROP TABLE t1,t2;
 
 # end of 4.0 tests
