@@ -4,7 +4,7 @@
 # case. So this test is meaningul only in statement-based (and if it was
 # enabled in row-based, it would fail as expected).
 
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 
 source include/master-slave.inc;
 
