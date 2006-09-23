@@ -62,7 +62,7 @@ sub collect_test_cases ($) {
     foreach my $tname ( @::opt_cases ) { # Run in specified order, no sort
       my $elem= undef;
       my $component_id= undef;
-      
+
       # Get rid of directory part (path). Leave the extension since it is used
       # to understand type of the test.
 
@@ -538,8 +538,6 @@ sub mtr_options_from_test_file($$) {
 
   while ( my $line= <$F> )
   {
-    chomp;
-
     next if ( $line !~ /^--/ );
 
     # Match this line against tag in "tags" array

@@ -336,8 +336,8 @@ rec_set_next_offs(
 			as a non-negative number */
 
 			field_value = (ulint)((lint)next
-					      - (lint)ut_align_offset
-					      (rec, UNIV_PAGE_SIZE));
+					      - (lint)ut_align_offset(
+						      rec, UNIV_PAGE_SIZE));
 			field_value &= REC_NEXT_MASK;
 		} else {
 			field_value = 0;
@@ -597,15 +597,15 @@ rec_get_deleted_flag(
 	ulint	comp)	/* in: nonzero=compact page format */
 {
 	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
-		return(UNIV_UNLIKELY
-		       (rec_get_bit_field_1(rec, REC_NEW_INFO_BITS,
-					    REC_INFO_DELETED_FLAG,
-					    REC_INFO_BITS_SHIFT)));
+		return(UNIV_UNLIKELY(
+			       rec_get_bit_field_1(rec, REC_NEW_INFO_BITS,
+						   REC_INFO_DELETED_FLAG,
+						   REC_INFO_BITS_SHIFT)));
 	} else {
-		return(UNIV_UNLIKELY
-		       (rec_get_bit_field_1(rec, REC_OLD_INFO_BITS,
-					    REC_INFO_DELETED_FLAG,
-					    REC_INFO_BITS_SHIFT)));
+		return(UNIV_UNLIKELY(
+			       rec_get_bit_field_1(rec, REC_OLD_INFO_BITS,
+						   REC_INFO_DELETED_FLAG,
+						   REC_INFO_BITS_SHIFT)));
 	}
 }
 
@@ -846,16 +846,16 @@ rec_offs_validate(
 	if (index) {
 		ulint max_n_fields;
 		ut_ad((ulint) index == offsets[3]);
-		max_n_fields = ut_max
-			(dict_index_get_n_fields(index),
-			 dict_index_get_n_unique_in_tree(index) + 1);
+		max_n_fields = ut_max(
+			dict_index_get_n_fields(index),
+			dict_index_get_n_unique_in_tree(index) + 1);
 		if (comp && rec) {
 			switch (rec_get_status(rec)) {
 			case REC_STATUS_ORDINARY:
 				break;
 			case REC_STATUS_NODE_PTR:
-				max_n_fields = dict_index_get_n_unique_in_tree
-					(index) + 1;
+				max_n_fields = dict_index_get_n_unique_in_tree(
+					index) + 1;
 				break;
 			case REC_STATUS_INFIMUM:
 			case REC_STATUS_SUPREMUM:
@@ -1453,8 +1453,8 @@ rec_get_converted_size(
 
 	data_size = dtuple_get_data_size(dtuple);
 
-	extra_size = rec_get_converted_extra_size
-		(data_size, dtuple_get_n_fields(dtuple));
+	extra_size = rec_get_converted_extra_size(
+		data_size, dtuple_get_n_fields(dtuple));
 
 	return(data_size + extra_size);
 }
