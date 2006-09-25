@@ -4345,14 +4345,17 @@ table_wild_one:
 	ident opt_wild opt_table_alias
 	{
 	  if (!Select->add_table_to_list(YYTHD, new Table_ident($1), $3,
-					 TL_OPTION_UPDATING, Lex->lock_option))
+					 TL_OPTION_UPDATING | 
+                                         TL_OPTION_ALIAS, Lex->lock_option))
 	    YYABORT;
         }
 	| ident '.' ident opt_wild opt_table_alias
 	  {
 	    if (!Select->add_table_to_list(YYTHD,
 					   new Table_ident(YYTHD, $1, $3, 0),
-					   $5, TL_OPTION_UPDATING,
+					   $5, 
+                                           TL_OPTION_UPDATING | 
+                                           TL_OPTION_ALIAS,
 					   Lex->lock_option))
 	      YYABORT;
 	  }
@@ -4800,14 +4803,16 @@ load:	LOAD DATA_SYM load_data_lock opt_local INFILE TEXT_STRING_sys
 	LOAD TABLE_SYM table_ident FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
+	  WARN_DEPRECATED("LOAD TABLE FROM MASTER", "mysqldump or future BACKUP/RESTORE DATABASE facility");
 	  if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
 	    YYABORT;
-
+	  
         }
         |
 	LOAD DATA_SYM FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
+	  WARN_DEPRECATED("LOAD DATA FROM MASTER", "mysqldump or future BACKUP/RESTORE DATABASE facility");
         };
 
 opt_local:
