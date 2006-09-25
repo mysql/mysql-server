@@ -40,6 +40,13 @@
 #include "lock.hpp"
 #include "openssl/ssl.h"  // ASN1_STRING and DH
 
+#ifdef _POSIX_THREADS
+    #include <pthread.h>
+#endif
+
+
+namespace STL = STL_NAMESPACE;
+
 
 namespace yaSSL {
 
@@ -80,12 +87,35 @@ enum ServerState {
 };
 
 
+// client connect state for nonblocking restart
+enum ConnectState {
+    CONNECT_BEGIN = 0,
+    CLIENT_HELLO_SENT,
+    FIRST_REPLY_DONE,
+    FINISHED_DONE,
+    SECOND_REPLY_DONE
+};
+
+
+// server accpet state for nonblocking restart
+enum AcceptState {
+    ACCEPT_BEGIN = 0,
+    ACCEPT_FIRST_REPLY_DONE,
+    SERVER_HELLO_DONE,
+    ACCEPT_SECOND_REPLY_DONE,
+    ACCEPT_FINISHED_DONE,
+    ACCEPT_THIRD_REPLY_DONE
+};
+
+
 // combines all states
 class States {
     RecordLayerState recordLayer_;
     HandShakeState   handshakeLayer_;
     ClientState      clientState_;
     ServerState      serverState_;
+    ConnectState     connectState_;
+    AcceptState      acceptState_;
     char             errorString_[MAX_ERROR_SZ];
     YasslError       what_;
 public:
@@ -95,6 +125,8 @@ public:
     const HandShakeState&   getHandShake() const;
     const ClientState&      getClient()    const;
     const ServerState&      getServer()    const;
+    const ConnectState&     GetConnect()   const;
+    const AcceptState&      GetAccept()    const;
     const char*             getString()    const;
           YasslError        What()         const;
 
@@ -102,6 +134,8 @@ public:
     HandShakeState&   useHandShake();
     ClientState&      useClient();
     ServerState&      useServer();
+    ConnectState&     UseConnect();
+    AcceptState&      UseAccept();
     char*             useString();
     void              SetError(YasslError);
 private:
@@ -142,8 +176,9 @@ public:
     X509_NAME(const char*, size_t sz);
     ~X509_NAME();
 
-    char* GetName();
+    const char*  GetName() const;
     ASN1_STRING* GetEntry(int i);
+    size_t       GetLength() const;
 private:
     X509_NAME(const X509_NAME&);                // hide copy
     X509_NAME& operator=(const X509_NAME&);     // and assign
@@ -157,6 +192,9 @@ public:
     ~StringHolder();
 
     ASN1_STRING* GetString();
+private:
+    StringHolder(const StringHolder&);                // hide copy
+    StringHolder& operator=(const StringHolder&);     // and assign
 };
 
 
@@ -176,6 +214,7 @@ public:
 
     ASN1_STRING* GetBefore();
     ASN1_STRING* GetAfter();
+
 private:
     X509(const X509&);              // hide copy
     X509& operator=(const X509&);   // and assign
@@ -202,6 +241,7 @@ class SSL_SESSION {
     uint        bornOn_;                        // create time in seconds
     uint        timeout_;                       // timeout in seconds
     RandomPool& random_;                        // will clean master secret
+    X509*       peerX509_;
 public:
     explicit SSL_SESSION(RandomPool&);
     SSL_SESSION(const SSL&, RandomPool&);
@@ -212,17 +252,20 @@ public:
     const Cipher* GetSuite()   const;
           uint    GetBornOn()  const;
           uint    GetTimeOut() const;
+          X509*   GetPeerX509() const;
           void    SetTimeOut(uint);
 
     SSL_SESSION& operator=(const SSL_SESSION&); // allow assign for resumption
 private:
     SSL_SESSION(const SSL_SESSION&);            // hide copy
+
+    void CopyX509(X509*);
 };
 
 
 // holds all sessions
 class Sessions {
-    mySTL::list<SSL_SESSION*> list_;
+    STL::list<SSL_SESSION*> list_;
     RandomPool random_;                 // for session cleaning
     Mutex      mutex_;                  // no-op for single threaded
 
@@ -241,8 +284,42 @@ private:
 };
 
 
+#ifdef _POSIX_THREADS
+    typedef pthread_t THREAD_ID_T;
+#else
+    typedef DWORD     THREAD_ID_T;
+#endif
+
+// thread error data
+struct ThreadError {
+    THREAD_ID_T threadID_;
+    int         errorID_;
+};
+
+
+// holds all errors
+class Errors {
+    STL::list<ThreadError> list_;
+    Mutex                  mutex_;
+
+    Errors() {}                         // only GetErrors can create
+public:
+    int  Lookup(bool peek);             // self lookup
+    void Add(int);              
+    void Remove();                      // remove self
+
+    ~Errors() {}
+
+    friend Errors& GetErrors(); // singleton creator
+private:
+    Errors(const Errors&);              // hide copy
+    Errors& operator=(const Errors);    // and assign
+};
+
+
 Sessions&   GetSessions();      // forward singletons
 sslFactory& GetSSL_Factory();
+Errors&     GetErrors();
 
 
 // openSSL method and context types
@@ -252,8 +329,10 @@ class SSL_METHOD {
     bool            verifyPeer_;    // request or send certificate
     bool            verifyNone_;    // whether to verify certificate
     bool            failNoCert_;
+    bool            multipleProtocol_;  // for SSLv23 compatibility
 public:
-    explicit SSL_METHOD(ConnectionEnd ce, ProtocolVersion pv);
+    SSL_METHOD(ConnectionEnd ce, ProtocolVersion pv,
+               bool multipleProtocol = false);
 
     ProtocolVersion getVersion() const;
     ConnectionEnd   getSide()    const;
@@ -265,6 +344,7 @@ public:
     bool verifyPeer() const;
     bool verifyNone() const;
     bool failNoCert() const;
+    bool multipleProtocol() const;
 private:
     SSL_METHOD(const SSL_METHOD&);              // hide copy
     SSL_METHOD& operator=(const SSL_METHOD&);   // and assign
@@ -334,7 +414,7 @@ private:
 // the SSL context
 class SSL_CTX {
 public:
-    typedef mySTL::list<x509*> CertList;
+    typedef STL::list<x509*> CertList;
 private:
     SSL_METHOD* method_;
     x509*       certificate_;
@@ -342,6 +422,8 @@ private:
     CertList    caList_;
     Ciphers     ciphers_;
     DH_Parms    dhParms_;
+    pem_password_cb passwordCb_;
+    void*           userData_;
     Stats       stats_;
     Mutex       mutex_;         // for Stats
 public:
@@ -354,12 +436,16 @@ public:
     const Ciphers&    GetCiphers()  const;
     const DH_Parms&   GetDH_Parms() const;
     const Stats&      GetStats()    const;
+    pem_password_cb   GetPasswordCb() const;
+          void*       GetUserData()   const;
 
     void setVerifyPeer();
     void setVerifyNone();
     void setFailNoCert();
     bool SetCipherList(const char*);
     bool SetDH(const DH&);
+    void SetPasswordCb(pem_password_cb cb);
+    void SetUserData(void*);
    
     void            IncrementStats(StatsField);
     void            AddCA(x509* ca);
@@ -434,13 +520,14 @@ private:
 // holds input and output buffers
 class Buffers {
 public: 
-    typedef mySTL::list<input_buffer*>  inputList;
-    typedef mySTL::list<output_buffer*> outputList;
+    typedef STL::list<input_buffer*>  inputList;
+    typedef STL::list<output_buffer*> outputList;
 private:
     inputList  dataList_;                // list of users app data / handshake
     outputList handShakeList_;           // buffered handshake msgs
+    input_buffer* rawInput_;             // buffered raw input yet to process
 public:
-    Buffers() {}
+    Buffers();
     ~Buffers();
 
     const inputList&  getData()      const;
@@ -448,6 +535,9 @@ public:
 
     inputList&  useData();
     outputList& useHandShake();
+
+    void          SetRawInput(input_buffer*);  // takes ownership
+    input_buffer* TakeRawInput();              // takes ownership 
 private:
     Buffers(const Buffers&);             // hide copy
     Buffers& operator=(const Buffers&); // and assign   
@@ -502,6 +592,7 @@ public:
     const sslFactory& getFactory()  const;
     const Socket&     getSocket()   const;
           YasslError  GetError()    const;
+          bool        GetMultiProtocol() const;
 
     Crypto&    useCrypto();
     Security&  useSecurity();
@@ -509,6 +600,7 @@ public:
     sslHashes& useHashes();
     Socket&    useSocket();
     Log&       useLog();
+    Buffers&   useBuffers();
 
     // sets
     void set_pending(Cipher suite);
