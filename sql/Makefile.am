@@ -26,7 +26,7 @@ INCLUDES =		@MT_INCLUDES@ @ZLIB_INCLUDES@ \
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
-noinst_PROGRAMS =	gen_lex_hash
+EXTRA_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			@isam_libs@ \
@@ -137,7 +137,11 @@ sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
 		@echo "If it fails, re-run configure with --with-low-memory"
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
-lex_hash.h:	gen_lex_hash$(EXEEXT)
+# This generates lex_hash.h
+# NOTE Built sources should depend on their sources not the tool
+# this avoid the rebuild of the built files in a source dist
+lex_hash.h:	gen_lex_hash.cc lex.h
+		$(MAKE) $(AM_MAKEFLAGS) gen_lex_hash$(EXEEXT)
 		./gen_lex_hash$(EXEEXT) > $@
 
 # For testing of udf_example.so;  Works on platforms with gcc
