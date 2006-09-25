@@ -3499,9 +3499,7 @@ btr_push_update_extern_fields(
 	upd_t*		update)	/* in: update vector or NULL */
 {
 	ulint	n_pushed	= 0;
-	ibool	is_updated;
 	ulint	n;
-	ulint	j;
 	ulint	i;
 
 	if (update) {
@@ -3525,22 +3523,23 @@ btr_push_update_extern_fields(
 		if (rec_offs_nth_extern(offsets, i)) {
 
 			/* Check it is not in updated fields */
-			is_updated = FALSE;
 
 			if (update) {
+				ulint	j;
+
 				for (j = 0; j < upd_get_n_fields(update);
 				     j++) {
 					if (upd_get_nth_field(update, j)
 					    ->field_no == i) {
-						is_updated = TRUE;
+						goto is_updated;
 					}
 				}
 			}
 
-			if (!is_updated) {
-				ext_vect[n_pushed] = i;
-				n_pushed++;
-			}
+			ext_vect[n_pushed] = i;
+			n_pushed++;
+is_updated:
+			;
 		}
 	}
 
