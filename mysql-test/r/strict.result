@@ -917,10 +917,10 @@ Warning	1264	Out of range value adjusted for column 'col2' at row 1
 Warning	1264	Out of range value adjusted for column 'col2' at row 1
 SELECT * FROM t1;
 col1	col2
-0	0
+-2.2e-307	0
 1e-303	0
 1.7e+308	1.7e+308
-0	0
+-2.2e-307	0
 -2e-307	0
 1.7e+308	1.7e+308
 0	NULL
