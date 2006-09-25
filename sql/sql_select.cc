@@ -1133,7 +1133,7 @@ JOIN::exec()
     DBUG_VOID_RETURN;
   }
 
-  if (!tables_list)
+  if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
     if (select_options & SELECT_DESCRIBE)
       select_describe(this, FALSE, FALSE, FALSE,
@@ -1172,7 +1172,12 @@ JOIN::exec()
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
-  thd->limit_found_rows= thd->examined_row_count= 0;
+  /* 
+    don't reset the found rows count if there're no tables
+    as FOUND_ROWS() may be called.
+  */  
+  if (tables)
+    thd->limit_found_rows= thd->examined_row_count= 0;
 
   if (zero_result_cause)
   {
@@ -1211,7 +1216,8 @@ JOIN::exec()
     having= tmp_having;
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
-		    select_distinct);
+		    select_distinct,
+                    !tables ? "No tables used" : NullS);
     DBUG_VOID_RETURN;
   }
 
@@ -6044,9 +6050,12 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     else
       end_select=end_send;
   }
-  join->join_tab[join->tables-1].next_select=end_select;
+  if (join->tables)
+  {
+    join->join_tab[join->tables-1].next_select=end_select;
 
-  join_tab=join->join_tab+join->const_tables;
+    join_tab=join->join_tab+join->const_tables;
+  }
   join->send_records=0;
   if (join->tables == join->const_tables)
   {
@@ -6064,6 +6073,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   else
   {
+    DBUG_ASSERT(join_tab);
     error= sub_select(join,join_tab,0);
     if (error >= 0)
       error= sub_select(join,join_tab,1);
@@ -9095,6 +9105,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   param->copy_funcs.empty();
   for (i= 0; (pos= li++); i++)
   {
+    Field *field;
+    char *tmp;
     if (pos->type() == Item::FIELD_ITEM)
     {
       Item_field *item;
@@ -9123,14 +9135,22 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   set up save buffer and change result_field to point at 
 	   saved value
 	*/
-	Field *field= item->field;
+	field= item->field;
 	item->result_field=field->new_field(thd->mem_root,field->table);
-	char *tmp=(char*) sql_alloc(field->pack_length()+1);
+        /*
+          We need to allocate one extra byte for null handling and
+          another extra byte to not get warnings from purify in
+          Field_string::val_int
+        */
+	tmp= (char*) sql_alloc(field->pack_length()+2);
 	if (!tmp)
 	  goto err;
 	copy->set(tmp, item->result_field);
 	item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-	copy++;
+#ifdef HAVE_purify
+        copy->to_ptr[copy->from_length]= 0;
+#endif
+        copy++;
       }
     }
     else if ((pos->type() == Item::FUNC_ITEM ||
