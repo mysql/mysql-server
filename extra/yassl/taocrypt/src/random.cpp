@@ -31,7 +31,7 @@
 #include "runtime.hpp"
 #include "random.hpp"
 #include <string.h>
-
+#include <time.h>
 
 #if defined(_WIN32)
     #define _WIN32_WINNT 0x0400
@@ -74,6 +74,8 @@ byte RandomNumberGenerator::GenerateByte()
 
 #if defined(_WIN32)
 
+/* The OS_Seed implementation for windows */
+
 OS_Seed::OS_Seed()
 {
     if(!CryptAcquireContext(&handle_, 0, 0, PROV_RSA_FULL,
@@ -95,8 +97,70 @@ void OS_Seed::GenerateSeed(byte* output, word32 sz)
 }
 
 
-#else // _WIN32
+#elif defined(__NETWARE__)
 
+/* The OS_Seed implementation for Netware */
+
+#include <nks/thread.h>
+#include <nks/plat.h>
+
+// Loop on high resulution Read Time Stamp Counter
+static void NetwareSeed(byte* output, word32 sz)
+{
+    word32 tscResult;
+
+    for (word32 i = 0; i < sz; i += sizeof(tscResult)) {
+        #if defined(__GNUC__)
+            asm volatile("rdtsc" : "=A" (tscResult));
+        #else
+            #ifdef __MWERKS__
+                asm {
+            #else
+                __asm {
+            #endif
+                    rdtsc
+                    mov tscResult, eax
+            }
+        #endif
+
+        memcpy(output, &tscResult, sizeof(tscResult));
+        output += sizeof(tscResult);
+
+        NXThreadYield();   // induce more variance
+    }
+}
+
+
+OS_Seed::OS_Seed()
+{
+}
+
+
+OS_Seed::~OS_Seed()
+{
+}
+
+
+void OS_Seed::GenerateSeed(byte* output, word32 sz)
+{
+  /*
+    Try to use NXSeedRandom as it will generate a strong
+    seed using the onboard 82802 chip
+
+    As it's not always supported, fallback to default
+    implementation if an error is returned
+  */
+
+  if (NXSeedRandom(sz, output) != 0)
+  {
+    NetwareSeed(output, sz);
+  }
+}
+
+
+#else
+
+/* The default OS_Seed implementation */
 
 OS_Seed::OS_Seed() 
 {
