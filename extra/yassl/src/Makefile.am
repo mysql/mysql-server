@@ -1,4 +1,4 @@
-INCLUDES = -I../include -I../taocrypt/include -I../mySTL
+INCLUDES = -I../include -I../taocrypt/include -I../taocrypt/mySTL
 
 noinst_LTLIBRARIES = libyassl.la
 libyassl_la_SOURCES = buffer.cpp cert_wrapper.cpp crypto_wrapper.cpp \
