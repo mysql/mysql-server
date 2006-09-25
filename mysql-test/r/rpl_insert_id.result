@@ -1,9 +1,20 @@
+#
+# Setup
+#
 stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+use test;
+drop table if exists t1, t2, t3;
+#
+# See if queries that use both auto_increment and LAST_INSERT_ID()
+# are replicated well
+#
+# We also check how the foreign_key_check variable is replicated
+#
 create table t1(a int auto_increment, key(a));
 create table t2(b int auto_increment, c int, key(b));
 insert into t1 values (1),(2),(3);
@@ -38,6 +49,9 @@ select * from t2;
 b	c
 5	0
 6	11
+#
+# check if INSERT SELECT in auto_increment is well replicated (bug #490)
+#
 drop table t2;
 drop table t1;
 create table t1(a int auto_increment, key(a));
@@ -68,11 +82,18 @@ b	c
 9	13
 drop table t1;
 drop table t2;
+#
+# Bug#8412: Error codes reported in binary log for CHARACTER SET,
+#           FOREIGN_KEY_CHECKS
+#
 SET TIMESTAMP=1000000000;
 CREATE TABLE t1 ( a INT UNIQUE );
 SET FOREIGN_KEY_CHECKS=0;
 INSERT INTO t1 VALUES (1),(1);
 ERROR 23000: Duplicate entry '1' for key 1
+#
+# Bug#14553: NULL in WHERE resets LAST_INSERT_ID
+#
 drop table t1;
 create table t1(a int auto_increment, key(a));
 create table t2(a int);
@@ -87,3 +108,6 @@ a
 1
 drop table t1;
 drop table t2;
+#
+# End of 4.1 tests
+#
