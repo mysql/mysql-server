@@ -759,14 +759,16 @@ void plugin_load(void)
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
     DBUG_PRINT("info", ("init plugin record"));
-    LEX_STRING name, dl;
-    name.str= get_field(&mem, table->field[0]);
-    name.length= strlen(name.str);
-    dl.str= get_field(&mem, table->field[1]);
-    dl.length= strlen(dl.str);
+    String str_name, str_dl;
+    get_field(&mem, table->field[0], &str_name);
+    get_field(&mem, table->field[1], &str_dl);
+    
+    LEX_STRING name= {(char *)str_name.ptr(), str_name.length()};
+    LEX_STRING dl= {(char *)str_dl.ptr(), str_dl.length()};
+
     if (plugin_add(&name, &dl, REPORT_TO_LOG))
-      DBUG_PRINT("warning", ("Couldn't load plugin named '%s' with soname '%s'.",
-                             name.str, dl.str));
+      sql_print_warning("Couldn't load plugin named '%s' with soname '%s'.",
+                        str_name.c_ptr(), str_dl.c_ptr());
   }
   if (error > 0)
     sql_print_error(ER(ER_GET_ERRNO), my_errno);
