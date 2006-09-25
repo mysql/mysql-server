@@ -19,11 +19,7 @@ THREAD_RETURN YASSL_API server_test(void* args)
     set_args(argc, argv, *static_cast<func_args*>(args));
     tcp_accept(sockfd, clientfd, *static_cast<func_args*>(args));
 
-#ifdef _WIN32
-    closesocket(sockfd);
-#else
-    close(sockfd);
-#endif
+    tcp_close(sockfd);
 
     SSL_METHOD* method = TLSv1_server_method();
     SSL_CTX*    ctx = SSL_CTX_new(method);
@@ -36,9 +32,17 @@ THREAD_RETURN YASSL_API server_test(void* args)
     SSL* ssl = SSL_new(ctx);
     SSL_set_fd(ssl, clientfd);
    
-    if (SSL_accept(ssl) != SSL_SUCCESS) err_sys("SSL_accept failed");
+    if (SSL_accept(ssl) != SSL_SUCCESS)
+    {
+        SSL_CTX_free(ctx);
+        SSL_free(ssl);
+        tcp_close(sockfd);
+        tcp_close(clientfd);
+        err_sys("SSL_accept failed");
+    }
+
     showPeer(ssl);
-    printf("Using Cipher Suite %s\n", SSL_get_cipher(ssl));
+    printf("Using Cipher Suite: %s\n", SSL_get_cipher(ssl));
 
     char command[1024];
     command[SSL_read(ssl, command, sizeof(command))] = 0;
@@ -46,11 +50,19 @@ THREAD_RETURN YASSL_API server_test(void* args)
 
     char msg[] = "I hear you, fa shizzle!";
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
+    {
+        SSL_CTX_free(ctx);
+        SSL_free(ssl);
+        tcp_close(sockfd);
+        tcp_close(clientfd);
         err_sys("SSL_write failed"); 
+    }
 
     DH_free(dh);
     SSL_CTX_free(ctx);
     SSL_free(ssl);
+
+    tcp_close(clientfd);
 
     ((func_args*)args)->return_code = 0;
     return 0;
