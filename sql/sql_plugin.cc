@@ -864,8 +864,8 @@ my_bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING 
   DBUG_RETURN(FALSE);
 deinit:
   plugin_deinitialize(tmp);
-err:
   plugin_del(tmp);
+err:
   rw_unlock(&THR_LOCK_plugin);
   DBUG_RETURN(TRUE);
 }
