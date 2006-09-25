@@ -387,6 +387,7 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
   }
   else if ((type() == SUM_FUNC_ITEM ||
             (used_tables() & ~PARAM_TABLE_BIT)) &&
+           type() != SUBSELECT_ITEM &&
            type() != REF_ITEM)
   {
     /*
