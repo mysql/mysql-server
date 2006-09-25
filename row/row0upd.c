@@ -1398,8 +1398,6 @@ row_upd_sec_step(
 	upd_node_t*	node,	/* in: row update node */
 	que_thr_t*	thr)	/* in: query thread */
 {
-	ulint	err;
-
 	ut_ad((node->state == UPD_NODE_UPDATE_ALL_SEC)
 	      || (node->state == UPD_NODE_UPDATE_SOME_SEC));
 	ut_ad(!dict_index_is_clust(node->index));
@@ -1407,9 +1405,7 @@ row_upd_sec_step(
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
 	    || row_upd_changes_ord_field_binary(node->row, node->index,
 						node->update)) {
-		err = row_upd_sec_index_entry(node, thr);
-
-		return(err);
+		return(row_upd_sec_index_entry(node, thr));
 	}
 
 	return(DB_SUCCESS);
@@ -1793,7 +1789,7 @@ exit_func:
 	/* If the update is made for MySQL, we already have the update vector
 	ready, else we have to do some evaluation: */
 
-	if (!node->in_mysql_interface) {
+	if (UNIV_UNLIKELY(!node->in_mysql_interface)) {
 		/* Copy the necessary columns from clust_rec and calculate the
 		new values to set */
 		row_upd_copy_columns(rec, offsets,

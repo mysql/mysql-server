@@ -674,16 +674,5 @@ row_search_index_entry(
 
 	n_fields = dtuple_get_n_fields(entry);
 
-	if (page_rec_is_infimum(rec)) {
-
-		return(FALSE);
-	}
-
-	if (low_match != n_fields) {
-		/* Not found */
-
-		return(FALSE);
-	}
-
-	return(TRUE);
+	return(!page_rec_is_infimum(rec) && low_match == n_fields);
 }
