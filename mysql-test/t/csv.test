@@ -1582,3 +1582,26 @@ select * from bug15205_2;
 select * from bug15205;
 drop table bug15205;
 drop table bug15205_2;
+
+#
+# Bug#22080 "CHECK fails to identify some corruption"
+#
+
+create table bug22080_1 (id int,string varchar(64)) Engine=CSV;
+create table bug22080_2 (id int,string varchar(64)) Engine=CSV;
+create table bug22080_3 (id int,string varchar(64)) Engine=CSV;
+insert into bug22080_1 values(1,'string');
+insert into bug22080_1 values(2,'string');
+insert into bug22080_1 values(3,'string');
+
+# Currupt the file as described in the bug report
+--exec sed -e 's/"2"/2"/' $MYSQLTEST_VARDIR/master-data/test/bug22080_1.CSV > $MYSQLTEST_VARDIR/master-data/test/bug22080_2.CSV
+--exec sed -e 's/2","/2",/' $MYSQLTEST_VARDIR/master-data/test/bug22080_1.CSV > $MYSQLTEST_VARDIR/master-data/test/bug22080_3.CSV
+
+--exec cat $MYSQLTEST_VARDIR/master-data/test/bug22080_2.CSV
+check table bug22080_2;
+
+--exec cat $MYSQLTEST_VARDIR/master-data/test/bug22080_3.CSV
+check table bug22080_3;
+
+drop tables bug22080_1,bug22080_2,bug22080_3;
