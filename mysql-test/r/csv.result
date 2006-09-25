@@ -5205,3 +5205,22 @@ select * from bug15205;
 val
 drop table bug15205;
 drop table bug15205_2;
+create table bug22080_1 (id int,string varchar(64)) Engine=CSV;
+create table bug22080_2 (id int,string varchar(64)) Engine=CSV;
+create table bug22080_3 (id int,string varchar(64)) Engine=CSV;
+insert into bug22080_1 values(1,'string');
+insert into bug22080_1 values(2,'string');
+insert into bug22080_1 values(3,'string');
+"1","string"
+2","string"
+"3","string"
+check table bug22080_2;
+Table	Op	Msg_type	Msg_text
+test.bug22080_2	check	error	Corrupt
+"1","string"
+"2",string"
+"3","string"
+check table bug22080_3;
+Table	Op	Msg_type	Msg_text
+test.bug22080_3	check	error	Corrupt
+drop tables bug22080_1,bug22080_2,bug22080_3;
