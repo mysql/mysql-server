@@ -1094,7 +1094,7 @@ static bool IsP4()
     word32 cpuid[4];
 
     CpuId(0, cpuid);
-    mySTL::swap(cpuid[2], cpuid[3]);
+    STL::swap(cpuid[2], cpuid[3]);
     if (memcmp(cpuid+1, "GenuineIntel", 12) != 0)
         return false;
 
@@ -2384,8 +2384,8 @@ void AsymmetricMultiply(word *R, word *T, const word *A, unsigned int NA,
 
     if (NA > NB)
     {
-        mySTL::swap(A, B);
-        mySTL::swap(NA, NB);
+        STL::swap(A, B);
+        STL::swap(NA, NB);
     }
 
     assert(NB % NA == 0);
@@ -2521,8 +2521,8 @@ unsigned int AlmostInverse(word *R, word *T, const word *A, unsigned int NA,
 
         if (Compare(f, g, fgLen)==-1)
         {
-            mySTL::swap(f, g);
-            mySTL::swap(b, c);
+            STL::swap(f, g);
+            STL::swap(b, c);
             s++;
         }
 
@@ -3162,7 +3162,7 @@ signed long Integer::ConvertToLong() const
 void Integer::Swap(Integer& a)
 {
     reg_.Swap(a.reg_);
-    mySTL::swap(sign_, a.sign_);
+    STL::swap(sign_, a.sign_);
 }
 
 
