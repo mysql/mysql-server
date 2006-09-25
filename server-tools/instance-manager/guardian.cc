@@ -110,20 +110,35 @@ void Guardian_thread::process_instance(Instance *instance,
 
   if (instance->is_running())
   {
-    /* clear status fields */
-    current_node->restart_counter= 0;
-    current_node->crash_moment= 0;
-    current_node->state= STARTED;
+    /* The instance can be contacted  on it's port */
+
+    /* If STARTING also check that pidfile has been created */
+    if (current_node->state == STARTING &&
+        current_node->instance->options.get_pid() == 0)
+    {
+      /* Pid file not created yet, don't go to STARTED state yet  */
+    }
+    else
+    {
+      /* clear status fields */
+      log_info("guardian: instance %s is running, set state to STARTED",
+               instance->options.instance_name);
+      current_node->restart_counter= 0;
+      current_node->crash_moment= 0;
+      current_node->state= STARTED;
+    }
   }
   else
   {
     switch (current_node->state) {
     case NOT_STARTED:
-      instance->start();
-      current_node->last_checked= current_time;
       log_info("guardian: starting instance %s",
                instance->options.instance_name);
+
+      /* NOTE, set state to STARTING _before_ start() is called */
       current_node->state= STARTING;
+      instance->start();
+      current_node->last_checked= current_time;
       break;
     case STARTED:     /* fallthrough */
     case STARTING:    /* let the instance start or crash */
