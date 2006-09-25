@@ -38,52 +38,37 @@ drop event event2;
 create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;
 drop event event2;
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 10 SECOND COMMENT "" DO SELECT 1;
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	event_starts_test	root@localhost	RECURRING	NULL	10	SECOND	#	#	ENABLED
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
-starts IS NULL	ends IS NULL	comment
-0	1	
+SELECT interval_field, interval_value, body FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+interval_field	interval_value	body
+SECOND	10	SELECT 1
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+1	0	1	
 ALTER EVENT event_starts_test ON SCHEDULE AT '2020-02-02 20:00:02';
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	event_starts_test	root@localhost	ONE TIME	2020-02-02 17:00:02	NULL	NULL	#	#	ENABLED
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
-starts IS NULL	ends IS NULL	comment
-1	1	
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+0	1	1	
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	event_starts_test	root@localhost	ONE TIME	2020-02-02 17:00:02	NULL	NULL	#	#	ENABLED
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
-starts IS NULL	ends IS NULL	comment
-1	1	non-empty comment
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+0	1	1	non-empty comment
 ALTER EVENT event_starts_test COMMENT "";
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	event_starts_test	root@localhost	ONE TIME	2020-02-02 17:00:02	NULL	NULL	#	#	ENABLED
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
-starts IS NULL	ends IS NULL	comment
-1	1	
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+0	1	1	
 DROP EVENT event_starts_test;
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS '2020-02-02 20:00:02' ENDS '2022-02-02 20:00:02' DO SELECT 2;
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	event_starts_test	root@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
-starts IS NULL	ends IS NULL	comment
-0	0	
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+1	0	0	
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	event_starts_test	root@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
-starts IS NULL	ends IS NULL	comment
-0	0	non-empty comment
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+1	0	0	non-empty comment
 ALTER EVENT event_starts_test COMMENT "";
-SHOW EVENTS;
-Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
-events_test	event_starts_test	root@localhost	RECURRING	NULL	20	SECOND	#	#	ENABLED
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+execute_at IS NULL	starts IS NULL	ends IS NULL	comment
+1	0	0	
 DROP EVENT event_starts_test;
 create table test_nested(a int);
 create event e_43 on schedule every 1 second do set @a = 5;
