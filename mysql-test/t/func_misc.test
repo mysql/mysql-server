@@ -125,4 +125,11 @@ drop table t2;
 drop table t1;
 set global query_cache_size=default;
 
+#
+# Bug #21466: INET_ATON() returns signed, not unsigned
+#
+
+create table t1 select INET_ATON('255.255.0.1') as `a`;
+show create table t1;
+drop table t1;
 --echo End of 5.0 tests
