@@ -134,4 +134,11 @@ timediff(b, a) >= '00:00:03'
 drop table t2;
 drop table t1;
 set global query_cache_size=default;
+create table t1 select INET_ATON('255.255.0.1') as `a`;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bigint(21) unsigned default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1;
 End of 5.0 tests
