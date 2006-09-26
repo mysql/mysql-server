@@ -490,8 +490,7 @@ page_zip_dir_encode(
 	} else {
 		status = REC_STATUS_NODE_PTR;
 		if (UNIV_UNLIKELY
-		    (mach_read_from_4((page_t*) page + FIL_PAGE_PREV)
-		     == FIL_NULL)) {
+		    (mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL)) {
 			min_mark = REC_INFO_MIN_REC_FLAG;
 		}
 	}
@@ -3602,8 +3601,7 @@ page_zip_copy(
 	      + page_zip->m_end < page_zip->size);
 
 	if (!page_is_leaf(src)
-	    && UNIV_UNLIKELY(mach_read_from_4((byte*) src
-					      + FIL_PAGE_PREV) == FIL_NULL)
+	    && UNIV_UNLIKELY(mach_read_from_4(src + FIL_PAGE_PREV) == FIL_NULL)
 	    && UNIV_LIKELY(mach_read_from_4(page
 					    + FIL_PAGE_PREV) != FIL_NULL)) {
 		/* Clear the REC_INFO_MIN_REC_FLAG of the first user record. */
