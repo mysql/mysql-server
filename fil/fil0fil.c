@@ -2655,17 +2655,16 @@ error_exit2:
 	if (!zip_size) {
 		buf_flush_init_for_writing(page, NULL,
 				ut_dulint_zero, *space_id, 0);
+		ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 	} else {
 		page_zip_des_t	page_zip;
 		page_zip.size = zip_size;
 		page_zip.data = page + UNIV_PAGE_SIZE;
-		memset(page_zip.data, 0, zip_size);
 		page_zip.n_blobs = page_zip.m_start = page_zip.m_end = 0;
 		buf_flush_init_for_writing(page, &page_zip,
 				ut_dulint_zero, *space_id, 0);
+		ret = os_file_write(path, file, page_zip.data, 0, 0, zip_size);
 	}
-
-	ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 
 	ut_free(buf2);
 
