@@ -1314,6 +1314,33 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLES t1,t3;
+CREATE TABLE t1 (a tinytext);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` varchar(510) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLES t1,t3;
+CREATE TABLE t1 (a mediumtext);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` longtext
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLES t1,t3;
+CREATE TABLE t1 (a tinyblob);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` varbinary(510) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLES t1,t2,t3;
 SET max_allowed_packet:= @tmp_max;
 create table t1 ( id int not null auto_increment, primary key (id), col1 int);
