@@ -119,7 +119,7 @@ ins_node_create_entry_list(
 	index = dict_table_get_first_index(node->table);
 
 	while (index != NULL) {
-		entry = row_build_index_entry(node->row, index,
+		entry = row_build_index_entry(node->row, NULL, index,
 					      node->entry_sys_heap);
 		UT_LIST_ADD_LAST(tuple_list, node->entry_list, entry);
 

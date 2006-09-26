@@ -290,8 +290,8 @@ row_undo_ins(
 		dict_table_get_first_index(node->table));
 
 	while (node->index != NULL) {
-		entry = row_build_index_entry(node->row, node->index,
-					      node->heap);
+		entry = row_build_index_entry(node->row, node->ext,
+					      node->index, node->heap);
 		err = row_undo_ins_remove_sec(node->index, entry);
 
 		if (err != DB_SUCCESS) {

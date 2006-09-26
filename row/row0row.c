@@ -22,7 +22,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "trx0rec.h"
 #include "que0que.h"
-#include "row0row.h"
+#include "row0ext.h"
 #include "row0upd.h"
 #include "rem0cmp.h"
 #include "read0read.h"
@@ -65,6 +65,8 @@ row_build_index_entry(
 				/* out: index entry which should be inserted */
 	dtuple_t*	row,	/* in: row which should be inserted to the
 				table */
+	row_ext_t*	ext,	/* in: externally stored column prefixes,
+				or NULL */
 	dict_index_t*	index,	/* in: index on the table */
 	mem_heap_t*	heap)	/* in: memory heap from which the memory for
 				the index entry is allocated */
@@ -92,14 +94,28 @@ row_build_index_entry(
 
 	for (i = 0; i < entry_len; i++) {
 		const dict_col_t*	col;
+		ulint			col_no;
 		ind_field = dict_index_get_nth_field(index, i);
 		col = ind_field->col;
+		col_no = dict_col_get_no(col);
 
 		dfield = dtuple_get_nth_field(entry, i);
 
-		dfield2 = dtuple_get_nth_field(row, dict_col_get_no(col));
+		dfield2 = dtuple_get_nth_field(row, col_no);
 
 		dfield_copy(dfield, dfield2);
+
+		if (UNIV_LIKELY_NULL(ext)
+		    && dfield_get_len(dfield2) != UNIV_SQL_NULL) {
+			/* See if the column is stored externally. */
+			byte*	buf = row_ext_lookup(ext, col_no,
+						     dfield2->data,
+						     dfield2->len,
+						     &dfield->len);
+			if (UNIV_LIKELY_NULL(buf)) {
+				dfield->data = buf;
+			}
+		}
 
 		/* If a column prefix index, take only the prefix */
 		if (ind_field->prefix_len) {
@@ -148,19 +164,21 @@ row_build(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index)
 				or NULL, in which case this function
 				will invoke rec_get_offsets() */
+	row_ext_t**	ext,	/* out, own: cache of externally stored
+				column prefixes, or NULL */
 	mem_heap_t*	heap)	/* in: memory heap from which the memory
 				needed is allocated */
 {
 	dtuple_t*	row;
 	dict_table_t*	table;
-	dict_field_t*	ind_field;
-	dfield_t*	dfield;
 	ulint		n_fields;
-	byte*		field;
+	ulint		n_ext_cols;
+	ulint*		ext_cols	= NULL; /* remove bogus warning */
 	ulint		len;
 	ulint		row_len;
 	byte*		buf;
 	ulint		i;
+	ulint		j;
 	mem_heap_t*	tmp_heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
@@ -192,26 +210,44 @@ row_build(
 				     rec, dict_table_is_comp(table)));
 
 	n_fields = rec_offs_n_fields(offsets);
+	n_ext_cols = rec_offs_n_extern(offsets);
+	if (n_ext_cols) {
+		ext_cols = mem_heap_alloc(heap, n_ext_cols * sizeof *ext_cols);
+	}
 
 	dict_table_copy_types(row, table);
 
-	for (i = 0; i < n_fields; i++) {
-		ind_field = dict_index_get_nth_field(index, i);
+	for (i = j = 0; i < n_fields; i++) {
+		dict_field_t*		ind_field
+			= dict_index_get_nth_field(index, i);
+		const dict_col_t*	col
+			= dict_field_get_col(ind_field);
 
 		if (ind_field->prefix_len == 0) {
 
-			const dict_col_t*	col
-				= dict_field_get_col(ind_field);
-
-			dfield = dtuple_get_nth_field(row,
-						      dict_col_get_no(col));
-			field = rec_get_nth_field(rec, offsets, i, &len);
+			dfield_t*	dfield = dtuple_get_nth_field(
+				row, dict_col_get_no(col));
+			byte*		field = rec_get_nth_field(
+				rec, offsets, i, &len);
 
 			dfield_set_data(dfield, field, len);
 		}
+
+		if (rec_offs_nth_extern(offsets, i)) {
+			ext_cols[j++] = dict_col_get_no(col);
+		}
 	}
 
+	ut_ad(j == n_ext_cols);
 	ut_ad(dtuple_check_typed(row));
+
+	if (n_ext_cols) {
+		*ext = row_ext_create(n_ext_cols, ext_cols,
+				      dict_table_zip_size(index->table),
+				      heap);
+	} else {
+		*ext = NULL;
+	}
 
 	if (tmp_heap) {
 		mem_heap_free(tmp_heap);

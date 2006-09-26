@@ -31,7 +31,8 @@ UNIV_INLINE
 byte*
 row_ext_lookup(
 /*===========*/
-				/* out: column prefix */
+				/* out: column prefix, or NULL if
+				the column is not stored externally */
 	row_ext_t*	ext,	/* in/out: column prefix cache */
 	ulint		col,	/* in: column number */
 	const byte*	field,	/* in: locally stored part of the column */

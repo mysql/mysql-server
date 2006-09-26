@@ -500,7 +500,8 @@ row_undo_mod_upd_del_sec(
 	while (node->index != NULL) {
 		index = node->index;
 
-		entry = row_build_index_entry(node->row, index, heap);
+		entry = row_build_index_entry(node->row, node->ext,
+					      index, heap);
 
 		err = row_undo_mod_del_mark_or_remove_sec(node, thr, index,
 							  entry);
@@ -539,7 +540,8 @@ row_undo_mod_del_mark_sec(
 	while (node->index != NULL) {
 		index = node->index;
 
-		entry = row_build_index_entry(node->row, index, heap);
+		entry = row_build_index_entry(node->row, node->ext,
+					      index, heap);
 
 		err = row_undo_mod_del_unmark_sec_and_undo_update(
 			BTR_MODIFY_LEAF, thr, index, entry);
@@ -593,7 +595,8 @@ row_undo_mod_upd_exist_sec(
 						     node->update)) {
 
 			/* Build the newest version of the index entry */
-			entry = row_build_index_entry(node->row, index, heap);
+			entry = row_build_index_entry(node->row, node->ext,
+						      index, heap);
 
 			/* NOTE that if we updated the fields of a
 			delete-marked secondary index record so that

@@ -19,6 +19,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0undo.h"
 #include "dict0dict.h"
 #include "ut0mem.h"
+#include "row0ext.h"
 #include "row0upd.h"
 #include "que0que.h"
 #include "trx0purge.h"
@@ -895,38 +896,35 @@ trx_undo_rec_get_partial_row(
 				record! */
 	dict_index_t*	index,	/* in: clustered index */
 	dtuple_t**	row,	/* out, own: partial row */
+	row_ext_t**	ext,	/* out, own: prefix cache for
+				externally stored columns */
 	mem_heap_t*	heap)	/* in: memory heap from which the memory
 				needed is allocated */
 {
-	dfield_t*	dfield;
-	byte*		field;
-	ulint		len;
-	ulint		field_no;
-	ulint		col_no;
+	const byte*	end_ptr;
 	ulint		row_len;
-	ulint		total_len;
-	byte*		start_ptr;
-	ulint		i;
+	ulint		n_ext_cols;
+	ulint*		ext_cols;
 
-	ut_ad(index && ptr && row && heap);
+	ut_ad(index && ptr && row && ext && heap);
 
 	row_len = dict_table_get_n_cols(index->table);
+	n_ext_cols = 0;
+	ext_cols = mem_heap_alloc(heap, row_len * sizeof *ext_cols);
 
 	*row = dtuple_create(heap, row_len);
 
 	dict_table_copy_types(*row, index->table);
 
-	start_ptr = ptr;
-
-	total_len = mach_read_from_2(ptr);
+	end_ptr = ptr + mach_read_from_2(ptr);
 	ptr += 2;
 
-	for (i = 0;; i++) {
-
-		if (ptr == start_ptr + total_len) {
-
-			break;
-		}
+	while (ptr != end_ptr) {
+		dfield_t*	dfield;
+		byte*		field;
+		ulint		field_no;
+		ulint		col_no;
+		ulint		len;
 
 		ptr = trx_undo_update_rec_get_field_no(ptr, &field_no);
 
@@ -934,9 +932,21 @@ trx_undo_rec_get_partial_row(
 
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
 
+		if (len >= UNIV_EXTERN_STORAGE_FIELD) {
+			ext_cols[n_ext_cols++] = col_no;
+		}
+
 		dfield = dtuple_get_nth_field(*row, col_no);
 
 		dfield_set_data(dfield, field, len);
+	}
+
+	if (n_ext_cols) {
+		*ext = row_ext_create(n_ext_cols, ext_cols,
+				      dict_table_zip_size(index->table),
+				      heap);
+	} else {
+		*ext = NULL;
 	}
 
 	return(ptr);

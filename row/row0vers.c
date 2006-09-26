@@ -158,12 +158,15 @@ row_vers_impl_x_locked_off_kernel(
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (prev_version) {
+			row_ext_t*	ext;
+
 			clust_offsets = rec_get_offsets(
 				prev_version, clust_index, NULL,
 				ULINT_UNDEFINED, &heap);
 			row = row_build(ROW_COPY_POINTERS, clust_index,
-					prev_version, clust_offsets, heap);
-			entry = row_build_index_entry(row, index, heap);
+					prev_version, clust_offsets,
+					&ext, heap);
+			entry = row_build_index_entry(row, ext, index, heap);
 		}
 
 		mutex_enter(&kernel_mutex);
@@ -329,9 +332,11 @@ row_vers_old_has_index_entry(
 					ULINT_UNDEFINED, &heap);
 
 	if (also_curr && !rec_get_deleted_flag(rec, comp)) {
+		row_ext_t*	ext;
+
 		row = row_build(ROW_COPY_POINTERS, clust_index,
-				rec, clust_offsets, heap);
-		entry = row_build_index_entry(row, index, heap);
+				rec, clust_offsets, &ext, heap);
+		entry = row_build_index_entry(row, ext, index, heap);
 
 		/* NOTE that we cannot do the comparison as binary
 		fields because the row is maybe being modified so that
@@ -369,9 +374,12 @@ row_vers_old_has_index_entry(
 						NULL, ULINT_UNDEFINED, &heap);
 
 		if (!rec_get_deleted_flag(prev_version, comp)) {
+			row_ext_t*	ext;
+
 			row = row_build(ROW_COPY_POINTERS, clust_index,
-					prev_version, clust_offsets, heap);
-			entry = row_build_index_entry(row, index, heap);
+					prev_version, clust_offsets,
+					&ext, heap);
+			entry = row_build_index_entry(row, ext, index, heap);
 
 			/* NOTE that we cannot do the comparison as binary
 			fields because maybe the secondary index record has
