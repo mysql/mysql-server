@@ -87,9 +87,16 @@ row_build_index_entry(
 
 	if (index->type & DICT_UNIVERSAL) {
 		dtuple_set_n_fields_cmp(entry, entry_len);
+		ut_a(!ext);
 	} else {
 		dtuple_set_n_fields_cmp(
 			entry, dict_index_get_n_unique_in_tree(index));
+		if (dict_index_is_clust(index)) {
+			/* Do not fetch externally stored columns to
+			the clustered index.  Such columns are handled
+			at a higher level. */
+			ext = NULL;
+		}
 	}
 
 	for (i = 0; i < entry_len; i++) {
@@ -119,14 +126,13 @@ row_build_index_entry(
 
 		/* If a column prefix index, take only the prefix */
 		if (ind_field->prefix_len) {
-			if (dfield_get_len(dfield2) != UNIV_SQL_NULL) {
+			if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
 
 				storage_len = dtype_get_at_most_n_mbchars(
 					col->prtype,
 					col->mbminlen, col->mbmaxlen,
 					ind_field->prefix_len,
-					dfield_get_len(dfield2),
-					dfield2->data);
+					dfield->len, dfield->data);
 
 				dfield_set_len(dfield, storage_len);
 			}
