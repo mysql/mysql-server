@@ -30,7 +30,8 @@ class CopyFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 8
+ );
 
 private:
   Uint32 userPtr;
@@ -40,6 +41,8 @@ private:
   Uint32 nodeId;
   Uint32 schemaVersion;
   Uint32 distributionKey;
+  Uint32 nodeCount;
+  Uint32 nodeList[1];
 };
 
 class CopyFragConf {
@@ -82,6 +85,15 @@ private:
   Uint32 tableId;
   Uint32 fragId;
   Uint32 errorCode;
+};
+
+struct UpdateFragDistKeyOrd
+{
+  Uint32 tableId;
+  Uint32 fragId;
+  Uint32 fragDistributionKey;
+
+  STATIC_CONST( SignalLength = 3 );
 };
 
 #endif

@@ -60,9 +60,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   }
   strncpy(localHostName, lHostName, sizeof(localHostName));
 
-  if (strlen(lHostName) > 0)
-    Ndb_getInAddr(&localHostAddress, lHostName);
-
   DBUG_PRINT("info",("rId=%d lId=%d isServer=%d rHost=%s lHost=%s s_port=%d",
 		     remoteNodeId, localNodeId, isServer,
 		     remoteHostName, localHostName,
@@ -128,10 +125,23 @@ Transporter::connect_client() {
     return true;
 
   if(isMgmConnection)
+  {
     sockfd= m_transporter_registry.connect_ndb_mgmd(m_socket_client);
+  }
   else
+  {
+    if (!m_socket_client->init())
+    {
+      return false;
+    }
+    if (strlen(localHostName) > 0)
+    {
+      if (m_socket_client->bind(localHostName, 0) != 0)
+	return false;
+    }
     sockfd= m_socket_client->connect();
-
+  }
+  
   return connect_client(sockfd);
 }  
 
