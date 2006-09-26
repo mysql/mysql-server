@@ -2276,7 +2276,7 @@ sub mysql_install_db () {
   my $cluster_started_ok= 1; # Assume it can be started
 
   if (ndbcluster_start_install($clusters->[0]) ||
-      $use_slaves && ndbcluster_start_install($clusters->[1]))
+      $max_slave_num && ndbcluster_start_install($clusters->[1]))
   {
     mtr_warning("Failed to start install of cluster");
     $cluster_started_ok= 0;
@@ -2502,12 +2502,12 @@ sub im_prepare_data_dir($) {
 # Restore snapshot of the installed slave databases
 # if the snapshot exists
 #
-sub restore_slave_databases () {
+sub restore_slave_databases ($) {
+  my ($num_slaves)= @_;
 
   if ( -d $path_snapshot)
   {
-    # Restore the number of slave databases being used
-    for (my $idx= 0; $idx < $max_slave_num; $idx++)
+    for (my $idx= 0; $idx < $num_slaves; $idx++)
     {
       my $data_dir= $slave->[$idx]->{'path_myddir'};
       my $name= basename($data_dir);
@@ -3650,6 +3650,8 @@ sub run_testcase_start_servers($) {
   if ( $tinfo->{'slave_num'} )
   {
     mtr_tofile($slave->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+
+    restore_slave_databases($tinfo->{'slave_num'});
 
     do_before_start_slave($tname,$tinfo->{'slave_sh'});
 
