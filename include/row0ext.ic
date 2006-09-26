@@ -1,0 +1,88 @@
+/******************************************************
+Caching of externally stored column prefixes
+
+(c) 2006 Innobase Oy
+
+Created September 2006 Marko Makela
+*******************************************************/
+
+#include "rem0types.h"
+
+/************************************************************************
+Looks up and caches a column prefix of an externally stored column. */
+
+byte*
+row_ext_lookup_low(
+/*===============*/
+				/* out: column prefix */
+	row_ext_t*	ext,	/* in/out: column prefix cache */
+	ulint		i,	/* in: index of ext->ext[] */
+	const byte*	field,	/* in: locally stored part of the column */
+	ulint		f_len,	/* in: length of field, in bytes */
+	ulint*		len);	/* out: length of prefix, in bytes,
+				at most REC_MAX_INDEX_COL_LEN */
+
+/************************************************************************
+Creates a cache of column prefixes of externally stored columns. */
+UNIV_INLINE
+row_ext_t*
+row_ext_create(
+/*===========*/
+				/* out,own: column prefix cache */
+	ulint		n_ext,	/* in: number of externally stored columns */
+	const ulint*	ext,	/* in: col_no's of externally stored columns */
+	ulint		zip_size,/* compressed page size, or 0 */
+	mem_heap_t*	heap)	/* in: heap where created */
+{
+	row_ext_t*	ret = mem_heap_alloc(heap, (sizeof *ret) - 1 + n_ext);
+
+	ret->n_ext = n_ext;
+	ret->ext = ext;
+	ret->zip_size = zip_size;
+	ret->buf = mem_heap_alloc(heap, n_ext * REC_MAX_INDEX_COL_LEN);
+#ifdef UNIV_DEBUG
+	memset(ret->buf, 0xaa, n_ext * REC_MAX_INDEX_COL_LEN);
+#endif
+	memset(ret->len, 0, n_ext * sizeof *ret->len);
+
+	return(ret);
+}
+
+/************************************************************************
+Looks up a column prefix of an externally stored column. */
+UNIV_INLINE
+byte*
+row_ext_lookup(
+/*===========*/
+				/* out: column prefix */
+	row_ext_t*	ext,	/* in/out: column prefix cache */
+	ulint		col,	/* in: column number */
+	const byte*	field,	/* in: locally stored part of the column */
+	ulint		f_len,	/* in: length of field, in bytes */
+	ulint*		len)	/* out: length of prefix, in bytes,
+				at most REC_MAX_INDEX_COL_LEN */
+{
+	ulint	i;
+
+	ut_ad(ext);
+	ut_ad(field);
+	ut_ad(len);
+
+	for (i = 0; i < ext->n_ext; i++) {
+		if (col == ext->ext[i]) {
+			/* Return from the cache if found */
+			if (ext->len[i]) {
+				*len = ext->len[i];
+				ut_ad(*len > f_len);
+				return(ext->buf + i * REC_MAX_INDEX_COL_LEN);
+			}
+
+			/* Update the cache */
+			return(row_ext_lookup_low(ext, i, field, f_len, len));
+		}
+	}
+
+	/* The column should always be found. */
+	ut_error;
+	return(NULL);
+}
