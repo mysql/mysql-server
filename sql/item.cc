@@ -5704,11 +5704,6 @@ void Item_trigger_field::cleanup()
 }
 
 
-/*
-  If item is a const function, calculate it and return a const item
-  The original item is freed if not returned
-*/
-
 Item_result item_cmp_type(Item_result a,Item_result b)
 {
   if (a == STRING_RESULT && b == STRING_RESULT)
