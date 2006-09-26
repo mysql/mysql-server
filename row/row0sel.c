@@ -51,6 +51,37 @@ to que_run_threads: this is to allow canceling runaway queries */
 #define SEL_RETRY	2
 
 /************************************************************************
+Returns TRUE if the user-defined column in a secondary index record
+is alphabetically the same as the corresponding BLOB column in the clustered
+index record.
+NOTE: the comparison is NOT done as a binary comparison, but character
+fields are compared with collation! */
+static
+ibool
+row_sel_sec_rec_is_for_blob(
+/*========================*/
+				/* out: TRUE if the columns are equal */
+	ulint	mtype,		/* in: main type */
+	ulint	prtype,		/* in: precise type */
+	byte*	clust_field,	/* in: the locally stored part of
+				the clustered index column, including
+				the BLOB pointer */
+	ulint	clust_len,	/* in: length of clust_field */
+	byte*	sec_field,	/* in: column in secondary index */
+	ulint	sec_len,	/* in: length of sec_field */
+	ulint	zip_size)	/* in: compressed page size, or 0 */
+{
+	ulint	len;
+	byte	buf[DICT_MAX_INDEX_COL_LEN];
+
+	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
+						      zip_size,
+						      clust_field, clust_len);
+
+	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
+}
+
+/************************************************************************
 Returns TRUE if the user-defined column values in a secondary index record
 are alphabetically the same as the corresponding columns in the clustered
 index record.
@@ -72,7 +103,6 @@ row_sel_sec_rec_is_for_clust_rec(
 	byte*		sec_field;
 	ulint		sec_len;
 	byte*		clust_field;
-	ulint		clust_len;
 	ulint		n;
 	ulint		i;
 	mem_heap_t*	heap		= NULL;
@@ -95,26 +125,47 @@ row_sel_sec_rec_is_for_clust_rec(
 	for (i = 0; i < n; i++) {
 		const dict_field_t*	ifield;
 		const dict_col_t*	col;
+		ulint			clust_pos;
+		ulint			clust_len;
+		ulint			len;
 
 		ifield = dict_index_get_nth_field(sec_index, i);
 		col = dict_field_get_col(ifield);
+		clust_pos = dict_col_get_clust_pos(col, clust_index);
 
 		clust_field = rec_get_nth_field(
-			clust_rec, clust_offs,
-			dict_col_get_clust_pos(col, clust_index), &clust_len);
+			clust_rec, clust_offs, clust_pos, &clust_len);
 		sec_field = rec_get_nth_field(sec_rec, sec_offs, i, &sec_len);
 
-		if (ifield->prefix_len > 0 && clust_len != UNIV_SQL_NULL) {
+		len = clust_len;
 
-			clust_len = dtype_get_at_most_n_mbchars(
+		if (ifield->prefix_len > 0 && len != UNIV_SQL_NULL) {
+
+			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
+				len -= BTR_EXTERN_FIELD_REF_SIZE;
+			}
+
+			len = dtype_get_at_most_n_mbchars(
 				col->prtype, col->mbminlen, col->mbmaxlen,
-				ifield->prefix_len,
-				clust_len, (char*) clust_field);
+				ifield->prefix_len, len, (char*) clust_field);
+
+			if (rec_offs_nth_extern(clust_offs, clust_pos)
+			    && len < sec_len) {
+				if (!row_sel_sec_rec_is_for_blob(
+					    col->mtype, col->prtype,
+					    clust_field, clust_len,
+					    sec_field, sec_len,
+					    dict_table_zip_size(
+						    clust_index->table))) {
+					goto inequal;
+				}
+			}
 		}
 
 		if (0 != cmp_data_data(col->mtype, col->prtype,
-				       clust_field, clust_len,
+				       clust_field, len,
 				       sec_field, sec_len)) {
+inequal:
 			is_equal = FALSE;
 			goto func_exit;
 		}
