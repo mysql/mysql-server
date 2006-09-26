@@ -231,7 +231,9 @@ extern "C" {
     NDB_MGM_SERVER_NOT_CONNECTED = 1010,
     /** Could not connect to socker */
     NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET = 1011,
-
+    /** Could not bind local address */
+    NDB_MGM_BIND_ADDRESS = 1012,
+    
     /* Alloc node id failures */
     /** Generic error, retry may succeed */
     NDB_MGM_ALLOCID_ERROR = 1101,
@@ -514,6 +516,15 @@ extern "C" {
   int ndb_mgm_get_connected_port(NdbMgmHandle handle);
   const char *ndb_mgm_get_connected_host(NdbMgmHandle handle);
   const char *ndb_mgm_get_connectstring(NdbMgmHandle handle, char *buf, int buf_sz);
+
+  /**
+   * Set local bindaddress
+   * @param arg - Srting of form "host[:port]"
+   * @note must be called before connect
+   * @note Error on binding local address will not be reported until connect
+   * @return 0 on success
+   */
+  int ndb_mgm_set_bindaddress(NdbMgmHandle, const char * arg);
 
   /**
    * Gets the connectstring used for a connection

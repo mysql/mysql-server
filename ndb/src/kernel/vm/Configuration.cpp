@@ -58,7 +58,8 @@ NDB_STD_OPTS_VARS;
 // XXX should be my_bool ???
 static int _daemon, _no_daemon, _foreground,  _initial, _no_start;
 static int _initialstart;
-static const char* _nowait_nodes;
+static const char* _nowait_nodes = 0;
+static const char* _bind_address = 0;
 
 extern Uint32 g_start_type;
 extern NdbNodeBitmask g_nowait_nodes;
@@ -100,6 +101,10 @@ static struct my_option my_long_options[] =
     "Perform initial start",
     (gptr*) &_initialstart, (gptr*) &_initialstart, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "bind-address", OPT_NOWAIT_NODES, 
+    "Local bind address",
+    (gptr*) &_bind_address, (gptr*) &_bind_address, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 static void short_usage_sub(void)
@@ -260,7 +265,9 @@ Configuration::fetch_configuration(){
 
   m_mgmd_port= 0;
   m_config_retriever= new ConfigRetriever(getConnectString(),
-					  NDB_VERSION, NODE_TYPE_DB);
+					  NDB_VERSION, 
+					  NODE_TYPE_DB,
+					  _bind_address);
 
   if (m_config_retriever->hasError())
   {
