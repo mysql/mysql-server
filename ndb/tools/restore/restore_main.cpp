@@ -411,6 +411,17 @@ main(int argc, char** argv)
       }
     }
   }
+  for(Uint32 i= 0; i < g_consumers.size(); i++) 
+  {
+    if (g_consumers[i]->has_temp_error())
+    {
+      clearConsumers();
+      ndbout_c("\nRestore successful, but encountered temporary error, "
+               "please look at configuration.");
+      return NDBT_ProgramExit(NDBT_TEMPORARY);
+    }
+  }
+
   clearConsumers();
   return NDBT_ProgramExit(NDBT_OK);
 } // main
