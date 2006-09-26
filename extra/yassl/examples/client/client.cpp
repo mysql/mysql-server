@@ -27,7 +27,13 @@ void client_test(void* args)
 
     SSL_set_fd(ssl, sockfd);
 
-    if (SSL_connect(ssl) != SSL_SUCCESS) err_sys("SSL_connect failed");
+    if (SSL_connect(ssl) != SSL_SUCCESS)
+    {
+        SSL_CTX_free(ctx);
+        SSL_free(ssl);
+        tcp_close(sockfd);
+        err_sys("SSL_connect failed");
+    }
     showPeer(ssl);
 
     const char* cipher = 0;
@@ -39,11 +45,16 @@ void client_test(void* args)
         strncat(list, cipher, strlen(cipher) + 1);
     }
     printf("%s\n", list);
-    printf("Using Cipher Suite %s\n", SSL_get_cipher(ssl));
+    printf("Using Cipher Suite: %s\n", SSL_get_cipher(ssl));
 
     char msg[] = "hello yassl!";
     if (SSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
+    {
+        SSL_CTX_free(ctx);
+        SSL_free(ssl);
+        tcp_close(sockfd);
         err_sys("SSL_write failed");
+    }
 
     char reply[1024];
     reply[SSL_read(ssl, reply, sizeof(reply))] = 0;
@@ -56,22 +67,36 @@ void client_test(void* args)
 
     SSL_shutdown(ssl);
     SSL_free(ssl);
+    tcp_close(sockfd);
 
 #ifdef TEST_RESUME
     tcp_connect(sockfd);
     SSL_set_fd(sslResume, sockfd);
     SSL_set_session(sslResume, session);
     
-    if (SSL_connect(sslResume) != SSL_SUCCESS) err_sys("SSL resume failed");
+    if (SSL_connect(sslResume) != SSL_SUCCESS)
+    {
+        SSL_CTX_free(ctx);
+        SSL_free(ssl);
+        tcp_close(sockfd);
+        err_sys("SSL resume failed");
+    }
+    showPeer(sslResume);
   
     if (SSL_write(sslResume, msg, sizeof(msg)) != sizeof(msg))
+    {
+      SSL_CTX_free(ctx);
+      SSL_free(ssl);
+      tcp_close(sockfd);
         err_sys("SSL_write failed");
+    }
 
     reply[SSL_read(sslResume, reply, sizeof(reply))] = 0;
     printf("Server response: %s\n", reply);
 
     SSL_shutdown(sslResume);
     SSL_free(sslResume);
+    tcp_close(sockfd);
 #endif // TEST_RESUME
 
     SSL_CTX_free(ctx);

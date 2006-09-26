@@ -39,7 +39,10 @@
 
 #include "yassl_types.hpp"
 #include "factory.hpp"
-#include "list.hpp"         // mySTL::list
+#include STL_LIST_FILE
+
+
+namespace STL = STL_NAMESPACE;
 
 
 namespace yaSSL {
@@ -427,7 +430,7 @@ private:
 class CertificateRequest : public HandShakeBase  {
     ClientCertificateType         certificate_types_[CERT_TYPES];
     int                           typeTotal_;
-    mySTL::list<DistinguishedName>  certificate_authorities_;
+    STL::list<DistinguishedName>  certificate_authorities_;
 public:
     CertificateRequest();
     ~CertificateRequest();
