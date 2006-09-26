@@ -41,9 +41,10 @@
     #include <netinet/in.h>
     #include <sys/ioctl.h>
     #include <string.h>
+    #include <fcntl.h>
 #endif // _WIN32
 
-#if defined(__sun) || defined(__SCO_VERSION__)
+#if defined(__sun) || defined(__SCO_VERSION__) || defined(__NETWARE__)
     #include <sys/filio.h>
 #endif
 
@@ -62,7 +63,7 @@ namespace yaSSL {
 
 
 Socket::Socket(socket_t s) 
-    : socket_(s), wouldBlock_(false)
+    : socket_(s), wouldBlock_(false), blocking_(false)
 {}
 
 
@@ -148,6 +149,7 @@ uint Socket::receive(byte* buf, unsigned int sz, int flags)
         if (get_lastError() == SOCKET_EWOULDBLOCK || 
             get_lastError() == SOCKET_EAGAIN) {
             wouldBlock_ = true;
+            blocking_   = true; // socket can block, only way to tell for win32
         return 0;
     }
     }
@@ -186,6 +188,12 @@ int Socket::get_lastError()
 bool Socket::WouldBlock() const
 {
     return wouldBlock_;
+}
+
+
+bool Socket::IsBlocking() const
+{
+    return blocking_;
 }
 
 
