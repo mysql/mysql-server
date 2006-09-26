@@ -4332,11 +4332,11 @@ btr_copy_externally_stored_field_prefix(
 	memcpy(buf, data, local_len);
 	data += local_len;
 
-	space_id = mach_read_from_4((byte*) data + BTR_EXTERN_SPACE_ID);
+	space_id = mach_read_from_4(data + BTR_EXTERN_SPACE_ID);
 
-	page_no = mach_read_from_4((byte*) data + BTR_EXTERN_PAGE_NO);
+	page_no = mach_read_from_4(data + BTR_EXTERN_PAGE_NO);
 
-	offset = mach_read_from_4((byte*) data + BTR_EXTERN_OFFSET);
+	offset = mach_read_from_4(data + BTR_EXTERN_OFFSET);
 
 	return(local_len
 	       + btr_copy_externally_stored_field_prefix_low(buf + local_len,
@@ -4357,7 +4357,7 @@ btr_copy_externally_stored_field(
 /*=============================*/
 				/* out: the whole field copied to heap */
 	ulint*		len,	/* out: length of the whole field */
-	byte*		data,	/* in: 'internally' stored part of the
+	const byte*	data,	/* in: 'internally' stored part of the
 				field containing also the reference to
 				the external part */
 	ulint		zip_size,/* in: nonzero=compressed BLOB page size,

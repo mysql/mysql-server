@@ -28,8 +28,8 @@ UNIV_INLINE
 ulint
 mach_read_from_1(
 /*=============*/
-			/* out: ulint integer, >= 0, < 256 */
-	byte*	b)	/* in: pointer to byte */
+				/* out: ulint integer, >= 0, < 256 */
+	const byte*	b)	/* in: pointer to byte */
 {
 	ut_ad(b);
 	return((ulint)(b[0]));
@@ -59,8 +59,8 @@ UNIV_INLINE
 ulint
 mach_read_from_2(
 /*=============*/
-			/* out: ulint integer */
-	byte*	b)	/* in: pointer to 2 bytes */
+				/* out: ulint integer */
+	const byte*	b)	/* in: pointer to 2 bytes */
 {
 	ut_ad(b);
 	return( ((ulint)(b[0]) << 8)
@@ -96,7 +96,7 @@ mach_decode_2(
 	uint16	n)	/* in: 16-bit integer in canonical format */
 {
 	ut_ad(2 == sizeof n);
-	return(mach_read_from_2((byte*) &n));
+	return(mach_read_from_2((const byte*) &n));
 }
 
 /***********************************************************
@@ -124,8 +124,8 @@ UNIV_INLINE
 ulint
 mach_read_from_3(
 /*=============*/
-			/* out: ulint integer */
-	byte*	b)	/* in: pointer to 3 bytes */
+				/* out: ulint integer */
+	const byte*	b)	/* in: pointer to 3 bytes */
 {
 	ut_ad(b);
 	return( ((ulint)(b[0]) << 16)
@@ -159,8 +159,8 @@ UNIV_INLINE
 ulint
 mach_read_from_4(
 /*=============*/
-			/* out: ulint integer */
-	byte*	b)	/* in: pointer to four bytes */
+				/* out: ulint integer */
+	const byte*	b)	/* in: pointer to four bytes */
 {
 	ut_ad(b);
 	return( ((ulint)(b[0]) << 24)
@@ -234,8 +234,8 @@ UNIV_INLINE
 ulint
 mach_read_compressed(
 /*=================*/
-			/* out: read integer (< 2^32) */
-	byte*	b)	/* in: pointer to memory from where to read */
+				/* out: read integer (< 2^32) */
+	const byte*	b)	/* in: pointer to memory from where to read */
 {
 	ulint	flag;
 
@@ -280,8 +280,8 @@ UNIV_INLINE
 dulint
 mach_read_from_8(
 /*=============*/
-			/* out: dulint integer */
-	byte*	b)	/* in: pointer to 8 bytes */
+				/* out: dulint integer */
+	const byte*	b)	/* in: pointer to 8 bytes */
 {
 	ulint	high;
 	ulint	low;
@@ -317,8 +317,8 @@ UNIV_INLINE
 dulint
 mach_read_from_7(
 /*=============*/
-			/* out: dulint integer */
-	byte*	b)	/* in: pointer to 7 bytes */
+				/* out: dulint integer */
+	const byte*	b)	/* in: pointer to 7 bytes */
 {
 	ulint	high;
 	ulint	low;
@@ -354,8 +354,8 @@ UNIV_INLINE
 dulint
 mach_read_from_6(
 /*=============*/
-			/* out: dulint integer */
-	byte*	b)	/* in: pointer to 7 bytes */
+				/* out: dulint integer */
+	const byte*	b)	/* in: pointer to 7 bytes */
 {
 	ulint	high;
 	ulint	low;
@@ -406,8 +406,8 @@ UNIV_INLINE
 dulint
 mach_dulint_read_compressed(
 /*========================*/
-			/* out: read dulint */
-	byte*	b)	/* in: pointer to memory from where to read */
+				/* out: read dulint */
+	const byte*	b)	/* in: pointer to memory from where to read */
 {
 	ulint	high;
 	ulint	low;
@@ -473,8 +473,8 @@ UNIV_INLINE
 dulint
 mach_dulint_read_much_compressed(
 /*=============================*/
-			/* out: read dulint */
-	byte*	b)	/* in: pointer to memory from where to read */
+				/* out: read dulint */
+	const byte*	b)	/* in: pointer to memory from where to read */
 {
 	ulint	high;
 	ulint	low;
@@ -502,8 +502,8 @@ UNIV_INLINE
 double
 mach_double_read(
 /*=============*/
-			/* out: double read */
-	byte*	b)	/* in: pointer to memory from where to read */
+				/* out: double read */
+	const byte*	b)	/* in: pointer to memory from where to read */
 {
 	double	d;
 	ulint	i;
@@ -551,8 +551,8 @@ UNIV_INLINE
 float
 mach_float_read(
 /*============*/
-			/* out: float read */
-	byte*	b)	/* in: pointer to memory from where to read */
+				/* out: float read */
+	const byte*	b)	/* in: pointer to memory from where to read */
 {
 	float	d;
 	ulint	i;
@@ -600,12 +600,12 @@ UNIV_INLINE
 ulint
 mach_read_from_n_little_endian(
 /*===========================*/
-				/* out: unsigned long int */
-	byte*	buf,		/* in: from where to read */
-	ulint	buf_size)	/* in: from how many bytes to read */
+					/* out: unsigned long int */
+	const byte*	buf,		/* in: from where to read */
+	ulint		buf_size)	/* in: from how many bytes to read */
 {
 	ulint	n	= 0;
-	byte*	ptr;
+	const byte*	ptr;
 
 	ut_ad(buf_size <= sizeof(ulint));
 	ut_ad(buf_size > 0);
@@ -665,8 +665,8 @@ UNIV_INLINE
 ulint
 mach_read_from_2_little_endian(
 /*===========================*/
-				/* out: unsigned long int */
-	byte*	buf)		/* in: from where to read */
+					/* out: unsigned long int */
+	const byte*	buf)		/* in: from where to read */
 {
 	return((ulint)(*buf) + ((ulint)(*(buf + 1))) * 256);
 }
