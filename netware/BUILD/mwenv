@@ -21,9 +21,9 @@ echo "BUILD_DIR: $BUILD_DIR"
 
 # Get current dir in wine format
 base=`echo $MYDEV  |sed 's/\/.*//'`
-base_unix_part=`winepath -- -u $base`
+base_unix_part=`winepath -- -u $base/`
 WINE_BUILD_DIR=`echo "$BUILD_DIR" | sed 's_'$base_unix_part'/__'`
-WINE_BUILD_DIR="$base$WINE_BUILD_DIR"
+WINE_BUILD_DIR="$base/$WINE_BUILD_DIR"
 echo "WINE_BUILD_DIR: $WINE_BUILD_DIR"
 
 export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/fs64/headers;$MYDEV/zlib-1.2.3;$WINE_BUILD_DIR/include;$MYDEV"
