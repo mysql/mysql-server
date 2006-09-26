@@ -4138,58 +4138,28 @@ btr_rec_free_updated_extern_fields(
 }
 
 /***********************************************************************
-Copies an externally stored field of a record to mem heap. Parameter
-data contains a pointer to 'internally' stored part of the field:
-possibly some data, and the reference to the externally stored part in
-the last BTR_EXTERN_FIELD_REF_SIZE bytes of data. */
+Copies the prefix of an externally stored field of a record. */
 static
-byte*
-btr_copy_externally_stored_field(
-/*=============================*/
-				/* out: the whole field copied to heap */
-	ulint*		len,	/* out: length of the whole field */
-	byte*		data,	/* in: 'internally' stored part of the
-				field containing also the reference to
-				the external part */
+ulint
+btr_copy_externally_stored_field_prefix_low(
+/*========================================*/
+				/* out: bytes written to buf */
+	byte*		buf,	/* out: the externally stored part of
+				the field, or a prefix of it */
+	ulint		len,	/* in: length of buf, in bytes */
 	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
 				zero for uncompressed BLOBs */
-	ulint		local_len,/* in: length of data */
-	mem_heap_t*	heap)	/* in: mem heap */
+	ulint		space_id,/* in: space id of the first BLOB page */
+	ulint		page_no,/* in: page number of the first BLOB page */
+	ulint		offset)	/* in: offset on the first BLOB page */
 {
 	page_t*	page;
-	ulint	space_id;
-	ulint	page_no;
-	ulint	offset;
-	ulint	extern_len;
-	ulint	copied_len;
-	byte*	buf;
+	ulint	copied_len	= 0;
 	mtr_t	mtr;
 	z_stream d_stream;
 
-	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
-
-	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
-
-	space_id = mach_read_from_4(data + local_len + BTR_EXTERN_SPACE_ID);
-
-	page_no = mach_read_from_4(data + local_len + BTR_EXTERN_PAGE_NO);
-
-	offset = mach_read_from_4(data + local_len + BTR_EXTERN_OFFSET);
-
-	/* Currently a BLOB cannot be bigger than 4 GB; we
-	leave the 4 upper bytes in the length field unused */
-
-	extern_len = mach_read_from_4(data + local_len + BTR_EXTERN_LEN + 4);
-
-	buf = mem_heap_alloc(heap, local_len + extern_len);
-
-	memcpy(buf, data, local_len);
-	copied_len = local_len;
-
-	if (UNIV_UNLIKELY(extern_len == 0)) {
-		*len = copied_len;
-
-		return(buf);
+	if (UNIV_UNLIKELY(len == 0)) {
+		return(0);
 	}
 
 	if (UNIV_UNLIKELY(zip_size)) {
@@ -4201,8 +4171,8 @@ btr_copy_externally_stored_field(
 		err = inflateInit(&d_stream);
 		ut_a(err == Z_OK);
 
-		d_stream.next_out = buf + local_len;
-		d_stream.avail_out = extern_len;
+		d_stream.next_out = buf;
+		d_stream.avail_out = len;
 		d_stream.avail_in = 0;
 	}
 
@@ -4245,6 +4215,9 @@ btr_copy_externally_stored_field(
 			err = inflate(&d_stream, Z_NO_FLUSH);
 			switch (err) {
 			case Z_OK:
+				if (!d_stream.avail_out) {
+					goto end_of_blob;
+				}
 				break;
 			case Z_STREAM_END:
 				if (next_page_no == FIL_NULL) {
@@ -4260,11 +4233,8 @@ inflate_error:
 					" page %lu space %lu returned %d\n",
 					(ulong) page_no, (ulong) space_id,
 					err);
-err_exit:
-				mtr_commit(&mtr);
-				inflateEnd(&d_stream);
-				*len = 0;
-				return(buf);
+			case Z_BUF_ERROR:
+				goto end_of_blob;
 			}
 
 			if (next_page_no == FIL_NULL) {
@@ -4276,23 +4246,18 @@ err_exit:
 						" page %lu space %lu\n",
 						(ulong) page_no,
 						(ulong) space_id);
-					goto err_exit;
+				} else {
+					err = inflate(&d_stream, Z_FINISH);
+					if (UNIV_UNLIKELY
+					    (err != Z_STREAM_END)) {
+						goto inflate_error;
+					}
 				}
 
-				err = inflate(&d_stream, Z_FINISH);
-				if (UNIV_UNLIKELY(err != Z_STREAM_END)) {
-
-					goto inflate_error;
-				}
 end_of_blob:
 				mtr_commit(&mtr);
-				ut_a(!d_stream.avail_out);
-
 				inflateEnd(&d_stream);
-				ut_ad(buf + local_len + d_stream.total_out
-				      == d_stream.next_out);
-				*len = d_stream.next_out - buf;
-				return(buf);
+				return(d_stream.total_out);
 			}
 
 			mtr_commit(&mtr);
@@ -4307,21 +4272,19 @@ end_of_blob:
 				= page + offset;
 			ulint	part_len
 				= btr_blob_get_part_len(blob_header);
+			ulint	copy_len
+				= ut_max(part_len, len - copied_len);
 
 			memcpy(buf + copied_len,
-			       blob_header + BTR_BLOB_HDR_SIZE, part_len);
-			copied_len += part_len;
+			       blob_header + BTR_BLOB_HDR_SIZE, copy_len);
+			copied_len += copy_len;
 
 			page_no = btr_blob_get_next_page_no(blob_header);
 
 			mtr_commit(&mtr);
 
-			if (page_no == FIL_NULL) {
-				ut_a(copied_len == local_len + extern_len);
-
-				*len = copied_len;
-
-				return(buf);
+			if (page_no == FIL_NULL || copy_len != part_len) {
+				return(copied_len);
 			}
 
 			/* On other BLOB pages except the first the BLOB header
@@ -4329,9 +4292,111 @@ end_of_blob:
 
 			offset = FIL_PAGE_DATA;
 
-			ut_a(copied_len < local_len + extern_len);
+			ut_ad(copied_len <= len);
 		}
 	}
+}
+
+/***********************************************************************
+Copies the prefix of an externally stored field of a record. Parameter
+data contains a pointer to 'internally' stored part of the field:
+possibly some data, and the reference to the externally stored part in
+the last BTR_EXTERN_FIELD_REF_SIZE bytes of data. */
+
+ulint
+btr_copy_externally_stored_field_prefix(
+/*====================================*/
+				/* out: the length of the copied field */
+	byte*		buf,	/* out: the field, or a prefix of it */
+	ulint		len,	/* in: length of buf, in bytes */
+	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
+				zero for uncompressed BLOBs */
+	const byte*	data,	/* in: 'internally' stored part of the
+				field containing also the reference to
+				the external part */
+	ulint		local_len)/* in: length of data, in bytes */
+{
+	ulint	space_id;
+	ulint	page_no;
+	ulint	offset;
+
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+	if (UNIV_UNLIKELY(local_len >= len)) {
+		memcpy(buf, data, len);
+		return(len);
+	}
+
+	memcpy(buf, data, local_len);
+	data += local_len;
+
+	space_id = mach_read_from_4((byte*) data + BTR_EXTERN_SPACE_ID);
+
+	page_no = mach_read_from_4((byte*) data + BTR_EXTERN_PAGE_NO);
+
+	offset = mach_read_from_4((byte*) data + BTR_EXTERN_OFFSET);
+
+	return(local_len
+	       + btr_copy_externally_stored_field_prefix_low(buf + local_len,
+							     len - local_len,
+							     zip_size,
+							     space_id, page_no,
+							     offset));
+}
+
+/***********************************************************************
+Copies an externally stored field of a record to mem heap. Parameter
+data contains a pointer to 'internally' stored part of the field:
+possibly some data, and the reference to the externally stored part in
+the last BTR_EXTERN_FIELD_REF_SIZE bytes of data. */
+static
+byte*
+btr_copy_externally_stored_field(
+/*=============================*/
+				/* out: the whole field copied to heap */
+	ulint*		len,	/* out: length of the whole field */
+	byte*		data,	/* in: 'internally' stored part of the
+				field containing also the reference to
+				the external part */
+	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
+				zero for uncompressed BLOBs */
+	ulint		local_len,/* in: length of data */
+	mem_heap_t*	heap)	/* in: mem heap */
+{
+	ulint	space_id;
+	ulint	page_no;
+	ulint	offset;
+	ulint	extern_len;
+	byte*	buf;
+
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+	space_id = mach_read_from_4(data + local_len + BTR_EXTERN_SPACE_ID);
+
+	page_no = mach_read_from_4(data + local_len + BTR_EXTERN_PAGE_NO);
+
+	offset = mach_read_from_4(data + local_len + BTR_EXTERN_OFFSET);
+
+	/* Currently a BLOB cannot be bigger than 4 GB; we
+	leave the 4 upper bytes in the length field unused */
+
+	extern_len = mach_read_from_4(data + local_len + BTR_EXTERN_LEN + 4);
+
+	buf = mem_heap_alloc(heap, local_len + extern_len);
+
+	memcpy(buf, data, local_len);
+	*len = local_len
+		+ btr_copy_externally_stored_field_prefix_low(buf + local_len,
+							      extern_len,
+							      zip_size,
+							      space_id,
+							      page_no, offset);
+
+	return(buf);
 }
 
 /***********************************************************************
