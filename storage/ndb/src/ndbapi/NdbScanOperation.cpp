@@ -694,9 +694,27 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   theNdbCon = NULL;
   m_transConnection = NULL;
 
-  if (releaseOp && tTransCon) {
+  if (tTransCon) 
+  {
     NdbIndexScanOperation* tOp = (NdbIndexScanOperation*)this;
-    tTransCon->releaseScanOperation(tOp);
+
+    bool ret = true;
+    if (theStatus != WaitResponse)
+    {
+      /**
+       * Not executed yet
+       */
+      ret = 
+	tTransCon->releaseScanOperation(&tTransCon->m_theFirstScanOperation,
+					&tTransCon->m_theLastScanOperation,
+					tOp);
+    }
+    else if (releaseOp)
+    {
+      ret = tTransCon->releaseScanOperation(&tTransCon->m_firstExecutedScanOp,
+					    0, tOp);
+    }
+    assert(ret);
   }
   
   tCon->theScanningOp = 0;

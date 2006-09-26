@@ -37,7 +37,8 @@ public:
   };
   unsigned short get_port() { return m_port; };
   char *get_server_name() { return m_server_name; };
-  NDB_SOCKET_TYPE connect();
+  int bind(const char* toaddress, unsigned short toport);
+  NDB_SOCKET_TYPE connect(const char* toaddress = 0, unsigned short port = 0);
   bool close();
 };
 
