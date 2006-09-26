@@ -127,6 +127,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 /* 68 not unused */
 /* 69 not unused */
 /* 70 unused */
+#define GSN_UPDATE_FRAG_DIST_KEY_ORD    70
 #define GSN_ACC_ABORTREQ                71
 #define GSN_ACC_CHECK_SCAN              72
 #define GSN_ACC_COMMITCONF              73
