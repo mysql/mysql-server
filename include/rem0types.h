@@ -17,4 +17,10 @@ typedef byte	rec_t;
 #define REC_MAX_HEAP_NO		(2 * 8192 - 1)
 #define REC_MAX_N_OWNED		(16 - 1)
 
+/* REC_MAX_INDEX_COL_LEN is measured in bytes and is the max index column
+length + 1. Starting from 4.1.6, we set it to 3 * 256, so that one can
+create a column prefix index on 255 characters of a TEXT field also in the
+UTF-8 charset. Under MySQL, a UTF-8 character may take at most 3 bytes. */
+#define REC_MAX_INDEX_COL_LEN	768
+
 #endif

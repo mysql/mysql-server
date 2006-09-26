@@ -70,6 +70,7 @@ EXTRA_DIST = 	include/btr0btr.h include/btr0btr.ic include/btr0cur.h include/btr
 		include/read0read.h include/read0read.ic include/read0types.h \
 		include/rem0cmp.h include/rem0cmp.ic include/rem0rec.h include/rem0rec.ic \
 		include/rem0types.h \
+		include/row0ext.h include/row0ext.ic \
 		include/row0ins.h include/row0ins.ic include/row0mysql.h include/row0mysql.ic \
 		include/row0purge.h include/row0purge.ic include/row0row.h include/row0row.ic \
 		include/row0sel.h include/row0sel.ic include/row0types.h \
