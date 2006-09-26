@@ -977,6 +977,11 @@ NDBT_Tables::createTable(Ndb* pNdb, const char* _name, bool _temp,
   do {
     NdbDictionary::Table tmpTab(* tab);
     tmpTab.setStoredTable(_temp ? 0 : 1);
+    {
+      NdbError error;
+      int ret = tmpTab.validate(error);
+      assert(ret == 0);
+    }
     if(f != 0 && f(pNdb, tmpTab, 0, arg))
     {
       ndbout << "Failed to create table" << endl;
