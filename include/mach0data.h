@@ -32,8 +32,8 @@ UNIV_INLINE
 ulint
 mach_read_from_1(
 /*=============*/
-			/* out: ulint integer, >= 0, < 256 */
-	byte*	b);	 /* in: pointer to byte */
+				/* out: ulint integer, >= 0, < 256 */
+	const byte*	b);	/* in: pointer to byte */
 /***********************************************************
 The following function is used to store data in two consecutive
 bytes. We store the most significant byte to the lower address. */
@@ -50,8 +50,8 @@ UNIV_INLINE
 ulint
 mach_read_from_2(
 /*=============*/
-			/* out: ulint integer, >= 0, < 64k */
-	byte*	b);	 /* in: pointer to two bytes */
+				/* out: ulint integer, >= 0, < 64k */
+	const byte*	b);	/* in: pointer to two bytes */
 
 /************************************************************
 The following function is used to convert a 16-bit data item
@@ -89,8 +89,8 @@ UNIV_INLINE
 ulint
 mach_read_from_3(
 /*=============*/
-			/* out: ulint integer */
-	byte*	b);	 /* in: pointer to 3 bytes */
+				/* out: ulint integer */
+	const byte*	b);	/* in: pointer to 3 bytes */
 /***********************************************************
 The following function is used to store data in four consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -107,8 +107,8 @@ UNIV_INLINE
 ulint
 mach_read_from_4(
 /*=============*/
-			/* out: ulint integer */
-	byte*	b);	 /* in: pointer to four bytes */
+				/* out: ulint integer */
+	const byte*	b);	/* in: pointer to four bytes */
 /*************************************************************
 Writes a ulint in a compressed form (1..5 bytes). */
 UNIV_INLINE
@@ -132,8 +132,8 @@ UNIV_INLINE
 ulint
 mach_read_compressed(
 /*=================*/
-			/* out: read integer */
-	byte*	b);	/* in: pointer to memory from where to read */
+				/* out: read integer */
+	const byte*	b);	/* in: pointer to memory from where to read */
 /***********************************************************
 The following function is used to store data in 6 consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -150,8 +150,8 @@ UNIV_INLINE
 dulint
 mach_read_from_6(
 /*=============*/
-			/* out: dulint integer */
-	byte*	b);	 /* in: pointer to 6 bytes */
+				/* out: dulint integer */
+	const byte*	b);	/* in: pointer to 6 bytes */
 /***********************************************************
 The following function is used to store data in 7 consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -168,8 +168,8 @@ UNIV_INLINE
 dulint
 mach_read_from_7(
 /*=============*/
-			/* out: dulint integer */
-	byte*	b);	 /* in: pointer to 7 bytes */
+				/* out: dulint integer */
+	const byte*	b);	/* in: pointer to 7 bytes */
 /***********************************************************
 The following function is used to store data in 8 consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -186,8 +186,8 @@ UNIV_INLINE
 dulint
 mach_read_from_8(
 /*=============*/
-			/* out: dulint integer */
-	byte*	b);	 /* in: pointer to 8 bytes */
+				/* out: dulint integer */
+	const byte*	b);	/* in: pointer to 8 bytes */
 /*************************************************************
 Writes a dulint in a compressed form (5..9 bytes). */
 UNIV_INLINE
@@ -211,8 +211,8 @@ UNIV_INLINE
 dulint
 mach_dulint_read_compressed(
 /*========================*/
-			/* out: read dulint */
-	byte*	b);	/* in: pointer to memory from where to read */
+				/* out: read dulint */
+	const byte*	b);	/* in: pointer to memory from where to read */
 /*************************************************************
 Writes a dulint in a compressed form (1..11 bytes). */
 UNIV_INLINE
@@ -236,8 +236,8 @@ UNIV_INLINE
 dulint
 mach_dulint_read_much_compressed(
 /*=============================*/
-			/* out: read dulint */
-	byte*	b);	 /* in: pointer to memory from where to read */
+				/* out: read dulint */
+	const byte*	b);	/* in: pointer to memory from where to read */
 /*************************************************************
 Reads a ulint in a compressed form if the log record fully contains it. */
 
@@ -266,8 +266,8 @@ UNIV_INLINE
 double
 mach_double_read(
 /*=============*/
-			/* out: double read */
-	byte*	b);	 /* in: pointer to memory from where to read */
+				/* out: double read */
+	const byte*	b);	/* in: pointer to memory from where to read */
 /*************************************************************
 Writes a double. It is stored in a little-endian format. */
 UNIV_INLINE
@@ -282,8 +282,8 @@ UNIV_INLINE
 float
 mach_float_read(
 /*============*/
-			/* out: float read */
-	byte*	b);	 /* in: pointer to memory from where to read */
+				/* out: float read */
+	const byte*	b);	/* in: pointer to memory from where to read */
 /*************************************************************
 Writes a float. It is stored in a little-endian format. */
 UNIV_INLINE
@@ -298,9 +298,9 @@ UNIV_INLINE
 ulint
 mach_read_from_n_little_endian(
 /*===========================*/
-				/* out: unsigned long int */
-	byte*	buf,		/* in: from where to read */
-	ulint	buf_size);	/* in: from how many bytes to read */
+					/* out: unsigned long int */
+	const byte*	buf,		/* in: from where to read */
+	ulint		buf_size);	/* in: from how many bytes to read */
 /*************************************************************
 Writes a ulint in the little-endian format. */
 UNIV_INLINE
@@ -316,8 +316,8 @@ UNIV_INLINE
 ulint
 mach_read_from_2_little_endian(
 /*===========================*/
-				/* out: unsigned long int */
-	byte*	buf);		/* in: from where to read */
+					/* out: unsigned long int */
+	const byte*	buf);		/* in: from where to read */
 /*************************************************************
 Writes a ulint in the little-endian format. */
 UNIV_INLINE
