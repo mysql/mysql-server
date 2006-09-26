@@ -63,8 +63,8 @@ x509::x509(const x509& that) : length_(that.length_),
 
 void x509::Swap(x509& that)
 {
-    mySTL::swap(length_, that.length_);
-    mySTL::swap(buffer_, that.buffer_);
+    STL::swap(length_, that.length_);
+    STL::swap(buffer_, that.buffer_);
 }
 
 
@@ -105,11 +105,11 @@ CertManager::~CertManager()
 {
     ysDelete(peerX509_);
 
-    mySTL::for_each(signers_.begin(), signers_.end(), del_ptr_zero()) ;
+    STL::for_each(signers_.begin(), signers_.end(), del_ptr_zero()) ;
 
-    mySTL::for_each(peerList_.begin(), peerList_.end(), del_ptr_zero()) ;
+    STL::for_each(peerList_.begin(), peerList_.end(), del_ptr_zero()) ;
 
-    mySTL::for_each(list_.begin(), list_.end(), del_ptr_zero()) ;
+    STL::for_each(list_.begin(), list_.end(), del_ptr_zero()) ;
 }
 
 
@@ -242,7 +242,7 @@ uint CertManager::get_privateKeyLength() const
 // Validate the peer's certificate list, from root to peer (last to first)
 int CertManager::Validate()
 {
-    CertList::iterator last  = peerList_.rbegin();  // fix this
+    CertList::reverse_iterator last = peerList_.rbegin();
     int count = peerList_.size();
 
     while ( count > 1 ) {
@@ -255,7 +255,7 @@ int CertManager::Validate()
         const TaoCrypt::PublicKey& key = cert.GetPublicKey();
         signers_.push_back(NEW_YS TaoCrypt::Signer(key.GetKey(), key.size(),
                                         cert.GetCommonName(), cert.GetHash()));
-        --last;
+        ++last;
         --count;
     }
 
@@ -307,6 +307,23 @@ int CertManager::SetPrivateKey(const x509& key)
             keyType_ = dsa_sa_algo;
     }
     return 0;
+}
+
+
+// Store OpenSSL type peer's cert
+void CertManager::setPeerX509(X509* x)
+{
+    assert(peerX509_ == 0);
+    if (x == 0) return;
+
+    X509_NAME* issuer   = x->GetIssuer();
+    X509_NAME* subject  = x->GetSubject();
+    ASN1_STRING* before = x->GetBefore();
+    ASN1_STRING* after  = x->GetAfter();
+
+    peerX509_ = NEW_YS X509(issuer->GetName(), issuer->GetLength(),
+        subject->GetName(), subject->GetLength(), (const char*) before->data,
+        before->length, (const char*) after->data, after->length);
 }
 
 

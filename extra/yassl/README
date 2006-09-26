@@ -1,4 +1,15 @@
-yaSSL Release notes, version 1.3.7 (06/26/06)
+yaSSL Release notes, version 1.4.0 (08/13/06)
+
+
+    This release of yaSSL contains bug fixes, portability enhancements,
+    nonblocking connect and accept, better OpenSSL error mapping, and 
+    certificate caching for session resumption.
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0.
+
+
+********************yaSSL Release notes, version 1.3.7 (06/26/06)
 
 
     This release of yaSSL contains bug fixes, portability enhancements,

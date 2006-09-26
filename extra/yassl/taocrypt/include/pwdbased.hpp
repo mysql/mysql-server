@@ -74,7 +74,7 @@ word32 PBKDF2_HMAC<T>::DeriveKey(byte* derived, word32 dLen, const byte* pwd,
 		}
 		hmac.Final(buffer.get_buffer());
 
-		word32 segmentLen = mySTL::min(dLen, buffer.size());
+		word32 segmentLen = min(dLen, buffer.size());
 		memcpy(derived, buffer.get_buffer(), segmentLen);
 
 		for (j = 1; j < iterations; j++) {
