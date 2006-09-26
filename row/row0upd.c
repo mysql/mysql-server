@@ -20,6 +20,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "que0que.h"
+#include "row0ext.h"
 #include "row0ins.h"
 #include "row0sel.h"
 #include "row0row.h"
@@ -277,6 +278,7 @@ upd_node_create(
 	node->in_mysql_interface = FALSE;
 
 	node->row = NULL;
+	node->ext = NULL;
 	node->ext_vec = NULL;
 	node->index = NULL;
 	node->update = NULL;
@@ -1251,7 +1253,6 @@ row_upd_store_row(
 	upd_node_t*	node)	/* in: row update node */
 {
 	dict_index_t*	clust_index;
-	upd_t*		update;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -1262,7 +1263,6 @@ row_upd_store_row(
 
 	if (node->row != NULL) {
 		mem_heap_empty(node->heap);
-		node->row = NULL;
 	}
 
 	clust_index = dict_table_get_first_index(node->table);
@@ -1272,17 +1272,18 @@ row_upd_store_row(
 	offsets = rec_get_offsets(rec, clust_index, offsets_,
 				  ULINT_UNDEFINED, &heap);
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
-			      node->heap);
-	node->ext_vec = mem_heap_alloc(node->heap, sizeof(ulint)
-				       * rec_offs_n_fields(offsets));
-	if (node->is_delete) {
-		update = NULL;
+			      &node->ext, node->heap);
+	if (UNIV_LIKELY_NULL(node->ext)) {
+		node->ext_vec = mem_heap_alloc(node->heap, sizeof(ulint)
+					       * node->ext->n_ext);
+		node->n_ext_vec = btr_push_update_extern_fields(
+			node->ext_vec, offsets,
+			node->is_delete ? NULL : node->update);
 	} else {
-		update = node->update;
+		node->ext_vec = NULL;
+		node->n_ext_vec = 0;
 	}
 
-	node->n_ext_vec = btr_push_update_extern_fields(node->ext_vec,
-							offsets, update);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -1318,7 +1319,7 @@ row_upd_sec_index_entry(
 	heap = mem_heap_create(1024);
 
 	/* Build old index entry */
-	entry = row_build_index_entry(node->row, index, heap);
+	entry = row_build_index_entry(node->row, node->ext, index, heap);
 
 	log_free_check();
 	mtr_start(&mtr);
@@ -1495,7 +1496,7 @@ row_upd_clust_rec_by_insert(
 	}
 	node->state = UPD_NODE_INSERT_CLUSTERED;
 
-	entry = row_build_index_entry(node->row, index, heap);
+	entry = row_build_index_entry(node->row, node->ext, index, heap);
 
 	row_upd_index_replace_new_col_vals(entry, index, node->update, NULL);
 
@@ -1910,6 +1911,8 @@ function_exit:
 
 		if (node->row != NULL) {
 			node->row = NULL;
+			node->ext = NULL;
+			node->ext_vec = NULL;
 			node->n_ext_vec = 0;
 			mem_heap_empty(node->heap);
 		}

@@ -388,6 +388,8 @@ struct upd_node_struct{
 	dtuple_t*	row;	/* NULL, or a copy (also fields copied to
 				heap) of the row to update; this must be reset
 				to NULL after a successful update */
+	row_ext_t*	ext;	/* NULL, or prefixes of the externally
+				stored columns of the row */
 	ulint*		ext_vec;/* array describing which fields are stored
 				externally in the clustered index record of
 				row */
