@@ -563,7 +563,7 @@ row_purge_parse_undo_rec(
 
 	/* Read to the partial row the fields that occur in indexes */
 
-	if (!cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
+	if (!(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		ptr = trx_undo_rec_get_partial_row(ptr, clust_index,
 						   &(node->row), node->heap);
 	}
