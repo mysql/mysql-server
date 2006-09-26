@@ -19,7 +19,8 @@ include ../include/Makefile.i
 
 noinst_LIBRARIES =	librow.a
 
-librow_a_SOURCES =	row0ins.c row0mysql.c row0purge.c row0row.c row0sel.c\
+librow_a_SOURCES =	row0ext.c\
+			row0ins.c row0mysql.c row0purge.c row0row.c row0sel.c\
 			row0uins.c row0umod.c row0undo.c row0upd.c row0vers.c
 
 EXTRA_PROGRAMS =	

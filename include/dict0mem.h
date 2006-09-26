@@ -165,12 +165,7 @@ struct dict_col_struct{
 				is defined on the entire column */
 };
 
-/* DICT_MAX_INDEX_COL_LEN is measured in bytes and is the max index column
-length + 1. Starting from 4.1.6, we set it to < 3 * 256, so that one can
-create a column prefix index on 255 characters of a TEXT field also in the
-UTF-8 charset. In that charset, a character may take at most 3 bytes. */
-
-#define DICT_MAX_INDEX_COL_LEN		768
+#define DICT_MAX_INDEX_COL_LEN		REC_MAX_INDEX_COL_LEN
 
 /* Data structure for a field in an index */
 struct dict_field_struct{
