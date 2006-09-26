@@ -44,8 +44,8 @@
 #include "block.hpp"
 #include "random.hpp"
 #include "file.hpp"
-#include "algorithm.hpp"    // mySTL::swap
 #include <string.h>
+#include STL_ALGORITHM_FILE
 
 
 #ifdef TAOCRYPT_X86ASM_AVAILABLE
