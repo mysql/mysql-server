@@ -255,7 +255,7 @@ our $opt_result_ext;
 
 our $opt_skip;
 our $opt_skip_rpl;
-our $use_slaves;
+our $max_slave_num= 0;
 our $opt_skip_test;
 our $opt_skip_im;
 
@@ -409,7 +409,13 @@ sub main () {
     {
       $need_ndbcluster||= $test->{ndb_test};
       $need_im||= $test->{component_id} eq 'im';
-      $use_slaves||= $test->{slave_num};
+
+      # Count max number of slaves used by a test case
+      if ( $test->{slave_num} > $max_slave_num)
+      {
+	$max_slave_num= $test->{slave_num};
+	mtr_error("Too many slaves") if $max_slave_num > 3;
+      }
     }
     $opt_with_ndbcluster= 0 unless $need_ndbcluster;
     $opt_skip_im= 1 unless $need_im;
@@ -993,11 +999,9 @@ sub snapshot_setup () {
     $master->[0]->{'path_myddir'},
     $master->[1]->{'path_myddir'});
 
-  if ($use_slaves)
+  for (my $idx= 0; $idx < $max_slave_num; $idx++)
   {
-    push @data_dir_lst, ($slave->[0]->{'path_myddir'},
-                         $slave->[1]->{'path_myddir'},
-                         $slave->[2]->{'path_myddir'});
+    push(@data_dir_lst, $slave->[$idx]->{'path_myddir'});
   }
 
   unless ($opt_skip_im)
@@ -1719,16 +1723,13 @@ sub initialize_servers () {
 
 sub mysql_install_db () {
 
-  # FIXME not exactly true I think, needs improvements
   install_db('master1', $master->[0]->{'path_myddir'});
+  copy_install_db('master2', $master->[1]->{'path_myddir'});
 
-  install_db('master2', $master->[1]->{'path_myddir'});
-
-  if ( $use_slaves )
+  # Install the number of slave databses needed
+  for (my $idx= 0; $idx < $max_slave_num; $idx++)
   {
-    install_db('slave1',  $slave->[0]->{'path_myddir'});
-    install_db('slave2',  $slave->[1]->{'path_myddir'});
-    install_db('slave3',  $slave->[2]->{'path_myddir'});
+    copy_install_db("slave".($idx+1), $slave->[$idx]->{'path_myddir'});
   }
 
   if ( ! $opt_skip_im )
@@ -1757,6 +1758,17 @@ sub mysql_install_db () {
   return 0;
 }
 
+
+sub copy_install_db ($$) {
+  my $type=      shift;
+  my $data_dir=  shift;
+
+  mtr_report("Installing \u$type Database");
+
+  # Just copy the installed db from first master
+  mtr_copy_dir($master->[0]->{'path_myddir'}, $data_dir);
+
+}
 
 sub install_db ($$) {
   my $type=      shift;
@@ -1918,9 +1930,29 @@ sub im_prepare_data_dir($) {
 
   foreach my $instance (@{$instance_manager->{'instances'}})
   {
-    install_db(
+    copy_install_db(
       'im_mysqld_' . $instance->{'server_id'},
       $instance->{'path_datadir'});
+  }
+}
+
+
+#
+# Restore snapshot of the installed slave databases
+# if the snapshot exists
+#
+sub restore_slave_databases () {
+
+  if ( -d $path_snapshot)
+  {
+    # Restore the number of slave databases being used
+    for (my $idx= 0; $idx < $max_slave_num; $idx++)
+    {
+      my $data_dir= $slave->[$idx]->{'path_myddir'};
+      my $name= basename($data_dir);
+      rmtree($data_dir);
+      mtr_copy_dir("$path_snapshot/$name", $data_dir);
+    }
   }
 }
 
@@ -2025,6 +2057,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------------------------
 
     stop_slaves();
+    restore_slave_databases();
   }
 
   # ----------------------------------------------------------------------
@@ -2786,7 +2819,7 @@ sub stop_slaves () {
 
   my @args;
 
-  for ( my $idx= 0; $idx < 3; $idx++ )
+  for ( my $idx= 0; $idx < $max_slave_num; $idx++ )
   {
     if ( $slave->[$idx]->{'pid'} )
     {
