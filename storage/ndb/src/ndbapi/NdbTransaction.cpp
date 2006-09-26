@@ -977,7 +977,7 @@ void releaseScanOperation();
 Remark:         Release scan op when hupp'ed trans closed (save memory)
 ******************************************************************************/
 void 
-NdbTransaction::releaseScanOperation(NdbIndexScanOperation* cursorOp)
+NdbTransaction::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
 {
   DBUG_ENTER("NdbTransaction::releaseExecutedScanOperation");
   DBUG_PRINT("enter", ("this=0x%x op=0x%x", (UintPtr)this, (UintPtr)cursorOp));
