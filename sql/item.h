@@ -846,8 +846,31 @@ public:
     allowed in a partition function then it is very important to consider
     whether this should be inherited to the new class. If not the function
     below should be defined in the new Item class.
+
+    The general behaviour is that most integer functions are allowed.
+    If the partition function contains any multi-byte collations then
+    the function check_part_func_fields will report an error on the
+    partition function independent of what functions are used. So the
+    only character sets allowed are single character collation and
+    even for those only a limited set of functions are allowed. The
+    problem with multi-byte collations is that almost every string
+    function has the ability to change things such that two strings
+    that are equal will not be equal after manipulated by a string
+    function. E.g. two strings one contains a double s, there is a
+    special german character that is equal to two s. Now assume a
+    string function removes one character at this place, then in
+    one the double s will be removed and in the other there will
+    still be one s remaining and the strings are no longer equal
+    and thus the partition function will not sort equal strings into
+    the same partitions.
+
+    So the check if a partition function is valid is two steps. First
+    check that the field types are valid, next check that the partition
+    function is valid. The current set of partition functions valid
+    assumes that there are no multi-byte collations amongst the partition
+    fields.
   */
-  virtual bool check_partition_func_processor(byte *bool_arg) { return FALSE; }
+  virtual bool check_partition_func_processor(byte *bool_arg) { return TRUE;}
   virtual bool subst_argument_checker(byte **arg)
   { 
     if (*arg)
@@ -1348,7 +1371,7 @@ public:
   bool collect_item_field_processor(byte * arg);
   bool find_item_in_field_list_processor(byte *arg);
   bool register_field_in_read_map(byte *arg);
-  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
   void cleanup();
   bool result_as_longlong()
   {
@@ -1397,7 +1420,7 @@ public:
   bool is_null() { return 1; }
   void print(String *str) { str->append(STRING_WITH_LEN("NULL")); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) { return FALSE;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_null_result :public Item_null
@@ -1410,8 +1433,7 @@ public:
   {
     save_in_field(result_field, no_conversions);
   }
-  bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= 0; return FALSE; }
+  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -1702,8 +1724,7 @@ public:
   {}
   void print(String *str) { str->append(func_name); }
   Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= 0; return FALSE; }
+  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 
@@ -1781,7 +1802,7 @@ public:
   void print(String *str);
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
-  bool check_partition_func_processor(byte *int_arg) { return FALSE;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -1796,8 +1817,7 @@ public:
   {}
   Item *safe_charset_converter(CHARSET_INFO *tocs);
   void print(String *str) { str->append(func_name); }
-  bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= 0; return FALSE; }
+  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 
@@ -1810,8 +1830,7 @@ public:
                                                     &my_charset_bin)
   { max_length=19;}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
-  bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= 0; return FALSE; }
+  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 class Item_empty_string :public Item_string
@@ -1834,8 +1853,7 @@ public:
     unsigned_flag=1;
   }
   enum_field_types field_type() const { return int_field_type; }
-  bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= 0; return FALSE; }
+  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 
@@ -1859,7 +1877,7 @@ public:
   void cleanup() {}
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
-  bool check_partition_func_processor(byte *int_arg) { return FALSE; }
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -2086,8 +2104,7 @@ public:
   }
   Item *new_item();
   virtual Item *real_item() { return ref; }
-  bool check_partition_func_processor(byte *int_arg)
-  { *(int *)int_arg= 0; return FALSE; }
+  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 #ifdef MYSQL_SERVER
