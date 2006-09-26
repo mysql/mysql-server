@@ -26,8 +26,8 @@ WINE_BUILD_DIR=`echo "$BUILD_DIR" | sed 's_'$base_unix_part'/__'`
 WINE_BUILD_DIR="$base$WINE_BUILD_DIR"
 echo "WINE_BUILD_DIR: $WINE_BUILD_DIR"
 
-export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/fs64/headers;$MYDEV/zlib-1.1.4;$WINE_BUILD_DIR/include;$MYDEV"
-export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/zlib-1.1.4;$MYDEV/openssl;$WINE_BUILD_DIR/netware/BUILD"
+export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/fs64/headers;$MYDEV/zlib-1.2.3;$WINE_BUILD_DIR/include;$MYDEV"
+export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/zlib-1.2.3;$MYDEV/openssl;$WINE_BUILD_DIR/netware/BUILD"
 export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;libz.a;neb.imp;zPublics.imp;knetware.imp"
 
 export WINEPATH="$MYDEV/mw/bin"
