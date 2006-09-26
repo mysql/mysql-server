@@ -1452,16 +1452,13 @@ static bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
       CHARSET_INFO *cs= ((Field_str*)field)->charset();
       if (field->type() == MYSQL_TYPE_STRING &&
           cs->state & MY_CS_BINSORT)
-      {
-        DBUG_RETURN(FALSE);
-      }
+        continue;
       if (!ok_with_charsets ||
           cs->mbmaxlen > 1 ||
           cs->strxfrm_multiply > 1)
       {
         DBUG_RETURN(TRUE);
       }
-      DBUG_RETURN(FALSE);
     }
   }
   DBUG_RETURN(FALSE);
