@@ -256,7 +256,7 @@ our $opt_result_ext;
 
 our $opt_skip;
 our $opt_skip_rpl;
-our $use_slaves;
+our $max_slave_num= 0;
 our $use_innodb;
 our $opt_skip_test;
 our $opt_skip_im;
@@ -427,7 +427,13 @@ sub main () {
     {
       $need_ndbcluster||= $test->{ndb_test};
       $need_im||= $test->{component_id} eq 'im';
-      $use_slaves||= $test->{slave_num};
+
+      # Count max number of slaves used by a test case
+      if ( $test->{slave_num} > $max_slave_num)
+      {
+	$max_slave_num= $test->{slave_num};
+	mtr_error("Too many slaves") if $max_slave_num > 3;
+      }
       $use_innodb||= $test->{'innodb_test'};
     }
     $opt_skip_ndbcluster= $opt_skip_ndbcluster_slave= 1
@@ -1122,11 +1128,9 @@ sub snapshot_setup () {
     $master->[0]->{'path_myddir'},
     $master->[1]->{'path_myddir'});
 
-  if ($use_slaves)
+  for (my $idx= 0; $idx < $max_slave_num; $idx++)
   {
-    push @data_dir_lst, ($slave->[0]->{'path_myddir'},
-                         $slave->[1]->{'path_myddir'},
-                         $slave->[2]->{'path_myddir'});
+    push(@data_dir_lst, $slave->[$idx]->{'path_myddir'});
   }
 
   unless ($opt_skip_im)
@@ -2258,11 +2262,10 @@ sub mysql_install_db () {
   # FIXME check if testcase really is using second master
   copy_install_db('master', $master->[1]->{'path_myddir'});
 
-  if ( $use_slaves )
+  # Install the number of slave databses needed
+  for (my $idx= 0; $idx < $max_slave_num; $idx++)
   {
-    install_db('slave1',  $slave->[0]->{'path_myddir'});
-    install_db('slave2',  $slave->[1]->{'path_myddir'});
-    install_db('slave3',  $slave->[2]->{'path_myddir'});
+    copy_install_db("slave".($idx+1), $slave->[$idx]->{'path_myddir'});
   }
 
   if ( ! $opt_skip_im )
@@ -2493,6 +2496,28 @@ sub im_prepare_data_dir($) {
   }
 }
 
+
+
+#
+# Restore snapshot of the installed slave databases
+# if the snapshot exists
+#
+sub restore_slave_databases () {
+
+  if ( -d $path_snapshot)
+  {
+    # Restore the number of slave databases being used
+    for (my $idx= 0; $idx < $max_slave_num; $idx++)
+    {
+      my $data_dir= $slave->[$idx]->{'path_myddir'};
+      my $name= basename($data_dir);
+      rmtree($data_dir);
+      mtr_copy_dir("$path_snapshot/$name", $data_dir);
+    }
+  }
+}
+
+
 sub run_testcase_check_skip_test($)
 {
   my ($tinfo)= @_;
@@ -2600,7 +2625,6 @@ sub run_testcase ($) {
   {
     run_testcase_stop_servers($tinfo, $master_restart, $slave_restart);
   }
-
   my $died= mtr_record_dead_children();
   if ($died or $master_restart or $slave_restart)
   {
