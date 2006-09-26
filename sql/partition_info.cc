@@ -695,6 +695,7 @@ end:
     file                A reference to a handler of the table
     info                Create info
     engine_type         Return value for used engine in partitions
+    check_partition_function Should we check the partition function
 
   RETURN VALUE
     TRUE                 Error, something went wrong
@@ -709,26 +710,41 @@ end:
 */
 
 bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
-                                          handler *file, HA_CREATE_INFO *info)
+                                          handler *file, HA_CREATE_INFO *info,
+                                          bool check_partition_function)
 {
   handlerton **engine_array= NULL;
   uint part_count= 0;
   uint i, tot_partitions;
   bool result= TRUE;
   char *same_name;
-  bool part_expression_ok= TRUE;
   DBUG_ENTER("partition_info::check_partition_info");
 
-  if (part_type != HASH_PARTITION || !list_of_part_fields)
-    part_expr->walk(&Item::check_partition_func_processor, 0,
-                    (byte*)(&part_expression_ok));
-  if (is_sub_partitioned() && !list_of_subpart_fields)
-    subpart_expr->walk(&Item::check_partition_func_processor, 0,
-                       (byte*)(&part_expression_ok));
-  if (!part_expression_ok)
+  if (check_partition_function)
   {
-    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
-    goto end;
+    int part_expression_ok= 1;
+    int pf_collation_allowed= 1;
+    int spf_collation_allowed= 1;
+
+    if (part_type != HASH_PARTITION || !list_of_part_fields)
+    {
+      part_expr->walk(&Item::check_partition_func_processor, 0,
+                      (byte*)(&part_expression_ok));
+      pf_collation_allowed= part_expression_ok;
+      part_expression_ok= 1;
+      if (is_sub_partitioned() && !list_of_subpart_fields)
+      {
+        subpart_expr->walk(&Item::check_partition_func_processor, 0,
+                           (byte*)(&part_expression_ok));
+      }
+      spf_collation_allowed= part_expression_ok;
+    }
+    if (!pf_collation_allowed ||
+        !spf_collation_allowed)
+    {
+      my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+      goto end;
+    }
   }
   if (unlikely(!is_sub_partitioned() && 
                !(use_default_subpartitions && use_default_no_subpartitions)))
