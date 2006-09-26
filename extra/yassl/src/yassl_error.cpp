@@ -125,13 +125,21 @@ void SetErrorString(YasslError error, char* buffer)
         strncpy(buffer, "unable to proccess cerificate", max);
         break; 
 
+    case privateKey_error :
+        strncpy(buffer, "unable to proccess private key, bad format", max);
+        break;
+
+    case badVersion_error :
+        strncpy(buffer, "protocl version mismatch", max);
+        break;
+        
         // openssl errors
     case SSL_ERROR_WANT_READ :
         strncpy(buffer, "the read operation would block", max);
         break;
 
         // TaoCrypt errors
-    case NO_ERROR :
+    case NO_ERROR_E :
         strncpy(buffer, "not in error state", max);
         break;
 
@@ -233,6 +241,10 @@ void SetErrorString(YasslError error, char* buffer)
 
     case SIG_OTHER_E :
         strncpy(buffer, "ASN: bad other signature confirmation", max);
+        break;
+
+    case CERTFICATE_ERROR :
+        strncpy(buffer, "Unable to verify certificate", max);
         break;
 
     default :

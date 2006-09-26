@@ -31,11 +31,13 @@
 #ifndef TAO_CRYPT_BLOCK_HPP
 #define TAO_CRYPT_BLOCK_HPP
 
-#include "algorithm.hpp"    // mySTL::swap
 #include "misc.hpp"
 #include <string.h>         // memcpy
 #include <stddef.h>         // ptrdiff_t
+#include STL_ALGORITHM_FILE
 
+
+namespace STL = STL_NAMESPACE;
 
 
 namespace TaoCrypt {
@@ -80,7 +82,7 @@ typename A::pointer StdReallocate(A& a, T* p, typename A::size_type oldSize,
         typename A::pointer newPointer = b.allocate(newSize, 0);
         memcpy(newPointer, p, sizeof(T) * min(oldSize, newSize));
         a.deallocate(p, oldSize);
-        mySTL::swap(a, b);
+        STL::swap(a, b);
         return newPointer;
     }
     else {
@@ -183,9 +185,9 @@ public:
     }
 
     void Swap(Block& other) {
-        mySTL::swap(sz_, other.sz_);
-        mySTL::swap(buffer_, other.buffer_);
-        mySTL::swap(allocator_, other.allocator_);
+        STL::swap(sz_, other.sz_);
+        STL::swap(buffer_, other.buffer_);
+        STL::swap(allocator_, other.allocator_);
     }
 
     ~Block() { allocator_.deallocate(buffer_, sz_); }

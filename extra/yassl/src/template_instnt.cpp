@@ -65,6 +65,19 @@ template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::output_buffer*>::iterat
 template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::x509*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::x509*>::iterator, mySTL::list<yaSSL::x509*>::iterator, yaSSL::del_ptr_zero);
 template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::Digest*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::Digest*>::iterator, mySTL::list<yaSSL::Digest*>::iterator, yaSSL::del_ptr_zero);
 template yaSSL::del_ptr_zero for_each<mySTL::list<yaSSL::BulkCipher*>::iterator, yaSSL::del_ptr_zero>(mySTL::list<yaSSL::BulkCipher*>::iterator, mySTL::list<yaSSL::BulkCipher*>::iterator, yaSSL::del_ptr_zero);
+template bool list<yaSSL::ThreadError>::erase(list<yaSSL::ThreadError>::iterator);
+template void list<yaSSL::ThreadError>::push_back(yaSSL::ThreadError);
+template void list<yaSSL::ThreadError>::pop_front();
+template void list<yaSSL::ThreadError>::pop_back();
+template list<yaSSL::ThreadError>::~list();
+template pair<int, yaSSL::Message* (*)()>* GetArrayMemory<pair<int, yaSSL::Message* (*)()> >(size_t);
+template void FreeArrayMemory<pair<int, yaSSL::Message* (*)()> >(pair<int, yaSSL::Message* (*)()>*);
+template pair<int, yaSSL::HandShakeBase* (*)()>* GetArrayMemory<pair<int, yaSSL::HandShakeBase* (*)()> >(size_t);
+template void FreeArrayMemory<pair<int, yaSSL::HandShakeBase* (*)()> >(pair<int, yaSSL::HandShakeBase* (*)()>*);
+template pair<int, yaSSL::ServerKeyBase* (*)()>* GetArrayMemory<pair<int, yaSSL::ServerKeyBase* (*)()> >(size_t);
+template void FreeArrayMemory<pair<int, yaSSL::ServerKeyBase* (*)()> >(pair<int, yaSSL::ServerKeyBase* (*)()>*);
+template pair<int, yaSSL::ClientKeyBase* (*)()>* GetArrayMemory<pair<int, yaSSL::ClientKeyBase* (*)()> >(size_t);
+template void FreeArrayMemory<pair<int, yaSSL::ClientKeyBase* (*)()> >(pair<int, yaSSL::ClientKeyBase* (*)()>*);
 }
 
 namespace yaSSL {
@@ -90,8 +103,12 @@ template void ysDelete<X509>(X509*);
 template void ysDelete<Message>(Message*);
 template void ysDelete<sslFactory>(sslFactory*);
 template void ysDelete<Sessions>(Sessions*);
+template void ysDelete<Errors>(Errors*);
 template void ysArrayDelete<unsigned char>(unsigned char*);
 template void ysArrayDelete<char>(char*);
+
+template int min<int>(int, int);
+template unsigned int min<unsigned int>(unsigned int, unsigned int);
 }
 
 #endif // HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
