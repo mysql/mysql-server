@@ -3618,9 +3618,8 @@ part_bit_expr:
             mem_alloc_error(sizeof(part_elem_value));
             YYABORT;
           }
-          part_expr->walk(&Item::check_partition_func_processor, 0,
-                          (byte*)(&part_expression_ok));
-          if (!part_expression_ok)
+          if (part_expr->walk(&Item::check_partition_func_processor, 0,
+                              NULL))
           {
             my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
             YYABORT;
