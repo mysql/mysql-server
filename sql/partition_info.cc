@@ -722,25 +722,17 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
 
   if (check_partition_function)
   {
-    int part_expression_ok= 1;
-    int pf_collation_allowed= 1;
-    int spf_collation_allowed= 1;
+    int err= 0;
 
     if (part_type != HASH_PARTITION || !list_of_part_fields)
     {
-      part_expr->walk(&Item::check_partition_func_processor, 0,
-                      (byte*)(&part_expression_ok));
-      pf_collation_allowed= part_expression_ok;
-      part_expression_ok= 1;
-      if (is_sub_partitioned() && !list_of_subpart_fields)
-      {
-        subpart_expr->walk(&Item::check_partition_func_processor, 0,
-                           (byte*)(&part_expression_ok));
-      }
-      spf_collation_allowed= part_expression_ok;
+      err= part_expr->walk(&Item::check_partition_func_processor, 0,
+                           NULL);
+      if (!err && is_sub_partitioned() && !list_of_subpart_fields)
+        err= subpart_expr->walk(&Item::check_partition_func_processor, 0,
+                                NULL);
     }
-    if (!pf_collation_allowed ||
-        !spf_collation_allowed)
+    if (err)
     {
       my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
       goto end;
