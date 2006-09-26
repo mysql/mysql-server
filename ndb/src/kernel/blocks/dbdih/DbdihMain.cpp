@@ -1265,9 +1265,9 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       if (isMaster()) {
 	jam();
 	systemRestartTakeOverLab(signal);
-	if (anyActiveTakeOver() && false) {
+	if (anyActiveTakeOver())
+	{
 	  jam();
-	  ndbout_c("1 - anyActiveTakeOver == true");
 	  return;
 	}
       }
@@ -2260,6 +2260,8 @@ Dbdih::systemRestartTakeOverLab(Signal* signal)
 	// NOT ACTIVE NODES THAT HAVE NOT YET BEEN TAKEN OVER NEEDS TAKE OVER
 	// IMMEDIATELY. IF WE ARE ALIVE WE TAKE OVER OUR OWN NODE.
 	/*-------------------------------------------------------------------*/
+	infoEvent("Take over of node %d started", 
+		  nodePtr.i);
 	startTakeOver(signal, RNIL, nodePtr.i, nodePtr.i);
       }//if
       break;
@@ -2372,6 +2374,12 @@ void Dbdih::nodeRestartTakeOver(Signal* signal, Uint32 startNodeId)
      *--------------------------------------------------------------------*/
     Uint32 takeOverNode = Sysfile::getTakeOverNode(startNodeId, 
 						   SYSFILE->takeOver);
+    if(takeOverNode == 0){
+      jam();
+      warningEvent("Bug in take-over code restarting");
+      takeOverNode = startNodeId;
+    }
+
     startTakeOver(signal, RNIL, startNodeId, takeOverNode);
     break;
   }
@@ -2525,7 +2533,14 @@ void Dbdih::startTakeOver(Signal* signal,
   Sysfile::setTakeOverNode(takeOverPtr.p->toFailedNode, SYSFILE->takeOver,
 			   startNode);
   takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_START_COPY;
-  
+
+  if (getNodeState().getSystemRestartInProgress())
+  {
+    jam();
+    checkToCopy();
+    checkToCopyCompleted(signal);
+    return;
+  }
   cstartGcpNow = true;
 }//Dbdih::startTakeOver()
 
@@ -3273,6 +3288,18 @@ void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
   signal->theData[1] = takeOverPtr.p->toStartingNode;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
+  if (getNodeState().getSystemRestartInProgress())
+  {
+    jam();
+    infoEvent("Take over of node %d complete", takeOverPtr.p->toStartingNode);
+    setNodeActiveStatus(takeOverPtr.p->toStartingNode, Sysfile::NS_Active);
+    takeOverPtr.p->toMasterStatus = TakeOverRecord::WAIT_LCP;
+    takeOverCompleted(takeOverPtr.p->toStartingNode);
+    checkToCopy();
+    checkToCopyCompleted(signal);
+    return;
+  }
+  
   c_lcpState.immediateLcpStart = true;
   takeOverPtr.p->toMasterStatus = TakeOverRecord::WAIT_LCP;
   
@@ -3379,16 +3406,12 @@ void Dbdih::execEND_TOCONF(Signal* signal)
   }//if
   endTakeOver(takeOverPtr.i);
 
-  ndbout_c("2 - endTakeOver");
   if (cstartPhase == ZNDB_SPH4) {
     jam();
-    ndbrequire(false);
     if (anyActiveTakeOver()) {
       jam();
-      ndbout_c("4 - anyActiveTakeOver == true");
       return;
     }//if
-    ndbout_c("5 - anyActiveTakeOver == false -> ndbsttorry10Lab");
     ndbsttorry10Lab(signal, __LINE__);
     return;
   }//if
@@ -9561,73 +9584,84 @@ void Dbdih::startNextChkpt(Signal* signal)
       nodePtr.i = replicaPtr.p->procNode;
       ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
       
-      if (replicaPtr.p->lcpOngoingFlag &&
-          replicaPtr.p->lcpIdStarted < lcpId) {
-        jam();
-	//-------------------------------------------------------------------
-	// We have found a replica on a node that performs local checkpoint
-	// that is alive and that have not yet been started.
-	//-------------------------------------------------------------------
-
-        if (nodePtr.p->noOfStartedChkpt < 2) {
-          jam();
-	  /**
-	   * Send LCP_FRAG_ORD to LQH
-	   */
+      if (c_lcpState.m_participatingLQH.get(nodePtr.i))
+      {
+	if (replicaPtr.p->lcpOngoingFlag &&
+	    replicaPtr.p->lcpIdStarted < lcpId) 
+	{
+	  jam();
+	  //-------------------------------------------------------------------
+	  // We have found a replica on a node that performs local checkpoint
+	  // that is alive and that have not yet been started.
+	  //-------------------------------------------------------------------
 	  
-	  /**
-	   * Mark the replica so with lcpIdStarted == true
-	   */
-          replicaPtr.p->lcpIdStarted = lcpId;
-
-          Uint32 i = nodePtr.p->noOfStartedChkpt;
-          nodePtr.p->startedChkpt[i].tableId = tabPtr.i;
-          nodePtr.p->startedChkpt[i].fragId = curr.fragmentId;
-          nodePtr.p->startedChkpt[i].replicaPtr = replicaPtr.i;
-          nodePtr.p->noOfStartedChkpt = i + 1;
-
-	  sendLCP_FRAG_ORD(signal, nodePtr.p->startedChkpt[i]);
-        } else if (nodePtr.p->noOfQueuedChkpt < 2) {
-          jam();
-	  /**
-	   * Put LCP_FRAG_ORD "in queue"
-	   */
-	  
-	  /**
-	   * Mark the replica so with lcpIdStarted == true
-	   */
-          replicaPtr.p->lcpIdStarted = lcpId;
-	  
-          Uint32 i = nodePtr.p->noOfQueuedChkpt;
-          nodePtr.p->queuedChkpt[i].tableId = tabPtr.i;
-          nodePtr.p->queuedChkpt[i].fragId = curr.fragmentId;
-          nodePtr.p->queuedChkpt[i].replicaPtr = replicaPtr.i;
-          nodePtr.p->noOfQueuedChkpt = i + 1;
-        } else {
-          jam();
-
-	  if(save){
+	  if (nodePtr.p->noOfStartedChkpt < 2) 
+	  {
+	    jam();
 	    /**
-	     * Stop increasing value on first that was "full"
+	     * Send LCP_FRAG_ORD to LQH
 	     */
-	    c_lcpState.currentFragment = curr;
-	    save = false;
-	  }
-	  
-	  busyNodes.set(nodePtr.i);
-	  if(busyNodes.count() == lcpNodes){
+	    
 	    /**
-	     * There were no possibility to start the local checkpoint 
-	     * and it was not possible to queue it up. In this case we 
-	     * stop the start of local checkpoints until the nodes with a 
-	     * backlog have performed more checkpoints. We will return and 
-	     * will not continue the process of starting any more checkpoints.
+	     * Mark the replica so with lcpIdStarted == true
 	     */
-	    return;
+	    replicaPtr.p->lcpIdStarted = lcpId;
+
+	    Uint32 i = nodePtr.p->noOfStartedChkpt;
+	    nodePtr.p->startedChkpt[i].tableId = tabPtr.i;
+	    nodePtr.p->startedChkpt[i].fragId = curr.fragmentId;
+	    nodePtr.p->startedChkpt[i].replicaPtr = replicaPtr.i;
+	    nodePtr.p->noOfStartedChkpt = i + 1;
+	    
+	    sendLCP_FRAG_ORD(signal, nodePtr.p->startedChkpt[i]);
+	  } 
+	  else if (nodePtr.p->noOfQueuedChkpt < 2) 
+	  {
+	    jam();
+	    /**
+	     * Put LCP_FRAG_ORD "in queue"
+	     */
+	    
+	    /**
+	     * Mark the replica so with lcpIdStarted == true
+	     */
+	    replicaPtr.p->lcpIdStarted = lcpId;
+	    
+	    Uint32 i = nodePtr.p->noOfQueuedChkpt;
+	    nodePtr.p->queuedChkpt[i].tableId = tabPtr.i;
+	    nodePtr.p->queuedChkpt[i].fragId = curr.fragmentId;
+	    nodePtr.p->queuedChkpt[i].replicaPtr = replicaPtr.i;
+	    nodePtr.p->noOfQueuedChkpt = i + 1;
+	  } 
+	  else 
+	  {
+	    jam();
+	    
+	    if(save)
+	    {
+	      /**
+	       * Stop increasing value on first that was "full"
+	       */
+	      c_lcpState.currentFragment = curr;
+	      save = false;
+	    }
+	    
+	    busyNodes.set(nodePtr.i);
+	    if(busyNodes.count() == lcpNodes)
+	    {
+	      /**
+	       * There were no possibility to start the local checkpoint 
+	       * and it was not possible to queue it up. In this case we 
+	       * stop the start of local checkpoints until the nodes with a 
+	       * backlog have performed more checkpoints. We will return and 
+	       * will not continue the process of starting any more checkpoints.
+	       */
+	      return;
+	    }//if
 	  }//if
-	}//if
-      }
-    }//while
+	}
+      }//while
+    }
     curr.fragmentId++;
     if (curr.fragmentId >= tabPtr.p->totalfragments) {
       jam();

@@ -984,13 +984,6 @@ Dbtc::handleFailedApiNode(Signal* signal,
         TloopCount += 64;
         break;
       case CS_CONNECTED:
-        /*********************************************************************/
-        // The api record is connected to failed node. We need to release the 
-        // connection and set it in a disconnected state.
-        /*********************************************************************/
-        jam();
-        releaseApiCon(signal, apiConnectptr.i);
-        break;
       case CS_REC_COMMITTING:
       case CS_RECEIVING:
       case CS_STARTED:
