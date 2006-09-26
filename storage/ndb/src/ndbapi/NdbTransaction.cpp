@@ -979,50 +979,59 @@ Remark:         Release scan op when hupp'ed trans closed (save memory)
 void 
 NdbTransaction::releaseScanOperation(NdbIndexScanOperation* cursorOp)
 {
-  DBUG_ENTER("NdbTransaction::releaseScanOperation");
+  DBUG_ENTER("NdbTransaction::releaseExecutedScanOperation");
   DBUG_PRINT("enter", ("this=0x%x op=0x%x", (UintPtr)this, (UintPtr)cursorOp));
+  
+  releaseScanOperation(&m_firstExecutedScanOp, 0, cursorOp);
+  
+  DBUG_VOID_RETURN;
+}//NdbTransaction::releaseExecutedScanOperation()
 
-  // here is one reason to make op lists doubly linked
-  if (cursorOp->m_executed)
+bool
+NdbTransaction::releaseScanOperation(NdbIndexScanOperation** listhead,
+				     NdbIndexScanOperation** listtail,
+				     NdbIndexScanOperation* op)
+{
+  if (* listhead == op)
   {
-    if (m_firstExecutedScanOp == cursorOp) {
-      m_firstExecutedScanOp = (NdbIndexScanOperation*)cursorOp->theNext;
-      cursorOp->release();
-      theNdb->releaseScanOperation(cursorOp);
-    } else if (m_firstExecutedScanOp != NULL) {
-      NdbIndexScanOperation* tOp = m_firstExecutedScanOp;
-      while (tOp->theNext != NULL) {
-        if (tOp->theNext == cursorOp) {
-          tOp->theNext = cursorOp->theNext;
-          cursorOp->release();
-          theNdb->releaseScanOperation(cursorOp);
-          break;
-        }
-        tOp = (NdbIndexScanOperation*)tOp->theNext;
-      }
+    * listhead = (NdbIndexScanOperation*)op->theNext;
+    if (listtail && *listtail == op)
+    {
+      assert(* listhead == 0);
+      * listtail = 0;
     }
+      
   }
   else
   {
-    if (m_theFirstScanOperation == cursorOp) {
-      m_theFirstScanOperation = (NdbIndexScanOperation*)cursorOp->theNext;
-      cursorOp->release();
-      theNdb->releaseScanOperation(cursorOp);
-    } else if (m_theFirstScanOperation != NULL) {
-      NdbIndexScanOperation* tOp = m_theFirstScanOperation;
-      while (tOp->theNext != NULL) {
-        if (tOp->theNext == cursorOp) {
-          tOp->theNext = cursorOp->theNext;
-          cursorOp->release();
-          theNdb->releaseScanOperation(cursorOp);
-          break;
-        }
-        tOp = (NdbIndexScanOperation*)tOp->theNext;
+    NdbIndexScanOperation* tmp = * listhead;
+    while (tmp != NULL)
+    {
+      if (tmp->theNext == op)
+      {
+	tmp->theNext = (NdbIndexScanOperation*)op->theNext;
+	if (listtail && *listtail == op)
+	{
+	  assert(op->theNext == 0);
+	  *listtail = tmp;
+	}
+	break;
       }
+      tmp = (NdbIndexScanOperation*)tmp->theNext;
     }
+    if (tmp == NULL)
+      op = NULL;
   }
-  DBUG_VOID_RETURN;
-}//NdbTransaction::releaseScanOperation()
+  
+  if (op != NULL)
+  {
+    op->release();
+    theNdb->releaseScanOperation(op);
+    return true;
+  }
+  
+  return false;
+}
 
 /*****************************************************************************
 NdbOperation* getNdbOperation(const char* aTableName);
