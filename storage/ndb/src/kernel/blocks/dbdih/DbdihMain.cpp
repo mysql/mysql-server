@@ -1305,9 +1305,9 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       if (isMaster()) {
 	jam();
 	systemRestartTakeOverLab(signal);
-	if (anyActiveTakeOver() && false) {
+	if (anyActiveTakeOver())
+	{
 	  jam();
-	  ndbout_c("1 - anyActiveTakeOver == true");
 	  return;
 	}
       }
@@ -2347,6 +2347,8 @@ Dbdih::systemRestartTakeOverLab(Signal* signal)
 	// NOT ACTIVE NODES THAT HAVE NOT YET BEEN TAKEN OVER NEEDS TAKE OVER
 	// IMMEDIATELY. IF WE ARE ALIVE WE TAKE OVER OUR OWN NODE.
 	/*-------------------------------------------------------------------*/
+	infoEvent("Take over of node %d started", 
+		  nodePtr.i);
 	startTakeOver(signal, RNIL, nodePtr.i, nodePtr.i);
       }//if
       break;
@@ -2459,6 +2461,12 @@ void Dbdih::nodeRestartTakeOver(Signal* signal, Uint32 startNodeId)
      *--------------------------------------------------------------------*/
     Uint32 takeOverNode = Sysfile::getTakeOverNode(startNodeId, 
 						   SYSFILE->takeOver);
+    if(takeOverNode == 0){
+      jam();
+      warningEvent("Bug in take-over code restarting");
+      takeOverNode = startNodeId;
+    }
+
     startTakeOver(signal, RNIL, startNodeId, takeOverNode);
     break;
   }
@@ -2612,7 +2620,14 @@ void Dbdih::startTakeOver(Signal* signal,
   Sysfile::setTakeOverNode(takeOverPtr.p->toFailedNode, SYSFILE->takeOver,
 			   startNode);
   takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_START_COPY;
-  
+
+  if (getNodeState().getSystemRestartInProgress())
+  {
+    jam();
+    checkToCopy();
+    checkToCopyCompleted(signal);
+    return;
+  }
   cstartGcpNow = true;
 }//Dbdih::startTakeOver()
 
@@ -3517,6 +3532,18 @@ void Dbdih::toCopyCompletedLab(Signal * signal, TakeOverRecordPtr takeOverPtr)
   signal->theData[1] = takeOverPtr.p->toStartingNode;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
+  if (getNodeState().getSystemRestartInProgress())
+  {
+    jam();
+    infoEvent("Take over of node %d complete", takeOverPtr.p->toStartingNode);
+    setNodeActiveStatus(takeOverPtr.p->toStartingNode, Sysfile::NS_Active);
+    takeOverPtr.p->toMasterStatus = TakeOverRecord::WAIT_LCP;
+    takeOverCompleted(takeOverPtr.p->toStartingNode);
+    checkToCopy();
+    checkToCopyCompleted(signal);
+    return;
+  }
+  
   c_lcpState.immediateLcpStart = true;
   takeOverPtr.p->toMasterStatus = TakeOverRecord::WAIT_LCP;
   
@@ -3623,16 +3650,12 @@ void Dbdih::execEND_TOCONF(Signal* signal)
   }//if
   endTakeOver(takeOverPtr.i);
 
-  ndbout_c("2 - endTakeOver");
   if (cstartPhase == ZNDB_SPH4) {
     jam();
-    ndbrequire(false);
     if (anyActiveTakeOver()) {
       jam();
-      ndbout_c("4 - anyActiveTakeOver == true");
       return;
     }//if
-    ndbout_c("5 - anyActiveTakeOver == false -> ndbsttorry10Lab");
     ndbsttorry10Lab(signal, __LINE__);
     return;
   }//if
