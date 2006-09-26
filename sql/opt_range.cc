@@ -4917,9 +4917,17 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
   {
     Item_func_in *func=(Item_func_in*) cond_func;
 
+    /*
+      Array for IN() is constructed when all values have the same result
+      type. Tree won't be built for values with different result types,
+      so we check it here to avoid unnecessary work.
+    */
+    if (!func->array)
+      break;
+
     if (inv)
     {
-      if (func->array && func->cmp_type != ROW_RESULT)
+      if (func->array->result_type() != ROW_RESULT)
       {
         /*
           We get here for conditions in form "t.key NOT IN (c1, c2, ...)",
