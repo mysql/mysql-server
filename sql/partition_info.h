@@ -73,14 +73,15 @@ public:
 
   /* NULL-terminated array of fields used in partitioned expression */
   Field **part_field_array;
-  /* NULL-terminated array of fields used in subpartitioned expression */
   Field **subpart_field_array;
-
+  Field **part_charset_field_array;
+  Field **subpart_charset_field_array;
   /* 
     Array of all fields used in partition and subpartition expression,
     without duplicates, NULL-terminated.
   */
   Field **full_part_field_array;
+  Field **full_part_charset_field_array;
 
   /*
     When we have a field that requires transformation before calling the
@@ -89,8 +90,10 @@ public:
   */
   char **part_field_buffers;
   char **subpart_field_buffers;
+  char **full_part_field_buffers;
   char **restore_part_field_ptrs;
   char **restore_subpart_field_ptrs;
+  char **restore_full_part_field_ptrs;
 
   Item *part_expr;
   Item *subpart_expr;
@@ -208,17 +211,20 @@ public:
   bool is_auto_partitioned;
   bool from_openfrm;
   bool has_null_value;
-  bool includes_charset_field_part;
-  bool includes_charset_field_subpart;
 
 
   partition_info()
   : get_partition_id(NULL), get_part_partition_id(NULL),
     get_subpartition_id(NULL),
     part_field_array(NULL), subpart_field_array(NULL),
+    part_charset_field_array(NULL),
+    subpart_charset_field_array(NULL),
     full_part_field_array(NULL),
+    full_part_charset_field_array(NULL),
     part_field_buffers(NULL), subpart_field_buffers(NULL),
+    full_part_field_buffers(NULL),
     restore_part_field_ptrs(NULL), restore_subpart_field_ptrs(NULL),
+    restore_full_part_field_ptrs(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
     first_log_entry(NULL), exec_log_entry(NULL), frm_log_entry(NULL),
     list_array(NULL),
@@ -241,8 +247,7 @@ public:
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
-    has_null_value(FALSE), includes_charset_field_part(FALSE),
-    includes_charset_field_subpart(FALSE)
+    has_null_value(FALSE)
   {
     all_fields_in_PF.clear_all();
     all_fields_in_PPF.clear_all();
@@ -278,6 +283,7 @@ public:
                             handler *file, HA_CREATE_INFO *info,
                             bool check_partition_function);
   void print_no_partition_found(TABLE *table);
+  bool set_up_charset_field_preps();
 private:
   static int list_part_cmp(const void* a, const void* b);
   static int list_part_cmp_unsigned(const void* a, const void* b);

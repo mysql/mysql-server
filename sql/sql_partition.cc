@@ -1346,20 +1346,19 @@ static void set_up_partition_func_pointers(partition_info *part_info)
       }
     }
   }
-  if (part_info->includes_charset_field_part ||
-      part_info->includes_charset_field_subpart)
+  if (part_info->full_part_charset_field_array)
   {
     DBUG_ASSERT(part_info->get_partition_id);
     part_info->get_partition_id_charset= part_info->get_partition_id;
-    if (part_info->includes_charset_field_part &&
-        part_info->includes_charset_field_subpart)
+    if (part_info->part_charset_field_array &&
+        part_info->subpart_charset_field_array)
       part_info->get_partition_id= get_part_id_charset_func_all;
-    else if (part_info->includes_charset_field_part)
+    else if (part_info->part_charset_field_array)
       part_info->get_partition_id= get_part_id_charset_func_part;
     else
       part_info->get_partition_id= get_part_id_charset_func_subpart;
   }
-  if (part_info->includes_charset_field_part &&
+  if (part_info->part_charset_field_array &&
       part_info->is_sub_partitioned())
   {
     DBUG_ASSERT(part_info->get_part_partition_id);
@@ -1367,7 +1366,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
           part_info->get_part_partition_id;
     part_info->get_part_partition_id= get_part_part_id_charset_func;
   }
-  if (part_info->includes_charset_field_subpart)
+  if (part_info->subpart_charset_field_array)
   {
     DBUG_ASSERT(part_info->get_subpartition_id);
     part_info->get_subpartition_id_charset=
@@ -1436,6 +1435,32 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
 
 
 /*
+  Check if a particular field is in need of character set
+  handling for partition functions.
+  SYNOPSIS
+    field_is_partition_charset()
+    field                         The field to check
+  RETURN VALUES
+    FALSE                        Not in need of character set handling
+    TRUE                         In need of character set handling
+*/
+
+bool field_is_partition_charset(Field *field)
+{
+  if (!field->type() == MYSQL_TYPE_STRING &&
+      !field->type() == MYSQL_TYPE_VARCHAR)
+    return FALSE;
+  {
+    CHARSET_INFO *cs= ((Field_str*)field)->charset();
+    if (!field->type() == MYSQL_TYPE_STRING ||
+        !(cs->state & MY_CS_BINSORT))
+      return TRUE;
+    return FALSE;
+  }
+}
+
+
+/*
   Check that partition function do not contain any forbidden
   character sets and collations.
   SYNOPSIS
@@ -1453,7 +1478,7 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
     calling the functions to calculate partition id.
 */
 
-static bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
+bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
 {
   Field *field;
   DBUG_ENTER("check_part_func_field");
@@ -1465,13 +1490,9 @@ static bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
       Binary collation with CHAR is automatically supported. Other
       types need some kind of standardisation function handling
     */
-    if (field->type() == MYSQL_TYPE_STRING ||
-        field->type() == MYSQL_TYPE_VARCHAR)
+    if (field_is_partition_charset(field))
     {
       CHARSET_INFO *cs= ((Field_str*)field)->charset();
-      if (field->type() == MYSQL_TYPE_STRING &&
-          cs->state & MY_CS_BINSORT)
-        continue;
       if (!ok_with_charsets ||
           cs->mbmaxlen > 1 ||
           cs->strxfrm_multiply > 1)
@@ -1483,106 +1504,6 @@ static bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
   DBUG_RETURN(FALSE);
 }
 
-/*
-  Set up buffers and arrays for fields requiring preparation
-  SYNOPSIS
-    set_up_charset_field_preps()
-    part_info                        Partition info object
-  RETURN VALUES
-    TRUE                             Memory Allocation error
-    FALSE                            Success
-  DESCRIPTION
-    Set up arrays and buffers for fields that require special care for
-    calculation of partition id. This is used for string fields with
-    variable length or string fields with fixed length that isn't using
-    the binary collation.
-*/
-
-static bool set_up_charset_field_preps(partition_info *part_info)
-{
-  Field *field, **ptr;
-  char *field_buf;
-  char **char_ptrs;
-  unsigned i;
-  size_t size;
-
-  DBUG_ENTER("set_up_charset_field_preps");
-  if (check_part_func_fields(part_info->part_field_array, FALSE))
-  {
-    ptr= part_info->part_field_array;
-    part_info->includes_charset_field_part= TRUE;
-    /*
-      Set up arrays and buffers for those fields
-    */
-    i= 0;
-    while ((field= *(ptr++)))
-      i++;
-    size= i * sizeof(char*);
-
-    if (!(char_ptrs= (char**)sql_calloc(size)))
-      goto error;
-    part_info->part_field_buffers= char_ptrs;
-
-    if (!(char_ptrs= (char**)sql_calloc(size)))
-      goto error;
-    part_info->restore_part_field_ptrs= char_ptrs;
-
-    ptr= part_info->part_field_array;
-    i= 0;
-    while ((field= *(ptr++)))
-    {
-      CHARSET_INFO *cs= ((Field_str*)field)->charset();
-      size= field->pack_length();
-      if (!(field_buf= sql_calloc(size)))
-        goto error;
-      part_info->part_field_buffers[i++]= field_buf;
-    }
-  }
-  if (part_info->is_sub_partitioned() &&
-      check_part_func_fields(part_info->subpart_field_array, FALSE))
-  {
-    /*
-      Set up arrays and buffers for those fields 
-    */
-    part_info->includes_charset_field_subpart= TRUE;
-
-    ptr= part_info->subpart_field_array;
-    i= 0;
-    while ((field= *(ptr++)))
-    {
-      unsigned j= 0;
-      Field *part_field;
-      Field **part_ptr= part_info->part_field_array;
-      bool field_already_have_buffer= FALSE;
-      CHARSET_INFO *cs= ((Field_str*)field)->charset();
-      size= field->pack_length();
-
-      while ((part_field= *(part_ptr++)))
-      {
-        field_buf= part_info->part_field_buffers[j++];
-        if (field == part_field)
-        {
-          field_already_have_buffer= TRUE;
-          break;
-        }
-      }
-      if (!field_already_have_buffer)
-      {
-        if (!(field_buf= sql_calloc(size)))
-          goto error;
-      }
-      part_info->subpart_field_buffers[i++]= field_buf;
-    }
-    size= i * sizeof(char*);
-    if (!(char_ptrs= (char**)sql_calloc(i * sizeof(char*))))
-      goto error;
-    part_info->restore_subpart_field_ptrs= char_ptrs;
-  }
-  DBUG_RETURN(FALSE);
-error:
-  mem_alloc_error(size);
-  DBUG_RETURN(TRUE);
-}
 
 /*
   fix partition functions
@@ -1747,7 +1668,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     goto end;
   if (unlikely(set_up_partition_bitmap(thd, part_info)))
     goto end;
-  if (unlikely(set_up_charset_field_preps(part_info)))
+  if (unlikely(part_info->set_up_charset_field_preps()))
   {
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
     goto end;
@@ -2491,10 +2412,7 @@ static void copy_to_part_field_buffers(Field **ptr,
   {
     *restore_ptr= field->ptr;
     restore_ptr++;
-    if ((field->type() == MYSQL_TYPE_VARCHAR ||
-         (field->type() == MYSQL_TYPE_STRING &&
-         (!(((Field_str*)field)->charset()->state & MY_CS_BINSORT))) &&
-        ((!field->maybe_null()) || (!field->is_null()))))
+    if (!field->maybe_null() || !field->is_null())
     {
       CHARSET_INFO *cs= ((Field_str*)field)->charset();
       uint len= field->pack_length();
@@ -2628,73 +2546,74 @@ static int get_part_id_charset_func_subpart(partition_info *part_info,
                                             longlong *func_value)
 {
   int res;
-  copy_to_part_field_buffers(part_info->subpart_field_array,
+  copy_to_part_field_buffers(part_info->subpart_charset_field_array,
                              part_info->subpart_field_buffers,
                              part_info->restore_subpart_field_ptrs);
   res= part_info->get_partition_id_charset(part_info, part_id, func_value);
-  restore_part_field_pointers(part_info->subpart_field_array,
+  restore_part_field_pointers(part_info->subpart_charset_field_array,
                               part_info->restore_subpart_field_ptrs);
   return res;
 }
+
+
 static int get_part_id_charset_func_part(partition_info *part_info,
                                          uint32 *part_id,
                                          longlong *func_value)
 {
   int res;
-  copy_to_part_field_buffers(part_info->part_field_array,
+  copy_to_part_field_buffers(part_info->part_charset_field_array,
                              part_info->part_field_buffers,
                              part_info->restore_part_field_ptrs);
   res= part_info->get_partition_id_charset(part_info, part_id, func_value);
-  restore_part_field_pointers(part_info->part_field_array,
+  restore_part_field_pointers(part_info->part_charset_field_array,
                               part_info->restore_part_field_ptrs);
   return res;
 }
+
 
 static int get_part_id_charset_func_all(partition_info *part_info,
                                         uint32 *part_id,
                                         longlong *func_value)
 {
   int res;
-  copy_to_part_field_buffers(part_info->part_field_array,
-                             part_info->part_field_buffers,
-                             part_info->restore_part_field_ptrs);
-  copy_to_part_field_buffers(part_info->subpart_field_array,
-                             part_info->subpart_field_buffers,
-                             part_info->restore_subpart_field_ptrs);
+  copy_to_part_field_buffers(part_info->full_part_field_array,
+                             part_info->full_part_field_buffers,
+                             part_info->restore_full_part_field_ptrs);
   res= part_info->get_partition_id_charset(part_info, part_id, func_value);
-  restore_part_field_pointers(part_info->part_field_array,
-                              part_info->restore_part_field_ptrs);
-  restore_part_field_pointers(part_info->subpart_field_array,
-                              part_info->restore_subpart_field_ptrs);
+  restore_part_field_pointers(part_info->full_part_field_array,
+                              part_info->restore_full_part_field_ptrs);
   return res;
 }
+
 
 static int get_part_part_id_charset_func(partition_info *part_info,
                                          uint32 *part_id,
                                          longlong *func_value)
 {
   int res;
-  copy_to_part_field_buffers(part_info->part_field_array,
+  copy_to_part_field_buffers(part_info->part_charset_field_array,
                              part_info->part_field_buffers,
                              part_info->restore_part_field_ptrs);
   res= part_info->get_part_partition_id_charset(part_info,
                                                 part_id, func_value);
-  restore_part_field_pointers(part_info->part_field_array,
+  restore_part_field_pointers(part_info->part_charset_field_array,
                               part_info->restore_part_field_ptrs);
   return res;
 }
 
+
 static uint32 get_subpart_id_charset_func(partition_info *part_info)
 {
   int res;
-  copy_to_part_field_buffers(part_info->subpart_field_array,
+  copy_to_part_field_buffers(part_info->subpart_charset_field_array,
                              part_info->subpart_field_buffers,
                              part_info->restore_subpart_field_ptrs);
   res= part_info->get_subpartition_id_charset(part_info);
-  restore_part_field_pointers(part_info->subpart_field_array,
+  restore_part_field_pointers(part_info->subpart_charset_field_array,
                               part_info->restore_subpart_field_ptrs);
   return res;
 }
+
 
 int get_partition_id_list(partition_info *part_info,
                           uint32 *part_id,
@@ -6782,7 +6701,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 
   if (part_info->part_type == RANGE_PARTITION)
   {
-    if (part_info->includes_charset_field_part)
+    if (part_info->part_charset_field_array)
       get_endpoint=        get_partition_id_range_for_endpoint_charset;
     else
       get_endpoint=        get_partition_id_range_for_endpoint;
@@ -6792,7 +6711,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   else if (part_info->part_type == LIST_PARTITION)
   {
 
-    if (part_info->includes_charset_field_part)
+    if (part_info->part_charset_field_array)
       get_endpoint=        get_list_array_idx_for_endpoint_charset;
     else
       get_endpoint=        get_list_array_idx_for_endpoint;
