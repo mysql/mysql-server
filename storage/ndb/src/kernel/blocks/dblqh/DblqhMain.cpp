@@ -18344,7 +18344,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	  FragrecordPtr fragPtr;
 	  if ((fragPtr.i = tabPtr.p->fragrec[j]) != RNIL)
 	  {
-	    ptrCheckGuard(fragPtr, cfragrecFileSize, fragrecord);
+	    c_fragment_pool.getPtr(fragPtr);
 	    infoEvent("  frag: %d distKey: %u", 
 		      tabPtr.p->fragid[j],
 		      fragPtr.p->fragDistributionKey);
