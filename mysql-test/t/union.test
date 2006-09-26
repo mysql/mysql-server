@@ -774,6 +774,7 @@ drop table t1,t2;
 #
 # correct conversion long string to TEXT (BUG#10025)
 #
+
 CREATE TABLE t1 (a mediumtext);
 CREATE TABLE t2 (b varchar(20));
 INSERT INTO t1 VALUES ('a'),('b');
@@ -781,6 +782,35 @@ SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
 create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
 show create table t3;
 drop tables t1,t2,t3;
+
+#
+# Extended fix to Bug#10025 - the test above should result to mediumtext
+# and the one below to longtext. Earlier above test resulted to longtext
+# type also.
+#
+
+CREATE TABLE t1 (a longtext);
+CREATE TABLE t2 (b varchar(20));
+INSERT INTO t1 VALUES ('a'),('b');
+SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+show create table t3;
+drop tables t1,t2,t3;
+
+#
+# Testing here that mediumtext converts into longtext if the result
+# exceeds mediumtext maximum length
+#
+
+SELECT @tmp_max:= @@max_allowed_packet;
+SET max_allowed_packet=25000000;
+CREATE TABLE t1 (a mediumtext);
+CREATE TABLE t2 (b varchar(20));
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,20000000) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+DROP TABLES t1,t2,t3;
+SET max_allowed_packet:= @tmp_max;
 
 #
 # Bug #10032 Bug in parsing UNION with ORDER BY when one node does not use FROM
