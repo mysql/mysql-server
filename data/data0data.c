@@ -551,8 +551,7 @@ dtuple_convert_big_rec(
 
 		for (i = dict_index_get_n_unique_in_tree(index);
 		     i < dtuple_get_n_fields(entry); i++) {
-
-			ulint	min_prefix;
+			ulint	savings;
 
 			dfield = dtuple_get_nth_field(entry, i);
 			ifield = dict_index_get_nth_field(index, i);
@@ -561,27 +560,16 @@ dtuple_convert_big_rec(
 
 			if (ifield->fixed_len
 			    || dfield->len == UNIV_SQL_NULL
-			    || dfield->len <= (BTR_EXTERN_FIELD_REF_SIZE
-					       + REC_1BYTE_OFFS_LIMIT + 1)) {
-				continue;
+			    || dfield->len <= REC_1BYTE_OFFS_LIMIT + 1) {
+				goto skip_field;
 			}
 
-			min_prefix = ifield->col->min_prefix;
-
-			/* Skip indexed columns */
-			if (min_prefix == ULINT_UNDEFINED) {
-				continue;
-			}
-
-			if (min_prefix < (REC_1BYTE_OFFS_LIMIT + 1
-					  - BTR_EXTERN_FIELD_REF_SIZE)) {
-				min_prefix = (REC_1BYTE_OFFS_LIMIT + 1
-					      - BTR_EXTERN_FIELD_REF_SIZE);
-			}
+			savings = dfield->len - (REC_1BYTE_OFFS_LIMIT + 1
+						 - BTR_EXTERN_FIELD_REF_SIZE);
 
 			/* Check that there would be savings */
-			if (longest >= dfield->len - min_prefix) {
-				continue;
+			if (longest >= savings) {
+				goto skip_field;
 			}
 
 			/* Skip externally stored columns */
@@ -591,15 +579,15 @@ dtuple_convert_big_rec(
 
 				for (j = 0; j < n_ext_vec; j++) {
 					if (ext_vec[j] == i) {
-						goto is_externally_stored;
+						goto skip_field;
 					}
 				}
 			}
 
 			longest_i = i;
-			longest = dfield->len - min_prefix;
+			longest = savings;
 
-is_externally_stored:
+skip_field:
 			continue;
 		}
 
@@ -622,9 +610,8 @@ is_externally_stored:
 		vector->fields[n_fields].field_no = longest_i;
 
 		vector->fields[n_fields].len
-			= dfield->len - ut_max(REC_1BYTE_OFFS_LIMIT + 1
-					       - BTR_EXTERN_FIELD_REF_SIZE,
-					       ifield->col->min_prefix);
+			= dfield->len - (REC_1BYTE_OFFS_LIMIT + 1
+					 - BTR_EXTERN_FIELD_REF_SIZE);
 
 		vector->fields[n_fields].data
 			= mem_heap_alloc(heap, vector->fields[n_fields].len);
@@ -643,6 +630,7 @@ is_externally_stored:
 		       + dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
 		       0, BTR_EXTERN_FIELD_REF_SIZE);
 		n_fields++;
+		ut_ad(n_fields < dtuple_get_n_fields(entry));
 	}
 
 	vector->n_fields = n_fields;

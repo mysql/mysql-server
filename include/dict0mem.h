@@ -159,10 +159,6 @@ struct dict_col_struct{
 	unsigned	ord_part:1;	/* nonzero if this column
 					appears in the ordering fields
 					of an index */
-	ulint		min_prefix;/* the longest prefix index defined
-				on the column (in bytes), 0 if no index
-				defined, and ULINT_UNDEFINED if an index
-				is defined on the entire column */
 };
 
 #define DICT_MAX_INDEX_COL_LEN		REC_MAX_INDEX_COL_LEN
