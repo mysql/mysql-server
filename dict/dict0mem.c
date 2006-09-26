@@ -206,7 +206,6 @@ dict_mem_table_add_col(
 
 	col->ind = table->n_def - 1;
 	col->ord_part = 0;
-	col->min_prefix = 0;
 
 	col->mtype = mtype;
 	col->prtype = prtype;

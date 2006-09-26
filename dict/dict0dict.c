@@ -1869,11 +1869,6 @@ dict_index_build_internal_non_clust(
 		if (field->prefix_len == 0) {
 
 			indexed[field->col->ind] = TRUE;
-			field->col->min_prefix = ULINT_UNDEFINED;
-
-		} else if (field->col->min_prefix < field->prefix_len) {
-
-			field->col->min_prefix = field->prefix_len;
 		}
 	}
 
