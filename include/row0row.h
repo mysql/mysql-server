@@ -17,6 +17,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "rem0types.h"
 #include "read0types.h"
+#include "row0types.h"
 #include "btr0types.h"
 
 /*************************************************************************
@@ -60,6 +61,8 @@ row_build_index_entry(
 				/* out: index entry which should be inserted */
 	dtuple_t*	row,	/* in: row which should be inserted to the
 				table */
+	row_ext_t*	ext,	/* in: externally stored column prefixes,
+				or NULL */
 	dict_index_t*	index,	/* in: index on the table */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory for
 				the index entry is allocated */
@@ -87,6 +90,8 @@ row_build(
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index)
 				or NULL, in which case this function
 				will invoke rec_get_offsets() */
+	row_ext_t**	ext,	/* out, own: cache of externally stored
+				column prefixes, or NULL */
 	mem_heap_t*	heap);	/* in: memory heap from which the memory
 				needed is allocated */
 /***********************************************************************
