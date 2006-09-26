@@ -500,6 +500,24 @@ btr_free_externally_stored_field(
 					data an an X-latch to the index
 					tree */
 /***********************************************************************
+Copies the prefix of an externally stored field of a record. Parameter
+data contains a pointer to 'internally' stored part of the field:
+possibly some data, and the reference to the externally stored part in
+the last BTR_EXTERN_FIELD_REF_SIZE bytes of data. */
+
+ulint
+btr_copy_externally_stored_field_prefix(
+/*====================================*/
+				/* out: the length of the copied field */
+	byte*		buf,	/* out: the field, or a prefix of it */
+	ulint		len,	/* in: length of buf, in bytes */
+	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
+				zero for uncompressed BLOBs */
+	const byte*	data,	/* in: 'internally' stored part of the
+				field containing also the reference to
+				the external part */
+	ulint		local_len);/* in: length of data, in bytes */
+/***********************************************************************
 Copies an externally stored field of a record to mem heap. */
 
 byte*
