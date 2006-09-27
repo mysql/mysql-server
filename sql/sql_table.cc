@@ -1628,7 +1628,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
          (!my_strcasecmp(system_charset_info, table->table_name, "slow_log")
           && opt_slow_log && logger.is_slow_log_table_enabled())))
     {
-      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "drop");
+      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(1);
     }
   }
@@ -5179,7 +5179,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
        (table_kind == SLOW_LOG && opt_slow_log &&
          logger.is_slow_log_table_enabled()))
     {
-      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "alter");
+      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
       DBUG_RETURN(TRUE);
     }
 
