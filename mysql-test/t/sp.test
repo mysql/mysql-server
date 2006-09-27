@@ -6316,6 +6316,19 @@ DROP PROCEDURE bug21414|
 
 
 #
+# BUG#21311: Possible stack overrun if SP has non-latin1 name
+#
+set names utf8|
+--disable_warnings
+drop database if exists това_е_дълго_име_за_база_данни_нали|
+--enable_warnings
+create database това_е_дълго_име_за_база_данни_нали|
+INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_данни_нали','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','PROCEDURE','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','SQL','CONTAINS_SQL','NO','DEFINER','','','bad_body','root@localhost',now(), now(),'','')|
+--error ER_SP_PROC_TABLE_CORRUPT
+call това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго()|
+drop database това_е_дълго_име_за_база_данни_нали|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
