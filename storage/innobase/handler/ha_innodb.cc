@@ -7607,7 +7607,7 @@ SHOW_VAR innodb_status_variables_export[]= {
 };
 
 struct st_mysql_storage_engine innobase_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, innobase_hton};
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(innobase)
 {
