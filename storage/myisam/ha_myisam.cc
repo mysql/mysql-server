@@ -1801,7 +1801,7 @@ static int myisam_init(void *p)
 }
 
 struct st_mysql_storage_engine myisam_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, myisam_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(myisam)
 {
