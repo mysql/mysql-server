@@ -381,6 +381,20 @@ select * from t3;
 check table t1, t2;
 drop table t1, t2, t3;
 
+#
+# BUG#10974 - No error message if merge table based on union of innodb,
+# memory
+#
+CREATE TABLE t1(a INT) ENGINE=MEMORY;
+CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
+--error 1168
+SELECT * FROM t2;
+DROP TABLE t1, t2;
+CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
+--error 1168
+SELECT * FROM t2;
+DROP TABLE t2;
+
 # End of 4.1 tests
 
 #

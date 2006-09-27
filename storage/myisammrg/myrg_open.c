@@ -90,7 +90,10 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     else
       fn_format(buff, buff, "", "", 0);
     if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
+    {
+      my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
       goto err;
+    }
     if (!m_info)                                /* First file */
     {
       key_parts=isam->s->base.key_parts;
