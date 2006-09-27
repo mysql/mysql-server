@@ -5972,12 +5972,6 @@ ER_RBR_NOT_AVAILABLE
 ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
         eng "Triggers can not be created on system tables"
         ger "Trigger können nicht auf Systemtabellen erzeugt werden"
-ER_CANT_ALTER_LOG_TABLE
-        eng "You can't alter a log table if logging is enabled"
-ER_BAD_LOG_ENGINE
-        eng "One can use only CSV and MyISAM engines for the log tables"
-ER_CANT_DROP_LOG_TABLE
-        eng "Cannot drop log table if log is enabled"
 ER_EVENT_RECURSIVITY_FORBIDDEN
         eng "Recursivity of EVENT DDL statements is forbidden when body is present"
 ER_EVENTS_DB_ERROR
@@ -5993,4 +5987,5 @@ ER_WRONG_STRING_LENGTH
 ER_UNSUPORTED_LOG_ENGINE
         eng "This storage engine cannot be used for log tables""
 ER_BAD_LOG_STATEMENT
-        eng "You cannot %s a log table if logging is enabled"
+        eng "You cannot '%s' a log table if logging is enabled"
+
