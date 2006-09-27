@@ -4678,7 +4678,7 @@ err1:
 }
 
 struct st_mysql_storage_engine binlog_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, binlog_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(binlog)
 {
