@@ -7565,7 +7565,6 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 
   SYNOPSIS
     check_string_length()
-      cs          string charset
       str         string to be checked
       err_msg     error message to be displayed if the string is too long
       max_length  max length
@@ -7575,13 +7574,13 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
     TRUE    the passed string is longer than max_length
 */
 
-bool check_string_length(CHARSET_INFO *cs, LEX_STRING *str,
-                         const char *err_msg, uint max_length)
+bool check_string_length(LEX_STRING *str, const char *err_msg,
+                         uint max_length)
 {
-  if (cs->cset->charpos(cs, str->str, str->str + str->length,
-                        max_length) >= str->length)
-    return FALSE; 
+  if (str->length <= max_length)
+    return FALSE;
 
   my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_length);
+
   return TRUE;
 }
