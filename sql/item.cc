@@ -3744,6 +3744,7 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
+  null_value= FALSE;
   DBUG_VOID_RETURN;
 }
 
