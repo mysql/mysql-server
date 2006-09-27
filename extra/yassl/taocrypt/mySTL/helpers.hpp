@@ -142,13 +142,13 @@ void FreeArrayMemory(T* ptr)
 
 
 
-static void* GetMemory(size_t bytes)
+inline void* GetMemory(size_t bytes)
 {
     return GetArrayMemory<unsigned char>(bytes);
 }
 
 
-static void FreeMemory(void* ptr)
+inline void FreeMemory(void* ptr)
 {
     FreeArrayMemory(ptr);
 }
