@@ -1,9 +1,4 @@
 drop table if exists t1;
-create table t1 (s1 char(2) character set utf8)
-partition by list (case when s1 > 'cz' then 1 else 2 end)
-(partition p1 values in (1),
-partition p2 values in (2));
-drop table t1;
 create table t1 (a int)
 partition by key(a)
 partitions 0.2+e1;
