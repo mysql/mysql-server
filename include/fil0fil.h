@@ -62,8 +62,6 @@ extern fil_addr_t	fil_addr_null;
 					This field is not set on BLOB pages,
 					which are stored as a singly-linked
 					list.  See also FIL_PAGE_NEXT. */
-#define FIL_PAGE_ZBLOB_SPACE_ID	8	/* space id of a compressed BLOB page,
-					4 bytes */
 #define FIL_PAGE_NEXT		12	/* if there is a 'natural' successor
 					of the page, its offset.
 					Otherwise FIL_NULL.
@@ -95,8 +93,6 @@ extern fil_addr_t	fil_addr_null;
 					first page in a data file: the file
 					has been flushed to disk at least up
 					to this lsn */
-#define FIL_PAGE_ZBLOB_DATA	26	/* start of data stream on a
-					FIL_PAGE_TYPE_ZBLOB page */
 #define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID  34 /* starting from 4.1.x this
 					contains the space id of the page */
 #define FIL_PAGE_DATA		38	/* start of the data on the page */
