@@ -29,6 +29,7 @@
 #include "runtime.hpp"
 #include "misc.hpp"
 
+
 #ifdef YASSL_PURE_C
 
     void* operator new(size_t sz, TaoCrypt::new_t)
