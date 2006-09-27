@@ -20,6 +20,13 @@ insert delayed into t1 values (300);
 inc $count;
 --source include/wait_until_rows_count.inc
 
+# moving binlog check affront of multi-rows queries which work is indeterministic (extra table_maps)
+# todo: better check is to substitute SHOW BINLOG with reading from binlog, probably bug#19459 is in
+# the way
+--replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
+show binlog events from 102;
+
 insert delayed into t1 values (null),(null),(null),(null);
 inc $count; inc $count; inc $count; inc $count;
 --source include/wait_until_rows_count.inc
@@ -32,7 +39,4 @@ inc $count; inc $count; inc $count; inc $count;
 --echo $count == $rows_inserted
 
 select * from t1;
---replace_column 2 # 5 #
---replace_regex /table_id: [0-9]+/table_id: #/
-show binlog events from 102;
 drop table t1;
