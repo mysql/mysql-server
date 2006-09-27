@@ -1,13 +1,9 @@
 #
 # Basic stored PROCEDURE tests
 #
-# Please keep this file free of --error cases and other
-# things that will not run in a single debugged mysqld
-# process (e.g. master-slave things).
-#
 # Test cases for bugs are added at the end. See template there.
 #
-# Tests that require --error go into sp-error.test
+# Some tests that require --error go into sp-error.test
 # Tests that require inndb go into sp_trans.test
 # Tests that check privilege and security issues go to sp-security.test.
 # Tests that require multiple connections, except security/privilege tests,
@@ -6295,7 +6291,30 @@ create procedure bug21416() show create procedure bug21416|
 call bug21416()|
 drop procedure bug21416|
 
+
+#
+# BUG#21414: SP: Procedure undroppable, to some extent
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug21414|
+--enable_warnings
+
+CREATE PROCEDURE bug21414() SELECT 1|
+
+FLUSH TABLES WITH READ LOCK|
+
+--error ER_CANT_UPDATE_WITH_READLOCK
+DROP PROCEDURE bug21414|
+
+UNLOCK TABLES|
+
+--echo The following should succeed.
+DROP PROCEDURE bug21414|
+
+
 --echo End of 5.0 tests
+
+
 #
 # BUG#NNNN: New bug synopsis
 #
