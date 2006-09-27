@@ -312,7 +312,7 @@ inline void tcp_listen(SOCKET_T& sockfd)
 }
 
 
-inline void tcp_accept(SOCKET_T& sockfd, int& clientfd, func_args& args)
+inline void tcp_accept(SOCKET_T& sockfd, SOCKET_T& clientfd, func_args& args)
 {
     tcp_listen(sockfd);
 
