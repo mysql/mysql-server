@@ -1605,7 +1605,17 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
          */
         if (!thd->net.report_error)
         {
-          char n[NAME_LEN*2+2];
+          /*
+            SP allows full NAME_LEN chars thus he have to allocate enough
+            size in bytes. Otherwise there is stack overrun could happen
+            if multibyte sequence is `name`. `db` is still safe because the
+            rest of the server checks agains NAME_LEN bytes and not chars.
+            Hence, the overrun happens only if the name is in length > 32 and
+            uses multibyte (cyrillic, greek, etc.)
+
+            !! Change 3 with SYSTEM_CHARSET_MBMAXLEN when it's defined.
+          */
+          char n[NAME_LEN*3*2+2];
 
           /* m_qname.str is not always \0 terminated */
           memcpy(n, name.m_qname.str, name.m_qname.length);
