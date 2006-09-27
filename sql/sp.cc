@@ -65,8 +65,6 @@ enum
   MYSQL_PROC_FIELD_COUNT
 };
 
-bool mysql_proc_table_exists= 1;
-
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
 
@@ -118,13 +116,6 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
   bool not_used;
   DBUG_ENTER("open_proc_table");
 
-  /*
-    Speed up things if mysql.proc doesn't exists. mysql_proc_table_exists
-    is set when we create or read stored procedure or on flush privileges.
-  */
-  if (!mysql_proc_table_exists)
-    DBUG_RETURN(0);
-
   thd->reset_n_backup_open_tables_state(backup);
 
   bzero((char*) &tables, sizeof(tables));
@@ -134,7 +125,6 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
                           MYSQL_LOCK_IGNORE_FLUSH)))
   {
     thd->restore_backup_open_tables_state(backup);
-    mysql_proc_table_exists= 0;
     DBUG_RETURN(0);
   }
   table->use_all_columns();
@@ -185,15 +175,6 @@ static TABLE *open_proc_table_for_update(THD *thd)
   table= open_ltable(thd, &tables, TL_WRITE);
   if (table)
     table->use_all_columns();
-
-  /*
-    Under explicit LOCK TABLES or in prelocked mode we should not
-    say that mysql.proc table does not exist if we are unable to
-    open and lock it for writing since this condition may be
-    transient.
-  */
-  if (!(thd->locked_tables || thd->prelocked_mode) || table)
-    mysql_proc_table_exists= test(table);
 
   DBUG_RETURN(table);
 }
@@ -1609,14 +1590,6 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
       case SP_KEY_NOT_FOUND:
         ret= SP_OK;
         break;
-      case SP_OPEN_TABLE_FAILED:
-        /*
-          Force it to attempt opening it again on subsequent calls;
-          otherwise we will get one error message the first time, and
-          then ER_SP_PROC_TABLE_CORRUPT (below) on subsequent tries.
-        */
-        mysql_proc_table_exists= 1;
-        /* Fall through */
       default:
         /*
           Any error when loading an existing routine is either some problem

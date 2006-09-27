@@ -5379,5 +5379,13 @@ Procedure	sql_mode	Create Procedure
 bug21416		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug21416`()
 show create procedure bug21416
 drop procedure bug21416|
+DROP PROCEDURE IF EXISTS bug21414|
+CREATE PROCEDURE bug21414() SELECT 1|
+FLUSH TABLES WITH READ LOCK|
+DROP PROCEDURE bug21414|
+ERROR HY000: Can't execute the query because you have a conflicting read lock
+UNLOCK TABLES|
+The following should succeed.
+DROP PROCEDURE bug21414|
 End of 5.0 tests
 drop table t1,t2;
