@@ -1346,7 +1346,7 @@ sub environment_setup () {
 
   umask(022);
 
-  my $extra_ld_library_paths;
+  my @ld_library_paths;
 
   # --------------------------------------------------------------------------
   # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
@@ -1354,34 +1354,50 @@ sub environment_setup () {
   # --------------------------------------------------------------------------
   if ( $opt_source_dist )
   {
-    $extra_ld_library_paths= "$glob_basedir/libmysql/.libs/" .
-                             ":$glob_basedir/libmysql_r/.libs/";
+    push(@ld_library_paths, "$glob_basedir/libmysql/.libs/",
+                            "$glob_basedir/libmysql_r/.libs/");
   }
   else
   {
-    $extra_ld_library_paths= "$glob_basedir/lib";
+    push(@ld_library_paths, "$glob_basedir/lib");
+  }
+
+ # --------------------------------------------------------------------------
+  # Add the path where libndbclient can be found
+  # --------------------------------------------------------------------------
+  if ( $opt_ndbcluster_supported )
+  {
+    push(@ld_library_paths,  "$glob_basedir/storage/ndb/src/.libs");
   }
 
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find udf_example.so
   # --------------------------------------------------------------------------
-  $extra_ld_library_paths .= ":" .
-    ($lib_udf_example ?  dirname($lib_udf_example) : "");
-
-  # --------------------------------------------------------------------------
-  # Add the path where libndbclient can be found
-  # --------------------------------------------------------------------------
-  if ( $opt_ndbcluster_supported )
+  if ( $lib_udf_example )
   {
-    $extra_ld_library_paths .= ":$glob_basedir/storage/ndb/src/.libs";
+    push(@ld_library_paths, dirname($lib_udf_example));
   }
 
-  $ENV{'LD_LIBRARY_PATH'}=
-    "$extra_ld_library_paths" .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-  $ENV{'DYLD_LIBRARY_PATH'}=
-    "$extra_ld_library_paths" .
-      ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+  # --------------------------------------------------------------------------
+  # Valgrind need to be run with debug libraries otherwise it's almost
+  # impossible to add correct supressions, that means if "/usr/lib/debug"
+  # is available, it should be added to
+  # LD_LIBRARY_PATH
+  # --------------------------------------------------------------------------
+  my $debug_libraries_path= "/usr/lib/debug";
+  if (  $opt_valgrind and -d $debug_libraries_path )
+  {
+    push(@ld_library_paths, $debug_libraries_path);
+  }
+
+  $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
+				split(':', $ENV{'LD_LIBRARY_PATH'}));
+  mtr_debug("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
+
+  $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
+				split(':', $ENV{'DYLD_LIBRARY_PATH'}));
+  mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
+
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
