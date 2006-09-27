@@ -73,16 +73,16 @@ select * from mysql.slow_log;
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
 TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00	1	0	test	0	0	1	select sleep(2)
 alter table mysql.general_log engine=myisam;
-ERROR HY000: You cannot alter a log table if logging is enabled
+ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
 alter table mysql.slow_log engine=myisam;
-ERROR HY000: You cannot alter a log table if logging is enabled
+ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
 drop table mysql.general_log;
-ERROR HY000: You cannot drop a log table if logging is enabled
+ERROR HY000: You cannot 'DROP' a log table if logging is enabled
 drop table mysql.slow_log;
-ERROR HY000: You cannot drop a log table if logging is enabled
+ERROR HY000: You cannot 'DROP' a log table if logging is enabled
 set global general_log='OFF';
 alter table mysql.slow_log engine=myisam;
-ERROR HY000: You cannot alter a log table if logging is enabled
+ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
 set global slow_query_log='OFF';
 show create table mysql.general_log;
 Table	Create Table
