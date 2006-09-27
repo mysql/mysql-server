@@ -109,6 +109,7 @@ template void ysArrayDelete<char>(char*);
 
 template int min<int>(int, int);
 template unsigned int min<unsigned int>(unsigned int, unsigned int);
+template unsigned long min<unsigned long>(unsigned long, unsigned long);
 }
 
 #endif // HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
