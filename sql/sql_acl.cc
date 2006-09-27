@@ -3232,10 +3232,11 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= TRUE;
       continue;
     }  
-    if (replace_user_table(thd, tables[0].table, *Str,
-                           (!db ? rights : 0), revoke_grant, create_new_users,
-                           test(thd->variables.sql_mode &
-                                MODE_NO_AUTO_CREATE_USER)))
+    if ((replace_user_table(thd,
+			    tables[0].table,
+			    *Str,
+			    (!db ? rights : 0), revoke_grant,
+			    create_new_users)))
       result= -1;
     else if (db)
     {
