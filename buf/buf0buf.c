@@ -450,7 +450,8 @@ buf_page_print(
 				(ulong) mach_read_from_4(
 					read_buf + FIL_PAGE_OFFSET),
 				(ulong) mach_read_from_4(
-					read_buf + FIL_PAGE_ZBLOB_SPACE_ID));
+					read_buf
+					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
 			return;
 		default:
 			ut_print_timestamp(stderr);
@@ -1980,15 +1981,8 @@ buf_page_io_complete(
 		doublewrite buffer, then the page number and space id
 		should be the same as in block. */
 		read_page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
-		switch (fil_page_get_type(frame)) {
-		case FIL_PAGE_TYPE_ZBLOB:
-			read_space_id = mach_read_from_4(
-				frame + FIL_PAGE_ZBLOB_SPACE_ID);
-			break;
-		default:
-			read_space_id = mach_read_from_4(
-				frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-		}
+		read_space_id = mach_read_from_4(
+			frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 		if (!block->space
 		    && trx_doublewrite_page_inside(block->offset)) {

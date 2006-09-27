@@ -515,22 +515,6 @@ buf_flush_init_for_writing(
 		ut_ad(zip_size <= UNIV_PAGE_SIZE);
 
 		switch (UNIV_EXPECT(fil_page_get_type(page), FIL_PAGE_INDEX)) {
-		case FIL_PAGE_TYPE_ZBLOB:
-			ut_ad(fil_page_get_type(page_zip->data)
-			      == FIL_PAGE_TYPE_ZBLOB);
-			mach_write_to_4(page_zip->data
-					+ FIL_PAGE_OFFSET, page_no);
-			mach_write_to_4(page_zip->data
-					+ FIL_PAGE_ZBLOB_SPACE_ID, space);
-			mach_write_to_8(page_zip->data
-					+ FIL_PAGE_LSN, newest_lsn);
-			mach_write_to_4(page_zip->data
-					+ FIL_PAGE_SPACE_OR_CHKSUM,
-					srv_use_checksums
-					? page_zip_calc_checksum(
-						page_zip->data, zip_size)
-					: BUF_NO_CHECKSUM_MAGIC);
-			return;
 		case FIL_PAGE_TYPE_ALLOCATED:
 		case FIL_PAGE_INODE:
 		case FIL_PAGE_IBUF_BITMAP:
@@ -539,6 +523,7 @@ buf_flush_init_for_writing(
 			/* These are essentially uncompressed pages. */
 			memcpy(page_zip->data, page, zip_size);
 			/* fall through */
+		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_INDEX:
 			mach_write_to_4(page
 					+ FIL_PAGE_OFFSET, page_no);
