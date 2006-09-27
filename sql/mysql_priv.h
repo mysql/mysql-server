@@ -567,7 +567,7 @@ void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
-bool check_string_length(CHARSET_INFO *cs, LEX_STRING *str,
+bool check_string_length(LEX_STRING *str,
                          const char *err_msg, uint max_length);
 
 enum enum_mysql_completiontype {
