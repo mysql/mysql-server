@@ -1662,7 +1662,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
     */
-    char db_buff[NAME_BYTE_LEN+1];               // buffer to store db in utf8
+    char db_buff[NAME_LEN+1];               // buffer to store db in utf8
     char *db= passwd;
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
       *passwd++ : strlen(passwd);
