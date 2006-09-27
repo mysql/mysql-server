@@ -2850,4 +2850,22 @@ EXPLAIN SELECT * FROM v1 t WHERE t.s1+1 < (SELECT MAX(t1.s1) FROM t1);
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# Bug #21646: view qith a subquery in ON expression 
+#
+
+CREATE TABLE t1(pk int PRIMARY KEY); 
+CREATE TABLE t2(pk int PRIMARY KEY, fk int, ver int, org int);
+
+CREATE ALGORITHM=MERGE VIEW v1 AS 
+SELECT t1.*
+  FROM t1 JOIN t2 
+       ON t2.fk = t1.pk AND 
+          t2.ver = (SELECT MAX(t.ver) FROM t2 t WHERE t.org = t2.org);
+SHOW WARNINGS;
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
 --echo End of 5.0 tests.
