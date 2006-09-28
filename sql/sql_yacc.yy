@@ -6921,6 +6921,9 @@ load:   LOAD DATA_SYM
 	    YYABORT;
 	  }
           lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
+          WARN_DEPRECATED("LOAD TABLE FROM MASTER",
+                          "mysqldump or future "
+                          "BACKUP/RESTORE DATABASE facility");
           if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
             YYABORT;
         };
@@ -6959,6 +6962,9 @@ load_data:
 	FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
+          WARN_DEPRECATED("LOAD DATA FROM MASTER",
+                          "mysqldump or future "
+                          "BACKUP/RESTORE DATABASE facility");
         };
 
 opt_local:
@@ -7517,7 +7523,7 @@ user:
 	  $$->host.str= (char *) "%";
 	  $$->host.length= 1;
 
-	  if (check_string_length(system_charset_info, &$$->user,
+	  if (check_string_length(&$$->user,
                                   ER(ER_USERNAME), USERNAME_LENGTH))
 	    YYABORT;
 	}
@@ -7528,9 +7534,9 @@ user:
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
 
-	    if (check_string_length(system_charset_info, &$$->user,
+	    if (check_string_length(&$$->user,
                                     ER(ER_USERNAME), USERNAME_LENGTH) ||
-	        check_string_length(&my_charset_latin1, &$$->host,
+	        check_string_length(&$$->host,
                                     ER(ER_HOSTNAME), HOSTNAME_LENGTH))
 	      YYABORT;
 	  }
