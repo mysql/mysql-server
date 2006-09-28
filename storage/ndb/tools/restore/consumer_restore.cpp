@@ -607,6 +607,11 @@ BackupRestore::object(Uint32 type, const void * ptr)
 }
 
 bool
+BackupRestore::has_temp_error(){
+  return m_temp_error;
+}
+
+bool
 BackupRestore::update_apply_status(const RestoreMetaData &metaData)
 {
   if (!m_restore_epoch)
@@ -1100,6 +1105,7 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
     
   case NdbError::TemporaryError:
     err << "Temporary error: " << error << endl;
+    m_temp_error = true;
     NdbSleep_MilliSleep(sleepTime);
     return true;
     // RETRY

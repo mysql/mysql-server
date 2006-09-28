@@ -51,6 +51,7 @@ public:
     m_parallelism = parallelism;
     m_callback = 0;
     m_free_callback = 0;
+    m_temp_error = false;
     m_transactions = 0;
     m_cache.m_old_table = 0;
   }
@@ -71,6 +72,7 @@ public:
   virtual void logEntry(const LogEntry &);
   virtual void endOfLogEntrys();
   virtual bool finalize_table(const TableS &);
+  virtual bool has_temp_error();
   virtual bool update_apply_status(const RestoreMetaData &metaData);
   void connectToMysql();
   bool map_in_frm(char *new_data, const char *data,
@@ -96,6 +98,7 @@ public:
 
   restore_callback_t *m_callback;
   restore_callback_t *m_free_callback;
+  bool m_temp_error;
 
   /**
    * m_new_table_ids[X] = Y;
