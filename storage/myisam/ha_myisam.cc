@@ -1796,7 +1796,7 @@ static int myisam_init(void *p)
   myisam_hton->db_type=DB_TYPE_MYISAM;
   myisam_hton->create=myisam_create_handler;
   myisam_hton->panic=mi_panic;
-  myisam_hton->flags=HTON_CAN_RECREATE;
+  myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   return 0;
 }
 
