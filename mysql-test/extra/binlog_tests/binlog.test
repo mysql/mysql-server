@@ -59,4 +59,17 @@ insert into t1 values(null);
 select * from t1;
 drop table t1;
 
+# bug#22027 
+create table t1 (a int);
+create table if not exists t2 select * from t1;
+
+# bug#22762
+create temporary table tt1 (a int);
+create table if not exists t3 like tt1;
+
+--replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
+show binlog events;
+drop table t1,t2,t3,tt1;
+
 -- source extra/binlog_tests/binlog_insert_delayed.test
