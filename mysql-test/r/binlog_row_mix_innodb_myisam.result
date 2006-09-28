@@ -376,7 +376,7 @@ master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t2 (a int, b int, primary
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	1	#	use `test`; BEGIN
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE `t2` (
+master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE IF NOT EXISTS `t2` (
   `a` int(11) NOT NULL DEFAULT '0',
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
