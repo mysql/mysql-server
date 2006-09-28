@@ -120,6 +120,8 @@ static bool archive_inited= FALSE;
 /* Variables for archive share methods */
 pthread_mutex_t archive_mutex;
 static HASH archive_open_tables;
+static z_off_t max_zfile_size;
+static int zoffset_size;
 
 /* The file extension */
 #define ARZ ".ARZ"               // The data file
@@ -203,6 +205,8 @@ bool archive_db_init()
   }
   else
   {
+    zoffset_size= 2 << ((zlibCompileFlags() >> 6) & 3);
+    max_zfile_size= (z_off_t) (~(1 << (zoffset_size * 8 - 1)));
     archive_inited= TRUE;
     DBUG_RETURN(FALSE);
   }
@@ -240,7 +244,7 @@ ha_archive::ha_archive(TABLE *table_arg)
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
 
   /* The size of the offset value we will use for position() */
-  ref_length = 2 << ((zlibCompileFlags() >> 6) & 3);
+  ref_length = zoffset_size;
   DBUG_ASSERT(ref_length <= sizeof(z_off_t));
 }
 
@@ -480,7 +484,8 @@ int ha_archive::init_archive_writer()
     DBUG_RETURN(1);
   }
   share->archive_write_open= TRUE;
-
+  info(HA_STATUS_TIME);
+  share->approx_file_size= data_file_length;
   DBUG_RETURN(0);
 }
 
@@ -651,10 +656,21 @@ error:
 */
 int ha_archive::real_write_row(byte *buf, gzFile writer)
 {
-  z_off_t written;
+  z_off_t written, total_row_length;
   uint *ptr, *end;
   DBUG_ENTER("ha_archive::real_write_row");
-
+  total_row_length= table->s->reclength;
+  for (ptr= table->s->blob_field, end= ptr + table->s->blob_fields;
+       ptr != end; ptr++)
+    total_row_length+= ((Field_blob*) table->field[*ptr])->get_length();
+  if (share->approx_file_size > max_zfile_size - total_row_length)
+  {
+    info(HA_STATUS_TIME);
+    share->approx_file_size= data_file_length;
+    if (share->approx_file_size > max_zfile_size - total_row_length)
+      DBUG_RETURN(HA_ERR_RECORD_FILE_FULL);
+  }
+  share->approx_file_size+= total_row_length;
   written= gzwrite(writer, buf, table->s->reclength);
   DBUG_PRINT("ha_archive::real_write_row", ("Wrote %d bytes expected %d", written, table->s->reclength));
   if (!delayed_insert || !bulk_insert)
