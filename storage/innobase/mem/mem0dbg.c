@@ -497,8 +497,8 @@ mem_heap_validate_or_print(
 					" %lx but trailer %lx\n",
 					(ulint)block,
 					(ulint)field, len, check_field,
-					mem_field_trailer_get_check
-					(user_field));
+					mem_field_trailer_get_check(
+						user_field));
 
 				return;
 			}

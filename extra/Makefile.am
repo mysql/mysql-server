@@ -22,11 +22,15 @@ BUILT_SOURCES=		$(top_builddir)/include/mysqld_error.h \
                         $(top_builddir)/include/sql_state.h \
                         $(top_builddir)/include/mysqld_ername.h
 pkginclude_HEADERS=	$(BUILT_SOURCES)
-CLEANFILES =		$(BUILT_SOURCES)
+DISTCLEANFILES =	$(BUILT_SOURCES)
 SUBDIRS =		@yassl_dir@
 
-# This will build mysqld_error.h and sql_state.h
-$(top_builddir)/include/mysqld_error.h: comp_err$(EXEEXT)
+# This will build mysqld_error.h, mysqld_ername.h and sql_state.h
+# NOTE Built files should depend on their sources to avoid
+# the built files being rebuilt in source dist
+$(top_builddir)/include/mysqld_error.h: comp_err.c \
+			$(top_srcdir)/sql/share/errmsg.txt
+	$(MAKE) $(AM_MAKEFLAGS) comp_err$(EXEEXT)
 	$(top_builddir)/extra/comp_err$(EXEEXT) \
 	--charset=$(top_srcdir)/sql/share/charsets \
 	--out-dir=$(top_builddir)/sql/share/ \
@@ -37,9 +41,10 @@ $(top_builddir)/include/mysqld_error.h: comp_err$(EXEEXT)
 $(top_builddir)/include/mysqld_ername.h: $(top_builddir)/include/mysqld_error.h
 $(top_builddir)/include/sql_state.h: $(top_builddir)/include/mysqld_error.h
 
-bin_PROGRAMS =		replace comp_err perror resolveip my_print_defaults \
+bin_PROGRAMS =		replace perror resolveip my_print_defaults \
 			resolve_stack_dump mysql_waitpid innochecksum
 noinst_PROGRAMS =	charset2html
+EXTRA_PROGRAMS =	comp_err
 EXTRA_DIST =		CMakeLists.txt
 
 perror.o: perror.c 

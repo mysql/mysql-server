@@ -79,24 +79,77 @@ dict_load_space_id_list(void);
 /*************************************************************************
 Gets the column data type. */
 UNIV_INLINE
-dtype_t*
-dict_col_get_type(
-/*==============*/
-	dict_col_t*	col);
+void
+dict_col_copy_type(
+/*===============*/
+	const dict_col_t*	col,	/* in: column */
+	dtype_t*		type);	/* out: data type */
+/*************************************************************************
+Gets the column data type. */
+
+void
+dict_col_copy_type_noninline(
+/*=========================*/
+	const dict_col_t*	col,	/* in: column */
+	dtype_t*		type);	/* out: data type */
+/***************************************************************************
+Returns the minimum size of the column. */
+UNIV_INLINE
+ulint
+dict_col_get_min_size(
+/*==================*/
+					/* out: minimum size */
+	const dict_col_t*	col);	/* in: column */
+/***************************************************************************
+Returns the maximum size of the column. */
+UNIV_INLINE
+ulint
+dict_col_get_max_size(
+/*==================*/
+					/* out: maximum size */
+	const dict_col_t*	col);	/* in: column */
+/***************************************************************************
+Returns the size of a fixed size column, 0 if not a fixed size column. */
+UNIV_INLINE
+ulint
+dict_col_get_fixed_size(
+/*====================*/
+					/* out: fixed size, or 0 */
+	const dict_col_t*	col);	/* in: column */
+/***************************************************************************
+Returns the ROW_FORMAT=REDUNDANT stored SQL NULL size of a column.
+For fixed length types it is the fixed length of the type, otherwise 0. */
+UNIV_INLINE
+ulint
+dict_col_get_sql_null_size(
+/*=======================*/
+					/* out: SQL null storage size
+					in ROW_FORMAT=REDUNDANT */
+	const dict_col_t*	col);	/* in: column */
+
 /*************************************************************************
 Gets the column number. */
 UNIV_INLINE
 ulint
 dict_col_get_no(
 /*============*/
-	dict_col_t*	col);
+	const dict_col_t*	col);
 /*************************************************************************
 Gets the column position in the clustered index. */
 UNIV_INLINE
 ulint
 dict_col_get_clust_pos(
 /*===================*/
-	dict_col_t*	col);
+	const dict_col_t*	col,		/* in: table column */
+	const dict_index_t*	clust_index);	/* in: clustered index */
+/*************************************************************************
+Gets the column position in the clustered index. */
+
+ulint
+dict_col_get_clust_pos_noninline(
+/*=============================*/
+	const dict_col_t*	col,		/* in: table column */
+	const dict_index_t*	clust_index);	/* in: clustered index */
 /********************************************************************
 If the given column name is reserved for InnoDB system columns, return
 TRUE. */
@@ -354,6 +407,19 @@ dict_table_get_index_noninline(
 	dict_table_t*	table,	/* in: table */
 	const char*	name);	/* in: index name */
 /**************************************************************************
+Returns a column's name. */
+
+const char*
+dict_table_get_col_name(
+/*====================*/
+					/* out: column name. NOTE: not
+					guaranteed to stay valid if table is
+					modified in any way (columns added,
+					etc.). */
+	const dict_table_t*	table,	/* in: table */
+	ulint			col_nr);/* in: column number */
+
+/**************************************************************************
 Prints a table definition. */
 
 void
@@ -468,30 +534,30 @@ dict_table_get_n_cols(
 /************************************************************************
 Gets the nth column of a table. */
 UNIV_INLINE
-dict_col_t*
+const dict_col_t*
 dict_table_get_nth_col(
 /*===================*/
-				/* out: pointer to column object */
-	dict_table_t*	table,	/* in: table */
-	ulint		pos);	/* in: position of column */
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			pos);	/* in: position of column */
 /************************************************************************
 Gets the nth column of a table. */
 
-dict_col_t*
+const dict_col_t*
 dict_table_get_nth_col_noninline(
 /*=============================*/
-				/* out: pointer to column object */
-	dict_table_t*	table,	/* in: table */
-	ulint		pos);	/* in: position of column */
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			pos);	/* in: position of column */
 /************************************************************************
 Gets the given system column of a table. */
 UNIV_INLINE
-dict_col_t*
+const dict_col_t*
 dict_table_get_sys_col(
 /*===================*/
-				/* out: pointer to column object */
-	dict_table_t*	table,	/* in: table */
-	ulint		sys);	/* in: DATA_ROW_ID, ... */
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			sys);	/* in: DATA_ROW_ID, ... */
 /************************************************************************
 Gets the given system column number of a table. */
 UNIV_INLINE
@@ -549,12 +615,11 @@ dict_index_find_on_id_low(
 			/* out: index or NULL if not found from cache */
 	dulint	id);	/* in: index id */
 /**************************************************************************
-Adds an index to dictionary cache. */
+Adds an index to the dictionary cache. */
 
-ibool
+void
 dict_index_add_to_cache(
 /*====================*/
-				/* out: TRUE if success */
 	dict_table_t*	table,	/* in: table on which the index is */
 	dict_index_t*	index,	/* in, own: index; NOTE! The index memory
 				object is freed in this function! */
@@ -614,23 +679,23 @@ dict_index_get_nth_field(
 	dict_index_t*	index,	/* in: index */
 	ulint		pos);	/* in: position of field */
 /************************************************************************
-Gets pointer to the nth field data type in an index. */
+Gets pointer to the nth column in an index. */
 UNIV_INLINE
-dtype_t*
-dict_index_get_nth_type(
-/*====================*/
-				/* out: data type */
-	dict_index_t*	index,	/* in: index */
-	ulint		pos);	/* in: position of the field */
+const dict_col_t*
+dict_index_get_nth_col(
+/*===================*/
+					/* out: column */
+	const dict_index_t*	index,	/* in: index */
+	ulint			pos);	/* in: position of the field */
 /************************************************************************
 Gets the column number of the nth field in an index. */
 UNIV_INLINE
 ulint
 dict_index_get_nth_col_no(
 /*======================*/
-				/* out: column number */
-	dict_index_t*	index,	/* in: index */
-	ulint		pos);	/* in: position of the field */
+					/* out: column number */
+	const dict_index_t*	index,	/* in: index */
+	ulint			pos);	/* in: position of the field */
 /************************************************************************
 Looks for column n in an index. */
 
@@ -694,6 +759,7 @@ void
 dict_index_add_col(
 /*===============*/
 	dict_index_t*	index,		/* in: index */
+	dict_table_t*	table,		/* in: table */
 	dict_col_t*	col,		/* in: column */
 	ulint		prefix_len);	/* in: column prefix length */
 /***********************************************************************
@@ -706,38 +772,12 @@ dict_index_copy_types(
 	dict_index_t*	index,		/* in: index */
 	ulint		n_fields);	/* in: number of field types to copy */
 /*************************************************************************
-Gets the index tree where the index is stored. */
-UNIV_INLINE
-dict_tree_t*
-dict_index_get_tree(
-/*================*/
-				/* out: index tree */
-	dict_index_t*	index);	/* in: index */
-/*************************************************************************
 Gets the field column. */
 UNIV_INLINE
-dict_col_t*
+const dict_col_t*
 dict_field_get_col(
 /*===============*/
-	dict_field_t*	field);
-/**************************************************************************
-Creates an index tree struct. */
-
-dict_tree_t*
-dict_tree_create(
-/*=============*/
-				/* out, own: created tree */
-	dict_index_t*	index,	/* in: the index for which to create: in the
-				case of a mixed tree, this should be the
-				index of the cluster object */
-	ulint		page_no);/* in: root page number of the index */
-/**************************************************************************
-Frees an index tree struct. */
-
-void
-dict_tree_free(
-/*===========*/
-	dict_tree_t*	tree);	/* in, own: index tree */
+	const dict_field_t*	field);
 /**************************************************************************
 In an index tree, finds the index corresponding to a record in the tree. */
 
@@ -755,20 +795,20 @@ Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer. */
 
 ibool
-dict_tree_check_search_tuple(
-/*=========================*/
+dict_index_check_search_tuple(
+/*==========================*/
 				/* out: TRUE if ok */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index */
 	dtuple_t*	tuple);	/* in: tuple used in a search */
 #endif /* UNIV_DEBUG */
 /**************************************************************************
 Builds a node pointer out of a physical record and a page number. */
 
 dtuple_t*
-dict_tree_build_node_ptr(
-/*=====================*/
+dict_index_build_node_ptr(
+/*======================*/
 				/* out, own: node pointer */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index */
 	rec_t*		rec,	/* in: record for which to build node
 				pointer */
 	ulint		page_no,/* in: page number to put in node pointer */
@@ -780,10 +820,10 @@ Copies an initial segment of a physical record, long enough to specify an
 index entry uniquely. */
 
 rec_t*
-dict_tree_copy_rec_order_prefix(
-/*============================*/
+dict_index_copy_rec_order_prefix(
+/*=============================*/
 				/* out: pointer to the prefix record */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index */
 	rec_t*		rec,	/* in: record for which to copy prefix */
 	ulint*		n_fields,/* out: number of fields copied */
 	byte**		buf,	/* in/out: memory buffer for the copied prefix,
@@ -793,10 +833,10 @@ dict_tree_copy_rec_order_prefix(
 Builds a typed data tuple out of a physical record. */
 
 dtuple_t*
-dict_tree_build_data_tuple(
-/*=======================*/
+dict_index_build_data_tuple(
+/*========================*/
 				/* out, own: data tuple */
-	dict_tree_t*	tree,	/* in: index tree */
+	dict_index_t*	index,	/* in: index */
 	rec_t*		rec,	/* in: record for which to build data tuple */
 	ulint		n_fields,/* in: number of data fields */
 	mem_heap_t*	heap);	/* in: memory heap where tuple created */
@@ -804,61 +844,60 @@ dict_tree_build_data_tuple(
 Gets the space id of the root of the index tree. */
 UNIV_INLINE
 ulint
-dict_tree_get_space(
-/*================*/
+dict_index_get_space(
+/*=================*/
 				/* out: space id */
-	dict_tree_t*	tree);	/* in: tree */
+	dict_index_t*	index);	/* in: index */
 /*************************************************************************
 Sets the space id of the root of the index tree. */
 UNIV_INLINE
 void
-dict_tree_set_space(
-/*================*/
-	dict_tree_t*	tree,	/* in: tree */
+dict_index_set_space(
+/*=================*/
+	dict_index_t*	index,	/* in: index */
 	ulint		space);	/* in: space id */
 /*************************************************************************
 Gets the page number of the root of the index tree. */
 UNIV_INLINE
 ulint
-dict_tree_get_page(
-/*===============*/
+dict_index_get_page(
+/*================*/
 				/* out: page number */
-	dict_tree_t*	tree);	/* in: tree */
+	dict_index_t*	tree);	/* in: index */
 /*************************************************************************
 Sets the page number of the root of index tree. */
 UNIV_INLINE
 void
-dict_tree_set_page(
-/*===============*/
-	dict_tree_t*	tree,	/* in: tree */
+dict_index_set_page(
+/*================*/
+	dict_index_t*	index,	/* in: index */
 	ulint		page);	/* in: page number */
 /*************************************************************************
 Gets the type of the index tree. */
 UNIV_INLINE
 ulint
-dict_tree_get_type(
-/*===============*/
+dict_index_get_type(
+/*================*/
 				/* out: type */
-	dict_tree_t*	tree);	/* in: tree */
+	dict_index_t*	index);	/* in: index */
 /*************************************************************************
 Gets the read-write lock of the index tree. */
 UNIV_INLINE
 rw_lock_t*
-dict_tree_get_lock(
-/*===============*/
+dict_index_get_lock(
+/*================*/
 				/* out: read-write lock */
-	dict_tree_t*	tree);	/* in: tree */
+	dict_index_t*	index);	/* in: index */
 /************************************************************************
 Returns free space reserved for future updates of records. This is
 relevant only in the case of many consecutive inserts, as updates
 which make the records bigger might fragment the index. */
 UNIV_INLINE
 ulint
-dict_tree_get_space_reserve(
-/*========================*/
+dict_index_get_space_reserve(void);
+/*==============================*/
 				/* out: number of free bytes on page,
 				reserved for updates */
-	dict_tree_t*	tree);	/* in: a tree */
 /*************************************************************************
 Calculates the minimum record length in an index. */
 
@@ -945,7 +984,6 @@ struct dict_sys_struct{
 					on name */
 	hash_table_t*	table_id_hash;	/* hash table of the tables, based
 					on id */
-	hash_table_t*	col_hash;	/* hash table of the columns */
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_LRU;	/* LRU list of tables */
 	ulint		size;		/* varying space in bytes occupied

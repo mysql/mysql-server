@@ -18,6 +18,8 @@
 
 INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include
 
+LIBS= $(NON_THREADED_LIBS)
+
 pkglib_LTLIBRARIES=libz.la
 
 libz_la_LDFLAGS= -version-info 3:3:2
