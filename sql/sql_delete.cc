@@ -43,7 +43,12 @@ int mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if ((open_and_lock_tables(thd, table_list)))
     DBUG_RETURN(-1);
   table= table_list->table;
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+  error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+  if (error)
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_RETURN(error);
+  }
   thd->proc_info="init";
   table->map=1;
 

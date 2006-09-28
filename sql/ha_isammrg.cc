@@ -149,7 +149,7 @@ void ha_isammrg::position(const byte *record)
 }
 
 
-void ha_isammrg::info(uint flag)
+int ha_isammrg::info(uint flag)
 {
   MERGE_INFO info;
   (void) mrg_info(file,&info,flag);
@@ -163,6 +163,7 @@ void ha_isammrg::info(uint flag)
   block_size=0;
   update_time=0;
   ref_length=4;					// Should be big enough
+  return 0;
 }
 
 
