@@ -133,7 +133,7 @@ void Blowfish::SetKey(const byte* key_string, word32 keylength, CipherDir dir)
 
 	if (dir==DECRYPTION)
 		for (i=0; i<(ROUNDS+2)/2; i++)
-			mySTL::swap(pbox_[i], pbox_[ROUNDS+1-i]);
+			STL::swap(pbox_[i], pbox_[ROUNDS+1-i]);
 }
 
 
