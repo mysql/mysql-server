@@ -5634,7 +5634,10 @@ drop procedure bug16887|
 # Bug#13575 SP funcs in select with distinct/group and order by can
 #           produce bad data
 #
+# Disable warnings to allow test to run also without InnoDB
+--disable_warnings
 create table t3 (f1 int, f2 varchar(3), primary key(f1)) engine=innodb|
+--enable_warnings
 insert into t3 values (1,'aaa'),(2,'bbb'),(3,'ccc')|
 CREATE FUNCTION bug13575 ( p1 integer ) 
 returns varchar(3) 
