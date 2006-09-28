@@ -860,8 +860,8 @@ CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1),(1,2),(2,3);
 SELECT (SELECT COUNT(DISTINCT t1.b)) FROM t1 GROUP BY t1.a;
 (SELECT COUNT(DISTINCT t1.b))
-0
 2
+1
 SELECT (SELECT COUNT(DISTINCT 12)) FROM t1 GROUP BY t1.a;
 (SELECT COUNT(DISTINCT 12))
 1
@@ -1013,7 +1013,7 @@ SELECT SQL_NO_CACHE
 WHERE ttt.a = ccc.b AND ttt.a = t.a GROUP BY ttt.a) AS minid   
 FROM t1 t, t2 c WHERE t.a = c.b;
 minid
-NULL
+1
 DROP TABLE t1,t2;
 create table t1 select variance(0);
 show create table t1;

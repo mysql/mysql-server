@@ -246,7 +246,27 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       aggr_sl->inner_sum_func_list->next= this;
     }
     aggr_sl->inner_sum_func_list= this;
-      
+    aggr_sl->with_sum_func= 1;
+
+    /* 
+      Mark Item_subselect(s) as containing aggregate function all the way up
+      to aggregate function's calculation context.
+      Note that we must not mark the Item of calculation context itself
+      because with_sum_func on the calculation context st_select_lex is
+      already set above.
+
+      with_sum_func being set for an Item means that this Item refers 
+      (somewhere in it, e.g. one of its arguments if it's a function) directly
+      or through intermediate items to an aggregate function that is calculated
+      in a context "outside" of the Item (e.g. in the current or outer select).
+
+      with_sum_func being set for an st_select_lex means that this st_select_lex
+      has aggregate functions directly referenced (i.e. not through a sub-select).
+    */
+    for (sl= thd->lex->current_select; 
+         sl && sl != aggr_sl && sl->master_unit()->item;
+         sl= sl->master_unit()->outer_select() )
+      sl->master_unit()->item->with_sum_func= 1;
   }
   return FALSE;
 }
