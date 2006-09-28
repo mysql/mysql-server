@@ -1,0 +1,74 @@
+#
+# Bug#21476: Lost Database Connection During Query
+#
+# When the amount of stack space we think we need to report an error is
+# actually too small, then we can get SEGVs.  But, we don't want to reserve
+# space that we could use to get real work done.  So, we want the reserved
+# space small, and this test verifies that the reservation is not too small.
+
+CREATE TABLE `t_bug21476` (
+  `ID_BOARD` smallint(5) unsigned NOT NULL default '0',
+  `ID_MEMBER` mediumint(8) unsigned NOT NULL default '0',
+  `logTime` int(10) unsigned NOT NULL default '0',
+  `ID_MSG` mediumint(8) unsigned NOT NULL default '0',
+  PRIMARY KEY  (`ID_MEMBER`,`ID_BOARD`),
+  KEY `logTime` (`logTime`)
+) ENGINE=MyISAM DEFAULT CHARSET=cp1251 COLLATE=cp1251_bulgarian_ci;
+
+INSERT INTO `t_bug21476` VALUES (2,2,1154870939,0),(1,2,1154870957,0),(2,183,1154941362,0),(2,84,1154904301,0),(1,84,1154905867,0),(2,13,1154947484,10271),(3,84,1154880549,0),(1,6,1154892183,0),(2,25,1154947581,10271),(3,25,1154904760,0),(1,25,1154947373,10271),(1,179,1154899992,0),(2,179,1154899410,0),(5,25,1154901666,0),(2,329,1154902026,0),(3,329,1154902040,0),(1,329,1154902058,0),(1,13,1154930841,0),(3,85,1154904987,0),(1,183,1154929665,0),(3,13,1154931268,0),(1,85,1154936888,0),(1,169,1154937959,0),(2,169,1154941717,0),(3,183,1154939810,0),(3,169,1154941734,0);
+
+delimiter //;
+let $query_head=UPDATE t_bug21476 SET ID_MSG = IF(logTime BETWEEN 1 AND 1101770053, 2, //
+let $query_tail =) WHERE logTime BETWEEN 1 AND 1104091539 AND ID_MSG = 0//
+
+# Scan over the possible stack heights, trying to recurse to exactly that
+# depth.  Eventually, we will reach our imposed limit on height and try to
+# raise an error.  If the remaining stack space is enough to raise that error,
+# we will get an error-number of 1436 and quit the loop.  If it's not enough
+# space, we should get a SEGV
+
+# Well more than enough recursions to find the end of our stack.
+let $i = 100000//
+disable_query_log//
+disable_result_log//
+while ($i)
+{
+  # If we SEGV because the min stack size is exceeded, this would return error
+  # 2013 .
+  error 0,1436 //
+  eval $query_head 0 $query_tail//
+
+  if ($mysql_errno != 1436)
+  {
+    # We reached the place where we reported an error about the stack limit,
+    # and we successfully returned the error.  That means that at the stack
+    # limit, we still have enough space reserved to report an error.
+    let $i = 1//
+  }
+
+  # Multiplying by three stack frames should be fine enough resolution.
+  # Trading exactness for speed.
+
+  # go one more level deep
+  let $query_head = $query_head IF(logTime <= 1104091$i, $i, //
+  let $query_tail =) $query_tail//
+
+  # go one more level deep
+  let $query_head = $query_head IF(logTime <= 1105091$i, $i, //
+  let $query_tail =) $query_tail//
+
+  # go one more level deep
+  let $query_head = $query_head IF(logTime <= 1106091$i, $i, //
+  let $query_tail =) $query_tail//
+
+  dec $i//
+}
+enable_result_log//
+enable_query_log//
+
+echo Assertion: mysql_errno 1436 == $mysql_errno//
+
+delimiter ;//
+DROP TABLE `t_bug21476`;
+
+--echo End of 5.0 tests.
