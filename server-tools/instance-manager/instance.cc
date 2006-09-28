@@ -611,18 +611,19 @@ void Instance::kill_instance(int signum)
   /* if there are no pid, everything seems to be fine */
   if ((pid= options.get_pid()) != 0)            /* get pid from pidfile */
   {
-    /*
-      If we cannot kill mysqld, then it has propably crashed.
-      Let us try to remove staled pidfile and return successfully
-      as mysqld is probably stopped.
-    */
-    if (!kill(pid, signum))
-      options.unlink_pidfile();
-    else if (signum == SIGKILL)      /* really killed instance with SIGKILL */
-      log_error("The instance %s is being stopped forsibly. Normally \
-                it should not happed. Probably the instance has been \
-                hanging. You should also check your IM setup",
-                options.instance_name);
+    if (kill(pid, signum) == 0)
+    {
+      /* Kill suceeded */
+      if (signum == SIGKILL)      /* really killed instance with SIGKILL */
+      {
+        log_error("The instance %s is being stopped forcibly. Normally" \
+                  "it should not happen. Probably the instance has been" \
+                  "hanging. You should also check your IM setup",
+                  options.instance_name);
+        /* After sucessful hard kill the pidfile need to be removed */
+        options.unlink_pidfile();
+      }
+    }
   }
   return;
 }
