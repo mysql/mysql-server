@@ -2910,7 +2910,7 @@ com_connect(String *buffer, char *line)
   bzero(buff, sizeof(buff));
   if (buffer)
   {
-    strmake(buff, line, sizeof(buff));
+    strmake(buff, line, sizeof(buff) - 1);
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
@@ -3025,7 +3025,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
   int select_db;
 
   bzero(buff, sizeof(buff));
-  strmov(buff, line);
+  strmake(buff, line, sizeof(buff) - 1);
   tmp= get_arg(buff, 0);
   if (!tmp || !*tmp)
   {
