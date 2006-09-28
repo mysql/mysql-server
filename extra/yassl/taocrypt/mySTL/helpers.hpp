@@ -113,6 +113,47 @@ PlaceIter uninit_fill_n(PlaceIter place, Size n, const T& value)
 }
 
 
+template <typename T>
+T* GetArrayMemory(size_t items)
+{
+    unsigned char* ret;
+
+    #ifdef YASSL_LIB
+        ret = NEW_YS unsigned char[sizeof(T) * items];
+    #else
+        ret = NEW_TC unsigned char[sizeof(T) * items];
+    #endif
+
+    return reinterpret_cast<T*>(ret);
+}
+
+
+template <typename T>
+void FreeArrayMemory(T* ptr)
+{
+    unsigned char* p = reinterpret_cast<unsigned char*>(ptr);
+
+    #ifdef YASSL_LIB
+        yaSSL::ysArrayDelete(p);
+    #else
+        TaoCrypt::tcArrayDelete(p);
+    #endif
+}
+
+
+
+inline void* GetMemory(size_t bytes)
+{
+    return GetArrayMemory<unsigned char>(bytes);
+}
+
+
+inline void FreeMemory(void* ptr)
+{
+    FreeArrayMemory(ptr);
+}
+
+
 
 } // namespace mySTL
 

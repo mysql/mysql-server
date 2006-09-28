@@ -1,2 +1,2 @@
 SUBDIRS = src test benchmark
-EXTRA_DIST = taocrypt.dsw taocrypt.dsp CMakeLists.txt
+EXTRA_DIST = taocrypt.dsw taocrypt.dsp CMakeLists.txt $(wildcard mySTL/*.hpp)

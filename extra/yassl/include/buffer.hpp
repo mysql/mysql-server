@@ -34,7 +34,10 @@
 #include <assert.h>             // assert
 #include "yassl_types.hpp"      // ysDelete
 #include "memory.hpp"           // mySTL::auto_ptr
-#include "algorithm.hpp"        // mySTL::swap
+#include STL_ALGORITHM_FILE
+
+
+namespace STL = STL_NAMESPACE;
 
 
 #ifdef _MSC_VER
@@ -199,7 +202,7 @@ struct del_ptr_zero
     void operator()(T*& p) const
     {
         T* tmp = 0;
-        mySTL::swap(tmp, p);
+        STL::swap(tmp, p);
         checked_delete(tmp); 
     }
 };

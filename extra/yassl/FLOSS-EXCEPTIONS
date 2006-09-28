@@ -1,7 +1,7 @@
 yaSSL FLOSS License Exception
 ****************************************
 
-Version 0.1, 26 June 2006
+Version 0.2, 31 August 2006
 
 The Sawtooth Consulting Ltd. Exception for Free/Libre and Open Source
 Software-only Applications Using yaSSL Libraries (the "FLOSS Exception").
@@ -81,6 +81,7 @@ the GPL:
      Python license (CNRI Python License)               -
      Python Software Foundation License                 2.1.1
      Sleepycat License                                  "1999"
+     University of Illinois/NCSA Open Source License    -
      W3C License                                        "2001"
      X11 License                                        "2001"
      Zlib/libpng License                                -
