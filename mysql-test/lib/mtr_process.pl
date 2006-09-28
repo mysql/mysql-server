@@ -26,28 +26,6 @@ sub mtr_kill_processes ($);
 sub mtr_ping_with_timeout($);
 sub mtr_ping_port ($);
 
-# Private IM-related operations.
-
-sub mtr_im_kill_process ($$$);
-sub mtr_im_load_pids ($);
-sub mtr_im_terminate ($);
-sub mtr_im_check_alive ($);
-sub mtr_im_check_main_alive ($);
-sub mtr_im_check_angel_alive ($);
-sub mtr_im_check_mysqlds_alive ($);
-sub mtr_im_check_mysqld_alive ($$);
-sub mtr_im_cleanup ($);
-sub mtr_im_rm_file ($);
-sub mtr_im_errlog ($);
-sub mtr_im_kill ($);
-sub mtr_im_wait_for_connection ($$$);
-sub mtr_im_wait_for_mysqld($$$);
-
-# Public IM-related operations.
-
-sub mtr_im_start ($$);
-sub mtr_im_stop ($$);
-
 # static in C
 sub spawn_impl ($$$$$$$$);
 
@@ -1110,7 +1088,7 @@ sub mtr_kill_processes ($) {
   {
     foreach my $sig (15, 9)
     {
-      last if mtr_im_kill_process([ $pid ], $sig, 10);
+      last if mtr_im_kill_process([ $pid ], $sig, 10, 1);
     }
   }
 }
