@@ -323,7 +323,7 @@ Sensitive_cursor::post_open(THD *thd)
     if (ht->create_cursor_read_view)
     {
       info->ht= ht;
-      info->read_view= (ht->create_cursor_read_view)();
+      info->read_view= (ht->create_cursor_read_view)(thd);
       ++info;
     }
   }
@@ -433,7 +433,7 @@ Sensitive_cursor::fetch(ulong num_rows)
   thd->set_n_backup_active_arena(this, &backup_arena);
 
   for (info= ht_info; info->read_view ; info++)
-    (info->ht->set_cursor_read_view)(info->read_view);
+    (info->ht->set_cursor_read_view)(thd, info->read_view);
 
   join->fetch_limit+= num_rows;
 
@@ -454,7 +454,7 @@ Sensitive_cursor::fetch(ulong num_rows)
   reset_thd(thd);
 
   for (info= ht_info; info->read_view; info++)
-    (info->ht->set_cursor_read_view)(0);
+    (info->ht->set_cursor_read_view)(thd, 0);
 
   if (error == NESTED_LOOP_CURSOR_LIMIT)
   {
@@ -487,7 +487,7 @@ Sensitive_cursor::close()
 
   for (Engine_info *info= ht_info; info->read_view; info++)
   {
-    (info->ht->close_cursor_read_view)(info->read_view);
+    (info->ht->close_cursor_read_view)(thd, info->read_view);
     info->read_view= 0;
     info->ht= 0;
   }

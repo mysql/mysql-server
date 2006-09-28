@@ -7529,12 +7529,14 @@ This consistent view is then used inside of MySQL when accessing records
 using a cursor. */
 
 void*
-innobase_create_cursor_view(void)
-/*=============================*/
-			/* out: Pointer to cursor view or NULL */
+innobase_create_cursor_view(
+/*========================*/
+						/* out: pointer to cursor
+						view or NULL */
+	THD*			thd)		/* in: user thread handle */
 {
 	return(read_cursor_view_create_for_mysql(
-					check_trx_exists(current_thd)));
+					check_trx_exists(thd)));
 }
 
 /***********************************************************************
@@ -7545,6 +7547,7 @@ corresponding MySQL thread still lacks one. */
 void
 innobase_close_cursor_view(
 /*=======================*/
+	THD*	thd,	/* in: user thread handle */
 	void*	curview)/* in: Consistent read view to be closed */
 {
 	read_cursor_view_close_for_mysql(check_trx_exists(current_thd),
@@ -7560,6 +7563,7 @@ restored to a transaction read view. */
 void
 innobase_set_cursor_view(
 /*=====================*/
+	THD*	thd,	/* in: user thread handle */
 	void*	curview)/* in: Consistent cursor view to be set */
 {
 	read_cursor_set_for_mysql(check_trx_exists(current_thd),
