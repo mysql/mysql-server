@@ -66,12 +66,10 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
 /*
   Aggregates result types from the array of items.
 
-  SYNOPSIS:
+  SYNOPSIS
     agg_cmp_type()
-    thd          thread handle
-    type   [out] the aggregated type
-    items        array of items to aggregate the type from
-    nitems       number of items in the array
+      items        array of items to aggregate the type from
+      nitems       number of items in the array
 
   DESCRIPTION
     This function aggregates result types from the array of items. Found type
@@ -79,12 +77,43 @@ static void agg_result_type(Item_result *type, Item **items, uint nitems)
     Aggregation itself is performed by the item_cmp_type() function.
 */
 
-static void agg_cmp_type(THD *thd, Item_result *type, Item **items, uint nitems)
+static Item_result agg_cmp_type(Item **items, uint nitems)
 {
   uint i;
-  type[0]= items[0]->result_type();
+  Item_result type= items[0]->result_type();
   for (i= 1 ; i < nitems ; i++)
-    type[0]= item_cmp_type(type[0], items[i]->result_type());
+    type= item_cmp_type(type, items[i]->result_type());
+  return type;
+}
+
+
+/*
+  Collects different types for comparison of first item with each other items
+
+  SYNOPSIS
+    collect_cmp_types()
+      items             Array of items to collect types from
+      nitems            Number of items in the array
+
+  DESCRIPTION
+    This function collects different result types for comparison of the first
+    item in the list with each of the remaining items in the 'items' array.
+
+  RETURN
+    Bitmap of collected types
+*/
+
+static uint collect_cmp_types(Item **items, uint nitems)
+{
+  uint i;
+  uint found_types;
+  Item_result left_result= items[0]->result_type();
+  DBUG_ASSERT(nitems > 1);
+  found_types= 0;
+  for (i= 1; i < nitems ; i++)
+    found_types|= 1<< (uint)item_cmp_type(left_result,
+                                           items[i]->result_type());
+  return found_types;
 }
 
 
@@ -1117,7 +1146,7 @@ void Item_func_between::fix_length_and_dec()
   */
   if (!args[0] || !args[1] || !args[2])
     return;
-  agg_cmp_type(thd, &cmp_type, args, 3);
+  cmp_type= agg_cmp_type(args, 3);
   if (cmp_type == STRING_RESULT &&
       agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV, 1))
    return;
@@ -1597,94 +1626,65 @@ Item_func_nullif::is_null()
   return (null_value= (!cmp.compare() ? 1 : args[0]->null_value)); 
 }
 
+
 /*
-  CASE expression 
   Return the matching ITEM or NULL if all compares (including else) failed
+
+  SYNOPSIS
+    find_item()
+      str      Buffer string
+
+  DESCRIPTION
+    Find and return matching items for CASE or ELSE item if all compares
+    are failed or NULL if ELSE item isn't defined.
+
+  IMPLEMENTATION
+    In order to do correct comparisons of the CASE expression (the expression
+    between CASE and the first WHEN) with each WHEN expression several
+    comparators are used. One for each result type. CASE expression can be
+    evaluated up to # of different result types are used. To check whether
+    the CASE expression already was evaluated for a particular result type
+    a bit mapped variable value_added_map is used. Result types are mapped
+    to it according to their int values i.e. STRING_RESULT is mapped to bit
+    0, REAL_RESULT to bit 1, so on.
+
+  RETURN
+    NULL - Nothing found and there is no ELSE expression defined
+    item - Found item or ELSE item if defined and all comparisons are
+           failed
 */
 
 Item *Item_func_case::find_item(String *str)
 {
-  String *first_expr_str, *tmp;
-  my_decimal *first_expr_dec, first_expr_dec_val;
-  longlong first_expr_int;
-  double   first_expr_real;
-  char buff[MAX_FIELD_WIDTH];
-  String buff_str(buff,sizeof(buff),default_charset());
+  uint value_added_map= 0;
 
-  /* These will be initialized later */
-  LINT_INIT(first_expr_str);
-  LINT_INIT(first_expr_int);
-  LINT_INIT(first_expr_real);
-  LINT_INIT(first_expr_dec);
-
-  if (first_expr_num != -1)
+  if (first_expr_num == -1)
   {
-    switch (cmp_type)
-    {
-      case STRING_RESULT:
-      	// We can't use 'str' here as this may be overwritten
-	if (!(first_expr_str= args[first_expr_num]->val_str(&buff_str)))
-	  return else_expr_num != -1 ? args[else_expr_num] : 0;	// Impossible
-        break;
-      case INT_RESULT:
-	first_expr_int= args[first_expr_num]->val_int();
-	if (args[first_expr_num]->null_value)
-	  return else_expr_num != -1 ? args[else_expr_num] : 0;
-	break;
-      case REAL_RESULT:
-	first_expr_real= args[first_expr_num]->val_real();
-	if (args[first_expr_num]->null_value)
-	  return else_expr_num != -1 ? args[else_expr_num] : 0;
-	break;
-      case DECIMAL_RESULT:
-        first_expr_dec= args[first_expr_num]->val_decimal(&first_expr_dec_val);
-        if (args[first_expr_num]->null_value)
-          return else_expr_num != -1 ? args[else_expr_num] : 0;
-        break;
-      case ROW_RESULT:
-      default:
-        // This case should never be chosen
-	DBUG_ASSERT(0);
-	break;
-    }
-  }
-
-  // Compare every WHEN argument with it and return the first match
-  for (uint i=0 ; i < ncases ; i+=2)
-  {
-    if (first_expr_num == -1)
+    for (uint i=0 ; i < ncases ; i+=2)
     {
       // No expression between CASE and the first WHEN
       if (args[i]->val_bool())
 	return args[i+1];
       continue;
     }
-    switch (cmp_type) {
-    case STRING_RESULT:
-      if ((tmp=args[i]->val_str(str)))		// If not null
-	if (sortcmp(tmp,first_expr_str,cmp_collation.collation)==0)
-	  return args[i+1];
-      break;
-    case INT_RESULT:
-      if (args[i]->val_int()==first_expr_int && !args[i]->null_value) 
-        return args[i+1];
-      break;
-    case REAL_RESULT: 
-      if (args[i]->val_real() == first_expr_real && !args[i]->null_value)
-        return args[i+1];
-      break;
-    case DECIMAL_RESULT:
+  }
+  else
+  {
+    /* Compare every WHEN argument with it and return the first match */
+    for (uint i=0 ; i < ncases ; i+=2)
     {
-      my_decimal value;
-      if (my_decimal_cmp(args[i]->val_decimal(&value), first_expr_dec) == 0)
-        return args[i+1];
-      break;
-    }
-    case ROW_RESULT:
-    default:
-      // This case should never be chosen
-      DBUG_ASSERT(0);
-      break;
+      cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
+      DBUG_ASSERT(cmp_type != ROW_RESULT);
+      DBUG_ASSERT(cmp_items[(uint)cmp_type]);
+      if (!(value_added_map & (1<<(uint)cmp_type)))
+      {
+        cmp_items[(uint)cmp_type]->store_value(args[first_expr_num]);
+        if ((null_value=args[first_expr_num]->null_value))
+          return else_expr_num != -1 ? args[else_expr_num] : 0;
+        value_added_map|= 1<<(uint)cmp_type;
+      }
+      if (!cmp_items[(uint)cmp_type]->cmp(args[i]) && !args[i]->null_value)
+        return args[i + 1];
     }
   }
   // No, WHEN clauses all missed, return ELSE expression
@@ -1791,7 +1791,7 @@ void Item_func_case::fix_length_and_dec()
   Item **agg;
   uint nagg;
   THD *thd= current_thd;
-  
+  uint found_types= 0;
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;
   
@@ -1818,16 +1818,31 @@ void Item_func_case::fix_length_and_dec()
   */
   if (first_expr_num != -1)
   {
+    uint i;
     agg[0]= args[first_expr_num];
+    left_result_type= agg[0]->result_type();
+
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
-    agg_cmp_type(thd, &cmp_type, agg, nagg);
-    if ((cmp_type == STRING_RESULT) &&
-        agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV, 1))
-      return;
+    found_types= collect_cmp_types(agg, nagg);
+
+    for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+    {
+      if (found_types & (1 << i) && !cmp_items[i])
+      {
+        DBUG_ASSERT((Item_result)i != ROW_RESULT);
+        if ((Item_result)i == STRING_RESULT &&
+            agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV, 1))
+          return;
+        if (!(cmp_items[i]=
+            cmp_item::get_comparator((Item_result)i,
+                                     cmp_collation.collation)))
+          return;
+      }
+    }
   }
-  
+
   if (else_expr_num == -1 || args[else_expr_num]->maybe_null)
     maybe_null=1;
   
@@ -2412,16 +2427,14 @@ static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
 void Item_func_in::fix_length_and_dec()
 {
   Item **arg, **arg_end;
-  uint const_itm= 1;
+  bool const_itm= 1;
   THD *thd= current_thd;
+  uint found_types= 0;
+  uint type_cnt= 0, i;
+  left_result_type= args[0]->result_type();
+  found_types= collect_cmp_types(args, arg_count);
   
-  agg_cmp_type(thd, &cmp_type, args, arg_count);
-
-  if (cmp_type == STRING_RESULT &&
-      agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1))
-    return;
-
-  for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
+  for (arg= args + 1, arg_end= args + arg_count; arg != arg_end ; arg++)
   {
     if (!arg[0]->const_item())
     {
@@ -2429,26 +2442,39 @@ void Item_func_in::fix_length_and_dec()
       break;
     }
   }
-
+  for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+  {
+    if (found_types & 1 << i)
+      (type_cnt)++;
+  }
   /*
-    Row item with NULLs inside can return NULL or FALSE => 
+    Row item with NULLs inside can return NULL or FALSE =>
     they can't be processed as static
   */
-  if (const_itm && !nulls_in_row())
+  if (type_cnt == 1 && const_itm && !nulls_in_row())
   {
+    uint tmp_type;
+    Item_result cmp_type;
+    /* Only one cmp type was found. Extract it here */
+    for (tmp_type= 0; found_types - 1; found_types>>= 1)
+      tmp_type++;
+    cmp_type= (Item_result)tmp_type;
+
     switch (cmp_type) {
     case STRING_RESULT:
-      array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
+      if (agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1))
+        return;
+      array=new in_string(arg_count - 1,(qsort2_cmp) srtcmp_in,
 			  cmp_collation.collation);
       break;
     case INT_RESULT:
-      array= new in_longlong(arg_count-1);
+      array= new in_longlong(arg_count - 1);
       break;
     case REAL_RESULT:
-      array= new in_double(arg_count-1);
+      array= new in_double(arg_count - 1);
       break;
     case ROW_RESULT:
-      array= new in_row(arg_count-1, args[0]);
+      array= new in_row(arg_count - 1, args[0]);
       break;
     case DECIMAL_RESULT:
       array= new in_decimal(arg_count - 1);
@@ -2468,15 +2494,25 @@ void Item_func_in::fix_length_and_dec()
 	else
 	  have_null= 1;
       }
-      if ((array->used_count=j))
+      if ((array->used_count= j))
 	array->sort();
     }
   }
   else
   {
-    in_item= cmp_item::get_comparator(cmp_type, cmp_collation.collation);
-    if (cmp_type  == STRING_RESULT)
-      in_item->cmp_charset= cmp_collation.collation;
+    for (i= 0; i <= (uint) DECIMAL_RESULT; i++)
+    {
+      if (found_types & (1 << i) && !cmp_items[i])
+      {
+        if ((Item_result)i == STRING_RESULT &&
+            agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1))
+          return;
+        if (!(cmp_items[i]=
+            cmp_item::get_comparator((Item_result)i,
+                                     cmp_collation.collation)))
+          return;
+      }
+    }
   }
   maybe_null= args[0]->maybe_null;
   max_length= 1;
@@ -2495,25 +2531,61 @@ void Item_func_in::print(String *str)
 }
 
 
+/*
+  Evaluate the function and return its value.
+
+  SYNOPSIS
+    val_int()
+
+  DESCRIPTION
+    Evaluate the function and return its value.
+
+  IMPLEMENTATION
+    If the array object is defined then the value of the function is
+    calculated by means of this array.
+    Otherwise several cmp_item objects are used in order to do correct
+    comparison of left expression and an expression from the values list.
+    One cmp_item object correspond to one used comparison type. Left
+    expression can be evaluated up to number of different used comparison
+    types. A bit mapped variable value_added_map is used to check whether
+    the left expression already was evaluated for a particular result type.
+    Result types are mapped to it according to their integer values i.e.
+    STRING_RESULT is mapped to bit 0, REAL_RESULT to bit 1, so on.
+
+  RETURN
+    Value of the function
+*/
+
 longlong Item_func_in::val_int()
 {
+  cmp_item *in_item;
   DBUG_ASSERT(fixed == 1);
+  uint value_added_map= 0;
   if (array)
   {
     int tmp=array->find(args[0]);
     null_value=args[0]->null_value || (!tmp && have_null);
     return (longlong) (!null_value && tmp != negated);
   }
-  in_item->store_value(args[0]);
-  if ((null_value=args[0]->null_value))
-    return 0;
-  have_null= 0;
-  for (uint i=1 ; i < arg_count ; i++)
+
+  for (uint i= 1 ; i < arg_count ; i++)
   {
+    Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
+    in_item= cmp_items[(uint)cmp_type];
+    DBUG_ASSERT(in_item);
+    if (!(value_added_map & (1 << (uint)cmp_type)))
+    {
+      in_item->store_value(args[0]);
+      if ((null_value=args[0]->null_value))
+        return 0;
+      have_null= 0;
+      value_added_map|= 1 << (uint)cmp_type;
+    }
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
       return (longlong) (!negated);
     have_null|= args[i]->null_value;
   }
+
   null_value= have_null;
   return (longlong) (!null_value && negated);
 }
