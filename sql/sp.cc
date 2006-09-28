@@ -414,8 +414,8 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   sp_rcontext *old_spcont= thd->spcont;
   
   char definer_user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING_WITH_INIT definer_user_name(definer_user_name_holder,
-                                         USERNAME_LENGTH);
+  LEX_STRING definer_user_name= { definer_user_name_holder,
+                                  USERNAME_LENGTH };
 
   char definer_host_name_holder[HOSTNAME_LENGTH + 1];
   LEX_STRING definer_host_name= { definer_host_name_holder, HOSTNAME_LENGTH };
