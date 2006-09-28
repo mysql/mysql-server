@@ -236,16 +236,20 @@ int mi_lock_database(MI_INFO *info, int lock_type)
     default:
       break;				/* Impossible */
     }
-  } 
+  }
 #ifdef __WIN__
   else
   {
     /*
-      The file has been closed and kfile is -1.
-      See mi_extra.c about implementation of
-      HA_EXTRA_PREPARE_FOR_DELETE.
-    */
-    error=HA_ERR_NO_SUCH_TABLE;
+       Check for bad file descriptors if this table is part
+       of a merge union. Failing to capture this may cause
+       a crash on windows if the table is renamed and 
+       later on referenced by the merge table.
+     */
+    if( info->owned_by_merge && (info->s)->kfile < 0 )
+    {
+      error = HA_ERR_NO_SUCH_TABLE;
+    }
   }
 #endif
   pthread_mutex_unlock(&share->intern_lock);

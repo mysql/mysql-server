@@ -26,6 +26,25 @@ Created 4/24/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 
+/********************************************************************
+Returns TRUE if index's i'th column's name is 'name' .*/
+static
+ibool
+name_of_col_is(
+/*===========*/
+				/* out: */
+	dict_table_t*	table,	/* in: table */
+	dict_index_t*	index,	/* in: index */
+	ulint		i,	/* in:  */
+	const char*	name)	/* in: name to compare to */
+{
+	ulint	tmp = dict_col_get_no(dict_field_get_col(
+					      dict_index_get_nth_field(
+						      index, i)));
+
+	return(strcmp(name, dict_table_get_col_name(table, tmp)) == 0);
+}
+
 /************************************************************************
 Finds the first table name in the given database. */
 
@@ -331,7 +350,6 @@ dict_load_columns(
 	ulint		mtype;
 	ulint		prtype;
 	ulint		col_len;
-	ulint		prec;
 	ulint		i;
 	mtr_t		mtr;
 
@@ -356,7 +374,7 @@ dict_load_columns(
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
-	for (i = 0; i < table->n_cols - DATA_N_SYS_COLS; i++) {
+	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
 
 		rec = btr_pcur_get_rec(&pcur);
 
@@ -372,8 +390,7 @@ dict_load_columns(
 		ut_ad(len == 4);
 		ut_a(i == mach_read_from_4(field));
 
-		ut_a(!strcmp("NAME", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 4))->name));
+		ut_a(name_of_col_is(sys_columns, sys_index, 4, "NAME"));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
 		name = mem_heap_strdupl(heap, (char*) field, len);
@@ -392,30 +409,25 @@ dict_load_columns(
 				/* Use the binary collation for
 				string columns of binary type. */
 
-				prtype = dtype_form_prtype
-					(prtype,
-					 DATA_MYSQL_BINARY_CHARSET_COLL);
+				prtype = dtype_form_prtype(
+					prtype,
+					DATA_MYSQL_BINARY_CHARSET_COLL);
 			} else {
 				/* Use the default charset for
 				other than binary columns. */
 
-				prtype = dtype_form_prtype
-					(prtype,
-					 data_mysql_default_charset_coll);
+				prtype = dtype_form_prtype(
+					prtype,
+					data_mysql_default_charset_coll);
 			}
 		}
 
 		field = rec_get_nth_field_old(rec, 7, &len);
 		col_len = mach_read_from_4(field);
 
-		ut_a(!strcmp("PREC", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 8))->name));
+		ut_a(name_of_col_is(sys_columns, sys_index, 8, "PREC"));
 
-		field = rec_get_nth_field_old(rec, 8, &len);
-		prec = mach_read_from_4(field);
-
-		dict_mem_table_add_col(table, name, mtype, prtype, col_len,
-				       prec);
+		dict_mem_table_add_col(table, name, mtype, prtype, col_len);
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
@@ -526,13 +538,13 @@ dict_load_fields(
 			prefix_len = 0;
 		}
 
-		ut_a(!strcmp("COL_NAME", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 4))->name));
+		ut_a(name_of_col_is(sys_fields, sys_index, 4, "COL_NAME"));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
 
-		dict_mem_index_add_field(index, mem_heap_strdupl
-					 (heap, (char*) field, len),
+		dict_mem_index_add_field(index,
+					 mem_heap_strdupl(heap,
+							  (char*) field, len),
 					 prefix_len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
@@ -631,8 +643,7 @@ dict_load_indexes(
 		ut_ad(len == 8);
 		id = mach_read_from_8(field);
 
-		ut_a(!strcmp("NAME", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 4))->name));
+		ut_a(name_of_col_is(sys_indexes, sys_index, 4, "NAME"));
 
 		field = rec_get_nth_field_old(rec, 4, &name_len);
 		name_buf = mem_heap_strdupl(heap, (char*) field, name_len);
@@ -646,8 +657,7 @@ dict_load_indexes(
 		field = rec_get_nth_field_old(rec, 7, &len);
 		space = mach_read_from_4(field);
 
-		ut_a(!strcmp("PAGE_NO", dict_field_get_col
-			     (dict_index_get_nth_field(sys_index, 8))->name));
+		ut_a(name_of_col_is(sys_indexes, sys_index, 8, "PAGE_NO"));
 
 		field = rec_get_nth_field_old(rec, 8, &len);
 		page_no = mach_read_from_4(field);
@@ -785,8 +795,7 @@ err_exit:
 		goto err_exit;
 	}
 
-	ut_a(!strcmp("SPACE", dict_field_get_col
-		     (dict_index_get_nth_field(sys_index, 9))->name));
+	ut_a(name_of_col_is(sys_tables, sys_index, 9, "SPACE"));
 
 	field = rec_get_nth_field_old(rec, 9, &len);
 	space = mach_read_from_4(field);
@@ -819,8 +828,7 @@ err_exit:
 		}
 	}
 
-	ut_a(!strcmp("N_COLS", dict_field_get_col
-		     (dict_index_get_nth_field(sys_index, 4))->name));
+	ut_a(name_of_col_is(sys_tables, sys_index, 4, "N_COLS"));
 
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
@@ -837,8 +845,7 @@ err_exit:
 
 	table->ibd_file_missing = ibd_file_missing;
 
-	ut_a(!strcmp("ID", dict_field_get_col
-		     (dict_index_get_nth_field(sys_index, 3))->name));
+	ut_a(name_of_col_is(sys_tables, sys_index, 3, "ID"));
 
 	field = rec_get_nth_field_old(rec, 3, &len);
 	table->id = mach_read_from_8(field);
@@ -925,8 +932,8 @@ dict_load_table_on_id(
 	/*---------------------------------------------------*/
 	/* Get the secondary index based on ID for table SYS_TABLES */
 	sys_tables = dict_sys->sys_tables;
-	sys_table_ids = dict_table_get_next_index
-		(dict_table_get_first_index(sys_tables));
+	sys_table_ids = dict_table_get_next_index(
+		dict_table_get_first_index(sys_tables));
 	ut_a(!dict_table_is_comp(sys_tables));
 	heap = mem_heap_create(256);
 
@@ -1032,11 +1039,11 @@ dict_load_foreign_cols(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	foreign->foreign_col_names = mem_heap_alloc
-		(foreign->heap, foreign->n_fields * sizeof(void*));
+	foreign->foreign_col_names = mem_heap_alloc(
+		foreign->heap, foreign->n_fields * sizeof(void*));
 
-	foreign->referenced_col_names = mem_heap_alloc
-		(foreign->heap, foreign->n_fields * sizeof(void*));
+	foreign->referenced_col_names = mem_heap_alloc(
+		foreign->heap, foreign->n_fields * sizeof(void*));
 	mtr_start(&mtr);
 
 	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
@@ -1067,12 +1074,12 @@ dict_load_foreign_cols(
 		ut_a(i == mach_read_from_4(field));
 
 		field = rec_get_nth_field_old(rec, 4, &len);
-		foreign->foreign_col_names[i] = mem_heap_strdupl
-			(foreign->heap, (char*) field, len);
+		foreign->foreign_col_names[i] = mem_heap_strdupl(
+			foreign->heap, (char*) field, len);
 
 		field = rec_get_nth_field_old(rec, 5, &len);
-		foreign->referenced_col_names[i] = mem_heap_strdupl
-			(foreign->heap, (char*) field, len);
+		foreign->referenced_col_names[i] = mem_heap_strdupl(
+			foreign->heap, (char*) field, len);
 
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
@@ -1165,8 +1172,8 @@ dict_load_foreign(
 
 	foreign = dict_mem_foreign_create();
 
-	foreign->n_fields = mach_read_from_4
-		(rec_get_nth_field_old(rec, 5, &len));
+	foreign->n_fields = mach_read_from_4(
+		rec_get_nth_field_old(rec, 5, &len));
 
 	ut_a(len == 4);
 
@@ -1178,12 +1185,12 @@ dict_load_foreign(
 	foreign->id = mem_heap_strdup(foreign->heap, id);
 
 	field = rec_get_nth_field_old(rec, 3, &len);
-	foreign->foreign_table_name = mem_heap_strdupl
-		(foreign->heap, (char*) field, len);
+	foreign->foreign_table_name = mem_heap_strdupl(
+		foreign->heap, (char*) field, len);
 
 	field = rec_get_nth_field_old(rec, 4, &len);
-	foreign->referenced_table_name = mem_heap_strdupl
-		(foreign->heap, (char*) field, len);
+	foreign->referenced_table_name = mem_heap_strdupl(
+		foreign->heap, (char*) field, len);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1257,8 +1264,8 @@ dict_load_foreigns(
 	/* Get the secondary index based on FOR_NAME from table
 	SYS_FOREIGN */
 
-	sec_index = dict_table_get_next_index
-		(dict_table_get_first_index(sys_foreign));
+	sec_index = dict_table_get_next_index(
+		dict_table_get_first_index(sys_foreign));
 start_load:
 	heap = mem_heap_create(256);
 
@@ -1289,7 +1296,8 @@ loop:
 	following call does the comparison in the latin1_swedish_ci
 	charset-collation, in a case-insensitive way. */
 
-	if (0 != cmp_data_data(dfield_get_type(dfield),
+	if (0 != cmp_data_data(dfield_get_type(dfield)->mtype,
+			       dfield_get_type(dfield)->prtype,
 			       dfield_get_data(dfield), dfield_get_len(dfield),
 			       field, len)) {
 

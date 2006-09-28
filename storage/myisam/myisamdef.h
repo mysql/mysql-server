@@ -291,6 +291,9 @@ struct st_myisam_info {
   my_bool page_changed;		/* If info->buff can't be used for rnext */
   my_bool buff_used;		/* If info->buff has to be reread for rnext */
   my_bool once_flags;           /* For MYISAMMRG */
+#ifdef __WIN__
+  my_bool owned_by_merge;                       /* This MyISAM table is part of a merge union */
+#endif
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif

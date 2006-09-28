@@ -31,6 +31,7 @@
 #ifndef mySTL_MEMORY_HPP
 #define mySTL_MEMORY_HPP
 
+#include "memory_array.hpp"   // for auto_array
 
 #ifdef _MSC_VER
     // disable operator-> warning for builtins
@@ -43,27 +44,25 @@ namespace mySTL {
 
 template<typename T>
 struct auto_ptr_ref {
-    typedef void (*Deletor)(T*);
-    T*      ptr_;
-    Deletor del_;
-    auto_ptr_ref(T* p, Deletor d) : ptr_(p), del_(d) {}
+    T* ptr_;
+    explicit auto_ptr_ref(T* p) : ptr_(p) {}
 };
 
 
 template<typename T>
 class auto_ptr {
-    typedef void (*Deletor)(T*);
     T*       ptr_;
-    Deletor  del_;
 
     void Destroy()
     {
-        del_(ptr_);
+        #ifdef YASSL_LIB
+            yaSSL::ysDelete(ptr_);
+        #else
+            TaoCrypt::tcDelete(ptr_);
+        #endif
     }
 public:
-    auto_ptr(T* p, Deletor d) : ptr_(p), del_(d) {}
-
-    explicit auto_ptr(Deletor d) : ptr_(0), del_(d) {}
+    explicit auto_ptr(T* p = 0) : ptr_(p) {}
 
     ~auto_ptr() 
     {
@@ -71,14 +70,13 @@ public:
     }
 
 
-    auto_ptr(auto_ptr& other) : ptr_(other.release()), del_(other.del_) {}
+    auto_ptr(auto_ptr& other) : ptr_(other.release()) {}
 
     auto_ptr& operator=(auto_ptr& that)
     {
         if (this != &that) {
             Destroy();
             ptr_ = that.release();
-            del_ = that.del_;
         }
         return *this;
     }
@@ -115,14 +113,13 @@ public:
     }
 
     // auto_ptr_ref conversions
-    auto_ptr(auto_ptr_ref<T> ref) : ptr_(ref.ptr_), del_(ref.del_) {}
+    auto_ptr(auto_ptr_ref<T> ref) : ptr_(ref.ptr_) {}
 
     auto_ptr& operator=(auto_ptr_ref<T> ref)
     {
         if (this->ptr_ != ref.ptr_) {
             Destroy();
             ptr_ = ref.ptr_;
-            del_ = ref.del_;
         }
         return *this;
     }
@@ -130,13 +127,13 @@ public:
     template<typename T2>
     operator auto_ptr<T2>()
     {
-        return auto_ptr<T2>(this->release(), this->del_);
+        return auto_ptr<T2>(this->release());
     }
 
     template<typename T2>
     operator auto_ptr_ref<T2>()
     {
-        return auto_ptr_ref<T2>(this->release(), this->del_);
+        return auto_ptr_ref<T2>(this->release());
     }
 };
 

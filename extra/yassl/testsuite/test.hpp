@@ -27,22 +27,25 @@
 #endif /* _WIN32 */
 
 
-#if !defined(_SOCKLEN_T) && defined(_WIN32)
+#if !defined(_SOCKLEN_T) && (defined(_WIN32) || defined(__NETWARE__))
     typedef int socklen_t;
 #endif
 
 
+// Check type of third arg to accept
+#if defined(__hpux)
 // HPUX doesn't use socklent_t for third parameter to accept
-#if !defined(__hpux)
-    typedef socklen_t* ACCEPT_THIRD_T;
-#else
     typedef int*       ACCEPT_THIRD_T;
-
-// HPUX does not define _POSIX_THREADS as it's not _fully_ implemented
-#ifndef _POSIX_THREADS
-#define _POSIX_THREADS
+#else
+    typedef socklen_t* ACCEPT_THIRD_T;
 #endif
 
+
+// Check if _POSIX_THREADS should be forced
+#if !defined(_POSIX_THREADS) && (defined(__NETWARE__) || defined(__hpux))
+// HPUX does not define _POSIX_THREADS as it's not _fully_ implemented
+// Netware supports pthreads but does not announce it
+#define _POSIX_THREADS
 #endif
 
 
@@ -148,6 +151,13 @@ inline void err_sys(const char* msg)
 }
 
 
+static int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
+{
+    strncpy(passwd, "12345678", sz);
+    return 8;
+}
+
+
 inline void store_ca(SSL_CTX* ctx)
 {
     // To allow testing from serveral dirs
@@ -168,6 +178,7 @@ inline void store_ca(SSL_CTX* ctx)
 inline void set_certs(SSL_CTX* ctx)
 {
     store_ca(ctx);
+    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 
     // To allow testing from serveral dirs
     if (SSL_CTX_use_certificate_file(ctx, cert, SSL_FILETYPE_PEM)
@@ -193,6 +204,7 @@ inline void set_certs(SSL_CTX* ctx)
 inline void set_serverCerts(SSL_CTX* ctx)
 {
     store_ca(ctx);
+    SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 
     // To allow testing from serveral dirs
     if (SSL_CTX_use_certificate_file(ctx, svrCert, SSL_FILETYPE_PEM)
@@ -258,13 +270,27 @@ inline void tcp_socket(SOCKET_T& sockfd, sockaddr_in& addr)
 }
 
 
+inline void tcp_close(SOCKET_T& sockfd)
+{
+#ifdef _WIN32
+    closesocket(sockfd);
+#else
+    close(sockfd);
+#endif
+    sockfd = -1;
+}
+
+
 inline void tcp_connect(SOCKET_T& sockfd)
 {
     sockaddr_in addr;
     tcp_socket(sockfd, addr);
 
     if (connect(sockfd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+    {
+        tcp_close(sockfd);
         err_sys("tcp connect failed");
+    }
 }
 
 
@@ -274,13 +300,19 @@ inline void tcp_listen(SOCKET_T& sockfd)
     tcp_socket(sockfd, addr);
 
     if (bind(sockfd, (const sockaddr*)&addr, sizeof(addr)) != 0)
+    {
+        tcp_close(sockfd);
         err_sys("tcp bind failed");
+    }
     if (listen(sockfd, 3) != 0)
+    {
+        tcp_close(sockfd);
         err_sys("tcp listen failed");
+    }
 }
 
 
-inline void tcp_accept(SOCKET_T& sockfd, int& clientfd, func_args& args)
+inline void tcp_accept(SOCKET_T& sockfd, SOCKET_T& clientfd, func_args& args)
 {
     tcp_listen(sockfd);
 
@@ -299,7 +331,10 @@ inline void tcp_accept(SOCKET_T& sockfd, int& clientfd, func_args& args)
     clientfd = accept(sockfd, (sockaddr*)&client, (ACCEPT_THIRD_T)&client_len);
 
     if (clientfd == -1)
+    {
+        tcp_close(sockfd);
         err_sys("tcp accept failed");
+    }
 }
 
 
