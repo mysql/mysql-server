@@ -91,3 +91,19 @@ c
 ---> Cleaning up...
 DROP VIEW v1;
 DROP TABLE t1;
+create table t1(a int, b int);
+insert into t1 values (1, 1), (1, 2), (1, 3);
+create view  v1(a, b) as select a, sum(b) from t1 group by a;
+explain v1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	decimal(32,0)	YES		NULL	
+show create table v1;
+View	Create View
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,sum(`t1`.`b`) AS `b` from `t1` group by `t1`.`a`
+select * from v1;
+a	b
+1	6
+drop table t1;
+drop view v1;
+End of 5.0 tests

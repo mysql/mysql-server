@@ -1001,8 +1001,8 @@ static int check_connection(THD *thd)
   char *passwd= strend(user)+1;
   uint user_len= passwd - user - 1;
   char *db= passwd;
-  char db_buff[NAME_BYTE_LEN + 1];              // buffer to store db in utf8
-  char user_buff[USERNAME_BYTE_LENGTH + 1];	// buffer to store user in utf8
+  char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
+  char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
   uint dummy_errors;
 
   /*
@@ -1662,7 +1662,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
     */
-    char db_buff[NAME_BYTE_LEN+1];               // buffer to store db in utf8
+    char db_buff[NAME_LEN+1];               // buffer to store db in utf8
     char *db= passwd;
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
       *passwd++ : strlen(passwd);
@@ -4765,6 +4765,19 @@ end_with_restore_list:
         }
         append_identifier(thd, &buff, first_table->table_name,
                           first_table->table_name_length);
+        if (lex->view_list.elements)
+        {
+          List_iterator_fast<LEX_STRING> names(lex->view_list);
+          LEX_STRING *name;
+          int i;
+          
+          for (i= 0; name= names++; i++)
+          {
+            buff.append(i ? ", " : "(");
+            append_identifier(thd, &buff, name->str, name->length);
+          }
+          buff.append(')');
+        }
         buff.append(STRING_WITH_LEN(" AS "));
         buff.append(first_table->source.str, first_table->source.length);
 
@@ -7552,7 +7565,6 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 
   SYNOPSIS
     check_string_length()
-      cs          string charset
       str         string to be checked
       err_msg     error message to be displayed if the string is too long
       max_length  max length
@@ -7562,13 +7574,13 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
     TRUE    the passed string is longer than max_length
 */
 
-bool check_string_length(CHARSET_INFO *cs, LEX_STRING *str,
-                         const char *err_msg, uint max_length)
+bool check_string_length(LEX_STRING *str, const char *err_msg,
+                         uint max_length)
 {
-  if (cs->cset->charpos(cs, str->str, str->str + str->length,
-                        max_length) >= str->length)
-    return FALSE; 
+  if (str->length <= max_length)
+    return FALSE;
 
   my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_length);
+
   return TRUE;
 }

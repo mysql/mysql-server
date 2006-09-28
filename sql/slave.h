@@ -406,7 +406,7 @@ typedef struct st_master_info
   /* the variables below are needed because we can change masters on the fly */
   char master_log_name[FN_REFLEN];
   char host[HOSTNAME_LENGTH+1];
-  char user[USERNAME_BYTE_LENGTH+1];
+  char user[USERNAME_LENGTH+1];
   char password[MAX_PASSWORD_LENGTH+1];
   my_bool ssl; // enables use of SSL connection if true
   char ssl_ca[FN_REFLEN], ssl_capath[FN_REFLEN], ssl_cert[FN_REFLEN];
