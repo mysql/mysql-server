@@ -4211,8 +4211,6 @@ static interval_type get_real_interval_type(interval_type i_type)
   return INTERVAL_SECOND;
 }
 
-extern LEX_STRING interval_type_to_name[];
-
 
 /*
   Loads an event from mysql.event and copies it's data to a row of
