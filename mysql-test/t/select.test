@@ -2996,5 +2996,14 @@ SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
   WHERE t1.id=2;
 
-
 DROP TABLE t1,t2,t3;
+
+#
+# Bug#20503: Server crash due to the ORDER clause isn't taken into account
+#            while space allocation
+#
+create table t1 (c1 varchar(1), c2 int, c3 int, c4 int, c5 int, c6 int,
+c7 int, c8 int, c9 int, fulltext key (`c1`));
+select distinct match (`c1`) against ('z') , c2, c3, c4,c5, c6,c7, c8 
+  from t1 where c9=1 order by c2, c2;
+drop table t1;
