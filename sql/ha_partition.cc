@@ -5632,7 +5632,7 @@ static int free_share(PARTITION_SHARE *share)
 #endif /* NOT_USED */
 
 struct st_mysql_storage_engine partition_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, partition_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(partition)
 {
