@@ -7921,7 +7921,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
       (delta == -1 && (uchar) *from > ((1 << bit_len) - 1)) ||
       (!bit_len && delta < 0))
   {
-    set_rec_bits(0xff, bit_ptr, bit_ofs, bit_len);
+    set_rec_bits((1 << bit_len) - 1, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, bytes_in_rec);
     if (table->in_use->really_abort_on_warning())
       set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
