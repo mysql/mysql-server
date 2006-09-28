@@ -377,6 +377,17 @@ check table t1, t2;
 drop table t1, t2, t3;
 
 #
+# BUG#21617 - crash when selecting from merge table with inconsistent
+# indexes
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(2),(1);
+CREATE TABLE t2(a INT, KEY(a)) ENGINE=MERGE UNION=(t1);
+--error 1030
+SELECT * FROM t2 WHERE a=2;
+DROP TABLE t1, t2;
+
+#
 # BUG#10974 - No error message if merge table based on union of innodb,
 # memory
 #
