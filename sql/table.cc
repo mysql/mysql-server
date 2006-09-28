@@ -2277,7 +2277,6 @@ bool check_db_name(char *name)
         name += len;
         continue;
       }
-    name_length++;
     }
 #else
     last_char_is_space= *name==' ';

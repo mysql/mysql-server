@@ -2011,7 +2011,7 @@ void
 sp_head::set_definer(const char *definer, uint definerlen)
 {
   char user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING_WITH_INIT user_name(user_name_holder, USERNAME_LENGTH);
+  LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
 
   char host_name_holder[HOSTNAME_LENGTH + 1];
   LEX_STRING host_name= { host_name_holder, HOSTNAME_LENGTH };
