@@ -630,9 +630,9 @@ struct handlerton
    int  (*recover)(XID *xid_list, uint len);
    int  (*commit_by_xid)(XID *xid);
    int  (*rollback_by_xid)(XID *xid);
-   void *(*create_cursor_read_view)();
-   void (*set_cursor_read_view)(void *);
-   void (*close_cursor_read_view)(void *);
+   void *(*create_cursor_read_view)(THD *thd);
+   void (*set_cursor_read_view)(THD *thd, void *read_view);
+   void (*close_cursor_read_view)(THD *thd, void *read_view);
    handler *(*create)(TABLE_SHARE *table, MEM_ROOT *mem_root);
    void (*drop_database)(char* path);
    int (*panic)(enum ha_panic_function flag);
