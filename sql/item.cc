@@ -1210,6 +1210,7 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
     split_sum_func(thd, ref_pointer_array, fields);
   }
   else if ((type() == SUM_FUNC_ITEM || (used_tables() & ~PARAM_TABLE_BIT)) &&
+           type() != SUBSELECT_ITEM &&
            (type() != REF_ITEM ||
            ((Item_ref*)this)->ref_type() == Item_ref::VIEW_REF))
   {
@@ -5709,11 +5710,6 @@ void Item_trigger_field::cleanup()
   Item::cleanup();
 }
 
-
-/*
-  If item is a const function, calculate it and return a const item
-  The original item is freed if not returned
-*/
 
 Item_result item_cmp_type(Item_result a,Item_result b)
 {
