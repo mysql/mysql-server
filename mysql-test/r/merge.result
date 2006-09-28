@@ -277,7 +277,7 @@ t3	CREATE TABLE `t3` (
 drop table t3,t2,t1;
 create table t1 (a int not null, key(a)) engine=merge;
 select * from t1;
-a
+ERROR HY000: Got error 124 from storage engine
 drop table t1;
 create table t1 (a int not null, b int not null, key(a,b));
 create table t2 (a int not null, b int not null, key(a,b));
