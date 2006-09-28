@@ -1069,6 +1069,7 @@ explain select a from t1 group by a;
 select a from t1 group by a;
 drop table t1;
 
+
 #
 # Bug#20393: User name truncation in mysql client
 # Bug#21432: Database/Table name limited to 64 bytes, not chars, problems with multi-byte
@@ -1096,7 +1097,6 @@ explain
   select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 drop table t1;
-
 # End of 4.1 tests
 
 #
