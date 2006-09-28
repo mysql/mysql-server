@@ -39,6 +39,7 @@ public:
   virtual bool update_apply_status(const RestoreMetaData &metaData){return true;}
   NODE_GROUP_MAP *m_nodegroup_map;
   uint            m_nodegroup_map_len;
+  virtual bool has_temp_error() {return false;}
 };
 
 #endif
