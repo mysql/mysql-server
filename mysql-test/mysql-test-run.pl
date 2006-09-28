@@ -255,7 +255,7 @@ our $opt_result_ext;
 
 our $opt_skip;
 our $opt_skip_rpl;
-our $use_slaves;
+our $max_slave_num= 0;
 our $opt_skip_test;
 our $opt_skip_im;
 
@@ -409,7 +409,13 @@ sub main () {
     {
       $need_ndbcluster||= $test->{ndb_test};
       $need_im||= $test->{component_id} eq 'im';
-      $use_slaves||= $test->{slave_num};
+
+      # Count max number of slaves used by a test case
+      if ( $test->{slave_num} > $max_slave_num)
+      {
+	$max_slave_num= $test->{slave_num};
+	mtr_error("Too many slaves") if $max_slave_num > 3;
+      }
     }
     $opt_with_ndbcluster= 0 unless $need_ndbcluster;
     $opt_skip_im= 1 unless $need_im;
@@ -993,11 +999,9 @@ sub snapshot_setup () {
     $master->[0]->{'path_myddir'},
     $master->[1]->{'path_myddir'});
 
-  if ($use_slaves)
+  for (my $idx= 0; $idx < $max_slave_num; $idx++)
   {
-    push @data_dir_lst, ($slave->[0]->{'path_myddir'},
-                         $slave->[1]->{'path_myddir'},
-                         $slave->[2]->{'path_myddir'});
+    push(@data_dir_lst, $slave->[$idx]->{'path_myddir'});
   }
 
   unless ($opt_skip_im)
@@ -1110,7 +1114,9 @@ sub executable_setup () {
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
     $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
     $lib_udf_example=
-      mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so");
+      mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so",
+                      "$glob_basedir/sql/release/udf_example.dll",
+                      "$glob_basedir/sql/debug/udf_example.dll");
   }
   else
   {
@@ -1189,7 +1195,7 @@ sub executable_setup () {
 
 sub environment_setup () {
 
-  my $extra_ld_library_paths;
+  my @ld_library_paths;
 
   # --------------------------------------------------------------------------
   # Setup LD_LIBRARY_PATH so the libraries from this distro/clone
@@ -1197,25 +1203,40 @@ sub environment_setup () {
   # --------------------------------------------------------------------------
   if ( $opt_source_dist )
   {
-    $extra_ld_library_paths= "$glob_basedir/libmysql/.libs/";
+    push(@ld_library_paths, "$glob_basedir/libmysql/.libs/")
   }
   else
   {
-    $extra_ld_library_paths= "$glob_basedir/lib";
+    push(@ld_library_paths, "$glob_basedir/lib")
   }
 
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find udf_example.so
   # --------------------------------------------------------------------------
-  $extra_ld_library_paths .= ":" .
-    ($lib_udf_example ?  dirname($lib_udf_example) : "");
+  if ( $lib_udf_example )
+  {
+    push(@ld_library_paths, dirname($lib_udf_example));
+  }
 
-  $ENV{'LD_LIBRARY_PATH'}=
-    "$extra_ld_library_paths" .
-      ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
-  $ENV{'DYLD_LIBRARY_PATH'}=
-    "$extra_ld_library_paths" .
-      ($ENV{'DYLD_LIBRARY_PATH'} ? ":$ENV{'DYLD_LIBRARY_PATH'}" : "");
+  # --------------------------------------------------------------------------
+  #Valgrind need to be run with debug libraries otherwise it's almost
+  # impossible to add correct supressions, that means if "/usr/lib/debug"
+  # is available, it should be added to
+  # LD_LIBRARY_PATH
+  # --------------------------------------------------------------------------
+  my $debug_libraries_path= "/usr/lib/debug";
+  if (  $opt_valgrind and -d $debug_libraries_path )
+  {
+    push(@ld_library_paths, $debug_libraries_path);
+  }
+
+  $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
+				split(':', $ENV{'LD_LIBRARY_PATH'}));
+  mtr_debug("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
+
+  $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
+				split(':', $ENV{'DYLD_LIBRARY_PATH'}));
+  mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
   # --------------------------------------------------------------------------
   # Also command lines in .opt files may contain env vars
@@ -1719,16 +1740,13 @@ sub initialize_servers () {
 
 sub mysql_install_db () {
 
-  # FIXME not exactly true I think, needs improvements
   install_db('master1', $master->[0]->{'path_myddir'});
+  copy_install_db('master2', $master->[1]->{'path_myddir'});
 
-  install_db('master2', $master->[1]->{'path_myddir'});
-
-  if ( $use_slaves )
+  # Install the number of slave databses needed
+  for (my $idx= 0; $idx < $max_slave_num; $idx++)
   {
-    install_db('slave1',  $slave->[0]->{'path_myddir'});
-    install_db('slave2',  $slave->[1]->{'path_myddir'});
-    install_db('slave3',  $slave->[2]->{'path_myddir'});
+    copy_install_db("slave".($idx+1), $slave->[$idx]->{'path_myddir'});
   }
 
   if ( ! $opt_skip_im )
@@ -1757,6 +1775,17 @@ sub mysql_install_db () {
   return 0;
 }
 
+
+sub copy_install_db ($$) {
+  my $type=      shift;
+  my $data_dir=  shift;
+
+  mtr_report("Installing \u$type Database");
+
+  # Just copy the installed db from first master
+  mtr_copy_dir($master->[0]->{'path_myddir'}, $data_dir);
+
+}
 
 sub install_db ($$) {
   my $type=      shift;
@@ -1918,9 +1947,29 @@ sub im_prepare_data_dir($) {
 
   foreach my $instance (@{$instance_manager->{'instances'}})
   {
-    install_db(
+    copy_install_db(
       'im_mysqld_' . $instance->{'server_id'},
       $instance->{'path_datadir'});
+  }
+}
+
+
+#
+# Restore snapshot of the installed slave databases
+# if the snapshot exists
+#
+sub restore_slave_databases () {
+
+  if ( -d $path_snapshot)
+  {
+    # Restore the number of slave databases being used
+    for (my $idx= 0; $idx < $max_slave_num; $idx++)
+    {
+      my $data_dir= $slave->[$idx]->{'path_myddir'};
+      my $name= basename($data_dir);
+      rmtree($data_dir);
+      mtr_copy_dir("$path_snapshot/$name", $data_dir);
+    }
   }
 }
 
@@ -2025,6 +2074,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------------------------
 
     stop_slaves();
+    restore_slave_databases();
   }
 
   # ----------------------------------------------------------------------
@@ -2786,7 +2836,7 @@ sub stop_slaves () {
 
   my @args;
 
-  for ( my $idx= 0; $idx < 3; $idx++ )
+  for ( my $idx= 0; $idx < $max_slave_num; $idx++ )
   {
     if ( $slave->[$idx]->{'pid'} )
     {

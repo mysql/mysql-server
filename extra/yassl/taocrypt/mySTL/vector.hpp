@@ -34,7 +34,6 @@
 #include "helpers.hpp"    // construct, destory, fill, etc.
 #include "algorithm.hpp"  // swap
 #include <assert.h>       // assert
-#include <stdlib.h>       // malloc
 
 
 namespace mySTL {
@@ -49,14 +48,15 @@ struct vector_base {
     vector_base() : start_(0), finish_(0), end_of_storage_(0) {}
     vector_base(size_t n)
     {
-        // Don't allow malloc(0), if n is 0 use 1
-        start_ = static_cast<T*>(malloc((n ? n : 1) * sizeof(T)));
-        if (!start_) abort();
+        start_ = GetArrayMemory<T>(n);
         finish_ = start_;
         end_of_storage_ = start_ + n;
     }
 
-    ~vector_base() { if (start_) free(start_); }
+    ~vector_base() 
+    { 
+        FreeArrayMemory(start_);
+    }
 
     void Swap(vector_base& that) 
     {
@@ -71,6 +71,9 @@ struct vector_base {
 template <typename T>
 class vector {
 public:
+    typedef T*       iterator;
+    typedef const T* const_iterator;
+
     vector() {}
     explicit vector(size_t n) : vec_(n) 
     { 

@@ -38,6 +38,8 @@
 
 namespace yaSSL {
 
+#define YASSL_LIB
+
 
 #ifdef YASSL_PURE_C
 
@@ -76,7 +78,7 @@ namespace yaSSL {
     ::operator delete[](ptr, yaSSL::ys);
     }
 
-    #define NEW_YS new (ys) 
+    #define NEW_YS new (yaSSL::ys)
 
     // to resolve compiler generated operator delete on base classes with
     // virtual destructors (when on stack), make sure doesn't get called
@@ -122,6 +124,39 @@ typedef opaque byte;
 typedef unsigned int uint;
 
  
+#ifdef USE_SYS_STL
+    // use system STL
+    #define STL_VECTOR_FILE    <vector>
+    #define STL_LIST_FILE      <list>
+    #define STL_ALGORITHM_FILE <algorithm>
+    #define STL_MEMORY_FILE    <memory>
+    #define STL_PAIR_FILE      <utility>
+    
+    #define STL_NAMESPACE       std
+#else
+    // use mySTL
+    #define STL_VECTOR_FILE    "vector.hpp"
+    #define STL_LIST_FILE      "list.hpp"
+    #define STL_ALGORITHM_FILE "algorithm.hpp"
+    #define STL_MEMORY_FILE    "memory.hpp"
+    #define STL_PAIR_FILE      "pair.hpp"
+
+    #define STL_NAMESPACE       mySTL
+#endif
+
+
+#ifdef min
+    #undef min
+#endif 
+
+template <typename T>
+T min(T a, T b)
+{
+    return a < b ? a : b;
+}
+
+
+ 
 // all length constants in bytes
 const int ID_LEN            =  32;  // session id length
 const int SUITE_LEN         =   2;  // cipher suite length
@@ -163,6 +198,7 @@ const int DES_BLOCK         =   8;  // DES is always fixed block size 8
 const int DES_IV_SZ         = DES_BLOCK;    // Init Vector length for DES
 const int RC4_KEY_SZ        =  16;  // RC4 Key length
 const int AES_128_KEY_SZ    =  16;  // AES 128bit Key length
+const int AES_192_KEY_SZ    =  24;  // AES 192bit Key length
 const int AES_256_KEY_SZ    =  32;  // AES 256bit Key length
 const int AES_BLOCK_SZ      =  16;  // AES 128bit block size, rfc 3268
 const int AES_IV_SZ         = AES_BLOCK_SZ; // AES Init Vector length
