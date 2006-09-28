@@ -49,7 +49,7 @@ if [ -z "$pid_path" ]; then
   exit 0
 fi
 
-if [ $expected_result = 'killed' -a ! -r "$pid_path" ]; then
+if [ ! -r "$pid_path" ]; then
   echo "Error: PID file ($pid_path) does not exist."
   exit 0
 fi
