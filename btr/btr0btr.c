@@ -1407,8 +1407,6 @@ btr_page_get_sure_split_rec(
 		if (!page_rec_is_supremum(next_rec)) {
 			rec = next_rec;
 		}
-	} else if (page_zip) {
-		rec = NULL;
 	}
 
 func_exit:
@@ -1954,7 +1952,7 @@ insert_failed:
 		/* fprintf(stderr, "Split second round %lu\n",
 		buf_frame_get_page_no(page)); */
 		n_iterations++;
-		ut_ad(n_iterations < 2);
+		ut_ad(n_iterations < 2 || insert_page_zip);
 		ut_ad(!insert_will_fit || insert_page_zip);
 
 		goto func_start;
