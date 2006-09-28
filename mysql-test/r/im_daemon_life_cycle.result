@@ -18,7 +18,7 @@ Killing the process...
 Sleeping...
 Success: the process was restarted.
 SHOW INSTANCE STATUS mysqld1;
-instance_name	status	version
-mysqld1	online	VERSION
+instance_name	state	version_number	version	mysqld_compatible
+mysqld1	online	VERSION_NUMBER	VERSION	no
 STOP INSTANCE mysqld2;
 Success: the process has been stopped.
