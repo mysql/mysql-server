@@ -455,7 +455,8 @@ enum enum_parsing_place
   NO_MATTER,
   IN_HAVING,
   SELECT_LIST,
-  IN_WHERE
+  IN_WHERE,
+  IN_ON
 };
 
 struct st_table;
