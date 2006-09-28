@@ -9,46 +9,6 @@ drop table if exists t1;
 --enable_warnings
 
 #
-# Bug 18198: Partitions: Too flexible functions
-#
--- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
-create table t1 (a int)
-partition by range (a)
-(partition p0 values less than ((select count(*) from t1)));
--- error 1054
-create table t1 (a int)
-partition by range (a)
-(partition p0 values less than (a);
-
-create table t1 (a int)
-partition by range (a)
-(partition p0 values less than (1));
--- error 1054
-alter table t1 add partition (partition p1 values less than (a));
--- error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
-alter table t1 add partition 
-(partition p1 values less than ((select count(*) from t1)));
-drop table t1;
-
-#
-# Bug 20397: Partitions: Crash when using non-existing engine
-#
-create table t1 (a int)
-engine = x
-partition by key (a);
-show create table t1;
-drop table t1;
-
-create table t1 (a int)
-engine = innodb
-partition by list (a)
-(partition p0 values in (0));
-
-alter table t1 engine = x;
-show create table t1;
-drop table t1;
-
-#
 # Partition by key stand-alone error
 #
 --error 1064
