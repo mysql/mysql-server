@@ -88,6 +88,7 @@ use strict;
 #use diagnostics;
 
 require "lib/mtr_cases.pl";
+require "lib/mtr_im.pl";
 require "lib/mtr_process.pl";
 require "lib/mtr_timer.pl";
 require "lib/mtr_io.pl";
@@ -1040,6 +1041,7 @@ sub command_line_setup () {
    path_datadir => "$opt_vardir/im_mysqld_1.data",
    path_sock    => "$sockdir/mysqld_1.sock",
    path_pid     => "$opt_vardir/run/mysqld_1.pid",
+   start_timeout  => 400, # enough time create innodb tables
    old_log_format => 1
   };
 
@@ -1051,6 +1053,7 @@ sub command_line_setup () {
    path_sock    => "$sockdir/mysqld_2.sock",
    path_pid     => "$opt_vardir/run/mysqld_2.pid",
    nonguarded   => 1,
+   start_timeout  => 400, # enough time create innodb tables
    old_log_format => 1
   };
 
@@ -1665,11 +1668,7 @@ sub kill_running_server () {
     # started from ths run of the script, this is terminating
     # leftovers from previous runs.
 
-    mtr_report("Killing Possible Leftover Processes");
-    mkpath("$opt_vardir/log"); # Needed for mysqladmin log
-
     mtr_kill_leftovers();
-
    }
 }
 
@@ -2657,7 +2656,10 @@ sub run_testcase ($) {
 
   if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' )
   {
-    mtr_im_stop($instance_manager, $tinfo->{'name'});
+    unless ( mtr_im_stop($instance_manager, $tinfo->{'name'}) )
+    {
+      mtr_error("Failed to stop Instance Manager.")
+    }
   }
 }
 
@@ -3195,7 +3197,10 @@ sub stop_all_servers () {
   print  "Stopping All Servers\n";
 
   print  "Shutting-down Instance Manager\n";
-  mtr_im_stop($instance_manager, "stop_all_servers");
+  unless (mtr_im_stop($instance_manager, "stop_all_servers"))
+  {
+    mtr_error("Failed to stop Instance Manager.")
+  }
 
   my %admin_pids; # hash of admin processes that requests shutdown
   my @kill_pids;  # list of processes to shutdown/kill
@@ -3601,7 +3606,13 @@ sub run_testcase_start_servers($) {
 
     im_create_defaults_file($instance_manager);
 
-    mtr_im_start($instance_manager, $tinfo->{im_opts});
+    unless ( mtr_im_start($instance_manager, $tinfo->{im_opts}) )
+    {
+      report_failure_and_restart($tinfo);
+      mtr_report("Failed to start Instance Manager. " .
+                 "The test '$tname' is marked as failed.");
+      return;
+    }
   }
 
   # ----------------------------------------------------------------------
