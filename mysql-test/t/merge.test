@@ -124,6 +124,7 @@ drop table t3,t2,t1;
 # Test table without unions
 #
 create table t1 (a int not null, key(a)) engine=merge;
+--error 1030
 select * from t1;
 drop table t1;
 
