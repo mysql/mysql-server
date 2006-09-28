@@ -38,6 +38,7 @@ typedef struct st_archive_share {
   bool dirty;               /* Flag for if a flush should occur */
   bool crashed;             /* Meta file is crashed */
   ha_rows rows_recorded;    /* Number of rows in tables */
+  z_off_t approx_file_size; /* Approximate archive data file size */
 } ARCHIVE_SHARE;
 
 /*
