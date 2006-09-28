@@ -1364,7 +1364,7 @@ btr_page_get_sure_split_rec(
 	otherwise the last included record will be the first on the right
 	half page */
 
-	for (;;) {
+	do {
 		/* Decide the next record to include */
 		if (rec == ins_rec) {
 			rec = NULL;	/* NULL denotes that tuple is
@@ -1386,38 +1386,36 @@ btr_page_get_sure_split_rec(
 		}
 
 		n++;
+	} while (incl_data + page_dir_calc_reserved_space(n)
+		 < total_space / 2);
 
-		if (incl_data + page_dir_calc_reserved_space(n)
-		    >= total_space / 2) {
+	if (incl_data + page_dir_calc_reserved_space(n) <= free_space) {
+		/* The next record will be the first on
+		the right half page if it is not the
+		supremum record of page */
 
-			if (incl_data + page_dir_calc_reserved_space(n)
-			    <= free_space) {
-				/* The next record will be the first on
-				the right half page if it is not the
-				supremum record of page */
+		if (rec == ins_rec) {
+			rec = NULL;
 
-				if (rec == ins_rec) {
-					rec = NULL;
-
-					goto func_exit;
-				} else if (rec == NULL) {
-					next_rec = page_rec_get_next(ins_rec);
-				} else {
-					next_rec = page_rec_get_next(rec);
-				}
-				ut_ad(next_rec);
-				if (!page_rec_is_supremum(next_rec)) {
-					rec = next_rec;
-				}
-			}
+			goto func_exit;
+		} else if (rec == NULL) {
+			next_rec = page_rec_get_next(ins_rec);
+		} else {
+			next_rec = page_rec_get_next(rec);
+		}
+		ut_ad(next_rec);
+		if (!page_rec_is_supremum(next_rec)) {
+			rec = next_rec;
+		}
+	} else if (page_zip) {
+		rec = NULL;
+	}
 
 func_exit:
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
-			return(rec);
-		}
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
 	}
+	return(rec);
 }
 
 /*****************************************************************
