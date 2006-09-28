@@ -1784,6 +1784,7 @@ int do_save_master_pos()
 
 int do_let(struct st_query *query)
 {
+  int ret;
   char *p= query->first_argument;
   char *var_name, *var_name_end;
   DYNAMIC_STRING let_rhs_expr;
@@ -1813,8 +1814,11 @@ int do_let(struct st_query *query)
 
   query->last_argument= query->end;
   /* Assign var_val to var_name */
-  return var_set(var_name, var_name_end, let_rhs_expr.str, 
+  ret= var_set(var_name, var_name_end, let_rhs_expr.str, 
                  (let_rhs_expr.str + let_rhs_expr.length));
+  dynstr_free(&let_rhs_expr);
+
+  return(ret);
 }
 
 
