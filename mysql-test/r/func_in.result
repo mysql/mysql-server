@@ -343,3 +343,71 @@ some_id
 1
 2
 drop table t1;
+create table t1(f1 char(1));
+insert into t1 values ('a'),('b'),('1');
+select f1 from t1 where f1 in ('a',1);
+f1
+a
+1
+select f1, case f1 when 'a' then '+' when 1 then '-' end from t1;
+f1	case f1 when 'a' then '+' when 1 then '-' end
+a	+
+b	NULL
+1	-
+create index t1f1_idx on t1(f1);
+select f1 from t1 where f1 in ('a',1);
+f1
+1
+a
+explain select f1 from t1 where f1 in ('a',1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	t1f1_idx	2	NULL	3	Using where; Using index
+select f1 from t1 where f1 in ('a','b');
+f1
+a
+b
+explain select f1 from t1 where f1 in ('a','b');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	t1f1_idx	t1f1_idx	2	NULL	3	Using where; Using index
+select f1 from t1 where f1 in (2,1);
+f1
+1
+explain select f1 from t1 where f1 in (2,1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	t1f1_idx	t1f1_idx	2	NULL	3	Using where; Using index
+create table t2(f2 int, index t2f2(f2));
+insert into t2 values(0),(1),(2);
+select f2 from t2 where f2 in ('a',2);
+f2
+0
+2
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+explain select f2 from t2 where f2 in ('a',2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	t2f2	5	NULL	3	Using where; Using index
+select f2 from t2 where f2 in ('a','b');
+f2
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
+explain select f2 from t2 where f2 in ('a','b');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	t2f2	t2f2	5	NULL	3	Using where; Using index
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
+select f2 from t2 where f2 in (1,'b');
+f2
+0
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
+Warning	1292	Truncated incorrect DOUBLE value: 'b'
+explain select f2 from t2 where f2 in (1,'b');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	index	NULL	t2f2	5	NULL	3	Using where; Using index
+drop table t1, t2;
