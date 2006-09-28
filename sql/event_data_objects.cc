@@ -353,7 +353,7 @@ Event_parse_data::init_interval(THD *thd)
   DBUG_RETURN(0);
 
 wrong_value:
-  report_bad_value("INTERVAL", item_execute_at);
+  report_bad_value("INTERVAL", item_expression);
   DBUG_RETURN(ER_WRONG_VALUE);
 }
 
