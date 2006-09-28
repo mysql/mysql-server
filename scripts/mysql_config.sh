@@ -97,11 +97,11 @@ port='@MYSQL_TCP_PORT@'
 ldflags='@LDFLAGS@'
 
 # Create options 
-# We intentionally add a space to the beginning of lib strings, simplifies replace later
+# We intentionally add a space to the beginning and end of lib strings, simplifies replace later
 libs=" $ldflags -L$pkglibdir -lmysqlclient @ZLIB_DEPS@ @NON_THREADED_LIBS@"
-libs="$libs @openssl_libs@ @STATIC_NSS_FLAGS@"
-libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @LIBS@ @openssl_libs@"
-embedded_libs=" $ldflags -L$pkglibdir -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @innodb_system_libs@ @openssl_libs@"
+libs="$libs @openssl_libs@ @STATIC_NSS_FLAGS@ "
+libs_r=" $ldflags -L$pkglibdir -lmysqlclient_r @ZLIB_DEPS@ @LIBS@ @openssl_libs@ "
+embedded_libs=" $ldflags -L$pkglibdir -lmysqld @ZLIB_DEPS@ @LIBS@ @WRAPLIBS@ @innodb_system_libs@ @openssl_libs@ "
 
 cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
@@ -111,8 +111,9 @@ include="-I$pkgincludedir"
 #       and -xstrconst to make --cflags usable for Sun Forte C++
 for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
               DPEDANTIC_SAFEMALLOC DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
-              DEXTRA_DEBUG DHAVE_purify 'O[0-9]' 'W[-A-Za-z]*' \
-              Xa xstrconst "xc99=none"
+              DEXTRA_DEBUG DHAVE_purify O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
+              Xa xstrconst "xc99=none" \
+              unroll2 ip mp restrict
 do
   # The first option we might strip will always have a space before it because
   # we set -I$pkgincludedir as the first option
@@ -121,7 +122,7 @@ done
 cflags=`echo "$cflags"|sed -e 's/ *\$//'` 
 
 # Same for --libs(_r)
-for remove in lmtmalloc
+for remove in lmtmalloc static-libcxa i-static
 do
   # We know the strings starts with a space
   libs=`echo "$libs"|sed -e "s/ -$remove  */ /g"` 
