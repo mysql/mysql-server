@@ -36,21 +36,9 @@
 #include "openssl/ssl.h"  // get rid of this
 
 
-// yaSSL overloads hide these
-void* operator new[](size_t sz)
-{
-    return ::operator new(sz);
-}
-
-void operator delete[](void* ptr)
-{
-    ::operator delete(ptr);
-}
-
 
 namespace yaSSL {
 
-using mySTL::min;
 
 
 struct Base {

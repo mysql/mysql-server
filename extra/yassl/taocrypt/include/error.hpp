@@ -37,7 +37,7 @@ namespace TaoCrypt {
 
 enum ErrorNumber {
 
-NO_ERROR   =    0, // "not in error state"
+NO_ERROR_E   =    0, // "not in error state"
 
 // RandomNumberGenerator
 WINCRYPT_E      = 1001, // "bad wincrypt acquire"
@@ -78,7 +78,7 @@ SIG_OTHER_E     = 1039  // "bad other signature confirmation"
 struct Error {
     ErrorNumber  what_;    // description number, 0 for no error
 
-    explicit Error(ErrorNumber w = NO_ERROR) : what_(w) {}
+    explicit Error(ErrorNumber w = NO_ERROR_E) : what_(w) {}
 
     ErrorNumber What()            const  { return what_; }
     void        SetError(ErrorNumber w)  { what_ = w; }

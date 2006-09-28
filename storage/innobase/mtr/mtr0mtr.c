@@ -131,9 +131,9 @@ mtr_log_reserve_and_write(
 	}
 
 	if (mlog->heap == NULL) {
-		mtr->end_lsn = log_reserve_and_write_fast
-			(first_data, dyn_block_get_used(mlog),
-			 &(mtr->start_lsn), &success);
+		mtr->end_lsn = log_reserve_and_write_fast(
+			first_data, dyn_block_get_used(mlog),
+			&(mtr->start_lsn), &success);
 		if (success) {
 
 			return;
