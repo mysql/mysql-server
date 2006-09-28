@@ -131,7 +131,18 @@ MY_LOCALE *my_locale_by_name(const char *name);
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
-#define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
+
+/* 
+ Value of 9236 discovered through binary search 2006-09-26 on Ubuntu Dapper
+ Drake, libc6 2.3.6-0ubuntu2, Linux kernel 2.6.15-27-686, on x86.  (Added 
+ 100 bytes as reasonable buffer against growth and other environments'
+ requirements.)
+
+ Feel free to raise this by the smallest amount you can to get the
+ "execution_constants" test to pass.
+ */
+#define STACK_MIN_SIZE		9336	// Abort if less stack during eval.  
+
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 #define STACK_BUFF_ALLOC	256	// For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
