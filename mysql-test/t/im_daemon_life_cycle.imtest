@@ -48,7 +48,7 @@ START INSTANCE mysqld2;
 
 --sleep 3
 
---replace_column 3 VERSION
+--replace_column 3 VERSION_NUMBER 4 VERSION
 SHOW INSTANCE STATUS mysqld1;
 
 # 4. Stop mysqld2, because it will not be stopped by IM, as it is nonguarded.

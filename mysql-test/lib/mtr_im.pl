@@ -249,7 +249,7 @@ sub mtr_im_check_main_alive($) {
 
   # Check that IM does not accept client connections.
 
-  if ( mtr_ping_mysqld_server($im->{'port'}) )
+  if ( mtr_ping_port($im->{'port'}) )
   {
     mtr_debug("IM-main (port: $im->{port}) " .
               "is accepting connections.");
@@ -338,7 +338,7 @@ sub mtr_im_check_mysqld_alive($) {
 
   # Check that mysqld does not accept client connections.
 
-  if ( mtr_ping_mysqld_server($mysqld_instance->{'port'}) )
+  if ( mtr_ping_port($mysqld_instance->{'port'}) )
   {
     mtr_debug("Mysqld instance (port: $mysqld_instance->{port}) " .
               "is accepting connections.");
@@ -510,7 +510,7 @@ sub mtr_im_wait_for_connection($$$) {
   {
     mtr_debug("Trying to connect to IM ($cur_attempt of $total_attempts)...");
 
-    if ( mtr_ping_mysqld_server($im->{'port'}) )
+    if ( mtr_ping_port($im->{'port'}) )
     {
       mtr_debug("IM is accepting connections " .
                 "on port $im->{port}.");
@@ -543,7 +543,7 @@ sub mtr_im_wait_for_mysqld($$$) {
     mtr_debug("Trying to connect to mysqld " .
               "($cur_attempt of $total_attempts)...");
 
-    if ( mtr_ping_mysqld_server($mysqld->{'port'}) )
+    if ( mtr_ping_port($mysqld->{'port'}) )
     {
       mtr_debug("Mysqld is accepting connections " .
                 "on port $mysqld->{port}.");
