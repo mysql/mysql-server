@@ -406,7 +406,8 @@ pid_t Instance_options::get_pid()
   {
     pid_t pid;
 
-    fscanf(pid_file_stream, "%i", &pid);
+    if (fscanf(pid_file_stream, "%i", &pid) != 1)
+      pid= -1;
     my_fclose(pid_file_stream, MYF(0));
     return pid;
   }
