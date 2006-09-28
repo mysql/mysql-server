@@ -771,6 +771,12 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 test.t2	check	status	OK
 drop table t1, t2, t3;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(2),(1);
+CREATE TABLE t2(a INT, KEY(a)) ENGINE=MERGE UNION=(t1);
+SELECT * FROM t2 WHERE a=2;
+ERROR HY000: Got error 124 from storage engine
+DROP TABLE t1, t2;
 CREATE TABLE t1(a INT) ENGINE=MEMORY;
 CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
 SELECT * FROM t2;
