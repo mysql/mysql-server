@@ -478,3 +478,7 @@ mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
 hello
 hello
 hello
+mysqltest: At line 1: Max delimiter length(16) exceeded
+hello
+hello
+End of tests

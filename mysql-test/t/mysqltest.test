@@ -1182,6 +1182,18 @@ remove_file non_existing_file;
 --error 1
 --exec echo "write_file filename \";" | $MYSQL_TEST 2>&1
 
+write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Content for test_file1
+EOF
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp END_DELIMITER;
+Content for test_file1 contains EOF
+END_DELIMITER
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
 # ----------------------------------------------------------------------------
 # test for file_exist
 # ----------------------------------------------------------------------------
@@ -1226,6 +1238,17 @@ remove_file $MYSQLTEST_VARDIR/tmp/file2.tmp;
 print "hello\n";
 EOF
 
+--perl EOF
+print "hello\n";
+EOF
+
+--perl DELIMITER
+print "hello\n";
+DELIMITER
+
+--error 1
+--exec echo "perl TOO_LONG_DELIMITER ;" | $MYSQL_TEST 2>&1
+
 perl;
 print "hello\n";
 EOF
@@ -1234,3 +1257,6 @@ perl;
   # Print "hello"
   print "hello\n";
 EOF
+
+
+--echo End of tests
