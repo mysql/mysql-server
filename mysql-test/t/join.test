@@ -609,3 +609,24 @@ explain select * from t2,t3 where t2.a < 200 and t2.b=t3.b;
 
 drop table t1, t2, t3;
 
+# BUG#14940 {Wrong query plan is chosen because of odd results of
+# prev_record_reads() function }
+create table t1 (a int); 
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (a int, b int, primary key(a));
+insert into t2 select @v:=A.a+10*B.a, @v  from t1 A, t1 B;
+
+explain select * from t1;
+show status like '%cost%';
+select 'The cost of accessing t1 (dont care if it changes' '^';
+
+select 'vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv' Z;
+
+explain select * from t1, t2 A, t2 B where A.a = t1.a and B.a=A.b;
+show status like '%cost%';
+select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error' Z;
+
+
+
+drop table t1, t2;
