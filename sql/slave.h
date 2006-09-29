@@ -553,7 +553,8 @@ void init_table_rule_array(DYNAMIC_ARRAY* a, bool* a_inited);
 const char *print_slave_db_safe(const char *db);
 int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int error_code);
 void skip_load_data_infile(NET* net);
-void slave_print_error(RELAY_LOG_INFO* rli, int err_code, const char* msg, ...);
+void slave_print_error(RELAY_LOG_INFO *rli, int err_code, const char *msg, ...)
+  ATTRIBUTE_FORMAT(printf, 3, 4);
 
 void end_slave(); /* clean up */
 void init_master_info_with_options(MASTER_INFO* mi);
