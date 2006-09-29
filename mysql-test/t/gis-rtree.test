@@ -231,4 +231,14 @@ INSERT INTO t1 (c1) VALUES (
 CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 
+#
+# Bug #21888: Query on GEOMETRY field using PointFromWKB() results in lost connection
+#
+CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,1)));
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,0)));
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(0,1)));
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(0,0)));
+SELECT 1 FROM t1 WHERE foo != PointFromWKB(POINT(0,0));
+DROP TABLE t1;
 # End of 4.1 tests
