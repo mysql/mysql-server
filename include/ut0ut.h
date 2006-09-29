@@ -134,11 +134,6 @@ Sort function for ulint arrays. */
 void
 ut_ulint_sort(ulint* arr, ulint* aux_arr, ulint low, ulint high);
 /*============================================================*/
-/************************************************************
-The following function returns elapsed CPU time in milliseconds. */
-
-ulint
-ut_clock(void);
 /**************************************************************
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime. */
