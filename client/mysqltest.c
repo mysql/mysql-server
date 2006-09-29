@@ -15,8 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* mysqltest test tool
- * See the manual for more information
- * TODO: document better how mysqltest works
+ * See the "MySQL Test framework manual" for more information
  *
  * Written by:
  *   Sasha Pachev <sasha@mysql.com>
@@ -25,24 +24,7 @@
  *   Jani
  **/
 
-/**********************************************************************
-  TODO:
-
-- Do comparison line by line, instead of doing a full comparison of
-  the text file.  This will save space as we don't need to keep many
-  results in memory.  It will also make it possible to do simple
-  'comparison' fixes like accepting the result even if a float differed
-  in the last decimals.
-
-- Don't buffer lines from the test that you don't expect to need
-  again.
-
-- Change 'read_line' to be faster by using the readline.cc code;
-  We can do better than calling feof() for each character!
-
-**********************************************************************/
-
-#define MTEST_VERSION "2.6"
+#define MTEST_VERSION "2.7"
 
 #include <my_global.h>
 #include <mysql_embed.h>
@@ -172,7 +154,7 @@ typedef struct
 static test_file file_stack[MAX_INCLUDE_DEPTH];
 static test_file* cur_file;
 static test_file* file_stack_end;
-uint start_lineno= 0; /* Start line of query */
+static uint start_lineno= 0; /* Start line of query */
 
 /* Stores regex substitutions */
 
@@ -341,7 +323,8 @@ Q_CHARACTER_SET, Q_DISABLE_PS_PROTOCOL, Q_ENABLE_PS_PROTOCOL,
 Q_DISABLE_RECONNECT, Q_ENABLE_RECONNECT,
 Q_IF,
 Q_DISABLE_PARSING, Q_ENABLE_PARSING,
-Q_REPLACE_REGEX, Q_DIE,
+Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
+Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE
 
 Q_UNKNOWN,			       /* Unknown command.   */
 Q_COMMENT,			       /* Comments, ignored. */
@@ -352,7 +335,7 @@ Q_COMMENT_WITH_COMMAND
 struct st_query
 {
   char *query, *query_buf,*first_argument,*last_argument,*end;
-  int first_word_len;
+  int first_word_len, query_len;
   my_bool abort_on_error, require_file;
   match_err expected_errno[MAX_EXPECTED_ERRORS];
   uint expected_errors;
@@ -427,6 +410,11 @@ const char *command_names[]=
   "disable_parsing",
   "enable_parsing",
   "replace_regex",
+  "remove_file",
+  "file_exists",
+  "write_file",
+  "copy_file",
+  "perl",
   "die",
   0
 };
@@ -473,7 +461,7 @@ static void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
                                    const char *from, int len);
 void free_pointer_array(POINTER_ARRAY *pa);
 static void do_eval(DYNAMIC_STRING *query_eval, const char *query,
-                    my_bool pass_through_escape_chars);
+                    const char* query_end, my_bool pass_through_escape_chars);
 static void str_to_file(const char *fname, char *str, int size);
 
 #ifdef __WIN__
@@ -506,8 +494,8 @@ static void handle_error(const char *query, struct st_query *q,
 			 const char *err_sqlstate, DYNAMIC_STRING *ds);
 static void handle_no_error(struct st_query *q);
 
-static void do_eval(DYNAMIC_STRING* query_eval, const char *query,
-                    my_bool pass_through_escape_chars)
+static void do_eval(DYNAMIC_STRING *query_eval, const char *query,
+                    const char *query_end, my_bool pass_through_escape_chars)
 {
   const char *p;
   register char c, next_c;
@@ -515,7 +503,7 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char *query,
   VAR* v;
   DBUG_ENTER("do_eval");
 
-  for (p= query; (c = *p); ++p)
+  for (p= query; (c = *p) && p < query_end; ++p)
   {
     switch(c) {
     case '$':
@@ -538,9 +526,9 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char *query,
 	escaped = 0;
 	dynstr_append_mem(query_eval, p, 1);
       }
-      else if (next_c == '\\' || next_c == '$')
+      else if (next_c == '\\' || next_c == '$' || next_c == '"')
       {
-        /* Set escaped only if next char is \ or $ */
+        /* Set escaped only if next char is \, " or $ */
 	escaped = 1;
 
         if (pass_through_escape_chars)
@@ -556,6 +544,108 @@ static void do_eval(DYNAMIC_STRING* query_eval, const char *query,
       dynstr_append_mem(query_eval, p, 1);
       break;
     }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+enum arg_type
+{
+  ARG_STRING,
+  ARG_REST
+};
+
+struct command_arg {
+  const char* argname;       /* Name of argument   */
+  enum arg_type type;        /* Type of argument   */
+  my_bool required;          /* Argument required  */
+  DYNAMIC_STRING *ds;        /* Storage for string argument */
+  const char *description;   /* Description of the argument */
+};
+
+static void check_command_args(struct st_query *command, const char *arguments,
+                        const struct command_arg *args, int num_args)
+{
+  int i;
+  const char *ptr= arguments;
+  const char *start;
+
+  DBUG_ENTER("check_command_args");
+  DBUG_PRINT("enter", ("num_args: %d", num_args));
+  for (i= 0; i < num_args; i++)
+  {
+    const struct command_arg *arg= &args[i];
+
+    switch (arg->type)
+    {
+    /* A string surrounded by spaces */
+    case ARG_STRING:
+      start= ptr;
+      /* Find end of arg */
+      while (*ptr && !my_isspace(charset_info, *ptr))
+        ptr++;
+      init_dynamic_string(arg->ds, 0, 256, 256);
+      do_eval(arg->ds, start, ptr, FALSE);
+      command->last_argument= (char*)ptr;
+      if (*ptr)
+        ptr++;
+      break;
+
+    /* Rest of line */
+    case ARG_REST:
+      start= ptr;
+      init_dynamic_string(arg->ds, 0, command->query_len, 256);
+      do_eval(arg->ds, start, command->end, FALSE);
+      command->last_argument= command->end;
+      break;
+
+    default:
+      DBUG_ASSERT("Unknown argument type");
+      break;
+    }
+
+    /* Check required arg */
+    if (arg->ds->length == 0 && arg->required)
+      die("Missing required argument '%s' to command '%.*s'", arg->argname,
+          command->first_word_len, command->query);
+
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+static void handle_command_error(struct st_query *command, uint error)
+{
+  DBUG_ENTER("handle_command_error");
+  DBUG_PRINT("enter", ("error: %d", error));
+  if (error != 0)
+  {
+    uint i;
+
+    if (command->abort_on_error)
+      die("command \"%.*s\" failed", command->first_word_len, command->query);
+    for (i= 0; i < command->expected_errors; i++)
+    {
+      DBUG_PRINT("info", ("expected error: %d",
+                          command->expected_errno[i].code.errnum));
+      if ((command->expected_errno[i].type == ERR_ERRNO) &&
+          (command->expected_errno[i].code.errnum == error))
+      {
+        DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
+                            command->first_word_len, command->query, error));
+        DBUG_VOID_RETURN;
+      }
+    }
+    die("command \"%.*s\" failed with wrong error: %d",
+        command->first_word_len, command->query, error);
+  }
+  else if (command->expected_errno[0].type == ERR_ERRNO &&
+           command->expected_errno[0].code.errnum != 0)
+  {
+    /* Error code we wanted was != 0, i.e. not an expected success */
+    die("command \"%.*s\" succeeded - should have failed with errno %d...",
+        command->first_word_len, command->query,
+        command->expected_errno[0].code.errnum);
   }
   DBUG_VOID_RETURN;
 }
@@ -768,12 +858,13 @@ static int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   if (my_read(fd, (byte*)tmp, stat_info.st_size, MYF(MY_WME|MY_NABP)))
     die(NullS);
   tmp[stat_info.st_size] = 0;
-  init_dynamic_string(&res_ds, "", 0, 65536);
+  init_dynamic_string(&res_ds, "", stat_info.st_size+256, 256);
   if (eval_result)
   {
-    do_eval(&res_ds, tmp, FALSE);
-    res_ptr = res_ds.str;
-    if ((res_len = res_ds.length) != ds->length)
+    do_eval(&res_ds, tmp, tmp + stat_info.st_size, FALSE);
+    res_ptr= res_ds.str;
+    res_len= res_ds.length;
+    if (res_len != ds->length)
     {
       res= RESULT_LENGTH_MISMATCH;
       goto err;
@@ -794,9 +885,9 @@ err:
                           MY_REPLACE_EXT),
                 res_ptr, res_len);
 
+  dynstr_free(&res_ds);
   my_free((gptr) tmp, MYF(0));
   my_close(fd, MYF(MY_WME));
-  dynstr_free(&res_ds);
 
   DBUG_RETURN(res);
 }
@@ -1029,8 +1120,8 @@ int do_wait_for_slave_to_stop(struct st_query *q __attribute__((unused)))
 
     if (mysql_query(mysql,"show status like 'Slave_running'") ||
 	!(res=mysql_store_result(mysql)))
-      die("Query failed while probing slave for stop: %s",
-	  mysql_error(mysql));
+      die("Query failed while probing slave for stop: %d %s",
+	  mysql_errno(mysql), mysql_error(mysql));
     if (!(row=mysql_fetch_row(res)) || !row[1])
     {
       mysql_free_result(res);
@@ -1147,9 +1238,9 @@ static void do_exec(struct st_query *query)
     die("Missing argument in exec");
   query->last_argument= query->end;
 
-  init_dynamic_string(&ds_cmd, 0, strlen(cmd)+256, 256);
+  init_dynamic_string(&ds_cmd, 0, query->query_len+256, 256);
   /* Eval the command, thus replacing all environment variables */
-  do_eval(&ds_cmd, cmd, TRUE);
+  do_eval(&ds_cmd, cmd, query->end, TRUE);
   cmd= ds_cmd.str;
 
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
@@ -1252,8 +1343,8 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
       !(res = mysql_store_result(mysql)))
   {
     *end = 0;
-    die("Error running query '%s': %d: %s", query,
-	mysql_errno(mysql) ,mysql_error(mysql));
+    die("Error running query '%s': %d %s", query,
+	mysql_errno(mysql), mysql_error(mysql));
   }
 
   if ((row = mysql_fetch_row(res)) && row[0])
@@ -1270,7 +1361,7 @@ int var_query_set(VAR* var, const char *query, const char** query_end)
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
 #endif
 
-    init_dynamic_string(&result, "", 16384, 65536);
+    init_dynamic_string(&result, "", 2048, 2048);
     lengths= mysql_fetch_lengths(res);
     for (i=0; i < mysql_num_fields(res); i++)
     {
@@ -1462,10 +1553,10 @@ void do_system(struct st_query *command)
   if (strlen(command->first_argument) == 0)
     die("Missing arguments to system, nothing to do!");
 
-  init_dynamic_string(&ds_cmd, 0, strlen(command->first_argument) + 64, 256);
+  init_dynamic_string(&ds_cmd, 0, command->query_len + 64, 256);
 
   /* Eval the system command, thus replacing all environment variables */
-  do_eval(&ds_cmd, command->first_argument, TRUE);
+  do_eval(&ds_cmd, command->first_argument, command->end, TRUE);
 
   DBUG_PRINT("info", ("running system command '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
@@ -1487,13 +1578,298 @@ void do_system(struct st_query *command)
 
 
 /*
+  SYNOPSIS
+  do_remove_file
+    command	called command
+
+  DESCRIPTION
+    remove_file <file_name>
+    Remove the file <file_name>
+*/
+
+static void do_remove_file(struct st_query *command)
+{
+  int error;
+  DYNAMIC_STRING ds_filename;
+  const struct command_arg rm_args[] = {
+    "filename", ARG_STRING, TRUE, &ds_filename, "File to delete"
+  };
+  DBUG_ENTER("do_remove_file");
+
+  check_command_args(command, command->first_argument,
+      rm_args, sizeof(rm_args)/sizeof(struct command_arg));
+
+  DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
+  error= my_delete(ds_filename.str, MYF(0)) != 0;
+  handle_command_error(command, error);
+  dynstr_free(&ds_filename);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_copy_file
+    command	command handle
+
+  DESCRIPTION
+    copy_file <from_file> <to_file>
+    Copy <from_file> to <to_file>
+
+    NOTE! Will fail if <to_file> exists
+*/
+
+static void do_copy_file(struct st_query *command)
+{
+  int error;
+  DYNAMIC_STRING ds_from_file;
+  DYNAMIC_STRING ds_to_file;
+  const struct command_arg copy_file_args[] = {
+    "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to copy from",
+    "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to copy to"
+  };
+  DBUG_ENTER("do_copy_file");
+
+  check_command_args(command, command->first_argument,
+      copy_file_args, sizeof(copy_file_args)/sizeof(struct command_arg));
+
+  DBUG_PRINT("info", ("Copy %s to %s", ds_from_file.str, ds_to_file.str));
+  error= (my_copy(ds_from_file.str, ds_to_file.str,
+                  MYF(MY_DONT_OVERWRITE_FILE)) != 0);
+  handle_command_error(command, error);
+  dynstr_free(&ds_from_file);
+  dynstr_free(&ds_to_file);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_file_exists
+    command	called command
+
+  DESCRIPTION
+    fiile_exist <file_name>
+    Check if file <file_name> exists
+*/
+
+static void do_file_exist(struct st_query *command)
+{
+  int error;
+  DYNAMIC_STRING ds_filename;
+  const struct command_arg file_exist_args[] = {
+    "filename", ARG_STRING, TRUE, &ds_filename, "File to check if it exist"
+  };
+  DBUG_ENTER("do_file_exist");
+
+  check_command_args(command, command->first_argument,
+      file_exist_args, sizeof(file_exist_args)/sizeof(struct command_arg));
+
+  DBUG_PRINT("info", ("Checking for existence of file: %s", ds_filename.str));
+  error= (access(ds_filename.str, F_OK) != 0);
+  handle_command_error(command, error);
+  dynstr_free(&ds_filename);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Read characters from line buffer or file. This is needed to allow
+  my_ungetc() to buffer MAX_DELIMITER characters for a file
+
+  NOTE:
+    This works as long as one doesn't change files (with 'source file_name')
+    when there is things pushed into the buffer.  This should however not
+    happen for any tests in the test suite.
+*/
+
+static int my_getc(FILE *file)
+{
+  if (line_buffer_pos == line_buffer)
+    return fgetc(file);
+  return *--line_buffer_pos;
+}
+
+
+static void my_ungetc(int c)
+{
+  *line_buffer_pos++= (char) c;
+}
+
+
+static my_bool match_delimiter(int c, const char* delim, uint length)
+{
+  uint i;
+  char tmp[MAX_DELIMITER];
+
+  if (c != *delim)
+    return 0;
+
+  for (i= 1; i < length &&
+	 (c= my_getc(cur_file->file)) == *(delim + i);
+       i++)
+    tmp[i]= c;
+
+  if (i == length)
+    return 1;					/* Found delimiter */
+
+  /* didn't find delimiter, push back things that we read */
+  my_ungetc(c);
+  while (i > 1)
+    my_ungetc(tmp[--i]);
+  return 0;
+}
+
+
+static void read_until_EOF(DYNAMIC_STRING* ds)
+{
+  int c;
+  DBUG_ENTER("read_until_EOF");
+
+  /* Read from file until delimiter EOF is found */
+  while (1)
+  {
+    c= my_getc(cur_file->file);
+
+    if (feof(cur_file->file))
+      die("End of file encountered before 'EOF' delimiter was found");
+
+    if (match_delimiter(c, "EOF", 3))
+    {
+      DBUG_PRINT("exit", ("Found EOF"));
+      break;
+    }
+    dynstr_append_mem(ds, (const char*)&c, 1);
+  }
+  DBUG_PRINT("exit", ("ds: %s", ds->str));
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_write_file
+    command	called command
+
+  DESCRIPTION
+    write_file <file_name>;
+    <what to write line 1>
+    <...>
+    < what to write line n>
+    EOF
+
+    --write_file <file_name>;
+    <what to write line 1>
+    <...>
+    < what to write line n>
+    EOF
+
+    Write everything between the "write_file" command and EOF to "file_name"
+
+    NOTE! Overwrites existing file
+
+*/
+
+static void do_write_file(struct st_query *command)
+{
+  DYNAMIC_STRING ds_content;
+  DYNAMIC_STRING ds_filename;
+  const struct command_arg write_file_args[] = {
+    "filename", ARG_STRING, TRUE, &ds_filename, "File to write to",
+  };
+  DBUG_ENTER("do_write_file");
+
+  check_command_args(command,
+                     command->first_argument,
+                     write_file_args,
+                     sizeof(write_file_args)/sizeof(struct command_arg));
+
+  init_dynamic_string(&ds_content, "", 1024, 1024);
+  read_until_EOF(&ds_content);
+  DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
+  str_to_file(ds_filename.str, ds_content.str, ds_content.length);
+  dynstr_free(&ds_content);
+  dynstr_free(&ds_filename);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_perl
+    command	command handle
+
+  DESCRIPTION
+    perl;
+    <perlscript line 1>
+    <...>
+    <perlscript line n>
+    EOF
+
+    Execute everything after "perl" until EOF as perl.
+    Useful for doing more advanced things
+    but still being able to execute it on all platforms.
+
+    The function sets delimiter to EOF and remembers that this
+    is a perl command by setting "perl mode". The following lines
+    will then be parsed as any normal query, but when searching
+    for command in get_query_type, this function will be called
+    again since "perl mode" is on and the perl script can be
+    executed.
+*/
+
+static void do_perl(struct st_query *command)
+{
+  int error;
+  char buf[FN_REFLEN];
+  FILE *res_file;
+  DYNAMIC_STRING ds_script;
+  DBUG_ENTER("do_perl");
+
+  init_dynamic_string(&ds_script, "", 1024, 1024);
+  read_until_EOF(&ds_script);
+
+  DBUG_PRINT("info", ("Executing perl: %s", ds_script.str));
+
+  /* Format a name for a tmp .pl file that is unique for this process */
+  my_snprintf(buf, sizeof(buf), "%s/tmp/tmp_%d.pl",
+              getenv("MYSQLTEST_VARDIR"), getpid());
+  str_to_file(buf, ds_script.str, ds_script.length);
+
+  /* Format the perl <filename> command */
+  my_snprintf(buf, sizeof(buf), "perl %s/tmp/tmp_%d.pl",
+              getenv("MYSQLTEST_VARDIR"), getpid());
+
+  if (!(res_file= popen(buf, "r")) && command->abort_on_error)
+    die("popen(\"%s\", \"r\") failed", buf);
+
+  while (fgets(buf, sizeof(buf), res_file))
+  {
+    if (disable_result_log)
+    {
+      buf[strlen(buf)-1]=0;
+      DBUG_PRINT("exec_result",("%s", buf));
+    }
+    else
+    {
+      replace_dynstr_append(&ds_res, buf);
+    }
+  }
+  error= pclose(res_file);
+  handle_command_error(command, WEXITSTATUS(error));
+  dynstr_free(&ds_script);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Print the content between echo and <delimiter> to result file.
   Evaluate all variables in the string before printing, allow
   for variable names to be escaped using \
 
   SYNOPSIS
     do_echo()
-    q  called command
+    command  called command
 
   DESCRIPTION
     echo text
@@ -1512,14 +1888,12 @@ void do_system(struct st_query *command)
 
 int do_echo(struct st_query *command)
 {
-  DYNAMIC_STRING *ds, ds_echo;
+  DYNAMIC_STRING ds_echo;
 
-  ds= &ds_res;
-
-  init_dynamic_string(&ds_echo, "", 256, 256);
-  do_eval(&ds_echo, command->first_argument, FALSE);
-  dynstr_append_mem(ds, ds_echo.str, ds_echo.length);
-  dynstr_append_mem(ds, "\n", 1);
+  init_dynamic_string(&ds_echo, "", command->query_len, 256);
+  do_eval(&ds_echo, command->first_argument, command->end, FALSE);
+  dynstr_append_mem(&ds_res, ds_echo.str, ds_echo.length);
+  dynstr_append_mem(&ds_res, "\n", 1);
   dynstr_free(&ds_echo);
   command->last_argument= command->end;
   return(0);
@@ -1546,7 +1920,7 @@ int do_sync_with_master2(long offset)
 wait_for_position:
 
   if (mysql_query(mysql, query_buf))
-    die("failed in %s: %d: %s", query_buf, mysql_errno(mysql),
+    die("failed in '%s': %d: %s", query_buf, mysql_errno(mysql),
         mysql_error(mysql));
 
   if (!(res= mysql_store_result(mysql)))
@@ -1612,13 +1986,12 @@ int do_save_master_pos()
   {
     ulong have_ndbcluster;
     if (mysql_query(mysql, query= "show variables like 'have_ndbcluster'"))
-      die("At line %u: failed in %s: %d: %s", start_lineno, query,
+      die("'%s' failed: %d %s", query,
           mysql_errno(mysql), mysql_error(mysql));
     if (!(res= mysql_store_result(mysql)))
-      die("line %u: mysql_store_result() retuned NULL for '%s'", start_lineno,
-          query);
+      die("mysql_store_result() returned NULL for '%s'", query);
     if (!(row= mysql_fetch_row(res)))
-      die("line %u: empty result in %s", start_lineno, query);
+      die("Query '%s' returned empty result", query);
 
     have_ndbcluster= strcmp("YES", row[1]) == 0;
     mysql_free_result(res);
@@ -1647,11 +2020,10 @@ int do_save_master_pos()
         if (count)
           sleep(1);
         if (mysql_query(mysql, query= "show engine ndb status"))
-          die("At line %u: failed in '%s': %d: %s", start_lineno, query,
+          die("failed in '%s': %d %s", query,
               mysql_errno(mysql), mysql_error(mysql));
         if (!(res= mysql_store_result(mysql)))
-          die("line %u: mysql_store_result() retuned NULL for '%s'",
-              start_lineno, query);
+          die("mysql_store_result() returned NULL for '%s'", query);
         while ((row= mysql_fetch_row(res)))
         {
           if (strcmp(row[1], binlog) == 0)
@@ -1745,7 +2117,7 @@ int do_save_master_pos()
   }
 #endif
   if (mysql_query(mysql, query= "show master status"))
-    die("failed in show master status: %d: %s",
+    die("failed in 'show master status': %d %s",
 	mysql_errno(mysql), mysql_error(mysql));
 
   if (!(res = mysql_store_result(mysql)))
@@ -2908,9 +3280,7 @@ void do_block(enum block_cmd cmd, struct st_query* q)
 
   while (*p && my_isspace(charset_info, *p))
     p++;
-  if (*p == '{')
-    die("Missing newline between %s and '{'", cmd_name);
-  if (*p)
+  if (*p && *p != '{')
     die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
 
   var_init(&v,0,0,0,0);
@@ -2931,50 +3301,30 @@ void do_block(enum block_cmd cmd, struct st_query* q)
 }
 
 
-/*
-  Read characters from line buffer or file. This is needed to allow
-  my_ungetc() to buffer MAX_DELIMITER characters for a file
-
-  NOTE:
-    This works as long as one doesn't change files (with 'source file_name')
-    when there is things pushed into the buffer.  This should however not
-    happen for any tests in the test suite.
-*/
-
-int my_getc(FILE *file)
-{
-  if (line_buffer_pos == line_buffer)
-    return fgetc(file);
-  return *--line_buffer_pos;
-}
-
-void my_ungetc(int c)
-{
-  *line_buffer_pos++= (char) c;
-}
-
-
 my_bool end_of_query(int c)
 {
-  uint i;
-  char tmp[MAX_DELIMITER];
+  return match_delimiter(c, delimiter, delimiter_length);
+}
 
-  if (c != *delimiter)
-    return 0;
 
-  for (i= 1; i < delimiter_length &&
-	 (c= my_getc(cur_file->file)) == *(delimiter + i);
-       i++)
-    tmp[i]= c;
+void do_delimiter(struct st_query* command)
+{
+  char* p= command->first_argument;
+  DBUG_ENTER("do_delimiter");
+  DBUG_PRINT("enter", ("first_argument: %s", command->first_argument));
 
-  if (i == delimiter_length)
-    return 1;					/* Found delimiter */
+  while (*p && my_isspace(charset_info, *p))
+    p++;
 
-  /* didn't find delimiter, push back things that we read */
-  my_ungetc(c);
-  while (i > 1)
-    my_ungetc(tmp[--i]);
-  return 0;
+  if (!(*p))
+    die("Can't set empty delimiter");
+
+  strmake(delimiter, p, sizeof(delimiter) - 1);
+  delimiter_length= strlen(delimiter);
+
+  DBUG_PRINT("exit", ("delimiter: %s", delimiter));
+  command->last_argument= p + delimiter_length;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3004,19 +3354,19 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  int c;
-  char quote;
+  char c, last_quote;
   char *p= buf, *buf_end= buf + size - 1;
-  int no_save= 0;
-  enum {R_NORMAL, R_Q, R_Q_IN_Q, R_SLASH_IN_Q,
-	R_COMMENT, R_LINE_START} state= R_LINE_START;
+  int skip_char= 0;
+  enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
+        R_COMMENT, R_LINE_START} state= R_LINE_START;
   DBUG_ENTER("read_line");
-  LINT_INIT(quote);
+  LINT_INIT(last_quote);
 
   start_lineno= cur_file->lineno;
+  DBUG_PRINT("info", ("start_lineno: %d", start_lineno));
   for (; p < buf_end ;)
   {
-    no_save= 0;
+    skip_char= 0;
     c= my_getc(cur_file->file);
     if (feof(cur_file->file))
     {
@@ -3036,8 +3386,9 @@ int read_line(char *buf, int size)
         if (cur_block != block_stack)
           die("Missing end of block");
 
+        *p= 0;
         DBUG_PRINT("info", ("end of file"));
-	DBUG_RETURN(1);
+        DBUG_RETURN(1);
       }
       cur_file--;
       start_lineno= cur_file->lineno;
@@ -3051,61 +3402,74 @@ int read_line(char *buf, int size)
 
       /* Convert cr/lf to lf */
       if (p != buf && *(p-1) == '\r')
-        *(p-1)= 0;
+        p--;
     }
 
     switch(state) {
     case R_NORMAL:
-      /*  Only accept '{' in the beginning of a line */
       if (end_of_query(c))
       {
 	*p= 0;
+        DBUG_PRINT("exit", ("Found delimiter '%s'", delimiter));
+	DBUG_RETURN(0);
+      }
+      else if ((c == '{' &&
+                (!strncasecmp(buf, "while", min(5, p - buf)) ||
+                 !strncasecmp(buf, "if", min(2, p - buf)))))
+      {
+        /* Only if and while commands can be terminated by { */
+        *p++= c;
+	*p= 0;
+        DBUG_PRINT("exit", ("Found '{' indicating begining of block"));
 	DBUG_RETURN(0);
       }
       else if (c == '\'' || c == '"' || c == '`')
       {
-        quote= c;
+        last_quote= c;
 	state= R_Q;
       }
-      else if (c == '\n')
-      {
-	state = R_LINE_START;
-      }
       break;
+
     case R_COMMENT:
       if (c == '\n')
       {
+        /* Comments are terminated by newline */
 	*p= 0;
+        DBUG_PRINT("exit", ("Found newline in comment"));
 	DBUG_RETURN(0);
       }
       break;
+
     case R_LINE_START:
-      /* Only accept start of comment if this is the first line in query */
-      if ((cur_file->lineno == start_lineno) &&
-	  (c == '#' || c == '-' || parsing_disabled))
+      if (c == '#' || c == '-')
       {
+        /* A # or - in the first position of the line - this is a comment */
 	state = R_COMMENT;
       }
       else if (my_isspace(charset_info, c))
       {
+        /* Skip all space at begining of line */
 	if (c == '\n')
 	  start_lineno= cur_file->lineno; /* Query hasn't started yet */
-	no_save= 1;
+	skip_char= 1;
+      }
+      else if (end_of_query(c))
+      {
+	*p= 0;
+        DBUG_PRINT("exit", ("Found delimiter '%s'", delimiter));
+	DBUG_RETURN(0);
       }
       else if (c == '}')
       {
-	*buf++= '}';
-	*buf= 0;
-	DBUG_RETURN(0);
-      }
-      else if (end_of_query(c) || c == '{')
-      {
+        /* A "}" need to be by itself in the begining of a line to terminate */
+        *p++= c;
 	*p= 0;
+        DBUG_PRINT("exit", ("Found '}' in begining of a line"));
 	DBUG_RETURN(0);
       }
       else if (c == '\'' || c == '"' || c == '`')
       {
-        quote= c;
+        last_quote= c;
 	state= R_Q;
       }
       else
@@ -3113,29 +3477,19 @@ int read_line(char *buf, int size)
       break;
 
     case R_Q:
-      if (c == quote)
-	state= R_Q_IN_Q;
+      if (c == last_quote)
+	state= R_NORMAL;
       else if (c == '\\')
 	state= R_SLASH_IN_Q;
       break;
-    case R_Q_IN_Q:
-      if (end_of_query(c))
-      {
-	*p= 0;
-	DBUG_RETURN(0);
-      }
-      if (c != quote)
-	state= R_NORMAL;
-      else
-	state= R_Q;
-      break;
+
     case R_SLASH_IN_Q:
       state= R_Q;
       break;
 
     }
 
-    if (!no_save)
+    if (!skip_char)
     {
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
@@ -3153,7 +3507,7 @@ int read_line(char *buf, int size)
 	for (i= 1; i < charlen; i++)
 	{
 	  if (feof(cur_file->file))
-	    goto found_eof;	/* FIXME: could we just break here?! */
+	    goto found_eof;
 	  c= my_getc(cur_file->file);
 	  *p++ = c;
 	}
@@ -3170,9 +3524,63 @@ int read_line(char *buf, int size)
 	*p++= c;
     }
   }
-  *p= 0;					/* Always end with \0 */
-  DBUG_RETURN(feof(cur_file->file));
+  die("The input buffer is too small for this query.x\n" \
+      "check your query or increase MAX_QUERY and recompile");
+  DBUG_RETURN(0);
 }
+
+
+/*
+  Convert the read query to format version 1
+
+  That is: After newline, all spaces need to be skipped
+  unless the previous char was a quote
+
+  This is due to an old bug that has now been fixed, but the
+  version 1 output format is preserved by using this function
+
+*/
+
+static void convert_to_format_v1(char* query)
+{
+  int last_c_was_quote= 0;
+  char *p= query, *write= query;
+  char *end= strend(query);
+  char last_c;
+
+  while (p <= end)
+  {
+    if (*p == '\n' && !last_c_was_quote)
+    {
+      *write++ = *p++; /* Save the newline */
+
+      /* Skip any spaces on next line */
+      while (*p && my_isspace(charset_info, *p))
+        p++;
+
+      last_c_was_quote= 0;
+    }
+    else if (*p == '\'' || *p == '"' || *p == '`')
+    {
+      last_c= *p;
+      *write++ = *p++;
+
+      /* Copy anything until the next quote of same type */
+      while (*p && *p != last_c)
+        *write++ = *p++;
+
+      *write++ = *p++;
+
+      last_c_was_quote= 1;
+    }
+    else
+    {
+      *write++ = *p++;
+      last_c_was_quote= 0;
+    }
+  }
+}
+
 
 /*
   Create a query from a set of lines
@@ -3213,6 +3621,7 @@ int read_query(struct st_query** q_ptr)
   q->record_file[0]= 0;
   q->require_file= 0;
   q->first_word_len= 0;
+  q->query_len= 0;
 
   q->type= Q_UNKNOWN;
   q->query_buf= q->query= 0;
@@ -3222,7 +3631,9 @@ int read_query(struct st_query** q_ptr)
     check_eol_junk(read_query_buf);
     DBUG_RETURN(1);
   }
-  
+
+  convert_to_format_v1(read_query_buf);
+
   DBUG_PRINT("info", ("query: %s", read_query_buf));
   if (*p == '#')
   {
@@ -3263,6 +3674,7 @@ end:
     p++;
   q->first_argument= p;
   q->end= strend(q->query);
+  q->query_len= (q->end - q->query);
   parser.read_lines++;
   DBUG_RETURN(0);
 }
@@ -3864,9 +4276,11 @@ static void fix_win_paths(const char* val, int len)
 }
 #endif
 
+
+
 /* Append the string to ds, with optional replace */
 static void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
-                                      const char *val,  int len)
+                                      const char *val, int len)
 {
 #ifdef __WIN__
   fix_win_paths(val, len);
@@ -4721,8 +5135,8 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
    */
   if (command->type == Q_EVAL)
   {
-    init_dynamic_string(&eval_query, "", 16384, 65536);
-    do_eval(&eval_query, command->query, FALSE);
+    init_dynamic_string(&eval_query, "", command->query_len+256, 1024);
+    do_eval(&eval_query, command->query, command->end, FALSE);
     query = eval_query.str;
     query_len = eval_query.length;
   }
@@ -4740,7 +5154,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
    */
   if (command->record_file[0])
   {
-    init_dynamic_string(&ds_result, "", 16384, 65536);
+    init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
   }
   else
@@ -5027,7 +5441,7 @@ void get_query_type(struct st_query* q)
   }
   else if (q->type == Q_COMMENT_WITH_COMMAND &&
 	   q->first_word_len &&
-           q->query[q->first_word_len-1] == ';')
+           strcmp(q->query + q->first_word_len - 1, delimiter) == 0)
   {
     /*
        Detect comment with command using extra delimiter
@@ -5175,7 +5589,7 @@ static void mark_progress(struct st_query* q __attribute__((unused)), int line)
 int main(int argc, char **argv)
 {
   struct st_query *q;
-  my_bool require_file=0, q_send_flag=0,
+  my_bool require_file= 0,
           query_executed= 0;
   char save_file[FN_REFLEN];
   MY_STAT res_info;
@@ -5210,7 +5624,7 @@ int main(int argc, char **argv)
 
   memset(&master_pos, 0, sizeof(master_pos));
 
-  init_dynamic_string(&ds_res, "", 0, 65536);
+  init_dynamic_string(&ds_res, "", 65536, 65536);
   init_dynamic_string(&ds_progress, "", 0, 2048);
   parse_args(argc, argv);
 
@@ -5320,10 +5734,13 @@ int main(int argc, char **argv)
       case Q_DEC: do_modify_var(q, DO_DEC); break;
       case Q_ECHO: do_echo(q); query_executed= 1; break;
       case Q_SYSTEM: do_system(q); break;
+      case Q_REMOVE_FILE: do_remove_file(q); break;
+      case Q_FILE_EXIST: do_file_exist(q); break;
+      case Q_WRITE_FILE: do_write_file(q); break;
+      case Q_COPY_FILE: do_copy_file(q); break;
+      case Q_PERL: do_perl(q); break;
       case Q_DELIMITER:
-	strmake(delimiter, q->first_argument, sizeof(delimiter) - 1);
-	delimiter_length= strlen(delimiter);
-        q->last_argument= q->first_argument+delimiter_length;
+        do_delimiter(q);
 	break;
       case Q_DISPLAY_VERTICAL_RESULTS:
         display_result_vertically= TRUE;
@@ -5371,11 +5788,7 @@ int main(int argc, char **argv)
 	int flags = QUERY_REAP;
 	if (q->type != Q_REAP) /* for a full query, enable the send stage */
 	  flags |= QUERY_SEND;
-	if (q_send_flag)
-	{
-	  flags= QUERY_SEND;
-	  q_send_flag=0;
-	}
+
 	if (save_file[0])
 	{
 	  strmov(q->record_file,save_file);
@@ -5396,15 +5809,10 @@ int main(int argc, char **argv)
 	break;
       }
       case Q_SEND:
-	if (!q->query[q->first_word_len])
-	{
-	  /* This happens when we use 'send' on its own line */
-	  q_send_flag=1;
-	  break;
-	}
 	/* fix up query pointer if this is first iteration for this line */
 	if (q->query == q->query_buf)
-	  q->query += q->first_word_len;
+	  q->query+= q->first_word_len;
+
 	/*
 	  run_query() can execute a query partially, depending on the flags.
 	  QUERY_SEND flag without QUERY_REAP tells it to just send the
@@ -5490,7 +5898,10 @@ int main(int argc, char **argv)
         break;
       }
       case Q_DISABLE_PARSING:
-        parsing_disabled++;
+        if (parsing_disabled == 0)
+          parsing_disabled++;
+        else
+          die("Parsing is already disabled");
         break;
       case Q_ENABLE_PARSING:
         /*
@@ -5499,6 +5910,8 @@ int main(int argc, char **argv)
         */
         if (parsing_disabled > 0)
           parsing_disabled--;
+        else
+          die("Parsing is already enabled");
         break;
 
       case Q_DIE:
@@ -5540,6 +5953,9 @@ int main(int argc, char **argv)
   }
 
   start_lineno= 0;
+
+  if (parsing_disabled)
+    die("Test ended with parsing disabled");
 
   /*
     The whole test has been executed _sucessfully_.
