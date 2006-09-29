@@ -2775,12 +2775,13 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
             this expression will not be moved to WHERE condition (i.e. will
             be clean correctly for PS/SP)
           */
-          tbl->on_expr= and_conds(tbl->on_expr, where);
+          tbl->on_expr= and_conds(tbl->on_expr,
+                                  where->copy_andor_structure(thd));
           break;
         }
       }
       if (tbl == 0)
-        *conds= and_conds(*conds, where);
+        *conds= and_conds(*conds, where->copy_andor_structure(thd));
       if (arena)
         thd->restore_active_arena(arena, &backup);
       where_processed= TRUE;
