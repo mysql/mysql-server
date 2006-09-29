@@ -5986,6 +5986,8 @@ ER_HOSTNAME
 	eng "host name"
 ER_WRONG_STRING_LENGTH
 	eng "String '%-.70s' is too long for %s (should be no longer than %d)"
+ER_NON_INSERTABLE_TABLE  
+	eng "The target table %-.100s of the %s is not insertable-into"
 ER_UNSUPORTED_LOG_ENGINE
         eng "This storage engine cannot be used for log tables""
 ER_BAD_LOG_STATEMENT

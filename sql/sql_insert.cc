@@ -112,7 +112,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
   if (!table_list->updatable)
   {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     return -1;
   }
 
@@ -228,7 +228,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
       (table_list->view &&
        check_view_insertability(thd, table_list)))
   {
-    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "INSERT");
+    my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     return -1;
   }
 
