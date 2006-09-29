@@ -16,12 +16,14 @@
 
 /* mysqltest test tool
  * See the "MySQL Test framework manual" for more information
+ * http://dev.mysql.com/doc/mysqltest/en/index.html
  *
  * Written by:
  *   Sasha Pachev <sasha@mysql.com>
  *   Matt Wagner  <matt@mysql.com>
  *   Monty
  *   Jani
+ *   Magnus
  **/
 
 #define MTEST_VERSION "2.7"
@@ -1296,6 +1298,7 @@ static void do_exec(struct st_query *query)
         query->first_argument, query->expected_errno[0].code.errnum);
   }
 
+  dynstr_free(&ds_cmd);
   free_replace();
   DBUG_VOID_RETURN;
 }
@@ -1721,22 +1724,32 @@ static my_bool match_delimiter(int c, const char* delim, uint length)
 }
 
 
-static void read_until_EOF(DYNAMIC_STRING* ds)
+static void read_until_delimiter(DYNAMIC_STRING *ds,
+                                 DYNAMIC_STRING *ds_delimiter)
 {
   int c;
-  DBUG_ENTER("read_until_EOF");
+  DBUG_ENTER("read_until_delimiter");
+  DBUG_PRINT("enter", ("delimiter: %s, length: %d",
+                       ds_delimiter->str, ds_delimiter->length));
 
-  /* Read from file until delimiter EOF is found */
+  if (ds_delimiter->length > MAX_DELIMITER)
+    die("Max delimiter length(%d) exceeded", MAX_DELIMITER);
+
+  /* Read from file until delimiter is found */
   while (1)
   {
     c= my_getc(cur_file->file);
 
-    if (feof(cur_file->file))
-      die("End of file encountered before 'EOF' delimiter was found");
+    if (c == '\n')
+      cur_file->lineno++;
 
-    if (match_delimiter(c, "EOF", 3))
+    if (feof(cur_file->file))
+      die("End of file encountered before '%s' delimiter was found",
+          ds_delimiter->str);
+
+    if (match_delimiter(c, ds_delimiter->str, ds_delimiter->length))
     {
-      DBUG_PRINT("exit", ("Found EOF"));
+      DBUG_PRINT("exit", ("Found delimiter '%s'", ds_delimiter->str));
       break;
     }
     dynstr_append_mem(ds, (const char*)&c, 1);
@@ -1752,7 +1765,7 @@ static void read_until_EOF(DYNAMIC_STRING* ds)
     command	called command
 
   DESCRIPTION
-    write_file <file_name>;
+    write_file <file_name> [<delimiter>];
     <what to write line 1>
     <...>
     < what to write line n>
@@ -1764,9 +1777,12 @@ static void read_until_EOF(DYNAMIC_STRING* ds)
     < what to write line n>
     EOF
 
-    Write everything between the "write_file" command and EOF to "file_name"
+    Write everything between the "write_file" command and 'delimiter'
+    to "file_name"
 
     NOTE! Overwrites existing file
+
+    Default <delimiter> is EOF
 
 */
 
@@ -1774,8 +1790,10 @@ static void do_write_file(struct st_query *command)
 {
   DYNAMIC_STRING ds_content;
   DYNAMIC_STRING ds_filename;
+  DYNAMIC_STRING ds_delimiter;
   const struct command_arg write_file_args[] = {
     "filename", ARG_STRING, TRUE, &ds_filename, "File to write to",
+    "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
   };
   DBUG_ENTER("do_write_file");
 
@@ -1784,12 +1802,17 @@ static void do_write_file(struct st_query *command)
                      write_file_args,
                      sizeof(write_file_args)/sizeof(struct command_arg));
 
+  /* If no delimiter was provided, use EOF */
+  if (ds_delimiter.length == 0)
+    dynstr_set(&ds_delimiter, "EOF");
+
   init_dynamic_string(&ds_content, "", 1024, 1024);
-  read_until_EOF(&ds_content);
+  read_until_delimiter(&ds_content, &ds_delimiter);
   DBUG_PRINT("info", ("Writing to file: %s", ds_filename.str));
   str_to_file(ds_filename.str, ds_content.str, ds_content.length);
   dynstr_free(&ds_content);
   dynstr_free(&ds_filename);
+  dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
 }
 
@@ -1800,22 +1823,17 @@ static void do_write_file(struct st_query *command)
     command	command handle
 
   DESCRIPTION
-    perl;
+    perl [<delimiter>];
     <perlscript line 1>
     <...>
     <perlscript line n>
     EOF
 
-    Execute everything after "perl" until EOF as perl.
+    Execute everything after "perl" until <delimiter> as perl.
     Useful for doing more advanced things
     but still being able to execute it on all platforms.
 
-    The function sets delimiter to EOF and remembers that this
-    is a perl command by setting "perl mode". The following lines
-    will then be parsed as any normal query, but when searching
-    for command in get_query_type, this function will be called
-    again since "perl mode" is on and the perl script can be
-    executed.
+    Default <delimiter> is EOF
 */
 
 static void do_perl(struct st_query *command)
@@ -1824,10 +1842,23 @@ static void do_perl(struct st_query *command)
   char buf[FN_REFLEN];
   FILE *res_file;
   DYNAMIC_STRING ds_script;
+  DYNAMIC_STRING ds_delimiter;
+  const struct command_arg perl_args[] = {
+    "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
+  };
   DBUG_ENTER("do_perl");
 
+  check_command_args(command,
+                     command->first_argument,
+                     perl_args,
+                     sizeof(perl_args)/sizeof(struct command_arg));
+
+  /* If no delimiter was provided, use EOF */
+  if (ds_delimiter.length == 0)
+    dynstr_set(&ds_delimiter, "EOF");
+
   init_dynamic_string(&ds_script, "", 1024, 1024);
-  read_until_EOF(&ds_script);
+  read_until_delimiter(&ds_script, &ds_delimiter);
 
   DBUG_PRINT("info", ("Executing perl: %s", ds_script.str));
 
@@ -1858,6 +1889,7 @@ static void do_perl(struct st_query *command)
   error= pclose(res_file);
   handle_command_error(command, WEXITSTATUS(error));
   dynstr_free(&ds_script);
+  dynstr_free(&ds_delimiter);
   DBUG_VOID_RETURN;
 }
 
@@ -2714,6 +2746,7 @@ static void free_replace_regex()
 {
   if (glob_replace_regex)
   {
+    delete_dynamic(&glob_replace_regex->regex_arr);
     my_free(glob_replace_regex->even_buf,MYF(MY_ALLOW_ZERO_PTR));
     my_free(glob_replace_regex->odd_buf,MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*) glob_replace_regex,MYF(0));
@@ -4159,7 +4192,8 @@ static int reg_replace(char** buf_p, int* buf_len_p, char *pattern,
       res_p += left_in_str;
       str_p= str_end;
     }
-  }      
+  }
+  my_free((gptr)subs, MYF(0));
   my_regfree(&r);   
   *res_p= 0;
   *buf_p= buf;
