@@ -1134,17 +1134,28 @@ JOIN::optimize()
 
     tmp_table_param.hidden_field_count= (all_fields.elements -
 					 fields_list.elements);
+    ORDER *tmp_group= ((!simple_group && !procedure &&
+                        !(test_flags & TEST_NO_KEY_GROUP)) ? group_list :
+                                                             (ORDER*) 0);
+    /*
+      Pushing LIMIT to the temporary table creation is not applicable
+      when there is ORDER BY or GROUP BY or there is no GROUP BY, but
+      there are aggregate functions, because in all these cases we need
+      all result rows.
+    */
+    ha_rows tmp_rows_limit= ((order == 0 || skip_sort_order ||
+                              test(select_options & OPTION_BUFFER_RESULT)) &&
+                             !tmp_group &&
+                             !thd->lex->current_select->with_sum_func) ?
+                            select_limit : HA_POS_ERROR;
+
     if (!(exec_tmp_table1 =
 	  create_tmp_table(thd, &tmp_table_param, all_fields,
-			   ((!simple_group && !procedure &&
-			     !(test_flags & TEST_NO_KEY_GROUP)) ?
-			    group_list : (ORDER*) 0),
+                           tmp_group,
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
 			   select_options,
-			   (order == 0 || skip_sort_order || 
-                            test(select_options & OPTION_BUFFER_RESULT)) ? 
-                             select_limit : HA_POS_ERROR,
+                           tmp_rows_limit,
 			   (char *) "")))
       DBUG_RETURN(1);
 
@@ -9097,6 +9108,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                               thd->variables.max_heap_table_size) :
                           thd->variables.tmp_table_size)/ table->s->reclength);
   set_if_bigger(table->s->max_rows,1);		// For dummy start options
+  /*
+    Push the LIMIT clause to the temporary table creation, so that we
+    materialize only up to 'rows_limit' records instead of all result records.
+  */
+  set_if_smaller(table->s->max_rows, rows_limit);
+  param->end_write_records= rows_limit;
+
   keyinfo= param->keyinfo;
 
   if (group)
@@ -9224,19 +9242,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
     }
-  }
-
-  /*
-    Push the LIMIT clause to the temporary table creation, so that we
-    materialize only up to 'rows_limit' records instead of all result records.
-    This optimization is not applicable when there is GROUP BY or there is
-    no GROUP BY, but there are aggregate functions, because both must be
-    computed for all result rows.
-  */
-  if (!group && !thd->lex->current_select->with_sum_func)
-  {
-    set_if_smaller(table->s->max_rows, rows_limit);
-    param->end_write_records= rows_limit;
   }
 
   if (thd->is_fatal_error)				// If end of memory
