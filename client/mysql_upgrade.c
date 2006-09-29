@@ -200,7 +200,7 @@ retry_open:
   }
   buffer_end= strnmov(buffer, "\n[client]", sizeof(buffer));
   if (opt_password)
-    buffer_end= strxnmov(buffer, sizeof(buffer),
+    buffer_end= strxnmov(buffer_end, sizeof(buffer),
                          "\npassword=", opt_password, NullS);
   error= my_write(defaults_file, buffer, (int) (buffer_end - buffer),
                   MYF(MY_WME | MY_FNABP));

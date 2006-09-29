@@ -249,6 +249,24 @@ INSERT INTO t3 (SELECT x, y FROM t1 JOIN t2 USING (y) WHERE z = 1);
 DROP TABLE IF EXISTS t1,t2,t3;
 
 #
+# Bug #21774: Column count doesn't match value count at row x
+#
+CREATE DATABASE bug21774_1;
+CREATE DATABASE bug21774_2;
+
+CREATE TABLE bug21774_1.t1(id VARCHAR(10) NOT NULL,label VARCHAR(255));
+CREATE TABLE bug21774_2.t1(id VARCHAR(10) NOT NULL,label VARCHAR(255));
+CREATE TABLE bug21774_1.t2(id VARCHAR(10) NOT NULL,label VARCHAR(255));
+
+INSERT INTO bug21774_2.t1 SELECT t1.* FROM bug21774_1.t1;
+
+use bug21774_1;
+INSERT INTO bug21774_2.t1 SELECT t1.* FROM t1;
+
+DROP DATABASE bug21774_1;
+DROP DATABASE bug21774_2;
+
+#
 # Bug #20989: View '(null).(null)' references invalid table(s)... on
 #             SQL SECURITY INVOKER
 #

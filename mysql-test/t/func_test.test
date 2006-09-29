@@ -108,9 +108,6 @@ select 5.1 mod 3, 5.1 mod -3, -5.1 mod 3, -5.1 mod -3;
 
 select 5 mod 3, 5 mod -3, -5 mod 3, -5 mod -3;
 
-# End of 4.1 tests
-
-#
 # Bug#6726: NOT BETWEEN parse failure
 #
 create table t1 (a int, b int);
@@ -127,3 +124,5 @@ SELECT GREATEST(1,NULL) FROM DUAL;
 SELECT LEAST('xxx','aaa',NULL,'yyy') FROM DUAL;
 SELECT LEAST(1.1,1.2,NULL,1.0) FROM DUAL;
 SELECT GREATEST(1.5E+2,1.3E+2,NULL) FROM DUAL;
+
+# End of 4.1 tests

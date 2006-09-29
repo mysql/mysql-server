@@ -3789,13 +3789,48 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 
 
 /*
+  Check whether a field can be substituted by an equal item
+
+  SYNOPSIS
+    equal_fields_propagator()
+      arg - *arg != NULL <-> the field is in the context where
+            substitution for an equal item is valid
+   
+  DESCRIPTION
+    The function checks whether a substitution of the field
+    occurrence for an equal item is valid.
+
+  NOTES
+    The following statement is not always true:
+    x=y => F(x)=F(x/y).
+    This means substitution of an item for an equal item not always
+    yields an equavalent condition.
+    Here's an example:
+      'a'='a '
+      (LENGTH('a')=1) != (LENGTH('a ')=2)
+    Such a substitution is surely valid if either the substituted
+    field is not of a STRING type or if it is an argument of
+    a comparison  predicate.  
+
+  RETURN
+    TRUE   substitution is valid
+    FALSE  otherwise
+*/
+
+bool Item_field::subst_argument_checker(byte **arg)
+{
+  return (result_type() != STRING_RESULT) || (*arg);
+}
+
+
+/*
   Set a pointer to the multiple equality the field reference belongs to
   (if any)
    
   SYNOPSIS
     equal_fields_propagator()
-    arg - reference to list of multiple equalities where
-          the field (this object) is to be looked for
+      arg - reference to list of multiple equalities where
+            the field (this object) is to be looked for
   
   DESCRIPTION
     The function looks for a multiple equality containing the field item
@@ -3807,7 +3842,7 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 
   NOTES
     This function is supposed to be called as a callback parameter in calls
-    of the transform method.  
+    of the compile method.  
 
   RETURN VALUES
     pointer to the replacing constant item, if the field item was substituted 
