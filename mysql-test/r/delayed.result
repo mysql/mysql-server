@@ -144,7 +144,7 @@ INSERT INTO t1 VALUES(  49, 71), (NULL, 72), (NULL, 73);
 INSERT INTO t1 VALUES(NULL, 81), (NULL, 82), (NULL, 83);
 SET insert_id= 114;
 INSERT INTO t1 VALUES(NULL, 91);
-ERROR 23000: Duplicate entry '114' for key 1
+ERROR 23000: Duplicate entry '114' for key 'PRIMARY'
 INSERT INTO t1 VALUES           (NULL, 92), (NULL, 93);
 SELECT * FROM t1;
 c1	c2
