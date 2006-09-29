@@ -3517,3 +3517,32 @@ id	a	b	c	d	e
 2	NULL	NULL	NULL	2	40
 2	NULL	NULL	NULL	2	50
 DROP TABLE t1,t2,t3;
+CREATE TABLE t1 (pk varchar(10) PRIMARY KEY, fk varchar(16));
+CREATE TABLE t2 (pk varchar(16) PRIMARY KEY, fk varchar(10));
+INSERT INTO t1 VALUES
+('d','dddd'), ('i','iii'), ('a','aa'), ('b','bb'), ('g','gg'), 
+('e','eee'), ('c','cccc'), ('h','hhh'), ('j','jjj'), ('f','fff');
+INSERT INTO t2 VALUES
+('jjj', 'j'), ('cc','c'), ('ccc','c'), ('aaa', 'a'), ('jjjj','j'),
+('hhh','h'), ('gg','g'), ('fff','f'), ('ee','e'), ('ffff','f'),
+('bbb','b'), ('ff','f'), ('cccc','c'), ('dddd','d'), ('jj','j'),
+('aaaa','a'), ('bb','b'), ('eeee','e'), ('aa','a'), ('hh','h');
+EXPLAIN SELECT t2.* 
+FROM t1 JOIN t2 ON t2.fk=t1.pk
+WHERE t2.fk < 'c' AND t2.pk=t1.fk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	3	Using where
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
+EXPLAIN SELECT t2.* 
+FROM t1 JOIN t2 ON t2.fk=t1.pk 
+WHERE t2.fk BETWEEN 'a' AND 'b' AND t2.pk=t1.fk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using where
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
+EXPLAIN SELECT t2.* 
+FROM t1 JOIN t2 ON t2.fk=t1.pk 
+WHERE t2.fk IN ('a','b') AND t2.pk=t1.fk;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	12	NULL	2	Using where
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	18	test.t1.fk	1	Using where
+DROP TABLE t1,t2;
