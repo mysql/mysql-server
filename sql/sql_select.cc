@@ -4682,7 +4682,6 @@ cache_record_length(JOIN *join,uint idx)
       join       The join structure
       idx        Number of tables in the partial join order (i.e. the
                  partial join order is in join->positions[0..idx-1])
-
       found_ref  Bitmap of tables for which we need to find # of distinct
                  row combinations.
 
