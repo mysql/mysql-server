@@ -1583,6 +1583,38 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
 
 
 /*
+  Check if field of subject table can be changed in before update trigger.
+
+  SYNOPSIS
+    is_updated_in_before_update_triggers()
+      field  Field object for field to be checked
+
+  NOTE
+    Field passed to this function should be bound to the same
+    TABLE object as Table_triggers_list.
+
+  RETURN VALUE
+    TRUE   Field is changed
+    FALSE  Otherwise
+*/
+
+bool Table_triggers_list::is_updated_in_before_update_triggers(Field *fld)
+{
+  Item_trigger_field *trg_fld;
+  for (trg_fld= trigger_fields[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE];
+       trg_fld != 0;
+       trg_fld= trg_fld->next_trg_field)
+  {
+    if (trg_fld->get_settable_routine_parameter() &&
+        trg_fld->field_idx != (uint)-1 &&
+        table->field[trg_fld->field_idx]->eq(fld))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
   Trigger BUG#14090 compatibility hook
 
   SYNOPSIS
