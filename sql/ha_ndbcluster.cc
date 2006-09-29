@@ -10749,7 +10749,7 @@ SHOW_VAR ndb_status_variables_export[]= {
 };
 
 struct st_mysql_storage_engine ndbcluster_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, ndbcluster_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(ndbcluster)
 {

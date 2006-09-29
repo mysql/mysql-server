@@ -701,7 +701,7 @@ bool ha_heap::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 struct st_mysql_storage_engine heap_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, heap_hton};
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(heap)
 {
