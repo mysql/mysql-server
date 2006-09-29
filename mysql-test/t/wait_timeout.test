@@ -55,7 +55,7 @@ select 2;
 select 3;
 # Disconnect so that we will not be confused by a future abort from this
 # connection.
-disconnect default
+disconnect default;
 
 #
 # Do the same test as above on a TCP connection

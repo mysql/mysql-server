@@ -46,7 +46,8 @@ mysqladmin_SOURCES =		mysqladmin.cc
 mysql_LDADD =			@readline_link@ @TERMCAP_LIB@ $(LDADD) $(CXXLDFLAGS)
 mysqltest_SOURCES=		mysqltest.c $(top_srcdir)/mysys/my_getsystime.c \
 				$(yassl_dummy_link_fix)
-mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
+mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD) \
+				$(top_builddir)/mysys/libmysys.a
 mysqlbinlog_SOURCES =		mysqlbinlog.cc $(top_srcdir)/mysys/mf_tempdir.c \
 				$(top_srcdir)/mysys/my_new.cc \
 				$(top_srcdir)/mysys/my_bit.c \
