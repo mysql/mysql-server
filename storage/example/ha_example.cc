@@ -703,7 +703,7 @@ int ha_example::create(const char *name, TABLE *table_arg,
 }
 
 struct st_mysql_storage_engine example_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, example_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 
 mysql_declare_plugin(example)
