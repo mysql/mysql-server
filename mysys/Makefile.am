@@ -58,7 +58,8 @@ libmysys_a_SOURCES =    my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_memmem.c \
 			my_windac.c my_access.c base64.c my_libwrap.c
 EXTRA_DIST =		thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
-			thr_mutex.c thr_rwlock.c
+			thr_mutex.c thr_rwlock.c mf_soundex.c my_conio.c \
+			my_wincond.c my_winsem.c my_winthread.c CMakeLists.txt
 libmysys_a_LIBADD =	@THREAD_LOBJECTS@
 # test_dir_DEPENDENCIES=	$(LIBRARIES)
 # testhash_DEPENDENCIES=	$(LIBRARIES)

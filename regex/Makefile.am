@@ -25,7 +25,7 @@ re_SOURCES =		split.c debug.c main.c
 re_LDFLAGS= @NOINST_LDFLAGS@
 EXTRA_DIST =		tests CHANGES COPYRIGHT WHATSNEW regexp.c \
 			debug.ih engine.ih main.ih regcomp.ih regerror.ih \
-			regex.3 regex.7
+			regex.3 regex.7 CMakeLists.txt
 
 test: re tests
 	./re < tests

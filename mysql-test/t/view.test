@@ -2718,3 +2718,120 @@ DROP TABLE t1;
 --disable_warnings
 DROP VIEW IF EXISTS v1;
 --enable_warnings
+
+#
+# Bug #21261: Wrong access rights was required for an insert to a view
+#
+CREATE DATABASE bug21261DB;
+USE bug21261DB;
+CONNECT (root,localhost,root,,bug21261DB);
+CONNECTION root;
+
+CREATE TABLE t1 (x INT);
+CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT x FROM t1;
+GRANT INSERT, UPDATE ON v1 TO 'user21261'@'localhost';
+GRANT INSERT, UPDATE ON t1 TO 'user21261'@'localhost';
+CREATE TABLE t2 (y INT);
+GRANT SELECT ON t2 TO 'user21261'@'localhost';
+
+CONNECT (user21261, localhost, user21261,, bug21261DB);
+CONNECTION user21261;
+INSERT INTO v1 (x) VALUES (5);
+UPDATE v1 SET x=1;
+CONNECTION root;
+GRANT SELECT ON v1 TO 'user21261'@'localhost';
+GRANT SELECT ON t1 TO 'user21261'@'localhost';
+CONNECTION user21261;
+UPDATE v1,t2 SET x=1 WHERE x=y;
+CONNECTION root;
+SELECT * FROM t1;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user21261'@'localhost';
+DROP USER 'user21261'@'localhost';
+DROP VIEW v1;
+DROP TABLE t1;
+DROP DATABASE bug21261DB;
+USE test;
+
+#
+# Bug #15950: NOW() optimized away in VIEWs
+#
+create table t1 (f1 datetime);
+create view v1 as select * from t1 where f1 between now() and now() + interval 1 minute;
+show create view v1;
+drop view v1;
+drop table t1;
+#
+# Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
+#
+
+# Prepare.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+--enable_warnings
+
+CREATE TABLE t1(a INT, b INT);
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=1234567890abcdefGHIKL@localhost
+  VIEW v1 AS SELECT a FROM t1;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+  VIEW v2 AS SELECT b FROM t1;
+
+# Cleanup.
+
+DROP TABLE t1;
+
+
+#
+# BUG#17591: Updatable view not possible with trigger or stored
+# function 
+#
+# During prelocking phase we didn't update lock type of view tables,
+# hence READ lock was always requested.
+#
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP VIEW IF EXISTS v1, v2;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  INSERT INTO v1 VALUES (0);
+  RETURN 0;
+END |
+delimiter ;|
+
+SELECT f1();
+
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT * FROM t1;
+
+delimiter |;
+CREATE FUNCTION f2() RETURNS INT
+BEGIN
+  INSERT INTO v2 VALUES (0);
+  RETURN 0;
+END |
+delimiter ;|
+
+--error ER_NON_UPDATABLE_TABLE
+SELECT f2();
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP VIEW v1, v2;
+DROP TABLE t1;
+
+
+--echo End of 5.0 tests.

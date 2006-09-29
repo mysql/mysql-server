@@ -22,7 +22,8 @@ noinst_HEADERS =        dbug_long.h
 libdbug_a_SOURCES =     dbug.c sanity.c
 EXTRA_DIST =            example1.c example2.c example3.c \
                         user.r monty.doc readme.prof dbug_add_tags.pl \
-                        my_main.c main.c factorial.c dbug_analyze.c
+                        my_main.c main.c factorial.c dbug_analyze.c \
+						CMakeLists.txt
 NROFF_INC =             example1.r example2.r example3.r main.r \
                         factorial.r output1.r output2.r output3.r \
                         output4.r output5.r

@@ -188,8 +188,9 @@ int main(int argc, char *argv[])
       DBUG_RETURN(1);
     }
     clean_up(lang_head, error_head);
+	DBUG_LEAVE; /* we can't call my_end after DBUG_RETURN */
     my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
-    DBUG_RETURN(0);
+    return(0);
   }
 }
 
