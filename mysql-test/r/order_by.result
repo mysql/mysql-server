@@ -495,17 +495,17 @@ gid	sid	uid
 103853	5	250
 EXPLAIN select t1.gid, t2.sid, t3.uid from t3, t2, t1 where t2.gid = t1.gid and t2.uid = t3.uid order by t1.gid, t3.uid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index
-1	SIMPLE	t2	eq_ref	PRIMARY,uid	PRIMARY	4	test.t1.gid	1	
+1	SIMPLE	t2	ALL	PRIMARY,uid	NULL	NULL	NULL	6	Using temporary; Using filesort
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	2	test.t2.uid	1	Using where; Using index
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.gid	1	Using index
 EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t1.gid,t3.skr;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ALL	PRIMARY	NULL	NULL	NULL	6	Using temporary; Using filesort
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t3.uid	1	Using where; Using index
 EXPLAIN SELECT t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	6	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	eq_ref	PRIMARY,uid	PRIMARY	4	test.t1.gid	1	
+1	SIMPLE	t2	ALL	PRIMARY,uid	NULL	NULL	NULL	6	Using temporary; Using filesort
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.gid	1	Using index
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	2	test.t2.uid	1	Using where; Using index
 EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.gid = t3.uid order by t3.skr,t1.gid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
