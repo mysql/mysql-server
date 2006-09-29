@@ -1306,9 +1306,9 @@ a	b
 delete from t1;
 load data infile '../std_data_ln/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'a' at row 3
+Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
 Error	1369	CHECK OPTION failed 'test.v1'
-Warning	1264	Out of range value adjusted for column 'a' at row 4
+Warning	1366	Incorrect integer value: 'wrong end  ' for column 'a' at row 4
 Error	1369	CHECK OPTION failed 'test.v1'
 select * from t1;
 a	b
