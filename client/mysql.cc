@@ -1974,6 +1974,9 @@ com_charset(String *buffer __attribute__((unused)), char *line)
   if (new_cs)
   {
     charset_info= new_cs;
+    mysql_set_character_set(&mysql, charset_info->csname);
+    default_charset= (char *)charset_info->csname;
+    default_charset_used= 1;
     put_info("Charset changed", INFO_INFO);
   }
   else put_info("Charset is not found", INFO_INFO);
@@ -2351,9 +2354,14 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      tee_fprintf(PAGER, " %-*s |",(int) min(field->max_length,
+      uint name_length= (uint) strlen(field->name);
+      uint numcells= charset_info->cset->numcells(charset_info,
+                                                  field->name,
+                                                  field->name + name_length);
+      uint display_length= field->max_length + name_length - numcells;
+      tee_fprintf(PAGER, " %-*s |",(int) min(display_length,
                                             MAX_COLUMN_LENGTH),
-		  field->name);
+                  field->name);
       num_flag[off]= IS_NUM(field->type);
       not_null_flag[off]= IS_NOT_NULL(field->flags);
     }

@@ -19,6 +19,8 @@
  */
 
 #include <ndb_global.h>
+#include <ndb_opts.h>
+
 #include <my_sys.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
@@ -29,6 +31,7 @@
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
 #include <ConfigInfo.hpp>
+#include <NdbAutoPtr.hpp>
 
 static int g_verbose = 0;
 static int try_reconnect = 3;
@@ -45,34 +48,17 @@ static const char * g_row_delimiter=" ";
 static const char * g_config_file = 0;
 static int g_mycnf = 0;
 
-int g_print_full_config, opt_ndb_shm;
-my_bool opt_core;
+const char *load_default_groups[]= { "mysql_cluster",0 };
+
+NDB_STD_OPTS_VARS;
+
+int g_print_full_config;
 
 typedef ndb_mgm_configuration_iterator Iter;
 
-static void ndb_std_print_version()
-{
-  printf("MySQL distrib %s, for %s (%s)\n",
-	 MYSQL_SERVER_VERSION,SYSTEM_TYPE,MACHINE_TYPE);
-}
-
 static struct my_option my_long_options[] =
 {
-  { "usage", '?', "Display this help and exit.", 
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "help", '?', "Display this help and exit.", 
-    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "version", 'V', "Output version information and exit.", 0, 0, 0, 
-    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "ndb-connectstring", 256,
-    "Set connect string for connecting to ndb_mgmd. " 
-    "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " 
-    "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf", 
-    (gptr*) &g_connectstring, (gptr*) &g_connectstring, 
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "ndb-shm", 256, "Print nodes",
-    (gptr*) &opt_ndb_shm, (gptr*) &opt_ndb_shm,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  NDB_STD_OPTS("ndb_config"),
   { "nodes", 256, "Print nodes",
     (gptr*) &g_nodes, (gptr*) &g_nodes,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -114,23 +100,10 @@ static void usage()
   char desc[] = 
     "This program will retreive config options for a ndb cluster\n";
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
-}
-static my_bool
-ndb_std_get_one_option(int optid,
-		       const struct my_option *opt __attribute__((unused)),
-		       char *argument)
-{
-  switch (optid) {
-  case 'V':
-    ndb_std_print_version();
-    exit(0);
-  case '?':
-    usage();
-    exit(0);
-  }
-  return 0;
 }
 
 /**
@@ -145,7 +118,7 @@ struct Match
 
 struct HostMatch : public Match
 {
-  virtual int eval(NdbMgmHandle, const Iter&);
+  virtual int eval(const Iter&);
 };
 
 struct Apply
@@ -176,7 +149,6 @@ static ndb_mgm_configuration* load_configuration();
 int
 main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
@@ -402,34 +374,42 @@ Match::eval(const Iter& iter)
 }
 
 int
-HostMatch::eval(NdbMgmHandle h, const Iter& iter)
+HostMatch::eval(const Iter& iter)
 {
   const char* valc;
   
   if(iter.get(m_key, &valc) == 0)
   {
-	  struct hostent *h1, *h2;
+	  struct hostent *h1, *h2, copy1;
+	  char *addr1;
 
 	  h1 = gethostbyname(m_value.c_str());
 	  if (h1 == NULL) {
 		  return 0;
 	  }
 
+	  // gethostbyname returns a pointer to a static structure
+	  // so we need to copy the results before doing the next call
+	  memcpy(&copy1, h1, sizeof(struct hostent));
+	  addr1 = (char *)malloc(copy1.h_length);
+	  NdbAutoPtr<char> tmp_aptr(addr1);
+	  memcpy(addr1, h1->h_addr, copy1.h_length);
+
 	  h2 = gethostbyname(valc);
 	  if (h2 == NULL) {
 		  return 0;
 	  }
 
-	  if (h1->h_addrtype != h2->h_addrtype) {
+	  if (copy1.h_addrtype != h2->h_addrtype) {
 		  return 0;
 	  }
 
-	  if (h1->h_length != h2->h_length) 
+	  if (copy1.h_length != h2->h_length) 
 	  {
 		  return 0;
 	  }
 	  
-	  return 0 == memcmp(h1->h_addr, h2->h_addr, h1->h_length);
+	  return 0 ==  memcmp(addr1, h2->h_addr, copy1.h_length);	  
   }
 
   return 0;

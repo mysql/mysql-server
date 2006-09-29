@@ -585,6 +585,16 @@ show variables like 'ssl%';
 select @@log_queries_not_using_indexes;
 show variables like 'log_queries_not_using_indexes';
 
+#
+# Bug#20908: Crash if select @@""
+#
+--error ER_PARSE_ERROR
+select @@"";
+--error ER_PARSE_ERROR
+select @@&;
+--error ER_PARSE_ERROR
+select @@@;
+
 --echo End of 5.0 tests
 
 # This is at the very after the versioned tests, since it involves doing
@@ -620,3 +630,4 @@ set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
+

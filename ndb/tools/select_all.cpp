@@ -43,6 +43,8 @@ static const char* _delimiter = "\t";
 static int _unqualified, _header, _parallelism, _useHexFormat, _lock,
   _order, _descending;
 
+const char *load_default_groups[]= { "mysql_cluster",0 };
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
@@ -82,13 +84,14 @@ static void usage()
     "It can also be used to dump the content of a table to file \n"\
     "  ex: select_all --no-header --delimiter=';' T4 > T4.data\n";
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   const char* _tabname;
   int ho_error;

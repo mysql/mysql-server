@@ -947,18 +947,24 @@ COUNT(*)
 Warnings:
 Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
 Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
+Warning	1292	Truncated incorrect DOUBLE value: '20050327 invalid'
+Warning	1292	Truncated incorrect DOUBLE value: '20050327 invalid'
 SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050328 invalid';
 COUNT(*)
 0
 Warnings:
 Warning	1292	Incorrect datetime value: '20050328 invalid' for column 'date' at row 1
 Warning	1292	Incorrect datetime value: '20050328 invalid' for column 'date' at row 1
+Warning	1292	Truncated incorrect DOUBLE value: '20050328 invalid'
+Warning	1292	Truncated incorrect DOUBLE value: '20050328 invalid'
 SELECT COUNT(*) FROM t1 WHERE date BETWEEN '20050326' AND '20050327 invalid';
 COUNT(*)
 0
 Warnings:
 Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
 Warning	1292	Incorrect datetime value: '20050327 invalid' for column 'date' at row 1
+Warning	1292	Truncated incorrect DOUBLE value: '20050327 invalid'
+Warning	1292	Truncated incorrect DOUBLE value: '20050327 invalid'
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0

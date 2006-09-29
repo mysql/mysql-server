@@ -305,6 +305,7 @@ Item::Item():
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
   with_subselect= 0;
+  cmp_context= (Item_result)-1;
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
@@ -343,7 +344,8 @@ Item::Item(THD *thd, Item *item):
   unsigned_flag(item->unsigned_flag),
   with_sum_func(item->with_sum_func),
   fixed(item->fixed),
-  collation(item->collation)
+  collation(item->collation),
+  cmp_context(item->cmp_context)
 {
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
@@ -417,6 +419,49 @@ void Item::rename(char *new_name)
   if (!orig_name && new_name != name)
     orig_name= name;
   name= new_name;
+}
+
+
+/*
+  Traverse item tree possibly transforming it (replacing items).
+
+  SYNOPSIS
+    Item::transform()
+      transformer    functor that performs transformation of a subtree
+      arg            opaque argument passed to the functor
+
+  DESCRIPTION
+    This function is designed to ease transformation of Item trees.
+
+    Re-execution note: every such transformation is registered for
+    rollback by THD::change_item_tree() and is rolled back at the end
+    of execution by THD::rollback_item_tree_changes().
+
+    Therefore:
+
+      - this function can not be used at prepared statement prepare
+        (in particular, in fix_fields!), as only permanent
+        transformation of Item trees are allowed at prepare.
+
+      - the transformer function shall allocate new Items in execution
+        memory root (thd->mem_root) and not anywhere else: allocated
+        items will be gone in the end of execution.
+
+    If you don't need to transform an item tree, but only traverse
+    it, please use Item::walk() instead.
+
+
+  RETURN VALUE
+    Returns pointer to the new subtree root.  THD::change_item_tree()
+    should be called for it if transformation took place, i.e. if a
+    pointer to newly allocated item is returned.
+*/
+
+Item* Item::transform(Item_transformer transformer, byte *arg)
+{
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  return (this->*transformer)(arg);
 }
 
 
@@ -3777,7 +3822,19 @@ Item *Item_field::equal_fields_propagator(byte *arg)
   Item *item= 0;
   if (item_equal)
     item= item_equal->get_const();
-  if (!item)
+  /*
+    Disable const propagation for items used in different comparison contexts.
+    This must be done because, for example, Item_hex_string->val_int() is not
+    the same as (Item_hex_string->val_str() in BINARY column)->val_int().
+    We cannot simply disable the replacement in a particular context (
+    e.g. <bin_col> = <int_col> AND <bin_col> = <hex_string>) since
+    Items don't know the context they are in and there are functions like 
+    IF (<hex_string>, 'yes', 'no').
+    The same problem occurs when comparing a DATE/TIME field with a
+    DATE/TIME represented as an int and as a string.
+  */
+  if (!item ||
+      (cmp_context != (Item_result)-1 && item->cmp_context != cmp_context))
     item= this;
   return item;
 }
@@ -3788,11 +3845,11 @@ Item *Item_field::equal_fields_propagator(byte *arg)
   See comments in Arg_comparator::set_compare_func() for details
 */
 
-Item *Item_field::set_no_const_sub(byte *arg)
+bool Item_field::set_no_const_sub(byte *arg)
 {
   if (field->charset() != &my_charset_bin)
     no_const_subst=1;
-  return this;
+  return FALSE;
 }
 
 
@@ -5291,6 +5348,31 @@ int Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
     return 0;
   }
   return Item_field::save_in_field(field_arg, no_conversions);
+}
+
+
+/* 
+  This method like the walk method traverses the item tree, but at the
+  same time it can replace some nodes in the tree
+*/ 
+
+Item *Item_default_value::transform(Item_transformer transformer, byte *args)
+{
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  Item *new_item= arg->transform(transformer, args);
+  if (!new_item)
+    return 0;
+
+  /*
+    THD::change_item_tree() should be called only if the tree was
+    really transformed, i.e. when a new item has been created.
+    Otherwise we'll be allocating a lot of unnecessary memory for
+    change records at each execution.
+  */
+  if (arg != new_item)
+    current_thd->change_item_tree(&arg, new_item);
+  return (this->*transformer)(args);
 }
 
 

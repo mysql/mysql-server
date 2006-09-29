@@ -202,3 +202,13 @@ SET @a := (select * from bigfailure where afield = (SELECT afield FROM bigfailur
 SELECT @a;
 
 drop table bigfailure;
+
+#
+# Bug#16861: User defined variable can have a wrong value if a tmp table was
+#            used.
+#
+create table t1(f1 int, f2 int);
+insert into t1 values (1,2),(2,3),(3,1);
+select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
+select @var;
+drop table t1;
