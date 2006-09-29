@@ -70,7 +70,7 @@ static int join_tab_cmp_straight(const void* ptr1, const void* ptr2);
 static void find_best(JOIN *join,table_map rest_tables,uint index,
 		      double record_count,double read_time);
 static uint cache_record_length(JOIN *join,uint index);
-static double prev_record_reads(JOIN *join,table_map found_ref);
+static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
 static bool get_best_combination(JOIN *join);
 static store_key *get_store_key(THD *thd,
 				KEYUSE *keyuse, table_map used_tables,
@@ -3373,6 +3373,7 @@ set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
   join->positions[idx].table= table;
   join->positions[idx].key=key;
   join->positions[idx].records_read=1.0;	/* This is a const table */
+  join->positions[idx].ref_depend_map= 0;
 
   /* Move the const table as down as possible in best_ref */
   JOIN_TAB **pos=join->best_ref+idx+1;
@@ -3430,6 +3431,7 @@ best_access_path(JOIN      *join,
   double best=              DBL_MAX;
   double best_time=         DBL_MAX;
   double records=           DBL_MAX;
+  table_map best_ref_depends_map;
   double tmp;
   ha_rows rec;
 
@@ -3458,13 +3460,20 @@ best_access_path(JOIN      *join,
 
       /* Calculate how many key segments of the current key we can use */
       start_key= keyuse;
-      do
-      { /* for each keypart */
+
+      do /* For each keypart */
+      {
         uint keypart= keyuse->keypart;
         table_map best_part_found_ref= 0;
         double best_prev_record_reads= DBL_MAX;
-        do
+        
+        do /* For each way to access the keypart */
         {
+
+          /*
+            if 1. expression doesn't refer to forward tables
+               2. we won't get two ref-or-null's
+          */
           if (!(remaining_tables & keyuse->used_tables) &&
               !(ref_or_null_part && (keyuse->optimize &
                                      KEY_OPTIMIZE_REF_OR_NULL)))
@@ -3472,8 +3481,9 @@ best_access_path(JOIN      *join,
             found_part|= keyuse->keypart_map;
             if (!(keyuse->used_tables & ~join->const_table_map))
               const_part|= keyuse->keypart_map;
-            double tmp= prev_record_reads(join, (found_ref |
-                                                 keyuse->used_tables));
+
+            double tmp= prev_record_reads(join, idx, (found_ref |
+                                                      keyuse->used_tables));
             if (tmp < best_prev_record_reads)
             {
               best_part_found_ref= keyuse->used_tables;
@@ -3512,7 +3522,7 @@ best_access_path(JOIN      *join,
           Really, there should be records=0.0 (yes!)
           but 1.0 would be probably safer
         */
-        tmp= prev_record_reads(join, found_ref);
+        tmp= prev_record_reads(join, idx, found_ref);
         records= 1.0;
       }
       else
@@ -3527,7 +3537,7 @@ best_access_path(JOIN      *join,
           max_key_part= (uint) ~0;
           if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
           {
-            tmp = prev_record_reads(join, found_ref);
+            tmp = prev_record_reads(join, idx, found_ref);
             records=1.0;
           }
           else
@@ -3757,6 +3767,7 @@ best_access_path(JOIN      *join,
         best_records= records;
         best_key= start_key;
         best_max_key_part= max_key_part;
+        best_ref_depends_map= found_ref;
       }
     }
     records= best_records;
@@ -3885,6 +3896,8 @@ best_access_path(JOIN      *join,
       best= tmp;
       records= rows2double(rnd_records);
       best_key= 0;
+      /* range/index_merge/ALL/index access method are "independent", so: */
+      best_ref_depends_map= 0;
     }
   }
 
@@ -3893,6 +3906,7 @@ best_access_path(JOIN      *join,
   join->positions[idx].read_time=    best;
   join->positions[idx].key=          best_key;
   join->positions[idx].table=        s;
+  join->positions[idx].ref_depend_map= best_ref_depends_map;
 
   if (!best_key &&
       idx == join->const_tables &&
@@ -4660,17 +4674,86 @@ cache_record_length(JOIN *join,uint idx)
 }
 
 
+/*
+  Get the number of different row combinations for subset of partial join
+
+  SYNOPSIS
+    prev_record_reads()
+      join       The join structure
+      idx        Number of tables in the partial join order (i.e. the
+                 partial join order is in join->positions[0..idx-1])
+
+      found_ref  Bitmap of tables for which we need to find # of distinct
+                 row combinations.
+
+  DESCRIPTION
+    Given a partial join order (in join->positions[0..idx-1]) and a subset of
+    tables within that join order (specified in found_ref), find out how many
+    distinct row combinations of subset tables will be in the result of the
+    partial join order.
+     
+    This is used as follows: Suppose we have a table accessed with a ref-based
+    method. The ref access depends on current rows of tables in found_ref.
+    We want to count # of different ref accesses. We assume two ref accesses
+    will be different if at least one of access parameters is different.
+    Example: consider a query
+
+    SELECT * FROM t1, t2, t3 WHERE t1.key=c1 AND t2.key=c2 AND t3.key=t1.field
+
+    and a join order:
+      t1,  ref access on t1.key=c1
+      t2,  ref access on t2.key=c2       
+      t3,  ref access on t3.key=t1.field 
+    
+    For t1: n_ref_scans = 1, n_distinct_ref_scans = 1
+    For t2: n_ref_scans = records_read(t1), n_distinct_ref_scans=1
+    For t3: n_ref_scans = records_read(t1)*records_read(t2)
+            n_distinct_ref_scans = #records_read(t1)
+    
+    The reason for having this function (at least the latest version of it)
+    is that we need to account for buffering in join execution. 
+    
+    An edge-case example: if we have a non-first table in join accessed via
+    ref(const) or ref(param) where there is a small number of different
+    values of param, then the access will likely hit the disk cache and will
+    not require any disk seeks.
+    
+    The proper solution would be to assume an LRU disk cache of some size,
+    calculate probability of cache hits, etc. For now we just count
+    identical ref accesses as one.
+
+  RETURN 
+    Expected number of row combinations
+*/
+
 static double
-prev_record_reads(JOIN *join,table_map found_ref)
+prev_record_reads(JOIN *join, uint idx, table_map found_ref)
 {
   double found=1.0;
-  found_ref&= ~OUTER_REF_TABLE_BIT;
-  for (POSITION *pos=join->positions ; found_ref ; pos++)
+  POSITION *pos_end= join->positions - 1;
+  for (POSITION *pos= join->positions + idx - 1; pos != pos_end; pos--)
   {
     if (pos->table->table->map & found_ref)
     {
-      found_ref&= ~pos->table->table->map;
-      found*=pos->records_read;
+      found_ref|= pos->ref_depend_map;
+      /* 
+        For the case of "t1 LEFT JOIN t2 ON ..." where t2 is a const table 
+        with no matching row we will get position[t2].records_read==0. 
+        Actually the size of output is one null-complemented row, therefore 
+        we will use value of 1 whenever we get records_read==0.
+
+        Note
+        - the above case can't occur if inner part of outer join has more 
+          than one table: table with no matches will not be marked as const.
+
+        - Ideally we should add 1 to records_read for every possible null-
+          complemented row. We're not doing it because: 1. it will require
+          non-trivial code and add overhead. 2. The value of records_read
+          is an inprecise estimate and adding 1 (or, in the worst case,
+          #max_nested_outer_joins=64-1) will not make it any more precise.
+      */
+      if (pos->records_read)
+        found*= pos->records_read;
     }
   }
   return found;
@@ -10242,6 +10325,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       tab->info="const row not found";
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
+      pos->ref_depend_map= 0;
       if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
     }
@@ -10267,6 +10351,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       tab->info="unique row not found";
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
+      pos->ref_depend_map= 0;
       if (!table->maybe_null || error > 0)
 	DBUG_RETURN(error);
     }
