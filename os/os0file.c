@@ -3744,42 +3744,6 @@ os_aio_posix_handle(
 #endif
 
 /**************************************************************************
-Do a 'last millisecond' check that the end of an uncompressed page is sensible;
-reported page checksum errors from Linux seem to wipe over the page end. */
-static
-void
-os_file_check_page_trailers(
-/*========================*/
-	byte*	combined_buf,	/* in: combined write buffer */
-	ulint	total_len)	/* in: size of combined_buf, in bytes
-				(a multiple of UNIV_PAGE_SIZE) */
-{
-	ulint	len;
-
-	for (len = 0; len + UNIV_PAGE_SIZE <= total_len;
-	     len += UNIV_PAGE_SIZE) {
-		byte*	buf = combined_buf + len;
-
-		if (UNIV_UNLIKELY
-		    (memcmp(buf + (FIL_PAGE_LSN + 4),
-			    buf + (UNIV_PAGE_SIZE
-				   - FIL_PAGE_END_LSN_OLD_CHKSUM + 4), 4))) {
-		    	ut_print_timestamp(stderr);
-		    	fprintf(stderr,
-				"  InnoDB: ERROR: The page to be written"
-				" seems corrupt!\n"
-				"InnoDB: Writing a block of %lu bytes,"
-				" currently at offset %lu\n",
-				(ulong)total_len, (ulong)len);
-			buf_page_print(buf, 0);
-		    	fprintf(stderr,
-				"InnoDB: ERROR: The page to be written"
-				" seems corrupt!\n");
-		}
-	}
-}
-
-/**************************************************************************
 Does simulated aio. This function should be called by an i/o-handler
 thread. */
 
@@ -4015,29 +3979,9 @@ consecutive_loop:
 
 	/* Do the i/o with ordinary, synchronous i/o functions: */
 	if (slot->type == OS_FILE_WRITE) {
-#if 0 /* TODO: && !page_zip */
-		if (array == os_aio_write_array) {
-			if ((total_len % UNIV_PAGE_SIZE != 0)
-			    || (slot->offset % UNIV_PAGE_SIZE != 0)) {
-				fprintf(stderr,
-					"InnoDB: Error: trying a displaced"
-					" write to %s %lu %lu, len %lu\n",
-					slot->name, (ulong) slot->offset_high,
-					(ulong) slot->offset,
-					(ulong) total_len);
-				ut_error;
-			}
-			os_file_check_page_trailers(combined_buf, total_len);
-		}
-#endif
 		ret = os_file_write(slot->name, slot->file, combined_buf,
 				    slot->offset, slot->offset_high,
 				    total_len);
-#if 0 /* TODO: && !page_zip */
-		if (array == os_aio_write_array) {
-			os_file_check_page_trailers(combined_buf, total_len);
-		}
-#endif
 	} else {
 		ret = os_file_read(slot->file, combined_buf,
 				   slot->offset, slot->offset_high, total_len);
