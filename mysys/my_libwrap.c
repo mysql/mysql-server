@@ -31,12 +31,12 @@ void my_fromhost(struct request_info *req)
 
 int my_hosts_access(struct request_info *req)
 {
-  hosts_access(req);
+  return hosts_access(req);
 }
 
 char *my_eval_client(struct request_info *req)
 {
-  eval_client(req);
+  return eval_client(req);
 }
 
 #endif /* HAVE_LIBWRAP */
