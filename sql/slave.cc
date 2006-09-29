@@ -4073,7 +4073,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
       suppress_warnings= 0;
       sql_print_error("Slave I/O thread: error %s to master \
 '%s@%s:%d': \
-Error: '%s'  errno: %d  retry-time: %d  retries: %d",
+Error: '%s'  errno: %d  retry-time: %d  retries: %lu",
 		      (reconnect ? "reconnecting" : "connecting"),
 		      mi->user,mi->host,mi->port,
 		      mysql_error(mysql), last_errno,
