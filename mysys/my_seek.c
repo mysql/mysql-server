@@ -29,7 +29,8 @@ my_off_t my_seek(File fd, my_off_t pos, int whence,
 		   whence, MyFlags));
   DBUG_ASSERT(pos != MY_FILEPOS_ERROR);		/* safety check */
 
-  newpos=lseek(fd, pos, whence);
+  if (-1 != fd)
+    newpos=lseek(fd, pos, whence);
   if (newpos == (os_off_t) -1)
   {
     my_errno=errno;

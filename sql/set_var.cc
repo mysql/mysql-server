@@ -870,8 +870,8 @@ struct show_var_st init_vars[]= {
   {"have_geometry",           (char*) &have_geometry,               SHOW_HAVE},
   {"have_innodb",	      (char*) &have_innodb,		    SHOW_HAVE},
   {"have_isam",		      (char*) &have_isam,		    SHOW_HAVE},
-  {"have_ndbcluster",         (char*) &have_ndbcluster,             SHOW_HAVE},
   {"have_merge_engine",       (char*) &have_merge_db,               SHOW_HAVE},
+  {"have_ndbcluster",         (char*) &have_ndbcluster,             SHOW_HAVE},
   {"have_openssl",	      (char*) &have_openssl,		    SHOW_HAVE},
   {"have_query_cache",        (char*) &have_query_cache,            SHOW_HAVE},
   {"have_raid",		      (char*) &have_raid,		    SHOW_HAVE},
@@ -3252,7 +3252,7 @@ int set_var_user::check(THD *thd)
     0 can be passed as last argument (reference on item)
   */
   return (user_var_item->fix_fields(thd, (Item**) 0) ||
-	  user_var_item->check()) ? -1 : 0;
+	  user_var_item->check(0)) ? -1 : 0;
 }
 
 

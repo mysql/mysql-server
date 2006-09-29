@@ -723,12 +723,17 @@ shutdown the MySQL server and restart it.", name, errno);
 int MYSQL_LOG::get_current_log(LOG_INFO* linfo)
 {
   pthread_mutex_lock(&LOCK_log);
-  strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name)-1);
-  linfo->pos = my_b_tell(&log_file);
+  int ret = raw_get_current_log(linfo);
   pthread_mutex_unlock(&LOCK_log);
-  return 0;
+  return ret;
 }
 
+int MYSQL_LOG::raw_get_current_log(LOG_INFO* linfo)
+{
+  strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name)-1);
+  linfo->pos = my_b_tell(&log_file);
+  return 0;
+}
 
 /*
   Move all data up in a file in an filename index file
@@ -2385,6 +2390,12 @@ void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
     void
 */
 
+#ifdef EMBEDDED_LIBRARY
+void vprint_msg_to_log(enum loglevel level __attribute__((unused)),
+                       const char *format __attribute__((unused)),
+                       va_list argsi __attribute__((unused)))
+{}
+#else /*!EMBEDDED_LIBRARY*/
 void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
@@ -2400,6 +2411,7 @@ void vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 
   DBUG_VOID_RETURN;
 }
+#endif /*EMBEDDED_LIBRARY*/
 
 
 void sql_print_error(const char *format, ...) 

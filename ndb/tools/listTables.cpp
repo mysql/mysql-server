@@ -32,6 +32,8 @@ static Ndb* ndb = 0;
 static const NdbDictionary::Dictionary * dic = 0;
 static int _unqualified = 0;
 
+const char *load_default_groups[]= { "mysql_cluster",0 };
+
 static void
 fatal(char const* fmt, ...)
 {
@@ -196,6 +198,8 @@ static void usage()
     "To show all indexes for a table write table name as final argument\n"\
     "  ex: ndb_show_tables T1\n";
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -203,7 +207,6 @@ static void usage()
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char* _tabname;
-  const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF

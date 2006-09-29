@@ -66,7 +66,8 @@ EXTRA_SCRIPTS =		make_binary_distribution.sh \
 
 EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			mysqlaccess.conf \
-			mysqlbug
+			mysqlbug \
+			make_win_bin_dist
 
 dist_pkgdata_DATA =		fill_help_tables.sql mysql_fix_privilege_tables.sql
 

@@ -38,6 +38,7 @@ extern "C" int add_history(const char *command); /* From readline directory */
 #include "ndb_mgmclient.hpp"
 
 const char *progname = "ndb_mgm";
+const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
 
 static Ndb_mgmclient* com;
@@ -87,6 +88,8 @@ static void usage()
 {
   short_usage_sub();
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -128,7 +131,6 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   const char *_host = 0;
   int _port = 0;
-  const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
   load_defaults("my",load_default_groups,&argc,&argv);
   int ho_error;
