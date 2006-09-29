@@ -56,15 +56,6 @@ ut_get_high32(
 	return((ulint)i);
 }
 
-/************************************************************
-The following function returns elapsed CPU time in milliseconds. */
-
-ulint
-ut_clock(void)
-{
-	return((clock() * 1000) / CLOCKS_PER_SEC);
-}
-
 /**************************************************************
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime. */
