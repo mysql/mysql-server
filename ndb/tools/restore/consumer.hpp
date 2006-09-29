@@ -31,6 +31,7 @@ public:
   virtual void logEntry(const LogEntry &){}
   virtual void endOfLogEntrys(){}
   virtual bool finalize_table(const TableS &){return true;}
+  virtual bool has_temp_error() {return false;}
 };
 
 #endif

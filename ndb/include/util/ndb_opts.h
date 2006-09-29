@@ -49,7 +49,7 @@ my_bool opt_core;
   { "ndb-connectstring", OPT_NDB_CONNECTSTRING, \
     "Set connect string for connecting to ndb_mgmd. " \
     "Syntax: \"[nodeid=<id>;][host=]<hostname>[:<port>]\". " \
-    "Overides specifying entries in NDB_CONNECTSTRING and Ndb.cfg", \
+    "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf", \
     (gptr*) &opt_connect_str, (gptr*) &opt_connect_str, 0, \
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   { "ndb-shm", OPT_NDB_SHM,\
