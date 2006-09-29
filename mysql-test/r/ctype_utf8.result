@@ -1340,6 +1340,31 @@ select a from t1 group by a;
 a
 e
 drop table t1;
+set names utf8;
+grant select on test.* to юзер_юзер@localhost;
+user()
+юзер_юзер@localhost
+revoke all on test.* from юзер_юзер@localhost;
+drop user юзер_юзер@localhost;
+create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+use имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+select database();
+database()
+имя_базы_в_кодировке_утф8_длиной_больше_чем_45
+drop database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+use test;
+create table t1(a char(10)) default charset utf8;
+insert into t1 values ('123'), ('456');
+explain
+select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Y	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where
+select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
+substr(Z.a,-1)	a
+3	123
+6	456
+drop table t1;
 CREATE TABLE t1(id varchar(20) NOT NULL) DEFAULT CHARSET=utf8;
 INSERT INTO t1 VALUES ('xxx'), ('aa'), ('yyy'), ('aa');
 SELECT id FROM t1;

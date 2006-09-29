@@ -134,48 +134,34 @@ btr_search_validate(void);
 /*======================*/
 				/* out: TRUE if ok */
 
-/* Search info directions */
-#define BTR_SEA_NO_DIRECTION	1
-#define BTR_SEA_LEFT		2
-#define BTR_SEA_RIGHT		3
-#define BTR_SEA_SAME_REC	4
-
 /* The search info struct in an index */
 
 struct btr_search_struct{
-	ulint	magic_n;	/* magic number */
-	/* The following 4 fields are currently not used: */
-	rec_t*	last_search;	/* pointer to the lower limit record of the
-				previous search; NULL if not known */
-	ulint	n_direction;	/* number of consecutive searches in the
-				same direction */
-	ulint	direction;	/* BTR_SEA_NO_DIRECTION, BTR_SEA_LEFT,
-				BTR_SEA_RIGHT, BTR_SEA_SAME_REC,
-				or BTR_SEA_SAME_PAGE */
-	dulint	modify_clock;	/* value of modify clock at the time
-				last_search was stored */
-	/*----------------------*/
-	/* The following 4 fields are not protected by any latch: */
+	/* The following fields are not protected by any latch.
+	Unfortunately, this means that they must be aligned to
+	the machine word, i.e., they cannot be turned into bit-fields. */
 	page_t*	root_guess;	/* the root page frame when it was last time
 				fetched, or NULL */
-	ulint	hash_analysis;	/* when this exceeds a certain value, the
-				hash analysis starts; this is reset if no
+	ulint	hash_analysis;	/* when this exceeds BTR_SEARCH_HASH_ANALYSIS,
+				the hash analysis starts; this is reset if no
 				success noticed */
 	ibool	last_hash_succ;	/* TRUE if the last search would have
 				succeeded, or did succeed, using the hash
 				index; NOTE that the value here is not exact:
 				it is not calculated for every search, and the
 				calculation itself is not always accurate! */
-	ulint	n_hash_potential;/* number of consecutive searches which would
-				have succeeded, or did succeed, using the hash
-				index */
+	ulint	n_hash_potential;
+				/* number of consecutive searches
+				which would have succeeded, or did succeed,
+				using the hash index;
+				the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5 */
 	/*----------------------*/
 	ulint	n_fields;	/* recommended prefix length for hash search:
 				number of full fields */
 	ulint	n_bytes;	/* recommended prefix: number of bytes in
-				an incomplete field */
-	ulint	side;		/* BTR_SEARCH_LEFT_SIDE or
-				BTR_SEARCH_RIGHT_SIDE, depending on whether
+				an incomplete field;
+				cf. BTR_PAGE_MAX_REC_SIZE */
+	ibool	left_side;	/* TRUE or FALSE, depending on whether
 				the leftmost record of several records with
 				the same prefix should be indexed in the
 				hash index */
@@ -188,9 +174,11 @@ struct btr_search_struct{
 				far */
 	ulint	n_searches;	/* number of searches */
 #endif /* UNIV_SEARCH_PERF_STAT */
+#ifdef UNIV_DEBUG
+	ulint	magic_n;	/* magic number */
+# define BTR_SEARCH_MAGIC_N	1112765
+#endif /* UNIV_DEBUG */
 };
-
-#define BTR_SEARCH_MAGIC_N	1112765
 
 /* The hash index system */
 
@@ -228,9 +216,6 @@ before starting the hash analysis again: this is to save CPU time when there
 is no hope in building a hash index. */
 
 #define BTR_SEARCH_HASH_ANALYSIS	17
-
-#define BTR_SEARCH_LEFT_SIDE	1
-#define BTR_SEARCH_RIGHT_SIDE	2
 
 /* Limit of consecutive searches for trying a search shortcut on the search
 pattern */

@@ -42,8 +42,5 @@ rpl_multi_engine         : BUG#22583 2006-09-23 lars
 #rpl_ndb_idempotent       : BUG#21298 2006-07-27 msvensson
 #rpl_row_basic_7ndb       : BUG#21298 2006-07-27 msvensson
 #rpl_truncate_7ndb        : BUG#21298 2006-07-27 msvensson
-crash_commit_before      : 2006-08-02 msvensson
-func_group               : BUG#21924 2006-08-30 reggie
-func_in                  : BUG#21925 2006-08-30 reggie
 ndb_binlog_discover      : bug#21806 2006-08-24
 ndb_autodiscover3        : bug#21806
