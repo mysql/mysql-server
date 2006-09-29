@@ -2996,5 +2996,32 @@ SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
   WHERE t1.id=2;
 
-
 DROP TABLE t1,t2,t3;
+
+#
+# Bug #22735: no equality propagation for BETWEEN and IN with STRING arguments
+#
+
+CREATE TABLE t1 (pk varchar(10) PRIMARY KEY, fk varchar(16));
+CREATE TABLE t2 (pk varchar(16) PRIMARY KEY, fk varchar(10));
+
+INSERT INTO t1 VALUES
+  ('d','dddd'), ('i','iii'), ('a','aa'), ('b','bb'), ('g','gg'), 
+  ('e','eee'), ('c','cccc'), ('h','hhh'), ('j','jjj'), ('f','fff');
+INSERT INTO t2 VALUES
+  ('jjj', 'j'), ('cc','c'), ('ccc','c'), ('aaa', 'a'), ('jjjj','j'),
+  ('hhh','h'), ('gg','g'), ('fff','f'), ('ee','e'), ('ffff','f'),
+  ('bbb','b'), ('ff','f'), ('cccc','c'), ('dddd','d'), ('jj','j'),
+  ('aaaa','a'), ('bb','b'), ('eeee','e'), ('aa','a'), ('hh','h');
+
+EXPLAIN SELECT t2.* 
+  FROM t1 JOIN t2 ON t2.fk=t1.pk
+    WHERE t2.fk < 'c' AND t2.pk=t1.fk;
+EXPLAIN SELECT t2.* 
+  FROM t1 JOIN t2 ON t2.fk=t1.pk 
+    WHERE t2.fk BETWEEN 'a' AND 'b' AND t2.pk=t1.fk;
+EXPLAIN SELECT t2.* 
+  FROM t1 JOIN t2 ON t2.fk=t1.pk 
+    WHERE t2.fk IN ('a','b') AND t2.pk=t1.fk;
+
+DROP TABLE t1,t2;
