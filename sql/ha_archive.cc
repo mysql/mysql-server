@@ -206,7 +206,17 @@ bool archive_db_init()
   else
   {
     zoffset_size= 2 << ((zlibCompileFlags() >> 6) & 3);
-    max_zfile_size= (z_off_t) (~(1 << (zoffset_size * 8 - 1)));
+    switch (sizeof(z_off_t)) {
+    case 2:
+      max_zfile_size= INT_MAX16;
+      break;
+    case 8:
+      max_zfile_size= LONGLONG_MAX;
+      break;
+    case 4:
+    default:
+      max_zfile_size= INT_MAX32;
+    }
     archive_inited= TRUE;
     DBUG_RETURN(FALSE);
   }
