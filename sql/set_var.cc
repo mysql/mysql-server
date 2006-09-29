@@ -1255,8 +1255,8 @@ static void fix_tx_isolation(THD *thd, enum_var_type type)
 				thd->variables.tx_isolation);
 }
 
-static void fix_completion_type(THD *thd __attribute__(unused),
-				enum_var_type type __attribute__(unused)) {}
+static void fix_completion_type(THD *thd __attribute__((unused)),
+				enum_var_type type __attribute__((unused))) {}
 
 static int check_completion_type(THD *thd, set_var *var)
 {
