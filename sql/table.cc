@@ -2257,7 +2257,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 bool check_db_name(char *name)
 {
-  uint name_length= 0;  // name length in symbols
+  char *start= name;
   /* Used to catch empty names and names with end space */
   bool last_char_is_space= TRUE;
 
@@ -2277,15 +2277,13 @@ bool check_db_name(char *name)
         name += len;
         continue;
       }
-    name_length++;
     }
 #else
     last_char_is_space= *name==' ';
 #endif
-    name_length++;
     name++;
   }
-  return last_char_is_space || name_length > NAME_LEN;
+  return last_char_is_space || (uint) (name - start) > NAME_LEN;
 }
 
 
