@@ -411,6 +411,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   table= table_list->table;
 
   context= &thd->lex->select_lex.context;
+  /*
+    These three asserts test the hypothesis that the resetting of the name
+    resolution context below is not necessary at all since the list of local
+    tables for INSERT always consists of one table.
+  */
+  DBUG_ASSERT(!table_list->next_local);
+  DBUG_ASSERT(!context->table_list->next_local);
+  DBUG_ASSERT(!context->first_name_resolution_table->next_name_resolution_table);
+
   /* Save the state of the current name resolution context. */
   ctx_state.save_state(context, table_list);
 
@@ -993,7 +1002,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(TRUE);
     }
-    select_lex->fix_prepare_information(thd, &fake_conds);
+    select_lex->fix_prepare_information(thd, &fake_conds, &fake_conds);
     select_lex->first_execution= 0;
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
