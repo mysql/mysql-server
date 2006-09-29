@@ -6258,6 +6258,32 @@ SELECT * FROM t11|
 DROP TABLE t11, t12|
 DROP FUNCTION bug19862|
 
+
+# Bug#21002 "Derived table not selecting from a "real" table fails in JOINs"
+#         
+# A regression caused by the fix for Bug#18444: for derived tables we should
+# set an empty string as the current database. They do not belong to any
+# database and must be usable even if there is no database
+# selected.
+--disable_warnings
+drop table if exists t3|
+drop database if exists mysqltest1|
+--enable_warnings
+create table t3 (a int)|
+insert into t3 (a) values (1), (2)|
+
+create database mysqltest1|
+use mysqltest1|
+drop database mysqltest1|
+
+# No current database
+select database()|
+
+select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
+use test|
+drop table t3|
+
+
 # Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
 #
 # Prepare.
@@ -6325,25 +6351,6 @@ INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_да
 call това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго()|
 drop database това_е_дълго_име_за_база_данни_нали|
 
-
-#
-# BUG#21414: SP: Procedure undroppable, to some extent
-#
---disable_warnings
-DROP PROCEDURE IF EXISTS bug21414|
---enable_warnings
-
-CREATE PROCEDURE bug21414() SELECT 1|
-
-FLUSH TABLES WITH READ LOCK|
-
---error ER_CANT_UPDATE_WITH_READLOCK
-DROP PROCEDURE bug21414|
-
-UNLOCK TABLES|
-
---echo The following should succeed.
-DROP PROCEDURE bug21414|
 
 #
 # BUG#21493: Crash on the second call of a procedure containing
