@@ -979,6 +979,45 @@ btr_cur_trx_report(
 #endif /* UNIV_DEBUG */
 
 /*****************************************************************
+Add the numbers of externally stored fields from big_rec to ext[]. */
+static
+const ulint*
+btr_cur_add_ext(
+/*============*/
+	const ulint*	ext,	/* in: numbers of externally stored fields
+				so far */
+	ulint*		n_ext,	/* in: number of externally stored fields
+				so far */
+	const big_rec_t*big_rec,/* in: additional externally stored fields */
+	mem_heap_t**	heap)	/* out: memory heap */
+{
+	ulint	n_old_ext = *n_ext;
+	ulint	n_more_ext = big_rec->n_fields;
+	ulint*	more_ext;
+	ulint	i;
+
+	ut_ad(n_more_ext);
+	*n_ext += n_more_ext;
+
+	if (!*heap) {
+		*heap = mem_heap_create(*n_ext * sizeof(ulint) * 2);
+	}
+	more_ext = mem_heap_alloc(*heap, *n_ext * sizeof(ulint) * 2);
+
+	if (n_old_ext) {
+		memcpy(more_ext, ext, n_old_ext * sizeof(ulint));
+	}
+
+	for (i = 0; i < n_more_ext; i++) {
+		more_ext[n_old_ext++] = big_rec->fields[i].field_no;
+	}
+
+	ut_ulint_sort(more_ext, more_ext + *n_ext, 0, *n_ext);
+
+	return(more_ext);
+}
+
+/*****************************************************************
 Tries to perform an insert to a page in an index tree, next to cursor.
 It is assumed that mtr holds an x-latch on the page. The operation does
 not succeed if there is too little space on the page. If there is just
@@ -1044,7 +1083,7 @@ btr_cur_optimistic_insert(
 	level = btr_page_get_level(page, mtr);
 
 	/* Calculate the record size when entry is converted to a record */
-	rec_size = rec_get_converted_size(index, entry);
+	rec_size = rec_get_converted_size(index, entry, ext, n_ext);
 
 	if (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
 				   page_zip ? page_zip->size : 0)) {
@@ -1054,19 +1093,6 @@ btr_cur_optimistic_insert(
 		big_rec_vec = dtuple_convert_big_rec(index, entry, ext, n_ext);
 
 		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
-
-			return(DB_TOO_BIG_RECORD);
-		}
-
-		rec_size = rec_get_converted_size(index, entry);
-		if (UNIV_UNLIKELY
-		    (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
-					    page_zip ? page_zip->size : 0))) {
-
-			/* This should never happen, but we handle
-			the situation in a robust manner. */
-			ut_ad(0);
-			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
 
 			return(DB_TOO_BIG_RECORD);
 		}
@@ -1117,22 +1143,7 @@ fail:
 
 	/* Add externally stored records, if needed */
 	if (UNIV_LIKELY_NULL(big_rec_vec)) {
-		ulint	n_more_ext = big_rec_vec->n_fields;
-		ulint*	more_ext;
-		ulint	i;
-
-		heap = mem_heap_create((n_more_ext + n_ext) * sizeof(ulint));
-		more_ext = mem_heap_alloc(
-			heap, (n_more_ext + n_ext) * sizeof(ulint));
-		if (n_ext) {
-			memcpy(more_ext, ext, n_ext * sizeof(ulint));
-		}
-
-		for (i = 0; i < n_more_ext; i++) {
-			more_ext[n_ext++] = big_rec_vec->fields[i].field_no;
-		}
-
-		ext = more_ext;
+		ext = btr_cur_add_ext(ext, &n_ext, big_rec_vec, &heap);
 	}
 
 	/* Now, try the insert */
@@ -1296,7 +1307,8 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry),
+	if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry,
+							  ext, n_ext),
 				   page_is_comp(page), zip_size)) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
@@ -1322,22 +1334,7 @@ btr_cur_pessimistic_insert(
 
 	/* Add externally stored records, if needed */
 	if (UNIV_LIKELY_NULL(big_rec_vec)) {
-		ulint	n_more_ext = big_rec_vec->n_fields;
-		ulint*	more_ext;
-		ulint	i;
-
-		heap = mem_heap_create((n_more_ext + n_ext) * sizeof(ulint));
-		more_ext = mem_heap_alloc(
-			heap, (n_more_ext + n_ext) * sizeof(ulint));
-		if (n_ext) {
-			memcpy(more_ext, ext, n_ext * sizeof(ulint));
-		}
-
-		for (i = 0; i < n_more_ext; i++) {
-			more_ext[n_ext++] = big_rec_vec->fields[i].field_no;
-		}
-
-		ext = more_ext;
+		ext = btr_cur_add_ext(ext, &n_ext, big_rec_vec, &heap);
 	}
 
 	if (UNIV_UNLIKELY(zip_size)) {
@@ -1345,7 +1342,8 @@ btr_cur_pessimistic_insert(
 		ulint	free_space_zip = page_zip_empty_size(
 			cursor->index->n_fields, zip_size);
 
-		if (UNIV_UNLIKELY(rec_get_converted_size(index, entry)
+		if (UNIV_UNLIKELY(rec_get_converted_size(index, entry,
+							 ext, n_ext)
 				  > free_space_zip)) {
 			/* Try to insert the record by itself on a new page.
 			If it fails, no amount of splitting will help. */
@@ -1817,7 +1815,7 @@ btr_cur_optimistic_update(
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, NULL);
 	old_rec_size = rec_offs_size(offsets);
-	new_rec_size = rec_get_converted_size(index, new_entry);
+	new_rec_size = rec_get_converted_size(index, new_entry, NULL, 0);
 
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
 #ifdef UNIV_ZIP_DEBUG
@@ -2101,31 +2099,28 @@ btr_cur_pessimistic_update(
 	/* We have to set appropriate extern storage bits in the new
 	record to be inserted: we have to remember which fields were such */
 
-	ext_vect = mem_heap_alloc(heap, sizeof(ulint)
+	ext_vect = mem_heap_alloc(heap, sizeof(ulint) * 2
 				  * dict_index_get_n_fields(index));
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, &heap);
 	n_ext_vect = btr_push_update_extern_fields(ext_vect, offsets, update);
 
-	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry),
+	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry,
+							  ext_vect,
+							  n_ext_vect),
 				   page_is_comp(page),
 				   page_zip ? page_zip->size : 0)) {
-		ulint	i;
-
 		big_rec_vec = dtuple_convert_big_rec(index, new_entry,
 						     ext_vect, n_ext_vect);
-		if (big_rec_vec == NULL) {
+		if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
 
 			err = DB_TOO_BIG_RECORD;
 			goto return_after_reservations;
 		}
 
-		/* Add the externally stored records. */
-		for (i = 0; i < big_rec_vec->n_fields; i++) {
-			ext_vect[n_ext_vect++]
-				= big_rec_vec->fields[i].field_no;
-		}
+		ext_vect = (ulint*) btr_cur_add_ext(ext_vect, &n_ext_vect,
+						    big_rec_vec, &heap);
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -3493,8 +3488,9 @@ ulint
 btr_push_update_extern_fields(
 /*==========================*/
 				/* out: number of values stored in ext_vect */
-	ulint*		ext_vect,/* in: array of ulints, must be preallocated
-				to have space for all fields in rec */
+	ulint*		ext_vect,/* out: array of ulints, must be preallocated
+				to have twice the space for all fields
+				in rec */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	upd_t*		update)	/* in: update vector or NULL */
 {
@@ -3542,6 +3538,8 @@ is_updated:
 			;
 		}
 	}
+
+	ut_ulint_sort(ext_vect, ext_vect + n_pushed, 0, n_pushed);
 
 	return(n_pushed);
 }

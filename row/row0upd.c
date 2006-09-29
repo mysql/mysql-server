@@ -1275,7 +1275,7 @@ row_upd_store_row(
 			      &node->ext, node->heap);
 	if (UNIV_LIKELY_NULL(node->ext)) {
 		node->ext_vec = mem_heap_alloc(node->heap, sizeof(ulint)
-					       * node->ext->n_ext);
+					       * 2 * node->ext->n_ext);
 		node->n_ext_vec = btr_push_update_extern_fields(
 			node->ext_vec, offsets,
 			node->is_delete ? NULL : node->update);
@@ -1610,7 +1610,7 @@ row_upd_clust_rec(
 			index, rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
-			 big_rec, mtr);
+			big_rec, mtr);
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}

@@ -516,7 +516,7 @@ dtuple_convert_big_rec(
 
 	ut_a(dtuple_check_typed_no_assert(entry));
 
-	size = rec_get_converted_size(index, entry);
+	size = rec_get_converted_size(index, entry, ext_vec, n_ext_vec);
 
 	if (UNIV_UNLIKELY(size > 1000000000)) {
 		fprintf(stderr,
@@ -542,7 +542,9 @@ dtuple_convert_big_rec(
 
 	n_fields = 0;
 
-	while (page_zip_rec_needs_ext(rec_get_converted_size(index, entry),
+	while (page_zip_rec_needs_ext(rec_get_converted_size(index, entry,
+							     ext_vec,
+							     n_ext_vec),
 				      dict_table_is_comp(index->table),
 				      dict_table_zip_size(index->table))) {
 		ulint	i;
@@ -560,12 +562,11 @@ dtuple_convert_big_rec(
 
 			if (ifield->fixed_len
 			    || dfield->len == UNIV_SQL_NULL
-			    || dfield->len <= REC_1BYTE_OFFS_LIMIT + 1) {
+			    || dfield->len <= BTR_EXTERN_FIELD_REF_SIZE * 2) {
 				goto skip_field;
 			}
 
-			savings = dfield->len - (REC_1BYTE_OFFS_LIMIT + 1
-						 - BTR_EXTERN_FIELD_REF_SIZE);
+			savings = dfield->len - BTR_EXTERN_FIELD_REF_SIZE;
 
 			/* Check that there would be savings */
 			if (longest >= savings) {
@@ -609,26 +610,14 @@ skip_field:
 		ifield = dict_index_get_nth_field(index, longest_i);
 		vector->fields[n_fields].field_no = longest_i;
 
-		vector->fields[n_fields].len
-			= dfield->len - (REC_1BYTE_OFFS_LIMIT + 1
-					 - BTR_EXTERN_FIELD_REF_SIZE);
+		vector->fields[n_fields].len = dfield->len;
 
-		vector->fields[n_fields].data
-			= mem_heap_alloc(heap, vector->fields[n_fields].len);
-
-		/* Copy data (from the end of field) to big rec vector */
-
-		memcpy(vector->fields[n_fields].data,
-		       ((byte*)dfield->data) + dfield->len
-		       - vector->fields[n_fields].len,
-		       vector->fields[n_fields].len);
-		dfield->len -= vector->fields[n_fields].len
-			- BTR_EXTERN_FIELD_REF_SIZE;
+		vector->fields[n_fields].data = dfield->data;
 
 		/* Set the extern field reference in dfield to zero */
-		memset(((byte*)dfield->data)
-		       + dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
-		       0, BTR_EXTERN_FIELD_REF_SIZE);
+		dfield->len = BTR_EXTERN_FIELD_REF_SIZE;
+		dfield->data = mem_heap_alloc(heap, BTR_EXTERN_FIELD_REF_SIZE);
+		memset(dfield->data, 0, BTR_EXTERN_FIELD_REF_SIZE);
 		n_fields++;
 		ut_ad(n_fields < dtuple_get_n_fields(entry));
 	}
@@ -657,13 +646,8 @@ dtuple_convert_back_big_rec(
 
 		dfield = dtuple_get_nth_field(entry,
 					      vector->fields[i].field_no);
-		/* Copy data from big rec vector */
-
-		memcpy((byte*) dfield->data
-		       + dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
-		       vector->fields[i].data, vector->fields[i].len);
-		dfield->len += vector->fields[i].len
-			- BTR_EXTERN_FIELD_REF_SIZE;
+		dfield->data = vector->fields[i].data;
+		dfield->len = vector->fields[i].len;
 	}
 
 	mem_heap_free(vector->heap);
