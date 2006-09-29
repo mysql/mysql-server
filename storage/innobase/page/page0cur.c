@@ -259,11 +259,11 @@ page_cur_search_with_match(
 	    && (page_header_get_ptr(page, PAGE_LAST_INSERT))
 	    && (page_header_get_field(page, PAGE_DIRECTION) == PAGE_RIGHT)) {
 
-		if (page_cur_try_search_shortcut
-		    (page, index, tuple,
-		     iup_matched_fields, iup_matched_bytes,
-		     ilow_matched_fields, ilow_matched_bytes,
-		     cursor)) {
+		if (page_cur_try_search_shortcut(
+			    page, index, tuple,
+			    iup_matched_fields, iup_matched_bytes,
+			    ilow_matched_fields, ilow_matched_bytes,
+			    cursor)) {
 			return;
 		}
 	}
@@ -326,8 +326,9 @@ low_slot_match:
 		} else if (UNIV_EXPECT(cmp, -1)) {
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
-			    && page_cur_rec_field_extends
-			    (tuple, mid_rec, offsets, cur_matched_fields)) {
+			    && page_cur_rec_field_extends(
+				    tuple, mid_rec, offsets,
+				    cur_matched_fields)) {
 
 				goto low_slot_match;
 			}
@@ -382,8 +383,9 @@ low_rec_match:
 		} else if (UNIV_EXPECT(cmp, -1)) {
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
-			    && page_cur_rec_field_extends
-			    (tuple, mid_rec, offsets, cur_matched_fields)) {
+			    && page_cur_rec_field_extends(
+				    tuple, mid_rec, offsets,
+				    cur_matched_fields)) {
 
 				goto low_rec_match;
 			}
@@ -645,9 +647,9 @@ page_cur_insert_rec_write_log(
 					 + extra_info_yes);
 	if (extra_info_yes) {
 		/* Write the info bits */
-		mach_write_to_1
-			(log_ptr,
-			 rec_get_info_and_status_bits(insert_rec, comp));
+		mach_write_to_1(log_ptr,
+				rec_get_info_and_status_bits(insert_rec,
+							     comp));
 		log_ptr++;
 
 		/* Write the record origin offset */
@@ -796,8 +798,8 @@ page_cur_parse_insert_rec(
 				  ULINT_UNDEFINED, &heap);
 
 	if (extra_info_yes == 0) {
-		info_and_status_bits = rec_get_info_and_status_bits
-			(cursor_rec, page_is_comp(page));
+		info_and_status_bits = rec_get_info_and_status_bits(
+			cursor_rec, page_is_comp(page));
 		origin_offset = rec_offs_extra_size(offsets);
 		mismatch_index = rec_offs_size(offsets) - end_seg_len;
 	}
@@ -975,8 +977,8 @@ page_cur_insert_rec_low(
 
 		page_header_set_field(page, PAGE_DIRECTION, PAGE_RIGHT);
 		page_header_set_field(page, PAGE_N_DIRECTION,
-				      page_header_get_field
-				      (page, PAGE_N_DIRECTION) + 1);
+				      page_header_get_field(
+					      page, PAGE_N_DIRECTION) + 1);
 
 	} else if ((page_rec_get_next(insert_rec) == last_insert)
 		   && (page_header_get_field(page, PAGE_DIRECTION)
@@ -984,8 +986,8 @@ page_cur_insert_rec_low(
 
 		page_header_set_field(page, PAGE_DIRECTION, PAGE_LEFT);
 		page_header_set_field(page, PAGE_N_DIRECTION,
-				      page_header_get_field
-				      (page, PAGE_N_DIRECTION) + 1);
+				      page_header_get_field(
+					      page, PAGE_N_DIRECTION) + 1);
 	} else {
 		page_header_set_field(page, PAGE_DIRECTION, PAGE_NO_DIRECTION);
 		page_header_set_field(page, PAGE_N_DIRECTION, 0);
@@ -1278,7 +1280,7 @@ page_cur_delete_rec_write_log(
 	}
 
 	/* Write the cursor rec offset as a 2-byte ulint */
-	mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
+	mach_write_to_2(log_ptr, page_offset(rec));
 
 	mlog_close(mtr, log_ptr + 2);
 }
