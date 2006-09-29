@@ -8877,7 +8877,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     case  3: sql_type= FIELD_TYPE_MEDIUM_BLOB; break;
     default: sql_type= FIELD_TYPE_LONG_BLOB; break;
     }
-    length=(length+charset->mbmaxlen-1) / charset->mbmaxlen;
+    length/= charset->mbmaxlen;
     key_length/= charset->mbmaxlen;
     break;
   case MYSQL_TYPE_STRING:
