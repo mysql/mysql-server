@@ -1497,9 +1497,10 @@ rec_get_converted_extra_size(
 /*=========================*/
 				/* out: extra size */
 	ulint	data_size,	/* in: data size */
-	ulint	n_fields)	/* in: number of fields */
+	ulint	n_fields,	/* in: number of fields */
+	ulint	n_ext)		/* in: number of externally stored columns */
 {
-	if (data_size <= REC_1BYTE_OFFS_LIMIT) {
+	if (!n_ext && data_size <= REC_1BYTE_OFFS_LIMIT) {
 
 		return(REC_N_OLD_EXTRA_BYTES + n_fields);
 	}
@@ -1516,7 +1517,9 @@ rec_get_converted_size_new(
 /*=======================*/
 				/* out: size */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple);/* in: data tuple */
+	dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext);	/* in: number of elements in ext */
 /**************************************************************
 The following function returns the size of a data tuple when converted to
 a physical record. */
@@ -1526,7 +1529,9 @@ rec_get_converted_size(
 /*===================*/
 				/* out: size */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple)	/* in: data tuple */
+	dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext)	/* in: number of elements in ext */
 {
 	ulint	data_size;
 	ulint	extra_size;
@@ -1543,13 +1548,13 @@ rec_get_converted_size(
 		  : dict_index_get_n_fields(index)));
 
 	if (dict_table_is_comp(index->table)) {
-		return(rec_get_converted_size_new(index, dtuple));
+		return(rec_get_converted_size_new(index, dtuple, ext, n_ext));
 	}
 
 	data_size = dtuple_get_data_size(dtuple);
 
 	extra_size = rec_get_converted_extra_size(
-		data_size, dtuple_get_n_fields(dtuple));
+		data_size, dtuple_get_n_fields(dtuple), n_ext);
 
 	return(data_size + extra_size);
 }

@@ -832,8 +832,7 @@ page_zip_compress_clust(
 			} else if (rec_offs_nth_extern(offsets, i)) {
 				src = rec_get_nth_field(rec, offsets, i, &len);
 				ut_ad(dict_index_is_clust(index));
-				ut_ad(len
-				      >= BTR_EXTERN_FIELD_REF_SIZE);
+				ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 				src += len - BTR_EXTERN_FIELD_REF_SIZE;
 
 				c_stream->avail_in = src
@@ -1601,7 +1600,8 @@ page_zip_apply_log(
 				} else if (rec_offs_nth_extern(offsets, i)) {
 					dst = rec_get_nth_field(rec, offsets,
 								i, &len);
-					ut_ad(len > BTR_EXTERN_FIELD_REF_SIZE);
+					ut_ad(len
+					      >= BTR_EXTERN_FIELD_REF_SIZE);
 
 					len += dst - next_out
 						- BTR_EXTERN_FIELD_REF_SIZE;
@@ -2021,7 +2021,7 @@ page_zip_decompress_clust(
 					+ DATA_ROLL_PTR_LEN;
 			} else if (rec_offs_nth_extern(offsets, i)) {
 				dst = rec_get_nth_field(rec, offsets, i, &len);
-				ut_ad(len > BTR_EXTERN_FIELD_REF_SIZE);
+				ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 				dst += len - BTR_EXTERN_FIELD_REF_SIZE;
 
 				d_stream->avail_out = dst - d_stream->next_out;

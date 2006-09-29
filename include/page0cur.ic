@@ -185,12 +185,13 @@ page_cur_tuple_insert(
 	dtuple_t*	tuple,	/* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in vec */
+	ulint		n_ext,	/* in: number of elements in ext */
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
 	mem_heap_t*	heap;
 	ulint*		offsets;
-	ulint		size	= rec_get_converted_size(index, tuple);
+	ulint		size
+		= rec_get_converted_size(index, tuple, ext, n_ext);
 	rec_t*		rec;
 
 	heap = mem_heap_create(size
@@ -198,11 +199,11 @@ page_cur_tuple_insert(
 				  + dtuple_get_n_fields(tuple))
 			       * sizeof *offsets);
 	rec = rec_convert_dtuple_to_rec(mem_heap_alloc(heap, size),
-					index, tuple);
+					index, tuple, ext, n_ext);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
 	rec = page_cur_insert_rec_low(cursor, page_zip,
-				      index, rec, offsets, ext, n_ext, mtr);
+				      index, rec, offsets, mtr);
 	mem_heap_free(heap);
 	return(rec);
 }
@@ -225,6 +226,6 @@ page_cur_rec_insert(
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
 	return(page_cur_insert_rec_low(cursor, page_zip,
-				       index, rec, offsets, NULL, 0, mtr));
+				       index, rec, offsets, mtr));
 }
 

@@ -542,8 +542,9 @@ ulint
 btr_push_update_extern_fields(
 /*==========================*/
 				/* out: number of values stored in ext_vect */
-	ulint*		ext_vect,/* in: array of ulints, must be preallocated
-				to have space for all fields in rec */
+	ulint*		ext_vect,/* out: array of ulints, must be preallocated
+				to have twice the space for all fields
+				in rec */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	upd_t*		update);/* in: update vector or NULL */
 

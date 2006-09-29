@@ -624,11 +624,14 @@ rec_get_converted_size_new(
 /*=======================*/
 				/* out: size */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple)	/* in: data tuple */
+	dtuple_t*	dtuple,
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext)	/* in: number of elements in ext */
 {
 	ulint		size		= REC_N_NEW_EXTRA_BYTES
 		+ (index->n_nullable + 7) / 8;
 	ulint		i;
+	ulint		j;
 	ulint		n_fields;
 	ut_ad(index && dtuple);
 	ut_ad(dict_table_is_comp(index->table));
@@ -649,12 +652,12 @@ rec_get_converted_size_new(
 		/* infimum or supremum record, 8 bytes */
 		return(size + 8); /* no extra data needed */
 	default:
-		ut_a(0);
+		ut_error;
 		return(ULINT_UNDEFINED);
 	}
 
 	/* read the lengths of fields 0..n */
-	for (i = 0; i < n_fields; i++) {
+	for (i = j = 0; i < n_fields; i++) {
 		dict_field_t*		field;
 		ulint			len;
 		const dict_col_t*	col;
@@ -674,6 +677,9 @@ rec_get_converted_size_new(
 		ut_ad(!field->fixed_len || len == field->fixed_len);
 
 		if (field->fixed_len) {
+		} else if (UNIV_UNLIKELY(j < n_ext) && i == ext[j]) {
+			j++;
+			size += 2;
 		} else if (len < 128
 			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
 			size++;
@@ -682,6 +688,8 @@ rec_get_converted_size_new(
 		}
 		size += len;
 	}
+
+	ut_ad(j == n_ext);
 
 	return(size);
 }
@@ -724,162 +732,6 @@ rec_set_nth_field_null_bit(
 	rec_2_set_field_end_info(rec, i, info);
 }
 
-/**********************************************************
-Sets the extern bit in nth field of rec. */
-UNIV_INLINE
-void
-rec_offs_set_nth_extern(
-/*====================*/
-	ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint	n)	/* in: nth field */
-{
-	rec_offs_base(offsets)[1 + n] |= REC_OFFS_EXTERNAL;
-}
-
-/***************************************************************
-Sets the ith field extern storage bit of an old-style record. */
-static
-void
-rec_set_nth_field_extern_bit_old(
-/*=============================*/
-	rec_t*	rec,	/* in: old-style record */
-	ulint	i)	/* in: ith field */
-{
-	ulint	info;
-
-	ut_a(i < rec_get_n_fields_old(rec));
-
-	info = rec_2_get_field_end_info(rec, i);
-
-	info |= REC_2BYTE_EXTERN_MASK;
-
-	rec_2_set_field_end_info(rec, i, info);
-}
-
-/***************************************************************
-Sets the extern storage bits of a new-style record. */
-static
-void
-rec_set_field_extern_bits_new(
-/*==========================*/
-	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in/out: rec_get_offsets(rec, index),
-				or NULL */
-	const ulint*	ext,	/* in: array of field numbers */
-	ulint		n_ext)	/* in: number of elements in ext */
-{
-	byte*		nulls	= rec - (REC_N_NEW_EXTRA_BYTES + 1);
-	byte*		lens	= nulls - (index->n_nullable + 7) / 8;
-	ulint		i;
-	ulint		n_fields;
-	ulint		null_mask	= 1;
-	ut_ad(rec && index);
-	ut_ad(dict_table_is_comp(index->table));
-	ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
-
-	n_fields = dict_index_get_n_fields(index);
-
-	ut_ad(n_ext <= n_fields);
-	ut_ad(n_ext);
-
-	/* read the lengths of fields 0..n */
-	for (i = 0; i < n_fields; i++) {
-		ibool			flag_external = FALSE;
-		const dict_field_t*	field;
-		const dict_col_t*	col;
-
-		{
-			ulint	j = 0;
-			do {
-				ut_ad(ext[j] < n_fields);
-				flag_external = (i == ext[j++]);
-			} while (!flag_external && j < n_ext);
-		}
-
-		field = dict_index_get_nth_field(index, i);
-		col = dict_field_get_col(field);
-
-		if (!(col->prtype & DATA_NOT_NULL)) {
-			if (UNIV_UNLIKELY(!(byte) null_mask)) {
-				nulls--;
-				null_mask = 1;
-			}
-
-			if (*nulls & null_mask) {
-				null_mask <<= 1;
-				/* NULL fields cannot be external. */
-				ut_ad(!flag_external);
-				continue;
-			}
-
-			null_mask <<= 1;
-		}
-		if (field->fixed_len) {
-			/* fixed-length fields cannot be external
-			(Fixed-length fields longer than
-			DICT_MAX_INDEX_COL_LEN will be treated as
-			variable-length ones in dict_index_add_col().) */
-			ut_ad(!flag_external);
-			continue;
-		}
-		lens--;
-		if (col->len > 255 || col->mtype == DATA_BLOB) {
-			ulint	len = lens[1];
-			if (len & 0x80) { /* 1exxxxxx: 2-byte length */
-				if (flag_external) {
-					/* set the extern bit */
-					len |= 0x40;
-					lens[1] = (byte) len;
-					if (offsets) {
-						rec_offs_set_nth_extern(
-							offsets, i);
-					}
-				}
-				lens--;
-			} else {
-				/* short fields cannot be external */
-				ut_ad(!flag_external);
-			}
-		} else {
-			/* short fields cannot be external */
-			ut_ad(!flag_external);
-		}
-	}
-}
-
-/***************************************************************
-Sets TRUE the extern storage bits of fields mentioned in an array. */
-
-void
-rec_set_field_extern_bits(
-/*======================*/
-	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in/out: rec_get_offsets(rec, index),
-				or NULL */
-	const ulint*	vec,	/* in: array of field numbers */
-	ulint		n_fields)/* in: number of fields numbers */
-{
-	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
-
-	if (dict_table_is_comp(index->table)) {
-		rec_set_field_extern_bits_new(rec, index, offsets,
-					      vec, n_fields);
-	} else {
-		ulint	i;
-
-		ut_a(!rec_get_1byte_offs_flag(rec));
-
-		for (i = 0; i < n_fields; i++) {
-			rec_set_nth_field_extern_bit_old(rec, vec[i]);
-			if (offsets) {
-				rec_offs_set_nth_extern(offsets, vec[i]);
-			}
-		}
-	}
-}
-
 /***************************************************************
 Sets an old-style record field to SQL null.
 The physical size of the field is not changed. */
@@ -906,10 +758,13 @@ static
 rec_t*
 rec_convert_dtuple_to_rec_old(
 /*==========================*/
-			/* out: pointer to the origin of
-			physical record */
-	byte*	buf,	/* in: start address of the physical record */
-	dtuple_t* dtuple)/* in: data tuple */
+				/* out: pointer to the origin of
+				physical record */
+	byte*		buf,	/* in: start address of the physical record */
+	dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers,
+				in ascending order */
+	ulint		n_ext)	/* in: number of externally stored columns */
 {
 	dfield_t*	field;
 	ulint		n_fields;
@@ -932,7 +787,7 @@ rec_convert_dtuple_to_rec_old(
 
 	/* Calculate the offset of the origin in the physical record */
 
-	rec = buf + rec_get_converted_extra_size(data_size, n_fields);
+	rec = buf + rec_get_converted_extra_size(data_size, n_fields, n_ext);
 #ifdef UNIV_DEBUG
 	/* Suppress Valgrind warnings of ut_ad()
 	in mach_write_to_1(), mach_write_to_2() et al. */
@@ -949,7 +804,7 @@ rec_convert_dtuple_to_rec_old(
 
 	end_offset = 0;
 
-	if (data_size <= REC_1BYTE_OFFS_LIMIT) {
+	if (!n_ext && data_size <= REC_1BYTE_OFFS_LIMIT) {
 
 		rec_set_1byte_offs_flag(rec, TRUE);
 
@@ -979,9 +834,11 @@ rec_convert_dtuple_to_rec_old(
 			rec_1_set_field_end_info(rec, i, ored_offset);
 		}
 	} else {
+		ulint	j;
+
 		rec_set_1byte_offs_flag(rec, FALSE);
 
-		for (i = 0; i < n_fields; i++) {
+		for (i = j = 0; i < n_fields; i++) {
 
 			field = dtuple_get_nth_field(dtuple, i);
 
@@ -1002,10 +859,17 @@ rec_convert_dtuple_to_rec_old(
 
 				end_offset += len;
 				ored_offset = end_offset;
+
+				if (UNIV_UNLIKELY(j < n_ext) && i == ext[j]) {
+					j++;
+					ored_offset |= REC_2BYTE_EXTERN_MASK;
+				}
 			}
 
 			rec_2_set_field_end_info(rec, i, ored_offset);
 		}
+
+		ut_ad(j == n_ext);
 	}
 
 	return(rec);
@@ -1022,7 +886,10 @@ rec_convert_dtuple_to_rec_new(
 				of physical record */
 	byte*		buf,	/* in: start address of the physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple)	/* in: data tuple */
+	dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers,
+				in ascending order */
+	ulint		n_ext)	/* in: number of elements in ext */
 {
 	dfield_t*	field;
 	dtype_t*	type;
@@ -1032,6 +899,7 @@ rec_convert_dtuple_to_rec_new(
 	byte*		lens;
 	ulint		len;
 	ulint		i;
+	ulint		j;
 	ulint		n_node_ptr_field;
 	ulint		fixed_len;
 	ulint		null_mask	= 1;
@@ -1059,6 +927,7 @@ rec_convert_dtuple_to_rec_new(
 	case REC_STATUS_SUPREMUM:
 		ut_ad(n_fields == 1);
 		n_node_ptr_field = ULINT_UNDEFINED;
+		ut_d(j = 0);
 		goto init;
 	default:
 		ut_error;
@@ -1069,7 +938,7 @@ rec_convert_dtuple_to_rec_new(
 	We must loop over all fields to do this. */
 	rec += (index->n_nullable + 7) / 8;
 
-	for (i = 0; i < n_fields; i++) {
+	for (i = j = 0; i < n_fields; i++) {
 		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
 #ifdef UNIV_DEBUG
 			field = dtuple_get_nth_field(dtuple, i);
@@ -1100,11 +969,15 @@ rec_convert_dtuple_to_rec_new(
 			    && (dtype_get_len(type) >= 256
 				|| dtype_get_mtype(type) == DATA_BLOB)) {
 				rec++;
+			} else if (UNIV_UNLIKELY(j < n_ext) && i == ext[j]) {
+				j++;
+				rec++;
 			}
 		}
 	}
 
 init:
+	ut_ad(j == n_ext);
 	end = rec;
 	nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
 	lens = nulls - (index->n_nullable + 7) / 8;
@@ -1116,7 +989,7 @@ init:
 
 	/* Store the data and the offsets */
 
-	for (i = 0; i < n_fields; i++) {
+	for (i = j = 0; i < n_fields; i++) {
 		field = dtuple_get_nth_field(dtuple, i);
 		type = dfield_get_type(field);
 		len = dfield_get_len(field);
@@ -1157,13 +1030,17 @@ init:
 		} else {
 			ut_ad(len <= dtype_get_len(type)
 			      || dtype_get_mtype(type) == DATA_BLOB);
-			if (len < 128
-			    || (dtype_get_len(type) < 256
-				&& dtype_get_mtype(type) != DATA_BLOB)) {
-
+			if (UNIV_UNLIKELY(j < n_ext) && i == ext[j]) {
+				j++;
+				ut_ad(len < REC_MAX_INDEX_COL_LEN);
+				*lens-- = (byte) (len >> 8) | 0xc0;
+				*lens-- = (byte) len;
+			} else if (len < 128
+				   || (dtype_get_len(type) < 256
+				       && dtype_get_mtype(type)
+				       != DATA_BLOB)) {
 				*lens-- = (byte) len;
 			} else {
-				/* the extern bits will be set later */
 				ut_ad(len < 16384);
 				*lens-- = (byte) (len >> 8) | 0x80;
 				*lens-- = (byte) len;
@@ -1173,6 +1050,8 @@ init:
 		memcpy(end, dfield_get_data(field), len);
 		end += len;
 	}
+
+	ut_ad(j == n_ext);
 
 	return(rec);
 }
@@ -1184,12 +1063,15 @@ stores it beginning from the start of the given buffer. */
 rec_t*
 rec_convert_dtuple_to_rec(
 /*======================*/
-					/* out: pointer to the origin
-					of physical record */
-	byte*		buf,		/* in: start address of the
-					physical record */
-	dict_index_t*	index,		/* in: record descriptor */
-	dtuple_t*	dtuple)		/* in: data tuple */
+				/* out: pointer to the origin
+				of physical record */
+	byte*		buf,	/* in: start address of the
+				physical record */
+	dict_index_t*	index,	/* in: record descriptor */
+	dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers,
+				in ascending order */
+	ulint		n_ext)	/* in: number of elements in ext */
 {
 	rec_t*	rec;
 
@@ -1198,9 +1080,10 @@ rec_convert_dtuple_to_rec(
 	ut_ad(dtuple_check_typed(dtuple));
 
 	if (dict_table_is_comp(index->table)) {
-		rec = rec_convert_dtuple_to_rec_new(buf, index, dtuple);
+		rec = rec_convert_dtuple_to_rec_new(buf, index, dtuple,
+						    ext, n_ext);
 	} else {
-		rec = rec_convert_dtuple_to_rec_old(buf, dtuple);
+		rec = rec_convert_dtuple_to_rec_old(buf, dtuple, ext, n_ext);
 	}
 
 #ifdef UNIV_DEBUG

@@ -1367,7 +1367,8 @@ ibuf_rec_get_volume(
 			mem_heap_t*	heap = mem_heap_create(500);
 			dtuple_t*	entry = ibuf_build_entry_from_ibuf_rec(
 				ibuf_rec, heap, &dummy_index);
-			volume = rec_get_converted_size(dummy_index, entry);
+			volume = rec_get_converted_size(dummy_index, entry,
+							NULL, 0);
 			ibuf_dummy_index_free(dummy_index);
 			mem_heap_free(heap);
 			return(volume + page_dir_calc_reserved_space(1));
@@ -1400,7 +1401,7 @@ ibuf_rec_get_volume(
 		}
 	}
 
-	return(data_size + rec_get_converted_extra_size(data_size, n_fields)
+	return(data_size + rec_get_converted_extra_size(data_size, n_fields, 0)
 	       + page_dir_calc_reserved_space(1));
 }
 
@@ -2654,7 +2655,7 @@ ibuf_insert_low(
 		ibuf_enter();
 	}
 
-	entry_size = rec_get_converted_size(index, entry);
+	entry_size = rec_get_converted_size(index, entry, NULL, 0);
 
 	heap = mem_heap_create(512);
 
@@ -2838,7 +2839,7 @@ ibuf_insert(
 	ut_a(!dict_index_is_clust(index));
 	ut_a(!dict_table_zip_size(index->table));
 
-	if (rec_get_converted_size(index, entry)
+	if (rec_get_converted_size(index, entry, NULL, 0)
 	    >= (page_get_free_space_of_empty(dict_table_is_comp(index->table))
 		/ 2)) {
 		return(FALSE);
@@ -2958,7 +2959,7 @@ dump:
 					(ulong) page_get_max_insert_size(
 						page, 1),
 					(ulong) rec_get_converted_size(
-						index, entry));
+						index, entry, NULL, 0));
 				fputs("InnoDB: Cannot insert index record ",
 				      stderr);
 				dtuple_print(stderr, entry);
