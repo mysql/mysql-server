@@ -224,10 +224,9 @@ public:
   virtual void add_info_string(String *str) {};
   /*
     Return 1 if any index used by this quick select
-     a) uses field that is listed in passed field list or
-     b) is automatically updated (like a timestamp)
+    uses field which is marked in passed bitmap.
   */
-  virtual bool check_if_keys_used(List<Item> *fields);
+  virtual bool is_keys_used(const MY_BITMAP *fields);
 
   /*
     rowid of last row retrieved by this quick select. This is used only when
@@ -425,7 +424,7 @@ public:
   int get_type() { return QS_TYPE_INDEX_MERGE; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
-  bool check_if_keys_used(List<Item> *fields);
+  bool is_keys_used(const MY_BITMAP *fields);
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
@@ -484,7 +483,7 @@ public:
   int get_type() { return QS_TYPE_ROR_INTERSECT; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
-  bool check_if_keys_used(List<Item> *fields);
+  bool is_keys_used(const MY_BITMAP *fields);
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
@@ -538,7 +537,7 @@ public:
   int get_type() { return QS_TYPE_ROR_UNION; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
-  bool check_if_keys_used(List<Item> *fields);
+  bool is_keys_used(const MY_BITMAP *fields);
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
