@@ -462,18 +462,6 @@ rec_offs_n_extern(
 				/* out: number of externally stored fields */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /***************************************************************
-Sets TRUE the extern storage bits of fields mentioned in an array. */
-
-void
-rec_set_field_extern_bits(
-/*======================*/
-	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: record descriptor */
-	ulint*		offsets,/* in/out: rec_get_offsets(rec, index),
-				or NULL */
-	const ulint*	vec,	/* in: array of field numbers */
-	ulint		n_fields);/* in: number of fields numbers */
-/***************************************************************
 This is used to modify the value of an already existing field in a record.
 The previous value must have exactly the same size as the new value. If len
 is UNIV_SQL_NULL then the field is treated as an SQL null for old-style
@@ -608,7 +596,10 @@ rec_convert_dtuple_to_rec(
 	byte*		buf,	/* in: start address of the
 				physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple);/* in: data tuple */
+	dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers,
+				in ascending order */
+	ulint		n_ext);	/* in: number of elements in ext */
 /**************************************************************
 Returns the extra size of an old-style physical record if we know its
 data size and number of fields. */
@@ -618,7 +609,8 @@ rec_get_converted_extra_size(
 /*=========================*/
 				/* out: extra size */
 	ulint	data_size,	/* in: data size */
-	ulint	n_fields)	/* in: number of fields */
+	ulint	n_fields,	/* in: number of fields */
+	ulint	n_ext)		/* in: number of externally stored columns */
 		__attribute__((const));
 /**************************************************************
 The following function returns the size of a data tuple when converted to
@@ -629,7 +621,9 @@ rec_get_converted_size(
 /*===================*/
 				/* out: size */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple);/* in: data tuple */
+	dtuple_t*	dtuple,	/* in: data tuple */
+	const ulint*	ext,	/* in: array of extern field numbers */
+	ulint		n_ext);	/* in: number of elements in ext */
 /******************************************************************
 Copies the first n fields of a physical record to a data tuple.
 The fields are copied to the memory heap. */

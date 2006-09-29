@@ -134,7 +134,7 @@ page_cur_tuple_insert(
 	dtuple_t*	tuple,	/* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in vec */
+	ulint		n_ext,	/* in: number of elements in ext */
 	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
 /***************************************************************
 Inserts a record next to page cursor. Returns pointer to inserted record if
@@ -168,8 +168,6 @@ page_cur_insert_rec_low(
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
-	const ulint*	ext,	/* in: array of extern field numbers */
-	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr);	/* in: mini-transaction handle, or NULL */
 /*****************************************************************
 Copies records from page to a newly created page, from a given record onward,

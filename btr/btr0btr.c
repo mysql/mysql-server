@@ -100,23 +100,6 @@ btr_page_empty(
 	page_zip_des_t*	page_zip,/* out: compressed page, or NULL */
 	mtr_t*		mtr,	/* in: mtr */
 	dict_index_t*	index);	/* in: the index of the page */
-/*****************************************************************
-Returns TRUE if the insert fits on the appropriate half-page
-with the chosen split_rec. */
-static
-ibool
-btr_page_insert_fits(
-/*=================*/
-					/* out: TRUE if fits */
-	btr_cur_t*	cursor,		/* in: cursor at which insert
-					should be made */
-	rec_t*		split_rec,	/* in: suggestion for first record
-					on upper half-page, or NULL if
-					tuple should be first */
-	const ulint*	offsets,	/* in: rec_get_offsets(
-					split_rec, cursor->index) */
-	dtuple_t*	tuple,		/* in: tuple to insert */
-	mem_heap_t*	heap);		/* in: temporary memory heap */
 
 /******************************************************************
 Gets the root node of a tree and x-latches it. */
@@ -1308,7 +1291,9 @@ btr_page_get_sure_split_rec(
 					upper half-page */
 	btr_cur_t*	cursor,		/* in: cursor at which insert
 					should be made */
-	dtuple_t*	tuple)		/* in: tuple to insert */
+	dtuple_t*	tuple,		/* in: tuple to insert */
+	const ulint*	ext,		/* in: array of extern field numbers */
+	ulint		n_ext)		/* in: number of elements in ext */
 {
 	page_t*		page;
 	page_zip_des_t*	page_zip;
@@ -1327,7 +1312,7 @@ btr_page_get_sure_split_rec(
 
 	page = btr_cur_get_page(cursor);
 
-	insert_size = rec_get_converted_size(cursor->index, tuple);
+	insert_size = rec_get_converted_size(cursor->index, tuple, ext, n_ext);
 	free_space  = page_get_free_space_of_empty(page_is_comp(page));
 
 	page_zip = buf_block_get_page_zip(buf_block_align(page));
@@ -1432,6 +1417,8 @@ btr_page_insert_fits(
 	const ulint*	offsets,	/* in: rec_get_offsets(
 					split_rec, cursor->index) */
 	dtuple_t*	tuple,		/* in: tuple to insert */
+	const ulint*	ext,		/* in: array of extern field numbers */
+	ulint		n_ext,		/* in: number of elements in ext */
 	mem_heap_t*	heap)		/* in: temporary memory heap */
 {
 	page_t*	page;
@@ -1451,7 +1438,7 @@ btr_page_insert_fits(
 	ut_ad(!offsets
 	      || rec_offs_validate(split_rec, cursor->index, offsets));
 
-	insert_size = rec_get_converted_size(cursor->index, tuple);
+	insert_size = rec_get_converted_size(cursor->index, tuple, ext, n_ext);
 	free_space  = page_get_free_space_of_empty(page_is_comp(page));
 
 	/* free_space is now the free space of a created new page */
@@ -1751,7 +1738,8 @@ func_start:
 	if (n_iterations > 0) {
 		direction = FSP_UP;
 		hint_page_no = page_no + 1;
-		split_rec = btr_page_get_sure_split_rec(cursor, tuple);
+		split_rec = btr_page_get_sure_split_rec(cursor, tuple,
+							ext, n_ext);
 
 	} else if (btr_page_get_split_rec_to_right(cursor, &split_rec)) {
 		direction = FSP_UP;
@@ -1780,10 +1768,11 @@ func_start:
 	if (split_rec) {
 		first_rec = move_limit = split_rec;
 	} else {
-		buf = mem_alloc(rec_get_converted_size(cursor->index, tuple));
+		buf = mem_alloc(rec_get_converted_size(cursor->index,
+						       tuple, ext, n_ext));
 
-		first_rec = rec_convert_dtuple_to_rec(buf,
-						      cursor->index, tuple);
+		first_rec = rec_convert_dtuple_to_rec(buf, cursor->index,
+						      tuple, ext, n_ext);
 		move_limit = page_rec_get_next(btr_cur_get_rec(cursor));
 	}
 
@@ -1802,15 +1791,15 @@ func_start:
 					  n_uniq, &heap);
 
 		insert_left = cmp_dtuple_rec(tuple, split_rec, offsets) < 0;
-		insert_will_fit = btr_page_insert_fits(cursor,
-						       split_rec, offsets,
-						       tuple, heap);
+		insert_will_fit = btr_page_insert_fits(cursor, split_rec,
+						       offsets, tuple,
+						       ext, n_ext, heap);
 	} else {
 		mem_free(buf);
 		insert_left = FALSE;
-		insert_will_fit = btr_page_insert_fits(cursor,
-						       NULL, NULL,
-						       tuple, heap);
+		insert_will_fit = btr_page_insert_fits(cursor, NULL,
+						       NULL, tuple,
+						       ext, n_ext, heap);
 	}
 
 	if (insert_will_fit && page_is_leaf(page) && !page_zip) {
