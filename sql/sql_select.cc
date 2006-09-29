@@ -13513,7 +13513,19 @@ bool JOIN::alloc_func_list()
     disctinct->group_by optimization
   */
   if (select_distinct)
+  {
     group_parts+= fields_list.elements;
+    /*
+      If the ORDER clause is specified then it's possible that
+      it also will be optimized, so reserve space for it too
+    */
+    if (order)
+    {
+      ORDER *ord;
+      for (ord= order; ord; ord= ord->next)
+        group_parts++;
+    }
+  }
 
   /* This must use calloc() as rollup_make_fields depends on this */
   sum_funcs= (Item_sum**) thd->calloc(sizeof(Item_sum**) * (func_count+1) +
