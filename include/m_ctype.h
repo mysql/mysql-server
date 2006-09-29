@@ -175,7 +175,7 @@ typedef struct my_charset_handler_st
   
   /* Charset dependant snprintf() */
   int  (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt,
-		   ...);
+		   ...) ATTRIBUTE_FORMAT(printf, 4, 5);
   int  (*long10_to_str)(struct charset_info_st *, char *to, uint n, int radix,
 			long int val);
   int (*longlong10_to_str)(struct charset_info_st *, char *to, uint n,
@@ -300,7 +300,8 @@ int my_wc_mb_8bit(CHARSET_INFO *cs,my_wc_t wc, uchar *s, uchar *e);
 ulong my_scan_8bit(CHARSET_INFO *cs, const char *b, const char *e, int sq);
 
 int my_snprintf_8bit(struct charset_info_st *, char *to, uint n,
-		     const char *fmt, ...);
+		     const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 4, 5);
 
 long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l, int base,
 			    char **e, int *err);
