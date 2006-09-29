@@ -134,7 +134,6 @@ our @mysqld_src_dirs=
 our $glob_win32=                  0; # OS and native Win32 executables
 our $glob_win32_perl=             0; # ActiveState Win32 Perl
 our $glob_cygwin_perl=            0; # Cygwin Perl
-our $glob_cygwin_shell=           undef;
 our $glob_mysql_test_dir=         undef;
 our $glob_mysql_bench_dir=        undef;
 our $glob_hostname=               undef;
@@ -465,10 +464,7 @@ sub initial_setup () {
   {
     # Windows programs like 'mysqld' needs Windows paths
     $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
-    my $shell= $ENV{'SHELL'} || "/bin/bash";
-    $glob_cygwin_shell=   `cygpath -w "$shell"`; # The Windows path c:\...
     chomp($glob_mysql_test_dir);
-    chomp($glob_cygwin_shell);
   }
   $glob_basedir=         dirname($glob_mysql_test_dir);
   $glob_mysql_bench_dir= "$glob_basedir/mysql-bench"; # FIXME make configurable
@@ -1117,7 +1113,9 @@ sub executable_setup () {
     $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools");
     $exe_ndb_mgm=        "$glob_basedir/ndb/src/mgmclient/ndb_mgm";
     $lib_udf_example=
-      mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so");
+      mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so",
+                      "$glob_basedir/sql/release/udf_example.dll",
+                      "$glob_basedir/sql/debug/udf_example.dll");
   }
   else
   {

@@ -3252,7 +3252,8 @@ no_commit:
 		/* We must use the handler code to update the auto-increment
                 value to be sure that we increment it correctly. */
 
-    		update_auto_increment();
+    		if ((error= update_auto_increment()))
+			goto func_exit;
                 auto_inc_used = 1;
 
 	}
