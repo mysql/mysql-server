@@ -347,13 +347,13 @@ create view v3 (x,y,z) as select b, a, b from t1;
 create view v4 (x,y,z) as select c+1, b, a from t1;
 create algorithm=temptable view v5 (x,y,z) as select c, b, a from t1;
 # try insert to VIEW with fields duplicate
--- error 1288
+-- error 1471
 insert into v3 values (-60,4,30);
 # try insert to VIEW with expression in SELECT list
--- error 1288
+-- error 1471
 insert into v4 values (-60,4,30);
 # try insert to VIEW using temporary table algorithm
--- error 1288
+-- error 1471
 insert into v5 values (-60,4,30);
 insert into v1 values (-60,4,30);
 insert into v1 (z,y,x) values (50,6,-100);
@@ -375,13 +375,13 @@ create view v3 (x,y,z) as select b, a, b from t1;
 create view v4 (x,y,z) as select c+1, b, a from t1;
 create algorithm=temptable view v5 (x,y,z) as select c, b, a from t1;
 # try insert to VIEW with fields duplicate
--- error 1288
+-- error 1471
 insert into v3 select c, b, a from t2;
 # try insert to VIEW with expression in SELECT list
--- error 1288
+-- error 1471
 insert into v4 select c, b, a from t2;
 # try insert to VIEW using temporary table algorithm
--- error 1288
+-- error 1471
 insert into v5 select c, b, a from t2;
 insert into v1 select c, b, a from t2;
 insert into v1 (z,y,x) select a+20,b+2,-100 from t2;
@@ -1249,14 +1249,14 @@ drop table t1;
 #
 create table t1 (s1 smallint);
 create view v1 as select * from t1 where 20 < (select (s1) from t1);
--- error 1288
+-- error 1471
 insert into v1 values (30);
 create view v2 as select * from t1;
 create view v3 as select * from t1 where 20 < (select (s1) from v2);
--- error 1288
+-- error 1471
 insert into v3 values (30);
 create view v4 as select * from v2 where 20 < (select (s1) from t1);
--- error 1288
+-- error 1471
 insert into v4 values (30);
 drop view v4, v3, v2, v1;
 drop table t1;
@@ -2830,7 +2830,7 @@ BEGIN
 END |
 delimiter ;|
 
---error ER_NON_UPDATABLE_TABLE
+--error ER_NON_INSERTABLE_TABLE
 SELECT f2();
 
 DROP FUNCTION f1;
@@ -2855,6 +2855,17 @@ EXPLAIN SELECT * FROM v1 t WHERE t.s1+1 < (SELECT MAX(t1.s1) FROM t1);
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+#
+# Bug #5505: Wrong error message on INSERT into a view
+#
+create table t1 (s1 int);
+create view v1 as select s1 as a, s1 as b from t1;
+--error 1471
+insert into v1 values (1,1); 
+update v1 set a = 5;
+drop view v1;
+drop table t1;
 
 #
 # Bug #21646: view qith a subquery in ON expression 
