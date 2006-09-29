@@ -2717,8 +2717,7 @@ select (1,2,3) = (select * from t1);
 ERROR 21000: Operand should contain 3 column(s)
 select (select * from t1) = (1,2,3);
 ERROR 21000: Operand should contain 2 column(s)
-drop table t1
-#;
+drop table t1;
 CREATE TABLE `t1` (
 `itemid` bigint(20) unsigned NOT NULL auto_increment,
 `sessionid` bigint(20) unsigned default NULL,

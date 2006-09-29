@@ -1295,7 +1295,7 @@ SELECT fld3 FROM t2;
 #
 
 DROP TABLE t1;
-ALTER TABLE t2 RENAME t1
+ALTER TABLE t2 RENAME t1;
 
 #
 # Drop and recreate
