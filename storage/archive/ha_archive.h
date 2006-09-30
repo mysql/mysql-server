@@ -139,5 +139,3 @@ public:
   bool check_and_repair(THD *thd);
 };
 
-int archive_db_end(ha_panic_function type);
-

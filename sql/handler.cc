@@ -376,7 +376,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   case SHOW_OPTION_YES:
     if (installed_htons[hton->db_type] == hton)
       installed_htons[hton->db_type]= NULL;
-    if (hton->panic && hton->panic(HA_PANIC_CLOSE))
+    if (hton->panic && hton->panic(hton, HA_PANIC_CLOSE))
       DBUG_RETURN(1);
     break;
   };
@@ -465,6 +465,28 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     hton->state= SHOW_OPTION_DISABLED;
     break;
   }
+  
+  /* 
+    This is entirely for legacy. We will create a new "disk based" hton and a "memory" hton
+    which will be configurable longterm. 
+  */
+  switch (hton->db_type) {
+  case DB_TYPE_MRG_ISAM:
+    myisammrg_hton= hton;
+    break;
+  case DB_TYPE_HEAP:
+    heap_hton= hton;
+    break;
+  case DB_TYPE_MYISAM:
+    myisam_hton= hton;
+    break;
+  case DB_TYPE_PARTITION_DB:
+    partition_hton= hton;
+    break;
+  default:
+    break;
+  };
+
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
@@ -498,7 +520,7 @@ static my_bool panic_handlerton(THD *unused1, st_plugin_int *plugin, void *arg)
 {
   handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->panic)
-    ((int*)arg)[0]|= hton->panic((enum ha_panic_function)((int*)arg)[1]);
+    ((int*)arg)[0]|= hton->panic(hton, (enum ha_panic_function)((int*)arg)[1]);
   return FALSE;
 }
 
@@ -520,7 +542,7 @@ static my_bool dropdb_handlerton(THD *unused1, st_plugin_int *plugin,
 {
   handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->drop_database)
-    hton->drop_database((char *)path);
+    hton->drop_database(hton, (char *)path);
   return FALSE;
 }
 
@@ -541,7 +563,7 @@ static my_bool closecon_handlerton(THD *thd, st_plugin_int *plugin,
   */
   if (hton->state == SHOW_OPTION_YES && hton->close_connection &&
       thd->ha_data[hton->slot])
-    hton->close_connection(thd);
+    hton->close_connection(hton, thd);
   return FALSE;
 }
 
@@ -617,7 +639,7 @@ int ha_prepare(THD *thd)
       statistic_increment(thd->status_var.ha_prepare_count,&LOCK_status);
       if ((*ht)->prepare)
       {
-        if ((err= (*(*ht)->prepare)(thd, all)))
+        if ((err= (*(*ht)->prepare)(*ht, thd, all)))
         {
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
           ha_rollback_trans(thd, all);
@@ -691,7 +713,7 @@ int ha_commit_trans(THD *thd, bool all)
       for (; *ht && !error; ht++)
       {
         int err;
-        if ((err= (*(*ht)->prepare)(thd, all)))
+        if ((err= (*(*ht)->prepare)(*ht, thd, all)))
         {
           my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
           error= 1;
@@ -738,7 +760,7 @@ int ha_commit_one_phase(THD *thd, bool all)
     for (ht=trans->ht; *ht; ht++)
     {
       int err;
-      if ((err= (*(*ht)->commit)(thd, all)))
+      if ((err= (*(*ht)->commit)(*ht, thd, all)))
       {
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error=1;
@@ -794,7 +816,7 @@ int ha_rollback_trans(THD *thd, bool all)
     for (handlerton **ht=trans->ht; *ht; ht++)
     {
       int err;
-      if ((err= (*(*ht)->rollback)(thd, all)))
+      if ((err= (*(*ht)->rollback)(*ht, thd, all)))
       { // cannot happen
         my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
         error=1;
@@ -871,7 +893,7 @@ static my_bool xacommit_handlerton(THD *unused1, st_plugin_int *plugin,
   handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->recover)
   {
-    hton->commit_by_xid(((struct xahton_st *)arg)->xid);
+    hton->commit_by_xid(hton, ((struct xahton_st *)arg)->xid);
     ((struct xahton_st *)arg)->result= 0;
   }
   return FALSE;
@@ -883,7 +905,7 @@ static my_bool xarollback_handlerton(THD *unused1, st_plugin_int *plugin,
   handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->recover)
   {
-    hton->rollback_by_xid(((struct xahton_st *)arg)->xid);
+    hton->rollback_by_xid(hton, ((struct xahton_st *)arg)->xid);
     ((struct xahton_st *)arg)->result= 0;
   }
   return FALSE;
@@ -993,7 +1015,7 @@ static my_bool xarecover_handlerton(THD *unused, st_plugin_int *plugin,
 
   if (hton->state == SHOW_OPTION_YES && hton->recover)
   {
-    while ((got= hton->recover(info->list, info->len)) > 0 )
+    while ((got= hton->recover(hton, info->list, info->len)) > 0 )
     {
       sql_print_information("Found %d prepared transaction(s) in %s",
                             got, hton2plugin[hton->slot]->name.str);
@@ -1024,7 +1046,7 @@ static my_bool xarecover_handlerton(THD *unused, st_plugin_int *plugin,
           char buf[XIDDATASIZE*4+6]; // see xid_to_str
           sql_print_information("commit xid %s", xid_to_str(buf, info->list+i));
 #endif
-          hton->commit_by_xid(info->list+i);
+          hton->commit_by_xid(hton, info->list+i);
         }
         else
         {
@@ -1033,7 +1055,7 @@ static my_bool xarecover_handlerton(THD *unused, st_plugin_int *plugin,
           sql_print_information("rollback xid %s",
                                 xid_to_str(buf, info->list+i));
 #endif
-          hton->rollback_by_xid(info->list+i);
+          hton->rollback_by_xid(hton, info->list+i);
         }
       }
       if (got < info->len)
@@ -1179,7 +1201,7 @@ static my_bool release_temporary_latches(THD *thd, st_plugin_int *plugin,
   handlerton *hton= (handlerton *)plugin->data;
 
   if (hton->state == SHOW_OPTION_YES && hton->release_temporary_latches)
-    hton->release_temporary_latches(thd);
+    hton->release_temporary_latches(hton, thd);
 
   return FALSE;
 }
@@ -1212,7 +1234,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   {
     int err;
     DBUG_ASSERT((*ht)->savepoint_set != 0);
-    if ((err= (*(*ht)->savepoint_rollback)(thd, (byte *)(sv+1)+(*ht)->savepoint_offset)))
+    if ((err= (*(*ht)->savepoint_rollback)(*ht, thd, (byte *)(sv+1)+(*ht)->savepoint_offset)))
     { // cannot happen
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
@@ -1228,7 +1250,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
   for (; *ht ; ht++)
   {
     int err;
-    if ((err= (*(*ht)->rollback)(thd, !thd->in_sub_stmt)))
+    if ((err= (*(*ht)->rollback)(*ht, thd, !thd->in_sub_stmt)))
     { // cannot happen
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
@@ -1262,7 +1284,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
       error=1;
       break;
     }
-    if ((err= (*(*ht)->savepoint_set)(thd, (byte *)(sv+1)+(*ht)->savepoint_offset)))
+    if ((err= (*(*ht)->savepoint_set)(*ht, thd, (byte *)(sv+1)+(*ht)->savepoint_offset)))
     { // cannot happen
       my_error(ER_GET_ERRNO, MYF(0), err);
       error=1;
@@ -1288,7 +1310,9 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
     int err;
     if (!(*ht)->savepoint_release)
       continue;
-    if ((err= (*(*ht)->savepoint_release)(thd, (byte *)(sv+1)+(*ht)->savepoint_offset)))
+    if ((err= (*(*ht)->savepoint_release)(*ht, thd, 
+                                          (byte *)(sv+1)+
+                                          (*ht)->savepoint_offset)))
     { // cannot happen
       my_error(ER_GET_ERRNO, MYF(0), err);
       error=1;
@@ -1305,7 +1329,7 @@ static my_bool snapshot_handlerton(THD *thd, st_plugin_int *plugin,
   if (hton->state == SHOW_OPTION_YES &&
       hton->start_consistent_snapshot)
   {
-    hton->start_consistent_snapshot(thd);
+    hton->start_consistent_snapshot(hton, thd);
     *((bool *)arg)= false;
   }
   return FALSE;
@@ -1333,7 +1357,8 @@ static my_bool flush_handlerton(THD *thd, st_plugin_int *plugin,
                                 void *arg)
 {
   handlerton *hton= (handlerton *)plugin->data;
-  if (hton->state == SHOW_OPTION_YES && hton->flush_logs && hton->flush_logs())
+  if (hton->state == SHOW_OPTION_YES && hton->flush_logs && 
+      hton->flush_logs(hton))
     return TRUE;
   return FALSE;
 }
@@ -1350,7 +1375,7 @@ bool ha_flush_logs(handlerton *db_type)
   else
   {
     if (db_type->state != SHOW_OPTION_YES ||
-        (db_type->flush_logs && db_type->flush_logs()))
+        (db_type->flush_logs && db_type->flush_logs(db_type)))
       return TRUE;
   }
   return FALSE;
@@ -2765,7 +2790,9 @@ static my_bool discover_handlerton(THD *thd, st_plugin_int *plugin,
   st_discover_args *vargs= (st_discover_args *)arg;
   handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->discover &&
-      (!(hton->discover(thd, vargs->db, vargs->name, vargs->frmblob, vargs->frmlen))))
+      (!(hton->discover(hton, thd, vargs->db, vargs->name, 
+                        vargs->frmblob, 
+                        vargs->frmlen))))
     return TRUE;
 
   return FALSE;
@@ -2814,7 +2841,7 @@ static my_bool find_files_handlerton(THD *thd, st_plugin_int *plugin,
 
 
   if (hton->state == SHOW_OPTION_YES && hton->find_files)
-      if (hton->find_files(thd, vargs->db, vargs->path, vargs->wild, 
+      if (hton->find_files(hton, thd, vargs->db, vargs->path, vargs->wild, 
                           vargs->dir, vargs->files))
         return TRUE;
 
@@ -2861,7 +2888,7 @@ static my_bool table_exists_in_engine_handlerton(THD *thd, st_plugin_int *plugin
   handlerton *hton= (handlerton *)plugin->data;
 
   if (hton->state == SHOW_OPTION_YES && hton->table_exists_in_engine)
-    if ((hton->table_exists_in_engine(thd, vargs->db, vargs->name)) == 1)
+    if ((hton->table_exists_in_engine(hton, thd, vargs->db, vargs->name)) == 1)
       return TRUE;
 
   return FALSE;
@@ -2930,7 +2957,7 @@ static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
 
   uint i= 0, sz= hton_list.sz;
   while(i < sz)
-    hton_list.hton[i++]->binlog_func(thd, bfn->fn, bfn->arg);
+    hton_list.hton[i++]->binlog_func(hton, thd, bfn->fn, bfn->arg);
   return FALSE;
 }
 
@@ -2977,12 +3004,12 @@ struct binlog_log_query_st
 };
 
 static my_bool binlog_log_query_handlerton2(THD *thd,
-                                            const handlerton *hton,
+                                            handlerton *hton,
                                             void *args)
 {
   struct binlog_log_query_st *b= (struct binlog_log_query_st*)args;
   if (hton->state == SHOW_OPTION_YES && hton->binlog_log_query)
-    hton->binlog_log_query(thd,
+    hton->binlog_log_query(hton, thd,
                            b->binlog_command,
                            b->query,
                            b->query_length,
@@ -2995,10 +3022,10 @@ static my_bool binlog_log_query_handlerton(THD *thd,
                                            st_plugin_int *plugin,
                                            void *args)
 {
-  return binlog_log_query_handlerton2(thd, (const handlerton *)plugin->data, args);
+  return binlog_log_query_handlerton2(thd, (handlerton *)plugin->data, args);
 }
 
-void ha_binlog_log_query(THD *thd, const handlerton *hton,
+void ha_binlog_log_query(THD *thd, handlerton *hton,
                          enum_binlog_command binlog_command,
                          const char *query, uint query_length,
                          const char *db, const char *table_name)
@@ -3371,7 +3398,7 @@ static my_bool showstat_handlerton(THD *thd, st_plugin_int *plugin,
   enum ha_stat_type stat= *(enum ha_stat_type *) arg;
   handlerton *hton= (handlerton *)plugin->data;
   if (hton->state == SHOW_OPTION_YES && hton->show_status &&
-      hton->show_status(thd, stat_print, stat))
+      hton->show_status(hton, thd, stat_print, stat))
     return TRUE;
   return FALSE;
 }
@@ -3405,7 +3432,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
     }
     else
       result= db_type->show_status &&
-              db_type->show_status(thd, stat_print, stat) ? 1 : 0;
+              db_type->show_status(db_type, thd, stat_print, stat) ? 1 : 0;
   }
 
   if (!result)
@@ -3726,7 +3753,7 @@ int example_of_iterator_using_for_logs_cleanup(handlerton *hton)
   if (!hton->create_iterator)
     return 1; /* iterator creator is not supported */
 
-  if ((*hton->create_iterator)(HA_TRANSACTLOG_ITERATOR, &iterator) !=
+  if ((*hton->create_iterator)(hton, HA_TRANSACTLOG_ITERATOR, &iterator) !=
       HA_ITERATOR_OK)
   {
     /* error during creation of log iterator or iterator is not supported */

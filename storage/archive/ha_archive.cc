@@ -142,12 +142,12 @@ static HASH archive_open_tables;
 static handler *archive_create_handler(handlerton *hton, 
                                        TABLE_SHARE *table, 
                                        MEM_ROOT *mem_root);
+int archive_db_end(handlerton *hton, ha_panic_function type);
+
 /*
   Number of rows that will force a bulk insert.
 */
 #define ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT 2
-
-handlerton *archive_hton;
 
 static handler *archive_create_handler(handlerton *hton,
                                        TABLE_SHARE *table, 
@@ -182,6 +182,7 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
 int archive_db_init(void *p)
 {
   DBUG_ENTER("archive_db_init");
+  handlerton *archive_hton;
   if (archive_inited)
     DBUG_RETURN(FALSE);
   archive_hton= (handlerton *)p;
@@ -230,7 +231,7 @@ int archive_db_done(void *p)
 }
 
 
-int archive_db_end(ha_panic_function type)
+int archive_db_end(handlerton *hton, ha_panic_function type)
 {
   return archive_db_done(NULL);
 }

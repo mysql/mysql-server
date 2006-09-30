@@ -240,8 +240,8 @@ extern ulong srv_flush_log_at_trx_commit;
 }
 
 int innobase_init(void);
-int innobase_end(ha_panic_function type);
-bool innobase_flush_logs(void);
+int innobase_end(handlerton *hton, ha_panic_function type);
+bool innobase_flush_logs(handlerton *hton);
 uint innobase_get_free_space(void);
 
 /*
@@ -258,14 +258,14 @@ int innobase_commit_complete(void* trx_handle);
 void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
 #endif
 
-void innobase_drop_database(char *path);
-bool innobase_show_status(THD* thd, stat_print_fn*, enum ha_stat_type);
+void innobase_drop_database(handlerton *hton, char *path);
+bool innobase_show_status(handlerton *hton, THD* thd, stat_print_fn*, enum ha_stat_type);
 
-int innobase_release_temporary_latches(THD *thd);
+int innobase_release_temporary_latches(handlerton *hton, THD *thd);
 
-void innobase_store_binlog_offset_and_flush_log(char *binlog_name,longlong offset);
+void innobase_store_binlog_offset_and_flush_log(handlerton *hton, char *binlog_name,longlong offset);
 
-int innobase_start_trx_and_assign_read_view(THD* thd);
+int innobase_start_trx_and_assign_read_view(handlerton *hton, THD* thd);
 
 /***********************************************************************
 This function is used to prepare X/Open XA distributed transaction   */
@@ -273,6 +273,7 @@ This function is used to prepare X/Open XA distributed transaction   */
 int innobase_xa_prepare(
 /*====================*/
 			/* out: 0 or error number */
+        handlerton *hton, /* in: innobase hton */
 	THD*	thd,	/* in: handle to the MySQL thread of the user
 			whose XA transaction should be prepared */
 	bool	all);	/* in: TRUE - commit transaction
@@ -285,6 +286,7 @@ int innobase_xa_recover(
 /*====================*/
 				/* out: number of prepared transactions
 				stored in xid_list */
+        handlerton *hton, /* in: innobase hton */
 	XID*	xid_list,	/* in/out: prepared transactions */
 	uint	len);		/* in: number of slots in xid_list */
 
@@ -295,6 +297,7 @@ which is in the prepared state */
 int innobase_commit_by_xid(
 /*=======================*/
 			/* out: 0 or error number */
+        handlerton *hton, /* in: innobase hton */
 	XID*	xid);	/* in : X/Open XA Transaction Identification */
 
 /***********************************************************************
@@ -303,6 +306,7 @@ which is in the prepared state */
 
 int innobase_rollback_by_xid(
 			/* out: 0 or error number */
+        handlerton *hton, /* in: innobase hton */
 	XID	*xid);	/* in : X/Open XA Transaction Identification */
 
 
@@ -313,9 +317,10 @@ This consistent view is then used inside of MySQL when accessing records
 using a cursor. */
 
 void*
-innobase_create_cursor_view(void);
+innobase_create_cursor_view(
 /*=============================*/
 				/* out: Pointer to cursor view or NULL */
+        handlerton *hton); /* in: innobase hton */
 
 /***********************************************************************
 Close the given consistent cursor view of a transaction and restore
@@ -325,6 +330,7 @@ corresponding MySQL thread still lacks one. */
 void
 innobase_close_cursor_view(
 /*=======================*/
+        handlerton *hton, /* in: innobase hton */
 	void*	curview);	/* in: Consistent read view to be closed */
 
 /***********************************************************************
@@ -336,4 +342,5 @@ restored to a transaction read view. */
 void
 innobase_set_cursor_view(
 /*=====================*/
+        handlerton *hton, /* in: innobase hton */
 	void*	curview);	/* in: Consistent read view to be set */

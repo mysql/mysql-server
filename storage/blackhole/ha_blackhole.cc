@@ -24,7 +24,6 @@
 
 /* Static declarations for handlerton */
 
-handlerton *blackhole_hton;
 static handler *blackhole_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
@@ -205,6 +204,7 @@ int ha_blackhole::index_last(byte * buf)
 
 static int blackhole_init(void *p)
 {
+  handlerton *blackhole_hton;
   blackhole_hton= (handlerton *)p;
   blackhole_hton->state= SHOW_OPTION_YES;
   blackhole_hton->db_type= DB_TYPE_BLACKHOLE_DB;
