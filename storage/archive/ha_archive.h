@@ -67,7 +67,7 @@ class ha_archive: public handler
   uint current_k_offset;
 
 public:
-  ha_archive(TABLE_SHARE *table_arg);
+  ha_archive(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_archive()
   {
   }
