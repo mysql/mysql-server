@@ -29,10 +29,16 @@ static handler *heap_create_handler(handlerton *hton,
                                     TABLE_SHARE *table, 
                                     MEM_ROOT *mem_root);
 
-handlerton *heap_hton;
+int heap_panic(handlerton *hton, ha_panic_function flag)
+{
+  return hp_panic(flag);
+}
+
 
 int heap_init(void *p)
 {
+  handlerton *heap_hton;
+
   heap_hton= (handlerton *)p;
   heap_hton->state=      SHOW_OPTION_YES;
   heap_hton->db_type=    DB_TYPE_HEAP;

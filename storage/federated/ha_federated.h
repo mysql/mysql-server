@@ -236,6 +236,3 @@ public:
                                      MYSQL_RES **result);
 };
 
-int federated_db_init(void);
-int federated_db_end(ha_panic_function type);
-

@@ -362,12 +362,13 @@ static const uint sizeof_trailing_where= sizeof(" WHERE ") - 1;
 static handler *federated_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
                                          MEM_ROOT *mem_root);
-static int federated_commit(THD *thd, bool all);
-static int federated_rollback(THD *thd, bool all);
+static int federated_commit(handlerton *hton, THD *thd, bool all);
+static int federated_rollback(handlerton *hton, THD *thd, bool all);
+static int federated_db_init(void);
+static int federated_db_end(handlerton *hton, ha_panic_function type);
+
 
 /* Federated storage engine handlerton */
-
-handlerton *federated_hton;
 
 static handler *federated_create_handler(handlerton *hton, 
                                          TABLE_SHARE *table,
@@ -401,7 +402,7 @@ static byte *federated_get_key(FEDERATED_SHARE *share, uint *length,
 int federated_db_init(void *p)
 {
   DBUG_ENTER("federated_db_init");
-  federated_hton= (handlerton *)p;
+  handlerton *federated_hton= (handlerton *)p;
   federated_hton->state= SHOW_OPTION_YES;
   federated_hton->db_type= DB_TYPE_FEDERATED_DB;
   federated_hton->commit= federated_commit;
@@ -436,7 +437,7 @@ error:
     FALSE       OK
 */
 
-int federated_db_end(ha_panic_function type)
+int federated_db_end(handlerton *hton, ha_panic_function type)
 {
   if (federated_init)
   {
@@ -2739,7 +2740,7 @@ bool ha_federated::get_error_message(int error, String* buf)
 int ha_federated::external_lock(THD *thd, int lock_type)
 {
   int error= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton->slot];
+  ha_federated *trx= (ha_federated *)thd->ha_data[ht->slot];
   DBUG_ENTER("ha_federated::external_lock");
 
   if (lock_type != F_UNLCK)
@@ -2757,7 +2758,7 @@ int ha_federated::external_lock(THD *thd, int lock_type)
         DBUG_PRINT("info", ("error setting autocommit TRUE: %d", error));
         DBUG_RETURN(error);
       }
-      trans_register_ha(thd, FALSE, federated_hton);
+      trans_register_ha(thd, FALSE, ht);
     }
     else 
     { 
@@ -2773,8 +2774,8 @@ int ha_federated::external_lock(THD *thd, int lock_type)
           DBUG_PRINT("info", ("error setting autocommit FALSE: %d", error));
           DBUG_RETURN(error);
         }
-        thd->ha_data[federated_hton->slot]= this;
-        trans_register_ha(thd, TRUE, federated_hton);
+        thd->ha_data[ht->slot]= this;
+        trans_register_ha(thd, TRUE, ht);
         /*
           Send a lock table to the remote end.
           We do not support this at the moment
@@ -2799,10 +2800,10 @@ int ha_federated::external_lock(THD *thd, int lock_type)
 }
 
 
-static int federated_commit(THD *thd, bool all)
+static int federated_commit(handlerton *hton, THD *thd, bool all)
 {
   int return_val= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton->slot];
+  ha_federated *trx= (ha_federated *)thd->ha_data[hton->slot];
   DBUG_ENTER("federated_commit");
 
   if (all)
@@ -2817,7 +2818,7 @@ static int federated_commit(THD *thd, bool all)
       if (error && !return_val);
         return_val= error;
     }
-    thd->ha_data[federated_hton->slot]= NULL;
+    thd->ha_data[hton->slot]= NULL;
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));
@@ -2825,10 +2826,10 @@ static int federated_commit(THD *thd, bool all)
 }
 
 
-static int federated_rollback(THD *thd, bool all)
+static int federated_rollback(handlerton *hton, THD *thd, bool all)
 {
   int return_val= 0;
-  ha_federated *trx= (ha_federated *)thd->ha_data[federated_hton->slot];
+  ha_federated *trx= (ha_federated *)thd->ha_data[hton->slot];
   DBUG_ENTER("federated_rollback");
 
   if (all)
@@ -2843,7 +2844,7 @@ static int federated_rollback(THD *thd, bool all)
       if (error && !return_val)
         return_val= error;
     }
-    thd->ha_data[federated_hton->slot]= NULL;
+    thd->ha_data[hton->slot]= NULL;
   }
 
   DBUG_PRINT("info", ("error val: %d", return_val));
