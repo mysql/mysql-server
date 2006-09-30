@@ -1522,6 +1522,8 @@ public:
   uint  decimals, flags, pack_length, key_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
+  TYPELIB *save_interval;               // Temporary copy for the above
+                                        // Used only for UCS2 intervals
   List<String> interval_list;
   CHARSET_INFO *charset;
   Field::geometry_type geom_type;
