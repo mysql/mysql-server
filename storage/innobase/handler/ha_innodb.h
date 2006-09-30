@@ -313,9 +313,11 @@ This consistent view is then used inside of MySQL when accessing records
 using a cursor. */
 
 void*
-innobase_create_cursor_view(void);
-/*=============================*/
-				/* out: Pointer to cursor view or NULL */
+innobase_create_cursor_view(
+/*========================*/
+						/* out: pointer to cursor
+						view or NULL */
+	THD*			thd);		/* in: user thread handle */
 
 /***********************************************************************
 Close the given consistent cursor view of a transaction and restore
@@ -325,7 +327,9 @@ corresponding MySQL thread still lacks one. */
 void
 innobase_close_cursor_view(
 /*=======================*/
+	THD*	thd,		/* in: user thread handle */
 	void*	curview);	/* in: Consistent read view to be closed */
+
 
 /***********************************************************************
 Set the given consistent cursor view to a transaction which is created
@@ -336,4 +340,5 @@ restored to a transaction read view. */
 void
 innobase_set_cursor_view(
 /*=====================*/
+	THD*	thd,		/* in: user thread handle */
 	void*	curview);	/* in: Consistent read view to be set */
