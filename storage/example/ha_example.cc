@@ -73,7 +73,9 @@
 
 #include <mysql/plugin.h>
 
-static handler *example_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
+static handler *example_create_handler(handlerton *hton,
+                                       TABLE_SHARE *table, 
+                                       MEM_ROOT *mem_root);
 static int example_init_func();
 static bool example_init_func_for_handlerton();
 static int example_panic(enum ha_panic_function flag);
@@ -201,14 +203,16 @@ static int free_share(EXAMPLE_SHARE *share)
 }
 
 
-static handler* example_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler* example_create_handler(handlerton *hton,
+                                       TABLE_SHARE *table, 
+                                       MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_example(table);
+  return new (mem_root) ha_example(hton, table);
 }
 
 
-ha_example::ha_example(TABLE_SHARE *table_arg)
-  :handler(example_hton, table_arg)
+ha_example::ha_example(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg)
 {}
 
 /*

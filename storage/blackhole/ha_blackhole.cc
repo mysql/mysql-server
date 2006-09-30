@@ -25,10 +25,11 @@
 /* Static declarations for handlerton */
 
 handlerton *blackhole_hton;
-static handler *blackhole_create_handler(TABLE_SHARE *table,
+static handler *blackhole_create_handler(handlerton *hton,
+                                         TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_blackhole(table);
+  return new (mem_root) ha_blackhole(hton, table);
 }
 
 
@@ -36,8 +37,9 @@ static handler *blackhole_create_handler(TABLE_SHARE *table,
 ** BLACKHOLE tables
 *****************************************************************************/
 
-ha_blackhole::ha_blackhole(TABLE_SHARE *table_arg)
-  :handler(blackhole_hton, table_arg)
+ha_blackhole::ha_blackhole(handlerton *hton,
+                           TABLE_SHARE *table_arg)
+  :handler(hton, table_arg)
 {}
 
 

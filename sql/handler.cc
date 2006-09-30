@@ -170,7 +170,7 @@ const char *ha_get_storage_engine(enum legacy_db_type db_type)
 static handler *create_default(TABLE_SHARE *table, MEM_ROOT *mem_root)
 {
   handlerton *hton= ha_default_handlerton(current_thd);
-  return (hton && hton->create) ? hton->create(table, mem_root) : NULL;
+  return (hton && hton->create) ? hton->create(hton, table, mem_root) : NULL;
 }
 
 
@@ -232,7 +232,7 @@ handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
 
   if (db_type && db_type->state == SHOW_OPTION_YES && db_type->create)
   {
-    if ((file= db_type->create(share, alloc)))
+    if ((file= db_type->create(db_type, share, alloc)))
       file->init();
     DBUG_RETURN(file);
   }
@@ -251,7 +251,7 @@ handler *get_ha_partition(partition_info *part_info)
 {
   ha_partition *partition;
   DBUG_ENTER("get_ha_partition");
-  if ((partition= new ha_partition(part_info)))
+  if ((partition= new ha_partition(partition_hton, part_info)))
   {
     if (partition->initialise_partition(current_thd->mem_root))
     {
@@ -3296,7 +3296,7 @@ static my_bool exts_handlerton(THD *unused, st_plugin_int *plugin,
   handlerton *hton= (handlerton *)plugin->data;
   handler *file;
   if (hton->state == SHOW_OPTION_YES && hton->create &&
-      (file= hton->create((TABLE_SHARE*) 0, current_thd->mem_root)))
+      (file= hton->create(hton, (TABLE_SHARE*) 0, current_thd->mem_root)))
   {
     List_iterator_fast<char> it(*found_exts);
     const char **ext, *old_ext;
