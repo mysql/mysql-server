@@ -423,23 +423,28 @@ typedef unsigned short ushort;
 #endif
 
 /*
-  Disable __attribute__() on GCC < 2.7 and non-GCC compilers
+  Disable __attribute__() on gcc < 2.7, g++ < 3.4, and non-gcc compilers.
+  Some forms of __attribute__ are actually supported in earlier versions of
+  g++, but we just disable them all because we only use them to generate
+  compilation warnings.
 */
-#if !defined(__attribute__) && (!defined(__GNUC__) || GCC_VERSION < 2007)
-#define __attribute__(A)
+#ifndef __attribute__
+# if !defined(__GNUC__)
+#  define __attribute__(A)
+# elif GCC_VERSION < 2008
+#  define __attribute__(A)
+# elif defined(__cplusplus__) && GCC_VERSION < 3004
+#  define __attribute__(A)
+# endif
 #endif
 
 /*
   __attribute__((format(...))) is only supported in gcc >= 2.8 and g++ >= 3.4
+  But that's already covered by the __attribute__ tests above, so this is
+  just a convenience macro.
 */
 #ifndef ATTRIBUTE_FORMAT
-# if defined(__GNUC__) && \
-     ((!defined(__cplusplus__) && GCC_VERSION >= 2008) || \
-      GCC_VERSION >= 3004)
-#  define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))
-# else
-#  define ATTRIBUTE_FORMAT(style, m, n)
-# endif
+# define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))
 #endif
 
 /* From old s-system.h */
