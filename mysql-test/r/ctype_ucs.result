@@ -762,7 +762,7 @@ NOT NULL default 'passive'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `status` enum('active','passive') character set latin1 collate latin1_general_ci NOT NULL default 'passive'
+  `status` enum('active','passive') CHARACTER SET latin1 COLLATE latin1_general_ci NOT NULL DEFAULT 'passive'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t1 ADD a int NOT NULL AFTER status;
 CREATE TABLE t2 (
@@ -772,7 +772,7 @@ NOT NULL default 'passive'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `status` enum('active','passive') character set ucs2 collate ucs2_turkish_ci NOT NULL default 'passive'
+  `status` enum('active','passive') CHARACTER SET ucs2 COLLATE ucs2_turkish_ci NOT NULL DEFAULT 'passive'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t2 ADD a int NOT NULL AFTER status;
 DROP TABLE t1,t2;

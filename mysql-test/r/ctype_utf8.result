@@ -1340,19 +1340,6 @@ select a from t1 group by a;
 a
 e
 drop table t1;
-set names utf8;
-grant select on test.* to юзер_юзер@localhost;
-user()
-юзер_юзер@localhost
-revoke all on test.* from юзер_юзер@localhost;
-drop user юзер_юзер@localhost;
-create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
-use имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
-select database();
-database()
-имя_базы_в_кодировке_утф8_длиной_больше_чем_45
-drop database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
-use test;
 create table t1(a char(10)) default charset utf8;
 insert into t1 values ('123'), ('456');
 explain
