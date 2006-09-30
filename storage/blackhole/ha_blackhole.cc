@@ -212,7 +212,7 @@ static int blackhole_init(void *p)
 }
 
 struct st_mysql_storage_engine blackhole_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, blackhole_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(blackhole)
 {

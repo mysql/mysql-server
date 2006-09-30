@@ -1571,7 +1571,7 @@ bool ha_archive::check_and_repair(THD *thd)
 }
 
 struct st_mysql_storage_engine archive_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, archive_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(archive)
 {
