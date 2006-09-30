@@ -473,7 +473,7 @@ typedef unsigned short ushort;
 #  define __attribute__(A)
 # elif GCC_VERSION < 2008
 #  define __attribute__(A)
-# elif defined(__cplusplus__) && GCC_VERSION < 3004
+# elif defined(__cplusplus) && GCC_VERSION < 3004
 #  define __attribute__(A)
 # endif
 #endif
