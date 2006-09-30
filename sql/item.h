@@ -831,12 +831,20 @@ public:
     Check if a partition function is allowed
     SYNOPSIS
       check_partition_func_processor()
-      int_arg                        Return argument
+      int_arg                        Ignored
     RETURN VALUE
-      0
+      TRUE                           Partition function not accepted
+      FALSE                          Partition function accepted
+
     DESCRIPTION
     check_partition_func_processor is used to check if a partition function
-    uses an allowed function. The default is that an item is not allowed
+    uses an allowed function. An allowed function will always ensure that
+    X=Y guarantees that also part_function(X)=part_function(Y) where X is
+    a set of partition fields and so is Y. The problems comes mainly from
+    character sets where two equal strings can be quite unequal. E.g. the
+    german character for double s is equal to 2 s.
+
+    The default is that an item is not allowed
     in a partition function. However all mathematical functions, string
     manipulation functions, date functions are allowed. Allowed functions
     can never depend on server version, they cannot depend on anything
