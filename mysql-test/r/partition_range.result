@@ -1,4 +1,38 @@
 drop table if exists t1;
+create table t1 (a varchar(10) charset latin1 collate latin1_bin, b int)
+partition by range (length(a) * b)
+(partition p0 values less than (2), partition p1 values less than (10));
+insert into t1 values ('a ', 2),('a',3);
+drop table t1;
+create table t1 (a varchar(10) charset latin1 collate latin1_bin, b int)
+partition by range (b* length(a) * b)
+(partition p0 values less than (2), partition p1 values less than (10));
+insert into t1 values ('a ', 2),('a',3);
+drop table t1;
+create table t1 (a varchar(10) charset latin1 collate latin1_bin,
+b varchar(10) charset latin1 collate latin1_bin)
+partition by range (length(b) * length(a))
+(partition p0 values less than (2), partition p1 values less than (10));
+insert into t1 values ('a ', 'b  '),('a','b');
+drop table t1;
+create table t1 (a varchar(10) charset latin1 collate latin1_bin,
+b varchar(10) charset latin1 collate latin1_bin)
+partition by range (length(a) * length(b))
+(partition p0 values less than (2), partition p1 values less than (10));
+insert into t1 values ('a ', 'b  '),('a','b');
+drop table t1;
+create table t1 (a varchar(10) charset latin1 collate latin1_bin,
+b varchar(10) charset latin1 collate latin1_bin, c int)
+partition by range (length(a) * c)
+(partition p0 values less than (2), partition p1 values less than (10));
+insert into t1 values ('a ', 'b  ', 2),('a','b', 3);
+drop table t1;
+create table t1 (a varchar(10) charset latin1 collate latin1_bin,
+b varchar(10) charset latin1 collate latin1_bin, c int)
+partition by range (c * length(a))
+(partition p0 values less than (2), partition p1 values less than (10));
+insert into t1 values ('a ', 'b  ', 2),('a','b', 3);
+drop table t1;
 create table t1 (a int unsigned)
 partition by range (a)
 (partition pnull values less than (0),

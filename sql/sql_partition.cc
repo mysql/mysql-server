@@ -1437,9 +1437,11 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
 /*
   Check if a particular field is in need of character set
   handling for partition functions.
+
   SYNOPSIS
     field_is_partition_charset()
     field                         The field to check
+
   RETURN VALUES
     FALSE                        Not in need of character set handling
     TRUE                         In need of character set handling
@@ -1461,8 +1463,9 @@ bool field_is_partition_charset(Field *field)
 
 
 /*
-  Check that partition function do not contain any forbidden
+  Check that partition function doesn't contain any forbidden
   character sets and collations.
+
   SYNOPSIS
     check_part_func_fields()
     ptr                                 Array of Field pointers
@@ -1471,6 +1474,7 @@ bool field_is_partition_charset(Field *field)
   RETURN VALUES
     FALSE                               Success
     TRUE                                Error
+
   DESCRIPTION
     We will check in this routine that the fields of the partition functions
     do not contain unallowed parts. It can also be used to check if there
@@ -2390,9 +2394,13 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
 
 /*
   Copy to field buffers and set up field pointers
+
   SYNOPSIS
     copy_to_part_field_buffers()
     ptr                          Array of fields to copy
+    field_bufs                   Array of field buffers to copy to
+    restore_ptr                  Array of pointers to restore to
+
   RETURN VALUES
     NONE
   DESCRIPTION
@@ -2451,8 +2459,9 @@ static void copy_to_part_field_buffers(Field **ptr,
   SYNOPSIS
     restore_part_field_pointers()
     ptr                            Array of fields to restore
+    restore_ptr                    Array of field pointers to restore to
+
   RETURN VALUES
-    NONE
 */
 
 static void restore_part_field_pointers(Field **ptr, char **restore_ptr)
