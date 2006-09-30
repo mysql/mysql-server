@@ -34,10 +34,6 @@
 static handler *myisammrg_create_handler(TABLE_SHARE *table,
                                          MEM_ROOT *mem_root);
 
-/* MyISAM MERGE handlerton */
-
-handlerton *myisammrg_hton;
-
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
@@ -555,15 +551,23 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_NO;
 }
 
+extern int myrg_panic(enum ha_panic_function flag);
+int myisammrg_panic(handlerton *hton, ha_panic_function flag)
+{
+  return myrg_panic(flag);
+}
+
 static int myisammrg_init(void *p)
 {
+  handlerton *myisammrg_hton;
+
   myisammrg_hton= (handlerton *)p;
 
-  myisammrg_hton->state=have_merge_db;
-  myisammrg_hton->db_type=DB_TYPE_MRG_MYISAM;
-  myisammrg_hton->create=myisammrg_create_handler;
-  myisammrg_hton->panic=myrg_panic;
-  myisammrg_hton->flags= HTON_CAN_RECREATE;
+  myisammrg_hton->state= have_merge_db;
+  myisammrg_hton->db_type= DB_TYPE_MRG_MYISAM;
+  myisammrg_hton->create= myisammrg_create_handler;
+  myisammrg_hton->panic= myisammrg_panic;
+  myisammrg_hton->flags=  HTON_CAN_RECREATE|HTON_NO_PARTITION;
 
   return 0;
 }

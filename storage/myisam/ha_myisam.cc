@@ -1789,16 +1789,23 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-handlerton *myisam_hton;
+extern int mi_panic(enum ha_panic_function flag);
+int myisam_panic(handlerton *hton, ha_panic_function flag)
+{
+  return mi_panic(flag);
+}
 
 static int myisam_init(void *p)
 {
+  handlerton *myisam_hton;
+
   myisam_hton= (handlerton *)p;
   myisam_hton->state= SHOW_OPTION_YES;
   myisam_hton->db_type= DB_TYPE_MYISAM;
   myisam_hton->create= myisam_create_handler;
-  myisam_hton->panic= mi_panic;
+  myisam_hton->panic= myisam_panic;
   myisam_hton->flags= HTON_CAN_RECREATE;
+
   return 0;
 }
 

@@ -77,6 +77,8 @@ static int tina_init= 0;
 static handler *tina_create_handler(handlerton *hton,
                                     TABLE_SHARE *table, 
                                     MEM_ROOT *mem_root);
+int tina_end(handlerton *hton, ha_panic_function type);
+
 
 off_t Transparent_file::read_next()
 {
@@ -125,7 +127,6 @@ char Transparent_file::get_value(off_t offset)
     return buff[0];
   }
 }
-handlerton *tina_hton;
 
 /*****************************************************************************
  ** TINA tables
@@ -152,6 +153,8 @@ static byte* tina_get_key(TINA_SHARE *share,uint *length,
 
 static int tina_init_func(void *p)
 {
+  handlerton *tina_hton;
+
   if (!tina_init)
   {
     tina_hton= (handlerton *)p;
@@ -163,7 +166,7 @@ static int tina_init_func(void *p)
     tina_hton->db_type= DB_TYPE_CSV_DB;
     tina_hton->create= tina_create_handler;
     tina_hton->panic= tina_end;
-    tina_hton->flags= HTON_CAN_RECREATE;
+    tina_hton->flags= HTON_CAN_RECREATE|HTON_NO_PARTITION;
   }
   return 0;
 }
@@ -451,7 +454,7 @@ static int free_share(TINA_SHARE *share)
   DBUG_RETURN(result_code);
 }
 
-int tina_end(ha_panic_function type)
+int tina_end(handlerton *hton, ha_panic_function type)
 {
   return tina_done_func(NULL);
 }

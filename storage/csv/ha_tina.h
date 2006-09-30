@@ -212,5 +212,3 @@ public:
   int chain_append();
 };
 
-int tina_end(ha_panic_function type);
-

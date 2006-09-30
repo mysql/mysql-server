@@ -45,7 +45,7 @@ class Sensitive_cursor: public Server_side_cursor
   query_id_t query_id;
   struct Engine_info
   {
-    const handlerton *ht;
+    handlerton *ht;
     void *read_view;
   };
   Engine_info ht_info[MAX_HA];
@@ -318,12 +318,12 @@ Sensitive_cursor::post_open(THD *thd)
   info= &ht_info[0];
   for (handlerton **pht= thd->transaction.stmt.ht; *pht; pht++)
   {
-    const handlerton *ht= *pht;
+    handlerton *ht= *pht;
     close_at_commit|= test(ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
     if (ht->create_cursor_read_view)
     {
       info->ht= ht;
-      info->read_view= (ht->create_cursor_read_view)();
+      info->read_view= (ht->create_cursor_read_view)(ht);
       ++info;
     }
   }
@@ -433,7 +433,7 @@ Sensitive_cursor::fetch(ulong num_rows)
   thd->set_n_backup_active_arena(this, &backup_arena);
 
   for (info= ht_info; info->read_view ; info++)
-    (info->ht->set_cursor_read_view)(info->read_view);
+    (info->ht->set_cursor_read_view)(info->ht, info->read_view);
 
   join->fetch_limit+= num_rows;
 
@@ -454,7 +454,7 @@ Sensitive_cursor::fetch(ulong num_rows)
   reset_thd(thd);
 
   for (info= ht_info; info->read_view; info++)
-    (info->ht->set_cursor_read_view)(0);
+    (info->ht->set_cursor_read_view)(info->ht, 0);
 
   if (error == NESTED_LOOP_CURSOR_LIMIT)
   {
@@ -487,7 +487,7 @@ Sensitive_cursor::close()
 
   for (Engine_info *info= ht_info; info->read_view; info++)
   {
-    (info->ht->close_cursor_read_view)(info->read_view);
+    (info->ht->close_cursor_read_view)(info->ht, info->read_view);
     info->read_view= 0;
     info->ht= 0;
   }
