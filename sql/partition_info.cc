@@ -838,11 +838,12 @@ end:
 
 /*
   Print error for no partition found
+
   SYNOPSIS
     print_no_partition_found()
     table                        Table object
+
   RETURN VALUES
-    NONE
 */
 
 void partition_info::print_no_partition_found(TABLE *table)
@@ -863,10 +864,11 @@ void partition_info::print_no_partition_found(TABLE *table)
   Set up buffers and arrays for fields requiring preparation
   SYNOPSIS
     set_up_charset_field_preps()
-    part_info                        Partition info object
+
   RETURN VALUES
     TRUE                             Memory Allocation error
     FALSE                            Success
+
   DESCRIPTION
     Set up arrays and buffers for fields that require special care for
     calculation of partition id. This is used for string fields with
@@ -1025,5 +1027,4 @@ error:
   mem_alloc_error(size);
   DBUG_RETURN(TRUE);
 }
-#endif
-                                                                                                                                              /* WITH_PARTITION_STORAGE_ENGINE */
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
