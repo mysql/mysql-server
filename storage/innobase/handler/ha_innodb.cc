@@ -203,16 +203,19 @@ static int innobase_rollback(THD* thd, bool all);
 static int innobase_rollback_to_savepoint(THD* thd, void *savepoint);
 static int innobase_savepoint(THD* thd, void *savepoint);
 static int innobase_release_savepoint(THD* thd, void *savepoint);
-static handler *innobase_create_handler(TABLE_SHARE *table,
+static handler *innobase_create_handler(handlerton *hton,
+                                        TABLE_SHARE *table,
                                         MEM_ROOT *mem_root);
 
 static const char innobase_hton_name[]= "InnoDB";
 
 handlerton *innobase_hton;
 
-static handler *innobase_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler *innobase_create_handler(handlerton *hton,
+                                        TABLE_SHARE *table, 
+                                        MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_innobase(table);
+  return new (mem_root) ha_innobase(hton, table);
 }
 
 
@@ -889,7 +892,7 @@ check_trx_exists(
 /*************************************************************************
 Construct ha_innobase handler. */
 
-ha_innobase::ha_innobase(TABLE_SHARE *table_arg)
+ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(innobase_hton, table_arg),
   int_table_flags(HA_REC_NOT_IN_SEQ |
 		  HA_NULL_IN_KEY |

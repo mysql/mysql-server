@@ -139,7 +139,9 @@ static HASH archive_open_tables;
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
 /* Static declarations for handerton */
-static handler *archive_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
+static handler *archive_create_handler(handlerton *hton, 
+                                       TABLE_SHARE *table, 
+                                       MEM_ROOT *mem_root);
 /*
   Number of rows that will force a bulk insert.
 */
@@ -147,9 +149,11 @@ static handler *archive_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
 
 handlerton *archive_hton;
 
-static handler *archive_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler *archive_create_handler(handlerton *hton,
+                                       TABLE_SHARE *table, 
+                                       MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_archive(table);
+  return new (mem_root) ha_archive(hton, table);
 }
 
 /*
@@ -231,8 +235,8 @@ int archive_db_end(ha_panic_function type)
   return archive_db_done(NULL);
 }
 
-ha_archive::ha_archive(TABLE_SHARE *table_arg)
-  :handler(archive_hton, table_arg), delayed_insert(0), bulk_insert(0)
+ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg), delayed_insert(0), bulk_insert(0)
 {
   /* Set our original buffer from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);

@@ -80,7 +80,7 @@ class ha_innobase: public handler
 
 	/* Init values for the class: */
  public:
-	ha_innobase(TABLE_SHARE *table_arg);
+	ha_innobase(handlerton *hton, TABLE_SHARE *table_arg);
 	~ha_innobase() {}
 	/*
 	  Get the row type from the storage engine.  If this method returns

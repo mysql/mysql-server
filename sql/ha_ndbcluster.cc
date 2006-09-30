@@ -82,10 +82,11 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables, COND *cond)
 
 handlerton *ndbcluster_hton;
 
-static handler *ndbcluster_create_handler(TABLE_SHARE *table,
+static handler *ndbcluster_create_handler(handlerton *hton,
+                                          TABLE_SHARE *table,
                                           MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_ndbcluster(table);
+  return new (mem_root) ha_ndbcluster(hton, table);
 }
 
 static uint ndbcluster_partition_flags()
@@ -5552,8 +5553,8 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                 HA_HAS_OWN_BINLOGGING | \
                 HA_HAS_RECORDS
 
-ha_ndbcluster::ha_ndbcluster(TABLE_SHARE *table_arg):
-  handler(ndbcluster_hton, table_arg),
+ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
+  handler(hton, table_arg),
   m_active_trans(NULL),
   m_active_cursor(NULL),
   m_table(NULL),
@@ -6623,7 +6624,7 @@ void ndbcluster_print_error(int error, const NdbOperation *error_op)
   share.db.length= 0;
   share.table_name.str= (char *) tab_name;
   share.table_name.length= strlen(tab_name);
-  ha_ndbcluster error_handler(&share);
+  ha_ndbcluster error_handler(ndbcluster_hton, &share);
   error_handler.print_error(error, MYF(0));
   DBUG_VOID_RETURN;
 }

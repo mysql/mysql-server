@@ -359,7 +359,8 @@ static const uint sizeof_trailing_and= sizeof(" AND ") - 1;
 static const uint sizeof_trailing_where= sizeof(" WHERE ") - 1;
 
 /* Static declaration for handerton */
-static handler *federated_create_handler(TABLE_SHARE *table,
+static handler *federated_create_handler(handlerton *hton,
+                                         TABLE_SHARE *table,
                                          MEM_ROOT *mem_root);
 static int federated_commit(THD *thd, bool all);
 static int federated_rollback(THD *thd, bool all);
@@ -368,10 +369,11 @@ static int federated_rollback(THD *thd, bool all);
 
 handlerton *federated_hton;
 
-static handler *federated_create_handler(TABLE_SHARE *table,
+static handler *federated_create_handler(handlerton *hton, 
+                                         TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_federated(table);
+  return new (mem_root) ha_federated(hton, table);
 }
 
 
@@ -723,8 +725,9 @@ error:
 ** FEDERATED tables
 *****************************************************************************/
 
-ha_federated::ha_federated(TABLE_SHARE *table_arg)
-  :handler(federated_hton, table_arg),
+ha_federated::ha_federated(handlerton *hton,
+                           TABLE_SHARE *table_arg)
+  :handler(hton, table_arg),
   mysql(0), stored_result(0)
 {
   trx_next= 0;

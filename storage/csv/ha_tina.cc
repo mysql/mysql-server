@@ -74,7 +74,9 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty);
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
-static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
+static handler *tina_create_handler(handlerton *hton,
+                                    TABLE_SHARE *table, 
+                                    MEM_ROOT *mem_root);
 
 off_t Transparent_file::read_next()
 {
@@ -493,14 +495,16 @@ off_t find_eoln_buff(Transparent_file *data_buff, off_t begin,
 }
 
 
-static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler *tina_create_handler(handlerton *hton,
+                                    TABLE_SHARE *table, 
+                                    MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_tina(table);
+  return new (mem_root) ha_tina(hton, table);
 }
 
 
-ha_tina::ha_tina(TABLE_SHARE *table_arg)
-  :handler(tina_hton, table_arg),
+ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg),
   /*
     These definitions are found in handler.h
     They are not probably completely right.

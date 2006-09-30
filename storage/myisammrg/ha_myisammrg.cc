@@ -38,15 +38,16 @@ static handler *myisammrg_create_handler(TABLE_SHARE *table,
 
 handlerton *myisammrg_hton;
 
-static handler *myisammrg_create_handler(TABLE_SHARE *table,
+static handler *myisammrg_create_handler(handlerton *hton,
+                                         TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_myisammrg(table);
+  return new (mem_root) ha_myisammrg(hton, table);
 }
 
 
-ha_myisammrg::ha_myisammrg(TABLE_SHARE *table_arg)
-  :handler(myisammrg_hton, table_arg), file(0)
+ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg), file(0)
 {}
 
 static const char *ha_myisammrg_exts[] = {
