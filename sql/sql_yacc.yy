@@ -6847,11 +6847,13 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
+            Select->parsing_place= IN_ON;
           }
           expr
 	  {
             add_join_on($3,$6);
             Lex->pop_context();
+            Select->parsing_place= NO_MATTER;
           }
         | table_ref STRAIGHT_JOIN table_factor
           ON
@@ -6860,12 +6862,14 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
+            Select->parsing_place= IN_ON;
           }
           expr
           {
             $3->straight=1;
             add_join_on($3,$6);
             Lex->pop_context();
+            Select->parsing_place= NO_MATTER;
           }
 	| table_ref normal_join table_ref
 	  USING
@@ -6889,6 +6893,7 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
+            Select->parsing_place= IN_ON;
           }
           expr
 	  {
@@ -6896,6 +6901,7 @@ join_table:
             Lex->pop_context();
             $5->outer_join|=JOIN_TYPE_LEFT;
             $$=$5;
+            Select->parsing_place= NO_MATTER;
           }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
@@ -6920,6 +6926,7 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
+            Select->parsing_place= IN_ON;
           }
           expr
           {
@@ -6928,6 +6935,7 @@ join_table:
               YYABORT;
             add_join_on($$, $8);
             Lex->pop_context();
+            Select->parsing_place= NO_MATTER;
           }
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {

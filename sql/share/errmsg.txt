@@ -5999,4 +5999,6 @@ ER_UNSUPORTED_LOG_ENGINE
 ER_BAD_LOG_STATEMENT
         eng "You cannot '%s' a log table if logging is enabled"
         ger "Sie können eine Logtabelle nicht '%s', wenn Loggen angeschaltet ist"
+ER_NON_INSERTABLE_TABLE  
+        eng "The target table %-.100s of the %s is not insertable-into"
 
