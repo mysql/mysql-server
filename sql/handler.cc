@@ -1788,8 +1788,8 @@ void handler::print_error(int error, myf errflag)
     break;
   }
   case HA_ERR_NULL_IN_SPATIAL:
-    textno= ER_UNKNOWN_ERROR;
-    break;
+    my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
+    DBUG_VOID_RETURN;
   case HA_ERR_FOUND_DUPP_UNIQUE:
     textno=ER_DUP_UNIQUE;
     break;
