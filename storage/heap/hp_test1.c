@@ -155,7 +155,7 @@ int main(int argc, char **argv)
   }
 #endif
 
-  if (heap_close(file) || heap_panic(HA_PANIC_CLOSE))
+  if (heap_close(file) || hp_panic(HA_PANIC_CLOSE))
     goto err;
   my_end(MY_GIVE_INFO);
   return(0);

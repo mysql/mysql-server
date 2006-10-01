@@ -2389,7 +2389,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
                         tables_used->engine_data))
         DBUG_RETURN(0);
 
-      if (tables_used->table->s->db_type == myisammrg_hton)
+      if (tables_used->table->s->db_type->db_type == DB_TYPE_MRG_MYISAM)
       {
         ha_myisammrg *handler = (ha_myisammrg *) tables_used->table->file;
         MYRG_INFO *file = handler->myrg_info();
@@ -3013,7 +3013,7 @@ static TABLE_COUNTER_TYPE process_and_count_tables(TABLE_LIST *tables_used,
                     "other non-cacheable table(s)"));
         DBUG_RETURN(0);
       }
-      if (tables_used->table->s->db_type == myisammrg_hton)
+      if (tables_used->table->s->db_type->db_type == DB_TYPE_MRG_MYISAM)
       {
         ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
         MYRG_INFO *file = handler->myrg_info();
