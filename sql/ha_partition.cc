@@ -75,11 +75,11 @@ static handler *partition_create_handler(handlerton *hton,
 static uint partition_flags();
 static uint alter_table_flags(uint flags);
 
-handlerton *partition_hton;
 
 static int partition_initialize(void *p)
 {
 
+  handlerton *partition_hton;
   partition_hton= (handlerton *)p;
 
   partition_hton->state= SHOW_OPTION_YES;
