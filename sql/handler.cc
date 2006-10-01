@@ -467,13 +467,11 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
   }
   
   /* 
-    This is entirely for legacy. We will create a new "disk based" hton and a "memory" hton
-    which will be configurable longterm. 
+    This is entirely for legacy. We will create a new "disk based" hton and a 
+    "memory" hton which will be configurable longterm. We should be able to 
+    remove partition and myisammrg.
   */
   switch (hton->db_type) {
-  case DB_TYPE_MRG_ISAM:
-    myisammrg_hton= hton;
-    break;
   case DB_TYPE_HEAP:
     heap_hton= hton;
     break;
