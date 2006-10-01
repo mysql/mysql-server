@@ -1638,19 +1638,7 @@ extern SHOW_COMP_OPTION have_ndbcluster;
 extern SHOW_COMP_OPTION have_partition_db;
 extern SHOW_COMP_OPTION have_merge_db;
 
-#ifdef WITH_CSV_STORAGE_ENGINE
-extern handlerton *tina_hton;
-#endif
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-extern handlerton *ndbcluster_hton;
-#endif
-#ifdef WITH_PARTITION_STORAGE_ENGINE
 extern handlerton *partition_hton;
-#endif
-#ifdef WITH_MYISAMMRG_STORAGE_ENGINE
-extern handlerton *myisammrg_hton;
-#endif
-
 extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
 

@@ -5960,9 +5960,9 @@ ER_EVENT_SET_VAR_ERROR
         eng "Error during starting/stopping of the scheduler. Error code %u"
         ger "Fehler während des Startens oder Anhalten des Schedulers. Fehlercode %u"
 ER_PARTITION_MERGE_ERROR
-        eng "%s handler cannot be used in partitioned tables"
-        ger "%s-Handler kann in partitionierten Tabellen nicht verwendet werden"
-        swe "%s kan inte användas i en partitionerad tabell"
+        eng "Engine cannot be used in partitioned tables"
+        ger "Engine kann in partitionierten Tabellen nicht verwendet werden"
+        swe "Engine inte användas i en partitionerad tabell"
 ER_CANT_ACTIVATE_LOG
         eng "Cannot activate '%-.64s' log"
         ger "Kann Logdatei '%-.64s' nicht aktivieren"
