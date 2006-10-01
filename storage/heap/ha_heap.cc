@@ -25,12 +25,20 @@
 #include "ha_heap.h"
 
 
-static handler *heap_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
+static handler *heap_create_handler(handlerton *hton,
+                                    TABLE_SHARE *table, 
+                                    MEM_ROOT *mem_root);
 
-handlerton *heap_hton;
+int heap_panic(handlerton *hton, ha_panic_function flag)
+{
+  return hp_panic(flag);
+}
+
 
 int heap_init(void *p)
 {
+  handlerton *heap_hton;
+
   heap_hton= (handlerton *)p;
   heap_hton->state=      SHOW_OPTION_YES;
   heap_hton->db_type=    DB_TYPE_HEAP;
@@ -41,9 +49,11 @@ int heap_init(void *p)
   return 0;
 }
 
-static handler *heap_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler *heap_create_handler(handlerton *hton,
+                                    TABLE_SHARE *table, 
+                                    MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_heap(table);
+  return new (mem_root) ha_heap(hton, table);
 }
 
 
@@ -51,8 +61,8 @@ static handler *heap_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
 ** HEAP tables
 *****************************************************************************/
 
-ha_heap::ha_heap(TABLE_SHARE *table_arg)
-  :handler(heap_hton, table_arg), file(0), records_changed(0),
+ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg), file(0), records_changed(0),
   key_stat_version(0)
 {}
 

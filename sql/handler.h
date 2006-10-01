@@ -449,7 +449,7 @@ class st_alter_tablespace : public Sql_alloc
   ulonglong autoextend_size;
   ulonglong max_size;
   uint nodegroup_id;
-  const handlerton *storage_engine;
+  handlerton *storage_engine;
   bool wait_until_completed;
   const char *ts_comment;
   enum tablespace_access_mode ts_access_mode;
@@ -605,18 +605,18 @@ struct handlerton
      this storage area - set it to something, so that MySQL would know
      this storage engine was accessed in this connection
    */
-   int  (*close_connection)(THD *thd);
+   int  (*close_connection)(handlerton *hton, THD *thd);
    /*
      sv points to an uninitialized storage area of requested size
      (see savepoint_offset description)
    */
-   int  (*savepoint_set)(THD *thd, void *sv);
+   int  (*savepoint_set)(handlerton *hton, THD *thd, void *sv);
    /*
      sv points to a storage area, that was earlier passed
      to the savepoint_set call
    */
-   int  (*savepoint_rollback)(THD *thd, void *sv);
-   int  (*savepoint_release)(THD *thd, void *sv);
+   int  (*savepoint_rollback)(handlerton *hton, THD *thd, void *sv);
+   int  (*savepoint_release)(handlerton *hton, THD *thd, void *sv);
    /*
      'all' is true if it's a real commit, that makes persistent changes
      'all' is false if it's not in fact a commit but an end of the
@@ -624,25 +624,25 @@ struct handlerton
      NOTE 'all' is also false in auto-commit mode where 'end of statement'
      and 'real commit' mean the same event.
    */
-   int  (*commit)(THD *thd, bool all);
-   int  (*rollback)(THD *thd, bool all);
-   int  (*prepare)(THD *thd, bool all);
-   int  (*recover)(XID *xid_list, uint len);
-   int  (*commit_by_xid)(XID *xid);
-   int  (*rollback_by_xid)(XID *xid);
-   void *(*create_cursor_read_view)(THD *thd);
-   void (*set_cursor_read_view)(THD *thd, void *read_view);
-   void (*close_cursor_read_view)(THD *thd, void *read_view);
-   handler *(*create)(TABLE_SHARE *table, MEM_ROOT *mem_root);
-   void (*drop_database)(char* path);
-   int (*panic)(enum ha_panic_function flag);
-   int (*start_consistent_snapshot)(THD *thd);
-   bool (*flush_logs)();
-   bool (*show_status)(THD *thd, stat_print_fn *print, enum ha_stat_type stat);
+   int  (*commit)(handlerton *hton, THD *thd, bool all);
+   int  (*rollback)(handlerton *hton, THD *thd, bool all);
+   int  (*prepare)(handlerton *hton, THD *thd, bool all);
+   int  (*recover)(handlerton *hton, XID *xid_list, uint len);
+   int  (*commit_by_xid)(handlerton *hton, XID *xid);
+   int  (*rollback_by_xid)(handlerton *hton, XID *xid);
+   void *(*create_cursor_read_view)(handlerton *hton, THD *thd);
+   void (*set_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
+   void (*close_cursor_read_view)(handlerton *hton, THD *thd, void *read_view);
+   handler *(*create)(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root);
+   void (*drop_database)(handlerton *hton, char* path);
+   int (*panic)(handlerton *hton, enum ha_panic_function flag);
+   int (*start_consistent_snapshot)(handlerton *hton, THD *thd);
+   bool (*flush_logs)(handlerton *hton);
+   bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    uint (*partition_flags)();
    uint (*alter_table_flags)(uint flags);
-   int (*alter_tablespace)(THD *thd, st_alter_tablespace *ts_info);
-   int (*fill_files_table)(THD *thd,
+   int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
+   int (*fill_files_table)(handlerton *hton, THD *thd,
                            struct st_table_list *tables,
                            class Item *cond);
    uint32 flags;                                /* global handler flags */
@@ -650,11 +650,12 @@ struct handlerton
       Those handlerton functions below are properly initialized at handler
       init.
    */
-   int (*binlog_func)(THD *thd, enum_binlog_func fn, void *arg);
-   void (*binlog_log_query)(THD *thd, enum_binlog_command binlog_command,
+   int (*binlog_func)(handlerton *hton, THD *thd, enum_binlog_func fn, void *arg);
+   void (*binlog_log_query)(handlerton *hton, THD *thd, 
+                            enum_binlog_command binlog_command,
                             const char *query, uint query_length,
                             const char *db, const char *table_name);
-   int (*release_temporary_latches)(THD *thd);
+   int (*release_temporary_latches)(handlerton *hton, THD *thd);
 
    /*
      Get log status.
@@ -663,20 +664,24 @@ struct handlerton
      (see example of implementation in handler.cc, TRANS_LOG_MGM_EXAMPLE_CODE)
 
    */
-   enum log_status (*get_log_status)(char *log);
+   enum log_status (*get_log_status)(handlerton *hton, char *log);
 
    /*
      Iterators creator.
      Presence of the pointer should be checked before using
    */
    enum handler_create_iterator_result
-     (*create_iterator)(enum handler_iterator_type type,
+     (*create_iterator)(handlerton *hton, enum handler_iterator_type type,
                         struct handler_iterator *fill_this_in);
-   int (*discover)(THD* thd, const char *db, const char *name,
-                   const void** frmblob, uint* frmlen);
-   int (*find_files)(THD *thd,const char *db,const char *path,
+   int (*discover)(handlerton *hton, THD* thd, const char *db, 
+                   const char *name,
+                   const void** frmblob, 
+                   uint* frmlen);
+   int (*find_files)(handlerton *hton, THD *thd,
+                     const char *db,
+                     const char *path,
                      const char *wild, bool dir, List<char> *files);
-   int (*table_exists_in_engine)(THD* thd, const char *db,
+   int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
 };
 
@@ -691,6 +696,7 @@ struct handlerton
 #define HTON_NOT_USER_SELECTABLE     (1 << 5)
 #define HTON_TEMPORARY_NOT_SUPPORTED (1 << 6) //Having temporary tables not supported
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
+#define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
 
 typedef struct st_thd_trans
 {
@@ -893,7 +899,7 @@ class handler :public Sql_alloc
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() {return 0; }
 public:
-  const handlerton *ht;                 /* storage engine of this handler */
+  handlerton *ht;                 /* storage engine of this handler */
   byte *ref;				/* Pointer to current row */
   byte *dup_ref;			/* Pointer to duplicate row */
 
@@ -943,7 +949,7 @@ public:
   */
   Discrete_interval auto_inc_interval_for_cur_row;
 
-  handler(const handlerton *ht_arg, TABLE_SHARE *share_arg)
+  handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
@@ -1716,7 +1722,7 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
 void ha_reset_slave(THD *thd);
-void ha_binlog_log_query(THD *thd, const handlerton *db_type,
+void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);

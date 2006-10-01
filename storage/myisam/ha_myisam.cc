@@ -48,9 +48,11 @@ TYPELIB myisam_stats_method_typelib= {
 ** MyISAM tables
 *****************************************************************************/
 
-static handler *myisam_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler *myisam_create_handler(handlerton *hton,
+                                      TABLE_SHARE *table, 
+                                      MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_myisam(table);
+  return new (mem_root) ha_myisam(hton, table);
 }
 
 // collect errors printed by mi_check routines
@@ -133,8 +135,8 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 }
 
 
-ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
-  :handler(myisam_hton, table_arg), file(0),
+ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg), file(0),
   int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
@@ -1787,15 +1789,21 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-handlerton *myisam_hton;
+extern int mi_panic(enum ha_panic_function flag);
+int myisam_panic(handlerton *hton, ha_panic_function flag)
+{
+  return mi_panic(flag);
+}
 
 static int myisam_init(void *p)
 {
+  handlerton *myisam_hton;
+
   myisam_hton= (handlerton *)p;
-  myisam_hton->state=SHOW_OPTION_YES;
-  myisam_hton->db_type=DB_TYPE_MYISAM;
-  myisam_hton->create=myisam_create_handler;
-  myisam_hton->panic=mi_panic;
+  myisam_hton->state= SHOW_OPTION_YES;
+  myisam_hton->db_type= DB_TYPE_MYISAM;
+  myisam_hton->create= myisam_create_handler;
+  myisam_hton->panic= myisam_panic;
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   return 0;
 }
