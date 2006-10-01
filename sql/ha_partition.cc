@@ -69,16 +69,17 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
                 MODULE create/delete handler object
 ****************************************************************************/
 
-static handler *partition_create_handler(TABLE_SHARE *share,
+static handler *partition_create_handler(handlerton *hton,
+                                         TABLE_SHARE *share,
                                          MEM_ROOT *mem_root);
 static uint partition_flags();
 static uint alter_table_flags(uint flags);
 
-handlerton *partition_hton;
 
 static int partition_initialize(void *p)
 {
 
+  handlerton *partition_hton;
   partition_hton= (handlerton *)p;
 
   partition_hton->state= SHOW_OPTION_YES;
@@ -102,10 +103,11 @@ static int partition_initialize(void *p)
     New partition object
 */
 
-static handler *partition_create_handler(TABLE_SHARE *share,
+static handler *partition_create_handler(handlerton *hton, 
+                                         TABLE_SHARE *share,
                                          MEM_ROOT *mem_root)
 {
-  ha_partition *file= new (mem_root) ha_partition(share);
+  ha_partition *file= new (mem_root) ha_partition(hton, share);
   if (file && file->initialise_partition(mem_root))
   {
     delete file;
@@ -155,8 +157,8 @@ static uint alter_table_flags(uint flags __attribute__((unused)))
     NONE
 */
 
-ha_partition::ha_partition(TABLE_SHARE *share)
-  :handler(partition_hton, share), m_part_info(NULL), m_create_handler(FALSE),
+ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
+  :handler(hton, share), m_part_info(NULL), m_create_handler(FALSE),
    m_is_sub_partitioned(0)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
@@ -176,8 +178,8 @@ ha_partition::ha_partition(TABLE_SHARE *share)
     NONE
 */
 
-ha_partition::ha_partition(partition_info *part_info)
-  :handler(partition_hton, NULL), m_part_info(part_info),
+ha_partition::ha_partition(handlerton *hton, partition_info *part_info)
+  :handler(hton, NULL), m_part_info(part_info),
    m_create_handler(TRUE),
    m_is_sub_partitioned(m_part_info->is_sub_partitioned())
 
