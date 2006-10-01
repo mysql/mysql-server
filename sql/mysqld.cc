@@ -354,6 +354,14 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_innodb;
+
+/*
+  Legacy global handlerton. These will be removed (please do not add more).
+*/
+handlerton *heap_hton;
+handlerton *myisam_hton;
+handlerton *partition_hton;
+
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
 extern ulong innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
