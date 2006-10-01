@@ -36,7 +36,8 @@ testPartitioning \
 testBitfield \
 DbCreate DbAsyncGenerator \
 testSRBank \
-test_event_merge
+test_event_merge \
+testIndexStat
 
 EXTRA_PROGRAMS = \
  test_event \
@@ -87,6 +88,7 @@ DbAsyncGenerator_SOURCES = bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp
 testSRBank_SOURCES = testSRBank.cpp
 test_event_merge_SOURCES = test_event_merge.cpp
 test_event_multi_table_SOURCES = test_event_multi_table.cpp
+testIndexStat_SOURCES = testIndexStat.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/kernel
 
@@ -167,4 +169,5 @@ testScan.dsp: Makefile \
 	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(testScan_SOURCES)
 	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
+
 
