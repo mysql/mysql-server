@@ -87,7 +87,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                        TABLE_LIST *tables, 
                                        COND *cond);
 
-static handlerton *ndbcluster_hton;
+handlerton *ndbcluster_hton;
 
 static handler *ndbcluster_create_handler(handlerton *hton,
                                           TABLE_SHARE *table,
