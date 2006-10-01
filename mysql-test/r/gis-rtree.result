@@ -862,3 +862,11 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+CREATE TABLE t1(foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
+INSERT INTO t1(foo) VALUES (NULL);
+ERROR 23000: Column 'foo' cannot be null
+INSERT INTO t1() VALUES ();
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t1(foo) VALUES ('');
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+DROP TABLE t1;
