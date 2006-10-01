@@ -358,10 +358,9 @@ my_bool	opt_innodb;
 /*
   Legacy global handlerton. These will be removed (please do not add more).
 */
-handlerton *ndbclusert_hton;
-handlerton *myisammrg_hton;
 handlerton *heap_hton;
 handlerton *myisam_hton;
+handlerton *partition_hton;
 
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
 extern ulong innobase_fast_shutdown;
