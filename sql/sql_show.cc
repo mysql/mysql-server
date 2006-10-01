@@ -4999,7 +4999,7 @@ static my_bool run_hton_fill_schema_files(THD *thd, st_plugin_int *plugin,
     (run_hton_fill_schema_files_args *) arg;
   handlerton *hton= (handlerton *)plugin->data;
   if(hton->fill_files_table && hton->state == SHOW_OPTION_YES)
-    hton->fill_files_table(thd, args->tables, args->cond);
+    hton->fill_files_table(hton, thd, args->tables, args->cond);
   return false;
 }
 
