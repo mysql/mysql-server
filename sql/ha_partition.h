@@ -149,8 +149,8 @@ public:
     partition handler.
     -------------------------------------------------------------------------
   */
-    ha_partition(TABLE_SHARE * table);
-    ha_partition(partition_info * part_info);
+    ha_partition(handlerton *hton, TABLE_SHARE * table);
+    ha_partition(handlerton *hton, partition_info * part_info);
    ~ha_partition();
   /*
     A partition handler has no characteristics in itself. It only inherits

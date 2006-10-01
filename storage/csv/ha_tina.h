@@ -129,7 +129,7 @@ private:
   int init_tina_writer();
 
 public:
-  ha_tina(TABLE_SHARE *table_arg);
+  ha_tina(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_tina()
   {
     if (chain_alloced)
@@ -211,6 +211,4 @@ public:
   int find_current_row(byte *buf);
   int chain_append();
 };
-
-int tina_end(ha_panic_function type);
 
