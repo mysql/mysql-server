@@ -433,7 +433,7 @@ Sensitive_cursor::fetch(ulong num_rows)
   thd->set_n_backup_active_arena(this, &backup_arena);
 
   for (info= ht_info; info->read_view ; info++)
-    (info->ht->set_cursor_read_view)(info->htthd, info->read_view);
+    (info->ht->set_cursor_read_view)(info->ht, thd, info->read_view);
 
   join->fetch_limit+= num_rows;
 
