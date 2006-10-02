@@ -5837,3 +5837,6 @@ ER_PARTITION_MERGE_ERROR
         swe "%s kan inte användas i en partitionerad tabell"
 ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
+ER_BASE64_DECODE_ERROR
+        eng "Decoding of base64 string failed"
+        swe "Avkodning av base64 sträng misslyckades"
