@@ -471,9 +471,6 @@ typedef unsigned short ushort;
 #ifndef __attribute__
 # if !defined(__GNUC__)
 #  define __attribute__(A)
-# elif defined (__QNXNTO__)
-   /* qcc defines GNUC */
-#  define __attribute__(A)
 # elif GCC_VERSION < 2008
 #  define __attribute__(A)
 # elif defined(__cplusplus) && GCC_VERSION < 3004
@@ -488,6 +485,19 @@ typedef unsigned short ushort;
 */
 #ifndef ATTRIBUTE_FORMAT
 # define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))
+#endif
+
+/*
+
+   __attribute__((format(...))) on a function pointer is not supported
+   until  gcc 3.1
+*/
+#ifndef ATTRIBUTE_FORMAT_FPTR
+# if (GCC_VERSION >= 3001)
+#  define ATTRIBUTE_FORMAT_FPTR(style, m, n) ATTRIBUTE_FORMAT(style, m, n)
+# else
+#  define ATTRIBUTE_FORMAT_FPTR(style, m, n)
+# endif /* GNUC >= 3.1 */
 #endif
 
 /*
