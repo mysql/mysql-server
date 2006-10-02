@@ -139,4 +139,8 @@ ERROR at line 1: USE must be followed by a database name
 \\
 ';
 ';
+1
+1
+ERROR at line 1: DELIMITER cannot contain a backslash character
+ERROR at line 1: DELIMITER cannot contain a backslash character
 End of 5.0 tests

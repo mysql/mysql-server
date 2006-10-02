@@ -147,4 +147,22 @@ drop table t1;
 --exec echo "SELECT '\';';" >> $MYSQLTEST_VARDIR/tmp/bug20103.sql
 --exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20103.sql 2>&1
 
+#
+# Bug #21412: mysql cmdline client allows backslash(es) 
+# as delimiter but can't recognize them
+#
+
+# This should work just fine...
+--exec echo "DELIMITER /" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--exec echo "SELECT 1/"   >> $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+
+# This should give an error...
+--exec echo "DELIMITER \\" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+
+# As should this...
+--exec echo "DELIMITER \\\\" > $MYSQLTEST_VARDIR/tmp/bug21412.sql
+--exec $MYSQL             < $MYSQLTEST_VARDIR/tmp/bug21412.sql 2>&1
+
 --echo End of 5.0 tests
