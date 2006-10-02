@@ -2,5 +2,5 @@
 
 let $type= 'INNODB' ;
 let $extra_index= ;
--- source include/rpl_row_basic.inc
+-- source extra/rpl_tests/rpl_row_basic.test
 
