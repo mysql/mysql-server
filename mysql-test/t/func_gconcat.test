@@ -447,3 +447,18 @@ SELECT a, CHAR_LENGTH(b) FROM t1;
 SELECT CHAR_LENGTH( GROUP_CONCAT(b) ) FROM t1;
 SET GROUP_CONCAT_MAX_LEN = 1024;
 DROP TABLE t1;
+
+#
+# Bug #22015: crash with GROUP_CONCAT over a derived table that 
+#             returns the results of aggregation by GROUP_CONCAT  
+#
+
+CREATE TABLE t1 (a int, b int);
+
+INSERT INTO t1 VALUES (2,1), (1,2), (2,2), (1,3);
+
+SELECT GROUP_CONCAT(a), x 
+  FROM (SELECT a, GROUP_CONCAT(b) x FROM t1 GROUP BY a) AS s
+    GROUP BY x;
+
+DROP TABLE t1;

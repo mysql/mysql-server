@@ -17,7 +17,8 @@ insert delayed into t1 set a = 4;
 insert delayed into t1 set a = 5, tmsp = 19711006010203;
 insert delayed into t1 (a, tmsp) values (6, 19711006010203);
 insert delayed into t1 (a, tmsp) values (7, NULL);
---sleep 2
+# Wait until the rows are flushed to the table files.
+FLUSH TABLE t1;
 insert into t1 set a = 8,tmsp=19711006010203;
 select * from t1 where tmsp=0;
 select * from t1 where tmsp=19711006010203;
@@ -34,8 +35,8 @@ insert delayed into t1 values (null,"c");
 insert delayed into t1 values (3,"d"),(null,"e");
 --error 1136
 insert delayed into t1 values (3,"this will give an","error");
-# 2 was not enough for --ps-protocol
---sleep 4
+# Wait until the rows are flushed to the table files.
+FLUSH TABLE t1;
 show status like 'not_flushed_delayed_rows';
 select * from t1;
 drop table t1;
@@ -92,10 +93,145 @@ insert delayed into t1 values(null);
 # Works, since the delayed-counter is 8, which is unused
 insert delayed into t1 values(null);
 
+# Wait until the rows are flushed to the table files.
+FLUSH TABLE t1;
 # Check what we have now
-# must wait so that the delayed thread finishes
-# Note: this must be increased if the test fails
---sleep 1
 select * from t1 order by a;
 
 DROP TABLE t1;
+
+#
+# Bug#20627 - INSERT DELAYED does not honour auto_increment_* variables
+#
+SET @bug20627_old_auto_increment_offset=
+                @@auto_increment_offset= 2;
+SET @bug20627_old_auto_increment_increment=
+                @@auto_increment_increment= 3;
+SET @bug20627_old_session_auto_increment_offset=
+                @@session.auto_increment_offset= 4;
+SET @bug20627_old_session_auto_increment_increment=
+                @@session.auto_increment_increment= 5;
+SET @@auto_increment_offset= 2;
+SET @@auto_increment_increment= 3;
+SET @@session.auto_increment_offset= 4;
+SET @@session.auto_increment_increment= 5;
+#
+# Normal insert as reference.
+CREATE TABLE t1 (
+  c1 INT NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (c1)
+  );
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL);
+# Check what we have now
+SELECT * FROM t1;
+DROP TABLE t1;
+#
+# Delayed insert.
+CREATE TABLE t1 (
+  c1 INT NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (c1)
+  );
+INSERT DELAYED INTO t1 VALUES (NULL),(NULL),(NULL);
+# Wait until the rows are flushed to the table files.
+FLUSH TABLE t1;
+# Check what we have now
+SELECT * FROM t1;
+DROP TABLE t1;
+#
+# Cleanup
+SET             @@auto_increment_offset=
+    @bug20627_old_auto_increment_offset;
+SET             @@auto_increment_increment=
+    @bug20627_old_auto_increment_increment;
+SET             @@session.auto_increment_offset=
+    @bug20627_old_session_auto_increment_offset;
+SET             @@session.auto_increment_increment=
+    @bug20627_old_session_auto_increment_increment;
+
+#
+# Bug#20830 - INSERT DELAYED does not honour SET INSERT_ID
+#
+SET @bug20830_old_auto_increment_offset=
+                @@auto_increment_offset= 2;
+SET @bug20830_old_auto_increment_increment=
+                @@auto_increment_increment= 3;
+SET @bug20830_old_session_auto_increment_offset=
+                @@session.auto_increment_offset= 4;
+SET @bug20830_old_session_auto_increment_increment=
+                @@session.auto_increment_increment= 5;
+SET @@auto_increment_offset= 2;
+SET @@auto_increment_increment= 3;
+SET @@session.auto_increment_offset= 4;
+SET @@session.auto_increment_increment= 5;
+#
+# Normal insert as reference.
+CREATE TABLE t1 (
+  c1 INT(11) NOT NULL AUTO_INCREMENT,
+  c2 INT(11) DEFAULT NULL,
+  PRIMARY KEY (c1)
+  );
+SET insert_id= 14;
+INSERT INTO t1 VALUES(NULL, 11), (NULL, 12), (NULL, 13);
+INSERT INTO t1 VALUES(NULL, 21), (NULL, 22), (NULL, 23);
+# Restart sequence at a different value.
+INSERT INTO t1 VALUES(  69, 31), (NULL, 32), (NULL, 33);
+INSERT INTO t1 VALUES(NULL, 41), (NULL, 42), (NULL, 43);
+# Restart sequence at a different value.
+SET insert_id= 114;
+INSERT INTO t1 VALUES(NULL, 51), (NULL, 52), (NULL, 53);
+INSERT INTO t1 VALUES(NULL, 61), (NULL, 62), (NULL, 63);
+# Set one value below the maximum value.
+INSERT INTO t1 VALUES(  49, 71), (NULL, 72), (NULL, 73);
+INSERT INTO t1 VALUES(NULL, 81), (NULL, 82), (NULL, 83);
+# Create a duplicate value.
+SET insert_id= 114;
+--error 1062
+INSERT INTO t1 VALUES(NULL, 91);
+INSERT INTO t1 VALUES           (NULL, 92), (NULL, 93);
+# Check what we have now
+SELECT * FROM t1;
+SELECT COUNT(*) FROM t1;
+SELECT SUM(c1) FROM t1;
+DROP TABLE t1;
+#
+# Delayed insert.
+CREATE TABLE t1 (
+  c1 INT(11) NOT NULL AUTO_INCREMENT,
+  c2 INT(11) DEFAULT NULL,
+  PRIMARY KEY (c1)
+  );
+SET insert_id= 14;
+INSERT DELAYED INTO t1 VALUES(NULL, 11), (NULL, 12), (NULL, 13);
+INSERT DELAYED INTO t1 VALUES(NULL, 21), (NULL, 22), (NULL, 23);
+# Restart sequence at a different value.
+INSERT DELAYED INTO t1 VALUES(  69, 31), (NULL, 32), (NULL, 33);
+INSERT DELAYED INTO t1 VALUES(NULL, 41), (NULL, 42), (NULL, 43);
+# Restart sequence at a different value.
+SET insert_id= 114;
+INSERT DELAYED INTO t1 VALUES(NULL, 51), (NULL, 52), (NULL, 53);
+INSERT DELAYED INTO t1 VALUES(NULL, 61), (NULL, 62), (NULL, 63);
+# Set one value below the maximum value.
+INSERT DELAYED INTO t1 VALUES(  49, 71), (NULL, 72), (NULL, 73);
+INSERT DELAYED INTO t1 VALUES(NULL, 81), (NULL, 82), (NULL, 83);
+# Create a duplicate value.
+SET insert_id= 114;
+INSERT DELAYED INTO t1 VALUES(NULL, 91);
+INSERT DELAYED INTO t1 VALUES           (NULL, 92), (NULL, 93);
+# Wait until the rows are flushed to the table files.
+FLUSH TABLE t1;
+# Check what we have now
+SELECT * FROM t1;
+SELECT COUNT(*) FROM t1;
+SELECT SUM(c1) FROM t1;
+DROP TABLE t1;
+#
+# Cleanup
+SET             @@auto_increment_offset=
+    @bug20830_old_auto_increment_offset;
+SET             @@auto_increment_increment=
+    @bug20830_old_auto_increment_increment;
+SET             @@session.auto_increment_offset=
+    @bug20830_old_session_auto_increment_offset;
+SET             @@session.auto_increment_increment=
+    @bug20830_old_session_auto_increment_increment;
+
