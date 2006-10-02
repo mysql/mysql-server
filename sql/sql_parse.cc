@@ -2422,6 +2422,20 @@ mysql_execute_command(THD *thd)
   thd->net.no_send_error= 0;
 
   /*
+    Remember first generated insert id value of the previous
+    statement.  We remember it here at the beginning of the statement,
+    and also in Item_func_last_insert_id::fix_fields() and
+    sys_var_last_insert_id::value_ptr().  Last two places are required
+    because LAST_INSERT_ID() and @@LAST_INSERT_ID may also be used in
+    expression that is not executed with mysql_execute_command().
+
+    And we remember it here because some statements read
+    @@LAST_INSERT_ID indirectly, like "SELECT * FROM t1 WHERE id IS
+    NULL", that may replace "id IS NULL" with "id = <LAST_INSERT_ID>".
+  */
+  thd->current_insert_id= thd->last_insert_id;
+
+  /*
     In many cases first table of main SELECT_LEX have special meaning =>
     check that it is first table in global list and relink it first in 
     queries_tables list if it is necessary (we need such relinking only
@@ -5636,7 +5650,7 @@ void mysql_reset_thd_for_next_command(THD *thd)
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   thd->free_list= 0;
   thd->select_number= 1;
-  thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
+  thd->query_start_used= thd->insert_id_used=0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
