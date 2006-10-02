@@ -244,6 +244,118 @@ select * from t1 order by n;
 
 connection master;
 drop table t1;
+
+#
+# BUG#20339: stored procedure using LAST_INSERT_ID() does not
+# replicate statement-based 
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+# Reset result of LAST_INSERT_ID().
+SELECT LAST_INSERT_ID(0);
+
+CREATE TABLE t1 (
+  id INT NOT NULL DEFAULT 0,
+  last_id INT,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE t2 (
+  id INT NOT NULL AUTO_INCREMENT,
+  last_id INT,
+  PRIMARY KEY (id)
+);
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t2 (last_id) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (last_id) VALUES (LAST_INSERT_ID());
+END|
+delimiter ;|
+
+CALL p1();
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+sync_slave_with_master;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+
+
+#
+# BUG#21726: Incorrect result with multiple invocations of
+# LAST_INSERT_ID
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (
+    i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    j INT DEFAULT 0
+);
+CREATE TABLE t2 (i INT);
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t1 (i) VALUES (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (i) VALUES (NULL), (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+END |
+
+CREATE FUNCTION f1() RETURNS INT MODIFIES SQL DATA
+BEGIN
+  INSERT INTO t1 (i) VALUES (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (i) VALUES (NULL), (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  RETURN 0;
+END |
+
+CREATE FUNCTION f2() RETURNS INT NOT DETERMINISTIC
+  RETURN LAST_INSERT_ID() |
+delimiter ;|
+
+INSERT INTO t1 VALUES (NULL, -1);
+CALL p1();
+SELECT f1();
+INSERT INTO t1 VALUES (NULL, f2()), (NULL, LAST_INSERT_ID()),
+                      (NULL, LAST_INSERT_ID()), (NULL, f2()), (NULL, f2());
+INSERT INTO t1 VALUES (NULL, f2());
+INSERT INTO t1 VALUES (NULL, LAST_INSERT_ID()), (NULL, LAST_INSERT_ID(5)),
+                      (NULL, @@LAST_INSERT_ID);
+# Test replication of substitution "IS NULL" -> "= LAST_INSERT_ID".
+INSERT INTO t1 VALUES (NULL, 0), (NULL, LAST_INSERT_ID());
+UPDATE t1 SET j= -1 WHERE i IS NULL;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+sync_slave_with_master;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE t1, t2;
+
+
 sync_slave_with_master;
 
 --echo 
