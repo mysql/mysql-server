@@ -82,4 +82,16 @@ create table t2 (country_id int primary key, country char(20) not null);
 insert into t2 values (1, 'USA'),(2,'India'), (3,'Finland');
 select product, sum(profit),avg(profit) from t1 group by product with rollup procedure analyse();
 drop table t1,t2;
-# End of 4.1 tests
+
+#
+# Bug #20305 PROCEDURE ANALYSE() returns wrong M for FLOAT(M, D) and DOUBLE(M, D)
+#
+
+create table t1 (f1 double(10,5), f2 char(10), f3 double(10,5));
+insert into t1 values (5.999, "5.9999", 5.99999), (9.555, "9.5555", 9.55555);
+select f1 from t1 procedure analyse(1, 1);
+select f2 from t1 procedure analyse(1, 1);
+select f3 from t1 procedure analyse(1, 1);
+drop table t1;
+
+--echo End of 4.1 tests

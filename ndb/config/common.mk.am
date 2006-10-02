@@ -7,6 +7,6 @@ ndbapiincludedir = "$(pkgincludedir)/ndb/ndbapi"
 mgmapiincludedir = "$(pkgincludedir)/ndb/mgmapi"
 
 INCLUDES = $(INCLUDES_LOC)
-LDADD = $(top_srcdir)/ndb/src/common/portlib/gcc.cpp $(LDADD_LOC)
+LDADD = $(LDADD_LOC) -L$(top_srcdir)/ndb/src/common/portlib -lmygcc
 DEFS = @DEFS@ @NDB_DEFS@ $(DEFS_LOC) $(NDB_EXTRA_FLAGS)
 NDB_CXXFLAGS=@ndb_cxxflags_fix@ $(NDB_CXXFLAGS_LOC) 

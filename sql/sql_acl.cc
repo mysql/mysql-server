@@ -426,7 +426,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                           "case that has been forced to lowercase because "
                           "lower_case_table_names is set. It will not be "
                           "possible to remove this privilege using REVOKE.",
-		          db.db, db.user, db.host.hostname, db.host.hostname);
+		          db.db, db.user, db.host.hostname);
       }
     }
     db.sort=get_sort(3,db.host.hostname,db.db,db.user);
@@ -2778,7 +2778,7 @@ static my_bool grant_load(TABLE_LIST *tables)
         sql_print_warning("'tables_priv' entry '%s %s@%s' "
                           "ignored in --skip-name-resolve mode.",
                           mem_check->tname, mem_check->user,
-                          mem_check->host);
+                          mem_check->host.hostname);
 	continue;
       }
     }
