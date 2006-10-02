@@ -3365,7 +3365,6 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 {
   switch (type) {
   case LAST_INSERT_ID_EVENT:
-    thd->last_insert_id_used = 1;
     thd->last_insert_id = val;
     break;
   case INSERT_ID_EVENT:
