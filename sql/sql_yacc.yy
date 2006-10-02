@@ -5212,11 +5212,13 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
+            Select->parsing_place= IN_ON;
           }
           expr
 	  {
             add_join_on($3,$6);
             Lex->pop_context();
+            Select->parsing_place= NO_MATTER;
           }
         | table_ref STRAIGHT_JOIN table_factor
           ON
@@ -5225,12 +5227,14 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
+            Select->parsing_place= IN_ON;
           }
           expr
           {
             $3->straight=1;
             add_join_on($3,$6);
             Lex->pop_context();
+            Select->parsing_place= NO_MATTER;
           }
 	| table_ref normal_join table_ref
 	  USING
@@ -5254,6 +5258,7 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
+            Select->parsing_place= IN_ON;
           }
           expr
 	  {
@@ -5261,6 +5266,7 @@ join_table:
             Lex->pop_context();
             $5->outer_join|=JOIN_TYPE_LEFT;
             $$=$5;
+            Select->parsing_place= NO_MATTER;
           }
 	| table_ref LEFT opt_outer JOIN_SYM table_factor
 	  {
@@ -5285,6 +5291,7 @@ join_table:
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $5))
               YYABORT;
+            Select->parsing_place= IN_ON;
           }
           expr
           {
@@ -5293,6 +5300,7 @@ join_table:
               YYABORT;
             add_join_on($$, $8);
             Lex->pop_context();
+            Select->parsing_place= NO_MATTER;
           }
 	| table_ref RIGHT opt_outer JOIN_SYM table_factor
 	  {
@@ -6921,6 +6929,9 @@ load:   LOAD DATA_SYM
 	    YYABORT;
 	  }
           lex->sql_command = SQLCOM_LOAD_MASTER_TABLE;
+          WARN_DEPRECATED("LOAD TABLE FROM MASTER",
+                          "mysqldump or future "
+                          "BACKUP/RESTORE DATABASE facility");
           if (!Select->add_table_to_list(YYTHD, $3, NULL, TL_OPTION_UPDATING))
             YYABORT;
         };
@@ -6959,6 +6970,9 @@ load_data:
 	FROM MASTER_SYM
         {
 	  Lex->sql_command = SQLCOM_LOAD_MASTER_DATA;
+          WARN_DEPRECATED("LOAD DATA FROM MASTER",
+                          "mysqldump or future "
+                          "BACKUP/RESTORE DATABASE facility");
         };
 
 opt_local:
@@ -7517,7 +7531,7 @@ user:
 	  $$->host.str= (char *) "%";
 	  $$->host.length= 1;
 
-	  if (check_string_length(system_charset_info, &$$->user,
+	  if (check_string_length(&$$->user,
                                   ER(ER_USERNAME), USERNAME_LENGTH))
 	    YYABORT;
 	}
@@ -7528,9 +7542,9 @@ user:
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
 
-	    if (check_string_length(system_charset_info, &$$->user,
+	    if (check_string_length(&$$->user,
                                     ER(ER_USERNAME), USERNAME_LENGTH) ||
-	        check_string_length(&my_charset_latin1, &$$->host,
+	        check_string_length(&$$->host,
                                     ER(ER_HOSTNAME), HOSTNAME_LENGTH))
 	      YYABORT;
 	  }
