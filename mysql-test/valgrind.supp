@@ -15,6 +15,14 @@
 }
 
 {
+   pthread allocate_tls memory loss
+   Memcheck:Leak
+   fun:calloc
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+}
+
+{
    pthread allocate_dtv memory loss
    Memcheck:Leak
    fun:calloc
@@ -115,6 +123,24 @@
 }
 
 {
+   libz longest_match 3
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:gzclose
+}
+
+{
+   libz longest_match 4 
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:gzflush
+}
+
+{
    libz deflate
    Memcheck:Cond
    obj:*/libz.so.*
@@ -132,6 +158,7 @@
    obj:*/libz.so.*
    fun:gzflush
 }
+
 
 #
 # Warning from my_thread_init becasue mysqld dies before kill thread exists
