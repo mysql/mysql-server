@@ -184,7 +184,7 @@ typedef struct my_charset_handler_st
   
   /* Charset dependant snprintf() */
   int  (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt,
-		   ...) ATTRIBUTE_FORMAT(printf, 4, 5);
+		   ...) ATTRIBUTE_FORMAT_FPTR(printf, 4, 5);
   int  (*long10_to_str)(struct charset_info_st *, char *to, uint n, int radix,
 			long int val);
   int (*longlong10_to_str)(struct charset_info_st *, char *to, uint n,
