@@ -105,6 +105,7 @@ typedef struct my_xpath_st
   String *context_cache; /* last context provider                     */
   String *pxml;          /* Parsed XML, an array of MY_XML_NODE       */
   CHARSET_INFO *cs;      /* character set/collation string comparison */
+  int error;
 } MY_XPATH;
 
 
@@ -913,7 +914,9 @@ static Item *eq_func_reverse(int oper, Item *a, Item *b)
   RETURN
     The newly created item.
 */
-static Item *create_comparator(MY_XPATH *xpath, int oper, Item *a, Item *b)
+static Item *create_comparator(MY_XPATH *xpath,
+                               int oper, MY_XPATH_LEX *context,
+                               Item *a, Item *b)
 {
   if (a->type() != Item::XPATH_NODESET &&
       b->type() != Item::XPATH_NODESET)
@@ -923,6 +926,13 @@ static Item *create_comparator(MY_XPATH *xpath, int oper, Item *a, Item *b)
   else if (a->type() == Item::XPATH_NODESET &&
            b->type() == Item::XPATH_NODESET)
   {
+    uint len= context->end - context->beg;
+    set_if_bigger(len, 32);
+    my_printf_error(ER_UNKNOWN_ERROR,
+                    "XPATH error: "
+                    "comparison of two nodesets is not supported: '%.*s'",
+                    MYF(0), len, context->beg);
+
     return 0; // TODO: Comparison of two nodesets
   }
   else
@@ -1430,7 +1440,7 @@ my_xpath_lex_scan(MY_XPATH *xpath,
 static int
 my_xpath_parse_term(MY_XPATH *xpath, int term)
 {
-  if (xpath->lasttok.term == term)
+  if (xpath->lasttok.term == term && !xpath->error)
   {
     xpath->prevtok= xpath->lasttok;
     my_xpath_lex_scan(xpath, &xpath->lasttok,
@@ -1558,8 +1568,9 @@ static int my_xpath_parse_AbsoluteLocationPath(MY_XPATH *xpath)
     return my_xpath_parse_RelativeLocationPath(xpath);
   }
 
-  return my_xpath_parse_term(xpath, MY_XPATH_LEX_EOF) ||
-         my_xpath_parse_RelativeLocationPath(xpath);
+  my_xpath_parse_RelativeLocationPath(xpath);
+ 
+  return (xpath->error == 0);
 }
 
 
@@ -1596,7 +1607,10 @@ static int my_xpath_parse_RelativeLocationPath(MY_XPATH *xpath)
                                                              "*", 1,
                                                              xpath->pxml, 1);
     if (!my_xpath_parse_Step(xpath))
+    {
+      xpath->error= 1;
       return 0;
+    }
   }
   return 1;
 }
@@ -1633,10 +1647,16 @@ my_xpath_parse_AxisSpecifier_NodeTest_opt_Predicate_list(MY_XPATH *xpath)
     xpath->context_cache= context_cache;
 
     if(!my_xpath_parse_PredicateExpr(xpath))
+    {
+      xpath->error= 1;
       return 0;
+    }
 
     if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_RB))
+    {
+      xpath->error= 1;
       return 0;
+    }
 
     xpath->item= nodeset2bool(xpath, xpath->item);
 
@@ -1893,7 +1913,10 @@ static int my_xpath_parse_UnionExpr(MY_XPATH *xpath)
     
     if (!my_xpath_parse_PathExpr(xpath)
         || xpath->item->type() != Item::XPATH_NODESET)
+    {
+      xpath->error= 1;
       return 0;
+    }
     xpath->item= new Item_nodeset_func_union(prev, xpath->item, xpath->pxml);
   }
   return 1;
@@ -1929,6 +1952,7 @@ static int my_xpath_parse_PathExpr(MY_XPATH *xpath)
 {
   return my_xpath_parse_LocationPath(xpath) || 
          my_xpath_parse_FilterExpr_opt_slashes_RelativeLocationPath(xpath);
+         
 }
 
 
@@ -1975,7 +1999,10 @@ static int my_xpath_parse_OrExpr(MY_XPATH *xpath)
   {
     Item *prev= xpath->item;
     if (!my_xpath_parse_AndExpr(xpath))
+    {
       return 0;
+      xpath->error= 1;
+    }
     xpath->item= new Item_cond_or(nodeset2bool(xpath, prev),
                                   nodeset2bool(xpath, xpath->item));
   }
@@ -2003,7 +2030,10 @@ static int my_xpath_parse_AndExpr(MY_XPATH *xpath)
   {
     Item *prev= xpath->item;
     if (!my_xpath_parse_EqualityExpr(xpath))
+    {
+      xpath->error= 1;
       return 0;
+    }
 
     xpath->item= new Item_cond_and(nodeset2bool(xpath,prev), 
                                    nodeset2bool(xpath,xpath->item));
@@ -2057,17 +2087,26 @@ static int my_xpath_parse_EqualityOperator(MY_XPATH *xpath)
 }
 static int my_xpath_parse_EqualityExpr(MY_XPATH *xpath)
 {
+  MY_XPATH_LEX operator_context;
   if (!my_xpath_parse_RelationalExpr(xpath))
     return 0;
+
+  operator_context= xpath->lasttok;
   while (my_xpath_parse_EqualityOperator(xpath))
   {
     Item *prev= xpath->item;
     int oper= xpath->extra;
     if (!my_xpath_parse_RelationalExpr(xpath))
+    {
+      xpath->error= 1;
+      return 0;
+    }
+
+    if (!(xpath->item= create_comparator(xpath, oper, &operator_context,
+                                         prev, xpath->item)))
       return 0;
 
-    if (!(xpath->item= create_comparator(xpath, oper, prev, xpath->item)))
-      return 0;
+    operator_context= xpath->lasttok;
   }
   return 1;
 }
@@ -2109,18 +2148,25 @@ static int my_xpath_parse_RelationalOperator(MY_XPATH *xpath)
 }
 static int my_xpath_parse_RelationalExpr(MY_XPATH *xpath)
 {
+  MY_XPATH_LEX operator_context;
   if (!my_xpath_parse_AdditiveExpr(xpath))
     return 0;
+  operator_context= xpath->lasttok;
   while (my_xpath_parse_RelationalOperator(xpath))
   {
     Item *prev= xpath->item;
     int oper= xpath->extra;
 
     if (!my_xpath_parse_AdditiveExpr(xpath))
+    {
+      xpath->error= 1;
       return 0;
+    }
 
-    if (!(xpath->item= create_comparator(xpath, oper, prev, xpath->item)))
+    if (!(xpath->item= create_comparator(xpath, oper, &operator_context,
+                                         prev, xpath->item)))
       return 0;
+    operator_context= xpath->lasttok;
   }
   return 1;
 }
@@ -2153,7 +2199,10 @@ static int my_xpath_parse_AdditiveExpr(MY_XPATH *xpath)
     int oper= xpath->prevtok.term;
     Item *prev= xpath->item;
     if (!my_xpath_parse_MultiplicativeExpr(xpath))
+    {
+      xpath->error= 1;
       return 0;
+    }
 
     if (oper == MY_XPATH_LEX_PLUS)
       xpath->item= new Item_func_plus(prev, xpath->item);
@@ -2198,7 +2247,10 @@ static int my_xpath_parse_MultiplicativeExpr(MY_XPATH *xpath)
     int oper= xpath->prevtok.term;
     Item *prev= xpath->item;
     if (!my_xpath_parse_UnaryExpr(xpath))
+    {
+      xpath->error= 1;
       return 0;
+    }
     switch (oper)
     {
       case MY_XPATH_LEX_ASTERISK:
