@@ -3539,7 +3539,9 @@ is_updated:
 		}
 	}
 
-	ut_ulint_sort(ext_vect, ext_vect + n_pushed, 0, n_pushed);
+	if (n_pushed) {
+		ut_ulint_sort(ext_vect, ext_vect + n_pushed, 0, n_pushed);
+	}
 
 	return(n_pushed);
 }
@@ -4274,7 +4276,7 @@ end_of_blob:
 			ulint	part_len
 				= btr_blob_get_part_len(blob_header);
 			ulint	copy_len
-				= ut_max(part_len, len - copied_len);
+				= ut_min(part_len, len - copied_len);
 
 			memcpy(buf + copied_len,
 			       blob_header + BTR_BLOB_HDR_SIZE, copy_len);
