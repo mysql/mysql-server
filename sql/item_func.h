@@ -891,6 +891,7 @@ public:
     if (arg_count)
       max_length= args[0]->max_length;
   }
+  bool fix_fields(THD *thd, Item **ref);
 };
 
 
