@@ -64,4 +64,17 @@ insert into t1 values (date_add('2000-01-04', INTERVAL NULL DAY));
 select * from t1;
 drop table t1;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
+
+#
+# Bug#21811
+#
+# Make sure we end up with an appropriate
+# date format (DATE) after addition operation
+#
+SELECT CAST('2006-09-26' AS DATE) + INTERVAL 1 DAY;
+SELECT CAST('2006-09-26' AS DATE) + INTERVAL 1 MONTH;
+SELECT CAST('2006-09-26' AS DATE) + INTERVAL 1 YEAR;
+SELECT CAST('2006-09-26' AS DATE) + INTERVAL 1 WEEK;
+
+--echo End of 5.0 tests
