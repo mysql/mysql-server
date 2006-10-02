@@ -1449,12 +1449,12 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
 
 bool field_is_partition_charset(Field *field)
 {
-  if (!field->type() == MYSQL_TYPE_STRING &&
-      !field->type() == MYSQL_TYPE_VARCHAR)
+  if (!(field->type() == MYSQL_TYPE_STRING) &&
+      !(field->type() == MYSQL_TYPE_VARCHAR))
     return FALSE;
   {
     CHARSET_INFO *cs= ((Field_str*)field)->charset();
-    if (!field->type() == MYSQL_TYPE_STRING ||
+    if (!(field->type() == MYSQL_TYPE_STRING) ||
         !(cs->state & MY_CS_BINSORT))
       return TRUE;
     return FALSE;
@@ -1485,7 +1485,7 @@ bool field_is_partition_charset(Field *field)
 bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
 {
   Field *field;
-  DBUG_ENTER("check_part_func_field");
+  DBUG_ENTER("check_part_func_fields");
 
   while ((field= *(ptr++)))
   {
