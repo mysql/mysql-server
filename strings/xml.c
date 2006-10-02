@@ -19,6 +19,7 @@
 #include "my_xml.h"
 
 
+#define MY_XML_UNKNOWN  'U'
 #define MY_XML_EOF	'E'
 #define MY_XML_STRING	'S'
 #define MY_XML_IDENT	'I'
@@ -39,6 +40,46 @@ typedef struct xml_attr_st
 } MY_XML_ATTR;
 
 
+/*
+  XML ctype:
+*/
+#define	MY_XML_ID0  0x01 /* Identifier initial character */
+#define	MY_XML_ID1  0x02 /* Identifier medial  character */
+#define	MY_XML_SPC  0x08 /* Spacing character */
+
+
+/*
+ http://www.w3.org/TR/REC-xml/ 
+ [4] NameChar ::= Letter | Digit | '.' | '-' | '_' | ':' |
+                  CombiningChar | Extender
+ [5] Name ::= (Letter | '_' | ':') (NameChar)*
+*/
+
+static char my_xml_ctype[256]=
+{
+/*00*/  0,0,0,0,0,0,0,0,0,8,8,0,0,8,0,0,
+/*10*/  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+/*20*/  8,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,  /*  !"#$%&'()*+,-./ */
+/*30*/  2,2,2,2,2,2,2,2,2,2,3,0,0,0,0,0,  /* 0123456789:;<=>? */
+/*40*/  0,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,  /* @ABCDEFGHIJKLMNO */
+/*50*/  3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,3,  /* PQRSTUVWXYZ[\]^_ */
+/*60*/  0,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,  /* `abcdefghijklmno */
+/*70*/  3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,  /* pqrstuvwxyz{|}~  */
+/*80*/  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+/*90*/  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+/*A0*/  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+/*B0*/  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+/*C0*/  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+/*D0*/  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+/*E0*/  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,
+/*F0*/  3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3
+};
+
+#define my_xml_is_space(c)  (my_xml_ctype[(uchar) (c)] & MY_XML_SPC)
+#define my_xml_is_id0(c)    (my_xml_ctype[(uchar) (c)] & MY_XML_ID0)
+#define my_xml_is_id1(c)    (my_xml_ctype[(uchar) (c)] & MY_XML_ID1)
+
+
 static const char *lex2str(int lex)
 {
   switch(lex)
@@ -56,13 +97,13 @@ static const char *lex2str(int lex)
     case MY_XML_QUESTION: return "'?'";
     case MY_XML_EXCLAM:   return "'!'";
   }
-  return "UNKNOWN";
+  return "unknown token";
 }
 
 static void my_xml_norm_text(MY_XML_ATTR *a)
 {
-  for ( ; (a->beg < a->end) && strchr(" \t\r\n",a->beg[0]) ; a->beg++ );
-  for ( ; (a->beg < a->end) && strchr(" \t\r\n",a->end[-1]) ; a->end-- );
+  for ( ; (a->beg < a->end) && my_xml_is_space(a->beg[0]) ; a->beg++ );
+  for ( ; (a->beg < a->end) && my_xml_is_space(a->end[-1]) ; a->end-- );
 }
 
 
@@ -70,7 +111,7 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
 {
   int lex;
   
-  for(  ; ( p->cur < p->end) && strchr(" \t\r\n",p->cur[0]) ;  p->cur++);
+  for(  ; ( p->cur < p->end) && my_xml_is_space(p->cur[0]) ;  p->cur++);
   
   if (p->cur >= p->end)
   {
@@ -124,16 +165,17 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
       my_xml_norm_text(a);
     lex=MY_XML_STRING;
   }
-  else
+  else if (my_xml_is_id0(p->cur[0]))
   {
-    for(;
-	(p->cur < p->end) && !strchr("?'\"=/<> \t\r\n", p->cur[0]);
-	p->cur++)
-    {}
+    p->cur++;
+    while (p->cur < p->end && my_xml_is_id1(p->cur[0]))
+      p->cur++;
     a->end=p->cur;
     my_xml_norm_text(a);
     lex=MY_XML_IDENT;
   }
+  else
+    lex= MY_XML_UNKNOWN;
 
 #if 0
   printf("LEX=%s[%d]\n",lex2str(lex),a->end-a->beg);
