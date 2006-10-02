@@ -1370,7 +1370,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 			   param->temp_filename);
       goto err;
     }
-    if (filecopy(param,new_file,info->dfile,0L,new_header_length,
+    if (new_header_length &&
+        filecopy(param,new_file,info->dfile,0L,new_header_length,
 		 "datafile-header"))
       goto err;
     info->s->state.dellink= HA_OFFSET_ERROR;
@@ -2072,7 +2073,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 			   param->temp_filename);
       goto err;
     }
-    if (filecopy(param, new_file,info->dfile,0L,new_header_length,
+    if (new_header_length &&
+        filecopy(param, new_file,info->dfile,0L,new_header_length,
 		 "datafile-header"))
       goto err;
     if (param->testflag & T_UNPACK)
@@ -2466,7 +2468,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			   param->temp_filename);
       goto err;
     }
-    if (filecopy(param, new_file,info->dfile,0L,new_header_length,
+    if (new_header_length &&
+        filecopy(param, new_file,info->dfile,0L,new_header_length,
 		 "datafile-header"))
       goto err;
     if (param->testflag & T_UNPACK)

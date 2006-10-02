@@ -74,7 +74,11 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty);
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
-static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
+static handler *tina_create_handler(handlerton *hton,
+                                    TABLE_SHARE *table, 
+                                    MEM_ROOT *mem_root);
+int tina_end(handlerton *hton, ha_panic_function type);
+
 
 off_t Transparent_file::read_next()
 {
@@ -123,7 +127,6 @@ char Transparent_file::get_value(off_t offset)
     return buff[0];
   }
 }
-handlerton *tina_hton;
 
 /*****************************************************************************
  ** TINA tables
@@ -150,6 +153,8 @@ static byte* tina_get_key(TINA_SHARE *share,uint *length,
 
 static int tina_init_func(void *p)
 {
+  handlerton *tina_hton;
+
   if (!tina_init)
   {
     tina_hton= (handlerton *)p;
@@ -161,7 +166,8 @@ static int tina_init_func(void *p)
     tina_hton->db_type= DB_TYPE_CSV_DB;
     tina_hton->create= tina_create_handler;
     tina_hton->panic= tina_end;
-    tina_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
+    tina_hton->flags= (HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES | 
+                       HTON_NO_PARTITION);
   }
   return 0;
 }
@@ -449,7 +455,7 @@ static int free_share(TINA_SHARE *share)
   DBUG_RETURN(result_code);
 }
 
-int tina_end(ha_panic_function type)
+int tina_end(handlerton *hton, ha_panic_function type)
 {
   return tina_done_func(NULL);
 }
@@ -493,14 +499,16 @@ off_t find_eoln_buff(Transparent_file *data_buff, off_t begin,
 }
 
 
-static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler *tina_create_handler(handlerton *hton,
+                                    TABLE_SHARE *table, 
+                                    MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_tina(table);
+  return new (mem_root) ha_tina(hton, table);
 }
 
 
-ha_tina::ha_tina(TABLE_SHARE *table_arg)
-  :handler(tina_hton, table_arg),
+ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg),
   /*
     These definitions are found in handler.h
     They are not probably completely right.
@@ -1516,7 +1524,7 @@ bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 struct st_mysql_storage_engine csv_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, tina_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(csv)
 {
