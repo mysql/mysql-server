@@ -117,7 +117,8 @@ DEFS =			-DMYSQL_SERVER \
 
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
 EXTRA_DIST =		$(BUILT_SOURCES) nt_servc.cc nt_servc.h \
-			message.mc examples/CMakeLists.txt CMakeLists.txt
+			message.mc examples/CMakeLists.txt CMakeLists.txt \
+			udf_example.c udf_example.def
 DISTCLEANFILES =        lex_hash.h sql_yacc.output
 
 AM_YFLAGS =		-d --debug --verbose
