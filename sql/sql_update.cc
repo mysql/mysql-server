@@ -568,7 +568,7 @@ int mysql_update(THD *thd,
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
     send_ok(thd, (ulong) thd->row_count_func,
-	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
+	    thd->insert_id_used ? thd->last_insert_id : 0L,buff);
     DBUG_PRINT("info",("%d records updated",updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -1561,6 +1561,6 @@ bool multi_update::send_eof()
   thd->row_count_func=
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
   ::send_ok(thd, (ulong) thd->row_count_func,
-	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
+	    thd->insert_id_used ? thd->last_insert_id : 0L,buff);
   return FALSE;
 }
