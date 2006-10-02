@@ -116,11 +116,6 @@ public:
             bodies[TRG_EVENT_DELETE][TRG_ACTION_AFTER]);
   }
 
-  bool has_before_update_triggers()
-  {
-    return test(bodies[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE]);
-  }
-
   void set_table(TABLE *new_table);
 
   void mark_fields_used(trg_event_type event);
