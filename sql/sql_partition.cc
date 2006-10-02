@@ -2771,8 +2771,8 @@ notfound:
 
 
 int get_partition_id_range(partition_info *part_info,
-                            uint32 *part_id,
-                            longlong *func_value)
+                           uint32 *part_id,
+                           longlong *func_value)
 {
   longlong *range_array= part_info->range_int_array;
   uint max_partition= part_info->no_parts - 1;

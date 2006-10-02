@@ -150,7 +150,8 @@ public:
   /********************************************
    * INTERVAL ANALYSIS ENDS 
    ********************************************/
-  
+
+  longlong err_value;
   char* part_info_string;
 
   char *part_func_string;
@@ -227,7 +228,7 @@ public:
     restore_full_part_field_ptrs(NULL),
     part_expr(NULL), subpart_expr(NULL), item_free_list(NULL),
     first_log_entry(NULL), exec_log_entry(NULL), frm_log_entry(NULL),
-    list_array(NULL),
+    list_array(NULL), err_value(0),
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
     part_state(NULL),
