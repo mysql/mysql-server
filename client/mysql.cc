@@ -800,10 +800,23 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     default_charset_used= 1;
     break;
   case OPT_DELIMITER:
-    if (argument == disabled_my_option)
+    if (argument == disabled_my_option) 
+    {
       strmov(delimiter, DEFAULT_DELIMITER);
-    else
-      strmake(delimiter, argument, sizeof(delimiter) - 1);
+    }
+    else 
+    {
+      /* Check that delimiter does not contain a backslash */
+      if (!strstr(argument, "\\")) 
+      {
+        strmake(delimiter, argument, sizeof(delimiter) - 1);
+      }
+      else 
+      {
+        put_info("DELIMITER cannot contain a backslash character", INFO_ERROR);
+        return 0;
+      } 
+    }
     delimiter_length= (uint)strlen(delimiter);
     delimiter_str= delimiter;
     break;
@@ -3010,6 +3023,14 @@ com_delimiter(String *buffer __attribute__((unused)), char *line)
     put_info("DELIMITER must be followed by a 'delimiter' character or string",
 	     INFO_ERROR);
     return 0;
+  }
+  else
+  {
+    if (strstr(tmp, "\\")) 
+    {
+      put_info("DELIMITER cannot contain a backslash character", INFO_ERROR);
+      return 0;
+    }
   }
   strmake(delimiter, tmp, sizeof(delimiter) - 1);
   delimiter_length= (int)strlen(delimiter);

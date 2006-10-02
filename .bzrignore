@@ -1318,3 +1318,6 @@ win/vs71cache.txt
 win/vs8cache.txt
 zlib/*.ds?
 zlib/*.vcproj
+mysql-test/t/tmp.test
+mysql-test/r/tmp.result
+client/tmp.diff
