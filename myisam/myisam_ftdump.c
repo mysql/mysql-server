@@ -126,7 +126,6 @@ int main(int argc,char *argv[])
 
     if (count || stats)
     {
-      doc_cnt++;
       if (strcmp(buf, buf2))
       {
         if (*buf2)
@@ -151,6 +150,7 @@ int main(int argc,char *argv[])
         keylen2=keylen;
         doc_cnt=0;
       }
+      doc_cnt+= (subkeys >= 0 ? 1 : -subkeys);
     }
     if (dump)
     {
@@ -166,7 +166,6 @@ int main(int argc,char *argv[])
 
   if (count || stats)
   {
-    doc_cnt++;
     if (*buf2)
     {
       uniq++;

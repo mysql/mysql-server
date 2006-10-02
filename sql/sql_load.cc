@@ -616,10 +616,8 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     thd->no_trans_update= no_trans_update;
    
     /*
-      If auto_increment values are used, save the first one
-       for LAST_INSERT_ID() and for the binary/update log.
-       We can't use insert_id() as we don't want to touch the
-       last_insert_id_used flag.
+      If auto_increment values are used, save the first one for
+      LAST_INSERT_ID() and for the binary/update log.
     */
     if (!id && thd->insert_id_used)
       id= thd->last_insert_id;
@@ -784,10 +782,8 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (write_record(thd, table, &info))
       DBUG_RETURN(1);
     /*
-      If auto_increment values are used, save the first one
-       for LAST_INSERT_ID() and for the binary/update log.
-       We can't use insert_id() as we don't want to touch the
-       last_insert_id_used flag.
+      If auto_increment values are used, save the first one for
+      LAST_INSERT_ID() and for the binary/update log.
     */
     if (!id && thd->insert_id_used)
       id= thd->last_insert_id;
