@@ -395,6 +395,11 @@ DROP TABLE t1, t2;
 #
 # End of 5.0 tests
 #
+create table t2 (
+id int not null auto_increment,
+last_id int,
+primary key (id)
+);
 truncate table t2;
 create table t1 (id tinyint primary key);
 create function insid() returns int
