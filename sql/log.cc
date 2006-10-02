@@ -1579,17 +1579,18 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   if (log_type == LOG_NORMAL)
   {
     char *end;
-    int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s. "
+    int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
 #ifdef EMBEDDED_LIBRARY
-		        "embedded library\n", my_progname, server_version
+                        "embedded library\n",
+                        my_progname, server_version, MYSQL_COMPILATION_COMMENT
 #elif __NT__
 			"started with:\nTCP Port: %d, Named Pipe: %s\n",
-			my_progname, server_version, mysqld_port,
-                        mysqld_unix_port
+                        my_progname, server_version, MYSQL_COMPILATION_COMMENT,
+                        mysqld_port, mysqld_unix_port
 #else
 			"started with:\nTcp port: %d  Unix socket: %s\n",
-			my_progname, server_version, mysqld_port,
-                        mysqld_unix_port
+                        my_progname, server_version, MYSQL_COMPILATION_COMMENT,
+                        mysqld_port, mysqld_unix_port
 #endif
                        );
     end= strnmov(buff + len, "Time                 Id Command    Argument\n",
