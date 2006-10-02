@@ -116,14 +116,11 @@ public:
             bodies[TRG_EVENT_DELETE][TRG_ACTION_AFTER]);
   }
 
-  bool has_before_update_triggers()
-  {
-    return test(bodies[TRG_EVENT_UPDATE][TRG_ACTION_BEFORE]);
-  }
-
   void set_table(TABLE *new_table);
 
   void mark_fields_used(THD *thd, trg_event_type event);
+
+  bool is_updated_in_before_update_triggers(Field *fld);
 
   friend class Item_trigger_field;
   friend int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
