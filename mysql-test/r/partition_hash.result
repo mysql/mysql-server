@@ -1,4 +1,18 @@
 drop table if exists t1;
+create table t1 (a varchar(10) charset latin1 collate latin1_bin)
+partition by hash(length(a))
+partitions 10;
+insert into t1 values (''),(' '),('a'),('a '),('a  ');
+explain partitions select * from t1 where a='a ';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	Using where
+explain partitions select * from t1 where a='a';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	Using where
+explain partitions select * from t1 where a='a ' OR a='a';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	Using where
+drop table t1;
 create table t1 (a int unsigned)
 partition by hash(a div 2)
 partitions 4;

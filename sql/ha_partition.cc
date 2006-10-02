@@ -2670,7 +2670,10 @@ int ha_partition::write_row(byte * buf)
 #endif
   dbug_tmp_restore_column_map(table->read_set, old_map);
   if (unlikely(error))
+  {
+    m_part_info->err_value= func_value;
     DBUG_RETURN(error);
+  }
   m_last_part= part_id;
   DBUG_PRINT("info", ("Insert in partition %d", part_id));
   DBUG_RETURN(m_file[part_id]->write_row(buf));
@@ -2719,6 +2722,7 @@ int ha_partition::update_row(const byte *old_data, byte *new_data)
                                    m_part_info, &old_part_id, &new_part_id,
                                    &func_value)))
   {
+    m_part_info->err_value= func_value;
     DBUG_RETURN(error);
   }
 
