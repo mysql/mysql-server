@@ -301,7 +301,6 @@ struct st_mysql_ftparser
 struct st_mysql_storage_engine
 {
   int interface_version;
-  struct handlerton *handlerton;
 };
 
 #endif

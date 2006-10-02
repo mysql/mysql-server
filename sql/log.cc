@@ -46,13 +46,13 @@ static Muted_query_log_event invisible_commit;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
-static int binlog_init();
-static int binlog_close_connection(THD *thd);
-static int binlog_savepoint_set(THD *thd, void *sv);
-static int binlog_savepoint_rollback(THD *thd, void *sv);
-static int binlog_commit(THD *thd, bool all);
-static int binlog_rollback(THD *thd, bool all);
-static int binlog_prepare(THD *thd, bool all);
+static int binlog_init(void *p);
+static int binlog_close_connection(handlerton *hton, THD *thd);
+static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
+static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
+static int binlog_commit(handlerton *hton, THD *thd, bool all);
+static int binlog_rollback(handlerton *hton, THD *thd, bool all);
+static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 
 sql_print_message_func sql_print_message_handlers[3] =
 {
@@ -1171,7 +1171,7 @@ int binlog_init(void *p)
   return 0;
 }
 
-static int binlog_close_connection(THD *thd)
+static int binlog_close_connection(handlerton *hton, THD *thd)
 {
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
@@ -1184,7 +1184,8 @@ static int binlog_close_connection(THD *thd)
 }
 
 static int
-binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
+binlog_end_trans(THD *thd, binlog_trx_data *trx_data, 
+                 Log_event *end_ev)
 {
   DBUG_ENTER("binlog_end_trans");
   int error=0;
@@ -1238,7 +1239,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
   DBUG_RETURN(error);
 }
 
-static int binlog_prepare(THD *thd, bool all)
+static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 {
   /*
     do nothing.
@@ -1249,7 +1250,7 @@ static int binlog_prepare(THD *thd, bool all)
   return 0;
 }
 
-static int binlog_commit(THD *thd, bool all)
+static int binlog_commit(handlerton *hton, THD *thd, bool all)
 {
   DBUG_ENTER("binlog_commit");
   binlog_trx_data *const trx_data=
@@ -1273,7 +1274,7 @@ static int binlog_commit(THD *thd, bool all)
     DBUG_RETURN(binlog_end_trans(thd, trx_data, &invisible_commit));
 }
 
-static int binlog_rollback(THD *thd, bool all)
+static int binlog_rollback(handlerton *hton, THD *thd, bool all)
 {
   DBUG_ENTER("binlog_rollback");
   int error=0;
@@ -1326,7 +1327,7 @@ static int binlog_rollback(THD *thd, bool all)
   that case there is no need to have it in the binlog).
 */
 
-static int binlog_savepoint_set(THD *thd, void *sv)
+static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_set");
   binlog_trx_data *const trx_data=
@@ -1342,7 +1343,7 @@ static int binlog_savepoint_set(THD *thd, void *sv)
   DBUG_RETURN(error);
 }
 
-static int binlog_savepoint_rollback(THD *thd, void *sv)
+static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_rollback");
   binlog_trx_data *const trx_data=
@@ -4678,7 +4679,7 @@ err1:
 }
 
 struct st_mysql_storage_engine binlog_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, binlog_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(binlog)
 {
