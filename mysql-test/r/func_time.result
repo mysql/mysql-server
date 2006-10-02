@@ -612,7 +612,7 @@ date_add(date,INTERVAL "1 1:1:1" DAY_SECOND)
 2003-01-03 01:01:01
 select date_add(date,INTERVAL "1" WEEK) from t1;
 date_add(date,INTERVAL "1" WEEK)
-2003-01-09 00:00:00
+2003-01-09
 select date_add(date,INTERVAL "1" QUARTER) from t1;
 date_add(date,INTERVAL "1" QUARTER)
 2003-04-02
@@ -621,7 +621,7 @@ timestampadd(MINUTE, 1, date)
 2003-01-02 00:01:00
 select timestampadd(WEEK, 1, date) from t1;
 timestampadd(WEEK, 1, date)
-2003-01-09 00:00:00
+2003-01-09
 select timestampadd(SQL_TSI_SECOND, 1, date) from t1;
 timestampadd(SQL_TSI_SECOND, 1, date)
 2003-01-02 00:00:01
