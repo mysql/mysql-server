@@ -8153,7 +8153,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       Field *field=((Item_field*) args[0])->field;
       if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
-	  thd->insert_id() && thd->substitute_null_with_insert_id)
+          thd->current_insert_id && thd->substitute_null_with_insert_id)
       {
 #ifdef HAVE_QUERY_CACHE
 	query_cache_abort(&thd->net);
@@ -8161,9 +8161,16 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",
-						     thd->insert_id(),
+						     thd->current_insert_id,
 						     21))))
 	{
+          /*
+            Set THD::last_insert_id_used manually, as this statement
+            uses LAST_INSERT_ID() in a sense, and should issue
+            LAST_INSERT_ID_EVENT.
+          */
+          thd->last_insert_id_used= TRUE;
+
 	  cond=new_cond;
           /*
             Item_func_eq can't be fixed after creation so we do not check
@@ -11740,8 +11747,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     We must not try to use disabled keys.
   */
   usable_keys= table->s->keys_in_use;
-  /* we must not consider keys that are disabled by IGNORE INDEX */
-  usable_keys.intersect(table->keys_in_use_for_query);
 
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
