@@ -1334,13 +1334,16 @@ public:
   bool query_start_used, ignore, log_query;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
   ulonglong first_successful_insert_id_in_prev_stmt;
+  ulonglong forced_insert_id;
+  ulong auto_increment_increment;
+  ulong auto_increment_offset;
   timestamp_auto_set_type timestamp_field_type;
   LEX_STRING query;
 
   delayed_row(LEX_STRING const query_arg, enum_duplicates dup_arg,
               bool ignore_arg, bool log_query_arg)
     : record(0), dup(dup_arg), ignore(ignore_arg), log_query(log_query_arg),
-      query(query_arg)
+      forced_insert_id(0), query(query_arg)
     {}
   ~delayed_row()
   {
@@ -1698,6 +1701,7 @@ write_delayed(THD *thd,TABLE *table, enum_duplicates duplic,
 {
   delayed_row *row;
   delayed_insert *di=thd->di;
+  const Discrete_interval *forced_auto_inc;
   DBUG_ENTER("write_delayed");
   DBUG_PRINT("enter", ("query = '%s' length %u", query.str, query.length));
 
@@ -1746,6 +1750,17 @@ write_delayed(THD *thd,TABLE *table, enum_duplicates duplic,
   row->first_successful_insert_id_in_prev_stmt=
     thd->first_successful_insert_id_in_prev_stmt;
   row->timestamp_field_type=    table->timestamp_field_type;
+
+  /* Copy session variables. */
+  row->auto_increment_increment= thd->variables.auto_increment_increment;
+  row->auto_increment_offset=    thd->variables.auto_increment_offset;
+  /* Copy the next forced auto increment value, if any. */
+  if ((forced_auto_inc= thd->auto_inc_intervals_forced.get_next()))
+  {
+    row->forced_insert_id= forced_auto_inc->minimum();
+    DBUG_PRINT("delayed", ("transmitting auto_inc: %lu",
+                           (ulong) row->forced_insert_id));
+  }
 
   di->rows.push_back(row);
   di->stacked_inserts++;
@@ -1998,6 +2013,10 @@ pthread_handler_t handle_delayed_insert(void *arg)
       MYSQL_LOCK *lock=thd->lock;
       thd->lock=0;
       pthread_mutex_unlock(&di->mutex);
+      /*
+        We need to release next_insert_id before unlocking. This is
+        enforced by handler::ha_external_lock().
+      */
       di->table->file->ha_release_auto_increment();
       mysql_unlock_tables(thd, lock);
       di->group_count=0;
@@ -2123,8 +2142,18 @@ bool delayed_insert::handle_inserts(void)
       use values from the previous interval (of the previous rows).
     */
     bool log_query= (row->log_query && row->query.str != NULL);
+    DBUG_PRINT("delayed", ("query: '%s'  length: %u", row->query.str ?
+                           row->query.str : "[NULL]", row->query.length));
     if (log_query)
     {
+      /*
+        This is the first value of an INSERT statement.
+        It is the right place to clear a forced insert_id.
+        This is usually done after the last value of an INSERT statement,
+        but we won't know this in the insert delayed thread. But before
+        the first value is sufficiently equivalent to after the last
+        value of the previous statement.
+      */
       table->file->ha_release_auto_increment();
       thd.auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     }
@@ -2133,6 +2162,17 @@ bool delayed_insert::handle_inserts(void)
     thd.stmt_depends_on_first_successful_insert_id_in_prev_stmt= 
       row->stmt_depends_on_first_successful_insert_id_in_prev_stmt;
     table->timestamp_field_type= row->timestamp_field_type;
+
+    /* Copy the session variables. */
+    thd.variables.auto_increment_increment= row->auto_increment_increment;
+    thd.variables.auto_increment_offset=    row->auto_increment_offset;
+    /* Copy a forced insert_id, if any. */
+    if (row->forced_insert_id)
+    {
+      DBUG_PRINT("delayed", ("received auto_inc: %lu",
+                             (ulong) row->forced_insert_id));
+      thd.force_one_auto_inc_interval(row->forced_insert_id);
+    }
 
     info.ignore= row->ignore;
     info.handle_duplicates= row->dup;
@@ -2211,6 +2251,7 @@ bool delayed_insert::handle_inserts(void)
 	  /* This should never happen */
 	  table->file->print_error(error,MYF(0));
 	  sql_print_error("%s",thd.net.last_error);
+          DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed in loop"));
 	  goto err;
 	}
 	query_cache_invalidate3(&thd, table, 1);
@@ -2253,6 +2294,7 @@ bool delayed_insert::handle_inserts(void)
   {						// This shouldn't happen
     table->file->print_error(error,MYF(0));
     sql_print_error("%s",thd.net.last_error);
+    DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed after loop"));
     goto err;
   }
   query_cache_invalidate3(&thd, table, 1);
@@ -2260,13 +2302,16 @@ bool delayed_insert::handle_inserts(void)
   DBUG_RETURN(0);
 
  err:
+  DBUG_EXECUTE("error", max_rows= 0;);
   /* Remove all not used rows */
   while ((row=rows.get()))
   {
     delete row;
     thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
     stacked_inserts--;
+    DBUG_EXECUTE("error", max_rows++;);
   }
+  DBUG_PRINT("error", ("dropped %lu rows after an error", max_rows));
   thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);
   pthread_mutex_lock(&mutex);
   DBUG_RETURN(1);
