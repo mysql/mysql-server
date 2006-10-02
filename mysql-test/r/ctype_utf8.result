@@ -1340,7 +1340,6 @@ select a from t1 group by a;
 a
 e
 drop table t1;
-use test;
 create table t1(a char(10)) default charset utf8;
 insert into t1 values ('123'), ('456');
 explain
