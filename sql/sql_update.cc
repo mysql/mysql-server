@@ -274,7 +274,7 @@ int mysql_update(THD *thd,
   {
     used_index= select->quick->index;
     used_key_is_modified= (!select->quick->unique_key_range() &&
-                          select->quick->check_if_keys_used(&fields));
+                          select->quick->is_keys_used(&fields));
   }
   else
   {
@@ -282,7 +282,7 @@ int mysql_update(THD *thd,
     if (used_index == MAX_KEY)                  // no index for sort order
       used_index= table->file->key_used_on_scan;
     if (used_index != MAX_KEY)
-      used_key_is_modified= check_if_key_used(table, used_index, fields);
+      used_key_is_modified= is_key_used(table, used_index, fields);
   }
 
   if (used_key_is_modified || order)
@@ -1189,21 +1189,15 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
     return TRUE;				// At most one matching row
   case JT_REF:
   case JT_REF_OR_NULL:
-    return !check_if_key_used(table, join_tab->ref.key, *fields) &&
-           !(table->triggers &&
-             table->triggers->has_before_update_triggers());
+    return !is_key_used(table, join_tab->ref.key, *fields);
   case JT_ALL:
     /* If range search on index */
     if (join_tab->quick)
-      return !join_tab->quick->check_if_keys_used(fields) &&
-             !(table->triggers &&
-               table->triggers->has_before_update_triggers());
+      return !join_tab->quick->is_keys_used(fields);
     /* If scanning in clustered key */
     if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
-      return !check_if_key_used(table, table->s->primary_key, *fields) &&
-             !(table->triggers &&
-               table->triggers->has_before_update_triggers());
+      return !is_key_used(table, table->s->primary_key, *fields);
     return TRUE;
   default:
     break;					// Avoid compler warning
