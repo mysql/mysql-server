@@ -42,3 +42,13 @@ DROP TABLE t1;
 select hex(convert(_gbk 0xA14041 using ucs2));
 
 # End of 4.1 tests
+
+#
+# Bug#21620 ALTER TABLE affects other columns
+#
+create table t1 (c1 text not null, c2 text not null) character set gbk;
+alter table t1 change c1 c1 mediumtext  character set gbk not null;
+show create table t1;
+drop table t1;
+
+--echo End of 5.0 tests

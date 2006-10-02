@@ -974,6 +974,35 @@ double my_strntod_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
+ulonglong my_strntoull10rnd_ucs2(CHARSET_INFO *cs __attribute__((unused)),
+                                 const char *nptr, uint length, int unsign_fl,
+                                 char **endptr, int *err)
+{
+  char     buf[256], *b= buf;
+  ulonglong res;
+  const uchar *end, *s= (const uchar*) nptr;
+  my_wc_t  wc;
+  int      cnv;
+
+  /* Cut too long strings */
+  if (length >= sizeof(buf))
+    length= sizeof(buf)-1;
+  end= s + length;
+
+  while ((cnv= cs->cset->mb_wc(cs,&wc,s,end)) > 0)
+  {
+    s+= cnv;
+    if (wc > (int) (uchar) 'e' || !wc)
+      break;                            /* Can't be a number part */
+    *b++= (char) wc;
+  }
+
+  res= my_strntoull10rnd_8bit(cs, buf, b - buf, unsign_fl, endptr, err);
+  *endptr= (char*) nptr + 2 * (uint) (*endptr- buf);
+  return res;
+}
+
+
 /*
   This is a fast version optimized for the case of radix 10 / -10
 */
@@ -1629,6 +1658,7 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
     my_strntoull_ucs2,
     my_strntod_ucs2,
     my_strtoll10_ucs2,
+    my_strntoull10rnd_ucs2,
     my_scan_ucs2
 };
 
