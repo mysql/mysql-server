@@ -178,9 +178,9 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 create table t4 (a int not null, b char(10), key(a)) engine=MERGE UNION=(t1,t2);
 select * from t4;
-ERROR HY000: All tables in the MERGE table are not identically defined
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
 alter table t4 add column c int;
-ERROR HY000: All tables in the MERGE table are not identically defined
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
 create database mysqltest;
 create table mysqltest.t6 (a int not null primary key auto_increment, message char(20));
 create table t5 (a int not null, b char(20), key(a)) engine=MERGE UNION=(test.t1,mysqltest.t6);
@@ -768,6 +768,21 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 test.t2	check	status	OK
 drop table t1, t2, t3;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(2),(1);
+CREATE TABLE t2(a INT, KEY(a)) ENGINE=MERGE UNION=(t1);
+SELECT * FROM t2 WHERE a=2;
+ERROR HY000: Got error 124 from storage engine
+DROP TABLE t1, t2;
+CREATE TABLE t1(a INT) ENGINE=MEMORY;
+CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
+SELECT * FROM t2;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
+DROP TABLE t1, t2;
+CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
+SELECT * FROM t2;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
+DROP TABLE t2;
 create table t1 (b bit(1));
 create table t2 (b bit(1));
 create table tm (b bit(1)) engine = merge union = (t1,t2);
