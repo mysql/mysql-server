@@ -1710,7 +1710,8 @@ bool st_lex::can_be_merged()
          unit= unit->next_unit())
     {
       if (unit->first_select()->parent_lex == this &&
-          (unit->item == 0 || unit->item->place() != IN_WHERE))
+          (unit->item == 0 ||
+           (unit->item->place() != IN_WHERE && unit->item->place() != IN_ON)))
       {
         selects_allow_merge= 0;
         break;
