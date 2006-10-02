@@ -125,44 +125,69 @@ pos(unsigned char c)
 /*
   Decode a base64 string
 
-  Note: We require that dst is pre-allocated to correct size.
-        See base64_needed_decoded_length().
+  SYNOPSIS
+    base64_decode()
+    src      Pointer to base64-encoded string
+    len      Length of string at 'src'
+    dst      Pointer to location where decoded data will be stored
+    end_ptr  Pointer to variable that will refer to the character
+             after the end of the encoded data that were decoded. Can
+             be NULL.
 
-  RETURN  Number of bytes produced in dst or -1 in case of failure
+  DESCRIPTION
+
+    The base64-encoded data in the range ['src','*end_ptr') will be
+    decoded and stored starting at 'dst'.  The decoding will stop
+    after 'len' characters have been read from 'src', or when padding
+    occurs in the base64-encoded data. In either case: if 'end_ptr' is
+    non-null, '*end_ptr' will be set to point to the character after
+    the last read character, even in the presence of error.
+
+  NOTE
+    We require that 'dst' is pre-allocated to correct size.
+
+  SEE ALSO
+    base64_needed_decoded_length().
+
+  RETURN VALUE
+    Number of bytes written at 'dst' or -1 in case of failure
 */
 int
-base64_decode(const char *src, size_t size, void *dst)
+base64_decode(const char *const src_base, size_t const len,
+              void *dst, const char **end_ptr)
 {
   char b[3];
   size_t i= 0;
   char *dst_base= (char *)dst;
+  char const *src= src_base;
   char *d= dst_base;
   size_t j;
 
-  while (i < size)
+  while (i < len)
   {
     unsigned c= 0;
     size_t mark= 0;
 
-    SKIP_SPACE(src, i, size);
+    SKIP_SPACE(src, i, len);
 
     c += pos(*src++);
     c <<= 6;
     i++;
 
-    SKIP_SPACE(src, i, size);
+    SKIP_SPACE(src, i, len);
 
     c += pos(*src++);
     c <<= 6;
     i++;
 
-    SKIP_SPACE(src, i, size);
+    SKIP_SPACE(src, i, len);
 
-    if (* src != '=')
+    if (*src != '=')
       c += pos(*src++);
     else
     {
-      i= size;
+      src += 2;                /* There should be two bytes padding */
+      i= len;
       mark= 2;
       c <<= 6;
       goto end;
@@ -170,13 +195,14 @@ base64_decode(const char *src, size_t size, void *dst)
     c <<= 6;
     i++;
 
-    SKIP_SPACE(src, i, size);
+    SKIP_SPACE(src, i, len);
 
     if (*src != '=')
       c += pos(*src++);
     else
     {
-      i= size;
+      src += 1;                 /* There should be one byte padding */
+      i= len;
       mark= 1;
       goto end;
     }
@@ -191,11 +217,14 @@ base64_decode(const char *src, size_t size, void *dst)
       *d++= b[j];
   }
 
-  if (i != size)
-  {
-    return -1;
-  }
-  return d - dst_base;
+  if (end_ptr != NULL)
+    *end_ptr= src;
+
+  /*
+    The variable 'i' is set to 'len' when padding has been read, so it
+    does not actually reflect the number of bytes read from 'src'.
+   */
+  return i != len ? -1 : d - dst_base;
 }
 
 
