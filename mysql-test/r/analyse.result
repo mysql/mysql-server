@@ -134,3 +134,16 @@ test.t1.product	Computer	TV	2	8	0	0	4.2500	NULL	ENUM('Computer','Phone','TV') NO
 sum(profit)	10	6900	2	4	0	0	1946	2868	ENUM('10','275','600','6900') NOT NULL
 avg(profit)	10.0000	1380.0000	7	9	0	0	394.6875	570.2003	ENUM('10.0000','68.7500','120.0000','1380.0000') NOT NULL
 drop table t1,t2;
+create table t1 (f1 double(10,5), f2 char(10), f3 double(10,5));
+insert into t1 values (5.999, "5.9999", 5.99999), (9.555, "9.5555", 9.55555);
+select f1 from t1 procedure analyse(1, 1);
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.f1	5.99900	9.55500	7	7	0	0	7.77700	1.77800	FLOAT(4,3) NOT NULL
+select f2 from t1 procedure analyse(1, 1);
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.f2	5.9999	9.5555	6	6	0	0	6.0000	NULL	FLOAT(5,4) UNSIGNED NOT NULL
+select f3 from t1 procedure analyse(1, 1);
+Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
+test.t1.f3	5.99999	9.55555	7	7	0	0	7.77777	1.77778	FLOAT(6,5) NOT NULL
+drop table t1;
+End of 4.1 tests
