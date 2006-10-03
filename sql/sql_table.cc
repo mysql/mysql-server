@@ -214,7 +214,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool some_tables_deleted=0, tmp_table_deleted=0, foreign_key_error=0;
   DBUG_ENTER("mysql_rm_table_part2");
 
-  if (lock_table_names(thd, tables))
+  if (!drop_temporary && lock_table_names(thd, tables))
     DBUG_RETURN(1);
 
   for (table=tables ; table ; table=table->next)
@@ -311,7 +311,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  unlock_table_names(thd, tables);
+  if (!drop_temporary)
+    unlock_table_names(thd, tables);
   DBUG_RETURN(error);
 }
 
