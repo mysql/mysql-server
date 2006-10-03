@@ -508,6 +508,26 @@ longlong Item_func_unsigned::val_int()
   longlong value;
   int error;
 
+  if (args[0]->result_type() == REAL_RESULT)
+  {
+    double dvalue= args[0]->val();
+    if ((null_value= args[0]->null_value))
+      return 0;
+    if (dvalue <= (double) LONGLONG_MIN)
+    {
+      return LONGLONG_MIN;
+    }
+    if (dvalue >= (double) (ulonglong) ULONGLONG_MAX)
+    {
+      return (longlong) ULONGLONG_MAX;
+    }
+    if (dvalue >= (double) (ulonglong) LONGLONG_MAX)
+    {
+      return (ulonglong) (dvalue + (dvalue > 0 ? 0.5 : -0.5));
+    }
+    return (longlong)  (dvalue + (dvalue > 0 ? 0.5 : -0.5));
+  }
+
   if (args[0]->cast_to_int_type() != STRING_RESULT)
   {
     value= args[0]->val_int();
