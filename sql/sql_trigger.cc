@@ -268,8 +268,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
            table->triggers->drop_trigger(thd, tables));
 
 end:
-  VOID(pthread_mutex_unlock(&LOCK_open));
-  start_waiting_global_read_lock(thd);
 
   if (!result)
   {
@@ -302,9 +300,13 @@ end:
       Query_log_event qinfo(thd, log_query.ptr(), log_query.length(), 0, FALSE);
       mysql_bin_log.write(&qinfo);
     }
-
-    send_ok(thd);
   }
+
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  start_waiting_global_read_lock(thd);
+
+  if (!result)
+    send_ok(thd);
 
   DBUG_RETURN(result);
 }
