@@ -630,8 +630,21 @@ bool THD::store_globals()
 }
 
 
-/* Cleanup after a query */
+/*
+  Cleanup after query.
 
+  SYNOPSIS
+    THD::cleanup_after_query()
+
+  DESCRIPTION
+    This function is used to reset thread data to it's default state.
+
+  NOTE
+    This function is not suitable for setting thread data to some
+    non-default values, as there is only one replication thread, so
+    different master threads may overwrite data of each other on
+    slave.
+*/
 void THD::cleanup_after_query()
 {
   if (!in_sub_stmt) /* stored functions and triggers are a special case */
