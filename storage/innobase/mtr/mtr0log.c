@@ -445,21 +445,21 @@ mlog_open_and_write_index(
 				dict_index_get_n_unique_in_tree(index));
 		log_ptr += 2;
 		for (i = 0; i < n; i++) {
-			dict_field_t*	field;
-			dtype_t*	type;
-			ulint		len;
+			dict_field_t*		field;
+			const dict_col_t*	col;
+			ulint			len;
+
 			field = dict_index_get_nth_field(index, i);
-			type = dict_col_get_type(dict_field_get_col(field));
+			col = dict_field_get_col(field);
 			len = field->fixed_len;
 			ut_ad(len < 0x7fff);
 			if (len == 0
-			    && (dtype_get_len(type) > 255
-				|| dtype_get_mtype(type) == DATA_BLOB)) {
+			    && (col->len > 255 || col->mtype == DATA_BLOB)) {
 				/* variable-length field
 				with maximum length > 255 */
 				len = 0x7fff;
 			}
-			if (dtype_get_prtype(type) & DATA_NOT_NULL) {
+			if (col->prtype & DATA_NOT_NULL) {
 				len |= 0x8000;
 			}
 			if (log_ptr + 2 > log_end) {
@@ -541,14 +541,16 @@ mlog_parse_index(
 			/* The high-order bit of len is the NOT NULL flag;
 			the rest is 0 or 0x7fff for variable-length fields,
 			and 1..0x7ffe for fixed-length fields. */
-			dict_mem_table_add_col
-				(table, "DUMMY",
-				 ((len + 1) & 0x7fff) <= 1
-				 ? DATA_BINARY : DATA_FIXBINARY,
-				 len & 0x8000 ? DATA_NOT_NULL : 0,
-				 len & 0x7fff, 0);
-			dict_index_add_col
-				(ind, dict_table_get_nth_col(table, i), 0);
+			dict_mem_table_add_col(
+				table, "DUMMY",
+				((len + 1) & 0x7fff) <= 1
+				? DATA_BINARY : DATA_FIXBINARY,
+				len & 0x8000 ? DATA_NOT_NULL : 0,
+				len & 0x7fff);
+
+			dict_index_add_col(ind, table, (dict_col_t*)
+					   dict_table_get_nth_col(table, i),
+					   0);
 		}
 		ptr += 2;
 	}

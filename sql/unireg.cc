@@ -866,19 +866,19 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
     /*
       regfield don't have to be deleted as it's allocated with sql_alloc()
     */
-    Field *regfield=make_field(&share,
-                               (char*) buff+field->offset + data_offset,
-                               field->length,
-                               null_pos + null_count / 8,
-			       null_count & 7,
-			       field->pack_flag,
-			       field->sql_type,
-			       field->charset,
-			       field->geom_type,
-			       field->unireg_check,
-			       field->save_interval ? field->save_interval :
-                               field->interval, 
-			       field->field_name);
+    Field *regfield= make_field(&share,
+                                (char*) buff+field->offset + data_offset,
+                                field->length,
+                                null_pos + null_count / 8,
+                                null_count & 7,
+                                field->pack_flag,
+                                field->sql_type,
+                                field->charset,
+                                field->geom_type,
+                                field->unireg_check,
+                                field->save_interval ? field->save_interval :
+                                field->interval, 
+                                field->field_name);
     if (!regfield)
       goto err;                                 // End of memory
 

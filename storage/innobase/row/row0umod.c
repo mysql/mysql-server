@@ -108,12 +108,12 @@ row_undo_mod_clust_low(
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
-		err = btr_cur_pessimistic_update
-			(BTR_NO_LOCKING_FLAG
-			 | BTR_NO_UNDO_LOG_FLAG
-			 | BTR_KEEP_SYS_FLAG,
-			 btr_cur, &dummy_big_rec, node->update,
-			 node->cmpl_info, thr, mtr);
+		err = btr_cur_pessimistic_update(
+			BTR_NO_LOCKING_FLAG
+			| BTR_NO_UNDO_LOG_FLAG
+			| BTR_KEEP_SYS_FLAG,
+			btr_cur, &dummy_big_rec, node->update,
+			node->cmpl_info, thr, mtr);
 	}
 
 	return(err);
@@ -444,8 +444,8 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		ut_a(err == DB_SUCCESS);
 		heap = mem_heap_create(100);
 
-		update = row_upd_build_sec_rec_difference_binary
-			(index, entry, btr_cur_get_rec(btr_cur), trx, heap);
+		update = row_upd_build_sec_rec_difference_binary(
+			index, entry, btr_cur_get_rec(btr_cur), trx, heap);
 		if (upd_get_n_fields(update) == 0) {
 
 			/* Do nothing */
@@ -454,18 +454,18 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			/* Try an optimistic updating of the record, keeping
 			changes within the page */
 
-			err = btr_cur_optimistic_update
-				(BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
-				 btr_cur, update, 0, thr, &mtr);
+			err = btr_cur_optimistic_update(
+				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
+				btr_cur, update, 0, thr, &mtr);
 			if (err == DB_OVERFLOW || err == DB_UNDERFLOW) {
 				err = DB_FAIL;
 			}
 		} else {
 			ut_a(mode == BTR_MODIFY_TREE);
-			err = btr_cur_pessimistic_update
-				(BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
-				 btr_cur, &dummy_big_rec,
-				 update, 0, thr, &mtr);
+			err = btr_cur_pessimistic_update(
+				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
+				btr_cur, &dummy_big_rec,
+				update, 0, thr, &mtr);
 		}
 
 		mem_heap_free(heap);
@@ -538,11 +538,11 @@ row_undo_mod_del_mark_sec(
 
 		entry = row_build_index_entry(node->row, index, heap);
 
-		err = row_undo_mod_del_unmark_sec_and_undo_update
-			(BTR_MODIFY_LEAF, thr, index, entry);
+		err = row_undo_mod_del_unmark_sec_and_undo_update(
+			BTR_MODIFY_LEAF, thr, index, entry);
 		if (err == DB_FAIL) {
-			err = row_undo_mod_del_unmark_sec_and_undo_update
-				(BTR_MODIFY_TREE, thr, index, entry);
+			err = row_undo_mod_del_unmark_sec_and_undo_update(
+				BTR_MODIFY_TREE, thr, index, entry);
 		}
 
 		if (err != DB_SUCCESS) {
@@ -620,11 +620,11 @@ row_undo_mod_upd_exist_sec(
 
 			row_upd_index_replace_new_col_vals(entry, index,
 							   node->update, NULL);
-			err = row_undo_mod_del_unmark_sec_and_undo_update
-				(BTR_MODIFY_LEAF, thr, index, entry);
+			err = row_undo_mod_del_unmark_sec_and_undo_update(
+				BTR_MODIFY_LEAF, thr, index, entry);
 			if (err == DB_FAIL) {
-				err = row_undo_mod_del_unmark_sec_and_undo_update
-					(BTR_MODIFY_TREE, thr, index, entry);
+				err = row_undo_mod_del_unmark_sec_and_undo_update(
+					BTR_MODIFY_TREE, thr, index, entry);
 			}
 
 			if (err != DB_SUCCESS) {
@@ -736,8 +736,8 @@ row_undo_mod(
 		return(DB_SUCCESS);
 	}
 
-	node->index = dict_table_get_next_index
-		(dict_table_get_first_index(node->table));
+	node->index = dict_table_get_next_index(
+		dict_table_get_first_index(node->table));
 
 	if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 

@@ -15,7 +15,8 @@ cmp_data_data(
 /*==========*/
 				/* out: 1, 0, -1, if data1 is greater, equal,
 				less than data2, respectively */
-	dtype_t*	cur_type,/* in: data type of the fields */
+	ulint		mtype,	/* in: main type */
+	ulint		prtype,	/* in: precise type */
 	byte*		data1,	/* in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
@@ -23,7 +24,7 @@ cmp_data_data(
 				buffer) */
 	ulint		len2)	/* in: data field length or UNIV_SQL_NULL */
 {
-	return(cmp_data_data_slow(cur_type, data1, len1, data2, len2));
+	return(cmp_data_data_slow(mtype, prtype, data1, len1, data2, len2));
 }
 
 /*****************************************************************
@@ -38,12 +39,17 @@ cmp_dfield_dfield(
 	dfield_t*	dfield1,/* in: data field; must have type field set */
 	dfield_t*	dfield2)/* in: data field */
 {
+	const dtype_t*	type;
+
 	ut_ad(dfield_check_typed(dfield1));
 
-	return(cmp_data_data
-	       (dfield_get_type(dfield1),
-		dfield_get_data(dfield1), dfield_get_len(dfield1),
-		dfield_get_data(dfield2), dfield_get_len(dfield2)));
+	type = dfield_get_type(dfield1);
+
+	return(cmp_data_data(type->mtype, type->prtype,
+			     dfield_get_data(dfield1),
+			     dfield_get_len(dfield1),
+			     dfield_get_data(dfield2),
+			     dfield_get_len(dfield2)));
 }
 
 /*****************************************************************

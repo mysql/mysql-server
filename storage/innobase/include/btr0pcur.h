@@ -445,7 +445,7 @@ selects, updates, and deletes. */
 
 struct btr_pcur_struct{
 	btr_cur_t	btr_cur;	/* a B-tree cursor */
-	ulint		latch_mode;	/* see FIXME note below!
+	ulint		latch_mode;	/* see TODO note below!
 					BTR_SEARCH_LEAF, BTR_MODIFY_LEAF,
 					BTR_MODIFY_TREE, or BTR_NO_LATCHES,
 					depending on the latching state of
@@ -473,7 +473,7 @@ struct btr_pcur_struct{
 	dulint		modify_clock;	/* the modify clock value of the
 					buffer block when the cursor position
 					was stored */
-	ulint		pos_state;	/* see FIXME note below!
+	ulint		pos_state;	/* see TODO note below!
 					BTR_PCUR_IS_POSITIONED,
 					BTR_PCUR_WAS_POSITIONED,
 					BTR_PCUR_NOT_POSITIONED */
@@ -495,14 +495,18 @@ struct btr_pcur_struct{
 					is not NULL */
 };
 
-#define BTR_PCUR_IS_POSITIONED	1997660512	/* FIXME: currently, the state
+#define BTR_PCUR_IS_POSITIONED	1997660512	/* TODO: currently, the state
 						can be BTR_PCUR_IS_POSITIONED,
 						though it really should be
 						BTR_PCUR_WAS_POSITIONED,
 						because we have no obligation
 						to commit the cursor with
 						mtr; similarly latch_mode may
-						be out of date */
+						be out of date. This can
+						lead to problems if btr_pcur
+						is not used the right way;
+						all current code should be
+						ok. */
 #define BTR_PCUR_WAS_POSITIONED	1187549791
 #define BTR_PCUR_NOT_POSITIONED 1328997689
 

@@ -350,9 +350,9 @@ buf_page_is_corrupted(
 	if (srv_use_checksums) {
 		old_checksum = buf_calc_page_old_checksum(read_buf);
 
-		old_checksum_field = mach_read_from_4
-			(read_buf + UNIV_PAGE_SIZE
-			 - FIL_PAGE_END_LSN_OLD_CHKSUM);
+		old_checksum_field = mach_read_from_4(
+			read_buf + UNIV_PAGE_SIZE
+			- FIL_PAGE_END_LSN_OLD_CHKSUM);
 
 		/* There are 2 valid formulas for old_checksum_field:
 
@@ -459,8 +459,8 @@ buf_page_print(
 
 		if (dict_sys != NULL) {
 
-			index = dict_index_find_on_id_low
-				(btr_page_get_index_id(read_buf));
+			index = dict_index_find_on_id_low(
+				btr_page_get_index_id(read_buf));
 			if (index) {
 				fputs("InnoDB: (", stderr);
 				dict_index_name_print(stderr, NULL, index);
@@ -598,8 +598,8 @@ buf_pool_init(
 		/* Allocate the virtual address space window, i.e., the
 		buffer pool frames */
 
-		buf_pool->frame_mem = os_awe_allocate_virtual_mem_window
-			(UNIV_PAGE_SIZE * (n_frames + 1));
+		buf_pool->frame_mem = os_awe_allocate_virtual_mem_window(
+			UNIV_PAGE_SIZE * (n_frames + 1));
 
 		/* Allocate the physical memory for AWE and the AWE info array
 		for buf_pool */
@@ -625,8 +625,8 @@ buf_pool_init(
 		}
 		/*----------------------------------------*/
 	} else {
-		buf_pool->frame_mem = os_mem_alloc_large
-			(UNIV_PAGE_SIZE * (n_frames + 1), TRUE, FALSE);
+		buf_pool->frame_mem = os_mem_alloc_large(
+			UNIV_PAGE_SIZE * (n_frames + 1), TRUE, FALSE);
 	}
 
 	if (buf_pool->frame_mem == NULL) {
@@ -821,10 +821,10 @@ buf_awe_map_page_to_frame(
 		} else {
 			/* We can map block to the frame of bck */
 
-			os_awe_map_physical_mem_to_window
-				(bck->frame,
-				 UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE,
-				 block->awe_info);
+			os_awe_map_physical_mem_to_window(
+				bck->frame,
+				UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE,
+				block->awe_info);
 
 			block->frame = bck->frame;
 
@@ -840,10 +840,10 @@ buf_awe_map_page_to_frame(
 				       bck);
 
 			if (add_to_mapped_list) {
-				UT_LIST_ADD_FIRST
-					(awe_LRU_free_mapped,
-					 buf_pool->awe_LRU_free_mapped,
-					 block);
+				UT_LIST_ADD_FIRST(
+					awe_LRU_free_mapped,
+					buf_pool->awe_LRU_free_mapped,
+					block);
 			}
 
 			buf_pool->n_pages_awe_remapped++;
@@ -1583,7 +1583,7 @@ buf_page_init_for_backup_restore(
 	block->is_hashed	= FALSE;
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
-	block->side		= BTR_SEARCH_LEFT_SIDE;
+	block->left_side	= TRUE;
 
 	block->file_page_was_freed = FALSE;
 }
@@ -1650,7 +1650,7 @@ buf_page_init(
 	block->is_hashed	= FALSE;
 	block->n_fields		= 1;
 	block->n_bytes		= 0;
-	block->side		= BTR_SEARCH_LEFT_SIDE;
+	block->left_side	= TRUE;
 
 	block->file_page_was_freed = FALSE;
 }
@@ -1710,8 +1710,8 @@ buf_page_init_for_read(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	if (fil_tablespace_deleted_or_being_deleted_in_mem
-	    (space, tablespace_version)) {
+	if (fil_tablespace_deleted_or_being_deleted_in_mem(
+		    space, tablespace_version)) {
 		*err = DB_TABLESPACE_DELETED;
 	}
 
@@ -1891,10 +1891,10 @@ buf_page_io_complete(
 		/* If this page is not uninitialized and not in the
 		doublewrite buffer, then the page number and space id
 		should be the same as in block. */
-		ulint	read_page_no = mach_read_from_4
-			(block->frame + FIL_PAGE_OFFSET);
-		ulint	read_space_id = mach_read_from_4
-			(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+		ulint	read_page_no = mach_read_from_4(
+			block->frame + FIL_PAGE_OFFSET);
+		ulint	read_space_id = mach_read_from_4(
+			block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 		if (!block->space
 		    && trx_doublewrite_page_inside(block->offset)) {
@@ -1980,9 +1980,9 @@ buf_page_io_complete(
 		}
 
 		if (!recv_no_ibuf_operations) {
-			ibuf_merge_or_delete_for_page
-				(block->frame, block->space,
-				 block->offset, TRUE);
+			ibuf_merge_or_delete_for_page(
+				block->frame, block->space, block->offset,
+				TRUE);
 		}
 	}
 
@@ -2110,8 +2110,9 @@ buf_validate(void)
 
 				if (block->flush_type == BUF_FLUSH_LRU) {
 					n_lru_flush++;
-					ut_a(rw_lock_is_locked
-					     (&block->lock, RW_LOCK_SHARED));
+					ut_a(rw_lock_is_locked(
+						     &block->lock,
+						     RW_LOCK_SHARED));
 				} else if (block->flush_type
 					   == BUF_FLUSH_LIST) {
 					n_list_flush++;

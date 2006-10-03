@@ -34,7 +34,10 @@
 
 #include "runtime.hpp"
 #include "des.hpp"
-#include "algorithm.hpp"    // mySTL::swap
+#include STL_ALGORITHM_FILE
+
+
+namespace STL = STL_NAMESPACE;
 
 
 #if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
@@ -265,8 +268,8 @@ void BasicDES::SetKey(const byte* key, word32 /*length*/, CipherDir dir)
     // reverse key schedule order
     if (dir == DECRYPTION)
         for (i = 0; i < 16; i += 2) {
-            mySTL::swap(k_[i],   k_[32 - 2 - i]);
-            mySTL::swap(k_[i+1], k_[32 - 1 - i]);
+            STL::swap(k_[i],   k_[32 - 2 - i]);
+            STL::swap(k_[i+1], k_[32 - 1 - i]);
         }
    
 }

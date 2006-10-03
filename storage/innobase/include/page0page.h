@@ -132,6 +132,24 @@ directory. */
 #define PAGE_DIR_SLOT_MAX_N_OWNED	8
 #define	PAGE_DIR_SLOT_MIN_N_OWNED	4
 
+/****************************************************************
+Gets the start of a page. */
+UNIV_INLINE
+page_t*
+page_align(
+/*=======*/
+			/* out: start of the page */
+	void*	ptr)	/* in: pointer to page frame */
+		__attribute__((const));
+/****************************************************************
+Gets the offset within a page. */
+UNIV_INLINE
+ulint
+page_offset(
+/*========*/
+				/* out: offset from the start of the page */
+	const void*	ptr)	/* in: pointer to page frame */
+		__attribute__((const));
 /*****************************************************************
 Returns the max trx id field value. */
 UNIV_INLINE

@@ -77,6 +77,13 @@ template void destroy<vector<TaoCrypt::Integer>*>(vector<TaoCrypt::Integer>*, ve
 template TaoCrypt::Integer* uninit_copy<TaoCrypt::Integer*, TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*, TaoCrypt::Integer*);
 template TaoCrypt::Integer* uninit_fill_n<TaoCrypt::Integer*, size_t, TaoCrypt::Integer>(TaoCrypt::Integer*, size_t, TaoCrypt::Integer const&);
 template void destroy<TaoCrypt::Integer*>(TaoCrypt::Integer*, TaoCrypt::Integer*);
+template TaoCrypt::byte* GetArrayMemory<TaoCrypt::byte>(size_t);
+template void FreeArrayMemory<TaoCrypt::byte>(TaoCrypt::byte*);
+template TaoCrypt::Integer* GetArrayMemory<TaoCrypt::Integer>(size_t);
+template void FreeArrayMemory<TaoCrypt::Integer>(TaoCrypt::Integer*);
+template vector<TaoCrypt::Integer>* GetArrayMemory<vector<TaoCrypt::Integer> >(size_t);
+template void FreeArrayMemory<vector<TaoCrypt::Integer> >(vector<TaoCrypt::Integer>*);
+template void FreeArrayMemory<void>(void*);
 }
 
 #endif

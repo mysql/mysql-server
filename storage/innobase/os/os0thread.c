@@ -142,8 +142,9 @@ os_thread_create(
 	AIX is always big enough. An empirical test on AIX-4.3 suggested
 	the size was 96 kB, though. */
 
-	ret = pthread_attr_setstacksize
-		(&attr, (size_t)(PTHREAD_STACK_MIN + 32 * 1024));
+	ret = pthread_attr_setstacksize(&attr,
+					(size_t)(PTHREAD_STACK_MIN
+						 + 32 * 1024));
 	if (ret) {
 		fprintf(stderr,
 			"InnoDB: Error: pthread_attr_setstacksize"
