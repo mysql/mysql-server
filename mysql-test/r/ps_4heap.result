@@ -2673,21 +2673,21 @@ set @arg00= '1.11111111111111111111e+50' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c2' at row 1
-Warning	1265	Data truncated for column 'c3' at row 1
-Warning	1265	Data truncated for column 'c4' at row 1
-Warning	1265	Data truncated for column 'c5' at row 1
-Warning	1265	Data truncated for column 'c6' at row 1
+Warning	1264	Out of range value adjusted for column 'c1' at row 1
+Warning	1264	Out of range value adjusted for column 'c2' at row 1
+Warning	1264	Out of range value adjusted for column 'c3' at row 1
+Warning	1264	Out of range value adjusted for column 'c4' at row 1
+Warning	1264	Out of range value adjusted for column 'c5' at row 1
+Warning	1264	Out of range value adjusted for column 'c6' at row 1
 Warning	1264	Out of range value adjusted for column 'c7' at row 1
 Warning	1264	Out of range value adjusted for column 'c12' at row 1
 execute my_select ;
-c1	1
-c2	1
-c3	1
-c4	1
-c5	1
-c6	1
+c1	127
+c2	32767
+c3	8388607
+c4	2147483647
+c5	2147483647
+c6	9223372036854775807
 c7	3.40282e+38
 c8	1.11111111111111e+50
 c9	1.11111111111111e+50
@@ -2723,21 +2723,21 @@ set @arg00= '-1.11111111111111111111e+50' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
-Warning	1265	Data truncated for column 'c2' at row 1
-Warning	1265	Data truncated for column 'c3' at row 1
-Warning	1265	Data truncated for column 'c4' at row 1
-Warning	1265	Data truncated for column 'c5' at row 1
-Warning	1265	Data truncated for column 'c6' at row 1
+Warning	1264	Out of range value adjusted for column 'c1' at row 1
+Warning	1264	Out of range value adjusted for column 'c2' at row 1
+Warning	1264	Out of range value adjusted for column 'c3' at row 1
+Warning	1264	Out of range value adjusted for column 'c4' at row 1
+Warning	1264	Out of range value adjusted for column 'c5' at row 1
+Warning	1264	Out of range value adjusted for column 'c6' at row 1
 Warning	1264	Out of range value adjusted for column 'c7' at row 1
 Warning	1264	Out of range value adjusted for column 'c12' at row 1
 execute my_select ;
-c1	-1
-c2	-1
-c3	-1
-c4	-1
-c5	-1
-c6	-1
+c1	-128
+c2	-32768
+c3	-8388608
+c4	-2147483648
+c5	-2147483648
+c6	-9223372036854775808
 c7	-3.40282e+38
 c8	-1.11111111111111e+50
 c9	-1.11111111111111e+50
