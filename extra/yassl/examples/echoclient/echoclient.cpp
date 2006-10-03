@@ -41,7 +41,14 @@ void echoclient_test(void* args)
     SSL*        ssl = SSL_new(ctx);
 
     SSL_set_fd(ssl, sockfd);
-    if (SSL_connect(ssl) != SSL_SUCCESS) err_sys("SSL_connect failed");
+
+    if (SSL_connect(ssl) != SSL_SUCCESS)
+    {
+        SSL_CTX_free(ctx);
+        SSL_free(ssl);
+        tcp_close(sockfd);
+        err_sys("SSL_connect failed");
+    }
 
     char send[1024];
     char reply[1024];
@@ -50,7 +57,12 @@ void echoclient_test(void* args)
 
         int sendSz = strlen(send) + 1;
         if (SSL_write(ssl, send, sendSz) != sendSz)
+        {
+            SSL_CTX_free(ctx);
+            SSL_free(ssl);
+            tcp_close(sockfd);
             err_sys("SSL_write failed");
+        }
 
         if (strncmp(send, "quit", 4) == 0) {
             fputs("sending server shutdown command: quit!\n", fout);
@@ -63,6 +75,7 @@ void echoclient_test(void* args)
 
     SSL_CTX_free(ctx);
     SSL_free(ssl);
+    tcp_close(sockfd);
 
     fflush(fout);
     if (inCreated)  fclose(fin);

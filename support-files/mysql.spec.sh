@@ -644,7 +644,6 @@ fi
 %defattr(-, root, root, 0755)
 %doc mysql-release-%{mysql_version}/EXCEPTIONS-CLIENT
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
-%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
 %dir %attr(755, root, root) %{_libdir}/mysql

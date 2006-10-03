@@ -899,21 +899,21 @@ srv_init(void)
 	table = dict_mem_table_create("SYS_DUMMY1",
 				      DICT_HDR_SPACE, 1, 0);
 	dict_mem_table_add_col(table, "DUMMY", DATA_CHAR,
-			       DATA_ENGLISH | DATA_NOT_NULL, 8, 0);
+			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 
-	srv_sys->dummy_ind1 = dict_mem_index_create
-		("SYS_DUMMY1", "SYS_DUMMY1", DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(srv_sys->dummy_ind1,
+	srv_sys->dummy_ind1 = dict_mem_index_create(
+		"SYS_DUMMY1", "SYS_DUMMY1", DICT_HDR_SPACE, 0, 1);
+	dict_index_add_col(srv_sys->dummy_ind1, table, (dict_col_t*)
 			   dict_table_get_nth_col(table, 0), 0);
 	srv_sys->dummy_ind1->table = table;
 	/* create dummy table and index for new-style infimum and supremum */
 	table = dict_mem_table_create("SYS_DUMMY2",
 				      DICT_HDR_SPACE, 1, DICT_TF_COMPACT);
 	dict_mem_table_add_col(table, "DUMMY", DATA_CHAR,
-			       DATA_ENGLISH | DATA_NOT_NULL, 8, 0);
-	srv_sys->dummy_ind2 = dict_mem_index_create
-		("SYS_DUMMY2", "SYS_DUMMY2", DICT_HDR_SPACE, 0, 1);
-	dict_index_add_col(srv_sys->dummy_ind2,
+			       DATA_ENGLISH | DATA_NOT_NULL, 8);
+	srv_sys->dummy_ind2 = dict_mem_index_create(
+		"SYS_DUMMY2", "SYS_DUMMY2", DICT_HDR_SPACE, 0, 1);
+	dict_index_add_col(srv_sys->dummy_ind2, table, (dict_col_t*)
 			   dict_table_get_nth_col(table, 0), 0);
 	srv_sys->dummy_ind2->table = table;
 
@@ -1902,8 +1902,8 @@ loop:
 		if (srv_innodb_status) {
 			mutex_enter(&srv_monitor_file_mutex);
 			rewind(srv_monitor_file);
-			srv_printf_innodb_monitor
-				(srv_monitor_file, NULL, NULL);
+			srv_printf_innodb_monitor(srv_monitor_file, NULL,
+						  NULL);
 			os_file_set_eof(srv_monitor_file);
 			mutex_exit(&srv_monitor_file_mutex);
 		}
@@ -1984,9 +1984,9 @@ loop:
 				granted: in that case do nothing */
 
 				if (thr_get_trx(slot->thr)->wait_lock) {
-					lock_cancel_waiting_and_release
-						(thr_get_trx(slot->thr)
-						 ->wait_lock);
+					lock_cancel_waiting_and_release(
+						thr_get_trx(slot->thr)
+						->wait_lock);
 				}
 			}
 		}
@@ -2493,8 +2493,8 @@ flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
 	if (srv_fast_shutdown < 2) {
-		n_pages_flushed = buf_flush_batch
-			(BUF_FLUSH_LIST, 100, ut_dulint_max);
+		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST, 100,
+						  ut_dulint_max);
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
 		to data files: we set n_pages_flushed to 0 artificially. */
