@@ -922,6 +922,37 @@ public:
     void setTemporary(bool); 
 #endif
 
+    // these 2 are not de-doxygenated
+
+    /**
+     * This method is not needed in normal usage.
+     *
+     * Compute aggregate data on table being defined.  Required for
+     * aggregate methods such as getNoOfPrimaryKeys() to work before
+     * table has been created and retrieved via getTable().
+     *
+     * May adjust some column flags.  If no PK is so far marked as
+     * distribution key then all PK's will be marked.
+     *
+     * Returns 0 on success.  Returns -1 and sets error if an
+     * inconsistency is detected.
+     */
+    int aggregate(struct NdbError& error);
+
+    /**
+     * This method is not needed in normal usage.
+     *
+     * Validate new table definition before create.  Does aggregate()
+     * and additional checks.  There may still be errors which are
+     * detected only by NDB kernel at create table.
+     *
+     * Create table and retrieve table do validate() automatically.
+     *
+     * Returns 0 on success.  Returns -1 and sets error if an
+     * inconsistency is detected.
+     */
+    int validate(struct NdbError& error);
+
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     friend class Ndb;
