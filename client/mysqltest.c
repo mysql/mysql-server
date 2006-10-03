@@ -2991,7 +2991,12 @@ void do_connect(struct st_command *command)
   con_options= ds_options.str;
   while (*con_options)
   {
-    char* end= con_options;
+    char* end;
+    /* Step past any spaces in beginning of option*/
+    while (*con_options && my_isspace(charset_info, *con_options))
+     con_options++;
+    /* Find end of this option */
+    end= con_options;
     while (*end && !my_isspace(charset_info, *end))
       end++;
     if (!strncmp(con_options, "SSL", 3))
