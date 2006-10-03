@@ -204,12 +204,12 @@ NdbDictionary::Column::getPrimaryKey() const {
 
 void 
 NdbDictionary::Column::setPartitionKey(bool val){
-  m_impl.m_distributionKey = (val ? 2 : 0);
+  m_impl.m_distributionKey = true;
 }
 
 bool 
 NdbDictionary::Column::getPartitionKey() const{
-  return (bool)m_impl.m_distributionKey;
+  return m_impl.m_distributionKey;
 }
 
 const NdbDictionary::Table * 
@@ -353,7 +353,6 @@ NdbDictionary::Table::addColumn(const Column & c){
   NdbColumnImpl* col = new NdbColumnImpl;
   (* col) = NdbColumnImpl::getImpl(c);
   m_impl.m_columns.push_back(col);
-  m_impl.computeAggregates();
   m_impl.buildColumnHash();
 }
 
@@ -697,6 +696,18 @@ NdbDictionary::Table::setRowGCIIndicator(bool val){
 bool 
 NdbDictionary::Table::getRowGCIIndicator() const {
   return m_impl.m_row_gci;
+}
+
+int
+NdbDictionary::Table::aggregate(NdbError& error)
+{
+  return m_impl.aggregate(error);
+}
+
+int
+NdbDictionary::Table::validate(NdbError& error)
+{
+  return m_impl.validate(error);
 }
 
 
