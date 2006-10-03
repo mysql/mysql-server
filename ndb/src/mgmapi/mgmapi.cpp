@@ -503,6 +503,18 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
 }
 
 /**
+ * Only used for low level testing
+ * Never to be used by end user.
+ * Or anybody who doesn't know exactly what they're doing.
+ */
+extern "C"
+int
+ndb_mgm_get_fd(NdbMgmHandle handle)
+{
+  return handle->socket;
+}
+
+/**
  * Disconnect from a mgm server
  */
 extern "C"
@@ -692,22 +704,16 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     return NULL;
   }
-  if(buf[strlen(buf)-1] == '\n')
-    buf[strlen(buf)-1] = '\0';
-
-  if(strcmp("node status", buf) != 0) {
+  if(strcmp("node status\n", buf) != 0) {
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     return NULL;
   }
-
   if(!in.gets(buf, sizeof(buf)))
   {
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     return NULL;
   }
-  if(buf[strlen(buf)-1] == '\n')
-    buf[strlen(buf)-1] = '\0';
-  
+
   BaseString tmp(buf);
   Vector<BaseString> split;
   tmp.split(split, ":");
@@ -715,7 +721,7 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     return NULL;
   }
- 
+
   if(!(split[0].trim() == "nodes")){
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     return NULL;
@@ -2280,7 +2286,6 @@ ndb_mgm_check_connection(NdbMgmHandle handle){
   SocketOutputStream out(handle->socket);
   SocketInputStream in(handle->socket, handle->read_timeout);
   char buf[32];
-
   if (out.println("check connection"))
     goto ndb_mgm_check_connection_error;
 
@@ -2490,7 +2495,6 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
 
   SocketInputStream in(handle->socket, handle->read_timeout);
   char buf[32];
-
   in.gets(buf, sizeof(buf));
 
   DBUG_RETURN(0);
@@ -2546,6 +2550,106 @@ int ndb_mgm_get_version(NdbMgmHandle handle,
 
   delete prop;
   DBUG_RETURN(1);
+}
+
+extern "C"
+Uint64
+ndb_mgm_get_session_id(NdbMgmHandle handle)
+{
+  Uint64 session_id=0;
+
+  DBUG_ENTER("ndb_mgm_get_session_id");
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+  
+  Properties args;
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("get session id reply", NULL, ""),
+    MGM_ARG("id", Int, Mandatory, "Node ID"),
+    MGM_END()
+  };
+  
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "get session id", &args);
+  CHECK_REPLY(prop, 0);
+
+  if(!prop->get("id",&session_id)){
+    fprintf(handle->errstream, "Unable to get session id\n");
+    return 0;
+  }
+
+  delete prop;
+  DBUG_RETURN(session_id);
+}
+
+extern "C"
+int
+ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,
+                    struct NdbMgmSession *s, int *len)
+{
+  int retval= 0;
+  DBUG_ENTER("ndb_mgm_get_session");
+  CHECK_HANDLE(handle, 0);
+  CHECK_CONNECTED(handle, 0);
+
+  Properties args;
+  args.put("id", id);
+
+  const ParserRow<ParserDummy> reply[]= {
+    MGM_CMD("get session reply", NULL, ""),
+    MGM_ARG("id", Int, Mandatory, "Node ID"),
+    MGM_ARG("m_stopSelf", Int, Optional, "m_stopSelf"),
+    MGM_ARG("m_stop", Int, Optional, "stop session"),
+    MGM_ARG("nodeid", Int, Optional, "allocated node id"),
+    MGM_ARG("parser_buffer_len", Int, Optional, "waiting in buffer"),
+    MGM_ARG("parser_status", Int, Optional, "parser status"),
+    MGM_END()
+  };
+
+  const Properties *prop;
+  prop = ndb_mgm_call(handle, reply, "get session", &args);
+  CHECK_REPLY(prop, 0);
+
+  Uint64 r_id;
+  int rlen= 0;
+
+  if(!prop->get("id",&r_id)){
+    fprintf(handle->errstream, "Unable to get session id\n");
+    goto err;
+  }
+
+  s->id= r_id;
+  rlen+=sizeof(s->id);
+
+  if(prop->get("m_stopSelf",&(s->m_stopSelf)))
+    rlen+=sizeof(s->m_stopSelf);
+  else
+    goto err;
+
+  if(prop->get("m_stop",&(s->m_stop)))
+    rlen+=sizeof(s->m_stop);
+  else
+    goto err;
+
+  if(prop->get("nodeid",&(s->nodeid)))
+    rlen+=sizeof(s->nodeid);
+  else
+    goto err;
+
+  if(prop->get("parser_buffer_len",&(s->parser_buffer_len)))
+  {
+    rlen+=sizeof(s->parser_buffer_len);
+    if(prop->get("parser_status",&(s->parser_status)))
+      rlen+=sizeof(s->parser_status);
+  }
+
+  *len= rlen;
+  retval= 1;
+
+err:
+  delete prop;
+  DBUG_RETURN(retval);
 }
 
 template class Vector<const ParserRow<ParserDummy>*>;
