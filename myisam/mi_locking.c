@@ -224,6 +224,21 @@ int mi_lock_database(MI_INFO *info, int lock_type)
       break;				/* Impossible */
     }
   }
+#ifdef __WIN__
+  else
+  {
+    /*
+       Check for bad file descriptors if this table is part
+       of a merge union. Failing to capture this may cause
+       a crash on windows if the table is renamed and 
+       later on referenced by the merge table.
+     */
+    if( info->owned_by_merge && (info->s)->kfile < 0 )
+    {
+      error = HA_ERR_NO_SUCH_TABLE;
+    }
+  }
+#endif
   pthread_mutex_unlock(&share->intern_lock);
 #if defined(FULL_LOG) || defined(_lint)
   lock_type|=(int) (flag << 8);		/* Set bit to set if real lock */

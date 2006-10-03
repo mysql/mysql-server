@@ -1,19 +1,39 @@
 #! /bin/sh
 
-# F:/mydev, /home/kp/mydev, and 4.0.21 must be correct before compiling
-# This values are normally changed by the nwbootstrap script
+if test ! -r ./sql/mysqld.cc
+then
+  echo "you must start from the top source directory"
+  exit 1
+fi
 
-# the default is "F:/mydev"
-export MYDEV="F:/mydev"
+# The base path(in wineformat) where compilers, includes and
+# libraries are installed
+if test -z $MYDEV
+then
+  # the default is "F:/mydev"
+  export MYDEV="F:/mydev"
+fi
+echo "MYDEV: $MYDEV"
 
-export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/fs64/headers;$MYDEV/zlib-1.1.4;$MYDEV/mysql-VERSION/include;$MYDEV"
-export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/zlib-1.1.4;$MYDEV/openssl;$MYDEV/mysql-VERSION/netware/BUILD"
+# Get current dir
+BUILD_DIR=`pwd`
+echo "BUILD_DIR: $BUILD_DIR"
+
+# Get current dir in wine format
+base=`echo $MYDEV  |sed 's/\/.*//'`
+base_unix_part=`winepath -- -u $base/`
+WINE_BUILD_DIR=`echo "$BUILD_DIR" | sed 's_'$base_unix_part'/__'`
+WINE_BUILD_DIR="$base/$WINE_BUILD_DIR"
+echo "WINE_BUILD_DIR: $WINE_BUILD_DIR"
+
+export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/fs64/headers;$MYDEV/zlib-1.2.3;$WINE_BUILD_DIR/include;$MYDEV"
+export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/zlib-1.2.3;$MYDEV/openssl;$WINE_BUILD_DIR/netware/BUILD"
 export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;libz.a;neb.imp;zPublics.imp;knetware.imp"
 
 export WINEPATH="$MYDEV/mw/bin"
 
-# the default added path is "$HOME/mydev/mysql-x.x-x/netware/BUILD"
-export PATH="$PATH:BUILD_DIR/mysql-VERSION/netware/BUILD"
+# the default added path is "$BUILD_DIR/netware/BUILD"
+export PATH="$PATH:$BUILD_DIR/netware/BUILD"
 
 export AR='mwldnlm'
 export AR_FLAGS='-type library -o'

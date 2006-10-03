@@ -306,7 +306,7 @@ public:
                        const char *log_name);
   void new_file(bool need_lock);
   bool write(THD *thd, enum enum_server_command command,
-	     const char *format,...);
+	     const char *format, ...) ATTRIBUTE_FORMAT(printf, 4, 5);
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write

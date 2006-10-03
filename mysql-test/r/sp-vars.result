@@ -896,7 +896,7 @@ sp_var
 @user_var
 0
 Warnings:
-Warning	1264	Out of range value adjusted for column 'sp_var' at row 1
+Warning	1366	Incorrect integer value: 'Hello, world!' for column 'sp_var' at row 1
 DROP PROCEDURE p1;
 DROP TABLE t1;
 
