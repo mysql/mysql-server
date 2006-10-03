@@ -2730,16 +2730,6 @@ ERROR 42000: Key 'a' doesn't exist in table 't1'
 EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
 ERROR 42000: Key 'a' doesn't exist in table 't1'
 DROP TABLE t1;
-ERROR HY000: Key 'a' doesn't exist in table 't1'
-EXPLAIN SELECT * FROM t1 FORCE INDEX (a);
-ERROR HY000: Key 'a' doesn't exist in table 't1'
-DROP TABLE t1;
-CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
-INSERT INTO t1 VALUES (10);
-SELECT i='1e+01',i=1e+01, i in (1e+01,1e+01), i in ('1e+01','1e+01') FROM t1;
-i='1e+01'	i=1e+01	i in (1e+01,1e+01)	i in ('1e+01','1e+01')
-1	1	1	1
-DROP TABLE t1;
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (1,1), (2,1), (4,10);
 CREATE TABLE t2 (a int PRIMARY KEY, b int, KEY b (b));
@@ -2819,7 +2809,7 @@ CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
 INSERT INTO t1 VALUES (10);
 SELECT i='1e+01',i=1e+01, i in (1e+01,1e+01), i in ('1e+01','1e+01') FROM t1;
 i='1e+01'	i=1e+01	i in (1e+01,1e+01)	i in ('1e+01','1e+01')
-0	1	1	1
+1	1	1	1
 DROP TABLE t1;
 CREATE TABLE t1 ( 
 K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
