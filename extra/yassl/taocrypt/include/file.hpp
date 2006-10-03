@@ -83,7 +83,7 @@ private:
     void Swap(Source& other) 
     {
         buffer_.Swap(other.buffer_);
-        mySTL::swap(current_, other.current_);
+        STL::swap(current_, other.current_);
     }
 
 };

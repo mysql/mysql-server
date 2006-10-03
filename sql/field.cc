@@ -2365,11 +2365,16 @@ int Field_new_decimal::store(const char *from, uint length,
                       from, length, charset,  &decimal_value)) &&
       table->in_use->abort_on_warning)
   {
+    /* Because "from" is not NUL-terminated and we use %s in the ER() */
+    String from_as_str;
+    from_as_str.copy(from, length, &my_charset_bin);
+
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                        "decimal", from, field_name,
+                        "decimal", from_as_str.c_ptr(), field_name,
                         (ulong) table->in_use->row_count);
+
     DBUG_RETURN(err);
   }
 
@@ -2382,13 +2387,20 @@ int Field_new_decimal::store(const char *from, uint length,
     set_value_on_overflow(&decimal_value, decimal_value.sign());
     break;
   case E_DEC_BAD_NUM:
+    {
+      /* Because "from" is not NUL-terminated and we use %s in the ER() */
+      String from_as_str;
+      from_as_str.copy(from, length, &my_charset_bin);
+
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                        "decimal", from, field_name,
+                          "decimal", from_as_str.c_ptr(), field_name,
                         (ulong) table->in_use->row_count);
     my_decimal_set_zero(&decimal_value);
+
     break;
+    }
   }
 
 #ifndef DBUG_OFF
@@ -8163,7 +8175,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
       (delta == -1 && (uchar) *from > ((1 << bit_len) - 1)) ||
       (!bit_len && delta < 0))
   {
-    set_rec_bits(0xff, bit_ptr, bit_ofs, bit_len);
+    set_rec_bits((1 << bit_len) - 1, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, bytes_in_rec);
     if (table->in_use->really_abort_on_warning())
       set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);

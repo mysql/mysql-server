@@ -165,8 +165,8 @@ ibuf_index_page_calc_free(
 			/* out: value for ibuf bitmap bits */
 	page_t*	page)	/* in: non-unique secondary index page */
 {
-	return(ibuf_index_page_calc_free_bits
-	       (page_get_max_insert_size_after_reorganize(page, 1)));
+	return(ibuf_index_page_calc_free_bits(
+		       page_get_max_insert_size_after_reorganize(page, 1)));
 }
 
 /****************************************************************************
