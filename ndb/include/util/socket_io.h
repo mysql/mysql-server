@@ -21,12 +21,17 @@
 
 #include <NdbTCP.h>
 
+#include <NdbMutex.h>
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
   int read_socket(NDB_SOCKET_TYPE, int timeout_ms, char *, int len);
-  int readln_socket(NDB_SOCKET_TYPE, int timeout_ms, char *, int len);
+
+  int readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
+                    char * buf, int buflen, NdbMutex *mutex);
+
   int write_socket(NDB_SOCKET_TYPE, int timeout_ms, const char[], int len);
 
   int print_socket(NDB_SOCKET_TYPE, int timeout_ms, const char *, ...); 

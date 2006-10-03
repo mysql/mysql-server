@@ -61,12 +61,15 @@ public:
   /**
    * Context for parse
    */
-  struct Context {
+  class Context {
+  public:
+    Context() { m_mutex= NULL; };
     ParserStatus m_status;
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
     char * m_currentToken;
     char m_tokenBuffer[512];
+    NdbMutex *m_mutex;
 
     Vector<const ParserRow<T> *> m_aliasUsed;
   };
