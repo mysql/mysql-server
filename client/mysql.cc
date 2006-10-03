@@ -49,6 +49,9 @@ const char *VER= "14.12";
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
 
+/* Buffer to hold 'version' and 'version_comment' */
+#define MAX_SERVER_VERSION_LENGTH     128
+
 gptr sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
 #include "sql_string.h"
@@ -208,6 +211,7 @@ static int com_nopager(String *str, char*), com_pager(String *str, char*),
 static int read_and_execute(bool interactive);
 static int sql_connect(char *host,char *database,char *user,char *password,
 		       uint silent);
+static const char *server_version_string(MYSQL *mysql);
 static int put_info(const char *str,INFO_TYPE info,uint error=0,
 		    const char *sql_state=0);
 static int put_error(MYSQL *mysql);
@@ -432,8 +436,8 @@ int main(int argc,char *argv[])
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
   sprintf((char*) glob_buffer.ptr(),
-	  "Your MySQL connection id is %lu to server version: %s\n",
-	  mysql_thread_id(&mysql),mysql_get_server_info(&mysql));
+	  "Your MySQL connection id is %lu\nServer version: %s\n",
+	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
 #ifdef HAVE_READLINE
@@ -2509,9 +2513,14 @@ print_table_data_xml(MYSQL_RES *result)
     {
       tee_fprintf(PAGER, "\t<field name=\"");
       xmlencode_print(fields[i].name, (uint) strlen(fields[i].name));
-      tee_fprintf(PAGER, "\">");
-      xmlencode_print(cur[i], lengths[i]);
-      tee_fprintf(PAGER, "</field>\n");
+      if (cur[i])
+      {
+        tee_fprintf(PAGER, "\">");
+        xmlencode_print(cur[i], lengths[i]);
+        tee_fprintf(PAGER, "</field>\n");
+      }
+      else
+        tee_fprintf(PAGER, "\" xsi:nil=\"true\" />\n");
     }
     (void) tee_fputs("  </row>\n", PAGER);
   }
@@ -2910,7 +2919,7 @@ com_connect(String *buffer, char *line)
   bzero(buff, sizeof(buff));
   if (buffer)
   {
-    strmake(buff, line, sizeof(buff));
+    strmake(buff, line, sizeof(buff) - 1);
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
@@ -3025,7 +3034,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
   int select_db;
 
   bzero(buff, sizeof(buff));
-  strmov(buff, line);
+  strmake(buff, line, sizeof(buff) - 1);
   tmp= get_arg(buff, 0);
   if (!tmp || !*tmp)
   {
@@ -3335,16 +3344,13 @@ com_status(String *buffer __attribute__((unused)),
   tee_fprintf(stdout, "Using outfile:\t\t'%s'\n", opt_outfile ? outfile : "");
 #endif
   tee_fprintf(stdout, "Using delimiter:\t%s\n", delimiter);
-  tee_fprintf(stdout, "Server version:\t\t%s\n", mysql_get_server_info(&mysql));
+  tee_fprintf(stdout, "Server version:\t\t%s\n", server_version_string(&mysql));
   tee_fprintf(stdout, "Protocol version:\t%d\n", mysql_get_proto_info(&mysql));
   tee_fprintf(stdout, "Connection:\t\t%s\n", mysql_get_host_info(&mysql));
   if ((id= mysql_insert_id(&mysql)))
     tee_fprintf(stdout, "Insert id:\t\t%s\n", llstr(id, buff));
 
-  /* 
-    Don't remove "limit 1", 
-    it is protection againts SQL_SELECT_LIMIT=0
-  */
+  /* "limit 1" is protection against SQL_SELECT_LIMIT=0 */
   if (!mysql_query(&mysql,"select @@character_set_client, @@character_set_connection, @@character_set_server, @@character_set_database limit 1") &&
       (result=mysql_use_result(&mysql)))
   {
@@ -3409,6 +3415,39 @@ select_limit, max_join_size);
   return 0;
 }
 
+static const char *
+server_version_string(MYSQL *mysql)
+{
+  static char buf[MAX_SERVER_VERSION_LENGTH] = "";
+
+  /* Only one thread calls this, so no synchronization is needed */
+  if (buf[0] == '\0')
+  {
+    char *bufp = buf;
+    MYSQL_RES *result;
+    MYSQL_ROW cur;
+
+    bufp = strnmov(buf, mysql_get_server_info(mysql), sizeof buf);
+
+    /* "limit 1" is protection against SQL_SELECT_LIMIT=0 */
+    if (!mysql_query(mysql, "select @@version_comment limit 1") &&
+        (result = mysql_use_result(mysql)))
+    {
+      MYSQL_ROW cur = mysql_fetch_row(result);
+      if (cur && cur[0])
+      {
+        bufp = strxnmov(bufp, sizeof buf - (bufp - buf), " ", cur[0], NullS);
+      }
+      mysql_free_result(result);
+    }
+
+    /* str*nmov doesn't guarantee NUL-termination */
+    if (bufp == buf + sizeof buf)
+      buf[sizeof buf - 1] = '\0';
+  }
+
+  return buf;
+}
 
 static int
 put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
@@ -3536,14 +3575,14 @@ void tee_puts(const char *s, FILE *file)
 {
   NETWARE_YIELD;
   fputs(s, file);
-  fputs("\n", file);
+  fputc('\n', file);
 #ifdef OS2
-  fflush( file);
+  fflush(file);
 #endif
   if (opt_outfile)
   {
     fputs(s, OUTFILE);
-    fputs("\n", OUTFILE);
+    fputc('\n', OUTFILE);
   }
 }
 

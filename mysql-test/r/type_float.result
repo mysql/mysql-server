@@ -262,6 +262,13 @@ desc t3;
 Field	Type	Null	Key	Default	Extra
 a	decimal(21,2)	NO		0.00	
 drop table t1,t2,t3;
+select 1e-308, 1.00000001e-300, 100000000e-300;
+1e-308	1.00000001e-300	100000000e-300
+0	1.00000001e-300	1e-292
+select 10e307;
+10e307
+1e+308
+End of 4.1 tests
 create table t1 (s1 float(0,2));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 's1').
 create table t1 (s1 float(1,2));

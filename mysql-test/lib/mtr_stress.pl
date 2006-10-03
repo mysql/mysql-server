@@ -21,7 +21,6 @@ sub run_stress_test ()
 {
 
   my $args;
-  my $stress_basedir;
   my $stress_suitedir;
 
   mtr_report("Starting stress testing\n");
