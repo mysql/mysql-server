@@ -1249,6 +1249,9 @@ sub environment_setup () {
   $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
   $ENV{'IM_PATH_ANGEL_PID'}=  $instance_manager->{path_angel_pid};
   $ENV{'IM_PORT'}=            $instance_manager->{port};
+  $ENV{'IM_PATH_SOCK'}=       $instance_manager->{path_sock};
+  $ENV{'IM_USERNAME'}=        $instance_manager->{admin_login};
+  $ENV{'IM_PASSWORD'}=        $instance_manager->{admin_password};
 
   $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
   $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};
@@ -1256,6 +1259,9 @@ sub environment_setup () {
   $ENV{'IM_MYSQLD2_SOCK'}=    $instance_manager->{instances}->[1]->{path_sock};
   $ENV{'IM_MYSQLD2_PORT'}=    $instance_manager->{instances}->[1]->{port};
   $ENV{'IM_MYSQLD2_PATH_PID'}=$instance_manager->{instances}->[1]->{path_pid};
+
+  $ENV{'EXE_MYSQL'}=          $exe_mysql;
+
 
   $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
 
