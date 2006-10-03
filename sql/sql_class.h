@@ -1340,10 +1340,19 @@ public:
 
   /*
     last_insert_id_used is set when current statement calls
-    LAST_INSERT_ID() or reads @@LAST_INSERT_ID, so that binary log
-    LAST_INSERT_ID_EVENT be generated.
+    LAST_INSERT_ID() or reads @@LAST_INSERT_ID.
   */
   bool	     last_insert_id_used;
+
+  /*
+    last_insert_id_used is set when current statement or any stored
+    function called from this statement calls LAST_INSERT_ID() or
+    reads @@LAST_INSERT_ID, so that binary log LAST_INSERT_ID_EVENT be
+    generated.  Required for statement-based binary log for issuing
+    "SET LAST_INSERT_ID= #" before "SELECT func()", if func() reads
+    LAST_INSERT_ID.
+  */
+  bool	     last_insert_id_used_bin_log;
 
   /*
     insert_id_used is set when current statement updates
