@@ -660,6 +660,17 @@ db_drop_routine(THD *thd, int type, sp_name *name)
     if (table->file->delete_row(table->record[0]))
       ret= SP_DELETE_ROW_FAILED;
   }
+
+  if (ret == SP_OK)
+  {
+    if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+  }
+
   close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
@@ -695,6 +706,17 @@ db_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
     if ((table->file->update_row(table->record[1],table->record[0])))
       ret= SP_WRITE_ROW_FAILED;
   }
+
+  if (ret == SP_OK)
+  {
+    if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+  }
+
   close_thread_tables(thd);
   DBUG_RETURN(ret);
 }
@@ -773,6 +795,7 @@ print_field_values(THD *thd, TABLE *table,
 	return SP_INTERNAL_ERROR;
     }
   }
+
   return SP_OK;
 }
 
