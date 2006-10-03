@@ -1,3 +1,4 @@
+# This test should work in embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
 
 # ============================================================================
@@ -26,7 +27,7 @@
 
 # ----------------------------------------------------------------------------
 # $mysql_errno contains the return code of the last command
-# send to the server.
+# sent to the server.
 # ----------------------------------------------------------------------------
 # get $mysql_errno before the first statement
 #     $mysql_errno should be -1
@@ -49,7 +50,7 @@ select otto from (select 1 as otto) as t1;
 
 # ----------------------------------------------------------------------------
 # Negative case(statement):
-# The dervied table t1 does not contain a column named 'friedrich' . 
+# The derived table t1 does not contain a column named 'friedrich' . 
 # --> ERROR 42S22: Unknown column 'friedrich' in 'field list and
 # --> 1054: Unknown column 'friedrich' in 'field list'
 # ----------------------------------------------------------------------------
@@ -67,7 +68,7 @@ select friedrich from (select 1 as otto) as t1;
 # The following unmasked unsuccessful statement must give
 # 1. mysqltest gives a 'failed'
 # 2. does not produce a r/<test case>.reject file !!!
-# PLEASE uncomment it and check it's effect
+# PLEASE uncomment it and check its effect
 #select friedrich from (select 1 as otto) as t1;
 
 
@@ -113,7 +114,7 @@ select friedrich from (select 1 as otto) as t1;
 # test cases for $mysql_errno
 #
 # $mysql_errno is a builtin variable of mysqltest and contains the return code
-# of the last command send to the server.
+# of the last command sent to the server.
 #
 #      The following test cases often initialize $mysql_errno to 1064 by 
 #      a command with wrong syntax.
@@ -216,7 +217,7 @@ garbage ;
 execute stmt;
 eval select $mysql_errno as "after_successful_execute" ;
 
-# failing execute (table dropped)
+# failing execute (table has been dropped)
 drop table t1;
 --error 1064
 garbage ;
@@ -248,8 +249,8 @@ eval select $mysql_errno as "after_failing_deallocate" ;
 # ----------------------------------------------------------------------------
 # test cases for "--disable_abort_on_error"
 #
-# "--disable_abort_on_error" switches the abort of mysqltest
-# after "unmasked" failing statements off.
+# "--disable_abort_on_error" switches off the abort of mysqltest
+# after "unmasked" failing statements.
 #
 # The default is "--enable_abort_on_error".
 #
@@ -257,13 +258,13 @@ eval select $mysql_errno as "after_failing_deallocate" ;
 #   --error <error number>  and  --error <error number>
 # in the line before the failing statement.
 #
-# There are some additional test case for $mysql_errno
+# There are some additional test cases for $mysql_errno
 # because "--disable_abort_on_error" enables a new situation.
 # Example: "unmasked" statement fails + analysis of $mysql_errno
 # ----------------------------------------------------------------------------
 
 # ----------------------------------------------------------------------------
-# Switch the abort on error off and check the effect on $mysql_errno
+# Switch off the abort on error and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
 --error 1064
 garbage ;
@@ -316,7 +317,6 @@ select 3 from t1 ;
 #
 #select 3 from t1 ;
 
-# End of 4.1 tests
 --error 1
 --exec echo "disable_abort_on_error; enable_abort_on_error; error 1064; select 3 from t1; select 3 from t1;" | $MYSQL_TEST  2>&1
 
@@ -344,7 +344,7 @@ select 3 from t1 ;
 
 # ----------------------------------------------------------------------------
 # Test detect end of line "junk"
-# Most likely causes by a missing delimiter
+# Most likely caused by a missing delimiter
 # ----------------------------------------------------------------------------
 
 # Too many parameters to function
@@ -359,22 +359,94 @@ select 3 from t1 ;
 # Missing delimiter
 # The comment will be "sucked into" the sleep command since
 # delimiter is missing until after "show status"
---system echo "sleep 4" > var/log/mysqltest.sql
---system echo "# A comment" >> var/log/mysqltest.sql
---system echo "show status;" >> var/log/mysqltest.sql
+--system echo "sleep 4" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "# A comment" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "show status;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+
+#
+# Missing delimiter until eof
+# The comment will be "sucked into" the sleep command since
+# delimiter is missing 
+--system echo "sleep 7" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "# Another comment" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
 #
 # Extra delimiter
 #
 --error 1
 --exec echo "--sleep 4;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--disable_query_log;" | $MYSQL_TEST 2>&1
 
 
 # Allow trailing # comment
 --sleep 1 # Wait for insert delayed to be executed.
 --sleep 1 	 # Wait for insert delayed to be executed.
+
+# ----------------------------------------------------------------------------
+# Test error
+# ----------------------------------------------------------------------------
+
+# Missing argument
+--error 1
+--exec echo "error;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--error" | $MYSQL_TEST 2>&1
+
+# First char must be uppercase 'S' or 'E' or [0-9]
+--error 1
+--exec echo "--error s99999" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--error e99999" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--error 9eeeee" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--error 1sssss" | $MYSQL_TEST 2>&1
+
+# First char 'S' but too long
+--error 1
+--exec echo "--error S999999" | $MYSQL_TEST 2>&1
+
+# First char 'S' but lowercase char found
+--error 1
+--exec echo "--error S99a99" | $MYSQL_TEST 2>&1
+
+# First char 'S' but too short
+--error 1
+--exec echo "--error S9999" | $MYSQL_TEST 2>&1
+
+# First char 'E' but not found in error array
+--error 1
+--exec echo "--error E9999" | $MYSQL_TEST 2>&1
+
+# First char [0-9] but contains chars
+--error 1
+--exec echo "--error 999e9" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--error 9b" | $MYSQL_TEST 2>&1
+
+# Multiple errorcodes separated by ','
+--error 1,1,1,1
+#--error 9,ER_PARSE_ERROR
+#--error ER_PARSE_ERROR
+#--error 9,ER_PARSE_ERROR,9,ER_PARSE_ERROR
+#--error 9, ER_PARSE_ERROR,  9,   ER_PARSE_ERROR
+#--error 9,S00000,9,ER_PARSE_ERROR
+#--error 9,S00000,9,ER_PARSE_ERROR,ER_PARSE_ERROR,ER_PARSE_ERROR,9,10,11,12
+--error 9,S00000,9
+--error 9,S00000,9,9,10,11,12
+--error 9 ,10
+--error 9 , 10
+--error    9   ,   10
+--error    9   ,   10
+
+# Too many errorcodes specified
+--error 1
+--exec echo "--error 1,2,3,4,5,6,7,8,9,10,11" | $MYSQL_TEST 2>&1
 
 
 # ----------------------------------------------------------------------------
@@ -399,8 +471,8 @@ echo - MySQL: The world''s
 - source database;
 
 echo - MySQL: The world''s
--- most popular open
--- source database;
+-- most popular
+-- open source database;
 
 echo # MySQL: The
 --world''s
@@ -419,7 +491,7 @@ echo ;
 # Illegal use of echo
 
 --error 1
---exec echo "echo $;" | $MYSQL_TEST 2>&1
+--exec echo "echo \$;" | $MYSQL_TEST 2>&1
 
 
 # ----------------------------------------------------------------------------
@@ -457,8 +529,8 @@ echo $message;
 
 let $message=  -- MySQL: The
 -- world''s most
--- popular open
--- source database;
+-- popular
+-- open source database;
 echo $message;
 
 let $message=  # MySQL: The
@@ -495,9 +567,21 @@ echo $where2;
 let $where3=a long $where variable content;
 echo $where3;
 
+let $where3=a long \\\$where variable content;
+echo $where3;
+
 let $novar1= $novar2;
 echo $novar1;
 
+let $cat=na;
+let $cat=ba$cat$cat;
+echo banana = $cat;
+
+# ba\$cat\$cat should have been sufficient.
+# ba\\\$cat\\\$cat -> ba\$cat\$cat -> ba$cat$cat -> banana
+# Magnus' upcoming patch will fix the missing second interpretation.
+let $cat=ba\\\$cat\\\$cat;
+echo Not a banana: $cat;
 
 
 # Test illegal uses of let
@@ -506,22 +590,19 @@ echo $novar1;
 --exec echo "let ;" | $MYSQL_TEST 2>&1
 
 --error 1
---exec echo "let $=hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$=hi;" | $MYSQL_TEST  2>&1
 
 --error 1
---exec echo "let hi=hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$1 hi;" | $MYSQL_TEST  2>&1
 
 --error 1
---exec echo "let $1 hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$m hi;" | $MYSQL_TEST  2>&1
 
 --error 1
---exec echo "let $m hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$hi;" | $MYSQL_TEST  2>&1
 
 --error 1
---exec echo "let $hi;" | $MYSQL_TEST  2>&1
-
---error 1
---exec echo "let $ hi;" | $MYSQL_TEST  2>&1
+--exec echo "let \$ hi;" | $MYSQL_TEST  2>&1
 
 --error 1
 --exec echo "let =hi;" | $MYSQL_TEST  2>&1
@@ -529,6 +610,55 @@ echo $novar1;
 --error 1
 --exec echo "let hi;" | $MYSQL_TEST  2>&1
 
+# More advanced test for bug#17280
+let $success= 1;
+--echo # Execute: --echo # <whatever> success: \$success
+--echo # <whatever> success: $success
+--echo # Execute: echo # <whatever> success: \$success ;
+echo # <whatever> success: $success ;
+
+--echo # The next two variants work fine and expand the content of \$success
+--echo # Execute: --echo \$success
+--echo $success
+--echo # Execute: echo \$success ;
+echo $success ;
+
+# ----------------------------------------------------------------------------
+# Test to assign let from query
+# let $<var_name>=`<query>`;
+# ----------------------------------------------------------------------------
+--disable_parsing
+echo var1;
+let $var1= `select "hi" as "Col", 1 as "Column1", "hi there" as Col3`;
+echo $var1;
+echo $var1_Col;
+echo $var1_Column1;
+echo $var1_Col3;
+
+echo var2;
+let $var2= `select 2 as "Column num 2"`;
+echo $var2;
+echo $var2_Column num 2;
+echo $var2_Column;
+
+echo var2 again;
+let $var2= `select 2 as "Column num 2"`;
+echo $var2;
+echo $var2_Column num 2;
+echo $var2_Column_num_2;
+echo $var2_Column;
+
+echo var3 two columns with same name;
+let $var3= `select 1 as "Col", 2 as "Col", 3 as "var3"`;
+echo $var3;
+echo $var3_Col;
+echo $var3_Col;
+echo $var3_var3;
+
+#echo failing query in let;
+#--error 1
+#--exec echo "let $var2= `failing query;`" | $MYSQL_TEST 2>&1
+--enable_parsing
 # ----------------------------------------------------------------------------
 # Test source command
 # ----------------------------------------------------------------------------
@@ -538,29 +668,36 @@ echo $novar1;
 --error 1
 --exec echo "source ;" | $MYSQL_TEST 2>&1
 
+# Fix win paths
+--replace_result \\ /
+# Source a nonexisting file
 --error 1
 --exec echo "source non_existingFile;" | $MYSQL_TEST 2>&1
 
 # Too many source
---exec echo "source var/tmp/recursive.sql;" > var/tmp/recursive.sql
+--exec echo "source $MYSQLTEST_VARDIR/tmp/recursive.sql;" > $MYSQLTEST_VARDIR/tmp/recursive.sql
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
---exec echo "source var/tmp/recursive.sql;" | $MYSQL_TEST 2>&1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/recursive.sql;" | $MYSQL_TEST 2>&1
 
 # Source a file with error
---exec echo "garbage ;" > var/tmp/error.sql
+--exec echo "garbage ;" > $MYSQLTEST_VARDIR/tmp/error.sql
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
---exec echo "source var/tmp/error.sql;" | $MYSQL_TEST 2>&1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/error.sql;" | $MYSQL_TEST 2>&1
 
 
 # Test execution of source in a while loop
---exec echo "echo here is the sourced script;" > var/tmp/sourced.sql
+--write_file $MYSQLTEST_VARDIR/tmp/sourced.inc
+echo here is the sourced script;
+EOF
 --disable_query_log
 let $outer= 2; # Number of outer loops
 while ($outer)
 {
   eval SELECT '$outer = outer loop variable after while' AS "";
 
-  --source var/tmp/sourced.sql
+  --source $MYSQLTEST_VARDIR/tmp/sourced.inc
 
   eval SELECT '$outer = outer loop variable before dec' AS "";
   dec $outer;
@@ -581,7 +718,6 @@ while ($outer)
 
 
 # Test execution of source in a while loop
---exec echo "--source var/tmp/sourced.sql" > var/tmp/sourced1.sql
 --disable_abort_on_error
 # Sourcing of a file within while loop, sourced file will
 # source other file
@@ -589,11 +725,12 @@ let $num= 9;
 while ($num)
 {
    SELECT 'In loop' AS "";
-   --source var/tmp/sourced1.sql
+   --source $MYSQLTEST_VARDIR/tmp/sourced.inc
    dec $num;
 }
 --enable_abort_on_error
 --enable_query_log
+--remove_file $MYSQLTEST_VARDIR/tmp/sourced.inc
 
 # ----------------------------------------------------------------------------
 # Test sleep command
@@ -683,7 +820,7 @@ system echo "hej" > /dev/null;
 --exec echo "system false;" | $MYSQL_TEST 2>&1
 
 --disable_abort_on_error
-system NonExistsinfComamdn;
+system NonExistsinfComamdn 2> /dev/null;
 --enable_abort_on_error
 
 
@@ -700,6 +837,30 @@ echo test3stop
 --delimiter ;
 echo test4;
 
+
+# ----------------------------------------------------------------------------
+# Test if
+# ----------------------------------------------------------------------------
+
+let $counter=10;
+if ($counter)
+{
+  echo Counter is greater than 0, (counter=10);
+}
+if (!$counter)
+{
+  echo Counter is not 0, (counter=10);
+}
+let $counter=0;
+if ($counter)
+{
+  echo Counter is greater than 0, (counter=0);
+}
+if (!$counter)
+{
+  echo Counter is not 0, (counter=0);
+}
+
 # ----------------------------------------------------------------------------
 # Test while, { and }
 # ----------------------------------------------------------------------------
@@ -713,11 +874,158 @@ while ($i)
 # One liner
 #let $i=1;while ($i){echo $i;dec $i;}
 
-
+let $i=0;
+while (!$i)
+{
+  echo Testing while with not;
+  inc $i;
+}
 
 # Exceed max nesting level
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest_while.inc
+let $1 = 10;
+while ($1)
+{
+while ($1)
+{
+while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+ while ($1)
+{
+  echo $1;
+  dec $1;
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+}
+EOF
+# Fix win path
+--replace_result \\ / $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error 1
---exec echo "source include/mysqltest_while.inc;" | $MYSQL_TEST 2>&1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest_while.inc;" | $MYSQL_TEST 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqltest_while.inc
 --error 1
 --exec echo "while \$i;" | $MYSQL_TEST 2>&1
 --error 1
@@ -731,20 +1039,20 @@ while ($i)
 --error 1
 --exec echo "{;" | $MYSQL_TEST 2>&1
 
---system echo "while (0)" > var/log/mysqltest.sql
---system echo "echo hej;" >> var/log/mysqltest.sql
+--system echo "while (0)" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "echo hej;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
---system echo "while (0)" > var/log/mysqltest.sql
---system echo "{echo hej;" >> var/log/mysqltest.sql
+--system echo "while (0)" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "{echo hej;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
---system echo "while (0){" > var/log/mysqltest.sql
---system echo "echo hej;" >> var/log/mysqltest.sql
+--system echo "while (0){" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "echo hej;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --error 1
---exec $MYSQL_TEST < var/log/mysqltest.sql 2>&1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
 # ----------------------------------------------------------------------------
 # Test error messages returned from comments starting with a command
@@ -772,7 +1080,7 @@ select "a" as col1, "c" as col2;
 --exec echo "replace_result a;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "replace_result a ;" | $MYSQL_TEST 2>&1
---exec echo "replace_result a b;" | $MYSQL_TEST 2>&1
+--exec echo "replace_result a b; echo OK;" | $MYSQL_TEST 2>&1
 --error 1
 --exec echo "--replace_result a b c" | $MYSQL_TEST 2>&1
 --error 1
@@ -809,6 +1117,71 @@ select "a" as col1, "c" as col2;
 --error 1
 --exec echo "save_master_pos; sync_with_master a;" | $MYSQL_TEST 2>&1
 
+# ----------------------------------------------------------------------------
+# Test connect
+# ----------------------------------------------------------------------------
+
+--error 1
+--exec echo "connect;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect ();" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con2);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con2,);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con2,localhost,root,,illegal_db);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con1,localhost,root,,,illegal_port,);" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "connect (con1,localhost,root,,,,,SMTP POP);" | $MYSQL_TEST 2>&1
+
+# Repeat connect/disconnect
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+let $i=100;
+while ($i)
+{
+  connect (test_con1,localhost,root,,);
+  disconnect test_con1;
+  dec $i;
+}
+EOF
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql; echo OK;" | $MYSQL_TEST 2>&1
+
+# Repeat connect/disconnect, exceed max number of connections
+--system echo "let \$i=200;"                              > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "while (\$i)"                              >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "{"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo " connect (test_con1,localhost,root,,); "  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo " disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo " dec \$i;                               " >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "}"                                        >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
+
+# Select disconnected connection
+--system echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "disconnect test_con1; "                  >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "connection test_con1;"                   >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
+
+# Connection name already used
+--system echo "connect (test_con1,localhost,root,,);"    > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--system echo "connect (test_con1,localhost,root,,);"   >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error 1
+--exec echo "source $MYSQLTEST_VARDIR/tmp/mysqltest.sql;" | $MYSQL_TEST 2>&1
+
+# connect when "disable_abort_on_error" caused "connection not found"
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--disable_abort_on_error
+connect (con1,localhost,root,,);
+connection default;
+connection con1;
+--enable_abort_on_error
 
 # ----------------------------------------------------------------------------
 # Test mysqltest arguments
@@ -818,6 +1191,8 @@ select "a" as col1, "c" as col2;
 --exec $MYSQL_TEST < $MYSQL_TEST_DIR/include/mysqltest-x.inc
 --exec $MYSQL_TEST -x $MYSQL_TEST_DIR/include/mysqltest-x.inc
 --exec $MYSQL_TEST --test_file=$MYSQL_TEST_DIR/include/mysqltest-x.inc
+# Fix Win paths
+--replace_result \\ /
 --error 1
 --exec $MYSQL_TEST -x non_existing_file.inc 2>&1
 
@@ -841,3 +1216,275 @@ while ($num)
 
 SELECT 1 as a;
 
+
+#
+# Bug #10251: Identifiers containing quotes not handled correctly
+#
+select 1 as `a'b`, 2 as `a"b`;
+
+# Test escaping of quotes
+select 'aaa\\','aa''a',"aa""a";
+
+#
+# Check of include/show_msg.inc and include/show_msg80.inc
+#
+
+# The message contains in most cases a string with the default character set
+let $message= Here comes a message;
+--source include/show_msg.inc
+
+# The message could also contain a string with character set utf8
+let $message= `SELECT USER()`;
+--source include/show_msg.inc
+
+# The message contains more then 80 characters on multiple lines
+# and is kept between double quotes.
+let $message= 
+"Here comes a very very long message that
+    - is longer then 80 characters    and
+    - consists of several lines";
+--source include/show_msg80.inc
+
+# The message contains more then 80 characters on multiple lines
+# and uses the auxiliary character "." at the beginning of the message lines.
+let $message= . Here comes a very very long message that
+              .      - is longer then 80 characters    and
+              .      - consists of several lines;
+--source include/show_msg80.inc
+
+#
+# Test --enable_parsing / disable_parsing
+#
+--disable_query_log
+--disable_parsing
+# The following will not enable query logging
+--enable_query_log
+select "this will not be executed";
+--enable_parsing
+select "this will be executed";
+--enable_query_log
+
+#
+# Test zero length result file. Should not pass
+#
+--exec touch $MYSQLTEST_VARDIR/tmp/zero_length_file.result
+--exec echo "echo ok;" > $MYSQLTEST_VARDIR/tmp/query.sql
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/zero_length_file.result  2>&1
+#
+# Test that a test file that does not generate any output fails.
+#
+--exec echo "let \$i= 1;" > $MYSQLTEST_VARDIR/tmp/query.sql
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql  2>&1
+
+#
+# Test that mysqltest fails when there are no queries executed
+# but a result file exists
+# NOTE! This will never happen as long as it's not allowed to have
+# test files that produce no output
+#--exec echo "something" > $MYSQLTEST_VARDIR/tmp/result_file.result
+#--exec echo "let \$i= 1;" > $MYSQLTEST_VARDIR/tmp/query.sql
+#--error 1
+#--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/query.sql -R $MYSQLTEST_VARDIR/tmp/result_file.result 2>&1
+
+#
+# Bug #11731 mysqltest in multi-statement queries ignores errors in
+#            non-1st queries
+#
+
+echo Failing multi statement query;
+# PS does not support multi statement
+--exec echo "--disable_ps_protocol"                    > $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ||||;"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "create table t1 (a int primary key);"    >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "insert into t1 values (1);"              >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "select 'select-me';"                     >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "insertz 'error query'||||"               >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ;||||"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+
+--error 1
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/bug11731.sql 2>&1
+drop table t1;
+
+--error 1
+--exec $MYSQL_TEST --record -x $MYSQLTEST_VARDIR/tmp/bug11731.sql -R $MYSQLTEST_VARDIR/tmp/bug11731.out 2>&1
+# The .out file should be non existent
+--exec test ! -s $MYSQLTEST_VARDIR/tmp/bug11731.out
+drop table t1;
+
+
+echo Multi statement using expected error;
+# PS does not support multi statement
+--exec echo "--disable_ps_protocol"                    > $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ||||;"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "--error 1064"                            >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "create table t1 (a int primary key);"    >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "insert into t1 values (1);"              >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "select 'select-me';"                     >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "insertz "error query"||||"               >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ;||||"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+
+# These two should work since the error is expected
+--exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/bug11731.sql  2>&1
+drop table t1;
+
+--exec $MYSQL_TEST --record -x $MYSQLTEST_VARDIR/tmp/bug11731.sql -R $MYSQLTEST_VARDIR/tmp/bug11731.out 2>&1
+# The .out file should exist
+--exec test -s $MYSQLTEST_VARDIR/tmp/bug11731.out
+drop table t1;
+
+#
+# Bug#19890  	mysqltest: "query" command is broken
+#
+
+# It should be possible to use the command "query" to force mysqltest to
+# send the command to the server although it's a builtin mysqltest command.
+--error 1064
+query sleep;
+
+--error 1064
+--query sleep
+
+# Just an empty query command
+--error 1065
+query ;
+
+# test for replace_regex
+--replace_regex /at/b/
+select "at" as col1, "c" as col2;
+
+--replace_regex /at/b/i
+select "at" as col1, "AT" as col2, "c" as col3;
+
+--replace_regex /a/b/ /ct/d/
+select "a" as col1, "ct" as col2; 
+
+--replace_regex /(strawberry)/raspberry and \1/ /blueberry/blackberry/ /potato/tomato/;
+select "strawberry","blueberry","potato";
+
+--error 1
+--exec echo "--replace_regex a" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_regex a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_regex a;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_regex a ;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_regex a b; echo OK;" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "--replace_regex /a b c" | $MYSQL_TEST 2>&1
+--error 1
+--exec echo "replace_regex /a /b c ;" | $MYSQL_TEST 2>&1 
+
+# REQUIREMENT
+#   replace_regex should replace substitutions from left to right in output
+
+create table t1 (a int, b int);
+insert into t1 values (1,3);
+insert into t1 values (2,4);
+--replace_regex /A/C/ /B/D/i /3/2/ /2/1/
+select * from t1;
+drop table t1;
+
+# ----------------------------------------------------------------------------
+# test for remove_file
+# ----------------------------------------------------------------------------
+
+--error 1
+--exec echo "remove_file ;" | $MYSQL_TEST 2>&1
+
+--error 1
+remove_file non_existing_file;
+
+# ----------------------------------------------------------------------------
+# test for write_file
+# ----------------------------------------------------------------------------
+--error 1
+--exec echo "write_file ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "write_file filename ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "write_file filename \";" | $MYSQL_TEST 2>&1
+
+write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Content for test_file1
+EOF
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp END_DELIMITER;
+Content for test_file1 contains EOF
+END_DELIMITER
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+# ----------------------------------------------------------------------------
+# test for file_exist
+# ----------------------------------------------------------------------------
+--error 1
+--exec echo "file_exists ;" | $MYSQL_TEST 2>&1
+
+--error 0,1
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+write_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+Content for test_file1
+EOF
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+--error 1
+file_exists $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
+
+
+# ----------------------------------------------------------------------------
+# test for copy_file
+# ----------------------------------------------------------------------------
+--write_file $MYSQLTEST_VARDIR/tmp/file1.tmp
+file1
+EOF
+
+copy_file $MYSQLTEST_VARDIR/tmp/file1.tmp $MYSQLTEST_VARDIR/tmp/file2.tmp;
+file_exists $MYSQLTEST_VARDIR/tmp/file2.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/file1.tmp;
+remove_file $MYSQLTEST_VARDIR/tmp/file2.tmp;
+
+--error 1
+--exec echo "copy_file ;" | $MYSQL_TEST 2>&1
+
+--error 1
+--exec echo "copy_file from_file;" | $MYSQL_TEST 2>&1
+
+# ----------------------------------------------------------------------------
+# test for perl
+# ----------------------------------------------------------------------------
+--perl
+print "hello\n";
+EOF
+
+--perl EOF
+print "hello\n";
+EOF
+
+--perl DELIMITER
+print "hello\n";
+DELIMITER
+
+--error 1
+--exec echo "perl TOO_LONG_DELIMITER ;" | $MYSQL_TEST 2>&1
+
+perl;
+print "hello\n";
+EOF
+
+perl;
+  # Print "hello"
+  print "hello\n";
+EOF
+
+
+--echo End of tests
