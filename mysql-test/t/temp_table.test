@@ -99,4 +99,50 @@ insert into t2 values (NULL, 'foo'), (NULL, 'bar');
 select d, c from t1 left join t2 on b = c where a = 3 order by d;
 drop table t1, t2;
 
-# End of 4.1 tests
+
+#
+# BUG#21096: locking issue ; temporary table conflicts.
+#
+# The problem was that on DROP TEMPORARY table name lock was acquired,
+# which should not be done.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+LOCK TABLE t1 WRITE;
+
+connect (conn1, localhost, root,,);
+
+CREATE TEMPORARY TABLE t1 (i INT);
+
+--echo The following command should not block
+DROP TEMPORARY TABLE t1;
+
+disconnect conn1;
+connection default;
+
+DROP TABLE t1;
+
+#
+# Check that it's not possible to drop a base table with
+# DROP TEMPORARY statement.
+#
+CREATE TABLE t1 (i INT);
+CREATE TEMPORARY TABLE t2 (i INT);
+
+--error 1051
+DROP TEMPORARY TABLE t2, t1;
+
+# Table t2 should have been dropped.
+--error 1146
+SELECT * FROM t2;
+# But table t1 should still be there.
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+--echo End of 4.1 tests.
