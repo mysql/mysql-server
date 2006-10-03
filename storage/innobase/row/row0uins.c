@@ -286,8 +286,8 @@ row_undo_ins(
 		return(DB_SUCCESS);
 	}
 
-	node->index = dict_table_get_next_index
-		(dict_table_get_first_index(node->table));
+	node->index = dict_table_get_next_index(
+		dict_table_get_first_index(node->table));
 
 	while (node->index != NULL) {
 		entry = row_build_index_entry(node->row, node->index,

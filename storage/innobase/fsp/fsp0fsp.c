@@ -768,8 +768,9 @@ xdes_lst_get_next(
 
 	space = buf_frame_get_space_id(descr);
 
-	return(xdes_lst_get_descriptor
-	       (space, flst_get_next_addr(descr + XDES_FLST_NODE, mtr), mtr));
+	return(xdes_lst_get_descriptor(
+		       space,
+		       flst_get_next_addr(descr + XDES_FLST_NODE, mtr), mtr));
 }
 
 /************************************************************************
@@ -1116,8 +1117,8 @@ fsp_try_extend_data_file(
 			fprintf(stderr,
 				"InnoDB: Error: Last data file size is %lu,"
 				" max size allowed %lu\n",
-				(ulong) srv_data_file_sizes
-				[srv_n_data_files - 1],
+				(ulong) srv_data_file_sizes[
+					srv_n_data_files - 1],
 				(ulong) srv_last_file_size_max);
 		}
 
@@ -1137,13 +1138,13 @@ fsp_try_extend_data_file(
 
 			if (size < FSP_EXTENT_SIZE) {
 				/* Let us first extend the file to 64 pages */
-				success = fsp_try_extend_data_file_with_pages
-					(space, FSP_EXTENT_SIZE - 1,
-					 header, mtr);
+				success = fsp_try_extend_data_file_with_pages(
+					space, FSP_EXTENT_SIZE - 1,
+					header, mtr);
 				if (!success) {
-					new_size = mtr_read_ulint
-						(header + FSP_SIZE,
-						 MLOG_4BYTES, mtr);
+					new_size = mtr_read_ulint(
+						header + FSP_SIZE,
+						MLOG_4BYTES, mtr);
 
 					*actual_increase = new_size - old_size;
 
@@ -1246,9 +1247,9 @@ fsp_fill_free_list(
 		/* Update the free limit info in the log system and make
 		a checkpoint */
 		if (space == 0) {
-			log_fsp_current_free_limit_set_and_checkpoint
-				((i + FSP_EXTENT_SIZE)
-				 / ((1024 * 1024) / UNIV_PAGE_SIZE));
+			log_fsp_current_free_limit_set_and_checkpoint(
+				(i + FSP_EXTENT_SIZE)
+				/ ((1024 * 1024) / UNIV_PAGE_SIZE));
 		}
 
 		if (0 == i % XDES_DESCRIBED_PER_PAGE) {
@@ -1967,8 +1968,8 @@ fseg_find_last_used_frag_page_slot(
 	ut_ad(inode && mtr);
 
 	for (i = 0; i < FSEG_FRAG_ARR_N_SLOTS; i++) {
-		page_no = fseg_get_nth_frag_page_no
-			(inode, FSEG_FRAG_ARR_N_SLOTS - i - 1, mtr);
+		page_no = fseg_get_nth_frag_page_no(
+			inode, FSEG_FRAG_ARR_N_SLOTS - i - 1, mtr);
 
 		if (page_no != FIL_NULL) {
 
@@ -2526,8 +2527,8 @@ fseg_alloc_free_page_low(
 				return(FIL_NULL);
 			}
 
-			success = fsp_try_extend_data_file_with_pages
-				(space, ret_page, space_header, mtr);
+			success = fsp_try_extend_data_file_with_pages(
+				space, ret_page, space_header, mtr);
 			if (!success) {
 				/* No disk space left */
 				return(FIL_NULL);
@@ -3161,8 +3162,8 @@ fseg_free_extent(
 			/* Drop search system page hash index if the page is
 			found in the pool and is hashed */
 
-			btr_search_drop_page_hash_when_freed
-				(space, first_page_in_extent + i);
+			btr_search_drop_page_hash_when_freed(
+				space, first_page_in_extent + i);
 		}
 	}
 
@@ -3176,8 +3177,8 @@ fseg_free_extent(
 		flst_remove(seg_inode + FSEG_NOT_FULL,
 			    descr + XDES_FLST_NODE, mtr);
 
-		not_full_n_used = mtr_read_ulint
-			(seg_inode + FSEG_NOT_FULL_N_USED, MLOG_4BYTES, mtr);
+		not_full_n_used = mtr_read_ulint(
+			seg_inode + FSEG_NOT_FULL_N_USED, MLOG_4BYTES, mtr);
 
 		descr_n_used = xdes_get_n_used(descr, mtr);
 		ut_a(not_full_n_used >= descr_n_used);
@@ -3758,15 +3759,15 @@ fsp_validate(
 			mtr_start(&mtr);
 			mtr_x_lock(fil_space_get_latch(space), &mtr);
 
-			seg_inode_page = fut_get_ptr
-				(space, node_addr, RW_X_LATCH, &mtr)
+			seg_inode_page = fut_get_ptr(
+				space, node_addr, RW_X_LATCH, &mtr)
 				- FSEG_INODE_PAGE_NODE;
 
-			seg_inode = fsp_seg_inode_page_get_nth_inode
-				(seg_inode_page, n, &mtr);
-			ut_a(ut_dulint_cmp
-			     (mach_read_from_8(seg_inode + FSEG_ID),
-			      ut_dulint_zero) != 0);
+			seg_inode = fsp_seg_inode_page_get_nth_inode(
+				seg_inode_page, n, &mtr);
+			ut_a(ut_dulint_cmp(
+				     mach_read_from_8(seg_inode + FSEG_ID),
+				     ut_dulint_zero) != 0);
 			fseg_validate_low(seg_inode, &mtr);
 
 			descr_count += flst_get_len(seg_inode + FSEG_FREE,
@@ -3778,8 +3779,8 @@ fsp_validate(
 
 			n_used2 += fseg_get_n_frag_pages(seg_inode, &mtr);
 
-			next_node_addr = flst_get_next_addr
-				(seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
+			next_node_addr = flst_get_next_addr(
+				seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
 			mtr_commit(&mtr);
 		}
 
@@ -3804,29 +3805,29 @@ fsp_validate(
 			mtr_start(&mtr);
 			mtr_x_lock(fil_space_get_latch(space), &mtr);
 
-			seg_inode_page = fut_get_ptr
-				(space, node_addr, RW_X_LATCH, &mtr)
+			seg_inode_page = fut_get_ptr(
+				space, node_addr, RW_X_LATCH, &mtr)
 				- FSEG_INODE_PAGE_NODE;
 
-			seg_inode = fsp_seg_inode_page_get_nth_inode
-				(seg_inode_page, n, &mtr);
-			if (ut_dulint_cmp
-			    (mach_read_from_8(seg_inode + FSEG_ID),
-			     ut_dulint_zero) != 0) {
+			seg_inode = fsp_seg_inode_page_get_nth_inode(
+				seg_inode_page, n, &mtr);
+			if (ut_dulint_cmp(
+				    mach_read_from_8(seg_inode + FSEG_ID),
+				    ut_dulint_zero) != 0) {
 				fseg_validate_low(seg_inode, &mtr);
 
-				descr_count += flst_get_len
-					(seg_inode + FSEG_FREE, &mtr);
-				descr_count += flst_get_len
-					(seg_inode + FSEG_FULL, &mtr);
-				descr_count += flst_get_len
-					(seg_inode + FSEG_NOT_FULL, &mtr);
-				n_used2 += fseg_get_n_frag_pages
-					(seg_inode, &mtr);
+				descr_count += flst_get_len(
+					seg_inode + FSEG_FREE, &mtr);
+				descr_count += flst_get_len(
+					seg_inode + FSEG_FULL, &mtr);
+				descr_count += flst_get_len(
+					seg_inode + FSEG_NOT_FULL, &mtr);
+				n_used2 += fseg_get_n_frag_pages(
+					seg_inode, &mtr);
 			}
 
-			next_node_addr = flst_get_next_addr
-				(seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
+			next_node_addr = flst_get_next_addr(
+				seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
 			mtr_commit(&mtr);
 		}
 
@@ -3931,21 +3932,21 @@ fsp_print(
 			mtr_start(&mtr);
 			mtr_x_lock(fil_space_get_latch(space), &mtr);
 
-			seg_inode_page = fut_get_ptr
-				(space, node_addr, RW_X_LATCH, &mtr)
+			seg_inode_page = fut_get_ptr(
+				space, node_addr, RW_X_LATCH, &mtr)
 				- FSEG_INODE_PAGE_NODE;
 
-			seg_inode = fsp_seg_inode_page_get_nth_inode
-				(seg_inode_page, n, &mtr);
-			ut_a(ut_dulint_cmp
-			     (mach_read_from_8(seg_inode + FSEG_ID),
-			      ut_dulint_zero) != 0);
+			seg_inode = fsp_seg_inode_page_get_nth_inode(
+				seg_inode_page, n, &mtr);
+			ut_a(ut_dulint_cmp(
+				     mach_read_from_8(seg_inode + FSEG_ID),
+				     ut_dulint_zero) != 0);
 			fseg_print_low(seg_inode, &mtr);
 
 			n_segs++;
 
-			next_node_addr = flst_get_next_addr
-				(seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
+			next_node_addr = flst_get_next_addr(
+				seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
 			mtr_commit(&mtr);
 		}
 
@@ -3968,22 +3969,22 @@ fsp_print(
 			mtr_start(&mtr);
 			mtr_x_lock(fil_space_get_latch(space), &mtr);
 
-			seg_inode_page = fut_get_ptr
-				(space, node_addr, RW_X_LATCH, &mtr)
+			seg_inode_page = fut_get_ptr(
+				space, node_addr, RW_X_LATCH, &mtr)
 				- FSEG_INODE_PAGE_NODE;
 
-			seg_inode = fsp_seg_inode_page_get_nth_inode
-				(seg_inode_page, n, &mtr);
-			if (ut_dulint_cmp
-			    (mach_read_from_8(seg_inode + FSEG_ID),
-			     ut_dulint_zero) != 0) {
+			seg_inode = fsp_seg_inode_page_get_nth_inode(
+				seg_inode_page, n, &mtr);
+			if (ut_dulint_cmp(
+				    mach_read_from_8(seg_inode + FSEG_ID),
+				    ut_dulint_zero) != 0) {
 
 				fseg_print_low(seg_inode, &mtr);
 				n_segs++;
 			}
 
-			next_node_addr = flst_get_next_addr
-				(seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
+			next_node_addr = flst_get_next_addr(
+				seg_inode_page + FSEG_INODE_PAGE_NODE, &mtr);
 			mtr_commit(&mtr);
 		}
 
