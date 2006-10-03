@@ -5651,6 +5651,7 @@ void mysql_reset_thd_for_next_command(THD *thd)
   thd->free_list= 0;
   thd->select_number= 1;
   thd->query_start_used= thd->insert_id_used=0;
+  thd->last_insert_id_used_bin_log= FALSE;
   thd->is_fatal_error= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |

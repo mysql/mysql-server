@@ -1705,7 +1705,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
 
     if (thd)
     {
-      if (thd->last_insert_id_used)
+      if (thd->last_insert_id_used_bin_log)
       {
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
 			   thd->current_insert_id);
@@ -1997,7 +1997,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
         tmp_errno=errno;
       strmov(db,thd->db);
     }
-    if (thd->last_insert_id_used)
+    if (thd->last_insert_id_used_bin_log)
     {
       end=strmov(end,",last_insert_id=");
       end=longlong10_to_str((longlong) thd->current_insert_id,end,-10);
