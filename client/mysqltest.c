@@ -3025,7 +3025,7 @@ void do_connect(struct st_command *command)
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
-    opt_ssl_verify_server_cert= !strcmp(con_host, "localhost");
+    opt_ssl_verify_server_cert= !strcmp(ds_connection_name.str, "localhost");
     mysql_options(&next_con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
