@@ -3005,9 +3005,22 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   grant_option=TRUE;
   thd->mem_root= old_root;
   pthread_mutex_unlock(&acl_cache->lock);
+
+  if (!result) /* success */
+  {
+    if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+  }
+
   rw_unlock(&LOCK_grant);
-  if (!result)
+
+  if (!result) /* success */
     send_ok(thd);
+
   /* Tables are automatically closed */
   DBUG_RETURN(result);
 }
@@ -3168,9 +3181,21 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   grant_option=TRUE;
   thd->mem_root= old_root;
   pthread_mutex_unlock(&acl_cache->lock);
+  if (!result && !no_error)
+  {
+    if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+  }
+
   rw_unlock(&LOCK_grant);
+
   if (!result && !no_error)
     send_ok(thd);
+
   /* Tables are automatically closed */
   DBUG_RETURN(result);
 }
@@ -3276,11 +3301,23 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     }
   }
   VOID(pthread_mutex_unlock(&acl_cache->lock));
+
+  if (!result)
+  {
+    if (mysql_bin_log.is_open())
+    {
+      thd->clear_error();
+      Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+      mysql_bin_log.write(&qinfo);
+    }
+  }
+
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
   if (!result)
     send_ok(thd);
+
   DBUG_RETURN(result);
 }
 
@@ -5241,6 +5278,13 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   }
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
+
+  if (mysql_bin_log.is_open())
+  {
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    mysql_bin_log.write(&qinfo);
+  }
+
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
   if (result)
@@ -5297,6 +5341,13 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   rebuild_check_host();
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
+
+  if (mysql_bin_log.is_open())
+  {
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    mysql_bin_log.write(&qinfo);
+  }
+
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
   if (result)
@@ -5366,6 +5417,13 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   rebuild_check_host();
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
+
+  if (mysql_bin_log.is_open())
+  {
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    mysql_bin_log.write(&qinfo);
+  }
+
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
   if (result)
@@ -5541,6 +5599,13 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   }
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
+
+  if (mysql_bin_log.is_open())
+  {
+    Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+    mysql_bin_log.write(&qinfo);
+  }
+
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
 

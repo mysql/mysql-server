@@ -3168,6 +3168,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   /* DISCARD/IMPORT TABLESPACE is always alone in an ALTER TABLE */
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
+    /* Conditionally writes to binlog. */
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
 						   alter_info->tablespace_op));
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
@@ -3249,10 +3250,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       !table->s->tmp_table) // no need to touch frm
   {
     error=0;
+    VOID(pthread_mutex_lock(&LOCK_open));
     if (new_name != table_name || new_db != db)
     {
       thd->proc_info="rename";
-      VOID(pthread_mutex_lock(&LOCK_open));
       /* Then do a 'simple' rename of the table */
       error=0;
       if (!access(new_name_buff,F_OK))
@@ -3274,7 +3275,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           error= -1;
         }
       }
-      VOID(pthread_mutex_unlock(&LOCK_open));
     }
 
     if (!error)
@@ -3283,16 +3283,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       case LEAVE_AS_IS:
         break;
       case ENABLE:
-        VOID(pthread_mutex_lock(&LOCK_open));
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-        VOID(pthread_mutex_unlock(&LOCK_open));
         error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
         /* COND_refresh will be signaled in close_thread_tables() */
         break;
       case DISABLE:
-        VOID(pthread_mutex_lock(&LOCK_open));
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
-        VOID(pthread_mutex_unlock(&LOCK_open));
         error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
         /* COND_refresh will be signaled in close_thread_tables() */
         break;
@@ -3322,6 +3318,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       table->file->print_error(error, MYF(0));
       error= -1;
     }
+    VOID(pthread_mutex_unlock(&LOCK_open));
     table_list->table=0;				// For query cache
     query_cache_invalidate3(thd, table_list, 0);
     DBUG_RETURN(error);
@@ -3768,6 +3765,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       my_free((gptr) new_table,MYF(0));
       goto err;
     }
+    /* 
+     Writing to the binlog does not need to be synchronized for temporary tables, 
+     which are thread-specific. 
+    */
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
@@ -3950,7 +3951,7 @@ end_temporary:
   thd->some_tables_deleted=0;
   DBUG_RETURN(FALSE);
 
- err:
+err:
   DBUG_RETURN(TRUE);
 }
 

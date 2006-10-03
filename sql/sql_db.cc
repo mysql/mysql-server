@@ -542,6 +542,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       qinfo.db     = db;
       qinfo.db_len = strlen(db);
 
+      /* These DDL methods and logging protected with LOCK_mysql_create_db */
       mysql_bin_log.write(&qinfo);
     }
     send_ok(thd, result);
@@ -613,6 +614,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     qinfo.db_len = strlen(db);
 
     thd->clear_error();
+    /* These DDL methods and logging protected with LOCK_mysql_create_db */
     mysql_bin_log.write(&qinfo);
   }
   send_ok(thd, result);
@@ -736,6 +738,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       qinfo.db_len = strlen(db);
 
       thd->clear_error();
+      /* These DDL methods and logging protected with LOCK_mysql_create_db */
       mysql_bin_log.write(&qinfo);
     }
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
@@ -762,6 +765,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       tbl_name_len= strlen(tbl->table_name) + 3;
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
+        /* These DDL methods and logging protected with LOCK_mysql_create_db */
         write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
         query_pos= query_data_start;
       }
@@ -774,6 +778,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
     if (query_pos != query_data_start)
     {
+      /* These DDL methods and logging protected with LOCK_mysql_create_db */
       write_to_binlog(thd, query, query_pos -1 - query, db, db_len);
     }
   }
