@@ -563,6 +563,9 @@ typedef unsigned short ushort;
 #ifndef __attribute__
 # if !defined(__GNUC__)
 #  define __attribute__(A)
+# elif defined (__QNXNTO__)
+   /* qcc defines GNUC */
+#  define __attribute__(A)
 # elif GCC_VERSION < 2008
 #  define __attribute__(A)
 # elif defined(__cplusplus) && GCC_VERSION < 3004
