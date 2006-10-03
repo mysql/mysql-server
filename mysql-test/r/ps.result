@@ -340,7 +340,7 @@ set @precision=10000000000;
 select rand(), 
 cast(rand(10)*@precision as unsigned integer) from t1;
 rand()	cast(rand(10)*@precision as unsigned integer)
--	6570515219
+-	6570515220
 -	1282061302
 -	6698761160
 -	9647622201
@@ -351,23 +351,23 @@ prepare stmt from
 set @var=1;
 execute stmt using @var;
 rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
--	6570515219	-
+-	6570515220	-
 -	1282061302	-
 -	6698761160	-
 -	9647622201	-
 set @var=2;
 execute stmt using @var;
 rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
--	6570515219	6555866465
--	1282061302	1223466192
--	6698761160	6449731873
+-	6570515220	6555866465
+-	1282061302	1223466193
+-	6698761160	6449731874
 -	9647622201	8578261098
 set @var=3;
 execute stmt using @var;
 rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
--	6570515219	9057697559
+-	6570515220	9057697560
 -	1282061302	3730790581
--	6698761160	1480860534
+-	6698761160	1480860535
 -	9647622201	6211931236
 drop table t1;
 deallocate prepare stmt;

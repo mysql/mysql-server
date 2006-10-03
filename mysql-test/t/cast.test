@@ -148,6 +148,12 @@ select cast(repeat('1',20) as unsigned);
 select cast(repeat('1',20) as signed);
 
 #
+# Bug#8663 cant use bgint unsigned as input to cast
+#
+select cast(19999999999999999999 as unsigned);
+
+
+#
 # Bug #13344: cast of large decimal to signed int not handled correctly
 #
 select cast(1.0e+300 as signed int);
