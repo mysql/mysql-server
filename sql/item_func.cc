@@ -3362,6 +3362,7 @@ bool Item_func_last_insert_id::fix_fields(THD *thd, Item **ref)
         id of the previous statement in THD::current_insert_id.
       */
       thd->last_insert_id_used= TRUE;
+      thd->last_insert_id_used_bin_log= TRUE;
       thd->current_insert_id= thd->last_insert_id;
     }
     null_value= FALSE;
