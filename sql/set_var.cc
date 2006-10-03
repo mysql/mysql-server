@@ -1150,14 +1150,14 @@ static void fix_net_retry_count(THD *thd, enum_var_type type)
     thd->net.retry_count=thd->variables.net_retry_count;
 }
 #else /* HAVE_REPLICATION */
-static void fix_net_read_timeout(THD *thd __attribute__(unused),
-				 enum_var_type type __attribute__(unused))
+static void fix_net_read_timeout(THD *thd __attribute__((unused)),
+				 enum_var_type type __attribute__((unused)))
 {}
-static void fix_net_write_timeout(THD *thd __attribute__(unused),
-				  enum_var_type type __attribute__(unused))
+static void fix_net_write_timeout(THD *thd __attribute__((unused)),
+				  enum_var_type type __attribute__((unused)))
 {}
-static void fix_net_retry_count(THD *thd __attribute__(unused),
-				enum_var_type type __attribute__(unused))
+static void fix_net_retry_count(THD *thd __attribute__((unused)),
+				enum_var_type type __attribute__((unused)))
 {}
 #endif /* HAVE_REPLICATION */
 
