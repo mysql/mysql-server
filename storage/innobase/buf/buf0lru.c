@@ -542,16 +542,16 @@ buf_LRU_old_adjust_len(void)
 
 		if (old_len < new_len - BUF_LRU_OLD_TOLERANCE) {
 
-			buf_pool->LRU_old = UT_LIST_GET_PREV
-				(LRU, buf_pool->LRU_old);
+			buf_pool->LRU_old = UT_LIST_GET_PREV(
+				LRU, buf_pool->LRU_old);
 			(buf_pool->LRU_old)->old = TRUE;
 			buf_pool->LRU_old_len++;
 
 		} else if (old_len > new_len + BUF_LRU_OLD_TOLERANCE) {
 
 			(buf_pool->LRU_old)->old = FALSE;
-			buf_pool->LRU_old = UT_LIST_GET_NEXT
-				(LRU, buf_pool->LRU_old);
+			buf_pool->LRU_old = UT_LIST_GET_NEXT(
+				LRU, buf_pool->LRU_old);
 			buf_pool->LRU_old_len--;
 		} else {
 			ut_a(buf_pool->LRU_old); /* Check that we did not

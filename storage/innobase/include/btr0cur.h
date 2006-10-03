@@ -59,13 +59,13 @@ btr_cur_get_page(
 				/* out: pointer to page */
 	btr_cur_t*	cursor);/* in: tree cursor */
 /*************************************************************
-Returns the tree of a cursor. */
+Returns the index of a cursor. */
 UNIV_INLINE
-dict_tree_t*
-btr_cur_get_tree(
-/*=============*/
-				/* out: tree */
-	btr_cur_t*	cursor);/* in: tree cursor */
+dict_index_t*
+btr_cur_get_index(
+/*==============*/
+				/* out: index */
+	btr_cur_t*	cursor);/* in: B-tree cursor */
 /*************************************************************
 Positions a tree cursor at a given record. */
 UNIV_INLINE

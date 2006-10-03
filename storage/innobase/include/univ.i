@@ -91,6 +91,7 @@ memory is read outside the allocated blocks. */
 #define UNIV_SYNC_PERF_STAT
 #define UNIV_SEARCH_PERF_STAT
 #define UNIV_SRV_PRINT_LATCH_WAITS
+#define UNIV_BTR_PRINT
 #endif
 
 #define UNIV_BTR_DEBUG

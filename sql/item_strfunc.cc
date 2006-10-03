@@ -1149,12 +1149,13 @@ void Item_func_substr::fix_length_and_dec()
   }
   if (arg_count == 3 && args[2]->const_item())
   {
-    int32 length= (int32) args[2]->val_int() * collation.collation->mbmaxlen;
+    int32 length= (int32) args[2]->val_int();
     if (length <= 0)
       max_length=0; /* purecov: inspected */
     else
       set_if_smaller(max_length,(uint) length);
   }
+  max_length*= collation.collation->mbmaxlen;
 }
 
 

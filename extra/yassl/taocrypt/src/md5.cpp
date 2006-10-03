@@ -28,7 +28,10 @@
 
 #include "runtime.hpp"
 #include "md5.hpp"
-#include "algorithm.hpp"    // mySTL::swap
+#include STL_ALGORITHM_FILE
+
+
+namespace STL = STL_NAMESPACE;
 
    
 #if defined(TAOCRYPT_X86ASM_AVAILABLE) && defined(TAO_ASM)
@@ -72,9 +75,9 @@ MD5& MD5::operator= (const MD5& that)
 
 void MD5::Swap(MD5& other)
 {
-    mySTL::swap(loLen_,   other.loLen_);
-    mySTL::swap(hiLen_,   other.hiLen_);
-    mySTL::swap(buffLen_, other.buffLen_);
+    STL::swap(loLen_,   other.loLen_);
+    STL::swap(hiLen_,   other.hiLen_);
+    STL::swap(buffLen_, other.buffLen_);
 
     memcpy(digest_, other.digest_, DIGEST_SIZE);
     memcpy(buffer_, other.buffer_, BLOCK_SIZE);
