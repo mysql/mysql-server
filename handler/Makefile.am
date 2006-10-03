@@ -24,3 +24,6 @@ noinst_LIBRARIES =	libhandler.a
 libhandler_a_SOURCES =	ha_innodb.cc
 
 EXTRA_PROGRAMS =	
+
+# Don't update the files from bitkeeper
+%::SCCS/s.%
