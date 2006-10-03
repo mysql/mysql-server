@@ -3574,7 +3574,6 @@ void Field_long::sql_type(String &res) const
 int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  longlong tmp;
   int error= 0;
   char *end;
   ulonglong tmp;

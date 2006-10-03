@@ -1353,7 +1353,7 @@ event_tail:
             Lex->sql_command= SQLCOM_CREATE_EVENT;
             Lex->expr_allows_subselect= TRUE;
           }
-
+      ;
 
 ev_schedule_time: EVERY_SYM expr interval
 	  {
