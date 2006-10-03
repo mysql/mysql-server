@@ -8154,11 +8154,11 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 						     21))))
 	{
           /*
-            Set THD::last_insert_id_used manually, as this statement
-            uses LAST_INSERT_ID() in a sense, and should issue
-            LAST_INSERT_ID_EVENT.
+            Set THD::last_insert_id_used_bin_log manually, as this
+            statement uses LAST_INSERT_ID() in a sense, and should
+            issue LAST_INSERT_ID_EVENT.
           */
-          thd->last_insert_id_used= TRUE;
+          thd->last_insert_id_used_bin_log= TRUE;
 
 	  cond=new_cond;
           /*
