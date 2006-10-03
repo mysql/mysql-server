@@ -391,13 +391,15 @@ struct st_command
 TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
-DYNAMIC_STRING ds_res, ds_progress;
+DYNAMIC_STRING ds_res, ds_progress, ds_warning_messages;
 
 void die(const char *fmt, ...)
   /* ATTRIBUTE_FORMAT(printf, 1, 2) */;
 void abort_not_supported_test(const char *fmt, ...)
   /* ATTRIBUTE_FORMAT(printf, 1, 2) */;
 void verbose_msg(const char *fmt, ...)
+  /* ATTRIBUTE_FORMAT(printf, 1, 2) */;
+void warning_msg(const char *fmt, ...)
   /* ATTRIBUTE_FORMAT(printf, 1, 2) */;
 
 VAR* var_from_env(const char *, const char *);
@@ -410,6 +412,7 @@ void eval_expr(VAR* v, const char *p, const char** p_end);
 my_bool match_delimiter(int c, const char *delim, uint length);
 void dump_result_to_reject_file(const char *record_file, char *buf, int size);
 void dump_result_to_log_file(const char *record_file, char *buf, int size);
+void dump_warning_messages(const char *record_file);
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars);
@@ -697,6 +700,7 @@ void free_used_memory()
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
   dynstr_free(&ds_progress);
+  dynstr_free(&ds_warning_messages);
   free_all_replace();
   my_free(pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
@@ -740,6 +744,10 @@ void die(const char *fmt, ...)
   /* Dump the result that has been accumulated so far to .log file */
   if (result_file && ds_res.length)
     dump_result_to_log_file(result_file, ds_res.str, ds_res.length);
+
+  /* Dump warning messages */
+  if (result_file && ds_warning_messages.length)
+    dump_warning_messages(result_file);
 
   /* Clean up and exit */
   free_used_memory();
@@ -811,6 +819,31 @@ void verbose_msg(const char *fmt, ...)
     fprintf(stderr, "At line %u: ", start_lineno);
   vfprintf(stderr, fmt, args);
   fprintf(stderr, "\n");
+  va_end(args);
+
+  DBUG_VOID_RETURN;
+}
+
+
+void warning_msg(const char *fmt, ...)
+{
+  va_list args;
+  char buff[512];
+  size_t len;
+  DBUG_ENTER("warning_msg");
+
+  va_start(args, fmt);
+  dynstr_append(&ds_warning_messages, "mysqltest: ");
+  if (start_lineno != 0)
+  {
+    len= my_snprintf(buff, sizeof(buff), "Warning detected at line %d: ",
+                     start_lineno);
+    dynstr_append_mem(&ds_warning_messages,
+                      buff, len);
+  }
+  len= vsnprintf(buff, sizeof(buff), fmt, args);
+  dynstr_append_mem(&ds_warning_messages, buff, len);
+  dynstr_append(&ds_warning_messages, "\n");
   va_end(args);
 
   DBUG_VOID_RETURN;
@@ -3496,6 +3529,55 @@ void convert_to_format_v1(char* query)
 
 
 /*
+  Check a command that is about to be sent (or should have been
+  sent if parsing was enabled) to mysql server for
+  suspicious things and generate warnings.
+*/
+
+void scan_command_for_warnings(struct st_command *command)
+{
+  const char *ptr= command->query;
+  DBUG_ENTER("scan_command_for_warnings");
+  DBUG_PRINT("enter", ("query: %s", command->query));
+
+  while(*ptr)
+  {
+    /*
+      Look for query's that lines that start with a -- comment
+      and has a mysqltest command
+    */
+    if (ptr[0] == '\n' &&
+        ptr[1] && ptr[1] == '-' &&
+        ptr[2] && ptr[2] == '-' &&
+        ptr[3])
+    {
+      uint type;
+      char save;
+      char *end, *start= (char*)ptr+3;
+      /* Skip leading spaces */
+      while (*start && my_isspace(charset_info, *start))
+        start++;
+      end= start;
+      /* Find end of command(next space) */
+      while (*end && !my_isspace(charset_info, *end))
+        end++;
+      save= *end;
+      *end= 0;
+      DBUG_PRINT("info", ("Checking '%s'", start));
+      type= find_type(start, &command_typelib, 1+2);
+      if (type)
+        warning_msg("Embedded mysqltest command '--%s' detected in "
+                    "query '%s' was this intentional? ",
+                    start, command->query);
+      *end= save;
+    }
+
+    *ptr++;
+  }
+  DBUG_VOID_RETURN;
+}
+
+/*
   Check for unexpected "junk" after the end of query
   This is normally caused by missing delimiters
 */
@@ -3583,43 +3665,29 @@ int read_command(struct st_command** command_ptr)
   if (*p == '#')
   {
     command->type= Q_COMMENT;
-    /* This goto is to avoid losing the "expected error" info. */
-    goto end;
   }
-  if (!parsing_disabled)
-  {
-    memcpy(&command->expected_errors, &saved_expected_errors,
-           sizeof(saved_expected_errors));
-    DBUG_PRINT("info", ("There are %d expected errors",
-                        command->expected_errors.count));
-    command->abort_on_error= (command->expected_errors.count == 0 &&
-                              abort_on_error);
-  }
-
-  if (p[0] == '-' && p[1] == '-')
+  else if (p[0] == '-' && p[1] == '-')
   {
     command->type= Q_COMMENT_WITH_COMMAND;
-    p+= 2;					/* To calculate first word */
-  }
-  else if (!parsing_disabled)
-  {
-    while (*p && my_isspace(charset_info, *p))
-      p++ ;
+    p+= 2; /* Skip past -- */
   }
 
-end:
+  /* Skip leading spaces */
   while (*p && my_isspace(charset_info, *p))
     p++;
 
   if (!(command->query_buf= command->query= my_strdup(p, MYF(MY_WME))))
-    die(NullS);
+    die("Out of memory");
 
   /* Calculate first word and first argument */
   for (p= command->query; *p && !my_isspace(charset_info, *p) ; p++) ;
   command->first_word_len= (uint) (p - command->query);
+
+  /* Skip spaces between command and first argument */
   while (*p && my_isspace(charset_info, *p))
     p++;
   command->first_argument= p;
+
   command->end= strend(command->query);
   command->query_len= (command->end - command->query);
   parser.read_lines++;
@@ -3945,6 +4013,15 @@ void dump_progress(const char *record_file)
   str_to_file(fn_format(log_file, record_file, "", ".progress",
                         MY_REPLACE_EXT),
               ds_progress.str, ds_progress.length);
+}
+
+void dump_warning_messages(const char *record_file)
+{
+  char warn_file[FN_REFLEN];
+
+  str_to_file(fn_format(warn_file, record_file, "", ".warnings",
+                        MY_REPLACE_EXT),
+              ds_warning_messages.str, ds_warning_messages.length);
 }
 
 void check_regerr(my_regex_t* r, int err)
@@ -4880,6 +4957,9 @@ void run_query(MYSQL *mysql, struct st_command *command, int flags)
 
   init_dynamic_string(&ds_warnings, NULL, 0, 256);
 
+  /* Scan for warning before sendign to server */
+  scan_command_for_warnings(command);
+
   /*
     Evaluate query if this is an eval command
   */
@@ -5166,28 +5246,19 @@ void get_command_type(struct st_command* command)
   uint type;
   DBUG_ENTER("get_command_type");
 
-  if (!parsing_disabled && *command->query == '}')
+  if (*command->query == '}')
   {
     command->type = Q_END_BLOCK;
     DBUG_VOID_RETURN;
   }
-  if (command->type != Q_COMMENT_WITH_COMMAND)
-    command->type= parsing_disabled ? Q_COMMENT : Q_QUERY;
 
-  save=command->query[command->first_word_len];
-  command->query[command->first_word_len]=0;
-  type=find_type(command->query, &command_typelib, 1+2);
-  command->query[command->first_word_len]=save;
+  save= command->query[command->first_word_len];
+  command->query[command->first_word_len]= 0;
+  type= find_type(command->query, &command_typelib, 1+2);
+  command->query[command->first_word_len]= save;
   if (type > 0)
   {
     command->type=(enum enum_commands) type;		/* Found command */
-    /*
-      If queries are disabled, only recognize
-      --enable_parsing and --disable_parsing
-    */
-    if (parsing_disabled && command->type != Q_ENABLE_PARSING &&
-        command->type != Q_DISABLE_PARSING)
-      command->type= Q_COMMENT;
 
     /*
       Look for case where "query" was explicitly specified to
@@ -5199,23 +5270,50 @@ void get_command_type(struct st_command* command)
       command->query= command->first_argument;
     }
   }
-  else if (command->type == Q_COMMENT_WITH_COMMAND &&
-	   command->first_word_len &&
-           strcmp(command->query + command->first_word_len - 1, delimiter) == 0)
+  else
   {
-    /*
-      Detect comment with command using extra delimiter
-      Ex --disable_query_log;
-      ^ Extra delimiter causing the command
-      to be skipped
-    */
-    save= command->query[command->first_word_len-1];
-    command->query[command->first_word_len-1]= 0;
-    type= find_type(command->query, &command_typelib, 1+2);
-    command->query[command->first_word_len-1]= save;
-    if (type > 0)
-      die("Extra delimiter \";\" found");
+    /* No mysqltest command matched */
+
+    if (command->type != Q_COMMENT_WITH_COMMAND)
+    {
+      /* A query that will sent to mysqld */
+      command->type= Q_QUERY;
+    }
+    else
+    {
+      /* -- comment that didn't contain a mysqltest command */
+      command->type= Q_COMMENT;
+      warning_msg("Suspicious command '--%s' detected, was this intentional? "\
+                  "Use # instead of -- to avoid this warning",
+                  command->query);
+
+      if (command->first_word_len &&
+          strcmp(command->query + command->first_word_len - 1, delimiter) == 0)
+      {
+        /*
+          Detect comment with command using extra delimiter
+          Ex --disable_query_log;
+          ^ Extra delimiter causing the command
+          to be skipped
+        */
+        save= command->query[command->first_word_len-1];
+        command->query[command->first_word_len-1]= 0;
+        if (find_type(command->query, &command_typelib, 1+2) > 0)
+          die("Extra delimiter \";\" found");
+        command->query[command->first_word_len-1]= save;
+
+      }
+    }
   }
+
+  /* Set expected error on command */
+  memcpy(&command->expected_errors, &saved_expected_errors,
+         sizeof(saved_expected_errors));
+  DBUG_PRINT("info", ("There are %d expected errors",
+                      command->expected_errors.count));
+  command->abort_on_error= (command->expected_errors.count == 0 &&
+                            abort_on_error);
+
   DBUG_VOID_RETURN;
 }
 
@@ -5314,6 +5412,7 @@ int main(int argc, char **argv)
 
   init_dynamic_string(&ds_res, "", 65536, 65536);
   init_dynamic_string(&ds_progress, "", 0, 2048);
+  init_dynamic_string(&ds_warning_messages, "", 0, 2048);
   parse_args(argc, argv);
 
   DBUG_PRINT("info",("result_file: '%s'", result_file ? result_file : ""));
@@ -5386,6 +5485,15 @@ int main(int argc, char **argv)
     int current_line_inc = 1, processed = 0;
     if (command->type == Q_UNKNOWN || command->type == Q_COMMENT_WITH_COMMAND)
       get_command_type(command);
+
+    if (parsing_disabled &&
+        command->type != Q_ENABLE_PARSING &&
+        command->type != Q_DISABLE_PARSING)
+    {
+      command->type= Q_COMMENT;
+      scan_command_for_warnings(command);
+    }
+
     if (cur_block->ok)
     {
       command->last_argument= command->first_argument;
@@ -5558,7 +5666,6 @@ int main(int argc, char **argv)
 	break;
       }
       case Q_COMMENT:				/* Ignore row */
-      case Q_COMMENT_WITH_COMMAND:
         command->last_argument= command->end;
 	break;
       case Q_PING:
@@ -5631,10 +5738,11 @@ int main(int argc, char **argv)
     else
       check_eol_junk(command->last_argument);
 
-    if (command->type != Q_ERROR)
+    if (command->type != Q_ERROR &&
+        command->type != Q_COMMENT)
     {
       /*
-        As soon as any non "error" command has been executed,
+        As soon as any non "error" command or comment has been executed,
         the array with expected errors should be cleared
       */
       memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
@@ -5649,8 +5757,6 @@ int main(int argc, char **argv)
       free_all_replace();
     }
     last_command_executed= command_executed;
-
-
 
     parser.current_line += current_line_inc;
     if ( opt_mark_progress )
@@ -5708,9 +5814,12 @@ int main(int argc, char **argv)
     die("No queries executed but result file found!");
   }
 
-  if ( opt_mark_progress )
+  if ( opt_mark_progress && result_file )
     dump_progress(result_file);
-  dynstr_free(&ds_progress);
+
+  /* Dump warning messages */
+  if (result_file && ds_warning_messages.length)
+    dump_warning_messages(result_file);
 
   dynstr_free(&ds_res);
 
