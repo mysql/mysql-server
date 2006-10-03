@@ -637,7 +637,7 @@ bool THD::store_globals()
     THD::cleanup_after_query()
 
   DESCRIPTION
-    This function is used to reset thread data to it's default state.
+    This function is used to reset thread data to its default state.
 
   NOTE
     This function is not suitable for setting thread data to some
@@ -645,6 +645,7 @@ bool THD::store_globals()
     different master threads may overwrite data of each other on
     slave.
 */
+
 void THD::cleanup_after_query()
 {
   if (!in_sub_stmt) /* stored functions and triggers are a special case */
@@ -667,6 +668,7 @@ void THD::cleanup_after_query()
   /* Reset where. */
   where= THD::DEFAULT_WHERE;
 }
+
 
 /*
   Convert a string to another character set
