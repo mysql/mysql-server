@@ -27,7 +27,7 @@ select * from mt;
 ERROR HY000: Can't lock file (errno: 155)
 FLUSH TABLES;
 select * from mt;
-ERROR HY000: Can't find file: 'mt' (errno: 2)
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
 ALTER TABLE `t` RENAME TO `t2`;
 INSERT INTO mt VALUES ('2006-01-01',0);
 select * from mt;
