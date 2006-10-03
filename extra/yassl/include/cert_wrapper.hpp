@@ -41,8 +41,12 @@
 #include "yassl_types.hpp"  // SignatureAlgorithm
 #include "buffer.hpp"       // input_buffer
 #include "asn.hpp"          // SignerList
-#include "list.hpp"         // mySTL::list
-#include "algorithm.hpp"    // mySTL::for_each
+#include STL_LIST_FILE
+#include STL_ALGORITHM_FILE
+
+
+namespace STL = STL_NAMESPACE;
+
 
 namespace yaSSL {
    
@@ -72,7 +76,7 @@ private:
 
 // Certificate Manager keeps a list of the cert chain and public key
 class CertManager {
-    typedef mySTL::list<x509*> CertList;
+    typedef STL::list<x509*> CertList;
 
     CertList     list_;                 // self      
     input_buffer privateKey_;
@@ -120,6 +124,7 @@ public:
     void setVerifyNone();
     void setFailNoCert();
     void setSendVerify();
+    void setPeerX509(X509*);
 private:
     CertManager(const CertManager&);            // hide copy
     CertManager& operator=(const CertManager&); // and assign

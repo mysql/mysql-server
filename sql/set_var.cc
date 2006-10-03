@@ -1255,8 +1255,8 @@ static void fix_tx_isolation(THD *thd, enum_var_type type)
 				thd->variables.tx_isolation);
 }
 
-static void fix_completion_type(THD *thd __attribute__(unused),
-				enum_var_type type __attribute__(unused)) {}
+static void fix_completion_type(THD *thd __attribute__((unused)),
+				enum_var_type type __attribute__((unused))) {}
 
 static int check_completion_type(THD *thd, set_var *var)
 {
@@ -1295,14 +1295,14 @@ static void fix_net_retry_count(THD *thd, enum_var_type type)
     thd->net.retry_count=thd->variables.net_retry_count;
 }
 #else /* HAVE_REPLICATION */
-static void fix_net_read_timeout(THD *thd __attribute__(unused),
-				 enum_var_type type __attribute__(unused))
+static void fix_net_read_timeout(THD *thd __attribute__((unused)),
+				 enum_var_type type __attribute__((unused)))
 {}
-static void fix_net_write_timeout(THD *thd __attribute__(unused),
-				  enum_var_type type __attribute__(unused))
+static void fix_net_write_timeout(THD *thd __attribute__((unused)),
+				  enum_var_type type __attribute__((unused)))
 {}
-static void fix_net_retry_count(THD *thd __attribute__(unused),
-				enum_var_type type __attribute__(unused))
+static void fix_net_retry_count(THD *thd __attribute__((unused)),
+				enum_var_type type __attribute__((unused)))
 {}
 #endif /* HAVE_REPLICATION */
 

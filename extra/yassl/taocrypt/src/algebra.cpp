@@ -29,7 +29,10 @@
 
 #include "runtime.hpp"
 #include "algebra.hpp"
-#include "vector.hpp"   // mySTL::vector (simple)
+#include STL_VECTOR_FILE
+
+
+namespace STL = STL_NAMESPACE;
 
 
 namespace TaoCrypt {
@@ -82,7 +85,7 @@ const Integer& AbstractEuclideanDomain::Mod(const Element &a,
 const Integer& AbstractEuclideanDomain::Gcd(const Element &a,
                                             const Element &b) const
 {
-    mySTL::vector<Element> g(3);
+    STL::vector<Element> g(3);
     g[0]= b;
     g[1]= a;
     unsigned int i0=0, i1=1, i2=2;
@@ -115,7 +118,7 @@ Integer AbstractGroup::CascadeScalarMultiply(const Element &x,
 
     const unsigned w = (expLen <= 46 ? 1 : (expLen <= 260 ? 2 : 3));
     const unsigned tableSize = 1<<w;
-    mySTL::vector<Element> powerTable(tableSize << w);
+    STL::vector<Element> powerTable(tableSize << w);
 
     powerTable[1] = x;
     powerTable[tableSize] = y;
@@ -240,8 +243,8 @@ struct WindowSlider
 void AbstractGroup::SimultaneousMultiply(Integer *results, const Integer &base,
                           const Integer *expBegin, unsigned int expCount) const
 {
-    mySTL::vector<mySTL::vector<Element> > buckets(expCount);
-    mySTL::vector<WindowSlider> exponents;
+    STL::vector<STL::vector<Element> > buckets(expCount);
+    STL::vector<WindowSlider> exponents;
     exponents.reserve(expCount);
     unsigned int i;
 
@@ -332,6 +335,8 @@ void AbstractRing::SimultaneousExponentiate(Integer *results,
 namespace mySTL {
 template TaoCrypt::WindowSlider* uninit_copy<TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
 template void destroy<TaoCrypt::WindowSlider*>(TaoCrypt::WindowSlider*, TaoCrypt::WindowSlider*);
+template TaoCrypt::WindowSlider* GetArrayMemory<TaoCrypt::WindowSlider>(size_t);
+template void FreeArrayMemory<TaoCrypt::WindowSlider>(TaoCrypt::WindowSlider*);
 }
 #endif
 

@@ -455,14 +455,6 @@ sub mtr_kill_leftovers () {
 
         mtr_debug("Got pid: $pid from file '$pidfile'");
 
-        # Race, could have been removed between I tested with -f
-        # and the unlink() below, so I better check again with -f
-
-        if ( ! unlink($pidfile) and -f $pidfile )
-        {
-          mtr_error("can't remove $pidfile");
-        }
-
         if ( $::glob_cygwin_perl or kill(0, $pid) )
         {
           mtr_debug("There is process with pid $pid -- scheduling for kill.");
