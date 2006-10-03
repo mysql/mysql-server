@@ -12,7 +12,9 @@ TARGETDIR=../storage/innobase
 # link the build scripts
 ln -sf $TARGETDIR/compile-innodb{,-debug} ../../BUILD
 
-cd ../../mysql-test
-ln -sf $TARGETDIR/mysql-test/*.test $TARGETDIR/mysql-test/*.opt t/
-ln -sf $TARGETDIR/mysql-test/*.result r/
-ln -sf $TARGETDIR/mysql-test/*.inc include/
+cd ../../mysql-test/t
+ln -sf ../$TARGETDIR/mysql-test/*.test $TARGETDIR/mysql-test/*.opt .
+cd ../r
+ln -sf ../$TARGETDIR/mysql-test/*.result .
+cd ../include
+ln -sf ../$TARGETDIR/mysql-test/*.inc .
