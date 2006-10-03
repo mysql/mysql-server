@@ -295,7 +295,7 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
     DBUG_RETURN(false);
   }
   if (m_pk) {
-    if ((bool)m_distributionKey != (bool)col.m_distributionKey) {
+    if (m_distributionKey != col.m_distributionKey) {
       DBUG_RETURN(false);
     }
   }
@@ -780,8 +780,8 @@ NdbTableImpl::computeAggregates()
       m_noOfKeys++;
       m_keyLenInWords += (col->m_attrSize * col->m_arraySize + 3) / 4;
     }
-    if (col->m_distributionKey == 2)    // set by user
-      m_noOfDistributionKeys++;
+    if (col->m_distributionKey)
+      m_noOfDistributionKeys++; // XXX check PK
     
     if (col->getBlobType())
       m_noOfBlobs++;
@@ -798,19 +798,7 @@ NdbTableImpl::computeAggregates()
     for (i = 0, n = m_noOfKeys; n != 0; i++) {
       NdbColumnImpl* col = m_columns[i];
       if (col->m_pk) {
-        col->m_distributionKey = true;  // set by us
-        n--;
-      }
-    }
-  }
-  else 
-  {
-    for (i = 0, n = m_noOfKeys; n != 0; i++) {
-      NdbColumnImpl* col = m_columns[i];
-      if (col->m_pk)
-      {
-	if(col->m_distributionKey == 1)
-	  col->m_distributionKey = 0;  
+        col->m_distributionKey = true;
         n--;
       }
     }
@@ -824,6 +812,22 @@ NdbTableImpl::computeAggregates()
       n--;
     }
   }
+}
+
+// TODO add error checks
+// TODO use these internally at create and retrieve
+int
+NdbTableImpl::aggregate(NdbError& error)
+{
+  computeAggregates();
+  return 0;
+}
+int
+NdbTableImpl::validate(NdbError& error)
+{
+  if (aggregate(error) == -1)
+    return -1;
+  return 0;
 }
 
 const void*
@@ -2113,9 +2117,9 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_storageType = attrDesc.AttributeStorageType;
     
     col->m_pk = attrDesc.AttributeKeyFlag;
-    col->m_distributionKey = attrDesc.AttributeDKey ? 2 : 0;
+    col->m_distributionKey = (attrDesc.AttributeDKey != 0);
     col->m_nullable = attrDesc.AttributeNullableFlag;
-    col->m_autoIncrement = (attrDesc.AttributeAutoIncrement ? true : false);
+    col->m_autoIncrement = (attrDesc.AttributeAutoIncrement != 0);
     col->m_autoIncrementInitialValue = ~0;
     col->m_defaultValue.assign(attrDesc.AttributeDefaultValue);
 
@@ -2606,7 +2610,7 @@ loop:
     tmpAttr.AttributeId = col->m_attrId;
     tmpAttr.AttributeKeyFlag = col->m_pk;
     tmpAttr.AttributeNullableFlag = col->m_nullable;
-    tmpAttr.AttributeDKey = distKeys ? (bool)col->m_distributionKey : 0;
+    tmpAttr.AttributeDKey = distKeys ? col->m_distributionKey : 0;
 
     tmpAttr.AttributeExtType = (Uint32)col->m_type;
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);

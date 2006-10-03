@@ -65,6 +65,11 @@ public:
     //setStoredTable(stored);
     for(int i = 0; i<noOfAttributes; i++)
       addColumn(attributes[i]);
+
+    // validate() might cause initialization order problem with charset
+    NdbError error;
+    int ret = aggregate(error);
+    assert(ret == 0);
   }
 
   static const NdbDictionary::Table * discoverTableFromDb(Ndb* ndb,
