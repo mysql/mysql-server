@@ -93,4 +93,24 @@ INSERT INTO t1 VALUES (7),(8),(9);
 sync_slave_with_master;
 SELECT * FROM t1;
 
-DROP TABLE t1;
+# Bug#22550: Replication of BIT columns failing
+--echo ================ Test for BUG#22550 ================
+--disable_query_log
+--source include/master-slave-reset.inc
+--enable_query_log
+
+connection master;
+CREATE TABLE t1 (a BIT(1), b INT) ENGINE=MYISAM;
+sync_slave_with_master;
+
+connection master;
+INSERT INTO t1 VALUES(1,2);
+SELECT HEX(a),b FROM t1;
+sync_slave_with_master;
+SELECT HEX(a),b FROM t1;
+
+connection master;
+UPDATE t1 SET a=0 WHERE b=2;
+SELECT HEX(a),b FROM t1;
+sync_slave_with_master;
+SELECT HEX(a),b FROM t1;
