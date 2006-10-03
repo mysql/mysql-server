@@ -201,8 +201,6 @@ class ha_innobase: public handler
 	int cmp_ref(const byte *ref1, const byte *ref2);
 	bool check_if_incompatible_data(HA_CREATE_INFO *info,
 					uint table_changes);
-        void build_template(struct row_prebuilt_struct *prebuilt, THD *thd,
-                            TABLE *table, uint templ_type);
 };
 
 extern SHOW_VAR innodb_status_variables[];

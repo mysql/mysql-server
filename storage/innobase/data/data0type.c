@@ -40,9 +40,6 @@ charset-collation code for them. */
 
 ulint	data_mysql_default_charset_coll		= 99999999;
 
-dtype_t		dtype_binary_val = {DATA_BINARY, 0, 0, 0, 0, 0};
-dtype_t*	dtype_binary	= &dtype_binary_val;
-
 /*************************************************************************
 Determine how many bytes the first n characters of the given string occupy.
 If the string is shorter than n characters, returns the number of bytes
@@ -53,7 +50,11 @@ dtype_get_at_most_n_mbchars(
 /*========================*/
 					/* out: length of the prefix,
 					in bytes */
-	const dtype_t*	dtype,		/* in: data type */
+	ulint		prtype,		/* in: precise type */
+	ulint		mbminlen,	/* in: minimum length of a
+					multi-byte character */
+	ulint		mbmaxlen,	/* in: maximum length of a
+					multi-byte character */
 	ulint		prefix_len,	/* in: length of the requested
 					prefix, in characters, multiplied by
 					dtype_get_mbmaxlen(dtype) */
@@ -63,12 +64,12 @@ dtype_get_at_most_n_mbchars(
 {
 #ifndef UNIV_HOTBACKUP
 	ut_a(data_len != UNIV_SQL_NULL);
-	ut_ad(!dtype->mbmaxlen || !(prefix_len % dtype->mbmaxlen));
+	ut_ad(!mbmaxlen || !(prefix_len % mbmaxlen));
 
-	if (dtype->mbminlen != dtype->mbmaxlen) {
-		ut_a(!(prefix_len % dtype->mbmaxlen));
-		return(innobase_get_at_most_n_mbchars
-		       (dtype_get_charset_coll(dtype->prtype),
+	if (mbminlen != mbmaxlen) {
+		ut_a(!(prefix_len % mbmaxlen));
+		return(innobase_get_at_most_n_mbchars(
+			dtype_get_charset_coll(prtype),
 			prefix_len, data_len, str));
 	}
 
@@ -270,8 +271,6 @@ dtype_print(
 		} else if (prtype == DATA_TRX_ID) {
 			fputs("DATA_TRX_ID", stderr);
 			len = DATA_TRX_ID_LEN;
-		} else if (prtype == DATA_MIX_ID) {
-			fputs("DATA_MIX_ID", stderr);
 		} else if (prtype == DATA_ENGLISH) {
 			fputs("DATA_ENGLISH", stderr);
 		} else {
@@ -291,38 +290,5 @@ dtype_print(
 		}
 	}
 
-	fprintf(stderr, " len %lu prec %lu", (ulong) len, (ulong) type->prec);
-}
-
-/***************************************************************************
-Returns the maximum size of a data type. Note: types in system tables may be
-incomplete and return incorrect information. */
-
-ulint
-dtype_get_max_size(
-/*===============*/
-				/* out: maximum size (ULINT_MAX for
-				unbounded types) */
-	const dtype_t*	type)	/* in: type */
-{
-	switch (type->mtype) {
-	case DATA_SYS:
-	case DATA_CHAR:
-	case DATA_FIXBINARY:
-	case DATA_INT:
-	case DATA_FLOAT:
-	case DATA_DOUBLE:
-	case DATA_MYSQL:
-	case DATA_VARCHAR:
-	case DATA_BINARY:
-	case DATA_DECIMAL:
-	case DATA_VARMYSQL:
-		return(type->len);
-	case DATA_BLOB:
-		return(ULINT_MAX);
-	default:
-		ut_error;
-	}
-
-	return(ULINT_MAX);
+	fprintf(stderr, " len %lu", (ulong) len);
 }

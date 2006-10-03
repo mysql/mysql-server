@@ -257,10 +257,10 @@ buf_read_ahead_random(
 		mode: hence FALSE as the first parameter */
 
 		if (!ibuf_bitmap_page(i)) {
-			count += buf_read_page_low
-				(&err, FALSE,
-				 ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
-				 space, tablespace_version, i);
+			count += buf_read_page_low(
+				&err, FALSE,
+				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+				space, tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -549,10 +549,10 @@ buf_read_ahead_linear(
 		aio mode: hence FALSE as the first parameter */
 
 		if (!ibuf_bitmap_page(i)) {
-			count += buf_read_page_low
-				(&err, FALSE,
-				 ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
-				 space, tablespace_version, i);
+			count += buf_read_page_low(
+				&err, FALSE,
+				ibuf_mode | OS_AIO_SIMULATED_WAKE_LATER,
+				space, tablespace_version, i);
 			if (err == DB_TABLESPACE_DELETED) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,

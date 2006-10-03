@@ -1,4 +1,9 @@
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+
+# Binary must be compiled with debug for crash to occur
 --source include/have_debug.inc
+
 --source include/have_innodb.inc
 
 CREATE TABLE t1(a int) engine=innodb;
