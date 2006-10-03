@@ -2673,12 +2673,12 @@ set @arg00= '1.11111111111111111111e+50' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c6' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c6' at row 1
 Warning	1264	Out of range value for column 'c7' at row 1
 Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;
@@ -2723,12 +2723,12 @@ set @arg00= '-1.11111111111111111111e+50' ;
 execute my_insert using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
 @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value adjusted for column 'c1' at row 1
-Warning	1264	Out of range value adjusted for column 'c2' at row 1
-Warning	1264	Out of range value adjusted for column 'c3' at row 1
-Warning	1264	Out of range value adjusted for column 'c4' at row 1
-Warning	1264	Out of range value adjusted for column 'c5' at row 1
-Warning	1264	Out of range value adjusted for column 'c6' at row 1
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1264	Out of range value for column 'c4' at row 1
+Warning	1264	Out of range value for column 'c5' at row 1
+Warning	1264	Out of range value for column 'c6' at row 1
 Warning	1264	Out of range value for column 'c7' at row 1
 Warning	1264	Out of range value for column 'c12' at row 1
 execute my_select ;

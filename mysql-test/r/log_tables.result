@@ -112,8 +112,8 @@ slow_log	CREATE TABLE `slow_log` (
 alter table mysql.general_log engine=myisam;
 alter table mysql.slow_log engine=myisam;
 Warnings:
-Warning	1264	Out of range value for column 'last_insert_id' at row 0
-Warning	1264	Out of range value for column 'insert_id' at row 0
+Warning	1366	Incorrect integer value: '' for column 'last_insert_id' at row 0
+Warning	1366	Incorrect integer value: '' for column 'insert_id' at row 0
 show create table mysql.general_log;
 Table	Create Table
 general_log	CREATE TABLE `general_log` (
