@@ -26,6 +26,7 @@ t3	CREATE TABLE `t3` (
   `a` mediumtext,
   `b` mediumblob
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table t1,t2,t3;
 show create TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (

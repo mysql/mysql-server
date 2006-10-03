@@ -5,7 +5,7 @@ insert into t1 values(1);
 flush tables with read lock;
 select * from t1;
 a
- commit;
+commit;
 select * from t1;
 a
 unlock tables;
@@ -14,8 +14,8 @@ select * from t1 for update;
 a
 1
 begin;
- select * from t1 for update;
- flush tables with read lock;
+select * from t1 for update;
+flush tables with read lock;
 commit;
 a
 1

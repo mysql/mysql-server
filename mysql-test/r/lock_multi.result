@@ -2,8 +2,8 @@ drop table if exists t1,t2;
 create table t1(n int);
 insert into t1 values (1);
 lock tables t1 write;
- update low_priority t1 set n = 4;
- select n from t1;
+update low_priority t1 set n = 4;
+select n from t1;
 unlock tables;
 n
 4
@@ -11,8 +11,8 @@ drop table t1;
 create table t1(n int);
 insert into t1 values (1);
 lock tables t1 read;
- update low_priority t1 set n = 4;
- select n from t1;
+update low_priority t1 set n = 4;
+select n from t1;
 unlock tables;
 n
 1
@@ -23,7 +23,7 @@ insert into t1 values(1,1);
 insert into t1 values(2,2);
 insert into t2 values(1,2);
 lock table t1 read;
- update t1,t2 set c=a where b=d;
+update t1,t2 set c=a where b=d;
 select c from t2;
 c
 2
@@ -32,7 +32,7 @@ drop table t2;
 create table t1 (a int);
 create table t2 (a int);
 lock table t1 write, t2 write;
- insert t1 select * from t2;
+insert t1 select * from t2;
 drop table t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
