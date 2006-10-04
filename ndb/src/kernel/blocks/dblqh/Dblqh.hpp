@@ -2161,6 +2161,7 @@ private:
   void execSTORED_PROCCONF(Signal* signal);
   void execSTORED_PROCREF(Signal* signal);
   void execCOPY_FRAGREQ(Signal* signal);
+  void execUPDATE_FRAG_DIST_KEY_ORD(Signal*);
   void execCOPY_ACTIVEREQ(Signal* signal);
   void execCOPY_STATEREQ(Signal* signal);
   void execLQH_TRANSREQ(Signal* signal);

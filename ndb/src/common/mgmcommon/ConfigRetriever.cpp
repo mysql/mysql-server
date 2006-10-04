@@ -45,7 +45,8 @@
 //****************************************************************************
 
 ConfigRetriever::ConfigRetriever(const char * _connect_string,
-				 Uint32 version, Uint32 node_type)
+				 Uint32 version, Uint32 node_type,
+				 const char * _bindaddress)
 {
   DBUG_ENTER("ConfigRetriever::ConfigRetriever");
 
@@ -65,6 +66,15 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
   {
     setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
     DBUG_VOID_RETURN;
+  }
+
+  if (_bindaddress)
+  {
+    if (ndb_mgm_set_bindaddress(m_handle, _bindaddress))
+    {
+      setError(CR_ERROR, ndb_mgm_get_latest_error_desc(m_handle));
+      DBUG_VOID_RETURN;
+    }
   }
   resetError();
   DBUG_VOID_RETURN;
