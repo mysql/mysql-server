@@ -1141,7 +1141,7 @@ sub check_mysqld_features () {
   # print out version and a list of all features and settings
   #
   my $found_variable_list_start= 0;
-  my $spec_file= "$opt_vardir/tmp/mysqld.spec";
+  my $spec_file= "$opt_vardir/mysqld.spec";
   if ( mtr_run($exe_mysqld,
 	       ["--no-defaults",
 	        "--verbose",
@@ -1174,20 +1174,31 @@ sub check_mysqld_features () {
       if (!$found_variable_list_start)
       {
 	# Look for start of variables list
-	if ( $line =~ /-*\s-*/ )
+	if ( $line =~ /[\-]+\s[\-]+/ )
 	{
 	  $found_variable_list_start= 1;
 	}
-      } else {
+      }
+      else
+      {
 	# Put variables into hash
-	if ( $line =~ /^(\w*)[ \t]*(\w*)$/ )
+	if ( $line =~ /^([\S]+)[ \t]+(.*)$/ )
 	{
+	  # print "$1=$2\n";
 	  $mysqld_variables{$1}= $2;
+	}
+	else
+	{
+	  # The variable list is ended with a blank line, so when a line
+	  # doesn't match the above regex, break the loop
+	  last;
 	}
       }
     }
   }
+  unlink($spec_file);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
+  mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
   check_ndbcluster_support(\%mysqld_variables);
   check_ssl_support(\%mysqld_variables);
@@ -1197,6 +1208,14 @@ sub check_mysqld_features () {
   {
     # Instance manager is not supported until 5.0
     $opt_skip_im= 1;
+
+  }
+
+  if ( $mysql_version_id < 50100 )
+  {
+    # Slave cluster is not supported until 5.1
+    $opt_skip_ndbcluster_slave= 1;
+
   }
 
   # Set default values from mysqld_variables
@@ -1294,13 +1313,26 @@ sub executable_setup () {
     mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
 		      "$path_client_bindir/mysql_fix_privilege_tables");
 
-  if ( $opt_with_ndbcluster)
+  if ( ! $opt_skip_ndbcluster)
   {
     # Look for ndb tols and binaries
-    $path_ndb_tools_dir= mtr_path_exists("$glob_basedir/ndb/tools",
+    my $ndb_path= mtr_path_exists("$glob_basedir/ndb",
+				  "$glob_basedir/storage/ndb");
+
+    $path_ndb_tools_dir= mtr_path_exists("$ndb_path/tools",
 					 "$glob_basedir/bin");
-    $exe_ndb_mgm= mtr_exe_exists("$glob_basedir/ndb/src/mgmclient/ndb_mgm",
-				 "$glob_basedir/bin/ndb_mgm");
+    $exe_ndb_mgm=
+      mtr_exe_exists("$ndb_path/src/mgmclient/ndb_mgm",
+		     "$glob_basedir/bin/ndb_mgm");
+    $exe_ndb_mgmd=
+      mtr_exe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
+		     "$glob_basedir/bin/ndb_mgmd");
+    $exe_ndb_waiter=
+      mtr_exe_exists("$ndb_path/tools/ndb_waiter",
+		     "$glob_basedir/bin/ndb_waiter");
+    $exe_ndbd=
+      mtr_exe_exists("$ndb_path/src/kernel/ndbd",
+		     "$glob_basedir/bin/ndbd");
   }
 
   # Look for the udf_example library
@@ -1616,7 +1648,8 @@ sub environment_setup () {
   # Setup env so childs can execute mysql_fix_system_tables
   # ----------------------------------------------------
   my $cmdline_mysql_fix_system_tables=
-    "$exe_mysql_fix_system_tables --no-defaults --host=localhost --user=root --password= " .
+    "$exe_mysql_fix_system_tables --no-defaults --host=localhost " .
+    "--user=root --password= " .
     "--basedir=$glob_basedir --bindir=$path_client_bindir --verbose " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'}";
@@ -1832,7 +1865,7 @@ sub check_ssl_support ($) {
     return;
   }
 
-  if ( $mysqld_variables->{'ssl'} eq "FALSE" )
+  if ( ! $mysqld_variables->{'ssl'} )
   {
     if ( $opt_ssl)
     {
@@ -1883,7 +1916,7 @@ sub check_ndbcluster_support ($) {
     return;
   }
 
-  if ( $mysqld_variables->{'ndbcluster'} eq "FALSE")
+  if ( ! $mysqld_variables->{'ndb-connectstring'} )
   {
     mtr_report("Skipping ndbcluster, mysqld not compiled with ndbcluster");
     $opt_skip_ndbcluster= 1;
@@ -1949,6 +1982,11 @@ sub ndbcluster_start_install ($) {
     s/CHOOSE_HOSTNAME_.*/$ndb_host/;
     s/CHOOSE_FILESYSTEM/$cluster->{'data_dir'}/;
     s/CHOOSE_PORT_MGM/$cluster->{'port'}/;
+    if ( $mysql_version_id < 50000 )
+    {
+      my $base_port= $cluster->{'port'} + 1;
+      s/CHOOSE_PORT_TRANSPORTER/$base_port/;
+    }
     s/CHOOSE_DiskPageBufferMemory/$ndb_pbmem/;
 
     print OUT "$_ \n";
@@ -2070,7 +2108,10 @@ sub ndbd_start ($$$) {
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--core");
   mtr_add_arg($args, "--ndb-connectstring=%s", "$cluster->{'connect_string'}");
-  mtr_add_arg($args, "--character-sets-dir=%s", "$path_charsetsdir");
+  if ( $mysql_version_id >= 50000)
+  {
+    mtr_add_arg($args, "--character-sets-dir=%s", "$path_charsetsdir");
+  }
   mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "$extra_args");
 
@@ -2247,8 +2288,6 @@ sub run_suite () {
 
   mtr_report_stats($tests);
 
-#  Look for testname.warning files if --do-test=
-
   mtr_timer_stop($glob_timers,"suite");
 }
 
@@ -2298,7 +2337,8 @@ sub mysql_install_db () {
   my $cluster_started_ok= 1; # Assume it can be started
 
   if (ndbcluster_start_install($clusters->[0]) ||
-      $max_slave_num && ndbcluster_start_install($clusters->[1]))
+      ($max_slave_num && !$opt_skip_ndbcluster_slave &&
+       ndbcluster_start_install($clusters->[1])))
   {
     mtr_warning("Failed to start install of cluster");
     $cluster_started_ok= 0;
@@ -2986,7 +3026,10 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $cluster->{'connect_string'});
-      mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
+      if ( $mysql_version_id >= 50000 )
+      {
+	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
+      }
     }
   }
 
@@ -3061,7 +3104,10 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $clusters->[$slave->[$idx]->{'cluster'}]->{'connect_string'});
-      mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
+      if ( $mysql_version_id >= 50000 )
+      {
+	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
+      }
     }
   } # end slave
 
@@ -3646,16 +3692,21 @@ sub run_testcase_start_servers($) {
     {
       # Test needs cluster, start an extra mysqld connected to cluster
 
-      # First wait for first mysql server to have created ndb system tables ok
-      # FIXME This is a workaround so that only one mysqld creates the tables
-      if ( ! sleep_until_file_created(
-	     "$master->[0]->{'path_myddir'}/cluster/apply_status.ndb",
-				      $master->[0]->{'start_timeout'},
-				      $master->[0]->{'pid'}))
+      if ( $mysql_version_id >= 50100 )
       {
-	mtr_report("Failed to create 'cluster/apply_status' table");
-	report_failure_and_restart($tinfo);
-	return;
+	# First wait for first mysql server to have created ndb system
+	# tables ok FIXME This is a workaround so that only one mysqld
+	# create the tables
+	if ( ! sleep_until_file_created(
+		  "$master->[0]->{'path_myddir'}/cluster/apply_status.ndb",
+					$master->[0]->{'start_timeout'},
+					$master->[0]->{'pid'}))
+	{
+	  mtr_report_test_name($tinfo);
+	  mtr_report("Failed to create 'cluster/apply_status' table");
+	  report_failure_and_restart($tinfo);
+	  return;
+	}
       }
       mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
 
@@ -3679,6 +3730,7 @@ sub run_testcase_start_servers($) {
 
     unless ( mtr_im_start($instance_manager, $tinfo->{im_opts}) )
     {
+      mtr_report_test_name($tinfo);
       report_failure_and_restart($tinfo);
       mtr_report("Failed to start Instance Manager. " .
                  "The test '$tname' is marked as failed.");
