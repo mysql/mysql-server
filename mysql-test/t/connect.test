@@ -59,6 +59,7 @@ flush privileges;
 
 connect (con10,localhost,test,gambling2,);
 connect (con5,localhost,test,gambling2,mysql);
+connection con5;
 set password="";
 --error 1372
 set password='gambling3';
