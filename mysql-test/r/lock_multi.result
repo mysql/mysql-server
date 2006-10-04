@@ -39,7 +39,7 @@ drop table t1;
 create table t1 (a int);
 create table t2 (a int);
 lock table t1 write, t2 write, t1 as t1_2 write, t2 as t2_2 write;
- insert t1 select * from t2;
+insert t1 select * from t2;
 drop table t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
