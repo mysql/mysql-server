@@ -1889,7 +1889,7 @@ sub check_ssl_support ($) {
 sub check_debug_support ($) {
   my $mysqld_variables= shift;
 
-  if ( $mysqld_variables->{'debug'} )
+  if ( ! $mysqld_variables->{'debug'} )
   {
     #mtr_report("Binaries are not debug compiled");
     $debug_compiled_binaries= 0;
