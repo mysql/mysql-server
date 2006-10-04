@@ -27,7 +27,7 @@
 	 verify delete
 
        Arguments:
-        -f Location of Ndb.cfg file, default Ndb.cfg
+        -f Location of my.cnf file, default my.cnf
         -t Number of threads to start, default 1
         -o Number of operations per loop, default 500	-l Number of loops to run, default 1, 0=infinite
         -a Number of attributes, default 25
@@ -829,7 +829,7 @@ static int createTables(Ndb* pMyNdb)
 static void printUsage()
 {
   ndbout << "Usage of flexScan:" << endl;
-  ndbout << "-f <path> Location of Ndb.cfg file, default: Ndb.cfg" << endl;
+  ndbout << "-f <path> Location of my.cnf file, default: my.cnf" << endl;
   ndbout << "-t <int>  Number of threads to start, default 1" << endl;
   ndbout << "-o <int>  Number of operations per loop, default 500" << endl;
   ndbout << "-l <int>  Number of loops to run, default 1, 0=infinite" << endl;
