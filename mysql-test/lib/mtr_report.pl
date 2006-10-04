@@ -10,6 +10,7 @@ sub mtr_report_test_name($);
 sub mtr_report_test_passed($);
 sub mtr_report_test_failed($);
 sub mtr_report_test_skipped($);
+sub mtr_report_test_not_skipped_though_disabled($);
 
 sub mtr_show_failed_diff ($);
 sub mtr_report_stats ($);
@@ -21,6 +22,7 @@ sub mtr_warning (@);
 sub mtr_error (@);
 sub mtr_child_error (@);
 sub mtr_debug (@);
+sub mtr_verbose (@);
 
 
 ##############################################################################
@@ -96,7 +98,24 @@ sub mtr_report_test_skipped ($) {
   }
   else
   {
-    print "[ skipped ]\n";
+    print "[ skipped ]   $tinfo->{'comment'}\n";
+  }
+}
+
+sub mtr_report_tests_not_skipped_though_disabled ($) {
+  my $tests= shift;
+
+  if ( $::opt_enable_disabled )
+  {
+    my @disabled_tests= grep {$_->{'dont_skip_though_disabled'}} @$tests;
+    if ( @disabled_tests )
+    {
+      print "\nTest(s) which will be run though they are marked as disabled:\n";
+      foreach my $tinfo ( sort {$a->{'name'} cmp $b->{'name'}} @disabled_tests )
+      {
+        printf "  %-20s : %s\n", $tinfo->{'name'}, $tinfo->{'comment'};
+      }
+    }
   }
 }
 
@@ -107,7 +126,7 @@ sub mtr_report_test_passed ($) {
   if ( $::opt_timer and -f "$::opt_vardir/log/timer" )
   {
     $timer= mtr_fromfile("$::opt_vardir/log/timer");
-    $::glob_tot_real_time += $timer;
+    $::glob_tot_real_time += ($timer/1000);
     $timer= sprintf "%12s", $timer;
   }
   $tinfo->{'result'}= 'MTR_RES_PASSED';
@@ -122,7 +141,7 @@ sub mtr_report_test_failed ($) {
   {
     print "[ fail ]  timeout\n";
   }
-  elsif ( $tinfo->{'ndb_test'} and  !$::flag_ndb_status_ok)
+  elsif ( $tinfo->{'ndb_test'} and $::cluster->[0]->{'installed_ok'} eq "NO")
   {
     print "[ fail ]  ndbcluster start failure\n";
     return;
@@ -157,6 +176,7 @@ sub mtr_report_stats ($) {
   my $tot_passed= 0;
   my $tot_failed= 0;
   my $tot_tests=  0;
+  my $tot_restarts= 0;
   my $found_problems= 0;            # Some warnings are errors...
 
   foreach my $tinfo (@$tests)
@@ -174,6 +194,10 @@ sub mtr_report_stats ($) {
     {
       $tot_tests++;
       $tot_failed++;
+    }
+    if ( $tinfo->{'restarted'} )
+    {
+      $tot_restarts++;
     }
   }
 
@@ -197,6 +221,14 @@ sub mtr_report_stats ($) {
       "the documentation at\n",
       "http://www.mysql.com/doc/en/MySQL_test_suite.html\n";
   }
+  print
+      "The servers were restarted $tot_restarts times\n";
+
+  if ( $::opt_timer )
+  {
+    print
+      "Spent $::glob_tot_real_time seconds actually executing testcases\n"
+  }
 
   # ----------------------------------------------------------------------
   # If a debug run, there might be interesting information inside
@@ -216,7 +248,10 @@ sub mtr_report_stats ($) {
     else
     {
       # We report different types of problems in order
-      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x" )
+      foreach my $pattern ( "^Warning:", "^Error:", "^==.* at 0x",
+			    "InnoDB: Warning", "missing DBUG_RETURN",
+			    "mysqld: Warning",
+			    "Attempting backtrace", "Assertion .* failed" )
       {
         foreach my $errlog ( sort glob("$::opt_vardir/log/*.err") )
         {
@@ -230,7 +265,8 @@ sub mtr_report_stats ($) {
             # Skip some non fatal warnings from the log files
             if ( /Warning:\s+Table:.* on (delete|rename)/ or
                  /Warning:\s+Setting lower_case_table_names=2/ or
-                 /Warning:\s+One can only use the --user.*root/ )
+                 /Warning:\s+One can only use the --user.*root/ or
+	         /InnoDB: Warning: we did not need to do crash recovery/)
             {
               next;                       # Skip these lines
             }
@@ -241,11 +277,11 @@ sub mtr_report_stats ($) {
             }
           }
         }
-        if ( $found_problems )
-        {
-          mtr_warning("Got errors/warnings while running tests, please examine",
-                      "\"$warnlog\" for details.");
-        }
+      }
+      if ( $found_problems )
+      {
+	mtr_warning("Got errors/warnings while running tests, please examine",
+		    "\"$warnlog\" for details.");
       }
     }
   }
@@ -329,6 +365,12 @@ sub mtr_debug (@) {
   if ( $::opt_script_debug )
   {
     print STDERR "####: ",join(" ", @_),"\n";
+  }
+}
+sub mtr_verbose (@) {
+  if ( $::opt_verbose )
+  {
+    print STDERR "> ",join(" ", @_),"\n";
   }
 }
 

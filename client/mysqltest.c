@@ -802,7 +802,7 @@ void abort_not_supported_test(const char *fmt, ...)
 
 void abort_not_in_this_version()
 {
-  die("Not available in mysqltest for MySQL %s", VERSION);
+  die("Not available in this version of mysqltest");
 }
 
 
