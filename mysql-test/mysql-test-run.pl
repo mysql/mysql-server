@@ -1141,7 +1141,7 @@ sub check_mysqld_features () {
   # print out version and a list of all features and settings
   #
   my $found_variable_list_start= 0;
-  my $spec_file= "$opt_vardir/mysqld.spec";
+  my $spec_file= "$glob_mysql_test_dir/mysqld.spec.$$";
   if ( mtr_run($exe_mysqld,
 	       ["--no-defaults",
 	        "--verbose",
@@ -3026,7 +3026,7 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $cluster->{'connect_string'});
-      if ( $mysql_version_id >= 50000 )
+      if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
@@ -3104,7 +3104,7 @@ sub mysqld_arguments ($$$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $clusters->[$slave->[$idx]->{'cluster'}]->{'connect_string'});
-      if ( $mysql_version_id >= 50000 )
+      if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
       }
