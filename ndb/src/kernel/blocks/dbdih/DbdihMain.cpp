@@ -9399,6 +9399,7 @@ void Dbdih::calculateKeepGciLab(Signal* signal, Uint32 tableId, Uint32 fragId)
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, fragId, fragPtr);
   checkKeepGci(tabPtr, fragId, fragPtr.p, fragPtr.p->storedReplicas);
+  checkKeepGci(tabPtr, fragId, fragPtr.p, fragPtr.p->oldStoredReplicas);
   fragId++;
   if (fragId >= tabPtr.p->totalfragments) {
     jam();
