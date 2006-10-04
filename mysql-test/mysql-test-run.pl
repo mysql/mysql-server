@@ -1307,6 +1307,10 @@ sub executable_setup () {
   $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+  if ( $mysql_version_id >= 50100 )
+  {
+    $exe_mysqlslap=      mtr_exe_exists("$path_client_bindir/mysqlslap");
+  }
 
   # Look for mysql_fix_system_table script
   $exe_mysql_fix_system_tables=
@@ -1540,21 +1544,18 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute mysqlslap
   # ----------------------------------------------------
-  unless ( $glob_win32 )
-  {
-    my $cmdline_mysqlslap=
-      "$exe_mysqlslap -uroot " .
-      "--port=$master->[0]->{'port'} " .
-      "--socket=$master->[0]->{'path_sock'} --password= " .
-      "--lock-directory=$opt_tmpdir";
+  my $cmdline_mysqlslap=
+    "$exe_mysqlslap -uroot " .
+    "--port=$master->[0]->{'port'} " .
+    "--socket=$master->[0]->{'path_sock'} --password= " .
+    "--lock-directory=$opt_tmpdir";
 
-    if ( $opt_debug )
-    {
-      $cmdline_mysqlslap .=
-        " --debug=d:t:A,$path_vardir_trace/log/mysqlslap.trace";
-    }
-    $ENV{'MYSQL_SLAP'}= $cmdline_mysqlslap;
+  if ( $opt_debug )
+  {
+    $cmdline_mysqlslap .=
+      " --debug=d:t:A,$path_vardir_trace/log/mysqlslap.trace";
   }
+  $ENV{'MYSQL_SLAP'}= $cmdline_mysqlslap;
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysqlimport
