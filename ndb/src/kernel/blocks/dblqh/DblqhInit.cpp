@@ -335,7 +335,9 @@ Dblqh::Dblqh(const class Configuration & conf):
   addRecSignal(GSN_TUX_ADD_ATTRREF, &Dblqh::execTUX_ADD_ATTRREF);
 
   addRecSignal(GSN_READ_PSUEDO_REQ, &Dblqh::execREAD_PSUEDO_REQ);
-
+  addRecSignal(GSN_UPDATE_FRAG_DIST_KEY_ORD, 
+	       &Dblqh::execUPDATE_FRAG_DIST_KEY_ORD);
+  
   initData();
 
 #ifdef VM_TRACE
