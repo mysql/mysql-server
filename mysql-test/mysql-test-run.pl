@@ -1889,7 +1889,7 @@ sub check_ssl_support ($) {
 sub check_debug_support ($) {
   my $mysqld_variables= shift;
 
-  if ( $mysqld_variables->{'debug'} )
+  if ( ! $mysqld_variables->{'debug'} )
   {
     #mtr_report("Binaries are not debug compiled");
     $debug_compiled_binaries= 0;
@@ -1959,11 +1959,22 @@ sub ndbcluster_start_install ($) {
   if (!$opt_bench)
   {
     # Use a smaller configuration
-    $ndb_no_ord=32;
-    $ndb_con_op=5000;
-    $ndb_dmem="20M";
-    $ndb_imem="1M";
-    $ndb_pbmem="4M";
+    if (  $mysql_version_id < 50000 )
+    {
+      # 4.1 is using a "larger" --small configuration
+      $ndb_no_ord=128;
+      $ndb_con_op=10000;
+      $ndb_dmem="40M";
+      $ndb_imem="12M";
+    }
+    else
+    {
+      $ndb_no_ord=32;
+      $ndb_con_op=5000;
+      $ndb_dmem="20M";
+      $ndb_imem="1M";
+      $ndb_pbmem="4M";
+    }
   }
 
   my $config_file_template=     "ndb/ndb_config_${nodes}_node.ini";
@@ -2541,7 +2552,10 @@ skip-innodb
 skip-ndbcluster
 EOF
 ;
-
+    if ( $mysql_version_id < 50100 )
+    {
+      print OUT "skip-bdb\n";
+    }
     print OUT "nonguarded\n" if $instance->{'nonguarded'};
     if ( $mysql_version_id >= 50100 )
     {
