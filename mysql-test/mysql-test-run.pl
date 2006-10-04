@@ -2539,7 +2539,10 @@ EOF
 ;
 
     print OUT "nonguarded\n" if $instance->{'nonguarded'};
-    print OUT "log-output=FILE\n" if $instance->{'old_log_format'};
+    if ( $mysql_version_id >= 50100 )
+    {
+      print OUT "log-output=FILE\n" if $instance->{'old_log_format'};
+    }
     print OUT "\n";
   }
 
