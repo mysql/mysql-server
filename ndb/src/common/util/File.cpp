@@ -24,6 +24,18 @@
 //
 // PUBLIC
 //
+time_t 
+File_class::mtime(const char* aFileName)
+{
+  MY_STAT stmp;
+  time_t rc = 0;
+
+  if (my_stat(aFileName, &stmp, MYF(0)) != NULL) {
+    rc = stmp.st_mtime;
+  }
+
+  return rc;
+}
 
 bool 
 File_class::exists(const char* aFileName)

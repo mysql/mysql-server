@@ -140,6 +140,11 @@ BackupRestore::finalize_table(const TableS & table){
 }
 
 bool
+BackupRestore::has_temp_error(){
+  return m_temp_error;
+}
+
+bool
 BackupRestore::table(const TableS & table){
   if (!m_restore && !m_restore_meta)
     return true;
@@ -437,6 +442,7 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
     
   case NdbError::TemporaryError:
     err << "Temporary error: " << error << endl;
+    m_temp_error = true;
     NdbSleep_MilliSleep(sleepTime);
     return true;
     // RETRY
