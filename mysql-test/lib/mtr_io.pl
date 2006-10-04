@@ -12,6 +12,7 @@ sub mtr_fromfile ($);
 sub mtr_tofile ($@);
 sub mtr_tonewfile($@);
 sub mtr_lastlinefromfile($);
+sub mtr_appendfile_to_file ($$);
 
 ##############################################################################
 #
@@ -169,5 +170,18 @@ sub mtr_tonewfile ($@) {
   print FILE join("", @_);
   close FILE;
 }
+
+sub mtr_appendfile_to_file ($$) {
+  my $from_file=  shift;
+  my $to_file=  shift;
+
+  open(TOFILE,">>",$to_file) or mtr_error("can't open file \"$to_file\": $!");
+  open(FROMFILE,">>",$from_file)
+    or mtr_error("can't open file \"$from_file\": $!");
+  print TOFILE while (<FROMFILE>);
+  close FROMFILE;
+  close TOFILE;
+}
+
 
 1;
