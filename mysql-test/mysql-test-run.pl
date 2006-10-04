@@ -1141,7 +1141,7 @@ sub check_mysqld_features () {
   # print out version and a list of all features and settings
   #
   my $found_variable_list_start= 0;
-  my $spec_file= "$opt_vardir/mysqld.spec";
+  my $spec_file= "$glob_mysql_test_dir/mysqld.spec.$$";
   if ( mtr_run($exe_mysqld,
 	       ["--no-defaults",
 	        "--verbose",
