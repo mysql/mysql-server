@@ -58,7 +58,8 @@ struct purge_node_struct{
 				it */
 	dict_table_t*	table;	/* table where purge is done */
 	ulint		cmpl_info;/* compiler analysis info of an update */
-	upd_t*		update;	/* update vector for a clustered index record */
+	upd_t*		update;	/* update vector for a clustered index
+				record */
 	dtuple_t*	ref;	/* NULL, or row reference to the next row to
 				handle */
 	dtuple_t*	row;	/* NULL, or a copy (also fields copied to

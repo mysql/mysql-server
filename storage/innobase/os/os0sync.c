@@ -90,8 +90,8 @@ os_sync_free(void)
 	while (mutex) {
 		if (mutex == os_sync_mutex) {
 			/* Set the flag to FALSE so that we do not try to
-			   reserve os_sync_mutex any more in remaining freeing
-			   operations in shutdown */
+			reserve os_sync_mutex any more in remaining freeing
+			operations in shutdown */
 			os_sync_mutex_inited = FALSE;
 		}
 
@@ -118,14 +118,15 @@ os_event_create(
 
 	event = ut_malloc(sizeof(struct os_event_struct));
 
-	event->handle = CreateEvent(NULL,/* No security attributes */
-			TRUE,		/* Manual reset */
-			FALSE,		/* Initial state nonsignaled */
-			(LPCTSTR) name);
+	event->handle = CreateEvent(NULL, /* No security attributes */
+				    TRUE, /* Manual reset */
+				    FALSE, /* Initial state nonsignaled */
+				    (LPCTSTR) name);
 	if (!event->handle) {
 		fprintf(stderr,
-"InnoDB: Could not create a Windows event semaphore; Windows error %lu\n",
-		  (ulong) GetLastError());
+			"InnoDB: Could not create a Windows event semaphore;"
+			" Windows error %lu\n",
+			(ulong) GetLastError());
 	}
 #else /* Unix */
 	os_event_t	event;
@@ -138,7 +139,7 @@ os_event_create(
 
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_HPUX10)
 	ut_a(0 == pthread_cond_init(&(event->cond_var),
-					pthread_condattr_default));
+				    pthread_condattr_default));
 #else
 	ut_a(0 == pthread_cond_init(&(event->cond_var), NULL));
 #endif
@@ -174,15 +175,16 @@ os_event_create_auto(
 
 	event = ut_malloc(sizeof(struct os_event_struct));
 
-	event->handle = CreateEvent(NULL,/* No security attributes */
-			FALSE,		/* Auto-reset */
-			FALSE,		/* Initial state nonsignaled */
-			(LPCTSTR) name);
+	event->handle = CreateEvent(NULL, /* No security attributes */
+				    FALSE, /* Auto-reset */
+				    FALSE, /* Initial state nonsignaled */
+				    (LPCTSTR) name);
 
 	if (!event->handle) {
 		fprintf(stderr,
-"InnoDB: Could not create a Windows auto event semaphore; Windows error %lu\n",
-		  (ulong) GetLastError());
+			"InnoDB: Could not create a Windows auto"
+			" event semaphore; Windows error %lu\n",
+			(ulong) GetLastError());
 	}
 
 	/* Put to the list of events */
@@ -320,7 +322,7 @@ os_event_wait(
 
 	for (;;) {
 		if (event->is_set == TRUE
-			|| event->signal_count != old_signal_count) {
+		    || event->signal_count != old_signal_count) {
 
 			os_fast_mutex_unlock(&(event->os_mutex));
 
@@ -409,9 +411,9 @@ os_event_wait_multiple(
 	ut_a(n > 0);
 
 	index = WaitForMultipleObjects((DWORD) n, native_event_array,
-					FALSE,	   /* Wait for any 1 event */
-					INFINITE); /* Infinite wait time
-						   limit */
+				       FALSE,	   /* Wait for any 1 event */
+				       INFINITE); /* Infinite wait time
+						  limit */
 	ut_a(index >= WAIT_OBJECT_0);	/* NOTE: Pointless comparision */
 	ut_a(index < WAIT_OBJECT_0 + n);
 
@@ -439,8 +441,8 @@ os_mutex_create(
 	os_mutex_t	mutex_str;
 
 	mutex = CreateMutex(NULL,	/* No security attributes */
-			FALSE,		/* Initial state: no owner */
-			(LPCTSTR) name);
+			    FALSE,		/* Initial state: no owner */
+			    (LPCTSTR) name);
 	ut_a(mutex);
 #else
 	os_fast_mutex_t*	mutex;
@@ -638,10 +640,11 @@ os_fast_mutex_free(
 	if (ret != 0) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-"  InnoDB: error: return value %lu when calling\n"
-"InnoDB: pthread_mutex_destroy().\n", (ulint)ret);
+			"  InnoDB: error: return value %lu when calling\n"
+			"InnoDB: pthread_mutex_destroy().\n", (ulint)ret);
 		fprintf(stderr,
-"InnoDB: Byte contents of the pthread mutex at %p:\n", (void*) fast_mutex);
+			"InnoDB: Byte contents of the pthread mutex at %p:\n",
+			(void*) fast_mutex);
 		ut_print_buf(stderr, fast_mutex, sizeof(os_fast_mutex_t));
 		fprintf(stderr, "\n");
 	}

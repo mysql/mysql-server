@@ -161,17 +161,20 @@ sp_get_flags_for_command(LEX *lex)
     }
     /* fallthrough */
   case SQLCOM_ANALYZE:
+  case SQLCOM_BACKUP_TABLE:
   case SQLCOM_OPTIMIZE:
   case SQLCOM_PRELOAD_KEYS:
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   case SQLCOM_CHECKSUM:
   case SQLCOM_CHECK:
   case SQLCOM_HA_READ:
+  case SQLCOM_SHOW_AUTHORS:
   case SQLCOM_SHOW_BINLOGS:
   case SQLCOM_SHOW_BINLOG_EVENTS:
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
   case SQLCOM_SHOW_COLUMN_TYPES:
+  case SQLCOM_SHOW_CONTRIBUTORS:
   case SQLCOM_SHOW_CREATE:
   case SQLCOM_SHOW_CREATE_DB:
   case SQLCOM_SHOW_CREATE_FUNC:
@@ -180,16 +183,19 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_DATABASES:
   case SQLCOM_SHOW_ERRORS:
   case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_FUNC_CODE:
   case SQLCOM_SHOW_GRANTS:
   case SQLCOM_SHOW_ENGINE_STATUS:
   case SQLCOM_SHOW_ENGINE_LOGS:
   case SQLCOM_SHOW_ENGINE_MUTEX:
+  case SQLCOM_SHOW_EVENTS:
   case SQLCOM_SHOW_KEYS:
   case SQLCOM_SHOW_MASTER_STAT:
   case SQLCOM_SHOW_NEW_MASTER:
   case SQLCOM_SHOW_OPEN_TABLES:
   case SQLCOM_SHOW_PRIVILEGES:
   case SQLCOM_SHOW_PROCESSLIST:
+  case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_SLAVE_HOSTS:
   case SQLCOM_SHOW_SLAVE_STAT:
   case SQLCOM_SHOW_STATUS:
@@ -199,12 +205,7 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_VARIABLES:
   case SQLCOM_SHOW_WARNS:
-  case SQLCOM_SHOW_PROC_CODE:
-  case SQLCOM_SHOW_FUNC_CODE:
-  case SQLCOM_SHOW_AUTHORS:
-  case SQLCOM_SHOW_CONTRIBUTORS:
   case SQLCOM_REPAIR:
-  case SQLCOM_BACKUP_TABLE:
   case SQLCOM_RESTORE_TABLE:
     flags= sp_head::MULTI_RESULTS;
     break;
@@ -232,6 +233,12 @@ sp_get_flags_for_command(LEX *lex)
       flags= 0;
     else
       flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
+    break;
+  case SQLCOM_FLUSH:
+    flags= sp_head::HAS_SQLCOM_FLUSH;
+    break;
+  case SQLCOM_RESET:
+    flags= sp_head::HAS_SQLCOM_RESET;
     break;
   case SQLCOM_CREATE_INDEX:
   case SQLCOM_CREATE_DB:
@@ -262,6 +269,8 @@ sp_get_flags_for_command(LEX *lex)
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
   case SQLCOM_DROP_EVENT:
+  case SQLCOM_INSTALL_PLUGIN:
+  case SQLCOM_UNINSTALL_PLUGIN:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:
@@ -647,10 +656,12 @@ sp_head::create(THD *thd)
 
 sp_head::~sp_head()
 {
+  DBUG_ENTER("sp_head::~sp_head");
   destroy();
   delete m_next_cached_sp;
   if (m_thd)
     restore_thd_mem_root(m_thd);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -943,7 +954,7 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char old_db_buf[NAME_LEN+1];
+  char old_db_buf[NAME_BYTE_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   sp_rcontext *ctx;
@@ -1988,8 +1999,8 @@ sp_head::set_info(longlong created, longlong modified,
 void
 sp_head::set_definer(const char *definer, uint definerlen)
 {
-  char user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
+  char user_name_holder[USERNAME_BYTE_LENGTH + 1];
+  LEX_STRING user_name= { user_name_holder, USERNAME_BYTE_LENGTH };
 
   char host_name_holder[HOSTNAME_LENGTH + 1];
   LEX_STRING host_name= { host_name_holder, HOSTNAME_LENGTH };

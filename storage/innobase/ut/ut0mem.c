@@ -86,23 +86,31 @@ retry:
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
-		"  InnoDB: Error: cannot allocate %lu bytes of\n"
-		"InnoDB: memory with malloc! Total allocated memory\n"
-		"InnoDB: by InnoDB %lu bytes. Operating system errno: %lu\n"
-		"InnoDB: Check if you should increase the swap file or\n"
-		"InnoDB: ulimits of your operating system.\n"
-		"InnoDB: On FreeBSD check you have compiled the OS with\n"
-		"InnoDB: a big enough maximum process size.\n"
-		"InnoDB: Note that in most 32-bit computers the process\n"
-		"InnoDB: memory space is limited to 2 GB or 4 GB.\n"
-		"InnoDB: We keep retrying the allocation for 60 seconds...\n",
-				  (ulong) n, (ulong) ut_total_allocated_memory,
+				"  InnoDB: Error: cannot allocate"
+				" %lu bytes of\n"
+				"InnoDB: memory with malloc!"
+				" Total allocated memory\n"
+				"InnoDB: by InnoDB %lu bytes."
+				" Operating system errno: %lu\n"
+				"InnoDB: Check if you should"
+				" increase the swap file or\n"
+				"InnoDB: ulimits of your operating system.\n"
+				"InnoDB: On FreeBSD check you"
+				" have compiled the OS with\n"
+				"InnoDB: a big enough maximum process size.\n"
+				"InnoDB: Note that in most 32-bit"
+				" computers the process\n"
+				"InnoDB: memory space is limited"
+				" to 2 GB or 4 GB.\n"
+				"InnoDB: We keep retrying"
+				" the allocation for 60 seconds...\n",
+				(ulong) n, (ulong) ut_total_allocated_memory,
 #ifdef __WIN__
-			(ulong) GetLastError()
+				(ulong) GetLastError()
 #else
-			(ulong) errno
+				(ulong) errno
 #endif
-			);
+				);
 		}
 
 		os_fast_mutex_unlock(&ut_list_mutex);
@@ -135,8 +143,9 @@ retry:
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
-		"  InnoDB: We now intentionally generate a seg fault so that\n"
-		"InnoDB: on Linux we get a stack trace.\n");
+				"  InnoDB: We now intentionally"
+				" generate a seg fault so that\n"
+				"InnoDB: on Linux we get a stack trace.\n");
 
 			if (*ut_mem_null_ptr) ut_mem_null_ptr = 0;
 		} else {
@@ -159,7 +168,7 @@ retry:
 	ut_total_allocated_memory += n + sizeof(ut_mem_block_t);
 
 	UT_LIST_ADD_FIRST(mem_block_list, ut_mem_block_list,
-						 ((ut_mem_block_t*)ret));
+			  ((ut_mem_block_t*)ret));
 	os_fast_mutex_unlock(&ut_list_mutex);
 
 	return((void*)((byte*)ret + sizeof(ut_mem_block_t)));
@@ -196,16 +205,20 @@ ut_test_malloc(
 	if (ret == NULL) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-		"  InnoDB: Error: cannot allocate %lu bytes of memory for\n"
-		"InnoDB: a BLOB with malloc! Total allocated memory\n"
-		"InnoDB: by InnoDB %lu bytes. Operating system errno: %d\n"
-		"InnoDB: Check if you should increase the swap file or\n"
-		"InnoDB: ulimits of your operating system.\n"
-		"InnoDB: On FreeBSD check you have compiled the OS with\n"
-		"InnoDB: a big enough maximum process size.\n",
-				  (ulong) n,
-				  (ulong) ut_total_allocated_memory,
-				  (int) errno);
+			"  InnoDB: Error: cannot allocate"
+			" %lu bytes of memory for\n"
+			"InnoDB: a BLOB with malloc! Total allocated memory\n"
+			"InnoDB: by InnoDB %lu bytes."
+			" Operating system errno: %d\n"
+			"InnoDB: Check if you should increase"
+			" the swap file or\n"
+			"InnoDB: ulimits of your operating system.\n"
+			"InnoDB: On FreeBSD check you have"
+			" compiled the OS with\n"
+			"InnoDB: a big enough maximum process size.\n",
+			(ulong) n,
+			(ulong) ut_total_allocated_memory,
+			(int) errno);
 		return(FALSE);
 	}
 
@@ -338,8 +351,9 @@ ut_free_all_mem(void)
 
 	if (ut_total_allocated_memory != 0) {
 		fprintf(stderr,
-"InnoDB: Warning: after shutdown total allocated memory is %lu\n",
-		  (ulong) ut_total_allocated_memory);
+			"InnoDB: Warning: after shutdown"
+			" total allocated memory is %lu\n",
+			(ulong) ut_total_allocated_memory);
 	}
 }
 
@@ -453,7 +467,7 @@ ut_strcount(
 	ulint	len = strlen(s2);
 
 	if (len == 0) {
-		
+
 		return(0);
 	}
 
@@ -461,7 +475,7 @@ ut_strcount(
 		s1 = strstr(s1, s2);
 
 		if (!s1) {
-			
+
 			break;
 		}
 
@@ -495,19 +509,19 @@ ut_strreplace(
 	int		len_delta = (int)s2_len - (int)s1_len;
 
 	str_end = str + str_len;
-	
+
 	if (len_delta <= 0) {
-		len_delta = 0;		
+		len_delta = 0;
 	} else {
 		count = ut_strcount(str, s1);
 	}
-	
+
 	new_str = mem_alloc(str_len + count * len_delta + 1);
 	ptr = new_str;
-	
+
 	while (str) {
 		const char*	next = strstr(str, s1);
-		
+
 		if (!next) {
 			next = str_end;
 		}
@@ -516,17 +530,17 @@ ut_strreplace(
 		ptr += next - str;
 
 		if (next == str_end) {
-			
+
 			break;
 		}
 
 		memcpy(ptr, s2, s2_len);
 		ptr += s2_len;
-		
+
 		str = next + s1_len;
 	}
 
 	*ptr = '\0';
-	
+
 	return(new_str);
 }

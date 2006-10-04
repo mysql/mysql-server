@@ -2,10 +2,6 @@
 # that ensure that starting conditions (environment) for the IM-test are as
 # expected.
 
-# Wait for mysqld1 (guarded instance) to start.
-
---exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD1_PATH_PID 30 started
-
 # Check the running instances.
 
 --connect (mysql1_con,localhost,root,,mysql,$IM_MYSQLD1_PORT,$IM_MYSQLD1_SOCK)
@@ -13,6 +9,8 @@
 --connection mysql1_con
 
 SHOW VARIABLES LIKE 'server_id';
+
+--source include/not_windows.inc
 
 --connection default
 

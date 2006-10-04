@@ -39,10 +39,16 @@ public:
     BitmaskImpl::setField(1, &data, 12, 8, val);
   }
   static Uint32 getTableStore(Uint32 data) {
-    return BitmaskImpl::getField(1, &data, 20, 4);
+    return BitmaskImpl::getField(1, &data, 20, 3);
   }
   static void setTableStore(Uint32& data, Uint32 val) {
-    BitmaskImpl::setField(1, &data, 20, 4, val);
+    BitmaskImpl::setField(1, &data, 20, 3, val);
+  }
+  static Uint32 getTableTemp(Uint32 data) {
+    return BitmaskImpl::getField(1, &data, 23, 1);
+  }
+  static void setTableTemp(Uint32& data, Uint32 val) {
+    BitmaskImpl::setField(1, &data, 23, 1, val);
   }
   static Uint32 getTableState(Uint32 data) {
     return BitmaskImpl::getField(1, &data, 24, 4);
@@ -160,6 +166,12 @@ public:
   }
   void setTableState(unsigned pos, Uint32 val) {
     ListTablesData::setTableState(tableData[pos], val);
+  }
+  static Uint32 getTableTemp(Uint32 data) {
+    return ListTablesData::getTableTemp(data);
+  }
+  void setTableTemp(unsigned pos, Uint32 val) {
+    ListTablesData::setTableTemp(tableData[pos], val);
   }
 };
 

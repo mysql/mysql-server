@@ -17,9 +17,6 @@
 // 
 //  ndbapi_retries.cpp: Error handling and transaction retries
 //
-//  Execute ndbapi_simple to create the table "MYTABLENAME"
-//  before executing this program.
-//
 //  There are many ways to program using the NDB API.  In this example
 //  we execute two inserts in the same transaction using 
 //  NdbConnection::execute(NoCommit).
@@ -29,6 +26,7 @@
 //  Application errors (i.e. errors at points marked with APIERROR) 
 //  should be handled by the application programmer.
 
+#include <mysql.h>
 #include <NdbApi.hpp>
 
 // Used for cout
@@ -37,6 +35,14 @@
 // Used for sleep (use your own version of sleep)
 #include <unistd.h>
 #define TIME_TO_SLEEP_BETWEEN_TRANSACTION_RETRIES 1
+
+#define PRINT_ERROR(code,msg) \
+  std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \
+            << ", code: " << code \
+            << ", msg: " << msg << "." << std::endl
+#define MYSQLERROR(mysql) { \
+  PRINT_ERROR(mysql_errno(&mysql),mysql_error(&mysql)); \
+  exit(-1); }
 
 //
 //  APIERROR prints an NdbError object
@@ -176,13 +182,44 @@ int executeInsertTransaction(int transactionId, Ndb* myNdb,
   return result;
 }
 
-
-int main()
+/*********************************************************
+ * Create a table named MYTABLENAME if it does not exist *
+ *********************************************************/
+static void create_table(MYSQL &mysql)
 {
+  if (mysql_query(&mysql, 
+		  "CREATE TABLE"
+		  "  MYTABLENAME"
+		  "    (ATTR1 INT UNSIGNED NOT NULL PRIMARY KEY,"
+		  "     ATTR2 INT UNSIGNED NOT NULL)"
+		  "  ENGINE=NDB"))
+    MYSQLERROR(mysql);
+}
+
+/***********************************
+ * Drop a table named MYTABLENAME 
+ ***********************************/
+static void drop_table(MYSQL &mysql)
+{
+  if (mysql_query(&mysql, 
+		  "DROP TABLE"
+		  "  MYTABLENAME"))
+    MYSQLERROR(mysql);
+}
+
+int main(int argc, char** argv)
+{
+  if (argc != 3)
+  {
+    std::cout << "Arguments are <socket mysqld> <connect_string cluster>.\n";
+    exit(-1);
+  }
+  char * mysqld_sock  = argv[1];
+  const char *connectstring = argv[2];
   ndb_init();
 
   Ndb_cluster_connection *cluster_connection=
-    new Ndb_cluster_connection(); // Object representing the cluster
+    new Ndb_cluster_connection(connectstring); // Object representing the cluster
 
   int r= cluster_connection->connect(5 /* retries               */,
 				     3 /* delay between retries */,
@@ -205,6 +242,22 @@ int main()
     std::cout << "Cluster was not ready within 30 secs." << std::endl;
     exit(-1);
   }
+  // connect to mysql server
+  MYSQL mysql;
+  if ( !mysql_init(&mysql) ) {
+    std::cout << "mysql_init failed\n";
+    exit(-1);
+  }
+  if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
+			   0, mysqld_sock, 0) )
+    MYSQLERROR(mysql);
+  
+  /********************************************
+   * Connect to database via mysql-c          *
+   ********************************************/
+  mysql_query(&mysql, "CREATE DATABASE TEST_DB_1");
+  if (mysql_query(&mysql, "USE TEST_DB_1") != 0) MYSQLERROR(mysql);
+  create_table(mysql);
 
   Ndb* myNdb= new Ndb( cluster_connection,
 		       "TEST_DB_1" );  // Object representing the database
@@ -230,7 +283,9 @@ int main()
   
   delete myNdb;
   delete cluster_connection;
-
+  
+  drop_table(mysql);
+  
   ndb_end(0);
   return 0;
 }

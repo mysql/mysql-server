@@ -26,7 +26,7 @@
 #include "mysys_err.h"
 #include "events.h"
 
-#include "ha_myisam.h"
+#include "../storage/myisam/ha_myisam.h"
 
 #ifdef HAVE_ROW_BASED_REPLICATION
 #include "rpl_injector.h"
@@ -326,8 +326,6 @@ static char *my_bind_addr_str;
 static char *default_collation_name; 
 static char *default_storage_engine_str;
 static char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
-static char mysql_data_home_buff[2];
-static struct passwd *user_info;
 static I_List<THD> thread_cache;
 
 static pthread_cond_t COND_thread_cache, COND_flush_thread_cache;
@@ -357,10 +355,7 @@ my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_innodb;
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
-extern SHOW_VAR innodb_status_variables[];
-extern uint innobase_init_flags, innobase_lock_type;
-extern uint innobase_flush_log_at_trx_commit;
-extern ulong innobase_cache_size, innobase_fast_shutdown;
+extern ulong innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
 extern char *innobase_home, *innobase_tmpdir, *innobase_logdir;
 extern long innobase_lock_scan_time;
@@ -384,11 +379,6 @@ extern my_bool innobase_log_archive,
                innobase_use_native_aio,
                innobase_file_per_table, innobase_locks_unsafe_for_binlog,
                innobase_create_status_file;
-extern my_bool innobase_very_fast_shutdown; /* set this to 1 just before
-                                            calling innobase_end() if you want
-                                            InnoDB to shut down without
-                                            flushing the buffer pool: this
-                                            is equivalent to a 'crash' */
 extern "C" {
 extern ulong srv_max_buf_pool_modified_pct;
 extern ulong srv_max_purge_lag;
@@ -417,7 +407,6 @@ ulong ndb_report_thresh_binlog_epoch_slip;
 ulong ndb_report_thresh_binlog_mem_usage;
 #endif
 
-extern SHOW_VAR ndb_status_variables[];
 extern const char *ndb_distribution_names[];
 extern TYPELIB ndb_distribution_typelib;
 extern const char *opt_ndb_distribution;
@@ -517,7 +506,8 @@ key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
 
-char *mysql_data_home= mysql_real_data_home;
+char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
+struct passwd *user_info;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
@@ -847,7 +837,7 @@ static void close_connections(void)
     DBUG_PRINT("quit",("Informing thread %ld that it's time to die",
 		       tmp->thread_id));
     /* We skip slave threads & scheduler on this first loop through. */
-    if (tmp->slave_thread || tmp->system_thread == SYSTEM_THREAD_EVENT_SCHEDULER)
+    if (tmp->slave_thread)
       continue;
 
     tmp->killed= THD::KILL_CONNECTION;
@@ -866,7 +856,7 @@ static void close_connections(void)
   }
   (void) pthread_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
-  Events::shutdown();
+  Events::get_instance()->deinit();
   end_slave();
 
   if (thread_count)
@@ -1195,7 +1185,7 @@ void clean_up(bool print_message)
     udf_free();
 #endif
   }
-  plugin_free();
+  plugin_shutdown();
   if (tc_log)
     tc_log->close();
   xid_cache_free();
@@ -1304,7 +1294,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
-  Events::destroy_mutexes();
+  Events::get_instance()->destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
 #ifndef HAVE_YASSL
@@ -2441,10 +2431,8 @@ static int my_message_sql(uint error, const char *str, myf MyFlags)
   if ((thd= current_thd))
   {
     if (thd->spcont &&
-        thd->spcont->find_handler(error, MYSQL_ERROR::WARN_LEVEL_ERROR))
+        thd->spcont->handle_error(error, MYSQL_ERROR::WARN_LEVEL_ERROR, thd))
     {
-      if (! thd->spcont->found_handler_here())
-        thd->net.report_error= 1; /* Make "select" abort correctly */ 
       DBUG_RETURN(0);
     }
 
@@ -2638,7 +2626,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   /*
     Add server status variables to the dynamic list of
     status variables that is shown by SHOW STATUS.
-    Later, in plugin_init, plugin_load, and mysql_install_plugin
+    Later, in plugin_init, and mysql_install_plugin
     new entries could be added to that list.
   */
   if (add_status_vars(status_vars))
@@ -2884,7 +2872,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_server_started, MY_MUTEX_INIT_FAST);
   (void) pthread_cond_init(&COND_server_started,NULL);
   sp_cache_init();
-  Events::init_mutexes();
+  Events::get_instance()->init_mutexes();
   /* Parameter for threads created for connections */
   (void) pthread_attr_init(&connection_attrib);
   (void) pthread_attr_setdetachstate(&connection_attrib,
@@ -3187,7 +3175,7 @@ server.");
     using_update_log=1;
   }
 
-  if (plugin_init())
+  if (plugin_init(0))
   {
     sql_print_error("Failed to init plugins.");
     return 1;
@@ -3619,7 +3607,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (!opt_noacl)
   {
-    plugin_load();
 #ifdef HAVE_DLOPEN
     udf_init();
 #endif
@@ -3671,7 +3658,8 @@ we force server id to 2, but this MySQL server will not act as a slave.");
 
   if (!opt_noacl)
   {
-    Events::init();
+    if (Events::get_instance()->init())
+      unireg_abort(1);
   }
 #if defined(__NT__) || defined(HAVE_SMEM)
   handle_connections_methods();
@@ -5014,9 +5002,9 @@ struct my_option my_long_options[] =
    (gptr*) &global_system_variables.engine_condition_pushdown,
    (gptr*) &global_system_variables.engine_condition_pushdown,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  /* See how it's handled in get_one_option() */
   {"event-scheduler", OPT_EVENT_SCHEDULER, "Enable/disable the event scheduler.",
-   (gptr*) &Events::opt_event_scheduler, (gptr*) &Events::opt_event_scheduler, 0, GET_ULONG,
-    REQUIRED_ARG, 2/*default*/, 0/*min-value*/, 2/*max-value*/, 0, 0, 0},
+   NULL,  NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"exit-info", 'T', "Used for debugging;  Use at your own risk!", 0, 0, 0,
    GET_LONG, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"external-locking", OPT_USE_LOCKING, "Use system (external) locking (disabled by default).  With this option enabled you can run myisamchk to test (not repair) tables while the MySQL server is running. Disable with --skip-external-locking.",
@@ -6227,7 +6215,7 @@ The minimum value for this variable is 4096.",
    "If an in-memory temporary table exceeds this size, MySQL will automatically convert it to an on-disk MyISAM table.",
    (gptr*) &global_system_variables.tmp_table_size,
    (gptr*) &max_system_variables.tmp_table_size, 0, GET_ULONG,
-   REQUIRED_ARG, 32*1024*1024L, 1024, ~0L, 0, 1, 0},
+   REQUIRED_ARG, 16*1024*1024L, 1024, ~0L, 0, 1, 0},  /* See  max_heap_table_size . */
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (gptr*) &global_system_variables.trans_alloc_block_size,
@@ -6574,16 +6562,6 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 
 #endif /* HAVE_OPENSSL */
 
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-int innodb_export_status(void);
-static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
-{
-  innodb_export_status();
-  var->type= SHOW_ARRAY;
-  var->value= (char *) &innodb_status_variables;
-  return 0;
-}
-#endif
 
 SHOW_VAR status_vars[]= {
   {"Aborted_clients",          (char*) &aborted_threads,        SHOW_LONG},
@@ -6723,9 +6701,6 @@ SHOW_VAR status_vars[]= {
   {"Handler_savepoint_rollback",(char*) offsetof(STATUS_VAR, ha_savepoint_rollback_count), SHOW_LONG_STATUS},
   {"Handler_update",           (char*) offsetof(STATUS_VAR, ha_update_count), SHOW_LONG_STATUS},
   {"Handler_write",            (char*) offsetof(STATUS_VAR, ha_write_count), SHOW_LONG_STATUS},
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-  {"Innodb",                   (char*) &show_innodb_vars, SHOW_FUNC},
-#endif /* WITH_INNOBASE_STORAGE_ENGINE */
   {"Key_blocks_not_flushed",   (char*) offsetof(KEY_CACHE, global_blocks_changed), SHOW_KEY_CACHE_LONG},
   {"Key_blocks_unused",        (char*) offsetof(KEY_CACHE, blocks_unused), SHOW_KEY_CACHE_LONG},
   {"Key_blocks_used",          (char*) offsetof(KEY_CACHE, blocks_used), SHOW_KEY_CACHE_LONG},
@@ -6735,9 +6710,6 @@ SHOW_VAR status_vars[]= {
   {"Key_writes",               (char*) offsetof(KEY_CACHE, global_cache_write), SHOW_KEY_CACHE_LONGLONG},
   {"Last_query_cost",          (char*) offsetof(STATUS_VAR, last_query_cost), SHOW_DOUBLE_STATUS},
   {"Max_used_connections",     (char*) &max_used_connections,  SHOW_LONG},
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  {"Ndb",                      (char*) &ndb_status_variables,   SHOW_ARRAY},
-#endif /* WITH_NDBCLUSTER_STORAGE_ENGINE */
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,    SHOW_LONG_NOFLUSH},
   {"Open_files",               (char*) &my_file_opened,         SHOW_LONG_NOFLUSH},
   {"Open_streams",             (char*) &my_stream_opened,       SHOW_LONG_NOFLUSH},
@@ -7334,20 +7306,30 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 #endif
   case OPT_EVENT_SCHEDULER:
     if (!argument)
-      Events::opt_event_scheduler= 2;
+      Events::opt_event_scheduler= Events::EVENTS_DISABLED;
     else
     {
       int type;
-      if ((type=find_type(argument, &Events::opt_typelib, 1)) <= 0)
-      {
-	fprintf(stderr,"Unknown option to event-scheduler: %s\n",argument);
-	exit(1);
-      }
       /* 
-        type=  1     2      3   4     5    6
-             (OFF |  0) - (ON | 1) - (2 | SUSPEND)
+        type=     5          1   2      3   4
+             (DISABLE ) - (OFF | ON) - (0 | 1)
       */
-      Events::opt_event_scheduler= (type-1) / 2;
+      switch ((type=find_type(argument, &Events::opt_typelib, 1))) {
+      case 0:
+	fprintf(stderr, "Unknown option to event-scheduler: %s\n",argument);
+	exit(1);
+      case 5: /* OPT_DISABLED */
+        Events::opt_event_scheduler= Events::EVENTS_DISABLED;
+        break;
+      case 2: /* OPT_ON  */
+      case 4: /* 1   */
+        Events::opt_event_scheduler= Events::EVENTS_ON;
+        break;
+      case 1: /* OPT_OFF */
+      case 3: /*  0  */
+        Events::opt_event_scheduler= Events::EVENTS_OFF;
+        break;
+      }
     }
     break;
   case (int) OPT_SKIP_NEW:
@@ -7620,10 +7602,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     switch (method-1) {
     case 0: 
-      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
+      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
       break;
     case 1:
-      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+      method_conv= MI_STATS_METHOD_NULLS_EQUAL;
       break;
     case 2:
       method_conv= MI_STATS_METHOD_IGNORE_NULLS;

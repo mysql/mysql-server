@@ -47,7 +47,7 @@ lock_rec_hash(
 	ulint	page_no)/* in: page number */
 {
 	return(hash_calc_hash(lock_rec_fold(space, page_no),
-							lock_sys->rec_hash));
+			      lock_sys->rec_hash));
 }
 
 /*************************************************************************

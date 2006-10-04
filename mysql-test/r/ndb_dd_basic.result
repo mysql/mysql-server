@@ -49,7 +49,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (0, 0, 0);
 SELECT * FROM t1;
 pk1	b	c
@@ -422,6 +422,47 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 DROP TABLE t1;
+CREATE TABLE t1 (
+a int NOT NULL,
+b varchar(4000),  -- must use 2 pages undo
+PRIMARY KEY using hash (a)
+)
+TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
+set autocommit = 0;
+insert into t1 values(0,'x');
+insert into t1 values(1,'x');
+insert into t1 values(2,'x');
+insert into t1 values(3,'x');
+insert into t1 values(4,'x');
+insert into t1 values(5,'x');
+insert into t1 values(6,'x');
+insert into t1 values(7,'x');
+insert into t1 values(8,'x');
+delete from t1 where a = 0;
+commit;
+set autocommit = 1;
+drop table t1;
+create table test.t1 (f1 varchar(50) primary key, f2 text,f3 int) 
+TABLESPACE ts1 STORAGE DISK engine=NDB;
+insert into test.t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
+insert into test.t1 (f1,f2,f3)VALUES("222222","bbbbbb",2);
+select * from test.t1 order by f1;
+f1	f2	f3
+111111	aaaaaa	1
+222222	bbbbbb	2
+select f1,f2 from test.t1 order by f2;
+f1	f2
+111111	aaaaaa
+222222	bbbbbb
+select f2 from test.t1 order by f2;
+f2
+aaaaaa
+bbbbbb
+select f1,f2 from test.t1 order by f1;
+f1	f2
+111111	aaaaaa
+222222	bbbbbb
+drop table test.t1;
 ALTER TABLESPACE ts1 
 DROP DATAFILE 'datafile.dat' 
 ENGINE = NDB;

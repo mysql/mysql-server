@@ -156,8 +156,8 @@ improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
 RW_X_LATCH are allowed as LA! */
-#define buf_page_optimistic_get(LA, BL, G, MC, MTR) buf_page_optimistic_get_func(\
-				LA, BL, G, MC, __FILE__, __LINE__, MTR)
+#define buf_page_optimistic_get(LA, BL, G, MC, MTR)			     \
+	buf_page_optimistic_get_func(LA, BL, G, MC, __FILE__, __LINE__, MTR)
 /************************************************************************
 This is the general function used to get optimistic access to a database
 page. */

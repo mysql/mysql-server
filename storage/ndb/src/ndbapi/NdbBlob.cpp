@@ -164,6 +164,12 @@ NdbBlob::getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnIm
     bc.setStorageType(c->getStorageType());
     bt.addColumn(bc);
   }
+  // temp fix for bug#21690 - distr key set wrong
+  { unsigned x;
+    bt.getColumn(x=0)->setDistributionKey(true);
+    bt.getColumn(x=1)->setDistributionKey(true);
+    bt.getColumn(x=2)->setDistributionKey(false);
+  }
   DBUG_VOID_RETURN;
 }
 

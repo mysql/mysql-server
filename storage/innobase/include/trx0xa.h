@@ -144,7 +144,8 @@ struct xa_switch_t {
 					on this list */
 #define	XA_RBPROTO	XA_RBBASE+5	/* A protocol error occurred in the
 					resource manager */
-#define	XA_RBTIMEOUT	XA_RBBASE+6	/* A transaction branch took too long */
+#define	XA_RBTIMEOUT	XA_RBBASE+6	/* A transaction branch took
+					too long */
 #define	XA_RBTRANSIENT	XA_RBBASE+7	/* May retry the transaction branch */
 #define	XA_RBEND	XA_RBTRANSIENT	/* The inclusive upper bound of the
 					rollback codes */

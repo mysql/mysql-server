@@ -169,14 +169,16 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
+  lex->spname= NULL;
   lex->sphead= NULL;
   lex->spcont= NULL;
   lex->proc_list.first= 0;
-  lex->escape_used= lex->et_compile_phase= FALSE;
+  lex->escape_used= FALSE;
   lex->reset_query_tables_list(FALSE);
+  lex->expr_allows_subselect= TRUE;
 
   lex->name= 0;
-  lex->et= NULL;
+  lex->event_parse_data= NULL;
 
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
@@ -663,8 +665,9 @@ int MYSQLlex(void *arg, void *yythd)
       */
 
       if ((yylval->lex_str.str[0]=='_') && 
-          (lex->charset=get_charset_by_csname(yylval->lex_str.str+1,
-					      MY_CS_PRIMARY,MYF(0))))
+          (lex->underscore_charset=
+             get_charset_by_csname(yylval->lex_str.str + 1,
+                                   MY_CS_PRIMARY,MYF(0))))
         return(UNDERSCORE_CHARSET);
       return(result_state);			// IDENT or IDENT_QUOTED
 
@@ -1047,6 +1050,8 @@ int MYSQLlex(void *arg, void *yythd)
       if (c == '.')
 	lex->next_state=MY_LEX_IDENT_SEP;
       length= (uint) (lex->ptr - lex->tok_start)-1;
+      if (length == 0) 
+        return(ABORT_SYM);              // Names must be nonempty.
       if ((tokval= find_keyword(lex,length,0)))
       {
 	yyUnget();				// Put back 'c'
@@ -1528,10 +1533,10 @@ bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
   */
   Query_arena *arena= thd->stmt_arena;
   return (ref_pointer_array=
-          (Item **)arena->alloc(sizeof(Item*) *
-                                (item_list.elements +
-                                 select_n_having_items +
-                                 order_group_num)* 5)) == 0;
+          (Item **)arena->alloc(sizeof(Item*) * (n_child_sum_items +
+                                                 item_list.elements +
+                                                 select_n_having_items +
+                                                 order_group_num)*5)) == 0;
 }
 
 

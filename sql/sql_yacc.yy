@@ -38,7 +38,7 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sp.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
@@ -63,6 +63,34 @@ inline Item *is_truth_value(Item *A, bool v1, bool v2)
 	new Item_int((char *) (v1 ? "TRUE" : "FALSE"), v1, 1),
 	new Item_int((char *) (v1 ? "FALSE" : "TRUE"),!v1, 1));
 }
+
+#ifndef DBUG_OFF
+#define YYDEBUG 1
+#else
+#define YYDEBUG 0
+#endif
+
+#ifndef DBUG_OFF
+void turn_parser_debug_on()
+{
+  /*
+     MYSQLdebug is in sql/sql_yacc.cc, in bison generated code.
+     Turning this option on is **VERY** verbose, and should be
+     used when investigating a syntax error problem only.
+
+     The syntax to run with bison traces is as follows :
+     - Starting a server manually :
+       mysqld --debug="d,parser_debug" ...
+     - Running a test :
+       mysql-test-run.pl --mysqld="--debug=d,parser_debug" ...
+
+     The result will be in the process stderr (var/log/master.err)
+   */
+
+  extern int yydebug;
+  yydebug= 1;
+}
+#endif
 
 %}
 %union {
@@ -562,7 +590,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  RTREE_SYM
 %token  SAVEPOINT_SYM
 %token  SCHEDULE_SYM
-%token  SCHEDULER_SYM
 %token  SECOND_MICROSECOND_SYM
 %token  SECOND_SYM
 %token  SECURITY_SYM
@@ -752,10 +779,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
 
 %type <ulong_num>
-	ulong_num merge_insert_types
+	ulong_num real_ulong_num merge_insert_types
 
 %type <ulonglong_number>
-	ulonglong_num size_number
+	ulonglong_num real_ulonglong_num size_number
 
 %type <p_elem_value>
         part_bit_expr
@@ -879,7 +906,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	sp_c_chistics sp_a_chistics sp_chistic sp_c_chistic xa
         load_data opt_field_or_var_spec fields_or_vars opt_load_data_set_spec
         definer view_replace_or_algorithm view_replace view_algorithm_opt
-        view_algorithm view_or_trigger_or_sp view_or_trigger_or_sp_tail
+        view_algorithm view_or_trigger_or_sp_or_event
+        view_or_trigger_or_sp_or_event_tail
         view_suid view_tail view_list_opt view_list view_select
         view_check_option trigger_tail sp_tail
         install uninstall partition_entry binlog_base64_event
@@ -1256,29 +1284,41 @@ create:
 	    lex->name=$4.str;
             lex->create_info.options=$3;
 	  }
-	| CREATE EVENT_SYM opt_if_not_exists sp_name
+	| CREATE
+	  {
+            Lex->create_view_mode= VIEW_CREATE_NEW;
+            Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+            Lex->create_view_suid= TRUE;
+	  }
+	  view_or_trigger_or_sp_or_event
+	  {}
+	| CREATE USER clear_privileges grant_list
+	  {
+	    Lex->sql_command = SQLCOM_CREATE_USER;
+          }
+	| CREATE LOGFILE_SYM GROUP logfile_group_info 
+          {
+            Lex->alter_tablespace_info->ts_cmd_type= CREATE_LOGFILE_GROUP;
+          }
+        | CREATE TABLESPACE tablespace_info
+          {
+            Lex->alter_tablespace_info->ts_cmd_type= CREATE_TABLESPACE;
+          }
+	;
+
+
+event_tail:
+          EVENT_SYM opt_if_not_exists sp_name
           /*
              BE CAREFUL when you add a new rule to update the block where
              YYTHD->client_capabilities is set back to original value
           */
           {
-            LEX *lex=Lex;
+            Lex->create_info.options= $2;
 
-            if (lex->et)
-            {
-              /*
-                Recursive events are not possible because recursive SPs
-                are not also possible. lex->sp_head is not stacked.
-              */
-              // ToDo Andrey : Change the error message
-              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
+            if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
               YYABORT;
-            }
-
-            lex->create_info.options= $3;
-
-            if (!(lex->et= new(YYTHD->mem_root) Event_timed())) // implicitly calls Event_timed::init()
-              YYABORT;
+            Lex->event_parse_data->identifier= $3;
 
             /*
               We have to turn of CLIENT_MULTI_QUERIES while parsing a
@@ -1288,11 +1328,9 @@ create:
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= (~CLIENT_MULTI_QUERIES);
 
-            if (!lex->et_compile_phase)
-            {
-              lex->et->init_name(YYTHD, $4);
-              lex->et->init_definer(YYTHD);
-            }
+            Lex->sql_command= SQLCOM_CREATE_EVENT;
+            /* We need that for disallowing subqueries */
+            Lex->expr_allows_subselect= FALSE;
           }
           ON SCHEDULE_SYM ev_schedule_time
           opt_ev_on_completion
@@ -1302,160 +1340,62 @@ create:
           {
             /*
               Restore flag if it was cleared above
-              $1 - CREATE
-              $2 - EVENT_SYM
-              $3 - opt_if_not_exists
-              $4 - sp_name
-              $5 - the block above
+              $1 - EVENT_SYM
+              $2 - opt_if_not_exists
+              $3 - sp_name
+              $4 - the block above
             */
-            YYTHD->client_capabilities |= $<ulong_num>5;
+            YYTHD->client_capabilities |= $<ulong_num>4;
 
             /*
               sql_command is set here because some rules in ev_sql_stmt
               can overwrite it
             */
             Lex->sql_command= SQLCOM_CREATE_EVENT;
+            Lex->expr_allows_subselect= TRUE;
           }
-	| CREATE
-	  {
-            Lex->create_view_mode= VIEW_CREATE_NEW;
-            Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
-            Lex->create_view_suid= TRUE;
-	  }
-	  view_or_trigger_or_sp
-	  {}
-	| CREATE USER clear_privileges grant_list
-	  {
-	    Lex->sql_command = SQLCOM_CREATE_USER;
-          }
-	| CREATE LOGFILE_SYM GROUP logfile_group_info 
-          {
-            LEX *lex= Lex;
-            lex->alter_tablespace_info->ts_cmd_type= CREATE_LOGFILE_GROUP;
-          }
-        | CREATE TABLESPACE tablespace_info
-          {
-            LEX *lex= Lex;
-            lex->alter_tablespace_info->ts_cmd_type= CREATE_TABLESPACE;
-          }
-	;
 
 
 ev_schedule_time: EVERY_SYM expr interval
 	  {
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-            {
-              switch (lex->et->init_interval(YYTHD , $2, $3)) {
-              case EVEX_PARSE_ERROR:
-                yyerror(ER(ER_SYNTAX_ERROR));
-                YYABORT;
-                break;
-              case EVEX_BAD_PARAMS:
-                my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
-              case EVEX_MICROSECOND_UNSUP:
-                my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
-                YYABORT;
-                break;
-              }
-            }
+            Lex->event_parse_data->item_expression= $2;
+            Lex->event_parse_data->interval= $3;
           }
           ev_starts
           ev_ends
         | AT_SYM expr
           {
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-            {
-              switch (lex->et->init_execute_at(YYTHD, $2)) {
-              case EVEX_PARSE_ERROR:
-                yyerror(ER(ER_SYNTAX_ERROR));
-                YYABORT;  
-                break;
-              case ER_WRONG_VALUE:
-                {
-                  char buff[120];
-                  String str(buff,(uint32) sizeof(buff), system_charset_info);
-                  String *str2= $2->val_str(&str);
-                  my_error(ER_WRONG_VALUE, MYF(0), "AT",
-                           str2? str2->c_ptr_safe():"NULL");
-                  YYABORT;
-                  break;
-                }
-              case EVEX_BAD_PARAMS:
-                my_error(ER_EVENT_EXEC_TIME_IN_THE_PAST, MYF(0));
-                YYABORT;
-                break;
-              }
-            }
+            Lex->event_parse_data->item_execute_at= $2;
           }
       ;
 
 opt_ev_status: /* empty */ { $$= 0; }
         | ENABLE_SYM
           {
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-              lex->et->status= Event_timed::ENABLED;
+            Lex->event_parse_data->status= Event_parse_data::ENABLED;
             $$= 1;
           }
         | DISABLE_SYM
           {
-            LEX *lex=Lex;
-
-            if (!lex->et_compile_phase)
-              lex->et->status= Event_timed::DISABLED;
+            Lex->event_parse_data->status= Event_parse_data::DISABLED;
             $$= 1;
           }
       ;
 
 ev_starts: /* empty */
           {
-            Lex->et->init_starts(YYTHD, new Item_func_now_local());
+            Lex->event_parse_data->item_starts= new Item_func_now_local();
           }
         | STARTS_SYM expr
           {
-            LEX *lex= Lex;
-            if (!lex->et_compile_phase)
-            {
-
-              switch (lex->et->init_starts(YYTHD, $2)) {
-              case EVEX_PARSE_ERROR:
-                yyerror(ER(ER_SYNTAX_ERROR));
-                YYABORT;
-                break;
-              case EVEX_BAD_PARAMS:
-                {
-                  char buff[20];
-                  String str(buff,(uint32) sizeof(buff), system_charset_info);
-                  String *str2= $2->val_str(&str);
-                  my_error(ER_WRONG_VALUE, MYF(0), "STARTS",
-	                   str2 ? str2->c_ptr_safe() : NULL);
-                  YYABORT;
-                  break;
-                }
-              }
-            }
+            Lex->event_parse_data->item_starts= $2;
           }
       ;
 
 ev_ends: /* empty */
         | ENDS_SYM expr
           {
-            LEX *lex= Lex;
-            if (!lex->et_compile_phase)
-            {
-              switch (lex->et->init_ends(YYTHD, $2)) {
-              case EVEX_PARSE_ERROR:
-                yyerror(ER(ER_SYNTAX_ERROR));
-                YYABORT;
-                break;
-              case EVEX_BAD_PARAMS:
-                my_error(ER_EVENT_ENDS_BEFORE_STARTS, MYF(0));
-                YYABORT;
-                break;
-              }
-            }
+            Lex->event_parse_data->item_ends= $2;
           }
       ;
 
@@ -1466,16 +1406,14 @@ opt_ev_on_completion: /* empty */ { $$= 0; }
 ev_on_completion:
           ON COMPLETION_SYM PRESERVE_SYM
           {
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-              lex->et->on_completion= Event_timed::ON_COMPLETION_PRESERVE;
+            Lex->event_parse_data->on_completion=
+                                  Event_parse_data::ON_COMPLETION_PRESERVE;
             $$= 1;
           }
         | ON COMPLETION_SYM NOT_SYM PRESERVE_SYM
           {
-            LEX *lex=Lex;
-            if (!lex->et_compile_phase)
-              lex->et->on_completion= Event_timed::ON_COMPLETION_DROP;
+            Lex->event_parse_data->on_completion=
+                                  Event_parse_data::ON_COMPLETION_DROP;
             $$= 1;
           }
       ;
@@ -1483,64 +1421,65 @@ ev_on_completion:
 opt_ev_comment: /* empty */ { $$= 0; }
         | COMMENT_SYM TEXT_STRING_sys
           {
-            LEX *lex= Lex;
-            if (!lex->et_compile_phase)
-            {
-              lex->comment= $2;
-              lex->et->init_comment(YYTHD, &$2);
-            }
-            $$= 1;
+            Lex->comment= Lex->event_parse_data->comment= $2;
           }
       ;
 
 ev_sql_stmt:
           {
             LEX *lex= Lex;
-            sp_head *sp;
 
-            $<sphead>$= lex->sphead;
-
-            if (!lex->sphead)
+            /*
+              This stops the following :
+              - CREATE EVENT ... DO CREATE EVENT ...;
+              - ALTER  EVENT ... DO CREATE EVENT ...;
+              - CREATE EVENT ... DO ALTER EVENT DO ....;
+              - CREATE PROCEDURE ... BEGIN CREATE EVENT ... END|
+              This allows:
+              - CREATE EVENT ... DO DROP EVENT yyy;
+              - CREATE EVENT ... DO ALTER EVENT yyy;
+                (the nested ALTER EVENT can have anything but DO clause)
+              - ALTER  EVENT ... DO ALTER EVENT yyy;
+                (the nested ALTER EVENT can have anything but DO clause)
+              - ALTER  EVENT ... DO DROP EVENT yyy;
+              - CREATE PROCEDURE ... BEGIN ALTER EVENT ... END|
+                (the nested ALTER EVENT can have anything but DO clause)
+              - CREATE PROCEDURE ... BEGIN DROP EVENT ... END|
+            */
+            if (lex->sphead)
             {
-              if (!(sp= new sp_head()))
-                YYABORT;
-
-              sp->reset_thd_mem_root(YYTHD);
-              sp->init(lex);
-
-              sp->m_type= TYPE_ENUM_PROCEDURE;
-
-              lex->sphead= sp;
-
-              bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
-              lex->sphead->m_chistics= &lex->sp_chistics;
-
-              lex->sphead->m_body_begin= lex->ptr;
+              my_error(ER_EVENT_RECURSIVITY_FORBIDDEN, MYF(0));
+              YYABORT;
             }
+              
+            if (!(lex->sphead= new sp_head()))
+              YYABORT;
 
-            if (!lex->et_compile_phase)
-              lex->et->body_begin= lex->ptr;
+            lex->sphead->reset_thd_mem_root(YYTHD);
+            lex->sphead->init(lex);
+            lex->sphead->init_sp_name(YYTHD, Lex->event_parse_data->identifier);
+
+            lex->sphead->m_type= TYPE_ENUM_PROCEDURE;
+
+            bzero((char *)&lex->sp_chistics, sizeof(st_sp_chistics));
+            lex->sphead->m_chistics= &lex->sp_chistics;
+
+            lex->sphead->m_body_begin= lex->ptr;
+            
+            Lex->event_parse_data->body_begin= lex->ptr;
+
           }
           ev_sql_stmt_inner
           {
             LEX *lex=Lex;
 
-            if (!$<sphead>1)
-            {
-              sp_head *sp= lex->sphead;
-              // return back to the original memory root ASAP
-              sp->init_strings(YYTHD, lex);
-              sp->restore_thd_mem_root(YYTHD);
+            /* return back to the original memory root ASAP */
+            lex->sphead->init_strings(YYTHD, lex);
+            lex->sphead->restore_thd_mem_root(YYTHD);
 
-              lex->sp_chistics.suid= SP_IS_SUID;//always the definer!
+            lex->sp_chistics.suid= SP_IS_SUID;  //always the definer!
 
-              lex->et->sphead= lex->sphead;
-              lex->sphead= NULL;
-            }
-            if (!lex->et_compile_phase)
-            {
-              lex->et->init_body(YYTHD);
-            }
+            Lex->event_parse_data->init_body(YYTHD);
           }
       ;
 
@@ -1615,10 +1554,10 @@ create_function_tail:
             if (lex->definer != NULL)
             {
               /*
-                 DEFINER is a concept meaningful when interpreting SQL code.
-                 UDF functions are compiled.
-                 Using DEFINER with UDF has therefore no semantic,
-                 and is considered a parsing error.
+                DEFINER is a concept meaningful when interpreting SQL code.
+                UDF functions are compiled.
+                Using DEFINER with UDF has therefore no semantic,
+                and is considered a parsing error.
               */
 	      my_error(ER_WRONG_USAGE, MYF(0), "SONAME", "DEFINER");
               YYABORT;
@@ -1657,10 +1596,10 @@ create_function_tail:
 	    sp->m_type= TYPE_ENUM_FUNCTION;
 	    lex->sphead= sp;
 	    /*
-	     * We have to turn of CLIENT_MULTI_QUERIES while parsing a
-	     * stored procedure, otherwise yylex will chop it into pieces
-	     * at each ';'.
-	     */
+	      We have to turn off CLIENT_MULTI_QUERIES while parsing a
+	      stored procedure, otherwise yylex will chop it into pieces
+	      at each ';'.
+	    */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
 	    YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 	    lex->sphead->m_param_begin= lex->tok_start+1;
@@ -3097,7 +3036,7 @@ opt_ts_redo_buffer_size:
           };
 
 opt_ts_nodegroup:
-          NODEGROUP_SYM opt_equal ulong_num
+          NODEGROUP_SYM opt_equal real_ulong_num
           {
             LEX *lex= Lex;
             if (lex->alter_tablespace_info->nodegroup_id != UNDEF_NODEGROUP)
@@ -3156,7 +3095,7 @@ ts_wait:
           };
 
 size_number:
-          ulong_num { $$= $1;}
+          real_ulong_num { $$= $1;}
           | IDENT
           {
             ulonglong number, test_number;
@@ -3395,7 +3334,7 @@ sub_part_func:
 
 opt_no_parts:
         /* empty */ {}
-        | PARTITIONS_SYM ulong_num 
+        | PARTITIONS_SYM real_ulong_num 
         { 
           uint no_parts= $2;
           LEX *lex= Lex;
@@ -3459,7 +3398,7 @@ part_func_expr:
 
 opt_no_subparts:
         /* empty */ {}
-        | SUBPARTITIONS_SYM ulong_num
+        | SUBPARTITIONS_SYM real_ulong_num
         {
           uint no_parts= $2;
           LEX *lex= Lex;
@@ -3799,11 +3738,11 @@ opt_part_option:
           lex->part_info->curr_part_elem->engine_type= $4;
           lex->part_info->default_engine_type= $4;
         }
-        | NODEGROUP_SYM opt_equal ulong_num
+        | NODEGROUP_SYM opt_equal real_ulong_num
         { Lex->part_info->curr_part_elem->nodegroup_id= $3; }
-        | MAX_ROWS opt_equal ulonglong_num
+        | MAX_ROWS opt_equal real_ulonglong_num
         { Lex->part_info->curr_part_elem->part_max_rows= $3; }
-        | MIN_ROWS opt_equal ulonglong_num
+        | MIN_ROWS opt_equal real_ulonglong_num
         { Lex->part_info->curr_part_elem->part_min_rows= $3; }
         | DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_sys
         { Lex->part_info->curr_part_elem->data_file_name= $4.str; }
@@ -4762,41 +4701,33 @@ alter:
 	  {}
 	| ALTER EVENT_SYM sp_name
           /*
-             BE CAREFUL when you add a new rule to update the block where
-             YYTHD->client_capabilities is set back to original value
+            BE CAREFUL when you add a new rule to update the block where
+            YYTHD->client_capabilities is set back to original value
           */
           {
-            LEX *lex=Lex;
-            Event_timed *et;
+            /* 
+              It is safe to use Lex->spname because
+              ALTER EVENT xxx RENATE TO yyy DO ALTER EVENT RENAME TO
+              is not allowed. Lex->spname is used in the case of RENAME TO
+              If it had to be supported spname had to be added to
+              Event_parse_data.
+            */
 
-            if (lex->et)
-            {
-              /*
-                Recursive events are not possible because recursive SPs
-                are not also possible. lex->sp_head is not stacked.
-              */
-              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
+            if (!(Lex->event_parse_data= Event_parse_data::new_instance(YYTHD)))
               YYABORT;
-            }
-            lex->spname= 0;//defensive programming
-
-            if (!(et= new (YYTHD->mem_root) Event_timed()))// implicitly calls Event_timed::init()
-              YYABORT;
-            lex->et = et;
-
-            if (!lex->et_compile_phase)
-            {
-              et->init_definer(YYTHD);
-              et->init_name(YYTHD, $3);
-            }
+            Lex->event_parse_data->identifier= $3;
 
             /*
-                We have to turn of CLIENT_MULTI_QUERIES while parsing a
-                stored procedure, otherwise yylex will chop it into pieces
-                at each ';'.
+              We have to turn off CLIENT_MULTI_QUERIES while parsing a
+              stored procedure, otherwise yylex will chop it into pieces
+              at each ';'.
             */
             $<ulong_num>$= YYTHD->client_capabilities & CLIENT_MULTI_QUERIES;
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
+
+            Lex->sql_command= SQLCOM_ALTER_EVENT;
+            /* we need that for disallowing subqueries */
+            Lex->expr_allows_subselect= FALSE;
           }
           ev_alter_on_schedule_completion
           opt_ev_rename_to
@@ -4812,16 +4743,17 @@ alter:
             */
             YYTHD->client_capabilities |= $<ulong_num>4;
 
-            /*
-              sql_command is set here because some rules in ev_sql_stmt
-              can overwrite it
-            */
             if (!($5 || $6 || $7 || $8 || $9))
             {
 	      yyerror(ER(ER_SYNTAX_ERROR));
               YYABORT;
             }
+            /*
+              sql_command is set here because some rules in ev_sql_stmt
+              can overwrite it
+            */
             Lex->sql_command= SQLCOM_ALTER_EVENT;
+            Lex->expr_allows_subselect= TRUE;
           }
         | ALTER TABLESPACE alter_tablespace_info
           {
@@ -4854,9 +4786,11 @@ ev_alter_on_schedule_completion: /* empty */ { $$= 0;}
 opt_ev_rename_to: /* empty */ { $$= 0;}
         | RENAME TO_SYM sp_name
           {
-            LEX *lex=Lex;
-            lex->spname= $3; //use lex's spname to hold the new name
-	                     //the original name is in the Event_timed object
+            /*
+              Use lex's spname to hold the new name.
+              The original name is in the Event_parse_data object
+            */
+            Lex->spname= $3; 
             $$= 1;
           }
       ;
@@ -4880,7 +4814,7 @@ alter_commands:
         | remove_partitioning
         | partitioning
 /*
-  This part was added for release 5.1 by Mikael RonstrÃ¶m.
+  This part was added for release 5.1 by Mikael Ronström.
   From here we insert a number of commands to manage the partitions of a
   partitioned table such as adding partitions, dropping partitions,
   reorganising partitions in various manners. In future releases the list
@@ -4933,7 +4867,7 @@ alter_commands:
             lex->check_opt.init();
           }
           opt_mi_repair_type
-        | COALESCE PARTITION_SYM opt_no_write_to_binlog ulong_num
+        | COALESCE PARTITION_SYM opt_no_write_to_binlog real_ulong_num
           {
             LEX *lex= Lex;
 	    lex->alter_info.flags|= ALTER_COALESCE_PARTITION;
@@ -4981,7 +4915,7 @@ add_part_extra:
           LEX *lex= Lex;
           lex->part_info->no_parts= lex->part_info->partitions.elements;
         }
-        | PARTITIONS_SYM ulong_num
+        | PARTITIONS_SYM real_ulong_num
         {
           LEX *lex= Lex;
           lex->part_info->no_parts= $2;
@@ -7148,8 +7082,7 @@ select_derived2:
         {
 	  LEX *lex= Lex;
 	  lex->derived_tables|= DERIVED_SUBQUERY;
-          if (lex->sql_command == (int)SQLCOM_HA_READ ||
-              lex->sql_command == (int)SQLCOM_KILL)
+          if (!lex->expr_allows_subselect)
 	  {
 	    yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
@@ -7520,7 +7453,15 @@ ulong_num:
 	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
         | DECIMAL_NUM   { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
 	| FLOAT_NUM	{ int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-	;
+        ;
+
+real_ulong_num:
+          NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| HEX_NUM       { $$= (ulong) strtol($1.str, (char**) 0, 16); }
+	| LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+	| ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+        | dec_num_error { YYABORT; }
+        ;
 
 ulonglong_num:
 	NUM	    { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
@@ -7529,6 +7470,23 @@ ulonglong_num:
         | DECIMAL_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
 	| FLOAT_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
 	;
+
+real_ulonglong_num:
+	NUM	    { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+	| LONG_NUM  { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+        | dec_num_error { YYABORT; }
+        ;
+
+dec_num_error:
+        dec_num
+        { yyerror(ER(ER_ONLY_INTEGERS_ALLOWED)); }
+        ;
+
+dec_num:
+        DECIMAL_NUM
+	| FLOAT_NUM
+        ;
 
 procedure_clause:
 	/* empty */
@@ -7743,29 +7701,9 @@ drop:
 	  }
         | DROP EVENT_SYM if_exists sp_name
           {
-            LEX *lex=Lex;
-
-            if (lex->et)
-            {
-              /*
-                Recursive events are not possible because recursive SPs
-                are not also possible. lex->sp_head is not stacked.
-              */
-              my_error(ER_SP_NO_RECURSIVE_CREATE, MYF(0), "EVENT");
-              YYABORT;
-            }
-
-            if (!(lex->et= new (YYTHD->mem_root) Event_timed()))
-              YYABORT;
-	  
-            if (!lex->et_compile_phase)
-            {
-              lex->et->init_name(YYTHD, $4);
-              lex->et->init_definer(YYTHD);
-            }
-
-            lex->sql_command = SQLCOM_DROP_EVENT;
-            lex->drop_if_exists= $3;
+            Lex->drop_if_exists= $3;
+            Lex->spname= $4;
+            Lex->sql_command = SQLCOM_DROP_EVENT;
           }
         | DROP TRIGGER_SYM sp_name
           {
@@ -8173,15 +8111,6 @@ show_param:
              if (prepare_schema_table(YYTHD, lex, 0, SCH_EVENTS))
                YYABORT;
            }
-         | SCHEDULER_SYM STATUS_SYM
-           {
-#ifndef DBUG_OFF
-             Lex->sql_command= SQLCOM_SHOW_SCHEDULER_STATUS;
-#else
-             yyerror(ER(ER_SYNTAX_ERROR));
-             YYABORT;           
-#endif
-           }         
          | TABLE_SYM STATUS_SYM opt_db wild_and_where
            {
              LEX *lex= Lex;
@@ -8458,12 +8387,8 @@ show_param:
           }
         | CREATE EVENT_SYM sp_name
           {
-            Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
             Lex->spname= $3;
-            Lex->et= new (YYTHD->mem_root) Event_timed();
-            if (!Lex->et)
-              YYABORT;
-            Lex->et->init_definer(YYTHD);
+            Lex->sql_command = SQLCOM_SHOW_CREATE_EVENT;
           }
       ;
 
@@ -8565,17 +8490,8 @@ flush:
 	FLUSH_SYM opt_no_write_to_binlog
 	{
 	  LEX *lex=Lex;
-	  if (lex->sphead && lex->sphead->m_type != TYPE_ENUM_PROCEDURE)
-	  {
-            /*
-              Note that both FLUSH TABLES and FLUSH PRIVILEGES will break
-              execution in prelocked mode. So it is better to disable
-              FLUSH in stored functions and triggers completely.
-            */
-            my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
-	    YYABORT;
-	  }
-	  lex->sql_command= SQLCOM_FLUSH; lex->type=0;
+	  lex->sql_command= SQLCOM_FLUSH;
+          lex->type= 0;
           lex->no_write_to_binlog= $2;
 	}
 	flush_options
@@ -8652,11 +8568,17 @@ purge_option:
 /* kill threads */
 
 kill:
-	KILL_SYM { Lex->sql_command= SQLCOM_KILL; } kill_option expr
+	KILL_SYM
+        {
+          Lex->sql_command= SQLCOM_KILL;
+          Lex->expr_allows_subselect= FALSE;
+        }
+        kill_option expr
 	{
 	  LEX *lex=Lex;
 	  lex->value_list.empty();
 	  lex->value_list.push_front($4);
+          Lex->expr_allows_subselect= TRUE;
 	};
 
 kill_option:
@@ -8858,7 +8780,7 @@ text_literal:
 	| NCHAR_STRING
 	{ $$=  new Item_string($1.str,$1.length,national_charset_info); }
 	| UNDERSCORE_CHARSET TEXT_STRING
-	  { $$ = new Item_string($2.str,$2.length,Lex->charset); }
+	  { $$ = new Item_string($2.str,$2.length,Lex->underscore_charset); }
 	| text_literal TEXT_STRING_literal
 	  { ((Item_string*) $1)->append($2.str,$2.length); }
 	;
@@ -8936,7 +8858,7 @@ literal:
 	      (String*) 0;
 	    $$= new Item_string(str ? str->ptr() : "",
 				str ? str->length() : 0,
-				Lex->charset);
+				Lex->underscore_charset);
 	  }
 	| UNDERSCORE_CHARSET BIN_NUM
           {
@@ -9301,6 +9223,10 @@ user:
 	  $$->user = $1;
 	  $$->host.str= (char *) "%";
 	  $$->host.length= 1;
+
+	  if (check_string_length(system_charset_info, &$$->user,
+                                  ER(ER_USERNAME), USERNAME_LENGTH))
+	    YYABORT;
 	}
 	| ident_or_text '@' ident_or_text
 	  {
@@ -9308,6 +9234,12 @@ user:
 	    if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
 	      YYABORT;
 	    $$->user = $1; $$->host=$3;
+
+	    if (check_string_length(system_charset_info, &$$->user,
+                                    ER(ER_USERNAME), USERNAME_LENGTH) ||
+	        check_string_length(&my_charset_latin1, &$$->host,
+                                    ER(ER_HOSTNAME), HOSTNAME_LENGTH))
+	      YYABORT;
 	  }
 	| CURRENT_USER optional_braces
 	{
@@ -9563,7 +9495,6 @@ keyword_sp:
 	| ROW_SYM		{}
 	| RTREE_SYM		{}
 	| SCHEDULE_SYM		{}	
-	| SCHEDULER_SYM		{}	
 	| SECOND_SYM		{}
 	| SERIAL_SYM		{}
 	| SERIALIZABLE_SYM	{}
@@ -10135,6 +10066,7 @@ handler:
 	    my_error(ER_SP_BADSTATEMENT, MYF(0), "HANDLER");
 	    YYABORT;
 	  }
+          lex->expr_allows_subselect= FALSE;
 	  lex->sql_command = SQLCOM_HA_READ;
 	  lex->ha_rkey_mode= HA_READ_KEY_EXACT;	/* Avoid purify warnings */
 	  lex->current_select->select_limit= new Item_int((int32) 1);
@@ -10142,7 +10074,10 @@ handler:
 	  if (!lex->current_select->add_table_to_list(lex->thd, $2, 0, 0))
 	    YYABORT;
         }
-        handler_read_or_scan where_clause opt_limit_clause {}
+        handler_read_or_scan where_clause opt_limit_clause
+        {
+          Lex->expr_allows_subselect= TRUE;
+        }
         ;
 
 handler_read_or_scan:
@@ -10767,8 +10702,7 @@ subselect_start:
 	'(' SELECT_SYM
 	{
 	  LEX *lex=Lex;
-          if (lex->sql_command == (int)SQLCOM_HA_READ ||
-              lex->sql_command == (int)SQLCOM_KILL)
+          if (!lex->expr_allows_subselect)
 	  {
             yyerror(ER(ER_SYNTAX_ERROR));
 	    YYABORT;
@@ -10782,8 +10716,10 @@ subselect_end:
 	{
 	  LEX *lex=Lex;
           lex->pop_context();
+          SELECT_LEX *child= lex->current_select;
 	  lex->current_select = lex->current_select->return_after_parsing();
           lex->nest_level--;
+          lex->current_select->n_child_sum_items += child->n_sum_items;
 	};
 
 /**************************************************************************
@@ -10792,19 +10728,21 @@ subselect_end:
 
 **************************************************************************/
 
-view_or_trigger_or_sp:
-	definer view_or_trigger_or_sp_tail
+view_or_trigger_or_sp_or_event:
+	definer view_or_trigger_or_sp_or_event_tail
 	{}
 	| view_replace_or_algorithm definer view_tail
 	{}
 	;
 
-view_or_trigger_or_sp_tail:
+view_or_trigger_or_sp_or_event_tail:
 	view_tail
 	{}
 	| trigger_tail
 	{}
 	| sp_tail
+	{}
+	| event_tail
 	{}
 	;
 
@@ -10826,15 +10764,9 @@ definer:
            */
           YYTHD->lex->definer= 0;
 	}
-	| DEFINER_SYM EQ CURRENT_USER optional_braces
+	| DEFINER_SYM EQ user
 	{
-          if (! (YYTHD->lex->definer= create_default_definer(YYTHD)))
-            YYABORT;
-	}
-	| DEFINER_SYM EQ ident_or_text '@' ident_or_text
-	{
-          if (!(YYTHD->lex->definer= create_definer(YYTHD, &$3, &$5)))
-            YYABORT;
+	  YYTHD->lex->definer= get_current_user(YYTHD, $3);
 	}
 	;
 

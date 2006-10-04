@@ -53,8 +53,18 @@ bool Protocol_prep::net_store_data(const char *from, uint length)
 }
 
 
-	/* Send a error string to client */
+/*
+   Send a error string to client
 
+   Design note:
+
+   net_printf_error and net_send_error are low-level functions
+   that shall be used only when a new connection is being
+   established or at server startup.
+   For SIGNAL/RESIGNAL and GET DIAGNOSTICS functionality it's
+   critical that every error that can be intercepted is issued in one
+   place only, my_message_sql.
+*/
 void net_send_error(THD *thd, uint sql_errno, const char *err)
 {
   NET *net= &thd->net;
@@ -64,19 +74,15 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
 		      err ? err : net->last_error[0] ?
 		      net->last_error : "NULL"));
 
+  DBUG_ASSERT(!thd->spcont);
+
   if (net && net->no_send_error)
   {
     thd->clear_error();
     DBUG_PRINT("info", ("sending error messages prohibited"));
     DBUG_VOID_RETURN;
   }
-  if (thd->spcont && thd->spcont->find_handler(sql_errno,
-                                               MYSQL_ERROR::WARN_LEVEL_ERROR))
-  {
-    if (! thd->spcont->found_handler_here())
-      thd->net.report_error= 1; /* Make "select" abort correctly */ 
-    DBUG_VOID_RETURN;
-  }
+
   thd->query_error=  1; // needed to catch query errors during replication
   if (!err)
   {
@@ -117,6 +123,15 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
    Write error package and flush to client
    It's a little too low level, but I don't want to use another buffer for
    this
+
+   Design note:
+
+   net_printf_error and net_send_error are low-level functions
+   that shall be used only when a new connection is being
+   established or at server startup.
+   For SIGNAL/RESIGNAL and GET DIAGNOSTICS functionality it's
+   critical that every error that can be intercepted is issued in one
+   place only, my_message_sql.
 */
 
 void
@@ -136,6 +151,8 @@ net_printf_error(THD *thd, uint errcode, ...)
   DBUG_ENTER("net_printf_error");
   DBUG_PRINT("enter",("message: %u",errcode));
 
+  DBUG_ASSERT(!thd->spcont);
+
   if (net && net->no_send_error)
   {
     thd->clear_error();
@@ -143,13 +160,6 @@ net_printf_error(THD *thd, uint errcode, ...)
     DBUG_VOID_RETURN;
   }
 
-  if (thd->spcont && thd->spcont->find_handler(errcode,
-                                               MYSQL_ERROR::WARN_LEVEL_ERROR))
-  {
-    if (! thd->spcont->found_handler_here())
-      thd->net.report_error= 1; /* Make "select" abort correctly */ 
-    DBUG_VOID_RETURN;
-  }
   thd->query_error=  1; // needed to catch query errors during replication
 #ifndef EMBEDDED_LIBRARY
   query_cache_abort(net);	// Safety

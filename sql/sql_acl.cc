@@ -36,114 +36,114 @@ time_t mysql_db_table_last_check= 0L;
 
 TABLE_FIELD_W_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
-    {(char *) STRING_WITH_LEN("Host")},            
-    {(char *) STRING_WITH_LEN("char(60)")},
+    { C_STRING_WITH_LEN("Host") },            
+    { C_STRING_WITH_LEN("char(60)") },
     {NULL, 0}
   }, 
   {
-    {(char *) STRING_WITH_LEN("Db")},            
-    {(char *) STRING_WITH_LEN("char(64)")},
+    { C_STRING_WITH_LEN("Db") },            
+    { C_STRING_WITH_LEN("char(64)") },
     {NULL, 0}
   }, 
   {
-    {(char *) STRING_WITH_LEN("User")},
-    {(char *) STRING_WITH_LEN("char(16)")},
+    { C_STRING_WITH_LEN("User") },
+    { C_STRING_WITH_LEN("char(16)") },
     {NULL, 0}
   },
   {
-    {(char *) STRING_WITH_LEN("Select_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Select_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Insert_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Insert_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Update_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Update_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Delete_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Delete_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Create_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Create_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Drop_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Drop_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Grant_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Grant_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("References_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("References_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Index_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Index_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Alter_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Alter_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Create_tmp_table_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Create_tmp_table_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Lock_tables_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Lock_tables_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Create_view_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Create_view_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Show_view_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Show_view_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Create_routine_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Create_routine_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Alter_routine_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Alter_routine_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Execute_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Execute_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Event_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Event_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   },
   {
-    {(char *) STRING_WITH_LEN("Trigger_priv")},
-    {(char *) STRING_WITH_LEN("enum('N','Y')")},
-    {(char *) STRING_WITH_LEN("utf8")}
+    { C_STRING_WITH_LEN("Trigger_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
   }
 };
 
@@ -169,7 +169,7 @@ static byte* acl_entry_get_key(acl_entry *entry,uint *length,
 }
 
 #define IP_ADDR_STRLEN (3+1+3+1+3+1+3)
-#define ACL_KEY_LENGTH (IP_ADDR_STRLEN+1+NAME_LEN+1+USERNAME_LENGTH+1)
+#define ACL_KEY_LENGTH (IP_ADDR_STRLEN+1+NAME_BYTE_LEN+1+USERNAME_BYTE_LENGTH+1)
 
 static DYNAMIC_ARRAY acl_hosts,acl_users,acl_dbs;
 static MEM_ROOT mem, memex;
@@ -312,7 +312,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   READ_RECORD read_record_info;
   my_bool return_val= 1;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  char tmp_name[NAME_LEN+1];
+  char tmp_name[NAME_BYTE_LEN+1];
   int password_length;
   DBUG_ENTER("acl_load");
 
@@ -2401,7 +2401,7 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
                                     const char *user, const char *tname,
                                     bool exact)
 {
-  char helping [NAME_LEN*2+USERNAME_LENGTH+3];
+  char helping [NAME_BYTE_LEN*2+USERNAME_BYTE_LENGTH+3];
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
@@ -3044,14 +3044,6 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       result= TRUE;
       continue;
     }  
-    if (Str->host.length > HOSTNAME_LENGTH ||
-	Str->user.length > USERNAME_LENGTH)
-    {
-      my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
-                 MYF(0));
-      result= TRUE;
-      continue;
-    }
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users,
@@ -3256,15 +3248,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       result= TRUE;
       continue;
     }  
-    if (Str->host.length > HOSTNAME_LENGTH ||
-	Str->user.length > USERNAME_LENGTH)
-    {
-      if (!no_error)
-	my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
-                   MYF(0));
-      result= TRUE;
-      continue;
-    }
     /* Create user if needed */
     error=replace_user_table(thd, tables[0].table, *Str,
 			     0, revoke_grant, create_new_users,
@@ -3325,7 +3308,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 {
   List_iterator <LEX_USER> str_list (list);
   LEX_USER *Str, *tmp_Str;
-  char tmp_db[NAME_LEN+1];
+  char tmp_db[NAME_BYTE_LEN+1];
   bool create_new_users=0;
   TABLE_LIST tables[2];
   DBUG_ENTER("mysql_grant");
@@ -3390,14 +3373,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= TRUE;
       continue;
     }  
-    if (Str->host.length > HOSTNAME_LENGTH ||
-	Str->user.length > USERNAME_LENGTH)
-    {
-      my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
-                 MYF(0));
-      result= -1;
-      continue;
-    }
     if (replace_user_table(thd, tables[0].table, *Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
                            test(thd->variables.sql_mode &
@@ -4037,7 +4012,7 @@ err2:
 bool check_grant_db(THD *thd,const char *db)
 {
   Security_context *sctx= thd->security_ctx;
-  char helping [NAME_LEN+USERNAME_LENGTH+2];
+  char helping [NAME_BYTE_LEN+USERNAME_BYTE_LENGTH+2];
   uint len;
   bool error= 1;
 
@@ -4304,14 +4279,6 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
   if (!initialized)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(TRUE);
-  }
-
-  if (lex_user->host.length > HOSTNAME_LENGTH ||
-      lex_user->user.length > USERNAME_LENGTH)
-  {
-    my_message(ER_GRANT_WRONG_HOST_OR_USER, ER(ER_GRANT_WRONG_HOST_OR_USER),
-               MYF(0));
     DBUG_RETURN(TRUE);
   }
 
@@ -5412,14 +5379,6 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    if (user_name->host.length > HOSTNAME_LENGTH ||
-	user_name->user.length > USERNAME_LENGTH)
-    {
-      append_user(&wrong_users, user_name);
-      result= TRUE;
-      continue;
-    }
-
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
@@ -5612,8 +5571,6 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     }  
     if (!find_acl_user(lex_user->host.str, lex_user->user.str, TRUE))
     {
-      sql_print_error("REVOKE ALL PRIVILEGES, GRANT: User '%s'@'%s' does not "
-                      "exists", lex_user->user.str, lex_user->host.str);
       result= -1;
       continue;
     }

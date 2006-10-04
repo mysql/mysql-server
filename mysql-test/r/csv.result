@@ -5195,3 +5195,13 @@ select * from t1 where i between 2 and 4 and v in ('def','3r4f','lmn');
 i	v
 4	3r4f
 drop table t1;
+create table bug15205 (val int(11) default null) engine=csv;
+create table bug15205_2 (val int(11) default null) engine=csv;
+select * from bug15205;
+ERROR HY000: Can't get stat of './test/bug15205.CSV' (Errcode: 2)
+select * from bug15205_2;
+val
+select * from bug15205;
+val
+drop table bug15205;
+drop table bug15205_2;

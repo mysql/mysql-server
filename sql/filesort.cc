@@ -886,7 +886,6 @@ static void make_sortkey(register SORTPARAM *param,
 static void register_used_fields(SORTPARAM *param)
 {
   reg1 SORT_FIELD *sort_field;
-  reg5 uint length;
   TABLE *table=param->sort_form;
   MY_BITMAP *bitmap= table->read_set;
 

@@ -32,15 +32,15 @@ USE events_conn1_test2;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
 COUNT(*)
 50
-SET GLOBAL event_scheduler=1;
+SET GLOBAL event_scheduler=on;
 DROP DATABASE events_conn1_test2;
-SET GLOBAL event_scheduler=2;
+SET GLOBAL event_scheduler=off;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test2';
 COUNT(*)
 0
 CREATE DATABASE events_conn1_test3;
 USE events_conn1_test3;
-SET GLOBAL event_scheduler=1;
+SET GLOBAL event_scheduler=on;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_SCHEMA='events_conn1_test3';
 COUNT(*)
 50
@@ -55,9 +55,9 @@ DROP DATABASE events_conn2_db;
 DROP DATABASE events_conn3_db;
 DROP DATABASE events_conn1_test2;
 DROP DATABASE events_conn1_test3;
-SET GLOBAL event_scheduler=2;
+SET GLOBAL event_scheduler=off;
 DROP DATABASE events_conn1_test4;
-SET GLOBAL event_scheduler=1;
+SET GLOBAL event_scheduler=on;
 USE events_test;
 DROP TABLE fill_it1;
 DROP TABLE fill_it2;

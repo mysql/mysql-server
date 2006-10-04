@@ -89,7 +89,7 @@ scan_again:
 		ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 		if (block->space == id
-			&& (block->buf_fix_count > 0 || block->io_fix != 0)) {
+		    && (block->buf_fix_count > 0 || block->io_fix != 0)) {
 
 			/* We cannot remove this page during this scan yet;
 			maybe the system is currently reading it in, or
@@ -103,8 +103,8 @@ scan_again:
 		if (block->space == id) {
 #ifdef UNIV_DEBUG
 			if (buf_debug_prints) {
-				printf(
-				"Dropping space %lu page %lu\n",
+				fprintf(stderr,
+					"Dropping space %lu page %lu\n",
 					(ulong) block->space,
 					(ulong) block->offset);
 			}
@@ -118,19 +118,19 @@ scan_again:
 				an S-latch on the page */
 
 				btr_search_drop_page_hash_when_freed(id,
-								page_no);
+								     page_no);
 				goto scan_again;
 			}
 
 			if (0 != ut_dulint_cmp(block->oldest_modification,
-							ut_dulint_zero)) {
+					       ut_dulint_zero)) {
 
 				/* Remove from the flush list of modified
 				blocks */
 				block->oldest_modification = ut_dulint_zero;
 
 				UT_LIST_REMOVE(flush_list,
-						buf_pool->flush_list, block);
+					       buf_pool->flush_list, block);
 			}
 
 			/* Remove from the LRU list */
@@ -216,7 +216,8 @@ buf_LRU_search_and_free_block(
 #ifdef UNIV_DEBUG
 			if (buf_debug_prints) {
 				fprintf(stderr,
-				"Putting space %lu page %lu to free list\n",
+					"Putting space %lu page %lu"
+					" to free list\n",
 					(ulong) block->space,
 					(ulong) block->offset);
 			}
@@ -246,8 +247,8 @@ buf_LRU_search_and_free_block(
 		distance++;
 
 		if (!freed && n_iterations <= 10
-			&& distance > 100 + (n_iterations * buf_pool->curr_size)
-			/ 10) {
+		    && distance > 100 + (n_iterations * buf_pool->curr_size)
+		    / 10) {
 			buf_pool->LRU_flush_ended = 0;
 
 			mutex_exit(&(buf_pool->mutex));
@@ -309,7 +310,7 @@ buf_LRU_buf_pool_running_out(void)
 	mutex_enter(&(buf_pool->mutex));
 
 	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 4) {
+	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 4) {
 
 		ret = TRUE;
 	}
@@ -340,23 +341,28 @@ loop:
 	mutex_enter(&(buf_pool->mutex));
 
 	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 20) {
+	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 20) {
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
-"  InnoDB: ERROR: over 95 percent of the buffer pool is occupied by\n"
-"InnoDB: lock heaps or the adaptive hash index! Check that your\n"
-"InnoDB: transactions do not set too many row locks.\n"
-"InnoDB: Your buffer pool size is %lu MB. Maybe you should make\n"
-"InnoDB: the buffer pool bigger?\n"
-"InnoDB: We intentionally generate a seg fault to print a stack trace\n"
-"InnoDB: on Linux!\n",
-		(ulong)(buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE)));
+			"  InnoDB: ERROR: over 95 percent of the buffer pool"
+			" is occupied by\n"
+			"InnoDB: lock heaps or the adaptive hash index!"
+			" Check that your\n"
+			"InnoDB: transactions do not set too many row locks.\n"
+			"InnoDB: Your buffer pool size is %lu MB."
+			" Maybe you should make\n"
+			"InnoDB: the buffer pool bigger?\n"
+			"InnoDB: We intentionally generate a seg fault"
+			" to print a stack trace\n"
+			"InnoDB: on Linux!\n",
+			(ulong) (buf_pool->curr_size
+				 / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
 		ut_error;
 
 	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-	   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 3) {
+		   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 3) {
 
 		if (!buf_lru_switched_on_innodb_mon) {
 
@@ -366,14 +372,20 @@ loop:
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: WARNING: over 67 percent of the buffer pool is occupied by\n"
-"InnoDB: lock heaps or the adaptive hash index! Check that your\n"
-"InnoDB: transactions do not set too many row locks.\n"
-"InnoDB: Your buffer pool size is %lu MB. Maybe you should make\n"
-"InnoDB: the buffer pool bigger?\n"
-"InnoDB: Starting the InnoDB Monitor to print diagnostics, including\n"
-"InnoDB: lock heap and hash index sizes.\n",
-			(ulong) (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE)));
+				"  InnoDB: WARNING: over 67 percent of"
+				" the buffer pool is occupied by\n"
+				"InnoDB: lock heaps or the adaptive"
+				" hash index! Check that your\n"
+				"InnoDB: transactions do not set too many"
+				" row locks.\n"
+				"InnoDB: Your buffer pool size is %lu MB."
+				" Maybe you should make\n"
+				"InnoDB: the buffer pool bigger?\n"
+				"InnoDB: Starting the InnoDB Monitor to print"
+				" diagnostics, including\n"
+				"InnoDB: lock heap and hash index sizes.\n",
+				(ulong) (buf_pool->curr_size
+					 / (1024 * 1024 / UNIV_PAGE_SIZE)));
 
 			buf_lru_switched_on_innodb_mon = TRUE;
 			srv_print_innodb_monitor = TRUE;
@@ -405,7 +417,8 @@ loop:
 				/* Remove from the list of mapped pages */
 
 				UT_LIST_REMOVE(awe_LRU_free_mapped,
-					buf_pool->awe_LRU_free_mapped, block);
+					       buf_pool->awe_LRU_free_mapped,
+					       block);
 			} else {
 				/* We map the page to a frame; second param
 				FALSE below because we do not want it to be
@@ -440,18 +453,25 @@ loop:
 	if (n_iterations > 30) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-		"InnoDB: Warning: difficult to find free blocks from\n"
-		"InnoDB: the buffer pool (%lu search iterations)! Consider\n"
-		"InnoDB: increasing the buffer pool size.\n"
-		"InnoDB: It is also possible that in your Unix version\n"
-		"InnoDB: fsync is very slow, or completely frozen inside\n"
-		"InnoDB: the OS kernel. Then upgrading to a newer version\n"
-		"InnoDB: of your operating system may help. Look at the\n"
-		"InnoDB: number of fsyncs in diagnostic info below.\n"
-		"InnoDB: Pending flushes (fsync) log: %lu; buffer pool: %lu\n"
-		"InnoDB: %lu OS file reads, %lu OS file writes, %lu OS fsyncs\n"
-		"InnoDB: Starting InnoDB Monitor to print further\n"
-		"InnoDB: diagnostics to the standard output.\n",
+			"InnoDB: Warning: difficult to find free blocks from\n"
+			"InnoDB: the buffer pool (%lu search iterations)!"
+			" Consider\n"
+			"InnoDB: increasing the buffer pool size.\n"
+			"InnoDB: It is also possible that"
+			" in your Unix version\n"
+			"InnoDB: fsync is very slow, or"
+			" completely frozen inside\n"
+			"InnoDB: the OS kernel. Then upgrading to"
+			" a newer version\n"
+			"InnoDB: of your operating system may help."
+			" Look at the\n"
+			"InnoDB: number of fsyncs in diagnostic info below.\n"
+			"InnoDB: Pending flushes (fsync) log: %lu;"
+			" buffer pool: %lu\n"
+			"InnoDB: %lu OS file reads, %lu OS file writes,"
+			" %lu OS fsyncs\n"
+			"InnoDB: Starting InnoDB Monitor to print further\n"
+			"InnoDB: diagnostics to the standard output.\n",
 			(ulong) n_iterations,
 			(ulong) fil_n_pending_log_flushes,
 			(ulong) fil_n_pending_tablespace_flushes,
@@ -522,20 +542,20 @@ buf_LRU_old_adjust_len(void)
 
 		if (old_len < new_len - BUF_LRU_OLD_TOLERANCE) {
 
-			buf_pool->LRU_old = UT_LIST_GET_PREV(LRU,
-							buf_pool->LRU_old);
+			buf_pool->LRU_old = UT_LIST_GET_PREV
+				(LRU, buf_pool->LRU_old);
 			(buf_pool->LRU_old)->old = TRUE;
 			buf_pool->LRU_old_len++;
 
 		} else if (old_len > new_len + BUF_LRU_OLD_TOLERANCE) {
 
 			(buf_pool->LRU_old)->old = FALSE;
-			buf_pool->LRU_old = UT_LIST_GET_NEXT(LRU,
-							buf_pool->LRU_old);
+			buf_pool->LRU_old = UT_LIST_GET_NEXT
+				(LRU, buf_pool->LRU_old);
 			buf_pool->LRU_old_len--;
 		} else {
 			ut_a(buf_pool->LRU_old); /* Check that we did not
-						fall out of the LRU list */
+						 fall out of the LRU list */
 			return;
 		}
 	}
@@ -613,7 +633,7 @@ buf_LRU_remove_block(
 		/* Remove from the list of mapped pages */
 
 		UT_LIST_REMOVE(awe_LRU_free_mapped,
-					buf_pool->awe_LRU_free_mapped, block);
+			       buf_pool->awe_LRU_free_mapped, block);
 	}
 
 	/* If the LRU list is so short that LRU_old not defined, return */
@@ -672,7 +692,7 @@ buf_LRU_add_block_to_end_low(
 		/* Add to the list of mapped pages */
 
 		UT_LIST_ADD_LAST(awe_LRU_free_mapped,
-					buf_pool->awe_LRU_free_mapped, block);
+				 buf_pool->awe_LRU_free_mapped, block);
 	}
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
@@ -729,7 +749,7 @@ buf_LRU_add_block_low(
 		TRUE */
 
 		UT_LIST_ADD_FIRST(awe_LRU_free_mapped,
-					buf_pool->awe_LRU_free_mapped, block);
+				  buf_pool->awe_LRU_free_mapped, block);
 	}
 
 	if (!old || (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN)) {
@@ -740,7 +760,7 @@ buf_LRU_add_block_low(
 		block->freed_page_clock = buf_pool->freed_page_clock;
 	} else {
 		UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU, buf_pool->LRU_old,
-								block);
+				     block);
 		buf_pool->LRU_old_len++;
 
 		/* We copy the LRU position field of the previous block
@@ -822,7 +842,7 @@ buf_LRU_block_free_non_file_page(
 	ut_ad(block);
 
 	ut_a((block->state == BUF_BLOCK_MEMORY)
-		|| (block->state == BUF_BLOCK_READY_FOR_USE));
+	     || (block->state == BUF_BLOCK_READY_FOR_USE));
 
 	ut_a(block->n_pointers == 0);
 	ut_a(!block->in_free_list);
@@ -840,7 +860,7 @@ buf_LRU_block_free_non_file_page(
 		/* Add to the list of mapped pages */
 
 		UT_LIST_ADD_FIRST(awe_LRU_free_mapped,
-					buf_pool->awe_LRU_free_mapped, block);
+				  buf_pool->awe_LRU_free_mapped, block);
 	}
 }
 
@@ -875,16 +895,21 @@ buf_LRU_block_remove_hashed_page(
 
 	if (block != buf_page_hash_get(block->space, block->offset)) {
 		fprintf(stderr,
-"InnoDB: Error: page %lu %lu not found from the hash table\n",
+			"InnoDB: Error: page %lu %lu not found"
+			" in the hash table\n",
 			(ulong) block->space,
 			(ulong) block->offset);
 		if (buf_page_hash_get(block->space, block->offset)) {
 			fprintf(stderr,
-"InnoDB: From hash table we find block %p of %lu %lu which is not %p\n",
-		(void*) buf_page_hash_get(block->space, block->offset),
-		(ulong) buf_page_hash_get(block->space, block->offset)->space,
-		(ulong) buf_page_hash_get(block->space, block->offset)->offset,
-		(void*) block);
+				"InnoDB: In hash table we find block"
+				" %p of %lu %lu which is not %p\n",
+				(void*) buf_page_hash_get
+				(block->space, block->offset),
+				(ulong) buf_page_hash_get
+				(block->space, block->offset)->space,
+				(ulong) buf_page_hash_get
+				(block->space, block->offset)->offset,
+				(void*) block);
 		}
 
 #ifdef UNIV_DEBUG
@@ -897,8 +922,8 @@ buf_LRU_block_remove_hashed_page(
 	}
 
 	HASH_DELETE(buf_block_t, hash, buf_pool->page_hash,
-			buf_page_address_fold(block->space, block->offset),
-			block);
+		    buf_page_address_fold(block->space, block->offset),
+		    block);
 
 	block->state = BUF_BLOCK_REMOVE_HASH;
 }
@@ -1009,7 +1034,8 @@ buf_LRU_print(void)
 	ut_ad(buf_pool);
 	mutex_enter(&(buf_pool->mutex));
 
-	fprintf(stderr, "Pool ulint clock %lu\n", (ulong) buf_pool->ulint_clock);
+	fprintf(stderr, "Pool ulint clock %lu\n",
+		(ulong) buf_pool->ulint_clock);
 
 	block = UT_LIST_GET_FIRST(buf_pool->LRU);
 
@@ -1033,7 +1059,7 @@ buf_LRU_print(void)
 		}
 
 		if (ut_dulint_cmp(block->oldest_modification,
-				ut_dulint_zero) > 0) {
+				  ut_dulint_zero) > 0) {
 			fputs("modif. ", stderr);
 		}
 
@@ -1042,7 +1068,8 @@ buf_LRU_print(void)
 		fprintf(stderr, "LRU pos %lu type %lu index id %lu ",
 			(ulong) block->LRU_position,
 			(ulong) fil_page_get_type(frame),
-			(ulong) ut_dulint_get_low(btr_page_get_index_id(frame)));
+			(ulong) ut_dulint_get_low
+			(btr_page_get_index_id(frame)));
 
 		block = UT_LIST_GET_NEXT(LRU, block);
 		if (++len == 10) {

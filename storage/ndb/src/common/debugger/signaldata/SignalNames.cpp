@@ -633,5 +633,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_DICT_LOCK_REF,          "DICT_LOCK_REF" }
   ,{ GSN_DICT_UNLOCK_ORD,        "DICT_UNLOCK_ORD" }
 
+  ,{ GSN_DICT_COMMIT_REQ,  "DICT_COMMIT_REQ"}
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

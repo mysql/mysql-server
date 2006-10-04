@@ -209,7 +209,7 @@ que_thr_create(
 
 	thr->run_node = NULL;
 	thr->resource = 0;
-  thr->lock_state = QUE_THR_LOCK_NOLOCK;
+	thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 	UT_LIST_ADD_LAST(thrs, parent->thrs, thr);
 
@@ -243,8 +243,8 @@ que_thr_end_wait(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
-		|| (thr->state == QUE_THR_PROCEDURE_WAIT)
-		|| (thr->state == QUE_THR_SIG_REPLY_WAIT));
+	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
+	      || (thr->state == QUE_THR_SIG_REPLY_WAIT));
 	ut_ad(thr->run_node);
 
 	thr->prev_node = thr->run_node;
@@ -285,8 +285,8 @@ que_thr_end_wait_no_next_thr(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
-		|| (thr->state == QUE_THR_PROCEDURE_WAIT)
-		|| (thr->state == QUE_THR_SIG_REPLY_WAIT));
+	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
+	      || (thr->state == QUE_THR_SIG_REPLY_WAIT));
 
 	was_active = thr->is_active;
 
@@ -345,7 +345,8 @@ que_fork_start_command(
 	there may be several to choose from */
 
 	/*---------------------------------------------------------------
-	First we try to find a query thread in the QUE_THR_COMMAND_WAIT state */
+	First we try to find a query thread in the QUE_THR_COMMAND_WAIT state
+	*/
 
 	thr = UT_LIST_GET_FIRST(fork->thrs);
 
@@ -531,7 +532,8 @@ que_graph_free_recursive(
 
 		if (thr->magic_n != QUE_THR_MAGIC_N) {
 			fprintf(stderr,
-		"que_thr struct appears corrupt; magic n %lu\n",
+				"que_thr struct appears corrupt;"
+				" magic n %lu\n",
 				(unsigned long) thr->magic_n);
 			mem_analyze_corruption(thr);
 			ut_error;
@@ -644,7 +646,7 @@ que_graph_free_recursive(
 		break;
 	default:
 		fprintf(stderr,
-		"que_node struct appears corrupt; type %lu\n",
+			"que_node struct appears corrupt; type %lu\n",
 			(unsigned long) que_node_get_type(node));
 		mem_analyze_corruption(node);
 		ut_error;
@@ -702,7 +704,7 @@ que_graph_try_free(
 	sess = (graph->trx)->sess;
 
 	if ((graph->state == QUE_FORK_BEING_FREED)
-					&& (graph->n_active_thrs == 0)) {
+	    && (graph->n_active_thrs == 0)) {
 
 		UT_LIST_REMOVE(graphs, sess->graphs, graph);
 		que_graph_free(graph);
@@ -831,7 +833,7 @@ que_thr_dec_refer_count(
 			running the thread */
 
 			/* fputs("!!!!!!!! Wait already ended: continue thr\n",
-				stderr); */
+			stderr); */
 
 			if (next_thr && *next_thr == NULL) {
 				/* Normally srv_suspend_mysql_thread resets
@@ -944,13 +946,13 @@ que_thr_stop(
 		thr->state = QUE_THR_LOCK_WAIT;
 
 	} else if (trx->error_state != DB_SUCCESS
-			&& trx->error_state != DB_LOCK_WAIT) {
+		   && trx->error_state != DB_LOCK_WAIT) {
 
 		/* Error handling built for the MySQL interface */
 		thr->state = QUE_THR_COMPLETED;
 
 	} else if (UT_LIST_GET_LEN(trx->signals) > 0
-				&& graph->fork_type != QUE_FORK_ROLLBACK) {
+		   && graph->fork_type != QUE_FORK_ROLLBACK) {
 
 		thr->state = QUE_THR_SUSPENDED;
 	} else {
@@ -982,7 +984,7 @@ que_thr_stop_for_mysql(
 	if (thr->state == QUE_THR_RUNNING) {
 
 		if (trx->error_state != DB_SUCCESS
-				&& trx->error_state != DB_LOCK_WAIT) {
+		    && trx->error_state != DB_LOCK_WAIT) {
 
 			/* Error handling built for the MySQL interface */
 			thr->state = QUE_THR_COMPLETED;
@@ -1022,7 +1024,7 @@ que_thr_move_to_run_state_for_mysql(
 {
 	if (thr->magic_n != QUE_THR_MAGIC_N) {
 		fprintf(stderr,
-	"que_thr struct appears corrupt; magic n %lu\n",
+			"que_thr struct appears corrupt; magic n %lu\n",
 			(unsigned long) thr->magic_n);
 
 		mem_analyze_corruption(thr);
@@ -1059,7 +1061,7 @@ que_thr_stop_for_mysql_no_error(
 
 	if (thr->magic_n != QUE_THR_MAGIC_N) {
 		fprintf(stderr,
-	"que_thr struct appears corrupt; magic n %lu\n",
+			"que_thr struct appears corrupt; magic n %lu\n",
 			(unsigned long) thr->magic_n);
 
 		mem_analyze_corruption(thr);
@@ -1165,7 +1167,8 @@ que_node_print_info(
 		str = "UNKNOWN NODE TYPE";
 	}
 
-	fprintf(stderr, "Node type %lu: %s, address %p\n", (ulong) type, str, node);
+	fprintf(stderr, "Node type %lu: %s, address %p\n",
+		(ulong) type, str, (void*) node);
 }
 
 /**************************************************************************
@@ -1204,7 +1207,7 @@ que_thr_step(
 #endif
 	if (type & QUE_NODE_CONTROL_STAT) {
 		if ((thr->prev_node != que_node_get_parent(node))
-				&& que_node_get_next(thr->prev_node)) {
+		    && que_node_get_next(thr->prev_node)) {
 
 			/* The control statements, like WHILE, always pass the
 			control to the next child statement if there is any
@@ -1224,7 +1227,7 @@ que_thr_step(
 
 			if (thr->prev_node == que_node_get_parent(node)) {
 				trx->last_sql_stat_start.least_undo_no
-							= trx->undo_no;
+					= trx->undo_no;
 			}
 
 			proc_step(thr);
@@ -1251,9 +1254,9 @@ que_thr_step(
 	} else if (type == QUE_NODE_LOCK) {
 
 		ut_error;
-/*
+		/*
 		thr = que_lock_step(thr);
-*/
+		*/
 	} else if (type == QUE_NODE_THR) {
 		thr = que_thr_node_step(thr);
 	} else if (type == QUE_NODE_COMMIT) {

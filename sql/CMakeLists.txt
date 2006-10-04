@@ -27,15 +27,15 @@ ADD_DEFINITIONS(-DHAVE_ROW_BASED_REPLICATION -DMYSQL_SERVER
 
 ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc field_conv.cc 
-               filesort.cc gstream.cc  ha_heap.cc ha_myisam.cc ha_myisammrg.cc
-               ha_innodb.cc ha_partition.cc ha_federated.cc
+               filesort.cc gstream.cc
+               ha_partition.cc
                handler.cc hash_filo.cc hash_filo.h 
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
                item_strfunc.cc item_subselect.cc item_sum.cc item_timefunc.cc 
                item_uniq.cc key.cc log.cc lock.cc log_event.cc message.rc 
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
-               ../storage/myisammrg/myrg_rnext_same.c mysqld.cc net_serv.cc 
+               mysqld.cc net_serv.cc 
                nt_servc.cc nt_servc.h opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
@@ -50,7 +50,8 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
                time.cc tztime.cc uniques.cc unireg.cc item_xmlfunc.cc 
-               rpl_tblmap.cc sql_binlog.cc event_scheduler.cc event_timed.cc 
+               rpl_tblmap.cc sql_binlog.cc event_scheduler.cc event_data_objects.cc
+               event_queue.cc event_db_repository.cc 
                sql_tablespace.cc events.cc ../sql-common/my_user.c 
                partition_info.cc rpl_injector.cc sql_locale.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
@@ -75,6 +76,9 @@ ENDIF(WITH_CSV_STORAGE_ENGINE)
 IF(WITH_EXAMPLE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld example)
 ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
+IF(WITH_FEDERATED_STORAGE_ENGINE)
+  TARGET_LINK_LIBRARIES(mysqld federated)
+ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   TARGET_LINK_LIBRARIES(mysqld innobase)
 ENDIF(WITH_INNOBASE_STORAGE_ENGINE)

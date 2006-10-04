@@ -10,6 +10,7 @@ TOP_SRCDIR = ../../../..
 INCLUDE_DIR = $(TOP_SRCDIR)
 LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/src/.libs \
           -L$(TOP_SRCDIR)/libmysql_r/.libs \
+          -L$(TOP_SRCDIR)/zlib/.libs \
           -L$(TOP_SRCDIR)/mysys -L$(TOP_SRCDIR)/strings
 SYS_LIB = 
 

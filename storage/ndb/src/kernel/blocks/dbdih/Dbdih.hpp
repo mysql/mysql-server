@@ -469,11 +469,17 @@ public:
       NORMAL_HASH = 2,
       USER_DEFINED = 3
     };
+    enum Storage {
+      ST_NOLOGGING = 0,         // Table is not logged, but survives SR
+      ST_NORMAL = 1,            // Normal table, logged and durable
+      ST_TEMPORARY = 2          // Table is lost after SR, not logged
+    };
     CopyStatus tabCopyStatus;
     UpdateState tabUpdateState;
     TabLcpStatus tabLcpStatus;
     TabStatus tabStatus;
     Method method;
+    Storage tabStorage;
 
     Uint32 pageRef[8];
 //-----------------------------------------------------------------------------
@@ -506,7 +512,6 @@ public:
     Uint8 kvalue;
     Uint8 noOfBackups;
     Uint8 noPages;
-    Uint8 storedTable;              /* 0 IF THE TABLE IS A TEMPORARY TABLE */
     Uint16 tableType;
     Uint16 primaryTableId;
   };

@@ -104,21 +104,21 @@ cmp_types_are_equal(
 	ibool		check_charsets) /* in: whether to check charsets */
 {
 	if (dtype_is_non_binary_string_type(type1->mtype, type1->prtype)
-		&& dtype_is_non_binary_string_type(type2->mtype, type2->prtype)) {
+	    && dtype_is_non_binary_string_type(type2->mtype, type2->prtype)) {
 
 		/* Both are non-binary string types: they can be compared if
 		and only if the charset-collation is the same */
 
 		if (check_charsets) {
 			return(dtype_get_charset_coll(type1->prtype)
-				== dtype_get_charset_coll(type2->prtype));
+			       == dtype_get_charset_coll(type2->prtype));
 		} else {
 			return(TRUE);
 		}
 	}
 
 	if (dtype_is_binary_string_type(type1->mtype, type1->prtype)
-		&& dtype_is_binary_string_type(type2->mtype, type2->prtype)) {
+	    && dtype_is_binary_string_type(type2->mtype, type2->prtype)) {
 
 		/* Both are binary string types: they can be compared */
 
@@ -131,8 +131,8 @@ cmp_types_are_equal(
 	}
 
 	if (type1->mtype == DATA_INT
-		&& (type1->prtype & DATA_UNSIGNED)
-		!= (type2->prtype & DATA_UNSIGNED)) {
+	    && (type1->prtype & DATA_UNSIGNED)
+	    != (type2->prtype & DATA_UNSIGNED)) {
 
 		/* The storage format of an unsigned integer is different
 		from a signed integer: in a signed integer we OR
@@ -257,18 +257,19 @@ cmp_whole_field(
 	case DATA_MYSQL:
 	case DATA_BLOB:
 		if (data_type == DATA_BLOB
-			&& 0 != (type->prtype & DATA_BINARY_TYPE)) {
+		    && 0 != (type->prtype & DATA_BINARY_TYPE)) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-"  InnoDB: Error: comparing a binary BLOB with a character set sensitive\n"
-"InnoDB: comparison!\n");
+				"  InnoDB: Error: comparing a binary BLOB"
+				" with a character set sensitive\n"
+				"InnoDB: comparison!\n");
 		}
 
-		return(innobase_mysql_cmp(
-				(int)(type->prtype & DATA_MYSQL_TYPE_MASK),
-				(uint)dtype_get_charset_coll(type->prtype),
-				a, a_length, b, b_length));
+		return(innobase_mysql_cmp
+		       ((int)(type->prtype & DATA_MYSQL_TYPE_MASK),
+			(uint)dtype_get_charset_coll(type->prtype),
+			a, a_length, b, b_length));
 	default:
 		fprintf(stderr,
 			"InnoDB: unknown type number %lu\n",
@@ -322,14 +323,14 @@ cmp_data_data_slow(
 	}
 
 	if (cur_type->mtype >= DATA_FLOAT
-		|| (cur_type->mtype == DATA_BLOB
-			&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
-			&& dtype_get_charset_coll(cur_type->prtype) !=
-			DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
+	    || (cur_type->mtype == DATA_BLOB
+		&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+		&& dtype_get_charset_coll(cur_type->prtype)
+		!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 		return(cmp_whole_field(cur_type,
-					data1, (unsigned) len1,
-					data2, (unsigned) len2));
+				       data1, (unsigned) len1,
+				       data2, (unsigned) len2));
 	}
 
 	/* Compare then the fields */
@@ -372,8 +373,8 @@ cmp_data_data_slow(
 		}
 
 		if (cur_type->mtype <= DATA_CHAR
-			|| (cur_type->mtype == DATA_BLOB
-				&& 0 == (cur_type->prtype & DATA_BINARY_TYPE))) {
+		    || (cur_type->mtype == DATA_BLOB
+			&& 0 == (cur_type->prtype & DATA_BINARY_TYPE))) {
 
 			data1_byte = cmp_collate(data1_byte);
 			data2_byte = cmp_collate(data2_byte);
@@ -381,12 +382,12 @@ cmp_data_data_slow(
 
 		if (data1_byte > data2_byte) {
 
-				return(1);
+			return(1);
 		} else if (data1_byte < data2_byte) {
 
-				return(-1);
+			return(-1);
 		}
-	next_byte:
+next_byte:
 		/* Next byte */
 		cur_bytes++;
 		data1++;
@@ -465,7 +466,7 @@ cmp_dtuple_rec_with_match(
 
 	if (cur_bytes == 0 && cur_field == 0) {
 		ulint	rec_info = rec_get_info_bits(rec,
-				rec_offs_comp(offsets));
+						     rec_offs_comp(offsets));
 		ulint	tup_info = dtuple_get_info_bits(dtuple);
 
 		if (rec_info & REC_INFO_MIN_REC_FLAG) {
@@ -488,7 +489,7 @@ cmp_dtuple_rec_with_match(
 		dtuple_f_len = dfield_get_len(dtuple_field);
 
 		rec_b_ptr = rec_get_nth_field(rec, offsets,
-						cur_field, &rec_f_len);
+					      cur_field, &rec_f_len);
 
 		/* If we have matched yet 0 bytes, it may be that one or
 		both the fields are SQL null, or the record or dtuple may be
@@ -524,16 +525,15 @@ cmp_dtuple_rec_with_match(
 		}
 
 		if (cur_type->mtype >= DATA_FLOAT
-			|| (cur_type->mtype == DATA_BLOB
-				&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
-				&& dtype_get_charset_coll(cur_type->prtype) !=
-				DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
+		    || (cur_type->mtype == DATA_BLOB
+			&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+			&& dtype_get_charset_coll(cur_type->prtype)
+			!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
-			ret = cmp_whole_field(
-				cur_type,
-				dfield_get_data(dtuple_field),
-				(unsigned) dtuple_f_len,
-				rec_b_ptr, (unsigned) rec_f_len);
+			ret = cmp_whole_field(cur_type,
+					      dfield_get_data(dtuple_field),
+					      (unsigned) dtuple_f_len,
+					      rec_b_ptr, (unsigned) rec_f_len);
 
 			if (ret != 0) {
 				cur_bytes = 0;
@@ -548,7 +548,7 @@ cmp_dtuple_rec_with_match(
 
 		rec_b_ptr = rec_b_ptr + cur_bytes;
 		dtuple_b_ptr = (byte*)dfield_get_data(dtuple_field)
-								+ cur_bytes;
+			+ cur_bytes;
 		/* Compare then the fields */
 
 		for (;;) {
@@ -590,9 +590,8 @@ cmp_dtuple_rec_with_match(
 			}
 
 			if (cur_type->mtype <= DATA_CHAR
-				|| (cur_type->mtype == DATA_BLOB
-					&& 0 ==
-					(cur_type->prtype & DATA_BINARY_TYPE))) {
+			    || (cur_type->mtype == DATA_BLOB
+				&& !(cur_type->prtype & DATA_BINARY_TYPE))) {
 
 				rec_byte = cmp_collate(rec_byte);
 				dtuple_byte = cmp_collate(dtuple_byte);
@@ -608,14 +607,14 @@ cmp_dtuple_rec_with_match(
 					goto order_resolved;
 				}
 			}
-		next_byte:
+next_byte:
 			/* Next byte */
 			cur_bytes++;
 			rec_b_ptr++;
 			dtuple_b_ptr++;
 		}
 
-	next_field:
+next_field:
 		cur_field++;
 		cur_bytes = 0;
 	}
@@ -627,10 +626,10 @@ cmp_dtuple_rec_with_match(
 order_resolved:
 	ut_ad((ret >= - 1) && (ret <= 1));
 	ut_ad(ret == cmp_debug_dtuple_rec_with_match(dtuple, rec, offsets,
-							matched_fields));
+						     matched_fields));
 	ut_ad(*matched_fields == cur_field); /* In the debug version, the
-						above cmp_debug_... sets
-						*matched_fields to a value */
+					     above cmp_debug_... sets
+					     *matched_fields to a value */
 	*matched_fields = cur_field;
 	*matched_bytes = cur_bytes;
 
@@ -662,7 +661,7 @@ cmp_dtuple_rec(
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	return(cmp_dtuple_rec_with_match(dtuple, rec, offsets,
-					&matched_fields, &matched_bytes));
+					 &matched_fields, &matched_bytes));
 }
 
 /******************************************************************
@@ -690,15 +689,15 @@ cmp_dtuple_is_prefix_of_rec(
 	}
 
 	cmp_dtuple_rec_with_match(dtuple, rec, offsets,
-					&matched_fields, &matched_bytes);
+				  &matched_fields, &matched_bytes);
 	if (matched_fields == n_fields) {
 
 		return(TRUE);
 	}
 
 	if (matched_fields == n_fields - 1
-			&& matched_bytes == dfield_get_len(
-				dtuple_get_nth_field(dtuple, n_fields - 1))) {
+	    && matched_bytes == dfield_get_len
+	    (dtuple_get_nth_field(dtuple, n_fields - 1))) {
 		return(TRUE);
 	}
 
@@ -768,25 +767,25 @@ cmp_rec_rec_with_match(
 		if (index->type & DICT_UNIVERSAL) {
 			cur_type = dtype_binary;
 		} else {
-			cur_type = dict_col_get_type(
-				dict_field_get_col(
-					dict_index_get_nth_field(index, cur_field)));
+			cur_type = dict_col_get_type
+				(dict_field_get_col(dict_index_get_nth_field
+						    (index, cur_field)));
 		}
 
 		rec1_b_ptr = rec_get_nth_field(rec1, offsets1,
-						cur_field, &rec1_f_len);
+					       cur_field, &rec1_f_len);
 		rec2_b_ptr = rec_get_nth_field(rec2, offsets2,
-						cur_field, &rec2_f_len);
+					       cur_field, &rec2_f_len);
 
 		if (cur_bytes == 0) {
 			if (cur_field == 0) {
 				/* Test if rec is the predefined minimum
 				record */
 				if (rec_get_info_bits(rec1, comp)
-						& REC_INFO_MIN_REC_FLAG) {
+				    & REC_INFO_MIN_REC_FLAG) {
 
 					if (rec_get_info_bits(rec2, comp)
-						& REC_INFO_MIN_REC_FLAG) {
+					    & REC_INFO_MIN_REC_FLAG) {
 						ret = 0;
 					} else {
 						ret = -1;
@@ -804,7 +803,7 @@ cmp_rec_rec_with_match(
 			}
 
 			if (rec_offs_nth_extern(offsets1, cur_field)
-				|| rec_offs_nth_extern(offsets2, cur_field)) {
+			    || rec_offs_nth_extern(offsets2, cur_field)) {
 				/* We do not compare to an externally
 				stored field */
 
@@ -814,7 +813,7 @@ cmp_rec_rec_with_match(
 			}
 
 			if (rec1_f_len == UNIV_SQL_NULL
-				|| rec2_f_len == UNIV_SQL_NULL) {
+			    || rec2_f_len == UNIV_SQL_NULL) {
 
 				if (rec1_f_len == rec2_f_len) {
 
@@ -836,14 +835,16 @@ cmp_rec_rec_with_match(
 		}
 
 		if (cur_type->mtype >= DATA_FLOAT
-			|| (cur_type->mtype == DATA_BLOB
-				&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
-				&& dtype_get_charset_coll(cur_type->prtype) !=
-				DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
+		    || (cur_type->mtype == DATA_BLOB
+			&& 0 == (cur_type->prtype & DATA_BINARY_TYPE)
+			&& dtype_get_charset_coll(cur_type->prtype)
+			!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 			ret = cmp_whole_field(cur_type,
-					rec1_b_ptr, (unsigned) rec1_f_len,
-					rec2_b_ptr, (unsigned) rec2_f_len);
+					      rec1_b_ptr,
+					      (unsigned) rec1_f_len,
+					      rec2_b_ptr,
+					      (unsigned) rec2_f_len);
 			if (ret != 0) {
 				cur_bytes = 0;
 
@@ -898,9 +899,8 @@ cmp_rec_rec_with_match(
 			}
 
 			if (cur_type->mtype <= DATA_CHAR
-				|| (cur_type->mtype == DATA_BLOB
-					&& 0 ==
-					(cur_type->prtype & DATA_BINARY_TYPE))) {
+			    || (cur_type->mtype == DATA_BLOB
+				&& !(cur_type->prtype & DATA_BINARY_TYPE))) {
 
 				rec1_byte = cmp_collate(rec1_byte);
 				rec2_byte = cmp_collate(rec2_byte);
@@ -913,7 +913,7 @@ cmp_rec_rec_with_match(
 				ret = 1;
 				goto order_resolved;
 			}
-		next_byte:
+next_byte:
 			/* Next byte */
 
 			cur_bytes++;
@@ -921,7 +921,7 @@ cmp_rec_rec_with_match(
 			rec2_b_ptr++;
 		}
 
-	next_field:
+next_field:
 		cur_field++;
 		cur_bytes = 0;
 	}
@@ -995,7 +995,7 @@ cmp_debug_dtuple_rec_with_match(
 
 	if (cur_field == 0) {
 		if (rec_get_info_bits(rec, rec_offs_comp(offsets))
-					& REC_INFO_MIN_REC_FLAG) {
+		    & REC_INFO_MIN_REC_FLAG) {
 
 			ret = !(dtuple_get_info_bits(dtuple)
 				& REC_INFO_MIN_REC_FLAG);
@@ -1022,7 +1022,7 @@ cmp_debug_dtuple_rec_with_match(
 		dtuple_f_len = dfield_get_len(dtuple_field);
 
 		rec_f_data = rec_get_nth_field(rec, offsets,
-						cur_field, &rec_f_len);
+					       cur_field, &rec_f_len);
 
 		if (rec_offs_nth_extern(offsets, cur_field)) {
 			/* We do not compare to an externally stored field */
@@ -1033,7 +1033,7 @@ cmp_debug_dtuple_rec_with_match(
 		}
 
 		ret = cmp_data_data(cur_type, dtuple_f_data, dtuple_f_len,
-							rec_f_data, rec_f_len);
+				    rec_f_data, rec_f_len);
 		if (ret != 0) {
 			goto order_resolved;
 		}

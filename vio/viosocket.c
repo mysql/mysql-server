@@ -378,16 +378,30 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
 }
 
 
-void vio_timeout(Vio *vio __attribute__((unused)),
-		 uint which __attribute__((unused)),
-                 uint timeout __attribute__((unused)))
+void vio_timeout(Vio *vio, uint which, uint timeout)
 {
+/* TODO: some action should be taken if socket timeouts are not supported. */
+#if defined(SO_SNDTIMEO) && defined(SO_RCVTIMEO)
+
 #ifdef __WIN__
-  ulong wait_timeout= (ulong) timeout * 1000;
-  (void) setsockopt(vio->sd, SOL_SOCKET, 
-	which ? SO_SNDTIMEO : SO_RCVTIMEO, (char*) &wait_timeout,
-        sizeof(wait_timeout));
-#endif /* __WIN__ */
+
+  /* Windows expects time in milliseconds as int. */
+  int wait_timeout= (int) timeout * 1000;
+
+#else  /* ! __WIN__ */
+
+  /* POSIX specifies time as struct timeval. */
+  struct timeval wait_timeout;
+  wait_timeout.tv_sec= timeout;
+  wait_timeout.tv_usec= 0;
+
+#endif /* ! __WIN__ */
+
+  /* TODO: return value should be checked. */
+  (void) setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
+                    (char*) &wait_timeout, sizeof(wait_timeout));
+
+#endif /* defined(SO_SNDTIMEO) && defined(SO_RCVTIMEO) */
 }
 
 
@@ -548,9 +562,13 @@ int vio_write_shared_memory(Vio * vio, const gptr buf, int size)
 }
 
 
+/**
+ Close shared memory and DBUG_PRINT any errors that happen on closing.
+ @return Zero if all closing functions succeed, and nonzero otherwise.
+*/
 int vio_close_shared_memory(Vio * vio)
 {
-  int r;
+  int error_count= 0;
   DBUG_ENTER("vio_close_shared_memory");
   if (vio->type != VIO_CLOSED)
   {
@@ -564,23 +582,44 @@ int vio_close_shared_memory(Vio * vio)
       result if they are success.
     */
     if (UnmapViewOfFile(vio->handle_map) == 0) 
+    {
+      error_count++;
       DBUG_PRINT("vio_error", ("UnmapViewOfFile() failed"));
+    }
     if (CloseHandle(vio->event_server_wrote) == 0)
+    {
+      error_count++;
       DBUG_PRINT("vio_error", ("CloseHandle(vio->esw) failed"));
+    }
     if (CloseHandle(vio->event_server_read) == 0)
+    {
+      error_count++;
       DBUG_PRINT("vio_error", ("CloseHandle(vio->esr) failed"));
+    }
     if (CloseHandle(vio->event_client_wrote) == 0)
+    {
+      error_count++;
       DBUG_PRINT("vio_error", ("CloseHandle(vio->ecw) failed"));
+    }
     if (CloseHandle(vio->event_client_read) == 0)
+    {
+      error_count++;
       DBUG_PRINT("vio_error", ("CloseHandle(vio->ecr) failed"));
+    }
     if (CloseHandle(vio->handle_file_map) == 0)
+    {
+      error_count++;
       DBUG_PRINT("vio_error", ("CloseHandle(vio->hfm) failed"));
+    }
     if (CloseHandle(vio->event_conn_closed) == 0)
+    {
+      error_count++;
       DBUG_PRINT("vio_error", ("CloseHandle(vio->ecc) failed"));
+    }
   }
   vio->type= VIO_CLOSED;
   vio->sd=   -1;
-  DBUG_RETURN(!r);
+  DBUG_RETURN(error_count);
 }
 #endif /* HAVE_SMEM */
 #endif /* __WIN__ */

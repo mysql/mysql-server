@@ -582,6 +582,7 @@ public:
   void openFiles(Signal* signal, BackupRecordPtr ptr);
   void openFilesReply(Signal*, BackupRecordPtr ptr, BackupFilePtr);
   void closeFiles(Signal*, BackupRecordPtr ptr);
+  void closeFile(Signal*, BackupRecordPtr, BackupFilePtr);
   void closeFilesDone(Signal*, BackupRecordPtr ptr);  
   
   void sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr);

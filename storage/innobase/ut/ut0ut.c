@@ -125,12 +125,12 @@ ut_print_timestamp(
 	GetLocalTime(&cal_tm);
 
 	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
-	  (int)cal_tm.wYear % 100,
-	  (int)cal_tm.wMonth,
-	  (int)cal_tm.wDay,
-	  (int)cal_tm.wHour,
-	  (int)cal_tm.wMinute,
-	  (int)cal_tm.wSecond);
+		(int)cal_tm.wYear % 100,
+		(int)cal_tm.wMonth,
+		(int)cal_tm.wDay,
+		(int)cal_tm.wHour,
+		(int)cal_tm.wMinute,
+		(int)cal_tm.wSecond);
 #else
 	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
@@ -145,12 +145,12 @@ ut_print_timestamp(
 	cal_tm_ptr = localtime(&tm);
 #endif
 	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
-	  cal_tm_ptr->tm_year % 100,
-	  cal_tm_ptr->tm_mon + 1,
-	  cal_tm_ptr->tm_mday,
-	  cal_tm_ptr->tm_hour,
-	  cal_tm_ptr->tm_min,
-	  cal_tm_ptr->tm_sec);
+		cal_tm_ptr->tm_year % 100,
+		cal_tm_ptr->tm_mon + 1,
+		cal_tm_ptr->tm_mday,
+		cal_tm_ptr->tm_hour,
+		cal_tm_ptr->tm_min,
+		cal_tm_ptr->tm_sec);
 #endif
 }
 
@@ -168,12 +168,12 @@ ut_sprintf_timestamp(
 	GetLocalTime(&cal_tm);
 
 	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
-	  (int)cal_tm.wYear % 100,
-	  (int)cal_tm.wMonth,
-	  (int)cal_tm.wDay,
-	  (int)cal_tm.wHour,
-	  (int)cal_tm.wMinute,
-	  (int)cal_tm.wSecond);
+		(int)cal_tm.wYear % 100,
+		(int)cal_tm.wMonth,
+		(int)cal_tm.wDay,
+		(int)cal_tm.wHour,
+		(int)cal_tm.wMinute,
+		(int)cal_tm.wSecond);
 #else
 	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
@@ -188,12 +188,12 @@ ut_sprintf_timestamp(
 	cal_tm_ptr = localtime(&tm);
 #endif
 	sprintf(buf, "%02d%02d%02d %2d:%02d:%02d",
-	  cal_tm_ptr->tm_year % 100,
-	  cal_tm_ptr->tm_mon + 1,
-	  cal_tm_ptr->tm_mday,
-	  cal_tm_ptr->tm_hour,
-	  cal_tm_ptr->tm_min,
-	  cal_tm_ptr->tm_sec);
+		cal_tm_ptr->tm_year % 100,
+		cal_tm_ptr->tm_mon + 1,
+		cal_tm_ptr->tm_mday,
+		cal_tm_ptr->tm_hour,
+		cal_tm_ptr->tm_min,
+		cal_tm_ptr->tm_sec);
 #endif
 }
 
@@ -212,12 +212,12 @@ ut_sprintf_timestamp_without_extra_chars(
 	GetLocalTime(&cal_tm);
 
 	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
-	  (int)cal_tm.wYear % 100,
-	  (int)cal_tm.wMonth,
-	  (int)cal_tm.wDay,
-	  (int)cal_tm.wHour,
-	  (int)cal_tm.wMinute,
-	  (int)cal_tm.wSecond);
+		(int)cal_tm.wYear % 100,
+		(int)cal_tm.wMonth,
+		(int)cal_tm.wDay,
+		(int)cal_tm.wHour,
+		(int)cal_tm.wMinute,
+		(int)cal_tm.wSecond);
 #else
 	struct tm  cal_tm;
 	struct tm* cal_tm_ptr;
@@ -232,12 +232,12 @@ ut_sprintf_timestamp_without_extra_chars(
 	cal_tm_ptr = localtime(&tm);
 #endif
 	sprintf(buf, "%02d%02d%02d_%2d_%02d_%02d",
-	  cal_tm_ptr->tm_year % 100,
-	  cal_tm_ptr->tm_mon + 1,
-	  cal_tm_ptr->tm_mday,
-	  cal_tm_ptr->tm_hour,
-	  cal_tm_ptr->tm_min,
-	  cal_tm_ptr->tm_sec);
+		cal_tm_ptr->tm_year % 100,
+		cal_tm_ptr->tm_mon + 1,
+		cal_tm_ptr->tm_mday,
+		cal_tm_ptr->tm_hour,
+		cal_tm_ptr->tm_min,
+		cal_tm_ptr->tm_sec);
 #endif
 }
 
@@ -342,7 +342,7 @@ ut_ulint_sort(ulint* arr, ulint* aux_arr, ulint low, ulint high)
 /*============================================================*/
 {
 	UT_SORT_FUNCTION_BODY(ut_ulint_sort, arr, aux_arr, low, high,
-								ut_ulint_cmp);
+			      ut_ulint_cmp);
 }
 
 /*****************************************************************
@@ -433,7 +433,7 @@ ut_print_namel(
 		innobase_print_identifier(f, trx, TRUE, name, slash - name);
 		putc('.', f);
 		innobase_print_identifier(f, trx, TRUE, slash + 1,
-				namelen - (slash - name) - 1);
+					  namelen - (slash - name) - 1);
 	} else {
 		innobase_print_identifier(f, trx, table_id, name, namelen);
 	}
@@ -454,8 +454,9 @@ ut_copy_file(
 
 	rewind(src);
 	do {
-		size_t	maxs =
-			len < (long) sizeof buf ? (size_t) len : sizeof buf;
+		size_t	maxs = len < (long) sizeof buf
+			? (size_t) len
+			: sizeof buf;
 		size_t	size = fread(buf, 1, maxs, src);
 		fwrite(buf, 1, size, dest);
 		len -= (long) size;

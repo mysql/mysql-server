@@ -85,6 +85,8 @@ struct show_table_authors_st show_table_authors[]= {
   { "Matthias Leich", "Berlin, Germany", "Testing - Server" },
   { "Dmitri Lenev", "Moscow, Russia",
     "Time zones support (4.1), Triggers (5.0)" },
+  { "Arjen Lentz", "Brisbane, Australia",
+    "Documentation (2001-2004), Dutch error messages, LOG2()" },
   { "Marc Liyanage", "", "Created Mac OS X packages" },
   { "Zarko Mocnik", "", "Sorting for Slovenian language" },
   { "Per-Erik Martin", "Uppsala, Sweden", "Stored Procedures (5.0)" },

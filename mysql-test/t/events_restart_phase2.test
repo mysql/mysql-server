@@ -1,0 +1,9 @@
+# Can't test with embedded server that doesn't support grants
+-- source include/not_embedded.inc
+
+use mysqltest_events_test;
+--sleep 1.5
+--echo "Should get 0 rows because the queue aborted run
+select distinct name from execution_log order by name;
+delete from mysql.event where name like 'bad%';
+--echo "Now restart the server again"

@@ -79,7 +79,7 @@ eval_sym(
 		column */
 
 		dfield_copy_data(que_node_get_val(sym_node),
-				   que_node_get_val(sym_node->indirection));
+				 que_node_get_val(sym_node->indirection));
 	}
 }
 
@@ -230,5 +230,5 @@ eval_node_copy_val(
 	dfield2 = que_node_get_val(node2);
 
 	eval_node_copy_and_alloc_val(node1, dfield_get_data(dfield2),
-						dfield_get_len(dfield2));
+				     dfield_get_len(dfield2));
 }

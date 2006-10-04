@@ -59,16 +59,16 @@ database()
 test
 unlock tables;
 drop table t1;
-繧ｽ
-繧ｽ
+ソ
+ソ
 c_cp932
+ソ
+ソ
+ソ
 繧ｽ
 繧ｽ
-繧ｽ
-繧ｽ
-繧ｽ
-繧ｽ
-繧ｽ
+ソ
+ソ
 +----------------------+------------+--------+
 | concat('>',col1,'<') | col2       | col3   |
 +----------------------+------------+--------+
@@ -85,6 +85,12 @@ c_cp932
 | NULL | NULL | ﾎ､ﾎｷ ﾎｳﾎｻﾏ煮ρπｱ                 | 
 | NULL | NULL | 癪貰垓 癩ｷ癪貰寶                    | 
 +------+------+---------------------------+
+i	j	k
+NULL	1	NULL
+Field	Type	Null	Key	Default	Extra
+i	int(11)	YES		NULL	
+j	int(11)	NO			
+k	int(11)	YES		NULL	
 +------+---+------+
 | i    | j | k    |
 +------+---+------+
@@ -97,6 +103,10 @@ c_cp932
 | j     | int(11) | NO   |     |         |       | 
 | k     | int(11) | YES  |     | NULL    |       | 
 +-------+---------+------+-----+---------+-------+
+i	s1
+1	x
+2	NULL
+3	
 +------+------+
 | i    | s1   |
 +------+------+
@@ -104,6 +114,13 @@ c_cp932
 |    2 | NULL | 
 |    3 |      | 
 +------+------+
+unhex('zz')
+NULL
++-------------+
+| unhex('zz') |
++-------------+
+| NULL        | 
++-------------+
 create table t1(a int, b varchar(255), c int);
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	

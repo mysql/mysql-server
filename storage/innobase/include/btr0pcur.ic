@@ -20,7 +20,7 @@ btr_pcur_get_rel_pos(
 	ut_ad(cursor->old_rec);
 	ut_ad(cursor->old_stored == BTR_PCUR_OLD_STORED);
 	ut_ad(cursor->pos_state == BTR_PCUR_WAS_POSITIONED
-			|| cursor->pos_state == BTR_PCUR_IS_POSITIONED);
+	      || cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
 	return(cursor->rel_pos);
 }
@@ -120,7 +120,7 @@ btr_pcur_get_up_match(
 	btr_cur_t*	btr_cursor;
 
 	ut_ad((cursor->pos_state == BTR_PCUR_WAS_POSITIONED)
-			|| (cursor->pos_state == BTR_PCUR_IS_POSITIONED));
+	      || (cursor->pos_state == BTR_PCUR_IS_POSITIONED));
 
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
@@ -143,7 +143,7 @@ btr_pcur_get_low_match(
 	btr_cur_t*	btr_cursor;
 
 	ut_ad((cursor->pos_state == BTR_PCUR_WAS_POSITIONED)
-			|| (cursor->pos_state == BTR_PCUR_IS_POSITIONED));
+	      || (cursor->pos_state == BTR_PCUR_IS_POSITIONED));
 
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 	ut_ad(btr_cursor->low_match != ULINT_UNDEFINED);
@@ -198,7 +198,7 @@ btr_pcur_is_on_user_rec(
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
 	if ((btr_pcur_is_before_first_on_page(cursor, mtr))
-		|| (btr_pcur_is_after_last_on_page(cursor, mtr))) {
+	    || (btr_pcur_is_after_last_on_page(cursor, mtr))) {
 
 		return(FALSE);
 	}
@@ -491,7 +491,7 @@ btr_pcur_open(
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
 	btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode,
-							btr_cursor, 0, mtr);
+				    btr_cursor, 0, mtr);
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 	cursor->trx_if_known = NULL;
@@ -533,7 +533,7 @@ btr_pcur_open_with_no_init(
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
 	btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode,
-					btr_cursor, has_search_latch, mtr);
+				    btr_cursor, has_search_latch, mtr);
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
@@ -568,7 +568,7 @@ btr_pcur_open_at_index_side(
 	}
 
 	btr_cur_open_at_index_side(from_left, index, latch_mode,
-					btr_pcur_get_btr_cur(pcur), mtr);
+				   btr_pcur_get_btr_cur(pcur), mtr);
 	pcur->pos_state = BTR_PCUR_IS_POSITIONED;
 
 	pcur->old_stored = BTR_PCUR_OLD_NOT_STORED;
@@ -595,7 +595,7 @@ btr_pcur_open_at_rnd_pos(
 	btr_pcur_init(cursor);
 
 	btr_cur_open_at_rnd_pos(index, latch_mode,
-					btr_pcur_get_btr_cur(cursor), mtr);
+				btr_pcur_get_btr_cur(cursor), mtr);
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
 

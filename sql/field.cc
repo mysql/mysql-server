@@ -6302,16 +6302,24 @@ Field *Field_string::new_field(MEM_ROOT *root, struct st_table *new_table,
 {
   Field *field;
   if (type() != MYSQL_TYPE_VAR_STRING || keep_type)
-    return Field::new_field(root, new_table, keep_type);
-
-  /*
-    Old VARCHAR field which should be modified to a VARCHAR on copy
-    This is done to ensure that ALTER TABLE will convert old VARCHAR fields
-    to now VARCHAR fields.
-  */
-  if ((field= new Field_varstring(field_length, maybe_null(), field_name,
-                                  new_table->s, charset())))
+    field= Field::new_field(root, new_table, keep_type);
+  else if ((field= new Field_varstring(field_length, maybe_null(), field_name,
+                                       new_table->s, charset())))
+  {
+    /*
+      Old VARCHAR field which should be modified to a VARCHAR on copy
+      This is done to ensure that ALTER TABLE will convert old VARCHAR fields
+      to now VARCHAR fields.
+    */
     field->init(new_table);
+    /*
+      Normally orig_table is different from table only if field was created
+      via ::new_field.  Here we alter the type of field, so ::new_field is
+      not applicable. But we still need to preserve the original field
+      metadata for the client-server protocol.
+    */
+    field->orig_table= orig_table;
+  }
   return field;
 }
 
@@ -9145,10 +9153,9 @@ create_field::create_field(Field *old_field,Field *orig_field)
        old_field->table->timestamp_field != old_field ||  /* timestamp field */ 
        unireg_check == Field::TIMESTAMP_UN_FIELD))        /* has default val */
   {
-    char buff[MAX_FIELD_WIDTH],*pos;
-    String tmp(buff,sizeof(buff), charset), *res;
+    char buff[MAX_FIELD_WIDTH];
+    String tmp(buff,sizeof(buff), charset);
     my_ptrdiff_t diff;
-    bool is_null;
 
     /* Get the value from default_values */
     diff= (my_ptrdiff_t) (orig_field->table->s->default_values-

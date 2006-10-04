@@ -152,7 +152,7 @@ static bool parse_long(const LEX_STRING *token, long *value)
   int err_code;
   char *end_ptr= token->str + token->length;
 
-  *value= my_strtoll10(token->str, &end_ptr, &err_code);
+  *value= (long)my_strtoll10(token->str, &end_ptr, &err_code);
 
   return err_code != 0;
 }

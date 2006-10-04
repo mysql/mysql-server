@@ -1,4 +1,14 @@
 DROP TABLE IF EXISTS t1;
+create table t1 (a int)
+partition by range (a)
+subpartition by key (a)
+(partition p0 values less than (10) (subpartition sp00, subpartition sp01),
+partition p1 values less than (20) (subpartition sp10, subpartition sp11));
+alter table t1 reorganize partition p0 into
+(partition p0 values less than (10) (subpartition sp00,
+subpartition sp01, subpartition sp02));
+ERROR HY000: Wrong number of subpartitions defined, mismatch with previous setting
+drop table t1;
 CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
 PARTITION BY HASH(CAST(YEAR(f_date) AS SIGNED INTEGER)) PARTITIONS 2;
 SHOW CREATE TABLE t1;

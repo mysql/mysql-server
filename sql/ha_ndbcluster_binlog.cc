@@ -25,6 +25,7 @@
 #include "slave.h"
 #include "ha_ndbcluster_binlog.h"
 #include "NdbDictionary.hpp"
+#include "ndb_cluster_connection.hpp"
 #include <util/NdbAutoPtr.hpp>
 
 #ifdef ndb_dynamite
@@ -111,8 +112,7 @@ static NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
 static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
                                    bool have_lock);
 
-/* instantiated in storage/ndb/src/ndbapi/Ndbif.cpp */
-extern Uint64 g_latest_trans_gci;
+static Uint64 *p_latest_trans_gci= 0;
 
 /*
   Global variables for holding the binlog_index table reference
@@ -439,7 +439,7 @@ static void ndbcluster_binlog_wait(THD *thd)
   {
     DBUG_ENTER("ndbcluster_binlog_wait");
     const char *save_info= thd ? thd->proc_info : 0;
-    ulonglong wait_epoch= g_latest_trans_gci;
+    ulonglong wait_epoch= *p_latest_trans_gci;
     int count= 30;
     if (thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
@@ -1579,10 +1579,12 @@ ndb_handle_schema_change(THD *thd, Ndb *ndb, NdbEventOperation *pOp,
                         dbname, tabname));
     build_table_filename(key, FN_LEN-1, dbname, tabname, NullS, 0);
     /*
-      If the frm of the altered table is different than the one on
-      disk then overwrite it with the new table definition
+      If the there is no local table shadowing the altered table and 
+      it has an frm that is different than the one on disk then 
+      overwrite it with the new table definition
     */
-    if (readfrm(key, &data, &length) == 0 &&
+    if (!ndbcluster_check_if_local_table(dbname, tabname) &&
+	readfrm(key, &data, &length) == 0 &&
         packfrm(data, length, &pack_data, &pack_length) == 0 &&
         cmp_frm(altered_table, pack_data, pack_length))
     {
@@ -1799,7 +1801,16 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
         // fall through
         case SOT_CREATE_TABLE:
           pthread_mutex_lock(&LOCK_open);
-          if (ndb_create_table_from_engine(thd, schema->db, schema->name))
+	  if (ndbcluster_check_if_local_table(schema->db, schema->name))
+	  {
+	    DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
+				schema->db, schema->name));
+            sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
+                            "binlog schema event '%s' from node %d. ",
+                            schema->db, schema->name, schema->query,
+                            schema->node_id);
+	  }
+          else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
             sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
                             "binlog schema event '%s' from node %d. "
@@ -2050,9 +2061,18 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share= 0;
           }
           pthread_mutex_lock(&LOCK_open);
-          if (ndb_create_table_from_engine(thd, schema->db, schema->name))
-          {
-            sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
+	  if (ndbcluster_check_if_local_table(schema->db, schema->name))
+	  {
+	    DBUG_PRINT("info", ("NDB binlog: Skipping locally defined table '%s.%s'",
+				schema->db, schema->name));
+            sql_print_error("NDB binlog: Skipping locally defined table '%s.%s' from "
+                            "binlog schema event '%s' from node %d. ",
+                            schema->db, schema->name, schema->query,
+                            schema->node_id);
+	  }
+          else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
+	  {
+	    sql_print_error("NDB binlog: Could not discover table '%s.%s' from "
                             "binlog schema event '%s' from node %d. my_errno: %d",
                             schema->db, schema->name, schema->query,
                             schema->node_id, my_errno);
@@ -2288,6 +2308,28 @@ ndb_rep_event_name(String *event_name,const char *db, const char *tbl)
     event_name->append('/');
     event_name->append(tbl);
   }
+}
+
+bool
+ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
+{
+  char key[FN_REFLEN];
+  char ndb_file[FN_REFLEN];
+
+  DBUG_ENTER("ndbcluster_check_if_local_table");
+  build_table_filename(key, FN_LEN-1, dbname, tabname, reg_ext, 0);
+  build_table_filename(ndb_file, FN_LEN-1, dbname, tabname, ha_ndb_ext, 0);
+  /* Check that any defined table is an ndb table */
+  DBUG_PRINT("info", ("Looking for file %s and %s", key, ndb_file));
+  if ((! my_access(key, F_OK)) && my_access(ndb_file, F_OK))
+  {
+    DBUG_PRINT("info", ("table file %s not on disk, local table", ndb_file));   
+  
+  
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
 }
 
 /*
@@ -3284,6 +3326,7 @@ static void ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object,
   DBUG_VOID_RETURN;
 }
 
+
 pthread_handler_t ndb_binlog_thread_func(void *arg)
 {
   THD *thd; /* needs to be first for thread_stack */
@@ -3292,6 +3335,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   Thd_ndb *thd_ndb=0;
   int ndb_update_binlog_index= 1;
   injector *inj= injector::instance();
+
 #ifdef RUN_NDB_BINLOG_TIMER
   Timer main_timer;
 #endif
@@ -3380,6 +3424,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   */
   injector_thd= thd;
   injector_ndb= i_ndb;
+  p_latest_trans_gci= 
+    injector_ndb->get_ndb_cluster_connection().get_latest_trans_gci();
   schema_ndb= s_ndb;
   ndb_binlog_thread_running= 1;
   if (opt_bin_log)
@@ -3476,7 +3522,7 @@ restart:
                         "ndb_latest_handled_binlog_epoch: %u, while current epoch: %u. "
                         "RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch.",
                         (unsigned) ndb_latest_handled_binlog_epoch, (unsigned) schema_gci);
-        g_latest_trans_gci= 0;
+        *p_latest_trans_gci= 0;
         ndb_latest_handled_binlog_epoch= 0;
         ndb_latest_applied_binlog_epoch= 0;
         ndb_latest_received_binlog_epoch= 0;
@@ -3503,7 +3549,7 @@ restart:
   }
   do_ndbcluster_binlog_close_connection= BCCC_running;
   for ( ; !((abort_loop || do_ndbcluster_binlog_close_connection) &&
-            ndb_latest_handled_binlog_epoch >= g_latest_trans_gci) &&
+            ndb_latest_handled_binlog_epoch >= *p_latest_trans_gci) &&
           do_ndbcluster_binlog_close_connection != BCCC_restart; )
   {
 #ifndef DBUG_OFF
@@ -3511,8 +3557,8 @@ restart:
     {
       DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection: %d, "
                           "ndb_latest_handled_binlog_epoch: %llu, "
-                          "g_latest_trans_gci: %llu", do_ndbcluster_binlog_close_connection,
-                          ndb_latest_handled_binlog_epoch, g_latest_trans_gci));
+                          "*p_latest_trans_gci: %llu", do_ndbcluster_binlog_close_connection,
+                          ndb_latest_handled_binlog_epoch, *p_latest_trans_gci));
     }
 #endif
 #ifdef RUN_NDB_BINLOG_TIMER
@@ -3548,7 +3594,7 @@ restart:
     }
 
     if ((abort_loop || do_ndbcluster_binlog_close_connection) &&
-        (ndb_latest_handled_binlog_epoch >= g_latest_trans_gci ||
+        (ndb_latest_handled_binlog_epoch >= *p_latest_trans_gci ||
          !ndb_binlog_running))
       break; /* Shutting down server */
 
@@ -3598,11 +3644,11 @@ restart:
           {
             DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
             do_ndbcluster_binlog_close_connection= BCCC_restart;
-            if (ndb_latest_received_binlog_epoch < g_latest_trans_gci && ndb_binlog_running)
+            if (ndb_latest_received_binlog_epoch < *p_latest_trans_gci && ndb_binlog_running)
             {
               sql_print_error("NDB Binlog: latest transaction in epoch %lld not in binlog "
                               "as latest received epoch is %lld",
-                              g_latest_trans_gci, ndb_latest_received_binlog_epoch);
+                              *p_latest_trans_gci, ndb_latest_received_binlog_epoch);
             }
           }
         }
@@ -3784,11 +3830,11 @@ restart:
             {
               DBUG_PRINT("info", ("do_ndbcluster_binlog_close_connection= BCCC_restart"));
               do_ndbcluster_binlog_close_connection= BCCC_restart;
-              if (ndb_latest_received_binlog_epoch < g_latest_trans_gci && ndb_binlog_running)
+              if (ndb_latest_received_binlog_epoch < *p_latest_trans_gci && ndb_binlog_running)
               {
                 sql_print_error("NDB Binlog: latest transaction in epoch %lld not in binlog "
                                 "as latest received epoch is %lld",
-                                g_latest_trans_gci, ndb_latest_received_binlog_epoch);
+                                *p_latest_trans_gci, ndb_latest_received_binlog_epoch);
               }
             }
           }
@@ -3865,6 +3911,7 @@ err:
   ndb_obj_cnt+= ndbcluster_util_inited ? 1 : 0;
   injector_thd= 0;
   injector_ndb= 0;
+  p_latest_trans_gci= 0;
   schema_ndb= 0;
   pthread_mutex_unlock(&injector_mutex);
   thd->db= 0; // as not to try to free memory
@@ -3985,7 +4032,7 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
                "latest_handled_binlog_epoch=%s, "
                "latest_applied_binlog_epoch=%s",
                llstr(ndb_latest_epoch, buff1),
-               llstr(g_latest_trans_gci, buff2),
+               llstr(*p_latest_trans_gci, buff2),
                llstr(ndb_latest_received_binlog_epoch, buff3),
                llstr(ndb_latest_handled_binlog_epoch, buff4),
                llstr(ndb_latest_applied_binlog_epoch, buff5));

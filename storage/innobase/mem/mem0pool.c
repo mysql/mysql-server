@@ -145,7 +145,7 @@ mem_area_set_size(
 	ulint		size)	/* in: size */
 {
 	area->size_and_free = (area->size_and_free & MEM_AREA_FREE)
-				| size;
+		| size;
 }
 
 /************************************************************************
@@ -176,7 +176,7 @@ mem_area_set_free(
 # error "TRUE != MEM_AREA_FREE"
 #endif
 	area->size_and_free = (area->size_and_free & ~MEM_AREA_FREE)
-				| free;
+		| free;
 }
 
 /************************************************************************
@@ -276,10 +276,12 @@ mem_pool_fill_free_list(
 			ut_print_timestamp(stderr);
 
 			fprintf(stderr,
-"  InnoDB: Error: mem pool free list %lu length is %lu\n"
-"InnoDB: though the list is empty!\n",
-			(ulong) i + 1,
-			(ulong) UT_LIST_GET_LEN(pool->free_list[i + 1]));
+				"  InnoDB: Error: mem pool free list %lu"
+				" length is %lu\n"
+				"InnoDB: though the list is empty!\n",
+				(ulong) i + 1,
+				(ulong)
+				UT_LIST_GET_LEN(pool->free_list[i + 1]));
 		}
 
 		ret = mem_pool_fill_free_list(i + 1, pool);
@@ -358,8 +360,9 @@ mem_area_alloc(
 
 	if (!mem_area_get_free(area)) {
 		fprintf(stderr,
-"InnoDB: Error: Removing element from mem pool free list %lu though the\n"
-"InnoDB: element is not marked free!\n",
+			"InnoDB: Error: Removing element from mem pool"
+			" free list %lu though the\n"
+			"InnoDB: element is not marked free!\n",
 			(ulong) n);
 
 		mem_analyze_corruption(area);
@@ -370,7 +373,8 @@ mem_area_alloc(
 
 		if (mem_area_get_free(area)) {
 			fprintf(stderr,
-"InnoDB: Probably a race condition because now the area is marked free!\n");
+				"InnoDB: Probably a race condition"
+				" because now the area is marked free!\n");
 		}
 
 		ut_error;
@@ -378,8 +382,9 @@ mem_area_alloc(
 
 	if (UT_LIST_GET_LEN(pool->free_list[n]) == 0) {
 		fprintf(stderr,
-"InnoDB: Error: Removing element from mem pool free list %lu\n"
-"InnoDB: though the list length is 0!\n",
+			"InnoDB: Error: Removing element from mem pool"
+			" free list %lu\n"
+			"InnoDB: though the list length is 0!\n",
 			(ulong) n);
 		mem_analyze_corruption(area);
 
@@ -471,8 +476,9 @@ mem_area_free(
 
 	if (mem_area_get_free(area)) {
 		fprintf(stderr,
-"InnoDB: Error: Freeing element to mem pool free list though the\n"
-"InnoDB: element is marked free!\n");
+			"InnoDB: Error: Freeing element to mem pool"
+			" free list though the\n"
+			"InnoDB: element is marked free!\n");
 
 		mem_analyze_corruption(area);
 		ut_error;
@@ -482,8 +488,9 @@ mem_area_free(
 
 	if (size == 0) {
 		fprintf(stderr,
-"InnoDB: Error: Mem area size is 0. Possibly a memory overrun of the\n"
-"InnoDB: previous allocated area!\n");
+			"InnoDB: Error: Mem area size is 0. Possibly a"
+			" memory overrun of the\n"
+			"InnoDB: previous allocated area!\n");
 
 		mem_analyze_corruption(area);
 		ut_error;
@@ -494,13 +501,15 @@ mem_area_free(
 
 		ulint	next_size;
 
-		next_size = mem_area_get_size(
-					(mem_area_t*)(((byte*)area) + size));
+		next_size = mem_area_get_size
+			((mem_area_t*)(((byte*)area) + size));
 		if (ut_2_power_up(next_size) != next_size) {
 			fprintf(stderr,
-"InnoDB: Error: Memory area size %lu, next area size %lu not a power of 2!\n"
-"InnoDB: Possibly a memory overrun of the buffer being freed here.\n",
-			  (ulong) size, (ulong) next_size);
+				"InnoDB: Error: Memory area size %lu,"
+				" next area size %lu not a power of 2!\n"
+				"InnoDB: Possibly a memory overrun of"
+				" the buffer being freed here.\n",
+				(ulong) size, (ulong) next_size);
 			mem_analyze_corruption(area);
 
 			ut_error;
@@ -517,7 +526,7 @@ mem_area_free(
 	ut_a(mem_n_threads_inside == 1);
 
 	if (buddy && mem_area_get_free(buddy)
-				&& (size == mem_area_get_size(buddy))) {
+	    && (size == mem_area_get_size(buddy))) {
 
 		/* The buddy is in a free list */
 
@@ -591,7 +600,7 @@ mem_pool_validate(
 			buddy = mem_area_get_buddy(area, ut_2_exp(i), pool);
 
 			ut_a(!buddy || !mem_area_get_free(buddy)
-				|| (ut_2_exp(i) != mem_area_get_size(buddy)));
+			     || (ut_2_exp(i) != mem_area_get_size(buddy)));
 
 			area = UT_LIST_GET_NEXT(free_list, area);
 
@@ -627,9 +636,10 @@ mem_pool_print_info(
 		if (UT_LIST_GET_LEN(pool->free_list[i]) > 0) {
 
 			fprintf(outfile,
-			  "Free list length %lu for blocks of size %lu\n",
-			  (ulong) UT_LIST_GET_LEN(pool->free_list[i]),
-			  (ulong) ut_2_exp(i));
+				"Free list length %lu for"
+				" blocks of size %lu\n",
+				(ulong) UT_LIST_GET_LEN(pool->free_list[i]),
+				(ulong) ut_2_exp(i));
 		}
 	}
 

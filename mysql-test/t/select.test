@@ -2958,3 +2958,44 @@ SELECT 0.9888889889 * 1.011111411911;
 #
 prepare stmt from 'select 1 as " a "';
 execute stmt;
+
+#
+# Bug #21390: wrong estimate of rows after elimination of const tables
+#
+
+CREATE TABLE t1 (a int NOT NULL PRIMARY KEY, b int NOT NULL);
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
+
+CREATE TABLE t2 (c int NOT NULL, INDEX idx(c));
+INSERT INTO t2 VALUES
+  (1), (1), (1), (1), (1), (1), (1), (1),
+  (2), (2), (2), (2),
+  (3), (3),
+  (4);
+
+EXPLAIN SELECT b FROM t1, t2 WHERE b=c AND a=1;
+EXPLAIN SELECT b FROM t1, t2 WHERE b=c AND a=4;
+
+DROP TABLE t1, t2;
+
+#
+# No matches for a join after substitution of a const table
+#
+
+CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, a int);
+INSERT INTO t1 VALUES (1,2), (2,NULL), (3,2);
+
+CREATE TABLE t2 (b int, c INT, INDEX idx1(b));
+INSERT INTO t2 VALUES (2,1), (3,2);
+
+CREATE TABLE t3 (d int,  e int, INDEX idx1(d));
+INSERT INTO t3 VALUES (2,10), (2,20), (1,30), (2,40), (2,50);
+
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
+  WHERE t1.id=2;
+SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
+  WHERE t1.id=2;
+
+
+DROP TABLE t1,t2,t3;

@@ -284,11 +284,11 @@ call p1()|
 select * from t1|
 id	stmt_text	status
 1	select 1	supported
-2	flush tables	not supported
+2	flush tables	supported
 3	handler t1 open as ha	not supported
 4	analyze table t1	supported
 5	check table t1	not supported
-6	checksum table t1	not supported
+6	checksum table t1	supported
 7	check table t1	not supported
 8	optimize table t1	supported
 9	repair table t1	supported

@@ -67,6 +67,7 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
+#define MYSQL_SERVER 1
 #include "mysql_priv.h"
 #include "ha_example.h"
 
@@ -714,7 +715,9 @@ mysql_declare_plugin(example)
   example_init_func, /* Plugin Init */
   example_done_func, /* Plugin Deinit */
   0x0001 /* 0.1 */,
-  0
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 
