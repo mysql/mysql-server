@@ -45,7 +45,7 @@ flush tables with read lock;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	98		
- commit;
+commit;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	98		
