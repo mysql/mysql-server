@@ -2429,7 +2429,7 @@ void do_set_charset(struct st_command *command)
 typedef struct
 {
   const char *name;
-  long        code;
+  uint        code;
 } st_error;
 
 static st_error global_error_names[] =
@@ -2443,8 +2443,8 @@ static st_error global_error_names[] =
 
 uint get_errcode_from_name(char *error_name, char *error_end)
 {
-#ifdef HAVE_MYSQLD_ERNAME
   DBUG_ENTER("get_errcode_from_name");
+#ifdef HAVE_MYSQLD_ERNAME
 
   /* SQL error as string */
   st_error *e= global_error_names;
@@ -2461,8 +2461,7 @@ uint get_errcode_from_name(char *error_name, char *error_end)
     if (!strncmp(error_name, e->name, (int) (error_end - error_name)) &&
         (uint) strlen(e->name) == (uint) (error_end - error_name))
     {
-      return (uint) e->code;
-      break;
+      DBUG_RETURN(e->code);
     }
   }
   if (!e->name)
@@ -2472,7 +2471,7 @@ uint get_errcode_from_name(char *error_name, char *error_end)
   LINT_INIT(error_end);
   abort_not_in_this_version();
 #endif
-  return 0;
+  DBUG_RETURN(0);;
 }
 
 
