@@ -26,7 +26,7 @@ grant create view,select on test.* to mysqltest_1@localhost;
 connect (user1,localhost,mysqltest_1,,test);
 connection user1;
 
--- error ER_SPECIFIC_ACCESS_DENIED
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
 create definer=root@localhost view v1 as select * from mysqltest.t1;
 create view v1 as select * from mysqltest.t1;
 # try to modify view without DROP privilege on it
