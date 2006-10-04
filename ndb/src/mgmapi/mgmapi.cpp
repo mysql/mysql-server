@@ -107,6 +107,7 @@ struct ndb_mgm_handle {
   int mgmd_version_major;
   int mgmd_version_minor;
   int mgmd_version_build;
+  char * m_bindaddress;
 };
 
 #define SET_ERROR(h, e, s) setError(h, e, __LINE__, s)
@@ -162,6 +163,7 @@ ndb_mgm_create_handle()
   h->cfg_i           = -1;
   h->errstream       = stdout;
   h->m_name          = 0;
+  h->m_bindaddress   = 0;
 
   strncpy(h->last_error_desc, "No error", NDB_MGM_MAX_ERR_DESC_SIZE);
 
@@ -209,6 +211,22 @@ ndb_mgm_set_connectstring(NdbMgmHandle handle, const char * mgmsrv)
   DBUG_RETURN(0);
 }
 
+extern "C"
+int
+ndb_mgm_set_bindaddress(NdbMgmHandle handle, const char * arg)
+{
+  DBUG_ENTER("ndb_mgm_set_bindaddress");
+  if (handle->m_bindaddress)
+    free(handle->m_bindaddress);
+
+  if (arg)
+    handle->m_bindaddress = strdup(arg);
+  else
+    handle->m_bindaddress = 0;
+
+  DBUG_RETURN(0);
+}
+
 /**
  * Destroy a handle
  */
@@ -235,6 +253,8 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
 #endif
   (*handle)->cfg.~LocalConfig();
   my_free((*handle)->m_name, MYF(MY_ALLOW_ZERO_PTR));
+  if ((*handle)->m_bindaddress)
+    free((*handle)->m_bindaddress);
   my_free((char*)* handle,MYF(MY_ALLOW_ZERO_PTR));
   * handle = 0;
   DBUG_VOID_RETURN;
@@ -427,6 +447,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   BaseString::snprintf(logname, 64, "mgmapi.log");
   handle->logfile = fopen(logname, "w");
 #endif
+  char buf[1024];
 
   /**
    * Do connect
@@ -434,6 +455,50 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   LocalConfig &cfg= handle->cfg;
   NDB_SOCKET_TYPE sockfd= NDB_INVALID_SOCKET;
   Uint32 i;
+  int binderror = 0;
+  SocketClient s(0, 0);
+  if (!s.init())
+  {
+    fprintf(handle->errstream, 
+	    "Unable to create socket, "
+	    "while trying to connect with connect string: %s\n",
+	    cfg.makeConnectString(buf,sizeof(buf)));
+
+    setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
+	    "Unable to create socket, "
+	    "while trying to connect with connect string: %s\n",
+	    cfg.makeConnectString(buf,sizeof(buf)));
+    DBUG_RETURN(-1);
+  }
+
+  if (handle->m_bindaddress)
+  {
+    BaseString::snprintf(buf, sizeof(buf), handle->m_bindaddress);
+    unsigned short portno = 0;
+    char * port = strchr(buf, ':');
+    if (port != 0)
+    {
+      portno = atoi(port+1);
+      * port = 0;
+    }
+    int err;
+    if ((err = s.bind(buf, portno)) != 0)
+    {
+      fprintf(handle->errstream, 
+	      "Unable to bind local address %s errno: %d, "
+	      "while trying to connect with connect string: %s\n",
+	      handle->m_bindaddress, err,
+	      cfg.makeConnectString(buf,sizeof(buf)));
+      
+      setError(handle, NDB_MGM_BIND_ADDRESS, __LINE__,
+	       "Unable to bind local address %s errno: %d, "
+	       "while trying to connect with connect string: %s\n",
+	       handle->m_bindaddress, err,
+	       cfg.makeConnectString(buf,sizeof(buf)));
+      DBUG_RETURN(-1);
+    }
+  }
+  
   while (sockfd == NDB_INVALID_SOCKET)
   {
     // do all the mgmt servers
@@ -441,8 +506,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
     {
       if (cfg.ids[i].type != MgmId_TCP)
 	continue;
-      SocketClient s(cfg.ids[i].name.c_str(), cfg.ids[i].port);
-      sockfd = s.connect();
+      sockfd = s.connect(cfg.ids[i].name.c_str(), cfg.ids[i].port);
       if (sockfd != NDB_INVALID_SOCKET)
 	break;
     }
@@ -450,19 +514,17 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
       break;
 #ifndef DBUG_OFF
     {
-      char buf[1024];
       DBUG_PRINT("info",("Unable to connect with connect string: %s",
 			 cfg.makeConnectString(buf,sizeof(buf))));
     }
 #endif
     if (verbose > 0) {
-      char buf[1024];
-      fprintf(handle->errstream, "Unable to connect with connect string: %s\n",
+      fprintf(handle->errstream, 
+	      "Unable to connect with connect string: %s\n",
 	      cfg.makeConnectString(buf,sizeof(buf)));
       verbose= -1;
     }
     if (no_retries == 0) {
-      char buf[1024];
       setError(handle, NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET, __LINE__,
 	       "Unable to connect with connect string: %s",
 	       cfg.makeConnectString(buf,sizeof(buf)));

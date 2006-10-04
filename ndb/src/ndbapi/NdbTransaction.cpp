@@ -978,27 +978,58 @@ void
 NdbTransaction::releaseExecutedScanOperation(NdbIndexScanOperation* cursorOp)
 {
   DBUG_ENTER("NdbTransaction::releaseExecutedScanOperation");
-  DBUG_PRINT("enter", ("this=0x%x op=0x%x", (UintPtr)this, (UintPtr)cursorOp))
-
-  // here is one reason to make op lists doubly linked
-  if (m_firstExecutedScanOp == cursorOp) {
-    m_firstExecutedScanOp = (NdbIndexScanOperation*)cursorOp->theNext;
-    cursorOp->release();
-    theNdb->releaseScanOperation(cursorOp);
-  } else if (m_firstExecutedScanOp != NULL) {
-    NdbIndexScanOperation* tOp = m_firstExecutedScanOp;
-    while (tOp->theNext != NULL) {
-      if (tOp->theNext == cursorOp) {
-        tOp->theNext = cursorOp->theNext;
-        cursorOp->release();
-        theNdb->releaseScanOperation(cursorOp);
-        break;
-      }
-      tOp = (NdbIndexScanOperation*)tOp->theNext;
-    }
-  }
+  DBUG_PRINT("enter", ("this=0x%x op=0x%x", (UintPtr)this, (UintPtr)cursorOp));
+  
+  releaseScanOperation(&m_firstExecutedScanOp, 0, cursorOp);
+  
   DBUG_VOID_RETURN;
 }//NdbTransaction::releaseExecutedScanOperation()
+
+bool
+NdbTransaction::releaseScanOperation(NdbIndexScanOperation** listhead,
+				     NdbIndexScanOperation** listtail,
+				     NdbIndexScanOperation* op)
+{
+  if (* listhead == op)
+  {
+    * listhead = (NdbIndexScanOperation*)op->theNext;
+    if (listtail && *listtail == op)
+    {
+      assert(* listhead == 0);
+      * listtail = 0;
+    }
+      
+  }
+  else
+  {
+    NdbIndexScanOperation* tmp = * listhead;
+    while (tmp != NULL)
+    {
+      if (tmp->theNext == op)
+      {
+	tmp->theNext = (NdbIndexScanOperation*)op->theNext;
+	if (listtail && *listtail == op)
+	{
+	  assert(op->theNext == 0);
+	  *listtail = tmp;
+	}
+	break;
+      }
+      tmp = (NdbIndexScanOperation*)tmp->theNext;
+    }
+    if (tmp == NULL)
+      op = NULL;
+  }
+  
+  if (op != NULL)
+  {
+    op->release();
+    theNdb->releaseScanOperation(op);
+    return true;
+  }
+  
+  return false;
+}
 
 /*****************************************************************************
 NdbOperation* getNdbOperation(const char* aTableName);
