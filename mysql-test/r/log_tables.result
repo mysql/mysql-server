@@ -39,14 +39,14 @@ ERROR HY000: You can't use usual read lock with log tables. Try READ LOCAL inste
 lock tables mysql.slow_log READ LOCAL, mysql.general_log READ LOCAL;
 unlock tables;
 lock tables mysql.general_log READ LOCAL;
- flush logs;
+flush logs;
 unlock tables;
 select "Mark that we woke up from flush logs in the test"
        as "test passed";
 test passed
 Mark that we woke up from flush logs in the test
 lock tables mysql.general_log READ LOCAL;
- truncate mysql.general_log;
+truncate mysql.general_log;
 unlock tables;
 select "Mark that we woke up from TRUNCATE in the test"
        as "test passed";
