@@ -34,8 +34,8 @@
 
 /**
  * No of 32 bits word in sysfile
- * 
- *   5 + 
+ *
+ *   6 +                                           // was 5 in < version 5.1
  *   MAX_NDB_NODES +                               // lastCompletedGCI
  *   NODE_ARRAY_SIZE(MAX_NDB_NODES, 4) +           // nodeStatus
  *   NODE_ARRAY_SIZE(MAX_NDB_NODES, NODEID_BITS) + // nodeGroups
