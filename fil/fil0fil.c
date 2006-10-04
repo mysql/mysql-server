@@ -2747,6 +2747,7 @@ fil_reset_too_high_lsns(
 	ib_longlong	file_size;
 	ib_longlong	offset;
 	ulint		page_no;
+	ulint		zip_size;
 	ibool		success;
 
 	filepath = fil_make_ibd_name(name, FALSE);
@@ -2771,7 +2772,7 @@ fil_reset_too_high_lsns(
 
 	/* Read the first page of the tablespace */
 
-	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
+	buf2 = ut_malloc(3 * UNIV_PAGE_SIZE);
 	/* Align the memory for file i/o if we might have O_DIRECT set */
 	page = ut_align(buf2, UNIV_PAGE_SIZE);
 
@@ -2793,6 +2794,7 @@ fil_reset_too_high_lsns(
 	}
 
 	space_id = fsp_header_get_space_id(page);
+	zip_size = fsp_header_get_zip_size(page);
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
@@ -2809,16 +2811,20 @@ fil_reset_too_high_lsns(
 	ut_print_filename(stderr, filepath);
 	fputs(".\n", stderr);
 
+	ut_a(ut_is_2pow(zip_size));
+	ut_a(zip_size <= UNIV_PAGE_SIZE);
+
 	/* Loop through all the pages in the tablespace and reset the lsn and
 	the page checksum if necessary */
 
 	file_size = os_file_get_size_as_iblonglong(file);
 
-	/* TODO: page_zip */
-	for (offset = 0; offset < file_size; offset += UNIV_PAGE_SIZE) {
+	for (offset = 0; offset < file_size;
+	     offset += zip_size ? zip_size : UNIV_PAGE_SIZE) {
 		success = os_file_read(file, page,
 				       (ulint)(offset & 0xFFFFFFFFUL),
-				       (ulint)(offset >> 32), UNIV_PAGE_SIZE);
+				       (ulint)(offset >> 32),
+				       zip_size ? zip_size : UNIV_PAGE_SIZE);
 		if (!success) {
 
 			goto func_exit;
@@ -2830,14 +2836,22 @@ fil_reset_too_high_lsns(
 				page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 			page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
 
-			buf_flush_init_for_writing(page,
-						   NULL/* TODO: page_zip */,
-						   current_lsn, space_id,
-						   page_no);
+			if (zip_size) {
+				memcpy(page + UNIV_PAGE_SIZE, page, zip_size);
+				buf_flush_init_for_writing(
+					page, page + UNIV_PAGE_SIZE,
+					current_lsn, space_id, page_no);
+			} else {
+				buf_flush_init_for_writing(
+					page, NULL,
+					current_lsn, space_id, page_no);
+			}
 			success = os_file_write(filepath, file, page,
 						(ulint)(offset & 0xFFFFFFFFUL),
 						(ulint)(offset >> 32),
-						UNIV_PAGE_SIZE);
+						zip_size
+						? zip_size
+						: UNIV_PAGE_SIZE);
 			if (!success) {
 
 				goto func_exit;
@@ -2852,7 +2866,8 @@ fil_reset_too_high_lsns(
 	}
 
 	/* We now update the flush_lsn stamp at the start of the file */
-	success = os_file_read(file, page, 0, 0, UNIV_PAGE_SIZE);
+	success = os_file_read(file, page, 0, 0,
+			       zip_size ? zip_size : UNIV_PAGE_SIZE);
 	if (!success) {
 
 		goto func_exit;
@@ -2860,7 +2875,8 @@ fil_reset_too_high_lsns(
 
 	mach_write_to_8(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
 
-	success = os_file_write(filepath, file, page, 0, 0, UNIV_PAGE_SIZE);
+	success = os_file_write(filepath, file, page, 0, 0,
+				zip_size ? zip_size : UNIV_PAGE_SIZE);
 	if (!success) {
 
 		goto func_exit;
