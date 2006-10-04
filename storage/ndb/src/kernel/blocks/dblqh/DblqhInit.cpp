@@ -301,6 +301,9 @@ Dblqh::Dblqh(Block_context& ctx):
 
   addRecSignal(GSN_RESTORE_LCP_REF, &Dblqh::execRESTORE_LCP_REF);
   addRecSignal(GSN_RESTORE_LCP_CONF, &Dblqh::execRESTORE_LCP_CONF);
+
+  addRecSignal(GSN_UPDATE_FRAG_DIST_KEY_ORD, 
+	       &Dblqh::execUPDATE_FRAG_DIST_KEY_ORD);
   
   initData();
 
