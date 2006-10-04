@@ -298,15 +298,17 @@ struct sel_node_struct{
 					/* TRUE if the aggregate row has
 					already been fetched for the current
 					cursor */
-	ibool		can_get_updated;/* this is TRUE if the select is in a
-					single-table explicit cursor which can
-					get updated within the stored procedure,
-					or in a searched update or delete;
-					NOTE that to determine of an explicit
-					cursor if it can get updated, the
-					parser checks from a stored procedure
-					if it contains positioned update or
-					delete statements */
+	ibool		can_get_updated;/* this is TRUE if the select
+					is in a single-table explicit
+					cursor which can get updated
+					within the stored procedure,
+					or in a searched update or
+					delete; NOTE that to determine
+					of an explicit cursor if it
+					can get updated, the parser
+					checks from a stored procedure
+					if it contains positioned
+					update or delete statements */
 	sym_node_t*	explicit_cursor;/* not NULL if an explicit cursor */
 	UT_LIST_BASE_NODE_T(sym_node_t)
 			copy_variables; /* variables whose values we have to

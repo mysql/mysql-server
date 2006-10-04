@@ -66,29 +66,29 @@ page_cur_try_search_shortcut(
 
 	rec = page_header_get_ptr(page, PAGE_LAST_INSERT);
 	offsets = rec_get_offsets(rec, index, offsets,
-				dtuple_get_n_fields(tuple), &heap);
+				  dtuple_get_n_fields(tuple), &heap);
 
 	ut_ad(rec);
 	ut_ad(page_rec_is_user_rec(rec));
 
 	ut_pair_min(&low_match, &low_bytes,
-			*ilow_matched_fields, *ilow_matched_bytes,
-			*iup_matched_fields, *iup_matched_bytes);
+		    *ilow_matched_fields, *ilow_matched_bytes,
+		    *iup_matched_fields, *iup_matched_bytes);
 
 	up_match = low_match;
 	up_bytes = low_bytes;
 
 	if (page_cmp_dtuple_rec_with_match(tuple, rec, offsets,
-						&low_match, &low_bytes) < 0) {
+					   &low_match, &low_bytes) < 0) {
 		goto exit_func;
 	}
 
 	next_rec = page_rec_get_next(rec);
 	offsets = rec_get_offsets(next_rec, index, offsets,
-				dtuple_get_n_fields(tuple), &heap);
+				  dtuple_get_n_fields(tuple), &heap);
 
 	if (page_cmp_dtuple_rec_with_match(tuple, next_rec, offsets,
-						&up_match, &up_bytes) >= 0) {
+					   &up_match, &up_bytes) >= 0) {
 		goto exit_func;
 	}
 
@@ -96,11 +96,11 @@ page_cur_try_search_shortcut(
 
 #ifdef UNIV_SEARCH_DEBUG
 	page_cur_search_with_match(page, index, tuple, PAGE_CUR_DBG,
-						iup_matched_fields,
-						iup_matched_bytes,
-						ilow_matched_fields,
-						ilow_matched_bytes,
-						&cursor2);
+				   iup_matched_fields,
+				   iup_matched_bytes,
+				   ilow_matched_fields,
+				   ilow_matched_bytes,
+				   &cursor2);
 	ut_a(cursor2.rec == cursor->rec);
 
 	if (next_rec != page_get_supremum_rec(page)) {
@@ -163,20 +163,20 @@ page_cur_rec_field_extends(
 	rec_f = rec_get_nth_field(rec, offsets, n, &rec_f_len);
 
 	if (type->mtype == DATA_VARCHAR
-	   || type->mtype == DATA_CHAR
-	   || type->mtype == DATA_FIXBINARY
-	   || type->mtype == DATA_BINARY
-	   || type->mtype == DATA_BLOB
-	   || type->mtype == DATA_VARMYSQL
-	   || type->mtype == DATA_MYSQL) {
+	    || type->mtype == DATA_CHAR
+	    || type->mtype == DATA_FIXBINARY
+	    || type->mtype == DATA_BINARY
+	    || type->mtype == DATA_BLOB
+	    || type->mtype == DATA_VARMYSQL
+	    || type->mtype == DATA_MYSQL) {
 
 		if (dfield_get_len(dfield) != UNIV_SQL_NULL
-			&& rec_f_len != UNIV_SQL_NULL
-			&& rec_f_len >= dfield_get_len(dfield)
-			&& 0 == cmp_data_data_slow(type,
-				dfield_get_data(dfield),
-				dfield_get_len(dfield),
-				rec_f, dfield_get_len(dfield))) {
+		    && rec_f_len != UNIV_SQL_NULL
+		    && rec_f_len >= dfield_get_len(dfield)
+		    && !cmp_data_data_slow(type,
+					   dfield_get_data(dfield),
+					   dfield_get_len(dfield),
+					   rec_f, dfield_get_len(dfield))) {
 
 			return(TRUE);
 		}
@@ -236,7 +236,7 @@ page_cur_search_with_match(
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	ut_ad(page && tuple && iup_matched_fields && iup_matched_bytes
-		&& ilow_matched_fields && ilow_matched_bytes && cursor);
+	      && ilow_matched_fields && ilow_matched_bytes && cursor);
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_check_typed(tuple));
 #ifdef UNIV_DEBUG
@@ -246,23 +246,24 @@ page_cur_search_with_match(
 # ifdef PAGE_CUR_LE_OR_EXTENDS
 		if (mode != PAGE_CUR_LE_OR_EXTENDS)
 # endif /* PAGE_CUR_LE_OR_EXTENDS */
-	ut_ad((mode == PAGE_CUR_L) || (mode == PAGE_CUR_LE)
-		|| (mode == PAGE_CUR_G) || (mode == PAGE_CUR_GE));
+			ut_ad(mode == PAGE_CUR_L || mode == PAGE_CUR_LE
+			      || mode == PAGE_CUR_G || mode == PAGE_CUR_GE);
 #endif /* UNIV_DEBUG */
 
 	page_check_dir(page);
 
 #ifdef PAGE_CUR_ADAPT
 	if ((page_header_get_field(page, PAGE_LEVEL) == 0)
-		&& (mode == PAGE_CUR_LE)
-		&& (page_header_get_field(page, PAGE_N_DIRECTION) > 3)
-		&& (page_header_get_ptr(page, PAGE_LAST_INSERT))
-		&& (page_header_get_field(page, PAGE_DIRECTION) == PAGE_RIGHT)) {
+	    && (mode == PAGE_CUR_LE)
+	    && (page_header_get_field(page, PAGE_N_DIRECTION) > 3)
+	    && (page_header_get_ptr(page, PAGE_LAST_INSERT))
+	    && (page_header_get_field(page, PAGE_DIRECTION) == PAGE_RIGHT)) {
 
-		if (page_cur_try_search_shortcut(page, index, tuple,
-				iup_matched_fields, iup_matched_bytes,
-				ilow_matched_fields, ilow_matched_bytes,
-				cursor)) {
+		if (page_cur_try_search_shortcut
+		    (page, index, tuple,
+		     iup_matched_fields, iup_matched_bytes,
+		     ilow_matched_fields, ilow_matched_bytes,
+		     cursor)) {
 			return;
 		}
 	}
@@ -306,11 +307,12 @@ page_cur_search_with_match(
 		mid_rec = page_dir_slot_get_rec(slot);
 
 		ut_pair_min(&cur_matched_fields, &cur_matched_bytes,
-				low_matched_fields, low_matched_bytes,
-				up_matched_fields, up_matched_bytes);
+			    low_matched_fields, low_matched_bytes,
+			    up_matched_fields, up_matched_bytes);
 
 		offsets = rec_get_offsets(mid_rec, index, offsets,
-					dtuple_get_n_fields_cmp(tuple), &heap);
+					  dtuple_get_n_fields_cmp(tuple),
+					  &heap);
 
 		cmp = cmp_dtuple_rec_with_match(tuple, mid_rec, offsets,
 						&cur_matched_fields,
@@ -321,11 +323,11 @@ low_slot_match:
 			low_matched_fields = cur_matched_fields;
 			low_matched_bytes = cur_matched_bytes;
 
-		} else if (UNIV_LIKELY(cmp /* == -1 */)) {
+		} else if (UNIV_EXPECT(cmp, -1)) {
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
-				&& page_cur_rec_field_extends(tuple, mid_rec,
-					offsets, cur_matched_fields)) {
+			    && page_cur_rec_field_extends
+			    (tuple, mid_rec, offsets, cur_matched_fields)) {
 
 				goto low_slot_match;
 			}
@@ -339,7 +341,7 @@ up_slot_match:
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 			   || mode == PAGE_CUR_LE_OR_EXTENDS
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
-		) {
+			   ) {
 
 			goto low_slot_match;
 		} else {
@@ -361,11 +363,12 @@ up_slot_match:
 		mid_rec = page_rec_get_next(low_rec);
 
 		ut_pair_min(&cur_matched_fields, &cur_matched_bytes,
-				low_matched_fields, low_matched_bytes,
-				up_matched_fields, up_matched_bytes);
+			    low_matched_fields, low_matched_bytes,
+			    up_matched_fields, up_matched_bytes);
 
 		offsets = rec_get_offsets(mid_rec, index, offsets,
-					dtuple_get_n_fields_cmp(tuple), &heap);
+					  dtuple_get_n_fields_cmp(tuple),
+					  &heap);
 
 		cmp = cmp_dtuple_rec_with_match(tuple, mid_rec, offsets,
 						&cur_matched_fields,
@@ -376,11 +379,11 @@ low_rec_match:
 			low_matched_fields = cur_matched_fields;
 			low_matched_bytes = cur_matched_bytes;
 
-		} else if (UNIV_LIKELY(cmp /* == -1 */)) {
+		} else if (UNIV_EXPECT(cmp, -1)) {
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 			if (mode == PAGE_CUR_LE_OR_EXTENDS
-				&& page_cur_rec_field_extends(tuple, mid_rec,
-					offsets, cur_matched_fields)) {
+			    && page_cur_rec_field_extends
+			    (tuple, mid_rec, offsets, cur_matched_fields)) {
 
 				goto low_rec_match;
 			}
@@ -393,7 +396,7 @@ up_rec_match:
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 			   || mode == PAGE_CUR_LE_OR_EXTENDS
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
-		) {
+			   ) {
 
 			goto low_rec_match;
 		} else {
@@ -410,10 +413,10 @@ up_rec_match:
 	dbg_matched_bytes = 0;
 
 	offsets = rec_get_offsets(low_rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
+				  ULINT_UNDEFINED, &heap);
 	dbg_cmp = page_cmp_dtuple_rec_with_match(tuple, low_rec, offsets,
-						&dbg_matched_fields,
-						&dbg_matched_bytes);
+						 &dbg_matched_fields,
+						 &dbg_matched_bytes);
 	if (mode == PAGE_CUR_G) {
 		ut_a(dbg_cmp >= 0);
 	} else if (mode == PAGE_CUR_GE) {
@@ -434,10 +437,10 @@ up_rec_match:
 	dbg_matched_bytes = 0;
 
 	offsets = rec_get_offsets(up_rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
+				  ULINT_UNDEFINED, &heap);
 	dbg_cmp = page_cmp_dtuple_rec_with_match(tuple, up_rec, offsets,
-						&dbg_matched_fields,
-						&dbg_matched_bytes);
+						 &dbg_matched_fields,
+						 &dbg_matched_bytes);
 	if (mode == PAGE_CUR_G) {
 		ut_a(dbg_cmp == -1);
 	} else if (mode == PAGE_CUR_GE) {
@@ -533,7 +536,7 @@ page_cur_insert_rec_write_log(
 	ut_a(rec_size < UNIV_PAGE_SIZE);
 	ut_ad(buf_frame_align(insert_rec) == buf_frame_align(cursor_rec));
 	ut_ad(!page_rec_is_comp(insert_rec)
-		== !dict_table_is_comp(index->table));
+	      == !dict_table_is_comp(index->table));
 	comp = page_rec_is_comp(insert_rec);
 
 	{
@@ -548,9 +551,9 @@ page_cur_insert_rec_write_log(
 		*ins_offs_ = (sizeof ins_offs_) / sizeof *ins_offs_;
 
 		cur_offs = rec_get_offsets(cursor_rec, index, cur_offs_,
-						ULINT_UNDEFINED, &heap);
+					   ULINT_UNDEFINED, &heap);
 		ins_offs = rec_get_offsets(insert_rec, index, ins_offs_,
-						ULINT_UNDEFINED, &heap);
+					   ULINT_UNDEFINED, &heap);
 
 		extra_size = rec_offs_extra_size(ins_offs);
 		cur_extra_size = rec_offs_extra_size(cur_offs);
@@ -583,9 +586,10 @@ page_cur_insert_rec_write_log(
 				ins_ptr++;
 				cur_ptr++;
 			} else if ((i < extra_size)
-				   && (i >= extra_size - (comp
-					? REC_N_NEW_EXTRA_BYTES
-					: REC_N_OLD_EXTRA_BYTES))) {
+				   && (i >= extra_size
+				       - (comp
+					  ? REC_N_NEW_EXTRA_BYTES
+					  : REC_N_OLD_EXTRA_BYTES))) {
 				i = extra_size;
 				ins_ptr = insert_rec;
 				cur_ptr = cursor_rec;
@@ -598,9 +602,11 @@ page_cur_insert_rec_write_log(
 	if (mtr_get_log_mode(mtr) != MTR_LOG_SHORT_INSERTS) {
 
 		log_ptr = mlog_open_and_write_index(mtr, insert_rec, index,
-				comp
-				? MLOG_COMP_REC_INSERT : MLOG_REC_INSERT,
-				2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
+						    comp
+						    ? MLOG_COMP_REC_INSERT
+						    : MLOG_REC_INSERT,
+						    2 + 5 + 1 + 5 + 5
+						    + MLOG_BUF_MARGIN);
 
 		if (!log_ptr) {
 			/* Logging in mtr is switched off during crash
@@ -611,7 +617,7 @@ page_cur_insert_rec_write_log(
 		log_end = &log_ptr[2 + 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
 		/* Write the cursor rec offset as a 2-byte ulint */
 		mach_write_to_2(log_ptr, cursor_rec
-					- buf_frame_align(cursor_rec));
+				- buf_frame_align(cursor_rec));
 		log_ptr += 2;
 	} else {
 		log_ptr = mlog_open(mtr, 5 + 1 + 5 + 5 + MLOG_BUF_MARGIN);
@@ -623,10 +629,10 @@ page_cur_insert_rec_write_log(
 		log_end = &log_ptr[5 + 1 + 5 + 5 + MLOG_BUF_MARGIN];
 	}
 
-	if ((rec_get_info_and_status_bits(insert_rec, comp) !=
-			rec_get_info_and_status_bits(cursor_rec, comp))
-		|| (extra_size != cur_extra_size)
-		|| (rec_size != cur_rec_size)) {
+	if ((rec_get_info_and_status_bits(insert_rec, comp)
+	     != rec_get_info_and_status_bits(cursor_rec, comp))
+	    || (extra_size != cur_extra_size)
+	    || (rec_size != cur_rec_size)) {
 
 		extra_info_yes = 1;
 	} else {
@@ -636,11 +642,12 @@ page_cur_insert_rec_write_log(
 	/* Write the record end segment length and the extra info storage
 	flag */
 	log_ptr += mach_write_compressed(log_ptr, 2 * (rec_size - i)
-							+ extra_info_yes);
+					 + extra_info_yes);
 	if (extra_info_yes) {
 		/* Write the info bits */
-		mach_write_to_1(log_ptr,
-			rec_get_info_and_status_bits(insert_rec, comp));
+		mach_write_to_1
+			(log_ptr,
+			 rec_get_info_and_status_bits(insert_rec, comp));
 		log_ptr++;
 
 		/* Write the record origin offset */
@@ -786,11 +793,11 @@ page_cur_parse_insert_rec(
 	}
 
 	offsets = rec_get_offsets(cursor_rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
+				  ULINT_UNDEFINED, &heap);
 
 	if (extra_info_yes == 0) {
-		info_and_status_bits = rec_get_info_and_status_bits(
-					cursor_rec, page_is_comp(page));
+		info_and_status_bits = rec_get_info_and_status_bits
+			(cursor_rec, page_is_comp(page));
 		origin_offset = rec_offs_extra_size(offsets);
 		mismatch_index = rec_offs_size(offsets) - end_seg_len;
 	}
@@ -827,12 +834,12 @@ page_cur_parse_insert_rec(
 	ut_memcpy(buf + mismatch_index, ptr, end_seg_len);
 
 	rec_set_info_and_status_bits(buf + origin_offset, page_is_comp(page),
-							info_and_status_bits);
+				     info_and_status_bits);
 
 	page_cur_position(cursor_rec, &cursor);
 
 	offsets = rec_get_offsets(buf + origin_offset, index, offsets,
-						ULINT_UNDEFINED, &heap);
+				  ULINT_UNDEFINED, &heap);
 	page_cur_rec_insert(&cursor, buf + origin_offset, index, offsets, mtr);
 
 	if (buf != buf1) {
@@ -868,9 +875,11 @@ page_cur_insert_rec_low(
 	byte*		insert_buf	= NULL;
 	ulint		rec_size;
 	byte*		page;		/* the relevant page */
-	rec_t*		last_insert;	/* cursor position at previous insert */
+	rec_t*		last_insert;	/* cursor position at previous
+					insert */
 	rec_t*		insert_rec;	/* inserted record */
-	ulint		heap_no;	/* heap number of the inserted record */
+	ulint		heap_no;	/* heap number of the inserted
+					record */
 	rec_t*		current_rec;	/* current record after which the
 					new record is inserted */
 	rec_t*		next_rec;	/* next record after current before
@@ -899,7 +908,7 @@ page_cur_insert_rec_low(
 	} else {
 		if (!offsets) {
 			offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
+						  ULINT_UNDEFINED, &heap);
 		}
 		ut_ad(rec_offs_validate(rec, index, offsets));
 		rec_size = rec_offs_size(offsets);
@@ -918,9 +927,9 @@ page_cur_insert_rec_low(
 	/* 3. Create the record */
 	if (tuple != NULL) {
 		insert_rec = rec_convert_dtuple_to_rec(insert_buf,
-							index, tuple);
+						       index, tuple);
 		offsets = rec_get_offsets(insert_rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 	} else {
 		insert_rec = rec_copy(insert_buf, rec, offsets);
 		ut_ad(rec_offs_validate(rec, index, offsets));
@@ -953,26 +962,30 @@ page_cur_insert_rec_low(
 
 	last_insert = page_header_get_ptr(page, PAGE_LAST_INSERT);
 	ut_ad(!last_insert || !comp
-		|| rec_get_node_ptr_flag(last_insert)
-		== rec_get_node_ptr_flag(insert_rec));
+	      || rec_get_node_ptr_flag(last_insert)
+	      == rec_get_node_ptr_flag(insert_rec));
 
 	if (last_insert == NULL) {
 		page_header_set_field(page, PAGE_DIRECTION, PAGE_NO_DIRECTION);
 		page_header_set_field(page, PAGE_N_DIRECTION, 0);
 
 	} else if ((last_insert == current_rec)
-		&& (page_header_get_field(page, PAGE_DIRECTION) != PAGE_LEFT)) {
+		   && (page_header_get_field(page, PAGE_DIRECTION)
+		       != PAGE_LEFT)) {
 
 		page_header_set_field(page, PAGE_DIRECTION, PAGE_RIGHT);
 		page_header_set_field(page, PAGE_N_DIRECTION,
-			page_header_get_field(page, PAGE_N_DIRECTION) + 1);
+				      page_header_get_field
+				      (page, PAGE_N_DIRECTION) + 1);
 
 	} else if ((page_rec_get_next(insert_rec) == last_insert)
-		&& (page_header_get_field(page, PAGE_DIRECTION) != PAGE_RIGHT)) {
+		   && (page_header_get_field(page, PAGE_DIRECTION)
+		       != PAGE_RIGHT)) {
 
 		page_header_set_field(page, PAGE_DIRECTION, PAGE_LEFT);
 		page_header_set_field(page, PAGE_N_DIRECTION,
-			page_header_get_field(page, PAGE_N_DIRECTION) + 1);
+				      page_header_get_field
+				      (page, PAGE_N_DIRECTION) + 1);
 	} else {
 		page_header_set_field(page, PAGE_DIRECTION, PAGE_NO_DIRECTION);
 		page_header_set_field(page, PAGE_N_DIRECTION, 0);
@@ -997,7 +1010,7 @@ page_cur_insert_rec_low(
 
 	/* 9. Write log record of the insert */
 	page_cur_insert_rec_write_log(insert_rec, rec_size, current_rec,
-				index, mtr);
+				      index, mtr);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -1022,9 +1035,9 @@ page_copy_rec_list_to_created_page_write_log(
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
 	log_ptr = mlog_open_and_write_index(mtr, page, index,
-			page_is_comp(page)
-			? MLOG_COMP_LIST_END_COPY_CREATED
-			: MLOG_LIST_END_COPY_CREATED, 4);
+					    page_is_comp(page)
+					    ? MLOG_COMP_LIST_END_COPY_CREATED
+					    : MLOG_LIST_END_COPY_CREATED, 4);
 	ut_a(log_ptr);
 	mlog_close(mtr, log_ptr + 4);
 
@@ -1069,7 +1082,7 @@ page_parse_copy_rec_list_to_created_page(
 
 	while (ptr < rec_end) {
 		ptr = page_cur_parse_insert_rec(TRUE, ptr, end_ptr,
-							index, page, mtr);
+						index, page, mtr);
 	}
 
 	ut_a(ptr == rec_end);
@@ -1130,11 +1143,11 @@ page_copy_rec_list_end_to_created_page(
 	in the debug version */
 	page_dir_set_n_slots(new_page, UNIV_PAGE_SIZE / 2);
 	page_header_set_ptr(new_page, PAGE_HEAP_TOP,
-					new_page + UNIV_PAGE_SIZE - 1);
+			    new_page + UNIV_PAGE_SIZE - 1);
 #endif
 
 	log_ptr = page_copy_rec_list_to_created_page_write_log(new_page,
-								index, mtr);
+							       index, mtr);
 
 	log_data_len = dyn_array_get_data_size(&(mtr->log));
 
@@ -1155,7 +1168,7 @@ page_copy_rec_list_end_to_created_page(
 	/* should be do ... until, comment by Jani */
 	while (rec != page_get_supremum_rec(page)) {
 		offsets = rec_get_offsets(rec, index, offsets,
-					ULINT_UNDEFINED, &heap);
+					  ULINT_UNDEFINED, &heap);
 		insert_rec = rec_copy(heap_top, rec, offsets);
 
 		rec_set_next_offs(prev_rec, comp, insert_rec - new_page);
@@ -1185,13 +1198,13 @@ page_copy_rec_list_end_to_created_page(
 		}
 
 		page_cur_insert_rec_write_log(insert_rec, rec_size, prev_rec,
-								index, mtr);
+					      index, mtr);
 		prev_rec = insert_rec;
 		rec = page_rec_get_next(rec);
 	}
 
 	if ((slot_index > 0) && (count + 1
-				+ (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2
+				 + (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2
 				 <= PAGE_DIR_SLOT_MAX_N_OWNED)) {
 		/* We can merge the two last dir slots. This operation is
 		here to make this function imitate exactly the equivalent
@@ -1218,7 +1231,7 @@ page_copy_rec_list_end_to_created_page(
 	mach_write_to_4(log_ptr, log_data_len);
 
 	rec_set_next_offs(insert_rec, comp,
-				comp ? PAGE_NEW_SUPREMUM : PAGE_OLD_SUPREMUM);
+			  comp ? PAGE_NEW_SUPREMUM : PAGE_OLD_SUPREMUM);
 
 	slot = page_dir_get_nth_slot(new_page, 1 + slot_index);
 
@@ -1254,9 +1267,9 @@ page_cur_delete_rec_write_log(
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 
 	log_ptr = mlog_open_and_write_index(mtr, rec, index,
-			page_rec_is_comp(rec)
-			? MLOG_COMP_REC_DELETE
-			: MLOG_REC_DELETE, 2);
+					    page_rec_is_comp(rec)
+					    ? MLOG_COMP_REC_DELETE
+					    : MLOG_REC_DELETE, 2);
 
 	if (!log_ptr) {
 		/* Logging in mtr is switched off during crash recovery:
@@ -1306,8 +1319,9 @@ page_cur_parse_delete_rec(
 		page_cur_position(rec, &cursor);
 
 		page_cur_delete_rec(&cursor, index,
-				rec_get_offsets(rec, index, offsets_,
-				ULINT_UNDEFINED, &heap), mtr);
+				    rec_get_offsets(rec, index, offsets_,
+						    ULINT_UNDEFINED, &heap),
+				    mtr);
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -1390,7 +1404,7 @@ page_cur_delete_rec(
 
 	page_rec_set_next(prev_rec, next_rec);
 	page_header_set_field(page, PAGE_N_RECS,
-				(ulint)(page_get_n_recs(page) - 1));
+			      (ulint)(page_get_n_recs(page) - 1));
 
 	/* 4. If the deleted record is pointed to by a dir slot, update the
 	record pointer in slot. In the following if-clause we assume that

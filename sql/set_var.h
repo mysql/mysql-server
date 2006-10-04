@@ -932,6 +932,12 @@ public:
     sys_var_long_ptr(name_arg, NULL, NULL) {};
   bool update(THD *thd, set_var *var);
   byte *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  SHOW_TYPE type() { return SHOW_CHAR; }
+  bool check(THD *thd, set_var *var);
+  bool check_update_type(Item_result type)
+  {
+    return type != STRING_RESULT && type != INT_RESULT;
+  }
 };
 
 #ifdef HAVE_ROW_BASED_REPLICATION

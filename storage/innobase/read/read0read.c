@@ -175,7 +175,7 @@ read_view_oldest_copy_or_open_new(
 	n = old_view->n_trx_ids;
 
 	if (ut_dulint_cmp(old_view->creator_trx_id,
-					ut_dulint_create(0,0)) != 0) {
+			  ut_dulint_create(0,0)) != 0) {
 		n++;
 	} else {
 		needs_insert = FALSE;
@@ -189,19 +189,19 @@ read_view_oldest_copy_or_open_new(
 	i = 0;
 	while (i < n) {
 		if (needs_insert
-			&& (i >= old_view->n_trx_ids
-				|| ut_dulint_cmp(old_view->creator_trx_id,
-					read_view_get_nth_trx_id(old_view, i))
-				> 0)) {
+		    && (i >= old_view->n_trx_ids
+			|| ut_dulint_cmp(old_view->creator_trx_id,
+					 read_view_get_nth_trx_id(old_view, i))
+			> 0)) {
 
 			read_view_set_nth_trx_id(view_copy, i,
-						old_view->creator_trx_id);
+						 old_view->creator_trx_id);
 			needs_insert = FALSE;
 			insert_done = 1;
 		} else {
 			read_view_set_nth_trx_id(view_copy, i,
-				read_view_get_nth_trx_id(old_view,
-							i - insert_done));
+						 read_view_get_nth_trx_id
+						 (old_view, i - insert_done));
 		}
 
 		i++;
@@ -216,8 +216,8 @@ read_view_oldest_copy_or_open_new(
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view_copy->up_limit_id = read_view_get_nth_trx_id(
-							view_copy, n - 1);
+		view_copy->up_limit_id = read_view_get_nth_trx_id
+			(view_copy, n - 1);
 	} else {
 		view_copy->up_limit_id = old_view->up_limit_id;
 	}
@@ -267,8 +267,8 @@ read_view_open_now(
 
 	while (trx) {
 		if (ut_dulint_cmp(trx->id, cr_trx_id) != 0
-			&& (trx->conc_state == TRX_ACTIVE
-				|| trx->conc_state == TRX_PREPARED)) {
+		    && (trx->conc_state == TRX_ACTIVE
+			|| trx->conc_state == TRX_PREPARED)) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 
@@ -362,16 +362,16 @@ read_view_print(
 	}
 
 	fprintf(stderr, "Read view low limit trx n:o %lu %lu\n",
-			(ulong) ut_dulint_get_high(view->low_limit_no),
-			(ulong) ut_dulint_get_low(view->low_limit_no));
+		(ulong) ut_dulint_get_high(view->low_limit_no),
+		(ulong) ut_dulint_get_low(view->low_limit_no));
 
 	fprintf(stderr, "Read view up limit trx id %lu %lu\n",
-			(ulong) ut_dulint_get_high(view->up_limit_id),
-			(ulong) ut_dulint_get_low(view->up_limit_id));
+		(ulong) ut_dulint_get_high(view->up_limit_id),
+		(ulong) ut_dulint_get_low(view->up_limit_id));
 
 	fprintf(stderr, "Read view low limit trx id %lu %lu\n",
-			(ulong) ut_dulint_get_high(view->low_limit_id),
-			(ulong) ut_dulint_get_low(view->low_limit_id));
+		(ulong) ut_dulint_get_high(view->low_limit_id),
+		(ulong) ut_dulint_get_low(view->low_limit_id));
 
 	fprintf(stderr, "Read view individually stored trx ids:\n");
 
@@ -379,8 +379,10 @@ read_view_print(
 
 	for (i = 0; i < n_ids; i++) {
 		fprintf(stderr, "Read view trx id %lu %lu\n",
-			(ulong) ut_dulint_get_high(read_view_get_nth_trx_id(view, i)),
-			(ulong) ut_dulint_get_low(read_view_get_nth_trx_id(view, i)));
+			(ulong) ut_dulint_get_high
+			(read_view_get_nth_trx_id(view, i)),
+			(ulong) ut_dulint_get_low
+			(read_view_get_nth_trx_id(view, i)));
 	}
 }
 
@@ -412,15 +414,14 @@ read_cursor_view_create_for_mysql(
 	curview->heap = heap;
 
 	/* Drop cursor tables from consideration when evaluating the need of
-	  auto-commit */
+	auto-commit */
 	curview->n_mysql_tables_in_use = cr_trx->n_mysql_tables_in_use;
 	cr_trx->n_mysql_tables_in_use = 0;
 
 	mutex_enter(&kernel_mutex);
 
-	curview->read_view = read_view_create_low(
-				UT_LIST_GET_LEN(trx_sys->trx_list),
-					curview->heap);
+	curview->read_view = read_view_create_low
+		(UT_LIST_GET_LEN(trx_sys->trx_list), curview->heap);
 
 	view = curview->read_view;
 	view->creator_trx_id = cr_trx->id;
@@ -442,7 +443,7 @@ read_cursor_view_create_for_mysql(
 	while (trx) {
 
 		if (trx->conc_state == TRX_ACTIVE
-			|| trx->conc_state == TRX_PREPARED) {
+		    || trx->conc_state == TRX_PREPARED) {
 
 			read_view_set_nth_trx_id(view, n, trx->id);
 
@@ -494,7 +495,7 @@ read_cursor_view_close_for_mysql(
 	ut_a(curview->heap);
 
 	/* Add cursor's tables to the global count of active tables that
-	  belong to this transaction */
+	belong to this transaction */
 	trx->n_mysql_tables_in_use += curview->n_mysql_tables_in_use;
 
 	mutex_enter(&kernel_mutex);

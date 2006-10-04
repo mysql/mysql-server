@@ -30,7 +30,7 @@ class DiAddTabReq {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( SignalLength = 9 );
+  STATIC_CONST( SignalLength = 10 );
   SECTION( FRAGMENTATION = 0 );
   SECTION( TS_RANGE = 0 );
   
@@ -40,10 +40,11 @@ private:
   Uint32 fragType;
   Uint32 kValue;
   Uint32 noOfReplicas; //Currently not used
-  Uint32 storedTable;
+  Uint32 loggedTable;
   Uint32 tableType;
   Uint32 schemaVersion;
   Uint32 primaryTableId;
+  Uint32 temporaryTable;
 };
 
 class DiAddTabRef {

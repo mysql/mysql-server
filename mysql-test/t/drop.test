@@ -81,3 +81,44 @@ show tables;
 drop table t1;
 
 # End of 4.1 tests
+
+
+#
+# Test for bug#21216 "Simultaneous DROP TABLE and SHOW OPEN TABLES causes
+# server to crash". Crash (caused by failed assertion in 5.0 or by null
+# pointer dereference in 5.1) happened when one ran SHOW OPEN TABLES
+# while concurrently doing DROP TABLE (or RENAME TABLE, CREATE TABLE LIKE
+# or any other command that takes name-lock) in other connection.
+# 
+# Also includes test for similar bug#12212 "Crash that happens during
+# removing of database name from cache" reappeared in 5.1 as bug#19403
+# In its case crash happened when one concurrently executed DROP DATABASE
+# and one of name-locking command.
+# 
+--disable_warnings
+drop database if exists mysqltest;
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+lock tables t1 read;
+create database mysqltest;
+connect (addconroot1, localhost, root,,);
+--send drop table t1
+connect (addconroot2, localhost, root,,);
+# Server should not crash in any of the following statements
+--disable_result_log
+show open tables;
+--enable_result_log
+--send drop database mysqltest
+connection default;
+select 1;
+unlock tables;
+connection addconroot1;
+--reap
+connection addconroot2;
+--reap
+disconnect addconroot1;
+disconnect addconroot2;
+connection default;
+
+--echo End of 5.0 tests

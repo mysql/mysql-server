@@ -385,6 +385,17 @@ insert into t1 values (1, "line number one"), (2, "line number two"), (3, "line 
 select distinct id, IFNULL(dsc, '-') from t1;
 drop table t1;
 
+#
+# Bug 21456: SELECT DISTINCT(x) produces incorrect results when using order by
+#
+CREATE TABLE t1 (a int primary key, b int);
+
+INSERT INTO t1 (a,b) values (1,1), (2,3), (3,2);
+
+explain SELECT DISTINCT a, b FROM t1 ORDER BY b;
+SELECT DISTINCT a, b FROM t1 ORDER BY b;
+DROP TABLE t1;
+
 # End of 4.1 tests
 
 

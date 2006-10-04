@@ -27,7 +27,7 @@ class sp_instr;
 class sp_pcontext;
 class st_alter_tablespace;
 class partition_info;
-class Event_timed;
+class Event_parse_data;
 
 #ifdef MYSQL_SERVER
 /*
@@ -113,7 +113,6 @@ enum enum_sql_command {
   SQLCOM_SHOW_CONTRIBUTORS,
   SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
   SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS, 
-  SQLCOM_SHOW_SCHEDULER_STATUS,
 
   /* This should be the last !!! */
 
@@ -149,11 +148,11 @@ enum enum_sp_data_access
 
 const LEX_STRING sp_data_access_name[]=
 {
-  { (char*) STRING_WITH_LEN("") },
-  { (char*) STRING_WITH_LEN("CONTAINS SQL") },
-  { (char*) STRING_WITH_LEN("NO SQL") },
-  { (char*) STRING_WITH_LEN("READS SQL DATA") },
-  { (char*) STRING_WITH_LEN("MODIFIES SQL DATA") }
+  { C_STRING_WITH_LEN("") },
+  { C_STRING_WITH_LEN("CONTAINS SQL") },
+  { C_STRING_WITH_LEN("NO SQL") },
+  { C_STRING_WITH_LEN("READS SQL DATA") },
+  { C_STRING_WITH_LEN("MODIFIES SQL DATA") }
 };
 
 #define DERIVED_SUBQUERY	1
@@ -575,6 +574,12 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+
+  /* Number of Item_sum-derived objects in this SELECT */
+  uint n_sum_items;
+  /* Number of Item_sum-derived objects in children and descendant SELECTs */
+  uint n_child_sum_items;
+
   /* explicit LIMIT clause was used */
   bool explicit_limit;
   /*
@@ -667,7 +672,7 @@ public:
   bool test_limit();
 
   friend void lex_start(THD *thd, const uchar *buf, uint length);
-  st_select_lex() {}
+  st_select_lex() : n_sum_items(0), n_child_sum_items(0) {}
   void make_empty_select()
   {
     init_query();
@@ -895,7 +900,7 @@ typedef struct st_lex : public Query_tables_list
   XID *xid;
   gptr yacc_yyss,yacc_yyvs;
   THD *thd;
-  CHARSET_INFO *charset;
+  CHARSET_INFO *charset, *underscore_charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
   /* Position (first character index) of SELECT of CREATE VIEW statement */
@@ -958,6 +963,14 @@ typedef struct st_lex : public Query_tables_list
   */
   nesting_map allow_sum_func;
   enum_sql_command sql_command;
+  /*
+    Usually `expr` rule of yacc is quite reused but some commands better
+    not support subqueries which comes standard with this rule, like
+    KILL, HA_READ, CREATE/ALTER EVENT etc. Set this to `false` to get
+    syntax error back.
+  */
+  bool expr_allows_subselect;
+
   thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum my_lex_states next_state;
@@ -1035,8 +1048,7 @@ typedef struct st_lex : public Query_tables_list
 
   st_sp_chistics sp_chistics;
 
-  Event_timed *et;
-  bool et_compile_phase;
+  Event_parse_data *event_parse_data;
 
   bool only_view;       /* used for SHOW CREATE TABLE/VIEW */
   /*

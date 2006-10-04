@@ -30,7 +30,7 @@ sub generate_prefix($$)
       next;
     }
 
-    if ( /^\s*[a-zA-Z0-9*_ ]+\s+([_a-zA-Z0-9]+)\s*\(/ )
+    if ( /^\s*[a-zA-Z0-9*_ ]+\s+\*?([_a-zA-Z0-9]+)\s*\(/ )
     {
       print OUT "#define $1 ya$1\n";
     }

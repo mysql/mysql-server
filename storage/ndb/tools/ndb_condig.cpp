@@ -145,7 +145,7 @@ struct Match
 
 struct HostMatch : public Match
 {
-  virtual int eval(NdbMgmHandle, const Iter&);
+  virtual int eval(const Iter&);
 };
 
 struct Apply
@@ -402,7 +402,7 @@ Match::eval(const Iter& iter)
 }
 
 int
-HostMatch::eval(NdbMgmHandle h, const Iter& iter)
+HostMatch::eval(const Iter& iter)
 {
   const char* valc;
   

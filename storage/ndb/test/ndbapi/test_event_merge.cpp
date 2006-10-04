@@ -161,6 +161,7 @@ static void
 errdb()
 {
   uint any = 0;
+  // g_ncc return no error...
   if (g_ndb != 0) {
     const NdbError& e = g_ndb->getNdbError();
     if (e.code != 0)
@@ -359,9 +360,9 @@ createtable(Tab& t)
 }
 
 static int
-createtable()
+createtables()
 {
-  ll1("createtable");
+  ll1("createtables");
   for (uint i = 0; i < maxtab(); i++)
     chkrc(createtable(tab(i)) == 0);
   return 0;
@@ -381,9 +382,9 @@ droptable(Tab& t)
 }
 
 static int
-droptable()
+droptables()
 {
-  ll1("droptable");
+  ll1("droptables");
   for (uint i = 0; i < maxtab(); i++)
     chkrc(droptable(tab(i)) == 0);
   return 0;
@@ -419,9 +420,9 @@ createevent(Tab& t)
 }
 
 static int
-createevent()
+createevents()
 {
-  ll1("createevent");
+  ll1("createevents");
   for (uint i = 0; i < maxtab(); i++)
     chkrc(createevent(tab(i)) == 0);
   return 0;
@@ -439,11 +440,14 @@ dropevent(Tab& t, bool force = false)
 }
 
 static int
-dropevent(bool force = false)
+dropevents(bool force = false)
 {
-  ll1("dropevent");
-  for (uint i = 0; i < maxtab(); i++)
+  ll1("dropevents");
+  for (uint i = 0; i < maxtab(); i++) {
+    if (force && g_tablst[i] == 0)
+      continue;
     chkrc(dropevent(tab(i), force) == 0 || force);
+  }
   return 0;
 }
 
@@ -1173,8 +1177,11 @@ static int
 dropeventops(bool force = false)
 {
   ll1("dropeventops");
-  for (uint i = 0; i < maxrun(); i++)
+  for (uint i = 0; i < maxrun(); i++) {
+    if (force && g_runlst[i] == 0)
+      continue;
     chkrc(dropeventop(run(i), force) == 0 || force);
+  }
   return 0;
 }
 
@@ -2139,8 +2146,8 @@ runtest()
 {
   setseed(-1);
   initrun();
-  chkrc(createtable() == 0);
-  chkrc(createevent() == 0);
+  chkrc(createtables() == 0);
+  chkrc(createevents() == 0);
   for (g_loop = 0; g_opts.loop == 0 || g_loop < g_opts.loop; g_loop++) {
     ll0("=== loop " << g_loop << " ===");
     setseed(g_loop);
@@ -2164,8 +2171,8 @@ runtest()
     // time erases everything..
     chkrc(waitgci(1) == 0);
   }
-  chkrc(dropevent() == 0);
-  chkrc(droptable() == 0);
+  chkrc(dropevents() == 0);
+  chkrc(droptables() == 0);
   resetmem();
   deleteops();
   return 0;
@@ -2287,6 +2294,16 @@ checkopts()
   return 0;
 }
 
+static int
+doconnect()
+{
+  g_ncc = new Ndb_cluster_connection();
+  chkdb(g_ncc->connect(30) == 0);
+  g_ndb = new Ndb(g_ncc, "TEST_DB");
+  chkdb(g_ndb->init() == 0 && g_ndb->waitUntilReady(30) == 0);
+  return 0;
+}
+
 int
 main(int argc, char** argv)
 {
@@ -2302,19 +2319,13 @@ main(int argc, char** argv)
   ret = handle_options(&argc, &argv, my_long_options, ndb_std_get_one_option);
   if (ret != 0 || argc != 0 || checkopts() != 0)
     return NDBT_ProgramExit(NDBT_WRONGARGS);
-  g_ncc = new Ndb_cluster_connection();
-  if (g_ncc->connect(30) == 0) {
-    g_ndb = new Ndb(g_ncc, "TEST_DB");
-    if (g_ndb->init() == 0 && g_ndb->waitUntilReady(30) == 0) {
-      if (runtest() == 0) {
-        delete g_ndb;
-        delete g_ncc;
-        return NDBT_ProgramExit(NDBT_OK);
-      }
-    }
+  if (doconnect() == 0 && runtest() == 0) {
+    delete g_ndb;
+    delete g_ncc;
+    return NDBT_ProgramExit(NDBT_OK);
   }
   dropeventops(true);
-  dropevent(true);
+  dropevents(true);
   delete g_ndb;
   delete g_ncc;
   return NDBT_ProgramExit(NDBT_FAILED);

@@ -21,7 +21,7 @@
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0001
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0002
 
 /*
   The allowable types of plugins
@@ -30,10 +30,6 @@
 #define MYSQL_STORAGE_ENGINE_PLUGIN  1  /* Storage Engine               */
 #define MYSQL_FTPARSER_PLUGIN        2  /* Full-text parser plugin      */
 #define MYSQL_MAX_PLUGIN_TYPE_NUM    3  /* The number of plugin types   */
-
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
-#define __attribute__(A)
-#endif
 
 /*
   Macros for beginning and ending plugin declarations.  Between
@@ -60,7 +56,7 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
                  builtin_ ## NAME ## _sizeof_struct_st_plugin, \
                  builtin_ ## NAME ## _plugin)
 
-#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0}}
+#define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0}}
 
 /*
   declarations for SHOW STATUS support in plugins
@@ -96,6 +92,8 @@ struct st_mysql_plugin
   int (*deinit)(void);  /* the function to invoke when plugin is unloaded */
   unsigned int version; /* plugin version (for SHOW PLUGINS)            */
   struct st_mysql_show_var *status_vars;
+  void * __reserved1;   /* placeholder for system variables             */
+  void * __reserved2;   /* placeholder for config options               */
 };
 
 /*************************************************************************

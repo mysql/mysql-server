@@ -30,8 +30,7 @@ ADD_LIBRARY(mysqldemb emb_qcache.cc libmysqld.c lib_sql.cc
             ../sql-common/pack.c ../sql/derror.cc ../sql/event_scheduler.cc
             ../sql/event_timed.cc ../sql/events.cc ../sql/discover.cc
             ../sql/field_conv.cc ../sql/field.cc ../sql/filesort.cc
-            ../sql/gstream.cc ../sql/ha_heap.cc ../sql/ha_myisam.cc
-            ../sql/ha_myisammrg.cc ${mysql_se_ha_src}
+            ../sql/gstream.cc ${mysql_se_ha_src}
             ../sql/handler.cc ../sql/hash_filo.cc
             ../sql/hostname.cc ../sql/init.cc ../sql/item_buff.cc
             ../sql/item_cmpfunc.cc ../sql/item.cc ../sql/item_create.cc
@@ -80,6 +79,9 @@ ENDIF(WITH_ARCHIVE_STORAGE_ENGINE)
 IF(WITH_EXAMPLE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(mysqlserver example)
 ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
+IF(WITH_FEDERATED_STORAGE_ENGINE)
+  ADD_DEPENDENCIES(mysqlserver federated)
+ENDIF(WITH_FEDERATED_STORAGE_ENGINE)
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(mysqlserver innobase)
 ENDIF(WITH_INNOBASE_STORAGE_ENGINE)

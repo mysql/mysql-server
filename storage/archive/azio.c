@@ -125,7 +125,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     buffer[8] = 0 /*xflags*/;
     buffer[9] = 0x03;
     s->start = 10L;
-    my_write(s->file, buffer, s->start, MYF(0));
+    my_write(s->file, buffer, (uint)s->start, MYF(0));
     /* We use 10L instead of ftell(s->file) to because ftell causes an
      * fflush on some systems. This version of the library doesn't use
      * start anyway in write mode, so this initialization is not
@@ -503,7 +503,7 @@ int azrewind (s)
   if (!s->transparent) (void)inflateReset(&s->stream);
   s->in = 0;
   s->out = 0;
-  return my_seek(s->file, s->start, MY_SEEK_SET, MYF(0));
+  return my_seek(s->file, (int)s->start, MY_SEEK_SET, MYF(0));
 }
 
 /* ===========================================================================

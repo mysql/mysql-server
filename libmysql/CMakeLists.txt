@@ -11,7 +11,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/strings)
 
-ADD_LIBRARY(libmysql MODULE dll.c libmysql.def
+ADD_LIBRARY(libmysql SHARED dll.c libmysql.def
                      ../mysys/array.c ../strings/bchange.c ../strings/bmove.c 
                      ../strings/bmove_upp.c ../mysys/charset-def.c ../mysys/charset.c
                      ../sql-common/client.c ../strings/ctype-big5.c ../strings/ctype-bin.c 

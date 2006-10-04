@@ -14,15 +14,31 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
+MYSQLDATAdir =          $(localstatedir)
+MYSQLSHAREdir =         $(pkgdatadir)
+MYSQLBASEdir=           $(prefix)
+MYSQLLIBdir=            $(pkglibdir)
+INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
+			-I$(top_srcdir)/regex \
+			-I$(top_srcdir)/sql \
+                        -I$(srcdir)
+WRAPLIBS=
+
+LDADD =
+
+DEFS =                  @DEFS@
 pkglib_LIBRARIES =	libmyisammrg.a
-noinst_HEADERS =	myrg_def.h
+noinst_HEADERS =	myrg_def.h ha_myisammrg.h
+noinst_LIBRARIES =	libmyisammrg.a
 libmyisammrg_a_SOURCES = myrg_open.c myrg_extra.c myrg_info.c myrg_locking.c \
 			myrg_rrnd.c myrg_update.c myrg_delete.c myrg_rsame.c \
 			myrg_panic.c myrg_close.c myrg_create.c myrg_static.c \
 			myrg_rkey.c myrg_rfirst.c myrg_rlast.c myrg_rnext.c \
 			myrg_rprev.c myrg_queue.c myrg_write.c myrg_range.c \
+			ha_myisammrg.cc \
 			myrg_rnext_same.c
+
+
 EXTRA_DIST =		CMakeLists.txt
 
 # Don't update the files from bitkeeper

@@ -1,12 +1,47 @@
 CREATE DATABASE IF NOT EXISTS events_test;
 USE events_test;
+SET GLOBAL event_scheduler=OFF;
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=1;
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=0;
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	OFF
+SET GLOBAL event_scheduler=ON;
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=DISABLED;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of 'DISABLED'
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=-1;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of '-1'
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=2;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of '2'
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
+SET GLOBAL event_scheduler=5;
+ERROR 42000: Variable 'event_scheduler' can't be set to the value of '5'
+SHOW VARIABLES LIKE 'event_scheduler';
+Variable_name	Value
+event_scheduler	ON
 CREATE TABLE table_1(a int);
 CREATE TABLE table_2(a int);
 CREATE TABLE table_3(a int);
 CREATE TABLE table_4(a int);
 CREATE TABLE T19170(s1 TIMESTAMP);
-SET GLOBAL event_scheduler=1;
-CREATE EVENT E19170 ON SCHEDULE EVERY 2 SECOND DO INSERT INTO T19170 VALUES(CURRENT_TIMESTAMP);
+SET GLOBAL event_scheduler=ON;
 CREATE EVENT two_sec ON SCHEDULE EVERY 2 SECOND DO INSERT INTO table_1 VALUES(1);
 CREATE EVENT start_n_end
 ON SCHEDULE EVERY 1 SECOND
@@ -39,17 +74,12 @@ DROP EVENT start_n_end;
 DROP EVENT only_one_time;
 ERROR HY000: Unknown event 'only_one_time'
 "Should be preserved"
-SELECT EVENT_NAME, STATUS FROM INFORMATION_SCHEMA.EVENTS;
+SELECT EVENT_NAME, STATUS FROM INFORMATION_SCHEMA.EVENTS ORDER BY EVENT_NAME;
 EVENT_NAME	STATUS
-E19170	ENABLED
 two_time	DISABLED
 DROP EVENT two_time;
 DROP TABLE table_1;
 DROP TABLE table_2;
 DROP TABLE table_3;
 DROP TABLE table_4;
-"Checking for multiple executions in one second, should not happen -> 0 as result"
-SELECT COUNT(*) FROM (SELECT s1, COUNT(*) AS cnt FROM T19170 GROUP BY s1) AS tmp WHERE tmp.cnt > 1;
-COUNT(*)
-0
 DROP DATABASE events_test;

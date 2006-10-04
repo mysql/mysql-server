@@ -189,10 +189,10 @@ dfield_check_typed_no_assert(
 	dfield_t*	field)	/* in: data field */
 {
 	if (dfield_get_type(field)->mtype > DATA_MYSQL
-		|| dfield_get_type(field)->mtype < DATA_VARCHAR) {
+	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
 
 		fprintf(stderr,
-"InnoDB: Error: data field type %lu, len %lu\n",
+			"InnoDB: Error: data field type %lu, len %lu\n",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
 		return(FALSE);
@@ -215,9 +215,9 @@ dtuple_check_typed_no_assert(
 
 	if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
 		fprintf(stderr,
-"InnoDB: Error: index entry has %lu fields\n",
+			"InnoDB: Error: index entry has %lu fields\n",
 			(ulong) dtuple_get_n_fields(tuple));
-	dump:
+dump:
 		fputs("InnoDB: Tuple contents: ", stderr);
 		dtuple_print(stderr, tuple);
 		putc('\n', stderr);
@@ -247,10 +247,10 @@ dfield_check_typed(
 	dfield_t*	field)	/* in: data field */
 {
 	if (dfield_get_type(field)->mtype > DATA_MYSQL
-		|| dfield_get_type(field)->mtype < DATA_VARCHAR) {
+	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
 
 		fprintf(stderr,
-"InnoDB: Error: data field type %lu, len %lu\n",
+			"InnoDB: Error: data field type %lu, len %lu\n",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
 
@@ -319,8 +319,8 @@ dtuple_validate(
 			for (j = 0; j < len; j++) {
 
 				data_dummy  += *data; /* fool the compiler not
-							to optimize out this
-							code */
+						      to optimize out this
+						      code */
 				data++;
 			}
 		}
@@ -433,15 +433,20 @@ dfield_print_also_hex(
 
 /*****************************************************************
 Print a dfield value using ut_print_buf. */
-
+static
 void
 dfield_print_raw(
 /*=============*/
 	FILE*		f,		/* in: output stream */
 	dfield_t*	dfield)		/* in: dfield */
 {
-	if (dfield->len != UNIV_SQL_NULL) {
-		ut_print_buf(f, dfield->data, dfield->len);
+	ulint	len	= dfield->len;
+	if (len != UNIV_SQL_NULL) {
+		ulint	print_len = ut_min(len, 1000);
+		ut_print_buf(f, dfield->data, print_len);
+		if (len != print_len) {
+			fprintf(f, "(total %lu bytes)", (ulong) len);
+		}
 	} else {
 		fputs(" SQL NULL", f);
 	}
@@ -513,14 +518,15 @@ dtuple_convert_big_rec(
 
 	if (UNIV_UNLIKELY(size > 1000000000)) {
 		fprintf(stderr,
-"InnoDB: Warning: tuple size very big: %lu\n", (ulong) size);
+			"InnoDB: Warning: tuple size very big: %lu\n",
+			(ulong) size);
 		fputs("InnoDB: Tuple contents: ", stderr);
 		dtuple_print(stderr, entry);
 		putc('\n', stderr);
 	}
 
 	heap = mem_heap_create(size + dtuple_get_n_fields(entry)
-					* sizeof(big_rec_field_t) + 1000);
+			       * sizeof(big_rec_field_t) + 1000);
 
 	vector = mem_heap_alloc(heap, sizeof(big_rec_t));
 
@@ -534,13 +540,13 @@ dtuple_convert_big_rec(
 	n_fields = 0;
 
 	while (rec_get_converted_size(index, entry)
-		>= ut_min(page_get_free_space_of_empty(
-				  dict_table_is_comp(index->table)) / 2,
-			REC_MAX_DATA_SIZE)) {
+	       >= ut_min(page_get_free_space_of_empty
+			 (dict_table_is_comp(index->table)) / 2,
+			 REC_MAX_DATA_SIZE)) {
 
 		longest = 0;
 		for (i = dict_index_get_n_unique_in_tree(index);
-				i < dtuple_get_n_fields(entry); i++) {
+		     i < dtuple_get_n_fields(entry); i++) {
 
 			/* Skip over fields which already are externally
 			stored */
@@ -559,8 +565,8 @@ dtuple_convert_big_rec(
 
 				dfield = dtuple_get_nth_field(entry, i);
 
-				if (dfield->len != UNIV_SQL_NULL &&
-						dfield->len > longest) {
+				if (dfield->len != UNIV_SQL_NULL
+				    && dfield->len > longest) {
 
 					longest = dfield->len;
 
@@ -577,7 +583,7 @@ dtuple_convert_big_rec(
 #endif
 
 		if (longest < BTR_EXTERN_FIELD_REF_SIZE + 10
-						+ DICT_MAX_INDEX_COL_LEN) {
+		    + DICT_MAX_INDEX_COL_LEN) {
 			/* Cannot shorten more */
 
 			mem_heap_free(heap);
@@ -602,24 +608,24 @@ dtuple_convert_big_rec(
 		ut_a(dfield->len > DICT_MAX_INDEX_COL_LEN);
 
 		vector->fields[n_fields].len = dfield->len
-						- DICT_MAX_INDEX_COL_LEN;
+			- DICT_MAX_INDEX_COL_LEN;
 
-		vector->fields[n_fields].data = mem_heap_alloc(heap,
-						vector->fields[n_fields].len);
+		vector->fields[n_fields].data = mem_heap_alloc
+			(heap, vector->fields[n_fields].len);
 
 		/* Copy data (from the end of field) to big rec vector */
 
 		ut_memcpy(vector->fields[n_fields].data,
-				((byte*)dfield->data) + dfield->len
-						- vector->fields[n_fields].len,
-				vector->fields[n_fields].len);
+			  ((byte*)dfield->data) + dfield->len
+			  - vector->fields[n_fields].len,
+			  vector->fields[n_fields].len);
 		dfield->len = dfield->len - vector->fields[n_fields].len
-						+ BTR_EXTERN_FIELD_REF_SIZE;
+			+ BTR_EXTERN_FIELD_REF_SIZE;
 
 		/* Set the extern field reference in dfield to zero */
 		memset(((byte*)dfield->data)
-			+ dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
-					0, BTR_EXTERN_FIELD_REF_SIZE);
+		       + dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
+		       0, BTR_EXTERN_FIELD_REF_SIZE);
 		n_fields++;
 	}
 
@@ -646,15 +652,15 @@ dtuple_convert_back_big_rec(
 	for (i = 0; i < vector->n_fields; i++) {
 
 		dfield = dtuple_get_nth_field(entry,
-						vector->fields[i].field_no);
+					      vector->fields[i].field_no);
 		/* Copy data from big rec vector */
 
 		ut_memcpy(((byte*)dfield->data)
-				+ dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
+			  + dfield->len - BTR_EXTERN_FIELD_REF_SIZE,
 			  vector->fields[i].data,
 			  vector->fields[i].len);
 		dfield->len = dfield->len + vector->fields[i].len
-						- BTR_EXTERN_FIELD_REF_SIZE;
+			- BTR_EXTERN_FIELD_REF_SIZE;
 	}
 
 	mem_heap_free(vector->heap);

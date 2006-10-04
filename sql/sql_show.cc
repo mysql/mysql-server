@@ -27,7 +27,7 @@
 #include "authors.h"
 #include "contributors.h"
 #include "events.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
 #include <my_dir.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -220,9 +220,10 @@ int fill_plugins(THD *thd, TABLE_LIST *tables, COND *cond)
   DBUG_ENTER("fill_plugins");
   TABLE *table= tables->table;
 
-  if (plugin_foreach(thd, show_plugins, MYSQL_ANY_PLUGIN, table))
+  if (plugin_foreach_with_mask(thd, show_plugins, MYSQL_ANY_PLUGIN,
+                               ~PLUGIN_IS_FREED, table))
     DBUG_RETURN(1);
-    
+
   DBUG_RETURN(0);
 }
 
@@ -1227,9 +1228,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     store_key_options(thd, packet, table, key_info);
     if (key_info->parser)
     {
-      packet->append(" WITH PARSER ", 13);
+      packet->append(STRING_WITH_LEN(" /*!50100 WITH PARSER "));
       append_identifier(thd, packet, key_info->parser->name.str,
                         key_info->parser->name.length);
+      packet->append(STRING_WITH_LEN(" */ "));
     }
   }
 
@@ -1255,9 +1257,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if ((for_str= file->get_tablespace_name(thd)))
     {
-      packet->append(" TABLESPACE ");
+      packet->append(STRING_WITH_LEN(" /*!50100 TABLESPACE "));
       packet->append(for_str, strlen(for_str));
-      packet->append(" STORAGE DISK");
+      packet->append(STRING_WITH_LEN(" STORAGE DISK */"));
       my_free(for_str, MYF(0));
     }
 
@@ -1296,7 +1298,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if(create_info.auto_increment_value > 1)
     {
-      packet->append(" AUTO_INCREMENT=", 16);
+      packet->append(STRING_WITH_LEN(" AUTO_INCREMENT="));
       end= longlong10_to_str(create_info.auto_increment_value, buff,10);
       packet->append(buff, (uint) (end - buff));
     }
@@ -2171,7 +2173,7 @@ LEX_STRING *make_lex_string(THD *thd, LEX_STRING *lex_str,
 
 
 /* INFORMATION_SCHEMA name */
-LEX_STRING information_schema_name= {(char*)"information_schema", 18};
+LEX_STRING information_schema_name= { C_STRING_WITH_LEN("information_schema")};
 
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
@@ -3212,10 +3214,10 @@ static my_bool iter_schema_engines(THD *thd, st_plugin_int *plugin,
     if (!(wild && wild[0] &&
           wild_case_compare(scs, plugin->name.str,wild)))
     {
-      LEX_STRING state[2]= {{(char*) STRING_WITH_LEN("ENABLED")},
-                            {(char*) STRING_WITH_LEN("DISABLED")}};
-      LEX_STRING yesno[2]= {{(char*) STRING_WITH_LEN("NO")},
-                            {(char*) STRING_WITH_LEN("YES")}};
+      LEX_STRING state[2]= {{ C_STRING_WITH_LEN("ENABLED") },
+                            { C_STRING_WITH_LEN("DISABLED") }};
+      LEX_STRING yesno[2]= {{ C_STRING_WITH_LEN("NO") },
+                            { C_STRING_WITH_LEN("YES") }};
       LEX_STRING *tmp;
       restore_record(table, s->default_values);
 
@@ -4217,7 +4219,7 @@ extern LEX_STRING interval_type_to_name[];
     1  Error
 */
 
-static int
+int
 copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 {
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -4228,7 +4230,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   restore_record(sch_table, s->default_values);
 
-  if (et.load_from_row(thd->mem_root, event_table))
+  if (et.load_from_row(event_table))
   {
     my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0));
     DBUG_RETURN(1);
@@ -4349,183 +4351,6 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);
-}
-
-
-/*
-  Performs an index scan of event_table (mysql.event) and fills schema_table.
-
-  Synopsis
-    events_table_index_read_for_db()
-      thd          Thread
-      schema_table The I_S.EVENTS table
-      event_table  The event table to use for loading (mysql.event)
-
-  Returns
-    0  OK
-    1  Error
-*/
-
-static
-int events_table_index_read_for_db(THD *thd, TABLE *schema_table,
-                                TABLE *event_table)
-{
-  int ret=0;
-  CHARSET_INFO *scs= system_charset_info;
-  KEY *key_info;
-  uint key_len;
-  byte *key_buf= NULL;
-  LINT_INIT(key_buf);
-
-  DBUG_ENTER("schema_events_do_index_scan");
-
-  DBUG_PRINT("info", ("Using prefix scanning on PK"));
-  event_table->file->ha_index_init(0, 1);
-  event_table->field[Events::FIELD_DB]->
-        store(thd->lex->select_lex.db, strlen(thd->lex->select_lex.db), scs);
-  key_info= event_table->key_info;
-  key_len= key_info->key_part[0].store_length;
-
-  if (!(key_buf= (byte *)alloc_root(thd->mem_root, key_len)))
-  {
-    ret= 1;
-    /* don't send error, it would be done by sql_alloc_error_handler() */
-  }
-  else
-  {
-    key_copy(key_buf, event_table->record[0], key_info, key_len);
-    if (!(ret= event_table->file->index_read(event_table->record[0], key_buf,
-                                             key_len, HA_READ_PREFIX)))
-    {
-      DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
-      do
-      {
-        ret= copy_event_to_schema_table(thd, schema_table, event_table);
-        if (ret == 0)
-          ret= event_table->file->index_next_same(event_table->record[0],
-                                                  key_buf, key_len); 
-      } while (ret == 0);
-    }
-    DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
-  }
-  event_table->file->ha_index_end(); 
-  /*  ret is guaranteed to be != 0 */
-  if (ret == HA_ERR_END_OF_FILE || ret == HA_ERR_KEY_NOT_FOUND)
-    DBUG_RETURN(0);
-  DBUG_RETURN(1);
-}
-
-
-/*
-  Performs a table scan of event_table (mysql.event) and fills schema_table.
-
-  Synopsis
-    events_table_scan_all()
-      thd          Thread
-      schema_table The I_S.EVENTS in memory table
-      event_table  The event table to use for loading.
-
-  Returns
-    0  OK
-    1  Error
-*/
-
-static
-int events_table_scan_all(THD *thd, TABLE *schema_table,
-                                TABLE *event_table)
-{
-  int ret;
-  READ_RECORD read_record_info;
-
-  DBUG_ENTER("schema_events_do_table_scan");
-  init_read_record(&read_record_info, thd, event_table, NULL, 1, 0);
-
-  /*
-    rr_sequential, in read_record(), returns 137==HA_ERR_END_OF_FILE,
-    but rr_handle_error returns -1 for that reason. Thus, read_record()
-    returns -1 eventually.
-  */
-  do
-  {
-    ret= read_record_info.read_record(&read_record_info);
-    if (ret == 0)
-      ret= copy_event_to_schema_table(thd, schema_table, event_table);
-  }
-  while (ret == 0);
-
-  DBUG_PRINT("info", ("Scan finished. ret=%d", ret));
-  end_read_record(&read_record_info);
-
-  /*  ret is guaranteed to be != 0 */
-  DBUG_RETURN(ret == -1? 0:1);
-}
-
-
-/*
-  Fills I_S.EVENTS with data loaded from mysql.event. Also used by
-  SHOW EVENTS
-
-  Synopsis
-    fill_schema_events()
-      thd     Thread
-      tables  The schema table
-      cond    Unused
-
-  Returns
-    0  OK
-    1  Error
-*/
-
-int fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
-{
-  TABLE *schema_table= tables->table;
-  TABLE *event_table= NULL;
-  Open_tables_state backup;
-  int ret= 0;
-
-  DBUG_ENTER("fill_schema_events");
-  /*
-    If it's SHOW EVENTS then thd->lex->select_lex.db is guaranteed not to
-    be NULL. Let's do an assert anyway.
-  */
-  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
-  {
-    DBUG_ASSERT(thd->lex->select_lex.db);
-    if (check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0,
-                     is_schema_db(thd->lex->select_lex.db)))
-      DBUG_RETURN(1);
-  }
-
-  DBUG_PRINT("info",("db=%s", thd->lex->select_lex.db?
-              thd->lex->select_lex.db:"(null)"));
-
-  thd->reset_n_backup_open_tables_state(&backup);
-  if (Events::open_event_table(thd, TL_READ, &event_table))
-  {
-    sql_print_error("Table mysql.event is damaged.");
-    thd->restore_backup_open_tables_state(&backup);
-    DBUG_RETURN(1);
-  }
-
-  /*
-    1. SELECT I_S => use table scan. I_S.EVENTS does not guarantee order
-                     thus we won't order it. OTOH, SHOW EVENTS will be
-                     ordered.
-    2. SHOW EVENTS => PRIMARY KEY with prefix scanning on (db)
-       Reasoning: Events are per schema, therefore a scan over an index
-                  will save use from doing a table scan and comparing
-                  every single row's `db` with the schema which we show.
-  */
-  if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
-    ret= events_table_index_read_for_db(thd, schema_table, event_table);
-  else
-    ret= events_table_scan_all(thd, schema_table, event_table);
-
-  close_thread_tables(thd);
-  thd->restore_backup_open_tables_state(&backup);
-
-  DBUG_PRINT("info", ("Return code=%d", ret));
-  DBUG_RETURN(ret);
 }
 
 
@@ -5149,7 +4974,7 @@ static my_bool run_hton_fill_schema_files(THD *thd, st_plugin_int *plugin,
   struct run_hton_fill_schema_files_args *args=
     (run_hton_fill_schema_files_args *) arg;
   handlerton *hton= (handlerton *)plugin->data;
-  if(hton->fill_files_table)
+  if(hton->fill_files_table && hton->state == SHOW_OPTION_YES)
     hton->fill_files_table(thd, args->tables, args->cond);
   return false;
 }
@@ -5553,29 +5378,29 @@ ST_FIELD_INFO plugin_fields_info[]=
 ST_FIELD_INFO files_fields_info[]=
 {
   {"FILE_ID", 4, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"FILE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"FILE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"FILE_TYPE", 20, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLESPACE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_CATALOG", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"LOGFILE_GROUP_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"LOGFILE_GROUP_NUMBER", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"TABLESPACE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLE_CATALOG", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLE_SCHEMA", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"LOGFILE_GROUP_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"LOGFILE_GROUP_NUMBER", 4, MYSQL_TYPE_LONG, 0, 1, 0},
   {"ENGINE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"FULLTEXT_KEYS", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"DELETED_ROWS", 4, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"UPDATE_COUNT", 4, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"FREE_EXTENTS", 4, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"TOTAL_EXTENTS", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"FULLTEXT_KEYS", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"DELETED_ROWS", 4, MYSQL_TYPE_LONG, 0, 1, 0},
+  {"UPDATE_COUNT", 4, MYSQL_TYPE_LONG, 0, 1, 0},
+  {"FREE_EXTENTS", 4, MYSQL_TYPE_LONG, 0, 1, 0},
+  {"TOTAL_EXTENTS", 4, MYSQL_TYPE_LONG, 0, 1, 0},
   {"EXTENT_SIZE", 4, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"INITIAL_SIZE", 21, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"MAXIMUM_SIZE", 21, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"AUTOEXTEND_SIZE", 21, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"CREATION_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
-  {"LAST_UPDATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
-  {"LAST_ACCESS_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 0, 0},
-  {"RECOVER_TIME", 4, MYSQL_TYPE_LONG, 0, 0, 0},
-  {"TRANSACTION_COUNTER", 4, MYSQL_TYPE_LONG, 0, 0, 0},
+  {"INITIAL_SIZE", 21, MYSQL_TYPE_LONG, 0, 1, 0},
+  {"MAXIMUM_SIZE", 21, MYSQL_TYPE_LONG, 0, 1, 0},
+  {"AUTOEXTEND_SIZE", 21, MYSQL_TYPE_LONG, 0, 1, 0},
+  {"CREATION_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, 0},
+  {"LAST_UPDATE_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, 0},
+  {"LAST_ACCESS_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, 0},
+  {"RECOVER_TIME", 4, MYSQL_TYPE_LONG, 0, 1, 0},
+  {"TRANSACTION_COUNTER", 4, MYSQL_TYPE_LONG, 0, 1, 0},
   {"VERSION", 21 , MYSQL_TYPE_LONG, 0, 1, "Version"},
   {"ROW_FORMAT", 10, MYSQL_TYPE_STRING, 0, 1, "Row_format"},
   {"TABLE_ROWS", 21 , MYSQL_TYPE_LONG, 0, 1, "Rows"},
@@ -5589,7 +5414,7 @@ ST_FIELD_INFO files_fields_info[]=
   {"CHECK_TIME", 0, MYSQL_TYPE_TIMESTAMP, 0, 1, "Check_time"},
   {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, "Checksum"},
   {"STATUS", 20, MYSQL_TYPE_STRING, 0, 0, 0},
-  {"EXTRA", 255, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"EXTRA", 255, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
@@ -5631,7 +5456,7 @@ ST_SCHEMA_TABLE schema_tables[]=
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0},
   {"EVENTS", events_fields_info, create_schema_table,
-   fill_schema_events, make_old_format, 0, -1, -1, 0},
+   Events::fill_schema_events, make_old_format, 0, -1, -1, 0},
   {"FILES", files_fields_info, create_schema_table,
    fill_schema_files, 0, 0, -1, -1, 0},
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,

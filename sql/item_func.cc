@@ -260,6 +260,8 @@ void Item_func::traverse_cond(Cond_traverser traverser,
 
 Item *Item_func::transform(Item_transformer transformer, byte *argument)
 {
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
   if (arg_count)
   {
     Item **arg,**arg_end;
@@ -268,6 +270,13 @@ Item *Item_func::transform(Item_transformer transformer, byte *argument)
       Item *new_item= (*arg)->transform(transformer, argument);
       if (!new_item)
 	return 0;
+
+      /*
+        THD::change_item_tree() should be called only if the tree was
+        really transformed, i.e. when a new item has been created.
+        Otherwise we'll be allocating a lot of unnecessary memory for
+        change records at each execution.
+      */
       if (*arg != new_item)
         current_thd->change_item_tree(arg, new_item);
     }
@@ -551,7 +560,7 @@ void Item_func::signal_divide_by_null()
 
 Item *Item_func::get_tmp_table_item(THD *thd)
 {
-  if (!with_sum_func && !const_item())
+  if (!with_sum_func && !const_item() && functype() != SUSERVAR_FUNC)
     return new Item_field(result_field);
   return copy_or_same(thd);
 }
@@ -3741,30 +3750,38 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
 */
 
 bool
-Item_func_set_user_var::check()
+Item_func_set_user_var::check(bool use_result_field)
 {
   DBUG_ENTER("Item_func_set_user_var::check");
+  if (use_result_field)
+    DBUG_ASSERT(result_field);
 
   switch (cached_result_type) {
   case REAL_RESULT:
   {
-    save_result.vreal= args[0]->val_real();
+    save_result.vreal= use_result_field ? result_field->val_real() :
+                        args[0]->val_real();
     break;
   }
   case INT_RESULT:
   {
-    save_result.vint= args[0]->val_int();
-    unsigned_flag= args[0]->unsigned_flag;
+    save_result.vint= use_result_field ? result_field->val_int() :
+                       args[0]->val_int();
+    unsigned_flag= use_result_field ? ((Field_num*)result_field)->unsigned_flag:
+                    args[0]->unsigned_flag;
     break;
   }
   case STRING_RESULT:
   {
-    save_result.vstr= args[0]->val_str(&value);
+    save_result.vstr= use_result_field ? result_field->val_str(&value) :
+                       args[0]->val_str(&value);
     break;
   }
   case DECIMAL_RESULT:
   {
-    save_result.vdec= args[0]->val_decimal(&decimal_buff);
+    save_result.vdec= use_result_field ?
+                       result_field->val_decimal(&decimal_buff) :
+                       args[0]->val_decimal(&decimal_buff);
     break;
   }
   case ROW_RESULT:
@@ -3804,13 +3821,13 @@ Item_func_set_user_var::update()
   case REAL_RESULT:
   {
     res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
-		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT);
+		     REAL_RESULT, &my_charset_bin, DERIVATION_IMPLICIT, 0);
     break;
   }
   case INT_RESULT:
   {
     res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
-		     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT,
+                     INT_RESULT, &my_charset_bin, DERIVATION_IMPLICIT,
                      unsigned_flag);
     break;
   }
@@ -3818,23 +3835,23 @@ Item_func_set_user_var::update()
   {
     if (!save_result.vstr)					// Null value
       res= update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin,
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     else
       res= update_hash((void*) save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
 		       save_result.vstr->charset(),
-		       DERIVATION_IMPLICIT);
+		       DERIVATION_IMPLICIT, 0);
     break;
   }
   case DECIMAL_RESULT:
   {
     if (!save_result.vdec)					// Null value
       res= update_hash((void*) 0, 0, DECIMAL_RESULT, &my_charset_bin,
-                       DERIVATION_IMPLICIT);
+                       DERIVATION_IMPLICIT, 0);
     else
       res= update_hash((void*) save_result.vdec,
                        sizeof(my_decimal), DECIMAL_RESULT,
-                       &my_charset_bin, DERIVATION_IMPLICIT);
+                       &my_charset_bin, DERIVATION_IMPLICIT, 0);
     break;
   }
   case ROW_RESULT:
@@ -3850,7 +3867,7 @@ Item_func_set_user_var::update()
 double Item_func_set_user_var::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  check();
+  check(0);
   update();					// Store expression
   return entry->val_real(&null_value);
 }
@@ -3858,7 +3875,7 @@ double Item_func_set_user_var::val_real()
 longlong Item_func_set_user_var::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  check();
+  check(0);
   update();					// Store expression
   return entry->val_int(&null_value);
 }
@@ -3866,7 +3883,7 @@ longlong Item_func_set_user_var::val_int()
 String *Item_func_set_user_var::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  check();
+  check(0);
   update();					// Store expression
   return entry->val_str(&null_value, str, decimals);
 }
@@ -3875,7 +3892,7 @@ String *Item_func_set_user_var::val_str(String *str)
 my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
 {
   DBUG_ASSERT(fixed == 1);
-  check();
+  check(0);
   update();					// Store expression
   return entry->val_decimal(&null_value, val);
 }
@@ -3900,6 +3917,29 @@ void Item_func_set_user_var::print_as_stmt(String *str)
   str->append(')');
 }
 
+bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg)
+{
+  if (result_field)
+  {
+    check(1);
+    update();
+    return protocol->store(result_field);
+  }
+  return Item::send(protocol, str_arg);
+}
+
+void Item_func_set_user_var::make_field(Send_field *tmp_field)
+{
+  if (result_field)
+  {
+    result_field->make_field(tmp_field);
+    DBUG_ASSERT(tmp_field->table_name != 0);
+    if (Item::name)
+      tmp_field->col_name=Item::name;               // Use user supplied name
+  }
+  else
+    Item::make_field(tmp_field);
+}
 
 String *
 Item_func_get_user_var::val_str(String *str)
@@ -4165,7 +4205,7 @@ bool Item_func_get_user_var::set_value(THD *thd,
     Item_func_set_user_var is not fixed after construction, call
     fix_fields().
   */
-  return (!suv || suv->fix_fields(thd, it) || suv->check() || suv->update());
+  return (!suv || suv->fix_fields(thd, it) || suv->check(0) || suv->update());
 }
 
 

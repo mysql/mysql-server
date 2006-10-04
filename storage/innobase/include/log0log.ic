@@ -33,7 +33,7 @@ log_block_get_flush_bit(
 	byte*	log_block)	/* in: log block */
 {
 	if (LOG_BLOCK_FLUSH_BIT_MASK
-		& mach_read_from_4(log_block + LOG_BLOCK_HDR_NO)) {
+	    & mach_read_from_4(log_block + LOG_BLOCK_HDR_NO)) {
 
 		return(TRUE);
 	}
@@ -74,7 +74,7 @@ log_block_get_hdr_no(
 	byte*	log_block)	/* in: log block */
 {
 	return(~LOG_BLOCK_FLUSH_BIT_MASK
-		& mach_read_from_4(log_block + LOG_BLOCK_HDR_NO));
+	       & mach_read_from_4(log_block + LOG_BLOCK_HDR_NO));
 }
 
 /****************************************************************
@@ -166,7 +166,7 @@ log_block_set_checkpoint_no(
 	dulint	no)		/* in: checkpoint no */
 {
 	mach_write_to_4(log_block + LOG_BLOCK_CHECKPOINT_NO,
-						ut_dulint_get_low(no));
+			ut_dulint_get_low(no));
 }
 
 /****************************************************************
@@ -227,7 +227,7 @@ log_block_get_checksum(
 	byte*	log_block)	/* in: log block */
 {
 	return(mach_read_from_4(log_block + OS_FILE_LOG_BLOCK_SIZE
-					- LOG_BLOCK_CHECKSUM));
+				- LOG_BLOCK_CHECKSUM));
 }
 
 /****************************************************************
@@ -240,8 +240,8 @@ log_block_set_checksum(
 	ulint	checksum)	/* in: checksum */
 {
 	mach_write_to_4(log_block + OS_FILE_LOG_BLOCK_SIZE
-					- LOG_BLOCK_CHECKSUM,
-					checksum);
+			- LOG_BLOCK_CHECKSUM,
+			checksum);
 }
 
 /****************************************************************
@@ -287,7 +287,7 @@ log_block_init_in_old_format(
 
 	log_block_set_hdr_no(log_block, no);
 	mach_write_to_4(log_block + OS_FILE_LOG_BLOCK_SIZE
-					- LOG_BLOCK_CHECKSUM, no);
+			- LOG_BLOCK_CHECKSUM, no);
 	log_block_set_data_len(log_block, LOG_BLOCK_HDR_SIZE);
 	log_block_set_first_rec_group(log_block, 0);
 }
@@ -333,8 +333,8 @@ log_reserve_and_write_fast(
 	ut_memcpy(log->buf + log->buf_free, str, len);
 
 	log_block_set_data_len(ut_align_down(log->buf + log->buf_free,
-						OS_FILE_LOG_BLOCK_SIZE),
-				data_len);
+					     OS_FILE_LOG_BLOCK_SIZE),
+			       data_len);
 #ifdef UNIV_LOG_DEBUG
 	log->old_buf_free = log->buf_free;
 	log->old_lsn = log->lsn;
@@ -349,7 +349,7 @@ log_reserve_and_write_fast(
 
 #ifdef UNIV_LOG_DEBUG
 	log_check_log_recs(log->buf + log->old_buf_free,
-			log->buf_free - log->old_buf_free, log->old_lsn);
+			   log->buf_free - log->old_buf_free, log->old_lsn);
 #endif
 	return(lsn);
 }

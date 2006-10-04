@@ -70,14 +70,14 @@ trx_doublewrite_page_inside(
 	}
 
 	if (page_no >= trx_doublewrite->block1
-		&& page_no < trx_doublewrite->block1
-		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+	    && page_no < trx_doublewrite->block1
+	    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		return(TRUE);
 	}
 
 	if (page_no >= trx_doublewrite->block2
-		&& page_no < trx_doublewrite->block2
-		+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+	    && page_no < trx_doublewrite->block2
+	    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 		return(TRUE);
 	}
 
@@ -105,23 +105,17 @@ trx_doublewrite_init(
 
 	trx_doublewrite->first_free = 0;
 
-	trx_doublewrite->block1 = mach_read_from_4(
-						doublewrite
-						+ TRX_SYS_DOUBLEWRITE_BLOCK1);
-	trx_doublewrite->block2 = mach_read_from_4(
-						doublewrite
-						+ TRX_SYS_DOUBLEWRITE_BLOCK2);
-	trx_doublewrite->write_buf_unaligned =
-				ut_malloc(
-				(1 + 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-				* UNIV_PAGE_SIZE);
+	trx_doublewrite->block1 = mach_read_from_4
+		(doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK1);
+	trx_doublewrite->block2 = mach_read_from_4
+		(doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK2);
+	trx_doublewrite->write_buf_unaligned = ut_malloc
+		((1 + 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) * UNIV_PAGE_SIZE);
 
-	trx_doublewrite->write_buf = ut_align(
-					trx_doublewrite->write_buf_unaligned,
-					UNIV_PAGE_SIZE);
-	trx_doublewrite->buf_block_arr = mem_alloc(
-					2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
-					* sizeof(void*));
+	trx_doublewrite->write_buf = ut_align
+		(trx_doublewrite->write_buf_unaligned, UNIV_PAGE_SIZE);
+	trx_doublewrite->buf_block_arr = mem_alloc
+		(2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * sizeof(void*));
 }
 
 /********************************************************************
@@ -150,8 +144,8 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 	doublewrite = page + TRX_SYS_DOUBLEWRITE;
 
 	mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
-				TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
-				MLOG_4BYTES, &mtr);
+			 TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
+			 MLOG_4BYTES, &mtr);
 	mtr_commit(&mtr);
 
 	/* Flush the modified pages to disk and make a checkpoint */
@@ -195,7 +189,7 @@ start_again:
 	doublewrite = page + TRX_SYS_DOUBLEWRITE;
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
-					== TRX_SYS_DOUBLEWRITE_MAGIC_N) {
+	    == TRX_SYS_DOUBLEWRITE_MAGIC_N) {
 		/* The doublewrite buffer has already been created:
 		just read in some numbers */
 
@@ -204,22 +198,25 @@ start_again:
 		mtr_commit(&mtr);
 	} else {
 		fprintf(stderr,
-		"InnoDB: Doublewrite buffer not found: creating new\n");
+			"InnoDB: Doublewrite buffer not found:"
+			" creating new\n");
 
-		if (buf_pool_get_curr_size() <
-					(2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
-						+ FSP_EXTENT_SIZE / 2 + 100)
-					* UNIV_PAGE_SIZE) {
+		if (buf_pool_get_curr_size()
+		    < ((2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
+			+ FSP_EXTENT_SIZE / 2 + 100)
+		       * UNIV_PAGE_SIZE)) {
 			fprintf(stderr,
-			"InnoDB: Cannot create doublewrite buffer: you must\n"
-			"InnoDB: increase your buffer pool size.\n"
-			"InnoDB: Cannot continue operation.\n");
+				"InnoDB: Cannot create doublewrite buffer:"
+				" you must\n"
+				"InnoDB: increase your buffer pool size.\n"
+				"InnoDB: Cannot continue operation.\n");
 
 			exit(1);
 		}
 
 		page2 = fseg_create(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,
-			TRX_SYS_DOUBLEWRITE + TRX_SYS_DOUBLEWRITE_FSEG, &mtr);
+				    TRX_SYS_DOUBLEWRITE
+				    + TRX_SYS_DOUBLEWRITE_FSEG, &mtr);
 
 		/* fseg_create acquires a second latch on the page,
 		therefore we must declare it: */
@@ -230,9 +227,10 @@ start_again:
 
 		if (page2 == NULL) {
 			fprintf(stderr,
-			"InnoDB: Cannot create doublewrite buffer: you must\n"
-			"InnoDB: increase your tablespace size.\n"
-			"InnoDB: Cannot continue operation.\n");
+				"InnoDB: Cannot create doublewrite buffer:"
+				" you must\n"
+				"InnoDB: increase your tablespace size.\n"
+				"InnoDB: Cannot continue operation.\n");
 
 			/* We exit without committing the mtr to prevent
 			its modifications to the database getting to disk */
@@ -241,19 +239,22 @@ start_again:
 		}
 
 		fseg_header = page + TRX_SYS_DOUBLEWRITE
-						+ TRX_SYS_DOUBLEWRITE_FSEG;
+			+ TRX_SYS_DOUBLEWRITE_FSEG;
 		prev_page_no = 0;
 
 		for (i = 0; i < 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
-						+ FSP_EXTENT_SIZE / 2; i++) {
+			     + FSP_EXTENT_SIZE / 2; i++) {
 			page_no = fseg_alloc_free_page(fseg_header,
-							prev_page_no + 1,
-							FSP_UP, &mtr);
+						       prev_page_no + 1,
+						       FSP_UP, &mtr);
 			if (page_no == FIL_NULL) {
 				fprintf(stderr,
-			"InnoDB: Cannot create doublewrite buffer: you must\n"
-			"InnoDB: increase your tablespace size.\n"
-			"InnoDB: Cannot continue operation.\n");
+					"InnoDB: Cannot create doublewrite"
+					" buffer: you must\n"
+					"InnoDB: increase your"
+					" tablespace size.\n"
+					"InnoDB: Cannot continue operation.\n"
+					);
 
 				exit(1);
 			}
@@ -268,7 +269,7 @@ start_again:
 			has not been written to in doublewrite. */
 
 			new_page = buf_page_get(TRX_SYS_SPACE, page_no,
-							RW_X_LATCH, &mtr);
+						RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(new_page, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
@@ -277,26 +278,26 @@ start_again:
 			be written to disk in a flush */
 
 			mlog_write_ulint(new_page + FIL_PAGE_DATA,
-					TRX_SYS_DOUBLEWRITE_MAGIC_N,
-					MLOG_4BYTES, &mtr);
+					 TRX_SYS_DOUBLEWRITE_MAGIC_N,
+					 MLOG_4BYTES, &mtr);
 
 			if (i == FSP_EXTENT_SIZE / 2) {
 				mlog_write_ulint(doublewrite
-						+ TRX_SYS_DOUBLEWRITE_BLOCK1,
-						page_no, MLOG_4BYTES, &mtr);
+						 + TRX_SYS_DOUBLEWRITE_BLOCK1,
+						 page_no, MLOG_4BYTES, &mtr);
 				mlog_write_ulint(doublewrite
-						+ TRX_SYS_DOUBLEWRITE_REPEAT
-						+ TRX_SYS_DOUBLEWRITE_BLOCK1,
-						page_no, MLOG_4BYTES, &mtr);
+						 + TRX_SYS_DOUBLEWRITE_REPEAT
+						 + TRX_SYS_DOUBLEWRITE_BLOCK1,
+						 page_no, MLOG_4BYTES, &mtr);
 			} else if (i == FSP_EXTENT_SIZE / 2
-					+ TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+				   + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
 				mlog_write_ulint(doublewrite
-						+ TRX_SYS_DOUBLEWRITE_BLOCK2,
-						page_no, MLOG_4BYTES, &mtr);
+						 + TRX_SYS_DOUBLEWRITE_BLOCK2,
+						 page_no, MLOG_4BYTES, &mtr);
 				mlog_write_ulint(doublewrite
-						+ TRX_SYS_DOUBLEWRITE_REPEAT
-						+ TRX_SYS_DOUBLEWRITE_BLOCK2,
-						page_no, MLOG_4BYTES, &mtr);
+						 + TRX_SYS_DOUBLEWRITE_REPEAT
+						 + TRX_SYS_DOUBLEWRITE_BLOCK2,
+						 page_no, MLOG_4BYTES, &mtr);
 			} else if (i > FSP_EXTENT_SIZE / 2) {
 				ut_a(page_no == prev_page_no + 1);
 			}
@@ -305,15 +306,17 @@ start_again:
 		}
 
 		mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC,
-			TRX_SYS_DOUBLEWRITE_MAGIC_N, MLOG_4BYTES, &mtr);
+				 TRX_SYS_DOUBLEWRITE_MAGIC_N,
+				 MLOG_4BYTES, &mtr);
 		mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC
-						+ TRX_SYS_DOUBLEWRITE_REPEAT,
-			TRX_SYS_DOUBLEWRITE_MAGIC_N, MLOG_4BYTES, &mtr);
+				 + TRX_SYS_DOUBLEWRITE_REPEAT,
+				 TRX_SYS_DOUBLEWRITE_MAGIC_N,
+				 MLOG_4BYTES, &mtr);
 
 		mlog_write_ulint(doublewrite
-				+ TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
-				TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
-				MLOG_4BYTES, &mtr);
+				 + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
+				 TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
+				 MLOG_4BYTES, &mtr);
 		mtr_commit(&mtr);
 
 		/* Flush the modified pages to disk and make a checkpoint */
@@ -361,11 +364,11 @@ trx_sys_doublewrite_init_or_restore_pages(
 	buffer */
 
 	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, TRX_SYS_PAGE_NO, 0,
-					UNIV_PAGE_SIZE, read_buf, NULL);
+	       UNIV_PAGE_SIZE, read_buf, NULL);
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
-					== TRX_SYS_DOUBLEWRITE_MAGIC_N) {
+	    == TRX_SYS_DOUBLEWRITE_MAGIC_N) {
 		/* The doublewrite buffer has been created */
 
 		trx_doublewrite_init(doublewrite);
@@ -379,7 +382,7 @@ trx_sys_doublewrite_init_or_restore_pages(
 	}
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED)
-		!= TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N) {
+	    != TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N) {
 
 		/* We are upgrading from a version < 4.1.x to a version where
 		multiple tablespaces are supported. We must reset the space id
@@ -390,7 +393,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 		trx_doublewrite_must_reset_space_ids = TRUE;
 
 		fprintf(stderr,
-"InnoDB: Resetting space id's in the doublewrite buffer\n");
+			"InnoDB: Resetting space id's in the"
+			" doublewrite buffer\n");
 	} else {
 		trx_sys_multiple_tablespace_format = TRUE;
 	}
@@ -398,12 +402,12 @@ trx_sys_doublewrite_init_or_restore_pages(
 	/* Read the pages from the doublewrite buffer to memory */
 
 	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, block1, 0,
-			TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-			buf, NULL);
+	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
+	       buf, NULL);
 	fil_io(OS_FILE_READ, TRUE, TRX_SYS_SPACE, block2, 0,
-			TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-			buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-			NULL);
+	       TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
+	       buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
+	       NULL);
 	/* Check if any of these pages is half-written in data files, in the
 	intended position */
 
@@ -430,12 +434,12 @@ trx_sys_doublewrite_init_or_restore_pages(
 			}
 
 			fil_io(OS_FILE_WRITE, TRUE, 0, source_page_no, 0,
-				UNIV_PAGE_SIZE, page, NULL);
+			       UNIV_PAGE_SIZE, page, NULL);
 			/* printf("Resetting space id in page %lu\n",
-						   source_page_no); */
+			source_page_no); */
 		} else {
-			space_id = mach_read_from_4(
-				page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+			space_id = mach_read_from_4
+				(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 		}
 
 		if (!restore_corrupt_pages) {
@@ -447,19 +451,23 @@ trx_sys_doublewrite_init_or_restore_pages(
 			and this page once belonged to it: do nothing */
 
 		} else if (!fil_check_adress_in_tablespace(space_id,
-								page_no)) {
+							   page_no)) {
 			fprintf(stderr,
-"InnoDB: Warning: a page in the doublewrite buffer is not within space\n"
-"InnoDB: bounds; space id %lu page number %lu, page %lu in doublewrite buf.\n",
+				"InnoDB: Warning: a page in the"
+				" doublewrite buffer is not within space\n"
+				"InnoDB: bounds; space id %lu"
+				" page number %lu, page %lu in"
+				" doublewrite buf.\n",
 				(ulong) space_id, (ulong) page_no, (ulong) i);
 
 		} else if (space_id == TRX_SYS_SPACE
-			&& ((page_no >= block1
-					&& page_no
-					< block1 + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-				|| (page_no >= block2
-					&& page_no
-					< block2 + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE))) {
+			   && ((page_no >= block1
+				&& page_no
+				< block1 + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
+			       || (page_no >= block2
+				   && page_no
+				   < (block2
+				      + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)))) {
 
 			/* It is an unwritten doublewrite buffer page:
 			do nothing */
@@ -467,31 +475,42 @@ trx_sys_doublewrite_init_or_restore_pages(
 			/* Read in the actual page from the data files */
 
 			fil_io(OS_FILE_READ, TRUE, space_id, page_no, 0,
-					UNIV_PAGE_SIZE, read_buf, NULL);
+			       UNIV_PAGE_SIZE, read_buf, NULL);
 			/* Check if the page is corrupt */
 
 			if (buf_page_is_corrupted(read_buf)) {
 
 				fprintf(stderr,
-		"InnoDB: Warning: database page corruption or a failed\n"
-		"InnoDB: file read of page %lu.\n", (ulong) page_no);
+					"InnoDB: Warning: database page"
+					" corruption or a failed\n"
+					"InnoDB: file read of page %lu.\n",
+					(ulong) page_no);
 				fprintf(stderr,
-		"InnoDB: Trying to recover it from the doublewrite buffer.\n");
+					"InnoDB: Trying to recover it from"
+					" the doublewrite buffer.\n");
 
 				if (buf_page_is_corrupted(page)) {
 					fprintf(stderr,
-		"InnoDB: Dump of the page:\n");
+						"InnoDB: Dump of the page:\n");
 					buf_page_print(read_buf);
 					fprintf(stderr,
-		"InnoDB: Dump of corresponding page in doublewrite buffer:\n");
+						"InnoDB: Dump of"
+						" corresponding page"
+						" in doublewrite buffer:\n");
 					buf_page_print(page);
 
 					fprintf(stderr,
-		"InnoDB: Also the page in the doublewrite buffer is corrupt.\n"
-		"InnoDB: Cannot continue operation.\n"
-		"InnoDB: You can try to recover the database with the my.cnf\n"
-		"InnoDB: option:\n"
-		"InnoDB: set-variable=innodb_force_recovery=6\n");
+						"InnoDB: Also the page in the"
+						" doublewrite buffer"
+						" is corrupt.\n"
+						"InnoDB: Cannot continue"
+						" operation.\n"
+						"InnoDB: You can try to"
+						" recover the database"
+						" with the my.cnf\n"
+						"InnoDB: option:\n"
+						"InnoDB: set-variable="
+						"innodb_force_recovery=6\n");
 					exit(1);
 				}
 
@@ -500,10 +519,11 @@ trx_sys_doublewrite_init_or_restore_pages(
 				position */
 
 				fil_io(OS_FILE_WRITE, TRUE, space_id,
-					page_no, 0,
-					UNIV_PAGE_SIZE, page, NULL);
+				       page_no, 0,
+				       UNIV_PAGE_SIZE, page, NULL);
 				fprintf(stderr,
-		"InnoDB: Recovered the page from the doublewrite buffer.\n");
+					"InnoDB: Recovered the page from"
+					" the doublewrite buffer.\n");
 			}
 		}
 
@@ -565,7 +585,7 @@ trx_sys_flush_max_trx_id(void)
 	sys_header = trx_sysf_get(&mtr);
 
 	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
-				trx_sys->max_trx_id, &mtr);
+			  trx_sys->max_trx_id, &mtr);
 	mtr_commit(&mtr);
 }
 
@@ -596,36 +616,38 @@ trx_sys_update_mysql_binlog_offset(
 	sys_header = trx_sysf_get(mtr);
 
 	if (mach_read_from_4(sys_header + field
-					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	   != TRX_SYS_MYSQL_LOG_MAGIC_N) {
+			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	    != TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
 		mlog_write_ulint(sys_header + field
-					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD,
-				TRX_SYS_MYSQL_LOG_MAGIC_N,
-				MLOG_4BYTES, mtr);
+				 + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD,
+				 TRX_SYS_MYSQL_LOG_MAGIC_N,
+				 MLOG_4BYTES, mtr);
 	}
 
-	if (0 != strcmp((char*) (sys_header + field + TRX_SYS_MYSQL_LOG_NAME), file_name)) {
+	if (0 != strcmp((char*) (sys_header + field + TRX_SYS_MYSQL_LOG_NAME),
+			file_name)) {
 
 		mlog_write_string(sys_header + field
-					+ TRX_SYS_MYSQL_LOG_NAME,
-			(byte*) file_name, 1 + ut_strlen(file_name), mtr);
+				  + TRX_SYS_MYSQL_LOG_NAME,
+				  (byte*) file_name, 1 + ut_strlen(file_name),
+				  mtr);
 	}
 
 	if (mach_read_from_4(sys_header + field
-					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH) > 0
-	   || (offset >> 32) > 0) {
+			     + TRX_SYS_MYSQL_LOG_OFFSET_HIGH) > 0
+	    || (offset >> 32) > 0) {
 
 		mlog_write_ulint(sys_header + field
-					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH,
-				(ulint)(offset >> 32),
-				MLOG_4BYTES, mtr);
+				 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH,
+				 (ulint)(offset >> 32),
+				 MLOG_4BYTES, mtr);
 	}
 
 	mlog_write_ulint(sys_header + field
-					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW,
-				(ulint)(offset & 0xFFFFFFFFUL),
-				MLOG_4BYTES, mtr);
+			 + TRX_SYS_MYSQL_LOG_OFFSET_LOW,
+			 (ulint)(offset & 0xFFFFFFFFUL),
+			 MLOG_4BYTES, mtr);
 }
 
 /*********************************************************************
@@ -643,16 +665,20 @@ trx_sys_print_mysql_binlog_offset_from_page(
 	sys_header = page + TRX_SYS;
 
 	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	   == TRX_SYS_MYSQL_LOG_MAGIC_N) {
+			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
 		fprintf(stderr,
-	"ibbackup: Last MySQL binlog file position %lu %lu, file name %s\n",
-		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-		sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME);
+			"ibbackup: Last MySQL binlog file position %lu %lu,"
+			" file name %s\n",
+			(ulong) mach_read_from_4
+			(sys_header + TRX_SYS_MYSQL_LOG_INFO
+			 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
+			(ulong) mach_read_from_4
+			(sys_header + TRX_SYS_MYSQL_LOG_INFO
+			 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
+			sys_header + TRX_SYS_MYSQL_LOG_INFO
+			+ TRX_SYS_MYSQL_LOG_NAME);
 	}
 }
 
@@ -674,27 +700,32 @@ trx_sys_print_mysql_binlog_offset(void)
 	sys_header = trx_sysf_get(&mtr);
 
 	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	   != TRX_SYS_MYSQL_LOG_MAGIC_N) {
+			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	    != TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
 		mtr_commit(&mtr);
 
 		return;
 	}
 
-	trx_sys_mysql_bin_log_pos_high = mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-		+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH);
-	trx_sys_mysql_bin_log_pos_low  = mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
+	trx_sys_mysql_bin_log_pos_high = mach_read_from_4
+		(sys_header + TRX_SYS_MYSQL_LOG_INFO
+		 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH);
+	trx_sys_mysql_bin_log_pos_low = mach_read_from_4
+		(sys_header + TRX_SYS_MYSQL_LOG_INFO
+		 + TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
-	trx_sys_mysql_bin_log_pos = (((ib_longlong)trx_sys_mysql_bin_log_pos_high) << 32) +
-		(ib_longlong)trx_sys_mysql_bin_log_pos_low;
+	trx_sys_mysql_bin_log_pos
+		= (((ib_longlong)trx_sys_mysql_bin_log_pos_high) << 32)
+		+ (ib_longlong)trx_sys_mysql_bin_log_pos_low;
 
-	ut_memcpy(trx_sys_mysql_bin_log_name, sys_header + TRX_SYS_MYSQL_LOG_INFO +
-		TRX_SYS_MYSQL_LOG_NAME, TRX_SYS_MYSQL_LOG_NAME_LEN);
+	ut_memcpy(trx_sys_mysql_bin_log_name,
+		  sys_header + TRX_SYS_MYSQL_LOG_INFO
+		  + TRX_SYS_MYSQL_LOG_NAME, TRX_SYS_MYSQL_LOG_NAME_LEN);
 
 	fprintf(stderr,
-		"InnoDB: Last MySQL binlog file position %lu %lu, file name %s\n",
+		"InnoDB: Last MySQL binlog file position %lu %lu,"
+		" file name %s\n",
 		trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low,
 		trx_sys_mysql_bin_log_name);
 
@@ -717,8 +748,8 @@ trx_sys_print_mysql_master_log_pos(void)
 	sys_header = trx_sysf_get(&mtr);
 
 	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	   != TRX_SYS_MYSQL_LOG_MAGIC_N) {
+			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	    != TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
 		mtr_commit(&mtr);
 
@@ -726,30 +757,32 @@ trx_sys_print_mysql_master_log_pos(void)
 	}
 
 	fprintf(stderr,
-"InnoDB: In a MySQL replication slave the last master binlog file\n"
-"InnoDB: position %lu %lu, file name %s\n",
-		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		(ulong) mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
+		"InnoDB: In a MySQL replication slave the last"
+		" master binlog file\n"
+		"InnoDB: position %lu %lu, file name %s\n",
+		(ulong) mach_read_from_4(sys_header
+					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
+					 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
+		(ulong) mach_read_from_4(sys_header
+					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
+					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
 		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-						+ TRX_SYS_MYSQL_LOG_NAME);
+		+ TRX_SYS_MYSQL_LOG_NAME);
 	/* Copy the master log position info to global variables we can
 	use in ha_innobase.cc to initialize glob_mi to right values */
 
 	ut_memcpy(trx_sys_mysql_master_log_name,
-		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-						+ TRX_SYS_MYSQL_LOG_NAME,
-			TRX_SYS_MYSQL_LOG_NAME_LEN);
+		  sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+		  + TRX_SYS_MYSQL_LOG_NAME,
+		  TRX_SYS_MYSQL_LOG_NAME_LEN);
 
-	trx_sys_mysql_master_log_pos =
-		(((ib_longlong)mach_read_from_4(
-			sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH))
-		<< 32)
-		+ (ib_longlong)
-		mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
+	trx_sys_mysql_master_log_pos
+		= (((ib_longlong) mach_read_from_4
+		    (sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+		     + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
+		+ ((ib_longlong) mach_read_from_4
+		   (sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+		    + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
 	mtr_commit(&mtr);
 }
 
@@ -811,21 +844,27 @@ trx_sysf_create(
 
 	/* Create the trx sys file block in a new allocated file segment */
 	page = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
-									mtr);
+			   mtr);
 	ut_a(buf_frame_get_page_no(page) == TRX_SYS_PAGE_NO);
 
+	/* Reset the doublewrite buffer magic number to zero so that we
+	know that the doublewrite buffer has not yet been created (this
+	suppresses a Valgrind warning) */
+
+	mach_write_to_4(page + TRX_SYS_DOUBLEWRITE + TRX_SYS_DOUBLEWRITE_MAGIC,
+			0);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TRX_SYS_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_TRX_SYS,
-					MLOG_2BYTES, mtr);
+			 MLOG_2BYTES, mtr);
 
 	sys_header = trx_sysf_get(mtr);
 
 	/* Start counting transaction ids from number 1 up */
 	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
-				ut_dulint_create(0, 1), mtr);
+			  ut_dulint_create(0, 1), mtr);
 
 	/* Reset the rollback segment slots */
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
@@ -838,7 +877,7 @@ trx_sysf_create(
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, ULINT_MAX, &slot_no,
-									mtr);
+					 mtr);
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no != FIL_NULL);
 
@@ -880,12 +919,12 @@ trx_sys_init_at_db_start(void)
 	to the disk-based header! Thus trx id values will not overlap when
 	the database is repeatedly started! */
 
-	trx_sys->max_trx_id = ut_dulint_add(
-				ut_dulint_align_up(
-					mtr_read_dulint(sys_header
-						+ TRX_SYS_TRX_ID_STORE, &mtr),
-					TRX_SYS_TRX_ID_WRITE_MARGIN),
-				2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
+	trx_sys->max_trx_id = ut_dulint_add
+		(ut_dulint_align_up(mtr_read_dulint
+				    (sys_header
+				     + TRX_SYS_TRX_ID_STORE, &mtr),
+				    TRX_SYS_TRX_ID_WRITE_MARGIN),
+		 2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
 
 	UT_LIST_INIT(trx_sys->mysql_trx_list);
 	trx_lists_init_at_db_start();
@@ -896,8 +935,8 @@ trx_sys_init_at_db_start(void)
 		for (;;) {
 
 			if ( trx->conc_state != TRX_PREPARED) {
-				rows_to_undo +=
-					ut_conv_dulint_to_longlong(trx->undo_no);
+				rows_to_undo += ut_conv_dulint_to_longlong
+					(trx->undo_no);
 			}
 
 			trx = UT_LIST_GET_NEXT(trx_list, trx);
@@ -913,10 +952,11 @@ trx_sys_init_at_db_start(void)
 		}
 
 		fprintf(stderr,
-"InnoDB: %lu transaction(s) which must be rolled back or cleaned up\n"
-"InnoDB: in total %lu%s row operations to undo\n",
-				(ulong) UT_LIST_GET_LEN(trx_sys->trx_list),
-				(ulong) rows_to_undo, unit);
+			"InnoDB: %lu transaction(s) which must be"
+			" rolled back or cleaned up\n"
+			"InnoDB: in total %lu%s row operations to undo\n",
+			(ulong) UT_LIST_GET_LEN(trx_sys->trx_list),
+			(ulong) rows_to_undo, unit);
 
 		fprintf(stderr, "InnoDB: Trx id counter is %lu %lu\n",
 			(ulong) ut_dulint_get_high(trx_sys->max_trx_id),

@@ -2261,12 +2261,17 @@ shutdown the MySQL server and restart it.", name, errno);
 int MYSQL_BIN_LOG::get_current_log(LOG_INFO* linfo)
 {
   pthread_mutex_lock(&LOCK_log);
-  strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name)-1);
-  linfo->pos = my_b_tell(&log_file);
+  int ret = raw_get_current_log(linfo);
   pthread_mutex_unlock(&LOCK_log);
-  return 0;
+  return ret;
 }
 
+int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO* linfo)
+{
+  strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name)-1);
+  linfo->pos = my_b_tell(&log_file);
+  return 0;
+}
 
 /*
   Move all data up in a file in an filename index file
@@ -3963,6 +3968,15 @@ void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
     return an error (e.g. logging to the log tables)
 */
 
+#ifdef EMBEDDED_LIBRARY
+int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
+                       const char *format __attribute__((unused)),
+                       va_list argsi __attribute__((unused)))
+{
+  DBUG_ENTER("vprint_msg_to_log");
+  DBUG_RETURN(0);
+}
+#else /*!EMBEDDED_LIBRARY*/
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
@@ -3979,6 +3993,7 @@ int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 
   DBUG_RETURN(0);
 }
+#endif /*EMBEDDED_LIBRARY*/
 
 
 void sql_print_error(const char *format, ...) 
@@ -4678,6 +4693,8 @@ mysql_declare_plugin(binlog)
   binlog_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  0
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;

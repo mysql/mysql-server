@@ -295,7 +295,7 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
     DBUG_RETURN(false);
   }
   if (m_pk) {
-    if ((bool)m_distributionKey != (bool)col.m_distributionKey) {
+    if (m_distributionKey != col.m_distributionKey) {
       DBUG_RETURN(false);
     }
   }
@@ -452,6 +452,7 @@ NdbTableImpl::init(){
   m_primaryTable.clear();
   m_default_no_part_flag = 1;
   m_logging= true;
+  m_temporary = false;
   m_row_gci = true;
   m_row_checksum = true;
   m_kvalue= 6;
@@ -568,6 +569,12 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
   if(m_logging != obj.m_logging)
   {
     DBUG_PRINT("info",("m_logging %d != %d",m_logging,obj.m_logging));
+    DBUG_RETURN(false);
+  }
+
+  if(m_temporary != obj.m_temporary)
+  {
+    DBUG_PRINT("info",("m_temporary %d != %d",m_temporary,obj.m_temporary));
     DBUG_RETURN(false);
   }
 
@@ -711,6 +718,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_max_rows = org.m_max_rows;
   m_default_no_part_flag = org.m_default_no_part_flag;
   m_logging = org.m_logging;
+  m_temporary = org.m_temporary;
   m_row_gci = org.m_row_gci;
   m_row_checksum = org.m_row_checksum;
   m_kvalue = org.m_kvalue;
@@ -772,8 +780,8 @@ NdbTableImpl::computeAggregates()
       m_noOfKeys++;
       m_keyLenInWords += (col->m_attrSize * col->m_arraySize + 3) / 4;
     }
-    if (col->m_distributionKey == 2)    // set by user
-      m_noOfDistributionKeys++;
+    if (col->m_distributionKey)
+      m_noOfDistributionKeys++; // XXX check PK
     
     if (col->getBlobType())
       m_noOfBlobs++;
@@ -790,19 +798,7 @@ NdbTableImpl::computeAggregates()
     for (i = 0, n = m_noOfKeys; n != 0; i++) {
       NdbColumnImpl* col = m_columns[i];
       if (col->m_pk) {
-        col->m_distributionKey = true;  // set by us
-        n--;
-      }
-    }
-  }
-  else 
-  {
-    for (i = 0, n = m_noOfKeys; n != 0; i++) {
-      NdbColumnImpl* col = m_columns[i];
-      if (col->m_pk)
-      {
-	if(col->m_distributionKey == 1)
-	  col->m_distributionKey = 0;  
+        col->m_distributionKey = true;
         n--;
       }
     }
@@ -816,6 +812,22 @@ NdbTableImpl::computeAggregates()
       n--;
     }
   }
+}
+
+// TODO add error checks
+// TODO use these internally at create and retrieve
+int
+NdbTableImpl::aggregate(NdbError& error)
+{
+  computeAggregates();
+  return 0;
+}
+int
+NdbTableImpl::validate(NdbError& error)
+{
+  if (aggregate(error) == -1)
+    return -1;
+  return 0;
 }
 
 const void*
@@ -1080,6 +1092,7 @@ void NdbIndexImpl::init()
   m_id= RNIL;
   m_type= NdbDictionary::Object::TypeUndefined;
   m_logging= true;
+  m_temporary= false;
   m_table= NULL;
 }
 
@@ -1303,8 +1316,6 @@ NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb,
   m_local_table_data_size= 0;
 }
 
-static int f_dictionary_count = 0;
-
 NdbDictionaryImpl::~NdbDictionaryImpl()
 {
   NdbElement_t<Ndb_local_table_info> * curr = m_localHash.m_tableHash.getNext(0);
@@ -1317,33 +1328,6 @@ NdbDictionaryImpl::~NdbDictionaryImpl()
       
       curr = m_localHash.m_tableHash.getNext(curr);
     }
-    
-    m_globalHash->lock();
-    if(--f_dictionary_count == 0){
-      delete NdbDictionary::Column::FRAGMENT; 
-      delete NdbDictionary::Column::FRAGMENT_FIXED_MEMORY;
-      delete NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY;
-      delete NdbDictionary::Column::ROW_COUNT;
-      delete NdbDictionary::Column::COMMIT_COUNT;
-      delete NdbDictionary::Column::ROW_SIZE;
-      delete NdbDictionary::Column::RANGE_NO;
-      delete NdbDictionary::Column::DISK_REF;
-      delete NdbDictionary::Column::RECORDS_IN_RANGE;
-      delete NdbDictionary::Column::ROWID;
-      delete NdbDictionary::Column::ROW_GCI;
-      NdbDictionary::Column::FRAGMENT= 0;
-      NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 0;
-      NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 0;
-      NdbDictionary::Column::ROW_COUNT= 0;
-      NdbDictionary::Column::COMMIT_COUNT= 0;
-      NdbDictionary::Column::ROW_SIZE= 0;
-      NdbDictionary::Column::RANGE_NO= 0;
-      NdbDictionary::Column::DISK_REF= 0;
-      NdbDictionary::Column::RECORDS_IN_RANGE= 0;
-      NdbDictionary::Column::ROWID= 0;
-      NdbDictionary::Column::ROW_GCI= 0;
-    }
-    m_globalHash->unlock();
   } else {
     assert(curr == 0);
   }
@@ -1486,32 +1470,6 @@ NdbDictionaryImpl::setTransporter(class Ndb* ndb,
 {
   m_globalHash = &tf->m_globalDictCache;
   if(m_receiver.setTransporter(ndb, tf)){
-    m_globalHash->lock();
-    if(f_dictionary_count++ == 0){
-      NdbDictionary::Column::FRAGMENT= 
-	NdbColumnImpl::create_pseudo("NDB$FRAGMENT");
-      NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 
-	NdbColumnImpl::create_pseudo("NDB$FRAGMENT_FIXED_MEMORY");
-      NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 
-	NdbColumnImpl::create_pseudo("NDB$FRAGMENT_VARSIZED_MEMORY");
-      NdbDictionary::Column::ROW_COUNT= 
-	NdbColumnImpl::create_pseudo("NDB$ROW_COUNT");
-      NdbDictionary::Column::COMMIT_COUNT= 
-	NdbColumnImpl::create_pseudo("NDB$COMMIT_COUNT");
-      NdbDictionary::Column::ROW_SIZE=
-	NdbColumnImpl::create_pseudo("NDB$ROW_SIZE");
-      NdbDictionary::Column::RANGE_NO= 
-	NdbColumnImpl::create_pseudo("NDB$RANGE_NO");
-      NdbDictionary::Column::DISK_REF= 
-	NdbColumnImpl::create_pseudo("NDB$DISK_REF");
-      NdbDictionary::Column::RECORDS_IN_RANGE= 
-	NdbColumnImpl::create_pseudo("NDB$RECORDS_IN_RANGE");
-      NdbDictionary::Column::ROWID= 
-	NdbColumnImpl::create_pseudo("NDB$ROWID");
-      NdbDictionary::Column::ROW_GCI= 
-	NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
-    }
-    m_globalHash->unlock();
     return true;
   }
   return false;
@@ -2006,7 +1964,7 @@ objectStateMapping[] = {
 static const
 ApiKernelMapping
 objectStoreMapping[] = {
-  { DictTabInfo::StoreTemporary,     NdbDictionary::Object::StoreTemporary },
+  { DictTabInfo::StoreNotLogged,     NdbDictionary::Object::StoreNotLogged },
   { DictTabInfo::StorePermanent,     NdbDictionary::Object::StorePermanent },
   { -1, -1 }
 };
@@ -2085,6 +2043,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_default_no_part_flag = tableDesc->DefaultNoPartFlag;
   impl->m_linear_flag = tableDesc->LinearHashFlag;
   impl->m_logging = tableDesc->TableLoggedFlag;
+  impl->m_temporary = tableDesc->TableTemporaryFlag;
   impl->m_row_gci = tableDesc->RowGCIFlag;
   impl->m_row_checksum = tableDesc->RowChecksumFlag;
   impl->m_kvalue = tableDesc->TableKValue;
@@ -2158,9 +2117,9 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_storageType = attrDesc.AttributeStorageType;
     
     col->m_pk = attrDesc.AttributeKeyFlag;
-    col->m_distributionKey = attrDesc.AttributeDKey ? 2 : 0;
+    col->m_distributionKey = (attrDesc.AttributeDKey != 0);
     col->m_nullable = attrDesc.AttributeNullableFlag;
-    col->m_autoIncrement = (attrDesc.AttributeAutoIncrement ? true : false);
+    col->m_autoIncrement = (attrDesc.AttributeAutoIncrement != 0);
     col->m_autoIncrementInitialValue = ~0;
     col->m_defaultValue.assign(attrDesc.AttributeDefaultValue);
 
@@ -2527,6 +2486,7 @@ NdbDictInterface::createOrAlterTable(Ndb & ndb,
 
   tmpTab->FragmentCount= impl.m_fragmentCount;
   tmpTab->TableLoggedFlag = impl.m_logging;
+  tmpTab->TableTemporaryFlag = impl.m_temporary;
   tmpTab->RowGCIFlag = impl.m_row_gci;
   tmpTab->RowChecksumFlag = impl.m_row_checksum;
   tmpTab->TableKValue = impl.m_kvalue;
@@ -2650,7 +2610,7 @@ loop:
     tmpAttr.AttributeId = col->m_attrId;
     tmpAttr.AttributeKeyFlag = col->m_pk;
     tmpAttr.AttributeNullableFlag = col->m_nullable;
-    tmpAttr.AttributeDKey = distKeys ? (bool)col->m_distributionKey : 0;
+    tmpAttr.AttributeDKey = distKeys ? col->m_distributionKey : 0;
 
     tmpAttr.AttributeExtType = (Uint32)col->m_type;
     tmpAttr.AttributeExtPrecision = ((unsigned)col->m_precision & 0xFFFF);
@@ -3045,6 +3005,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
   idx->m_tableName.assign(prim->m_externalName);
   NdbDictionary::Object::Type type = idx->m_type = tab->m_indexType;
   idx->m_logging = tab->m_logging;
+  idx->m_temporary = tab->m_temporary;
   // skip last attribute (NDB$PK or NDB$TNODE)
 
   const Uint32 distKeys = prim->m_noOfDistributionKeys;
@@ -3136,6 +3097,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
     ndb.internalize_index_name(&table, impl.getName()));
   w.add(DictTabInfo::TableName, internalName.c_str());
   w.add(DictTabInfo::TableLoggedFlag, impl.m_logging);
+  w.add(DictTabInfo::TableTemporaryFlag, impl.m_temporary);
 
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
@@ -4119,6 +4081,7 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
       getApiConstant(ListTablesConf::getTableState(d), objectStateMapping, 0);
     element.store = (NdbDictionary::Object::Store)
       getApiConstant(ListTablesConf::getTableStore(d), objectStoreMapping, 0);
+    element.temp = ListTablesConf::getTableTemp(d);
     // table or index name
     Uint32 n = (data[pos++] + 3) >> 2;
     BaseString databaseName;

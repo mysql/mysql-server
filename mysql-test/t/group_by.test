@@ -655,3 +655,15 @@ where t2.b=v1.a GROUP BY t2.b;
 
 DROP VIEW v1;
 DROP TABLE t1,t2;
+
+#
+# Bug #21174: Index degrades sort performance and 
+#             optimizer does not honor IGNORE INDEX
+#
+CREATE TABLE t1 (a INT, b INT, KEY(a));
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3,3), (4,4);
+
+EXPLAIN SELECT a, SUM(b) FROM t1 GROUP BY a LIMIT 2; 
+EXPLAIN SELECT a, SUM(b) FROM t1 IGNORE INDEX (a) GROUP BY a LIMIT 2;
+
+DROP TABLE t1;

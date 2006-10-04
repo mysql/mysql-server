@@ -32,19 +32,33 @@ public:
   bool find(Ptr<T>& ptr, Uint32 key) const {
     U rec;
     rec.key = key;
-    return m_ref.find(*(Ptr<U>*)&ptr, rec);
+    Ptr<U> tmp;
+    bool ret = m_ref.find(tmp, rec);
+    ptr.i = tmp.i;
+    ptr.p = static_cast<T*>(tmp.p);
+    return ret;
   }
   
   bool seize(Ptr<T> & ptr) {
-    return m_ref.seize(*(Ptr<U>*)&ptr);
+    Ptr<U> tmp;
+    bool ret = m_ref.seize(tmp);
+    ptr.i = tmp.i;
+    ptr.p = static_cast<T*>(tmp.p);
+    return ret;
   }
   
   void add(Ptr<T> & ptr) {
-    m_ref.add(*(Ptr<U>*)&ptr);
+    Ptr<U> tmp;
+    tmp.i = ptr.i;
+    tmp.p = static_cast<U*>(ptr.p);
+    m_ref.add(tmp);
   }
   
   void release(Ptr<T> & ptr) {
-    m_ref.release(*(Ptr<U>*)&ptr);
+    Ptr<U> tmp;
+    tmp.i = ptr.i;
+    tmp.p = static_cast<U*>(ptr.p);
+    m_ref.release(tmp);
   }
 };
 

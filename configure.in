@@ -2140,65 +2140,15 @@ MYSQL_CHECK_SSL
 # Has to be done late, as the plugin may need to check for existence of
 # functions tested above
 #--------------------------------------------------------------------
-
-MYSQL_STORAGE_ENGINE(blackhole,,[Blackhole Storage Engine],
-        [Basic Write-only Read-never tables], [max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(blackhole, [storage/blackhole])
-MYSQL_PLUGIN_STATIC(blackhole,  [libblackhole.a])
-MYSQL_PLUGIN_DYNAMIC(blackhole, [ha_blackhole.la])
-
-MYSQL_STORAGE_ENGINE(csv,,      [CSV Storage Engine],
-        [Stores tables in text CSV format])
-MYSQL_PLUGIN_DIRECTORY(csv,     [storage/csv])
-MYSQL_PLUGIN_STATIC(csv,        [libcsv.a])
-MYSQL_PLUGIN_MANDATORY(csv)     dnl Used for logging
-
-MYSQL_STORAGE_ENGINE(federated,,[Federated Storage Engine],
-        [Connects to tables on remote MySQL servers], [max,max-no-ndb])
-
 MYSQL_PLUGIN(ftexample,         [Simple Parser],
         [Simple full-text parser plugin])
 MYSQL_PLUGIN_DIRECTORY(ftexample, [plugin/fulltext])
 MYSQL_PLUGIN_DYNAMIC(ftexample, [mypluglib.la])
 
-MYSQL_STORAGE_ENGINE(heap,no,   [Memory Storage Engine],
-        [Volatile memory based tables])
-MYSQL_PLUGIN_DIRECTORY(heap,    [storage/heap])
-MYSQL_PLUGIN_STATIC(heap,       [libheap.a])
-MYSQL_PLUGIN_MANDATORY(heap)    dnl Memory tables
-
-MYSQL_STORAGE_ENGINE(innobase,  innodb, [InnoDB Storage Engine],
-        [Transactional Tables using InnoDB], [max,max-no-ndb])
-MYSQL_PLUGIN_DIRECTORY(innobase, [storage/innobase])
-MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
-MYSQL_PLUGIN_ACTIONS(innobase,  [
-  AC_CHECK_LIB(rt, aio_read, [innodb_system_libs="-lrt"])
-  AC_SUBST(innodb_system_libs)
-])
-
-MYSQL_STORAGE_ENGINE(myisam,no, [MyISAM Storage Engine],
-        [Traditional non-transactional MySQL tables])
-MYSQL_PLUGIN_DIRECTORY(myisam,  [storage/myisam])
-MYSQL_PLUGIN_STATIC(myisam,     [libmyisam.a])
-MYSQL_PLUGIN_MANDATORY(myisam)  dnl Default
-
-MYSQL_STORAGE_ENGINE(myisammrg,no,[MyISAM MERGE Engine],
-        [Merge multiple MySQL tables into one])
-MYSQL_PLUGIN_DIRECTORY(myisammrg,[storage/myisammrg])
-MYSQL_PLUGIN_STATIC(myisammrg,  [libmyisammrg.a])
-MYSQL_PLUGIN_MANDATORY(myisammrg)
-
-MYSQL_STORAGE_ENGINE(ndbcluster, ndbcluster, [Cluster Storage Engine],
-        [High Availability Clustered tables], [max])
-MYSQL_PLUGIN_DIRECTORY(ndbcluster,[storage/ndb])
-MYSQL_PLUGIN_STATIC(ndbcluster, [[\$(ndbcluster_libs) \$(ndbcluster_system_libs) \$(NDB_SCI_LIBS)]])
-MYSQL_PLUGIN_ACTIONS(ndbcluster,[MYSQL_SETUP_NDBCLUSTER])
-
 MYSQL_STORAGE_ENGINE(partition, partition, [Partition Support],
         [MySQL Partitioning Support], [max,max-no-ndb])
 
 dnl -- ndbcluster requires partition to be enabled
-MYSQL_PLUGIN_DEPENDS(ndbcluster, [partition])
 
 MYSQL_CONFIGURE_PLUGINS([none])
 

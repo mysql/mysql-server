@@ -50,8 +50,8 @@ trx_undof_page_add_undo_rec_log(
 	}
 
 	log_end = &log_ptr[11 + 13 + MLOG_BUF_MARGIN];
-	log_ptr = mlog_write_initial_log_record_fast(undo_page,
-					MLOG_UNDO_INSERT, log_ptr, mtr);
+	log_ptr = mlog_write_initial_log_record_fast
+		(undo_page, MLOG_UNDO_INSERT, log_ptr, mtr);
 	len = new_free - old_free - 4;
 
 	mach_write_to_2(log_ptr, len);
@@ -100,14 +100,14 @@ trx_undo_parse_add_undo_rec(
 	}
 
 	first_free = mach_read_from_2(page + TRX_UNDO_PAGE_HDR
-							+ TRX_UNDO_PAGE_FREE);
+				      + TRX_UNDO_PAGE_FREE);
 	rec = page + first_free;
 
 	mach_write_to_2(rec, first_free + 4 + len);
 	mach_write_to_2(rec + 2 + len, first_free);
 
 	mach_write_to_2(page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE,
-							first_free + 4 + len);
+			first_free + 4 + len);
 	ut_memcpy(rec + 2, ptr, len);
 
 	return(ptr + len);
@@ -152,10 +152,10 @@ trx_undo_page_report_insert(
 	ulint		i;
 
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-				+ TRX_UNDO_PAGE_TYPE) == TRX_UNDO_INSERT);
+			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_INSERT);
 
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-							+ TRX_UNDO_PAGE_FREE);
+				      + TRX_UNDO_PAGE_FREE);
 	ptr = undo_page + first_free;
 
 	ut_ad(first_free <= UNIV_PAGE_SIZE);
@@ -228,12 +228,12 @@ trx_undo_page_report_insert(
 	mach_write_to_2(undo_page + first_free, ptr - undo_page);
 
 	mach_write_to_2(undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE,
-							ptr - undo_page);
+			ptr - undo_page);
 
 	/* Write the log entry to the REDO log of this change in the UNDO
-								 log */
+	log */
 	trx_undof_page_add_undo_rec_log(undo_page, first_free,
-							ptr - undo_page, mtr);
+					ptr - undo_page, mtr);
 	return(first_free);
 }
 
@@ -432,11 +432,11 @@ trx_undo_page_report_modify(
 	ut_a(index->type & DICT_CLUSTERED);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-				+ TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
+			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
 	table = index->table;
 
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-						+ TRX_UNDO_PAGE_FREE);
+				      + TRX_UNDO_PAGE_FREE);
 	ptr = undo_page + first_free;
 
 	ut_ad(first_free <= UNIV_PAGE_SIZE);
@@ -486,11 +486,13 @@ trx_undo_page_report_modify(
 
 	/* Store the values of the system columns */
 	field = rec_get_nth_field(rec, offsets,
-		dict_index_get_sys_col_pos(index, DATA_TRX_ID), &len);
+				  dict_index_get_sys_col_pos
+				  (index, DATA_TRX_ID), &len);
 	ut_ad(len == DATA_TRX_ID_LEN);
 	trx_id = trx_read_trx_id(field);
 	field = rec_get_nth_field(rec, offsets,
-		dict_index_get_sys_col_pos(index, DATA_ROLL_PTR), &len);
+				  dict_index_get_sys_col_pos
+				  (index, DATA_ROLL_PTR), &len);
 	ut_ad(len == DATA_ROLL_PTR_LEN);
 	roll_ptr = trx_read_roll_ptr(field);
 
@@ -565,8 +567,9 @@ trx_undo_page_report_modify(
 				/* If a field has external storage, we add
 				to flen the flag */
 
-				len = mach_write_compressed(ptr,
-					UNIV_EXTERN_STORAGE_FIELD + flen);
+				len = mach_write_compressed
+					(ptr,
+					 UNIV_EXTERN_STORAGE_FIELD + flen);
 
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
@@ -629,7 +632,7 @@ trx_undo_page_report_modify(
 			if (col->ord_part > 0) {
 
 				pos = dict_index_get_nth_col_pos(index,
-					col_no);
+								 col_no);
 
 				/* Write field number to undo log */
 				if (trx_undo_left(undo_page, ptr) < 5) {
@@ -642,7 +645,7 @@ trx_undo_page_report_modify(
 
 				/* Save the old value of field */
 				field = rec_get_nth_field(rec, offsets, pos,
-					&flen);
+							  &flen);
 
 				if (trx_undo_left(undo_page, ptr) < 5) {
 
@@ -654,7 +657,7 @@ trx_undo_page_report_modify(
 
 				if (flen != UNIV_SQL_NULL) {
 					if (trx_undo_left(undo_page, ptr)
-						< flen) {
+					    < flen) {
 
 						return(0);
 					}
@@ -680,12 +683,12 @@ trx_undo_page_report_modify(
 	mach_write_to_2(undo_page + first_free, ptr - undo_page);
 
 	mach_write_to_2(undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE,
-							ptr - undo_page);
+			ptr - undo_page);
 
 	/* Write to the REDO log about this change in the UNDO log */
 
 	trx_undof_page_add_undo_rec_log(undo_page, first_free,
-							ptr - undo_page, mtr);
+					ptr - undo_page, mtr);
 	return(first_free);
 }
 
@@ -815,17 +818,17 @@ trx_undo_update_rec_get_update(
 	trx_write_trx_id(buf, trx_id);
 
 	upd_field_set_field_no(upd_field,
-			dict_index_get_sys_col_pos(index, DATA_TRX_ID),
-								index, trx);
+			       dict_index_get_sys_col_pos(index, DATA_TRX_ID),
+			       index, trx);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_TRX_ID_LEN);
 
 	upd_field = upd_get_nth_field(update, n_fields + 1);
 	buf = mem_heap_alloc(heap, DATA_ROLL_PTR_LEN);
 	trx_write_roll_ptr(buf, roll_ptr);
 
-	upd_field_set_field_no(upd_field,
-			dict_index_get_sys_col_pos(index, DATA_ROLL_PTR),
-								index, trx);
+	upd_field_set_field_no
+		(upd_field, dict_index_get_sys_col_pos(index, DATA_ROLL_PTR),
+		 index, trx);
 	dfield_set_data(&(upd_field->new_val), buf, DATA_ROLL_PTR_LEN);
 
 	/* Store then the updated ordinary columns to the update vector */
@@ -836,16 +839,19 @@ trx_undo_update_rec_get_update(
 
 		if (field_no >= dict_index_get_n_fields(index)) {
 			fprintf(stderr,
-"InnoDB: Error: trying to access update undo rec field %lu in ", (ulong) field_no);
+				"InnoDB: Error: trying to access"
+				" update undo rec field %lu in ",
+				(ulong) field_no);
 			dict_index_name_print(stderr, trx, index);
 			fprintf(stderr, "\n"
-"InnoDB: but index has only %lu fields\n"
-"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
-"InnoDB: Run also CHECK TABLE ",
+				"InnoDB: but index has only %lu fields\n"
+				"InnoDB: Submit a detailed bug report"
+				" to http://bugs.mysql.com\n"
+				"InnoDB: Run also CHECK TABLE ",
 				(ulong) dict_index_get_n_fields(index));
 			ut_print_name(stderr, trx, TRUE, index->table_name);
 			fprintf(stderr, "\n"
-"InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
+				"InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
 				(ulong) n_fields, (ulong) i, ptr);
 			return(NULL);
 		}
@@ -948,9 +954,9 @@ trx_undo_erase_page_end(
 	ulint	first_free;
 
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
-							+ TRX_UNDO_PAGE_FREE);
+				      + TRX_UNDO_PAGE_FREE);
 	memset(undo_page + first_free, 0xff,
-		(UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) - first_free);
+	       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) - first_free);
 
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_ERASE_END, mtr);
 }
@@ -1034,7 +1040,7 @@ trx_undo_report_row_operation(
 
 	ut_ad(thr);
 	ut_ad((op_type != TRX_UNDO_INSERT_OP)
-		|| (clust_entry && !update && !rec));
+	      || (clust_entry && !update && !rec));
 
 	trx = thr_get_trx(thr);
 	rseg = trx->rseg;
@@ -1078,32 +1084,30 @@ trx_undo_report_row_operation(
 
 	for (;;) {
 		undo_page = buf_page_get_gen(undo->space, page_no,
-						RW_X_LATCH, undo->guess_page,
-						BUF_GET,
-						__FILE__, __LINE__,
-						&mtr);
+					     RW_X_LATCH, undo->guess_page,
+					     BUF_GET,
+					     __FILE__, __LINE__,
+					     &mtr);
 
 #ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(undo_page, SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 
 		if (op_type == TRX_UNDO_INSERT_OP) {
-			offset = trx_undo_page_report_insert(undo_page, trx,
-							index, clust_entry,
-							&mtr);
+			offset = trx_undo_page_report_insert
+				(undo_page, trx, index, clust_entry, &mtr);
 		} else {
 			offsets = rec_get_offsets(rec, index, offsets,
-						ULINT_UNDEFINED, &heap);
-			offset = trx_undo_page_report_modify(undo_page, trx,
-				index, rec, offsets, update, cmpl_info, &mtr);
+						  ULINT_UNDEFINED, &heap);
+			offset = trx_undo_page_report_modify
+				(undo_page, trx, index, rec, offsets,
+				 update, cmpl_info, &mtr);
 		}
 
 		if (offset == 0) {
 			/* The record did not fit on the page. We erase the
 			end segment of the undo log page and write a log
-			record of it: this is to ensure that in the debug
-			version the replicate page constructed using the log
-			records stays identical to the original page */
+			record of it to to ensure deterministic contents. */
 
 			trx_undo_erase_page_end(undo_page, &mtr);
 		}
@@ -1155,7 +1159,7 @@ trx_undo_report_row_operation(
 	mutex_exit(&(trx->undo_mutex));
 
 	*roll_ptr = trx_undo_build_roll_ptr(is_insert, rseg->id, page_no,
-								offset);
+					    offset);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -1185,7 +1189,7 @@ trx_undo_get_undo_rec_low(
 	mtr_t		mtr;
 
 	trx_undo_decode_roll_ptr(roll_ptr, &is_insert, &rseg_id, &page_no,
-								&offset);
+				 &offset);
 	rseg = trx_rseg_get_on_id(rseg_id);
 
 	mtr_start(&mtr);
@@ -1282,9 +1286,9 @@ trx_undo_prev_version_build(
 	ut_ad(rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains(index_mtr, buf_block_align(index_rec),
-			MTR_MEMO_PAGE_S_FIX) ||
-		mtr_memo_contains(index_mtr, buf_block_align(index_rec),
-			MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains(index_mtr, buf_block_align(index_rec),
+				   MTR_MEMO_PAGE_X_FIX));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (!(index->type & DICT_CLUSTERED)) {
@@ -1295,7 +1299,7 @@ trx_undo_prev_version_build(
 			"InnoDB: index record ", index->name);
 		rec_print(stderr, index_rec, index);
 		fputs("\n"
-			"InnoDB: record version ", stderr);
+		      "InnoDB: record version ", stderr);
 		rec_print_new(stderr, rec, offsets);
 		putc('\n', stderr);
 		return(DB_ERROR);
@@ -1323,23 +1327,27 @@ trx_undo_prev_version_build(
 	}
 
 	ptr = trx_undo_rec_get_pars(undo_rec, &type, &cmpl_info,
-					&dummy_extern, &undo_no, &table_id);
+				    &dummy_extern, &undo_no, &table_id);
 
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,
-								&info_bits);
+					       &info_bits);
 	ptr = trx_undo_rec_skip_row_ref(ptr, index);
 
 	ptr = trx_undo_update_rec_get_update(ptr, index, type, trx_id,
-				roll_ptr, info_bits, NULL, heap, &update);
+					     roll_ptr, info_bits,
+					     NULL, heap, &update);
 
 	if (ut_dulint_cmp(table_id, index->table->id) != 0) {
 		ptr = NULL;
 
 		fprintf(stderr,
-"InnoDB: Error: trying to access update undo rec for table %s\n"
-"InnoDB: but the table id in the undo record is wrong\n"
-"InnoDB: Submit a detailed bug report to http://bugs.mysql.com\n"
-"InnoDB: Run also CHECK TABLE %s\n",
+			"InnoDB: Error: trying to access update undo rec"
+			" for table %s\n"
+			"InnoDB: but the table id in the"
+			" undo record is wrong\n"
+			"InnoDB: Submit a detailed bug report"
+			" to http://bugs.mysql.com\n"
+			"InnoDB: Run also CHECK TABLE %s\n",
 			index->table_name, index->table_name);
 	}
 
@@ -1348,10 +1356,11 @@ trx_undo_prev_version_build(
 		should catch an elusive bug in row_vers_old_has_index_entry */
 
 		fprintf(stderr,
-		"InnoDB: table %s, index %s, n_uniq %lu\n"
-		"InnoDB: undo rec address %p, type %lu cmpl_info %lu\n"
-		"InnoDB: undo rec table id %lu %lu, index table id %lu %lu\n"
-		"InnoDB: dump of 150 bytes in undo rec: ",
+			"InnoDB: table %s, index %s, n_uniq %lu\n"
+			"InnoDB: undo rec address %p, type %lu cmpl_info %lu\n"
+			"InnoDB: undo rec table id %lu %lu,"
+			" index table id %lu %lu\n"
+			"InnoDB: dump of 150 bytes in undo rec: ",
 			index->table_name, index->name,
 			(ulong) dict_index_get_n_unique(index),
 			undo_rec, (ulong) type, (ulong) cmpl_info,
@@ -1361,14 +1370,16 @@ trx_undo_prev_version_build(
 			(ulong) ut_dulint_get_low(index->table->id));
 		ut_print_buf(stderr, undo_rec, 150);
 		fputs("\n"
-			"InnoDB: index record ", stderr);
+		      "InnoDB: index record ", stderr);
 		rec_print(stderr, index_rec, index);
 		fputs("\n"
-			"InnoDB: record version ", stderr);
+		      "InnoDB: record version ", stderr);
 		rec_print_new(stderr, rec, offsets);
 		fprintf(stderr, "\n"
-	"InnoDB: Record trx id %lu %lu, update rec trx id %lu %lu\n"
-	"InnoDB: Roll ptr in rec %lu %lu, in update rec %lu %lu\n",
+			"InnoDB: Record trx id %lu %lu, update rec"
+			" trx id %lu %lu\n"
+			"InnoDB: Roll ptr in rec %lu %lu, in update rec"
+			" %lu %lu\n",
 			(ulong) ut_dulint_get_high(rec_trx_id),
 			(ulong) ut_dulint_get_low(rec_trx_id),
 			(ulong) ut_dulint_get_high(trx_id),
@@ -1393,21 +1404,21 @@ trx_undo_prev_version_build(
 		fields. Store the info to ext_vect: */
 
 		ext_vect = mem_alloc(sizeof(ulint)
-				* rec_offs_n_fields(offsets));
+				     * rec_offs_n_fields(offsets));
 		n_ext_vect = btr_push_update_extern_fields(ext_vect, offsets,
-								update);
+							   update);
 		entry = row_rec_to_index_entry(ROW_COPY_DATA, index, rec,
-			heap);
+					       heap);
 		row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
 		buf = mem_heap_alloc(heap,
-					rec_get_converted_size(index, entry));
+				     rec_get_converted_size(index, entry));
 
 		*old_vers = rec_convert_dtuple_to_rec(buf, index, entry);
 
 		/* Now set the extern bits in the old version of the record */
 		rec_set_field_extern_bits(*old_vers, index,
-						ext_vect, n_ext_vect, NULL);
+					  ext_vect, n_ext_vect, NULL);
 		mem_free(ext_vect);
 	} else {
 		buf = mem_heap_alloc(heap, rec_offs_size(offsets));

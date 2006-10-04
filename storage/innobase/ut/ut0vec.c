@@ -42,7 +42,7 @@ ib_vector_push(
 		ulint	new_total = vec->total * 2;
 
 		new_data = mem_heap_alloc(vec->heap,
-			sizeof(void*) * new_total);
+					  sizeof(void*) * new_total);
 		memcpy(new_data, vec->data, sizeof(void*) * vec->total);
 
 		vec->data = new_data;

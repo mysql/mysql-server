@@ -1,0 +1,11 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+-- source include/have_ndbapi_examples.inc
+
+--exec echo Running ndbapi_simple_dual
+--exec $NDB_EXAMPLES_DIR/ndbapi_simple_dual/ndbapi_simple_dual $MASTER_MYSOCK "localhost:$NDBCLUSTER_PORT" $SLAVE_MYSOCK "localhost:$NDBCLUSTER_PORT_SLAVE" >> $NDB_EXAMPLES_OUTPUT
+
+--exec echo Running mgmapi_logevent
+--exec $NDB_EXAMPLES_DIR/mgmapi_logevent/mgmapi_logevent "localhost:$NDBCLUSTER_PORT" "localhost:$NDBCLUSTER_PORT_SLAVE" 1 >> $NDB_EXAMPLES_OUTPUT
+

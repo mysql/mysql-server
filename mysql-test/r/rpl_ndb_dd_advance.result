@@ -49,10 +49,11 @@ c1	c2	c3
 4	8	7
 5	10	8
 FILE_NAME	FILE_TYPE	TABLESPACE_NAME	LOGFILE_GROUP_NAME
+NULL	UNDO LOG	NULL	lg1
 datafile.dat	DATAFILE	ts1	lg1
 datafile02.dat	DATAFILE	ts1	lg1
-undofile.dat	UNDO LOG	ts1	lg1
-undofile02.dat	UNDO LOG	ts1	lg1
+undofile.dat	UNDO LOG	NULL	lg1
+undofile02.dat	UNDO LOG	NULL	lg1
 **** Do First Set of ALTERs in the master table ****
 CREATE INDEX t1_i ON t1(c2, c3);
 ALTER TABLE t1 ADD c4 TIMESTAMP;

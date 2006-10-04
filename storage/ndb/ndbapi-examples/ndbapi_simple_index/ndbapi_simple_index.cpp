@@ -49,8 +49,15 @@
   PRINT_ERROR(error.code,error.message); \
   exit(-1); }
 
-int main()
+int main(int argc, char** argv)
 {
+  if (argc != 3)
+    {
+    std::cout << "Arguments are <socket mysqld> <connect_string cluster>.\n";
+    exit(-1);
+  }
+  char * mysqld_sock  = argv[1];
+  const char *connectstring = argv[2];
   ndb_init();
   MYSQL mysql;
 
@@ -63,7 +70,7 @@ int main()
       exit(-1);
     }
     if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
-			     3306, "/tmp/mysql.sock", 0) )
+			     0, mysqld_sock, 0) )
       MYSQLERROR(mysql);
 
     mysql_query(&mysql, "CREATE DATABASE TEST_DB_1");
@@ -85,7 +92,7 @@ int main()
    **************************************************************/
 
   Ndb_cluster_connection *cluster_connection=
-    new Ndb_cluster_connection(); // Object representing the cluster
+    new Ndb_cluster_connection(connectstring); // Object representing the cluster
 
   if (cluster_connection->connect(5,3,1))
   {
@@ -110,7 +117,7 @@ int main()
   const NdbDictionary::Table *myTable= myDict->getTable("MYTABLENAME");
   if (myTable == NULL)
     APIERROR(myDict->getNdbError());
-  const NdbDictionary::Index *myIndex= myDict->getIndex("MYINDEXNAME","MYTABLENAME");
+  const NdbDictionary::Index *myIndex= myDict->getIndex("MYINDEXNAME$unique","MYTABLENAME");
   if (myIndex == NULL)
     APIERROR(myDict->getNdbError());
 

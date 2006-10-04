@@ -161,15 +161,16 @@ row_undo_search_clust_to_pcur(
 	clust_index = dict_table_get_first_index(node->table);
 
 	found = row_search_on_row_ref(&(node->pcur), BTR_MODIFY_LEAF,
-					node->table, node->ref, &mtr);
+				      node->table, node->ref, &mtr);
 
 	rec = btr_pcur_get_rec(&(node->pcur));
 
 	offsets = rec_get_offsets(rec, clust_index, offsets,
-						ULINT_UNDEFINED, &heap);
+				  ULINT_UNDEFINED, &heap);
 
 	if (!found || 0 != ut_dulint_cmp(node->roll_ptr,
-			row_get_rec_roll_ptr(rec, clust_index, offsets))) {
+					 row_get_rec_roll_ptr(rec, clust_index,
+							      offsets))) {
 
 		/* We must remove the reservation on the undo log record
 		BEFORE releasing the latch on the clustered index page: this
@@ -177,12 +178,12 @@ row_undo_search_clust_to_pcur(
 		modification corresponding to node->roll_ptr. */
 
 		/* fputs("--------------------undoing a previous version\n",
-			stderr); */
+		stderr); */
 
 		ret = FALSE;
 	} else {
 		node->row = row_build(ROW_COPY_DATA, clust_index, rec,
-						offsets, node->heap);
+				      offsets, node->heap);
 		btr_pcur_store_position(&(node->pcur), &mtr);
 
 		ret = TRUE;
@@ -221,9 +222,9 @@ row_undo(
 	if (node->state == UNDO_NODE_FETCH_NEXT) {
 
 		node->undo_rec = trx_roll_pop_top_rec_of_trx(trx,
-							trx->roll_limit,
-							&roll_ptr,
-							node->heap);
+							     trx->roll_limit,
+							     &roll_ptr,
+							     node->heap);
 		if (!node->undo_rec) {
 			/* Rollback completed for this query thread */
 
@@ -250,7 +251,7 @@ row_undo(
 		roll_ptr = node->new_roll_ptr;
 
 		node->undo_rec = trx_undo_get_undo_rec_low(roll_ptr,
-								node->heap);
+							   node->heap);
 		node->roll_ptr = roll_ptr;
 		node->undo_no = trx_undo_rec_get_undo_no(node->undo_rec);
 
@@ -335,8 +336,9 @@ row_undo_step(
 
 		if (err == DB_OUT_OF_FILE_SPACE) {
 			fprintf(stderr,
-			"InnoDB: Error 13 means out of tablespace.\n"
-			"InnoDB: Consider increasing your tablespace.\n");
+				"InnoDB: Error 13 means out of tablespace.\n"
+				"InnoDB: Consider increasing"
+				" your tablespace.\n");
 
 			exit(1);
 		}

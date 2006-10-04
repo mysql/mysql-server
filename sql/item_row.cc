@@ -156,12 +156,22 @@ bool Item_row::walk(Item_processor processor, bool walk_subquery, byte *arg)
 
 Item *Item_row::transform(Item_transformer transformer, byte *arg)
 {
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
   for (uint i= 0; i < arg_count; i++)
   {
     Item *new_item= items[i]->transform(transformer, arg);
     if (!new_item)
       return 0;
-    items[i]= new_item;
+
+    /*
+      THD::change_item_tree() should be called only if the tree was
+      really transformed, i.e. when a new item has been created.
+      Otherwise we'll be allocating a lot of unnecessary memory for
+      change records at each execution.
+    */
+    if (items[i] != new_item)
+      current_thd->change_item_tree(&items[i], new_item);
   }
   return (this->*transformer)(arg);
 }

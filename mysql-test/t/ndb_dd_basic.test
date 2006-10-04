@@ -345,6 +345,46 @@ DELETE FROM t1 WHERE a=2;
 SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 
+# bug#20612 INS-DEL bug (not pgman bug)
+# found via disk data assert but is not pgman or disk data related
+
+CREATE TABLE t1 (
+  a int NOT NULL,
+  b varchar(4000),  -- must use 2 pages undo
+  PRIMARY KEY using hash (a)
+)
+TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
+
+set autocommit = 0;
+insert into t1 values(0,'x');
+insert into t1 values(1,'x');
+insert into t1 values(2,'x');
+insert into t1 values(3,'x');
+insert into t1 values(4,'x');
+insert into t1 values(5,'x');
+insert into t1 values(6,'x');
+insert into t1 values(7,'x');
+insert into t1 values(8,'x');
+delete from t1 where a = 0;
+commit;
+set autocommit = 1;
+
+drop table t1;
+#############################
+# Customer posted order by test case
+# Org in ndb_dd_advance.test
+#############################
+
+create table test.t1 (f1 varchar(50) primary key, f2 text,f3 int) 
+TABLESPACE ts1 STORAGE DISK engine=NDB;
+insert into test.t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
+insert into test.t1 (f1,f2,f3)VALUES("222222","bbbbbb",2);
+select * from test.t1 order by f1;
+select f1,f2 from test.t1 order by f2;
+select f2 from test.t1 order by f2;
+select f1,f2 from test.t1 order by f1;
+drop table test.t1;
+
 ###################
 # Test Cleanup
 ###################

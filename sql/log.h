@@ -177,7 +177,7 @@ public:
   pthread_mutex_t LOCK_log;
   char *name;
   char log_file_name[FN_REFLEN];
-  char time_buff[20], db[NAME_LEN + 1];
+  char time_buff[20], db[NAME_BYTE_LEN + 1];
   bool write_error, inited;
   IO_CACHE log_file;
   enum_log_type log_type;
@@ -367,6 +367,7 @@ public:
 		   bool need_mutex);
   int find_next_log(LOG_INFO* linfo, bool need_mutex);
   int get_current_log(LOG_INFO* linfo);
+  int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }

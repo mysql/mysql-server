@@ -49,6 +49,16 @@ extern my_bool opt_ndb_optimized_node_selection;
 extern const char *opt_ndbcluster_connectstring;
 extern ulong opt_ndb_cache_check_time;
 
+// ndb interface initialization/cleanup
+#ifdef  __cplusplus
+extern "C" {
+#endif
+extern void ndb_init_internal();
+extern void ndb_end_internal();
+#ifdef  __cplusplus
+}
+#endif
+
 const char *ndb_distribution_names[]= {"KEYHASH", "LINHASH", NullS};
 TYPELIB ndb_distribution_typelib= { array_elements(ndb_distribution_names)-1,
                                     "", ndb_distribution_names, NULL };
@@ -3976,7 +3986,14 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   if (lock_type != F_UNLCK)
   {
     DBUG_PRINT("info", ("lock_type != F_UNLCK"));
-    if (!thd->transaction.on)
+    if (thd->lex->sql_command == SQLCOM_LOAD)
+    {
+      m_transaction_on= FALSE;
+      /* Would be simpler if has_transactions() didn't always say "yes" */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update= TRUE;
+    }
+    else if (!thd->transaction.on)
       m_transaction_on= FALSE;
     else
       m_transaction_on= thd->variables.ndb_use_transactions;
@@ -6229,25 +6246,40 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   List<char> delete_list;
   while ((file_name=it++))
   {
+    bool file_on_disk= false;
     DBUG_PRINT("info", ("%s", file_name));     
     if (hash_search(&ndb_tables, file_name, strlen(file_name)))
     {
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name));
-      // File existed in NDB and as frm file, put in ok_tables list
-      my_hash_insert(&ok_tables, (byte*)file_name);
-      continue;
+      file_on_disk= true;
     }
     
-    // File is not in NDB, check for .ndb file with this name
+    // Check for .ndb file with this name
     build_table_filename(name, sizeof(name), db, file_name, ha_ndb_ext, 0);
     DBUG_PRINT("info", ("Check access for %s", name));
     if (my_access(name, F_OK))
     {
       DBUG_PRINT("info", ("%s did not exist on disk", name));     
       // .ndb file did not exist on disk, another table type
+      if (file_on_disk)
+      {
+	// Ignore this ndb table
+	gptr record=  hash_search(&ndb_tables, file_name, strlen(file_name));
+	DBUG_ASSERT(record);
+	hash_delete(&ndb_tables, record);
+	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			    ER_TABLE_EXISTS_ERROR,
+			    "Local table %s.%s shadows ndb table",
+			    db, file_name);
+      }
       continue;
     }
-
+    if (file_on_disk) 
+    {
+      // File existed in NDB and as frm file, put in ok_tables list
+      my_hash_insert(&ok_tables, (byte*)file_name);
+      continue;
+    }
     DBUG_PRINT("info", ("%s existed on disk", name));     
     // The .ndb file exists on disk, but it's not in list of tables in ndb
     // Verify that handler agrees table is gone.
@@ -6388,10 +6420,16 @@ static int ndbcluster_init()
     ndbcluster_binlog_init_handlerton();
 #endif
     h.flags=            HTON_CAN_RECREATE | HTON_TEMPORARY_NOT_SUPPORTED;
+    h.discover=         ndbcluster_discover;
+    h.find_files= ndbcluster_find_files;
+    h.table_exists_in_engine= ndbcluster_table_exists_in_engine;
   }
 
   if (have_ndbcluster != SHOW_OPTION_YES)
     DBUG_RETURN(0); // nothing else to do
+
+  // Initialize ndb interface
+  ndb_init_internal();
 
   // Set connectstring if specified
   if (opt_ndbcluster_connectstring != 0)
@@ -6541,6 +6579,9 @@ static int ndbcluster_end(ha_panic_function type)
   }
   delete g_ndb_cluster_connection;
   g_ndb_cluster_connection= NULL;
+
+  // cleanup ndb interface
+  ndb_end_internal();
 
   pthread_mutex_destroy(&ndbcluster_mutex);
   pthread_mutex_destroy(&LOCK_ndb_util_thread);
@@ -8573,11 +8614,13 @@ void ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("FIELD_ITEM"));
             DBUG_PRINT("info", ("table %s", tab->getName()));
             DBUG_PRINT("info", ("column %s", field->field_name));
+            DBUG_PRINT("info", ("type %d", field->type()));
             DBUG_PRINT("info", ("result type %d", field->result_type()));
             
             // Check that we are expecting a field and with the correct
             // result type
             if (context->expecting(Item::FIELD_ITEM) &&
+                context->expecting_field_type(field->type()) &&
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
@@ -8600,7 +8643,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
               curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
               context->dont_expect(Item::FIELD_ITEM);
               context->expect_no_field_result();
-              if (context->expect_mask)
+              if (! context->expecting_nothing())
               {
                 // We have not seen second argument yet
                 if (type == MYSQL_TYPE_TIME ||
@@ -8797,6 +8840,9 @@ void ndb_serialize_cond(const Item *item, void *arg)
                                               func_item);      
             context->expect(Item::STRING_ITEM);
             context->expect(Item::FIELD_ITEM);
+            context->expect_only_field_type(MYSQL_TYPE_STRING);
+            context->expect_field_type(MYSQL_TYPE_VAR_STRING);
+            context->expect_field_type(MYSQL_TYPE_VARCHAR);
             context->expect_field_result(STRING_RESULT);
             context->expect(Item::FUNC_ITEM);
             break;
@@ -8902,7 +8948,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::STRING_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item); 
-                if (context->expect_field_result_mask)
+                if (! context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -8932,7 +8978,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::REAL_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-                if (context->expect_field_result_mask) 
+                if (! context->expecting_no_field_result()) 
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -8955,7 +9001,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::INT_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-                if (context->expect_field_result_mask) 
+                if (! context->expecting_no_field_result()) 
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -8978,7 +9024,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::DECIMAL_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-                if (context->expect_field_result_mask) 
+                if (! context->expecting_no_field_result()) 
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -9028,7 +9074,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::STRING_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
-            if (context->expect_field_result_mask)
+            if (! context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -9061,7 +9107,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::INT_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-            if (context->expect_field_result_mask) 
+            if (! context->expecting_no_field_result()) 
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -9088,7 +9134,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::REAL_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-            if (context->expect_field_result_mask) 
+            if (! context->expecting_no_field_result()) 
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -9111,7 +9157,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::VARBIN_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
-            if (context->expect_field_result_mask)
+            if (! context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -9136,7 +9182,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::DECIMAL_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-            if (context->expect_field_result_mask) 
+            if (! context->expecting_no_field_result()) 
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -10422,9 +10468,12 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       }
 
       table->field[c++]->set_null(); // FILE_ID
+      table->field[c]->set_notnull();
       table->field[c++]->store(elt.name, strlen(elt.name),
                                system_charset_info);
+      table->field[c]->set_notnull();
       table->field[c++]->store("DATAFILE",8,system_charset_info);
+      table->field[c]->set_notnull();
       table->field[c++]->store(df.getTablespace(), strlen(df.getTablespace()),
                                system_charset_info);
       table->field[c++]->set_null(); // TABLE_CATALOG
@@ -10432,10 +10481,12 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // TABLE_NAME
 
       // LOGFILE_GROUP_NAME
+      table->field[c]->set_notnull();
       table->field[c++]->store(ts.getDefaultLogfileGroup(),
                                strlen(ts.getDefaultLogfileGroup()),
                                system_charset_info);
       table->field[c++]->set_null(); // LOGFILE_GROUP_NUMBER
+      table->field[c]->set_notnull();
       table->field[c++]->store(ndbcluster_hton_name,
                                ndbcluster_hton_name_length,
                                system_charset_info); // ENGINE
@@ -10443,11 +10494,16 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // FULLTEXT_KEYS
       table->field[c++]->set_null(); // DELETED_ROWS
       table->field[c++]->set_null(); // UPDATE_COUNT
+      table->field[c]->set_notnull();
       table->field[c++]->store(df.getFree() / ts.getExtentSize()); // FREE_EXTENTS
+      table->field[c]->set_notnull();
       table->field[c++]->store(df.getSize() / ts.getExtentSize()); // TOTAL_EXTENTS
+      table->field[c]->set_notnull();
       table->field[c++]->store(ts.getExtentSize()); // EXTENT_SIZE
 
+      table->field[c]->set_notnull();
       table->field[c++]->store(df.getSize()); // INITIAL_SIZE
+      table->field[c]->set_notnull();
       table->field[c++]->store(df.getSize()); // MAXIMUM_SIZE
       table->field[c++]->set_null(); // AUTOEXTEND_SIZE
 
@@ -10457,8 +10513,10 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // RECOVER_TIME
       table->field[c++]->set_null(); // TRANSACTION_COUNTER
 
+      table->field[c]->set_notnull();
       table->field[c++]->store(df.getObjectVersion()); // VERSION
 
+      table->field[c]->set_notnull();
       table->field[c++]->store("FIXED", 5, system_charset_info); // ROW_FORMAT
 
       table->field[c++]->set_null(); // TABLE_ROWS
@@ -10472,11 +10530,13 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // CHECK_TIME
       table->field[c++]->set_null(); // CHECKSUM
 
+      table->field[c]->set_notnull();
       table->field[c++]->store("NORMAL", 6, system_charset_info);
 
       char extra[30];
       int len= my_snprintf(extra, sizeof(extra), "CLUSTER_NODE=%u", id);
       table->field[c]->store(extra, len, system_charset_info);
+      table->field[c]->set_notnull();
       schema_table_store_record(thd, table);
     }
   }
@@ -10517,8 +10577,10 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
 
       int c= 0;
       table->field[c++]->set_null(); // FILE_ID
+      table->field[c]->set_notnull();
       table->field[c++]->store(elt.name, strlen(elt.name),
                                system_charset_info);
+      table->field[c]->set_notnull();
       table->field[c++]->store("UNDO LOG", 8, system_charset_info);
       table->field[c++]->set_null(); // TABLESPACE NAME
       table->field[c++]->set_null(); // TABLE_CATALOG
@@ -10528,10 +10590,13 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       // LOGFILE_GROUP_NAME
       NdbDictionary::ObjectId objid;
       uf.getLogfileGroupId(&objid);
+      table->field[c]->set_notnull();
       table->field[c++]->store(uf.getLogfileGroup(),
                                strlen(uf.getLogfileGroup()),
                                system_charset_info);
+      table->field[c]->set_notnull();
       table->field[c++]->store(objid.getObjectId()); // LOGFILE_GROUP_NUMBER
+      table->field[c]->set_notnull();
       table->field[c++]->store(ndbcluster_hton_name,
                                ndbcluster_hton_name_length,
                                system_charset_info); // ENGINE
@@ -10539,11 +10604,15 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // FULLTEXT_KEYS
       table->field[c++]->set_null(); // DELETED_ROWS
       table->field[c++]->set_null(); // UPDATE_COUNT
-      table->field[c++]->store(lfg.getUndoFreeWords()); // FREE_EXTENTS
+      table->field[c++]->set_null(); // FREE_EXTENTS
+      table->field[c]->set_notnull();
       table->field[c++]->store(uf.getSize()/4); // TOTAL_EXTENTS
+      table->field[c]->set_notnull();
       table->field[c++]->store(4); // EXTENT_SIZE
 
+      table->field[c]->set_notnull();
       table->field[c++]->store(uf.getSize()); // INITIAL_SIZE
+      table->field[c]->set_notnull();
       table->field[c++]->store(uf.getSize()); // MAXIMUM_SIZE
       table->field[c++]->set_null(); // AUTOEXTEND_SIZE
 
@@ -10553,6 +10622,7 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // RECOVER_TIME
       table->field[c++]->set_null(); // TRANSACTION_COUNTER
 
+      table->field[c]->set_notnull();
       table->field[c++]->store(uf.getObjectVersion()); // VERSION
 
       table->field[c++]->set_null(); // ROW FORMAT
@@ -10568,16 +10638,110 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       table->field[c++]->set_null(); // CHECK_TIME
       table->field[c++]->set_null(); // CHECKSUM
 
+      table->field[c]->set_notnull();
       table->field[c++]->store("NORMAL", 6, system_charset_info);
 
       char extra[100];
       int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",id,lfg.getUndoBufferSize());
+      table->field[c]->set_notnull();
       table->field[c]->store(extra, len, system_charset_info);
       schema_table_store_record(thd, table);
     }
   }
+
+  // now for LFGs
+  NdbDictionary::Dictionary::List lfglist;
+  dict->listObjects(lfglist, NdbDictionary::Object::LogfileGroup);
+  ndberr= dict->getNdbError();
+  if (ndberr.classification != NdbError::NoError)
+    ERR_RETURN(ndberr);
+
+  for (i= 0; i < lfglist.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element& elt= lfglist.elements[i];
+    unsigned id;
+
+    NdbDictionary::LogfileGroup lfg= dict->getLogfileGroup(elt.name);
+    ndberr= dict->getNdbError();
+    if (ndberr.classification != NdbError::NoError)
+    {
+      if (ndberr.classification == NdbError::SchemaError)
+        continue;
+      ERR_RETURN(ndberr);
+    }
+
+    int c= 0;
+    table->field[c++]->set_null(); // FILE_ID
+    table->field[c++]->set_null(); // name
+    table->field[c]->set_notnull();
+    table->field[c++]->store("UNDO LOG", 8, system_charset_info);
+    table->field[c++]->set_null(); // TABLESPACE NAME
+    table->field[c++]->set_null(); // TABLE_CATALOG
+    table->field[c++]->set_null(); // TABLE_SCHEMA
+    table->field[c++]->set_null(); // TABLE_NAME
+
+    // LOGFILE_GROUP_NAME
+    table->field[c]->set_notnull();
+    table->field[c++]->store(elt.name, strlen(elt.name),
+                             system_charset_info);
+    table->field[c]->set_notnull();
+    table->field[c++]->store(lfg.getObjectId()); // LOGFILE_GROUP_NUMBER
+    table->field[c]->set_notnull();
+    table->field[c++]->store(ndbcluster_hton_name,
+                             ndbcluster_hton_name_length,
+                             system_charset_info); // ENGINE
+
+    table->field[c++]->set_null(); // FULLTEXT_KEYS
+    table->field[c++]->set_null(); // DELETED_ROWS
+    table->field[c++]->set_null(); // UPDATE_COUNT
+    table->field[c]->set_notnull();
+    table->field[c++]->store(lfg.getUndoFreeWords()); // FREE_EXTENTS
+    table->field[c++]->set_null(); //store(uf.getSize()/4); // TOTAL_EXTENTS
+    table->field[c]->set_notnull();
+    table->field[c++]->store(4); // EXTENT_SIZE
+
+    table->field[c++]->set_null();//store(uf.getSize()); // INITIAL_SIZE
+    table->field[c++]->set_null(); //store(uf.getSize()); // MAXIMUM_SIZE
+    table->field[c++]->set_null(); // AUTOEXTEND_SIZE
+
+    table->field[c++]->set_null(); // CREATION_TIME
+    table->field[c++]->set_null(); // LAST_UPDATE_TIME
+    table->field[c++]->set_null(); // LAST_ACCESS_TIME
+    table->field[c++]->set_null(); // RECOVER_TIME
+    table->field[c++]->set_null(); // TRANSACTION_COUNTER
+
+    table->field[c]->set_notnull();
+    table->field[c++]->store(lfg.getObjectVersion()); // VERSION
+
+    table->field[c++]->set_null(); // ROW FORMAT
+
+    table->field[c++]->set_null(); // TABLE_ROWS
+    table->field[c++]->set_null(); // AVG_ROW_LENGTH
+    table->field[c++]->set_null(); // DATA_LENGTH
+    table->field[c++]->set_null(); // MAX_DATA_LENGTH
+    table->field[c++]->set_null(); // INDEX_LENGTH
+    table->field[c++]->set_null(); // DATA_FREE
+    table->field[c++]->set_null(); // CREATE_TIME
+    table->field[c++]->set_null(); // UPDATE_TIME
+    table->field[c++]->set_null(); // CHECK_TIME
+    table->field[c++]->set_null(); // CHECKSUM
+
+    table->field[c]->set_notnull();
+    table->field[c++]->store("NORMAL", 6, system_charset_info);
+
+    char extra[100];
+    int len= my_snprintf(extra,sizeof(extra),"UNDO_BUFFER_SIZE=%lu",id,lfg.getUndoBufferSize());
+    table->field[c]->set_notnull();
+    table->field[c]->store(extra, len, system_charset_info);
+    schema_table_store_record(thd, table);
+  }
   DBUG_RETURN(0);
 }
+
+SHOW_VAR ndb_status_variables_export[]= {
+  {"Ndb",                      (char*) &ndb_status_variables,   SHOW_ARRAY},
+  {NullS, NullS, SHOW_LONG}
+};
 
 struct st_mysql_storage_engine ndbcluster_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION, &ndbcluster_hton };
@@ -10592,7 +10756,9 @@ mysql_declare_plugin(ndbcluster)
   ndbcluster_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  0
+  ndb_status_variables_export,/* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 

@@ -72,7 +72,7 @@ row_purge_reposition_pcur(
 	}
 
 	found = row_search_on_row_ref(&(node->pcur), mode, node->table,
-							node->ref, mtr);
+				      node->ref, mtr);
 	node->found_clust = found;
 
 	if (found) {
@@ -123,9 +123,10 @@ row_purge_remove_clust_if_poss_low(
 
 	rec = btr_pcur_get_rec(pcur);
 
-	if (0 != ut_dulint_cmp(node->roll_ptr,
-		row_get_rec_roll_ptr(rec, index, rec_get_offsets(
-			rec, index, offsets_, ULINT_UNDEFINED, &heap)))) {
+	if (0 != ut_dulint_cmp(node->roll_ptr, row_get_rec_roll_ptr
+			       (rec, index, rec_get_offsets
+				(rec, index, offsets_,
+				 ULINT_UNDEFINED, &heap)))) {
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
@@ -171,7 +172,7 @@ row_purge_remove_clust_if_poss(
 	ibool	success;
 	ulint	n_tries	= 0;
 
-/*	fputs("Purge: Removing clustered record\n", stderr); */
+	/*	fputs("Purge: Removing clustered record\n", stderr); */
 
 	success = row_purge_remove_clust_if_poss_low(node, BTR_MODIFY_LEAF);
 	if (success) {
@@ -247,9 +248,9 @@ row_purge_remove_sec_if_poss_low(
 	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, mtr_vers);
 
 	if (success) {
-		old_has = row_vers_old_has_index_entry(TRUE,
-					btr_pcur_get_rec(&(node->pcur)),
-					mtr_vers, index, entry);
+		old_has = row_vers_old_has_index_entry
+			(TRUE, btr_pcur_get_rec(&(node->pcur)),
+			 mtr_vers, index, entry);
 	}
 
 	btr_pcur_commit_specify_mtr(&(node->pcur), mtr_vers);
@@ -264,7 +265,7 @@ row_purge_remove_sec_if_poss_low(
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
-							FALSE, &mtr);
+						   FALSE, &mtr);
 			if (err == DB_SUCCESS) {
 				success = TRUE;
 			} else if (err == DB_OUT_OF_FILE_SPACE) {
@@ -294,17 +295,17 @@ row_purge_remove_sec_if_poss(
 	ibool	success;
 	ulint	n_tries		= 0;
 
-/*	fputs("Purge: Removing secondary record\n", stderr); */
+	/*	fputs("Purge: Removing secondary record\n", stderr); */
 
 	success = row_purge_remove_sec_if_poss_low(node, index, entry,
-							BTR_MODIFY_LEAF);
+						   BTR_MODIFY_LEAF);
 	if (success) {
 
 		return;
 	}
 retry:
 	success = row_purge_remove_sec_if_poss_low(node, index, entry,
-							BTR_MODIFY_TREE);
+						   BTR_MODIFY_TREE);
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
 	and restart with more file space */
@@ -389,7 +390,7 @@ row_purge_upd_exist_or_extern(
 		index = node->index;
 
 		if (row_upd_changes_ord_field_binary(NULL, node->index,
-							node->update)) {
+						     node->update)) {
 			/* Build the older version of the index entry */
 			entry = row_build_index_entry(node->row, index, heap);
 
@@ -415,13 +416,13 @@ skip_secondaries:
 			address of the new_val data */
 
 			internal_offset = ((byte*)ufield->new_val.data)
-						- node->undo_rec;
+				- node->undo_rec;
 
 			ut_a(internal_offset < UNIV_PAGE_SIZE);
 
 			trx_undo_decode_roll_ptr(node->roll_ptr,
-						&is_insert, &rseg_id,
-						&page_no, &offset);
+						 &is_insert, &rseg_id,
+						 &page_no, &offset);
 			mtr_start(&mtr);
 
 			/* We have to acquire an X-latch to the clustered
@@ -450,13 +451,14 @@ skip_secondaries:
 
 #ifdef UNIV_SYNC_DEBUG
 			buf_page_dbg_add_level(buf_frame_align(data_field),
-						SYNC_TRX_UNDO_PAGE);
+					       SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 
 			data_field_len = ufield->new_val.len;
 
 			btr_free_externally_stored_field(index, data_field,
-						data_field_len, FALSE, &mtr);
+							 data_field_len,
+							 FALSE, &mtr);
 			mtr_commit(&mtr);
 		}
 	}
@@ -493,7 +495,7 @@ row_purge_parse_undo_rec(
 	trx = thr_get_trx(thr);
 
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
-					updated_extern, &undo_no, &table_id);
+				    updated_extern, &undo_no, &table_id);
 	node->rec_type = type;
 
 	if (type == TRX_UNDO_UPD_DEL_REC && !(*updated_extern)) {
@@ -502,11 +504,11 @@ row_purge_parse_undo_rec(
 	}
 
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,
-								&info_bits);
+					       &info_bits);
 	node->table = NULL;
 
 	if (type == TRX_UNDO_UPD_EXIST_REC
-		&& cmpl_info & UPD_NODE_NO_ORD_CHANGE && !(*updated_extern)) {
+	    && cmpl_info & UPD_NODE_NO_ORD_CHANGE && !(*updated_extern)) {
 
 		/* Purge requires no changes to indexes: we may return */
 
@@ -553,17 +555,17 @@ row_purge_parse_undo_rec(
 	}
 
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
-								node->heap);
+				       node->heap);
 
 	ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
-					roll_ptr, info_bits, trx,
-					node->heap, &(node->update));
+					     roll_ptr, info_bits, trx,
+					     node->heap, &(node->update));
 
 	/* Read to the partial row the fields that occur in indexes */
 
 	if (!cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
 		ptr = trx_undo_rec_get_partial_row(ptr, clust_index,
-						&(node->row), node->heap);
+						   &(node->row), node->heap);
 	}
 
 	return(TRUE);
@@ -592,8 +594,8 @@ row_purge(
 	trx = thr_get_trx(thr);
 
 	node->undo_rec = trx_purge_fetch_next_rec(&roll_ptr,
-						&(node->reservation),
-						node->heap);
+						  &(node->reservation),
+						  node->heap);
 	if (!node->undo_rec) {
 		/* Purge completed for this query thread */
 
@@ -608,7 +610,7 @@ row_purge(
 		purge_needed = FALSE;
 	} else {
 		purge_needed = row_purge_parse_undo_rec(node, &updated_extern,
-									thr);
+							thr);
 		/* If purge_needed == TRUE, we must also remember to unfreeze
 		data dictionary! */
 	}
@@ -616,14 +618,14 @@ row_purge(
 	if (purge_needed) {
 		node->found_clust = FALSE;
 
-		node->index = dict_table_get_next_index(
-				dict_table_get_first_index(node->table));
+		node->index = dict_table_get_next_index
+			(dict_table_get_first_index(node->table));
 
 		if (node->rec_type == TRX_UNDO_DEL_MARK_REC) {
 			row_purge_del_mark(node);
 
 		} else if (updated_extern
-			|| node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
+			   || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 
 			row_purge_upd_exist_or_extern(node);
 		}

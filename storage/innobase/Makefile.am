@@ -17,13 +17,24 @@
 
 # Process this file with automake to create Makefile.in
 
+MYSQLDATAdir =          $(localstatedir)
+MYSQLSHAREdir =         $(pkgdatadir)
+MYSQLBASEdir=           $(prefix)
+MYSQLLIBdir=            $(pkglibdir)
+INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
+			-I$(top_srcdir)/regex \
+			-I$(top_srcdir)/storage/innobase/include \
+			-I$(top_srcdir)/sql \
+                        -I$(srcdir)
+
 AUTOMAKE_OPTIONS =	foreign
 TAR =			gtar
 
-noinst_HEADERS = ib_config.h
+noinst_HEADERS = 
 
 SUBDIRS =		os ut btr buf data dict dyn eval fil fsp fut \
 			ha ibuf lock log mach mem mtr page \
+			handler \
 			pars que read rem row srv sync thr trx usr
 
 EXTRA_DIST = 	include/btr0btr.h include/btr0btr.ic include/btr0cur.h include/btr0cur.ic \
@@ -76,6 +87,7 @@ EXTRA_DIST = 	include/btr0btr.h include/btr0btr.ic include/btr0cur.h include/btr
 		include/univ.i include/usr0sess.h include/usr0sess.ic include/usr0types.h \
 		include/ut0byte.h include/ut0byte.ic include/ut0dbg.h include/ut0lst.h \
 		include/ut0mem.h include/ut0mem.ic include/ut0rnd.h include/ut0rnd.ic \
+		handler/ha_innodb.h \
 		include/ut0sort.h include/ut0ut.h include/ut0ut.ic include/ut0vec.h include/ut0vec.ic include/ha_prototypes.h \
 		include/ut0list.h include/ut0list.ic \
 		include/ut0wqueue.h \
@@ -92,6 +104,7 @@ libinnobase_a_LIBADD =	usr/libusr.a srv/libsrv.a dict/libdict.a \
 			page/libpage.a rem/librem.a thr/libthr.a \
 			sync/libsync.a data/libdata.a mach/libmach.a \
 			ha/libha.a dyn/libdyn.a mem/libmem.a \
+			handler/libhandler.a \
 			ut/libut.a os/libos.a ut/libut.a
 libinnobase_a_SOURCES =	
 

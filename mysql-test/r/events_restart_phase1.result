@@ -1,0 +1,12 @@
+create database if not exists mysqltest_events_test;
+use mysqltest_events_test;
+set global event_scheduler=off;
+create table execution_log(name char(10));
+create event abc1 on schedule every 1 second do insert into execution_log value('abc1');
+create event abc2 on schedule every 1 second do insert into execution_log value('abc2');
+create event abc3 on schedule every 1 second do insert into execution_log value('abc3');
+select name from execution_log;
+name
+insert into mysql.event values ('db1','bad','select 42','root@localhost',NULL,1000,'MICROSECOND','2006-05-05 17:39:11','2006-05-05 17:39:20','2016-05-05 15:39:24','2016-05-05 15:39:11',NULL,'ENABLED','DROP','','comment1');
+insert into mysql.event values ('db1','bad2','sect','root@localhost',NULL,1000,'SECOND','2006-05-05 17:39:11','2006-05-05 17:39:20','2016-05-05 15:39:24','2016-05-05 15:39:11',NULL,'ENABLED','DROP','','comment2');
+"Now we restart the server"

@@ -48,7 +48,7 @@ row_undo_ins_remove_clust_rec(
 	mtr_start(&mtr);
 
 	success = btr_pcur_restore_position(BTR_MODIFY_LEAF, &(node->pcur),
-									&mtr);
+					    &mtr);
 	ut_a(success);
 
 	if (ut_dulint_cmp(node->table->id, DICT_INDEXES_ID) == 0) {
@@ -63,7 +63,7 @@ row_undo_ins_remove_clust_rec(
 		mtr_start(&mtr);
 
 		success = btr_pcur_restore_position(BTR_MODIFY_LEAF,
-						&(node->pcur), &mtr);
+						    &(node->pcur), &mtr);
 		ut_a(success);
 	}
 
@@ -83,7 +83,7 @@ retry:
 	mtr_start(&mtr);
 
 	success = btr_pcur_restore_position(BTR_MODIFY_TREE,
-							&(node->pcur), &mtr);
+					    &(node->pcur), &mtr);
 	ut_a(success);
 
 	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, TRUE, &mtr);
@@ -93,7 +93,7 @@ retry:
 	and restart with more file space */
 
 	if (err == DB_OUT_OF_FILE_SPACE
-				&& n_tries < BTR_CUR_RETRY_DELETE_N_TIMES) {
+	    && n_tries < BTR_CUR_RETRY_DELETE_N_TIMES) {
 
 		btr_pcur_commit_specify_mtr(&(node->pcur), &mtr);
 
@@ -230,7 +230,7 @@ row_undo_ins_parse_undo_rec(
 	ut_ad(node);
 
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
-					&dummy_extern, &undo_no, &table_id);
+				    &dummy_extern, &undo_no, &table_id);
 	ut_ad(type == TRX_UNDO_INSERT_REC);
 	node->rec_type = type;
 
@@ -251,7 +251,7 @@ row_undo_ins_parse_undo_rec(
 	clust_index = dict_table_get_first_index(node->table);
 
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
-								node->heap);
+				       node->heap);
 }
 
 /***************************************************************
@@ -286,12 +286,12 @@ row_undo_ins(
 		return(DB_SUCCESS);
 	}
 
-	node->index = dict_table_get_next_index(
-				dict_table_get_first_index(node->table));
+	node->index = dict_table_get_next_index
+		(dict_table_get_first_index(node->table));
 
 	while (node->index != NULL) {
 		entry = row_build_index_entry(node->row, node->index,
-								node->heap);
+					      node->heap);
 		err = row_undo_ins_remove_sec(node->index, entry);
 
 		if (err != DB_SUCCESS) {

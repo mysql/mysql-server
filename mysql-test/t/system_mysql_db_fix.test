@@ -1,6 +1,9 @@
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 
+# Windows doesn't support execution of shell scripts (to fix!!)
+--source include/not_windows.inc
+
 # check that CSV engine was compiled in, as the test relies on the presence
 # of the log tables (which are CSV-based)
 --source include/have_csv.inc

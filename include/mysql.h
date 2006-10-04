@@ -165,7 +165,6 @@ struct st_mysql_options {
   char *ssl_ca;					/* PEM CA file */
   char *ssl_capath;				/* PEM directory of CA-s? */
   char *ssl_cipher;				/* cipher to use */
-  my_bool ssl_verify_server_cert;		/* if to verify server cert */
   char *shared_memory_base_name;
   unsigned long max_allowed_packet;
   my_bool use_ssl;				/* if to use SSL or not */

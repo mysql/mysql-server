@@ -94,5 +94,5 @@ trx_new_rec_locks_contain(
 	dict_index_t*	index)	/* in: index */
 {
 	return(trx->new_rec_locks[0] == index
-		|| trx->new_rec_locks[1] == index);
+	       || trx->new_rec_locks[1] == index);
 }
