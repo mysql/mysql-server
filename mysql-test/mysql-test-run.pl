@@ -360,8 +360,8 @@ sub run_testcase_stop_servers ($$$);
 sub run_testcase_start_servers ($);
 sub run_testcase_check_skip_test($);
 sub report_failure_and_restart ($);
-sub do_before_start_master ($$);
-sub do_before_start_slave ($$);
+sub do_before_start_master ($);
+sub do_before_start_slave ($);
 sub ndbd_start ($$$);
 sub ndb_mgmd_start ($);
 sub mysqld_start ($$$);
@@ -2866,24 +2866,17 @@ sub report_failure_and_restart ($) {
 ##############################################################################
 
 
-# The embedded server needs the cleanup so we do some of the start work
-# but stop before actually running mysqld or anything.
-sub do_before_start_master ($$) {
-  my $tname=       shift;
-  my $init_script= shift;
+sub do_before_start_master ($) {
+  my ($tinfo)= @_;
+
+  my $tname= $tinfo->{'name'};
+  my $init_script= $tinfo->{'master_sh'};
 
   # FIXME what about second master.....
 
-  # Remove stale binary logs except for 2 tests which need them FIXME here????
-  if ( $tname ne "rpl_crash_binlog_ib_1b" and
-       $tname ne "rpl_crash_binlog_ib_2b" and
-       $tname ne "rpl_crash_binlog_ib_3b")
+  foreach my $bin ( glob("$opt_vardir/log/master*-bin*") )
   {
-    # FIXME we really want separate dir for binlogs
-    foreach my $bin ( glob("$opt_vardir/log/master*-bin*") )
-    {
-      unlink($bin);
-    }
+    unlink($bin);
   }
 
   # FIXME only remove the ones that are tied to this master
@@ -2903,30 +2896,22 @@ sub do_before_start_master ($$) {
       # mtr_warning("$init_script exited with code $ret");
     }
   }
-  # for gcov  FIXME needed? If so we need more absolute paths
-  # chdir($glob_basedir);
 }
 
 
-sub do_before_start_slave ($$) {
-  my $tname=       shift;
-  my $init_script= shift;
+sub do_before_start_slave ($) {
+  my ($tinfo)= @_;
 
-  # Remove stale binary logs and old master.info files
-  # except for too tests which need them
-  if ( $tname ne "rpl_crash_binlog_ib_1b" and
-       $tname ne "rpl_crash_binlog_ib_2b" and
-       $tname ne "rpl_crash_binlog_ib_3b" )
+  my $tname= $tinfo->{'name'};
+  my $init_script= $tinfo->{'master_sh'};
+
+  foreach my $bin ( glob("$opt_vardir/log/slave*-bin*") )
   {
-    # FIXME we really want separate dir for binlogs
-    foreach my $bin ( glob("$opt_vardir/log/slave*-bin*") )
-    {
-      unlink($bin);
-    }
-    # FIXME really master?!
-    unlink("$slave->[0]->{'path_myddir'}/master.info");
-    unlink("$slave->[0]->{'path_myddir'}/relay-log.info");
+    unlink($bin);
   }
+
+  unlink("$slave->[0]->{'path_myddir'}/master.info");
+  unlink("$slave->[0]->{'path_myddir'}/relay-log.info");
 
   # Run slave initialization shell script if one exists
   if ( $init_script )
@@ -3687,7 +3672,7 @@ sub run_testcase_start_servers($) {
     if ( !$master->[0]->{'pid'} )
     {
       # Master mysqld is not started
-      do_before_start_master($tname,$tinfo->{'master_sh'});
+      do_before_start_master($tinfo);
 
       mysqld_start($master->[0],$tinfo->{'master_opt'},[]);
 
@@ -3752,7 +3737,7 @@ sub run_testcase_start_servers($) {
 
     restore_slave_databases($tinfo->{'slave_num'});
 
-    do_before_start_slave($tname,$tinfo->{'slave_sh'});
+    do_before_start_slave($tinfo);
 
     if ( ! $opt_skip_ndbcluster_slave and
 	 !$clusters->[1]->{'pid'} and
