@@ -1544,18 +1544,21 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute mysqlslap
   # ----------------------------------------------------
-  my $cmdline_mysqlslap=
-    "$exe_mysqlslap -uroot " .
-    "--port=$master->[0]->{'port'} " .
-    "--socket=$master->[0]->{'path_sock'} --password= " .
-    "--lock-directory=$opt_tmpdir";
-
-  if ( $opt_debug )
+  if ( $exe_mysqlslap )
   {
-    $cmdline_mysqlslap .=
-      " --debug=d:t:A,$path_vardir_trace/log/mysqlslap.trace";
+    my $cmdline_mysqlslap=
+      "$exe_mysqlslap -uroot " .
+      "--port=$master->[0]->{'port'} " .
+      "--socket=$master->[0]->{'path_sock'} --password= " .
+      "--lock-directory=$opt_tmpdir";
+
+    if ( $opt_debug )
+    {
+      $cmdline_mysqlslap .=
+	" --debug=d:t:A,$path_vardir_trace/log/mysqlslap.trace";
+    }
+    $ENV{'MYSQL_SLAP'}= $cmdline_mysqlslap;
   }
-  $ENV{'MYSQL_SLAP'}= $cmdline_mysqlslap;
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysqlimport
