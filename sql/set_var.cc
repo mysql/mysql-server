@@ -2926,6 +2926,7 @@ static byte *get_warning_count(THD *thd)
 {
   thd->sys_var_tmp.long_value=
     (thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_NOTE] +
+     thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_ERROR] +
      thd->warn_count[(uint) MYSQL_ERROR::WARN_LEVEL_WARN]);
   return (byte*) &thd->sys_var_tmp.long_value;
 }
