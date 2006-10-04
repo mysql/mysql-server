@@ -11,6 +11,8 @@ sub mtr_get_opts_from_file ($);
 sub mtr_fromfile ($);
 sub mtr_tofile ($@);
 sub mtr_tonewfile($@);
+sub mtr_lastlinefromfile($);
+sub mtr_appendfile_to_file ($$);
 
 ##############################################################################
 #
@@ -19,13 +21,39 @@ sub mtr_tonewfile($@);
 ##############################################################################
 
 sub mtr_get_pid_from_file ($) {
-  my $file=  shift;
+  my $pid_file_path=  shift;
+  my $TOTAL_ATTEMPTS= 30;
+  my $timeout= 1;
 
-  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
-  my $pid=  <FILE>;
-  chomp($pid);
-  close FILE;
-  return $pid;
+  # We should read from the file until we get correct pid. As it is
+  # stated in BUG#21884, pid file can be empty at some moment. So, we should
+  # read it until we get valid data.
+
+  for (my $cur_attempt= 1; $cur_attempt <= $TOTAL_ATTEMPTS; ++$cur_attempt)
+  {
+    mtr_debug("Reading pid file '$pid_file_path' " .
+              "($cur_attempt of $TOTAL_ATTEMPTS)...");
+
+    open(FILE, '<', $pid_file_path)
+      or mtr_error("can't open file \"$pid_file_path\": $!");
+
+    my $pid= <FILE>;
+
+    chomp($pid) if defined $pid;
+
+    close FILE;
+
+    return $pid if defined $pid && $pid ne '';
+
+    mtr_debug("Pid file '$pid_file_path' is empty. " .
+              "Sleeping $timeout second(s)...");
+
+    sleep(1);
+  }
+
+  mtr_error("Pid file '$pid_file_path' is corrupted. " .
+            "Can not retrieve PID in " .
+            ($timeout * $TOTAL_ATTEMPTS) . " seconds.");
 }
 
 sub mtr_get_opts_from_file ($) {
@@ -113,6 +141,20 @@ sub mtr_fromfile ($) {
   return $text;
 }
 
+sub mtr_lastlinefromfile ($) {
+  my $file=  shift;
+  my $text;
+
+  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
+  while (my $line= <FILE>)
+  {
+    $text= $line;
+  }
+  close FILE;
+  return $text;
+}
+
+
 sub mtr_tofile ($@) {
   my $file=  shift;
 
@@ -127,6 +169,18 @@ sub mtr_tonewfile ($@) {
   open(FILE,">",$file) or mtr_error("can't open file \"$file\": $!");
   print FILE join("", @_);
   close FILE;
+}
+
+sub mtr_appendfile_to_file ($$) {
+  my $from_file=  shift;
+  my $to_file=  shift;
+
+  open(TOFILE,">>",$to_file) or mtr_error("can't open file \"$to_file\": $!");
+  open(FROMFILE,">>",$from_file)
+    or mtr_error("can't open file \"$from_file\": $!");
+  print TOFILE while (<FROMFILE>);
+  close FROMFILE;
+  close TOFILE;
 }
 
 

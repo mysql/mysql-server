@@ -5,10 +5,13 @@
 # same name.
 
 use File::Basename;
+use IO::File();
 use strict;
 
 sub collect_test_cases ($);
-sub collect_one_test_case ($$$$$$);
+sub collect_one_test_case ($$$$$$$);
+
+sub mtr_options_from_test_file($$);
 
 ##############################################################################
 #
@@ -37,44 +40,114 @@ sub collect_test_cases ($) {
 
   opendir(TESTDIR, $testdir) or mtr_error("Can't open dir \"$testdir\": $!");
 
+  # ----------------------------------------------------------------------
+  # Disable some tests listed in disabled.def
+  # ----------------------------------------------------------------------
+  my %disabled;
+  if ( open(DISABLED, "$testdir/disabled.def" ) )
+  {
+    while ( <DISABLED> )
+      {
+        chomp;
+        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
+          {
+            $disabled{$1}= $2;
+          }
+      }
+    close DISABLED;
+  }
+
   if ( @::opt_cases )
   {
     foreach my $tname ( @::opt_cases ) { # Run in specified order, no sort
-      $tname= basename($tname, ".test");
-      my $elem= "$tname.test";
-      if ( ! -f "$testdir/$elem")
+      my $elem= undef;
+      my $component_id= undef;
+
+      # Get rid of directory part (path). Leave the extension since it is used
+      # to understand type of the test.
+
+      $tname = basename($tname);
+
+      # Check if the extenstion has been specified.
+
+      if ( mtr_match_extension($tname, "test") )
       {
-        mtr_error("Test case $tname ($testdir/$elem) is not found");
+        $elem= $tname;
+        $tname=~ s/\.test$//;
+        $component_id= 'mysqld';
       }
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,{});
+      elsif ( mtr_match_extension($tname, "imtest") )
+      {
+        $elem= $tname;
+        $tname =~ s/\.imtest$//;
+        $component_id= 'im';
+      }
+
+      # If target component is known, check that the specified test case
+      # exists.
+      # 
+      # Otherwise, try to guess the target component.
+
+      if ( $component_id )
+      {
+        if ( ! -f "$testdir/$elem")
+        {
+          mtr_error("Test case $tname ($testdir/$elem) is not found");
+        }
+      }
+      else
+      {
+        my $mysqld_test_exists = -f "$testdir/$tname.test";
+        my $im_test_exists = -f "$testdir/$tname.imtest";
+
+        if ( $mysqld_test_exists and $im_test_exists )
+        {
+          mtr_error("Ambiguous test case name ($tname)");
+        }
+        elsif ( ! $mysqld_test_exists and ! $im_test_exists )
+        {
+          mtr_error("Test case $tname is not found");
+        }
+        elsif ( $mysqld_test_exists )
+        {
+          $elem= "$tname.test";
+          $component_id= 'mysqld';
+        }
+        elsif ( $im_test_exists )
+        {
+          $elem= "$tname.imtest";
+          $component_id= 'im';
+        }
+      }
+
+      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
+        $component_id);
     }
     closedir TESTDIR;
   }
   else
   {
-    # ----------------------------------------------------------------------
-    # Disable some tests listed in disabled.def
-    # ----------------------------------------------------------------------
-    my %disabled;
-    if ( open(DISABLED, "$testdir/disabled.def" ) )
-    {
-      while ( <DISABLED> )
-      {
-        chomp;
-        if ( /^\s*(\S+)\s*:\s*(.*?)\s*$/ )
-        {
-          $disabled{$1}= $2;
-        }
-      }
-      close DISABLED;
-    }
-
     foreach my $elem ( sort readdir(TESTDIR) ) {
-      my $tname= mtr_match_extension($elem,"test");
-      next if ! defined $tname;
+      my $component_id= undef;
+      my $tname= undef;
+
+      if ($tname= mtr_match_extension($elem, 'test'))
+      {
+        $component_id = 'mysqld';
+      }
+      elsif ($tname= mtr_match_extension($elem, 'imtest'))
+      {
+        $component_id = 'im';
+      }
+      else
+      {
+        next;
+      }
+      
       next if $::opt_do_test and ! defined mtr_match_prefix($elem,$::opt_do_test);
 
-      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled);
+      collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
+        $component_id);
     }
     closedir TESTDIR;
   }
@@ -84,34 +157,38 @@ sub collect_test_cases ($) {
 
   if ( $::opt_reorder )
   {
-    @$cases = sort {
-      if ( ! $a->{'master_restart'} and ! $b->{'master_restart'} )
-      {
-        return $a->{'name'} cmp $b->{'name'};
-      }
 
-      if ( $a->{'master_restart'} and $b->{'master_restart'} )
-      {
-        my $cmp= mtr_cmp_opts($a->{'master_opt'}, $b->{'master_opt'});
-        if ( $cmp == 0 )
-        {
-          return $a->{'name'} cmp $b->{'name'};
-        }
-        else
-        {
-          return $cmp;
-        }
-      }
+    my %sort_criteria;
+    my $tinfo;
 
-      if ( $a->{'master_restart'} )
-      {
-        return 1;                 # Is greater
-      }
-      else
-      {
-        return -1;                # Is less
-      }
-    } @$cases;
+    # Make a mapping of test name to a string that represents how that test
+    # should be sorted among the other tests.  Put the most important criterion
+    # first, then a sub-criterion, then sub-sub-criterion, et c.
+    foreach $tinfo (@$cases) 
+    {
+      my @this_criteria = ();
+
+      # Append the criteria for sorting, in order of importance.
+      push(@this_criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");  # Ending with "~" makes empty sort later than filled
+      push(@this_criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "1" : "0"));
+      push(@this_criteria, "restart=" . ($tinfo->{'master_restart'} ? "1" : "0"));
+      push(@this_criteria, "big_test=" . ($tinfo->{'big_test'} ? "1" : "0"));
+      push(@this_criteria, join("|", sort keys %{$tinfo}));  # Group similar things together.  The values may differ substantially.  FIXME?
+      push(@this_criteria, $tinfo->{'name'});   # Finally, order by the name
+      
+      $sort_criteria{$tinfo->{"name"}} = join(" ", @this_criteria);
+    }
+
+    @$cases = sort { $sort_criteria{$a->{"name"}} cmp $sort_criteria{$b->{"name"}}; } @$cases;
+
+###  For debugging the sort-order
+#    foreach $tinfo (@$cases) 
+#    {
+#      print $sort_criteria{$tinfo->{"name"}};
+#      print " -> \t";
+#      print $tinfo->{"name"};
+#      print "\n";
+#    }
   }
 
   return $cases;
@@ -125,13 +202,14 @@ sub collect_test_cases ($) {
 ##############################################################################
 
 
-sub collect_one_test_case($$$$$$) {
+sub collect_one_test_case($$$$$$$) {
   my $testdir= shift;
   my $resdir=  shift;
   my $tname=   shift;
   my $elem=    shift;
   my $cases=   shift;
   my $disabled=shift;
+  my $component_id= shift;
 
   my $path= "$testdir/$elem";
 
@@ -151,6 +229,7 @@ sub collect_one_test_case($$$$$$) {
   my $tinfo= {};
   $tinfo->{'name'}= $tname;
   $tinfo->{'result_file'}= "$resdir/$tname.result";
+  $tinfo->{'component_id'} = $component_id;
   push(@$cases, $tinfo);
 
   if ( $::opt_skip_test and defined mtr_match_prefix($tname,$::opt_skip_test) )
@@ -171,48 +250,54 @@ sub collect_one_test_case($$$$$$) {
     if ( $::opt_skip_rpl )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No replication tests(--skip-rpl)";
       return;
     }
 
     $tinfo->{'slave_num'}= 1;           # Default, use one slave
 
-    # FIXME currently we always restart slaves
-    $tinfo->{'slave_restart'}= 1;
-
     if ( $tname eq 'rpl_failsafe' or $tname eq 'rpl_chain_temp_table' )
     {
-#      $tinfo->{'slave_num'}= 3;         # Not 3 ? Check old code, strange
+      # $tinfo->{'slave_num'}= 3;         # Not 3 ? Check old code, strange
     }
   }
 
   if ( defined mtr_match_prefix($tname,"federated") )
   {
-    $tinfo->{'slave_num'}= 1;           # Default, use one slave
-
-    # FIXME currently we always restart slaves
-    $tinfo->{'slave_restart'}= 1;
+    # Default, federated uses the first slave as it's federated database
+    $tinfo->{'slave_num'}= 1;
   }
 
-  # Cluster is needed by test case if testname contains ndb
-  if ( defined mtr_match_substring($tname,"ndb") )
+  if ( $::opt_with_ndbcluster or defined mtr_match_substring($tname,"ndb") )
   {
+    # This is an ndb test or all tests should be run with ndb cluster started
     $tinfo->{'ndb_test'}= 1;
     if ( $::opt_skip_ndbcluster )
     {
-      # Skip all ndb tests
+      # All ndb test's should be skipped
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No ndbcluster test(--skip-ndbcluster)";
       return;
     }
-    if ( ! $::opt_with_ndbcluster )
+    if ( ! $::opt_ndbcluster_supported )
     {
       # Ndb is not supported, skip them
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No ndbcluster support";
       return;
     }
   }
   else
   {
+    # This is not a ndb test
     $tinfo->{'ndb_test'}= 0;
+    if ( $::opt_with_ndbcluster_only )
+    {
+      # Only the ndb test should be run, all other should be skipped
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Only ndbcluster tests(--with-ndbcluster-only)";
+      return;
+    }
   }
 
   # FIXME what about embedded_server + ndbcluster, skip ?!
@@ -223,6 +308,7 @@ sub collect_one_test_case($$$$$$) {
   my $master_sh=       "$testdir/$tname-master.sh";
   my $slave_sh=        "$testdir/$tname-slave.sh";
   my $disabled_file=   "$testdir/$tname.disabled";
+  my $im_opt_file=     "$testdir/$tname-im.opt";
 
   $tinfo->{'master_opt'}= [];
   $tinfo->{'slave_opt'}=  [];
@@ -303,6 +389,8 @@ sub collect_one_test_case($$$$$$) {
     if ( $::glob_win32_perl )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No tests with sh scripts on Windows";
+      return;
     }
     else
     {
@@ -316,6 +404,8 @@ sub collect_one_test_case($$$$$$) {
     if ( $::glob_win32_perl )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No tests with sh scripts on Windows";
+      return;
     }
     else
     {
@@ -324,19 +414,106 @@ sub collect_one_test_case($$$$$$) {
     }
   }
 
+  if ( -f $im_opt_file )
+  {
+    $tinfo->{'im_opts'} = mtr_get_opts_from_file($im_opt_file);
+  }
+  else
+  {
+    $tinfo->{'im_opts'} = [];
+  }
+
   # FIXME why this late?
+  my $marked_as_disabled= 0;
   if ( $disabled->{$tname} )
   {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'disable'}= 1;   # Sub type of 'skip'
-    $tinfo->{'comment'}= $disabled->{$tname} if $disabled->{$tname};
+    $marked_as_disabled= 1;
+    $tinfo->{'comment'}= $disabled->{$tname};
   }
 
   if ( -f $disabled_file )
   {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'disable'}= 1;   # Sub type of 'skip'
+    $marked_as_disabled= 1;
     $tinfo->{'comment'}= mtr_fromfile($disabled_file);
+  }
+
+  # If test was marked as disabled, either opt_enable_disabled is off and then
+  # we skip this test, or it is on and then we run this test but warn
+
+  if ( $marked_as_disabled )
+  {
+    if ( $::opt_enable_disabled )
+    {
+      $tinfo->{'dont_skip_though_disabled'}= 1;
+    }
+    else
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'disable'}= 1;   # Sub type of 'skip'
+      return;
+    }
+  }
+
+  if ( $component_id eq 'im' )
+  {
+    if ( $::glob_use_embedded_server )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No IM with embedded server";
+      return;
+    }
+    elsif ( $::opt_ps_protocol )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No IM with --ps-protocol";
+      return;
+    }
+    elsif ( $::opt_skip_im )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No IM tests(--skip-im)";
+      return;
+    }
+  }
+  else
+  {
+    mtr_options_from_test_file($tinfo,"$testdir/${tname}.test");
+
+    if ( $tinfo->{'big_test'} and ! $::opt_big_test )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test need 'big-test' option";
+      return;
+    }
+
+    if ( $tinfo->{'ndb_extra'} and ! $::opt_ndb_extra_test )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test need 'ndb_extra' option";
+      return;
+    }
+
+    if ( $tinfo->{'require_manager'} )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test need the _old_ manager(to be removed)";
+      return;
+    }
+
+    if ( defined $tinfo->{'binlog_format'} and
+	 ! ( $tinfo->{'binlog_format'} eq $::used_binlog_format ) )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Not running with binlog format '$tinfo->{'binlog_format'}'";
+      return;
+    }
+
+    if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Test need debug binaries";
+      return;
+    }
   }
 
   # We can't restart a running server that may be in use
@@ -345,8 +522,58 @@ sub collect_one_test_case($$$$$$) {
        ( $tinfo->{'master_restart'} or $tinfo->{'slave_restart'} ) )
   {
     $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Can't restart a running server";
+    return;
   }
+
 }
 
+
+# List of tags in the .test files that if found should set
+# the specified value in "tinfo"
+our @tags=
+(
+ ["include/have_innodb.inc", "innodb_test", 1],
+ ["include/have_binlog_format_row.inc", "binlog_format", "row"],
+ ["include/have_binlog_format_statement.inc", "binlog_format", "stmt"],
+ ["include/big_test.inc", "big_test", 1],
+ ["include/have_debug.inc", "need_debug", 1],
+ ["include/have_ndb_extra.inc", "ndb_extra", 1],
+ ["require_manager", "require_manager", 1],
+);
+
+sub mtr_options_from_test_file($$) {
+  my $tinfo= shift;
+  my $file= shift;
+  #mtr_verbose("$file");
+  my $F= IO::File->new($file) or mtr_error("can't open file \"$file\": $!");
+
+  while ( my $line= <$F> )
+  {
+    next if ( $line !~ /^--/ );
+
+    # Match this line against tag in "tags" array
+    foreach my $tag (@tags)
+    {
+      if ( index($line, $tag->[0]) >= 0 )
+      {
+	# Tag matched, assign value to "tinfo"
+	$tinfo->{"$tag->[1]"}= $tag->[2];
+      }
+    }
+
+    # If test sources another file, open it as well
+    if ( $line =~ /^\-\-([[:space:]]*)source(.*)$/ )
+    {
+      my $value= $2;
+      $value =~ s/^\s+//;  # Remove leading space
+      $value =~ s/[[:space:]]+$//;  # Remove ending space
+
+      my $sourced_file= "$::glob_mysql_test_dir/$value";
+      mtr_options_from_test_file($tinfo, $sourced_file);
+    }
+
+  }
+}
 
 1;
