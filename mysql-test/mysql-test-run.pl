@@ -2541,7 +2541,10 @@ skip-innodb
 skip-ndbcluster
 EOF
 ;
-
+    if ( $mysql_version_id < 50100 )
+    {
+      print OUT "skip-bdb\n";
+    }
     print OUT "nonguarded\n" if $instance->{'nonguarded'};
     if ( $mysql_version_id >= 50100 )
     {
