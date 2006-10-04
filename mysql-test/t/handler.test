@@ -1,3 +1,4 @@
+-- source include/not_embedded.inc
 #
 # test of HANDLER ...
 #

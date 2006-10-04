@@ -67,9 +67,9 @@ dtype_get_at_most_n_mbchars(
 
 	if (dtype->mbminlen != dtype->mbmaxlen) {
 		ut_a(!(prefix_len % dtype->mbmaxlen));
-		return(innobase_get_at_most_n_mbchars(
-				dtype_get_charset_coll(dtype->prtype),
-				prefix_len, data_len, str));
+		return(innobase_get_at_most_n_mbchars
+		       (dtype_get_charset_coll(dtype->prtype),
+			prefix_len, data_len, str));
 	}
 
 	if (prefix_len < data_len) {
@@ -98,8 +98,8 @@ dtype_is_string_type(
 	ulint	mtype)	/* in: InnoDB main data type code: DATA_CHAR, ... */
 {
 	if (mtype <= DATA_BLOB
-		|| mtype == DATA_MYSQL
-		|| mtype == DATA_VARMYSQL) {
+	    || mtype == DATA_MYSQL
+	    || mtype == DATA_VARMYSQL) {
 
 		return(TRUE);
 	}
@@ -120,8 +120,8 @@ dtype_is_binary_string_type(
 	ulint	prtype)	/* in: precise type */
 {
 	if ((mtype == DATA_FIXBINARY)
-		|| (mtype == DATA_BINARY)
-		|| (mtype == DATA_BLOB && (prtype & DATA_BINARY_TYPE))) {
+	    || (mtype == DATA_BINARY)
+	    || (mtype == DATA_BLOB && (prtype & DATA_BINARY_TYPE))) {
 
 		return(TRUE);
 	}
@@ -143,7 +143,7 @@ dtype_is_non_binary_string_type(
 	ulint	prtype)	/* in: precise type */
 {
 	if (dtype_is_string_type(mtype) == TRUE
-		&& dtype_is_binary_string_type(mtype, prtype) == FALSE) {
+	    && dtype_is_binary_string_type(mtype, prtype) == FALSE) {
 
 		return(TRUE);
 	}
@@ -258,9 +258,9 @@ dtype_print(
 	len = type->len;
 
 	if ((type->mtype == DATA_SYS)
-	   || (type->mtype == DATA_VARCHAR)
-	   || (type->mtype == DATA_CHAR)) {
-	  putc(' ', stderr);
+	    || (type->mtype == DATA_VARCHAR)
+	    || (type->mtype == DATA_CHAR)) {
+		putc(' ', stderr);
 		if (prtype == DATA_ROW_ID) {
 			fputs("DATA_ROW_ID", stderr);
 			len = DATA_ROW_ID_LEN;
@@ -317,9 +317,9 @@ dtype_get_max_size(
 	case DATA_BINARY:
 	case DATA_DECIMAL:
 	case DATA_VARMYSQL:
-			return(type->len);
+		return(type->len);
 	case DATA_BLOB:
-			return(ULINT_MAX);
+		return(ULINT_MAX);
 	default:
 		ut_error;
 	}

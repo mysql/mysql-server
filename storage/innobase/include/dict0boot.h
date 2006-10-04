@@ -108,7 +108,8 @@ dict_create(void);
 #define	DICT_HDR_TABLE_IDS	36	/* Root of the table index tree */
 #define	DICT_HDR_COLUMNS	40	/* Root of the column index tree */
 #define	DICT_HDR_INDEXES	44	/* Root of the index index tree */
-#define	DICT_HDR_FIELDS		48	/* Root of the index field index tree */
+#define	DICT_HDR_FIELDS		48	/* Root of the index field
+					index tree */
 
 #define DICT_HDR_FSEG_HEADER	56	/* Segment header for the tablespace
 					segment into which the dictionary

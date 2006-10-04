@@ -1740,6 +1740,20 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_SHOW_ENGINE_MUTEX:
   case SQLCOM_SHOW_CREATE_DB:
   case SQLCOM_SHOW_GRANTS:
+  case SQLCOM_SHOW_BINLOG_EVENTS:
+  case SQLCOM_SHOW_MASTER_STAT:
+  case SQLCOM_SHOW_SLAVE_STAT:
+  case SQLCOM_SHOW_CREATE_PROC:
+  case SQLCOM_SHOW_CREATE_FUNC:
+  case SQLCOM_SHOW_CREATE_EVENT:
+  case SQLCOM_SHOW_CREATE:
+  case SQLCOM_SHOW_PROC_CODE:
+  case SQLCOM_SHOW_FUNC_CODE:
+  case SQLCOM_SHOW_AUTHORS:
+  case SQLCOM_SHOW_CONTRIBUTORS:
+  case SQLCOM_SHOW_WARNS:
+  case SQLCOM_SHOW_ERRORS:
+  case SQLCOM_SHOW_BINLOGS:
   case SQLCOM_DROP_TABLE:
   case SQLCOM_RENAME_TABLE:
   case SQLCOM_ALTER_TABLE:
@@ -1754,6 +1768,25 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_REPAIR:
   case SQLCOM_ANALYZE:
   case SQLCOM_OPTIMIZE:
+  case SQLCOM_CHANGE_MASTER:
+  case SQLCOM_RESET:
+  case SQLCOM_FLUSH:
+  case SQLCOM_SLAVE_START:
+  case SQLCOM_SLAVE_STOP:
+  case SQLCOM_INSTALL_PLUGIN:
+  case SQLCOM_UNINSTALL_PLUGIN:
+  case SQLCOM_CREATE_DB:
+  case SQLCOM_DROP_DB:
+  case SQLCOM_RENAME_DB:
+  case SQLCOM_CHECKSUM:
+  case SQLCOM_CREATE_USER:
+  case SQLCOM_RENAME_USER:
+  case SQLCOM_DROP_USER:
+  case SQLCOM_ASSIGN_TO_KEYCACHE:
+  case SQLCOM_PRELOAD_KEYS:
+  case SQLCOM_GRANT:
+  case SQLCOM_REVOKE:
+  case SQLCOM_KILL:
     break;
 
   default:
@@ -1883,7 +1916,8 @@ void mysql_stmt_prepare(THD *thd, const char *packet, uint packet_length)
     thd->stmt_map.erase(stmt);
   }
   else
-    general_log_print(thd, COM_STMT_PREPARE, "[%lu] %s", stmt->id, packet);
+    general_log_print(thd, COM_STMT_PREPARE, "[%lu] %.*b", stmt->id,
+                      stmt->query_length, stmt->query);
 
   /* check_prepared_statemnt sends the metadata packet in case of success */
   DBUG_VOID_RETURN;
@@ -2258,7 +2292,8 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   if (error == 0)
-    general_log_print(thd, COM_STMT_EXECUTE, "[%lu] %s", stmt->id, thd->query);
+    general_log_print(thd, COM_STMT_EXECUTE, "[%lu] %.*b", stmt->id,
+                      thd->query_length, thd->query);
 
   DBUG_VOID_RETURN;
 

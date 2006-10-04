@@ -23,25 +23,13 @@
 
 #include "mysql_priv.h"
 #include "rpl_filter.h"
-#include "ha_heap.h"
-#include "ha_myisam.h"
-#include "ha_myisammrg.h"
 
 
 #include <myisampack.h>
 #include <errno.h>
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-#define NDB_MAX_ATTRIBUTES_IN_TABLE 128
-#include "ha_ndbcluster.h"
-#endif
-
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
-#endif
-
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-#include "ha_innodb.h"
 #endif
 
 /*
@@ -72,10 +60,10 @@ ulong savepoint_alloc_size= 0;
 
 static const LEX_STRING sys_table_aliases[]=
 {
-  {(char*)STRING_WITH_LEN("INNOBASE")},  {(char*)STRING_WITH_LEN("INNODB")},
-  {(char*)STRING_WITH_LEN("NDB")},       {(char*)STRING_WITH_LEN("NDBCLUSTER")},
-  {(char*)STRING_WITH_LEN("HEAP")},      {(char*)STRING_WITH_LEN("MEMORY")},
-  {(char*)STRING_WITH_LEN("MERGE")},     {(char*)STRING_WITH_LEN("MRG_MYISAM")},
+  { C_STRING_WITH_LEN("INNOBASE") },  { C_STRING_WITH_LEN("INNODB") },
+  { C_STRING_WITH_LEN("NDB") },       { C_STRING_WITH_LEN("NDBCLUSTER") },
+  { C_STRING_WITH_LEN("HEAP") },      { C_STRING_WITH_LEN("MEMORY") },
+  { C_STRING_WITH_LEN("MERGE") },     { C_STRING_WITH_LEN("MRG_MYISAM") },
   {NullS, 0}
 };
 
@@ -2706,18 +2694,41 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
     >0 : error.  frmblob and frmlen may not be set
 */
 
+typedef struct st_discover_args
+{
+  const char *db;
+  const char *name;
+  const void** frmblob; 
+  uint* frmlen;
+};
+
+static my_bool discover_handlerton(THD *thd, st_plugin_int *plugin,
+                                   void *arg)
+{
+  st_discover_args *vargs= (st_discover_args *)arg;
+  handlerton *hton= (handlerton *)plugin->data;
+  if (hton->state == SHOW_OPTION_YES && hton->discover &&
+      (!(hton->discover(thd, vargs->db, vargs->name, vargs->frmblob, vargs->frmlen))))
+    return TRUE;
+
+  return FALSE;
+}
+
 int ha_discover(THD *thd, const char *db, const char *name,
 		const void **frmblob, uint *frmlen)
 {
   int error= -1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
+  st_discover_args args= {db, name, frmblob, frmlen};
+
   if (is_prefix(name,tmp_file_prefix)) /* skip temporary tables */
     DBUG_RETURN(error);
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_discover(thd, db, name, frmblob, frmlen);
-#endif
+
+  if (plugin_foreach(thd, discover_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args))
+    error= 0;
+
   if (!error)
     statistic_increment(thd->status_var.ha_discover_count,&LOCK_status);
   DBUG_RETURN(error);
@@ -2729,6 +2740,29 @@ int ha_discover(THD *thd, const char *db, const char *name,
   to ask engine if there are any new tables that should be written to disk 
   or any dropped tables that need to be removed from disk
 */
+typedef struct st_find_files_args
+{
+  const char *db;
+  const char *path;
+  const char *wild;
+  bool dir;
+  List<char> *files;
+};
+
+static my_bool find_files_handlerton(THD *thd, st_plugin_int *plugin,
+                                   void *arg)
+{
+  st_find_files_args *vargs= (st_find_files_args *)arg;
+  handlerton *hton= (handlerton *)plugin->data;
+
+
+  if (hton->state == SHOW_OPTION_YES && hton->find_files)
+      if (hton->find_files(thd, vargs->db, vargs->path, vargs->wild, 
+                          vargs->dir, vargs->files))
+        return TRUE;
+
+  return FALSE;
+}
 
 int
 ha_find_files(THD *thd,const char *db,const char *path,
@@ -2738,10 +2772,11 @@ ha_find_files(THD *thd,const char *db,const char *path,
   DBUG_ENTER("ha_find_files");
   DBUG_PRINT("enter", ("db: %s, path: %s, wild: %s, dir: %d", 
 		       db, path, wild, dir));
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_find_files(thd, db, path, wild, dir, files);
-#endif
+  st_find_files_args args= {db, path, wild, dir, files};
+
+  plugin_foreach(thd, find_files_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args);
+  /* The return value is not currently used */
   DBUG_RETURN(error);
 }
 
@@ -2755,15 +2790,34 @@ ha_find_files(THD *thd,const char *db,const char *path,
     #                   Error code
 
  */
+
+typedef struct st_table_exists_in_engine_args
+{
+  const char *db;
+  const char *name;
+};
+
+static my_bool table_exists_in_engine_handlerton(THD *thd, st_plugin_int *plugin,
+                                   void *arg)
+{
+  st_table_exists_in_engine_args *vargs= (st_table_exists_in_engine_args *)arg;
+  handlerton *hton= (handlerton *)plugin->data;
+
+  if (hton->state == SHOW_OPTION_YES && hton->table_exists_in_engine)
+    if ((hton->table_exists_in_engine(thd, vargs->db, vargs->name)) == 1)
+      return TRUE;
+
+  return FALSE;
+}
+
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name)
 {
   int error= 0;
   DBUG_ENTER("ha_table_exists_in_engine");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  if (have_ndbcluster == SHOW_OPTION_YES)
-    error= ndbcluster_table_exists_in_engine(thd, db, name);
-#endif
+  st_table_exists_in_engine_args args= {db, name};
+  error= plugin_foreach(thd, table_exists_in_engine_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &args);
   DBUG_PRINT("exit", ("error: %d", error));
   DBUG_RETURN(error);
 }
@@ -3513,10 +3567,10 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 int handler::ha_reset()
 {
   DBUG_ENTER("ha_reset");
-  /* Check that we have called all proper delallocation functions */
+  /* Check that we have called all proper deallocation functions */
   DBUG_ASSERT((byte*) table->def_read_set.bitmap +
               table->s->column_bitmap_size ==
-              (char*) table->def_write_set.bitmap);
+              (byte*) table->def_write_set.bitmap);
   DBUG_ASSERT(bitmap_is_set_all(&table->s->all_set));
   DBUG_ASSERT(table->key_read == 0);
   /* ensure that ha_index_end / ha_rnd_end has been called */

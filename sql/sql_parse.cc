@@ -27,7 +27,7 @@
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
-#include "event_timed.h"
+#include "event_data_objects.h"
 
 #ifdef HAVE_OPENSSL
 /*
@@ -67,43 +67,42 @@ static int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 static void decrease_user_connections(USER_CONN *uc);
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 static bool check_multi_update_lock(THD *thd);
-static void remove_escape(char *name);
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
-LEX_STRING command_name[]={
-  (char *)STRING_WITH_LEN("Sleep"),
-  (char *)STRING_WITH_LEN("Quit"),
-  (char *)STRING_WITH_LEN("Init DB"),
-  (char *)STRING_WITH_LEN("Query"),
-  (char *)STRING_WITH_LEN("Field List"),
-  (char *)STRING_WITH_LEN("Create DB"),
-  (char *)STRING_WITH_LEN("Drop DB"),
-  (char *)STRING_WITH_LEN("Refresh"),
-  (char *)STRING_WITH_LEN("Shutdown"),
-  (char *)STRING_WITH_LEN("Statistics"),
-  (char *)STRING_WITH_LEN("Processlist"),
-  (char *)STRING_WITH_LEN("Connect"),
-  (char *)STRING_WITH_LEN("Kill"),
-  (char *)STRING_WITH_LEN("Debug"),
-  (char *)STRING_WITH_LEN("Ping"),
-  (char *)STRING_WITH_LEN("Time"),
-  (char *)STRING_WITH_LEN("Delayed insert"),
-  (char *)STRING_WITH_LEN("Change user"),
-  (char *)STRING_WITH_LEN("Binlog Dump"),
-  (char *)STRING_WITH_LEN("Table Dump"),
-  (char *)STRING_WITH_LEN("Connect Out"),
-  (char *)STRING_WITH_LEN("Register Slave"),
-  (char *)STRING_WITH_LEN("Prepare"),
-  (char *)STRING_WITH_LEN("Execute"),
-  (char *)STRING_WITH_LEN("Long Data"),
-  (char *)STRING_WITH_LEN("Close stmt"),
-  (char *)STRING_WITH_LEN("Reset stmt"),
-  (char *)STRING_WITH_LEN("Set option"),
-  (char *)STRING_WITH_LEN("Fetch"),
-  (char *)STRING_WITH_LEN("Daemon"),
-  (char *)STRING_WITH_LEN("Error")  // Last command number
+const LEX_STRING command_name[]={
+  C_STRING_WITH_LEN("Sleep"),
+  C_STRING_WITH_LEN("Quit"),
+  C_STRING_WITH_LEN("Init DB"),
+  C_STRING_WITH_LEN("Query"),
+  C_STRING_WITH_LEN("Field List"),
+  C_STRING_WITH_LEN("Create DB"),
+  C_STRING_WITH_LEN("Drop DB"),
+  C_STRING_WITH_LEN("Refresh"),
+  C_STRING_WITH_LEN("Shutdown"),
+  C_STRING_WITH_LEN("Statistics"),
+  C_STRING_WITH_LEN("Processlist"),
+  C_STRING_WITH_LEN("Connect"),
+  C_STRING_WITH_LEN("Kill"),
+  C_STRING_WITH_LEN("Debug"),
+  C_STRING_WITH_LEN("Ping"),
+  C_STRING_WITH_LEN("Time"),
+  C_STRING_WITH_LEN("Delayed insert"),
+  C_STRING_WITH_LEN("Change user"),
+  C_STRING_WITH_LEN("Binlog Dump"),
+  C_STRING_WITH_LEN("Table Dump"),
+  C_STRING_WITH_LEN("Connect Out"),
+  C_STRING_WITH_LEN("Register Slave"),
+  C_STRING_WITH_LEN("Prepare"),
+  C_STRING_WITH_LEN("Execute"),
+  C_STRING_WITH_LEN("Long Data"),
+  C_STRING_WITH_LEN("Close stmt"),
+  C_STRING_WITH_LEN("Reset stmt"),
+  C_STRING_WITH_LEN("Set option"),
+  C_STRING_WITH_LEN("Fetch"),
+  C_STRING_WITH_LEN("Daemon"),
+  C_STRING_WITH_LEN("Error")  // Last command number
 };
 
 const char *xa_state_names[]={
@@ -1048,8 +1047,8 @@ static int check_connection(THD *thd)
   char *passwd= strend(user)+1;
   uint user_len= passwd - user - 1;
   char *db= passwd;
-  char db_buff[NAME_LEN+1];                     // buffer to store db in utf8
-  char user_buff[USERNAME_LENGTH+1];		// buffer to store user in utf8
+  char db_buff[NAME_BYTE_LEN + 1];              // buffer to store db in utf8
+  char user_buff[USERNAME_BYTE_LENGTH + 1];	// buffer to store user in utf8
   uint dummy_errors;
 
   /*
@@ -1442,7 +1441,6 @@ int mysql_table_dump(THD* thd, char* db, char* tbl_name)
   }
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, tbl_name);
-  remove_escape(table_list->table_name);
 
   if (!(table=open_ltable(thd, table_list, TL_READ_NO_INSERT)))
     DBUG_RETURN(1);
@@ -1726,7 +1724,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
     */
-    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8
+    char db_buff[NAME_BYTE_LEN+1];               // buffer to store db in utf8
     char *db= passwd;
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
       *passwd++ : strlen(passwd);
@@ -1909,7 +1907,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
     if (lower_case_table_names)
       my_casedn_str(files_charset_info, table_list.table_name);
-    remove_escape(table_list.table_name);	// This can't have wildcards
 
     if (check_access(thd,SELECT_ACL,table_list.db,&table_list.grant.privilege,
 		     0, 0, test(table_list.schema_table)))
@@ -2299,7 +2296,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
         DBUG_RETURN(1);
       }
       db= lex->select_lex.db;
-      remove_escape(db);				// Fix escaped '_'
       if (check_db_name(db))
       {
         my_error(ER_WRONG_DB_NAME, MYF(0), db);
@@ -2338,8 +2334,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       lex->query_tables_last= query_tables_last;
       TABLE_LIST *table_list= (TABLE_LIST*) sel->table_list.first;
       char *db= table_list->db;
-      remove_escape(db);			// Fix escaped '_'
-      remove_escape(table_list->table_name);
       if (check_access(thd,SELECT_ACL | EXTRA_ACL,db,
                        &table_list->grant.privilege, 0, 0,
                        test(table_list->schema_table)))
@@ -3389,8 +3383,6 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
-    /* Skip first table, which is the table we are inserting in */
-    select_lex->context.table_list= first_table->next_local;
 
     if (!thd->locked_tables &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
@@ -3896,73 +3888,43 @@ end_with_restore_list:
   }
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
-  case SQLCOM_DROP_EVENT:
   {
-    uint rows_affected= 1;
-    DBUG_ASSERT(lex->et);
-    do {
-      if (! lex->et->dbname.str ||
-          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
-           !lex->spname->m_db.str))
-      {
-        my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-        res= true;
-        break;
-      }
+    DBUG_ASSERT(lex->event_parse_data);
+    switch (lex->sql_command) {
+    case SQLCOM_CREATE_EVENT:
+      res= Events::get_instance()->
+            create_event(thd, lex->event_parse_data,
+                         lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS);
+      break;
+    case SQLCOM_ALTER_EVENT:
+      res= Events::get_instance()->update_event(thd, lex->event_parse_data,
+                                                lex->spname);
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
+    DBUG_PRINT("info",("DDL error code=%d", res));
+    if (!res)
+      send_ok(thd);
 
-      if (check_access(thd, EVENT_ACL, lex->et->dbname.str, 0, 0, 0,
-                       is_schema_db(lex->et->dbname.str)) ||
-          (lex->sql_command == SQLCOM_ALTER_EVENT && lex->spname &&
-           (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
-                         is_schema_db(lex->spname->m_db.str)))))
-        break;
-
-      if (end_active_trans(thd))
-      {
-        res= -1;
-        break;
-      }
-
-      switch (lex->sql_command) {
-      case SQLCOM_CREATE_EVENT:
-        res= Events::create_event(thd, lex->et,
-                                  (uint) lex->create_info.options,
-                                  &rows_affected);
-        break;
-      case SQLCOM_ALTER_EVENT:
-        res= Events::update_event(thd, lex->et, lex->spname,
-                                  &rows_affected);
-        break;
-      case SQLCOM_DROP_EVENT:
-        res= Events::drop_event(thd, lex->et, lex->drop_if_exists,
-                                &rows_affected);
-      default:;
-      }
-      DBUG_PRINT("info", ("CREATE/ALTER/DROP returned error code=%d af_rows=%d",
-                  res, rows_affected));
-      if (!res)
-        send_ok(thd, rows_affected);
-
-      /* lex->unit.cleanup() is called outside, no need to call it here */
-    } while (0);
+    /* Don't do it, if we are inside a SP */
     if (!thd->spcont)
     {
-      lex->et->free_sphead_on_delete= true;
-      lex->et->free_sp();
-      lex->et->deinit_mutexes();
+      delete lex->sphead;
+      lex->sphead= NULL;
     }
-    
+
+    /* lex->unit.cleanup() is called outside, no need to call it here */
     break;
   }
+  case SQLCOM_DROP_EVENT:
   case SQLCOM_SHOW_CREATE_EVENT:
   {
     DBUG_ASSERT(lex->spname);
-    DBUG_ASSERT(lex->et);
     if (! lex->spname->m_db.str)
     {
       my_message(ER_NO_DB_ERROR, ER(ER_NO_DB_ERROR), MYF(0));
-      res= true;
-      break;
+      goto error;
     }
     if (check_access(thd, EVENT_ACL, lex->spname->m_db.str, 0, 0, 0,
                      is_schema_db(lex->spname->m_db.str)))
@@ -3971,18 +3933,25 @@ end_with_restore_list:
     if (lex->spname->m_name.length > NAME_LEN)
     {
       my_error(ER_TOO_LONG_IDENT, MYF(0), lex->spname->m_name.str);
+      /* this jumps to the end of the function and skips own messaging */
       goto error;
     }
-    res= Events::show_create_event(thd, lex->spname);
+
+    if (lex->sql_command == SQLCOM_SHOW_CREATE_EVENT)
+      res= Events::get_instance()->show_create_event(thd, lex->spname->m_db,
+                                                     lex->spname->m_name);
+    else
+    {
+      uint affected= 1;
+      if (!(res= Events::get_instance()->drop_event(thd,
+                                                    lex->spname->m_db,
+                                                    lex->spname->m_name,
+                                                    lex->drop_if_exists,
+                                                    FALSE)))
+        send_ok(thd);
+    }
     break;
   }
-#ifndef DBUG_OFF
-  case SQLCOM_SHOW_SCHEDULER_STATUS:
-  {
-    res= Events::dump_internal_status(thd);
-    break;
-  }
-#endif
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
     if (check_access(thd,INSERT_ACL,"mysql",0,1,0,0))
@@ -4924,9 +4893,9 @@ end_with_restore_list:
       {
         String buff;
         const LEX_STRING command[3]=
-          {{(char *)STRING_WITH_LEN("CREATE ")},
-           {(char *)STRING_WITH_LEN("ALTER ")},
-           {(char *)STRING_WITH_LEN("CREATE OR REPLACE ")}};
+          {{ C_STRING_WITH_LEN("CREATE ") },
+           { C_STRING_WITH_LEN("ALTER ") },
+           { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
         thd->clear_error();
 
         buff.append(command[thd->lex->create_view_mode].str,
@@ -5354,10 +5323,21 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
     return 1;
 
   /* Check rights on tables of subselects and implictly opened tables */
-  TABLE_LIST *subselects_tables;
+  TABLE_LIST *subselects_tables, *view= all_tables->view ? all_tables : 0;
   if ((subselects_tables= all_tables->next_global))
   {
-    if ((check_table_access(thd, SELECT_ACL, subselects_tables, 0)))
+    /*
+      Access rights asked for the first table of a view should be the same
+      as for the view
+    */
+    if (view && subselects_tables->belong_to_view == view)
+    {
+      if (check_single_table_access (thd, privilege, subselects_tables))
+        return 1;
+      subselects_tables= subselects_tables->next_global;
+    }
+    if (subselects_tables &&
+        (check_table_access(thd, SELECT_ACL, subselects_tables, 0)))
       return 1;
   }
   return 0;
@@ -6036,6 +6016,9 @@ void mysql_init_multi_delete(LEX *lex)
 void mysql_parse(THD *thd, char *inBuf, uint length)
 {
   DBUG_ENTER("mysql_parse");
+
+  DBUG_EXECUTE_IF("parser_debug", turn_parser_debug_on(););
+
   mysql_init_query(thd, (uchar*) inBuf, length);
   if (query_cache_send_result_to_client(thd, inBuf, length) <= 0)
   {
@@ -6059,14 +6042,6 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	{
           delete lex->sphead;
           lex->sphead= NULL;
-          if (lex->et)
-          {
-            lex->et->free_sphead_on_delete= true;
-            /* alloced on thd->mem_root so no real memory free but dtor call */
-            lex->et->free_sp();
-            lex->et->deinit_mutexes();
-            lex->et= NULL;
-          }
 	}
 	else
 	{
@@ -6102,13 +6077,6 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
 	/* Clean up after failed stored procedure/function */
 	delete lex->sphead;
 	lex->sphead= NULL;
-      }
-      if (lex->et)
-      {
-        lex->et->free_sphead_on_delete= true;
-        lex->et->free_sp();
-        lex->et->deinit_mutexes();
-        lex->et= NULL;
       }
     }
     thd->proc_info="freeing items";
@@ -6273,36 +6241,6 @@ add_proc_to_list(THD* thd, Item *item)
   return 0;
 }
 
-
-/* Fix escaping of _, % and \ in database and table names (for ODBC) */
-
-static void remove_escape(char *name)
-{
-  if (!*name)					// For empty DB names
-    return;
-  char *to;
-#ifdef USE_MB
-  char *strend=name+(uint) strlen(name);
-#endif
-  for (to=name; *name ; name++)
-  {
-#ifdef USE_MB
-    int l;
-    if (use_mb(system_charset_info) &&
-        (l = my_ismbchar(system_charset_info, name, strend)))
-    {
-	while (l--)
-	    *to++ = *name++;
-	name--;
-	continue;
-    }
-#endif
-    if (*name == '\\' && name[1])
-      name++;					// Skip '\\'
-    *to++= *name;
-  }
-  *to=0;
-}
 
 /****************************************************************************
 ** save order by and tables in own lists
@@ -6943,11 +6881,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
   select_errors=0;				/* Write if more errors */
   bool tmp_write_to_binlog= 1;
 
-  if (thd && thd->in_sub_stmt)
-  {
-    my_error(ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0), "FLUSH");
-    return 1;
-  }
+  DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
@@ -7817,16 +7751,35 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 
 LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 {
-  LEX_USER *curr_user;
   if (!user->user.str)  // current_user
-  {
-    if (!(curr_user= (LEX_USER*) thd->alloc(sizeof(LEX_USER))))
-    {
-      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(LEX_USER));
-      return 0;
-    }
-    get_default_definer(thd, curr_user);
-    return curr_user;
-  }
+    return create_default_definer(thd);
+
   return user;
+}
+
+
+/*
+  Check that length of a string does not exceed some limit.
+
+  SYNOPSIS
+    check_string_length()
+      cs          string charset
+      str         string to be checked
+      err_msg     error message to be displayed if the string is too long
+      max_length  max length
+
+  RETURN
+    FALSE   the passed string is not longer than max_length
+    TRUE    the passed string is longer than max_length
+*/
+
+bool check_string_length(CHARSET_INFO *cs, LEX_STRING *str,
+                         const char *err_msg, uint max_length)
+{
+  if (cs->cset->charpos(cs, str->str, str->str + str->length,
+                        max_length) >= str->length)
+    return FALSE; 
+
+  my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_length);
+  return TRUE;
 }

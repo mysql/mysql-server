@@ -344,7 +344,7 @@ JOIN::prepare(Item ***rref_pointer_array,
        setup_tables_and_check_access(thd, &select_lex->context, join_list,
                                      tables_list,
                                      &select_lex->leaf_tables, FALSE, 
-                                     SELECT_ACL)) ||
+                                     SELECT_ACL, SELECT_ACL)) ||
       setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), fields_list, MARK_COLUMNS_READ,
@@ -822,6 +822,40 @@ JOIN::optimize()
     if (!order && org_order)
       skip_sort_order= 1;
   }
+  /*
+     Check if we can optimize away GROUP BY/DISTINCT.
+     We can do that if there are no aggregate functions and the
+     fields in DISTINCT clause (if present) and/or columns in GROUP BY
+     (if present) contain direct references to all key parts of
+     an unique index (in whatever order).
+     Note that the unique keys for DISTINCT and GROUP BY should not
+     be the same (as long as they are unique).
+
+     The FROM clause must contain a single non-constant table.
+  */
+  if (tables - const_tables == 1 && (group_list || select_distinct) &&
+      !tmp_table_param.sum_func_count &&
+      (!join_tab[const_tables].select ||
+       !join_tab[const_tables].select->quick ||
+       join_tab[const_tables].select->quick->get_type() != 
+       QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
+  {
+    if (group_list &&
+       list_contains_unique_index(join_tab[const_tables].table,
+                                 find_field_in_order_list,
+                                 (void *) group_list))
+    {
+      group_list= 0;
+      group= 0;
+    }
+    if (select_distinct &&
+       list_contains_unique_index(join_tab[const_tables].table,
+                                 find_field_in_item_list,
+                                 (void *) &fields_list))
+    {
+      select_distinct= 0;
+    }
+  }
   if (group_list || tmp_table_param.sum_func_count)
   {
     if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
@@ -890,40 +924,6 @@ JOIN::optimize()
 			     &simple_group);
     if (old_group_list && !group_list)
       select_distinct= 0;
-  }
-  /*
-     Check if we can optimize away GROUP BY/DISTINCT.
-     We can do that if there are no aggregate functions and the
-     fields in DISTINCT clause (if present) and/or columns in GROUP BY
-     (if present) contain direct references to all key parts of
-     an unique index (in whatever order).
-     Note that the unique keys for DISTINCT and GROUP BY should not
-     be the same (as long as they are unique).
-
-     The FROM clause must contain a single non-constant table.
-  */
-  if (tables - const_tables == 1 && (group_list || select_distinct) &&
-      !tmp_table_param.sum_func_count &&
-      (!join_tab[const_tables].select ||
-       !join_tab[const_tables].select->quick ||
-       join_tab[const_tables].select->quick->get_type() != 
-       QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
-  {
-    if (group_list &&
-       list_contains_unique_index(join_tab[const_tables].table,
-                                 find_field_in_order_list,
-                                 (void *) group_list))
-    {
-      group_list= 0;
-      group= 0;
-    }
-    if (select_distinct &&
-       list_contains_unique_index(join_tab[const_tables].table,
-                                 find_field_in_item_list,
-                                 (void *) &fields_list))
-    {
-      select_distinct= 0;
-    }
   }
   if (!group_list && group)
   {
@@ -2233,6 +2233,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   int ref_changed;
   do
   {
+  more_const_tables_found:
     ref_changed = 0;
     found_ref=0;
 
@@ -2244,6 +2245,30 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     for (JOIN_TAB **pos=stat_vector+const_count ; (s= *pos) ; pos++)
     {
       table=s->table;
+
+      /* 
+        If equi-join condition by a key is null rejecting and after a
+        substitution of a const table the key value happens to be null
+        then we can state that there are no matches for this equi-join.
+      */  
+      if ((keyuse= s->keyuse) && *s->on_expr_ref)
+      {
+        while (keyuse->table == table)
+        {
+          if (!(keyuse->val->used_tables() & ~join->const_table_map) &&
+              keyuse->val->is_null() && keyuse->null_rejecting)
+          {
+            s->type= JT_CONST;
+            mark_as_null_row(table);
+            found_const_table_map|= table->map;
+	    join->const_table_map|= table->map;
+	    set_position(join,const_count++,s,(KEYUSE*) 0);
+            goto more_const_tables_found;
+           }
+	  keyuse++;
+        }
+      }
+
       if (s->dependent)				// If dependent on some table
       {
 	// All dep. must be constants
@@ -2294,34 +2319,38 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
 	  } while (keyuse->table == table && keyuse->key == key);
 
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
-	      ((table->key_info[key].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
-	       HA_NOSAME) &&
               !table->fulltext_searched && 
               !table->pos_in_table_list->embedding)
 	  {
-	    if (const_ref == eq_part)
-	    {					// Found everything for ref.
-	      int tmp;
-	      ref_changed = 1;
-	      s->type= JT_CONST;
-	      join->const_table_map|=table->map;
-	      set_position(join,const_count++,s,start_keyuse);
-	      if (create_ref_for_key(join, s, start_keyuse,
-				     found_const_table_map))
-		DBUG_RETURN(1);
-	      if ((tmp=join_read_const_table(s,
-                                             join->positions+const_count-1)))
-	      {
-		if (tmp > 0)
-		  DBUG_RETURN(1);			// Fatal error
+            if ((table->key_info[key].flags & (HA_NOSAME | HA_END_SPACE_KEY))
+                 == HA_NOSAME)
+            {
+	      if (const_ref == eq_part)
+	      {					// Found everything for ref.
+	        int tmp;
+	        ref_changed = 1;
+	        s->type= JT_CONST;
+	        join->const_table_map|=table->map;
+	        set_position(join,const_count++,s,start_keyuse);
+	        if (create_ref_for_key(join, s, start_keyuse,
+				       found_const_table_map))
+		  DBUG_RETURN(1);
+	        if ((tmp=join_read_const_table(s,
+                                               join->positions+const_count-1)))
+	        {
+		  if (tmp > 0)
+		    DBUG_RETURN(1);			// Fatal error
+	        }
+	        else
+		  found_const_table_map|= table->map;
+	        break;
 	      }
 	      else
-		found_const_table_map|= table->map;
-	      break;
+	        found_ref|= refs;      // Table is const if all refs are const
 	    }
-	    else
-	      found_ref|= refs;		// Table is const if all refs are const
-	  }
+            else if (const_ref == eq_part)
+              s->const_keys.set_bit(key);
+          }
 	}
       }
     }
@@ -2727,7 +2756,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     We use null_rejecting in add_not_null_conds() to add
     'othertbl.field IS NOT NULL' to tab->select_cond.
   */
-  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC) &&
+  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC ||
+                                   cond->functype() == Item_func::MULT_EQUAL_FUNC) &&
                                   ((*value)->type() == Item::FIELD_ITEM) &&
                                   ((Item_field*)*value)->field->maybe_null());
   (*key_fields)++;
@@ -2827,11 +2857,12 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
     break;
   case Item_func::OPTIMIZE_KEY:
   {
+    Item **values;
     // BETWEEN, IN, NE
     if (cond_func->key_item()->real_item()->type() == Item::FIELD_ITEM &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      Item **values= cond_func->arguments()+1;
+      values= cond_func->arguments()+1;
       if (cond_func->functype() == Item_func::NE_FUNC &&
         cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	     !(cond_func->arguments()[0]->used_tables() & OUTER_REF_TABLE_BIT))
@@ -2843,6 +2874,22 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
                            0, values,
                            cond_func->argument_count()-1,
                            usable_tables);
+    }
+    if (cond_func->functype() == Item_func::BETWEEN)
+    {
+      values= cond_func->arguments();
+      for (uint i= 1 ; i < cond_func->argument_count() ; i++)
+      {
+        Item_field *field_item;
+        if (cond_func->arguments()[i]->real_item()->type() == Item::FIELD_ITEM
+            &&
+            !(cond_func->arguments()[i]->used_tables() & OUTER_REF_TABLE_BIT))
+        {
+          field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
+          add_key_equal_fields(key_fields, *and_level, cond_func,
+                               field_item, 0, values, 1, usable_tables);
+        }
+      }  
     }
     break;
   }
@@ -3476,7 +3523,7 @@ best_access_path(JOIN      *join,
                                                  keyuse->used_tables));
             if (tmp < best_prev_record_reads)
             {
-              best_part_found_ref= keyuse->used_tables;
+              best_part_found_ref= keyuse->used_tables & ~join->const_table_map;
               best_prev_record_reads= tmp;
             }
             if (rec > keyuse->ref_table_rows)
@@ -6034,7 +6081,8 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
   if (tab->cached_eq_ref_table)			// If cached
     return tab->eq_ref_table;
   tab->cached_eq_ref_table=1;
-  if (tab->type == JT_CONST)			// We can skip const tables
+  /* We can skip const tables only if not an outer table */
+  if (tab->type == JT_CONST && !tab->first_inner)
     return (tab->eq_ref_table=1);		/* purecov: inspected */
   if (tab->type != JT_EQ_REF || tab->table->maybe_null)
     return (tab->eq_ref_table=0);		// We must use this
@@ -6556,6 +6604,7 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
         field_item= (Item_field*) right_item;
         const_item= left_item;
       }
+
       if (const_item &&
           field_item->result_type() == const_item->result_type())
       {
@@ -7213,11 +7262,14 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
   Item_func::Functype functype=  func->functype();
 
   if (right_item->eq(field,0) && left_item != value &&
+      right_item->cmp_context == field->cmp_context &&
       (left_item->result_type() != STRING_RESULT ||
        value->result_type() != STRING_RESULT ||
        left_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
+    tmp->collation.set(right_item->collation);
+    
     if (tmp)
     {
       thd->change_item_tree(args + 1, tmp);
@@ -7234,11 +7286,14 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
     }
   }
   else if (left_item->eq(field,0) && right_item != value &&
+           left_item->cmp_context == field->cmp_context &&
            (right_item->result_type() != STRING_RESULT ||
             value->result_type() != STRING_RESULT ||
             right_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->new_item();
+    tmp->collation.set(left_item->collation);
+    
     if (tmp)
     {
       thd->change_item_tree(args, tmp);
@@ -8645,8 +8700,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();
   share->keys_in_use.init();
-  /* For easier error reporting */
-  share->table_cache_key= share->db;
 
   /* Calculate which type of fields we will store in the temporary table */
 
@@ -9041,11 +9094,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       keyinfo->key_length+=  key_part_info->length;
     }
   }
-  else
-  {
-    set_if_smaller(table->s->max_rows, rows_limit);
-    param->end_write_records= rows_limit;
-  }
 
   if (distinct && field_count != param->hidden_field_count)
   {
@@ -9060,8 +9108,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     null_pack_length-=hidden_null_pack_length;
     keyinfo->key_parts= ((field_count-param->hidden_field_count)+
 			 test(null_pack_length));
-    set_if_smaller(share->max_rows, rows_limit);
-    param->end_write_records= rows_limit;
     table->distinct= 1;
     share->keys= 1;
     if (blob_count)
@@ -9116,6 +9162,20 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	0 : FIELDFLAG_BINARY;
     }
   }
+
+  /*
+    Push the LIMIT clause to the temporary table creation, so that we
+    materialize only up to 'rows_limit' records instead of all result records.
+    This optimization is not applicable when there is GROUP BY or there is
+    no GROUP BY, but there are aggregate functions, because both must be
+    computed for all result rows.
+  */
+  if (!group && !thd->lex->current_select->with_sum_func)
+  {
+    set_if_smaller(table->s->max_rows, rows_limit);
+    param->end_write_records= rows_limit;
+  }
+
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   share->db_record_offset= 1;
@@ -11621,6 +11681,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     We must not try to use disabled keys.
   */
   usable_keys= table->s->keys_in_use;
+  /* we must not consider keys that are disabled by IGNORE INDEX */
+  usable_keys.intersect(table->keys_in_use_for_query);
 
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
@@ -13491,7 +13553,9 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
   {
     Field *field;
 
-    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
+    if ((item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM) ||
+        (item->type() == Item::FUNC_ITEM &&
+         ((Item_func*)item)->functype() == Item_func::SUSERVAR_FUNC))
       item_field= item;
     else
     {

@@ -1583,7 +1583,9 @@ mysql_declare_plugin(archive)
   archive_db_init, /* Plugin Init */
   archive_db_done, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  0
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
 

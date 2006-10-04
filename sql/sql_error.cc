@@ -139,14 +139,8 @@ MYSQL_ERROR *push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   }
 
   if (thd->spcont &&
-      thd->spcont->find_handler(code,
-                                ((int) level >=
-                                 (int) MYSQL_ERROR::WARN_LEVEL_WARN &&
-                                 thd->really_abort_on_warning()) ?
-                                MYSQL_ERROR::WARN_LEVEL_ERROR : level))
+      thd->spcont->handle_error(code, level, thd))
   {
-    if (! thd->spcont->found_handler_here())
-      thd->net.report_error= 1; /* Make "select" abort correctly */ 
     DBUG_RETURN(NULL);
   }
   query_cache_abort(&thd->net);
@@ -212,12 +206,12 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
     TRUE  Error sending data to client
 */
 
-LEX_STRING warning_level_names[]=
+const LEX_STRING warning_level_names[]=
 {
-  {(char*) STRING_WITH_LEN("Note")},
-  {(char*) STRING_WITH_LEN("Warning")},
-  {(char*) STRING_WITH_LEN("Error")},
-  {(char*) STRING_WITH_LEN("?")}
+  { C_STRING_WITH_LEN("Note") },
+  { C_STRING_WITH_LEN("Warning") },
+  { C_STRING_WITH_LEN("Error") },
+  { C_STRING_WITH_LEN("?") }
 };
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show)

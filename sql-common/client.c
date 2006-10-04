@@ -1509,7 +1509,6 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   mysql->options.ssl_ca=     strdup_if_not_null(ca);
   mysql->options.ssl_capath= strdup_if_not_null(capath);
   mysql->options.ssl_cipher= strdup_if_not_null(cipher);
-  mysql->options.ssl_verify_server_cert= FALSE; /* Off by default */
 #endif /* HAVE_OPENSSL */
   DBUG_RETURN(0);
 }
@@ -1754,7 +1753,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
-  char		buff[NAME_LEN+USERNAME_LENGTH+100];
+  char		buff[NAME_BYTE_LEN+USERNAME_BYTE_LENGTH+100];
   char		*end,*host_info;
   my_socket	sock;
   in_addr_t	ip_addr;
@@ -2198,7 +2197,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     DBUG_PRINT("info", ("IO layer change done!"));
 
     /* Verify server cert */
-    if (mysql->options.ssl_verify_server_cert &&
+    if ((client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
         ssl_verify_server_cert(mysql->net.vio, mysql->host))
     {
       set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
@@ -2213,7 +2212,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		     mysql->server_status, client_flag));
   /* This needs to be changed as it's not useful with big packets */
   if (user && user[0])
-    strmake(end,user,USERNAME_LENGTH);          /* Max user name */
+    strmake(end,user,USERNAME_BYTE_LENGTH);          /* Max user name */
   else
     read_user_name((char*) end);
 
@@ -2243,7 +2242,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /* Add database if needed */
   if (db && (mysql->server_capabilities & CLIENT_CONNECT_WITH_DB))
   {
-    end= strmake(end, db, NAME_LEN) + 1;
+    end= strmake(end, db, NAME_BYTE_LEN) + 1;
     mysql->db= my_strdup(db,MYF(MY_WME));
     db= 0;
   }
@@ -2945,7 +2944,10 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const char *arg)
     mysql->reconnect= *(my_bool *) arg;
     break;
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
-    mysql->options.ssl_verify_server_cert= *(my_bool *) arg;
+    if (!arg || test(*(uint*) arg))
+      mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
+    else
+      mysql->options.client_flag&= ~CLIENT_SSL_VERIFY_SERVER_CERT;
     break;
   default:
     DBUG_RETURN(1);

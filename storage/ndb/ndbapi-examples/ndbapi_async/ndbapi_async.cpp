@@ -136,7 +136,12 @@ void closeTransaction(Ndb * ndb , async_callback_t * cb);
 /**
  * Function to create table
  */
-int create_table(Ndb * myNdb);
+void create_table(MYSQL &mysql);
+
+/**
+ * Function to drop table
+ */
+void drop_table(MYSQL &mysql);
 
 /**
  * stat. variables
@@ -193,7 +198,7 @@ callback(int result, NdbTransaction* trans, void* aObject)
 /**
  * Create table "GARAGE"
  */
-int create_table(MYSQL &mysql) 
+void create_table(MYSQL &mysql) 
 {
   while (mysql_query(&mysql, 
 		  "CREATE TABLE"
@@ -208,14 +213,20 @@ int create_table(MYSQL &mysql)
       MYSQLERROR(mysql);
     std::cout << "MySQL Cluster already has example table: GARAGE. "
 	      << "Dropping it..." << std::endl; 
-    /**************
-     * Drop table *
-     **************/
-    if (mysql_query(&mysql, "DROP TABLE GARAGE"))
-      MYSQLERROR(mysql);
+    drop_table(mysql);
+    create_table(mysql);
   }
-  return 1;
 }
+
+/**
+ * Drop table GARAGE
+ */
+void drop_table(MYSQL &mysql)
+{
+  if (mysql_query(&mysql, "DROP TABLE GARAGE"))
+    MYSQLERROR(mysql);
+}
+
 
 void asynchExitHandler(Ndb * m_ndb) 
 {
@@ -339,16 +350,12 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
     {
       transaction[current].conn = myNdb->startTransaction();
       if (transaction[current].conn == NULL) {
-	if (asynchErrorHandler(transaction[current].conn, myNdb)) 
-	{
-          /**
-           * no transaction to close since conn == null
-           */
-	  milliSleep(10);
-	  retries++;
-	  continue;
-	}
-	asynchExitHandler(myNdb);	
+	/**
+	 * no transaction to close since conn == null
+	 */
+	milliSleep(10);
+	retries++;
+	continue;
       }
       myNdbOperation = transaction[current].conn->getNdbOperation(myTable);
       if (myNdbOperation == NULL) 
@@ -406,8 +413,15 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
     return -1;
 }
 
-int main()
+int main(int argc, char** argv)
 {
+  if (argc != 3)
+  {
+    std::cout << "Arguments are <socket mysqld> <connect_string cluster>.\n";
+    exit(-1);
+  }
+  char * mysqld_sock  = argv[1];
+  const char *connectstring = argv[2];
   ndb_init();
   MYSQL mysql;
 
@@ -420,7 +434,7 @@ int main()
       exit(-1);
     }
     if ( !mysql_real_connect(&mysql, "localhost", "root", "", "",
-			     3306, "/tmp/mysql.sock", 0) )
+			     0, mysqld_sock, 0) )
       MYSQLERROR(mysql);
 
     mysql_query(&mysql, "CREATE DATABASE TEST_DB");
@@ -432,7 +446,7 @@ int main()
   /**************************************************************
    * Connect to ndb cluster                                     *
    **************************************************************/
-  Ndb_cluster_connection cluster_connection;
+  Ndb_cluster_connection cluster_connection(connectstring);
   if (cluster_connection.connect(4, 5, 1))
   {
     std::cout << "Unable to connect to cluster within 30 secs." << std::endl;
@@ -447,14 +461,14 @@ int main()
 
   Ndb* myNdb = new Ndb( &cluster_connection,
 			"TEST_DB" );  // Object representing the database
-  if (myNdb->init(1024) == -1) {      // Set max 1024  parallel transactions
+  if (myNdb->init(1024) == -1) {      // Set max 1024 parallel transactions
     APIERROR(myNdb->getNdbError());
   }
 
   /**
    * Initialise transaction array
    */
-  for(int i = 0 ; i < 1024 ; i++) 
+  for(int i = 0 ; i < 10 ; i++) 
   {
     transaction[i].used = 0;
     transaction[i].conn = 0;
@@ -462,9 +476,9 @@ int main()
   }
   int i=0;
   /**
-   * Do 20000 insert transactions.
+   * Do 10 insert transactions.
    */
-  while(i < 20000) 
+  while(i < 10) 
   {
     while(populate(myNdb,i,0)<0)  // <0, no space on free list. Sleep and try again.
       milliSleep(10);
@@ -473,4 +487,6 @@ int main()
   }
   std::cout << "Number of temporary errors: " << tempErrors << std::endl;
   delete myNdb; 
+
+  drop_table(mysql);
 }

@@ -85,11 +85,7 @@ public:
   CHARSET_INFO * m_cs;          // not const in MySQL
   
   bool m_pk;
-  /*
-   * Since "none" is "all" we distinguish between
-   * 1-set by us, 2-set by user
-   */
-  Uint32 m_distributionKey;
+  bool m_distributionKey;
   bool m_nullable;
   bool m_autoIncrement;
   Uint64 m_autoIncrementInitialValue;
@@ -159,6 +155,9 @@ public:
   const char * getMysqlName() const;
   void updateMysqlName();
 
+  int aggregate(NdbError& error);
+  int validate(NdbError& error);
+
   Uint32 m_changeMask;
   Uint32 m_primaryTableId;
   BaseString m_internalName;
@@ -198,6 +197,7 @@ public:
   Uint32 m_default_no_part_flag;
   bool m_linear_flag;
   bool m_logging;
+  bool m_temporary;
   bool m_row_gci;
   bool m_row_checksum;
   int m_kvalue;
@@ -273,6 +273,7 @@ public:
   Vector<int> m_key_ids;
 
   bool m_logging;
+  bool m_temporary;
   
   NdbTableImpl * m_table;
   

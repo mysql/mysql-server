@@ -25,7 +25,7 @@
 
 #define MD5_BUFF_LENGTH 33
 
-const LEX_STRING view_type= { (char*) STRING_WITH_LEN("VIEW") };
+const LEX_STRING view_type= { C_STRING_WITH_LEN("VIEW") };
 
 static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode);
@@ -581,40 +581,40 @@ static const int num_view_backups= 3;
   parse()
 */
 static File_option view_parameters[]=
-{{{(char*) STRING_WITH_LEN("query")},
+{{{ C_STRING_WITH_LEN("query")},
   offsetof(TABLE_LIST, query),
   FILE_OPTIONS_ESTRING},
- {{(char*) STRING_WITH_LEN("md5")},
+ {{ C_STRING_WITH_LEN("md5")},
   offsetof(TABLE_LIST, md5),
   FILE_OPTIONS_STRING},
- {{(char*) STRING_WITH_LEN("updatable")},
+ {{ C_STRING_WITH_LEN("updatable")},
   offsetof(TABLE_LIST, updatable_view),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("algorithm")},
+ {{ C_STRING_WITH_LEN("algorithm")},
   offsetof(TABLE_LIST, algorithm),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("definer_user")},
+ {{ C_STRING_WITH_LEN("definer_user")},
   offsetof(TABLE_LIST, definer.user),
   FILE_OPTIONS_STRING},
- {{(char*) STRING_WITH_LEN("definer_host")},
+ {{ C_STRING_WITH_LEN("definer_host")},
   offsetof(TABLE_LIST, definer.host),
   FILE_OPTIONS_STRING},
- {{(char*) STRING_WITH_LEN("suid")},
+ {{ C_STRING_WITH_LEN("suid")},
   offsetof(TABLE_LIST, view_suid),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("with_check_option")},
+ {{ C_STRING_WITH_LEN("with_check_option")},
   offsetof(TABLE_LIST, with_check),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("revision")},
+ {{ C_STRING_WITH_LEN("revision")},
   offsetof(TABLE_LIST, revision),
   FILE_OPTIONS_REV},
- {{(char*) STRING_WITH_LEN("timestamp")},
+ {{ C_STRING_WITH_LEN("timestamp")},
   offsetof(TABLE_LIST, timestamp),
   FILE_OPTIONS_TIMESTAMP},
- {{(char*)STRING_WITH_LEN("create-version")},
+ {{ C_STRING_WITH_LEN("create-version")},
   offsetof(TABLE_LIST, file_version),
   FILE_OPTIONS_ULONGLONG},
- {{(char*) STRING_WITH_LEN("source")},
+ {{ C_STRING_WITH_LEN("source")},
   offsetof(TABLE_LIST, source),
   FILE_OPTIONS_ESTRING},
  {{NullS, 0},			0,
@@ -1070,6 +1070,30 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if (lex->binlog_row_based_if_mixed)
       old_lex->binlog_row_based_if_mixed= TRUE;
 #endif
+    bool view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
+                             lex->can_be_merged());
+    TABLE_LIST *view_main_select_tables;
+    if (view_is_mergeable)
+    {
+      /*
+        Currently 'view_main_select_tables' differs from 'view_tables'
+        only then view has CONVERT_TZ() function in its select list.
+        This may change in future, for example if we enable merging of
+        views with subqueries in select list.
+      */
+      view_main_select_tables=
+        (TABLE_LIST*)lex->select_lex.table_list.first;
+
+      /*
+        Let us set proper lock type for tables of the view's main
+        select since we may want to perform update or insert on
+        view. This won't work for view containing union. But this is
+        ok since we don't allow insert and update on such views
+        anyway.
+      */
+      for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
+        tbl->lock_type= table->lock_type;
+    }
 
     /*
       If we are opening this view as part of implicit LOCK TABLES, then
@@ -1125,23 +1149,15 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       - VIEW SELECT allow merging
       - VIEW used in subquery or command support MERGE algorithm
     */
-    if (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
-	lex->can_be_merged() &&
+    if (view_is_mergeable &&
         (table->select_lex->master_unit() != &old_lex->unit ||
          old_lex->can_use_merged()) &&
         !old_lex->can_not_use_merged())
     {
-      List_iterator_fast<TABLE_LIST> ti(view_select->top_join_list);
-      /*
-        Currently 'view_main_select_tables' differs from 'view_tables'
-        only then view has CONVERT_TZ() function in its select list.
-        This may change in future, for example if we enable merging
-        of views with subqueries in select list.
-      */
-      TABLE_LIST *view_main_select_tables=
-                    (TABLE_LIST*)lex->select_lex.table_list.first;
       /* lex should contain at least one table */
       DBUG_ASSERT(view_main_select_tables != 0);
+
+      List_iterator_fast<TABLE_LIST> ti(view_select->top_join_list);
 
       table->effective_algorithm= VIEW_ALGORITHM_MERGE;
       DBUG_PRINT("info", ("algorithm: MERGE"));
@@ -1149,19 +1165,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       table->effective_with_check=
         old_lex->get_effective_with_check(table);
       table->merge_underlying_list= view_main_select_tables;
-      /*
-        Let us set proper lock type for tables of the view's main select
-        since we may want to perform update or insert on view. This won't
-        work for view containing union. But this is ok since we don't
-        allow insert and update on such views anyway.
 
-        Also we fill correct wanted privileges.
-      */
-      for (tbl= table->merge_underlying_list; tbl; tbl= tbl->next_local)
-      {
-        tbl->lock_type= table->lock_type;
+      /* Fill correct wanted privileges. */
+      for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
         tbl->grant.want_privilege= top_view->grant.orig_want_privilege;
-      }
 
       /* prepare view context */
       lex->select_lex.context.resolve_in_table_list_only(view_main_select_tables);

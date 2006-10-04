@@ -14,29 +14,76 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+MYSQLDATAdir =          $(localstatedir)
+MYSQLSHAREdir =         $(pkgdatadir)
+MYSQLBASEdir=           $(prefix)
+MYSQLLIBdir=            $(pkglibdir)
+INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
+			-I$(top_srcdir)/regex \
+			-I$(top_srcdir)/sql \
+                        -I$(srcdir)
+WRAPLIBS=
+
+LDADD =
+
+DEFS =                  @DEFS@
+
 EXTRA_DIST =		mi_test_all.sh mi_test_all.res ft_stem.c CMakeLists.txt
 pkgdata_DATA =		mi_test_all mi_test_all.res
 
-INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
-LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 pkglib_LIBRARIES =	libmyisam.a
 bin_PROGRAMS =		myisamchk myisamlog myisampack myisam_ftdump
 myisamchk_DEPENDENCIES=	$(LIBRARIES)
+myisamchk_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 myisamlog_DEPENDENCIES=	$(LIBRARIES)
+myisamlog_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 myisampack_DEPENDENCIES=$(LIBRARIES)
+myisampack_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 rt_test sp_test #ft_test1 ft_eval
-noinst_HEADERS =	myisamdef.h rt_index.h rt_key.h rt_mbr.h sp_defs.h fulltext.h ftdefs.h ft_test1.h ft_eval.h
+noinst_HEADERS =	myisamdef.h rt_index.h rt_key.h rt_mbr.h sp_defs.h \
+			fulltext.h ftdefs.h ft_test1.h ft_eval.h \
+			ha_myisam.h
 mi_test1_DEPENDENCIES=	$(LIBRARIES)
+mi_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 mi_test2_DEPENDENCIES=	$(LIBRARIES)
+mi_test2_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 mi_test3_DEPENDENCIES=	$(LIBRARIES)
+mi_test3_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 #ft_test1_DEPENDENCIES=	$(LIBRARIES)
 #ft_eval_DEPENDENCIES=	$(LIBRARIES)
 myisam_ftdump_DEPENDENCIES=	$(LIBRARIES)
+myisam_ftdump_LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 rt_test_DEPENDENCIES=	$(LIBRARIES)
+rt_test_LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 sp_test_DEPENDENCIES=	$(LIBRARIES)
+sp_test_LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
+			$(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_rnext.c mi_rnext_same.c \
 			mi_search.c mi_page.c mi_key.c mi_locking.c \
@@ -52,9 +99,9 @@ libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_keycache.c mi_preload.c \
 			ft_parser.c ft_stopwords.c ft_static.c \
 			ft_update.c ft_boolean_search.c ft_nlq_search.c sort.c \
+			ha_myisam.cc \
 			rt_index.c rt_key.c rt_mbr.c rt_split.c sp_key.c
 CLEANFILES =		test?.MY? FT?.MY? isam.log mi_test_all rt_test.MY? sp_test.MY?
-DEFS =			-DMAP_TO_USE_RAID
 
 # Move to automake rules ?
 prolint:;	plparse -b -u -hF1 "-width(0,0)" "-format=%f:%l:\s%t:%n\s%m" \

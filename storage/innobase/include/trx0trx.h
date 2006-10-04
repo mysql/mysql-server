@@ -670,9 +670,11 @@ struct trx_struct{
 					error, or empty. */
 };
 
-#define TRX_MAX_N_THREADS	32	/* maximum number of concurrent
-					threads running a single operation of
-					a transaction, e.g., a parallel query */
+#define TRX_MAX_N_THREADS	32	/* maximum number of
+					concurrent threads running a
+					single operation of a
+					transaction, e.g., a parallel
+					query */
 /* Transaction types */
 #define	TRX_USER		1	/* normal user transaction */
 #define	TRX_PURGE		2	/* purge transaction: this is not

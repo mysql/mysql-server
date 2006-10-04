@@ -49,8 +49,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
-			ha_heap.h ha_myisam.h ha_myisammrg.h ha_partition.h \
-			ha_innodb.h  ha_federated.h \
+			ha_partition.h \
 			ha_ndbcluster.h ha_ndbcluster_binlog.h \
 			ha_ndbcluster_tables.h \
 			opt_range.h protocol.h rpl_tblmap.h \
@@ -64,8 +63,9 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			tztime.h my_decimal.h\
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
-			sql_array.h sql_cursor.h events.h events_priv.h \
-			sql_plugin.h authors.h sql_partition.h event_timed.h \
+			sql_array.h sql_cursor.h events.h \
+                        event_db_repository.h event_queue.h \
+			sql_plugin.h authors.h sql_partition.h event_data_objects.h \
 			partition_info.h partition_element.h event_scheduler.h \
 			contributors.h
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
@@ -87,9 +87,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			unireg.cc des_key_file.cc \
 			discover.cc time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
-			ha_heap.cc ha_myisam.cc ha_myisammrg.cc \
-			ha_partition.cc ha_innodb.cc \
-			ha_federated.cc \
+			ha_partition.cc \
                         ha_ndbcluster.cc ha_ndbcluster_binlog.cc \
 			sql_db.cc sql_table.cc sql_rename.cc sql_crypt.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
@@ -104,7 +102,8 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			tztime.cc my_time.c my_user.c my_decimal.cc\
 			sp_head.cc sp_pcontext.cc  sp_rcontext.cc sp.cc \
 			sp_cache.cc parse_file.cc sql_trigger.cc \
-                        event_scheduler.cc events.cc event_timed.cc \
+                        event_scheduler.cc event_data_objects.cc \
+                        event_queue.cc event_db_repository.cc events.cc \
 			sql_plugin.cc sql_binlog.cc \
 			sql_builtin.cc sql_tablespace.cc partition_info.cc
 
@@ -124,8 +123,8 @@ DEFS =			-DMYSQL_SERVER \
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
 EXTRA_DIST =		udf_example.c $(BUILT_SOURCES) \
 			nt_servc.cc nt_servc.h message.mc CMakeLists.txt
-CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h
-AM_YFLAGS =		-d
+CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h sql_yacc.output
+AM_YFLAGS =		-d --debug --verbose
 
 mysql_tzinfo_to_sql.cc:
 	rm -f mysql_tzinfo_to_sql.cc

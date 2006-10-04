@@ -84,5 +84,11 @@
 
 #define NDB_STORAGETYPE_MEMORY          0
 #define NDB_STORAGETYPE_DISK            1
- 
+
+/*
+ * Table temporary status.
+ */
+#define NDB_TEMP_TAB_PERMANENT          0
+#define NDB_TEMP_TAB_TEMPORARY          1
+
 #endif

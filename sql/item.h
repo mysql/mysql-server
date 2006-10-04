@@ -495,7 +495,7 @@ public:
   my_bool with_subselect;               /* If this item is a subselect or some
                                            of its arguments is or contains a
                                            subselect */
-
+  Item_result cmp_context;              /* Comparison context */
   // alloc & destruct is done as start of select using sql_alloc
   Item();
   /*
@@ -774,10 +774,7 @@ public:
     return (this->*processor)(arg);
   }
 
-  virtual Item* transform(Item_transformer transformer, byte *arg)
-  {
-    return (this->*transformer)(arg);
-  }
+  virtual Item* transform(Item_transformer transformer, byte *arg);
 
    virtual void traverse_cond(Cond_traverser traverser,
                               void *arg, traverse_order order)
@@ -818,7 +815,7 @@ public:
   { *(bool *)bool_arg= FALSE; return 0; }
 
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
-  virtual Item *set_no_const_sub(byte *arg) { return this; }
+  virtual bool set_no_const_sub(byte *arg) { return FALSE; }
   virtual Item *replace_equal_field(byte * arg) { return this; }
 
   /*
@@ -1319,7 +1316,7 @@ public:
   }
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   Item *equal_fields_propagator(byte *arg);
-  Item *set_no_const_sub(byte *arg);
+  bool set_no_const_sub(byte *arg);
   Item *replace_equal_field(byte *arg);
   inline uint32 max_disp_length() { return field->max_length(); }
   Item_field *filed_for_view_update() { return this; }
@@ -2197,18 +2194,7 @@ public:
       (this->*processor)(args);
   }
 
-  /* 
-     This method like the walk method traverses the item tree, but
-     at the same time it can replace some nodes in the tree
-  */ 
-  Item *transform(Item_transformer transformer, byte *args)
-  {
-    Item *new_item= arg->transform(transformer, args);
-    if (!new_item)
-      return 0;
-    arg= new_item;
-    return (this->*transformer)(args);
-  }
+  Item *transform(Item_transformer transformer, byte *args);
 };
 
 /*

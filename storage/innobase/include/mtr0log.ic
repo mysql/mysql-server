@@ -165,7 +165,7 @@ mlog_write_initial_log_record_fast(
 	ulint		offset;
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
-							MTR_MEMO_PAGE_X_FIX));
+				MTR_MEMO_PAGE_X_FIX));
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(ptr && log_ptr);
 
@@ -182,9 +182,9 @@ mlog_write_initial_log_record_fast(
 	mtr->n_log_recs++;
 
 #ifdef UNIV_LOG_DEBUG
-/*	fprintf(stderr,
-		"Adding to mtr log record type %lu space %lu page no %lu\n",
-						type, space, offset); */
+	/*	fprintf(stderr,
+	"Adding to mtr log record type %lu space %lu page no %lu\n",
+	type, space, offset); */
 #endif
 
 #ifdef UNIV_DEBUG

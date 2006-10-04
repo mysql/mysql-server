@@ -255,7 +255,12 @@ enum legacy_db_type
   DB_TYPE_BLACKHOLE_DB,
   DB_TYPE_PARTITION_DB,
   DB_TYPE_BINLOG,
-  DB_TYPE_FIRST_DYNAMIC=32,
+  DB_TYPE_SOLID,
+  DB_TYPE_PBXT,
+  DB_TYPE_TABLE_FUNCTION,
+  DB_TYPE_MEMCACHE,
+  DB_TYPE_FALCON,
+  DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
 
@@ -667,6 +672,12 @@ struct handlerton
    enum handler_create_iterator_result
      (*create_iterator)(enum handler_iterator_type type,
                         struct handler_iterator *fill_this_in);
+   int (*discover)(THD* thd, const char *db, const char *name,
+                   const void** frmblob, uint* frmlen);
+   int (*find_files)(THD *thd,const char *db,const char *path,
+                     const char *wild, bool dir, List<char> *files);
+   int (*table_exists_in_engine)(THD* thd, const char *db,
+                                 const char *name);
 };
 
 
@@ -983,7 +994,7 @@ public:
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
-  void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
+  virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   {
     table= table_arg;
     table_share= share;
@@ -1589,7 +1600,6 @@ private:
 
 	/* Some extern variables used with handlers */
 
-extern handlerton *sys_table_types[];
 extern const char *ha_row_type[];
 extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;

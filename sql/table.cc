@@ -93,6 +93,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
 {
   MEM_ROOT mem_root;
   TABLE_SHARE *share;
+  char *key_buff, *path_buff;
   char path[FN_REFLEN];
   uint path_length;
   DBUG_ENTER("alloc_table_share");
@@ -103,22 +104,17 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
                                     table_list->db,
                                     table_list->table_name, "", 0);
   init_sql_alloc(&mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-  if ((share= (TABLE_SHARE*) alloc_root(&mem_root,
-					sizeof(*share) + key_length +
-                                        path_length +1)))
+  if (multi_alloc_root(&mem_root,
+                       &share, sizeof(*share),
+                       &key_buff, key_length,
+                       &path_buff, path_length + 1,
+                       NULL))
   {
     bzero((char*) share, sizeof(*share));
-    share->table_cache_key.str=    (char*) (share+1);
-    share->table_cache_key.length= key_length;
-    memcpy(share->table_cache_key.str, key, key_length);
 
-    /* Use the fact the key is db/0/table_name/0 */
-    share->db.str=            share->table_cache_key.str;
-    share->db.length=         strlen(share->db.str);
-    share->table_name.str=    share->db.str + share->db.length + 1;
-    share->table_name.length= strlen(share->table_name.str);
+    share->set_table_cache_key(key_buff, key, key_length);
 
-    share->path.str= share->table_cache_key.str+ key_length;
+    share->path.str= path_buff;
     share->path.length= path_length;
     strmov(share->path.str, path);
     share->normalized_path.str=    share->path.str;
@@ -1475,11 +1471,23 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->partition_info_len)
   {
-    MEM_ROOT **root_ptr, *old_root;
+  /*
+    In this execution we must avoid calling thd->change_item_tree since
+    we might release memory before statement is completed. We do this
+    by changing to a new statement arena. As part of this arena we also
+    set the memory root to be the memory root of the table since we
+    call the parser and fix_fields which both can allocate memory for
+    item objects. We keep the arena to ensure that we can release the
+    free_list when closing the table object.
+    SEE Bug #21658
+  */
+
+    Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
+    Query_arena backup_arena;
+    Query_arena part_func_arena(&outparam->mem_root, Query_arena::INITIALIZED);
+    thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
+    thd->stmt_arena= &part_func_arena;
     bool tmp;
-    root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
-    old_root= *root_ptr;
-    *root_ptr= &outparam->mem_root;
 
     tmp= mysql_unpack_partition(thd, share->partition_info,
                                 share->partition_info_len,
@@ -1491,7 +1499,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
     if (!tmp)
       tmp= fix_partition_func(thd, outparam, is_create_table);
-    *root_ptr= old_root;
+    thd->stmt_arena= backup_stmt_arena_ptr;
+    thd->restore_active_arena(&part_func_arena, &backup_arena);
+    if (!tmp)
+      outparam->part_info->item_free_list= part_func_arena.free_list;
     if (tmp)
     {
       if (is_create_table)
@@ -2246,7 +2257,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 bool check_db_name(char *name)
 {
-  char *start=name;
+  uint name_length= 0;  // name length in symbols
   /* Used to catch empty names and names with end space */
   bool last_char_is_space= TRUE;
 
@@ -2266,13 +2277,15 @@ bool check_db_name(char *name)
         name += len;
         continue;
       }
+    name_length++;
     }
 #else
     last_char_is_space= *name==' ';
 #endif
+    name_length++;
     name++;
   }
-  return last_char_is_space || (uint) (name - start) > NAME_LEN;
+  return last_char_is_space || name_length > NAME_LEN;
 }
 
 
@@ -2354,28 +2367,28 @@ bool check_column_name(const char *name)
   Checks whether a table is intact. Should be done *just* after the table has
   been opened.
   
-  Synopsis
+  SYNOPSIS
     table_check_intact()
-      table         - the table to check
-      table_f_count - expected number of columns in the table
-      table_def     - expected structure of the table (column name and type)
-    last_create_time- the table->file->create_time of the table in memory
-                      we have checked last time
-      error_num     - ER_XXXX from the error messages file. When 0 no error
-                      is sent to the client in case types does not match.
-                      If different col number either 
-                      ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE or 
-                      ER_COL_COUNT_DOESNT_MATCH_CORRUPTED is used
+      table             The table to check
+      table_f_count     Expected number of columns in the table
+      table_def         Expected structure of the table (column name and type)
+      last_create_time  The table->file->create_time of the table in memory
+                        we have checked last time
+      error_num         ER_XXXX from the error messages file. When 0 no error
+                        is sent to the client in case types does not match.
+                        If different col number either 
+                        ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE or 
+                        ER_COL_COUNT_DOESNT_MATCH_CORRUPTED is used
 
   RETURNS
-    0   - OK
-    1   - There was an error
+    FALSE  OK
+    TRUE   There was an error
 */
 
 my_bool
-table_check_intact(TABLE *table, uint table_f_count,
-                   TABLE_FIELD_W_TYPE *table_def, time_t *last_create_time,
-                   int error_num)
+table_check_intact(TABLE *table, const uint table_f_count,
+                   const TABLE_FIELD_W_TYPE *table_def,
+                   time_t *last_create_time, int error_num)
 {
   uint i;
   my_bool error= FALSE;
@@ -2390,7 +2403,7 @@ table_check_intact(TABLE *table, uint table_f_count,
     DBUG_PRINT("info", ("I am suspecting, checking table"));
     if (fields_diff_count)
     {
-      // previous MySQL version
+      /* previous MySQL version */
       error= TRUE;
       if (MYSQL_VERSION_ID > table->s->mysql_version)
       {
@@ -2413,22 +2426,22 @@ table_check_intact(TABLE *table, uint table_f_count,
       else
       {
         /*
-          moving from newer mysql to older one -> let's say not an error but
+          Moving from newer mysql to older one -> let's say not an error but
           will check the definition afterwards. If a column was added at the
           end then we don't care much since it's not in the middle.
         */
         error= FALSE;
       }
     }
-    //definitely something has changed
+    /* definitely something has changed */
     char buffer[255];
     for (i=0 ; i < table_f_count; i++, table_def++)
     {      
       String sql_type(buffer, sizeof(buffer), system_charset_info);
       sql_type.length(0);
       /*
-        name changes are not fatal, we use sequence numbers => no prob for us
-        but this can show tampered table or broken table.
+        Name changes are not fatal, we use sequence numbers => no problem
+        for us but this can show tampered table or broken table.
       */
       if (i < table->s->fields)
       {
@@ -2442,7 +2455,7 @@ table_check_intact(TABLE *table, uint table_f_count,
         }
                         
         /*
-          IF the type does not match than something is really wrong
+          If the type does not match than something is really wrong
           Check up to length - 1. Why?
           1. datetime -> datetim -> the same
           2. int(11) -> int(11  -> the same

@@ -10,6 +10,18 @@ drop table if exists t1;
 --enable_warnings
 
 #
+# Bug 21339: Crash in Explain Partitions
+#
+create table t1 (a date)
+engine = innodb
+partition by range (year(a))
+(partition p0 values less than (2006),
+ partition p1 values less than (2007));
+explain partitions select * from t1
+where a between '2006-01-01' and '2007-06-01';
+drop table t1;
+
+#
 # More checks for partition pruning
 #
 create table t1 (a int unsigned)
@@ -686,3 +698,4 @@ EXPLAIN PARTITIONS SELECT * from t1
 WHERE (a >= '2004-07-01' AND a <= '2004-09-30') OR
       (a >= '2005-07-01' AND a <= '2005-09-30');
 DROP TABLE t1;
+

@@ -28,6 +28,8 @@
 #include <sys/malloc.h>
 #endif
 
+#include "events.h"
+
 static const char *lock_descriptions[] =
 {
   "No lock",
@@ -532,5 +534,7 @@ Estimated memory (with thread stack):    %ld\n",
 	 (int) info.keepcost,
 	 (long) (thread_count * thread_stack + info.hblkhd + info.arena));
 #endif
+
+  Events::get_instance()->dump_internal_status();
   puts("");
 }

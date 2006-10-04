@@ -1469,7 +1469,15 @@ int Dbtup::handleDeleteReq(Signal* signal,
   {
     Operationrec* prevOp= req_struct->prevOpPtr.p;
     regOperPtr->tupVersion= prevOp->tupVersion;
-    regOperPtr->m_copy_tuple_location= prevOp->m_copy_tuple_location;
+    // make copy since previous op is committed before this one
+    const Uint32* org = c_undo_buffer.get_ptr(&prevOp->m_copy_tuple_location);
+    Uint32* dst = c_undo_buffer.alloc_copy_tuple(
+        &regOperPtr->m_copy_tuple_location, regTabPtr->total_rec_size);
+    if (dst == 0) {
+      terrorCode = ZMEM_NOMEM_ERROR;
+      goto error;
+    }
+    memcpy(dst, org, regTabPtr->total_rec_size << 2);
   } 
   else 
   {

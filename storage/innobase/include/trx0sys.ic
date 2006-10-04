@@ -100,7 +100,7 @@ trx_sysf_get(
 	ut_ad(mtr);
 
 	header = TRX_SYS + buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,
-							RW_X_LATCH, mtr);
+					RW_X_LATCH, mtr);
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(header, SYNC_TRX_SYS_HEADER);
@@ -128,8 +128,8 @@ trx_sysf_rseg_get_space(
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
 	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
-			+ i * TRX_SYS_RSEG_SLOT_SIZE
-			+ TRX_SYS_RSEG_SPACE, MLOG_4BYTES, mtr));
+			      + i * TRX_SYS_RSEG_SLOT_SIZE
+			      + TRX_SYS_RSEG_SPACE, MLOG_4BYTES, mtr));
 }
 
 /*********************************************************************
@@ -152,8 +152,8 @@ trx_sysf_rseg_get_page_no(
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
 	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
-			+ i * TRX_SYS_RSEG_SLOT_SIZE
-			+ TRX_SYS_RSEG_PAGE_NO, MLOG_4BYTES, mtr));
+			      + i * TRX_SYS_RSEG_SLOT_SIZE
+			      + TRX_SYS_RSEG_PAGE_NO, MLOG_4BYTES, mtr));
 }
 
 /*********************************************************************
@@ -175,10 +175,10 @@ trx_sysf_rseg_set_space(
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
 	mlog_write_ulint(sys_header + TRX_SYS_RSEGS
-			+ i * TRX_SYS_RSEG_SLOT_SIZE
-			+ TRX_SYS_RSEG_SPACE,
-			space,
-			MLOG_4BYTES, mtr);
+			 + i * TRX_SYS_RSEG_SLOT_SIZE
+			 + TRX_SYS_RSEG_SPACE,
+			 space,
+			 MLOG_4BYTES, mtr);
 }
 
 /*********************************************************************
@@ -201,10 +201,10 @@ trx_sysf_rseg_set_page_no(
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
 	mlog_write_ulint(sys_header + TRX_SYS_RSEGS
-			+ i * TRX_SYS_RSEG_SLOT_SIZE
-			+ TRX_SYS_RSEG_PAGE_NO,
-			page_no,
-			MLOG_4BYTES, mtr);
+			 + i * TRX_SYS_RSEG_SLOT_SIZE
+			 + TRX_SYS_RSEG_PAGE_NO,
+			 page_no,
+			 MLOG_4BYTES, mtr);
 }
 
 /*********************************************************************
@@ -327,8 +327,8 @@ trx_is_active(
 	}
 
 	trx = trx_get_on_id(trx_id);
-	if (trx && (trx->conc_state == TRX_ACTIVE ||
-			trx->conc_state == TRX_PREPARED)) {
+	if (trx && (trx->conc_state == TRX_ACTIVE
+		    || trx->conc_state == TRX_PREPARED)) {
 
 		return(TRUE);
 	}
@@ -358,7 +358,7 @@ trx_sys_get_new_trx_id(void)
 	repeatedly started! */
 
 	if (ut_dulint_get_low(trx_sys->max_trx_id)
-				% TRX_SYS_TRX_ID_WRITE_MARGIN == 0) {
+	    % TRX_SYS_TRX_ID_WRITE_MARGIN == 0) {
 
 		trx_sys_flush_max_trx_id();
 	}

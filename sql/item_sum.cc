@@ -290,7 +290,9 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 
 void Item_sum::mark_as_sum_func()
 {
-  current_thd->lex->current_select->with_sum_func= 1;
+  SELECT_LEX *cur_select= current_thd->lex->current_select;
+  cur_select->n_sum_items++;
+  cur_select->with_sum_func= 1;
   with_sum_func= 1;
 }
 

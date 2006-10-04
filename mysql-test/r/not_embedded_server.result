@@ -2,5 +2,4 @@ prepare stmt1 from ' SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND!
 execute stmt1;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 number	root	localhost	test	Query	time	preparing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND!='Daemon'
-number	event_scheduler	localhost	NULL	Connect	time	Suspended	NULL
 deallocate prepare stmt1;

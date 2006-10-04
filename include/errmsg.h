@@ -15,7 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* Error messages for MySQL clients */
-/* (Error messages for the daemon are in share/language/errmsg.sys) */
+/* (Error messages for the daemon are in sql/share/errmsg.txt) */
 
 #ifdef	__cplusplus
 extern "C" {

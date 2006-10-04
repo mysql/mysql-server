@@ -735,6 +735,7 @@ private:
   Uint32	theTCConPtr;				// Transaction Co-ordinator connection pointer.
   Uint64	theTransactionId;			// theTransactionId of the transaction
   Uint32	theGlobalCheckpointId;			// The gloabl checkpoint identity of the transaction
+  Uint64 *p_latest_trans_gci;                           // Reference to latest gci for connection
   ConStatusType	theStatus;				// The status of the connection		
   enum CompletionStatus { 
     NotCompleted,
@@ -753,7 +754,7 @@ private:
   bool theTransactionIsStarted; 
   bool theInUseState;
   bool theSimpleState;
-  Uint8 m_abortOption;           // Type of commit
+  Uint8 m_abortOption;           // Type of commi
 
   enum ListState {  
     NotInList, 

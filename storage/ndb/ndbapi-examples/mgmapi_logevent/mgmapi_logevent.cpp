@@ -39,7 +39,7 @@
   exit(-1); \
 }
 
-int main()
+int main(int argc, char** argv)
 {
   NdbMgmHandle h;
   NdbLogEventHandle le;
@@ -51,12 +51,26 @@ int main()
 		   0 };
   struct ndb_logevent event;
 
+  if (argc < 2)
+  {
+    printf("Arguments are <connect_string cluster> [<iterations>].\n");
+    exit(-1);
+  }
+  const char *connectstring = argv[1];
+  int iterations = -1; 
+  if (argc > 2)
+    iterations = atoi(argv[2]);
   ndb_init();
-
+  
   h= ndb_mgm_create_handle();
   if ( h == 0)
   {
     printf("Unable to create handle\n");
+    exit(-1);
+  }
+  if (ndb_mgm_set_connectstring(h, connectstring) == -1)
+  {
+    printf("Unable to set connectstring\n");
     exit(-1);
   }
   if (ndb_mgm_connect(h,0,0,0)) MGMERROR(h);
@@ -64,9 +78,9 @@ int main()
   le= ndb_mgm_create_logevent_handle(h, filter);
   if ( le == 0 )  MGMERROR(h);
 
-  while (1)
+  while (iterations-- != 0)
   {
-    int timeout= 5000;
+    int timeout= 1000;
     int r= ndb_logevent_get_next(le,&event,timeout);
     if (r == 0)
       printf("No event within %d milliseconds\n", timeout);

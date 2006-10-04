@@ -124,6 +124,7 @@ String *Item_func_md5::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
+  str->set_charset(&my_charset_bin);
   if (sptr)
   {
     my_MD5_CTX context;
@@ -170,6 +171,7 @@ String *Item_func_sha::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String * sptr= args[0]->val_str(str);
+  str->set_charset(&my_charset_bin);
   if (sptr)  /* If we got value different from NULL */
   {
     SHA1_CONTEXT context;  /* Context used to generate SHA1 hash */
@@ -1605,7 +1607,7 @@ String *Item_func_encrypt::val_str(String *str)
     null_value= 1;
     return 0;
   }
-  str->set(tmp,(uint) strlen(tmp),res->charset());
+  str->set(tmp, (uint) strlen(tmp), &my_charset_bin);
   str->copy();
   pthread_mutex_unlock(&LOCK_crypt);
   return str;
@@ -2041,13 +2043,33 @@ String *Item_func_make_set::val_str(String *str)
 	      return &my_empty_string;
 	    result= &tmp_str;
 	  }
-	  if (tmp_str.append(',') || tmp_str.append(*res))
+	  if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) || tmp_str.append(*res))
 	    return &my_empty_string;
 	}
       }
     }
   }
   return result;
+}
+
+
+Item *Item_func_make_set::transform(Item_transformer transformer, byte *arg)
+{
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  Item *new_item= item->transform(transformer, arg);
+  if (!new_item)
+    return 0;
+
+  /*
+    THD::change_item_tree() should be called only if the tree was
+    really transformed, i.e. when a new item has been created.
+    Otherwise we'll be allocating a lot of unnecessary memory for
+    change records at each execution.
+  */
+  if (item != new_item)
+    current_thd->change_item_tree(&item, new_item);
+  return Item_str_func::transform(transformer, arg);
 }
 
 
@@ -2359,17 +2381,33 @@ String *Item_func_conv::val_str(String *str)
       abs(to_base) > 36 || abs(to_base) < 2 ||
       abs(from_base) > 36 || abs(from_base) < 2 || !(res->length()))
   {
-    null_value=1;
-    return 0;
+    null_value= 1;
+    return NULL;
   }
-  null_value=0;
+  null_value= 0;
   unsigned_flag= !(from_base < 0);
-  if (from_base < 0)
-    dec= my_strntoll(res->charset(),res->ptr(),res->length(),-from_base,&endptr,&err);
+
+  if (args[0]->field_type() == MYSQL_TYPE_BIT) 
+  {
+    /* 
+     Special case: The string representation of BIT doesn't resemble the
+     decimal representation, so we shouldn't change it to string and then to
+     decimal. 
+    */
+    dec= args[0]->val_int();
+  }
   else
-    dec= (longlong) my_strntoull(res->charset(),res->ptr(),res->length(),from_base,&endptr,&err);
-  ptr= longlong2str(dec,ans,to_base);
-  if (str->copy(ans,(uint32) (ptr-ans), default_charset()))
+  {
+    if (from_base < 0)
+      dec= my_strntoll(res->charset(), res->ptr(), res->length(),
+                       -from_base, &endptr, &err);
+    else
+      dec= (longlong) my_strntoull(res->charset(), res->ptr(), res->length(),
+                                   from_base, &endptr, &err);
+  }
+
+  ptr= longlong2str(dec, ans, to_base);
+  if (str->copy(ans, (uint32) (ptr-ans), default_charset()))
     return &my_empty_string;
   return str;
 }
@@ -2699,8 +2737,12 @@ String* Item_func_export_set::val_str(String* str)
     }
     break;
   case 3:
-    sep_buf.set(STRING_WITH_LEN(","), default_charset());
-    sep = &sep_buf;
+    {
+      /* errors is not checked - assume "," can always be converted */
+      uint errors;
+      sep_buf.copy(STRING_WITH_LEN(","), &my_charset_bin, collation.collation, &errors);
+      sep = &sep_buf;
+    }
     break;
   default:
     DBUG_ASSERT(0); // cannot happen

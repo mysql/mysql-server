@@ -29,7 +29,7 @@
 #include "runtime.hpp"
 #include "misc.hpp"
 
-
+#if !defined(YASSL_MYSQL_COMPATIBLE)
 extern "C" {
 
     // for libcurl configure test, these are the signatures they use
@@ -37,6 +37,7 @@ extern "C" {
     char CRYPTO_lock() { return 0;}
     char CRYPTO_add_lock() { return 0;}
 }  // extern "C"
+#endif
 
 #ifdef YASSL_PURE_C
 

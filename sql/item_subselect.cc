@@ -1141,24 +1141,23 @@ Item_in_subselect::row_value_transformer(JOIN *join)
         DBUG_RETURN(RES_ERROR);
       Item *item_eq=
         new Item_func_eq(new
-                         Item_direct_ref(&select_lex->context,
-                                         (*optimizer->get_cache())->
-                                         addr(i),
-                                         (char *)"<no matter>",
-                                         (char *)in_left_expr_name),
+                         Item_ref(&select_lex->context,
+                                  (*optimizer->get_cache())->
+                                  addr(i),
+                                  (char *)"<no matter>",
+                                  (char *)in_left_expr_name),
                          new
-                         Item_direct_ref(&select_lex->context,
-                                         select_lex->ref_pointer_array + i,
-                                         (char *)"<no matter>",
-                                         (char *)"<list ref>")
+                         Item_ref(&select_lex->context,
+                                  select_lex->ref_pointer_array + i,
+                                  (char *)"<no matter>",
+                                  (char *)"<list ref>")
                         );
       Item *item_isnull=
         new Item_func_isnull(new
-                             Item_direct_ref(&select_lex->context,
-                                             select_lex->
-                                             ref_pointer_array+i,
-                                             (char *)"<no matter>",
-                                             (char *)"<list ref>")
+                             Item_ref(&select_lex->context,
+                                      select_lex->ref_pointer_array+i,
+                                      (char *)"<no matter>",
+                                      (char *)"<list ref>")
                             );
       having_item=
         and_items(having_item,
@@ -1168,11 +1167,11 @@ Item_in_subselect::row_value_transformer(JOIN *join)
                   new
                   Item_is_not_null_test(this,
                                         new
-                                        Item_direct_ref(&select_lex->context,
-                                                        select_lex->
-                                                        ref_pointer_array + i,
-                                                        (char *)"<no matter>",
-                                                        (char *)"<list ref>")
+                                        Item_ref(&select_lex->context,
+                                                 select_lex->
+                                                 ref_pointer_array + i,
+                                                 (char *)"<no matter>",
+                                                 (char *)"<list ref>")
                                        )
                  );
       item_having_part2->top_level_item();
@@ -1228,11 +1227,11 @@ Item_in_subselect::row_value_transformer(JOIN *join)
                     new
                     Item_is_not_null_test(this,
                                           new
-                                          Item_direct_ref(&select_lex->context,
-                                                          select_lex->
-                                                          ref_pointer_array + i,
-                                                          (char *)"<no matter>",
-                                                          (char *)"<list ref>")
+                                          Item_ref(&select_lex->context,
+                                                   select_lex->
+                                                   ref_pointer_array + i,
+                                                   (char *)"<no matter>",
+                                                   (char *)"<list ref>")
                                          )
                   );
         item_isnull= new

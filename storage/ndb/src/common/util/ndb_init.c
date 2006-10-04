@@ -16,6 +16,16 @@
 
 #include <ndb_global.h>
 #include <my_sys.h>
+#include <NdbMutex.h>
+
+NdbMutex *g_ndb_connection_mutex = NULL;
+
+void
+ndb_init_internal()
+{
+  if (!g_ndb_connection_mutex)
+    g_ndb_connection_mutex = NdbMutex_Create();
+}
 
 int
 ndb_init()
@@ -25,11 +35,20 @@ ndb_init()
     write(2, err, strlen(err));
     exit(1);
   }
+  ndb_init_internal();
   return 0;
+}
+
+void
+ndb_end_internal()
+{
+  if (g_ndb_connection_mutex)
+    NdbMutex_Destroy(g_ndb_connection_mutex);
 }
 
 void
 ndb_end(int flags)
 {
   my_end(flags);
+  ndb_end_internal();
 }

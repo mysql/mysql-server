@@ -6145,30 +6145,103 @@ CALL bug16676_p2('a', @v2, @v3)|
 use test|
 
 DROP DATABASE mysqltest1|
-# Bug#21002 "Derived table not selecting from a "real" table fails in JOINs"
-#         
-# A regression caused by the fix for Bug#18444: for derived tables we should
-# set an empty string as the current database. They do not belong to any
-# database and must be usable even if there is no database
-# selected.
+#
+# BUG#8153: Stored procedure with subquery and continue handler, wrong result
+#
+
 --disable_warnings
 drop table if exists t3|
-drop database if exists mysqltest1|
+drop table if exists t4|
+drop procedure if exists bug8153_subselect|
+drop procedure if exists bug8153_subselect_a|
+drop procedure if exists bug8153_subselect_b|
+drop procedure if exists bug8153_proc_a|
+drop procedure if exists bug8153_proc_b|
 --enable_warnings
+
 create table t3 (a int)|
-insert into t3 (a) values (1), (2)|
+create table t4 (a int)|
+insert into t3 values (1), (1), (2), (3)|
+insert into t4 values (1), (1)|
 
-create database mysqltest1|
-use mysqltest1|
-drop database mysqltest1|
+## Testing the use case reported in Bug#8153
 
-# No current database
-select database()|
+create procedure bug8153_subselect()
+begin
+  declare continue handler for sqlexception
+  begin
+    select 'statement failed';
+  end;
+  update t3 set a=a+1 where (select a from t4 where a=1) is null;
+  select 'statement after update';
+end|
 
-select * from (select 1 as a) as t1 natural join (select * from test.t3) as t2|
-use test|
+call bug8153_subselect()|
+select * from t3|
+
+call bug8153_subselect()|
+select * from t3|
+
+drop procedure bug8153_subselect|
+
+## Testing a subselect with a non local handler
+
+create procedure bug8153_subselect_a()
+begin
+  declare continue handler for sqlexception
+  begin
+    select 'in continue handler';
+  end;
+
+  select 'reachable code a1';
+  call bug8153_subselect_b();
+  select 'reachable code a2';
+end|
+
+create procedure bug8153_subselect_b()
+begin
+  select 'reachable code b1';
+  update t3 set a=a+1 where (select a from t4 where a=1) is null;
+  select 'unreachable code b2';
+end|
+
+call bug8153_subselect_a()|
+select * from t3|
+
+call bug8153_subselect_a()|
+select * from t3|
+
+drop procedure bug8153_subselect_a|
+drop procedure bug8153_subselect_b|
+
+## Testing extra use cases, found while investigating
+## This is related to BUG#18787, with a non local handler
+
+create procedure bug8153_proc_a()
+begin
+  declare continue handler for sqlexception
+  begin
+    select 'in continue handler';
+  end;
+
+  select 'reachable code a1';
+  call bug8153_proc_b();
+  select 'reachable code a2';
+end|
+
+create procedure bug8153_proc_b()
+begin
+  select 'reachable code b1';
+  select no_such_function();
+  select 'unreachable code b2';
+end|
+
+call bug8153_proc_a()|
+
+drop procedure bug8153_proc_a|
+drop procedure bug8153_proc_b|
 drop table t3|
-
+drop table t4|
 
 #
 # BUG#19862: Sort with filesort by function evaluates function twice
@@ -6188,6 +6261,39 @@ SELECT bug19862(a) FROM t12 ORDER BY 1|
 SELECT * FROM t11|
 DROP TABLE t11, t12|
 DROP FUNCTION bug19862|
+
+# Test for BUG#16899: Possible buffer overflow in handling of DEFINER-clause.
+#
+# Prepare.
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug16899_p1|
+DROP FUNCTION IF EXISTS bug16899_f1|
+--enable_warnings
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=1234567890abcdefGHIKL@localhost PROCEDURE bug16899_p1()
+BEGIN
+  SET @a = 1;
+END|
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+  FUNCTION bug16899_f1() RETURNS INT
+BEGIN
+  RETURN 1;
+END|
+
+
+#
+# BUG#21416: SP: Recursion level higher than zero needed for non-recursive call
+#
+--disable_warnings
+drop procedure if exists bug21416|
+--enable_warnings
+create procedure bug21416() show create procedure bug21416|
+call bug21416()|
+drop procedure bug21416|
 
 --echo End of 5.0 tests
 #

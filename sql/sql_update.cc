@@ -746,7 +746,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
                                     &select_lex->top_join_list,
                                     table_list,
                                     &select_lex->leaf_tables,
-                                    FALSE, UPDATE_ACL) ||
+                                    FALSE, UPDATE_ACL, SELECT_ACL) ||
       setup_conds(thd, table_list, select_lex->leaf_tables, conds) ||
       select_lex->setup_ref_array(thd, order_num) ||
       setup_order(thd, select_lex->ref_pointer_array,
@@ -841,7 +841,7 @@ reopen_tables:
                                     &lex->select_lex.top_join_list,
                                     table_list,
                                     &lex->select_lex.leaf_tables, FALSE,
-                                    UPDATE_ACL))
+                                    UPDATE_ACL, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
   if (setup_fields_with_no_wrap(thd, 0, *fields, MARK_COLUMNS_WRITE, 0, 0))

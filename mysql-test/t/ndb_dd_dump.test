@@ -221,6 +221,48 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 
+#### BUG 18856 test case comented out
+##### Use "SELECT * INTO OUTFILE" to dump data and "LOAD DATA INFILE" to load ##### data back to the data file.
+
+#CREATE TABLE test.t (
+#  a smallint NOT NULL,
+#  b int NOT NULL,
+#  c bigint NOT NULL,
+#  d char(10),
+#  e TEXT,
+#  f VARCHAR(255),
+#  PRIMARY KEY(a)
+#) TABLESPACE ts1 STORAGE DISK ENGINE=NDB;
+
+# ALTER TABLE test.t ADD INDEX (d), ADD INDEX (f);
+# SHOW CREATE TABLE test.t;
+
+# insert records into tables
+
+# let $1=100;
+# disable_query_log;
+# while ($1)
+# {
+#  eval insert into test.t values($1, $1+1, $1+2, "aaa$1", "bbb$1", "ccccc$1");
+#  dec $1;
+# }
+# enable_query_log;
+
+# SELECT * FROM test.t order by a;
+
+# SELECT * INTO OUTFILE 't_backup' FROM test.t;
+# TRUNCATE test.t;
+
+#'TRUNCATE test.t' failed: 1205: Lock wait timeout exceeded; try restarting #transaction. TABLESPACE ts STORAGE DISK ENGINE=NDB;
+
+# SELECT count(*) FROM test.t;
+# LOAD DATA INFILE 't_backup' INTO TABLE test.t;
+
+# SELECT * FROM test.t order by a;
+
+# DROP TABLE test.t;
+
+
 ALTER TABLESPACE ts1 
 DROP DATAFILE 'datafile_ts1_01.dat' 
 ENGINE = NDB;

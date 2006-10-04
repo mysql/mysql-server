@@ -111,6 +111,15 @@ typedef struct my_locale_st
   TYPELIB *ab_month_names;
   TYPELIB *day_names;
   TYPELIB *ab_day_names;
+#ifdef __cplusplus 
+  my_locale_st(const char *name_par, const char *descr_par, bool is_ascii_par,
+               TYPELIB *month_names_par, TYPELIB *ab_month_names_par,
+               TYPELIB *day_names_par, TYPELIB *ab_day_names_par) : 
+    name(name_par), description(descr_par), is_ascii(is_ascii_par),
+    month_names(month_names_par), ab_month_names(ab_month_names_par),
+    day_names(day_names_par), ab_day_names(ab_day_names_par)
+  {}
+#endif
 } MY_LOCALE;
 
 extern MY_LOCALE my_locale_en_US;
@@ -575,6 +584,8 @@ void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
+bool check_string_length(CHARSET_INFO *cs, LEX_STRING *str,
+                         const char *err_msg, uint max_length);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -1131,6 +1142,7 @@ bool setup_tables_and_check_access(THD *thd,
                                    TABLE_LIST *tables, 
                                    TABLE_LIST **leaves, 
                                    bool select_insert,
+                                   ulong want_access_first,
                                    ulong want_access);
 int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list, uint wild_num);
@@ -1477,7 +1489,7 @@ extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
             def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 extern MY_TMPDIR mysql_tmpdir_list;
-extern LEX_STRING command_name[];
+extern const LEX_STRING command_name[];
 extern const char *first_keyword, *my_localhost, *delayed_user, *binary_keyword;
 extern const char **errmesg;			/* Error messages */
 extern const char *myisam_recover_options_str;
@@ -1876,6 +1888,9 @@ void free_list(I_List <i_string> *list);
 
 /* sql_yacc.cc */
 extern int MYSQLparse(void *thd);
+#ifndef DBUG_OFF
+extern void turn_parser_debug_on();
+#endif
 
 /* frm_crypt.cc */
 #ifdef HAVE_CRYPTED_FRM

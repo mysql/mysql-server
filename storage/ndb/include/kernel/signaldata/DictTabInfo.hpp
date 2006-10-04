@@ -118,6 +118,8 @@ public:
     FrmLen             = 26,
     FrmData            = 27,
 
+    TableTemporaryFlag = 28,  //Default not Temporary
+
     FragmentCount      = 128, // No of fragments in table (!fragment replicas)
     FragmentDataLen    = 129,
     FragmentData       = 130, // CREATE_FRAGMENTATION reply
@@ -278,7 +280,7 @@ public:
   // Object store for translating from/to API
   enum ObjectStore {
     StoreUndefined = 0,
-    StoreTemporary = 1,
+    StoreNotLogged = 1,
     StorePermanent = 2
   };
   
@@ -297,6 +299,7 @@ public:
     char   PrimaryTable[MAX_TAB_NAME_SIZE]; // Only used when "index"
     Uint32 PrimaryTableId;
     Uint32 TableLoggedFlag;
+    Uint32 TableTemporaryFlag;
     Uint32 NoOfKeyAttr;
     Uint32 NoOfAttributes;
     Uint32 NoOfNullable;

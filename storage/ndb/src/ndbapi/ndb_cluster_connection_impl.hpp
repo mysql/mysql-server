@@ -20,6 +20,10 @@
 
 #include <ndb_cluster_connection.hpp>
 #include <Vector.hpp>
+#include <NdbMutex.h>
+
+extern NdbMutex *g_ndb_connection_mutex;
+static int g_ndb_connection_count = 0;
 
 class TransporterFacade;
 class ConfigRetriever;
@@ -41,6 +45,9 @@ class Ndb_cluster_connection_impl : public Ndb_cluster_connection
   Uint32 get_next_node(Ndb_cluster_connection_node_iter &iter);
 
   inline unsigned get_connect_count() const;
+public:
+  inline Uint64 *get_latest_trans_gci() { return &m_latest_trans_gci; }
+
 private:
   friend class Ndb;
   friend class NdbImpl;
@@ -72,6 +79,9 @@ private:
 
   int m_optimized_node_selection;
   char *m_name;
+  int m_run_connect_thread;
+  NdbMutex *m_event_add_drop_mutex;
+  Uint64 m_latest_trans_gci;
 };
 
 #endif

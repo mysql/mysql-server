@@ -163,7 +163,7 @@ dict_table_get_sys_col(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	col = dict_table_get_nth_col(table, table->n_cols
-					   - DATA_N_SYS_COLS + sys);
+				     - DATA_N_SYS_COLS + sys);
 	ut_ad(col->type.mtype == DATA_SYS);
 	ut_ad(col->type.prtype == (sys | DATA_NOT_NULL));
 
@@ -324,8 +324,8 @@ dict_index_get_sys_col_pos(
 		return(col->clust_pos);
 	}
 
-	return(dict_index_get_nth_col_pos(index,
-		dict_table_get_sys_col_no(index->table, type)));
+	return(dict_index_get_nth_col_pos
+	       (index, dict_table_get_sys_col_no(index->table, type)));
 }
 
 /*************************************************************************
@@ -366,8 +366,8 @@ dict_index_get_nth_type(
 	dict_index_t*	index,	/* in: index */
 	ulint		pos)	/* in: position of the field */
 {
-	return(dict_col_get_type(dict_field_get_col(
-			dict_index_get_nth_field(index, pos))));
+	return(dict_col_get_type(dict_field_get_col
+				 (dict_index_get_nth_field(index, pos))));
 }
 
 /************************************************************************
@@ -380,8 +380,8 @@ dict_index_get_nth_col_no(
 	dict_index_t*	index,	/* in: index */
 	ulint		pos)	/* in: position of the field */
 {
-	return(dict_col_get_no(dict_field_get_col(
-			dict_index_get_nth_field(index, pos))));
+	return(dict_col_get_no(dict_field_get_col
+			       (dict_index_get_nth_field(index, pos))));
 }
 
 /*************************************************************************
@@ -514,7 +514,7 @@ dict_table_check_if_in_cache_low(
 	table_fold = ut_fold_string(table_name);
 
 	HASH_SEARCH(name_hash, dict_sys->table_hash, table_fold, table,
-				ut_strcmp(table->name, table_name) == 0);
+		    ut_strcmp(table->name, table_name) == 0);
 	return(table);
 }
 
@@ -564,7 +564,7 @@ dict_table_get_on_id_low(
 	fold = ut_fold_dulint(table_id);
 
 	HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, table,
-				ut_dulint_cmp(table->id, table_id) == 0);
+		    ut_dulint_cmp(table->id, table_id) == 0);
 	if (table == NULL) {
 		table = dict_load_table_on_id(table_id);
 	}
