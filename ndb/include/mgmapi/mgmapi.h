@@ -1092,6 +1092,19 @@ extern "C" {
   int ndb_mgm_end_session(NdbMgmHandle handle);
 
   /**
+   * ndb_mgm_get_fd
+   *
+   * get the file descriptor of the handle.
+   * INTERNAL ONLY.
+   * USE FOR TESTING. OTHER USES ARE NOT A GOOD IDEA.
+   *
+   * @param  handle NDB management handle
+   * @return handle->socket
+   *
+   */
+  int ndb_mgm_get_fd(NdbMgmHandle handle);
+
+  /**
    * Get the node id of the mgm server we're connected to
    */
   Uint32 ndb_mgm_get_mgmd_nodeid(NdbMgmHandle handle);
