@@ -29,6 +29,8 @@ NDB_STD_OPTS_VARS;
 
 static const char* _dbname = "TEST_DB";
 static my_bool _transactional = false;
+static my_bool _tupscan = 0;
+static my_bool _diskscan = 0;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
@@ -37,6 +39,12 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "transactional", 't', "Single transaction (may run out of operations)",
     (gptr*) &_transactional, (gptr*) &_transactional, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "tupscan", 999, "Run tupscan",
+    (gptr*) &_tupscan, (gptr*) &_tupscan, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "diskscan", 999, "Run diskcan",
+    (gptr*) &_diskscan, (gptr*) &_diskscan, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -139,8 +147,11 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
       goto failed;
     }
     
+    int flags = 0;
+    flags |= _tupscan ? NdbScanOperation::SF_TupScan : 0;
+    flags |= _diskscan ? NdbScanOperation::SF_DiskScan : 0;
     if( pOp->readTuples(NdbOperation::LM_Exclusive, 
-			NdbScanOperation::SF_TupScan, par) ) {
+			flags, par) ) {
       goto failed;
     }
     

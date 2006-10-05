@@ -225,7 +225,7 @@ public:
   // if all pk = dk then this is zero!
   Uint8 m_noOfDistributionKeys;
   Uint8 m_noOfBlobs;
-  
+  Uint8 m_noOfDiskColumns;
   Uint8 m_replicaCount;
 
   /**

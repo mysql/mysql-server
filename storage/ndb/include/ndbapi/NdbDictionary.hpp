@@ -920,6 +920,16 @@ public:
 
     bool getTemporary();
     void setTemporary(bool); 
+
+    /**
+     * Check if any of column in bitmaps are disk columns
+     *   returns bitmap of different columns
+     *     bit 0 = atleast 1 pk column is set
+     *     bit 1 = atleast 1 disk column set
+     *     bit 2 = atleast 1 non disk column set
+     *   passing NULL pointer will equal to bitmap with all columns set
+     */
+    int checkColumns(const Uint32* bitmap, unsigned len_in_bytes) const;
 #endif
 
     // these 2 are not de-doxygenated

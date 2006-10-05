@@ -2392,6 +2392,30 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   DBUG_RETURN(next_result(buf));
 }
 
+static
+int
+guess_scan_flags(NdbOperation::LockMode lm, 
+		 const NDBTAB* tab, const MY_BITMAP* readset)
+{
+  int flags= 0;
+  flags|= (lm == NdbOperation::LM_Read) ? NdbScanOperation::SF_KeyInfo : 0;
+  if (tab->checkColumns(0, 0) & 2)
+  {
+    int ret = tab->checkColumns(readset->bitmap, no_bytes_in_map(readset));
+    
+    if (ret & 2)
+    { // If disk columns...use disk scan
+      flags |= NdbScanOperation::SF_DiskScan;
+    }
+    else if ((ret & 4) == 0 && (lm == NdbOperation::LM_Exclusive))
+    {
+      // If no mem column is set and exclusive...guess disk scan
+      flags |= NdbScanOperation::SF_DiskScan;
+    }
+  }
+  return flags;
+}
+
 /*
   Start full table scan in NDB
  */
@@ -2409,11 +2433,9 @@ int ha_ndbcluster::full_table_scan(byte *buf)
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
-  bool need_pk = (lm == NdbOperation::LM_Read);
+  int flags= guess_scan_flags(lm, m_table, table->read_set);
   if (!(op=trans->getNdbScanOperation(m_table)) ||
-      op->readTuples(lm, 
-		     (need_pk)?NdbScanOperation::SF_KeyInfo:0, 
-		     parallelism))
+      op->readTuples(lm, flags, parallelism))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= op;
 

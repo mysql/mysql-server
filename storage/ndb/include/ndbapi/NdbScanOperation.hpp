@@ -42,7 +42,8 @@ public:
    * readTuples.
    */
   enum ScanFlag {
-    SF_TupScan = (1 << 16),     // scan TUP
+    SF_TupScan = (1 << 16),     // scan TUP order
+    SF_DiskScan = (2 << 16),    // scan in DISK order
     SF_OrderBy = (1 << 24),     // index scan in order
     SF_Descending = (2 << 24),  // index scan in descending order
     SF_ReadRangeNo = (4 << 24), // enable @ref get_range_no
