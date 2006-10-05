@@ -152,6 +152,23 @@ mysqltest: At line 1: Missing delimiter
 mysqltest: At line 1: End of line junk detected: "sleep 7
 # Another comment
 "
+mysqltest: At line 1: Missing delimiter
+mysqltest: At line 1: Missing delimiter
+mysqltest: At line 1: End of line junk detected: "disconnect default
+
+#
+# comment
+# comment2
+
+# comment 3
+--disable_query_log
+"
+mysqltest: At line 1: End of line junk detected: "disconnect default # comment
+# comment part2
+
+# comment 3
+--disable_query_log
+"
 mysqltest: At line 1: Extra delimiter ";" found
 mysqltest: At line 1: Extra delimiter ";" found
 mysqltest: At line 1: Missing argument(s) to 'error'
