@@ -1189,9 +1189,19 @@ sub check_mysqld_features () {
 	}
 	else
 	{
-	  # The variable list is ended with a blank line, so when a line
-	  # doesn't match the above regex, break the loop
-	  last;
+	  # The variable list is ended with a blank line
+	  if ( $line =~ /^[\s]*$/ )
+	  {
+	    last;
+	  }
+	  else
+	  {
+	    # Send out a warning, we should fix the variables that has no
+	    # space between variable name and it's value
+	    # or should it be fixed width column parsing? It does not
+	    # look like that in function my_print_variables in my_getopt.c
+	    mtr_warning("Could not parse variable list line : $line");
+	  }
 	}
       }
     }
@@ -1959,9 +1969,9 @@ sub ndbcluster_start_install ($) {
   if (!$opt_bench)
   {
     # Use a smaller configuration
-    if (  $mysql_version_id < 50000 )
+    if (  $mysql_version_id < 50100 )
     {
-      # 4.1 is using a "larger" --small configuration
+      # 4.1 and 5.0 is using a "larger" --small configuration
       $ndb_no_ord=128;
       $ndb_con_op=10000;
       $ndb_dmem="40M";
