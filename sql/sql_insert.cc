@@ -1266,7 +1266,7 @@ err:
   if (thd->lex->current_select)
     thd->lex->current_select->no_error= 0;        // Give error
   table->file->print_error(error,MYF(0));
-
+  
 before_trg_err:
   table->file->restore_auto_increment(prev_insert_id);
   if (key)
@@ -2014,6 +2014,10 @@ err:
     rolled back.  We only need to roll back a potential statement
     transaction, since real transactions are rolled back in
     close_thread_tables().
+
+    TODO: This is not true any more, table maps are generated on the
+    first call to ha_*_row() instead. Remove code that are used to
+    cover for the case outlined above.
    */
   ha_rollback_stmt(thd);
 
@@ -2357,6 +2361,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("select_insert::prepare");
 
   unit= u;
+
   /*
     Since table in which we are going to insert is added to the first
     select, LEX::current_select should point to the first select while
@@ -2586,56 +2591,54 @@ void select_insert::send_error(uint errcode,const char *err)
   if (errcode != ER_UNKNOWN_ERROR && !thd->net.report_error)
     my_message(errcode, err, MYF(0));
 
-  if (!table)
+  /*
+    If the creation of the table failed (due to a syntax error, for
+    example), no table will have been opened and therefore 'table'
+    will be NULL. In that case, we still need to execute the rollback
+    and the end of the function to truncate the binary log, but we can
+    skip all the intermediate steps.
+   */
+  if (table)
   {
     /*
-      This can only happen when using CREATE ... SELECT and the table was not
-      created becasue of an syntax error
+      If we are not in prelocked mode, we end the bulk insert started
+      before.
     */
-    DBUG_VOID_RETURN;
-  }
-  if (!thd->prelocked_mode)
-    table->file->ha_end_bulk_insert();
-  /*
-    If at least one row has been inserted/modified and will stay in the table
-    (the table doesn't have transactions) we must write to the binlog (and
-    the error code will make the slave stop).
+    if (!thd->prelocked_mode)
+      table->file->ha_end_bulk_insert();
 
-    For many errors (example: we got a duplicate key error while
-    inserting into a MyISAM table), no row will be added to the table,
-    so passing the error to the slave will not help since there will
-    be an error code mismatch (the inserts will succeed on the slave
-    with no error).
+    /*
+      If at least one row has been inserted/modified and will stay in
+      the table (the table doesn't have transactions) we must write to
+      the binlog (and the error code will make the slave stop).
 
-    If we are using row-based replication we have two cases where this
-    code is executed: replication of CREATE-SELECT and replication of
-    INSERT-SELECT.
+      For many errors (example: we got a duplicate key error while
+      inserting into a MyISAM table), no row will be added to the table,
+      so passing the error to the slave will not help since there will
+      be an error code mismatch (the inserts will succeed on the slave
+      with no error).
 
-    When replicating a CREATE-SELECT statement, we shall not write the
-    events to the binary log and should thus not set
-    OPTION_STATUS_NO_TRANS_UPDATE.
-
-    When replicating INSERT-SELECT, we shall not write the events to
-    the binary log for transactional table, but shall write all events
-    if there is one or more writes to non-transactional tables. In
-    this case, the OPTION_STATUS_NO_TRANS_UPDATE is set if there is a
-    write to a non-transactional table, otherwise it is cleared.
-  */
-  if (info.copied || info.deleted || info.updated)
-  {
-    if (!table->file->has_transactions())
+      If table creation failed, the number of rows modified will also be
+      zero, so no check for that is made.
+    */
+    if (info.copied || info.deleted || info.updated)
     {
-      if (mysql_bin_log.is_open())
+      DBUG_ASSERT(table != NULL);
+      if (!table->file->has_transactions())
       {
-        thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
-                          table->file->has_transactions(), FALSE);
+        if (mysql_bin_log.is_open())
+        {
+          thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query, thd->query_length,
+                            table->file->has_transactions(), FALSE);
+        }
+        if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
+            !can_rollback_data())
+          thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+        query_cache_invalidate3(thd, table, 1);
       }
-      if (!thd->current_stmt_binlog_row_based && !table->s->tmp_table &&
-          !can_rollback_data())
-        thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
-      query_cache_invalidate3(thd, table, 1);
     }
   }
+
   ha_rollback_stmt(thd);
   table->file->ha_release_auto_increment();
   DBUG_VOID_RETURN;
@@ -2645,8 +2648,11 @@ void select_insert::send_error(uint errcode,const char *err)
 bool select_insert::send_eof()
 {
   int error,error2;
+  bool const trans_table= table->file->has_transactions();
   ulonglong id;
   DBUG_ENTER("select_insert::send_eof");
+  DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
+                       trans_table, table->file->table_type()));
 
   error= (!thd->prelocked_mode) ? table->file->ha_end_bulk_insert():0;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -2666,9 +2672,8 @@ bool select_insert::send_eof()
         are not logged in RBR)
       - We are using statement based replication
     */
-    if (!table->file->has_transactions() &&
-        (!table->s->tmp_table ||
-         !thd->current_stmt_binlog_row_based))
+    if (!trans_table &&
+        (!table->s->tmp_table || !thd->current_stmt_binlog_row_based))
       thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
    }
 
@@ -2684,11 +2689,22 @@ bool select_insert::send_eof()
       thd->clear_error();
     thd->binlog_query(THD::ROW_QUERY_TYPE,
                       thd->query, thd->query_length,
-                      table->file->has_transactions(), FALSE);
+                      trans_table, FALSE);
   }
-  if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
-    error=error2;
+  /*
+    We will call ha_autocommit_or_rollback() also for
+    non-transactional tables under row-based replication: there might
+    be events in the binary logs transaction, and we need to write
+    them to the binary log.
+   */
+  if (trans_table || thd->current_stmt_binlog_row_based)
+  {
+    int const error2= ha_autocommit_or_rollback(thd, error);
+    if (error2 && !error)
+      error=error2;
+  }
   table->file->ha_release_auto_increment();
+
   if (error)
   {
     table->file->print_error(error,MYF(0));
@@ -2885,14 +2901,19 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   class MY_HOOKS : public TABLEOP_HOOKS {
   public:
     MY_HOOKS(select_create *x) : ptr(x) { }
-    virtual void do_prelock(TABLE **tables, uint count)
-    {
-    if (ptr->get_thd()->current_stmt_binlog_row_based  &&
-        !(ptr->get_create_info()->options & HA_LEX_CREATE_TMP_TABLE))
-      ptr->binlog_show_create_table(tables, count);
-    }
 
   private:
+    virtual void do_prelock(TABLE **tables, uint count)
+    {
+      TABLE const *const table = *tables;
+      if (ptr->get_thd()->current_stmt_binlog_row_based  &&
+          table->s->tmp_table == NO_TMP_TABLE &&
+          !ptr->get_create_info()->table_existed)
+      {
+        ptr->binlog_show_create_table(tables, count);
+      }
+    }
+
     select_create *ptr;
   };
 
@@ -2901,6 +2922,20 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 #endif
 
   unit= u;
+
+#ifdef HAVE_ROW_BASED_REPLICATION
+  /*
+    Start a statement transaction before the create if we are creating
+    a non-temporary table and are using row-based replication for the
+    statement.
+  */
+  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0 &&
+      thd->current_stmt_binlog_row_based)
+  {
+    thd->binlog_start_trans_and_stmt();
+  }
+#endif
+
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        extra_fields, keys, &values,
                                        &thd->extra_lock, hook_ptr)))
@@ -3048,8 +3083,17 @@ void select_create::abort()
       table->s->version= 0;
       hash_delete(&open_cache,(byte*) table);
       if (!create_info->table_existed)
+      {
         quick_rm_table(table_type, create_table->db,
                        create_table->table_name, 0);
+        /*
+          We roll back the statement, including truncating the
+          transaction cache of the binary log, if the statement
+          failed.
+         */
+        if (thd->current_stmt_binlog_row_based)
+          ha_rollback_stmt(thd);
+      }
       /* Tell threads waiting for refresh that something has happened */
       if (version != refresh_version)
         broadcast_refresh();
