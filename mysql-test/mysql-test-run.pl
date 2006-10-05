@@ -1180,9 +1180,10 @@ sub check_mysqld_features () {
       # Look for version
       if ( $line =~ /^$exe_mysqld\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)/ )
       {
-	print "Major: $1 Minor: $2 Build: $3\n";
+	#print "Major: $1 Minor: $2 Build: $3\n";
 	$mysql_version_id= $1*10000 + $2*100 + $3;
-	print "mysql_version_id: $mysql_version_id\n";
+	#print "mysql_version_id: $mysql_version_id\n";
+	mtr_report("MySQL Version $1.$2.$3");
       }
     }
     else
@@ -2703,15 +2704,16 @@ sub do_before_run_mysqltest($)
   my $tinfo= shift;
   my $tname= $tinfo->{'name'};
 
-  # Remove old reject file
-  if ( $opt_suite eq "main" )
+  # Remove old files produced by mysqltest
+  my $result_dir= "r";
+  if ( ! $opt_suite eq "main" )
   {
-    unlink("r/$tname.reject");
+    $result_dir= "suite/$opt_suite/r";
   }
-  else
-  {
-    unlink("suite/$opt_suite/r/$tname.reject");
-  }
+  unlink("$result_dir/$tname.reject");
+  unlink("$result_dir/$tname.progress");
+  unlink("$result_dir/$tname.log");
+  unlink("$result_dir/$tname.warnings");
 
   mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
 
