@@ -2758,7 +2758,7 @@ static int dump_all_tablespaces()
   char *endsemi;
 
   if (mysql_query_with_error_report(mysql, &tableres,
-                                    "SELECT DISTINCT"
+                                    "SELECT"
                                     " LOGFILE_GROUP_NAME,"
                                     " FILE_NAME,"
                                     " TOTAL_EXTENTS,"
@@ -2768,6 +2768,8 @@ static int dump_all_tablespaces()
                                     " FROM INFORMATION_SCHEMA.FILES"
                                     " WHERE FILE_TYPE = \"UNDO LOG\""
                                     " AND FILE_NAME IS NOT NULL"
+                                    " GROUP BY LOGFILE_GROUP_NAME, FILE_NAME"
+                                    ", ENGINE"
                                     " ORDER BY LOGFILE_GROUP_NAME"))
     return 1;
 
