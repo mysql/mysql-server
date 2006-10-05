@@ -171,14 +171,14 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   for (; ptr != end && val != val_end; ptr++)
   {
 
+    /* Skip pre-space between each argument */
+    while (val != val_end && my_isspace(cs, *val))
+      val++;
+
     if (*ptr == '%' && ptr+1 != end)
     {
       int val_len;
       char *tmp;
-
-      /* Skip pre-space between each argument */
-      while (val != val_end && my_isspace(cs, *val))
-	val++;
 
       val_len= (uint) (val_end - val);
       switch (*++ptr) {
