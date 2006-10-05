@@ -2704,15 +2704,16 @@ sub do_before_run_mysqltest($)
   my $tinfo= shift;
   my $tname= $tinfo->{'name'};
 
-  # Remove old reject file
-  if ( $opt_suite eq "main" )
+  # Remove old files produced by mysqltest
+  my $result_dir= "r";
+  if ( ! $opt_suite eq "main" )
   {
-    unlink("r/$tname.reject");
+    $result_dir= "suite/$opt_suite/r";
   }
-  else
-  {
-    unlink("suite/$opt_suite/r/$tname.reject");
-  }
+  unlink("$result_dir/$tname.reject");
+  unlink("$result_dir/$tname.progress");
+  unlink("$result_dir/$tname.log");
+  unlink("$result_dir/$tname.warnings");
 
   mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
 
