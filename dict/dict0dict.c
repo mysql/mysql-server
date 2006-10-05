@@ -334,7 +334,7 @@ dict_col_copy_type_noninline(
 	const dict_col_t*	col,	/* in: column */
 	dtype_t*		type)	/* out: data type */
 {
-	return(dict_col_copy_type(col, type));
+	dict_col_copy_type(col, type);
 }
 
 /************************************************************************
