@@ -10773,6 +10773,7 @@ mysql_declare_plugin(ndbcluster)
   ndbcluster_hton_name,
   "MySQL AB",
   "Clustered, fault-tolerant tables",
+  PLUGIN_LICENSE_GPL,
   ndbcluster_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,

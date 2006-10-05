@@ -5643,6 +5643,7 @@ mysql_declare_plugin(partition)
   "partition",
   "Mikael Ronstrom, MySQL AB",
   "Partition Storage Engine Helper",
+  PLUGIN_LICENSE_GPL,
   partition_initialize, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */

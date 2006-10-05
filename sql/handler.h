@@ -683,6 +683,7 @@ struct handlerton
                      const char *wild, bool dir, List<char> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
+   uint32 license; /* Flag for Engine License */
 };
 
 

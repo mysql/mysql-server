@@ -582,6 +582,7 @@ mysql_declare_plugin(myisammrg)
   "MRG_MYISAM",
   "MySQL AB",
   "Collection of identical MyISAM tables",
+  PLUGIN_LICENSE_GPL,
   myisammrg_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */

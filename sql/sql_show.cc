@@ -211,6 +211,22 @@ static my_bool show_plugins(THD *thd, st_plugin_int *plugin,
   else
     table->field[8]->set_null();
 
+  switch (plug->license) {
+  case PLUGIN_LICENSE_GPL:
+    table->field[9]->store(PLUGIN_LICENSE_GPL_STRING, 
+                           strlen(PLUGIN_LICENSE_GPL_STRING), cs);
+    break;
+  case PLUGIN_LICENSE_BSD:
+    table->field[9]->store(PLUGIN_LICENSE_BSD_STRING, 
+                           strlen(PLUGIN_LICENSE_BSD_STRING), cs);
+    break;
+  default:
+    table->field[9]->store(PLUGIN_LICENSE_PROPRIETARY_STRING, 
+                           strlen(PLUGIN_LICENSE_PROPRIETARY_STRING), cs);
+    break;
+  }
+  table->field[9]->set_notnull();
+
   return schema_table_store_record(thd, table);
 }
 
@@ -5579,6 +5595,7 @@ ST_FIELD_INFO plugin_fields_info[]=
   {"PLUGIN_LIBRARY_VERSION", 20, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PLUGIN_AUTHOR", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {"PLUGIN_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0},
+  {"PLUGIN_LICENSE", 80, MYSQL_TYPE_STRING, 0, 1, "License"},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 

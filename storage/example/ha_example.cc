@@ -717,6 +717,7 @@ mysql_declare_plugin(example)
   "EXAMPLE",
   "Brian Aker, MySQL AB",
   "Example storage engine",
+  PLUGIN_LICENSE_GPL,
   example_init_func, /* Plugin Init */
   example_done_func, /* Plugin Deinit */
   0x0001 /* 0.1 */,
