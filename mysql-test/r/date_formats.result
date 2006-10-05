@@ -530,4 +530,13 @@ DATE_FORMAT('%Y-%m-%d %H:%i:%s', 1151414896)
 NULL
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '%Y-%m-%d %H:%i:%s'
+select str_to_date('04 /30/2004', '%m /%d/%Y');
+str_to_date('04 /30/2004', '%m /%d/%Y')
+2004-04-30
+select str_to_date('04/30 /2004', '%m /%d /%Y');
+str_to_date('04/30 /2004', '%m /%d /%Y')
+2004-04-30
+select str_to_date('04/30/2004 ', '%m/%d/%Y ');
+str_to_date('04/30/2004 ', '%m/%d/%Y ')
+2004-04-30
 "End of 4.1 tests"
