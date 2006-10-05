@@ -1818,6 +1818,7 @@ mysql_declare_plugin(myisam)
   "MyISAM",
   "MySQL AB",
   "Default engine as of MySQL 3.23 with great performance",
+  PLUGIN_LICENSE_GPL,
   myisam_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */

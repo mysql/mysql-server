@@ -2895,6 +2895,7 @@ mysql_declare_plugin(federated)
   "FEDERATED",
   "Patrick Galbraith and Brian Aker, MySQL AB",
   "Federated MySQL storage engine",
+  PLUGIN_LICENSE_GPL,
   federated_db_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,

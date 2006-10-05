@@ -226,6 +226,7 @@ mysql_declare_plugin(ftexample)
   "simple_parser",            /* name                            */
   "MySQL AB",                 /* author                          */
   "Simple Full-Text Parser",  /* description                     */
+  PLUGIN_LICENSE_GPL,
   simple_parser_plugin_init,  /* init function (when loaded)     */
   simple_parser_plugin_deinit,/* deinit function (when unloaded) */
   0x0001,                     /* version                         */

@@ -1585,6 +1585,7 @@ mysql_declare_plugin(archive)
   "ARCHIVE",
   "Brian Aker, MySQL AB",
   "Archive storage engine",
+  PLUGIN_LICENSE_GPL,
   archive_db_init, /* Plugin Init */
   archive_db_done, /* Plugin Deinit */
   0x0100 /* 1.0 */,

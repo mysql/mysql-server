@@ -223,6 +223,7 @@ mysql_declare_plugin(blackhole)
   "BLACKHOLE",
   "MySQL AB",
   "/dev/null storage engine (anything you write to it disappears)",
+  PLUGIN_LICENSE_GPL,
   blackhole_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,

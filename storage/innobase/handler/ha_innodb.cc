@@ -7640,6 +7640,7 @@ mysql_declare_plugin(innobase)
   innobase_hton_name,
   "Innobase OY",
   "Supports transactions, row-level locking, and foreign keys",
+  PLUGIN_LICENSE_GPL,
   innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
