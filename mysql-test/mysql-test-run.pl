@@ -2619,21 +2619,24 @@ sub run_testcase_check_skip_test($)
     return 1;
   }
 
-  # If test needs cluster, check that master installed ok
-  if ( $tinfo->{'ndb_test'}  and !$clusters->[0]->{'installed_ok'} )
+  if ($tinfo->{'ndb_test'})
   {
-    mtr_report_test_name($tinfo);
-    mtr_report_test_failed($tinfo);
-    return 1;
-  }
+    foreach my $cluster (@{$clusters})
+    {
+      last if ($opt_skip_ndbcluster_slave and
+	       $cluster->{'name'} eq 'Slave');
 
-  # If test needs slave cluster, check that it installed ok
-  if ( $tinfo->{'ndb_test'}  and $tinfo->{'slave_num'} and
-       !$clusters->[1]->{'installed_ok'} )
-  {
-    mtr_report_test_name($tinfo);
-    mtr_report_test_failed($tinfo);
-    return 1;
+      # If test needs this cluster, check it was installed ok
+      if ( !$cluster->{'installed_ok'} )
+      {
+	mtr_tofile($path_timefile,
+		   "Test marked as failed because $cluster->{'name'} " .
+		   "was not installed ok!");
+	mtr_report_test_name($tinfo);
+	mtr_report_test_failed($tinfo);
+	return 1;
+      }
+    }
   }
 
   return 0;
