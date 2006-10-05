@@ -4689,6 +4689,7 @@ mysql_declare_plugin(binlog)
   "binlog",
   "MySQL AB",
   "This is a pseudo storage engine to represent the binlog in a transaction",
+  PLUGIN_LICENSE_GPL,
   binlog_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,

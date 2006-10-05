@@ -720,6 +720,7 @@ mysql_declare_plugin(heap)
   "MEMORY",
   "MySQL AB",
   "Hash based, stored in memory, useful for temporary tables",
+  PLUGIN_LICENSE_GPL,
   heap_init,
   NULL,
   0x0100, /* 1.0 */

@@ -1533,6 +1533,7 @@ mysql_declare_plugin(csv)
   "CSV",
   "Brian Aker, MySQL AB",
   "CSV storage engine",
+  PLUGIN_LICENSE_GPL,
   tina_init_func, /* Plugin Init */
   tina_done_func, /* Plugin Deinit */
   0x0100 /* 1.0 */,
