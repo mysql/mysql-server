@@ -1969,9 +1969,9 @@ sub ndbcluster_start_install ($) {
   if (!$opt_bench)
   {
     # Use a smaller configuration
-    if (  $mysql_version_id < 50000 )
+    if (  $mysql_version_id < 50100 )
     {
-      # 4.1 is using a "larger" --small configuration
+      # 4.1 and 5.0 is using a "larger" --small configuration
       $ndb_no_ord=128;
       $ndb_con_op=10000;
       $ndb_dmem="40M";
