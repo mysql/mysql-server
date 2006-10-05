@@ -1749,6 +1749,11 @@ sub environment_setup () {
       print "Using IM_MYSQLD2_PORT       = $ENV{IM_MYSQLD2_PORT}\n";
     }
   }
+
+  # Create an environment variable to make it possible
+  # to detect that valgrind is being used from test cases
+  $ENV{'VALGRIND_TEST'}= $opt_valgrind;
+
 }
 
 
@@ -4007,11 +4012,6 @@ sub run_mysqltest ($) {
   if ( $opt_big_test )
   {
     mtr_add_arg($args, "--big-test");
-  }
-
-  if ( $opt_valgrind )
-  {
-    mtr_add_arg($args, "--valgrind");
   }
 
   if ( $opt_compress )
