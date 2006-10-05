@@ -40,6 +40,7 @@ extern FileInputStream Stdin;
 class SocketInputStream : public InputStream {
   NDB_SOCKET_TYPE m_socket;
   unsigned m_timeout;
+  bool m_startover;
 public:
   SocketInputStream(NDB_SOCKET_TYPE socket, unsigned readTimeout = 1000);
   char* gets(char * buf, int bufLen);

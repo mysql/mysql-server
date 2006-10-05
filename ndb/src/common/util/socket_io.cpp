@@ -75,7 +75,6 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
     return -1;
   }
 
-  buf[0] = 0;
   const int t = recv(socket, buf, buflen, MSG_PEEK);
 
   if(t < 1)
@@ -87,27 +86,28 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis,
   for(int i=0; i< t;i++)
   {
     if(buf[i] == '\n'){
-      recv(socket, buf, i+1, 0);
-      buf[i] = 0;
+      int r= recv(socket, buf, i+1, 0);
+      buf[i+1]= 0;
+      if(r < 1) {
+        fcntl(socket, F_SETFL, sock_flags);
+        return -1;
+      }
 
       if(i > 0 && buf[i-1] == '\r'){
-        i--;
-        buf[i] = 0;
+        buf[i-1] = '\n';
+        buf[i]= '\0';
       }
 
       fcntl(socket, F_SETFL, sock_flags);
-      return t;
+      return r;
     }
   }
 
-  if(t == (buflen - 1)){
-    recv(socket, buf, t, 0);
-    buf[t] = 0;
-    fcntl(socket, F_SETFL, sock_flags);
-    return buflen;
-  }
-
-  return 0;
+  int r= recv(socket, buf, t, 0);
+  if(r>=0)
+    buf[r] = 0;
+  fcntl(socket, F_SETFL, sock_flags);
+  return r;
 }
 
 extern "C"

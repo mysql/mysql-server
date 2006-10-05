@@ -148,21 +148,26 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
   bool ownStop = false;
   if(stop == 0)
     stop = &ownStop;
-  
+
   ctx->m_aliasUsed.clear();
-  
+
   const unsigned sz = sizeof(ctx->m_tokenBuffer);
   ctx->m_currentToken = input.gets(ctx->m_tokenBuffer, sz);
   if(Eof(ctx->m_currentToken)){
     ctx->m_status = Parser<Dummy>::Eof;
     DBUG_RETURN(false);
   }
-  
-  if(ctx->m_currentToken[0] == 0){
+
+  int last= strlen(ctx->m_currentToken);
+  if(last>0)
+    last--;
+
+  if(ctx->m_currentToken[last] !='\n'){
     ctx->m_status = Parser<Dummy>::NoLine;
+    ctx->m_tokenBuffer[0]= '\0';
     DBUG_RETURN(false);
   }
-  
+
   if(Empty(ctx->m_currentToken)){
     ctx->m_status = Parser<Dummy>::EmptyLine;
     DBUG_RETURN(false);
@@ -174,14 +179,14 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
     ctx->m_status = Parser<Dummy>::UnknownCommand;
     DBUG_RETURN(false);
   }
-  
+
   Properties * p = new Properties();
-  
+
   bool invalidArgument = false;
   ctx->m_currentToken = input.gets(ctx->m_tokenBuffer, sz);
-  
-  while((! * stop) && 
-	!Eof(ctx->m_currentToken) && 
+
+  while((! * stop) &&
+	!Eof(ctx->m_currentToken) &&
 	!Empty(ctx->m_currentToken)){
     if(ctx->m_currentToken[0] != 0){
       trim(ctx->m_currentToken);
@@ -193,7 +198,7 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
     }
     ctx->m_currentToken = input.gets(ctx->m_tokenBuffer, sz);
   }
-  
+
   if(invalidArgument){
     char buf[sz];
     char * tmp;
@@ -204,13 +209,13 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
     }
     DBUG_RETURN(false);
   }
-  
+
   if(* stop){
     delete p;
     ctx->m_status = Parser<Dummy>::ExternalStop;
     DBUG_RETURN(false);
   }
-  
+
   if(!checkMandatory(ctx, p)){
     ctx->m_status = Parser<Dummy>::MissingMandatoryArgument;
     delete p;
@@ -226,9 +231,9 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
     tmp.put("name", alias->name);
     tmp.put("realName", alias->realName);
     p->put("$ALIAS", i, &tmp);
-  }    
+  }
   p->put("$ALIAS", ctx->m_aliasUsed.size());
-  
+
   ctx->m_status = Parser<Dummy>::Ok;
   * pDst = p;
   DBUG_RETURN(true);
