@@ -359,18 +359,80 @@ select 3 from t1 ;
 # Missing delimiter
 # The comment will be "sucked into" the sleep command since
 # delimiter is missing until after "show status"
---system echo "sleep 4" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "# A comment" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "show status;" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+sleep 4
+# A comment
+show status;
+EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
 #
 # Missing delimiter until eof
 # The comment will be "sucked into" the sleep command since
-# delimiter is missing 
---system echo "sleep 7" > $MYSQLTEST_VARDIR/tmp/mysqltest.sql
---system echo "# Another comment" >> $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+# delimiter is missing
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+sleep 7
+# Another comment
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+
+#
+# Missing delimiter until "disable_query_log"
+#
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+disconnect default
+
+#
+# comment
+# comment 3
+disable_query_log;
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+
+#
+# Missing delimiter until "disable_query_log"
+#
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+disconnect default
+
+#
+# comment
+
+# comment 3
+disable_query_log;
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+
+#
+# Missing delimiter until eof
+#
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+disconnect default
+
+#
+# comment
+# comment2
+
+# comment 3
+--disable_query_log
+EOF
+--error 1
+--exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
+
+#
+# Missing delimiter until eof
+#
+--write_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
+disconnect default # comment
+# comment part2
+
+# comment 3
+--disable_query_log
+EOF
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/mysqltest.sql 2>&1
 
