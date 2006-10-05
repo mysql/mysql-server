@@ -125,6 +125,11 @@ test-force-pl:
 	./mysql-test-run.pl --force && \
 	./mysql-test-run.pl --ps-protocol --force
 
+test-force-pl-mem:
+	cd mysql-test; \
+	./mysql-test-run.pl --force --mem && \
+	./mysql-test-run.pl --ps-protocol --force --mem
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%
 
