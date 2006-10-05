@@ -818,6 +818,9 @@ void verbose_msg(const char *fmt, ...)
 
   va_start(args, fmt);
   fprintf(stderr, "mysqltest: ");
+  if (cur_file && cur_file != file_stack)
+    fprintf(stderr, "In included file \"%s\": ",
+            cur_file->file_name);
   if (start_lineno != 0)
     fprintf(stderr, "At line %u: ", start_lineno);
   vfprintf(stderr, fmt, args);
@@ -839,7 +842,15 @@ void warning_msg(const char *fmt, ...)
   dynstr_append(&ds_warning_messages, "mysqltest: ");
   if (start_lineno != 0)
   {
-    len= my_snprintf(buff, sizeof(buff), "Warning detected at line %d: ",
+    dynstr_append(&ds_warning_messages, "Warning detected ");
+    if (cur_file && cur_file != file_stack)
+    {
+      len= my_snprintf(buff, sizeof(buff), "in included file %s ",
+                       cur_file->file_name);
+      dynstr_append_mem(&ds_warning_messages,
+                        buff, len);
+    }
+    len= my_snprintf(buff, sizeof(buff), "at line %d: ",
                      start_lineno);
     dynstr_append_mem(&ds_warning_messages,
                       buff, len);
