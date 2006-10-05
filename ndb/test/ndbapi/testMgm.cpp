@@ -21,6 +21,8 @@
 #include <NdbRestarter.hpp>
 #include <Vector.hpp>
 #include <random.h>
+#include <mgmapi.h>
+#include <mgmapi_debug.h>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -167,6 +169,26 @@ int runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char *mgm= ctx->getRemoteMgm();
+
+  NdbMgmHandle h;
+  h= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_connect(h,0,0,0);
+  int s= ndb_mgm_get_fd(h);
+  write(s,"get",3);
+  ndb_mgm_disconnect(h);
+  ndb_mgm_destroy_handle(&h);
+  /** NOTE: WE CANNOT REALLY TEST ANYTHING in 5.0
+   *
+   * a more conservative patch for 5.0, full get and list
+   * sessions in 5.1.
+   *
+   * This is kept so that we can at least manually test easily
+   */
+}
 
 
 NDBT_TESTSUITE(testMgm);
@@ -174,6 +196,11 @@ TESTCASE("SingleUserMode",
 	 "Test single user mode"){
   INITIALIZER(runTestSingleUserMode);
   FINALIZER(runClearTable);
+}
+TESTCASE("ApiSessionFailure",
+	 "Test failures in MGMAPI session"){
+  INITIALIZER(runTestApiSession);
+
 }
 NDBT_TESTSUITE_END(testMgm);
 
