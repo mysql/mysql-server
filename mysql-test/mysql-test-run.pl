@@ -209,6 +209,7 @@ our $opt_fast;
 our $opt_force;
 our $opt_reorder= 0;
 our $opt_enable_disabled;
+our $opt_mem;
 
 our $opt_gcov;
 our $opt_gcov_err;
@@ -643,6 +644,7 @@ sub command_line_setup () {
              'tmpdir=s'                 => \$opt_tmpdir,
              'vardir=s'                 => \$opt_vardir,
              'benchdir=s'               => \$glob_mysql_bench_dir,
+             'mem'                      => \$opt_mem,
 
              # Misc
              'comment=s'                => \$opt_comment,
@@ -714,6 +716,32 @@ sub command_line_setup () {
     }
   }
   mtr_report("Using binlog format '$used_binlog_format'");
+
+  # --------------------------------------------------------------------------
+  # Check if we should speed up tests by trying to run on tmpfs
+  # --------------------------------------------------------------------------
+  if ( $opt_mem )
+  {
+    mtr_error("Can't use --mem and --vardir at the same time ")
+      if $opt_vardir;
+    mtr_error("Can't use --mem and --tmpdir at the same time ")
+      if $opt_tmpdir;
+
+    # Use /dev/shm as the preferred location for vardir and
+    # thus implicitly also tmpdir. Add other locations to list
+    my @tmpfs_locations= ("/dev/shm");
+    # One could maybe use "mount" to find tmpfs location(s)
+    foreach my $fs (@tmpfs_locations)
+    {
+      if ( -d $fs )
+      {
+	mtr_report("Using tmpfs in $fs");
+	$opt_mem= "$fs/var";
+	$opt_mem .= $ENV{'MTR_BUILD_THREAD'} if $ENV{'MTR_BUILD_THREAD'};
+	last;
+      }
+    }
+  }
 
   # --------------------------------------------------------------------------
   # Set the "var/" directory, as it is the base for everything else
@@ -1189,9 +1217,19 @@ sub check_mysqld_features () {
 	}
 	else
 	{
-	  # The variable list is ended with a blank line, so when a line
-	  # doesn't match the above regex, break the loop
-	  last;
+	  # The variable list is ended with a blank line
+	  if ( $line =~ /^[\s]*$/ )
+	  {
+	    last;
+	  }
+	  else
+	  {
+	    # Send out a warning, we should fix the variables that has no
+	    # space between variable name and it's value
+	    # or should it be fixed width column parsing? It does not
+	    # look like that in function my_print_variables in my_getopt.c
+	    mtr_warning("Could not parse variable list line : $line");
+	  }
 	}
       }
     }
@@ -1761,6 +1799,8 @@ sub kill_running_server () {
 
 sub cleanup_stale_files () {
 
+  my $created_by_mem_file= "$glob_mysql_test_dir/var/created_by_mem";
+
   mtr_report("Removing Stale Files");
 
   if ( $opt_vardir eq "$glob_mysql_test_dir/var" )
@@ -1768,15 +1808,26 @@ sub cleanup_stale_files () {
     #
     # Running with "var" in mysql-test dir
     #
-    if ( -l "$glob_mysql_test_dir/var" )
+    if ( -l $opt_vardir)
     {
-      # Some users creates a soft link in mysql-test/var to another area
-      # - allow it
-      mtr_report("WARNING: Using the 'mysql-test/var' symlink");
-      rmtree("$opt_vardir/log");
-      rmtree("$opt_vardir/ndbcluster-$opt_ndbcluster_port");
-      rmtree("$opt_vardir/run");
-      rmtree("$opt_vardir/tmp");
+      # var is a symlink
+      if (-f $created_by_mem_file)
+      {
+	# Remove the directory which the link points at
+	rmtree(readlink($opt_vardir));
+	# Remove the entire "var" dir
+	rmtree("$opt_vardir/");
+      }
+      else
+      {
+	# Some users creates a soft link in mysql-test/var to another area
+	# - allow it
+	mtr_report("WARNING: Using the 'mysql-test/var' symlink");
+	rmtree("$opt_vardir/log");
+	rmtree("$opt_vardir/ndbcluster-$opt_ndbcluster_port");
+	rmtree("$opt_vardir/run");
+	rmtree("$opt_vardir/tmp");
+      }
     }
     else
     {
@@ -1796,6 +1847,17 @@ sub cleanup_stale_files () {
 
     # Remove the "var" dir
     rmtree("$opt_vardir/");
+  }
+
+  if ( $opt_mem )
+  {
+    # Runinng with var as a link to some "memory" location, normally tmpfs
+    rmtree($opt_mem);
+    mkpath($opt_mem);
+    mtr_verbose("Creating symlink from $opt_vardir to $opt_mem");
+    symlink($opt_mem, $opt_vardir);
+    # Put a small file to recognize this dir was created by --mem
+    mtr_tofile($created_by_mem_file, $opt_mem);
   }
 
   mkpath("$opt_vardir/log");
@@ -1959,9 +2021,9 @@ sub ndbcluster_start_install ($) {
   if (!$opt_bench)
   {
     # Use a smaller configuration
-    if (  $mysql_version_id < 50000 )
+    if (  $mysql_version_id < 50100 )
     {
-      # 4.1 is using a "larger" --small configuration
+      # 4.1 and 5.0 is using a "larger" --small configuration
       $ndb_no_ord=128;
       $ndb_con_op=10000;
       $ndb_dmem="40M";
@@ -4316,6 +4378,9 @@ Options to control directories to use
   vardir=DIR            The directory where files generated from the test run
                         is stored (default: ./var). Specifying a ramdisk or
                         tmpfs will speed up tests.
+  mem=DIR               Run testsuite in "memory" using tmpfs if
+                        available(default: /dev/shm)
+
 
 Options to control what test suites or cases to run
 
