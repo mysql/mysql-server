@@ -2665,6 +2665,19 @@ sub do_before_run_mysqltest($)
   {
     mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
   }
+
+  if ( $mysql_version_id < 50000 )
+  {
+    # Set envirnoment variable NDB_STATUS_OK to 1
+    # if script decided to run mysqltest cluster _is_ installed ok
+    $ENV{'NDB_STATUS_OK'} = "1";
+  }
+  elsif ( $mysql_version_id < 50100 )
+  {
+    # Set envirnoment variable NDB_STATUS_OK to YES
+    # if script decided to run mysqltest cluster _is_ installed ok
+    $ENV{'NDB_STATUS_OK'} = "YES";
+  }
 }
 
 sub do_after_run_mysqltest($)
