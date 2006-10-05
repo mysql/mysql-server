@@ -323,7 +323,7 @@ our $default_mysqld_port;
 sub main ();
 sub initial_setup ();
 sub command_line_setup ();
-sub snapshot_setup ();
+sub datadir_setup ();
 sub executable_setup ();
 sub environment_setup ();
 sub kill_running_server ();
@@ -416,7 +416,6 @@ sub main () {
       unless $need_ndbcluster;
     $opt_skip_im= 1 unless $need_im;
 
-    snapshot_setup();
     initialize_servers();
 
     run_suite($opt_suite, $tests);
@@ -1122,7 +1121,7 @@ sub command_line_setup () {
   $path_snapshot= "$opt_tmpdir/snapshot_$opt_master_myport/";
 }
 
-sub snapshot_setup () {
+sub datadir_setup () {
 
   # Make a list of all data_dirs
   @data_dir_lst = (
@@ -2370,6 +2369,9 @@ sub run_suite () {
 ##############################################################################
 
 sub initialize_servers () {
+
+  datadir_setup();
+
   if ( ! $glob_use_running_server )
   {
     kill_running_server();
