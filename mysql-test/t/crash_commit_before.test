@@ -15,6 +15,9 @@ SET SESSION debug="d,crash_commit_before";
 --error 2013
 COMMIT;
 
+# Turn on reconnect
+--enable_reconnect
+
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
 
