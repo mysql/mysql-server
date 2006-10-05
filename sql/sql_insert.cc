@@ -2637,10 +2637,10 @@ void select_insert::send_error(uint errcode,const char *err)
         query_cache_invalidate3(thd, table, 1);
       }
     }
+    table->file->ha_release_auto_increment();
   }
 
   ha_rollback_stmt(thd);
-  table->file->ha_release_auto_increment();
   DBUG_VOID_RETURN;
 }
 
