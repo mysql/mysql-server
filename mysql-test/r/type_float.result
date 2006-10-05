@@ -272,3 +272,10 @@ desc t3;
 Field	Type	Null	Key	Default	Extra
 a	double			0	
 drop table t1,t2,t3;
+select 1e-308, 1.00000001e-300, 100000000e-300;
+1e-308	1.00000001e-300	100000000e-300
+0	1.00000001e-300	1e-292
+select 10e307;
+10e307
+1e+308
+End of 4.1 tests

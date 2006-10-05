@@ -164,28 +164,22 @@ void delete_queue(QUEUE *queue)
 
 void queue_insert(register QUEUE *queue, byte *element)
 {
-  reg2 uint idx,next;
+  reg2 uint idx, next;
   int cmp;
-
-#ifndef DBUG_OFF
-  if (queue->elements < queue->max_elements)
-#endif
+  DBUG_ASSERT(queue->elements < queue->max_elements);
+  queue->root[0]= element;
+  idx= ++queue->elements;
+  /* max_at_top swaps the comparison if we want to order by desc */
+  while ((cmp= queue->compare(queue->first_cmp_arg,
+                              element + queue->offset_to_key,
+                              queue->root[(next= idx >> 1)] +
+                              queue->offset_to_key)) &&
+         (cmp ^ queue->max_at_top) < 0)
   {
-    queue->root[0]=element;
-    idx= ++queue->elements;
-
-    /* max_at_top swaps the comparison if we want to order by desc */
-    while ((cmp=queue->compare(queue->first_cmp_arg,
-			       element+queue->offset_to_key,
-			       queue->root[(next=idx >> 1)] +
-			       queue->offset_to_key)) &&
-	   (cmp ^ queue->max_at_top) < 0)
-    {
-      queue->root[idx]=queue->root[next];
-      idx=next;
-    }
-    queue->root[idx]=element;
+    queue->root[idx]= queue->root[next];
+    idx= next;
   }
+  queue->root[idx]= element;
 }
 
 	/* Remove item from queue */
@@ -193,16 +187,12 @@ void queue_insert(register QUEUE *queue, byte *element)
 
 byte *queue_remove(register QUEUE *queue, uint idx)
 {
-#ifndef DBUG_OFF
-  if (idx >= queue->max_elements)
-    return 0;
-#endif
-  {
-    byte *element=queue->root[++idx];	/* Intern index starts from 1 */
-    queue->root[idx]=queue->root[queue->elements--];
-    _downheap(queue,idx);
-    return element;
-  }
+  byte *element;
+  DBUG_ASSERT(idx < queue->max_elements);
+  element= queue->root[++idx];  /* Intern index starts from 1 */
+  queue->root[idx]= queue->root[queue->elements--];
+  _downheap(queue, idx);
+  return element;
 }
 
 	/* Fix when element on top has been replaced */

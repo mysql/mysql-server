@@ -184,7 +184,7 @@ character-set=latin1
 "INSERT DELAYED can't be used with table '%-.64s' because it is locked with LOCK TABLES",
 "Incorrect column name '%-.100s'",
 "The used storage engine can't index column '%-.64s'",
-"All tables in the MERGE table are not identically defined",
+"Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists",
 "Can't write, because of unique constraint, to table '%-.64s'",
 "BLOB/TEXT column '%-.64s' used in key specification without a key length",
 "All parts of a PRIMARY KEY must be NOT NULL; if you need NULL in a key, use UNIQUE instead",
