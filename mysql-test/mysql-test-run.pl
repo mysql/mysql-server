@@ -3153,10 +3153,6 @@ sub mysqld_arguments ($$$$$) {
     # on the server. The path need to have constant length otherwise
     # test results will vary, thus a relative path is used.
     my $slave_load_path= "../tmp";
-    if ( $mysql_version_id < 50000 )
-    {
-      $slave_load_path= "../../var/tmp";
-    }
     mtr_add_arg($args, "%s--slave-load-tmpdir=%s", $prefix,
                 $slave_load_path);
     mtr_add_arg($args, "%s--socket=%s", $prefix,
