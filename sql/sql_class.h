@@ -929,6 +929,7 @@ public:
   /*
     Public interface to write RBR events to the binlog
   */
+  void binlog_start_trans_and_stmt();
   int binlog_write_table_map(TABLE *table, bool is_transactional);
   int binlog_write_row(TABLE* table, bool is_transactional,
                        MY_BITMAP const* cols, my_size_t colcnt,
