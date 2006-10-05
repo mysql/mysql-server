@@ -1180,9 +1180,10 @@ sub check_mysqld_features () {
       # Look for version
       if ( $line =~ /^$exe_mysqld\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)/ )
       {
-	print "Major: $1 Minor: $2 Build: $3\n";
+	#print "Major: $1 Minor: $2 Build: $3\n";
 	$mysql_version_id= $1*10000 + $2*100 + $3;
-	print "mysql_version_id: $mysql_version_id\n";
+	#print "mysql_version_id: $mysql_version_id\n";
+	mtr_report("MySQL Version $1.$2.$3");
       }
     }
     else
