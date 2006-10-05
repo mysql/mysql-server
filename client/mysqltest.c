@@ -3578,17 +3578,15 @@ void scan_command_for_warnings(struct st_command *command)
 
 /*
   Check for unexpected "junk" after the end of query
-  This is normally caused by missing delimiters
+  This is normally caused by missing delimiters or when
+  switching between different delimiters
 */
 
-void check_eol_junk(const char *eol)
+void check_eol_junk_line(const char *line)
 {
-  const char *p= eol;
-  DBUG_ENTER("check_eol_junk");
-  DBUG_PRINT("enter", ("eol: %s", eol));
-  /* Remove all spacing chars except new line */
-  while (*p && my_isspace(charset_info, *p) && (*p != '\n'))
-    p++;
+  const char *p= line;
+  DBUG_ENTER("check_eol_junk_line");
+  DBUG_PRINT("enter", ("line: %s", line));
 
   /* Check for extra delimiter */
   if (*p && !strncmp(p, delimiter, delimiter_length))
@@ -3601,6 +3599,36 @@ void check_eol_junk(const char *eol)
       die("Missing delimiter");
     die("End of line junk detected: \"%s\"", p);
   }
+  DBUG_VOID_RETURN;
+}
+
+void check_eol_junk(const char *eol)
+{
+  const char *p= eol;
+  DBUG_ENTER("check_eol_junk");
+  DBUG_PRINT("enter", ("eol: %s", eol));
+
+  /* Skip past all spacing chars and comments */
+  while (*p && (my_isspace(charset_info, *p) || *p == '#' || *p == '\n'))
+  {
+    /* Skip past comments started with # and ended with newline */
+    if (*p && *p == '#')
+    {
+      p++;
+      while (*p && *p != '\n')
+        p++;
+    }
+
+    /* Check this line */
+    if (*p && *p == '\n')
+      check_eol_junk_line(p);
+
+    if (*p)
+      p++;
+  }
+
+  check_eol_junk_line(p);
+
   DBUG_VOID_RETURN;
 }
 
