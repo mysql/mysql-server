@@ -174,7 +174,12 @@ NdbScanOperation::readTuples(NdbScanOperation::LockMode lm,
     }
   }
 #endif
-
+  if (scan_flags & SF_DiskScan)
+  {
+    tupScan = true;
+    m_no_disk_flag = false;
+  }
+  
   bool rangeScan = false;
   if (m_accessTable->m_indexType == NdbDictionary::Index::OrderedIndex)
   {

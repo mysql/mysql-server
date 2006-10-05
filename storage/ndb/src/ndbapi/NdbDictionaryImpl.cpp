@@ -773,6 +773,7 @@ NdbTableImpl::computeAggregates()
   m_keyLenInWords = 0;
   m_noOfDistributionKeys = 0;
   m_noOfBlobs = 0;
+  m_noOfDiskColumns = 0;
   Uint32 i, n;
   for (i = 0; i < m_columns.size(); i++) {
     NdbColumnImpl* col = m_columns[i];
@@ -785,6 +786,10 @@ NdbTableImpl::computeAggregates()
     
     if (col->getBlobType())
       m_noOfBlobs++;
+
+    if (col->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
+      m_noOfDiskColumns++;
+    
     col->m_keyInfoPos = ~0;
   }
   if (m_noOfDistributionKeys == m_noOfKeys) {
@@ -1068,6 +1073,54 @@ NdbTableImpl::get_nodes(Uint32 hashValue, const Uint16 ** nodes) const
   }
   return 0;
 }
+
+int
+NdbDictionary::Table::checkColumns(const Uint32* map, Uint32 len) const
+{
+  int ret = 0;
+  Uint32 colCnt = m_impl.m_columns.size();
+  if (map == 0)
+  {
+    ret |= 1;
+    ret |= (m_impl.m_noOfDiskColumns) ? 2 : 0;
+    ret |= (colCnt > m_impl.m_noOfDiskColumns) ? 4 : 0;
+    return ret;
+  }
+
+  NdbColumnImpl** cols = m_impl.m_columns.getBase();
+  const char * ptr = reinterpret_cast<const char*>(map);
+  const char * end = ptr + len;
+  Uint32 no = 0;
+  while (ptr < end)
+  {
+    Uint32 val = (Uint32)* ptr;
+    Uint32 idx = 1;
+    for (Uint32 i = 0; i<8; i++)
+    {
+      if (val & idx)
+      {
+	if (cols[no]->getPrimaryKey())
+	  ret |= 1;
+	else
+	{
+	  if (cols[no]->getStorageType() == NdbDictionary::Column::StorageTypeDisk)
+	    ret |= 2;
+	  else
+	    ret |= 4;
+	}
+      }
+      no ++;
+      idx *= 2; 
+      if (no == colCnt)
+	return ret;
+    }
+    
+    ptr++;
+  }
+  return ret;
+}
+
+
   
 /**
  * NdbIndexImpl
