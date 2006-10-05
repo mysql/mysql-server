@@ -22,6 +22,8 @@
   See the "MySQL Test framework manual" for more information
   http://dev.mysql.com/doc/mysqltest/en/index.html
 
+  Please keep the test framework tools identical in all versions!
+
   Written by:
   Sasha Pachev <sasha@mysql.com>
   Matt Wagner  <matt@mysql.com>

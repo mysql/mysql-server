@@ -1,30 +1,24 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# This is a transformation of the "mysql-test-run" Bourne shell script
-# to Perl. There are reasons this rewrite is not the prettiest Perl
-# you have seen
 #
-#   - The original script is huge and for most part uncommented,
-#     not even a usage description of the flags.
+##############################################################################
 #
-#   - There has been an attempt to write a replacement in C for the
-#     original Bourne shell script. It was kind of working but lacked
-#     lot of functionality to really be a replacement. Not to redo
-#     that mistake and catch all the obscure features of the original
-#     script, the rewrite in Perl is more close to the original script
-#     meaning it also share some of the ugly parts as well.
+#  mysql-test-run.pl
 #
-#   - The original intention was that this script was to be a prototype
-#     to be the base for a new C version with full functionality. Since
-#     then it was decided that the Perl version should replace the
-#     Bourne shell version, but the Perl style still reflects the wish
-#     to make the Perl to C step easy.
+#  Tool used for executing a suite of .test file
 #
-# Some coding style from the original intent has been kept
+#  See the "MySQL Test framework manual" for more information
+#  http://dev.mysql.com/doc/mysqltest/en/index.html
+#
+#  Please keep the test framework tools identical in all versions!
+#
+##############################################################################
+#
+# Coding style directions for this perl script
 #
 #   - To make this Perl script easy to alter even for those that not
-#     code Perl that often, the coding style is as close as possible to
+#     code Perl that often, keeep the coding style as close as possible to
 #     the C/C++ MySQL coding standard.
 #
 #   - All lists of arguments to send to commands are Perl lists/arrays,
@@ -41,15 +35,6 @@
 #     will create a struct that the rest of the program can use to get
 #     the information. This separates the "find information" from the
 #     "do the work" and makes the program more easy to maintain.
-#
-#   - At the moment, there are tons of "global" variables that control
-#     this script, even accessed from the files in "lib/*.pl". This
-#     will change over time, for now global variables are used instead
-#     of using %opt, %path and %exe hashes, because I want more
-#     compile time checking, that hashes would not give me. Once this
-#     script is debugged, hashes will be used and passed as parameters
-#     to functions, to more closely mimic how it would be coded in C
-#     using structs.
 #
 #   - The rule when it comes to the logic of this program is
 #
@@ -2758,10 +2743,12 @@ sub do_after_run_mysqltest($)
   my $tinfo= shift;
   my $tname= $tinfo->{'name'};
 
+  mtr_tofile($path_mysqltest_log,"CURRENT TEST $tname\n");
+
   # Save info from this testcase run to mysqltest.log
   mtr_appendfile_to_file($path_timefile, $path_mysqltest_log)
     if -f $path_timefile;
-  mtr_tofile($path_mysqltest_log,"CURRENT TEST $tname\n");
+
 }
 
 
