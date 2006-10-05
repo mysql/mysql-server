@@ -176,7 +176,7 @@ sub mtr_appendfile_to_file ($$) {
   my $to_file=  shift;
 
   open(TOFILE,">>",$to_file) or mtr_error("can't open file \"$to_file\": $!");
-  open(FROMFILE,">>",$from_file)
+  open(FROMFILE,"<",$from_file)
     or mtr_error("can't open file \"$from_file\": $!");
   print TOFILE while (<FROMFILE>);
   close FROMFILE;
