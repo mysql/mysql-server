@@ -1163,7 +1163,7 @@ innobase_start_or_create_for_mysql(void)
 	maximum number of threads that can wait in the 'srv_conc array' for
 	their time to enter InnoDB. */
 
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__NETWARE__)
 
 	/* Create less event semaphores because Win 98/ME had
 	difficulty creating 40000 event semaphores.  Comment from
