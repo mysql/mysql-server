@@ -290,8 +290,6 @@ JOIN::prepare(Item ***rref_pointer_array,
     select_lex->having_fix_field= 0;
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
-    if (having->with_sum_func)
-      having->split_sum_func2(thd, ref_pointer_array, all_fields, &having);
   }
 
   // Is it subselect
@@ -305,6 +303,9 @@ JOIN::prepare(Item ***rref_pointer_array,
 	DBUG_RETURN((res == Item_subselect::RES_ERROR));
     }
   }
+
+  if (having && having->with_sum_func)
+    having->split_sum_func2(thd, ref_pointer_array, all_fields, &having);
 
   if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
@@ -932,17 +933,28 @@ JOIN::optimize()
 
     tmp_table_param.hidden_field_count= (all_fields.elements -
 					 fields_list.elements);
+    ORDER *tmp_group= ((!simple_group && !procedure &&
+                        !(test_flags & TEST_NO_KEY_GROUP)) ? group_list :
+                                                             (ORDER*) 0);
+    /*
+      Pushing LIMIT to the temporary table creation is not applicable
+      when there is ORDER BY or GROUP BY or there is no GROUP BY, but
+      there are aggregate functions, because in all these cases we need
+      all result rows.
+    */
+    ha_rows tmp_rows_limit= ((order == 0 || skip_sort_order ||
+                              test(select_options & OPTION_BUFFER_RESULT)) &&
+                             !tmp_group &&
+                             !thd->lex->current_select->with_sum_func) ?
+                            select_limit : HA_POS_ERROR;
+
     if (!(exec_tmp_table1 =
 	  create_tmp_table(thd, &tmp_table_param, all_fields,
-			   ((!simple_group && !procedure &&
-			     !(test_flags & TEST_NO_KEY_GROUP)) ?
-			    group_list : (ORDER*) 0),
+                           tmp_group,
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
 			   select_options,
-			   (order == 0 || skip_sort_order || 
-                            test(select_options & OPTION_BUFFER_RESULT)) ? 
-                             select_limit : HA_POS_ERROR,
+                           tmp_rows_limit,
 			   (char *) "")))
       DBUG_RETURN(1);
 
@@ -1131,7 +1143,7 @@ JOIN::exec()
     DBUG_VOID_RETURN;
   }
 
-  if (!tables_list)
+  if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
     if (select_options & SELECT_DESCRIBE)
       select_describe(this, FALSE, FALSE, FALSE,
@@ -1170,7 +1182,12 @@ JOIN::exec()
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
-  thd->limit_found_rows= thd->examined_row_count= 0;
+  /* 
+    don't reset the found rows count if there're no tables
+    as FOUND_ROWS() may be called.
+  */  
+  if (tables)
+    thd->limit_found_rows= thd->examined_row_count= 0;
 
   if (zero_result_cause)
   {
@@ -1209,7 +1226,8 @@ JOIN::exec()
     having= tmp_having;
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
-		    select_distinct);
+		    select_distinct,
+                    !tables ? "No tables used" : NullS);
     DBUG_VOID_RETURN;
   }
 
@@ -5560,6 +5578,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 			  thd->variables.max_heap_table_size) :
 		      thd->variables.tmp_table_size)/ table->reclength);
   set_if_bigger(table->max_rows,1);		// For dummy start options
+  /*
+    Push the LIMIT clause to the temporary table creation, so that we
+    materialize only up to 'rows_limit' records instead of all result records.
+  */
+  set_if_smaller(table->max_rows, rows_limit);
+  param->end_write_records= rows_limit;
+
   keyinfo=param->keyinfo;
 
   if (group)
@@ -5678,19 +5703,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT) ?
 	0 : FIELDFLAG_BINARY;
     }
-  }
-
-  /*
-    Push the LIMIT clause to the temporary table creation, so that we
-    materialize only up to 'rows_limit' records instead of all result records.
-    This optimization is not applicable when there is GROUP BY or there is
-    no GROUP BY, but there are aggregate functions, because both must be
-    computed for all result rows.
-  */
-  if (!group && !thd->lex->current_select->with_sum_func)
-  {
-    set_if_smaller(table->max_rows, rows_limit);
-    param->end_write_records= rows_limit;
   }
 
   if (thd->is_fatal_error)				// If end of memory
@@ -6042,9 +6054,12 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     else
       end_select=end_send;
   }
-  join->join_tab[join->tables-1].next_select=end_select;
+  if (join->tables)
+  {
+    join->join_tab[join->tables-1].next_select=end_select;
 
-  join_tab=join->join_tab+join->const_tables;
+    join_tab=join->join_tab+join->const_tables;
+  }
   join->send_records=0;
   if (join->tables == join->const_tables)
   {
@@ -6062,6 +6077,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   else
   {
+    DBUG_ASSERT(join_tab);
     error= sub_select(join,join_tab,0);
     if (error >= 0)
       error= sub_select(join,join_tab,1);
@@ -9093,6 +9109,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   param->copy_funcs.empty();
   for (i= 0; (pos= li++); i++)
   {
+    Field *field;
+    char *tmp;
     if (pos->type() == Item::FIELD_ITEM)
     {
       Item_field *item;
@@ -9121,14 +9139,22 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   set up save buffer and change result_field to point at 
 	   saved value
 	*/
-	Field *field= item->field;
+	field= item->field;
 	item->result_field=field->new_field(thd->mem_root,field->table);
-	char *tmp=(char*) sql_alloc(field->pack_length()+1);
+        /*
+          We need to allocate one extra byte for null handling and
+          another extra byte to not get warnings from purify in
+          Field_string::val_int
+        */
+	tmp= (char*) sql_alloc(field->pack_length()+2);
 	if (!tmp)
 	  goto err;
 	copy->set(tmp, item->result_field);
 	item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-	copy++;
+#ifdef HAVE_purify
+        copy->to_ptr[copy->from_length]= 0;
+#endif
+        copy++;
       }
     }
     else if ((pos->type() == Item::FUNC_ITEM ||

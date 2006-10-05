@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS t1, t2;
 
 CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
 
+--disable_warnings
 --disable_query_log
 SET @rnd_max= 2147483647;
 let $1 = 1000;
@@ -43,6 +44,7 @@ INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
 INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
 DROP TABLE t2;
 --enable_query_log
+--enable_warnings
 
 SELECT COUNT(*) FROM t1;
 
