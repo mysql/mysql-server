@@ -132,6 +132,20 @@ extern "C" {
 				   const char * value,
 				   struct ndb_mgm_reply* reply);
 
+  Uint64 ndb_mgm_get_session_id(NdbMgmHandle handle);
+
+  struct NdbMgmSession {
+    Uint64 id;
+    Uint32 m_stopSelf;
+    Uint32 m_stop;
+    Uint32 nodeid;
+    Uint32 parser_buffer_len;
+    Uint32 parser_status;
+  };
+
+  int ndb_mgm_get_session(NdbMgmHandle handle, Uint64 id,
+                          struct NdbMgmSession *s, int *len);
+
 #ifdef __cplusplus
 }
 #endif

@@ -82,6 +82,8 @@ int main(int argc, char** argv){
 
   load_defaults("ndb_cpcd",load_default_groups,&argc,&argv);
   if (handle_options(&argc, &argv, my_long_options, get_one_option)) {
+    print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+    puts("");
     my_print_help(my_long_options);
     my_print_variables(my_long_options);
     exit(1);

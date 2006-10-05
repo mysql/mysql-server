@@ -38,6 +38,9 @@ NDB_STD_OPTS_VARS;
 static int _no_contact = 0;
 static int _not_started = 0;
 static int _timeout = 120;
+
+const char *load_default_groups[]= { "mysql_cluster",0 };
+
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_desc"),
@@ -56,13 +59,14 @@ static struct my_option my_long_options[] =
 static void usage()
 {
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
-  const char *load_default_groups[]= { "mysql_cluster",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
   const char* _hostName = NULL;
   int ho_error;
