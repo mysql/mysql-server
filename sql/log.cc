@@ -1253,10 +1253,10 @@ binlog_trans_log_savepos(THD *thd, my_off_t *pos)
 {
   DBUG_ENTER("binlog_trans_log_savepos");
   DBUG_ASSERT(pos != NULL);
-  if (thd->ha_data[binlog_hton.slot] == NULL)
+  if (thd->ha_data[binlog_hton->slot] == NULL)
     thd->binlog_setup_trx_data();
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   DBUG_ASSERT(mysql_bin_log.is_open());
   *pos= trx_data->position();
   DBUG_PRINT("return", ("*pos=%u", *pos));
@@ -1285,12 +1285,12 @@ binlog_trans_log_truncate(THD *thd, my_off_t pos)
   DBUG_ENTER("binlog_trans_log_truncate");
   DBUG_PRINT("enter", ("pos=%u", pos));
 
-  DBUG_ASSERT(thd->ha_data[binlog_hton.slot] != NULL);
+  DBUG_ASSERT(thd->ha_data[binlog_hton->slot] != NULL);
   /* Only true if binlog_trans_log_savepos() wasn't called before */
   DBUG_ASSERT(pos != ~(my_off_t) 0);
 
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   trx_data->truncate(pos);
   DBUG_VOID_RETURN;
 }
@@ -1323,7 +1323,7 @@ static int binlog_close_connection(handlerton *hton, THD *thd)
   binlog_trx_data *const trx_data=
     (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   DBUG_ASSERT(mysql_bin_log.is_open() && trx_data->empty());
-  thd->ha_data[binlog_hton.slot]= 0;
+  thd->ha_data[binlog_hton->slot]= 0;
   trx_data->~binlog_trx_data();
   my_free((gptr)trx_data, MYF(0));
   return 0;
@@ -3294,7 +3294,7 @@ int THD::binlog_setup_trx_data()
     DBUG_RETURN(1);                      // Didn't manage to set it up
   }
 
-  trx_data= new (ha_data[binlog_hton.slot]) binlog_trx_data;
+  trx_data= new (ha_data[binlog_hton->slot]) binlog_trx_data;
 
   DBUG_RETURN(0);
 }
@@ -3332,7 +3332,7 @@ void
 THD::binlog_start_trans_and_stmt()
 {
   DBUG_ENTER("binlog_start_trans_and_stmt");
-  binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton.slot];
+  binlog_trx_data *trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
   DBUG_PRINT("enter", ("trx_data=0x%lu", trx_data));
   if (trx_data)
     DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%u",
@@ -3348,13 +3348,13 @@ THD::binlog_start_trans_and_stmt()
     */
     my_off_t pos= 0;
     binlog_trans_log_savepos(this, &pos);
-    trx_data= (binlog_trx_data*) ha_data[binlog_hton.slot];
+    trx_data= (binlog_trx_data*) ha_data[binlog_hton->slot];
 
     trx_data->before_stmt_pos= pos;
 
     if (options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
-      trans_register_ha(this, TRUE, &binlog_hton);
-    trans_register_ha(this, FALSE, &binlog_hton);
+      trans_register_ha(this, TRUE, binlog_hton);
+    trans_register_ha(this, FALSE, binlog_hton);
   }
   DBUG_VOID_RETURN;
 }
