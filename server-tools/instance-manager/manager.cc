@@ -104,6 +104,19 @@ int my_sigwait(const sigset_t *set, int *sig)
 #endif
 
 
+void stop_all(Guardian_thread *guardian, Thread_registry *registry)
+{
+  /*
+    Let guardian thread know that it should break it's processing cycle,
+    once it wakes up.
+  */
+  guardian->request_shutdown(true);
+  /* wake guardian */
+  pthread_cond_signal(&guardian->COND_guardian);
+  /* stop all threads */
+  registry->deliver_shutdown();
+}
+
 /*
   manager - entry point to the main instance manager process: start
   listener thread, write pid file and enter into signal handling.
@@ -210,7 +223,8 @@ void manager(const Options &options)
     log_error("Cannot init instances repository. This might be caused by "
                "the wrong config file options. For instance, missing mysqld "
                "binary. Aborting.");
-    return;
+    stop_all(&guardian_thread, &thread_registry);
+    goto err;
   }
 
   /* create the listener */
@@ -227,6 +241,7 @@ void manager(const Options &options)
     if (rc)
     {
       log_error("manager(): set_stacksize_n_create_thread(listener) failed");
+      stop_all(&guardian_thread, &thread_registry);
       goto err;
     }
 
@@ -245,6 +260,7 @@ void manager(const Options &options)
     if ((status= my_sigwait(&mask, &signo)) != 0)
     {
       log_error("sigwait() failed");
+      stop_all(&guardian_thread, &thread_registry);
       goto err;
     }
 
