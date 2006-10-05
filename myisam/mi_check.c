@@ -1153,9 +1153,12 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	      /* We don't need to lock the key tree here as we don't allow
 		 concurrent threads when running myisamchk
 	      */
-              int search_result= (keyinfo->flag & HA_SPATIAL) ?
+              int search_result=
+#ifdef HAVE_RTREE_KEYS
+                (keyinfo->flag & HA_SPATIAL) ?
                 rtree_find_first(info, key, info->lastkey, key_length,
                                  MBR_EQUAL | MBR_DATA) : 
+#endif
                 _mi_search(info,keyinfo,info->lastkey,key_length,
                            SEARCH_SAME, info->s->state.key_root[key]);
               if (search_result)
@@ -1366,7 +1369,8 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 			   param->temp_filename);
       goto err;
     }
-    if (filecopy(param,new_file,info->dfile,0L,new_header_length,
+    if (new_header_length &&
+        filecopy(param,new_file,info->dfile,0L,new_header_length,
 		 "datafile-header"))
       goto err;
     info->s->state.dellink= HA_OFFSET_ERROR;
@@ -2063,7 +2067,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
 			   param->temp_filename);
       goto err;
     }
-    if (filecopy(param, new_file,info->dfile,0L,new_header_length,
+    if (new_header_length &&
+        filecopy(param, new_file,info->dfile,0L,new_header_length,
 		 "datafile-header"))
       goto err;
     if (param->testflag & T_UNPACK)
@@ -2431,7 +2436,8 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			   param->temp_filename);
       goto err;
     }
-    if (filecopy(param, new_file,info->dfile,0L,new_header_length,
+    if (new_header_length &&
+        filecopy(param, new_file,info->dfile,0L,new_header_length,
 		 "datafile-header"))
       goto err;
     if (param->testflag & T_UNPACK)

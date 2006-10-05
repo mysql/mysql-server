@@ -340,7 +340,7 @@ set @precision=10000000000;
 select rand(), 
 cast(rand(10)*@precision as unsigned integer) from t1;
 rand()	cast(rand(10)*@precision as unsigned integer)
--	6570515219
+-	6570515220
 -	1282061302
 -	6698761160
 -	9647622201
@@ -351,23 +351,23 @@ prepare stmt from
 set @var=1;
 execute stmt using @var;
 rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
--	6570515219	-
+-	6570515220	-
 -	1282061302	-
 -	6698761160	-
 -	9647622201	-
 set @var=2;
 execute stmt using @var;
 rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
--	6570515219	6555866465
--	1282061302	1223466192
--	6698761160	6449731873
+-	6570515220	6555866465
+-	1282061302	1223466193
+-	6698761160	6449731874
 -	9647622201	8578261098
 set @var=3;
 execute stmt using @var;
 rand()	cast(rand(10)*@precision as unsigned integer)	cast(rand(?)*@precision as unsigned integer)
--	6570515219	9057697559
+-	6570515220	9057697560
 -	1282061302	3730790581
--	6698761160	1480860534
+-	6698761160	1480860535
 -	9647622201	6211931236
 drop table t1;
 deallocate prepare stmt;
@@ -889,3 +889,50 @@ create temporary table if not exists t1 (a1 int);
 execute stmt;
 drop temporary table t1;
 deallocate prepare stmt;
+CREATE TABLE t1(
+ID int(10) unsigned NOT NULL auto_increment,
+Member_ID varchar(15) NOT NULL default '',
+Action varchar(12) NOT NULL,
+Action_Date datetime NOT NULL,
+Track varchar(15) default NULL,
+User varchar(12) default NULL,
+Date_Updated timestamp NOT NULL default CURRENT_TIMESTAMP on update
+CURRENT_TIMESTAMP,
+PRIMARY KEY (ID),
+KEY Action (Action),
+KEY Action_Date (Action_Date)
+);
+INSERT INTO t1(Member_ID, Action, Action_Date, Track) VALUES
+('111111', 'Disenrolled', '2006-03-01', 'CAD' ),
+('111111', 'Enrolled', '2006-03-01', 'CAD' ),
+('111111', 'Disenrolled', '2006-07-03', 'CAD' ),
+('222222', 'Enrolled', '2006-03-07', 'CAD' ),
+('222222', 'Enrolled', '2006-03-07', 'CHF' ),
+('222222', 'Disenrolled', '2006-08-02', 'CHF' ),
+('333333', 'Enrolled', '2006-03-01', 'CAD' ),
+('333333', 'Disenrolled', '2006-03-01', 'CAD' ),
+('444444', 'Enrolled', '2006-03-01', 'CAD' ),
+('555555', 'Disenrolled', '2006-03-01', 'CAD' ),
+('555555', 'Enrolled', '2006-07-21', 'CAD' ),
+('555555', 'Disenrolled', '2006-03-01', 'CHF' ),
+('666666', 'Enrolled', '2006-02-09', 'CAD' ),
+('666666', 'Enrolled', '2006-05-12', 'CHF' ),
+('666666', 'Disenrolled', '2006-06-01', 'CAD' );
+PREPARE STMT FROM
+"SELECT GROUP_CONCAT(Track SEPARATOR ', ') FROM t1
+  WHERE Member_ID=? AND Action='Enrolled' AND
+        (Track,Action_Date) IN (SELECT Track, MAX(Action_Date) FROM t1
+                                  WHERE Member_ID=?
+                                    GROUP BY Track 
+                                      HAVING Track>='CAD' AND
+                                             MAX(Action_Date)>'2006-03-01')";
+SET @id='111111';
+EXECUTE STMT USING @id,@id;
+GROUP_CONCAT(Track SEPARATOR ', ')
+NULL
+SET @id='222222';
+EXECUTE STMT USING @id,@id;
+GROUP_CONCAT(Track SEPARATOR ', ')
+CAD
+DEALLOCATE PREPARE STMT;
+DROP TABLE t1;
