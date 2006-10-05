@@ -21,6 +21,8 @@
 #include <NdbRestarter.hpp>
 #include <Vector.hpp>
 #include <random.h>
+#include <mgmapi.h>
+#include <mgmapi_debug.h>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -167,6 +169,44 @@ int runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char *mgm= ctx->getRemoteMgm();
+  Uint64 session_id= 0;
+
+  NdbMgmHandle h;
+  h= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_connect(h,0,0,0);
+  int s= ndb_mgm_get_fd(h);
+  session_id= ndb_mgm_get_session_id(h);
+  ndbout << "MGM Session id: " << session_id << endl;
+  write(s,"get",3);
+  ndb_mgm_disconnect(h);
+  ndb_mgm_destroy_handle(&h);
+
+  struct NdbMgmSession sess;
+  int slen= sizeof(struct NdbMgmSession);
+
+  h= ndb_mgm_create_handle();
+  ndb_mgm_set_connectstring(h, mgm);
+  ndb_mgm_connect(h,0,0,0);
+
+  if(ndb_mgm_get_session(h,session_id,&sess,&slen))
+  {
+    ndbout << "Failed, session still exists" << endl;
+    ndb_mgm_disconnect(h);
+    ndb_mgm_destroy_handle(&h);
+    return NDBT_FAILED;
+  }
+  else
+  {
+    ndbout << "SUCCESS: session is gone" << endl;
+    ndb_mgm_disconnect(h);
+    ndb_mgm_destroy_handle(&h);
+    return NDBT_OK;
+  }
+}
 
 
 NDBT_TESTSUITE(testMgm);
@@ -174,6 +214,11 @@ TESTCASE("SingleUserMode",
 	 "Test single user mode"){
   INITIALIZER(runTestSingleUserMode);
   FINALIZER(runClearTable);
+}
+TESTCASE("ApiSessionFailure",
+	 "Test failures in MGMAPI session"){
+  INITIALIZER(runTestApiSession);
+
 }
 NDBT_TESTSUITE_END(testMgm);
 

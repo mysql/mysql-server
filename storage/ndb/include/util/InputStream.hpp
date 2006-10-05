@@ -19,14 +19,22 @@
 
 #include <ndb_global.h>
 #include <NdbTCP.h>
+#include <NdbMutex.h>
 
 /**
  * Input stream
  */
 class InputStream {
 public:
-  virtual ~InputStream() {}
+  InputStream() { m_mutex= NULL; };
+  virtual ~InputStream() {};
   virtual char* gets(char * buf, int bufLen) = 0;
+  /**
+   * Set the mutex to be UNLOCKED when blocking (e.g. select(2))
+   */
+  void set_mutex(NdbMutex *m) { m_mutex= m; };
+protected:
+  NdbMutex *m_mutex;
 };
 
 class FileInputStream : public InputStream {
@@ -42,6 +50,7 @@ extern FileInputStream Stdin;
 class SocketInputStream : public InputStream {
   NDB_SOCKET_TYPE m_socket;
   unsigned m_timeout;
+  bool m_startover;
 public:
   SocketInputStream(NDB_SOCKET_TYPE socket, unsigned readTimeout = 1000);
   virtual ~SocketInputStream() {}
