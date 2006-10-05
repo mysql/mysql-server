@@ -32,6 +32,8 @@ class MgmApiSession : public SocketServer::Session
 {
   static void stop_session_if_timed_out(SocketServer::Session *_s, void *data);
   static void stop_session_if_not_connected(SocketServer::Session *_s, void *data);
+  static void list_session(SocketServer::Session *_s, void *data);
+  static void get_session(SocketServer::Session *_s, void *data);
 private:
   typedef Parser<MgmApiSession> Parser_t;
 
@@ -42,6 +44,11 @@ private:
   MgmtSrvr::Allocated_resources *m_allocated_resources;
   char m_err_str[1024];
   int m_stopSelf; // -1 is restart, 0 do nothing, 1 stop
+  NdbMutex *m_mutex;
+
+  // for listing sessions and other fun:
+  Parser_t::Context *m_ctx;
+  Uint64 m_session_id;
 
   void getConfig_common(Parser_t::Context &ctx,
 			const class Properties &args,
@@ -50,7 +57,7 @@ private:
   { return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str)); }
 
 public:
-  MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock);  
+  MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id);
   virtual ~MgmApiSession();
   void runSession();
 
@@ -108,13 +115,20 @@ public:
   void get_mgmd_nodeid(Parser_t::Context &ctx, Properties const &args);
 
   void report_event(Parser_t::Context &ctx, Properties const &args);
+
+  void listSessions(Parser_t::Context &ctx, Properties const &args);
+
+  void getSessionId(Parser_t::Context &ctx, Properties const &args);
+  void getSession(Parser_t::Context &ctx, Properties const &args);
 };
 
 class MgmApiService : public SocketServer::Service {
   class MgmtSrvr * m_mgmsrv;
+  Uint64 m_next_session_id; // Protected by m_sessions mutex it SocketServer
 public:
   MgmApiService(){
     m_mgmsrv = 0;
+    m_next_session_id= 1;
   }
   
   void setMgm(class MgmtSrvr * mgmsrv){
@@ -122,7 +136,7 @@ public:
   }
   
   SocketServer::Session * newSession(NDB_SOCKET_TYPE socket){
-    return new MgmApiSession(* m_mgmsrv, socket);
+    return new MgmApiSession(* m_mgmsrv, socket, m_next_session_id++);
   }
 };
 

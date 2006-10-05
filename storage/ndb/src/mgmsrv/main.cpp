@@ -47,6 +47,7 @@
 #define DEBUG(x) ndbout << x << endl;
 
 const char progname[] = "mgmtsrvr";
+const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 
 // copied from mysql.cc to get readline
 extern "C" {
@@ -183,6 +184,8 @@ static void usage()
 {
   short_usage_sub();
   ndb_std_print_version();
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
+  puts("");
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
 }
@@ -196,7 +199,6 @@ int main(int argc, char** argv)
 
   NDB_INIT(argv[0]);
 
-  const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
   load_defaults("my",load_default_groups,&argc,&argv);
 
   int ho_error;

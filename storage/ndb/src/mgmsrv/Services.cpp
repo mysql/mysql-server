@@ -270,6 +270,13 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("length", Int, Mandatory, "Length"),
     MGM_ARG("data", String, Mandatory, "Data"),
 
+  MGM_CMD("list sessions", &MgmApiSession::listSessions, ""),
+
+  MGM_CMD("get session id", &MgmApiSession::getSessionId, ""),
+
+  MGM_CMD("get session", &MgmApiSession::getSession, ""),
+    MGM_ARG("id", Int, Mandatory, "SessionID"),
+
   MGM_END()
 };
 
@@ -282,7 +289,7 @@ struct PurgeStruct
   NDB_TICKS tick;
 };
 
-MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock)
+MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id)
   : SocketServer::Session(sock), m_mgmsrv(mgm)
 {
   DBUG_ENTER("MgmApiSession::MgmApiSession");
@@ -291,6 +298,9 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock)
   m_parser = new Parser_t(commands, *m_input, true, true, true);
   m_allocated_resources= new MgmtSrvr::Allocated_resources(m_mgmsrv);
   m_stopSelf= 0;
+  m_ctx= NULL;
+  m_session_id= session_id;
+  m_mutex= NdbMutex_Create();
   DBUG_VOID_RETURN;
 }
 
@@ -314,6 +324,7 @@ MgmApiSession::~MgmApiSession()
     g_RestartServer= true;
   if(m_stopSelf)
     g_StopServer= true;
+  NdbMutex_Destroy(m_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -323,11 +334,19 @@ MgmApiSession::runSession()
   DBUG_ENTER("MgmApiSession::runSession");
 
   Parser_t::Context ctx;
-  while(!m_stop) {
+  ctx.m_mutex= m_mutex;
+  m_ctx= &ctx;
+  bool stop= false;
+  while(!stop) {
+    NdbMutex_Lock(m_mutex);
+
     m_parser->run(ctx, *this);
 
     if(ctx.m_currentToken == 0)
+    {
+      NdbMutex_Unlock(m_mutex);
       break;
+    }
 
     switch(ctx.m_status) {
     case Parser_t::UnknownCommand:
@@ -348,13 +367,19 @@ MgmApiSession::runSession()
     default:
       break;
     }
-  }
+
+    stop= m_stop;
+    NdbMutex_Unlock(m_mutex);
+  };
+
+  NdbMutex_Lock(m_mutex);
+  m_ctx= NULL;
   if(m_socket != NDB_INVALID_SOCKET)
   {
     NDB_CLOSE_SOCKET(m_socket);
     m_socket= NDB_INVALID_SOCKET;
   }
-
+  NdbMutex_Unlock(m_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -1592,11 +1617,6 @@ MgmApiSession::listen_event(Parser<MgmApiSession>::Context & ctx,
     result = -1;
     goto done;
   }
-  
-  m_mgmsrv.m_event_listner.add_listener(le);
-  
-  m_stop = true;
-  m_socket = NDB_INVALID_SOCKET;
 
 done:
   m_output->println("listen event");
@@ -1604,6 +1624,13 @@ done:
   if(result != 0)
     m_output->println("msg: %s", msg.c_str());
   m_output->println("");
+
+  if(result==0)
+  {
+    m_mgmsrv.m_event_listner.add_listener(le);
+    m_stop = true;
+    m_socket = NDB_INVALID_SOCKET;
+  }
 }
 
 void
@@ -1703,6 +1730,123 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
   m_mgmsrv.eventReport(data);
   m_output->println("report event reply");
   m_output->println("result: ok");
+  m_output->println("");
+}
+
+void
+MgmApiSession::list_session(SocketServer::Session *_s, void *data)
+{
+  MgmApiSession *s= (MgmApiSession *)_s;
+  MgmApiSession *lister= (MgmApiSession*) data;
+
+  if(s!=lister)
+    NdbMutex_Lock(s->m_mutex);
+
+  Uint64 id= s->m_session_id;
+  lister->m_output->println("session: %llu",id);
+  lister->m_output->println("session.%llu.m_stopSelf: %d",id,s->m_stopSelf);
+  lister->m_output->println("session.%llu.m_stop: %d",id,s->m_stop);
+  lister->m_output->println("session.%llu.allocated.nodeid: %d",id,s->m_allocated_resources->get_nodeid());
+  if(s->m_ctx)
+  {
+    int l= strlen(s->m_ctx->m_tokenBuffer);
+    char *buf= (char*) malloc(2*l+1);
+    char *b= buf;
+    for(int i=0; i<l;i++)
+      if(s->m_ctx->m_tokenBuffer[i]=='\n')
+      {
+        *b++='\\';
+        *b++='n';
+      }
+      else
+      {
+        *b++= s->m_ctx->m_tokenBuffer[i];
+      }
+    *b= '\0';
+
+    lister->m_output->println("session.%llu.parser.buffer.len: %u",id,l);
+    lister->m_output->println("session.%llu.parser.buffer: %s",id,buf);
+    lister->m_output->println("session.%llu.parser.status: %d",id,s->m_ctx->m_status);
+
+    free(buf);
+  }
+
+  if(s!=lister)
+    NdbMutex_Unlock(s->m_mutex);
+}
+
+void
+MgmApiSession::listSessions(Parser_t::Context &ctx,
+                            Properties const &args) {
+  m_mgmsrv.get_socket_server()->foreachSession(list_session,(void*)this);
+
+  m_output->println("");
+}
+
+void
+MgmApiSession::getSessionId(Parser_t::Context &ctx,
+                                 Properties const &args) {
+  m_output->println("get session id reply");
+  m_output->println("id: %llu",m_session_id);
+  m_output->println("");
+}
+
+struct get_session_param {
+  MgmApiSession *l;
+  Uint64 id;
+  int found;
+};
+
+void
+MgmApiSession::get_session(SocketServer::Session *_s, void *data)
+{
+  struct get_session_param *p= (struct get_session_param*)data;
+  MgmApiSession *s= (MgmApiSession *)_s;
+
+  if(s!=p->l)
+    NdbMutex_Lock(s->m_mutex);
+
+  if(p->id != s->m_session_id)
+  {
+    if(s!=p->l)
+      NdbMutex_Unlock(s->m_mutex);
+    return;
+  }
+
+  p->found= true;
+  p->l->m_output->println("id: %llu",s->m_session_id);
+  p->l->m_output->println("m_stopSelf: %d",s->m_stopSelf);
+  p->l->m_output->println("m_stop: %d",s->m_stop);
+  p->l->m_output->println("nodeid: %d",s->m_allocated_resources->get_nodeid());
+  if(s->m_ctx)
+  {
+    int l= strlen(s->m_ctx->m_tokenBuffer);
+    p->l->m_output->println("parser_buffer_len: %u",l);
+    p->l->m_output->println("parser_status: %d",s->m_ctx->m_status);
+  }
+
+  if(s!=p->l)
+    NdbMutex_Unlock(s->m_mutex);
+}
+
+void
+MgmApiSession::getSession(Parser_t::Context &ctx,
+                          Properties const &args) {
+  Uint64 id;
+  struct get_session_param p;
+
+  args.get("id", &id);
+
+  p.l= this;
+  p.id= id;
+  p.found= false;
+
+  m_output->println("get session reply");
+  m_mgmsrv.get_socket_server()->foreachSession(get_session,(void*)&p);
+
+  if(p.found==false)
+    m_output->println("id: 0");
+
   m_output->println("");
 }
 
