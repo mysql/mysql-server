@@ -754,7 +754,10 @@ sub command_line_setup () {
   elsif ( $mysql_version_id < 50000 )
   {
     # --vardir was specified
-    mtr_error("--vardir option not supported until MySQL 5.0");
+    # It's only supported in 4.1 as a symlink from var/
+    # by setting up $opt_mem that will be created
+    $opt_mem= $opt_vardir;
+    $opt_vardir= undef;
   }
 
   $path_vardir_trace= $opt_vardir;
