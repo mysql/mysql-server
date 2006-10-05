@@ -192,7 +192,7 @@ struct
 } master_pos;
 
 /* if set, all results are concated and compared against this file */
-const char *result_file= 0;
+const char *result_file_name= 0;
 
 typedef struct st_var
 {
@@ -382,9 +382,9 @@ struct st_command
 {
   char *query, *query_buf,*first_argument,*last_argument,*end;
   int first_word_len, query_len;
-  my_bool abort_on_error, require_file;
+  my_bool abort_on_error;
   struct st_expected_errors expected_errors;
-  char record_file[FN_REFLEN];
+  char require_file[FN_REFLEN];
   enum enum_commands type;
 };
 
@@ -410,9 +410,10 @@ VAR* var_get(const char *var_name, const char** var_name_end,
              my_bool raw, my_bool ignore_not_existing);
 void eval_expr(VAR* v, const char *p, const char** p_end);
 my_bool match_delimiter(int c, const char *delim, uint length);
-void dump_result_to_reject_file(const char *record_file, char *buf, int size);
-void dump_result_to_log_file(const char *record_file, char *buf, int size);
-void dump_warning_messages(const char *record_file);
+void dump_result_to_reject_file(char *buf, int size);
+void dump_result_to_log_file(char *buf, int size);
+void dump_warning_messages();
+void dump_progress();
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars);
@@ -742,12 +743,12 @@ void die(const char *fmt, ...)
   va_end(args);
 
   /* Dump the result that has been accumulated so far to .log file */
-  if (result_file && ds_res.length)
-    dump_result_to_log_file(result_file, ds_res.str, ds_res.length);
+  if (result_file_name && ds_res.length)
+    dump_result_to_log_file(ds_res.str, ds_res.length);
 
   /* Dump warning messages */
-  if (result_file && ds_warning_messages.length)
-    dump_warning_messages(result_file);
+  if (result_file_name && ds_warning_messages.length)
+    dump_warning_messages();
 
   /* Clean up and exit */
   free_used_memory();
@@ -926,47 +927,67 @@ err:
 
 
 /*
-  Check the content of ds against content of file fname
+  Check the content of ds against result file
 
   SYNOPSIS
   check_result
   ds - content to be checked
-  fname - name of file to check against
-  require_option - if set and check fails, the test will be aborted
-  with the special exit code "not supported test"
 
   RETURN VALUES
   error - the function will not return
 
 */
 
-void check_result(DYNAMIC_STRING* ds, const char *fname,
-                  my_bool require_option)
+void check_result(DYNAMIC_STRING* ds)
 {
-  int res= dyn_string_cmp(ds, fname);
+  DBUG_ASSERT(result_file_name);
   DBUG_ENTER("check_result");
 
-  if (res && require_option)
+  switch (dyn_string_cmp(ds, result_file_name))
   {
-    char reason[FN_REFLEN];
-    fn_format(reason, fname, "", "", MY_REPLACE_EXT | MY_REPLACE_DIR);
-    abort_not_supported_test("Test requires: '%s'", reason);
-  }
-  switch (res) {
   case RESULT_OK:
     break; /* ok */
   case RESULT_LENGTH_MISMATCH:
-    dump_result_to_reject_file(fname, ds->str, ds->length);
+    dump_result_to_reject_file(ds->str, ds->length);
     die("Result length mismatch");
     break;
   case RESULT_CONTENT_MISMATCH:
-    dump_result_to_reject_file(fname, ds->str, ds->length);
+    dump_result_to_reject_file(ds->str, ds->length);
     die("Result content mismatch");
     break;
   default: /* impossible */
     die("Unknown error code from dyn_string_cmp()");
   }
 
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  Check the content of ds against a require file
+  If match fails, abort the test with special error code
+  indicating that test is not supported
+
+  SYNOPSIS
+  check_result
+  ds - content to be checked
+  fname - name of file to check against
+
+  RETURN VALUES
+  error - the function will not return
+
+*/
+
+void check_require(DYNAMIC_STRING* ds, const char *fname)
+{
+  DBUG_ENTER("check_require");
+
+  if (dyn_string_cmp(ds, fname))
+  {
+    char reason[FN_REFLEN];
+    fn_format(reason, fname, "", "", MY_REPLACE_EXT | MY_REPLACE_DIR);
+    abort_not_supported_test("Test requires: '%s'", reason);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -2389,7 +2410,8 @@ int do_sleep(struct st_command *command, my_bool real_sleep)
 }
 
 
-void do_get_file_name(char *filename, struct st_command *command)
+void do_get_file_name(struct st_command *command,
+                      char* dest, uint dest_max_len)
 {
   char *p= command->first_argument, *name;
   if (!*p)
@@ -2400,7 +2422,7 @@ void do_get_file_name(char *filename, struct st_command *command)
   if (*p)
     *p++= 0;
   command->last_argument= p;
-  strmake(filename, name, FN_REFLEN);
+  strmake(dest, name, dest_max_len);
 }
 
 
@@ -3672,8 +3694,7 @@ int read_command(struct st_command** command_ptr)
       insert_dynamic(&q_lines, (gptr) &command))
     die(NullS);
 
-  command->record_file[0]= 0;
-  command->require_file= 0;
+  command->require_file[0]= 0;
   command->first_word_len= 0;
   command->query_len= 0;
 
@@ -3767,8 +3788,8 @@ static struct my_option my_long_options[] =
   {"record", 'r', "Record output of test_file into result file.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"result-file", 'R', "Read/Store result from/in this file.",
-   (gptr*) &result_file, (gptr*) &result_file, 0, GET_STR, REQUIRED_ARG,
-   0, 0, 0, 0, 0, 0},
+   (gptr*) &result_file_name, (gptr*) &result_file_name, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
@@ -4018,35 +4039,35 @@ void str_to_file(const char *fname, char *str, int size)
 }
 
 
-void dump_result_to_reject_file(const char *record_file, char *buf, int size)
+void dump_result_to_reject_file(char *buf, int size)
 {
   char reject_file[FN_REFLEN];
-  str_to_file(fn_format(reject_file, record_file, "", ".reject",
+  str_to_file(fn_format(reject_file, result_file_name, "", ".reject",
                         MY_REPLACE_EXT),
               buf, size);
 }
 
-void dump_result_to_log_file(const char *record_file, char *buf, int size)
+void dump_result_to_log_file(char *buf, int size)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, record_file, "", ".log",
+  str_to_file(fn_format(log_file, result_file_name, "", ".log",
                         MY_REPLACE_EXT),
               buf, size);
 }
 
-void dump_progress(const char *record_file)
+void dump_progress(void)
 {
   char log_file[FN_REFLEN];
-  str_to_file(fn_format(log_file, record_file, "", ".progress",
+  str_to_file(fn_format(log_file, result_file_name, "", ".progress",
                         MY_REPLACE_EXT),
               ds_progress.str, ds_progress.length);
 }
 
-void dump_warning_messages(const char *record_file)
+void dump_warning_messages(void)
 {
   char warn_file[FN_REFLEN];
 
-  str_to_file(fn_format(warn_file, record_file, "", ".warnings",
+  str_to_file(fn_format(warn_file, result_file_name, "", ".warnings",
                         MY_REPLACE_EXT),
               ds_warning_messages.str, ds_warning_messages.length);
 }
@@ -4608,7 +4629,7 @@ void handle_error(struct st_command *command,
 
   DBUG_ENTER("handle_error");
 
-  if (command->require_file)
+  if (command->require_file[0])
   {
     /*
       The query after a "--require" failed. This is fine as long the server
@@ -5004,12 +5025,12 @@ void run_query(MYSQL *mysql, struct st_command *command, int flags)
   }
 
   /*
-    When command->record_file is set the output of _this_ query
+    When command->require_file is set the output of _this_ query
     should be compared with an already existing file
     Create a temporary dynamic string to contain the output from
     this query.
   */
-  if (command->record_file[0])
+  if (command->require_file[0])
   {
     init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
@@ -5144,26 +5165,14 @@ void run_query(MYSQL *mysql, struct st_command *command, int flags)
 	  mysql_errno(mysql), mysql_error(mysql));
   }
 
-  if (command->record_file[0])
+  if (command->require_file[0])
   {
 
-    /* A result file was specified for _this_ query  */
-    if (record)
-    {
-      /*
-        Recording in progress
-        Dump the output from _this_ query to the specified record_file
-      */
-      str_to_file(command->record_file, ds->str, ds->length);
-
-    } else {
-
-      /*
-	The output from _this_ query should be checked against an already
-	existing file which has been specified using --require or --result
-      */
-      check_result(ds, command->record_file, command->require_file);
-    }
+    /* A result file was specified for _this_ query
+       and the output should be checked against an already
+       existing file which has been specified using --require or --result
+    */
+    check_require(ds, command->require_file);
   }
 
   dynstr_free(&ds_warnings);
@@ -5391,7 +5400,7 @@ void mark_progress(struct st_command* command __attribute__((unused)),
 int main(int argc, char **argv)
 {
   struct st_command *command;
-  my_bool require_file= 0, q_send_flag= 0;
+  my_bool q_send_flag= 0;
   uint command_executed= 0, last_command_executed= 0;
   char save_file[FN_REFLEN];
   MY_STAT res_info;
@@ -5442,7 +5451,8 @@ int main(int argc, char **argv)
   init_dynamic_string(&ds_warning_messages, "", 0, 2048);
   parse_args(argc, argv);
 
-  DBUG_PRINT("info",("result_file: '%s'", result_file ? result_file : ""));
+  DBUG_PRINT("info",("result_file: '%s'",
+                     result_file_name ? result_file_name : ""));
   if (mysql_server_init(embedded_server_arg_count,
 			embedded_server_args,
 			(char**) embedded_server_groups))
@@ -5594,9 +5604,8 @@ int main(int argc, char **argv)
 	display_result_vertically= (command->type == Q_QUERY_VERTICAL);
 	if (save_file[0])
 	{
-	  strmov(command->record_file,save_file);
-	  command->require_file=require_file;
-	  save_file[0]=0;
+	  strmake(command->require_file, save_file, sizeof(save_file));
+	  save_file[0]= 0;
 	}
 	run_query(&cur_con->mysql, command, QUERY_REAP_FLAG|QUERY_SEND_FLAG);
 	display_result_vertically= old_display_result_vertically;
@@ -5626,9 +5635,8 @@ int main(int argc, char **argv)
 
 	if (save_file[0])
 	{
-	  strmov(command->record_file,save_file);
-	  command->require_file=require_file;
-	  save_file[0]=0;
+	  strmake(command->require_file, save_file, sizeof(save_file));
+	  save_file[0]= 0;
 	}
 	run_query(&cur_con->mysql, command, flags);
 	command_executed++;
@@ -5660,16 +5668,11 @@ int main(int argc, char **argv)
 	command_executed++;
         command->last_argument= command->end;
 	break;
-      case Q_RESULT:
-	do_get_file_name(save_file, command);
-	require_file=0;
+      case Q_REQUIRE:
+	do_get_file_name(command, save_file, sizeof(save_file));
 	break;
       case Q_ERROR:
         do_get_errcodes(command);
-	break;
-      case Q_REQUIRE:
-	do_get_file_name(save_file, command);
-	require_file=1;
 	break;
       case Q_REPLACE:
 	do_get_replace(command);
@@ -5741,9 +5744,12 @@ int main(int argc, char **argv)
         else
           die("Parsing is already enabled");
         break;
-
       case Q_DIE:
         die("%s", command->first_argument);
+        break;
+
+      case Q_RESULT:
+        die("result, deprecated command");
         break;
 
       default:
@@ -5802,12 +5808,14 @@ int main(int argc, char **argv)
   */
   if (ds_res.length)
   {
-    if (result_file)
+    if (result_file_name)
     {
+      /* A result file has been specified */
+
       if (record)
       {
-	/* Dump the output from test to result file */
-	str_to_file(result_file, ds_res.str, ds_res.length);
+	/* Recording - dump the output from test to result file */
+	str_to_file(result_file_name, ds_res.str, ds_res.length);
       }
       else
       {
@@ -5815,12 +5823,12 @@ int main(int argc, char **argv)
 	   - detect missing result file
 	   - detect zero size result file
         */
-	check_result(&ds_res, result_file, 0);
+	check_result(&ds_res);
       }
     }
     else
     {
-      /* No result_file specified to compare with, print to stdout */
+      /* No result_file_name specified to compare with, print to stdout */
       printf("%s", ds_res.str);
     }
   }
@@ -5829,7 +5837,8 @@ int main(int argc, char **argv)
     die("The test didn't produce any output");
   }
 
-  if (!command_executed && result_file && my_stat(result_file, &res_info, 0))
+  if (!command_executed &&
+      result_file_name && my_stat(result_file_name, &res_info, 0))
   {
     /*
       my_stat() successful on result file. Check if we have not run a
@@ -5841,12 +5850,12 @@ int main(int argc, char **argv)
     die("No queries executed but result file found!");
   }
 
-  if ( opt_mark_progress && result_file )
-    dump_progress(result_file);
+  if ( opt_mark_progress && result_file_name )
+    dump_progress();
 
   /* Dump warning messages */
-  if (result_file && ds_warning_messages.length)
-    dump_warning_messages(result_file);
+  if (result_file_name && ds_warning_messages.length)
+    dump_warning_messages();
 
   dynstr_free(&ds_res);
 
