@@ -565,6 +565,18 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
 }
 
 /**
+ * Only used for low level testing
+ * Never to be used by end user.
+ * Or anybody who doesn't know exactly what they're doing.
+ */
+extern "C"
+int
+ndb_mgm_get_fd(NdbMgmHandle handle)
+{
+  return handle->socket;
+}
+
+/**
  * Disconnect from a mgm server
  */
 extern "C"
@@ -754,22 +766,16 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     return NULL;
   }
-  if(buf[strlen(buf)-1] == '\n')
-    buf[strlen(buf)-1] = '\0';
-
-  if(strcmp("node status", buf) != 0) {
+  if(strcmp("node status\n", buf) != 0) {
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     return NULL;
   }
-
   if(!in.gets(buf, sizeof(buf)))
   {
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     return NULL;
   }
-  if(buf[strlen(buf)-1] == '\n')
-    buf[strlen(buf)-1] = '\0';
-  
+
   BaseString tmp(buf);
   Vector<BaseString> split;
   tmp.split(split, ":");
@@ -777,7 +783,7 @@ ndb_mgm_get_status(NdbMgmHandle handle)
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     return NULL;
   }
- 
+
   if(!(split[0].trim() == "nodes")){
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     return NULL;
@@ -2381,7 +2387,6 @@ ndb_mgm_check_connection(NdbMgmHandle handle){
   SocketOutputStream out(handle->socket);
   SocketInputStream in(handle->socket, handle->read_timeout);
   char buf[32];
-
   if (out.println("check connection"))
     goto ndb_mgm_check_connection_error;
 
@@ -2591,7 +2596,6 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
 
   SocketInputStream in(handle->socket, handle->read_timeout);
   char buf[32];
-
   in.gets(buf, sizeof(buf));
 
   DBUG_RETURN(0);
