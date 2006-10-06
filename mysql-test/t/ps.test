@@ -354,14 +354,14 @@ create table t1 (a int, b int);
 insert into t1 (a, b) values (1,1), (1,2), (2,1), (2,2);
 prepare stmt from
 "explain select * from t1 where t1.a=2 and t1.a=t1.b and t1.b > 1 + ?";
---replace_column 1 - 2 - 3 - 4 - 5 - 6 - 7 - 8 -
 set @v=5;
-execute stmt using @v;
 --replace_column 1 - 2 - 3 - 4 - 5 - 6 - 7 - 8 -
+execute stmt using @v;
 set @v=0;
-execute stmt using @v;
 --replace_column 1 - 2 - 3 - 4 - 5 - 6 - 7 - 8 -
+execute stmt using @v;
 set @v=5;
+--replace_column 1 - 2 - 3 - 4 - 5 - 6 - 7 - 8 -
 execute stmt using @v;
 drop table t1;
 deallocate prepare stmt;
