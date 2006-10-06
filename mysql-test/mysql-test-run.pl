@@ -2775,6 +2775,9 @@ sub do_after_run_mysqltest($)
   mtr_appendfile_to_file($path_timefile, $path_mysqltest_log)
     if -f $path_timefile;
 
+  # Remove the file that mysqltest writes info to
+  unlink($path_timefile);
+
 }
 
 
@@ -2807,7 +2810,12 @@ sub run_testcase ($) {
   my $died= mtr_record_dead_children();
   if ($died or $master_restart or $slave_restart)
   {
-    run_testcase_start_servers($tinfo);
+    if (run_testcase_start_servers($tinfo))
+    {
+      mtr_report_test_name($tinfo);
+      report_failure_and_restart($tinfo);
+      return 1;
+    }
   }
 
   # ----------------------------------------------------------------------
@@ -3748,6 +3756,17 @@ sub run_testcase_stop_servers($$$) {
   }
 }
 
+
+#
+# run_testcase_start_servers
+#
+# Start the servers neede by this test case
+#
+# RETURN
+#  0 OK
+#  1 Start failed
+#
+
 sub run_testcase_start_servers($) {
   my $tinfo= shift;
 
@@ -3755,7 +3774,7 @@ sub run_testcase_start_servers($) {
 
   if ( $glob_use_running_server or $glob_use_embedded_server )
   {
-    return;
+    return 0;
   }
 
   # -------------------------------------------------------
@@ -3796,10 +3815,9 @@ sub run_testcase_start_servers($) {
 					$master->[0]->{'start_timeout'},
 					$master->[0]->{'pid'}))
 	{
-	  mtr_report_test_name($tinfo);
-	  mtr_report("Failed to create 'cluster/apply_status' table");
-	  report_failure_and_restart($tinfo);
-	  return;
+
+	  $tinfo->{'comment'}= "Failed to create 'cluster/apply_status' table";
+	  return 1;
 	}
       }
       mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
@@ -3822,13 +3840,10 @@ sub run_testcase_start_servers($) {
 
     im_create_defaults_file($instance_manager);
 
-    unless ( mtr_im_start($instance_manager, $tinfo->{im_opts}) )
+    if  ( ! mtr_im_start($instance_manager, $tinfo->{im_opts}) )
     {
-      mtr_report_test_name($tinfo);
-      report_failure_and_restart($tinfo);
-      mtr_report("Failed to start Instance Manager. " .
-                 "The test '$tname' is marked as failed.");
-      return;
+      $tinfo->{'comment'}= "Failed to start Instance Manager. ";
+      return 1;
     }
   }
 
@@ -3878,7 +3893,8 @@ sub run_testcase_start_servers($) {
     if (ndbcluster_wait_started($cluster, ""))
     {
       # failed to start
-      mtr_report("Start of $cluster->{'name'} cluster failed, ");
+      $tinfo->{'comment'}= "Start of $cluster->{'name'} cluster failed";
+      return 1;
     }
   }
 
@@ -3890,9 +3906,13 @@ sub run_testcase_start_servers($) {
 
     if (mysqld_wait_started($mysqld))
     {
-      mtr_warning("Failed to start $mysqld->{'type'} mysqld $mysqld->{'idx'}");
+      # failed to start
+      $tinfo->{'comment'}=
+	"Failed to start $mysqld->{'type'} mysqld $mysqld->{'idx'}";
+      return 1;
     }
   }
+  return 0;
 }
 
 #
