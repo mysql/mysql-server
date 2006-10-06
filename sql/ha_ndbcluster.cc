@@ -10471,7 +10471,7 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
 
     while ((id= g_ndb_cluster_connection->get_next_node(iter)))
     {
-      uint c= 0;
+      init_fill_schema_files_row(table);
       NdbDictionary::Datafile df= dict->getDatafile(id, elt.name);
       ndberr= dict->getNdbError();
       if(ndberr.classification != NdbError::NoError)
@@ -10489,76 +10489,48 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
         ERR_RETURN(ndberr);
       }
 
-      table->field[c++]->set_null(); // FILE_ID
-      table->field[c]->set_notnull();
-      table->field[c++]->store(elt.name, strlen(elt.name),
-                               system_charset_info);
-      table->field[c]->set_notnull();
-      table->field[c++]->store("DATAFILE",8,system_charset_info);
-      table->field[c]->set_notnull();
-      table->field[c++]->store(df.getTablespace(), strlen(df.getTablespace()),
-                               system_charset_info);
-      table->field[c++]->set_null(); // TABLE_CATALOG
-      table->field[c++]->set_null(); // TABLE_SCHEMA
-      table->field[c++]->set_null(); // TABLE_NAME
+      table->field[IS_FILES_FILE_NAME]->set_notnull();
+      table->field[IS_FILES_FILE_NAME]->store(elt.name, strlen(elt.name),
+                                              system_charset_info);
+      table->field[IS_FILES_FILE_TYPE]->set_notnull();
+      table->field[IS_FILES_FILE_TYPE]->store("DATAFILE",8,
+                                              system_charset_info);
+      table->field[IS_FILES_TABLESPACE_NAME]->set_notnull();
+      table->field[IS_FILES_TABLESPACE_NAME]->store(df.getTablespace(),
+                                                    strlen(df.getTablespace()),
+                                                    system_charset_info);
+      table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
+      table->field[IS_FILES_LOGFILE_GROUP_NAME]->
+        store(ts.getDefaultLogfileGroup(),
+              strlen(ts.getDefaultLogfileGroup()),
+              system_charset_info);
+      table->field[IS_FILES_ENGINE]->set_notnull();
+      table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
+                                           ndbcluster_hton_name_length,
+                                           system_charset_info);
 
-      // LOGFILE_GROUP_NAME
-      table->field[c]->set_notnull();
-      table->field[c++]->store(ts.getDefaultLogfileGroup(),
-                               strlen(ts.getDefaultLogfileGroup()),
-                               system_charset_info);
-      table->field[c++]->set_null(); // LOGFILE_GROUP_NUMBER
-      table->field[c]->set_notnull();
-      table->field[c++]->store(ndbcluster_hton_name,
-                               ndbcluster_hton_name_length,
-                               system_charset_info); // ENGINE
+      table->field[IS_FILES_FREE_EXTENTS]->set_notnull();
+      table->field[IS_FILES_FREE_EXTENTS]->store(df.getFree()
+                                                 / ts.getExtentSize());
+      table->field[IS_FILES_TOTAL_EXTENTS]->set_notnull();
+      table->field[IS_FILES_TOTAL_EXTENTS]->store(df.getSize()
+                                                  / ts.getExtentSize());
+      table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
+      table->field[IS_FILES_EXTENT_SIZE]->store(ts.getExtentSize());
+      table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
+      table->field[IS_FILES_INITIAL_SIZE]->store(df.getSize());
+      table->field[IS_FILES_MAXIMUM_SIZE]->set_notnull();
+      table->field[IS_FILES_MAXIMUM_SIZE]->store(df.getSize());
+      table->field[IS_FILES_VERSION]->set_notnull();
+      table->field[IS_FILES_VERSION]->store(df.getObjectVersion());
 
-      table->field[c++]->set_null(); // FULLTEXT_KEYS
-      table->field[c++]->set_null(); // DELETED_ROWS
-      table->field[c++]->set_null(); // UPDATE_COUNT
-      table->field[c]->set_notnull();
-      table->field[c++]->store(df.getFree() / ts.getExtentSize()); // FREE_EXTENTS
-      table->field[c]->set_notnull();
-      table->field[c++]->store(df.getSize() / ts.getExtentSize()); // TOTAL_EXTENTS
-      table->field[c]->set_notnull();
-      table->field[c++]->store(ts.getExtentSize()); // EXTENT_SIZE
-
-      table->field[c]->set_notnull();
-      table->field[c++]->store(df.getSize()); // INITIAL_SIZE
-      table->field[c]->set_notnull();
-      table->field[c++]->store(df.getSize()); // MAXIMUM_SIZE
-      table->field[c++]->set_null(); // AUTOEXTEND_SIZE
-
-      table->field[c++]->set_null(); // CREATION_TIME
-      table->field[c++]->set_null(); // LAST_UPDATE_TIME
-      table->field[c++]->set_null(); // LAST_ACCESS_TIME
-      table->field[c++]->set_null(); // RECOVER_TIME
-      table->field[c++]->set_null(); // TRANSACTION_COUNTER
-
-      table->field[c]->set_notnull();
-      table->field[c++]->store(df.getObjectVersion()); // VERSION
-
-      table->field[c]->set_notnull();
-      table->field[c++]->store("FIXED", 5, system_charset_info); // ROW_FORMAT
-
-      table->field[c++]->set_null(); // TABLE_ROWS
-      table->field[c++]->set_null(); // AVG_ROW_LENGTH
-      table->field[c++]->set_null(); // DATA_LENGTH
-      table->field[c++]->set_null(); // MAX_DATA_LENGTH
-      table->field[c++]->set_null(); // INDEX_LENGTH
-      table->field[c++]->set_null(); // DATA_FREE
-      table->field[c++]->set_null(); // CREATE_TIME
-      table->field[c++]->set_null(); // UPDATE_TIME
-      table->field[c++]->set_null(); // CHECK_TIME
-      table->field[c++]->set_null(); // CHECKSUM
-
-      table->field[c]->set_notnull();
-      table->field[c++]->store("NORMAL", 6, system_charset_info);
+      table->field[IS_FILES_ROW_FORMAT]->set_notnull();
+      table->field[IS_FILES_ROW_FORMAT]->store("FIXED", 5, system_charset_info);
 
       char extra[30];
       int len= my_snprintf(extra, sizeof(extra), "CLUSTER_NODE=%u", id);
-      table->field[c]->store(extra, len, system_charset_info);
-      table->field[c]->set_notnull();
+      table->field[IS_FILES_EXTRA]->set_notnull();
+      table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
       schema_table_store_record(thd, table);
     }
   }
@@ -10597,76 +10569,43 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
         ERR_RETURN(ndberr);
       }
 
-      int c= 0;
-      table->field[c++]->set_null(); // FILE_ID
-      table->field[c]->set_notnull();
-      table->field[c++]->store(elt.name, strlen(elt.name),
-                               system_charset_info);
-      table->field[c]->set_notnull();
-      table->field[c++]->store("UNDO LOG", 8, system_charset_info);
-      table->field[c++]->set_null(); // TABLESPACE NAME
-      table->field[c++]->set_null(); // TABLE_CATALOG
-      table->field[c++]->set_null(); // TABLE_SCHEMA
-      table->field[c++]->set_null(); // TABLE_NAME
-
-      // LOGFILE_GROUP_NAME
+      init_fill_schema_files_row(table);
+      table->field[IS_FILES_FILE_NAME]->set_notnull();
+      table->field[IS_FILES_FILE_NAME]->store(elt.name, strlen(elt.name),
+                                              system_charset_info);
+      table->field[IS_FILES_FILE_TYPE]->set_notnull();
+      table->field[IS_FILES_FILE_TYPE]->store("UNDO LOG", 8,
+                                              system_charset_info);
       NdbDictionary::ObjectId objid;
       uf.getLogfileGroupId(&objid);
-      table->field[c]->set_notnull();
-      table->field[c++]->store(uf.getLogfileGroup(),
-                               strlen(uf.getLogfileGroup()),
-                               system_charset_info);
-      table->field[c]->set_notnull();
-      table->field[c++]->store(objid.getObjectId()); // LOGFILE_GROUP_NUMBER
-      table->field[c]->set_notnull();
-      table->field[c++]->store(ndbcluster_hton_name,
-                               ndbcluster_hton_name_length,
-                               system_charset_info); // ENGINE
+      table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
+      table->field[IS_FILES_LOGFILE_GROUP_NAME]->store(uf.getLogfileGroup(),
+                                                  strlen(uf.getLogfileGroup()),
+                                                       system_charset_info);
+      table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
+      table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(objid.getObjectId());
+      table->field[IS_FILES_ENGINE]->set_notnull();
+      table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
+                                           ndbcluster_hton_name_length,
+                                           system_charset_info);
 
-      table->field[c++]->set_null(); // FULLTEXT_KEYS
-      table->field[c++]->set_null(); // DELETED_ROWS
-      table->field[c++]->set_null(); // UPDATE_COUNT
-      table->field[c++]->set_null(); // FREE_EXTENTS
-      table->field[c]->set_notnull();
-      table->field[c++]->store(uf.getSize()/4); // TOTAL_EXTENTS
-      table->field[c]->set_notnull();
-      table->field[c++]->store(4); // EXTENT_SIZE
+      table->field[IS_FILES_TOTAL_EXTENTS]->set_notnull();
+      table->field[IS_FILES_TOTAL_EXTENTS]->store(uf.getSize()/4);
+      table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
+      table->field[IS_FILES_EXTENT_SIZE]->store(4);
 
-      table->field[c]->set_notnull();
-      table->field[c++]->store(uf.getSize()); // INITIAL_SIZE
-      table->field[c]->set_notnull();
-      table->field[c++]->store(uf.getSize()); // MAXIMUM_SIZE
-      table->field[c++]->set_null(); // AUTOEXTEND_SIZE
+      table->field[IS_FILES_INITIAL_SIZE]->set_notnull();
+      table->field[IS_FILES_INITIAL_SIZE]->store(uf.getSize());
+      table->field[IS_FILES_MAXIMUM_SIZE]->set_notnull();
+      table->field[IS_FILES_MAXIMUM_SIZE]->store(uf.getSize());
 
-      table->field[c++]->set_null(); // CREATION_TIME
-      table->field[c++]->set_null(); // LAST_UPDATE_TIME
-      table->field[c++]->set_null(); // LAST_ACCESS_TIME
-      table->field[c++]->set_null(); // RECOVER_TIME
-      table->field[c++]->set_null(); // TRANSACTION_COUNTER
-
-      table->field[c]->set_notnull();
-      table->field[c++]->store(uf.getObjectVersion()); // VERSION
-
-      table->field[c++]->set_null(); // ROW FORMAT
-
-      table->field[c++]->set_null(); // TABLE_ROWS
-      table->field[c++]->set_null(); // AVG_ROW_LENGTH
-      table->field[c++]->set_null(); // DATA_LENGTH
-      table->field[c++]->set_null(); // MAX_DATA_LENGTH
-      table->field[c++]->set_null(); // INDEX_LENGTH
-      table->field[c++]->set_null(); // DATA_FREE
-      table->field[c++]->set_null(); // CREATE_TIME
-      table->field[c++]->set_null(); // UPDATE_TIME
-      table->field[c++]->set_null(); // CHECK_TIME
-      table->field[c++]->set_null(); // CHECKSUM
-
-      table->field[c]->set_notnull();
-      table->field[c++]->store("NORMAL", 6, system_charset_info);
+      table->field[IS_FILES_VERSION]->set_notnull();
+      table->field[IS_FILES_VERSION]->store(uf.getObjectVersion());
 
       char extra[100];
       int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",id,lfg.getUndoBufferSize());
-      table->field[c]->set_notnull();
-      table->field[c]->store(extra, len, system_charset_info);
+      table->field[IS_FILES_EXTRA]->set_notnull();
+      table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
       schema_table_store_record(thd, table);
     }
   }
@@ -10692,69 +10631,36 @@ static int ndbcluster_fill_files_table(THD *thd, TABLE_LIST *tables,
       ERR_RETURN(ndberr);
     }
 
-    int c= 0;
-    table->field[c++]->set_null(); // FILE_ID
-    table->field[c++]->set_null(); // name
-    table->field[c]->set_notnull();
-    table->field[c++]->store("UNDO LOG", 8, system_charset_info);
-    table->field[c++]->set_null(); // TABLESPACE NAME
-    table->field[c++]->set_null(); // TABLE_CATALOG
-    table->field[c++]->set_null(); // TABLE_SCHEMA
-    table->field[c++]->set_null(); // TABLE_NAME
+    init_fill_schema_files_row(table);
+    table->field[IS_FILES_FILE_TYPE]->set_notnull();
+    table->field[IS_FILES_FILE_TYPE]->store("UNDO LOG", 8,
+                                            system_charset_info);
 
-    // LOGFILE_GROUP_NAME
-    table->field[c]->set_notnull();
-    table->field[c++]->store(elt.name, strlen(elt.name),
-                             system_charset_info);
-    table->field[c]->set_notnull();
-    table->field[c++]->store(lfg.getObjectId()); // LOGFILE_GROUP_NUMBER
-    table->field[c]->set_notnull();
-    table->field[c++]->store(ndbcluster_hton_name,
-                             ndbcluster_hton_name_length,
-                             system_charset_info); // ENGINE
+    table->field[IS_FILES_LOGFILE_GROUP_NAME]->set_notnull();
+    table->field[IS_FILES_LOGFILE_GROUP_NAME]->store(elt.name,
+                                                     strlen(elt.name),
+                                                     system_charset_info);
+    table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->set_notnull();
+    table->field[IS_FILES_LOGFILE_GROUP_NUMBER]->store(lfg.getObjectId());
+    table->field[IS_FILES_ENGINE]->set_notnull();
+    table->field[IS_FILES_ENGINE]->store(ndbcluster_hton_name,
+                                         ndbcluster_hton_name_length,
+                                         system_charset_info);
 
-    table->field[c++]->set_null(); // FULLTEXT_KEYS
-    table->field[c++]->set_null(); // DELETED_ROWS
-    table->field[c++]->set_null(); // UPDATE_COUNT
-    table->field[c]->set_notnull();
-    table->field[c++]->store(lfg.getUndoFreeWords()); // FREE_EXTENTS
-    table->field[c++]->set_null(); //store(uf.getSize()/4); // TOTAL_EXTENTS
-    table->field[c]->set_notnull();
-    table->field[c++]->store(4); // EXTENT_SIZE
+    table->field[IS_FILES_FREE_EXTENTS]->set_notnull();
+    table->field[IS_FILES_FREE_EXTENTS]->store(lfg.getUndoFreeWords());
+    table->field[IS_FILES_EXTENT_SIZE]->set_notnull();
+    table->field[IS_FILES_EXTENT_SIZE]->store(4);
 
-    table->field[c++]->set_null();//store(uf.getSize()); // INITIAL_SIZE
-    table->field[c++]->set_null(); //store(uf.getSize()); // MAXIMUM_SIZE
-    table->field[c++]->set_null(); // AUTOEXTEND_SIZE
-
-    table->field[c++]->set_null(); // CREATION_TIME
-    table->field[c++]->set_null(); // LAST_UPDATE_TIME
-    table->field[c++]->set_null(); // LAST_ACCESS_TIME
-    table->field[c++]->set_null(); // RECOVER_TIME
-    table->field[c++]->set_null(); // TRANSACTION_COUNTER
-
-    table->field[c]->set_notnull();
-    table->field[c++]->store(lfg.getObjectVersion()); // VERSION
-
-    table->field[c++]->set_null(); // ROW FORMAT
-
-    table->field[c++]->set_null(); // TABLE_ROWS
-    table->field[c++]->set_null(); // AVG_ROW_LENGTH
-    table->field[c++]->set_null(); // DATA_LENGTH
-    table->field[c++]->set_null(); // MAX_DATA_LENGTH
-    table->field[c++]->set_null(); // INDEX_LENGTH
-    table->field[c++]->set_null(); // DATA_FREE
-    table->field[c++]->set_null(); // CREATE_TIME
-    table->field[c++]->set_null(); // UPDATE_TIME
-    table->field[c++]->set_null(); // CHECK_TIME
-    table->field[c++]->set_null(); // CHECKSUM
-
-    table->field[c]->set_notnull();
-    table->field[c++]->store("NORMAL", 6, system_charset_info);
+    table->field[IS_FILES_VERSION]->set_notnull();
+    table->field[IS_FILES_VERSION]->store(lfg.getObjectVersion());
 
     char extra[100];
-    int len= my_snprintf(extra,sizeof(extra),"UNDO_BUFFER_SIZE=%lu",id,lfg.getUndoBufferSize());
-    table->field[c]->set_notnull();
-    table->field[c]->store(extra, len, system_charset_info);
+    int len= my_snprintf(extra,sizeof(extra),
+                         "UNDO_BUFFER_SIZE=%lu",
+                         lfg.getUndoBufferSize());
+    table->field[IS_FILES_EXTRA]->set_notnull();
+    table->field[IS_FILES_EXTRA]->store(extra, len, system_charset_info);
     schema_table_store_record(thd, table);
   }
   DBUG_RETURN(0);
