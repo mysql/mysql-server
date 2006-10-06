@@ -4913,8 +4913,7 @@ bonfire
 Colombo
 nondecreasing
 DROP TABLE t1;
-ALTER TABLE t2 RENAME t1
-#;
+ALTER TABLE t2 RENAME t1;
 DROP TABLE t1;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
