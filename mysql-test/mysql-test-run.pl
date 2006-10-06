@@ -3522,6 +3522,11 @@ sub run_testcase_need_master_restart($)
 	       join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
 		join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
   }
+  elsif( ! $master->[0]->{'pid'} )
+  {
+    $do_restart= 1;
+    mtr_verbose("Restart because: master is not started");
+  }
 
   return $do_restart;
 }
@@ -3533,57 +3538,35 @@ sub run_testcase_need_slave_restart($)
   # We try to find out if we are to restart the slaves
   my $do_slave_restart= 0;     # Assumes we don't have to
 
-  # FIXME only restart slave when necessary
-  $do_slave_restart= 1;
+  if ( $max_slave_num == 0)
+  {
+    mtr_verbose("No testcase use slaves, no slave restarts");
+  }
+  else
+  {
 
-#   if ( ! $slave->[0]->{'pid'} )
-#   {
-#     # mtr_verbose("Slave not started, no need to check slave restart");
-#   }
-#   elsif ( $do_restart )
-#   {
-#     $do_slave_restart= 1;      # Always restart if master restart
-#     mtr_verbose("Restart slave because: Master restart");
-#   }
-#   elsif ( $tinfo->{'slave_sh'} )
-#   {
-#     $do_slave_restart= 1;      # Always restart if script to run
-#     mtr_verbose("Restart slave because: Always restart if script to run");
-#   }
-#   elsif ( ! $opt_skip_ndbcluster_slave and
-# 	  $tinfo->{'ndb_test'} == 0 and
-# 	  $clusters->[1]->{'pid'} != 0 )
-#   {
-#     $do_slave_restart= 1;       # Restart without slave cluster
-#     mtr_verbose("Restart slave because: Test does not need slave cluster");
-#   }
-#   elsif ( ! $opt_with_ndbcluster_slave and
-# 	  $tinfo->{'ndb_test'} == 1 and
-# 	  $clusters->[1]->{'pid'} == 0 )
-#   {
-#     $do_slave_restart= 1;       # Restart with slave cluster
-#     mtr_verbose("Restart slave because: Test need slave cluster");
-#   }
-#   elsif ( $tinfo->{'slave_restart'} )
-#   {
-#     $do_slave_restart= 1;
-#     mtr_verbose("Restart slave because: slave_restart");
-#   }
-#   elsif ( $slave->[0]->{'running_slave_is_special'} )
-#   {
-#     $do_slave_restart= 1;
-#     mtr_verbose("Restart slave because: running_slave_is_special");
-#   }
-#   # Check that running slave was started with same options
-#   # as the current test requires
-#   elsif (! mtr_same_opts($slave->[0]->{'start_opts'},
-#                          $tinfo->{'slave_opt'}) )
-#   {
-#     $do_slave_restart= 1;
-#     mtr_verbose("Restart slave because: running with different options '" .
-# 	       join(" ", @{$tinfo->{'slave_opt'}}) . "' != '" .
-# 		join(" ", @{$slave->[0]->{'start_opts'}}) . "'" );
-#   }
+    # Check if any slave is currently started
+    my $any_slave_started= 0;
+    foreach my $mysqld (@{$slave})
+    {
+      if ( $mysqld->{'pid'} )
+      {
+	$any_slave_started= 1;
+	last;
+      }
+    }
+
+    if ($any_slave_started)
+    {
+      mtr_verbose("Any slave is started, need to restart");
+      $do_slave_restart= 1;
+    }
+    elsif ( $tinfo->{'slave_num'} )
+    {
+      mtr_verbose("Test need slave, check for restart");
+      $do_slave_restart= 1;
+    }
+  }
 
   return $do_slave_restart;
 
