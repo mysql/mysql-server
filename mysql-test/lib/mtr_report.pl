@@ -53,13 +53,6 @@ sub mtr_show_failed_diff ($) {
   {
     $result_file=  $eval_file;
   }
-  elsif ( $::opt_result_ext and
-          ( $::opt_record or -f "$result_file$::opt_result_ext" ))
-  {
-    # If we have an special externsion for result files we use it if we are
-    # recording or a result file with that extension exists.
-    $result_file=  "$result_file$::opt_result_ext";
-  }
 
   my $diffopts= $::opt_udiff ? "-u" : "-c";
 
