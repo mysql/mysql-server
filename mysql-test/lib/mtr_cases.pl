@@ -250,6 +250,7 @@ sub collect_one_test_case($$$$$$$) {
   $tinfo->{'path'}= $path;
   $tinfo->{'timezone'}= "GMT-3"; # for UNIX_TIMESTAMP tests to work
 
+  $tinfo->{'slave_num'}= 0; # Default, no slave
   if ( defined mtr_match_prefix($tname,"rpl") )
   {
     if ( $::opt_skip_rpl )
@@ -259,7 +260,8 @@ sub collect_one_test_case($$$$$$$) {
       return;
     }
 
-    $tinfo->{'slave_num'}= 1;           # Default, use one slave
+
+    $tinfo->{'slave_num'}= 1; # Default for rpl* tests, use one slave
 
     if ( $tname eq 'rpl_failsafe' or $tname eq 'rpl_chain_temp_table' )
     {
@@ -346,11 +348,6 @@ sub collect_one_test_case($$$$$$$) {
         if ( defined $value )
         {
           $tinfo->{'result_file'}= "r/$value.result";
-          if ( $::opt_result_ext and $::opt_record or
-               -f "$tinfo->{'result_file'}$::opt_result_ext")
-          {
-            $tinfo->{'result_file'}.= $::opt_result_ext;
-          }
           $tinfo->{'master_restart'}= 0;
           last MASTER_OPT;
         }
