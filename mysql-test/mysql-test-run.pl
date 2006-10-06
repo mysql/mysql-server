@@ -142,6 +142,8 @@ our $opt_vardir;                 # A path but set directly on cmd line
 our $path_vardir_trace;          # unix formatted opt_vardir for trace files
 our $opt_tmpdir;                 # A path but set directly on cmd line
 
+our $default_vardir;
+
 our $opt_usage;
 our $opt_suite;
 
@@ -229,8 +231,6 @@ our $opt_ndbconnectstring_slave;
 
 our $opt_record;
 our $opt_check_testcases;
-
-our $opt_result_ext;
 
 our $opt_skip;
 our $opt_skip_rpl;
@@ -471,6 +471,38 @@ sub initial_setup () {
     $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
 
   $glob_timers= mtr_init_timers();
+
+  #
+  # Find the mysqld executable to be able to find the mysqld version
+  # number as early as possible
+  #
+
+  # Look for the path where to find the client binaries
+  $path_client_bindir= mtr_path_exists("$glob_basedir/client",
+				       "$glob_basedir/client_release",
+				       "$glob_basedir/client_debug",
+				       "$glob_basedir/client/release",
+				       "$glob_basedir/client/debug",
+				       "$glob_basedir/bin");
+
+  # Look for the mysqld executable
+  $exe_mysqld=         mtr_exe_exists ("$glob_basedir/sql/mysqld",
+				       "$path_client_bindir/mysqld-max-nt",
+				       "$path_client_bindir/mysqld-max",
+				       "$path_client_bindir/mysqld-nt",
+				       "$path_client_bindir/mysqld",
+				       "$path_client_bindir/mysqld-debug",
+				       "$path_client_bindir/mysqld-max",
+				       "$glob_basedir/libexec/mysqld",
+				       "$glob_basedir/sql/release/mysqld",
+				       "$glob_basedir/sql/debug/mysqld");
+
+  $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
+  $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
+
+  # Use the mysqld found above to find out what features are available
+  check_mysqld_features();
+
 }
 
 
@@ -731,17 +763,20 @@ sub command_line_setup () {
   # Set the "var/" directory, as it is the base for everything else
   # --------------------------------------------------------------------------
 
+  $default_vardir= "$glob_mysql_test_dir/var";
   if ( ! $opt_vardir )
   {
-    $opt_vardir= "$glob_mysql_test_dir/var";
+    $opt_vardir= $default_vardir;
   }
-  elsif ( $mysql_version_id < 50000 )
+  elsif ( $mysql_version_id < 50000 and
+	  $opt_vardir ne $default_vardir )
   {
-    # --vardir was specified
-    # It's only supported in 4.1 as a symlink from var/
-    # by setting up $opt_mem that will be created
+    # Version 4.1 and --vardir was specified
+    # Only supported as a symlink from var/
+    # by setting up $opt_mem that symlink will be created
     $opt_mem= $opt_vardir;
-    $opt_vardir= undef;
+    $opt_vardir= $default_vardir;
+    mtr_report("Using 4.1 vardir trick");
   }
 
   $path_vardir_trace= $opt_vardir;
@@ -1247,8 +1282,8 @@ sub check_mysqld_features () {
   }
 
   # Set default values from mysqld_variables
-  $opt_socket=  %mysqld_variables->{'socket'};
-  $default_mysqld_port = %mysqld_variables->{'port'};
+  $opt_socket=  $mysqld_variables{'socket'};
+  $default_mysqld_port = $mysqld_variables{'port'};
 }
 
 
@@ -1268,32 +1303,6 @@ sub executable_setup () {
       mtr_report("Using \"$exe_libtool\" when running valgrind or debugger");
     }
   }
-
-  # Look for the path where to find the client binaries
-  $path_client_bindir= mtr_path_exists("$glob_basedir/client",
-				       "$glob_basedir/client_release",
-				       "$glob_basedir/client_debug",
-				       "$glob_basedir/client/release",
-				       "$glob_basedir/client/debug",
-				       "$glob_basedir/bin");
-
-  # Look for the mysqld executable
-  $exe_mysqld=         mtr_exe_exists ("$glob_basedir/sql/mysqld",
-				       "$path_client_bindir/mysqld-max-nt",
-				       "$path_client_bindir/mysqld-max",
-				       "$path_client_bindir/mysqld-nt",
-				       "$path_client_bindir/mysqld",
-				       "$path_client_bindir/mysqld-debug",
-				       "$path_client_bindir/mysqld-max",
-				       "$glob_basedir/libexec/mysqld",
-				       "$glob_basedir/sql/release/mysqld",
-				       "$glob_basedir/sql/debug/mysqld");
-
-  $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
-  $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
-
-  # Use the mysqld found above to find out what features are available
-  check_mysqld_features();
 
   # Look for language files and charsetsdir, use same share
   my $path_share=      mtr_path_exists("$glob_basedir/share",
@@ -1325,6 +1334,10 @@ sub executable_setup () {
       mtr_exe_exists(
 		     "$glob_basedir/server-tools/instance-manager/mysqlmanager",
 		     "$glob_basedir/libexec/mysqlmanager");
+  }
+  else
+  {
+    $exe_im= "not_available";
   }
 
   # Look for the client binaries
@@ -1365,12 +1378,19 @@ sub executable_setup () {
     $exe_ndbd=
       mtr_exe_exists("$ndb_path/src/kernel/ndbd",
 		     "$glob_basedir/bin/ndbd");
+
+    $path_ndb_examples_dir=
+      mtr_path_exists("$ndb_path/ndbapi-examples",
+		      "$ndb_path/examples");
+    $exe_ndb_example=
+      mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
   }
 
   # Look for the udf_example library
   $lib_udf_example=
-    mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so");
-
+    mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so",
+		    "$glob_basedir/sql/release/udf_example.dll",
+		    "$glob_basedir/sql/debug/udf_example.dll");
 
   # Look for mysqltest executable
   if ( $glob_use_embedded_server )
@@ -1468,11 +1488,11 @@ sub environment_setup () {
   }
 
   $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				split(':', $ENV{'LD_LIBRARY_PATH'}));
+				split(':', qw($ENV{'LD_LIBRARY_PATH'})));
   mtr_debug("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
 
   $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				split(':', $ENV{'DYLD_LIBRARY_PATH'}));
+				split(':', qw($ENV{'DYLD_LIBRARY_PATH'})));
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
 
@@ -1798,7 +1818,7 @@ sub cleanup_stale_files () {
 
   mtr_report("Removing Stale Files");
 
-  if ( $opt_vardir eq "$glob_mysql_test_dir/var" )
+  if ( $opt_vardir eq $default_vardir )
   {
     #
     # Running with "var" in mysql-test dir
@@ -1838,7 +1858,7 @@ sub cleanup_stale_files () {
 
     # Remove the var/ dir in mysql-test dir if any
     # this could be an old symlink that shouldn't be there
-    rmtree("$glob_mysql_test_dir/var");
+    rmtree($default_vardir);
 
     # Remove the "var" dir
     rmtree("$opt_vardir/");
@@ -1849,7 +1869,7 @@ sub cleanup_stale_files () {
     # Runinng with var as a link to some "memory" location, normally tmpfs
     rmtree($opt_mem);
     mkpath($opt_mem);
-    mtr_verbose("Creating symlink from $opt_vardir to $opt_mem");
+    mtr_report("Creating symlink from $opt_vardir to $opt_mem");
     symlink($opt_mem, $opt_vardir);
     # Put a small file to recognize this dir was created by --mem
     mtr_tofile($created_by_mem_file, $opt_mem);
@@ -2710,7 +2730,7 @@ sub do_before_run_mysqltest($)
 
   # Remove old files produced by mysqltest
   my $result_dir= "r";
-  if ( ! $opt_suite eq "main" )
+  if ( $opt_suite ne "main" )
   {
     $result_dir= "suite/$opt_suite/r";
   }
