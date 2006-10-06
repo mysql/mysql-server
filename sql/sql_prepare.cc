@@ -2248,6 +2248,14 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
 #endif
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+
+  /*
+    If the free_list is not empty, we'll wrongly free some externally
+    allocated items when cleaning up after validation of the prepared
+    statement.
+  */
+  DBUG_ASSERT(thd->free_list == NULL);
+
   error= stmt->execute(&expanded_query,
                        test(flags & (ulong) CURSOR_TYPE_READ_ONLY));
   if (!(specialflag & SPECIAL_NO_PRIOR))
@@ -2309,6 +2317,13 @@ void mysql_sql_stmt_execute(THD *thd)
   }
 
   DBUG_PRINT("info",("stmt: %p", stmt));
+
+  /*
+    If the free_list is not empty, we'll wrongly free some externally
+    allocated items when cleaning up after validation of the prepared
+    statement.
+  */
+  DBUG_ASSERT(thd->free_list == NULL);
 
   if (stmt->set_params_from_vars(stmt, lex->prepared_stmt_params,
                                  &expanded_query))
@@ -2788,12 +2803,12 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     external changes when cleaning up after validation.
   */
   DBUG_ASSERT(thd->change_list.is_empty());
-  /*
-    If the free_list is not empty, we'll wrongly free some externally
-    allocated items when cleaning up after validation of the prepared
-    statement.
+
+  /* 
+   The only case where we should have items in the thd->free_list is
+   after stmt->set_params_from_vars(), which may in some cases create
+   Item_null objects.
   */
-  DBUG_ASSERT(thd->free_list == NULL);
 
   if (error == 0)
     error= check_prepared_statement(this, name.str != 0);
@@ -2891,7 +2906,13 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     allocated items when cleaning up after execution of this statement.
   */
   DBUG_ASSERT(thd->change_list.is_empty());
-  DBUG_ASSERT(thd->free_list == NULL);
+
+  /* 
+   The only case where we should have items in the thd->free_list is
+   after stmt->set_params_from_vars(), which may in some cases create
+   Item_null objects.
+  */
+
   thd->set_n_backup_statement(this, &stmt_backup);
   if (expanded_query->length() &&
       alloc_query(thd, (char*) expanded_query->ptr(),
