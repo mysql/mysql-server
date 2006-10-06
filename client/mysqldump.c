@@ -3104,7 +3104,7 @@ static int do_reset_master(MYSQL *mysql_con)
 }
 
 
-static int start_transaction(MYSQL *mysql_con, my_bool consistent_read_now)
+static int start_transaction(MYSQL *mysql_con)
 {
   /*
     We use BEGIN for old servers. --single-transaction --master-data will fail
@@ -3119,10 +3119,8 @@ static int start_transaction(MYSQL *mysql_con, my_bool consistent_read_now)
                                         "SET SESSION TRANSACTION ISOLATION "
                                         "LEVEL REPEATABLE READ") ||
           mysql_query_with_error_report(mysql_con, 0,
-                                        consistent_read_now ?
                                         "START TRANSACTION "
-                                        "WITH CONSISTENT SNAPSHOT" :
-                                        "BEGIN"));
+                                        "/*!40100 WITH CONSISTENT SNAPSHOT */"));
 }
 
 
@@ -3612,7 +3610,7 @@ int main(int argc, char **argv)
   if ((opt_lock_all_tables || opt_master_data) &&
       do_flush_tables_read_lock(mysql))
     goto err;
-  if (opt_single_transaction && start_transaction(mysql, test(opt_master_data)))
+  if (opt_single_transaction && start_transaction(mysql))
       goto err;
   if (opt_delete_master_logs && do_reset_master(mysql))
     goto err;
