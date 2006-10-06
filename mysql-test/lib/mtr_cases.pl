@@ -186,13 +186,13 @@ sub collect_test_cases ($) {
 
     @$cases = sort { $sort_criteria{$a->{"name"}} cmp $sort_criteria{$b->{"name"}}; } @$cases;
 
-###  For debugging the sort-order
-    foreach $tinfo (@$cases)
+    if ( $::opt_script_debug )
     {
-      print $sort_criteria{$tinfo->{"name"}};
-      print " -> \t";
-      print $tinfo->{"name"};
-      print "\n";
+      # For debugging the sort-order
+      foreach $tinfo (@$cases)
+      {
+	print("$sort_criteria{$tinfo->{'name'}} -> \t$tinfo->{'name'}\n");
+      }
     }
   }
 
