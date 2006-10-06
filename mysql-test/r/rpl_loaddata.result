@@ -22,7 +22,7 @@ day	id	category	name
 2003-03-22	2416	a	bbbbb
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-slave-bin.000001	964		
+slave-bin.000001	950		
 drop table t1;
 drop table t2;
 drop table t3;

@@ -8,7 +8,8 @@ connection slave;
 --disable_warnings
 stop slave;
 --enable_warnings
-@r/slave-stopped.result show status like 'Slave_running';
+--require r/slave-stopped.result
+show status like 'Slave_running';
 connection master;
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
@@ -21,7 +22,8 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 --enable_warnings
 start slave;
-@r/slave-running.result show status like 'Slave_running';
+--require r/slave-running.result
+show status like 'Slave_running';
 
 # Set the default connection to 'master'
 connection master;
