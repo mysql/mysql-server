@@ -28,7 +28,7 @@
   Copy contents of an IO_CACHE to a file.
 
   SYNOPSIS
-    copy_io_cache_to_file()
+    my_b_copy_to_file()
     cache  IO_CACHE to copy from
     file   File to copy to
 

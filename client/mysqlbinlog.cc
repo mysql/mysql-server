@@ -475,6 +475,30 @@ static bool check_database(const char *log_dbname)
 }
 
 
+
+static int
+write_event_header_and_base64(Log_event *ev, FILE *result_file,
+                              PRINT_EVENT_INFO *print_event_info)
+{
+  DBUG_ENTER("write_event_header_and_base64");
+  /* Write header and base64 output to cache */
+  IO_CACHE result_cache;
+  if (init_io_cache(&result_cache, -1, 0, WRITE_CACHE, 0L, FALSE,
+                    MYF(MY_WME | MY_NABP)))
+  {
+    return 1;
+  }
+
+  ev->print_header(&result_cache, print_event_info, FALSE);
+  ev->print_base64(&result_cache, print_event_info, FALSE);
+
+  /* Read data from cache and write to result file */
+  my_b_copy_to_file(&result_cache, result_file);
+  end_io_cache(&result_cache);
+  DBUG_RETURN(0);
+}
+
+
 /*
   Process an event
 
@@ -537,18 +561,18 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     print_event_info->base64_output= opt_base64_output;
 
+    DBUG_PRINT("debug", ("event_type: %s", ev->get_type_str()));
+
     switch (ev_type) {
     case QUERY_EVENT:
       if (check_database(((Query_log_event*)ev)->db))
         goto end;
       if (opt_base64_output)
-      {
-        ev->print_header(result_file, print_event_info);
-        ev->print_base64(result_file, print_event_info);
-      }
+        write_event_header_and_base64(ev, result_file, print_event_info);
       else
         ev->print(result_file, print_event_info);
       break;
+
     case CREATE_FILE_EVENT:
     {
       Create_file_log_event* ce= (Create_file_log_event*)ev;
@@ -569,8 +593,7 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       */
       if (opt_base64_output)
       {
-        ce->print_header(result_file, print_event_info);
-        ce->print_base64(result_file, print_event_info);
+        write_event_header_and_base64(ce, result_file, print_event_info);
       }
       else
         ce->print(result_file, print_event_info, TRUE);
