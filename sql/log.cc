@@ -45,6 +45,7 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_USER_HOST_SIZE 512
 #define MAX_TIME_SIZE 32
+#define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -85,13 +86,9 @@ char *make_default_log_name(char *buff,const char* log_ext)
 */
 class binlog_trx_data {
 public:
-  enum {
-    UNDEF_POS = ~ (my_off_t) 0
-  };
-
   binlog_trx_data()
 #ifdef HAVE_ROW_BASED_REPLICATION
-    : m_pending(0), before_stmt_pos(UNDEF_POS)
+    : m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF)
 #endif
   {
     trans_log.end_of_file= max_binlog_cache_size;
@@ -139,7 +136,7 @@ public:
     if (!empty())
       truncate(0);
 #ifdef HAVE_ROW_BASED_REPLICATION
-    before_stmt_pos= UNDEF_POS;
+    before_stmt_pos= MY_OFF_T_UNDEF;
 #endif
     trans_log.end_of_file= max_binlog_cache_size;
   }
@@ -3338,7 +3335,7 @@ THD::binlog_start_trans_and_stmt()
     DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%u",
                          trx_data->before_stmt_pos));
   if (trx_data == NULL ||
-      trx_data->before_stmt_pos == binlog_trx_data::UNDEF_POS)
+      trx_data->before_stmt_pos == MY_OFF_T_UNDEF)
   {
     /*
       The call to binlog_trans_log_savepos() might create the trx_data
