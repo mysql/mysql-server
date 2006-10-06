@@ -144,9 +144,11 @@ sub mtr_report_test_failed ($) {
     print "[ fail ]\n";
   }
 
-  # FIXME Instead of this test, and meaningless error message in 'else'
-  # we should write out into $::path_timefile when the error occurs.
-  if ( -f $::path_timefile )
+  if ( $tinfo->{'comment'} )
+  {
+    print "\nERROR: $tinfo->{'comment'}\n";
+  }
+  elsif ( -f $::path_timefile )
   {
     print "\nErrors are (from $::path_timefile) :\n";
     print mtr_fromfile($::path_timefile); # FIXME print_file() instead
