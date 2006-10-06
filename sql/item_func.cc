@@ -2230,6 +2230,30 @@ longlong Item_func_release_lock::val_int()
 }
 
 
+bool Item_func_last_insert_id::fix_fields(THD *thd, TABLE_LIST *tables,
+                                          Item **ref)
+{
+  DBUG_ASSERT(fixed == 0);
+
+  if (Item_int_func::fix_fields(thd, tables, ref))
+    return TRUE;
+
+  if (arg_count == 0)
+  {
+    /*
+      As this statement calls LAST_INSERT_ID(), set
+      THD::last_insert_id_used.
+    */
+    thd->last_insert_id_used= TRUE;
+    null_value= FALSE;
+  }
+
+  thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
+
+  return FALSE;
+}
+
+
 longlong Item_func_last_insert_id::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -2239,11 +2263,12 @@ longlong Item_func_last_insert_id::val_int()
     longlong value=args[0]->val_int();
     thd->insert_id(value);
     null_value=args[0]->null_value;
+    return value;
   }
-  else
-    thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  return thd->last_insert_id_used ? thd->current_insert_id : thd->insert_id();
+
+  return thd->current_insert_id;
 }
+
 
 /* This function is just used to test speed of different functions */
 
