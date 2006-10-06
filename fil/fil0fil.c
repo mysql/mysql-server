@@ -3932,8 +3932,8 @@ fil_extend_tablespaces_to_stored_len(void)
 		mutex_exit(&(system->mutex)); /* no need to protect with a
 					      mutex, because this is a
 					      single-threaded operation */
-		error = fil_read(TRUE, space->id, 0, 0, UNIV_PAGE_SIZE, buf,
-				 NULL);
+		error = fil_read(TRUE, space->id, space->zip_size,
+				 0, 0, UNIV_PAGE_SIZE, buf, NULL);
 		ut_a(error == DB_SUCCESS);
 
 		size_in_header = fsp_get_size_low(buf);

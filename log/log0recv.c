@@ -1541,11 +1541,6 @@ loop:
 }
 
 #ifdef UNIV_HOTBACKUP
-/* This page is allocated from the buffer pool and used in the function
-below */
-static page_t* recv_backup_application_page	= NULL;
-TODO: define recv_backup_application_page_zip;
-
 /***********************************************************************
 Applies log records in the hash table to a backup. */
 
@@ -1555,7 +1550,7 @@ recv_apply_log_recs_for_backup(void)
 {
 	recv_addr_t*	recv_addr;
 	ulint		n_hash_cells;
-	byte*		page;
+	buf_block_t*	block;
 	ulint		actual_size;
 	ibool		success;
 	ulint		error;
@@ -1564,11 +1559,7 @@ recv_apply_log_recs_for_backup(void)
 	recv_sys->apply_log_recs = TRUE;
 	recv_sys->apply_batch_on = TRUE;
 
-	if (recv_backup_application_page == NULL) {
-		recv_backup_application_page = buf_frame_alloc();
-	}
-
-	page = recv_backup_application_page;
+	block = buf_block_alloc(UNIV_PAGE_SIZE);
 
 	fputs("InnoDB: Starting an apply batch of log records"
 	      " to the database...\n"
@@ -1582,7 +1573,10 @@ recv_apply_log_recs_for_backup(void)
 
 		while (recv_addr != NULL) {
 
-			if (!fil_tablespace_exists_in_mem(recv_addr->space)) {
+			ulint	zip_size
+				= fil_space_get_zip_size(recv_addr->space);
+
+			if (zip_size == ULINT_UNDEFINED) {
 #if 0
 				fprintf(stderr,
 					"InnoDB: Warning: cannot apply"
@@ -1608,7 +1602,7 @@ recv_apply_log_recs_for_backup(void)
 
 			buf_page_init_for_backup_restore(
 				recv_addr->space, recv_addr->page_no,
-				buf_block_align(page));
+				zip_size, block);
 
 			/* Extend the tablespace's last file if the page_no
 			does not fall inside its bounds; we assume the last
@@ -1630,9 +1624,19 @@ recv_apply_log_recs_for_backup(void)
 			/* Read the page from the tablespace file using the
 			fil0fil.c routines */
 
-			error = fil_io(OS_FILE_READ, TRUE, recv_addr->space,
-				       recv_addr->page_no, 0, UNIV_PAGE_SIZE,
-				       page, NULL);
+			if (zip_size) {
+				error = fil_io(OS_FILE_READ, TRUE,
+					       recv_addr->space, zip_size,
+					       recv_addr->page_no, 0, zip_size,
+					       block->page_zip.data, NULL);
+			} else {
+				error = fil_io(OS_FILE_READ, TRUE,
+					       recv_addr->space, 0,
+					       recv_addr->page_no, 0,
+					       UNIV_PAGE_SIZE,
+					       block->frame, NULL);
+			}
+
 			if (error != DB_SUCCESS) {
 				fprintf(stderr,
 					"InnoDB: Fatal error: cannot read"
@@ -1645,20 +1649,31 @@ recv_apply_log_recs_for_backup(void)
 			}
 
 			/* Apply the log records to this page */
-			recv_recover_page(TRUE, FALSE, page, recv_addr->space,
+			recv_recover_page(TRUE, FALSE, block->frame,
+					  recv_addr->space,
 					  recv_addr->page_no);
 
 			/* Write the page back to the tablespace file using the
 			fil0fil.c routines */
 
 			buf_flush_init_for_writing(
-				page, NULL,/* TODO: page_zip */
-				mach_read_from_8(page + FIL_PAGE_LSN),
+				block->frame, buf_block_get_page_zip(block),
+				mach_read_from_8(block->frame + FIL_PAGE_LSN),
 				recv_addr->space, recv_addr->page_no);
 
-			error = fil_io(OS_FILE_WRITE, TRUE, recv_addr->space,
-				       recv_addr->page_no, 0, UNIV_PAGE_SIZE,
-				       page, NULL);
+			if (zip_size) {
+				error = fil_io(OS_FILE_WRITE, TRUE,
+					       recv_addr->space, zip_size,
+					       recv_addr->page_no, 0,
+					       zip_size,
+					       block->page_zip.data, NULL);
+			} else {
+				error = fil_io(OS_FILE_WRITE, TRUE,
+					       recv_addr->space, 0,
+					       recv_addr->page_no, 0,
+					       UNIV_PAGE_SIZE,
+					       block->frame, NULL);
+			}
 skip_this_recv_addr:
 			recv_addr = HASH_GET_NEXT(addr_hash, recv_addr);
 		}
@@ -1671,6 +1686,7 @@ skip_this_recv_addr:
 		}
 	}
 
+	buf_block_free(block);
 	recv_sys_empty_hash();
 }
 #endif /* UNIV_HOTBACKUP */

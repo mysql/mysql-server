@@ -919,9 +919,9 @@ err_exit:
 	dict_table_add_to_cache(table);
 
 	dict_load_indexes(table, heap);
-
+#ifndef UNIV_HOTBACKUP
 	err = dict_load_foreigns(table->name, TRUE);
-#if 0
+# if 0
 	if (err != DB_SUCCESS) {
 
 		mutex_enter(&dict_foreign_err_mutex);
@@ -944,7 +944,8 @@ err_exit:
 
 		mutex_exit(&dict_foreign_err_mutex);
 	}
-#endif /* 0 */
+# endif /* 0 */
+#endif /* !UNIV_HOTBACKUP */
 	mem_heap_free(heap);
 
 	return(table);
@@ -1066,6 +1067,7 @@ dict_load_sys_table(
 	mem_heap_free(heap);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Loads foreign key constraint col names (also for the referenced table). */
 static
@@ -1414,3 +1416,4 @@ load_next_index:
 
 	return(DB_SUCCESS);
 }
+#endif /* !UNIV_HOTBACKUP */

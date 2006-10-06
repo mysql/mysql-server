@@ -258,6 +258,7 @@ buf_page_create(
 			a page */
 	ulint	zip_size,/* in: compressed page size, or 0 */
 	mtr_t*	mtr);	/* in: mini-transaction handle */
+#ifdef UNIV_HOTBACKUP
 /************************************************************************
 Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
 
@@ -267,7 +268,10 @@ buf_page_init_for_backup_restore(
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: offset of the page within space
 				in units of a page */
+	ulint		zip_size,/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	buf_block_t*	block);	/* in: block to init */
+#endif /* UNIV_HOTBACKUP */
 /************************************************************************
 Decrements the bufferfix count of a buffer control block and releases
 a latch, if specified. */
