@@ -1600,6 +1600,8 @@ buf_page_init_for_backup_restore(
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: offset of the page within space
 				in units of a page */
+	ulint		zip_size,/* in: compressed page size in bytes
+				or 0 for uncompressed pages */
 	buf_block_t*	block)	/* in: block to init */
 {
 	/* Set the state of the block */
@@ -1627,7 +1629,11 @@ buf_page_init_for_backup_restore(
 	block->n_bytes		= 0;
 	block->left_side	= TRUE;
 	page_zip_des_init(&block->page_zip);
-	/* TODO: allocate page_zip->data? */
+	/* We assume that block->page_zip.data has been allocated
+	with zip_size == UNIV_PAGE_SIZE. */
+	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(ut_is_2pow(zip_size));
+	block->page_zip.size = zip_size;
 
 	block->file_page_was_freed = FALSE;
 }
