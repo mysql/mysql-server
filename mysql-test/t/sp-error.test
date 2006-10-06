@@ -319,7 +319,7 @@ begin
   declare x int;
 end|
 
---error 1332	
+--error 1332
 create procedure p()
 begin
   declare c condition for 1064;

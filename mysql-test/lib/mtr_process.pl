@@ -4,7 +4,6 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
-#use Carp qw(cluck);
 use Socket;
 use Errno;
 use strict;
@@ -14,13 +13,17 @@ use POSIX 'WNOHANG';
 
 sub mtr_run ($$$$$$;$);
 sub mtr_spawn ($$$$$$;$);
-sub mtr_stop_mysqld_servers ($);
+sub mtr_check_stop_servers ($);
 sub mtr_kill_leftovers ();
+sub mtr_wait_blocking ($);
 sub mtr_record_dead_children ();
+sub mtr_ndbmgm_start($$);
+sub mtr_mysqladmin_start($$$);
 sub mtr_exit ($);
 sub sleep_until_file_created ($$$);
 sub mtr_kill_processes ($);
-sub mtr_ping_mysqld_server ($);
+sub mtr_ping_with_timeout($);
+sub mtr_ping_port ($);
 
 # static in C
 sub spawn_impl ($$$$$$$$);
@@ -32,7 +35,6 @@ sub spawn_impl ($$$$$$$$);
 ##############################################################################
 
 # This function try to mimic the C version used in "netware/mysql_test_run.c"
-# FIXME learn it to handle append mode as well, a "new" flag or a "append"
 
 sub mtr_run ($$$$$$;$) {
   my $path=       shift;
@@ -113,6 +115,9 @@ sub spawn_impl ($$$$$$$$) {
     print STDERR "#### ", "-" x 78, "\n";
   }
 
+  mtr_error("Can't spawn with empty \"path\"") unless defined $path;
+
+
  FORK:
   {
     my $pid= fork();
@@ -145,17 +150,6 @@ sub spawn_impl ($$$$$$$$) {
 
       $SIG{INT}= 'DEFAULT';         # Parent do some stuff, we don't
 
-      if ( $::glob_cygwin_shell and $mode eq 'test' )
-      {
-        # Programs started from mysqltest under Cygwin, are to
-        # execute them within Cygwin. Else simple things in test
-        # files like
-        # --system "echo 1 > file"
-        # will fail.
-        # FIXME not working :-(
-#       $ENV{'COMSPEC'}= "$::glob_cygwin_shell -c";
-      }
-
       my $log_file_open_mode = '>';
 
       if ($spawn_opts and $spawn_opts->{'append_log_file'})
@@ -165,7 +159,15 @@ sub spawn_impl ($$$$$$$$) {
 
       if ( $output )
       {
-        if ( ! open(STDOUT,$log_file_open_mode,$output) )
+	if ( $::glob_win32_perl )
+	{
+	  # Don't redirect stdout on ActiveState perl since this is
+          # just another thread in the same process.
+          # Should be fixed so that the thread that is created with fork
+          # executes the exe in another process and wait's for it to return.
+          # In the meanwhile, we get all the output from mysqld's to screen
+	}
+        elsif ( ! open(STDOUT,$log_file_open_mode,$output) )
         {
           mtr_child_error("can't redirect STDOUT to \"$output\": $!");
         }
@@ -217,8 +219,7 @@ sub spawn_parent_impl {
     {
       # Simple run of command, we wait for it to return
       my $ret_pid= waitpid($pid,0);
-
-      if ( $ret_pid <= 0 )
+      if ( $ret_pid != $pid )
       {
         mtr_error("$path ($pid) got lost somehow");
       }
@@ -246,7 +247,6 @@ sub spawn_parent_impl {
         # Someone terminated, don't know who. Collect
         # status info first before $? is lost,
         # but not $exit_value, this is flagged from
-        # 
 
         my $timer_name= mtr_timer_timeout($::glob_timers, $ret_pid);
         if ( $timer_name )
@@ -273,45 +273,22 @@ sub spawn_parent_impl {
           last;
         }
 
-        # If one of the mysqld processes died, we want to
-        # mark this, and kill the mysqltest process.
+        # One of the child processes died, unless this was expected
+	# mysqltest should be killed and test aborted
 
-        foreach my $idx (0..1)
-        {
-          if ( $::master->[$idx]->{'pid'} eq $ret_pid )
-          {
-            mtr_debug("child $ret_pid was master[$idx], " .
-                      "exit during mysqltest run");
-            $::master->[$idx]->{'pid'}= 0;
-            last;
-          }
-        }
-
-        foreach my $idx (0..2)
-        {
-          if ( $::slave->[$idx]->{'pid'} eq $ret_pid )
-          {
-            mtr_debug("child $ret_pid was slave[$idx], " .
-                      "exit during mysqltest run");
-            $::slave->[$idx]->{'pid'}= 0;
-            last;
-          }
-        }
-
-        mtr_debug("waitpid() catched exit of unknown child $ret_pid, " .
-                  "exit during mysqltest run");
+	check_expected_crash_and_restart($ret_pid);
       }
 
       if ( $ret_pid != $pid )
       {
         # We terminated the waiting because a "mysqld" process died.
         # Kill the mysqltest process.
-
+	mtr_verbose("Kill mysqltest because another process died");
         kill(9,$pid);
 
         $ret_pid= waitpid($pid,0);
 
-        if ( $ret_pid == -1 )
+        if ( $ret_pid != $pid )
         {
           mtr_error("$path ($pid) got lost somehow");
         }
@@ -352,11 +329,11 @@ sub mtr_process_exit_status {
 #
 ##############################################################################
 
-# We just "ping" on the ports, and if we can't do a socket connect
-# we assume the server is dead. So we don't *really* know a server
-# is dead, we just hope that it after letting the listen port go,
-# it is dead enough for us to start a new server.
 
+# Kill all processes(mysqld, ndbd, ndb_mgmd and im) that would conflict with
+# this run
+# Make sure to remove the PID file, if any.
+# kill IM manager first, else it will restart the servers
 sub mtr_kill_leftovers () {
 
   mtr_report("Killing Possible Leftover Processes");
@@ -367,56 +344,86 @@ sub mtr_kill_leftovers () {
   # Stop or kill Instance Manager and all its children. If we failed to do
   # that, we can only abort -- there is nothing left to do.
 
-  mtr_error("Failed to stop Instance Manager.")
-    unless mtr_im_stop($::instance_manager);
+#  mtr_error("Failed to stop Instance Manager.")
+#    unless mtr_im_stop($::instance_manager);
 
-  # Kill mysqld servers (masters and slaves) that would conflict with this
-  # run. Make sure to remove the PID file, if any.
-  # Don't touch IM-managed mysqld instances -- they should be stopped by
-  # mtr_im_stop().
+  # Start shutdown of masters and slaves. Don't touch IM-managed mysqld
+  # instances -- they should be stopped by mtr_im_stop().
 
-  mtr_debug("Collecting mysqld-instances to shutdown...");
+  mtr_debug("Shutting down mysqld-instances...");
 
-  my @args;
+  my @kill_pids;
+  my %admin_pids;
 
-  for ( my $idx= 0; $idx < 2; $idx++ )
+  foreach my $srv (@{$::master}, @{$::slave})
   {
-    my $pidfile= $::master->[$idx]->{'path_mypid'};
-    my $sockfile= $::master->[$idx]->{'path_mysock'};
-    my $port= $::master->[$idx]->{'path_myport'};
+    mtr_debug("  - mysqld " .
+              "(pid: $srv->{pid}; " .
+              "pid file: '$srv->{path_pid}'; " .
+              "socket: '$srv->{path_sock}'; ".
+              "port: $srv->{port})");
 
-    push(@args,{
-                pid      => 0,          # We don't know the PID
-                pidfile  => $pidfile,
-                sockfile => $sockfile,
-                port     => $port,
-               });
+    my $pid= mtr_mysqladmin_start($srv, "shutdown", 70);
 
-    mtr_debug("  - Master mysqld " .
-              "(idx: $idx; pid: '$pidfile'; socket: '$sockfile'; port: $port)");
-    $::master->[$idx]->{'pid'}= 0; # Assume we are done with it
+    # Save the pid of the mysqladmin process
+    $admin_pids{$pid}= 1;
+
+    push(@kill_pids,{
+		     pid      => $srv->{'pid'},
+		     pidfile  => $srv->{'path_pid'},
+		     sockfile => $srv->{'path_sock'},
+		     port     => $srv->{'port'},
+		    });
+    $srv->{'pid'}= 0; # Assume we are done with it
   }
 
-  for ( my $idx= 0; $idx < 3; $idx++ )
+  if ( ! $::opt_skip_ndbcluster )
   {
-    my $pidfile= $::slave->[$idx]->{'path_mypid'};
-    my $sockfile= $::slave->[$idx]->{'path_mysock'};
-    my $port= $::slave->[$idx]->{'path_myport'};
+    # Start shutdown of clusters.
+    mtr_debug("Shutting down cluster...");
 
-    push(@args,{
-                pid       => 0,         # We don't know the PID
-                pidfile   => $pidfile,
-                sockfile  => $sockfile,
-                port      => $port,
-               });
+    foreach my $cluster (@{$::clusters})
+    {
+      mtr_debug("  - cluster " .
+		"(pid: $cluster->{pid}; " .
+		"pid file: '$cluster->{path_pid})");
 
-    mtr_debug("  - Slave mysqld " .
-              "(idx: $idx; pid: '$pidfile'; socket: '$sockfile'; port: $port)");
+      my $pid= mtr_ndbmgm_start($cluster, "shutdown");
 
-    $::slave->[$idx]->{'pid'}= 0; # Assume we are done with it
+      # Save the pid of the ndb_mgm process
+      $admin_pids{$pid}= 1;
+
+      push(@kill_pids,{
+		       pid      => $cluster->{'pid'},
+		       pidfile  => $cluster->{'path_pid'}
+		      });
+
+      $cluster->{'pid'}= 0; # Assume we are done with it
+
+      foreach my $ndbd (@{$cluster->{'ndbds'}})
+      {
+	mtr_debug("    - ndbd " .
+		  "(pid: $ndbd->{pid}; " .
+		  "pid file: '$ndbd->{path_pid})");
+
+	push(@kill_pids,{
+			 pid      => $ndbd->{'pid'},
+			 pidfile  => $ndbd->{'path_pid'},
+			});
+	$ndbd->{'pid'}= 0; # Assume we are done with it
+      }
+    }
   }
 
-  mtr_mysqladmin_shutdown(\@args, 20);
+  # Wait for all the admin processes to complete
+  mtr_wait_blocking(\%admin_pids);
+
+  # If we trusted "mysqladmin --shutdown_timeout= ..." we could just
+  # terminate now, but we don't (FIXME should be debugged).
+  # So we try again to ping and at least wait the same amount of time
+  # mysqladmin would for all to die.
+
+  mtr_ping_with_timeout(\@kill_pids);
 
   # We now have tried to terminate nice. We have waited for the listen
   # port to be free, but can't really tell if the mysqld process died
@@ -490,7 +497,7 @@ sub mtr_kill_leftovers () {
         {
           mtr_debug("Sending SIGKILL to pids: " . join(' ', @pids));
           kill(9, @pids);
-          mtr_debug("Sleep 1 second waiting for processes to die");
+          mtr_report("Sleep 1 second waiting for processes to die");
           sleep(1)                      # Wait one second
         } while ( $retries-- and  kill(0, @pids) );
 
@@ -508,57 +515,65 @@ sub mtr_kill_leftovers () {
     mtr_debug("Directory for PID files ($rundir) does not exist.");
   }
 
-  # We may have failed everything, bug we now check again if we have
+  # We may have failed everything, but we now check again if we have
   # the listen ports free to use, and if they are free, just go for it.
 
   mtr_debug("Checking known mysqld servers...");
 
-  foreach my $srv ( @args )
+  foreach my $srv ( @kill_pids )
   {
-    if ( mtr_ping_mysqld_server($srv->{'port'}) )
+    if ( defined $srv->{'port'} and mtr_ping_port($srv->{'port'}) )
     {
-      mtr_warning("can't kill old mysqld holding port $srv->{'port'}");
+      mtr_warning("can't kill old process holding port $srv->{'port'}");
     }
   }
 
   mtr_debug("mtr_kill_leftovers(): finished.");
 }
 
-##############################################################################
-#
-#  Shut down mysqld servers we have started from this run of this script
-#
-##############################################################################
 
-# To speed things we kill servers in parallel. The argument is a list
-# of 'ports', 'pids', 'pidfiles' and 'socketfiles'.
-
+# Check that all processes in list are killed
+# The argument is a list of 'ports', 'pids', 'pidfiles' and 'socketfiles'
+# for which shutdown has been started. Make sure they all get killed
+# in one way or the other.
+#
 # FIXME On Cygwin, and maybe some other platforms, $srv->{'pid'} and
-# $srv->{'pidfile'} will not be the same PID. We need to try to kill
+# the pid in $srv->{'pidfile'} will not be the same PID. We need to try to kill
 # both I think.
 
-sub mtr_stop_mysqld_servers ($) {
+sub mtr_check_stop_servers ($) {
   my $spec=  shift;
 
-  # ----------------------------------------------------------------------
-  # First try nice normal shutdown using 'mysqladmin'
-  # ----------------------------------------------------------------------
+  # Return if no processes are defined
+  return if ! @$spec;
 
-  # Shutdown time must be high as slave may be in reconnect
-  mtr_mysqladmin_shutdown($spec, 70);
+  #mtr_report("mtr_check_stop_servers");
+
+  mtr_ping_with_timeout(\@$spec);
 
   # ----------------------------------------------------------------------
   # We loop with waitpid() nonblocking to see how many of the ones we
-  # are to kill, actually got killed by mtr_mysqladmin_shutdown().
-  # Note that we don't rely on this, the mysqld server might have stop
+  # are to kill, actually got killed by mysqladmin or ndb_mgm
+  #
+  # Note that we don't rely on this, the mysqld server might have stopped
   # listening to the port, but still be alive. But it is a start.
   # ----------------------------------------------------------------------
 
   foreach my $srv ( @$spec )
   {
-    if ( $srv->{'pid'} and (waitpid($srv->{'pid'},&WNOHANG) == $srv->{'pid'}) )
+    my $ret_pid;
+    if ( $srv->{'pid'} )
     {
-      $srv->{'pid'}= 0;
+      $ret_pid= waitpid($srv->{'pid'},&WNOHANG);
+      if ($ret_pid == $srv->{'pid'})
+      {
+	mtr_verbose("Caught exit of process $ret_pid");
+	$srv->{'pid'}= 0;
+      }
+      else
+      {
+	# mtr_warning("caught exit of unknown child $ret_pid");
+      }
     }
   }
 
@@ -592,13 +607,12 @@ sub mtr_stop_mysqld_servers ($) {
   }
 
   # ----------------------------------------------------------------------
-  # If the processes where started from this script, and we had no PIDS
+  # If all the processes in list already have been killed,
   # then we don't have to do anything.
   # ----------------------------------------------------------------------
 
   if ( ! keys %mysqld_pids )
   {
-    # cluck "This is how we got here!";
     return;
   }
 
@@ -647,123 +661,127 @@ sub mtr_stop_mysqld_servers ($) {
           foreach my $file ($srv->{'pidfile'}, $srv->{'sockfile'})
           {
             # Know it is dead so should be no race, careful anyway
-            if ( -f $file and ! unlink($file) and -f $file )
+            if ( defined $file and -f $file and ! unlink($file) and -f $file )
             {
               $errors++;
               mtr_warning("couldn't delete $file");
             }
           }
+	  $srv->{'pid'}= 0;
         }
       }
     }
     if ( $errors )
     {
-      # We are in trouble, just die....
-      mtr_error("we could not kill or clean up all processes");
+      # There where errors killing processes
+      # do one last attempt to ping the servers
+      # and if they can't be pinged, assume they are dead
+      if ( ! mtr_ping_with_timeout( \@$spec ) )
+      {
+	mtr_error("we could not kill or clean up all processes");
+      }
+      else
+      {
+	mtr_verbose("All ports were free, continuing");
+      }
     }
   }
 
   # FIXME We just assume they are all dead, for Cygwin we are not
   # really sure
-    
+
+}
+
+# Wait for all the process in the list to terminate
+sub mtr_wait_blocking($) {
+  my $admin_pids= shift;
+
+
+  # Return if no processes defined
+  return if ! %$admin_pids;
+
+  mtr_verbose("mtr_wait_blocking");
+
+  # Wait for all the started processes to exit
+  # As mysqladmin is such a simple program, we trust it to terminate itself.
+  # I.e. we wait blocking, and wait for them all before we go on.
+  foreach my $pid (keys %{$admin_pids})
+  {
+    my $ret_pid= waitpid($pid,0);
+
+  }
+}
+
+# Start "mysqladmin shutdown" for a specific mysqld
+sub mtr_mysqladmin_start($$$) {
+  my $srv= shift;
+  my $command= shift;
+  my $adm_shutdown_tmo= shift;
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--user=%s", $::opt_user);
+  mtr_add_arg($args, "--password=");
+  mtr_add_arg($args, "--silent");
+  if ( -e $srv->{'path_sock'} )
+  {
+    mtr_add_arg($args, "--socket=%s", $srv->{'path_sock'});
+  }
+  if ( $srv->{'port'} )
+  {
+    mtr_add_arg($args, "--port=%s", $srv->{'port'});
+  }
+  if ( $srv->{'port'} and ! -e $srv->{'path_sock'} )
+  {
+    mtr_add_arg($args, "--protocol=tcp"); # Needed if no --socket
+  }
+  mtr_add_arg($args, "--connect_timeout=5");
+
+  # Shutdown time must be high as slave may be in reconnect
+  mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
+  mtr_add_arg($args, "$command");
+  my $path_mysqladmin_log= "$::opt_vardir/log/mysqladmin.log";
+  my $pid= mtr_spawn($::exe_mysqladmin, $args,
+		     "", $path_mysqladmin_log, $path_mysqladmin_log, "",
+		     { append_log_file => 1 });
+  mtr_verbose("mtr_mysqladmin_start, pid: $pid");
+  return $pid;
+
+}
+
+# Start "ndb_mgm shutdown" for a specific cluster, it will
+# shutdown all data nodes and leave the ndb_mgmd running
+sub mtr_ndbmgm_start($$) {
+  my $cluster= shift;
+  my $command= shift;
+
+  my $args;
+
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--core");
+  mtr_add_arg($args, "--try-reconnect=1");
+  mtr_add_arg($args, "--ndb_connectstring=%s", $cluster->{'connect_string'});
+  mtr_add_arg($args, "-e");
+  mtr_add_arg($args, "$command");
+
+  my $pid= mtr_spawn($::exe_ndb_mgm, $args,
+		     "", "/dev/null", "/dev/null", "",
+		     {});
+  mtr_verbose("mtr_ndbmgm_start, pid: $pid");
+  return $pid;
+
 }
 
 
-##############################################################################
-#
-#  Shut down mysqld servers using "mysqladmin ... shutdown".
-#  To speed this up, we start them in parallel and use waitpid() to
-#  catch their termination. Note that this doesn't say the servers
-#  are terminated, just that 'mysqladmin' is terminated.
-#
-#  Note that mysqladmin will ask the server about what PID file it uses,
-#  and mysqladmin will wait for it to be removed before it terminates
-#  (unless passes timeout).
-#
-#  This function will take at most about 20 seconds, and we still are not
-#  sure we killed them all. If none is responding to ping, we return 1,
-#  else we return 0.
-#
-##############################################################################
-
-sub mtr_mysqladmin_shutdown {
+# Ping all servers in list, exit when none of them answers
+# or when timeout has passed
+sub mtr_ping_with_timeout($) {
   my $spec= shift;
-  my $adm_shutdown_tmo= shift;
-
-  my %mysql_admin_pids;
-  my @to_kill_specs;
-
-  mtr_debug("mtr_mysqladmin_shutdown(): starting...");
-  mtr_debug("Collecting mysqld-instances to shutdown...");
-
-  foreach my $srv ( @$spec )
-  {
-    if ( mtr_ping_mysqld_server($srv->{'port'}) )
-    {
-      mtr_debug("Mysqld (port: $srv->{port}) needs to be stopped.");
-
-      push(@to_kill_specs, $srv);
-    }
-  }
-
-
-  foreach my $srv ( @to_kill_specs )
-  {
-    # Shutdown time must be high as slave may be in reconnect
-    my $args;
-
-    mtr_init_args(\$args);
-
-    mtr_add_arg($args, "--no-defaults");
-    mtr_add_arg($args, "--user=%s", $::opt_user);
-    mtr_add_arg($args, "--password=");
-    if ( -e $srv->{'sockfile'} )
-    {
-      mtr_add_arg($args, "--socket=%s", $srv->{'sockfile'});
-    }
-    if ( $srv->{'port'} )
-    {
-      mtr_add_arg($args, "--port=%s", $srv->{'port'});
-    }
-    if ( $srv->{'port'} and ! -e $srv->{'sockfile'} )
-    {
-      mtr_add_arg($args, "--protocol=tcp"); # Needed if no --socket
-    }
-    mtr_add_arg($args, "--connect_timeout=5");
-    mtr_add_arg($args, "--shutdown_timeout=$adm_shutdown_tmo");
-    mtr_add_arg($args, "shutdown");
-
-    mtr_debug("Shutting down mysqld " .
-              "(port: $srv->{port}; socket: '$srv->{sockfile}')...");
-
-    my $path_mysqladmin_log= "$::opt_vardir/log/mysqladmin.log";
-    my $pid= mtr_spawn($::exe_mysqladmin, $args,
-                       "", $path_mysqladmin_log, $path_mysqladmin_log, "",
-                       { append_log_file => 1 });
-    $mysql_admin_pids{$pid}= 1;
-
-    # We don't wait for termination of mysqladmin
-  }
-
-  # As mysqladmin is such a simple program, we trust it to terminate.
-  # I.e. we wait blocking, and wait wait for them all before we go on.
-  while (keys %mysql_admin_pids)
-  {
-    foreach my $pid (keys %mysql_admin_pids)
-    {
-      if ( waitpid($pid,0) > 0 )
-      {
-        delete $mysql_admin_pids{$pid};
-      }
-    }
-  }
-
-  # If we trusted "mysqladmin --shutdown_timeout= ..." we could just
-  # terminate now, but we don't (FIXME should be debugged).
-  # So we try again to ping and at least wait the same amount of time
-  # mysqladmin would for all to die.
-
-  my $timeout= 20;                      # 20 seconds max
+  my $timeout= 200;                     # 20 seconds max
   my $res= 1;                           # If we just fall through, we are done
                                         # in the sense that the servers don't
                                         # listen to their ports any longer
@@ -773,16 +791,25 @@ sub mtr_mysqladmin_shutdown {
  TIME:
   while ( $timeout-- )
   {
-    foreach my $srv ( @to_kill_specs )
+    foreach my $srv ( @$spec )
     {
       $res= 1;                          # We are optimistic
-      if ( mtr_ping_mysqld_server($srv->{'port'}) )
+      if ( $srv->{'pid'} and defined $srv->{'port'} )
       {
-        mtr_debug("Mysqld (port: $srv->{port}) is still alive.");
-        mtr_debug("Sleep 1 second waiting for processes to stop using port");
-        sleep(1);                       # One second
-        $res= 0;
-        next TIME;
+	if ( mtr_ping_port($srv->{'port'}) )
+	{
+	  mtr_verbose("waiting for process $srv->{'pid'} to stop ".
+		      "using port $srv->{'port'}");
+
+	  # Millisceond sleep emulated with select
+	  select(undef, undef, undef, (0.1));
+	  $res= 0;
+	  next TIME;
+	}
+	else
+	{
+	  # Process was not using port
+	}
       }
     }
     last;                               # If we got here, we are done
@@ -790,14 +817,132 @@ sub mtr_mysqladmin_shutdown {
 
   if ($res)
   {
-    mtr_debug("mtr_mysqladmin_shutdown(): All mysqld instances are down.");
+    mtr_debug("mtr_ping_with_timeout(): All mysqld instances are down.");
   }
   else
   {
-    mtr_debug("mtr_mysqladmin_shutdown(): At least one server is alive.");
+    mtr_report("mtr_ping_with_timeout(): At least one server is alive.");
   }
 
   return $res;
+}
+
+
+#
+# Loop through our list of processes and look for and entry
+# with the provided pid
+# Set the pid of that process to 0 if found
+#
+sub mark_process_dead($)
+{
+  my $ret_pid= shift;
+
+  foreach my $mysqld (@{$::master}, @{$::slave})
+  {
+    if ( $mysqld->{'pid'} eq $ret_pid )
+    {
+      mtr_verbose("$mysqld->{'type'} $mysqld->{'idx'} exited, pid: $ret_pid");
+      $mysqld->{'pid'}= 0;
+      return;
+    }
+  }
+
+  foreach my $cluster (@{$::clusters})
+  {
+    if ( $cluster->{'pid'} eq $ret_pid )
+    {
+      mtr_verbose("$cluster->{'name'} cluster ndb_mgmd exited, pid: $ret_pid");
+      $cluster->{'pid'}= 0;
+      return;
+    }
+
+    foreach my $ndbd (@{$cluster->{'ndbds'}})
+    {
+      if ( $ndbd->{'pid'} eq $ret_pid )
+      {
+	mtr_verbose("$cluster->{'name'} cluster ndbd exited, pid: $ret_pid");
+	$ndbd->{'pid'}= 0;
+	return;
+      }
+    }
+  }
+  mtr_warning("mark_process_dead couldn't find an entry for pid: $ret_pid");
+
+}
+
+#
+# Loop through our list of processes and look for and entry
+# with the provided pid, if found check for the file indicating
+# expected crash and restart it.
+#
+sub check_expected_crash_and_restart($)
+{
+  my $ret_pid= shift;
+
+  foreach my $mysqld (@{$::master}, @{$::slave})
+  {
+    if ( $mysqld->{'pid'} eq $ret_pid )
+    {
+      mtr_verbose("$mysqld->{'type'} $mysqld->{'idx'} exited, pid: $ret_pid");
+      $mysqld->{'pid'}= 0;
+
+      # Check if crash expected and restart if it was
+      my $expect_file= "$::opt_vardir/tmp/" . "$mysqld->{'type'}" .
+	"$mysqld->{'idx'}" . ".expect";
+      if ( -f $expect_file )
+      {
+	mtr_verbose("Crash was expected, file $expect_file exists");
+	mysqld_start($mysqld, $mysqld->{'start_opts'},
+		     $mysqld->{'start_slave_master_info'});
+	unlink($expect_file);
+      }
+
+      return;
+    }
+  }
+
+  foreach my $cluster (@{$::clusters})
+  {
+    if ( $cluster->{'pid'} eq $ret_pid )
+    {
+      mtr_verbose("$cluster->{'name'} cluster ndb_mgmd exited, pid: $ret_pid");
+      $cluster->{'pid'}= 0;
+
+      # Check if crash expected and restart if it was
+      my $expect_file= "$::opt_vardir/tmp/ndb_mgmd_" . "$cluster->{'type'}" .
+	".expect";
+      if ( -f $expect_file )
+      {
+	mtr_verbose("Crash was expected, file $expect_file exists");
+	ndbmgmd_start($cluster);
+	unlink($expect_file);
+      }
+      return;
+    }
+
+    foreach my $ndbd (@{$cluster->{'ndbds'}})
+    {
+      if ( $ndbd->{'pid'} eq $ret_pid )
+      {
+	mtr_verbose("$cluster->{'name'} cluster ndbd exited, pid: $ret_pid");
+	$ndbd->{'pid'}= 0;
+
+	# Check if crash expected and restart if it was
+	my $expect_file= "$::opt_vardir/tmp/ndbd_" . "$cluster->{'type'}" .
+	  "$ndbd->{'idx'}" . ".expect";
+	if ( -f $expect_file )
+	{
+	  mtr_verbose("Crash was expected, file $expect_file exists");
+	  ndbd_start($cluster, $ndbd->{'idx'},
+		     $ndbd->{'start_extra_args'});
+	  unlink($expect_file);
+	}
+	return;
+      }
+    }
+  }
+  mtr_warning("check_expected_crash_and_restart couldn't find an entry for pid: $ret_pid");
+
 }
 
 ##############################################################################
@@ -810,32 +955,18 @@ sub mtr_mysqladmin_shutdown {
 
 sub mtr_record_dead_children () {
 
+  my $process_died= 0;
   my $ret_pid;
 
-  # FIXME the man page says to wait for -1 to terminate,
-  # but on OS X we get '0' all the time...
-  while ( ($ret_pid= waitpid(-1,&WNOHANG)) > 0 )
+  # Wait without blockinng to see if any processes had died
+  # -1 or 0 means there are no more procesess to wait for
+  while ( ($ret_pid= waitpid(-1,&WNOHANG)) != 0 and $ret_pid != -1)
   {
-    mtr_debug("waitpid() catched exit of child $ret_pid");
-    foreach my $idx (0..1)
-    {
-      if ( $::master->[$idx]->{'pid'} eq $ret_pid )
-      {
-        mtr_debug("child $ret_pid was master[$idx]");
-        $::master->[$idx]->{'pid'}= 0;
-      }
-    }
-
-    foreach my $idx (0..2)
-    {
-      if ( $::slave->[$idx]->{'pid'} eq $ret_pid )
-      {
-        mtr_debug("child $ret_pid was slave[$idx]");
-        $::slave->[$idx]->{'pid'}= 0;
-        last;
-      }
-    }
+    mtr_warning("mtr_record_dead_children: $ret_pid");
+    mark_process_dead($ret_pid);
+    $process_died= 1;
   }
+  return $process_died;
 }
 
 sub start_reap_all {
@@ -847,15 +978,23 @@ sub start_reap_all {
   # here. If a process terminated before setting $SIG{CHLD} (but after
   # any attempt to waitpid() it), it will still be a zombie. So we
   # have to handle any such process here.
-  while(waitpid(-1, &WNOHANG) > 0) { };
+  my $pid;
+  while(($pid= waitpid(-1, &WNOHANG)) != 0 and $pid != -1)
+  {
+    mtr_warning("start_reap_all pid: $pid");
+    mark_process_dead($pid);
+  };
 }
 
 sub stop_reap_all {
   $SIG{CHLD}= 'DEFAULT';
 }
 
-sub mtr_ping_mysqld_server ($) {
+
+sub mtr_ping_port ($) {
   my $port= shift;
+
+  mtr_verbose("mtr_ping_port: $port");
 
   my $remote= "localhost";
   my $iaddr=  inet_aton($remote);
@@ -874,13 +1013,13 @@ sub mtr_ping_mysqld_server ($) {
 
   if ( connect(SOCK, $paddr) )
   {
-    mtr_debug("Server (port: $port) is alive.");
     close(SOCK);                        # FIXME check error?
+    mtr_verbose("USED");
     return 1;
   }
   else
   {
-    mtr_debug("Server (port: $port) is dead.");
+    mtr_verbose("FREE");
     return 0;
   }
 }
@@ -910,15 +1049,15 @@ sub sleep_until_file_created ($$$) {
     # Check if it died after the fork() was successful
     if ( $pid != 0 && waitpid($pid,&WNOHANG) == $pid )
     {
+      mtr_warning("Process $pid died");
       return 0;
     }
 
-    mtr_debug("Sleep $sleeptime milliseconds waiting for ".
-	      "creation of $pidfile");
+    mtr_debug("Sleep $sleeptime milliseconds waiting for $pidfile");
 
     # Print extra message every 60 seconds
     my $seconds= ($loop * $sleeptime) / 1000;
-    if ( $seconds > 1 and $seconds % 60 == 0 )
+    if ( $seconds > 1 and int($seconds) % 60 == 0 )
     {
       my $left= $timeout - $seconds;
       mtr_warning("Waited $seconds seconds for $pidfile to be created, " .
@@ -936,19 +1075,17 @@ sub sleep_until_file_created ($$$) {
 sub mtr_kill_processes ($) {
   my $pids = shift;
 
-  foreach my $sig (15, 9)
-  {
-    my $retries= 10;
-    while (1)
-    {
-      kill($sig, @{$pids});
-      last unless kill (0, @{$pids}) and $retries--;
+  mtr_verbose("mtr_kill_processes " . join(" ", @$pids));
 
-      mtr_debug("Sleep 2 second waiting for processes to die");
-      sleep(2);
+  foreach my $pid (@$pids)
+  {
+    foreach my $sig (15, 9)
+    {
+      last if mtr_im_kill_process([ $pid ], $sig, 10, 1);
     }
   }
 }
+
 
 ##############################################################################
 #
@@ -959,7 +1096,7 @@ sub mtr_kill_processes ($) {
 # FIXME something is wrong, we sometimes terminate with "Hangup" written
 # to tty, and no STDERR output telling us why.
 
-# FIXME for some readon, setting HUP to 'IGNORE' will cause exit() to
+# FIXME for some reason, setting HUP to 'IGNORE' will cause exit() to
 # write out "Hangup", and maybe loose some output. We insert a sleep...
 
 sub mtr_exit ($) {
@@ -974,8 +1111,8 @@ sub mtr_exit ($) {
   # set ourselves as the group leader at startup (with
   # POSIX::setpgrp(0,0)), but then care must be needed to always do
   # proper child process cleanup.
-  kill('HUP', -$$) if $$ == getpgrp();
-  sleep 2;
+  kill('HUP', -$$) if !$::glob_win32_perl and $$ == getpgrp();
+
   exit($code);
 }
 
