@@ -11909,6 +11909,43 @@ static void test_bug20152()
 
 
 /*
+  Bug#21726: Incorrect result with multiple invocations of
+  LAST_INSERT_ID
+
+  Test that client gets updated value of insert_id on UPDATE that uses
+  LAST_INSERT_ID(expr).
+*/
+static void test_bug21726()
+{
+  const char *update_query = "UPDATE t1 SET i= LAST_INSERT_ID(i + 1)";
+  int rc;
+  my_ulonglong insert_id;
+
+  DBUG_ENTER("test_bug21726");
+  myheader("test_bug21726");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE TABLE t1 (i INT)");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
+  myquery(rc);
+
+  rc= mysql_query(mysql, update_query);
+  myquery(rc);
+  insert_id= mysql_insert_id(mysql);
+  DIE_UNLESS(insert_id == 2);
+
+  rc= mysql_query(mysql, update_query);
+  myquery(rc);
+  insert_id= mysql_insert_id(mysql);
+  DIE_UNLESS(insert_id == 3);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Read and parse arguments and MySQL options from my.cnf
 */
 
@@ -12134,6 +12171,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug12925", test_bug12925 },
   { "test_bug15613", test_bug15613 },
   { "test_bug20152", test_bug20152 },
+  { "test_bug21726", test_bug21726 },
   { 0, 0 }
 };
 

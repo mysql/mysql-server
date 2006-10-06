@@ -758,6 +758,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "last_insert_id"; }
   void fix_length_and_dec() { if (arg_count) max_length= args[0]->max_length; }
+  bool fix_fields(THD *thd, TABLE_LIST *tables, Item **ref);
 };
 
 class Item_func_benchmark :public Item_int_func
