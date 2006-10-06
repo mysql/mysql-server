@@ -519,7 +519,16 @@ typedef struct st_print_event_info
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
+      uint const flags = MYF(MY_WME | MY_NABP);
+      init_io_cache(&head_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
+      init_io_cache(&body_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
     }
+
+  ~st_print_event_info() {
+    end_io_cache(&head_cache);
+    end_io_cache(&body_cache);
+  }
+
 
   /* Settings on how to print the events */
   bool short_form;
@@ -527,6 +536,13 @@ typedef struct st_print_event_info
   my_off_t hexdump_from;
   uint8 common_header_len;
 
+  /*
+     These two caches are used by the row-based replication events to
+     collect the header information and the main body of the events
+     making up a statement.
+   */
+  IO_CACHE head_cache;
+  IO_CACHE body_cache;
 } PRINT_EVENT_INFO;
 #endif
 
@@ -637,9 +653,11 @@ public:
                                    const Format_description_log_event *description_event);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
-  void print_timestamp(FILE* file, time_t *ts = 0);
-  void print_header(FILE* file, PRINT_EVENT_INFO* print_event_info);
-  void print_base64(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  void print_timestamp(IO_CACHE* file, time_t *ts = 0);
+  void print_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
+                    bool is_more);
+  void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
+                    bool is_more);
 #endif
 
   static void *operator new(size_t size)
@@ -804,7 +822,7 @@ public:
                  uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
 #else
-  void print_query_header(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
@@ -1842,6 +1860,10 @@ protected:
   Rows_log_event(const char *row_data, uint event_len, 
 		 Log_event_type event_type,
 		 const Format_description_log_event *description_event);
+
+#ifdef MYSQL_CLIENT
+  void print_helper(FILE *, PRINT_EVENT_INFO *, char const *const name);
+#endif
 
 #ifndef MYSQL_CLIENT
   virtual int do_add_row_data(byte *data, my_size_t length);
