@@ -8,6 +8,9 @@
 
 --source include/im_check_env.inc
 
+# Turn on reconnect, not on by default anymore
+--enable_reconnect
+
 ###########################################################################
 
 # Kill the IM main process and check that the IM Angel will restart the main
