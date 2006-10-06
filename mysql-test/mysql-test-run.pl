@@ -1177,7 +1177,9 @@ sub check_mysqld_features () {
     if ( !$mysql_version_id )
     {
       # Look for version
-      if ( $line =~ /^$exe_mysqld\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)/ )
+      my $exe_name= basename($exe_mysqld);
+      mtr_verbose("exe_name: $exe_name");
+      if ( $line =~ /^\S*$exe_name\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)/ )
       {
 	#print "Major: $1 Minor: $2 Build: $3\n";
 	$mysql_version_id= $1*10000 + $2*100 + $3;
