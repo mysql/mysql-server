@@ -29,7 +29,4 @@ connection slave;
 show status like 'Slave_open_temp_tables';
 
 
-connection master;
-
-
 # End of 4.1 tests
