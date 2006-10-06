@@ -139,6 +139,8 @@ sub mtr_copy_dir($$) {
   my $from_dir= shift;
   my $to_dir= shift;
 
+#  mtr_verbose("Copying from $from_dir to $to_dir");
+
   mkpath("$to_dir");
   opendir(DIR, "$from_dir")
     or mtr_error("Can't find $from_dir$!");
