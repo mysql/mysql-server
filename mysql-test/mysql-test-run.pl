@@ -3490,6 +3490,11 @@ sub run_testcase_need_master_restart($)
     $do_restart= 1;           # Restart with cluster
     mtr_verbose("Restart because: Test need cluster");
   }
+  elsif( $tinfo->{'component_id'} eq 'im' )
+  {
+    $do_restart= 1;
+    mtr_verbose("Restart because: Always restart for im tests");
+  }
   elsif ( $master->[0]->{'running_master_is_special'} and
 	  $master->[0]->{'running_master_is_special'}->{'timezone'} eq
 	  $tinfo->{'timezone'} and
