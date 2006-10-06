@@ -5968,6 +5968,9 @@ ER_CANT_ACTIVATE_LOG
         ger "Kann Logdatei '%-.64s' nicht aktivieren"
 ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
+ER_BASE64_DECODE_ERROR
+        eng "Decoding of base64 string failed"
+        swe "Avkodning av base64 sträng misslyckades"
         ger "Der Server hat keine zeilenbasierte Replikation"
 ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
         eng "Triggers can not be created on system tables"

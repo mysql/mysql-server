@@ -24,6 +24,53 @@
 #include <stdarg.h>
 #include <m_ctype.h>
 
+/*
+  Copy contents of an IO_CACHE to a file.
+
+  SYNOPSIS
+    my_b_copy_to_file()
+    cache  IO_CACHE to copy from
+    file   File to copy to
+
+  DESCRIPTION
+    Copy the contents of the cache to the file. The cache will be
+    re-inited to a read cache and will read from the beginning of the
+    cache.
+
+    If a failure to write fully occurs, the cache is only copied
+    partially.
+
+  TODO
+    Make this function solid by handling partial reads from the cache
+    in a correct manner: it should be atomic.
+
+  RETURN VALUE
+    0  All OK
+    1  An error occured
+*/
+int
+my_b_copy_to_file(IO_CACHE *cache, FILE *file)
+{
+  byte buf[IO_SIZE];
+  DBUG_ENTER("my_b_copy_to_file");
+
+  /* Reinit the cache to read from the beginning of the cache */
+  if (reinit_io_cache(cache, READ_CACHE, 0L, FALSE, FALSE))
+    DBUG_RETURN(1);
+  uint bytes_in_cache= my_b_bytes_in_cache(cache);
+  while (bytes_in_cache > 0) {
+    uint const read_bytes= min(bytes_in_cache, sizeof(buf));
+    DBUG_PRINT("debug", ("Remaining %u bytes - Reading %u bytes",
+                         bytes_in_cache, read_bytes));
+    if (my_b_read(cache, buf, read_bytes))
+      DBUG_RETURN(1);
+    if (my_fwrite(file, buf, read_bytes, MYF(MY_WME | MY_NABP)) == (uint) -1)
+      DBUG_RETURN(1);
+    bytes_in_cache -= read_bytes;
+  }
+  DBUG_RETURN(0);
+}
+
 my_off_t my_b_append_tell(IO_CACHE* info)
 {
   /*
