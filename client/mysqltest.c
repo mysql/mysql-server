@@ -1498,6 +1498,7 @@ void do_exec(struct st_command *command)
   DBUG_ENTER("do_exec");
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
+  /* Skip leading space */
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
@@ -1507,7 +1508,6 @@ void do_exec(struct st_command *command)
   init_dynamic_string(&ds_cmd, 0, command->query_len+256, 256);
   /* Eval the command, thus replacing all environment variables */
   do_eval(&ds_cmd, cmd, command->end, TRUE);
-  cmd= ds_cmd.str;
 
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       command->first_argument, cmd));
