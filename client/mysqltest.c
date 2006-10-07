@@ -2472,17 +2472,13 @@ static st_error global_error_names[] =
 #include <mysqld_ername.h>
   { 0, 0 }
 };
-#define HAVE_MYSQLD_ERNAME
-#endif
-
 
 uint get_errcode_from_name(char *error_name, char *error_end)
 {
-  DBUG_ENTER("get_errcode_from_name");
-#ifdef HAVE_MYSQLD_ERNAME
-
   /* SQL error as string */
   st_error *e= global_error_names;
+
+  DBUG_ENTER("get_errcode_from_name");
   DBUG_PRINT("enter", ("error_name: %s", error_name));
 
   /* Loop through the array of known error names */
@@ -2501,13 +2497,17 @@ uint get_errcode_from_name(char *error_name, char *error_end)
   }
   if (!e->name)
     die("Unknown SQL error name '%s'", error_name);
-#else
-  LINT_INIT(error_name);
-  LINT_INIT(error_end);
-  abort_not_in_this_version();
-#endif
-  DBUG_RETURN(0);;
+  DBUG_RETURN(0);
 }
+#else
+uint get_errcode_from_name(char *error_name __attribute__((unused)),
+                           char *error_end __attribute__((unused)))
+{
+  abort_not_in_this_version();
+  return 0; /* Never reached */
+}
+#endif
+
 
 
 void do_get_errcodes(struct st_command *command)
@@ -2536,6 +2536,8 @@ void do_get_errcodes(struct st_command *command)
 
     if (*p == 'S')
     {
+      char *to_ptr= to->code.sqlstate;
+
       /*
         SQLSTATE string
         - Must be SQLSTATE_LENGTH long
@@ -2546,7 +2548,6 @@ void do_get_errcodes(struct st_command *command)
         die("The sqlstate must be exactly %d chars long", SQLSTATE_LENGTH);
 
       /* Check sqlstate string validity */
-      char *to_ptr= to->code.sqlstate;
       while (*p && p != end)
       {
         if (my_isdigit(charset_info, *p) || my_isupper(charset_info, *p))
