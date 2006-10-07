@@ -143,7 +143,7 @@ sub collect_test_cases ($) {
       {
         next;
       }
-      
+
       next if $::opt_do_test and ! defined mtr_match_prefix($elem,$::opt_do_test);
 
       collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
@@ -159,37 +159,71 @@ sub collect_test_cases ($) {
   {
 
     my %sort_criteria;
-    my $tinfo;
 
     # Make a mapping of test name to a string that represents how that test
     # should be sorted among the other tests.  Put the most important criterion
     # first, then a sub-criterion, then sub-sub-criterion, et c.
-    foreach $tinfo (@$cases)
+    foreach my $tinfo (@$cases)
     {
-      my @this_criteria = ();
+      my @criteria = ();
 
-      #
-      # Append the criteria for sorting, in order of importance.
-      #
+      # Look for tests that muct be in run in a defined order
+      # that is defined by test having the same name except for
+      # the ending digit
 
-      push(@this_criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "1" : "0"));
-      push(@this_criteria, "restart=" . ($tinfo->{'master_restart'} ? "1" : "0"));
-      # Group test with similar options together.
-      # Ending with "~" makes empty sort later than filled
-      push(@this_criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");
+      # Put variables into hash
+      my $test_name= $tinfo->{'name'};
+      my $depend_on_test_name;
+      if ( $test_name =~ /^([\D]+)([0-9]{1})$/ )
+      {
+	my $base_name= $1;
+	my $idx= $2;
+	mtr_verbose("$test_name =>  $base_name idx=$idx");
+	if ( $idx > 1 )
+	{
+	  $idx-= 1;
+	  $base_name= "$base_name$idx";
+	  mtr_verbose("New basename $base_name");
+	}
 
-      # Finally, order by the name
-      push(@this_criteria, $tinfo->{'name'});
+	foreach my $tinfo2 (@$cases)
+	{
+	  if ( $tinfo2->{'name'} eq $base_name )
+	  {
+	    mtr_verbose("found dependent test $tinfo2->{'name'}");
+	    $depend_on_test_name=$base_name;
+	  }
+	}
+      }
 
-      $sort_criteria{$tinfo->{"name"}} = join(" ", @this_criteria);
+      if ( defined $depend_on_test_name )
+      {
+	mtr_verbose("Giving $test_name same critera as $depend_on_test_name");
+	$sort_criteria{$test_name} = $sort_criteria{$depend_on_test_name};
+      }
+      else
+      {
+	#
+	# Append the criteria for sorting, in order of importance.
+	#
+	push(@criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "1" : "0"));
+	push(@criteria, "restart=" . ($tinfo->{'master_restart'} ? "1" : "0"));
+	# Group test with equal options together.
+	# Ending with "~" makes empty sort later than filled
+	push(@criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");
+
+	$sort_criteria{$test_name} = join(" ", @criteria);
+      }
     }
 
-    @$cases = sort { $sort_criteria{$a->{"name"}} cmp $sort_criteria{$b->{"name"}}; } @$cases;
+    @$cases = sort {
+      $sort_criteria{$a->{'name'}} . $a->{'name'} cmp
+	$sort_criteria{$b->{'name'}} . $b->{'name'}; } @$cases;
 
     if ( $::opt_script_debug )
     {
       # For debugging the sort-order
-      foreach $tinfo (@$cases)
+      foreach my $tinfo (@$cases)
       {
 	print("$sort_criteria{$tinfo->{'name'}} -> \t$tinfo->{'name'}\n");
       }
