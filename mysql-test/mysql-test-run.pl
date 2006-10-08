@@ -87,22 +87,6 @@ require "lib/mtr_stress.pl";
 
 $Devel::Trace::TRACE= 1;
 
-# Used by gcov
-our @mysqld_src_dirs=
-  (
-   "strings",
-   "mysys",
-   "include",
-   "extra",
-   "regex",
-   "isam",
-   "merge",
-   "myisam",
-   "myisammrg",
-   "heap",
-   "sql",
-  );
-
 ##############################################################################
 #
 #  Default settings
@@ -502,9 +486,6 @@ sub initial_setup () {
 				       "$glob_basedir/libexec/mysqld",
 				       "$glob_basedir/sql/release/mysqld",
 				       "$glob_basedir/sql/debug/mysqld");
-
-  $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
-  $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
 
   # Use the mysqld found above to find out what features are available
   collect_mysqld_features();
@@ -937,6 +918,12 @@ sub command_line_setup () {
       mtr_error("Can't use --extern when using debugger");
     }
   }
+
+  # --------------------------------------------------------------------------
+  # Check if special exe was selected for master or slave
+  # --------------------------------------------------------------------------
+  $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
+  $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
 
   # --------------------------------------------------------------------------
   # Check valgrind arguments
@@ -3945,6 +3932,10 @@ sub run_testcase_start_servers($) {
 # Before a testcase, run in record mode, save result file to var
 # After testcase, run and compare with the recorded file, they should be equal!
 #
+# RETURN VALUE
+#  0 OK
+#  1 Check failed
+#
 sub run_check_testcase ($$) {
 
   my $mode=     shift;
@@ -3989,6 +3980,7 @@ sub run_check_testcase ($$) {
   {
     mtr_error("Could not execute 'check-testcase' $mode testcase");
   }
+  return $res;
 }
 
 
@@ -4178,7 +4170,11 @@ sub run_mysqltest ($) {
     {
       if ($mysqld->{'pid'})
       {
-	run_check_testcase("after", $mysqld);
+	if (run_check_testcase("after", $mysqld))
+	{
+	  # Check failed, mark the test case with that info
+	  $tinfo->{'check_testcase_failed'}= 1;
+	}
       }
     }
   }
