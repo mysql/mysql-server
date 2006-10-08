@@ -178,12 +178,12 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 UNION=(`t1`,`t2`)
 create table t4 (a int not null, b char(10), key(a)) engine=MERGE UNION=(t1,t2);
 select * from t4;
-ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 alter table t4 add column c int;
-ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 flush tables;
 select * from t4;
-ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 create database mysqltest;
 create table mysqltest.t6 (a int not null primary key auto_increment, message char(20));
 create table t5 (a int not null, b char(20), key(a)) engine=MERGE UNION=(test.t1,mysqltest.t6);
@@ -780,11 +780,11 @@ DROP TABLE t1, t2;
 CREATE TABLE t1(a INT) ENGINE=MEMORY;
 CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
 SELECT * FROM t2;
-ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE t1, t2;
 CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
 SELECT * FROM t2;
-ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE t2;
 create table t1 (b bit(1));
 create table t2 (b bit(1));
