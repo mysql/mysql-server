@@ -484,11 +484,11 @@ sub initial_setup () {
   #
 
   # Look for the path where to find the client binaries
-  $path_client_bindir= mtr_path_exists("$glob_basedir/client",
+  $path_client_bindir= mtr_path_exists("$glob_basedir/client/release",
+				       "$glob_basedir/client/debug",
+				       "$glob_basedir/client",
 				       "$glob_basedir/client_release",
 				       "$glob_basedir/client_debug",
-				       "$glob_basedir/client/release",
-				       "$glob_basedir/client/debug",
 				       "$glob_basedir/bin");
 
   # Look for the mysqld executable
