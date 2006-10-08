@@ -87,22 +87,6 @@ require "lib/mtr_stress.pl";
 
 $Devel::Trace::TRACE= 1;
 
-# Used by gcov
-our @mysqld_src_dirs=
-  (
-   "strings",
-   "mysys",
-   "include",
-   "extra",
-   "regex",
-   "isam",
-   "merge",
-   "myisam",
-   "myisammrg",
-   "heap",
-   "sql",
-  );
-
 ##############################################################################
 #
 #  Default settings
