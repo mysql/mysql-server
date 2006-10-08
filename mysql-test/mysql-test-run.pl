@@ -311,8 +311,8 @@ our $used_binlog_format;
 our $debug_compiled_binaries;
 our $glob_tot_real_time= 0;
 
-# Default values read from mysqld
-our $default_mysqld_port;
+our %mysqld_variables;
+
 
 ######################################################################
 #
@@ -368,7 +368,13 @@ sub main () {
 
   initial_setup();
   command_line_setup();
+
+  check_ndbcluster_support(\%mysqld_variables);
+  check_ssl_support(\%mysqld_variables);
+  check_debug_support(\%mysqld_variables);
+
   executable_setup();
+
   environment_setup();
   signal_setup();
 
@@ -501,7 +507,7 @@ sub initial_setup () {
   $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
 
   # Use the mysqld found above to find out what features are available
-  check_mysqld_features();
+  collect_mysqld_features();
 
 }
 
@@ -721,7 +727,6 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Find out type of logging that are being used
   # --------------------------------------------------------------------------
-
   # NOTE if the default binlog format is changed, this has to be changed
   $used_binlog_format= "stmt";
   foreach my $arg ( @opt_extra_mysqld_opt )
@@ -762,7 +767,6 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Set the "var/" directory, as it is the base for everything else
   # --------------------------------------------------------------------------
-
   $default_vardir= "$glob_mysql_test_dir/var";
   if ( ! $opt_vardir )
   {
@@ -792,25 +796,46 @@ sub command_line_setup () {
   }
 
   # --------------------------------------------------------------------------
-  # If not set, set these to defaults
+  # Set tmpdir
   # --------------------------------------------------------------------------
-
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
 
   # --------------------------------------------------------------------------
-  # Do sanity checks of command line arguments
+  # Set socket
   # --------------------------------------------------------------------------
+  if (!$opt_socket)
+  {
+    $opt_socket=  $mysqld_variables{'socket'};
+  }
 
   # --------------------------------------------------------------------------
-  # Look at the command line options and set script flags
+  # Check im suport
   # --------------------------------------------------------------------------
+  if ( $mysql_version_id < 50000 )
+  {
+    # Instance manager is not supported until 5.0
+    $opt_skip_im= 1;
 
+  }
+
+  if ( $glob_win32 )
+  {
+    mtr_report("Disable Instance manager - not supported on Windows");
+    $opt_skip_im= 1;
+  }
+
+  # --------------------------------------------------------------------------
+  # Record flag
+  # --------------------------------------------------------------------------
   if ( $opt_record and ! @opt_cases )
   {
     mtr_error("Will not run in record mode without a specific test case");
   }
 
+  # --------------------------------------------------------------------------
+  # Embedded server flag
+  # --------------------------------------------------------------------------
   if ( $opt_embedded_server )
   {
     $glob_use_embedded_server= 1;
@@ -825,11 +850,18 @@ sub command_line_setup () {
     }
   }
 
+
+  # --------------------------------------------------------------------------
+  # ps protcol flag
+  # --------------------------------------------------------------------------
   if ( $opt_ps_protocol )
   {
     push(@glob_test_mode, "ps-protocol");
   }
 
+  # --------------------------------------------------------------------------
+  # Ndb cluster flags
+  # --------------------------------------------------------------------------
   if ( $opt_with_ndbcluster and $opt_skip_ndbcluster)
   {
     mtr_error("Can't specify both --with-ndbcluster and --skip-ndbcluster");
@@ -865,22 +897,33 @@ sub command_line_setup () {
     $opt_ndbconnectstring_slave= "host=localhost:$opt_ndbcluster_port_slave";
   }
 
+  # --------------------------------------------------------------------------
+  # Bench flags
+  # --------------------------------------------------------------------------
   if ( $opt_small_bench )
   {
     $opt_bench=  1;
   }
 
+  # --------------------------------------------------------------------------
+  # Sleep flag
+  # --------------------------------------------------------------------------
   if ( $opt_sleep )
   {
     $opt_sleep_time_after_restart= $opt_sleep;
   }
 
+  # --------------------------------------------------------------------------
+  # Gcov flag
+  # --------------------------------------------------------------------------
   if ( $opt_gcov and ! $opt_source_dist )
   {
     mtr_error("Coverage test needs the source - please use source dist");
   }
 
+  # --------------------------------------------------------------------------
   # Check debug related options
+  # --------------------------------------------------------------------------
   if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd ||
        $opt_manual_gdb || $opt_manual_ddd || $opt_manual_debug ||
        $opt_debugger || $opt_client_debugger )
@@ -895,13 +938,9 @@ sub command_line_setup () {
     }
   }
 
-  # Check IM arguments
-  if ( $glob_win32 )
-  {
-    mtr_report("Disable Instance manager - not supported on Windows");
-    $opt_skip_im= 1;
-  }
+  # --------------------------------------------------------------------------
   # Check valgrind arguments
+  # --------------------------------------------------------------------------
   if ( $opt_valgrind or $opt_valgrind_path or defined $opt_valgrind_options)
   {
     mtr_report("Turning on valgrind for all executables");
@@ -1185,7 +1224,7 @@ sub datadir_setup () {
 ##############################################################################
 
 
-sub check_mysqld_features () {
+sub collect_mysqld_features () {
   #
   # Execute "mysqld --no-defaults --help --verbose", that will
   # print out version and a list of all features and settings
@@ -1202,7 +1241,6 @@ sub check_mysqld_features () {
 	      $exe_mysqld);
   }
 
-  my %mysqld_variables;
   my $F= IO::File->new($spec_file) or
     mtr_error("can't open file \"$spec_file\": $!");
 
@@ -1263,27 +1301,6 @@ sub check_mysqld_features () {
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
-  check_ndbcluster_support(\%mysqld_variables);
-  check_ssl_support(\%mysqld_variables);
-  check_debug_support(\%mysqld_variables);
-
-  if ( $mysql_version_id < 50000 )
-  {
-    # Instance manager is not supported until 5.0
-    $opt_skip_im= 1;
-
-  }
-
-  if ( $mysql_version_id < 50100 )
-  {
-    # Slave cluster is not supported until 5.1
-    $opt_skip_ndbcluster_slave= 1;
-
-  }
-
-  # Set default values from mysqld_variables
-  $opt_socket=  $mysqld_variables{'socket'};
-  $default_mysqld_port = $mysqld_variables{'port'};
 }
 
 
@@ -1516,7 +1533,7 @@ sub environment_setup () {
   $ENV{'SLAVE_MYPORT'}=       $slave->[0]->{'port'};
   $ENV{'SLAVE_MYPORT1'}=      $slave->[1]->{'port'};
   $ENV{'SLAVE_MYPORT2'}=      $slave->[2]->{'port'};
-  $ENV{'MYSQL_TCP_PORT'}=     $default_mysqld_port;
+  $ENV{'MYSQL_TCP_PORT'}=     $mysqld_variables{'port'};
 
   $ENV{MTR_BUILD_THREAD}= 0 unless $ENV{MTR_BUILD_THREAD}; # Set if not set
 
@@ -2006,6 +2023,14 @@ sub check_ndbcluster_support ($) {
   }
   $opt_ndbcluster_supported= 1;
   mtr_report("Using ndbcluster when necessary, mysqld supports it");
+
+  if ( $mysql_version_id < 50100 )
+  {
+    # Slave cluster is not supported until 5.1
+    $opt_skip_ndbcluster_slave= 1;
+
+  }
+
   return;
 }
 
