@@ -548,7 +548,10 @@ int ha_tina::encode_quote(byte *buf)
       in the code.
     */
     if ((*field)->is_null())
-      ptr= end_ptr= 0;
+    {
+      buffer.append(STRING_WITH_LEN("\"\","));
+      continue;
+    }
     else
     {
       (*field)->val_str(&attribute,&attribute);
@@ -649,6 +652,7 @@ int ha_tina::find_current_row(byte *buf)
   off_t end_offset, curr_offset= current_position;
   int eoln_len;
   my_bitmap_map *org_bitmap;
+  int error;
   DBUG_ENTER("ha_tina::find_current_row");
 
   /*
@@ -662,23 +666,23 @@ int ha_tina::find_current_row(byte *buf)
 
   /* Avoid asserts in ::store() for columns that are not going to be updated */
   org_bitmap= dbug_tmp_use_all_columns(table, table->write_set);
+  error= HA_ERR_CRASHED_ON_USAGE;
+
+  memset(buf, 0, table->s->null_bytes);
 
   for (Field **field=table->field ; *field ; field++)
   {
     buffer.length(0);
-    if (file_buff->get_value(curr_offset) == '"')
+    if (curr_offset < end_offset &&
+        file_buff->get_value(curr_offset) == '"')
       curr_offset++; // Incrementpast the first quote
     else
-    {
-      dbug_tmp_restore_column_map(table->write_set, org_bitmap);
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-    }
-    for(;curr_offset != end_offset; curr_offset++)
+      goto err;
+    for(;curr_offset < end_offset; curr_offset++)
     {
       // Need to convert line feeds!
       if (file_buff->get_value(curr_offset) == '"' &&
-          (((file_buff->get_value(curr_offset + 1) == ',') &&
-            (file_buff->get_value(curr_offset + 2) == '"')) ||
+          ((file_buff->get_value(curr_offset + 1) == ',') ||
            (curr_offset == end_offset -1 )))
       {
         curr_offset+= 2; // Move past the , and the "
@@ -708,10 +712,7 @@ int ha_tina::find_current_row(byte *buf)
           we are working with a damaged file.
         */
         if (curr_offset == end_offset - 1)
-        {
-          dbug_tmp_restore_column_map(table->write_set, org_bitmap);
-          DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-        }
+          goto err;
         buffer.append(file_buff->get_value(curr_offset));
       }
     }
@@ -719,11 +720,12 @@ int ha_tina::find_current_row(byte *buf)
       (*field)->store(buffer.ptr(), buffer.length(), system_charset_info);
   }
   next_position= end_offset + eoln_len;
-  /* Maybe use \N for null? */
-  memset(buf, 0, table->s->null_bytes); /* We do not implement nulls! */
+  error= 0;
+
+err:
   dbug_tmp_restore_column_map(table->write_set, org_bitmap);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 /*

@@ -3791,7 +3791,7 @@ ER_WRONG_MRG_TABLE
         cze "V-B¹echny tabulky v MERGE tabulce nejsou definovány stejnì"
         dan "Tabellerne i MERGE er ikke defineret ens"
         nla "Niet alle tabellen in de MERGE tabel hebben identieke gedefinities"
-        eng "Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exists"
+        eng "Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist"
         est "Kõik tabelid MERGE tabeli määratluses ei ole identsed"
         fre "Toutes les tables de la table de type MERGE n'ont pas la même définition"
         ger "Nicht alle Tabellen in der MERGE-Tabelle sind gleich definiert"

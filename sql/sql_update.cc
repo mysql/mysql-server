@@ -1217,6 +1217,8 @@ multi_update::initialize_tables(JOIN *join)
     TMP_TABLE_PARAM *tmp_param;
 
     table->mark_columns_needed_for_update();
+    if (ignore)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)			// First table in join
     {
       if (safe_update_on_fly(join->join_tab))
@@ -1331,7 +1333,11 @@ multi_update::~multi_update()
 {
   TABLE_LIST *table;
   for (table= update_tables ; table; table= table->next_local)
+  {
     table->table->no_keyread= table->table->no_cache= 0;
+    if (ignore)
+      table->table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  }
 
   if (tmp_tables)
   {
