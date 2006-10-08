@@ -728,9 +728,11 @@ void die(const char *fmt, ...)
   if (fmt)
   {
 #ifdef DBUG_ON
+#ifndef __WIN__
     char buff[256];
     vsnprintf(buff, sizeof(buff), fmt, args);
     DBUG_PRINT("error", ("%s", buff));
+#endif
 #endif
     fprintf(stderr, "mysqltest: ");
     if (cur_file && cur_file != file_stack)
@@ -855,8 +857,10 @@ void warning_msg(const char *fmt, ...)
     dynstr_append_mem(&ds_warning_messages,
                       buff, len);
   }
+#ifndef __WIN__
   len= vsnprintf(buff, sizeof(buff), fmt, args);
   dynstr_append_mem(&ds_warning_messages, buff, len);
+#endif
   dynstr_append(&ds_warning_messages, "\n");
   va_end(args);
 
