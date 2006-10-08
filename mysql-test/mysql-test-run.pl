@@ -487,9 +487,6 @@ sub initial_setup () {
 				       "$glob_basedir/sql/release/mysqld",
 				       "$glob_basedir/sql/debug/mysqld");
 
-  $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
-  $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
-
   # Use the mysqld found above to find out what features are available
   collect_mysqld_features();
 
@@ -921,6 +918,12 @@ sub command_line_setup () {
       mtr_error("Can't use --extern when using debugger");
     }
   }
+
+  # --------------------------------------------------------------------------
+  # Check if special exe was selected for master or slave
+  # --------------------------------------------------------------------------
+  $exe_master_mysqld= $exe_master_mysqld || $exe_mysqld;
+  $exe_slave_mysqld=  $exe_slave_mysqld  || $exe_mysqld;
 
   # --------------------------------------------------------------------------
   # Check valgrind arguments
