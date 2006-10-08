@@ -1498,6 +1498,7 @@ void do_exec(struct st_command *command)
   DBUG_ENTER("do_exec");
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
+  /* Skip leading space */
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
@@ -1507,7 +1508,6 @@ void do_exec(struct st_command *command)
   init_dynamic_string(&ds_cmd, 0, command->query_len+256, 256);
   /* Eval the command, thus replacing all environment variables */
   do_eval(&ds_cmd, cmd, command->end, TRUE);
-  cmd= ds_cmd.str;
 
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       command->first_argument, cmd));
@@ -2544,11 +2544,11 @@ void do_get_errcodes(struct st_command *command)
         - May contain only digits[0-9] and _uppercase_ letters
       */
       p++; /* Step past the S */
-      if (end - p != SQLSTATE_LENGTH)
+      if ((end - p) != SQLSTATE_LENGTH)
         die("The sqlstate must be exactly %d chars long", SQLSTATE_LENGTH);
 
       /* Check sqlstate string validity */
-      while (*p && p != end)
+      while (*p && p < end)
       {
         if (my_isdigit(charset_info, *p) || my_isupper(charset_info, *p))
           *to_ptr++= *p++;
@@ -4652,7 +4652,8 @@ void handle_error(struct st_command *command,
     */
     if (err_errno == CR_SERVER_LOST ||
         err_errno == CR_SERVER_GONE_ERROR)
-      die("require query '%s' failed: %d: %s", command->query, err_errno, err_error);
+      die("require query '%s' failed: %d: %s", command->query,
+          err_errno, err_error);
 
     /* Abort the run of this test, pass the failed query as reason */
     abort_not_supported_test("Query '%s' failed, required functionality" \
@@ -4669,8 +4670,8 @@ void handle_error(struct st_command *command,
     if (((command->expected_errors.err[i].type == ERR_ERRNO) &&
          (command->expected_errors.err[i].code.errnum == err_errno)) ||
         ((command->expected_errors.err[i].type == ERR_SQLSTATE) &&
-         (strcmp(command->expected_errors.err[i].code.sqlstate,
-                 err_sqlstate) == 0)))
+         (strncmp(command->expected_errors.err[i].code.sqlstate,
+                  err_sqlstate, SQLSTATE_LENGTH) == 0)))
     {
       if (!disable_result_log)
       {
@@ -4695,7 +4696,7 @@ void handle_error(struct st_command *command,
   }
 
   DBUG_PRINT("info",("i: %d  expected_errors: %d", i,
-                     command->expected_errors));
+                     command->expected_errors.count));
 
   if (!disable_result_log)
   {
@@ -5422,6 +5423,9 @@ int main(int argc, char **argv)
 
   save_file[0]= 0;
   TMPDIR[0]= 0;
+
+  /* Init expected errors */
+  memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
 
   /* Init connections */
   memset(connections, 0, sizeof(connections));
