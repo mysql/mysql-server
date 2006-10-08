@@ -3932,6 +3932,10 @@ sub run_testcase_start_servers($) {
 # Before a testcase, run in record mode, save result file to var
 # After testcase, run and compare with the recorded file, they should be equal!
 #
+# RETURN VALUE
+#  0 OK
+#  1 Check failed
+#
 sub run_check_testcase ($$) {
 
   my $mode=     shift;
@@ -3976,6 +3980,7 @@ sub run_check_testcase ($$) {
   {
     mtr_error("Could not execute 'check-testcase' $mode testcase");
   }
+  return $res;
 }
 
 
@@ -4165,7 +4170,11 @@ sub run_mysqltest ($) {
     {
       if ($mysqld->{'pid'})
       {
-	run_check_testcase("after", $mysqld);
+	if (run_check_testcase("after", $mysqld))
+	{
+	  # Check failed, mark the test case with that info
+	  $tinfo->{'check_testcase_failed'}= 1;
+	}
       }
     }
   }

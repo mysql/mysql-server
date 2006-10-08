@@ -1,0 +1,49 @@
+#
+# This test is executed twice for each test case if mysql-test-run is passed
+# the flag --check-testcase.
+# Before every testcase it's run with mysqltest in record mode and will
+# thus produce an output file
+# that can be compared to output from after the tescase.
+# In that way it's possible to check that a testcase does not have
+# any unwanted side affects.
+#
+
+#
+# Dump all global variables
+#
+show global variables;
+
+#
+# Dump all databases
+#
+show databases;
+
+#
+# Dump the "test" database, all it's tables and their data
+#
+--exec $MYSQL_DUMP --skip-comments test
+
+#
+# Dump the "mysql" database and it's tables
+# Select data separately to add "order by"
+#
+--exec $MYSQL_DUMP --skip-comments --no-data mysql
+use mysql;
+select * from columns_priv;
+select * from db order by host, db, user;
+select * from func;
+select * from help_category;
+select * from help_keyword;
+select * from help_relation;
+select * from help_relation;
+select * from host;
+select * from tables_priv;
+select * from time_zone;
+select * from time_zone_leap_second;
+select * from time_zone_name;
+select * from time_zone_transition;
+select * from time_zone_transition_type;
+select * from user;
+
+
+
