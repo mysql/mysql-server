@@ -172,7 +172,7 @@ sub mtr_report_stats ($) {
   my $tot_failed= 0;
   my $tot_tests=  0;
   my $tot_restarts= 0;
-  my $found_problems= 0;            # Some warnings are errors...
+  my $found_problems= 0; # Some warnings in the logfiles are errors...
 
   foreach my $tinfo (@$tests)
   {
@@ -283,6 +283,7 @@ sub mtr_report_stats ($) {
 
   print "\n";
 
+  # Print a list of testcases that failed
   if ( $tot_failed != 0 )
   {
     my $test_mode= join(" ", @::glob_test_mode) || "default";
@@ -296,7 +297,30 @@ sub mtr_report_stats ($) {
       }
     }
     print "\n";
+
   }
+
+  # Print a list of check_testcases that failed(if any)
+  if ( $::opt_check_testcases )
+  {
+    my @check_testcases= ();
+
+    foreach my $tinfo (@$tests)
+    {
+      if ( defined $tinfo->{'check_testcase_failed'} )
+      {
+	push(@check_testcases, $tinfo->{'name'});
+      }
+    }
+
+    if ( @check_testcases )
+    {
+      print "Check of testcase failed for: ";
+      print join(" ", @check_testcases);
+      print "\n\n";
+    }
+  }
+
   if ( $tot_failed != 0 || $found_problems)
   {
     mtr_error("there where failing test cases");
