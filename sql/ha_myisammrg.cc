@@ -335,7 +335,7 @@ void ha_myisammrg::info(uint flag)
         with such a number, it'll be an error later anyway.
       */
       bzero((char*) table->key_info[0].rec_per_key,
-            sizeof(table->key_info[0].rec_per_key) * table->key_parts);
+            sizeof(table->key_info[0].rec_per_key) * table->s->key_parts);
 #endif
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) info.rec_per_key,
