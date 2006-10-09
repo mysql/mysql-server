@@ -147,4 +147,21 @@ drop table t1;
 --exec echo "SELECT '\';';" >> $MYSQLTEST_VARDIR/tmp/bug20103.sql
 --exec $MYSQL              < $MYSQLTEST_VARDIR/tmp/bug20103.sql 2>&1
 
+#
+# Bug#17583: mysql drops connection when stdout is not writable
+#
+create table t17583 (a int);
+insert into t17583 (a) values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+insert into t17583 select a from t17583;
+# Close to the minimal data needed to exercise bug.
+select count(*) from t17583;
+--exec echo "select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; " |$MYSQL test >&-
+drop table t17583;
+
 --echo End of 5.0 tests
