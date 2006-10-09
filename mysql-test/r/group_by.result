@@ -303,10 +303,10 @@ spid	sum(userid)
 1	1
 explain select sql_big_result score,count(*) from t1 group by score desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	score	3	NULL	8	Using index
+1	SIMPLE	t1	index	NULL	score	3	NULL	8	Using index; Using filesort
 explain select sql_big_result score,count(*) from t1 group by score desc order by null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	score	3	NULL	8	Using index
+1	SIMPLE	t1	index	NULL	score	3	NULL	8	Using index; Using filesort
 select sql_big_result score,count(*) from t1 group by score desc;
 score	count(*)
 3	5
@@ -821,3 +821,66 @@ a	b	real_b
 68	France	France
 DROP VIEW v1;
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, key (b));
+INSERT INTO t1 VALUES (1,      1);
+INSERT INTO t1 SELECT  a + 1 , MOD(a + 1 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 2 , MOD(a + 2 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 4 , MOD(a + 4 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 8 , MOD(a + 8 , 20) FROM t1;
+INSERT INTO t1 SELECT  a + 16, MOD(a + 16, 20) FROM t1;
+INSERT INTO t1 SELECT  a + 32, MOD(a + 32, 20) FROM t1;
+INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20) FROM t1;
+SELECT MIN(b), MAX(b) from t1;
+MIN(b)	MAX(b)
+0	19
+EXPLAIN SELECT b, sum(1) FROM t1 GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	5	NULL	128	Using index
+EXPLAIN SELECT SQL_BIG_RESULT b, sum(1) FROM t1 GROUP BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	b	5	NULL	128	Using index; Using filesort
+SELECT b, sum(1) FROM t1 GROUP BY b;
+b	sum(1)
+0	6
+1	7
+2	7
+3	7
+4	7
+5	7
+6	7
+7	7
+8	7
+9	6
+10	6
+11	6
+12	6
+13	6
+14	6
+15	6
+16	6
+17	6
+18	6
+19	6
+SELECT SQL_BIG_RESULT b, sum(1) FROM t1 GROUP BY b;
+b	sum(1)
+0	6
+1	7
+2	7
+3	7
+4	7
+5	7
+6	7
+7	7
+8	7
+9	6
+10	6
+11	6
+12	6
+13	6
+14	6
+15	6
+16	6
+17	6
+18	6
+19	6
+DROP TABLE t1;
