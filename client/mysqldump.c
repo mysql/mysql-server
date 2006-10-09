@@ -99,7 +99,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_replace_into= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
                 opt_events= 0,
-                opt_alltspcs=0;
+                opt_alltspcs=0, opt_notspcs= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
 static my_bool insert_pat_inited=0;
@@ -169,6 +169,10 @@ static struct my_option my_long_options[] =
   {"all-tablespaces", 'Y',
    "Dump all the tablespaces.",
    (gptr*) &opt_alltspcs, (gptr*) &opt_alltspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"no-tablespaces", 'y',
+   "Do not dump any tablespace information.",
+   (gptr*) &opt_notspcs, (gptr*) &opt_notspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"add-drop-database", OPT_DROP_DATABASE, "Add a 'DROP DATABASE' before each create.",
    (gptr*) &opt_drop_database, (gptr*) &opt_drop_database, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
@@ -446,6 +450,10 @@ char check_if_ignore_table(const char *table_name, char *table_type);
 static char *primary_key_fields(const char *table_name);
 static my_bool get_view_structure(char *table, char* db);
 static my_bool dump_all_views_in_db(char *database);
+static int dump_all_tablespaces();
+static int dump_tablespaces_for_tables(char *db, char **table_names, int tables);
+static int dump_tablespaces_for_databases(char** databases);
+static int dump_tablespaces(char* ts_where);
 
 #include <help_start.h>
 
@@ -2746,9 +2754,100 @@ static char *getTableName(int reset)
 
 static int dump_all_tablespaces()
 {
+  return dump_tablespaces(NULL);
+}
+
+static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
+{
+  char *where;
+  int r;
+  int i;
+
+  size_t sz= 200+tables*(NAME_LEN*2+3);
+  where= my_malloc(sz, MYF(MY_WME));
+
+  if (!where)
+    return 1;
+
+  char name_buff[NAME_LEN*2+3];
+  mysql_real_escape_string(mysql, name_buff, db, strlen(db));
+
+  snprintf(where,sz-1,
+          " AND TABLESPACE_NAME IN ("
+          "SELECT DISTINCT TABLESPACE_NAME FROM"
+          " INFORMATION_SCHEMA.PARTITIONS"
+          " WHERE"
+          " TABLE_SCHEMA='%s'"
+          " AND TABLE_NAME IN (", name_buff);
+
+  for (i=0 ; i<tables ; i++)
+  {
+    mysql_real_escape_string(mysql, name_buff,
+                             table_names[i], strlen(table_names[i]));
+    strncat(where,"'",sz-3);
+    strncat(where,name_buff,sz-3);
+    strncat(where,"'",sz-3);
+    strncat(where,",",sz-3);
+  }
+  sz= strlen(where);
+  where[sz-1]= ')';
+  where[sz]= ')';
+  where[sz+1]= '\0';
+
+  DBUG_PRINT("info",("Dump TS for Tables where: %s",where));
+  r= dump_tablespaces(where);
+  my_free(where, MYF(0));
+  return r;
+}
+
+static int dump_tablespaces_for_databases(char** databases)
+{
+  char *where;
+  int r;
+  int i;
+
+  size_t sz= 150;
+  for (i=0 ; databases[i]!=NULL ; i++)
+    sz+=(strlen(databases[i])*2)+3+1;
+
+  where= my_malloc(sz, MYF(MY_WME));
+  if(!where)
+    return 1;
+
+  strncpy(where,
+          " AND TABLESPACE_NAME IN ("
+          "SELECT DISTINCT TABLESPACE_NAME FROM"
+          " INFORMATION_SCHEMA.PARTITIONS"
+          " WHERE"
+          " TABLE_SCHEMA IN (", sz-1);
+
+  for (i=0 ; databases[i]!=NULL ; i++)
+  {
+    char db_name_buff[NAME_LEN*2+3];
+    mysql_real_escape_string(mysql, db_name_buff,
+                             databases[i], strlen(databases[i]));
+    strncat(where,"'",sz-3);
+    strncat(where,db_name_buff,sz-3);
+    strncat(where,"'",sz-3);
+    strncat(where,",",sz-3);
+  }
+  sz= strlen(where);
+  where[sz-1]= ')';
+  where[sz]= ')';
+  where[sz+1]= '\0';
+
+  DBUG_PRINT("info",("Dump TS for DBs where: %s",where));
+  r= dump_tablespaces(where);
+  my_free(where, MYF(0));
+  return r;
+}
+
+static int dump_tablespaces(char* ts_where)
+{
   MYSQL_ROW row;
   MYSQL_RES *tableres;
   char buf[FN_REFLEN];
+  char sqlbuf[1024];
   int first;
   /*
     The following are used for parsing the EXTRA field
@@ -2757,20 +2856,28 @@ static int dump_all_tablespaces()
   char *ubs;
   char *endsemi;
 
-  if (mysql_query_with_error_report(mysql, &tableres,
-                                    "SELECT"
-                                    " LOGFILE_GROUP_NAME,"
-                                    " FILE_NAME,"
-                                    " TOTAL_EXTENTS,"
-                                    " INITIAL_SIZE,"
-                                    " ENGINE,"
-                                    " EXTRA"
-                                    " FROM INFORMATION_SCHEMA.FILES"
-                                    " WHERE FILE_TYPE = \"UNDO LOG\""
-                                    " AND FILE_NAME IS NOT NULL"
-                                    " GROUP BY LOGFILE_GROUP_NAME, FILE_NAME"
-                                    ", ENGINE"
-                                    " ORDER BY LOGFILE_GROUP_NAME"))
+  snprintf(sqlbuf,sizeof(sqlbuf),"%s%s%s%s%s",
+           "SELECT LOGFILE_GROUP_NAME,"
+           " FILE_NAME,"
+           " TOTAL_EXTENTS,"
+           " INITIAL_SIZE,"
+           " ENGINE,"
+           " EXTRA"
+           " FROM INFORMATION_SCHEMA.FILES"
+           " WHERE FILE_TYPE = 'UNDO LOG'"
+           " AND FILE_NAME IS NOT NULL",
+           (ts_where)?
+           " AND LOGFILE_GROUP_NAME IN ("
+           "SELECT DISTINCT LOGFILE_GROUP_NAME"
+           " FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'DATAFILE'"
+           :"",
+           (ts_where)?ts_where:"",
+           (ts_where)?")":"",
+           " GROUP BY LOGFILE_GROUP_NAME, FILE_NAME"
+           ", ENGINE"
+           " ORDER BY LOGFILE_GROUP_NAME");
+
+  if (mysql_query_with_error_report(mysql, &tableres,sqlbuf))
     return 1;
 
   buf[0]= 0;
@@ -2822,17 +2929,19 @@ static int dump_all_tablespaces()
     }
   }
 
-  if (mysql_query_with_error_report(mysql, &tableres,
-                                    "SELECT DISTINCT"
-                                    " TABLESPACE_NAME,"
-                                    " FILE_NAME,"
-                                    " LOGFILE_GROUP_NAME,"
-                                    " EXTENT_SIZE,"
-                                    " INITIAL_SIZE,"
-                                    " ENGINE"
-                                    " FROM INFORMATION_SCHEMA.FILES"
-                                    " WHERE FILE_TYPE = \"DATAFILE\""
-                                    " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME"))
+  snprintf(sqlbuf,sizeof(sqlbuf),"%s%s%s",
+           "SELECT DISTINCT TABLESPACE_NAME,"
+           " FILE_NAME,"
+           " LOGFILE_GROUP_NAME,"
+           " EXTENT_SIZE,"
+           " INITIAL_SIZE,"
+           " ENGINE"
+           " FROM INFORMATION_SCHEMA.FILES"
+           " WHERE FILE_TYPE = 'DATAFILE'",
+           (ts_where)?ts_where:"",
+           " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME");
+
+  if (mysql_query_with_error_report(mysql, &tableres,sqlbuf))
     return 1;
 
   buf[0]= 0;
@@ -3924,15 +4033,23 @@ int main(int argc, char **argv)
     dump_all_tablespaces();
 
   if (opt_alldbs)
+  {
+    if (!opt_alltspcs && !opt_notspcs)
+      dump_all_tablespaces();
     dump_all_databases();
+  }
   else if (argc > 1 && !opt_databases)
   {
     /* Only one database and selected table(s) */
+    if (!opt_alltspcs && !opt_notspcs)
+      dump_tablespaces_for_tables(*argv, (argv + 1), (argc -1));
     dump_selected_tables(*argv, (argv + 1), (argc - 1));
   }
   else
   {
     /* One or more databases, all tables */
+    if (!opt_alltspcs && !opt_notspcs)
+      dump_tablespaces_for_databases(argv);
     dump_databases(argv);
   }
 #ifdef HAVE_SMEM
