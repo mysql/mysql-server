@@ -2150,10 +2150,10 @@ void log_slow_statement(THD *thd)
   thd->end_time();				// Set start time
 
   /*
-    Do not log administrative statements unless the appropriate option is
-    set; do not log into slow log if reading from backup.
+    Do not log administrative or SHOW statements unless the appropriate
+    option is set; do not log into slow log if reading from backup.
   */
-  if (thd->enable_slow_log && !thd->user_time)
+  if (thd->enable_slow_log && !thd->user_time && !thd->lex->is_show_command)
   {
     thd->proc_info="logging slow query";
 
