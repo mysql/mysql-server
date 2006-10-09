@@ -21,22 +21,18 @@
  * Search for entry to add.
  *
  * Similar to searchToRemove (see below).
- *
- * TODO optimize for initial equal attrs in node min/max
  */
-void
+bool
 Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
-  // assume success
-  treePos.m_match = false;
   if (currNode.m_loc == NullTupLoc) {
     // empty tree
     jam();
-    return;
+    return true;
   }
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   /*
@@ -94,9 +90,8 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
       jam();
       treePos.m_loc = currNode.m_loc;
       treePos.m_pos = 0;
-      // failed
-      treePos.m_match = true;
-      return;
+      // entry found - error
+      return false;
     }
     break;
   }
@@ -104,7 +99,7 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
   treePos.m_loc = currNode.m_loc;
   // binary search
   int lo = -1;
-  unsigned hi = currNode.getOccup();
+  int hi = currNode.getOccup();
   int ret;
   while (1) {
     jam();
@@ -126,9 +121,8 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
       lo = j;
     else {
       treePos.m_pos = j;
-      // failed
-      treePos.m_match = true;
-      return;
+      // entry found - error
+      return false;
     }
     if (hi - lo == 1)
       break;
@@ -136,22 +130,23 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
   if (ret < 0) {
     jam();
     treePos.m_pos = hi;
-    return;
+    return true;
   }
   if (hi < currNode.getOccup()) {
     jam();
     treePos.m_pos = hi;
-    return;
+    return true;
   }
   if (bottomNode.isNull()) {
     jam();
     treePos.m_pos = hi;
-    return;
+    return true;
   }
   jam();
   // backwards compatible for now
   treePos.m_loc = bottomNode.m_loc;
   treePos.m_pos = 0;
+  return true;
 }
 
 /*
@@ -163,21 +158,17 @@ Dbtux::searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& 
  * then the saved node is the g.l.b of the final node and we move back
  * to it.
  */
-void
+bool
 Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   const unsigned numAttrs = frag.m_numAttrs;
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
-  // assume success
-  treePos.m_match = true;
   if (currNode.m_loc == NullTupLoc) {
-    // empty tree
+    // empty tree - failed
     jam();
-    // failed
-    treePos.m_match = false;
-    return;
+    return false;
   }
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
@@ -229,7 +220,7 @@ Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePo
       jam();
       treePos.m_loc = currNode.m_loc;
       treePos.m_pos = 0;
-      return;
+      return true;
     }
     break;
   }
@@ -242,12 +233,12 @@ Dbtux::searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePo
     if (searchEnt.eq(currNode.getEnt(j))) {
       jam();
       treePos.m_pos = j;
-      return;
+      return true;
     }
   }
   treePos.m_pos = currNode.getOccup();
-  // failed
-  treePos.m_match = false;
+  // not found - failed
+  return false;
 }
 
 /*
@@ -278,8 +269,6 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
   currNode.m_loc = tree.m_root;
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   NodeHandle bottomNode(frag);
-  // always before entry
-  treePos.m_match = false;
   while (true) {
     jam();
     selectNode(currNode, currNode.m_loc);
@@ -315,7 +304,7 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
         treePos.m_dir = 3;
         return;
       }
-    } else if (ret > 0) {
+    } else {
       // bound is at or right of this node
       jam();
       const TupLoc loc = currNode.getLink(1);
@@ -327,8 +316,6 @@ Dbtux::searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCoun
         currNode.m_loc = loc;
         continue;
       }
-    } else {
-      ndbrequire(false);
     }
     break;
   }
@@ -369,8 +356,6 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
   currNode.m_loc = tree.m_root;
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   NodeHandle bottomNode(frag);
-  // always before entry
-  treePos.m_match = false;
   while (true) {
     jam();
     selectNode(currNode, currNode.m_loc);
@@ -403,7 +388,7 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
         // empty result set
         return;
       }
-    } else if (ret > 0) {
+    } else {
       // bound is at or right of this node
       jam();
       const TupLoc loc = currNode.getLink(1);
@@ -415,8 +400,6 @@ Dbtux::searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCou
         currNode.m_loc = loc;
         continue;
       }
-    } else {
-      ndbrequire(false);
     }
     break;
   }
