@@ -505,9 +505,8 @@ retry_page_get:
 
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(rw_latch == RW_NO_LATCH
-		     || !buf_block_get_page_zip(block)
-		     || page_zip_validate(buf_block_get_page_zip(block),
-					  page));
+		     || !buf_frame_get_page_zip(page)
+		     || page_zip_validate(buf_frame_get_page_zip(page), page));
 #endif /* UNIV_ZIP_DEBUG */
 
 		block->check_index_page_at_flush = TRUE;
@@ -1064,7 +1063,7 @@ btr_cur_optimistic_insert(
 
 	page = btr_cur_get_page(cursor);
 	index = cursor->index;
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	page_zip = buf_frame_get_page_zip(page);
 
 	if (!dtuple_check_typed_no_assert(entry)) {
 		fputs("InnoDB: Error in a tuple to insert into ", stderr);
@@ -1649,7 +1648,7 @@ btr_cur_update_in_place(
 	block = buf_block_align(rec);
 
 	/* Check that enough space is available on the compressed page. */
-	page_zip = buf_block_get_page_zip(block);
+	page_zip = buf_frame_get_page_zip(rec);
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && UNIV_UNLIKELY(!page_zip_alloc(page_zip,
 					     buf_block_get_frame(block),
@@ -1817,7 +1816,7 @@ btr_cur_optimistic_update(
 	old_rec_size = rec_offs_size(offsets);
 	new_rec_size = rec_get_converted_size(index, new_entry, NULL, 0);
 
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	page_zip = buf_frame_get_page_zip(page);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2013,7 +2012,7 @@ btr_cur_pessimistic_update(
 	*big_rec = NULL;
 
 	page = btr_cur_get_page(cursor);
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	page_zip = buf_frame_get_page_zip(page);
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 
@@ -2393,7 +2392,7 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
-	page_zip = buf_block_get_page_zip(buf_block_align(rec));
+	page_zip = buf_frame_get_page_zip(rec);
 
 	err = lock_clust_rec_modify_check_and_lock(flags,
 						   rec, index, offsets, thr);
@@ -2555,7 +2554,7 @@ btr_cur_del_mark_set_sec_rec(
 	block = buf_block_align(rec);
 	ut_ad(!!page_is_comp(buf_block_get_frame(block))
 	      == dict_table_is_comp(cursor->index->table));
-	page_zip = buf_block_get_page_zip(block);
+	page_zip = buf_frame_get_page_zip(rec);
 
 	if (block->is_hashed) {
 		rw_lock_x_lock(&btr_search_latch);
@@ -2586,7 +2585,7 @@ btr_cur_del_unmark_for_ibuf(
 	been read to the buffer pool and there cannot be a hash index to it. */
 
 	/* The insert buffer is not used on compressed pages. */
-	ut_ad(!buf_block_get_page_zip(buf_block_align(rec)));
+	ut_ad(!buf_frame_get_page_zip(rec));
 
 	btr_rec_set_deleted_flag(rec, NULL, FALSE);
 
@@ -2672,8 +2671,7 @@ btr_cur_optimistic_delete(
 
 		max_ins_size = page_get_max_insert_size_after_reorganize(
 			page, 1);
-		page_zip = buf_block_get_page_zip(
-			buf_block_align(btr_cur_get_rec(cursor)));
+		page_zip = buf_frame_get_page_zip(btr_cur_get_rec(cursor));
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2762,7 +2760,7 @@ btr_cur_pessimistic_delete(
 
 	heap = mem_heap_create(1024);
 	rec = btr_cur_get_rec(cursor);
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	page_zip = buf_frame_get_page_zip(page);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -3617,7 +3615,7 @@ btr_store_big_rec_extern_fields(
 
 	space_id = buf_frame_get_space_id(rec);
 
-	page_zip = buf_block_get_page_zip(buf_block_align(rec));
+	page_zip = buf_frame_get_page_zip(rec);
 	ut_a(dict_table_zip_size(index->table)
 	     == (page_zip ? page_zip->size : 0));
 
@@ -3700,9 +3698,8 @@ btr_store_big_rec_extern_fields(
 					mlog_write_ulint(
 						prev_page + FIL_PAGE_NEXT,
 						page_no, MLOG_4BYTES, &mtr);
-					memcpy(buf_block_get_page_zip(
-						       buf_block_align(
-							       prev_page))
+					memcpy(buf_frame_get_page_zip(
+						       prev_page)
 					       ->data + FIL_PAGE_NEXT,
 					       prev_page + FIL_PAGE_NEXT, 4);
 				} else {
@@ -3747,8 +3744,7 @@ btr_store_big_rec_extern_fields(
 				/* Copy the page to compressed storage,
 				because it will be flushed to disk
 				from there. */
-				blob_page_zip = buf_block_get_page_zip(
-					buf_block_align(page));
+				blob_page_zip = buf_frame_get_page_zip(page);
 				ut_ad(blob_page_zip);
 				ut_ad(blob_page_zip->size == page_zip->size);
 				memcpy(blob_page_zip->data, page,

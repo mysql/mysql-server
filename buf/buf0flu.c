@@ -611,7 +611,7 @@ buf_flush_write_block_low(
 	log_write_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
 #endif
 	buf_flush_init_for_writing(block->frame,
-				   buf_block_get_page_zip(block),
+				   buf_frame_get_page_zip(block->frame),
 				   block->newest_modification,
 				   block->space, block->offset);
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
