@@ -121,41 +121,17 @@ private:
   // forward declarations
   struct DescEnt;
 
-  /*
-   * Pointer to array of Uint32.
-   */
-  struct Data {
-  private:
-    Uint32* m_data;
-  public:
-    Data();
-    Data(Uint32* data);
-    Data& operator=(Uint32* data);
-    operator Uint32*() const;
-    Data& operator+=(size_t n);
-    AttributeHeader& ah() const;
-  };
-  friend class Data;
+  // Pointer to array of Uint32 represents attribute data and bounds
 
-  /*
-   * Pointer to array of constant Uint32.
-   */
-  struct ConstData;
-  friend struct ConstData;
-  struct ConstData {
-  private:
-    const Uint32* m_data;
-  public:
-    ConstData();
-    ConstData(const Uint32* data);
-    ConstData& operator=(const Uint32* data);
-    operator const Uint32*() const;
-    ConstData& operator+=(size_t n);
-    const AttributeHeader& ah() const;
-    // non-const pointer can be cast to const pointer
-    ConstData(Data data);
-    ConstData& operator=(Data data);
-  };
+  typedef Uint32 *Data;
+  inline AttributeHeader& ah(Data data) {
+    return *reinterpret_cast<AttributeHeader*>(data);
+  }
+
+  typedef const Uint32* ConstData;
+  inline const AttributeHeader& ah(ConstData data) {
+    return *reinterpret_cast<const AttributeHeader*>(data);
+  }
 
   // AttributeHeader size is assumed to be 1 word
   STATIC_CONST( AttributeHeaderSize = 1 );
@@ -736,99 +712,6 @@ private:
   static unsigned min(unsigned x, unsigned y);
   static unsigned max(unsigned x, unsigned y);
 };
-
-// Dbtux::Data
-
-inline
-Dbtux::Data::Data() :
-  m_data(0)
-{
-}
-
-inline
-Dbtux::Data::Data(Uint32* data) :
-  m_data(data)
-{
-}
-
-inline Dbtux::Data&
-Dbtux::Data::operator=(Uint32* data)
-{
-  m_data = data;
-  return *this;
-}
-
-inline
-Dbtux::Data::operator Uint32*() const
-{
-  return m_data;
-}
-
-inline Dbtux::Data&
-Dbtux::Data::operator+=(size_t n)
-{
-  m_data += n;
-  return *this;
-}
-
-inline AttributeHeader&
-Dbtux::Data::ah() const
-{
-  return *reinterpret_cast<AttributeHeader*>(m_data);
-}
-
-// Dbtux::ConstData
-
-inline
-Dbtux::ConstData::ConstData() :
-  m_data(0)
-{
-}
-
-inline
-Dbtux::ConstData::ConstData(const Uint32* data) :
-  m_data(data)
-{
-}
-
-inline Dbtux::ConstData&
-Dbtux::ConstData::operator=(const Uint32* data)
-{
-  m_data = data;
-  return *this;
-}
-
-inline
-Dbtux::ConstData::operator const Uint32*() const
-{
-  return m_data;
-}
-
-inline Dbtux::ConstData&
-Dbtux::ConstData::operator+=(size_t n)
-{
-  m_data += n;
-  return *this;
-}
-
-inline const AttributeHeader&
-Dbtux::ConstData::ah() const
-{
-  return *reinterpret_cast<const AttributeHeader*>(m_data);
-}
-
-inline
-Dbtux::ConstData::ConstData(Data data) :
-  m_data(static_cast<Uint32*>(data))
-{
-}
-
-inline Dbtux::ConstData&
-Dbtux::ConstData::operator=(Data data)
-{
-  m_data = static_cast<Uint32*>(data);
-  return *this;
-}
 
 // Dbtux::TupLoc
 
