@@ -281,10 +281,8 @@ mtr_read_ulint(
 				/* in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
-				MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains(mtr, buf_block_align(ptr),
-				   MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_X_FIX));
 	if (type == MLOG_1BYTE) {
 		return(mach_read_from_1(ptr));
 	} else if (type == MLOG_2BYTES) {
@@ -307,15 +305,26 @@ mtr_read_dulint(
 				/* in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);
-	ut_ad(ptr && mtr);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
-				MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains(mtr, buf_block_align(ptr),
-				   MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_X_FIX));
 	return(mach_read_from_8(ptr));
 }
 
 #ifdef UNIV_DEBUG
+/**************************************************************
+Checks if memo contains the given page. */
+
+ibool
+mtr_memo_contains_page(
+/*===================*/
+			/* out: TRUE if contains */
+	mtr_t*	mtr,	/* in: mtr */
+	byte*	ptr,	/* in: pointer to buffer frame */
+	ulint	type)	/* in: type of object */
+{
+	return(mtr_memo_contains(mtr, buf_block_align(ptr), type));
+}
+
 /*************************************************************
 Prints info of an mtr handle. */
 

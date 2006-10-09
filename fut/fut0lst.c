@@ -32,10 +32,8 @@ flst_add_to_empty(
 
 	ut_ad(mtr && base && node);
 	ut_ad(base != node);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node, MTR_MEMO_PAGE_X_FIX));
 	len = flst_get_len(base, mtr);
 	ut_a(len == 0);
 
@@ -71,10 +69,8 @@ flst_add_last(
 
 	ut_ad(mtr && base && node);
 	ut_ad(base != node);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node, MTR_MEMO_PAGE_X_FIX));
 	len = flst_get_len(base, mtr);
 	last_addr = flst_get_last(base, mtr);
 
@@ -114,10 +110,8 @@ flst_add_first(
 
 	ut_ad(mtr && base && node);
 	ut_ad(base != node);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node, MTR_MEMO_PAGE_X_FIX));
 	len = flst_get_len(base, mtr);
 	first_addr = flst_get_first(base, mtr);
 
@@ -161,12 +155,9 @@ flst_insert_after(
 	ut_ad(base != node1);
 	ut_ad(base != node2);
 	ut_ad(node2 != node1);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node1),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node1, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node2, MTR_MEMO_PAGE_X_FIX));
 
 	buf_ptr_get_fsp_addr(node1, &space, &node1_addr);
 	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
@@ -216,12 +207,9 @@ flst_insert_before(
 	ut_ad(base != node2);
 	ut_ad(base != node3);
 	ut_ad(node2 != node3);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node3),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node2, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node3, MTR_MEMO_PAGE_X_FIX));
 
 	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
 	buf_ptr_get_fsp_addr(node3, &space, &node3_addr);
@@ -268,10 +256,8 @@ flst_remove(
 	ulint		len;
 
 	ut_ad(mtr && node2 && base);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node2, MTR_MEMO_PAGE_X_FIX));
 
 	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
 
@@ -345,10 +331,8 @@ flst_cut_end(
 	ulint		len;
 
 	ut_ad(mtr && node2 && base);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node2, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(n_nodes > 0);
 
 	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
@@ -400,10 +384,8 @@ flst_truncate_end(
 	ulint		space;
 
 	ut_ad(mtr && node2 && base);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(node2),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, node2, MTR_MEMO_PAGE_X_FIX));
 	if (n_nodes == 0) {
 
 		ut_ad(fil_addr_is_null(flst_get_next_addr(node2, mtr)));
@@ -444,8 +426,7 @@ flst_validate(
 	mtr_t		mtr2;
 
 	ut_ad(base);
-	ut_ad(mtr_memo_contains(mtr1, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr1, base, MTR_MEMO_PAGE_X_FIX));
 
 	/* We use two mini-transaction handles: the first is used to
 	lock the base node, and prevent other threads from modifying the
@@ -502,8 +483,7 @@ flst_print(
 	ulint		len;
 
 	ut_ad(base && mtr);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
 	frame = page_align(base);
 
 	len = flst_get_len(base, mtr);

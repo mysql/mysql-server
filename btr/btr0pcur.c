@@ -91,10 +91,8 @@ btr_pcur_store_position(
 	page = page_align(rec);
 	offs = page_offset(rec);
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains(mtr, buf_block_align(page),
-				   MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_a(cursor->latch_mode != BTR_NO_LATCHES);
 
 	if (UNIV_UNLIKELY(page_get_n_recs(page) == 0)) {

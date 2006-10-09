@@ -3513,8 +3513,7 @@ page_zip_reorganize(
 	page_t*	temp_page;
 	ulint	log_mode;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_is_comp(page));
 	/* Note that page_zip_validate(page_zip, page) may fail here. */
 
@@ -3572,10 +3571,8 @@ page_zip_copy(
 	dict_index_t*		index,		/* in: index of the B-tree */
 	mtr_t*			mtr)		/* in: mini-transaction */
 {
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align((page_t*) src),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, (page_t*) src, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(src_zip, src));
 #endif /* UNIV_ZIP_DEBUG */

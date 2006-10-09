@@ -160,10 +160,10 @@ btr_get_prev_user_rec(
 		prev_page = buf_page_get_with_no_latch(space, prev_page_no,
 						       mtr);
 		/* The caller must already have a latch to the brother */
-		ut_ad((mtr_memo_contains(mtr, buf_block_align(prev_page),
-					 MTR_MEMO_PAGE_S_FIX))
-		      || (mtr_memo_contains(mtr, buf_block_align(prev_page),
-					    MTR_MEMO_PAGE_X_FIX)));
+		ut_ad(mtr_memo_contains_page(mtr, prev_page,
+					     MTR_MEMO_PAGE_S_FIX)
+		      || mtr_memo_contains_page(mtr, prev_page,
+						MTR_MEMO_PAGE_X_FIX));
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_next(prev_page, mtr)
@@ -212,10 +212,10 @@ btr_get_next_user_rec(
 		next_page = buf_page_get_with_no_latch(space, next_page_no,
 						       mtr);
 		/* The caller must already have a latch to the brother */
-		ut_ad((mtr_memo_contains(mtr, buf_block_align(next_page),
-					 MTR_MEMO_PAGE_S_FIX))
-		      || (mtr_memo_contains(mtr, buf_block_align(next_page),
-					    MTR_MEMO_PAGE_X_FIX)));
+		ut_ad(mtr_memo_contains_page(mtr, next_page,
+					     MTR_MEMO_PAGE_S_FIX)
+		      || mtr_memo_contains_page(mtr, next_page,
+						MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_prev(next_page, mtr)
 		     == buf_frame_get_page_no(page));
@@ -241,8 +241,7 @@ btr_page_create(
 	ulint		level,	/* in: the B-tree level of the page */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		page_create_zip(page, page_zip, index, level, mtr);
@@ -405,8 +404,7 @@ btr_page_free_for_ibuf(
 {
 	page_t*		root;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	root = btr_root_get(index, mtr);
 
 	flst_add_first(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
@@ -434,8 +432,7 @@ btr_page_free_low(
 	fseg_header_t*	seg_header;
 	page_t*		root;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	/* The page gets invalid for optimistic searches: increment the frame
 	modify clock */
 
@@ -474,8 +471,7 @@ btr_page_free(
 	ulint		space;
 	ulint		page_no;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	level = btr_page_get_level(page, mtr);
 
 	space = buf_frame_get_space_id(page);
@@ -858,8 +854,7 @@ btr_page_reorganize_low(
 	ulint	max_ins_size2;
 	ibool	success = FALSE;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
@@ -1000,8 +995,7 @@ btr_page_empty(
 	mtr_t*		mtr,	/* in: mtr */
 	dict_index_t*	index)	/* in: index of the page */
 {
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -1064,8 +1058,7 @@ btr_root_raise_and_insert(
 	ut_ad(dict_index_get_page(index) == buf_frame_get_page_no(root));
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(root),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, root, MTR_MEMO_PAGE_X_FIX));
 	btr_search_drop_page_hash_index(root);
 
 	/* Allocate a new page to the tree. Root splitting is done by first
@@ -1563,10 +1556,8 @@ btr_attach_half_pages(
 	dtuple_t*	node_ptr_upper;
 	mem_heap_t*	heap;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(new_page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, new_page, MTR_MEMO_PAGE_X_FIX));
 	ut_a(page_is_comp(page) == page_is_comp(new_page));
 
 	/* Create a memory heap where the data tuple is stored */
@@ -1722,8 +1713,7 @@ func_start:
 	page = btr_cur_get_page(cursor);
 	page_zip = buf_frame_get_page_zip(page);
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_get_n_recs(page) >= 1);
 
 	page_no = buf_frame_get_page_no(page);
@@ -1978,8 +1968,7 @@ btr_level_list_remove(
 	page_t*	next_page;
 
 	ut_ad(page && mtr);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	/* Get the previous and next page numbers of page */
 
 	prev_page_no = btr_page_get_prev(page, mtr);
@@ -2105,8 +2094,7 @@ btr_node_ptr_delete(
 	ibool		compressed;
 	ulint		err;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	/* Delete node pointer on father page */
 
 	node_ptr = btr_page_get_father_node_ptr(index, page, mtr);
@@ -2141,8 +2129,7 @@ btr_lift_page_up(
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	father_page = page_align(
 		btr_page_get_father_node_ptr(index, page, mtr));
 	father_page_zip = buf_frame_get_page_zip(father_page);
@@ -2227,8 +2214,7 @@ btr_compress(
 
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	level = btr_page_get_level(page, mtr);
 	space = dict_index_get_space(index);
 
@@ -2438,8 +2424,7 @@ btr_discard_only_page_on_level(
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	btr_search_drop_page_hash_index(page);
 
 	father_page = page_align(
@@ -2498,8 +2483,7 @@ btr_discard_page(
 	ut_ad(dict_index_get_page(index) != buf_frame_get_page_no(page));
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	space = dict_index_get_space(index);
 
 	/* Decide the page which will inherit the locks */
@@ -2634,8 +2618,7 @@ btr_print_recursive(
 	rec_t*		node_ptr;
 	page_t*		child;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	fprintf(stderr, "NODE ON LEVEL %lu page number %lu\n",
 		(ulong) btr_page_get_level(page, mtr),
 		(ulong) buf_frame_get_page_no(page));
@@ -2724,8 +2707,7 @@ btr_check_node_ptr(
 	rec_t*		node_ptr;
 	dtuple_t*	node_ptr_tuple;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	if (dict_index_get_page(index) == buf_frame_get_page_no(page)) {
 
 		return(TRUE);

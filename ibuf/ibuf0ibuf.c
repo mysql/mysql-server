@@ -634,8 +634,7 @@ ibuf_bitmap_page_get_bits(
 # error "IBUF_BITS_PER_PAGE % 2 != 0"
 #endif
 	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 
 	if (!zip_size) {
 		bit_offset = (page_no % UNIV_PAGE_SIZE) * IBUF_BITS_PER_PAGE
@@ -686,8 +685,7 @@ ibuf_bitmap_page_set_bits(
 # error "IBUF_BITS_PER_PAGE % 2 != 0"
 #endif
 	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_IBUF_DEBUG
 	ut_a((bit != IBUF_BITMAP_BUFFERED) || (val != FALSE)
 	     || (0 == ibuf_count_get(buf_frame_get_space_id(page),
