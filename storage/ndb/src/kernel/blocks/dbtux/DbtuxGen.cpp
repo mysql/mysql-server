@@ -225,7 +225,7 @@ Dbtux::setKeyAttrs(const Frag& frag)
     const DescAttr& descAttr = descEnt.m_descAttr[i];
     Uint32 size = AttributeDescriptor::getSizeInWords(descAttr.m_attrDesc);
     // set attr id and fixed size
-    keyAttrs.ah() = AttributeHeader(descAttr.m_primaryAttrId, size);
+    ah(keyAttrs) = AttributeHeader(descAttr.m_primaryAttrId, size);
     keyAttrs += 1;
     // set comparison method pointer
     const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getTypeBinary(descAttr.m_typeId);
@@ -255,8 +255,8 @@ Dbtux::readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData)
     ConstData data = keyData;
     Uint32 totalSize = 0;
     for (Uint32 i = start; i < frag.m_numAttrs; i++) {
-      Uint32 attrId = data.ah().getAttributeId();
-      Uint32 dataSize = data.ah().getDataSize();
+      Uint32 attrId = ah(data).getAttributeId();
+      Uint32 dataSize = ah(data).getDataSize();
       debugOut << i << " attrId=" << attrId << " size=" << dataSize;
       data += 1;
       for (Uint32 j = 0; j < dataSize; j++) {
@@ -294,7 +294,7 @@ Dbtux::copyAttrs(const Frag& frag, ConstData data1, Data data2, unsigned maxlen2
   unsigned len2 = maxlen2;
   while (n != 0) {
     jam();
-    const unsigned dataSize = data1.ah().getDataSize();
+    const unsigned dataSize = ah(data1).getDataSize();
     // copy header
     if (len2 == 0)
       return;
