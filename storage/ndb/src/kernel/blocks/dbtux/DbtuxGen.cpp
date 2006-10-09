@@ -318,4 +318,17 @@ Dbtux::copyAttrs(const Frag& frag, ConstData data1, Data data2, unsigned maxlen2
 #endif
 }
 
+void
+Dbtux::unpackBound(const ScanBound& bound, Data dest)
+{
+  ScanBoundIterator iter;
+  bound.first(iter);
+  const unsigned n = bound.getSize();
+  unsigned j;
+  for (j = 0; j < n; j++) {
+    dest[j] = *iter.data;
+    bound.next(iter);
+  }
+}
+
 BLOCK_FUNCTIONS(Dbtux)
