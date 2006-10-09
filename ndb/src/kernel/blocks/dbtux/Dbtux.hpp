@@ -188,6 +188,7 @@ private:
     unsigned m_fragBit : 1;     // which duplicated table fragment
     TreeEnt();
     // methods
+    bool eqtuple(const TreeEnt ent) const;
     bool eq(const TreeEnt ent) const;
     int cmp(const TreeEnt ent) const;
   };
@@ -265,8 +266,7 @@ private:
   struct TreePos {
     TupLoc m_loc;               // physical node address
     Uint16 m_pos;               // position 0 to m_occup
-    Uint8 m_match;              // at an existing entry
-    Uint8 m_dir;                // see scanNext()
+    Uint8 m_dir;                // see scanNext
     TreePos();
   };
 
@@ -357,12 +357,13 @@ private:
     enum {
       Undef = 0,
       First = 1,                // before first entry
-      Current = 2,              // at current before locking
-      Blocked = 3,              // at current waiting for ACC lock
-      Locked = 4,               // at current and locked or no lock needed
-      Next = 5,                 // looking for next extry
-      Last = 6,                 // after last entry
-      Aborting = 7,             // lock wait at scan close
+      Current = 2,              // at some entry
+      Found = 3,                // return current as next scan result
+      Blocked = 4,              // found and waiting for ACC lock
+      Locked = 5,               // found and locked or no lock needed
+      Next = 6,                 // looking for next extry
+      Last = 7,                 // after last entry
+      Aborting = 8,             // lock wait at scan close
       Invalid = 9               // cannot return REF to LQH currently
     };
     Uint16 m_state;
@@ -539,6 +540,7 @@ private:
   void readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData);
   void readTablePk(const Frag& frag, TreeEnt ent, Data pkData, unsigned& pkSize);
   void copyAttrs(const Frag& frag, ConstData data1, Data data2, unsigned maxlen2 = MaxAttrDataSize);
+  void unpackBound(const ScanBound& bound, Data data);
 
   /*
    * DbtuxMeta.cpp
@@ -613,7 +615,9 @@ private:
   void execACCKEYREF(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
   void scanFirst(ScanOpPtr scanPtr);
+  void scanFind(ScanOpPtr scanPtr);
   void scanNext(ScanOpPtr scanPtr, bool fromMaintReq);
+  bool scanCheck(ScanOpPtr scanPtr, TreeEnt ent);
   bool scanVisible(ScanOpPtr scanPtr, TreeEnt ent);
   void scanClose(Signal* signal, ScanOpPtr scanPtr);
   void addAccLockOp(ScanOp& scan, Uint32 accLockOp);
@@ -623,8 +627,8 @@ private:
   /*
    * DbtuxSearch.cpp
    */
-  void searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  bool searchToAdd(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
+  bool searchToRemove(Frag& frag, ConstData searchKey, TreeEnt searchEnt, TreePos& treePos);
   void searchToScan(Frag& frag, ConstData boundInfo, unsigned boundCount, bool descending, TreePos& treePos);
   void searchToScanAscending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
   void searchToScanDescending(Frag& frag, ConstData boundInfo, unsigned boundCount, TreePos& treePos);
@@ -782,6 +786,14 @@ Dbtux::TreeEnt::TreeEnt() :
 }
 
 inline bool
+Dbtux::TreeEnt::eqtuple(const TreeEnt ent) const
+{
+  return
+    m_tupLoc == ent.m_tupLoc &&
+    m_fragBit == ent.m_fragBit;
+}
+
+inline bool
 Dbtux::TreeEnt::eq(const TreeEnt ent) const
 {
   return
@@ -793,6 +805,11 @@ Dbtux::TreeEnt::eq(const TreeEnt ent) const
 inline int
 Dbtux::TreeEnt::cmp(const TreeEnt ent) const
 {
+  // compare frag first to improve cacheing in 5.0
+  if (m_fragBit < ent.m_fragBit)
+    return -1;
+  if (m_fragBit > ent.m_fragBit)
+    return +1;
   if (m_tupLoc.getPageId() < ent.m_tupLoc.getPageId())
     return -1;
   if (m_tupLoc.getPageId() > ent.m_tupLoc.getPageId())
@@ -801,14 +818,25 @@ Dbtux::TreeEnt::cmp(const TreeEnt ent) const
     return -1;
   if (m_tupLoc.getPageOffset() > ent.m_tupLoc.getPageOffset())
     return +1;
-  if (m_tupVersion < ent.m_tupVersion)
-    return -1;
-  if (m_tupVersion > ent.m_tupVersion)
-    return +1;
-  if (m_fragBit < ent.m_fragBit)
-    return -1;
-  if (m_fragBit > ent.m_fragBit)
-    return +1;
+  /*
+   * Guess if one tuple version has wrapped around.  This is well
+   * defined ordering on existing versions since versions are assigned
+   * consecutively and different versions exists only on uncommitted
+   * tuple.  Assuming max 2**14 uncommitted ops on same tuple.
+   */
+  const unsigned version_wrap_limit = (1 << (ZTUP_VERSION_BITS - 1));
+  if (m_tupVersion < ent.m_tupVersion) {
+    if (ent.m_tupVersion - m_tupVersion < version_wrap_limit)
+      return -1;
+    else
+      return +1;
+  }
+  if (m_tupVersion > ent.m_tupVersion) {
+    if (m_tupVersion - ent.m_tupVersion < version_wrap_limit)
+      return +1;
+    else
+      return -1;
+  }
   return 0;
 }
 
@@ -875,7 +903,6 @@ inline
 Dbtux::TreePos::TreePos() :
   m_loc(),
   m_pos(ZNIL),
-  m_match(false),
   m_dir(255)
 {
 }
