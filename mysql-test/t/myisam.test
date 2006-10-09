@@ -714,4 +714,97 @@ UPDATE t1 AS ta1,t1 AS ta2 SET ta1.b='aaaaaa',ta2.b='bbbbbb';
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug#8283 - OPTIMIZE TABLE causes data loss
+#
+SET @@myisam_repair_threads=2;
+SHOW VARIABLES LIKE 'myisam_repair%';
+#
+# Test OPTIMIZE. This creates a new data file.
+CREATE TABLE t1 (
+  `_id` int(11) NOT NULL default '0',
+  `url` text,
+  `email` text,
+  `description` text,
+  `loverlap` int(11) default NULL,
+  `roverlap` int(11) default NULL,
+  `lneighbor_id` int(11) default NULL,
+  `rneighbor_id` int(11) default NULL,
+  `length_` int(11) default NULL,
+  `sequence` mediumtext,
+  `name` text,
+  `_obj_class` text NOT NULL,
+  PRIMARY KEY  (`_id`),
+  UNIQUE KEY `sequence_name_index` (`name`(50)),
+  KEY (`length_`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+#
+INSERT INTO t1 VALUES
+  (1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample1',''),
+  (2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample2',''),
+  (3,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample3',''),
+  (4,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample4',''),
+  (5,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample5',''),
+  (6,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample6',''),
+  (7,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample7',''),
+  (8,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample8',''),
+  (9,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample9','');
+#
+SELECT _id FROM t1;
+DELETE FROM t1 WHERE _id < 8;
+--replace_column 6 # 7 # 8 # 9 # 11 # 12 # 13 # 14 # 15 # 16 #
+SHOW TABLE STATUS LIKE 't1';
+CHECK TABLE t1 EXTENDED;
+OPTIMIZE TABLE t1;
+CHECK TABLE t1 EXTENDED;
+--replace_column 6 # 7 # 8 # 9 # 11 # 12 # 13 # 14 # 15 # 16 #
+SHOW TABLE STATUS LIKE 't1';
+SELECT _id FROM t1;
+DROP TABLE t1;
+#
+# Test REPAIR QUICK. This retains the old data file.
+CREATE TABLE t1 (
+  `_id` int(11) NOT NULL default '0',
+  `url` text,
+  `email` text,
+  `description` text,
+  `loverlap` int(11) default NULL,
+  `roverlap` int(11) default NULL,
+  `lneighbor_id` int(11) default NULL,
+  `rneighbor_id` int(11) default NULL,
+  `length_` int(11) default NULL,
+  `sequence` mediumtext,
+  `name` text,
+  `_obj_class` text NOT NULL,
+  PRIMARY KEY  (`_id`),
+  UNIQUE KEY `sequence_name_index` (`name`(50)),
+  KEY (`length_`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+#
+INSERT INTO t1 VALUES
+  (1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample1',''),
+  (2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample2',''),
+  (3,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample3',''),
+  (4,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample4',''),
+  (5,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample5',''),
+  (6,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample6',''),
+  (7,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample7',''),
+  (8,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample8',''),
+  (9,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample9','');
+#
+SELECT _id FROM t1;
+DELETE FROM t1 WHERE _id < 8;
+--replace_column 6 # 7 # 8 # 9 # 11 # 12 # 13 # 14 # 15 # 16 #
+SHOW TABLE STATUS LIKE 't1';
+CHECK TABLE t1 EXTENDED;
+REPAIR TABLE t1 QUICK;
+CHECK TABLE t1 EXTENDED;
+--replace_column 6 # 7 # 8 # 9 # 11 # 12 # 13 # 14 # 15 # 16 #
+SHOW TABLE STATUS LIKE 't1';
+SELECT _id FROM t1;
+DROP TABLE t1;
+#
+SET @@myisam_repair_threads=1;
+SHOW VARIABLES LIKE 'myisam_repair%';
+
 # End of 4.1 tests
