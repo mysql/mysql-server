@@ -13,7 +13,7 @@ Created 11/28/1995 Heikki Tuuri
 #endif
 
 #include "buf0buf.h"
-
+#include "page0page.h"
 
 /************************************************************************
 Adds a node to an empty list. */
@@ -83,7 +83,7 @@ flst_add_last(
 	/* If the list is not empty, call flst_insert_after */
 	if (len != 0) {
 		if (last_addr.page == node_addr.page) {
-			last_node = buf_frame_align(node) + last_addr.boffset;
+			last_node = page_align(node) + last_addr.boffset;
 		} else {
 			last_node = fut_get_ptr(space, last_addr, RW_X_LATCH,
 						mtr);
@@ -126,8 +126,7 @@ flst_add_first(
 	/* If the list is not empty, call flst_insert_before */
 	if (len != 0) {
 		if (first_addr.page == node_addr.page) {
-			first_node = buf_frame_align(node)
-				+ first_addr.boffset;
+			first_node = page_align(node) + first_addr.boffset;
 		} else {
 			first_node = fut_get_ptr(space, first_addr,
 						 RW_X_LATCH, mtr);
@@ -285,7 +284,7 @@ flst_remove(
 
 		if (node1_addr.page == node2_addr.page) {
 
-			node1 = buf_frame_align(node2) + node1_addr.boffset;
+			node1 = page_align(node2) + node1_addr.boffset;
 		} else {
 			node1 = fut_get_ptr(space, node1_addr, RW_X_LATCH,
 					    mtr);
@@ -304,7 +303,7 @@ flst_remove(
 
 		if (node3_addr.page == node2_addr.page) {
 
-			node3 = buf_frame_align(node2) + node3_addr.boffset;
+			node3 = page_align(node2) + node3_addr.boffset;
 		} else {
 			node3 = fut_get_ptr(space, node3_addr, RW_X_LATCH,
 					    mtr);
@@ -362,7 +361,7 @@ flst_cut_end(
 
 		if (node1_addr.page == node2_addr.page) {
 
-			node1 = buf_frame_align(node2) + node1_addr.boffset;
+			node1 = page_align(node2) + node1_addr.boffset;
 		} else {
 			node1 = fut_get_ptr(space, node1_addr, RW_X_LATCH,
 					    mtr);
@@ -505,7 +504,7 @@ flst_print(
 	ut_ad(base && mtr);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(base),
 				MTR_MEMO_PAGE_X_FIX));
-	frame = buf_frame_align(base);
+	frame = page_align(base);
 
 	len = flst_get_len(base, mtr);
 

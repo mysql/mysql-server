@@ -251,8 +251,7 @@ page_cur_search_with_match(
 			      || mode == PAGE_CUR_G || mode == PAGE_CUR_GE);
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_ZIP_DEBUG
-	page_zip_des_t*	page_zip
-		= buf_block_get_page_zip(buf_block_align(page));
+	page_zip_des_t*	page_zip = buf_frame_get_page_zip(page);
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -538,7 +537,7 @@ page_cur_insert_rec_write_log(
 	ulint	i;
 
 	ut_a(rec_size < UNIV_PAGE_SIZE);
-	ut_ad(buf_frame_align(insert_rec) == buf_frame_align(cursor_rec));
+	ut_ad(page_align(insert_rec) == page_align(cursor_rec));
 	ut_ad(!page_rec_is_comp(insert_rec)
 	      == !dict_table_is_comp(index->table));
 

@@ -81,7 +81,7 @@ page_dir_find_owner_slot(
 
 	ut_ad(page_rec_check(rec));
 
-	page = buf_frame_align(rec);
+	page = page_align(rec);
 	first_slot = page_dir_get_nth_slot(page, 0);
 	slot = page_dir_get_nth_slot(page, page_dir_get_n_slots(page) - 1);
 
@@ -1453,7 +1453,7 @@ page_rec_get_n_recs_before(
 
 	ut_ad(page_rec_check(rec));
 
-	page = buf_frame_align(rec);
+	page = page_align(rec);
 	if (page_is_comp(page)) {
 		while (rec_get_n_owned_new(rec) == 0) {
 

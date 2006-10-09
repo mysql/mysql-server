@@ -2930,7 +2930,7 @@ page_zip_write_node_ptr(
 {
 	byte*	field;
 	byte*	storage;
-	page_t*	page	= buf_frame_align(rec);
+	page_t*	page	= page_align(rec);
 
 	ut_ad(buf_frame_get_page_zip(rec) == page_zip);
 	ut_ad(page_simple_validate_new(page));

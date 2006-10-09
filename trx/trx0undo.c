@@ -142,7 +142,7 @@ trx_undo_get_prev_rec_from_prev_page(
 	page_t* prev_page;
 	page_t*	undo_page;
 
-	undo_page = buf_frame_align(rec);
+	undo_page = page_align(rec);
 
 	prev_page_no = flst_get_prev_addr(undo_page + TRX_UNDO_PAGE_HDR
 					  + TRX_UNDO_PAGE_NODE, mtr)
@@ -261,7 +261,7 @@ trx_undo_get_next_rec(
 		return(next_rec);
 	}
 
-	return(trx_undo_get_next_rec_from_next_page(buf_frame_align(rec),
+	return(trx_undo_get_next_rec_from_next_page(page_align(rec),
 						    page_no, offset,
 						    RW_S_LATCH, mtr));
 }
@@ -1117,7 +1117,7 @@ loop:
 		return;
 	}
 
-	undo_page = buf_frame_align(rec);
+	undo_page = page_align(rec);
 
 	last_rec = trx_undo_page_get_last_rec(undo_page, hdr_page_no,
 					      hdr_offset);

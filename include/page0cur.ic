@@ -20,7 +20,7 @@ page_cur_get_page(
 {
 	ut_ad(cur);
 
-	return(buf_frame_align(cur->rec));
+	return(page_align(cur->rec));
 }
 
 /*************************************************************

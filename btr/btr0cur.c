@@ -1939,7 +1939,7 @@ btr_cur_pess_upd_restore_supremum(
 	ulint	space;
 	ulint	prev_page_no;
 
-	page = buf_frame_align(rec);
+	page = page_align(rec);
 
 	if (page_rec_get_next(page_get_infimum_rec(page)) != rec) {
 		/* Updated record is not the first user record on its page */
@@ -2133,7 +2133,7 @@ btr_cur_pessimistic_update(
 	delete the lock structs set on the root page even if the root
 	page carries just node pointers. */
 
-	lock_rec_store_on_page_infimum(buf_frame_align(rec), rec);
+	lock_rec_store_on_page_infimum(page_align(rec), rec);
 
 	btr_search_update_hash_on_delete(cursor);
 
@@ -2897,7 +2897,7 @@ btr_cur_add_path_info(
 	slot = cursor->path_arr + (root_height - height);
 
 	slot->nth_rec = page_rec_get_n_recs_before(rec);
-	slot->n_recs = page_get_n_recs(buf_frame_align(rec));
+	slot->n_recs = page_get_n_recs(page_align(rec));
 }
 
 /***********************************************************************

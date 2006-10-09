@@ -12,6 +12,7 @@ Created 8/22/1994 Heikki Tuuri
 #endif
 
 #include "buf0buf.h"
+#include "page0page.h"
 
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number of cells is
@@ -252,7 +253,7 @@ ha_remove_all_nodes_to_page(
 	node = ha_chain_get_first(table, fold);
 
 	while (node) {
-		if (buf_frame_align(ha_node_get_data(node)) == page) {
+		if (page_align(ha_node_get_data(node)) == page) {
 
 			/* Remove the hash node */
 
@@ -273,7 +274,7 @@ ha_remove_all_nodes_to_page(
 	node = ha_chain_get_first(table, fold);
 
 	while (node) {
-		ut_a(buf_frame_align(ha_node_get_data(node)) != page);
+		ut_a(page_align(ha_node_get_data(node)) != page);
 
 		node = ha_chain_get_next(node);
 	}
