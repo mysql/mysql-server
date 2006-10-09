@@ -492,14 +492,6 @@ buf_frame_get_lock_mutex(
 			/* out: mutex */
 	byte*	ptr);	/* in: pointer to within a buffer frame */
 /***********************************************************************
-Gets the frame the pointer is pointing to. */
-UNIV_INLINE
-buf_frame_t*
-buf_frame_align(
-/*============*/
-			/* out: pointer to frame */
-	byte*	ptr);	/* in: pointer to a frame */
-/***********************************************************************
 Checks if a pointer points to the block array of the buffer pool (blocks, not
 the frames). */
 UNIV_INLINE

@@ -566,7 +566,7 @@ lock_sec_rec_cons_read_sees(
 		return(FALSE);
 	}
 
-	max_trx_id = page_get_max_trx_id(buf_frame_align(rec));
+	max_trx_id = page_get_max_trx_id(page_align(rec));
 
 	if (ut_dulint_cmp(max_trx_id, view->up_limit_id) >= 0) {
 
@@ -1675,7 +1675,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	page = buf_frame_align(rec);
+	page = page_align(rec);
 
 	/* Some transaction may have an implicit x-lock on the record only
 	if the max trx id for the page >= min trx id for the trx list, or
@@ -1767,7 +1767,7 @@ lock_rec_create(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	page = buf_frame_align(rec);
+	page = page_align(rec);
 	space = buf_frame_get_space_id(page);
 	page_no	= buf_frame_get_page_no(page);
 
@@ -2787,7 +2787,7 @@ lock_move_rec_list_end(
 	ulint		heap_no;
 	ulint		type_mode;
 	ut_ad(page_is_comp(page) == page_is_comp(new_page));
-	ut_ad(page == buf_frame_align(rec));
+	ut_ad(page == page_align(rec));
 
 	lock_mutex_enter_kernel();
 
@@ -2893,7 +2893,7 @@ lock_move_rec_list_start(
 
 	lock = lock_rec_get_first_on_page(page);
 	ut_ad(page_is_comp(page) == page_is_comp(new_page));
-	ut_ad(page == buf_frame_align(rec));
+	ut_ad(page == page_align(rec));
 
 	while (lock != NULL) {
 
@@ -3108,7 +3108,7 @@ lock_update_merge_left(
 	lock_mutex_enter_kernel();
 	comp = page_is_comp(left_page);
 	ut_ad(comp == page_is_comp(right_page));
-	ut_ad(left_page == buf_frame_align(orig_pred));
+	ut_ad(left_page == page_align(orig_pred));
 
 	left_next_rec = page_rec_get_next(orig_pred);
 	left_supremum = page_get_supremum_rec(left_page);
@@ -3256,7 +3256,7 @@ lock_rec_store_on_page_infimum(
 			on the infimum record of the same page; lock
 			bits are reset on the record */
 {
-	ut_ad(page == buf_frame_align(rec));
+	ut_ad(page == page_align(rec));
 
 	lock_mutex_enter_kernel();
 
@@ -5240,7 +5240,7 @@ lock_sec_rec_read_check_and_lock(
 	if the max trx id for the page >= min trx id for the trx list or a
 	database recovery is running. */
 
-	if (((ut_dulint_cmp(page_get_max_trx_id(buf_frame_align(rec)),
+	if (((ut_dulint_cmp(page_get_max_trx_id(page_align(rec)),
 			    trx_list_get_min_trx_id()) >= 0)
 	     || recv_recovery_is_on())
 	    && !page_rec_is_supremum(rec)) {

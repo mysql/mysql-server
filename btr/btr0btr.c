@@ -151,7 +151,7 @@ btr_get_prev_user_rec(
 		}
 	}
 
-	page = buf_frame_align(rec);
+	page = page_align(rec);
 	prev_page_no = btr_page_get_prev(page, mtr);
 	space = buf_frame_get_space_id(page);
 
@@ -203,7 +203,7 @@ btr_get_next_user_rec(
 		}
 	}
 
-	page = buf_frame_align(rec);
+	page = page_align(rec);
 	next_page_no = btr_page_get_next(page, mtr);
 	space = buf_frame_get_space_id(page);
 
@@ -501,7 +501,7 @@ btr_node_ptr_set_child_page_no(
 	ulint	len;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	ut_ad(!page_is_leaf(buf_frame_align(rec)));
+	ut_ad(!page_is_leaf(page_align(rec)));
 	ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
 
 	/* The child address is in the last field */
@@ -593,9 +593,9 @@ btr_page_get_father_for_rec(
 			  != buf_frame_get_page_no(page))) {
 		rec_t*	print_rec;
 		fputs("InnoDB: Dump of the child page:\n", stderr);
-		buf_page_print(buf_frame_align(page), 0);
+		buf_page_print(page_align(page), 0);
 		fputs("InnoDB: Dump of the parent page:\n", stderr);
-		buf_page_print(buf_frame_align(node_ptr), 0);
+		buf_page_print(page_align(node_ptr), 0);
 
 		fputs("InnoDB: Corruption of an index tree: table ", stderr);
 		ut_print_name(stderr, NULL, TRUE, index->table_name);
@@ -2143,7 +2143,7 @@ btr_lift_page_up(
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
-	father_page = buf_frame_align(
+	father_page = page_align(
 		btr_page_get_father_node_ptr(index, page, mtr));
 	father_page_zip = buf_frame_get_page_zip(father_page);
 #ifdef UNIV_ZIP_DEBUG
@@ -2442,8 +2442,8 @@ btr_discard_only_page_on_level(
 				MTR_MEMO_PAGE_X_FIX));
 	btr_search_drop_page_hash_index(page);
 
-	father_page = buf_frame_align(btr_page_get_father_node_ptr(index,
-								   page, mtr));
+	father_page = page_align(
+		btr_page_get_father_node_ptr(index, page, mtr));
 
 	page_level = btr_page_get_level(page, mtr);
 
@@ -2793,7 +2793,7 @@ btr_index_rec_validate(
 	ulint*		offsets	= offsets_;
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
-	page = buf_frame_align(rec);
+	page = page_align(rec);
 
 	if (UNIV_UNLIKELY(index->type & DICT_UNIVERSAL)) {
 		/* The insert buffer index tree can contain records from any
@@ -3121,7 +3121,7 @@ loop:
 		/* Check father node pointers */
 
 		node_ptr = btr_page_get_father_node_ptr(index, page, &mtr);
-		father_page = buf_frame_align(node_ptr);
+		father_page = page_align(node_ptr);
 		offsets	= rec_get_offsets(node_ptr, index,
 					  offsets, ULINT_UNDEFINED, &heap);
 
@@ -3224,8 +3224,7 @@ loop:
 					buf_page_print(right_page, 0);
 				}
 			} else {
-				right_father_page = buf_frame_align(
-					right_node_ptr);
+				right_father_page = page_align(right_node_ptr);
 
 				if (right_node_ptr != page_rec_get_next(
 					    page_get_infimum_rec(

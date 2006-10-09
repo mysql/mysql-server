@@ -712,7 +712,7 @@ xdes_get_descriptor_with_space_hdr(
 	if (descr_page_no == 0) {
 		/* It is on the space header page */
 
-		descr_page = buf_frame_align(sp_header);
+		descr_page = page_align(sp_header);
 	} else {
 		descr_page = buf_page_get(space, descr_page_no, RW_X_LATCH,
 					  mtr);
@@ -812,8 +812,7 @@ xdes_get_offset(
 	ut_ad(descr);
 
 	return(buf_frame_get_page_no(descr)
-	       + ((descr - buf_frame_align(descr) - XDES_ARR_OFFSET)
-		  / XDES_SIZE)
+	       + ((page_offset(descr) - XDES_ARR_OFFSET) / XDES_SIZE)
 	       * FSP_EXTENT_SIZE);
 }
 
@@ -1936,7 +1935,7 @@ fsp_free_seg_inode(
 	fsp_header_t*	space_header;
 	ulint		zip_size;
 
-	page = buf_frame_align(inode);
+	page = page_align(inode);
 
 	space_header = fsp_get_space_header(space, mtr);
 	zip_size = mach_read_from_4(space_header + FSP_PAGE_ZIP_SIZE);
@@ -2228,14 +2227,14 @@ fseg_create_general(
 	}
 
 	mlog_write_ulint(header + FSEG_HDR_OFFSET,
-			 inode - buf_frame_align(inode), MLOG_2BYTES, mtr);
+			 page_offset(inode), MLOG_2BYTES, mtr);
 
 	mlog_write_ulint(header + FSEG_HDR_PAGE_NO,
 			 buf_frame_get_page_no(inode), MLOG_4BYTES, mtr);
 
 	mlog_write_ulint(header + FSEG_HDR_SPACE, space, MLOG_4BYTES, mtr);
 
-	ret = buf_frame_align(header);
+	ret = page_align(header);
 
 funct_exit:
 	if (!has_done_reservation) {
