@@ -1509,27 +1509,27 @@ i	10
 select sql_big_result v,count(t) from t1 group by v limit 10;
 v	count(t)
 a	1
-a	10
-b	10
-c	10
-d	10
-e	10
-f	10
-g	10
-h	10
-i	10
+a         	10
+b         	10
+c         	10
+d         	10
+e         	10
+f         	10
+g         	10
+h         	10
+i         	10
 select sql_big_result v,count(c) from t1 group by v limit 10;
 v	count(c)
 a	1
-a	10
-b	10
-c	10
-d	10
-e	10
-f	10
-g	10
-h	10
-i	10
+a         	10
+b         	10
+c         	10
+d         	10
+e         	10
+f         	10
+g         	10
+h         	10
+i         	10
 select c,count(*) from t1 group by c limit 10;
 c	count(*)
 a	1
@@ -1673,15 +1673,15 @@ i	10
 select sql_big_result v,count(t) from t1 group by v limit 10;
 v	count(t)
 a	1
-a	10
-b	10
-c	10
-d	10
-e	10
-f	10
-g	10
-h	10
-i	10
+a         	10
+b         	10
+c         	10
+d         	10
+e         	10
+f         	10
+g         	10
+h         	10
+i         	10
 alter table t1 drop key v, add key v (v(30));
 show create table t1;
 Table	Create Table
@@ -1800,15 +1800,15 @@ i	10
 select sql_big_result v,count(t) from t1 group by v limit 10;
 v	count(t)
 a	1
-a	10
-b	10
-c	10
-d	10
-e	10
-f	10
-g	10
-h	10
-i	10
+a         	10
+b         	10
+c         	10
+d         	10
+e         	10
+f         	10
+g         	10
+h         	10
+i         	10
 drop table t1;
 create table t1 (a char(10), unique (a));
 insert into t1 values ('a   ');
