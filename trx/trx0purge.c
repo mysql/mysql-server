@@ -789,7 +789,7 @@ trx_purge_choose_next_log(void)
 		purge_sys->purge_undo_no = trx_undo_rec_get_undo_no(rec);
 
 		purge_sys->page_no = buf_frame_get_page_no(rec);
-		purge_sys->offset = rec - buf_frame_align(rec);
+		purge_sys->offset = page_offset(rec);
 	}
 
 	mtr_commit(&mtr);
@@ -897,7 +897,7 @@ trx_purge_get_next_rec(
 
 		rec = undo_page + offset;
 	} else {
-		page = buf_frame_align(rec2);
+		page = page_align(rec2);
 
 		purge_sys->purge_undo_no = trx_undo_rec_get_undo_no(rec2);
 		purge_sys->page_no = buf_frame_get_page_no(page);

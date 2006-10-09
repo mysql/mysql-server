@@ -251,43 +251,6 @@ buf_block_align(
 	return(block);
 }
 
-/***********************************************************************
-Gets the frame the pointer is pointing to. */
-UNIV_INLINE
-buf_frame_t*
-buf_frame_align(
-/*============*/
-			/* out: pointer to frame */
-	byte*	ptr)	/* in: pointer to a frame */
-{
-	buf_frame_t*	frame;
-
-	ut_ad(ptr);
-
-	frame = ut_align_down(ptr, UNIV_PAGE_SIZE);
-
-	if (UNIV_UNLIKELY((ulint)frame < (ulint)(buf_pool->frame_zero))
-	    || UNIV_UNLIKELY((ulint)frame >= (ulint)(buf_pool->high_end))) {
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"InnoDB: Error: trying to access a stray pointer %p\n"
-			"InnoDB: buf pool start is at %p, end at %p\n"
-			"InnoDB: Probable reason is database corruption"
-			" or memory\n"
-			"InnoDB: corruption. If this happens in an"
-			" InnoDB database recovery, see\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"forcing-recovery.html\n"
-			"InnoDB: how to force recovery.\n",
-			ptr, buf_pool->frame_zero,
-			buf_pool->high_end);
-		ut_error;
-	}
-
-	return(frame);
-}
-
 /**************************************************************************
 Gets the page number of a pointer pointing within a buffer frame containing
 a file page. */
@@ -331,7 +294,7 @@ buf_ptr_get_fsp_addr(
 
 	*space = buf_block_get_space(block);
 	addr->page = buf_block_get_page_no(block);
-	addr->boffset = ptr - buf_frame_align(ptr);
+	addr->boffset = ut_align_offset(ptr, UNIV_PAGE_SIZE);
 }
 
 /**************************************************************************

@@ -1595,10 +1595,8 @@ recv_apply_log_recs_for_backup(void)
 			}
 
 			/* We simulate a page read made by the buffer pool, to
-			make sure the recovery apparatus works ok, for
-			example, the buf_frame_align() function. We must init
-			the block corresponding to buf_pool->frame_zero
-			(== page). */
+			make sure the recovery apparatus works ok. We must init
+			the block. */
 
 			buf_page_init_for_backup_restore(
 				recv_addr->space, recv_addr->page_no,

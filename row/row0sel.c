@@ -3709,7 +3709,7 @@ rec_loop:
 	fputs("Using ", stderr);
 	dict_index_name_print(stderr, index);
 	fprintf(stderr, " cnt %lu ; Page no %lu\n", cnt,
-	buf_frame_get_page_no(buf_frame_align(rec)));
+	buf_frame_get_page_no(page_align(rec)));
 	rec_print(rec);
 	*/
 #endif /* UNIV_SEARCH_DEBUG */
@@ -3777,7 +3777,7 @@ rec_loop:
 wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
 			ut_print_timestamp(stderr);
-			buf_page_print(buf_frame_align(rec), 0);
+			buf_page_print(page_align(rec), 0);
 			fprintf(stderr,
 				"\nInnoDB: rec address %p, first"
 				" buffer frame %p\n"

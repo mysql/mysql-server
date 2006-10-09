@@ -448,7 +448,7 @@ skip_secondaries:
 				+ offset + internal_offset;
 
 #ifdef UNIV_SYNC_DEBUG
-			buf_page_dbg_add_level(buf_frame_align(data_field),
+			buf_page_dbg_add_level(page_align(data_field),
 					       SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 			ut_a(ufield->new_val.len >= BTR_EXTERN_FIELD_REF_SIZE);

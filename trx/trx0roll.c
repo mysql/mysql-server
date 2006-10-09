@@ -832,7 +832,7 @@ trx_roll_pop_top_rec(
 
 		undo->empty = TRUE;
 	} else {
-		prev_rec_page = buf_frame_align(prev_rec);
+		prev_rec_page = page_align(prev_rec);
 
 		if (prev_rec_page != undo_page) {
 

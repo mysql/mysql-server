@@ -615,8 +615,8 @@ btr_search_check_guess(
 		prev_rec = page_rec_get_prev(rec);
 
 		if (page_rec_is_infimum(prev_rec)) {
-			success = btr_page_get_prev(
-				buf_frame_align(prev_rec), mtr) == FIL_NULL;
+			success = btr_page_get_prev(page_align(prev_rec), mtr)
+				== FIL_NULL;
 
 			goto exit_func;
 		}
@@ -640,8 +640,7 @@ btr_search_check_guess(
 		next_rec = page_rec_get_next(rec);
 
 		if (page_rec_is_supremum(next_rec)) {
-			if (btr_page_get_next(
-				    buf_frame_align(next_rec), mtr)
+			if (btr_page_get_next(page_align(next_rec), mtr)
 			    == FIL_NULL) {
 
 				cursor->up_match = 0;
@@ -757,7 +756,7 @@ btr_search_guess_on_hash(
 		goto failure_unlock;
 	}
 
-	page = buf_frame_align(rec);
+	page = page_align(rec);
 
 	if (UNIV_LIKELY(!has_search_latch)) {
 
@@ -1632,7 +1631,7 @@ btr_search_validate(void)
 
 		while (node != NULL) {
 			block = buf_block_align(node->data);
-			page = buf_frame_align(node->data);
+			page = page_align(node->data);
 			offsets = rec_get_offsets((rec_t*) node->data,
 						  block->index, offsets,
 						  block->curr_n_fields

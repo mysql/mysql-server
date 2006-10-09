@@ -316,7 +316,7 @@ mlog_write_dulint(
 	log_ptr = mlog_write_initial_log_record_fast(ptr, MLOG_8BYTES,
 						     log_ptr, mtr);
 
-	mach_write_to_2(log_ptr, ptr - buf_frame_align(ptr));
+	mach_write_to_2(log_ptr, page_offset(ptr));
 	log_ptr += 2;
 
 	log_ptr += mach_dulint_write_compressed(log_ptr, val);
