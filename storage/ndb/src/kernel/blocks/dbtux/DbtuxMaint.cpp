@@ -111,16 +111,17 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   // do the operation
   req->errorCode = 0;
   TreePos treePos;
+  bool ok;
   switch (opCode) {
   case TuxMaintReq::OpAdd:
     jam();
-    searchToAdd(frag, c_searchKey, ent, treePos);
+    ok = searchToAdd(frag, c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
-      debugOut << treePos << (treePos.m_match ? " - error" : "") << endl;
+      debugOut << treePos << (! ok ? " - error" : "") << endl;
     }
 #endif
-    if (treePos.m_match) {
+    if (! ok) {
       jam();
       // there is no "Building" state so this will have to do
       if (indexPtr.p->m_state == Index::Online) {
@@ -150,13 +151,13 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     break;
   case TuxMaintReq::OpRemove:
     jam();
-    searchToRemove(frag, c_searchKey, ent, treePos);
+    ok = searchToRemove(frag, c_searchKey, ent, treePos);
 #ifdef VM_TRACE
     if (debugFlags & DebugMaint) {
-      debugOut << treePos << (! treePos.m_match ? " - error" : "") << endl;
+      debugOut << treePos << (! ok ? " - error" : "") << endl;
     }
 #endif
-    if (! treePos.m_match) {
+    if (! ok) {
       jam();
       // there is no "Building" state so this will have to do
       if (indexPtr.p->m_state == Index::Online) {
