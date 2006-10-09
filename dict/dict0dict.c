@@ -3547,6 +3547,7 @@ syntax_error:
 
 /*==================== END OF FOREIGN KEY PROCESSING ====================*/
 
+#ifdef UNIV_DEBUG
 /**************************************************************************
 Returns an index object if it is found in the dictionary cache. */
 
@@ -3556,7 +3557,6 @@ dict_index_get_if_in_cache(
 				/* out: index, NULL if not found */
 	dulint	index_id)	/* in: index id */
 {
-	dict_table_t*	table;
 	dict_index_t*	index;
 
 	if (dict_sys == NULL) {
@@ -3565,29 +3565,13 @@ dict_index_get_if_in_cache(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+	index = dict_index_find_on_id_low(index_id);
 
-	while (table) {
-		index = UT_LIST_GET_FIRST(table->indexes);
-
-		while (index) {
-			if (0 == ut_dulint_cmp(index->id, index_id)) {
-
-				goto found;
-			}
-
-			index = UT_LIST_GET_NEXT(indexes, index);
-		}
-
-		table = UT_LIST_GET_NEXT(table_LRU, table);
-	}
-
-	index = NULL;
-found:
 	mutex_exit(&(dict_sys->mutex));
 
 	return(index);
 }
+#endif /* UNIV_DEBUG */
 
 #ifdef UNIV_DEBUG
 /**************************************************************************
