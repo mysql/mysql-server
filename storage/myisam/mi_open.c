@@ -219,7 +219,10 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	 ((open_flags & HA_OPEN_ABORT_IF_CRASHED) &&
 	  (my_disable_locking && share->state.open_count))))
     {
-      DBUG_PRINT("error",("Table is marked as crashed"));
+      DBUG_PRINT("error",("Table is marked as crashed. open_flags: %u  "
+                          "changed: %u  open_count: %u  !locking: %d",
+                          open_flags, share->state.changed,
+                          share->state.open_count, my_disable_locking));
       my_errno=((share->state.changed & STATE_CRASHED_ON_REPAIR) ?
 		HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE);
       goto err;
