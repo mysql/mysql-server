@@ -3889,6 +3889,7 @@ static void collect_partition_expr(List<char> &field_list, String *str)
 
 
 static void store_schema_partitions_record(THD *thd, TABLE *table,
+                                           TABLE *show_table,
                                            partition_element *part_elem,
                                            handler *file, uint part_id)
 {
@@ -3942,11 +3943,21 @@ static void store_schema_partitions_record(THD *thd, TABLE *table,
       table->field[23]->store((longlong) part_elem->nodegroup_id, TRUE);
     else
       table->field[23]->store(STRING_WITH_LEN("default"), cs);
+
+    table->field[24]->set_notnull();
     if (part_elem->tablespace_name)
       table->field[24]->store(part_elem->tablespace_name,
                               strlen(part_elem->tablespace_name), cs);
     else
-      table->field[24]->store(STRING_WITH_LEN("default"), cs);
+    {
+      DBUG_PRINT("info",("FOO"));
+      char *ts= show_table->file->get_tablespace_name(thd);
+      if(ts)
+        table->field[24]->store(ts, strlen(ts), cs);
+      else
+        table->field[24]->set_null();
+      my_free(ts, MYF(0));
+    }
   }
   return;
 }
@@ -4129,7 +4140,7 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
           table->field[6]->store((longlong) ++subpart_pos, TRUE);
           table->field[6]->set_notnull();
           
-          store_schema_partitions_record(thd, table, subpart_elem,
+          store_schema_partitions_record(thd, table, show_table, subpart_elem,
                                          file, part_id);
           part_id++;
           if(schema_table_store_record(thd, table))
@@ -4138,7 +4149,7 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
       }
       else
       {
-        store_schema_partitions_record(thd, table, part_elem,
+        store_schema_partitions_record(thd, table, show_table, part_elem,
                                        file, part_id);
         part_id++;
         if(schema_table_store_record(thd, table))
@@ -4150,7 +4161,7 @@ static int get_schema_partitions_record(THD *thd, struct st_table_list *tables,
   else
 #endif
   {
-    store_schema_partitions_record(thd, table, 0, file, 0);
+    store_schema_partitions_record(thd, table, show_table, 0, file, 0);
     if(schema_table_store_record(thd, table))
       DBUG_RETURN(1);
   }
@@ -5334,7 +5345,7 @@ ST_FIELD_INFO partitions_fields_info[]=
   {"CHECKSUM", 21 , MYSQL_TYPE_LONG, 0, 1, 0},
   {"PARTITION_COMMENT", 80, MYSQL_TYPE_STRING, 0, 0, 0},
   {"NODEGROUP", 12 , MYSQL_TYPE_STRING, 0, 0, 0},
-  {"TABLESPACE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
+  {"TABLESPACE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, 0},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
