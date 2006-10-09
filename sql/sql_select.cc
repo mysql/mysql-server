@@ -1399,7 +1399,8 @@ JOIN::exec()
       simple_order= simple_group;
       skip_sort_order= 0;
     }
-    if (order &&
+    if (order && 
+        (order != group_list || !(select_options & SELECT_BIG_RESULT)) &&
 	(const_tables == tables ||
  	 ((simple_order || skip_sort_order) &&
 	  test_if_skip_sort_order(&join_tab[const_tables], order,
@@ -11995,11 +11996,17 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   table=  tab->table;
   select= tab->select;
 
-  if (test_if_skip_sort_order(tab,order,select_limit,0))
+  /*
+    When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
+    and thus force sorting on disk.
+  */
+  if ((order != join->group_list || 
+       !(join->select_options & SELECT_BIG_RESULT)) &&
+      test_if_skip_sort_order(tab,order,select_limit,0))
     DBUG_RETURN(0);
   if (!(sortorder=make_unireg_sortorder(order,&length)))
     goto err;				/* purecov: inspected */
-  /* It's not fatal if the following alloc fails */
+
   table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_WME | MY_ZEROFILL));
   table->status=0;				// May be wrong if quick_select
