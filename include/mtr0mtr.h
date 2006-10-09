@@ -286,6 +286,17 @@ mtr_memo_contains(
 	mtr_t*	mtr,	/* in: mtr */
 	void*	object,	/* in: object to search */
 	ulint	type);	/* in: type of object */
+
+/**************************************************************
+Checks if memo contains the given page. */
+
+ibool
+mtr_memo_contains_page(
+/*===================*/
+			/* out: TRUE if contains */
+	mtr_t*	mtr,	/* in: mtr */
+	byte*	ptr,	/* in: pointer to buffer frame */
+	ulint	type);	/* in: type of object */
 /*************************************************************
 Prints info of an mtr handle. */
 

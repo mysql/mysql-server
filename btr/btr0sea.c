@@ -409,7 +409,8 @@ btr_search_update_hash_ref(
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
 	      || rw_lock_own(&(block->lock), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(buf_block_align(btr_cur_get_rec(cursor)) == block);
+	ut_ad(page_align(btr_cur_get_rec(cursor))
+	      == buf_block_get_frame(block));
 	ut_a(!block->is_hashed || block->index == cursor->index);
 
 	if (block->is_hashed

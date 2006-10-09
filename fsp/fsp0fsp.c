@@ -354,8 +354,7 @@ xdes_get_bit(
 	ulint	byte_index;
 	ulint	bit_index;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(descr),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_X_FIX));
 	ut_ad((bit == XDES_FREE_BIT) || (bit == XDES_CLEAN_BIT));
 	ut_ad(offset < FSP_EXTENT_SIZE);
 
@@ -387,8 +386,7 @@ xdes_set_bit(
 	ulint	bit_index;
 	ulint	descr_byte;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(descr),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_X_FIX));
 	ut_ad((bit == XDES_FREE_BIT) || (bit == XDES_CLEAN_BIT));
 	ut_ad(offset < FSP_EXTENT_SIZE);
 
@@ -426,8 +424,7 @@ xdes_find_bit(
 	ut_ad(descr && mtr);
 	ut_ad(val <= TRUE);
 	ut_ad(hint < FSP_EXTENT_SIZE);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(descr),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_X_FIX));
 	for (i = hint; i < FSP_EXTENT_SIZE; i++) {
 		if (val == xdes_get_bit(descr, bit, i, mtr)) {
 
@@ -465,8 +462,7 @@ xdes_find_bit_downward(
 	ut_ad(descr && mtr);
 	ut_ad(val <= TRUE);
 	ut_ad(hint < FSP_EXTENT_SIZE);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(descr),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_X_FIX));
 	for (i = hint + 1; i > 0; i--) {
 		if (val == xdes_get_bit(descr, bit, i - 1, mtr)) {
 
@@ -498,8 +494,7 @@ xdes_get_n_used(
 	ulint	count	= 0;
 
 	ut_ad(descr && mtr);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(descr),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_X_FIX));
 	for (i = 0; i < FSP_EXTENT_SIZE; i++) {
 		if (FALSE == xdes_get_bit(descr, XDES_FREE_BIT, i, mtr)) {
 			count++;
@@ -558,8 +553,7 @@ xdes_set_state(
 	ut_ad(descr && mtr);
 	ut_ad(state >= XDES_FREE);
 	ut_ad(state <= XDES_FSEG);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(descr),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_X_FIX));
 
 	mlog_write_ulint(descr + XDES_STATE, state, MLOG_4BYTES, mtr);
 }
@@ -577,8 +571,7 @@ xdes_get_state(
 	ulint	state;
 
 	ut_ad(descr && mtr);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(descr),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_X_FIX));
 
 	state = mtr_read_ulint(descr + XDES_STATE, MLOG_4BYTES, mtr);
 	ut_ad(state - 1 < XDES_FSEG);
@@ -597,8 +590,7 @@ xdes_init(
 	ulint	i;
 
 	ut_ad(descr && mtr);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(descr),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_X_FIX));
 	ut_ad((XDES_SIZE - XDES_BITMAP) % 4 == 0);
 
 	for (i = XDES_BITMAP; i < XDES_SIZE; i += 4) {
@@ -685,10 +677,8 @@ xdes_get_descriptor_with_space_hdr(
 	ut_ad(mtr);
 	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(
-		      mtr, buf_block_align(sp_header), MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains(
-		      mtr, buf_block_align(sp_header), MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, sp_header, MTR_MEMO_PAGE_S_FIX)
+	      || mtr_memo_contains_page(mtr, sp_header, MTR_MEMO_PAGE_X_FIX));
 	/* Read free limit and space size */
 	limit = mach_read_from_4(sp_header + FSP_FREE_LIMIT);
 	size  = mach_read_from_4(sp_header + FSP_SIZE);
@@ -1742,8 +1732,7 @@ fsp_seg_inode_page_get_nth_inode(
 			/* in: mini-transaction handle */
 {
 	ut_ad(i < FSP_SEG_INODES_PER_PAGE(zip_size));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 
 	return(page + FSEG_ARR_OFFSET + FSEG_INODE_SIZE * i);
 }
@@ -2006,8 +1995,7 @@ fseg_get_nth_frag_page_no(
 {
 	ut_ad(inode && mtr);
 	ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(inode),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_X_FIX));
 	return(mach_read_from_4(inode + FSEG_FRAG_ARR
 				+ n * FSEG_FRAG_SLOT_SIZE));
 }
@@ -2025,8 +2013,7 @@ fseg_set_nth_frag_page_no(
 {
 	ut_ad(inode && mtr);
 	ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(inode),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_X_FIX));
 
 	mlog_write_ulint(inode + FSEG_FRAG_ARR + n * FSEG_FRAG_SLOT_SIZE,
 			 page_no, MLOG_4BYTES, mtr);
@@ -2281,8 +2268,7 @@ fseg_n_reserved_pages_low(
 	ulint	ret;
 
 	ut_ad(inode && used && mtr);
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(inode),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_X_FIX));
 
 	*used = mtr_read_ulint(inode + FSEG_NOT_FULL_N_USED, MLOG_4BYTES, mtr)
 		+ FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FULL, mtr)
@@ -3574,8 +3560,7 @@ fseg_validate_low(
 	ulint		n_used		= 0;
 	ulint		n_used2		= 0;
 
-	ut_ad(mtr_memo_contains(mtr2, buf_block_align(inode),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr2, inode, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 
 	space = buf_frame_get_space_id(inode);
@@ -3698,8 +3683,7 @@ fseg_print_low(
 	ulint	page_no;
 	dulint	 d_var;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(inode),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_X_FIX));
 	space = buf_frame_get_space_id(inode);
 	page_no = buf_frame_get_page_no(inode);
 

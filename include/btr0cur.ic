@@ -95,8 +95,8 @@ btr_cur_compress_recommendation(
 {
 	page_t*		page;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, btr_cur_get_rec(cursor),
+				     MTR_MEMO_PAGE_X_FIX));
 
 	page = btr_cur_get_page(cursor);
 
@@ -131,8 +131,8 @@ btr_cur_can_delete_without_compress(
 {
 	page_t*		page;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(btr_cur_get_rec(cursor)),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, btr_cur_get_rec(cursor),
+				     MTR_MEMO_PAGE_X_FIX));
 
 	page = btr_cur_get_page(cursor);
 

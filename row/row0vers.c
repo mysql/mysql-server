@@ -315,9 +315,8 @@ row_vers_old_has_index_entry(
 	ulint		err;
 	ulint		comp;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
-	      || mtr_memo_contains(mtr, buf_block_align(rec),
-				   MTR_MEMO_PAGE_S_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
+	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -435,9 +434,8 @@ row_vers_build_for_consistent_read(
 	ulint		err;
 
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
-	      || mtr_memo_contains(mtr, buf_block_align(rec),
-				   MTR_MEMO_PAGE_S_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
+	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -566,9 +564,8 @@ row_vers_build_for_semi_consistent_read(
 	dulint		rec_trx_id	= ut_dulint_create(0, 0);
 
 	ut_ad(dict_index_is_clust(index));
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(rec), MTR_MEMO_PAGE_X_FIX)
-	      || mtr_memo_contains(mtr, buf_block_align(rec),
-				   MTR_MEMO_PAGE_S_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
+	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */

@@ -164,8 +164,7 @@ mlog_write_initial_log_record_fast(
 	ulint		space;
 	ulint		offset;
 
-	ut_ad(mtr_memo_contains(mtr, buf_block_align(ptr),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(ptr && log_ptr);
 
