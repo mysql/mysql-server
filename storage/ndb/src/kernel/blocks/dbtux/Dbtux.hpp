@@ -801,8 +801,7 @@ inline bool
 Dbtux::TreeEnt::eqtuple(const TreeEnt ent) const
 {
   return
-    m_tupLoc == ent.m_tupLoc &&
-    m_fragBit == ent.m_fragBit;
+    m_tupLoc == ent.m_tupLoc;
 }
 
 inline bool
