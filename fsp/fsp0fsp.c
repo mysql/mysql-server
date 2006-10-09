@@ -832,7 +832,7 @@ fsp_init_file_page_low(
 
 	block->check_index_page_at_flush = FALSE;
 
-	page_zip = buf_block_get_page_zip(block);
+	page_zip = buf_frame_get_page_zip(page);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		memset(page, 0, UNIV_PAGE_SIZE);

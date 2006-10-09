@@ -641,13 +641,15 @@ buf_block_get_page_no(
 				/* out: page number */
 	buf_block_t*	block);	/* in: pointer to the control block */
 /*************************************************************************
-Gets the compressed page descriptor of a block if applicable. */
+Gets the compressed page descriptor corresponding to an uncompressed page
+if applicable. */
 UNIV_INLINE
 page_zip_des_t*
-buf_block_get_page_zip(
+buf_frame_get_page_zip(
 /*===================*/
 				/* out: compressed page descriptor, or NULL */
-	buf_block_t*	block);	/* in: pointer to the control block */
+	byte*	ptr)		/* in: pointer to buffer frame */
+	__attribute((const));
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
 UNIV_INLINE

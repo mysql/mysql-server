@@ -1468,7 +1468,7 @@ row_upd_clust_rec_by_insert(
 		index = dict_table_get_first_index(table);
 
 		btr_cur_mark_extern_inherited_fields(
-			buf_block_get_page_zip(buf_block_align(rec)),
+			buf_frame_get_page_zip(rec),
 			rec, index,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),

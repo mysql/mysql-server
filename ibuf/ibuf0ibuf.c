@@ -3234,7 +3234,7 @@ ibuf_merge_or_delete_for_page(
 
 		block = buf_block_align(page);
 		rw_lock_x_lock_move_ownership(&(block->lock));
-		page_zip = buf_block_get_page_zip(block);
+		page_zip = buf_frame_get_page_zip(page);
 
 		if (UNIV_UNLIKELY(fil_page_get_type(page) != FIL_PAGE_INDEX)) {
 
