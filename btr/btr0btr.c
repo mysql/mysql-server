@@ -729,7 +729,7 @@ btr_create(
 	}
 
 	/* Create a new index page on the the allocated segment page */
-	page_zip = buf_block_get_page_zip(buf_block_align(frame));
+	page_zip = buf_frame_get_page_zip(frame);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		page = page_create_zip(frame, page_zip, index, 0, mtr);
@@ -959,8 +959,7 @@ btr_page_reorganize(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	return(btr_page_reorganize_low(FALSE, page,
-				       buf_block_get_page_zip(
-					       buf_block_align(page)),
+				       buf_frame_get_page_zip(page),
 				       index, mtr));
 }
 
@@ -1056,7 +1055,7 @@ btr_root_raise_and_insert(
 	page_zip_des_t*	new_page_zip;
 
 	root = btr_cur_get_page(cursor);
-	root_page_zip = buf_block_get_page_zip(buf_block_align(root));
+	root_page_zip = buf_frame_get_page_zip(root);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!root_page_zip || page_zip_validate(root_page_zip, root));
 #endif /* UNIV_ZIP_DEBUG */
@@ -1076,7 +1075,7 @@ btr_root_raise_and_insert(
 	level = btr_page_get_level(root, mtr);
 
 	new_page = btr_page_alloc(index, 0, FSP_NO_DIR, level, mtr);
-	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
+	new_page_zip = buf_frame_get_page_zip(new_page);
 	ut_a(!new_page_zip == !root_page_zip);
 	ut_a(!new_page_zip || new_page_zip->size == root_page_zip->size);
 
@@ -1315,7 +1314,7 @@ btr_page_get_sure_split_rec(
 	insert_size = rec_get_converted_size(cursor->index, tuple, ext, n_ext);
 	free_space  = page_get_free_space_of_empty(page_is_comp(page));
 
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	page_zip = buf_frame_get_page_zip(page);
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		/* Estimate the free space of an empty compressed page. */
 		ulint	free_space_zip = page_zip_empty_size(
@@ -1591,7 +1590,7 @@ btr_attach_half_pages(
 
 		btr_node_ptr_set_child_page_no(
 			node_ptr,
-			buf_block_get_page_zip(buf_block_align(node_ptr)),
+			buf_frame_get_page_zip(node_ptr),
 			rec_get_offsets(node_ptr, index, NULL,
 					ULINT_UNDEFINED, &heap),
 			lower_page_no, mtr);
@@ -1639,8 +1638,7 @@ btr_attach_half_pages(
 		     == buf_frame_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
-		btr_page_set_next(prev_page, buf_block_get_page_zip(
-					  buf_block_align(prev_page)),
+		btr_page_set_next(prev_page, buf_frame_get_page_zip(prev_page),
 				  lower_page_no, mtr);
 	}
 
@@ -1650,8 +1648,7 @@ btr_attach_half_pages(
 		ut_a(page_is_comp(next_page) == page_is_comp(page));
 
 		btr_page_set_prev(next_page,
-				  buf_block_get_page_zip(
-					  buf_block_align(next_page)),
+				  buf_frame_get_page_zip(next_page),
 				  upper_page_no, mtr);
 	}
 
@@ -1723,7 +1720,7 @@ func_start:
 #endif /* UNIV_SYNC_DEBUG */
 
 	page = btr_cur_get_page(cursor);
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	page_zip = buf_frame_get_page_zip(page);
 
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
@@ -1757,7 +1754,7 @@ func_start:
 	/* 2. Allocate a new page to the index */
 	new_page = btr_page_alloc(cursor->index, hint_page_no, direction,
 				  btr_page_get_level(page, mtr), mtr);
-	new_page_zip = buf_block_get_page_zip(buf_block_align(new_page));
+	new_page_zip = buf_frame_get_page_zip(new_page);
 	btr_page_create(new_page, new_page_zip, cursor->index,
 			btr_page_get_level(page, mtr), mtr);
 
@@ -1888,7 +1885,7 @@ func_start:
 		insert_page = right_page;
 	}
 
-	insert_page_zip = buf_block_get_page_zip(buf_block_align(insert_page));
+	insert_page_zip = buf_frame_get_page_zip(insert_page);
 
 	/* 7. Reposition the cursor for insert and try insertion */
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -2000,8 +1997,7 @@ btr_level_list_remove(
 		     == buf_frame_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
-		btr_page_set_next(prev_page, buf_block_get_page_zip(
-					  buf_block_align(prev_page)),
+		btr_page_set_next(prev_page, buf_frame_get_page_zip(prev_page),
 				  next_page_no, mtr);
 	}
 
@@ -2014,8 +2010,7 @@ btr_level_list_remove(
 		     == buf_frame_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
-		btr_page_set_prev(next_page, buf_block_get_page_zip(
-					  buf_block_align(next_page)),
+		btr_page_set_prev(next_page, buf_frame_get_page_zip(next_page),
 				  prev_page_no, mtr);
 	}
 }
@@ -2150,7 +2145,7 @@ btr_lift_page_up(
 				MTR_MEMO_PAGE_X_FIX));
 	father_page = buf_frame_align(
 		btr_page_get_father_node_ptr(index, page, mtr));
-	father_page_zip = buf_block_get_page_zip(buf_block_align(father_page));
+	father_page_zip = buf_frame_get_page_zip(father_page);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!father_page_zip
 	     || page_zip_validate(father_page_zip, father_page));
@@ -2176,7 +2171,7 @@ btr_lift_page_up(
 
 		/* Copy the page byte for byte. */
 		page_zip_copy(father_page_zip, father_page,
-			      buf_block_get_page_zip(buf_block_align(page)),
+			      buf_frame_get_page_zip(page),
 			      page, index, mtr);
 	}
 
@@ -2319,12 +2314,12 @@ btr_compress(
 		}
 	}
 
-	merge_page_zip = buf_block_get_page_zip(buf_block_align(merge_page));
+	merge_page_zip = buf_frame_get_page_zip(merge_page);
 #ifdef UNIV_ZIP_DEBUG
 	if (UNIV_LIKELY_NULL(merge_page_zip)) {
 		ut_a(page_zip_validate(merge_page_zip, merge_page));
 		ut_a(page_zip_validate(
-			     buf_block_get_page_zip(buf_block_align(page)),
+			     buf_frame_get_page_zip(page),
 			     page));
 	}
 #endif /* UNIV_ZIP_DEBUG */
@@ -2403,7 +2398,7 @@ btr_compress(
 
 		btr_node_ptr_set_child_page_no(
 			node_ptr,
-			buf_block_get_page_zip(buf_block_align(node_ptr)),
+			buf_frame_get_page_zip(node_ptr),
 			rec_get_offsets(node_ptr, index, offsets_,
 					ULINT_UNDEFINED, &heap),
 			right_page_no, mtr);
@@ -2454,9 +2449,7 @@ btr_discard_only_page_on_level(
 
 	lock_update_discard(page_get_supremum_rec(father_page), page);
 
-	btr_page_set_level(father_page,
-			   buf_block_get_page_zip(
-				   buf_block_align(father_page)),
+	btr_page_set_level(father_page, buf_frame_get_page_zip(father_page),
 			   page_level, mtr);
 
 	/* Free the file page */
@@ -2467,8 +2460,7 @@ btr_discard_only_page_on_level(
 		/* The father is the root page */
 
 		btr_page_empty(father_page,
-			       buf_block_get_page_zip(
-				       buf_block_align(father_page)),
+			       buf_frame_get_page_zip(father_page),
 			       mtr, index);
 
 		/* We play safe and reset the free bits for the father */
@@ -2561,7 +2553,7 @@ btr_discard_page(
 #ifdef UNIV_ZIP_DEBUG
 	{
 		page_zip_des_t*	merge_page_zip
-			= buf_block_get_page_zip(buf_block_align(merge_page));
+			= buf_frame_get_page_zip(merge_page);
 		ut_a(!merge_page_zip
 		     || page_zip_validate(merge_page_zip, merge_page));
 	}
@@ -3002,7 +2994,7 @@ btr_validate_level(
 
 	while (level != btr_page_get_level(page, &mtr)) {
 #ifdef UNIV_ZIP_DEBUG
-		page_zip = buf_block_get_page_zip(buf_block_align(page));
+		page_zip = buf_frame_get_page_zip(page);
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 		ut_a(!page_is_leaf(page));
@@ -3029,7 +3021,7 @@ loop:
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
 #ifdef UNIV_ZIP_DEBUG
-	page_zip = buf_block_get_page_zip(buf_block_align(page));
+	page_zip = buf_frame_get_page_zip(page);
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 

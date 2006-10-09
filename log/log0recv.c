@@ -1204,7 +1204,7 @@ recv_recover_page(
 
 	if (!recover_backup) {
 		block = buf_block_align(page);
-		page_zip = buf_block_get_page_zip(block);
+		page_zip = buf_frame_get_page_zip(page);
 
 		if (just_read_in) {
 			/* Move the ownership of the x-latch on the

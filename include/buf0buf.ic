@@ -193,15 +193,16 @@ buf_block_get_page_no(
 }
 
 /*************************************************************************
-Gets the compressed page descriptor of a block if applicable. */
+Gets the compressed page descriptor corresponding to an uncompressed page
+if applicable. */
 UNIV_INLINE
 page_zip_des_t*
-buf_block_get_page_zip(
+buf_frame_get_page_zip(
 /*===================*/
 				/* out: compressed page descriptor, or NULL */
-	buf_block_t*	block)	/* in: pointer to the control block */
+	byte*	ptr)		/* in: pointer to buffer frame */
 {
-	ut_ad(block);
+	buf_block_t*	block = buf_block_align(ptr);
 
 	if (UNIV_LIKELY_NULL(block->page_zip.data)) {
 		return(&block->page_zip);

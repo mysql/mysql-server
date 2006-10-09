@@ -2385,8 +2385,7 @@ page_zip_validate(
 	page_t*		temp_page;
 	ibool		valid;
 
-	ut_a(buf_block_get_page_zip(buf_block_align((byte*)page))
-	     == page_zip);
+	ut_a(buf_frame_get_page_zip((byte*) page) == page_zip);
 	ut_a(page_is_comp((page_t*) page));
 
 	if (memcmp(page_zip->data + FIL_PAGE_PREV, page + FIL_PAGE_PREV,
@@ -2481,7 +2480,7 @@ page_zip_write_rec(
 	ulint	heap_no;
 	byte*	slot;
 
-	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)rec)) == page_zip);
+	ut_ad(buf_frame_get_page_zip((byte*) rec) == page_zip);
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
 	ut_ad(rec_offs_comp(offsets));
@@ -2786,7 +2785,7 @@ page_zip_write_blob_ptr(
 	ulint	blob_no;
 	ulint	len;
 
-	ut_ad(buf_block_get_page_zip(buf_block_align((byte*)rec)) == page_zip);
+	ut_ad(buf_frame_get_page_zip((byte*) rec) == page_zip);
 	ut_ad(page_simple_validate_new(page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
@@ -2933,7 +2932,7 @@ page_zip_write_node_ptr(
 	byte*	storage;
 	page_t*	page	= buf_frame_align(rec);
 
-	ut_ad(buf_block_get_page_zip(buf_block_align(rec)) == page_zip);
+	ut_ad(buf_frame_get_page_zip(rec) == page_zip);
 	ut_ad(page_simple_validate_new(page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
@@ -2997,7 +2996,7 @@ page_zip_write_trx_id_and_roll_ptr(
 	page_t*	page	= page_align(rec);
 	ulint	len;
 
-	ut_ad(buf_block_get_page_zip(buf_block_align(rec)) == page_zip);
+	ut_ad(buf_frame_get_page_zip(rec) == page_zip);
 	ut_ad(page_simple_validate_new(page));
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
