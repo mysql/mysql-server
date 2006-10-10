@@ -6420,6 +6420,39 @@ SELECT bug21493(Member_ID) FROM t3|
 DROP FUNCTION bug21493|
 DROP TABLE t3,t4|
 
+#
+# Bug#21462 Stored procedures with no arguments require parenthesis
+#
+
+--disable_warnings
+drop procedure if exists proc_21462_a|
+drop procedure if exists proc_21462_b|
+--enable_warnings
+
+create procedure proc_21462_a()
+begin
+  select "Called A";
+end|
+
+create procedure proc_21462_b(x int)
+begin
+  select "Called B";
+end|
+
+call proc_21462_a|
+call proc_21462_a()|
+-- error ER_SP_WRONG_NO_OF_ARGS
+call proc_21462_a(1)|
+
+-- error ER_SP_WRONG_NO_OF_ARGS
+call proc_21462_b|
+-- error ER_SP_WRONG_NO_OF_ARGS
+call proc_21462_b()|
+call proc_21462_b(1)|
+
+drop procedure proc_21462_a|
+drop procedure proc_21462_b|
+
 --echo End of 5.0 tests
 
 

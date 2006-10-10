@@ -650,11 +650,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  UNIX_TIMESTAMP
 %token  UNKNOWN_SYM
 %token  UNLOCK_SYM
-%token  UNLOCK_SYM
 %token  UNSIGNED
 %token  UNTIL_SYM
-%token  UNTIL_SYM
-%token  UPDATE_SYM
 %token  UPDATE_SYM
 %token  UPGRADE_SYM
 %token  USAGE
@@ -1447,14 +1444,19 @@ call:
 	    lex->value_list.empty();
 	    sp_add_used_routine(lex, YYTHD, $2, TYPE_ENUM_PROCEDURE);
 	  }
-          '(' sp_cparam_list ')' {}
+          opt_sp_cparam_list {}
 	;
 
 /* CALL parameters */
-sp_cparam_list:
+opt_sp_cparam_list:
 	  /* Empty */
-	| sp_cparams
+	| '(' opt_sp_cparams ')'
 	;
+
+opt_sp_cparams:
+          /* Empty */
+        | sp_cparams
+        ;
 
 sp_cparams:
 	  sp_cparams ',' expr
@@ -5166,7 +5168,7 @@ when_list2:
 /* Warning - may return NULL in case of incomplete SELECT */
 table_ref:
         table_factor            { $$=$1; }
-        | join_table            { $$=$1; }
+        | join_table
           {
 	    LEX *lex= Lex;
             if (!($$= lex->current_select->nest_last_join(lex->thd)))
@@ -5208,7 +5210,7 @@ join_table:
 	| table_ref normal_join table_ref
           ON
           {
-            YYERROR_UNLESS($1 && ($$=$3));
+            YYERROR_UNLESS($1 && $3);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
@@ -5223,7 +5225,7 @@ join_table:
         | table_ref STRAIGHT_JOIN table_factor
           ON
           {
-            YYERROR_UNLESS($1 && ($$=$3));
+            YYERROR_UNLESS($1 && $3);
             /* Change the current name resolution context to a local context. */
             if (push_new_name_resolution_context(YYTHD, $1, $3))
               YYABORT;
