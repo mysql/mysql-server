@@ -1083,7 +1083,7 @@ void Log_event::print_header(IO_CACHE* file,
                     ptr[14], ptr[15], ptr[16], ptr[17], ptr[18]);
       DBUG_ASSERT(bytes_written >= 0);
       DBUG_ASSERT(static_cast<my_size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, emit_buf, bytes_written);
+      my_b_write(file, (byte*) emit_buf, bytes_written);
       ptr += LOG_EVENT_MINIMAL_HEADER_LEN;
       hexdump_from += LOG_EVENT_MINIMAL_HEADER_LEN;
     }
@@ -1114,7 +1114,7 @@ void Log_event::print_header(IO_CACHE* file,
                       hex_string, char_string);
         DBUG_ASSERT(bytes_written >= 0);
         DBUG_ASSERT(static_cast<my_size_t>(bytes_written) < sizeof(emit_buf));
-	my_b_write(file, emit_buf, bytes_written);
+	my_b_write(file, (byte*) emit_buf, bytes_written);
 	hex_string[0]= 0;
 	char_string[0]= 0;
 	c= char_string;
@@ -1135,7 +1135,7 @@ void Log_event::print_header(IO_CACHE* file,
                     hex_string, char_string);
       DBUG_ASSERT(bytes_written >= 0);
       DBUG_ASSERT(static_cast<my_size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, emit_buf, bytes_written);
+      my_b_write(file, (byte*) emit_buf, bytes_written);
     }
   }
   DBUG_VOID_RETURN;
