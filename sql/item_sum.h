@@ -58,9 +58,30 @@ public:
   Item_sum(THD *thd, Item_sum *item);
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
+
+  /*
+    This method is similar to add(), but it is called when the current
+    aggregation group changes. Thus it performs a combination of
+    clear() and add().
+  */
   inline bool reset() { clear(); return add(); };
+
+  /*
+    Prepare this item for evaluation of an aggregate value. This is
+    called by reset() when a group changes, or, for correlated
+    subqueries, between subquery executions.  E.g. for COUNT(), this
+    method should set count= 0;
+  */
   virtual void clear()= 0;
+
+  /*
+    This method is called for the next row in the same group. Its
+    purpose is to aggregate the new value to the previous values in
+    the group (i.e. since clear() was called last time). For example,
+    for COUNT(), do count++.
+  */
   virtual bool add()=0;
+
   /*
     Called when new group is started and results are being saved in
     a temporary table. Similar to reset(), but must also store value in
@@ -86,7 +107,17 @@ public:
   void make_field(Send_field *field);
   void print(String *str);
   void fix_num_length_and_dec();
-  void no_rows_in_result() { reset(); }
+
+  /*
+    This function is called by the execution engine to assign 'NO ROWS
+    FOUND' value to an aggregate item, when the underlying result set
+    has no rows. Such value, in a general case, may be different from
+    the default value of the item after 'clear()': e.g. a numeric item
+    may be initialized to 0 by clear() and to NULL by
+    no_rows_in_result().
+  */
+  void no_rows_in_result() { clear(); }
+
   virtual bool setup(THD *thd) {return 0;}
   virtual void make_unique() {}
   Item *get_tmp_table_item(THD *thd);
@@ -304,6 +335,11 @@ class Item_sum_avg :public Item_sum_num
   void no_rows_in_result() {}
   const char *func_name() const { return "avg"; }
   Item *copy_or_same(THD* thd);
+  void cleanup()
+  {
+    clear();
+    Item_sum_num::cleanup();
+  }
 };
 
 class Item_sum_variance;
@@ -361,6 +397,11 @@ class Item_sum_variance : public Item_sum_num
   void no_rows_in_result() {}
   const char *func_name() const { return "variance"; }
   Item *copy_or_same(THD* thd);
+  void cleanup()
+  {
+    clear();
+    Item_sum_num::cleanup();
+  }
 };
 
 class Item_sum_std;
@@ -485,6 +526,11 @@ public:
   void update_field();
   void fix_length_and_dec()
   { decimals=0; max_length=21; unsigned_flag=1; maybe_null=null_value=0; }
+  void cleanup()
+  {
+    clear();
+    Item_sum_int::cleanup();
+  }
 };
 
 
