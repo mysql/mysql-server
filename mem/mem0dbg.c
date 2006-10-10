@@ -376,6 +376,7 @@ mem_hash_remove(
 }
 #endif /* UNIV_MEM_DEBUG */
 
+#if defined UNIV_MEM_DEBUG || defined UNIV_DEBUG
 /*******************************************************************
 Checks a memory heap for consistency and prints the contents if requested.
 Outputs the sum of sizes of buffers given to the user (only in
@@ -549,10 +550,12 @@ completed:
 	}
 	*error = FALSE;
 }
+#endif /* UNIV_MEM_DEBUG || UNIV_DEBUG */
 
+#ifdef UNIV_DEBUG
 /******************************************************************
 Prints the contents of a memory heap. */
-
+static
 void
 mem_heap_print(
 /*===========*/
@@ -615,6 +618,7 @@ mem_heap_validate(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG */
 
 #ifdef UNIV_MEM_DEBUG
 /*********************************************************************
