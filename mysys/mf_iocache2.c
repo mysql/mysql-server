@@ -52,12 +52,13 @@ int
 my_b_copy_to_file(IO_CACHE *cache, FILE *file)
 {
   byte buf[IO_SIZE];
+  uint bytes_in_cache;
   DBUG_ENTER("my_b_copy_to_file");
 
   /* Reinit the cache to read from the beginning of the cache */
   if (reinit_io_cache(cache, READ_CACHE, 0L, FALSE, FALSE))
     DBUG_RETURN(1);
-  uint bytes_in_cache= my_b_bytes_in_cache(cache);
+  bytes_in_cache= my_b_bytes_in_cache(cache);
   while (bytes_in_cache > 0) {
     uint const read_bytes= min(bytes_in_cache, sizeof(buf));
     DBUG_PRINT("debug", ("Remaining %u bytes - Reading %u bytes",
