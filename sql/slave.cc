@@ -3101,17 +3101,22 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
          type_code != START_EVENT_V3 && type_code!= FORMAT_DESCRIPTION_EVENT))
     {
       DBUG_PRINT("info", ("event skipped"));
-      if (thd->options & OPTION_BEGIN)
-        rli->inc_event_relay_log_pos();
-      else
-      {
-        rli->inc_group_relay_log_pos((type_code == ROTATE_EVENT ||
-                                      type_code == STOP_EVENT ||
-                                      type_code == FORMAT_DESCRIPTION_EVENT) ?
-                                     LL(0) : ev->log_pos,
-                                     1/* skip lock*/);
-        flush_relay_log_info(rli);
-      }
+      /*
+        We only skip the event here and do not increase the group log
+        position.  In the event that we have to restart, this means
+        that we might have to skip the event again, but that is a
+        minor issue.
+
+        If we were to increase the group log position when skipping an
+        event, it might be that we are restarting at the wrong
+        position and have events before that we should have executed,
+        so not increasing the group log position is a sure bet in this
+        case.
+
+        In this way, we just step the group log position when we
+        *know* that we are at the end of a group.
+       */
+      rli->inc_event_relay_log_pos();
 
       /*
         Protect against common user error of setting the counter to 1
