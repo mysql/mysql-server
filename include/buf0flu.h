@@ -36,9 +36,7 @@ buf_flush_init_for_writing(
 /*=======================*/
 	byte*	page,		/* in/out: page */
 	void*	page_zip,	/* in/out: compressed page, or NULL */
-	dulint	newest_lsn,	/* in: newest modification lsn to the page */
-	ulint	space,		/* in: space id */
-	ulint	page_no);	/* in: page number */
+	dulint	newest_lsn);	/* in: newest modification lsn to the page */
 /***********************************************************************
 This utility flushes dirty blocks from the end of the LRU list or flush_list.
 NOTE 1: in the case of an LRU flush the calling thread may own latches to
