@@ -1481,6 +1481,8 @@ uint find_type2(TYPELIB *lib, const char *find, uint length, CHARSET_INFO *cs);
 void unhex_type2(TYPELIB *lib);
 uint check_word(TYPELIB *lib, const char *val, const char *end,
 		const char **end_of_word);
+int find_string_in_array(LEX_STRING * const haystack, LEX_STRING * const needle,
+                         CHARSET_INFO *cs);
 
 
 bool is_keyword(const char *name, uint len);
