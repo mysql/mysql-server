@@ -6310,6 +6310,18 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     break;
   case CS_START_SCAN:{
     jam();
+
+    /*
+      We are waiting for application to continue the transaction. In this
+      particular state we will use the application timeout parameter rather
+      than the shorter Deadlock detection timeout.
+    */
+    if (c_appl_timeout_value == 0 ||
+	(ctcTimer - getApiConTimer(apiConnectptr.i)) <= c_appl_timeout_value) {
+      jam();
+      return;
+    }//if
+    
     ScanRecordPtr scanPtr;
     scanPtr.i = apiConnectptr.p->apiScanRec;
     ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
@@ -9840,6 +9852,17 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
   {
     conf->requestInfo = op_count | ScanTabConf::EndOfData;    
     releaseScanResources(scanPtr);
+  }
+  else
+  {
+    if (scanPtr.p->m_running_scan_frags.isEmpty())
+    {
+      jam();
+      /**
+       * All scan frags delivered...waiting for API
+       */
+      setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
+    }
   }
   
   if(4 + 3 * op_count > 25){
