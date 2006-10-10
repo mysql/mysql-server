@@ -388,6 +388,45 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
+int runBuddyTransTimeout(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int stepNo = step->getStepNo();
+  ndbout << "TransactionInactiveTimeout="<< TIMEOUT <<endl;
+
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb* pNdb = GETNDB(step);
+
+  for (int l = 1; l < loops && result == NDBT_OK; l++){
+
+    NdbTransaction* pTrans = 0;
+    do{
+      pTrans = pNdb->startTransaction();
+      NdbScanOperation* pOp = pTrans->getNdbScanOperation(ctx->getTab());
+      CHECK(pOp->readTuples(NdbOperation::LM_Read, 0, 0, 1) == 0);
+      CHECK(pTrans->execute(NoCommit) == 0);
+      
+      int sleep = 2 * TIMEOUT;
+      ndbout << "Sleeping for " << sleep << " milliseconds" << endl;
+      NdbSleep_MilliSleep(sleep);
+    
+      int res = 0;
+      while((res = pOp->nextResult()) == 0);
+      ndbout_c("res: %d", res);
+      CHECK(res == -1);
+      
+    } while(false);
+    
+    if (pTrans)
+    {
+      pTrans->close();
+    }
+  }
+  
+  return result;
+}
+
 int 
 runError4012(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
@@ -495,6 +534,15 @@ TESTCASE("BuddyTransNoTimeout5",
   FINALIZER(resetTransactionTimeout);
   FINALIZER(runClearTable);
 }
+TESTCASE("BuddyTransTimeout1", 
+	 "Start a scan and check that it gets aborted"){
+  INITIALIZER(runLoadTable);
+  //INITIALIZER(setTransactionTimeout);
+  STEPS(runBuddyTransTimeout, 1);
+  //FINALIZER(resetTransactionTimeout);
+  FINALIZER(runClearTable);
+}
+#if 0
 TESTCASE("Error4012", ""){
   TC_PROPERTY("TransactionDeadlockTimeout", 120000);
   INITIALIZER(runLoadTable);
@@ -503,7 +551,7 @@ TESTCASE("Error4012", ""){
   STEPS(runError4012, 2);
   FINALIZER(runClearTable);
 }
-
+#endif
 NDBT_TESTSUITE_END(testTimeout);
 
 int main(int argc, const char** argv){
