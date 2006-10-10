@@ -215,7 +215,9 @@ int Instance_map::flush_instances()
   hash_init(&hash, default_charset_info, START_HASH_SIZE, 0, 0,
             get_instance_key, delete_instance, 0);
   rc= load();
-  guardian->init(); // TODO: check error status.
+  /* don't init guardian if we failed to load instances */
+  if (!rc)
+    guardian->init(); // TODO: check error status.
   pthread_mutex_unlock(&LOCK_instance_map);
   guardian->unlock();
   return rc;

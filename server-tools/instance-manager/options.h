@@ -36,11 +36,11 @@ struct Options
   static char run_as_service;        /* handle_options doesn't support bool */
   static const char *user;
   static const char *angel_pid_file_name;
+  static const char *socket_file_name;
 #endif
   static bool is_forced_default_file;
   static const char *log_file_name;
   static const char *pid_file_name;
-  static const char *socket_file_name;
   static const char *password_file_name;
   static const char *default_mysqld_path;
   /* the option which should be passed to process_default_option_files */
