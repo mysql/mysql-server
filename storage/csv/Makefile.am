@@ -41,6 +41,6 @@ noinst_LIBRARIES =	@plugin_csv_static_target@
 libcsv_a_CXXFLAGS =	$(AM_CFLAGS)
 libcsv_a_SOURCES =	ha_tina.cc
 
-EXTRA_DIST =		CMakeLists.txt
+EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
 %::SCCS/s.%

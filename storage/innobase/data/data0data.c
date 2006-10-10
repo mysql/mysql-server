@@ -540,8 +540,8 @@ dtuple_convert_big_rec(
 	n_fields = 0;
 
 	while (rec_get_converted_size(index, entry)
-	       >= ut_min(page_get_free_space_of_empty
-			 (dict_table_is_comp(index->table)) / 2,
+	       >= ut_min(page_get_free_space_of_empty(
+				 dict_table_is_comp(index->table)) / 2,
 			 REC_MAX_DATA_SIZE)) {
 
 		longest = 0;
@@ -610,8 +610,8 @@ dtuple_convert_big_rec(
 		vector->fields[n_fields].len = dfield->len
 			- DICT_MAX_INDEX_COL_LEN;
 
-		vector->fields[n_fields].data = mem_heap_alloc
-			(heap, vector->fields[n_fields].len);
+		vector->fields[n_fields].data = mem_heap_alloc(
+			heap, vector->fields[n_fields].len);
 
 		/* Copy data (from the end of field) to big rec vector */
 

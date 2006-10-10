@@ -301,8 +301,8 @@ srv_parse_data_file_paths_and_sizes(
 
 				str += (sizeof ":max:") - 1;
 
-				str = srv_parse_megabytes
-					(str, max_auto_extend_size);
+				str = srv_parse_megabytes(
+					str, max_auto_extend_size);
 			}
 
 			if (*str != '\0') {
@@ -557,8 +557,8 @@ open_or_create_log_file(
 	*log_file_created = FALSE;
 
 	srv_normalize_path_for_win(srv_log_group_home_dirs[k]);
-	srv_log_group_home_dirs[k] = srv_add_path_separator_if_needed
-		(srv_log_group_home_dirs[k]);
+	srv_log_group_home_dirs[k] = srv_add_path_separator_if_needed(
+		srv_log_group_home_dirs[k]);
 
 	ut_a(strlen(srv_log_group_home_dirs[k])
 	     < (sizeof name) - 10 - sizeof "ib_logfile");
@@ -796,17 +796,17 @@ open_or_create_data_files(
 			}
 
 			if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
-				files[i] = os_file_create
-					(name, OS_FILE_OPEN_RAW,
-					 OS_FILE_NORMAL, OS_DATA_FILE, &ret);
+				files[i] = os_file_create(
+					name, OS_FILE_OPEN_RAW,
+					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 			} else if (i == 0) {
-				files[i] = os_file_create
-					(name, OS_FILE_OPEN_RETRY,
-					 OS_FILE_NORMAL, OS_DATA_FILE, &ret);
+				files[i] = os_file_create(
+					name, OS_FILE_OPEN_RETRY,
+					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 			} else {
-				files[i] = os_file_create
-					(name, OS_FILE_OPEN,
-					 OS_FILE_NORMAL, OS_DATA_FILE, &ret);
+				files[i] = os_file_create(
+					name, OS_FILE_OPEN, OS_FILE_NORMAL,
+					OS_DATA_FILE, &ret);
 			}
 
 			if (!ret) {
@@ -876,12 +876,12 @@ open_or_create_data_files(
 				return(DB_ERROR);
 			}
 skip_size_check:
-			fil_read_flushed_lsn_and_arch_log_no
-				(files[i], one_opened,
+			fil_read_flushed_lsn_and_arch_log_no(
+				files[i], one_opened,
 #ifdef UNIV_LOG_ARCHIVE
-				 min_arch_log_no, max_arch_log_no,
+				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
-				 min_flushed_lsn, max_flushed_lsn);
+				min_flushed_lsn, max_flushed_lsn);
 			one_opened = TRUE;
 		} else {
 			/* We created the data file and now write it full of
@@ -915,10 +915,10 @@ skip_size_check:
 				"InnoDB: Database physically writes the"
 				" file full: wait...\n");
 
-			ret = os_file_set_size
-				(name, files[i],
-				 srv_calc_low32(srv_data_file_sizes[i]),
-				 srv_calc_high32(srv_data_file_sizes[i]));
+			ret = os_file_set_size(
+				name, files[i],
+				srv_calc_low32(srv_data_file_sizes[i]),
+				srv_calc_high32(srv_data_file_sizes[i]));
 
 			if (!ret) {
 				fprintf(stderr,
@@ -1163,7 +1163,7 @@ innobase_start_or_create_for_mysql(void)
 	maximum number of threads that can wait in the 'srv_conc array' for
 	their time to enter InnoDB. */
 
-#if defined(__WIN__) || defined(__NETWARE__)
+#if defined(__NETWARE__)
 
 	/* Create less event semaphores because Win 98/ME had
 	difficulty creating 40000 event semaphores.  Comment from
@@ -1198,9 +1198,9 @@ innobase_start_or_create_for_mysql(void)
 	mutex_create(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
 
 	if (srv_innodb_status) {
-		srv_monitor_file_name = mem_alloc
-			(strlen(fil_path_to_mysql_datadir)
-			 + 20 + sizeof "/innodb_status.");
+		srv_monitor_file_name = mem_alloc(
+			strlen(fil_path_to_mysql_datadir)
+			+ 20 + sizeof "/innodb_status.");
 		sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
 			fil_path_to_mysql_datadir, os_proc_get_number());
 		srv_monitor_file = fopen(srv_monitor_file_name, "w+");
@@ -1471,10 +1471,9 @@ innobase_start_or_create_for_mysql(void)
 		fprintf(stderr,
 			"InnoDB: Starting archive"
 			" recovery from a backup...\n");
-		err = recv_recovery_from_archive_start
-			(min_flushed_lsn,
-			 srv_archive_recovery_limit_lsn,
-			 min_arch_log_no);
+		err = recv_recovery_from_archive_start(
+			min_flushed_lsn, srv_archive_recovery_limit_lsn,
+			min_arch_log_no);
 		if (err != DB_SUCCESS) {
 
 			return(DB_ERROR);
@@ -1535,8 +1534,8 @@ innobase_start_or_create_for_mysql(void)
 			data dictionary tables. Does that harm the scanning of
 			the data dictionary below? */
 
-			dict_check_tablespaces_and_store_max_id
-				(recv_needed_recovery);
+			dict_check_tablespaces_and_store_max_id(
+				recv_needed_recovery);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;

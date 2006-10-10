@@ -284,8 +284,8 @@ trx_purge_add_update_undo_to_history(
 
 		hist_size = mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
 					   MLOG_4BYTES, mtr);
-		ut_ad(undo->size == flst_get_len
-		      (seg_header + TRX_UNDO_PAGE_LIST, mtr));
+		ut_ad(undo->size == flst_get_len(
+			      seg_header + TRX_UNDO_PAGE_LIST, mtr));
 
 		mlog_write_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
 				 hist_size + undo->size, MLOG_4BYTES, mtr);
@@ -454,8 +454,8 @@ trx_purge_truncate_rseg_history(
 
 	rseg_hdr = trx_rsegf_get(rseg->space, rseg->page_no, &mtr);
 
-	hdr_addr = trx_purge_get_log_from_hist
-		(flst_get_last(rseg_hdr + TRX_RSEG_HISTORY, &mtr));
+	hdr_addr = trx_purge_get_log_from_hist(
+		flst_get_last(rseg_hdr + TRX_RSEG_HISTORY, &mtr));
 loop:
 	if (hdr_addr.page == FIL_NULL) {
 
@@ -493,8 +493,8 @@ loop:
 		return;
 	}
 
-	prev_hdr_addr = trx_purge_get_log_from_hist
-		(flst_get_prev_addr(log_hdr + TRX_UNDO_HISTORY_NODE, &mtr));
+	prev_hdr_addr = trx_purge_get_log_from_hist(
+		flst_get_prev_addr(log_hdr + TRX_UNDO_HISTORY_NODE, &mtr));
 	n_removed_logs++;
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
@@ -633,8 +633,8 @@ trx_purge_rseg_get_next_history_log(
 
 	purge_sys->n_pages_handled++;
 
-	prev_log_addr = trx_purge_get_log_from_hist
-		(flst_get_prev_addr(log_hdr + TRX_UNDO_HISTORY_NODE, &mtr));
+	prev_log_addr = trx_purge_get_log_from_hist(
+		flst_get_prev_addr(log_hdr + TRX_UNDO_HISTORY_NODE, &mtr));
 	if (prev_log_addr.page == FIL_NULL) {
 		/* No logs left in the history list */
 
@@ -855,9 +855,9 @@ trx_purge_get_next_rec(
 						      purge_sys->hdr_page_no,
 						      purge_sys->hdr_offset);
 		if (next_rec == NULL) {
-			rec2 = trx_undo_get_next_rec
-				(rec2, purge_sys->hdr_page_no,
-				 purge_sys->hdr_offset, &mtr);
+			rec2 = trx_undo_get_next_rec(
+				rec2, purge_sys->hdr_page_no,
+				purge_sys->hdr_offset, &mtr);
 			break;
 		}
 

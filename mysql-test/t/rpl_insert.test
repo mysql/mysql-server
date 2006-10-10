@@ -1,7 +1,6 @@
-
-#
-# Bug#20821: INSERT DELAYED fails to write some rows to binlog
-#
+--echo #
+--echo # Bug#20821: INSERT DELAYED fails to write some rows to binlog
+--echo #
 
 --source include/master-slave.inc
 --source include/not_embedded.inc
@@ -35,7 +34,11 @@ SELECT COUNT(*) FROM mysqlslap.t1;
 sync_slave_with_master;
 SELECT COUNT(*) FROM mysqlslap.t1;
 
-connection master;
-DROP SCHEMA IF EXISTS mysqlslap;
-sync_slave_with_master;
+--echo #
+--echo # Cleanup
+--echo #
 
+connection master;
+USE test;
+DROP SCHEMA mysqlslap;
+sync_slave_with_master;

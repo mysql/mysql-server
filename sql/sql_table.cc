@@ -1628,12 +1628,12 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
          (!my_strcasecmp(system_charset_info, table->table_name, "slow_log")
           && opt_slow_log && logger.is_slow_log_table_enabled())))
     {
-      my_error(ER_CANT_DROP_LOG_TABLE, MYF(0));
+      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(1);
     }
   }
 
-  if (lock_table_names(thd, tables))
+  if (!drop_temporary && lock_table_names(thd, tables))
     DBUG_RETURN(1);
 
   /* Don't give warnings for not found errors, as we already generate notes */
@@ -1818,7 +1818,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     }
   }
 
-  unlock_table_names(thd, tables, (TABLE_LIST*) 0);
+  if (!drop_temporary)
+    unlock_table_names(thd, tables, (TABLE_LIST*) 0);
   thd->no_warnings_for_error= 0;
   DBUG_RETURN(error);
 }
@@ -3276,7 +3277,7 @@ bool mysql_create_table_internal(THD *thd,
         goto err;
       }
     }
-    if ((part_engine_type == &partition_hton) &&
+    if ((part_engine_type == partition_hton) &&
         part_info->default_engine_type)
     {
       /*
@@ -3319,7 +3320,7 @@ bool mysql_create_table_internal(THD *thd,
     part_info->part_info_len= syntax_len;
     if ((!(engine_type->partition_flags &&
            engine_type->partition_flags() & HA_CAN_PARTITION)) ||
-        create_info->db_type == &partition_hton)
+        create_info->db_type == partition_hton)
     {
       /*
         The handler assigned to the table cannot handle partitioning.
@@ -3328,7 +3329,7 @@ bool mysql_create_table_internal(THD *thd,
       DBUG_PRINT("info", ("db_type: %d",
                           ha_legacy_type(create_info->db_type)));
       delete file;
-      create_info->db_type= &partition_hton;
+      create_info->db_type= partition_hton;
       if (!(file= get_ha_partition(part_info)))
       {
         DBUG_RETURN(TRUE);
@@ -5179,7 +5180,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
        (table_kind == SLOW_LOG && opt_slow_log &&
          logger.is_slow_log_table_enabled()))
     {
-      my_error(ER_CANT_ALTER_LOG_TABLE, MYF(0));
+      my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
       DBUG_RETURN(TRUE);
     }
 
@@ -5187,10 +5188,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if ((table_kind == GENERAL_LOG || table_kind == SLOW_LOG) &&
         (lex_create_info->used_fields & HA_CREATE_USED_ENGINE) &&
         (!lex_create_info->db_type || /* unknown engine */
-        !(lex_create_info->db_type->db_type == DB_TYPE_MYISAM ||
-          lex_create_info->db_type->db_type == DB_TYPE_CSV_DB)))
+        !(lex_create_info->db_type->flags & HTON_SUPPORT_LOG_TABLES)))
     {
-      my_error(ER_BAD_LOG_ENGINE, MYF(0));
+      my_error(ER_UNSUPORTED_LOG_ENGINE, MYF(0));
       DBUG_RETURN(TRUE);
     }
   }
@@ -6779,7 +6779,7 @@ static bool check_engine(THD *thd, const char *table_name,
       *new_engine= 0;
       return TRUE;
     }
-    *new_engine= &myisam_hton;
+    *new_engine= myisam_hton;
   }
   return FALSE;
 }

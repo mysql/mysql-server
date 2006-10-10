@@ -45,7 +45,7 @@ class ha_example: public handler
   EXAMPLE_SHARE *share;    /* Shared lock info */
 
 public:
-  ha_example(TABLE_SHARE *table_arg);
+  ha_example(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_example()
   {
   }

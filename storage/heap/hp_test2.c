@@ -603,7 +603,7 @@ end:
   if (heap_close(file) || (file2 && heap_close(file2)))
     goto err;
   heap_delete_table(filename2);
-  heap_panic(HA_PANIC_CLOSE);
+  hp_panic(HA_PANIC_CLOSE);
   my_end(MY_GIVE_INFO);
   return(0);
 err:
@@ -669,7 +669,7 @@ static sig_handler endprog(int sig_number __attribute__((unused)))
   else
 #endif
   {
-    heap_panic(HA_PANIC_CLOSE);
+    hp_panic(HA_PANIC_CLOSE);
     my_end(1);
     exit(1);
   }

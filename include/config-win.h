@@ -25,7 +25,6 @@ functions */
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 /* Avoid endless warnings about sprintf() etc. being unsafe. */
 #define _CRT_SECURE_NO_DEPRECATE 1
-#define _USE_32BIT_TIME_T 1          /* force time_t to be 32 bit */
 #endif
 
 #include <sys/locking.h>

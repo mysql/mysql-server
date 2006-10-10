@@ -13,6 +13,7 @@ connect (con2,localhost,root,,);
 
 flush status;
 show status like 'Table_lock%';
+select * from information_schema.session_status where variable_name like 'Table_lock%';
 connection con1;
 SET SQL_LOG_BIN=0;
 --disable_warnings
@@ -34,6 +35,7 @@ unlock tables;
 connection con1;
 reap;
 show status like 'Table_lock%';
+select * from information_schema.session_status where variable_name like 'Table_lock%';
 drop table t1;
 
 disconnect con2;
@@ -102,6 +104,7 @@ while ($wait_more)
 
 # Prerequisite.
 SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
 
 # Save original setting.
 SET @save_thread_cache_size=@@thread_cache_size;
@@ -115,6 +118,7 @@ disconnect con2;
 
 # Check that max_used_connections still reflects maximum value.
 SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
 
 # Check that after flush max_used_connections equals to current number
 # of connections.  First wait for previous disconnect to finish.
@@ -138,15 +142,18 @@ while ($wait_more)
 --enable_result_log
 # Check that we don't count disconnected thread any longer.
 SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
 
 # Check that max_used_connections is updated when cached thread is
 # reused...
 connect (con2,localhost,root,,);
 SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
 
 # ...and when new thread is created.
 connect (con3,localhost,root,,);
 SHOW STATUS LIKE 'max_used_connections';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
 
 # Restore original setting.
 connection default;

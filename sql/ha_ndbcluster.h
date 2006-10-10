@@ -627,7 +627,7 @@ class Thd_ndb
 class ha_ndbcluster: public handler
 {
  public:
-  ha_ndbcluster(TABLE_SHARE *table);
+  ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
 
   int ha_initialise();

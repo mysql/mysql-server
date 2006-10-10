@@ -1,4 +1,4 @@
--- require r/have_innodb.require
 disable_query_log;
-show variables like "have_innodb";
+--require r/true.require
+select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'innodb';
 enable_query_log;

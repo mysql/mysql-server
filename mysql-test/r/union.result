@@ -1284,9 +1284,65 @@ create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
+  `left(a,100000000)` mediumtext
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop tables t1,t2,t3;
+CREATE TABLE t1 (a longtext);
+CREATE TABLE t2 (b varchar(20));
+INSERT INTO t1 VALUES ('a'),('b');
+SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+left(a,100000000)
+a
+b
+create table t3 SELECT left(a,100000000) FROM t1 UNION  SELECT b FROM t2;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
   `left(a,100000000)` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop tables t1,t2,t3;
+SELECT @tmp_max:= @@max_allowed_packet;
+@tmp_max:= @@max_allowed_packet
+1048576
+SET max_allowed_packet=25000000;
+CREATE TABLE t1 (a mediumtext);
+CREATE TABLE t2 (b varchar(20));
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,20000000) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` longtext
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLES t1,t3;
+CREATE TABLE t1 (a tinytext);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` varchar(510) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLES t1,t3;
+CREATE TABLE t1 (a mediumtext);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` longtext
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLES t1,t3;
+CREATE TABLE t1 (a tinyblob);
+INSERT INTO t1 VALUES ('a');
+CREATE TABLE t3 SELECT REPEAT(a,2) AS a FROM t1 UNION SELECT b FROM t2;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` varbinary(510) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLES t1,t2,t3;
+SET max_allowed_packet:= @tmp_max;
 create table t1 ( id int not null auto_increment, primary key (id), col1 int);
 insert into t1 (col1) values (2),(3),(4),(5),(6);
 select 99 union all select id from t1 order by 1;
@@ -1365,7 +1421,7 @@ drop table t1, t2;
 (select avg(1)) union (select avg(1)) union (select avg(1)) union
 (select avg(1)) union (select avg(1)) union (select avg(1));
 avg(1)
-NULL
+1.0000
 select _utf8'12' union select _latin1'12345';
 12
 12
