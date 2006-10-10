@@ -1365,6 +1365,10 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
     Also SELECT::exclude_from_table_unique_test used to exclude from check
     tables of main SELECT of multi-delete and multi-update
 
+    We also skip tables with TABLE_LIST::prelocking_placeholder set,
+    because we want to allow SELECTs from them, and their modification
+    will rise the error anyway.
+
     TODO: when we will have table/view change detection we can do this check
           only once for PS/SP
 
@@ -1411,12 +1415,13 @@ TABLE_LIST* unique_table(THD *thd, TABLE_LIST *table, TABLE_LIST *table_list)
     if (((! (res= find_table_in_global_list(table_list, d_name, t_name))) &&
          (! (res= mysql_lock_have_duplicate(thd, table, table_list)))) ||
         ((!res->table || res->table != table->table) &&
-         res->select_lex && !res->select_lex->exclude_from_table_unique_test))
+         res->select_lex && !res->select_lex->exclude_from_table_unique_test &&
+         !res->prelocking_placeholder))
       break;
     /*
-      If we found entry of this table or or table of SELECT which already
+      If we found entry of this table or table of SELECT which already
       processed in derived table or top select of multi-update/multi-delete
-      (exclude_from_table_unique_test).
+      (exclude_from_table_unique_test) or prelocking placeholder.
     */
     table_list= res->next_global;
     DBUG_PRINT("info",
