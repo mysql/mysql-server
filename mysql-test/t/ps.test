@@ -1447,13 +1447,15 @@ create procedure proc_1() reset query cache;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin reset query cache; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "reset query cache";
 execute abc;
 execute abc;
@@ -1462,13 +1464,15 @@ deallocate prepare abc;
 
 
 create procedure proc_1() reset master;
-drop procedure proc_1;
 delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin reset master; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "reset master";
 execute abc;
 execute abc;
@@ -1480,13 +1484,15 @@ create procedure proc_1() reset slave;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin reset slave; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "reset slave";
 execute abc;
 execute abc;
@@ -1527,15 +1533,15 @@ call proc_1();
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush hosts; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush hosts";
 execute abc;
 execute abc;
@@ -1547,15 +1553,15 @@ create procedure proc_1() flush privileges;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush privileges; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush privileges";
 deallocate prepare abc;
 
@@ -1567,11 +1573,15 @@ call proc_1();
 unlock tables;
 call proc_1();
 unlock tables;
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush tables with read lock; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
+select func_1(), func_1(), func_1() from dual;
+drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush tables with read lock";
 execute abc;
 execute abc;
@@ -1584,15 +1594,15 @@ create procedure proc_1() flush tables;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush tables; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush tables";
 execute abc;
 execute abc;
@@ -1622,15 +1632,15 @@ select Host, User from mysql.user limit 0;
 select Host, Db from mysql.host limit 0;
 show open tables from mysql;
 flush tables;
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush tables; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 flush tables;
 select Host, User from mysql.user limit 0;
 select Host, Db from mysql.host limit 0;
@@ -1659,15 +1669,15 @@ create procedure proc_1() flush logs;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush logs; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush logs";
 execute abc;
 execute abc;
@@ -1679,15 +1689,15 @@ create procedure proc_1() flush status;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush status; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush status";
 execute abc;
 execute abc;
@@ -1699,15 +1709,15 @@ create procedure proc_1() flush slave;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush slave; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush slave";
 execute abc;
 execute abc;
@@ -1716,15 +1726,15 @@ deallocate prepare abc;
 
 
 create procedure proc_1() flush master;
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush master; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush master";
 deallocate prepare abc;
 
@@ -1733,15 +1743,15 @@ create procedure proc_1() flush des_key_file;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush des_key_file; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush des_key_file";
 execute abc;
 execute abc;
@@ -1753,15 +1763,15 @@ create procedure proc_1() flush user_resources;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 delimiter |;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin flush user_resources; return 1; end|
+create function func_1() returns int begin call proc_1(); return 1; end|
 delimiter ;|
---error ER_SP_DOES_NOT_EXIST
+--error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush user_resources";
 execute abc;
 execute abc;
@@ -1862,22 +1872,6 @@ prepare abc from "show events";
 execute abc;
 execute abc;
 execute abc;
-deallocate prepare abc;
-
-
-create procedure proc_1() show scheduler status;
-drop procedure proc_1;
-delimiter |;
---error ER_SP_NO_RETSET
-create function func_1() returns int begin show scheduler status; return 1; end|
-delimiter ;|
---error ER_SP_DOES_NOT_EXIST
-select func_1(), func_1(), func_1() from dual;
---error ER_SP_DOES_NOT_EXIST
-drop function func_1;
---error ER_UNSUPPORTED_PS
-prepare abc from "show scheduler status";
---error ER_UNKNOWN_STMT_HANDLER
 deallocate prepare abc;
 
 
@@ -1997,10 +1991,13 @@ call proc_1();
 call proc_1();
 drop procedure proc_1;
 create procedure proc_1() install plugin my_plug soname 'some_plugin.so';
+--replace_regex / \'.*\'/ PATH_TO_SO/
 --error ER_CANT_OPEN_LIBRARY
 call proc_1();
+--replace_regex / \'.*\'/ PATH_TO_SO/
 --error ER_CANT_OPEN_LIBRARY
 call proc_1();
+--replace_regex / \'.*\'/ PATH_TO_SO/
 --error ER_CANT_OPEN_LIBRARY
 call proc_1();
 drop procedure proc_1;
@@ -2150,7 +2147,7 @@ drop event if exists xyz;
 #drop event xyz;
 #drop procedure proc_1;
 delimiter |;
---error ER_SP_NO_RETSET
+--error ER_EVENT_RECURSIVITY_FORBIDDEN
 create function func_1() returns int begin create event xyz on schedule at now() do select 123; return 1; end|
 delimiter ;|
 --error ER_SP_DOES_NOT_EXIST

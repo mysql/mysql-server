@@ -499,54 +499,6 @@ create temporary table if not exists t1 (a1 int);
 execute stmt;
 drop temporary table t1;
 deallocate prepare stmt;
-CREATE TABLE t1(
-ID int(10) unsigned NOT NULL auto_increment,
-Member_ID varchar(15) NOT NULL default '',
-Action varchar(12) NOT NULL,
-Action_Date datetime NOT NULL,
-Track varchar(15) default NULL,
-User varchar(12) default NULL,
-Date_Updated timestamp NOT NULL default CURRENT_TIMESTAMP on update
-CURRENT_TIMESTAMP,
-PRIMARY KEY (ID),
-KEY Action (Action),
-KEY Action_Date (Action_Date)
-);
-INSERT INTO t1(Member_ID, Action, Action_Date, Track) VALUES
-('111111', 'Disenrolled', '2006-03-01', 'CAD' ),
-('111111', 'Enrolled', '2006-03-01', 'CAD' ),
-('111111', 'Disenrolled', '2006-07-03', 'CAD' ),
-('222222', 'Enrolled', '2006-03-07', 'CAD' ),
-('222222', 'Enrolled', '2006-03-07', 'CHF' ),
-('222222', 'Disenrolled', '2006-08-02', 'CHF' ),
-('333333', 'Enrolled', '2006-03-01', 'CAD' ),
-('333333', 'Disenrolled', '2006-03-01', 'CAD' ),
-('444444', 'Enrolled', '2006-03-01', 'CAD' ),
-('555555', 'Disenrolled', '2006-03-01', 'CAD' ),
-('555555', 'Enrolled', '2006-07-21', 'CAD' ),
-('555555', 'Disenrolled', '2006-03-01', 'CHF' ),
-('666666', 'Enrolled', '2006-02-09', 'CAD' ),
-('666666', 'Enrolled', '2006-05-12', 'CHF' ),
-('666666', 'Disenrolled', '2006-06-01', 'CAD' );
-PREPARE STMT FROM
-"SELECT GROUP_CONCAT(Track SEPARATOR ', ') FROM t1
-  WHERE Member_ID=? AND Action='Enrolled' AND
-        (Track,Action_Date) IN (SELECT Track, MAX(Action_Date) FROM t1
-                                  WHERE Member_ID=?
-                                    GROUP BY Track 
-                                      HAVING Track>='CAD' AND
-                                             MAX(Action_Date)>'2006-03-01')";
-SET @id='111111';
-EXECUTE STMT USING @id,@id;
-GROUP_CONCAT(Track SEPARATOR ', ')
-NULL
-SET @id='222222';
-EXECUTE STMT USING @id,@id;
-GROUP_CONCAT(Track SEPARATOR ', ')
-CAD
-DEALLOCATE PREPARE STMT;
-DROP TABLE t1;
-End of 4.1 tests
 create table t1 (a varchar(20));
 insert into t1 values ('foo');
 prepare stmt FROM 'SELECT char_length (a) FROM t1';
@@ -564,77 +516,6 @@ SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
 deallocate prepare stmt;
-create table t1 (a char(3) not null, b char(3) not null,
-c char(3) not null, primary key  (a, b, c));
-create table t2 like t1;
-prepare stmt from
-"select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
-  where t1.a=1";
-execute stmt;
-a
-execute stmt;
-a
-execute stmt;
-a
-prepare stmt from
-"select t1.a, t1.b, t1.c, t2.a, t2.b, t2.c from
-(t1 left outer join t2 on t2.a=? and t1.b=t2.b)
-left outer join t2 t3 on t3.a=? where t1.a=?";
-set @a:=1, @b:=1, @c:=1;
-execute stmt using @a, @b, @c;
-a	b	c	a	b	c
-execute stmt using @a, @b, @c;
-a	b	c	a	b	c
-execute stmt using @a, @b, @c;
-a	b	c	a	b	c
-deallocate prepare stmt;
-drop table t1,t2;
-SET @aux= "SELECT COUNT(*)
-                FROM INFORMATION_SCHEMA.COLUMNS A,
-                INFORMATION_SCHEMA.COLUMNS B
-                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
-                AND A.TABLE_NAME = B.TABLE_NAME
-                AND A.COLUMN_NAME = B.COLUMN_NAME AND
-                A.TABLE_NAME = 'user'";
-prepare my_stmt from @aux;
-execute my_stmt;
-COUNT(*)
-39
-execute my_stmt;
-COUNT(*)
-39
-execute my_stmt;
-COUNT(*)
-39
-deallocate prepare my_stmt;
-drop procedure if exists p1|
-drop table if exists t1|
-create table t1 (id int)|
-insert into t1 values(1)|
-create procedure p1(a int, b int)
-begin
-declare c int;
-select max(id)+1 into c from t1;
-insert into t1 select a+b;
-insert into t1 select a-b;
-insert into t1 select a-c;
-end|
-set @a= 3, @b= 4|
-prepare stmt from "call p1(?, ?)"|
-execute stmt using @a, @b|
-execute stmt using @a, @b|
-select * from t1|
-id
-1
-7
--1
-1
-7
--1
--5
-deallocate prepare stmt|
-drop procedure p1|
-drop table t1|
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
@@ -698,47 +579,6 @@ id
 3
 deallocate prepare stmt;
 drop table t1, t2;
-create table t1 (a int);
-insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
-prepare stmt from "select * from t1 limit ?, ?";
-set @offset=0, @limit=1;
-execute stmt using @offset, @limit;
-a
-1
-select * from t1 limit 0, 1;
-a
-1
-set @offset=3, @limit=2;
-execute stmt using @offset, @limit;
-a
-4
-5
-select * from t1 limit 3, 2;
-a
-4
-5
-prepare stmt from "select * from t1 limit ?";
-execute stmt using @limit;
-a
-1
-2
-prepare stmt from "select * from t1 where a in (select a from t1 limit ?)";
-ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
-prepare stmt from "select * from t1 union all select * from t1 limit ?, ?";
-set @offset=9;
-set @limit=2;
-execute stmt using @offset, @limit;
-a
-10
-1
-prepare stmt from "(select * from t1 limit ?, ?) union all
-                   (select * from t1 limit ?, ?) order by a limit ?";
-execute stmt using @offset, @limit, @offset, @limit, @limit;
-a
-10
-10
-drop table t1;
-deallocate prepare stmt;
 create table t1 (id int);
 prepare stmt from "insert into t1 (id) select id from t1 union select id from t1";
 execute stmt;
@@ -839,15 +679,6 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 select ? from t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? from t1' at line 1
 drop table t1;
-CREATE TABLE b12651_T1(a int) ENGINE=MYISAM;
-CREATE TABLE b12651_T2(b int) ENGINE=MYISAM;
-CREATE VIEW  b12651_V1 as SELECT b FROM b12651_T2;
-PREPARE b12651 FROM 'SELECT 1 FROM b12651_T1 WHERE a IN (SELECT b FROM b12651_V1)';
-EXECUTE b12651;
-1
-DROP VIEW b12651_V1;
-DROP TABLE b12651_T1, b12651_T2;
-DEALLOCATE PREPARE b12651;
 prepare stmt from "select @@time_zone";
 execute stmt;
 @@time_zone
@@ -1064,6 +895,194 @@ select @@max_prepared_stmt_count, @@prepared_stmt_count;
 @@max_prepared_stmt_count	@@prepared_stmt_count
 3	0
 set global max_prepared_stmt_count= @old_max_prepared_stmt_count;
+drop table if exists t1;
+create temporary table if not exists t1 (a1 int);
+prepare stmt from "delete t1 from t1 where (cast(a1/3 as unsigned) * 3) = a1";
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+create temporary table if not exists t1 (a1 int);
+execute stmt;
+drop temporary table t1;
+deallocate prepare stmt;
+CREATE TABLE t1(
+ID int(10) unsigned NOT NULL auto_increment,
+Member_ID varchar(15) NOT NULL default '',
+Action varchar(12) NOT NULL,
+Action_Date datetime NOT NULL,
+Track varchar(15) default NULL,
+User varchar(12) default NULL,
+Date_Updated timestamp NOT NULL default CURRENT_TIMESTAMP on update
+CURRENT_TIMESTAMP,
+PRIMARY KEY (ID),
+KEY Action (Action),
+KEY Action_Date (Action_Date)
+);
+INSERT INTO t1(Member_ID, Action, Action_Date, Track) VALUES
+('111111', 'Disenrolled', '2006-03-01', 'CAD' ),
+('111111', 'Enrolled', '2006-03-01', 'CAD' ),
+('111111', 'Disenrolled', '2006-07-03', 'CAD' ),
+('222222', 'Enrolled', '2006-03-07', 'CAD' ),
+('222222', 'Enrolled', '2006-03-07', 'CHF' ),
+('222222', 'Disenrolled', '2006-08-02', 'CHF' ),
+('333333', 'Enrolled', '2006-03-01', 'CAD' ),
+('333333', 'Disenrolled', '2006-03-01', 'CAD' ),
+('444444', 'Enrolled', '2006-03-01', 'CAD' ),
+('555555', 'Disenrolled', '2006-03-01', 'CAD' ),
+('555555', 'Enrolled', '2006-07-21', 'CAD' ),
+('555555', 'Disenrolled', '2006-03-01', 'CHF' ),
+('666666', 'Enrolled', '2006-02-09', 'CAD' ),
+('666666', 'Enrolled', '2006-05-12', 'CHF' ),
+('666666', 'Disenrolled', '2006-06-01', 'CAD' );
+PREPARE STMT FROM
+"SELECT GROUP_CONCAT(Track SEPARATOR ', ') FROM t1
+  WHERE Member_ID=? AND Action='Enrolled' AND
+        (Track,Action_Date) IN (SELECT Track, MAX(Action_Date) FROM t1
+                                  WHERE Member_ID=?
+                                    GROUP BY Track 
+                                      HAVING Track>='CAD' AND
+                                             MAX(Action_Date)>'2006-03-01')";
+SET @id='111111';
+EXECUTE STMT USING @id,@id;
+GROUP_CONCAT(Track SEPARATOR ', ')
+NULL
+SET @id='222222';
+EXECUTE STMT USING @id,@id;
+GROUP_CONCAT(Track SEPARATOR ', ')
+CAD
+DEALLOCATE PREPARE STMT;
+DROP TABLE t1;
+End of 4.1 tests
+create table t1 (a varchar(20));
+insert into t1 values ('foo');
+prepare stmt FROM 'SELECT char_length (a) FROM t1';
+ERROR 42000: FUNCTION test.char_length does not exist
+drop table t1;
+create table t1 (a char(3) not null, b char(3) not null,
+c char(3) not null, primary key  (a, b, c));
+create table t2 like t1;
+prepare stmt from
+"select t1.a from (t1 left outer join t2 on t2.a=1 and t1.b=t2.b)
+  where t1.a=1";
+execute stmt;
+a
+execute stmt;
+a
+execute stmt;
+a
+prepare stmt from
+"select t1.a, t1.b, t1.c, t2.a, t2.b, t2.c from
+(t1 left outer join t2 on t2.a=? and t1.b=t2.b)
+left outer join t2 t3 on t3.a=? where t1.a=?";
+set @a:=1, @b:=1, @c:=1;
+execute stmt using @a, @b, @c;
+a	b	c	a	b	c
+execute stmt using @a, @b, @c;
+a	b	c	a	b	c
+execute stmt using @a, @b, @c;
+a	b	c	a	b	c
+deallocate prepare stmt;
+drop table t1,t2;
+SET @aux= "SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS A,
+                INFORMATION_SCHEMA.COLUMNS B
+                WHERE A.TABLE_SCHEMA = B.TABLE_SCHEMA
+                AND A.TABLE_NAME = B.TABLE_NAME
+                AND A.COLUMN_NAME = B.COLUMN_NAME AND
+                A.TABLE_NAME = 'user'";
+prepare my_stmt from @aux;
+execute my_stmt;
+COUNT(*)
+39
+execute my_stmt;
+COUNT(*)
+39
+execute my_stmt;
+COUNT(*)
+39
+deallocate prepare my_stmt;
+drop procedure if exists p1|
+drop table if exists t1|
+create table t1 (id int)|
+insert into t1 values(1)|
+create procedure p1(a int, b int)
+begin
+declare c int;
+select max(id)+1 into c from t1;
+insert into t1 select a+b;
+insert into t1 select a-b;
+insert into t1 select a-c;
+end|
+set @a= 3, @b= 4|
+prepare stmt from "call p1(?, ?)"|
+execute stmt using @a, @b|
+execute stmt using @a, @b|
+select * from t1|
+id
+1
+7
+-1
+1
+7
+-1
+-5
+deallocate prepare stmt|
+drop procedure p1|
+drop table t1|
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+prepare stmt from "select * from t1 limit ?, ?";
+set @offset=0, @limit=1;
+execute stmt using @offset, @limit;
+a
+1
+select * from t1 limit 0, 1;
+a
+1
+set @offset=3, @limit=2;
+execute stmt using @offset, @limit;
+a
+4
+5
+select * from t1 limit 3, 2;
+a
+4
+5
+prepare stmt from "select * from t1 limit ?";
+execute stmt using @limit;
+a
+1
+2
+prepare stmt from "select * from t1 where a in (select a from t1 limit ?)";
+ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
+prepare stmt from "select * from t1 union all select * from t1 limit ?, ?";
+set @offset=9;
+set @limit=2;
+execute stmt using @offset, @limit;
+a
+10
+1
+prepare stmt from "(select * from t1 limit ?, ?) union all
+                   (select * from t1 limit ?, ?) order by a limit ?";
+execute stmt using @offset, @limit, @offset, @limit, @limit;
+a
+10
+10
+drop table t1;
+deallocate prepare stmt;
+CREATE TABLE b12651_T1(a int) ENGINE=MYISAM;
+CREATE TABLE b12651_T2(b int) ENGINE=MYISAM;
+CREATE VIEW  b12651_V1 as SELECT b FROM b12651_T2;
+PREPARE b12651 FROM 'SELECT 1 FROM b12651_T1 WHERE a IN (SELECT b FROM b12651_V1)';
+EXECUTE b12651;
+1
+DROP VIEW b12651_V1;
+DROP TABLE b12651_T1, b12651_T2;
+DEALLOCATE PREPARE b12651;
 create table t1 (id int);
 prepare ins_call from "insert into t1 (id) values (1)";
 execute ins_call;
@@ -1365,22 +1384,26 @@ create procedure proc_1() reset query cache;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin reset query cache; return 1; end|
+ERROR 0A000: RESET is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
+ERROR 0A000: RESET is not allowed in stored function or trigger
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "reset query cache";
 execute abc;
 execute abc;
 execute abc;
 deallocate prepare abc;
 create procedure proc_1() reset master;
-drop procedure proc_1;
 create function func_1() returns int begin reset master; return 1; end|
+ERROR 0A000: RESET is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
+ERROR 0A000: RESET is not allowed in stored function or trigger
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "reset master";
 execute abc;
 execute abc;
@@ -1390,11 +1413,13 @@ create procedure proc_1() reset slave;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin reset slave; return 1; end|
+ERROR 0A000: RESET is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
+ERROR 0A000: RESET is not allowed in stored function or trigger
 drop function func_1;
+drop procedure proc_1;
 prepare abc from "reset slave";
 execute abc;
 execute abc;
@@ -1429,13 +1454,13 @@ call proc_1();
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin flush hosts; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 prepare abc from "flush hosts";
 execute abc;
 execute abc;
@@ -1445,13 +1470,13 @@ create procedure proc_1() flush privileges;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin flush privileges; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 prepare abc from "flush privileges";
 deallocate prepare abc;
 create procedure proc_1() flush tables with read lock;
@@ -1461,9 +1486,13 @@ call proc_1();
 unlock tables;
 call proc_1();
 unlock tables;
-drop procedure proc_1;
 create function func_1() returns int begin flush tables with read lock; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
+select func_1(), func_1(), func_1() from dual;
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
+drop function func_1;
+drop procedure proc_1;
 prepare abc from "flush tables with read lock";
 execute abc;
 execute abc;
@@ -1474,13 +1503,13 @@ create procedure proc_1() flush tables;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin flush tables; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 prepare abc from "flush tables";
 execute abc;
 execute abc;
@@ -1540,13 +1569,13 @@ mysql	user	0	0
 mysql	general_log	1	0
 mysql	host	0	0
 flush tables;
-drop procedure proc_1;
 create function func_1() returns int begin flush tables; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 flush tables;
 select Host, User from mysql.user limit 0;
 Host	User
@@ -1603,13 +1632,13 @@ create procedure proc_1() flush logs;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin flush logs; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 prepare abc from "flush logs";
 execute abc;
 execute abc;
@@ -1619,13 +1648,13 @@ create procedure proc_1() flush status;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin flush status; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 prepare abc from "flush status";
 execute abc;
 execute abc;
@@ -1635,39 +1664,39 @@ create procedure proc_1() flush slave;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin flush slave; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 prepare abc from "flush slave";
 execute abc;
 execute abc;
 execute abc;
 deallocate prepare abc;
 create procedure proc_1() flush master;
-drop procedure proc_1;
 create function func_1() returns int begin flush master; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 prepare abc from "flush master";
 deallocate prepare abc;
 create procedure proc_1() flush des_key_file;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin flush des_key_file; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 prepare abc from "flush des_key_file";
 execute abc;
 execute abc;
@@ -1677,13 +1706,13 @@ create procedure proc_1() flush user_resources;
 call proc_1();
 call proc_1();
 call proc_1();
-drop procedure proc_1;
 create function func_1() returns int begin flush user_resources; return 1; end|
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
+create function func_1() returns int begin call proc_1(); return 1; end|
 select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
+ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
+drop procedure proc_1;
 prepare abc from "flush user_resources";
 execute abc;
 execute abc;
@@ -1763,18 +1792,6 @@ Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 execute abc;
 Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 deallocate prepare abc;
-create procedure proc_1() show scheduler status;
-drop procedure proc_1;
-create function func_1() returns int begin show scheduler status; return 1; end|
-ERROR 0A000: Not allowed to return a result set from a function
-select func_1(), func_1(), func_1() from dual;
-ERROR 42000: FUNCTION test.func_1 does not exist
-drop function func_1;
-ERROR 42000: FUNCTION test.func_1 does not exist
-prepare abc from "show scheduler status";
-ERROR HY000: This command is not supported in the prepared statement protocol yet
-deallocate prepare abc;
-ERROR HY000: Unknown prepared statement handler (abc) given to DEALLOCATE PREPARE
 drop procedure if exists a;
 create procedure a() select 42;
 create procedure proc_1(a char(2)) show create procedure a;
@@ -1952,11 +1969,11 @@ ERROR HY000: No paths allowed for shared library
 drop procedure proc_1;
 create procedure proc_1() install plugin my_plug soname 'some_plugin.so';
 call proc_1();
-ERROR HY000: Can't open shared library '/work/mysql-5.1-runtime/mysql-test/lib/mysql/some_plugin.so' (errno: 0 cannot open shared object file: No such file or directory)
+ERROR HY000: Can't open shared library PATH_TO_SO (errno: 0 cannot open shared object file: No such file or directory)
 call proc_1();
-ERROR HY000: Can't open shared library '/work/mysql-5.1-runtime/mysql-test/lib/mysql/some_plugin.so' (errno: 22 cannot open shared object file: No such file or directory)
+ERROR HY000: Can't open shared library PATH_TO_SO (errno: 22 cannot open shared object file: No such file or directory)
 call proc_1();
-ERROR HY000: Can't open shared library '/work/mysql-5.1-runtime/mysql-test/lib/mysql/some_plugin.so' (errno: 22 cannot open shared object file: No such file or directory)
+ERROR HY000: Can't open shared library PATH_TO_SO (errno: 22 cannot open shared object file: No such file or directory)
 drop procedure proc_1;
 create function func_1() returns int begin install plugin my_plug soname '/tmp/plugin'; return 1; end|
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
@@ -2086,7 +2103,7 @@ drop user pstest_xyz@localhost;
 deallocate prepare abc;
 drop event if exists xyz;
 create function func_1() returns int begin create event xyz on schedule at now() do select 123; return 1; end|
-ERROR 0A000: Not allowed to return a result set from a function
+ERROR HY000: Recursivity of EVENT DDL statements is forbidden when body is present
 select func_1(), func_1(), func_1() from dual;
 ERROR 42000: FUNCTION test.func_1 does not exist
 drop function func_1;
