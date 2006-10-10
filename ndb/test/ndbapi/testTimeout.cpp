@@ -537,9 +537,9 @@ TESTCASE("BuddyTransNoTimeout5",
 TESTCASE("BuddyTransTimeout1", 
 	 "Start a scan and check that it gets aborted"){
   INITIALIZER(runLoadTable);
-  //INITIALIZER(setTransactionTimeout);
+  INITIALIZER(setTransactionTimeout);
   STEPS(runBuddyTransTimeout, 1);
-  //FINALIZER(resetTransactionTimeout);
+  FINALIZER(resetTransactionTimeout);
   FINALIZER(runClearTable);
 }
 #if 0
