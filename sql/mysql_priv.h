@@ -150,7 +150,7 @@ MY_LOCALE *my_locale_by_name(const char *name);
  Feel free to raise this by the smallest amount you can to get the
  "execution_constants" test to pass.
  */
-#define STACK_MIN_SIZE		9336	// Abort if less stack during eval.  
+#define STACK_MIN_SIZE          10788   // Abort if less stack during eval.
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 #define STACK_BUFF_ALLOC	256	// For stack overrun checks
