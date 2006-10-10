@@ -2381,19 +2381,19 @@ int Format_description_log_event::exec_event(struct st_relay_log_info* rli)
   if (server_id == (uint32) ::server_id)
   {
     /*
-      Do not modify rli->group_master_log_pos, as this event did not exist on
-      the master. That is, just update the *relay log* coordinates; this is
-      done by passing log_pos=0 to inc_group_relay_log_pos, like we do in
-      Stop_log_event::exec_event().
-      If in a transaction, don't touch group_* coordinates.
-    */
-    if (thd->options & OPTION_BEGIN)
-      rli->inc_event_relay_log_pos();
-    else
-    {
-      rli->inc_group_relay_log_pos(0);
-      flush_relay_log_info(rli);
-    }
+      We only increase the relay log position if we are skipping
+      events and do not touch any group_* variables, nor flush the
+      relay log info.  If there is a crash, we will have to re-skip
+      the events again, but that is a minor issue.
+
+      If we do not skip stepping the group log position (and the
+      server id was changed when restarting the server), it might well
+      be that we start executing at a position that is invalid, e.g.,
+      at a Rows_log_event or a Query_log_event preceeded by a
+      Intvar_log_event instead of starting at a Table_map_log_event or
+      the Intvar_log_event respectively.
+     */
+    rli->inc_event_relay_log_pos();
     DBUG_RETURN(0);
   }
 
