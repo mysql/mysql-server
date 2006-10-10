@@ -2509,9 +2509,14 @@ print_table_data_xml(MYSQL_RES *result)
     {
       tee_fprintf(PAGER, "\t<field name=\"");
       xmlencode_print(fields[i].name, (uint) strlen(fields[i].name));
-      tee_fprintf(PAGER, "\">");
-      xmlencode_print(cur[i], lengths[i]);
-      tee_fprintf(PAGER, "</field>\n");
+      if (cur[i])
+      {
+        tee_fprintf(PAGER, "\">");
+        xmlencode_print(cur[i], lengths[i]);
+        tee_fprintf(PAGER, "</field>\n");
+      }
+      else
+        tee_fprintf(PAGER, "\" xsi:nil=\"true\" />\n");
     }
     (void) tee_fputs("  </row>\n", PAGER);
   }
