@@ -89,8 +89,18 @@ bin-dist:		all
 	$(top_builddir)/scripts/make_binary_distribution @MAKE_BINARY_DISTRIBUTION_OPTIONS@
 
 # Remove BK's "SCCS" subdirectories from source distribution
+# Create initial database files for Windows installations.
 dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
+	if echo "$(distdir)" | grep -q '^/' ; then \
+	  scripts/mysql_install_db --no-defaults --windows \
+		--basedir=$(top_srcdir) \
+		--datadir="$(distdir)/win/data"; \
+	else \
+	  scripts/mysql_install_db --no-defaults --windows \
+		 --basedir=$(top_srcdir) \
+		 --datadir="$$(pwd)/$(distdir)/win/data"; \
+	fi
 
 tags:
 	support-files/build-tags
