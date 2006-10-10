@@ -1,0 +1,430 @@
+# include/mix1.inc
+#
+# The variables
+#     $engine_type       -- storage engine to be tested
+#     $other_engine_type -- storage engine <> $engine_type
+#                           $other_engine_type must point to an all
+#                           time available storage engine
+#                              2006-08 MySQL 5.1 MyISAM and MEMORY only
+#    $test_foreign_keys -- 0, skip foreign key tests
+#                       -- 1, do not skip foreign key tests
+# have to be set before sourcing this script.
+#
+# Note: The comments/expectations refer to InnoDB.
+#       They might be not valid for other storage engines.
+#
+# Last update:
+# 2006-08-15 ML refactoring of t/innodb_mysql.test
+#               - shift main code of t/innodb_mysql.test to include/mix1.inc
+#               - replace hardcoded assignment of storage engine by
+#                 use of $engine_type and $other_engine_type variables
+#               - remove redundant replay testcase of
+#                 Bug#12882 min/max inconsistent on empty table
+#               - corrected analyze table t1; to analyze table t4;
+#                 Much older versions of this test show that the table
+#                 where just some indexes have been created must be used.
+#
+
+eval SET SESSION STORAGE_ENGINE = $engine_type;
+
+--disable_warnings
+drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
+--enable_warnings
+
+#
+# Bug#17530: Incorrect key truncation on table creation caused server crash.
+#
+create table t1(f1 varchar(800) binary not null, key(f1))
+  character set utf8 collate utf8_general_ci;
+insert into t1 values('aaa');
+drop table t1;
+
+# BUG#16798: Uninitialized row buffer reads in ref-or-null optimizer
+# (repeatable only w/innodb).
+create table t1 (
+  c_id int(11) not null default '0',
+  org_id int(11) default null,
+  unique key contacts$c_id (c_id),
+  key contacts$org_id (org_id)
+);
+insert into t1 values
+  (2,null),(120,null),(141,null),(218,7), (128,1),
+  (151,2),(234,2),(236,2),(243,2),(255,2),(259,2),(232,3),(235,3),(238,3),
+  (246,3),(253,3),(269,3),(285,3),(291,3),(293,3),(131,4),(230,4),(231,4);
+
+create table t2 (
+  slai_id int(11) not null default '0',
+  owner_tbl int(11) default null,
+  owner_id int(11) default null,
+  sla_id int(11) default null,
+  inc_web int(11) default null,
+  inc_email int(11) default null,
+  inc_chat int(11) default null,
+  inc_csr int(11) default null,
+  inc_total int(11) default null,
+  time_billed int(11) default null,
+  activedate timestamp null default null,
+  expiredate timestamp null default null,
+  state int(11) default null,
+  sla_set int(11) default null,
+  unique key t2$slai_id (slai_id),
+  key t2$owner_id (owner_id),
+  key t2$sla_id (sla_id)
+);
+insert into t2(slai_id, owner_tbl, owner_id, sla_id) values
+  (1,3,1,1), (3,3,10,2), (4,3,3,6), (5,3,2,5), (6,3,8,3), (7,3,9,7),
+  (8,3,6,8), (9,3,4,9), (10,3,5,10), (11,3,11,11), (12,3,7,12);
+
+flush tables;
+select si.slai_id
+from t1 c join t2 si on
+  ((si.owner_tbl = 3 and si.owner_id = c.org_id) or
+   ( si.owner_tbl = 2 and si.owner_id = c.c_id))
+where
+  c.c_id = 218 and expiredate is null;
+
+select * from t1 where org_id is null;
+select si.slai_id
+from t1 c join t2 si on
+  ((si.owner_tbl = 3 and si.owner_id = c.org_id) or
+   ( si.owner_tbl = 2 and si.owner_id = c.c_id))
+where
+  c.c_id = 218 and expiredate is null;
+
+drop table t1, t2;
+
+#
+# Bug#17212: results not sorted correctly by ORDER BY when using index
+# (repeatable only w/innodb because of index props)
+#
+CREATE TABLE t1 (a int, b int, KEY b (b));
+CREATE TABLE t2 (a int, b int, PRIMARY KEY  (a,b));
+CREATE TABLE t3 (a int, b int, c int, PRIMARY KEY  (a),
+  UNIQUE KEY b (b,c), KEY a (a,b,c));
+
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 SELECT a + 1, b + 1 FROM t1;
+INSERT INTO t1 SELECT a + 2, b + 2 FROM t1;
+
+INSERT INTO t2 VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8);
+INSERT INTO t2 SELECT a + 1, b FROM t2;
+DELETE FROM t2 WHERE a = 1 AND b < 2;
+
+INSERT INTO t3 VALUES (1,1,1),(2,1,2);
+INSERT INTO t3 SELECT a + 2, a + 2, 3 FROM t3;
+INSERT INTO t3 SELECT a + 4, a + 4, 3 FROM t3;
+
+# demonstrate a problem when a must-use-sort table flag
+# (sort_by_table=1) is being neglected.
+SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+  t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
+  ORDER BY t1.b LIMIT 2;
+
+# demonstrate the problem described in the bug report
+SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+  t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
+  ORDER BY t1.b LIMIT 5;
+DROP TABLE t1, t2, t3;
+
+
+# BUG#21077 (The testcase is not deterministic so correct execution doesn't
+# prove anything) For proof one should track if sequence of ha_innodb::* func
+# calls is correct.
+CREATE TABLE `t1` (`id1` INT) ;
+INSERT INTO `t1` (`id1`) VALUES (1),(5),(2);
+
+CREATE TABLE `t2` (
+  `id1` INT,
+  `id2` INT NOT NULL,
+  `id3` INT,
+  `id4` INT NOT NULL,
+  UNIQUE (`id2`,`id4`),
+  KEY (`id1`)
+);
+
+INSERT INTO `t2`(`id1`,`id2`,`id3`,`id4`) VALUES
+(1,1,1,0),
+(1,1,2,1),
+(5,1,2,2),
+(6,1,2,3),
+(1,2,2,2),
+(1,2,1,1);
+
+SELECT `id1` FROM `t1` WHERE `id1` NOT IN (SELECT `id1` FROM `t2` WHERE `id2` = 1 AND `id3` = 2);
+DROP TABLE t1, t2;
+
+#
+# Bug #12882  	min/max inconsistent on empty table
+#
+
+--disable_warnings
+eval create table t1m (a int) engine = $other_engine_type;
+create table t1i (a int);
+eval create table t2m (a int) engine = $other_engine_type;
+create table t2i (a int);
+--enable_warnings
+insert into t2m values (5);
+insert into t2i values (5);
+
+# test with $engine_type
+select min(a) from t1i;
+select min(7) from t1i;
+select min(7) from DUAL;
+explain select min(7) from t2i join t1i;
+select min(7) from t2i join t1i;
+
+select max(a) from t1i;
+select max(7) from t1i;
+select max(7) from DUAL;
+explain select max(7) from t2i join t1i;
+select max(7) from t2i join t1i;
+
+select 1, min(a) from t1i where a=99;
+select 1, min(a) from t1i where 1=99;
+select 1, min(1) from t1i where a=99;
+select 1, min(1) from t1i where 1=99;
+
+select 1, max(a) from t1i where a=99;
+select 1, max(a) from t1i where 1=99;
+select 1, max(1) from t1i where a=99;
+select 1, max(1) from t1i where 1=99;
+
+# mixed $engine_type/$other_engine_type test
+explain select count(*), min(7), max(7) from t1m, t1i;
+select count(*), min(7), max(7) from t1m, t1i;
+
+explain select count(*), min(7), max(7) from t1m, t2i;
+select count(*), min(7), max(7) from t1m, t2i;
+
+explain select count(*), min(7), max(7) from t2m, t1i;
+select count(*), min(7), max(7) from t2m, t1i;
+
+drop table t1m, t1i, t2m, t2i;
+
+#
+# Bug #12882: primary key implcitly included in every innodb index
+# (was part of group_min_max.test)
+#
+
+eval create table t1 (
+  a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(64) default ' '
+) ENGINE = $other_engine_type;
+
+insert into t1 (a1, a2, b, c, d) values
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4'),
+('d','a','a','a411','xy1'),('d','a','a','b411','xy2'),('d','a','a','c411','xy3'),('d','a','a','d411','xy4'),
+('d','a','b','e412','xy1'),('d','a','b','f412','xy2'),('d','a','b','g412','xy3'),('d','a','b','h412','xy4'),
+('d','b','a','i421','xy1'),('d','b','a','j421','xy2'),('d','b','a','k421','xy3'),('d','b','a','l421','xy4'),
+('d','b','b','m422','xy1'),('d','b','b','n422','xy2'),('d','b','b','o422','xy3'),('d','b','b','p422','xy4'),
+('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
+('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
+('a','b','a','i121','xy1'),('a','b','a','j121','xy2'),('a','b','a','k121','xy3'),('a','b','a','l121','xy4'),
+('a','b','b','m122','xy1'),('a','b','b','n122','xy2'),('a','b','b','o122','xy3'),('a','b','b','p122','xy4'),
+('b','a','a','a211','xy1'),('b','a','a','b211','xy2'),('b','a','a','c211','xy3'),('b','a','a','d211','xy4'),
+('b','a','b','e212','xy1'),('b','a','b','f212','xy2'),('b','a','b','g212','xy3'),('b','a','b','h212','xy4'),
+('b','b','a','i221','xy1'),('b','b','a','j221','xy2'),('b','b','a','k221','xy3'),('b','b','a','l221','xy4'),
+('b','b','b','m222','xy1'),('b','b','b','n222','xy2'),('b','b','b','o222','xy3'),('b','b','b','p222','xy4'),
+('c','a','a','a311','xy1'),('c','a','a','b311','xy2'),('c','a','a','c311','xy3'),('c','a','a','d311','xy4'),
+('c','a','b','e312','xy1'),('c','a','b','f312','xy2'),('c','a','b','g312','xy3'),('c','a','b','h312','xy4'),
+('c','b','a','i321','xy1'),('c','b','a','j321','xy2'),('c','b','a','k321','xy3'),('c','b','a','l321','xy4'),
+('c','b','b','m322','xy1'),('c','b','b','n322','xy2'),('c','b','b','o322','xy3'),('c','b','b','p322','xy4'),
+('d','a','a','a411','xy1'),('d','a','a','b411','xy2'),('d','a','a','c411','xy3'),('d','a','a','d411','xy4'),
+('d','a','b','e412','xy1'),('d','a','b','f412','xy2'),('d','a','b','g412','xy3'),('d','a','b','h412','xy4'),
+('d','b','a','i421','xy1'),('d','b','a','j421','xy2'),('d','b','a','k421','xy3'),('d','b','a','l421','xy4'),
+('d','b','b','m422','xy1'),('d','b','b','n422','xy2'),('d','b','b','o422','xy3'),('d','b','b','p422','xy4');
+--disable_warnings
+create table t4 (
+  pk_col int auto_increment primary key, a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(64) default ' '
+);
+--enable_warnings
+insert into t4 (a1, a2, b, c, d, dummy) select * from t1;
+
+create index idx12672_0 on t4 (a1);
+create index idx12672_1 on t4 (a1,a2,b,c);
+create index idx12672_2 on t4 (a1,a2,b);
+analyze table t4;
+
+select distinct a1 from t4 where pk_col not in (1,2,3,4);
+
+drop table t1,t4;
+
+#
+# Bug #6142: a problem with the empty innodb table
+# (was part of group_min_max.test)
+#
+
+--disable_warnings
+create table t1 (
+  a varchar(30), b varchar(30), primary key(a), key(b)
+);
+--enable_warnings
+select distinct a from t1;
+drop table t1;
+
+#
+# Bug #9798: group by with rollup
+# (was part of group_min_max.test)
+#
+
+--disable_warnings
+create table t1(a int, key(a));
+--enable_warnings
+insert into t1 values(1);
+select a, count(a) from t1 group by a with rollup;
+drop table t1;
+
+#
+# Bug #13293 Wrongly used index results in endless loop.
+# (was part of group_min_max.test)
+#
+create table t1 (f1 int, f2 char(1), primary key(f1,f2));
+insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
+alter table t1 drop primary key, add primary key (f2, f1);
+explain select distinct f1 a, f1 b from t1;
+explain select distinct f1, f2 from t1;
+drop table t1;
+
+#
+# Test for bug #17164: ORed FALSE blocked conversion of outer join into join
+#
+
+CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
+                 INDEX (name));
+CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11));
+# CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11),
+#                  FOREIGN KEY (fkey) REFERENCES t2(id));
+if ($test_foreign_keys)
+{
+   ALTER TABLE t2 ADD FOREIGN KEY (fkey) REFERENCES t2(id);
+}
+INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
+INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,3),(5,3);
+
+EXPLAIN
+SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
+  WHERE t1.name LIKE 'A%';
+
+EXPLAIN
+SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
+  WHERE t1.name LIKE 'A%' OR FALSE;
+
+DROP TABLE t1,t2;
+
+#
+# Test of behaviour with CREATE ... SELECT
+#
+
+CREATE TABLE t1 (a int, b int);
+insert into t1 values (1,1),(1,2);
+--error 1062
+CREATE TABLE t2 (primary key (a)) select * from t1;
+# This should give warning
+drop table if exists t2;
+--error 1062
+CREATE TEMPORARY TABLE t2 (primary key (a)) select * from t1;
+# This should give warning
+drop table if exists t2;
+CREATE TABLE t2 (a int, b int, primary key (a));
+BEGIN;
+INSERT INTO t2 values(100,100);
+--error 1062
+CREATE TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+SELECT * from t2;
+ROLLBACK;
+SELECT * from t2;
+TRUNCATE table t2;
+--error 1062
+INSERT INTO t2 select * from t1;
+SELECT * from t2;
+drop table t2;
+
+CREATE TEMPORARY TABLE t2 (a int, b int, primary key (a));
+BEGIN;
+INSERT INTO t2 values(100,100);
+--error 1062
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+SELECT * from t2;
+COMMIT;
+BEGIN;
+INSERT INTO t2 values(101,101);
+--error 1062
+CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) select * from t1;
+SELECT * from t2;
+ROLLBACK;
+SELECT * from t2;
+TRUNCATE table t2;
+--error 1062
+INSERT INTO t2 select * from t1;
+SELECT * from t2;
+drop table t1,t2;
+
+#
+# Bug#17530: Incorrect key truncation on table creation caused server crash.
+#
+create table t1(f1 varchar(800) binary not null, key(f1))
+  character set utf8 collate utf8_general_ci;
+insert into t1 values('aaa');
+drop table t1;
+
+# Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
+# UPDATE": if the row is updated, it's like a regular UPDATE:
+# LAST_INSERT_ID() is not affected.
+CREATE TABLE `t2` (
+  `k` int(11) NOT NULL auto_increment,
+  `a` int(11) default NULL,
+  `c` int(11) default NULL,
+  PRIMARY KEY  (`k`),
+  UNIQUE KEY `idx_1` (`a`)
+);
+insert into t2 ( a ) values ( 6 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1;
+insert into t2 ( a ) values ( 7 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1;
+select last_insert_id();
+select * from t2;
+insert into t2 ( a ) values ( 6 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1;
+select last_insert_id();
+# test again when last_insert_id() is 0 initially
+select last_insert_id(0);
+insert into t2 ( a ) values ( 6 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1;
+select last_insert_id();
+select * from t2;
+
+# Test of LAST_INSERT_ID() when autogenerated will fail:
+# last_insert_id() should not change
+insert ignore into t2 values (null,6,1),(10,8,1);
+select last_insert_id();
+# First and second autogenerated will fail, last_insert_id() should
+# point to third
+insert ignore into t2 values (null,6,1),(null,8,1),(null,15,1),(null,20,1);
+select last_insert_id();
+select * from t2;
+
+# Test of the workaround which enables people to know the id of the
+# updated row in INSERT ON DUPLICATE KEY UPDATE, by using
+# LAST_INSERT_ID(autoinc_col) in the UPDATE clause.
+
+insert into t2 ( a ) values ( 6 ) on duplicate key update c =
+ifnull( c,
+0 ) + 1, k=last_insert_id(k);
+select last_insert_id();
+select * from t2;
+
+drop table t2;

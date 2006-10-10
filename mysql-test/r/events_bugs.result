@@ -213,4 +213,17 @@ create event e_53 on schedule every 5 second starts (select s1 from ttx) do drop
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
 create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop table t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select s1 from ttx) do drop table t' at line 1
+drop event if exists e_16;
+drop procedure if exists p_16;
+create event e_16 on schedule every 1 second do set @a=5;
+create procedure p_16 () alter event e_16 on schedule every @a second;
+set @a = null;
+call p_16();
+ERROR HY000: Incorrect INTERVAL value: 'NULL'
+call p_16();
+ERROR HY000: Incorrect INTERVAL value: 'NULL'
+set @a= 6;
+call p_16();
+drop procedure p_16;
+drop event e_16;
 drop database events_test;

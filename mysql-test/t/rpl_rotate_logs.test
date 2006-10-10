@@ -13,7 +13,7 @@
 # - Test creating a duplicate key error and recover from it
 
 # Requires statement logging
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 
 connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 --disable_warnings

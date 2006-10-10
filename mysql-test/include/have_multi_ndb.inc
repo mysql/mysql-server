@@ -9,8 +9,8 @@ disable_query_log;
 drop table if exists t1, t2;
 --enable_warnings
 flush tables;
---require r/have_ndb.require
-show variables like "have_ndbcluster";
+--require r/true.require
+select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 enable_query_log;
 
 # Check that server2 has NDB support
@@ -20,8 +20,8 @@ disable_query_log;
 drop table if exists t1, t2;
 --enable_warnings
 flush tables;
---require r/have_ndb.require
-show variables like "have_ndbcluster";
+--require r/true.require
+select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 enable_query_log;
 
 # Set the default connection to 'server1'

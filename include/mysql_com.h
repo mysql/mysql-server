@@ -26,9 +26,6 @@
 #define USERNAME_LENGTH 16
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
-#define SYSTEM_CHARSET_MBMAXLEN 3
-#define NAME_BYTE_LEN   NAME_LEN*SYSTEM_CHARSET_MBMAXLEN
-#define USERNAME_BYTE_LENGTH USERNAME_LENGTH*SYSTEM_CHARSET_MBMAXLEN
 
 /*
   USER_HOST_BUFF_SIZE -- length of string buffer, that is enough to contain
@@ -36,7 +33,7 @@
   MySQL standard format:
   user_name_part@host_name_part\0
 */
-#define USER_HOST_BUFF_SIZE HOSTNAME_LENGTH + USERNAME_BYTE_LENGTH + 2
+#define USER_HOST_BUFF_SIZE HOSTNAME_LENGTH + USERNAME_LENGTH + 2
 
 #define LOCAL_HOST	"localhost"
 #define LOCAL_HOST_NAMEDPIPE "."
@@ -141,11 +138,11 @@ enum enum_server_command
 #define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
 #define CLIENT_RESERVED         16384   /* Old flag for 4.1 protocol  */
 #define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
-#define CLIENT_MULTI_STATEMENTS (((ulong) 1) << 16)   /* Enable/disable multi-stmt support */
-#define CLIENT_MULTI_RESULTS    (((ulong) 1) << 17)  /* Enable/disable multi-results */
+#define CLIENT_MULTI_STATEMENTS (1UL << 16) /* Enable/disable multi-stmt support */
+#define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
 
-#define CLIENT_SSL_VERIFY_SERVER_CERT	(((ulong) 1) << 30)
-#define CLIENT_REMEMBER_OPTIONS	(((ulong) 1) << 31)
+#define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
+#define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
@@ -182,7 +179,7 @@ typedef struct st_vio Vio;
 #define MAX_INT_WIDTH           10      /* Max width for a LONG w.o. sign */
 #define MAX_BIGINT_WIDTH        20      /* Max width for a LONGLONG */
 #define MAX_CHAR_WIDTH		255	/* Max length for a CHAR colum */
-#define MAX_BLOB_WIDTH		8192	/* Default width for blob */
+#define MAX_BLOB_WIDTH		16777216	/* Default width for blob */
 
 typedef struct st_net {
 #if !defined(CHECK_EMBEDDED_DIFFERENCES) || !defined(EMBEDDED_LIBRARY)

@@ -176,7 +176,13 @@ enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
 */
 typedef struct st_position
 {
+  /*
+    The "fanout": number of output rows that will be produced (after
+    pushed down selection condition is applied) per each row combination of
+    previous tables.
+  */
   double records_read;
+
   /* 
     Cost accessing the table in course of the entire complete join execution,
     i.e. cost of one access method use (e.g. 'range' or 'ref' scan ) times 
@@ -184,7 +190,15 @@ typedef struct st_position
   */
   double read_time;
   JOIN_TAB *table;
+
+  /*
+    NULL  -  'index' or 'range' or 'index_merge' or 'ALL' access is used.
+    Other - [eq_]ref[_or_null] access is used. Pointer to {t.keypart1 = expr}
+  */
   KEYUSE *key;
+
+  /* If ref-based access is used: bitmap of tables this table depends on  */
+  table_map ref_depend_map;
 } POSITION;
 
 

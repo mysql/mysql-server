@@ -1,0 +1,20 @@
+# t/handler_innodb.test
+#
+# test of HANDLER ...
+#
+# Last update:
+# 2006-07-31 ML test refactored (MySQL 5.1)
+#               code of t/handler.test and t/innodb_handler.test united
+#               main testing code put into include/handler.inc
+#               rename t/innodb_handler.test to t/handler_innodb.test
+#
+
+# should work in embedded server after mysqltest is fixed
+--source include/not_embedded.inc
+
+--source include/have_innodb.inc
+let $engine_type= InnoDB;
+let $other_engine_type= MEMORY;
+let $other_handler_engine_type= MyISAM;
+
+--source include/handler.inc

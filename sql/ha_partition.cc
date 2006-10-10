@@ -69,21 +69,26 @@ static PARTITION_SHARE *get_share(const char *table_name, TABLE * table);
                 MODULE create/delete handler object
 ****************************************************************************/
 
-static handler *partition_create_handler(TABLE_SHARE *share,
+static handler *partition_create_handler(handlerton *hton,
+                                         TABLE_SHARE *share,
                                          MEM_ROOT *mem_root);
 static uint partition_flags();
 static uint alter_table_flags(uint flags);
 
-handlerton partition_hton;
 
-static int partition_initialize()
+static int partition_initialize(void *p)
 {
-  partition_hton.state= SHOW_OPTION_YES;
-  partition_hton.db_type= DB_TYPE_PARTITION_DB;
-  partition_hton.create= partition_create_handler;
-  partition_hton.partition_flags= partition_flags;
-  partition_hton.alter_table_flags= alter_table_flags;
-  partition_hton.flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+
+  handlerton *partition_hton;
+  partition_hton= (handlerton *)p;
+
+  partition_hton->state= SHOW_OPTION_YES;
+  partition_hton->db_type= DB_TYPE_PARTITION_DB;
+  partition_hton->create= partition_create_handler;
+  partition_hton->partition_flags= partition_flags;
+  partition_hton->alter_table_flags= alter_table_flags;
+  partition_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+
   return 0;
 }
 
@@ -98,10 +103,11 @@ static int partition_initialize()
     New partition object
 */
 
-static handler *partition_create_handler(TABLE_SHARE *share,
+static handler *partition_create_handler(handlerton *hton, 
+                                         TABLE_SHARE *share,
                                          MEM_ROOT *mem_root)
 {
-  ha_partition *file= new (mem_root) ha_partition(share);
+  ha_partition *file= new (mem_root) ha_partition(hton, share);
   if (file && file->initialise_partition(mem_root))
   {
     delete file;
@@ -151,8 +157,8 @@ static uint alter_table_flags(uint flags __attribute__((unused)))
     NONE
 */
 
-ha_partition::ha_partition(TABLE_SHARE *share)
-  :handler(&partition_hton, share), m_part_info(NULL), m_create_handler(FALSE),
+ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
+  :handler(hton, share), m_part_info(NULL), m_create_handler(FALSE),
    m_is_sub_partitioned(0)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
@@ -172,8 +178,8 @@ ha_partition::ha_partition(TABLE_SHARE *share)
     NONE
 */
 
-ha_partition::ha_partition(partition_info *part_info)
-  :handler(&partition_hton, NULL), m_part_info(part_info),
+ha_partition::ha_partition(handlerton *hton, partition_info *part_info)
+  :handler(hton, NULL), m_part_info(part_info),
    m_create_handler(TRUE),
    m_is_sub_partitioned(m_part_info->is_sub_partitioned())
 
@@ -2016,7 +2022,7 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
     DBUG_PRINT("info", ("engine_type: %u", m_engine_array[i]));
   }
   /* For the moment we only support partition over the same table engine */
-  if (m_engine_array[0] == &myisam_hton)
+  if (m_engine_array[0] == myisam_hton)
   {
     DBUG_PRINT("info", ("MyISAM"));
     m_myisam= TRUE;
@@ -2089,7 +2095,7 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
                  (uint) ha_legacy_type(part_elem->engine_type)));
     }
   } while (++i < m_part_info->no_parts);
-  if (part_elem->engine_type == &myisam_hton)
+  if (part_elem->engine_type == myisam_hton)
   {
     DBUG_PRINT("info", ("MyISAM"));
     m_myisam= TRUE;
@@ -5628,7 +5634,7 @@ static int free_share(PARTITION_SHARE *share)
 #endif /* NOT_USED */
 
 struct st_mysql_storage_engine partition_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &partition_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(partition)
 {
@@ -5637,6 +5643,7 @@ mysql_declare_plugin(partition)
   "partition",
   "Mikael Ronstrom, MySQL AB",
   "Partition Storage Engine Helper",
+  PLUGIN_LICENSE_GPL,
   partition_initialize, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */

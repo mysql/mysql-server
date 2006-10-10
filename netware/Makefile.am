@@ -23,7 +23,8 @@ mysqld_safe_SOURCES=		mysqld_safe.c my_manage.c
 mysql_install_db_SOURCES=	mysql_install_db.c my_manage.c
 mysql_test_run_SOURCES=		mysql_test_run.c my_manage.c
 libmysql_SOURCES=		libmysqlmain.c
-libmysql_LDADD =		../libmysql/.libs/libmysqlclient.a @openssl_libs@
+libmysql_LDADD =		../libmysql/.libs/libmysqlclient.a \
+				@openssl_libs@ @yassl_libs@
 
 netware_build_files =           client/mysql.def client/mysqladmin.def \
                                 client/mysqlbinlog.def client/mysqlcheck.def \
@@ -49,8 +50,20 @@ link_sources:
 	  @LN_CP_F@ $(srcdir)/$$org ../$$f; \
 	done
 else
-EXTRA_DIST=	comp_err.def init_db.sql install_test_db.ncf \
-		libmysql.def libmysql.imp \
+
+BUILT_SOURCES =                 libmysql.imp
+DISTCLEANFILES =                $(BUILT_SOURCES)
+
+# Create the libmysql.imp from libmysql/libmysql.def
+libmysql.imp: $(top_srcdir)/libmysql/libmysql.def
+	awk 'BEGIN{x=0;} \
+             END{printf("\n");} \
+             x==1 {printf(" %s",$$1); x++; next} \
+             x>1 {printf(",\n %s", $$1); next} \
+             /EXPORTS/{x=1}' $(top_srcdir)/libmysql/libmysql.def > libmysql.imp
+
+EXTRA_DIST=	$(BUILT_SOURCES) comp_err.def init_db.sql install_test_db.ncf \
+		libmysql.def \
 		libmysqlmain.c my_manage.c my_manage.h \
 		my_print_defaults.def myisam_ftdump.def myisamchk.def \
 		myisamlog.def myisampack.def mysql.def mysql.xdc \

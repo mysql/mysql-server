@@ -103,7 +103,7 @@ dict_create(void);
 #define DICT_HDR_ROW_ID		0	/* The latest assigned row id */
 #define	DICT_HDR_TABLE_ID	8	/* The latest assigned table id */
 #define	DICT_HDR_INDEX_ID	16	/* The latest assigned index id */
-#define	DICT_HDR_MIX_ID		24	/* The latest assigned mix id */
+#define	DICT_HDR_MIX_ID		24	/* Obsolete, always 0. */
 #define	DICT_HDR_TABLES		32	/* Root of the table index tree */
 #define	DICT_HDR_TABLE_IDS	36	/* Root of the table index tree */
 #define	DICT_HDR_COLUMNS	40	/* Root of the column index tree */

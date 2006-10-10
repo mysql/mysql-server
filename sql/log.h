@@ -177,7 +177,7 @@ public:
   pthread_mutex_t LOCK_log;
   char *name;
   char log_file_name[FN_REFLEN];
-  char time_buff[20], db[NAME_BYTE_LEN + 1];
+  char time_buff[20], db[NAME_LEN + 1];
   bool write_error, inited;
   IO_CACHE log_file;
   enum_log_type log_type;
