@@ -25,7 +25,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 
-static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields);
+static bool safe_update_on_fly(JOIN_TAB *join_tab);
 
 /* Return 0 if row hasn't changed */
 
@@ -271,13 +271,16 @@ int mysql_update(THD *thd,
     }
   }
   init_ftfuncs(thd, select_lex, 1);
+
+  table->mark_columns_needed_for_update();
+
   /* Check if we are modifying a key that we are used to search with */
   
   if (select && select->quick)
   {
     used_index= select->quick->index;
     used_key_is_modified= (!select->quick->unique_key_range() &&
-                          select->quick->check_if_keys_used(&fields));
+                          select->quick->is_keys_used(table->write_set));
   }
   else
   {
@@ -285,12 +288,13 @@ int mysql_update(THD *thd,
     if (used_index == MAX_KEY)                  // no index for sort order
       used_index= table->file->key_used_on_scan;
     if (used_index != MAX_KEY)
-      used_key_is_modified= check_if_key_used(table, used_index, fields);
+      used_key_is_modified= is_key_used(table, used_index, table->write_set);
   }
+
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (used_key_is_modified || order ||
-      partition_key_modified(table, fields))
+      partition_key_modified(table, table->write_set))
 #else
   if (used_key_is_modified || order)
 #endif
@@ -448,8 +452,6 @@ int mysql_update(THD *thd,
                                (MODE_STRICT_TRANS_TABLES |
                                 MODE_STRICT_ALL_TABLES)));
   will_batch= !table->file->start_bulk_update();
-
-  table->mark_columns_needed_for_update();
 
   /*
     We can use compare_record() to optimize away updates if
@@ -725,6 +727,7 @@ err:
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
+  Item *fake_conds= 0;
   TABLE *table= table_list->table;
   TABLE_LIST tables;
   List<Item> all_fields;
@@ -764,7 +767,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
     }
   }
-  select_lex->fix_prepare_information(thd, conds);
+  select_lex->fix_prepare_information(thd, conds, &fake_conds);
   DBUG_RETURN(FALSE);
 }
 
@@ -1214,9 +1217,11 @@ multi_update::initialize_tables(JOIN *join)
     TMP_TABLE_PARAM *tmp_param;
 
     table->mark_columns_needed_for_update();
+    if (ignore)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)			// First table in join
     {
-      if (safe_update_on_fly(join->join_tab, &temp_fields))
+      if (safe_update_on_fly(join->join_tab))
       {
 	table_to_update= main_table;		// Update table on the fly
 	continue;
@@ -1274,7 +1279,6 @@ multi_update::initialize_tables(JOIN *join)
   SYNOPSIS
     safe_update_on_fly
     join_tab		How table is used in join
-    fields		Fields that are updated
 
   NOTES
     We can update the first table in join on the fly if we know that
@@ -1287,9 +1291,8 @@ multi_update::initialize_tables(JOIN *join)
     - We are doing a range scan and we don't update the scan key or
       the primary key for a clustered table handler.
 
-    When checking for above cases we also should take into account that
-    BEFORE UPDATE trigger potentially may change value of any field in row
-    being updated.
+    This function gets information about fields to be updated from
+    the TABLE::write_set bitmap.
 
   WARNING
     This code is a bit dependent of how make_join_readinfo() works.
@@ -1299,7 +1302,7 @@ multi_update::initialize_tables(JOIN *join)
     1		Safe to update
 */
 
-static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
+static bool safe_update_on_fly(JOIN_TAB *join_tab)
 {
   TABLE *table= join_tab->table;
   switch (join_tab->type) {
@@ -1309,21 +1312,15 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
     return TRUE;				// At most one matching row
   case JT_REF:
   case JT_REF_OR_NULL:
-    return !check_if_key_used(table, join_tab->ref.key, *fields) &&
-           !(table->triggers &&
-             table->triggers->has_before_update_triggers());
+    return !is_key_used(table, join_tab->ref.key, table->write_set);
   case JT_ALL:
     /* If range search on index */
     if (join_tab->quick)
-      return !join_tab->quick->check_if_keys_used(fields) &&
-             !(table->triggers &&
-               table->triggers->has_before_update_triggers());
+      return !join_tab->quick->is_keys_used(table->write_set);
     /* If scanning in clustered key */
     if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
-      return !check_if_key_used(table, table->s->primary_key, *fields) &&
-             !(table->triggers &&
-               table->triggers->has_before_update_triggers());
+      return !is_key_used(table, table->s->primary_key, table->write_set);
     return TRUE;
   default:
     break;					// Avoid compler warning
@@ -1336,7 +1333,11 @@ multi_update::~multi_update()
 {
   TABLE_LIST *table;
   for (table= update_tables ; table; table= table->next_local)
+  {
     table->table->no_keyread= table->table->no_cache= 0;
+    if (ignore)
+      table->table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  }
 
   if (tmp_tables)
   {

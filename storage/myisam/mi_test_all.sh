@@ -79,7 +79,8 @@ if test -f mi_test1$MACH ; then suffix=$MACH ; else suffix=""; fi
 
 # check of myisampack / myisamchk
 ./myisampack$suffix --force -s test1
-./myisamchk$suffix -es test1
+# Ignore error for index file
+./myisamchk$suffix -es test1 2>&1 >& /dev/null
 ./myisamchk$suffix -rqs test1
 ./myisamchk$suffix -es test1
 ./myisamchk$suffix -rs test1

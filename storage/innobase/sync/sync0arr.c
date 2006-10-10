@@ -737,9 +737,9 @@ sync_array_detect_deadlock(
 				(cannot be cell thread) (wait) x-lock, and
 				he is blocked by start thread */
 
-				ret = sync_array_deadlock_step
-					(arr, start, thread,
-					 debug->pass, depth);
+				ret = sync_array_deadlock_step(
+					arr, start, thread, debug->pass,
+					depth);
 				if (ret) {
 print:
 					fprintf(stderr, "rw-lock %p ",
@@ -772,9 +772,9 @@ print:
 				holding (wait) x-lock, and he is blocked by
 				start thread */
 
-				ret = sync_array_deadlock_step
-					(arr, start, thread,
-					 debug->pass, depth);
+				ret = sync_array_deadlock_step(
+					arr, start, thread, debug->pass,
+					depth);
 				if (ret) {
 					goto print;
 				}

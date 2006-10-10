@@ -55,7 +55,7 @@ public:
   {
     EVENTS_OFF= 0,
     EVENTS_ON= 1,
-    EVENTS_DISABLED= 5
+    EVENTS_DISABLED= 4
   };
 
   static enum_opt_event_scheduler opt_event_scheduler;

@@ -1,11 +1,7 @@
-#! /bin/sh
-
-gmake -k clean || true
-/bin/rm -f */.deps/*.P config.cache
- 
+#!/usr/bin/bash
 path=`dirname $0`
-. "$path/autorun.sh"
- 
-CFLAGS="-g -Wimplicit -Wreturn-type -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings -Wunused  -O3 -fno-omit-frame-pointer -mcpu=v8 -Wa,-xarch=v8plusa" CXX=gcc CXXFLAGS="-Wimplicit -Wreturn-type -Wid-clash-51 -Wswitch -Wtrigraphs -Wcomment -W -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare -Wwrite-strings -Woverloaded-virtual -Wsign-promo -Wreorder -Wctor-dtor-privacy -Wnon-virtual-dtor -felide-constructors -fno-exceptions -fno-rtti  -O3 -fno-omit-frame-pointer -mcpu=v8 -Wa,-xarch=v8plusa -g" ./configure --prefix=/usr/local/mysql --enable-assembler --with-extra-charsets=complex --enable-thread-safe-client --with-debug
+. "$path/SETUP.sh"
+extra_flags="$debug_cflags"
+extra_configs="$debug_configs $max_configs"
 
-gmake -j 4
+. "$path/FINISH.sh"

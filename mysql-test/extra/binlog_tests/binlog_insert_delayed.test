@@ -1,0 +1,42 @@
+# Test of binlogging of INSERT_ID with INSERT DELAYED
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+# First, avoid BUG#20627:
+set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
+# Verify that only one INSERT_ID event is binlogged.
+# Note, that because of WL#3368 mixed mode binlog records RBR events for the delayed
+let $table=t1;
+let $rows_inserted=11; # total number of inserted rows in this test
+insert delayed into t1 values (207);
+let $count=1;
+
+# use this macro instead of sleeps.
+
+--source include/wait_until_rows_count.inc
+insert delayed into t1 values (null);
+inc $count;
+--source include/wait_until_rows_count.inc
+
+insert delayed into t1 values (300);
+inc $count;
+--source include/wait_until_rows_count.inc
+
+# moving binlog check affront of multi-rows queries which work is indeterministic (extra table_maps)
+# todo: better check is to substitute SHOW BINLOG with reading from binlog, probably bug#19459 is in
+# the way
+--replace_column 2 # 5 #
+--replace_regex /table_id: [0-9]+/table_id: #/
+show binlog events from 102;
+
+insert delayed into t1 values (null),(null),(null),(null);
+inc $count; inc $count; inc $count; inc $count;
+--source include/wait_until_rows_count.inc
+
+insert delayed into t1 values (null),(null),(400),(null);
+inc $count; inc $count; inc $count; inc $count;
+--source include/wait_until_rows_count.inc
+
+#check this assertion about $count calculation
+--echo $count == $rows_inserted
+
+select * from t1;
+drop table t1;

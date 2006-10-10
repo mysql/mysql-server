@@ -506,7 +506,7 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 }
 
 static void
-ndbcluster_binlog_log_query(THD *thd, enum_binlog_command binlog_command,
+ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binlog_command,
                             const char *query, uint query_length,
                             const char *db, const char *table_name)
 {
@@ -637,7 +637,9 @@ static void ndbcluster_reset_slave(THD *thd)
 /*
   Initialize the binlog part of the ndb handlerton
 */
-static int ndbcluster_binlog_func(THD *thd, enum_binlog_func fn, void *arg)
+static int ndbcluster_binlog_func(handlerton *hton, THD *thd, 
+                                  enum_binlog_func fn, 
+                                  void *arg)
 {
   switch(fn)
   {
@@ -662,9 +664,9 @@ static int ndbcluster_binlog_func(THD *thd, enum_binlog_func fn, void *arg)
 
 void ndbcluster_binlog_init_handlerton()
 {
-  handlerton &h= ndbcluster_hton;
-  h.binlog_func=      ndbcluster_binlog_func;
-  h.binlog_log_query= ndbcluster_binlog_log_query;
+  handlerton *h= ndbcluster_hton;
+  h->binlog_func=      ndbcluster_binlog_func;
+  h->binlog_log_query= ndbcluster_binlog_log_query;
 }
 
 
@@ -3473,7 +3475,7 @@ restart:
 
     if (thd_ndb == NULL)
     {
-      DBUG_ASSERT(ndbcluster_hton.slot != ~(uint)0);
+      DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
       if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
       {
         sql_print_error("Could not allocate Thd_ndb object");

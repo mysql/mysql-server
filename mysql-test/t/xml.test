@@ -360,3 +360,19 @@ select extractValue('<ns:element xmlns:ns="myns">a</ns:element>','/ns:element/@x
 #
 select extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/foo.bar');
 select extractValue('<foo><foo.bar>Data</foo.bar><something>Otherdata</something></foo>','/foo/something');
+
+#
+# Bug#20854 XML functions: wrong result in ExtractValue
+#
+--error 1105
+select extractValue('<zot><tim0><01>10:39:15</01><02>140</02></tim0></zot>','/zot/tim0/02');
+select extractValue('<zot><tim0><01>10:39:15</01><02>140</02></tim0></zot>','//*');
+# dot and dash are bad identtifier start character
+select extractValue('<.>test</.>','//*');
+select extractValue('<->test</->','//*');
+# semicolon is good identifier start character
+select extractValue('<:>test</:>','//*');
+# underscore is good identifier start character
+select extractValue('<_>test</_>','//*');
+# dot, dash, underscore and semicolon are good identifier middle characters
+select extractValue('<x.-_:>test</x.-_:>','//*');

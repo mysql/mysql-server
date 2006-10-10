@@ -6,7 +6,7 @@
 # inconsistency between binlog and the internal list of temp tables.
 
 # This does not work for RBR yet.
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_mixed_or_statement.inc
 
 -- source include/have_innodb.inc
 --disable_warnings

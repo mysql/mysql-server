@@ -239,12 +239,14 @@ recv_truncate_group(
 		archived_lsn = checkpoint_lsn;
 	}
 
-	finish_lsn1 = ut_dulint_add(ut_dulint_align_down
-				    (archived_lsn, OS_FILE_LOG_BLOCK_SIZE),
+	finish_lsn1 = ut_dulint_add(ut_dulint_align_down(
+					    archived_lsn,
+					    OS_FILE_LOG_BLOCK_SIZE),
 				    log_group_get_capacity(group));
 
-	finish_lsn2 = ut_dulint_add(ut_dulint_align_up
-				    (recovered_lsn, OS_FILE_LOG_BLOCK_SIZE),
+	finish_lsn2 = ut_dulint_add(ut_dulint_align_up(
+					    recovered_lsn,
+					    OS_FILE_LOG_BLOCK_SIZE),
 				    recv_sys->last_log_buf_size);
 
 	if (ut_dulint_cmp(limit_lsn, ut_dulint_max) != 0) {
@@ -274,8 +276,8 @@ recv_truncate_group(
 
 		ut_memcpy(log_sys->buf, recv_sys->last_block,
 			  OS_FILE_LOG_BLOCK_SIZE);
-		log_block_set_data_len(log_sys->buf, ut_dulint_minus
-				       (recovered_lsn, start_lsn));
+		log_block_set_data_len(log_sys->buf, ut_dulint_minus(
+					       recovered_lsn, start_lsn));
 	}
 
 	if (ut_dulint_cmp(start_lsn, finish_lsn) >= 0) {
@@ -441,16 +443,16 @@ recv_check_cp_is_consistent(
 
 	fold = ut_fold_binary(buf, LOG_CHECKPOINT_CHECKSUM_1);
 
-	if ((fold & 0xFFFFFFFFUL) != mach_read_from_4
-	    (buf + LOG_CHECKPOINT_CHECKSUM_1)) {
+	if ((fold & 0xFFFFFFFFUL) != mach_read_from_4(
+		    buf + LOG_CHECKPOINT_CHECKSUM_1)) {
 		return(FALSE);
 	}
 
 	fold = ut_fold_binary(buf + LOG_CHECKPOINT_LSN,
 			      LOG_CHECKPOINT_CHECKSUM_2 - LOG_CHECKPOINT_LSN);
 
-	if ((fold & 0xFFFFFFFFUL) != mach_read_from_4
-	    (buf + LOG_CHECKPOINT_CHECKSUM_2)) {
+	if ((fold & 0xFFFFFFFFUL) != mach_read_from_4(
+		    buf + LOG_CHECKPOINT_CHECKSUM_2)) {
 		return(FALSE);
 	}
 
@@ -498,9 +500,9 @@ recv_find_max_checkpoint(
 						" %lu at %lu invalid, %lu\n",
 						(ulong) group->id,
 						(ulong) field,
-						(ulong) mach_read_from_4
-						(buf
-						 + LOG_CHECKPOINT_CHECKSUM_1));
+						(ulong) mach_read_from_4(
+							buf
+							+ LOG_CHECKPOINT_CHECKSUM_1));
 
 				}
 #endif /* UNIV_DEBUG */
@@ -509,20 +511,20 @@ recv_find_max_checkpoint(
 
 			group->state = LOG_GROUP_OK;
 
-			group->lsn = mach_read_from_8
-				(buf + LOG_CHECKPOINT_LSN);
-			group->lsn_offset = mach_read_from_4
-				(buf + LOG_CHECKPOINT_OFFSET);
-			checkpoint_no = mach_read_from_8
-				(buf + LOG_CHECKPOINT_NO);
+			group->lsn = mach_read_from_8(
+				buf + LOG_CHECKPOINT_LSN);
+			group->lsn_offset = mach_read_from_4(
+				buf + LOG_CHECKPOINT_OFFSET);
+			checkpoint_no = mach_read_from_8(
+				buf + LOG_CHECKPOINT_NO);
 
 #ifdef UNIV_DEBUG
 			if (log_debug_writes) {
 				fprintf(stderr,
 					"InnoDB: Checkpoint number %lu"
 					" found in group %lu\n",
-					(ulong) ut_dulint_get_low
-					(checkpoint_no),
+					(ulong) ut_dulint_get_low(
+						checkpoint_no),
 					(ulong) group->id);
 			}
 #endif /* UNIV_DEBUG */
@@ -609,8 +611,8 @@ recv_read_cp_info_for_backup(
 	if (mach_read_from_4(cp_buf + LOG_CHECKPOINT_FSP_MAGIC_N)
 	    == LOG_CHECKPOINT_FSP_MAGIC_N_VAL) {
 
-		*fsp_limit = mach_read_from_4
-			(cp_buf + LOG_CHECKPOINT_FSP_FREE_LIMIT);
+		*fsp_limit = mach_read_from_4(
+			cp_buf + LOG_CHECKPOINT_FSP_FREE_LIMIT);
 
 		if (*fsp_limit == 0) {
 			*fsp_limit = 1000000000;
@@ -779,10 +781,10 @@ recv_parse_or_apply_log_rec_body(
 		ptr = mlog_parse_nbytes(type, ptr, end_ptr, page);
 		break;
 	case MLOG_REC_INSERT: case MLOG_COMP_REC_INSERT:
-		if (NULL != (ptr = mlog_parse_index
-			     (ptr, end_ptr,
-			      type == MLOG_COMP_REC_INSERT,
-			      &index))) {
+		if (NULL != (ptr = mlog_parse_index(
+				     ptr, end_ptr,
+				     type == MLOG_COMP_REC_INSERT,
+				     &index))) {
 			ut_a(!page
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
@@ -791,15 +793,15 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_REC_CLUST_DELETE_MARK: case MLOG_COMP_REC_CLUST_DELETE_MARK:
-		if (NULL != (ptr = mlog_parse_index
-			     (ptr, end_ptr,
-			      type == MLOG_COMP_REC_CLUST_DELETE_MARK,
-			      &index))) {
+		if (NULL != (ptr = mlog_parse_index(
+				     ptr, end_ptr,
+				     type == MLOG_COMP_REC_CLUST_DELETE_MARK,
+				     &index))) {
 			ut_a(!page
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
-			ptr = btr_cur_parse_del_mark_set_clust_rec
-				(ptr, end_ptr, index, page);
+			ptr = btr_cur_parse_del_mark_set_clust_rec(
+				ptr, end_ptr, index, page);
 		}
 		break;
 	case MLOG_COMP_REC_SEC_DELETE_MARK:
@@ -815,10 +817,10 @@ recv_parse_or_apply_log_rec_body(
 		ptr = btr_cur_parse_del_mark_set_sec_rec(ptr, end_ptr, page);
 		break;
 	case MLOG_REC_UPDATE_IN_PLACE: case MLOG_COMP_REC_UPDATE_IN_PLACE:
-		if (NULL != (ptr = mlog_parse_index
-			     (ptr, end_ptr,
-			      type == MLOG_COMP_REC_UPDATE_IN_PLACE,
-			      &index))) {
+		if (NULL != (ptr = mlog_parse_index(
+				     ptr, end_ptr,
+				     type == MLOG_COMP_REC_UPDATE_IN_PLACE,
+				     &index))) {
 			ut_a(!page
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
@@ -828,11 +830,11 @@ recv_parse_or_apply_log_rec_body(
 		break;
 	case MLOG_LIST_END_DELETE: case MLOG_COMP_LIST_END_DELETE:
 	case MLOG_LIST_START_DELETE: case MLOG_COMP_LIST_START_DELETE:
-		if (NULL != (ptr = mlog_parse_index
-			     (ptr, end_ptr,
-			      type == MLOG_COMP_LIST_END_DELETE
-			      || type == MLOG_COMP_LIST_START_DELETE,
-			      &index))) {
+		if (NULL != (ptr = mlog_parse_index(
+				     ptr, end_ptr,
+				     type == MLOG_COMP_LIST_END_DELETE
+				     || type == MLOG_COMP_LIST_START_DELETE,
+				     &index))) {
 			ut_a(!page
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
@@ -841,22 +843,22 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_LIST_END_COPY_CREATED: case MLOG_COMP_LIST_END_COPY_CREATED:
-		if (NULL != (ptr = mlog_parse_index
-			     (ptr, end_ptr,
-			      type == MLOG_COMP_LIST_END_COPY_CREATED,
-			      &index))) {
+		if (NULL != (ptr = mlog_parse_index(
+				     ptr, end_ptr,
+				     type == MLOG_COMP_LIST_END_COPY_CREATED,
+				     &index))) {
 			ut_a(!page
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
-			ptr = page_parse_copy_rec_list_to_created_page
-				(ptr, end_ptr, index, page, mtr);
+			ptr = page_parse_copy_rec_list_to_created_page(
+				ptr, end_ptr, index, page, mtr);
 		}
 		break;
 	case MLOG_PAGE_REORGANIZE: case MLOG_COMP_PAGE_REORGANIZE:
-		if (NULL != (ptr = mlog_parse_index
-			     (ptr, end_ptr,
-			      type == MLOG_COMP_PAGE_REORGANIZE,
-			      &index))) {
+		if (NULL != (ptr = mlog_parse_index(
+				     ptr, end_ptr,
+				     type == MLOG_COMP_PAGE_REORGANIZE,
+				     &index))) {
 			ut_a(!page
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
@@ -887,15 +889,15 @@ recv_parse_or_apply_log_rec_body(
 						 page, mtr);
 		break;
 	case MLOG_REC_MIN_MARK: case MLOG_COMP_REC_MIN_MARK:
-		ptr = btr_parse_set_min_rec_mark
-			(ptr, end_ptr, type == MLOG_COMP_REC_MIN_MARK,
-			 page, mtr);
+		ptr = btr_parse_set_min_rec_mark(
+			ptr, end_ptr, type == MLOG_COMP_REC_MIN_MARK,
+			page, mtr);
 		break;
 	case MLOG_REC_DELETE: case MLOG_COMP_REC_DELETE:
-		if (NULL != (ptr = mlog_parse_index
-			     (ptr, end_ptr,
-			      type == MLOG_COMP_REC_DELETE,
-			      &index))) {
+		if (NULL != (ptr = mlog_parse_index(
+				     ptr, end_ptr,
+				     type == MLOG_COMP_REC_DELETE,
+				     &index))) {
 			ut_a(!page
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
@@ -1430,8 +1432,8 @@ loop:
 							    RW_X_LATCH, &mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-					buf_page_dbg_add_level
-						(page, SYNC_NO_ORDER_CHECK);
+					buf_page_dbg_add_level(
+						page, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 					recv_recover_page(FALSE, FALSE, page,
 							  space, page_no);
@@ -1570,18 +1572,18 @@ recv_apply_log_recs_for_backup(void)
 			the block corresponding to buf_pool->frame_zero
 			(== page). */
 
-			buf_page_init_for_backup_restore
-				(recv_addr->space, recv_addr->page_no,
-				 buf_block_align(page));
+			buf_page_init_for_backup_restore(
+				recv_addr->space, recv_addr->page_no,
+				buf_block_align(page));
 
 			/* Extend the tablespace's last file if the page_no
 			does not fall inside its bounds; we assume the last
 			file is auto-extending, and ibbackup copied the file
 			when it still was smaller */
 
-			success = fil_extend_space_to_desired_size
-				(&actual_size,
-				 recv_addr->space, recv_addr->page_no + 1);
+			success = fil_extend_space_to_desired_size(
+				&actual_size,
+				recv_addr->space, recv_addr->page_no + 1);
 			if (!success) {
 				fprintf(stderr,
 					"InnoDB: Fatal error: cannot extend"
@@ -1615,9 +1617,9 @@ recv_apply_log_recs_for_backup(void)
 			/* Write the page back to the tablespace file using the
 			fil0fil.c routines */
 
-			buf_flush_init_for_writing
-				(page, mach_read_from_8(page + FIL_PAGE_LSN),
-				 recv_addr->space, recv_addr->page_no);
+			buf_flush_init_for_writing(
+				page, mach_read_from_8(page + FIL_PAGE_LSN),
+				recv_addr->space, recv_addr->page_no);
 
 			error = fil_io(OS_FILE_WRITE, TRUE, recv_addr->space,
 				       recv_addr->page_no, 0, UNIV_PAGE_SIZE,
@@ -1916,8 +1918,9 @@ loop:
 				fil_path_to_mysql_datadir is set in ibbackup to
 				point to the datadir we should use there */
 
-				if (NULL == fil_op_log_parse_or_replay
-				    (body, end_ptr, type, TRUE, space)) {
+				if (NULL == fil_op_log_parse_or_replay(
+					    body, end_ptr, type, TRUE,
+					    space)) {
 					fprintf(stderr,
 						"InnoDB: Error: file op"
 						" log record of type %lu"
@@ -1956,8 +1959,8 @@ loop:
 
 				if (recv_sys->found_corrupt_log) {
 
-					recv_report_corrupt_log
-						(ptr, type, space, page_no);
+					recv_report_corrupt_log(
+						ptr, type, space, page_no);
 				}
 
 				return(FALSE);
@@ -1998,8 +2001,8 @@ loop:
 			}
 		}
 
-		new_recovered_lsn = recv_calc_lsn_on_data_add
-			(recv_sys->recovered_lsn, total_len);
+		new_recovered_lsn = recv_calc_lsn_on_data_add(
+			recv_sys->recovered_lsn, total_len);
 
 		if (ut_dulint_cmp(new_recovered_lsn, recv_sys->scanned_lsn)
 		    > 0) {
@@ -2202,22 +2205,21 @@ recv_scan_log_recs(
 		    || !log_block_checksum_is_ok_or_old_format(log_block)) {
 
 			if (no == log_block_convert_lsn_to_no(scanned_lsn)
-			    && !log_block_checksum_is_ok_or_old_format
-			    (log_block)) {
+			    && !log_block_checksum_is_ok_or_old_format(
+				    log_block)) {
 				fprintf(stderr,
 					"InnoDB: Log block no %lu at"
 					" lsn %lu %lu has\n"
 					"InnoDB: ok header, but checksum field"
 					" contains %lu, should be %lu\n",
 					(ulong) no,
-					(ulong) ut_dulint_get_high
-					(scanned_lsn),
-					(ulong) ut_dulint_get_low
-					(scanned_lsn),
-					(ulong) log_block_get_checksum
-					(log_block),
-					(ulong) log_block_calc_checksum
-					(log_block));
+					(ulong) ut_dulint_get_high(
+						scanned_lsn),
+					(ulong) ut_dulint_get_low(scanned_lsn),
+					(ulong) log_block_get_checksum(
+						log_block),
+					(ulong) log_block_calc_checksum(
+						log_block));
 			}
 
 			/* Garbage or an incompletely written log block */
@@ -2273,8 +2275,8 @@ recv_scan_log_recs(
 
 			recv_sys->parse_start_lsn
 				= ut_dulint_add(scanned_lsn,
-						log_block_get_first_rec_group
-						(log_block));
+						log_block_get_first_rec_group(
+							log_block));
 			recv_sys->scanned_lsn = recv_sys->parse_start_lsn;
 			recv_sys->recovered_lsn = recv_sys->parse_start_lsn;
 		}
@@ -2297,8 +2299,8 @@ recv_scan_log_recs(
 				recv_sys->found_corrupt_log = TRUE;
 
 			} else if (!recv_sys->found_corrupt_log) {
-				more_data = recv_sys_add_to_parsing_buf
-					(log_block, scanned_lsn);
+				more_data = recv_sys_add_to_parsing_buf(
+					log_block, scanned_lsn);
 			}
 
 			recv_sys->scanned_lsn = scanned_lsn;
@@ -2385,11 +2387,10 @@ recv_group_scan_log_recs(
 		log_group_read_log_seg(LOG_RECOVER, log_sys->buf,
 				       group, start_lsn, end_lsn);
 
-		finished = recv_scan_log_recs
-			(TRUE, (buf_pool->n_frames - recv_n_pool_free_frames)
-			 * UNIV_PAGE_SIZE, TRUE, log_sys->buf,
-			 RECV_SCAN_SIZE, start_lsn,
-			 contiguous_lsn, group_scanned_lsn);
+		finished = recv_scan_log_recs(
+			TRUE, (buf_pool->n_frames - recv_n_pool_free_frames)
+			* UNIV_PAGE_SIZE, TRUE, log_sys->buf, RECV_SCAN_SIZE,
+			start_lsn, contiguous_lsn, group_scanned_lsn);
 		start_lsn = end_lsn;
 	}
 
@@ -2561,18 +2562,18 @@ recv_recovery_from_checkpoint_start(
 					"InnoDB: %lu %lu and %lu %lu.\n"
 					"InnoDB: #########################"
 					"#################################\n",
-					(ulong) ut_dulint_get_high
-					(checkpoint_lsn),
-					(ulong) ut_dulint_get_low
-					(checkpoint_lsn),
-					(ulong) ut_dulint_get_high
-					(min_flushed_lsn),
-					(ulong) ut_dulint_get_low
-					(min_flushed_lsn),
-					(ulong) ut_dulint_get_high
-					(max_flushed_lsn),
-					(ulong) ut_dulint_get_low
-					(max_flushed_lsn));
+					(ulong) ut_dulint_get_high(
+						checkpoint_lsn),
+					(ulong) ut_dulint_get_low(
+						checkpoint_lsn),
+					(ulong) ut_dulint_get_high(
+						min_flushed_lsn),
+					(ulong) ut_dulint_get_low(
+						min_flushed_lsn),
+					(ulong) ut_dulint_get_high(
+						max_flushed_lsn),
+					(ulong) ut_dulint_get_low(
+						max_flushed_lsn));
 			}
 
 			recv_needed_recovery = TRUE;
@@ -2602,8 +2603,8 @@ recv_recovery_from_checkpoint_start(
 					" half-written data pages from"
 					" the doublewrite\n"
 					"InnoDB: buffer...\n");
-				trx_sys_doublewrite_init_or_restore_pages
-					(TRUE);
+				trx_sys_doublewrite_init_or_restore_pages(
+					TRUE);
 			}
 
 			ut_print_timestamp(stderr);
@@ -2629,10 +2630,10 @@ recv_recovery_from_checkpoint_start(
 		group = recv_sys->archive_group;
 		capacity = log_group_get_capacity(group);
 
-		if ((ut_dulint_cmp(recv_sys->scanned_lsn, ut_dulint_add
-				   (checkpoint_lsn, capacity)) > 0)
-		    || (ut_dulint_cmp(checkpoint_lsn, ut_dulint_add
-				      (recv_sys->scanned_lsn, capacity))
+		if ((ut_dulint_cmp(recv_sys->scanned_lsn, ut_dulint_add(
+					   checkpoint_lsn, capacity)) > 0)
+		    || (ut_dulint_cmp(checkpoint_lsn, ut_dulint_add(
+					      recv_sys->scanned_lsn, capacity))
 			> 0)) {
 
 			mutex_exit(&(log_sys->mutex));
@@ -2756,10 +2757,10 @@ recv_recovery_from_checkpoint_start(
 				" lsn %lu %lu up to lsn %lu %lu\n",
 				(ulong) ut_dulint_get_high(checkpoint_lsn),
 				(ulong) ut_dulint_get_low(checkpoint_lsn),
-				(ulong) ut_dulint_get_high
-				(recv_sys->recovered_lsn),
-				(ulong) ut_dulint_get_low
-				(recv_sys->recovered_lsn));
+				(ulong) ut_dulint_get_high(
+					recv_sys->recovered_lsn),
+				(ulong) ut_dulint_get_low(
+					recv_sys->recovered_lsn));
 		}
 	} else {
 		srv_start_lsn = recv_sys->recovered_lsn;
@@ -3189,10 +3190,10 @@ ask_again:
 		       group->archive_space_id, read_offset / UNIV_PAGE_SIZE,
 		       read_offset % UNIV_PAGE_SIZE, len, buf, NULL);
 
-		ret = recv_scan_log_recs
-			(TRUE, (buf_pool->n_frames - recv_n_pool_free_frames)
-			 * UNIV_PAGE_SIZE, TRUE, buf, len, start_lsn,
-			 &dummy_lsn, &scanned_lsn);
+		ret = recv_scan_log_recs(
+			TRUE, (buf_pool->n_frames - recv_n_pool_free_frames)
+			* UNIV_PAGE_SIZE, TRUE, buf, len, start_lsn,
+			&dummy_lsn, &scanned_lsn);
 
 		if (ut_dulint_cmp(scanned_lsn, file_end_lsn) == 0) {
 

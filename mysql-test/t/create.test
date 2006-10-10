@@ -670,6 +670,11 @@ alter table t1 max_rows=100000000000;
 show create table t1;
 drop table t1;
 
+#
+# Bug#21772: can not name a column 'upgrade' when create a table
+#
+create table t1 (upgrade int);
+drop table t1;
 
 # End of 5.0 tests
 

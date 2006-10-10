@@ -443,11 +443,9 @@ bool partition_info::check_engine_mix(handlerton **engine_array, uint no_parts)
       DBUG_RETURN(TRUE);
     }
   } while (++i < no_parts);
-  if (engine_array[0] == &myisammrg_hton ||
-      engine_array[0] == &tina_hton)
+  if (engine_array[0]->flags & HTON_NO_PARTITION)
   {
-    my_error(ER_PARTITION_MERGE_ERROR, MYF(0),
-    engine_array[0] == &myisammrg_hton ? "MyISAM Merge" : "CSV");
+    my_error(ER_PARTITION_MERGE_ERROR, MYF(0));
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);

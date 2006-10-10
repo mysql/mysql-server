@@ -153,8 +153,8 @@ trx_undo_get_prev_rec_from_prev_page(
 		return(NULL);
 	}
 
-	prev_page = trx_undo_page_get_s_latched
-		(buf_frame_get_space_id(undo_page), prev_page_no, mtr);
+	prev_page = trx_undo_page_get_s_latched(
+		buf_frame_get_space_id(undo_page), prev_page_no, mtr);
 
 	return(trx_undo_page_get_last_rec(prev_page, page_no, offset));
 }
@@ -1041,8 +1041,8 @@ trx_undo_truncate_end(
 					goto function_exit;
 				}
 
-				trx_undo_free_page_in_rollback
-					(trx, undo, last_page_no, &mtr);
+				trx_undo_free_page_in_rollback(
+					trx, undo, last_page_no, &mtr);
 				break;
 			}
 
@@ -1261,8 +1261,8 @@ trx_undo_mem_create_at_db_start(
 				   page_no, offset);
 	mutex_exit(&(rseg->mutex));
 
-	undo->dict_operation =	mtr_read_ulint
-		(undo_header + TRX_UNDO_DICT_TRANS, MLOG_1BYTE, mtr);
+	undo->dict_operation =	mtr_read_ulint(
+		undo_header + TRX_UNDO_DICT_TRANS, MLOG_1BYTE, mtr);
 
 	undo->table_id = mtr_read_dulint(undo_header + TRX_UNDO_TABLE_ID, mtr);
 	undo->state = state;
@@ -1601,8 +1601,8 @@ trx_undo_reuse_cached(
 		offset = trx_undo_insert_header_reuse(undo_page, trx_id, mtr);
 
 		if (trx->support_xa) {
-			trx_undo_header_add_space_for_xid
-				(undo_page, undo_page + offset, mtr);
+			trx_undo_header_add_space_for_xid(
+				undo_page, undo_page + offset, mtr);
 		}
 	} else {
 		ut_a(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
@@ -1612,8 +1612,8 @@ trx_undo_reuse_cached(
 		offset = trx_undo_header_create(undo_page, trx_id, mtr);
 
 		if (trx->support_xa) {
-			trx_undo_header_add_space_for_xid
-				(undo_page, undo_page + offset, mtr);
+			trx_undo_header_add_space_for_xid(
+				undo_page, undo_page + offset, mtr);
 		}
 	}
 

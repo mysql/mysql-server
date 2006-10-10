@@ -556,10 +556,10 @@ trx_lists_init_at_db_start(void)
 							"InnoDB: Transaction"
 							" %lu %lu was in the"
 							" XA prepared state.\n",
-							ut_dulint_get_high
-							(trx->id),
-							ut_dulint_get_low
-							(trx->id));
+							ut_dulint_get_high(
+								trx->id),
+							ut_dulint_get_low(
+								trx->id));
 
 						if (srv_force_recovery == 0) {
 
@@ -790,8 +790,8 @@ trx_commit_off_kernel(
 			because only a single OS thread is allowed to do the
 			transaction commit for this transaction. */
 
-			update_hdr_page = trx_undo_set_state_at_finish
-				(trx, undo, &mtr);
+			update_hdr_page = trx_undo_set_state_at_finish(
+				trx, undo, &mtr);
 
 			/* We have to do the cleanup for the update log while
 			holding the rseg mutex because update log headers
@@ -809,19 +809,19 @@ trx_commit_off_kernel(
 
 		if (trx->mysql_log_file_name
 		    && trx->mysql_log_file_name[0] != '\0') {
-			trx_sys_update_mysql_binlog_offset
-				(trx->mysql_log_file_name,
-				 trx->mysql_log_offset,
-				 TRX_SYS_MYSQL_LOG_INFO, &mtr);
+			trx_sys_update_mysql_binlog_offset(
+				trx->mysql_log_file_name,
+				trx->mysql_log_offset,
+				TRX_SYS_MYSQL_LOG_INFO, &mtr);
 			trx->mysql_log_file_name = NULL;
 		}
 
 		if (trx->mysql_master_log_file_name[0] != '\0') {
 			/* This database server is a MySQL replication slave */
-			trx_sys_update_mysql_binlog_offset
-				(trx->mysql_master_log_file_name,
-				 trx->mysql_master_log_pos,
-				 TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
+			trx_sys_update_mysql_binlog_offset(
+				trx->mysql_master_log_file_name,
+				trx->mysql_master_log_pos,
+				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
 		}
 
 		/* The following call commits the mini-transaction, making the
@@ -1010,8 +1010,8 @@ trx_assign_read_view(
 	mutex_enter(&kernel_mutex);
 
 	if (!trx->read_view) {
-		trx->read_view = read_view_open_now
-			(trx->id, trx->global_read_view_heap);
+		trx->read_view = read_view_open_now(
+			trx->id, trx->global_read_view_heap);
 		trx->global_read_view = trx->read_view;
 	}
 
@@ -1835,8 +1835,8 @@ trx_prepare_off_kernel(
 		}
 
 		if (trx->update_undo) {
-			update_hdr_page = trx_undo_set_state_at_prepare
-				(trx, trx->update_undo, &mtr);
+			update_hdr_page = trx_undo_set_state_at_prepare(
+				trx, trx->update_undo, &mtr);
 		}
 
 		mutex_exit(&(rseg->mutex));
@@ -1983,8 +1983,8 @@ trx_recover_for_mysql(
 			fprintf(stderr,
 				"  InnoDB: Transaction contains changes"
 				" to %lu rows\n",
-				(ulong) ut_conv_dulint_to_longlong
-				(trx->undo_no));
+				(ulong) ut_conv_dulint_to_longlong(
+					trx->undo_no));
 
 			count++;
 

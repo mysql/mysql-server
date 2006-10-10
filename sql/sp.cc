@@ -65,8 +65,6 @@ enum
   MYSQL_PROC_FIELD_COUNT
 };
 
-bool mysql_proc_table_exists= 1;
-
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
 
@@ -118,13 +116,6 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
   bool not_used;
   DBUG_ENTER("open_proc_table");
 
-  /*
-    Speed up things if mysql.proc doesn't exists. mysql_proc_table_exists
-    is set when we create or read stored procedure or on flush privileges.
-  */
-  if (!mysql_proc_table_exists)
-    DBUG_RETURN(0);
-
   thd->reset_n_backup_open_tables_state(backup);
 
   bzero((char*) &tables, sizeof(tables));
@@ -134,7 +125,6 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup)
                           MYSQL_LOCK_IGNORE_FLUSH)))
   {
     thd->restore_backup_open_tables_state(backup);
-    mysql_proc_table_exists= 0;
     DBUG_RETURN(0);
   }
   table->use_all_columns();
@@ -185,15 +175,6 @@ static TABLE *open_proc_table_for_update(THD *thd)
   table= open_ltable(thd, &tables, TL_WRITE);
   if (table)
     table->use_all_columns();
-
-  /*
-    Under explicit LOCK TABLES or in prelocked mode we should not
-    say that mysql.proc table does not exist if we are unable to
-    open and lock it for writing since this condition may be
-    transient.
-  */
-  if (!(thd->locked_tables || thd->prelocked_mode) || table)
-    mysql_proc_table_exists= test(table);
 
   DBUG_RETURN(table);
 }
@@ -406,16 +387,16 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 {
   LEX *old_lex= thd->lex, newlex;
   String defstr;
-  char old_db_buf[NAME_BYTE_LEN+1];
+  char old_db_buf[NAME_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   ulong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
-
-  char definer_user_name_holder[USERNAME_BYTE_LENGTH + 1];
+  
+  char definer_user_name_holder[USERNAME_LENGTH + 1];
   LEX_STRING definer_user_name= { definer_user_name_holder,
-                                  USERNAME_BYTE_LENGTH };
+                                  USERNAME_LENGTH };
 
   char definer_host_name_holder[HOSTNAME_LENGTH + 1];
   LEX_STRING definer_host_name= { definer_host_name_holder, HOSTNAME_LENGTH };
@@ -514,7 +495,7 @@ db_create_routine(THD *thd, int type, sp_head *sp)
   int ret;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
-  char old_db_buf[NAME_BYTE_LEN+1];
+  char old_db_buf[NAME_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   DBUG_ENTER("db_create_routine");
@@ -1610,14 +1591,6 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
       case SP_KEY_NOT_FOUND:
         ret= SP_OK;
         break;
-      case SP_OPEN_TABLE_FAILED:
-        /*
-          Force it to attempt opening it again on subsequent calls;
-          otherwise we will get one error message the first time, and
-          then ER_SP_PROC_TABLE_CORRUPT (below) on subsequent tries.
-        */
-        mysql_proc_table_exists= 1;
-        /* Fall through */
       default:
         /*
           Any error when loading an existing routine is either some problem
@@ -1633,7 +1606,17 @@ sp_cache_routines_and_add_tables_aux(THD *thd, LEX *lex,
          */
         if (!thd->net.report_error)
         {
-          char n[NAME_LEN*2+2];
+          /*
+            SP allows full NAME_LEN chars thus he have to allocate enough
+            size in bytes. Otherwise there is stack overrun could happen
+            if multibyte sequence is `name`. `db` is still safe because the
+            rest of the server checks agains NAME_LEN bytes and not chars.
+            Hence, the overrun happens only if the name is in length > 32 and
+            uses multibyte (cyrillic, greek, etc.)
+
+            !! Change 3 with SYSTEM_CHARSET_MBMAXLEN when it's defined.
+          */
+          char n[NAME_LEN*3*2+2];
 
           /* m_qname.str is not always \0 terminated */
           memcpy(n, name.m_qname.str, name.m_qname.length);

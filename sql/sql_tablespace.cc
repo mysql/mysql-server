@@ -21,7 +21,7 @@
 int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 {
   int error= HA_ADMIN_NOT_IMPLEMENTED;
-  const handlerton *hton= ts_info->storage_engine;
+  handlerton *hton= ts_info->storage_engine;
 
   DBUG_ENTER("mysql_alter_tablespace");
   /*
@@ -42,7 +42,7 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 
   if (hton->alter_tablespace)
   {
-    if ((error= hton->alter_tablespace(thd, ts_info)))
+    if ((error= hton->alter_tablespace(hton, thd, ts_info)))
     {
       if (error == HA_ADMIN_NOT_IMPLEMENTED)
       {

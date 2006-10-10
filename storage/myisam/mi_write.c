@@ -167,13 +167,13 @@ int mi_write(MI_INFO *info, byte *record)
   /*
     Update status of the table. We need to do so after each row write
     for the log tables, as we want the new row to become visible to
-    other threads as soon as possible. We lock mutex here to follow
-    pthread memory visibility rules.
+    other threads as soon as possible. We don't lock mutex here
+    (as it is required by pthread memory visibility rules) as (1) it's
+    not critical to use outdated share->is_log_table value (2) locking
+    mutex here for every write is too expensive.
   */
-  pthread_mutex_lock(&share->intern_lock);
   if (share->is_log_table)
     mi_update_status((void*) info);
-  pthread_mutex_unlock(&share->intern_lock);
 
   allow_break();				/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);

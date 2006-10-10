@@ -55,6 +55,14 @@ C_MODE_START
 
 #if defined(__WIN__)
 #define O_NONBLOCK 1    /* For emulation of fcntl() */
+
+/*
+  SHUT_RDWR is called SD_BOTH in windows and
+  is defined to 2 in winsock2.h
+  #define SD_BOTH 0x02
+*/
+#define SHUT_RDWR 0x02
+
 #endif
 
 /*
