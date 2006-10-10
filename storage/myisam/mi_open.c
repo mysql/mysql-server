@@ -83,8 +83,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   char *disk_cache, *disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
-  ulong rec_per_key_part[MI_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
-  my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
+  ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
+  my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
@@ -105,7 +105,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share_buff.state.rec_per_key_part=rec_per_key_part;
     share_buff.state.key_root=key_root;
     share_buff.state.key_del=key_del;
-    share_buff.key_cache= multi_key_cache_search(name_buff, strlen(name_buff));
+    share_buff.key_cache= multi_key_cache_search(name_buff, strlen(name_buff),
+                                                 dflt_key_cache);
 
     DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
                     if (strstr(name, "/t1"))
@@ -211,7 +212,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 			    len,MI_BASE_INFO_SIZE));
     }
     disk_pos= (char*)
-      my_n_base_info_read((uchar*) disk_cache + base_pos, &share->base);
+      mi_n_base_info_read((uchar*) disk_cache + base_pos, &share->base);
     share->state.state_length=base_pos;
 
     if (!(open_flags & HA_OPEN_FOR_REPAIR) &&
@@ -233,8 +234,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     }
 
     key_parts+=fulltext_keys*FT_SEGS;
-    if (share->base.max_key_length > MI_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
-	key_parts >= MI_MAX_KEY * MI_MAX_KEY_SEG)
+    if (share->base.max_key_length > HA_MAX_KEY_BUFF || keys > MI_MAX_KEY ||
+	key_parts >= MI_MAX_KEY * HA_MAX_KEY_SEG)
     {
       DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
       my_errno=HA_ERR_UNSUPPORTED;
@@ -991,7 +992,7 @@ uint mi_base_info_write(File file, MI_BASE_INFO *base)
 }
 
 
-uchar *my_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
+uchar *mi_n_base_info_read(uchar *ptr, MI_BASE_INFO *base)
 {
   base->keystart = mi_sizekorr(ptr);			ptr +=8;
   base->max_data_file_length = mi_sizekorr(ptr);	ptr +=8;

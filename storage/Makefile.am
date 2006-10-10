@@ -20,7 +20,12 @@ AUTOMAKE_OPTIONS =	foreign
 
 # These are built from source in the Docs directory
 EXTRA_DIST =		
-SUBDIRS = @mysql_se_dirs@
+# Until we remove fulltext-related references from Maria to MyISAM
+# MyISAM must be built before Maria, which is not the case by default
+# because of alphabetical order
+# So we put myisam first; this is very ugly regarding plugins' logic
+# but it works, and we'll remove it soon.
+SUBDIRS = myisam @mysql_se_dirs@
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

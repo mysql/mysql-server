@@ -181,7 +181,7 @@ class Time_zone;
 
 struct system_variables
 {
-  ulonglong myisam_max_extra_sort_file_size;
+  ulonglong maria_max_sort_file_size;
   ulonglong myisam_max_sort_file_size;
   ha_rows select_limit;
   ha_rows max_join_size;
@@ -196,6 +196,9 @@ struct system_variables
   ulong max_sort_length;
   ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
+  ulong maria_repair_threads;
+  ulong maria_sort_buff_size;
+  ulong maria_stats_method;
   ulong multi_range_count;
   ulong myisam_repair_threads;
   ulong myisam_sort_buff_size;

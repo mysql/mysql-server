@@ -57,7 +57,7 @@ my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, byte *record,
     if (_mi_search_next(info,info->s->keyinfo+def->key, info->lastkey,
 			MI_UNIQUE_HASH_LENGTH, SEARCH_BIGGER,
 			info->s->state.key_root[def->key]) ||
-	bcmp(info->lastkey, key_buff, MI_UNIQUE_HASH_LENGTH))
+	memcmp((char*) info->lastkey, (char*) key_buff, MI_UNIQUE_HASH_LENGTH))
     {
       info->page_changed=1;			/* Can't optimize read next */
       info->lastpos=lastpos;
@@ -213,7 +213,7 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const byte *a, const byte *b,
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT1 ||
         type == HA_KEYTYPE_VARTEXT2)
     {
-      if (mi_compare_text(keyseg->charset, (uchar *) pos_a, a_length,
+      if (ha_compare_text(keyseg->charset, (uchar *) pos_a, a_length,
                                            (uchar *) pos_b, b_length, 0, 1))
         return 1;
     }

@@ -24,7 +24,7 @@ pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h my_xml.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			mysql_time.h mysql/plugin.h $(BUILT_SOURCES)
 noinst_HEADERS =	config-win.h config-netware.h \
-			heap.h my_bitmap.h my_uctype.h \
+			heap.h maria.h myisamchk.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
@@ -33,7 +33,7 @@ noinst_HEADERS =	config-win.h config-netware.h \
 			mysql_version.h.in my_handler.h my_time.h decimal.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
-			my_libwrap.h
+			my_libwrap.h pagecache.h
 
 # mysql_version.h are generated
 CLEANFILES =            mysql_version.h my_config.h readline openssl

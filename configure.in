@@ -2386,7 +2386,6 @@ AC_SUBST(readline_basedir)
 AC_SUBST(readline_link)
 AC_SUBST(readline_h_ln_cmd)
 
-
 # If we have threads generate some library functions and test programs
 sql_server_dirs=
 sql_server=

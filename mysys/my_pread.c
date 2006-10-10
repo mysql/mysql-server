@@ -155,7 +155,8 @@ uint my_pwrite(int Filedes, const byte *Buffer, uint Count, my_off_t offset,
       Count-=writenbytes;
       offset+=writenbytes;
     }
-    DBUG_PRINT("error",("Write only %d bytes",writenbytes));
+    DBUG_PRINT("error",("Write only %d bytes, error: %d",
+                        writenbytes, my_errno));
 #ifndef NO_BACKGROUND
 #ifdef THREAD
     if (my_thread_var->abort)

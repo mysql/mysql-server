@@ -61,7 +61,7 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   int error,flag;
   uint nod_flag;
   uchar *keypos,*maxpos;
-  uchar lastkey[MI_MAX_KEY_BUFF],*buff;
+  uchar lastkey[HA_MAX_KEY_BUFF],*buff;
   DBUG_ENTER("_mi_search");
   DBUG_PRINT("enter",("pos: %lu  nextflag: %u  lastpos: %lu",
                       (ulong) pos, nextflag, (ulong) info->lastpos));
@@ -243,7 +243,7 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 {
   int flag;
   uint nod_flag,length,not_used[2];
-  uchar t_buff[MI_MAX_KEY_BUFF],*end;
+  uchar t_buff[HA_MAX_KEY_BUFF],*end;
   DBUG_ENTER("_mi_seq_search");
 
   LINT_INIT(flag); LINT_INIT(length);
@@ -297,7 +297,7 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   int key_len_skip, seg_len_pack, key_len_left;
   uchar *end, *kseg, *vseg;
   uchar *sort_order=keyinfo->seg->charset->sort_order;
-  uchar tt_buff[MI_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
+  uchar tt_buff[HA_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
   uchar *saved_from, *saved_to, *saved_vseg;
   uint  saved_length=0, saved_prefix_len=0;
   uint  length_pack;
@@ -921,7 +921,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
   DBUG_ENTER("_mi_get_binary_pack_key");
 
   page= *page_pos;
-  page_end=page+MI_MAX_KEY_BUFF+1;
+  page_end=page+HA_MAX_KEY_BUFF+1;
   start_key=key;
 
   /*
@@ -1211,7 +1211,7 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 {
   int error;
   uint nod_flag;
-  uchar lastkey[MI_MAX_KEY_BUFF];
+  uchar lastkey[HA_MAX_KEY_BUFF];
   DBUG_ENTER("_mi_search_next");
   DBUG_PRINT("enter",("nextflag: %u  lastpos: %lu  int_keypos: %lu",
                       nextflag, (ulong) info->lastpos,

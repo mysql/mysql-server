@@ -142,8 +142,6 @@ base_configs="$base_configs --with-extra-charsets=complex "
 base_configs="$base_configs --enable-thread-safe-client --with-readline "
 base_configs="$base_configs --with-big-tables"
 
-static_link="--with-mysqld-ldflags=-all-static "
-static_link="$static_link --with-client-ldflags=-all-static"
 # we need local-infile in all binaries for rpl000001
 # if you need to disable local-infile in the client, write a build script
 # and unset local_infile_configs
