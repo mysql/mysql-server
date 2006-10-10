@@ -2597,6 +2597,7 @@ SELECT * FROM t2;
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+
 #
 # Bug#16110: insert permitted into view col w/o default value
 #
@@ -2879,4 +2880,40 @@ SHOW CREATE VIEW v1;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
+
+
+#
+# Bug#19111: TRIGGERs selecting from a VIEW on the firing base table
+# fail
+#
+# Allow to select from a view on a table being modified in a trigger
+# and stored function, since plain select is allowed there.
+#
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1);
+
+CREATE VIEW v1 AS SELECT MAX(i) FROM t1;
+
+# Plain 'SET NEW.i = (SELECT MAX(i) FROM t1) + 1' works, so select
+# from a view should work too.
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  SET NEW.i = (SELECT * FROM v1) + 1;
+INSERT INTO t1 VALUES (1);
+
+# Plain 'RETURN (SELECT MAX(i) FROM t1)' works in INSERT, so select
+# from a view should work too.
+CREATE FUNCTION f1() RETURNS INT RETURN (SELECT * FROM v1);
+UPDATE t1 SET i= f1();
+
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests.
