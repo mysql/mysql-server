@@ -503,9 +503,7 @@ buf_flush_init_for_writing(
 /*=======================*/
 	byte*	page,		/* in/out: page */
 	void*	page_zip_,	/* in/out: compressed page, or NULL */
-	dulint	newest_lsn,	/* in: newest modification lsn to the page */
-	ulint	space,		/* in: space id */
-	ulint	page_no)	/* in: page number */
+	dulint	newest_lsn)	/* in: newest modification lsn to the page */
 {
 	if (page_zip_) {
 		page_zip_des_t*	page_zip = page_zip_;
@@ -525,18 +523,8 @@ buf_flush_init_for_writing(
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_INDEX:
-			mach_write_to_4(page
-					+ FIL_PAGE_OFFSET, page_no);
-			mach_write_to_4(page
-					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-					space);
-			mach_write_to_4(page_zip->data
-					+ FIL_PAGE_OFFSET, page_no);
 			mach_write_to_8(page_zip->data
 					+ FIL_PAGE_LSN, newest_lsn);
-			mach_write_to_4(page_zip->data
-					+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
-					space);
 			memset(page_zip->data + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 			mach_write_to_4(page_zip->data
 					+ FIL_PAGE_SPACE_OR_CHKSUM,
@@ -555,10 +543,6 @@ buf_flush_init_for_writing(
 
 	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 			newest_lsn);
-	/* Write the page number and the space id */
-
-	mach_write_to_4(page + FIL_PAGE_OFFSET, page_no);
-	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, space);
 
 	/* Store the new formula checksum */
 
@@ -612,8 +596,7 @@ buf_flush_write_block_low(
 #endif
 	buf_flush_init_for_writing(block->frame,
 				   buf_frame_get_page_zip(block->frame),
-				   block->newest_modification,
-				   block->space, block->offset);
+				   block->newest_modification);
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 		       FALSE, block->space, block->page_zip.size,

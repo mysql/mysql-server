@@ -2651,18 +2651,17 @@ error_exit2:
 	memset(page, '\0', UNIV_PAGE_SIZE);
 
 	fsp_header_init_fields(page, *space_id, zip_size);
+	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, *space_id);
 
 	if (!zip_size) {
-		buf_flush_init_for_writing(page, NULL,
-				ut_dulint_zero, *space_id, 0);
+		buf_flush_init_for_writing(page, NULL, ut_dulint_zero);
 		ret = os_file_write(path, file, page, 0, 0, UNIV_PAGE_SIZE);
 	} else {
 		page_zip_des_t	page_zip;
 		page_zip.size = zip_size;
 		page_zip.data = page + UNIV_PAGE_SIZE;
 		page_zip.n_blobs = page_zip.m_start = page_zip.m_end = 0;
-		buf_flush_init_for_writing(page, &page_zip,
-				ut_dulint_zero, *space_id, 0);
+		buf_flush_init_for_writing(page, &page_zip, ut_dulint_zero);
 		ret = os_file_write(path, file, page_zip.data, 0, 0, zip_size);
 	}
 
@@ -2746,7 +2745,6 @@ fil_reset_too_high_lsns(
 	ulint		space_id;
 	ib_longlong	file_size;
 	ib_longlong	offset;
-	ulint		page_no;
 	ulint		zip_size;
 	ibool		success;
 
@@ -2832,19 +2830,15 @@ fil_reset_too_high_lsns(
 		if (ut_dulint_cmp(mach_read_from_8(page + FIL_PAGE_LSN),
 				  current_lsn) > 0) {
 			/* We have to reset the lsn */
-			space_id = mach_read_from_4(
-				page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-			page_no = mach_read_from_4(page + FIL_PAGE_OFFSET);
 
 			if (zip_size) {
 				memcpy(page + UNIV_PAGE_SIZE, page, zip_size);
 				buf_flush_init_for_writing(
 					page, page + UNIV_PAGE_SIZE,
-					current_lsn, space_id, page_no);
+					current_lsn);
 			} else {
 				buf_flush_init_for_writing(
-					page, NULL,
-					current_lsn, space_id, page_no);
+					page, NULL, current_lsn);
 			}
 			success = os_file_write(filepath, file, page,
 						(ulint)(offset & 0xFFFFFFFFUL),

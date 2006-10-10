@@ -826,14 +826,25 @@ fsp_init_file_page_low(
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		memset(page, 0, UNIV_PAGE_SIZE);
 		memset(page_zip->data, 0, page_zip->size);
+		mach_write_to_4(page + FIL_PAGE_OFFSET, block->offset);
+		mach_write_to_4(page
+				+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+				block->space);
+		mach_write_to_4(page_zip->data
+				+ FIL_PAGE_OFFSET, block->offset);
+		mach_write_to_4(page_zip->data
+				+ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+				block->space);
 		return;
 	}
 
 #ifdef UNIV_BASIC_LOG_DEBUG
 	memset(page, 0xff, UNIV_PAGE_SIZE);
 #endif
-	memset(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM, 0, 8);
+	mach_write_to_4(page + FIL_PAGE_OFFSET, block->offset);
 	memset(page + FIL_PAGE_LSN, 0, 8);
+	mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, block->space);
+	memset(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM, 0, 8);
 }
 
 /***************************************************************

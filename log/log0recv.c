@@ -1656,8 +1656,7 @@ recv_apply_log_recs_for_backup(void)
 
 			buf_flush_init_for_writing(
 				block->frame, buf_block_get_page_zip(block),
-				mach_read_from_8(block->frame + FIL_PAGE_LSN),
-				recv_addr->space, recv_addr->page_no);
+				mach_read_from_8(block->frame + FIL_PAGE_LSN));
 
 			if (zip_size) {
 				error = fil_io(OS_FILE_WRITE, TRUE,
