@@ -5470,5 +5470,32 @@ CAD
 CHF
 DROP FUNCTION bug21493|
 DROP TABLE t3,t4|
+drop procedure if exists proc_21462_a|
+drop procedure if exists proc_21462_b|
+create procedure proc_21462_a()
+begin
+select "Called A";
+end|
+create procedure proc_21462_b(x int)
+begin
+select "Called B";
+end|
+call proc_21462_a|
+Called A
+Called A
+call proc_21462_a()|
+Called A
+Called A
+call proc_21462_a(1)|
+ERROR 42000: Incorrect number of arguments for PROCEDURE test.proc_21462_a; expected 0, got 1
+call proc_21462_b|
+ERROR 42000: Incorrect number of arguments for PROCEDURE test.proc_21462_b; expected 1, got 0
+call proc_21462_b()|
+ERROR 42000: Incorrect number of arguments for PROCEDURE test.proc_21462_b; expected 1, got 0
+call proc_21462_b(1)|
+Called B
+Called B
+drop procedure proc_21462_a|
+drop procedure proc_21462_b|
 End of 5.0 tests
 drop table t1,t2;
