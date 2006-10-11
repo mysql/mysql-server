@@ -2904,7 +2904,7 @@ sub run_testcase ($) {
   # Stop Instance Manager if we are processing an IM-test case.
   # ----------------------------------------------------------------------
   if ( $tinfo->{'component_id'} eq 'im' and
-       mtr_im_stop($instance_manager, $tinfo->{'name'}) != 0 )
+       !mtr_im_stop($instance_manager, $tinfo->{'name'}) )
   {
     mtr_error("Failed to stop Instance Manager.")
   }
