@@ -420,7 +420,7 @@ AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
 PS=$ac_cv_path_PS
 # Linux style
-if $PS p $$ 2> /dev/null | grep $0 > /dev/null
+if $PS p $$ 2> /dev/null | grep `echo $0 | sed s/\-//` > /dev/null
 then
   FIND_PROC="$PS p \$\$PID | grep -v grep | grep \$\$MYSQLD > /dev/null"
 # Solaris
@@ -1086,6 +1086,7 @@ EOF
     #
     echo -n "making sure specific build files are writable... "
     for file in \
+        Docs/manual.chm \
         Docs/mysql.info \
         Docs/INSTALL-BINARY \
         INSTALL-SOURCE \
@@ -1861,7 +1862,7 @@ esac
 
 # isinf() could be a function or a macro (HPUX)
 AC_MSG_CHECKING(for isinf with <math.h>)
-AC_TRY_LINK([#include <math.h>], [float f = 0.0; isinf(f)],
+AC_TRY_LINK([#include <math.h>], [float f = 0.0; int r = isinf(f); return r],
  AC_MSG_RESULT(yes)
  AC_DEFINE(HAVE_ISINF, [1], [isinf() macro or function]),
  AC_MSG_RESULT(no))

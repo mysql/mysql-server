@@ -46,13 +46,13 @@ static Muted_query_log_event invisible_commit;
 
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
-static int binlog_init();
-static int binlog_close_connection(THD *thd);
-static int binlog_savepoint_set(THD *thd, void *sv);
-static int binlog_savepoint_rollback(THD *thd, void *sv);
-static int binlog_commit(THD *thd, bool all);
-static int binlog_rollback(THD *thd, bool all);
-static int binlog_prepare(THD *thd, bool all);
+static int binlog_init(void *p);
+static int binlog_close_connection(handlerton *hton, THD *thd);
+static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv);
+static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
+static int binlog_commit(handlerton *hton, THD *thd, bool all);
+static int binlog_rollback(handlerton *hton, THD *thd, bool all);
+static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 
 sql_print_message_func sql_print_message_handlers[3] =
 {
@@ -90,7 +90,7 @@ struct binlog_trx_data {
 #endif
 };
 
-handlerton binlog_hton;
+handlerton *binlog_hton;
 
 /*
   Open log table of a given type (general or slow log)
@@ -1155,36 +1155,37 @@ void Log_to_csv_event_handler::
   should be moved here.
 */
 
-int binlog_init()
+int binlog_init(void *p)
 {
-
-  binlog_hton.state=opt_bin_log ? SHOW_OPTION_YES : SHOW_OPTION_NO;
-  binlog_hton.db_type=DB_TYPE_BINLOG;
-  binlog_hton.savepoint_offset= sizeof(my_off_t);
-  binlog_hton.close_connection= binlog_close_connection;
-  binlog_hton.savepoint_set= binlog_savepoint_set;
-  binlog_hton.savepoint_rollback= binlog_savepoint_rollback;
-  binlog_hton.commit= binlog_commit;
-  binlog_hton.rollback= binlog_rollback;
-  binlog_hton.prepare= binlog_prepare;
-  binlog_hton.flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
+  binlog_hton= (handlerton *)p;
+  binlog_hton->state=opt_bin_log ? SHOW_OPTION_YES : SHOW_OPTION_NO;
+  binlog_hton->db_type=DB_TYPE_BINLOG;
+  binlog_hton->savepoint_offset= sizeof(my_off_t);
+  binlog_hton->close_connection= binlog_close_connection;
+  binlog_hton->savepoint_set= binlog_savepoint_set;
+  binlog_hton->savepoint_rollback= binlog_savepoint_rollback;
+  binlog_hton->commit= binlog_commit;
+  binlog_hton->rollback= binlog_rollback;
+  binlog_hton->prepare= binlog_prepare;
+  binlog_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
   return 0;
 }
 
-static int binlog_close_connection(THD *thd)
+static int binlog_close_connection(handlerton *hton, THD *thd)
 {
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open() && trx_data->empty());
   close_cached_file(trans_log);
-  thd->ha_data[binlog_hton.slot]= 0;
+  thd->ha_data[binlog_hton->slot]= 0;
   my_free((gptr)trx_data, MYF(0));
   return 0;
 }
 
 static int
-binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
+binlog_end_trans(THD *thd, binlog_trx_data *trx_data, 
+                 Log_event *end_ev)
 {
   DBUG_ENTER("binlog_end_trans");
   int error=0;
@@ -1238,7 +1239,7 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data, Log_event *end_ev)
   DBUG_RETURN(error);
 }
 
-static int binlog_prepare(THD *thd, bool all)
+static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 {
   /*
     do nothing.
@@ -1249,11 +1250,11 @@ static int binlog_prepare(THD *thd, bool all)
   return 0;
 }
 
-static int binlog_commit(THD *thd, bool all)
+static int binlog_commit(handlerton *hton, THD *thd, bool all)
 {
   DBUG_ENTER("binlog_commit");
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open() &&
      (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))));
@@ -1273,12 +1274,12 @@ static int binlog_commit(THD *thd, bool all)
     DBUG_RETURN(binlog_end_trans(thd, trx_data, &invisible_commit));
 }
 
-static int binlog_rollback(THD *thd, bool all)
+static int binlog_rollback(handlerton *hton, THD *thd, bool all)
 {
   DBUG_ENTER("binlog_rollback");
   int error=0;
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   IO_CACHE *trans_log= &trx_data->trans_log;
   /*
     First assert is guaranteed - see trans_register_ha() call below.
@@ -1326,11 +1327,11 @@ static int binlog_rollback(THD *thd, bool all)
   that case there is no need to have it in the binlog).
 */
 
-static int binlog_savepoint_set(THD *thd, void *sv)
+static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_set");
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   DBUG_ASSERT(mysql_bin_log.is_open() && my_b_tell(&trx_data->trans_log));
 
   *(my_off_t *)sv= my_b_tell(&trx_data->trans_log);
@@ -1342,11 +1343,11 @@ static int binlog_savepoint_set(THD *thd, void *sv)
   DBUG_RETURN(error);
 }
 
-static int binlog_savepoint_rollback(THD *thd, void *sv)
+static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
 {
   DBUG_ENTER("binlog_savepoint_rollback");
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   IO_CACHE *trans_log= &trx_data->trans_log;
   DBUG_ASSERT(mysql_bin_log.is_open() && my_b_tell(trans_log));
 
@@ -1579,17 +1580,18 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
   if (log_type == LOG_NORMAL)
   {
     char *end;
-    int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s. "
+    int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
 #ifdef EMBEDDED_LIBRARY
-		        "embedded library\n", my_progname, server_version
+                        "embedded library\n",
+                        my_progname, server_version, MYSQL_COMPILATION_COMMENT
 #elif __NT__
 			"started with:\nTCP Port: %d, Named Pipe: %s\n",
-			my_progname, server_version, mysqld_port,
-                        mysqld_unix_port
+                        my_progname, server_version, MYSQL_COMPILATION_COMMENT,
+                        mysqld_port, mysqld_unix_port
 #else
 			"started with:\nTcp port: %d  Unix socket: %s\n",
-			my_progname, server_version, mysqld_port,
-                        mysqld_unix_port
+                        my_progname, server_version, MYSQL_COMPILATION_COMMENT,
+                        mysqld_port, mysqld_unix_port
 #endif
                        );
     end= strnmov(buff + len, "Time                 Id Command    Argument\n",
@@ -3076,19 +3078,19 @@ int THD::binlog_setup_trx_data()
 {
   DBUG_ENTER("THD::binlog_setup_trx_data");
   binlog_trx_data *trx_data=
-    (binlog_trx_data*) ha_data[binlog_hton.slot];
+    (binlog_trx_data*) ha_data[binlog_hton->slot];
 
   if (trx_data)
     DBUG_RETURN(0);                             // Already set up
 
-  ha_data[binlog_hton.slot]= trx_data=
+  ha_data[binlog_hton->slot]= trx_data=
     (binlog_trx_data*) my_malloc(sizeof(binlog_trx_data), MYF(MY_ZEROFILL));
   if (!trx_data ||
       open_cached_file(&trx_data->trans_log, mysql_tmpdir,
                        LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
   {
     my_free((gptr)trx_data, MYF(MY_ALLOW_ZERO_PTR));
-    ha_data[binlog_hton.slot]= 0;
+    ha_data[binlog_hton->slot]= 0;
     DBUG_RETURN(1);                      // Didn't manage to set it up
   }
   trx_data->trans_log.end_of_file= max_binlog_cache_size;
@@ -3124,7 +3126,7 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
   if (is_trans)
     trans_register_ha(this,
                       (options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) != 0,
-                      &binlog_hton);
+                      binlog_hton);
 
   if ((error= mysql_bin_log.write(&the_event)))
     DBUG_RETURN(error);
@@ -3138,7 +3140,7 @@ Rows_log_event*
 THD::binlog_get_pending_rows_event() const
 {
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) ha_data[binlog_hton.slot];
+    (binlog_trx_data*) ha_data[binlog_hton->slot];
   /*
     This is less than ideal, but here's the story: If there is no
     trx_data, prepare_pending_rows_event() has never been called
@@ -3151,11 +3153,11 @@ THD::binlog_get_pending_rows_event() const
 void
 THD::binlog_set_pending_rows_event(Rows_log_event* ev)
 {
-  if (ha_data[binlog_hton.slot] == NULL)
+  if (ha_data[binlog_hton->slot] == NULL)
     binlog_setup_trx_data();
 
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) ha_data[binlog_hton.slot];
+    (binlog_trx_data*) ha_data[binlog_hton->slot];
 
   DBUG_ASSERT(trx_data);
   trx_data->pending= ev;
@@ -3171,13 +3173,13 @@ int MYSQL_BIN_LOG::
   flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::flush_and_set_pending_rows_event(event)");
-  DBUG_ASSERT(thd->current_stmt_binlog_row_based && mysql_bin_log.is_open());
+  DBUG_ASSERT(mysql_bin_log.is_open());
   DBUG_PRINT("enter", ("event=%p", event));
 
   int error= 0;
 
   binlog_trx_data *const trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
 
   DBUG_ASSERT(trx_data);
 
@@ -3331,14 +3333,14 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
         goto err;
 
       binlog_trx_data *const trx_data=
-        (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+        (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
       IO_CACHE *trans_log= &trx_data->trans_log;
       bool trans_log_in_use= my_b_tell(trans_log) != 0;
       if (event_info->get_cache_stmt() && !trans_log_in_use)
         trans_register_ha(thd,
                           (thd->options &
                            (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) != 0,
-                          &binlog_hton);
+                          binlog_hton);
       if (event_info->get_cache_stmt() || trans_log_in_use)
       {
         DBUG_PRINT("info", ("Using trans_log"));
@@ -3416,9 +3418,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
           }
         }
       }
-      /* Forget those values, for next binlogger: */
-      thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
-      thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     }
 
     /*
@@ -4620,7 +4619,7 @@ int TC_LOG_BINLOG::log(THD *thd, my_xid xid)
   DBUG_ENTER("TC_LOG_BINLOG::log");
   Xid_log_event xle(thd, xid);
   binlog_trx_data *trx_data=
-    (binlog_trx_data*) thd->ha_data[binlog_hton.slot];
+    (binlog_trx_data*) thd->ha_data[binlog_hton->slot];
   DBUG_RETURN(!binlog_end_trans(thd, trx_data, &xle));  // invert return value
 }
 
@@ -4681,7 +4680,7 @@ err1:
 }
 
 struct st_mysql_storage_engine binlog_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &binlog_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(binlog)
 {
@@ -4690,6 +4689,7 @@ mysql_declare_plugin(binlog)
   "binlog",
   "MySQL AB",
   "This is a pseudo storage engine to represent the binlog in a transaction",
+  PLUGIN_LICENSE_GPL,
   binlog_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,

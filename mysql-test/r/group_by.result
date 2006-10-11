@@ -807,8 +807,8 @@ explain
 SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	b	b	2	NULL	10	Using index
-1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	1	test.t2.b	1	
+1	SIMPLE	t2	index	b	b	2	NULL	10	Using index
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	1	test.t2.b	1	
 SELECT straight_join sql_no_cache v1.a, v1.b, v1.real_b from t2, v1
 where t2.b=v1.a GROUP BY t2.b;
 a	b	real_b

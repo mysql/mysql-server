@@ -1257,6 +1257,16 @@ void Field::hash(ulong *nr, ulong *nr2)
   }
 }
 
+my_size_t
+Field::do_last_null_byte() const
+{
+  DBUG_ASSERT(null_ptr == NULL || (byte*) null_ptr >= table->record[0]);
+  if (null_ptr)
+    return (byte*) null_ptr - table->record[0] + 1;
+  else
+    return LAST_NULL_BYTE_UNDEF;
+}
+
 
 void Field::copy_from_tmp(int row_offset)
 {
@@ -2355,11 +2365,16 @@ int Field_new_decimal::store(const char *from, uint length,
                       from, length, charset,  &decimal_value)) &&
       table->in_use->abort_on_warning)
   {
+    /* Because "from" is not NUL-terminated and we use %s in the ER() */
+    String from_as_str;
+    from_as_str.copy(from, length, &my_charset_bin);
+
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_ERROR,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                        "decimal", from, field_name,
+                        "decimal", from_as_str.c_ptr(), field_name,
                         (ulong) table->in_use->row_count);
+
     DBUG_RETURN(err);
   }
 
@@ -2372,13 +2387,20 @@ int Field_new_decimal::store(const char *from, uint length,
     set_value_on_overflow(&decimal_value, decimal_value.sign());
     break;
   case E_DEC_BAD_NUM:
+    {
+      /* Because "from" is not NUL-terminated and we use %s in the ER() */
+      String from_as_str;
+      from_as_str.copy(from, length, &my_charset_bin);
+
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                         ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-                        "decimal", from, field_name,
+                          "decimal", from_as_str.c_ptr(), field_name,
                         (ulong) table->in_use->row_count);
     my_decimal_set_zero(&decimal_value);
+
     break;
+    }
   }
 
 #ifndef DBUG_OFF
@@ -2543,28 +2565,26 @@ int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int not_used;				// We can ignore result from str2int
   char *end;
-  long tmp= my_strntol(cs, from, len, 10, &end, &not_used);
-  int error= 0;
+  int error;
 
   if (unsigned_flag)
   {
-    if (tmp < 0)
+    ulonglong tmp= cs->cset->strntoull10rnd(cs, from, len, 1, &end, &error);
+    if (error == MY_ERRNO_ERANGE || tmp > 255)
     {
-      tmp=0; /* purecov: inspected */
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (tmp > 255)
-    {
-      tmp= 255;
+      set_if_smaller(tmp, 255);
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
       error= 1;
+    else
+      error= 0;
+    ptr[0]= (char) tmp;
   }
   else
   {
+    longlong tmp= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
     if (tmp < -128)
     {
       tmp= -128;
@@ -2579,8 +2599,10 @@ int Field_tiny::store(const char *from,uint len,CHARSET_INFO *cs)
     }
     else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
       error= 1;
+    else
+      error= 0;
+    ptr[0]= (char) tmp;
   }
-  ptr[0]= (char) tmp;
   return error;
 }
 
@@ -2753,28 +2775,33 @@ int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int not_used;				// We can ignore result from str2int
   char *end;
-  long tmp= my_strntol(cs, from, len, 10, &end, &not_used);
-  int error= 0;
+  int error;
 
   if (unsigned_flag)
   {
-    if (tmp < 0)
+    ulonglong tmp= cs->cset->strntoull10rnd(cs, from, len, 1, &end, &error);
+    if (error == MY_ERRNO_ERANGE || tmp > UINT_MAX16)
     {
-      tmp=0;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (tmp > UINT_MAX16)
-    {
-      tmp=UINT_MAX16;
+      set_if_smaller(tmp, UINT_MAX16);
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
       error= 1;
+    else
+      error= 0;
+#ifdef WORDS_BIGENDIAN
+    if (table->s->db_low_byte_first)
+    {
+      int2store(ptr,tmp);
+    }
+    else
+#endif
+      shortstore(ptr,(short) tmp);
   }
   else
   {
+    longlong tmp= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
     if (tmp < INT_MIN16)
     {
       tmp= INT_MIN16;
@@ -2789,15 +2816,17 @@ int Field_short::store(const char *from,uint len,CHARSET_INFO *cs)
     }
     else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
       error= 1;
-  }
+    else
+      error= 0;
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int2store(ptr,tmp);
-  }
-  else
+    if (table->s->db_low_byte_first)
+    {
+      int2store(ptr,tmp);
+    }
+    else
 #endif
-    shortstore(ptr,(short) tmp);
+      shortstore(ptr,(short) tmp);
+  }
   return error;
 }
 
@@ -3033,28 +3062,26 @@ int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int not_used;				// We can ignore result from str2int
   char *end;
-  long tmp= my_strntol(cs, from, len, 10, &end, &not_used);
-  int error= 0;
+  int error;
 
   if (unsigned_flag)
   {
-    if (tmp < 0)
+    ulonglong tmp= cs->cset->strntoull10rnd(cs, from, len, 1, &end, &error);
+    if (error == MY_ERRNO_ERANGE || tmp > UINT_MAX24)
     {
-      tmp=0;
-      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error= 1;
-    }
-    else if (tmp >= (long) (1L << 24))
-    {
-      tmp=(long) (1L << 24)-1L;
+      set_if_smaller(tmp, UINT_MAX24);
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
       error= 1;
+    else
+      error= 0;
+    int3store(ptr,tmp);
   }
   else
   {
+    longlong tmp= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
     if (tmp < INT_MIN24)
     {
       tmp= INT_MIN24;
@@ -3069,9 +3096,10 @@ int Field_medium::store(const char *from,uint len,CHARSET_INFO *cs)
     }
     else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
       error= 1;
+    else
+      error= 0;
+    int3store(ptr,tmp);
   }
-
-  int3store(ptr,tmp);
   return error;
 }
 
@@ -3280,58 +3308,43 @@ int Field_long::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   char *end;
 
-  tmp_scan= cs->cset->scan(cs, from, from+len, MY_SEQ_SPACES);
-  len-= tmp_scan;
-  from+= tmp_scan;
-
-  end= (char*) from+len;
-  tmp= cs->cset->strtoll10(cs, from, &end, &error);
-
-  if (error != MY_ERRNO_EDOM)
+  if (unsigned_flag)
   {
-    if (unsigned_flag)
+    ulonglong tmp= cs->cset->strntoull10rnd(cs, from, len, 1, &end, &error);
+    if (error == MY_ERRNO_ERANGE || tmp > (ulonglong) UINT_MAX32)
     {
-      if (error < 0)
-      {
-        error= 1;
-        tmp= 0;
-      }
-      else if ((ulonglong) tmp > (ulonglong) UINT_MAX32)
-      {
-        tmp= UINT_MAX32;
-        error= 1;
-      }
-      else
-        error= 0;
+      set_if_smaller(tmp, (ulonglong) UINT_MAX32);
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      error= 1;
     }
+    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
+      error= 1;
     else
-    {
-      if (error < 0)
-      {
-        error= 0;
-        if (tmp < INT_MIN32)
-        {
-          tmp= INT_MIN32;
-          error= 1;
-        }
-      }
-      else if (tmp > INT_MAX32)
-      {
-        tmp= INT_MAX32;
-        error= 1;
-      }
-    }
+      error= 0;
+    store_tmp= (long) tmp;
   }
-  if (error)
+  else
   {
-    error= error != MY_ERRNO_EDOM ? 1 : 2;
-    set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    longlong tmp= cs->cset->strntoull10rnd(cs, from, len, 0, &end, &error);
+    if (tmp < INT_MIN32)
+    {
+      tmp= INT_MIN32;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      error= 1;
+    }
+    else if (tmp > INT_MAX32)
+    {
+      tmp=INT_MAX32;
+      set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      error= 1;
+    }
+    else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
+      error= 1;
+    else
+      error= 0;
+    store_tmp= (long) tmp;
   }
-  else if (from+len != end && table->in_use->count_cuted_fields &&
-           check_int(from,len,end,cs))
-    error= 2;
     
-  store_tmp= (long) tmp;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -3573,33 +3586,20 @@ void Field_long::sql_type(String &res) const
 int Field_longlong::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  longlong tmp;
   int error= 0;
   char *end;
+  ulonglong tmp;
 
-  tmp= cs->cset->scan(cs, from, from+len, MY_SEQ_SPACES);
-  len-= (uint)tmp;
-  from+= tmp;
-  if (unsigned_flag)
-  {
-    if (!len || test_if_minus(cs, from, from + len))
-    {
-      tmp=0;					// Set negative to 0
-      error= 1;
-    }
-    else
-      tmp=(longlong) my_strntoull(cs,from,len,10,&end,&error);
-  }
-  else
-    tmp=my_strntoll(cs,from,len,10,&end,&error);
-  if (error)
+  tmp= cs->cset->strntoull10rnd(cs,from,len,unsigned_flag,&end,&error);
+  if (error == MY_ERRNO_ERANGE)
   {
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
     error= 1;
   }
-  else if (from+len != end && table->in_use->count_cuted_fields &&
-           check_int(from,len,end,cs))
-    error= 2;
+  else if (table->in_use->count_cuted_fields && check_int(from,len,end,cs))
+    error= 1;
+  else
+    error= 0;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
@@ -8094,6 +8094,33 @@ Field_bit::Field_bit(char *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
 }
 
 
+my_size_t
+Field_bit::do_last_null_byte() const
+{
+  /*
+    Code elsewhere is assuming that bytes are 8 bits, so I'm using
+    that value instead of the correct one: CHAR_BIT.
+
+    REFACTOR SUGGESTION (Matz): Change to use the correct number of
+    bits. On systems with CHAR_BIT > 8 (not very common), the storage
+    will lose the extra bits.
+  */
+  DBUG_PRINT("debug", ("bit_ofs=%d, bit_len=%d, bit_ptr=%p",
+                       bit_ofs, bit_len, bit_ptr));
+  uchar *result;
+  if (bit_len == 0)
+    result= null_ptr;
+  else if (bit_ofs + bit_len > 8)
+    result= bit_ptr + 1;
+  else
+    result= bit_ptr;
+
+  if (result)
+    return (byte*) result - table->record[0] + 1;
+  else
+    return LAST_NULL_BYTE_UNDEF;
+}
+
 Field *Field_bit::new_key_field(MEM_ROOT *root,
                                 struct st_table *new_table,
                                 char *new_ptr, uchar *new_null_ptr,
@@ -8126,7 +8153,7 @@ int Field_bit::store(const char *from, uint length, CHARSET_INFO *cs)
       (delta == -1 && (uchar) *from > ((1 << bit_len) - 1)) ||
       (!bit_len && delta < 0))
   {
-    set_rec_bits(0xff, bit_ptr, bit_ofs, bit_len);
+    set_rec_bits((1 << bit_len) - 1, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, bytes_in_rec);
     if (table->in_use->really_abort_on_warning())
       set_warning(MYSQL_ERROR::WARN_LEVEL_ERROR, ER_DATA_TOO_LONG, 1);
@@ -8344,6 +8371,14 @@ const char *Field_bit::unpack(char *to, const char *from)
   return from + bytes_in_rec;
 }
 
+
+void Field_bit::set_default()
+{
+  my_ptrdiff_t const offset= table->s->default_values - table->record[0];
+  uchar bits= get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
+  set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
+  Field::set_default();
+}
 
 /*
   Bit field support for non-MyISAM tables.
@@ -9115,7 +9150,7 @@ create_field::create_field(Field *old_field,Field *orig_field)
     case  3: sql_type= FIELD_TYPE_MEDIUM_BLOB; break;
     default: sql_type= FIELD_TYPE_LONG_BLOB; break;
     }
-    length=(length+charset->mbmaxlen-1) / charset->mbmaxlen;
+    length/= charset->mbmaxlen;
     key_length/= charset->mbmaxlen;
     break;
   case MYSQL_TYPE_STRING:

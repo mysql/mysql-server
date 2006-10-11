@@ -158,9 +158,9 @@ row_vers_impl_x_locked_off_kernel(
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
 		if (prev_version) {
-			clust_offsets = rec_get_offsets
-				(prev_version, clust_index, NULL,
-				 ULINT_UNDEFINED, &heap);
+			clust_offsets = rec_get_offsets(
+				prev_version, clust_index, NULL,
+				ULINT_UNDEFINED, &heap);
 			row = row_build(ROW_COPY_POINTERS, clust_index,
 					prev_version, clust_offsets, heap);
 			entry = row_build_index_entry(row, index, heap);

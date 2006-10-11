@@ -572,14 +572,14 @@ COUNT(*)	GROUP_CONCAT(DISTINCT t2.somename SEPARATOR ' |')
 DROP TABLE t1,t2;
 select * from (select group_concat('c') from DUAL) t;
 group_concat('c')
-NULL
+c
 create table t1 ( a int not null default 0);
 select * from (select group_concat(a) from t1) t2;
 group_concat(a)
 NULL
 select group_concat('x') UNION ALL select 1;
 group_concat('x')
-NULL
+x
 1
 drop table t1;
 CREATE TABLE t1 (id int, a varchar(9));
@@ -659,4 +659,13 @@ SELECT CHAR_LENGTH( GROUP_CONCAT(b) ) FROM t1;
 CHAR_LENGTH( GROUP_CONCAT(b) )
 240001
 SET GROUP_CONCAT_MAX_LEN = 1024;
+DROP TABLE t1;
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES (2,1), (1,2), (2,2), (1,3);
+SELECT GROUP_CONCAT(a), x 
+FROM (SELECT a, GROUP_CONCAT(b) x FROM t1 GROUP BY a) AS s
+GROUP BY x;
+GROUP_CONCAT(a)	x
+2	1,2
+1	2,3
 DROP TABLE t1;

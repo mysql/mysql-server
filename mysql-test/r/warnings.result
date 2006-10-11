@@ -31,19 +31,19 @@ Error	1064	You have an error in your SQL syntax; check the manual that correspon
 insert into t1 values (1);
 insert into t1 values ("hej");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
 insert into t1 values ("hej"),("då");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'd?' for column 'a' at row 2
 set SQL_WARNINGS=1;
 insert into t1 values ("hej");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
 insert into t1 values ("hej"),("då");
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'd?' for column 'a' at row 2
 drop table t1;
 set SQL_WARNINGS=0;
 drop temporary table if exists not_exists;
@@ -180,44 +180,44 @@ create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 update t1 set a='abc';
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-Warning	1264	Out of range value for column 'a' at row 4
-Warning	1264	Out of range value for column 'a' at row 5
-Warning	1264	Out of range value for column 'a' at row 6
-Warning	1264	Out of range value for column 'a' at row 7
-Warning	1264	Out of range value for column 'a' at row 8
-Warning	1264	Out of range value for column 'a' at row 9
-Warning	1264	Out of range value for column 'a' at row 10
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 3
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 4
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 5
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 6
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 7
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 8
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 9
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 10
 show warnings limit 2, 1;
 Level	Code	Message
-Warning	1264	Out of range value for column 'a' at row 3
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 3
 show warnings limit 0, 10;
 Level	Code	Message
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-Warning	1264	Out of range value for column 'a' at row 4
-Warning	1264	Out of range value for column 'a' at row 5
-Warning	1264	Out of range value for column 'a' at row 6
-Warning	1264	Out of range value for column 'a' at row 7
-Warning	1264	Out of range value for column 'a' at row 8
-Warning	1264	Out of range value for column 'a' at row 9
-Warning	1264	Out of range value for column 'a' at row 10
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 2
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 3
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 4
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 5
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 6
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 7
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 8
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 9
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 10
 show warnings limit 9, 1;
 Level	Code	Message
-Warning	1264	Out of range value for column 'a' at row 10
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 10
 show warnings limit 10, 1;
 Level	Code	Message
 show warnings limit 9, 2;
 Level	Code	Message
-Warning	1264	Out of range value for column 'a' at row 10
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 10
 show warnings limit 0, 0;
 Level	Code	Message
 show warnings limit 1;
 Level	Code	Message
-Warning	1264	Out of range value for column 'a' at row 1
+Warning	1366	Incorrect integer value: 'abc' for column 'a' at row 1
 show warnings limit 0;
 Level	Code	Message
 show warnings limit 1, 0;
@@ -229,3 +229,59 @@ a
 select * from t1 limit 0, 0;
 a
 drop table t1;
+End of 4.1 tests
+CREATE TABLE t1( f1 CHAR(20) );
+CREATE TABLE t2( f1 CHAR(20), f2 CHAR(25) );
+CREATE TABLE t3( f1 CHAR(20), f2 CHAR(25), f3 DATE );
+INSERT INTO t1 VALUES ( 'a`' );
+INSERT INTO t2 VALUES ( 'a`', 'a`' );
+INSERT INTO t3 VALUES ( 'a`', 'a`', '1000-01-1' );
+DROP PROCEDURE IF EXISTS sp1;
+Warnings:
+Note	1305	PROCEDURE sp1 does not exist
+DROP PROCEDURE IF EXISTS sp2;
+Warnings:
+Note	1305	PROCEDURE sp2 does not exist
+DROP PROCEDURE IF EXISTS sp3;
+Warnings:
+Note	1305	PROCEDURE sp3 does not exist
+CREATE PROCEDURE sp1()
+BEGIN
+DECLARE x NUMERIC ZEROFILL;
+SELECT f1 INTO x FROM t1 LIMIT 1;
+END//
+CREATE PROCEDURE sp2()
+BEGIN
+DECLARE x NUMERIC ZEROFILL;
+SELECT f1 INTO x FROM t2 LIMIT 1;
+END//
+CREATE PROCEDURE sp3()
+BEGIN
+DECLARE x NUMERIC ZEROFILL;
+SELECT f1 INTO x FROM t3 LIMIT 1;
+END//
+CALL sp1();
+Warnings:
+Warning	1366	Incorrect decimal value: 'a`' for column 'x' at row 1
+CALL sp2();
+Warnings:
+Warning	1366	Incorrect decimal value: 'a`' for column 'x' at row 1
+CALL sp3();
+Warnings:
+Warning	1366	Incorrect decimal value: 'a`' for column 'x' at row 1
+DROP PROCEDURE IF EXISTS sp1;
+CREATE PROCEDURE sp1()
+BEGIN
+declare x numeric unsigned zerofill;
+SELECT f1 into x from t2 limit 1;
+END//
+CALL sp1();
+Warnings:
+Warning	1366	Incorrect decimal value: 'a`' for column 'x' at row 1
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP PROCEDURE sp1;
+DROP PROCEDURE sp2;
+DROP PROCEDURE sp3;
+End of 5.0 tests

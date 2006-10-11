@@ -355,8 +355,8 @@ log_close(void)
 		full by the current mtr: the next mtr log record group
 		will start within this block at the offset data_len */
 
-		log_block_set_first_rec_group
-			(log_block, log_block_get_data_len(log_block));
+		log_block_set_first_rec_group(
+			log_block, log_block_get_data_len(log_block));
 	}
 
 	if (log->buf_free > log->max_buf_free) {
@@ -900,17 +900,17 @@ log_group_init(
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < n_files; i++) {
-		*(group->file_header_bufs + i) = ut_align
-			(mem_alloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE),
-			 OS_FILE_LOG_BLOCK_SIZE);
+		*(group->file_header_bufs + i) = ut_align(
+			mem_alloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE),
+			OS_FILE_LOG_BLOCK_SIZE);
 
 		memset(*(group->file_header_bufs + i), '\0',
 		       LOG_FILE_HDR_SIZE);
 
 #ifdef UNIV_LOG_ARCHIVE
-		*(group->archive_file_header_bufs + i) = ut_align
-			(mem_alloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE),
-			 OS_FILE_LOG_BLOCK_SIZE);
+		*(group->archive_file_header_bufs + i) = ut_align(
+			mem_alloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE),
+			OS_FILE_LOG_BLOCK_SIZE);
 		memset(*(group->archive_file_header_bufs + i), '\0',
 		       LOG_FILE_HDR_SIZE);
 #endif /* UNIV_LOG_ARCHIVE */
@@ -923,9 +923,8 @@ log_group_init(
 	group->archived_offset = 0;
 #endif /* UNIV_LOG_ARCHIVE */
 
-	group->checkpoint_buf = ut_align
-		(mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE),
-		 OS_FILE_LOG_BLOCK_SIZE);
+	group->checkpoint_buf = ut_align(
+		mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE), OS_FILE_LOG_BLOCK_SIZE);
 
 	memset(group->checkpoint_buf, '\0', OS_FILE_LOG_BLOCK_SIZE);
 
@@ -1029,9 +1028,9 @@ log_sys_check_flush_completion(void)
 			/* Move the log buffer content to the start of the
 			buffer */
 
-			move_start = ut_calc_align_down
-				(log_sys->write_end_offset,
-				 OS_FILE_LOG_BLOCK_SIZE);
+			move_start = ut_calc_align_down(
+				log_sys->write_end_offset,
+				OS_FILE_LOG_BLOCK_SIZE);
 			move_end = ut_calc_align(log_sys->buf_free,
 						 OS_FILE_LOG_BLOCK_SIZE);
 
@@ -1255,16 +1254,16 @@ loop:
 			(ulong) ut_dulint_get_high(start_lsn),
 			(ulong) ut_dulint_get_low(start_lsn),
 			(ulong) log_block_get_hdr_no(buf),
-			(ulong) log_block_get_hdr_no
-			(buf + write_len - OS_FILE_LOG_BLOCK_SIZE));
+			(ulong) log_block_get_hdr_no(
+				buf + write_len - OS_FILE_LOG_BLOCK_SIZE));
 		ut_a(log_block_get_hdr_no(buf)
 		     == log_block_convert_lsn_to_no(start_lsn));
 
 		for (i = 0; i < write_len / OS_FILE_LOG_BLOCK_SIZE; i++) {
 
 			ut_a(log_block_get_hdr_no(buf) + i
-			     == log_block_get_hdr_no
-			     (buf + i * OS_FILE_LOG_BLOCK_SIZE));
+			     == log_block_get_hdr_no(
+				     buf + i * OS_FILE_LOG_BLOCK_SIZE));
 		}
 	}
 #endif /* UNIV_DEBUG */
@@ -1412,10 +1411,10 @@ loop:
 	if (log_debug_writes) {
 		fprintf(stderr,
 			"Writing log from %lu %lu up to lsn %lu %lu\n",
-			(ulong) ut_dulint_get_high
-			(log_sys->written_to_all_lsn),
-			(ulong) ut_dulint_get_low
-			(log_sys->written_to_all_lsn),
+			(ulong) ut_dulint_get_high(
+				log_sys->written_to_all_lsn),
+			(ulong) ut_dulint_get_low(
+				log_sys->written_to_all_lsn),
 			(ulong) ut_dulint_get_high(log_sys->lsn),
 			(ulong)	ut_dulint_get_low(log_sys->lsn));
 	}
@@ -1446,9 +1445,9 @@ loop:
 	log_sys->one_flushed = FALSE;
 
 	log_block_set_flush_bit(log_sys->buf + area_start, TRUE);
-	log_block_set_checkpoint_no
-		(log_sys->buf + area_end - OS_FILE_LOG_BLOCK_SIZE,
-		 log_sys->next_checkpoint_no);
+	log_block_set_checkpoint_no(
+		log_sys->buf + area_end - OS_FILE_LOG_BLOCK_SIZE,
+		log_sys->next_checkpoint_no);
 
 	/* Copy the last, incompletely written, log block a log block length
 	up, so that when the flush operation writes from the log buffer, the
@@ -1466,12 +1465,12 @@ loop:
 	/* Do the write to the log files */
 
 	while (group) {
-		log_group_write_buf
-			(group, log_sys->buf + area_start,
-			 area_end - area_start,
-			 ut_dulint_align_down(log_sys->written_to_all_lsn,
-					      OS_FILE_LOG_BLOCK_SIZE),
-			 start_offset - area_start);
+		log_group_write_buf(
+			group, log_sys->buf + area_start,
+			area_end - area_start,
+			ut_dulint_align_down(log_sys->written_to_all_lsn,
+					     OS_FILE_LOG_BLOCK_SIZE),
+			start_offset - area_start);
 
 		log_group_set_fields(group, log_sys->write_lsn);
 
@@ -1730,8 +1729,8 @@ log_group_checkpoint(
 			log_sys->next_checkpoint_lsn);
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_OFFSET,
-			log_group_calc_lsn_offset
-			(log_sys->next_checkpoint_lsn, group));
+			log_group_calc_lsn_offset(
+				log_sys->next_checkpoint_lsn, group));
 
 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, log_sys->buf_size);
 
@@ -2355,9 +2354,9 @@ loop:
 					     OS_DATA_FILE, &ret);
 
 		if (!ret && (open_mode == OS_FILE_CREATE)) {
-			file_handle = os_file_create
-				(name, OS_FILE_OPEN, OS_FILE_AIO,
-				 OS_DATA_FILE, &ret);
+			file_handle = os_file_create(
+				name, OS_FILE_OPEN, OS_FILE_AIO,
+				OS_DATA_FILE, &ret);
 		}
 
 		if (!ret) {
@@ -2388,10 +2387,10 @@ loop:
 				group->archive_space_id, FALSE);
 
 		if (next_offset % group->file_size == 0) {
-			log_group_archive_file_header_write
-				(group, n_files,
-				 group->archived_file_no + n_files,
-				 start_lsn);
+			log_group_archive_file_header_write(
+				group, n_files,
+				group->archived_file_no + n_files,
+				start_lsn);
 
 			next_offset += LOG_FILE_HDR_SIZE;
 		}
@@ -2513,10 +2512,10 @@ log_archive_write_complete_groups(void)
 #endif /* UNIV_DEBUG */
 
 	/* Calculate the archive file space start lsn */
-	start_lsn = ut_dulint_subtract
-		(log_sys->next_archived_lsn,
-		 end_offset - LOG_FILE_HDR_SIZE + trunc_files
-		 * (group->file_size - LOG_FILE_HDR_SIZE));
+	start_lsn = ut_dulint_subtract(
+		log_sys->next_archived_lsn,
+		end_offset - LOG_FILE_HDR_SIZE + trunc_files
+		* (group->file_size - LOG_FILE_HDR_SIZE));
 	end_lsn = start_lsn;
 
 	for (i = 0; i < trunc_files; i++) {
@@ -2656,8 +2655,8 @@ loop:
 
 		if (ut_dulint_cmp(limit_lsn, log_sys->lsn) >= 0) {
 
-			limit_lsn = ut_dulint_align_down
-				(log_sys->lsn, OS_FILE_LOG_BLOCK_SIZE);
+			limit_lsn = ut_dulint_align_down(
+				log_sys->lsn, OS_FILE_LOG_BLOCK_SIZE);
 		}
 	}
 
@@ -2804,8 +2803,8 @@ log_archive_close_groups(
 		/* Write a notice to the headers of archived log
 		files that the file write has been completed */
 
-		log_group_archive_completed_header_write
-			(group, 0, log_sys->archived_lsn);
+		log_group_archive_completed_header_write(
+			group, 0, log_sys->archived_lsn);
 
 		fil_space_truncate_start(group->archive_space_id,
 					 trunc_len);

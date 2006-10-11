@@ -8,12 +8,17 @@
 ############################################################
 
 --source include/have_row_based.inc
+--source include/have_binlog_format_row.inc
 --source include/have_partition.inc
+--source include/not_ndb_default.inc
 --source include/master-slave.inc
 connection master;
 --disable_warnings
 DROP TABLE IF EXISTS t1;
-SET BINLOG_FORMAT=ROW;
+
+let $maybe_ro_var = @@BINLOG_FORMAT;
+let $val4var = ROW;
+--source include/safe_set_to_maybe_ro_var.inc
 
 --echo **** Partition RANGE testing ****
 

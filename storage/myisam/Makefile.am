@@ -28,7 +28,7 @@ LDADD =
 
 DEFS =                  @DEFS@
 
-EXTRA_DIST =		mi_test_all.sh mi_test_all.res ft_stem.c CMakeLists.txt
+EXTRA_DIST =		mi_test_all.sh mi_test_all.res ft_stem.c CMakeLists.txt plug.in
 pkgdata_DATA =		mi_test_all mi_test_all.res
 
 pkglib_LIBRARIES =	libmyisam.a
