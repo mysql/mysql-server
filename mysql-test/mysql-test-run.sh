@@ -188,7 +188,7 @@ SYST=0
 REALT=0
 FAST_START=""
 MYSQL_TMP_DIR=$MYSQL_TEST_DIR/var/tmp
-SLAVE_LOAD_TMPDIR=../../var/tmp #needs to be same length to test logging
+SLAVE_LOAD_TMPDIR=../tmp #needs to be same length to test logging
 RES_SPACE="      "
 MYSQLD_SRC_DIRS="strings mysys include extra regex isam merge myisam \
  myisammrg heap sql"
