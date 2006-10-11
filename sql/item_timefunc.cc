@@ -2030,11 +2030,15 @@ bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const
           (date_sub_interval == other->date_sub_interval));
 }
 
+/*
+   'interval_names' reflects the order of the enumeration interval_type.
+   See item_timefunc.h
+ */
 
 static const char *interval_names[]=
 {
-  "year", "quarter", "month", "day", "hour",
-  "minute", "week", "second", "microsecond",
+  "year", "quarter", "month", "week", "day",  
+  "hour", "minute", "second", "microsecond",
   "year_month", "day_hour", "day_minute", 
   "day_second", "hour_minute", "hour_second",
   "minute_second", "day_microsecond",
