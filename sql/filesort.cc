@@ -601,6 +601,7 @@ static inline void store_length(uchar *to, uint length, uint pack_length)
     break;
   case 3:
     mi_int3store(to, length);
+    break;
   default:
     mi_int4store(to, length);
     break;
@@ -1268,6 +1269,7 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
       switch ((sortorder->result_type=sortorder->item->result_type())) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
+        set_if_smaller(sortorder->length, thd->variables.max_sort_length);
 	if (use_strnxfrm((cs=sortorder->item->collation.collation)))
 	{ 
           sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);

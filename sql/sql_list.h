@@ -94,9 +94,9 @@ public:
   inline base_list() { empty(); }
   inline base_list(const base_list &tmp) :Sql_alloc()
   {
-    elements=tmp.elements;
-    first=tmp.first;
-    last=tmp.last;
+    elements= tmp.elements;
+    first= tmp.first;
+    last= elements ? tmp.last : &first;
   }
   inline base_list(bool error) { }
   inline bool push_back(void *info)

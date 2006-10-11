@@ -36,8 +36,8 @@ INSERT INTO t1 VALUES ( "2000-1-2" );
 INSERT INTO t1 VALUES ( "2000-1-3" );
 INSERT INTO t1 VALUES ( "2000-1-4" );
 INSERT INTO t1 VALUES ( "2000-1-5" );
-SELECT * FROM t1 WHERE datum BETWEEN "2000-1-2" AND "2000-1-4";
-SELECT * FROM t1 WHERE datum BETWEEN "2000-1-2" AND datum - INTERVAL 100 DAY;
+SELECT * FROM t1 WHERE datum BETWEEN cast("2000-1-2" as date) AND cast("2000-1-4" as date);
+SELECT * FROM t1 WHERE datum BETWEEN cast("2000-1-2" as date) AND datum - INTERVAL 100 DAY;
 DROP TABLE t1;
 
 #
@@ -115,4 +115,11 @@ INSERT INTO t1 VALUES ('abc');
 SELECT * FROM t1;
 DROP TABLE t1;
 
+#
+# Bug#21677: Wrong result when comparing a DATE and a DATETIME in BETWEEN
+#
+create table t1(start_date date, end_date date);
+insert into t1 values ('2000-01-01','2000-01-02');
+select 1 from t1 where cast('2000-01-01 12:01:01' as datetime) between start_date and end_date;
+drop table t1;
 # End of 4.1 tests

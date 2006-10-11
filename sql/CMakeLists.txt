@@ -110,5 +110,8 @@ ADD_CUSTOM_COMMAND(
 	COMMAND ${GEN_LEX_HASH_EXE} ARGS > lex_hash.h
 	DEPENDS ${GEN_LEX_HASH_EXE}
 )
-
 ADD_DEPENDENCIES(mysqld gen_lex_hash)
+
+ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
+ADD_DEPENDENCIES(udf_example strings)
+TARGET_LINK_LIBRARIES(udf_example wsock32)

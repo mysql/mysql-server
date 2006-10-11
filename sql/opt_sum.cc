@@ -191,7 +191,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             Type of range for the key part for this field will be
             returned in range_fl.
           */
-          if ((outer_tables & table->map) ||
+          if (table->file->inited || (outer_tables & table->map) ||
               !find_key_for_maxmin(0, &ref, item_field->field, conds,
                                    &range_fl, &prefix_len))
           {
@@ -278,7 +278,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
             Type of range for the key part for this field will be
             returned in range_fl.
           */
-          if ((outer_tables & table->map) ||
+          if (table->file->inited || (outer_tables & table->map) ||
 	          !find_key_for_maxmin(1, &ref, item_field->field, conds,
 				                   &range_fl, &prefix_len))
           {

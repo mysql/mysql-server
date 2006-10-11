@@ -38,7 +38,8 @@
 #include "sha.hpp"
 #include "coding.hpp"
 #include <time.h>     // gmtime();
-#include "memory.hpp"   // mySTL::auto_ptr
+#include "memory.hpp" // some auto_ptr don't have reset, also need auto_array
+
 
 namespace TaoCrypt {
 
@@ -202,13 +203,13 @@ void PublicKey::SetKey(const byte* k)
 
 void PublicKey::AddToEnd(const byte* data, word32 len)
 {
-    mySTL::auto_ptr<byte> tmp(NEW_TC byte[sz_ + len], tcArrayDelete);
+    mySTL::auto_array<byte> tmp(NEW_TC byte[sz_ + len]);
 
     memcpy(tmp.get(), key_, sz_);
     memcpy(tmp.get() + sz_, data, len);
 
     byte* del = 0;
-    mySTL::swap(del, key_);
+    STL::swap(del, key_);
     tcArrayDelete(del);
 
     key_ = tmp.release();
@@ -856,7 +857,7 @@ bool CertDecoder::ValidateSignature(SignerList* signers)
 bool CertDecoder::ConfirmSignature(Source& pub)
 {
     HashType ht;
-    mySTL::auto_ptr<HASH> hasher(tcDelete);
+    mySTL::auto_ptr<HASH> hasher;
 
     if (signatureOID_ == MD5wRSA) {
         hasher.reset(NEW_TC MD5);

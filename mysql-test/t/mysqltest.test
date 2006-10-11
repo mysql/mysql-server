@@ -507,9 +507,21 @@ echo $where2;
 let $where3=a long $where variable content;
 echo $where3;
 
+let $where3=a long \\\$where variable content;
+echo $where3;
+
 let $novar1= $novar2;
 echo $novar1;
 
+let $cat=na;
+let $cat=ba$cat$cat;
+echo banana = $cat;
+
+# ba\$cat\$cat should have been sufficient.
+# ba\\\$cat\\\$cat -> ba\$cat\$cat -> ba$cat$cat -> banana
+# Magnus' upcoming patch will fix the missing second interpretation.
+let $cat=ba\\\$cat\\\$cat;
+echo Not a banana: $cat;
 
 
 # Test illegal uses of let

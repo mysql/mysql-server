@@ -428,6 +428,21 @@ static void do_varstring2(Copy_field *copy)
          length);
 }
 
+
+static void do_varstring2_mb(Copy_field *copy)
+{
+  int well_formed_error;
+  CHARSET_INFO *cs= copy->from_field->charset();
+  uint char_length= (copy->to_length - HA_KEY_BLOB_LENGTH) / cs->mbmaxlen;
+  uint from_length= uint2korr(copy->from_ptr);
+  const char *from_beg= copy->from_ptr + HA_KEY_BLOB_LENGTH;
+  uint length= cs->cset->well_formed_len(cs, from_beg, from_beg + from_length,
+                                         char_length, &well_formed_error);
+  int2store(copy->to_ptr, length);
+  memcpy(copy->to_ptr+HA_KEY_BLOB_LENGTH, from_beg, length);
+}
+ 
+
 /***************************************************************************
 ** The different functions that fills in a Copy_field class
 ***************************************************************************/
@@ -587,7 +602,8 @@ void (*Copy_field::get_copy_func(Field *to,Field *from))(Copy_field*)
           return do_field_string;
         if (to_length != from_length)
           return (((Field_varstring*) to)->length_bytes == 1 ?
-                  do_varstring1 : do_varstring2);
+                  do_varstring1 : (from->charset()->mbmaxlen == 1 ?
+                                   do_varstring2 : do_varstring2_mb));
       }
       else if (to_length < from_length)
 	return (from->charset()->mbmaxlen == 1 ?

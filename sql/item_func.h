@@ -187,6 +187,8 @@ public:
   }
   bool walk(Item_processor processor, byte *arg);
   Item *transform(Item_transformer transformer, byte *arg);
+  Item* compile(Item_analyzer analyzer, byte **arg_p,
+                Item_transformer transformer, byte *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
   bool is_expensive_processor(byte *arg);
@@ -889,6 +891,7 @@ public:
     if (arg_count)
       max_length= args[0]->max_length;
   }
+  bool fix_fields(THD *thd, Item **ref);
 };
 
 
@@ -1173,7 +1176,7 @@ public:
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   bool update_hash(void *ptr, uint length, enum Item_result type,
-  		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg= 0);
+  		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool send(Protocol *protocol, String *str_arg);
   void make_field(Send_field *tmp_field);
   bool check(bool use_result_field);

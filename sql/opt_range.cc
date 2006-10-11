@@ -1034,10 +1034,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   THD *thd= current_thd;
-  if (!(file= get_new_handler(head, thd->mem_root, head->s->db_type)))
-    goto failure;
-  DBUG_PRINT("info", ("Allocated new handler %p", file));
-  if (file->ha_open(head->s->path, head->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
+  if (!(file= head->file->clone(thd->mem_root)))
   {
     /* Caller will free the memory */
     goto failure;
@@ -5562,8 +5559,9 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
       ulong count=count_key_part_usage(root,pos->next_key_part);
       if (count > pos->next_key_part->use_count)
       {
-	sql_print_information("Use_count: Wrong count for key at 0x%lx, %lu should be %lu",
-			pos,pos->next_key_part->use_count,count);
+        sql_print_information("Use_count: Wrong count for key at 0x%lx, %lu "
+                              "should be %lu", (long unsigned int)pos,
+                              pos->next_key_part->use_count, count);
 	return;
       }
       pos->next_key_part->test_use_count(root);
@@ -5571,7 +5569,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
   }
   if (e_count != elements)
     sql_print_warning("Wrong use count: %u (should be %u) for tree at 0x%lx",
-		    e_count, elements, (gptr) this);
+                      e_count, elements, (long unsigned int) this);
 }
 
 #endif
@@ -6130,42 +6128,42 @@ static bool null_part_in_key(KEY_PART *key_part, const char *key, uint length)
 }
 
 
-bool QUICK_SELECT_I::check_if_keys_used(List<Item> *fields)
+bool QUICK_SELECT_I::is_keys_used(List<Item> *fields)
 {
-  return check_if_key_used(head, index, *fields);
+  return is_key_used(head, index, *fields);
 }
 
-bool QUICK_INDEX_MERGE_SELECT::check_if_keys_used(List<Item> *fields)
-{
-  QUICK_RANGE_SELECT *quick;
-  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
-  while ((quick= it++))
-  {
-    if (check_if_key_used(head, quick->index, *fields))
-      return 1;
-  }
-  return 0;
-}
-
-bool QUICK_ROR_INTERSECT_SELECT::check_if_keys_used(List<Item> *fields)
+bool QUICK_INDEX_MERGE_SELECT::is_keys_used(List<Item> *fields)
 {
   QUICK_RANGE_SELECT *quick;
   List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
   while ((quick= it++))
   {
-    if (check_if_key_used(head, quick->index, *fields))
+    if (is_key_used(head, quick->index, *fields))
       return 1;
   }
   return 0;
 }
 
-bool QUICK_ROR_UNION_SELECT::check_if_keys_used(List<Item> *fields)
+bool QUICK_ROR_INTERSECT_SELECT::is_keys_used(List<Item> *fields)
+{
+  QUICK_RANGE_SELECT *quick;
+  List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+  while ((quick= it++))
+  {
+    if (is_key_used(head, quick->index, *fields))
+      return 1;
+  }
+  return 0;
+}
+
+bool QUICK_ROR_UNION_SELECT::is_keys_used(List<Item> *fields)
 {
   QUICK_SELECT_I *quick;
   List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
   while ((quick= it++))
   {
-    if (quick->check_if_keys_used(fields))
+    if (quick->is_keys_used(fields))
       return 1;
   }
   return 0;
@@ -6723,7 +6721,6 @@ int QUICK_RANGE_SELECT::get_next()
     in_range= FALSE; /* No matching rows; go to next set of ranges. */
   }
 }
-
 
 /*
   Get the next record with a different prefix.
@@ -9377,7 +9374,6 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
   DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
   DBUG_VOID_RETURN;
 }
-
 
 /*****************************************************************************
 ** Print a quick range for debugging

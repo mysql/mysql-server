@@ -8,3 +8,17 @@ mysqld2	offline
 Killing the process...
 Sleeping...
 Success: the process was restarted.
+
+--------------------------------------------------------------------
+-- Test for BUG#12751
+--------------------------------------------------------------------
+START INSTANCE mysqld2;
+Success: the process has been started.
+Killing the process...
+Sleeping...
+Success: the process was restarted.
+SHOW INSTANCE STATUS mysqld1;
+instance_name	status	version
+mysqld1	online	VERSION
+STOP INSTANCE mysqld2;
+Success: the process has been stopped.

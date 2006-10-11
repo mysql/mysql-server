@@ -566,15 +566,18 @@ bool MYSQL_LOG::open(const char *log_name,
   case LOG_NORMAL:
   {
     char *end;
-    int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s. "
+    int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
 #ifdef EMBEDDED_LIBRARY
-		        "embedded library\n", my_progname, server_version
+		        "embedded library\n",
+                        my_progname, server_version, MYSQL_COMPILATION_COMMENT
 #elif __NT__
 			"started with:\nTCP Port: %d, Named Pipe: %s\n",
-			my_progname, server_version, mysqld_port, mysqld_unix_port
+			my_progname, server_version, MYSQL_COMPILATION_COMMENT,
+                        mysqld_port, mysqld_unix_port
 #else
 			"started with:\nTcp port: %d  Unix socket: %s\n",
-			my_progname,server_version,mysqld_port,mysqld_unix_port
+			my_progname, server_version, MYSQL_COMPILATION_COMMENT,
+                        mysqld_port, mysqld_unix_port
 #endif
                        );
     end=strnmov(buff+len,"Time                 Id Command    Argument\n",
@@ -1702,7 +1705,7 @@ bool MYSQL_LOG::write(Log_event *event_info)
 
     if (thd)
     {
-      if (thd->last_insert_id_used)
+      if (thd->last_insert_id_used_bin_log)
       {
 	Intvar_log_event e(thd,(uchar) LAST_INSERT_ID_EVENT,
 			   thd->current_insert_id);
@@ -1994,7 +1997,7 @@ bool MYSQL_LOG::write(THD *thd,const char *query, uint query_length,
         tmp_errno=errno;
       strmov(db,thd->db);
     }
-    if (thd->last_insert_id_used)
+    if (thd->last_insert_id_used_bin_log)
     {
       end=strmov(end,",last_insert_id=");
       end=longlong10_to_str((longlong) thd->current_insert_id,end,-10);

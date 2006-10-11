@@ -656,7 +656,7 @@ public:
   void print(THD *thd, String *str);
   static void print_order(String *str, ORDER *order);
   void print_limit(THD *thd, String *str);
-  void fix_prepare_information(THD *thd, Item **conds);
+  void fix_prepare_information(THD *thd, Item **conds, Item **having_conds);
   /*
     Destroy the used execution plan (JOIN) of this subtree (this
     SELECT_LEX and all nested SELECT_LEXes and SELECT_LEX_UNITs).

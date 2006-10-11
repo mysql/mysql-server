@@ -3365,7 +3365,6 @@ int Intvar_log_event::exec_event(struct st_relay_log_info* rli)
 {
   switch (type) {
   case LAST_INSERT_ID_EVENT:
-    thd->last_insert_id_used = 1;
     thd->last_insert_id = val;
     break;
   case INSERT_ID_EVENT:
@@ -3846,7 +3845,7 @@ int User_var_log_event::exec_event(struct st_relay_log_info* rli)
     a single record and with a single column. Thus, like
     a column value, it could always have IMPLICIT derivation.
    */
-  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT);
+  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT, 0);
   free_root(thd->mem_root,0);
 
   rli->inc_event_relay_log_pos();

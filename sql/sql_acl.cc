@@ -202,7 +202,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   DBUG_ENTER("acl_load");
 
   grant_version++; /* Privileges updated */
-  mysql_proc_table_exists= 1;			// Assume mysql.proc exists
 
   acl_cache->clear(1);				// Clear locked hostname cache
 
@@ -3231,7 +3230,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     {
       result= TRUE;
       continue;
-    }  
+    }
     if (replace_user_table(thd, tables[0].table, *Str,
                            (!db ? rights : 0), revoke_grant, create_new_users,
                            test(thd->variables.sql_mode &
