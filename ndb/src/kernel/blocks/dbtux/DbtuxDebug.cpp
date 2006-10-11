@@ -311,7 +311,6 @@ operator<<(NdbOut& out, const Dbtux::TreePos& pos)
   out << "[TreePos " << hex << &pos;
   out << " [loc " << pos.m_loc << "]";
   out << " [pos " << dec << pos.m_pos << "]";
-  out << " [match " << dec << pos.m_match << "]";
   out << " [dir " << dec << pos.m_dir << "]";
   out << "]";
   return out;
