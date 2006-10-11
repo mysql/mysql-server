@@ -415,7 +415,50 @@ create table t1 select now() - now(), curtime() - curtime(),
 show create table t1;
 drop table t1;
 
-# End of 4.1 tests
+#
+# Bug #11655: Wrong time is returning from nested selects - maximum time exists
+#
+# check if SEC_TO_TIME() handles out-of-range values correctly
+SELECT SEC_TO_TIME(3300000);
+SELECT SEC_TO_TIME(3300000)+0;
+SELECT SEC_TO_TIME(3600 * 4294967296);
+
+# check if TIME_TO_SEC() handles out-of-range values correctly
+SELECT TIME_TO_SEC('916:40:00');
+
+# check if ADDTIME() handles out-of-range values correctly
+SELECT ADDTIME('500:00:00', '416:40:00');
+SELECT ADDTIME('916:40:00', '416:40:00');
+
+# check if SUBTIME() handles out-of-range values correctly
+SELECT SUBTIME('916:40:00', '416:40:00');
+SELECT SUBTIME('-916:40:00', '416:40:00');
+
+# check if MAKETIME() handles out-of-range values correctly
+SELECT MAKETIME(916,0,0);
+SELECT MAKETIME(4294967296, 0, 0);
+SELECT MAKETIME(-4294967296, 0, 0);
+SELECT MAKETIME(0, 4294967296, 0);
+SELECT MAKETIME(0, 0, 4294967296);
+SELECT MAKETIME(CAST(-1 AS UNSIGNED), 0, 0);
+
+# check if EXTRACT() handles out-of-range values correctly
+SELECT EXTRACT(HOUR FROM '100000:02:03');
+
+# check if we get proper warnings if both input string truncation
+# and out-of-range value occur
+CREATE TABLE t1(f1 TIME);
+INSERT INTO t1 VALUES('916:00:00 a');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# Bug #20927: sec_to_time treats big unsigned as signed
+#
+# check if SEC_TO_TIME() handles BIGINT UNSIGNED values correctly
+SELECT SEC_TO_TIME(CAST(-1 AS UNSIGNED));
+
+--echo End of 4.1 tests
 
 explain extended select timestampdiff(SQL_TSI_WEEK, '2001-02-01', '2001-05-01') as a1,
 			timestampdiff(SQL_TSI_FRAC_SECOND, '2001-02-01 12:59:59.120000', '2001-05-01 12:58:58.119999') as a2;

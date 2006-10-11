@@ -463,8 +463,10 @@ err:
                         There may be an optional [.second_part] after seconds
    length               Length of str
    l_time               Store result here
-   was_cut              Set to 1 if value was cut during conversion or to 0
-                        otherwise.
+   warning              Set MYSQL_TIME_WARN_TRUNCATED flag if the input string
+                        was cut during conversion, and/or
+                        MYSQL_TIME_WARN_OUT_OF_RANGE flag, if the value is
+                        out of range.
 
    NOTES
      Because of the extra days argument, this function can only
@@ -476,15 +478,16 @@ err:
 */
 
 my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
-                    int *was_cut)
+                    int *warning)
 {
-  long date[5],value;
+  ulong date[5];
+  ulonglong value;
   const char *end=str+length, *end_of_days;
   my_bool found_days,found_hours;
   uint state;
 
   l_time->neg=0;
-  *was_cut= 0;
+  *warning= 0;
   for (; str != end && my_isspace(&my_charset_latin1,*str) ; str++)
     length--;
   if (str != end && *str == '-')
@@ -499,13 +502,16 @@ my_bool str_to_time(const char *str, uint length, MYSQL_TIME *l_time,
   /* Check first if this is a full TIMESTAMP */
   if (length >= 12)
   {                                             /* Probably full timestamp */
+    int was_cut;
     enum enum_mysql_timestamp_type
       res= str_to_datetime(str, length, l_time,
-                           (TIME_FUZZY_DATE | TIME_DATETIME_ONLY), was_cut);
+                           (TIME_FUZZY_DATE | TIME_DATETIME_ONLY), &was_cut);
     if ((int) res >= (int) MYSQL_TIMESTAMP_ERROR)
+    {
+      if (was_cut)
+        *warning|= MYSQL_TIME_WARN_TRUNCATED;
       return res == MYSQL_TIMESTAMP_ERROR;
-    /* We need to restore was_cut flag since str_to_datetime can modify it */
-    *was_cut= 0;
+    }
   }
 
   /* Not a timestamp. Try to get this as a DAYS_TO_SECOND string */
@@ -585,7 +591,7 @@ fractional:
     if (field_length > 0)
       value*= (long) log_10_int[field_length];
     else if (field_length < 0)
-      *was_cut= 1;
+      *warning|= MYSQL_TIME_WARN_TRUNCATED;
     date[4]=value;
   }
   else
@@ -599,10 +605,7 @@ fractional:
        ((str[1] == '-' || str[1] == '+') &&
         (end - str) > 2 &&
         my_isdigit(&my_charset_latin1, str[2]))))
-  {
-    *was_cut= 1;
     return 1;
-  }
 
   if (internal_format_positions[7] != 255)
   {
@@ -621,12 +624,12 @@ fractional:
     }
   }
 
-  /* Some simple checks */
-  if (date[2] >= 60 || date[3] >= 60)
-  {
-    *was_cut= 1;
+  /* Integer overflow checks */
+  if (date[0] > UINT_MAX || date[1] > UINT_MAX ||
+      date[2] > UINT_MAX || date[3] > UINT_MAX ||
+      date[4] > UINT_MAX)
     return 1;
-  }
+  
   l_time->year=         0;                      /* For protocol::store_time */
   l_time->month=        0;
   l_time->day=          date[0];
@@ -636,6 +639,10 @@ fractional:
   l_time->second_part=  date[4];
   l_time->time_type= MYSQL_TIMESTAMP_TIME;
 
+  /* Check if the value is valid and fits into TIME range */
+  if (check_time_range(l_time, warning))
+    return 1;
+  
   /* Check if there is garbage at end of the TIME specification */
   if (str != end)
   {
@@ -643,11 +650,52 @@ fractional:
     {
       if (!my_isspace(&my_charset_latin1,*str))
       {
-        *was_cut= 1;
+        *warning|= MYSQL_TIME_WARN_TRUNCATED;
         break;
       }
     } while (++str != end);
   }
+  return 0;
+}
+
+
+/*
+  Check 'time' value to lie in the TIME range
+
+  SYNOPSIS:
+    check_time_range()
+    time     pointer to TIME value
+    warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is out of range
+
+  DESCRIPTION
+  If the time value lies outside of the range [-838:59:59, 838:59:59],
+  set it to the closest endpoint of the range and set
+  MYSQL_TIME_WARN_OUT_OF_RANGE flag in the 'warning' variable.
+
+  RETURN
+    0        time value is valid, but was possibly truncated
+    1        time value is invalid
+*/
+
+int check_time_range(struct st_mysql_time *time, int *warning) 
+{
+  longlong hour;
+
+  if (time->minute >= 60 || time->second >= 60)
+    return 1;
+
+  hour= time->hour + (24*time->day);
+  if (hour <= TIME_MAX_HOUR &&
+      (hour != TIME_MAX_HOUR || time->minute != TIME_MAX_MINUTE ||
+       time->second != TIME_MAX_SECOND || !time->second_part))
+    return 0;
+
+  time->day= 0;
+  time->hour= TIME_MAX_HOUR;
+  time->minute= TIME_MAX_MINUTE;
+  time->second= TIME_MAX_SECOND;
+  time->second_part= 0;
+  *warning|= MYSQL_TIME_WARN_OUT_OF_RANGE;
   return 0;
 }
 
@@ -838,7 +886,7 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
 int my_time_to_str(const MYSQL_TIME *l_time, char *to)
 {
   uint extra_hours= 0;
-  return my_sprintf(to, (to, "%s%02d:%02d:%02d",
+  return my_sprintf(to, (to, "%s%02u:%02u:%02u",
                          (l_time->neg ? "-" : ""),
                          extra_hours+ l_time->hour,
                          l_time->minute,
@@ -847,7 +895,7 @@ int my_time_to_str(const MYSQL_TIME *l_time, char *to)
 
 int my_date_to_str(const MYSQL_TIME *l_time, char *to)
 {
-  return my_sprintf(to, (to, "%04d-%02d-%02d",
+  return my_sprintf(to, (to, "%04u-%02u-%02u",
                          l_time->year,
                          l_time->month,
                          l_time->day));
@@ -855,7 +903,7 @@ int my_date_to_str(const MYSQL_TIME *l_time, char *to)
 
 int my_datetime_to_str(const MYSQL_TIME *l_time, char *to)
 {
-  return my_sprintf(to, (to, "%04d-%02d-%02d %02d:%02d:%02d",
+  return my_sprintf(to, (to, "%04u-%02u-%02u %02u:%02u:%02u",
                          l_time->year,
                          l_time->month,
                          l_time->day,
