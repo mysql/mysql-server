@@ -1371,8 +1371,9 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 			   param->temp_filename);
       goto err;
     }
-    if (maria_filecopy(param,new_file,info->dfile,0L,new_header_length,
-		 "datafile-header"))
+    if (new_header_length &&
+        maria_filecopy(param,new_file,info->dfile,0L,new_header_length,
+                       "datafile-header"))
       goto err;
     info->s->state.dellink= HA_OFFSET_ERROR;
     info->rec_cache.file=new_file;
@@ -2056,8 +2057,9 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 			   param->temp_filename);
       goto err;
     }
-    if (maria_filecopy(param, new_file,info->dfile,0L,new_header_length,
-		 "datafile-header"))
+    if (new_header_length &&
+        maria_filecopy(param, new_file,info->dfile,0L,new_header_length,
+                       "datafile-header"))
       goto err;
     if (param->testflag & T_UNPACK)
     {
@@ -2450,8 +2452,9 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
 			   param->temp_filename);
       goto err;
     }
-    if (maria_filecopy(param, new_file,info->dfile,0L,new_header_length,
-		 "datafile-header"))
+    if (new_header_length &&
+        maria_filecopy(param, new_file,info->dfile,0L,new_header_length,
+                       "datafile-header"))
       goto err;
     if (param->testflag & T_UNPACK)
     {

@@ -19,7 +19,7 @@
 #include "maria_def.h"
 #include <ft_global.h>
 
-static int maria_inited= 0;
+my_bool maria_inited= FALSE;
 pthread_mutex_t THR_LOCK_maria;
 
 /*
@@ -40,7 +40,7 @@ int maria_init(void)
 {
   if (!maria_inited)
   {
-    maria_inited= 1;
+    maria_inited= TRUE;
     pthread_mutex_init(&THR_LOCK_maria,MY_MUTEX_INIT_SLOW);
   }
   return 0;
@@ -51,7 +51,7 @@ void maria_end(void)
 {
   if (maria_inited)
   {
-    maria_inited= 0;
+    maria_inited= FALSE;
     ft_free_stopwords();
     pthread_mutex_destroy(&THR_LOCK_maria);
   }

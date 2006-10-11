@@ -305,7 +305,14 @@ struct st_maria_info
   my_bool page_changed;
   /* If info->buff has to be reread for rnext */
   my_bool buff_used;
+  /*
+    TODO: decide if we will have Maria-MERGE tables, and if no,
+    remove some members here.
+  */ 
   my_bool once_flags;			/* For MARIAMRG */
+#ifdef __WIN__
+  my_bool owned_by_merge;                       /* This Maria table is part of a merge union */
+#endif
 #ifdef THREAD
   THR_LOCK_DATA lock;
 #endif
@@ -431,6 +438,7 @@ extern LIST *maria_open_list;
 extern uchar NEAR maria_file_magic[], NEAR maria_pack_file_magic[];
 extern uint NEAR maria_read_vec[], NEAR maria_readnext_vec[];
 extern uint maria_quick_table_bits;
+extern my_bool maria_inited;
 
 	/* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 

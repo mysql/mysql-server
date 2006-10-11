@@ -231,11 +231,19 @@ my_bool _ma_read_pack_info(MARIA_HA *info, pbool fix_keys)
   {
     for (i=0 ; i < share->base.keys ; i++)
     {
-      share->keyinfo[i].keylength+=(uint16) diff_length;
-      share->keyinfo[i].minlength+=(uint16) diff_length;
-      share->keyinfo[i].maxlength+=(uint16) diff_length;
-      share->keyinfo[i].seg[share->keyinfo[i].keysegs].length=
-	(uint16) rec_reflength;
+      MARIA_KEYDEF *keyinfo= &share->keyinfo[i];
+      keyinfo->keylength+= (uint16) diff_length;
+      keyinfo->minlength+= (uint16) diff_length;
+      keyinfo->maxlength+= (uint16) diff_length;
+      keyinfo->seg[keyinfo->flag & HA_FULLTEXT ?
+                   FT_SEGS : keyinfo->keysegs].length= (uint16) rec_reflength;
+    }
+    if (share->ft2_keyinfo.seg)
+    {
+      MARIA_KEYDEF *ft2_keyinfo= &share->ft2_keyinfo;
+      ft2_keyinfo->keylength+= (uint16) diff_length;
+      ft2_keyinfo->minlength+= (uint16) diff_length;
+      ft2_keyinfo->maxlength+= (uint16) diff_length;
     }
   }
 

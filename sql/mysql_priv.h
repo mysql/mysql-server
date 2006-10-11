@@ -1651,6 +1651,9 @@ extern SHOW_COMP_OPTION have_ndbcluster;
 extern SHOW_COMP_OPTION have_partition_db;
 extern SHOW_COMP_OPTION have_merge_db;
 extern SHOW_COMP_OPTION have_maria_db;
+extern handlerton *partition_hton;
+extern handlerton *myisam_hton;
+extern handlerton *heap_hton;
 
 extern SHOW_COMP_OPTION have_row_based_replication;
 extern SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen;

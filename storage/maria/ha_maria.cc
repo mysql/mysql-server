@@ -58,9 +58,11 @@ TYPELIB maria_stats_method_typelib=
 ** MARIA tables
 *****************************************************************************/
 
-static handler *maria_create_handler(TABLE_SHARE * table, MEM_ROOT *mem_root)
+static handler *maria_create_handler(handlerton *hton,
+                                     TABLE_SHARE * table,
+                                     MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_maria(table);
+  return new (mem_root) ha_maria(hton, table);
 }
 
 
@@ -147,8 +149,8 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
 }
 
 
-ha_maria::ha_maria(TABLE_SHARE *table_arg):
-handler(&maria_hton, table_arg), file(0),
+ha_maria::ha_maria(handlerton *hton, TABLE_SHARE *table_arg):
+handler(hton, table_arg), file(0),
 int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                 HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
@@ -156,6 +158,15 @@ int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
 can_enable_indexes(1)
 {}
+
+
+handler *ha_maria::clone(MEM_ROOT *mem_root)
+{
+  ha_maria *new_handler= static_cast <ha_maria *>(handler::clone(mem_root));
+  if (new_handler)
+    new_handler->file->state= file->state;
+  return new_handler;
+}
 
 
 static const char *ha_maria_exts[]=
@@ -355,7 +366,11 @@ int ha_maria::write_row(byte * buf)
      or a new row, then update the auto_increment value in the record.
   */
   if (table->next_number_field && buf == table->record[0])
-    update_auto_increment();
+  {
+    int error;
+    if ((error= update_auto_increment()))
+      return error;
+  }
   return maria_write(file, buf);
 }
 
@@ -1818,20 +1833,28 @@ bool ha_maria::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-handlerton maria_hton;
-
-static int ha_maria_init()
+extern int maria_panic(enum ha_panic_function flag);
+int maria_panic(handlerton *hton, ha_panic_function flag)
 {
-  maria_hton.state=SHOW_OPTION_YES;
-  maria_hton.db_type=DB_TYPE_MARIA;
-  maria_hton.create=maria_create_handler;
-  maria_hton.panic=maria_panic;
-  maria_hton.flags=HTON_CAN_RECREATE;
+  return maria_panic(flag);
+}
+
+static int ha_maria_init(void *p)
+{
+  handlerton *maria_hton;
+
+  maria_hton= (handlerton *)p;
+  maria_hton->state= SHOW_OPTION_YES;
+  maria_hton->db_type= DB_TYPE_MARIA;
+  maria_hton->create= maria_create_handler;
+  maria_hton->panic= maria_panic;
+  /* TODO: decide if we support Maria being used for log tables */
+  maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   return test(maria_init());
 }
 
 struct st_mysql_storage_engine maria_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &maria_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(maria)
 {
@@ -1840,9 +1863,12 @@ mysql_declare_plugin(maria)
   "Maria",
   "MySQL AB",
   "Traditional transactional MySQL tables",
+  PLUGIN_LICENSE_GPL,
   ha_maria_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */
-  0
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;

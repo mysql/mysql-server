@@ -44,6 +44,8 @@ int maria_panic(enum ha_panic_function flag)
   MARIA_HA *info;
   DBUG_ENTER("maria_panic");
 
+  if (!maria_inited)
+    DBUG_RETURN(0);
   pthread_mutex_lock(&THR_LOCK_maria);
   for (list_element=maria_open_list ; list_element ; list_element=next_open)
   {

@@ -183,6 +183,21 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       break;				/* Impossible */
     }
   }
+#ifdef __WIN__
+  else
+  {
+    /*
+       Check for bad file descriptors if this table is part
+       of a merge union. Failing to capture this may cause
+       a crash on windows if the table is renamed and 
+       later on referenced by the merge table.
+     */
+    if( info->owned_by_merge && (info->s)->kfile < 0 )
+    {
+      error = HA_ERR_NO_SUCH_TABLE;
+    }
+  }
+#endif
   pthread_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
 } /* maria_lock_database */

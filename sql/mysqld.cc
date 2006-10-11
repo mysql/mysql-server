@@ -7095,6 +7095,11 @@ static void mysql_init_variables(void)
 #else
   have_csv_db= SHOW_OPTION_NO;
 #endif
+#ifdef WITH_MARIA_STORAGE_ENGINE
+  have_maria_db= SHOW_OPTION_YES;
+#else
+  have_maria_db= SHOW_OPTION_NO;
+#endif
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
     have_ndbcluster= SHOW_OPTION_DISABLED;
 #else

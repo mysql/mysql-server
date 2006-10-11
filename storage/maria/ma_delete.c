@@ -442,7 +442,7 @@ static int del(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo, uchar *k
 	else
 	{
 	  DBUG_PRINT("test",("Inserting of key when deleting"));
-	  if (_ma_get_last_key(info,keyinfo,leaf_buff,keybuff,endpos,
+	  if (!_ma_get_last_key(info,keyinfo,leaf_buff,keybuff,endpos,
 				&tmp))
 	    goto err;
 	  ret_value= _ma_insert(info,keyinfo,key,leaf_buff,endpos,keybuff,

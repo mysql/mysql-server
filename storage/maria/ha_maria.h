@@ -42,9 +42,9 @@ class ha_maria :public handler
   int repair(THD * thd, HA_CHECK &param, bool optimize);
 
 public:
-    ha_maria(TABLE_SHARE * table_arg);
-   ~ha_maria()
-  {}
+  ha_maria(handlerton *hton, TABLE_SHARE * table_arg);
+  ~ha_maria() {}
+  handler *clone(MEM_ROOT *mem_root);
   const char *table_type() const
   { return "MARIA"; }
   const char *index_type(uint key_number);

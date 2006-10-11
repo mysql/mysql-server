@@ -31,7 +31,7 @@ DEFS =                  @DEFS@
 # "." is needed first because tests in unittest need libmaria
 SUBDIRS =		. unittest
 
-EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_ft_stem.c CMakeLists.txt
+EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_ft_stem.c CMakeLists.txt plug.in
 pkgdata_DATA =		ma_test_all ma_test_all.res
 pkglib_LIBRARIES =	libmaria.a
 bin_PROGRAMS =		maria_chk maria_pack maria_ftdump
