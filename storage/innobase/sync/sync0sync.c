@@ -838,17 +838,17 @@ sync_thread_levels_g(
 						ulint		line;
 						os_thread_id_t	thread_id;
 
-						mutex_get_debug_info
-							(mutex, &file_name,
-							 &line, &thread_id);
+						mutex_get_debug_info(
+							mutex, &file_name,
+							&line, &thread_id);
 
 						fprintf(stderr,
 							"InnoDB: Locked mutex:"
 							" addr %p thread %ld"
 							" file %s line %ld\n",
 							(void*) mutex,
-							os_thread_pf
-							(thread_id),
+							os_thread_pf(
+								thread_id),
 							file_name,
 							(ulong) line);
 #else /* UNIV_SYNC_DEBUG */
@@ -1155,8 +1155,8 @@ sync_thread_add_level(
 	case SYNC_IBUF_HEADER:
 		ut_a(sync_thread_levels_g(array, SYNC_FSP - 1)
 		     && !sync_thread_levels_contain(array, SYNC_IBUF_MUTEX)
-		     && !sync_thread_levels_contain
-		     (array, SYNC_IBUF_PESS_INSERT_MUTEX));
+		     && !sync_thread_levels_contain(
+			     array, SYNC_IBUF_PESS_INSERT_MUTEX));
 		break;
 	case SYNC_DICT_AUTOINC_MUTEX:
 		ut_a(sync_thread_levels_g(array, SYNC_DICT_AUTOINC_MUTEX));

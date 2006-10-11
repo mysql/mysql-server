@@ -354,6 +354,14 @@ my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
 my_bool	opt_innodb;
+
+/*
+  Legacy global handlerton. These will be removed (please do not add more).
+*/
+handlerton *heap_hton;
+handlerton *myisam_hton;
+handlerton *partition_hton;
+
 #ifdef WITH_INNOBASE_STORAGE_ENGINE
 extern ulong innobase_fast_shutdown;
 extern ulong innobase_large_page_size;
@@ -782,7 +790,7 @@ static void close_connections(void)
   {
     if (ip_sock != INVALID_SOCKET)
     {
-      (void) shutdown(ip_sock,2);
+      (void) shutdown(ip_sock, SHUT_RDWR);
       (void) closesocket(ip_sock);
       ip_sock= INVALID_SOCKET;
     }
@@ -814,7 +822,7 @@ static void close_connections(void)
 #ifdef HAVE_SYS_UN_H
   if (unix_sock != INVALID_SOCKET)
   {
-    (void) shutdown(unix_sock,2);
+    (void) shutdown(unix_sock, SHUT_RDWR);
     (void) closesocket(unix_sock);
     (void) unlink(mysqld_unix_port);
     unix_sock= INVALID_SOCKET;
@@ -918,7 +926,7 @@ static void close_server_sock()
   {
     ip_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
-    VOID(shutdown(tmp_sock,2));
+    VOID(shutdown(tmp_sock, SHUT_RDWR));
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it causes MySQL
@@ -933,7 +941,7 @@ static void close_server_sock()
   {
     unix_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on unix socket"));
-    VOID(shutdown(tmp_sock,2));
+    VOID(shutdown(tmp_sock, SHUT_RDWR));
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it may cause MySQL
@@ -1091,7 +1099,7 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 extern "C" sig_handler print_signal_warning(int sig)
 {
   if (global_system_variables.log_warnings)
-    sql_print_warning("Got signal %d from thread %d", sig,my_thread_id());
+    sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
 #ifdef DONT_REMEMBER_SIGNAL
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
@@ -1601,8 +1609,8 @@ static void network_init(void)
 
     if (strlen(mysqld_unix_port) > (sizeof(UNIXaddr.sun_path) - 1))
     {
-      sql_print_error("The socket file path is too long (> %d): %s",
-                    sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
+      sql_print_error("The socket file path is too long (> %lu): %s",
+                      sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
       unireg_abort(1);
     }
     if ((unix_sock= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
@@ -2953,7 +2961,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
   }
   if (err) 
   {
-    sql_print_error("Fatal: can't %s OpenSSL %s lock", what);
+    sql_print_error("Fatal: can't %s OpenSSL lock", what);
     abort();
   }
 }
@@ -3120,7 +3128,11 @@ with --log-bin instead.");
       global_system_variables.binlog_format= BINLOG_FORMAT_ROW;
     else
 #endif
+#if defined(HAVE_ROW_BASED_REPLICATION)
+      global_system_variables.binlog_format= BINLOG_FORMAT_MIXED;
+#else
       global_system_variables.binlog_format= BINLOG_FORMAT_STMT;
+#endif
   }
 
   /* Check that we have not let the format to unspecified at this point */
@@ -3247,7 +3259,7 @@ server.");
                         default_storage_engine_str);
         unireg_abort(1);
       }
-      hton= &myisam_hton;
+      hton= myisam_hton;
     }
     global_system_variables.table_type= hton;
   }
@@ -4238,7 +4250,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
-	  (void) shutdown(new_sock,2);
+	  (void) shutdown(new_sock, SHUT_RDWR);
 	  (void) closesocket(new_sock);
 	  continue;
 	}
@@ -4253,7 +4265,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       if (getsockname(new_sock,&dummy, &dummyLen) < 0)
       {
 	sql_perror("Error on new connection socket");
-	(void) shutdown(new_sock,2);
+	(void) shutdown(new_sock, SHUT_RDWR);
 	(void) closesocket(new_sock);
 	continue;
       }
@@ -4265,7 +4277,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 
     if (!(thd= new THD))
     {
-      (void) shutdown(new_sock,2);
+      (void) shutdown(new_sock, SHUT_RDWR);
       VOID(closesocket(new_sock));
       continue;
     }
@@ -4279,7 +4291,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	vio_delete(vio_tmp);
       else
       {
-	(void) shutdown(new_sock,2);
+	(void) shutdown(new_sock, SHUT_RDWR);
 	(void) closesocket(new_sock);
       }
       delete thd;
@@ -4886,7 +4898,13 @@ struct my_option my_long_options[] =
    "supports only statement-based binary logging, so only 'statement' is "
    "a legal value."
 #endif
-   , 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+   , 0, 0, 0, GET_STR, REQUIRED_ARG,
+#ifdef HAVE_ROW_BASED_REPLICATION
+   BINLOG_FORMAT_MIXED
+#else
+   BINLOG_FORMAT_STMT
+#endif
+   , 0, 0, 0, 0, 0 },
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6964,7 +6982,7 @@ static void mysql_init_variables(void)
 
   /* Set default values for some option variables */
   default_storage_engine_str= (char*) "MyISAM";
-  global_system_variables.table_type= &myisam_hton;
+  global_system_variables.table_type= myisam_hton;
   global_system_variables.tx_isolation= ISO_REPEATABLE_READ;
   global_system_variables.select_limit= (ulonglong) HA_POS_ERROR;
   max_system_variables.select_limit=    (ulonglong) HA_POS_ERROR;
@@ -6985,6 +7003,51 @@ static void mysql_init_variables(void)
 			     "d:t:i:o,/tmp/mysqld.trace");
 #endif
   opt_error_log= IF_WIN(1,0);
+#ifdef WITH_MYISAMMRG_STORAGE_ENGINE
+  have_merge_db= SHOW_OPTION_YES;
+#else
+  have_merge_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
+  have_innodb= SHOW_OPTION_YES;
+#else
+  have_innodb= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_EXAMPLE_STORAGE_ENGINE
+  have_example_db= SHOW_OPTION_YES;
+#else
+  have_example_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_ARCHIVE_STORAGE_ENGINE
+  have_archive_db= SHOW_OPTION_YES;
+#else
+  have_archive_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_BLACKHOLE_STORAGE_ENGINE
+  have_blackhole_db= SHOW_OPTION_YES;
+#else
+  have_blackhole_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_FEDERATED_STORAGE_ENGINE
+  have_federated_db= SHOW_OPTION_YES;
+#else
+  have_federated_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_CSV_STORAGE_ENGINE
+  have_csv_db= SHOW_OPTION_YES;
+#else
+  have_csv_db= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+    have_ndbcluster= SHOW_OPTION_DISABLED;
+#else
+    have_ndbcluster= SHOW_OPTION_NO;
+#endif
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    have_partition_db= SHOW_OPTION_YES;
+#else
+    have_partition_db= SHOW_OPTION_NO;
+#endif
 #ifdef HAVE_ROW_BASED_REPLICATION
   have_row_based_replication= SHOW_OPTION_YES;
 #else
@@ -7601,14 +7664,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       exit(1);
     }
     switch (method-1) {
-    case 0: 
-      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
+    case 2:
+      method_conv= MI_STATS_METHOD_IGNORE_NULLS;
       break;
     case 1:
       method_conv= MI_STATS_METHOD_NULLS_EQUAL;
       break;
-    case 2:
-      method_conv= MI_STATS_METHOD_IGNORE_NULLS;
+    case 0:
+    default:
+      method_conv= MI_STATS_METHOD_NULLS_NOT_EQUAL;
       break;
     }
     global_system_variables.myisam_stats_method= method_conv;
@@ -8061,6 +8125,7 @@ void refresh_status(THD *thd)
 #undef have_federated_db
 #undef have_partition_db
 #undef have_blackhole_db
+#undef have_merge_db
 
 SHOW_COMP_OPTION have_innodb= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_ndbcluster= SHOW_OPTION_NO;
@@ -8070,6 +8135,7 @@ SHOW_COMP_OPTION have_csv_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_federated_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_partition_db= SHOW_OPTION_NO;
 SHOW_COMP_OPTION have_blackhole_db= SHOW_OPTION_NO;
+SHOW_COMP_OPTION have_merge_db= SHOW_OPTION_NO;
 
 #ifndef WITH_INNOBASE_STORAGE_ENGINE
 uint innobase_flush_log_at_trx_commit;

@@ -124,6 +124,7 @@ drop table t3,t2,t1;
 # Test table without unions
 #
 create table t1 (a int not null, key(a)) engine=merge;
+--error 1030
 select * from t1;
 drop table t1;
 
@@ -380,6 +381,31 @@ select * from t2;
 select * from t3;
 check table t1, t2;
 drop table t1, t2, t3;
+
+#
+# BUG#21617 - crash when selecting from merge table with inconsistent
+# indexes
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(2),(1);
+CREATE TABLE t2(a INT, KEY(a)) ENGINE=MERGE UNION=(t1);
+--error 1030
+SELECT * FROM t2 WHERE a=2;
+DROP TABLE t1, t2;
+
+#
+# BUG#10974 - No error message if merge table based on union of innodb,
+# memory
+#
+CREATE TABLE t1(a INT) ENGINE=MEMORY;
+CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
+--error 1168
+SELECT * FROM t2;
+DROP TABLE t1, t2;
+CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
+--error 1168
+SELECT * FROM t2;
+DROP TABLE t2;
 
 # End of 4.1 tests
 

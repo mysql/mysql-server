@@ -795,7 +795,7 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
   This set is produced by tracking user variable reads during statement
   execution. 
 
-  Fo SPs, this has the following implications:
+  For SPs, this has the following implications:
   1) thd->user_var_events may contain events from several SP statements and 
      needs to be valid after exection of these statements was finished. In 
      order to achieve that, we
@@ -808,6 +808,14 @@ int cmp_splocal_locations(Item_splocal * const *a, Item_splocal * const *b)
      reset_dynamic(&thd->user_var_events);
      calls in several different places. (TODO cosider moving this into
      mysql_bin_log.write() function)
+
+  4.2 Auto_increment storage in binlog
+
+  As we may write two statements to binlog from one single logical statement
+  (case of "SELECT func1(),func2()": it is binlogged as "SELECT func1()" and
+  then "SELECT func2()"), we need to reset auto_increment binlog variables
+  after each binlogged SELECT. Otherwise, the auto_increment value of the
+  first SELECT would be used for the second too.
 */
 
 
@@ -954,7 +962,7 @@ bool
 sp_head::execute(THD *thd)
 {
   DBUG_ENTER("sp_head::execute");
-  char old_db_buf[NAME_BYTE_LEN+1];
+  char old_db_buf[NAME_LEN+1];
   LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
   bool dbchanged;
   sp_rcontext *ctx;
@@ -1527,6 +1535,9 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                      "failed to reflect this change in the binary log");
       }
       reset_dynamic(&thd->user_var_events);
+      /* Forget those values, in case more function calls are binlogged: */
+      thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
+      thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     }
   }
 
@@ -1999,8 +2010,8 @@ sp_head::set_info(longlong created, longlong modified,
 void
 sp_head::set_definer(const char *definer, uint definerlen)
 {
-  char user_name_holder[USERNAME_BYTE_LENGTH + 1];
-  LEX_STRING user_name= { user_name_holder, USERNAME_BYTE_LENGTH };
+  char user_name_holder[USERNAME_LENGTH + 1];
+  LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
 
   char host_name_holder[HOSTNAME_LENGTH + 1];
   LEX_STRING host_name= { host_name_holder, HOSTNAME_LENGTH };

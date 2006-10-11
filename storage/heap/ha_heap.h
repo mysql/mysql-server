@@ -31,7 +31,7 @@ class ha_heap: public handler
   uint    records_changed;
   uint    key_stat_version;
 public:
-  ha_heap(TABLE_SHARE *table);
+  ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}
   const char *table_type() const
   {

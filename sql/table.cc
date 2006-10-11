@@ -632,7 +632,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (!strncmp(next_chunk + 2, "partition", str_db_type_length))
         {
           /* Use partition handler */
-          share->db_type= &partition_hton;
+          share->db_type= partition_hton;
           DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                               str_db_type_length, next_chunk + 2,
                               ha_legacy_type(share->db_type)));
@@ -2257,7 +2257,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 bool check_db_name(char *name)
 {
-  uint name_length= 0;  // name length in symbols
+  char *start= name;
   /* Used to catch empty names and names with end space */
   bool last_char_is_space= TRUE;
 
@@ -2277,15 +2277,13 @@ bool check_db_name(char *name)
         name += len;
         continue;
       }
-    name_length++;
     }
 #else
     last_char_is_space= *name==' ';
 #endif
-    name_length++;
     name++;
   }
-  return last_char_is_space || name_length > NAME_LEN;
+  return last_char_is_space || (uint) (name - start) > NAME_LEN;
 }
 
 

@@ -439,7 +439,19 @@ public:
 };
 
 
-typedef bool (Item::*Item_processor)(byte *arg);
+typedef bool (Item::*Item_processor) (byte *arg);
+/*
+  Analyzer function
+    SYNOPSIS
+      argp   in/out IN:  Analysis parameter
+                    OUT: Parameter to be passed to the transformer
+
+    RETURN 
+      TRUE   Invoke the transformer
+      FALSE  Don't do it
+
+*/
+typedef bool (Item::*Item_analyzer) (byte **argp);
 typedef Item* (Item::*Item_transformer) (byte *arg);
 typedef void (*Cond_traverser) (const Item *item, void *arg);
 
@@ -536,6 +548,7 @@ public:
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type() const { return REAL_RESULT; }
   virtual Item_result cast_to_int_type() const { return result_type(); }
+  virtual enum_field_types string_field_type() const;
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
   
@@ -776,6 +789,30 @@ public:
 
   virtual Item* transform(Item_transformer transformer, byte *arg);
 
+  /*
+    This function performs a generic "compilation" of the Item tree.
+    The process of compilation is assumed to go as follows: 
+    
+    compile()
+    { 
+      if (this->*some_analyzer(...))
+      {
+        compile children if any;
+        this->*some_transformer(...);
+      }
+    }
+
+    i.e. analysis is performed top-down while transformation is done
+    bottom-up.      
+  */
+  virtual Item* compile(Item_analyzer analyzer, byte **arg_p,
+                        Item_transformer transformer, byte *arg_t)
+  {
+    if ((this->*analyzer) (arg_p))
+      return ((this->*transformer) (arg_t));
+    return 0;
+  }
+
    virtual void traverse_cond(Cond_traverser traverser,
                               void *arg, traverse_order order)
    {
@@ -813,6 +850,12 @@ public:
   */
   virtual bool check_partition_func_processor(byte *bool_arg)
   { *(bool *)bool_arg= FALSE; return 0; }
+  virtual bool subst_argument_checker(byte **arg)
+  { 
+    if (*arg)
+      *arg= NULL; 
+    return TRUE;     
+  }
 
   virtual Item *equal_fields_propagator(byte * arg) { return this; }
   virtual bool set_no_const_sub(byte *arg) { return FALSE; }
@@ -1315,6 +1358,7 @@ public:
     return field->can_be_compared_as_longlong();
   }
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
+  bool subst_argument_checker(byte **arg);
   Item *equal_fields_propagator(byte *arg);
   bool set_no_const_sub(byte *arg);
   Item *replace_equal_field(byte *arg);
@@ -2222,7 +2266,11 @@ public:
   {
     return Item_field::save_in_field(field_arg, no_conversions);
   }
-  table_map used_tables() const { return (table_map)0L; }
+  /* 
+   We use RAND_TABLE_BIT to prevent Item_insert_value from
+   being treated as a constant and precalculated before execution
+  */
+  table_map used_tables() const { return RAND_TABLE_BIT; }
 
   bool walk(Item_processor processor, bool walk_subquery, byte *args)
   {

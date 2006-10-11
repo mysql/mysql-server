@@ -23,6 +23,18 @@
 #endif // NO_MAIN_DRIVER
 
 
+
+void EchoError(SSL_CTX* ctx, SSL* ssl, SOCKET_T& s1, SOCKET_T& s2,
+               const char* msg)
+{
+    SSL_CTX_free(ctx);
+    SSL_free(ssl);
+    tcp_close(s1);
+    tcp_close(s2);
+    err_sys(msg);
+}
+
+
 THREAD_RETURN YASSL_API echoserver_test(void* args)
 {
 #ifdef _WIN32
@@ -65,13 +77,18 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
     while (!shutdown) {
         sockaddr_in client;
         socklen_t   client_len = sizeof(client);
-        int         clientfd = accept(sockfd, (sockaddr*)&client,
+        SOCKET_T    clientfd   = accept(sockfd, (sockaddr*)&client,
                                       (ACCEPT_THIRD_T)&client_len);
-        if (clientfd == -1) err_sys("tcp accept failed");
+        if (clientfd == -1) {
+            SSL_CTX_free(ctx);
+            tcp_close(sockfd);
+            err_sys("tcp accept failed");
+        }
 
         SSL* ssl = SSL_new(ctx);
         SSL_set_fd(ssl, clientfd);
-        if (SSL_accept(ssl) != SSL_SUCCESS) err_sys("SSL_accept failed");
+        if (SSL_accept(ssl) != SSL_SUCCESS)
+            EchoError(ctx, ssl, sockfd, clientfd, "SSL_accept failed");
 
         char command[1024];
         int echoSz(0);
@@ -100,7 +117,8 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
                 echoSz += sizeof(footer);
 
                 if (SSL_write(ssl, command, echoSz) != echoSz)
-                    err_sys("SSL_write failed");
+                    EchoError(ctx, ssl, sockfd, clientfd, "SSL_write failed");
+
                 break;
             }
             command[echoSz] = 0;
@@ -110,16 +128,13 @@ THREAD_RETURN YASSL_API echoserver_test(void* args)
         #endif
 
             if (SSL_write(ssl, command, echoSz) != echoSz)
-                err_sys("SSL_write failed");
+                EchoError(ctx, ssl, sockfd, clientfd, "SSL_write failed");
         }
         SSL_free(ssl);
+        tcp_close(clientfd);
     }
 
-#ifdef _WIN32
-    closesocket(sockfd);
-#else
-    close(sockfd);
-#endif
+    tcp_close(sockfd);
 
     DH_free(dh);
     SSL_CTX_free(ctx);

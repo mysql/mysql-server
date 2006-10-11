@@ -32,7 +32,7 @@ pthread_handler_t test_atomic_add_handler(void *arg)
 {
   int    m=*(int *)arg;
   int32 x;
-  for (x=((int)(&m)); m ; m--)
+  for (x=((int)((long)(&m))); m ; m--)
   {
     x=x*m+0x87654321;
     my_atomic_rwlock_wrlock(&rwl);
@@ -104,7 +104,7 @@ pthread_handler_t test_atomic_cas_handler(void *arg)
 {
   int    m=*(int *)arg, ok;
   int32 x,y;
-  for (x=((int)(&m)); m ; m--)
+  for (x=((int)((long)(&m))); m ; m--)
   {
     my_atomic_rwlock_wrlock(&rwl);
     y=my_atomic_load32(&a32);
@@ -140,13 +140,21 @@ void test_atomic(const char *test, pthread_handler handler, int n, int m)
 
   diag("Testing %s with %d threads, %d iterations... ", test, n, m);
   for (N=n ; n ; n--)
-    pthread_create(&t, &thr_attr, handler, &m);
+  {
+    if (pthread_create(&t, &thr_attr, handler, &m) != 0)
+    {
+      diag("Could not create thread");
+      a32= 1;
+      goto err;
+    }
+  }
 
   pthread_mutex_lock(&mutex);
   while (N)
     pthread_cond_wait(&cond, &mutex);
   pthread_mutex_unlock(&mutex);
   now=my_getsystime()-now;
+err:
   ok(a32 == 0, "tested %s in %g secs", test, ((double)now)/1e7);
 }
 
@@ -169,6 +177,12 @@ int main()
   test_atomic("my_atomic_add32", test_atomic_add_handler, 100,10000);
   test_atomic("my_atomic_swap32", test_atomic_swap_handler, 100,10000);
   test_atomic("my_atomic_cas32", test_atomic_cas_handler, 100,10000);
+
+  /*
+    workaround until we know why it crashes randomly on some machine
+    (BUG#22320).
+  */
+  sleep(2);
 
   pthread_mutex_destroy(&mutex);
   pthread_cond_destroy(&cond);

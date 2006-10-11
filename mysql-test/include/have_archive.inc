@@ -1,4 +1,4 @@
---require r/have_archive.require
 --disable_query_log
-show variables like "have_archive";
+--require r/true.require
+select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'archive';
 --enable_query_log

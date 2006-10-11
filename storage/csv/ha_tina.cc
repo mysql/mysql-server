@@ -74,8 +74,11 @@ static int write_meta_file(File meta_file, ha_rows rows, bool dirty);
 pthread_mutex_t tina_mutex;
 static HASH tina_open_tables;
 static int tina_init= 0;
-static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
-static int tina_init_func();
+static handler *tina_create_handler(handlerton *hton,
+                                    TABLE_SHARE *table, 
+                                    MEM_ROOT *mem_root);
+int tina_end(handlerton *hton, ha_panic_function type);
+
 
 off_t Transparent_file::read_next()
 {
@@ -124,7 +127,6 @@ char Transparent_file::get_value(off_t offset)
     return buff[0];
   }
 }
-handlerton tina_hton;
 
 /*****************************************************************************
  ** TINA tables
@@ -149,25 +151,28 @@ static byte* tina_get_key(TINA_SHARE *share,uint *length,
   return (byte*) share->table_name;
 }
 
-static int tina_init_func()
+static int tina_init_func(void *p)
 {
+  handlerton *tina_hton;
+
   if (!tina_init)
   {
+    tina_hton= (handlerton *)p;
     tina_init++;
     VOID(pthread_mutex_init(&tina_mutex,MY_MUTEX_INIT_FAST));
     (void) hash_init(&tina_open_tables,system_charset_info,32,0,0,
                      (hash_get_key) tina_get_key,0,0);
-    bzero(&tina_hton, sizeof(handlerton));
-    tina_hton.state= SHOW_OPTION_YES;
-    tina_hton.db_type= DB_TYPE_CSV_DB;
-    tina_hton.create= tina_create_handler;
-    tina_hton.panic= tina_end;
-    tina_hton.flags= HTON_CAN_RECREATE;
+    tina_hton->state= SHOW_OPTION_YES;
+    tina_hton->db_type= DB_TYPE_CSV_DB;
+    tina_hton->create= tina_create_handler;
+    tina_hton->panic= tina_end;
+    tina_hton->flags= (HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES | 
+                       HTON_NO_PARTITION);
   }
   return 0;
 }
 
-static int tina_done_func()
+static int tina_done_func(void *p)
 {
   if (tina_init)
   {
@@ -195,7 +200,7 @@ static TINA_SHARE *get_share(const char *table_name, TABLE *table)
   uint length;
 
   if (!tina_init)
-     tina_init_func();
+     tina_init_func(NULL);
 
   pthread_mutex_lock(&tina_mutex);
   length=(uint) strlen(table_name);
@@ -450,9 +455,9 @@ static int free_share(TINA_SHARE *share)
   DBUG_RETURN(result_code);
 }
 
-int tina_end(ha_panic_function type)
+int tina_end(handlerton *hton, ha_panic_function type)
 {
-  return tina_done_func();
+  return tina_done_func(NULL);
 }
 
 
@@ -494,14 +499,16 @@ off_t find_eoln_buff(Transparent_file *data_buff, off_t begin,
 }
 
 
-static handler *tina_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler *tina_create_handler(handlerton *hton,
+                                    TABLE_SHARE *table, 
+                                    MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_tina(table);
+  return new (mem_root) ha_tina(hton, table);
 }
 
 
-ha_tina::ha_tina(TABLE_SHARE *table_arg)
-  :handler(&tina_hton, table_arg),
+ha_tina::ha_tina(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg),
   /*
     These definitions are found in handler.h
     They are not probably completely right.
@@ -541,7 +548,10 @@ int ha_tina::encode_quote(byte *buf)
       in the code.
     */
     if ((*field)->is_null())
-      ptr= end_ptr= 0;
+    {
+      buffer.append(STRING_WITH_LEN("\"\","));
+      continue;
+    }
     else
     {
       (*field)->val_str(&attribute,&attribute);
@@ -642,6 +652,7 @@ int ha_tina::find_current_row(byte *buf)
   off_t end_offset, curr_offset= current_position;
   int eoln_len;
   my_bitmap_map *org_bitmap;
+  int error;
   DBUG_ENTER("ha_tina::find_current_row");
 
   /*
@@ -655,23 +666,23 @@ int ha_tina::find_current_row(byte *buf)
 
   /* Avoid asserts in ::store() for columns that are not going to be updated */
   org_bitmap= dbug_tmp_use_all_columns(table, table->write_set);
+  error= HA_ERR_CRASHED_ON_USAGE;
+
+  memset(buf, 0, table->s->null_bytes);
 
   for (Field **field=table->field ; *field ; field++)
   {
     buffer.length(0);
-    if (file_buff->get_value(curr_offset) == '"')
+    if (curr_offset < end_offset &&
+        file_buff->get_value(curr_offset) == '"')
       curr_offset++; // Incrementpast the first quote
     else
-    {
-      dbug_tmp_restore_column_map(table->write_set, org_bitmap);
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-    }
-    for(;curr_offset != end_offset; curr_offset++)
+      goto err;
+    for(;curr_offset < end_offset; curr_offset++)
     {
       // Need to convert line feeds!
       if (file_buff->get_value(curr_offset) == '"' &&
-          (((file_buff->get_value(curr_offset + 1) == ',') &&
-            (file_buff->get_value(curr_offset + 2) == '"')) ||
+          ((file_buff->get_value(curr_offset + 1) == ',') ||
            (curr_offset == end_offset -1 )))
       {
         curr_offset+= 2; // Move past the , and the "
@@ -701,10 +712,7 @@ int ha_tina::find_current_row(byte *buf)
           we are working with a damaged file.
         */
         if (curr_offset == end_offset - 1)
-        {
-          dbug_tmp_restore_column_map(table->write_set, org_bitmap);
-          DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-        }
+          goto err;
         buffer.append(file_buff->get_value(curr_offset));
       }
     }
@@ -712,11 +720,12 @@ int ha_tina::find_current_row(byte *buf)
       (*field)->store(buffer.ptr(), buffer.length(), system_charset_info);
   }
   next_position= end_offset + eoln_len;
-  /* Maybe use \N for null? */
-  memset(buf, 0, table->s->null_bytes); /* We do not implement nulls! */
+  error= 0;
+
+err:
   dbug_tmp_restore_column_map(table->write_set, org_bitmap);
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 /*
@@ -1517,7 +1526,7 @@ bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
 }
 
 struct st_mysql_storage_engine csv_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &tina_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(csv)
 {
@@ -1526,6 +1535,7 @@ mysql_declare_plugin(csv)
   "CSV",
   "Brian Aker, MySQL AB",
   "CSV storage engine",
+  PLUGIN_LICENSE_GPL,
   tina_init_func, /* Plugin Init */
   tina_done_func, /* Plugin Deinit */
   0x0100 /* 1.0 */,

@@ -2,7 +2,7 @@
 # replicated LOAD DATA INFILE correctly when it has binlog_*_db rules.
 # This is for BUG#1100 (LOAD DATA INFILE was half-logged).
 
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/master-slave.inc
 
 connection slave;

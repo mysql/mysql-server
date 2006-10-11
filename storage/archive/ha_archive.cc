@@ -139,17 +139,21 @@ static HASH archive_open_tables;
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
 /* Static declarations for handerton */
-static handler *archive_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
+static handler *archive_create_handler(handlerton *hton, 
+                                       TABLE_SHARE *table, 
+                                       MEM_ROOT *mem_root);
+int archive_db_end(handlerton *hton, ha_panic_function type);
+
 /*
   Number of rows that will force a bulk insert.
 */
 #define ARCHIVE_MIN_ROWS_TO_USE_BULK_INSERT 2
 
-handlerton archive_hton;
-
-static handler *archive_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler *archive_create_handler(handlerton *hton,
+                                       TABLE_SHARE *table, 
+                                       MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_archive(table);
+  return new (mem_root) ha_archive(hton, table);
 }
 
 /*
@@ -168,24 +172,25 @@ static byte* archive_get_key(ARCHIVE_SHARE *share,uint *length,
 
   SYNOPSIS
     archive_db_init()
-    void
+    void *
 
   RETURN
     FALSE       OK
     TRUE        Error
 */
 
-int archive_db_init()
+int archive_db_init(void *p)
 {
   DBUG_ENTER("archive_db_init");
+  handlerton *archive_hton;
   if (archive_inited)
     DBUG_RETURN(FALSE);
-
-  archive_hton.state=SHOW_OPTION_YES;
-  archive_hton.db_type=DB_TYPE_ARCHIVE_DB;
-  archive_hton.create=archive_create_handler;
-  archive_hton.panic=archive_db_end;
-  archive_hton.flags=HTON_NO_FLAGS;
+  archive_hton= (handlerton *)p;
+  archive_hton->state=SHOW_OPTION_YES;
+  archive_hton->db_type=DB_TYPE_ARCHIVE_DB;
+  archive_hton->create=archive_create_handler;
+  archive_hton->panic=archive_db_end;
+  archive_hton->flags=HTON_NO_FLAGS;
 
   if (pthread_mutex_init(&archive_mutex, MY_MUTEX_INIT_FAST))
     goto error;
@@ -214,7 +219,7 @@ error:
     FALSE       OK
 */
 
-int archive_db_done()
+int archive_db_done(void *p)
 {
   if (archive_inited)
   {
@@ -226,13 +231,13 @@ int archive_db_done()
 }
 
 
-int archive_db_end(ha_panic_function type)
+int archive_db_end(handlerton *hton, ha_panic_function type)
 {
-  return archive_db_done();
+  return archive_db_done(NULL);
 }
 
-ha_archive::ha_archive(TABLE_SHARE *table_arg)
-  :handler(&archive_hton, table_arg), delayed_insert(0), bulk_insert(0)
+ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg), delayed_insert(0), bulk_insert(0)
 {
   /* Set our original buffer from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
@@ -1571,7 +1576,7 @@ bool ha_archive::check_and_repair(THD *thd)
 }
 
 struct st_mysql_storage_engine archive_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &archive_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(archive)
 {
@@ -1580,6 +1585,7 @@ mysql_declare_plugin(archive)
   "ARCHIVE",
   "Brian Aker, MySQL AB",
   "Archive storage engine",
+  PLUGIN_LICENSE_GPL,
   archive_db_init, /* Plugin Init */
   archive_db_done, /* Plugin Deinit */
   0x0100 /* 1.0 */,

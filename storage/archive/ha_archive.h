@@ -67,7 +67,7 @@ class ha_archive: public handler
   uint current_k_offset;
 
 public:
-  ha_archive(TABLE_SHARE *table_arg);
+  ha_archive(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_archive()
   {
   }
@@ -138,7 +138,4 @@ public:
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_and_repair(THD *thd);
 };
-
-int archive_db_init(void);
-int archive_db_end(ha_panic_function type);
 

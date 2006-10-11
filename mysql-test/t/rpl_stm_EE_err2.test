@@ -3,6 +3,6 @@
 # Date: 2006-01-11
 # Purpose: Engine Wrapper for rpl_stm_EE_err2.test
 ##############################
--- source include/have_binlog_format_statement.inc
+-- source include/have_binlog_format_mixed_or_statement.inc
 let $engine_type=myisam;
 -- source extra/rpl_tests/rpl_stm_EE_err2.test

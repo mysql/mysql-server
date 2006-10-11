@@ -48,9 +48,11 @@ TYPELIB myisam_stats_method_typelib= {
 ** MyISAM tables
 *****************************************************************************/
 
-static handler *myisam_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler *myisam_create_handler(handlerton *hton,
+                                      TABLE_SHARE *table, 
+                                      MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_myisam(table);
+  return new (mem_root) ha_myisam(hton, table);
 }
 
 // collect errors printed by mi_check routines
@@ -133,8 +135,8 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
 }
 
 
-ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
-  :handler(&myisam_hton, table_arg), file(0),
+ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg), file(0),
   int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
@@ -142,6 +144,14 @@ ha_myisam::ha_myisam(TABLE_SHARE *table_arg)
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
    can_enable_indexes(1)
 {}
+
+handler *ha_myisam::clone(MEM_ROOT *mem_root)
+{
+  ha_myisam *new_handler= static_cast <ha_myisam *>(handler::clone(mem_root));
+  if (new_handler)
+    new_handler->file->state= file->state;
+  return new_handler;
+}
 
 
 static const char *ha_myisam_exts[] = {
@@ -335,7 +345,11 @@ int ha_myisam::write_row(byte * buf)
     or a new row, then update the auto_increment value in the record.
   */
   if (table->next_number_field && buf == table->record[0])
-    update_auto_increment();
+  {
+    int error;
+    if ((error= update_auto_increment()))
+      return error;
+  }
   return mi_write(file,buf);
 }
 
@@ -1775,20 +1789,27 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-handlerton myisam_hton;
-
-static int myisam_init()
+extern int mi_panic(enum ha_panic_function flag);
+int myisam_panic(handlerton *hton, ha_panic_function flag)
 {
-  myisam_hton.state=SHOW_OPTION_YES;
-  myisam_hton.db_type=DB_TYPE_MYISAM;
-  myisam_hton.create=myisam_create_handler;
-  myisam_hton.panic=mi_panic;
-  myisam_hton.flags=HTON_CAN_RECREATE;
+  return mi_panic(flag);
+}
+
+static int myisam_init(void *p)
+{
+  handlerton *myisam_hton;
+
+  myisam_hton= (handlerton *)p;
+  myisam_hton->state= SHOW_OPTION_YES;
+  myisam_hton->db_type= DB_TYPE_MYISAM;
+  myisam_hton->create= myisam_create_handler;
+  myisam_hton->panic= myisam_panic;
+  myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   return 0;
 }
 
 struct st_mysql_storage_engine myisam_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &myisam_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(myisam)
 {
@@ -1797,6 +1818,7 @@ mysql_declare_plugin(myisam)
   "MyISAM",
   "MySQL AB",
   "Default engine as of MySQL 3.23 with great performance",
+  PLUGIN_LICENSE_GPL,
   myisam_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */
