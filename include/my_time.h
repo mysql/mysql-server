@@ -92,15 +92,25 @@ int my_date_to_str(const MYSQL_TIME *l_time, char *to);
 int my_datetime_to_str(const MYSQL_TIME *l_time, char *to);
 int my_TIME_to_str(const MYSQL_TIME *l_time, char *to);
 
-/*
-  The following must be sorted so that simple intervals comes first.
-  (get_interval_value() depends on this)
+/* 
+  Available interval types used in any statement.
+
+  'interval_type' must be sorted so that simple intervals comes first,
+  ie year, quarter, month, week, day, hour, etc. The order based on
+  interval size is also important and the intervals should be kept in a
+  large to smaller order. (get_interval_value() depends on this)
+ 
+  Note: If you change the order of elements in this enum you should fix 
+  order of elements in 'interval_type_to_name' and 'interval_names' 
+  arrays 
+  
+  See also interval_type_to_name, get_interval_value, interval_names
 */
 
 enum interval_type
 {
-  INTERVAL_YEAR, INTERVAL_QUARTER, INTERVAL_MONTH, INTERVAL_DAY, INTERVAL_HOUR,
-  INTERVAL_MINUTE, INTERVAL_WEEK, INTERVAL_SECOND, INTERVAL_MICROSECOND ,
+  INTERVAL_YEAR, INTERVAL_QUARTER, INTERVAL_MONTH, INTERVAL_WEEK, INTERVAL_DAY,
+  INTERVAL_HOUR, INTERVAL_MINUTE, INTERVAL_SECOND, INTERVAL_MICROSECOND,
   INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR, INTERVAL_DAY_MINUTE,
   INTERVAL_DAY_SECOND, INTERVAL_HOUR_MINUTE, INTERVAL_HOUR_SECOND,
   INTERVAL_MINUTE_SECOND, INTERVAL_DAY_MICROSECOND, INTERVAL_HOUR_MICROSECOND,
