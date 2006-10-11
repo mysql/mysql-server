@@ -65,7 +65,7 @@ use IO::Socket;
 use IO::Socket::INET;
 use Data::Dumper;
 use strict;
-#use diagnostics;
+use diagnostics;
 
 our $glob_win32_perl=  ($^O eq "MSWin32"); # ActiveState Win32 Perl
 our $glob_cygwin_perl= ($^O eq "cygwin");  # Cygwin Perl
@@ -1357,10 +1357,13 @@ sub executable_setup () {
     $exe_mysqlslap=      mtr_exe_exists("$path_client_bindir/mysqlslap");
   }
 
-  # Look for mysql_fix_system_table script
-  $exe_mysql_fix_system_tables=
-    mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
-		      "$path_client_bindir/mysql_fix_privilege_tables");
+  if ( ! $glob_win32 )
+  {
+    # Look for mysql_fix_system_table script
+    $exe_mysql_fix_system_tables=
+      mtr_script_exists("$glob_basedir/scripts/mysql_fix_privilege_tables",
+			"$path_client_bindir/mysql_fix_privilege_tables");
+  }
 
   if ( ! $opt_skip_ndbcluster)
   {
@@ -1492,11 +1495,13 @@ sub environment_setup () {
   }
 
   $ENV{'LD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				split(':', qw($ENV{'LD_LIBRARY_PATH'})));
+				$ENV{'LD_LIBRARY_PATHS'} ?
+				split(':', $ENV{'LD_LIBRARY_PATH'}) : ());
   mtr_debug("LD_LIBRARY_PATH: $ENV{'LD_LIBRARY_PATH'}");
 
   $ENV{'DYLD_LIBRARY_PATH'}= join(":", @ld_library_paths,
-				split(':', qw($ENV{'DYLD_LIBRARY_PATH'})));
+				  $ENV{'DYLD_LIBRARY_PATH'} ?
+				  split(':', $ENV{'DYLD_LIBRARY_PATH'}) : ());
   mtr_debug("DYLD_LIBRARY_PATH: $ENV{'DYLD_LIBRARY_PATH'}");
 
 
@@ -1527,22 +1532,25 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env for NDB
   # ----------------------------------------------------
-  $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
+  if ( ! $opt_skip_ndbcluster )
+  {
+    $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
 
-  $ENV{'NDBCLUSTER_PORT'}=          $opt_ndbcluster_port;
-  $ENV{'NDBCLUSTER_PORT_SLAVE'}=    $opt_ndbcluster_port_slave;
+    $ENV{'NDBCLUSTER_PORT'}=          $opt_ndbcluster_port;
+    $ENV{'NDBCLUSTER_PORT_SLAVE'}=    $opt_ndbcluster_port_slave;
 
-  $ENV{'NDB_EXTRA_TEST'}=           $opt_ndb_extra_test;
+    $ENV{'NDB_EXTRA_TEST'}=           $opt_ndb_extra_test;
 
-  $ENV{'NDB_BACKUP_DIR'}=           $clusters->[0]->{'data_dir'};
-  $ENV{'NDB_DATA_DIR'}=             $clusters->[0]->{'data_dir'};
-  $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
-  $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
-  $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
+    $ENV{'NDB_BACKUP_DIR'}=           $clusters->[0]->{'data_dir'};
+    $ENV{'NDB_DATA_DIR'}=             $clusters->[0]->{'data_dir'};
+    $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
+    $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
+    $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
-  $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
-  $ENV{'MY_NDB_EXAMPLES_BINARY'}=   $exe_ndb_example;
-  $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;
+    $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
+    $ENV{'MY_NDB_EXAMPLES_BINARY'}=   $exe_ndb_example;
+    $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;
+  }
 
   # ----------------------------------------------------
   # Setup env for IM
@@ -2817,6 +2825,17 @@ sub run_testcase ($) {
 
   if ($master_restart or $slave_restart)
   {
+    # Can't restart a running server that may be in use
+    if ( $glob_use_running_server )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Can't restart a running server";
+
+      mtr_report_test_name($tinfo);
+      mtr_report_test_skipped($tinfo);
+      return;
+    }
+
     run_testcase_stop_servers($tinfo, $master_restart, $slave_restart);
   }
   my $died= mtr_record_dead_children();
@@ -2884,13 +2903,10 @@ sub run_testcase ($) {
   # ----------------------------------------------------------------------
   # Stop Instance Manager if we are processing an IM-test case.
   # ----------------------------------------------------------------------
-
-  if ( ! $glob_use_running_server and $tinfo->{'component_id'} eq 'im' )
+  if ( $tinfo->{'component_id'} eq 'im' and
+       mtr_im_stop($instance_manager, $tinfo->{'name'}) != 0 )
   {
-    unless ( mtr_im_stop($instance_manager, $tinfo->{'name'}) )
-    {
-      mtr_error("Failed to stop Instance Manager.")
-    }
+    mtr_error("Failed to stop Instance Manager.")
   }
 }
 
@@ -3516,48 +3532,38 @@ sub run_testcase_need_master_restart($)
   if ( $tinfo->{'master_sh'} )
   {
     $do_restart= 1;           # Always restart if script to run
-    mtr_verbose("Restart because: Always restart if script to run");
+    mtr_verbose("Restart master: Always restart if script to run");
+  }
+  if ( $tinfo->{'force_restart'} )
+  {
+    $do_restart= 1; # Always restart if --force-restart in -opt file
+    mtr_verbose("Restart master: Restart forced with --force-restart");
   }
   elsif ( ! $opt_skip_ndbcluster and
 	  $tinfo->{'ndb_test'} == 0 and
 	  $clusters->[0]->{'pid'} != 0 )
   {
     $do_restart= 1;           # Restart without cluster
-    mtr_verbose("Restart because: Test does not need cluster");
+    mtr_verbose("Restart master: Test does not need cluster");
   }
   elsif ( ! $opt_skip_ndbcluster and
 	  $tinfo->{'ndb_test'} == 1 and
 	  $clusters->[0]->{'pid'} == 0 )
   {
     $do_restart= 1;           # Restart with cluster
-    mtr_verbose("Restart because: Test need cluster");
+    mtr_verbose("Restart master: Test need cluster");
   }
   elsif( $tinfo->{'component_id'} eq 'im' )
   {
     $do_restart= 1;
-    mtr_verbose("Restart because: Always restart for im tests");
+    mtr_verbose("Restart master: Always restart for im tests");
   }
-  elsif ( $master->[0]->{'running_master_is_special'} and
-	  $master->[0]->{'running_master_is_special'}->{'timezone'} eq
-	  $tinfo->{'timezone'} and
-	  mtr_same_opts($master->[0]->{'running_master_is_special'}->{'master_opt'},
-			$tinfo->{'master_opt'}) )
-  {
-    # If running master was started with special settings, but
-    # the current test requires the same ones, we *don't* restart.
-    $do_restart= 0;
-    mtr_verbose("Skip restart: options are equal " .
-	       join(" ", @{$tinfo->{'master_opt'}}));
-  }
-  elsif ( $tinfo->{'master_restart'} )
+  elsif ( $master->[0]->{'running_master_options'} and
+	  $master->[0]->{'running_master_options'}->{'timezone'} ne
+	  $tinfo->{'timezone'})
   {
     $do_restart= 1;
-    mtr_verbose("Restart because: master_restart");
-  }
-  elsif ( $master->[0]->{'running_master_is_special'} )
-  {
-    $do_restart= 1;
-    mtr_verbose("Restart because: running_master_is_special");
+    mtr_verbose("Restart master: Different timezone");
   }
   # Check that running master was started with same options
   # as the current test requires
@@ -3565,14 +3571,14 @@ sub run_testcase_need_master_restart($)
                          $tinfo->{'master_opt'}) )
   {
     $do_restart= 1;
-    mtr_verbose("Restart because: running with different options '" .
+    mtr_verbose("Restart master: running with different options '" .
 	       join(" ", @{$tinfo->{'master_opt'}}) . "' != '" .
 		join(" ", @{$master->[0]->{'start_opts'}}) . "'" );
   }
   elsif( ! $master->[0]->{'pid'} )
   {
     $do_restart= 1;
-    mtr_verbose("Restart because: master is not started");
+    mtr_verbose("Restart master: master is not started");
   }
 
   return $do_restart;
@@ -3587,7 +3593,7 @@ sub run_testcase_need_slave_restart($)
 
   if ( $max_slave_num == 0)
   {
-    mtr_verbose("No testcase use slaves, no slave restarts");
+    mtr_verbose("Skip slave restart: No testcase use slaves");
   }
   else
   {
@@ -3605,12 +3611,12 @@ sub run_testcase_need_slave_restart($)
 
     if ($any_slave_started)
     {
-      mtr_verbose("Any slave is started, need to restart");
+      mtr_verbose("Restart slave: Slave is started, always restart");
       $do_slave_restart= 1;
     }
     elsif ( $tinfo->{'slave_num'} )
     {
-      mtr_verbose("Test need slave, check for restart");
+      mtr_verbose("Restart slave: Test need slave");
       $do_slave_restart= 1;
     }
   }
@@ -3632,22 +3638,16 @@ sub run_testcase_need_slave_restart($)
 
 sub run_testcase_stop_servers($$$) {
   my ($tinfo, $do_restart, $do_slave_restart)= @_;
-
-  if ( $glob_use_running_server || $glob_use_embedded_server )
-  {
-      return;
-  }
-
   my $pid;
   my %admin_pids; # hash of admin processes that requests shutdown
   my @kill_pids;  # list of processes to shutdown/kill
 
-  # Remember if we restarted for this test case
+  # Remember if we restarted for this test case (count restarts)
   $tinfo->{'restarted'}= $do_restart;
 
   if ( $do_restart )
   {
-    delete $master->[0]->{'running_master_is_special'}; # Forget history
+    delete $master->[0]->{'running_master_options'}; # Forget history
 
     # Start shutdown of all started masters
     foreach my $mysqld (@{$master})
@@ -3697,7 +3697,7 @@ sub run_testcase_stop_servers($$$) {
   if ( $do_restart || $do_slave_restart )
   {
 
-    delete $slave->[0]->{'running_slave_is_special'}; # Forget history
+    delete $slave->[0]->{'running_slave_options'}; # Forget history
 
     # Start shutdown of all started slaves
     foreach my $mysqld (@{$slave})
@@ -3781,18 +3781,13 @@ sub run_testcase_stop_servers($$$) {
 
 sub run_testcase_start_servers($) {
   my $tinfo= shift;
-
   my $tname= $tinfo->{'name'};
-
-  if ( $glob_use_running_server or $glob_use_embedded_server )
-  {
-    return 0;
-  }
 
   # -------------------------------------------------------
   # Init variables that can change between server starts
   # -------------------------------------------------------
   $ENV{'TZ'}= $tinfo->{'timezone'};
+  mtr_verbose("Starting server with timezone: $tinfo->{'timezone'}");
 
   if ( $tinfo->{'component_id'} eq 'mysqld' )
   {
@@ -3837,11 +3832,8 @@ sub run_testcase_start_servers($) {
       mysqld_start($master->[1],$tinfo->{'master_opt'},[]);
     }
 
-    if ( $tinfo->{'master_restart'} )
-    {
-      # Save this test case information, so next can examine it
-      $master->[0]->{'running_master_is_special'}= $tinfo;
-    }
+    # Save this test case information, so next can examine it
+    $master->[0]->{'running_master_options'}= $tinfo;
   }
   elsif ( ! $opt_skip_im and $tinfo->{'component_id'} eq 'im' )
   {
@@ -3888,12 +3880,8 @@ sub run_testcase_start_servers($) {
       }
     }
 
-    if ( $tinfo->{'slave_restart'} )
-    {
-      # Save this test case information, so next can examine it
-      $slave->[0]->{'running_slave_is_special'}= $tinfo;
-    }
-
+    # Save this test case information, so next can examine it
+    $slave->[0]->{'running_slave_options'}= $tinfo;
   }
 
   # Wait for clusters to start
@@ -3969,7 +3957,7 @@ sub run_check_testcase ($$) {
   my $res = mtr_run_test($exe_mysqltest,$args,
 	        "include/check-testcase.test", "", "", "");
 
-  if ( $res == 1  and $mode = "after")
+  if ( $res == 1  and $mode eq "after")
   {
     mtr_run("diff",["-u",
 		    "$opt_vardir/tmp/$name.result",

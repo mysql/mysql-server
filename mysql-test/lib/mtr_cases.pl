@@ -152,9 +152,7 @@ sub collect_test_cases ($) {
     closedir TESTDIR;
   }
 
-  # To speed things up, we sort first in if the test require a restart
-  # or not, second in alphanumeric order.
-
+  # Reorder the test cases in an order that wil make them faster to run
   if ( $::opt_reorder )
   {
 
@@ -207,7 +205,6 @@ sub collect_test_cases ($) {
 	# Append the criteria for sorting, in order of importance.
 	#
 	push(@criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "1" : "0"));
-	push(@criteria, "restart=" . ($tinfo->{'master_restart'} ? "1" : "0"));
 	# Group test with equal options together.
 	# Ending with "~" makes empty sort later than filled
 	push(@criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");
@@ -313,18 +310,18 @@ sub collect_one_test_case($$$$$$$) {
   {
     # This is an ndb test or all tests should be run with ndb cluster started
     $tinfo->{'ndb_test'}= 1;
-    if ( $::opt_skip_ndbcluster )
-    {
-      # All ndb test's should be skipped
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster test(--skip-ndbcluster)";
-      return;
-    }
     if ( ! $::opt_ndbcluster_supported )
     {
       # Ndb is not supported, skip them
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No ndbcluster support";
+      return;
+    }
+    elsif ( $::opt_skip_ndbcluster )
+    {
+      # All ndb test's should be skipped
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No ndbcluster tests(--skip-ndbcluster)";
       return;
     }
   }
@@ -357,52 +354,58 @@ sub collect_one_test_case($$$$$$$) {
 
   if ( -f $master_opt_file )
   {
-    $tinfo->{'master_restart'}= 1;    # We think so for now
 
-  MASTER_OPT:
+    my $master_opt= mtr_get_opts_from_file($master_opt_file);
+
+    foreach my $opt ( @$master_opt )
     {
-      my $master_opt= mtr_get_opts_from_file($master_opt_file);
+      my $value;
 
-      foreach my $opt ( @$master_opt )
+      # The opt file is used both to send special options to the mysqld
+      # as well as pass special test case specific options to this
+      # script
+
+      $value= mtr_match_prefix($opt, "--timezone=");
+      if ( defined $value )
       {
-        my $value;
-
-        # This is a dirty hack from old mysql-test-run, we use the opt
-        # file to flag other things as well, it is not a opt list at
-        # all
-
-        $value= mtr_match_prefix($opt, "--timezone=");
-        if ( defined $value )
-        {
-          $tinfo->{'timezone'}= $value;
-          last MASTER_OPT;
-        }
-
-        $value= mtr_match_prefix($opt, "--result-file=");
-        if ( defined $value )
-        {
-          $tinfo->{'result_file'}= "r/$value.result";
-          $tinfo->{'master_restart'}= 0;
-          last MASTER_OPT;
-        }
-
-        # If we set default time zone, remove the one we have
-        $value= mtr_match_prefix($opt, "--default-time-zone=");
-        if ( defined $value )
-        {
-          $tinfo->{'master_opt'}= [];
-        }
-
+	$tinfo->{'timezone'}= $value;
+	next;
       }
 
-      # Ok, this was a real option list, add it
-      push(@{$tinfo->{'master_opt'}}, @$master_opt);
+      $value= mtr_match_prefix($opt, "--result-file=");
+      if ( defined $value )
+      {
+	# Specifies the file mysqltest should compare
+	# output against
+	$tinfo->{'result_file'}= "r/$value.result";
+	next;
+      }
+
+      # If we set default time zone, remove the one we have
+      $value= mtr_match_prefix($opt, "--default-time-zone=");
+      if ( defined $value )
+      {
+	$tinfo->{'timezone'}= "";
+	# Fallthrough, add this option
+      }
+
+      # The --restart option forces a restart even if no special
+      # option is set. If the options are the same as next testcase
+      # there is no need to restart after the testcase
+      # has completed
+      if ( $opt eq "--force-restart" )
+      {
+	$tinfo->{'force_restart'}= 1;
+	next;
+      }
+
+      # Ok, this was a real option, add it
+      push(@{$tinfo->{'master_opt'}}, $opt);
     }
   }
 
   if ( -f $slave_opt_file )
   {
-    $tinfo->{'slave_restart'}= 1;
     my $slave_opt= mtr_get_opts_from_file($slave_opt_file);
 
     foreach my $opt ( @$slave_opt )
@@ -417,7 +420,6 @@ sub collect_one_test_case($$$$$$$) {
   if ( -f $slave_mi_file )
   {
     $tinfo->{'slave_mi'}= mtr_get_opts_from_file($slave_mi_file);
-    $tinfo->{'slave_restart'}= 1;
   }
 
   if ( -f $master_sh )
@@ -431,7 +433,6 @@ sub collect_one_test_case($$$$$$$) {
     else
     {
       $tinfo->{'master_sh'}= $master_sh;
-      $tinfo->{'master_restart'}= 1;
     }
   }
 
@@ -446,7 +447,6 @@ sub collect_one_test_case($$$$$$$) {
     else
     {
       $tinfo->{'slave_sh'}= $slave_sh;
-      $tinfo->{'slave_restart'}= 1;
     }
   }
 
@@ -551,17 +551,6 @@ sub collect_one_test_case($$$$$$$) {
       return;
     }
   }
-
-  # We can't restart a running server that may be in use
-
-  if ( $::glob_use_running_server and
-       ( $tinfo->{'master_restart'} or $tinfo->{'slave_restart'} ) )
-  {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Can't restart a running server";
-    return;
-  }
-
 }
 
 
