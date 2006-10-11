@@ -345,7 +345,7 @@ typedef struct st_mi_check_param
   uint testflag, key_cache_block_size;
   uint8 language;
   my_bool using_global_keycache, opt_lock_memory, opt_follow_links;
-  my_bool retry_repair, force_sort, calc_checksum;
+  my_bool retry_repair, force_sort;
   char temp_filename[FN_REFLEN],*isam_file_name;
   MY_TMPDIR *tmpdir;
   int tmpfile_createflag;
