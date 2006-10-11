@@ -96,6 +96,124 @@ static bool make_datetime(date_time_format_types format, TIME *ltime,
 
 
 /*
+  Wrapper over make_datetime() with validation of the input TIME value
+
+  NOTE
+    see make_datetime() for more information
+
+  RETURN
+    1    if there was an error during converion
+    0    otherwise
+*/
+
+static bool make_datetime_with_warn(date_time_format_types format, TIME *ltime,
+                                    String *str)
+{
+  int warning= 0;
+  bool rc;
+
+  if (make_datetime(format, ltime, str))
+    return 1;
+  if (check_time_range(ltime, &warning))
+    return 1;
+  if (!warning)
+    return 0;
+
+  make_truncated_value_warning(current_thd, str->ptr(), str->length(),
+                               MYSQL_TIMESTAMP_TIME);
+  return make_datetime(format, ltime, str);
+}
+
+
+/*
+  Wrapper over make_time() with validation of the input TIME value
+
+  NOTE
+    see make_time() for more info
+
+  RETURN
+    1    if there was an error during conversion
+    0    otherwise
+*/
+
+static bool make_time_with_warn(const DATE_TIME_FORMAT *format,
+                                TIME *l_time, String *str)
+{
+  int warning= 0;
+  make_time(format, l_time, str);
+  if (check_time_range(l_time, &warning))
+    return 1;
+  if (warning)
+  {
+    make_truncated_value_warning(current_thd, str->ptr(), str->length(),
+                                 MYSQL_TIMESTAMP_TIME);
+    make_time(format, l_time, str);
+  }
+
+  return 0;
+}
+
+
+/*
+  Convert seconds to TIME value with overflow checking
+
+  SYNOPSIS:
+    sec_to_time()
+    seconds          number of seconds
+    unsigned_flag    1, if 'seconds' is unsigned, 0, otherwise
+    ltime            output TIME value
+
+  DESCRIPTION
+    If the 'seconds' argument is inside TIME data range, convert it to a
+    corresponding value.
+    Otherwise, truncate the resulting value to the nearest endpoint, and
+    produce a warning message.
+
+  RETURN
+    1                if the value was truncated during conversion
+    0                otherwise
+*/
+  
+static bool sec_to_time(longlong seconds, bool unsigned_flag, TIME *ltime)
+{
+  uint sec;
+
+  bzero((char *)ltime, sizeof(*ltime));
+  
+  if (seconds < 0)
+  {
+    if (unsigned_flag)
+      goto overflow;
+    ltime->neg= 1;
+    if (seconds < -3020399)
+      goto overflow;
+    seconds= -seconds;
+  }
+  else if (seconds > 3020399)
+    goto overflow;
+  
+  sec= (uint) ((ulonglong) seconds % 3600);
+  ltime->hour= (uint) (seconds/3600);
+  ltime->minute= sec/60;
+  ltime->second= sec % 60;
+
+  return 0;
+
+overflow:
+  ltime->hour= TIME_MAX_HOUR;
+  ltime->minute= TIME_MAX_MINUTE;
+  ltime->second= TIME_MAX_SECOND;
+
+  char buf[22];
+  int len= (int)(longlong10_to_str(seconds, buf, unsigned_flag ? 10 : -10)
+                 - buf);
+  make_truncated_value_warning(current_thd, buf, len, MYSQL_TIMESTAMP_TIME);
+  
+  return 1;
+}
+
+
+/*
   Date formats corresponding to compound %r and %T conversion specifiers
 
   Note: We should init at least first element of "positions" array
@@ -1546,8 +1664,6 @@ int Item_func_sysdate_local::save_in_field(Field *to, bool no_conversions)
 String *Item_func_sec_to_time::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  longlong seconds=(longlong) args[0]->val_int();
-  uint sec;
   TIME ltime;
 
   if ((null_value=args[0]->null_value) || str->alloc(19))
@@ -1556,19 +1672,8 @@ String *Item_func_sec_to_time::val_str(String *str)
     return (String*) 0;
   }
 
-  ltime.neg= 0;
-  if (seconds < 0)
-  {
-    seconds= -seconds;
-    ltime.neg= 1;
-  }
-
-  sec= (uint) ((ulonglong) seconds % 3600);
-  ltime.day= 0;
-  ltime.hour= (uint) (seconds/3600);
-  ltime.minute= sec/60;
-  ltime.second= sec % 60;
-
+  sec_to_time(args[0]->val_int(), args[0]->unsigned_flag, &ltime);
+  
   make_time((DATE_TIME_FORMAT *) 0, &ltime, str);
   return str;
 }
@@ -1577,16 +1682,15 @@ String *Item_func_sec_to_time::val_str(String *str)
 longlong Item_func_sec_to_time::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  longlong seconds=args[0]->val_int();
-  longlong sign=1;
+  TIME ltime;
+  
   if ((null_value=args[0]->null_value))
     return 0;
-  if (seconds < 0)
-  {
-    seconds= -seconds;
-    sign= -1;
-  }
-  return sign*((seconds / 3600)*10000+((seconds/60) % 60)*100+ (seconds % 60));
+
+  sec_to_time(args[0]->val_int(), args[0]->unsigned_flag, &ltime);
+
+  return (ltime.neg ? -1 : 1) *
+    ((ltime.hour)*10000 + ltime.minute*100 + ltime.second);
 }
 
 
@@ -2571,7 +2675,9 @@ String *Item_func_add_time::val_str(String *str)
   }
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
-
+  
+  bzero((char *)&l_time3, sizeof(l_time3));
+  
   l_time3.neg= calc_time_diff(&l_time1, &l_time2, -l_sign,
 			      &seconds, &microseconds);
 
@@ -2600,9 +2706,9 @@ String *Item_func_add_time::val_str(String *str)
   }
   
   l_time3.hour+= days*24;
-  if (!make_datetime(l_time1.second_part || l_time2.second_part ?
-		     TIME_MICROSECOND : TIME_ONLY,
-		     &l_time3, str))
+  if (!make_datetime_with_warn(l_time1.second_part || l_time2.second_part ?
+                               TIME_MICROSECOND : TIME_ONLY,
+                               &l_time3, str))
     return str;
 
 null_date:
@@ -2657,6 +2763,8 @@ String *Item_func_timediff::val_str(String *str)
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
+  bzero((char *)&l_time3, sizeof(l_time3));
+  
   l_time3.neg= calc_time_diff(&l_time1, &l_time2, l_sign,
 			      &seconds, &microseconds);
 
@@ -2670,9 +2778,9 @@ String *Item_func_timediff::val_str(String *str)
 
   calc_time_from_sec(&l_time3, (long) seconds, microseconds);
 
-  if (!make_datetime(l_time1.second_part || l_time2.second_part ?
-		     TIME_MICROSECOND : TIME_ONLY,
-		     &l_time3, str))
+  if (!make_datetime_with_warn(l_time1.second_part || l_time2.second_part ?
+                               TIME_MICROSECOND : TIME_ONLY,
+                               &l_time3, str))
     return str;
 
 null_date:
@@ -2690,29 +2798,57 @@ String *Item_func_maketime::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   TIME ltime;
+  bool overflow= 0;
 
-  long hour=   (long) args[0]->val_int();
-  long minute= (long) args[1]->val_int();
-  long second= (long) args[2]->val_int();
+  longlong hour=   args[0]->val_int();
+  longlong minute= args[1]->val_int();
+  longlong second= args[2]->val_int();
 
   if ((null_value=(args[0]->null_value || 
-		   args[1]->null_value ||
-		   args[2]->null_value || 
-		   minute > 59 || minute < 0 || 
-		   second > 59 || second < 0 ||
-		   str->alloc(19))))
+                   args[1]->null_value ||
+                   args[2]->null_value ||
+                   minute < 0 || minute > 59 ||
+                   second < 0 || second > 59 ||
+                   str->alloc(19))))
     return 0;
 
+  bzero((char *)&ltime, sizeof(ltime));
   ltime.neg= 0;
+
+  /* Check for integer overflows */
   if (hour < 0)
   {
-    ltime.neg= 1;
-    hour= -hour;
+    if (args[0]->unsigned_flag)
+      overflow= 1;
+    else
+      ltime.neg= 1;
   }
-  ltime.hour=   (ulong) hour;
-  ltime.minute= (ulong) minute;
-  ltime.second= (ulong) second;
-  make_time((DATE_TIME_FORMAT *) 0, &ltime, str);
+  if (-hour > UINT_MAX || hour > UINT_MAX)
+    overflow= 1;
+
+  if (!overflow)
+  {
+    ltime.hour=   (uint) ((hour < 0 ? -hour : hour));
+    ltime.minute= (uint) minute;
+    ltime.second= (uint) second;
+  }
+  else
+  {
+    ltime.hour= TIME_MAX_HOUR;
+    ltime.minute= TIME_MAX_MINUTE;
+    ltime.second= TIME_MAX_SECOND;
+    char buf[28];
+    char *ptr= longlong10_to_str(hour, buf, args[0]->unsigned_flag ? 10 : -10);
+    int len = (int)(ptr - buf) +
+      my_sprintf(ptr, (ptr, ":%02u:%02u", (uint)minute, (uint)second));
+    make_truncated_value_warning(current_thd, buf, len, MYSQL_TIMESTAMP_TIME);
+  }
+  
+  if (make_time_with_warn((DATE_TIME_FORMAT *) 0, &ltime, str))
+  {
+    null_value= 1;
+    return 0;
+  }
   return str;
 }
 
@@ -3056,7 +3192,7 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
     goto null_date;
 
   null_value= 0;
-  bzero((char*) ltime, sizeof(ltime));
+  bzero((char*) ltime, sizeof(*ltime));
   date_time_format.format.str=    (char*) format->ptr();
   date_time_format.format.length= format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(),
