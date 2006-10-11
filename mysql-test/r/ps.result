@@ -1969,11 +1969,11 @@ ERROR HY000: No paths allowed for shared library
 drop procedure proc_1;
 create procedure proc_1() install plugin my_plug soname 'some_plugin.so';
 call proc_1();
-ERROR HY000: Can't open shared library PATH_TO_SO (errno: 0 cannot open shared object file: No such file or directory)
+ERROR HY000: Can't open shared library
 call proc_1();
-ERROR HY000: Can't open shared library PATH_TO_SO (errno: 22 cannot open shared object file: No such file or directory)
+ERROR HY000: Can't open shared library
 call proc_1();
-ERROR HY000: Can't open shared library PATH_TO_SO (errno: 22 cannot open shared object file: No such file or directory)
+ERROR HY000: Can't open shared library
 drop procedure proc_1;
 create function func_1() returns int begin install plugin my_plug soname '/tmp/plugin'; return 1; end|
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
