@@ -54,3 +54,13 @@ c.c_id = 218 and expiredate is null;
 slai_id
 12
 drop table t1, t2;
+flush status;
+create table t1 (c1 int) engine=innodb;
+handler t1 open;
+handler t1 read first;
+c1
+show /*!50002 GLOBAL */ status like 'Handler_rollback';
+Variable_name	Value
+Handler_rollback	0
+drop table t1;
+End of 4.1 tests
