@@ -25,14 +25,25 @@
 
 #ifndef TESTTIME
 
+/*
+  Name description of interval names used in statements.
+
+  'interval_type_to_name' is ordered and sorted on interval size and
+  interval complexity.
+  Order of elements in 'interval_type_to_name' should correspond to 
+  the order of elements in 'interval_type' enum
+  
+  See also interval_type, interval_names
+*/
+
 LEX_STRING interval_type_to_name[INTERVAL_LAST] = {
   { C_STRING_WITH_LEN("YEAR")},
   { C_STRING_WITH_LEN("QUARTER")},
   { C_STRING_WITH_LEN("MONTH")},
+  { C_STRING_WITH_LEN("WEEK")},
   { C_STRING_WITH_LEN("DAY")},
   { C_STRING_WITH_LEN("HOUR")},
   { C_STRING_WITH_LEN("MINUTE")},
-  { C_STRING_WITH_LEN("WEEK")},
   { C_STRING_WITH_LEN("SECOND")},
   { C_STRING_WITH_LEN("MICROSECOND")},
   { C_STRING_WITH_LEN("YEAR_MONTH")},
