@@ -1876,7 +1876,7 @@ void Item_date_add_interval::fix_length_and_dec()
     cached_field_type= MYSQL_TYPE_DATETIME;
   else if (arg0_field_type == MYSQL_TYPE_DATE)
   {
-    if (int_type <= INTERVAL_DAY || int_type == INTERVAL_YEAR_MONTH || int_type == INTERVAL_WEEK )
+    if (int_type <= INTERVAL_DAY || int_type == INTERVAL_YEAR_MONTH)
       cached_field_type= arg0_field_type;
     else
       cached_field_type= MYSQL_TYPE_DATETIME;
