@@ -333,9 +333,9 @@ opt_calc_index_goodness(
 
 		col_no = dict_index_get_nth_col_no(index, j);
 
-		exp = opt_look_for_col_in_cond_before
-			(OPT_EQUAL, col_no, sel_node->search_cond,
-			 sel_node, nth_table, &op);
+		exp = opt_look_for_col_in_cond_before(
+			OPT_EQUAL, col_no, sel_node->search_cond,
+			sel_node, nth_table, &op);
 		if (exp) {
 			/* The value for this column is exactly known already
 			at this stage of the join */
@@ -346,9 +346,9 @@ opt_calc_index_goodness(
 		} else {
 			/* Look for non-equality comparisons */
 
-			exp = opt_look_for_col_in_cond_before
-				(OPT_COMPARISON, col_no, sel_node->search_cond,
-				 sel_node, nth_table, &op);
+			exp = opt_look_for_col_in_cond_before(
+				OPT_COMPARISON, col_no, sel_node->search_cond,
+				sel_node, nth_table, &op);
 			if (exp) {
 				index_plan[j] = exp;
 				*last_op = op;
@@ -675,10 +675,11 @@ opt_classify_comparison(
 	access the table, it is classified as OPT_END_COND */
 
 	if ((dict_index_get_n_fields(plan->index) > plan->n_exact_match)
-	    && opt_look_for_col_in_comparison_before
-	    (OPT_COMPARISON,
-	     dict_index_get_nth_col_no(plan->index, plan->n_exact_match),
-	     cond, sel_node, i, &op)) {
+	    && opt_look_for_col_in_comparison_before(
+		    OPT_COMPARISON,
+		    dict_index_get_nth_col_no(plan->index,
+					      plan->n_exact_match),
+		    cond, sel_node, i, &op)) {
 
 		if (sel_node->asc && ((op == '<') || (op == PARS_LE_TOKEN))) {
 
@@ -903,8 +904,8 @@ opt_find_all_cols(
 
 	/* Fill in the field_no fields in sym_node */
 
-	sym_node->field_nos[SYM_CLUST_FIELD_NO] = dict_index_get_nth_col_pos
-		(dict_table_get_first_index(index->table), sym_node->col_no);
+	sym_node->field_nos[SYM_CLUST_FIELD_NO] = dict_index_get_nth_col_pos(
+		dict_table_get_first_index(index->table), sym_node->col_no);
 	if (!(index->type & DICT_CLUSTERED)) {
 
 		ut_a(plan);

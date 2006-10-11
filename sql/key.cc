@@ -359,31 +359,29 @@ void key_unpack(String *to,TABLE *table,uint idx)
 
 
 /*
-  Return 1 if any field in a list is part of key or the key uses a field
-  that is automaticly updated (like a timestamp)
+  Check if key uses field that is marked in passed field bitmap.
+
+  SYNOPSIS
+    is_key_used()
+      table   TABLE object with which keys and fields are associated.
+      idx     Key to be checked.
+      fields  Bitmap of fields to be checked.
+
+  NOTE
+    This function uses TABLE::tmp_set bitmap so the caller should care
+    about saving/restoring its state if it also uses this bitmap.
+
+  RETURN VALUE
+    TRUE   Key uses field from bitmap
+    FALSE  Otherwise
 */
 
-bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
+bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields)
 {
-  List_iterator_fast<Item> f(fields);
-  KEY_PART_INFO *key_part,*key_part_end;
-  for (key_part=table->key_info[idx].key_part,key_part_end=key_part+
-	 table->key_info[idx].key_parts ;
-       key_part < key_part_end;
-       key_part++)
-  {
-    Item_field *field;
-
-    if (key_part->field == table->timestamp_field)
-      return 1;					// Can't be used for update
-
-    f.rewind();
-    while ((field=(Item_field*) f++))
-    {
-      if (key_part->field->eq(field->field))
-	return 1;
-    }
-  }
+  bitmap_clear_all(&table->tmp_set);
+  table->mark_columns_used_by_index_no_reset(idx, &table->tmp_set);
+  if (bitmap_is_overlapping(&table->tmp_set, fields))
+    return 1;
 
   /*
     If table handler has primary key as part of the index, check that primary
@@ -391,7 +389,7 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
   */
   if (idx != table->s->primary_key && table->s->primary_key < MAX_KEY &&
       (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
-    return check_if_key_used(table, table->s->primary_key, fields);
+    return is_key_used(table, table->s->primary_key, fields);
   return 0;
 }
 

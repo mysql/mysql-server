@@ -32,7 +32,11 @@
 
 #include "misc.hpp"
 #include "modes.hpp"
-#include "algorithm.hpp"
+#include STL_ALGORITHM_FILE
+
+
+namespace STL = STL_NAMESPACE;
+
 
 namespace TaoCrypt {
 

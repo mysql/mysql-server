@@ -87,6 +87,8 @@ Database: information_schema
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
+| GLOBAL_STATUS                         |
+| GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |
@@ -95,6 +97,8 @@ Database: information_schema
 | ROUTINES                              |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |
+| SESSION_STATUS                        |
+| SESSION_VARIABLES                     |
 | STATISTICS                            |
 | TABLES                                |
 | TABLE_CONSTRAINTS                     |
@@ -115,6 +119,8 @@ Database: INFORMATION_SCHEMA
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
+| GLOBAL_STATUS                         |
+| GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |
@@ -123,6 +129,8 @@ Database: INFORMATION_SCHEMA
 | ROUTINES                              |
 | SCHEMATA                              |
 | SCHEMA_PRIVILEGES                     |
+| SESSION_STATUS                        |
+| SESSION_VARIABLES                     |
 | STATISTICS                            |
 | TABLES                                |
 | TABLE_CONSTRAINTS                     |

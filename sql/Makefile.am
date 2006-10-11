@@ -27,7 +27,7 @@ INCLUDES =		@ZLIB_INCLUDES@ \
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
-noinst_PROGRAMS =	gen_lex_hash
+EXTRA_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			$(top_builddir)/vio/libvio.a \
@@ -52,7 +52,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			ha_partition.h \
 			ha_ndbcluster.h ha_ndbcluster_binlog.h \
 			ha_ndbcluster_tables.h \
-			opt_range.h protocol.h rpl_tblmap.h \
+			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
 			log.h sql_show.h rpl_rli.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
 			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
@@ -93,7 +93,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc rpl_filter.cc rpl_tblmap.cc \
-			rpl_injector.cc \
+			rpl_utility.cc rpl_injector.cc \
                         sql_union.cc sql_derived.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
@@ -121,8 +121,9 @@ DEFS =			-DMYSQL_SERVER \
 			@DEFS@
 
 BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
-EXTRA_DIST =		udf_example.c $(BUILT_SOURCES) \
-			nt_servc.cc nt_servc.h message.mc CMakeLists.txt
+EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_SOURCES) \
+			nt_servc.cc nt_servc.h message.mc CMakeLists.txt \
+			udf_example.c udf_example.def
 CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h sql_yacc.output
 AM_YFLAGS =		-d --debug --verbose
 
@@ -156,7 +157,11 @@ sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
 		@echo "If it fails, re-run configure with --with-low-memory"
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
-lex_hash.h:	gen_lex_hash$(EXEEXT)
+# This generates lex_hash.h
+# NOTE Built sources should depend on their sources not the tool
+# this avoid the rebuild of the built files in a source dist
+lex_hash.h:	gen_lex_hash.cc lex.h
+		$(MAKE) $(AM_MAKEFLAGS) gen_lex_hash$(EXEEXT)
 		./gen_lex_hash$(EXEEXT) > $@
 
 # the following three should eventually be moved out of this directory

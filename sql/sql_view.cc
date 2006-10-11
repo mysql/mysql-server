@@ -1603,7 +1603,7 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
       list->push_back(fld);
     else
     {
-      my_error(ER_NON_UPDATABLE_TABLE, MYF(0), view->alias, "INSERT");
+      my_error(ER_NON_INSERTABLE_TABLE, MYF(0), view->alias, "INSERT");
       DBUG_RETURN(TRUE);
     }
   }

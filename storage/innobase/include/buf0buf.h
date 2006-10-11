@@ -825,8 +825,7 @@ struct buf_block_struct{
 					search: number of full fields */
 	ulint		n_bytes;	/* recommended prefix: number of bytes
 					in an incomplete field */
-	ulint		side;		/* BTR_SEARCH_LEFT_SIDE or
-					BTR_SEARCH_RIGHT_SIDE, depending on
+	ibool		left_side;	/* TRUE or FALSE, depending on
 					whether the leftmost record of several
 					records with the same prefix should be
 					indexed in the hash index */
@@ -851,9 +850,7 @@ struct buf_block_struct{
 	ulint		curr_n_fields;	/* prefix length for hash indexing:
 					number of full fields */
 	ulint		curr_n_bytes;	/* number of bytes in hash indexing */
-	ulint		curr_side;	/* BTR_SEARCH_LEFT_SIDE or
-					BTR_SEARCH_RIGHT_SIDE in hash
-					indexing */
+	ibool		curr_left_side;	/* TRUE or FALSE in hash indexing */
 	dict_index_t*	index;		/* Index for which the adaptive
 					hash index has been created. */
 	/* 6. Debug fields */

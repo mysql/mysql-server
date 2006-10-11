@@ -21,6 +21,9 @@
   except the part which must be in the server and in the client.
 */
 
+#ifndef MYSQL_PRIV_H
+#define MYSQL_PRIV_H
+
 #ifndef MYSQL_CLIENT
 
 #include <my_global.h>
@@ -137,7 +140,18 @@ MY_LOCALE *my_locale_by_name(const char *name);
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
-#define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
+
+/* 
+ Value of 9236 discovered through binary search 2006-09-26 on Ubuntu Dapper
+ Drake, libc6 2.3.6-0ubuntu2, Linux kernel 2.6.15-27-686, on x86.  (Added 
+ 100 bytes as reasonable buffer against growth and other environments'
+ requirements.)
+
+ Feel free to raise this by the smallest amount you can to get the
+ "execution_constants" test to pass.
+ */
+#define STACK_MIN_SIZE		9336	// Abort if less stack during eval.  
+
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 #define STACK_BUFF_ALLOC	256	// For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
@@ -427,6 +441,7 @@ void view_store_options(THD *thd, st_table_list *table, String *buff);
 #define TL_OPTION_UPDATING	1
 #define TL_OPTION_FORCE_INDEX	2
 #define TL_OPTION_IGNORE_LEAVES 4
+#define TL_OPTION_ALIAS         8
 
 /* Some portable defines */
 
@@ -454,7 +469,8 @@ enum enum_parsing_place
   NO_MATTER,
   IN_HAVING,
   SELECT_LIST,
-  IN_WHERE
+  IN_WHERE,
+  IN_ON
 };
 
 struct st_table;
@@ -584,7 +600,7 @@ void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
-bool check_string_length(CHARSET_INFO *cs, LEX_STRING *str,
+bool check_string_length(LEX_STRING *str,
                          const char *err_msg, uint max_length);
 
 enum enum_mysql_completiontype {
@@ -1413,7 +1429,7 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
 bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
-bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
+bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);
 int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
 int key_rec_cmp(void *key_info, byte *a, byte *b);
 
@@ -1423,10 +1439,12 @@ void sql_perror(const char *message);
 
 
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
-void sql_print_error(const char *format, ...);
-void sql_print_warning(const char *format, ...);
-void sql_print_information(const char *format, ...);
-typedef void (*sql_print_message_func)(const char *format, ...);
+void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_information(const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+typedef void (*sql_print_message_func)(const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 extern sql_print_message_func sql_print_message_handlers[];
 
 /* type of the log table */
@@ -1554,7 +1572,6 @@ extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
-extern bool mysql_proc_table_exists;
 extern uint volatile thread_count, thread_running, global_read_lock;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
@@ -1624,65 +1641,22 @@ extern TYPELIB log_output_typelib;
 
 /* optional things, have_* variables */
 
-#ifdef WITH_INNOBASE_STORAGE_ENGINE
-extern handlerton innobase_hton;
-#define have_innodb innobase_hton.state
-#else
 extern SHOW_COMP_OPTION have_innodb;
-#endif
-#ifdef WITH_EXAMPLE_STORAGE_ENGINE
-extern handlerton example_hton;
-#define have_example_db example_hton.state
-#else
 extern SHOW_COMP_OPTION have_example_db;
-#endif
-#ifdef WITH_ARCHIVE_STORAGE_ENGINE
-extern handlerton archive_hton;
-#define have_archive_db archive_hton.state
-#else
 extern SHOW_COMP_OPTION have_archive_db;
-#endif
-#ifdef WITH_CSV_STORAGE_ENGINE
-extern handlerton tina_hton;
-#define have_csv_db tina_hton.state
-#else
 extern SHOW_COMP_OPTION have_csv_db;
-#endif
-#ifdef WITH_FEDERATED_STORAGE_ENGINE
-extern handlerton federated_hton;
-#define have_federated_db federated_hton.state
-#else
 extern SHOW_COMP_OPTION have_federated_db;
-#endif
-#ifdef WITH_BLACKHOLE_STORAGE_ENGINE
-extern handlerton blackhole_hton;
-#define have_blackhole_db blackhole_hton.state
-#else
 extern SHOW_COMP_OPTION have_blackhole_db;
-#endif
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-extern handlerton ndbcluster_hton;
-#define have_ndbcluster ndbcluster_hton.state
-#else
 extern SHOW_COMP_OPTION have_ndbcluster;
-#endif
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-extern handlerton partition_hton;
-#define have_partition_db partition_hton.state
-#else
 extern SHOW_COMP_OPTION have_partition_db;
-#endif
+extern SHOW_COMP_OPTION have_merge_db;
 
-extern handlerton myisammrg_hton;
-/* MRG_MYISAM handler is always built, but may be skipped */
-#define have_merge_db myisammrg_hton.state
-
-extern handlerton myisam_hton;
-extern handlerton myisammrg_hton;
-extern handlerton heap_hton;
+extern handlerton *partition_hton;
+extern handlerton *myisam_hton;
+extern handlerton *heap_hton;
 
 extern SHOW_COMP_OPTION have_row_based_replication;
-extern SHOW_COMP_OPTION have_raid, have_openssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_openssl, have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
@@ -2037,3 +2011,5 @@ bool schema_table_store_record(THD *thd, TABLE *table);
 
 #endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */
+
+#endif /* MYSQL_PRIV_H */

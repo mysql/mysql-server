@@ -168,3 +168,13 @@ DROP TABLE t1;
 select hex(convert(_gbk 0xA14041 using ucs2));
 hex(convert(_gbk 0xA14041 using ucs2))
 003F0041
+create table t1 (c1 text not null, c2 text not null) character set gbk;
+alter table t1 change c1 c1 mediumtext  character set gbk not null;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumtext NOT NULL,
+  `c2` text NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=gbk
+drop table t1;
+End of 5.0 tests

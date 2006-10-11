@@ -53,7 +53,7 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                rpl_tblmap.cc sql_binlog.cc event_scheduler.cc event_data_objects.cc
                event_queue.cc event_db_repository.cc 
                sql_tablespace.cc events.cc ../sql-common/my_user.c 
-               partition_info.cc rpl_injector.cc sql_locale.cc
+               partition_info.cc rpl_utility.cc rpl_injector.cc sql_locale.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
   			   ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
 			   ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
@@ -117,3 +117,7 @@ ADD_CUSTOM_COMMAND(
 )
 
 ADD_DEPENDENCIES(mysqld gen_lex_hash)
+
+ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
+ADD_DEPENDENCIES(udf_example strings)
+TARGET_LINK_LIBRARIES(udf_example wsock32)

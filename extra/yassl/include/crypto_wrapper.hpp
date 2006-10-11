@@ -416,7 +416,17 @@ private:
 class x509;
 
 
-x509* PemToDer(FILE*, CertType);
+struct EncryptedInfo {
+    enum { IV_SZ = 32, NAME_SZ = 80 };
+    char  name[NAME_SZ]; // max one line
+    byte  iv[IV_SZ];     // in base16 rep
+    uint  ivSz;
+    bool  set;
+
+    EncryptedInfo() : ivSz(0), set(false) {}
+};
+
+x509* PemToDer(FILE*, CertType, EncryptedInfo* info = 0);
 
 
 } // naemspace

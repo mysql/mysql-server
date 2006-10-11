@@ -381,7 +381,7 @@ page_create(
 
 	dfield_set_data(field, "infimum", 8);
 	dtype_set(dfield_get_type(field),
-		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, 8, 0);
+		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, 8);
 	/* Set the corresponding physical record to its place in the page
 	record heap */
 
@@ -407,7 +407,7 @@ page_create(
 
 	dfield_set_data(field, "supremum", comp ? 8 : 9);
 	dtype_set(dfield_get_type(field),
-		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, comp ? 8 : 9, 0);
+		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, comp ? 8 : 9);
 
 	supremum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple);
 
@@ -650,7 +650,7 @@ page_delete_rec_list_write_log(
 	log_ptr = mlog_open_and_write_index(mtr, rec, index, type, 2);
 	if (log_ptr) {
 		/* Write the parameter as a 2-byte ulint */
-		mach_write_to_2(log_ptr, ut_align_offset(rec, UNIV_PAGE_SIZE));
+		mach_write_to_2(log_ptr, page_offset(rec));
 		mlog_close(mtr, log_ptr + 2);
 	}
 }

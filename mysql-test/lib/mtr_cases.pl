@@ -62,7 +62,7 @@ sub collect_test_cases ($) {
     foreach my $tname ( @::opt_cases ) { # Run in specified order, no sort
       my $elem= undef;
       my $component_id= undef;
-      
+
       # Get rid of directory part (path). Leave the extension since it is used
       # to understand type of the test.
 
@@ -390,6 +390,7 @@ sub collect_one_test_case($$$$$$$) {
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No tests with sh scripts on Windows";
+      return;
     }
     else
     {
@@ -404,6 +405,7 @@ sub collect_one_test_case($$$$$$$) {
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No tests with sh scripts on Windows";
+      return;
     }
     else
     {
@@ -448,6 +450,7 @@ sub collect_one_test_case($$$$$$$) {
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'disable'}= 1;   # Sub type of 'skip'
+      return;
     }
   }
 
@@ -457,16 +460,19 @@ sub collect_one_test_case($$$$$$$) {
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No IM with embedded server";
+      return;
     }
     elsif ( $::opt_ps_protocol )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No IM with --ps-protocol";
+      return;
     }
     elsif ( $::opt_skip_im )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No IM tests(--skip-im)";
+      return;
     }
   }
   else
@@ -477,18 +483,21 @@ sub collect_one_test_case($$$$$$$) {
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test need 'big-test' option";
+      return;
     }
 
     if ( $tinfo->{'ndb_extra'} and ! $::opt_ndb_extra_test )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test need 'ndb_extra' option";
+      return;
     }
 
     if ( $tinfo->{'require_manager'} )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test need the _old_ manager(to be removed)";
+      return;
     }
 
     if ( defined $tinfo->{'binlog_format'} and
@@ -496,12 +505,14 @@ sub collect_one_test_case($$$$$$$) {
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Not running with binlog format '$tinfo->{'binlog_format'}'";
+      return;
     }
 
     if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test need debug binaries";
+      return;
     }
   }
 
@@ -512,6 +523,7 @@ sub collect_one_test_case($$$$$$$) {
   {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Can't restart a running server";
+    return;
   }
 
 }
@@ -538,8 +550,6 @@ sub mtr_options_from_test_file($$) {
 
   while ( my $line= <$F> )
   {
-    chomp;
-
     next if ( $line !~ /^--/ );
 
     # Match this line against tag in "tags" array

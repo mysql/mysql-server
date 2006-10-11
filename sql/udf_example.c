@@ -127,7 +127,14 @@ typedef long long longlong;
 #else
 #include <my_global.h>
 #include <my_sys.h>
+#if defined(MYSQL_SERVER)
 #include <m_string.h>		/* To get strmov() */
+#else
+/* when compiled as standalone */
+#define strmov(a,b) strcpy(a,b)
+#define bzero(a,b) memset(a,0,b)
+#define memcpy_fixed(a,b,c) memcpy(a,b,c)
+#endif
 #endif
 #include <mysql.h>
 #include <ctype.h>
@@ -674,10 +681,14 @@ longlong sequence(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
 **
 ****************************************************************************/
 
+#ifdef __WIN__
+#include <winsock.h>
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#endif
 
 my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message);
 void lookup_deinit(UDF_INIT *initid);

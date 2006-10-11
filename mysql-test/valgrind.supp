@@ -15,11 +15,12 @@
 }
 
 {
-   pthread allocate_tls memory loss 2
+   pthread allocate_tls memory loss
    Memcheck:Leak
    fun:calloc
    fun:_dl_allocate_tls
-   fun:pthread_create@@GLIBC_2.1
+   fun:pthread_create*
+
 }
 
 {
@@ -180,6 +181,24 @@
    fun:deflate_slow
    fun:deflate
    fun:compress2
+}
+
+{
+   libz longest_match 3
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:gzclose
+}
+
+{
+   libz longest_match 4 
+   Memcheck:Cond
+   fun:longest_match
+   fun:deflate_slow
+   fun:deflate
+   fun:gzflush
 }
 
 {

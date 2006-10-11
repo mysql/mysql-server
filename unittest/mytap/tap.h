@@ -24,8 +24,8 @@
 #include "my_global.h"
 
 /*
-  @defgroup MyTAP MySQL support for performing unit tests according to TAP.
-
+  @defgroup MyTAP MySQL support for performing unit tests according to
+  the Test Anything Protocol (TAP).
 */
 
 #define NO_PLAN  (0)
@@ -36,6 +36,7 @@
    @internal We are using the "typedef struct X { ... } X" idiom to
    create class/struct X both in C and C++.
  */
+
 typedef struct TEST_DATA {
   /**
      Number of tests that is planned to execute.
@@ -67,8 +68,13 @@ extern "C" {
    it was called with <code>NO_PLAN</code>, i.e., the test plan will
    be printed after all the test lines.
 
+   The plan() function will install signal handlers for all signals
+   that generate a core, so if you want to override these signals, do
+   it <em>after</em> you have called the plan() function.
+
    @param count The planned number of tests to run. 
 */
+
 void plan(int count);
 
 
@@ -87,8 +93,10 @@ void plan(int count);
    @param fmt  Format string in printf() format. NULL is allowed, in
                which case nothing is printed.
 */
+
 void ok(int pass, char const *fmt, ...)
   __attribute__((format(printf,2,3)));
+
 
 /**
    Skip a determined number of tests.
@@ -114,6 +122,7 @@ void ok(int pass, char const *fmt, ...)
    @param how_many   Number of tests that are to be skipped.
    @param reason     A reason for skipping the tests
  */
+
 void skip(int how_many, char const *reason, ...)
     __attribute__((format(printf,2,3)));
 
@@ -130,21 +139,46 @@ void skip(int how_many, char const *reason, ...)
      for (i = 0 ; i < 2 ; ++i)
        ok(duck[i] == paddling, "is duck %d paddling?", i);
    }
+   @endcode
 
    @see skip
-
-   @endcode
  */
+
 #define SKIP_BLOCK_IF(SKIP_IF_TRUE, COUNT, REASON) \
   if (SKIP_IF_TRUE) skip((COUNT),(REASON)); else
+
 
 /**
    Print a diagnostics message.
 
    @param fmt  Diagnostics message in printf() format.
  */
+
 void diag(char const *fmt, ...)
   __attribute__((format(printf,1,2)));
+
+
+/**
+   Print a bail out message.
+
+   A bail out message can be issued when no further testing can be
+   done, e.g., when there are missing dependencies.
+
+   The test will exit with status 255.  This function does not return.
+
+   @code
+   BAIL_OUT("Lost connection to server %s", server_name);
+   @endcode
+
+   @note A bail out message is printed if a signal that generates a
+   core is raised.
+
+   @param fmt Bail out message in printf() format.
+*/
+
+void BAIL_OUT(char const *fmt, ...)
+  __attribute__((noreturn, format(printf,1,2)));
+
 
 /**
    Print summary report and return exit status.
@@ -161,6 +195,7 @@ void diag(char const *fmt, ...)
    @returns EXIT_SUCCESS if all tests passed, EXIT_FAILURE if one or
    more tests failed.
  */
+
 int exit_status(void);
 
 
@@ -171,8 +206,10 @@ int exit_status(void);
    automatically call exit(), so there is no need to have checks
    around it.
  */
+
 void skip_all(char const *reason, ...)
   __attribute__((noreturn, format(printf, 1, 2)));
+
 
 /**
    Start section of tests that are not yet ready.
@@ -194,13 +231,17 @@ void skip_all(char const *reason, ...)
 
    @param message Message that will be printed before the todo tests.
 */
+
 void todo_start(char const *message, ...)
-  __attribute__((format (printf, 1, 2)));
+  __attribute__((format(printf, 1, 2)));
+
 
 /**
    End a section of tests that are not yet ready.
 */
+
 void todo_end();
+
 
 #ifdef __cplusplus
 }

@@ -234,4 +234,23 @@ create event e_53 on schedule every 5 second ends (select s1 from ttx) do drop t
 # END   - BUG#16394: Events: Crash if schedule contains SELECT
 #
 
+#
+# START - BUG#22397: Events: crash with procedure which alters events
+#
+--disable_warnings
+drop event if exists e_16;
+drop procedure if exists p_16;
+--enable_warnings
+create event e_16 on schedule every 1 second do set @a=5;
+create procedure p_16 () alter event e_16 on schedule every @a second;
+set @a = null;
+--error ER_WRONG_VALUE
+call p_16();
+--error ER_WRONG_VALUE
+call p_16();
+set @a= 6;
+call p_16();
+
+drop procedure p_16;
+drop event e_16;
 drop database events_test;
