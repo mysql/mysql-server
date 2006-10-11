@@ -727,13 +727,6 @@ void die(const char *fmt, ...)
   va_start(args, fmt);
   if (fmt)
   {
-#ifdef DBUG_ON
-#ifndef __WIN__
-    char buff[256];
-    vsnprintf(buff, sizeof(buff), fmt, args);
-    DBUG_PRINT("error", ("%s", buff));
-#endif
-#endif
     fprintf(stderr, "mysqltest: ");
     if (cur_file && cur_file != file_stack)
       fprintf(stderr, "In included file \"%s\": ",
