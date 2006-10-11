@@ -255,9 +255,9 @@ my_time_t TIME_to_timestamp(THD *thd, const TIME *t, bool *in_dst_time_gap)
 bool
 str_to_time_with_warn(const char *str, uint length, TIME *l_time)
 {
-  int was_cut;
-  bool ret_val= str_to_time(str, length, l_time, &was_cut);
-  if (was_cut)
+  int warning;
+  bool ret_val= str_to_time(str, length, l_time, &warning);
+  if (ret_val || warning)
     make_truncated_value_warning(current_thd, str, length, MYSQL_TIMESTAMP_TIME);
   return ret_val;
 }
