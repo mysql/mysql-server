@@ -1433,7 +1433,7 @@ void do_source(struct st_command *command)
 
 
 #ifdef __WIN__
-/* Variables used for temuprary sh files used for emulating Unix on Windows */
+/* Variables used for temporary sh files used for emulating Unix on Windows */
 char tmp_sh_name[64], tmp_sh_cmd[70];
 
 void init_tmp_sh_file()
