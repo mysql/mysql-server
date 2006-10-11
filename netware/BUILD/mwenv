@@ -46,3 +46,13 @@ export LD='mwldnlm'
 export LDFLAGS='-entry _LibCPrelude -exit _LibCPostlude -map -flags pseudopreemption'
 export RANLIB=:
 export STRIP=:
+
+#
+# Check that TERM has been set to avoid problem "Error opening
+# terminal: unknown" when the script is executed using non interactive ssh
+#
+if test -z "$TERM" -o "$TERM"=dumb
+then
+  export TERM=linux
+fi
+
