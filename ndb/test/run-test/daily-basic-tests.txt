@@ -607,7 +607,15 @@ args:
 
 max-time: 5000
 cmd: testOIBasic
-args: 
+args: -case abcdefz
+
+max-time: 2000
+cmd: testOIBasic
+args: -case gz
+
+max-time: 2000
+cmd: testOIBasic
+args: -case hz
 
 max-time: 2500
 cmd: testBitfield
