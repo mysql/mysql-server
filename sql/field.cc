@@ -3961,9 +3961,10 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
 {
   TIME ltime;
   long tmp;
-  int error;
+  int error= 0;
+  int warning;
 
-  if (str_to_time(from, len, &ltime, &error))
+  if (str_to_time(from, len, &ltime, &warning))
   {
     tmp=0L;
     error= 2;
@@ -3972,29 +3973,27 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   }
   else
   {
-    if (error)
+    if (warning & MYSQL_TIME_WARN_TRUNCATED)
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                            ER_WARN_DATA_TRUNCATED,
                            from, len, MYSQL_TIMESTAMP_TIME, 1);
-
-    if (ltime.month)
-      ltime.day=0;
-    tmp=(ltime.day*24L+ltime.hour)*10000L+(ltime.minute*100+ltime.second);
-    if (tmp > 8385959)
+    if (warning & MYSQL_TIME_WARN_OUT_OF_RANGE)
     {
-      tmp=8385959;
       set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                            ER_WARN_DATA_OUT_OF_RANGE,
                            from, len, MYSQL_TIMESTAMP_TIME, !error);
       error= 1;
     }
+    if (ltime.month)
+      ltime.day=0;
+    tmp=(ltime.day*24L+ltime.hour)*10000L+(ltime.minute*100+ltime.second);
     if (error > 1)
       error= 2;
   }
   
   if (ltime.neg)
     tmp= -tmp;
-  error |= Field_time::store((longlong) tmp);
+  int3store(ptr,tmp);
   return error;
 }
 
@@ -4003,16 +4002,16 @@ int Field_time::store(double nr)
 {
   long tmp;
   int error= 0;
-  if (nr > 8385959.0)
+  if (nr > (double)TIME_MAX_VALUE)
   {
-    tmp=8385959L;
+    tmp= TIME_MAX_VALUE;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, nr, MYSQL_TIMESTAMP_TIME);
     error= 1;
   }
-  else if (nr < -8385959.0)
+  else if (nr < (double)-TIME_MAX_VALUE)
   {
-    tmp= -8385959L;
+    tmp= -TIME_MAX_VALUE;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, nr, MYSQL_TIMESTAMP_TIME);
     error= 1;
@@ -4040,17 +4039,17 @@ int Field_time::store(longlong nr)
 {
   long tmp;
   int error= 0;
-  if (nr > (longlong) 8385959L)
+  if (nr > (longlong) TIME_MAX_VALUE)
   {
-    tmp=8385959L;
+    tmp= TIME_MAX_VALUE;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, nr,
                          MYSQL_TIMESTAMP_TIME, 1);
     error= 1;
   }
-  else if (nr < (longlong) -8385959L)
+  else if (nr < (longlong) -TIME_MAX_VALUE)
   {
-    tmp= -8385959L;
+    tmp= -TIME_MAX_VALUE;
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN, 
                          ER_WARN_DATA_OUT_OF_RANGE, nr,
                          MYSQL_TIMESTAMP_TIME, 1);
