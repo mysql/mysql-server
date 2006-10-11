@@ -2313,7 +2313,8 @@ void Dbdict::checkSchemaStatus(Signal* signal)
 	tablePtr.p->tableType = (DictTabInfo::TableType)oldEntry->m_tableType;
 	
 	// On NR get index from master because index state is not on file
-	const bool file = c_systemRestart || tablePtr.p->isTable();
+	const bool file = (* newEntry == * oldEntry) &&
+	  (c_systemRestart || tablePtr.p->isTable());
 	restartCreateTab(signal, tableId, oldEntry, file);
 
 	return;
