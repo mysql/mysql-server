@@ -1418,7 +1418,7 @@ sub executable_setup () {
   {
     $exe_mysql_client_test=
       mtr_exe_exists("$glob_basedir/libmysqld/examples/mysql_client_test_embedded",
-		     "$glob_basedir/tests/mysqltest_embedded");
+		     "$path_client_bindir/mysql_client_test_embedded");
   }
   else
   {
@@ -3107,7 +3107,7 @@ sub mysqld_arguments ($$$$$) {
     $prefix= "--server-arg=";
   } else {
     # We can't pass embedded server --no-defaults
-    mtr_add_arg($args, "%s--no-defaults", $prefix);
+    mtr_add_arg($args, "--no-defaults");
   }
 
   mtr_add_arg($args, "%s--console", $prefix);
@@ -3529,7 +3529,12 @@ sub run_testcase_need_master_restart($)
   # We try to find out if we are to restart the master(s)
   my $do_restart= 0;          # Assumes we don't have to
 
-  if ( $tinfo->{'master_sh'} )
+  if ( $glob_use_embedded_server )
+  {
+    mtr_verbose("Never start or restart for embedded server");
+    return $do_restart;
+  }
+  elsif ( $tinfo->{'master_sh'} )
   {
     $do_restart= 1;           # Always restart if script to run
     mtr_verbose("Restart master: Always restart if script to run");
@@ -3591,7 +3596,12 @@ sub run_testcase_need_slave_restart($)
   # We try to find out if we are to restart the slaves
   my $do_slave_restart= 0;     # Assumes we don't have to
 
-  if ( $max_slave_num == 0)
+  if ( $glob_use_embedded_server )
+  {
+    mtr_verbose("Never start or restart for embedded server");
+    return $do_slave_restart;
+  }
+  elsif ( $max_slave_num == 0)
   {
     mtr_verbose("Skip slave restart: No testcase use slaves");
   }
