@@ -821,7 +821,7 @@ TABLE *reopen_name_locked_table(THD* thd, TABLE_LIST* table_list)
   if (!(table = table_list->table))
     DBUG_RETURN(0);
 
-  char* db = thd->db ? thd->db : table_list->db;
+  char *db= table_list->db;
   char* table_name = table_list->real_name;
   char	key[MAX_DBKEY_LENGTH];
   uint	key_length;
