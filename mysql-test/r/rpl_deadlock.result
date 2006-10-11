@@ -6,7 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 create table t1 (a int not null, key(a)) engine=innodb;
 create table t2 (a int not null, key(a)) engine=innodb;
-create table t3 (a int) engine=innodb;
+create table t3 (a int unique) engine=innodb;
 create table t4 (a int) engine=innodb;
 show variables like 'slave_transaction_retries';
 Variable_name	Value
@@ -35,14 +35,14 @@ begin;
 select * from t1 for update;
 a
 start slave;
-insert into t2 values(22);
+insert into t2 values(201);
 commit;
 select * from t1;
 a
 1
 select * from t2;
 a
-22
+201
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -50,7 +50,7 @@ Master_User	root
 Master_Port	MASTER_MYPORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	18911
+Read_Master_Log_Pos	18918
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -65,7 +65,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	18911
+Exec_Master_Log_Pos	18918
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -78,12 +78,16 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	#
 stop slave;
-change master to master_log_pos=532;
+delete from t3;
+change master to master_log_pos=539;
 begin;
 select * from t2 for update;
 a
-22
+201
 start slave;
+select count(*) from t3  /* must be zero */;
+count(*)
+0
 commit;
 select * from t1;
 a
@@ -91,7 +95,7 @@ a
 1
 select * from t2;
 a
-22
+201
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -99,7 +103,7 @@ Master_User	root
 Master_Port	MASTER_MYPORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	18911
+Read_Master_Log_Pos	18918
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -114,7 +118,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	18911
+Exec_Master_Log_Pos	18918
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -128,12 +132,16 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 set global max_relay_log_size=0;
 stop slave;
-change master to master_log_pos=532;
+delete from t3;
+change master to master_log_pos=539;
 begin;
 select * from t2 for update;
 a
-22
+201
 start slave;
+select count(*) from t3  /* must be zero */;
+count(*)
+0
 commit;
 select * from t1;
 a
@@ -142,7 +150,7 @@ a
 1
 select * from t2;
 a
-22
+201
 show slave status;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -150,7 +158,7 @@ Master_User	root
 Master_Port	MASTER_MYPORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	18911
+Read_Master_Log_Pos	18918
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -165,7 +173,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	18911
+Exec_Master_Log_Pos	18918
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -177,4 +185,91 @@ Master_SSL_Cert
 Master_SSL_Cipher	
 Master_SSL_Key	
 Seconds_Behind_Master	#
+drop table if exists t1;
+create table t1 (f int unique) engine=innodb;
+insert into t1  values (0);
+begin;
+select * from t1 where f = 0 for update;
+f
+0
+begin;
+insert into t1 values (1);
+update t1 set f=-1 where f = 0;
+commit;
+insert into t1 values (2);
+show slave status;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_MYPORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	19618
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	#
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	1205
+Last_Error	Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'test'. Query: 'update t1 set f=-1 where f = 0'
+Skip_Counter	0
+Exec_Master_Log_Pos	19227
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+set @@global.sql_slave_skip_counter = 4;
+start slave;
+show slave status;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_MYPORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	19618
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	#
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	19618
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+select * from t1;
+f
+0
+2
+commit;
 drop table t1,t2,t3,t4;
