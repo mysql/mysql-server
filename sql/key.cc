@@ -18,6 +18,7 @@
 /* Functions to handle keys and fields in forms */
 
 #include "mysql_priv.h"
+#include "sql_trigger.h"
 
 	/*
 	** Search after with key field is. If no key starts with field test
@@ -342,12 +343,24 @@ void key_unpack(String *to,TABLE *table,uint idx)
 
 
 /*
-  Return 1 if any field in a list is part of key or the key uses a field
-  that is automaticly updated (like a timestamp)
+  Check if key uses field that is listed in passed field list or is
+  automatically updated (like a timestamp) or can be updated by before
+  update trigger defined on the table.
+
+  SYNOPSIS
+    is_key_used()
+      table   TABLE object with which keys and fields are associated.
+      idx     Key to be checked.
+      fields  List of fields to be checked.
+
+  RETURN VALUE
+    TRUE   Key uses field which meets one the above conditions
+    FALSE  Otherwise
 */
 
-bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
+bool is_key_used(TABLE *table, uint idx, List<Item> &fields)
 {
+  Table_triggers_list *triggers= table->triggers;
   List_iterator_fast<Item> f(fields);
   KEY_PART_INFO *key_part,*key_part_end;
   for (key_part=table->key_info[idx].key_part,key_part_end=key_part+
@@ -366,6 +379,9 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
       if (key_part->field->eq(field->field))
 	return 1;
     }
+    if (triggers &&
+        triggers->is_updated_in_before_update_triggers(key_part->field))
+      return 1;
   }
 
   /*
@@ -374,7 +390,7 @@ bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields)
   */
   if (idx != table->s->primary_key && table->s->primary_key < MAX_KEY &&
       (table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX))
-    return check_if_key_used(table, table->s->primary_key, fields);
+    return is_key_used(table, table->s->primary_key, fields);
   return 0;
 }
 

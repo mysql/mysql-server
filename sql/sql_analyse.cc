@@ -807,9 +807,9 @@ void field_str::get_opt_type(String *answer, ha_rows total_rows)
     else if (num_info.decimals) // DOUBLE(%d,%d) sometime
     {
       if (num_info.dval > -FLT_MAX && num_info.dval < FLT_MAX)
-	sprintf(buff, "FLOAT(%d,%d)", num_info.integers, num_info.decimals);
+	sprintf(buff, "FLOAT(%d,%d)", (num_info.integers + num_info.decimals), num_info.decimals);
       else
-	sprintf(buff, "DOUBLE(%d,%d)", num_info.integers, num_info.decimals);
+	sprintf(buff, "DOUBLE(%d,%d)", (num_info.integers + num_info.decimals), num_info.decimals);
     }
     else if (ev_num_info.llval >= -128 &&
 	     ev_num_info.ullval <=
@@ -916,10 +916,10 @@ void field_real::get_opt_type(String *answer,
   else
   {
     if (min_arg >= -FLT_MAX && max_arg <= FLT_MAX)
-      sprintf(buff, "FLOAT(%d,%d)", (int) max_length - (item->decimals + 1),
+      sprintf(buff, "FLOAT(%d,%d)", (int) max_length - (item->decimals + 1) + max_notzero_dec_len,
 	      max_notzero_dec_len);
     else
-      sprintf(buff, "DOUBLE(%d,%d)", (int) max_length - (item->decimals + 1),
+      sprintf(buff, "DOUBLE(%d,%d)", (int) max_length - (item->decimals + 1) + max_notzero_dec_len,
 	      max_notzero_dec_len);
     answer->append(buff, (uint) strlen(buff));
   }

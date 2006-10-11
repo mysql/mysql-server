@@ -131,7 +131,18 @@ MY_LOCALE *my_locale_by_name(const char *name);
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
-#define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
+
+/* 
+ Value of 9236 discovered through binary search 2006-09-26 on Ubuntu Dapper
+ Drake, libc6 2.3.6-0ubuntu2, Linux kernel 2.6.15-27-686, on x86.  (Added 
+ 100 bytes as reasonable buffer against growth and other environments'
+ requirements.)
+
+ Feel free to raise this by the smallest amount you can to get the
+ "execution_constants" test to pass.
+ */
+#define STACK_MIN_SIZE		9336	// Abort if less stack during eval.  
+
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 #define STACK_BUFF_ALLOC	256	// For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
@@ -425,6 +436,7 @@ void view_store_options(THD *thd, st_table_list *table, String *buff);
 #define TL_OPTION_UPDATING	1
 #define TL_OPTION_FORCE_INDEX	2
 #define TL_OPTION_IGNORE_LEAVES 4
+#define TL_OPTION_ALIAS         8
 
 /* Some portable defines */
 
@@ -445,7 +457,8 @@ enum enum_parsing_place
   NO_MATTER,
   IN_HAVING,
   SELECT_LIST,
-  IN_WHERE
+  IN_WHERE,
+  IN_ON
 };
 
 struct st_table;
@@ -566,7 +579,8 @@ void get_default_definer(THD *thd, LEX_USER *definer);
 LEX_USER *create_default_definer(THD *thd);
 LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name);
 LEX_USER *get_current_user(THD *thd, LEX_USER *user);
-bool check_string_length(LEX_STRING *str, const char *err_msg, uint max_length);
+bool check_string_length(LEX_STRING *str,
+                         const char *err_msg, uint max_length);
 
 enum enum_mysql_completiontype {
   ROLLBACK_RELEASE=-2, ROLLBACK=1,  ROLLBACK_AND_CHAIN=7,
@@ -1111,17 +1125,17 @@ void key_restore(byte *to_record, byte *from_key, KEY *key_info,
                  uint key_length);
 bool key_cmp_if_same(TABLE *form,const byte *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
-bool check_if_key_used(TABLE *table, uint idx, List<Item> &fields);
+bool is_key_used(TABLE *table, uint idx, List<Item> &fields);
 int key_cmp(KEY_PART_INFO *key_part, const byte *key, uint key_length);
 
 bool init_errmessage(void);
 void sql_perror(const char *message);
 
 void vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
-void sql_print_error(const char *format, ...);
-void sql_print_warning(const char *format, ...);
-void sql_print_information(const char *format, ...);
-
+void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_information(const char *format, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 
 
 bool fn_format_relative_to_data_home(my_string to, const char *name,
@@ -1226,7 +1240,6 @@ extern my_bool opt_log_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress, grant_option;
-extern bool mysql_proc_table_exists;
 extern uint volatile thread_count, thread_running, global_read_lock;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile;

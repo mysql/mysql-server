@@ -902,8 +902,11 @@ void update_non_unique_table_error(TABLE_LIST *update,
     */
     if (update->view)
     {
+      /* Issue the ER_NON_INSERTABLE_TABLE error for an INSERT */
       if (update->view == duplicate->view)
-        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), update->alias, operation);
+        my_error(!strncmp(operation, "INSERT", 6) ?
+                 ER_NON_INSERTABLE_TABLE : ER_NON_UPDATABLE_TABLE, MYF(0),
+                 update->alias, operation);
       else
         my_error(ER_VIEW_PREVENT_UPDATE, MYF(0),
                  (duplicate->view ? duplicate->alias : update->alias),
@@ -4453,7 +4456,20 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   uint tablenr= 0;
   DBUG_ENTER("setup_tables");
 
-  context->table_list= context->first_name_resolution_table= tables;
+  /*
+    Due to the various call paths that lead to setup_tables() it may happen
+    that context->table_list and context->first_name_resolution_table can be
+    NULL (this is typically done when creating TABLE_LISTs internally).
+    TODO:
+    Investigate all cases when this my happen, initialize the name resolution
+    context correctly in all those places, and remove the context reset below.
+  */
+  if (!context->table_list || !context->first_name_resolution_table)
+  {
+    /* Test whether the context is in a consistent state. */
+    DBUG_ASSERT(!context->first_name_resolution_table && !context->table_list);
+    context->table_list= context->first_name_resolution_table= tables;
+  }
 
   /*
     this is used for INSERT ... SELECT.

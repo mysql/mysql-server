@@ -63,9 +63,9 @@ Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,values(`test`.`t1`.`a`) AS `VALUES(a)` from `test`.`t1`
 explain extended select * from t1 where values(a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1`
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where values(`test`.`t1`.`a`)
 DROP TABLE t1;
 create table t1(a int primary key, b int);
 insert into t1 values(1,1),(2,2),(3,3),(4,4),(5,5);
@@ -196,4 +196,26 @@ a BIGINT(20) NOT NULL DEFAULT 0,
 PRIMARY KEY  (a)
 ) ENGINE=MyISAM;
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a) ;
+DROP TABLE t1;
+CREATE TABLE t1
+(
+a   BIGINT UNSIGNED,
+b   BIGINT UNSIGNED,
+PRIMARY KEY (a)
+);
+INSERT INTO t1 VALUES (45, 1) ON DUPLICATE KEY UPDATE b =
+IF(VALUES(b) > t1.b, VALUES(b), t1.b);
+SELECT * FROM t1;
+a	b
+45	1
+INSERT INTO t1 VALUES (45, 2) ON DUPLICATE KEY UPDATE b =
+IF(VALUES(b) > t1.b, VALUES(b), t1.b);
+SELECT * FROM t1;
+a	b
+45	2
+INSERT INTO t1 VALUES (45, 1) ON DUPLICATE KEY UPDATE b = 
+IF(VALUES(b) > t1.b, VALUES(b), t1.b);
+SELECT * FROM t1;
+a	b
+45	2
 DROP TABLE t1;

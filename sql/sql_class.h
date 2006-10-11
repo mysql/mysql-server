@@ -306,7 +306,7 @@ public:
                        const char *log_name);
   void new_file(bool need_lock);
   bool write(THD *thd, enum enum_server_command command,
-	     const char *format,...);
+	     const char *format, ...) ATTRIBUTE_FORMAT(printf, 4, 5);
   bool write(THD *thd, const char *query, uint query_length,
 	     time_t query_start=0);
   bool write(Log_event* event_info); // binary log write
@@ -1252,17 +1252,29 @@ public:
   ulonglong  next_insert_id;
   /* Remember last next_insert_id to reset it if something went wrong */
   ulonglong  prev_insert_id;
+
   /*
-    The insert_id used for the last statement or set by SET LAST_INSERT_ID=#
-    or SELECT LAST_INSERT_ID(#).  Used for binary log and returned by
-    LAST_INSERT_ID()
+    At the beginning of the statement last_insert_id holds the first
+    generated value of the previous statement.  During statement
+    execution it is updated to the value just generated, but then
+    restored to the value that was generated first, so for the next
+    statement it will again be "the first generated value of the
+    previous statement".
+
+    It may also be set with "LAST_INSERT_ID(expr)" or
+    "@@LAST_INSERT_ID= expr", but the effect of such setting will be
+    seen only in the next statement.
   */
   ulonglong  last_insert_id;
+
   /*
-    Set to the first value that LAST_INSERT_ID() returned for the last
-    statement.  When this is set, last_insert_id_used is set to true.
+    current_insert_id remembers the first generated value of the
+    previous statement, and does not change during statement
+    execution.  Its value returned from LAST_INSERT_ID() and
+    @@LAST_INSERT_ID.
   */
   ulonglong  current_insert_id;
+
   ulonglong  limit_found_rows;
   ulonglong  options;           /* Bitmap of states */
   longlong   row_count_func;	/* For the ROW_COUNT() function */
@@ -1325,7 +1337,31 @@ public:
   bool       last_cuted_field;
   bool	     no_errors, password, is_fatal_error;
   bool	     query_start_used, rand_used, time_zone_used;
-  bool	     last_insert_id_used,insert_id_used, clear_next_insert_id;
+
+  /*
+    last_insert_id_used is set when current statement calls
+    LAST_INSERT_ID() or reads @@LAST_INSERT_ID.
+  */
+  bool	     last_insert_id_used;
+
+  /*
+    last_insert_id_used is set when current statement or any stored
+    function called from this statement calls LAST_INSERT_ID() or
+    reads @@LAST_INSERT_ID, so that binary log LAST_INSERT_ID_EVENT be
+    generated.  Required for statement-based binary log for issuing
+    "SET LAST_INSERT_ID= #" before "SELECT func()", if func() reads
+    LAST_INSERT_ID.
+  */
+  bool	     last_insert_id_used_bin_log;
+
+  /*
+    insert_id_used is set when current statement updates
+    THD::last_insert_id, so that binary log INSERT_ID_EVENT be
+    generated.
+  */
+  bool       insert_id_used;
+
+  bool       clear_next_insert_id;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
@@ -1460,15 +1496,6 @@ public:
     last_insert_id= id_arg;
     insert_id_used=1;
     substitute_null_with_insert_id= TRUE;
-  }
-  inline ulonglong insert_id(void)
-  {
-    if (!last_insert_id_used)
-    {
-      last_insert_id_used=1;
-      current_insert_id=last_insert_id;
-    }
-    return last_insert_id;
   }
   inline ulonglong found_rows(void)
   {

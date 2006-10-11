@@ -45,6 +45,7 @@ class ha_myisam: public handler
  public:
   ha_myisam(TABLE *table_arg);
   ~ha_myisam() {}
+  handler *clone(MEM_ROOT *mem_root);
   const char *table_type() const { return "MyISAM"; }
   const char *index_type(uint key_number);
   const char **bas_ext() const;

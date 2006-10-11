@@ -33,7 +33,6 @@
 
 
 #include "helpers.hpp"
-#include <stdlib.h>
 
 
 namespace mySTL {
@@ -75,8 +74,7 @@ public:
     class iterator {
         node* current_;
     public:
-        iterator() : current_(0) {}
-        explicit iterator(node* p) : current_(p) {}
+        explicit iterator(node* p = 0) : current_(p) {}
 
         T& operator*() const
         {
@@ -127,11 +125,67 @@ public:
         friend class list<T>;
     };
 
+
+    class reverse_iterator {
+        node* current_;
+    public:
+        explicit reverse_iterator(node* p = 0) : current_(p) {}
+
+        T& operator*() const
+        {
+            return current_->value_;
+        }
+
+        T* operator->() const
+        {
+            return &(operator*());
+        }
+
+        reverse_iterator& operator++()
+        {
+            current_ = current_->prev_;
+            return *this;
+        }
+
+        reverse_iterator& operator--()
+        {
+            current_ = current_->next_;
+            return *this;
+        }
+
+        reverse_iterator operator++(int)
+        {
+            reverse_iterator tmp = *this;
+            current_ = current_->prev_;
+            return tmp;
+        }
+
+        reverse_iterator operator--(int)
+        {
+            reverse_iterator tmp = *this;
+            current_ = current_->next_;
+            return tmp;
+        }
+
+        bool operator==(const reverse_iterator& other) const
+        { 
+            return current_ == other.current_;
+        }
+
+        bool operator!=(const reverse_iterator& other) const
+        {
+            return current_ != other.current_;
+        }
+
+        friend class list<T>;
+    };
+
     bool erase(iterator);
 
-    iterator begin()  const { return iterator(head_); }
-    iterator rbegin() const { return iterator(tail_); }
-    iterator end()    const { return iterator(); }
+    iterator         begin()  const { return iterator(head_); }
+    reverse_iterator rbegin() const { return reverse_iterator(tail_); }
+    iterator         end()    const { return iterator(); }
+    reverse_iterator rend()   const { return reverse_iterator(); }
 
     typedef iterator const_iterator;    // for now
 
@@ -158,7 +212,7 @@ list<T>::~list()
     for (; start; start = next_) {
         next_ = start->next_;
         destroy(start);
-        free(start);
+        FreeMemory(start);
     }
 }
 
@@ -166,8 +220,7 @@ list<T>::~list()
 template<typename T> 
 void list<T>::push_front(T t)
 {
-    void* mem = malloc(sizeof(node));
-    if (!mem) abort();
+    void* mem = GetMemory(sizeof(node));
     node* add = new (reinterpret_cast<yassl_pointer>(mem)) node(t);
 
     if (head_) {
@@ -196,7 +249,7 @@ void list<T>::pop_front()
         head_->prev_ = 0;
     }
     destroy(front);
-    free(front);
+    FreeMemory(front);
     --sz_;
 }
 
@@ -204,7 +257,7 @@ void list<T>::pop_front()
 template<typename T> 
 T list<T>::front() const
 {
-    if (head_ == 0) return 0;
+    if (head_ == 0) return T();
     return head_->value_;
 }
 
@@ -212,8 +265,7 @@ T list<T>::front() const
 template<typename T> 
 void list<T>::push_back(T t)
 {
-    void* mem = malloc(sizeof(node));
-    if (!mem) abort();
+    void* mem = GetMemory(sizeof(node));
     node* add = new (reinterpret_cast<yassl_pointer>(mem)) node(t);
 
     if (tail_) {
@@ -242,7 +294,7 @@ void list<T>::pop_back()
         tail_->next_ = 0;
     }
     destroy(rear);
-    free(rear);
+    FreeMemory(rear);
     --sz_;
 }
 
@@ -250,7 +302,7 @@ void list<T>::pop_back()
 template<typename T> 
 T list<T>::back() const
 {
-    if (tail_ == 0) return 0;
+    if (tail_ == 0) return T();
     return tail_->value_;
 }
 
@@ -286,7 +338,7 @@ bool list<T>::remove(T t)
         del->next_->prev_ = del->prev_;
 
         destroy(del);
-        free(del);
+        FreeMemory(del);
         --sz_;
     }
     return true;
@@ -309,76 +361,11 @@ bool list<T>::erase(iterator iter)
         del->next_->prev_ = del->prev_;
 
         destroy(del);
-        free(del);
+        FreeMemory(del);
         --sz_;
     }
     return true;
 }
-
-
-/* MSVC can't handle ??
-
-template<typename T>
-T& list<T>::iterator::operator*() const
-{
-    return current_->value_;
-}
-
-
-template<typename T>
-T* list<T>::iterator::operator->() const
-{
-    return &(operator*());
-}
-
-
-template<typename T>
-typename list<T>::iterator& list<T>::iterator::operator++()
-{
-    current_ = current_->next_;
-    return *this;
-}
-
-
-template<typename T>
-typename list<T>::iterator& list<T>::iterator::operator--()
-{
-    current_ = current_->prev_;
-    return *this;
-}
-
-
-template<typename T>
-typename list<T>::iterator& list<T>::iterator::operator++(int)
-{
-    iterator tmp = *this;
-    current_ = current_->next_;
-    return tmp;
-}
-
-
-template<typename T>
-typename list<T>::iterator& list<T>::iterator::operator--(int)
-{
-    iterator tmp = *this;
-    current_ = current_->prev_;
-    return tmp;
-}
-
-
-template<typename T>
-bool list<T>::iterator::operator==(const iterator& other) const
-{
-    return current_ == other.current_;
-}
-
-
-template<typename T>
-bool list<T>::iterator::operator!=(const iterator& other) const
-{
-    return current_ != other.current_;
-}
-*/  // end MSVC 6 can't handle
 
 
 

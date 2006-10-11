@@ -856,6 +856,22 @@ EXPLAIN SELECT MAX(b) FROM t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(1,2),(2,3);
+SELECT (SELECT COUNT(DISTINCT t1.b)) FROM t1 GROUP BY t1.a;
+(SELECT COUNT(DISTINCT t1.b))
+2
+1
+SELECT (SELECT COUNT(DISTINCT 12)) FROM t1 GROUP BY t1.a;
+(SELECT COUNT(DISTINCT 12))
+1
+1
+SELECT AVG(2), BIT_AND(2), BIT_OR(2), BIT_XOR(2), COUNT(*), COUNT(12),
+COUNT(DISTINCT 12), MIN(2),MAX(2),STD(2), VARIANCE(2),SUM(2),
+GROUP_CONCAT(2),GROUP_CONCAT(DISTINCT 2);
+AVG(2)	BIT_AND(2)	BIT_OR(2)	BIT_XOR(2)	COUNT(*)	COUNT(12)	COUNT(DISTINCT 12)	MIN(2)	MAX(2)	STD(2)	VARIANCE(2)	SUM(2)	GROUP_CONCAT(2)	GROUP_CONCAT(DISTINCT 2)
+2.00000	2	2	2	1	1	1	2	2	0.00000	0.00000	2	2	2
+DROP TABLE t1;
 create table t2 (ff double);
 insert into t2 values (2.2);
 select cast(sum(distinct ff) as decimal(5,2)) from t2;
@@ -997,7 +1013,7 @@ SELECT SQL_NO_CACHE
 WHERE ttt.a = ccc.b AND ttt.a = t.a GROUP BY ttt.a) AS minid   
 FROM t1 t, t2 c WHERE t.a = c.b;
 minid
-NULL
+1
 DROP TABLE t1,t2;
 create table t1 select variance(0);
 show create table t1;

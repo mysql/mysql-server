@@ -111,7 +111,7 @@
 
 
 /* Fix problem with S_ISLNK() on Linux */
-#if defined(TARGET_OS_LINUX)
+#if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
 #undef  _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif
@@ -454,12 +454,50 @@ typedef unsigned short ushort;
 #define function_volatile	volatile
 #define my_reinterpret_cast(A) reinterpret_cast<A>
 #define my_const_cast(A) const_cast<A>
+# ifndef GCC_VERSION
+#  define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
+# endif
 #elif !defined(my_reinterpret_cast)
 #define my_reinterpret_cast(A) (A)
 #define my_const_cast(A) (A)
 #endif
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
-#define __attribute__(A)
+
+/*
+  Disable __attribute__() on gcc < 2.7, g++ < 3.4, and non-gcc compilers.
+  Some forms of __attribute__ are actually supported in earlier versions of
+  g++, but we just disable them all because we only use them to generate
+  compilation warnings.
+*/
+#ifndef __attribute__
+# if !defined(__GNUC__)
+#  define __attribute__(A)
+# elif GCC_VERSION < 2008
+#  define __attribute__(A)
+# elif defined(__cplusplus) && GCC_VERSION < 3004
+#  define __attribute__(A)
+# endif
+#endif
+
+/*
+  __attribute__((format(...))) is only supported in gcc >= 2.8 and g++ >= 3.4
+  But that's already covered by the __attribute__ tests above, so this is
+  just a convenience macro.
+*/
+#ifndef ATTRIBUTE_FORMAT
+# define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))
+#endif
+
+/*
+
+   __attribute__((format(...))) on a function pointer is not supported
+   until  gcc 3.1
+*/
+#ifndef ATTRIBUTE_FORMAT_FPTR
+# if (GCC_VERSION >= 3001)
+#  define ATTRIBUTE_FORMAT_FPTR(style, m, n) ATTRIBUTE_FORMAT(style, m, n)
+# else
+#  define ATTRIBUTE_FORMAT_FPTR(style, m, n)
+# endif /* GNUC >= 3.1 */
 #endif
 
 /*

@@ -1361,8 +1361,8 @@ ibuf_entry_build(
 				index tree; NOTE that the original entry
 				must be kept because we copy pointers to its
 				fields */
+	dict_index_t*	index,	/* in: non-clustered index */
 	dtuple_t*	entry,	/* in: entry for a non-clustered index */
-	ibool		comp,	/* in: flag: TRUE=compact record format */
 	ulint		space,	/* in: space id */
 	ulint		page_no,/* in: index page number where entry should
 				be inserted */
@@ -1426,13 +1426,13 @@ ibuf_entry_build(
 
 	dfield_set_data(field, buf, 4);
 
-	ut_ad(comp == 0 || comp == 1);
+	ut_ad(index->table->comp <= 1);
 	/* Store the type info in buf2, and add the fields from entry to
 	tuple */
 	buf2 = mem_heap_alloc(heap, n_fields
 					* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
-					+ comp);
-	if (comp) {
+					+ index->table->comp);
+	if (index->table->comp) {
 		*buf2++ = 0; /* write the compact format indicator */
 	}
 	for (i = 0; i < n_fields; i++) {
@@ -1445,20 +1445,22 @@ ibuf_entry_build(
 
 		dtype_new_store_for_order_and_null_size(
 				buf2 + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
-				dfield_get_type(entry_field));
+				dfield_get_type(entry_field),
+				dict_index_get_nth_field(index, i)
+				->prefix_len);
 	}
 
 	/* Store the type info in buf2 to field 3 of tuple */
 
 	field = dtuple_get_nth_field(tuple, 3);
 
-	if (comp) {
+	if (index->table->comp) {
 		buf2--;
 	}
 
 	dfield_set_data(field, buf2, n_fields
 					* DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
-					+ comp);
+					+ index->table->comp);
 	/* Set all the types in the new tuple binary */
 
 	dtuple_set_types_binary(tuple, n_fields + 4);
@@ -2589,8 +2591,7 @@ ibuf_insert_low(
 	the first fields and the type information for other fields, and which
 	will be inserted to the insert buffer. */
 
-	ibuf_entry = ibuf_entry_build(entry, index->table->comp,
-						space, page_no, heap);
+	ibuf_entry = ibuf_entry_build(index, entry, space, page_no, heap);
 
 	/* Open a cursor to the insert buffer tree to calculate if we can add
 	the new entry to it without exceeding the free space limit for the

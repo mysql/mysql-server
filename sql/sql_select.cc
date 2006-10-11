@@ -382,11 +382,13 @@ JOIN::prepare(Item ***rref_pointer_array,
       if ((res= subselect->select_transformer(this)) !=
 	  Item_subselect::RES_OK)
       {
-        select_lex->fix_prepare_information(thd, &conds);
+        select_lex->fix_prepare_information(thd, &conds, &having);
 	DBUG_RETURN((res == Item_subselect::RES_ERROR));
       }
     }
   }
+
+  select_lex->fix_prepare_information(thd, &conds, &having);
 
   if (having && having->with_sum_func)
     having->split_sum_func2(thd, ref_pointer_array, all_fields,
@@ -499,7 +501,6 @@ JOIN::prepare(Item ***rref_pointer_array,
   if (alloc_func_list())
     goto err;
 
-  select_lex->fix_prepare_information(thd, &conds);
   DBUG_RETURN(0); // All OK
 
 err:
@@ -618,7 +619,6 @@ JOIN::optimize()
     build_bitmap_for_nested_joins(join_list, 0);
 
     sel->prep_where= conds ? conds->copy_andor_structure(thd) : 0;
-    sel->prep_having= having ? having->copy_andor_structure(thd) : 0;
 
     if (arena)
       thd->restore_active_arena(arena, &backup);
@@ -1134,17 +1134,28 @@ JOIN::optimize()
 
     tmp_table_param.hidden_field_count= (all_fields.elements -
 					 fields_list.elements);
+    ORDER *tmp_group= ((!simple_group && !procedure &&
+                        !(test_flags & TEST_NO_KEY_GROUP)) ? group_list :
+                                                             (ORDER*) 0);
+    /*
+      Pushing LIMIT to the temporary table creation is not applicable
+      when there is ORDER BY or GROUP BY or there is no GROUP BY, but
+      there are aggregate functions, because in all these cases we need
+      all result rows.
+    */
+    ha_rows tmp_rows_limit= ((order == 0 || skip_sort_order ||
+                              test(select_options & OPTION_BUFFER_RESULT)) &&
+                             !tmp_group &&
+                             !thd->lex->current_select->with_sum_func) ?
+                            select_limit : HA_POS_ERROR;
+
     if (!(exec_tmp_table1 =
 	  create_tmp_table(thd, &tmp_table_param, all_fields,
-			   ((!simple_group && !procedure &&
-			     !(test_flags & TEST_NO_KEY_GROUP)) ?
-			    group_list : (ORDER*) 0),
+                           tmp_group,
 			   group_list ? 0 : select_distinct,
 			   group_list && simple_group,
 			   select_options,
-			   (order == 0 || skip_sort_order || 
-                            test(select_options & OPTION_BUFFER_RESULT)) ? 
-                             select_limit : HA_POS_ERROR,
+                           tmp_rows_limit,
 			   (char *) "")))
       DBUG_RETURN(1);
 
@@ -1324,7 +1335,7 @@ JOIN::exec()
   }
   (void) result->prepare2(); // Currently, this cannot fail.
 
-  if (!tables_list)
+  if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
     if (select_options & SELECT_DESCRIBE)
       select_describe(this, FALSE, FALSE, FALSE,
@@ -1364,7 +1375,12 @@ JOIN::exec()
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
-  thd->limit_found_rows= thd->examined_row_count= 0;
+  /* 
+    don't reset the found rows count if there're no tables
+    as FOUND_ROWS() may be called.
+  */  
+  if (tables)
+    thd->limit_found_rows= thd->examined_row_count= 0;
 
   if (zero_result_cause)
   {
@@ -1403,7 +1419,8 @@ JOIN::exec()
     having= tmp_having;
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
-		    select_distinct);
+		    select_distinct,
+                    !tables ? "No tables used" : NullS);
     DBUG_VOID_RETURN;
   }
 
@@ -6351,29 +6368,30 @@ finish:
 
   
 /* 
-  Check whether an item is a simple equality predicate and if so
-  create/find a multiple equality for this predicate
+  Check whether an equality can be used to build multiple equalities
 
   SYNOPSIS
-    check_equality()
-    item       item to check
-    cond_equal multiple equalities that must hold together with the predicate
+    check_simple_equality()
+      left_item   left term of the quality to be checked
+      right_item  right term of the equality to be checked
+      item        equality item if the equality originates from a condition
+                  predicate, 0 if the equality is the result of row elimination
+      cond_equal  multiple equalities that must hold together with the equality
 
   DESCRIPTION
-    This function first checks whether an item is a simple equality i.e.
-    the one that equates a field with another field or a constant
-    (item=constant_item or item=field_item).
-    If this is the case the function looks a for a multiple equality
+    This function first checks whether the equality (left_item=right_item)
+    is a simple equality i.e. the one that equates a field with another field
+    or a constant (field=field_item or field=const_item).
+    If this is the case the function looks for a multiple equality
     in the lists referenced directly or indirectly by cond_equal inferring
     the given simple equality. If it doesn't find any, it builds a multiple
     equality that covers the predicate, i.e. the predicate can be inferred
-    from it.
+    from this multiple equality.
     The built multiple equality could be obtained in such a way:
     create a binary  multiple equality equivalent to the predicate, then
     merge it, if possible, with one of old multiple equalities.
     This guarantees that the set of multiple equalities covering equality
-    predicates will
-    be minimal.
+    predicates will be minimal.
 
   EXAMPLE
     For the where condition
@@ -6391,7 +6409,7 @@ finish:
     and will transform *cond_equal into (ptr(CE),[Item_equal(f,e)]).
 
   NOTES
-    Now only fields that have the same type defintions (verified by
+    Now only fields that have the same type definitions (verified by
     the Field::eq_def method) are placed to the same multiple equalities.
     Because of this some equality predicates are not eliminated and
     can be used in the constant propagation procedure.
@@ -6424,11 +6442,263 @@ finish:
     copying would be much more complicated.
 
   RETURN
-    TRUE  - if the predicate is a simple equality predicate
-    FALSE - otherwise
+    TRUE    if the predicate is a simple equality predicate to be used
+            for building multiple equalities
+    FALSE   otherwise
 */
 
-static bool check_equality(Item *item, COND_EQUAL *cond_equal)
+static bool check_simple_equality(Item *left_item, Item *right_item,
+                                  Item *item, COND_EQUAL *cond_equal)
+{
+  if (left_item->type() == Item::REF_ITEM &&
+      ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
+  {
+    if (((Item_ref*)left_item)->depended_from)
+      return FALSE;
+    left_item= left_item->real_item();
+  }
+  if (right_item->type() == Item::REF_ITEM &&
+      ((Item_ref*)right_item)->ref_type() == Item_ref::VIEW_REF)
+  {
+    if (((Item_ref*)right_item)->depended_from)
+      return FALSE;
+    right_item= right_item->real_item();
+  }
+  if (left_item->type() == Item::FIELD_ITEM &&
+      right_item->type() == Item::FIELD_ITEM &&
+      !((Item_field*)left_item)->depended_from &&
+      !((Item_field*)right_item)->depended_from)
+  {
+    /* The predicate the form field1=field2 is processed */
+
+    Field *left_field= ((Item_field*) left_item)->field;
+    Field *right_field= ((Item_field*) right_item)->field;
+
+    if (!left_field->eq_def(right_field))
+      return FALSE;
+
+    /* Search for multiple equalities containing field1 and/or field2 */
+    bool left_copyfl, right_copyfl;
+    Item_equal *left_item_equal=
+               find_item_equal(cond_equal, left_field, &left_copyfl);
+    Item_equal *right_item_equal= 
+               find_item_equal(cond_equal, right_field, &right_copyfl);
+
+    /* As (NULL=NULL) != TRUE we can't just remove the predicate f=f */
+    if (left_field->eq(right_field)) /* f = f */
+      return (!(left_field->maybe_null() && !left_item_equal)); 
+
+    if (left_item_equal && left_item_equal == right_item_equal)
+    {
+      /* 
+        The equality predicate is inference of one of the existing
+        multiple equalities, i.e the condition is already covered
+        by upper level equalities
+      */
+       return TRUE;
+    }
+      
+    /* Copy the found multiple equalities at the current level if needed */
+    if (left_copyfl)
+    {
+      /* left_item_equal of an upper level contains left_item */
+      left_item_equal= new Item_equal(left_item_equal);
+      cond_equal->current_level.push_back(left_item_equal);
+    }
+    if (right_copyfl)
+    {
+      /* right_item_equal of an upper level contains right_item */
+      right_item_equal= new Item_equal(right_item_equal);
+      cond_equal->current_level.push_back(right_item_equal);
+    }
+
+    if (left_item_equal)
+    { 
+      /* left item was found in the current or one of the upper levels */
+      if (! right_item_equal)
+        left_item_equal->add((Item_field *) right_item);
+      else
+      {
+        /* Merge two multiple equalities forming a new one */
+        left_item_equal->merge(right_item_equal);
+        /* Remove the merged multiple equality from the list */
+        List_iterator<Item_equal> li(cond_equal->current_level);
+        while ((li++) != right_item_equal);
+        li.remove();
+      }
+    }
+    else
+    { 
+      /* left item was not found neither the current nor in upper levels  */
+      if (right_item_equal)
+        right_item_equal->add((Item_field *) left_item);
+      else 
+      {
+        /* None of the fields was found in multiple equalities */
+        Item_equal *item= new Item_equal((Item_field *) left_item,
+                                         (Item_field *) right_item);
+        cond_equal->current_level.push_back(item);
+      }
+    }
+    return TRUE;
+  }
+
+  {
+    /* The predicate of the form field=const/const=field is processed */
+    Item *const_item= 0;
+    Item_field *field_item= 0;
+    if (left_item->type() == Item::FIELD_ITEM &&
+        !((Item_field*)left_item)->depended_from &&
+        right_item->const_item())
+    {
+      field_item= (Item_field*) left_item;
+      const_item= right_item;
+    }
+    else if (right_item->type() == Item::FIELD_ITEM &&
+             !((Item_field*)right_item)->depended_from &&
+             left_item->const_item())
+    {
+      field_item= (Item_field*) right_item;
+      const_item= left_item;
+    }
+
+    if (const_item &&
+        field_item->result_type() == const_item->result_type())
+    {
+      bool copyfl;
+
+      if (field_item->result_type() == STRING_RESULT)
+      {
+        CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
+        if (!item)
+        {
+          Item_func_eq *eq_item;
+          if ((eq_item= new Item_func_eq(left_item, right_item)))
+            return FALSE;
+          eq_item->set_cmp_func();
+          eq_item->quick_fix_field();
+          item= eq_item;
+        }  
+        if ((cs != ((Item_func *) item)->compare_collation()) ||
+            !cs->coll->propagate(cs, 0, 0))
+          return FALSE;
+      }
+
+      Item_equal *item_equal = find_item_equal(cond_equal,
+                                               field_item->field, &copyfl);
+      if (copyfl)
+      {
+        item_equal= new Item_equal(item_equal);
+        cond_equal->current_level.push_back(item_equal);
+      }
+      if (item_equal)
+      {
+        /* 
+          The flag cond_false will be set to 1 after this, if item_equal
+          already contains a constant and its value is  not equal to
+          the value of const_item.
+        */
+        item_equal->add(const_item);
+      }
+      else
+      {
+        item_equal= new Item_equal(const_item, field_item);
+        cond_equal->current_level.push_back(item_equal);
+      }
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
+/* 
+  Convert row equalities into a conjunction of regular equalities
+
+  SYNOPSIS
+    check_row_equality()
+      left_row   left term of the row equality to be processed     
+      right_row  right term of the row equality to be processed
+      cond_equal multiple equalities that must hold together with the predicate
+      eq_list    results of conversions of row equalities that are not simple
+                 enough to form multiple equalities
+
+  DESCRIPTION
+    The function converts a row equality of the form (E1,...,En)=(E'1,...,E'n)
+    into a list of equalities E1=E'1,...,En=E'n. For each of these equalities
+    Ei=E'i the function checks whether it is a simple equality or a row equality.
+    If it is a simple equality it is used to expand multiple equalities of
+    cond_equal. If it is a row equality it converted to a sequence of equalities
+    between row elements. If Ei=E'i is neither a simple equality nor a row
+    equality the item for this predicate is added to eq_list.
+
+  RETURN
+    TRUE    if conversion has succeeded (no fatal error) 
+    FALSE   otherwise  
+*/
+ 
+static bool check_row_equality(Item *left_row, Item_row *right_row,
+                               COND_EQUAL *cond_equal, List<Item>* eq_list)
+{ 
+  uint n= left_row->cols();
+  for (uint i= 0 ; i < n; i++)
+  {
+    bool is_converted;
+    Item *left_item= left_row->el(i);
+    Item *right_item= right_row->el(i);
+    if (left_item->type() == Item::ROW_ITEM &&
+        right_item->type() == Item::ROW_ITEM)
+      is_converted= check_row_equality((Item_row *) left_item,
+	                               (Item_row *) right_item,
+				       cond_equal, eq_list);
+    else 
+      is_converted= check_simple_equality(left_item, right_item, 0, cond_equal);
+
+    if (!is_converted)  
+    {
+      Item_func_eq *eq_item;
+      if (!(eq_item= new Item_func_eq(left_item, right_item)))
+        return FALSE;
+      eq_item->set_cmp_func();
+      eq_item->quick_fix_field();
+      eq_list->push_back(eq_item);
+    }
+  }
+  return TRUE;
+}
+
+
+/* 
+  Eliminate row equalities and form multiple equalities predicates 
+
+  SYNOPSIS
+    check_equality()
+      item       predicate to process     
+      cond_equal multiple equalities that must hold together with the predicate
+      eq_list    results of conversions of row equalities that are not simple
+                 enough to form multiple equalities
+
+  DESCRIPTION
+    This function checks whether the item is a simple equality
+    i.e. the one that equates a field with another field or a constant
+    (field=field_item or field=constant_item), or, a row equality.
+    For a simple equality the function looks for a multiple equality
+    in the lists referenced directly or indirectly by cond_equal inferring
+    the given simple equality. If it doesn't find any, it builds/expands
+    multiple equality that covers the predicate.
+    Row equalities are eliminated substituted for conjunctive regular equalities
+    which are treated in the same way as original equality predicates.
+
+  RETURN
+    TRUE   if re-writing rules have been applied
+    FALSE  otherwise, i.e.
+           if the predicate is not an equality,
+           or, if the equality is neither a simple one nor a row equality,
+           or, if the procedure fails by a fatal error.
+*/
+
+static bool check_equality(Item *item, COND_EQUAL *cond_equal,
+                           List<Item> *eq_list)
 {
   if (item->type() == Item::FUNC_ITEM &&
          ((Item_func*) item)->functype() == Item_func::EQ_FUNC)
@@ -6436,165 +6706,25 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
     Item *left_item= ((Item_func*) item)->arguments()[0];
     Item *right_item= ((Item_func*) item)->arguments()[1];
 
-    if (left_item->type() == Item::REF_ITEM &&
-        ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
-    {
-      if (((Item_ref*)left_item)->depended_from)
-        return FALSE;
-      left_item= left_item->real_item();
-    }
-    if (right_item->type() == Item::REF_ITEM &&
-        ((Item_ref*)right_item)->ref_type() == Item_ref::VIEW_REF)
-    {
-      if (((Item_ref*)right_item)->depended_from)
-        return FALSE;
-      right_item= right_item->real_item();
-    }
-    if (left_item->type() == Item::FIELD_ITEM &&
-        right_item->type() == Item::FIELD_ITEM &&
-        !((Item_field*)left_item)->depended_from &&
-        !((Item_field*)right_item)->depended_from)
-    {
-      /* The predicate the form field1=field2 is processed */
-
-      Field *left_field= ((Item_field*) left_item)->field;
-      Field *right_field= ((Item_field*) right_item)->field;
-
-      if (!left_field->eq_def(right_field))
-        return FALSE;
-
-      if (left_field->eq(right_field))  /* f = f */
-        return TRUE;
-      
-      /* Search for multiple equalities containing field1 and/or field2 */
-      bool left_copyfl, right_copyfl;
-      Item_equal *left_item_equal=
-                 find_item_equal(cond_equal, left_field, &left_copyfl);
-      Item_equal *right_item_equal= 
-                 find_item_equal(cond_equal, right_field, &right_copyfl);
-
-      if (left_item_equal && left_item_equal == right_item_equal)
-      {
-        /* 
-           The equality predicate is inference of one of the existing
-           multiple equalities, i.e the condition is already covered
-           by upper level equalities
-        */
-          return TRUE;
-      }
-      
-      /* Copy the found multiple equalities at the current level if needed */
-      if (left_copyfl)
-      {
-        /* left_item_equal of an upper level contains left_item */
-        left_item_equal= new Item_equal(left_item_equal);
-        cond_equal->current_level.push_back(left_item_equal);
-      }
-      if (right_copyfl)
-      {
-        /* right_item_equal of an upper level contains right_item */
-        right_item_equal= new Item_equal(right_item_equal);
-        cond_equal->current_level.push_back(right_item_equal);
-      }
-
-      if (left_item_equal)
-      { 
-        /* left item was found in the current or one of the upper levels */
-        if (! right_item_equal)
-          left_item_equal->add((Item_field *) right_item);
-        else
-        {
-          /* Merge two multiple equalities forming a new one */
-          left_item_equal->merge(right_item_equal);
-          /* Remove the merged multiple equality from the list */
-          List_iterator<Item_equal> li(cond_equal->current_level);
-          while ((li++) != right_item_equal);
-          li.remove();
-        }
-      }
-      else
-      { 
-        /* left item was not found neither the current nor in upper levels  */
-         if (right_item_equal)
-           right_item_equal->add((Item_field *) left_item);
-         else 
-         {
-           /* None of the fields was found in multiple equalities */
-           Item_equal *item= new Item_equal((Item_field *) left_item,
-                                            (Item_field *) right_item);
-           cond_equal->current_level.push_back(item);
-         }
-      }
-      return TRUE;
-    }
-
-    {
-      /* The predicate of the form field=const/const=field is processed */
-      Item *const_item= 0;
-      Item_field *field_item= 0;
-      if (left_item->type() == Item::FIELD_ITEM &&
-          !((Item_field*)left_item)->depended_from &&
-          right_item->const_item())
-      {
-        field_item= (Item_field*) left_item;
-        const_item= right_item;
-      }
-      else if (right_item->type() == Item::FIELD_ITEM &&
-               !((Item_field*)right_item)->depended_from &&
-               left_item->const_item())
-      {
-        field_item= (Item_field*) right_item;
-        const_item= left_item;
-      }
-
-      if (const_item &&
-          field_item->result_type() == const_item->result_type())
-      {
-        bool copyfl;
-
-        if (field_item->result_type() == STRING_RESULT)
-        {
-          CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
-          if ((cs != ((Item_cond *) item)->compare_collation()) ||
-              !cs->coll->propagate(cs, 0, 0))
-            return FALSE;
-        }
-
-        Item_equal *item_equal = find_item_equal(cond_equal,
-                                                 field_item->field, &copyfl);
-        if (copyfl)
-        {
-          item_equal= new Item_equal(item_equal);
-          cond_equal->current_level.push_back(item_equal);
-        }
-        if (item_equal)
-        {
-          /* 
-            The flag cond_false will be set to 1 after this, if item_equal
-            already contains a constant and its value is  not equal to
-            the value of const_item.
-          */
-          item_equal->add(const_item);
-        }
-        else
-        {
-          item_equal= new Item_equal(const_item, field_item);
-          cond_equal->current_level.push_back(item_equal);
-        }
-        return TRUE;
-      }
-    }
-  }
+    if (left_item->type() == Item::ROW_ITEM &&
+        right_item->type() == Item::ROW_ITEM)
+      return check_row_equality((Item_row *) left_item,
+                                (Item_row *) right_item,
+                                cond_equal, eq_list);
+    else 
+      return check_simple_equality(left_item, right_item, item, cond_equal);
+  } 
   return FALSE;
 }
 
+                          
 /* 
   Replace all equality predicates in a condition by multiple equality items
 
   SYNOPSIS
     build_equal_items_for_cond()
-    cond       condition(expression) where to make replacement
-    inherited  path to all inherited multiple equality items
+      cond       condition(expression) where to make replacement
+      inherited  path to all inherited multiple equality items
 
   DESCRIPTION
     At each 'and' level the function detects items for equality predicates
@@ -6608,7 +6738,9 @@ static bool check_equality(Item *item, COND_EQUAL *cond_equal)
     The function also traverses the cond tree and and for each field reference
     sets a pointer to the multiple equality item containing the field, if there
     is any. If this multiple equality equates fields to a constant the
-    function replace the field reference by the constant.
+    function replaces the field reference by the constant in the cases 
+    when the field is not of a string type or when the field reference is
+    just an argument of a comparison predicate.
     The function also determines the maximum number of members in 
     equality lists of each Item_cond_and object assigning it to
     cond_equal->max_members of this object and updating accordingly
@@ -6659,10 +6791,12 @@ static COND *build_equal_items_for_cond(COND *cond,
   Item_equal *item_equal;
   uint members;
   COND_EQUAL cond_equal;
+  COND *new_cond;
   cond_equal.upper_levels= inherited;
 
   if (cond->type() == Item::COND_ITEM)
   {
+    List<Item> eq_list;
     bool and_level= ((Item_cond*) cond)->functype() ==
       Item_func::COND_AND_FUNC;
     List<Item> *args= ((Item_cond*) cond)->argument_list();
@@ -6685,7 +6819,7 @@ static COND *build_equal_items_for_cond(COND *cond,
           structure here because it's restored before each
           re-execution of any prepared statement/stored procedure.
         */
-        if (check_equality(item, &cond_equal))
+        if (check_equality(item, &cond_equal, &eq_list))
           li.remove();
       }
 
@@ -6732,10 +6866,14 @@ static COND *build_equal_items_for_cond(COND *cond,
       }
     }
     if (and_level)
+    {
+      args->concat(&eq_list);
       args->concat((List<Item> *)&cond_equal.current_level);
+    }
   }
   else if (cond->type() == Item::FUNC_ITEM)
   {
+    List<Item> eq_list;
     /*
       If an equality predicate forms the whole and level,
       we call it standalone equality and it's processed here.
@@ -6746,19 +6884,57 @@ static COND *build_equal_items_for_cond(COND *cond,
       for WHERE a=b AND c=d AND (b=c OR d=5)
       b=c is replaced by =(a,b,c,d).  
      */
-    if (check_equality(cond, &cond_equal) &&
-        (item_equal= cond_equal.current_level.pop()))
+    if (check_equality(cond, &cond_equal, &eq_list))
     {
-      item_equal->fix_length_and_dec();
-      item_equal->update_used_tables();
-      return item_equal;
+      int n= cond_equal.current_level.elements + eq_list.elements;
+      if (n == 0)
+        return new Item_int((longlong) 1,1);
+      else if (n == 1)
+      {
+        if ((item_equal= cond_equal.current_level.pop()))
+        {
+          item_equal->fix_length_and_dec();
+          item_equal->update_used_tables();
+          return item_equal;
+	}
+        else
+          return eq_list.pop();
+      }
+      else
+      {
+        /* 
+          Here a new AND level must be created. It can happen only
+          when a row equality is processed as a standalone predicate.
+	*/
+        Item_cond_and *and_cond= new Item_cond_and(eq_list);
+        and_cond->quick_fix_field();
+        List<Item> *args= and_cond->argument_list();
+        List_iterator_fast<Item_equal> it(cond_equal.current_level);
+        while ((item_equal= it++))
+        {
+          item_equal->fix_length_and_dec();
+          item_equal->update_used_tables();
+          members= item_equal->members();
+          if (cond_equal.max_members < members)
+            cond_equal.max_members= members; 
+        }
+        and_cond->cond_equal= cond_equal;
+        args->concat((List<Item> *)&cond_equal.current_level);
+        
+        return and_cond;
+      }
     }
     /* 
       For each field reference in cond, not from equal item predicates,
       set a pointer to the multiple equality it belongs to (if there is any)
+      as soon the field is not of a string type or the field reference is
+      an argument of a comparison predicate. 
     */ 
-    cond= cond->transform(&Item::equal_fields_propagator,
-                            (byte *) inherited);
+    byte *is_subst_valid= (byte *) 1;
+    cond= cond->compile(&Item::subst_argument_checker,
+                        &is_subst_valid, 
+                        &Item::equal_fields_propagator,
+                        (byte *) inherited);
     cond->update_used_tables();
   }
   return cond;
@@ -7038,7 +7214,7 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
 
 /* 
   Substitute every field reference in a condition by the best equal field 
-  and eliminate all multiplle equality predicates
+  and eliminate all multiple equality predicates
  
   SYNOPSIS
     substitute_for_best_equal_field()
@@ -7977,7 +8153,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
       Field *field=((Item_field*) args[0])->field;
       if (field->flags & AUTO_INCREMENT_FLAG && !field->table->maybe_null &&
 	  (thd->options & OPTION_AUTO_IS_NULL) &&
-	  thd->insert_id() && thd->substitute_null_with_insert_id)
+          thd->current_insert_id && thd->substitute_null_with_insert_id)
       {
 #ifdef HAVE_QUERY_CACHE
 	query_cache_abort(&thd->net);
@@ -7985,9 +8161,16 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	COND *new_cond;
 	if ((new_cond= new Item_func_eq(args[0],
 					new Item_int("last_insert_id()",
-						     thd->insert_id(),
+						     thd->current_insert_id,
 						     21))))
 	{
+          /*
+            Set THD::last_insert_id_used_bin_log manually, as this
+            statement uses LAST_INSERT_ID() in a sense, and should
+            issue LAST_INSERT_ID_EVENT.
+          */
+          thd->last_insert_id_used_bin_log= TRUE;
+
 	  cond=new_cond;
           /*
             Item_func_eq can't be fixed after creation so we do not check
@@ -8932,6 +9115,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                               thd->variables.max_heap_table_size) :
                           thd->variables.tmp_table_size)/ table->s->reclength);
   set_if_bigger(table->s->max_rows,1);		// For dummy start options
+  /*
+    Push the LIMIT clause to the temporary table creation, so that we
+    materialize only up to 'rows_limit' records instead of all result records.
+  */
+  set_if_smaller(table->s->max_rows, rows_limit);
+  param->end_write_records= rows_limit;
+
   keyinfo= param->keyinfo;
 
   if (group)
@@ -8949,10 +9139,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->rec_per_key=0;
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "group_key";
-    for (; group ; group=group->next,key_part_info++)
+    ORDER *cur_group= group;
+    for (; cur_group ; cur_group= cur_group->next, key_part_info++)
     {
-      Field *field=(*group->item)->get_tmp_table_field();
-      bool maybe_null=(*group->item)->maybe_null;
+      Field *field=(*cur_group->item)->get_tmp_table_field();
+      bool maybe_null=(*cur_group->item)->maybe_null;
       key_part_info->null_bit=0;
       key_part_info->field=  field;
       key_part_info->offset= field->offset();
@@ -8965,8 +9156,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	0 : FIELDFLAG_BINARY;
       if (!using_unique_constraint)
       {
-	group->buff=(char*) group_buff;
-	if (!(group->field= field->new_key_field(thd->mem_root,table,
+	cur_group->buff=(char*) group_buff;
+	if (!(cur_group->field= field->new_key_field(thd->mem_root,table,
                                                  (char*) group_buff +
                                                  test(maybe_null),
                                                  field->null_ptr,
@@ -8984,12 +9175,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	  key_part_info->null_bit=field->null_bit;
 	  key_part_info->null_offset= (uint) (field->null_ptr -
 					      (uchar*) table->record[0]);
-          group->buff++;                        // Pointer to field data
+          cur_group->buff++;                        // Pointer to field data
 	  group_buff++;                         // Skipp null flag
 	}
         /* In GROUP BY 'a' and 'a ' are equal for VARCHAR fields */
         key_part_info->key_part_flag|= HA_END_SPACE_ARE_EQUAL;
-	group_buff+= group->field->pack_length();
+	group_buff+= cur_group->field->pack_length();
       }
       keyinfo->key_length+=  key_part_info->length;
     }
@@ -9058,19 +9249,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
     }
-  }
-
-  /*
-    Push the LIMIT clause to the temporary table creation, so that we
-    materialize only up to 'rows_limit' records instead of all result records.
-    This optimization is not applicable when there is GROUP BY or there is
-    no GROUP BY, but there are aggregate functions, because both must be
-    computed for all result rows.
-  */
-  if (!group && !thd->lex->current_select->with_sum_func)
-  {
-    set_if_smaller(table->s->max_rows, rows_limit);
-    param->end_write_records= rows_limit;
   }
 
   if (thd->is_fatal_error)				// If end of memory
@@ -9587,9 +9765,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       table->file->ha_index_init(0);
   }
   /* Set up select_end */
-  join->join_tab[join->tables-1].next_select= setup_end_select_func(join);
+  Next_select_func end_select= setup_end_select_func(join);
+  if (join->tables)
+  {
+    join->join_tab[join->tables-1].next_select= end_select;
 
-  join_tab=join->join_tab+join->const_tables;
+    join_tab=join->join_tab+join->const_tables;
+  }
   join->send_records=0;
   if (join->tables == join->const_tables)
   {
@@ -9599,7 +9781,6 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     */
     if (!join->conds || join->conds->val_int())
     {
-      Next_select_func end_select= join->join_tab[join->tables-1].next_select;
       error= (*end_select)(join,join_tab,0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)
 	error= (*end_select)(join,join_tab,1);
@@ -9613,6 +9794,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   else
   {
+    DBUG_ASSERT(join->tables);
+    DBUG_ASSERT(join_tab);
     error= sub_select(join,join_tab,0);
     if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
       error= sub_select(join,join_tab,1);
@@ -11564,8 +11747,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     We must not try to use disabled keys.
   */
   usable_keys= table->s->keys_in_use;
-  /* we must not consider keys that are disabled by IGNORE INDEX */
-  usable_keys.intersect(table->keys_in_use_for_query);
 
   for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
   {
@@ -13189,6 +13370,8 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
   param->copy_funcs.empty();
   for (i= 0; (pos= li++); i++)
   {
+    Field *field;
+    char *tmp;
     Item *real_pos= pos->real_item();
     if (real_pos->type() == Item::FIELD_ITEM)
     {
@@ -13219,17 +13402,25 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
 	   set up save buffer and change result_field to point at 
 	   saved value
 	*/
-	Field *field= item->field;
+	field= item->field;
 	item->result_field=field->new_field(thd->mem_root,field->table, 1);
-	char *tmp=(char*) sql_alloc(field->pack_length()+1);
+        /*
+          We need to allocate one extra byte for null handling and
+          another extra byte to not get warnings from purify in
+          Field_string::val_int
+        */
+	tmp= (char*) sql_alloc(field->pack_length()+2);
 	if (!tmp)
 	  goto err;
-      if (copy)
-      {
-        copy->set(tmp, item->result_field);
-        item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
-        copy++;
-      }				
+        if (copy)
+        {
+          copy->set(tmp, item->result_field);
+          item->result_field->move_field(copy->to_ptr,copy->to_null_ptr,1);
+#ifdef HAVE_purify
+          copy->to_ptr[copy->from_length]= 0;
+#endif
+          copy++;
+        }
       }
     }
     else if ((real_pos->type() == Item::FUNC_ITEM ||
@@ -14232,9 +14423,12 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(new Item_string(table_name_buffer, len, cs));
       }
       else
-	item_list.push_back(new Item_string(table->alias,
-					    strlen(table->alias),
+      {
+        TABLE_LIST *tab=table->pos_in_table_list; 
+	item_list.push_back(new Item_string(tab->alias,
+					    strlen(tab->alias),
 					    cs));
+      }
       /* type */
       item_list.push_back(new Item_string(join_type_str[tab->type],
 					  strlen(join_type_str[tab->type]),
@@ -14421,8 +14615,8 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     // drop UNCACHEABLE_EXPLAIN, because it is for internal usage only
     uint8 uncacheable= (sl->uncacheable & ~UNCACHEABLE_EXPLAIN);
     sl->type= (((&thd->lex->select_lex)==sl)?
-	       ((thd->lex->all_selects_list != sl) ? 
-		primary_key_name : "SIMPLE"):
+	       (sl->first_inner_unit() || sl->next_select() ? 
+		"PRIMARY" : "SIMPLE"):
 	       ((sl == first)?
 		((sl->linkage == DERIVED_TABLE_TYPE) ?
 		 "DERIVED":

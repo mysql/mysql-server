@@ -1001,8 +1001,8 @@ static int check_connection(THD *thd)
   char *passwd= strend(user)+1;
   uint user_len= passwd - user - 1;
   char *db= passwd;
-  char db_buff[NAME_LEN+1];                     // buffer to store db in utf8
-  char user_buff[USERNAME_LENGTH+1];		// buffer to store user in utf8
+  char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
+  char user_buff[USERNAME_LENGTH + 1];	// buffer to store user in utf8
   uint dummy_errors;
 
   /*
@@ -1662,7 +1662,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       password.  New clients send the size (1 byte) + string (not null
       terminated, so also '\0' for empty string).
     */
-    char db_buff[NAME_LEN+1];                 // buffer to store db in utf8
+    char db_buff[NAME_LEN+1];               // buffer to store db in utf8
     char *db= passwd;
     uint passwd_len= thd->client_capabilities & CLIENT_SECURE_CONNECTION ?
       *passwd++ : strlen(passwd);
@@ -2420,6 +2420,20 @@ mysql_execute_command(THD *thd)
   /* Saved variable value */
   DBUG_ENTER("mysql_execute_command");
   thd->net.no_send_error= 0;
+
+  /*
+    Remember first generated insert id value of the previous
+    statement.  We remember it here at the beginning of the statement,
+    and also in Item_func_last_insert_id::fix_fields() and
+    sys_var_last_insert_id::value_ptr().  Last two places are required
+    because LAST_INSERT_ID() and @@LAST_INSERT_ID may also be used in
+    expression that is not executed with mysql_execute_command().
+
+    And we remember it here because some statements read
+    @@LAST_INSERT_ID indirectly, like "SELECT * FROM t1 WHERE id IS
+    NULL", that may replace "id IS NULL" with "id = <LAST_INSERT_ID>".
+  */
+  thd->current_insert_id= thd->last_insert_id;
 
   /*
     In many cases first table of main SELECT_LEX have special meaning =>
@@ -3344,8 +3358,6 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if ((res= insert_precheck(thd, all_tables)))
       break;
-    /* Skip first table, which is the table we are inserting in */
-    select_lex->context.table_list= first_table->next_local;
 
     if (!thd->locked_tables &&
         !(need_start_waiting= !wait_if_global_read_lock(thd, 0, 1)))
@@ -4767,6 +4779,19 @@ end_with_restore_list:
         }
         append_identifier(thd, &buff, first_table->table_name,
                           first_table->table_name_length);
+        if (lex->view_list.elements)
+        {
+          List_iterator_fast<LEX_STRING> names(lex->view_list);
+          LEX_STRING *name;
+          int i;
+          
+          for (i= 0; name= names++; i++)
+          {
+            buff.append(i ? ", " : "(");
+            append_identifier(thd, &buff, name->str, name->length);
+          }
+          buff.append(')');
+        }
         buff.append(STRING_WITH_LEN(" AS "));
         buff.append(first_table->source.str, first_table->source.length);
 
@@ -5625,7 +5650,8 @@ void mysql_reset_thd_for_next_command(THD *thd)
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   thd->free_list= 0;
   thd->select_number= 1;
-  thd->last_insert_id_used= thd->query_start_used= thd->insert_id_used=0;
+  thd->query_start_used= thd->insert_id_used=0;
+  thd->last_insert_id_used_bin_log= FALSE;
   thd->is_fatal_error= thd->time_zone_used= 0;
   thd->server_status&= ~ (SERVER_MORE_RESULTS_EXISTS | 
                           SERVER_QUERY_NO_INDEX_USED |
@@ -6087,6 +6113,7 @@ bool add_to_list(THD *thd, SQL_LIST &list,Item *item,bool asc)
     table_options	A set of the following bits:
 			TL_OPTION_UPDATING	Table will be updated
 			TL_OPTION_FORCE_INDEX	Force usage of index
+			TL_OPTION_ALIAS	        an alias in multi table DELETE
     lock_type		How table should be locked
     use_index		List of indexed used in USE INDEX
     ignore_index	List of indexed used in IGNORE INDEX
@@ -6115,7 +6142,8 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!table)
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
-  if (check_table_name(table->table.str, table->table.length))
+  if (!test(table_options & TL_OPTION_ALIAS) && 
+      check_table_name(table->table.str, table->table.length))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
     DBUG_RETURN(0);
