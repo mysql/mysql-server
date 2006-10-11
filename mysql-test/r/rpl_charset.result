@@ -147,10 +147,10 @@ master-bin.000001	3577	Intvar	1	3577	INSERT_ID=4
 master-bin.000001	3605	Query	1	3605	use `mysqltest2`; insert into t1 (b) values(LEAST("Müller","Muffler"))
 master-bin.000001	3698	Query	1	3698	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
 master-bin.000001	3839	Intvar	1	3839	INSERT_ID=74
-master-bin.000001	3867	Create_file	1	3867	db=mysqltest2;table=t1;file_id=1;block_len=581
+master-bin.000001	3867	Create_file	1	3867	db=mysqltest2;table=t1;file_id=x;block_len=581
 master-bin.000001	4540	Query	1	4540	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
 master-bin.000001	4681	Intvar	1	4681	INSERT_ID=5
-master-bin.000001	4709	Exec_load	1	4709	;file_id=1
+master-bin.000001	4709	Exec_load	1	4709	;file_id=x
 master-bin.000001	4732	Query	1	4732	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64
 master-bin.000001	4873	Query	1	4873	use `mysqltest2`; truncate table t1
 master-bin.000001	4931	Query	1	4931	use `mysqltest2`; SET ONE_SHOT CHARACTER_SET_CLIENT=8,COLLATION_CONNECTION=31,COLLATION_DATABASE=9,COLLATION_SERVER=64

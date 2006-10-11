@@ -106,6 +106,8 @@ select * from mysqltest2.t1 order by a;
 connection master;
 drop database mysqltest2;
 drop database mysqltest3;
+# file_id: xx can vary depending on previous tests
+--replace_regex /file_id=[0-9]/file_id=x/
 show binlog events from 79;
 sync_slave_with_master;
 
