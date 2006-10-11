@@ -35,9 +35,11 @@
 #ifndef yaSSL_FACTORY_HPP
 #define yaSSL_FACTORY_HPP
 
-#include "vector.hpp"
-#include "pair.hpp"
+#include STL_VECTOR_FILE
+#include STL_PAIR_FILE
 
+
+namespace STL = STL_NAMESPACE;
 
 
 // VC60 workaround: it doesn't allow typename in some places
@@ -58,8 +60,8 @@ template<class    AbstractProduct,
          typename ProductCreator = AbstractProduct* (*)()
         >
 class Factory {                                             
-    typedef mySTL::pair<IdentifierType, ProductCreator> CallBack;
-    typedef mySTL::vector<CallBack> CallBackVector;
+    typedef STL::pair<IdentifierType, ProductCreator> CallBack;
+    typedef STL::vector<CallBack> CallBackVector;
 
     CallBackVector callbacks_;
 public:
@@ -79,14 +81,16 @@ public:
     // register callback
     void Register(const IdentifierType& id, ProductCreator pc)
     {
-        callbacks_.push_back(mySTL::make_pair(id, pc));
+        callbacks_.push_back(STL::make_pair(id, pc));
     }
 
     // THE Creator, returns a new object of the proper type or 0
     AbstractProduct* CreateObject(const IdentifierType& id) const
     {
-        const CallBack* first = callbacks_.begin();
-        const CallBack* last  = callbacks_.end();
+        typedef typename STL::vector<CallBack>::const_iterator cIter;
+        
+        cIter first = callbacks_.begin();
+        cIter last  = callbacks_.end();
 
         while (first != last) {
             if (first->first == id)

@@ -342,6 +342,7 @@ cleanup:
 */
 bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 {
+  Item *fake_conds= 0;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
 
@@ -367,7 +368,7 @@ bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
       DBUG_RETURN(TRUE);
     }
   }
-  select_lex->fix_prepare_information(thd, conds);
+  select_lex->fix_prepare_information(thd, conds, &fake_conds);
   DBUG_RETURN(FALSE);
 }
 

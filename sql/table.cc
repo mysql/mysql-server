@@ -1592,7 +1592,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
 bool check_db_name(char *name)
 {
-  char *start=name;
+  char *start= name;
   /* Used to catch empty names and names with end space */
   bool last_char_is_space= TRUE;
 

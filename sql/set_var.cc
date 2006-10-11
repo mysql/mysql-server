@@ -1255,8 +1255,8 @@ static void fix_tx_isolation(THD *thd, enum_var_type type)
 				thd->variables.tx_isolation);
 }
 
-static void fix_completion_type(THD *thd __attribute__(unused),
-				enum_var_type type __attribute__(unused)) {}
+static void fix_completion_type(THD *thd __attribute__((unused)),
+				enum_var_type type __attribute__((unused))) {}
 
 static int check_completion_type(THD *thd, set_var *var)
 {
@@ -1295,14 +1295,14 @@ static void fix_net_retry_count(THD *thd, enum_var_type type)
     thd->net.retry_count=thd->variables.net_retry_count;
 }
 #else /* HAVE_REPLICATION */
-static void fix_net_read_timeout(THD *thd __attribute__(unused),
-				 enum_var_type type __attribute__(unused))
+static void fix_net_read_timeout(THD *thd __attribute__((unused)),
+				 enum_var_type type __attribute__((unused)))
 {}
-static void fix_net_write_timeout(THD *thd __attribute__(unused),
-				  enum_var_type type __attribute__(unused))
+static void fix_net_write_timeout(THD *thd __attribute__((unused)),
+				  enum_var_type type __attribute__((unused)))
 {}
-static void fix_net_retry_count(THD *thd __attribute__(unused),
-				enum_var_type type __attribute__(unused))
+static void fix_net_retry_count(THD *thd __attribute__((unused)),
+				enum_var_type type __attribute__((unused)))
 {}
 #endif /* HAVE_REPLICATION */
 
@@ -2571,8 +2571,18 @@ bool sys_var_last_insert_id::update(THD *thd, set_var *var)
 byte *sys_var_last_insert_id::value_ptr(THD *thd, enum_var_type type,
 					LEX_STRING *base)
 {
-  thd->sys_var_tmp.long_value= (long) thd->insert_id();
-  return (byte*) &thd->last_insert_id;
+  if (!thd->last_insert_id_used)
+  {
+    /*
+      As this statement reads @@LAST_INSERT_ID, set
+      THD::last_insert_id_used and remember first generated insert id
+      of the previous statement in THD::current_insert_id.
+    */
+    thd->last_insert_id_used= TRUE;
+    thd->last_insert_id_used_bin_log= TRUE;
+    thd->current_insert_id= thd->last_insert_id;
+  }
+  return (byte*) &thd->current_insert_id;
 }
 
 

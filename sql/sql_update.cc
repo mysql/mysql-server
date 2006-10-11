@@ -274,7 +274,7 @@ int mysql_update(THD *thd,
   {
     used_index= select->quick->index;
     used_key_is_modified= (!select->quick->unique_key_range() &&
-                          select->quick->check_if_keys_used(&fields));
+                          select->quick->is_keys_used(&fields));
   }
   else
   {
@@ -282,7 +282,7 @@ int mysql_update(THD *thd,
     if (used_index == MAX_KEY)                  // no index for sort order
       used_index= table->file->key_used_on_scan;
     if (used_index != MAX_KEY)
-      used_key_is_modified= check_if_key_used(table, used_index, fields);
+      used_key_is_modified= is_key_used(table, used_index, fields);
   }
 
   if (used_key_is_modified || order)
@@ -568,7 +568,7 @@ int mysql_update(THD *thd,
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
     send_ok(thd, (ulong) thd->row_count_func,
-	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
+	    thd->insert_id_used ? thd->last_insert_id : 0L,buff);
     DBUG_PRINT("info",("%d records updated",updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -606,6 +606,7 @@ err:
 bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
+  Item *fake_conds= 0;
   TABLE *table= table_list->table;
   TABLE_LIST tables;
   List<Item> all_fields;
@@ -645,7 +646,7 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
     }
   }
-  select_lex->fix_prepare_information(thd, conds);
+  select_lex->fix_prepare_information(thd, conds, &fake_conds);
   DBUG_RETURN(FALSE);
 }
 
@@ -1094,6 +1095,8 @@ multi_update::initialize_tables(JOIN *join)
     List<Item> temp_fields= *fields_for_table[cnt];
     ORDER     group;
 
+    if (ignore)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)			// First table in join
     {
       if (safe_update_on_fly(join->join_tab, &temp_fields))
@@ -1188,21 +1191,15 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, List<Item> *fields)
     return TRUE;				// At most one matching row
   case JT_REF:
   case JT_REF_OR_NULL:
-    return !check_if_key_used(table, join_tab->ref.key, *fields) &&
-           !(table->triggers &&
-             table->triggers->has_before_update_triggers());
+    return !is_key_used(table, join_tab->ref.key, *fields);
   case JT_ALL:
     /* If range search on index */
     if (join_tab->quick)
-      return !join_tab->quick->check_if_keys_used(fields) &&
-             !(table->triggers &&
-               table->triggers->has_before_update_triggers());
+      return !join_tab->quick->is_keys_used(fields);
     /* If scanning in clustered key */
     if ((table->file->table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
 	table->s->primary_key < MAX_KEY)
-      return !check_if_key_used(table, table->s->primary_key, *fields) &&
-             !(table->triggers &&
-               table->triggers->has_before_update_triggers());
+      return !is_key_used(table, table->s->primary_key, *fields);
     return TRUE;
   default:
     break;					// Avoid compler warning
@@ -1215,7 +1212,11 @@ multi_update::~multi_update()
 {
   TABLE_LIST *table;
   for (table= update_tables ; table; table= table->next_local)
+  {
     table->table->no_keyread= table->table->no_cache= 0;
+    if (ignore)
+      table->table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  }
 
   if (tmp_tables)
   {
@@ -1566,6 +1567,6 @@ bool multi_update::send_eof()
   thd->row_count_func=
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
   ::send_ok(thd, (ulong) thd->row_count_func,
-	    thd->insert_id_used ? thd->insert_id() : 0L,buff);
+	    thd->insert_id_used ? thd->last_insert_id : 0L,buff);
   return FALSE;
 }

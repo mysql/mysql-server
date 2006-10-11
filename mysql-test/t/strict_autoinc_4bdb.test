@@ -1,0 +1,10 @@
+-- source include/have_bdb.inc
+
+#
+# Bug#20573 Strict mode auto-increment
+#
+
+let $type= 'BDB' ;
+--source include/strict_autoinc.inc
+
+# end of test

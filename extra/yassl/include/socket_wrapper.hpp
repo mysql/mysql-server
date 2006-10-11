@@ -71,6 +71,7 @@ typedef unsigned char byte;
 class Socket {
     socket_t socket_;                    // underlying socket descriptor
     bool     wouldBlock_;                // for non-blocking data
+    bool     blocking_;                  // is option set
 public:
     explicit Socket(socket_t s = INVALID_SOCKET);
     ~Socket();
@@ -84,6 +85,7 @@ public:
 
     bool wait();
     bool WouldBlock() const;
+    bool IsBlocking() const;
 
     void closeSocket();
     void shutDown(int how = SD_SEND);

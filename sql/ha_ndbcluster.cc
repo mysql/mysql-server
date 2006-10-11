@@ -2131,9 +2131,11 @@ int ha_ndbcluster::write_row(byte *record)
     if (has_auto_increment) 
     {
       THD *thd= table->in_use;
+      int error;
       
       m_skip_auto_increment= FALSE;
-      update_auto_increment();
+      if ((error= update_auto_increment()))
+        DBUG_RETURN(error);
       /* Ensure that handler is always called for auto_increment values */
       thd->next_insert_id= 0;
       m_skip_auto_increment= !auto_increment_column_changed;
@@ -3526,7 +3528,14 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
   if (lock_type != F_UNLCK)
   {
     DBUG_PRINT("info", ("lock_type != F_UNLCK"));
-    if (!thd->transaction.on)
+    if (thd->lex->sql_command == SQLCOM_LOAD)
+    {
+      m_transaction_on= FALSE;
+      /* Would be simpler if has_transactions() didn't always say "yes" */
+      thd->options|= OPTION_STATUS_NO_TRANS_UPDATE;
+      thd->no_trans_update= TRUE;
+    }
+    else if (!thd->transaction.on)
       m_transaction_on= FALSE;
     else
       m_transaction_on= thd->variables.ndb_use_transactions;

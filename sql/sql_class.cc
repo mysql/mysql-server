@@ -179,9 +179,9 @@ THD::THD()
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0), global_read_lock(0), is_fatal_error(0),
    rand_used(0), time_zone_used(0),
-   last_insert_id_used(0), insert_id_used(0), clear_next_insert_id(0),
-   in_lock_tables(0), bootstrap(0), derived_tables_processing(FALSE),
-   spcont(NULL)
+   last_insert_id_used(0), last_insert_id_used_bin_log(0), insert_id_used(0),
+   clear_next_insert_id(0), in_lock_tables(0), bootstrap(0),
+   derived_tables_processing(FALSE), spcont(NULL)
 {
   stmt_arena= this;
   thread_stack= 0;
@@ -553,10 +553,25 @@ bool THD::store_globals()
 }
 
 
-/* Cleanup after a query */
+/*
+  Cleanup after query.
+
+  SYNOPSIS
+    THD::cleanup_after_query()
+
+  DESCRIPTION
+    This function is used to reset thread data to its default state.
+
+  NOTE
+    This function is not suitable for setting thread data to some
+    non-default values, as there is only one replication thread, so
+    different master threads may overwrite data of each other on
+    slave.
+*/
 
 void THD::cleanup_after_query()
 {
+  last_insert_id_used= FALSE;
   if (clear_next_insert_id)
   {
     clear_next_insert_id= 0;
@@ -567,6 +582,7 @@ void THD::cleanup_after_query()
   /* Reset where. */
   where= THD::DEFAULT_WHERE;
 }
+
 
 /*
   Convert a string to another character set

@@ -773,3 +773,5 @@ Warnings:
 Warning	1071	Specified key was too long; max key length is 765 bytes
 insert into t1 values('aaa');
 drop table t1;
+create table t1 (upgrade int);
+drop table t1;

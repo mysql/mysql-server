@@ -419,20 +419,20 @@ drop table t1;
 #
 # Bug#16377 result of DATE/TIME functions were compared as strings which
 #           can lead to a wrong result.
-#
+# Now wrong dates should be compared only with CAST()
 create table t1(f1 date, f2 time, f3 datetime);
 insert into t1 values ("2006-01-01", "12:01:01", "2006-01-01 12:01:01");
 insert into t1 values ("2006-01-02", "12:01:02", "2006-01-02 12:01:02");
-select f1 from t1 where f1 between "2006-1-1" and 20060101;
-select f1 from t1 where f1 between "2006-1-1" and "2006.1.1";
-select f1 from t1 where date(f1) between "2006-1-1" and "2006.1.1";
-select f2 from t1 where f2 between "12:1:2" and "12:2:2";
-select f2 from t1 where time(f2) between "12:1:2" and "12:2:2";
-select f3 from t1 where f3 between "2006-1-1 12:1:1" and "2006-1-1 12:1:2";
-select f3 from t1 where timestamp(f3) between "2006-1-1 12:1:1" and "2006-1-1 12:1:2";
-select f1 from t1 where "2006-1-1" between f1 and f3;
-select f1 from t1 where "2006-1-1" between date(f1) and date(f3);
-select f1 from t1 where "2006-1-1" between f1 and 'zzz';
+select f1 from t1 where f1 between CAST("2006-1-1" as date) and CAST(20060101 as date);
+select f1 from t1 where f1 between cast("2006-1-1" as date) and cast("2006.1.1" as date);
+select f1 from t1 where date(f1) between cast("2006-1-1" as date) and cast("2006.1.1" as date);
+select f2 from t1 where f2 between cast("12:1:2" as time) and cast("12:2:2" as time);
+select f2 from t1 where time(f2) between cast("12:1:2" as time) and cast("12:2:2" as time);
+select f3 from t1 where f3 between cast("2006-1-1 12:1:1" as datetime) and cast("2006-1-1 12:1:2" as datetime);
+select f3 from t1 where timestamp(f3) between cast("2006-1-1 12:1:1" as datetime) and cast("2006-1-1 12:1:2" as datetime);
+select f1 from t1 where cast("2006-1-1" as date) between f1 and f3;
+select f1 from t1 where cast("2006-1-1" as date) between date(f1) and date(f3);
+select f1 from t1 where cast("2006-1-1" as date) between f1 and cast('zzz' as date);
 select f1 from t1 where makedate(2006,1) between date(f1) and date(f3);
 select f1 from t1 where makedate(2006,2) between date(f1) and date(f3);
 drop table t1;
@@ -445,6 +445,25 @@ create table t1 select now() - now(), curtime() - curtime(),
                        sec_to_time(1) + 0, from_unixtime(1) + 0;
 show create table t1;
 drop table t1;
+
+#
+# 21913: DATE_FORMAT() Crashes mysql server if I use it through
+#        mysql-connector-j driver.
+#
+
+SET NAMES latin1;
+SET character_set_results = NULL;
+SHOW VARIABLES LIKE 'character_set_results';
+
+CREATE TABLE testBug8868 (field1 DATE, field2 VARCHAR(32) CHARACTER SET BINARY);
+INSERT INTO testBug8868 VALUES ('2006-09-04', 'abcd');
+
+SELECT DATE_FORMAT(field1,'%b-%e %l:%i%p') as fmtddate, field2 FROM testBug8868;
+
+DROP TABLE testBug8868;
+
+SET NAMES DEFAULT;
+
 
 #
 # Bug #19844 time_format in Union truncates values

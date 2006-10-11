@@ -176,7 +176,10 @@ int ha_heap::write_row(byte * buf)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
-    update_auto_increment();
+  {
+    if ((res= update_auto_increment()))
+      return res;
+  }
   res= heap_write(file,buf);
   if (!res && (++records_changed*HEAP_STATS_UPDATE_THRESHOLD > 
                file->s->records))

@@ -14,3 +14,47 @@
 # process.
 
 --exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30
+
+###########################################################################
+
+#
+# BUG#12751: Instance Manager: client hangs
+#
+
+--echo
+--echo --------------------------------------------------------------------
+--echo -- Test for BUG#12751
+--echo --------------------------------------------------------------------
+
+# Give some time to begin accepting connections after restart.
+# FIXME: race condition here.
+
+--sleep 3
+
+# 1. Start mysqld;
+
+START INSTANCE mysqld2;
+# FIXME: START INSTANCE should be synchronous.
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 started
+
+# 2. Restart IM-main: kill it and IM-angel will restart it.
+
+--exec $MYSQL_TEST_DIR/t/kill_n_check.sh $IM_PATH_PID restarted 30
+
+# 3. Issue some statement -- connection should be re-established.
+
+# Give some time to begin accepting connections after restart.
+# FIXME: race condition here.
+
+--sleep 3
+
+--replace_column 3 VERSION
+SHOW INSTANCE STATUS mysqld1;
+
+# 4. Stop mysqld2, because it will not be stopped by IM, as it is nonguarded.
+# So, if it we do not stop it, it will be stopped by mysql-test-run.pl with
+# warning.
+
+STOP INSTANCE mysqld2;
+# FIXME: STOP INSTANCE should be synchronous.
+--exec $MYSQL_TEST_DIR/t/wait_for_process.sh $IM_MYSQLD2_PATH_PID 30 stopped

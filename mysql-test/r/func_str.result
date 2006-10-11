@@ -1113,4 +1113,39 @@ conv("18383815659218730760",10,10) + 0
 select "18383815659218730760" + 0;
 "18383815659218730760" + 0
 1.8383815659219e+19
+CREATE TABLE t1 (code varchar(10));
+INSERT INTO t1 VALUES ('a12'), ('A12'), ('a13');
+SELECT ASCII(code), code FROM t1 WHERE code='A12';
+ASCII(code)	code
+97	a12
+65	A12
+SELECT ASCII(code), code FROM t1 WHERE code='A12' AND ASCII(code)=65;
+ASCII(code)	code
+65	A12
+INSERT INTO t1 VALUES ('a12 '), ('A12  ');
+SELECT LENGTH(code), code FROM t1 WHERE code='A12';
+LENGTH(code)	code
+3	a12
+3	A12
+4	a12 
+5	A12  
+SELECT LENGTH(code), code FROM t1 WHERE code='A12' AND LENGTH(code)=5;
+LENGTH(code)	code
+5	A12  
+ALTER TABLE t1 ADD INDEX (code);
+CREATE TABLE t2 (id varchar(10) PRIMARY KEY);
+INSERT INTO t2 VALUES ('a11'), ('a12'), ('a13'), ('a14');
+SELECT * FROM t1 INNER JOIN t2 ON t1.code=t2.id 
+WHERE t2.id='a12' AND (LENGTH(code)=5 OR code < 'a00');
+code	id
+A12  	a12
+EXPLAIN EXTENDED 
+SELECT * FROM t1 INNER JOIN t2 ON code=id 
+WHERE id='a12' AND (LENGTH(code)=5 OR code < 'a00');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	code	code	13	const	3	Using where; Using index
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	12	const	1	Using where; Using index
+Warnings:
+Note	1003	select `test`.`t1`.`code` AS `code`,`test`.`t2`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = _latin1'a12') and (`test`.`t2`.`id` = _latin1'a12') and (length(`test`.`t1`.`code`) = 5))
+DROP TABLE t1,t2;
 End of 5.0 tests

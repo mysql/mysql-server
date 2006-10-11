@@ -144,9 +144,6 @@ select @@version;
 --replace_column 1 #
 select @@global.version;
 
-# End of 4.1 tests
-
-#
 # Bug #6598: problem with cast(NULL as signed integer);
 #
 
@@ -212,3 +209,5 @@ insert into t1 values (1,2),(2,3),(3,1);
 select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
 select @var;
 drop table t1;
+
+# End of 4.1 tests

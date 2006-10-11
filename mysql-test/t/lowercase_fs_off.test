@@ -3,6 +3,7 @@
 # i.e. lower_case_filesystem=OFF
 #
 -- source include/have_case_sensitive_file_system.inc
+-- source include/not_embedded.inc
 
 connect (master,localhost,root,,);
 connection master;

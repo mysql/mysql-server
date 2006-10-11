@@ -1608,8 +1608,12 @@ int do_save_master_pos()
 
 int do_let(struct st_query *query)
 {
+  int ret;
   char *p= query->first_argument;
-  char *var_name, *var_name_end, *var_val_start;
+  char *var_name, *var_name_end;
+  DYNAMIC_STRING let_rhs_expr;
+
+  init_dynamic_string(&let_rhs_expr, "", 512, 2048);
 
   /* Find <var_name> */
   if (!*p)
@@ -1628,10 +1632,16 @@ int do_let(struct st_query *query)
   /* Find start of <var_val> */
   while (*p && my_isspace(charset_info,*p))
     p++;
-  var_val_start= p;
+
+  do_eval(&let_rhs_expr, p, FALSE);
+
   query->last_argument= query->end;
   /* Assign var_val to var_name */
-  return var_set(var_name, var_name_end, var_val_start, query->end);
+  ret= var_set(var_name, var_name_end, let_rhs_expr.str, 
+                 (let_rhs_expr.str + let_rhs_expr.length));
+  dynstr_free(&let_rhs_expr);
+
+  return(ret);
 }
 
 
