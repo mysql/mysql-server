@@ -45,4 +45,14 @@ SHOW INDEX FROM t1;
 SET myisam_repair_threads=@@global.myisam_repair_threads;
 DROP TABLE t1;
 
+#
+# BUG#22562 - REPAIR TABLE .. USE_FRM causes server crash on Windows and
+#             server hangs on Linux
+#
+CREATE TABLE t1(a INT);
+USE mysql;
+REPAIR TABLE test.t1 USE_FRM;
+USE test;
+DROP TABLE t1;
+
 # End of 4.1 tests
