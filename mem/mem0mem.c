@@ -338,6 +338,7 @@ mem_heap_create_block(
 	const char*	file_name,/* in: file name where created */
 	ulint		line)	/* in: line where created */
 {
+	buf_block_t*	buf_block = NULL;
 	mem_block_t*	block;
 	ulint		len;
 
@@ -376,10 +377,13 @@ mem_heap_create_block(
 				buffer pool, but must get the free block from
 				the heap header free block field */
 
-				block = (mem_block_t*)heap->free_block;
+				block = (mem_block_t*)
+					((buf_block_t*) heap->free_block)
+					->frame;
 				heap->free_block = NULL;
 			} else {
-				block = (mem_block_t*)buf_frame_alloc();
+				buf_block = buf_block_alloc(0);
+				block = (mem_block_t*) buf_block->frame;
 			}
 		}
 	}
@@ -391,6 +395,7 @@ mem_heap_create_block(
 		return(NULL);
 	}
 
+	block->buf_block = buf_block;
 	block->magic_n = MEM_BLOCK_MAGIC_N;
 	ut_strlcpy_rev(block->file_name, file_name, sizeof(block->file_name));
 	block->line = line;
@@ -520,13 +525,15 @@ mem_heap_block_free(
 
 	} else if (type == MEM_HEAP_DYNAMIC) {
 
+		ut_ad(!block->buf_block);
 		mem_area_free(block, mem_comm_pool);
 	} else {
 		ut_ad(type & MEM_HEAP_BUFFER);
 
 		if (len >= UNIV_PAGE_SIZE / 2) {
-			buf_frame_free((byte*)block);
+			buf_block_free(block->buf_block);
 		} else {
+			ut_ad(!block->buf_block);
 			mem_area_free(block, mem_comm_pool);
 		}
 	}
@@ -540,9 +547,9 @@ mem_heap_free_block_free(
 /*=====================*/
 	mem_heap_t*	heap)	/* in: heap */
 {
-	if (heap->free_block) {
+	if (UNIV_LIKELY_NULL(heap->free_block)) {
 
-		buf_frame_free(heap->free_block);
+		buf_block_free(heap->free_block);
 
 		heap->free_block = NULL;
 	}
