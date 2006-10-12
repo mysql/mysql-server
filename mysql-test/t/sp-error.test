@@ -1745,6 +1745,48 @@ drop function if exists bug16896;
 create aggregate function bug16896() returns int return 1;
 
 
+
+#
+# BUG#20953: create proc with a create view that uses local
+# vars/params should fail to create
+#
+# See test case for what syntax is forbidden in a view.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+# We do not have to drop this procedure and view because they won't be
+# created.
+--error ER_VIEW_SELECT_CLAUSE
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO @a;
+--error ER_VIEW_SELECT_CLAUSE
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO DUMPFILE "file";
+--error ER_VIEW_SELECT_CLAUSE
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO OUTFILE "file";
+--error ER_VIEW_SELECT_CLAUSE
+CREATE PROCEDURE bug20953()
+  CREATE VIEW v AS SELECT i FROM t1 PROCEDURE ANALYSE();
+--error ER_VIEW_SELECT_DERIVED
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 FROM (SELECT 1) AS d1;
+--error ER_VIEW_SELECT_VARIABLE
+CREATE PROCEDURE bug20953(i INT) CREATE VIEW v AS SELECT i;
+delimiter |;
+--error ER_VIEW_SELECT_VARIABLE
+CREATE PROCEDURE bug20953()
+BEGIN
+  DECLARE i INT;
+  CREATE VIEW v AS SELECT i;
+END |
+delimiter ;|
+--error ER_VIEW_SELECT_VARIABLE
+PREPARE stmt FROM "CREATE VIEW v AS SELECT ?";
+
+DROP TABLE t1;
+
+
 #
 # BUG#14702: misleading error message when syntax error in CREATE
 # PROCEDURE
