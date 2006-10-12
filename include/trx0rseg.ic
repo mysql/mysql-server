@@ -20,13 +20,14 @@ trx_rsegf_get(
 	ulint	page_no,	/* in: page number of the header */
 	mtr_t*	mtr)		/* in: mtr */
 {
+	buf_block_t*	block;
 	trx_rsegf_t*	header;
 
-	header = TRX_RSEG + buf_page_get(space, page_no, RW_X_LATCH, mtr);
-
+	block = buf_page_get(space, page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(header, SYNC_RSEG_HEADER);
+	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
+	header = TRX_RSEG + buf_block_get_frame(block);
 
 	return(header);
 }
@@ -43,13 +44,14 @@ trx_rsegf_get_new(
 	ulint	page_no,	/* in: page number of the header */
 	mtr_t*	mtr)		/* in: mtr */
 {
+	buf_block_t*	block;
 	trx_rsegf_t*	header;
 
-	header = TRX_RSEG + buf_page_get(space, page_no, RW_X_LATCH, mtr);
-
+	block = buf_page_get(space, page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(header, SYNC_RSEG_HEADER_NEW);
+	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
 #endif /* UNIV_SYNC_DEBUG */
+	header = TRX_RSEG + buf_block_get_frame(block);
 
 	return(header);
 }

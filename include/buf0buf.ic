@@ -193,17 +193,27 @@ buf_block_get_page_no(
 }
 
 /*************************************************************************
+Gets the compressed page size of a block. */
+UNIV_INLINE
+ulint
+buf_block_get_zip_size(
+/*===================*/
+					/* out: compressed page size, or 0 */
+	const buf_block_t*	block)	/* in: pointer to the control block */
+{
+	return(block->page_zip.size);
+}
+
+/*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 UNIV_INLINE
 page_zip_des_t*
-buf_frame_get_page_zip(
+buf_block_get_page_zip(
 /*===================*/
 				/* out: compressed page descriptor, or NULL */
-	byte*	ptr)		/* in: pointer to buffer frame */
+	buf_block_t*	block)	/* in: pointer to the control block */
 {
-	buf_block_t*	block = buf_block_align(ptr);
-
 	if (UNIV_LIKELY_NULL(block->page_zip.data)) {
 		return(&block->page_zip);
 	}
@@ -249,6 +259,19 @@ buf_block_align(
 	block = *(buf_pool->blocks_of_frames + (((ulint)(ptr - frame_zero))
 						>> UNIV_PAGE_SIZE_SHIFT));
 	return(block);
+}
+
+/*************************************************************************
+Gets the compressed page descriptor corresponding to an uncompressed page
+if applicable. */
+UNIV_INLINE
+page_zip_des_t*
+buf_frame_get_page_zip(
+/*===================*/
+			/* out: compressed page descriptor, or NULL */
+	byte*	ptr)	/* in: pointer to the page */
+{
+	return(buf_block_get_page_zip(buf_block_align(ptr)));
 }
 
 /**************************************************************************
@@ -425,17 +448,12 @@ Gets the youngest modification log sequence number for a frame. Returns zero
 if not a file page or no modification occurred yet. */
 UNIV_INLINE
 dulint
-buf_frame_get_newest_modification(
+buf_block_get_newest_modification(
 /*==============================*/
 				/* out: newest modification to the page */
-	buf_frame_t*	frame)	/* in: pointer to a frame */
+	buf_block_t*	block)	/* in: block containing the page frame */
 {
-	buf_block_t*	block;
 	dulint		lsn;
-
-	ut_ad(frame);
-
-	block = buf_block_align(frame);
 
 	mutex_enter(&(buf_pool->mutex));
 
@@ -581,10 +599,10 @@ in mtr down to the given savepoint. If io is required, this function
 retrieves the page to buffer buf_pool, but does not bufferfix it or latch
 it. */
 UNIV_INLINE
-buf_frame_t*
+buf_block_t*
 buf_page_get_release_on_io(
 /*=======================*/
-				/* out: pointer to the frame, or NULL
+				/* out: pointer to the block, or NULL
 				if not in buffer buf_pool */
 	ulint	space,		/* in: space id */
 	ulint	offset,		/* in: offset of the page within space
@@ -595,15 +613,15 @@ buf_page_get_release_on_io(
 	ulint	savepoint,	/* in: mtr savepoint */
 	mtr_t*	mtr)		/* in: mtr */
 {
-	buf_frame_t*	frame;
+	buf_block_t*	block;
 
-	frame = buf_page_get_gen(space, offset, rw_latch, guess,
+	block = buf_page_get_gen(space, offset, rw_latch, guess,
 				 BUF_GET_IF_IN_POOL,
 				 __FILE__, __LINE__,
 				 mtr);
-	if (frame != NULL) {
+	if (block != NULL) {
 
-		return(frame);
+		return(block);
 	}
 
 	/* The page was not in the buffer buf_pool: release the latches
@@ -663,17 +681,15 @@ buf_page_release(
 /*************************************************************************
 Adds latch level info for the rw-lock protecting the buffer frame. This
 should be called in the debug version after a successful latching of a
-page if we know the latching order level of the acquired latch. If
-UNIV_SYNC_DEBUG is not defined, compiles to an empty function. */
+page if we know the latching order level of the acquired latch. */
 UNIV_INLINE
 void
-buf_page_dbg_add_level(
-/*===================*/
-	buf_frame_t*	frame __attribute__((unused)), /* in: buffer page
+buf_block_dbg_add_level(
+/*====================*/
+	buf_block_t*	block,	/* in: buffer page
 				where we have acquired latch */
-	ulint		level __attribute__((unused))) /* in: latching order
-				level */
+	ulint		level)	/* in: latching order level */
 {
-	sync_thread_add_level(&(buf_block_align(frame)->lock), level);
+	sync_thread_add_level(&block->lock, level);
 }
 #endif /* UNIV_SYNC_DEBUG */

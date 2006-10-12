@@ -125,10 +125,10 @@ fsp_header_inc_size(
 /**************************************************************************
 Creates a new segment. */
 
-page_t*
+buf_block_t*
 fseg_create(
 /*========*/
-			/* out: the page where the segment header is placed,
+			/* out: the block where the segment header is placed,
 			x-latched, NULL if could not create segment
 			because of lack of space */
 	ulint	space,	/* in: space id */
@@ -142,10 +142,10 @@ fseg_create(
 /**************************************************************************
 Creates a new segment. */
 
-page_t*
+buf_block_t*
 fseg_create_general(
 /*================*/
-			/* out: the page where the segment header is placed,
+			/* out: the block where the segment header is placed,
 			x-latched, NULL if could not create segment
 			because of lack of space */
 	ulint	space,	/* in: space id */

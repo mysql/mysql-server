@@ -325,13 +325,13 @@ fsp_get_space_header(
 	ulint	id,	/* in: space id */
 	mtr_t*	mtr)	/* in: mtr */
 {
+	buf_block_t*	block;
 	fsp_header_t*	header;
 
-	ut_ad(mtr);
-
-	header = FSP_HEADER_OFFSET + buf_page_get(id, 0, RW_X_LATCH, mtr);
+	block = buf_page_get(id, 0, RW_X_LATCH, mtr);
+	header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(header, SYNC_FSP_PAGE);
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(id == mach_read_from_4(FSP_SPACE_ID + header));
 	return(header);
@@ -704,11 +704,13 @@ xdes_get_descriptor_with_space_hdr(
 
 		descr_page = page_align(sp_header);
 	} else {
-		descr_page = buf_page_get(space, descr_page_no, RW_X_LATCH,
-					  mtr);
+		buf_block_t*	block;
+
+		block = buf_page_get(space, descr_page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(descr_page, SYNC_FSP_PAGE);
+		buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
+		descr_page = buf_block_get_frame(block);
 	}
 
 	return(descr_page + XDES_ARR_OFFSET
@@ -734,13 +736,14 @@ xdes_get_descriptor(
 			we try to add new extents to the space free list */
 	mtr_t*	mtr)	/* in: mtr handle */
 {
+	buf_block_t*	block;
 	fsp_header_t*	sp_header;
 
-	sp_header = FSP_HEADER_OFFSET
-		+ buf_page_get(space, 0, RW_X_LATCH, mtr);
+	block = buf_page_get(space, 0, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(sp_header, SYNC_FSP_PAGE);
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
+	sp_header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
 	return(xdes_get_descriptor_with_space_hdr(sp_header, space, offset,
 						  mtr));
 }
@@ -812,16 +815,14 @@ static
 void
 fsp_init_file_page_low(
 /*===================*/
-	byte*	ptr)	/* in: pointer to a page */
+	buf_block_t*	block)	/* in: pointer to a page */
 {
-	buf_block_t*	block	= buf_block_align(ptr);
-
 	page_t*		page	= buf_block_get_frame(block);
 	page_zip_des_t*	page_zip;
 
 	block->check_index_page_at_flush = FALSE;
 
-	page_zip = buf_frame_get_page_zip(page);
+	page_zip = buf_block_get_page_zip(block);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		memset(page, 0, UNIV_PAGE_SIZE);
@@ -853,12 +854,13 @@ static
 void
 fsp_init_file_page(
 /*===============*/
-	page_t*	page,	/* in: page */
-	mtr_t*	mtr)	/* in: mtr */
+	buf_block_t*	block,	/* in: pointer to a page */
+	mtr_t*		mtr)	/* in: mtr */
 {
-	fsp_init_file_page_low(page);
+	fsp_init_file_page_low(block);
 
-	mlog_write_initial_log_record(page, MLOG_INIT_FILE_PAGE, mtr);
+	mlog_write_initial_log_record(buf_block_get_frame(block),
+				      MLOG_INIT_FILE_PAGE, mtr);
 }
 
 /***************************************************************
@@ -875,7 +877,7 @@ fsp_parse_init_file_page(
 	ut_ad(ptr && end_ptr);
 
 	if (page) {
-		fsp_init_file_page_low(page);
+		fsp_init_file_page_low(buf_block_align(page));
 	}
 
 	return(ptr);
@@ -923,21 +925,23 @@ fsp_header_init(
 	mtr_t*	mtr)		/* in: mini-transaction handle */
 {
 	fsp_header_t*	header;
+	buf_block_t*	block;
 	page_t*		page;
 
 	ut_ad(mtr);
 
 	mtr_x_lock(fil_space_get_latch(space), mtr);
 
-	page = buf_page_create(space, 0, zip_size, mtr);
+	block = buf_page_create(space, 0, zip_size, mtr);
 	buf_page_get(space, 0, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* The prior contents of the file page should be ignored */
 
-	fsp_init_file_page(page, mtr);
+	fsp_init_file_page(block, mtr);
+	page = buf_block_get_frame(block);
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_FSP_HDR,
 			 MLOG_2BYTES, mtr);
@@ -1283,8 +1287,6 @@ fsp_fill_free_list(
 	xdes_t*	descr;
 	ulint	count		= 0;
 	ulint	frag_n_used;
-	page_t*	descr_page;
-	page_t*	ibuf_page;
 	ulint	actual_increase;
 	ulint	i;
 	mtr_t	ibuf_mtr;
@@ -1342,20 +1344,23 @@ fsp_fill_free_list(
 
 		if (UNIV_UNLIKELY(init_xdes)) {
 
+			buf_block_t*	block;
+
 			/* We are going to initialize a new descriptor page
 			and a new ibuf bitmap page: the prior contents of the
 			pages should be ignored. */
 
 			if (i > 0) {
-				descr_page = buf_page_create(
+				block = buf_page_create(
 					space, i, zip_size, mtr);
 				buf_page_get(space, i, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-				buf_page_dbg_add_level(descr_page,
-						       SYNC_FSP_PAGE);
+				buf_block_dbg_add_level(block,
+							SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
-				fsp_init_file_page(descr_page, mtr);
-				mlog_write_ulint(descr_page + FIL_PAGE_TYPE,
+				fsp_init_file_page(block, mtr);
+				mlog_write_ulint(buf_block_get_frame(block)
+						 + FIL_PAGE_TYPE,
 						 FIL_PAGE_TYPE_XDES,
 						 MLOG_2BYTES, mtr);
 			}
@@ -1367,17 +1372,17 @@ fsp_fill_free_list(
 
 			mtr_start(&ibuf_mtr);
 
-			ibuf_page = buf_page_create(space,
+			block = buf_page_create(space,
 						    i + FSP_IBUF_BITMAP_OFFSET,
 						    zip_size, &ibuf_mtr);
 			buf_page_get(space, i + FSP_IBUF_BITMAP_OFFSET,
 				     RW_X_LATCH, &ibuf_mtr);
 #ifdef UNIV_SYNC_DEBUG
-			buf_page_dbg_add_level(ibuf_page, SYNC_FSP_PAGE);
+			buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
-			fsp_init_file_page(ibuf_page, &ibuf_mtr);
+			fsp_init_file_page(block, &ibuf_mtr);
 
-			ibuf_bitmap_page_init(ibuf_page, zip_size, &ibuf_mtr);
+			ibuf_bitmap_page_init(block, &ibuf_mtr);
 
 			mtr_commit(&ibuf_mtr);
 		}
@@ -1484,7 +1489,7 @@ fsp_alloc_free_page(
 	fsp_header_t*	header;
 	fil_addr_t	first;
 	xdes_t*		descr;
-	page_t*		page;
+	buf_block_t*	block;
 	ulint		free;
 	ulint		frag_n_used;
 	ulint		page_no;
@@ -1598,13 +1603,13 @@ fsp_alloc_free_page(
 	buf_page_create(space, page_no,
 			mach_read_from_4(FSP_PAGE_ZIP_SIZE + header), mtr);
 
-	page = buf_page_get(space, page_no, RW_X_LATCH, mtr);
+	block = buf_page_get(space, page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Prior contents of the page should be ignored */
-	fsp_init_file_page(page, mtr);
+	fsp_init_file_page(block, mtr);
 
 	return(page_no);
 }
@@ -1821,6 +1826,7 @@ fsp_alloc_seg_inode_page(
 	mtr_t*		mtr)		/* in: mini-transaction handle */
 {
 	fseg_inode_t*	inode;
+	buf_block_t*	block;
 	page_t*		page;
 	ulint		page_no;
 	ulint		space;
@@ -1836,15 +1842,17 @@ fsp_alloc_seg_inode_page(
 		return(FALSE);
 	}
 
-	page = buf_page_get(space, page_no, RW_X_LATCH, mtr);
+	block = buf_page_get(space, page_no, RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+#endif /* UNIV_SYNC_DEBUG */
 
-	buf_block_align(page)->check_index_page_at_flush = FALSE;
+	block->check_index_page_at_flush = FALSE;
+
+	page = buf_block_get_frame(block);
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_INODE,
 			 MLOG_2BYTES, mtr);
-#ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
 
 	zip_size = mtr_read_ulint(space_header + FSP_PAGE_ZIP_SIZE,
 				  MLOG_4BYTES, mtr);
@@ -1874,6 +1882,7 @@ fsp_alloc_seg_inode(
 	mtr_t*		mtr)		/* in: mini-transaction handle */
 {
 	ulint		page_no;
+	buf_block_t*	block;
 	page_t*		page;
 	fseg_inode_t*	inode;
 	ibool		success;
@@ -1894,11 +1903,12 @@ fsp_alloc_seg_inode(
 	page_no = flst_get_first(space_header + FSP_SEG_INODES_FREE, mtr).page;
 
 	zip_size = mach_read_from_4(space_header + FSP_PAGE_ZIP_SIZE);
-	page = buf_page_get(page_get_space_id(page_align(space_header)),
-			    page_no, RW_X_LATCH, mtr);
+	block = buf_page_get(page_get_space_id(page_align(space_header)),
+			     page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
+	page = buf_block_get_frame(block);
 
 	n = fsp_seg_inode_page_find_free(page, 0, zip_size, mtr);
 
@@ -2114,10 +2124,10 @@ fseg_get_n_frag_pages(
 /**************************************************************************
 Creates a new segment. */
 
-page_t*
+buf_block_t*
 fseg_create_general(
 /*================*/
-			/* out: the page where the segment header is placed,
+			/* out: the block where the segment header is placed,
 			x-latched, NULL if could not create segment
 			because of lack of space */
 	ulint	space,	/* in: space id */
@@ -2138,18 +2148,18 @@ fseg_create_general(
 	fsp_header_t*	space_header;
 	fseg_inode_t*	inode;
 	dulint		seg_id;
-	fseg_header_t*	header = 0; /* remove warning */
+	buf_block_t*	block	= 0; /* remove warning */
+	fseg_header_t*	header	= 0; /* remove warning */
 	rw_lock_t*	latch;
 	ibool		success;
 	ulint		n_reserved;
-	page_t*		ret		= NULL;
 	ulint		i;
 
 	ut_ad(mtr);
 
 	if (page != 0) {
-		header = byte_offset + buf_page_get(space, page, RW_X_LATCH,
-						    mtr);
+		block = buf_page_get(space, page, RW_X_LATCH, mtr);
+		header = byte_offset + buf_block_get_frame(block);
 	}
 
 #ifdef UNIV_SYNC_DEBUG
@@ -2218,8 +2228,8 @@ fseg_create_general(
 			goto funct_exit;
 		}
 
-		header = byte_offset
-			+ buf_page_get(space, page, RW_X_LATCH, mtr);
+		block = buf_page_get(space, page, RW_X_LATCH, mtr);
+		header = byte_offset + buf_block_get_frame(block);
 		mlog_write_ulint(header - byte_offset + FIL_PAGE_TYPE,
 				 FIL_PAGE_TYPE_SYS, MLOG_2BYTES, mtr);
 	}
@@ -2233,24 +2243,22 @@ fseg_create_general(
 
 	mlog_write_ulint(header + FSEG_HDR_SPACE, space, MLOG_4BYTES, mtr);
 
-	ret = page_align(header);
-
 funct_exit:
 	if (!has_done_reservation) {
 
 		fil_space_release_free_extents(space, n_reserved);
 	}
 
-	return(ret);
+	return(block);
 }
 
 /**************************************************************************
 Creates a new segment. */
 
-page_t*
+buf_block_t*
 fseg_create(
 /*========*/
-			/* out: the page where the segment header is placed,
+			/* out: the block where the segment header is placed,
 			x-latched, NULL if could not create segment
 			because of lack of space */
 	ulint	space,	/* in: space id */
@@ -2465,7 +2473,6 @@ fseg_alloc_free_page_low(
 	ulint		ret_page;	/* the allocated page offset, FIL_NULL
 					if could not be allocated */
 	xdes_t*		ret_descr;	/* the extent of the allocated page */
-	page_t*		page;
 	ibool		frag_page_allocated = FALSE;
 	ibool		success;
 	ulint		n;
@@ -2647,22 +2654,18 @@ fseg_alloc_free_page_low(
 		/* Initialize the allocated page to buffer pool, so that it
 		can be obtained immediately with buf_page_get without need
 		for a disk read */
+		buf_block_t*	block;
 
-		page = buf_page_create(space, ret_page,
-				       mach_read_from_4(FSP_PAGE_ZIP_SIZE
-							+ space_header), mtr);
-
-		if (UNIV_UNLIKELY
-		    (page != buf_page_get(space, ret_page, RW_X_LATCH, mtr))) {
-			ut_error;
-		}
-
+		block = buf_page_create(space, ret_page,
+					mach_read_from_4(FSP_PAGE_ZIP_SIZE
+							 + space_header), mtr);
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
+		buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
+		ut_a(block == buf_page_get(space, ret_page, RW_X_LATCH, mtr));
 
 		/* The prior contents of the page should be ignored */
-		fsp_init_file_page(page, mtr);
+		fsp_init_file_page(block, mtr);
 
 		/* At this point we know the extent and the page offset.
 		The extent is still in the appropriate list (FSEG_NOT_FULL

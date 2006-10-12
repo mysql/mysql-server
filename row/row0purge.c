@@ -404,8 +404,9 @@ skip_secondaries:
 		ufield = upd_get_nth_field(node->update, i);
 
 		if (UNIV_UNLIKELY(ufield->extern_storage)) {
-			ulint	internal_offset;
-			byte*	data_field;
+			buf_block_t*	block;
+			ulint		internal_offset;
+			byte*		data_field;
 
 			/* We use the fact that new_val points to
 			node->undo_rec and get thus the offset of
@@ -444,13 +445,13 @@ skip_secondaries:
 			/* We assume in purge of externally stored fields
 			that the space id of the undo log record is 0! */
 
-			data_field = buf_page_get(0, page_no, RW_X_LATCH, &mtr)
+			block = buf_page_get(0, page_no, RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+			buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
+#endif /* UNIV_SYNC_DEBUG */
+			data_field = buf_block_get_frame(block)
 				+ offset + internal_offset;
 
-#ifdef UNIV_SYNC_DEBUG
-			buf_page_dbg_add_level(page_align(data_field),
-					       SYNC_TRX_UNDO_PAGE);
-#endif /* UNIV_SYNC_DEBUG */
 			ut_a(ufield->new_val.len >= BTR_EXTERN_FIELD_REF_SIZE);
 			btr_free_externally_stored_field(
 				index, data_field + ufield->new_val.len

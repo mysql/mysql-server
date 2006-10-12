@@ -232,7 +232,7 @@ buf_LRU_search_and_free_block(
 			frame at all */
 
 			if (block->frame) {
-				btr_search_drop_page_hash_index(block->frame);
+				btr_search_drop_page_hash_index(block);
 			}
 			mutex_enter(&(buf_pool->mutex));
 
