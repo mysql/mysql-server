@@ -520,6 +520,7 @@ t1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Incorrect
 show create table t1;
 ERROR HY000: Incorrect information in file: './test/t1.frm'
 drop table t1;
+End of 4.1 tests
 CREATE TABLE txt1(a int);
 CREATE TABLE tyt2(a int);
 CREATE TABLE urkunde(a int);
@@ -629,3 +630,4 @@ SHOW TABLES FROM no_such_database;
 ERROR 42000: Unknown database 'no_such_database'
 SHOW COLUMNS FROM no_such_table;
 ERROR 42S02: Table 'test.no_such_table' doesn't exist
+End of 5.0 tests
