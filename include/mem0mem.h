@@ -395,11 +395,15 @@ struct mem_block_info_struct {
 			user data in the block */
 	ulint	start;	/* the value of the struct field 'free' at the
 			creation of the block */
-	byte*	free_block;
+	void*	free_block;
 			/* if the MEM_HEAP_BTR_SEARCH bit is set in type,
 			and this is the heap root, this can contain an
 			allocated buffer frame, which can be appended as a
 			free block to the heap, if we need more space;
+			otherwise, this is NULL */
+	void*	buf_block;
+			/* if this block has been allocated from the buffer
+			pool, this contains the buf_block_t handle;
 			otherwise, this is NULL */
 #ifdef MEM_PERIODIC_CHECK
 	UT_LIST_NODE_T(mem_block_t) mem_block_list;

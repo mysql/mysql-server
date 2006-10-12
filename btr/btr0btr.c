@@ -851,6 +851,7 @@ btr_page_reorganize_low(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	buf_block_t*	block;
+	buf_block_t*	temp_block;
 	page_t*		temp_page;
 	ulint		log_mode;
 	ulint		data_size1;
@@ -876,7 +877,8 @@ btr_page_reorganize_low(
 	/* Turn logging off */
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
-	temp_page = buf_frame_alloc();
+	temp_block = buf_block_alloc(0);
+	temp_page = temp_block->frame;
 
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
@@ -940,7 +942,7 @@ func_exit:
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
-	buf_frame_free(temp_page);
+	buf_block_free(temp_block);
 
 	/* Restore logging mode */
 	mtr_set_log_mode(mtr, log_mode);
