@@ -1423,7 +1423,7 @@ sub executable_setup () {
   else
   {
     $exe_mysql_client_test=
-      mtr_exe_exists("$glob_basedir/tests/mysql_client_test");
+      mtr_exe_exists("$path_client_bindir/mysql_client_test");
   }
 }
 
