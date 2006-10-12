@@ -1745,6 +1745,27 @@ drop function if exists bug16896;
 create aggregate function bug16896() returns int return 1;
 
 
+#
+# BUG#14702: misleading error message when syntax error in CREATE
+# PROCEDURE
+#
+# Misleading error message was given when IF NOT EXISTS was used in
+# CREATE PROCEDURE.
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS bug14702;
+--enable_warnings
+
+--error ER_PARSE_ERROR
+CREATE IF NOT EXISTS PROCEDURE bug14702()
+BEGIN
+END;
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE IF NOT EXISTS bug14702()
+BEGIN
+END;
+
 
 #
 # BUG#20953: create proc with a create view that uses local
@@ -1785,28 +1806,6 @@ delimiter ;|
 PREPARE stmt FROM "CREATE VIEW v AS SELECT ?";
 
 DROP TABLE t1;
-
-
-#
-# BUG#14702: misleading error message when syntax error in CREATE
-# PROCEDURE
-#
-# Misleading error message was given when IF NOT EXISTS was used in
-# CREATE PROCEDURE.
-#
---disable_warnings
-DROP PROCEDURE IF EXISTS bug14702;
---enable_warnings
-
---error ER_PARSE_ERROR
-CREATE IF NOT EXISTS PROCEDURE bug14702()
-BEGIN
-END;
-
---error ER_PARSE_ERROR
-CREATE PROCEDURE IF NOT EXISTS bug14702()
-BEGIN
-END;
 
 
 #
