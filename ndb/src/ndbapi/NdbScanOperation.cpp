@@ -678,7 +678,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   theNdbCon = NULL;
   m_transConnection = NULL;
 
-  if (tTransCon) 
+  if (tTransCon && releaseOp) 
   {
     NdbIndexScanOperation* tOp = (NdbIndexScanOperation*)this;
 
@@ -693,7 +693,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
 					&tTransCon->m_theLastScanOperation,
 					tOp);
     }
-    else if (releaseOp)
+    else
     {
       ret = tTransCon->releaseScanOperation(&tTransCon->m_firstExecutedScanOp,
 					    0, tOp);
