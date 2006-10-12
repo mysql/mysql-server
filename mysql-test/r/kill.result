@@ -24,7 +24,7 @@ create table t2 (id int unsigned not null);
 insert into t2 select id from t1;
 create table t3 (kill_id int);
 insert into t3 values(connection_id());
- select id from t1 where id in (select distinct id from t2);
+select id from t1 where id in (select distinct id from t2);
 select ((@id := kill_id) - kill_id) from t3;
 ((@id := kill_id) - kill_id)
 0
