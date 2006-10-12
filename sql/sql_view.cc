@@ -186,25 +186,9 @@ bool mysql_create_view(THD *thd,
   bool res= FALSE;
   DBUG_ENTER("mysql_create_view");
 
-  if (lex->proc_list.first ||
-      lex->result)
-  {
-    my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), (lex->result ?
-                                             "INTO" :
-                                             "PROCEDURE"));
-    res= TRUE;
-    goto err;
-  }
-  if (lex->derived_tables ||
-      lex->variables_used || lex->param_list.elements)
-  {
-    int err= (lex->derived_tables ?
-              ER_VIEW_SELECT_DERIVED :
-              ER_VIEW_SELECT_VARIABLE);
-    my_message(err, ER(err), MYF(0));
-    res= TRUE;
-    goto err;
-  }
+  /* This is ensured in the parser. */
+  DBUG_ASSERT(!lex->proc_list.first && !lex->result &&
+              !lex->param_list.elements && !lex->derived_tables);
 
   if (mode != VIEW_CREATE_NEW)
     sp_cache_invalidate();

@@ -1174,3 +1174,27 @@ drop procedure bug15091;
 drop function if exists bug16896;
 create aggregate function bug16896() returns int return 1;
 ERROR 42000: AGGREGATE is not supported for stored functions
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (i INT);
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO @a;
+ERROR HY000: View's SELECT contains a 'INTO' clause
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO DUMPFILE "file";
+ERROR HY000: View's SELECT contains a 'INTO' clause
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO OUTFILE "file";
+ERROR HY000: View's SELECT contains a 'INTO' clause
+CREATE PROCEDURE bug20953()
+CREATE VIEW v AS SELECT i FROM t1 PROCEDURE ANALYSE();
+ERROR HY000: View's SELECT contains a 'PROCEDURE' clause
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 FROM (SELECT 1) AS d1;
+ERROR HY000: View's SELECT contains a subquery in the FROM clause
+CREATE PROCEDURE bug20953(i INT) CREATE VIEW v AS SELECT i;
+ERROR HY000: View's SELECT contains a variable or parameter
+CREATE PROCEDURE bug20953()
+BEGIN
+DECLARE i INT;
+CREATE VIEW v AS SELECT i;
+END |
+ERROR HY000: View's SELECT contains a variable or parameter
+PREPARE stmt FROM "CREATE VIEW v AS SELECT ?";
+ERROR HY000: View's SELECT contains a variable or parameter
+DROP TABLE t1;
