@@ -890,7 +890,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
     die(NullS);
   if (!eval_result && (uint) stat_info.st_size != ds->length)
   {
-    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %u",
+    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %llu",
 		       ds->length, stat_info.st_size));
     DBUG_PRINT("info",("result: '%s'", ds->str));
     DBUG_RETURN(RESULT_LENGTH_MISMATCH);
@@ -2558,7 +2558,7 @@ void do_get_errcodes(struct st_command *command)
 
       *to_ptr= 0;
       to->type= ERR_SQLSTATE;
-      DBUG_PRINT("info", ("ERR_SQLSTATE: %d", to->code.sqlstate));
+      DBUG_PRINT("info", ("ERR_SQLSTATE: %s", to->code.sqlstate));
     }
     else if (*p == 's')
     {
@@ -4317,7 +4317,7 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
     bind[i].is_null= &is_null[i];
     bind[i].length= &length[i];
 
-    DBUG_PRINT("bind", ("col[%d]: buffer_type: %d, buffer_length: %d",
+    DBUG_PRINT("bind", ("col[%d]: buffer_type: %d, buffer_length: %lu",
 			i, bind[i].buffer_type, bind[i].buffer_length));
   }
 
@@ -7267,5 +7267,3 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
   char *end= longlong10_to_str(val, buff, 10);
   replace_dynstr_append_mem(ds, buff, end - buff);
 }
-
-
