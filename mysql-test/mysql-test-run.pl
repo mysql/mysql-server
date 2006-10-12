@@ -1386,11 +1386,14 @@ sub executable_setup () {
       mtr_exe_exists("$ndb_path/src/kernel/ndbd",
 		     "$glob_basedir/bin/ndbd");
 
-    $path_ndb_examples_dir=
-      mtr_path_exists("$ndb_path/ndbapi-examples",
-		      "$ndb_path/examples");
-    $exe_ndb_example=
-      mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
+    if ( $mysql_version_id >= 50000 )
+    {
+      $path_ndb_examples_dir=
+	mtr_path_exists("$ndb_path/ndbapi-examples",
+			"$ndb_path/examples");
+      $exe_ndb_example=
+	mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
+    }
   }
 
   # Look for the udf_example library
@@ -1548,8 +1551,11 @@ sub environment_setup () {
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
     $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
-    $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
-    $ENV{'MY_NDB_EXAMPLES_BINARY'}=   $exe_ndb_example;
+    if ( $mysql_version_id >= 50000 )
+    {
+      $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
+      $ENV{'MY_NDB_EXAMPLES_BINARY'}=   $exe_ndb_example;
+    }
     $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;
   }
 
