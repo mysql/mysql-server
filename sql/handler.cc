@@ -376,10 +376,11 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   case SHOW_OPTION_YES:
     if (installed_htons[hton->db_type] == hton)
       installed_htons[hton->db_type]= NULL;
-    if (hton->panic && hton->panic(hton, HA_PANIC_CLOSE))
-      DBUG_RETURN(1);
     break;
   };
+
+  if (hton->panic)
+    hton->panic(hton, HA_PANIC_CLOSE);
 
   if (plugin->plugin->deinit)
   {
@@ -508,32 +509,6 @@ int ha_init()
   savepoint_alloc_size+= sizeof(SAVEPOINT);
   DBUG_RETURN(error);
 }
-
-/*
-  close, flush or restart databases
-  Ignore this for other databases than ours
-*/
-
-static my_bool panic_handlerton(THD *unused1, st_plugin_int *plugin, void *arg)
-{
-  handlerton *hton= (handlerton *)plugin->data;
-  if (hton->state == SHOW_OPTION_YES && hton->panic)
-    ((int*)arg)[0]|= hton->panic(hton, (enum ha_panic_function)((int*)arg)[1]);
-  return FALSE;
-}
-
-
-int ha_panic(enum ha_panic_function flag)
-{
-  int error[2];
-
-  error[0]= 0; error[1]= (int)flag;
-  plugin_foreach(NULL, panic_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, error);
-
-  if (flag == HA_PANIC_CLOSE && ha_finish_errors())
-    error[0]= 1;
-  return error[0];
-} /* ha_panic */
 
 static my_bool dropdb_handlerton(THD *unused1, st_plugin_int *plugin,
                                  void *path)

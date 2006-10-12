@@ -1186,7 +1186,6 @@ void clean_up(bool print_message)
   lex_free();				/* Free some memory */
   set_var_free();
   free_charsets();
-  (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
   if (!opt_noacl)
   {
 #ifdef HAVE_DLOPEN
