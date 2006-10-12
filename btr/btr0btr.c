@@ -153,7 +153,7 @@ btr_get_prev_user_rec(
 
 	page = page_align(rec);
 	prev_page_no = btr_page_get_prev(page, mtr);
-	space = buf_frame_get_space_id(page);
+	space = page_get_space_id(page);
 
 	if (prev_page_no != FIL_NULL) {
 
@@ -167,7 +167,7 @@ btr_get_prev_user_rec(
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_next(prev_page, mtr)
-		     == buf_frame_get_page_no(page));
+		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
 		return(page_rec_get_prev(page_get_supremum_rec(prev_page)));
@@ -205,7 +205,7 @@ btr_get_next_user_rec(
 
 	page = page_align(rec);
 	next_page_no = btr_page_get_next(page, mtr);
-	space = buf_frame_get_space_id(page);
+	space = page_get_space_id(page);
 
 	if (next_page_no != FIL_NULL) {
 
@@ -218,7 +218,7 @@ btr_get_next_user_rec(
 						MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_prev(next_page, mtr)
-		     == buf_frame_get_page_no(page));
+		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
 		ut_a(page_is_comp(next_page) == page_is_comp(page));
@@ -474,8 +474,8 @@ btr_page_free(
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	level = btr_page_get_level(page, mtr);
 
-	space = buf_frame_get_space_id(page);
-	page_no = buf_frame_get_page_no(page);
+	space = page_get_space_id(page);
+	page_no = page_get_page_no(page);
 
 	btr_page_free_low(index, page, space, page_no, level, mtr);
 }
@@ -528,15 +528,12 @@ btr_node_ptr_get_child(
 {
 	ulint	page_no;
 	ulint	space;
-	page_t*	page;
 
 	ut_ad(rec_offs_validate(node_ptr, NULL, offsets));
-	space = buf_frame_get_space_id(node_ptr);
+	space = page_get_space_id(page_align(node_ptr));
 	page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 
-	page = btr_page_get(space, page_no, RW_X_LATCH, mtr);
-
-	return(page);
+	return(btr_page_get(space, page_no, RW_X_LATCH, mtr));
 }
 
 /****************************************************************
@@ -566,7 +563,7 @@ btr_page_get_father_for_rec(
 				MTR_MEMO_X_LOCK));
 	ut_a(page_rec_is_user_rec(user_rec));
 
-	ut_ad(dict_index_get_page(index) != buf_frame_get_page_no(page));
+	ut_ad(dict_index_get_page(index) != page_get_page_no(page));
 
 	heap = mem_heap_create(100);
 
@@ -586,7 +583,7 @@ btr_page_get_father_for_rec(
 				  ULINT_UNDEFINED, &heap);
 
 	if (UNIV_UNLIKELY(btr_node_ptr_get_child_page_no(node_ptr, offsets)
-			  != buf_frame_get_page_no(page))) {
+			  != page_get_page_no(page))) {
 		rec_t*	print_rec;
 		fputs("InnoDB: Dump of the child page:\n", stderr);
 		buf_page_print(page_align(page), 0);
@@ -601,7 +598,7 @@ btr_page_get_father_for_rec(
 			"InnoDB: father ptr page no %lu, child page no %lu\n",
 			(ulong)
 			btr_node_ptr_get_child_page_no(node_ptr, offsets),
-			(ulong) buf_frame_get_page_no(page));
+			(ulong) page_get_page_no(page));
 		print_rec = page_rec_get_next(page_get_infimum_rec(page));
 		offsets = rec_get_offsets(print_rec, index,
 					  offsets, ULINT_UNDEFINED, &heap);
@@ -678,7 +675,7 @@ btr_create(
 #ifdef UNIV_SYNC_DEBUG
 		buf_page_dbg_add_level(ibuf_hdr_frame, SYNC_TREE_NODE_NEW);
 #endif /* UNIV_SYNC_DEBUG */
-		ut_ad(buf_frame_get_page_no(ibuf_hdr_frame)
+		ut_ad(page_get_page_no(ibuf_hdr_frame)
 		      == IBUF_HEADER_PAGE_NO);
 		/* Allocate then the next page to the segment: it will be the
 		tree root page */
@@ -700,7 +697,7 @@ btr_create(
 		return(FIL_NULL);
 	}
 
-	page_no = buf_frame_get_page_no(frame);
+	page_no = page_get_page_no(frame);
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(frame, SYNC_TREE_NODE_NEW);
@@ -1055,7 +1052,7 @@ btr_root_raise_and_insert(
 #endif /* UNIV_ZIP_DEBUG */
 	index = btr_cur_get_index(cursor);
 
-	ut_ad(dict_index_get_page(index) == buf_frame_get_page_no(root));
+	ut_ad(dict_index_get_page(index) == page_get_page_no(root));
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains_page(mtr, root, MTR_MEMO_PAGE_X_FIX));
@@ -1102,7 +1099,7 @@ btr_root_raise_and_insert(
 	heap = mem_heap_create(100);
 
 	rec = page_rec_get_next(page_get_infimum_rec(new_page));
-	new_page_no = buf_frame_get_page_no(new_page);
+	new_page_no = page_get_page_no(new_page);
 
 	/* Build the node pointer (= node key and page address) for the
 	child */
@@ -1155,7 +1152,7 @@ btr_root_raise_and_insert(
 
 #if 0
 	fprintf(stderr, "Root raise new page no %lu\n",
-		buf_frame_get_page_no(new_page));
+		page_get_page_no(new_page));
 #endif
 
 	ibuf_reset_free_bits(index, new_page);
@@ -1566,8 +1563,8 @@ btr_attach_half_pages(
 	/* Based on split direction, decide upper and lower pages */
 	if (direction == FSP_DOWN) {
 
-		lower_page_no = buf_frame_get_page_no(new_page);
-		upper_page_no = buf_frame_get_page_no(page);
+		lower_page_no = page_get_page_no(new_page);
+		upper_page_no = page_get_page_no(page);
 		lower_page = new_page;
 		upper_page = page;
 		lower_page_zip = new_page_zip;
@@ -1587,8 +1584,8 @@ btr_attach_half_pages(
 			lower_page_no, mtr);
 		mem_heap_empty(heap);
 	} else {
-		lower_page_no = buf_frame_get_page_no(page);
-		upper_page_no = buf_frame_get_page_no(new_page);
+		lower_page_no = page_get_page_no(page);
+		upper_page_no = page_get_page_no(new_page);
 		lower_page = page;
 		upper_page = new_page;
 		lower_page_zip = page_zip;
@@ -1616,7 +1613,7 @@ btr_attach_half_pages(
 
 	prev_page_no = btr_page_get_prev(page, mtr);
 	next_page_no = btr_page_get_next(page, mtr);
-	space = buf_frame_get_space_id(page);
+	space = page_get_space_id(page);
 
 	/* Update page links of the level */
 
@@ -1626,7 +1623,7 @@ btr_attach_half_pages(
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_next(prev_page, mtr)
-		     == buf_frame_get_page_no(page));
+		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
 		btr_page_set_next(prev_page, buf_frame_get_page_zip(prev_page),
@@ -1716,7 +1713,7 @@ func_start:
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_get_n_recs(page) >= 1);
 
-	page_no = buf_frame_get_page_no(page);
+	page_no = page_get_page_no(page);
 
 	/* 1. Decide the split record; split_rec == NULL means that the
 	tuple to be inserted should be the first record on the upper
@@ -1899,8 +1896,8 @@ func_start:
 							left_page,
 							right_page, mtr);
 		/* fprintf(stderr, "Split and insert done %lu %lu\n",
-		buf_frame_get_page_no(left_page),
-		buf_frame_get_page_no(right_page)); */
+		page_get_page_no(left_page),
+		page_get_page_no(right_page)); */
 		mem_heap_free(heap);
 		return(rec);
 	}
@@ -1926,7 +1923,7 @@ insert_failed:
 		ibuf_reset_free_bits(cursor->index, new_page);
 
 		/* fprintf(stderr, "Split second round %lu\n",
-		buf_frame_get_page_no(page)); */
+		page_get_page_no(page)); */
 		n_iterations++;
 		ut_ad(n_iterations < 2 || insert_page_zip);
 		ut_ad(!insert_will_fit || insert_page_zip);
@@ -1941,8 +1938,8 @@ insert_failed:
 						right_page, mtr);
 #if 0
 	fprintf(stderr, "Split and insert done %lu %lu\n",
-		buf_frame_get_page_no(left_page),
-		buf_frame_get_page_no(right_page));
+		page_get_page_no(left_page),
+		page_get_page_no(right_page));
 #endif
 
 	ut_ad(page_validate(left_page, cursor->index));
@@ -1973,7 +1970,7 @@ btr_level_list_remove(
 
 	prev_page_no = btr_page_get_prev(page, mtr);
 	next_page_no = btr_page_get_next(page, mtr);
-	space = buf_frame_get_space_id(page);
+	space = page_get_space_id(page);
 
 	/* Update page links of the level */
 
@@ -1983,7 +1980,7 @@ btr_level_list_remove(
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_next(prev_page, mtr)
-		     == buf_frame_get_page_no(page));
+		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
 		btr_page_set_next(prev_page, buf_frame_get_page_zip(prev_page),
@@ -1996,7 +1993,7 @@ btr_level_list_remove(
 		ut_a(page_is_comp(next_page) == page_is_comp(page));
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_prev(next_page, mtr)
-		     == buf_frame_get_page_no(page));
+		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
 		btr_page_set_prev(next_page, buf_frame_get_page_zip(next_page),
@@ -2242,7 +2239,7 @@ btr_compress(
 					  mtr);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_next(merge_page, mtr)
-		     == buf_frame_get_page_no(page));
+		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 	} else if (right_page_no != FIL_NULL) {
 
@@ -2250,7 +2247,7 @@ btr_compress(
 					  mtr);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_prev(merge_page, mtr)
-		     == buf_frame_get_page_no(page));
+		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 	} else {
 		/* The page is the only one on the level, lift the records
@@ -2440,7 +2437,7 @@ btr_discard_only_page_on_level(
 	/* Free the file page */
 	btr_page_free(index, page, mtr);
 
-	if (UNIV_LIKELY(buf_frame_get_page_no(father_page)
+	if (UNIV_LIKELY(page_get_page_no(father_page)
 			== dict_index_get_page(index))) {
 		/* The father is the root page */
 
@@ -2480,7 +2477,7 @@ btr_discard_page(
 	page = btr_cur_get_page(cursor);
 	index = btr_cur_get_index(cursor);
 
-	ut_ad(dict_index_get_page(index) != buf_frame_get_page_no(page));
+	ut_ad(dict_index_get_page(index) != page_get_page_no(page));
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
@@ -2496,14 +2493,14 @@ btr_discard_page(
 					  mtr);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_next(merge_page, mtr)
-		     == buf_frame_get_page_no(page));
+		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 	} else if (right_page_no != FIL_NULL) {
 		merge_page = btr_page_get(space, right_page_no, RW_X_LATCH,
 					  mtr);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_prev(merge_page, mtr)
-		     == buf_frame_get_page_no(page));
+		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 	} else {
 		btr_discard_only_page_on_level(index, page, mtr);
@@ -2621,7 +2618,7 @@ btr_print_recursive(
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	fprintf(stderr, "NODE ON LEVEL %lu page number %lu\n",
 		(ulong) btr_page_get_level(page, mtr),
-		(ulong) buf_frame_get_page_no(page));
+		(ulong) page_get_page_no(page));
 
 	page_print(page, index, width, width);
 
@@ -2708,7 +2705,7 @@ btr_check_node_ptr(
 	dtuple_t*	node_ptr_tuple;
 
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
-	if (dict_index_get_page(index) == buf_frame_get_page_no(page)) {
+	if (dict_index_get_page(index) == page_get_page_no(page)) {
 
 		return(TRUE);
 	}
@@ -2749,7 +2746,7 @@ btr_index_rec_validate_report(
 	fputs("InnoDB: Record in ", stderr);
 	dict_index_name_print(stderr, NULL, index);
 	fprintf(stderr, ", page %lu, at offset %lu\n",
-		buf_frame_get_page_no(page), (ulint)(rec - page));
+		page_get_page_no(page), (ulint) page_offset(rec));
 }
 
 /****************************************************************
@@ -2904,7 +2901,7 @@ btr_validate_report1(
 	page_t*		page)	/* in: index page */
 {
 	fprintf(stderr, "InnoDB: Error in page %lu of ",
-		buf_frame_get_page_no(page));
+		page_get_page_no(page));
 	dict_index_name_print(stderr, NULL, index);
 	if (level) {
 		fprintf(stderr, ", index tree level %lu", level);
@@ -2925,8 +2922,8 @@ btr_validate_report2(
 	page_t*		page2)	/* in: second index page */
 {
 	fprintf(stderr, "InnoDB: Error in pages %lu and %lu of ",
-		buf_frame_get_page_no(page1),
-		buf_frame_get_page_no(page2));
+		page_get_page_no(page1),
+		page_get_page_no(page2));
 	dict_index_name_print(stderr, NULL, index);
 	if (level) {
 		fprintf(stderr, ", index tree level %lu", level);
@@ -2972,7 +2969,7 @@ btr_validate_level(
 
 	page = btr_root_get(index, &mtr);
 
-	space = buf_frame_get_space_id(page);
+	space = page_get_space_id(page);
 
 	while (level != btr_page_get_level(page, &mtr)) {
 #ifdef UNIV_ZIP_DEBUG
@@ -3029,7 +3026,7 @@ loop:
 	left_page_no = btr_page_get_prev(page, &mtr);
 
 	ut_a(page_get_n_recs(page) > 0 || (level == 0
-					   && buf_frame_get_page_no(page)
+					   && page_get_page_no(page)
 					   == dict_index_get_page(index)));
 
 	if (right_page_no != FIL_NULL) {
@@ -3037,7 +3034,7 @@ loop:
 		right_page = btr_page_get(space, right_page_no, RW_X_LATCH,
 					  &mtr);
 		if (UNIV_UNLIKELY(btr_page_get_prev(right_page, &mtr)
-				  != buf_frame_get_page_no(page))) {
+				  != page_get_page_no(page))) {
 			btr_validate_report2(index, level, page, right_page);
 			fputs("InnoDB: broken FIL_PAGE_NEXT"
 			      " or FIL_PAGE_PREV links\n", stderr);
@@ -3098,7 +3095,7 @@ loop:
 			     page_is_comp(page)));
 	}
 
-	if (buf_frame_get_page_no(page) != dict_index_get_page(index)) {
+	if (page_get_page_no(page) != dict_index_get_page(index)) {
 
 		/* Check father node pointers */
 
@@ -3108,7 +3105,7 @@ loop:
 					  offsets, ULINT_UNDEFINED, &heap);
 
 		if (btr_node_ptr_get_child_page_no(node_ptr, offsets)
-		    != buf_frame_get_page_no(page)
+		    != page_get_page_no(page)
 		    || node_ptr != btr_page_get_father_for_rec(
 			    index, page,
 			    page_rec_get_prev(page_get_supremum_rec(page)),
@@ -3225,7 +3222,7 @@ loop:
 					buf_page_print(right_page, 0);
 				}
 
-				if (buf_frame_get_page_no(right_father_page)
+				if (page_get_page_no(right_father_page)
 				    != btr_page_get_next(father_page, &mtr)) {
 
 					ret = FALSE;

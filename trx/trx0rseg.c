@@ -87,7 +87,7 @@ trx_rseg_header_create(
 	buf_page_dbg_add_level(page, SYNC_RSEG_HEADER_NEW);
 #endif /* UNIV_SYNC_DEBUG */
 
-	page_no = buf_frame_get_page_no(page);
+	page_no = page_get_page_no(page);
 
 	/* Get the rollback segment file page */
 	rsegf = trx_rsegf_get_new(space, page_no, mtr);

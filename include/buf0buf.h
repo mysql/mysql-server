@@ -446,24 +446,6 @@ buf_page_is_corrupted(
 	ulint	zip_size);	/* in: size of compressed page;
 				0 for uncompressed pages */
 /**************************************************************************
-Gets the page number of a pointer pointing within a buffer frame containing
-a file page. */
-UNIV_INLINE
-ulint
-buf_frame_get_page_no(
-/*==================*/
-			/* out: page number */
-	byte*	ptr);	/* in: pointer to within a buffer frame */
-/**************************************************************************
-Gets the space id of a pointer pointing within a buffer frame containing a
-file page. */
-UNIV_INLINE
-ulint
-buf_frame_get_space_id(
-/*===================*/
-			/* out: space id */
-	byte*	ptr);	/* in: pointer to within a buffer frame */
-/**************************************************************************
 Gets the space id, page offset, and byte offset within page of a
 pointer pointing to a buffer frame containing a file page. */
 UNIV_INLINE

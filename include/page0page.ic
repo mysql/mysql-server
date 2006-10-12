@@ -44,7 +44,7 @@ UNIV_INLINE
 dulint
 page_get_max_trx_id(
 /*================*/
-	page_t*	page)	/* in: page */
+	const page_t*	page)	/* in: page */
 {
 	ut_ad(page);
 
@@ -77,8 +77,8 @@ UNIV_INLINE
 ulint
 page_header_get_field(
 /*==================*/
-	page_t*	page,	/* in: page */
-	ulint	field)	/* in: PAGE_LEVEL, ... */
+	const page_t*	page,	/* in: page */
+	ulint		field)	/* in: PAGE_LEVEL, ... */
 {
 	ut_ad(page);
 	ut_ad(field <= PAGE_INDEX_ID);
@@ -200,9 +200,9 @@ UNIV_INLINE
 ulint
 page_is_comp(
 /*=========*/
-			/* out: nonzero if the page is in compact
-			format, zero if it is in old-style format */
-	page_t*	page)	/* in: index page */
+				/* out: nonzero if the page is in compact
+				format, zero if it is in old-style format */
+	const page_t*	page)	/* in: index page */
 {
 	return(UNIV_EXPECT(page_header_get_field(page, PAGE_N_HEAP) & 0x8000,
 			   0x8000));
@@ -422,14 +422,40 @@ page_cmp_dtuple_rec_with_match(
 }
 
 /*****************************************************************
+Gets the page number. */
+UNIV_INLINE
+ulint
+page_get_page_no(
+/*=============*/
+				/* out: page number */
+	const page_t*	page)	/* in: page */
+{
+	ut_ad(page == page_align((page_t*) page));
+	return(mach_read_from_4(page + FIL_PAGE_OFFSET));
+}
+
+/*****************************************************************
+Gets the tablespace identifier. */
+UNIV_INLINE
+ulint
+page_get_space_id(
+/*==============*/
+				/* out: space id */
+	const page_t*	page)	/* in: page */
+{
+	ut_ad(page == page_align((page_t*) page));
+	return(mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID));
+}
+
+/*****************************************************************
 Gets the number of user records on page (infimum and supremum records
 are not user records). */
 UNIV_INLINE
 ulint
 page_get_n_recs(
 /*============*/
-			/* out: number of user records */
-	page_t*	page)	/* in: index page */
+				/* out: number of user records */
+	const page_t*	page)	/* in: index page */
 {
 	return(page_header_get_field(page, PAGE_N_RECS));
 }
@@ -440,8 +466,8 @@ UNIV_INLINE
 ulint
 page_dir_get_n_slots(
 /*=================*/
-			/* out: number of slots */
-	page_t*	page)	/* in: index page */
+				/* out: number of slots */
+	const page_t*	page)	/* in: index page */
 {
 	return(page_header_get_field(page, PAGE_N_DIR_SLOTS));
 }
@@ -465,8 +491,8 @@ UNIV_INLINE
 ulint
 page_dir_get_n_heap(
 /*================*/
-			/* out: number of user records */
-	page_t*	page)	/* in: index page */
+				/* out: number of user records */
+	const page_t*	page)	/* in: index page */
 {
 	return(page_header_get_field(page, PAGE_N_HEAP) & 0x7fff);
 }
@@ -788,8 +814,8 @@ UNIV_INLINE
 ulint
 page_get_data_size(
 /*===============*/
-			/* out: data in bytes */
-	page_t*	page)	/* in: index page */
+				/* out: data in bytes */
+	const page_t*	page)	/* in: index page */
 {
 	ulint	ret;
 
@@ -868,9 +894,10 @@ UNIV_INLINE
 ulint
 page_get_max_insert_size(
 /*=====================*/
-			/* out: maximum combined size for inserted records */
-	page_t*	page,	/* in: index page */
-	ulint	n_recs)	/* in: number of records */
+				/* out: maximum combined size for
+				inserted records */
+	const page_t*	page,	/* in: index page */
+	ulint		n_recs)	/* in: number of records */
 {
 	ulint	occupied;
 	ulint	free_space;
@@ -910,9 +937,10 @@ UNIV_INLINE
 ulint
 page_get_max_insert_size_after_reorganize(
 /*======================================*/
-			/* out: maximum combined size for inserted records */
-	page_t*	page,	/* in: index page */
-	ulint	n_recs)	/* in: number of records */
+				/* out: maximum combined size for
+				inserted records */
+	const page_t*	page,	/* in: index page */
+	ulint		n_recs)	/* in: number of records */
 {
 	ulint	occupied;
 	ulint	free_space;
