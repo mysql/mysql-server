@@ -73,7 +73,7 @@ master-bin.000002	276
 start slave;
 show binary logs;
 Log_name	File_size
-slave-bin.000001	1285
+slave-bin.000001	1278
 slave-bin.000002	170
 show binlog events in 'slave-bin.000001' from 4;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
@@ -84,11 +84,11 @@ slave-bin.000001	200	Query	1	200	use `test`; insert into t1 values (NULL)
 slave-bin.000001	263	Query	1	263	use `test`; drop table t1
 slave-bin.000001	311	Query	1	311	use `test`; create table t1 (word char(20) not null)
 slave-bin.000001	386	Create_file	1	386	db=test;table=t1;file_id=1;block_len=581
-slave-bin.000001	1065	Exec_load	1	1065	;file_id=1
-slave-bin.000001	1088	Query	1	1088	use `test`; drop table t1
-slave-bin.000001	1136	Query	1	1136	use `test`; create table t5 (a int)
-slave-bin.000001	1194	Query	1	1194	use `test`; drop table t5
-slave-bin.000001	1242	Rotate	2	1242	slave-bin.000002;pos=4
+slave-bin.000001	1058	Exec_load	1	1058	;file_id=1
+slave-bin.000001	1081	Query	1	1081	use `test`; drop table t1
+slave-bin.000001	1129	Query	1	1129	use `test`; create table t5 (a int)
+slave-bin.000001	1187	Query	1	1187	use `test`; drop table t5
+slave-bin.000001	1235	Rotate	2	1235	slave-bin.000002;pos=4
 show binlog events in 'slave-bin.000002' from 4;
 Log_name	Pos	Event_type	Server_id	Orig_log_pos	Info
 slave-bin.000002	4	Query	1	4	use `test`; create table t1 (n int)

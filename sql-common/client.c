@@ -2215,6 +2215,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
 {
   MYSQL tmp_mysql;
   DBUG_ENTER("mysql_reconnect");
+  DBUG_ASSERT(mysql);
+  DBUG_PRINT("enter", ("mysql->reconnect: %d", mysql->reconnect));
 
   if (!mysql->reconnect ||
       (mysql->server_status & SERVER_STATUS_IN_TRANS) || !mysql->host_info)
