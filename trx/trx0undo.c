@@ -154,7 +154,7 @@ trx_undo_get_prev_rec_from_prev_page(
 	}
 
 	prev_page = trx_undo_page_get_s_latched(
-		buf_frame_get_space_id(undo_page), prev_page_no, mtr);
+		page_get_space_id(undo_page), prev_page_no, mtr);
 
 	return(trx_undo_page_get_last_rec(prev_page, page_no, offset));
 }
@@ -208,7 +208,7 @@ trx_undo_get_next_rec_from_next_page(
 	ulint		space;
 	ulint		next;
 
-	if (page_no == buf_frame_get_page_no(undo_page)) {
+	if (page_no == page_get_page_no(undo_page)) {
 
 		log_hdr = undo_page + offset;
 		next = mach_read_from_2(log_hdr + TRX_UNDO_NEXT_LOG);
@@ -219,7 +219,7 @@ trx_undo_get_next_rec_from_next_page(
 		}
 	}
 
-	space = buf_frame_get_space_id(undo_page);
+	space = page_get_space_id(undo_page);
 
 	next_page_no = flst_get_next_addr(undo_page + TRX_UNDO_PAGE_HDR
 					  + TRX_UNDO_PAGE_NODE, mtr)
@@ -415,7 +415,7 @@ trx_undo_seg_create(
 		return(NULL);
 	}
 
-	space = buf_frame_get_space_id(rseg_hdr);
+	space = page_get_space_id(page_align(rseg_hdr));
 
 	success = fsp_reserve_free_extents(&n_reserved, space, 2, FSP_UNDO,
 					   mtr);
@@ -458,7 +458,7 @@ trx_undo_seg_create(
 		      page_hdr + TRX_UNDO_PAGE_NODE, mtr);
 
 	trx_rsegf_set_nth_undo(rseg_hdr, slot_no,
-			       buf_frame_get_page_no(undo_page), mtr);
+			       page_get_page_no(undo_page), mtr);
 	*id = slot_no;
 
 	return(undo_page);
@@ -1128,7 +1128,7 @@ loop:
 		return;
 	}
 
-	page_no = buf_frame_get_page_no(undo_page);
+	page_no = page_get_page_no(undo_page);
 
 	if (page_no == hdr_page_no) {
 		trx_undo_empty_header_page(space, hdr_page_no, hdr_offset,
@@ -1524,7 +1524,7 @@ trx_undo_create(
 		return(NULL);
 	}
 
-	page_no = buf_frame_get_page_no(undo_page);
+	page_no = page_get_page_no(undo_page);
 
 	offset = trx_undo_header_create(undo_page, trx_id, mtr);
 

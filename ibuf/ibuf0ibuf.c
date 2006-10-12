@@ -688,7 +688,7 @@ ibuf_bitmap_page_set_bits(
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_IBUF_DEBUG
 	ut_a((bit != IBUF_BITMAP_BUFFERED) || (val != FALSE)
-	     || (0 == ibuf_count_get(buf_frame_get_space_id(page),
+	     || (0 == ibuf_count_get(page_get_space_id(page),
 				     page_no)));
 #endif
 	if (!zip_size) {
@@ -802,15 +802,15 @@ ibuf_set_free_bits_low(
 		return;
 	}
 
-	space = buf_frame_get_space_id(page);
-	page_no = buf_frame_get_page_no(page);
+	space = page_get_space_id(page);
+	page_no = page_get_page_no(page);
 	zip_size = fil_space_get_zip_size(space);
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, mtr);
 #ifdef UNIV_IBUF_DEBUG
 # if 0
 	fprintf(stderr,
 		"Setting page no %lu free bits to %lu should be %lu\n",
-		buf_frame_get_page_no(page), val,
+		page_get_page_no(page), val,
 		ibuf_index_page_calc_free(page));
 # endif
 
@@ -855,8 +855,8 @@ ibuf_set_free_bits(
 
 	mtr_start(&mtr);
 
-	space = buf_frame_get_space_id(page);
-	page_no = buf_frame_get_page_no(page);
+	space = page_get_space_id(page);
+	page_no = page_get_page_no(page);
 	zip_size = fil_space_get_zip_size(space);
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, &mtr);
 
@@ -871,7 +871,7 @@ ibuf_set_free_bits(
 		if (old_val != max_val) {
 			fprintf(stderr,
 				"Ibuf: page %lu old val %lu max val %lu\n",
-				buf_frame_get_page_no(page),
+				page_get_page_no(page),
 				old_val, max_val);
 		}
 # endif
@@ -882,7 +882,7 @@ ibuf_set_free_bits(
 #ifdef UNIV_IBUF_DEBUG
 # if 0
 	fprintf(stderr, "Setting page no %lu free bits to %lu should be %lu\n",
-		buf_frame_get_page_no(page), val,
+		page_get_page_no(page), val,
 		ibuf_index_page_calc_free(page));
 # endif
 
@@ -2399,7 +2399,7 @@ ibuf_get_volume_buffered(
 	prev_page = buf_page_get(0, prev_page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_page_get_next(prev_page, mtr)
-	     == buf_frame_get_page_no(page));
+	     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
@@ -2466,7 +2466,7 @@ count_later:
 	next_page = buf_page_get(0, next_page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_page_get_prev(next_page, mtr)
-	     == buf_frame_get_page_no(page));
+	     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
@@ -2967,9 +2967,9 @@ dump:
 				      " Please run CHECK TABLE on\n"
 				      "InnoDB: that table.\n", stderr);
 
-				space = buf_frame_get_space_id(page);
+				space = page_get_space_id(page);
 				zip_size = fil_space_get_zip_size(space);
-				page_no = buf_frame_get_page_no(page);
+				page_no = page_get_page_no(page);
 
 				bitmap_page = ibuf_bitmap_get_map_page(
 					space, page_no, zip_size, mtr);

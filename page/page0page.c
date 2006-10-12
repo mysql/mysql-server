@@ -108,7 +108,7 @@ page_dir_find_owner_slot(
 				"InnoDB: Probable data corruption on"
 				" page %lu\n"
 				"InnoDB: Original record ",
-				(ulong) buf_frame_get_page_no(page));
+				(ulong) page_get_page_no(page));
 
 			if (page_is_comp(page)) {
 				fputs("(compact record)", stderr);
@@ -2298,7 +2298,7 @@ page_validate(
 				fprintf(stderr,
 					"InnoDB: Records in wrong order"
 					" on page %lu ",
-					(ulong) buf_frame_get_page_no(page));
+					(ulong) page_get_page_no(page));
 				dict_index_name_print(stderr, NULL, index);
 				fputs("\nInnoDB: previous record ", stderr);
 				rec_print_new(stderr, old_rec, old_offsets);
@@ -2452,7 +2452,7 @@ func_exit:
 	if (UNIV_UNLIKELY(ret == FALSE)) {
 func_exit2:
 		fprintf(stderr, "InnoDB: Apparent corruption in page %lu in ",
-			(ulong) buf_frame_get_page_no(page));
+			(ulong) page_get_page_no(page));
 		dict_index_name_print(stderr, NULL, index);
 		putc('\n', stderr);
 		buf_page_print(page, 0);

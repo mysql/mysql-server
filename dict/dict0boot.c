@@ -123,7 +123,7 @@ dict_hdr_create(
 	page = fseg_create(DICT_HDR_SPACE, 0,
 			   DICT_HDR + DICT_HDR_FSEG_HEADER, mtr);
 
-	hdr_page_no = buf_frame_get_page_no(page);
+	hdr_page_no = page_get_page_no(page);
 
 	ut_a(DICT_HDR_PAGE_NO == hdr_page_no);
 

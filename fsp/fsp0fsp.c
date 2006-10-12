@@ -783,7 +783,7 @@ xdes_lst_get_next(
 
 	ut_ad(mtr && descr);
 
-	space = buf_frame_get_space_id(descr);
+	space = page_get_space_id(page_align(descr));
 
 	return(xdes_lst_get_descriptor(
 		       space,
@@ -801,7 +801,7 @@ xdes_get_offset(
 {
 	ut_ad(descr);
 
-	return(buf_frame_get_page_no(descr)
+	return(page_get_page_no(page_align(descr))
 	       + ((page_offset(descr) - XDES_ARR_OFFSET) / XDES_SIZE)
 	       * FSP_EXTENT_SIZE);
 }
@@ -1827,7 +1827,7 @@ fsp_alloc_seg_inode_page(
 	ulint		zip_size;
 	ulint		i;
 
-	space = buf_frame_get_space_id(space_header);
+	space = page_get_space_id(page_align(space_header));
 
 	page_no = fsp_alloc_free_page(space, 0, mtr);
 
@@ -1894,8 +1894,8 @@ fsp_alloc_seg_inode(
 	page_no = flst_get_first(space_header + FSP_SEG_INODES_FREE, mtr).page;
 
 	zip_size = mach_read_from_4(space_header + FSP_PAGE_ZIP_SIZE);
-	page = buf_page_get(buf_frame_get_space_id(space_header), page_no,
-			    RW_X_LATCH, mtr);
+	page = buf_page_get(page_get_space_id(page_align(space_header)),
+			    page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_FSP_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
@@ -1965,7 +1965,7 @@ fsp_free_seg_inode(
 		flst_remove(space_header + FSP_SEG_INODES_FREE,
 			    page + FSEG_INODE_PAGE_NODE, mtr);
 
-		fsp_free_page(space, buf_frame_get_page_no(page), mtr);
+		fsp_free_page(space, page_get_page_no(page), mtr);
 	}
 }
 
@@ -2228,7 +2228,8 @@ fseg_create_general(
 			 page_offset(inode), MLOG_2BYTES, mtr);
 
 	mlog_write_ulint(header + FSEG_HDR_PAGE_NO,
-			 buf_frame_get_page_no(inode), MLOG_4BYTES, mtr);
+			 page_get_page_no(page_align(inode)),
+			 MLOG_4BYTES, mtr);
 
 	mlog_write_ulint(header + FSEG_HDR_SPACE, space, MLOG_4BYTES, mtr);
 
@@ -2309,7 +2310,7 @@ fseg_n_reserved_pages(
 	fseg_inode_t*	inode;
 	ulint		space;
 
-	space = buf_frame_get_space_id(header);
+	space = page_get_space_id(page_align(header));
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
@@ -2710,7 +2711,7 @@ fseg_alloc_free_page_general(
 	ulint		page_no;
 	ulint		n_reserved;
 
-	space = buf_frame_get_space_id(seg_header);
+	space = page_get_space_id(page_align(seg_header));
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
@@ -2740,7 +2741,8 @@ fseg_alloc_free_page_general(
 		}
 	}
 
-	page_no = fseg_alloc_free_page_low(buf_frame_get_space_id(inode),
+	page_no = fseg_alloc_free_page_low(page_get_space_id(
+						   page_align(inode)),
 					   inode, hint, direction, mtr);
 	if (!has_done_reservation) {
 		fil_space_release_free_extents(space, n_reserved);
@@ -3353,8 +3355,10 @@ fseg_free_step(
 	xdes_t*		descr;
 	fseg_inode_t*	inode;
 	ulint		space;
+	ulint		header_page;
 
-	space = buf_frame_get_space_id(header);
+	space = page_get_space_id(page_align(header));
+	header_page = page_get_page_no(page_align(header));
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
@@ -3363,14 +3367,14 @@ fseg_free_step(
 #endif /* UNIV_SYNC_DEBUG */
 	mtr_x_lock(fil_space_get_latch(space), mtr);
 
-	descr = xdes_get_descriptor(space, buf_frame_get_page_no(header), mtr);
+	descr = xdes_get_descriptor(space, header_page, mtr);
 
 	/* Check that the header resides on a page which has not been
 	freed yet */
 
 	ut_a(descr);
-	ut_a(xdes_get_bit(descr, XDES_FREE_BIT, buf_frame_get_page_no(header)
-			  % FSP_EXTENT_SIZE, mtr) == FALSE);
+	ut_a(xdes_get_bit(descr, XDES_FREE_BIT,
+			  header_page % FSP_EXTENT_SIZE, mtr) == FALSE);
 	inode = fseg_inode_get(header, mtr);
 
 	descr = fseg_get_first_extent(inode, mtr);
@@ -3429,7 +3433,7 @@ fseg_free_step_not_header(
 	ulint		space;
 	ulint		page_no;
 
-	space = buf_frame_get_space_id(header);
+	space = page_get_space_id(page_align(header));
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!mutex_own(&kernel_mutex)
@@ -3461,7 +3465,7 @@ fseg_free_step_not_header(
 
 	page_no = fseg_get_nth_frag_page_no(inode, n, mtr);
 
-	if (page_no == buf_frame_get_page_no(header)) {
+	if (page_no == page_get_page_no(page_align(header))) {
 
 		return(TRUE);
 	}
@@ -3527,7 +3531,7 @@ fseg_get_first_extent(
 
 	ut_ad(inode && mtr);
 
-	space = buf_frame_get_space_id(inode);
+	space = page_get_space_id(page_align(inode));
 
 	first = fil_addr_null;
 
@@ -3574,7 +3578,7 @@ fseg_validate_low(
 	ut_ad(mtr_memo_contains_page(mtr2, inode, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 
-	space = buf_frame_get_space_id(inode);
+	space = page_get_space_id(page_align(inode));
 
 	seg_id = mtr_read_dulint(inode + FSEG_ID, mtr2);
 	n_used = mtr_read_ulint(inode + FSEG_NOT_FULL_N_USED,
@@ -3661,7 +3665,7 @@ fseg_validate(
 	ibool		ret;
 	ulint		space;
 
-	space = buf_frame_get_space_id(header);
+	space = page_get_space_id(page_align(header));
 
 	mtr_x_lock(fil_space_get_latch(space), mtr2);
 
@@ -3695,8 +3699,8 @@ fseg_print_low(
 	dulint	 d_var;
 
 	ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_X_FIX));
-	space = buf_frame_get_space_id(inode);
-	page_no = buf_frame_get_page_no(inode);
+	space = page_get_space_id(page_align(inode));
+	page_no = page_get_page_no(page_align(inode));
 
 	reserved = fseg_n_reserved_pages_low(inode, &used, mtr);
 
@@ -3736,7 +3740,7 @@ fseg_print(
 	fseg_inode_t*	inode;
 	ulint		space;
 
-	space = buf_frame_get_space_id(header);
+	space = page_get_space_id(page_align(header));
 
 	mtr_x_lock(fil_space_get_latch(space), mtr);
 

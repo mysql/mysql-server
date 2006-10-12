@@ -110,7 +110,7 @@ btr_cur_compress_recommendation(
 		root page. */
 
 		return(dict_index_get_page(cursor->index)
-		       != buf_frame_get_page_no(page));
+		       != page_get_page_no(page));
 	}
 
 	return(FALSE);
@@ -147,7 +147,7 @@ btr_cur_can_delete_without_compress(
 		compression if this is not the root page. */
 
 		return(dict_index_get_page(cursor->index)
-		       == buf_frame_get_page_no(page));
+		       == page_get_page_no(page));
 	}
 
 	return(TRUE);

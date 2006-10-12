@@ -3709,7 +3709,7 @@ rec_loop:
 	fputs("Using ", stderr);
 	dict_index_name_print(stderr, index);
 	fprintf(stderr, " cnt %lu ; Page no %lu\n", cnt,
-	buf_frame_get_page_no(page_align(rec)));
+	page_get_page_no(page_align(rec)));
 	rec_print(rec);
 	*/
 #endif /* UNIV_SEARCH_DEBUG */
@@ -3792,7 +3792,7 @@ wrong_offs:
 				"InnoDB: ",
 				(ulong) page_offset(rec),
 				(ulong) next_offs,
-				(ulong) buf_frame_get_page_no(rec));
+				(ulong) page_get_page_no(page_align(rec)));
 			dict_index_name_print(stderr, trx, index);
 			fputs(". Run CHECK TABLE. You may need to\n"
 			      "InnoDB: restore from a backup, or"
@@ -3812,7 +3812,7 @@ wrong_offs:
 				"InnoDB: ",
 				(ulong) page_offset(rec),
 				(ulong) next_offs,
-				(ulong) buf_frame_get_page_no(rec));
+				(ulong) page_get_page_no(page_align(rec)));
 			dict_index_name_print(stderr, trx, index);
 			fputs(". We try to skip the rest of the page.\n",
 			      stderr);
@@ -3837,7 +3837,7 @@ wrong_offs:
 				"InnoDB: ",
 				(ulong) page_offset(rec),
 				(ulong) next_offs,
-				(ulong) buf_frame_get_page_no(rec));
+				(ulong) page_get_page_no(page_align(rec)));
 			dict_index_name_print(stderr, trx, index);
 			fputs(". We try to skip the record.\n",
 			      stderr);

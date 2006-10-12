@@ -156,7 +156,7 @@ UNIV_INLINE
 dulint
 page_get_max_trx_id(
 /*================*/
-	page_t*	page);	/* in: page */
+	const page_t*	page);	/* in: page */
 /*****************************************************************
 Sets the max trx id field value. */
 
@@ -184,8 +184,8 @@ UNIV_INLINE
 ulint
 page_header_get_field(
 /*==================*/
-	page_t*	page,	/* in: page */
-	ulint	field);	/* in: PAGE_N_DIR_SLOTS, ... */
+	const page_t*	page,	/* in: page */
+	ulint		field);	/* in: PAGE_N_DIR_SLOTS, ... */
 /*****************************************************************
 Sets the given header field. */
 UNIV_INLINE
@@ -280,14 +280,30 @@ page_cmp_dtuple_rec_with_match(
 				matched; when function returns contains the
 				value for current comparison */
 /*****************************************************************
+Gets the page number. */
+UNIV_INLINE
+ulint
+page_get_page_no(
+/*=============*/
+				/* out: page number */
+	const page_t*	page);	/* in: page */
+/*****************************************************************
+Gets the tablespace identifier. */
+UNIV_INLINE
+ulint
+page_get_space_id(
+/*==============*/
+				/* out: space id */
+	const page_t*	page);	/* in: page */
+/*****************************************************************
 Gets the number of user records on page (the infimum and supremum records
 are not user records). */
 UNIV_INLINE
 ulint
 page_get_n_recs(
 /*============*/
-			/* out: number of user records */
-	page_t*	page);	/* in: index page */
+				/* out: number of user records */
+	const page_t*	page);	/* in: index page */
 /*******************************************************************
 Returns the number of records before the given record in chain.
 The number includes infimum and supremum records. */
@@ -303,8 +319,8 @@ UNIV_INLINE
 ulint
 page_dir_get_n_heap(
 /*================*/
-			/* out: number of user records */
-	page_t*	page);	/* in: index page */
+				/* out: number of user records */
+	const page_t*	page);	/* in: index page */
 /*****************************************************************
 Sets the number of records in the heap. */
 UNIV_INLINE
@@ -324,8 +340,8 @@ UNIV_INLINE
 ulint
 page_dir_get_n_slots(
 /*=================*/
-			/* out: number of slots */
-	page_t*	page);	/* in: index page */
+				/* out: number of slots */
+	const page_t*	page);	/* in: index page */
 /*****************************************************************
 Sets the number of dir slots in directory. */
 UNIV_INLINE
@@ -410,9 +426,9 @@ UNIV_INLINE
 ulint
 page_is_comp(
 /*=========*/
-			/* out: nonzero if the page is in compact
-			format, zero if it is in old-style format */
-	page_t*	page);	/* in: index page */
+				/* out: nonzero if the page is in compact
+				format, zero if it is in old-style format */
+	const page_t*	page);	/* in: index page */
 /****************************************************************
 TRUE if the record is on a page in compact format. */
 UNIV_INLINE
@@ -549,9 +565,10 @@ UNIV_INLINE
 ulint
 page_get_max_insert_size(
 /*=====================*/
-			/* out: maximum combined size for inserted records */
-	page_t*	page,	/* in: index page */
-	ulint	n_recs);	/* in: number of records */
+				/* out: maximum combined size for
+				inserted records */
+	const page_t*	page,	/* in: index page */
+	ulint		n_recs);/* in: number of records */
 /****************************************************************
 Returns the maximum combined size of records which can be inserted on top
 of record heap if page is first reorganized. */
@@ -559,9 +576,10 @@ UNIV_INLINE
 ulint
 page_get_max_insert_size_after_reorganize(
 /*======================================*/
-			/* out: maximum combined size for inserted records */
-	page_t*	page,	/* in: index page */
-	ulint	n_recs);/* in: number of records */
+				/* out: maximum combined size for
+				inserted records */
+	const page_t*	page,	/* in: index page */
+	ulint		n_recs);/* in: number of records */
 /*****************************************************************
 Calculates free space if a page is emptied. */
 UNIV_INLINE
@@ -588,8 +606,8 @@ UNIV_INLINE
 ulint
 page_get_data_size(
 /*===============*/
-			/* out: data in bytes */
-	page_t*	page);	/* in: index page */
+				/* out: data in bytes */
+	const page_t*	page);	/* in: index page */
 /****************************************************************
 Allocates a block of memory from the head of the free list
 of an index page. */
