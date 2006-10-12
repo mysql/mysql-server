@@ -628,10 +628,11 @@ mutex_own(
 
 /**********************************************************************
 Prints debug info of currently reserved mutexes. */
-
+static
 void
-mutex_list_print_info(void)
-/*=======================*/
+mutex_list_print_info(
+/*==================*/
+	FILE*	file)		/* in: file where to print */
 {
 	mutex_t*	mutex;
 	const char*	file_name;
@@ -641,7 +642,7 @@ mutex_list_print_info(void)
 
 	fputs("----------\n"
 	      "MUTEX INFO\n"
-	      "----------\n", stderr);
+	      "----------\n", file);
 
 	mutex_enter(&mutex_list_mutex);
 
@@ -653,7 +654,7 @@ mutex_list_print_info(void)
 		if (mutex_get_lock_word(mutex) != 0) {
 			mutex_get_debug_info(mutex, &file_name, &line,
 					     &thread_id);
-			fprintf(stderr,
+			fprintf(file,
 				"Locked mutex: addr %p thread %ld"
 				" file %s line %ld\n",
 				(void*) mutex, os_thread_pf(thread_id),
@@ -663,7 +664,7 @@ mutex_list_print_info(void)
 		mutex = UT_LIST_GET_NEXT(list, mutex);
 	}
 
-	fprintf(stderr, "Total number of mutexes %ld\n", count);
+	fprintf(file, "Total number of mutexes %ld\n", count);
 
 	mutex_exit(&mutex_list_mutex);
 }
@@ -1343,7 +1344,7 @@ sync_print_wait_info(
 	FILE*	file)		/* in: file where to print */
 {
 #ifdef UNIV_SYNC_DEBUG
-	fprintf(stderr, "Mutex exits %lu, rws exits %lu, rwx exits %lu\n",
+	fprintf(file, "Mutex exits %lu, rws exits %lu, rwx exits %lu\n",
 		mutex_exit_count, rw_s_exit_count, rw_x_exit_count);
 #endif
 
@@ -1369,9 +1370,9 @@ sync_print(
 	FILE*	file)		/* in: file where to print */
 {
 #ifdef UNIV_SYNC_DEBUG
-	mutex_list_print_info();
+	mutex_list_print_info(file);
 
-	rw_lock_list_print_info();
+	rw_lock_list_print_info(file);
 #endif /* UNIV_SYNC_DEBUG */
 
 	sync_array_print_info(file, sync_primary_wait_array);
