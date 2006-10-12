@@ -9,6 +9,7 @@ Created 12/7/1995 Heikki Tuuri
 #include "mach0data.h"
 #include "ut0lst.h"
 #include "buf0buf.h"
+#include "page0page.h"
 
 /************************************************************
 Opens a buffer to mlog. It must be closed with mlog_close. */
@@ -160,7 +161,9 @@ mlog_write_initial_log_record_fast(
 	byte*	log_ptr,/* in: pointer to mtr log which has been opened */
 	mtr_t*	mtr)	/* in: mtr */
 {
+#ifdef UNIV_DEBUG
 	buf_block_t*	block;
+#endif
 	ulint		space;
 	ulint		offset;
 
@@ -168,10 +171,8 @@ mlog_write_initial_log_record_fast(
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(ptr && log_ptr);
 
-	block = buf_block_align(ptr);
-
-	space = buf_block_get_space(block);
-	offset = buf_block_get_page_no(block);
+	space = page_get_space_id(page_align(ptr));
+	offset = page_get_page_no(page_align(ptr));
 
 	mach_write_to_1(log_ptr, type);
 	log_ptr++;
@@ -188,6 +189,7 @@ mlog_write_initial_log_record_fast(
 
 #ifdef UNIV_DEBUG
 	/* We now assume that all x-latched pages have been modified! */
+	block = buf_block_align(ptr);
 
 	if (!mtr_memo_contains(mtr, block, MTR_MEMO_MODIFY)) {
 

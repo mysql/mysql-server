@@ -90,16 +90,6 @@ btr_page_get_father_node_ptr(
 	page_t*		page,	/* in: page: must contain at least one
 				user record */
 	mtr_t*		mtr);	/* in: mtr */
-/*****************************************************************
-Empties an index page. */
-static
-void
-btr_page_empty(
-/*===========*/
-	page_t*		page,	/* in: page to be emptied */
-	page_zip_des_t*	page_zip,/* out: compressed page, or NULL */
-	mtr_t*		mtr,	/* in: mtr */
-	dict_index_t*	index);	/* in: the index of the page */
 
 /******************************************************************
 Gets the root node of a tree and x-latches it. */
@@ -167,8 +157,8 @@ btr_get_prev_user_rec(
 					MTR_MEMO_PAGE_S_FIX)
 		      || mtr_memo_contains(mtr, prev_block,
 					   MTR_MEMO_PAGE_X_FIX));
-		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 #ifdef UNIV_BTR_DEBUG
+		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 		ut_a(btr_page_get_next(prev_page, mtr)
 		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -221,11 +211,11 @@ btr_get_next_user_rec(
 		      || mtr_memo_contains(mtr, next_block,
 					   MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_BTR_DEBUG
+		ut_a(page_is_comp(next_page) == page_is_comp(page));
 		ut_a(btr_page_get_prev(next_page, mtr)
 		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
-		ut_a(page_is_comp(next_page) == page_is_comp(page));
 		return(page_rec_get_next(page_get_infimum_rec(next_page)));
 	}
 
@@ -239,13 +229,15 @@ static
 void
 btr_page_create(
 /*============*/
-	page_t*		page,	/* in/out: page to be created */
+	buf_block_t*	block,	/* in/out: page to be created */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_index_t*	index,	/* in: index */
 	ulint		level,	/* in: the B-tree level of the page */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	page_t*	page = buf_block_get_frame(block);
+
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		page_create_zip(page, page_zip, index, level, mtr);
@@ -255,7 +247,7 @@ btr_page_create(
 		btr_page_set_level(page, NULL, level, mtr);
 	}
 
-	buf_block_align(page)->check_index_page_at_flush = TRUE;
+	block->check_index_page_at_flush = TRUE;
 
 	btr_page_set_index_id(page, page_zip, index->id, mtr);
 }
@@ -742,7 +734,7 @@ btr_create(
 		btr_page_set_level(page, NULL, 0, mtr);
 	}
 
-	buf_block_align(page)->check_index_page_at_flush = TRUE;
+	block->check_index_page_at_flush = TRUE;
 
 	/* Set the index id of the page */
 	btr_page_set_index_id(page, page_zip, index_id, mtr);
@@ -998,14 +990,12 @@ static
 void
 btr_page_empty(
 /*===========*/
-	page_t*		page,	/* in: page to be emptied */
+	buf_block_t*	block,	/* in: page to be emptied */
 	page_zip_des_t*	page_zip,/* out: compressed page, or NULL */
 	mtr_t*		mtr,	/* in: mtr */
 	dict_index_t*	index)	/* in: index of the page */
 {
-	buf_block_t*	block;
-
-	block = buf_block_align(page);
+	page_t*	page = buf_block_get_frame(block);
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
@@ -1088,7 +1078,7 @@ btr_root_raise_and_insert(
 	ut_a(!new_page_zip == !root_page_zip);
 	ut_a(!new_page_zip || new_page_zip->size == root_page_zip->size);
 
-	btr_page_create(new_page, new_page_zip, index, level, mtr);
+	btr_page_create(new_block, new_page_zip, index, level, mtr);
 
 	/* Set the next node and previous node fields of new page */
 	btr_page_set_next(new_page, new_page_zip, FIL_NULL, mtr);
@@ -1558,8 +1548,6 @@ btr_attach_half_pages(
 {
 	ulint		space;
 	rec_t*		node_ptr;
-	page_t*		prev_page;
-	page_t*		next_page;
 	ulint		prev_page_no;
 	ulint		next_page_no;
 	ulint		level;
@@ -1637,25 +1625,30 @@ btr_attach_half_pages(
 	/* Update page links of the level */
 
 	if (prev_page_no != FIL_NULL) {
-
-		prev_page = btr_page_get(space, prev_page_no, RW_X_LATCH, mtr);
-		ut_a(page_is_comp(prev_page) == page_is_comp(page));
+		buf_block_t*	prev_block = btr_block_get(space, prev_page_no,
+							   RW_X_LATCH, mtr);
 #ifdef UNIV_BTR_DEBUG
-		ut_a(btr_page_get_next(prev_page, mtr)
+		ut_a(page_is_comp(prev_block->frame) == page_is_comp(page));
+		ut_a(btr_page_get_next(prev_block->frame, mtr)
 		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
-		btr_page_set_next(prev_page, buf_frame_get_page_zip(prev_page),
+		btr_page_set_next(buf_block_get_frame(prev_block),
+				  buf_block_get_page_zip(prev_block),
 				  lower_page_no, mtr);
 	}
 
 	if (next_page_no != FIL_NULL) {
+		buf_block_t*	next_block = btr_block_get(space, next_page_no,
+							   RW_X_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
+		ut_a(page_is_comp(next_block->frame) == page_is_comp(page));
+		ut_a(btr_page_get_prev(next_block->frame, mtr)
+		     == page_get_page_no(page));
+#endif /* UNIV_BTR_DEBUG */
 
-		next_page = btr_page_get(space, next_page_no, RW_X_LATCH, mtr);
-		ut_a(page_is_comp(next_page) == page_is_comp(page));
-
-		btr_page_set_prev(next_page,
-				  buf_frame_get_page_zip(next_page),
+		btr_page_set_prev(buf_block_get_frame(next_block),
+				  buf_block_get_page_zip(next_block),
 				  upper_page_no, mtr);
 	}
 
@@ -1763,7 +1756,7 @@ func_start:
 				  btr_page_get_level(page, mtr), mtr);
 	new_page = buf_block_get_frame(new_block);
 	new_page_zip = buf_block_get_page_zip(new_block);
-	btr_page_create(new_page, new_page_zip, cursor->index,
+	btr_page_create(new_block, new_page_zip, cursor->index,
 			btr_page_get_level(page, mtr), mtr);
 
 	/* 3. Calculate the first record on the upper half-page, and the
@@ -1998,8 +1991,8 @@ btr_level_list_remove(
 	if (prev_page_no != FIL_NULL) {
 
 		prev_page = btr_page_get(space, prev_page_no, RW_X_LATCH, mtr);
-		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 #ifdef UNIV_BTR_DEBUG
+		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 		ut_a(btr_page_get_next(prev_page, mtr)
 		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -2011,8 +2004,8 @@ btr_level_list_remove(
 	if (next_page_no != FIL_NULL) {
 
 		next_page = btr_page_get(space, next_page_no, RW_X_LATCH, mtr);
-		ut_a(page_is_comp(next_page) == page_is_comp(page));
 #ifdef UNIV_BTR_DEBUG
+		ut_a(page_is_comp(next_page) == page_is_comp(page));
 		ut_a(btr_page_get_prev(next_page, mtr)
 		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
@@ -2141,6 +2134,7 @@ btr_lift_page_up(
 				record from the page should be removed */
 	mtr_t*		mtr)	/* in: mtr */
 {
+	buf_block_t*	father_block;
 	page_t*		father_page;
 	ulint		page_level;
 	page_zip_des_t*	father_page_zip;
@@ -2149,9 +2143,10 @@ btr_lift_page_up(
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	father_page = page_align(
+	father_block = buf_block_align(
 		btr_page_get_father_node_ptr(index, page, mtr));
-	father_page_zip = buf_frame_get_page_zip(father_page);
+	father_page_zip = buf_block_get_page_zip(father_block);
+	father_page = buf_block_get_frame(father_block);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!father_page_zip
 	     || page_zip_validate(father_page_zip, father_page));
@@ -2162,7 +2157,7 @@ btr_lift_page_up(
 	btr_search_drop_page_hash_index(block);
 
 	/* Make the father empty */
-	btr_page_empty(father_page, father_page_zip, mtr, index);
+	btr_page_empty(father_block, father_page_zip, mtr, index);
 	/* Set the level before inserting records, because
 	page_zip_compress() requires that the first user record
 	on a non-leaf page has the min_rec_mark set. */
@@ -2438,16 +2433,18 @@ btr_discard_only_page_on_level(
 	page_t*		page,	/* in: page which is the only on its level */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	page_t*	father_page;
-	ulint	page_level;
+	buf_block_t*	father_block;
+	page_t*		father_page;
+	ulint		page_level;
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	btr_search_drop_page_hash_index(buf_block_align(page));
 
-	father_page = page_align(
+	father_block = buf_block_align(
 		btr_page_get_father_node_ptr(index, page, mtr));
+	father_page = buf_block_get_frame(father_block);
 
 	page_level = btr_page_get_level(page, mtr);
 
@@ -2463,8 +2460,8 @@ btr_discard_only_page_on_level(
 			== dict_index_get_page(index))) {
 		/* The father is the root page */
 
-		btr_page_empty(father_page,
-			       buf_frame_get_page_zip(father_page),
+		btr_page_empty(father_block,
+			       buf_block_get_page_zip(father_block),
 			       mtr, index);
 
 		/* We play safe and reset the free bits for the father */
