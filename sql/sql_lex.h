@@ -1016,13 +1016,6 @@ typedef struct st_lex : public Query_tables_list
   
   bool escape_used;
 
-  /*
-    Prevent SHOW commands from being written to the slow queries log.
-    This is fixed properly in MySQL 5.1, but a quick hack is used in 5.0
-    to achieve the same result.
-  */
-  bool is_show_command;
-
   st_lex();
 
   virtual ~st_lex()
