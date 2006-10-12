@@ -5,9 +5,9 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 create table t1(a int);
-select * into outfile '../../var/master-data/rpl_loaddatalocal.select_outfile' from t1;
+select * into outfile 'MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' from t1;
 truncate table t1;
-load data local infile './var/master-data/rpl_loaddatalocal.select_outfile' into table t1;
+load data local infile 'MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' into table t1;
 select a,count(*) from t1 group by a;
 a	count(*)
 1	10000

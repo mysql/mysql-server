@@ -452,7 +452,7 @@ handler t1 read first;
 c1
 1
 send the below to another connection, do not wait for the result
- optimize table t1;
+optimize table t1;
 proceed with the normal connection
 handler t1 read next;
 c1
