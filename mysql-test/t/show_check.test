@@ -400,7 +400,8 @@ show create table t1;
 drop table t1;
 
 
-# End of 4.1 tests
+--echo End of 4.1 tests
+
 #
 # BUG 12183 -  SHOW OPEN TABLES behavior doesn't match grammar
 # First we close all open tables with FLUSH tables and then we open some.
@@ -506,4 +507,4 @@ SHOW TABLES FROM no_such_database;
 SHOW COLUMNS FROM no_such_table;
 
 
-# End of 5.0 tests.
+--echo End of 5.0 tests
