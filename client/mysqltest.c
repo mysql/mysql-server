@@ -2709,12 +2709,12 @@ char *get_string(char **to_ptr, char **from_ptr,
 
 void set_reconnect(MYSQL* mysql, int val)
 {
+  my_bool reconnect= val;
   DBUG_ENTER("set_reconnect");
   DBUG_PRINT("info", ("val: %d", val));
 #if MYSQL_VERSION_ID < 50000
-  mysql->reconnect= val;
+  mysql->reconnect= reconnect;
 #else
-  my_bool reconnect= val;
   mysql_options(mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
 #endif
   DBUG_VOID_RETURN;
@@ -3609,7 +3609,7 @@ void scan_command_for_warnings(struct st_command *command)
       *end= save;
     }
 
-    *ptr++;
+    ptr++;
   }
   DBUG_VOID_RETURN;
 }
