@@ -120,7 +120,7 @@ static bool make_datetime_with_warn(date_time_format_types format, TIME *ltime,
     return 0;
 
   make_truncated_value_warning(current_thd, str->ptr(), str->length(),
-                               MYSQL_TIMESTAMP_TIME);
+                               MYSQL_TIMESTAMP_TIME, NullS);
   return make_datetime(format, ltime, str);
 }
 
@@ -146,7 +146,7 @@ static bool make_time_with_warn(const DATE_TIME_FORMAT *format,
   if (warning)
   {
     make_truncated_value_warning(current_thd, str->ptr(), str->length(),
-                                 MYSQL_TIMESTAMP_TIME);
+                                 MYSQL_TIMESTAMP_TIME, NullS);
     make_time(format, l_time, str);
   }
 
@@ -207,7 +207,8 @@ overflow:
   char buf[22];
   int len= (int)(longlong10_to_str(seconds, buf, unsigned_flag ? 10 : -10)
                  - buf);
-  make_truncated_value_warning(current_thd, buf, len, MYSQL_TIMESTAMP_TIME);
+  make_truncated_value_warning(current_thd, buf, len, MYSQL_TIMESTAMP_TIME,
+                               NullS);
   
   return 1;
 }
@@ -2841,7 +2842,8 @@ String *Item_func_maketime::val_str(String *str)
     char *ptr= longlong10_to_str(hour, buf, args[0]->unsigned_flag ? 10 : -10);
     int len = (int)(ptr - buf) +
       my_sprintf(ptr, (ptr, ":%02u:%02u", (uint)minute, (uint)second));
-    make_truncated_value_warning(current_thd, buf, len, MYSQL_TIMESTAMP_TIME);
+    make_truncated_value_warning(current_thd, buf, len, MYSQL_TIMESTAMP_TIME,
+                                 NullS);
   }
   
   if (make_time_with_warn((DATE_TIME_FORMAT *) 0, &ltime, str))
