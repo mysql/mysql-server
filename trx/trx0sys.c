@@ -851,7 +851,7 @@ trx_sysf_create(
 	/* Create the trx sys file block in a new allocated file segment */
 	page = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
 			   mtr);
-	ut_a(buf_frame_get_page_no(page) == TRX_SYS_PAGE_NO);
+	ut_a(page_get_page_no(page) == TRX_SYS_PAGE_NO);
 
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TRX_SYS_HEADER);

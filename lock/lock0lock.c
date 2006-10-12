@@ -1258,8 +1258,8 @@ lock_rec_get_first_on_page(
 {
 	ulint	hash;
 	lock_t*	lock;
-	ulint	space;
-	ulint	page_no;
+	ulint	space	= page_get_space_id(page_align(ptr));
+	ulint	page_no	= page_get_page_no(page_align(ptr));
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&kernel_mutex));
@@ -1270,9 +1270,6 @@ lock_rec_get_first_on_page(
 	lock = HASH_GET_FIRST(lock_sys->rec_hash, hash);
 
 	while (lock) {
-		space = buf_frame_get_space_id(ptr);
-		page_no = buf_frame_get_page_no(ptr);
-
 		if ((lock->un_member.rec_lock.space == space)
 		    && (lock->un_member.rec_lock.page_no == page_no)) {
 
@@ -1768,8 +1765,8 @@ lock_rec_create(
 #endif /* UNIV_SYNC_DEBUG */
 
 	page = page_align(rec);
-	space = buf_frame_get_space_id(page);
-	page_no	= buf_frame_get_page_no(page);
+	space = page_get_space_id(page);
+	page_no	= page_get_page_no(page);
 
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
@@ -2433,8 +2430,8 @@ lock_rec_free_all_from_discard_page(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	space = buf_frame_get_space_id(page);
-	page_no = buf_frame_get_page_no(page);
+	space = page_get_space_id(page);
+	page_no = page_get_page_no(page);
 
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
 
@@ -2764,8 +2761,8 @@ lock_move_reorganize_page(
 	mem_heap_free(heap);
 
 #if 0
-	ut_ad(lock_rec_validate_page(buf_frame_get_space_id(page),
-				     buf_frame_get_page_no(page)));
+	ut_ad(lock_rec_validate_page(page_get_space_id(page),
+				     page_get_page_no(page)));
 #endif
 }
 
@@ -2860,10 +2857,10 @@ lock_move_rec_list_end(
 	lock_mutex_exit_kernel();
 
 #if 0
-	ut_ad(lock_rec_validate_page(buf_frame_get_space_id(page),
-				     buf_frame_get_page_no(page)));
-	ut_ad(lock_rec_validate_page(buf_frame_get_space_id(new_page),
-				     buf_frame_get_page_no(new_page)));
+	ut_ad(lock_rec_validate_page(page_get_space_id(page),
+				     page_get_page_no(page)));
+	ut_ad(lock_rec_validate_page(page_get_space_id(new_page),
+				     page_get_page_no(new_page)));
 #endif
 }
 
@@ -2952,10 +2949,10 @@ lock_move_rec_list_start(
 
 	lock_mutex_exit_kernel();
 #if 0
-	ut_ad(lock_rec_validate_page(buf_frame_get_space_id(page),
-				     buf_frame_get_page_no(page)));
-	ut_ad(lock_rec_validate_page(buf_frame_get_space_id(new_page),
-				     buf_frame_get_page_no(new_page)));
+	ut_ad(lock_rec_validate_page(page_get_space_id(page),
+				     page_get_page_no(page)));
+	ut_ad(lock_rec_validate_page(page_get_space_id(new_page),
+				     page_get_page_no(new_page)));
 #endif
 }
 

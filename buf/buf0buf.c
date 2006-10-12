@@ -1477,8 +1477,8 @@ exit_func:
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
-		buf_read_ahead_linear(buf_frame_get_space_id(guess),
-				      buf_frame_get_page_no(guess));
+		buf_read_ahead_linear(page_get_space_id(guess),
+				      page_get_page_no(guess));
 	}
 
 #ifdef UNIV_IBUF_DEBUG

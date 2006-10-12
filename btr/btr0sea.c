@@ -1654,7 +1654,7 @@ btr_search_validate(void)
 					"InnoDB: ptr mem address %p"
 					" index id %lu %lu,"
 					" node fold %lu, rec fold %lu\n",
-					(ulong) buf_frame_get_page_no(page),
+					(ulong) page_get_page_no(page),
 					node->data,
 					(ulong) ut_dulint_get_high(
 						btr_page_get_index_id(page)),

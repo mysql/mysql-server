@@ -7,6 +7,7 @@ Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
 #include "data0type.h"
+#include "page0page.h"
 
 /***************************************************************************
 Builds a roll pointer dulint. */
@@ -177,7 +178,7 @@ trx_undo_page_get_start(
 {
 	ulint	start;
 
-	if (page_no == buf_frame_get_page_no(undo_page)) {
+	if (page_no == page_get_page_no(undo_page)) {
 
 		start = mach_read_from_2(offset + undo_page
 					 + TRX_UNDO_LOG_START);
@@ -203,7 +204,7 @@ trx_undo_page_get_end(
 	trx_ulogf_t*	log_hdr;
 	ulint		end;
 
-	if (page_no == buf_frame_get_page_no(undo_page)) {
+	if (page_no == page_get_page_no(undo_page)) {
 
 		log_hdr = undo_page + offset;
 

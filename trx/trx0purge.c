@@ -788,7 +788,7 @@ trx_purge_choose_next_log(void)
 	} else {
 		purge_sys->purge_undo_no = trx_undo_rec_get_undo_no(rec);
 
-		purge_sys->page_no = buf_frame_get_page_no(rec);
+		purge_sys->page_no = page_get_page_no(page_align(rec));
 		purge_sys->offset = page_offset(rec);
 	}
 
@@ -900,7 +900,7 @@ trx_purge_get_next_rec(
 		page = page_align(rec2);
 
 		purge_sys->purge_undo_no = trx_undo_rec_get_undo_no(rec2);
-		purge_sys->page_no = buf_frame_get_page_no(page);
+		purge_sys->page_no = page_get_page_no(page);
 		purge_sys->offset = rec2 - page;
 
 		if (undo_page != page) {
