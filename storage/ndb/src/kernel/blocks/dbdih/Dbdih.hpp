@@ -1056,6 +1056,8 @@ private:
   void removeStoredReplica(FragmentstorePtr regFragptr,
                            ReplicaRecordPtr replicaPtr);
   void searchStoredReplicas(FragmentstorePtr regFragptr);
+  bool setup_create_replica(FragmentstorePtr, CreateReplicaRecord*,
+			    ConstPtr<ReplicaRecord>);
   void updateNodeInfo(FragmentstorePtr regFragptr);
 
 //------------------------------------
