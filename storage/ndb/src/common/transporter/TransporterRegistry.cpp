@@ -891,7 +891,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
   
   tcpReadSelectReply = select(maxSocketValue, &tcpReadset, 0, 0, &timeout);  
   if(false && tcpReadSelectReply == -1 && errno == EINTR)
-    ndbout_c("woke-up by signal");
+    g_eventLogger.info("woke-up by signal");
 
 #ifdef NDB_WIN32
   if(tcpReadSelectReply == SOCKET_ERROR)
@@ -1313,12 +1313,12 @@ TransporterRegistry::start_clients_thread()
 	      }
 	      else if(ndb_mgm_is_connected(m_mgm_handle))
 	      {
-		ndbout_c("Failed to get dynamic port to connect to: %d", res);
+		g_eventLogger.info("Failed to get dynamic port to connect to: %d", res);
 		ndb_mgm_disconnect(m_mgm_handle);
 	      }
 	      else
 	      {
-		ndbout_c("Management server closed connection early. "
+		g_eventLogger.info("Management server closed connection early. "
 			 "It is probably being shut down (or has problems). "
 			 "We will retry the connection.");
 	      }
@@ -1416,7 +1416,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
   DBUG_ENTER("TransporterRegistry::start_service");
   if (m_transporter_interface.size() > 0 && !nodeIdSpecified)
   {
-    ndbout_c("TransporterRegistry::startReceiving: localNodeId not specified");
+    g_eventLogger.error("TransporterRegistry::startReceiving: localNodeId not specified");
     DBUG_RETURN(false);
   }
 
@@ -1442,7 +1442,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 	 * If it wasn't a dynamically allocated port, or
 	 * our attempts at getting a new dynamic port failed
 	 */
-	ndbout_c("Unable to setup transporter service port: %s:%d!\n"
+	g_eventLogger.error("Unable to setup transporter service port: %s:%d!\n"
 		 "Please check if the port is already used,\n"
 		 "(perhaps the node is already running)",
 		 t.m_interface ? t.m_interface : "*", t.m_s_service_port);
@@ -1575,13 +1575,13 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
 
   if(!mgm_nodeid)
   {
-    ndbout_c("%s: %d", __FILE__, __LINE__);
+    g_eventLogger.error("%s: %d", __FILE__, __LINE__);
     return false;
   }
   Transporter * t = theTransporters[mgm_nodeid];
   if (!t)
   {
-    ndbout_c("%s: %d", __FILE__, __LINE__);
+    g_eventLogger.error("%s: %d", __FILE__, __LINE__);
     return false;
   }
   DBUG_RETURN(t->connect_client(connect_ndb_mgmd(h)));
@@ -1597,7 +1597,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 
   if ( h==NULL || *h == NULL )
   {
-    ndbout_c("%s: %d", __FILE__, __LINE__);
+    g_eventLogger.error("%s: %d", __FILE__, __LINE__);
     return NDB_INVALID_SOCKET;
   }
 
@@ -1610,10 +1610,10 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 				   m_transporter_interface[i].m_s_service_port,
 				   &mgm_reply) < 0)
     {
-      ndbout_c("Error: %s: %d",
+      g_eventLogger.error("Error: %s: %d",
 	       ndb_mgm_get_latest_error_desc(*h),
 	       ndb_mgm_get_latest_error(*h));
-      ndbout_c("%s: %d", __FILE__, __LINE__);
+      g_eventLogger.error("%s: %d", __FILE__, __LINE__);
       ndb_mgm_destroy_handle(h);
       return NDB_INVALID_SOCKET;
     }
@@ -1625,10 +1625,10 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
   NDB_SOCKET_TYPE sockfd= ndb_mgm_convert_to_transporter(h);
   if ( sockfd == NDB_INVALID_SOCKET)
   {
-    ndbout_c("Error: %s: %d",
+    g_eventLogger.error("Error: %s: %d",
 	     ndb_mgm_get_latest_error_desc(*h),
 	     ndb_mgm_get_latest_error(*h));
-    ndbout_c("%s: %d", __FILE__, __LINE__);
+    g_eventLogger.error("%s: %d", __FILE__, __LINE__);
     ndb_mgm_destroy_handle(h);
   }
   return sockfd;
