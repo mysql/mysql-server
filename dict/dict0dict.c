@@ -862,9 +862,6 @@ dict_table_add_system_columns(
 	dict_table_t*	table)	/* in/out: table */
 {
 	ut_ad(table);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(mutex_own(&(dict_sys->mutex)));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(table->n_def == table->n_cols - DATA_N_SYS_COLS);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_ad(!table->cached);
@@ -917,6 +914,9 @@ dict_table_add_to_cache(
 	/* The lower limit for what we consider a "big" row */
 #define BIG_ROW_SIZE 1024
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+#endif /* UNIV_SYNC_DEBUG */
 	dict_table_add_system_columns(table);
 
 	table->cached = TRUE;
