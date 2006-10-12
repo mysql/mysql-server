@@ -1160,10 +1160,10 @@ buf_page_reset_file_page_was_freed(
 /************************************************************************
 This is the general function used to get access to a database page. */
 
-buf_frame_t*
+buf_block_t*
 buf_page_get_gen(
 /*=============*/
-				/* out: pointer to the frame or NULL */
+				/* out: pointer to the block or NULL */
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: page number */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
@@ -1362,7 +1362,7 @@ loop:
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(ibuf_count_get(block->space, block->offset) == 0);
 #endif
-	return(block->frame);
+	return(block);
 }
 
 /************************************************************************
@@ -1441,7 +1441,7 @@ exit_func:
 
 	if (UNIV_UNLIKELY(!UT_DULINT_EQ(modify_clock, block->modify_clock))) {
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(block->frame, SYNC_NO_ORDER_CHECK);
+		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 		if (rw_latch == RW_S_LATCH) {
 			rw_lock_s_unlock(&(block->lock));
@@ -1499,13 +1499,12 @@ buf_page_get_known_nowait(
 /*======================*/
 				/* out: TRUE if success */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
-	buf_frame_t*	guess,	/* in: the known page frame */
+	buf_block_t*	block,	/* in: the known page */
 	ulint		mode,	/* in: BUF_MAKE_YOUNG or BUF_KEEP_OLD */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
-	buf_block_t*	block;
 	ibool		success;
 	ulint		fix_type;
 
@@ -1513,8 +1512,6 @@ buf_page_get_known_nowait(
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
 	mutex_enter(&(buf_pool->mutex));
-
-	block = buf_block_align(guess);
 
 	if (block->state == BUF_BLOCK_REMOVE_HASH) {
 		/* Another thread is just freeing the block from the LRU list
@@ -1821,10 +1818,10 @@ from a file even if it cannot be found in the buffer buf_pool. This is one
 of the functions which perform to a block a state transition NOT_USED =>
 FILE_PAGE (the other is buf_page_init_for_read above). */
 
-buf_frame_t*
+buf_block_t*
 buf_page_create(
 /*============*/
-			/* out: pointer to the frame, page bufferfixed */
+			/* out: pointer to the block, page bufferfixed */
 	ulint	space,	/* in: space id */
 	ulint	offset,	/* in: offset of the page within space in units of
 			a page */
@@ -1855,9 +1852,7 @@ buf_page_create(
 
 		buf_block_free(free_block);
 
-		frame = buf_page_get_with_no_latch(space, offset, mtr);
-
-		return(frame);
+		return(buf_page_get_with_no_latch(space, offset, mtr));
 	}
 
 	/* If we get here, the page was not in buf_pool: init it there */
@@ -1921,7 +1916,7 @@ buf_page_create(
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(ibuf_count_get(block->space, block->offset) == 0);
 #endif
-	return(frame);
+	return(block);
 }
 
 /************************************************************************
@@ -2068,8 +2063,7 @@ corrupt:
 		}
 
 		if (recv_recovery_is_on()) {
-			recv_recover_page(FALSE, TRUE, block->frame,
-					  block->space, block->offset);
+			recv_recover_page(FALSE, TRUE, block);
 		}
 
 		if (!recv_no_ibuf_operations) {

@@ -11,7 +11,7 @@ Created 9/20/1997 Heikki Tuuri
 
 #include "univ.i"
 #include "ut0byte.h"
-#include "page0types.h"
+#include "buf0types.h"
 #include "hash0hash.h"
 #include "log0log.h"
 
@@ -72,15 +72,15 @@ read in, or also for a page already in the buffer pool. */
 void
 recv_recover_page(
 /*==============*/
-	ibool	recover_backup,	/* in: TRUE if we are recovering a backup
+	ibool		recover_backup,
+				/* in: TRUE if we are recovering a backup
 				page: then we do not acquire any latches
 				since the page was read in outside the
 				buffer pool */
-	ibool	just_read_in,	/* in: TRUE if the i/o-handler calls this for
+	ibool		just_read_in,
+				/* in: TRUE if the i/o-handler calls this for
 				a freshly read page */
-	page_t*	page,		/* in: buffer page */
-	ulint	space,		/* in: space id */
-	ulint	page_no);	/* in: page number */
+	buf_block_t*	block);	/* in: buffer block */
 /************************************************************
 Recovers from a checkpoint. When this function returns, the database is able
 to start processing of new user transactions, but the function

@@ -126,9 +126,9 @@ void
 trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 /*===============================================*/
 {
-	page_t*	page;
-	byte*	doublewrite;
-	mtr_t	mtr;
+	buf_block_t*	block;
+	byte*		doublewrite;
+	mtr_t		mtr;
 
 	/* We upgraded to 4.1.x and reset the space id fields in the
 	doublewrite buffer. Let us mark to the trx_sys header that the upgrade
@@ -136,12 +136,12 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 
 	mtr_start(&mtr);
 
-	page = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+	block = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 
-	doublewrite = page + TRX_SYS_DOUBLEWRITE;
+	doublewrite = buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE;
 
 	mlog_write_ulint(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED,
 			 TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N,
@@ -162,9 +162,9 @@ void
 trx_sys_create_doublewrite_buf(void)
 /*================================*/
 {
-	page_t*	page;
-	page_t*	page2;
-	page_t*	new_page;
+	buf_block_t*	block;
+	buf_block_t*	block2;
+	buf_block_t*	new_block;
 	byte*	doublewrite;
 	byte*	fseg_header;
 	ulint	page_no;
@@ -181,12 +181,12 @@ trx_sys_create_doublewrite_buf(void)
 start_again:
 	mtr_start(&mtr);
 
-	page = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+	block = buf_page_get(TRX_SYS_SPACE, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 
-	doublewrite = page + TRX_SYS_DOUBLEWRITE;
+	doublewrite = buf_block_get_frame(block) + TRX_SYS_DOUBLEWRITE;
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_MAGIC)
 	    == TRX_SYS_DOUBLEWRITE_MAGIC_N) {
@@ -214,18 +214,18 @@ start_again:
 			exit(1);
 		}
 
-		page2 = fseg_create(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,
-				    TRX_SYS_DOUBLEWRITE
-				    + TRX_SYS_DOUBLEWRITE_FSEG, &mtr);
+		block2 = fseg_create(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,
+				     TRX_SYS_DOUBLEWRITE
+				     + TRX_SYS_DOUBLEWRITE_FSEG, &mtr);
 
 		/* fseg_create acquires a second latch on the page,
 		therefore we must declare it: */
 
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(page2, SYNC_NO_ORDER_CHECK);
+		buf_block_dbg_add_level(block2, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 
-		if (page2 == NULL) {
+		if (block2 == NULL) {
 			fprintf(stderr,
 				"InnoDB: Cannot create doublewrite buffer:"
 				" you must\n"
@@ -238,8 +238,8 @@ start_again:
 			exit(1);
 		}
 
-		fseg_header = page + TRX_SYS_DOUBLEWRITE
-			+ TRX_SYS_DOUBLEWRITE_FSEG;
+		fseg_header = buf_block_get_frame(block)
+			+ TRX_SYS_DOUBLEWRITE + TRX_SYS_DOUBLEWRITE_FSEG;
 		prev_page_no = 0;
 
 		for (i = 0; i < 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
@@ -268,16 +268,18 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-			new_page = buf_page_get(TRX_SYS_SPACE, page_no,
-						RW_X_LATCH, &mtr);
+			new_block = buf_page_get(TRX_SYS_SPACE, page_no,
+						 RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-			buf_page_dbg_add_level(new_page, SYNC_NO_ORDER_CHECK);
+			buf_block_dbg_add_level(new_block,
+						SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 
 			/* Make a dummy change to the page to ensure it will
 			be written to disk in a flush */
 
-			mlog_write_ulint(new_page + FIL_PAGE_DATA,
+			mlog_write_ulint(buf_block_get_frame(new_block)
+					 + FIL_PAGE_DATA,
 					 TRX_SYS_DOUBLEWRITE_MAGIC_N,
 					 MLOG_4BYTES, &mtr);
 
@@ -835,6 +837,7 @@ trx_sysf_create(
 {
 	trx_sysf_t*	sys_header;
 	ulint		slot_no;
+	buf_block_t*	block;
 	page_t*		page;
 	ulint		page_no;
 	ulint		i;
@@ -849,13 +852,14 @@ trx_sysf_create(
 	mutex_enter(&kernel_mutex);
 
 	/* Create the trx sys file block in a new allocated file segment */
-	page = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
-			   mtr);
-	ut_a(page_get_page_no(page) == TRX_SYS_PAGE_NO);
-
+	block = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
+			    mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_TRX_SYS_HEADER);
+	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
+	ut_a(buf_block_get_page_no(block) == TRX_SYS_PAGE_NO);
+
+	page = buf_block_get_frame(block);
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_TRX_SYS,
 			 MLOG_2BYTES, mtr);

@@ -388,6 +388,7 @@ trx_undo_seg_create(
 {
 	ulint		slot_no;
 	ulint		space;
+	buf_block_t*	block;
 	page_t*		undo_page;
 	trx_upagef_t*	page_hdr;
 	trx_usegf_t*	seg_hdr;
@@ -425,21 +426,22 @@ trx_undo_seg_create(
 	}
 
 	/* Allocate a new file segment for the undo log */
-	undo_page = fseg_create_general(space, 0,
-					TRX_UNDO_SEG_HDR
-					+ TRX_UNDO_FSEG_HEADER, TRUE, mtr);
+	block = fseg_create_general(space, 0,
+				    TRX_UNDO_SEG_HDR
+				    + TRX_UNDO_FSEG_HEADER, TRUE, mtr);
 
 	fil_space_release_free_extents(space, n_reserved);
 
-	if (undo_page == NULL) {
+	if (block == NULL) {
 		/* No space left */
 
 		return(NULL);
 	}
 
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(undo_page, SYNC_TRX_UNDO_PAGE);
+	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
+	undo_page = buf_block_get_frame(block);
 
 	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;

@@ -57,6 +57,16 @@ btr_root_get(
 /******************************************************************
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
+buf_block_t*
+btr_block_get(
+/*==========*/
+	ulint	space,		/* in: space id */
+	ulint	page_no,	/* in: page number */
+	ulint	mode,		/* in: latch mode */
+	mtr_t*	mtr);		/* in: mtr */
+/******************************************************************
+Gets a buffer page and declares its latching order level. */
+UNIV_INLINE
 page_t*
 btr_page_get(
 /*=========*/
@@ -362,10 +372,10 @@ btr_get_size(
 Allocates a new file page to be used in an index tree. NOTE: we assume
 that the caller has made the reservation for free extents! */
 
-page_t*
+buf_block_t*
 btr_page_alloc(
 /*===========*/
-					/* out: new allocated page, x-latched;
+					/* out: new allocated block, x-latched;
 					NULL if out of space */
 	dict_index_t*	index,		/* in: index tree */
 	ulint		hint_page_no,	/* in: hint of a good page */

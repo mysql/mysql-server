@@ -595,7 +595,7 @@ buf_flush_write_block_low(
 	log_write_up_to(block->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
 #endif
 	buf_flush_init_for_writing(block->frame,
-				   buf_frame_get_page_zip(block->frame),
+				   buf_block_get_page_zip(block),
 				   block->newest_modification);
 	if (!srv_use_doublewrite_buf || !trx_doublewrite) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,

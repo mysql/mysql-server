@@ -52,10 +52,8 @@ Initializes an ibuf bitmap page. */
 void
 ibuf_bitmap_page_init(
 /*==================*/
-	page_t*	page,	/* in: bitmap page */
-	ulint	zip_size,/* in: compressed page size in bytes;
-			0 for uncompressed pages */
-	mtr_t*	mtr);	/* in: mtr */
+	buf_block_t*	block,	/* in: bitmap page */
+	mtr_t*		mtr);	/* in: mtr */
 /****************************************************************************
 Resets the free bits of the page in the ibuf bitmap. This is done in a
 separate mini-transaction, hence this operation does not restrict further
@@ -270,8 +268,6 @@ ibuf_parse_bitmap_init(
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr,/* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
-	ulint	zip_size,/* in: compressed page size in bytes;
-			0 for uncompressed pages */
 	mtr_t*	mtr);	/* in: mtr or NULL */
 #ifdef UNIV_IBUF_DEBUG
 /**********************************************************************

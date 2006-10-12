@@ -3510,8 +3510,9 @@ page_zip_reorganize(
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
-	page_t*	temp_page;
-	ulint	log_mode;
+	buf_block_t*	block;
+	page_t*		temp_page;
+	ulint		log_mode;
 
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_is_comp(page));
@@ -3529,7 +3530,8 @@ page_zip_reorganize(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	page_create(page, mtr, dict_table_is_comp(index->table));
-	buf_block_align(page)->check_index_page_at_flush = TRUE;
+	block = buf_block_align(page);
+	block->check_index_page_at_flush = TRUE;
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
@@ -3552,7 +3554,7 @@ page_zip_reorganize(
 	}
 
 	lock_move_reorganize_page(page, temp_page);
-	btr_search_drop_page_hash_index(page);
+	btr_search_drop_page_hash_index(block);
 
 	buf_frame_free(temp_page);
 	return(TRUE);

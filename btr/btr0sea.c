@@ -758,11 +758,12 @@ btr_search_guess_on_hash(
 	}
 
 	page = page_align(rec);
+	block = buf_block_align(page);
 
 	if (UNIV_LIKELY(!has_search_latch)) {
 
 		if (UNIV_UNLIKELY(
-			    !buf_page_get_known_nowait(latch_mode, page,
+			    !buf_page_get_known_nowait(latch_mode, block,
 						       BUF_MAKE_YOUNG,
 						       __FILE__, __LINE__,
 						       mtr))) {
@@ -773,11 +774,9 @@ btr_search_guess_on_hash(
 		can_only_compare_to_cursor_rec = FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(page, SYNC_TREE_NODE_FROM_HASH);
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
 #endif /* UNIV_SYNC_DEBUG */
 	}
-
-	block = buf_block_align(page);
 
 	if (UNIV_UNLIKELY(block->state == BUF_BLOCK_REMOVE_HASH)) {
 		if (UNIV_LIKELY(!has_search_latch)) {
@@ -894,13 +893,15 @@ Drops a page hash index. */
 void
 btr_search_drop_page_hash_index(
 /*============================*/
-	page_t*	page)	/* in: index page, s- or x-latched, or an index page
-			for which we know that block->buf_fix_count == 0 */
+	buf_block_t*	block)	/* in: block containing index page,
+				s- or x-latched, or an index page
+				for which we know that
+				block->buf_fix_count == 0 */
 {
 	hash_table_t*	table;
-	buf_block_t*	block;
 	ulint		n_fields;
 	ulint		n_bytes;
+	page_t*		page;
 	rec_t*		rec;
 	ulint		fold;
 	ulint		prev_fold;
@@ -917,10 +918,10 @@ btr_search_drop_page_hash_index(
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
+
 retry:
 	rw_lock_s_lock(&btr_search_latch);
-
-	block = buf_block_align(page);
+	page = buf_block_get_frame(block);
 
 	if (UNIV_LIKELY(!block->is_hashed)) {
 
@@ -1054,13 +1055,10 @@ btr_search_drop_page_hash_when_freed(
 	ulint	space,		/* in: space id */
 	ulint	page_no)	/* in: page number */
 {
-	ibool	is_hashed;
-	page_t*	page;
-	mtr_t	mtr;
+	buf_block_t*	block;
+	mtr_t		mtr;
 
-	is_hashed = buf_page_peek_if_search_hashed(space, page_no);
-
-	if (!is_hashed) {
+	if (!buf_page_peek_if_search_hashed(space, page_no)) {
 
 		return;
 	}
@@ -1072,15 +1070,15 @@ btr_search_drop_page_hash_when_freed(
 	get here. Therefore we can acquire the s-latch to the page without
 	having to fear a deadlock. */
 
-	page = buf_page_get_gen(space, page_no, RW_S_LATCH, NULL,
+	block = buf_page_get_gen(space, page_no, RW_S_LATCH, NULL,
 				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
 				&mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_TREE_NODE_FROM_HASH);
+	buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
 #endif /* UNIV_SYNC_DEBUG */
 
-	btr_search_drop_page_hash_index(page);
+	btr_search_drop_page_hash_index(block);
 
 	mtr_commit(&mtr);
 }
@@ -1137,7 +1135,7 @@ btr_search_build_page_hash_index(
 
 		rw_lock_s_unlock(&btr_search_latch);
 
-		btr_search_drop_page_hash_index(page);
+		btr_search_drop_page_hash_index(block);
 	} else {
 		rw_lock_s_unlock(&btr_search_latch);
 	}
@@ -1307,7 +1305,7 @@ btr_search_move_or_delete_hash_entries(
 
 		rw_lock_s_unlock(&btr_search_latch);
 
-		btr_search_drop_page_hash_index(page);
+		btr_search_drop_page_hash_index(block);
 
 		return;
 	}

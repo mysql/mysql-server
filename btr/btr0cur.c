@@ -470,11 +470,11 @@ btr_cur_search_to_nth_level(
 	for (;;) {
 		buf_block_t*	block;
 retry_page_get:
-		page = buf_page_get_gen(space, page_no, rw_latch, guess,
-					buf_mode,
-					__FILE__, __LINE__,
-					mtr);
-		if (page == NULL) {
+		block = buf_page_get_gen(space, page_no, rw_latch, guess,
+					 buf_mode,
+					 __FILE__, __LINE__,
+					 mtr);
+		if (block == NULL) {
 			/* This must be a search to perform an insert;
 			try insert to the insert buffer */
 
@@ -501,19 +501,19 @@ retry_page_get:
 			goto retry_page_get;
 		}
 
-		block = buf_block_align(page);
-
+		page = buf_block_get_frame(block);
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(rw_latch == RW_NO_LATCH
-		     || !buf_frame_get_page_zip(page)
-		     || page_zip_validate(buf_frame_get_page_zip(page), page));
+		     || !buf_block_get_page_zip(block)
+		     || page_zip_validate(buf_block_get_page_zip(block),
+					  page));
 #endif /* UNIV_ZIP_DEBUG */
 
 		block->check_index_page_at_flush = TRUE;
 
 #ifdef UNIV_SYNC_DEBUG
 		if (rw_latch != RW_NO_LATCH) {
-			buf_page_dbg_add_level(page, SYNC_TREE_NODE);
+			buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 		}
 #endif
 		ut_ad(0 == ut_dulint_cmp(index->id,
@@ -651,7 +651,6 @@ btr_cur_open_at_index_side(
 	mtr_t*		mtr)		/* in: mtr */
 {
 	page_cur_t*	page_cursor;
-	page_t*		page;
 	ulint		page_no;
 	ulint		space;
 	ulint		height;
@@ -687,14 +686,17 @@ btr_cur_open_at_index_side(
 	height = ULINT_UNDEFINED;
 
 	for (;;) {
-		page = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
-					BUF_GET,
-					__FILE__, __LINE__,
-					mtr);
+		buf_block_t*	block;
+		page_t*		page;
+		block = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
+					 BUF_GET,
+					 __FILE__, __LINE__,
+					 mtr);
+		page = buf_block_get_frame(block);
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
 
-		buf_block_align(page)->check_index_page_at_flush = TRUE;
+		block->check_index_page_at_flush = TRUE;
 
 		if (height == ULINT_UNDEFINED) {
 			/* We are in the root node */
@@ -777,7 +779,6 @@ btr_cur_open_at_rnd_pos(
 	mtr_t*		mtr)		/* in: mtr */
 {
 	page_cur_t*	page_cursor;
-	page_t*		page;
 	ulint		page_no;
 	ulint		space;
 	ulint		height;
@@ -802,10 +803,14 @@ btr_cur_open_at_rnd_pos(
 	height = ULINT_UNDEFINED;
 
 	for (;;) {
-		page = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
-					BUF_GET,
-					__FILE__, __LINE__,
-					mtr);
+		buf_block_t*	block;
+		page_t*		page;
+
+		block = buf_page_get_gen(space, page_no, RW_NO_LATCH, NULL,
+					 BUF_GET,
+					 __FILE__, __LINE__,
+					 mtr);
+		page = buf_block_get_frame(block);
 		ut_ad(0 == ut_dulint_cmp(index->id,
 					 btr_page_get_index_id(page)));
 
@@ -1930,10 +1935,11 @@ btr_cur_pess_upd_restore_supremum(
 	rec_t*	rec,	/* in: updated record */
 	mtr_t*	mtr)	/* in: mtr */
 {
-	page_t*	page;
-	page_t*	prev_page;
-	ulint	space;
-	ulint	prev_page_no;
+	page_t*		page;
+	buf_block_t*	prev_block;
+	page_t*		prev_page;
+	ulint		space;
+	ulint		prev_page_no;
 
 	page = page_align(rec);
 
@@ -1947,14 +1953,15 @@ btr_cur_pess_upd_restore_supremum(
 	prev_page_no = btr_page_get_prev(page, mtr);
 
 	ut_ad(prev_page_no != FIL_NULL);
-	prev_page = buf_page_get_with_no_latch(space, prev_page_no, mtr);
+	prev_block = buf_page_get_with_no_latch(space, prev_page_no, mtr);
+	prev_page = buf_block_get_frame(prev_block);
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_page_get_next(prev_page, mtr)
 	     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
 	/* We must already have an x-latch to prev_page! */
-	ut_ad(mtr_memo_contains_page(mtr, prev_page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, prev_block, MTR_MEMO_PAGE_X_FIX));
 
 	lock_rec_reset_and_inherit_gap_locks(page_get_supremum_rec(prev_page),
 					     rec);
@@ -3589,14 +3596,13 @@ btr_store_big_rec_extern_fields(
 	ulint	extern_len;
 	ulint	store_len;
 	ulint	page_no;
-	page_t*	page;
 	ulint	space_id;
-	page_t*	rec_page;
 	ulint	prev_page_no;
 	ulint	hint_page_no;
 	ulint	i;
 	mtr_t	mtr;
 	page_zip_des_t*	page_zip;
+	buf_block_t*	rec_block;
 	z_stream c_stream;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -3652,6 +3658,9 @@ btr_store_big_rec_extern_fields(
 		}
 
 		for (;;) {
+			buf_block_t*	block;
+			page_t*		page;
+
 			mtr_start(&mtr);
 
 			if (prev_page_no == FIL_NULL) {
@@ -3661,9 +3670,9 @@ btr_store_big_rec_extern_fields(
 				hint_page_no = prev_page_no + 1;
 			}
 
-			page = btr_page_alloc(index, hint_page_no,
-					      FSP_NO_DIR, 0, &mtr);
-			if (UNIV_UNLIKELY(page == NULL)) {
+			block = btr_page_alloc(index, hint_page_no,
+					       FSP_NO_DIR, 0, &mtr);
+			if (UNIV_UNLIKELY(block == NULL)) {
 
 				mtr_commit(&mtr);
 
@@ -3674,18 +3683,21 @@ btr_store_big_rec_extern_fields(
 				return(DB_OUT_OF_FILE_SPACE);
 			}
 
-			page_no = page_get_page_no(page);
+			page_no = buf_block_get_page_no(block);
+			page = buf_block_get_frame(block);
 
 			if (prev_page_no != FIL_NULL) {
-				page_t*	prev_page;
+				buf_block_t*	prev_block;
+				page_t*		prev_page;
 
-				prev_page = buf_page_get(space_id,
-							 prev_page_no,
-							 RW_X_LATCH, &mtr);
+				prev_block = buf_page_get(space_id,
+							  prev_page_no,
+							  RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-				buf_page_dbg_add_level(prev_page,
-						       SYNC_EXTERN_STORAGE);
+				buf_block_dbg_add_level(prev_block,
+							SYNC_EXTERN_STORAGE);
 #endif /* UNIV_SYNC_DEBUG */
+				prev_page = buf_block_get_frame(prev_block);
 
 				if (UNIV_LIKELY_NULL(page_zip)) {
 					mlog_write_ulint(
@@ -3737,7 +3749,7 @@ btr_store_big_rec_extern_fields(
 				/* Copy the page to compressed storage,
 				because it will be flushed to disk
 				from there. */
-				blob_page_zip = buf_frame_get_page_zip(page);
+				blob_page_zip = buf_block_get_page_zip(block);
 				ut_ad(blob_page_zip);
 				ut_ad(blob_page_zip->size == page_zip->size);
 				memcpy(blob_page_zip->data, page,
@@ -3749,13 +3761,14 @@ btr_store_big_rec_extern_fields(
 					goto next_zip_page;
 				}
 
-				rec_page = buf_page_get(
-					space_id, page_get_page_no(
+				rec_block = buf_page_get(
+					space_id,
+					page_get_page_no(
 						page_align(field_ref)),
 					RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-				buf_page_dbg_add_level(rec_page,
-						       SYNC_NO_ORDER_CHECK);
+				buf_block_dbg_add_level(rec_block,
+							SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 				if (err == Z_STREAM_END) {
 					mach_write_to_4(field_ref
@@ -3826,13 +3839,14 @@ next_zip_page:
 
 				extern_len -= store_len;
 
-				rec_page = buf_page_get(
-					space_id, page_get_page_no(
+				rec_block = buf_page_get(
+					space_id,
+					page_get_page_no(
 						page_align(field_ref)),
 					RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-				buf_page_dbg_add_level(rec_page,
-						       SYNC_NO_ORDER_CHECK);
+				buf_block_dbg_add_level(rec_block,
+							SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 
 				mlog_write_ulint(field_ref + BTR_EXTERN_LEN, 0,
@@ -3911,17 +3925,18 @@ btr_free_externally_stored_field(
 					containing the latch to data an an
 					X-latch to the index tree */
 {
-	page_t*	page;
-	page_t*	rec_page;
-	ulint	space_id;
-	ulint	page_no;
-	ulint	next_page_no;
-	mtr_t	mtr;
+	page_t*		page;
+	ulint		space_id;
+	ulint		page_no;
+	ulint		next_page_no;
+	mtr_t		mtr;
+#ifdef UNIV_DEBUG
+	buf_block_t*	block = buf_block_align(field_ref);
+#endif /* UNIV_DEBUG */
 
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains_page(local_mtr, field_ref,
-				     MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(local_mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
 
 #ifdef UNIV_DEBUG
@@ -3936,16 +3951,20 @@ btr_free_externally_stored_field(
 #endif /* UNIV_DEBUG */
 
 	for (;;) {
+		buf_block_t*	rec_block;
+		buf_block_t*	ext_block;
+
 		mtr_start(&mtr);
 
-		rec_page = buf_page_get(page_get_space_id(
-						page_align(field_ref)),
-					page_get_page_no(
-						page_align(field_ref)),
-					RW_X_LATCH, &mtr);
+		rec_block = buf_page_get(page_get_space_id(
+						 page_align(field_ref)),
+					 page_get_page_no(
+						 page_align(field_ref)),
+					 RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(rec_page, SYNC_NO_ORDER_CHECK);
+		buf_block_dbg_add_level(rec_block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
+		ut_ad(rec_block == block);
 		space_id = mach_read_from_4(field_ref + BTR_EXTERN_SPACE_ID);
 
 		page_no = mach_read_from_4(field_ref + BTR_EXTERN_PAGE_NO);
@@ -3966,10 +3985,12 @@ btr_free_externally_stored_field(
 			return;
 		}
 
-		page = buf_page_get(space_id, page_no, RW_X_LATCH, &mtr);
+		ext_block = buf_page_get(space_id, page_no, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(page, SYNC_EXTERN_STORAGE);
+		buf_block_dbg_add_level(ext_block, SYNC_EXTERN_STORAGE);
 #endif /* UNIV_SYNC_DEBUG */
+		page = buf_block_get_frame(ext_block);
+
 		if (dict_table_zip_size(index->table)) {
 			/* Note that page_zip will be NULL
 			in row_purge_upd_exist_or_extern(). */
@@ -4145,7 +4166,6 @@ btr_copy_externally_stored_field_prefix_low(
 	ulint		page_no,/* in: page number of the first BLOB page */
 	ulint		offset)	/* in: offset on the first BLOB page */
 {
-	page_t*	page;
 	ulint	copied_len	= 0;
 	mtr_t	mtr;
 	z_stream d_stream;
@@ -4169,12 +4189,17 @@ btr_copy_externally_stored_field_prefix_low(
 	}
 
 	for (;;) {
+		buf_block_t*	block;
+		page_t*		page;
+
 		mtr_start(&mtr);
 
-		page = buf_page_get(space_id, page_no, RW_S_LATCH, &mtr);
+		block = buf_page_get(space_id, page_no, RW_S_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(page, SYNC_EXTERN_STORAGE);
+		buf_block_dbg_add_level(block, SYNC_EXTERN_STORAGE);
 #endif /* UNIV_SYNC_DEBUG */
+		page = buf_block_get_frame(block);
+
 		if (UNIV_UNLIKELY(zip_size)) {
 			int	err;
 			ulint	next_page_no;

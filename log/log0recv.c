@@ -918,9 +918,7 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_IBUF_BITMAP_INIT:
-		ptr = ibuf_parse_bitmap_init(ptr, end_ptr, page,
-					     page_zip ? page_zip->size : 0,
-					     mtr);
+		ptr = ibuf_parse_bitmap_init(ptr, end_ptr, page, mtr);
 		break;
 	case MLOG_INIT_FILE_PAGE:
 		ptr = fsp_parse_init_file_page(ptr, end_ptr, page);
@@ -1146,18 +1144,18 @@ read in, or also for a page already in the buffer pool. */
 void
 recv_recover_page(
 /*==============*/
-	ibool	recover_backup,	/* in: TRUE if we are recovering a backup
+	ibool		recover_backup,
+				/* in: TRUE if we are recovering a backup
 				page: then we do not acquire any latches
 				since the page was read in outside the
 				buffer pool */
-	ibool	just_read_in,	/* in: TRUE if the i/o-handler calls this for
+	ibool		just_read_in,
+				/* in: TRUE if the i/o-handler calls this for
 				a freshly read page */
-	page_t*	page,		/* in: buffer page */
-	ulint	space,		/* in: space id */
-	ulint	page_no)	/* in: page number */
+	buf_block_t*	block)	/* in: buffer block */
 {
-	buf_block_t*	block		= NULL;
-	page_zip_des_t*	page_zip	= NULL;
+	page_t*		page;
+	page_zip_des_t*	page_zip;
 	recv_addr_t*	recv_addr;
 	recv_t*		recv;
 	byte*		buf;
@@ -1180,7 +1178,7 @@ recv_recover_page(
 		return;
 	}
 
-	recv_addr = recv_get_fil_addr_struct(space, page_no);
+	recv_addr = recv_get_fil_addr_struct(block->space, block->offset);
 
 	if ((recv_addr == NULL)
 	    || (recv_addr->state == RECV_BEING_PROCESSED)
@@ -1192,7 +1190,8 @@ recv_recover_page(
 	}
 
 #if 0
-	fprintf(stderr, "Recovering space %lu, page %lu\n", space, page_no);
+	fprintf(stderr, "Recovering space %lu, page %lu\n",
+		block->space, block->offset);
 #endif
 
 	recv_addr->state = RECV_BEING_PROCESSED;
@@ -1202,10 +1201,10 @@ recv_recover_page(
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
-	if (!recover_backup) {
-		block = buf_block_align(page);
-		page_zip = buf_frame_get_page_zip(page);
+	page = block->frame;
+	page_zip = buf_block_get_page_zip(block);
 
+	if (!recover_backup) {
 		if (just_read_in) {
 			/* Move the ownership of the x-latch on the
 			page to this OS thread, so that we can acquire
@@ -1216,14 +1215,14 @@ recv_recover_page(
 			rw_lock_x_lock_move_ownership(&(block->lock));
 		}
 
-		success = buf_page_get_known_nowait(RW_X_LATCH, page,
+		success = buf_page_get_known_nowait(RW_X_LATCH, block,
 						    BUF_KEEP_OLD,
 						    __FILE__, __LINE__,
 						    &mtr);
 		ut_a(success);
 
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 	}
 
@@ -1234,7 +1233,7 @@ recv_recover_page(
 		/* It may be that the page has been modified in the buffer
 		pool: read the newest modification lsn there */
 
-		page_newest_lsn = buf_frame_get_newest_modification(page);
+		page_newest_lsn = buf_block_get_newest_modification(block);
 
 		if (!ut_dulint_is_zero(page_newest_lsn)) {
 
@@ -1406,7 +1405,6 @@ recv_apply_hashed_log_recs(
 				mutex */
 {
 	recv_addr_t* recv_addr;
-	page_t*	page;
 	ulint	i;
 	ulint	space;
 	ulint	page_no;
@@ -1457,18 +1455,17 @@ loop:
 				mutex_exit(&(recv_sys->mutex));
 
 				if (buf_page_peek(space, page_no)) {
+					buf_block_t*	block;
 
 					mtr_start(&mtr);
 
-					page = buf_page_get(space, page_no,
-							    RW_X_LATCH, &mtr);
-
+					block = buf_page_get(space, page_no,
+							     RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-					buf_page_dbg_add_level(
-						page, SYNC_NO_ORDER_CHECK);
+					buf_block_dbg_add_level(
+						block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
-					recv_recover_page(FALSE, FALSE, page,
-							  space, page_no);
+					recv_recover_page(FALSE, FALSE, block);
 					mtr_commit(&mtr);
 				} else {
 					recv_read_in_area(space, page_no);

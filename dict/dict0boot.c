@@ -33,14 +33,14 @@ dict_hdr_get(
 			page x-latched */
 	mtr_t*	mtr)	/* in: mtr */
 {
+	buf_block_t*	block;
 	dict_hdr_t*	header;
 
-	ut_ad(mtr);
-
-	header = DICT_HDR + buf_page_get(DICT_HDR_SPACE, DICT_HDR_PAGE_NO,
-					 RW_X_LATCH, mtr);
+	block = buf_page_get(DICT_HDR_SPACE, DICT_HDR_PAGE_NO,
+			     RW_X_LATCH, mtr);
+	header = DICT_HDR + buf_block_get_frame(block);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(header, SYNC_DICT_HEADER);
+	buf_block_dbg_add_level(block, SYNC_DICT_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
 	return(header);
 }
@@ -111,21 +111,18 @@ dict_hdr_create(
 			/* out: TRUE if succeed */
 	mtr_t*	mtr)	/* in: mtr */
 {
+	buf_block_t*	block;
 	dict_hdr_t*	dict_header;
-	ulint		hdr_page_no;
 	ulint		root_page_no;
-	page_t*		page;
 
 	ut_ad(mtr);
 
 	/* Create the dictionary header file block in a new, allocated file
 	segment in the system tablespace */
-	page = fseg_create(DICT_HDR_SPACE, 0,
-			   DICT_HDR + DICT_HDR_FSEG_HEADER, mtr);
+	block = fseg_create(DICT_HDR_SPACE, 0,
+			    DICT_HDR + DICT_HDR_FSEG_HEADER, mtr);
 
-	hdr_page_no = page_get_page_no(page);
-
-	ut_a(DICT_HDR_PAGE_NO == hdr_page_no);
+	ut_a(DICT_HDR_PAGE_NO == buf_block_get_page_no(block));
 
 	dict_header = dict_hdr_get(mtr);
 

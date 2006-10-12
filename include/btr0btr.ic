@@ -16,6 +16,29 @@ Created 6/2/1994 Heikki Tuuri
 /******************************************************************
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
+buf_block_t*
+btr_block_get(
+/*==========*/
+	ulint	space,		/* in: space id */
+	ulint	page_no,	/* in: page number */
+	ulint	mode,		/* in: latch mode */
+	mtr_t*	mtr)		/* in: mtr */
+{
+	buf_block_t*	block;
+
+	block = buf_page_get(space, page_no, mode, mtr);
+#ifdef UNIV_SYNC_DEBUG
+	if (mode != RW_NO_LATCH) {
+
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+	}
+#endif
+	return(block);
+}
+
+/******************************************************************
+Gets a buffer page and declares its latching order level. */
+UNIV_INLINE
 page_t*
 btr_page_get(
 /*=========*/
@@ -24,16 +47,7 @@ btr_page_get(
 	ulint	mode,		/* in: latch mode */
 	mtr_t*	mtr)		/* in: mtr */
 {
-	page_t*	page;
-
-	page = buf_page_get(space, page_no, mode, mtr);
-#ifdef UNIV_SYNC_DEBUG
-	if (mode != RW_NO_LATCH) {
-
-		buf_page_dbg_add_level(page, SYNC_TREE_NODE);
-	}
-#endif
-	return(page);
+	return(buf_block_get_frame(btr_block_get(space, page_no, mode, mtr)));
 }
 
 /******************************************************************
