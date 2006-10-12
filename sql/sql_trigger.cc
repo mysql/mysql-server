@@ -284,9 +284,8 @@ end:
       thd->clear_error();
 
       /* Such a statement can always go directly to binlog, no trans cache. */
-      Query_log_event qinfo(thd, stmt_query.ptr(), stmt_query.length(), 0,
-                            FALSE);
-      mysql_bin_log.write(&qinfo);
+      thd->binlog_query(THD::MYSQL_QUERY_TYPE,
+                        stmt_query.ptr(), stmt_query.length(), FALSE, FALSE);
     }
   }
 
