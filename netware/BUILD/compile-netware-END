@@ -15,11 +15,11 @@ if test -e "Makefile"; then make -k clean; fi
 rm -f */.deps/*.P
 rm -rf Makefile.in.bk
 
-# Metrowerks enviornment
+# Setup Metrowerks environment
 . $path/mwenv
 
-# run auto tools
-. $path/compile-AUTOTOOLS
+# Run autotools(use BUILD/autorun.sh)
+. BUILD/autorun.sh
 
 # configure
 ./configure $base_configs $extra_configs
