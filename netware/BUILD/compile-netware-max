@@ -15,7 +15,7 @@ suffix="max"
 extra_configs=" \
 	--with-innodb	\
 	--with-embedded-server \
-	--with-openssl \
+	--with-yassl \
 	"
 
 . $path/compile-netware-END
