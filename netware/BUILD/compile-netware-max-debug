@@ -15,7 +15,7 @@ extra_configs=" \
 	--with-innodb \
 	--with-debug=full	\
 	--with-embedded-server \
-	--with-yassl \
+	--with-ssl \
 	"
 
 . $path/compile-netware-END
