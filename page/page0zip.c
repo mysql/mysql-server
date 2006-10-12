@@ -3511,6 +3511,7 @@ page_zip_reorganize(
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
 	buf_block_t*	block;
+	buf_block_t*	temp_block;
 	page_t*		temp_page;
 	ulint		log_mode;
 
@@ -3521,7 +3522,8 @@ page_zip_reorganize(
 	/* Disable logging */
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
-	temp_page = buf_frame_alloc();
+	temp_block = buf_block_alloc(0);
+	temp_page = temp_block->frame;
 
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
@@ -3549,14 +3551,14 @@ page_zip_reorganize(
 		/* Restore the old page and exit. */
 		buf_frame_copy(page, temp_page);
 
-		buf_frame_free(temp_page);
+		buf_block_free(temp_block);
 		return(FALSE);
 	}
 
 	lock_move_reorganize_page(page, temp_page);
 	btr_search_drop_page_hash_index(block);
 
-	buf_frame_free(temp_page);
+	buf_block_free(temp_block);
 	return(TRUE);
 }
 

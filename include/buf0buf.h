@@ -127,20 +127,6 @@ buf_block_free(
 /*===========*/
 	buf_block_t*	block);	/* in, own: block to be freed */
 /*************************************************************************
-Allocates a buffer frame. */
-UNIV_INLINE
-buf_frame_t*
-buf_frame_alloc(void);
-/*==================*/
-				/* out: buffer frame */
-/*************************************************************************
-Frees a buffer frame which does not contain a file page. */
-UNIV_INLINE
-void
-buf_frame_free(
-/*===========*/
-	buf_frame_t*	frame);	/* in: buffer frame */
-/*************************************************************************
 Copies contents of a buffer frame to a given buffer. */
 UNIV_INLINE
 byte*

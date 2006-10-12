@@ -91,7 +91,6 @@ void
 btr_search_check_free_space_in_heap(void)
 /*=====================================*/
 {
-	buf_frame_t*	frame;
 	hash_table_t*	table;
 	mem_heap_t*	heap;
 
@@ -109,14 +108,14 @@ btr_search_check_free_space_in_heap(void)
 	be enough free space in the hash table. */
 
 	if (heap->free_block == NULL) {
-		frame = buf_frame_alloc();
+		buf_block_t*	block = buf_block_alloc(0);
 
 		rw_lock_x_lock(&btr_search_latch);
 
 		if (heap->free_block == NULL) {
-			heap->free_block = frame;
+			heap->free_block = block;
 		} else {
-			buf_frame_free(frame);
+			buf_block_free(block);
 		}
 
 		rw_lock_x_unlock(&btr_search_latch);
