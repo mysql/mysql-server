@@ -668,9 +668,11 @@ void close_files()
   DBUG_ENTER("close_files");
   for (; cur_file >= file_stack; cur_file--)
   {
-    DBUG_PRINT("info", ("file_name: %s", cur_file->file_name));
     if (cur_file->file && cur_file->file != stdin)
+    {
+      DBUG_PRINT("info", ("closing file: %s", cur_file->file_name));
       my_fclose(cur_file->file, MYF(0));
+    }
     my_free((gptr)cur_file->file_name, MYF(MY_ALLOW_ZERO_PTR));
     cur_file->file_name= 0;
   }
@@ -950,8 +952,8 @@ err:
 
 void check_result(DYNAMIC_STRING* ds)
 {
-  DBUG_ASSERT(result_file_name);
   DBUG_ENTER("check_result");
+  DBUG_ASSERT(result_file_name);
 
   switch (dyn_string_cmp(ds, result_file_name))
   {
@@ -2707,12 +2709,15 @@ char *get_string(char **to_ptr, char **from_ptr,
 
 void set_reconnect(MYSQL* mysql, int val)
 {
+  DBUG_ENTER("set_reconnect");
+  DBUG_PRINT("info", ("val: %d", val));
 #if MYSQL_VERSION_ID < 50000
   mysql->reconnect= val;
 #else
-  int reconnect= val;
+  my_bool reconnect= val;
   mysql_options(mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
 #endif
+  DBUG_VOID_RETURN;
 }
 
 

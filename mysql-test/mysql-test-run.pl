@@ -310,7 +310,7 @@ sub command_line_setup ();
 sub datadir_setup ();
 sub executable_setup ();
 sub environment_setup ();
-sub kill_running_server ();
+sub kill_running_servers ();
 sub cleanup_stale_files ();
 sub check_ssl_support ($);
 sub check_running_as_root();
@@ -1802,7 +1802,7 @@ sub handle_int_signal () {
 #
 ##############################################################################
 
-sub kill_running_server () {
+sub kill_running_servers () {
 
   if ( $opt_fast or $glob_use_embedded_server )
   {
@@ -1820,6 +1820,13 @@ sub kill_running_server () {
     # started from this run of the script, this is terminating
     # leftovers from previous runs.
 
+    if ( ! -d $opt_vardir )
+    {
+      # The "var" dir does not exist already
+      # the processes that mtr_kill_leftovers start will write
+      # their log files to var/log so it should be created
+      mkpath("$opt_vardir/log");
+    }
     mtr_kill_leftovers();
    }
 }
@@ -2416,9 +2423,9 @@ sub initialize_servers () {
 
   if ( ! $glob_use_running_server )
   {
-    kill_running_server();
+    kill_running_servers();
 
-    unless ( $opt_start_dirty )
+    if ( ! $opt_start_dirty )
     {
       cleanup_stale_files();
       mysql_install_db();
@@ -3782,7 +3789,7 @@ sub run_testcase_stop_servers($$$) {
 #
 # run_testcase_start_servers
 #
-# Start the servers neede by this test case
+# Start the servers needed by this test case
 #
 # RETURN
 #  0 OK
