@@ -26,8 +26,17 @@ WINE_BUILD_DIR=`echo "$BUILD_DIR" | sed 's_'$base_unix_part'/__'`
 WINE_BUILD_DIR="$base/$WINE_BUILD_DIR"
 echo "WINE_BUILD_DIR: $WINE_BUILD_DIR"
 
-export MWCNWx86Includes="$MYDEV/libc/include;$MYDEV/fs64/headers;$MYDEV/zlib-1.2.3;$WINE_BUILD_DIR/include;$MYDEV"
-export MWNWx86Libraries="$MYDEV/libc/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/zlib-1.2.3;$MYDEV/openssl;$WINE_BUILD_DIR/netware/BUILD"
+# Look for libc, MySQL 5.0.x uses libc-2003 by default
+libcdir="$MYDEV/libc-2003"
+if test ! -d $libcdir
+then
+  # The libcdir didn't exist, set default
+  libc_dir="$MYDEV/libc"
+fi
+echo "Using libc in $libc_dir";
+
+export MWCNWx86Includes="$libc_dir/include;$MYDEV/fs64/headers;$MYDEV/zlib-1.2.3;$WINE_BUILD_DIR/include;$MYDEV"
+export MWNWx86Libraries="$libc_dir/imports;$MYDEV/mw/lib;$MYDEV/fs64/imports;$MYDEV/zlib-1.2.3;$MYDEV/openssl;$WINE_BUILD_DIR/netware/BUILD"
 export MWNWx86LibraryFiles="libcpre.o;libc.imp;netware.imp;mwcrtl.lib;mwcpp.lib;libz.a;neb.imp;zPublics.imp;knetware.imp"
 
 export WINEPATH="$MYDEV/mw/bin"
@@ -56,3 +65,5 @@ then
   export TERM=linux
 fi
 
+# Print all env. variables
+export
