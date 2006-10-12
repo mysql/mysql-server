@@ -636,23 +636,49 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
   ndbrequire(c_copyGCISlave.m_copyReason  == CopyGCIReq::IDLE);
   ndbrequire(c_copyGCISlave.m_expectedNextWord == tstart);
   ndbrequire(reason != CopyGCIReq::IDLE);
-  
+  bool isdone = (tstart + CopyGCIReq::DATA_SIZE) >= Sysfile::SYSFILE_SIZE32;
+
+  if (ERROR_INSERTED(7177))
+  {
+    jam();
+
+    if (signal->getLength() == 3)
+    {
+      jam();
+      goto done;
+    }
+  }
+
   arrGuard(tstart + CopyGCIReq::DATA_SIZE, sizeof(sysfileData)/4);
   for(Uint32 i = 0; i<CopyGCIReq::DATA_SIZE; i++)
     cdata[tstart+i] = copyGCI->data[i];
   
-  if ((tstart + CopyGCIReq::DATA_SIZE) >= Sysfile::SYSFILE_SIZE32) {
+  if (ERROR_INSERTED(7177) && isMaster() && isdone)
+  {
+    sendSignalWithDelay(reference(), GSN_COPY_GCIREQ, signal, 1000, 3);
+    return;
+  }
+  
+done:  
+  if (isdone)
+  {
     jam();
     c_copyGCISlave.m_expectedNextWord = 0;
-  } else {
+  } 
+  else 
+  {
     jam();
     c_copyGCISlave.m_expectedNextWord += CopyGCIReq::DATA_SIZE;
     return;
-  }//if
-
-  Uint32 tmp= SYSFILE->m_restart_seq;
-  memcpy(sysfileData, cdata, sizeof(sysfileData));
-  SYSFILE->m_restart_seq = tmp;
+  }
+  
+  if (cmasterdihref != reference())
+  {
+    jam();
+    Uint32 tmp= SYSFILE->m_restart_seq;
+    memcpy(sysfileData, cdata, sizeof(sysfileData));
+    SYSFILE->m_restart_seq = tmp;
+  }
 
   c_copyGCISlave.m_copyReason = reason;
   c_copyGCISlave.m_senderRef  = signal->senderBlockRef();
@@ -8735,14 +8761,30 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 
 	  resetReplicaLcp(replicaPtr.p, newestRestorableGCI);
 
-	  /* -----------------------------------------------------------------
-	   *   LINK THE REPLICA INTO THE STORED REPLICA LIST. WE WILL USE THIS
-	   *   NODE AS A STORED REPLICA.                                      
-	   *   WE MUST FIRST LINK IT OUT OF THE LIST OF OLD STORED REPLICAS.  
-	   * --------------------------------------------------------------- */
-	  removeOldStoredReplica(fragPtr, replicaPtr);
-	  linkStoredReplica(fragPtr, replicaPtr);
-
+	  /**
+	   * Make sure we can also find REDO for restoring replica...
+	   */
+	  {
+	    CreateReplicaRecord createReplica;
+	    ConstPtr<ReplicaRecord> constReplicaPtr;
+	    constReplicaPtr.i = replicaPtr.i;
+	    constReplicaPtr.p = replicaPtr.p;
+	    if (setup_create_replica(fragPtr,
+				     &createReplica, constReplicaPtr))
+	    {
+	      removeOldStoredReplica(fragPtr, replicaPtr);
+	      linkStoredReplica(fragPtr, replicaPtr);
+	    }
+	    else
+	    {
+	      infoEvent("Forcing take-over of node %d due to unsufficient REDO"
+			" for table %d fragment: %d",
+			nodePtr.i, tabPtr.i, i);
+	      
+	      setNodeActiveStatus(nodePtr.i, 
+				  Sysfile::NS_NotActive_NotTakenOver);
+	    }
+	  }
 	}
         default:
 	  jam();
@@ -9864,6 +9906,7 @@ void Dbdih::calculateKeepGciLab(Signal* signal, Uint32 tableId, Uint32 fragId)
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, fragId, fragPtr);
   checkKeepGci(tabPtr, fragId, fragPtr.p, fragPtr.p->storedReplicas);
+  checkKeepGci(tabPtr, fragId, fragPtr.p, fragPtr.p->oldStoredReplicas);
   fragId++;
   if (fragId >= tabPtr.p->totalfragments) {
     jam();
@@ -12875,16 +12918,75 @@ void Dbdih::removeTooNewCrashedReplicas(ReplicaRecordPtr rtnReplicaPtr)
 /*               CHECKPOINT WITHOUT NEEDING ANY EXTRA LOGGING FACILITIES.*/
 /*               A MAXIMUM OF FOUR NODES IS RETRIEVED.                   */
 /*************************************************************************/
+bool
+Dbdih::setup_create_replica(FragmentstorePtr fragPtr,
+			    CreateReplicaRecord* createReplicaPtrP,
+			    ConstPtr<ReplicaRecord> replicaPtr)
+{
+  createReplicaPtrP->dataNodeId = replicaPtr.p->procNode;
+  createReplicaPtrP->replicaRec = replicaPtr.i;
+
+  /* ----------------------------------------------------------------- */
+  /*   WE NEED TO SEARCH FOR A PROPER LOCAL CHECKPOINT TO USE FOR THE  */
+  /*   SYSTEM RESTART.                                                 */
+  /* ----------------------------------------------------------------- */
+  Uint32 startGci;
+  Uint32 startLcpNo;
+  Uint32 stopGci = SYSFILE->newestRestorableGCI;
+  bool result = findStartGci(replicaPtr,
+			     stopGci,
+			     startGci,
+			     startLcpNo);
+  if (!result) 
+  {
+    jam();
+    /* --------------------------------------------------------------- */
+    /* WE COULD NOT FIND ANY LOCAL CHECKPOINT. THE FRAGMENT THUS DO NOT*/
+    /* CONTAIN ANY VALID LOCAL CHECKPOINT. IT DOES HOWEVER CONTAIN A   */
+    /* VALID FRAGMENT LOG. THUS BY FIRST CREATING THE FRAGMENT AND THEN*/
+    /* EXECUTING THE FRAGMENT LOG WE CAN CREATE THE FRAGMENT AS        */
+    /* DESIRED. THIS SHOULD ONLY OCCUR AFTER CREATING A FRAGMENT.      */
+    /*                                                                 */
+    /* TO INDICATE THAT NO LOCAL CHECKPOINT IS TO BE USED WE SET THE   */
+    /* LOCAL CHECKPOINT TO ZNIL.                                       */
+    /* --------------------------------------------------------------- */
+    createReplicaPtrP->lcpNo = ZNIL;
+  } 
+  else 
+  {
+    jam();
+    /* --------------------------------------------------------------- */
+    /* WE FOUND A PROPER LOCAL CHECKPOINT TO RESTART FROM.             */
+    /* SET LOCAL CHECKPOINT ID AND LOCAL CHECKPOINT NUMBER.            */
+    /* --------------------------------------------------------------- */
+    createReplicaPtrP->lcpNo = startLcpNo;
+    arrGuard(startLcpNo, MAX_LCP_STORED);
+    createReplicaPtrP->createLcpId = replicaPtr.p->lcpId[startLcpNo];
+  }//if
+  
+  
+  /* ----------------------------------------------------------------- */
+  /*   WE HAVE EITHER FOUND A LOCAL CHECKPOINT OR WE ARE PLANNING TO   */
+  /*   EXECUTE THE LOG FROM THE INITIAL CREATION OF THE TABLE. IN BOTH */
+  /*   CASES WE NEED TO FIND A SET OF LOGS THAT CAN EXECUTE SUCH THAT  */
+  /*   WE RECOVER TO THE SYSTEM RESTART GLOBAL CHECKPOINT.             */
+  /* -_--------------------------------------------------------------- */
+  return findLogNodes(createReplicaPtrP, fragPtr, startGci, stopGci);
+}			    
+
 void Dbdih::searchStoredReplicas(FragmentstorePtr fragPtr) 
 {
   Uint32 nextReplicaPtrI;
-  ConstPtr<ReplicaRecord> replicaPtr;
+  Ptr<ReplicaRecord> replicaPtr;
 
   replicaPtr.i = fragPtr.p->storedReplicas;
   while (replicaPtr.i != RNIL) {
     jam();
     ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
     nextReplicaPtrI = replicaPtr.p->nextReplica;
+    ConstPtr<ReplicaRecord> constReplicaPtr;
+    constReplicaPtr.i = replicaPtr.i;
+    constReplicaPtr.p = replicaPtr.p;
     NodeRecordPtr nodePtr;
     nodePtr.i = replicaPtr.p->procNode;
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
@@ -12904,69 +13006,13 @@ void Dbdih::searchStoredReplicas(FragmentstorePtr fragPtr)
 	createReplicaPtr.i = cnoOfCreateReplicas;
 	ptrCheckGuard(createReplicaPtr, 4, createReplicaRecord);
 	cnoOfCreateReplicas++;
-	createReplicaPtr.p->dataNodeId = replicaPtr.p->procNode;
-	createReplicaPtr.p->replicaRec = replicaPtr.i;
-	/* ----------------------------------------------------------------- */
-	/*   WE NEED TO SEARCH FOR A PROPER LOCAL CHECKPOINT TO USE FOR THE  */
-	/*   SYSTEM RESTART.                                                 */
-	/* ----------------------------------------------------------------- */
-	Uint32 startGci;
-	Uint32 startLcpNo;
-	Uint32 stopGci = SYSFILE->newestRestorableGCI;
-	bool result = findStartGci(replicaPtr,
-				   stopGci,
-				   startGci,
-				   startLcpNo);
-	if (!result) {
-	  jam();
-	  /* --------------------------------------------------------------- */
-	  /* WE COULD NOT FIND ANY LOCAL CHECKPOINT. THE FRAGMENT THUS DO NOT*/
-	  /* CONTAIN ANY VALID LOCAL CHECKPOINT. IT DOES HOWEVER CONTAIN A   */
-	  /* VALID FRAGMENT LOG. THUS BY FIRST CREATING THE FRAGMENT AND THEN*/
-	  /* EXECUTING THE FRAGMENT LOG WE CAN CREATE THE FRAGMENT AS        */
-	  /* DESIRED. THIS SHOULD ONLY OCCUR AFTER CREATING A FRAGMENT.      */
-	  /*                                                                 */
-	  /* TO INDICATE THAT NO LOCAL CHECKPOINT IS TO BE USED WE SET THE   */
-	  /* LOCAL CHECKPOINT TO ZNIL.                                       */
-	  /* --------------------------------------------------------------- */
-	  createReplicaPtr.p->lcpNo = ZNIL;
-	} else {
-	  jam();
-	  /* --------------------------------------------------------------- */
-	  /* WE FOUND A PROPER LOCAL CHECKPOINT TO RESTART FROM.             */
-	  /* SET LOCAL CHECKPOINT ID AND LOCAL CHECKPOINT NUMBER.            */
-	  /* --------------------------------------------------------------- */
-	  createReplicaPtr.p->lcpNo = startLcpNo;
-	  arrGuard(startLcpNo, MAX_LCP_STORED);
-	  createReplicaPtr.p->createLcpId = replicaPtr.p->lcpId[startLcpNo];
-	}//if
-
-	if(ERROR_INSERTED(7073) || ERROR_INSERTED(7074)){
-	  jam();
-	  nodePtr.p->nodeStatus = NodeRecord::DEAD;
-	}
-
-	/* ----------------------------------------------------------------- */
-	/*   WE HAVE EITHER FOUND A LOCAL CHECKPOINT OR WE ARE PLANNING TO   */
-	/*   EXECUTE THE LOG FROM THE INITIAL CREATION OF THE TABLE. IN BOTH */
-	/*   CASES WE NEED TO FIND A SET OF LOGS THAT CAN EXECUTE SUCH THAT  */
-	/*   WE RECOVER TO THE SYSTEM RESTART GLOBAL CHECKPOINT.             */
-	/* -_--------------------------------------------------------------- */
-	if (!findLogNodes(createReplicaPtr.p, fragPtr, startGci, stopGci)) {
-	  jam();
-	  /* --------------------------------------------------------------- */
-	  /* WE WERE NOT ABLE TO FIND ANY WAY OF RESTORING THIS REPLICA.     */
-	  /* THIS IS A POTENTIAL SYSTEM ERROR.                               */
-	  /* --------------------------------------------------------------- */
-	  cnoOfCreateReplicas--;
-	  return;
-	}//if
 	
-	if(ERROR_INSERTED(7073) || ERROR_INSERTED(7074)){
-	  jam();
-	  nodePtr.p->nodeStatus = NodeRecord::ALIVE;
-	}
-	
+	/**
+	 * Should have been checked in resetReplicaSr
+	 */
+	ndbrequire(setup_create_replica(fragPtr,
+					createReplicaPtr.p, 
+					constReplicaPtr));
 	break;
       }
       default:
