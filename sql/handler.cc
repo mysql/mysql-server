@@ -648,7 +648,7 @@ int ha_rollback_trans(THD *thd, THD_TRANS *trans)
     }
 #endif
 #ifdef HAVE_INNOBASE_DB
-    if (trans->innobase_tid)
+    if (thd->transaction.all.innodb_active_trans)
     {
       if ((error=innobase_rollback(thd, trans->innobase_tid)))
       {
