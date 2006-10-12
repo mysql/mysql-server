@@ -176,104 +176,83 @@ btr_cur_latch_leaves(
 	btr_cur_t*	cursor,		/* in: cursor */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	ulint	left_page_no;
-	ulint	right_page_no;
-	page_t*	get_page;
+	ulint		mode;
+	ulint		left_page_no;
+	ulint		right_page_no;
+	buf_block_t*	get_block;
 
 	ut_ad(page && mtr);
 
-	if (latch_mode == BTR_SEARCH_LEAF) {
-
-		get_page = btr_page_get(space, page_no, RW_S_LATCH, mtr);
-		ut_a(page_is_comp(get_page) == page_is_comp(page));
-		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
-
-	} else if (latch_mode == BTR_MODIFY_LEAF) {
-
-		get_page = btr_page_get(space, page_no, RW_X_LATCH, mtr);
-		ut_a(page_is_comp(get_page) == page_is_comp(page));
-		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
-
-	} else if (latch_mode == BTR_MODIFY_TREE) {
-
+	switch (latch_mode) {
+	case BTR_SEARCH_LEAF:
+	case BTR_MODIFY_LEAF:
+		mode = latch_mode == BTR_SEARCH_LEAF ? RW_S_LATCH : RW_X_LATCH;
+		get_block = btr_block_get(space, page_no, mode, mtr);
+		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+		get_block->check_index_page_at_flush = TRUE;
+		return;
+	case BTR_MODIFY_TREE:
 		/* x-latch also brothers from left to right */
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
-			get_page = btr_page_get(space, left_page_no,
-						RW_X_LATCH, mtr);
+			get_block = btr_block_get(space, left_page_no,
+						  RW_X_LATCH, mtr);
 #ifdef UNIV_BTR_DEBUG
-			ut_a(btr_page_get_next(get_page, mtr)
+			ut_a(page_is_comp(get_block->frame)
+			     == page_is_comp(page));
+			ut_a(btr_page_get_next(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			ut_a(page_is_comp(get_page) == page_is_comp(page));
-			buf_block_align(get_page)->check_index_page_at_flush
-				= TRUE;
+			get_block->check_index_page_at_flush = TRUE;
 		}
 
-		get_page = btr_page_get(space, page_no, RW_X_LATCH, mtr);
-		ut_a(page_is_comp(get_page) == page_is_comp(page));
-		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
+		get_block = btr_block_get(space, page_no, RW_X_LATCH, mtr);
+		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+		get_block->check_index_page_at_flush = TRUE;
 
 		right_page_no = btr_page_get_next(page, mtr);
 
 		if (right_page_no != FIL_NULL) {
-			get_page = btr_page_get(space, right_page_no,
-						RW_X_LATCH, mtr);
+			get_block = btr_block_get(space, right_page_no,
+						  RW_X_LATCH, mtr);
 #ifdef UNIV_BTR_DEBUG
-			ut_a(btr_page_get_prev(get_page, mtr)
+			ut_a(page_is_comp(get_block->frame)
+			     == page_is_comp(page));
+			ut_a(btr_page_get_prev(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			buf_block_align(get_page)->check_index_page_at_flush
-				= TRUE;
+			get_block->check_index_page_at_flush = TRUE;
 		}
 
-	} else if (latch_mode == BTR_SEARCH_PREV) {
+		return;
 
-		/* s-latch also left brother */
+	case BTR_SEARCH_PREV:
+	case BTR_MODIFY_PREV:
+		mode = latch_mode == BTR_SEARCH_PREV ? RW_S_LATCH : RW_X_LATCH;
+		/* latch also left brother */
 		left_page_no = btr_page_get_prev(page, mtr);
 
 		if (left_page_no != FIL_NULL) {
-			cursor->left_page = btr_page_get(space, left_page_no,
-							 RW_S_LATCH, mtr);
+			get_block = btr_block_get(space, left_page_no,
+						  mode, mtr);
+			cursor->left_page = buf_block_get_frame(get_block);
 #ifdef UNIV_BTR_DEBUG
+			ut_a(page_is_comp(cursor->left_page)
+			     == page_is_comp(page));
 			ut_a(btr_page_get_next(cursor->left_page, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-			ut_a(page_is_comp(cursor->left_page)
-			     == page_is_comp(page));
-			buf_block_align(cursor->left_page)
-				->check_index_page_at_flush = TRUE;
+			get_block->check_index_page_at_flush = TRUE;
 		}
 
-		get_page = btr_page_get(space, page_no, RW_S_LATCH, mtr);
-		ut_a(page_is_comp(get_page) == page_is_comp(page));
-		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
-
-	} else if (latch_mode == BTR_MODIFY_PREV) {
-
-		/* x-latch also left brother */
-		left_page_no = btr_page_get_prev(page, mtr);
-
-		if (left_page_no != FIL_NULL) {
-			cursor->left_page = btr_page_get(space, left_page_no,
-							 RW_X_LATCH, mtr);
-#ifdef UNIV_BTR_DEBUG
-			ut_a(btr_page_get_next(cursor->left_page, mtr)
-			     == page_get_page_no(page));
-#endif /* UNIV_BTR_DEBUG */
-			ut_a(page_is_comp(cursor->left_page)
-			     == page_is_comp(page));
-			buf_block_align(cursor->left_page)
-				->check_index_page_at_flush = TRUE;
-		}
-
-		get_page = btr_page_get(space, page_no, RW_X_LATCH, mtr);
-		ut_a(page_is_comp(get_page) == page_is_comp(page));
-		buf_block_align(get_page)->check_index_page_at_flush = TRUE;
-	} else {
-		ut_error;
+		get_block = btr_block_get(space, page_no, mode, mtr);
+		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+		get_block->check_index_page_at_flush = TRUE;
+		return;
 	}
+
+	ut_error;
 }
 
 /************************************************************************
@@ -1650,7 +1629,7 @@ btr_cur_update_in_place(
 	block = buf_block_align(rec);
 
 	/* Check that enough space is available on the compressed page. */
-	page_zip = buf_frame_get_page_zip(rec);
+	page_zip = buf_block_get_page_zip(block);
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && UNIV_UNLIKELY(!page_zip_alloc(page_zip,
 					     buf_block_get_frame(block),
