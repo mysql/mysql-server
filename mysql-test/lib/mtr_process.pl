@@ -339,19 +339,6 @@ sub mtr_kill_leftovers () {
   mtr_report("Killing Possible Leftover Processes");
   mtr_debug("mtr_kill_leftovers(): started.");
 
-  mkpath("$::opt_vardir/log"); # Needed for mysqladmin log
-
-  # Stop or kill Instance Manager and all its children. If we failed to do
-  # that, we can only abort -- there is nothing left to do.
-
-#  mtr_error("Failed to stop Instance Manager.")
-#    unless mtr_im_stop($::instance_manager);
-
-  # Start shutdown of masters and slaves. Don't touch IM-managed mysqld
-  # instances -- they should be stopped by mtr_im_stop().
-
-  mtr_debug("Shutting down mysqld-instances...");
-
   my @kill_pids;
   my %admin_pids;
 
