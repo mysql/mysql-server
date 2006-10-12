@@ -746,7 +746,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <item>
 	literal text_literal insert_ident order_ident
 	simple_ident select_item2 expr opt_expr opt_else sum_expr in_sum_expr
-	bool_term bool_factor bool_test bool_pri 
+	variable variable_aux bool_term bool_factor bool_test bool_pri 
 	predicate bit_expr bit_term bit_factor value_expr term factor
 	table_wild simple_expr udf_expr
 	expr_or_default set_expr_or_default interval_expr
@@ -4327,32 +4327,7 @@ simple_expr:
 	  }
 	| literal
 	| param_marker
-	| '@' ident_or_text SET_VAR expr
-	  {
-	    $$= new Item_func_set_user_var($2,$4);
-	    LEX *lex= Lex;
-	    lex->uncacheable(UNCACHEABLE_RAND);
-	    lex->variables_used= 1;
-	  }
-	| '@' ident_or_text
-	  {
-	    $$= new Item_func_get_user_var($2);
-	    LEX *lex= Lex;
-	    lex->uncacheable(UNCACHEABLE_RAND);
-	    lex->variables_used= 1;
-	  }
-	| '@' '@' opt_var_ident_type ident_or_text opt_component
-	  {
-
-            if ($4.str && $5.str && check_reserved_words(&$4))
-            {
-              yyerror(ER(ER_SYNTAX_ERROR));
-              YYABORT;
-            }
-	    if (!($$= get_system_var(YYTHD, $3, $4, $5)))
-	      YYABORT;
-	    Lex->variables_used= 1;
-	  }
+	| variable
 	| sum_expr
 	| simple_expr OR_OR_SYM simple_expr
 	  { $$= new Item_func_concat($1, $3); }
@@ -5062,6 +5037,46 @@ sum_expr:
 	    $5->empty();
 	  };
 
+variable:
+          '@'
+          {
+            if (! Lex->parsing_options.allows_variable)
+            {
+              my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
+              YYABORT;
+            }
+          }
+          variable_aux
+          {
+            $$= $3;
+          }
+          ;
+
+variable_aux:
+          ident_or_text SET_VAR expr
+          {
+            $$= new Item_func_set_user_var($1, $3);
+            LEX *lex= Lex;
+            lex->uncacheable(UNCACHEABLE_RAND);
+          }
+        | ident_or_text
+          {
+            $$= new Item_func_get_user_var($1);
+            LEX *lex= Lex;
+            lex->uncacheable(UNCACHEABLE_RAND);
+          }
+        | '@' opt_var_ident_type ident_or_text opt_component
+          {
+            if ($3.str && $4.str && check_reserved_words(&$3))
+            {
+              yyerror(ER(ER_SYNTAX_ERROR));
+              YYABORT;
+            }
+            if (!($$= get_system_var(YYTHD, $2, $3, $4)))
+              YYABORT;
+          }
+        ;
+
 opt_distinct:
     /* empty */ { $$ = 0; }
     |DISTINCT   { $$ = 1; };
@@ -5492,6 +5507,13 @@ select_derived_init:
           SELECT_SYM
           {
             LEX *lex= Lex;
+
+            if (! lex->parsing_options.allows_derived)
+            {
+              my_error(ER_VIEW_SELECT_DERIVED, MYF(0));
+              YYABORT;
+            }
+
             SELECT_LEX *sel= lex->current_select;
             TABLE_LIST *embedding;
             if (!sel->embedding || sel->end_nested_join(lex->thd))
@@ -5851,6 +5873,13 @@ procedure_clause:
 	| PROCEDURE ident			/* Procedure name */
 	  {
 	    LEX *lex=Lex;
+
+            if (! lex->parsing_options.allows_select_procedure)
+            {
+              my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), "PROCEDURE");
+              YYABORT;
+            }
+
 	    if (&lex->select_lex != lex->current_select)
 	    {
 	      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
@@ -5950,28 +5979,40 @@ select_var_ident:
            ;
 
 into:
-        INTO OUTFILE TEXT_STRING_filesystem
+        INTO
+	{
+          if (! Lex->parsing_options.allows_select_into)
+          {
+            my_error(ER_VIEW_SELECT_CLAUSE, MYF(0), "INTO");
+            YYABORT;
+          }
+	}
+        into_destination
+        ;
+
+into_destination:
+        OUTFILE TEXT_STRING_filesystem
 	{
           LEX *lex= Lex;
           lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-          if (!(lex->exchange= new sql_exchange($3.str, 0)) ||
+          if (!(lex->exchange= new sql_exchange($2.str, 0)) ||
               !(lex->result= new select_export(lex->exchange)))
             YYABORT;
 	}
 	opt_field_term opt_line_term
-	| INTO DUMPFILE TEXT_STRING_filesystem
+	| DUMPFILE TEXT_STRING_filesystem
 	{
 	  LEX *lex=Lex;
 	  if (!lex->describe)
 	  {
 	    lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-	    if (!(lex->exchange= new sql_exchange($3.str,1)))
+	    if (!(lex->exchange= new sql_exchange($2.str,1)))
 	      YYABORT;
 	    if (!(lex->result= new select_dump(lex->exchange)))
 	      YYABORT;
 	  }
 	}
-        | INTO select_var_list_init
+        | select_var_list_init
 	{
 	  Lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 	}
@@ -7131,8 +7172,13 @@ param_marker:
         {
           THD *thd=YYTHD;
 	  LEX *lex= thd->lex;
-          Item_param *item= new Item_param((uint) (lex->tok_start -
-                                                   (uchar *) thd->query));
+          Item_param *item;
+          if (! lex->parsing_options.allows_variable)
+          {
+            my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
+            YYABORT;
+          }
+          item= new Item_param((uint) (lex->tok_start - (uchar *) thd->query));
           if (!($$= item) || lex->param_list.push_back(item))
           {
             my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
@@ -7252,6 +7298,12 @@ simple_ident:
 	  if (spc && (spv = spc->find_variable(&$1)))
 	  {
             /* We're compiling a stored procedure and found a variable */
+            if (! lex->parsing_options.allows_variable)
+            {
+              my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
+              YYABORT;
+            }
+
             Item_splocal *splocal;
             splocal= new Item_splocal($1, spv->offset, spv->type,
                                       lex->tok_start_prev - 
@@ -7261,7 +7313,6 @@ simple_ident:
               splocal->m_sp= lex->sphead;
 #endif
 	    $$ = (Item*) splocal;
-            lex->variables_used= 1;
 	    lex->safe_to_cache_query=0;
 	  }
 	  else
@@ -9109,6 +9160,24 @@ view_list:
 	;
 
 view_select:
+        {
+          LEX *lex= Lex;
+          lex->parsing_options.allows_variable= FALSE;
+          lex->parsing_options.allows_select_into= FALSE;
+          lex->parsing_options.allows_select_procedure= FALSE;
+          lex->parsing_options.allows_derived= FALSE;
+        }        
+        view_select_aux
+        {
+          LEX *lex= Lex;
+          lex->parsing_options.allows_variable= TRUE;
+          lex->parsing_options.allows_select_into= TRUE;
+          lex->parsing_options.allows_select_procedure= TRUE;
+          lex->parsing_options.allows_derived= TRUE;
+        }
+        ;
+
+view_select_aux:
 	SELECT_SYM remember_name select_init2
 	{
           THD *thd=YYTHD;
