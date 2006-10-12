@@ -377,14 +377,13 @@ mem_heap_create_block(
 				buffer pool, but must get the free block from
 				the heap header free block field */
 
-				block = (mem_block_t*)
-					((buf_block_t*) heap->free_block)
-					->frame;
+				buf_block = heap->free_block;
 				heap->free_block = NULL;
 			} else {
 				buf_block = buf_block_alloc(0);
-				block = (mem_block_t*) buf_block->frame;
 			}
+
+			block = (mem_block_t*) buf_block->frame;
 		}
 	}
 
