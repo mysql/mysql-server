@@ -24,5 +24,4 @@ base_configs=" \
 	--prefix=N:/mysql \
 	--without-mysqlmanager \
 	--without-man \
-	--without-csv-storage-engine \
 	"
