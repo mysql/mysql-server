@@ -626,22 +626,48 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
   ndbrequire(c_copyGCISlave.m_copyReason  == CopyGCIReq::IDLE);
   ndbrequire(c_copyGCISlave.m_expectedNextWord == tstart);
   ndbrequire(reason != CopyGCIReq::IDLE);
-  
+  bool isdone = (tstart + CopyGCIReq::DATA_SIZE) >= Sysfile::SYSFILE_SIZE32;
+
+  if (ERROR_INSERTED(7177))
+  {
+    jam();
+
+    if (signal->getLength() == 3)
+    {
+      jam();
+      goto done;
+    }
+  }
+
   arrGuard(tstart + CopyGCIReq::DATA_SIZE, sizeof(sysfileData)/4);
   for(Uint32 i = 0; i<CopyGCIReq::DATA_SIZE; i++)
     cdata[tstart+i] = copyGCI->data[i];
   
-  if ((tstart + CopyGCIReq::DATA_SIZE) >= Sysfile::SYSFILE_SIZE32) {
+  if (ERROR_INSERTED(7177) && isMaster() && isdone)
+  {
+    sendSignalWithDelay(reference(), GSN_COPY_GCIREQ, signal, 1000, 3);
+    return;
+  }
+  
+done:  
+  if (isdone)
+  {
     jam();
     c_copyGCISlave.m_expectedNextWord = 0;
-  } else {
+  } 
+  else 
+  {
     jam();
     c_copyGCISlave.m_expectedNextWord += CopyGCIReq::DATA_SIZE;
     return;
-  }//if
+  }
   
-  memcpy(sysfileData, cdata, sizeof(sysfileData));
-  
+  if (cmasterdihref != reference())
+  {
+    jam();
+    memcpy(sysfileData, cdata, sizeof(sysfileData));
+  }
+
   c_copyGCISlave.m_copyReason = reason;
   c_copyGCISlave.m_senderRef  = signal->senderBlockRef();
   c_copyGCISlave.m_senderData = copyGCI->anyData;
