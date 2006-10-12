@@ -4215,7 +4215,7 @@ lock_rec_print(
 	FILE*	file,	/* in: file where to print */
 	lock_t*	lock)	/* in: record type lock */
 {
-	page_t*		page;
+	buf_block_t*	block;
 	ulint		space;
 	ulint		page_no;
 	ulint		i;
@@ -4273,25 +4273,25 @@ lock_rec_print(
 	because we have the kernel mutex and ibuf operations would
 	break the latching order */
 
-	page = buf_page_get_gen(space, page_no, RW_NO_LATCH,
-				NULL, BUF_GET_IF_IN_POOL,
-				__FILE__, __LINE__, &mtr);
-	if (page) {
-		page = buf_page_get_nowait(space, page_no, RW_S_LATCH, &mtr);
+	block = buf_page_get_gen(space, page_no, RW_NO_LATCH,
+				 NULL, BUF_GET_IF_IN_POOL,
+				 __FILE__, __LINE__, &mtr);
+	if (block) {
+		block = buf_page_get_nowait(space, page_no, RW_S_LATCH, &mtr);
 
-		if (!page) {
+		if (!block) {
 			/* Let us try to get an X-latch. If the current thread
 			is holding an X-latch on the page, we cannot get an
 			S-latch. */
 
-			page = buf_page_get_nowait(space, page_no, RW_X_LATCH,
-						   &mtr);
+			block = buf_page_get_nowait(space, page_no, RW_X_LATCH,
+						    &mtr);
 		}
 	}
 
-	if (page) {
+	if (block) {
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 	}
 
@@ -4301,9 +4301,10 @@ lock_rec_print(
 
 			fprintf(file, "Record lock, heap no %lu ", (ulong) i);
 
-			if (page) {
+			if (block) {
 				rec_t*	rec
-					= page_find_rec_with_heap_no(page, i);
+					= page_find_rec_with_heap_no(
+						buf_block_get_frame(block), i);
 				offsets = rec_get_offsets(
 					rec, lock->index, offsets,
 					ULINT_UNDEFINED, &heap);
@@ -4408,7 +4409,6 @@ lock_print_info_all_transactions(
 	lock_t*	lock;
 	ulint	space;
 	ulint	page_no;
-	page_t*	page;
 	ibool	load_page_first = TRUE;
 	ulint	nth_trx		= 0;
 	ulint	nth_lock	= 0;
@@ -4528,8 +4528,7 @@ loop:
 
 			mtr_start(&mtr);
 
-			page = buf_page_get_with_no_latch(
-				space, page_no, &mtr);
+			buf_page_get_with_no_latch(space, page_no, &mtr);
 
 			mtr_commit(&mtr);
 
@@ -4745,13 +4744,14 @@ lock_rec_validate_page(
 	ulint	page_no)/* in: page number */
 {
 	dict_index_t*	index;
-	page_t*	page;
-	lock_t*	lock;
-	rec_t*	rec;
-	ulint	nth_lock		= 0;
-	ulint	nth_bit			= 0;
-	ulint	i;
-	mtr_t	mtr;
+	buf_block_t*	block;
+	page_t*		page;
+	lock_t*		lock;
+	rec_t*		rec;
+	ulint		nth_lock	= 0;
+	ulint		nth_bit		= 0;
+	ulint		i;
+	mtr_t		mtr;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -4763,10 +4763,11 @@ lock_rec_validate_page(
 
 	mtr_start(&mtr);
 
-	page = buf_page_get(space, page_no, RW_X_LATCH, &mtr);
+	block = buf_page_get(space, page_no, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_NO_ORDER_CHECK);
+	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
+	page = buf_block_get_frame(block);
 
 	lock_mutex_enter_kernel();
 loop:

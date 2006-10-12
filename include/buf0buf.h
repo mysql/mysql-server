@@ -200,10 +200,10 @@ in mtr down to the given savepoint. If io is required, this function
 retrieves the page to buffer buf_pool, but does not bufferfix it or latch
 it. */
 UNIV_INLINE
-buf_frame_t*
+buf_block_t*
 buf_page_get_release_on_io(
 /*=======================*/
-				/* out: pointer to the frame, or NULL
+				/* out: pointer to the block, or NULL
 				if not in buffer buf_pool */
 	ulint	space,		/* in: space id */
 	ulint	offset,		/* in: offset of the page within space
@@ -222,7 +222,7 @@ buf_page_get_known_nowait(
 /*======================*/
 				/* out: TRUE if success */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
-	buf_frame_t*	guess,	/* in: the known page frame */
+	buf_block_t*	block,	/* in: the known page */
 	ulint		mode,	/* in: BUF_MAKE_YOUNG or BUF_KEEP_OLD */
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
@@ -230,10 +230,10 @@ buf_page_get_known_nowait(
 /************************************************************************
 This is the general function used to get access to a database page. */
 
-buf_frame_t*
+buf_block_t*
 buf_page_get_gen(
 /*=============*/
-				/* out: pointer to the frame or NULL */
+				/* out: pointer to the block or NULL */
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: page number */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
@@ -249,10 +249,10 @@ from a file even if it cannot be found in the buffer buf_pool. This is one
 of the functions which perform to a block a state transition NOT_USED =>
 FILE_PAGE (the other is buf_page_init_for_read above). */
 
-buf_frame_t*
+buf_block_t*
 buf_page_create(
 /*============*/
-			/* out: pointer to the frame, page bufferfixed */
+			/* out: pointer to the block, page bufferfixed */
 	ulint	space,	/* in: space id */
 	ulint	offset,	/* in: offset of the page within space in units of
 			a page */
@@ -379,10 +379,10 @@ Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet. */
 UNIV_INLINE
 dulint
-buf_frame_get_newest_modification(
+buf_block_get_newest_modification(
 /*==============================*/
 				/* out: newest modification to page */
-	buf_frame_t*	frame);	/* in: pointer to a frame */
+	buf_block_t*	block);	/* in: block containing the page frame */
 /************************************************************************
 Increments the modify clock of a frame by 1. The caller must (1) own the
 pool mutex and block bufferfix count has to be zero, (2) or own an x-lock
@@ -584,10 +584,10 @@ should be called in the debug version after a successful latching of a
 page if we know the latching order level of the acquired latch. */
 UNIV_INLINE
 void
-buf_page_dbg_add_level(
-/*===================*/
-	buf_frame_t*	frame,	/* in: buffer page where we have acquired
-				a latch */
+buf_block_dbg_add_level(
+/*====================*/
+	buf_block_t*	block,	/* in: buffer page
+				where we have acquired latch */
 	ulint		level);	/* in: latching order level */
 #endif /* UNIV_SYNC_DEBUG */
 /*************************************************************************
@@ -615,14 +615,23 @@ buf_block_get_page_no(
 				/* out: page number */
 	buf_block_t*	block);	/* in: pointer to the control block */
 /*************************************************************************
+Gets the compressed page size of a block. */
+UNIV_INLINE
+ulint
+buf_block_get_zip_size(
+/*===================*/
+					/* out: compressed page size, or 0 */
+	const buf_block_t*	block)	/* in: pointer to the control block */
+	__attribute((const));
+/*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 UNIV_INLINE
 page_zip_des_t*
-buf_frame_get_page_zip(
+buf_block_get_page_zip(
 /*===================*/
 				/* out: compressed page descriptor, or NULL */
-	byte*	ptr)		/* in: pointer to buffer frame */
+	buf_block_t*	block)	/* in: pointer to the control block */
 	__attribute((const));
 /***********************************************************************
 Gets the block to whose frame the pointer is pointing to. */
@@ -632,6 +641,16 @@ buf_block_align(
 /*============*/
 			/* out: pointer to block */
 	byte*	ptr);	/* in: pointer to a frame */
+/*************************************************************************
+Gets the compressed page descriptor corresponding to an uncompressed page
+if applicable. */
+UNIV_INLINE
+page_zip_des_t*
+buf_frame_get_page_zip(
+/*===================*/
+			/* out: compressed page descriptor, or NULL */
+	byte*	ptr)	/* in: pointer to the page */
+	__attribute((const));
 /************************************************************************
 This function is used to get info if there is an io operation
 going on on a buffer page. */

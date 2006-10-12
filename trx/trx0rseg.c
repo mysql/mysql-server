@@ -57,7 +57,7 @@ trx_rseg_header_create(
 	trx_rsegf_t*	rsegf;
 	trx_sysf_t*	sys_header;
 	ulint		i;
-	page_t*		page;
+	buf_block_t*	block;
 
 	ut_ad(mtr);
 #ifdef UNIV_SYNC_DEBUG
@@ -75,19 +75,19 @@ trx_rseg_header_create(
 	}
 
 	/* Allocate a new file segment for the rollback segment */
-	page = fseg_create(space, 0, TRX_RSEG + TRX_RSEG_FSEG_HEADER, mtr);
+	block = fseg_create(space, 0, TRX_RSEG + TRX_RSEG_FSEG_HEADER, mtr);
 
-	if (page == NULL) {
+	if (block == NULL) {
 		/* No space left */
 
 		return(FIL_NULL);
 	}
 
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_RSEG_HEADER_NEW);
+	buf_block_dbg_add_level(block, SYNC_RSEG_HEADER_NEW);
 #endif /* UNIV_SYNC_DEBUG */
 
-	page_no = page_get_page_no(page);
+	page_no = buf_block_get_page_no(block);
 
 	/* Get the rollback segment file page */
 	rsegf = trx_rsegf_get_new(space, page_no, mtr);

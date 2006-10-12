@@ -1093,15 +1093,16 @@ trx_undo_report_row_operation(
 	mtr_start(&mtr);
 
 	for (;;) {
-		undo_page = buf_page_get_gen(undo->space, page_no,
-					     RW_X_LATCH, undo->guess_page,
-					     BUF_GET,
-					     __FILE__, __LINE__,
-					     &mtr);
-
+		buf_block_t*	block = buf_page_get_gen(undo->space, page_no,
+							 RW_X_LATCH,
+							 undo->guess_page,
+							 BUF_GET,
+							 __FILE__, __LINE__,
+							 &mtr);
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(undo_page, SYNC_TRX_UNDO_PAGE);
+		buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
+		undo_page = buf_block_get_frame(block);
 
 		if (op_type == TRX_UNDO_INSERT_OP) {
 			offset = trx_undo_page_report_insert(

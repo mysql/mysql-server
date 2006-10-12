@@ -131,15 +131,12 @@ trx_undo_page_get(
 	ulint	page_no,	/* in: page number */
 	mtr_t*	mtr)		/* in: mtr */
 {
-	page_t*	page;
-
-	page = buf_page_get(space, page_no, RW_X_LATCH, mtr);
-
+	buf_block_t*	block = buf_page_get(space, page_no, RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_TRX_UNDO_PAGE);
+	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 
-	return(page);
+	return(buf_block_get_frame(block));
 }
 
 /**********************************************************************
@@ -153,15 +150,12 @@ trx_undo_page_get_s_latched(
 	ulint	page_no,	/* in: page number */
 	mtr_t*	mtr)		/* in: mtr */
 {
-	page_t*	page;
-
-	page = buf_page_get(space, page_no, RW_S_LATCH, mtr);
-
+	buf_block_t*	block = buf_page_get(space, page_no, RW_S_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_TRX_UNDO_PAGE);
+	buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
 
-	return(page);
+	return(buf_block_get_frame(block));
 }
 
 /**********************************************************************

@@ -274,19 +274,19 @@ ibuf_header_page_get(
 	ulint	space,	/* in: space id */
 	mtr_t*	mtr)	/* in: mtr */
 {
-	page_t*	page;
+	buf_block_t*	block;
 
 	ut_a(space == 0);
 
 	ut_ad(!ibuf_inside());
 
-	page = buf_page_get(space, FSP_IBUF_HEADER_PAGE_NO, RW_X_LATCH, mtr);
+	block = buf_page_get(space, FSP_IBUF_HEADER_PAGE_NO, RW_X_LATCH, mtr);
 
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_IBUF_HEADER);
+	buf_block_dbg_add_level(block, SYNC_IBUF_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
 
-	return(page);
+	return(buf_block_get_frame(block));
 }
 
 /**********************************************************************
@@ -300,20 +300,20 @@ ibuf_tree_root_get(
 	ulint		space,	/* in: space id */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	page_t*	page;
+	buf_block_t*	block;
 
 	ut_a(space == 0);
 	ut_ad(ibuf_inside());
 
 	mtr_x_lock(dict_index_get_lock(data->index), mtr);
 
-	page = buf_page_get(space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
-			    mtr);
+	block = buf_page_get(space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
+			     mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_TREE_NODE);
+	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 #endif /* UNIV_SYNC_DEBUG */
 
-	return(page);
+	return(buf_block_get_frame(block));
 }
 
 #ifdef UNIV_IBUF_DEBUG
@@ -493,11 +493,14 @@ ibuf_data_init_for_space(
 
 	data->seg_size = n_used;
 
-	root = buf_page_get(space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH,
-			    &mtr);
+	{
+		buf_block_t*	block = buf_page_get(
+			space, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(root, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 #endif /* UNIV_SYNC_DEBUG */
+		root = buf_block_get_frame(block);
+	}
 
 	data->size = 0;
 	data->n_inserts = 0;
@@ -559,15 +562,16 @@ Initializes an ibuf bitmap page. */
 void
 ibuf_bitmap_page_init(
 /*==================*/
-	page_t*	page,	/* in: bitmap page */
-	ulint	zip_size,/* in: compressed page size in bytes;
-			0 for uncompressed pages */
-	mtr_t*	mtr)	/* in: mtr */
+	buf_block_t*	block,	/* in: bitmap page */
+	mtr_t*		mtr)	/* in: mtr */
 {
+	page_t*	page;
 	ulint	byte_offset;
+	ulint	zip_size = buf_block_get_zip_size(block);
 
-	ut_ad(ut_is_2pow(zip_size));
+	ut_a(ut_is_2pow(zip_size));
 
+	page = buf_block_get_frame(block);
 	fil_page_set_type(page, FIL_PAGE_IBUF_BITMAP);
 
 	/* Write all zeros to the bitmap */
@@ -595,14 +599,12 @@ ibuf_parse_bitmap_init(
 	byte*	ptr,	/* in: buffer */
 	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
 	page_t*	page,	/* in: page or NULL */
-	ulint	zip_size,/* in: compressed page size in bytes;
-			0 for uncompressed pages */
 	mtr_t*	mtr)	/* in: mtr or NULL */
 {
 	ut_ad(ptr && end_ptr);
 
 	if (page) {
-		ibuf_bitmap_page_init(page, zip_size, mtr);
+		ibuf_bitmap_page_init(buf_block_align(page), mtr);
 	}
 
 	return(ptr);
@@ -761,15 +763,16 @@ ibuf_bitmap_get_map_page(
 			0 for uncompressed pages */
 	mtr_t*	mtr)	/* in: mtr */
 {
-	page_t*	page;
+	buf_block_t*	block;
 
-	page = buf_page_get(space, ibuf_bitmap_page_no_calc(zip_size, page_no),
-			    RW_X_LATCH, mtr);
+	block = buf_page_get(space,
+			     ibuf_bitmap_page_no_calc(zip_size, page_no),
+			     RW_X_LATCH, mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_IBUF_BITMAP);
+	buf_block_dbg_add_level(block, SYNC_IBUF_BITMAP);
 #endif /* UNIV_SYNC_DEBUG */
 
-	return(page);
+	return(buf_block_get_frame(block));
 }
 
 /****************************************************************************
@@ -1710,11 +1713,14 @@ ibuf_add_free_page(
 		return(DB_STRONG_FAIL);
 	}
 
-	page = buf_page_get(space, page_no, RW_X_LATCH, &mtr);
-
+	{
+		buf_block_t*	block = buf_page_get(
+			space, page_no, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_TREE_NODE_NEW);
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
 #endif /* UNIV_SYNC_DEBUG */
+		page = buf_block_get_frame(block);
+	}
 
 	ibuf_enter();
 
@@ -1837,11 +1843,14 @@ ibuf_remove_free_page(
 				       + PAGE_BTR_IBUF_FREE_LIST, &mtr)
 	      .page);
 
-	page = buf_page_get(space, page_no, RW_X_LATCH, &mtr);
-
+	{
+		buf_block_t*	block = buf_page_get(
+			space, page_no, RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(page, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 #endif /* UNIV_SYNC_DEBUG */
+		page = buf_block_get_frame(block);
+	}
 
 	/* Remove the page from the free list and update the ibuf size data */
 
@@ -2396,15 +2405,18 @@ ibuf_get_volume_buffered(
 		goto count_later;
 	}
 
-	prev_page = buf_page_get(0, prev_page_no, RW_X_LATCH, mtr);
+	{
+		buf_block_t*	block = buf_page_get(
+			0, prev_page_no, RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+#endif /* UNIV_SYNC_DEBUG */
+		prev_page = buf_block_get_frame(block);
+	}
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_page_get_next(prev_page, mtr)
 	     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-
-#ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(prev_page, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
 
 	rec = page_get_supremum_rec(prev_page);
 	rec = page_rec_get_prev(rec);
@@ -2463,15 +2475,18 @@ count_later:
 		return(volume);
 	}
 
-	next_page = buf_page_get(0, next_page_no, RW_X_LATCH, mtr);
+	{
+		buf_block_t*	block = buf_page_get(
+			0, next_page_no, RW_X_LATCH, mtr);
+#ifdef UNIV_SYNC_DEBUG
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+#endif /* UNIV_SYNC_DEBUG */
+		next_page = buf_block_get_frame(block);
+	}
 #ifdef UNIV_BTR_DEBUG
 	ut_a(btr_page_get_prev(next_page, mtr)
 	     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-
-#ifdef UNIV_SYNC_DEBUG
-	buf_page_dbg_add_level(next_page, SYNC_TREE_NODE);
-#endif /* UNIV_SYNC_DEBUG */
 
 	rec = page_get_infimum_rec(next_page);
 	rec = page_rec_get_next(rec);
@@ -3126,7 +3141,7 @@ ibuf_merge_or_delete_for_page(
 	dtuple_t*	entry;
 	dtuple_t*	search_tuple;
 	rec_t*		ibuf_rec;
-	buf_block_t*	block;
+	buf_block_t*	block			= NULL;
 	page_t*		bitmap_page;
 	ibuf_data_t*	ibuf_data;
 	ulint		n_inserts;
@@ -3232,7 +3247,7 @@ ibuf_merge_or_delete_for_page(
 
 		block = buf_block_align(page);
 		rw_lock_x_lock_move_ownership(&(block->lock));
-		page_zip = buf_frame_get_page_zip(page);
+		page_zip = buf_block_get_page_zip(block);
 
 		if (UNIV_UNLIKELY(fil_page_get_type(page) != FIL_PAGE_INDEX)) {
 
@@ -3283,13 +3298,13 @@ loop:
 	mtr_start(&mtr);
 
 	if (page) {
-		ibool success = buf_page_get_known_nowait(RW_X_LATCH, page,
+		ibool success = buf_page_get_known_nowait(RW_X_LATCH, block,
 							  BUF_KEEP_OLD,
 							  __FILE__, __LINE__,
 							  &mtr);
 		ut_a(success);
 #ifdef UNIV_SYNC_DEBUG
-		buf_page_dbg_add_level(page, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 #endif /* UNIV_SYNC_DEBUG */
 	}
 
