@@ -388,6 +388,21 @@ int main(int argc,char *argv[])
   else
     status.add_to_history=1;
   status.exit_status=1;
+
+  {
+    /* 
+     The file descriptor-layer may be out-of-sync with the file-number layer,
+     so we make sure that "stdout" is really open.  If its file is closed then
+     explicitly close the FD layer. 
+    */
+    int stdout_fileno_copy;
+    stdout_fileno_copy= dup(fileno(stdout)); /* Okay if fileno fails. */
+    if (stdout_fileno_copy == -1)
+      fclose(stdout);
+    else
+      close(stdout_fileno_copy);             /* Clean up dup(). */
+  }
+
   load_defaults("my",load_default_groups,&argc,&argv);
   defaults_argv=argv;
   if (get_options(argc, (char **) argv))
