@@ -173,7 +173,6 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->spcont= NULL;
   lex->proc_list.first= 0;
   lex->escape_used= FALSE;
-  lex->is_show_command= FALSE;
   lex->reset_query_tables_list(FALSE);
 
   lex->nest_level=0 ;

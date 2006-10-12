@@ -6412,7 +6412,6 @@ opt_table_sym:
 show:	SHOW
 	{
 	  LEX *lex=Lex;
-          lex->is_show_command= TRUE;
 	  lex->wild=0;
           lex->lock_option= TL_READ;
           mysql_init_select(lex);
