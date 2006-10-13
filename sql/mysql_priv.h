@@ -648,6 +648,9 @@ int quick_rm_table(enum db_type base,const char *db,
 		   const char *table_name);
 void close_cached_table(THD *thd, TABLE *table);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list);
+bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
+                      char *new_table_name, char *new_table_alias,
+                      bool skip_error);
 bool mysql_change_db(THD *thd,const char *name,bool no_access_check);
 void mysql_parse(THD *thd,char *inBuf,uint length);
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
