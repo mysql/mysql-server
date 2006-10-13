@@ -784,11 +784,12 @@ UNIV_INLINE
 void
 ibuf_set_free_bits_low(
 /*===================*/
-	ulint	type,	/* in: index type */
-	page_t*	page,	/* in: index page; free bit is set if the index is
-			non-clustered and page level is 0 */
-	ulint	val,	/* in: value to set: < 4 */
-	mtr_t*	mtr)	/* in: mtr */
+	ulint		type,	/* in: index type */
+	buf_block_t*	block,	/* in: index page; free bits are set if
+				the index is non-clustered and page
+				level is 0 */
+	ulint		val,	/* in: value to set: < 4 */
+	mtr_t*		mtr)	/* in: mtr */
 {
 	page_t*	bitmap_page;
 	ulint	space;
@@ -800,24 +801,24 @@ ibuf_set_free_bits_low(
 		return;
 	}
 
-	if (!page_is_leaf(page)) {
+	if (!page_is_leaf(buf_block_get_frame(block))) {
 
 		return;
 	}
 
-	space = page_get_space_id(page);
-	page_no = page_get_page_no(page);
-	zip_size = fil_space_get_zip_size(space);
+	space = buf_block_get_space(block);
+	page_no = buf_block_get_page_no(block);
+	zip_size = buf_block_get_zip_size(block);
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, mtr);
 #ifdef UNIV_IBUF_DEBUG
 # if 0
 	fprintf(stderr,
 		"Setting page no %lu free bits to %lu should be %lu\n",
 		page_get_page_no(page), val,
-		ibuf_index_page_calc_free(page));
+		ibuf_index_page_calc_free(buf_block_get_frame(block)));
 # endif
 
-	ut_a(val <= ibuf_index_page_calc_free(page));
+	ut_a(val <= ibuf_index_page_calc_free(buf_block_get_frame(block)));
 #endif /* UNIV_IBUF_DEBUG */
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 				  IBUF_BITMAP_FREE, val, mtr);
@@ -926,7 +927,7 @@ void
 ibuf_update_free_bits_low(
 /*======================*/
 	dict_index_t*	index,		/* in: index */
-	page_t*		page,		/* in: index page */
+	buf_block_t*	block,		/* in: index page */
 	ulint		max_ins_size,	/* in: value of maximum insert size
 					with reorganize before the latest
 					operation performed to the page */
@@ -937,10 +938,10 @@ ibuf_update_free_bits_low(
 
 	before = ibuf_index_page_calc_free_bits(max_ins_size);
 
-	after = ibuf_index_page_calc_free(page);
+	after = ibuf_index_page_calc_free(buf_block_get_frame(block));
 
 	if (before != after) {
-		ibuf_set_free_bits_low(index->type, page, after, mtr);
+		ibuf_set_free_bits_low(index->type, block, after, mtr);
 	}
 }
 
@@ -953,8 +954,8 @@ void
 ibuf_update_free_bits_for_two_pages_low(
 /*====================================*/
 	dict_index_t*	index,	/* in: index */
-	page_t*		page1,	/* in: index page */
-	page_t*		page2,	/* in: index page */
+	buf_block_t*	block1,	/* in: index page */
+	buf_block_t*	block2,	/* in: index page */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ulint	state;
@@ -965,13 +966,13 @@ ibuf_update_free_bits_for_two_pages_low(
 
 	mutex_enter(&ibuf_bitmap_mutex);
 
-	state = ibuf_index_page_calc_free(page1);
+	state = ibuf_index_page_calc_free(buf_block_get_frame(block1));
 
-	ibuf_set_free_bits_low(index->type, page1, state, mtr);
+	ibuf_set_free_bits_low(index->type, block1, state, mtr);
 
-	state = ibuf_index_page_calc_free(page2);
+	state = ibuf_index_page_calc_free(buf_block_get_frame(block2));
 
-	ibuf_set_free_bits_low(index->type, page2, state, mtr);
+	ibuf_set_free_bits_low(index->type, block2, state, mtr);
 
 	mutex_exit(&ibuf_bitmap_mutex);
 }

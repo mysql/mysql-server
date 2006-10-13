@@ -2618,7 +2618,7 @@ btr_cur_optimistic_delete(
 				successor of the deleted record */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	page_t*		page;
+	buf_block_t*	block;
 	ulint		max_ins_size;
 	rec_t*		rec;
 	mem_heap_t*	heap		= NULL;
@@ -2631,9 +2631,9 @@ btr_cur_optimistic_delete(
 				     MTR_MEMO_PAGE_X_FIX));
 	/* This is intended only for leaf page deletions */
 
-	page = btr_cur_get_page(cursor);
+	block = buf_block_align(btr_cur_get_rec(cursor));
 
-	ut_ad(page_is_leaf(page));
+	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 
 	rec = btr_cur_get_rec(cursor);
 	offsets = rec_get_offsets(rec, cursor->index, offsets,
@@ -2645,7 +2645,8 @@ btr_cur_optimistic_delete(
 
 	if (no_compress_needed) {
 
-		page_zip_des_t*	page_zip;
+		page_t*		page	= buf_block_get_frame(block);
+		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
 		lock_update_delete(rec);
 
@@ -2653,7 +2654,6 @@ btr_cur_optimistic_delete(
 
 		max_ins_size = page_get_max_insert_size_after_reorganize(
 			page, 1);
-		page_zip = buf_frame_get_page_zip(btr_cur_get_rec(cursor));
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2663,7 +2663,7 @@ btr_cur_optimistic_delete(
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-		ibuf_update_free_bits_low(cursor->index, page, max_ins_size,
+		ibuf_update_free_bits_low(cursor->index, block, max_ins_size,
 					  mtr);
 	}
 

@@ -97,7 +97,7 @@ void
 ibuf_update_free_bits_low(
 /*======================*/
 	dict_index_t*	index,		/* in: index */
-	page_t*		page,		/* in: index page */
+	buf_block_t*	block,		/* in: index page */
 	ulint		max_ins_size,	/* in: value of maximum insert size
 					with reorganize before the latest
 					operation performed to the page */
@@ -111,8 +111,8 @@ void
 ibuf_update_free_bits_for_two_pages_low(
 /*====================================*/
 	dict_index_t*	index,	/* in: index */
-	page_t*		page1,	/* in: index page */
-	page_t*		page2,	/* in: index page */
+	buf_block_t*	block1,	/* in: index page */
+	buf_block_t*	block2,	/* in: index page */
 	mtr_t*		mtr);	/* in: mtr */
 /**************************************************************************
 A basic partial test if an insert to the insert buffer could be possible and
