@@ -79,3 +79,13 @@ uncompress(a)	uncompressed_length(a)
 NULL	NULL
 a	1
 drop table t1;
+create table t1(a blob);
+insert into t1 values ('0'), (NULL), ('0');
+select compress(a), compress(a) from t1;
+select compress(a) is null from t1;
+compress(a) is null
+0
+1
+0
+drop table t1;
+End of 4.1 tests
