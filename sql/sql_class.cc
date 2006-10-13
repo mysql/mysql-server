@@ -2632,10 +2632,10 @@ int THD::binlog_update_row(TABLE* table, bool is_trans,
   my_size_t const after_size= pack_row(table, cols, after_row, 
                                        after_record);
   
-  DBUG_DUMP("before_record", before_record, table->s->reclength);
-  DBUG_DUMP("after_record", after_record, table->s->reclength);
-  DBUG_DUMP("before_row", before_row, before_size);
-  DBUG_DUMP("after_row", after_row, after_size);
+  DBUG_DUMP("before_record", (const char *)before_record, table->s->reclength);
+  DBUG_DUMP("after_record", (const char *)after_record, table->s->reclength);
+  DBUG_DUMP("before_row", (const char *)before_row, before_size);
+  DBUG_DUMP("after_row", (const char *)after_row, after_size);
 
   Rows_log_event* const ev=
     binlog_prepare_pending_rows_event(table, server_id, cols, colcnt,
