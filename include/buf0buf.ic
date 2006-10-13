@@ -281,16 +281,15 @@ UNIV_INLINE
 void
 buf_ptr_get_fsp_addr(
 /*=================*/
-	byte*		ptr,	/* in: pointer to a buffer frame */
+	const void*	ptr,	/* in: pointer to a buffer frame */
 	ulint*		space,	/* out: space id */
 	fil_addr_t*	addr)	/* out: page offset and byte offset */
 {
-	buf_block_t*	block;
+	const page_t*	page = ut_align_down((void*) ptr, UNIV_PAGE_SIZE);
+	ut_ad(buf_block_align(ptr));
 
-	block = buf_block_align(ptr);
-
-	*space = buf_block_get_space(block);
-	addr->page = buf_block_get_page_no(block);
+	*space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+	addr->page = mach_read_from_4(page + FIL_PAGE_OFFSET);
 	addr->boffset = ut_align_offset(ptr, UNIV_PAGE_SIZE);
 }
 

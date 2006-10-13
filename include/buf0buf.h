@@ -427,7 +427,7 @@ UNIV_INLINE
 void
 buf_ptr_get_fsp_addr(
 /*=================*/
-	byte*		ptr,	/* in: pointer to a buffer frame */
+	const void*	ptr,	/* in: pointer to a buffer frame */
 	ulint*		space,	/* out: space id */
 	fil_addr_t*	addr);	/* out: page offset and byte offset */
 /**************************************************************************
