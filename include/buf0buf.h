@@ -371,23 +371,12 @@ buf_block_get_newest_modification(
 	buf_block_t*	block);	/* in: block containing the page frame */
 /************************************************************************
 Increments the modify clock of a frame by 1. The caller must (1) own the
-pool mutex and block bufferfix count has to be zero, (2) or own an x-lock
-on the block. */
-UNIV_INLINE
-dulint
-buf_frame_modify_clock_inc(
-/*=======================*/
-				/* out: new value */
-	buf_frame_t*	frame);	/* in: pointer to a frame */
-/************************************************************************
-Increments the modify clock of a frame by 1. The caller must (1) own the
 buf_pool mutex and block bufferfix count has to be zero, (2) or own an x-lock
 on the block. */
 UNIV_INLINE
-dulint
+void
 buf_block_modify_clock_inc(
 /*=======================*/
-				/* out: new value */
 	buf_block_t*	block);	/* in: block */
 /************************************************************************
 Returns the value of the modify clock. The caller must have an s-lock
@@ -442,23 +431,25 @@ buf_ptr_get_fsp_addr(
 	ulint*		space,	/* out: space id */
 	fil_addr_t*	addr);	/* out: page offset and byte offset */
 /**************************************************************************
-Gets the hash value of the page the pointer is pointing to. This can be used
-in searches in the lock hash table. */
+Gets the hash value of a block. This can be used in searches in the
+lock hash table. */
 UNIV_INLINE
 ulint
-buf_frame_get_lock_hash_val(
+buf_block_get_lock_hash_val(
 /*========================*/
-			/* out: lock hash value */
-	byte*	ptr);	/* in: pointer to within a buffer frame */
+					/* out: lock hash value */
+	const buf_block_t*	block)	/* in: block */
+	__attribute__((const));
 /**************************************************************************
 Gets the mutex number protecting the page record lock hash chain in the lock
 table. */
 UNIV_INLINE
 mutex_t*
-buf_frame_get_lock_mutex(
+buf_block_get_lock_mutex(
 /*=====================*/
-			/* out: mutex */
-	byte*	ptr);	/* in: pointer to within a buffer frame */
+				/* out: mutex */
+	buf_block_t*	block)	/* in: block */
+	__attribute__((const));
 /***********************************************************************
 Checks if a pointer points to the block array of the buffer pool (blocks, not
 the frames). */

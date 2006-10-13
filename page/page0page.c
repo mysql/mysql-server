@@ -285,15 +285,15 @@ page_parse_create(
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr __attribute__((unused)), /* in: buffer end */
 	ulint		comp,	/* in: nonzero=compact page format */
-	page_t*		page,	/* in: page or NULL */
+	buf_block_t*	block,	/* in: block or NULL */
 	mtr_t*		mtr)	/* in: mtr or NULL */
 {
 	ut_ad(ptr && end_ptr);
 
 	/* The record is empty, except for the record initial part */
 
-	if (page) {
-		page_create(page, mtr, comp);
+	if (block) {
+		page_create(block, mtr, comp);
 	}
 
 	return(ptr);
@@ -306,7 +306,7 @@ page_t*
 page_create_low(
 /*============*/
 					/* out: pointer to the page */
-	buf_frame_t*	frame,		/* in/out: a buffer frame where the
+	buf_block_t*	block,		/* in: a buffer block where the
 					page is created */
 	ulint		comp)		/* in: nonzero=compact page format */
 {
@@ -321,7 +321,7 @@ page_create_low(
 	dict_index_t*	index;
 	ulint*		offsets;
 
-	ut_ad(frame);
+	ut_ad(block);
 #if PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA
 # error "PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA"
 #endif
@@ -337,9 +337,9 @@ page_create_low(
 	}
 
 	/* 1. INCREMENT MODIFY CLOCK */
-	buf_frame_modify_clock_inc(frame);
+	buf_block_modify_clock_inc(block);
 
-	page = frame;
+	page = buf_block_get_frame(block);
 
 	fil_page_set_type(page, FIL_PAGE_INDEX);
 
@@ -459,13 +459,13 @@ page_t*
 page_create(
 /*========*/
 					/* out: pointer to the page */
-	buf_frame_t*	frame,		/* in/out: a buffer frame where the
+	buf_block_t*	block,		/* in: a buffer block where the
 					page is created */
 	mtr_t*		mtr,		/* in: mini-transaction handle */
 	ulint		comp)		/* in: nonzero=compact page format */
 {
-	page_create_write_log(frame, mtr, comp);
-	return(page_create_low(frame, comp));
+	page_create_write_log(buf_block_get_frame(block), mtr, comp);
+	return(page_create_low(block, comp));
 }
 
 /**************************************************************
@@ -475,26 +475,28 @@ page_t*
 page_create_zip(
 /*============*/
 					/* out: pointer to the page */
-	buf_frame_t*	frame,		/* in/out: a buffer frame where the
+	buf_block_t*	block,		/* in/out: a buffer frame where the
 					page is created */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
 	dict_index_t*	index,		/* in: the index of the page */
 	ulint		level,		/* in: the B-tree level of the page */
 	mtr_t*		mtr)		/* in: mini-transaction handle */
 {
-	ut_ad(frame && page_zip && index);
+	page_t*	page;
+
+	ut_ad(block && buf_block_get_page_zip(block) && index);
 	ut_ad(dict_table_is_comp(index->table));
 
-	page_create_low(frame, TRUE);
-	mach_write_to_2(frame + PAGE_HEADER + PAGE_LEVEL, level);
+	page = page_create_low(block, TRUE);
+	mach_write_to_2(page + PAGE_HEADER + PAGE_LEVEL, level);
 
-	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, frame, index, mtr))) {
+	if (UNIV_UNLIKELY(!page_zip_compress(buf_block_get_page_zip(block),
+					     page, index, mtr))) {
 		/* The compression of a newly created page
 		should always succeed. */
 		ut_error;
 	}
 
-	return(frame);
+	return(page);
 }
 
 /*****************************************************************
@@ -890,7 +892,7 @@ page_delete_rec_list_end(
 	/* The page gets invalid for optimistic searches: increment the
 	frame modify clock */
 
-	buf_frame_modify_clock_inc(page);
+	buf_block_modify_clock_inc(buf_block_align(page)/*TODO*/);
 
 	page_delete_rec_list_write_log(rec, index, page_is_comp(page)
 				       ? MLOG_COMP_LIST_END_DELETE
