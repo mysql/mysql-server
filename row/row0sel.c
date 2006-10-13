@@ -63,6 +63,10 @@ row_sel_sec_rec_is_for_blob(
 				/* out: TRUE if the columns are equal */
 	ulint	mtype,		/* in: main type */
 	ulint	prtype,		/* in: precise type */
+	ulint	mbminlen,	/* in: minimum length of a
+				multi-byte character */
+	ulint	mbmaxlen,	/* in: maximum length of a
+				multi-byte character */
 	byte*	clust_field,	/* in: the locally stored part of
 				the clustered index column, including
 				the BLOB pointer */
@@ -77,6 +81,8 @@ row_sel_sec_rec_is_for_blob(
 	len = btr_copy_externally_stored_field_prefix(buf, sizeof buf,
 						      zip_size,
 						      clust_field, clust_len);
+	len = dtype_get_at_most_n_mbchars(prtype, mbminlen, mbmaxlen,
+					  sec_len, len, buf);
 
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
 }
@@ -153,6 +159,7 @@ row_sel_sec_rec_is_for_clust_rec(
 			    && len < sec_len) {
 				if (!row_sel_sec_rec_is_for_blob(
 					    col->mtype, col->prtype,
+					    col->mbminlen, col->mbmaxlen,
 					    clust_field, clust_len,
 					    sec_field, sec_len,
 					    dict_table_zip_size(
