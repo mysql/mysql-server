@@ -35,7 +35,10 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 {
   bool error= 1;
-  TABLE_LIST *ren_table= 0;
+  TABLE_LIST *ren_table= 0, *new_table;
+  int to_table;
+  char *rename_log_table[2]= {NULL, NULL};
+  int disable_logs= 0;
   DBUG_ENTER("mysql_rename_tables");
 
   /*
@@ -52,6 +55,96 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   if (wait_if_global_read_lock(thd,0,1))
     DBUG_RETURN(1);
+
+  if (logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
+      logger.is_log_table_enabled(QUERY_LOG_SLOW))
+  {
+
+    /*
+      Rules for rename of a log table:
+
+      IF   1. Log tables are enabled
+      AND  2. Rename operates on the log table and nothing is being
+              renamed to the log table.
+      DO   3. Throw an error message.
+      ELSE 4. Perform rename.
+    */
+
+    for (to_table= 0, ren_table= table_list; ren_table;
+         to_table= 1 - to_table, ren_table= ren_table->next_local)
+    {
+      int log_table_rename= 0;
+
+      if ((log_table_rename=
+           check_if_log_table(ren_table->db_length, ren_table->db,
+                              ren_table->table_name_length,
+                              ren_table->table_name, 1)))
+      {
+        /*
+          Log table encoutered we will need to disable and lock logs
+          for duration of rename.
+        */
+        disable_logs= TRUE;
+
+        /*
+          as we use log_table_rename as an array index, we need it to start
+          with 0, while QUERY_LOG_SLOW == 1 and QUERY_LOG_GENERAL == 2.
+          So, we shift the value to start with 0;
+        */
+        log_table_rename--;
+        if (rename_log_table[log_table_rename])
+        {
+          if (to_table)
+            rename_log_table[log_table_rename]= NULL;
+          else
+          {
+            /*
+              Two renames of "log_table TO" w/o rename "TO log_table" in
+              between.
+            */
+            my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
+                     ren_table->table_name);
+            DBUG_RETURN(1);
+          }
+        }
+        else
+        {
+          if (to_table)
+          {
+            /*
+              Attempt to rename a table TO log_table w/o renaming
+              log_table TO some table.
+            */
+            my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
+                     ren_table->table_name);
+            DBUG_RETURN(1);
+          }
+          else
+          {
+            /* save the name of the log table to report an error */
+            rename_log_table[log_table_rename]= ren_table->table_name;
+          }
+        }
+      }
+    }
+    if (rename_log_table[0] || rename_log_table[1])
+    {
+      if (rename_log_table[0])
+        my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), rename_log_table[0],
+                 rename_log_table[0]);
+      else
+        my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), rename_log_table[1],
+                 rename_log_table[1]);
+      DBUG_RETURN(1);
+    }
+
+    if (disable_logs)
+    {
+      logger.lock();
+      logger.tmp_close_log_tables(thd);
+    }
+  }
+
   VOID(pthread_mutex_lock(&LOCK_open));
   if (lock_table_names(thd, table_list))
     goto err;
@@ -95,6 +188,13 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
 err:
   pthread_mutex_unlock(&LOCK_open);
+  /* enable logging back if needed */
+  if (disable_logs)
+  {
+    if (logger.reopen_log_tables())
+      error= TRUE;
+    logger.unlock();
+  }
   start_waiting_global_read_lock(thd);
   DBUG_RETURN(error);
 }

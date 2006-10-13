@@ -5960,3 +5960,5 @@ ER_HOSTNAME
 	eng "host name"
 ER_WRONG_STRING_LENGTH
 	eng "String '%-.70s' is too long for %s (should be no longer than %d)"
+ER_CANT_RENAME_LOG_TABLE
+        eng "Cannot rename '%s'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to '%s'"
