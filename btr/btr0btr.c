@@ -1683,6 +1683,7 @@ btr_page_split_and_insert(
 	ulint		n_ext,	/* in: number of elements in vec */
 	mtr_t*		mtr)	/* in: mtr */
 {
+	buf_block_t*	block;
 	page_t*		page;
 	page_zip_des_t*	page_zip;
 	ulint		page_no;
@@ -1692,8 +1693,9 @@ btr_page_split_and_insert(
 	page_t*		new_page;
 	page_zip_des_t*	new_page_zip;
 	rec_t*		split_rec;
-	page_t*		left_page;
-	page_t*		right_page;
+	buf_block_t*	left_block;
+	buf_block_t*	right_block;
+	buf_block_t*	insert_block;
 	page_t*		insert_page;
 	page_zip_des_t*	insert_page_zip;
 	page_cur_t*	page_cursor;
@@ -1720,8 +1722,9 @@ func_start:
 	ut_ad(rw_lock_own(dict_index_get_lock(cursor->index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	page = btr_cur_get_page(cursor);
-	page_zip = buf_frame_get_page_zip(page);
+	block = buf_block_align(btr_cur_get_rec(cursor));
+	page = buf_block_get_frame(block);
+	page_zip = buf_block_get_page_zip(block);
 
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_get_n_recs(page) >= 1);
@@ -1832,10 +1835,10 @@ func_start:
 						   page_zip, mtr);
 		}
 
-		left_page = new_page;
-		right_page = page;
+		left_block = new_block;
+		right_block = block;
 
-		lock_update_split_left(right_page, left_page);
+		lock_update_split_left(page, new_page);
 	} else {
 		/*		fputs("Split right\n", stderr); */
 
@@ -1861,10 +1864,10 @@ func_start:
 						 page_zip, mtr);
 		}
 
-		left_page = page;
-		right_page = new_page;
+		left_block = block;
+		right_block = new_block;
 
-		lock_update_split_right(right_page, left_page);
+		lock_update_split_right(new_page, page);
 	}
 
 #ifdef UNIV_ZIP_DEBUG
@@ -1881,12 +1884,13 @@ func_start:
 	page where the tuple should be inserted */
 
 	if (insert_left) {
-		insert_page = left_page;
+		insert_block = left_block;
 	} else {
-		insert_page = right_page;
+		insert_block = right_block;
 	}
 
-	insert_page_zip = buf_frame_get_page_zip(insert_page);
+	insert_page = buf_block_get_frame(insert_block);
+	insert_page_zip = buf_block_get_page_zip(insert_block);
 
 	/* 7. Reposition the cursor for insert and try insertion */
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1907,11 +1911,11 @@ func_start:
 		left and right pages in the same mtr */
 
 		ibuf_update_free_bits_for_two_pages_low(cursor->index,
-							left_page,
-							right_page, mtr);
+							left_block,
+							right_block, mtr);
 		/* fprintf(stderr, "Split and insert done %lu %lu\n",
-		page_get_page_no(left_page),
-		page_get_page_no(right_page)); */
+		page_get_page_no(buf_block_get_frame(left_block)),
+		page_get_page_no(buf_block_get_frame(right_block))); */
 		mem_heap_free(heap);
 		return(rec);
 	}
@@ -1948,16 +1952,16 @@ insert_failed:
 	/* Insert fit on the page: update the free bits for the
 	left and right pages in the same mtr */
 
-	ibuf_update_free_bits_for_two_pages_low(cursor->index, left_page,
-						right_page, mtr);
+	ibuf_update_free_bits_for_two_pages_low(cursor->index, left_block,
+						right_block, mtr);
 #if 0
 	fprintf(stderr, "Split and insert done %lu %lu\n",
-		page_get_page_no(left_page),
-		page_get_page_no(right_page));
+		buf_block_get_page_no(left_block),
+		buf_block_get_page_no(right_block));
 #endif
 
-	ut_ad(page_validate(left_page, cursor->index));
-	ut_ad(page_validate(right_page, cursor->index));
+	ut_ad(page_validate(buf_block_get_frame(left_block), cursor->index));
+	ut_ad(page_validate(buf_block_get_frame(left_block), cursor->index));
 
 	mem_heap_free(heap);
 	return(rec);
@@ -1974,9 +1978,7 @@ btr_level_list_remove(
 {
 	ulint	space;
 	ulint	prev_page_no;
-	page_t*	prev_page;
 	ulint	next_page_no;
-	page_t*	next_page;
 
 	ut_ad(page && mtr);
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
@@ -1989,28 +1991,34 @@ btr_level_list_remove(
 	/* Update page links of the level */
 
 	if (prev_page_no != FIL_NULL) {
-
-		prev_page = btr_page_get(space, prev_page_no, RW_X_LATCH, mtr);
+		buf_block_t*	prev_block
+			= btr_block_get(space, prev_page_no, RW_X_LATCH, mtr);
+		page_t*		prev_page
+			= buf_block_get_frame(prev_block);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(prev_page) == page_is_comp(page));
 		ut_a(btr_page_get_next(prev_page, mtr)
 		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
-		btr_page_set_next(prev_page, buf_frame_get_page_zip(prev_page),
+		btr_page_set_next(prev_page,
+				  buf_block_get_page_zip(prev_block),
 				  next_page_no, mtr);
 	}
 
 	if (next_page_no != FIL_NULL) {
-
-		next_page = btr_page_get(space, next_page_no, RW_X_LATCH, mtr);
+		buf_block_t*	next_block
+			= btr_block_get(space, next_page_no, RW_X_LATCH, mtr);
+		page_t*		next_page
+			= buf_block_get_frame(next_block);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(next_page) == page_is_comp(page));
 		ut_a(btr_page_get_prev(next_page, mtr)
 		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
-		btr_page_set_prev(next_page, buf_frame_get_page_zip(next_page),
+		btr_page_set_prev(next_page,
+				  buf_block_get_page_zip(next_block),
 				  prev_page_no, mtr);
 	}
 }
@@ -2172,7 +2180,7 @@ btr_lift_page_up(
 
 		/* Copy the page byte for byte. */
 		page_zip_copy(father_page_zip, father_page,
-			      buf_frame_get_page_zip(page),
+			      buf_block_get_page_zip(block),
 			      page, index, mtr);
 	}
 
@@ -2433,17 +2441,18 @@ void
 btr_discard_only_page_on_level(
 /*===========================*/
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: page which is the only on its level */
+	buf_block_t*	block,	/* in: page which is the only on its level */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	buf_block_t*	father_block;
 	page_t*		father_page;
+	page_t*		page		= buf_block_get_frame(block);
 	ulint		page_level;
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
-	btr_search_drop_page_hash_index(buf_block_align(page));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	btr_search_drop_page_hash_index(block);
 
 	father_block = buf_block_align(
 		btr_page_get_father_node_ptr(index, page, mtr));
@@ -2453,7 +2462,7 @@ btr_discard_only_page_on_level(
 
 	lock_update_discard(page_get_supremum_rec(father_page), page);
 
-	btr_page_set_level(father_page, buf_frame_get_page_zip(father_page),
+	btr_page_set_level(father_page, buf_block_get_page_zip(father_block),
 			   page_level, mtr);
 
 	/* Free the file page */
@@ -2472,7 +2481,7 @@ btr_discard_only_page_on_level(
 	} else {
 		ut_ad(page_get_n_recs(father_page) == 1);
 
-		btr_discard_only_page_on_level(index, father_page, mtr);
+		btr_discard_only_page_on_level(index, father_block, mtr);
 	}
 }
 
@@ -2493,10 +2502,12 @@ btr_discard_page(
 	ulint		left_page_no;
 	ulint		right_page_no;
 	page_t*		merge_page;
+	buf_block_t*	block;
 	page_t*		page;
 	rec_t*		node_ptr;
 
-	page = btr_cur_get_page(cursor);
+	block = buf_block_align(btr_cur_get_rec(cursor));
+	page = buf_block_get_frame(block);
 	index = btr_cur_get_index(cursor);
 
 	ut_ad(dict_index_get_page(index) != page_get_page_no(page));
@@ -2525,7 +2536,7 @@ btr_discard_page(
 		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 	} else {
-		btr_discard_only_page_on_level(index, page, mtr);
+		btr_discard_only_page_on_level(index, block, mtr);
 
 		return;
 	}
