@@ -167,9 +167,17 @@ File my_register_filename(File fd, const char *FileName, enum file_type
   else
     my_errno=errno;
   DBUG_PRINT("error",("Got error %d on open",my_errno));
-  if (MyFlags & (MY_FFNF | MY_FAE | MY_WME))
-    my_error(error_message_number, MYF(ME_BELL+ME_WAITTANG),
+  if (MyFlags & (MY_FFNF | MY_FAE | MY_WME)) {
+    if (my_errno == EMFILE) {
+      DBUG_PRINT("error",("print err: %d",EE_OUT_OF_FILERESOURCES));
+      my_error(EE_OUT_OF_FILERESOURCES, MYF(ME_BELL+ME_WAITTANG),
 	     FileName, my_errno);
+    } else {
+      DBUG_PRINT("error",("print err: %d",error_message_number));
+      my_error(error_message_number, MYF(ME_BELL+ME_WAITTANG),
+	     FileName, my_errno);
+    }
+  }
   return(fd);
 }
 
