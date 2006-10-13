@@ -487,3 +487,16 @@ a	a	b
 1	1	1
 2	2	1
 drop table t1,t2;
+CREATE TABLE t1 (c1 varchar(250) NOT NULL);
+CREATE TABLE t2 (c1 varchar(250) NOT NULL, PRIMARY KEY (c1));
+INSERT INTO t1 VALUES ('test000001'), ('test000002'), ('test000003');
+INSERT INTO t2 VALUES ('test000002'), ('test000003'), ('test000004');
+LOCK TABLES t1 READ LOCAL, t2 READ LOCAL;
+SELECT t1.c1 AS t1c1, t2.c1 AS t2c1 FROM t1, t2
+WHERE t1.c1 = t2.c1 HAVING t1c1 != t2c1;
+t1c1	t2c1
+INSERT INTO t2 VALUES ('test000001'), ('test000005');
+SELECT t1.c1 AS t1c1, t2.c1 AS t2c1 FROM t1, t2
+WHERE t1.c1 = t2.c1 HAVING t1c1 != t2c1;
+t1c1	t2c1
+DROP TABLE t1,t2;
