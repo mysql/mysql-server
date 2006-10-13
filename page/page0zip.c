@@ -3531,8 +3531,8 @@ page_zip_reorganize(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(page, mtr, dict_table_is_comp(index->table));
 	block = buf_block_align(page);
+	page_create(block, mtr, dict_table_is_comp(index->table));
 	block->check_index_page_at_flush = TRUE;
 
 	/* Copy the records from the temporary space to the recreated page;

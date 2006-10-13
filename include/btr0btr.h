@@ -393,7 +393,7 @@ void
 btr_page_free(
 /*==========*/
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: page to be freed, x-latched */
+	buf_block_t*	block,	/* in: block to be freed, x-latched */
 	mtr_t*		mtr);	/* in: mtr */
 /******************************************************************
 Frees a file page used in an index tree. Can be used also to BLOB
@@ -404,9 +404,7 @@ void
 btr_page_free_low(
 /*==============*/
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: page to be freed, x-latched */
-	ulint		space,	/* in: space */
-	ulint		page_no,/* in: page number */
+	buf_block_t*	block,	/* in: block to be freed, x-latched */
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr);	/* in: mtr */
 #ifdef UNIV_BTR_PRINT

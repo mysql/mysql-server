@@ -1265,7 +1265,7 @@ lock_rec_get_first_on_page(
 	ut_ad(mutex_own(&kernel_mutex));
 #endif /* UNIV_SYNC_DEBUG */
 
-	hash = buf_frame_get_lock_hash_val(ptr);
+	hash = buf_block_get_lock_hash_val(buf_block_align(ptr));
 
 	lock = HASH_GET_FIRST(lock_sys->rec_hash, hash);
 

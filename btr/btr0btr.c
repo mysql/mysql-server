@@ -235,14 +235,14 @@ btr_page_create(
 	ulint		level,	/* in: the B-tree level of the page */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	page_t*	page = buf_block_get_frame(block);
+	page_t*		page = buf_block_get_frame(block);
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_create_zip(page, page_zip, index, level, mtr);
+		page_create_zip(block, index, level, mtr);
 	} else {
-		page_create(page, mtr, dict_table_is_comp(index->table));
+		page_create(block, mtr, dict_table_is_comp(index->table));
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, level, mtr);
 	}
@@ -397,16 +397,17 @@ void
 btr_page_free_for_ibuf(
 /*===================*/
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: page to be freed, x-latched */
+	buf_block_t*	block,	/* in: block to be freed, x-latched */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_t*		root;
 
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	root = btr_root_get(index, mtr);
 
 	flst_add_first(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
-		       page + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE, mtr);
+		       buf_block_get_frame(block)
+		       + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST_NODE, mtr);
 
 	ut_ad(flst_validate(root + PAGE_HEADER + PAGE_BTR_IBUF_FREE_LIST,
 			    mtr));
@@ -421,24 +422,22 @@ void
 btr_page_free_low(
 /*==============*/
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: page to be freed, x-latched */
-	ulint		space,	/* in: space */
-	ulint		page_no,/* in: page number */
+	buf_block_t*	block,	/* in: block to be freed, x-latched */
 	ulint		level,	/* in: page level */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	fseg_header_t*	seg_header;
 	page_t*		root;
 
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The page gets invalid for optimistic searches: increment the frame
 	modify clock */
 
-	buf_frame_modify_clock_inc(page);
+	buf_block_modify_clock_inc(block);
 
 	if (index->type & DICT_IBUF) {
 
-		btr_page_free_for_ibuf(index, page, mtr);
+		btr_page_free_for_ibuf(index, block, mtr);
 
 		return;
 	}
@@ -451,7 +450,9 @@ btr_page_free_low(
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 	}
 
-	fseg_free_page(seg_header, space, page_no, mtr);
+	fseg_free_page(seg_header,
+		       buf_block_get_space(block),
+		       buf_block_get_page_no(block), mtr);
 }
 
 /******************************************************************
@@ -462,20 +463,14 @@ void
 btr_page_free(
 /*==========*/
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: page to be freed, x-latched */
+	buf_block_t*	block,	/* in: block to be freed, x-latched */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ulint		level;
-	ulint		space;
-	ulint		page_no;
 
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
-	level = btr_page_get_level(page, mtr);
+	level = btr_page_get_level(buf_block_get_frame(block), mtr);
 
-	space = page_get_space_id(page);
-	page_no = page_get_page_no(page);
-
-	btr_page_free_low(index, page, space, page_no, level, mtr);
+	btr_page_free_low(index, block, level, mtr);
 }
 
 /******************************************************************
@@ -726,9 +721,9 @@ btr_create(
 	page_zip = buf_block_get_page_zip(block);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page = page_create_zip(frame, page_zip, index, 0, mtr);
+		page = page_create_zip(block, index, 0, mtr);
 	} else {
-		page = page_create(frame, mtr,
+		page = page_create(block, mtr,
 				   dict_table_is_comp(index->table));
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, 0, mtr);
@@ -882,7 +877,7 @@ btr_page_reorganize_low(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(page, mtr, dict_table_is_comp(index->table));
+	page_create(block, mtr, dict_table_is_comp(index->table));
 	block->check_index_page_at_flush = TRUE;
 
 	/* Copy the records from the temporary space to the recreated page;
@@ -1008,10 +1003,10 @@ btr_page_empty(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
-		page_create_zip(page, page_zip, index,
+		page_create_zip(block, index,
 				btr_page_get_level(page, mtr), mtr);
 	} else {
-		page_create(page, mtr, dict_table_is_comp(index->table));
+		page_create(block, mtr, dict_table_is_comp(index->table));
 	}
 
 	block->check_index_page_at_flush = TRUE;
@@ -1124,10 +1119,9 @@ btr_root_raise_and_insert(
 
 	/* Rebuild the root page to get free space */
 	if (UNIV_LIKELY_NULL(root_page_zip)) {
-		page_create_zip(root, root_page_zip, index,
-				level + 1, mtr);
+		page_create_zip(root_block, index, level + 1, mtr);
 	} else {
-		page_create(root, mtr, dict_table_is_comp(index->table));
+		page_create(root_block, mtr, dict_table_is_comp(index->table));
 		btr_page_set_level(root, NULL, level + 1, mtr);
 	}
 
@@ -2136,7 +2130,7 @@ void
 btr_lift_page_up(
 /*=============*/
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: page which is the only on its level;
+	buf_block_t*	block,	/* in: page which is the only on its level;
 				must not be empty: use
 				btr_discard_only_page_on_level if the last
 				record from the page should be removed */
@@ -2146,7 +2140,7 @@ btr_lift_page_up(
 	page_t*		father_page;
 	ulint		page_level;
 	page_zip_des_t*	father_page_zip;
-	buf_block_t*	block		= buf_block_align(page);
+	page_t*		page		= buf_block_get_frame(block);
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
@@ -2187,7 +2181,7 @@ btr_lift_page_up(
 	lock_update_copy_and_discard(father_page, page);
 
 	/* Free the file page */
-	btr_page_free(index, page, mtr);
+	btr_page_free(index, block, mtr);
 
 	/* We play safe and reset the free bits for the father */
 	ibuf_reset_free_bits_with_type(index->type, father_block);
@@ -2223,6 +2217,7 @@ btr_compress(
 	page_t*		merge_page;
 	page_zip_des_t*	merge_page_zip;
 	ibool		is_left;
+	buf_block_t*	block;
 	page_t*		page;
 	rec_t*		node_ptr;
 	ulint		data_size;
@@ -2231,7 +2226,8 @@ btr_compress(
 	ulint		max_ins_size_reorg;
 	ulint		level;
 
-	page = btr_cur_get_page(cursor);
+	block = buf_block_align(btr_cur_get_rec(cursor));
+	page = buf_block_get_frame(block);
 	index = btr_cur_get_index(cursor);
 	ut_a((ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
 
@@ -2280,7 +2276,7 @@ btr_compress(
 	} else {
 		/* The page is the only one on the level, lift the records
 		to the father */
-		btr_lift_page_up(index, page, mtr);
+		btr_lift_page_up(index, block, mtr);
 		return(TRUE);
 	}
 
@@ -2428,7 +2424,7 @@ btr_compress(
 	ut_ad(page_validate(merge_page, index));
 
 	/* Free the file page */
-	btr_page_free(index, page, mtr);
+	btr_page_free(index, block, mtr);
 
 	ut_ad(btr_check_node_ptr(index, merge_page, mtr));
 	return(TRUE);
@@ -2466,7 +2462,7 @@ btr_discard_only_page_on_level(
 			   page_level, mtr);
 
 	/* Free the file page */
-	btr_page_free(index, page, mtr);
+	btr_page_free(index, block, mtr);
 
 	if (UNIV_LIKELY(page_get_page_no(father_page)
 			== dict_index_get_page(index))) {
@@ -2582,7 +2578,7 @@ btr_discard_page(
 	}
 
 	/* Free the file page */
-	btr_page_free(index, page, mtr);
+	btr_page_free(index, block, mtr);
 
 	ut_ad(btr_check_node_ptr(index, merge_page, mtr));
 }
