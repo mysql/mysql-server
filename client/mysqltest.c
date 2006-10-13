@@ -3397,8 +3397,10 @@ int read_line(char *buf, int size)
 	DBUG_RETURN(0);
       }
       else if ((c == '{' &&
-                (!strncasecmp(buf, "while", min(5, p - buf)) ||
-                 !strncasecmp(buf, "if", min(2, p - buf)))))
+                (!my_strnncoll_simple(charset_info, "while", 5,
+                                      buf, min(5, p - buf), 0) ||
+                 !my_strnncoll_simple(charset_info, "if", 2,
+                                      buf, min(2, p - buf), 0))))
       {
         /* Only if and while commands can be terminated by { */
         *p++= c;
