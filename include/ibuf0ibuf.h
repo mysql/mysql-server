@@ -63,23 +63,10 @@ bitmap page were kept. */
 void
 ibuf_reset_free_bits_with_type(
 /*===========================*/
-	ulint	type,	/* in: index type */
-	page_t*	page);	/* in: index page; free bits are set to 0 if the index
-			is non-clustered and non-unique and the page level is
-			0 */
-/****************************************************************************
-Resets the free bits of the page in the ibuf bitmap. This is done in a
-separate mini-transaction, hence this operation does not restrict further
-work to solely ibuf bitmap operations, which would result if the latch to
-the bitmap page were kept. */
-
-void
-ibuf_reset_free_bits(
-/*=================*/
-	dict_index_t*	index,	/* in: index */
-	page_t*		page);	/* in: index page; free bits are set to 0 if
-				the index is non-clustered and non-unique and
-				the page level is 0 */
+	ulint		type,	/* in: index type */
+	buf_block_t*	block);	/* in: index page; free bits are set to 0
+				if the index is a non-clustered
+				non-unique, and page level is 0 */
 /****************************************************************************
 Updates the free bits of the page in the ibuf bitmap if there is not enough
 free on the page any more. This is done in a separate mini-transaction, hence
@@ -90,7 +77,7 @@ void
 ibuf_update_free_bits_if_full(
 /*==========================*/
 	dict_index_t*	index,	/* in: index */
-	page_t*		page,	/* in: index page to which we have added new
+	buf_block_t*	block,	/* in: index page to which we have added new
 				records; the free bits are updated if the
 				index is non-clustered and non-unique and
 				the page level is 0, and the page becomes

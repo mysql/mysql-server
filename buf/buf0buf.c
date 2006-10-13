@@ -984,13 +984,9 @@ the buffer pool. */
 void
 buf_page_make_young(
 /*================*/
-	buf_frame_t*	frame)	/* in: buffer frame of a file page */
+	buf_block_t*	block)	/* in: buffer block of a file page */
 {
-	buf_block_t*	block;
-
 	mutex_enter(&(buf_pool->mutex));
-
-	block = buf_block_align(frame);
 
 	ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 

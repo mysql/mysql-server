@@ -832,15 +832,17 @@ were kept. */
 void
 ibuf_set_free_bits(
 /*===============*/
-	ulint	type,	/* in: index type */
-	page_t*	page,	/* in: index page; free bit is set if the index is
-			non-clustered and page level is 0 */
-	ulint	val,	/* in: value to set: < 4 */
-	ulint	max_val)/* in: ULINT_UNDEFINED or a maximum value which
-			the bits must have before setting; this is for
-			debugging */
+	ulint		type,	/* in: index type */
+	buf_block_t*	block,	/* in: index page; free bit is reset
+				if the index is a non-clustered
+				non-unique, and page level is 0 */
+	ulint		val,	/* in: value to set: < 4 */
+	ulint		max_val)/* in: ULINT_UNDEFINED or a maximum
+				value which the bits must have before
+				setting; this is for debugging */
 {
 	mtr_t	mtr;
+	page_t*	page;
 	page_t*	bitmap_page;
 	ulint	space;
 	ulint	page_no;
@@ -851,6 +853,8 @@ ibuf_set_free_bits(
 		return;
 	}
 
+	page = buf_block_get_frame(block);
+
 	if (!page_is_leaf(page)) {
 
 		return;
@@ -858,9 +862,9 @@ ibuf_set_free_bits(
 
 	mtr_start(&mtr);
 
-	space = page_get_space_id(page);
-	page_no = page_get_page_no(page);
-	zip_size = fil_space_get_zip_size(space);
+	space = buf_block_get_space(block);
+	page_no = buf_block_get_page_no(block);
+	zip_size = buf_block_get_zip_size(block);
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, &mtr);
 
 	if (max_val != ULINT_UNDEFINED) {
@@ -905,29 +909,12 @@ bitmap page were kept. */
 void
 ibuf_reset_free_bits_with_type(
 /*===========================*/
-	ulint	type,	/* in: index type */
-	page_t*	page)	/* in: index page; free bits are set to 0 if the index
-			is non-clustered and non-unique and the page level is
-			0 */
+	ulint		type,	/* in: index type */
+	buf_block_t*	block)	/* in: index page; free bits are set to 0
+				if the index is a non-clustered
+				non-unique, and page level is 0 */
 {
-	ibuf_set_free_bits(type, page, 0, ULINT_UNDEFINED);
-}
-
-/****************************************************************************
-Resets the free bits of the page in the ibuf bitmap. This is done in a
-separate mini-transaction, hence this operation does not restrict further
-work to solely ibuf bitmap operations, which would result if the latch to
-the bitmap page were kept. */
-
-void
-ibuf_reset_free_bits(
-/*=================*/
-	dict_index_t*	index,	/* in: index */
-	page_t*		page)	/* in: index page; free bits are set to 0 if
-				the index is non-clustered and non-unique and
-				the page level is 0 */
-{
-	ibuf_set_free_bits(index->type, page, 0, ULINT_UNDEFINED);
+	ibuf_set_free_bits(type, block, 0, ULINT_UNDEFINED);
 }
 
 /**************************************************************************

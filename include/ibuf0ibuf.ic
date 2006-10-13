@@ -58,13 +58,14 @@ were kept. */
 void
 ibuf_set_free_bits(
 /*===============*/
-	ulint	type,	/* in: index type */
-	page_t*	page,	/* in: index page; free bit is reset if the index is
-			a non-clustered non-unique, and page level is 0 */
-	ulint	val,	/* in: value to set: < 4 */
-	ulint	max_val);/* in: ULINT_UNDEFINED or a maximum value which
-			the bits must have before setting; this is for
-			debugging */
+	ulint		type,	/* in: index type */
+	buf_block_t*	block,	/* in: index page; free bit is reset
+				if the index is a non-clustered
+				non-unique, and page level is 0 */
+	ulint		val,	/* in: value to set: < 4 */
+	ulint		max_val);/* in: ULINT_UNDEFINED or a maximum
+				value which the bits must have before
+				setting; this is for debugging */
 
 /**************************************************************************
 A basic partial test if an insert to the insert buffer could be possible and
@@ -185,7 +186,7 @@ void
 ibuf_update_free_bits_if_full(
 /*==========================*/
 	dict_index_t*	index,	/* in: index */
-	page_t*		page,	/* in: index page to which we have added new
+	buf_block_t*	block,	/* in: index page to which we have added new
 				records; the free bits are updated if the
 				index is non-clustered and non-unique and
 				the page level is 0, and the page becomes
@@ -209,10 +210,11 @@ ibuf_update_free_bits_if_full(
 		after = ibuf_index_page_calc_free_bits(max_ins_size
 						       - increase);
 #ifdef UNIV_IBUF_DEBUG
-		ut_a(after <= ibuf_index_page_calc_free(page));
+		ut_a(after <= ibuf_index_page_calc_free(buf_block_get_frame(
+								block)));
 #endif
 	} else {
-		after = ibuf_index_page_calc_free(page);
+		after = ibuf_index_page_calc_free(buf_block_get_frame(block));
 	}
 
 	if (after == 0) {
@@ -221,10 +223,10 @@ ibuf_update_free_bits_if_full(
 		cannot make inserts using the insert buffer from slipping
 		out of the buffer pool */
 
-		buf_page_make_young(page);
+		buf_page_make_young(block);
 	}
 
 	if (before > after) {
-		ibuf_set_free_bits(index->type, page, after, before);
+		ibuf_set_free_bits(index->type, block, after, before);
 	}
 }

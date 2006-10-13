@@ -277,7 +277,7 @@ the buffer pool. */
 void
 buf_page_make_young(
 /*================*/
-	buf_frame_t*	frame);	/* in: buffer frame of a file page */
+	buf_block_t*	block);	/* in: buffer block of a file page */
 /************************************************************************
 Returns TRUE if the page can be found in the buffer pool hash table. NOTE
 that it is possible that the page is not yet read from disk, though. */
