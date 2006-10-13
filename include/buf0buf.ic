@@ -299,15 +299,11 @@ Gets the hash value of the page the pointer is pointing to. This can be used
 in searches in the lock hash table. */
 UNIV_INLINE
 ulint
-buf_frame_get_lock_hash_val(
+buf_block_get_lock_hash_val(
 /*========================*/
-			/* out: lock hash value */
-	byte*	ptr)	/* in: pointer to within a buffer frame */
+					/* out: lock hash value */
+	const buf_block_t*	block)	/* in: block */
 {
-	buf_block_t*	block;
-
-	block = buf_block_align(ptr);
-
 	return(block->lock_hash_val);
 }
 
@@ -318,13 +314,9 @@ UNIV_INLINE
 mutex_t*
 buf_frame_get_lock_mutex(
 /*=====================*/
-			/* out: mutex */
-	byte*	ptr)	/* in: pointer to within a buffer frame */
+				/* out: mutex */
+	buf_block_t*	block)	/* in: block */
 {
-	buf_block_t*	block;
-
-	block = buf_block_align(ptr);
-
 	return(block->lock_mutex);
 }
 
@@ -451,37 +443,9 @@ Increments the modify clock of a frame by 1. The caller must (1) own the
 buf_pool mutex and block bufferfix count has to be zero, (2) or own an x-lock
 on the block. */
 UNIV_INLINE
-dulint
-buf_frame_modify_clock_inc(
-/*=======================*/
-				/* out: new value */
-	buf_frame_t*	frame)	/* in: pointer to a frame */
-{
-	buf_block_t*	block;
-
-	ut_ad(frame);
-
-	block = buf_block_align(frame);
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad((mutex_own(&(buf_pool->mutex)) && (block->buf_fix_count == 0))
-	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
-#endif /*UNIV_SYNC_DEBUG */
-
-	UT_DULINT_INC(block->modify_clock);
-
-	return(block->modify_clock);
-}
-
-/************************************************************************
-Increments the modify clock of a frame by 1. The caller must (1) own the
-buf_pool mutex and block bufferfix count has to be zero, (2) or own an x-lock
-on the block. */
-UNIV_INLINE
-dulint
+void
 buf_block_modify_clock_inc(
 /*=======================*/
-				/* out: new value */
 	buf_block_t*	block)	/* in: block */
 {
 #ifdef UNIV_SYNC_DEBUG
@@ -490,8 +454,6 @@ buf_block_modify_clock_inc(
 #endif /* UNIV_SYNC_DEBUG */
 
 	UT_DULINT_INC(block->modify_clock);
-
-	return(block->modify_clock);
 }
 
 /************************************************************************

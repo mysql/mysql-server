@@ -764,19 +764,31 @@ static
 byte*
 recv_parse_or_apply_log_rec_body(
 /*=============================*/
-			/* out: log record end, NULL if not a complete
-			record */
-	byte	type,	/* in: type */
-	byte*	ptr,	/* in: pointer to a buffer */
-	byte*	end_ptr,/* in: pointer to the buffer end */
-	page_t*	page,	/* in/out: buffer page or NULL; if not NULL, then the
-			log record is applied to the page, and the log record
-			should be complete then */
-	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
-	mtr_t*	mtr)	/* in: mtr or NULL; should be non-NULL if and only if
-			page is non-NULL */
+				/* out: log record end, NULL if not a
+				complete record */
+	byte		type,	/* in: type */
+	byte*		ptr,	/* in: pointer to a buffer */
+	byte*		end_ptr,/* in: pointer to the buffer end */
+	buf_block_t*	block,	/* in/out: buffer block or NULL; if
+				not NULL, then the log record is
+				applied to the page, and the log
+				record should be complete then */
+	mtr_t*		mtr)	/* in: mtr or NULL; should be non-NULL
+				if and only if block is non-NULL */
 {
-	dict_index_t*	index = NULL;
+	dict_index_t*	index	= NULL;
+	page_t*		page;
+	page_zip_des_t*	page_zip;
+
+	ut_ad(!block == !mtr);
+
+	if (block) {
+		page = block->frame;
+		page_zip = buf_block_get_page_zip(block);
+	} else {
+		page = NULL;
+		page_zip = NULL;
+	}
 
 	switch (type) {
 	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
@@ -876,7 +888,7 @@ recv_parse_or_apply_log_rec_body(
 		ut_a(!page_zip);
 		ptr = page_parse_create(ptr, end_ptr,
 					type == MLOG_COMP_PAGE_CREATE,
-					page, mtr);
+					block, mtr);
 		break;
 	case MLOG_UNDO_INSERT:
 		ptr = trx_undo_parse_add_undo_rec(ptr, end_ptr, page);
@@ -1155,7 +1167,6 @@ recv_recover_page(
 	buf_block_t*	block)	/* in: buffer block */
 {
 	page_t*		page;
-	page_zip_des_t*	page_zip;
 	recv_addr_t*	recv_addr;
 	recv_t*		recv;
 	byte*		buf;
@@ -1202,7 +1213,6 @@ recv_recover_page(
 	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
 	page = block->frame;
-	page_zip = buf_block_get_page_zip(block);
 
 	if (!recover_backup) {
 		if (just_read_in) {
@@ -1296,7 +1306,7 @@ recv_recover_page(
 
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
-							 page, page_zip, &mtr);
+							 block, &mtr);
 			mach_write_to_8(page + UNIV_PAGE_SIZE
 					- FIL_PAGE_END_LSN_OLD_CHKSUM,
 					ut_dulint_add(recv->start_lsn,
@@ -1743,7 +1753,7 @@ recv_parse_log_rec(
 	}
 
 	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
-						   NULL, NULL, NULL);
+						   NULL, NULL);
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
 
 		return(0);

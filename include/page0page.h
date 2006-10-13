@@ -657,7 +657,7 @@ page_t*
 page_create(
 /*========*/
 					/* out: pointer to the page */
-	buf_frame_t*	frame,		/* in/out: a buffer frame where the
+	buf_block_t*	block,		/* in: a buffer block where the
 					page is created */
 	mtr_t*		mtr,		/* in: mini-transaction handle */
 	ulint		comp);		/* in: nonzero=compact page format */
@@ -668,9 +668,8 @@ page_t*
 page_create_zip(
 /*============*/
 					/* out: pointer to the page */
-	buf_frame_t*	frame,		/* in/out: a buffer frame where the
+	buf_block_t*	block,		/* in/out: a buffer frame where the
 					page is created */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page, or NULL */
 	dict_index_t*	index,		/* in: the index of the page */
 	ulint		level,		/* in: the B-tree level of the page */
 	mtr_t*		mtr);		/* in: mini-transaction handle */
@@ -841,7 +840,7 @@ page_parse_create(
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
 	ulint		comp,	/* in: nonzero=compact page format */
-	page_t*		page,	/* in: page or NULL */
+	buf_block_t*	block,	/* in: block or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /***************************************************************
 Parses a redo log record of creating a compressed page. */

@@ -1329,10 +1329,10 @@ btr_cur_pessimistic_insert(
 				  > free_space_zip)) {
 			/* Try to insert the record by itself on a new page.
 			If it fails, no amount of splitting will help. */
-			buf_block_t*	temp_block = buf_block_alloc(zip_size);
-			page_t*		temp_page = page_create_zip(
-				temp_block->frame, &temp_block->page_zip,
-				index, 0, NULL);
+			buf_block_t*	temp_block
+				= buf_block_alloc(zip_size);
+			page_t*		temp_page
+				= page_create_zip(temp_block, index, 0, NULL);
 			page_cur_t	temp_cursor;
 			rec_t*		temp_rec;
 
@@ -3977,8 +3977,7 @@ btr_free_externally_stored_field(
 			in row_purge_upd_exist_or_extern(). */
 			next_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
 
-			btr_page_free_low(index, page,
-					  space_id, page_no, 0, &mtr);
+			btr_page_free_low(index, ext_block, 0, &mtr);
 
 			if (UNIV_LIKELY(page_zip != NULL)) {
 				mach_write_to_4(field_ref + BTR_EXTERN_PAGE_NO,
@@ -4016,8 +4015,7 @@ btr_free_externally_stored_field(
 			ut_a(space_id == page_get_space_id(page));
 			ut_a(page_no == page_get_page_no(page));
 
-			btr_page_free_low(index, page,
-					  space_id, page_no, 0, &mtr);
+			btr_page_free_low(index, ext_block, 0, &mtr);
 
 			mlog_write_ulint(field_ref + BTR_EXTERN_PAGE_NO,
 					 next_page_no,
