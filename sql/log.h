@@ -114,6 +114,8 @@ extern TC_LOG_DUMMY tc_log_dummy;
 #define LOG_INFO_MEM -6
 #define LOG_INFO_FATAL -7
 #define LOG_INFO_IN_USE -8
+#define LOG_INFO_EMFILE -9
+
 
 /* bitmap to SQL_LOG::close() */
 #define LOG_CLOSE_INDEX		1

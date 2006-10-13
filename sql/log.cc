@@ -2687,6 +2687,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
                           ulonglong *decrease_log_space)
 {
   int error;
+  int ret = 0;
   bool exit_loop= 0;
   LOG_INFO log_info;
   DBUG_ENTER("purge_logs");
@@ -2731,6 +2732,14 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       *decrease_log_space-= file_size;
 
     ha_binlog_index_purge_file(current_thd, log_info.log_file_name);
+    if (current_thd->query_error) {
+      DBUG_PRINT("info",("query error: %d", current_thd->query_error));
+      if (my_errno == EMFILE) {
+        DBUG_PRINT("info",("my_errno: %d, set ret = LOG_INFO_EMFILE", my_errno));
+        ret = LOG_INFO_EMFILE;
+        break;
+      }
+    }
 
     if (find_next_log(&log_info, 0) || exit_loop)
       break;
@@ -2741,6 +2750,9 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     the log index file after restart - otherwise, this should be safe
   */
   error= update_log_index(&log_info, need_update_threads);
+  if (error == 0) {
+    error = ret;
+  }
 
 err:
   if (need_mutex)

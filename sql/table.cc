@@ -1562,6 +1562,17 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 	error= 1;
 	my_errno= ENOENT;
       }
+      else if (ha_err == EMFILE)
+      {
+	/*
+          Too many files opened, use same error message as if the .frm
+           file can't open
+         */
+        DBUG_PRINT("error", ("open file: %s failed, too many files opened (errno: %d)", 
+		share->normalized_path.str, ha_err));
+	error= 1;
+	my_errno= EMFILE;
+      }
       else
       {
         outparam->file->print_error(ha_err, MYF(0));
