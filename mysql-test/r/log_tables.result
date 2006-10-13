@@ -218,3 +218,71 @@ unlock tables;
 use mysql;
 lock tables general_log read local, help_category read local;
 unlock tables;
+use mysql;
+RENAME TABLE general_log TO renamed_general_log;
+ERROR HY000: Cannot rename 'general_log'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to 'general_log'
+RENAME TABLE slow_log TO renamed_slow_log;
+ERROR HY000: Cannot rename 'slow_log'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to 'slow_log'
+truncate table general_log;
+select * from general_log;
+event_time	user_host	thread_id	server_id	command_type	argument
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from general_log
+truncate table slow_log;
+select * from slow_log;
+start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
+create table general_log_new like general_log;
+rename table general_log TO renamed_general_log, general_log_new TO general_log;
+create table slow_log_new like slow_log;
+rename table slow_log TO renamed_slow_log, slow_log_new TO slow_log;
+rename table general_log TO general_log_new, renamed_general_log TO general_log, slow_log to renamed_slow_log;
+ERROR HY000: Cannot rename 'slow_log'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to 'slow_log'
+select * from general_log;
+event_time	user_host	thread_id	server_id	command_type	argument
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	create table slow_log_new like slow_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	rename table slow_log TO renamed_slow_log, slow_log_new TO slow_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	rename table general_log TO general_log_new, renamed_general_log TO general_log, slow_log to renamed_slow_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from general_log
+select * from renamed_general_log;
+event_time	user_host	thread_id	server_id	command_type	argument
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from general_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	truncate table slow_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from slow_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	create table general_log_new like general_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	rename table general_log TO renamed_general_log, general_log_new TO general_log
+select * from slow_log;
+start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
+select * from renamed_slow_log;
+start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text
+set global general_log='OFF';
+RENAME TABLE general_log TO general_log2;
+set global slow_query_log='OFF';
+RENAME TABLE slow_log TO slow_log2;
+set global general_log='ON';
+ERROR HY000: Cannot activate 'general' log
+set global slow_query_log='ON';
+ERROR HY000: Cannot activate 'slow query' log
+RENAME TABLE general_log2 TO general_log;
+RENAME TABLE slow_log2 TO slow_log;
+set global general_log='ON';
+set global slow_query_log='ON';
+flush logs;
+flush logs;
+drop table renamed_general_log, renamed_slow_log;
+use test;
+use mysql;
+repair table general_log;
+Table	Op	Msg_type	Msg_text
+mysql.general_log	repair	status	OK
+repair table slow_log;
+Table	Op	Msg_type	Msg_text
+mysql.slow_log	repair	status	OK
+create table general_log_new like general_log;
+create table slow_log_new like slow_log;
+show tables like "%log%";
+Tables_in_mysql (%log%)
+general_log
+general_log_new
+slow_log
+slow_log_new
+drop table slow_log_new, general_log_new;
+use test;

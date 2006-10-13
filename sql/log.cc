@@ -92,6 +92,31 @@ struct binlog_trx_data {
 
 handlerton binlog_hton;
 
+/* Check if a given table is opened log table */
+int check_if_log_table(uint db_len, const char *db, uint table_name_len,
+                       const char *table_name, uint check_if_opened)
+{
+  if (db_len == 5 &&
+      !(lower_case_table_names ?
+        my_strcasecmp(system_charset_info, db, "mysql") :
+        strcmp(db, "mysql")))
+  {
+    if (table_name_len == 11 && !(lower_case_table_names ?
+                                  my_strcasecmp(system_charset_info,
+                                                table_name, "general_log") :
+                                  strcmp(table_name, "general_log")) &&
+        (!check_if_opened || logger.is_log_table_enabled(QUERY_LOG_GENERAL)))
+      return QUERY_LOG_GENERAL;
+    else
+      if (table_name_len == 8 && !(lower_case_table_names ?
+        my_strcasecmp(system_charset_info, table_name, "slow_log") :
+        strcmp(table_name, "slow_log")) &&
+          (!check_if_opened ||logger.is_log_table_enabled(QUERY_LOG_SLOW)))
+        return QUERY_LOG_SLOW;
+  }
+  return 0;
+}
+
 /*
   Open log table of a given type (general or slow log)
 
@@ -192,6 +217,12 @@ bool Log_to_csv_event_handler::open_log_table(uint log_table_type)
     my_pthread_setspecific_ptr(THR_MALLOC, 0);
   }
 
+  /*
+    After a log table was opened, we should clear privileged thread
+    flag (which allows locking of a log table by a special thread, usually
+    the one who closed log tables temporarily).
+  */
+  privileged_thread= 0;
   DBUG_RETURN(error);
 }
 
@@ -208,6 +239,8 @@ Log_to_csv_event_handler::Log_to_csv_event_handler()
   /* logger thread always works with mysql database */
   slow_log_thd->db= my_strdup("mysql", MYF(0));;
   slow_log_thd->db_length= 5;
+  /* no privileged thread exists at the moment */
+  privileged_thread= 0;
 }
 
 
@@ -259,6 +292,7 @@ bool Log_to_csv_event_handler::reopen_log_table(uint log_table_type)
     return FALSE;
   return open_log_table(log_table_type);
 }
+
 
 void Log_to_csv_event_handler::cleanup()
 {
@@ -314,9 +348,6 @@ bool Log_to_csv_event_handler::
     filled by the Logger (=> no need to load default ones).
   */
 
-  /* log table entries are not replicated at the moment */
-  tmp_disable_binlog(current_thd);
-
   /* Set current time. Required for CURRENT_TIMESTAMP to work */
   general_log_thd->start_time= event_time;
 
@@ -325,21 +356,36 @@ bool Log_to_csv_event_handler::
     default value (which is CURRENT_TIMESTAMP).
   */
 
-  table->field[1]->store(user_host, user_host_len, client_cs);
+  /* check that all columns exist */
+  if (!table->field[1] || !table->field[2] || !table->field[3] ||
+      !table->field[4] || !table->field[5])
+    goto err;
+
+  /* do a write */
+  if (table->field[1]->store(user_host, user_host_len, client_cs) ||
+      table->field[2]->store((longlong) thread_id, TRUE) ||
+      table->field[3]->store((longlong) server_id, TRUE) ||
+      table->field[4]->store(command_type, command_type_len, client_cs) ||
+      table->field[5]->store(sql_text, sql_text_len, client_cs))
+    goto err;
+
+  /* mark tables as not null */
   table->field[1]->set_notnull();
-  table->field[2]->store((longlong) thread_id, TRUE);
   table->field[2]->set_notnull();
-  table->field[3]->store((longlong) server_id, TRUE);
   table->field[3]->set_notnull();
-  table->field[4]->store(command_type, command_type_len, client_cs);
   table->field[4]->set_notnull();
-  table->field[5]->store(sql_text, sql_text_len, client_cs);
   table->field[5]->set_notnull();
+
+  /* log table entries are not replicated at the moment */
+  tmp_disable_binlog(current_thd);
+
   table->file->ha_write_row(table->record[0]);
 
   reenable_binlog(current_thd);
 
   return FALSE;
+err:
+  return TRUE;
 }
 
 
@@ -388,9 +434,6 @@ bool Log_to_csv_event_handler::
   if (unlikely(!logger.is_log_tables_initialized))
     return FALSE;
 
-  /* log table entries are not replicated at the moment */
-  tmp_disable_binlog(current_thd);
-
   /*
      Set start time for CURRENT_TIMESTAMP to the start of the query.
      This will be default value for the field[0]
@@ -403,19 +446,30 @@ bool Log_to_csv_event_handler::
     default value.
   */
 
+  if (!table->field[1] || !table->field[2] || !table->field[3] ||
+      !table->field[4] || !table->field[5] || !table->field[6] ||
+      !table->field[7] || !table->field[8] || !table->field[9] ||
+      !table->field[10])
+    goto err;
+
   /* store the value */
-  table->field[1]->store(user_host, user_host_len, client_cs);
+  if (table->field[1]->store(user_host, user_host_len, client_cs))
+    goto err;
 
   if (query_start_arg)
   {
     /* fill in query_time field */
-    table->field[2]->store(query_time, TRUE);
+    if (table->field[2]->store(query_time, TRUE))
+      goto err;
     /* lock_time */
-    table->field[3]->store(lock_time, TRUE);
+    if (table->field[3]->store(lock_time, TRUE))
+      goto err;
     /* rows_sent */
-    table->field[4]->store((longlong) thd->sent_row_count, TRUE);
+    if (table->field[4]->store((longlong) thd->sent_row_count, TRUE))
+      goto err;
     /* rows_examined */
-    table->field[5]->store((longlong) thd->examined_row_count, TRUE);
+    if (table->field[5]->store((longlong) thd->examined_row_count, TRUE))
+      goto err;
   }
   else
   {
@@ -428,14 +482,18 @@ bool Log_to_csv_event_handler::
   /* fill database field */
   if (thd->db)
   {
-    table->field[6]->store(thd->db, thd->db_length, client_cs);
+    if (table->field[6]->store(thd->db, thd->db_length, client_cs))
+      goto err;
     table->field[6]->set_notnull();
   }
 
   if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
   {
-    table->field[7]->store((longlong)
-                           thd->first_successful_insert_id_in_prev_stmt_for_binlog, TRUE);
+    if (table->
+        field[7]->store((longlong)
+                        thd->first_successful_insert_id_in_prev_stmt_for_binlog,
+                        TRUE))
+      goto err;
     table->field[7]->set_notnull();
   }
 
@@ -447,16 +505,23 @@ bool Log_to_csv_event_handler::
   */
   if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
   {
-    table->field[8]->store((longlong)
-                           thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(), TRUE);
+    if (table->
+        field[8]->store((longlong)
+          thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(), TRUE))
+      goto err;
     table->field[8]->set_notnull();
   }
 
-  table->field[9]->store((longlong) server_id, TRUE);
+  if (table->field[9]->store((longlong) server_id, TRUE))
+    goto err;
   table->field[9]->set_notnull();
 
   /* sql_text */
-  table->field[10]->store(sql_text,sql_text_len, client_cs);
+  if (table->field[10]->store(sql_text,sql_text_len, client_cs))
+    goto err;
+
+  /* log table entries are not replicated at the moment */
+  tmp_disable_binlog(current_thd);
 
   /* write the row */
   table->file->ha_write_row(table->record[0]);
@@ -464,6 +529,8 @@ bool Log_to_csv_event_handler::
   reenable_binlog(current_thd);
 
   DBUG_RETURN(0);
+err:
+  DBUG_RETURN(1);
 }
 
 bool Log_to_csv_event_handler::
@@ -652,61 +719,48 @@ bool LOGGER::reopen_log_table(uint log_table_type)
   return table_log_handler->reopen_log_table(log_table_type);
 }
 
+bool LOGGER::reopen_log_tables()
+{
+    /*
+      we use | and not || here, to ensure that both reopen_log_table
+      are called, even if the first one fails
+    */
+    if ((opt_slow_log && logger.reopen_log_table(QUERY_LOG_SLOW)) |
+        (opt_log && logger.reopen_log_table(QUERY_LOG_GENERAL)))
+      return TRUE;
+    return FALSE;
+}
+
+
+void LOGGER::tmp_close_log_tables(THD *thd)
+{
+  table_log_handler->tmp_close_log_tables(thd);
+}
 
 bool LOGGER::flush_logs(THD *thd)
 {
-  TABLE_LIST close_slow_log, close_general_log;
-
-  /* reopen log tables */
-  bzero((char*) &close_slow_log, sizeof(TABLE_LIST));
-  close_slow_log.alias= close_slow_log.table_name=(char*) "slow_log";
-  close_slow_log.table_name_length= 8;
-  close_slow_log.db= (char*) "mysql";
-  close_slow_log.db_length= 5;
-
-  bzero((char*) &close_general_log, sizeof(TABLE_LIST));
-  close_general_log.alias= close_general_log.table_name=(char*) "general_log";
-  close_general_log.table_name_length= 11;
-  close_general_log.db= (char*) "mysql";
-  close_general_log.db_length= 5;
-
-  /* lock tables, in the case they are enabled */
-  if (logger.is_log_tables_initialized)
-  {
-    /*
-      This will lock and wait for all but the logger thread to release the
-      tables. Then we could reopen log tables. Then release the name locks.
-
-      NOTE: in fact, the first parameter used in lock_and_wait_for_table_name()
-      and table_log_handler->flush() could be any non-NULL THD, as the
-      underlying code makes certain assumptions about this.
-      Here we use one of the logger handler THD's. Simply because it
-      seems appropriate.
-    */
-    if (opt_slow_log)
-      lock_and_wait_for_table_name(table_log_handler->general_log_thd,
-				   &close_slow_log);
-    if (opt_log)
-      lock_and_wait_for_table_name(table_log_handler->general_log_thd,
-				   &close_general_log);
-  }
+  int rc= 0;
 
   /*
-    Deny others from logging to general and slow log,
-    while reopening tables.
+    Now we lock logger, as nobody should be able to use logging routines while
+    log tables are closed
   */
   logger.lock();
+  if (logger.is_log_tables_initialized)
+    table_log_handler->tmp_close_log_tables(thd); // the locking happens here
 
   /* reopen log files */
   file_log_handler->flush();
 
-  /* flush tables, in the case they are enabled */
+  /* reopen tables in the case they were enabled */
   if (logger.is_log_tables_initialized)
-    table_log_handler->flush(table_log_handler->general_log_thd,
-                             &close_slow_log, &close_general_log);
+  {
+    if (reopen_log_tables())
+      rc= TRUE;
+  }
   /* end of log flush */
   logger.unlock();
-  return FALSE;
+  return rc;
 }
 
 
@@ -1014,31 +1068,50 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
 }
 
 
-bool Log_to_csv_event_handler::flush(THD *thd, TABLE_LIST *close_slow_log,
-                                     TABLE_LIST *close_general_log)
+/*
+  Close log tables temporarily. The thread which closed
+  them this way can lock them in any mode it needs.
+  NOTE: one should call logger.lock() before entering this
+  function.
+*/
+void Log_to_csv_event_handler::tmp_close_log_tables(THD *thd)
 {
+  TABLE_LIST close_slow_log, close_general_log;
+
+  /* fill lists, we will need to perform operations on tables */
+  bzero((char*) &close_slow_log, sizeof(TABLE_LIST));
+  close_slow_log.alias= close_slow_log.table_name=(char*) "slow_log";
+  close_slow_log.table_name_length= 8;
+  close_slow_log.db= (char*) "mysql";
+  close_slow_log.db_length= 5;
+
+  bzero((char*) &close_general_log, sizeof(TABLE_LIST));
+  close_general_log.alias= close_general_log.table_name=(char*) "general_log";
+  close_general_log.table_name_length= 11;
+  close_general_log.db= (char*) "mysql";
+  close_general_log.db_length= 5;
+
+  privileged_thread= thd;
+
   VOID(pthread_mutex_lock(&LOCK_open));
+  /*
+    NOTE: in fact, the first parameter used in query_cache_invalidate3()
+    could be any non-NULL THD, as the underlying code makes certain
+    assumptions about this.
+    Here we use one of the logger handler THD's. Simply because it
+    seems appropriate.
+  */
   if (opt_log)
   {
     close_log_table(QUERY_LOG_GENERAL, TRUE);
-    query_cache_invalidate3(thd, close_general_log, 0);
-    unlock_table_name(thd, close_general_log);
+    query_cache_invalidate3(general_log_thd, &close_general_log, 0);
   }
   if (opt_slow_log)
   {
     close_log_table(QUERY_LOG_SLOW, TRUE);
-    query_cache_invalidate3(thd, close_slow_log, 0);
-    unlock_table_name(thd, close_slow_log);
+    query_cache_invalidate3(general_log_thd, &close_slow_log, 0);
   }
   VOID(pthread_mutex_unlock(&LOCK_open));
-  /*
-    we use | and not || here, to ensure that both reopen_log_table
-    are called, even if the first one fails
-  */
-  if ((opt_slow_log && reopen_log_table(QUERY_LOG_SLOW)) |
-      (opt_log && reopen_log_table(QUERY_LOG_GENERAL)))
-    return 1;
-  return 0;
 }
 
 /* the parameters are unused for the log tables */
@@ -1106,16 +1179,15 @@ void Log_to_csv_event_handler::
   THD *log_thd, *curr= current_thd;
   TABLE_LIST *table;
 
+  if (!logger.is_log_table_enabled(log_table_type))
+    return;                                     /* do nothing */
+
   switch (log_table_type) {
   case QUERY_LOG_GENERAL:
-    if (!logger.is_general_log_table_enabled())
-      return;                                     /* do nothing */
     log_thd= general_log_thd;
     table= &general_log;
     break;
   case QUERY_LOG_SLOW:
-    if (!logger.is_slow_log_table_enabled())
-      return;                                     /* do nothing */
     log_thd= slow_log_thd;
     table= &slow_log;
     break;

@@ -314,6 +314,89 @@ use mysql;
 lock tables general_log read local, help_category read local;
 unlock tables;
 
+#
+# Bug #17544 Cannot do atomic log rotate and
+# Bug #21785 Server crashes after rename of the log table
+#
+
+use mysql;
+# Should result in error
+--error ER_CANT_RENAME_LOG_TABLE
+RENAME TABLE general_log TO renamed_general_log;
+--error ER_CANT_RENAME_LOG_TABLE
+RENAME TABLE slow_log TO renamed_slow_log;
+
+#check rotate logs
+truncate table general_log;
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
+select * from general_log;
+
+truncate table slow_log;
+--replace_column 1 TIMESTAMP 2 USER_HOST
+select * from slow_log;
+
+create table general_log_new like general_log;
+rename table general_log TO renamed_general_log, general_log_new TO general_log;
+
+create table slow_log_new like slow_log;
+rename table slow_log TO renamed_slow_log, slow_log_new TO slow_log;
+
+# check that rename checks more then first table in the list
+--error ER_CANT_RENAME_LOG_TABLE
+rename table general_log TO general_log_new, renamed_general_log TO general_log, slow_log to renamed_slow_log;
+
+# now check the content of tables
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
+select * from general_log;
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
+select * from renamed_general_log;
+
+# the content of the slow log is empty, but we will try a select anyway
+--replace_column 1 TIMESTAMP 2 USER_HOST
+select * from slow_log;
+--replace_column 1 TIMESTAMP 2 USER_HOST
+select * from renamed_slow_log;
+
+# check that we can do whatever we want with disabled log
+set global general_log='OFF';
+RENAME TABLE general_log TO general_log2;
+
+set global slow_query_log='OFF';
+RENAME TABLE slow_log TO slow_log2;
+
+# this should fail
+--error ER_CANT_ACTIVATE_LOG
+set global general_log='ON';
+--error ER_CANT_ACTIVATE_LOG
+set global slow_query_log='ON';
+
+RENAME TABLE general_log2 TO general_log;
+RENAME TABLE slow_log2 TO slow_log;
+
+# this should work
+set global general_log='ON';
+set global slow_query_log='ON';
+# now check flush logs
+flush logs;
+flush logs;
+drop table renamed_general_log, renamed_slow_log;
+use test;
+
+#
+# Bug #21966 Strange warnings on repair of the log tables
+#
+
+use mysql;
+# check that no warning occurs on repair of the log tables
+repair table general_log;
+repair table slow_log;
+# check that no warning occurs on "create like" for the log tables
+create table general_log_new like general_log;
+create table slow_log_new like slow_log;
+show tables like "%log%";
+drop table slow_log_new, general_log_new;
+use test;
+
 # kill all connections
 disconnect con1;
 disconnect con2;
