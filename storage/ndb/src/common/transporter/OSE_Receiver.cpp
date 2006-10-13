@@ -114,11 +114,11 @@ OSE_Receiver::checkWaitStack(NodeId _nodeId){
     if (waitStack[i]->dataSignal.senderNodeId == _nodeId && 
         waitStack[i]->dataSignal.sigId == nextSigId[_nodeId]){
       
-      ndbout_c("INFO: signal popped from waitStack, sigId = %d",
+      g_eventLogger.info("signal popped from waitStack, sigId = %d",
                waitStack[i]->dataSignal.sigId);	   
       
       if(isFull()){
-        ndbout_c("ERROR: receiveBuffer is full");
+        g_eventLogger.error("receiveBuffer is full");
 	reportError(callbackObj, _nodeId, TE_RECEIVE_BUFFER_FULL);
 	return false;
       }
@@ -172,7 +172,7 @@ OSE_Receiver::insertWaitStack(union SIGNAL* _sig){
     waitStack[waitStackCount] = _sig;
     waitStackCount++;
   } else {	    
-    ndbout_c("ERROR: waitStack is full");
+    g_eventLogger.error("waitStack is full");
     reportError(callbackObj, localNodeId, TE_WAIT_STACK_FULL);
   }
 }
@@ -231,14 +231,14 @@ OSE_Receiver::doReceive(Uint32 timeOutMillis) {
 	} else {
 	  // Signal was not received in correct order
 	  // Check values and put it in the waitStack
-	  ndbout_c("WARNING: sigId out of order,"
+	  g_eventLogger.warning("sigId out of order,"
 		   " currSigId = %d, nextSigId = %d", 
 		   currSigId,  nextSigId[nodeId]);
 	  
 	  if (currSigId < nextSigId[nodeId]){
 	    // Current recieved sigId was smaller than nextSigId
 	    // There is no use to put it in the waitStack
-	    ndbout_c("ERROR: recieved sigId was smaller than nextSigId");
+	    g_eventLogger.error("recieved sigId was smaller than nextSigId");
 	    reportError(callbackObj, nodeId, TE_TOO_SMALL_SIGID);
 	    return false;
 	  }
@@ -246,7 +246,7 @@ OSE_Receiver::doReceive(Uint32 timeOutMillis) {
 	  if (currSigId > (nextSigId[nodeId] + waitStackSize)){
 	    // Current sigId was larger than nextSigId + size of waitStack
 	    // we can never "save" so many signal's on the stack
-	    ndbout_c("ERROR: currSigId >  (nextSigId + size of waitStack)"); 
+	    g_eventLogger.error("currSigId >  (nextSigId + size of waitStack)"); 
 	    reportError(callbackObj, nodeId, TE_TOO_LARGE_SIGID);
 	    return false;
 	  }
