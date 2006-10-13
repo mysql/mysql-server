@@ -24,6 +24,7 @@
 #include <mysql/plugin.h>
 #include <m_ctype.h>
 #include <myisampack.h>
+#include <my_bit.h>
 #include "ha_maria.h"
 
 #include "maria_def.h"

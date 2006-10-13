@@ -36,7 +36,7 @@
 #ifdef HAVE_INLINE
 
 #define make_atomic_add(S)					\
-static inline int ## S my_atomic_add ## S(			\
+STATIC_INLINE int ## S my_atomic_add ## S(			\
                         int ## S volatile *a, int ## S v)	\
 {								\
   make_atomic_add_body(S);					\
@@ -44,7 +44,7 @@ static inline int ## S my_atomic_add ## S(			\
 }
 
 #define make_atomic_swap(S)					\
-static inline int ## S my_atomic_swap ## S(			\
+STATIC_INLINE int ## S my_atomic_swap ## S(			\
                          int ## S volatile *a, int ## S v)	\
 {								\
   make_atomic_swap_body(S);					\
@@ -52,7 +52,7 @@ static inline int ## S my_atomic_swap ## S(			\
 }
 
 #define make_atomic_cas(S)					\
-static inline int my_atomic_cas ## S(int ## S volatile *a,	\
+STATIC_INLINE int my_atomic_cas ## S(int ## S volatile *a,	\
                             int ## S *cmp, int ## S set)	\
 {								\
   int8 ret;							\
@@ -61,7 +61,7 @@ static inline int my_atomic_cas ## S(int ## S volatile *a,	\
 }
 
 #define make_atomic_load(S)					\
-static inline int ## S my_atomic_load ## S(int ## S volatile *a) \
+STATIC_INLINE int ## S my_atomic_load ## S(int ## S volatile *a) \
 {								\
   int ## S ret;						\
   make_atomic_load_body(S);					\
@@ -69,7 +69,7 @@ static inline int ## S my_atomic_load ## S(int ## S volatile *a) \
 }
 
 #define make_atomic_store(S)					\
-static inline void my_atomic_store ## S(			\
+STATIC_INLINE void my_atomic_store ## S(			\
                      int ## S volatile *a, int ## S v)	\
 {								\
   make_atomic_store_body(S);					\
@@ -118,6 +118,11 @@ make_atomic_swap(16)
 make_atomic_swap(32)
 make_atomic_swap(ptr)
 
+#ifdef _atomic_h_cleanup_
+#include _atomic_h_cleanup_
+#undef _atomic_h_cleanup_
+#endif
+
 #undef make_atomic_add
 #undef make_atomic_cas
 #undef make_atomic_load
@@ -130,9 +135,8 @@ make_atomic_swap(ptr)
 #undef make_atomic_swap_body
 #undef intptr
 
-#ifdef _atomic_h_cleanup_
-#include _atomic_h_cleanup_
-#undef _atomic_h_cleanup_
+#ifndef LF_BACKOFF
+#define LF_BACKOFF (1)
 #endif
 
 #if SIZEOF_CHARP == SIZEOF_INT

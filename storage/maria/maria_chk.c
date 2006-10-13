@@ -18,6 +18,7 @@
 
 #include "ma_fulltext.h"
 #include <myisamchk.h>
+#include <my_bit.h>
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_getopt.h>

@@ -39,6 +39,7 @@
 #include "mysys_priv.h"
 #include <my_bitmap.h>
 #include <m_string.h>
+#include <my_bit.h>
 
 void create_last_word_mask(MY_BITMAP *map)
 {

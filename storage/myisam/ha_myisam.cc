@@ -23,6 +23,7 @@
 #include "mysql_priv.h"
 #include <mysql/plugin.h>
 #include <m_ctype.h>
+#include <my_bit.h>
 #include <myisampack.h>
 #include "ha_myisam.h"
 #include <stdarg.h>
