@@ -6001,4 +6001,5 @@ ER_BAD_LOG_STATEMENT
         ger "Sie können eine Logtabelle nicht '%s', wenn Loggen angeschaltet ist"
 ER_NON_INSERTABLE_TABLE  
         eng "The target table %-.100s of the %s is not insertable-into"
-
+ER_BINLOG_PURGE_EMFILE
+        eng "Too many files opened, please execute the command again"
