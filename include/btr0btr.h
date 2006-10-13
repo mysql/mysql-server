@@ -145,9 +145,10 @@ UNIV_INLINE
 void
 btr_leaf_page_release(
 /*==================*/
-	page_t*	page,		/* in: page */
-	ulint	latch_mode,	/* in: BTR_SEARCH_LEAF or BTR_MODIFY_LEAF */
-	mtr_t*	mtr);		/* in: mtr */
+	buf_block_t*	block,		/* in: buffer block */
+	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF or
+					BTR_MODIFY_LEAF */
+	mtr_t*		mtr);		/* in: mtr */
 /******************************************************************
 Gets the child node file address in a node pointer. */
 UNIV_INLINE

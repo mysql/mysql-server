@@ -351,14 +351,14 @@ btr_pcur_release_leaf(
 	btr_pcur_t*	cursor, /* in: persistent cursor */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	page_t*	page;
+	buf_block_t*	block;
 
 	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
-	page = btr_cur_get_page(btr_pcur_get_btr_cur(cursor));
+	block = buf_block_align(btr_cur_get_rec(btr_pcur_get_btr_cur(cursor)));
 
-	btr_leaf_page_release(page, cursor->latch_mode, mtr);
+	btr_leaf_page_release(block, cursor->latch_mode, mtr);
 
 	cursor->latch_mode = BTR_NO_LATCHES;
 
@@ -378,10 +378,11 @@ btr_pcur_move_to_next_page(
 				last record of the current page */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ulint	next_page_no;
-	ulint	space;
-	page_t*	page;
-	page_t*	next_page;
+	ulint		next_page_no;
+	ulint		space;
+	page_t*		page;
+	buf_block_t*	next_block;
+	page_t*		next_page;
 
 	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -396,14 +397,16 @@ btr_pcur_move_to_next_page(
 
 	ut_ad(next_page_no != FIL_NULL);
 
-	next_page = btr_page_get(space, next_page_no, cursor->latch_mode, mtr);
+	next_block = btr_block_get(space, next_page_no,
+				   cursor->latch_mode, mtr);
+	next_page = buf_block_get_frame(next_block);
 #ifdef UNIV_BTR_DEBUG
+	ut_a(page_is_comp(next_page) == page_is_comp(page));
 	ut_a(btr_page_get_prev(next_page, mtr) == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
-	ut_a(page_is_comp(next_page) == page_is_comp(page));
-	buf_block_align(next_page)->check_index_page_at_flush = TRUE;
+	next_block->check_index_page_at_flush = TRUE;
 
-	btr_leaf_page_release(page, cursor->latch_mode, mtr);
+	btr_leaf_page_release(buf_block_align(page), cursor->latch_mode, mtr);
 
 	page_cur_set_before_first(next_page, btr_pcur_get_page_cur(cursor));
 
@@ -471,7 +474,7 @@ btr_pcur_move_backward_from_page(
 
 		prev_page = btr_pcur_get_btr_cur(cursor)->left_page;
 
-		btr_leaf_page_release(page, latch_mode, mtr);
+		btr_leaf_page_release(buf_block_align(page), latch_mode, mtr);
 
 		page_cur_set_after_last(prev_page,
 					btr_pcur_get_page_cur(cursor));
@@ -483,7 +486,8 @@ btr_pcur_move_backward_from_page(
 
 		prev_page = btr_pcur_get_btr_cur(cursor)->left_page;
 
-		btr_leaf_page_release(prev_page, latch_mode, mtr);
+		btr_leaf_page_release(buf_block_align(prev_page),
+				      latch_mode, mtr);
 	}
 
 	cursor->latch_mode = latch_mode;

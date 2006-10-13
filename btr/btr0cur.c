@@ -1030,6 +1030,7 @@ btr_cur_optimistic_insert(
 	big_rec_t*	big_rec_vec	= NULL;
 	dict_index_t*	index;
 	page_cur_t*	page_cursor;
+	buf_block_t*	block;
 	page_t*		page;
 	page_zip_des_t*	page_zip;
 	ulint		max_size;
@@ -1044,9 +1045,10 @@ btr_cur_optimistic_insert(
 
 	*big_rec = NULL;
 
-	page = btr_cur_get_page(cursor);
+	block = buf_block_align(btr_cur_get_rec(cursor));
+	page = buf_block_get_frame(block);
 	index = cursor->index;
-	page_zip = buf_frame_get_page_zip(page);
+	page_zip = buf_block_get_page_zip(block);
 
 	if (!dtuple_check_typed_no_assert(entry)) {
 		fputs("InnoDB: Error in a tuple to insert into ", stderr);
@@ -1059,7 +1061,7 @@ btr_cur_optimistic_insert(
 	}
 #endif /* UNIV_DEBUG */
 
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	max_size = page_get_max_insert_size_after_reorganize(page, 1);
 	level = btr_page_get_level(page, mtr);
 
@@ -1189,7 +1191,7 @@ fail:
 #endif
 	if (!(type & DICT_CLUSTERED)) {
 		/* We have added a record to page: update its free bits */
-		ibuf_update_free_bits_if_full(cursor->index, page, max_size,
+		ibuf_update_free_bits_if_full(cursor->index, block, max_size,
 					      rec_size + PAGE_DIR_SLOT_SIZE);
 	}
 
