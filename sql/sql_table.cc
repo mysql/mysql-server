@@ -1622,11 +1622,8 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     /* Disable drop of enabled log tables */
     if (share && share->log_table &&
-        ((!my_strcasecmp(system_charset_info, table->table_name,
-                         "general_log") && opt_log &&
-          logger.is_general_log_table_enabled()) ||
-         (!my_strcasecmp(system_charset_info, table->table_name, "slow_log")
-          && opt_slow_log && logger.is_slow_log_table_enabled())))
+        check_if_log_table(table->db_length, table->db,
+                           table->table_name_length, table->table_name, 1))
     {
       my_error(ER_CANT_DROP_LOG_TABLE, MYF(0));
       DBUG_RETURN(1);
@@ -4019,7 +4016,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   Item *item;
   Protocol *protocol= thd->protocol;
   LEX *lex= thd->lex;
-  int result_code;
+  int result_code, disable_logs= 0;
   DBUG_ENTER("mysql_admin_table");
 
   if (end_active_trans(thd))
@@ -4064,6 +4061,23 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     thd->no_warnings_for_error= no_warnings_for_error;
     if (view_operator_func == NULL)
       table->required_type=FRMTYPE_TABLE;
+
+    /*
+      If we want to perform an admin operation on the log table
+      (E.g. rename) and lock_type >= TL_READ_NO_INSERT disable
+      log tables
+    */
+
+    if (check_if_log_table(table->db_length, table->db,
+                                  table->table_name_length,
+                                  table->table_name, 1) &&
+        lock_type >= TL_READ_NO_INSERT)
+    {
+      disable_logs= 1;
+      logger.lock();
+      logger.tmp_close_log_tables(thd);
+    }
+
     open_and_lock_tables(thd, table);
     thd->no_warnings_for_error= 0;
     table->next_global= save_next_global;
@@ -4380,11 +4394,24 @@ send_result_message:
   }
 
   send_eof(thd);
+  if (disable_logs)
+  {
+    if (logger.reopen_log_tables())
+      my_error(ER_CANT_ACTIVATE_LOG, MYF(0));
+    logger.unlock();
+  }
   DBUG_RETURN(FALSE);
 
  err:
   ha_autocommit_or_rollback(thd, 1);
   close_thread_tables(thd);			// Shouldn't be needed
+  /* enable logging back if needed */
+  if (disable_logs)
+  {
+    if (logger.reopen_log_tables())
+      my_error(ER_CANT_ACTIVATE_LOG, MYF(0));
+    logger.unlock();
+  }
   if (table)
     table->table=0;
   DBUG_RETURN(TRUE);
@@ -4549,6 +4576,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
 {
   TABLE *tmp_table;
   char src_path[FN_REFLEN], dst_path[FN_REFLEN], tmp_path[FN_REFLEN];
+  char src_table_name_buff[FN_REFLEN], src_db_name_buff[FN_REFLEN];
   uint dst_path_length;
   char *db= table->db;
   char *table_name= table->table_name;
@@ -4585,13 +4613,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     DBUG_RETURN(-1);
   }
 
-  bzero((gptr)&src_tables_list, sizeof(src_tables_list));
-  src_tables_list.db= src_db;
-  src_tables_list.table_name= src_table;
-
-  if (lock_and_wait_for_table_name(thd, &src_tables_list))
-    goto err;
-
   if ((tmp_table= find_temporary_table(thd, src_db, src_table)))
     strxmov(src_path, tmp_table->s->path.str, reg_ext, NullS);
   else
@@ -4617,6 +4638,34 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     my_error(ER_WRONG_OBJECT, MYF(0), src_db, src_table, "BASE TABLE");
     goto err;
   }
+
+  if (lower_case_table_names)
+  {
+    if (src_db)
+    {
+      strmake(src_db_name_buff, src_db,
+              min(sizeof(src_db_name_buff) - 1, table_ident->db.length));
+      my_casedn_str(files_charset_info, src_db_name_buff);
+      src_db= src_db_name_buff;
+    }
+    if (src_table)
+    {
+      strmake(src_table_name_buff, src_table,
+              min(sizeof(src_table_name_buff) - 1, table_ident->table.length));
+      my_casedn_str(files_charset_info, src_table_name_buff);
+      src_table= src_table_name_buff;
+    }
+  }
+
+  bzero((gptr)&src_tables_list, sizeof(src_tables_list));
+  src_tables_list.db= src_db;
+  src_tables_list.db_length= table_ident->db.length;
+  src_tables_list.lock_type= TL_READ;
+  src_tables_list.table_name= src_table;
+  src_tables_list.alias= src_table;
+
+  if (simple_open_n_lock_tables(thd, &src_tables_list))
+    DBUG_RETURN(TRUE);
 
   /*
     Validate the destination table
@@ -4764,9 +4813,6 @@ table_exists:
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
-  pthread_mutex_lock(&LOCK_open);
-  unlock_table_name(thd, &src_tables_list);
-  pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(res);
 }
 
@@ -5153,37 +5199,27 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   LINT_INIT(index_add_buffer);
   LINT_INIT(index_drop_buffer);
 
-  if (table_list && table_list->db &&
-      !my_strcasecmp(system_charset_info, table_list->db, "mysql") &&
-      table_list->table_name)
+  if (table_list && table_list->db && table_list->table_name)
   {
-    enum enum_table_kind { NOT_LOG_TABLE= 1, GENERAL_LOG, SLOW_LOG }
-         table_kind= NOT_LOG_TABLE;
+    int table_kind= 0;
 
-    if (!my_strcasecmp(system_charset_info, table_list->table_name,
-                       "general_log"))
-      table_kind= GENERAL_LOG;
-    else
-      if (!my_strcasecmp(system_charset_info, table_list->table_name,
-                         "slow_log"))
-        table_kind= SLOW_LOG;
+    table_kind= check_if_log_table(table_list->db_length, table_list->db,
+                                   table_list->table_name_length,
+                                   table_list->table_name, 0);
 
     /* Disable alter of enabled log tables */
-    if ((table_kind == GENERAL_LOG && opt_log &&
-        logger.is_general_log_table_enabled()) ||
-       (table_kind == SLOW_LOG && opt_slow_log &&
-         logger.is_slow_log_table_enabled()))
+    if (table_kind && logger.is_log_table_enabled(table_kind))
     {
       my_error(ER_CANT_ALTER_LOG_TABLE, MYF(0));
       DBUG_RETURN(TRUE);
     }
 
     /* Disable alter of log tables to unsupported engine */
-    if ((table_kind == GENERAL_LOG || table_kind == SLOW_LOG) &&
+    if (table_kind &&
         (lex_create_info->used_fields & HA_CREATE_USED_ENGINE) &&
         (!lex_create_info->db_type || /* unknown engine */
-        !(lex_create_info->db_type->db_type == DB_TYPE_MYISAM ||
-          lex_create_info->db_type->db_type == DB_TYPE_CSV_DB)))
+         !(lex_create_info->db_type->db_type == DB_TYPE_MYISAM ||
+           lex_create_info->db_type->db_type == DB_TYPE_CSV_DB)))
     {
       my_error(ER_BAD_LOG_ENGINE, MYF(0));
       DBUG_RETURN(TRUE);

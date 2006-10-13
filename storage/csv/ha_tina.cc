@@ -817,9 +817,9 @@ void ha_tina::update_status()
 bool ha_tina::check_if_locking_is_allowed(uint sql_command,
                                           ulong type, TABLE *table,
                                           uint count,
-                                          bool called_by_logger_thread)
+                                          bool called_by_privileged_thread)
 {
-  if (!called_by_logger_thread)
+  if (!called_by_privileged_thread)
     return check_if_log_table_locking_is_allowed(sql_command, type, table);
 
   return TRUE;
