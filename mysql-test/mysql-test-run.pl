@@ -2815,6 +2815,33 @@ sub do_after_run_mysqltest($)
 }
 
 
+sub find_testcase_skipped_reason($)
+{
+  my ($tinfo)= @_;
+
+  # Open mysqltest.log
+  my $F= IO::File->new($path_timefile) or
+    mtr_error("can't open file \"$path_timefile\": $!");
+  my $reason;
+
+  while ( my $line= <$F> )
+  {
+    # Look for "reason: <reason fo skiping test>"
+    if ( $line =~ /reason: (.*)/ )
+    {
+      $reason= $1;
+    }
+  }
+
+  if ( ! $reason )
+  {
+    mtr_warning("Could not find reason for skipping test in $path_timefile");
+    $reason= "Detected by testcase(reason unknown) ";
+  }
+  $tinfo->{'comment'}= $reason;
+}
+
+
 ##############################################################################
 #
 #  Run a single test case
@@ -2887,10 +2914,7 @@ sub run_testcase ($) {
       # Testcase itself tell us to skip this one
 
       # Try to get reason from mysqltest.log
-      my $last_line= mtr_lastlinefromfile($path_timefile) if -f $path_timefile;
-      my $reason= mtr_match_prefix($last_line, "reason: ");
-      $tinfo->{'comment'}=
-	defined $reason ? $reason : "Detected by testcase(reason unknown) ";
+      find_testcase_skipped_reason($tinfo);
       mtr_report_test_skipped($tinfo);
     }
     elsif ( $res == 63 )
