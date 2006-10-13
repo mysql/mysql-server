@@ -756,8 +756,8 @@ btr_search_guess_on_hash(
 		goto failure_unlock;
 	}
 
-	page = page_align(rec);
-	block = buf_block_align(page);
+	block = buf_block_align(rec);
+	page = buf_block_get_frame(block);
 
 	if (UNIV_LIKELY(!has_search_latch)) {
 
@@ -780,7 +780,7 @@ btr_search_guess_on_hash(
 	if (UNIV_UNLIKELY(block->state == BUF_BLOCK_REMOVE_HASH)) {
 		if (UNIV_LIKELY(!has_search_latch)) {
 
-			btr_leaf_page_release(page, latch_mode, mtr);
+			btr_leaf_page_release(block, latch_mode, mtr);
 		}
 
 		goto failure;
@@ -804,7 +804,7 @@ btr_search_guess_on_hash(
 				       can_only_compare_to_cursor_rec,
 				       tuple, mode, mtr)) {
 		if (UNIV_LIKELY(!has_search_latch)) {
-			btr_leaf_page_release(page, latch_mode, mtr);
+			btr_leaf_page_release(block, latch_mode, mtr);
 		}
 
 		goto failure;
@@ -824,7 +824,7 @@ btr_search_guess_on_hash(
 	/* Currently, does not work if the following fails: */
 	ut_ad(!has_search_latch);
 
-	btr_leaf_page_release(page, latch_mode, mtr);
+	btr_leaf_page_release(block, latch_mode, mtr);
 
 	btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode,
 				    &cursor2, 0, mtr);
@@ -856,7 +856,7 @@ btr_search_guess_on_hash(
 	if (UNIV_LIKELY(!has_search_latch)
 	    && buf_block_peek_if_too_old(block)) {
 
-		buf_page_make_young(page);
+		buf_page_make_young(block);
 	}
 
 	/* Increment the page get statistics though we did not really

@@ -747,7 +747,7 @@ btr_create(
 	trees in the same mtr, otherwise the latch on a bitmap page would
 	prevent it because of the latching order */
 
-	ibuf_reset_free_bits_with_type(type, page);
+	ibuf_reset_free_bits_with_type(type, block);
 
 	/* In the following assertion we test that two records of maximum
 	allowed size fit on the root page: this fact is needed to ensure
@@ -1164,7 +1164,7 @@ btr_root_raise_and_insert(
 		page_get_page_no(new_page));
 #endif
 
-	ibuf_reset_free_bits(index, new_page);
+	ibuf_reset_free_bits_with_type(index->type, new_block);
 	/* Reposition the cursor to the child node */
 	page_cur_search(new_page, index, tuple,
 			PAGE_CUR_LE, page_cursor);
@@ -1934,7 +1934,7 @@ func_start:
 		start of the function for a new split */
 insert_failed:
 		/* We play safe and reset the free bits for new_page */
-		ibuf_reset_free_bits(cursor->index, new_page);
+		ibuf_reset_free_bits_with_type(cursor->index->type, new_block);
 
 		/* fprintf(stderr, "Split second round %lu\n",
 		page_get_page_no(page)); */
@@ -2182,7 +2182,7 @@ btr_lift_page_up(
 	btr_page_free(index, page, mtr);
 
 	/* We play safe and reset the free bits for the father */
-	ibuf_reset_free_bits(index, father_page);
+	ibuf_reset_free_bits_with_type(index->type, father_block);
 	ut_ad(page_validate(father_page, index));
 	ut_ad(btr_check_node_ptr(index, father_page, mtr));
 }
@@ -2211,6 +2211,7 @@ btr_compress(
 	ulint		space;
 	ulint		left_page_no;
 	ulint		right_page_no;
+	buf_block_t*	merge_block;
 	page_t*		merge_page;
 	page_zip_des_t*	merge_page_zip;
 	ibool		is_left;
@@ -2252,16 +2253,18 @@ btr_compress(
 
 	if (is_left) {
 
-		merge_page = btr_page_get(space, left_page_no, RW_X_LATCH,
-					  mtr);
+		merge_block = btr_block_get(space, left_page_no, RW_X_LATCH,
+					    mtr);
+		merge_page = buf_block_get_frame(merge_block);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_next(merge_page, mtr)
 		     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 	} else if (right_page_no != FIL_NULL) {
 
-		merge_page = btr_page_get(space, right_page_no, RW_X_LATCH,
-					  mtr);
+		merge_block = btr_block_get(space, right_page_no, RW_X_LATCH,
+					    mtr);
+		merge_page = buf_block_get_frame(merge_block);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_prev(merge_page, mtr)
 		     == page_get_page_no(page));
@@ -2275,7 +2278,9 @@ btr_compress(
 
 	n_recs = page_get_n_recs(page);
 	data_size = page_get_data_size(page);
+#ifdef UNIV_BTR_DEBUG
 	ut_a(page_is_comp(merge_page) == page_is_comp(page));
+#endif /* UNIV_BTR_DEBUG */
 
 	max_ins_size_reorg = page_get_max_insert_size_after_reorganize(
 		merge_page, n_recs);
@@ -2314,13 +2319,11 @@ btr_compress(
 		}
 	}
 
-	merge_page_zip = buf_frame_get_page_zip(merge_page);
+	merge_page_zip = buf_block_get_page_zip(merge_block);
 #ifdef UNIV_ZIP_DEBUG
 	if (UNIV_LIKELY_NULL(merge_page_zip)) {
 		ut_a(page_zip_validate(merge_page_zip, merge_page));
-		ut_a(page_zip_validate(
-			     buf_frame_get_page_zip(page),
-			     page));
+		ut_a(page_zip_validate(buf_frame_get_page_zip(page), page));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -2411,7 +2414,7 @@ btr_compress(
 	}
 
 	/* We have added new records to merge_page: update its free bits */
-	ibuf_update_free_bits_if_full(index, merge_page,
+	ibuf_update_free_bits_if_full(index, merge_block,
 				      UNIV_PAGE_SIZE, ULINT_UNDEFINED);
 
 	ut_ad(page_validate(merge_page, index));
@@ -2465,7 +2468,7 @@ btr_discard_only_page_on_level(
 			       mtr, index);
 
 		/* We play safe and reset the free bits for the father */
-		ibuf_reset_free_bits(index, father_page);
+		ibuf_reset_free_bits_with_type(index->type, father_block);
 	} else {
 		ut_ad(page_get_n_recs(father_page) == 1);
 

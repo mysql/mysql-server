@@ -263,14 +263,15 @@ UNIV_INLINE
 void
 btr_leaf_page_release(
 /*==================*/
-	page_t*	page,		/* in: page */
-	ulint	latch_mode,	/* in: BTR_SEARCH_LEAF or BTR_MODIFY_LEAF */
-	mtr_t*	mtr)		/* in: mtr */
+	buf_block_t*	block,		/* in: buffer block */
+	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF or
+					BTR_MODIFY_LEAF */
+	mtr_t*		mtr)		/* in: mtr */
 {
 	ut_ad(latch_mode == BTR_SEARCH_LEAF || latch_mode == BTR_MODIFY_LEAF);
-	ut_ad(!mtr_memo_contains_page(mtr, page, MTR_MEMO_MODIFY));
+	ut_ad(!mtr_memo_contains(mtr, block, MTR_MEMO_MODIFY));
 
-	mtr_memo_release(mtr, buf_block_align(page),
+	mtr_memo_release(mtr, block,
 			 latch_mode == BTR_SEARCH_LEAF
 			 ? MTR_MEMO_PAGE_S_FIX
 			 : MTR_MEMO_PAGE_X_FIX);
