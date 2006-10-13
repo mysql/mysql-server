@@ -19,6 +19,7 @@
 
   TODO
      try to get rid of dummy nodes ?
+     for non-unique hash, count only _distinct_ values
 */
 #include <my_global.h>
 #include <my_sys.h>
@@ -51,7 +52,7 @@ typedef struct {
     cursor is positioned in either case
     pins[0..2] are used, they are NOT removed on return
 */
-static int lfind(intptr volatile *head, uint32 hashnr,
+static int lfind(LF_SLIST * volatile *head, uint32 hashnr,
                  const uchar *key, uint keylen, CURSOR *cursor, LF_PINS *pins)
 {
   uint32       cur_hashnr;
@@ -60,7 +61,7 @@ static int lfind(intptr volatile *head, uint32 hashnr,
   intptr       link;
 
 retry:
-  cursor->prev=head;
+  cursor->prev=(intptr *)head;
   do {
     cursor->curr=PTR(*cursor->prev);
     _lf_pin(pins,1,cursor->curr);
@@ -112,7 +113,7 @@ retry:
 /*
   RETURN
     0     - inserted
-    not 0 - a pointer to a conflict
+    not 0 - a pointer to a conflict (not pinned and thus unusable)
 
   NOTE
     it uses pins[0..2], on return all pins are removed.
@@ -125,17 +126,17 @@ static LF_SLIST *linsert(LF_SLIST * volatile *head, LF_SLIST *node,
 
   do
   {
-    if (lfind((intptr*)head, node->hashnr, node->key, node->keylen,
+    if (lfind(head, node->hashnr, node->key, node->keylen,
               &cursor, pins) &&
         (flags & LF_HASH_UNIQUE))
-      res=0;
+      res=0; /* duplicate found */
     else
     {
       node->link=(intptr)cursor.curr;
       assert(node->link != (intptr)node);
       assert(cursor.prev != &node->link);
       if (my_atomic_casptr((void **)cursor.prev, (void **)&cursor.curr, node))
-        res=1;
+        res=1; /* inserted ok */
     }
   } while (res == -1);
   _lf_unpin(pins, 0);
@@ -159,7 +160,7 @@ static int ldelete(LF_SLIST * volatile *head, uint32 hashnr,
 
   do
   {
-    if (!lfind((intptr *)head, hashnr, key, keylen, &cursor, pins))
+    if (!lfind(head, hashnr, key, keylen, &cursor, pins))
       res= 1;
     else
       if (my_atomic_casptr((void **)&(cursor.curr->link),
@@ -169,7 +170,7 @@ static int ldelete(LF_SLIST * volatile *head, uint32 hashnr,
                              (void **)&cursor.curr, cursor.next))
           _lf_alloc_free(pins, cursor.curr);
         else
-          lfind((intptr *)head, hashnr, key, keylen, &cursor, pins);
+          lfind(head, hashnr, key, keylen, &cursor, pins);
         res= 0;
       }
   } while (res == -1);
@@ -191,7 +192,7 @@ static LF_SLIST *lsearch(LF_SLIST * volatile *head, uint32 hashnr,
                          const uchar *key, uint keylen, LF_PINS *pins)
 {
   CURSOR cursor;
-  int res=lfind((intptr *)head, hashnr, key, keylen, &cursor, pins);
+  int res=lfind(head, hashnr, key, keylen, &cursor, pins);
   if (res) _lf_pin(pins, 2, cursor.curr);
   _lf_unpin(pins, 0);
   _lf_unpin(pins, 1);
@@ -214,7 +215,7 @@ static inline uint calc_hash(LF_HASH *hash, const uchar *key, uint keylen)
   return nr1 & INT_MAX32;
 }
 
-#define MAX_LOAD 1
+#define MAX_LOAD 1.0
 static void initialize_bucket(LF_HASH *, LF_SLIST * volatile*, uint, LF_PINS *);
 
 void lf_hash_init(LF_HASH *hash, uint element_size, uint flags,
@@ -262,7 +263,7 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
   uint csize, bucket, hashnr;
   LF_SLIST *node, * volatile *el;
 
-  lf_lock_by_pins(pins);
+  lf_rwlock_by_pins(pins);
   node=(LF_SLIST *)_lf_alloc_new(pins);
   memcpy(node+1, data, hash->element_size);
   node->key= hash_key(hash, (uchar *)(node+1), &node->keylen);
@@ -275,13 +276,13 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
   if (linsert(el, node, pins, hash->flags))
   {
     _lf_alloc_free(pins, node);
-    lf_unlock_by_pins(pins);
+    lf_rwunlock_by_pins(pins);
     return 1;
   }
   csize= hash->size;
   if ((my_atomic_add32(&hash->count, 1)+1.0) / csize > MAX_LOAD)
     my_atomic_cas32(&hash->size, &csize, csize*2);
-  lf_unlock_by_pins(pins);
+  lf_rwunlock_by_pins(pins);
   return 0;
 }
 
@@ -298,17 +299,17 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   uint bucket, hashnr=calc_hash(hash, (uchar *)key, keylen);
 
   bucket= hashnr % hash->size;
-  lf_lock_by_pins(pins);
+  lf_rwlock_by_pins(pins);
   el=_lf_dynarray_lvalue(&hash->array, bucket);
   if (*el == NULL)
     initialize_bucket(hash, el, bucket, pins);
   if (ldelete(el, my_reverse_bits(hashnr) | 1, (uchar *)key, keylen, pins))
   {
-    lf_unlock_by_pins(pins);
+    lf_rwunlock_by_pins(pins);
     return 1;
   }
   my_atomic_add32(&hash->count, -1);
-  lf_unlock_by_pins(pins);
+  lf_rwunlock_by_pins(pins);
   return 0;
 }
 
@@ -322,13 +323,13 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   uint bucket, hashnr=calc_hash(hash, (uchar *)key, keylen);
 
   bucket= hashnr % hash->size;
-  lf_lock_by_pins(pins);
+  lf_rwlock_by_pins(pins);
   el=_lf_dynarray_lvalue(&hash->array, bucket);
   if (*el == NULL)
     initialize_bucket(hash, el, bucket, pins);
   found= lsearch(el, my_reverse_bits(hashnr) | 1, (uchar *)key, keylen, pins);
-  lf_unlock_by_pins(pins);
-  return found+1;
+  lf_rwunlock_by_pins(pins);
+  return found ? found+1 : 0;
 }
 
 static char *dummy_key="";
@@ -347,7 +348,7 @@ static void initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
   dummy->keylen=0;
   if ((cur= linsert(el, dummy, pins, 0)))
   {
-    _lf_alloc_free(pins, dummy);
+    my_free((void *)dummy, MYF(0));
     dummy= cur;
   }
   my_atomic_casptr((void **)node, (void **)&tmp, dummy);

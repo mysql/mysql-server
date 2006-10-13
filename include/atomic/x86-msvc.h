@@ -26,19 +26,19 @@
 #ifndef _atomic_h_cleanup_
 #define _atomic_h_cleanup_ "atomic/x86-msvc.h"
 
-#define MY_ATOMIC_MODE "msvc-x86" LOCK
+#define MY_ATOMIC_MODE "msvc-x86" LOCK_prefix
 
 #define make_atomic_add_body(S)				\
   _asm {						\
     _asm mov   reg_ ## S, v				\
-    _asm LOCK  xadd *a, reg_ ## S			\
+    _asm LOCK_prefix  xadd *a, reg_ ## S		\
     _asm movzx v, reg_ ## S				\
   }
 #define make_atomic_cas_body(S)				\
   _asm {						\
     _asm mov    areg_ ## S, *cmp			\
     _asm mov    reg2_ ## S, set				\
-    _asm LOCK cmpxchg *a, reg2_ ## S			\
+    _asm LOCK_prefix cmpxchg *a, reg2_ ## S		\
     _asm mov    *cmp, areg_ ## S			\
     _asm setz   al					\
     _asm movzx  ret, al					\
@@ -56,13 +56,13 @@
 #else
 /*
   Actually 32-bit reads/writes are always atomic on x86
-  But we add LOCK here anyway to force memory barriers
+  But we add LOCK_prefix here anyway to force memory barriers
 */
 #define make_atomic_load_body(S)			\
   _asm {						\
     _asm mov    areg_ ## S, 0				\
     _asm mov    reg2_ ## S, areg_ ## S			\
-    _asm LOCK cmpxchg *a, reg2_ ## S			\
+    _asm LOCK_prefix cmpxchg *a, reg2_ ## S		\
     _asm mov    ret, areg_ ## S				\
   }
 #define make_atomic_store_body(S)			\

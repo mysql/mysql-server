@@ -118,6 +118,11 @@ make_atomic_swap(16)
 make_atomic_swap(32)
 make_atomic_swap(ptr)
 
+#ifdef _atomic_h_cleanup_
+#include _atomic_h_cleanup_
+#undef _atomic_h_cleanup_
+#endif
+
 #undef make_atomic_add
 #undef make_atomic_cas
 #undef make_atomic_load
@@ -129,11 +134,6 @@ make_atomic_swap(ptr)
 #undef make_atomic_store_body
 #undef make_atomic_swap_body
 #undef intptr
-
-#ifdef _atomic_h_cleanup_
-#include _atomic_h_cleanup_
-#undef _atomic_h_cleanup_
-#endif
 
 #ifndef LF_BACKOFF
 #define LF_BACKOFF (1)

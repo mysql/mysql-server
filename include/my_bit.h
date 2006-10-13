@@ -88,7 +88,7 @@ STATIC_INLINE uint32 my_clear_highest_bit(uint32 v)
   return v & w;
 }
 
-STATIC_INLINE uint32 my_reverse_bits(uint key)
+STATIC_INLINE uint32 my_reverse_bits(uint32 key)
 {
   return
     (_my_bits_reverse_table[ key      & 255] << 24) |
@@ -101,7 +101,7 @@ STATIC_INLINE uint32 my_reverse_bits(uint key)
 extern uint my_bit_log2(ulong value);
 extern uint32 my_round_up_to_next_power(uint32 v);
 uint32 my_clear_highest_bit(uint32 v);
-uint32 my_reverse_bits(uint key);
+uint32 my_reverse_bits(uint32 key);
 extern uint my_count_bits(ulonglong v);
 extern uint my_count_bits_ushort(ushort v);
 #endif

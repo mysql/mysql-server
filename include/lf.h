@@ -88,8 +88,8 @@ nolock_wrap(lf_dynarray_iterate, int,
   pin manager for memory allocator
 */
 
-#define LF_PINBOX_PINS 3
-#define LF_PURGATORY_SIZE 11
+#define LF_PINBOX_PINS 4
+#define LF_PURGATORY_SIZE 10
 
 typedef void lf_pinbox_free_func(void *, void *);
 
@@ -112,9 +112,9 @@ typedef struct {
               -sizeof(void *)*(LF_PINBOX_PINS+LF_PURGATORY_SIZE+1)];
 } LF_PINS;
 
-#define lf_lock_by_pins(PINS)   \
+#define lf_rwlock_by_pins(PINS)   \
   my_atomic_rwlock_wrlock(&(PINS)->pinbox->pinstack.lock)
-#define lf_unlock_by_pins(PINS) \
+#define lf_rwunlock_by_pins(PINS) \
   my_atomic_rwlock_wrunlock(&(PINS)->pinbox->pinstack.lock)
 
 /*
@@ -139,11 +139,13 @@ typedef struct {
 #define _lf_unpin(PINS, PIN)      _lf_pin(PINS, PIN, NULL)
 #define lf_pin(PINS, PIN, ADDR)   \
   do {                            \
-    lf_lock_by_pins(PINS);        \
+    lf_rwlock_by_pins(PINS);      \
     _lf_pin(PINS, PIN, ADDR);     \
-    lf_unlock_by_pins(PINS);      \
+    lf_rwunlock_by_pins(PINS);    \
   } while (0)
 #define lf_unpin(PINS, PIN)  lf_pin(PINS, PIN, NULL)
+#define _lf_assert_pin(PINS, PIN) assert((PINS)->pin[PIN] != 0)
+#define _lf_assert_unpin(PINS, PIN) assert((PINS)->pin[PIN]==0)
 
 void lf_pinbox_init(LF_PINBOX *pinbox, lf_pinbox_free_func *free_func,
                     void * free_func_arg);

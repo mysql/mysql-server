@@ -25,5 +25,5 @@ LDADD=			$(top_builddir)/unittest/mytap/libmytap.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-noinst_PROGRAMS =	ma_control_file-t
+noinst_PROGRAMS =	ma_control_file-t trnman-t lockman-t
 CLEANFILES =		maria_control

@@ -17,9 +17,9 @@
 #if defined(__i386__) || defined(_M_IX86) || defined(__x86_64__)
 
 #  ifdef MY_ATOMIC_MODE_DUMMY
-#    define LOCK ""
+#    define LOCK_prefix ""
 #  else
-#    define LOCK "lock"
+#    define LOCK_prefix "lock"
 #  endif
 
 #  ifdef __GNUC__
