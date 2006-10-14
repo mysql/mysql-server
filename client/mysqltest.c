@@ -890,7 +890,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
     die(NullS);
   if (!eval_result && (uint) stat_info.st_size != ds->length)
   {
-    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %u",
+    DBUG_PRINT("info",("Size differs:  result size: %u  file size: %llu",
 		       ds->length, stat_info.st_size));
     DBUG_PRINT("info",("result: '%s'", ds->str));
     DBUG_RETURN(RESULT_LENGTH_MISMATCH);
@@ -1810,7 +1810,7 @@ void my_ungetc(int c)
 void read_until_delimiter(DYNAMIC_STRING *ds,
                           DYNAMIC_STRING *ds_delimiter)
 {
-  int c;
+  char c;
   DBUG_ENTER("read_until_delimiter");
   DBUG_PRINT("enter", ("delimiter: %s, length: %d",
                        ds_delimiter->str, ds_delimiter->length));
@@ -2558,7 +2558,7 @@ void do_get_errcodes(struct st_command *command)
 
       *to_ptr= 0;
       to->type= ERR_SQLSTATE;
-      DBUG_PRINT("info", ("ERR_SQLSTATE: %d", to->code.sqlstate));
+      DBUG_PRINT("info", ("ERR_SQLSTATE: %s", to->code.sqlstate));
     }
     else if (*p == 's')
     {
@@ -3346,7 +3346,7 @@ int read_line(char *buf, int size)
   LINT_INIT(last_quote);
 
   start_lineno= cur_file->lineno;
-  DBUG_PRINT("info", ("start_lineno: %d", start_lineno));
+  DBUG_PRINT("info", ("Starting to read at lineno: %d", start_lineno));
   for (; p < buf_end ;)
   {
     skip_char= 0;
@@ -3370,7 +3370,7 @@ int read_line(char *buf, int size)
           die("Missing end of block");
 
         *p= 0;
-        DBUG_PRINT("info", ("end of file"));
+        DBUG_PRINT("info", ("end of file at line %d", cur_file->lineno));
         DBUG_RETURN(1);
       }
       cur_file--;
@@ -3393,17 +3393,21 @@ int read_line(char *buf, int size)
       if (end_of_query(c))
       {
 	*p= 0;
-        DBUG_PRINT("exit", ("Found delimiter '%s'", delimiter));
+        DBUG_PRINT("exit", ("Found delimiter '%s' at line %d",
+                            delimiter, cur_file->lineno));
 	DBUG_RETURN(0);
       }
       else if ((c == '{' &&
-                (!strncasecmp(buf, "while", min(5, p - buf)) ||
-                 !strncasecmp(buf, "if", min(2, p - buf)))))
+                (!my_strnncoll_simple(charset_info, "while", 5,
+                                      buf, min(5, p - buf), 0) ||
+                 !my_strnncoll_simple(charset_info, "if", 2,
+                                      buf, min(2, p - buf), 0))))
       {
         /* Only if and while commands can be terminated by { */
         *p++= c;
 	*p= 0;
-        DBUG_PRINT("exit", ("Found '{' indicating begining of block"));
+        DBUG_PRINT("exit", ("Found '{' indicating start of block at line %d",
+                            cur_file->lineno));
 	DBUG_RETURN(0);
       }
       else if (c == '\'' || c == '"' || c == '`')
@@ -3418,7 +3422,8 @@ int read_line(char *buf, int size)
       {
         /* Comments are terminated by newline */
 	*p= 0;
-        DBUG_PRINT("exit", ("Found newline in comment"));
+        DBUG_PRINT("exit", ("Found newline in comment at line: %d",
+                            cur_file->lineno));
 	DBUG_RETURN(0);
       }
       break;
@@ -3433,13 +3438,19 @@ int read_line(char *buf, int size)
       {
         /* Skip all space at begining of line */
 	if (c == '\n')
-	  start_lineno= cur_file->lineno; /* Query hasn't started yet */
+        {
+          /* Query hasn't started yet */
+	  start_lineno= cur_file->lineno;
+          DBUG_PRINT("info", ("Query hasn't started yet, start_lineno: %d",
+                              start_lineno));
+        }
 	skip_char= 1;
       }
       else if (end_of_query(c))
       {
 	*p= 0;
-        DBUG_PRINT("exit", ("Found delimiter '%s'", delimiter));
+        DBUG_PRINT("exit", ("Found delimiter '%s' at line: %d",
+                            delimiter, cur_file->lineno));
 	DBUG_RETURN(0);
       }
       else if (c == '}')
@@ -3447,7 +3458,8 @@ int read_line(char *buf, int size)
         /* A "}" need to be by itself in the begining of a line to terminate */
         *p++= c;
 	*p= 0;
-        DBUG_PRINT("exit", ("Found '}' in begining of a line"));
+        DBUG_PRINT("exit", ("Found '}' in begining of a line at line: %d",
+                            cur_file->lineno));
 	DBUG_RETURN(0);
       }
       else if (c == '\'' || c == '"' || c == '`')
@@ -4317,7 +4329,7 @@ void append_stmt_result(DYNAMIC_STRING *ds, MYSQL_STMT *stmt,
     bind[i].is_null= &is_null[i];
     bind[i].length= &length[i];
 
-    DBUG_PRINT("bind", ("col[%d]: buffer_type: %d, buffer_length: %d",
+    DBUG_PRINT("bind", ("col[%d]: buffer_type: %d, buffer_length: %lu",
 			i, bind[i].buffer_type, bind[i].buffer_length));
   }
 
@@ -7267,5 +7279,3 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
   char *end= longlong10_to_str(val, buff, 10);
   replace_dynstr_append_mem(ds, buff, end - buff);
 }
-
-
