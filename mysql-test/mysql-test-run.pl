@@ -1417,18 +1417,27 @@ sub executable_setup () {
 
   }
 
-  # Look for mysql_client_test executable
-  if ( $glob_use_embedded_server )
+  if ( $glob_win32 and $mysql_version_id < 50000 )
   {
-    $exe_mysql_client_test=
-      mtr_exe_exists("$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
+    # Skip looking for exe_mysql_client_test as its not built by default
+    # in 4.1 for windows.
+    exe_mysql_client_test= "unavailable";
   }
   else
   {
-    $exe_mysql_client_test=
-      mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
-		     "$glob_basedir/tests/release/mysql_client_test",
-		     "$glob_basedir/tests/debug/mysql_client_test");
+    # Look for mysql_client_test executable
+    if ( $glob_use_embedded_server )
+    {
+      $exe_mysql_client_test=
+	mtr_exe_exists("$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
+    }
+    else
+    {
+	$exe_mysql_client_test=
+	  mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
+			 "$glob_basedir/tests/release/mysql_client_test",
+			 "$glob_basedir/tests/debug/mysql_client_test");
+      }
   }
 }
 
