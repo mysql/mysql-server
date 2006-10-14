@@ -33,7 +33,7 @@ int vio_read(Vio * vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_read");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
 
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
   DBUG_ASSERT(vio->read_end == vio->read_pos);
@@ -64,7 +64,7 @@ int vio_read_buff(Vio *vio, gptr buf, int size)
   int rc;
 #define VIO_UNBUFFERED_READ_MIN_SIZE 2048
   DBUG_ENTER("vio_read_buff");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
 
   if (vio->read_pos < vio->read_end)
   {
@@ -102,7 +102,7 @@ int vio_write(Vio * vio, const gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_write");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
 #ifdef __WIN__
   r = send(vio->sd, buf, size,0);
 #else
@@ -411,7 +411,7 @@ int vio_read_pipe(Vio * vio, gptr buf, int size)
 {
   DWORD length;
   DBUG_ENTER("vio_read_pipe");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
 
   if (!ReadFile(vio->hPipe, buf, size, &length, NULL))
     DBUG_RETURN(-1);
@@ -425,7 +425,7 @@ int vio_write_pipe(Vio * vio, const gptr buf, int size)
 {
   DWORD length;
   DBUG_ENTER("vio_write_pipe");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
 
   if (!WriteFile(vio->hPipe, (char*) buf, size, &length, NULL))
     DBUG_RETURN(-1);
@@ -470,7 +470,7 @@ int vio_read_shared_memory(Vio * vio, gptr buf, int size)
   char *current_postion;
 
   DBUG_ENTER("vio_read_shared_memory");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
 
   remain_local = size;
   current_postion=buf;
@@ -531,7 +531,7 @@ int vio_write_shared_memory(Vio * vio, const gptr buf, int size)
   char *current_postion;
 
   DBUG_ENTER("vio_write_shared_memory");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
 
   remain = size;
   current_postion = buf;
