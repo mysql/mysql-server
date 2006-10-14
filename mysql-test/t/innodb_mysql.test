@@ -117,6 +117,22 @@ INSERT INTO `t2`(`id1`,`id2`,`id3`,`id4`) VALUES
 
 SELECT `id1` FROM `t1` WHERE `id1` NOT IN (SELECT `id1` FROM `t2` WHERE `id2` = 1 AND `id3` = 2);
 DROP TABLE t1, t2;
+# Bug #22728 - Handler_rollback value is growing
+#
+flush status;
+create table t1 (c1 int) engine=innodb;
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con2;
+handler t1 open;
+handler t1 read first;
+disconnect con2;
+connection con1;
+show /*!50002 GLOBAL */ status like 'Handler_rollback';
+connection default;
+drop table t1;
+disconnect con1;
+--echo End of 4.1 tests
 #
 # Bug #12882  	min/max inconsistent on empty table
 #

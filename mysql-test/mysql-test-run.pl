@@ -468,11 +468,11 @@ sub initial_setup () {
   #
 
   # Look for the path where to find the client binaries
-  $path_client_bindir= mtr_path_exists("$glob_basedir/client/release",
+  $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
+				       "$glob_basedir/client_debug",
+				       "$glob_basedir/client/release",
 				       "$glob_basedir/client/debug",
 				       "$glob_basedir/client",
-				       "$glob_basedir/client_release",
-				       "$glob_basedir/client_debug",
 				       "$glob_basedir/bin");
 
   # Look for the mysqld executable
@@ -484,6 +484,7 @@ sub initial_setup () {
 				       "$path_client_bindir/mysqld-debug",
 				       "$path_client_bindir/mysqld-max",
 				       "$glob_basedir/libexec/mysqld",
+				       "$glob_basedir/bin/mysqld",
 				       "$glob_basedir/sql/release/mysqld",
 				       "$glob_basedir/sql/debug/mysqld");
 
@@ -1386,11 +1387,14 @@ sub executable_setup () {
       mtr_exe_exists("$ndb_path/src/kernel/ndbd",
 		     "$glob_basedir/bin/ndbd");
 
-    $path_ndb_examples_dir=
-      mtr_path_exists("$ndb_path/ndbapi-examples",
-		      "$ndb_path/examples");
-    $exe_ndb_example=
-      mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
+    if ( $mysql_version_id >= 50000 )
+    {
+      $path_ndb_examples_dir=
+	mtr_path_exists("$ndb_path/ndbapi-examples",
+			"$ndb_path/examples");
+      $exe_ndb_example=
+	mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
+    }
   }
 
   # Look for the udf_example library
@@ -1413,18 +1417,27 @@ sub executable_setup () {
 
   }
 
-  # Look for mysql_client_test executable
-  if ( $glob_use_embedded_server )
+  if ( $glob_win32 and $mysql_version_id < 50000 )
   {
-    $exe_mysql_client_test=
-      mtr_exe_exists("$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
+    # Skip looking for exe_mysql_client_test as its not built by default
+    # in 4.1 for windows.
+    $exe_mysql_client_test= "unavailable";
   }
   else
   {
-    $exe_mysql_client_test=
-      mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
-		     "$glob_basedir/tests/release/mysql_client_test",
-		     "$glob_basedir/tests/debug/mysql_client_test");
+    # Look for mysql_client_test executable
+    if ( $glob_use_embedded_server )
+    {
+      $exe_mysql_client_test=
+	mtr_exe_exists("$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
+    }
+    else
+    {
+	$exe_mysql_client_test=
+	  mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
+			 "$glob_basedir/tests/release/mysql_client_test",
+			 "$glob_basedir/tests/debug/mysql_client_test");
+      }
   }
 }
 
@@ -1548,8 +1561,11 @@ sub environment_setup () {
     $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
     $ENV{'NDB_CONNECTSTRING'}=        $opt_ndbconnectstring;
 
-    $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
-    $ENV{'MY_NDB_EXAMPLES_BINARY'}=   $exe_ndb_example;
+    if ( $mysql_version_id >= 50000 )
+    {
+      $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
+      $ENV{'MY_NDB_EXAMPLES_BINARY'}=   $exe_ndb_example;
+    }
     $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;
   }
 
@@ -2809,6 +2825,33 @@ sub do_after_run_mysqltest($)
 }
 
 
+sub find_testcase_skipped_reason($)
+{
+  my ($tinfo)= @_;
+
+  # Open mysqltest.log
+  my $F= IO::File->new($path_timefile) or
+    mtr_error("can't open file \"$path_timefile\": $!");
+  my $reason;
+
+  while ( my $line= <$F> )
+  {
+    # Look for "reason: <reason fo skiping test>"
+    if ( $line =~ /reason: (.*)/ )
+    {
+      $reason= $1;
+    }
+  }
+
+  if ( ! $reason )
+  {
+    mtr_warning("Could not find reason for skipping test in $path_timefile");
+    $reason= "Detected by testcase(reason unknown) ";
+  }
+  $tinfo->{'comment'}= $reason;
+}
+
+
 ##############################################################################
 #
 #  Run a single test case
@@ -2881,10 +2924,7 @@ sub run_testcase ($) {
       # Testcase itself tell us to skip this one
 
       # Try to get reason from mysqltest.log
-      my $last_line= mtr_lastlinefromfile($path_timefile) if -f $path_timefile;
-      my $reason= mtr_match_prefix($last_line, "reason: ");
-      $tinfo->{'comment'}=
-	defined $reason ? $reason : "Detected by testcase(reason unknown) ";
+      find_testcase_skipped_reason($tinfo);
       mtr_report_test_skipped($tinfo);
     }
     elsif ( $res == 63 )
