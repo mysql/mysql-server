@@ -326,9 +326,22 @@ void ha_myisammrg::info(uint flag)
   if (flag & HA_STATUS_CONST)
   {
     if (table->s->key_parts && info.rec_per_key)
+    {
+#ifdef HAVE_purify
+      /*
+        valgrind may be unhappy about it, because optimizer may access values
+        between file->keys and table->key_parts, that will be uninitialized.
+        It's safe though, because even if opimizer will decide to use a key
+        with such a number, it'll be an error later anyway.
+      */
+      bzero((char*) table->key_info[0].rec_per_key,
+            sizeof(table->key_info[0].rec_per_key) * table->s->key_parts);
+#endif
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) info.rec_per_key,
-	     sizeof(table->key_info[0].rec_per_key)*table->s->key_parts);
+             sizeof(table->key_info[0].rec_per_key) *
+             min(file->keys, table->s->key_parts));
+    }
   }
 }
 
