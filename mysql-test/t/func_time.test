@@ -488,8 +488,6 @@ DROP TABLE t1;
 #
 # check if SEC_TO_TIME() handles BIGINT UNSIGNED values correctly
 SELECT SEC_TO_TIME(CAST(-1 AS UNSIGNED));
-
-#
 # 21913: DATE_FORMAT() Crashes mysql server if I use it through
 #        mysql-connector-j driver.
 #
