@@ -1421,7 +1421,7 @@ sub executable_setup () {
   {
     # Skip looking for exe_mysql_client_test as its not built by default
     # in 4.1 for windows.
-    exe_mysql_client_test= "unavailable";
+    $exe_mysql_client_test= "unavailable";
   }
   else
   {
