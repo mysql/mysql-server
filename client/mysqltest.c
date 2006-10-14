@@ -1810,7 +1810,7 @@ void my_ungetc(int c)
 void read_until_delimiter(DYNAMIC_STRING *ds,
                           DYNAMIC_STRING *ds_delimiter)
 {
-  int c;
+  char c;
   DBUG_ENTER("read_until_delimiter");
   DBUG_PRINT("enter", ("delimiter: %s, length: %d",
                        ds_delimiter->str, ds_delimiter->length));
