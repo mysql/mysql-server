@@ -133,6 +133,7 @@ sub mtr_report_test_failed ($) {
   if ( $tinfo->{'timeout'} )
   {
     print "[ fail ]  timeout\n";
+    return;
   }
   elsif ( $tinfo->{'ndb_test'} and $::cluster->[0]->{'installed_ok'} eq "NO")
   {
