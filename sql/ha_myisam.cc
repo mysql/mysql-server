@@ -1299,7 +1299,7 @@ void ha_myisam::position(const byte* record)
   my_store_ptr(ref, ref_length, position);
 }
 
-void ha_myisam::info(uint flag)
+int ha_myisam::info(uint flag)
 {
   MI_ISAMINFO info;
   char name_buff[FN_REFLEN];
@@ -1358,6 +1358,8 @@ void ha_myisam::info(uint flag)
     update_time = info.update_time;
   if (flag & HA_STATUS_AUTO)
     auto_increment_value= info.auto_increment;
+
+  return 0;
 }
 
 

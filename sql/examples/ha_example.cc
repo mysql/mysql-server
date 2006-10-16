@@ -523,10 +523,10 @@ int ha_example::rnd_pos(byte * buf, byte *pos)
     sql_update.cc
 
 */
-void ha_example::info(uint flag)
+int ha_example::info(uint flag)
 {
   DBUG_ENTER("ha_example::info");
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 

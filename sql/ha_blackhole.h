@@ -76,7 +76,7 @@ public:
   int index_first(byte * buf);
   int index_last(byte * buf);
   void position(const byte *record);
-  void info(uint flag);
+  int info(uint flag);
   int external_lock(THD *thd, int lock_type);
   uint lock_count(void) const;
   int create(const char *name, TABLE *table_arg,

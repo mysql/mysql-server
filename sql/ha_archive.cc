@@ -1115,7 +1115,7 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
 /*
   Hints for optimizer, see ha_tina for more information
 */
-void ha_archive::info(uint flag)
+int ha_archive::info(uint flag)
 {
   DBUG_ENTER("ha_archive::info");
   /* 
@@ -1140,7 +1140,7 @@ void ha_archive::info(uint flag)
   delete_length= 0;
   index_file_length=0;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
