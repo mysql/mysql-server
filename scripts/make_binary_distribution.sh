@@ -93,6 +93,7 @@ mkdir $BASE $BASE/bin $BASE/docs \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
  $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
  $BASE/mysql-test/include $BASE/mysql-test/std_data $BASE/mysql-test/lib \
+ $BASE/mysql-test/std_data/ndb_backup50 $BASE/mysql-test/std_data/ndb_backup51 \
  $BASE/mysql-test/extra \
  $BASE/mysql-test/extra/binlog_tests $BASE/mysql-test/extra/rpl_tests
 
@@ -249,12 +250,20 @@ $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
     mysql-test/std_data/*.cnf \
     $BASE/mysql-test/std_data
+$CP mysql-test/std_data/ndb_backup50/*.Data \
+    mysql-test/std_data/ndb_backup50/*.ctl \
+    mysql-test/std_data/ndb_backup50/*.log \
+    $BASE/mysql-test/std_data/ndb_backup50
+$CP mysql-test/std_data/ndb_backup51/*.Data \
+    mysql-test/std_data/ndb_backup51/*.ctl \
+    mysql-test/std_data/ndb_backup51/*.log \
+    $BASE/mysql-test/std_data/ndb_backup51
 $CP mysql-test/t/*.test $BASE/mysql-test/t
 $CP mysql-test/t/*.imtest mysql-test/t/*.disabled $BASE/mysql-test/t
 $CP mysql-test/t/*.opt mysql-test/t/*.slave-mi $BASE/mysql-test/t
 $CP mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
-$CP mysql-test/r/*.result mysql-test/r/*.require \
-    $BASE/mysql-test/r
+$CP mysql-test/r/*.result  $BASE/mysql-test/r
+$CP mysql-test/r/*.require $BASE/mysql-test/r
 $CP mysql-test/extra/binlog_tests/*.test $BASE/mysql-test/extra/binlog_tests
 $CP mysql-test/extra/rpl_tests/*.test $BASE/mysql-test/extra/rpl_tests
 
