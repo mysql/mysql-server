@@ -1965,7 +1965,7 @@ static char *bindigits(ulonglong value, uint bits)
 
   DBUG_ASSERT(idx < sizeof(digits));
   while (idx)
-    *(ptr++)= '0' + ((value >> (--idx)) & 1);
+    *(ptr++)= '0' + ((char) (value >> (--idx)) & (char) 1);
   *ptr= '\0';
   return digits;
 }
@@ -1995,7 +1995,7 @@ static char *hexdigits(ulonglong value)
   DBUG_ASSERT(idx < sizeof(digits));
   while (idx)
   {
-    if ((*(ptr++)= '0' + ((value >> (4 * (--idx))) & 0xf)) > '9')
+    if ((*(ptr++)= '0' + ((char) (value >> (4 * (--idx))) & (char) 0xf)) > '9')
       *(ptr - 1)+= 'a' - '9' - 1;
   }
   *ptr= '\0';
@@ -2284,7 +2284,7 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
           errors++;
           break;
         }
-        idx+= code & 1;
+        idx+= (uint) code & 1;
         if (idx >= length)
         {
           VOID(fflush(stdout));
