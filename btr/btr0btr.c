@@ -571,9 +571,6 @@ btr_page_get_father_for_rec(
 	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap,
 					  btr_page_get_level(page, mtr));
 
-	/* In the following, we choose just any index from the tree as the
-	first parameter for btr_cur_search_to_nth_level. */
-
 	btr_cur_search_to_nth_level(index,
 				    btr_page_get_level(page, mtr) + 1,
 				    tuple, PAGE_CUR_LE,
