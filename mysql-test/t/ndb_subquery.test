@@ -18,18 +18,22 @@ insert into t1 values (1,1,1),(2,2,2),(3,3,3);
 insert into t2 values (1,1,1),(2,2,2),(3,3,3), (4,4,4), (5,5,5);
 
 # Use pk
+--replace_column 9 #
 explain select * from t2 where p NOT IN (select p from t1);
 select * from t2 where p NOT IN (select p from t1) order by p;
 
 # Use unique index
+--replace_column 9 #
 explain select * from t2 where p NOT IN (select u from t1);
 select * from t2 where p NOT IN (select u from t1) order by p;
 
 # Use ordered index
+--replace_column 9 #
 explain select * from t2 where p NOT IN (select o from t1);
 select * from t2 where p NOT IN (select o from t1) order by p;
 
 # Use scan
+--replace_column 9 #
 explain select * from t2 where p NOT IN (select p+0 from t1);
 select * from t2 where p NOT IN (select p+0 from t1) order by p;
 
