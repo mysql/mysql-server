@@ -133,8 +133,8 @@ static
 ibool
 rec_validate_old(
 /*=============*/
-			/* out: TRUE if ok */
-	rec_t*	rec);	/* in: physical record */
+				/* out: TRUE if ok */
+	const rec_t*	rec);	/* in: physical record */
 
 /**********************************************************
 Determine how many of the first n columns in a compact
@@ -156,7 +156,7 @@ rec_get_n_extern_new(
 	ulint		i;
 
 	ut_ad(dict_table_is_comp(index->table));
-	ut_ad(rec_get_status((rec_t*) rec) == REC_STATUS_ORDINARY);
+	ut_ad(rec_get_status(rec) == REC_STATUS_ORDINARY);
 	ut_ad(n == ULINT_UNDEFINED || n <= dict_index_get_n_fields(index));
 
 	if (n == ULINT_UNDEFINED) {
@@ -229,7 +229,7 @@ void
 rec_init_offsets(
 /*=============*/
 				/* out: the offsets */
-	rec_t*		rec,	/* in: physical record */
+	const rec_t*	rec,	/* in: physical record */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets)/* in/out: array of offsets;
 				in: n=rec_offs_n_fields(offsets) */
@@ -379,7 +379,7 @@ ulint*
 rec_get_offsets_func(
 /*=================*/
 				/* out: the new offsets */
-	rec_t*		rec,	/* in: physical record */
+	const rec_t*	rec,	/* in: physical record */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets,/* in: array consisting of offsets[0]
 				allocated elements, or an array from
@@ -1112,13 +1112,13 @@ void
 rec_copy_prefix_to_dtuple(
 /*======================*/
 	dtuple_t*	tuple,		/* in: data tuple */
-	rec_t*		rec,		/* in: physical record */
+	const rec_t*	rec,		/* in: physical record */
 	dict_index_t*	index,		/* in: record descriptor */
 	ulint		n_fields,	/* in: number of fields to copy */
 	mem_heap_t*	heap)		/* in: memory heap */
 {
 	dfield_t*	field;
-	byte*		data;
+	const byte*	data;
 	ulint		len;
 	byte*		buf = NULL;
 	ulint		i;
@@ -1137,7 +1137,7 @@ rec_copy_prefix_to_dtuple(
 	for (i = 0; i < n_fields; i++) {
 
 		field = dtuple_get_nth_field(tuple, i);
-		data = rec_get_nth_field(rec, offsets, i, &len);
+		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
 
 		if (len != UNIV_SQL_NULL) {
 			buf = mem_heap_alloc(heap, len);
@@ -1156,13 +1156,13 @@ static
 rec_t*
 rec_copy_prefix_to_buf_old(
 /*=======================*/
-				/* out, own: copied record */
-	rec_t*	rec,		/* in: physical record */
-	ulint	n_fields,	/* in: number of fields to copy */
-	ulint	area_end,	/* in: end of the prefix data */
-	byte**	buf,		/* in/out: memory buffer for the copied prefix,
-				or NULL */
-	ulint*	buf_size)	/* in/out: buffer size */
+					/* out, own: copied record */
+	const rec_t*	rec,		/* in: physical record */
+	ulint		n_fields,	/* in: number of fields to copy */
+	ulint		area_end,	/* in: end of the prefix data */
+	byte**		buf,		/* in/out: memory buffer for
+					the copied prefix, or NULL */
+	ulint*		buf_size)	/* in/out: buffer size */
 {
 	rec_t*	copy_rec;
 	ulint	area_start;
@@ -1202,15 +1202,15 @@ rec_t*
 rec_copy_prefix_to_buf(
 /*===================*/
 					/* out, own: copied record */
-	rec_t*		rec,		/* in: physical record */
+	const rec_t*	rec,		/* in: physical record */
 	dict_index_t*	index,		/* in: record descriptor */
 	ulint		n_fields,	/* in: number of fields to copy */
 	byte**		buf,		/* in/out: memory buffer
 					for the copied prefix, or NULL */
 	ulint*		buf_size)	/* in/out: buffer size */
 {
-	byte*		nulls;
-	byte*		lens;
+	const byte*	nulls;
+	const byte*	lens;
 	ulint		i;
 	ulint		prefix_len;
 	ulint		null_mask;
@@ -1314,15 +1314,15 @@ static
 ibool
 rec_validate_old(
 /*=============*/
-			/* out: TRUE if ok */
-	rec_t*	rec)	/* in: physical record */
+				/* out: TRUE if ok */
+	const rec_t*	rec)	/* in: physical record */
 {
-	byte*	data;
-	ulint	len;
-	ulint	n_fields;
-	ulint	len_sum		= 0;
-	ulint	sum		= 0;
-	ulint	i;
+	const byte*	data;
+	ulint		len;
+	ulint		n_fields;
+	ulint		len_sum		= 0;
+	ulint		sum		= 0;
+	ulint		i;
 
 	ut_a(rec);
 	n_fields = rec_get_n_fields_old(rec);
@@ -1334,7 +1334,7 @@ rec_validate_old(
 	}
 
 	for (i = 0; i < n_fields; i++) {
-		data = rec_get_nth_field_old(rec, i, &len);
+		data = rec_get_nth_field_old((rec_t*) rec, i, &len);
 
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
 			fprintf(stderr,
@@ -1375,7 +1375,7 @@ ibool
 rec_validate(
 /*=========*/
 				/* out: TRUE if ok */
-	rec_t*		rec,	/* in: physical record */
+	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
 	const byte*	data;
@@ -1397,7 +1397,7 @@ rec_validate(
 	ut_a(rec_offs_comp(offsets) || n_fields <= rec_get_n_fields_old(rec));
 
 	for (i = 0; i < n_fields; i++) {
-		data = rec_get_nth_field(rec, offsets, i, &len);
+		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
 
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
 			fprintf(stderr,
@@ -1418,11 +1418,11 @@ rec_validate(
 		}
 	}
 
-	if (len_sum != (ulint)(rec_get_end(rec, offsets) - rec)) {
+	if (len_sum != rec_offs_data_size(offsets)) {
 		fprintf(stderr,
 			"InnoDB: Error: record len should be %lu, len %lu\n",
 			(ulong) len_sum,
-			(ulong) (rec_get_end(rec, offsets) - rec));
+			(ulong) rec_offs_data_size(offsets));
 		return(FALSE);
 	}
 
@@ -1442,7 +1442,7 @@ void
 rec_print_old(
 /*==========*/
 	FILE*		file,	/* in: file where to print */
-	rec_t*		rec)	/* in: physical record */
+	const rec_t*	rec)	/* in: physical record */
 {
 	const byte*	data;
 	ulint		len;
@@ -1461,7 +1461,7 @@ rec_print_old(
 
 	for (i = 0; i < n; i++) {
 
-		data = rec_get_nth_field_old(rec, i, &len);
+		data = rec_get_nth_field_old((rec_t*) rec, i, &len);
 
 		fprintf(file, " %lu:", (ulong) i);
 
@@ -1493,7 +1493,7 @@ void
 rec_print_new(
 /*==========*/
 	FILE*		file,	/* in: file where to print */
-	rec_t*		rec,	/* in: physical record */
+	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
 	const byte*	data;
@@ -1516,7 +1516,7 @@ rec_print_new(
 
 	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
 
-		data = rec_get_nth_field(rec, offsets, i, &len);
+		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
 
 		fprintf(file, " %lu:", (ulong) i);
 
@@ -1547,7 +1547,7 @@ void
 rec_print(
 /*======*/
 	FILE*		file,	/* in: file where to print */
-	rec_t*		rec,	/* in: physical record */
+	const rec_t*	rec,	/* in: physical record */
 	dict_index_t*	index)	/* in: record descriptor */
 {
 	ut_ad(index);
