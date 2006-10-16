@@ -3888,11 +3888,12 @@ static void collect_partition_expr(List<char> &field_list, String *str)
 }
 
 
-static void store_schema_partitions_record(THD *thd, TABLE *table,
-                                           TABLE *show_table,
+static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
+                                           TABLE *showing_table,
                                            partition_element *part_elem,
                                            handler *file, uint part_id)
 {
+  TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
   PARTITION_INFO stat_info;
   TIME time;
@@ -3950,8 +3951,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *table,
                               strlen(part_elem->tablespace_name), cs);
     else
     {
-      DBUG_PRINT("info",("FOO"));
-      char *ts= show_table->file->get_tablespace_name(thd);
+      char *ts= showing_table->file->get_tablespace_name(thd);
       if(ts)
         table->field[24]->store(ts, strlen(ts), cs);
       else
