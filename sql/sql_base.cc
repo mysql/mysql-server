@@ -2284,12 +2284,19 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
   const char *field_name=0;
   const char *table_name=0;
   bool found_unaliased_non_uniq= 0;
+  /*
+    true if the item that we search for is a valid name reference
+    (and not an item that happens to have a name).
+  */
+  bool is_ref_by_name= 0;
   uint unaliased_counter;
 
   LINT_INIT(unaliased_counter);
   *unaliased= FALSE;
 
-  if (find->type() == Item::FIELD_ITEM	|| find->type() == Item::REF_ITEM)
+  is_ref_by_name= (find->type() == Item::FIELD_ITEM  || 
+                   find->type() == Item::REF_ITEM);
+  if (is_ref_by_name)
   {
     field_name= ((Item_ident*) find)->field_name;
     table_name= ((Item_ident*) find)->table_name;
@@ -2401,7 +2408,7 @@ find_item_in_list(Item *find, List<Item> &items, uint *counter,
       }
     }
     else if (!table_name && (item->eq(find,0) ||
-			     find->name && item->name &&
+			     is_ref_by_name && find->name && item->name &&
 			     !my_strcasecmp(system_charset_info, 
 					    item->name,find->name)))
     {

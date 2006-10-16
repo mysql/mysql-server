@@ -610,4 +610,27 @@ select sql_buffer_result max(f1) is null from t1;
 select sql_buffer_result max(f1)+1 from t1;
 drop table t1;
 
+#
+# BUG#14019-4.1-opt
+#
+CREATE TABLE t1(a INT); INSERT INTO t1 VALUES (1),(2);
+
+SELECT a FROM t1 GROUP BY 'a';
+SELECT a FROM t1 GROUP BY "a";
+SELECT a FROM t1 GROUP BY `a`;
+
+set sql_mode=ANSI_QUOTES;
+SELECT a FROM t1 GROUP BY "a";
+SELECT a FROM t1 GROUP BY 'a';
+SELECT a FROM t1 GROUP BY `a`;
+set sql_mode='';
+
+SELECT a FROM t1 HAVING 'a' > 1;
+SELECT a FROM t1 HAVING "a" > 1;
+SELECT a FROM t1 HAVING `a` > 1;
+
+SELECT a FROM t1 ORDER BY 'a' DESC;
+SELECT a FROM t1 ORDER BY "a" DESC;
+SELECT a FROM t1 ORDER BY `a` DESC;
+DROP TABLE t1;
 # End of 4.1 tests
