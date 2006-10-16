@@ -308,6 +308,19 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_SUBST(NDB_DEFS)
   AC_SUBST(ndb_cxxflags_fix)
 
+  NDB_SIZEOF_CHARP="$ac_cv_sizeof_charp"
+  NDB_SIZEOF_CHAR="$ac_cv_sizeof_char"
+  NDB_SIZEOF_SHORT="$ac_cv_sizeof_short"
+  NDB_SIZEOF_INT="$ac_cv_sizeof_int"
+  NDB_SIZEOF_LONG="$ac_cv_sizeof_long"
+  NDB_SIZEOF_LONG_LONG="$ac_cv_sizeof_long_long"
+  AC_SUBST([NDB_SIZEOF_CHARP])
+  AC_SUBST([NDB_SIZEOF_CHAR])
+  AC_SUBST([NDB_SIZEOF_SHORT])
+  AC_SUBST([NDB_SIZEOF_INT])
+  AC_SUBST([NDB_SIZEOF_LONG])
+  AC_SUBST([NDB_SIZEOF_LONG_LONG])
+
   AC_CONFIG_FILES(storage/ndb/include/Makefile dnl
    storage/ndb/src/Makefile storage/ndb/src/common/Makefile dnl
    storage/ndb/docs/Makefile dnl
