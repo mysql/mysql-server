@@ -1375,12 +1375,13 @@ JOIN::exec()
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
-  /* 
-    don't reset the found rows count if there're no tables
-    as FOUND_ROWS() may be called.
-  */  
+  /*
+    Don't reset the found rows count if there're no tables as
+    FOUND_ROWS() may be called. Never reset the examined row count here.
+    It must be accumulated from all join iterations of all join parts.
+  */
   if (tables)
-    thd->limit_found_rows= thd->examined_row_count= 0;
+    thd->limit_found_rows= 0;
 
   if (zero_result_cause)
   {
@@ -1428,6 +1429,12 @@ JOIN::exec()
   List<Item> *curr_all_fields= &all_fields;
   List<Item> *curr_fields_list= &fields_list;
   TABLE *curr_tmp_table= 0;
+  /*
+    Initialize examined rows here because the values from all join parts
+    must be accumulated in examined_row_count. Hence every join
+    iteration must count from zero.
+  */
+  curr_join->examined_rows= 0;
 
   if ((curr_join->select_lex->options & OPTION_SCHEMA_TABLE) &&
       get_schema_tables_result(curr_join))
@@ -1834,9 +1841,12 @@ JOIN::exec()
                         Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
     error= do_select(curr_join, curr_fields_list, NULL, procedure);
     thd->limit_found_rows= curr_join->send_records;
-    thd->examined_row_count= curr_join->examined_rows;
   }
 
+  /* Accumulate the counts from all join iterations of all join parts. */
+  thd->examined_row_count+= curr_join->examined_rows;
+  DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
+                        (ulong) thd->examined_row_count));
   DBUG_VOID_RETURN;
 }
 
@@ -10141,6 +10151,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     */
     join->examined_rows++;
     join->thd->row_count++;
+    DBUG_PRINT("counts", ("join->examined_rows++: %lu",
+                          (ulong) join->examined_rows));
 
     if (found)
     {
