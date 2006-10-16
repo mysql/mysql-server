@@ -368,32 +368,33 @@ my_bool rename_in_schema_file(const char *schema, const char *old_name,
 {
   char old_path[FN_REFLEN], new_path[FN_REFLEN], arc_path[FN_REFLEN];
 
-  strxnmov(old_path, FN_REFLEN-1, mysql_data_home, "/", schema, "/",
-           old_name, reg_ext, NullS);
-  (void) unpack_filename(old_path, old_path);
-
-  strxnmov(new_path, FN_REFLEN-1, mysql_data_home, "/", schema, "/",
-           new_name, reg_ext, NullS);
-  (void) unpack_filename(new_path, new_path);
+  build_table_filename(old_path, sizeof(old_path) - 1,
+                       schema, old_name, reg_ext, 0);
+  build_table_filename(new_path, sizeof(new_path) - 1,
+                       schema, new_name, reg_ext, 0);
 
   if (my_rename(old_path, new_path, MYF(MY_WME)))
     return 1;
 
   /* check if arc_dir exists */
-  strxnmov(arc_path, FN_REFLEN-1, mysql_data_home, "/", schema, "/arc", NullS);
-  (void) unpack_filename(arc_path, arc_path);
+  build_table_filename(arc_path, sizeof(arc_path) - 1, schema, "arc", "", 0);
   
   if (revision > 0 && !access(arc_path, F_OK))
   {
+    char old_name_buf[FN_REFLEN], new_name_buf[FN_REFLEN];
     ulonglong limit= ((revision > num_view_backups) ?
                       revision - num_view_backups : 0);
+
+    VOID(tablename_to_filename(old_name, old_name_buf, sizeof(old_name_buf)));
+    VOID(tablename_to_filename(new_name, new_name_buf, sizeof(new_name_buf)));
+
     for (; revision > limit ; revision--)
     {
       my_snprintf(old_path, FN_REFLEN, "%s/%s%s-%04lu",
-		  arc_path, old_name, reg_ext, (ulong)revision);
+		  arc_path, old_name_buf, reg_ext, (ulong) revision);
       (void) unpack_filename(old_path, old_path);
       my_snprintf(new_path, FN_REFLEN, "%s/%s%s-%04lu",
-		  arc_path, new_name, reg_ext, (ulong)revision);
+		  arc_path, new_name_buf, reg_ext, (ulong) revision);
       (void) unpack_filename(new_path, new_path);
       my_rename(old_path, new_path, MYF(0));
     }
