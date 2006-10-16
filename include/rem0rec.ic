@@ -152,10 +152,10 @@ UNIV_INLINE
 ulint
 rec_get_bit_field_1(
 /*================*/
-	rec_t*	rec,	/* in: pointer to record origin */
-	ulint	offs,	/* in: offset from the origin down */
-	ulint	mask,	/* in: mask used to filter bits */
-	ulint	shift)	/* in: shift right applied after masking */
+	const rec_t*	rec,	/* in: pointer to record origin */
+	ulint		offs,	/* in: offset from the origin down */
+	ulint		mask,	/* in: mask used to filter bits */
+	ulint		shift)	/* in: shift right applied after masking */
 {
 	ut_ad(rec);
 
@@ -192,10 +192,10 @@ UNIV_INLINE
 ulint
 rec_get_bit_field_2(
 /*================*/
-	rec_t*	rec,	/* in: pointer to record origin */
-	ulint	offs,	/* in: offset from the origin down */
-	ulint	mask,	/* in: mask used to filter bits */
-	ulint	shift)	/* in: shift right applied after masking */
+	const rec_t*	rec,	/* in: pointer to record origin */
+	ulint		offs,	/* in: offset from the origin down */
+	ulint		mask,	/* in: mask used to filter bits */
+	ulint		shift)	/* in: shift right applied after masking */
 {
 	ut_ad(rec);
 
@@ -291,10 +291,10 @@ UNIV_INLINE
 ulint
 rec_get_next_offs(
 /*==============*/
-			/* out: the page offset of the next chained record, or
-			0 if none */
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp)	/* in: nonzero=compact page format */
+				/* out: the page offset of the next
+				chained record, or 0 if none */
+	const rec_t*	rec,	/* in: physical record */
+	ulint		comp)	/* in: nonzero=compact page format */
 {
 	ulint	field_value;
 #if REC_NEXT_MASK != 0xFFFFUL
@@ -402,8 +402,8 @@ UNIV_INLINE
 ulint
 rec_get_n_fields_old(
 /*=================*/
-			/* out: number of data fields */
-	rec_t*	rec)	/* in: physical record */
+				/* out: number of data fields */
+	const rec_t*	rec)	/* in: physical record */
 {
 	ulint	ret;
 
@@ -442,8 +442,8 @@ UNIV_INLINE
 ulint
 rec_get_status(
 /*===========*/
-			/* out: status bits */
-	rec_t*	rec)	/* in: physical record */
+				/* out: status bits */
+	const rec_t*	rec)	/* in: physical record */
 {
 	ulint	ret;
 
@@ -464,7 +464,7 @@ ulint
 rec_get_n_fields(
 /*=============*/
 				/* out: number of data fields */
-	rec_t*		rec,	/* in: physical record */
+	const rec_t*	rec,	/* in: physical record */
 	dict_index_t*	index)	/* in: record descriptor */
 {
 	ut_ad(rec);
@@ -495,8 +495,8 @@ UNIV_INLINE
 ulint
 rec_get_n_owned_old(
 /*================*/
-			/* out: number of owned records */
-	rec_t*	rec)	/* in: old-style physical record */
+				/* out: number of owned records */
+	const rec_t*	rec)	/* in: old-style physical record */
 {
 	return(rec_get_bit_field_1(rec, REC_OLD_N_OWNED,
 				   REC_N_OWNED_MASK, REC_N_OWNED_SHIFT));
@@ -523,8 +523,8 @@ UNIV_INLINE
 ulint
 rec_get_n_owned_new(
 /*================*/
-			/* out: number of owned records */
-	rec_t*	rec)	/* in: new-style physical record */
+				/* out: number of owned records */
+	const rec_t*	rec)	/* in: new-style physical record */
 {
 	return(rec_get_bit_field_1(rec, REC_NEW_N_OWNED,
 				   REC_N_OWNED_MASK, REC_N_OWNED_SHIFT));
@@ -555,9 +555,9 @@ UNIV_INLINE
 ulint
 rec_get_info_bits(
 /*==============*/
-			/* out: info bits */
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp)	/* in: nonzero=compact page format */
+				/* out: info bits */
+	const rec_t*	rec,	/* in: physical record */
+	ulint		comp)	/* in: nonzero=compact page format */
 {
 	return(rec_get_bit_field_1(
 		       rec, comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
@@ -609,9 +609,9 @@ UNIV_INLINE
 ulint
 rec_get_info_and_status_bits(
 /*=========================*/
-			/* out: info bits */
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp)	/* in: nonzero=compact page format */
+				/* out: info bits */
+	const rec_t*	rec,	/* in: physical record */
+	ulint		comp)	/* in: nonzero=compact page format */
 {
 	ulint	bits;
 #if (REC_NEW_STATUS_MASK >> REC_NEW_STATUS_SHIFT) \
@@ -650,9 +650,9 @@ UNIV_INLINE
 ulint
 rec_get_deleted_flag(
 /*=================*/
-			/* out: nonzero if delete marked */
-	rec_t*	rec,	/* in: physical record */
-	ulint	comp)	/* in: nonzero=compact page format */
+				/* out: nonzero if delete marked */
+	const rec_t*	rec,	/* in: physical record */
+	ulint		comp)	/* in: nonzero=compact page format */
 {
 	if (UNIV_EXPECT(comp, REC_OFFS_COMPACT)) {
 		return(UNIV_UNLIKELY(
@@ -722,8 +722,8 @@ UNIV_INLINE
 ibool
 rec_get_node_ptr_flag(
 /*==================*/
-			/* out: TRUE if node pointer */
-	rec_t*	rec)	/* in: physical record */
+				/* out: TRUE if node pointer */
+	const rec_t*	rec)	/* in: physical record */
 {
 	return(REC_STATUS_NODE_PTR == rec_get_status(rec));
 }
@@ -735,8 +735,8 @@ UNIV_INLINE
 ulint
 rec_get_heap_no_old(
 /*================*/
-			/* out: heap order number */
-	rec_t*	rec)	/* in: physical record */
+				/* out: heap order number */
+	const rec_t*	rec)	/* in: physical record */
 {
 	return(rec_get_bit_field_2(rec, REC_OLD_HEAP_NO,
 				   REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT));
@@ -763,8 +763,8 @@ UNIV_INLINE
 ulint
 rec_get_heap_no_new(
 /*================*/
-			/* out: heap order number */
-	rec_t*	rec)	/* in: physical record */
+				/* out: heap order number */
+	const rec_t*	rec)	/* in: physical record */
 {
 	return(rec_get_bit_field_2(rec, REC_NEW_HEAP_NO,
 				   REC_HEAP_NO_MASK, REC_HEAP_NO_SHIFT));
@@ -791,8 +791,8 @@ UNIV_INLINE
 ibool
 rec_get_1byte_offs_flag(
 /*====================*/
-			/* out: TRUE if 1-byte form */
-	rec_t*	rec)	/* in: physical record */
+				/* out: TRUE if 1-byte form */
+	const rec_t*	rec)	/* in: physical record */
 {
 #if TRUE != 1
 #error "TRUE != 1"
@@ -828,10 +828,10 @@ UNIV_INLINE
 ulint
 rec_1_get_field_end_info(
 /*=====================*/
-			/* out: offset of the start of the field, SQL null
-			flag ORed */
-	rec_t*	rec,	/* in: record */
-	ulint	n)	/* in: field index */
+				/* out: offset of the start of the
+				field, SQL null flag ORed */
+	const rec_t*	rec,	/* in: record */
+	ulint		n)	/* in: field index */
 {
 	ut_ad(rec_get_1byte_offs_flag(rec));
 	ut_ad(n < rec_get_n_fields_old(rec));
@@ -847,10 +847,11 @@ UNIV_INLINE
 ulint
 rec_2_get_field_end_info(
 /*=====================*/
-			/* out: offset of the start of the field, SQL null
-			flag and extern storage flag ORed */
-	rec_t*	rec,	/* in: record */
-	ulint	n)	/* in: field index */
+				/* out: offset of the start of the
+				field, SQL null flag and extern
+				storage flag ORed */
+	const rec_t*	rec,	/* in: record */
+	ulint		n)	/* in: field index */
 {
 	ut_ad(!rec_get_1byte_offs_flag(rec));
 	ut_ad(n < rec_get_n_fields_old(rec));
@@ -921,7 +922,7 @@ ibool
 rec_offs_validate(
 /*==============*/
 				/* out: TRUE if valid */
-	rec_t*		rec,	/* in: record or NULL */
+	const rec_t*	rec,	/* in: record or NULL */
 	dict_index_t*	index,	/* in: record descriptor or NULL */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
@@ -975,7 +976,7 @@ UNIV_INLINE
 void
 rec_offs_make_valid(
 /*================*/
-	rec_t*		rec __attribute__((unused)),
+	const rec_t*	rec __attribute__((unused)),
 				/* in: record */
 	dict_index_t*	index __attribute__((unused)),
 				/* in: record descriptor */
@@ -1142,10 +1143,10 @@ UNIV_INLINE
 ulint
 rec_1_get_prev_field_end_info(
 /*==========================*/
-			/* out: offset of the start of the PREVIOUS field, SQL
-			null flag ORed */
-	rec_t*	rec,	/* in: record */
-	ulint	n)	/* in: field index */
+				/* out: offset of the start of the
+				PREVIOUS field, SQL null flag ORed */
+	const rec_t*	rec,	/* in: record */
+	ulint		n)	/* in: field index */
 {
 	ut_ad(rec_get_1byte_offs_flag(rec));
 	ut_ad(n <= rec_get_n_fields_old(rec));
@@ -1161,10 +1162,10 @@ UNIV_INLINE
 ulint
 rec_2_get_prev_field_end_info(
 /*==========================*/
-			/* out: offset of the start of the PREVIOUS field, SQL
-			null flag ORed */
-	rec_t*	rec,	/* in: record */
-	ulint	n)	/* in: field index */
+				/* out: offset of the start of the
+				PREVIOUS field, SQL null flag ORed */
+	const rec_t*	rec,	/* in: record */
+	ulint		n)	/* in: field index */
 {
 	ut_ad(!rec_get_1byte_offs_flag(rec));
 	ut_ad(n <= rec_get_n_fields_old(rec));
@@ -1213,9 +1214,9 @@ UNIV_INLINE
 ulint
 rec_1_get_field_start_offs(
 /*=======================*/
-			/* out: offset of the start of the field */
-	rec_t*	rec,	/* in: record */
-	ulint	n)	/* in: field index */
+				/* out: offset of the start of the field */
+	const rec_t*	rec,	/* in: record */
+	ulint		n)	/* in: field index */
 {
 	ut_ad(rec_get_1byte_offs_flag(rec));
 	ut_ad(n <= rec_get_n_fields_old(rec));
@@ -1236,9 +1237,9 @@ UNIV_INLINE
 ulint
 rec_2_get_field_start_offs(
 /*=======================*/
-			/* out: offset of the start of the field */
-	rec_t*	rec,	/* in: record */
-	ulint	n)	/* in: field index */
+				/* out: offset of the start of the field */
+	const rec_t*	rec,	/* in: record */
+	ulint		n)	/* in: field index */
 {
 	ut_ad(!rec_get_1byte_offs_flag(rec));
 	ut_ad(n <= rec_get_n_fields_old(rec));
@@ -1261,9 +1262,9 @@ UNIV_INLINE
 ulint
 rec_get_field_start_offs(
 /*=====================*/
-			/* out: offset of the start of the field */
-	rec_t*	rec,	/* in: record */
-	ulint	n)	/* in: field index */
+				/* out: offset of the start of the field */
+	const rec_t*	rec,	/* in: record */
+	ulint		n)	/* in: field index */
 {
 	ut_ad(rec);
 	ut_ad(n <= rec_get_n_fields_old(rec));
@@ -1289,9 +1290,9 @@ UNIV_INLINE
 ulint
 rec_get_nth_field_size(
 /*===================*/
-			/* out: field size in bytes */
-	rec_t*	rec,	/* in: record */
-	ulint	n)	/* in: index of the field */
+				/* out: field size in bytes */
+	const rec_t*	rec,	/* in: record */
+	ulint		n)	/* in: index of the field */
 {
 	ulint	os;
 	ulint	next_os;
@@ -1359,7 +1360,7 @@ ulint
 rec_get_data_size_old(
 /*==================*/
 				/* out: size */
-	rec_t*	rec)	/* in: physical record */
+	const rec_t*	rec)	/* in: physical record */
 {
 	ut_ad(rec);
 
@@ -1478,7 +1479,7 @@ rec_copy(
 
 	ut_ad(rec && buf);
 	ut_ad(rec_offs_validate((rec_t*) rec, NULL, offsets));
-	ut_ad(rec_validate((rec_t*) rec, offsets));
+	ut_ad(rec_validate(rec, offsets));
 
 	extra_len = rec_offs_extra_size(offsets);
 	data_len = rec_offs_data_size(offsets);
@@ -1567,7 +1568,7 @@ ulint
 rec_fold(
 /*=====*/
 					/* out: the folded value */
-	rec_t*		rec,		/* in: the physical record */
+	const rec_t*	rec,		/* in: the physical record */
 	const ulint*	offsets,	/* in: array returned by
 					rec_get_offsets() */
 	ulint		n_fields,	/* in: number of complete
@@ -1576,14 +1577,14 @@ rec_fold(
 					in an incomplete last field */
 	dulint		tree_id)	/* in: index tree id */
 {
-	ulint	i;
-	byte*	data;
-	ulint	len;
-	ulint	fold;
-	ulint	n_fields_rec;
+	ulint		i;
+	const byte*	data;
+	ulint		len;
+	ulint		fold;
+	ulint		n_fields_rec;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	ut_ad(rec_validate((rec_t*) rec, offsets));
+	ut_ad(rec_validate(rec, offsets));
 	ut_ad(n_fields + n_bytes > 0);
 
 	n_fields_rec = rec_offs_n_fields(offsets);
@@ -1601,7 +1602,7 @@ rec_fold(
 	fold = ut_fold_dulint(tree_id);
 
 	for (i = 0; i < n_fields; i++) {
-		data = rec_get_nth_field(rec, offsets, i, &len);
+		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
 
 		if (len != UNIV_SQL_NULL) {
 			fold = ut_fold_ulint_pair(fold,
@@ -1610,7 +1611,7 @@ rec_fold(
 	}
 
 	if (n_bytes > 0) {
-		data = rec_get_nth_field(rec, offsets, i, &len);
+		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
 
 		if (len != UNIV_SQL_NULL) {
 			if (len > n_bytes) {

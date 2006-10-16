@@ -283,7 +283,7 @@ page_zip_get_n_prev_extern(
 	ut_ad(dict_table_is_comp(index->table));
 	ut_ad(dict_index_is_clust(index));
 
-	heap_no = rec_get_heap_no_new((rec_t*) rec);
+	heap_no = rec_get_heap_no_new(rec);
 	ut_ad(heap_no >= 2);	/* exclude infimum and supremum */
 	left = heap_no - 2;
 	if (UNIV_UNLIKELY(!left)) {
@@ -2496,7 +2496,7 @@ page_zip_write_rec(
 	slot = page_zip_dir_find(page_zip, page_offset(rec));
 	ut_a(slot);
 	/* Copy the delete mark. */
-	if (rec_get_deleted_flag((rec_t*) rec, TRUE)) {
+	if (rec_get_deleted_flag(rec, TRUE)) {
 		*slot |= PAGE_ZIP_DIR_SLOT_DEL >> 8;
 	} else {
 		*slot &= ~(PAGE_ZIP_DIR_SLOT_DEL >> 8);
@@ -2507,7 +2507,7 @@ page_zip_write_rec(
 	      - PAGE_DIR - PAGE_DIR_SLOT_SIZE
 	      * page_dir_get_n_slots(page));
 
-	heap_no = rec_get_heap_no_new((rec_t*) rec);
+	heap_no = rec_get_heap_no_new(rec);
 	ut_ad(heap_no >= 2); /* not infimum or supremum */
 	ut_ad(heap_no < page_dir_get_n_heap(page));
 
@@ -2790,7 +2790,7 @@ page_zip_write_blob_ptr(
 	ut_ad(page_zip_simple_validate(page_zip));
 	ut_ad(page_zip->size > PAGE_DATA + page_zip_dir_size(page_zip));
 	ut_ad(rec_offs_comp(offsets));
-	ut_ad(rec_offs_validate((rec_t*) rec, NULL, offsets));
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(rec_offs_nth_extern(offsets, n));
 
 	ut_ad(page_zip->m_start >= PAGE_DATA);
