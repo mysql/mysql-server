@@ -5072,16 +5072,15 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
   List<char> delete_list;
   while ((file_name=it++))
   {
+    bool file_on_disk= false;
     DBUG_PRINT("info", ("%s", file_name));     
     if (hash_search(&ndb_tables, file_name, strlen(file_name)))
     {
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name));
-      // File existed in NDB and as frm file, put in ok_tables list
-      my_hash_insert(&ok_tables, (byte*)file_name);
-      continue;
+      file_on_disk= true;
     }
     
-    // File is not in NDB, check for .ndb file with this name
+    // Check for .ndb file with this name
     (void)strxnmov(name, FN_REFLEN, 
                    mysql_data_home,"/",db,"/",file_name,ha_ndb_ext,NullS);
     DBUG_PRINT("info", ("Check access for %s", name));
@@ -5089,9 +5088,25 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
     {
       DBUG_PRINT("info", ("%s did not exist on disk", name));     
       // .ndb file did not exist on disk, another table type
+      if (file_on_disk)
+      {
+	// Ignore this ndb table
+	gptr record=  hash_search(&ndb_tables, file_name, strlen(file_name));
+	DBUG_ASSERT(record);
+	hash_delete(&ndb_tables, record);
+	push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			    ER_TABLE_EXISTS_ERROR,
+			    "Local table %s.%s shadows ndb table",
+			    db, file_name);
+      }
       continue;
     }
-
+    if (file_on_disk) 
+    {
+      // File existed in NDB and as frm file, put in ok_tables list
+      my_hash_insert(&ok_tables, (byte*)file_name);
+      continue;
+    }
     DBUG_PRINT("info", ("%s existed on disk", name));     
     // The .ndb file exists on disk, but it's not in list of tables in ndb
     // Verify that handler agrees table is gone.
@@ -6896,11 +6911,13 @@ void ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("FIELD_ITEM"));
             DBUG_PRINT("info", ("table %s", tab->getName()));
             DBUG_PRINT("info", ("column %s", field->field_name));
+            DBUG_PRINT("info", ("type %d", field->type()));
             DBUG_PRINT("info", ("result type %d", field->result_type()));
             
             // Check that we are expecting a field and with the correct
             // result type
             if (context->expecting(Item::FIELD_ITEM) &&
+                context->expecting_field_type(field->type()) &&
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
@@ -6923,7 +6940,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
               curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
               context->dont_expect(Item::FIELD_ITEM);
               context->expect_no_field_result();
-              if (context->expect_mask)
+              if (! context->expecting_nothing())
               {
                 // We have not seen second argument yet
                 if (type == MYSQL_TYPE_TIME ||
@@ -7120,6 +7137,9 @@ void ndb_serialize_cond(const Item *item, void *arg)
                                               func_item);      
             context->expect(Item::STRING_ITEM);
             context->expect(Item::FIELD_ITEM);
+            context->expect_only_field_type(MYSQL_TYPE_STRING);
+            context->expect_field_type(MYSQL_TYPE_VAR_STRING);
+            context->expect_field_type(MYSQL_TYPE_VARCHAR);
             context->expect_field_result(STRING_RESULT);
             context->expect(Item::FUNC_ITEM);
             break;
@@ -7225,7 +7245,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::STRING_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item); 
-                if (context->expect_field_result_mask)
+                if (! context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -7255,7 +7275,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::REAL_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-                if (context->expect_field_result_mask) 
+                if (! context->expecting_no_field_result()) 
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -7278,7 +7298,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::INT_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-                if (context->expect_field_result_mask) 
+                if (! context->expecting_no_field_result()) 
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -7301,7 +7321,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
                 NDB_ITEM_QUALIFICATION q;
                 q.value_type= Item::DECIMAL_ITEM;
                 curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-                if (context->expect_field_result_mask) 
+                if (! context->expecting_no_field_result()) 
                 {
                   // We have not seen the field argument yet
                   context->expect_only(Item::FIELD_ITEM);
@@ -7351,7 +7371,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::STRING_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
-            if (context->expect_field_result_mask)
+            if (! context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -7384,7 +7404,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::INT_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-            if (context->expect_field_result_mask) 
+            if (! context->expecting_no_field_result()) 
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -7411,7 +7431,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::REAL_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-            if (context->expect_field_result_mask) 
+            if (! context->expecting_no_field_result()) 
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -7434,7 +7454,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::VARBIN_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);      
-            if (context->expect_field_result_mask)
+            if (! context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
@@ -7459,7 +7479,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::DECIMAL_ITEM;
             curr_cond->ndb_item= new Ndb_item(NDB_VALUE, q, item);
-            if (context->expect_field_result_mask) 
+            if (! context->expecting_no_field_result()) 
             {
               // We have not seen the field argument yet
               context->expect_only(Item::FIELD_ITEM);
