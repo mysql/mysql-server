@@ -802,8 +802,12 @@ a
 set sql_mode='';
 SELECT a FROM t1 HAVING 'a' > 1;
 a
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
 SELECT a FROM t1 HAVING "a" > 1;
 a
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
 SELECT a FROM t1 HAVING `a` > 1;
 a
 2
