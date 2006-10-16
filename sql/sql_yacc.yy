@@ -724,7 +724,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	LEX_HOSTNAME ULONGLONG_NUM field_ident select_alias ident ident_or_text
         UNDERSCORE_CHARSET IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
 	NCHAR_STRING opt_component key_cache_name
-        sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem
+        sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
 
 %type <lex_str_ptr>
 	opt_table_alias
@@ -734,7 +734,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <simple_string>
 	remember_name remember_end opt_ident opt_db text_or_password
-	opt_constraint constraint ident_or_empty
+	opt_constraint constraint
 
 %type <string>
 	text_string opt_gconcat_separator
@@ -1213,7 +1213,8 @@ create:
 	  lex->create_info.options=$2 | $4;
 	  lex->create_info.db_type= lex->thd->variables.table_type;
 	  lex->create_info.default_table_charset= NULL;
-	  lex->name= 0;
+	  lex->name.str= 0;
+          lex->name.length= 0;
          lex->like_name= 0;
 	}
 	create2
@@ -1253,7 +1254,7 @@ create:
 	  {
 	    LEX *lex=Lex;
 	    lex->sql_command=SQLCOM_CREATE_DB;
-	    lex->name=$4.str;
+	    lex->name= $4;
             lex->create_info.options=$3;
 	  }
 	| CREATE EVENT_SYM opt_if_not_exists sp_name
@@ -1578,7 +1579,7 @@ clear_privileges:
 sp_name:
 	  ident '.' ident
 	  {
-            if (!$1.str || check_db_name($1.str))
+            if (!$1.str || check_db_name(&$1))
             {
 	      my_error(ER_WRONG_DB_NAME, MYF(0), $1.str);
 	      YYABORT;
@@ -3163,7 +3164,7 @@ size_number:
             uint text_shift_number= 0;
             longlong prefix_number;
             char *start_ptr= $1.str;
-            uint str_len= strlen(start_ptr);
+            uint str_len= $1.length;
             char *end_ptr= start_ptr + str_len;
             int error;
             prefix_number= my_strtoll10(start_ptr, &end_ptr, &error);
@@ -4674,7 +4675,8 @@ alter:
 	{
 	  THD *thd= YYTHD;
 	  LEX *lex= thd->lex;
-         lex->name= 0;
+          lex->name.str= 0;
+          lex->name.length= 0;
 	  lex->sql_command= SQLCOM_ALTER_TABLE;
 	  lex->duplicates= DUP_ERROR; 
 	  if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
@@ -4684,7 +4686,6 @@ alter:
 	  lex->key_list.empty();
 	  lex->col_list.empty();
           lex->select_lex.init_order();
-	  lex->name= 0;
 	  lex->like_name= 0;
 	  lex->select_lex.db=
             ((TABLE_LIST*) lex->select_lex.table_list.first)->db;
@@ -4709,7 +4710,8 @@ alter:
             THD *thd= Lex->thd;
 	    lex->sql_command=SQLCOM_ALTER_DB;
 	    lex->name= $3;
-            if (lex->name == NULL && thd->copy_db_to(&lex->name, NULL))
+            if (lex->name.str == NULL &&
+                thd->copy_db_to(&lex->name.str, &lex->name.length))
               YYABORT;
 	  }
 	| ALTER PROCEDURE sp_name
@@ -4867,8 +4869,8 @@ opt_ev_sql_stmt: /* empty*/ { $$= 0;}
 
 
 ident_or_empty:
-	/* empty */  { $$= 0; }
-	| ident      { $$= $1.str; };
+	/* empty */  { $$.str= 0; $$.length= 0; }
+	| ident      { $$= $1; };
 
 alter_commands:
 	| DISCARD TABLESPACE { Lex->alter_info.tablespace_op= DISCARD_TABLESPACE; }
@@ -5146,19 +5148,20 @@ alter_list_item:
 	  {
 	    LEX *lex=Lex;
             THD *thd= lex->thd;
+	    uint dummy;
 	    lex->select_lex.db=$3->db.str;
             if (lex->select_lex.db == NULL &&
-                thd->copy_db_to(&lex->select_lex.db, NULL))
+                thd->copy_db_to(&lex->select_lex.db, &dummy))
             {
               YYABORT;
             }
             if (check_table_name($3->table.str,$3->table.length) ||
-                $3->db.str && check_db_name($3->db.str))
+                $3->db.str && check_db_name(&$3->db))
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               YYABORT;
             }
-	    lex->name= $3->table.str;
+	    lex->name= $3->table;
 	    lex->alter_info.flags|= ALTER_RENAME;
 	  }
 	| CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
@@ -7705,7 +7708,7 @@ drop:
 	    LEX *lex=Lex;
 	    lex->sql_command= SQLCOM_DROP_DB;
 	    lex->drop_if_exists=$3;
-	    lex->name=$4.str;
+	    lex->name= $4;
 	 }
 	| DROP FUNCTION_SYM if_exists sp_name
 	  {
@@ -8378,7 +8381,7 @@ show_param:
 	  {
 	    Lex->sql_command=SQLCOM_SHOW_CREATE_DB;
 	    Lex->create_info.options=$3;
-	    Lex->name=$4.str;
+	    Lex->name= $4;
 	  }
         | CREATE TABLE_SYM table_ident
           {
@@ -10368,7 +10371,8 @@ grant_ident:
 	  {
 	    LEX *lex= Lex;
             THD *thd= lex->thd;
-            if (thd->copy_db_to(&lex->current_select->db, NULL))
+            uint dummy;
+            if (thd->copy_db_to(&lex->current_select->db, &dummy))
               YYABORT;
 	    if (lex->grant == GLOBAL_ACLS)
 	      lex->grant = DB_ACLS & ~GRANT_ACL;

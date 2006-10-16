@@ -386,4 +386,10 @@ create trigger t1_ai after insert on t1 for each row show create event e1;
 ERROR 0A000: Not allowed to return a result set from a trigger
 drop table t1;
 drop event e1;
+SHOW EVENTS FROM aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Incorrect database name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SHOW EVENTS FROM ``;
+ERROR 42000: Incorrect database name ''
+SHOW EVENTS FROM `events\\test`;
+Db	Name	Definer	Type	Execute at	Interval value	Interval field	Starts	Ends	Status
 drop database events_test;

@@ -175,7 +175,8 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->escape_used= lex->et_compile_phase= FALSE;
   lex->reset_query_tables_list(FALSE);
 
-  lex->name= 0;
+  lex->name.str= 0;
+  lex->name.length= 0;
   lex->et= NULL;
 
   lex->nest_level=0 ;
