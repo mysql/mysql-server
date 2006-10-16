@@ -2877,8 +2877,24 @@ static int dump_tablespaces(char* ts_where)
            ", ENGINE"
            " ORDER BY LOGFILE_GROUP_NAME");
 
-  if (mysql_query_with_error_report(mysql, &tableres,sqlbuf))
+  if (mysql_query(mysql, sqlbuf) ||
+      !(tableres = mysql_store_result(mysql)))
+  {
+    if (mysql_errno(mysql) == ER_BAD_TABLE_ERROR ||
+        mysql_errno(mysql) == ER_BAD_DB_ERROR ||
+        mysql_errno(mysql) == ER_UNKNOWN_TABLE)
+    {
+      fprintf(md_result_file,
+              "\n--\n-- Not dumping tablespaces as no INFORMATION_SCHEMA.FILES"
+              " table on this server\n--\n");
+      check_io(md_result_file);
+      return 0;
+    }
+
+    my_printf_error(0, "Error: Couldn't dump tablespaces %s",
+                    MYF(0), mysql_error(mysql));
     return 1;
+  }
 
   buf[0]= 0;
   while ((row= mysql_fetch_row(tableres)))
