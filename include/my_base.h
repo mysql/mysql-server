@@ -224,12 +224,17 @@ enum ha_base_keytype {
 /* poor old NISAM has 8-bit flags :-( */
 #define HA_SORT_ALLOWS_SAME	 128	/* Intern bit when sorting records */
 #endif
+#if MYSQL_VERSION_ID < 0x50200
 /*
   Key has a part that can have end space.  If this is an unique key
   we have to handle it differently from other unique keys as we can find
   many matching rows for one key (because end space are not compared)
 */
-#define HA_END_SPACE_KEY	4096
+#define HA_END_SPACE_KEY      0 /* was: 4096 */
+#else
+#error HA_END_SPACE_KEY is obsolete, please remove it
+#endif
+
 
 	/* These flags can be added to key-seg-flag */
 
