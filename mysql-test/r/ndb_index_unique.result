@@ -630,7 +630,7 @@ create table t1 (a int primary key, b varchar(1000) not null, unique key (b))
 engine=ndb charset=utf8;
 insert into t1 values (1, repeat(_utf8 0xe288ab6474, 200));
 insert into t1 values (2, repeat(_utf8 0xe288ab6474, 200));
-ERROR 23000: Duplicate entry '2' for key 1
+ERROR 23000: Duplicate entry '' for key 0
 select a, sha1(b) from t1;
 a	sha1(b)
 1	08f5d02c8b8bc244f275bdfc22c42c5cab0d9d7d
