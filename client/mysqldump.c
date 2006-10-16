@@ -2759,86 +2759,66 @@ static int dump_all_tablespaces()
 
 static int dump_tablespaces_for_tables(char *db, char **table_names, int tables)
 {
-  char *where;
+  DYNAMIC_STRING where;
   int r;
   int i;
-
-  size_t sz= 200+tables*(NAME_LEN*2+3);
-  where= my_malloc(sz, MYF(MY_WME));
-
-  if (!where)
-    return 1;
-
   char name_buff[NAME_LEN*2+3];
+
   mysql_real_escape_string(mysql, name_buff, db, strlen(db));
 
-  snprintf(where,sz-1,
-          " AND TABLESPACE_NAME IN ("
-          "SELECT DISTINCT TABLESPACE_NAME FROM"
-          " INFORMATION_SCHEMA.PARTITIONS"
-          " WHERE"
-          " TABLE_SCHEMA='%s'"
-          " AND TABLE_NAME IN (", name_buff);
+  init_dynamic_string(&where, " AND TABLESPACE_NAME IN ("
+                      "SELECT DISTINCT TABLESPACE_NAME FROM"
+                      " INFORMATION_SCHEMA.PARTITIONS"
+                      " WHERE"
+                      " TABLE_SCHEMA='", 256, 1024);
+  dynstr_append(&where, name_buff);
+  dynstr_append(&where, "' AND TABLE_NAME IN (");
 
   for (i=0 ; i<tables ; i++)
   {
     mysql_real_escape_string(mysql, name_buff,
                              table_names[i], strlen(table_names[i]));
-    strncat(where,"'",sz-3);
-    strncat(where,name_buff,sz-3);
-    strncat(where,"'",sz-3);
-    strncat(where,",",sz-3);
+
+    dynstr_append(&where, "'");
+    dynstr_append(&where, name_buff);
+    dynstr_append(&where, "',");
   }
-  sz= strlen(where);
-  where[sz-1]= ')';
-  where[sz]= ')';
-  where[sz+1]= '\0';
+  where.str[--where.length]= '\0';
+  dynstr_append(&where,"))");
 
   DBUG_PRINT("info",("Dump TS for Tables where: %s",where));
-  r= dump_tablespaces(where);
-  my_free(where, MYF(0));
+  r= dump_tablespaces(where.str);
+  dynstr_free(&where);
   return r;
 }
 
 static int dump_tablespaces_for_databases(char** databases)
 {
-  char *where;
+  DYNAMIC_STRING where;
   int r;
   int i;
 
-  size_t sz= 150;
-  for (i=0 ; databases[i]!=NULL ; i++)
-    sz+=(strlen(databases[i])*2)+3+1;
-
-  where= my_malloc(sz, MYF(MY_WME));
-  if(!where)
-    return 1;
-
-  strncpy(where,
-          " AND TABLESPACE_NAME IN ("
-          "SELECT DISTINCT TABLESPACE_NAME FROM"
-          " INFORMATION_SCHEMA.PARTITIONS"
-          " WHERE"
-          " TABLE_SCHEMA IN (", sz-1);
+  init_dynamic_string(&where, " AND TABLESPACE_NAME IN ("
+                      "SELECT DISTINCT TABLESPACE_NAME FROM"
+                      " INFORMATION_SCHEMA.PARTITIONS"
+                      " WHERE"
+                      " TABLE_SCHEMA IN (", 256, 1024);
 
   for (i=0 ; databases[i]!=NULL ; i++)
   {
     char db_name_buff[NAME_LEN*2+3];
     mysql_real_escape_string(mysql, db_name_buff,
                              databases[i], strlen(databases[i]));
-    strncat(where,"'",sz-3);
-    strncat(where,db_name_buff,sz-3);
-    strncat(where,"'",sz-3);
-    strncat(where,",",sz-3);
+    dynstr_append(&where, "'");
+    dynstr_append(&where, db_name_buff);
+    dynstr_append(&where, "',");
   }
-  sz= strlen(where);
-  where[sz-1]= ')';
-  where[sz]= ')';
-  where[sz+1]= '\0';
+  where.str[--where.length]='\0';
+  dynstr_append(&where,"))");
 
   DBUG_PRINT("info",("Dump TS for DBs where: %s",where));
-  r= dump_tablespaces(where);
-  my_free(where, MYF(0));
+  r= dump_tablespaces(where.str);
+  dynstr_free(&where);
   return r;
 }
 
@@ -2847,7 +2827,7 @@ static int dump_tablespaces(char* ts_where)
   MYSQL_ROW row;
   MYSQL_RES *tableres;
   char buf[FN_REFLEN];
-  char sqlbuf[1024];
+  DYNAMIC_STRING sqlbuf;
   int first;
   /*
     The following are used for parsing the EXTRA field
@@ -2856,28 +2836,34 @@ static int dump_tablespaces(char* ts_where)
   char *ubs;
   char *endsemi;
 
-  snprintf(sqlbuf,sizeof(sqlbuf),"%s%s%s%s%s",
-           "SELECT LOGFILE_GROUP_NAME,"
-           " FILE_NAME,"
-           " TOTAL_EXTENTS,"
-           " INITIAL_SIZE,"
-           " ENGINE,"
-           " EXTRA"
-           " FROM INFORMATION_SCHEMA.FILES"
-           " WHERE FILE_TYPE = 'UNDO LOG'"
-           " AND FILE_NAME IS NOT NULL",
-           (ts_where)?
-           " AND LOGFILE_GROUP_NAME IN ("
-           "SELECT DISTINCT LOGFILE_GROUP_NAME"
-           " FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE = 'DATAFILE'"
-           :"",
-           (ts_where)?ts_where:"",
-           (ts_where)?")":"",
-           " GROUP BY LOGFILE_GROUP_NAME, FILE_NAME"
-           ", ENGINE"
-           " ORDER BY LOGFILE_GROUP_NAME");
+  init_dynamic_string(&sqlbuf,
+                      "SELECT LOGFILE_GROUP_NAME,"
+                      " FILE_NAME,"
+                      " TOTAL_EXTENTS,"
+                      " INITIAL_SIZE,"
+                      " ENGINE,"
+                      " EXTRA"
+                      " FROM INFORMATION_SCHEMA.FILES"
+                      " WHERE FILE_TYPE = 'UNDO LOG'"
+                      " AND FILE_NAME IS NOT NULL",
+                      256, 1024);
+  if(ts_where)
+  {
+    dynstr_append(&sqlbuf,
+                  " AND LOGFILE_GROUP_NAME IN ("
+                  "SELECT DISTINCT LOGFILE_GROUP_NAME"
+                  " FROM INFORMATION_SCHEMA.FILES"
+                  " WHERE FILE_TYPE = 'DATAFILE'"
+                  );
+    dynstr_append(&sqlbuf, ts_where);
+    dynstr_append(&sqlbuf, ")");
+  }
+  dynstr_append(&sqlbuf,
+                " GROUP BY LOGFILE_GROUP_NAME, FILE_NAME"
+                ", ENGINE"
+                " ORDER BY LOGFILE_GROUP_NAME");
 
-  if (mysql_query(mysql, sqlbuf) ||
+  if (mysql_query(mysql, sqlbuf.str) ||
       !(tableres = mysql_store_result(mysql)))
   {
     if (mysql_errno(mysql) == ER_BAD_TABLE_ERROR ||
@@ -2944,20 +2930,24 @@ static int dump_tablespaces(char* ts_where)
       strxmov(buf, row[0], NullS);
     }
   }
+  dynstr_free(&sqlbuf);
+  init_dynamic_string(&sqlbuf,
+                      "SELECT DISTINCT TABLESPACE_NAME,"
+                      " FILE_NAME,"
+                      " LOGFILE_GROUP_NAME,"
+                      " EXTENT_SIZE,"
+                      " INITIAL_SIZE,"
+                      " ENGINE"
+                      " FROM INFORMATION_SCHEMA.FILES"
+                      " WHERE FILE_TYPE = 'DATAFILE'",
+                      256, 1024);
 
-  snprintf(sqlbuf,sizeof(sqlbuf),"%s%s%s",
-           "SELECT DISTINCT TABLESPACE_NAME,"
-           " FILE_NAME,"
-           " LOGFILE_GROUP_NAME,"
-           " EXTENT_SIZE,"
-           " INITIAL_SIZE,"
-           " ENGINE"
-           " FROM INFORMATION_SCHEMA.FILES"
-           " WHERE FILE_TYPE = 'DATAFILE'",
-           (ts_where)?ts_where:"",
-           " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME");
+  if(ts_where)
+    dynstr_append(&sqlbuf, ts_where);
 
-  if (mysql_query_with_error_report(mysql, &tableres,sqlbuf))
+  dynstr_append(&sqlbuf, " ORDER BY TABLESPACE_NAME, LOGFILE_GROUP_NAME");
+
+  if (mysql_query_with_error_report(mysql, &tableres, sqlbuf.str))
     return 1;
 
   buf[0]= 0;
@@ -3003,6 +2993,8 @@ static int dump_tablespaces(char* ts_where)
       strxmov(buf, row[0], NullS);
     }
   }
+
+  dynstr_free(&sqlbuf);
   return 0;
 }
 
