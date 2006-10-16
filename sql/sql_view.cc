@@ -1655,24 +1655,23 @@ mysql_rename_view(THD *thd,
                   const char *new_name,
                   TABLE_LIST *view)
 {
-  LEX_STRING pathstr, file;
+  LEX_STRING pathstr;
   File_parser *parser;
-  char view_path[FN_REFLEN];
+  char path_buff[FN_REFLEN];
   bool error= TRUE;
   DBUG_ENTER("mysql_rename_view");
 
-  strxnmov(view_path, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
-           view->table_name, reg_ext, NullS);
-  (void) unpack_filename(view_path, view_path);
-
-  pathstr.str= (char *)view_path;
-  pathstr.length= strlen(view_path);
+  pathstr.str= (char *) path_buff;
+  pathstr.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
+                                       view->db, view->table_name,
+                                       reg_ext, 0);
 
   if ((parser= sql_parse_prepare(&pathstr, thd->mem_root, 1)) && 
        is_equal(&view_type, parser->type()))
   {
     TABLE_LIST view_def;
-    char dir_buff[FN_REFLEN], file_buff[FN_REFLEN];
+    char dir_buff[FN_REFLEN];
+    LEX_STRING dir, file;
 
     /*
       To be PS-friendly we should either to restore state of
@@ -1695,18 +1694,18 @@ mysql_rename_view(THD *thd,
                               view_def.revision - 1, num_view_backups))
       goto err;
 
-    strxnmov(dir_buff, FN_REFLEN-1, mysql_data_home, "/", view->db, "/",
-             NullS);
-    (void) unpack_filename(dir_buff, dir_buff);
+    dir.str= dir_buff;
+    dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
+                                     view->db, "", "", 0);
 
-    pathstr.str=    (char*)dir_buff;
-    pathstr.length= strlen(dir_buff);
+    pathstr.str= path_buff;
+    pathstr.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
+                                      view->db, new_name, reg_ext, 0);
 
-    file.str= file_buff;
-    file.length= (strxnmov(file_buff, FN_REFLEN, new_name, reg_ext, NullS) 
-                  - file_buff);
+    file.str= pathstr.str + dir.length;
+    file.length= pathstr.length - dir.length;
 
-    if (sql_create_definition_file(&pathstr, &file, view_file_type,
+    if (sql_create_definition_file(&dir, &file, view_file_type,
                                    (gptr)&view_def, view_parameters,
                                    num_view_backups)) 
     {
