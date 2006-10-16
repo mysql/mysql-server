@@ -33,6 +33,7 @@
 #include <errmsg.h>
 #include <my_getopt.h>
 #include <m_string.h>
+#include <mysqld_error.h>
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -11990,13 +11991,21 @@ static void test_bug6081()
 
   rc= simple_command(mysql, COM_DROP_DB, current_db,
                      (ulong)strlen(current_db), 0);
-  myquery(rc);
+  if (rc == 0 && mysql_errno(mysql) != ER_UNKNOWN_COM_ERROR)
+  {
+    myerror(NULL);                                   /* purecov: inspected */
+    die(__FILE__, __LINE__, "COM_DROP_DB failed");   /* purecov: inspected */
+  }
   rc= simple_command(mysql, COM_DROP_DB, current_db,
                      (ulong)strlen(current_db), 0);
   myquery_r(rc);
   rc= simple_command(mysql, COM_CREATE_DB, current_db,
                      (ulong)strlen(current_db), 0);
-  myquery(rc);
+  if (rc == 0 && mysql_errno(mysql) != ER_UNKNOWN_COM_ERROR)
+  {
+    myerror(NULL);                                   /* purecov: inspected */
+    die(__FILE__, __LINE__, "COM_CREATE_DB failed"); /* purecov: inspected */
+  }
   rc= simple_command(mysql, COM_CREATE_DB, current_db,
                      (ulong)strlen(current_db), 0);
   myquery_r(rc);
@@ -15297,7 +15306,7 @@ static void test_bug15752()
   MYSQL mysql_local;
   int rc, i;
   const int ITERATION_COUNT= 100;
-  char *query= "CALL p1()";
+  const char *query= "CALL p1()";
 
   myheader("test_bug15752");
 
@@ -15389,6 +15398,24 @@ static void test_bug21206()
 
   free(fetch_array);
 
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Ensure we execute the status code while testing
+*/
+
+static void test_status()
+{
+  const char *status;
+  DBUG_ENTER("test_status");
+  myheader("test_status");
+
+  if (!(status= mysql_stat(mysql)))
+  {
+    myerror("mysql_stat failed");                 /* purecov: inspected */
+    die(__FILE__, __LINE__, "mysql_stat failed"); /* purecov: inspected */
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -15669,6 +15696,7 @@ static struct my_tests_st my_tests[]= {
   { "test_mysql_insert_id", test_mysql_insert_id },
   { "test_bug19671", test_bug19671},
   { "test_bug21206", test_bug21206},
+  { "test_status", test_status},
   { 0, 0 }
 };
 

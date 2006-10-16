@@ -2234,7 +2234,7 @@ char *get_field(MEM_ROOT *mem, Field *field)
 
   SYNPOSIS
     check_db_name()
-    name		Name of database
+    org_name		Name of database and length
 
   NOTES
     If lower_case_table_names is set then database is converted to lower case
@@ -2244,35 +2244,35 @@ char *get_field(MEM_ROOT *mem, Field *field)
     1   error
 */
 
-bool check_db_name(char *name)
+bool check_db_name(LEX_STRING *org_name)
 {
-  char *start=name;
-  /* Used to catch empty names and names with end space */
-  bool last_char_is_space= TRUE;
+  char *name= org_name->str;
+
+  if (!org_name->length || org_name->length > NAME_LEN)
+    return 1;
 
   if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-  while (*name)
-  {
 #if defined(USE_MB) && defined(USE_MB_IDENT)
-    last_char_is_space= my_isspace(system_charset_info, *name);
-    if (use_mb(system_charset_info))
+  if (use_mb(system_charset_info))
+  {
+    bool last_char_is_space= TRUE;
+    char *end= name + org_name->length;
+    while (name < end)
     {
-      int len=my_ismbchar(system_charset_info, name, 
-                          name+system_charset_info->mbmaxlen);
-      if (len)
-      {
-        name += len;
-        continue;
-      }
+      int len;
+      last_char_is_space= my_isspace(system_charset_info, *name);
+      len= my_ismbchar(system_charset_info, name, end);
+      if (!len)
+        len= 1;
+      name+= len;
     }
-#else
-    last_char_is_space= *name==' ';
-#endif
-    name++;
+    return last_char_is_space;
   }
-  return last_char_is_space || (uint) (name - start) > NAME_LEN;
+  else
+#endif
+    return org_name->str[org_name->length - 1] != ' '; /* purecov: inspected */
 }
 
 
