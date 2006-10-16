@@ -505,7 +505,7 @@ class ha_ndbcluster: public handler
   int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
 
   bool get_error_message(int error, String *buf);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int external_lock(THD *thd, int lock_type);
@@ -657,7 +657,7 @@ private:
   int check_ndb_connection(THD* thd= current_thd);
 
   void set_rec_per_key();
-  void records_update();
+  int records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_init(THD *);
