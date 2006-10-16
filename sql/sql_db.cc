@@ -1297,8 +1297,8 @@ err:
 
 bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
 {
-  int path_length, db_length;
-  char *db_name;
+  int path_length;
+  LEX_STRING db_name;
   bool system_db= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   ulong db_access;
@@ -1318,25 +1318,26 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
     /* Called from SP to restore the original database, which was NULL */
     DBUG_ASSERT(no_access_check);
     system_db= 1;
-    db_name= NULL;
-    db_length= 0;
+    db_name.str= NULL;
+    db_name.length= 0;
     goto end;
   }
   /*
     Now we need to make a copy because check_db_name requires a
     non-constant argument. TODO: fix check_db_name.
   */
-  if ((db_name= my_strdup(name, MYF(MY_WME))) == NULL)
+  if ((db_name.str= my_strdup(name, MYF(MY_WME))) == NULL)
     DBUG_RETURN(1);                             /* the error is set */
-  db_length= strlen(db_name);
-  if (check_db_name(db_name))
+  db_name.length= strlen(db_name.str);
+  if (check_db_name(&db_name))
   {
-    my_error(ER_WRONG_DB_NAME, MYF(0), db_name);
-    my_free(db_name, MYF(0));
+    my_error(ER_WRONG_DB_NAME, MYF(0), db_name.str);
+    my_free(db_name.str, MYF(0));
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("info",("Use database: %s", db_name));
-  if (!my_strcasecmp(system_charset_info, db_name, information_schema_name.str))
+  DBUG_PRINT("info",("Use database: %s", db_name.str));
+  if (!my_strcasecmp(system_charset_info, db_name.str,
+                     information_schema_name.str))
   {
     system_db= 1;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1351,34 +1352,35 @@ bool mysql_change_db(THD *thd, const char *name, bool no_access_check)
     if (test_all_bits(sctx->master_access, DB_ACLS))
       db_access=DB_ACLS;
     else
-      db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name, 0) |
+      db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user,
+                          db_name.str, 0) |
                   sctx->master_access);
     if (!(db_access & DB_ACLS) && (!grant_option ||
-                                   check_grant_db(thd,db_name)))
+                                   check_grant_db(thd, db_name.str)))
     {
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                sctx->priv_user,
                sctx->priv_host,
-               db_name);
+               db_name.str);
       general_log_print(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
-                        sctx->priv_user, sctx->priv_host, db_name);
-      my_free(db_name,MYF(0));
+                        sctx->priv_user, sctx->priv_host, db_name.str);
+      my_free(db_name.str, MYF(0));
       DBUG_RETURN(1);
     }
   }
 #endif
 
-  if (check_db_dir_existence(db_name))
+  if (check_db_dir_existence(db_name.str))
   {
-    my_error(ER_BAD_DB_ERROR, MYF(0), db_name);
-    my_free(db_name, MYF(0));
+    my_error(ER_BAD_DB_ERROR, MYF(0), db_name.str);
+    my_free(db_name.str, MYF(0));
     DBUG_RETURN(1);
   }
 
 end:
   x_free(thd->db);
-  DBUG_ASSERT(db_name == NULL || db_name[0] != '\0');
-  thd->reset_db(db_name, db_length);            // THD::~THD will free this
+  DBUG_ASSERT(db_name.str == NULL || db_name.str[0] != '\0');
+  thd->reset_db(db_name.str, db_name.length);   // THD::~THD will free this
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!no_access_check)
     sctx->db_access= db_access;
@@ -1392,7 +1394,7 @@ end:
   {
     HA_CREATE_INFO create;
 
-    load_db_opt_by_name(thd, db_name, &create);
+    load_db_opt_by_name(thd, db_name.str, &create);
 
     thd->db_charset= create.default_table_charset ?
       create.default_table_charset :
