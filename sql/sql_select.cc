@@ -666,6 +666,8 @@ JOIN::optimize()
     {
       if (res > 1)
       {
+        thd->fatal_error();
+        error= res;
         DBUG_PRINT("error",("Error from opt_sum_query"));
 	DBUG_RETURN(1);
       }
@@ -2102,7 +2104,12 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
     s->needed_reg.init();
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
-    table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);// record count
+    error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+    if(error)
+    {
+        table->file->print_error(error, MYF(0));
+        DBUG_RETURN(1);
+    }
     table->quick_keys.clear_all();
     table->reginfo.join_tab=s;
     table->reginfo.not_exists_optimize=0;

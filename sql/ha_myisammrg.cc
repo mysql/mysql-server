@@ -275,7 +275,7 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 }
 
 
-void ha_myisammrg::info(uint flag)
+int ha_myisammrg::info(uint flag)
 {
   MYMERGE_INFO info;
   (void) myrg_status(file,&info,flag);
@@ -343,6 +343,7 @@ void ha_myisammrg::info(uint flag)
              min(file->keys, table->s->key_parts));
     }
   }
+  return 0;
 }
 
 

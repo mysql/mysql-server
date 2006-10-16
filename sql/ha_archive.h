@@ -94,7 +94,7 @@ public:
   int read_data_header(gzFile file_to_read);
   int write_data_header(gzFile file_to_write);
   void position(const byte *record);
-  void info(uint);
+  int info(uint);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);

@@ -49,7 +49,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 	     table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(TRUE);
   }
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+  error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+  if (error)
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_RETURN(error);
+  }
   thd->proc_info="init";
   table->map=1;
 
