@@ -551,7 +551,14 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
   if (res == HA_ERR_FOUND_DUPP_KEY)
   {
     if (m_rows_to_insert == 1)
-      m_dupkey= table->s->primary_key;
+    {
+      /*
+	We can only distinguish between primary and non-primary
+	violations here, so we need to return MAX_KEY for non-primary
+	to signal that key is unknown
+      */
+      m_dupkey= err.code == 630 ? table->s->primary_key : MAX_KEY; 
+    }
     else
     {
       /* We are batching inserts, offending key is not available */
