@@ -4855,7 +4855,7 @@ end_with_restore_list:
     {
       if (end_active_trans(thd))
         goto error;
-      /* Conditionally writes to binlog. */
+
       res= mysql_create_view(thd, first_table, thd->lex->create_view_mode);
       break;
     }

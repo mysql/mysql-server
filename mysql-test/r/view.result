@@ -1980,7 +1980,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 drop view v1;
 drop table t1;
 set sql_mode='strict_all_tables';
-CREATE TABLE t1 (col1 INT NOT NULL, col2 INT NOT NULL) ENGINE = INNODB;
+CREATE TABLE t1 (col1 INT NOT NULL, col2 INT NOT NULL);
 CREATE VIEW v1 (vcol1) AS SELECT col1 FROM t1;
 CREATE VIEW v2 (vcol1) AS SELECT col1 FROM t1 WHERE col2 > 2;
 INSERT INTO t1 (col1) VALUES(12);
@@ -2032,7 +2032,7 @@ f3	f1
 1	3
 drop view v1;
 drop table t1;
-CREATE TABLE t1 (f1 char) ENGINE = innodb;
+CREATE TABLE t1 (f1 char);
 INSERT INTO t1 VALUES ('A');
 CREATE VIEW  v1 AS SELECT * FROM t1;
 INSERT INTO t1 VALUES('B');
