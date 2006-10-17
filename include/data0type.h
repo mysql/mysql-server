@@ -157,7 +157,7 @@ dtype_get_mysql_type(
 /*=================*/
 				/* out: MySQL type code; this is NOT an InnoDB
 				type code! */
-	dtype_t*	type);	/* in: type struct */
+	const dtype_t*	type);	/* in: type struct */
 /*************************************************************************
 Determine how many bytes the first n characters of the given string occupy.
 If the string is shorter than n characters, returns the number of bytes
@@ -235,14 +235,14 @@ UNIV_INLINE
 ulint
 dtype_get_mtype(
 /*============*/
-	dtype_t*	type);
+	const dtype_t*	type);
 /*************************************************************************
 Gets the precise data type. */
 UNIV_INLINE
 ulint
 dtype_get_prtype(
 /*=============*/
-	dtype_t*	type);
+	const dtype_t*	type);
 /*************************************************************************
 Compute the mbminlen and mbmaxlen members of a data type structure. */
 UNIV_INLINE
@@ -285,7 +285,7 @@ UNIV_INLINE
 ulint
 dtype_get_len(
 /*==========*/
-	dtype_t*	type);
+	const dtype_t*	type);
 /*************************************************************************
 Gets the minimum length of a character, in bytes. */
 UNIV_INLINE
@@ -366,7 +366,7 @@ void
 dtype_read_for_order_and_null_size(
 /*===============================*/
 	dtype_t*	type,	/* in: type struct */
-	byte*		buf);	/* in: buffer for the stored order info */
+	const byte*	buf);	/* in: buffer for the stored order info */
 /**************************************************************************
 Stores for a type the information which determines its alphabetical ordering
 and the storage size of an SQL NULL value. This is the >= 4.1.x storage
@@ -378,7 +378,7 @@ dtype_new_store_for_order_and_null_size(
 	byte*		buf,	/* in: buffer for
 				DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
 				bytes where we store the info */
-	dtype_t*	type,	/* in: type struct */
+	const dtype_t*	type,	/* in: type struct */
 	ulint		prefix_len);/* in: prefix length to
 				replace type->len, or 0 */
 /**************************************************************************
@@ -390,7 +390,7 @@ void
 dtype_new_read_for_order_and_null_size(
 /*===================================*/
 	dtype_t*	type,	/* in: type struct */
-	byte*		buf);	/* in: buffer for stored type order info */
+	const byte*	buf);	/* in: buffer for stored type order info */
 
 /*************************************************************************
 Validates a data type structure. */
@@ -399,14 +399,14 @@ ibool
 dtype_validate(
 /*===========*/
 				/* out: TRUE if ok */
-	dtype_t*	type);	/* in: type struct to validate */
+	const dtype_t*	type);	/* in: type struct to validate */
 /*************************************************************************
 Prints a data type structure. */
 
 void
 dtype_print(
 /*========*/
-	dtype_t*	type);	/* in: type */
+	const dtype_t*	type);	/* in: type */
 
 /* Structure for an SQL data type.
 If you add fields to this structure, be sure to initialize them everywhere.

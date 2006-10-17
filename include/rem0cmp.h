@@ -38,10 +38,10 @@ cmp_data_data(
 				less than data2, respectively */
 	ulint		mtype,	/* in: main type */
 	ulint		prtype,	/* in: precise type */
-	byte*		data1,	/* in: data field (== a pointer to a memory
+	const byte*	data1,	/* in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
-	byte*		data2,	/* in: data field (== a pointer to a memory
+	const byte*	data2,	/* in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
 /*****************************************************************
@@ -55,10 +55,10 @@ cmp_data_data_slow(
 				less than data2, respectively */
 	ulint		mtype,	/* in: main type */
 	ulint		prtype,	/* in: precise type */
-	byte*		data1,	/* in: data field (== a pointer to a memory
+	const byte*	data1,	/* in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
-	byte*		data2,	/* in: data field (== a pointer to a memory
+	const byte*	data2,	/* in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len2);	/* in: data field length or UNIV_SQL_NULL */
 /*****************************************************************
@@ -70,8 +70,8 @@ cmp_dfield_dfield(
 /*==============*/
 				/* out: 1, 0, -1, if dfield1 is greater, equal,
 				less than dfield2, respectively */
-	dfield_t*	dfield1,/* in: data field; must have type field set */
-	dfield_t*	dfield2);/* in: data field */
+	const dfield_t*	dfield1,/* in: data field; must have type field set */
+	const dfield_t*	dfield2);/* in: data field */
 /*****************************************************************
 This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for
@@ -89,8 +89,8 @@ cmp_dtuple_rec_with_match(
 				common first fields are compared, or
 				until the first externally stored field in
 				rec */
-	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record which differs from
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const rec_t*	rec,	/* in: physical record which differs from
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
@@ -111,8 +111,8 @@ cmp_dtuple_rec(
 				/* out: 1, 0, -1, if dtuple is greater, equal,
 				less than rec, respectively; see the comments
 				for cmp_dtuple_rec_with_match */
-	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record */
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /******************************************************************
 Checks if a dtuple is a prefix of a record. The last field in dtuple
@@ -122,8 +122,8 @@ ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
 				/* out: TRUE if prefix */
-	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record */
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /*****************************************************************
 This function is used to compare two physical records. Only the common
@@ -136,8 +136,8 @@ cmp_rec_rec_with_match(
 				/* out: 1, 0 , -1 if rec1 is greater, equal,
 				less, respectively, than rec2; only the common
 				first fields are compared */
-	rec_t*		rec1,	/* in: physical record */
-	rec_t*		rec2,	/* in: physical record */
+	const rec_t*	rec1,	/* in: physical record */
+	const rec_t*	rec2,	/* in: physical record */
 	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
 	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index,	/* in: data dictionary index */
@@ -159,8 +159,8 @@ cmp_rec_rec(
 				/* out: 1, 0 , -1 if rec1 is greater, equal,
 				less, respectively, than rec2; only the common
 				first fields are compared */
-	rec_t*		rec1,	/* in: physical record */
-	rec_t*		rec2,	/* in: physical record */
+	const rec_t*	rec1,	/* in: physical record */
+	const rec_t*	rec2,	/* in: physical record */
 	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
 	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index);	/* in: data dictionary index */

@@ -141,14 +141,14 @@ trx_undo_page_report_insert(
 	page_t*		undo_page,	/* in: undo log page */
 	trx_t*		trx,		/* in: transaction */
 	dict_index_t*	index,		/* in: clustered index */
-	dtuple_t*	clust_entry,	/* in: index entry which will be
+	const dtuple_t*	clust_entry,	/* in: index entry which will be
 					inserted to the clustered index */
 	mtr_t*		mtr)		/* in: mtr */
 {
 	ulint		first_free;
 	byte*		ptr;
 	ulint		len;
-	dfield_t*	field;
+	const dfield_t*	field;
 	ulint		flen;
 	ulint		i;
 
@@ -205,7 +205,7 @@ trx_undo_page_report_insert(
 				return(0);
 			}
 
-			ut_memcpy(ptr, dfield_get_data(field), flen);
+			memcpy(ptr, field->data, flen);
 			ptr += flen;
 		}
 	}
@@ -349,7 +349,7 @@ trx_undo_rec_get_row_ref(
 	dict_index_copy_types(*ref, index, ref_len);
 
 	for (i = 0; i < ref_len; i++) {
-		dfield = dtuple_get_nth_field(*ref, i);
+		dfield = (dfield_t*) dtuple_get_nth_field(*ref, i);
 
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
 
@@ -936,7 +936,7 @@ trx_undo_rec_get_partial_row(
 			ext_cols[n_ext_cols++] = col_no;
 		}
 
-		dfield = dtuple_get_nth_field(*row, col_no);
+		dfield = (dfield_t*) dtuple_get_nth_field(*row, col_no);
 
 		dfield_set_data(dfield, field, len);
 	}

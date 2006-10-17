@@ -249,7 +249,7 @@ row_mysql_store_col_in_innobase_format(
 	ulint		comp)		/* in: nonzero=compact format */
 {
 	byte*		ptr	= mysql_data;
-	dtype_t*	dtype;
+	const dtype_t*	dtype;
 	ulint		type;
 	ulint		lenlen;
 
@@ -401,7 +401,7 @@ row_mysql_convert_row_to_innobase(
 	for (i = 0; i < prebuilt->n_template; i++) {
 
 		templ = prebuilt->mysql_template + i;
-		dfield = dtuple_get_nth_field(row, i);
+		dfield = (dfield_t*) dtuple_get_nth_field(row, i);
 
 		if (templ->mysql_null_bit_mask != 0) {
 			/* Column may be SQL NULL */
@@ -825,7 +825,9 @@ row_get_prebuilt_insert_row(
 
 		for (i = 0; i < dtuple_get_n_fields(row); i++) {
 
-			dtuple_get_nth_field(row, i)->len = UNIV_SQL_NULL;
+			dfield_set_len((dfield_t*)
+				       dtuple_get_nth_field(row, i),
+				       UNIV_SQL_NULL);
 		}
 
 		ins_node_set_new_row(node, row);
@@ -2783,7 +2785,7 @@ row_truncate_table_for_mysql(
 	heap = mem_heap_create(800);
 
 	tuple = dtuple_create(heap, 1);
-	dfield = dtuple_get_nth_field(tuple, 0);
+	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
 
 	buf = mem_heap_alloc(heap, 8);
 	mach_write_to_8(buf, table->id);

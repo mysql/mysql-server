@@ -44,19 +44,19 @@ dfield_get_data_noninline(
 }
 ulint
 dfield_get_len_noninline(
-	dfield_t* field)	/* in: field */
+	const dfield_t* field)	/* in: field */
 {
 	return(dfield_get_len(field));
 }
 ulint
 dtuple_get_n_fields_noninline(
-	dtuple_t*	tuple)	/* in: tuple */
+	const dtuple_t*	tuple)	/* in: tuple */
 {
 	return(dtuple_get_n_fields(tuple));
 }
-dfield_t*
+const dfield_t*
 dtuple_get_nth_field_noninline(
-	dtuple_t*	tuple,	/* in: tuple */
+	const dtuple_t*	tuple,	/* in: tuple */
 	ulint		n)	/* in: index of field */
 {
 	return(dtuple_get_nth_field(tuple, n));
@@ -69,9 +69,9 @@ ibool
 dfield_data_is_binary_equal(
 /*========================*/
 				/* out: TRUE if equal */
-	dfield_t*	field,	/* in: field */
+	const dfield_t*	field,	/* in: field */
 	ulint		len,	/* in: data length or UNIV_SQL_NULL */
-	byte*		data)	/* in: data */
+	const byte*	data)	/* in: data */
 {
 	if (len != field->len) {
 
@@ -103,11 +103,11 @@ dtuple_datas_are_ordering_equal(
 				when compared with cmp_data_data:
 				NOTE: in character type fields some letters
 				are identified with others! (collation) */
-	dtuple_t*	tuple1,	/* in: tuple 1 */
-	dtuple_t*	tuple2)	/* in: tuple 2 */
+	const dtuple_t*	tuple1,	/* in: tuple 1 */
+	const dtuple_t*	tuple2)	/* in: tuple 2 */
 {
-	dfield_t*	field1;
-	dfield_t*	field2;
+	const dfield_t*	field1;
+	const dfield_t*	field2;
 	ulint		n_fields;
 	ulint		i;
 
@@ -187,7 +187,7 @@ ibool
 dfield_check_typed_no_assert(
 /*=========================*/
 				/* out: TRUE if ok */
-	dfield_t*	field)	/* in: data field */
+	const dfield_t*	field)	/* in: data field */
 {
 	if (dfield_get_type(field)->mtype > DATA_MYSQL
 	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
@@ -209,9 +209,9 @@ ibool
 dtuple_check_typed_no_assert(
 /*=========================*/
 				/* out: TRUE if ok */
-	dtuple_t*	tuple)	/* in: tuple */
+	const dtuple_t*	tuple)	/* in: tuple */
 {
-	dfield_t*	field;
+	const dfield_t*	field;
 	ulint		i;
 
 	if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
@@ -245,7 +245,7 @@ ibool
 dfield_check_typed(
 /*===============*/
 				/* out: TRUE if ok */
-	dfield_t*	field)	/* in: data field */
+	const dfield_t*	field)	/* in: data field */
 {
 	if (dfield_get_type(field)->mtype > DATA_MYSQL
 	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
@@ -268,9 +268,9 @@ ibool
 dtuple_check_typed(
 /*===============*/
 				/* out: TRUE if ok */
-	dtuple_t*	tuple)	/* in: tuple */
+	const dtuple_t*	tuple)	/* in: tuple */
 {
-	dfield_t*	field;
+	const dfield_t*	field;
 	ulint		i;
 
 	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
@@ -292,10 +292,10 @@ ibool
 dtuple_validate(
 /*============*/
 				/* out: TRUE if ok */
-	dtuple_t*	tuple)	/* in: tuple */
+	const dtuple_t*	tuple)	/* in: tuple */
 {
-	dfield_t*	field;
-	byte*		data;
+	const dfield_t*	field;
+	const byte*	data;
 	ulint		n_fields;
 	ulint		len;
 	ulint		i;
@@ -339,15 +339,15 @@ Pretty prints a dfield value according to its data type. */
 void
 dfield_print(
 /*=========*/
-	dfield_t*	dfield)	/* in: dfield */
+	const dfield_t*	dfield)	/* in: dfield */
 {
-	byte*	data;
-	ulint	len;
-	ulint	mtype;
-	ulint	i;
+	const byte*	data;
+	ulint		len;
+	ulint		mtype;
+	ulint		i;
 
 	len = dfield_get_len(dfield);
-	data = dfield_get_data(dfield);
+	data = dfield_get_data((dfield_t*) dfield);
 
 	if (len == UNIV_SQL_NULL) {
 		fputs("NULL", stderr);
@@ -378,16 +378,16 @@ is printed if a string contains non-printable characters. */
 void
 dfield_print_also_hex(
 /*==================*/
-	dfield_t*	dfield)	/* in: dfield */
+	const dfield_t*	dfield)	/* in: dfield */
 {
-	byte*	data;
-	ulint	len;
-	ulint	mtype;
-	ulint	i;
-	ibool	print_also_hex;
+	const byte*	data;
+	ulint		len;
+	ulint		mtype;
+	ulint		i;
+	ibool		print_also_hex;
 
 	len = dfield_get_len(dfield);
-	data = dfield_get_data(dfield);
+	data = dfield_get_data((dfield_t*) dfield);
 
 	if (len == UNIV_SQL_NULL) {
 		fputs("NULL", stderr);
@@ -417,7 +417,7 @@ dfield_print_also_hex(
 
 		fputs(" Hex: ", stderr);
 
-		data = dfield_get_data(dfield);
+		data = dfield_get_data((dfield_t*) dfield);
 
 		for (i = 0; i < len; i++) {
 			fprintf(stderr, "%02lx", (ulint)*data);
@@ -439,7 +439,7 @@ void
 dfield_print_raw(
 /*=============*/
 	FILE*		f,		/* in: output stream */
-	dfield_t*	dfield)		/* in: dfield */
+	const dfield_t*	dfield)		/* in: dfield */
 {
 	ulint	len	= dfield->len;
 	if (len != UNIV_SQL_NULL) {
@@ -460,7 +460,7 @@ void
 dtuple_print(
 /*=========*/
 	FILE*		f,	/* in: output stream */
-	dtuple_t*	tuple)	/* in: tuple */
+	const dtuple_t*	tuple)	/* in: tuple */
 {
 	ulint		n_fields;
 	ulint		i;
@@ -555,7 +555,7 @@ dtuple_convert_big_rec(
 		     i < dtuple_get_n_fields(entry); i++) {
 			ulint	savings;
 
-			dfield = dtuple_get_nth_field(entry, i);
+			dfield = (dfield_t*) dtuple_get_nth_field(entry, i);
 			ifield = dict_index_get_nth_field(index, i);
 
 			/* Skip fixed-length or NULL or short columns */
@@ -606,7 +606,7 @@ skip_field:
 		we can calculate all ordering fields in all indexes
 		from locally stored data. */
 
-		dfield = dtuple_get_nth_field(entry, longest_i);
+		dfield = (dfield_t*) dtuple_get_nth_field(entry, longest_i);
 		ifield = dict_index_get_nth_field(index, longest_i);
 		vector->fields[n_fields].field_no = longest_i;
 
@@ -644,8 +644,9 @@ dtuple_convert_back_big_rec(
 
 	for (i = 0; i < vector->n_fields; i++) {
 
-		dfield = dtuple_get_nth_field(entry,
-					      vector->fields[i].field_no);
+		dfield = (dfield_t*)
+			dtuple_get_nth_field(entry,
+					     vector->fields[i].field_no);
 		dfield->data = vector->fields[i].data;
 		dfield->len = vector->fields[i].len;
 	}

@@ -1173,7 +1173,7 @@ void
 ibuf_dummy_index_add_col(
 /*=====================*/
 	dict_index_t*	index,	/* in: dummy index */
-	dtype_t*	type,	/* in: the data type of the column */
+	const dtype_t*	type,	/* in: the data type of the column */
 	ulint		len)	/* in: length of the column */
 {
 	ulint	i	= index->table->n_def;
@@ -1246,14 +1246,14 @@ ibuf_build_entry_from_ibuf_rec(
 		ut_a(len == n_fields * DATA_ORDER_NULL_TYPE_BUF_SIZE);
 
 		for (i = 0; i < n_fields; i++) {
-			field = dtuple_get_nth_field(tuple, i);
+			field = (dfield_t*) dtuple_get_nth_field(tuple, i);
 
 			data = rec_get_nth_field_old(ibuf_rec, i + 2, &len);
 
 			dfield_set_data(field, data, len);
 
 			dtype_read_for_order_and_null_size(
-				dfield_get_type(field),
+				(dtype_t*) dfield_get_type(field),
 				types + i * DATA_ORDER_NULL_TYPE_BUF_SIZE);
 		}
 
@@ -1287,14 +1287,14 @@ ibuf_build_entry_from_ibuf_rec(
 	ut_a(len == n_fields * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 
 	for (i = 0; i < n_fields; i++) {
-		field = dtuple_get_nth_field(tuple, i);
+		field = (dfield_t*) dtuple_get_nth_field(tuple, i);
 
 		data = rec_get_nth_field_old(ibuf_rec, i + 4, &len);
 
 		dfield_set_data(field, data, len);
 
 		dtype_new_read_for_order_and_null_size(
-			dfield_get_type(field),
+			(dtype_t*) dfield_get_type(field),
 			types + i * DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE);
 
 		ibuf_dummy_index_add_col(index, dfield_get_type(field), len);
@@ -1414,7 +1414,7 @@ ibuf_entry_build(
 {
 	dtuple_t*	tuple;
 	dfield_t*	field;
-	dfield_t*	entry_field;
+	const dfield_t*	entry_field;
 	ulint		n_fields;
 	byte*		buf;
 	byte*		buf2;
@@ -1440,7 +1440,7 @@ ibuf_entry_build(
 
 	/* Store the space id in tuple */
 
-	field = dtuple_get_nth_field(tuple, 0);
+	field = (dfield_t*) dtuple_get_nth_field(tuple, 0);
 
 	buf = mem_heap_alloc(heap, 4);
 
@@ -1450,7 +1450,7 @@ ibuf_entry_build(
 
 	/* Store the marker byte field in tuple */
 
-	field = dtuple_get_nth_field(tuple, 1);
+	field = (dfield_t*) dtuple_get_nth_field(tuple, 1);
 
 	buf = mem_heap_alloc(heap, 1);
 
@@ -1462,7 +1462,7 @@ ibuf_entry_build(
 
 	/* Store the page number in tuple */
 
-	field = dtuple_get_nth_field(tuple, 2);
+	field = (dfield_t*) dtuple_get_nth_field(tuple, 2);
 
 	buf = mem_heap_alloc(heap, 4);
 
@@ -1482,7 +1482,7 @@ ibuf_entry_build(
 		/* We add 4 below because we have the 4 extra fields at the
 		start of an ibuf record */
 
-		field = dtuple_get_nth_field(tuple, i + 4);
+		field = (dfield_t*) dtuple_get_nth_field(tuple, i + 4);
 		entry_field = dtuple_get_nth_field(entry, i);
 		dfield_copy(field, entry_field);
 
@@ -1494,7 +1494,7 @@ ibuf_entry_build(
 
 	/* Store the type info in buf2 to field 3 of tuple */
 
-	field = dtuple_get_nth_field(tuple, 3);
+	field = (dfield_t*) dtuple_get_nth_field(tuple, 3);
 
 	if (dict_table_is_comp(index->table)) {
 		buf2--;
@@ -1534,7 +1534,7 @@ ibuf_search_tuple_build(
 
 	/* Store the page number in tuple */
 
-	field = dtuple_get_nth_field(tuple, 0);
+	field = (dfield_t*) dtuple_get_nth_field(tuple, 0);
 
 	buf = mem_heap_alloc(heap, 4);
 
@@ -1569,7 +1569,7 @@ ibuf_new_search_tuple_build(
 
 	/* Store the space id in tuple */
 
-	field = dtuple_get_nth_field(tuple, 0);
+	field = (dfield_t*) dtuple_get_nth_field(tuple, 0);
 
 	buf = mem_heap_alloc(heap, 4);
 
@@ -1579,7 +1579,7 @@ ibuf_new_search_tuple_build(
 
 	/* Store the new format record marker byte */
 
-	field = dtuple_get_nth_field(tuple, 1);
+	field = (dfield_t*) dtuple_get_nth_field(tuple, 1);
 
 	buf = mem_heap_alloc(heap, 1);
 
@@ -1589,7 +1589,7 @@ ibuf_new_search_tuple_build(
 
 	/* Store the page number in tuple */
 
-	field = dtuple_get_nth_field(tuple, 2);
+	field = (dfield_t*) dtuple_get_nth_field(tuple, 2);
 
 	buf = mem_heap_alloc(heap, 4);
 

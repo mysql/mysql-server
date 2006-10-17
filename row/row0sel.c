@@ -966,7 +966,8 @@ row_sel_open_pcur(
 		for (i = 0; i < n_fields; i++) {
 			exp = plan->tuple_exps[i];
 
-			dfield_copy_data(dtuple_get_nth_field(plan->tuple, i),
+			dfield_copy_data((dfield_t*)
+					 dtuple_get_nth_field(plan->tuple, i),
 					 que_node_get_val(exp));
 		}
 
@@ -2111,7 +2112,7 @@ row_fetch_print(
 
 	while (exp) {
 		dfield_t*	dfield = que_node_get_val(exp);
-		dtype_t*	type = dfield_get_type(dfield);
+		const dtype_t*	type = dfield_get_type(dfield);
 
 		fprintf(stderr, " column %lu:\n", (ulong)i);
 
@@ -2151,7 +2152,7 @@ row_fetch_store_uint4(
 	ulint		tmp;
 
 	dfield_t*	dfield = que_node_get_val(node->select_list);
-	dtype_t*	type = dfield_get_type(dfield);
+	const dtype_t*	type = dfield_get_type(dfield);
 	ulint		len = dfield_get_len(dfield);
 
 	ut_a(dtype_get_mtype(type) == DATA_INT);
@@ -2270,7 +2271,7 @@ row_sel_convert_mysql_key_to_innobase(
 
 	dtuple_set_n_fields(tuple, ULINT_MAX);
 
-	dfield = dtuple_get_nth_field(tuple, 0);
+	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
 	field = dict_index_get_nth_field(index, 0);
 
 	if (UNIV_UNLIKELY(dfield_get_type(dfield)->mtype == DATA_SYS)) {
