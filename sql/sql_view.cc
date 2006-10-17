@@ -577,7 +577,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       List_iterator_fast<LEX_STRING> names(lex->view_list);
       LEX_STRING *name;
       int i;
-      
+
       for (i= 0; name= names++; i++)
       {
         buff.append(i ? ", " : "(");
@@ -1417,7 +1417,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     query_cache_invalidate3(thd, view, 0);
     sp_cache_invalidate();
   }
-
   if (mysql_bin_log.is_open())
   {
     thd->clear_error();
@@ -1426,6 +1425,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
+
   if (error)
   {
     DBUG_RETURN(TRUE);

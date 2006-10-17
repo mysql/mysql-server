@@ -575,8 +575,6 @@ sub mtr_options_from_test_file($$) {
 
   while ( my $line= <$F> )
   {
-    next if ( $line !~ /^--/ );
-
     # Match this line against tag in "tags" array
     foreach my $tag (@tags)
     {
@@ -588,14 +586,21 @@ sub mtr_options_from_test_file($$) {
     }
 
     # If test sources another file, open it as well
-    if ( $line =~ /^\-\-([[:space:]]*)source(.*)$/ )
+    if ( $line =~ /^\-\-([[:space:]]*)source(.*)$/ or
+	 $line =~ /^([[:space:]]*)source(.*);$/ )
     {
       my $value= $2;
       $value =~ s/^\s+//;  # Remove leading space
       $value =~ s/[[:space:]]+$//;  # Remove ending space
 
       my $sourced_file= "$::glob_mysql_test_dir/$value";
-      mtr_options_from_test_file($tinfo, $sourced_file);
+      if ( -f $sourced_file )
+      {
+	# Only source the file if it exists, we may get
+	# false positives in the regexes above if someone
+	# writes "source nnnn;" in a test case(such as mysqltest.test)
+	mtr_options_from_test_file($tinfo, $sourced_file);
+      }
     }
 
   }

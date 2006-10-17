@@ -82,7 +82,7 @@ int vio_ssl_read(Vio *vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_read");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d, ssl_: 0x%p",
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d, ssl_: 0x%lx",
 		       vio->sd, buf, size, vio->ssl_arg));
 
   r= SSL_read((SSL*) vio->ssl_arg, buf, size);
@@ -99,7 +99,7 @@ int vio_ssl_write(Vio *vio, const gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_write");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
 
   r= SSL_write((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
