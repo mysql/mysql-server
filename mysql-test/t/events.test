@@ -395,4 +395,15 @@ drop event e1;
 ##show processlist;
 ##select count(*) from mysql.event;
 
+#
+# Test wrong syntax
+#
+
+--error 1102
+SHOW EVENTS FROM aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+--error 1102
+SHOW EVENTS FROM ``;
+
+SHOW EVENTS FROM `events\\test`;
+
 drop database events_test;

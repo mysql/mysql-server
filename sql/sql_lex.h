@@ -884,7 +884,8 @@ typedef struct st_lex : public Query_tables_list
   /* The values of tok_start/tok_end as they were one call of MYSQLlex before */
   const uchar *tok_start_prev, *tok_end_prev;
 
-  char *length,*dec,*change,*name;
+  char *length,*dec,*change;
+  LEX_STRING name;
   Table_ident *like_name;
   char *help_arg;
   char *backup_dir;				/* For RESTORE/BACKUP */

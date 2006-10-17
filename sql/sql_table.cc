@@ -4585,7 +4585,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
     my_error(ER_WRONG_TABLE_NAME, MYF(0), src_table);
     DBUG_RETURN(TRUE);
   }
-  if (!src_db || check_db_name(src_db))
+  if (!src_db || check_db_name(&table_ident->db))
   {
     my_error(ER_WRONG_DB_NAME, MYF(0), src_db ? src_db : "NULL");
     DBUG_RETURN(-1);
