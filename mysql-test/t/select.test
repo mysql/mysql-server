@@ -3033,3 +3033,17 @@ EXPLAIN SELECT t2.*
     WHERE t2.fk IN ('a','b') AND t2.pk=t1.fk;
 
 DROP TABLE t1,t2;
+
+#
+# Bug #22367: Optimizer uses ref join type instead of eq_ref for simple 
+#               join on strings
+#
+CREATE TABLE t1 (a int, b varchar(20) NOT NULL, PRIMARY KEY(a));
+CREATE TABLE t2 (a int, b varchar(20) NOT NULL,
+                 PRIMARY KEY (a), UNIQUE KEY (b));
+INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
+INSERT INTO t2 VALUES (1,'a'),(2,'b'),(3,'c');
+
+EXPLAIN SELECT t1.a FROM t1 LEFT JOIN t2 ON t2.b=t1.b WHERE t1.a=3;
+
+DROP TABLE t1,t2;
