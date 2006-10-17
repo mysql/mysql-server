@@ -4,6 +4,7 @@ DROP FUNCTION IF EXISTS sp_vars_check_ret1;
 DROP FUNCTION IF EXISTS sp_vars_check_ret2;
 DROP FUNCTION IF EXISTS sp_vars_check_ret3;
 DROP FUNCTION IF EXISTS sp_vars_check_ret4;
+DROP FUNCTION IF EXISTS sp_vars_div_zero;
 SET @@sql_mode = 'ansi';
 CREATE PROCEDURE sp_vars_check_dflt()
 BEGIN
@@ -87,6 +88,12 @@ END|
 CREATE FUNCTION sp_vars_check_ret4() RETURNS DECIMAL(64, 2)
 BEGIN
 RETURN 12 * 10 + 34 + 0.1234;
+END|
+CREATE FUNCTION sp_vars_div_zero() RETURNS INTEGER
+BEGIN
+DECLARE div_zero INTEGER;
+SELECT 1/0 INTO div_zero;
+RETURN div_zero;
 END|
 
 ---------------------------------------------------------------
@@ -172,6 +179,9 @@ sp_vars_check_ret4()
 154.12
 Warnings:
 Note	1265	Data truncated for column 'sp_vars_check_ret4()' at row 1
+SELECT sp_vars_div_zero();
+sp_vars_div_zero()
+NULL
 SET @@sql_mode = 'traditional';
 
 ---------------------------------------------------------------
@@ -257,12 +267,16 @@ sp_vars_check_ret4()
 154.12
 Warnings:
 Note	1265	Data truncated for column 'sp_vars_check_ret4()' at row 1
+SELECT sp_vars_div_zero();
+sp_vars_div_zero()
+NULL
 DROP PROCEDURE sp_vars_check_dflt;
 DROP PROCEDURE sp_vars_check_assignment;
 DROP FUNCTION sp_vars_check_ret1;
 DROP FUNCTION sp_vars_check_ret2;
 DROP FUNCTION sp_vars_check_ret3;
 DROP FUNCTION sp_vars_check_ret4;
+DROP FUNCTION sp_vars_div_zero;
 CREATE PROCEDURE sp_vars_check_dflt()
 BEGIN
 DECLARE v1 TINYINT DEFAULT 1e200;
@@ -346,6 +360,12 @@ CREATE FUNCTION sp_vars_check_ret4() RETURNS DECIMAL(64, 2)
 BEGIN
 RETURN 12 * 10 + 34 + 0.1234;
 END|
+CREATE FUNCTION sp_vars_div_zero() RETURNS INTEGER
+BEGIN
+DECLARE div_zero INTEGER;
+SELECT 1/0 INTO div_zero;
+RETURN div_zero;
+END|
 
 ---------------------------------------------------------------
 Calling the routines, created in TRADITIONAL mode.
@@ -366,6 +386,8 @@ sp_vars_check_ret4()
 154.12
 Warnings:
 Note	1265	Data truncated for column 'sp_vars_check_ret4()' at row 1
+SELECT sp_vars_div_zero();
+ERROR 22012: Division by 0
 SET @@sql_mode = 'ansi';
 DROP PROCEDURE sp_vars_check_dflt;
 DROP PROCEDURE sp_vars_check_assignment;
@@ -373,6 +395,7 @@ DROP FUNCTION sp_vars_check_ret1;
 DROP FUNCTION sp_vars_check_ret2;
 DROP FUNCTION sp_vars_check_ret3;
 DROP FUNCTION sp_vars_check_ret4;
+DROP FUNCTION sp_vars_div_zero;
 
 ---------------------------------------------------------------
 BIT data type tests
