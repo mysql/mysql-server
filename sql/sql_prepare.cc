@@ -2930,6 +2930,12 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   stmt_backup.query_length= thd->query_length;
 
   /*
+    Save orig_sql_command as we use it to disable slow logging for SHOW
+    commands (see log_slow_statement()).
+  */
+  stmt_backup.lex->orig_sql_command= thd->lex->orig_sql_command;
+
+  /*
     At first execution of prepared statement we may perform logical
     transformations of the query tree. Such changes should be performed
     on the parse tree of current prepared statement and new items should

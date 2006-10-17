@@ -1379,4 +1379,21 @@ i
 1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1, t2;
+flush status;
+prepare sq from 'show status like "slow_queries"';
+execute sq;
+Variable_name	Value
+Slow_queries	0
+prepare no_index from 'select 1 from information_schema.tables limit 1';
+execute sq;
+Variable_name	Value
+Slow_queries	0
+execute no_index;
+1
+1
+execute sq;
+Variable_name	Value
+Slow_queries	1
+deallocate prepare no_index;
+deallocate prepare sq;
 End of 5.0 tests.
