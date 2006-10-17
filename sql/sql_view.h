@@ -16,7 +16,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-bool mysql_create_view(THD *thd,
+bool mysql_create_view(THD *thd, TABLE_LIST *view,
                        enum_view_create_mode mode);
 
 bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
