@@ -1384,7 +1384,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
           non_existant_views.append(',');
         non_existant_views.append(String(view->table_name,system_charset_info));
       }
-      VOID(pthread_mutex_unlock(&LOCK_open));
       continue;
     }
     if (my_delete(path, MYF(MY_WME)))
