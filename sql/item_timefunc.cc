@@ -3193,7 +3193,9 @@ bool Item_func_str_to_date::get_date(TIME *ltime, uint fuzzy_date)
   date_time_format.format.str=    (char*) format->ptr();
   date_time_format.format.length= format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(),
-			ltime, cached_timestamp_type, 0, "datetime"))
+			ltime, cached_timestamp_type, 0, "datetime") ||
+      ((fuzzy_date & TIME_NO_ZERO_DATE) &&
+       (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
     goto null_date;
   if (cached_timestamp_type == MYSQL_TIMESTAMP_TIME && ltime->day)
   {

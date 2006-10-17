@@ -620,3 +620,9 @@ SELECT DATE_FORMAT(field1,'%b-%e %l:%i%p') as fmtddate, field2 FROM testBug8868;
 DROP TABLE testBug8868;
 
 SET NAMES DEFAULT;
+
+#
+# Bug #22229: bug in DATE_ADD()
+#
+
+select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
