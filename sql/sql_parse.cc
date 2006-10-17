@@ -4720,6 +4720,8 @@ end_with_restore_list:
     {
       if (end_active_trans(thd))
         goto error;
+
+      res= mysql_create_view(thd, first_table, thd->lex->create_view_mode);
       break;
     }
   case SQLCOM_DROP_VIEW:
