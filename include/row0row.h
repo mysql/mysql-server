@@ -59,7 +59,7 @@ dtuple_t*
 row_build_index_entry(
 /*==================*/
 				/* out: index entry which should be inserted */
-	dtuple_t*	row,	/* in: row which should be inserted to the
+	const dtuple_t*	row,	/* in: row which should be inserted to the
 				table */
 	row_ext_t*	ext,	/* in: externally stored column prefixes,
 				or NULL */

@@ -153,7 +153,7 @@ row_ins_alloc_sys_fields(
 
 	col = dict_table_get_sys_col(table, DATA_ROW_ID);
 
-	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
+	dfield = (dfield_t*) dtuple_get_nth_field(row, dict_col_get_no(col));
 
 	ptr = mem_heap_alloc(heap, DATA_ROW_ID_LEN);
 
@@ -165,7 +165,7 @@ row_ins_alloc_sys_fields(
 
 	col = dict_table_get_sys_col(table, DATA_TRX_ID);
 
-	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
+	dfield = (dfield_t*) dtuple_get_nth_field(row, dict_col_get_no(col));
 	ptr = mem_heap_alloc(heap, DATA_TRX_ID_LEN);
 
 	dfield_set_data(dfield, ptr, DATA_TRX_ID_LEN);
@@ -176,7 +176,7 @@ row_ins_alloc_sys_fields(
 
 	col = dict_table_get_sys_col(table, DATA_ROLL_PTR);
 
-	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
+	dfield = (dfield_t*) dtuple_get_nth_field(row, dict_col_get_no(col));
 	ptr = mem_heap_alloc(heap, DATA_ROLL_PTR_LEN);
 
 	dfield_set_data(dfield, ptr, DATA_ROLL_PTR_LEN);
@@ -2200,11 +2200,11 @@ row_ins_index_entry_set_vals(
 /*=========================*/
 	dict_index_t*	index,	/* in: index */
 	dtuple_t*	entry,	/* in: index entry to make */
-	dtuple_t*	row)	/* in: row */
+	const dtuple_t*	row)	/* in: row */
 {
 	dict_field_t*	ind_field;
 	dfield_t*	field;
-	dfield_t*	row_field;
+	const dfield_t*	row_field;
 	ulint		n_fields;
 	ulint		i;
 
@@ -2213,7 +2213,7 @@ row_ins_index_entry_set_vals(
 	n_fields = dtuple_get_n_fields(entry);
 
 	for (i = 0; i < n_fields; i++) {
-		field = dtuple_get_nth_field(entry, i);
+		field = (dfield_t*) dtuple_get_nth_field(entry, i);
 		ind_field = dict_index_get_nth_field(index, i);
 
 		row_field = dtuple_get_nth_field(row, ind_field->col->ind);
@@ -2312,7 +2312,7 @@ row_ins_get_row_from_values(
 	while (list_node) {
 		eval_exp(list_node);
 
-		dfield = dtuple_get_nth_field(row, i);
+		dfield = (dfield_t*) dtuple_get_nth_field(row, i);
 		dfield_copy_data(dfield, que_node_get_val(list_node));
 
 		i++;
@@ -2343,7 +2343,7 @@ row_ins_get_row_from_select(
 	list_node = node->select->select_list;
 
 	while (list_node) {
-		dfield = dtuple_get_nth_field(row, i);
+		dfield = (dfield_t*) dtuple_get_nth_field(row, i);
 		dfield_copy_data(dfield, que_node_get_val(list_node));
 
 		i++;

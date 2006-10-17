@@ -63,7 +63,7 @@ dtuple_t*
 row_build_index_entry(
 /*==================*/
 				/* out: index entry which should be inserted */
-	dtuple_t*	row,	/* in: row which should be inserted to the
+	const dtuple_t*	row,	/* in: row which should be inserted to the
 				table */
 	row_ext_t*	ext,	/* in: externally stored column prefixes,
 				or NULL */
@@ -75,7 +75,7 @@ row_build_index_entry(
 	ulint		entry_len;
 	dict_field_t*	ind_field;
 	dfield_t*	dfield;
-	dfield_t*	dfield2;
+	const dfield_t*	dfield2;
 	ulint		i;
 	ulint		storage_len;
 
@@ -106,7 +106,7 @@ row_build_index_entry(
 		col = ind_field->col;
 		col_no = dict_col_get_no(col);
 
-		dfield = dtuple_get_nth_field(entry, i);
+		dfield = (dfield_t*) dtuple_get_nth_field(entry, i);
 
 		dfield2 = dtuple_get_nth_field(row, col_no);
 
@@ -137,7 +137,8 @@ row_build_index_entry(
 				dfield_set_len(dfield, storage_len);
 			}
 
-			dfield_get_type(dfield)->len = ind_field->prefix_len;
+			((dtype_t*) dfield_get_type(dfield))->len
+				= ind_field->prefix_len;
 		}
 	}
 
@@ -231,10 +232,11 @@ row_build(
 
 		if (ind_field->prefix_len == 0) {
 
-			dfield_t*	dfield = dtuple_get_nth_field(
-				row, dict_col_get_no(col));
-			byte*		field = rec_get_nth_field(
-				rec, offsets, i, &len);
+			dfield_t*	dfield
+				= (dfield_t*) dtuple_get_nth_field(
+					row, dict_col_get_no(col));
+			byte*		field
+				= rec_get_nth_field(rec, offsets, i, &len);
 
 			dfield_set_data(dfield, field, len);
 		}
@@ -326,7 +328,7 @@ row_rec_to_index_entry(
 
 	for (i = 0; i < rec_len; i++) {
 
-		dfield = dtuple_get_nth_field(entry, i);
+		dfield = (dfield_t*) dtuple_get_nth_field(entry, i);
 		field = rec_get_nth_field(rec, offsets, i, &len);
 
 		dfield_set_data(dfield, field, len);
@@ -406,7 +408,7 @@ row_build_row_ref(
 	dict_index_copy_types(ref, clust_index, ref_len);
 
 	for (i = 0; i < ref_len; i++) {
-		dfield = dtuple_get_nth_field(ref, i);
+		dfield = (dfield_t*) dtuple_get_nth_field(ref, i);
 
 		pos = dict_index_get_nth_field_pos(index, clust_index, i);
 
@@ -508,7 +510,7 @@ notfound:
 	dict_index_copy_types(ref, clust_index, ref_len);
 
 	for (i = 0; i < ref_len; i++) {
-		dfield = dtuple_get_nth_field(ref, i);
+		dfield = (dfield_t*) dtuple_get_nth_field(ref, i);
 
 		pos = dict_index_get_nth_field_pos(index, clust_index, i);
 
@@ -580,9 +582,9 @@ row_build_row_ref_from_row(
 		const dict_col_t*	col;
 		dict_field_t*		field;
 		dfield_t*		dfield;
-		dfield_t*		dfield2;
+		const dfield_t*		dfield2;
 
-		dfield = dtuple_get_nth_field(ref, i);
+		dfield = (dfield_t*) dtuple_get_nth_field(ref, i);
 
 		field = dict_index_get_nth_field(clust_index, i);
 

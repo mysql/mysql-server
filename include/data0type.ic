@@ -42,7 +42,7 @@ dtype_get_mysql_type(
 /*=================*/
 				/* out: MySQL type code; this is NOT an InnoDB
 				type code! */
-	dtype_t*	type)	/* in: type struct */
+	const dtype_t*	type)	/* in: type struct */
 {
 	return(type->prtype & 0xFFUL);
 }
@@ -135,7 +135,7 @@ UNIV_INLINE
 ulint
 dtype_get_mtype(
 /*============*/
-	dtype_t*	type)
+	const dtype_t*	type)
 {
 	ut_ad(type);
 
@@ -148,7 +148,7 @@ UNIV_INLINE
 ulint
 dtype_get_prtype(
 /*=============*/
-	dtype_t*	type)
+	const dtype_t*	type)
 {
 	ut_ad(type);
 
@@ -161,7 +161,7 @@ UNIV_INLINE
 ulint
 dtype_get_len(
 /*==========*/
-	dtype_t*	type)
+	const dtype_t*	type)
 {
 	ut_ad(type);
 
@@ -246,7 +246,7 @@ dtype_new_store_for_order_and_null_size(
 	byte*		buf,	/* in: buffer for
 				DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE
 				bytes where we store the info */
-	dtype_t*	type,	/* in: type struct */
+	const dtype_t*	type,	/* in: type struct */
 	ulint		prefix_len)/* in: prefix length to
 				replace type->len, or 0 */
 {
@@ -289,7 +289,7 @@ void
 dtype_read_for_order_and_null_size(
 /*===============================*/
 	dtype_t*	type,	/* in: type struct */
-	byte*		buf)	/* in: buffer for stored type order info */
+	const byte*	buf)	/* in: buffer for stored type order info */
 {
 #if 4 != DATA_ORDER_NULL_TYPE_BUF_SIZE
 # error "4 != DATA_ORDER_NULL_TYPE_BUF_SIZE"
@@ -318,7 +318,7 @@ void
 dtype_new_read_for_order_and_null_size(
 /*===================================*/
 	dtype_t*	type,	/* in: type struct */
-	byte*		buf)	/* in: buffer for stored type order info */
+	const byte*	buf)	/* in: buffer for stored type order info */
 {
 	ulint	charset_coll;
 

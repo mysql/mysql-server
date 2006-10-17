@@ -154,8 +154,8 @@ row_upd_build_sec_rec_difference_binary(
 				/* out, own: update vector of differing
 				fields */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: entry to insert */
-	rec_t*		rec,	/* in: secondary index record */
+	const dtuple_t*	entry,	/* in: entry to insert */
+	const rec_t*	rec,	/* in: secondary index record */
 	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap);	/* in: memory heap from which allocated */
 /*******************************************************************
@@ -169,8 +169,8 @@ row_upd_build_difference_binary(
 				/* out, own: update vector of differing
 				fields, excluding roll ptr and trx id */
 	dict_index_t*	index,	/* in: clustered index */
-	dtuple_t*	entry,	/* in: entry to insert */
-	ulint*		ext_vec,/* in: array containing field numbers of
+	const dtuple_t*	entry,	/* in: entry to insert */
+	const ulint*	ext_vec,/* in: array containing field numbers of
 				externally stored fields in entry, or NULL */
 	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	rec_t*		rec,	/* in: clustered index record */
