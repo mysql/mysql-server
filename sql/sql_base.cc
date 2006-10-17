@@ -4906,6 +4906,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 
   thd->set_query_id=1;
   select_lex->cond_count= 0;
+  select_lex->between_count= 0;
 
   for (table= tables; table; table= table->next_local)
   {
