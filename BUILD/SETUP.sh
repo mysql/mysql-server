@@ -183,7 +183,7 @@ fi
 # (http://samba.org/ccache) is installed, use it.
 # We use 'grep' and hope 'grep' will work as expected
 # (returns 0 if finds lines)
-if ccache -V > /dev/null 2>&1
+if ccache -V > /dev/null 2>&1 && test "$CCACHE_GCOV_VERSION_ENABLED" == "1"
 then
   echo "$CC" | grep "ccache" > /dev/null || CC="ccache $CC"
   echo "$CXX" | grep "ccache" > /dev/null || CXX="ccache $CXX"
