@@ -2306,3 +2306,29 @@ explain select * from t1 where not exists
   ((select t11.i from t1 t11) union (select t12.i from t1 t12));
 
 DROP TABLE t1;
+
+#
+# Bug#21798: memory leak during query execution with subquery in column 
+#             list using a function
+#
+CREATE TABLE t1 (a VARCHAR(250), b INT auto_increment, PRIMARY KEY (b));
+insert into t1 (a) values (FLOOR(rand() * 100));
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+
+SELECT a, 
+       (SELECT REPEAT(' ',250) FROM t1 i1 
+        WHERE i1.b=t1.a ORDER BY RAND() LIMIT 1) AS a 
+FROM t1 ORDER BY a LIMIT 5;
+DROP TABLE t1;
