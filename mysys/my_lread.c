@@ -30,6 +30,8 @@ uint32 my_lread(int Filedes, byte *Buffer, uint32 Count, myf MyFlags)
   DBUG_PRINT("my",("Fd: %d  Buffer: %ld  Count: %ld  MyFlags: %d",
 		   Filedes, Buffer, Count, MyFlags));
 
+  DBUG_PRINT("error", ("Deprecated my_lread() function should not be used."));
+
   /* Temp hack to get count to int32 while read wants int */
   if ((readbytes = (uint32) read(Filedes, Buffer, (uint) Count)) != Count)
   {
