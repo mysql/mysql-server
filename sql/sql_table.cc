@@ -1133,6 +1133,26 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
 
 
 /*
+  Close the ddl log
+  SYNOPSIS
+    close_ddl_log()
+  RETURN VALUES
+    NONE
+*/
+
+static void close_ddl_log()
+{
+  DBUG_ENTER("close_ddl_log");
+  if (global_ddl_log.file_id >= 0)
+  {
+    VOID(my_close(global_ddl_log.file_id, MYF(MY_WME)));
+    global_ddl_log.file_id= (File) -1;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   Execute the ddl log at recovery of MySQL Server
   SYNOPSIS
     execute_ddl_log_recovery()
@@ -1183,6 +1203,7 @@ void execute_ddl_log_recovery()
       }
     }
   }
+  close_ddl_log();
   create_ddl_log_file_name(file_name);
   VOID(my_delete(file_name, MYF(0)));
   global_ddl_log.recovery_phase= FALSE;
@@ -1220,11 +1241,7 @@ void release_ddl_log()
     my_free((char*)free_list, MYF(0));
     free_list= tmp;
   }
-  if (global_ddl_log.file_id >= 0)
-  {
-    VOID(my_close(global_ddl_log.file_id, MYF(MY_WME)));
-    global_ddl_log.file_id= (File) -1;
-  }
+  close_ddl_log();
   global_ddl_log.inited= 0;
   pthread_mutex_unlock(&LOCK_gdl);
   VOID(pthread_mutex_destroy(&LOCK_gdl));
@@ -3304,7 +3321,8 @@ bool mysql_create_table_internal(THD *thd,
     }
     DBUG_PRINT("info", ("db_type = %d",
                          ha_legacy_type(part_info->default_engine_type)));
-    if (part_info->check_partition_info(thd, &engine_type, file, create_info))
+    if (part_info->check_partition_info(thd, &engine_type, file,
+                                        create_info, TRUE))
       goto err;
     part_info->default_engine_type= engine_type;
 
