@@ -991,8 +991,7 @@ sp_head::execute(THD *thd)
   save_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
   save_abort_on_warning= thd->abort_on_warning;
-  thd->abort_on_warning=
-    (m_sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
+  thd->abort_on_warning= 0;
 
   /*
     It is also more efficient to save/restore current thd->lex once when
