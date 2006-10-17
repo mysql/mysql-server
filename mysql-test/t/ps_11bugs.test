@@ -144,3 +144,37 @@ prepare st_18492 from 'select * from t1 where 3 in (select (1+1) union select 1)
 execute st_18492;
 
 drop table t1;
+
+#
+# Bug#19356: Assertion failure with undefined @uservar in prepared statement execution
+# 
+create table t1 (a int, b varchar(4));
+create table t2 (a int, b varchar(4), primary key(a));
+
+prepare stmt1 from 'insert into t1 (a, b) values (?, ?)';
+prepare stmt2 from 'insert into t2 (a, b) values (?, ?)';
+
+set @intarg= 11;
+set @varchararg= '2222';
+execute stmt1 using @intarg, @varchararg;
+execute stmt2 using @intarg, @varchararg;
+set @intarg= 12;
+execute stmt1 using @intarg, @UNDEFINED;
+execute stmt2 using @intarg, @UNDEFINED;
+set @intarg= 13;
+execute stmt1 using @UNDEFINED, @varchararg;
+--error 1048
+execute stmt2 using @UNDEFINED, @varchararg;
+set @intarg= 14;
+set @nullarg= Null;
+execute stmt1 using @UNDEFINED, @nullarg;
+--error 1048
+execute stmt2 using @nullarg, @varchararg;
+
+select * from t1;
+select * from t2;
+
+drop table t1;
+drop table t2;
+
+--echo End of 5.0 tests.
