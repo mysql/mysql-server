@@ -290,8 +290,8 @@ public:
     excessive memory usage.
   */  
   SORT_FIELD *sortorder;                        // make_unireg_sortorder()
-  TABLE **table_cache;                          // make_simple_join()
-  JOIN_TAB *join_tab_cache;                     // make_simple_join()
+  TABLE **table_reexec;                         // make_simple_join()
+  JOIN_TAB *join_tab_reexec;                    // make_simple_join()
   /* end of allocation caching storage */
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
@@ -320,8 +320,8 @@ public:
     exec_tmp_table1= 0;
     exec_tmp_table2= 0;
     sortorder= 0;
-    table_cache= 0;
-    join_tab_cache= 0;
+    table_reexec= 0;
+    join_tab_reexec= 0;
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
     procedure= 0;
