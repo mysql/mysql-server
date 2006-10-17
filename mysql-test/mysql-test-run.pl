@@ -391,6 +391,8 @@ sub main () {
     my ($need_ndbcluster,$need_im);
     foreach my $test (@$tests)
     {
+      next if $test->{skip};
+
       $need_ndbcluster||= $test->{ndb_test};
       $need_im||= $test->{component_id} eq 'im';
 
@@ -2753,10 +2755,9 @@ sub run_testcase_check_skip_test($)
       # If test needs this cluster, check it was installed ok
       if ( !$cluster->{'installed_ok'} )
       {
-	mtr_tofile($path_timefile,
-		   "Test marked as failed because $cluster->{'name'} " .
-		   "was not installed ok!");
 	mtr_report_test_name($tinfo);
+	$tinfo->{comment}=
+	  "Cluster $cluster->{'name'} was not installed ok";
 	mtr_report_test_failed($tinfo);
 	return 1;
       }
@@ -2879,10 +2880,8 @@ sub run_testcase ($) {
     # Can't restart a running server that may be in use
     if ( $glob_use_running_server )
     {
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Can't restart a running server";
-
       mtr_report_test_name($tinfo);
+      $tinfo->{comment}= "Can't restart a running server";
       mtr_report_test_skipped($tinfo);
       return;
     }
@@ -2932,16 +2931,16 @@ sub run_testcase ($) {
       $tinfo->{'timeout'}= 1;           # Mark as timeout
       report_failure_and_restart($tinfo);
     }
+    elsif ( $res == 1 )
+    {
+      # Test case failure reported by mysqltest
+      report_failure_and_restart($tinfo);
+    }
     else
     {
-      # Test case failed, if in control mysqltest returns 1
-      if ( $res != 1 )
-      {
-        mtr_tofile($path_timefile,
-                   "mysqltest returned unexpected code $res, " .
-                   "it has probably crashed");
-      }
-
+      # mysqltest failed, probably crashed
+      $tinfo->{comment}=
+	"mysqltest returned unexpected code $res, it has probably crashed";
       report_failure_and_restart($tinfo);
     }
 
