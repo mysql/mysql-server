@@ -420,6 +420,12 @@ public:
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, uint size)
   { return strmake_root(mem_root,str,size); }
+  inline bool LEX_STRING_make(LEX_STRING *lex_str, const char *str, uint size)
+  {
+    return ((lex_str->str= 
+             strmake_root(mem_root, str, (lex_str->length= size)))) == 0;
+  }
+
   inline char *memdup(const char *str, uint size)
   { return memdup_root(mem_root,str,size); }
   inline char *memdup_w_gap(const char *str, uint size, uint gap)
@@ -1618,8 +1624,7 @@ public:
       return TRUE;
     }
     *p_db= strmake(db, db_length);
-    if (p_db_length)
-      *p_db_length= db_length;
+    *p_db_length= db_length;
     return FALSE;
   }
 };
