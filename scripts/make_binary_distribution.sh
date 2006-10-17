@@ -343,6 +343,8 @@ if [ x$NDBCLUSTER = x1 ]; then
   test -d $BASE/include/storage || mkdir $BASE/include/storage
   $CP -r $BASE/ndb-stage@pkgincludedir@/storage/ndb $BASE/include/storage/
   $CP -r $BASE/ndb-stage@prefix@/mysql-test/ndb $BASE/mysql-test/. || exit 1
+  $CP -r $BASE/ndb-stage@prefix@/mysql-test/std_data/ndb_backup50 $BASE/mysql-test/std_data/. || exit 1
+  $CP -r $BASE/ndb-stage@prefix@/mysql-test/std_data/ndb_backup51 $BASE/mysql-test/std_data/. || exit 1
   rm -rf $BASE/ndb-stage
 fi
 
