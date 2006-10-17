@@ -57,18 +57,24 @@ uint my_write(int Filedes, const byte *Buffer, uint Count, myf MyFlags)
       VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));
       continue;
     }
-    if (!writenbytes)
+
+    if ((writenbytes == 0 || (int) writenbytes == -1))
     {
-      /* We may come here on an interrupt or if the file quote is exeeded */
       if (my_errno == EINTR)
-	continue;
-      if (!errors++)				/* Retry once */
       {
-	errno=EFBIG;				/* Assume this is the error */
-	continue;
+        DBUG_PRINT("debug", ("my_write() was interrupted and returned %d",
+                             (int) writenbytes));
+        continue;                               /* Interrupted */
+      }
+
+      if (!writenbytes && !errors++)		/* Retry once */
+      {
+        /* We may come here if the file quota is exeeded */
+        errno=EFBIG;				/* Assume this is the error */
+        continue;
       }
     }
-    else if ((uint) writenbytes != (uint) -1)
+    else
       continue;					/* Retry */
 #endif
     if (MyFlags & (MY_NABP | MY_FNABP))
