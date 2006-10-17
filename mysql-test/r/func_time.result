@@ -1076,3 +1076,6 @@ fmtddate	field2
 Sep-4 12:00AM	abcd
 DROP TABLE testBug8868;
 SET NAMES DEFAULT;
+select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
+str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
+NULL
