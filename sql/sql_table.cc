@@ -4095,7 +4095,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
 	setup_order(thd, thd->lex->select_lex.ref_pointer_array,
 		    &tables, fields, all_fields, order) ||
-	!(sortorder=make_unireg_sortorder(order, &length)) ||
+	!(sortorder=make_unireg_sortorder(order, &length, NULL)) ||
 	(from->sort.found_records = filesort(thd, from, sortorder, length,
 					     (SQL_SELECT *) 0, HA_POS_ERROR,
 					     &examined_rows)) ==
