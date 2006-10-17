@@ -374,10 +374,8 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (error)
       break;
     /*
-      If auto_increment values are used, save the first one
-       for LAST_INSERT_ID() and for the update log.
-       We can't use insert_id() as we don't want to touch the
-       last_insert_id_used flag.
+      If auto_increment values are used, save the first one for
+      LAST_INSERT_ID() and for the update log.
     */
     if (! id && thd->insert_id_used)
     {						// Get auto increment value
@@ -1687,7 +1685,7 @@ bool select_insert::send_data(List<Item> &values)
     {
       table->next_number_field->reset();
       if (! last_insert_id && thd->insert_id_used)
-        last_insert_id=thd->insert_id();
+        last_insert_id= thd->last_insert_id;
     }
   }
   DBUG_RETURN(error);

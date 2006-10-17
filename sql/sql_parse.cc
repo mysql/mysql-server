@@ -1978,6 +1978,12 @@ mysql_execute_command(THD *thd)
   DBUG_ENTER("mysql_execute_command");
 
   /*
+    Remember first generated insert id value of the previous
+    statement.
+  */
+  thd->current_insert_id= thd->last_insert_id;
+
+  /*
     Reset warning count for each query that uses tables
     A better approach would be to reset this for any commands
     that is not a SHOW command or a select that only access local
