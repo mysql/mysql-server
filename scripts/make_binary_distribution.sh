@@ -93,7 +93,6 @@ mkdir $BASE $BASE/bin $BASE/docs \
  $BASE/include $BASE/lib $BASE/support-files $BASE/share $BASE/scripts \
  $BASE/mysql-test $BASE/mysql-test/t  $BASE/mysql-test/r \
  $BASE/mysql-test/include $BASE/mysql-test/std_data $BASE/mysql-test/lib \
- $BASE/mysql-test/std_data/ndb_backup50 $BASE/mysql-test/std_data/ndb_backup51 \
  $BASE/mysql-test/extra \
  $BASE/mysql-test/extra/binlog_tests $BASE/mysql-test/extra/rpl_tests
 
@@ -250,14 +249,6 @@ $CP mysql-test/std_data/*.dat mysql-test/std_data/*.frm \
     mysql-test/std_data/des_key_file mysql-test/std_data/*.*001 \
     mysql-test/std_data/*.cnf \
     $BASE/mysql-test/std_data
-$CP mysql-test/std_data/ndb_backup50/*.Data \
-    mysql-test/std_data/ndb_backup50/*.ctl \
-    mysql-test/std_data/ndb_backup50/*.log \
-    $BASE/mysql-test/std_data/ndb_backup50
-$CP mysql-test/std_data/ndb_backup51/*.Data \
-    mysql-test/std_data/ndb_backup51/*.ctl \
-    mysql-test/std_data/ndb_backup51/*.log \
-    $BASE/mysql-test/std_data/ndb_backup51
 $CP mysql-test/t/*.test $BASE/mysql-test/t
 $CP mysql-test/t/*.imtest mysql-test/t/*.disabled $BASE/mysql-test/t
 $CP mysql-test/t/*.opt mysql-test/t/*.slave-mi $BASE/mysql-test/t
@@ -335,8 +326,8 @@ fi
 
 # NDB Cluster
 if [ x$NDBCLUSTER = x1 ]; then
-  ( cd storage/ndb    ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
-  ( cd mysql-test/ndb ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
+  ( cd storage/ndb ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
+  ( cd mysql-test  ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
   $CP $BASE/ndb-stage@bindir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@libexecdir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@pkglibdir@/* $BASE/lib/.
