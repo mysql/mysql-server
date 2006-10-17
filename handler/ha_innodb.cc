@@ -2570,10 +2570,10 @@ innobase_mysql_cmp(
 					equal, less than b, respectively */
 	int		mysql_type,	/* in: MySQL type */
 	uint		charset_number,	/* in: number of the charset */
-	unsigned char*	a,		/* in: data field */
+	const unsigned char* a,		/* in: data field */
 	unsigned int	a_length,	/* in: data field length,
 					not UNIV_SQL_NULL */
-	unsigned char*	b,		/* in: data field */
+	const unsigned char* b,		/* in: data field */
 	unsigned int	b_length)	/* in: data field length,
 					not UNIV_SQL_NULL */
 {

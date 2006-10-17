@@ -187,7 +187,7 @@ ibool
 dtype_validate(
 /*===========*/
 				/* out: TRUE if ok */
-	dtype_t*	type)	/* in: type struct to validate */
+	const dtype_t*	type)	/* in: type struct to validate */
 {
 	ut_a(type);
 	ut_a((type->mtype >= DATA_VARCHAR) && (type->mtype <= DATA_MYSQL));
@@ -207,7 +207,7 @@ Prints a data type structure. */
 void
 dtype_print(
 /*========*/
-	dtype_t*	type)	/* in: type */
+	const dtype_t*	type)	/* in: type */
 {
 	ulint	mtype;
 	ulint	prtype;

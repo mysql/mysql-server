@@ -46,8 +46,8 @@ cmp_debug_dtuple_rec_with_match(
 				/* out: 1, 0, -1, if dtuple is greater, equal,
 				less than rec, respectively, when only the
 				common first fields are compared */
-	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record which differs from
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const rec_t*	rec,	/* in: physical record which differs from
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
@@ -70,10 +70,10 @@ innobase_mysql_cmp(
 					equal, less than b, respectively */
 	int		mysql_type,	/* in: MySQL type */
 	uint		charset_number,	/* in: number of the charset */
-	unsigned char*	a,		/* in: data field */
+	const unsigned char* a,		/* in: data field */
 	unsigned int	a_length,	/* in: data field length,
 					not UNIV_SQL_NULL */
-	unsigned char*	b,		/* in: data field */
+	const unsigned char* b,		/* in: data field */
 	unsigned int	b_length);	/* in: data field length,
 					not UNIV_SQL_NULL */
 #endif /* !UNIV_HOTBACKUP */
@@ -157,10 +157,10 @@ cmp_whole_field(
 					equal, less than b, respectively */
 	ulint		mtype,		/* in: main type */
 	ulint		prtype,		/* in: precise type */
-	unsigned char*	a,		/* in: data field */
+	const byte*	a,		/* in: data field */
 	unsigned int	a_length,	/* in: data field length,
 					not UNIV_SQL_NULL */
-	unsigned char*	b,		/* in: data field */
+	const byte*	b,		/* in: data field */
 	unsigned int	b_length)	/* in: data field length,
 					not UNIV_SQL_NULL */
 {
@@ -285,10 +285,10 @@ cmp_data_data_slow(
 				less than data2, respectively */
 	ulint		mtype,	/* in: main type */
 	ulint		prtype,	/* in: precise type */
-	byte*		data1,	/* in: data field (== a pointer to a memory
+	const byte*	data1,	/* in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
-	byte*		data2,	/* in: data field (== a pointer to a memory
+	const byte*	data2,	/* in: data field (== a pointer to a memory
 				buffer) */
 	ulint		len2)	/* in: data field length or UNIV_SQL_NULL */
 {
@@ -412,8 +412,8 @@ cmp_dtuple_rec_with_match(
 				common first fields are compared, or
 				until the first externally stored field in
 				rec */
-	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record which differs from
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const rec_t*	rec,	/* in: physical record which differs from
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
@@ -427,15 +427,15 @@ cmp_dtuple_rec_with_match(
 				value for current comparison */
 {
 #ifndef UNIV_HOTBACKUP
-	dfield_t*	dtuple_field;	/* current field in logical record */
+	const dfield_t*	dtuple_field;	/* current field in logical record */
 	ulint		dtuple_f_len;	/* the length of the current field
 					in the logical record */
-	byte*		dtuple_b_ptr;	/* pointer to the current byte in
+	const byte*	dtuple_b_ptr;	/* pointer to the current byte in
 					logical field data */
 	ulint		dtuple_byte;	/* value of current byte to be compared
 					in dtuple*/
 	ulint		rec_f_len;	/* length of current field in rec */
-	byte*		rec_b_ptr;	/* pointer to the current byte in
+	const byte*	rec_b_ptr;	/* pointer to the current byte in
 					rec field */
 	ulint		rec_byte;	/* value of current byte to be
 					compared in rec */
@@ -487,7 +487,7 @@ cmp_dtuple_rec_with_match(
 
 		dtuple_f_len = dfield_get_len(dtuple_field);
 
-		rec_b_ptr = rec_get_nth_field(rec, offsets,
+		rec_b_ptr = rec_get_nth_field((rec_t*) rec, offsets,
 					      cur_field, &rec_f_len);
 
 		/* If we have matched yet 0 bytes, it may be that one or
@@ -530,7 +530,7 @@ cmp_dtuple_rec_with_match(
 			!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 			ret = cmp_whole_field(mtype, prtype,
-					      dfield_get_data(dtuple_field),
+					      dtuple_field->data,
 					      (unsigned) dtuple_f_len,
 					      rec_b_ptr, (unsigned) rec_f_len);
 
@@ -546,8 +546,7 @@ cmp_dtuple_rec_with_match(
 		/* Set the pointers at the current byte */
 
 		rec_b_ptr = rec_b_ptr + cur_bytes;
-		dtuple_b_ptr = (byte*)dfield_get_data(dtuple_field)
-			+ cur_bytes;
+		dtuple_b_ptr = (byte*) dtuple_field->data + cur_bytes;
 		/* Compare then the fields */
 
 		for (;;) {
@@ -652,8 +651,8 @@ cmp_dtuple_rec(
 				/* out: 1, 0, -1, if dtuple is greater, equal,
 				less than rec, respectively; see the comments
 				for cmp_dtuple_rec_with_match */
-	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record */
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
 	ulint	matched_fields	= 0;
@@ -672,8 +671,8 @@ ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
 				/* out: TRUE if prefix */
-	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record */
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
 {
 	ulint	n_fields;
@@ -715,8 +714,8 @@ cmp_rec_rec_with_match(
 				/* out: 1, 0 , -1 if rec1 is greater, equal,
 				less, respectively, than rec2; only the common
 				first fields are compared */
-	rec_t*		rec1,	/* in: physical record */
-	rec_t*		rec2,	/* in: physical record */
+	const rec_t*	rec1,	/* in: physical record */
+	const rec_t*	rec2,	/* in: physical record */
 	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
 	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
 	dict_index_t*	index,	/* in: data dictionary index */
@@ -730,21 +729,23 @@ cmp_rec_rec_with_match(
 				the value for the current comparison */
 {
 #ifndef UNIV_HOTBACKUP
-	ulint	rec1_n_fields;	/* the number of fields in rec */
-	ulint	rec1_f_len;	/* length of current field in rec */
-	byte*	rec1_b_ptr;	/* pointer to the current byte in rec field */
-	ulint	rec1_byte;	/* value of current byte to be compared in
-				rec */
-	ulint	rec2_n_fields;	/* the number of fields in rec */
-	ulint	rec2_f_len;	/* length of current field in rec */
-	byte*	rec2_b_ptr;	/* pointer to the current byte in rec field */
-	ulint	rec2_byte;	/* value of current byte to be compared in
-				rec */
-	ulint	cur_field;	/* current field number */
-	ulint	cur_bytes;	/* number of already matched bytes in current
-				field */
-	int	ret = 3333;	/* return value */
-	ulint	comp;
+	ulint		rec1_n_fields;	/* the number of fields in rec */
+	ulint		rec1_f_len;	/* length of current field in rec */
+	const byte*	rec1_b_ptr;	/* pointer to the current byte
+					in rec field */
+	ulint		rec1_byte;	/* value of current byte to be
+					compared in rec */
+	ulint		rec2_n_fields;	/* the number of fields in rec */
+	ulint		rec2_f_len;	/* length of current field in rec */
+	const byte*	rec2_b_ptr;	/* pointer to the current byte
+					in rec field */
+	ulint		rec2_byte;	/* value of current byte to be
+					compared in rec */
+	ulint		cur_field;	/* current field number */
+	ulint		cur_bytes;	/* number of already matched
+					bytes in current field */
+	int		ret = 3333;	/* return value */
+	ulint		comp;
 
 	ut_ad(rec1 && rec2 && index);
 	ut_ad(rec_offs_validate(rec1, index, offsets1));
@@ -777,9 +778,9 @@ cmp_rec_rec_with_match(
 			prtype = col->prtype;
 		}
 
-		rec1_b_ptr = rec_get_nth_field(rec1, offsets1,
+		rec1_b_ptr = rec_get_nth_field((rec_t*) rec1, offsets1,
 					       cur_field, &rec1_f_len);
-		rec2_b_ptr = rec_get_nth_field(rec2, offsets2,
+		rec2_b_ptr = rec_get_nth_field((rec_t*) rec2, offsets2,
 					       cur_field, &rec2_f_len);
 
 		if (cur_bytes == 0) {
@@ -966,8 +967,8 @@ cmp_debug_dtuple_rec_with_match(
 				/* out: 1, 0, -1, if dtuple is greater, equal,
 				less than rec, respectively, when only the
 				common first fields are compared */
-	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record which differs from
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const rec_t*	rec,	/* in: physical record which differs from
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
@@ -977,13 +978,13 @@ cmp_debug_dtuple_rec_with_match(
 				returns, contains the value for current
 				comparison */
 {
-	dfield_t*	dtuple_field;	/* current field in logical record */
+	const dfield_t*	dtuple_field;	/* current field in logical record */
 	ulint		dtuple_f_len;	/* the length of the current field
 					in the logical record */
-	byte*		dtuple_f_data;	/* pointer to the current logical
+	const byte*	dtuple_f_data;	/* pointer to the current logical
 					field data */
 	ulint		rec_f_len;	/* length of current field in rec */
-	byte*		rec_f_data;	/* pointer to the current rec field */
+	const byte*	rec_f_data;	/* pointer to the current rec field */
 	int		ret = 3333;	/* return value */
 	ulint		cur_field;	/* current field number */
 
@@ -1029,10 +1030,10 @@ cmp_debug_dtuple_rec_with_match(
 			prtype = type->prtype;
 		}
 
-		dtuple_f_data = dfield_get_data(dtuple_field);
+		dtuple_f_data = dtuple_field->data;
 		dtuple_f_len = dfield_get_len(dtuple_field);
 
-		rec_f_data = rec_get_nth_field(rec, offsets,
+		rec_f_data = rec_get_nth_field((rec_t*) rec, offsets,
 					       cur_field, &rec_f_len);
 
 		if (rec_offs_nth_extern(offsets, cur_field)) {

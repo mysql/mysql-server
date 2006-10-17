@@ -95,7 +95,7 @@ upd_field_set_field_no(
 	}
 
 	dict_col_copy_type(dict_index_get_nth_col(index, field_no),
-			   dfield_get_type(&(upd_field->new_val)));
+			   (dtype_t*) dfield_get_type(&(upd_field->new_val)));
 }
 
 /*************************************************************************

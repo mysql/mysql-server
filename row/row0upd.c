@@ -352,7 +352,7 @@ row_upd_index_entry_sys_field(
 
 	pos = dict_index_get_sys_col_pos(index, type);
 
-	dfield = dtuple_get_nth_field(entry, pos);
+	dfield = (dfield_t*) dtuple_get_nth_field(entry, pos);
 	field = dfield_get_data(dfield);
 
 	if (type == DATA_TRX_ID) {
@@ -698,10 +698,10 @@ static
 ibool
 upd_ext_vec_contains(
 /*=================*/
-				/* out: TRUE if i is in ext_vec */
-	ulint*	ext_vec,	/* in: array of indexes or NULL */
-	ulint	n_ext_vec,	/* in: number of numbers in ext_vec */
-	ulint	i)		/* in: a number */
+					/* out: TRUE if i is in ext_vec */
+	const ulint*	ext_vec,	/* in: array of indexes or NULL */
+	ulint		n_ext_vec,	/* in: number of numbers in ext_vec */
+	ulint		i)		/* in: a number */
 {
 	ulint	j;
 
@@ -731,14 +731,14 @@ row_upd_build_sec_rec_difference_binary(
 				/* out, own: update vector of differing
 				fields */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: entry to insert */
-	rec_t*		rec,	/* in: secondary index record */
+	const dtuple_t*	entry,	/* in: entry to insert */
+	const rec_t*	rec,	/* in: secondary index record */
 	trx_t*		trx,	/* in: transaction */
 	mem_heap_t*	heap)	/* in: memory heap from which allocated */
 {
 	upd_field_t*	upd_field;
-	dfield_t*	dfield;
-	byte*		data;
+	const dfield_t*	dfield;
+	const byte*	data;
 	ulint		len;
 	upd_t*		update;
 	ulint		n_diff;
@@ -758,7 +758,7 @@ row_upd_build_sec_rec_difference_binary(
 
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 
-		data = rec_get_nth_field(rec, offsets, i, &len);
+		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
 
 		dfield = dtuple_get_nth_field(entry, i);
 
@@ -803,8 +803,8 @@ row_upd_build_difference_binary(
 				/* out, own: update vector of differing
 				fields, excluding roll ptr and trx id */
 	dict_index_t*	index,	/* in: clustered index */
-	dtuple_t*	entry,	/* in: entry to insert */
-	ulint*		ext_vec,/* in: array containing field numbers of
+	const dtuple_t*	entry,	/* in: entry to insert */
+	const ulint*	ext_vec,/* in: array containing field numbers of
 				externally stored fields in entry, or NULL */
 	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	rec_t*		rec,	/* in: clustered index record */
@@ -812,8 +812,8 @@ row_upd_build_difference_binary(
 	mem_heap_t*	heap)	/* in: memory heap from which allocated */
 {
 	upd_field_t*	upd_field;
-	dfield_t*	dfield;
-	byte*		data;
+	const dfield_t*	dfield;
+	const byte*	data;
 	ulint		len;
 	upd_t*		update;
 	ulint		n_diff;
@@ -840,7 +840,7 @@ row_upd_build_difference_binary(
 
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 
-		data = rec_get_nth_field(rec, offsets, i, &len);
+		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
 
 		dfield = dtuple_get_nth_field(entry, i);
 
@@ -926,7 +926,8 @@ row_upd_index_replace_new_col_vals_index_pos(
 
 			if (upd_field->field_no == j) {
 
-				dfield = dtuple_get_nth_field(entry, j);
+				dfield = (dfield_t*)
+					dtuple_get_nth_field(entry, j);
 
 				new_val = &(upd_field->new_val);
 
@@ -1002,7 +1003,8 @@ row_upd_index_replace_new_col_vals(
 
 			if (upd_field->field_no == clust_pos) {
 
-				dfield = dtuple_get_nth_field(entry, j);
+				dfield = (dfield_t*)
+					dtuple_get_nth_field(entry, j);
 
 				new_val = &(upd_field->new_val);
 

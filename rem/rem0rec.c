@@ -761,18 +761,18 @@ rec_convert_dtuple_to_rec_old(
 				/* out: pointer to the origin of
 				physical record */
 	byte*		buf,	/* in: start address of the physical record */
-	dtuple_t*	dtuple,	/* in: data tuple */
+	const dtuple_t*	dtuple,	/* in: data tuple */
 	const ulint*	ext,	/* in: array of extern field numbers,
 				in ascending order */
 	ulint		n_ext)	/* in: number of externally stored columns */
 {
-	dfield_t*	field;
+	const dfield_t*	field;
 	ulint		n_fields;
 	ulint		data_size;
 	rec_t*		rec;
 	ulint		end_offset;
 	ulint		ored_offset;
-	byte*		data;
+	const byte*	data;
 	ulint		len;
 	ulint		i;
 
@@ -812,7 +812,7 @@ rec_convert_dtuple_to_rec_old(
 
 			field = dtuple_get_nth_field(dtuple, i);
 
-			data = dfield_get_data(field);
+			data = dfield_get_data((dfield_t*) field);
 			len = dfield_get_len(field);
 
 			if (len == UNIV_SQL_NULL) {
@@ -842,7 +842,7 @@ rec_convert_dtuple_to_rec_old(
 
 			field = dtuple_get_nth_field(dtuple, i);
 
-			data = dfield_get_data(field);
+			data = dfield_get_data((dfield_t*) field);
 			len = dfield_get_len(field);
 
 			if (len == UNIV_SQL_NULL) {
@@ -886,13 +886,13 @@ rec_convert_dtuple_to_rec_new(
 				of physical record */
 	byte*		buf,	/* in: start address of the physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple,	/* in: data tuple */
+	const dtuple_t*	dtuple,	/* in: data tuple */
 	const ulint*	ext,	/* in: array of extern field numbers,
 				in ascending order */
 	ulint		n_ext)	/* in: number of elements in ext */
 {
-	dfield_t*	field;
-	dtype_t*	type;
+	const dfield_t*	field;
+	const dtype_t*	type;
 	rec_t*		rec		= buf + REC_N_NEW_EXTRA_BYTES;
 	byte*		end;
 	byte*		nulls;
@@ -997,7 +997,7 @@ init:
 		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
 			ut_ad(dtype_get_prtype(type) & DATA_NOT_NULL);
 			ut_ad(len == 4);
-			memcpy(end, dfield_get_data(field), len);
+			memcpy(end, dfield_get_data((dfield_t*) field), len);
 			end += 4;
 			break;
 		}
@@ -1047,7 +1047,7 @@ init:
 			}
 		}
 
-		memcpy(end, dfield_get_data(field), len);
+		memcpy(end, dfield_get_data((dfield_t*) field), len);
 		end += len;
 	}
 
@@ -1068,7 +1068,7 @@ rec_convert_dtuple_to_rec(
 	byte*		buf,	/* in: start address of the
 				physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple,	/* in: data tuple */
+	const dtuple_t*	dtuple,	/* in: data tuple */
 	const ulint*	ext,	/* in: array of extern field numbers,
 				in ascending order */
 	ulint		n_ext)	/* in: number of elements in ext */
@@ -1136,7 +1136,7 @@ rec_copy_prefix_to_dtuple(
 
 	for (i = 0; i < n_fields; i++) {
 
-		field = dtuple_get_nth_field(tuple, i);
+		field = (dfield_t*) dtuple_get_nth_field(tuple, i);
 		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
 
 		if (len != UNIV_SQL_NULL) {

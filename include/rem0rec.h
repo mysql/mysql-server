@@ -596,7 +596,7 @@ rec_convert_dtuple_to_rec(
 	byte*		buf,	/* in: start address of the
 				physical record */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple,	/* in: data tuple */
+	const dtuple_t*	dtuple,	/* in: data tuple */
 	const ulint*	ext,	/* in: array of extern field numbers,
 				in ascending order */
 	ulint		n_ext);	/* in: number of elements in ext */

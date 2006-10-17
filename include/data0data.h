@@ -29,23 +29,23 @@ dfield_get_data_noninline(
 	dfield_t* field);	/* in: field */
 ulint
 dfield_get_len_noninline(
-	dfield_t* field);	/* in: field */
+	const dfield_t* field);	/* in: field */
 ulint
 dtuple_get_n_fields_noninline(
-	dtuple_t*	tuple);	/* in: tuple */
-dfield_t*
+	const dtuple_t*	tuple);	/* in: tuple */
+const dfield_t*
 dtuple_get_nth_field_noninline(
-	dtuple_t*	tuple,	/* in: tuple */
+	const dtuple_t*	tuple,	/* in: tuple */
 	ulint		n);	/* in: index of field */
 
 /*************************************************************************
 Gets pointer to the type struct of SQL data field. */
 UNIV_INLINE
-dtype_t*
+const dtype_t*
 dfield_get_type(
 /*============*/
 				/* out: pointer to the type struct */
-	dfield_t*	field);	/* in: SQL data field */
+	const dfield_t*	field);	/* in: SQL data field */
 /*************************************************************************
 Sets the type struct of SQL data field. */
 UNIV_INLINE
@@ -70,7 +70,7 @@ dfield_get_len(
 /*===========*/
 				/* out: length of data; UNIV_SQL_NULL if
 				SQL null data */
-	dfield_t* field);	/* in: field */
+	const dfield_t* field);	/* in: field */
 /*************************************************************************
 Sets length in a field. */
 UNIV_INLINE
@@ -111,7 +111,7 @@ void
 dfield_copy(
 /*========*/
 	dfield_t*	field1,	/* in: field to copy to */
-	dfield_t*	field2);/* in: field to copy from */
+	const dfield_t*	field2);/* in: field to copy from */
 /*************************************************************************
 Tests if data length and content is equal for two dfields. */
 UNIV_INLINE
@@ -119,8 +119,8 @@ ibool
 dfield_datas_are_binary_equal(
 /*==========================*/
 				/* out: TRUE if equal */
-	dfield_t*	field1,	/* in: field */
-	dfield_t*	field2);/* in: field */
+	const dfield_t*	field1,	/* in: field */
+	const dfield_t*	field2);/* in: field */
 /*************************************************************************
 Tests if dfield data length and content is equal to the given. */
 
@@ -128,9 +128,9 @@ ibool
 dfield_data_is_binary_equal(
 /*========================*/
 				/* out: TRUE if equal */
-	dfield_t*	field,	/* in: field */
+	const dfield_t*	field,	/* in: field */
 	ulint		len,	/* in: data length or UNIV_SQL_NULL */
-	byte*		data);	/* in: data */
+	const byte*	data);	/* in: data */
 /*************************************************************************
 Gets number of fields in a data tuple. */
 UNIV_INLINE
@@ -138,15 +138,15 @@ ulint
 dtuple_get_n_fields(
 /*================*/
 				/* out: number of fields */
-	dtuple_t*	tuple);	/* in: tuple */
+	const dtuple_t*	tuple);	/* in: tuple */
 /*************************************************************************
 Gets nth field of a tuple. */
 UNIV_INLINE
-dfield_t*
+const dfield_t*
 dtuple_get_nth_field(
 /*=================*/
 				/* out: nth field */
-	dtuple_t*	tuple,	/* in: tuple */
+	const dtuple_t*	tuple,	/* in: tuple */
 	ulint		n);	/* in: index of field */
 /*************************************************************************
 Gets info bits in a data tuple. */
@@ -155,7 +155,7 @@ ulint
 dtuple_get_info_bits(
 /*=================*/
 				/* out: info bits */
-	dtuple_t*	tuple);	/* in: tuple */
+	const dtuple_t*	tuple);	/* in: tuple */
 /*************************************************************************
 Sets info bits in a data tuple. */
 UNIV_INLINE
@@ -172,7 +172,7 @@ dtuple_get_n_fields_cmp(
 /*====================*/
 				/* out: number of fields used in comparisons
 				in rem0cmp.* */
-	dtuple_t*	tuple);	/* in: tuple */
+	const dtuple_t*	tuple);	/* in: tuple */
 /*************************************************************************
 Gets number of fields used in record comparisons. */
 UNIV_INLINE
@@ -227,7 +227,7 @@ ulint
 dtuple_get_data_size(
 /*=================*/
 				/* out: sum of data lens */
-	dtuple_t*	tuple);	/* in: typed data tuple */
+	const dtuple_t*	tuple);	/* in: typed data tuple */
 /****************************************************************
 Returns TRUE if lengths of two dtuples are equal and respective data fields
 in them are equal when compared with collation in char fields (not as binary
@@ -240,8 +240,8 @@ dtuple_datas_are_ordering_equal(
 				when compared with cmp_data_data:
 				NOTE: in character type fields some letters
 				are identified with others! (collation) */
-	dtuple_t*	tuple1,	/* in: tuple 1 */
-	dtuple_t*	tuple2);/* in: tuple 2 */
+	const dtuple_t*	tuple1,	/* in: tuple 1 */
+	const dtuple_t*	tuple2);/* in: tuple 2 */
 /****************************************************************
 Folds a prefix given as the number of fields of a tuple. */
 UNIV_INLINE
@@ -249,7 +249,7 @@ ulint
 dtuple_fold(
 /*========*/
 				/* out: the folded value */
-	dtuple_t*	tuple,	/* in: the tuple */
+	const dtuple_t*	tuple,	/* in: the tuple */
 	ulint		n_fields,/* in: number of complete fields to fold */
 	ulint		n_bytes,/* in: number of bytes to fold in an
 				incomplete last field */
@@ -269,7 +269,7 @@ ibool
 dtuple_contains_null(
 /*=================*/
 				/* out: TRUE if some field is SQL null */
-	dtuple_t*	tuple);	/* in: dtuple */
+	const dtuple_t*	tuple);	/* in: dtuple */
 /**************************************************************
 Checks that a data field is typed. Asserts an error if not. */
 
@@ -277,7 +277,7 @@ ibool
 dfield_check_typed(
 /*===============*/
 				/* out: TRUE if ok */
-	dfield_t*	field);	/* in: data field */
+	const dfield_t*	field);	/* in: data field */
 /**************************************************************
 Checks that a data tuple is typed. Asserts an error if not. */
 
@@ -285,7 +285,7 @@ ibool
 dtuple_check_typed(
 /*===============*/
 				/* out: TRUE if ok */
-	dtuple_t*	tuple);	/* in: tuple */
+	const dtuple_t*	tuple);	/* in: tuple */
 /**************************************************************
 Checks that a data tuple is typed. */
 
@@ -293,7 +293,7 @@ ibool
 dtuple_check_typed_no_assert(
 /*=========================*/
 				/* out: TRUE if ok */
-	dtuple_t*	tuple);	/* in: tuple */
+	const dtuple_t*	tuple);	/* in: tuple */
 #ifdef UNIV_DEBUG
 /**************************************************************
 Validates the consistency of a tuple which must be complete, i.e,
@@ -303,7 +303,7 @@ ibool
 dtuple_validate(
 /*============*/
 				/* out: TRUE if ok */
-	dtuple_t*	tuple);	/* in: tuple */
+	const dtuple_t*	tuple);	/* in: tuple */
 #endif /* UNIV_DEBUG */
 /*****************************************************************
 Pretty prints a dfield value according to its data type. */
@@ -311,7 +311,7 @@ Pretty prints a dfield value according to its data type. */
 void
 dfield_print(
 /*=========*/
-	dfield_t*	dfield);/* in: dfield */
+	const dfield_t*	dfield);/* in: dfield */
 /*****************************************************************
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */
@@ -319,7 +319,7 @@ is printed if a string contains non-printable characters. */
 void
 dfield_print_also_hex(
 /*==================*/
-	dfield_t*	dfield);	 /* in: dfield */
+	const dfield_t*	dfield);	 /* in: dfield */
 /**************************************************************
 The following function prints the contents of a tuple. */
 
@@ -327,7 +327,7 @@ void
 dtuple_print(
 /*=========*/
 	FILE*		f,	/* in: output stream */
-	dtuple_t*	tuple);	/* in: tuple */
+	const dtuple_t*	tuple);	/* in: tuple */
 /******************************************************************
 Moves parts of long fields in entry to the big record vector so that
 the size of tuple drops below the maximum record size allowed in the
