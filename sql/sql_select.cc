@@ -4956,23 +4956,23 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
     Reuse TABLE * and JOIN_TAB if already allocated by a previous call
     to this function through JOIN::exec (may happen for sub-queries).
   */
-  if (!join->table_cache)
+  if (!join->table_reexec)
   {
-    if (!(join->table_cache= (TABLE**) join->thd->alloc(sizeof(TABLE*))))
+    if (!(join->table_reexec= (TABLE**) join->thd->alloc(sizeof(TABLE*))))
       DBUG_RETURN(TRUE);                        /* purecov: inspected */
     if (join->tmp_join)
-      join->tmp_join->table_cache= join->table_cache;
+      join->tmp_join->table_reexec= join->table_reexec;
   }
-  if (!join->join_tab_cache)
+  if (!join->join_tab_reexec)
   {
-    if (!(join->join_tab_cache=
+    if (!(join->join_tab_reexec=
           (JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB))))
       DBUG_RETURN(TRUE);                        /* purecov: inspected */
     if (join->tmp_join)
-      join->tmp_join->join_tab_cache= join->join_tab_cache;
+      join->tmp_join->join_tab_reexec= join->join_tab_reexec;
   }
-  tableptr= join->table_cache;
-  join_tab= join->join_tab_cache;
+  tableptr= join->table_reexec;
+  join_tab= join->join_tab_reexec;
 
   join->join_tab=join_tab;
   join->table=tableptr; tableptr[0]=tmp_table;
