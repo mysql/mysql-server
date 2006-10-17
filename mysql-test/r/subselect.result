@@ -3458,6 +3458,32 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 4	UNION	t12	system	NULL	NULL	NULL	NULL	0	const row not found
 NULL	UNION RESULT	<union2,4>	ALL	NULL	NULL	NULL	NULL	NULL	
 DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(250), b INT auto_increment, PRIMARY KEY (b));
+insert into t1 (a) values (FLOOR(rand() * 100));
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+insert into t1 (a) select FLOOR(rand() * 100) from t1;
+SELECT a, 
+(SELECT REPEAT(' ',250) FROM t1 i1 
+WHERE i1.b=t1.a ORDER BY RAND() LIMIT 1) AS a 
+FROM t1 ORDER BY a LIMIT 5;
+a	a
+0	NULL
+0	NULL
+0	NULL
+0	NULL
+0	NULL
+DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT);
 CREATE TABLE t2 (a INT);
 INSERT INTO t2 values (1);

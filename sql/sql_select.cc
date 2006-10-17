@@ -1575,6 +1575,7 @@ JOIN::exec()
 	{
 	  DBUG_VOID_RETURN;
 	}
+        sortorder= curr_join->sortorder;
       }
       
       thd->proc_info="Copying to group table";
@@ -1784,6 +1785,7 @@ JOIN::exec()
 			    (select_options & OPTION_FOUND_ROWS ?
 			     HA_POS_ERROR : unit->select_limit_cnt)))
 	DBUG_VOID_RETURN;
+      sortorder= curr_join->sortorder;
     }
   }
   /* XXX: When can we have here thd->net.report_error not zero? */
@@ -4950,9 +4952,28 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   JOIN_TAB *join_tab;
   DBUG_ENTER("make_simple_join");
 
-  if (!(tableptr=(TABLE**) join->thd->alloc(sizeof(TABLE*))) ||
-      !(join_tab=(JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB))))
-    DBUG_RETURN(TRUE);
+  /*
+    Reuse TABLE * and JOIN_TAB if already allocated by a previous call
+    to this function through JOIN::exec (may happen for sub-queries).
+  */
+  if (!join->table_cache)
+  {
+    if (!(join->table_cache= (TABLE**) join->thd->alloc(sizeof(TABLE*))))
+      DBUG_RETURN(TRUE);                        /* purecov: inspected */
+    if (join->tmp_join)
+      join->tmp_join->table_cache= join->table_cache;
+  }
+  if (!join->join_tab_cache)
+  {
+    if (!(join->join_tab_cache=
+          (JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB))))
+      DBUG_RETURN(TRUE);                        /* purecov: inspected */
+    if (join->tmp_join)
+      join->tmp_join->join_tab_cache= join->join_tab_cache;
+  }
+  tableptr= join->table_cache;
+  join_tab= join->join_tab_cache;
+
   join->join_tab=join_tab;
   join->table=tableptr; tableptr[0]=tmp_table;
   join->tables=1;
@@ -11982,7 +12003,6 @@ static int
 create_sort_index(THD *thd, JOIN *join, ORDER *order,
 		  ha_rows filesort_limit, ha_rows select_limit)
 {
-  SORT_FIELD *sortorder;
   uint length;
   ha_rows examined_rows;
   TABLE *table;
@@ -12004,7 +12024,8 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
        !(join->select_options & SELECT_BIG_RESULT)) &&
       test_if_skip_sort_order(tab,order,select_limit,0))
     DBUG_RETURN(0);
-  if (!(sortorder=make_unireg_sortorder(order,&length)))
+  if (!(join->sortorder= 
+        make_unireg_sortorder(order,&length,join->sortorder)))
     goto err;				/* purecov: inspected */
 
   table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
@@ -12051,7 +12072,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
-  table->sort.found_records=filesort(thd, table,sortorder, length,
+  table->sort.found_records=filesort(thd, table,join->sortorder, length,
                                      select, filesort_limit, &examined_rows);
   tab->records= table->sort.found_records;	// For SQL_CALC_ROWS
   if (select)
@@ -12398,7 +12419,8 @@ err:
 }
 
 
-SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length)
+SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
+                                  SORT_FIELD *sortorder)
 {
   uint count;
   SORT_FIELD *sort,*pos;
@@ -12407,7 +12429,9 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length)
   count=0;
   for (ORDER *tmp = order; tmp; tmp=tmp->next)
     count++;
-  pos=sort=(SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD)*(count+1));
+  if (!sortorder)
+    sortorder= (SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD)*(count+1));
+  pos=sort=sortorder;
   if (!pos)
     return 0;
 
