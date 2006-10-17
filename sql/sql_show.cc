@@ -5642,6 +5642,16 @@ ST_FIELD_INFO files_fields_info[]=
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0}
 };
 
+void init_fill_schema_files_row(TABLE* table)
+{
+  int i;
+  for(i=0; files_fields_info[i].field_name!=NULL; i++)
+    table->field[i]->set_null();
+
+  table->field[IS_FILES_STATUS]->set_notnull();
+  table->field[IS_FILES_STATUS]->store("NORMAL", 6, system_charset_info);
+}
+
 ST_FIELD_INFO referential_constraints_fields_info[]=
 {
   {"CONSTRAINT_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0},
