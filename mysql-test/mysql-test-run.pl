@@ -391,6 +391,8 @@ sub main () {
     my ($need_ndbcluster,$need_im);
     foreach my $test (@$tests)
     {
+      next if $test->{skip};
+
       $need_ndbcluster||= $test->{ndb_test};
       $need_im||= $test->{component_id} eq 'im';
 
