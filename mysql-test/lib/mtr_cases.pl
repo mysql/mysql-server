@@ -143,7 +143,7 @@ sub collect_test_cases ($) {
       {
         next;
       }
-      
+
       next if $::opt_do_test and ! defined mtr_match_prefix($elem,$::opt_do_test);
 
       collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
@@ -152,43 +152,79 @@ sub collect_test_cases ($) {
     closedir TESTDIR;
   }
 
-  # To speed things up, we sort first in if the test require a restart
-  # or not, second in alphanumeric order.
-
+  # Reorder the test cases in an order that wil make them faster to run
   if ( $::opt_reorder )
   {
 
     my %sort_criteria;
-    my $tinfo;
 
     # Make a mapping of test name to a string that represents how that test
     # should be sorted among the other tests.  Put the most important criterion
     # first, then a sub-criterion, then sub-sub-criterion, et c.
-    foreach $tinfo (@$cases) 
+    foreach my $tinfo (@$cases)
     {
-      my @this_criteria = ();
+      my @criteria = ();
 
-      # Append the criteria for sorting, in order of importance.
-      push(@this_criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");  # Ending with "~" makes empty sort later than filled
-      push(@this_criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "1" : "0"));
-      push(@this_criteria, "restart=" . ($tinfo->{'master_restart'} ? "1" : "0"));
-      push(@this_criteria, "big_test=" . ($tinfo->{'big_test'} ? "1" : "0"));
-      push(@this_criteria, join("|", sort keys %{$tinfo}));  # Group similar things together.  The values may differ substantially.  FIXME?
-      push(@this_criteria, $tinfo->{'name'});   # Finally, order by the name
-      
-      $sort_criteria{$tinfo->{"name"}} = join(" ", @this_criteria);
+      # Look for tests that muct be in run in a defined order
+      # that is defined by test having the same name except for
+      # the ending digit
+
+      # Put variables into hash
+      my $test_name= $tinfo->{'name'};
+      my $depend_on_test_name;
+      if ( $test_name =~ /^([\D]+)([0-9]{1})$/ )
+      {
+	my $base_name= $1;
+	my $idx= $2;
+	mtr_verbose("$test_name =>  $base_name idx=$idx");
+	if ( $idx > 1 )
+	{
+	  $idx-= 1;
+	  $base_name= "$base_name$idx";
+	  mtr_verbose("New basename $base_name");
+	}
+
+	foreach my $tinfo2 (@$cases)
+	{
+	  if ( $tinfo2->{'name'} eq $base_name )
+	  {
+	    mtr_verbose("found dependent test $tinfo2->{'name'}");
+	    $depend_on_test_name=$base_name;
+	  }
+	}
+      }
+
+      if ( defined $depend_on_test_name )
+      {
+	mtr_verbose("Giving $test_name same critera as $depend_on_test_name");
+	$sort_criteria{$test_name} = $sort_criteria{$depend_on_test_name};
+      }
+      else
+      {
+	#
+	# Append the criteria for sorting, in order of importance.
+	#
+	push(@criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "1" : "0"));
+	# Group test with equal options together.
+	# Ending with "~" makes empty sort later than filled
+	push(@criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");
+
+	$sort_criteria{$test_name} = join(" ", @criteria);
+      }
     }
 
-    @$cases = sort { $sort_criteria{$a->{"name"}} cmp $sort_criteria{$b->{"name"}}; } @$cases;
+    @$cases = sort {
+      $sort_criteria{$a->{'name'}} . $a->{'name'} cmp
+	$sort_criteria{$b->{'name'}} . $b->{'name'}; } @$cases;
 
-###  For debugging the sort-order
-#    foreach $tinfo (@$cases) 
-#    {
-#      print $sort_criteria{$tinfo->{"name"}};
-#      print " -> \t";
-#      print $tinfo->{"name"};
-#      print "\n";
-#    }
+    if ( $::opt_script_debug )
+    {
+      # For debugging the sort-order
+      foreach my $tinfo (@$cases)
+      {
+	print("$sort_criteria{$tinfo->{'name'}} -> \t$tinfo->{'name'}\n");
+      }
+    }
   }
 
   return $cases;
@@ -245,6 +281,7 @@ sub collect_one_test_case($$$$$$$) {
   $tinfo->{'path'}= $path;
   $tinfo->{'timezone'}= "GMT-3"; # for UNIX_TIMESTAMP tests to work
 
+  $tinfo->{'slave_num'}= 0; # Default, no slave
   if ( defined mtr_match_prefix($tname,"rpl") )
   {
     if ( $::opt_skip_rpl )
@@ -254,7 +291,8 @@ sub collect_one_test_case($$$$$$$) {
       return;
     }
 
-    $tinfo->{'slave_num'}= 1;           # Default, use one slave
+
+    $tinfo->{'slave_num'}= 1; # Default for rpl* tests, use one slave
 
     if ( $tname eq 'rpl_failsafe' or $tname eq 'rpl_chain_temp_table' )
     {
@@ -272,18 +310,18 @@ sub collect_one_test_case($$$$$$$) {
   {
     # This is an ndb test or all tests should be run with ndb cluster started
     $tinfo->{'ndb_test'}= 1;
-    if ( $::opt_skip_ndbcluster )
-    {
-      # All ndb test's should be skipped
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster test(--skip-ndbcluster)";
-      return;
-    }
     if ( ! $::opt_ndbcluster_supported )
     {
       # Ndb is not supported, skip them
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No ndbcluster support";
+      return;
+    }
+    elsif ( $::opt_skip_ndbcluster )
+    {
+      # All ndb test's should be skipped
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No ndbcluster tests(--skip-ndbcluster)";
       return;
     }
   }
@@ -316,57 +354,58 @@ sub collect_one_test_case($$$$$$$) {
 
   if ( -f $master_opt_file )
   {
-    $tinfo->{'master_restart'}= 1;    # We think so for now
 
-  MASTER_OPT:
+    my $master_opt= mtr_get_opts_from_file($master_opt_file);
+
+    foreach my $opt ( @$master_opt )
     {
-      my $master_opt= mtr_get_opts_from_file($master_opt_file);
+      my $value;
 
-      foreach my $opt ( @$master_opt )
+      # The opt file is used both to send special options to the mysqld
+      # as well as pass special test case specific options to this
+      # script
+
+      $value= mtr_match_prefix($opt, "--timezone=");
+      if ( defined $value )
       {
-        my $value;
-
-        # This is a dirty hack from old mysql-test-run, we use the opt
-        # file to flag other things as well, it is not a opt list at
-        # all
-
-        $value= mtr_match_prefix($opt, "--timezone=");
-        if ( defined $value )
-        {
-          $tinfo->{'timezone'}= $value;
-          last MASTER_OPT;
-        }
-
-        $value= mtr_match_prefix($opt, "--result-file=");
-        if ( defined $value )
-        {
-          $tinfo->{'result_file'}= "r/$value.result";
-          if ( $::opt_result_ext and $::opt_record or
-               -f "$tinfo->{'result_file'}$::opt_result_ext")
-          {
-            $tinfo->{'result_file'}.= $::opt_result_ext;
-          }
-          $tinfo->{'master_restart'}= 0;
-          last MASTER_OPT;
-        }
-
-        # If we set default time zone, remove the one we have
-        $value= mtr_match_prefix($opt, "--default-time-zone=");
-        if ( defined $value )
-        {
-          $tinfo->{'master_opt'}= [];
-        }
-
+	$tinfo->{'timezone'}= $value;
+	next;
       }
 
-      # Ok, this was a real option list, add it
-      push(@{$tinfo->{'master_opt'}}, @$master_opt);
+      $value= mtr_match_prefix($opt, "--result-file=");
+      if ( defined $value )
+      {
+	# Specifies the file mysqltest should compare
+	# output against
+	$tinfo->{'result_file'}= "r/$value.result";
+	next;
+      }
+
+      # If we set default time zone, remove the one we have
+      $value= mtr_match_prefix($opt, "--default-time-zone=");
+      if ( defined $value )
+      {
+	$tinfo->{'timezone'}= "";
+	# Fallthrough, add this option
+      }
+
+      # The --restart option forces a restart even if no special
+      # option is set. If the options are the same as next testcase
+      # there is no need to restart after the testcase
+      # has completed
+      if ( $opt eq "--force-restart" )
+      {
+	$tinfo->{'force_restart'}= 1;
+	next;
+      }
+
+      # Ok, this was a real option, add it
+      push(@{$tinfo->{'master_opt'}}, $opt);
     }
   }
 
   if ( -f $slave_opt_file )
   {
-    $tinfo->{'slave_restart'}= 1;
     my $slave_opt= mtr_get_opts_from_file($slave_opt_file);
 
     foreach my $opt ( @$slave_opt )
@@ -381,7 +420,6 @@ sub collect_one_test_case($$$$$$$) {
   if ( -f $slave_mi_file )
   {
     $tinfo->{'slave_mi'}= mtr_get_opts_from_file($slave_mi_file);
-    $tinfo->{'slave_restart'}= 1;
   }
 
   if ( -f $master_sh )
@@ -395,7 +433,6 @@ sub collect_one_test_case($$$$$$$) {
     else
     {
       $tinfo->{'master_sh'}= $master_sh;
-      $tinfo->{'master_restart'}= 1;
     }
   }
 
@@ -410,7 +447,6 @@ sub collect_one_test_case($$$$$$$) {
     else
     {
       $tinfo->{'slave_sh'}= $slave_sh;
-      $tinfo->{'slave_restart'}= 1;
     }
   }
 
@@ -515,17 +551,6 @@ sub collect_one_test_case($$$$$$$) {
       return;
     }
   }
-
-  # We can't restart a running server that may be in use
-
-  if ( $::glob_use_running_server and
-       ( $tinfo->{'master_restart'} or $tinfo->{'slave_restart'} ) )
-  {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Can't restart a running server";
-    return;
-  }
-
 }
 
 

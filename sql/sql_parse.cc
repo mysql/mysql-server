@@ -3237,6 +3237,7 @@ end_with_restore_list:
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
+      /* Presumably, REPAIR and binlog writing doesn't require synchronization */
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
@@ -3269,6 +3270,7 @@ end_with_restore_list:
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
+      /* Presumably, ANALYZE and binlog writing doesn't require synchronization */
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
@@ -3293,6 +3295,7 @@ end_with_restore_list:
     /* ! we write after unlocking the table */
     if (!res && !lex->no_write_to_binlog)
     {
+      /* Presumably, OPTIMIZE and binlog writing doesn't require synchronization */
       if (mysql_bin_log.is_open())
       {
 	thd->clear_error(); // No binlog error generated
@@ -3580,6 +3583,7 @@ end_with_restore_list:
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
       thd->options|= OPTION_KEEP_LOG;
     }
+    /* DDL and binlog write order protected by LOCK_open */
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
 			lex->drop_temporary);
   }
@@ -3979,13 +3983,9 @@ end_with_restore_list:
       break;
     if (end_active_trans(thd))
       goto error;
+    /* Conditionally writes to binlog */
     if (!(res= mysql_create_user(thd, lex->users_list)))
-    {
-      if (mysql_bin_log.is_open())
-        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
       send_ok(thd);
-    }
     break;
   }
   case SQLCOM_DROP_USER:
@@ -3995,15 +3995,9 @@ end_with_restore_list:
       break;
     if (end_active_trans(thd))
       goto error;
+    /* Conditionally writes to binlog */
     if (!(res= mysql_drop_user(thd, lex->users_list)))
-    {
-      if (mysql_bin_log.is_open())
-      {
-        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
       send_ok(thd);
-    }
     break;
   }
   case SQLCOM_RENAME_USER:
@@ -4013,15 +4007,9 @@ end_with_restore_list:
       break;
     if (end_active_trans(thd))
       goto error;
+    /* Conditionally writes to binlog */
     if (!(res= mysql_rename_user(thd, lex->users_list)))
-    {
-      if (mysql_bin_log.is_open())
-      {
-        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
       send_ok(thd);
-    }
     break;
   }
   case SQLCOM_REVOKE_ALL:
@@ -4029,15 +4017,9 @@ end_with_restore_list:
     if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
+    /* Conditionally writes to binlog */
     if (!(res = mysql_revoke_all(thd, lex->users_list)))
-    {
-      if (mysql_bin_log.is_open())
-      {
-        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
       send_ok(thd);
-    }
     break;
   }
   case SQLCOM_REVOKE:
@@ -4096,6 +4078,7 @@ end_with_restore_list:
 	    check_grant_routine(thd, grants | GRANT_ACL, all_tables,
                                 lex->type == TYPE_ENUM_PROCEDURE, 0))
 	  goto error;
+        /* Conditionally writes to binlog */
         res= mysql_routine_grant(thd, all_tables,
                                  lex->type == TYPE_ENUM_PROCEDURE, 
                                  lex->users_list, grants,
@@ -4108,15 +4091,10 @@ end_with_restore_list:
 					 GRANT_ACL),
 					all_tables, 0, UINT_MAX, 0))
 	  goto error;
+        /* Conditionally writes to binlog */
         res= mysql_table_grant(thd, all_tables, lex->users_list,
 			       lex->columns, lex->grant,
 			       lex->sql_command == SQLCOM_REVOKE);
-      }
-      if (!res && mysql_bin_log.is_open())
-      {
-        thd->clear_error();
-        thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
       }
     }
     else
@@ -4128,16 +4106,11 @@ end_with_restore_list:
         goto error;
       }
       else
+	/* Conditionally writes to binlog */
 	res = mysql_grant(thd, select_lex->db, lex->users_list, lex->grant,
 			  lex->sql_command == SQLCOM_REVOKE);
       if (!res)
       {
-	if (mysql_bin_log.is_open())
-	{
-          thd->clear_error();
-          thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                            thd->query, thd->query_length, FALSE, FALSE);
-	}
 	if (lex->sql_command == SQLCOM_GRANT)
 	{
 	  List_iterator <LEX_USER> str_list(lex->users_list);
@@ -4175,6 +4148,7 @@ end_with_restore_list:
         We WANT to write and we CAN write.
         ! we write after unlocking the table.
       */
+      /* Presumably, RESET and binlog writing doesn't require synchronization */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
         if (mysql_bin_log.is_open())
@@ -4691,20 +4665,16 @@ end_with_restore_list:
             already puts on CREATE FUNCTION.
           */
           if (lex->sql_command == SQLCOM_ALTER_PROCEDURE)
+            /* Conditionally writes to binlog */
             result= sp_update_procedure(thd, lex->spname, &lex->sp_chistics);
           else
+            /* Conditionally writes to binlog */
             result= sp_update_function(thd, lex->spname, &lex->sp_chistics);
         }
       }
       switch (result)
       {
       case SP_OK:
-        if (mysql_bin_log.is_open())
-        {
-          thd->clear_error();
-          thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                            thd->query, thd->query_length, FALSE, FALSE);
-        }
 	send_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
@@ -4749,9 +4719,11 @@ end_with_restore_list:
 	}
 #endif
 	if (lex->sql_command == SQLCOM_DROP_PROCEDURE)
-	  result= sp_drop_procedure(thd, lex->spname);
+          /* Conditionally writes to binlog */
+	  result= sp_drop_procedure(thd, lex->spname); /* Conditionally writes to binlog */
 	else
-	  result= sp_drop_function(thd, lex->spname);
+          /* Conditionally writes to binlog */
+	  result= sp_drop_function(thd, lex->spname); /* Conditionally writes to binlog */
       }
       else
       {
@@ -4764,6 +4736,8 @@ end_with_restore_list:
           {
 	    if (check_access(thd, DELETE_ACL, "mysql", 0, 1, 0, 0))
 	      goto error;
+
+	    /* Does NOT write to binlog */
 	    if (!(res = mysql_drop_function(thd, &lex->spname->m_name)))
 	    {
 	      send_ok(thd);
@@ -4784,12 +4758,6 @@ end_with_restore_list:
       switch (result)
       {
       case SP_OK:
-        if (mysql_bin_log.is_open())
-        {
-          thd->clear_error();
-          thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                            thd->query, thd->query_length, FALSE, FALSE);
-        }
 	send_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
@@ -4887,50 +4855,8 @@ end_with_restore_list:
     {
       if (end_active_trans(thd))
         goto error;
-
-      if (!(res= mysql_create_view(thd, thd->lex->create_view_mode)) &&
-          mysql_bin_log.is_open())
-      {
-        String buff;
-        const LEX_STRING command[3]=
-          {{ C_STRING_WITH_LEN("CREATE ") },
-           { C_STRING_WITH_LEN("ALTER ") },
-           { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
-        thd->clear_error();
-
-        buff.append(command[thd->lex->create_view_mode].str,
-                    command[thd->lex->create_view_mode].length);
-        view_store_options(thd, first_table, &buff);
-        buff.append(STRING_WITH_LEN("VIEW "));
-        /* Test if user supplied a db (ie: we did not use thd->db) */
-        if (first_table->db && first_table->db[0] &&
-            (thd->db == NULL || strcmp(first_table->db, thd->db)))
-        {
-          append_identifier(thd, &buff, first_table->db,
-                            first_table->db_length);
-          buff.append('.');
-        }
-        append_identifier(thd, &buff, first_table->table_name,
-                          first_table->table_name_length);
-        if (lex->view_list.elements)
-        {
-          List_iterator_fast<LEX_STRING> names(lex->view_list);
-          LEX_STRING *name;
-          int i;
-          
-          for (i= 0; name= names++; i++)
-          {
-            buff.append(i ? ", " : "(");
-            append_identifier(thd, &buff, name->str, name->length);
-          }
-          buff.append(')');
-        }
-        buff.append(STRING_WITH_LEN(" AS "));
-        buff.append(first_table->source.str, first_table->source.length);
-
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          buff.ptr(), buff.length(), FALSE, FALSE);
-      }
+      /* Conditionally writes to binlog. */
+      res= mysql_create_view(thd, first_table, thd->lex->create_view_mode);
       break;
     }
   case SQLCOM_DROP_VIEW:
@@ -4938,13 +4864,8 @@ end_with_restore_list:
       if (check_table_access(thd, DROP_ACL, all_tables, 0) ||
           end_active_trans(thd))
         goto error;
-      if (!(res= mysql_drop_view(thd, first_table, thd->lex->drop_mode)) &&
-          mysql_bin_log.is_open())
-      {
-        thd->clear_error();
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          thd->query, thd->query_length, FALSE, FALSE);
-      }
+      /* Conditionally writes to binlog. */
+      res= mysql_drop_view(thd, first_table, thd->lex->drop_mode);
       break;
     }
   case SQLCOM_CREATE_TRIGGER:
@@ -4952,6 +4873,7 @@ end_with_restore_list:
     if (end_active_trans(thd))
       goto error;
 
+    /* Conditionally writes to binlog. */
     res= mysql_create_or_drop_trigger(thd, all_tables, 1);
 
     /* We don't care about trigger body after this point */
@@ -4964,6 +4886,7 @@ end_with_restore_list:
     if (end_active_trans(thd))
       goto error;
 
+    /* Conditionally writes to binlog. */
     res= mysql_create_or_drop_trigger(thd, all_tables, 0);
     break;
   }

@@ -312,7 +312,7 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
 {
   char *buf;
   int  fd;
-  uint len;
+  uint len, tmp_len;
   MY_STAT stat_info;
   
   if (!my_stat(filename, &stat_info, MYF(myflags)) ||
@@ -321,12 +321,11 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
     return TRUE;
   
   if ((fd=my_open(filename,O_RDONLY,myflags)) < 0)
-  {
-    my_free(buf,myflags);
-    return TRUE;
-  }
-  len=read(fd,buf,len);
+    goto error;
+  tmp_len=my_read(fd, buf, len, myflags);
   my_close(fd,myflags);
+  if (tmp_len != len)
+    goto error;
   
   if (my_parse_charset_xml(buf,len,add_collation))
   {
@@ -340,6 +339,10 @@ static my_bool my_read_charset_file(const char *filename, myf myflags)
   
   my_free(buf, myflags);  
   return FALSE;
+
+error:
+  my_free(buf, myflags);
+  return TRUE;
 }
 
 
