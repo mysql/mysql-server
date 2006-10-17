@@ -173,7 +173,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
   if (!access(name,F_OK))
   {
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-    DBUG_RETURN(ren_table);			// This can't be skipped
+    DBUG_RETURN(1);			// This can't be skipped
   }
   sprintf(name,"%s/%s/%s%s",mysql_data_home,
           ren_table->db, old_alias,
