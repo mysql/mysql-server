@@ -630,4 +630,19 @@ SHOW TABLES FROM no_such_database;
 ERROR 42000: Unknown database 'no_such_database'
 SHOW COLUMNS FROM no_such_table;
 ERROR 42S02: Table 'test.no_such_table' doesn't exist
+flush status;
+show status like 'slow_queries';
+Variable_name  Value
+Slow_queries 0
+show tables;
+Tables_in_test
+show status like 'slow_queries';
+Variable_name  Value
+Slow_queries 0
+select 1 from information_schema.tables limit 1;
+1
+1
+show status like 'slow_queries';
+Variable_name  Value
+Slow_queries 1
 End of 5.0 tests
