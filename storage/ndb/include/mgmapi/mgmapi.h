@@ -1133,6 +1133,14 @@ extern "C" {
   int ndb_mgm_check_connection(NdbMgmHandle handle);
 
   int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length);
+
+  struct ndb_mgm_param_info
+  {
+    Uint32 m_id;
+    const char * m_name;
+  };
+  int ndb_mgm_get_db_parameter_info(Uint32 paramId, struct ndb_mgm_param_info * info, 
+             size_t * size);
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
