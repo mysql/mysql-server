@@ -1243,7 +1243,7 @@ public:
                                    key_range *max_key)
     { return (ha_rows) 10; }
   virtual void position(const byte *record)=0;
-  virtual void info(uint)=0; // see my_base.h for full description
+  virtual int info(uint)=0; // see my_base.h for full description
   virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,
                                           uint part_id);
   virtual int extra(enum ha_extra_function operation)
