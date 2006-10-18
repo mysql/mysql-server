@@ -45,6 +45,7 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <hash.h>
+#include <stdarg.h>
 
 #include "client_priv.h"
 #include "mysql.h"
@@ -523,6 +524,8 @@ static void write_header(FILE *sql_file, char *db_name)
   if (opt_xml)
   {
     fputs("<?xml version=\"1.0\"?>\n", sql_file);
+    /* Schema reference.  Allows use of xsi:nil for NULL values and 
+       xsi:type to define an element's data type. */
     fputs("<mysqldump ", sql_file);
     fputs("xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"",
           sql_file);
@@ -1123,7 +1126,7 @@ static char *quote_for_like(const char *name, char *buff)
 
   SYNOPSIS
     print_quoted_xml()
-    output      - output file
+    xml_file    - output file
     str         - string to print
     len         - its length
 
@@ -1160,34 +1163,63 @@ static void print_quoted_xml(FILE *xml_file, const char *str, ulong len)
 
 
 /*
-  Print xml tag with one attribute.
+  Print xml tag. Optionally add attribute(s).
 
   SYNOPSIS
-    print_xml_tag1()
-    xml_file    - output file
-    sbeg        - line beginning
-    stag_atr    - tag and attribute
-    sval        - value of attribute
-    send        - line ending
+    print_xml_tag(xml_file, sbeg, send, tag_name, first_attribute_name, 
+                    ..., attribute_name_n, attribute_value_n, NullS)
+    xml_file              - output file
+    sbeg                  - line beginning
+    send                  - line ending
+    tag_name              - XML tag name.
+    first_attribute_name  - tag and first attribute
+    first_attribute_value - (Implied) value of first attribute
+    attribute_name_n      - attribute n
+    attribute_value_n     - value of attribute n
 
   DESCRIPTION
-    Print tag with one attribute to the xml_file. Format is:
-      sbeg<stag_atr="sval">send
+    Print XML tag with any number of attribute="value" pairs to the xml_file.
+
+    Format is:
+      sbeg<tag_name first_attribute_name="first_attribute_value" ... 
+      attribute_name_n="attribute_value_n">send
   NOTE
-    sval MUST be a NULL terminated string.
-    sval string will be qouted before output.
+    Additional arguments must be present in attribute/value pairs.
+    The last argument should be the null character pointer.
+    All attribute_value arguments MUST be NULL terminated strings.
+    All attribute_value arguments will be quoted before output.
 */
 
-static void print_xml_tag1(FILE * xml_file, const char* sbeg,
-                           const char* stag_atr, const char* sval,
-                           const char* send)
+static void print_xml_tag(FILE * xml_file, const char* sbeg, const char* send, 
+                          const char* tag_name, 
+                          const char* first_attribute_name, ...)
 {
+  va_list arg_list;
+  char *attribute_name, *attribute_value;
+
   fputs(sbeg, xml_file);
-  fputs("<", xml_file);
-  fputs(stag_atr, xml_file);
-  fputs("\"", xml_file);
-  print_quoted_xml(xml_file, sval, strlen(sval));
-  fputs("\">", xml_file);
+  fputc('<', xml_file);
+  fputs(tag_name, xml_file);  
+
+  va_start(arg_list, first_attribute_name);
+  attribute_name= first_attribute_name;
+  while (attribute_name != NullS)
+  {
+    attribute_value= va_arg(arg_list, char *);
+    DBUG_ASSERT(attribute_value != NullS);
+
+    fputc(' ', xml_file);
+    fputs(attribute_name, xml_file);    
+    fputc('\"', xml_file);
+    
+    print_quoted_xml(xml_file, attribute_value, strlen(attribute_value));
+    fputc('\"', xml_file);
+
+    attribute_name= va_arg(arg_list, char *);
+  }
+  va_end(arg_list);
+
+  fputc('>', xml_file);
   fputs(send, xml_file);
   check_io(xml_file);
 }
@@ -1268,6 +1300,28 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
   }
   fputs(" />\n", xml_file);
   check_io(xml_file);
+}
+
+/*
+  Print hex value for blob data.
+
+  SYNOPSIS
+    print_blob_as_hex()
+    output_file         - output file
+    str                 - string to print
+    len                 - its length
+
+  DESCRIPTION
+    Print hex value for blob data.
+*/
+
+static void print_blob_as_hex(FILE *output_file, const char *str, ulong len)
+{
+    /* sakaik got the idea to to provide blob's in hex notation. */
+    char *ptr= str, *end= ptr + len;
+    for (; ptr < end ; ptr++)
+      fprintf(output_file, "%02X", *((uchar *)ptr));
+    check_io(output_file);
 }
 
 /*
@@ -1714,7 +1768,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       if (!opt_xml)
         fprintf(sql_file, "CREATE TABLE %s (\n", result_table);
       else
-        print_xml_tag1(sql_file, "\t", "table_structure name=", table, "\n");
+        print_xml_tag(sql_file, "\t", "\n", "table_structure", "name=", table, 
+                NullS);
       check_io(sql_file);
     }
 
@@ -2283,8 +2338,8 @@ static void dump_table(char *table, char *db)
     rownr=0;
     init_length=(uint) insert_pat.length+4;
     if (opt_xml)
-      print_xml_tag1(md_result_file, "\t", "table_data name=", table, "\n");
-
+      print_xml_tag(md_result_file, "\t", "\n", "table_data", "name=", table,
+              NullS);
     if (opt_autocommit)
     {
       fprintf(md_result_file, "set autocommit=0;\n");
@@ -2338,7 +2393,7 @@ static void dump_table(char *table, char *db)
                    field->type == MYSQL_TYPE_LONG_BLOB ||
                    field->type == MYSQL_TYPE_MEDIUM_BLOB ||
                    field->type == MYSQL_TYPE_TINY_BLOB)) ? 1 : 0;
-        if (extended_insert)
+        if (extended_insert && !opt_xml)
         {
           if (i == 0)
             dynstr_set(&extended_row,"(");
@@ -2427,18 +2482,25 @@ static void dump_table(char *table, char *db)
             {
               if (opt_xml)
               {
-                print_xml_tag1(md_result_file, "\t\t", "field name=",
-                              field->name, "");
-                print_quoted_xml(md_result_file, row[i], length);
+                if (opt_hex_blob && is_blob && length)
+                {
+                    /* Define xsi:type="xs:hexBinary" for hex encoded data */
+                    print_xml_tag(md_result_file, "\t\t", "", "field", "name=",
+                            field->name, "xsi:type=", "xs:hexBinary", NullS);
+                    print_blob_as_hex(md_result_file, row[i], length);
+                }
+                else
+                {
+                    print_xml_tag(md_result_file, "\t\t", "", "field", "name=", 
+                            field->name, NullS);
+                    print_quoted_xml(md_result_file, row[i], length);
+                }
                 fputs("</field>\n", md_result_file);
               }
               else if (opt_hex_blob && is_blob && length)
               {
-                /* sakaik got the idea to to provide blob's in hex notation. */
-                char *ptr= row[i], *end= ptr + length;
                 fputs("0x", md_result_file);
-                for (; ptr < end ; ptr++)
-                  fprintf(md_result_file, "%02X", *((uchar *)ptr));
+                print_blob_as_hex(md_result_file, row[i], length);
               }
               else
                 unescape(md_result_file, row[i], length);
@@ -2449,8 +2511,8 @@ static void dump_table(char *table, char *db)
               char *ptr= row[i];
               if (opt_xml)
               {
-                print_xml_tag1(md_result_file, "\t\t", "field name=",
-                               field->name, "");
+                print_xml_tag(md_result_file, "\t\t", "", "field", "name=",
+                        field->name, NullS);
                 fputs(!my_isalpha(charset_info, *ptr) ? ptr: "NULL",
                       md_result_file);
                 fputs("</field>\n", md_result_file);
@@ -2781,7 +2843,7 @@ static int dump_all_tables_in_db(char *database)
   if (init_dumping(database, init_dumping_tables))
     return 1;
   if (opt_xml)
-    print_xml_tag1(md_result_file, "", "database name=", database, "\n");
+    print_xml_tag(md_result_file, "", "\n", "database", "name=", database, NullS);
   if (lock_tables)
   {
     DYNAMIC_STRING query;
@@ -2858,7 +2920,7 @@ static my_bool dump_all_views_in_db(char *database)
   if (init_dumping(database, init_dumping_views))
     return 1;
   if (opt_xml)
-    print_xml_tag1(md_result_file, "", "database name=", database, "\n");
+    print_xml_tag(md_result_file, "", "\n", "database", "name=", database, NullS);
   if (lock_tables)
   {
     DYNAMIC_STRING query;
@@ -2997,7 +3059,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
      /* We shall countinue here, if --force was given */
   }
   if (opt_xml)
-    print_xml_tag1(md_result_file, "", "database name=", db, "\n");
+    print_xml_tag(md_result_file, "", "\n", "database", "name=", db, NullS);
 
   /* Dump each selected table */
   for (pos= dump_tables; pos < end; pos++)
