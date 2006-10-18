@@ -32,7 +32,8 @@ INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_srcdir)/sql -I$(top_srcdir)/sql/examples \
 			-I$(top_srcdir)/regex \
-			$(openssl_includes) @ZLIB_INCLUDES@
+			$(openssl_includes) @ZLIB_INCLUDES@ \
+			@condition_dependent_plugin_includes@
 
 noinst_LIBRARIES =	libmysqld_int.a
 pkglib_LIBRARIES =	libmysqld.a
@@ -77,6 +78,8 @@ libmysqld_int_a_SOURCES= $(libmysqld_sources) $(libmysqlsources) $(sqlsources)
 libmysqld_a_SOURCES=
 
 sqlstoragesources =	$(EXTRA_libmysqld_a_SOURCES)
+storagesources = @condition_dependent_plugin_modules@
+storagesourceslinks = @condition_dependent_plugin_links@
 
 # automake misses these
 sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
@@ -170,12 +173,19 @@ link_sources:
 	      @LN_CP_F@ `find $(srcdir)/../sql -name "$$f"` "$$f"; \
 	    done; \
 	  fi; \
+	  if test -n "$(storagesources)" ; \
+	  then \
+	    rm -f $(storagesources); \
+	    for f in $(storagesourceslinks); do \
+	      @LN_CP_F@ $(top_srcdir)/$$f . ; \
+	    done; \
+	  fi; \
 	  rm -f client_settings.h; \
 	  @LN_CP_F@ $(top_srcdir)/libmysql/client_settings.h client_settings.h
 
 
 clean-local:
-	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlstoragesources) | sed "s;\.lo;.c;g"` \
+	rm -f `echo $(sqlsources) $(libmysqlsources) $(sqlstoragesources) $(storagesources) | sed "s;\.lo;.c;g"` \
 	       $(top_srcdir)/linked_libmysqld_sources; \
 	rm -f client_settings.h
 

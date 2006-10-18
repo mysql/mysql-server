@@ -254,6 +254,29 @@ AC_DEFUN([MYSQL_PLUGIN_ACTIONS],[
 ])
 
 dnl ---------------------------------------------------------------------------
+dnl Macro: MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS
+dnl
+dnl SYNOPSIS
+dnl   MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS([name],[file name])
+dnl
+dnl DESCRIPTION
+dnl   Some modules in plugins keep dependance on structures
+dnl   declared in sql/ (THD class usually)
+dnl   That has to be fixed in the future, but until then
+dnl   we have to recompile these modules when we want to
+dnl   to compile server parts with the different #defines
+dnl   Normally it happens when we compile the embedded server
+dnl   Thus one should mark such files in his handler using this macro
+dnl    (currently only one such a file per plugin is supported)
+dnl
+dnl ---------------------------------------------------------------------------
+
+AC_DEFUN([MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS],[
+ MYSQL_REQUIRE_PLUGIN([$1])
+ m4_define([MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS_]AS_TR_CPP([$1]), [$2])
+])
+
+dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CONFIGURE_PLUGINS
 dnl
 dnl SYNOPSIS
@@ -282,6 +305,9 @@ AC_DEFUN([MYSQL_CONFIGURE_PLUGINS],[
     AC_SUBST([mysql_pg_dirs])
     AC_SUBST([mysql_se_unittest_dirs])
     AC_SUBST([mysql_pg_unittest_dirs])
+    AC_SUBST([condition_dependent_plugin_modules])
+    AC_SUBST([condition_dependent_plugin_links])
+    AC_SUBST([condition_dependent_plugin_includes])
    ])
  ])
 ])
@@ -307,6 +333,7 @@ AC_DEFUN([_MYSQL_EMIT_CHECK_PLUGIN],[
   [MYSQL_PLUGIN_DYNAMIC_]AS_TR_CPP([$1]),
   [MYSQL_PLUGIN_MANDATORY_]AS_TR_CPP([$1]),
   [MYSQL_PLUGIN_DISABLED_]AS_TR_CPP([$1]),
+  [MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS_]AS_TR_CPP([$1]),
   [MYSQL_PLUGIN_ACTIONS_]AS_TR_CPP([$1])
  )
 ])
@@ -318,9 +345,9 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
  AC_MSG_CHECKING([whether to use ]$3)
  mysql_use_plugin_dir=""
  m4_ifdef([$10],[
-  if test "X[$mysql_plugin_]$2" = Xyes -a \
-          "X[$with_plugin_]$2" != Xno -o \
-          "X[$with_plugin_]$2" = Xyes; then
+  if test "x[$mysql_plugin_]$2" = Xyes -a \
+          "x[$with_plugin_]$2" != Xno -o \
+          "x[$with_plugin_]$2" = Xyes; then
     AC_MSG_RESULT([error])
     AC_MSG_ERROR([disabled])
   fi
@@ -346,6 +373,11 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
        ])
        AC_SUBST([plugin_]$2[_shared_target], "$8")
        AC_SUBST([plugin_]$2[_static_target], [""])
+       m4_ifdef([$11],[
+        condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp($11, [[^/]+$], [\&])"
+        condition_dependent_plugin_links="$condition_dependent_plugin_links $6/$11"
+        condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp($11, [^.+[/$]], [\&])"
+       ])
        [with_plugin_]$2=yes
        AC_MSG_RESULT([plugin])
        m4_ifdef([$6],[
