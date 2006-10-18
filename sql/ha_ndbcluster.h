@@ -673,7 +673,7 @@ class ha_ndbcluster: public handler
 
   bool get_error_message(int error, String *buf);
   ha_rows records();
-  void info(uint);
+  int info(uint);
   void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
@@ -878,7 +878,7 @@ private:
   int check_ndb_connection(THD* thd= current_thd);
 
   void set_rec_per_key();
-  void records_update();
+  int records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
