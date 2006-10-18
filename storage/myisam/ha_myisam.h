@@ -99,7 +99,7 @@ class ha_myisam: public handler
   int rnd_pos(byte * buf, byte *pos);
   int restart_rnd_next(byte *buf, byte *pos);
   void position(const byte *record);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset(void);

@@ -469,11 +469,13 @@ ha_rows ha_ndbcluster::records()
   DBUG_RETURN(retval + info->no_uncommitted_rows_count);
 }
 
-void ha_ndbcluster::records_update()
+int ha_ndbcluster::records_update()
 {
   if (m_ha_not_exact_count)
-    return;
+    return 0;
   DBUG_ENTER("ha_ndbcluster::records_update");
+  int result= 0;
+
   struct Ndb_local_table_statistics *info= m_table_info;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
                       ((const NDBTAB *)m_table)->getTableId(),
@@ -483,7 +485,7 @@ void ha_ndbcluster::records_update()
     Ndb *ndb= get_ndb();
     struct Ndb_statistics stat;
     ndb->setDatabaseName(m_dbname);
-    if (ndb_get_table_statistics(ndb, m_table, &stat) == 0)
+    if ((result= ndb_get_table_statistics(ndb, m_table, &stat)) == 0)
     {
       stats.mean_rec_length= stat.row_size;
       stats.data_file_length= stat.fragment_memory;
@@ -496,7 +498,7 @@ void ha_ndbcluster::records_update()
       info->no_uncommitted_rows_count= 0;
   }
   stats.records= info->records+ info->no_uncommitted_rows_count;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(result);
 }
 
 void ha_ndbcluster::no_uncommitted_rows_execute_failure()
@@ -3649,8 +3651,9 @@ void ha_ndbcluster::position(const byte *record)
 }
 
 
-void ha_ndbcluster::info(uint flag)
+int ha_ndbcluster::info(uint flag)
 {
+  int result= 0;
   DBUG_ENTER("info");
   DBUG_PRINT("enter", ("flag: %d", flag));
   
@@ -3668,18 +3671,18 @@ void ha_ndbcluster::info(uint flag)
       if (m_ha_not_exact_count)
         stats.records= 100;
       else
-        records_update();
+	result= records_update();
     }
     else
     {
       if ((my_errno= check_ndb_connection()))
-        DBUG_VOID_RETURN;
+        DBUG_RETURN(my_errno);
       Ndb *ndb= get_ndb();
       ndb->setDatabaseName(m_dbname);
       struct Ndb_statistics stat;
       ndb->setDatabaseName(m_dbname);
       if (current_thd->variables.ndb_use_exact_count &&
-          ndb_get_table_statistics(ndb, m_table, &stat) == 0)
+          (result= ndb_get_table_statistics(ndb, m_table, &stat)) == 0)
       {
         stats.mean_rec_length= stat.row_size;
         stats.data_file_length= stat.fragment_memory;
@@ -3723,7 +3726,11 @@ void ha_ndbcluster::info(uint flag)
         stats.auto_increment_value= (ulonglong)auto_increment_value64;
     }
   }
-  DBUG_VOID_RETURN;
+
+  if(result == -1)
+    result= HA_ERR_NO_CONNECTION;
+
+  DBUG_RETURN(result);
 }
 
 
