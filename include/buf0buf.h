@@ -132,9 +132,9 @@ UNIV_INLINE
 byte*
 buf_frame_copy(
 /*===========*/
-				/* out: buf */
-	byte*		buf,	/* in: buffer to copy to */
-	buf_frame_t*	frame);	/* in: buffer frame */
+					/* out: buf */
+	byte*			buf,	/* in: buffer to copy to */
+	const buf_frame_t*	frame);	/* in: buffer frame */
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen,
 to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
@@ -618,6 +618,7 @@ buf_block_align(
 /*============*/
 			/* out: pointer to block */
 	byte*	ptr);	/* in: pointer to a frame */
+#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
@@ -628,6 +629,7 @@ buf_frame_get_page_zip(
 			/* out: compressed page descriptor, or NULL */
 	byte*	ptr)	/* in: pointer to the page */
 	__attribute((const));
+#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 /************************************************************************
 This function is used to get info if there is an io operation
 going on on a buffer page. */

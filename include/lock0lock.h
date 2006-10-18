@@ -10,6 +10,7 @@ Created 5/7/1996 Heikki Tuuri
 #define lock0lock_h
 
 #include "univ.i"
+#include "buf0types.h"
 #include "trx0types.h"
 #include "rem0types.h"
 #include "dict0types.h"
@@ -250,6 +251,7 @@ lock_rec_insert_check_and_lock(
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
 				does nothing */
 	rec_t*		rec,	/* in: record after which to insert */
+	buf_block_t*	block,	/* in: buffer block of rec */
 	dict_index_t*	index,	/* in: index */
 	que_thr_t*	thr,	/* in: query thread */
 	ibool*		inherit);/* out: set to TRUE if the new inserted
@@ -289,6 +291,7 @@ lock_sec_rec_modify_check_and_lock(
 				NOTE: as this is a secondary index, we
 				always have to modify the clustered index
 				record first: see the comment below */
+	buf_block_t*	block,	/* in: buffer block of rec */
 	dict_index_t*	index,	/* in: secondary index */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************

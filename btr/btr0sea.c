@@ -464,7 +464,7 @@ btr_search_info_update_slow(
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	block = buf_block_align(btr_cur_get_rec(cursor));
+	block = btr_cur_get_block(cursor);
 
 	/* NOTE that the following two function calls do NOT protect
 	info or block->n_fields etc. with any semaphore, to save CPU time!
@@ -789,7 +789,7 @@ btr_search_guess_on_hash(
 	ut_ad(block->state == BUF_BLOCK_FILE_PAGE);
 	ut_ad(page_rec_is_user_rec(rec));
 
-	btr_cur_position(index, rec, cursor);
+	btr_cur_position(index, rec, block, cursor);
 
 	/* Check the validity of the guess within the page */
 

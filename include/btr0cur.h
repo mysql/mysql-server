@@ -36,12 +36,29 @@ btr_cur_get_page_cur(
 				/* out: pointer to page cursor component */
 	btr_cur_t*	cursor);/* in: tree cursor */
 /*************************************************************
+Returns the buffer block on which the tree cursor is positioned. */
+UNIV_INLINE
+buf_block_t*
+btr_cur_get_block(
+/*==============*/
+				/* out: pointer to buffer block */
+	btr_cur_t*	cursor);/* in: tree cursor */
+/*************************************************************
 Returns the record pointer of a tree cursor. */
 UNIV_INLINE
 rec_t*
 btr_cur_get_rec(
 /*============*/
 				/* out: pointer to record */
+	btr_cur_t*	cursor);/* in: tree cursor */
+/*************************************************************
+Returns the compressed page on which the tree cursor is positioned. */
+UNIV_INLINE
+page_zip_des_t*
+btr_cur_get_page_zip(
+/*=================*/
+				/* out: pointer to compressed page,
+				or NULL if the page is not compressed */
 	btr_cur_t*	cursor);/* in: tree cursor */
 /*************************************************************
 Invalidates a tree cursor by setting record pointer to NULL. */
@@ -74,6 +91,7 @@ btr_cur_position(
 /*=============*/
 	dict_index_t*	index,	/* in: index */
 	rec_t*		rec,	/* in: record in tree */
+	buf_block_t*	block,	/* in: buffer block of rec */
 	btr_cur_t*	cursor);/* in: cursor */
 /************************************************************************
 Searches an index tree and positions a tree cursor on a given level.
@@ -577,6 +595,9 @@ to know struct size! */
 struct btr_cur_struct {
 	dict_index_t*	index;		/* index where positioned */
 	page_cur_t	page_cur;	/* page cursor */
+	buf_block_t*	page_block;	/* buffer pool block were
+					cursor is positioned; needed
+					to avoid buf_block_align() */
 	page_t*		left_page;	/* this field is used to store
 					a pointer to the left neighbor
 					page, in the cases

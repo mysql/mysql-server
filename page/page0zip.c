@@ -3504,13 +3504,14 @@ page_zip_reorganize(
 				/* out: TRUE on success, FALSE on failure;
 				page and page_zip will be left intact
 				on failure. */
-	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
-				m_start, m_end */
-	page_t*		page,	/* in/out: uncompressed page */
+	buf_block_t*	block,	/* in/out: page with compressed page;
+				on the compressed page, in: size;
+				out: data, n_blobs, m_start, m_end */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction */
 {
-	buf_block_t*	block;
+	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
+	page_t*		page		= buf_block_get_frame(block);
 	buf_block_t*	temp_block;
 	page_t*		temp_page;
 	ulint		log_mode;
@@ -3531,7 +3532,6 @@ page_zip_reorganize(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	block = buf_block_align(page);
 	page_create(block, mtr, dict_table_is_comp(index->table));
 	block->check_index_page_at_flush = TRUE;
 

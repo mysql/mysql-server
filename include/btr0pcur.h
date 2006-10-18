@@ -371,6 +371,14 @@ btr_pcur_get_page(
 				/* out: pointer to the page */
 	btr_pcur_t*	cursor);/* in: persistent cursor */
 /*************************************************************
+Returns the buffer block of a persistent cursor. */
+UNIV_INLINE
+buf_block_t*
+btr_pcur_get_block(
+/*===============*/
+				/* out: pointer to the block */
+	btr_pcur_t*	cursor);/* in: persistent cursor */
+/*************************************************************
 Returns the record of a persistent cursor. */
 UNIV_INLINE
 rec_t*

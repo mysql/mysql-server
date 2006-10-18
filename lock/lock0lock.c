@@ -4926,6 +4926,7 @@ lock_rec_insert_check_and_lock(
 	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
 				does nothing */
 	rec_t*		rec,	/* in: record after which to insert */
+	buf_block_t*	block,	/* in: buffer block of rec */
 	dict_index_t*	index,	/* in: index */
 	que_thr_t*	thr,	/* in: query thread */
 	ibool*		inherit)/* out: set to TRUE if the new inserted
@@ -4968,7 +4969,7 @@ lock_rec_insert_check_and_lock(
 		if (!dict_index_is_clust(index)) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(page_align(rec),
-					       buf_frame_get_page_zip(rec),
+					       buf_block_get_page_zip(block),
 					       thr_get_trx(thr)->id);
 		}
 
@@ -5006,7 +5007,7 @@ lock_rec_insert_check_and_lock(
 	if ((err == DB_SUCCESS) && !dict_index_is_clust(index)) {
 		/* Update the page max trx id field */
 		page_update_max_trx_id(page_align(rec),
-				       buf_frame_get_page_zip(rec),
+				       buf_block_get_page_zip(block),
 				       thr_get_trx(thr)->id);
 	}
 
@@ -5142,6 +5143,7 @@ lock_sec_rec_modify_check_and_lock(
 				NOTE: as this is a secondary index, we
 				always have to modify the clustered index
 				record first: see the comment below */
+	buf_block_t*	block,	/* in: buffer block of rec */
 	dict_index_t*	index,	/* in: secondary index */
 	que_thr_t*	thr)	/* in: query thread */
 {
@@ -5186,7 +5188,7 @@ lock_sec_rec_modify_check_and_lock(
 	if (err == DB_SUCCESS) {
 		/* Update the page max trx id field */
 		page_update_max_trx_id(page_align(rec),
-				       buf_frame_get_page_zip(rec),
+				       buf_block_get_page_zip(block),
 				       thr_get_trx(thr)->id);
 	}
 

@@ -19,6 +19,18 @@ btr_cur_get_page_cur(
 {
 	return(&(cursor->page_cur));
 }
+/*************************************************************
+Returns the buffer block on which the tree cursor is positioned. */
+UNIV_INLINE
+buf_block_t*
+btr_cur_get_block(
+/*==============*/
+				/* out: pointer to buffer block */
+	btr_cur_t*	cursor)	/* in: tree cursor */
+{
+	ut_ad(page_align(cursor->page_cur.rec) == cursor->page_block->frame);
+	return(cursor->page_block);
+}
 
 /*************************************************************
 Returns the record pointer of a tree cursor. */
@@ -29,7 +41,21 @@ btr_cur_get_rec(
 				/* out: pointer to record */
 	btr_cur_t*	cursor)	/* in: tree cursor */
 {
+	ut_ad(page_align(cursor->page_cur.rec) == cursor->page_block->frame);
 	return(page_cur_get_rec(&(cursor->page_cur)));
+}
+
+/*************************************************************
+Returns the compressed page on which the tree cursor is positioned. */
+UNIV_INLINE
+page_zip_des_t*
+btr_cur_get_page_zip(
+/*=================*/
+				/* out: pointer to compressed page,
+				or NULL if the page is not compressed */
+	btr_cur_t*	cursor)	/* in: tree cursor */
+{
+	return(buf_block_get_page_zip(btr_cur_get_block(cursor)));
 }
 
 /*************************************************************
@@ -41,6 +67,7 @@ btr_cur_invalidate(
 	btr_cur_t*	cursor)	/* in: tree cursor */
 {
 	page_cur_invalidate(&(cursor->page_cur));
+	cursor->page_block = NULL;
 }
 
 /*************************************************************
@@ -75,9 +102,13 @@ btr_cur_position(
 /*=============*/
 	dict_index_t*	index,	/* in: index */
 	rec_t*		rec,	/* in: record in tree */
-	btr_cur_t*	cursor)	/* in: cursor */
+	buf_block_t*	block,	/* in: buffer block of rec */
+	btr_cur_t*	cursor)	/* out: cursor */
 {
+	ut_ad(page_align(rec) == buf_block_get_frame(block));
+
 	page_cur_position(rec, btr_cur_get_page_cur(cursor));
+	cursor->page_block = block;
 
 	cursor->index = index;
 }
