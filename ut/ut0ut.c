@@ -394,7 +394,10 @@ done:
 }
 
 /**************************************************************************
-Outputs a NUL-terminated string, quoted as an SQL identifier. */
+Outputs a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier. */
 
 void
 ut_print_name(
@@ -409,7 +412,10 @@ ut_print_name(
 }
 
 /**************************************************************************
-Outputs a fixed-length string, quoted as an SQL identifier. */
+Outputs a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier. */
 
 void
 ut_print_namel(
@@ -424,7 +430,7 @@ ut_print_namel(
 #ifdef UNIV_HOTBACKUP
 	fwrite(name, 1, namelen, f);
 #else
-	char*	slash = strchr(name, '/');
+	char*	slash = memchr(name, '/', namelen);
 
 	if (UNIV_LIKELY_NULL(slash)) {
 		/* Print the database name and table name separately. */

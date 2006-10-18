@@ -218,7 +218,10 @@ ut_print_filename(
 struct trx_struct;
 
 /**************************************************************************
-Outputs a NUL-terminated string, quoted as an SQL identifier. */
+Outputs a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier. */
 
 void
 ut_print_name(
@@ -230,7 +233,10 @@ ut_print_name(
 	const char*	name);	/* in: name to print */
 
 /**************************************************************************
-Outputs a fixed-length string, quoted as an SQL identifier. */
+Outputs a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier. */
 
 void
 ut_print_namel(
