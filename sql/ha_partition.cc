@@ -4241,7 +4241,7 @@ void ha_partition::include_partition_fields_in_used_fields()
       retrieving statistics data.
 */
 
-void ha_partition::info(uint flag)
+int ha_partition::info(uint flag)
 {
   handler *file, **file_array;
   DBUG_ENTER("ha_partition:info");
@@ -4405,7 +4405,7 @@ void ha_partition::info(uint flag)
 	stats.update_time= file->stats.update_time;
     } while (*(++file_array));
   }
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 

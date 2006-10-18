@@ -189,7 +189,7 @@ public:
   /* This is required for SQL layer to know that we support autorepair */
   bool auto_repair() const { return 1; }
   void position(const byte *record);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int delete_all_rows(void);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
