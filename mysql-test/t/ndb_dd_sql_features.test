@@ -480,6 +480,7 @@ select length(@x0),length(@b2),length(@d2) from dual;
  
  INSERT INTO test.t1 values(1,@vc1,@d1);
  INSERT INTO test.t1 values(2,@vc2,@d2);
+ --replace_column 9 #
  explain SELECT * from test.t1 WHERE a1 = 1;
 
  SELECT a1,length(a2),substr(a2,1+2*900,2),length(a3),substr(a3,1+3*900,3)
