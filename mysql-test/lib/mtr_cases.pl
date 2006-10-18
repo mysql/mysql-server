@@ -59,7 +59,9 @@ sub collect_test_cases ($) {
 
   if ( @::opt_cases )
   {
-    foreach my $tname ( @::opt_cases ) { # Run in specified order, no sort
+    foreach my $tname ( @::opt_cases )
+    {
+      # Run in specified order, no sort
       my $elem= undef;
       my $component_id= undef;
 
@@ -85,7 +87,7 @@ sub collect_test_cases ($) {
 
       # If target component is known, check that the specified test case
       # exists.
-      # 
+      #
       # Otherwise, try to guess the target component.
 
       if ( $component_id )
@@ -127,7 +129,8 @@ sub collect_test_cases ($) {
   }
   else
   {
-    foreach my $elem ( sort readdir(TESTDIR) ) {
+    foreach my $elem ( sort readdir(TESTDIR) )
+    {
       my $component_id= undef;
       my $tname= undef;
 
@@ -144,7 +147,9 @@ sub collect_test_cases ($) {
         next;
       }
 
-      next if $::opt_do_test and ! defined mtr_match_prefix($elem,$::opt_do_test);
+      # Skip tests that does not match the --do-test= filter
+      next if $::opt_do_test and
+	! defined mtr_match_prefix($elem,$::opt_do_test);
 
       collect_one_test_case($testdir,$resdir,$tname,$elem,$cases,\%disabled,
         $component_id);
@@ -152,7 +157,7 @@ sub collect_test_cases ($) {
     closedir TESTDIR;
   }
 
-  # Reorder the test cases in an order that wil make them faster to run
+  # Reorder the test cases in an order that will make them faster to run
   if ( $::opt_reorder )
   {
 
@@ -305,40 +310,6 @@ sub collect_one_test_case($$$$$$$) {
     # Default, federated uses the first slave as it's federated database
     $tinfo->{'slave_num'}= 1;
   }
-
-  if ( $::opt_with_ndbcluster or defined mtr_match_substring($tname,"ndb") )
-  {
-    # This is an ndb test or all tests should be run with ndb cluster started
-    $tinfo->{'ndb_test'}= 1;
-    if ( ! $::opt_ndbcluster_supported )
-    {
-      # Ndb is not supported, skip them
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster support";
-      return;
-    }
-    elsif ( $::opt_skip_ndbcluster )
-    {
-      # All ndb test's should be skipped
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster tests(--skip-ndbcluster)";
-      return;
-    }
-  }
-  else
-  {
-    # This is not a ndb test
-    $tinfo->{'ndb_test'}= 0;
-    if ( $::opt_with_ndbcluster_only )
-    {
-      # Only the ndb test should be run, all other should be skipped
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "Only ndbcluster tests(--with-ndbcluster-only)";
-      return;
-    }
-  }
-
-  # FIXME what about embedded_server + ndbcluster, skip ?!
 
   my $master_opt_file= "$testdir/$tname-master.opt";
   my $slave_opt_file=  "$testdir/$tname-slave.opt";
@@ -550,6 +521,37 @@ sub collect_one_test_case($$$$$$$) {
       $tinfo->{'comment'}= "Test need debug binaries";
       return;
     }
+
+    if ( $tinfo->{'ndb_test'} )
+    {
+      # This is a NDB test
+      if ( ! $::glob_ndbcluster_supported )
+      {
+	# Ndb is not supported, skip it
+	$tinfo->{'skip'}= 1;
+	$tinfo->{'comment'}= "No ndbcluster support";
+	return;
+      }
+      elsif ( $::opt_skip_ndbcluster )
+      {
+	# All ndb test's should be skipped
+	$tinfo->{'skip'}= 1;
+	$tinfo->{'comment'}= "No ndbcluster tests(--skip-ndbcluster)";
+	return;
+      }
+    }
+    else
+    {
+      # This is not a ndb test
+      if ( $::opt_with_ndbcluster_only )
+      {
+	# Only the ndb test should be run, all other should be skipped
+	$tinfo->{'skip'}= 1;
+	$tinfo->{'comment'}= "Only ndbcluster tests(--with-ndbcluster-only)";
+	return;
+      }
+    }
+
   }
 }
 
@@ -563,6 +565,7 @@ our @tags=
  ["include/have_binlog_format_statement.inc", "binlog_format", "stmt"],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
+ ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_ndb_extra.inc", "ndb_extra", 1],
  ["require_manager", "require_manager", 1],
 );
