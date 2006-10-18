@@ -2913,6 +2913,7 @@ sub run_testcase ($) {
   # ----------------------------------------------------------------------
   if ( $opt_start_and_exit or $opt_start_dirty )
   {
+    mtr_timer_stop_all($glob_timers);
     mtr_report("\nServers started, exiting");
     exit(0);
   }
