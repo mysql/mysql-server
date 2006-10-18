@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-//#define EXTRA_VERBOSE
+#undef EXTRA_VERBOSE
 
 #include <tap.h>
 
@@ -24,7 +24,7 @@
 #include <lf.h>
 #include "../lockman.h"
 
-#define Nlos 10
+#define Nlos 100
 LOCK_OWNER loarray[Nlos];
 pthread_mutex_t mutexes[Nlos];
 pthread_cond_t conds[Nlos];
@@ -51,8 +51,7 @@ LOCK_OWNER *loid2lo(uint16 loid)
 #define lock_ok_a(O,R,L) test_lock(O,R,L,"",GOT_THE_LOCK)
 #define lock_ok_i(O,R,L) test_lock(O,R,L,"",GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE)
 #define lock_ok_l(O,R,L) test_lock(O,R,L,"",GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE)
-#define lock_conflict(O,R,L) test_lock(O,R,L,"cannot ",DIDNT_GET_THE_LOCK); \
-                             unlock_all(O)
+#define lock_conflict(O,R,L) test_lock(O,R,L,"cannot ",DIDNT_GET_THE_LOCK);
 
 void test_lockman_simple()
 {
@@ -64,7 +63,8 @@ void test_lockman_simple()
   lock_ok_a(1, 1, X);
   lock_ok_i(2, 2, IX);
   /* failures */
-  lock_conflict(2,1,X); /* this removes all locks of lo2 */
+  lock_conflict(2,1,X);
+  unlock_all(2);
   lock_ok_a(1,2,S);
   lock_ok_a(1,2,IS);
   lock_ok_a(1,2,LS);
@@ -72,8 +72,36 @@ void test_lockman_simple()
   lock_ok_a(2,3,LS);
   lock_ok_i(1,3,IX);
   lock_ok_l(2,3,IS);
-  lockman_release_locks(&lockman, loid2lo(1));
-  lockman_release_locks(&lockman, loid2lo(2));
+  unlock_all(1);
+  unlock_all(2);
+
+  lock_ok_i(1,1,IX);
+  lock_conflict(2,1,S);
+  lock_ok_a(1,1,LS);
+  unlock_all(1);
+  unlock_all(2);
+
+  lock_ok_i(1,1,IX);
+  lock_ok_a(2,1,LS);
+  lock_ok_a(1,1,LS);
+  lock_ok_i(1,1,IX);
+  lock_ok_i(3,1,IS);
+  unlock_all(1);
+  unlock_all(2);
+  unlock_all(3);
+
+  lock_ok_i(1,4,IS);
+  lock_ok_i(2,4,IS);
+  lock_ok_i(3,4,IS);
+  lock_ok_a(3,4,LS);
+  lock_ok_i(4,4,IS);
+  lock_conflict(4,4,IX);
+  lock_conflict(2,4,IX);
+  lock_ok_a(1,4,LS);
+  unlock_all(1);
+  unlock_all(2);
+  unlock_all(3);
+  unlock_all(4);
 
 }
 
@@ -82,11 +110,13 @@ pthread_mutex_t rt_mutex;
 pthread_cond_t rt_cond;
 int rt_num_threads;
 int litmus;
+int thread_number= 0, timeouts=0;
 void run_test(const char *test, pthread_handler handler, int n, int m)
 {
   pthread_t t;
   ulonglong now= my_getsystime();
 
+  thread_number= timeouts= 0;
   litmus= 0;
 
   diag("Testing %s with %d threads, %d iterations... ", test, n, m);
@@ -100,13 +130,12 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
   ok(litmus == 0, "tested %s in %g secs (%d)", test, ((double)now)/1e7, litmus);
 }
 
-int thread_number= 0, timeouts=0;
-#define Nrows 1000
-#define Ntables 10
-#define TABLE_LOCK_RATIO 10
+int Nrows= 100;
+int Ntables= 10;
+int table_lock_ratio= 10;
 enum lock_type lock_array[6]={S,X,LS,LX,IS,IX};
 char *lock2str[6]={"S","X","LS","LX","IS","IX"};
-char *res2str[6]={
+char *res2str[4]={
   "DIDN'T GET THE LOCK",
   "GOT THE LOCK",
   "GOT THE LOCK NEED TO LOCK A SUBRESOURCE",
@@ -128,10 +157,11 @@ pthread_handler_t test_lockman(void *arg)
     row=  x % Nrows + Ntables;
     table= row % Ntables;
     locklevel= (x/Nrows) & 3;
-    if ((x/Nrows/4) % TABLE_LOCK_RATIO == 0)
+    if (table_lock_ratio && (x/Nrows/4) % table_lock_ratio == 0)
     { /* table lock */
       res= lockman_getlock(&lockman, lo, table, lock_array[locklevel]);
-      DIAG(("loid=%2d, table %d lock %s, res=%s", loid, table, lock2str[locklevel], res2str[res]));
+      DIAG(("loid=%2d, table %d lock %s, res=%s", loid, table,
+            lock2str[locklevel], res2str[res]));
       if (res == DIDNT_GET_THE_LOCK)
       {
         lockman_release_locks(&lockman, lo);
@@ -145,7 +175,8 @@ pthread_handler_t test_lockman(void *arg)
     { /* row lock */
       locklevel&= 1;
       res= lockman_getlock(&lockman, lo, table, lock_array[locklevel + 4]);
-      DIAG(("loid=%2d, row %d lock %s, res=%s", loid, row, lock2str[locklevel+4], res2str[res]));
+      DIAG(("loid=%2d, row %d lock %s, res=%s", loid, row,
+            lock2str[locklevel+4], res2str[res]));
       switch (res)
       {
       case DIDNT_GET_THE_LOCK:
@@ -159,7 +190,8 @@ pthread_handler_t test_lockman(void *arg)
         /* not implemented, so take a regular lock */
       case GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE:
         res= lockman_getlock(&lockman, lo, row, lock_array[locklevel]);
-        DIAG(("loid=%2d, ROW %d lock %s, res=%s", loid, row, lock2str[locklevel], res2str[res]));
+        DIAG(("loid=%2d, ROW %d lock %s, res=%s", loid, row,
+              lock2str[locklevel], res2str[res]));
         if (res == DIDNT_GET_THE_LOCK)
         {
           lockman_release_locks(&lockman, lo);
@@ -196,7 +228,7 @@ int main()
 
   my_init();
 
-  plan(14);
+  plan(31);
 
   if (my_atomic_initialize())
     return exit_status();
@@ -222,10 +254,20 @@ int main()
 
   test_lockman_simple();
 
-#define CYCLES 100
+#define CYCLES 1000
 #define THREADS Nlos /* don't change this line */
 
+  /* mixed load, stress-test with random locks */
+  Nrows= 100;
+  Ntables= 10;
+  table_lock_ratio= 10;
   run_test("lockman", test_lockman, THREADS,CYCLES);
+
+  /* "real-life" simulation - many rows, no table locks */
+  Nrows= 1000000;
+  Ntables= 10;
+  table_lock_ratio= 0;
+  run_test("lockman", test_lockman, THREADS,10000);
 
   for (i= 0; i < Nlos; i++)
   {
@@ -235,7 +277,12 @@ int main()
     lf_pinbox_put_pins(loarray[i].pins);
   }
 
-  lockman_destroy(&lockman);
+  {
+    ulonglong now= my_getsystime();
+    lockman_destroy(&lockman);
+    now= my_getsystime()-now;
+    diag("lockman_destroy: %g", ((double)now)/1e7);
+  }
 
   pthread_mutex_destroy(&rt_mutex);
   pthread_cond_destroy(&rt_cond);

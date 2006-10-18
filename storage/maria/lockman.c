@@ -1,4 +1,4 @@
-// TODO lock escalation, instant duration locks
+// TODO instant duration locks
 // automatically place S instead of LS if possible
 /*
   TODO optimization: table locks - they have completely
@@ -21,6 +21,94 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  Generic Lock Manager
+
+  Lock manager handles locks on "resources", a resource must be uniquely
+  identified by a 64-bit number. Lock manager itself does not imply
+  anything about the nature of a resource - it can be a row, a table, a
+  database, or just anything.
+
+  Locks belong to "lock owners". A Lock owner is uniquely identified by a
+  16-bit number. A function loid2lo must be provided by the application
+  that takes such a number as an argument and returns a LOCK_OWNER
+  structure.
+
+  Lock levels are completely defined by three tables. Lock compatibility
+  matrix specifies which locks can be held at the same time on a resource.
+  Lock combining matrix specifies what lock level has the same behaviour as
+  a pair of two locks of given levels. getlock_result matrix simplifies
+  intention locking and lock escalation for an application, basically it
+  defines which locks are intention locks and which locks are "loose"
+  locks.  It is only used to provide better diagnostics for the
+  application, lock manager itself does not differentiate between normal,
+  intention, and loose locks.
+
+  Internally lock manager is based on a lock-free hash, see lf_hash.c for
+  details.  All locks are stored in a hash, with a resource id as a search
+  key, so all locks for the same resource will be considered collisions and
+  will be put in a one (lock-free) linked list.  The main lock-handling
+  logic is in the inner loop that searches for a lock in such a linked
+  list - lockfind().
+
+  This works as follows. Locks generally are added to the end of the list
+  (with one exception, see below). When scanning the list it is always
+  possible to determine what locks are granted (active) and what locks are
+  waiting - first lock is obviously active, the second is active if it's
+  compatible with the first, and so on, a lock is active if it's compatible
+  with all previous locks and all locks before it are also active.
+  To calculate the "compatible with all previous locks" all locks are
+  accumulated in prev_lock variable using lock_combining_matrix.
+
+  Lock upgrades: when a thread that has a lock on a given resource,
+  requests a new lock on the same resource and the old lock is not enough
+  to satisfy new lock requirements (which is defined by
+  lock_combining_matrix[old_lock][new_lock] != old_lock), a new lock is
+  placed in the list. Depending on other locks it is immediately active or
+  it will wait for other locks. Here's an exception to "locks are added
+  to the end" rule - upgraded locks are added after the last active lock
+  but before all waiting locks. Old lock (the one we upgraded from) is
+  not removed from the list, indeed we may need to return to it later if
+  the new lock was in a savepoint that gets rolled back. So old lock is
+  marked as "ignored" (IGNORE_ME flag). New lock gets an UPGRADED flag.
+
+  Loose locks add an important exception to the above. Loose locks do not
+  always commute with other locks. In the list IX-LS both locks are active,
+  while in the LS-IX list only the first lock is active. This creates a
+  problem in lock upgrades. If the list was IX-LS and the owner of the
+  first lock wants to place LS lock (which can be immediately granted), the
+  IX lock is upgraded to LSIX and the list becomes IX-LS-LSIX, which,
+  according to the lock compatibility matrix means that the last lock is
+  waiting - of course it all happened because IX and LS were swapped and
+  they don't commute. To work around this there's ACTIVE flag which is set
+  in every lock that never waited (was placed active), and this flag
+  overrides "compatible with all previous locks" rule.
+
+  When a lock is placed to the end of the list it's either compatible with
+  all locks and all locks are active - new lock becomes active at once, or
+  it conflicts with some of the locks, in this case in the 'blocker'
+  variable a conflicting lock is returned and the calling thread waits on a
+  pthread condition in the LOCK_OWNER structure of the owner of the
+  conflicting lock. Or a new lock is compatible with all locks, but some
+  existing locks are not compatible with previous locks (example: request IS,
+  when the list is S-IX) - that is not all locks are active. In this case a
+  first waiting lock is returned in the 'blocker' variable,
+  lockman_getlock() notices that a "blocker" does not conflict with the
+  requested lock, and "dereferences" it, to find the lock that it's waiting
+  on.  The calling thread than begins to wait on the same lock.
+
+  To better support table-row relations where one needs to lock the table
+  with an intention lock before locking the row, extended diagnostics is
+  provided.  When an intention lock (presumably on a table) is granted,
+  lockman_getlock() returns one of GOT_THE_LOCK (no need to lock the row,
+  perhaps the thread already has a normal lock on this table),
+  GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE (need to lock the row, as usual),
+  GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE (only need to check
+  whether it's possible to lock the row, but no need to lock it - perhaps
+  the thread has a loose lock on this table). This is defined by
+  getlock_result[] table.
+*/
+
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_bit.h>
@@ -35,11 +123,6 @@
 
   ') Though you can take LS lock while somebody has S lock, it makes no
   sense - it's simpler to take S lock too.
-
-  ") Strictly speaking you can take LX lock while somebody has S lock.
-  But in this case you lock no rows, because all rows are locked by this
-  somebody. So we prefer to define that LX cannot be taken when S
-  exists. Same about LX and X.
 
   1  - compatible
   0  - incompatible
@@ -107,8 +190,8 @@ static enum lock_type lock_combining_matrix[10][10]=
   Defines below help to preserve the table structure.
   I/L/A values are self explanatory
   x means the combination is possible (assert should not crash)
-    but cannot happen in row locks, only in table locks (S,X), or
-    lock escalations (LS,LX)
+    but it cannot happen in row locks, only in table locks (S,X),
+    or lock escalations (LS,LX)
 */
 #define I GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE
 #define L GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE
@@ -138,8 +221,7 @@ typedef struct lockman_lock {
   uint64 resource;
   struct lockman_lock  *lonext;
   intptr volatile link;
-  uint32 hashnr;
-//#warning TODO - remove hashnr from LOCK
+  uint32 hashnr; // TODO - remove hashnr from LOCK
   uint16 loid;
   uchar lock;              /* sizeof(uchar) <= sizeof(enum) */
   uchar flags;
@@ -147,6 +229,7 @@ typedef struct lockman_lock {
 
 #define IGNORE_ME               1
 #define UPGRADED                2
+#define ACTIVE                  4
 
 typedef struct {
   intptr volatile *prev;
@@ -171,7 +254,7 @@ static int lockfind(LOCK * volatile *head, LOCK *node,
   my_bool       cur_active, compatible, upgrading, prev_active;
   enum lock_type lock, prev_lock, cur_lock;
   uint16        loid, cur_loid;
-  int           upgraded_pairs, cur_flags, flags;
+  int           cur_flags, flags;
 
   hashnr= node->hashnr;
   resource= node->resource;
@@ -187,7 +270,6 @@ retry:
   upgrading= FALSE;
   cursor->blocker= cursor->upgrade_from= 0;
   _lf_unpin(pins, 3);
-  upgraded_pairs= 0;
   do {
     cursor->curr= PTR(*cursor->prev);
     _lf_pin(pins,1,cursor->curr);
@@ -217,28 +299,24 @@ retry:
           (cur_hashnr == hashnr && cur_resource >= resource))
       {
         if (cur_hashnr > hashnr || cur_resource > resource)
-        {
-          if (upgraded_pairs != 0)
-            goto retry;
           break;
-        }
         /* ok, we have a lock for this resource */
         DBUG_ASSERT(lock_compatibility_matrix[prev_lock][cur_lock] >= 0);
         DBUG_ASSERT(lock_compatibility_matrix[cur_lock][lock] >= 0);
-        if (cur_flags & UPGRADED)
-          upgraded_pairs++;
         if ((cur_flags & IGNORE_ME) && ! (flags & IGNORE_ME))
         {
           DBUG_ASSERT(cur_active);
-          upgraded_pairs--;
           if (cur_loid == loid)
             cursor->upgrade_from= cursor->curr;
         }
         else
         {
           prev_active= cur_active;
-          cur_active&= lock_compatibility_matrix[prev_lock][cur_lock];
-          if (upgrading && !cur_active && upgraded_pairs == 0)
+          if (cur_flags & ACTIVE)
+            DBUG_ASSERT(prev_active == TRUE);
+          else
+            cur_active&= lock_compatibility_matrix[prev_lock][cur_lock];
+          if (upgrading && !cur_active)
             break;
           if (prev_active && !cur_active)
           {
@@ -253,8 +331,14 @@ retry:
             if (lock_combining_matrix[cur_lock][lock] == cur_lock)
             {
               /* new lock is compatible */
-              return cur_active ? ALREADY_HAVE_THE_LOCK
-                                : ALREADY_HAVE_THE_REQUEST;
+              if (cur_active)
+              {
+                cursor->blocker= cursor->curr;  /* loose-locks! */
+                _lf_unpin(pins, 3);             /* loose-locks! */
+                return ALREADY_HAVE_THE_LOCK;
+              }
+              else
+                return ALREADY_HAVE_THE_REQUEST;
             }
             /* not compatible, upgrading */
             upgrading= TRUE;
@@ -268,9 +352,9 @@ retry:
               cursor->blocker= cursor->curr;
               _lf_pin(pins, 3, cursor->curr);
             }
-            prev_lock= lock_combining_matrix[prev_lock][cur_lock];
-            DBUG_ASSERT(prev_lock != N);
           }
+          prev_lock= lock_combining_matrix[prev_lock][cur_lock];
+          DBUG_ASSERT(prev_lock != N);
         }
       }
       cursor->prev= &(cursor->curr->link);
@@ -335,6 +419,10 @@ static int lockinsert(LOCK * volatile *head, LOCK *node, LF_PINS *pins,
         node->flags|= UPGRADED;
         node->lock= lock_combining_matrix[cursor.upgrade_from->lock][node->lock];
       }
+      if (!(res & NEED_TO_WAIT))
+        node->flags|= ACTIVE;
+      else
+        node->flags&= ~ACTIVE; /* if we're retrying on REPEAT_ONCE_MORE */
       node->link= (intptr)cursor.curr;
       DBUG_ASSERT(node->link != (intptr)node);
       DBUG_ASSERT(cursor.prev != &node->link);
@@ -349,13 +437,13 @@ static int lockinsert(LOCK * volatile *head, LOCK *node, LF_PINS *pins,
   _lf_unpin(pins, 1);
   _lf_unpin(pins, 2);
   /*
-    note that cursor.curr is NOT pinned on return.
-    this is ok as it's either a dummy node for initialize_bucket
+    note that blocker is not necessarily pinned here (when it's == curr).
+    this is ok as it's either a dummy node then for initialize_bucket
     and dummy nodes don't need pinning,
     or it's a lock of the same transaction for lockman_getlock,
     and it cannot be removed by another thread
   */
-  *blocker= cursor.blocker ? cursor.blocker : cursor.curr;
+  *blocker= cursor.blocker;
   return res;
 }
 
@@ -419,7 +507,7 @@ static int lockdelete(LOCK * volatile *head, LOCK *node, LF_PINS *pins)
 
 void lockman_init(LOCKMAN *lm, loid_to_lo_func *func, uint timeout)
 {
-  lf_alloc_init(&lm->alloc,sizeof(LOCK));
+  lf_alloc_init(&lm->alloc,sizeof(LOCK), offsetof(LOCK,lonext));
   lf_dynarray_init(&lm->array, sizeof(LOCK **));
   lm->size= 1;
   lm->count= 0;
@@ -516,13 +604,13 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
   res= lockinsert(el, node, pins, &blocker);
   if (res & ALREADY_HAVE)
   {
+    int r;
     old_lock= blocker->lock;
-    _lf_assert_unpin(pins, 3); /* unpin should not be needed */
     _lf_alloc_free(pins, node);
     lf_rwunlock_by_pins(pins);
-    res= getlock_result[old_lock][lock];
-    DBUG_ASSERT(res);
-    return res;
+    r= getlock_result[old_lock][lock];
+    DBUG_ASSERT(r);
+    return r;
   }
   /* a new value was added to the hash */
   csize= lm->size;
@@ -537,9 +625,8 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
     struct timespec timeout;
 
     _lf_assert_pin(pins, 3); /* blocker must be pinned here */
-    lf_rwunlock_by_pins(pins);
-
     wait_for_lo= lm->loid_to_lo(blocker->loid);
+
     /*
       now, this is tricky. blocker is not necessarily a LOCK
       we're waiting for. If it's compatible with what we want,
@@ -550,12 +637,9 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
     if (lock_compatibility_matrix[blocker->lock][lock])
     {
       blocker= wait_for_lo->all_locks;
-      lf_pin(pins, 3, blocker);
+      _lf_pin(pins, 3, blocker);
       if (blocker != wait_for_lo->all_locks)
-      {
-        lf_rwlock_by_pins(pins);
         continue;
-      }
       wait_for_lo= wait_for_lo->waiting_for;
     }
 
@@ -565,11 +649,11 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
       to an unrelated - albeit valid - LOCK_OWNER
     */
     if (!wait_for_lo)
-    {
-      /* blocker transaction has ended, short id was released */
-      lf_rwlock_by_pins(pins);
       continue;
-    }
+
+    lo->waiting_for= wait_for_lo;
+    lf_rwunlock_by_pins(pins);
+
     /*
       We lock a mutex - it may belong to a wrong LOCK_OWNER, but it must
       belong to _some_ LOCK_OWNER. It means, we can never free() a LOCK_OWNER,
@@ -587,9 +671,8 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
       lf_rwlock_by_pins(pins);
       continue;
     }
-    /* yuck. waiting */
-    lo->waiting_for= wait_for_lo;
 
+    /* yuck. waiting */
     deadline= my_getsystime() + lm->lock_timeout * 10000;
     timeout.tv_sec= deadline/10000000;
     timeout.tv_nsec= (deadline % 10000000) * 100;
@@ -607,11 +690,12 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
         Instead we're relying on the caller to abort the transaction,
         and release all locks at once - see lockman_release_locks()
       */
+      _lf_unpin(pins, 3);
       lf_rwunlock_by_pins(pins);
       return DIDNT_GET_THE_LOCK;
     }
-    lo->waiting_for= 0;
   }
+  lo->waiting_for= 0;
   _lf_assert_unpin(pins, 3); /* unpin should not be needed */
   lf_rwunlock_by_pins(pins);
   return getlock_result[lock][lock];
@@ -626,14 +710,15 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
 */
 int lockman_release_locks(LOCKMAN *lm, LOCK_OWNER *lo)
 {
-  LOCK * volatile *el, *node;
+  LOCK * volatile *el, *node, *next;
   uint bucket;
   LF_PINS *pins= lo->pins;
 
   pthread_mutex_lock(lo->mutex);
   lf_rwlock_by_pins(pins);
-  for (node= lo->all_locks; node; node= node->lonext)
+  for (node= lo->all_locks; node; node= next)
   {
+    next= node->lonext;
     bucket= calc_hash(node->resource) % lm->size;
     el= _lf_dynarray_lvalue(&lm->array, bucket);
     if (*el == NULL)
@@ -650,12 +735,12 @@ int lockman_release_locks(LOCKMAN *lm, LOCK_OWNER *lo)
 }
 
 #ifdef MY_LF_EXTRA_DEBUG
+static char *lock2str[]=
+{ "N", "S", "X", "IS", "IX", "SIX", "LS", "LX", "SLX", "LSIX" };
 /*
   NOTE
     the function below is NOT thread-safe !!!
 */
-static char *lock2str[]=
-{ "N", "S", "X", "IS", "IX", "SIX", "LS", "LX", "SLX", "LSIX" };
 void print_lockhash(LOCKMAN *lm)
 {
   LOCK *el= *(LOCK **)_lf_dynarray_lvalue(&lm->array, 0);
@@ -664,17 +749,21 @@ void print_lockhash(LOCKMAN *lm)
   {
     intptr next= el->link;
     if (el->hashnr & 1)
+    {
       printf("0x%08x { resource %llu, loid %u, lock %s",
              el->hashnr, el->resource, el->loid, lock2str[el->lock]);
+      if (el->flags & IGNORE_ME) printf(" IGNORE_ME");
+      if (el->flags & UPGRADED) printf(" UPGRADED");
+      if (el->flags & ACTIVE) printf(" ACTIVE");
+      if (DELETED(next)) printf(" ***DELETED***");
+      printf("}\n");
+    }
     else
     {
-      printf("0x%08x { dummy ", el->hashnr);
+      /*printf("0x%08x { dummy }\n", el->hashnr);*/
       DBUG_ASSERT(el->resource == 0 && el->loid == 0 && el->lock == X);
     }
-    if (el->flags & IGNORE_ME) printf(" IGNORE_ME");
-    if (el->flags & UPGRADED) printf(" UPGRADED");
-    printf("}\n");
-    el= (LOCK *)next;
+    el= PTR(next);
   }
 }
 #endif

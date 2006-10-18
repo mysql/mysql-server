@@ -154,7 +154,7 @@ pthread_handler_t test_lf_pinbox(void *arg)
 
 typedef union {
   int32 data;
-  void *not_used; /* to guarantee sizeof(TLA) >= sizeof(void *) */
+  void *not_used;
 } TLA;
 
 pthread_handler_t test_lf_alloc(void *arg)
@@ -294,7 +294,7 @@ int main()
   pthread_mutex_init(&mutex, 0);
   pthread_cond_init(&cond, 0);
   my_atomic_rwlock_init(&rwl);
-  lf_alloc_init(&lf_allocator, sizeof(TLA));
+  lf_alloc_init(&lf_allocator, sizeof(TLA), offsetof(TLA, not_used));
   lf_hash_init(&lf_hash, sizeof(int), LF_HASH_UNIQUE, 0, sizeof(int), 0,
                &my_charset_bin);
 

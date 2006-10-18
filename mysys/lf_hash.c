@@ -20,6 +20,7 @@
   TODO
      try to get rid of dummy nodes ?
      for non-unique hash, count only _distinct_ values
+     (but how to do it in lf_hash_delete ?)
 */
 #include <my_global.h>
 #include <my_sys.h>
@@ -222,7 +223,8 @@ void lf_hash_init(LF_HASH *hash, uint element_size, uint flags,
                   uint key_offset, uint key_length, hash_get_key get_key,
                   CHARSET_INFO *charset)
 {
-  lf_alloc_init(&hash->alloc,sizeof(LF_SLIST)+element_size);
+  lf_alloc_init(&hash->alloc, sizeof(LF_SLIST)+element_size,
+                offsetof(LF_SLIST, key));
   lf_dynarray_init(&hash->array, sizeof(LF_SLIST **));
   hash->size=1;
   hash->count=0;

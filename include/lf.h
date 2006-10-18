@@ -96,20 +96,21 @@ typedef void lf_pinbox_free_func(void *, void *);
 typedef struct {
   LF_DYNARRAY pinstack;
   lf_pinbox_free_func *free_func;
-  void * free_func_arg;
+  void *free_func_arg;
+  uint free_ptr_offset;
   uint32 volatile pinstack_top_ver;         /* this is a versioned pointer */
   uint32 volatile pins_in_stack;            /* number of elements in array */
 } LF_PINBOX;
 
-/* we want sizeof(LF_PINS) to be close to 128 to avoid false sharing */
+/* we want sizeof(LF_PINS) to be 128 to avoid false sharing */
 typedef struct {
   void * volatile pin[LF_PINBOX_PINS];
-  void * purgatory[LF_PURGATORY_SIZE];
   LF_PINBOX *pinbox;
+  void  *purgatory;
   uint32 purgatory_count;
   uint32 volatile link;
   char pad[128-sizeof(uint32)*2
-              -sizeof(void *)*(LF_PINBOX_PINS+LF_PURGATORY_SIZE+1)];
+              -sizeof(void *)*(LF_PINBOX_PINS+2)];
 } LF_PINS;
 
 #define lf_rwlock_by_pins(PINS)   \
@@ -147,8 +148,8 @@ typedef struct {
 #define _lf_assert_pin(PINS, PIN) assert((PINS)->pin[PIN] != 0)
 #define _lf_assert_unpin(PINS, PIN) assert((PINS)->pin[PIN]==0)
 
-void lf_pinbox_init(LF_PINBOX *pinbox, lf_pinbox_free_func *free_func,
-                    void * free_func_arg);
+void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
+                    lf_pinbox_free_func *free_func, void * free_func_arg);
 void lf_pinbox_destroy(LF_PINBOX *pinbox);
 
 lock_wrap(lf_pinbox_get_pins, LF_PINS *,
@@ -181,7 +182,7 @@ typedef struct st_lf_allocator {
   uint32 volatile mallocs;
 } LF_ALLOCATOR;
 
-void lf_alloc_init(LF_ALLOCATOR *allocator, uint size);
+void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset);
 void lf_alloc_destroy(LF_ALLOCATOR *allocator);
 uint lf_alloc_in_pool(LF_ALLOCATOR *allocator);
 #define _lf_alloc_free(PINS, PTR)   _lf_pinbox_free((PINS), (PTR))

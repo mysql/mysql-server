@@ -18,7 +18,10 @@
 #define _lockman_h
 
 /*
-  N    - "no lock", not a lock, used sometimes to simplify the code
+  Lock levels:
+  ^^^^^^^^^^^
+
+  N    - "no lock", not a lock, used sometimes internally to simplify the code
   S    - Shared
   X    - eXclusive
   IS   - Intention Shared
@@ -35,8 +38,8 @@ struct lockman_lock;
 
 typedef struct st_lock_owner LOCK_OWNER;
 struct st_lock_owner {
-  LF_PINS  *pins;
-  struct lockman_lock *all_locks;
+  LF_PINS  *pins;           /* must be allocated from lockman's pinbox       */
+  struct lockman_lock *all_locks; /* a LIFO                                  */
   LOCK_OWNER  *waiting_for;
   pthread_cond_t  *cond;    /* transactions waiting for this, wait on 'cond' */
   pthread_mutex_t *mutex;   /* mutex is required to use 'cond'               */

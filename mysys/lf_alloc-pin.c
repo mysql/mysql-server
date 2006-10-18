@@ -15,21 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /*
-  concurrent allocator based on pinning addresses
-
-  strictly speaking it's not lock-free, as it can be blocked
-  if a thread's purgatory is full and all addresses from there
-  are pinned.
-
-  But until the above happens, it's wait-free.
-
-  It can be made strictly wait-free by increasing purgatory size.
-  If it's larger than pins_in_stack*LF_PINBOX_PINS, then apocalyptical
-  condition above will never happen. But than the memory requirements
-  will be O(pins_in_stack^2).
-
-  Note, that for large purgatory sizes it makes sense to remove
-  purgatory array, and link objects in a list using embedded pointer.
+  wait-free concurrent allocator based on pinning addresses
 
   TODO test with more than 256 threads
   TODO test w/o alloca
@@ -43,15 +29,17 @@
 
 static void _lf_pinbox_real_free(LF_PINS *pins);
 
-void lf_pinbox_init(LF_PINBOX *pinbox, lf_pinbox_free_func *free_func,
-                   void *free_func_arg)
+void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
+                    lf_pinbox_free_func *free_func,void *free_func_arg)
 {
   DBUG_ASSERT(sizeof(LF_PINS) == 128);
+  DBUG_ASSERT(free_ptr_offset % sizeof(void *) == 0);
   lf_dynarray_init(&pinbox->pinstack, sizeof(LF_PINS));
-  pinbox->pinstack_top_ver=0;
-  pinbox->pins_in_stack=0;
-  pinbox->free_func=free_func;
-  pinbox->free_func_arg=free_func_arg;
+  pinbox->pinstack_top_ver= 0;
+  pinbox->pins_in_stack= 0;
+  pinbox->free_ptr_offset= free_ptr_offset;
+  pinbox->free_func= free_func;
+  pinbox->free_func_arg= free_func_arg;
 }
 
 void lf_pinbox_destroy(LF_PINBOX *pinbox)
@@ -64,58 +52,64 @@ LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
   uint32 pins, next, top_ver;
   LF_PINS *el;
 
-  top_ver=pinbox->pinstack_top_ver;
+  top_ver= pinbox->pinstack_top_ver;
   do
   {
-    if (!(pins=top_ver % LF_PINBOX_MAX_PINS))
+    if (!(pins= top_ver % LF_PINBOX_MAX_PINS))
     {
-      pins=my_atomic_add32(&pinbox->pins_in_stack, 1)+1;
-      el=(LF_PINS *)_lf_dynarray_lvalue(&pinbox->pinstack, pins);
+      pins= my_atomic_add32(&pinbox->pins_in_stack, 1)+1;
+      el= (LF_PINS *)_lf_dynarray_lvalue(&pinbox->pinstack, pins);
       break;
     }
-    el=(LF_PINS *)_lf_dynarray_value(&pinbox->pinstack, pins);
-    next=el->link;
+    el= (LF_PINS *)_lf_dynarray_value(&pinbox->pinstack, pins);
+    next= el->link;
   } while (!my_atomic_cas32(&pinbox->pinstack_top_ver, &top_ver,
                             top_ver-pins+next+LF_PINBOX_MAX_PINS));
-  el->link=pins;
-  el->purgatory_count=0;
-  el->pinbox=pinbox;
+  el->link= pins;
+  el->purgatory_count= 0;
+  el->pinbox= pinbox;
   return el;
 }
 
 void _lf_pinbox_put_pins(LF_PINS *pins)
 {
-  LF_PINBOX *pinbox=pins->pinbox;
+  LF_PINBOX *pinbox= pins->pinbox;
   uint32 top_ver, nr;
-  nr=pins->link;
+  nr= pins->link;
 #ifdef MY_LF_EXTRA_DEBUG
   {
     int i;
-    for (i=0; i < LF_PINBOX_PINS; i++)
+    for (i= 0; i < LF_PINBOX_PINS; i++)
       assert(pins->pin[i] == 0);
   }
 #endif
+  /*
+    Note - this will deadlock if other threads will wait for
+    the caller to do something after _lf_pinbox_put_pins(),
+    and they would have pinned addresses that the caller wants to free.
+    Thus: only free pins when all work is done and nobody can wait for you!!!
+  */
   while (pins->purgatory_count)
   {
     _lf_pinbox_real_free(pins);
-    if (pins->purgatory_count && my_getncpus() == 1)
+    if (pins->purgatory_count)
     {
       my_atomic_rwlock_wrunlock(&pins->pinbox->pinstack.lock);
       pthread_yield();
       my_atomic_rwlock_wrlock(&pins->pinbox->pinstack.lock);
     }
   }
-  top_ver=pinbox->pinstack_top_ver;
+  top_ver= pinbox->pinstack_top_ver;
   if (nr == pinbox->pins_in_stack)
   {
-    int32 tmp=nr;
+    int32 tmp= nr;
     if (my_atomic_cas32(&pinbox->pins_in_stack, &tmp, tmp-1))
       goto ret;
   }
 
   do
   {
-    pins->link=top_ver % LF_PINBOX_MAX_PINS;
+    pins->link= top_ver % LF_PINBOX_MAX_PINS;
   } while (!my_atomic_cas32(&pinbox->pinstack_top_ver, &top_ver,
                             top_ver-pins->link+nr+LF_PINBOX_MAX_PINS));
 ret:
@@ -127,19 +121,20 @@ static int ptr_cmp(void **a, void **b)
   return *a < *b ? -1 : *a == *b ? 0 : 1;
 }
 
+#define add_to_purgatory(PINS, ADDR)                                    \
+  do                                                                    \
+  {                                                                     \
+    *(void **)((char *)(ADDR)+(PINS)->pinbox->free_ptr_offset)=         \
+      (PINS)->purgatory;                                                \
+    (PINS)->purgatory= (ADDR);                                          \
+    (PINS)->purgatory_count++;                                          \
+  } while (0)
+
 void _lf_pinbox_free(LF_PINS *pins, void *addr)
 {
-  while (pins->purgatory_count == LF_PURGATORY_SIZE)
-  {
+  if (pins->purgatory_count % LF_PURGATORY_SIZE)
     _lf_pinbox_real_free(pins);
-    if (pins->purgatory_count == LF_PURGATORY_SIZE && my_getncpus() == 1)
-    {
-      my_atomic_rwlock_wrunlock(&pins->pinbox->pinstack.lock);
-      pthread_yield();
-      my_atomic_rwlock_wrlock(&pins->pinbox->pinstack.lock);
-    }
-  }
-  pins->purgatory[pins->purgatory_count++]=addr;
+  add_to_purgatory(pins, addr);
 }
 
 struct st_harvester {
@@ -178,11 +173,11 @@ static int match_pins(LF_PINS *el, void *addr)
 static void _lf_pinbox_real_free(LF_PINS *pins)
 {
   int npins;
-  void **addr=0;
-  void **start, **cur, **end=pins->purgatory+pins->purgatory_count;
-  LF_PINBOX *pinbox=pins->pinbox;
+  void *list;
+  void **addr;
+  LF_PINBOX *pinbox= pins->pinbox;
 
-  npins=pinbox->pins_in_stack+1;
+  npins= pinbox->pins_in_stack+1;
 
 #ifdef HAVE_ALLOCA
   /* create a sorted list of pinned addresses, to speed up searches */
@@ -190,64 +185,64 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
   {
     struct st_harvester hv;
     addr= (void **) alloca(sizeof(void *)*LF_PINBOX_PINS*npins);
-    hv.granary=addr;
-    hv.npins=npins;
+    hv.granary= addr;
+    hv.npins= npins;
     _lf_dynarray_iterate(&pinbox->pinstack,
                          (lf_dynarray_func)harvest_pins, &hv);
 
-    npins=hv.granary-addr;
+    npins= hv.granary-addr;
     if (npins)
       qsort(addr, npins, sizeof(void *), (qsort_cmp)ptr_cmp);
   }
+  else
 #endif
+    addr= 0;
 
-  start= cur= pins->purgatory;
-  end= start+pins->purgatory_count;
-  for (; cur < end; cur++)
+  list= pins->purgatory;
+  pins->purgatory= 0;
+  pins->purgatory_count= 0;
+  while (list)
   {
+    void *cur= list;
+    list= *(void **)((char *)cur+pinbox->free_ptr_offset);
     if (npins)
     {
       if (addr)
       {
         void **a,**b,**c;
-        for (a=addr, b=addr+npins-1, c=a+(b-a)/2; b-a>1; c=a+(b-a)/2)
-          if (*cur == *c)
-            a=b=c;
-          else if (*cur > *c)
-            a=c;
+        for (a= addr, b= addr+npins-1, c= a+(b-a)/2; b-a>1; c= a+(b-a)/2)
+          if (cur == *c)
+            a= b= c;
+          else if (cur > *c)
+            a= c;
           else
-            b=c;
-        if (*cur == *a || *cur == *b)
+            b= c;
+        if (cur == *a || cur == *b)
           goto found;
       }
       else
       {
         if (_lf_dynarray_iterate(&pinbox->pinstack,
-                                 (lf_dynarray_func)match_pins, *cur))
+                                 (lf_dynarray_func)match_pins, cur))
           goto found;
       }
     }
     /* not pinned - freeing */
-    pinbox->free_func(*cur, pinbox->free_func_arg);
+    pinbox->free_func(cur, pinbox->free_func_arg);
     continue;
 found:
     /* pinned - keeping */
-    *start++=*cur;
+    add_to_purgatory(pins, cur);
   }
-  pins->purgatory_count=start-pins->purgatory;
-#ifdef MY_LF_EXTRA_DEBUG
-  while (start < pins->purgatory + LF_PURGATORY_SIZE)
-    *start++=0;
-#endif
 }
 
 static void alloc_free(void *node, LF_ALLOCATOR *allocator)
 {
   void *tmp;
-  tmp=allocator->top;
+  tmp= allocator->top;
   do
   {
-    (*(void **)node)=tmp;
+    (*(void **)node)= tmp;
   } while (!my_atomic_casptr((void **)&allocator->top, (void **)&tmp, node) &&
            LF_BACKOFF);
 }
@@ -255,18 +250,18 @@ static void alloc_free(void *node, LF_ALLOCATOR *allocator)
 LF_REQUIRE_PINS(1);
 void *_lf_alloc_new(LF_PINS *pins)
 {
-  LF_ALLOCATOR *allocator=(LF_ALLOCATOR *)(pins->pinbox->free_func_arg);
+  LF_ALLOCATOR *allocator= (LF_ALLOCATOR *)(pins->pinbox->free_func_arg);
   void *node;
   for (;;)
   {
     do
     {
-      node=allocator->top;
+      node= allocator->top;
       _lf_pin(pins, 0, node);
-    } while (node !=allocator->top && LF_BACKOFF);
+    } while (node != allocator->top && LF_BACKOFF);
     if (!node)
     {
-      if (!(node=my_malloc(allocator->element_size, MYF(MY_WME|MY_ZEROFILL))))
+      if (!(node= my_malloc(allocator->element_size, MYF(MY_WME|MY_ZEROFILL))))
         goto ret;
 #ifdef MY_LF_EXTRA_DEBUG
       my_atomic_add32(&allocator->mallocs, 1);
@@ -282,27 +277,27 @@ ret:
   return node;
 }
 
-void lf_alloc_init(LF_ALLOCATOR *allocator, uint size)
+void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
 {
-  lf_pinbox_init(&allocator->pinbox,
+  lf_pinbox_init(&allocator->pinbox, free_ptr_offset,
                  (lf_pinbox_free_func *)alloc_free, allocator);
-  allocator->top=0;
-  allocator->mallocs=0;
-  allocator->element_size=size;
+  allocator->top= 0;
+  allocator->mallocs= 0;
+  allocator->element_size= size;
   DBUG_ASSERT(size >= (int)sizeof(void *));
 }
 
 void lf_alloc_destroy(LF_ALLOCATOR *allocator)
 {
-  void *el=allocator->top;
+  void *el= allocator->top;
   while (el)
   {
-    void *tmp=*(void **)el;
+    void *tmp= *(void **)el;
     my_free(el, MYF(0));
-    el=tmp;
+    el= tmp;
   }
   lf_pinbox_destroy(&allocator->pinbox);
-  allocator->top=0;
+  allocator->top= 0;
 }
 
 /*
@@ -313,7 +308,8 @@ uint lf_alloc_in_pool(LF_ALLOCATOR *allocator)
 {
   uint i;
   void *node;
-  for (node=allocator->top, i=0; node; node=*(void **)node, i++) /* no op */;
+  for (node= allocator->top, i= 0; node; node= *(void **)node, i++)
+    /* no op */;
   return i;
 }
 

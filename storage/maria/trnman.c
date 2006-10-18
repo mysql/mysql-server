@@ -128,6 +128,11 @@ static void set_short_trid(TRN *trn)
   trn->locks.loid= i;
 }
 
+/*
+  DESCRIPTION
+    start a new transaction, allocate and initialize transaction object
+    mutex and cond will be used for lock waits
+*/
 TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
 {
   TRN *trn;
@@ -148,6 +153,7 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
   trnman_active_transactions++;
 
   trn= pool;
+  /* popping an element from a stack */
   my_atomic_rwlock_wrlock(&LOCK_pool);
   while (trn && !my_atomic_casptr((void **)&pool, (void **)&trn,
                                   (void *)trn->next))
@@ -213,9 +219,12 @@ void trnman_end_trn(TRN *trn, my_bool commit)
   LF_PINS *pins= trn->pins;
 
   pthread_mutex_lock(&LOCK_trn_list);
+
+  /* remove from active list */
   trn->next->prev= trn->prev;
   trn->prev->next= trn->next;
 
+  /* if this transaction was the oldest - clean up committed list */
   if (trn->prev == &active_list_min)
   {
     TRN *t;
@@ -232,6 +241,7 @@ void trnman_end_trn(TRN *trn, my_bool commit)
     }
   }
 
+  /* add transaction to the committed list (for read-from relations) */
   if (commit && active_list_min.next != &active_list_max)
   {
     trn->commit_trid= global_trid_generator;
@@ -243,7 +253,7 @@ void trnman_end_trn(TRN *trn, my_bool commit)
     res= lf_hash_insert(&trid_to_trn, pins, &trn);
     DBUG_ASSERT(res == 0);
   }
-  else
+  else /* or free it right away */
   {
     trn->next= free_me;
     free_me= trn;
@@ -251,13 +261,13 @@ void trnman_end_trn(TRN *trn, my_bool commit)
   trnman_active_transactions--;
   pthread_mutex_unlock(&LOCK_trn_list);
 
+  /* the rest is done outside of a critical section */
   lockman_release_locks(&maria_lockman, &trn->locks);
   trn->locks.mutex= 0;
   trn->locks.cond= 0;
   my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
   my_atomic_storeptr((void **)&short_trid_to_trn[trn->locks.loid], 0);
   my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
-
 
   while (free_me) // XXX send them to the purge thread
   {
@@ -288,7 +298,7 @@ void trnman_free_trn(TRN *trn)
   do
   {
     /*
-      without volatile cast gcc-3.4.4 moved the assignment
+      without this volatile cast gcc-3.4.4 moved the assignment
       down after the loop at -O2
     */
     *(TRN * volatile *)&(trn->next)= tmp;
@@ -317,13 +327,13 @@ my_bool trnman_can_read_from(TRN *trn, TrID trid)
   LF_REQUIRE_PINS(3);
 
   if (trid < trn->min_read_from)
-    return TRUE;
+    return TRUE; /* can read */
   if (trid > trn->trid)
-    return FALSE;
+    return FALSE; /* cannot read */
 
   found= lf_hash_search(&trid_to_trn, trn->pins, &trid, sizeof(trid));
   if (!found)
-    return FALSE; /* not in the hash of committed transactions = cannot read*/
+    return FALSE; /* not in the hash of committed transactions = cannot read */
 
   can= (*found)->commit_trid < trn->trid;
   lf_unpin(trn->pins, 2);
