@@ -65,6 +65,7 @@ use IO::Socket;
 use IO::Socket::INET;
 use Data::Dumper;
 use strict;
+use warnings;
 use diagnostics;
 
 our $glob_win32_perl=  ($^O eq "MSWin32"); # ActiveState Win32 Perl
@@ -277,7 +278,7 @@ our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
 our $opt_with_ndbcluster= 0;
 our $opt_with_ndbcluster_only= 0;
-our $opt_ndbcluster_supported= 0;
+our $glob_ndbcluster_supported= 0;
 our $opt_ndb_extra_test= 0;
 our $opt_skip_master_binlog= 0;
 our $opt_skip_slave_binlog= 0;
@@ -572,10 +573,10 @@ sub command_line_setup () {
              'compress'                 => \$opt_compress,
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
+             'with-ndbcluster'          => \$opt_with_ndbcluster,
 
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
-             'with-ndbcluster'          => \$opt_with_ndbcluster,
              'with-ndbcluster-only'     => \$opt_with_ndbcluster_only,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'skip-ndbcluster-slave|skip-ndb-slave'
@@ -846,9 +847,9 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # Ndb cluster flags
   # --------------------------------------------------------------------------
-  if ( $opt_with_ndbcluster and $opt_skip_ndbcluster)
+  if ( $opt_with_ndbcluster and !$opt_bench)
   {
-    mtr_error("Can't specify both --with-ndbcluster and --skip-ndbcluster");
+    mtr_error("Can only use --with-ndbcluster togheter with --bench");
   }
 
   if ( $opt_ndbconnectstring )
@@ -1485,7 +1486,7 @@ sub environment_setup () {
  # --------------------------------------------------------------------------
   # Add the path where libndbclient can be found
   # --------------------------------------------------------------------------
-  if ( $opt_ndbcluster_supported )
+  if ( $glob_ndbcluster_supported )
   {
     push(@ld_library_paths,  "$glob_basedir/storage/ndb/src/.libs");
   }
@@ -1870,6 +1871,8 @@ sub cleanup_stale_files () {
 	rmtree(readlink($opt_vardir));
 	# Remove the entire "var" dir
 	rmtree("$opt_vardir/");
+	# Remove the "var" symlink
+	unlink($opt_vardir);
       }
       else
       {
@@ -2042,7 +2045,7 @@ sub check_ndbcluster_support ($) {
     $opt_skip_ndbcluster_slave= 1;
     return;
   }
-  $opt_ndbcluster_supported= 1;
+  $glob_ndbcluster_supported= 1;
   mtr_report("Using ndbcluster when necessary, mysqld supports it");
 
   if ( $mysql_version_id < 50100 )
@@ -2058,11 +2061,6 @@ sub check_ndbcluster_support ($) {
 
 sub ndbcluster_start_install ($) {
   my $cluster= shift;
-
-  if ( $opt_skip_ndbcluster or $glob_use_running_ndbcluster )
-  {
-    return 0;
-  }
 
   mtr_report("Installing $cluster->{'name'} Cluster");
 
@@ -2477,11 +2475,24 @@ sub mysql_install_db () {
 
   my $cluster_started_ok= 1; # Assume it can be started
 
-  if (ndbcluster_start_install($clusters->[0]) ||
-      ($max_slave_num && !$opt_skip_ndbcluster_slave &&
-       ndbcluster_start_install($clusters->[1])))
+  if ($opt_skip_ndbcluster || $glob_use_running_ndbcluster)
   {
-    mtr_warning("Failed to start install of cluster");
+    # Don't install master cluster
+  }
+  elsif (ndbcluster_start_install($clusters->[0]))
+  {
+    mtr_warning("Failed to start install of $clusters->[0]->{name}");
+    $cluster_started_ok= 0;
+  }
+
+  if ($max_slave_num == 0 ||
+      $opt_skip_ndbcluster_slave || $glob_use_running_ndbcluster_slave)
+  {
+    # Don't install slave cluster
+  }
+  elsif (ndbcluster_start_install($clusters->[1]))
+  {
+    mtr_warning("Failed to start install of $clusters->[1]->{name}");
     $cluster_started_ok= 0;
   }
 
@@ -2513,9 +2524,6 @@ sub mysql_install_db () {
       mtr_error("To continue, re-run with '--force'.");
     }
   }
-
-  # Stop clusters...
-  stop_all_servers();
 
   return 0;
 }
@@ -3592,14 +3600,14 @@ sub run_testcase_need_master_restart($)
     mtr_verbose("Restart master: Restart forced with --force-restart");
   }
   elsif ( ! $opt_skip_ndbcluster and
-	  $tinfo->{'ndb_test'} == 0 and
+	  !$tinfo->{'ndb_test'} and
 	  $clusters->[0]->{'pid'} != 0 )
   {
     $do_restart= 1;           # Restart without cluster
     mtr_verbose("Restart master: Test does not need cluster");
   }
   elsif ( ! $opt_skip_ndbcluster and
-	  $tinfo->{'ndb_test'} == 1 and
+	  $tinfo->{'ndb_test'} and
 	  $clusters->[0]->{'pid'} == 0 )
   {
     $do_restart= 1;           # Restart with cluster
@@ -4455,6 +4463,7 @@ Options to control what engine/variation to run
   skip-ssl              Dont start server with support for ssl connections
   bench                 Run the benchmark suite
   small-bench           Run the benchmarks with --small-tests --small-tables
+  with-ndbcluster       Use cluster as default table type for benchmark
 
 Options to control directories to use
   benchdir=DIR          The directory where the benchmark suite is stored
@@ -4471,7 +4480,6 @@ Options to control directories to use
 Options to control what test suites or cases to run
 
   force                 Continue to run the suite after failure
-  with-ndbcluster       Use cluster in all tests
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
   skip-ndb[cluster]     Skip all tests that need cluster
   skip-ndb[cluster]-slave Skip all tests that need a slave cluster
