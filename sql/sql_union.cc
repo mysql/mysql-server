@@ -689,7 +689,17 @@ bool st_select_lex_unit::change_result(select_subselect *result,
 
 List<Item> *st_select_lex_unit::get_unit_column_types()
 {
-  bool is_union= test(first_select()->next_select());
+  SELECT_LEX *sl= first_select();
+  bool is_union= test(sl->next_select());
+  bool is_procedure= test(sl->join->procedure);
+
+  if (is_procedure)
+  {
+    /* Types for "SELECT * FROM t1 procedure analyse()"
+       are generated during execute */
+    return &sl->join->procedure_fields_list;
+  }
+
 
   if (is_union)
   {
@@ -697,7 +707,8 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
     /* Types are generated during prepare */
     return &types;
   }
-  return &first_select()->item_list;
+
+  return &sl->item_list;
 }
 
 bool st_select_lex::cleanup()
