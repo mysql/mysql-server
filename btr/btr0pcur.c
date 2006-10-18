@@ -431,12 +431,12 @@ btr_pcur_move_backward_from_page(
 				record of the current page */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	ulint	prev_page_no;
-	ulint	space;
-	page_t*	page;
-	page_t*	prev_page;
-	ulint	latch_mode;
-	ulint	latch_mode2;
+	ulint		prev_page_no;
+	ulint		space;
+	page_t*		page;
+	buf_block_t*	prev_block;
+	ulint		latch_mode;
+	ulint		latch_mode2;
 
 	ut_a(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
@@ -473,14 +473,13 @@ btr_pcur_move_backward_from_page(
 	if (prev_page_no == FIL_NULL) {
 	} else if (btr_pcur_is_before_first_on_page(cursor, mtr)) {
 
-		prev_page = btr_pcur_get_btr_cur(cursor)->left_page;
+		prev_block = btr_pcur_get_btr_cur(cursor)->left_block;
 
 		btr_leaf_page_release(btr_pcur_get_block(cursor),
 				      latch_mode, mtr);
 
-		btr_pcur_get_btr_cur(cursor)->page_block
-			= buf_block_align(prev_page);
-		page_cur_set_after_last(prev_page,
+		btr_pcur_get_btr_cur(cursor)->page_block = prev_block;
+		page_cur_set_after_last(buf_block_get_frame(prev_block),
 					btr_pcur_get_page_cur(cursor));
 	} else {
 
@@ -488,10 +487,9 @@ btr_pcur_move_backward_from_page(
 		a page. Cursor repositioning acquired a latch also on the
 		previous page, but we do not need the latch: release it. */
 
-		prev_page = btr_pcur_get_btr_cur(cursor)->left_page;
+		prev_block = btr_pcur_get_btr_cur(cursor)->left_block;
 
-		btr_leaf_page_release(buf_block_align(prev_page),
-				      latch_mode, mtr);
+		btr_leaf_page_release(prev_block, latch_mode, mtr);
 	}
 
 	cursor->latch_mode = latch_mode;
