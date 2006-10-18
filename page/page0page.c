@@ -579,15 +579,17 @@ page_copy_rec_list_end(
 					on new_page, or NULL on zip overflow
 					(new_page will be decompressed
 					from new_page_zip) */
-	page_t*		new_page,	/* in/out: index page to copy to */
-	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
+	buf_block_t*	new_block,	/* in/out: index page to copy to */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	page_t*	page	= page_align(rec);
-	rec_t*	ret	= page_rec_get_next(page_get_infimum_rec(new_page));
-	ulint	log_mode= 0; /* remove warning */
+	page_t*		new_page	= buf_block_get_frame(new_block);
+	page_zip_des_t*	new_page_zip	= buf_block_get_page_zip(new_block);
+	page_t*		page		= page_align(rec);
+	rec_t*		ret		= page_rec_get_next(
+		page_get_infimum_rec(new_page));
+	ulint		log_mode	= 0; /* remove warning */
 
 	/* page_zip_validate() will fail here if btr_compress()
 	sets FIL_PAGE_PREV to FIL_NULL */
@@ -616,8 +618,7 @@ page_copy_rec_list_end(
 				= page_rec_get_n_recs_before(ret);
 
 			if (UNIV_UNLIKELY
-			    (!page_zip_reorganize(new_page_zip, new_page,
-						  index, mtr))) {
+			    (!page_zip_reorganize(new_block, index, mtr))) {
 
 				if (UNIV_UNLIKELY
 				    (!page_zip_decompress(new_page_zip,
@@ -663,12 +664,13 @@ page_copy_rec_list_start(
 					on new_page, or NULL on zip overflow
 					(new_page will be decompressed
 					from new_page_zip) */
-	page_t*		new_page,	/* in/out: index page to copy to */
-	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
+	buf_block_t*	new_block,	/* in/out: index page to copy to */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
 {
+	page_t*		new_page	= buf_block_get_frame(new_block);
+	page_zip_des_t*	new_page_zip	= buf_block_get_page_zip(new_block);
 	page_cur_t	cur1;
 	page_cur_t	cur2;
 	page_t*		page;
@@ -726,8 +728,7 @@ page_copy_rec_list_start(
 				= page_rec_get_n_recs_before(ret);
 
 			if (UNIV_UNLIKELY
-			    (!page_zip_reorganize(new_page_zip, new_page,
-						  index, mtr))) {
+			    (!page_zip_reorganize(new_block, index, mtr))) {
 
 				if (UNIV_UNLIKELY
 				    (!page_zip_decompress(new_page_zip,
@@ -1090,19 +1091,21 @@ page_move_rec_list_end(
 					/* out: TRUE on success; FALSE on
 					compression failure (new_page will
 					be decompressed from new_page_zip) */
-	page_t*		new_page,	/* in: index page where to move */
-	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
-					new_page, or NULL */
+	buf_block_t*	new_block,	/* in/out: index page where to move */
 	rec_t*		split_rec,	/* in: first record to move */
 	page_zip_des_t*	page_zip,	/* in/out: compressed page of
 					split_rec, or NULL */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	ulint	old_data_size;
-	ulint	new_data_size;
-	ulint	old_n_recs;
-	ulint	new_n_recs;
+	page_t*		new_page	= buf_block_get_frame(new_block);
+#ifdef UNIV_ZIP_DEBUG
+	page_zip_des_t*	new_page_zip	= buf_block_get_page_zip(new_block);
+#endif /* UNIV_ZIP_DEBUG */
+	ulint		old_data_size;
+	ulint		new_data_size;
+	ulint		old_n_recs;
+	ulint		new_n_recs;
 
 	old_data_size = page_get_data_size(new_page);
 	old_n_recs = page_get_n_recs(new_page);
@@ -1111,8 +1114,8 @@ page_move_rec_list_end(
 	ut_a(!page_zip || page_zip_validate(page_zip, page_align(split_rec)));
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_page, new_page_zip,
-						  split_rec, index, mtr))) {
+	if (UNIV_UNLIKELY(!page_copy_rec_list_end(new_block, split_rec,
+						  index, mtr))) {
 		return(FALSE);
 	}
 
@@ -1138,17 +1141,15 @@ page_move_rec_list_start(
 /*=====================*/
 					/* out: TRUE on success; FALSE on
 					compression failure */
-	page_t*		new_page,	/* in: index page where to move */
-	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
-					new_page, or NULL */
+	buf_block_t*	new_block,	/* in/out: index page where to move */
 	rec_t*		split_rec,	/* in: first record not to move */
 	page_zip_des_t*	page_zip,	/* in/out: compressed page of
 					split_rec, or NULL */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
 {
-	if (UNIV_UNLIKELY(!page_copy_rec_list_start(new_page, new_page_zip,
-						    split_rec, index, mtr))) {
+	if (UNIV_UNLIKELY(!page_copy_rec_list_start(new_block, split_rec,
+						    index, mtr))) {
 		return(FALSE);
 	}
 

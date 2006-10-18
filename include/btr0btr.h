@@ -156,7 +156,7 @@ ulint
 btr_node_ptr_get_child_page_no(
 /*===========================*/
 				/* out: child node address */
-	rec_t*		rec,	/* in: node pointer record */
+	const rec_t*	rec,	/* in: node pointer record */
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /****************************************************************
 Creates the root node for a new index tree. */
@@ -216,7 +216,7 @@ ibool
 btr_page_reorganize(
 /*================*/
 				/* out: TRUE on success, FALSE on failure */
-	page_t*		page,	/* in: page to be reorganized */
+	buf_block_t*	block,	/* in: page to be reorganized */
 	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr);	/* in: mtr */
 /*****************************************************************
@@ -290,7 +290,7 @@ void
 btr_node_ptr_delete(
 /*================*/
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: page whose node pointer is deleted */
+	buf_block_t*	block,	/* in: page whose node pointer is deleted */
 	mtr_t*		mtr);	/* in: mtr */
 #ifdef UNIV_DEBUG
 /****************************************************************
@@ -357,8 +357,7 @@ btr_parse_page_reorganize(
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in/out: page to be reorganized, or NULL */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	buf_block_t*	block,	/* in: page to be reorganized, or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /******************************************************************
 Gets the number of pages in a B-tree. */

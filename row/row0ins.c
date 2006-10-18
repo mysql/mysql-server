@@ -2084,7 +2084,8 @@ row_ins_index_entry_low(
 		if (modify == ROW_INS_NEXT) {
 			rec = page_rec_get_next(btr_cur_get_rec(&cursor));
 
-			btr_cur_position(index, rec, &cursor);
+			btr_cur_position(index, rec,
+					 btr_cur_get_block(&cursor),&cursor);
 		}
 
 		if (dict_index_is_clust(index)) {

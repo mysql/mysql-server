@@ -1130,11 +1130,14 @@ use_heap:
 		    (!page_zip_compress(page_zip_orig, page, index, mtr))) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
-			ulint	insert_pos
+			ulint		insert_pos
 				= page_rec_get_n_recs_before(insert_rec);
+			buf_block_t*	block
+				= buf_block_align(page);
 
-			if (page_zip_reorganize(page_zip_orig, page,
-						index, mtr)) {
+			ut_ad(buf_block_get_page_zip(block) == page_zip_orig);
+
+			if (page_zip_reorganize(block, index, mtr)) {
 				/* The page was reorganized:
 				Seek to insert_pos to find insert_rec. */
 				insert_rec = page + PAGE_NEW_INFIMUM;

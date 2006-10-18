@@ -2875,14 +2875,14 @@ void
 ibuf_insert_to_index_page(
 /*======================*/
 	dtuple_t*	entry,	/* in: buffered entry to insert */
-	page_t*		page,	/* in/out: index page where the buffered entry
+	buf_block_t*	block,	/* in/out: index page where the buffered entry
 				should be placed */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_cur_t	page_cur;
 	ulint		low_match;
+	page_t*		page		= buf_block_get_frame(block);
 	rec_t*		rec;
 	page_t*		bitmap_page;
 	ulint		old_bits;
@@ -2931,21 +2931,23 @@ dump:
 
 		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
-		rec = page_cur_tuple_insert(&page_cur, page_zip,
+		rec = page_cur_tuple_insert(&page_cur,
+					    buf_block_get_page_zip(block),
 					    entry, index, NULL, 0, mtr);
 
 		if (UNIV_UNLIKELY(rec == NULL)) {
 			/* If the record did not fit, reorganize */
 
-			btr_page_reorganize(page, index, mtr);
+			btr_page_reorganize(block, index, mtr);
 
 			page_cur_search(page, index, entry,
 					PAGE_CUR_LE, &page_cur);
 
 			/* This time the record must fit */
 			if (UNIV_UNLIKELY
-			    (!page_cur_tuple_insert(&page_cur, page_zip, entry,
-						    index, NULL, 0, mtr))) {
+			    (!page_cur_tuple_insert(
+				    &page_cur, buf_block_get_page_zip(block),
+				    entry, index, NULL, 0, mtr))) {
 
 				ulint	space;
 				ulint	page_no;
@@ -3345,7 +3347,7 @@ loop:
 			ut_a(volume <= 4 * UNIV_PAGE_SIZE
 			     / IBUF_PAGE_SIZE_PER_FREE_SPACE);
 #endif
-			ibuf_insert_to_index_page(entry, page, page_zip,
+			ibuf_insert_to_index_page(entry, block,
 						  dummy_index, &mtr);
 			ibuf_dummy_index_free(dummy_index);
 		}

@@ -698,12 +698,11 @@ page_copy_rec_list_end(
 					on new_page, or NULL on zip overflow
 					(new_page will be decompressed
 					from new_page_zip) */
-	page_t*		new_page,	/* in/out: index page to copy to */
-	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
+	buf_block_t*	new_block,	/* in/out: index page to copy to */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
-	__attribute__((warn_unused_result, nonnull(1, 3, 4, 5)));
+	__attribute__((warn_unused_result, nonnull));
 /*****************************************************************
 Copies records from page to new_page, up to the given record, NOT
 including that record. Infimum and supremum records are not copied.
@@ -717,12 +716,11 @@ page_copy_rec_list_start(
 					on new_page, or NULL on zip overflow
 					(new_page will be decompressed
 					from new_page_zip) */
-	page_t*		new_page,	/* in/out: index page to copy to */
-	page_zip_des_t*	new_page_zip,	/* in/out: compressed page, or NULL */
+	buf_block_t*	new_block,	/* in/out: index page to copy to */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
-	__attribute__((warn_unused_result, nonnull(1, 3, 4, 5)));
+	__attribute__((warn_unused_result, nonnull));
 /*****************************************************************
 Deletes records from a page from a given record onward, including that record.
 The infimum and supremum records are not deleted. */
@@ -762,15 +760,13 @@ page_move_rec_list_end(
 					/* out: TRUE on success; FALSE on
 					compression failure (new_page will
 					be decompressed from new_page_zip) */
-	page_t*		new_page,	/* in: index page where to move */
-	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
-					new_page, or NULL */
+	buf_block_t*	new_block,	/* in/out: index page where to move */
 	rec_t*		split_rec,	/* in: first record to move */
 	page_zip_des_t*	page_zip,	/* in/out: compressed page of
 					split_rec, or NULL */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
-	__attribute__((nonnull(1, 3, 5, 6)));
+	__attribute__((nonnull(1, 2, 4, 5)));
 /*****************************************************************
 Moves record list start to another page. Moved records do not include
 split_rec. */
@@ -780,15 +776,13 @@ page_move_rec_list_start(
 /*=====================*/
 					/* out: TRUE on success; FALSE on
 					compression failure */
-	page_t*		new_page,	/* in: index page where to move */
-	page_zip_des_t*	new_page_zip,	/* in/out: compressed page of
-					new_page, or NULL */
+	buf_block_t*	new_block,	/* in/out: index page where to move */
 	rec_t*		split_rec,	/* in: first record not to move */
 	page_zip_des_t*	page_zip,	/* in/out: compressed page of
 					split_rec, or NULL */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
-	__attribute__((nonnull(1, 3, 5, 6)));
+	__attribute__((nonnull(1, 2, 4, 5)));
 /********************************************************************
 Splits a directory slot which owns too many records. */
 
