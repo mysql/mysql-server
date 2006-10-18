@@ -120,14 +120,14 @@ void ha_blackhole::position(const byte *record)
 }
 
 
-void ha_blackhole::info(uint flag)
+int ha_blackhole::info(uint flag)
 {
   DBUG_ENTER("ha_blackhole::info");
 
   bzero((char*) &stats, sizeof(stats));
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= 1;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 int ha_blackhole::external_lock(THD *thd, int lock_type)
