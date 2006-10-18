@@ -8,7 +8,7 @@ Next DBDICT 6007
 Next DBDIH 7178
 Next DBTC 8038
 Next CMVMI 9000
-Next BACKUP 10022
+Next BACKUP 10036
 Next DBUTIL 11002
 Next DBTUX 12008
 Next SUMA 13001
@@ -411,6 +411,11 @@ Backup Stuff:
 10028: Abort backup by error at reception of BACKUP_FRAGMENT_CONF at master (code 305)
 10029: Abort backup by error at reception of FSAPPENDCONF in slave (FileOrScanError = 5)
 10030: Simulate buffer full from trigger execution => abort backup
+10031: Error 331 for dictCommitTableMutex_locked
+10032: backup checkscan
+10033: backup checkscan
+10034: define backup reply error
+10035: Fail to allocate buffers
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
