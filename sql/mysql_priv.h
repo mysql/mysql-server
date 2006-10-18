@@ -2007,6 +2007,45 @@ inline void kill_delayed_threads(void) {}
 #endif
 
 /* Used by handlers to store things in schema tables */
+#define IS_FILES_FILE_ID              0
+#define IS_FILES_FILE_NAME            1
+#define IS_FILES_FILE_TYPE            2
+#define IS_FILES_TABLESPACE_NAME      3
+#define IS_FILES_TABLE_CATALOG        4
+#define IS_FILES_TABLE_SCHEMA         5
+#define IS_FILES_TABLE_NAME           6
+#define IS_FILES_LOGFILE_GROUP_NAME   7
+#define IS_FILES_LOGFILE_GROUP_NUMBER 8
+#define IS_FILES_ENGINE               9
+#define IS_FILES_FULLTEXT_KEYS       10
+#define IS_FILES_DELETED_ROWS        11
+#define IS_FILES_UPDATE_COUNT        12
+#define IS_FILES_FREE_EXTENTS        13
+#define IS_FILES_TOTAL_EXTENTS       14
+#define IS_FILES_EXTENT_SIZE         15
+#define IS_FILES_INITIAL_SIZE        16
+#define IS_FILES_MAXIMUM_SIZE        17
+#define IS_FILES_AUTOEXTEND_SIZE     18
+#define IS_FILES_CREATION_TIME       19
+#define IS_FILES_LAST_UPDATE_TIME    20
+#define IS_FILES_LAST_ACCESS_TIME    21
+#define IS_FILES_RECOVER_TIME        22
+#define IS_FILES_TRANSACTION_COUNTER 23
+#define IS_FILES_VERSION             24
+#define IS_FILES_ROW_FORMAT          25
+#define IS_FILES_TABLE_ROWS          26
+#define IS_FILES_AVG_ROW_LENGTH      27
+#define IS_FILES_DATA_LENGTH         28
+#define IS_FILES_MAX_DATA_LENGTH     29
+#define IS_FILES_INDEX_LENGTH        30
+#define IS_FILES_DATA_FREE           31
+#define IS_FILES_CREATE_TIME         32
+#define IS_FILES_UPDATE_TIME         33
+#define IS_FILES_CHECK_TIME          34
+#define IS_FILES_CHECKSUM            35
+#define IS_FILES_STATUS              36
+#define IS_FILES_EXTRA               37
+void init_fill_schema_files_row(TABLE* table);
 bool schema_table_store_record(THD *thd, TABLE *table);
 
 #endif /* MYSQL_SERVER */

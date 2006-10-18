@@ -456,6 +456,7 @@ select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 
 set engine_condition_pushdown = on;
 
 # Test all types and compare operators
+--replace_column 9 #
 explain
 select auto from t1 where 
 string = "aaaa" and 
@@ -511,6 +512,7 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01' 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string != "aaaa" and 
@@ -566,6 +568,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string > "aaaa" and 
@@ -621,6 +624,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string >= "aaaa" and 
@@ -676,6 +680,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string < "dddd" and 
@@ -731,6 +736,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04' 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string <= "dddd" and 
@@ -790,6 +796,7 @@ order by auto;
 create index medium_index on t1(medium);
 
 # Test all types and compare operators
+--replace_column 9 #
 explain
 select auto from t1 where 
 string = "aaaa" and 
@@ -845,6 +852,7 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01' 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string != "aaaa" and 
@@ -900,6 +908,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string > "aaaa" and 
@@ -955,6 +964,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string >= "aaaa" and 
@@ -1010,6 +1020,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string < "dddd" and 
@@ -1065,6 +1076,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04' 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string <= "dddd" and 
@@ -1121,6 +1133,7 @@ date_time <= '1904-04-04 04:04:04'
 order by auto;
 
 # Test LIKE/NOT LIKE
+--replace_column 9 #
 explain
 select auto from t1 where 
 string like "b%" and
@@ -1136,6 +1149,7 @@ bin like concat(0xBB, '%') and
 vbin like concat(0xBB, '%')
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where 
 string not like "b%" and
@@ -1152,6 +1166,7 @@ vbin not like concat(0xBB, '%')
 order by auto;
 
 # BETWEEN
+--replace_column 9 #
 explain 
 select auto from t1 where
 (string between "aaaa" and "cccc") and 
@@ -1201,6 +1216,7 @@ select auto from t1 where
 (date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where
 ("aaaa" between string and string) and 
@@ -1251,6 +1267,7 @@ select auto from t1 where
 order by auto;
 
 # NOT BETWEEN
+--replace_column 9 #
 explain 
 select auto from t1 where
 (string not between "aaaa" and "cccc") and 
@@ -1300,6 +1317,7 @@ select auto from t1 where
 (date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where
 ("aaaa" not between string and string) and 
@@ -1350,6 +1368,7 @@ select auto from t1 where
 order by auto;
 
 # IN
+--replace_column 9 #
 explain
 select auto from t1 where
 string in("aaaa","cccc") and 
@@ -1399,6 +1418,7 @@ time_field in('01:01:01','03:03:03') and
 date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where
 "aaaa" in(string) and 
@@ -1449,6 +1469,7 @@ select auto from t1 where
 order by auto;
 
 # NOT IN
+--replace_column 9 #
 explain
 select auto from t1 where
 string not in("aaaa","cccc") and 
@@ -1498,6 +1519,7 @@ time_field not in('01:01:01','03:03:03') and
 date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
 order by auto;
 
+--replace_column 9 #
 explain
 select auto from t1 where
 "aaaa" not in(string) and 
@@ -1607,35 +1629,44 @@ date_time = '1901-01-01 01:01:01';
 select count(*) from t1;
 
 # Various tests 
+--replace_column 9 #
 explain 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 
+--replace_column 9 #
 explain
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 
+--replace_column 9 #
 explain
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 
+--replace_column 9 #
 explain
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 
+--replace_column 9 #
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 
+--replace_column 9 #
 explain
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 
 # Some tests that are currently not supported and should not push condition
+--replace_column 9 #
 explain
 select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
+--replace_column 9 #
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
+--replace_column 9 #
 explain
 select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.attr3 < 5 or t4.attr1 is null order by t4.pk1;
 
@@ -1646,6 +1677,7 @@ insert into t5 (b) values ('jonas'), ('jensing'), ('johan');
 set engine_condition_pushdown = off;
 select * from t5 where b like '%jo%' order by a;
 set engine_condition_pushdown = on;
+--replace_column 9 #
 explain select * from t5 where b like '%jo%';
 select * from t5 where b like '%jo%' order by a;
 
@@ -1654,8 +1686,10 @@ set engine_condition_pushdown = off;
 select auto from t1 where date_time like '1902-02-02 %' order by auto;
 select auto from t1 where date_time not like '1902-02-02 %' order by auto;
 set engine_condition_pushdown = on;
+--replace_column 9 #
 explain select auto from t1 where date_time like '1902-02-02 %';
 select auto from t1 where date_time like '1902-02-02 %' order by auto;
+--replace_column 9 #
 explain select auto from t1 where date_time not like '1902-02-02 %';
 select auto from t1 where date_time not like '1902-02-02 %' order by auto;
 
