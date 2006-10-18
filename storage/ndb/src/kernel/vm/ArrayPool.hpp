@@ -25,6 +25,7 @@
 #include <ErrorReporter.hpp>
 #include <NdbMem.h>
 #include <Bitmask.hpp>
+#include <mgmapi.h>
 
 template <class T> class Array;
 
@@ -43,7 +44,8 @@ public:
    *
    * Note, can currently only be called once
    */
-  bool setSize(Uint32 noOfElements, bool align = false, bool exit_on_error = true, bool guard = true);
+  bool setSize(Uint32 noOfElements, bool align = false, bool exit_on_error = true, 
+               bool guard = true, Uint32 paramId = 0);
   bool set(T*, Uint32 cnt, bool align = false);
   void clear() { theArray = 0; }
 
@@ -221,13 +223,19 @@ template <class T>
 inline
 bool
 ArrayPool<T>::setSize(Uint32 noOfElements, 
-		      bool align, bool exit_on_error, bool guard){
+		      bool align, bool exit_on_error, bool guard, Uint32 paramId){
   if(size == 0){
     if(noOfElements == 0)
       return true;
+  Uint64 real_size = (Uint64)noOfElements * sizeof(T);
+  size_t req_size = (size_t)real_size;
+  Uint64 real_size_align = real_size + sizeof(T);
+  size_t req_size_align = (size_t)real_size_align;
+
     if(align)
     {
-      alloc_ptr = ndbd_malloc((noOfElements+1) * sizeof(T));
+      if((Uint64)req_size_align == real_size_align && req_size_align > 0)
+        alloc_ptr = ndbd_malloc(req_size_align);  
       UintPtr p = (UintPtr)alloc_ptr;
       UintPtr mod = p % sizeof(T);
       if (mod)
@@ -236,14 +244,23 @@ ArrayPool<T>::setSize(Uint32 noOfElements,
       }
       theArray = (T *)p;
     }
-    else
-      theArray = (T *)(alloc_ptr = ndbd_malloc(noOfElements * sizeof(T)));
+    else if((Uint64)req_size == real_size && req_size > 0)
+      theArray = (T *)(alloc_ptr = ndbd_malloc(req_size));
 
     if(theArray == 0)
     {
+      char errmsg[255] = "ArrayPool<T>::setSize malloc failed";
+      struct ndb_mgm_param_info param_info;
+      size_t size = sizeof(ndb_mgm_param_info);
       if (!exit_on_error)
 	return false;
-      ErrorReporter::handleAssert("ArrayPool<T>::setSize malloc failed",
+
+      if(0 != paramId && 0 == ndb_mgm_get_db_parameter_info(paramId, &param_info, &size)) {
+        BaseString::snprintf(errmsg, sizeof(errmsg), 
+                "ArrayPool<T>::setSize malloc parameter %s failed", param_info.m_name);
+      }
+
+      ErrorReporter::handleAssert(errmsg,
 				  __FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
       return false; // not reached
     }
