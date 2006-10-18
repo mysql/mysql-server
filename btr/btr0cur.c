@@ -188,7 +188,9 @@ btr_cur_latch_leaves(
 	case BTR_MODIFY_LEAF:
 		mode = latch_mode == BTR_SEARCH_LEAF ? RW_S_LATCH : RW_X_LATCH;
 		get_block = btr_block_get(space, page_no, mode, mtr);
+#ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+#endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;
 		return;
 	case BTR_MODIFY_TREE:
@@ -208,7 +210,9 @@ btr_cur_latch_leaves(
 		}
 
 		get_block = btr_block_get(space, page_no, RW_X_LATCH, mtr);
+#ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+#endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;
 
 		right_page_no = btr_page_get_next(page, mtr);
@@ -236,18 +240,20 @@ btr_cur_latch_leaves(
 		if (left_page_no != FIL_NULL) {
 			get_block = btr_block_get(space, left_page_no,
 						  mode, mtr);
-			cursor->left_page = buf_block_get_frame(get_block);
+			cursor->left_block = get_block;
 #ifdef UNIV_BTR_DEBUG
-			ut_a(page_is_comp(cursor->left_page)
+			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
-			ut_a(btr_page_get_next(cursor->left_page, mtr)
+			ut_a(btr_page_get_next(get_block->frame, mtr)
 			     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 			get_block->check_index_page_at_flush = TRUE;
 		}
 
 		get_block = btr_block_get(space, page_no, mode, mtr);
+#ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
+#endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;
 		return;
 	}
@@ -281,7 +287,7 @@ btr_cur_search_to_nth_level(
 				PAGE_CUR_LE to search the position! */
 	ulint		latch_mode, /* in: BTR_SEARCH_LEAF, ..., ORed with
 				BTR_INSERT and BTR_ESTIMATE;
-				cursor->left_page is used to store a pointer
+				cursor->left_block is used to store a pointer
 				to the left neighbor page, in the cases
 				BTR_SEARCH_PREV and BTR_MODIFY_PREV;
 				NOTE that if has_search_latch

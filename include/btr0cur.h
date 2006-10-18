@@ -118,7 +118,7 @@ btr_cur_search_to_nth_level(
 				search the position! */
 	ulint		latch_mode, /* in: BTR_SEARCH_LEAF, ..., ORed with
 				BTR_INSERT and BTR_ESTIMATE;
-				cursor->left_page is used to store a pointer
+				cursor->left_block is used to store a pointer
 				to the left neighbor page, in the cases
 				BTR_SEARCH_PREV and BTR_MODIFY_PREV;
 				NOTE that if has_search_latch
@@ -598,7 +598,7 @@ struct btr_cur_struct {
 	buf_block_t*	page_block;	/* buffer pool block were
 					cursor is positioned; needed
 					to avoid buf_block_align() */
-	page_t*		left_page;	/* this field is used to store
+	buf_block_t*	left_block;	/* this field is used to store
 					a pointer to the left neighbor
 					page, in the cases
 					BTR_SEARCH_PREV and
