@@ -144,7 +144,7 @@ sub mtr_timer_timeout ($$) {
 
   # We got a timeout
   my $name= $timers->{'pids'}->{$pid};
-  mtr_timer_stop($timers, $timers->{'timers'}->{$name});
+  mtr_timer_stop($timers, $name);
   return $name;
 }
 
