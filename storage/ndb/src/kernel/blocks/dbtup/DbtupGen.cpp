@@ -310,7 +310,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
 
   c_storedProcPool.setSize(noOfStoredProc);
   c_buildIndexPool.setSize(c_noOfBuildIndexRec);
-  c_triggerPool.setSize(noOfTriggers);
+  c_triggerPool.setSize(noOfTriggers, false, true, true, CFG_DB_NO_TRIGGERS);
 
   c_extent_hash.setSize(1024); // 4k
   
