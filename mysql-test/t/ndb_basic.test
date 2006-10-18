@@ -550,6 +550,7 @@ index(a12345678901234567890123456789a1234567890)
 ) engine=ndb;
 show tables;
 insert into t1 values (1,1),(2,1),(3,1),(4,1),(5,2),(6,1),(7,1);
+--replace_column 9 #
 explain select * from t1 where a12345678901234567890123456789a1234567890=2;
 select * from t1 where a12345678901234567890123456789a1234567890=2;
 drop table t1;

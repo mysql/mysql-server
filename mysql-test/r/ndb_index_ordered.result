@@ -663,7 +663,7 @@ set autocommit=1;
 show session variables like 'ndb_index_stat_%';
 Variable_name	Value
 ndb_index_stat_cache_entries	32
-ndb_index_stat_enable	ON
+ndb_index_stat_enable	OFF
 ndb_index_stat_update_freq	20
 set ndb_index_stat_enable = off;
 show session variables like 'ndb_index_stat_%';
@@ -794,5 +794,5 @@ set ndb_index_stat_update_freq = @@global.ndb_index_stat_update_freq;
 show session variables like 'ndb_index_stat_%';
 Variable_name	Value
 ndb_index_stat_cache_entries	32
-ndb_index_stat_enable	ON
+ndb_index_stat_enable	OFF
 ndb_index_stat_update_freq	20
