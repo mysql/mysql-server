@@ -8,9 +8,6 @@ use Socket;
 use Errno;
 use strict;
 
-#use POSIX ":sys_wait_h";
-#use POSIX 'WNOHANG';
-
 sub mtr_init_timers ();
 sub mtr_timer_start($$$);
 sub mtr_timer_stop($$);
