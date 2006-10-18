@@ -7129,8 +7129,8 @@ int Update_rows_log_event::do_prepare_row(THD *thd, RELAY_LOG_INFO *rli,
                     row_start, &m_cols, row_end, &m_master_reclength,
                     table->write_set, UPDATE_ROWS_EVENT);
 
-  DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
-  DBUG_DUMP("m_after_image", m_after_image, table->s->reclength);
+  DBUG_DUMP("record[0]", (const char *)table->record[0], table->s->reclength);
+  DBUG_DUMP("m_after_image", (const char *)m_after_image, table->s->reclength);
 
 
   /*
