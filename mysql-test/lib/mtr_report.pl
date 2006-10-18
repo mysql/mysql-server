@@ -130,14 +130,9 @@ sub mtr_report_test_failed ($) {
   my $tinfo= shift;
 
   $tinfo->{'result'}= 'MTR_RES_FAILED';
-  if ( $tinfo->{'timeout'} )
+  if ( defined $tinfo->{'timeout'} )
   {
     print "[ fail ]  timeout\n";
-    return;
-  }
-  elsif ( $tinfo->{'ndb_test'} and $::cluster->[0]->{'installed_ok'} eq "NO")
-  {
-    print "[ fail ]  ndbcluster start failure\n";
     return;
   }
   else
