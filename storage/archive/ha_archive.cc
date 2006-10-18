@@ -1433,7 +1433,7 @@ void ha_archive::update_create_info(HA_CREATE_INFO *create_info)
 /*
   Hints for optimizer, see ha_tina for more information
 */
-void ha_archive::info(uint flag)
+int ha_archive::info(uint flag)
 {
   DBUG_ENTER("ha_archive::info");
   /* 
@@ -1461,7 +1461,7 @@ void ha_archive::info(uint flag)
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= share->auto_increment_value;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
