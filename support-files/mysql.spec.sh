@@ -327,7 +327,7 @@ then
   cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
 fi
 
-(cd mysql-debug-%{mysql_version} ; \
+(cd mysql-debug-%{mysql_version}/mysql-test ; \
  ./mysql-test-run.pl --comment=debug --skip-rpl --skip-ndbcluster --force ; \
  true)
 
@@ -357,12 +357,13 @@ then
   cp -fp  mysql-release-%{mysql_version}/config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-(cd mysql-release-%{mysql_version} ; \
- ./mysql-test-run.pl --comment=normal --force ; \
- ./mysql-test-run.pl --comment=ps --ps-protocol --force ; \
- ./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force ; \
- ./mysql-test-run.pl --comment=ps+rowrepl --ps-protocol --mysqld=--binlog-format=row --force ; \
- true)
+cd mysql-release-%{mysql_version}/mysql-test
+./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer || true
+./mysql-test-run.pl --comment=ps --ps-protocol --force --skip-ndbcluster --timer || true
+./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force --skip-ndbcluster --timer || true
+./mysql-test-run.pl --comment=ps+rowrepl+NDB --ps-protocol --mysqld=--binlog-format=row --force --timer || true
+./mysql-test-run.pl --comment=NDB --with-ndbcluster-only --force --timer || true
+cd ../..
 
 ##############################################################################
 
@@ -522,7 +523,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisampack.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_explain_log.1*
 %doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_multi.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqld_safe.1*
