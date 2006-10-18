@@ -5394,21 +5394,6 @@ Procedure	sql_mode	Create Procedure
 bug21416		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug21416`()
 show create procedure bug21416
 drop procedure bug21416|
-DROP PROCEDURE IF EXISTS bug21414|
-CREATE PROCEDURE bug21414() SELECT 1|
-FLUSH TABLES WITH READ LOCK|
-DROP PROCEDURE bug21414|
-ERROR HY000: Can't execute the query because you have a conflicting read lock
-UNLOCK TABLES|
-The following should succeed.
-DROP PROCEDURE bug21414|
-set names utf8|
-drop database if exists това_е_дълго_име_за_база_данни_нали|
-create database това_е_дълго_име_за_база_данни_нали|
-INSERT INTO mysql.proc VALUES ('това_е_дълго_име_за_база_данни_нали','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','PROCEDURE','това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго','SQL','CONTAINS_SQL','NO','DEFINER','','','bad_body','root@localhost',now(), now(),'','')|
-call това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго()|
-ERROR HY000: Failed to load routine това_е_дълго_име_за_база_данни_нали.това_е_процедура_с_доста_дълго_име_нали_и_още_по_дълго. The table mysql.proc is missing, corrupt, or contains bad data (internal code -6)
-drop database това_е_дълго_име_за_база_данни_нали|
 CREATE TABLE t3 (
 Member_ID varchar(15) NOT NULL,
 PRIMARY KEY (Member_ID)
@@ -5445,6 +5430,8 @@ INSERT INTO t4(Member_ID, Action, Action_Date, Track) VALUES
 ('666666', 'Enrolled', '2006-05-12', 'CHF' ),
 ('666666', 'Disenrolled', '2006-06-01', 'CAD' )|
 DROP FUNCTION IF EXISTS bug21493|
+Warnings:
+Note	1305	FUNCTION bug21493 does not exist
 CREATE FUNCTION bug21493(paramMember VARCHAR(15)) RETURNS varchar(45)
 BEGIN
 DECLARE tracks VARCHAR(45);
@@ -5470,32 +5457,134 @@ CAD
 CHF
 DROP FUNCTION bug21493|
 DROP TABLE t3,t4|
-drop procedure if exists proc_21462_a|
-drop procedure if exists proc_21462_b|
-create procedure proc_21462_a()
+drop function if exists func_20028_a|
+drop function if exists func_20028_b|
+drop function if exists func_20028_c|
+drop procedure if exists proc_20028_a|
+drop procedure if exists proc_20028_b|
+drop procedure if exists proc_20028_c|
+drop table if exists table_20028|
+create table table_20028 (i int)|
+SET @save_sql_mode=@@sql_mode|
+SET sql_mode=''|
+create function func_20028_a() returns integer
 begin
-select "Called A";
+declare temp integer;
+select i into temp from table_20028 limit 1;
+return ifnull(temp, 0);
 end|
-create procedure proc_21462_b(x int)
+create function func_20028_b() returns integer
 begin
-select "Called B";
+return func_20028_a();
 end|
-call proc_21462_a|
-Called A
-Called A
-call proc_21462_a()|
-Called A
-Called A
-call proc_21462_a(1)|
-ERROR 42000: Incorrect number of arguments for PROCEDURE test.proc_21462_a; expected 0, got 1
-call proc_21462_b|
-ERROR 42000: Incorrect number of arguments for PROCEDURE test.proc_21462_b; expected 1, got 0
-call proc_21462_b()|
-ERROR 42000: Incorrect number of arguments for PROCEDURE test.proc_21462_b; expected 1, got 0
-call proc_21462_b(1)|
-Called B
-Called B
-drop procedure proc_21462_a|
-drop procedure proc_21462_b|
+create function func_20028_c() returns integer
+begin
+declare div_zero integer;
+set SQL_MODE='TRADITIONAL';
+select 1/0 into div_zero;
+return div_zero;
+end|
+create procedure proc_20028_a()
+begin
+declare temp integer;
+select i into temp from table_20028 limit 1;
+end|
+create procedure proc_20028_b()
+begin
+call proc_20028_a();
+end|
+create procedure proc_20028_c()
+begin
+declare div_zero integer;
+set SQL_MODE='TRADITIONAL';
+select 1/0 into div_zero;
+end|
+select func_20028_a()|
+func_20028_a()
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+select func_20028_b()|
+func_20028_b()
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+select func_20028_c()|
+ERROR 22012: Division by 0
+call proc_20028_a()|
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+call proc_20028_b()|
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+call proc_20028_c()|
+ERROR 22012: Division by 0
+SET sql_mode='TRADITIONAL'|
+drop function func_20028_a|
+drop function func_20028_b|
+drop function func_20028_c|
+drop procedure proc_20028_a|
+drop procedure proc_20028_b|
+drop procedure proc_20028_c|
+create function func_20028_a() returns integer
+begin
+declare temp integer;
+select i into temp from table_20028 limit 1;
+return ifnull(temp, 0);
+end|
+create function func_20028_b() returns integer
+begin
+return func_20028_a();
+end|
+create function func_20028_c() returns integer
+begin
+declare div_zero integer;
+set SQL_MODE='';
+select 1/0 into div_zero;
+return div_zero;
+end|
+create procedure proc_20028_a()
+begin
+declare temp integer;
+select i into temp from table_20028 limit 1;
+end|
+create procedure proc_20028_b()
+begin
+call proc_20028_a();
+end|
+create procedure proc_20028_c()
+begin
+declare div_zero integer;
+set SQL_MODE='';
+select 1/0 into div_zero;
+end|
+select func_20028_a()|
+func_20028_a()
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+select func_20028_b()|
+func_20028_b()
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+select func_20028_c()|
+func_20028_c()
+NULL
+call proc_20028_a()|
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+call proc_20028_b()|
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+call proc_20028_c()|
+SET @@sql_mode=@save_sql_mode|
+drop function func_20028_a|
+drop function func_20028_b|
+drop function func_20028_c|
+drop procedure proc_20028_a|
+drop procedure proc_20028_b|
+drop procedure proc_20028_c|
+drop table table_20028|
 End of 5.0 tests
 drop table t1,t2;
