@@ -667,6 +667,33 @@ err:
 }
 
 bool
+BackupRestore::createSystable(const TableS & tables){
+  const char *tablename = tables.getTableName();
+
+  if( strcmp(tablename, NDB_REP_DB "/def/" NDB_APPLY_TABLE) != 0 &&
+      strcmp(tablename, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE) != 0 )
+  {
+    return true;
+  }
+
+  BaseString tmp(tablename);
+  Vector<BaseString> split;
+  if(tmp.split(split, "/") != 3){
+    err << "Invalid table name format " << tablename << endl;
+    return false;
+  }
+
+  m_ndb->setDatabaseName(split[0].c_str());
+  m_ndb->setSchemaName(split[1].c_str());
+
+  NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+  if( dict->getTable(split[2].c_str()) != NULL ){
+    return true;
+  }
+  return table(tables);
+}
+
+bool
 BackupRestore::table(const TableS & table){
   if (!m_restore && !m_restore_meta)
     return true;

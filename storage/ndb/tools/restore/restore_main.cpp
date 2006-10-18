@@ -567,6 +567,15 @@ main(int argc, char** argv)
           err << metaData[i]->getTableName() << " ... Exiting " << endl;
 	  exitHandler(NDBT_FAILED);
 	} 
+    } else {
+      for(Uint32 j= 0; j < g_consumers.size(); j++)
+        if (!g_consumers[j]->createSystable(* metaData[i]))
+        {
+          err << "Restore: Failed to restore system table: ";
+          err << metaData[i]->getTableName() << " ... Exiting " << endl;
+          exitHandler(NDBT_FAILED);
+        }
+
     }
   }
   debug << "Close tables" << endl; 
