@@ -139,10 +139,8 @@ sub mtr_timer_timeout ($$) {
 
   return "" unless exists $timers->{'pids'}->{$pid};
 
-  # We got a timeout
-  my $name= $timers->{'pids'}->{$pid};
-  mtr_timer_stop($timers, $name);
-  return $name;
+  # We got a timeout, return the name ot the timer
+  return $timers->{'pids'}->{$pid};
 }
 
 1;
