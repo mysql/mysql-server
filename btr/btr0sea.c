@@ -139,7 +139,7 @@ btr_search_sys_create(
 
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 
-	btr_search_sys->hash_index = ha_create(TRUE, hash_size, 0, 0);
+	btr_search_sys->hash_index = ha_create(hash_size, 0, 0);
 
 }
 
@@ -1025,6 +1025,7 @@ next_rec:
 	block->is_hashed = FALSE;
 	block->index = NULL;
 cleanup:
+#ifdef UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
 		/* Corruption */
 		ut_print_timestamp(stderr);
@@ -1040,6 +1041,9 @@ cleanup:
 	} else {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
+#else /* UNIV_DEBUG */
+	rw_lock_x_unlock(&btr_search_latch);
+#endif /* UNIV_DEBUG */
 
 	mem_free(folds);
 }

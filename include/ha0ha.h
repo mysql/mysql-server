@@ -44,8 +44,6 @@ hash_table_t*
 ha_create(
 /*======*/
 				/* out, own: created table */
-	ibool	in_btr_search,	/* in: TRUE if the hash table is used in
-				the btr_search module */
 	ulint	n,		/* in: number of array cells */
 	ulint	n_mutexes,	/* in: number of mutexes to protect the
 				hash table: must be a power of 2 */
