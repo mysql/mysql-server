@@ -2490,7 +2490,7 @@ int ha_federated::rnd_pos(byte *buf, byte *pos)
 
 */
 
-void ha_federated::info(uint flag)
+int ha_federated::info(uint flag)
 {
   char error_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char status_buf[FEDERATED_QUERY_BUFFER_SIZE];
@@ -2571,7 +2571,7 @@ void ha_federated::info(uint flag)
   if (result)
     mysql_free_result(result);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 
 error:
   if (result)
@@ -2580,7 +2580,7 @@ error:
   my_sprintf(error_buffer, (error_buffer, ": %d : %s",
                             mysql_errno(mysql), mysql_error(mysql)));
   my_error(error_code, MYF(0), error_buffer);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error_code);
 }
 
 

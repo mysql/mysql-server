@@ -121,7 +121,7 @@ public:
   int read_data_header(azio_stream *file_to_read);
   int write_data_header(azio_stream *file_to_write);
   void position(const byte *record);
-  void info(uint);
+  int info(uint);
   void update_create_info(HA_CREATE_INFO *create_info);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
