@@ -16,6 +16,7 @@ Created June 2005 by Marko Makela
 
 #include "mtr0types.h"
 #include "page0types.h"
+#include "buf0types.h"
 #include "dict0types.h"
 #include "ut0byte.h"
 
@@ -335,9 +336,9 @@ page_zip_reorganize(
 				/* out: TRUE on success, FALSE on failure;
 				page and page_zip will be left intact
 				on failure. */
-	page_zip_des_t*	page_zip,/* in: size; out: data, n_blobs,
-				m_start, m_end */
-	page_t*		page,	/* in/out: uncompressed page */
+	buf_block_t*	block,	/* in/out: page with compressed page;
+				on the compressed page, in: size;
+				out: data, n_blobs, m_start, m_end */
 	dict_index_t*	index,	/* in: index of the B-tree node */
 	mtr_t*		mtr)	/* in: mini-transaction */
 	__attribute__((warn_unused_result, nonnull));
