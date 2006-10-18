@@ -8,7 +8,6 @@ use Socket;
 use Errno;
 use strict;
 
-#use POSIX ":sys_wait_h";
 use POSIX 'WNOHANG';
 
 sub mtr_run ($$$$$$;$);
@@ -1088,7 +1087,6 @@ sub mtr_kill_processes ($) {
 
 sub mtr_exit ($) {
   my $code= shift;
-#  cluck("Called mtr_exit()");
   mtr_timer_stop_all($::glob_timers);
   local $SIG{HUP} = 'IGNORE';
   # ToDo: Signalling -$$ will only work if we are the process group
