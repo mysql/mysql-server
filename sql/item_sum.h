@@ -643,8 +643,8 @@ public:
   Field *create_tmp_field(bool group, TABLE *table, uint convert_blob_length);
   void cleanup()
   {
-    clear();
-    Item_sum_num::cleanup();
+    count= 0;
+    Item_sum_sum::cleanup();
   }
 };
 
@@ -727,7 +727,8 @@ public:
   enum Item_result result_type () const { return REAL_RESULT; }
   void cleanup()
   {
-    clear();
+    cur_dec= 0;
+    count= 0;
     Item_sum_num::cleanup();
   }
 };
@@ -862,7 +863,7 @@ public:
   { decimals= 0; max_length=21; unsigned_flag= 1; maybe_null= null_value= 0; }
   void cleanup()
   {
-    clear();
+    bits= reset_bits;
     Item_sum_int::cleanup();
   }
 };
