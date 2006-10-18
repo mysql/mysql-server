@@ -345,9 +345,9 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
  AC_MSG_CHECKING([whether to use ]$3)
  mysql_use_plugin_dir=""
  m4_ifdef([$10],[
-  if test "x[$mysql_plugin_]$2" = Xyes -a \
-          "x[$with_plugin_]$2" != Xno -o \
-          "x[$with_plugin_]$2" = Xyes; then
+  if test "X[$mysql_plugin_]$2" = Xyes -a \
+          "X[$with_plugin_]$2" != Xno -o \
+          "X[$with_plugin_]$2" = Xyes; then
     AC_MSG_RESULT([error])
     AC_MSG_ERROR([disabled])
   fi
