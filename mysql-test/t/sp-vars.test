@@ -15,6 +15,7 @@ DROP FUNCTION IF EXISTS sp_vars_check_ret1;
 DROP FUNCTION IF EXISTS sp_vars_check_ret2;
 DROP FUNCTION IF EXISTS sp_vars_check_ret3;
 DROP FUNCTION IF EXISTS sp_vars_check_ret4;
+DROP FUNCTION IF EXISTS sp_vars_div_zero;
 
 --enable_warnings
 
@@ -49,6 +50,8 @@ SELECT sp_vars_check_ret3();
 
 SELECT sp_vars_check_ret4();
 
+SELECT sp_vars_div_zero();
+
 # Check that changing sql_mode after creating a store procedure does not
 # matter.
 
@@ -72,6 +75,8 @@ SELECT sp_vars_check_ret3();
 
 SELECT sp_vars_check_ret4();
 
+SELECT sp_vars_div_zero();
+
 # Create the procedure in TRADITIONAL mode. Check that error will be thrown on
 # execution.
 
@@ -81,6 +86,7 @@ DROP FUNCTION sp_vars_check_ret1;
 DROP FUNCTION sp_vars_check_ret2;
 DROP FUNCTION sp_vars_check_ret3;
 DROP FUNCTION sp_vars_check_ret4;
+DROP FUNCTION sp_vars_div_zero;
 
 --source include/sp-vars.inc
 
@@ -110,6 +116,9 @@ SELECT sp_vars_check_ret3();
 
 SELECT sp_vars_check_ret4();
 
+--error ER_DIVISION_BY_ZERO
+SELECT sp_vars_div_zero();
+
 SET @@sql_mode = 'ansi';
 
 #
@@ -122,6 +131,7 @@ DROP FUNCTION sp_vars_check_ret1;
 DROP FUNCTION sp_vars_check_ret2;
 DROP FUNCTION sp_vars_check_ret3;
 DROP FUNCTION sp_vars_check_ret4;
+DROP FUNCTION sp_vars_div_zero;
 
 ###########################################################################
 #
