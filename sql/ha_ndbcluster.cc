@@ -561,7 +561,14 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
   if (res == HA_ERR_FOUND_DUPP_KEY)
   {
     if (m_rows_to_insert == 1)
-      m_dupkey= table_share->primary_key;
+    {
+      /*
+	We can only distinguish between primary and non-primary
+	violations here, so we need to return MAX_KEY for non-primary
+	to signal that key is unknown
+      */
+      m_dupkey= err.code == 630 ? table_share->primary_key : MAX_KEY; 
+    }
     else
     {
       /* We are batching inserts, offending key is not available */
@@ -1907,7 +1914,10 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record)
       error= m_part_info->get_partition_id(m_part_info, &part_id, &func_value);
       dbug_tmp_restore_column_map(table->read_set, old_map);
       if (error)
+      {
+        m_part_info->err_value= func_value;
         DBUG_RETURN(error);
+      }
       op->setPartitionId(part_id);
     }
   }
@@ -2564,7 +2574,10 @@ int ha_ndbcluster::write_row(byte *record)
     error= m_part_info->get_partition_id(m_part_info, &part_id, &func_value);
     dbug_tmp_restore_column_map(table->read_set, old_map);
     if (error)
+    {
+      m_part_info->err_value= func_value;
       DBUG_RETURN(error);
+    }
     op->setPartitionId(part_id);
   }
 
@@ -2756,6 +2769,7 @@ int ha_ndbcluster::update_row(const byte *old_data, byte *new_data)
                                    m_part_info, &old_part_id, &new_part_id,
                                    &func_value)))
   {
+    m_part_info->err_value= func_value;
     DBUG_RETURN(error);
   }
 

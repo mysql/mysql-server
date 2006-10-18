@@ -62,48 +62,64 @@ static const char *end_paren_str= ")";
 static const char *begin_paren_str= "(";
 static const char *comma_str= ",";
 
-int get_partition_id_list(partition_info *part_info,
-                           uint32 *part_id,
-                           longlong *func_value);
-int get_partition_id_range(partition_info *part_info,
-                            uint32 *part_id,
-                            longlong *func_value);
-int get_partition_id_hash_nosub(partition_info *part_info,
-                                 uint32 *part_id,
-                                 longlong *func_value);
-int get_partition_id_key_nosub(partition_info *part_info,
-                                uint32 *part_id,
-                                longlong *func_value);
-int get_partition_id_linear_hash_nosub(partition_info *part_info,
+static int get_part_id_charset_func_all(partition_info *part_info,
                                         uint32 *part_id,
                                         longlong *func_value);
-int get_partition_id_linear_key_nosub(partition_info *part_info,
-                                       uint32 *part_id,
-                                       longlong *func_value);
-int get_partition_id_range_sub_hash(partition_info *part_info,
-                                     uint32 *part_id,
-                                     longlong *func_value);
-int get_partition_id_range_sub_key(partition_info *part_info,
-                                    uint32 *part_id,
-                                    longlong *func_value);
-int get_partition_id_range_sub_linear_hash(partition_info *part_info,
+static int get_part_id_charset_func_part(partition_info *part_info,
+                                         uint32 *part_id,
+                                         longlong *func_value);
+static int get_part_id_charset_func_subpart(partition_info *part_info,
                                             uint32 *part_id,
                                             longlong *func_value);
-int get_partition_id_range_sub_linear_key(partition_info *part_info,
-                                           uint32 *part_id,
-                                           longlong *func_value);
-int get_partition_id_list_sub_hash(partition_info *part_info,
+static int get_part_part_id_charset_func(partition_info *part_info,
+                                         uint32 *part_id,
+                                         longlong *func_value);
+static uint32 get_subpart_id_charset_func(partition_info *part_info);
+int get_partition_id_list(partition_info *part_info,
+                          uint32 *part_id,
+                          longlong *func_value);
+int get_partition_id_list(partition_info *part_info,
+                          uint32 *part_id,
+                          longlong *func_value);
+int get_partition_id_range(partition_info *part_info,
+                           uint32 *part_id,
+                           longlong *func_value);
+int get_partition_id_hash_nosub(partition_info *part_info,
+                                uint32 *part_id,
+                                longlong *func_value);
+int get_partition_id_key_nosub(partition_info *part_info,
+                               uint32 *part_id,
+                               longlong *func_value);
+int get_partition_id_linear_hash_nosub(partition_info *part_info,
+                                       uint32 *part_id,
+                                       longlong *func_value);
+int get_partition_id_linear_key_nosub(partition_info *part_info,
+                                      uint32 *part_id,
+                                      longlong *func_value);
+int get_partition_id_range_sub_hash(partition_info *part_info,
                                     uint32 *part_id,
                                     longlong *func_value);
-int get_partition_id_list_sub_key(partition_info *part_info,
+int get_partition_id_range_sub_key(partition_info *part_info,
                                    uint32 *part_id,
                                    longlong *func_value);
-int get_partition_id_list_sub_linear_hash(partition_info *part_info,
+int get_partition_id_range_sub_linear_hash(partition_info *part_info,
                                            uint32 *part_id,
                                            longlong *func_value);
-int get_partition_id_list_sub_linear_key(partition_info *part_info,
+int get_partition_id_range_sub_linear_key(partition_info *part_info,
                                           uint32 *part_id,
                                           longlong *func_value);
+int get_partition_id_list_sub_hash(partition_info *part_info,
+                                   uint32 *part_id,
+                                   longlong *func_value);
+int get_partition_id_list_sub_key(partition_info *part_info,
+                                  uint32 *part_id,
+                                  longlong *func_value);
+int get_partition_id_list_sub_linear_hash(partition_info *part_info,
+                                          uint32 *part_id,
+                                          longlong *func_value);
+int get_partition_id_list_sub_linear_key(partition_info *part_info,
+                                         uint32 *part_id,
+                                         longlong *func_value);
 uint32 get_partition_id_hash_sub(partition_info *part_info); 
 uint32 get_partition_id_key_sub(partition_info *part_info); 
 uint32 get_partition_id_linear_hash_sub(partition_info *part_info); 
@@ -525,6 +541,7 @@ static bool set_up_field_array(TABLE *table,
 }
 
 
+
 /*
   Create a field array including all fields of both the partitioning and the
   subpartitioning functions.
@@ -549,6 +566,7 @@ static bool create_full_part_field_array(TABLE *table,
                                          partition_info *part_info)
 {
   bool result= FALSE;
+  Field **ptr;
   DBUG_ENTER("create_full_part_field_array");
 
   if (!part_info->is_sub_partitioned())
@@ -558,7 +576,7 @@ static bool create_full_part_field_array(TABLE *table,
   }
   else
   {
-    Field **ptr, *field, **field_array;
+    Field *field, **field_array;
     uint no_part_fields=0, size_field_array;
     ptr= table->field;
     while ((field= *(ptr++)))
@@ -1328,6 +1346,33 @@ static void set_up_partition_func_pointers(partition_info *part_info)
       }
     }
   }
+  if (part_info->full_part_charset_field_array)
+  {
+    DBUG_ASSERT(part_info->get_partition_id);
+    part_info->get_partition_id_charset= part_info->get_partition_id;
+    if (part_info->part_charset_field_array &&
+        part_info->subpart_charset_field_array)
+      part_info->get_partition_id= get_part_id_charset_func_all;
+    else if (part_info->part_charset_field_array)
+      part_info->get_partition_id= get_part_id_charset_func_part;
+    else
+      part_info->get_partition_id= get_part_id_charset_func_subpart;
+  }
+  if (part_info->part_charset_field_array &&
+      part_info->is_sub_partitioned())
+  {
+    DBUG_ASSERT(part_info->get_part_partition_id);
+    part_info->get_part_partition_id_charset=
+          part_info->get_part_partition_id;
+    part_info->get_part_partition_id= get_part_part_id_charset_func;
+  }
+  if (part_info->subpart_charset_field_array)
+  {
+    DBUG_ASSERT(part_info->get_subpartition_id);
+    part_info->get_subpartition_id_charset=
+          part_info->get_subpartition_id;
+    part_info->get_subpartition_id= get_subpart_id_charset_func;
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -1387,6 +1432,82 @@ static uint32 get_part_id_from_linear_hash(longlong hash_value, uint mask,
   }
   return part_id;
 }
+
+
+/*
+  Check if a particular field is in need of character set
+  handling for partition functions.
+
+  SYNOPSIS
+    field_is_partition_charset()
+    field                         The field to check
+
+  RETURN VALUES
+    FALSE                        Not in need of character set handling
+    TRUE                         In need of character set handling
+*/
+
+bool field_is_partition_charset(Field *field)
+{
+  if (!(field->type() == MYSQL_TYPE_STRING) &&
+      !(field->type() == MYSQL_TYPE_VARCHAR))
+    return FALSE;
+  {
+    CHARSET_INFO *cs= ((Field_str*)field)->charset();
+    if (!(field->type() == MYSQL_TYPE_STRING) ||
+        !(cs->state & MY_CS_BINSORT))
+      return TRUE;
+    return FALSE;
+  }
+}
+
+
+/*
+  Check that partition function doesn't contain any forbidden
+  character sets and collations.
+
+  SYNOPSIS
+    check_part_func_fields()
+    ptr                                 Array of Field pointers
+    ok_with_charsets                    Will we report allowed charset
+                                        fields as ok
+  RETURN VALUES
+    FALSE                               Success
+    TRUE                                Error
+
+  DESCRIPTION
+    We will check in this routine that the fields of the partition functions
+    do not contain unallowed parts. It can also be used to check if there
+    are fields that require special care by calling my_strnxfrm before
+    calling the functions to calculate partition id.
+*/
+
+bool check_part_func_fields(Field **ptr, bool ok_with_charsets)
+{
+  Field *field;
+  DBUG_ENTER("check_part_func_fields");
+
+  while ((field= *(ptr++)))
+  {
+    /*
+      For CHAR/VARCHAR fields we need to take special precautions.
+      Binary collation with CHAR is automatically supported. Other
+      types need some kind of standardisation function handling
+    */
+    if (field_is_partition_charset(field))
+    {
+      CHARSET_INFO *cs= ((Field_str*)field)->charset();
+      if (!ok_with_charsets ||
+          cs->mbmaxlen > 1 ||
+          cs->strxfrm_multiply > 1)
+      {
+        DBUG_RETURN(TRUE);
+      }
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+
 
 /*
   fix partition functions
@@ -1531,6 +1652,16 @@ bool fix_partition_func(THD *thd, TABLE *table,
       goto end;
     }
   }
+  if (((part_info->part_type != HASH_PARTITION ||
+      part_info->list_of_part_fields == FALSE) &&
+      check_part_func_fields(part_info->part_field_array, TRUE)) ||
+      (part_info->list_of_part_fields == FALSE &&
+       part_info->is_sub_partitioned() &&
+       check_part_func_fields(part_info->subpart_field_array, TRUE)))
+  {
+    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+    goto end;
+  }
   if (unlikely(create_full_part_field_array(table, part_info)))
     goto end;
   if (unlikely(check_primary_key(table)))
@@ -1541,6 +1672,11 @@ bool fix_partition_func(THD *thd, TABLE *table,
     goto end;
   if (unlikely(set_up_partition_bitmap(thd, part_info)))
     goto end;
+  if (unlikely(part_info->set_up_charset_field_preps()))
+  {
+    my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+    goto end;
+  }
   check_range_capable_PF(table);
   set_up_partition_key_maps(table, part_info);
   set_up_partition_func_pointers(part_info);
@@ -2255,6 +2391,88 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
 }
 
 /*
+  Copy to field buffers and set up field pointers
+
+  SYNOPSIS
+    copy_to_part_field_buffers()
+    ptr                          Array of fields to copy
+    field_bufs                   Array of field buffers to copy to
+    restore_ptr                  Array of pointers to restore to
+
+  RETURN VALUES
+    NONE
+  DESCRIPTION
+    This routine is used to take the data from field pointer, convert
+    it to a standard format and store this format in a field buffer
+    allocated for this purpose. Next the field pointers are moved to
+    point to the field buffers. There is a separate to restore the
+    field pointers after this call.
+*/
+
+static void copy_to_part_field_buffers(Field **ptr,
+                                       char **field_bufs,
+                                       char **restore_ptr)
+{
+  Field *field;
+  while ((field= *(ptr++)))
+  {
+    *restore_ptr= field->ptr;
+    restore_ptr++;
+    if (!field->maybe_null() || !field->is_null())
+    {
+      CHARSET_INFO *cs= ((Field_str*)field)->charset();
+      uint len= field->pack_length();
+      char *field_buf= *field_bufs;
+      /*
+         We only use the field buffer for VARCHAR and CHAR strings
+         which isn't of a binary collation. We also only use the
+         field buffer for fields which are not currently NULL.
+         The field buffer will store a normalised string. We use
+         the strnxfrm method to normalise the string.
+       */
+      if (field->type() == MYSQL_TYPE_VARCHAR)
+      {
+        uint len_bytes= ((Field_varstring*)field)->length_bytes;
+        my_strnxfrm(cs, (uchar*)(field_buf + len_bytes), (len - len_bytes),
+                    (uchar*)(field->ptr + len_bytes), field->field_length);
+        if (len_bytes == 1)
+          *field_buf= (uchar)field->field_length;
+        else
+          int2store(field_buf, field->field_length);
+      }
+      else
+      {
+        my_strnxfrm(cs, (uchar*)field_buf, len,
+                    (uchar*)field->ptr, field->field_length);
+      }
+      field->ptr= field_buf;
+    }
+    field_bufs++;
+  }
+  return;
+}
+
+/*
+  Restore field pointers
+  SYNOPSIS
+    restore_part_field_pointers()
+    ptr                            Array of fields to restore
+    restore_ptr                    Array of field pointers to restore to
+
+  RETURN VALUES
+*/
+
+static void restore_part_field_pointers(Field **ptr, char **restore_ptr)
+{
+  Field *field;
+  while ((field= *(ptr++)))
+  {
+    field->ptr= *restore_ptr;
+    restore_ptr++;
+  }
+  return;
+}
+/*
   This function is used to calculate the partition id where all partition
   fields have been prepared to point to a record where the partition field
   values are bound.
@@ -2264,6 +2482,7 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
     part_info           A reference to the partition_info struct where all the
                         desired information is given
     out:part_id         The partition id is returned through this pointer
+    out: func_value     Value of partition function (longlong)
 
   RETURN VALUE
     part_id                     Partition id of partition that would contain
@@ -2307,6 +2526,7 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
     part_info           A reference to the partition_info struct where all the
                         desired information is given
     out:part_id         The partition id is returned through this pointer
+    out: func_value     The value calculated by partition function
 
   RETURN VALUE
     part_id                     Partition id of partition that would contain
@@ -2327,6 +2547,79 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
     get_partition_id_linear_hash_nosub
     get_partition_id_linear_key_nosub
 */
+
+static int get_part_id_charset_func_subpart(partition_info *part_info,
+                                            uint32 *part_id,
+                                            longlong *func_value)
+{
+  int res;
+  copy_to_part_field_buffers(part_info->subpart_charset_field_array,
+                             part_info->subpart_field_buffers,
+                             part_info->restore_subpart_field_ptrs);
+  res= part_info->get_partition_id_charset(part_info, part_id, func_value);
+  restore_part_field_pointers(part_info->subpart_charset_field_array,
+                              part_info->restore_subpart_field_ptrs);
+  return res;
+}
+
+
+static int get_part_id_charset_func_part(partition_info *part_info,
+                                         uint32 *part_id,
+                                         longlong *func_value)
+{
+  int res;
+  copy_to_part_field_buffers(part_info->part_charset_field_array,
+                             part_info->part_field_buffers,
+                             part_info->restore_part_field_ptrs);
+  res= part_info->get_partition_id_charset(part_info, part_id, func_value);
+  restore_part_field_pointers(part_info->part_charset_field_array,
+                              part_info->restore_part_field_ptrs);
+  return res;
+}
+
+
+static int get_part_id_charset_func_all(partition_info *part_info,
+                                        uint32 *part_id,
+                                        longlong *func_value)
+{
+  int res;
+  copy_to_part_field_buffers(part_info->full_part_field_array,
+                             part_info->full_part_field_buffers,
+                             part_info->restore_full_part_field_ptrs);
+  res= part_info->get_partition_id_charset(part_info, part_id, func_value);
+  restore_part_field_pointers(part_info->full_part_field_array,
+                              part_info->restore_full_part_field_ptrs);
+  return res;
+}
+
+
+static int get_part_part_id_charset_func(partition_info *part_info,
+                                         uint32 *part_id,
+                                         longlong *func_value)
+{
+  int res;
+  copy_to_part_field_buffers(part_info->part_charset_field_array,
+                             part_info->part_field_buffers,
+                             part_info->restore_part_field_ptrs);
+  res= part_info->get_part_partition_id_charset(part_info,
+                                                part_id, func_value);
+  restore_part_field_pointers(part_info->part_charset_field_array,
+                              part_info->restore_part_field_ptrs);
+  return res;
+}
+
+
+static uint32 get_subpart_id_charset_func(partition_info *part_info)
+{
+  int res;
+  copy_to_part_field_buffers(part_info->subpart_charset_field_array,
+                             part_info->subpart_field_buffers,
+                             part_info->restore_subpart_field_ptrs);
+  res= part_info->get_subpartition_id_charset(part_info);
+  restore_part_field_pointers(part_info->subpart_charset_field_array,
+                              part_info->restore_subpart_field_ptrs);
+  return res;
+}
 
 
 int get_partition_id_list(partition_info *part_info,
@@ -2416,6 +2709,21 @@ notfound:
     The edge of corresponding sub-array of part_info->list_array
 */
 
+uint32 get_list_array_idx_for_endpoint_charset(partition_info *part_info,
+                                               bool left_endpoint,
+                                               bool include_endpoint)
+{
+  uint32 res;
+  copy_to_part_field_buffers(part_info->part_field_array,
+                             part_info->part_field_buffers,
+                             part_info->restore_part_field_ptrs);
+  res= get_list_array_idx_for_endpoint(part_info, left_endpoint,
+                                       include_endpoint);
+  restore_part_field_pointers(part_info->part_field_array,
+                              part_info->restore_part_field_ptrs);
+  return res;
+}
+
 uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
                                        bool left_endpoint,
                                        bool include_endpoint)
@@ -2461,8 +2769,8 @@ notfound:
 
 
 int get_partition_id_range(partition_info *part_info,
-                            uint32 *part_id,
-                            longlong *func_value)
+                           uint32 *part_id,
+                           longlong *func_value)
 {
   longlong *range_array= part_info->range_int_array;
   uint max_partition= part_info->no_parts - 1;
@@ -2544,6 +2852,22 @@ int get_partition_id_range(partition_info *part_info,
   RETURN
     The edge of corresponding part_info->range_int_array sub-array.
 */
+
+static uint32
+get_partition_id_range_for_endpoint_charset(partition_info *part_info,
+                                            bool left_endpoint,
+                                            bool include_endpoint)
+{
+  uint32 res;
+  copy_to_part_field_buffers(part_info->part_field_array,
+                             part_info->part_field_buffers,
+                             part_info->restore_part_field_ptrs);
+  res= get_partition_id_range_for_endpoint(part_info, left_endpoint,
+                                           include_endpoint);
+  restore_part_field_pointers(part_info->part_field_array,
+                              part_info->restore_part_field_ptrs);
+  return res;
+}
 
 uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
                                            bool left_endpoint,
@@ -4557,7 +4881,7 @@ the generated partition syntax in a correct manner.
         tab_part_info->use_default_no_subpartitions= FALSE;
       }
       if (tab_part_info->check_partition_info(thd, (handlerton**)NULL,
-                                              table->file, ULL(0)))
+                                              table->file, ULL(0), FALSE))
       {
         DBUG_RETURN(TRUE);
       }
@@ -6384,13 +6708,20 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 
   if (part_info->part_type == RANGE_PARTITION)
   {
-    get_endpoint=        get_partition_id_range_for_endpoint;
+    if (part_info->part_charset_field_array)
+      get_endpoint=        get_partition_id_range_for_endpoint_charset;
+    else
+      get_endpoint=        get_partition_id_range_for_endpoint;
     max_endpoint_val=    part_info->no_parts;
     part_iter->get_next= get_next_partition_id_range;
   }
   else if (part_info->part_type == LIST_PARTITION)
   {
-    get_endpoint=        get_list_array_idx_for_endpoint;
+
+    if (part_info->part_charset_field_array)
+      get_endpoint=        get_list_array_idx_for_endpoint_charset;
+    else
+      get_endpoint=        get_list_array_idx_for_endpoint;
     max_endpoint_val=    part_info->no_list_values;
     part_iter->get_next= get_next_partition_id_list;
     part_iter->part_info= part_info;
