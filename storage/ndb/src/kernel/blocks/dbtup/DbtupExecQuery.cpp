@@ -1039,20 +1039,17 @@ int Dbtup::handleUpdateReq(Signal* signal,
   tup_version= (tup_version + 1) & ZTUP_VERSION_MASK;
   operPtrP->tupVersion= tup_version;
   
-  int retValue;
   if (!req_struct->interpreted_exec) {
     jam();
-    retValue= updateAttributes(req_struct,
-                               &cinBuffer[0],
-                               req_struct->attrinfo_len);
+    int retValue = updateAttributes(req_struct,
+				    &cinBuffer[0],
+				    req_struct->attrinfo_len);
+    if (unlikely(retValue == -1))
+      goto error;
   } else {
     jam();
     if (unlikely(interpreterStartLab(signal, req_struct) == -1))
       return -1;
-  }
-  
-  if (retValue == -1) {
-    goto error;
   }
   
   if (regTabPtr->need_shrink())
@@ -1073,7 +1070,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
     jam();
     setChecksum(req_struct->m_tuple_ptr, regTabPtr);
   }
-  return retValue;
+  return 0;
   
 error:
   tupkeyErrorLab(signal);  
