@@ -357,12 +357,13 @@ then
   cp -fp  mysql-release-%{mysql_version}/config.log "$MYSQL_CONFLOG_DEST"
 fi
 
-(cd mysql-release-%{mysql_version}/mysql-test ; \
- ./mysql-test-run.pl --comment=normal --force ; \
- ./mysql-test-run.pl --comment=ps --ps-protocol --force ; \
- ./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force ; \
- ./mysql-test-run.pl --comment=ps+rowrepl --ps-protocol --mysqld=--binlog-format=row --force ; \
- true)
+cd mysql-release-%{mysql_version}/mysql-test
+./mysql-test-run.pl --comment=normal --force --skip-ndbcluster --timer || true
+./mysql-test-run.pl --comment=ps --ps-protocol --force --skip-ndbcluster --timer || true
+./mysql-test-run.pl --comment=normal+rowrepl --mysqld=--binlog-format=row --force --skip-ndbcluster --timer || true
+./mysql-test-run.pl --comment=ps+rowrepl+NDB --ps-protocol --mysqld=--binlog-format=row --force --timer || true
+./mysql-test-run.pl --comment=NDB --with-ndbcluster-only --force --timer || true
+cd ../..
 
 ##############################################################################
 
