@@ -449,7 +449,7 @@ public:
     purposes.
     -------------------------------------------------------------------------
   */
-  virtual void info(uint);
+  virtual int info(uint);
   void get_dynamic_partition_info(PARTITION_INFO *stat_info,
                                   uint part_id);
   virtual int extra(enum ha_extra_function operation);
