@@ -864,7 +864,7 @@ buf_LRU_block_free_non_file_page(
 	ut_a((block->state == BUF_BLOCK_MEMORY)
 	     || (block->state == BUF_BLOCK_READY_FOR_USE));
 
-	ut_a(block->n_pointers == 0);
+	ut_ad(block->n_pointers == 0);
 	ut_a(!block->in_free_list);
 
 	block->state = BUF_BLOCK_NOT_USED;

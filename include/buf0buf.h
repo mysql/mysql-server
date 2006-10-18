@@ -855,9 +855,11 @@ struct buf_block_struct{
 					complete, though: there may have been
 					hash collisions, record deletions,
 					etc. */
+#ifdef UNIV_DEBUG
 	ulint		n_pointers;	/* used in debugging: the number of
 					pointers in the adaptive hash index
 					pointing to this frame */
+#endif /* UNIV_DEBUG */
 	ulint		curr_n_fields;	/* prefix length for hash indexing:
 					number of full fields */
 	ulint		curr_n_bytes;	/* number of bytes in hash indexing */

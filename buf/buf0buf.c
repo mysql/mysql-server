@@ -632,8 +632,9 @@ buf_block_init(
 	block->in_free_list = FALSE;
 	block->in_LRU_list = FALSE;
 
+#ifdef UNIV_DEBUG
 	block->n_pointers = 0;
-
+#endif /* UNIV_DEBUG */
 	page_zip_des_init(&block->page_zip);
 
 	rw_lock_create(&block->lock, SYNC_LEVEL_VARYING);

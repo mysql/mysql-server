@@ -11,7 +11,9 @@ Created 8/22/1994 Heikki Tuuri
 #include "ha0ha.ic"
 #endif
 
-#include "buf0buf.h"
+#ifdef UNIV_DEBUG
+# include "buf0buf.h"
+#endif /* UNIV_DEBUG */
 #include "page0page.h"
 
 /*****************************************************************
@@ -22,8 +24,6 @@ hash_table_t*
 ha_create(
 /*======*/
 				/* out, own: created table */
-	ibool	in_btr_search,	/* in: TRUE if the hash table is used in
-				the btr_search module */
 	ulint	n,		/* in: number of array cells */
 	ulint	n_mutexes,	/* in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
@@ -35,22 +35,15 @@ ha_create(
 
 	table = hash_create(n);
 
-	if (in_btr_search) {
-		table->adaptive = TRUE;
-	} else {
-		table->adaptive = FALSE;
-	}
-
+#ifdef UNIV_DEBUG
+	table->adaptive = TRUE;
+#endif /* UNIV_DEBUG */
 	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
 	but in practise it never should in this case, hence the asserts. */
 
 	if (n_mutexes == 0) {
-		if (in_btr_search) {
-			table->heap = mem_heap_create_in_btr_search(4096);
-			ut_a(table->heap);
-		} else {
-			table->heap = mem_heap_create_in_buffer(4096);
-		}
+		table->heap = mem_heap_create_in_btr_search(4096);
+		ut_a(table->heap);
 
 		return(table);
 	}
@@ -60,12 +53,8 @@ ha_create(
 	table->heaps = mem_alloc(n_mutexes * sizeof(void*));
 
 	for (i = 0; i < n_mutexes; i++) {
-		if (in_btr_search) {
-			table->heaps[i] = mem_heap_create_in_btr_search(4096);
-			ut_a(table->heaps[i]);
-		} else {
-			table->heaps[i] = mem_heap_create_in_buffer(4096);
-		}
+		table->heaps[i] = mem_heap_create_in_btr_search(4096);
+		ut_a(table->heaps[i]);
 	}
 
 	return(table);
@@ -91,7 +80,9 @@ ha_insert_for_fold(
 	hash_cell_t*	cell;
 	ha_node_t*	node;
 	ha_node_t*	prev_node;
+#ifdef UNIV_DEBUG
 	buf_block_t*	prev_block;
+#endif /* UNIV_DEBUG */
 	ulint		hash;
 
 	ut_ad(table && data);
@@ -106,13 +97,14 @@ ha_insert_for_fold(
 
 	while (prev_node != NULL) {
 		if (prev_node->fold == fold) {
+#ifdef UNIV_DEBUG
 			if (table->adaptive) {
 				prev_block = buf_block_align(prev_node->data);
 				ut_a(prev_block->n_pointers > 0);
 				prev_block->n_pointers--;
 				buf_block_align(data)->n_pointers++;
 			}
-
+#endif /* UNIV_DEBUG */
 			prev_node->data = data;
 
 			return(TRUE);
@@ -136,10 +128,11 @@ ha_insert_for_fold(
 
 	ha_node_set_data(node, data);
 
+#ifdef UNIV_DEBUG
 	if (table->adaptive) {
 		buf_block_align(data)->n_pointers++;
 	}
-
+#endif /* UNIV_DEBUG */
 	node->fold = fold;
 
 	node->next = NULL;
@@ -172,11 +165,12 @@ ha_delete_hash_node(
 	hash_table_t*	table,		/* in: hash table */
 	ha_node_t*	del_node)	/* in: node to be deleted */
 {
+#ifdef UNIV_DEBUG
 	if (table->adaptive) {
 		ut_a(buf_block_align(del_node->data)->n_pointers > 0);
 		buf_block_align(del_node->data)->n_pointers--;
 	}
-
+#endif /* UNIV_DEBUG */
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
 }
 
@@ -224,12 +218,13 @@ ha_search_and_update_if_found(
 	node = ha_search_with_data(table, fold, data);
 
 	if (node) {
+#ifdef UNIV_DEBUG
 		if (table->adaptive) {
 			ut_a(buf_block_align(node->data)->n_pointers > 0);
 			buf_block_align(node->data)->n_pointers--;
 			buf_block_align(new_data)->n_pointers++;
 		}
-
+#endif /* UNIV_DEBUG */
 		node->data = new_data;
 	}
 }
