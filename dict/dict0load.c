@@ -80,7 +80,7 @@ dict_get_first_table_name_in_db(
 	ut_a(!dict_table_is_comp(sys_tables));
 
 	tuple = dtuple_create(heap, 1);
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 
 	dfield_set_data(dfield, name, ut_strlen(name));
 	dict_index_copy_types(tuple, sys_index, 1);
@@ -408,7 +408,7 @@ dict_load_columns(
 	ut_a(!dict_table_is_comp(sys_columns));
 
 	tuple = dtuple_create(heap, 1);
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 
 	buf = mem_heap_alloc(heap, 8);
 	mach_write_to_8(buf, table->id);
@@ -535,7 +535,7 @@ dict_load_fields(
 	ut_a(!dict_table_is_comp(sys_fields));
 
 	tuple = dtuple_create(heap, 1);
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 
 	buf = mem_heap_alloc(heap, 8);
 	mach_write_to_8(buf, index->id);
@@ -648,7 +648,7 @@ dict_load_indexes(
 	ut_a(!dict_table_is_comp(sys_indexes));
 
 	tuple = dtuple_create(heap, 1);
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 
 	buf = mem_heap_alloc(heap, 8);
 	mach_write_to_8(buf, table->id);
@@ -812,7 +812,7 @@ dict_load_table(
 	ut_a(!dict_table_is_comp(sys_tables));
 
 	tuple = dtuple_create(heap, 1);
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 
 	dfield_set_data(dfield, name, ut_strlen(name));
 	dict_index_copy_types(tuple, sys_index, 1);
@@ -991,7 +991,7 @@ dict_load_table_on_id(
 	heap = mem_heap_create(256);
 
 	tuple  = dtuple_create(heap, 1);
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 
 	/* Write the table id in byte format to id_buf */
 	mach_write_to_8(id_buf, table_id);
@@ -1105,7 +1105,7 @@ dict_load_foreign_cols(
 	ut_a(!dict_table_is_comp(sys_foreign_cols));
 
 	tuple = dtuple_create(foreign->heap, 1);
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 
 	dfield_set_data(dfield, id, ut_strlen(id));
 	dict_index_copy_types(tuple, sys_index, 1);
@@ -1179,7 +1179,7 @@ dict_load_foreign(
 	ut_a(!dict_table_is_comp(sys_foreign));
 
 	tuple = dtuple_create(heap2, 1);
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 
 	dfield_set_data(dfield, id, ut_strlen(id));
 	dict_index_copy_types(tuple, sys_index, 1);
@@ -1324,7 +1324,7 @@ start_load:
 	heap = mem_heap_create(256);
 
 	tuple  = dtuple_create(heap, 1);
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 
 	dfield_set_data(dfield, table_name, ut_strlen(table_name));
 	dict_index_copy_types(tuple, sec_index, 1);

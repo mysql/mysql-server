@@ -350,10 +350,10 @@ page_create_low(
 	/* Create first a data tuple for infimum record */
 	tuple = dtuple_create(heap, 1);
 	dtuple_set_info_bits(tuple, REC_STATUS_INFIMUM);
-	field = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	field = dtuple_get_nth_field(tuple, 0);
 
 	dfield_set_data(field, "infimum", 8);
-	dtype_set((dtype_t*) dfield_get_type(field),
+	dtype_set(dfield_get_type(field),
 		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, 8);
 	/* Set the corresponding physical record to its place in the page
 	record heap */
@@ -384,10 +384,10 @@ page_create_low(
 
 	tuple = dtuple_create(heap, 1);
 	dtuple_set_info_bits(tuple, REC_STATUS_SUPREMUM);
-	field = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	field = dtuple_get_nth_field(tuple, 0);
 
 	dfield_set_data(field, "supremum", comp ? 8 : 9);
-	dtype_set((dtype_t*) dfield_get_type(field),
+	dtype_set(dfield_get_type(field),
 		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, comp ? 8 : 9);
 
 	supremum_rec = rec_convert_dtuple_to_rec(heap_top, index,

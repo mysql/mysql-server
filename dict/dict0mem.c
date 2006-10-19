@@ -202,7 +202,7 @@ dict_mem_table_add_col(
 					     table->n_def - 1,
 					     name, heap);
 
-	col = (dict_col_t*) dict_table_get_nth_col(table, table->n_def - 1);
+	col = dict_table_get_nth_col(table, table->n_def - 1);
 
 	col->ind = table->n_def - 1;
 	col->ord_part = 0;

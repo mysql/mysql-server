@@ -88,7 +88,7 @@ row_build_row_ref_fast(
 	ref_len = dtuple_get_n_fields(ref);
 
 	for (i = 0; i < ref_len; i++) {
-		dfield = (dfield_t*) dtuple_get_nth_field(ref, i);
+		dfield = dtuple_get_nth_field(ref, i);
 
 		field_no = *(map + i);
 

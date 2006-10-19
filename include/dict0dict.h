@@ -549,15 +549,31 @@ dict_table_get_n_cols(
 /*==================*/
 				/* out: number of columns of a table */
 	dict_table_t*	table);	/* in: table */
+#ifdef UNIV_DEBUG
 /************************************************************************
 Gets the nth column of a table. */
 UNIV_INLINE
-const dict_col_t*
+dict_col_t*
 dict_table_get_nth_col(
 /*===================*/
 					/* out: pointer to column object */
 	const dict_table_t*	table,	/* in: table */
 	ulint			pos);	/* in: position of column */
+/************************************************************************
+Gets the given system column of a table. */
+UNIV_INLINE
+dict_col_t*
+dict_table_get_sys_col(
+/*===================*/
+					/* out: pointer to column object */
+	const dict_table_t*	table,	/* in: table */
+	ulint			sys);	/* in: DATA_ROW_ID, ... */
+#else /* UNIV_DEBUG */
+#define dict_table_get_nth_col(table, pos) \
+((table)->cols + (pos))
+#define dict_table_get_sys_col(table, sys) \
+((table)->cols + (table)->n_cols + (sys) - DATA_N_SYS_COLS)
+#endif /* UNIV_DEBUG */
 /************************************************************************
 Gets the nth column of a table. */
 
@@ -568,23 +584,14 @@ dict_table_get_nth_col_noninline(
 	const dict_table_t*	table,	/* in: table */
 	ulint			pos);	/* in: position of column */
 /************************************************************************
-Gets the given system column of a table. */
-UNIV_INLINE
-const dict_col_t*
-dict_table_get_sys_col(
-/*===================*/
-					/* out: pointer to column object */
-	const dict_table_t*	table,	/* in: table */
-	ulint			sys);	/* in: DATA_ROW_ID, ... */
-/************************************************************************
 Gets the given system column number of a table. */
 UNIV_INLINE
 ulint
 dict_table_get_sys_col_no(
 /*======================*/
-				/* out: column number */
-	dict_table_t*	table,	/* in: table */
-	ulint		sys);	/* in: DATA_ROW_ID, ... */
+					/* out: column number */
+	const dict_table_t*	table,	/* in: table */
+	ulint			sys);	/* in: DATA_ROW_ID, ... */
 /************************************************************************
 Check whether the table uses the compact page format. */
 UNIV_INLINE

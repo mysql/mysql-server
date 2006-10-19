@@ -321,8 +321,8 @@ btr_search_update_block_hash_info(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
-	ut_ad(rw_lock_own(&((buf_block_t*) block)->lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&((buf_block_t*) block)->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&block->lock, RW_LOCK_SHARED)
+	      || rw_lock_own(&block->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(cursor);
 

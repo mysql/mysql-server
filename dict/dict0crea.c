@@ -50,18 +50,18 @@ dict_create_sys_tables_tuple(
 	entry = dtuple_create(heap, 8 + DATA_N_SYS_COLS);
 
 	/* 0: NAME -----------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 0);
+	dfield = dtuple_get_nth_field(entry, 0);
 
 	dfield_set_data(dfield, table->name, ut_strlen(table->name));
 	/* 3: ID -------------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 1);
+	dfield = dtuple_get_nth_field(entry, 1);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 4: N_COLS ---------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 2);
+	dfield = dtuple_get_nth_field(entry, 2);
 
 #if DICT_TF_COMPACT != 1
 #error
@@ -72,7 +72,7 @@ dict_create_sys_tables_tuple(
 			| ((table->flags & DICT_TF_COMPACT) << 31));
 	dfield_set_data(dfield, ptr, 4);
 	/* 5: TYPE -----------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 3);
+	dfield = dtuple_get_nth_field(entry, 3);
 
 	ptr = mem_heap_alloc(heap, 4);
 	if (table->flags & DICT_TF_COMPRESSED_MASK) {
@@ -86,7 +86,7 @@ dict_create_sys_tables_tuple(
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: MIX_ID (obsolete) ---------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 4);
+	dfield = dtuple_get_nth_field(entry, 4);
 
 	ptr = mem_heap_alloc(heap, 8);
 	memset(ptr, 0, 8);
@@ -94,18 +94,18 @@ dict_create_sys_tables_tuple(
 	dfield_set_data(dfield, ptr, 8);
 	/* 7: MIX_LEN (obsolete) --------------------------*/
 
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 5);
+	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
 	memset(ptr, 0, 4);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: CLUSTER_NAME ---------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 6);
+	dfield = dtuple_get_nth_field(entry, 6);
 	dfield_set_data(dfield, NULL, UNIV_SQL_NULL); /* not supported */
 
 	/* 9: SPACE ----------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 7);
+	dfield = dtuple_get_nth_field(entry, 7);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, table->space);
@@ -147,47 +147,47 @@ dict_create_sys_columns_tuple(
 	entry = dtuple_create(heap, 7 + DATA_N_SYS_COLS);
 
 	/* 0: TABLE_ID -----------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 0);
+	dfield = dtuple_get_nth_field(entry, 0);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 1: POS ----------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 1);
+	dfield = dtuple_get_nth_field(entry, 1);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, i);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 4: NAME ---------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 2);
+	dfield = dtuple_get_nth_field(entry, 2);
 
 	col_name = dict_table_get_col_name(table, i);
 	dfield_set_data(dfield, col_name, ut_strlen(col_name));
 	/* 5: MTYPE --------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 3);
+	dfield = dtuple_get_nth_field(entry, 3);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, column->mtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: PRTYPE -------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 4);
+	dfield = dtuple_get_nth_field(entry, 4);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, column->prtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 7: LEN ----------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 5);
+	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, column->len);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: PREC ---------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 6);
+	dfield = dtuple_get_nth_field(entry, 6);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, 0/* unused */);
@@ -338,32 +338,32 @@ dict_create_sys_indexes_tuple(
 	entry = dtuple_create(heap, 7 + DATA_N_SYS_COLS);
 
 	/* 0: TABLE_ID -----------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 0);
+	dfield = dtuple_get_nth_field(entry, 0);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 1: ID ----------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 1);
+	dfield = dtuple_get_nth_field(entry, 1);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, index->id);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 4: NAME --------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 2);
+	dfield = dtuple_get_nth_field(entry, 2);
 
 	dfield_set_data(dfield, index->name, ut_strlen(index->name));
 	/* 5: N_FIELDS ----------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 3);
+	dfield = dtuple_get_nth_field(entry, 3);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, index->n_fields);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: TYPE --------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 4);
+	dfield = dtuple_get_nth_field(entry, 4);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, index->type);
@@ -375,7 +375,7 @@ dict_create_sys_indexes_tuple(
 #error "DICT_SYS_INDEXES_SPACE_NO_FIELD != 7"
 #endif
 
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 5);
+	dfield = dtuple_get_nth_field(entry, 5);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, index->space);
@@ -387,7 +387,7 @@ dict_create_sys_indexes_tuple(
 #error "DICT_SYS_INDEXES_PAGE_NO_FIELD != 8"
 #endif
 
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 6);
+	dfield = dtuple_get_nth_field(entry, 6);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, FIL_NULL);
@@ -436,7 +436,7 @@ dict_create_sys_fields_tuple(
 	entry = dtuple_create(heap, 3 + DATA_N_SYS_COLS);
 
 	/* 0: INDEX_ID -----------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 0);
+	dfield = dtuple_get_nth_field(entry, 0);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, index->id);
@@ -444,7 +444,7 @@ dict_create_sys_fields_tuple(
 	dfield_set_data(dfield, ptr, 8);
 	/* 1: POS + PREFIX LENGTH ----------------------------*/
 
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 1);
+	dfield = dtuple_get_nth_field(entry, 1);
 
 	ptr = mem_heap_alloc(heap, 4);
 
@@ -464,7 +464,7 @@ dict_create_sys_fields_tuple(
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 4: COL_NAME -------------------------*/
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, 2);
+	dfield = dtuple_get_nth_field(entry, 2);
 
 	dfield_set_data(dfield, field->name,
 			ut_strlen(field->name));
@@ -497,12 +497,12 @@ dict_create_search_tuple(
 	search_tuple = dtuple_create(heap, 2);
 
 	field1 = dtuple_get_nth_field(tuple, 0);
-	field2 = (dfield_t*) dtuple_get_nth_field(search_tuple, 0);
+	field2 = dtuple_get_nth_field(search_tuple, 0);
 
 	dfield_copy(field2, field1);
 
 	field1 = dtuple_get_nth_field(tuple, 1);
-	field2 = (dfield_t*) dtuple_get_nth_field(search_tuple, 1);
+	field2 = dtuple_get_nth_field(search_tuple, 1);
 
 	dfield_copy(field2, field1);
 

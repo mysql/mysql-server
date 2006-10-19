@@ -38,14 +38,27 @@ dtuple_get_nth_field_noninline(
 	const dtuple_t*	tuple,	/* in: tuple */
 	ulint		n);	/* in: index of field */
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Gets pointer to the type struct of SQL data field. */
 UNIV_INLINE
-const dtype_t*
+dtype_t*
 dfield_get_type(
 /*============*/
 				/* out: pointer to the type struct */
 	const dfield_t*	field);	/* in: SQL data field */
+/*************************************************************************
+Gets pointer to the data in a field. */
+UNIV_INLINE
+void*
+dfield_get_data(
+/*============*/
+				/* out: pointer to data */
+	const dfield_t* field);	/* in: field */
+#else /* UNIV_DEBUG */
+# define dfield_get_type(field) (&(field)->type)
+# define dfield_get_data(field) ((field)->data)
+#endif /* UNIV_DEBUG */
 /*************************************************************************
 Sets the type struct of SQL data field. */
 UNIV_INLINE
@@ -54,14 +67,6 @@ dfield_set_type(
 /*============*/
 	dfield_t*	field,	/* in: SQL data field */
 	dtype_t*	type);	/* in: pointer to data type struct */
-/*************************************************************************
-Gets pointer to the data in a field. */
-UNIV_INLINE
-void*
-dfield_get_data(
-/*============*/
-				/* out: pointer to data */
-	dfield_t* field);	/* in: field */
 /*************************************************************************
 Gets length of field data. */
 UNIV_INLINE
@@ -139,15 +144,19 @@ dtuple_get_n_fields(
 /*================*/
 				/* out: number of fields */
 	const dtuple_t*	tuple);	/* in: tuple */
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Gets nth field of a tuple. */
 UNIV_INLINE
-const dfield_t*
+dfield_t*
 dtuple_get_nth_field(
 /*=================*/
 				/* out: nth field */
 	const dtuple_t*	tuple,	/* in: tuple */
 	ulint		n);	/* in: index of field */
+#else /* UNIV_DEBUG */
+# define dtuple_get_nth_field(tuple, n) ((tuple)->fields + (n))
+#endif /* UNIV_DEBUG */
 /*************************************************************************
 Gets info bits in a data tuple. */
 UNIV_INLINE

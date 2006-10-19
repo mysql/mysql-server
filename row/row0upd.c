@@ -352,7 +352,7 @@ row_upd_index_entry_sys_field(
 
 	pos = dict_index_get_sys_col_pos(index, type);
 
-	dfield = (dfield_t*) dtuple_get_nth_field(entry, pos);
+	dfield = dtuple_get_nth_field(entry, pos);
 	field = dfield_get_data(dfield);
 
 	if (type == DATA_TRX_ID) {
@@ -758,7 +758,7 @@ row_upd_build_sec_rec_difference_binary(
 
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 
-		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
+		data = rec_get_nth_field(rec, offsets, i, &len);
 
 		dfield = dtuple_get_nth_field(entry, i);
 
@@ -840,7 +840,7 @@ row_upd_build_difference_binary(
 
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 
-		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
+		data = rec_get_nth_field(rec, offsets, i, &len);
 
 		dfield = dtuple_get_nth_field(entry, i);
 
@@ -926,8 +926,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 
 			if (upd_field->field_no == j) {
 
-				dfield = (dfield_t*)
-					dtuple_get_nth_field(entry, j);
+				dfield = dtuple_get_nth_field(entry, j);
 
 				new_val = &(upd_field->new_val);
 
@@ -1003,8 +1002,7 @@ row_upd_index_replace_new_col_vals(
 
 			if (upd_field->field_no == clust_pos) {
 
-				dfield = (dfield_t*)
-					dtuple_get_nth_field(entry, j);
+				dfield = dtuple_get_nth_field(entry, j);
 
 				new_val = &(upd_field->new_val);
 

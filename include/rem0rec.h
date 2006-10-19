@@ -395,18 +395,19 @@ rec_get_nth_field_size(
 	const rec_t*	rec,	/* in: record */
 	ulint		n);	/* in: index of the field */
 /****************************************************************
-The following function is used to get a pointer to the nth
+The following function is used to get an offset to the nth
 data field in a record. */
 UNIV_INLINE
-byte*
-rec_get_nth_field(
-/*==============*/
-				/* out: pointer to the field */
-	rec_t*		rec,	/* in: record */
+ulint
+rec_get_nth_field_offs(
+/*===================*/
+				/* out: offset from the origin of rec */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n,	/* in: index of the field */
 	ulint*		len);	/* out: length of the field; UNIV_SQL_NULL
 				if SQL null */
+#define rec_get_nth_field(rec, offsets, n, len) \
+(rec + rec_get_nth_field_offs(offsets, n, len))
 /**********************************************************
 Determine if the offsets are for a record in the new
 compact format. */

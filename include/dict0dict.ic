@@ -213,10 +213,11 @@ dict_table_get_n_cols(
 	return(table->n_cols);
 }
 
+#ifdef UNIV_DEBUG
 /************************************************************************
 Gets the nth column of a table. */
 UNIV_INLINE
-const dict_col_t*
+dict_col_t*
 dict_table_get_nth_col(
 /*===================*/
 					/* out: pointer to column object */
@@ -227,20 +228,20 @@ dict_table_get_nth_col(
 	ut_ad(pos < table->n_def);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return((table->cols) + pos);
+	return((dict_col_t*) (table->cols) + pos);
 }
 
 /************************************************************************
 Gets the given system column of a table. */
 UNIV_INLINE
-const dict_col_t*
+dict_col_t*
 dict_table_get_sys_col(
 /*===================*/
 					/* out: pointer to column object */
 	const dict_table_t*	table,	/* in: table */
 	ulint			sys)	/* in: DATA_ROW_ID, ... */
 {
-	const dict_col_t*	col;
+	dict_col_t*	col;
 
 	ut_ad(table);
 	ut_ad(sys < DATA_N_SYS_COLS);
@@ -253,6 +254,7 @@ dict_table_get_sys_col(
 
 	return(col);
 }
+#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Gets the given system column number of a table. */
@@ -260,9 +262,9 @@ UNIV_INLINE
 ulint
 dict_table_get_sys_col_no(
 /*======================*/
-				/* out: column number */
-	dict_table_t*	table,	/* in: table */
-	ulint		sys)	/* in: DATA_ROW_ID, ... */
+					/* out: column number */
+	const dict_table_t*	table,	/* in: table */
+	ulint			sys)	/* in: DATA_ROW_ID, ... */
 {
 	ut_ad(table);
 	ut_ad(sys < DATA_N_SYS_COLS);
