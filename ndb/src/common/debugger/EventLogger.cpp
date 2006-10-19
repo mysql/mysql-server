@@ -647,8 +647,8 @@ void getTextMemoryUsage(QQQQ) {
   const int used = theData[3];
   const int total = theData[4];
   const int block = theData[5];
-  const int percent = (used*100)/total;
-    
+  const int percent = total ? (used*100)/total : 0;
+  
   BaseString::snprintf(m_text, m_text_len,
 		       "%s usage %s %d%s(%d %dK pages of total %d)",
 		       (block==DBACC ? "Index" : (block == DBTUP ?"Data":"<unknown>")),
