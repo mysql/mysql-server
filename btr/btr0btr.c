@@ -1949,7 +1949,12 @@ btr_lift_page_up(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	page_t*		father_page;
+	page_t*		iter_page;
+	page_t*		pages[BTR_MAX_LEVELS];
 	ulint		page_level;
+	ulint		root_page_no;
+	ulint		ancestors;
+	ulint		i;
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
@@ -1959,6 +1964,30 @@ btr_lift_page_up(
 		btr_page_get_father_node_ptr(index, page, mtr));
 
 	page_level = btr_page_get_level(page, mtr);
+	root_page_no = dict_index_get_page(index);
+
+	ancestors = 1;
+	pages[0] = father_page;
+
+	/* Store all ancestor pages so we can reset their levels later on.
+	We have to do all the searches on the tree now because later on,
+	after we've replaced the first level, the tree is in an inconsistent
+	state and can not be searched. */
+	iter_page = father_page;
+	for (;;) {
+		if (buf_block_get_page_no(buf_block_align(iter_page))
+		    == root_page_no) {
+
+			break;
+		}
+
+		ut_a(ancestors < BTR_MAX_LEVELS);
+
+		iter_page = buf_frame_align(
+			btr_page_get_father_node_ptr(index, iter_page, mtr));
+
+		pages[ancestors++] = iter_page;
+	}
 
 	btr_search_drop_page_hash_index(page);
 
@@ -1970,7 +1999,15 @@ btr_lift_page_up(
 			       index, mtr);
 	lock_update_copy_and_discard(father_page, page);
 
-	btr_page_set_level(father_page, page_level, mtr);
+	/* Go upward to root page, decreasing levels by one. */
+	for (i = 0; i < ancestors; i++) {
+		iter_page = pages[i];
+
+		ut_ad(btr_page_get_level(iter_page, mtr) == (page_level + 1));
+
+		btr_page_set_level(iter_page, page_level, mtr);
+		page_level++;
+	}
 
 	/* Free the file page */
 	btr_page_free(index, page, mtr);
