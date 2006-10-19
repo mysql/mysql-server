@@ -5,7 +5,7 @@
   different characteristics. long lists, few distinct resources -
   slow to scan, [possibly] high retry rate
 */
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -272,7 +272,7 @@ retry:
   _lf_unpin(pins, 3);
   do {
     cursor->curr= PTR(*cursor->prev);
-    _lf_pin(pins,1,cursor->curr);
+    _lf_pin(pins, 1, cursor->curr);
   } while(*cursor->prev != (intptr)cursor->curr && LF_BACKOFF);
   for (;;)
   {
@@ -507,7 +507,7 @@ static int lockdelete(LOCK * volatile *head, LOCK *node, LF_PINS *pins)
 
 void lockman_init(LOCKMAN *lm, loid_to_lo_func *func, uint timeout)
 {
-  lf_alloc_init(&lm->alloc,sizeof(LOCK), offsetof(LOCK,lonext));
+  lf_alloc_init(&lm->alloc, sizeof(LOCK), offsetof(LOCK, lonext));
   lf_dynarray_init(&lm->array, sizeof(LOCK **));
   lm->size= 1;
   lm->count= 0;
@@ -744,7 +744,7 @@ static char *lock2str[]=
 void print_lockhash(LOCKMAN *lm)
 {
   LOCK *el= *(LOCK **)_lf_dynarray_lvalue(&lm->array, 0);
-  printf("hash: size=%u count=%u\n", lm->size, lm->count);
+  printf("hash: size:%u count:%u\n", lm->size, lm->count);
   while (el)
   {
     intptr next= el->link;

@@ -1,9 +1,18 @@
+/* Copyright (C) 2006 MySQL AB
 
-/*
-  TODO
-    1. copyright
-    6. reduce the number of memory barriers
-*/
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifndef _lf_h
 #define _lf_h
@@ -11,7 +20,8 @@
 #include <my_atomic.h>
 
 /*
-  Generic helpers
+  Helpers to define both func() and _func(), where
+  func() is a _func() protected by my_atomic_rwlock_wrlock()
 */
 
 #define lock_wrap(f,t,proto_args, args, lock)   \
@@ -49,7 +59,7 @@ static inline void f proto_args                 \
 }
 
 /*
-  dynamic array
+  wait-free dynamic array, see lf_dynarray.c
 
   4 levels of 256 elements each mean 4311810304 elements in an array - it
   should be enough for a while
@@ -68,14 +78,9 @@ typedef int (*lf_dynarray_func)(void *, void *);
 void lf_dynarray_init(LF_DYNARRAY *array, uint element_size);
 void lf_dynarray_destroy(LF_DYNARRAY *array);
 
-nolock_wrap(lf_dynarray_nr, int,
-            (LF_DYNARRAY *array, void *el),
-            (array,el));
-
 nolock_wrap(lf_dynarray_value, void *,
             (LF_DYNARRAY *array, uint idx),
             (array,idx));
-
 lock_wrap(lf_dynarray_lvalue, void *,
           (LF_DYNARRAY *array, uint idx),
           (array,idx),
@@ -85,7 +90,7 @@ nolock_wrap(lf_dynarray_iterate, int,
             (array,func,arg));
 
 /*
-  pin manager for memory allocator
+  pin manager for memory allocator, lf_alloc-pin.c
 */
 
 #define LF_PINBOX_PINS 4
@@ -102,13 +107,13 @@ typedef struct {
   uint32 volatile pins_in_stack;            /* number of elements in array */
 } LF_PINBOX;
 
-/* we want sizeof(LF_PINS) to be 128 to avoid false sharing */
 typedef struct {
   void * volatile pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
   void  *purgatory;
   uint32 purgatory_count;
   uint32 volatile link;
+/* we want sizeof(LF_PINS) to be 128 to avoid false sharing */
   char pad[128-sizeof(uint32)*2
               -sizeof(void *)*(LF_PINBOX_PINS+2)];
 } LF_PINS;
@@ -160,19 +165,13 @@ lock_wrap_void(lf_pinbox_put_pins,
                (LF_PINS *pins),
                (pins),
                &pins->pinbox->pinstack.lock);
-#if 0
-lock_wrap_void(lf_pinbox_real_free,
-               (LF_PINS *pins),
-               (pins),
-               &pins->pinbox->pinstack.lock);
-#endif
 lock_wrap_void(lf_pinbox_free,
                (LF_PINS *pins, void *addr),
                (pins,addr),
                &pins->pinbox->pinstack.lock);
 
 /*
-  memory allocator
+  memory allocator, lf_alloc-pin.c
 */
 
 typedef struct st_lf_allocator {
@@ -199,7 +198,7 @@ lock_wrap(lf_alloc_new, void *,
           &pins->pinbox->pinstack.lock);
 
 /*
-  extendible hash
+  extendible hash, lf_hash.c
 */
 #include <hash.h>
 

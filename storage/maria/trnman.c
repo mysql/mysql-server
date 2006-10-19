@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2006 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,21 +20,35 @@
 #include <lf.h>
 #include "trnman.h"
 
+/* status variables */
 uint trnman_active_transactions, trnman_allocated_transactions;
 
-static TRN active_list_min, active_list_max,
-       committed_list_min, committed_list_max, *pool;
+/* list of active transactions in the trid order */
+static TRN active_list_min, active_list_max;
+/* list of committed transactions in the trid order */
+static TRN committed_list_min, committed_list_max;
 
-static pthread_mutex_t LOCK_trn_list;
+/* a counter, used to generate transaction ids */
 static TrID global_trid_generator;
 
-static LF_HASH trid_to_trn;
-static LOCKMAN maria_lockman;
+/* the mutex for everything above */
+static pthread_mutex_t LOCK_trn_list;
 
-static TRN **short_trid_to_trn;
+/* LIFO pool of unused TRN structured for reuse */
+static TRN *pool;
+
+/* a hash for committed transactions that maps trid to a TRN structure */
+static LF_HASH trid_to_committed_trn;
+
+/* an array that maps short_trid of an active transaction to a TRN structure */
+static TRN **short_trid_to_active_trn;
+
+/* locks for short_trid_to_active_trn and pool */
 static my_atomic_rwlock_t LOCK_short_trid_to_trn, LOCK_pool;
 
-static byte *trn_get_hash_key(const byte *trn,uint* len, my_bool unused)
+static LOCKMAN maria_lockman;
+
+static byte *trn_get_hash_key(const byte *trn, uint* len, my_bool unused)
 {
   *len= sizeof(TrID);
   return (byte *) & ((*((TRN **)trn))->trid);
@@ -44,7 +58,7 @@ static LOCK_OWNER *trnman_short_trid_to_TRN(uint16 short_trid)
 {
   TRN *trn;
   my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
-  trn= my_atomic_loadptr((void **)&short_trid_to_trn[short_trid]);
+  trn= my_atomic_loadptr((void **)&short_trid_to_active_trn[short_trid]);
   my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
   return (LOCK_OWNER *)trn;
 }
@@ -52,39 +66,56 @@ static LOCK_OWNER *trnman_short_trid_to_TRN(uint16 short_trid)
 int trnman_init()
 {
   pthread_mutex_init(&LOCK_trn_list, MY_MUTEX_INIT_FAST);
+
+  /*
+    Initialize lists.
+    active_list_max.min_read_from must be larger than any trid,
+    so that when an active list is empty we would could free
+    all committed list.
+    And  committed_list_max itself can not be freed so
+    committed_list_max.commit_trid must not be smaller that
+    active_list_max.min_read_from
+  */
+
   active_list_max.trid= active_list_min.trid= 0;
   active_list_max.min_read_from= ~0;
   active_list_max.next= active_list_min.prev= 0;
   active_list_max.prev= &active_list_min;
   active_list_min.next= &active_list_max;
-  trnman_active_transactions= 0;
-  trnman_allocated_transactions= 0;
 
   committed_list_max.commit_trid= ~0;
   committed_list_max.next= committed_list_min.prev= 0;
   committed_list_max.prev= &committed_list_min;
   committed_list_min.next= &committed_list_max;
 
+  trnman_active_transactions= 0;
+  trnman_allocated_transactions= 0;
+
   pool= 0;
-  global_trid_generator= 0; /* set later by recovery code */
-  lf_hash_init(&trid_to_trn, sizeof(TRN*), LF_HASH_UNIQUE,
+  global_trid_generator= 0; /* set later by the recovery code */
+  lf_hash_init(&trid_to_committed_trn, sizeof(TRN*), LF_HASH_UNIQUE,
                0, 0, trn_get_hash_key, 0);
   my_atomic_rwlock_init(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_init(&LOCK_pool);
-  short_trid_to_trn= (TRN **)my_malloc(SHORT_TRID_MAX*sizeof(TRN*),
+  short_trid_to_active_trn= (TRN **)my_malloc(SHORT_TRID_MAX*sizeof(TRN*),
                                      MYF(MY_WME|MY_ZEROFILL));
-  if (!short_trid_to_trn)
+  if (!short_trid_to_active_trn)
     return 1;
-  short_trid_to_trn--; /* min short_trid is 1 */
+  short_trid_to_active_trn--; /* min short_trid is 1 */
 
   lockman_init(&maria_lockman, &trnman_short_trid_to_TRN, 10000);
 
   return 0;
 }
 
+/*
+  NOTE
+    this could only be called in the "idle" state - no transaction can be
+    running. See asserts below.
+*/
 int trnman_destroy()
 {
-  DBUG_ASSERT(trid_to_trn.count == 0);
+  DBUG_ASSERT(trid_to_committed_trn.count == 0);
   DBUG_ASSERT(trnman_active_transactions == 0);
   DBUG_ASSERT(active_list_max.prev == &active_list_min);
   DBUG_ASSERT(active_list_min.next == &active_list_max);
@@ -98,14 +129,20 @@ int trnman_destroy()
     DBUG_ASSERT(trn->locks.cond == 0);
     my_free((void *)trn, MYF(0));
   }
-  lf_hash_destroy(&trid_to_trn);
+  lf_hash_destroy(&trid_to_committed_trn);
   pthread_mutex_destroy(&LOCK_trn_list);
   my_atomic_rwlock_destroy(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_destroy(&LOCK_pool);
-  my_free((void *)(short_trid_to_trn+1), MYF(0));
+  my_free((void *)(short_trid_to_active_trn+1), MYF(0));
   lockman_destroy(&maria_lockman);
 }
 
+/*
+  NOTE
+    TrID is limited to 6 bytes. Initial value of the generator
+    is set by the recovery code - being read from the last checkpoint
+    (or 1 on a first run).
+*/
 static TrID new_trid()
 {
   DBUG_ASSERT(global_trid_generator < 0xffffffffffffLL);
@@ -120,8 +157,8 @@ static void set_short_trid(TRN *trn)
   for ( ; ; i= i % SHORT_TRID_MAX + 1) /* the range is [1..SHORT_TRID_MAX] */
   {
     void *tmp= NULL;
-    if (short_trid_to_trn[i] == NULL &&
-        my_atomic_casptr((void **)&short_trid_to_trn[i], &tmp, trn))
+    if (short_trid_to_active_trn[i] == NULL &&
+        my_atomic_casptr((void **)&short_trid_to_active_trn[i], &tmp, trn))
       break;
   }
   my_atomic_rwlock_wrunlock(&LOCK_short_trid_to_trn);
@@ -138,38 +175,37 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
   TRN *trn;
 
   /*
-    see trnman_end_trn to see why we need a mutex here
-
-    and as we have a mutex, we can as well do everything
-    under it - allocating a TRN, incrementing trnman_active_transactions,
-    setting trn->min_read_from.
+    we have a mutex, to do simple things under it - allocate a TRN,
+    increment trnman_active_transactions, set trn->min_read_from.
 
     Note that all the above is fast. generating short_trid may be slow,
-    as it involves scanning a big array - so it's still done
-    outside of the mutex.
+    as it involves scanning a large array - so it's done outside of the
+    mutex.
   */
 
   pthread_mutex_lock(&LOCK_trn_list);
-  trnman_active_transactions++;
 
+  /* Allocating a new TRN structure */
   trn= pool;
-  /* popping an element from a stack */
+  /* Popping an unused TRN from the pool */
   my_atomic_rwlock_wrlock(&LOCK_pool);
   while (trn && !my_atomic_casptr((void **)&pool, (void **)&trn,
                                   (void *)trn->next))
     /* no-op */;
   my_atomic_rwlock_wrunlock(&LOCK_pool);
 
+  /* Nothing in the pool ? Allocate a new one */
   if (!trn)
   {
     trn= (TRN *)my_malloc(sizeof(TRN), MYF(MY_WME));
-    if (!trn)
+    if (unlikely(!trn))
     {
       pthread_mutex_unlock(&LOCK_trn_list);
       return 0;
     }
     trnman_allocated_transactions++;
   }
+  trnman_active_transactions++;
 
   trn->min_read_from= active_list_min.next->trid;
 
@@ -181,36 +217,31 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
   active_list_max.prev= trn->prev->next= trn;
   pthread_mutex_unlock(&LOCK_trn_list);
 
-  trn->pins= lf_hash_get_pins(&trid_to_trn);
+  trn->pins= lf_hash_get_pins(&trid_to_committed_trn);
 
-  if (!trn->min_read_from)
+  if (unlikely(!trn->min_read_from))
     trn->min_read_from= trn->trid;
+
+  trn->commit_trid= 0;
 
   trn->locks.mutex= mutex;
   trn->locks.cond= cond;
-  trn->commit_trid= 0;
   trn->locks.waiting_for= 0;
   trn->locks.all_locks= 0;
   trn->locks.pins= lf_alloc_get_pins(&maria_lockman.alloc);
 
-  set_short_trid(trn); /* this must be the last! */
+  /*
+    only after the following function TRN is considered initialized,
+    so it must be done the last
+  */
+  set_short_trid(trn);
 
   return trn;
 }
 
 /*
-  remove a trn from the active list,
-  move to committed list,
-  set commit_trid
-
-  TODO
-    integrate with log manager. That means:
-    a common "commit" mutex - forcing the log and setting commit_trid
-    must be done atomically (QQ how the heck it could be done with
-    group commit ???) XXX - why did I think it must be done atomically ?
-
-    trid_to_trn, active_list_*, and committed_list_* can be
-    updated asyncronously.
+  remove a trn from the active list.
+  if necessary - move to committed list and set commit_trid
 */
 void trnman_end_trn(TRN *trn, my_bool commit)
 {
@@ -224,7 +255,11 @@ void trnman_end_trn(TRN *trn, my_bool commit)
   trn->next->prev= trn->prev;
   trn->prev->next= trn->next;
 
-  /* if this transaction was the oldest - clean up committed list */
+  /*
+    if trn was the oldest active transaction, now that it goes away there
+    may be committed transactions in the list which no active transaction
+    needs to bother about - clean up the committed list
+  */
   if (trn->prev == &active_list_min)
   {
     TRN *t;
@@ -232,6 +267,7 @@ void trnman_end_trn(TRN *trn, my_bool commit)
          t->commit_trid < active_list_min.next->min_read_from;
          t= t->next) /* no-op */;
 
+    /* found transactions committed before the oldest active one */
     if (t != committed_list_min.next)
     {
       free_me= committed_list_min.next;
@@ -241,7 +277,10 @@ void trnman_end_trn(TRN *trn, my_bool commit)
     }
   }
 
-  /* add transaction to the committed list (for read-from relations) */
+  /*
+    if transaction is committed and it was not the only active transaction -
+    add it to the committed list (which is used for read-from relation)
+  */
   if (commit && active_list_min.next != &active_list_max)
   {
     trn->commit_trid= global_trid_generator;
@@ -250,10 +289,10 @@ void trnman_end_trn(TRN *trn, my_bool commit)
     trn->prev= committed_list_max.prev;
     committed_list_max.prev= trn->prev->next= trn;
 
-    res= lf_hash_insert(&trid_to_trn, pins, &trn);
+    res= lf_hash_insert(&trid_to_committed_trn, pins, &trn);
     DBUG_ASSERT(res == 0);
   }
-  else /* or free it right away */
+  else /* otherwise free it right away */
   {
     trn->next= free_me;
     free_me= trn;
@@ -266,7 +305,7 @@ void trnman_end_trn(TRN *trn, my_bool commit)
   trn->locks.mutex= 0;
   trn->locks.cond= 0;
   my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
-  my_atomic_storeptr((void **)&short_trid_to_trn[trn->locks.loid], 0);
+  my_atomic_storeptr((void **)&short_trid_to_active_trn[trn->locks.loid], 0);
   my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
 
   while (free_me) // XXX send them to the purge thread
@@ -275,7 +314,7 @@ void trnman_end_trn(TRN *trn, my_bool commit)
     TRN *t= free_me;
     free_me= free_me->next;
 
-    res= lf_hash_delete(&trid_to_trn, pins, &t->trid, sizeof(TrID));
+    res= lf_hash_delete(&trid_to_committed_trn, pins, &t->trid, sizeof(TrID));
 
     trnman_free_trn(t);
   }
@@ -331,7 +370,7 @@ my_bool trnman_can_read_from(TRN *trn, TrID trid)
   if (trid > trn->trid)
     return FALSE; /* cannot read */
 
-  found= lf_hash_search(&trid_to_trn, trn->pins, &trid, sizeof(trid));
+  found= lf_hash_search(&trid_to_committed_trn, trn->pins, &trid, sizeof(trid));
   if (!found)
     return FALSE; /* not in the hash of committed transactions = cannot read */
 

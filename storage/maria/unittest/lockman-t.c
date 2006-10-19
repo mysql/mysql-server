@@ -42,16 +42,20 @@ LOCK_OWNER *loid2lo(uint16 loid)
   return loarray+loid-1;
 }
 
-#define unlock_all(O) diag("lo" #O "> release all locks"); \
+#define unlock_all(O) diag("lo" #O "> release all locks");              \
   lockman_release_locks(&lockman, loid2lo(O));print_lockhash(&lockman)
-#define test_lock(O, R, L, S, RES)                                   \
-  ok(lockman_getlock(&lockman, loid2lo(O), R, L) == RES,          \
-     "lo" #O "> " S " lock resource " #R " with " #L "-lock");       \
+#define test_lock(O, R, L, S, RES)                                      \
+  ok(lockman_getlock(&lockman, loid2lo(O), R, L) == RES,                \
+     "lo" #O "> " S " lock resource " #R " with " #L "-lock");          \
   print_lockhash(&lockman)
-#define lock_ok_a(O,R,L) test_lock(O,R,L,"",GOT_THE_LOCK)
-#define lock_ok_i(O,R,L) test_lock(O,R,L,"",GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE)
-#define lock_ok_l(O,R,L) test_lock(O,R,L,"",GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE)
-#define lock_conflict(O,R,L) test_lock(O,R,L,"cannot ",DIDNT_GET_THE_LOCK);
+#define lock_ok_a(O, R, L)                                              \
+  test_lock(O, R, L, "", GOT_THE_LOCK)
+#define lock_ok_i(O, R, L)                                              \
+  test_lock(O, R, L, "", GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE)
+#define lock_ok_l(O, R, L)                                              \
+  test_lock(O, R, L, "", GOT_THE_LOCK_NEED_TO_INSTANT_LOCK_A_SUBRESOURCE)
+#define lock_conflict(O, R, L)                                          \
+  test_lock(O, R, L, "cannot ", DIDNT_GET_THE_LOCK);
 
 void test_lockman_simple()
 {
@@ -63,41 +67,41 @@ void test_lockman_simple()
   lock_ok_a(1, 1, X);
   lock_ok_i(2, 2, IX);
   /* failures */
-  lock_conflict(2,1,X);
+  lock_conflict(2, 1, X);
   unlock_all(2);
-  lock_ok_a(1,2,S);
-  lock_ok_a(1,2,IS);
-  lock_ok_a(1,2,LS);
-  lock_ok_i(1,3,IX);
-  lock_ok_a(2,3,LS);
-  lock_ok_i(1,3,IX);
-  lock_ok_l(2,3,IS);
+  lock_ok_a(1, 2, S);
+  lock_ok_a(1, 2, IS);
+  lock_ok_a(1, 2, LS);
+  lock_ok_i(1, 3, IX);
+  lock_ok_a(2, 3, LS);
+  lock_ok_i(1, 3, IX);
+  lock_ok_l(2, 3, IS);
   unlock_all(1);
   unlock_all(2);
 
-  lock_ok_i(1,1,IX);
-  lock_conflict(2,1,S);
-  lock_ok_a(1,1,LS);
+  lock_ok_i(1, 1, IX);
+  lock_conflict(2, 1, S);
+  lock_ok_a(1, 1, LS);
   unlock_all(1);
   unlock_all(2);
 
-  lock_ok_i(1,1,IX);
-  lock_ok_a(2,1,LS);
-  lock_ok_a(1,1,LS);
-  lock_ok_i(1,1,IX);
-  lock_ok_i(3,1,IS);
+  lock_ok_i(1, 1, IX);
+  lock_ok_a(2, 1, LS);
+  lock_ok_a(1, 1, LS);
+  lock_ok_i(1, 1, IX);
+  lock_ok_i(3, 1, IS);
   unlock_all(1);
   unlock_all(2);
   unlock_all(3);
 
-  lock_ok_i(1,4,IS);
-  lock_ok_i(2,4,IS);
-  lock_ok_i(3,4,IS);
-  lock_ok_a(3,4,LS);
-  lock_ok_i(4,4,IS);
-  lock_conflict(4,4,IX);
-  lock_conflict(2,4,IX);
-  lock_ok_a(1,4,LS);
+  lock_ok_i(1, 4, IS);
+  lock_ok_i(2, 4, IS);
+  lock_ok_i(3, 4, IS);
+  lock_ok_a(3, 4, LS);
+  lock_ok_i(4, 4, IS);
+  lock_conflict(4, 4, IX);
+  lock_conflict(2, 4, IX);
+  lock_ok_a(1, 4, LS);
   unlock_all(1);
   unlock_all(2);
   unlock_all(3);
@@ -110,7 +114,7 @@ pthread_mutex_t rt_mutex;
 pthread_cond_t rt_cond;
 int rt_num_threads;
 int litmus;
-int thread_number= 0, timeouts=0;
+int thread_number= 0, timeouts= 0;
 void run_test(const char *test, pthread_handler handler, int n, int m)
 {
   pthread_t t;
@@ -121,7 +125,8 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
 
   diag("Testing %s with %d threads, %d iterations... ", test, n, m);
   for (rt_num_threads= n ; n ; n--)
-    pthread_create(&t, &rt_attr, handler, &m);
+    if (pthread_create(&t, &rt_attr, handler, &m))
+      abort();
   pthread_mutex_lock(&rt_mutex);
   while (rt_num_threads)
     pthread_cond_wait(&rt_cond, &rt_mutex);
@@ -133,9 +138,9 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
 int Nrows= 100;
 int Ntables= 10;
 int table_lock_ratio= 10;
-enum lock_type lock_array[6]={S,X,LS,LX,IS,IX};
-char *lock2str[6]={"S","X","LS","LX","IS","IX"};
-char *res2str[4]={
+enum lock_type lock_array[6]= {S, X, LS, LX, IS, IX};
+char *lock2str[6]= {"S", "X", "LS", "LX", "IS", "IX"};
+char *res2str[4]= {
   "DIDN'T GET THE LOCK",
   "GOT THE LOCK",
   "GOT THE LOCK NEED TO LOCK A SUBRESOURCE",
@@ -160,12 +165,12 @@ pthread_handler_t test_lockman(void *arg)
     if (table_lock_ratio && (x/Nrows/4) % table_lock_ratio == 0)
     { /* table lock */
       res= lockman_getlock(&lockman, lo, table, lock_array[locklevel]);
-      DIAG(("loid=%2d, table %d lock %s, res=%s", loid, table,
+      DIAG(("loid %2d, table %d, lock %s, res %s", loid, table,
             lock2str[locklevel], res2str[res]));
       if (res == DIDNT_GET_THE_LOCK)
       {
         lockman_release_locks(&lockman, lo);
-        DIAG(("loid=%2d, release all locks", loid));
+        DIAG(("loid %2d, release all locks", loid));
         timeout++;
         continue;
       }
@@ -175,13 +180,13 @@ pthread_handler_t test_lockman(void *arg)
     { /* row lock */
       locklevel&= 1;
       res= lockman_getlock(&lockman, lo, table, lock_array[locklevel + 4]);
-      DIAG(("loid=%2d, row %d lock %s, res=%s", loid, row,
+      DIAG(("loid %2d, row %d, lock %s, res %s", loid, row,
             lock2str[locklevel+4], res2str[res]));
       switch (res)
       {
       case DIDNT_GET_THE_LOCK:
         lockman_release_locks(&lockman, lo);
-        DIAG(("loid=%2d, release all locks", loid));
+        DIAG(("loid %2d, release all locks", loid));
         timeout++;
         continue;
       case GOT_THE_LOCK:
@@ -190,12 +195,12 @@ pthread_handler_t test_lockman(void *arg)
         /* not implemented, so take a regular lock */
       case GOT_THE_LOCK_NEED_TO_LOCK_A_SUBRESOURCE:
         res= lockman_getlock(&lockman, lo, row, lock_array[locklevel]);
-        DIAG(("loid=%2d, ROW %d lock %s, res=%s", loid, row,
+        DIAG(("loid %2d, ROW %d, lock %s, res %s", loid, row,
               lock2str[locklevel], res2str[res]));
         if (res == DIDNT_GET_THE_LOCK)
         {
           lockman_release_locks(&lockman, lo);
-          DIAG(("loid=%2d, release all locks", loid));
+          DIAG(("loid %2d, release all locks", loid));
           timeout++;
           continue;
         }
@@ -234,7 +239,7 @@ int main()
     return exit_status();
 
   pthread_attr_init(&rt_attr);
-  pthread_attr_setdetachstate(&rt_attr,PTHREAD_CREATE_DETACHED);
+  pthread_attr_setdetachstate(&rt_attr, PTHREAD_CREATE_DETACHED);
   pthread_mutex_init(&rt_mutex, 0);
   pthread_cond_init(&rt_cond, 0);
 
@@ -261,13 +266,13 @@ int main()
   Nrows= 100;
   Ntables= 10;
   table_lock_ratio= 10;
-  run_test("lockman", test_lockman, THREADS,CYCLES);
+  run_test("lockman", test_lockman, THREADS, CYCLES);
 
   /* "real-life" simulation - many rows, no table locks */
   Nrows= 1000000;
   Ntables= 10;
   table_lock_ratio= 0;
-  run_test("lockman", test_lockman, THREADS,10000);
+  run_test("lockman", test_lockman, THREADS, 10000);
 
   for (i= 0; i < Nlos; i++)
   {

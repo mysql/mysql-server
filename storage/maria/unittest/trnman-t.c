@@ -41,7 +41,7 @@ pthread_handler_t test_trnman(void *arg)
   pthread_mutex_t mutexes[MAX_ITER];
   pthread_cond_t conds[MAX_ITER];
 
-  for (i=0; i < MAX_ITER; i++)
+  for (i= 0; i < MAX_ITER; i++)
   {
     pthread_mutex_init(&mutexes[i], MY_MUTEX_INIT_FAST);
     pthread_cond_init(&conds[i], 0);
@@ -60,7 +60,7 @@ pthread_handler_t test_trnman(void *arg)
     }
   }
 
-  for (i=0; i < MAX_ITER; i++)
+  for (i= 0; i < MAX_ITER; i++)
   {
     pthread_mutex_destroy(&mutexes[i]);
     pthread_cond_destroy(&conds[i]);
@@ -84,7 +84,8 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
 
   diag("Testing %s with %d threads, %d iterations... ", test, n, m);
   for (rt_num_threads= n ; n ; n--)
-    pthread_create(&t, &rt_attr, handler, &m);
+    if (pthread_create(&t, &rt_attr, handler, &m))
+      abort();
   pthread_mutex_lock(&rt_mutex);
   while (rt_num_threads)
     pthread_cond_wait(&rt_cond, &rt_mutex);
@@ -94,11 +95,10 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
 }
 
 #define ok_read_from(T1, T2, RES)                       \
-  i=trnman_can_read_from(trn[T1], trid[T2]);            \
+  i= trnman_can_read_from(trn[T1], trn[T2]->trid);       \
   ok(i == RES, "trn" #T1 " %s read from trn" #T2, i ? "can" : "cannot")
 #define start_transaction(T)                            \
-  trn[T]= trnman_new_trn(&mutexes[T], &conds[T]);       \
-  trid[T]= trn[T]->trid
+  trn[T]= trnman_new_trn(&mutexes[T], &conds[T])
 #define commit(T)               trnman_commit_trn(trn[T])
 #define abort(T)                trnman_abort_trn(trn[T])
 
@@ -106,12 +106,11 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
 void test_trnman_read_from()
 {
   TRN *trn[Ntrns];
-  TrID trid[Ntrns];
   pthread_mutex_t mutexes[Ntrns];
   pthread_cond_t conds[Ntrns];
   int i;
 
-  for (i=0; i < Ntrns; i++)
+  for (i= 0; i < Ntrns; i++)
   {
     pthread_mutex_init(&mutexes[i], MY_MUTEX_INIT_FAST);
     pthread_cond_init(&conds[i], 0);
@@ -119,19 +118,19 @@ void test_trnman_read_from()
 
   start_transaction(0);                    /* start trn1 */
   start_transaction(1);                    /* start trn2 */
-  ok_read_from(1,0,0);
+  ok_read_from(1, 0, 0);
   commit(0);                               /* commit trn1 */
   start_transaction(2);                    /* start trn4 */
   abort(2);                                /* abort trn4 */
   start_transaction(3);                    /* start trn5 */
-  ok_read_from(3,0,1);
-  ok_read_from(3,1,0);
-  ok_read_from(3,2,0);
+  ok_read_from(3, 0, 1);
+  ok_read_from(3, 1, 0);
+  ok_read_from(3, 2, 0);
   commit(1);                               /* commit trn2 */
-  ok_read_from(3,1,0);
+  ok_read_from(3, 1, 0);
   commit(3);                               /* commit trn5 */
 
-  for (i=0; i < Ntrns; i++)
+  for (i= 0; i < Ntrns; i++)
   {
     pthread_mutex_destroy(&mutexes[i]);
     pthread_cond_destroy(&conds[i]);
@@ -148,7 +147,7 @@ int main()
     return exit_status();
 
   pthread_attr_init(&rt_attr);
-  pthread_attr_setdetachstate(&rt_attr,PTHREAD_CREATE_DETACHED);
+  pthread_attr_setdetachstate(&rt_attr, PTHREAD_CREATE_DETACHED);
   pthread_mutex_init(&rt_mutex, 0);
   pthread_cond_init(&rt_cond, 0);
 
@@ -158,7 +157,7 @@ int main()
   trnman_init();
 
   test_trnman_read_from();
-  run_test("trnman", test_trnman, THREADS,CYCLES);
+  run_test("trnman", test_trnman, THREADS, CYCLES);
 
   diag("mallocs: %d", trnman_allocated_transactions);
   {
