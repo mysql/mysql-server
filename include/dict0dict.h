@@ -673,9 +673,10 @@ UNIV_INLINE
 ulint
 dict_index_get_n_fields(
 /*====================*/
-				/* out: number of fields */
-	dict_index_t*	index);	/* in: an internal representation of index
-				(in the dictionary cache) */
+					/* out: number of fields */
+	const dict_index_t*	index);	/* in: an internal
+					representation of index (in
+					the dictionary cache) */
 /************************************************************************
 Gets the number of fields in the internal representation of an index
 that uniquely determine the position of an index entry in the index, if
@@ -711,15 +712,19 @@ dict_index_get_n_ordering_defined_by_user(
 				/* out: number of fields */
 	dict_index_t*	index);	/* in: an internal representation of index
 				(in the dictionary cache) */
+#ifdef UNIV_DEBUG
 /************************************************************************
 Gets the nth field of an index. */
 UNIV_INLINE
 dict_field_t*
 dict_index_get_nth_field(
 /*=====================*/
-				/* out: pointer to field object */
-	dict_index_t*	index,	/* in: index */
-	ulint		pos);	/* in: position of field */
+					/* out: pointer to field object */
+	const dict_index_t*	index,	/* in: index */
+	ulint			pos);	/* in: position of field */
+#else /* UNIV_DEBUG */
+# define dict_index_get_nth_field(index, pos) ((index)->fields + (pos))
+#endif /* UNIV_DEBUG */
 /************************************************************************
 Gets pointer to the nth column in an index. */
 UNIV_INLINE
@@ -744,11 +749,12 @@ Looks for column n in an index. */
 ulint
 dict_index_get_nth_col_pos(
 /*=======================*/
-				/* out: position in internal representation
-				of the index; if not contained, returns
-				ULINT_UNDEFINED */
-	dict_index_t*	index,	/* in: index */
-	ulint		n);	/* in: column number */
+					/* out: position in internal
+					representation of the index;
+					if not contained, returns
+					ULINT_UNDEFINED */
+	const dict_index_t*	index,	/* in: index */
+	ulint			n);	/* in: column number */
 /************************************************************************
 Returns TRUE if the index contains a column or a prefix of that column. */
 
@@ -790,10 +796,10 @@ UNIV_INLINE
 ulint
 dict_index_get_sys_col_pos(
 /*=======================*/
-				/* out: position, ULINT_UNDEFINED if not
-				contained */
-	dict_index_t*	index,	/* in: index */
-	ulint		type);	/* in: DATA_ROW_ID, ... */
+					/* out: position,
+					ULINT_UNDEFINED if not contained */
+	const dict_index_t*	index,	/* in: index */
+	ulint			type);	/* in: DATA_ROW_ID, ... */
 /***********************************************************************
 Adds a column to index. */
 

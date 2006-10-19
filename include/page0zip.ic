@@ -170,7 +170,7 @@ page_zip_get_trailer_len(
 
 	ut_ad(page_zip_simple_validate(page_zip));
 
-	if (UNIV_UNLIKELY(!page_is_leaf((page_t*) page_zip->data))) {
+	if (UNIV_UNLIKELY(!page_is_leaf(page_zip->data))) {
 		uncompressed_size = PAGE_ZIP_DIR_SLOT_SIZE
 			+ REC_NODE_PTR_SIZE;
 		ut_ad(!page_zip->n_blobs);
@@ -186,7 +186,7 @@ page_zip_get_trailer_len(
 		*entry_size = uncompressed_size;
 	}
 
-	return((page_dir_get_n_heap((page_t*) page_zip->data) - 2)
+	return((page_dir_get_n_heap(page_zip->data) - 2)
 	       * uncompressed_size
 	       + page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
 }
@@ -263,7 +263,7 @@ page_zip_alloc(
 	ulint		create,	/* in: nonzero=add the record to the heap */
 	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
 {
-	ut_ad(page_is_comp((page_t*) page));
+	ut_ad(page_is_comp(page));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */

@@ -315,9 +315,10 @@ UNIV_INLINE
 ulint
 dict_index_get_n_fields(
 /*====================*/
-				/* out: number of fields */
-	dict_index_t*	index)	/* in: an internal representation of index
-				(in the dictionary cache) */
+					/* out: number of fields */
+	const dict_index_t*	index)	/* in: an internal
+					representation of index (in
+					the dictionary cache) */
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -385,22 +386,24 @@ dict_index_get_n_ordering_defined_by_user(
 	return(index->n_user_defined_cols);
 }
 
+#ifdef UNIV_DEBUG
 /************************************************************************
 Gets the nth field of an index. */
 UNIV_INLINE
 dict_field_t*
 dict_index_get_nth_field(
 /*=====================*/
-				/* out: pointer to field object */
-	dict_index_t*	index,	/* in: index */
-	ulint		pos)	/* in: position of field */
+					/* out: pointer to field object */
+	const dict_index_t*	index,	/* in: index */
+	ulint			pos)	/* in: position of field */
 {
 	ut_ad(index);
 	ut_ad(pos < index->n_def);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return((index->fields) + pos);
+	return((dict_field_t*) (index->fields) + pos);
 }
+#endif /* UNIV_DEBUG */
 
 /************************************************************************
 Returns the position of a system column in an index. */
@@ -408,10 +411,10 @@ UNIV_INLINE
 ulint
 dict_index_get_sys_col_pos(
 /*=======================*/
-				/* out: position, ULINT_UNDEFINED if not
-				contained */
-	dict_index_t*	index,	/* in: index */
-	ulint		type)	/* in: DATA_ROW_ID, ... */
+					/* out: position,
+					ULINT_UNDEFINED if not contained */
+	const dict_index_t*	index,	/* in: index */
+	ulint			type)	/* in: DATA_ROW_ID, ... */
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -451,8 +454,7 @@ dict_index_get_nth_col(
 	const dict_index_t*	index,	/* in: index */
 	ulint			pos)	/* in: position of the field */
 {
-	return(dict_field_get_col(dict_index_get_nth_field((dict_index_t*)
-							   index, pos)));
+	return(dict_field_get_col(dict_index_get_nth_field(index, pos)));
 }
 
 /************************************************************************
