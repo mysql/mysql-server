@@ -1295,6 +1295,7 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
 	   apiConnectptr.p->firstTcConnect == RNIL))
       {
         jam();                                   /* JUST REPLY OK */
+	apiConnectptr.p->m_transaction_nodes.clear();
         releaseApiCon(signal, apiConnectptr.i);
         signal->theData[0] = tuserpointer;
         sendSignal(tapiBlockref,
