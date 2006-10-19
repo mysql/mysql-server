@@ -1892,7 +1892,8 @@ int ha_ndbcluster::peek_indexed_rows(const byte *record)
   int res;
   DBUG_ENTER("peek_indexed_rows");
 
-  NdbOperation::LockMode lm= NdbOperation::LM_Read;
+  NdbOperation::LockMode lm=
+      (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   first= NULL;
   if (table->s->primary_key != MAX_KEY)
   {

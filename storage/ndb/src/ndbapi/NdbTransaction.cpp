@@ -360,8 +360,15 @@ NdbTransaction::execute(ExecType aTypeOfExec,
       ret = -1;
       if(savedError.code==0)
 	savedError= theError;
+      
+      /**
+       * If AO_IgnoreError, error codes arent always set on individual
+       *   operations, making postExecute impossible
+       */
+      if (abortOption == AO_IgnoreError)
+	DBUG_RETURN(-1);
     }
-
+    
 #ifdef ndb_api_crash_on_complex_blob_abort
     assert(theFirstOpInList == NULL && theLastOpInList == NULL);
 #else
@@ -1761,8 +1768,10 @@ from other transactions.
     if (tCommitFlag == 1) {
       theCommitStatus = Committed;
       theGlobalCheckpointId = tGCI;
-      assert(tGCI);
-      *p_latest_trans_gci = tGCI;
+      if (tGCI) // Read(dirty) only transaction doesnt get GCI
+      {
+	*p_latest_trans_gci = tGCI;
+      }
     } else if ((tNoComp >= tNoSent) &&
                (theLastExecOpInList->theCommitIndicator == 1)){
 
