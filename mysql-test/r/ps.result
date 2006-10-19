@@ -1456,6 +1456,7 @@ i
 1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1, t2;
+DROP PROCEDURE IF EXISTS p1;
 End of 5.0 tests.
 create procedure proc_1() reset query cache;
 call proc_1();

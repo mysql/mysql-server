@@ -1510,6 +1510,26 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1, t2;
 
 
+#
+# BUG#21856: Prepared Statments: crash if bad create
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+let $iterations= 100;
+--disable_query_log
+--disable_result_log
+while ($iterations > 0)
+{
+  --error ER_PARSE_ERROR
+  PREPARE stmt FROM "CREATE PROCEDURE p1()";
+  dec $iterations;
+}
+--enable_query_log
+--enable_result_log
+
+
 --echo End of 5.0 tests.
 
 #
