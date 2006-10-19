@@ -38,7 +38,7 @@ select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 --vertical_results
 show slave status;
 
@@ -53,7 +53,7 @@ select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 --vertical_results
 show slave status;
 
@@ -68,7 +68,7 @@ select @@global.max_relay_log_size;
 start slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 --vertical_results
 show slave status;
 
@@ -82,7 +82,7 @@ reset slave;
 # (to make sure it does not crash).
 flush logs;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 --vertical_results
 show slave status;
 
@@ -103,7 +103,7 @@ save_master_pos;
 connection slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 --vertical_results
 show slave status;
 
@@ -118,7 +118,7 @@ save_master_pos;
 connection slave;
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 --vertical_results
 show slave status;
 
