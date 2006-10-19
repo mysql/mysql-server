@@ -1185,7 +1185,8 @@ buf_page_get_gen(
 	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
 	      || (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
 #ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside() || ibuf_page(space, offset));
+	ut_ad(!ibuf_inside()
+	      || ibuf_page(space, fil_space_get_zip_size(space), offset));
 #endif
 	buf_pool->n_page_gets++;
 loop:
@@ -1217,7 +1218,7 @@ loop:
 			return(NULL);
 		}
 
-		buf_read_page(space, offset);
+		buf_read_page(space, fil_space_get_zip_size(space), offset);
 
 #ifdef UNIV_DEBUG
 		buf_dbg_counter++;
@@ -1353,7 +1354,8 @@ loop:
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
-		buf_read_ahead_linear(space, offset);
+		buf_read_ahead_linear(space, buf_block_get_zip_size(block),
+				      offset);
 	}
 
 #ifdef UNIV_IBUF_DEBUG
@@ -1414,7 +1416,9 @@ exit_func:
 
 	mutex_exit(&(buf_pool->mutex));
 
-	ut_ad(!ibuf_inside() || ibuf_page(block->space, block->offset));
+	ut_ad(!ibuf_inside()
+	      || ibuf_page(block->space, buf_block_get_zip_size(block),
+			   block->offset));
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_func_nowait(&(block->lock),
@@ -1474,8 +1478,9 @@ exit_func:
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
-		buf_read_ahead_linear(page_get_space_id(guess),
-				      page_get_page_no(guess));
+		buf_read_ahead_linear(buf_block_get_space(block),
+				      buf_block_get_zip_size(block),
+				      buf_block_get_page_no(block));
 	}
 
 #ifdef UNIV_IBUF_DEBUG
@@ -1740,7 +1745,7 @@ buf_page_init_for_read(
 
 		mtr_start(&mtr);
 
-		if (!ibuf_page_low(space, offset, &mtr)) {
+		if (!ibuf_page_low(space, zip_size, offset, &mtr)) {
 
 			mtr_commit(&mtr);
 

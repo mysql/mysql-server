@@ -2176,7 +2176,7 @@ fseg_create_general(
 		excess pages from the insert buffer free list */
 
 		if (space == 0) {
-			ibuf_free_excess_pages(space);
+			ibuf_free_excess_pages(0, 0);
 		}
 	}
 
@@ -2730,7 +2730,7 @@ fseg_alloc_free_page_general(
 		excess pages from the insert buffer free list */
 
 		if (space == 0) {
-			ibuf_free_excess_pages(space);
+			ibuf_free_excess_pages(0, 0);
 		}
 	}
 
