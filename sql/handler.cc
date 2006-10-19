@@ -1779,6 +1779,7 @@ void handler::print_error(int error, myf errflag)
       {
 	/* Key is unknown */
 	str.length(0);
+	str.append("");
 	key_nr= -1;
       }
       else
