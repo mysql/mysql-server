@@ -5878,14 +5878,19 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       DBUG_ASSERT(thd->net.report_error);
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
-      query_cache_abort(&thd->net);
-      lex->unit.cleanup();
+
+      /*
+        The first thing we do after parse error is freeing sp_head to
+        ensure that we have restored original memroot.
+      */
       if (thd->lex->sphead)
       {
 	/* Clean up after failed stored procedure/function */
 	delete thd->lex->sphead;
 	thd->lex->sphead= NULL;
       }
+      query_cache_abort(&thd->net);
+      lex->unit.cleanup();
     }
     thd->proc_info="freeing items";
     thd->end_statement();
