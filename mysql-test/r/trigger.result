@@ -1229,4 +1229,16 @@ drop table t1;
 drop table t2;
 drop table t3;
 drop table t4;
+drop table if exists t1;
+create table t1 (i int, j int key);
+insert into t1 values (1,1), (2,2), (3,3);
+create trigger t1_bu before update on t1 for each row
+set new.j = new.j + 10;
+update t1 set i= i+ 10 where j > 2;
+select * from t1;
+i	j
+1	1
+2	2
+13	13
+drop table t1;
 End of 5.0 tests
