@@ -1,5 +1,7 @@
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
+# Windows does not have SOCKET, but will try to create a PIPE as well as MEMORY
+--source include/not_windows.inc
 
 # test for Bug #4998 "--protocol doesn't reject bad values"
 

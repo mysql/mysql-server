@@ -13,6 +13,7 @@ insert into mysqltest1.t1 values (1);
 select * from mysqltest1.t1 into outfile 'mysqltest1/f1.txt';
 create table mysqltest1.t2 (n int);
 create table mysqltest1.t3 (n int);
+--replace_result \\ /
 --error 1010
 drop database mysqltest1;
 use mysqltest1;
@@ -29,6 +30,7 @@ while ($1)
 }
 --enable_query_log
 
+--replace_result \\ /
 --error 1010
 drop database mysqltest1;
 use mysqltest1;

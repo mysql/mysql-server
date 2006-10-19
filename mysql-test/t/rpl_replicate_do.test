@@ -33,7 +33,7 @@ connection slave;
 sync_with_master;
 # show slave status, just to see of it prints replicate-do-table
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 
 #
