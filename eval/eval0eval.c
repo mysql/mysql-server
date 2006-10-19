@@ -746,8 +746,7 @@ eval_predefined(
 			}
 		}
 
-		dfield_set_len((dfield_t*) que_node_get_val(func_node),
-			       int_len);
+		dfield_set_len(que_node_get_val(func_node), int_len);
 
 		return;
 

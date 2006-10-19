@@ -544,11 +544,12 @@ Looks for column n in an index. */
 ulint
 dict_index_get_nth_col_pos(
 /*=======================*/
-				/* out: position in internal representation
-				of the index; if not contained, returns
-				ULINT_UNDEFINED */
-	dict_index_t*	index,	/* in: index */
-	ulint		n)	/* in: column number */
+					/* out: position in internal
+					representation of the index;
+					if not contained, returns
+					ULINT_UNDEFINED */
+	const dict_index_t*	index,	/* in: index */
+	ulint			n)	/* in: column number */
 {
 	const dict_field_t*	field;
 	const dict_col_t*	col;
@@ -1786,8 +1787,7 @@ dict_index_build_internal_clust(
 	there */
 	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
 
-		dict_col_t*	col = (dict_col_t*)
-			dict_table_get_nth_col(table, i);
+		dict_col_t*	col = dict_table_get_nth_col(table, i);
 		ut_ad(col->mtype != DATA_SYS);
 
 		if (!indexed[col->ind]) {

@@ -679,9 +679,10 @@ Gets the file page type. */
 ulint
 fil_page_get_type(
 /*==============*/
-			/* out: type; NOTE that if the type has not been
-			written to page, the return value not defined */
-	byte*	page);	/* in: file page */
+				/* out: type; NOTE that if the type
+				has not been written to page, the
+				return value not defined */
+	const byte*	page);	/* in: file page */
 
 
 typedef	struct fil_space_struct	fil_space_t;
