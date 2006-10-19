@@ -1421,6 +1421,7 @@ opt_ev_comment: /* empty */ { $$= 0; }
         | COMMENT_SYM TEXT_STRING_sys
           {
             Lex->comment= Lex->event_parse_data->comment= $2;
+            $$= 1;
           }
       ;
 
