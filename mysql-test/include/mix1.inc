@@ -342,6 +342,12 @@ SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 DROP TABLE t1,t2;
 
 #
+# Bug#17530: Incorrect key truncation on table creation caused server crash.
+#
+create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
+  character set utf8 collate utf8_general_ci;
+insert into t1 values('aaa');
+drop table t1;
 # Test of behaviour with CREATE ... SELECT
 #
 
