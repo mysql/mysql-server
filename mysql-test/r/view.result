@@ -2956,4 +2956,14 @@ View	Create View
 v1	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`pk` AS `pk` from (`t1` join `t2` on(((`t2`.`fk` = `t1`.`pk`) and (`t2`.`ver` = (select max(`t`.`ver`) AS `MAX(t.ver)` from `t2` `t` where (`t`.`org` = `t2`.`org`))))))
 DROP VIEW v1;
 DROP TABLE t1, t2;
+CREATE TABLE t1(id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, val INT UNSIGNED NOT NULL);
+CREATE VIEW v1 AS SELECT id, val FROM t1 WHERE val >= 1 AND val <= 5 WITH CHECK OPTION;
+INSERT INTO v1 (val) VALUES (2);
+INSERT INTO v1 (val) VALUES (4);
+INSERT INTO v1 (val) VALUES (6);
+ERROR HY000: CHECK OPTION failed 'test.v1'
+UPDATE v1 SET val=6 WHERE id=2;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+DROP VIEW v1;
+DROP TABLE t1;
 End of 5.0 tests.
