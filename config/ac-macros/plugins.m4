@@ -373,11 +373,6 @@ AC_DEFUN([__MYSQL_EMIT_CHECK_PLUGIN],[
        ])
        AC_SUBST([plugin_]$2[_shared_target], "$8")
        AC_SUBST([plugin_]$2[_static_target], [""])
-       m4_ifdef([$11],[
-        condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp($11, [[^/]+$], [\&])"
-        condition_dependent_plugin_links="$condition_dependent_plugin_links $6/$11"
-        condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp($11, [^.+[/$]], [\&])"
-       ])
        [with_plugin_]$2=yes
        AC_MSG_RESULT([plugin])
        m4_ifdef([$6],[
@@ -434,6 +429,11 @@ dnl Although this is "pretty", it breaks libmysqld build
       mysql_plugin_defs="$mysql_plugin_defs, [builtin_]$2[_plugin]"
       [with_plugin_]$2=yes
       AC_MSG_RESULT([yes])
+      m4_ifdef([$11],[
+       condition_dependent_plugin_modules="$condition_dependent_plugin_modules m4_bregexp($11, [[^/]+$], [\&])"
+       condition_dependent_plugin_links="$condition_dependent_plugin_links $6/$11"
+       condition_dependent_plugin_includes="$condition_dependent_plugin_includes -I[\$(top_srcdir)]/$6/m4_bregexp($11, [^.+[/$]], [\&])"
+      ])
     fi
     m4_ifdef([$6],[
       if test -n "$mysql_use_plugin_dir" ; then
