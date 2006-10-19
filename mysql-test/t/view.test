@@ -2856,6 +2856,7 @@ EXPLAIN SELECT * FROM v1 t WHERE t.s1+1 < (SELECT MAX(t1.s1) FROM t1);
 DROP VIEW v1;
 DROP TABLE t1;
 
+#
 # Bug #5505: Wrong error message on INSERT into a view
 #
 create table t1 (s1 int);

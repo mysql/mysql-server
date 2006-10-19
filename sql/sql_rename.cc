@@ -126,95 +126,141 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
 
 
 /*
+  Rename a single table or a view
+
+  SYNPOSIS
+    do_rename()
+      thd               Thread handle
+      ren_table         A table/view to be renamed
+      new_db            The database to which the table to be moved to
+      new_table_name    The new table/view name
+      new_table_alias   The new table/view alias
+      skip_error        Whether to skip error
+
+  DESCRIPTION
+    Rename a single table or a view.
+
+  RETURN
+    false     Ok
+    true      rename failed
+*/
+
+bool
+do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
+          char *new_table_alias, bool skip_error)
+{
+  int rc= 1;
+  char name[FN_REFLEN];
+  const char *new_alias, *old_alias;
+  frm_type_enum frm_type;
+  enum legacy_db_type table_type;
+
+  DBUG_ENTER("do_rename");
+
+  if (lower_case_table_names == 2)
+  {
+    old_alias= ren_table->alias;
+    new_alias= new_table_alias;
+  }
+  else
+  {
+    old_alias= ren_table->table_name;
+    new_alias= new_table_table_name;
+  }
+  build_table_filename(name, sizeof(name),
+                       new_db, new_alias, reg_ext, 0);
+  if (!access(name,F_OK))
+  {
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
+    DBUG_RETURN(1);			// This can't be skipped
+  }
+  build_table_filename(name, sizeof(name),
+                       ren_table->db, old_alias, reg_ext, 0);
+
+  frm_type= mysql_frm_type(thd, name, &table_type);
+  switch (frm_type)
+  {
+    case FRMTYPE_TABLE:
+      {
+        if (!(rc= mysql_rename_table(table_type, ren_table->db, old_alias,
+                                     new_db, new_alias)))
+        {
+          if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
+                                                          old_alias,
+                                                          new_db,
+                                                          new_alias)))
+          {
+            /*
+              We've succeeded in renaming table's .frm and in updating
+              corresponding handler data, but have failed to update table's
+              triggers appropriately. So let us revert operations on .frm
+              and handler's data and report about failure to rename table.
+            */
+            (void) mysql_rename_table(ha_resolve_by_legacy_type(thd,
+                                                                table_type),
+                                      new_db, new_alias,
+                                      ren_table->db, old_alias, 0);
+          }
+        }
+      }
+      break;
+    }
+    case FRMTYPE_VIEW:
+      /* change of schema is not allowed */
+      if (strcmp(ren_table->db, new_db))
+        my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, 
+                 new_db);
+      else
+        rc= mysql_rename_view(thd, new_alias, ren_table);
+      break;
+    default:
+      DBUG_ASSERT(0); // should never happen
+    case FRMTYPE_ERROR:
+      my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
+      break;
+  }
+  if (rc && !skip_error)
+    DBUG_RETURN(1);
+
+  DBUG_RETURN(0);
+
+}
+/*
   Rename all tables in list; Return pointer to wrong entry if something goes
   wrong.  Note that the table_list may be empty!
+*/
+
+/*
+  Rename tables/views in the list
+
+  SYNPOSIS
+    rename_tables()
+      thd               Thread handle
+      table_list        List of tables to rename
+      skip_error        Whether to skip errors
+
+  DESCRIPTION
+    Take a table/view name from and odd list element and rename it to a
+    the name taken from list element+1. Note that the table_list may be
+    empty.
+
+  RETURN
+    false     Ok
+    true      rename failed
 */
 
 static TABLE_LIST *
 rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
 {
-  TABLE_LIST *ren_table,*new_table;
-  frm_type_enum frm_type;
-  enum legacy_db_type table_type;
+  TABLE_LIST *ren_table,*new_table, *tmp_table;
 
   DBUG_ENTER("rename_tables");
 
   for (ren_table= table_list; ren_table; ren_table= new_table->next_local)
   {
-    int rc= 1;
-    char name[FN_REFLEN];
-    const char *new_alias, *old_alias;
-
     new_table= ren_table->next_local;
-    if (lower_case_table_names == 2)
-    {
-      old_alias= ren_table->alias;
-      new_alias= new_table->alias;
-    }
-    else
-    {
-      old_alias= ren_table->table_name;
-      new_alias= new_table->table_name;
-    }
-    build_table_filename(name, sizeof(name),
-                         new_table->db, new_alias, reg_ext, 0);
-    if (!access(name,F_OK))
-    {
-      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-      DBUG_RETURN(ren_table);			// This can't be skipped
-    }
-    build_table_filename(name, sizeof(name),
-                         ren_table->db, old_alias, reg_ext, 0);
-
-    frm_type= mysql_frm_type(thd, name, &table_type);
-    switch (frm_type)
-    {
-      case FRMTYPE_TABLE:
-      {
-        if (table_type == DB_TYPE_UNKNOWN) 
-          my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
-        else
-        {
-          if (!(rc= mysql_rename_table(ha_resolve_by_legacy_type(thd,
-                                                                 table_type),
-                                       ren_table->db, old_alias,
-                                       new_table->db, new_alias, 0)))
-          {
-            if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
-                                                            old_alias,
-                                                            new_table->db,
-                                                            new_alias)))
-            {
-              /*
-                We've succeeded in renaming table's .frm and in updating
-                corresponding handler data, but have failed to update table's
-                triggers appropriately. So let us revert operations on .frm
-                and handler's data and report about failure to rename table.
-              */
-              (void) mysql_rename_table(ha_resolve_by_legacy_type(thd,
-                                                                  table_type),
-                                        new_table->db, new_alias,
-                                        ren_table->db, old_alias, 0);
-            }
-          }
-        }
-        break;
-      }
-      case FRMTYPE_VIEW:
-        /* change of schema is not allowed */
-        if (strcmp(ren_table->db, new_table->db))
-          my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, 
-                   new_table->db);
-        else
-          rc= mysql_rename_view(thd, new_alias, ren_table);
-        break;
-      default:
-        DBUG_ASSERT(0); // should never happen
-      case FRMTYPE_ERROR:
-        my_error(ER_FILE_NOT_FOUND, MYF(0), name, my_errno);
-        break;
-    }
-    if (rc && !skip_error)
+    if (do_rename(thd, ren_table, new_table->db, new_table->table_name,
+                  new_table->alias, skip_error))
       DBUG_RETURN(ren_table);
   }
   DBUG_RETURN(0);
