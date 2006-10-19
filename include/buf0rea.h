@@ -65,18 +65,25 @@ a read-ahead function. */
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
-	ibool	sync,		/* in: TRUE if the caller wants this function
-				to wait for the highest address page to get
-				read in, before this function returns */
-	ulint*	space_ids,	/* in: array of space ids */
-	ib_longlong* space_versions,/* in: the spaces must have this version
-				number (timestamp), otherwise we discard the
-				read; we use this to cancel reads if
-				DISCARD + IMPORT may have changed the
-				tablespace size */
-	ulint*	page_nos,	/* in: array of page numbers to read, with the
-				highest page number the last in the array */
-	ulint	n_stored);	/* in: number of page numbers in the array */
+	ibool		sync,		/* in: TRUE if the caller
+					wants this function to wait
+					for the highest address page
+					to get read in, before this
+					function returns */
+	const ulint*	space_ids,	/* in: array of space ids */
+	const ib_longlong* space_versions,/* in: the spaces must have
+					this version number
+					(timestamp), otherwise we
+					discard the read; we use this
+					to cancel reads if DISCARD +
+					IMPORT may have changed the
+					tablespace size */
+	const ulint*	page_nos,	/* in: array of page numbers
+					to read, with the highest page
+					number the last in the
+					array */
+	ulint		n_stored);	/* in: number of elements
+					in the arrays */
 /************************************************************************
 Issues read requests for pages which recovery wants to read in. */
 
