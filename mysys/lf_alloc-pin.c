@@ -17,8 +17,63 @@
 /*
   wait-free concurrent allocator based on pinning addresses
 
-  TODO test with more than 256 threads
-  TODO test w/o alloca
+  It works as follows: every thread (strictly speaking - every CPU, but it's
+  too difficult to do) has a small array of pointers. They're called "pins".
+  Before using an object its address must be stored in this array (pinned).
+  When an object is no longer necessary its address must be removed from
+  this array (unpinned). When a thread wants to free() an object it
+  scans all pins of all threads to see if somebody has this object pinned.
+  If yes - the object is not freed (but stored in a purgatory).
+  To reduce the cost of a single free() pins are not scanned on every free()
+  but only added to (thread-local) purgatory. On every LF_PURGATORY_SIZE
+  free() purgatory is scanned and all unpinned objects are freed.
+
+  Pins are used to solve ABA problem. To use pins one must obey
+  a pinning protocol:
+   1. Let's assume that PTR is a shared pointer to an object. Shared means
+   that any thread may modify it anytime to point to a different object and
+   free the old object. Later the freed object may be potentially allocated
+   by another thread. If we're unlucky that another thread may set PTR to
+   point to this object again. This is ABA problem.
+   2. Create a local pointer LOCAL_PTR.
+   3. Pin the PTR in a loop:
+      do
+      {
+        LOCAL_PTR= PTR;
+        pin(PTR, PIN_NUMBER);
+      } while (LOCAL_PTR != PTR)
+   4. It is guaranteed that after the loop is ended, LOCAL_PTR
+      points to an object (or NULL, if PTR may be NULL), that
+      will never be freed. It is not guaranteed though
+      that LOCAL_PTR == PTR
+   5. When done working with the object, remove the pin:
+      unpin(PIN_NUMBER)
+   6. When copying pins (as in the list:
+        while ()
+        {
+          pin(CUR, 0);
+          do
+          {
+            NEXT=CUR->next;
+            pin(NEXT, 1);
+          } while (NEXT != CUR->next);
+          ...
+          ...
+          pin(CUR, 1);
+          CUR=NEXT;
+        }
+      which keeps CUR address constantly pinned), note than pins may be copied
+      only upwards (!!!), that is pin N to pin M > N.
+   7. Don't keep the object pinned longer than necessary - the number of pins
+      you have is limited (and small), keeping an object pinned prevents its
+      reuse and cause unnecessary mallocs.
+
+  Implementation details:
+  Pins are given away from a "pinbox". Pinbox is stack-based allocator.
+  It used dynarray for storing pins, new elements are allocated by dynarray
+  as necessary, old are pushed in the stack for reuse. ABA is solved by
+  versioning a pointer - because we use an array, a pointer to pins is 32 bit,
+  upper 32 bits are used for a version.
 */
 
 #include <my_global.h>
@@ -29,6 +84,10 @@
 
 static void _lf_pinbox_real_free(LF_PINS *pins);
 
+/*
+  Initialize a pinbox. Must be usually called from lf_alloc_init.
+  See the latter for details.
+*/
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
                     lf_pinbox_free_func *free_func,void *free_func_arg)
 {
@@ -47,6 +106,14 @@ void lf_pinbox_destroy(LF_PINBOX *pinbox)
   lf_dynarray_destroy(&pinbox->pinstack);
 }
 
+/*
+  Get pins from a pinbox. Usually called via lf_alloc_get_pins() or
+  lf_hash_get_pins().
+
+  DESCRIPTION
+    get a new LF_PINS structure from a stack of unused pins,
+    or allocate a new one out of dynarray.
+*/
 LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
 {
   uint32 pins, next, top_ver;
@@ -71,6 +138,14 @@ LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
   return el;
 }
 
+/*
+  Put pins back to a pinbox. Usually called via lf_alloc_put_pins() or
+  lf_hash_put_pins().
+
+  DESCRIPTION
+    empty the purgatory (XXX deadlock warning below!),
+    push LF_PINS structure to a stack
+*/
 void _lf_pinbox_put_pins(LF_PINS *pins)
 {
   LF_PINBOX *pinbox= pins->pinbox;
@@ -80,11 +155,11 @@ void _lf_pinbox_put_pins(LF_PINS *pins)
   {
     int i;
     for (i= 0; i < LF_PINBOX_PINS; i++)
-      assert(pins->pin[i] == 0);
+      DBUG_ASSERT(pins->pin[i] == 0);
   }
 #endif
   /*
-    Note - this will deadlock if other threads will wait for
+    XXX this will deadlock if other threads will wait for
     the caller to do something after _lf_pinbox_put_pins(),
     and they would have pinned addresses that the caller wants to free.
     Thus: only free pins when all work is done and nobody can wait for you!!!
@@ -130,6 +205,13 @@ static int ptr_cmp(void **a, void **b)
     (PINS)->purgatory_count++;                                          \
   } while (0)
 
+/*
+  Free an object allocated via pinbox allocator
+
+  DESCRIPTION
+    add an object to purgatory. if necessary, call _lf_pinbox_real_free()
+    to actually free something.
+*/
 void _lf_pinbox_free(LF_PINS *pins, void *addr)
 {
   if (pins->purgatory_count % LF_PURGATORY_SIZE)
@@ -142,6 +224,10 @@ struct st_harvester {
   int npins;
 };
 
+/*
+  callback for _lf_dynarray_iterate:
+  scan all pins or all threads and accumulate all pins
+*/
 static int harvest_pins(LF_PINS *el, struct st_harvester *hv)
 {
   int i;
@@ -159,6 +245,10 @@ static int harvest_pins(LF_PINS *el, struct st_harvester *hv)
   return 0;
 }
 
+/*
+  callback for _lf_dynarray_iterate:
+  scan all pins or all threads and see if addr is present there
+*/
 static int match_pins(LF_PINS *el, void *addr)
 {
   int i;
@@ -170,6 +260,9 @@ static int match_pins(LF_PINS *el, void *addr)
   return 0;
 }
 
+/*
+  Scan the purgatory as free everything that can be freed
+*/
 static void _lf_pinbox_real_free(LF_PINS *pins)
 {
   int npins;
@@ -187,10 +280,12 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
     addr= (void **) alloca(sizeof(void *)*LF_PINBOX_PINS*npins);
     hv.granary= addr;
     hv.npins= npins;
+    /* scan the dynarray and accumulate all pinned addresses */
     _lf_dynarray_iterate(&pinbox->pinstack,
                          (lf_dynarray_func)harvest_pins, &hv);
 
     npins= hv.granary-addr;
+    /* and sort them */
     if (npins)
       qsort(addr, npins, sizeof(void *), (qsort_cmp)ptr_cmp);
   }
@@ -207,7 +302,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
     list= *(void **)((char *)cur+pinbox->free_ptr_offset);
     if (npins)
     {
-      if (addr)
+      if (addr) /* use binary search */
       {
         void **a,**b,**c;
         for (a= addr, b= addr+npins-1, c= a+(b-a)/2; b-a>1; c= a+(b-a)/2)
@@ -220,7 +315,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
         if (cur == *a || cur == *b)
           goto found;
       }
-      else
+      else /* no alloca - no cookie. linear search here */
       {
         if (_lf_dynarray_iterate(&pinbox->pinstack,
                                  (lf_dynarray_func)match_pins, cur))
@@ -236,6 +331,10 @@ found:
   }
 }
 
+/*
+  callback for _lf_pinbox_real_free to free an unpinned object -
+  add it back to the allocator stack
+*/
 static void alloc_free(void *node, LF_ALLOCATOR *allocator)
 {
   void *tmp;
@@ -247,36 +346,21 @@ static void alloc_free(void *node, LF_ALLOCATOR *allocator)
            LF_BACKOFF);
 }
 
-LF_REQUIRE_PINS(1);
-void *_lf_alloc_new(LF_PINS *pins)
-{
-  LF_ALLOCATOR *allocator= (LF_ALLOCATOR *)(pins->pinbox->free_func_arg);
-  void *node;
-  for (;;)
-  {
-    do
-    {
-      node= allocator->top;
-      _lf_pin(pins, 0, node);
-    } while (node != allocator->top && LF_BACKOFF);
-    if (!node)
-    {
-      if (!(node= my_malloc(allocator->element_size, MYF(MY_WME|MY_ZEROFILL))))
-        goto ret;
-#ifdef MY_LF_EXTRA_DEBUG
-      my_atomic_add32(&allocator->mallocs, 1);
-#endif
-      goto ret;
-    }
-    if (my_atomic_casptr((void **)&allocator->top,
-                         (void *)&node, *(void **)node))
-      goto ret;
-  }
-ret:
-  _lf_unpin(pins, 0);
-  return node;
-}
+/* lock-free memory allocator for fixed-size objects */
 
+LF_REQUIRE_PINS(1);
+
+/*
+  initialize lock-free allocatod.
+
+  SYNOPSYS
+    allocator           -
+    size                a size of an object to allocate
+    free_ptr_offset     an offset inside the object to a sizeof(void *)
+                        memory that is guaranteed to be unused after
+                        the object is put in the purgatory. Unused by ANY
+                        thread, not only the purgatory owner.
+*/
 void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
 {
   lf_pinbox_init(&allocator->pinbox, free_ptr_offset,
@@ -285,8 +369,12 @@ void lf_alloc_init(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset)
   allocator->mallocs= 0;
   allocator->element_size= size;
   DBUG_ASSERT(size >= (int)sizeof(void *));
+  DBUG_ASSERT(free_ptr_offset < size);
 }
 
+/*
+  destroy the allocator, free everything that's in it
+*/
 void lf_alloc_destroy(LF_ALLOCATOR *allocator)
 {
   void *el= allocator->top;
@@ -301,8 +389,45 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator)
 }
 
 /*
+  Allocate and return an new object.
+
+  DESCRIPTION
+    Pop an unused object from the stack or malloc it is the stack is empty.
+    pin[0] is used, it's removed on return.
+*/
+void *_lf_alloc_new(LF_PINS *pins)
+{
+  LF_ALLOCATOR *allocator= (LF_ALLOCATOR *)(pins->pinbox->free_func_arg);
+  void *node;
+  for (;;)
+  {
+    do
+    {
+      node= allocator->top;
+      _lf_pin(pins, 0, node);
+    } while (node != allocator->top && LF_BACKOFF);
+    if (!node)
+    {
+      if (!(node= my_malloc(allocator->element_size, MYF(MY_WME|MY_ZEROFILL))))
+        break;
+#ifdef MY_LF_EXTRA_DEBUG
+      my_atomic_add32(&allocator->mallocs, 1);
+#endif
+      break;
+    }
+    if (my_atomic_casptr((void **)&allocator->top,
+                         (void *)&node, *(void **)node))
+      break;
+  }
+  _lf_unpin(pins, 0);
+  return node;
+}
+
+/*
+  count the number of objects in a pool.
+
   NOTE
-    this is NOT thread-safe !!!
+    This is NOT thread-safe !!!
 */
 uint lf_alloc_in_pool(LF_ALLOCATOR *allocator)
 {
