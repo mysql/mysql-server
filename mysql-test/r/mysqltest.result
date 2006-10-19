@@ -518,4 +518,6 @@ hello
 mysqltest: At line 1: Max delimiter length(16) exceeded
 hello
 hello
+mysqltest: At line 1: test of die
+Some output
 End of tests
