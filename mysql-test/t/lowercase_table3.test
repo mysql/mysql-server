@@ -5,12 +5,8 @@
 #
 
 --source include/have_innodb.inc
---require r/lowercase0.require
-disable_query_log;
-show variables like "lower_case_%";
---require r/true.require
-select convert(@@version_compile_os using latin1) NOT IN ("NT","WIN2000","Win95/Win98","XP") as "TRUE";
-enable_query_log;
+--source include/have_lowercase0.inc
+--source include/not_windows.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,T1;
