@@ -448,6 +448,7 @@ public:
     negated= !negated;
     return this;
   }
+  bool subst_argument_checker(byte **arg) { return TRUE; }
 };
 
 
