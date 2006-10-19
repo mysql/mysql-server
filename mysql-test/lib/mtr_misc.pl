@@ -14,6 +14,7 @@ sub mtr_path_exists(@);
 sub mtr_script_exists(@);
 sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
+sub mtr_exe_maybe_exists(@);
 sub mtr_copy_dir($$);
 sub mtr_same_opts($$);
 sub mtr_cmp_opts($$);
@@ -110,8 +111,9 @@ sub mtr_file_exists (@) {
   return "";
 }
 
-sub mtr_exe_exists (@) {
+sub mtr_exe_maybe_exists (@) {
   my @path= @_;
+
   map {$_.= ".exe"} @path if $::glob_win32;
   foreach my $path ( @path )
   {
@@ -124,6 +126,16 @@ sub mtr_exe_exists (@) {
       return $path if -x $path;
     }
   }
+  return "";
+}
+
+sub mtr_exe_exists (@) {
+  my @path= @_;
+  if (my $path= mtr_exe_maybe_exists(@path))
+  {
+    return $path;
+  }
+  # Could not find exe, show error
   if ( @path == 1 )
   {
     mtr_error("Could not find $path[0]");
