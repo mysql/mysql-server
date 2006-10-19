@@ -364,6 +364,9 @@ public:
   // Table create tweaks
   int createHook(Ndb*, NdbDictionary::Table&, int when);
   Vector<BaseString> m_tables_in_test;
+
+  void setTemporaryTables(bool val);
+  bool getTemporaryTables() const;
 private:
   int executeOne(Ndb_cluster_connection&,
 		 const char* _tabname, const char* testname = NULL);
@@ -390,6 +393,7 @@ private:
   bool runonce;
   const char* tsname;
   bool createAllTables;
+  bool temporaryTables;
 };
 
 
