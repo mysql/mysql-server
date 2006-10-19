@@ -385,3 +385,12 @@ insert into t1 values (40);
 flush tables;
 select f1 from t1 where f1 in (select f1 from t1);
 drop table t1;
+
+#
+# Bug#22183: Unhandled NULL caused server crash
+#
+create table t1 as
+ select from_days(s) as date,t
+ from (select 1 as s,'t' as t union select null, null ) as sub1;
+select group_concat(t) from t1 group by week(date)/10;
+drop table t1;
