@@ -62,7 +62,8 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 			    &long_sig_buffer_size);
 
   long_sig_buffer_size= long_sig_buffer_size / 256;
-  g_sectionSegmentPool.setSize(long_sig_buffer_size);
+  g_sectionSegmentPool.setSize(long_sig_buffer_size,
+                               false,true,true,CFG_DB_LONG_SIGNAL_BUFFER);
 
   // Add received signals
   addRecSignal(GSN_CONNECT_REP, &Cmvmi::execCONNECT_REP);
