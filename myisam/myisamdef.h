@@ -75,7 +75,7 @@ typedef struct st_mi_state_info
   ulong sec_index_changed;		/* Updated when new sec_index */
   ulong sec_index_used;			/* which extra index are in use */
   ulonglong key_map;			/* Which keys are in use */
-  ha_checksum checksum;
+  ha_checksum checksum;                 /* Table checksum */
   ulong version;			/* timestamp of create */
   time_t create_time;			/* Time when created database */
   time_t recover_time;			/* Time for last recover */
@@ -176,6 +176,7 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   int (*delete_record)(struct st_myisam_info*);
   int (*read_rnd)(struct st_myisam_info*, byte*, my_off_t, my_bool);
   int (*compare_record)(struct st_myisam_info*, const byte *);
+  /* Function to use for a row checksum. */
   ha_checksum (*calc_checksum)(struct st_myisam_info*, const byte *);
   int (*compare_unique)(struct st_myisam_info*, MI_UNIQUEDEF *,
 			const byte *record, my_off_t pos);
@@ -249,7 +250,7 @@ struct st_myisam_info {
   my_off_t last_keypage;		/* Last key page read */
   my_off_t last_search_keypage;		/* Last keypage when searching */
   my_off_t dupp_key_pos;
-  ha_checksum checksum;
+  ha_checksum checksum;                 /* Temp storage for row checksum */
   /* QQ: the folloing two xxx_length fields should be removed,
      as they are not compatible with parallel repair */
   ulong packed_length,blob_length;	/* Length of found, packed record */
@@ -297,8 +298,9 @@ typedef struct st_mi_sort_param
   pthread_t  thr;
   IO_CACHE read_cache, tempfile, tempfile_for_exceptions;
   DYNAMIC_ARRAY buffpek;
-  
-  /* 
+  MI_BIT_BUFF   bit_buff;               /* For parallel repair of packrec. */
+
+  /*
     The next two are used to collect statistics, see update_key_parts for
     description.
   */
@@ -309,6 +311,7 @@ typedef struct st_mi_sort_param
   uint key, key_length,real_key_length,sortbuff_size;
   uint maxbuffers, keys, find_length, sort_keys_length;
   my_bool fix_datafile, master;
+  my_bool calc_checksum;                /* calculate table checksum */
   MI_KEYDEF *keyinfo;
   HA_KEYSEG *seg;
   SORT_INFO *sort_info;
@@ -361,8 +364,15 @@ typedef struct st_mi_sort_param
 #define mi_putint(x,y,nod) { uint16 boh=(nod ? (uint16) 32768 : 0) + (uint16) (y);\
 			  mi_int2store(x,boh); }
 #define mi_test_if_nod(x) (x[0] & 128 ? info->s->base.key_reflength : 0)
-#define mi_mark_crashed(x) (x)->s->state.changed|=STATE_CRASHED
-#define mi_mark_crashed_on_repair(x) { (x)->s->state.changed|=STATE_CRASHED|STATE_CRASHED_ON_REPAIR ; (x)->update|= HA_STATE_CHANGED; }
+#define mi_mark_crashed(x) do{(x)->s->state.changed|= STATE_CRASHED; \
+                              DBUG_PRINT("error", ("Marked table crashed")); \
+                           }while(0)
+#define mi_mark_crashed_on_repair(x) do{(x)->s->state.changed|= \
+                                        STATE_CRASHED|STATE_CRASHED_ON_REPAIR; \
+                                        (x)->update|= HA_STATE_CHANGED; \
+                                        DBUG_PRINT("error", \
+                                                   ("Marked table crashed")); \
+                                     }while(0)
 #define mi_is_crashed(x) ((x)->s->state.changed & STATE_CRASHED)
 #define mi_is_crashed_on_repair(x) ((x)->s->state.changed & STATE_CRASHED_ON_REPAIR)
 
@@ -600,8 +610,8 @@ extern void _mi_print_key(FILE *stream,HA_KEYSEG *keyseg,const uchar *key,
 extern my_bool _mi_read_pack_info(MI_INFO *info,pbool fix_keys);
 extern int _mi_read_pack_record(MI_INFO *info,my_off_t filepos,byte *buf);
 extern int _mi_read_rnd_pack_record(MI_INFO*, byte *,my_off_t, my_bool);
-extern int _mi_pack_rec_unpack(MI_INFO *info,byte *to,byte *from,
-			       ulong reclength);
+extern int _mi_pack_rec_unpack(MI_INFO *info, MI_BIT_BUFF *bit_buff,
+                               byte *to, byte *from, ulong reclength);
 extern ulonglong mi_safe_mul(ulonglong a,ulonglong b);
 extern int _mi_ft_update(MI_INFO *info, uint keynr, byte *keybuf,
 			 const byte *oldrec, const byte *newrec, my_off_t pos);
@@ -666,7 +676,9 @@ extern "C" {
 
 extern uint _mi_get_block_info(MI_BLOCK_INFO *,File, my_off_t);
 extern uint _mi_rec_pack(MI_INFO *info,byte *to,const byte *from);
-extern uint _mi_pack_get_block_info(MI_INFO *, MI_BLOCK_INFO *, File, my_off_t);
+extern uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
+                                    MI_BLOCK_INFO *info, byte **rec_buff_p,
+                                    File file, my_off_t filepos);
 extern void _my_store_blob_length(byte *pos,uint pack_length,uint length);
 extern void _myisam_log(enum myisam_log_commands command,MI_INFO *info,
 		       const byte *buffert,uint length);
