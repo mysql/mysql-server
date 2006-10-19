@@ -327,10 +327,10 @@ Parses a redo log record of a file page init. */
 byte*
 fsp_parse_init_file_page(
 /*=====================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page);	/* in: page or NULL */
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr, /* in: buffer end */
+	buf_block_t*	block);	/* in: block or NULL */
 /***********************************************************************
 Validates the file space system and its segments. */
 

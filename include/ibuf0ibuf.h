@@ -200,14 +200,18 @@ belonged to an index which subsequently was dropped. */
 void
 ibuf_merge_or_delete_for_page(
 /*==========================*/
-	page_t*	page,	/* in: if page has been read from disk, pointer to
-			the page x-latched, else NULL */
-	ulint	space,	/* in: space id of the index page */
-	ulint	page_no,/* in: page number of the index page */
-	ibool	update_ibuf_bitmap);/* in: normally this is set to TRUE, but if
-			we have deleted or are deleting the tablespace, then we
-			naturally do not want to update a non-existent bitmap
-			page */
+	buf_block_t*	block,	/* in: if page has been read from
+				disk, pointer to the page x-latched,
+				else NULL */
+	ulint		space,	/* in: space id of the index page */
+	ulint		page_no,/* in: page number of the index page */
+	ulint		zip_size,/* in: compressed page size in bytes,
+				or 0 */
+	ibool		update_ibuf_bitmap);/* in: normally this is set
+				to TRUE, but if we have deleted or are
+				deleting the tablespace, then we
+				naturally do not want to update a
+				non-existent bitmap page */
 /*************************************************************************
 Deletes all entries in the insert buffer for a given space id. This is used
 in DISCARD TABLESPACE and IMPORT TABLESPACE.
@@ -251,11 +255,11 @@ Parses a redo log record of an ibuf bitmap page init. */
 byte*
 ibuf_parse_bitmap_init(
 /*===================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr,/* in: buffer end */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr);	/* in: mtr or NULL */
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr,/* in: buffer end */
+	buf_block_t*	block,	/* in: block or NULL */
+	mtr_t*		mtr);	/* in: mtr or NULL */
 #ifdef UNIV_IBUF_DEBUG
 /**********************************************************************
 Gets the ibuf count for a given page. */

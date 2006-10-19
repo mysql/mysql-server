@@ -70,7 +70,7 @@ btr_search_build_page_hash_index(
 /*=============================*/
 	dict_index_t*	index,	/* in: index for which to build, or NULL if
 				not known */
-	page_t*		page,	/* in: index page, s- or x-latched */
+	buf_block_t*	block,	/* in: index page, s- or x-latched */
 	ulint		n_fields,/* in: hash this many full fields */
 	ulint		n_bytes,/* in: hash this many bytes from the next
 				field */
@@ -514,7 +514,7 @@ btr_search_info_update_slow(
 		params2 = params + btr_search_this_is_zero;
 
 		btr_search_build_page_hash_index(cursor->index,
-						 block->frame,
+						 block,
 						 params2[0],
 						 params2[1],
 						 params2[2]);
@@ -1096,14 +1096,14 @@ void
 btr_search_build_page_hash_index(
 /*=============================*/
 	dict_index_t*	index,	/* in: index for which to build */
-	page_t*		page,	/* in: index page, s- or x-latched */
+	buf_block_t*	block,	/* in: index page, s- or x-latched */
 	ulint		n_fields,/* in: hash this many full fields */
 	ulint		n_bytes,/* in: hash this many bytes from the next
 				field */
 	ibool		left_side)/* in: hash for searches from left side? */
 {
 	hash_table_t*	table;
-	buf_block_t*	block;
+	page_t*		page;
 	rec_t*		rec;
 	rec_t*		next_rec;
 	ulint		fold;
@@ -1121,8 +1121,8 @@ btr_search_build_page_hash_index(
 
 	ut_ad(index);
 
-	block = buf_block_align(page);
 	table = btr_search_sys->hash_index;
+	page = buf_block_get_frame(block);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
@@ -1173,8 +1173,7 @@ btr_search_build_page_hash_index(
 
 	index_id = btr_page_get_index_id(page);
 
-	rec = page_get_infimum_rec(page);
-	rec = page_rec_get_next(rec);
+	rec = page_rec_get_next(page_get_infimum_rec(page));
 
 	offsets = rec_get_offsets(rec, index, offsets,
 				  n_fields + (n_bytes > 0), &heap);
@@ -1327,7 +1326,7 @@ btr_search_move_or_delete_hash_entries(
 
 		ut_a(n_fields + n_bytes > 0);
 
-		btr_search_build_page_hash_index(index, new_page, n_fields,
+		btr_search_build_page_hash_index(index, new_block, n_fields,
 						 n_bytes, left_side);
 #if 1 /* TODO: safe to remove? */
 		ut_a(n_fields == block->curr_n_fields);
@@ -1362,7 +1361,7 @@ btr_search_update_hash_on_delete(
 
 	rec = btr_cur_get_rec(cursor);
 
-	block = buf_block_align(rec);
+	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
@@ -1409,7 +1408,7 @@ btr_search_update_hash_node_on_insert(
 
 	rec = btr_cur_get_rec(cursor);
 
-	block = buf_block_align(rec);
+	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
@@ -1477,7 +1476,7 @@ btr_search_update_hash_on_insert(
 
 	rec = btr_cur_get_rec(cursor);
 
-	block = buf_block_align(rec);
+	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
