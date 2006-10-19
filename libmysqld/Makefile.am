@@ -158,11 +158,11 @@ endif
 # This is called from the toplevel makefile
 link_sources:
 	  set -x; \
-	  for f in $(sqlsources); do \
+	  for f in "$(sqlsources)"; do \
 	    rm -f $$f; \
 	    @LN_CP_F@ $(top_srcdir)/sql/$$f $$f; \
 	  done; \
-	  for f in $(libmysqlsources); do \
+	  for f in "$(libmysqlsources)"; do \
 	    rm -f $$f; \
 	    @LN_CP_F@ $(top_srcdir)/libmysql/$$f $$f; \
 	  done; \
@@ -176,7 +176,7 @@ link_sources:
 	  if test -n "$(storagesources)" ; \
 	  then \
 	    rm -f $(storagesources); \
-	    for f in $(storagesourceslinks); do \
+	    for f in "$(storagesourceslinks)"; do \
 	      @LN_CP_F@ $(top_srcdir)/$$f . ; \
 	    done; \
 	  fi; \
