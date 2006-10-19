@@ -263,15 +263,16 @@ sub collect_one_test_case($$$$$$$) {
     return;
   }
 
-  # ----------------------------------------------------------------------
-  # Skip some tests but include in list, just mark them to skip
-  # ----------------------------------------------------------------------
 
   my $tinfo= {};
   $tinfo->{'name'}= $tname;
   $tinfo->{'result_file'}= "$resdir/$tname.result";
   $tinfo->{'component_id'} = $component_id;
   push(@$cases, $tinfo);
+
+  # ----------------------------------------------------------------------
+  # Skip some tests but include in list, just mark them to skip
+  # ----------------------------------------------------------------------
 
   if ( $::opt_skip_test and defined mtr_match_prefix($tname,$::opt_skip_test) )
   {
@@ -356,8 +357,9 @@ sub collect_one_test_case($$$$$$$) {
       $value= mtr_match_prefix($opt, "--default-time-zone=");
       if ( defined $value )
       {
-	$tinfo->{'timezone'}= "";
-	# Fallthrough, add this option
+	# Set timezone for this test case to something different
+	$tinfo->{'timezone'}= "GMT-8";
+	# Fallthrough, add the --default-time-zone option
       }
 
       # The --restart option forces a restart even if no special
