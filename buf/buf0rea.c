@@ -98,7 +98,7 @@ buf_read_page_low(
 	}
 
 	if (ibuf_bitmap_page(zip_size, offset)
-				|| trx_sys_hdr_page(space, offset)) {
+	    || trx_sys_hdr_page(space, offset)) {
 
 		/* Trx sys header is so low in the latching order that we play
 		safe and do not leave the i/o-completion to an asynchronous
@@ -612,20 +612,26 @@ a read-ahead function. */
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
-	ibool	sync,		/* in: TRUE if the caller wants this function
-				to wait for the highest address page to get
-				read in, before this function returns */
-	ulint*	space_ids,	/* in: array of space ids */
-	ib_longlong* space_versions,/* in: the spaces must have this version
-				number (timestamp), otherwise we discard the
-				read; we use this to cancel reads if
-				DISCARD + IMPORT may have changed the
-				tablespace size */
-	ulint*	page_nos,	/* in: array of page numbers to read, with the
-				highest page number the last in the array */
-	ulint	n_stored)	/* in: number of page numbers in the array */
+	ibool		sync,		/* in: TRUE if the caller
+					wants this function to wait
+					for the highest address page
+					to get read in, before this
+					function returns */
+	const ulint*	space_ids,	/* in: array of space ids */
+	const ib_longlong* space_versions,/* in: the spaces must have
+					this version number
+					(timestamp), otherwise we
+					discard the read; we use this
+					to cancel reads if DISCARD +
+					IMPORT may have changed the
+					tablespace size */
+	const ulint*	page_nos,	/* in: array of page numbers
+					to read, with the highest page
+					number the last in the
+					array */
+	ulint		n_stored)	/* in: number of elements
+					in the arrays */
 {
-	ulint	err;
 	ulint	i;
 
 	ut_ad(!ibuf_inside());
@@ -638,16 +644,27 @@ buf_read_ibuf_merge_pages(
 	}
 
 	for (i = 0; i < n_stored; i++) {
-		buf_read_page_low(&err, sync && (i + 1 == n_stored),
-				  BUF_READ_ANY_PAGE, space_ids[i], 0,
-				  space_versions[i], page_nos[i]);
+		ulint	zip_size = fil_space_get_zip_size(space_ids[i]);
+		ulint	err;
 
-		if (err == DB_TABLESPACE_DELETED) {
+		if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+
+			goto tablespace_deleted;
+		}
+
+		buf_read_page_low(&err, sync && (i + 1 == n_stored),
+				  BUF_READ_ANY_PAGE, space_ids[i],
+				  zip_size, space_versions[i],
+				  page_nos[i]);
+
+		if (UNIV_UNLIKELY(err == DB_TABLESPACE_DELETED)) {
+tablespace_deleted:
 			/* We have deleted or are deleting the single-table
 			tablespace: remove the entries for that page */
 
 			ibuf_merge_or_delete_for_page(NULL, space_ids[i],
-						      page_nos[i], FALSE);
+						      page_nos[i],
+						      zip_size, FALSE);
 		}
 	}
 

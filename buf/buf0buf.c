@@ -1884,7 +1884,7 @@ buf_page_create(
 	/* Delete possible entries for the page from the insert buffer:
 	such can exist if the page belonged to an index which was dropped */
 
-	ibuf_merge_or_delete_for_page(NULL, space, offset, TRUE);
+	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
 
 	/* Flush pages from the end of the LRU list if necessary */
 	buf_flush_free_margin();
@@ -2065,8 +2065,8 @@ corrupt:
 
 		if (!recv_no_ibuf_operations) {
 			ibuf_merge_or_delete_for_page(
-				block->frame, block->space, block->offset,
-				TRUE);
+				block, block->space, block->offset,
+				buf_block_get_zip_size(block), TRUE);
 		}
 	}
 

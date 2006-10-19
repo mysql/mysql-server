@@ -595,16 +595,16 @@ Parses a redo log record of an ibuf bitmap page init. */
 byte*
 ibuf_parse_bitmap_init(
 /*===================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
-	page_t*	page,	/* in: page or NULL */
-	mtr_t*	mtr)	/* in: mtr or NULL */
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr __attribute__((unused)), /* in: buffer end */
+	buf_block_t*	block,	/* in: block or NULL */
+	mtr_t*		mtr)	/* in: mtr or NULL */
 {
 	ut_ad(ptr && end_ptr);
 
-	if (page) {
-		ibuf_bitmap_page_init(buf_block_align(page), mtr);
+	if (block) {
+		ibuf_bitmap_page_init(block, mtr);
 	}
 
 	return(ptr);
@@ -3117,32 +3117,38 @@ belonged to an index which subsequently was dropped. */
 void
 ibuf_merge_or_delete_for_page(
 /*==========================*/
-	page_t*	page,	/* in: if page has been read from disk, pointer to
-			the page x-latched, else NULL */
-	ulint	space,	/* in: space id of the index page */
-	ulint	page_no,/* in: page number of the index page */
-	ibool	update_ibuf_bitmap)/* in: normally this is set to TRUE, but if
-			we have deleted or are deleting the tablespace, then we
-			naturally do not want to update a non-existent bitmap
-			page */
+	buf_block_t*	block,	/* in: if page has been read from
+				disk, pointer to the page x-latched,
+				else NULL */
+	ulint		space,	/* in: space id of the index page */
+	ulint		page_no,/* in: page number of the index page */
+	ulint		zip_size,/* in: compressed page size in bytes,
+				or 0 */
+	ibool		update_ibuf_bitmap)/* in: normally this is set
+				to TRUE, but if we have deleted or are
+				deleting the tablespace, then we
+				naturally do not want to update a
+				non-existent bitmap page */
 {
 	mem_heap_t*	heap;
 	btr_pcur_t	pcur;
 	dtuple_t*	entry;
 	dtuple_t*	search_tuple;
 	rec_t*		ibuf_rec;
-	buf_block_t*	block			= NULL;
 	page_t*		bitmap_page;
 	ibuf_data_t*	ibuf_data;
 	ulint		n_inserts;
 #ifdef UNIV_IBUF_DEBUG
 	ulint		volume;
 #endif
-	ulint		zip_size		= 0; /* remove bogus warning */
 	page_zip_des_t*	page_zip		= NULL;
 	ibool		tablespace_being_deleted = FALSE;
 	ibool		corruption_noticed	= FALSE;
 	mtr_t		mtr;
+
+	ut_ad(!block || buf_block_get_space(block) == space);
+	ut_ad(!block || buf_block_get_page_no(block) == page_no);
+	ut_ad(!block || buf_block_get_zip_size(block) == zip_size);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
 
@@ -3161,7 +3167,6 @@ ibuf_merge_or_delete_for_page(
 	}
 
 	if (update_ibuf_bitmap) {
-		zip_size = fil_space_get_zip_size(space);
 		ut_a(ut_is_2pow(zip_size));
 
 		if (ibuf_fixed_addr_page(space, zip_size, page_no)
@@ -3180,7 +3185,7 @@ ibuf_merge_or_delete_for_page(
 			/* Do not try to read the bitmap page from space;
 			just delete the ibuf records for the page */
 
-			page = NULL;
+			block = NULL;
 			update_ibuf_bitmap = FALSE;
 		} else {
 			mtr_start(&mtr);
@@ -3202,10 +3207,7 @@ ibuf_merge_or_delete_for_page(
 			}
 			mtr_commit(&mtr);
 		}
-	} else if (page) {
-		zip_size = fil_space_get_zip_size(space);
-		ut_a(ut_is_2pow(zip_size));
-
+	} else if (block) {
 		if (ibuf_fixed_addr_page(space, zip_size, page_no)
 		    || fsp_descr_page(zip_size, page_no)) {
 			return;
@@ -3229,17 +3231,17 @@ ibuf_merge_or_delete_for_page(
 							   heap);
 	}
 
-	if (page) {
+	if (block) {
 		/* Move the ownership of the x-latch on the page to this OS
 		thread, so that we can acquire a second x-latch on it. This
 		is needed for the insert operations to the index page to pass
 		the debug checks. */
 
-		block = buf_block_align(page);
 		rw_lock_x_lock_move_ownership(&(block->lock));
 		page_zip = buf_block_get_page_zip(block);
 
-		if (UNIV_UNLIKELY(fil_page_get_type(page) != FIL_PAGE_INDEX)) {
+		if (UNIV_UNLIKELY(fil_page_get_type(buf_block_get_frame(block))
+				  != FIL_PAGE_INDEX)) {
 
 			corruption_noticed = TRUE;
 
@@ -3258,7 +3260,7 @@ ibuf_merge_or_delete_for_page(
 
 			fputs("\nInnoDB: Dump of the page:\n", stderr);
 
-			buf_page_print(page, 0);
+			buf_page_print(buf_block_get_frame(block), 0);
 
 			fprintf(stderr,
 				"InnoDB: Error: corruption in the tablespace."
@@ -3276,7 +3278,8 @@ ibuf_merge_or_delete_for_page(
 				"InnoDB: Please submit a detailed bug report"
 				" to http://bugs.mysql.com\n\n",
 				(ulong) page_no,
-				(ulong) fil_page_get_type(page));
+				(ulong)
+				fil_page_get_type(buf_block_get_frame(block)));
 		}
 	}
 
@@ -3287,7 +3290,7 @@ ibuf_merge_or_delete_for_page(
 loop:
 	mtr_start(&mtr);
 
-	if (page) {
+	if (block) {
 		ibool success = buf_page_get_known_nowait(RW_X_LATCH, block,
 							  BUF_KEEP_OLD,
 							  __FILE__, __LINE__,
@@ -3316,9 +3319,10 @@ loop:
 		/* Check if the entry is for this index page */
 		if (ibuf_rec_get_page_no(ibuf_rec) != page_no
 		    || ibuf_rec_get_space(ibuf_rec) != space) {
-			if (page) {
-				page_header_reset_last_insert(page,
-							      page_zip, &mtr);
+			if (block) {
+				page_header_reset_last_insert(
+					buf_block_get_frame(block),
+					page_zip, &mtr);
 			}
 			goto reset_bit;
 		}
@@ -3327,7 +3331,7 @@ loop:
 			fputs("InnoDB: Discarding record\n ", stderr);
 			rec_print_old(stderr, ibuf_rec);
 			fputs("\n from the insert buffer!\n\n", stderr);
-		} else if (page) {
+		} else if (block) {
 			/* Now we have at pcur a record which should be
 			inserted to the index page; NOTE that the call below
 			copies pointers to fields in ibuf_rec, and we must
@@ -3336,7 +3340,8 @@ loop:
 			dict_index_t*	dummy_index;
 			dulint		max_trx_id = page_get_max_trx_id(
 				page_align(ibuf_rec));
-			page_update_max_trx_id(page, page_zip, max_trx_id);
+			page_update_max_trx_id(buf_block_get_frame(block),
+					       page_zip, max_trx_id);
 
 			entry = ibuf_build_entry_from_ibuf_rec(
 				ibuf_rec, heap, &dummy_index);
@@ -3383,7 +3388,8 @@ reset_bit:
 						       zip_size, &mtr);
 		ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 					  IBUF_BITMAP_BUFFERED, FALSE, &mtr);
-		if (page) {
+		if (block) {
+			page_t* page = buf_block_get_frame(block);
 			ulint old_bits = ibuf_bitmap_page_get_bits(
 				bitmap_page, page_no, zip_size,
 				IBUF_BITMAP_FREE, &mtr);

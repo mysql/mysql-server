@@ -869,15 +869,15 @@ Parses a redo log record of a file page init. */
 byte*
 fsp_parse_init_file_page(
 /*=====================*/
-			/* out: end of log record or NULL */
-	byte*	ptr,	/* in: buffer */
-	byte*	end_ptr __attribute__((unused)), /* in: buffer end */
-	page_t*	page)	/* in: page or NULL */
+				/* out: end of log record or NULL */
+	byte*		ptr,	/* in: buffer */
+	byte*		end_ptr __attribute__((unused)), /* in: buffer end */
+	buf_block_t*	block)	/* in: block or NULL */
 {
 	ut_ad(ptr && end_ptr);
 
-	if (page) {
-		fsp_init_file_page_low(buf_block_align(page));
+	if (block) {
+		fsp_init_file_page_low(block);
 	}
 
 	return(ptr);

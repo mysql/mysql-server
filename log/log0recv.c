@@ -930,10 +930,10 @@ recv_parse_or_apply_log_rec_body(
 		}
 		break;
 	case MLOG_IBUF_BITMAP_INIT:
-		ptr = ibuf_parse_bitmap_init(ptr, end_ptr, page, mtr);
+		ptr = ibuf_parse_bitmap_init(ptr, end_ptr, block, mtr);
 		break;
 	case MLOG_INIT_FILE_PAGE:
-		ptr = fsp_parse_init_file_page(ptr, end_ptr, page);
+		ptr = fsp_parse_init_file_page(ptr, end_ptr, block);
 		break;
 	case MLOG_WRITE_STRING:
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
