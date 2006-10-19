@@ -812,7 +812,7 @@ rec_convert_dtuple_to_rec_old(
 
 			field = dtuple_get_nth_field(dtuple, i);
 
-			data = dfield_get_data((dfield_t*) field);
+			data = dfield_get_data(field);
 			len = dfield_get_len(field);
 
 			if (len == UNIV_SQL_NULL) {
@@ -842,7 +842,7 @@ rec_convert_dtuple_to_rec_old(
 
 			field = dtuple_get_nth_field(dtuple, i);
 
-			data = dfield_get_data((dfield_t*) field);
+			data = dfield_get_data(field);
 			len = dfield_get_len(field);
 
 			if (len == UNIV_SQL_NULL) {
@@ -997,7 +997,7 @@ init:
 		if (UNIV_UNLIKELY(i == n_node_ptr_field)) {
 			ut_ad(dtype_get_prtype(type) & DATA_NOT_NULL);
 			ut_ad(len == 4);
-			memcpy(end, dfield_get_data((dfield_t*) field), len);
+			memcpy(end, dfield_get_data(field), len);
 			end += 4;
 			break;
 		}
@@ -1047,7 +1047,7 @@ init:
 			}
 		}
 
-		memcpy(end, dfield_get_data((dfield_t*) field), len);
+		memcpy(end, dfield_get_data(field), len);
 		end += len;
 	}
 
@@ -1136,8 +1136,8 @@ rec_copy_prefix_to_dtuple(
 
 	for (i = 0; i < n_fields; i++) {
 
-		field = (dfield_t*) dtuple_get_nth_field(tuple, i);
-		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
+		field = dtuple_get_nth_field(tuple, i);
+		data = rec_get_nth_field(rec, offsets, i, &len);
 
 		if (len != UNIV_SQL_NULL) {
 			buf = mem_heap_alloc(heap, len);
@@ -1397,7 +1397,7 @@ rec_validate(
 	ut_a(rec_offs_comp(offsets) || n_fields <= rec_get_n_fields_old(rec));
 
 	for (i = 0; i < n_fields; i++) {
-		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
+		data = rec_get_nth_field(rec, offsets, i, &len);
 
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
 			fprintf(stderr,
@@ -1516,7 +1516,7 @@ rec_print_new(
 
 	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
 
-		data = rec_get_nth_field((rec_t*) rec, offsets, i, &len);
+		data = rec_get_nth_field(rec, offsets, i, &len);
 
 		fprintf(file, " %lu:", (ulong) i);
 

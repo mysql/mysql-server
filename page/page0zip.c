@@ -1247,7 +1247,7 @@ page_zip_fields_decode(
 
 		dict_mem_table_add_col(table, "DUMMY", mtype,
 				       val & 1 ? DATA_NOT_NULL : 0, len);
-		dict_index_add_col(index, table, (dict_col_t*)
+		dict_index_add_col(index, table,
 				   dict_table_get_nth_col(table, i), 0);
 	}
 
@@ -2607,13 +2607,12 @@ page_zip_write_rec(
 					ut_ad(!rec_offs_nth_extern(offsets,
 								   i + 1));
 					/* Locate trx_id and roll_ptr. */
-					src = rec_get_nth_field((rec_t*) rec,
-								offsets,
+					src = rec_get_nth_field(rec, offsets,
 								i, &len);
 					ut_ad(len == DATA_TRX_ID_LEN);
 					ut_ad(src + DATA_TRX_ID_LEN
 					      == rec_get_nth_field(
-						      (rec_t*) rec, offsets,
+						      rec, offsets,
 						      i + 1, &len));
 					ut_ad(len == DATA_ROLL_PTR_LEN);
 
@@ -2634,8 +2633,7 @@ page_zip_write_rec(
 					       + DATA_ROLL_PTR_LEN);
 					i++; /* skip also roll_ptr */
 				} else if (rec_offs_nth_extern(offsets, i)) {
-					src = rec_get_nth_field((rec_t*) rec,
-								offsets,
+					src = rec_get_nth_field(rec, offsets,
 								i, &len);
 
 					ut_ad(dict_index_is_clust(index));
@@ -2779,11 +2777,11 @@ page_zip_write_blob_ptr(
 	mtr_t*		mtr)	/* in: mini-transaction handle,
 				or NULL if no logging is needed */
 {
-	byte*	field;
-	byte*	externs;
-	page_t*	page	= page_align((byte*) rec);
-	ulint	blob_no;
-	ulint	len;
+	const byte*	field;
+	byte*		externs;
+	page_t*		page	= page_align((byte*) rec);
+	ulint		blob_no;
+	ulint		len;
 
 	ut_ad(buf_frame_get_page_zip((byte*) rec) == page_zip);
 	ut_ad(page_simple_validate_new(page));
@@ -2809,7 +2807,7 @@ page_zip_write_blob_ptr(
 		* (PAGE_ZIP_DIR_SLOT_SIZE
 		   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 
-	field = rec_get_nth_field((rec_t*) rec, offsets, n, &len);
+	field = rec_get_nth_field(rec, offsets, n, &len);
 
 	externs -= (blob_no + 1) * BTR_EXTERN_FIELD_REF_SIZE;
 	field += len - BTR_EXTERN_FIELD_REF_SIZE;

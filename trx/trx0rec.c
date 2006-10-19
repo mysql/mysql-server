@@ -205,7 +205,7 @@ trx_undo_page_report_insert(
 				return(0);
 			}
 
-			memcpy(ptr, field->data, flen);
+			ut_memcpy(ptr, dfield_get_data(field), flen);
 			ptr += flen;
 		}
 	}
@@ -349,7 +349,7 @@ trx_undo_rec_get_row_ref(
 	dict_index_copy_types(*ref, index, ref_len);
 
 	for (i = 0; i < ref_len; i++) {
-		dfield = (dfield_t*) dtuple_get_nth_field(*ref, i);
+		dfield = dtuple_get_nth_field(*ref, i);
 
 		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
 
@@ -936,7 +936,7 @@ trx_undo_rec_get_partial_row(
 			ext_cols[n_ext_cols++] = col_no;
 		}
 
-		dfield = (dfield_t*) dtuple_get_nth_field(*row, col_no);
+		dfield = dtuple_get_nth_field(*row, col_no);
 
 		dfield_set_data(dfield, field, len);
 	}

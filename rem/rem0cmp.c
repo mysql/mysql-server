@@ -487,7 +487,7 @@ cmp_dtuple_rec_with_match(
 
 		dtuple_f_len = dfield_get_len(dtuple_field);
 
-		rec_b_ptr = rec_get_nth_field((rec_t*) rec, offsets,
+		rec_b_ptr = rec_get_nth_field(rec, offsets,
 					      cur_field, &rec_f_len);
 
 		/* If we have matched yet 0 bytes, it may be that one or
@@ -530,7 +530,7 @@ cmp_dtuple_rec_with_match(
 			!= DATA_MYSQL_LATIN1_SWEDISH_CHARSET_COLL)) {
 
 			ret = cmp_whole_field(mtype, prtype,
-					      dtuple_field->data,
+					      dfield_get_data(dtuple_field),
 					      (unsigned) dtuple_f_len,
 					      rec_b_ptr, (unsigned) rec_f_len);
 
@@ -546,7 +546,8 @@ cmp_dtuple_rec_with_match(
 		/* Set the pointers at the current byte */
 
 		rec_b_ptr = rec_b_ptr + cur_bytes;
-		dtuple_b_ptr = (byte*) dtuple_field->data + cur_bytes;
+		dtuple_b_ptr = (byte*)dfield_get_data(dtuple_field)
+			+ cur_bytes;
 		/* Compare then the fields */
 
 		for (;;) {
@@ -778,9 +779,9 @@ cmp_rec_rec_with_match(
 			prtype = col->prtype;
 		}
 
-		rec1_b_ptr = rec_get_nth_field((rec_t*) rec1, offsets1,
+		rec1_b_ptr = rec_get_nth_field(rec1, offsets1,
 					       cur_field, &rec1_f_len);
-		rec2_b_ptr = rec_get_nth_field((rec_t*) rec2, offsets2,
+		rec2_b_ptr = rec_get_nth_field(rec2, offsets2,
 					       cur_field, &rec2_f_len);
 
 		if (cur_bytes == 0) {
@@ -1030,10 +1031,10 @@ cmp_debug_dtuple_rec_with_match(
 			prtype = type->prtype;
 		}
 
-		dtuple_f_data = dtuple_field->data;
+		dtuple_f_data = dfield_get_data(dtuple_field);
 		dtuple_f_len = dfield_get_len(dtuple_field);
 
-		rec_f_data = rec_get_nth_field((rec_t*) rec, offsets,
+		rec_f_data = rec_get_nth_field(rec, offsets,
 					       cur_field, &rec_f_len);
 
 		if (rec_offs_nth_extern(offsets, cur_field)) {

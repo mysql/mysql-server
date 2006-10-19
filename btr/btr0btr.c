@@ -2859,7 +2859,7 @@ btr_index_rec_validate(
 		ulint	fixed_size = dict_col_get_fixed_size(
 			dict_index_get_nth_col(index, i));
 
-		rec_get_nth_field(rec, offsets, i, &len);
+		rec_get_nth_field_offs(offsets, i, &len);
 
 		/* Note that prefix indexes are not fixed size even when
 		their type is CHAR. */

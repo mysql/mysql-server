@@ -596,7 +596,7 @@ mlog_parse_index(
 				len & 0x8000 ? DATA_NOT_NULL : 0,
 				len & 0x7fff);
 
-			dict_index_add_col(ind, table, (dict_col_t*)
+			dict_index_add_col(ind, table,
 					   dict_table_get_nth_col(table, i),
 					   0);
 		}
