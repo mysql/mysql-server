@@ -153,6 +153,7 @@ ibuf_page(
 /*======*/
 			/* out: TRUE if level 2 or level 3 page */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	page_no);/* in: page number */
 /***************************************************************************
 Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages. */
@@ -162,6 +163,7 @@ ibuf_page_low(
 /*==========*/
 			/* out: TRUE if level 2 or level 3 page */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	page_no,/* in: page number */
 	mtr_t*	mtr);	/* in: mtr which will contain an x-latch to the
 			bitmap page if the page is not one of the fixed
@@ -174,7 +176,8 @@ file segment, and the thread did not own the fsp latch before this call. */
 void
 ibuf_free_excess_pages(
 /*===================*/
-	ulint	space);	/* in: space id */
+	ulint	space,		/* in: space id */
+	ulint	zip_size);	/* in: compressed page size in bytes, or 0 */
 /*************************************************************************
 Makes an index insert to the insert buffer, instead of directly to the disk
 page, if this is possible. Does not do insert if the index is clustered
@@ -187,6 +190,7 @@ ibuf_insert(
 	dtuple_t*	entry,	/* in: index entry to insert */
 	dict_index_t*	index,	/* in: index where to insert */
 	ulint		space,	/* in: space id where to insert */
+	ulint		zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint		page_no,/* in: page number where to insert */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************

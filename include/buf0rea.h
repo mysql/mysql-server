@@ -25,6 +25,7 @@ buf_read_page(
 			/* out: number of page read requests issued: this can
 			be > 1 if read-ahead occurred */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	offset);/* in: page number */
 /************************************************************************
 Applies linear read-ahead if in the buf_pool the page is a border page of
@@ -55,6 +56,7 @@ buf_read_ahead_linear(
 /*==================*/
 			/* out: number of page read requests issued */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	offset);/* in: page number of a page; NOTE: the current thread
 			must want access to this page (see NOTE 3 above) */
 /************************************************************************
@@ -90,13 +92,20 @@ Issues read requests for pages which recovery wants to read in. */
 void
 buf_read_recv_pages(
 /*================*/
-	ibool	sync,		/* in: TRUE if the caller wants this function
-				to wait for the highest address page to get
-				read in, before this function returns */
-	ulint	space,		/* in: space id */
-	ulint*	page_nos,	/* in: array of page numbers to read, with the
-				highest page number the last in the array */
-	ulint	n_stored);	/* in: number of page numbers in the array */
+	ibool		sync,		/* in: TRUE if the caller
+					wants this function to wait
+					for the highest address page
+					to get read in, before this
+					function returns */
+	ulint		space,		/* in: space id */
+	ulint		zip_size,	/* in: compressed page size in
+					bytes, or 0 */
+	const ulint*	page_nos,	/* in: array of page numbers
+					to read, with the highest page
+					number the last in the
+					array */
+	ulint		n_stored);	/* in: number of page numbers
+					in the array */
 
 /* The size in pages of the area which the read-ahead algorithms read if
 invoked */

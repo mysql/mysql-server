@@ -4237,13 +4237,13 @@ fil_io(
 	      || sync || is_log);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
-	      || ibuf_page(space_id, block_offset));
+	      || ibuf_page(space_id, zip_size, block_offset));
 #endif
 #endif
 	if (sync) {
 		mode = OS_AIO_SYNC;
 	} else if (type == OS_FILE_READ && !is_log
-		   && ibuf_page(space_id, block_offset)) {
+		   && ibuf_page(space_id, zip_size, block_offset)) {
 		mode = OS_AIO_IBUF;
 	} else if (is_log) {
 		mode = OS_AIO_LOG;
