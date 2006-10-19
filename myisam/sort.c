@@ -148,7 +148,8 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 	skr=maxbuffer;
 	if (memavl < sizeof(BUFFPEK)*(uint) maxbuffer ||
 	    (keys=(memavl-sizeof(BUFFPEK)*(uint) maxbuffer)/
-	     (sort_length+sizeof(char*))) <= 1)
+             (sort_length+sizeof(char*))) <= 1 ||
+            keys < (uint) maxbuffer)
 	{
 	  mi_check_print_error(info->sort_info->param,
 			       "sort_buffer_size is to small");
@@ -363,7 +364,8 @@ pthread_handler_decl(thr_find_all_keys,arg)
         skr=maxbuffer;
         if (memavl < sizeof(BUFFPEK)*maxbuffer ||
             (keys=(memavl-sizeof(BUFFPEK)*maxbuffer)/
-             (sort_length+sizeof(char*))) <= 1)
+             (sort_length+sizeof(char*))) <= 1 ||
+            keys < (uint) maxbuffer)
         {
           mi_check_print_error(sort_param->sort_info->param,
                                "sort_buffer_size is to small");
@@ -497,6 +499,8 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
     if (!sinfo->sort_keys)
     {
       got_error=1;
+      my_free(mi_get_rec_buff_ptr(info, sinfo->rec_buff),
+              MYF(MY_ALLOW_ZERO_PTR));
       continue;
     }
     if (!got_error)
