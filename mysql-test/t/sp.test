@@ -6421,6 +6421,137 @@ DROP FUNCTION bug21493|
 DROP TABLE t3,t4|
 
 #
+# Bug#20028 Function with select return no data
+#
+
+--disable_warnings
+drop function if exists func_20028_a|
+drop function if exists func_20028_b|
+drop function if exists func_20028_c|
+drop procedure if exists proc_20028_a|
+drop procedure if exists proc_20028_b|
+drop procedure if exists proc_20028_c|
+drop table if exists table_20028|
+--enable_warnings
+
+create table table_20028 (i int)|
+
+SET @save_sql_mode=@@sql_mode|
+
+SET sql_mode=''|
+
+create function func_20028_a() returns integer
+begin
+  declare temp integer;
+  select i into temp from table_20028 limit 1;
+  return ifnull(temp, 0);
+end|
+
+create function func_20028_b() returns integer
+begin
+  return func_20028_a();
+end|
+
+create function func_20028_c() returns integer
+begin
+  declare div_zero integer;
+  set SQL_MODE='TRADITIONAL';
+  select 1/0 into div_zero;
+  return div_zero;
+end|
+
+create procedure proc_20028_a()
+begin
+  declare temp integer;
+  select i into temp from table_20028 limit 1;
+end|
+
+create procedure proc_20028_b()
+begin
+  call proc_20028_a();
+end|
+
+create procedure proc_20028_c()
+begin
+  declare div_zero integer;
+  set SQL_MODE='TRADITIONAL';
+  select 1/0 into div_zero;
+end|
+
+select func_20028_a()|
+select func_20028_b()|
+--error ER_DIVISION_BY_ZERO
+select func_20028_c()|
+call proc_20028_a()|
+call proc_20028_b()|
+--error ER_DIVISION_BY_ZERO
+call proc_20028_c()|
+
+SET sql_mode='TRADITIONAL'|
+
+drop function func_20028_a|
+drop function func_20028_b|
+drop function func_20028_c|
+drop procedure proc_20028_a|
+drop procedure proc_20028_b|
+drop procedure proc_20028_c|
+
+create function func_20028_a() returns integer
+begin
+  declare temp integer;
+  select i into temp from table_20028 limit 1;
+  return ifnull(temp, 0);
+end|
+
+create function func_20028_b() returns integer
+begin
+  return func_20028_a();
+end|
+
+create function func_20028_c() returns integer
+begin
+  declare div_zero integer;
+  set SQL_MODE='';
+  select 1/0 into div_zero;
+  return div_zero;
+end|
+
+create procedure proc_20028_a()
+begin
+  declare temp integer;
+  select i into temp from table_20028 limit 1;
+end|
+
+create procedure proc_20028_b()
+begin
+  call proc_20028_a();
+end|
+
+create procedure proc_20028_c()
+begin
+  declare div_zero integer;
+  set SQL_MODE='';
+  select 1/0 into div_zero;
+end|
+
+select func_20028_a()|
+select func_20028_b()|
+select func_20028_c()|
+call proc_20028_a()|
+call proc_20028_b()|
+call proc_20028_c()|
+
+SET @@sql_mode=@save_sql_mode|
+
+drop function func_20028_a|
+drop function func_20028_b|
+drop function func_20028_c|
+drop procedure proc_20028_a|
+drop procedure proc_20028_b|
+drop procedure proc_20028_c|
+drop table table_20028|
+
+#
 # Bug#21462 Stored procedures with no arguments require parenthesis
 #
 

@@ -5470,6 +5470,135 @@ CAD
 CHF
 DROP FUNCTION bug21493|
 DROP TABLE t3,t4|
+drop function if exists func_20028_a|
+drop function if exists func_20028_b|
+drop function if exists func_20028_c|
+drop procedure if exists proc_20028_a|
+drop procedure if exists proc_20028_b|
+drop procedure if exists proc_20028_c|
+drop table if exists table_20028|
+create table table_20028 (i int)|
+SET @save_sql_mode=@@sql_mode|
+SET sql_mode=''|
+create function func_20028_a() returns integer
+begin
+declare temp integer;
+select i into temp from table_20028 limit 1;
+return ifnull(temp, 0);
+end|
+create function func_20028_b() returns integer
+begin
+return func_20028_a();
+end|
+create function func_20028_c() returns integer
+begin
+declare div_zero integer;
+set SQL_MODE='TRADITIONAL';
+select 1/0 into div_zero;
+return div_zero;
+end|
+create procedure proc_20028_a()
+begin
+declare temp integer;
+select i into temp from table_20028 limit 1;
+end|
+create procedure proc_20028_b()
+begin
+call proc_20028_a();
+end|
+create procedure proc_20028_c()
+begin
+declare div_zero integer;
+set SQL_MODE='TRADITIONAL';
+select 1/0 into div_zero;
+end|
+select func_20028_a()|
+func_20028_a()
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+select func_20028_b()|
+func_20028_b()
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+select func_20028_c()|
+ERROR 22012: Division by 0
+call proc_20028_a()|
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+call proc_20028_b()|
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+call proc_20028_c()|
+ERROR 22012: Division by 0
+SET sql_mode='TRADITIONAL'|
+drop function func_20028_a|
+drop function func_20028_b|
+drop function func_20028_c|
+drop procedure proc_20028_a|
+drop procedure proc_20028_b|
+drop procedure proc_20028_c|
+create function func_20028_a() returns integer
+begin
+declare temp integer;
+select i into temp from table_20028 limit 1;
+return ifnull(temp, 0);
+end|
+create function func_20028_b() returns integer
+begin
+return func_20028_a();
+end|
+create function func_20028_c() returns integer
+begin
+declare div_zero integer;
+set SQL_MODE='';
+select 1/0 into div_zero;
+return div_zero;
+end|
+create procedure proc_20028_a()
+begin
+declare temp integer;
+select i into temp from table_20028 limit 1;
+end|
+create procedure proc_20028_b()
+begin
+call proc_20028_a();
+end|
+create procedure proc_20028_c()
+begin
+declare div_zero integer;
+set SQL_MODE='';
+select 1/0 into div_zero;
+end|
+select func_20028_a()|
+func_20028_a()
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+select func_20028_b()|
+func_20028_b()
+0
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+select func_20028_c()|
+func_20028_c()
+NULL
+call proc_20028_a()|
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+call proc_20028_b()|
+Warnings:
+Warning	1329	No data - zero rows fetched, selected, or processed
+call proc_20028_c()|
+SET @@sql_mode=@save_sql_mode|
+drop function func_20028_a|
+drop function func_20028_b|
+drop function func_20028_c|
+drop procedure proc_20028_a|
+drop procedure proc_20028_b|
+drop procedure proc_20028_c|
+drop table table_20028|
 drop procedure if exists proc_21462_a|
 drop procedure if exists proc_21462_b|
 create procedure proc_21462_a()
