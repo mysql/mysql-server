@@ -1359,6 +1359,7 @@ recv_read_in_area(
 /*==============*/
 			/* out: number of pages found */
 	ulint	space,	/* in: space */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	page_no)/* in: page number */
 {
 	recv_addr_t* recv_addr;
@@ -1390,7 +1391,7 @@ recv_read_in_area(
 		}
 	}
 
-	buf_read_recv_pages(FALSE, space, page_nos, n);
+	buf_read_recv_pages(FALSE, space, zip_size, page_nos, n);
 	/*
 	fprintf(stderr, "Recv pages at %lu n %lu\n", page_nos[0], n);
 	*/
@@ -1416,8 +1417,6 @@ recv_apply_hashed_log_recs(
 {
 	recv_addr_t* recv_addr;
 	ulint	i;
-	ulint	space;
-	ulint	page_no;
 	ulint	n_pages;
 	ibool	has_printed	= FALSE;
 	mtr_t	mtr;
@@ -1448,8 +1447,9 @@ loop:
 		recv_addr = HASH_GET_FIRST(recv_sys->addr_hash, i);
 
 		while (recv_addr) {
-			space = recv_addr->space;
-			page_no = recv_addr->page_no;
+			ulint	space = recv_addr->space;
+			ulint	zip_size = fil_space_get_zip_size(space);
+			ulint	page_no = recv_addr->page_no;
 
 			if (recv_addr->state == RECV_NOT_PROCESSED) {
 				if (!has_printed) {
@@ -1478,7 +1478,8 @@ loop:
 					recv_recover_page(FALSE, FALSE, block);
 					mtr_commit(&mtr);
 				} else {
-					recv_read_in_area(space, page_no);
+					recv_read_in_area(space, zip_size,
+							  page_no);
 				}
 
 				mutex_enter(&(recv_sys->mutex));
@@ -1654,9 +1655,7 @@ recv_apply_log_recs_for_backup(void)
 			}
 
 			/* Apply the log records to this page */
-			recv_recover_page(TRUE, FALSE, block->frame,
-					  recv_addr->space,
-					  recv_addr->page_no);
+			recv_recover_page(TRUE, FALSE, block);
 
 			/* Write the page back to the tablespace file using the
 			fil0fil.c routines */

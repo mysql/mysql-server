@@ -1001,12 +1001,12 @@ ibuf_page(
 /*======*/
 			/* out: TRUE if level 2 or level 3 page */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	page_no)/* in: page number */
 {
 	page_t*	bitmap_page;
 	mtr_t	mtr;
 	ibool	ret;
-	ulint	zip_size;
 
 	if (recv_no_ibuf_operations) {
 		/* Recovery is running: no ibuf operations should be
@@ -1014,8 +1014,6 @@ ibuf_page(
 
 		return(FALSE);
 	}
-
-	zip_size = fil_space_get_zip_size(space);
 
 	if (ibuf_fixed_addr_page(space, zip_size, page_no)) {
 
@@ -1049,15 +1047,13 @@ ibuf_page_low(
 /*==========*/
 			/* out: TRUE if level 2 or level 3 page */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	page_no,/* in: page number */
 	mtr_t*	mtr)	/* in: mtr which will contain an x-latch to the
 			bitmap page if the page is not one of the fixed
 			address ibuf pages */
 {
 	page_t*	bitmap_page;
-	ulint	zip_size;
-
-	zip_size = fil_space_get_zip_size(space);
 
 	if (ibuf_fixed_addr_page(space, zip_size, page_no)) {
 
@@ -1662,6 +1658,8 @@ ibuf_add_free_page(
 					/* out: DB_SUCCESS, or DB_STRONG_FAIL
 					if no space left */
 	ulint		space,		/* in: space id */
+	ulint		zip_size,	/* in: compressed page size in
+					bytes, or 0 */
 	ibuf_data_t*	ibuf_data)	/* in: ibuf data for the space */
 {
 	mtr_t	mtr;
@@ -1670,7 +1668,6 @@ ibuf_add_free_page(
 	page_t*	page;
 	page_t*	root;
 	page_t*	bitmap_page;
-	ulint	zip_size;
 
 	ut_a(space == 0);
 
@@ -1730,8 +1727,6 @@ ibuf_add_free_page(
 	/* Set the bit indicating that this page is now an ibuf tree page
 	(level 2 page) */
 
-	zip_size = fil_space_get_zip_size(space);
-
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, &mtr);
 
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
@@ -1752,13 +1747,14 @@ void
 ibuf_remove_free_page(
 /*==================*/
 	ulint		space,		/* in: space id */
+	ulint		zip_size,	/* in: compressed page size in
+					bytes, or 0 */
 	ibuf_data_t*	ibuf_data)	/* in: ibuf data for the space */
 {
 	mtr_t	mtr;
 	mtr_t	mtr2;
 	page_t*	header_page;
 	ulint	page_no;
-	ulint	zip_size;
 	page_t*	page;
 	page_t*	root;
 	page_t*	bitmap_page;
@@ -1853,8 +1849,6 @@ ibuf_remove_free_page(
 	/* Set the bit indicating that this page is no more an ibuf tree page
 	(level 2 page) */
 
-	zip_size = fil_space_get_zip_size(space);
-
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, &mtr);
 
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
@@ -1877,7 +1871,8 @@ file segment, and the thread did not own the fsp latch before this call. */
 void
 ibuf_free_excess_pages(
 /*===================*/
-	ulint	space)	/* in: space id */
+	ulint	space,		/* in: space id */
+	ulint	zip_size)	/* in: compressed page size in bytes, or 0 */
 {
 	ibuf_data_t*	ibuf_data;
 	ulint		i;
@@ -1928,7 +1923,7 @@ ibuf_free_excess_pages(
 
 		mutex_exit(&ibuf_mutex);
 
-		ibuf_remove_free_page(space, ibuf_data);
+		ibuf_remove_free_page(space, zip_size, ibuf_data);
 	}
 }
 
@@ -2564,6 +2559,7 @@ ibuf_insert_low(
 	dict_index_t*	index,	/* in: index where to insert; must not be
 				unique or clustered */
 	ulint		space,	/* in: space id where to insert */
+	ulint		zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint		page_no,/* in: page number where to insert */
 	que_thr_t*	thr)	/* in: query thread */
 {
@@ -2587,7 +2583,6 @@ ibuf_insert_low(
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
 	ulint		bits;
-	ulint		zip_size;
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
 
@@ -2639,7 +2634,7 @@ ibuf_insert_low(
 
 			mutex_exit(&ibuf_pessimistic_insert_mutex);
 
-			err = ibuf_add_free_page(0, ibuf_data);
+			err = ibuf_add_free_page(0, zip_size, ibuf_data);
 
 			if (err == DB_STRONG_FAIL) {
 
@@ -2682,8 +2677,6 @@ ibuf_insert_low(
 	ut_a((buffered == 0) || ibuf_count_get(space, page_no));
 #endif
 	mtr_start(&bitmap_mtr);
-
-	zip_size = fil_space_get_zip_size(space);
 
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
 					       zip_size, &bitmap_mtr);
@@ -2829,6 +2822,7 @@ ibuf_insert(
 	dtuple_t*	entry,	/* in: index entry to insert */
 	dict_index_t*	index,	/* in: index where to insert */
 	ulint		space,	/* in: space id where to insert */
+	ulint		zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint		page_no,/* in: page number where to insert */
 	que_thr_t*	thr)	/* in: query thread */
 {
@@ -2846,11 +2840,11 @@ ibuf_insert(
 		return(FALSE);
 	}
 
-	err = ibuf_insert_low(BTR_MODIFY_PREV, entry, index, space, page_no,
-			      thr);
+	err = ibuf_insert_low(BTR_MODIFY_PREV, entry, index,
+			      space, zip_size, page_no, thr);
 	if (err == DB_FAIL) {
-		err = ibuf_insert_low(BTR_MODIFY_TREE, entry, index, space,
-				      page_no, thr);
+		err = ibuf_insert_low(BTR_MODIFY_TREE, entry, index,
+				      space, zip_size, page_no, thr);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -2973,7 +2967,7 @@ dump:
 				      "InnoDB: that table.\n", stderr);
 
 				space = page_get_space_id(page);
-				zip_size = fil_space_get_zip_size(space);
+				zip_size = buf_block_get_zip_size(block);
 				page_no = page_get_page_no(page);
 
 				bitmap_page = ibuf_bitmap_get_map_page(

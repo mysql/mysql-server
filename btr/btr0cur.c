@@ -468,8 +468,9 @@ retry_page_get:
 			ut_ad(cursor->thr);
 
 			if (ibuf_should_try(index, ignore_sec_unique)
-			    && ibuf_insert(tuple, index, space, page_no,
-					   cursor->thr)) {
+			    && ibuf_insert(tuple, index, space,
+					   dict_table_zip_size(index->table),
+					   page_no, cursor->thr)) {
 				/* Insertion to the insert buffer succeeded */
 				cursor->flag = BTR_CUR_INSERT_TO_IBUF;
 				if (UNIV_LIKELY_NULL(heap)) {

@@ -170,11 +170,11 @@ buf_read_ahead_random(
 			the page at the given page number does not get
 			read even if we return a value > 0! */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	offset)	/* in: page number of a page which the current thread
 			wants to access */
 {
 	ib_longlong	tablespace_version;
-	ulint		zip_size;
 	buf_block_t*	block;
 	ulint		recent_blocks	= 0;
 	ulint		count;
@@ -189,10 +189,8 @@ buf_read_ahead_random(
 		return(0);
 	}
 
-	zip_size = fil_space_get_zip_size(space);
-
 	if (ibuf_bitmap_page(zip_size, offset)
-				|| trx_sys_hdr_page(space, offset)) {
+	    || trx_sys_hdr_page(space, offset)) {
 
 		/* If it is an ibuf bitmap page or trx sys hdr, we do
 		no read-ahead, as that could break the ibuf page access
@@ -317,18 +315,17 @@ buf_read_page(
 			/* out: number of page read requests issued: this can
 			be > 1 if read-ahead occurred */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	offset)	/* in: page number */
 {
 	ib_longlong	tablespace_version;
-	ulint		zip_size;
 	ulint		count;
 	ulint		count2;
 	ulint		err;
 
-	zip_size = fil_space_get_zip_size(space);
 	tablespace_version = fil_space_get_version(space);
 
-	count = buf_read_ahead_random(space, offset);
+	count = buf_read_ahead_random(space, zip_size, offset);
 
 	/* We do the i/o in the synchronous aio mode to save thread
 	switches: hence TRUE */
@@ -381,11 +378,11 @@ buf_read_ahead_linear(
 /*==================*/
 			/* out: number of page read requests issued */
 	ulint	space,	/* in: space id */
+	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	offset)	/* in: page number of a page; NOTE: the current thread
 			must want access to this page (see NOTE 3 above) */
 {
 	ib_longlong	tablespace_version;
-	ulint		zip_size;
 	buf_block_t*	block;
 	buf_frame_t*	frame;
 	buf_block_t*	pred_block	= NULL;
@@ -416,10 +413,8 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	zip_size = fil_space_get_zip_size(space);
-
 	if (ibuf_bitmap_page(zip_size, offset)
-				|| trx_sys_hdr_page(space, offset)) {
+	    || trx_sys_hdr_page(space, offset)) {
 
 		/* If it is an ibuf bitmap page or trx sys hdr, we do
 		no read-ahead, as that could break the ibuf page access
@@ -688,16 +683,22 @@ Issues read requests for pages which recovery wants to read in. */
 void
 buf_read_recv_pages(
 /*================*/
-	ibool	sync,		/* in: TRUE if the caller wants this function
-				to wait for the highest address page to get
-				read in, before this function returns */
-	ulint	space,		/* in: space id */
-	ulint*	page_nos,	/* in: array of page numbers to read, with the
-				highest page number the last in the array */
-	ulint	n_stored)	/* in: number of page numbers in the array */
+	ibool		sync,		/* in: TRUE if the caller
+					wants this function to wait
+					for the highest address page
+					to get read in, before this
+					function returns */
+	ulint		space,		/* in: space id */
+	ulint		zip_size,	/* in: compressed page size in
+					bytes, or 0 */
+	const ulint*	page_nos,	/* in: array of page numbers
+					to read, with the highest page
+					number the last in the
+					array */
+	ulint		n_stored)	/* in: number of page numbers
+					in the array */
 {
 	ib_longlong	tablespace_version;
-	ulint		zip_size;
 	ulint		count;
 	ulint		err;
 	ulint		i;
