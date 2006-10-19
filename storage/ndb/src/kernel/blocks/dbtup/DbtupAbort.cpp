@@ -352,7 +352,8 @@ void Dbtup::tupkeyErrorLab(Signal* signal)
   tabPtr.i= fragPtr.p->fragTableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
-  if (regOperPtr->m_undo_buffer_space)
+  if (regOperPtr->m_undo_buffer_space &&
+      (regOperPtr->is_first_operation() && regOperPtr->is_last_operation()))
   {
     c_lgman->free_log_space(fragPtr.p->m_logfile_group_id, 
 			    regOperPtr->m_undo_buffer_space);

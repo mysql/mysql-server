@@ -113,7 +113,7 @@ void Dbacc::execCONTINUEB(Signal* signal)
   case ZREPORT_MEMORY_USAGE:{
     jam();
     static int c_currentMemUsed = 0;
-    int now = (cnoOfAllocatedPages * 100)/cpagesize;
+    int now = cpagesize ? (cnoOfAllocatedPages * 100)/cpagesize : 0;
     const int thresholds[] = { 99, 90, 80, 0};
     
     Uint32 i = 0;

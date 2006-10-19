@@ -372,6 +372,8 @@ main(int argc, const char** argv){
   ndb_init();
 
   NDBT_TestSuite ts("testOperations");
+  ts.setTemporaryTables(true);
+
   for(Uint32 i = 0; i<sizeof(matrix)/sizeof(matrix[0]); i++){
     NDBT_TestCaseImpl1 *pt = new NDBT_TestCaseImpl1(&ts, matrix[i].name, "");
     
