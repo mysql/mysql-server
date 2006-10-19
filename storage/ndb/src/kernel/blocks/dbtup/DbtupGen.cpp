@@ -169,7 +169,8 @@ void Dbtup::execCONTINUEB(Signal* signal)
   case ZREPORT_MEMORY_USAGE:{
     ljam();
     static int c_currentMemUsed = 0;
-    int now = (cnoOfAllocatedPages * 100)/c_page_pool.getSize();
+    Uint32 tmp = c_page_pool.getSize();
+    int now = tmp ? (cnoOfAllocatedPages * 100)/tmp : 0;
     const int thresholds[] = { 100, 90, 80, 0 };
     
     Uint32 i = 0;
