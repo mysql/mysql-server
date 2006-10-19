@@ -264,7 +264,7 @@ enum enum_commands {
   Q_IF,
   Q_DISABLE_PARSING, Q_ENABLE_PARSING,
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
-  Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE,
+  Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -345,6 +345,8 @@ const char *command_names[]=
   "copy_file",
   "perl",
   "die",
+  /* Don't execute any more commands, compare result */
+  "exit",
   0
 };
 
@@ -5429,7 +5431,7 @@ void mark_progress(struct st_command* command __attribute__((unused)),
 int main(int argc, char **argv)
 {
   struct st_command *command;
-  my_bool q_send_flag= 0;
+  my_bool q_send_flag= 0, abort_flag= 0;
   uint command_executed= 0, last_command_executed= 0;
   char save_file[FN_REFLEN];
   MY_STAT res_info;
@@ -5549,7 +5551,7 @@ int main(int argc, char **argv)
     open_file(opt_include);
   }
 
-  while (!read_command(&command))
+  while (!read_command(&command) && !abort_flag)
   {
     int current_line_inc = 1, processed = 0;
     if (command->type == Q_UNKNOWN || command->type == Q_COMMENT_WITH_COMMAND)
@@ -5777,7 +5779,12 @@ int main(int argc, char **argv)
           die("Parsing is already enabled");
         break;
       case Q_DIE:
+        /* Abort test with error code and error message */
         die("%s", command->first_argument);
+        break;
+      case Q_EXIT:
+        /* Stop processing any more commands */
+        abort_flag= 1;
         break;
 
       case Q_RESULT:
