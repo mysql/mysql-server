@@ -28,8 +28,8 @@ Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	50477
-Relay_Log_File	slave-relay-bin.000014
-Relay_Log_Pos	1221
+Relay_Log_File	#
+Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
@@ -43,7 +43,7 @@ Last_Errno	0
 Last_Error	
 Skip_Counter	0
 Exec_Master_Log_Pos	50477
-Relay_Log_Space	1221
+Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
 Until_Log_Pos	0
@@ -71,8 +71,8 @@ Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	50477
-Relay_Log_File	slave-relay-bin.000004
-Relay_Log_Pos	9457
+Relay_Log_File	#
+Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
@@ -86,7 +86,7 @@ Last_Errno	0
 Last_Error	
 Skip_Counter	0
 Exec_Master_Log_Pos	50477
-Relay_Log_Space	9457
+Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
 Until_Log_Pos	0
@@ -114,8 +114,8 @@ Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	50477
-Relay_Log_File	slave-relay-bin.000008
-Relay_Log_Pos	1283
+Relay_Log_File	#
+Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
@@ -129,7 +129,7 @@ Last_Errno	0
 Last_Error	
 Skip_Counter	0
 Exec_Master_Log_Pos	50477
-Relay_Log_Space	1283
+Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
 Until_Log_Pos	0
@@ -154,8 +154,8 @@ Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	
 Read_Master_Log_Pos	4
-Relay_Log_File	slave-relay-bin.000001
-Relay_Log_Pos	4
+Relay_Log_File	#
+Relay_Log_Pos	#
 Relay_Master_Log_File	
 Slave_IO_Running	No
 Slave_SQL_Running	No
@@ -169,7 +169,7 @@ Last_Errno	0
 Last_Error	
 Skip_Counter	0
 Exec_Master_Log_Pos	0
-Relay_Log_Space	4
+Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
 Until_Log_Pos	0
@@ -195,8 +195,8 @@ Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	50535
-Relay_Log_File	slave-relay-bin.000009
-Relay_Log_Pos	62
+Relay_Log_File	#
+Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
@@ -210,7 +210,7 @@ Last_Errno	0
 Last_Error	
 Skip_Counter	0
 Exec_Master_Log_Pos	50535
-Relay_Log_Space	62
+Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
 Until_Log_Pos	0
@@ -234,8 +234,8 @@ Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
 Read_Master_Log_Pos	50583
-Relay_Log_File	slave-relay-bin.000010
-Relay_Log_Pos	52
+Relay_Log_File	#
+Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
 Slave_IO_Running	Yes
 Slave_SQL_Running	Yes
@@ -249,7 +249,7 @@ Last_Errno	0
 Last_Error	
 Skip_Counter	0
 Exec_Master_Log_Pos	50583
-Relay_Log_Space	52
+Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
 Until_Log_Pos	0
