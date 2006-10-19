@@ -676,7 +676,7 @@ int openfrm(const char *name, const char *alias, uint db_stat, uint prgflag,
 	    as we need to test for NULL = NULL.
 	  */
 	  if (field->real_maybe_null())
-	    key_part->key_part_flag|= HA_PART_KEY_SEG;
+	    key_part->key_part_flag|= HA_NULL_PART;
 	}
 	else
 	{					// Error: shorten key
