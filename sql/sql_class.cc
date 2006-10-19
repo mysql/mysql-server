@@ -205,6 +205,7 @@ THD::THD()
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
   start_time=(time_t) 0;
+  time_after_lock=(time_t) 0;
   current_linfo =  0;
   slave_thread = 0;
   variables.pseudo_thread_id= 0;
