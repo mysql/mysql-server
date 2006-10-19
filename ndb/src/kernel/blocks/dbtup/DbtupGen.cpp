@@ -142,6 +142,7 @@ Dbtup::Dbtup(const class Configuration & conf)
   tablerec = 0;  
   tableDescriptor = 0;  
   undoPage = 0;
+  cnoOfPage = cnoOfAllocatedPages = 0;
 }//Dbtup::Dbtup()
 
 Dbtup::~Dbtup() 
@@ -526,7 +527,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
   case ZREPORT_MEMORY_USAGE:{
     ljam();
     static int c_currentMemUsed = 0;
-    int now = (cnoOfAllocatedPages * 100)/cnoOfPage;
+    int now = cnoOfPage ? (cnoOfAllocatedPages * 100)/cnoOfPage : 0;
     const int thresholds[] = { 100, 90, 80, 0 };
     
     Uint32 i = 0;
