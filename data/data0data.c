@@ -347,7 +347,7 @@ dfield_print(
 	ulint		i;
 
 	len = dfield_get_len(dfield);
-	data = dfield_get_data((dfield_t*) dfield);
+	data = dfield_get_data(dfield);
 
 	if (len == UNIV_SQL_NULL) {
 		fputs("NULL", stderr);
@@ -387,7 +387,7 @@ dfield_print_also_hex(
 	ibool		print_also_hex;
 
 	len = dfield_get_len(dfield);
-	data = dfield_get_data((dfield_t*) dfield);
+	data = dfield_get_data(dfield);
 
 	if (len == UNIV_SQL_NULL) {
 		fputs("NULL", stderr);
@@ -417,7 +417,7 @@ dfield_print_also_hex(
 
 		fputs(" Hex: ", stderr);
 
-		data = dfield_get_data((dfield_t*) dfield);
+		data = dfield_get_data(dfield);
 
 		for (i = 0; i < len; i++) {
 			fprintf(stderr, "%02lx", (ulint)*data);
@@ -555,7 +555,7 @@ dtuple_convert_big_rec(
 		     i < dtuple_get_n_fields(entry); i++) {
 			ulint	savings;
 
-			dfield = (dfield_t*) dtuple_get_nth_field(entry, i);
+			dfield = dtuple_get_nth_field(entry, i);
 			ifield = dict_index_get_nth_field(index, i);
 
 			/* Skip fixed-length or NULL or short columns */
@@ -606,7 +606,7 @@ skip_field:
 		we can calculate all ordering fields in all indexes
 		from locally stored data. */
 
-		dfield = (dfield_t*) dtuple_get_nth_field(entry, longest_i);
+		dfield = dtuple_get_nth_field(entry, longest_i);
 		ifield = dict_index_get_nth_field(index, longest_i);
 		vector->fields[n_fields].field_no = longest_i;
 
@@ -644,9 +644,8 @@ dtuple_convert_back_big_rec(
 
 	for (i = 0; i < vector->n_fields; i++) {
 
-		dfield = (dfield_t*)
-			dtuple_get_nth_field(entry,
-					     vector->fields[i].field_no);
+		dfield = dtuple_get_nth_field(entry,
+					      vector->fields[i].field_no);
 		dfield->data = vector->fields[i].data;
 		dfield->len = vector->fields[i].len;
 	}

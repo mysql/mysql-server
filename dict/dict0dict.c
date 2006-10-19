@@ -1519,8 +1519,7 @@ dict_index_find_cols(
 		for (j = 0; j < table->n_cols; j++) {
 			if (!strcmp(dict_table_get_col_name(table, j),
 				    field->name)) {
-				field->col = (dict_col_t*)
-					dict_table_get_nth_col(table, j);
+				field->col = dict_table_get_nth_col(table, j);
 
 				goto found;
 			}
@@ -1622,8 +1621,7 @@ dict_index_copy_types(
 		dtype_t*	dfield_type;
 
 		ifield = dict_index_get_nth_field(index, i);
-		dfield_type = (dtype_t*)
-			dfield_get_type(dtuple_get_nth_field(tuple, i));
+		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dict_col_copy_type(dict_field_get_col(ifield), dfield_type);
 		if (UNIV_UNLIKELY(ifield->prefix_len)) {
 			dfield_type->len = ifield->prefix_len;
@@ -1645,8 +1643,7 @@ dict_table_copy_types(
 
 	for (i = 0; i < dtuple_get_n_fields(tuple); i++) {
 
-		dfield_type = (dtype_t*)
-			dfield_get_type(dtuple_get_nth_field(tuple, i));
+		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dict_col_copy_type(dict_table_get_nth_col(table, i),
 				   dfield_type);
 	}
@@ -1728,18 +1725,18 @@ dict_index_build_internal_clust(
 #endif
 
 		if (!(index->type & DICT_UNIQUE)) {
-			dict_index_add_col(new_index, table, (dict_col_t*)
+			dict_index_add_col(new_index, table,
 					   dict_table_get_sys_col(
 						   table, DATA_ROW_ID),
 					   0);
 			trx_id_pos++;
 		}
 
-		dict_index_add_col(new_index, table, (dict_col_t*)
+		dict_index_add_col(new_index, table,
 				   dict_table_get_sys_col(table, DATA_TRX_ID),
 				   0);
 
-		dict_index_add_col(new_index, table, (dict_col_t*)
+		dict_index_add_col(new_index, table,
 				   dict_table_get_sys_col(table,
 							  DATA_ROLL_PTR),
 				   0);
@@ -3685,11 +3682,10 @@ dict_index_build_node_ptr(
 
 	mach_write_to_4(buf, page_no);
 
-	field = (dfield_t*) dtuple_get_nth_field(tuple, n_unique);
+	field = dtuple_get_nth_field(tuple, n_unique);
 	dfield_set_data(field, buf, 4);
 
-	dtype_set((dtype_t*) dfield_get_type(field),
-		  DATA_SYS_CHILD, DATA_NOT_NULL, 4);
+	dtype_set(dfield_get_type(field), DATA_SYS_CHILD, DATA_NOT_NULL, 4);
 
 	rec_copy_prefix_to_dtuple(tuple, rec, index, n_unique, heap);
 	dtuple_set_info_bits(tuple, dtuple_get_info_bits(tuple)

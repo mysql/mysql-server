@@ -966,8 +966,7 @@ row_sel_open_pcur(
 		for (i = 0; i < n_fields; i++) {
 			exp = plan->tuple_exps[i];
 
-			dfield_copy_data((dfield_t*)
-					 dtuple_get_nth_field(plan->tuple, i),
+			dfield_copy_data(dtuple_get_nth_field(plan->tuple, i),
 					 que_node_get_val(exp));
 		}
 
@@ -2271,7 +2270,7 @@ row_sel_convert_mysql_key_to_innobase(
 
 	dtuple_set_n_fields(tuple, ULINT_MAX);
 
-	dfield = (dfield_t*) dtuple_get_nth_field(tuple, 0);
+	dfield = dtuple_get_nth_field(tuple, 0);
 	field = dict_index_get_nth_field(index, 0);
 
 	if (UNIV_UNLIKELY(dfield_get_type(dfield)->mtype == DATA_SYS)) {

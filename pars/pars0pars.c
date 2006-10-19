@@ -505,7 +505,7 @@ pars_resolve_exp_columns(
 				sym_node->prefetch_buf = NULL;
 
 				dict_col_copy_type(
-					col, (dtype_t*)
+					col,
 					dfield_get_type(&sym_node
 							->common.val));
 
@@ -1132,24 +1132,23 @@ pars_set_dfield_type(
 	if (type == &pars_int_token) {
 		ut_a(len == 0);
 
-		dtype_set((dtype_t*) dfield_get_type(dfield),
-			  DATA_INT, flags, 4);
+		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 4);
 
 	} else if (type == &pars_char_token) {
 		ut_a(len == 0);
 
-		dtype_set((dtype_t*) dfield_get_type(dfield),
-			  DATA_VARCHAR, DATA_ENGLISH | flags, 0);
+		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
+			  DATA_ENGLISH | flags, 0);
 	} else if (type == &pars_binary_token) {
 		ut_a(len != 0);
 
-		dtype_set((dtype_t*) dfield_get_type(dfield),
-			  DATA_FIXBINARY, DATA_BINARY_TYPE | flags, len);
+		dtype_set(dfield_get_type(dfield), DATA_FIXBINARY,
+			  DATA_BINARY_TYPE | flags, len);
 	} else if (type == &pars_blob_token) {
 		ut_a(len == 0);
 
-		dtype_set((dtype_t*) dfield_get_type(dfield),
-			  DATA_BLOB, DATA_BINARY_TYPE | flags, 0);
+		dtype_set(dfield_get_type(dfield), DATA_BLOB,
+			  DATA_BINARY_TYPE | flags, 0);
 	} else {
 		ut_error;
 	}

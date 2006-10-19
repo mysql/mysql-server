@@ -11,12 +11,11 @@ Created 5/30/1994 Heikki Tuuri
 
 #ifdef UNIV_DEBUG
 extern byte data_error;
-#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Gets pointer to the type struct of SQL data field. */
 UNIV_INLINE
-const dtype_t*
+dtype_t*
 dfield_get_type(
 /*============*/
 				/* out: pointer to the type struct */
@@ -24,8 +23,9 @@ dfield_get_type(
 {
 	ut_ad(field);
 
-	return(&(field->type));
+	return((dtype_t*) &(field->type));
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Sets the type struct of SQL data field. */
@@ -41,6 +41,7 @@ dfield_set_type(
 	field->type = *type;
 }
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Gets pointer to the data in a field. */
 UNIV_INLINE
@@ -48,14 +49,15 @@ void*
 dfield_get_data(
 /*============*/
 				/* out: pointer to data */
-	dfield_t* field)	/* in: field */
+	const dfield_t* field)	/* in: field */
 {
 	ut_ad(field);
 	ut_ad((field->len == UNIV_SQL_NULL)
 	      || (field->data != &data_error));
 
-	return(field->data);
+	return((void*) field->data);
 }
+#endif /* UNIV_DEBUG */
 
 /*************************************************************************
 Gets length of field data. */
@@ -229,10 +231,11 @@ dtuple_get_n_fields(
 	return(tuple->n_fields);
 }
 
+#ifdef UNIV_DEBUG
 /*************************************************************************
 Gets nth field of a tuple. */
 UNIV_INLINE
-const dfield_t*
+dfield_t*
 dtuple_get_nth_field(
 /*=================*/
 				/* out: nth field */
@@ -242,8 +245,9 @@ dtuple_get_nth_field(
 	ut_ad(tuple);
 	ut_ad(n < tuple->n_fields);
 
-	return(tuple->fields + n);
+	return((dfield_t*) tuple->fields + n);
 }
+#endif /* UNIV_DEBUG */
 
 /**************************************************************
 Creates a data tuple to a memory heap. The default value for number
@@ -276,7 +280,7 @@ dtuple_create(
 
 		for (i = 0; i < n_fields; i++) {
 			(tuple->fields + i)->data = &data_error;
-			(tuple->fields + i)->type.mtype = DATA_ERROR;
+			dfield_get_type(tuple->fields + i)->mtype = DATA_ERROR;
 		}
 	}
 #endif
@@ -333,8 +337,7 @@ dtuple_set_types_binary(
 	ulint		i;
 
 	for (i = 0; i < n; i++) {
-		dfield_type = (dtype_t*)
-			dfield_get_type(dtuple_get_nth_field(tuple, i));
+		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dtype_set(dfield_type, DATA_BINARY, 0, 0);
 	}
 }
@@ -367,7 +370,7 @@ dtuple_fold(
 	for (i = 0; i < n_fields; i++) {
 		field = dtuple_get_nth_field(tuple, i);
 
-		data = (const byte*) dfield_get_data((dfield_t*) field);
+		data = (const byte*) dfield_get_data(field);
 		len = dfield_get_len(field);
 
 		if (len != UNIV_SQL_NULL) {
@@ -379,7 +382,7 @@ dtuple_fold(
 	if (n_bytes > 0) {
 		field = dtuple_get_nth_field(tuple, i);
 
-		data = (const byte*) dfield_get_data((dfield_t*) field);
+		data = (const byte*) dfield_get_data(field);
 		len = dfield_get_len(field);
 
 		if (len != UNIV_SQL_NULL) {
