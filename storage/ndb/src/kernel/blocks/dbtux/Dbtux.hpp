@@ -23,6 +23,7 @@
 #include <AttributeHeader.hpp>
 #include <ArrayPool.hpp>
 #include <DataBuffer.hpp>
+#include <DLFifoList.hpp>
 #include <md5_hash.hpp>
 
 // big brother
@@ -338,6 +339,18 @@ private:
   typedef DataBuffer<ScanBoundSegmentSize>::ConstDataBufferIterator ScanBoundIterator;
   typedef DataBuffer<ScanBoundSegmentSize>::DataBufferPool ScanBoundPool;
   ScanBoundPool c_scanBoundPool;
+
+  // ScanLock
+  struct ScanLock {
+    Uint32 m_accLockOp;
+    union {
+    Uint32 nextPool;
+    Uint32 nextList;
+    };
+    Uint32 prevList;
+  };
+  typedef Ptr<ScanLock> ScanLockPtr;
+  ArrayPool<ScanLock> c_scanLockPool;
  
   /*
    * Scan operation.
@@ -384,6 +397,8 @@ private:
     Uint32 m_savePointId;
     // lock waited for or obtained and not yet passed to LQH
     Uint32 m_accLockOp;
+    // locks obtained and passed to LQH but not yet returned by LQH
+    DLFifoList<ScanLock>::Head m_accLockOps;
     Uint8 m_readCommitted;      // no locking
     Uint8 m_lockMode;
     Uint8 m_descending;
@@ -399,13 +414,6 @@ private:
     Uint32 nextList;
     };
     Uint32 prevList;
-    /*
-     * Locks obtained and passed to LQH but not yet returned by LQH.
-     * The max was increased from 16 to 992 (default 64).  Record max
-     * ever used in this scan.  TODO fix quadratic behaviour
-     */
-    Uint32 m_maxAccLockOps;
-    Uint32 m_accLockOps[MaxAccLockOps];
     ScanOp(ScanBoundPool& scanBoundPool);
   };
   typedef Ptr<ScanOp> ScanOpPtr;
@@ -625,8 +633,9 @@ private:
   bool scanCheck(ScanOpPtr scanPtr, TreeEnt ent);
   bool scanVisible(ScanOpPtr scanPtr, TreeEnt ent);
   void scanClose(Signal* signal, ScanOpPtr scanPtr);
-  void addAccLockOp(ScanOp& scan, Uint32 accLockOp);
-  void removeAccLockOp(ScanOp& scan, Uint32 accLockOp);
+  void abortAccLockOps(Signal* signal, ScanOpPtr scanPtr);
+  void addAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp);
+  void removeAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp);
   void releaseScanOp(ScanOpPtr& scanPtr);
 
   /*
@@ -687,7 +696,8 @@ private:
     DebugMeta = 1,              // log create and drop index
     DebugMaint = 2,             // log maintenance ops
     DebugTree = 4,              // log and check tree after each op
-    DebugScan = 8               // log scans
+    DebugScan = 8,              // log scans
+    DebugLock = 16              // log ACC locks
   };
   STATIC_CONST( DataFillByte = 0xa2 );
   STATIC_CONST( NodeFillByte = 0xa4 );
@@ -944,6 +954,7 @@ Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
   m_transId2(0),
   m_savePointId(0),
   m_accLockOp(RNIL),
+  m_accLockOps(),
   m_readCommitted(0),
   m_lockMode(0),
   m_descending(0),
@@ -951,18 +962,12 @@ Dbtux::ScanOp::ScanOp(ScanBoundPool& scanBoundPool) :
   m_boundMax(scanBoundPool),
   m_scanPos(),
   m_scanEnt(),
-  m_nodeScan(RNIL),
-  m_maxAccLockOps(0)
+  m_nodeScan(RNIL)
 {
   m_bound[0] = &m_boundMin;
   m_bound[1] = &m_boundMax;
   m_boundCnt[0] = 0;
   m_boundCnt[1] = 0;
-#ifdef VM_TRACE
-  for (unsigned i = 0; i < MaxAccLockOps; i++) {
-    m_accLockOps[i] = 0x1f1f1f1f;
-  }
-#endif
 }
 
 // Dbtux::Index
