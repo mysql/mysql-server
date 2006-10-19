@@ -1039,6 +1039,11 @@ loop:
 	  j++;
 	}
 	j++;
+	if (tmpTab.getTemporary())
+	{
+	  tmpIndx.setTemporary(true);
+	  tmpIndx.setLogging(false);
+	}
 	if(pNdb->getDictionary()->createIndex(tmpIndx) != 0){
 	  ndbout << pNdb->getDictionary()->getNdbError() << endl;
 	  return NDBT_FAILED;
