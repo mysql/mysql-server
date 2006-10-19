@@ -8372,6 +8372,7 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
     quick->quick_prefix_select= NULL;
 
   quick->update_key_stat();
+  quick->adjust_prefix_ranges();
 
   DBUG_RETURN(quick);
 }
@@ -8598,6 +8599,42 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
   if (insert_dynamic(&min_max_ranges, (gptr)&range))
     return TRUE;
   return FALSE;
+}
+
+
+/*
+  Opens the ranges if there are more conditions in quick_prefix_select than
+  the ones used for jumping through the prefixes.
+
+  SYNOPSIS
+    QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges()
+
+  NOTES
+    quick_prefix_select is made over the conditions on the whole key.
+    It defines a number of ranges of length x. 
+    However when jumping through the prefixes we use only the the first 
+    few most significant keyparts in the range key. However if there
+    are more keyparts to follow the ones we are using we must make the 
+    condition on the key inclusive (because x < "ab" means 
+    x[0] < 'a' OR (x[0] == 'a' AND x[1] < 'b').
+    To achive the above we must turn off the NEAR_MIN/NEAR_MAX
+*/
+void QUICK_GROUP_MIN_MAX_SELECT::adjust_prefix_ranges ()
+{
+  if (quick_prefix_select &&
+      group_prefix_len < quick_prefix_select->max_used_key_length)
+  {
+    DYNAMIC_ARRAY *arr;
+    uint inx;
+
+    for (inx= 0, arr= &quick_prefix_select->ranges; inx < arr->elements; inx++)
+    {
+      QUICK_RANGE *range;
+
+      get_dynamic(arr, (gptr)&range, inx);
+      range->flag &= ~(NEAR_MIN | NEAR_MAX);
+    }
+  }
 }
 
 
