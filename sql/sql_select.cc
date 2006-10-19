@@ -11428,7 +11428,7 @@ part_of_refkey(TABLE *table,Field *field)
 
     for (uint part=0 ; part < ref_parts ; part++,key_part++)
       if (field->eq(key_part->field) &&
-	  !(key_part->key_part_flag & HA_PART_KEY_SEG))
+	  !(key_part->key_part_flag & (HA_PART_KEY_SEG | HA_NULL_PART)))
 	return table->reginfo.join_tab->ref.items[part];
   }
   return (Item*) 0;
