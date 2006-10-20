@@ -1313,9 +1313,8 @@ sub executable_setup () {
   }
 
   # Look for language files and charsetsdir, use same share
-  my $path_share=      mtr_path_exists("$glob_basedir/share",
+  my $path_share=      mtr_path_exists("$glob_basedir/share/mysql",
 				       "$glob_basedir/sql/share",
-				       "$glob_basedir/share/mysql",
 				       "$glob_basedir/share");
 
   $path_language=      mtr_path_exists("$path_share/english");
@@ -1373,31 +1372,31 @@ sub executable_setup () {
   {
     # Look for ndb tols and binaries
     my $ndb_path= mtr_path_exists("$glob_basedir/ndb",
-				  "$glob_basedir/storage/ndb");
+				  "$glob_basedir/storage/ndb",
+				  "$glob_basedir/bin");
 
     $path_ndb_tools_dir= mtr_path_exists("$ndb_path/tools",
-					 "$glob_basedir/bin");
+					 "$ndb_path");
     $exe_ndb_mgm=
       mtr_exe_exists("$ndb_path/src/mgmclient/ndb_mgm",
-		     "$glob_basedir/bin/ndb_mgm");
+		     "$ndb_path/ndb_mgm");
     $exe_ndb_mgmd=
       mtr_exe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-		     "$glob_basedir/bin/ndb_mgmd");
+		     "$ndb_path/ndb_mgmd");
     $exe_ndb_waiter=
       mtr_exe_exists("$ndb_path/tools/ndb_waiter",
-		     "$glob_basedir/bin/ndb_waiter");
+		     "$ndb_path/ndb_waiter");
     $exe_ndbd=
       mtr_exe_exists("$ndb_path/src/kernel/ndbd",
-		     "$glob_basedir/bin/ndbd");
+		     "$ndb_path/ndbd");
 
-    if ( $mysql_version_id >= 50000 )
-    {
-      $path_ndb_examples_dir=
-	mtr_path_exists("$ndb_path/ndbapi-examples",
-			"$ndb_path/examples");
-      $exe_ndb_example=
-	mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
-    }
+    # May not exist
+    $path_ndb_examples_dir=
+      mtr_file_exists("$ndb_path/ndbapi-examples",
+		      "$ndb_path/examples");
+    # May not exist
+    $exe_ndb_example=
+      mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
   }
 
   # Look for the udf_example library
@@ -1420,27 +1419,20 @@ sub executable_setup () {
 
   }
 
-  if ( $glob_win32 and $mysql_version_id < 50000 )
+  # Look for mysql_client_test executable which may _not_ exist in
+  # some versions, test using it should be skipped
+  if ( $glob_use_embedded_server )
   {
-    # Skip looking for exe_mysql_client_test as its not built by default
-    # in 4.1 for windows.
-    $exe_mysql_client_test= "unavailable";
+    $exe_mysql_client_test=
+      mtr_exe_maybe_exists("$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
   }
   else
   {
-    # Look for mysql_client_test executable
-    if ( $glob_use_embedded_server )
-    {
-      $exe_mysql_client_test=
-	mtr_exe_exists("$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
-    }
-    else
-    {
-	$exe_mysql_client_test=
-	  mtr_exe_exists("$glob_basedir/tests/mysql_client_test",
-			 "$glob_basedir/tests/release/mysql_client_test",
-			 "$glob_basedir/tests/debug/mysql_client_test");
-      }
+    $exe_mysql_client_test=
+      mtr_exe_maybe_exists("$glob_basedir/tests/mysql_client_test",
+			   "$glob_basedir/tests/release/mysql_client_test",
+			   "$glob_basedir/tests/debug/mysql_client_test",
+			   "$glob_basedir/bin");
   }
 }
 
@@ -2041,6 +2033,14 @@ sub check_ndbcluster_support ($) {
   if ( ! $mysqld_variables->{'ndb-connectstring'} )
   {
     mtr_report("Skipping ndbcluster, mysqld not compiled with ndbcluster");
+    $opt_skip_ndbcluster= 1;
+    $opt_skip_ndbcluster_slave= 1;
+    return;
+  }
+  elsif ( -e "$glob_basedir/bin" && ! -f "$glob_basedir/bin/ndbd")
+  {
+    # Binary dist with a mysqld that supports ndb, but no ndbd found
+    mtr_report("Skipping ndbcluster, can't fint binaries");
     $opt_skip_ndbcluster= 1;
     $opt_skip_ndbcluster_slave= 1;
     return;
