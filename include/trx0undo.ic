@@ -111,8 +111,8 @@ UNIV_INLINE
 dulint
 trx_read_roll_ptr(
 /*==============*/
-			/* out: roll ptr */
-	byte*	ptr)	/* in: pointer to memory from where to read */
+				/* out: roll ptr */
+	const byte*	ptr)	/* in: pointer to memory from where to read */
 {
 #if DATA_ROLL_PTR_LEN != 7
 # error "DATA_ROLL_PTR_LEN != 7"
