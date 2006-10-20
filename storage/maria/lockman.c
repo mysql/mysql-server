@@ -421,13 +421,14 @@ static int lockinsert(LOCK * volatile *head, LOCK *node, LF_PINS *pins,
       }
       if (!(res & NEED_TO_WAIT))
         node->flags|= ACTIVE;
-      else
-        node->flags&= ~ACTIVE; /* if we're retrying on REPEAT_ONCE_MORE */
       node->link= (intptr)cursor.curr;
       DBUG_ASSERT(node->link != (intptr)node);
       DBUG_ASSERT(cursor.prev != &node->link);
       if (!my_atomic_casptr((void **)cursor.prev, (void **)&cursor.curr, node))
+      {
         res= REPEAT_ONCE_MORE;
+        node->flags&= ~ACTIVE;
+      }
       if (res & LOCK_UPGRADE)
         cursor.upgrade_from->flags|= IGNORE_ME;
     }
@@ -496,7 +497,11 @@ static int lockdelete(LOCK * volatile *head, LOCK *node, LF_PINS *pins)
         lockfind(head, node, &cursor, pins);
     }
     else
+    {
       res= REPEAT_ONCE_MORE;
+      if (cursor.upgrade_from) /* to satisfy the assert in lockfind */
+        cursor.upgrade_from->flags|= IGNORE_ME;
+    }
   } while (res == REPEAT_ONCE_MORE);
   _lf_unpin(pins, 0);
   _lf_unpin(pins, 1);
@@ -744,7 +749,7 @@ static char *lock2str[]=
 void print_lockhash(LOCKMAN *lm)
 {
   LOCK *el= *(LOCK **)_lf_dynarray_lvalue(&lm->array, 0);
-  printf("hash: size:%u count:%u\n", lm->size, lm->count);
+  printf("hash: size %u count %u\n", lm->size, lm->count);
   while (el)
   {
     intptr next= el->link;

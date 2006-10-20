@@ -22,9 +22,17 @@
 typedef uint64 TrID; /* our TrID is 6 bytes */
 typedef struct st_transaction TRN;
 
+/*
+  trid - 6 byte transaction identifier. Assigned when a transaction
+  is created. Transaction can always be identified by its trid,
+  even after transaction has ended.
+
+  short_trid - 2-byte transaction identifier, identifies a running
+  transaction, is reassigned when transaction ends.
+*/
 struct st_transaction
 {
-  LOCK_OWNER           locks;
+  LOCK_OWNER           locks; /* must be the first! see short_trid_to_TRN() */
   LF_PINS             *pins;
   TrID                 trid, min_read_from, commit_trid;
   TRN                 *next, *prev;

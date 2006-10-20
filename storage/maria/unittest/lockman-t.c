@@ -123,16 +123,20 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
   thread_number= timeouts= 0;
   litmus= 0;
 
-  diag("Testing %s with %d threads, %d iterations... ", test, n, m);
+  diag("Running %s with %d threads, %d iterations... ", test, n, m);
   for (rt_num_threads= n ; n ; n--)
     if (pthread_create(&t, &rt_attr, handler, &m))
-      abort();
+    {
+      diag("Could not create thread");
+      litmus++;
+      rt_num_threads--;
+    }
   pthread_mutex_lock(&rt_mutex);
   while (rt_num_threads)
     pthread_cond_wait(&rt_cond, &rt_mutex);
   pthread_mutex_unlock(&rt_mutex);
   now= my_getsystime()-now;
-  ok(litmus == 0, "tested %s in %g secs (%d)", test, ((double)now)/1e7, litmus);
+  ok(litmus == 0, "Finished %s in %g secs (%d)", test, ((double)now)/1e7, litmus);
 }
 
 int Nrows= 100;
@@ -266,13 +270,13 @@ int main()
   Nrows= 100;
   Ntables= 10;
   table_lock_ratio= 10;
-  run_test("lockman", test_lockman, THREADS, CYCLES);
+  run_test("\"random lock\" stress test", test_lockman, THREADS, CYCLES);
 
   /* "real-life" simulation - many rows, no table locks */
   Nrows= 1000000;
   Ntables= 10;
   table_lock_ratio= 0;
-  run_test("lockman", test_lockman, THREADS, 10000);
+  run_test("\"real-life\" simulation test", test_lockman, THREADS, CYCLES*10);
 
   for (i= 0; i < Nlos; i++)
   {

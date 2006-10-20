@@ -35,7 +35,7 @@
 */
 int my_atomic_initialize()
 {
-  char assert_the_size[sizeof(intptr) == sizeof(void *) ? 1 : -1];
+  compile_time_assert(sizeof(intptr) == sizeof(void *));
   /* currently the only thing worth checking is SMP/UP issue */
 #ifdef MY_ATOMIC_MODE_DUMMY
   return my_getncpus() == 1 ? MY_ATOMIC_OK : MY_ATOMIC_NOT_1CPU;

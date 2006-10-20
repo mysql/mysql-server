@@ -48,25 +48,35 @@ static my_atomic_rwlock_t LOCK_short_trid_to_trn, LOCK_pool;
 
 static LOCKMAN maria_lockman;
 
+/*
+  short transaction id is at the same time its identifier
+  for a lock manager - its lock owner identifier (loid)
+*/
+#define short_id locks.loid
+
+/*
+  NOTE
+    Just as short_id doubles as loid, this function doubles as
+    short_trid_to_LOCK_OWNER. See the compile-time assert below.
+*/
+static TRN *short_trid_to_TRN(uint16 short_trid)
+{
+  TRN *trn;
+  compile_time_assert(offsetof(TRN, locks) == 0);
+  my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
+  trn= my_atomic_loadptr((void **)&short_trid_to_active_trn[short_trid]);
+  my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
+  return (TRN *)trn;
+}
+
 static byte *trn_get_hash_key(const byte *trn, uint* len, my_bool unused)
 {
   *len= sizeof(TrID);
   return (byte *) & ((*((TRN **)trn))->trid);
 }
 
-static LOCK_OWNER *trnman_short_trid_to_TRN(uint16 short_trid)
-{
-  TRN *trn;
-  my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
-  trn= my_atomic_loadptr((void **)&short_trid_to_active_trn[short_trid]);
-  my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
-  return (LOCK_OWNER *)trn;
-}
-
 int trnman_init()
 {
-  pthread_mutex_init(&LOCK_trn_list, MY_MUTEX_INIT_FAST);
-
   /*
     Initialize lists.
     active_list_max.min_read_from must be larger than any trid,
@@ -95,6 +105,7 @@ int trnman_init()
   global_trid_generator= 0; /* set later by the recovery code */
   lf_hash_init(&trid_to_committed_trn, sizeof(TRN*), LF_HASH_UNIQUE,
                0, 0, trn_get_hash_key, 0);
+  pthread_mutex_init(&LOCK_trn_list, MY_MUTEX_INIT_FAST);
   my_atomic_rwlock_init(&LOCK_short_trid_to_trn);
   my_atomic_rwlock_init(&LOCK_pool);
   short_trid_to_active_trn= (TRN **)my_malloc(SHORT_TRID_MAX*sizeof(TRN*),
@@ -103,7 +114,7 @@ int trnman_init()
     return 1;
   short_trid_to_active_trn--; /* min short_trid is 1 */
 
-  lockman_init(&maria_lockman, &trnman_short_trid_to_TRN, 10000);
+  lockman_init(&maria_lockman, (loid_to_lo_func *)&short_trid_to_TRN, 10000);
 
   return 0;
 }
@@ -162,7 +173,7 @@ static void set_short_trid(TRN *trn)
       break;
   }
   my_atomic_rwlock_wrunlock(&LOCK_short_trid_to_trn);
-  trn->locks.loid= i;
+  trn->short_id= i;
 }
 
 /*
@@ -210,7 +221,7 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
   trn->min_read_from= active_list_min.next->trid;
 
   trn->trid= new_trid();
-  trn->locks.loid= 0;
+  trn->short_id= 0;
 
   trn->next= &active_list_max;
   trn->prev= active_list_max.prev;
@@ -242,6 +253,15 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
 /*
   remove a trn from the active list.
   if necessary - move to committed list and set commit_trid
+
+  NOTE
+    Locks are released at the end. In particular, after placing the
+    transaction in commit list, and after setting commit_trid. It's
+    important, as commit_trid affects visibility.  Locks don't affect
+    anything they simply delay execution of other threads - they could be
+    released arbitrarily late. In other words, when locks are released it
+    serves as a start banner for other threads, they start to run. So
+    everything they may need must be ready at that point.
 */
 void trnman_end_trn(TRN *trn, my_bool commit)
 {
@@ -305,7 +325,7 @@ void trnman_end_trn(TRN *trn, my_bool commit)
   trn->locks.mutex= 0;
   trn->locks.cond= 0;
   my_atomic_rwlock_rdlock(&LOCK_short_trid_to_trn);
-  my_atomic_storeptr((void **)&short_trid_to_active_trn[trn->locks.loid], 0);
+  my_atomic_storeptr((void **)&short_trid_to_active_trn[trn->short_id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
 
   while (free_me) // XXX send them to the purge thread
@@ -325,9 +345,13 @@ void trnman_end_trn(TRN *trn, my_bool commit)
 
 /*
   free a trn (add to the pool, that is)
-  note - we can never really free() a TRN if there's at least one
-  other running transaction - see, e.g., how lock waits are implemented
-  in lockman.c
+  note - we can never really free() a TRN if there's at least one other
+  running transaction - see, e.g., how lock waits are implemented in
+  lockman.c
+  The same is true for other lock-free data structures too. We may need some
+  kind of FLUSH command to reset them all - ensuring that no transactions are
+  running. It may even be called automatically on checkpoints if no
+  transactions are running.
 */
 void trnman_free_trn(TRN *trn)
 {

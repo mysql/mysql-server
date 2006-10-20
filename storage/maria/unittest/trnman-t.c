@@ -52,14 +52,21 @@ pthread_handler_t test_trnman(void *arg)
     y= x= (x*3628273133 + 1500450271) % 9576890767; /* three prime numbers */
     m-= n= x % MAX_ITER;
     for (i= 0; i < n; i++)
+    {
       trn[i]= trnman_new_trn(&mutexes[i], &conds[i]);
+      if (!trn[i])
+      {
+        diag("trnman_new_trn() failed");
+        litmus++;
+      }
+    }
     for (i= 0; i < n; i++)
     {
       y= (y*19 + 7) % 31;
       trnman_end_trn(trn[i], y & 1);
     }
   }
-
+end:
   for (i= 0; i < MAX_ITER; i++)
   {
     pthread_mutex_destroy(&mutexes[i]);
@@ -85,7 +92,11 @@ void run_test(const char *test, pthread_handler handler, int n, int m)
   diag("Testing %s with %d threads, %d iterations... ", test, n, m);
   for (rt_num_threads= n ; n ; n--)
     if (pthread_create(&t, &rt_attr, handler, &m))
-      abort();
+    {
+      diag("Could not create thread");
+      litmus++;
+      rt_num_threads--;
+    }
   pthread_mutex_lock(&rt_mutex);
   while (rt_num_threads)
     pthread_cond_wait(&rt_cond, &rt_mutex);
