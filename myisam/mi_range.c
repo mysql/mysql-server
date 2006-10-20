@@ -71,6 +71,21 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, key_range *min_key,
     uchar * key_buff;
     uint start_key_len;
 
+    /*
+      The problem is that the optimizer doesn't support
+      RTree keys properly at the moment.
+      Hope this will be fixed some day.
+      But now NULL in the min_key means that we
+      didn't make the task for the RTree key
+      and expect BTree functionality from it.
+      As it's not able to handle such request
+      we return the error.
+    */
+    if (!min_key)
+    {
+      res= HA_POS_ERROR;
+      break;
+    }
     key_buff= info->lastkey+info->s->base.max_key_length;
     start_key_len= _mi_pack_key(info,inx, key_buff,
                                 (uchar*) min_key->key, min_key->length,
