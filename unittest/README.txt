@@ -37,3 +37,12 @@ directory and add the following to the Makefile.am in that directory
 Note, it's important to have "-t" at the end of the filename, otherwise the
 test won't be executed by 'make test' !
 
+
+Documentation
+-------------
+
+The generated documentation is temporarily placed at:
+
+      http://www.kindahl.net/mytap/doc/
+
+I will move it to a better place once I figure out where and how.
