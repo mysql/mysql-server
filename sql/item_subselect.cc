@@ -667,6 +667,7 @@ double Item_in_subselect::val_real()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
+  null_value= 0;
   if (exec())
   {
     reset();
@@ -687,6 +688,7 @@ longlong Item_in_subselect::val_int()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
+  null_value= 0;
   if (exec())
   {
     reset();
@@ -707,6 +709,7 @@ String *Item_in_subselect::val_str(String *str)
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
+  null_value= 0;
   if (exec())
   {
     reset();
