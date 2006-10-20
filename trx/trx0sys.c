@@ -665,10 +665,11 @@ magic number shows it valid. */
 void
 trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
-	byte*	page)	/* in: buffer containing the trx system header page,
-			i.e., page number TRX_SYS_PAGE_NO in the tablespace */
+	const byte*	page)	/* in: buffer containing the trx
+				system header page, i.e., page number
+				TRX_SYS_PAGE_NO in the tablespace */
 {
-	trx_sysf_t*	sys_header;
+	const trx_sysf_t*	sys_header;
 
 	sys_header = page + TRX_SYS;
 

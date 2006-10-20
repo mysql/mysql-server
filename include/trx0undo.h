@@ -64,8 +64,8 @@ UNIV_INLINE
 dulint
 trx_read_roll_ptr(
 /*==============*/
-			/* out: roll ptr */
-	byte*	ptr);	/* in: pointer to memory from where to read */
+				/* out: roll ptr */
+	const byte*	ptr);	/* in: pointer to memory from where to read */
 /**********************************************************************
 Gets an undo log page and x-latches it. */
 UNIV_INLINE

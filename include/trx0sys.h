@@ -221,8 +221,8 @@ UNIV_INLINE
 dulint
 trx_read_trx_id(
 /*============*/
-			/* out: id */
-	byte*	ptr);	/* in: pointer to memory from where to read */
+				/* out: id */
+	const byte*	ptr);	/* in: pointer to memory from where to read */
 /********************************************************************
 Looks for the trx handle with the given id in trx_list. */
 UNIV_INLINE
@@ -287,8 +287,9 @@ magic number shows it valid. */
 void
 trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
-	byte*	page);	/* in: buffer containing the trx system header page,
-			i.e., page number TRX_SYS_PAGE_NO in the tablespace */
+	const byte*	page);	/* in: buffer containing the trx
+				system header page, i.e., page number
+				TRX_SYS_PAGE_NO in the tablespace */
 #endif /* UNIV_HOTBACKUP */
 /*********************************************************************
 Prints to stderr the MySQL master log offset info in the trx system header if
