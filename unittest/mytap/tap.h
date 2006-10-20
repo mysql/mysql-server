@@ -33,6 +33,8 @@
 /**
    Data about test plan.
 
+   @ingroup MyTAP_Internal
+
    @internal We are using the "typedef struct X { ... } X" idiom to
    create class/struct X both in C and C++.
  */
@@ -59,6 +61,14 @@ typedef struct TEST_DATA {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+  @defgroup MyTAP_API MyTAP API
+
+  MySQL support for performing unit tests according to TAP.
+
+  @{
+*/
 
 /**
    Set number of tests that is planned to execute.
@@ -101,11 +111,14 @@ void ok(int pass, char const *fmt, ...)
 /**
    Skip a determined number of tests.
 
-   Function to print that <em>how_many</em> tests have been
-   skipped.  The reason is printed for each skipped test.  Observe
-   that this function does not do the actual skipping for you, it just
-   prints information that tests have been skipped.  It shall be used
-   in the following manner:
+   Function to print that <em>how_many</em> tests have been skipped.
+   The reason is printed for each skipped test.  Observe that this
+   function does not do the actual skipping for you, it just prints
+   information that tests have been skipped. This function is not
+   usually used, but rather the macro @c SKIP_BLOCK_IF, which does the
+   skipping for you.
+
+   It shall be used in the following manner:
 
    @code
    if (ducks == 0) {
@@ -192,8 +205,8 @@ void BAIL_OUT(char const *fmt, ...)
    return exit_status();
    @endcode
 
-   @returns EXIT_SUCCESS if all tests passed, EXIT_FAILURE if one or
-   more tests failed.
+   @returns @c EXIT_SUCCESS if all tests passed, @c EXIT_FAILURE if
+   one or more tests failed.
  */
 
 int exit_status(void);
@@ -242,6 +255,7 @@ void todo_start(char const *message, ...)
 
 void todo_end();
 
+/** @} */
 
 #ifdef __cplusplus
 }
