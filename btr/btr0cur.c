@@ -715,7 +715,7 @@ btr_cur_open_at_index_side(
 			}
 		}
 
-		ut_ad(buf_block_get_frame(btr_cur_get_block(cursor)) == page);
+		ut_ad(buf_block_get_frame(cursor->page_block) == page);
 		if (from_left) {
 			page_cur_set_before_first(page, page_cursor);
 		} else {
