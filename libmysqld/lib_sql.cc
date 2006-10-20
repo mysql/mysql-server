@@ -100,7 +100,6 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->affected_rows= ~(my_ulonglong) 0;
   mysql->field_count= 0;
   net->last_errno= 0;
-  mysql->current_stmt= stmt;
 
   thd->store_globals();				// Fix if more than one connect
   /* 
