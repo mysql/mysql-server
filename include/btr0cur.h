@@ -106,7 +106,7 @@ btr_cur_search_to_nth_level(
 /*========================*/
 	dict_index_t*	index,	/* in: index */
 	ulint		level,	/* in: the tree level of search */
-	dtuple_t*	tuple,	/* in: data tuple; NOTE: n_fields_cmp in
+	const dtuple_t*	tuple,	/* in: data tuple; NOTE: n_fields_cmp in
 				tuple must be set so that it cannot get
 				compared to the node ptr page number field! */
 	ulint		mode,	/* in: PAGE_CUR_L, ...;
@@ -171,7 +171,7 @@ btr_cur_optimistic_insert(
 				specified */
 	btr_cur_t*	cursor,	/* in: cursor on page after which to insert;
 				cursor stays valid */
-	dtuple_t*	entry,	/* in: entry to insert */
+	dtuple_t*	entry,	/* in/out: entry to insert */
 	rec_t**		rec,	/* out: pointer to inserted record if
 				succeed */
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
@@ -199,7 +199,7 @@ btr_cur_pessimistic_insert(
 				insertion will certainly succeed */
 	btr_cur_t*	cursor,	/* in: cursor after which to insert;
 				cursor stays valid */
-	dtuple_t*	entry,	/* in: entry to insert */
+	dtuple_t*	entry,	/* in/out: entry to insert */
 	rec_t**		rec,	/* out: pointer to inserted record if
 				succeed */
 	big_rec_t**	big_rec,/* out: big rec vector whose fields have to
@@ -411,9 +411,9 @@ btr_estimate_n_rows_in_range(
 /*=========================*/
 				/* out: estimated number of rows */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	tuple1,	/* in: range start, may also be empty tuple */
+	const dtuple_t*	tuple1,	/* in: range start, may also be empty tuple */
 	ulint		mode1,	/* in: search mode for range start */
-	dtuple_t*	tuple2,	/* in: range end, may also be empty tuple */
+	const dtuple_t*	tuple2,	/* in: range end, may also be empty tuple */
 	ulint		mode2);	/* in: search mode for range end */
 /***********************************************************************
 Estimates the number of different key values in a given index, for
@@ -448,9 +448,9 @@ in entry, so that they are not freed in a rollback. */
 void
 btr_cur_mark_dtuple_inherited_extern(
 /*=================================*/
-	dtuple_t*	entry,		/* in: updated entry to be inserted to
-					clustered index */
-	ulint*		ext_vec,	/* in: array of extern fields in the
+	dtuple_t*	entry,		/* in/out: updated entry to be
+					inserted to clustered index */
+	const ulint*	ext_vec,	/* in: array of extern fields in the
 					original record */
 	ulint		n_ext_vec,	/* in: number of elements in ext_vec */
 	upd_t*		update);	/* in: update vector */
@@ -460,8 +460,8 @@ Marks all extern fields in a dtuple as owned by the record. */
 void
 btr_cur_unmark_dtuple_extern_fields(
 /*================================*/
-	dtuple_t*	entry,		/* in: clustered index entry */
-	ulint*		ext_vec,	/* in: array of numbers of fields
+	dtuple_t*	entry,		/* in/out: clustered index entry */
+	const ulint*	ext_vec,	/* in: array of numbers of fields
 					which have been stored externally */
 	ulint		n_ext_vec);	/* in: number of elements in ext_vec */
 /***********************************************************************

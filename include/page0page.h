@@ -266,8 +266,8 @@ page_cmp_dtuple_rec_with_match(
 				/* out: 1, 0, -1, if dtuple is greater, equal,
 				less than rec, respectively, when only the
 				common first fields are compared */
-	dtuple_t*	dtuple,	/* in: data tuple */
-	rec_t*		rec,	/* in: physical record on a page; may also
+	const dtuple_t*	dtuple,	/* in: data tuple */
+	const rec_t*	rec,	/* in: physical record on a page; may also
 				be page infimum or supremum, in which case
 				matched-parameter values below are not
 				affected */

@@ -91,7 +91,7 @@ Sets the trx id or roll ptr field of a clustered index entry. */
 void
 row_upd_index_entry_sys_field(
 /*==========================*/
-	dtuple_t*	entry,	/* in: index entry, where the memory buffers
+	const dtuple_t*	entry,	/* in: index entry, where the memory buffers
 				for sys fields are already allocated:
 				the function just copies the new values to
 				them */

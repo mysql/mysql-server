@@ -33,7 +33,7 @@ page_cur_try_search_shortcut(
 				/* out: TRUE on success */
 	page_t*		page,	/* in: index page */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	tuple,	/* in: data tuple */
+	const dtuple_t*	tuple,	/* in: data tuple */
 	ulint*		iup_matched_fields,
 				/* in/out: already matched fields in upper
 				limit record */
@@ -146,7 +146,7 @@ page_cur_rec_field_extends(
 /*=======================*/
 				/* out: TRUE if rec field
 				extends tuple field */
-	dtuple_t*	tuple,	/* in: data tuple */
+	const dtuple_t*	tuple,	/* in: data tuple */
 	rec_t*		rec,	/* in: record */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		n)	/* in: compare nth field */
@@ -195,7 +195,7 @@ page_cur_search_with_match(
 /*=======================*/
 	page_t*		page,	/* in: index page */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	tuple,	/* in: data tuple */
+	const dtuple_t*	tuple,	/* in: data tuple */
 	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
 				or PAGE_CUR_GE */
 	ulint*		iup_matched_fields,

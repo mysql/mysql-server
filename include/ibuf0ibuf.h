@@ -187,7 +187,7 @@ ibool
 ibuf_insert(
 /*========*/
 				/* out: TRUE if success */
-	dtuple_t*	entry,	/* in: index entry to insert */
+	const dtuple_t*	entry,	/* in: index entry to insert */
 	dict_index_t*	index,	/* in: index where to insert */
 	ulint		space,	/* in: space id where to insert */
 	ulint		zip_size,/* in: compressed page size in bytes, or 0 */
