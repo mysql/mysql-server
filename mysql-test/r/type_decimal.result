@@ -786,7 +786,7 @@ select group_concat(t) from t1 group by week(date)/10;
 group_concat(t)
 t
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '0000-00-00'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00'
-Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
 drop table t1;
