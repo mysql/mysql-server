@@ -920,7 +920,7 @@ btr_search_drop_page_hash_index(
 
 retry:
 	rw_lock_s_lock(&btr_search_latch);
-	page = buf_block_get_frame(block);
+	page = block->frame;
 
 	if (UNIV_LIKELY(!block->is_hashed)) {
 
