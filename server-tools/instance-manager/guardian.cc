@@ -66,11 +66,11 @@ Guardian_thread::~Guardian_thread()
 }
 
 
-void Guardian_thread::request_shutdown(bool stop_instances_arg)
+void Guardian_thread::request_shutdown()
 {
   pthread_mutex_lock(&LOCK_guardian);
   /* stop instances or just clean up Guardian repository */
-  stop_instances(stop_instances_arg);
+  stop_instances();
   shutdown_requested= TRUE;
   pthread_mutex_unlock(&LOCK_guardian);
 }
@@ -118,11 +118,11 @@ void Guardian_thread::process_instance(Instance *instance,
     {
       /* Pid file not created yet, don't go to STARTED state yet  */
     }
-    else
+    else if (current_node->state != STARTED)
     {
       /* clear status fields */
-      log_info("guardian: instance %s is running, set state to STARTED",
-               instance->options.instance_name);
+      log_info("guardian: instance '%s' is running, set state to STARTED.",
+               (const char *) instance->options.instance_name);
       current_node->restart_counter= 0;
       current_node->crash_moment= 0;
       current_node->state= STARTED;
@@ -132,8 +132,8 @@ void Guardian_thread::process_instance(Instance *instance,
   {
     switch (current_node->state) {
     case NOT_STARTED:
-      log_info("guardian: starting instance %s",
-               instance->options.instance_name);
+      log_info("guardian: starting instance '%s'...",
+               (const char *) instance->options.instance_name);
 
       /* NOTE, set state to STARTING _before_ start() is called */
       current_node->state= STARTING;
@@ -157,8 +157,8 @@ void Guardian_thread::process_instance(Instance *instance,
         if (instance->is_crashed())
         {
           instance->start();
-          log_info("guardian: starting instance %s",
-                   instance->options.instance_name);
+          log_info("guardian: starting instance '%s'...",
+                   (const char *) instance->options.instance_name);
         }
       }
       else
@@ -175,8 +175,8 @@ void Guardian_thread::process_instance(Instance *instance,
             instance->start();
             current_node->last_checked= current_time;
             current_node->restart_counter++;
-            log_info("guardian: restarting instance %s",
-                     instance->options.instance_name);
+            log_info("guardian: restarting instance '%s'...",
+                     (const char *) instance->options.instance_name);
           }
         }
         else
@@ -382,12 +382,11 @@ int Guardian_thread::stop_guard(Instance *instance)
 
   SYNOPSYS
     stop_instances()
-    stop_instances_arg          whether we should stop instances at shutdown
 
   DESCRIPTION
     Loops through the guarded_instances list and prepares them for shutdown.
-    If stop_instances was requested, we need to issue a stop command and change
-    the state accordingly. Otherwise we simply delete an entry.
+    For each instance we issue a stop command and change the state
+    accordingly.
 
   NOTE
     Guardian object should be locked by the calling function.
@@ -397,42 +396,29 @@ int Guardian_thread::stop_guard(Instance *instance)
     1 - error occured
 */
 
-int Guardian_thread::stop_instances(bool stop_instances_arg)
+int Guardian_thread::stop_instances()
 {
   LIST *node;
   node= guarded_instances;
   while (node != NULL)
   {
-    if (!stop_instances_arg)
+    GUARD_NODE *current_node= (GUARD_NODE *) node->data;
+    /*
+      If instance is running or was running (and now probably hanging),
+      request stop.
+    */
+    if (current_node->instance->is_running() ||
+        (current_node->state == STARTED))
     {
-      /* just forget about an instance */
-      guarded_instances= list_delete(guarded_instances, node);
-      /*
-        This should still work fine, as we have only removed the
-        node from the list. The pointer to the next one is still valid
-      */
-      node= node->next;
+      current_node->state= STOPPING;
+      current_node->last_checked= time(NULL);
     }
     else
-    {
-      GUARD_NODE *current_node= (GUARD_NODE *) node->data;
-      /*
-        If instance is running or was running (and now probably hanging),
-        request stop.
-      */
-      if (current_node->instance->is_running() ||
-          (current_node->state == STARTED))
-      {
-        current_node->state= STOPPING;
-        current_node->last_checked= time(NULL);
-      }
-      else
-        /* otherwise remove it from the list */
-        guarded_instances= list_delete(guarded_instances, node);
-      /* But try to kill it anyway. Just in case */
-      current_node->instance->kill_instance(SIGTERM);
-      node= node->next;
-    }
+      /* otherwise remove it from the list */
+      guarded_instances= list_delete(guarded_instances, node);
+    /* But try to kill it anyway. Just in case */
+    current_node->instance->kill_instance(SIGTERM);
+    node= node->next;
   }
   return 0;
 }
@@ -440,7 +426,7 @@ int Guardian_thread::stop_instances(bool stop_instances_arg)
 
 void Guardian_thread::lock()
 {
-  pthread_mutex_lock(&LOCK_guardian); 
+  pthread_mutex_lock(&LOCK_guardian);
 }
 
 
