@@ -1425,23 +1425,34 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
                       thd->query, thd->query_length, FALSE, FALSE);
   }
 
-  VOID(pthread_mutex_unlock(&LOCK_open));
   if (error)
   {
+    VOID(pthread_mutex_unlock(&LOCK_open));
     DBUG_RETURN(TRUE);
   }
   if (wrong_object_name)
   {
+    VOID(pthread_mutex_unlock(&LOCK_open));
     my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name, 
              "VIEW");
     DBUG_RETURN(TRUE);
   }
   if (non_existant_views.length())
   {
+    VOID(pthread_mutex_unlock(&LOCK_open));
     my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
     DBUG_RETURN(TRUE);
   }
+
+  if (mysql_bin_log.is_open())
+  {
+    thd->clear_error();
+    thd->binlog_query(THD::STMT_QUERY_TYPE,
+                      thd->query, thd->query_length, FALSE, FALSE);
+  }
+
   send_ok(thd);
+  VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(FALSE);
 }
 
