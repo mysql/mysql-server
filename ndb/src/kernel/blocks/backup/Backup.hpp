@@ -513,8 +513,10 @@ public:
   Config c_defaults;
   Uint32 m_diskless;
 
-  STATIC_CONST(NO_OF_PAGES_META_FILE = 2);
-
+  STATIC_CONST(NO_OF_PAGES_META_FILE = 
+	       (MAX_WORDS_META_FILE + BACKUP_WORDS_PER_PAGE - 1) / 
+	       BACKUP_WORDS_PER_PAGE);
+  
   /**
    * Pools
    */
