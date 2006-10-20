@@ -1143,9 +1143,9 @@ EXPLAIN EXTENDED
 SELECT * FROM t1 INNER JOIN t2 ON code=id 
 WHERE id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	const	PRIMARY	PRIMARY	12	const	1	100.00	Using index
 1	SIMPLE	t1	ref	code	code	13	const	3	100.00	Using where; Using index
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	12	const	1	100.00	Using where; Using index
 Warnings:
-Note	1003	select `test`.`t1`.`code` AS `code`,`test`.`t2`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = _latin1'a12') and (`test`.`t2`.`id` = _latin1'a12') and (length(`test`.`t1`.`code`) = 5))
+Note	1003	select `test`.`t1`.`code` AS `code`,`test`.`t2`.`id` AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = _latin1'a12') and (length(`test`.`t1`.`code`) = 5))
 DROP TABLE t1,t2;
 End of 5.0 tests
