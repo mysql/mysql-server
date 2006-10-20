@@ -165,7 +165,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
   else
   {
     old_alias= ren_table->table_name;
-    new_alias= new_table_table_name;
+    new_alias= new_table_name;
   }
   build_table_filename(name, sizeof(name),
                        new_db, new_alias, reg_ext, 0);
@@ -182,8 +182,10 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
   {
     case FRMTYPE_TABLE:
       {
-        if (!(rc= mysql_rename_table(table_type, ren_table->db, old_alias,
-                                     new_db, new_alias)))
+        if (!(rc= mysql_rename_table(ha_resolve_by_legacy_type(thd,
+                                                               table_type), 
+                                     ren_table->db, old_alias,
+                                     new_db, new_alias, 0)))
         {
           if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
                                                           old_alias,
@@ -204,7 +206,6 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
         }
       }
       break;
-    }
     case FRMTYPE_VIEW:
       /* change of schema is not allowed */
       if (strcmp(ren_table->db, new_db))

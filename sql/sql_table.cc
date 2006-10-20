@@ -5151,7 +5151,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   char reg_path[FN_REFLEN+1];
   ha_rows copied,deleted;
   uint db_create_options, used_fields;
-  handlerton *old_db_type, *new_db_type, table_type;
+  handlerton *old_db_type, *new_db_type;
+  legacy_db_type table_type;
   HA_CREATE_INFO *create_info;
   frm_type_enum frm_type;
   uint need_copy_table= 0;
@@ -5235,8 +5236,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
 						   alter_info->tablespace_op));
-  sprintf(new_name_buff,"%s/%s/%s%s",mysql_data_home, db, table_name, reg_ext);
-  unpack_filename(new_name_buff, new_name_buff);
+  strxnmov(new_name_buff, sizeof (new_name_buff) - 1, mysql_data_home, "/", db, 
+           "/", table_name, reg_ext, NullS);
+  (void) unpack_filename(new_name_buff, new_name_buff);
   if (lower_case_table_names != 2)
     my_casedn_str(files_charset_info, new_name_buff);
   frm_type= mysql_frm_type(thd, new_name_buff, &table_type);
