@@ -8378,7 +8378,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	    ConstPtr<ReplicaRecord> constReplicaPtr;
 	    constReplicaPtr.i = replicaPtr.i;
 	    constReplicaPtr.p = replicaPtr.p;
-	    if (tabPtr.p->tabStorage != TabRecord::ST_NORMAL ||
+	    if (tabPtr.p->storedTable == 0 ||
 		setup_create_replica(fragPtr,
 				     &createReplica, constReplicaPtr))
 	    {
