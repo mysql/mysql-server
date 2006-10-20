@@ -173,7 +173,12 @@ Restore::execREAD_CONFIG_REQ(Signal* signal)
   }
 #endif
   m_file_pool.setSize(1);
-  m_databuffer_pool.setSize((1*128+PAGES+List::getSegmentSize()-1)/List::getSegmentSize());
+  Uint32 cnt = 2*MAX_ATTRIBUTES_IN_TABLE;
+  cnt += PAGES;
+  cnt += List::getSegmentSize()-1;
+  cnt /= List::getSegmentSize();
+  cnt += 2;
+  m_databuffer_pool.setSize(cnt);
   
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
