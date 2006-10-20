@@ -489,9 +489,10 @@ mem_heap_block_free(
 	mem_heap_t*	heap,	/* in: heap */
 	mem_block_t*	block)	/* in: block to free */
 {
-	ulint	type;
-	ulint	len;
-	ibool	init_block;
+	ulint		type;
+	ulint		len;
+	ibool		init_block;
+	buf_block_t*	buf_block;
 
 	if (block->magic_n != MEM_BLOCK_MAGIC_N) {
 		mem_analyze_corruption(block);
@@ -509,25 +510,8 @@ mem_heap_block_free(
 	type = heap->type;
 	len = block->len;
 	init_block = block->init_block;
+	buf_block = block->buf_block;
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
-
-	if (init_block) {
-		/* Do not have to free: do nothing */
-
-	} else if (type == MEM_HEAP_DYNAMIC) {
-
-		ut_ad(!block->buf_block);
-		mem_area_free(block, mem_comm_pool);
-	} else {
-		ut_ad(type & MEM_HEAP_BUFFER);
-
-		if (len >= UNIV_PAGE_SIZE / 2) {
-			buf_block_free(block->buf_block);
-		} else {
-			ut_ad(!block->buf_block);
-			mem_area_free(block, mem_comm_pool);
-		}
-	}
 
 #ifdef UNIV_MEM_DEBUG
 	/* In the debug version we set the memory to a random combination
@@ -535,6 +519,24 @@ mem_heap_block_free(
 
 	mem_erase_buf((byte*)block, len);
 #endif
+
+	if (init_block) {
+		/* Do not have to free: do nothing */
+
+	} else if (type == MEM_HEAP_DYNAMIC) {
+
+		ut_ad(!buf_block);
+		mem_area_free(block, mem_comm_pool);
+	} else {
+		ut_ad(type & MEM_HEAP_BUFFER);
+
+		if (len >= UNIV_PAGE_SIZE / 2) {
+			buf_block_free(buf_block);
+		} else {
+			ut_ad(!buf_block);
+			mem_area_free(block, mem_comm_pool);
+		}
+	}
 }
 
 /**********************************************************************
