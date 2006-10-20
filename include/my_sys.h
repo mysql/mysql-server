@@ -778,6 +778,7 @@ my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
 			  uint length);
 extern my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern my_bool dynstr_realloc(DYNAMIC_STRING *str, ulong additional_size);
+extern my_bool dynstr_trunc(DYNAMIC_STRING *str, int n);
 extern void dynstr_free(DYNAMIC_STRING *str);
 #ifdef HAVE_MLOCK
 extern byte *my_malloc_lock(uint length,myf flags);
