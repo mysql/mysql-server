@@ -110,7 +110,7 @@ void stop_all(Guardian_thread *guardian, Thread_registry *registry)
     Let guardian thread know that it should break it's processing cycle,
     once it wakes up.
   */
-  guardian->request_shutdown(true);
+  guardian->request_shutdown();
   /* wake guardian */
   pthread_cond_signal(&guardian->COND_guardian);
   /* stop all threads */
@@ -282,8 +282,7 @@ void manager(const Options &options)
     {
       if (!guardian_thread.is_stopped())
       {
-        bool stop_instances= true;
-        guardian_thread.request_shutdown(stop_instances);
+        guardian_thread.request_shutdown();
         pthread_cond_signal(&guardian_thread.COND_guardian);
       }
       else
