@@ -408,8 +408,7 @@ btr_pcur_move_to_next_page(
 	btr_leaf_page_release(btr_pcur_get_block(cursor),
 			      cursor->latch_mode, mtr);
 
-	btr_pcur_get_btr_cur(cursor)->page_block = next_block;
-	page_cur_set_before_first(next_page, btr_pcur_get_page_cur(cursor));
+	page_cur_set_before_first(next_block, btr_pcur_get_page_cur(cursor));
 
 	page_check_dir(next_page);
 }
@@ -478,8 +477,7 @@ btr_pcur_move_backward_from_page(
 		btr_leaf_page_release(btr_pcur_get_block(cursor),
 				      latch_mode, mtr);
 
-		btr_pcur_get_btr_cur(cursor)->page_block = prev_block;
-		page_cur_set_after_last(buf_block_get_frame(prev_block),
+		page_cur_set_after_last(prev_block,
 					btr_pcur_get_page_cur(cursor));
 	} else {
 

@@ -81,42 +81,42 @@ dulint
 btr_page_get_index_id(
 /*==================*/
 				/* out: index id */
-	page_t*		page);	/* in: index page */
+	const page_t*	page);	/* in: index page */
 /************************************************************
 Gets the node level field in an index page. */
 UNIV_INLINE
 ulint
 btr_page_get_level_low(
 /*===================*/
-			/* out: level, leaf level == 0 */
-	page_t*	page);	/* in: index page */
+				/* out: level, leaf level == 0 */
+	const page_t*	page);	/* in: index page */
 /************************************************************
 Gets the node level field in an index page. */
 UNIV_INLINE
 ulint
 btr_page_get_level(
 /*===============*/
-			/* out: level, leaf level == 0 */
-	page_t*	page,	/* in: index page */
-	mtr_t*	mtr);	/* in: mini-transaction handle */
+				/* out: level, leaf level == 0 */
+	const page_t*	page,	/* in: index page */
+	mtr_t*		mtr);	/* in: mini-transaction handle */
 /************************************************************
 Gets the next index page number. */
 UNIV_INLINE
 ulint
 btr_page_get_next(
 /*==============*/
-			/* out: next page number */
-	page_t*	page,	/* in: index page */
-	mtr_t*	mtr);	/* in: mini-transaction handle */
+				/* out: next page number */
+	const page_t*	page,	/* in: index page */
+	mtr_t*		mtr);	/* in: mini-transaction handle */
 /************************************************************
 Gets the previous index page number. */
 UNIV_INLINE
 ulint
 btr_page_get_prev(
 /*==============*/
-			/* out: prev page number */
-	page_t*	page,	/* in: index page */
-	mtr_t*	mtr);	/* in: mini-transaction handle */
+				/* out: prev page number */
+	const page_t*	page,	/* in: index page */
+	mtr_t*		mtr);	/* in: mini-transaction handle */
 /*****************************************************************
 Gets pointer to the previous user record in the tree. It is assumed
 that the caller has appropriate latches on the page and its neighbor. */

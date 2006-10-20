@@ -28,8 +28,7 @@ btr_cur_get_block(
 				/* out: pointer to buffer block */
 	btr_cur_t*	cursor)	/* in: tree cursor */
 {
-	ut_ad(page_align(cursor->page_cur.rec) == cursor->page_block->frame);
-	return(cursor->page_block);
+	return(page_cur_get_block(btr_cur_get_page_cur(cursor)));
 }
 
 /*************************************************************
@@ -41,7 +40,6 @@ btr_cur_get_rec(
 				/* out: pointer to record */
 	btr_cur_t*	cursor)	/* in: tree cursor */
 {
-	ut_ad(page_align(cursor->page_cur.rec) == cursor->page_block->frame);
 	return(page_cur_get_rec(&(cursor->page_cur)));
 }
 
@@ -67,7 +65,6 @@ btr_cur_invalidate(
 	btr_cur_t*	cursor)	/* in: tree cursor */
 {
 	page_cur_invalidate(&(cursor->page_cur));
-	cursor->page_block = NULL;
 }
 
 /*************************************************************
@@ -107,8 +104,7 @@ btr_cur_position(
 {
 	ut_ad(page_align(rec) == buf_block_get_frame(block));
 
-	page_cur_position(rec, btr_cur_get_page_cur(cursor));
-	cursor->page_block = block;
+	page_cur_position(rec, block, btr_cur_get_page_cur(cursor));
 
 	cursor->index = index;
 }

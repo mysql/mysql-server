@@ -539,8 +539,7 @@ retry_page_get:
 			page_mode = mode;
 		}
 
-		cursor->page_block = block;
-		page_cur_search_with_match(page, index, tuple, page_mode,
+		page_cur_search_with_match(block, index, tuple, page_mode,
 					   &up_match, &up_bytes,
 					   &low_match, &low_bytes,
 					   page_cursor);
@@ -685,7 +684,6 @@ btr_cur_open_at_index_side(
 					 btr_page_get_index_id(page)));
 
 		block->check_index_page_at_flush = TRUE;
-		cursor->page_block = block;
 
 		if (height == ULINT_UNDEFINED) {
 			/* We are in the root node */
@@ -715,11 +713,10 @@ btr_cur_open_at_index_side(
 			}
 		}
 
-		ut_ad(buf_block_get_frame(cursor->page_block) == page);
 		if (from_left) {
-			page_cur_set_before_first(page, page_cursor);
+			page_cur_set_before_first(block, page_cursor);
 		} else {
-			page_cur_set_after_last(page, page_cursor);
+			page_cur_set_after_last(block, page_cursor);
 		}
 
 		if (height == 0) {
@@ -815,8 +812,7 @@ btr_cur_open_at_rnd_pos(
 					     latch_mode, cursor, mtr);
 		}
 
-		cursor->page_block = block;
-		page_cur_open_on_rnd_user_rec(page, page_cursor);
+		page_cur_open_on_rnd_user_rec(block, page_cursor);
 
 		if (height == 0) {
 
@@ -854,7 +850,6 @@ btr_cur_insert_if_possible(
 				else NULL */
 	btr_cur_t*	cursor,	/* in: cursor on page after which to insert;
 				cursor stays valid */
-	page_zip_des_t*	page_zip,/* in: compressed page of cursor */
 	const dtuple_t*	tuple,	/* in: tuple to insert; the size info need not
 				have been stored to tuple */
 	const ulint*	ext,	/* in: array of extern field numbers */
@@ -873,20 +868,19 @@ btr_cur_insert_if_possible(
 	page_cursor = btr_cur_get_page_cur(cursor);
 
 	/* Now, try the insert */
-	rec = page_cur_tuple_insert(page_cursor, page_zip,
-				    tuple, cursor->index, ext, n_ext, mtr);
+	rec = page_cur_tuple_insert(page_cursor, tuple,
+				    cursor->index, ext, n_ext, mtr);
 
 	if (UNIV_UNLIKELY(!rec)) {
 		/* If record did not fit, reorganize */
 
 		if (btr_page_reorganize(block, cursor->index, mtr)) {
 
-			page_cur_search(buf_block_get_frame(block),
-					cursor->index, tuple,
+			page_cur_search(block, cursor->index, tuple,
 					PAGE_CUR_LE, page_cursor);
 
-			rec = page_cur_tuple_insert(page_cursor, page_zip,
-						    tuple, cursor->index,
+			rec = page_cur_tuple_insert(page_cursor, tuple,
+						    cursor->index,
 						    ext, n_ext, mtr);
 		}
 	}
@@ -1146,8 +1140,8 @@ fail:
 
 	/* Now, try the insert */
 
-	*rec = page_cur_tuple_insert(page_cursor, page_zip,
-				     entry, index, ext, n_ext, mtr);
+	*rec = page_cur_tuple_insert(page_cursor, entry, index,
+				     ext, n_ext, mtr);
 	if (UNIV_UNLIKELY(!(*rec))) {
 		/* If the record did not fit, reorganize */
 		if (UNIV_UNLIKELY(!btr_page_reorganize(block, index, mtr))) {
@@ -1160,10 +1154,10 @@ fail:
 
 		reorg = TRUE;
 
-		page_cur_search(page, index, entry, PAGE_CUR_LE, page_cursor);
+		page_cur_search(block, index, entry, PAGE_CUR_LE, page_cursor);
 
-		*rec = page_cur_tuple_insert(page_cursor, page_zip,
-					     entry, index, ext, n_ext, mtr);
+		*rec = page_cur_tuple_insert(page_cursor, entry, index,
+					     ext, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
 			if (UNIV_LIKELY(page_zip != NULL)) {
@@ -1353,11 +1347,11 @@ btr_cur_pessimistic_insert(
 			rec_t*		temp_rec;
 
 			page_cur_position(temp_page + PAGE_NEW_INFIMUM,
-					  &temp_cursor);
+					  temp_block, &temp_cursor);
 
-			temp_rec = page_cur_tuple_insert(
-				&temp_cursor, &temp_block->page_zip,
-				entry, index, ext, n_ext, NULL);
+			temp_rec = page_cur_tuple_insert(&temp_cursor,
+							 entry, index,
+							 ext, n_ext, NULL);
 			buf_block_free(temp_block);
 
 			if (UNIV_UNLIKELY(!temp_rec)) {
@@ -1883,7 +1877,7 @@ btr_cur_optimistic_update(
 
 	btr_search_update_hash_on_delete(cursor);
 
-	page_cur_delete_rec(page_cursor, index, offsets, page_zip, mtr);
+	page_cur_delete_rec(page_cursor, index, offsets, mtr);
 
 	page_cur_move_to_prev(page_cursor);
 
@@ -1897,8 +1891,7 @@ btr_cur_optimistic_update(
 	}
 
 	/* There are no externally stored columns in new_entry */
-	rec = btr_cur_insert_if_possible(cursor, page_zip, new_entry,
-					 NULL, 0, mtr);
+	rec = btr_cur_insert_if_possible(cursor, new_entry, NULL, 0, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
 	if (!rec_get_deleted_flag(rec, page_is_comp(page))) {
@@ -2143,11 +2136,11 @@ btr_cur_pessimistic_update(
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
-	page_cur_delete_rec(page_cursor, index, offsets, page_zip, mtr);
+	page_cur_delete_rec(page_cursor, index, offsets, mtr);
 
 	page_cur_move_to_prev(page_cursor);
 
-	rec = btr_cur_insert_if_possible(cursor, page_zip, new_entry,
+	rec = btr_cur_insert_if_possible(cursor, new_entry,
 					 ext_vect, n_ext_vect, mtr);
 	ut_a(rec || optim_err != DB_UNDERFLOW);
 
@@ -2663,7 +2656,9 @@ btr_cur_optimistic_delete(
 	if (no_compress_needed) {
 
 		page_t*		page	= buf_block_get_frame(block);
+#ifdef UNIV_ZIP_DEBUG
 		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
+#endif /* UNIV_ZIP_DEBUG */
 
 		lock_update_delete(rec);
 
@@ -2675,7 +2670,7 @@ btr_cur_optimistic_delete(
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 		page_cur_delete_rec(btr_cur_get_page_cur(cursor),
-				    cursor->index, offsets, page_zip, mtr);
+				    cursor->index, offsets, mtr);
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2836,8 +2831,7 @@ btr_cur_pessimistic_delete(
 
 	btr_search_update_hash_on_delete(cursor);
 
-	page_cur_delete_rec(btr_cur_get_page_cur(cursor), index,
-			    offsets, page_zip, mtr);
+	page_cur_delete_rec(btr_cur_get_page_cur(cursor), index, offsets, mtr);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */

@@ -11,7 +11,7 @@ Created 10/4/1994 Heikki Tuuri
 
 #include "univ.i"
 
-#include "page0types.h"
+#include "buf0types.h"
 #include "page0page.h"
 #include "rem0rec.h"
 #include "data0data.h"
@@ -49,6 +49,22 @@ page_cur_get_page(
 				/* out: page */
 	page_cur_t*	cur);	/* in: page cursor */
 /*************************************************************
+Gets pointer to the buffer block where the cursor is positioned. */
+UNIV_INLINE
+buf_block_t*
+page_cur_get_block(
+/*===============*/
+				/* out: page */
+	page_cur_t*	cur);	/* in: page cursor */
+/*************************************************************
+Gets pointer to the page frame where the cursor is positioned. */
+UNIV_INLINE
+page_zip_des_t*
+page_cur_get_page_zip(
+/*==================*/
+				/* out: page */
+	page_cur_t*	cur);	/* in: page cursor */
+/*************************************************************
 Gets the record where the cursor is positioned. */
 UNIV_INLINE
 rec_t*
@@ -63,7 +79,7 @@ UNIV_INLINE
 void
 page_cur_set_before_first(
 /*======================*/
-	page_t*		page,	/* in: index page */
+	buf_block_t*	block,	/* in: index page */
 	page_cur_t*	cur);	/* in: cursor */
 /*************************************************************
 Sets the cursor object to point after the last user record on
@@ -72,7 +88,7 @@ UNIV_INLINE
 void
 page_cur_set_after_last(
 /*====================*/
-	page_t*		page,	/* in: index page */
+	buf_block_t*	block,	/* in: index page */
 	page_cur_t*	cur);	/* in: cursor */
 /*************************************************************
 Returns TRUE if the cursor is before first user record on page. */
@@ -97,7 +113,8 @@ void
 page_cur_position(
 /*==============*/
 	rec_t*		rec,	/* in: record on a page */
-	page_cur_t*	cur);	/* in: page cursor */
+	buf_block_t*	block,	/* in: buffer block containing the record */
+	page_cur_t*	cur);	/* out: page cursor */
 /**************************************************************
 Invalidates a page cursor by setting the record pointer NULL. */
 UNIV_INLINE
@@ -130,7 +147,6 @@ page_cur_tuple_insert(
 				/* out: pointer to record if succeed, NULL
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	const dtuple_t*	tuple,	/* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	ext,	/* in: array of extern field numbers */
@@ -147,7 +163,6 @@ page_cur_rec_insert(
 				/* out: pointer to record if succeed, NULL
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	rec_t*		rec,	/* in: record to insert */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
@@ -163,8 +178,9 @@ page_cur_insert_rec_low(
 /*====================*/
 				/* out: pointer to record if succeed, NULL
 				otherwise */
-	page_cur_t*	cursor,	/* in: a page cursor */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
+	rec_t*		current_rec,/* in: current record after which the
+				new record is inserted */
+	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
@@ -190,7 +206,6 @@ page_cur_delete_rec(
 	page_cur_t*	cursor,	/* in/out: a page cursor */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	offsets,/* in: rec_get_offsets(cursor->rec, index) */
-	page_zip_des_t*	page_zip,/* in/out: compressed, or NULL */
 	mtr_t*		mtr);	/* in: mini-transaction handle */
 /********************************************************************
 Searches the right position for a page cursor. */
@@ -199,7 +214,7 @@ ulint
 page_cur_search(
 /*============*/
 				/* out: number of matched fields on the left */
-	page_t*		page,	/* in: index page */
+	buf_block_t*	block,	/* in: buffer block */
 	dict_index_t*	index,	/* in: record descriptor */
 	const dtuple_t*	tuple,	/* in: data tuple */
 	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
@@ -211,7 +226,7 @@ Searches the right position for a page cursor. */
 void
 page_cur_search_with_match(
 /*=======================*/
-	page_t*		page,	/* in: index page */
+	buf_block_t*	block,	/* in: buffer block */
 	dict_index_t*	index,	/* in: record descriptor */
 	const dtuple_t*	tuple,	/* in: data tuple */
 	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
@@ -236,8 +251,8 @@ are no user records, sets the cursor on the infimum record. */
 void
 page_cur_open_on_rnd_user_rec(
 /*==========================*/
-	page_t*		page,	/* in: page */
-	page_cur_t*	cursor);/* in/out: page cursor */
+	buf_block_t*	block,	/* in: page */
+	page_cur_t*	cursor);/* out: page cursor */
 /***************************************************************
 Parses a log record of a record insert on a page. */
 
@@ -248,9 +263,8 @@ page_cur_parse_insert_rec(
 	ibool		is_short,/* in: TRUE if short inserts */
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
+	buf_block_t*	block,	/* in: page or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in/out: page or NULL */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /**************************************************************
 Parses a log record of copying a record list end to a new created page. */
@@ -261,9 +275,8 @@ page_parse_copy_rec_list_to_created_page(
 				/* out: end of log record or NULL */
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
+	buf_block_t*	block,	/* in: page or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in/out: page or NULL */
-	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /***************************************************************
 Parses log record of a record delete on a page. */
@@ -274,15 +287,15 @@ page_cur_parse_delete_rec(
 				/* out: pointer to record end or NULL */
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
+	buf_block_t*	block,	/* in: page or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in/out: page or NULL */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 
 /* Index page cursor */
 
 struct page_cur_struct{
-	byte*	rec;	/* pointer to a record on page */
+	byte*		rec;	/* pointer to a record on page */
+	buf_block_t*	block;	/* pointer to the block containing rec */
 };
 
 #ifndef UNIV_NONINL

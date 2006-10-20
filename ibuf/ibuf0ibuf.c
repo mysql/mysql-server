@@ -2917,7 +2917,7 @@ dump:
 		return;
 	}
 
-	low_match = page_cur_search(page, index, entry,
+	low_match = page_cur_search(block, index, entry,
 				    PAGE_CUR_LE, &page_cur);
 
 	if (low_match == dtuple_get_n_fields(entry)) {
@@ -2925,23 +2925,21 @@ dump:
 
 		btr_cur_del_unmark_for_ibuf(rec, mtr);
 	} else {
-		rec = page_cur_tuple_insert(&page_cur,
-					    buf_block_get_page_zip(block),
-					    entry, index, NULL, 0, mtr);
+		rec = page_cur_tuple_insert(&page_cur, entry, index,
+					    NULL, 0, mtr);
 
 		if (UNIV_UNLIKELY(rec == NULL)) {
 			/* If the record did not fit, reorganize */
 
 			btr_page_reorganize(block, index, mtr);
 
-			page_cur_search(page, index, entry,
+			page_cur_search(block, index, entry,
 					PAGE_CUR_LE, &page_cur);
 
 			/* This time the record must fit */
 			if (UNIV_UNLIKELY
-			    (!page_cur_tuple_insert(
-				    &page_cur, buf_block_get_page_zip(block),
-				    entry, index, NULL, 0, mtr))) {
+			    (!page_cur_tuple_insert(&page_cur, entry, index,
+						    NULL, 0, mtr))) {
 
 				ulint	space;
 				ulint	page_no;
