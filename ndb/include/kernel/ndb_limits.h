@@ -64,6 +64,8 @@
 #define MAX_NULL_BITS 4096
 #define MAX_FRAGMENT_DATA_BYTES (4+(2 * 8 * MAX_REPLICAS * MAX_NDB_NODES))
 
+#define MAX_WORDS_META_FILE 24576
+
 #define MIN_ATTRBUF ((MAX_ATTRIBUTES_IN_TABLE/24) + 1)
 /*
  * Max Number of Records to fetch per SCAN_NEXTREQ in a scan in LQH. The
