@@ -10152,6 +10152,8 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
     DBUG_RETURN(COMPATIBLE_DATA_NO);
   }
 
+  int pk= 0;
+  int ai= 0;
   for (i= 0; i < table->s->fields; i++) 
   {
     Field *field= table->field[i];
@@ -10167,9 +10169,32 @@ bool ha_ndbcluster::check_if_incompatible_data(HA_CREATE_INFO *info,
       DBUG_PRINT("info", ("add/drop index not supported for disk stored column"));
       DBUG_RETURN(COMPATIBLE_DATA_NO);
     }
+    
+    if (field->flags & PRI_KEY_FLAG)
+      pk=1;
+    if (field->flags & FIELD_IN_ADD_INDEX)
+      ai=1;
   }
   if (table_changes != IS_EQUAL_YES)
     DBUG_RETURN(COMPATIBLE_DATA_NO);
+  
+  /**
+   * Changing from/to primary key
+   *
+   * This is _not_ correct, but check_if_incompatible_data-interface
+   *   doesnt give more info, so I guess that we can't do any
+   *   online add index if not using primary key
+   *
+   *   This as mysql will handle a unique not null index as primary 
+   *     even wo/ user specifiying it... :-(
+   *   
+   */
+  if ((table_share->primary_key == MAX_KEY && pk) ||
+      (table_share->primary_key != MAX_KEY && !pk) ||
+      (table_share->primary_key == MAX_KEY && !pk && ai))
+  {
+    DBUG_RETURN(COMPATIBLE_DATA_NO);
+  }
   
   /* Check that auto_increment value was not changed */
   if ((info->used_fields & HA_CREATE_USED_AUTO) &&
