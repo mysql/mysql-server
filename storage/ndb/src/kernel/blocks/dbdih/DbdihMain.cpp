@@ -8769,14 +8769,17 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	    ConstPtr<ReplicaRecord> constReplicaPtr;
 	    constReplicaPtr.i = replicaPtr.i;
 	    constReplicaPtr.p = replicaPtr.p;
-	    if (setup_create_replica(fragPtr,
+	    if (tabPtr.p->storedTable == 0 ||
+		setup_create_replica(fragPtr,
 				     &createReplica, constReplicaPtr))
 	    {
+	      jam();
 	      removeOldStoredReplica(fragPtr, replicaPtr);
 	      linkStoredReplica(fragPtr, replicaPtr);
 	    }
 	    else
 	    {
+	      jam();
 	      infoEvent("Forcing take-over of node %d due to unsufficient REDO"
 			" for table %d fragment: %d",
 			nodePtr.i, tabPtr.i, i);
