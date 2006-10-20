@@ -862,3 +862,14 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+CREATE TABLE t1 (foo GEOMETRY NOT NULL, SPATIAL INDEX(foo) );
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,1)));
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(1,0)));
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(0,1)));
+INSERT INTO t1 (foo) VALUES (PointFromWKB(POINT(0,0)));
+SELECT 1 FROM t1 WHERE foo != PointFromWKB(POINT(0,0));
+1
+1
+1
+1
+DROP TABLE t1;
