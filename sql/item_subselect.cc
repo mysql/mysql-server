@@ -729,6 +729,7 @@ String *Item_in_subselect::val_str(String *str)
 bool Item_in_subselect::val_bool()
 {
   DBUG_ASSERT(fixed == 1);
+  null_value= 0;
   if (exec())
   {
     reset();
@@ -747,6 +748,7 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
     method should not be used
   */
   DBUG_ASSERT(0);
+  null_value= 0;
   DBUG_ASSERT(fixed == 1);
   if (exec())
   {
