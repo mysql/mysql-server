@@ -1,1 +1,1 @@
---ssl-cert=std_data/server-cert-des.pem --ssl-key=std_data/server-key-des.pem
+--loose_ssl-cert=std_data/server-cert-des.pem --loose_ssl-key=std_data/server-key-des.pem
