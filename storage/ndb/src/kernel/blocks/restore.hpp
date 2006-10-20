@@ -116,6 +116,7 @@ private:
     Uint32 nextList;
     Uint32 prevList;
     Uint32 nextPool;
+    Uint32 m_lcp_no;
 
     bool is_lcp() const { return m_file_type == BackupFormat::LCP_FILE;}
   };
@@ -124,7 +125,7 @@ private:
   Uint32 init_file(const struct RestoreLcpReq*, FilePtr);
   void release_file(FilePtr);
   
-  void open_file(Signal*, FilePtr, Uint32 lcpNo);
+  void open_file(Signal*, FilePtr);
   void read_file(Signal*, FilePtr);
   void restore_next(Signal*, FilePtr);
   void parse_file_header(Signal*, FilePtr, const Uint32*, Uint32 len);

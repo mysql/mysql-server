@@ -242,7 +242,7 @@ Restore::execRESTORE_LCP_REQ(Signal* signal){
       break;
     }
 
-    open_file(signal, file_ptr, req->lcpNo);
+    open_file(signal, file_ptr);
     return;
   } while(0);
 
@@ -265,6 +265,7 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_file_type = BackupFormat::LCP_FILE;
   file_ptr.p->m_status = File::FIRST_READ;
   
+  file_ptr.p->m_lcp_no = req->lcpNo;
   file_ptr.p->m_table_id = req->tableId;
   file_ptr.p->m_fragment_id = req->fragmentId;
   file_ptr.p->m_table_version = RNIL;
@@ -352,7 +353,7 @@ Restore::release_file(FilePtr file_ptr)
 }
 
 void
-Restore::open_file(Signal* signal, FilePtr file_ptr, Uint32 lcpNo)
+Restore::open_file(Signal* signal, FilePtr file_ptr)
 {
   FsOpenReq * req = (FsOpenReq *)signal->getDataPtrSend();
   req->userReference = reference();
@@ -361,7 +362,7 @@ Restore::open_file(Signal* signal, FilePtr file_ptr, Uint32 lcpNo)
   
   FsOpenReq::setVersion(req->fileNumber, 5);
   FsOpenReq::setSuffix(req->fileNumber, FsOpenReq::S_DATA);
-  FsOpenReq::v5_setLcpNo(req->fileNumber, lcpNo);
+  FsOpenReq::v5_setLcpNo(req->fileNumber, file_ptr.p->m_lcp_no);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
   FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
@@ -1216,6 +1217,17 @@ void
 Restore::parse_error(Signal* signal,
 		     FilePtr file_ptr, Uint32 line, Uint32 extra)
 {
+  char buf[255], name[100];
+  BaseString::snprintf(name, sizeof(name), "%u/T%dF%d",
+		       file_ptr.p->m_lcp_no,
+		       file_ptr.p->m_table_id,
+		       file_ptr.p->m_fragment_id);
+  
+  BaseString::snprintf(buf, sizeof(buf),
+		       "Parse error in file: %s, extra: %d",
+		       name, extra);
+  
+  progError(line, NDBD_EXIT_INVALID_LCP_FILE, buf);  
   ndbrequire(false);
 }
 
