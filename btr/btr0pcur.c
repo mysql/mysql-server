@@ -544,7 +544,7 @@ void
 btr_pcur_open_on_user_rec(
 /*======================*/
 	dict_index_t*	index,		/* in: index */
-	dtuple_t*	tuple,		/* in: tuple on which search done */
+	const dtuple_t*	tuple,		/* in: tuple on which search done */
 	ulint		mode,		/* in: PAGE_CUR_L, ... */
 	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF or
 					BTR_MODIFY_LEAF */

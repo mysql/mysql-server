@@ -540,7 +540,7 @@ btr_search_check_guess(
 				protected, not the next or previous record
 				in the chain: we cannot look at the next or
 				previous record to check our guess! */
-	dtuple_t*	tuple,	/* in: data tuple */
+	const dtuple_t*	tuple,	/* in: data tuple */
 	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
 				or PAGE_CUR_GE */
 	mtr_t*		mtr)	/* in: mtr */
@@ -680,7 +680,7 @@ btr_search_guess_on_hash(
 					/* out: TRUE if succeeded */
 	dict_index_t*	index,		/* in: index */
 	btr_search_t*	info,		/* in: index search info */
-	dtuple_t*	tuple,		/* in: logical record */
+	const dtuple_t*	tuple,		/* in: logical record */
 	ulint		mode,		/* in: PAGE_CUR_L, ... */
 	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ...;
 					NOTE that only if has_search_latch

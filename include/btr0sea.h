@@ -60,7 +60,7 @@ btr_search_guess_on_hash(
 					/* out: TRUE if succeeded */
 	dict_index_t*	index,		/* in: index */
 	btr_search_t*	info,		/* in: index search info */
-	dtuple_t*	tuple,		/* in: logical record */
+	const dtuple_t*	tuple,		/* in: logical record */
 	ulint		mode,		/* in: PAGE_CUR_L, ... */
 	ulint		latch_mode,	/* in: BTR_SEARCH_LEAF, ... */
 	btr_cur_t*	cursor,		/* out: tree cursor */

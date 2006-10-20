@@ -187,7 +187,7 @@ trx_undo_report_row_operation(
 					TRX_UNDO_MODIFY_OP */
 	que_thr_t*	thr,		/* in: query thread */
 	dict_index_t*	index,		/* in: clustered index */
-	dtuple_t*	clust_entry,	/* in: in the case of an insert,
+	const dtuple_t*	clust_entry,	/* in: in the case of an insert,
 					index entry to insert into the
 					clustered index, otherwise NULL */
 	upd_t*		update,		/* in: in the case of an update,

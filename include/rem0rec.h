@@ -622,7 +622,7 @@ rec_get_converted_size(
 /*===================*/
 				/* out: size */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	dtuple,	/* in: data tuple */
+	const dtuple_t*	dtuple,	/* in: data tuple */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext);	/* in: number of elements in ext */
 /******************************************************************
@@ -632,7 +632,7 @@ The fields are copied to the memory heap. */
 void
 rec_copy_prefix_to_dtuple(
 /*======================*/
-	dtuple_t*	tuple,		/* in: data tuple */
+	dtuple_t*	tuple,		/* out: data tuple */
 	const rec_t*	rec,		/* in: physical record */
 	dict_index_t*	index,		/* in: record descriptor */
 	ulint		n_fields,	/* in: number of fields to copy */

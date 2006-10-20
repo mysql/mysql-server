@@ -149,7 +149,7 @@ page_cur_search(
 				/* out: number of matched fields on the left */
 	page_t*		page,	/* in: index page */
 	dict_index_t*	index,	/* in: record descriptor */
-	dtuple_t*	tuple,	/* in: data tuple */
+	const dtuple_t*	tuple,	/* in: data tuple */
 	ulint		mode,	/* in: PAGE_CUR_L, PAGE_CUR_LE, PAGE_CUR_G,
 				or PAGE_CUR_GE */
 	page_cur_t*	cursor)	/* out: page cursor */
@@ -182,7 +182,7 @@ page_cur_tuple_insert(
 				otherwise */
 	page_cur_t*	cursor,	/* in: a page cursor */
 	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
-	dtuple_t*	tuple,	/* in: pointer to a data tuple */
+	const dtuple_t*	tuple,	/* in: pointer to a data tuple */
 	dict_index_t*	index,	/* in: record descriptor */
 	const ulint*	ext,	/* in: array of extern field numbers */
 	ulint		n_ext,	/* in: number of elements in ext */

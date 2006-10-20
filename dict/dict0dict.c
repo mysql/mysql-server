@@ -3620,7 +3620,7 @@ dict_index_check_search_tuple(
 /*==========================*/
 				/* out: TRUE if ok */
 	dict_index_t*	index,	/* in: index tree */
-	dtuple_t*	tuple)	/* in: tuple used in a search */
+	const dtuple_t*	tuple)	/* in: tuple used in a search */
 {
 	ut_a(index);
 	ut_a(dtuple_get_n_fields_cmp(tuple)
