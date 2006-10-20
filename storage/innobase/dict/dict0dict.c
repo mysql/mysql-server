@@ -4146,18 +4146,8 @@ dict_print_info_on_foreign_key_in_create_format(
 			      dict_remove_db_name(
 				      foreign->referenced_table_name));
 	} else {
-		/* Look for the '/' in the table name */
-
-		i = 0;
-		while (foreign->referenced_table_name[i] != '/') {
-			i++;
-		}
-
-		ut_print_namel(file, trx, TRUE,
-			       foreign->referenced_table_name, i);
-		putc('.', file);
 		ut_print_name(file, trx, TRUE,
-			      foreign->referenced_table_name + i + 1);
+			      foreign->referenced_table_name);
 	}
 
 	putc(' ', file);
