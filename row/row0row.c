@@ -35,12 +35,13 @@ ulint
 row_get_trx_id_offset(
 /*==================*/
 				/* out: offset of DATA_TRX_ID */
-	rec_t*		rec,	/* in: record */
+	const rec_t*	rec __attribute__((unused)),
+				/* in: record */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
 	ulint	pos;
-	byte*	field;
+	ulint	offset;
 	ulint	len;
 
 	ut_ad(dict_index_is_clust(index));
@@ -48,11 +49,11 @@ row_get_trx_id_offset(
 
 	pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
 
-	field = rec_get_nth_field(rec, offsets, pos, &len);
+	offset = rec_get_nth_field_offs(offsets, pos, &len);
 
 	ut_ad(len == DATA_TRX_ID_LEN);
 
-	return(field - rec);
+	return(offset);
 }
 
 /*********************************************************************
@@ -160,7 +161,7 @@ row_build(
 				data fields on the index page, and thus is
 				more efficient */
 	dict_index_t*	index,	/* in: clustered index */
-	rec_t*		rec,	/* in: record in the clustered index;
+	const rec_t*	rec,	/* in: record in the clustered index;
 				NOTE: in the case ROW_COPY_POINTERS
 				the data fields in the row will point
 				directly into this record, therefore,
@@ -233,7 +234,7 @@ row_build(
 
 			dfield_t*	dfield = dtuple_get_nth_field(
 				row, dict_col_get_no(col));
-			byte*		field = rec_get_nth_field(
+			const byte*	field = rec_get_nth_field(
 				rec, offsets, i, &len);
 
 			dfield_set_data(dfield, field, len);
@@ -276,7 +277,7 @@ row_rec_to_index_entry(
 				heap as the latter only places pointers to
 				data fields on the index page */
 	dict_index_t*	index,	/* in: index */
-	rec_t*		rec,	/* in: record in the index;
+	const rec_t*	rec,	/* in: record in the index;
 				NOTE: in the case ROW_COPY_POINTERS
 				the data fields in the row will point
 				directly into this record, therefore,
@@ -289,7 +290,7 @@ row_rec_to_index_entry(
 	dtuple_t*	entry;
 	dfield_t*	dfield;
 	ulint		i;
-	byte*		field;
+	const byte*	field;
 	ulint		len;
 	ulint		rec_len;
 	byte*		buf;
@@ -354,7 +355,7 @@ row_build_row_ref(
 				heap, whereas the latter only places pointers
 				to data fields on the index page */
 	dict_index_t*	index,	/* in: index */
-	rec_t*		rec,	/* in: record in the index;
+	const rec_t*	rec,	/* in: record in the index;
 				NOTE: in the case ROW_COPY_POINTERS
 				the data fields in the row will point
 				directly into this record, therefore,
@@ -368,7 +369,7 @@ row_build_row_ref(
 	dict_index_t*	clust_index;
 	dfield_t*	dfield;
 	dtuple_t*	ref;
-	byte*		field;
+	const byte*	field;
 	ulint		len;
 	ulint		ref_len;
 	ulint		pos;
@@ -459,7 +460,7 @@ row_build_row_ref_in_tuple(
 	dtuple_t*	ref,	/* in/out: row reference built; see the
 				NOTE below! */
 	dict_index_t*	index,	/* in: index */
-	rec_t*		rec,	/* in: record in the index;
+	const rec_t*	rec,	/* in: record in the index;
 				NOTE: the data fields in ref will point
 				directly into this record, therefore,
 				the buffer page of this record must be
@@ -469,7 +470,7 @@ row_build_row_ref_in_tuple(
 {
 	dict_index_t*	clust_index;
 	dfield_t*	dfield;
-	byte*		field;
+	const byte*	field;
 	ulint		len;
 	ulint		ref_len;
 	ulint		pos;
@@ -656,7 +657,7 @@ row_get_clust_rec(
 /*==============*/
 				/* out: record or NULL, if no record found */
 	ulint		mode,	/* in: BTR_MODIFY_LEAF, ... */
-	rec_t*		rec,	/* in: record in a secondary index */
+	const rec_t*	rec,	/* in: record in a secondary index */
 	dict_index_t*	index,	/* in: secondary index */
 	dict_index_t**	clust_index,/* out: clustered index */
 	mtr_t*		mtr)	/* in: mtr */
@@ -697,7 +698,7 @@ row_search_index_entry(
 /*===================*/
 				/* out: TRUE if found */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry */
+	const dtuple_t*	entry,	/* in: index entry */
 	ulint		mode,	/* in: BTR_MODIFY_LEAF, ... */
 	btr_pcur_t*	pcur,	/* in/out: persistent cursor, which must
 				be closed by the caller */

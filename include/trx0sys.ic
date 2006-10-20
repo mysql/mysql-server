@@ -232,8 +232,8 @@ UNIV_INLINE
 dulint
 trx_read_trx_id(
 /*============*/
-			/* out: id */
-	byte*	ptr)	/* in: pointer to memory from where to read */
+				/* out: id */
+	const byte*	ptr)	/* in: pointer to memory from where to read */
 {
 #if DATA_TRX_ID_LEN != 6
 # error "DATA_TRX_ID_LEN != 6"
