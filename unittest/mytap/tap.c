@@ -26,11 +26,17 @@
 #include <string.h>
 
 /**
+   @defgroup MyTAP_Internal MyTAP Internals
+
+   Internal functions and data structures for the MyTAP implementation.
+*/
+
+/**
    Test data structure.
 
    Data structure containing all information about the test suite.
 
-   @ingroup MyTAP
+   @ingroup MyTAP_Internal
  */
 static TEST_DATA g_test = { 0, 0, 0, "" };
 
@@ -38,6 +44,8 @@ static TEST_DATA g_test = { 0, 0, 0, "" };
    Output stream for test report message.
 
    The macro is just a temporary solution.
+
+   @ingroup MyTAP_Internal
  */
 #define tapout stdout
 
@@ -47,7 +55,7 @@ static TEST_DATA g_test = { 0, 0, 0, "" };
 
   To emit the directive, use the emit_dir() function
 
-  @ingroup MyTAP
+  @ingroup MyTAP_Internal
 
   @see emit_dir
 
@@ -56,7 +64,7 @@ static TEST_DATA g_test = { 0, 0, 0, "" };
   @param ap    Vararg list for the description string above.
  */
 static void
-emit_tap(int pass, char const *fmt, va_list ap)
+vemit_tap(int pass, char const *fmt, va_list ap)
 {
   fprintf(tapout, "%sok %d%s",
           pass ? "" : "not ",
@@ -77,24 +85,29 @@ emit_tap(int pass, char const *fmt, va_list ap)
    not ok 2 # todo some text explaining what remains
    @endcode
 
+   @ingroup MyTAP_Internal
+
    @param dir  Directive as a string
-   @param exp  Explanation string
+   @param why  Explanation string
  */
 static void
-emit_dir(const char *dir, const char *exp)
+emit_dir(const char *dir, const char *why)
 {
-  fprintf(tapout, " # %s %s", dir, exp);
+  fprintf(tapout, " # %s %s", dir, why);
 }
 
 
 /**
    Emit a newline to the TAP output stream.
+
+   @ingroup MyTAP_Internal
  */
 static void
 emit_endl()
 {
   fprintf(tapout, "\n");
 }
+
 
 void
 diag(char const *fmt, ...)
@@ -144,7 +157,7 @@ ok(int const pass, char const *fmt, ...)
   if (!pass && *g_test.todo == '\0')
     ++g_test.failed;
 
-  emit_tap(pass, fmt, ap);
+  vemit_tap(pass, fmt, ap);
   va_end(ap);
   if (*g_test.todo != '\0')
     emit_dir("todo", g_test.todo);
@@ -169,7 +182,7 @@ skip(int how_many, char const *const fmt, ...)
   while (how_many-- > 0)
   {
     va_list ap;
-    emit_tap(1, NULL, ap);
+    vemit_tap(1, NULL, ap);
     emit_dir("skip", reason);
     emit_endl();
   }
@@ -262,7 +275,7 @@ int exit_status() {
    @section UnitTest Writing unit tests
 
    The purpose of writing unit tests is to use them to drive component
-   development towards a solution that the tests.  This means that the
+   development towards a solution that passes the tests.  This means that the
    unit tests has to be as complete as possible, testing at least:
 
    - Normal input
@@ -271,29 +284,240 @@ int exit_status() {
    - Error handling
    - Bad environment
 
-   We will go over each case and explain it in more detail.
+   @subsection NormalSubSec Normal input
 
-   @subsection NormalSSec Normal input
+   This is to test that the component have the expected behaviour.
+   This is just plain simple: test that it works.  For example, test
+   that you can unpack what you packed, adding gives the sum, pincing
+   the duck makes it quack.
 
-   @subsection BorderlineSSec Borderline cases
+   This is what everybody does when they write tests.
 
-   @subsection FaultySSec Faulty input
 
-   @subsection ErrorSSec Error handling
+   @subsection BorderlineTests Borderline cases
 
-   @subsection EnvironmentSSec Environment
+   If you have a size anywhere for your component, does it work for
+   size 1? Size 0? Sizes close to <code>UINT_MAX</code>?
+
+   It might not be sensible to have a size 0, so in this case it is
+   not a borderline case, but rather a faulty input (see @ref
+   FaultyInputTests).
+
+
+   @subsection FaultyInputTests Faulty input
+
+   Does your bitmap handle 0 bits size? Well, it might not be designed
+   for it, but is should <em>not</em> crash the application, but
+   rather produce an error.  This is called defensive programming.
+
+   Unfortunately, adding checks for values that should just not be
+   entered at all is not always practical: the checks cost cycles and
+   might cost more than it's worth.  For example, some functions are
+   designed so that you may not give it a null pointer.  In those
+   cases it's not sensible to pass it <code>NULL</code> just to see it
+   crash.
+
+   Since every experienced programmer add an <code>assert()</code> to
+   ensure that you get a proper failure for the debug builds when a
+   null pointer passed (you add asserts too, right?), you will in this
+   case instead have a controlled (early) crash in the debug build.
+
+
+   @subsection ErrorHandlingTests Error handling
+
+   This is testing that the errors your component is designed to give
+   actually are produced.  For example, testing that trying to open a
+   non-existing file produces a sensible error code.
+
+
+   @subsection BadEnvironmentTests Environment
 
    Sometimes, modules has to behave well even when the environment
-   fails to work correctly.  Typical examples are: out of dynamic
-   memory, disk is full,
+   fails to work correctly.  Typical examples are when the computer is
+   out of dynamic memory or when the disk is full.  You can emulate
+   this by replacing, e.g., <code>malloc()</code> with your own
+   version that will work for a while, but then fail.  Some things are
+   worth to keep in mind here:
 
-   @section UnitTestSec How to structure a unit test
+   - Make sure to make the function fail deterministically, so that
+     you really can repeat the test.
+
+   - Make sure that it doesn't just fail immediately.  The unit might
+     have checks for the first case, but might actually fail some time
+     in the near future.
+
+
+   @section UnitTest How to structure a unit test
 
    In this section we will give some advice on how to structure the
-   unit tests to make the development run smoothly.
+   unit tests to make the development run smoothly.  The basic
+   structure of a test is:
 
-   @subsection PieceSec Test each piece separately
+   - Plan
+   - Test
+   - Report
 
-   Don't test all functions using size 1, then all functions using
-   size 2, etc.
+
+   @subsection TestPlanning Plan the test
+
+   Planning the test means telling how many tests there are.  In the
+   event that one of the tests causes a crash, it is then possible to
+   see that there are fewer tests than expected, and print a proper
+   error message.
+
+   To plan a test, use the @c plan() function in the following manner:
+
+   @code
+   int main(int argc, char *argv[])
+   {
+     plan(5);
+         .
+         .
+         .
+   }
+   @endcode
+
+   If you don't call the @c plan() function, the number of tests
+   executed will be printed at the end.  This is intended to be used
+   while developing the unit and you are constantly adding tests.  It
+   is not indented to be used after the unit has been released.
+
+
+   @subsection TestRunning Execute the test
+
+   To report the status of a test, the @c ok() function is used in the
+   following manner:
+
+   @code
+   int main(int argc, char *argv[])
+   {
+     plan(5);
+     ok(ducks == paddling_ducks,
+        "%d ducks did not paddle", ducks - paddling_ducks);
+             .
+             .
+             .
+   }
+   @endcode
+
+   This will print a test result line on the standard output in TAP
+   format, which allows TAP handling frameworks (like Test::Harness)
+   to parse the status of the test.
+
+   @subsection TestReport  Report the result of the test
+
+   At the end, a complete test report should be written, with some
+   statistics. If the test returns EXIT_SUCCESS, all tests were
+   successfull, otherwise at least one test failed.
+
+   To get a TAP complient output and exit status, report the exit
+   status in the following manner:
+
+   @code
+   int main(int argc, char *argv[])
+   {
+     plan(5);
+     ok(ducks == paddling_ducks,
+        "%d ducks did not paddle", ducks - paddling_ducks);
+             .
+             .
+             .
+     return exit_status();
+   }
+   @endcode
+
+   @section DontDoThis Ways to not do unit testing
+
+   In this section, we'll go through some quite common ways to write
+   tests that are <em>not</em> a good idea.
+
+   @subsection BreadthFirstTests Doing breadth-first testing
+
+   If you're writing a library with several functions, don't test all
+   functions using size 1, then all functions using size 2, etc.  If a
+   test for size 42 fails, you have no easy way of tracking down why
+   it failed.
+
+   It is better to concentrate on getting one function to work at a
+   time, which means that you test each function for all sizes that
+   you think is reasonable.  Then you continue with the next function,
+   doing the same. This is usually also the way that a library is
+   developed (one function at a time) so stick to testing that is
+   appropriate for now the unit is developed.
+
+   @subsection JustToBeSafeTest Writing unnecessarily large tests
+
+   Don't write tests that use parameters in the range 1-1024 unless
+   you have a very good reason to belive that the component will
+   succeed for 562 but fail for 564 (the numbers picked are just
+   examples).
+
+   It is very common to write extensive tests "just to be safe."
+   Having a test suite with a lot of values might give you a warm
+   fuzzy feeling, but it doesn't really help you find the bugs.  Good
+   tests fail; seriously, if you write a test that you expect to
+   succeed, you don't need to write it.  If you think that it
+   <em>might</em> fail, <em>then</em> you should write it.
+
+   Don't take this as an excuse to avoid writing any tests at all
+   "since I make no mistakes" (when it comes to this, there are two
+   kinds of people: those who admit they make mistakes, and those who
+   don't); rather, this means that there is no reason to test that
+   using a buffer with size 100 works when you have a test for buffer
+   size 96.
+
+   The drawback is that the test suite takes longer to run, for little
+   or no benefit.  It is acceptable to do a exhaustive test if it
+   doesn't take too long to run and it is quite common to do an
+   exhaustive test of a function for a small set of values.
+   Use your judgment to decide what is excessive: your milage may
+   vary.
+*/
+
+/**
+   @example simple.t.c
+
+   This is an simple example of how to write a test using the
+   library.  The output of this program is:
+
+   @code
+   1..1
+   # Testing basic functions
+   ok 1 - Testing gcs()
+   @endcode
+
+   The basic structure is: plan the number of test points using the
+   plan() function, perform the test and write out the result of each
+   test point using the ok() function, print out a diagnostics message
+   using diag(), and report the result of the test by calling the
+   exit_status() function.  Observe that this test does excessive
+   testing (see @ref JustToBeSafeTest), but the test point doesn't
+   take very long time.
+*/
+
+/**
+   @example todo.t.c
+
+   This example demonstrates how to use the <code>todo_start()</code>
+   and <code>todo_end()</code> function to mark a sequence of tests to
+   be done.  Observe that the tests are assumed to fail: if any test
+   succeeds, it is considered a "bonus".
+*/
+
+/**
+   @example skip.t.c
+
+   This is an example of how the <code>SKIP_BLOCK_IF</code> can be
+   used to skip a predetermined number of tests. Observe that the
+   macro actually skips the following statement, but it's not sensible
+   to use anything than a block.
+*/
+
+/**
+   @example skip_all.t.c
+
+   Sometimes, you skip an entire test because it's testing a feature
+   that doesn't exist on the system that you're testing. To skip an
+   entire test, use the <code>skip_all()</code> function according to
+   this example.
  */
