@@ -581,16 +581,18 @@ UNIV_INLINE
 ulint
 buf_block_get_space(
 /*================*/
-				/* out: space id */
-	buf_block_t*	block);	/* in: pointer to the control block */
+					/* out: space id */
+	const buf_block_t*	block)	/* in: pointer to the control block */
+	__attribute((const));
 /*************************************************************************
 Gets the page number of a block. */
 UNIV_INLINE
 ulint
 buf_block_get_page_no(
 /*==================*/
-				/* out: page number */
-	buf_block_t*	block);	/* in: pointer to the control block */
+					/* out: page number */
+	const buf_block_t*	block)	/* in: pointer to the control block */
+	__attribute((const));
 /*************************************************************************
 Gets the compressed page size of a block. */
 UNIV_INLINE

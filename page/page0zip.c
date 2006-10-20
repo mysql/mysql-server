@@ -89,7 +89,8 @@ page_zip_dir_size(
 {
 	/* Exclude the page infimum and supremum from the record count. */
 	ulint	size = PAGE_ZIP_DIR_SLOT_SIZE
-		* (page_dir_get_n_heap(page_zip->data) - 2);
+		* (page_dir_get_n_heap(page_zip->data)
+		   - PAGE_HEAP_NO_USER_LOW);
 	return(size);
 }
 
@@ -217,9 +218,9 @@ page_zip_compress_write_log(
 		return;
 	}
 
-	/* Read the number of user records.
-	Subtract 2 for the infimum and supremum records. */
-	trailer_size = page_dir_get_n_heap(page_zip->data) - 2;
+	/* Read the number of user records. */
+	trailer_size = page_dir_get_n_heap(page_zip->data)
+		- PAGE_HEAP_NO_USER_LOW;
 	/* Multiply by uncompressed of size stored per record */
 	if (!page_is_leaf(page)) {
 		trailer_size *= PAGE_ZIP_DIR_SLOT_SIZE + REC_NODE_PTR_SIZE;
@@ -284,8 +285,8 @@ page_zip_get_n_prev_extern(
 	ut_ad(dict_index_is_clust(index));
 
 	heap_no = rec_get_heap_no_new(rec);
-	ut_ad(heap_no >= 2);	/* exclude infimum and supremum */
-	left = heap_no - 2;
+	ut_ad(heap_no >= PAGE_HEAP_NO_USER_LOW);
+	left = heap_no - PAGE_HEAP_NO_USER_LOW;
 	if (UNIV_UNLIKELY(!left)) {
 		return(0);
 	}
@@ -512,7 +513,7 @@ page_zip_dir_encode(
 		}
 		rec = page + offs;
 		heap_no = rec_get_heap_no_new(rec);
-		ut_a(heap_no >= 2); /* not infimum or supremum */
+		ut_a(heap_no >= PAGE_HEAP_NO_USER_LOW);
 		ut_a(heap_no < n_heap);
 		ut_a(offs < UNIV_PAGE_SIZE - PAGE_DIR);
 		ut_a(offs >= PAGE_ZIP_START);
@@ -537,9 +538,9 @@ page_zip_dir_encode(
 
 		if (UNIV_LIKELY_NULL(recs)) {
 			/* Ensure that each heap_no occurs at most once. */
-			ut_a(!recs[heap_no - 2]);
+			ut_a(!recs[heap_no - PAGE_HEAP_NO_USER_LOW]);
 			/* exclude infimum and supremum */
-			recs[heap_no - 2] = rec;
+			recs[heap_no - PAGE_HEAP_NO_USER_LOW] = rec;
 		}
 
 		ut_a(rec_get_status(rec) == status);
@@ -553,7 +554,7 @@ page_zip_dir_encode(
 		rec = page + offs;
 
 		heap_no = rec_get_heap_no_new(rec);
-		ut_a(heap_no >= 2); /* not infimum or supremum */
+		ut_a(heap_no >= PAGE_HEAP_NO_USER_LOW);
 		ut_a(heap_no < n_heap);
 
 		ut_a(!rec[-REC_N_NEW_EXTRA_BYTES]); /* info_bits and n_owned */
@@ -563,16 +564,16 @@ page_zip_dir_encode(
 
 		if (UNIV_LIKELY_NULL(recs)) {
 			/* Ensure that each heap_no occurs at most once. */
-			ut_a(!recs[heap_no - 2]);
+			ut_a(!recs[heap_no - PAGE_HEAP_NO_USER_LOW]);
 			/* exclude infimum and supremum */
-			recs[heap_no - 2] = rec;
+			recs[heap_no - PAGE_HEAP_NO_USER_LOW] = rec;
 		}
 
 		offs = rec_get_next_offs(rec, TRUE);
 	}
 
 	/* Ensure that each heap no occurs at least once. */
-	ut_a(i + 2/* infimum and supremum */ == n_heap);
+	ut_a(i + PAGE_HEAP_NO_USER_LOW == n_heap);
 }
 
 /**************************************************************************
@@ -963,7 +964,7 @@ page_zip_compress(
 	}
 
 	/* The dense directory excludes the infimum and supremum records. */
-	n_dense = page_dir_get_n_heap(page) - 2;
+	n_dense = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
 		fprintf(stderr, "compress %p %p %lu %lu %lu\n",
@@ -1421,7 +1422,7 @@ page_zip_set_extra_bytes(
 	page[PAGE_NEW_SUPREMUM - REC_N_NEW_EXTRA_BYTES] = n_owned;
 
 	/* The dense directory excludes the infimum and supremum records. */
-	n = page_dir_get_n_heap(page) - 2;
+	n = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
 
 	if (i >= n) {
 
@@ -1467,7 +1468,8 @@ page_zip_apply_log(
 	const byte*	data,	/* in: modification log */
 	ulint		size,	/* in: maximum length of the log, in bytes */
 	rec_t**		recs,	/* in: dense page directory,
-				sorted by address (indexed by heap_no - 2) */
+				sorted by address (indexed by
+				heap_no - PAGE_HEAP_NO_USER_LOW) */
 	ulint		n_dense,/* in: size of recs[] */
 	ulint		trx_id_col,/* in: column number of trx_id in the index,
 				or ULINT_UNDEFINED if none */
@@ -1646,7 +1648,7 @@ page_zip_decompress_node_ptrs(
 	mem_heap_t*	heap)		/* in: temporary memory heap */
 {
 	ulint		heap_status = REC_STATUS_NODE_PTR
-		| 2 << REC_HEAP_NO_SHIFT;
+		| PAGE_HEAP_NO_USER_LOW << REC_HEAP_NO_SHIFT;
 	ulint		slot;
 	const byte*	storage;
 
@@ -1811,7 +1813,8 @@ page_zip_decompress_sec(
 	dict_index_t*	index,		/* in: the index of the page */
 	ulint*		offsets)	/* in/out: temporary offsets */
 {
-	ulint	heap_status	= REC_STATUS_ORDINARY | 2 << REC_HEAP_NO_SHIFT;
+	ulint	heap_status	= REC_STATUS_ORDINARY
+		| PAGE_HEAP_NO_USER_LOW << REC_HEAP_NO_SHIFT;
 	ulint	slot;
 
 	/* Subtract the space reserved for uncompressed data. */
@@ -1935,7 +1938,7 @@ page_zip_decompress_clust(
 	int		err;
 	ulint		slot;
 	ulint		heap_status	= REC_STATUS_ORDINARY
-		| 2 << REC_HEAP_NO_SHIFT;
+		| PAGE_HEAP_NO_USER_LOW << REC_HEAP_NO_SHIFT;
 	const byte*	storage;
 	const byte*	externs;
 
@@ -2225,7 +2228,7 @@ page_zip_decompress(
 	ut_ad(page_zip_simple_validate(page_zip));
 
 	/* The dense directory excludes the infimum and supremum records. */
-	n_dense = page_dir_get_n_heap(page_zip->data) - 2;
+	n_dense = page_dir_get_n_heap(page_zip->data) - PAGE_HEAP_NO_USER_LOW;
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 			  >= page_zip->size)) {
 		return(FALSE);
@@ -2508,7 +2511,7 @@ page_zip_write_rec(
 	      * page_dir_get_n_slots(page));
 
 	heap_no = rec_get_heap_no_new(rec);
-	ut_ad(heap_no >= 2); /* not infimum or supremum */
+	ut_ad(heap_no >= PAGE_HEAP_NO_USER_LOW); /* not infimum or supremum */
 	ut_ad(heap_no < page_dir_get_n_heap(page));
 
 	/* Append to the modification log. */
@@ -2542,7 +2545,7 @@ page_zip_write_rec(
 
 	/* Write the data bytes.  Store the uncompressed bytes separately. */
 	storage = page_zip->data + page_zip->size
-		- (page_dir_get_n_heap(page) - 2)
+		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
 		* PAGE_ZIP_DIR_SLOT_SIZE;
 
 	if (page_is_leaf(page)) {
@@ -2560,7 +2563,8 @@ page_zip_write_rec(
 			ut_ad(trx_id_col != ULINT_UNDEFINED);
 
 			externs -= (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)
-				* (page_dir_get_n_heap(page) - 2);
+				* (page_dir_get_n_heap(page)
+				   - PAGE_HEAP_NO_USER_LOW);
 
 			/* Note that this will not take into account
 			the BLOB columns of rec if create==TRUE */
@@ -2681,7 +2685,7 @@ page_zip_write_rec(
 		/* Copy the data bytes, except node_ptr. */
 		len = rec_offs_data_size(offsets) - REC_NODE_PTR_SIZE;
 		ut_ad(data + len < storage - REC_NODE_PTR_SIZE
-		      * (page_dir_get_n_heap(page) - 2));
+		      * (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW));
 		ut_ad(!memcmp(data, zero, ut_min(len, sizeof zero)));
 		memcpy(data, rec, len);
 		data += len;
@@ -2801,9 +2805,8 @@ page_zip_write_blob_ptr(
 		+ rec_get_n_extern_new(rec, index, n);
 	ut_a(blob_no < page_zip->n_blobs);
 
-	/* The heap number of the first user record is 2. */
 	externs = page_zip->data + page_zip->size
-		- (page_dir_get_n_heap(page) - 2)
+		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
 		* (PAGE_ZIP_DIR_SLOT_SIZE
 		   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 
@@ -2891,13 +2894,13 @@ corrupt:
 		storage = page_zip->data + z_offset;
 
 		storage_end = page_zip->data + page_zip->size
-			- (page_dir_get_n_heap(page) - 2)
+			- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
 			* PAGE_ZIP_DIR_SLOT_SIZE;
 
 		heap_no = 1 + (storage_end - storage) / REC_NODE_PTR_SIZE;
 
 		if (UNIV_UNLIKELY((storage_end - storage) % REC_NODE_PTR_SIZE)
-		    || UNIV_UNLIKELY(heap_no < 2)
+		    || UNIV_UNLIKELY(heap_no < PAGE_HEAP_NO_USER_LOW)
 		    || UNIV_UNLIKELY(heap_no >= page_dir_get_n_heap(page))) {
 
 			goto corrupt;
@@ -2941,9 +2944,8 @@ page_zip_write_node_ptr(
 
 	ut_ad(!page_is_leaf(page));
 
-	/* The heap number of the first user record is 2. */
 	storage = page_zip->data + page_zip->size
-		- (page_dir_get_n_heap(page) - 2)
+		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
 		* PAGE_ZIP_DIR_SLOT_SIZE
 		- (rec_get_heap_no_new(rec) - 1) * REC_NODE_PTR_SIZE;
 	field = rec + size - REC_NODE_PTR_SIZE;
@@ -3006,9 +3008,8 @@ page_zip_write_trx_id_and_roll_ptr(
 
 	ut_ad(page_is_leaf(page));
 
-	/* The heap number of the first user record is 2. */
 	storage = page_zip->data + page_zip->size
-		- (page_dir_get_n_heap(page) - 2)
+		- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
 		* PAGE_ZIP_DIR_SLOT_SIZE
 		- (rec_get_heap_no_new(rec) - 1)
 		* (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
@@ -3065,7 +3066,7 @@ page_zip_clear_rec(
 	ut_ad(page_zip_header_cmp(page_zip, page));
 
 	heap_no = rec_get_heap_no_new(rec);
-	ut_ad(heap_no >= 2); /* exclude infimum and supremum */
+	ut_ad(heap_no >= PAGE_HEAP_NO_USER_LOW);
 
 	if (
 #ifdef UNIV_ZIP_DEBUG
@@ -3084,7 +3085,8 @@ page_zip_clear_rec(
 		if (!page_is_leaf(page)) {
 			/* Clear node_ptr on the compressed page. */
 			byte*	storage	= page_zip->data + page_zip->size
-				- (page_dir_get_n_heap(page) - 2)
+				- (page_dir_get_n_heap(page)
+				   - PAGE_HEAP_NO_USER_LOW)
 				* PAGE_ZIP_DIR_SLOT_SIZE;
 
 			memset(storage - (heap_no - 1) * REC_NODE_PTR_SIZE,
@@ -3092,7 +3094,8 @@ page_zip_clear_rec(
 		} else if (dict_index_is_clust(index)) {
 			/* Clear trx_id and roll_ptr on the compressed page. */
 			byte*	storage	= page_zip->data + page_zip->size
-				- (page_dir_get_n_heap(page) - 2)
+				- (page_dir_get_n_heap(page)
+				   - PAGE_HEAP_NO_USER_LOW)
 				* PAGE_ZIP_DIR_SLOT_SIZE;
 
 			memset(storage - (heap_no - 1)
@@ -3214,9 +3217,9 @@ page_zip_dir_insert(
 		ut_a(slot_rec);
 	}
 
-	/* Read the old n_dense (n_heap may have been incremented).
-	Subtract 2 for the infimum and supremum records. */
-	n_dense = page_dir_get_n_heap(page_zip->data) - 3;
+	/* Read the old n_dense (n_heap may have been incremented). */
+	n_dense = page_dir_get_n_heap(page_zip->data)
+		- (PAGE_HEAP_NO_USER_LOW + 1);
 
 	if (UNIV_LIKELY_NULL(free_rec)) {
 		/* The record was allocated from the free list.
@@ -3225,7 +3228,7 @@ page_zip_dir_insert(
 		off by one, because page_cur_insert_rec_low()
 		did not increment n_heap. */
 		ut_ad(rec_get_heap_no_new(rec) < n_dense + 1
-		      + 2/* infimum and supremum */);
+		      + PAGE_HEAP_NO_USER_LOW);
 		ut_ad(rec >= free_rec);
 		slot_free = page_zip_dir_find(page_zip, page_offset(free_rec));
 		ut_ad(slot_free);
@@ -3234,7 +3237,7 @@ page_zip_dir_insert(
 		/* The record was allocated from the heap.
 		Shift the entire dense directory. */
 		ut_ad(rec_get_heap_no_new(rec) == n_dense
-		      + 2/* infimum and supremum */);
+		      + PAGE_HEAP_NO_USER_LOW);
 
 		/* Shift to the end of the dense page directory. */
 		slot_free = page_zip->data + page_zip->size
@@ -3283,7 +3286,8 @@ page_zip_dir_delete(
 		/* Make the last slot the start of the free list. */
 		slot_free = page_zip->data + page_zip->size
 			- PAGE_ZIP_DIR_SLOT_SIZE
-			* (page_dir_get_n_heap(page_zip->data) - 2);
+			* (page_dir_get_n_heap(page_zip->data)
+			   - PAGE_HEAP_NO_USER_LOW);
 	} else {
 		slot_free = page_zip_dir_find_free(page_zip,
 						   page_offset(free));
@@ -3318,7 +3322,7 @@ page_zip_dir_delete(
 		ut_a(blob_no + n_ext <= page_zip->n_blobs);
 
 		externs = page_zip->data + page_zip->size
-			- (page_dir_get_n_heap(page) - 2)
+			- (page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW)
 			* (PAGE_ZIP_DIR_SLOT_SIZE
 			   + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
 
@@ -3358,9 +3362,9 @@ page_zip_dir_add_slot(
 
 	ut_ad(page_is_comp(page_zip->data));
 
-	/* Read the old n_dense (n_heap has already been incremented).
-	Subtract 2 for the infimum and supremum records. */
-	n_dense = page_dir_get_n_heap(page_zip->data) - 3;
+	/* Read the old n_dense (n_heap has already been incremented). */
+	n_dense = page_dir_get_n_heap(page_zip->data)
+		- (PAGE_HEAP_NO_USER_LOW + 1);
 
 	dir = page_zip->data + page_zip->size
 		- PAGE_ZIP_DIR_SLOT_SIZE * n_dense;
@@ -3536,7 +3540,8 @@ page_zip_reorganize(
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
 
-	page_copy_rec_list_end_no_locks(page, page_get_infimum_rec(temp_page),
+	page_copy_rec_list_end_no_locks(block, temp_block,
+					page_get_infimum_rec(temp_page),
 					index, mtr);
 	/* Copy max trx id to recreated page */
 	page_set_max_trx_id(page, NULL, page_get_max_trx_id(temp_page));

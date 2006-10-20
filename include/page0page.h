@@ -100,6 +100,14 @@ typedef	byte		page_header_t;
 				a new-style compact page */
 /*-----------------------------*/
 
+/* Heap numbers */
+#define PAGE_HEAP_NO_INFIMUM	0	/* page infimum */
+#define PAGE_HEAP_NO_SUPREMUM	1	/* page supremum */
+#define PAGE_HEAP_NO_USER_LOW	2	/* first user record in
+					creation (insertion) order,
+					not necessarily collation order;
+					this record may have been deleted */
+
 /* Directions of cursor movement */
 #define	PAGE_LEFT		1
 #define	PAGE_RIGHT		2
@@ -681,7 +689,8 @@ touch the lock table and max trx id on page or compress the page. */
 void
 page_copy_rec_list_end_no_locks(
 /*============================*/
-	page_t*		new_page,	/* in: index page to copy to */
+	buf_block_t*	new_block,	/* in: index page to copy to */
+	buf_block_t*	block,		/* in: index page of rec */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr);		/* in: mtr */
@@ -696,9 +705,9 @@ page_copy_rec_list_end(
 					/* out: pointer to the original
 					successor of the infimum record
 					on new_page, or NULL on zip overflow
-					(new_page will be decompressed
-					from new_page_zip) */
+					(new_block will be decompressed) */
 	buf_block_t*	new_block,	/* in/out: index page to copy to */
+	buf_block_t*	block,		/* in: index page containing rec */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
@@ -714,9 +723,9 @@ page_copy_rec_list_start(
 					/* out: pointer to the original
 					predecessor of the supremum record
 					on new_page, or NULL on zip overflow
-					(new_page will be decompressed
-					from new_page_zip) */
+					(new_block will be decompressed) */
 	buf_block_t*	new_block,	/* in/out: index page to copy to */
+	buf_block_t*	block,		/* in: index page containing rec */
 	rec_t*		rec,		/* in: record on page */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
@@ -729,15 +738,15 @@ void
 page_delete_rec_list_end(
 /*=====================*/
 	rec_t*		rec,	/* in: pointer to record on page */
+	buf_block_t*	block,	/* in: buffer block of the page */
 	dict_index_t*	index,	/* in: record descriptor */
 	ulint		n_recs,	/* in: number of records to delete,
 				or ULINT_UNDEFINED if not known */
 	ulint		size,	/* in: the sum of the sizes of the
 				records in the end of the chain to
 				delete, or ULINT_UNDEFINED if not known */
-	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	mtr_t*		mtr)	/* in: mtr */
-	__attribute__((nonnull(1, 2, 6)));
+	__attribute__((nonnull));
 /*****************************************************************
 Deletes records from page, up to the given record, NOT including
 that record. Infimum and supremum records are not deleted. */
@@ -746,10 +755,10 @@ void
 page_delete_rec_list_start(
 /*=======================*/
 	rec_t*		rec,	/* in: record on page */
+	buf_block_t*	block,	/* in: buffer block of the page */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_zip_des_t*	page_zip,/* in/out: compressed page of rec, or NULL */
 	mtr_t*		mtr)	/* in: mtr */
-	__attribute__((nonnull(1, 2, 4)));
+	__attribute__((nonnull));
 /*****************************************************************
 Moves record list end to another page. Moved records include
 split_rec. */
@@ -758,12 +767,11 @@ ibool
 page_move_rec_list_end(
 /*===================*/
 					/* out: TRUE on success; FALSE on
-					compression failure (new_page will
-					be decompressed from new_page_zip) */
+					compression failure
+					(new_block will be decompressed) */
 	buf_block_t*	new_block,	/* in/out: index page where to move */
+	buf_block_t*	block,		/* in: index page from where to move */
 	rec_t*		split_rec,	/* in: first record to move */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page of
-					split_rec, or NULL */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
 	__attribute__((nonnull(1, 2, 4, 5)));
@@ -777,9 +785,8 @@ page_move_rec_list_start(
 					/* out: TRUE on success; FALSE on
 					compression failure */
 	buf_block_t*	new_block,	/* in/out: index page where to move */
+	buf_block_t*	block,		/* in/out: page containing split_rec */
 	rec_t*		split_rec,	/* in: first record not to move */
-	page_zip_des_t*	page_zip,	/* in/out: compressed page of
-					split_rec, or NULL */
 	dict_index_t*	index,		/* in: record descriptor */
 	mtr_t*		mtr)		/* in: mtr */
 	__attribute__((nonnull(1, 2, 4, 5)));
@@ -820,9 +827,8 @@ page_parse_delete_rec_list(
 				MLOG_COMP_LIST_START_DELETE */
 	byte*		ptr,	/* in: buffer */
 	byte*		end_ptr,/* in: buffer end */
+	buf_block_t*	block,	/* in/out: buffer block or NULL */
 	dict_index_t*	index,	/* in: record descriptor */
-	page_t*		page,	/* in/out: page or NULL */
-	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /***************************************************************
 Parses a redo log record of creating a page. */
@@ -874,7 +880,7 @@ debugging purposes. */
 void
 page_print_list(
 /*============*/
-	page_t*		page,	/* in: index page */
+	buf_block_t*	block,	/* in: index page */
 	dict_index_t*	index,	/* in: dictionary index of the page */
 	ulint		pr_n);	/* in: print n first and n last entries */
 /*******************************************************************
@@ -883,7 +889,7 @@ Prints the info in a page header. */
 void
 page_header_print(
 /*==============*/
-	page_t*	page);
+	const page_t*	page);
 /*******************************************************************
 This is used to print the contents of the page for
 debugging purposes. */
@@ -891,7 +897,7 @@ debugging purposes. */
 void
 page_print(
 /*=======*/
-	page_t*		page,	/* in: index page */
+	buf_block_t*	block,	/* in: index page */
 	dict_index_t*	index,	/* in: dictionary index of the page */
 	ulint		dn,	/* in: print dn first and last entries
 				in directory */
@@ -936,7 +942,7 @@ ibool
 page_simple_validate_new(
 /*=====================*/
 			/* out: TRUE if ok */
-	page_t*	page);	/* in: new-style index page */
+	page_t*	block);	/* in: new-style index page */
 /*******************************************************************
 This function checks the consistency of an index page. */
 
@@ -950,12 +956,12 @@ page_validate(
 /*******************************************************************
 Looks in the page record list for a record with the given heap number. */
 
-rec_t*
+const rec_t*
 page_find_rec_with_heap_no(
 /*=======================*/
-			/* out: record, NULL if not found */
-	page_t*	page,	/* in: index page */
-	ulint	heap_no);/* in: heap number */
+				/* out: record, NULL if not found */
+	const page_t*	page,	/* in: index page */
+	ulint		heap_no);/* in: heap number */
 
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE

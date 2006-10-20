@@ -803,8 +803,7 @@ recv_parse_or_apply_log_rec_body(
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
 			ptr = page_cur_parse_insert_rec(FALSE, ptr, end_ptr,
-							index,
-							page, page_zip, mtr);
+							block, index, mtr);
 		}
 		break;
 	case MLOG_REC_CLUST_DELETE_MARK: case MLOG_COMP_REC_CLUST_DELETE_MARK:
@@ -856,8 +855,7 @@ recv_parse_or_apply_log_rec_body(
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
 			ptr = page_parse_delete_rec_list(type, ptr, end_ptr,
-							 index, page,
-							 page_zip, mtr);
+							 block, index, mtr);
 		}
 		break;
 	case MLOG_LIST_END_COPY_CREATED: case MLOG_COMP_LIST_END_COPY_CREATED:
@@ -869,7 +867,7 @@ recv_parse_or_apply_log_rec_body(
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
 			ptr = page_parse_copy_rec_list_to_created_page(
-				ptr, end_ptr, index, page, page_zip, mtr);
+				ptr, end_ptr, block, index, mtr);
 		}
 		break;
 	case MLOG_PAGE_REORGANIZE: case MLOG_COMP_PAGE_REORGANIZE:
@@ -925,8 +923,8 @@ recv_parse_or_apply_log_rec_body(
 			ut_a(!page
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
-			ptr = page_cur_parse_delete_rec(ptr, end_ptr, index,
-							page, page_zip, mtr);
+			ptr = page_cur_parse_delete_rec(ptr, end_ptr,
+							block, index, mtr);
 		}
 		break;
 	case MLOG_IBUF_BITMAP_INIT:

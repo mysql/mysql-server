@@ -1276,23 +1276,17 @@ parameters as page (this often happens when a page is split). */
 void
 btr_search_move_or_delete_hash_entries(
 /*===================================*/
-	page_t*		new_page,	/* in: records are copied
+	buf_block_t*	new_block,	/* in: records are copied
 					to this page */
-	page_t*		page,		/* in: index page from which
+	buf_block_t*	block,		/* in: index page from which
 					records were copied, and the
 					copied records will be deleted
 					from this page */
 	dict_index_t*	index)		/* in: record descriptor */
 {
-	buf_block_t*	block;
-	buf_block_t*	new_block;
-	ulint		n_fields;
-	ulint		n_bytes;
-	ibool		left_side;
-
-	block = buf_block_align(page);
-	new_block = buf_block_align(new_page);
-	ut_a(page_is_comp(page) == page_is_comp(new_page));
+	ulint	n_fields;
+	ulint	n_bytes;
+	ibool	left_side;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
@@ -1328,11 +1322,9 @@ btr_search_move_or_delete_hash_entries(
 
 		btr_search_build_page_hash_index(index, new_block, n_fields,
 						 n_bytes, left_side);
-#if 1 /* TODO: safe to remove? */
-		ut_a(n_fields == block->curr_n_fields);
-		ut_a(n_bytes == block->curr_n_bytes);
-		ut_a(left_side == block->curr_left_side);
-#endif
+		ut_ad(n_fields == block->curr_n_fields);
+		ut_ad(n_bytes == block->curr_n_bytes);
+		ut_ad(left_side == block->curr_left_side);
 		return;
 	}
 

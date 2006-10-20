@@ -595,9 +595,6 @@ to know struct size! */
 struct btr_cur_struct {
 	dict_index_t*	index;		/* index where positioned */
 	page_cur_t	page_cur;	/* page cursor */
-	buf_block_t*	page_block;	/* buffer pool block were
-					cursor is positioned; needed
-					to avoid buf_block_align() */
 	buf_block_t*	left_block;	/* this field is used to store
 					a pointer to the left neighbor
 					page, in the cases
