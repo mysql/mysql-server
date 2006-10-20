@@ -115,6 +115,12 @@ my_bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append,
   return FALSE;
 }
 
+my_bool dynstr_trunc(DYNAMIC_STRING *str, int n)
+{
+  str->length-=n;
+  str->str[str->length]= '\0';
+  return FALSE;
+}
 
 void dynstr_free(DYNAMIC_STRING *str)
 {
