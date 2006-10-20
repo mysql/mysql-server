@@ -68,6 +68,8 @@
 #define MAX_RANGE_DATA (131072+MAX_NDB_PARTITIONS) //0.5 MByte of list data
 #define MAX_WORDS_META_FILE 16382
 
+#define MAX_WORDS_META_FILE 24576
+
 #define MIN_ATTRBUF ((MAX_ATTRIBUTES_IN_TABLE/24) + 1)
 /*
  * Max Number of Records to fetch per SCAN_NEXTREQ in a scan in LQH. The
