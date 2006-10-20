@@ -1323,7 +1323,9 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 			"%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
 	}
 	else
-	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip);
+	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ? 
+                                      tmp_sctx->host_or_ip : 
+                                      tmp_sctx->host ? tmp_sctx->host : "");
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
