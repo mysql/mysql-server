@@ -2702,8 +2702,8 @@ lock_move_reorganize_page(
 		update of a record is occurring on the page, and its locks
 		were temporarily stored on the infimum */
 
-		page_cur_set_before_first(page, &cur1);
-		page_cur_set_before_first(old_page, &cur2);
+		page_cur_set_before_first(buf_block_align(page), &cur1);
+		page_cur_set_before_first(buf_block_align(old_page), &cur2);
 
 		/* Set locks according to old locks */
 		for (;;) {
@@ -2798,13 +2798,13 @@ lock_move_rec_list_end(
 
 	while (lock != NULL) {
 
-		page_cur_position(rec, &cur1);
+		page_cur_position(rec, buf_block_align(rec), &cur1);
 
 		if (page_cur_is_before_first(&cur1)) {
 			page_cur_move_to_next(&cur1);
 		}
 
-		page_cur_set_before_first(new_page, &cur2);
+		page_cur_set_before_first(buf_block_align(new_page), &cur2);
 		page_cur_move_to_next(&cur2);
 
 		/* Copy lock requests on user records to new page and
@@ -2894,10 +2894,10 @@ lock_move_rec_list_start(
 
 	while (lock != NULL) {
 
-		page_cur_set_before_first(page, &cur1);
+		page_cur_set_before_first(buf_block_align(page), &cur1);
 		page_cur_move_to_next(&cur1);
 
-		page_cur_position(old_end, &cur2);
+		page_cur_position(old_end, buf_block_align(old_end), &cur2);
 		page_cur_move_to_next(&cur2);
 
 		/* Copy lock requests on user records to new page and
@@ -4302,7 +4302,7 @@ lock_rec_print(
 			fprintf(file, "Record lock, heap no %lu ", (ulong) i);
 
 			if (block) {
-				rec_t*	rec
+				const rec_t*	rec
 					= page_find_rec_with_heap_no(
 						buf_block_get_frame(block), i);
 				offsets = rec_get_offsets(
