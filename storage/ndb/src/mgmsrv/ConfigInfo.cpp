@@ -3307,7 +3307,31 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *){
   } else {
     ctx.m_userProperties.put("NoOfReplicas", replicas);
   }
+
+  /**
+   * In kernel, will calculate the MaxNoOfMeataTables use the following sum:
+   * Uint32 noOfMetaTables = noOfTables + noOfOrderedIndexes + 
+   *                         noOfUniqueHashIndexes + 2
+   * 2 is the number of the SysTables.
+   * So must check that the sum does't exceed the max value of Uint32.
+   */
+  Uint32 noOfTables = 0,
+         noOfOrderedIndexes = 0,
+         noOfUniqueHashIndexes = 0;
+  ctx.m_currentSection->get("MaxNoOfTables", &noOfTables);
+  ctx.m_currentSection->get("MaxNoOfOrderedIndexes", &noOfOrderedIndexes);
+  ctx.m_currentSection->get("MaxNoOfUniqueHashIndexes", &noOfUniqueHashIndexes);
+
+  Uint64 sum= (Uint64)noOfTables + noOfOrderedIndexes + noOfUniqueHashIndexes;
   
+  if (sum > ((Uint32)~0 - 2)) {
+    ctx.reportError("The sum of MaxNoOfTables, MaxNoOfOrderedIndexes and"
+		    " MaxNoOfUniqueHashIndexes must not exceed %u - [%s]"
+                    " starting at line: %d",
+		    ((Uint32)~0 - 2), ctx.fname, ctx.m_sectionLineno);
+    return false;
+  } 
+
   return true;
 }
 
