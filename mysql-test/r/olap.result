@@ -541,3 +541,18 @@ a	max(b)
 NULL	2
 a	1
 drop table t1;
+create table t1 (a varchar(22) not null , b int);
+insert into t1 values ("2006-07-01 21:30", 1), ("2006-07-01 23:30", 10);
+select left(a,10), a, sum(b) from t1 group by 1,2 with rollup;
+left(a,10)	a	sum(b)
+2006-07-01	2006-07-01 21:30	1
+2006-07-01	2006-07-01 23:30	10
+2006-07-01	NULL	11
+NULL	NULL	11
+select left(a,10) x, a, sum(b) from t1 group by x,a with rollup;
+x	a	sum(b)
+2006-07-01	2006-07-01 21:30	1
+2006-07-01	2006-07-01 23:30	10
+2006-07-01	NULL	11
+NULL	NULL	11
+drop table t1;
