@@ -36,17 +36,17 @@ static File_option triggers_file_parameters[]=
 {
   {
     {(char *) STRING_WITH_LEN("triggers") },
-    offsetof(class Table_triggers_list, definitions_list),
+    my_offsetof(class Table_triggers_list, definitions_list),
     FILE_OPTIONS_STRLIST
   },
   {
     {(char *) STRING_WITH_LEN("sql_modes") },
-    offsetof(class Table_triggers_list, definition_modes_list),
+    my_offsetof(class Table_triggers_list, definition_modes_list),
     FILE_OPTIONS_ULLLIST
   },
   {
     {(char *) STRING_WITH_LEN("definers") },
-    offsetof(class Table_triggers_list, definers_list),
+    my_offsetof(class Table_triggers_list, definers_list),
     FILE_OPTIONS_STRLIST
   },
   { { 0, 0 }, 0, FILE_OPTIONS_STRING }
@@ -55,7 +55,7 @@ static File_option triggers_file_parameters[]=
 File_option sql_modes_parameters=
 {
   {(char*) STRING_WITH_LEN("sql_modes") },
-  offsetof(class Table_triggers_list, definition_modes_list),
+  my_offsetof(class Table_triggers_list, definition_modes_list),
   FILE_OPTIONS_ULLLIST
 };
 
