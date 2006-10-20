@@ -2880,6 +2880,13 @@ sub find_testcase_skipped_reason($)
 sub run_testcase ($) {
   my $tinfo=  shift;
 
+  # -------------------------------------------------------
+  # Init variables that can change between each test case
+  # -------------------------------------------------------
+
+  $ENV{'TZ'}= $tinfo->{'timezone'};
+  mtr_verbose("Starting server with timezone: $tinfo->{'timezone'}");
+
   my $master_restart= run_testcase_need_master_restart($tinfo);
   my $slave_restart= run_testcase_need_slave_restart($tinfo);
 
@@ -3409,6 +3416,9 @@ sub mysqld_start ($$$) {
   my $type= $mysqld->{'type'};
   my $idx= $mysqld->{'idx'};
 
+  mtr_error("Internal error: mysqld should never be started for embedded")
+    if $glob_use_embedded_server;
+
   if ( $type eq 'master' )
   {
     $exe= $exe_master_mysqld;
@@ -3848,12 +3858,6 @@ sub run_testcase_stop_servers($$$) {
 sub run_testcase_start_servers($) {
   my $tinfo= shift;
   my $tname= $tinfo->{'name'};
-
-  # -------------------------------------------------------
-  # Init variables that can change between server starts
-  # -------------------------------------------------------
-  $ENV{'TZ'}= $tinfo->{'timezone'};
-  mtr_verbose("Starting server with timezone: $tinfo->{'timezone'}");
 
   if ( $tinfo->{'component_id'} eq 'mysqld' )
   {
