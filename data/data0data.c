@@ -496,7 +496,7 @@ dtuple_convert_big_rec(
 				too many fixed-length or short fields
 				in entry or the index is clustered */
 	dict_index_t*	index,	/* in: index */
-	dtuple_t*	entry,	/* in: index entry */
+	const dtuple_t*	entry,	/* in: index entry */
 	const ulint*	ext_vec,/* in: array of externally stored fields,
 				or NULL: if a field already is externally
 				stored, then we cannot move it to the vector

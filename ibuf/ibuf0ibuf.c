@@ -1402,7 +1402,7 @@ ibuf_entry_build(
 				must be kept because we copy pointers to its
 				fields */
 	dict_index_t*	index,	/* in: non-clustered index */
-	dtuple_t*	entry,	/* in: entry for a non-clustered index */
+	const dtuple_t*	entry,	/* in: entry for a non-clustered index */
 	ulint		space,	/* in: space id */
 	ulint		page_no,/* in: index page number where entry should
 				be inserted */
@@ -2555,7 +2555,7 @@ ibuf_insert_low(
 /*============*/
 				/* out: DB_SUCCESS, DB_FAIL, DB_STRONG_FAIL */
 	ulint		mode,	/* in: BTR_MODIFY_PREV or BTR_MODIFY_TREE */
-	dtuple_t*	entry,	/* in: index entry to insert */
+	const dtuple_t*	entry,	/* in: index entry to insert */
 	dict_index_t*	index,	/* in: index where to insert; must not be
 				unique or clustered */
 	ulint		space,	/* in: space id where to insert */
@@ -2819,7 +2819,7 @@ ibool
 ibuf_insert(
 /*========*/
 				/* out: TRUE if success */
-	dtuple_t*	entry,	/* in: index entry to insert */
+	const dtuple_t*	entry,	/* in: index entry to insert */
 	dict_index_t*	index,	/* in: index where to insert */
 	ulint		space,	/* in: space id where to insert */
 	ulint		zip_size,/* in: compressed page size in bytes, or 0 */
