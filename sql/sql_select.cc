@@ -9723,12 +9723,17 @@ bool JOIN::rollup_init()
   while ((item= it++))
   {
     ORDER *group_tmp;
+    bool found_in_group= 0;
+
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
       if (*group_tmp->item == item)
+      {
         item->maybe_null= 1;
+        found_in_group= 1;
+      }
     }
-    if (item->type() == Item::FUNC_ITEM)
+    if (item->type() == Item::FUNC_ITEM && !found_in_group)
     {
       bool changed= FALSE;
       if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
