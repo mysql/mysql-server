@@ -757,7 +757,7 @@ btr_search_guess_on_hash(
 	}
 
 	block = buf_block_align(rec);
-	page = buf_block_get_frame(block);
+	page = page_align(rec);
 
 	if (UNIV_LIKELY(!has_search_latch)) {
 
