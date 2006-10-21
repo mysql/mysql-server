@@ -47,7 +47,7 @@ typedef struct {pthread_mutex_t rw;} my_atomic_rwlock_t;
 #endif
 
 #define make_atomic_add_body(S)     int ## S sav; sav= *a; *a+= v; v=sav;
-#define make_atomic_swap_body(S)    int ## S sav; sav= *a; *a= v; v=sav;
+#define make_atomic_fas_body(S)     int ## S sav; sav= *a; *a= v; v=sav;
 #define make_atomic_cas_body(S)     if ((ret= (*a == *cmp))) *a= set; else *cmp=*a;
 #define make_atomic_load_body(S)    ret= *a;
 #define make_atomic_store_body(S)   *a= v;

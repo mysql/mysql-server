@@ -62,7 +62,7 @@ pthread_handler_t test_atomic_add_handler(void *arg)
   5. subtract result from a32
   must get 0 in a32 at the end
 */
-pthread_handler_t test_atomic_swap_handler(void *arg)
+pthread_handler_t test_atomic_fas_handler(void *arg)
 {
   int    m=*(int *)arg;
   uint32  x=my_atomic_add32(&b32, 1);
@@ -72,14 +72,14 @@ pthread_handler_t test_atomic_swap_handler(void *arg)
   for (; m ; m--)
   {
     my_atomic_rwlock_wrlock(&rwl);
-    x=my_atomic_swap32(&c32, x);
+    x=my_atomic_fas32(&c32, x);
     my_atomic_rwlock_wrunlock(&rwl);
   }
 
   if (!x)
   {
     my_atomic_rwlock_wrlock(&rwl);
-    x=my_atomic_swap32(&c32, x);
+    x=my_atomic_fas32(&c32, x);
     my_atomic_rwlock_wrunlock(&rwl);
   }
 
@@ -306,7 +306,7 @@ int main()
 #define THREADS 100
 
   test_atomic("my_atomic_add32",  test_atomic_add_handler,    THREADS,CYCLES);
-  test_atomic("my_atomic_swap32", test_atomic_swap_handler,   THREADS,CYCLES);
+  test_atomic("my_atomic_fas32",  test_atomic_fas_handler,    THREADS,CYCLES);
   test_atomic("my_atomic_cas32",  test_atomic_cas_handler,    THREADS,CYCLES);
   test_atomic("lf_pinbox",        test_lf_pinbox,             THREADS,CYCLES);
   test_atomic("lf_alloc",         test_lf_alloc,              THREADS,CYCLES);

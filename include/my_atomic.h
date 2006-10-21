@@ -43,11 +43,11 @@ STATIC_INLINE int ## S my_atomic_add ## S(			\
   return v;							\
 }
 
-#define make_atomic_swap(S)					\
-STATIC_INLINE int ## S my_atomic_swap ## S(			\
+#define make_atomic_fas(S)					\
+STATIC_INLINE int ## S my_atomic_fas ## S(			\
                          int ## S volatile *a, int ## S v)	\
 {								\
-  make_atomic_swap_body(S);					\
+  make_atomic_fas_body(S);					\
   return v;							\
 }
 
@@ -80,8 +80,8 @@ STATIC_INLINE void my_atomic_store ## S(			\
 #define make_atomic_add(S)					\
 extern int ## S my_atomic_add ## S(int ## S volatile *a, int ## S v);
 
-#define make_atomic_swap(S)					\
-extern int ## S my_atomic_swap ## S(int ## S volatile *a, int ## S v);
+#define make_atomic_fas(S)					\
+extern int ## S my_atomic_fas ## S(int ## S volatile *a, int ## S v);
 
 #define make_atomic_cas(S)					\
 extern int my_atomic_cas ## S(int ## S volatile *a, int ## S *cmp, int ## S set);
@@ -113,10 +113,10 @@ make_atomic_store(16)
 make_atomic_store(32)
 make_atomic_store(ptr)
 
-make_atomic_swap( 8)
-make_atomic_swap(16)
-make_atomic_swap(32)
-make_atomic_swap(ptr)
+make_atomic_fas( 8)
+make_atomic_fas(16)
+make_atomic_fas(32)
+make_atomic_fas(ptr)
 
 #ifdef _atomic_h_cleanup_
 #include _atomic_h_cleanup_
@@ -127,12 +127,12 @@ make_atomic_swap(ptr)
 #undef make_atomic_cas
 #undef make_atomic_load
 #undef make_atomic_store
-#undef make_atomic_swap
+#undef make_atomic_fas
 #undef make_atomic_add_body
 #undef make_atomic_cas_body
 #undef make_atomic_load_body
 #undef make_atomic_store_body
-#undef make_atomic_swap_body
+#undef make_atomic_fas_body
 #undef intptr
 
 #ifndef LF_BACKOFF
