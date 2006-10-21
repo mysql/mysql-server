@@ -110,7 +110,7 @@ int trnman_init()
   my_atomic_rwlock_init(&LOCK_pool);
   short_trid_to_active_trn= (TRN **)my_malloc(SHORT_TRID_MAX*sizeof(TRN*),
                                      MYF(MY_WME|MY_ZEROFILL));
-  if (!short_trid_to_active_trn)
+  if (unlikely(!short_trid_to_active_trn))
     return 1;
   short_trid_to_active_trn--; /* min short_trid is 1 */
 
