@@ -144,8 +144,6 @@ fi
 # Copy data directory, readme files etc
 # ----------------------------------------------------------------------
 
-cp COPYING EXCEPTIONS-CLIENT $DESTDIR/
-
 # FIXME is there ever a data directory to copy?
 if [ -d win/data ] ; then
   cp -pR win/data $DESTDIR/data
@@ -159,8 +157,12 @@ mkdir $DESTDIR/Docs
 cp Docs/INSTALL-BINARY    $DESTDIR/Docs/
 cp Docs/manual.chm        $DESTDIR/Docs/ || /bin/true
 cp ChangeLog              $DESTDIR/Docs/ || /bin/true
-cp COPYING                $DESTDIR/Docs/
 cp support-files/my-*.ini $DESTDIR/
+
+if [ -f COPYING ] ; then
+  cp COPYING EXCEPTIONS-CLIENT $DESTDIR/
+  cp COPYING                   $DESTDIR/Docs/
+fi
 
 # ----------------------------------------------------------------------
 # These will be filled in when we enable embedded. Note that if no
@@ -170,7 +172,8 @@ cp support-files/my-*.ini $DESTDIR/
 copy_embedded()
 {
   mkdir -p $DESTDIR/Embedded/DLL/release \
-           $DESTDIR/Embedded/static/release
+           $DESTDIR/Embedded/static/release \
+           $DESTDIR/include
   cp libmysqld/libmysqld.def           $DESTDIR/include/
   cp libmysqld/$TARGET/mysqlserver.lib $DESTDIR/Embedded/static/release/
   cp libmysqld/$TARGET/libmysqld.dll   $DESTDIR/Embedded/DLL/release/
@@ -211,6 +214,9 @@ fi
 mkdir -p $DESTDIR/examples/tests
 cp tests/*.res tests/*.tst tests/*.pl tests/*.c $DESTDIR/examples/tests/
 
+mkdir -p $DESTDIR/examples/udf_example
+cp sql/udf_example.def sql/udf_example.vcproj sql/udf_example.c $DESTDIR/examples/udf_example/
+
 # ----------------------------------------------------------------------
 # FIXME why not copy it all in "include"?!
 # ----------------------------------------------------------------------
@@ -228,6 +234,7 @@ cp include/conf*.h \
    include/m_string.h \
    include/m_ctype.h \
    include/my_global.h \
+   include/raid.h \
    include/typelib.h $DESTDIR/include/
 cp libmysql/libmysql.def $DESTDIR/include/
 
