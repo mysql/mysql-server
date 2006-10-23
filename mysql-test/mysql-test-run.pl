@@ -1269,9 +1269,9 @@ sub collect_mysqld_features () {
       else
       {
 	# Put variables into hash
-	if ( $line =~ /^([\S]+)[ \t]+(.*)$/ )
+	if ( $line =~ /^([\S]+)[ \t]+(.*?)\r?$/ )
 	{
-	  # print "$1=$2\n";
+	  # print "$1=\"$2\"\n";
 	  $mysqld_variables{$1}= $2;
 	}
 	else
