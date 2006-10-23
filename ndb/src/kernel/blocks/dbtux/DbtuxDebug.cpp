@@ -330,6 +330,7 @@ operator<<(NdbOut& out, const Dbtux::DescAttr& descAttr)
 NdbOut&
 operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
 {
+  Dbtux* tux = (Dbtux*)globalData.getBlock(DBTUX);
   out << "[ScanOp " << hex << &scan;
   out << " [state " << dec << scan.m_state << "]";
   out << " [lockwait " << dec << scan.m_lockwait << "]";
@@ -339,9 +340,15 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << " [savePointId " << dec << scan.m_savePointId << "]";
   out << " [accLockOp " << hex << scan.m_accLockOp << "]";
   out << " [accLockOps";
-  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
-    if (scan.m_accLockOps[i] != RNIL)
-      out << " " << hex << scan.m_accLockOps[i];
+  {
+    DLFifoList<Dbtux::ScanLock>::Head head = scan.m_accLockOps;
+    LocalDLFifoList<Dbtux::ScanLock> list(tux->c_scanLockPool, head);
+    Dbtux::ScanLockPtr lockPtr;
+    list.first(lockPtr);
+    while (lockPtr.i != RNIL) {
+      out << " " << hex << lockPtr.p->m_accLockOp;
+      list.next(lockPtr);
+    }
   }
   out << "]";
   out << " [readCommitted " << dec << scan.m_readCommitted << "]";
@@ -367,13 +374,12 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
 NdbOut&
 operator<<(NdbOut& out, const Dbtux::Index& index)
 {
+  Dbtux* tux = (Dbtux*)globalData.getBlock(DBTUX);
   out << "[Index " << hex << &index;
   out << " [tableId " << dec << index.m_tableId << "]";
   out << " [numFrags " << dec << index.m_numFrags << "]";
   for (unsigned i = 0; i < index.m_numFrags; i++) {
     out << " [frag " << dec << i << " ";
-    // dangerous and wrong
-    Dbtux* tux = (Dbtux*)globalData.getBlock(DBTUX);
     const Dbtux::Frag& frag = *tux->c_fragPool.getPtr(index.m_fragPtrI[i]);
     out << frag;
     out << "]";
