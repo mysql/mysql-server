@@ -395,8 +395,8 @@ on 32-bit and 64-bit architectures. */
 ulint
 buf_calc_page_new_checksum(
 /*=======================*/
-			/* out: checksum */
-	byte*	page);	/* in: buffer page */
+				/* out: checksum */
+	const byte*	page);	/* in: buffer page */
 /************************************************************************
 In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
 looked at the first few bytes of the page. This calculates that old
@@ -408,18 +408,18 @@ because this takes that field as an input! */
 ulint
 buf_calc_page_old_checksum(
 /*=======================*/
-			/* out: checksum */
-	byte*	 page);	/* in: buffer page */
+				/* out: checksum */
+	const byte*	 page);	/* in: buffer page */
 /************************************************************************
 Checks if a page is corrupt. */
 
 ibool
 buf_page_is_corrupted(
 /*==================*/
-				/* out: TRUE if corrupted */
-	byte*	read_buf,	/* in: a database page */
-	ulint	zip_size);	/* in: size of compressed page;
-				0 for uncompressed pages */
+					/* out: TRUE if corrupted */
+	const byte*	read_buf,	/* in: a database page */
+	ulint		zip_size);	/* in: size of compressed page;
+					0 for uncompressed pages */
 /**************************************************************************
 Gets the space id, page offset, and byte offset within page of a
 pointer pointing to a buffer frame containing a file page. */
@@ -479,9 +479,9 @@ Prints a page to stderr. */
 void
 buf_page_print(
 /*===========*/
-	byte*	read_buf,	/* in: a database page */
-	ulint	zip_size);	/* in: compressed page size, or
-				0 for uncompressed pages */
+	const byte*	read_buf,	/* in: a database page */
+	ulint		zip_size);	/* in: compressed page size, or
+					0 for uncompressed pages */
 /*************************************************************************
 Returns the number of latched pages in the buffer pool. */
 

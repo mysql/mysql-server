@@ -543,17 +543,15 @@ UNIV_INLINE
 ibool
 page_rec_check(
 /*===========*/
-			/* out: TRUE if succeed */
-	rec_t*	rec)	/* in: record */
+				/* out: TRUE if succeed */
+	const rec_t*	rec)	/* in: record */
 {
-	page_t*	page;
+	const page_t*	page = page_align((rec_t*) rec);
 
 	ut_a(rec);
 
-	page = page_align(rec);
-
-	ut_a(rec <= page_header_get_ptr(page, PAGE_HEAP_TOP));
-	ut_a(rec >= page + PAGE_DATA);
+	ut_a(page_offset(rec) <= page_header_get_field(page, PAGE_HEAP_TOP));
+	ut_a(page_offset(rec) >= PAGE_DATA);
 
 	return(TRUE);
 }
