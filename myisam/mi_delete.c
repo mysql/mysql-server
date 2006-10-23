@@ -428,7 +428,7 @@ static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
 	else
 	{
 	  DBUG_PRINT("test",("Inserting of key when deleting"));
-	  if (_mi_get_last_key(info,keyinfo,leaf_buff,keybuff,endpos,
+	  if (!_mi_get_last_key(info,keyinfo,leaf_buff,keybuff,endpos,
 				&tmp))
 	    goto err;
 	  ret_value=_mi_insert(info,keyinfo,key,leaf_buff,endpos,keybuff,

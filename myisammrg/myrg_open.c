@@ -33,7 +33,7 @@
 MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 {
   int save_errno,errpos=0;
-  uint files=0,i,dir_length,length,key_parts;
+  uint files= 0, i, dir_length, length, key_parts, min_keys= 0;
   ulonglong file_offset=0;
   char name_buff[FN_REFLEN*2],buff[FN_REFLEN],*end;
   MYRG_INFO *m_info=0;
@@ -89,7 +89,10 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     else
       fn_format(buff, buff, "", "", 0);
     if (!(isam=mi_open(buff,mode,(handle_locking?HA_OPEN_WAIT_IF_LOCKED:0))))
+    {
+      my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
       goto err;
+    }
     if (!m_info)                                /* First file */
     {
       key_parts=isam->s->base.key_parts;
@@ -106,6 +109,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
         files= 0;
       }
       m_info->reclength=isam->s->base.reclength;
+      min_keys= isam->s->base.keys;
       errpos=3;
     }
     m_info->open_tables[files].table= isam;
@@ -121,6 +125,8 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     m_info->records+= isam->state->records;
     m_info->del+= isam->state->del;
     m_info->data_file_length+= isam->state->data_file_length;
+    if (min_keys > isam->s->base.keys)
+      min_keys= isam->s->base.keys;
     for (i=0; i < key_parts; i++)
       m_info->rec_per_key_part[i]+= (isam->s->state.rec_per_key_part[i] /
                                      m_info->tables);
@@ -138,7 +144,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     my_errno=HA_ERR_RECORD_FILE_FULL;
     goto err;
   }
-  m_info->keys= files ? isam->s->base.keys : 0;
+  m_info->keys= min_keys;
   bzero((char*) &m_info->by_key,sizeof(m_info->by_key));
 
   /* this works ok if the table list is empty */

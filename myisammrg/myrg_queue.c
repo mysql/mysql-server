@@ -51,6 +51,8 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
 	error=my_errno;
     }
   }
+  else
+    my_errno= error= HA_ERR_WRONG_INDEX;
   return error;
 }
 

@@ -290,8 +290,6 @@ JOIN::prepare(Item ***rref_pointer_array,
     select_lex->having_fix_field= 0;
     if (having_fix_rc || thd->net.report_error)
       DBUG_RETURN(-1);				/* purecov: inspected */
-    if (having->with_sum_func)
-      having->split_sum_func2(thd, ref_pointer_array, all_fields, &having);
   }
 
   // Is it subselect
@@ -305,6 +303,9 @@ JOIN::prepare(Item ***rref_pointer_array,
 	DBUG_RETURN((res == Item_subselect::RES_ERROR));
     }
   }
+
+  if (having && having->with_sum_func)
+    having->split_sum_func2(thd, ref_pointer_array, all_fields, &having);
 
   if (setup_ftfuncs(select_lex)) /* should be after having->fix_fields */
     DBUG_RETURN(-1);
