@@ -151,7 +151,6 @@ void lex_start(THD *thd, const uchar *buf, uint length)
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
   lex->leaf_tables_insert= 0;
-  lex->variables_used= 0;
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
   lex->next_state=MY_LEX_START;

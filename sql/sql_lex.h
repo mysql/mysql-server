@@ -867,6 +867,25 @@ public:
 };
 
 
+/*
+  st_parsing_options contains the flags for constructions that are
+  allowed in the current statement.
+*/
+
+struct st_parsing_options
+{
+  bool allows_variable;
+  bool allows_select_into;
+  bool allows_select_procedure;
+  bool allows_derived;
+
+  st_parsing_options()
+    : allows_variable(TRUE), allows_select_into(TRUE),
+      allows_select_procedure(TRUE), allows_derived(TRUE)
+  {}
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 typedef struct st_lex : public Query_tables_list
@@ -1023,7 +1042,7 @@ typedef struct st_lex : public Query_tables_list
   bool stmt_prepare_mode;
   bool safe_to_cache_query;
   bool subqueries, ignore;
-  bool variables_used;
+  st_parsing_options parsing_options;
   ALTER_INFO alter_info;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
