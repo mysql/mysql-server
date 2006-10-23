@@ -1770,6 +1770,47 @@ END;
 
 
 #
+# BUG#20953: create proc with a create view that uses local
+# vars/params should fail to create
+#
+# See test case for what syntax is forbidden in a view.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+
+# We do not have to drop this procedure and view because they won't be
+# created.
+--error ER_VIEW_SELECT_CLAUSE
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO @a;
+--error ER_VIEW_SELECT_CLAUSE
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO DUMPFILE "file";
+--error ER_VIEW_SELECT_CLAUSE
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 INTO OUTFILE "file";
+--error ER_VIEW_SELECT_CLAUSE
+CREATE PROCEDURE bug20953()
+  CREATE VIEW v AS SELECT i FROM t1 PROCEDURE ANALYSE();
+--error ER_VIEW_SELECT_DERIVED
+CREATE PROCEDURE bug20953() CREATE VIEW v AS SELECT 1 FROM (SELECT 1) AS d1;
+--error ER_VIEW_SELECT_VARIABLE
+CREATE PROCEDURE bug20953(i INT) CREATE VIEW v AS SELECT i;
+delimiter |;
+--error ER_VIEW_SELECT_VARIABLE
+CREATE PROCEDURE bug20953()
+BEGIN
+  DECLARE i INT;
+  CREATE VIEW v AS SELECT i;
+END |
+delimiter ;|
+--error ER_VIEW_SELECT_VARIABLE
+PREPARE stmt FROM "CREATE VIEW v AS SELECT ?";
+
+DROP TABLE t1;
+
+
+#
 # End of 5.0 tests
 #
 --echo End of 5.0 tests
@@ -1788,12 +1829,14 @@ begin
   show authors;
   return 42;
 end|
+delimiter ;|
+
 
 #
 # BUG#20701: BINARY keyword should be forbidden in stored routines
 #
 --disable_warnings
-drop function if exists bug20701|
+drop function if exists bug20701;
 --enable_warnings
 #
 # This was disabled in 5.1.12. See bug #20701
@@ -1801,17 +1844,19 @@ drop function if exists bug20701|
 # be removed.
 #
 --error ER_NOT_SUPPORTED_YET
-create function bug20701() returns varchar(25) binary return "test"|
-create function bug20701() returns varchar(25) return "test"|
-drop function bug20701|
+create function bug20701() returns varchar(25) binary return "test";
+create function bug20701() returns varchar(25) return "test";
+drop function bug20701;
+
+
 --echo End of 5.1 tests
 
 #
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
-#drop procedure if exists bugNNNN|
-#drop function if exists bugNNNN|
+#drop procedure if exists bugNNNN;
+#drop function if exists bugNNNN;
 #--enable_warnings
 #create procedure bugNNNN...
 #create function bugNNNN...
