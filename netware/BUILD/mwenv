@@ -27,8 +27,8 @@ WINE_BUILD_DIR="$base/$WINE_BUILD_DIR"
 echo "WINE_BUILD_DIR: $WINE_BUILD_DIR"
 
 # Look for libc, MySQL 5.0.x uses libc-2003 by default
-libcdir="$MYDEV/libc-2003"
-if test ! -d $libcdir
+libc_dir="$MYDEV/libc-2003"
+if [ ! -d `winepath $libc_dir` ]
 then
   # The libcdir didn't exist, set default
   libc_dir="$MYDEV/libc"
