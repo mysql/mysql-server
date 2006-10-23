@@ -1295,6 +1295,54 @@ sub collect_mysqld_features () {
 }
 
 
+sub executable_setup_im () {
+
+  # Look for instance manager binary - mysqlmanager
+  $exe_im=
+    mtr_exe_maybe_exists(
+      "$glob_basedir/server-tools/instance-manager/mysqlmanager",
+      "$glob_basedir/libexec/mysqlmanager");
+
+  return ($exe_im eq "");
+}
+
+sub executable_setup_ndb () {
+
+  # Look for ndb tols and binaries
+  my $ndb_path= mtr_file_exists("$glob_basedir/ndb",
+				"$glob_basedir/storage/ndb",
+				"$glob_basedir/bin");
+
+  $exe_ndbd=
+    mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
+			 "$ndb_path/ndbd");
+  $exe_ndb_mgm=
+    mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
+			 "$ndb_path/ndb_mgm");
+  $exe_ndb_mgmd=
+    mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
+			 "$ndb_path/ndb_mgmd");
+  $exe_ndb_waiter=
+    mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
+			 "$ndb_path/ndb_waiter");
+
+  # May not exist
+  $path_ndb_tools_dir= mtr_file_exists("$ndb_path/tools",
+				       "$ndb_path");
+  # May not exist
+  $path_ndb_examples_dir=
+    mtr_file_exists("$ndb_path/ndbapi-examples",
+		    "$ndb_path/examples");
+  # May not exist
+  $exe_ndb_example=
+    mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
+
+  return ( $exe_ndbd eq "" or
+	   $exe_ndb_mgm eq "" or
+	   $exe_ndb_mgmd eq "" or
+	   $exe_ndb_waiter eq "");
+}
+
 sub executable_setup () {
 
   #
@@ -1333,20 +1381,6 @@ sub executable_setup () {
 			      "$glob_basedir/extra/release/perror",
 			      "$glob_basedir/extra/debug/perror");
 
-
-  if ( ! $opt_skip_im )
-  {
-    # Look for instance manager binary - mysqlmanager
-    $exe_im=
-      mtr_exe_exists(
-		     "$glob_basedir/server-tools/instance-manager/mysqlmanager",
-		     "$glob_basedir/libexec/mysqlmanager");
-  }
-  else
-  {
-    $exe_im= "not_available";
-  }
-
   # Look for the client binaries
   $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
   $exe_mysqldump=      mtr_exe_exists("$path_client_bindir/mysqldump");
@@ -1368,35 +1402,25 @@ sub executable_setup () {
 			"$path_client_bindir/mysql_fix_privilege_tables");
   }
 
-  if ( ! $opt_skip_ndbcluster)
+
+  if ( ! $opt_skip_ndbcluster and executable_setup_ndb())
   {
-    # Look for ndb tols and binaries
-    my $ndb_path= mtr_path_exists("$glob_basedir/ndb",
-				  "$glob_basedir/storage/ndb",
-				  "$glob_basedir/bin");
+    mtr_warning("Could not find all required ndb binaries, " .
+		"all ndb tests will fail, use --skip-ndbcluster to " .
+		"skip testing it.");
 
-    $path_ndb_tools_dir= mtr_path_exists("$ndb_path/tools",
-					 "$ndb_path");
-    $exe_ndb_mgm=
-      mtr_exe_exists("$ndb_path/src/mgmclient/ndb_mgm",
-		     "$ndb_path/ndb_mgm");
-    $exe_ndb_mgmd=
-      mtr_exe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-		     "$ndb_path/ndb_mgmd");
-    $exe_ndb_waiter=
-      mtr_exe_exists("$ndb_path/tools/ndb_waiter",
-		     "$ndb_path/ndb_waiter");
-    $exe_ndbd=
-      mtr_exe_exists("$ndb_path/src/kernel/ndbd",
-		     "$ndb_path/ndbd");
+    foreach my $cluster (@{$clusters})
+    {
+      $cluster->{"executable_setup_failed"}= 1;
+    }
+  }
 
-    # May not exist
-    $path_ndb_examples_dir=
-      mtr_file_exists("$ndb_path/ndbapi-examples",
-		      "$ndb_path/examples");
-    # May not exist
-    $exe_ndb_example=
-      mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
+  if ( ! $opt_skip_im and executable_setup_im())
+  {
+    mtr_warning("Could not find all required instance manager binaries, " .
+		"all im tests will fail, use --skip-im to " .
+		"continue without instance manager");
+    $instance_manager->{"executable_setup_failed"}= 1;
   }
 
   # Look for the udf_example library
@@ -1424,7 +1448,8 @@ sub executable_setup () {
   if ( $glob_use_embedded_server )
   {
     $exe_mysql_client_test=
-      mtr_exe_maybe_exists("$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
+      mtr_exe_maybe_exists(
+        "$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
   }
   else
   {
@@ -1567,19 +1592,28 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env for IM
   # ----------------------------------------------------
-  $ENV{'IM_EXE'}=             $exe_im;
-  $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
-  $ENV{'IM_PATH_ANGEL_PID'}=  $instance_manager->{path_angel_pid};
-  $ENV{'IM_PORT'}=            $instance_manager->{port};
-  $ENV{'IM_DEFAULTS_PATH'}=   $instance_manager->{defaults_file};
-  $ENV{'IM_PASSWORD_PATH'}=   $instance_manager->{password_file};
+  if ( ! $opt_skip_im )
+  {
+    $ENV{'IM_EXE'}=             $exe_im;
+    $ENV{'IM_PATH_PID'}=        $instance_manager->{path_pid};
+    $ENV{'IM_PATH_ANGEL_PID'}=  $instance_manager->{path_angel_pid};
+    $ENV{'IM_PORT'}=            $instance_manager->{port};
+    $ENV{'IM_DEFAULTS_PATH'}=   $instance_manager->{defaults_file};
+    $ENV{'IM_PASSWORD_PATH'}=   $instance_manager->{password_file};
 
-  $ENV{'IM_MYSQLD1_SOCK'}=    $instance_manager->{instances}->[0]->{path_sock};
-  $ENV{'IM_MYSQLD1_PORT'}=    $instance_manager->{instances}->[0]->{port};
-  $ENV{'IM_MYSQLD1_PATH_PID'}=$instance_manager->{instances}->[0]->{path_pid};
-  $ENV{'IM_MYSQLD2_SOCK'}=    $instance_manager->{instances}->[1]->{path_sock};
-  $ENV{'IM_MYSQLD2_PORT'}=    $instance_manager->{instances}->[1]->{port};
-  $ENV{'IM_MYSQLD2_PATH_PID'}=$instance_manager->{instances}->[1]->{path_pid};
+    $ENV{'IM_MYSQLD1_SOCK'}=
+      $instance_manager->{instances}->[0]->{path_sock};
+    $ENV{'IM_MYSQLD1_PORT'}=
+      $instance_manager->{instances}->[0]->{port};
+    $ENV{'IM_MYSQLD1_PATH_PID'}=
+      $instance_manager->{instances}->[0]->{path_pid};
+    $ENV{'IM_MYSQLD2_SOCK'}=
+      $instance_manager->{instances}->[1]->{path_sock};
+    $ENV{'IM_MYSQLD2_PORT'}=
+      $instance_manager->{instances}->[1]->{port};
+    $ENV{'IM_MYSQLD2_PATH_PID'}=
+      $instance_manager->{instances}->[1]->{path_pid};
+  }
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysqlcheck
@@ -2037,14 +2071,6 @@ sub check_ndbcluster_support ($) {
     $opt_skip_ndbcluster_slave= 1;
     return;
   }
-  elsif ( -e "$glob_basedir/bin" && ! -f "$glob_basedir/bin/ndbd")
-  {
-    # Binary dist with a mysqld that supports ndb, but no ndbd found
-    mtr_report("Skipping ndbcluster, can't fint binaries");
-    $opt_skip_ndbcluster= 1;
-    $opt_skip_ndbcluster_slave= 1;
-    return;
-  }
   $glob_ndbcluster_supported= 1;
   mtr_report("Using ndbcluster when necessary, mysqld supports it");
 
@@ -2475,7 +2501,8 @@ sub mysql_install_db () {
 
   my $cluster_started_ok= 1; # Assume it can be started
 
-  if ($opt_skip_ndbcluster || $glob_use_running_ndbcluster)
+  if ($opt_skip_ndbcluster || $glob_use_running_ndbcluster ||
+      $clusters->[0]->{executable_setup_failed})
   {
     # Don't install master cluster
   }
@@ -2486,7 +2513,8 @@ sub mysql_install_db () {
   }
 
   if ($max_slave_num == 0 ||
-      $opt_skip_ndbcluster_slave || $glob_use_running_ndbcluster_slave)
+      $opt_skip_ndbcluster_slave || $glob_use_running_ndbcluster_slave ||
+      $clusters->[1]->{executable_setup_failed})
   {
     # Don't install slave cluster
   }
@@ -2760,6 +2788,16 @@ sub run_testcase_check_skip_test($)
       last if ($opt_skip_ndbcluster_slave and
 	       $cluster->{'name'} eq 'Slave');
 
+      # If test needs this cluster, check binaries was found ok
+      if ( $cluster->{'executable_setup_failed'} )
+      {
+	mtr_report_test_name($tinfo);
+	$tinfo->{comment}=
+	  "Failed to find cluster binaries";
+	mtr_report_test_failed($tinfo);
+	return 1;
+      }
+
       # If test needs this cluster, check it was installed ok
       if ( !$cluster->{'installed_ok'} )
       {
@@ -2769,6 +2807,20 @@ sub run_testcase_check_skip_test($)
 	mtr_report_test_failed($tinfo);
 	return 1;
       }
+
+    }
+  }
+
+  if ( $tinfo->{'component_id'} eq 'im' )
+  {
+      # If test needs im, check binaries was found ok
+    if ( $instance_manager->{'executable_setup_failed'} )
+    {
+      mtr_report_test_name($tinfo);
+      $tinfo->{comment}=
+	"Failed to find MySQL manager binaries";
+      mtr_report_test_failed($tinfo);
+      return 1;
     }
   }
 
