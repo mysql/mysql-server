@@ -235,7 +235,7 @@ btr_pcur_restore_position(
 	ut_a(cursor->old_rec);
 	ut_a(cursor->old_n_fields);
 
-	page = btr_pcur_get_page(cursor);
+	page = btr_cur_get_page(btr_pcur_get_btr_cur(cursor));
 
 	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
 	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
