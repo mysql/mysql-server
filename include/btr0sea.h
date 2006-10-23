@@ -146,7 +146,7 @@ struct btr_search_struct{
 	/* The following fields are not protected by any latch.
 	Unfortunately, this means that they must be aligned to
 	the machine word, i.e., they cannot be turned into bit-fields. */
-	page_t*	root_guess;	/* the root page frame when it was last time
+	buf_block_t* root_guess;/* the root page frame when it was last time
 				fetched, or NULL */
 	ulint	hash_analysis;	/* when this exceeds BTR_SEARCH_HASH_ANALYSIS,
 				the hash analysis starts; this is reset if no

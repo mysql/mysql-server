@@ -1164,7 +1164,7 @@ buf_page_get_gen(
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: page number */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
-	buf_frame_t*	guess,	/* in: guessed frame or NULL */
+	buf_block_t*	guess,	/* in: guessed block or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
 				BUF_GET_NO_LATCH, BUF_GET_NOWAIT */
 	const char*	file,	/* in: file name */
@@ -1195,7 +1195,7 @@ loop:
 	block = NULL;
 
 	if (guess) {
-		block = buf_block_align(guess);
+		block = guess;
 
 		if ((offset != block->offset) || (space != block->space)
 		    || (block->state != BUF_BLOCK_FILE_PAGE)) {
