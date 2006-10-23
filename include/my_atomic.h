@@ -14,6 +14,40 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  This header defines five atomic operations:
+
+  my_atomic_add#(&var, what)
+    add 'what' to *var, and return the old value of *var
+
+  my_atomic_fas#(&var, what)
+    'Fetch And Store'
+    store 'what' in *var, and return the old value of *var
+
+  my_atomic_cas#(&var, &old, new)
+    'Compare And Swap'
+    if *var is equal to *old, then store 'new' in *var, and return TRUE
+    otherwise store *var in *old, and return FALSE
+
+  my_atomic_load#(&var)
+    return *var
+
+  my_atomic_store#(&var, what)
+    store 'what' in *var
+
+  '#' is substituted by a size suffix - 8, 16, 32, or ptr
+  (e.g. my_atomic_add8, my_atomic_fas32, my_atomic_casptr).
+
+  NOTE This operations are not always atomic, so they always must be
+  enclosed in my_atomic_rwlock_rdlock(lock)/my_atomic_rwlock_rdunlock(lock)
+  or my_atomic_rwlock_wrlock(lock)/my_atomic_rwlock_wrunlock(lock).
+  Hint: if a code block makes intensive use of atomic ops, it make sense
+  to take/release rwlock once for the whole block, not for every statement.
+
+  On architectures where these operations are really atomic, rwlocks will
+  be optimized away.
+*/
+
 #ifndef my_atomic_rwlock_init
 
 #define intptr         void *
