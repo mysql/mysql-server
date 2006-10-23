@@ -171,9 +171,8 @@ Sets the max trx id field value. */
 void
 page_set_max_trx_id(
 /*================*/
-	page_t*		page,	/* in/out: page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
+	buf_block_t*	block,	/* in/out: page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dulint		trx_id);/* in: transaction id */
 /*****************************************************************
 Sets the max trx id field value if trx_id is bigger than the previous
@@ -182,7 +181,7 @@ UNIV_INLINE
 void
 page_update_max_trx_id(
 /*===================*/
-	page_t*		page,	/* in/out: page */
+	buf_block_t*	block,	/* in/out: page */
 	page_zip_des_t*	page_zip,/* in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
 	dulint		trx_id);/* in: transaction id */

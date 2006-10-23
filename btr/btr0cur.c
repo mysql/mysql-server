@@ -1195,7 +1195,7 @@ fail:
 #if 0
 	fprintf(stderr, "Insert into page %lu, max ins size %lu,"
 		" rec %lu ind type %lu\n",
-		page_get_page_no(page), max_size,
+		buf_block_get_page_no(block), max_size,
 		rec_size + PAGE_DIR_SLOT_SIZE, type);
 #endif
 	if (!(type & DICT_CLUSTERED)) {
@@ -2820,7 +2820,7 @@ btr_cur_pessimistic_delete(
 			btr_node_ptr_delete(index, block, mtr);
 
 			node_ptr = dict_index_build_node_ptr(
-				index, next_rec, page_get_page_no(page),
+				index, next_rec, buf_block_get_page_no(block),
 				heap, level);
 
 			btr_insert_on_non_leaf_level(index,

@@ -189,18 +189,14 @@ Sets the max trx id field value. */
 void
 page_set_max_trx_id(
 /*================*/
-	page_t*		page,	/* in/out: page */
-	page_zip_des_t*	page_zip,/* in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
+	buf_block_t*	block,	/* in/out: page */
+	page_zip_des_t*	page_zip,/* in/out: compressed page, or NULL */
 	dulint		trx_id)	/* in: transaction id */
 {
-	buf_block_t*	block;
+	const ibool	is_hashed	= block->is_hashed;
+	page_t*		page		= buf_block_get_frame(block);
 
-	ut_ad(page);
-
-	block = buf_block_align(page);
-
-	if (block->is_hashed) {
+	if (is_hashed) {
 		rw_lock_x_lock(&btr_search_latch);
 	}
 
@@ -215,7 +211,7 @@ page_set_max_trx_id(
 				      8, NULL);
 	}
 
-	if (block->is_hashed) {
+	if (is_hashed) {
 		rw_lock_x_unlock(&btr_search_latch);
 	}
 }
@@ -427,7 +423,7 @@ page_create_low(
 	page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
 	page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
 	page_header_set_field(page, NULL, PAGE_N_RECS, 0);
-	page_set_max_trx_id(page, NULL, ut_dulint_zero);
+	page_set_max_trx_id(block, NULL, ut_dulint_zero);
 	memset(heap_top, 0, UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START
 	       - page_offset(heap_top));
 
@@ -651,7 +647,7 @@ page_copy_rec_list_end(
 
 	lock_move_rec_list_end(new_page, page, rec);
 
-	page_update_max_trx_id(new_page, new_page_zip,
+	page_update_max_trx_id(new_block, new_page_zip,
 			       page_get_max_trx_id(page));
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
@@ -754,7 +750,7 @@ page_copy_rec_list_start(
 
 	/* Update MAX_TRX_ID, the lock table, and possible hash index */
 
-	page_update_max_trx_id(new_page, new_page_zip,
+	page_update_max_trx_id(new_block, new_page_zip,
 			       page_get_max_trx_id(page_align(rec)));
 
 	lock_move_rec_list_start(new_page, page_align(rec), rec, ret);
