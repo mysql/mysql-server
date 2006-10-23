@@ -372,7 +372,9 @@ int ha_ndbcluster::records_update()
     Ndb *ndb= get_ndb();
     struct Ndb_statistics stat;
     ndb->setDatabaseName(m_dbname);
-    if ((result= ndb_get_table_statistics(ndb, true, m_tabname, &stat)) == 0){
+    result= ndb_get_table_statistics(this, true, ndb, m_tabname, &stat);
+    if (result == 0)
+    {
       mean_rec_length= stat.row_size;
       data_file_length= stat.fragment_memory;
       info->records= stat.row_count;
@@ -3119,7 +3121,8 @@ int ha_ndbcluster::info(uint flag)
       struct Ndb_statistics stat;
       ndb->setDatabaseName(m_dbname);
       if (current_thd->variables.ndb_use_exact_count &&
-          (result= ndb_get_table_statistics(ndb, true, m_tabname, &stat)) == 0)
+          (result= ndb_get_table_statistics(this, true, ndb, m_tabname, &stat))
+          == 0)
       {
         mean_rec_length= stat.row_size;
         data_file_length= stat.fragment_memory;
@@ -4760,9 +4763,9 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   {
     Ndb *ndb= get_ndb();
     ndb->setDatabaseName(m_dbname);
-    Uint64 rows= 0;
-    res= ndb_get_table_statistics(NULL, false, ndb, m_tabname, &rows, 0);
-    records= rows;
+    struct Ndb_statistics stat;
+    res= ndb_get_table_statistics(NULL, false, ndb, m_tabname, &stat);
+    records= stat.row_count;
     if(!res)
       res= info(HA_STATUS_CONST);
   }
@@ -5578,7 +5581,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   pthread_mutex_unlock(&share->mutex);
 
   struct Ndb_statistics stat;
-  if (ndb_get_table_statistics(ndb, tabname, &stat))
+  if (ndb_get_table_statistics(NULL, true, ndb, tabname, &stat))
   {
     free_share(share);
     DBUG_RETURN(1);
@@ -5909,6 +5912,7 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
 static 
 int
 ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
+                         const char* table,
                          struct Ndb_statistics * ndbstat)
 {
   NdbTransaction* pTrans;
@@ -6573,7 +6577,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       lock= share->commit_count_lock;
       pthread_mutex_unlock(&share->mutex);
 
-      if (ndb_get_table_statistics(ndb, tabname, &stat) == 0)
+      if (ndb_get_table_statistics(NULL, false, ndb, tabname, &stat) == 0)
       {
         char buff[22], buff2[22];
         DBUG_PRINT("ndb_util_thread",
