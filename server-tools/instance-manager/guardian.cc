@@ -158,7 +158,7 @@ void Guardian_thread::process_instance(Instance *instance,
     {
       /* clear status fields */
       log_info("guardian: instance '%s' is running, set state to STARTED.",
-               (const char *) instance->options.instance_name);
+               (const char *) instance->options.instance_name.str);
       current_node->restart_counter= 0;
       current_node->crash_moment= 0;
       current_node->state= STARTED;
@@ -169,7 +169,7 @@ void Guardian_thread::process_instance(Instance *instance,
     switch (current_node->state) {
     case NOT_STARTED:
       log_info("guardian: starting instance '%s'...",
-               (const char *) instance->options.instance_name);
+               (const char *) instance->options.instance_name.str);
 
       /* NOTE, set state to STARTING _before_ start() is called */
       current_node->state= STARTING;
@@ -194,7 +194,7 @@ void Guardian_thread::process_instance(Instance *instance,
         {
           instance->start();
           log_info("guardian: starting instance '%s'...",
-                   (const char *) instance->options.instance_name);
+                   (const char *) instance->options.instance_name.str);
         }
       }
       else
@@ -212,13 +212,13 @@ void Guardian_thread::process_instance(Instance *instance,
             current_node->last_checked= current_time;
             current_node->restart_counter++;
             log_info("guardian: restarting instance '%s'...",
-                     (const char *) instance->options.instance_name);
+                     (const char *) instance->options.instance_name.str);
           }
         }
         else
         {
           log_info("guardian: cannot start instance %s. Abandoning attempts "
-                   "to (re)start it", instance->options.instance_name);
+                   "to (re)start it", instance->options.instance_name.str);
           current_node->state= CRASHED_AND_ABANDONED;
         }
       }
