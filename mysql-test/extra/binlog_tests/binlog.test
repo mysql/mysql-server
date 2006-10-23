@@ -69,7 +69,7 @@ create table if not exists t3 like tt1;
 
 --replace_column 2 # 5 #
 --replace_regex /table_id: [0-9]+/table_id: #/ /\/\* xid=.* \*\//\/* xid= *\//
-show binlog events;
+show binlog events from 102;
 drop table t1,t2,t3,tt1;
 
 -- source extra/binlog_tests/binlog_insert_delayed.test
