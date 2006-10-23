@@ -4968,7 +4968,7 @@ lock_rec_insert_check_and_lock(
 
 		if (!dict_index_is_clust(index)) {
 			/* Update the page max trx id field */
-			page_update_max_trx_id(page_align(rec),
+			page_update_max_trx_id(block,
 					       buf_block_get_page_zip(block),
 					       thr_get_trx(thr)->id);
 		}
@@ -5006,7 +5006,7 @@ lock_rec_insert_check_and_lock(
 
 	if ((err == DB_SUCCESS) && !dict_index_is_clust(index)) {
 		/* Update the page max trx id field */
-		page_update_max_trx_id(page_align(rec),
+		page_update_max_trx_id(block,
 				       buf_block_get_page_zip(block),
 				       thr_get_trx(thr)->id);
 	}
@@ -5187,7 +5187,7 @@ lock_sec_rec_modify_check_and_lock(
 
 	if (err == DB_SUCCESS) {
 		/* Update the page max trx id field */
-		page_update_max_trx_id(page_align(rec),
+		page_update_max_trx_id(block,
 				       buf_block_get_page_zip(block),
 				       thr_get_trx(thr)->id);
 	}

@@ -3544,7 +3544,7 @@ page_zip_reorganize(
 					page_get_infimum_rec(temp_page),
 					index, mtr);
 	/* Copy max trx id to recreated page */
-	page_set_max_trx_id(page, NULL, page_get_max_trx_id(temp_page));
+	page_set_max_trx_id(block, NULL, page_get_max_trx_id(temp_page));
 
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
