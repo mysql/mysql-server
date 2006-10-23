@@ -293,7 +293,9 @@ int Instance_map::flush_instances()
             get_instance_key, delete_instance, 0);
 
   rc= load();
-  guardian->init(); // TODO: check error status.
+  /* don't init guardian if we failed to load instances */
+  if (!rc)
+    guardian->init(); // TODO: check error status.
   return rc;
 }
 

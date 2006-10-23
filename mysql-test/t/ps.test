@@ -988,6 +988,7 @@ execute stmt;
 drop temporary table t1;
 deallocate prepare stmt;
 
+
 #
 # BUG#22085: Crash on the execution of a prepared statement that
 #            uses an IN subquery with aggregate functions in HAVING 
@@ -1112,6 +1113,7 @@ DROP TABLE t1;
 
 
 --echo End of 4.1 tests.
+
 
 
 ############################# 5.0 tests start ################################

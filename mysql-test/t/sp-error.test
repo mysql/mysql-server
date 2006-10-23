@@ -1748,6 +1748,8 @@ drop function if exists bug16896;
 --error ER_SP_NO_AGGREGATE
 create aggregate function bug16896() returns int return 1;
 
+#
+#
 # BUG#14702: misleading error message when syntax error in CREATE
 # PROCEDURE
 #

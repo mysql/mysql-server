@@ -50,7 +50,9 @@ struct Options
     static bool is_forced_default_file;
 
     static const char *pid_file_name;
+#ifndef __WIN__
     static const char *socket_file_name;
+#endif
     static const char *password_file_name;
     static const char *default_mysqld_path;
     static uint monitoring_interval;
