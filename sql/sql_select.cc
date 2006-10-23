@@ -35,14 +35,17 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
                               "index_merge"
 };
 
+struct st_sargable_param;
+
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
 static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, COND *conds,
 				 DYNAMIC_ARRAY *keyuse);
 static bool update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,
-				JOIN_TAB *join_tab,
+                                JOIN_TAB *join_tab,
                                 uint tables, COND *conds,
                                 COND_EQUAL *cond_equal,
-				table_map table_map, SELECT_LEX *select_lex);
+                                table_map table_map, SELECT_LEX *select_lex,
+                                st_sargable_param **sargables);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static void set_position(JOIN *join,uint index,JOIN_TAB *table,KEYUSE *key);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
@@ -1375,12 +1378,13 @@ JOIN::exec()
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
-  /* 
-    don't reset the found rows count if there're no tables
-    as FOUND_ROWS() may be called.
-  */  
+  /*
+    Don't reset the found rows count if there're no tables as
+    FOUND_ROWS() may be called. Never reset the examined row count here.
+    It must be accumulated from all join iterations of all join parts.
+  */
   if (tables)
-    thd->limit_found_rows= thd->examined_row_count= 0;
+    thd->limit_found_rows= 0;
 
   if (zero_result_cause)
   {
@@ -1410,7 +1414,8 @@ JOIN::exec()
       simple_order= simple_group;
       skip_sort_order= 0;
     }
-    if (order &&
+    if (order && 
+        (order != group_list || !(select_options & SELECT_BIG_RESULT)) &&
 	(const_tables == tables ||
  	 ((simple_order || skip_sort_order) &&
 	  test_if_skip_sort_order(&join_tab[const_tables], order,
@@ -1428,6 +1433,12 @@ JOIN::exec()
   List<Item> *curr_all_fields= &all_fields;
   List<Item> *curr_fields_list= &fields_list;
   TABLE *curr_tmp_table= 0;
+  /*
+    Initialize examined rows here because the values from all join parts
+    must be accumulated in examined_row_count. Hence every join
+    iteration must count from zero.
+  */
+  curr_join->examined_rows= 0;
 
   if ((curr_join->select_lex->options & OPTION_SCHEMA_TABLE) &&
       get_schema_tables_result(curr_join))
@@ -1585,6 +1596,7 @@ JOIN::exec()
 	{
 	  DBUG_VOID_RETURN;
 	}
+        sortorder= curr_join->sortorder;
       }
       
       thd->proc_info="Copying to group table";
@@ -1794,6 +1806,7 @@ JOIN::exec()
 			    (select_options & OPTION_FOUND_ROWS ?
 			     HA_POS_ERROR : unit->select_limit_cnt)))
 	DBUG_VOID_RETURN;
+      sortorder= curr_join->sortorder;
     }
   }
   /* XXX: When can we have here thd->net.report_error not zero? */
@@ -1834,9 +1847,12 @@ JOIN::exec()
                         Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
     error= do_select(curr_join, curr_fields_list, NULL, procedure);
     thd->limit_found_rows= curr_join->send_records;
-    thd->examined_row_count= curr_join->examined_rows;
   }
 
+  /* Accumulate the counts from all join iterations of all join parts. */
+  thd->examined_row_count+= curr_join->examined_rows;
+  DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
+                        (ulong) thd->examined_row_count));
   DBUG_VOID_RETURN;
 }
 
@@ -2052,6 +2068,19 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   DBUG_RETURN(HA_POS_ERROR);			/* This shouldn't happend */
 }
 
+/*
+   This structure is used to collect info on potentially sargable
+   predicates in order to check whether they become sargable after
+   reading const tables.
+   We form a bitmap of indexes that can be used for sargable predicates.
+   Only such indexes are involved in range analysis.
+*/
+typedef struct st_sargable_param
+{
+  Field *field;              /* field against which to check sargability */
+  Item **arg_value;          /* values of potential keys for lookups     */
+  uint num_values;           /* number of values in the above array      */
+} SARGABLE_PARAM;  
 
 /*
   Calculate the best possible join and initialize the join structure
@@ -2074,6 +2103,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
   KEYUSE *keyuse,*start_keyuse;
   table_map outer_join=0;
+  SARGABLE_PARAM *sargables= 0;
   JOIN_TAB *stat_vector[MAX_TABLES+1];
   DBUG_ENTER("make_join_statistics");
 
@@ -2195,7 +2225,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
   if (conds || outer_join)
     if (update_ref_and_keys(join->thd, keyuse_array, stat, join->tables,
                             conds, join->cond_equal,
-                            ~outer_join, join->select_lex))
+                            ~outer_join, join->select_lex, &sargables))
       DBUG_RETURN(1);
 
   /* Read tables with 0 or 1 rows (system tables) */
@@ -2344,6 +2374,26 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
       }
     }
   } while (join->const_table_map & found_ref && ref_changed);
+
+  /* 
+    Update info on indexes that can be used for search lookups as
+    reading const tables may has added new sargable predicates. 
+  */
+  if (const_count && sargables)
+  {
+    for( ; sargables->field ; sargables++)
+    {
+      Field *field= sargables->field;
+      JOIN_TAB *stat= field->table->reginfo.join_tab;
+      key_map possible_keys= field->key_start;
+      possible_keys.intersect(field->table->keys_in_use_for_query);
+      bool is_const= 1;
+      for (uint i=0; i< sargables->num_values; i++)
+        is_const&= sargables->arg_value[i]->const_item();
+      if (is_const)
+        stat[0].const_keys.merge(possible_keys);
+    }
+  }
 
   /* Calc how many (possible) matched records in each table */
 
@@ -2604,6 +2654,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     eq_func			True if we used =, <=> or IS NULL
     value			Value used for comparison with field
     usable_tables		Tables which can be used for key optimization
+    sargables            IN/OUT Array of found sargable candidates
 
   NOTES
     If we are doing a NOT NULL comparison on a NOT NULL field in a outer join
@@ -2615,8 +2666,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 
 static void
 add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
-	      Field *field, bool eq_func, Item **value, uint num_values,
-	      table_map usable_tables)
+              Field *field, bool eq_func, Item **value, uint num_values,
+              table_map usable_tables, SARGABLE_PARAM **sargables)
 {
   uint exists_optimize= 0;
   if (!(field->flags & PART_KEY_FLAG))
@@ -2672,6 +2723,19 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         is_const&= value[i]->const_item();
       if (is_const)
         stat[0].const_keys.merge(possible_keys);
+      else if (!eq_func)
+      {
+        /* 
+          Save info to be able check whether this predicate can be 
+          considered as sargable for range analisis after reading const tables.
+          We do not save info about equalities as update_const_equal_items
+          will take care of updating info on keys from sargable equalities. 
+        */
+        (*sargables)--;
+        (*sargables)->field= field;
+        (*sargables)->arg_value= value;
+        (*sargables)->num_values= num_values;
+      }
       /*
 	We can't always use indexes when comparing a string index to a
 	number. cmp_type() is checked to allow compare of dates to numbers.
@@ -2762,6 +2826,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     value			Value used for comparison with field
 				Is NULL for BETWEEN and IN    
     usable_tables		Tables which can be used for key optimization
+    sargables            IN/OUT Array of found sargable candidates
 
   NOTES
     If field items f1 and f2 belong to the same multiple equality and
@@ -2775,11 +2840,12 @@ static void
 add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
                      Item_func *cond, Item_field *field_item,
                      bool eq_func, Item **val,
-                     uint num_values, table_map usable_tables)
+                     uint num_values, table_map usable_tables,
+                     SARGABLE_PARAM **sargables)
 {
   Field *field= field_item->field;
   add_key_field(key_fields, and_level, cond, field,
-                eq_func, val, num_values, usable_tables);
+                eq_func, val, num_values, usable_tables, sargables);
   Item_equal *item_equal= field_item->item_equal;
   if (item_equal)
   { 
@@ -2794,7 +2860,8 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
       if (!field->eq(item->field))
       {
         add_key_field(key_fields, and_level, cond, item->field,
-                      eq_func, val, num_values, usable_tables);
+                      eq_func, val, num_values, usable_tables,
+                      sargables);
       }
     }
   }
@@ -2802,7 +2869,8 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
 
 static void
 add_key_fields(KEY_FIELD **key_fields,uint *and_level,
-	       COND *cond, table_map usable_tables)
+               COND *cond, table_map usable_tables,
+               SARGABLE_PARAM **sargables)
 {
   if (cond->type() == Item_func::COND_ITEM)
   {
@@ -2813,20 +2881,20 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
     {
       Item *item;
       while ((item=li++))
-	add_key_fields(key_fields,and_level,item,usable_tables);
+	add_key_fields(key_fields,and_level,item,usable_tables,sargables);
       for (; org_key_fields != *key_fields ; org_key_fields++)
 	org_key_fields->level= *and_level;
     }
     else
     {
       (*and_level)++;
-      add_key_fields(key_fields,and_level,li++,usable_tables);
+      add_key_fields(key_fields,and_level,li++,usable_tables,sargables);
       Item *item;
       while ((item=li++))
       {
 	KEY_FIELD *start_key_fields= *key_fields;
 	(*and_level)++;
-	add_key_fields(key_fields,and_level,item,usable_tables);
+	add_key_fields(key_fields,and_level,item,usable_tables,sargables);
 	*key_fields=merge_key_fields(org_key_fields,start_key_fields,
 				     *key_fields,++(*and_level));
       }
@@ -2857,9 +2925,9 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
                   cond_func->argument_count() != 2);
       add_key_equal_fields(key_fields, *and_level, cond_func,
                            (Item_field*) (cond_func->key_item()->real_item()),
-                           0, values,
+                           0, values, 
                            cond_func->argument_count()-1,
-                           usable_tables);
+                           usable_tables, sargables);
     }
     if (cond_func->functype() == Item_func::BETWEEN)
     {
@@ -2873,7 +2941,8 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
         {
           field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
           add_key_equal_fields(key_fields, *and_level, cond_func,
-                               field_item, 0, values, 1, usable_tables);
+                               field_item, 0, values, 1, usable_tables, 
+                               sargables);
         }
       }  
     }
@@ -2890,7 +2959,8 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
       add_key_equal_fields(key_fields, *and_level, cond_func,
 	                (Item_field*) (cond_func->arguments()[0])->real_item(),
 		           equal_func,
-		           cond_func->arguments()+1, 1, usable_tables);
+                           cond_func->arguments()+1, 1, usable_tables,
+                           sargables);
     }
     if (cond_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
 	cond_func->functype() != Item_func::LIKE_FUNC &&
@@ -2899,7 +2969,8 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
       add_key_equal_fields(key_fields, *and_level, cond_func, 
                        (Item_field*) (cond_func->arguments()[1])->real_item(),
 		           equal_func,
-		           cond_func->arguments(),1,usable_tables);
+                           cond_func->arguments(),1,usable_tables,
+                           sargables);
     }
     break;
   }
@@ -2914,7 +2985,7 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
       add_key_equal_fields(key_fields, *and_level, cond_func,
 		    (Item_field*) (cond_func->arguments()[0])->real_item(),
 		    cond_func->functype() == Item_func::ISNULL_FUNC,
-		    &tmp, 1, usable_tables);
+			   &tmp, 1, usable_tables, sargables);
     }
     break;
   case Item_func::OPTIMIZE_EQUAL:
@@ -2932,7 +3003,7 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
       while ((item= it++))
       {
         add_key_field(key_fields, *and_level, cond_func, item->field,
-                      TRUE, &const_item, 1, usable_tables);
+                      TRUE, &const_item, 1, usable_tables, sargables);
       }
     }
     else 
@@ -2952,7 +3023,8 @@ add_key_fields(KEY_FIELD **key_fields,uint *and_level,
           if (!field->eq(item->field))
           {
             add_key_field(key_fields, *and_level, cond_func, field,
-                          TRUE, (Item **) &item, 1, usable_tables);
+                          TRUE, (Item **) &item, 1, usable_tables,
+                          sargables);
           }
         }
         it.rewind();
@@ -3103,6 +3175,7 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
       nested_join_table  IN     Nested join pseudo-table to process
       end                INOUT  End of the key field array
       and_level          INOUT  And-level
+      sargables          IN/OUT Array of found sargable candidates
 
   DESCRIPTION
     This function populates KEY_FIELD array with entries generated from the 
@@ -3126,7 +3199,8 @@ sort_keyuse(KEYUSE *a,KEYUSE *b)
 */
 
 static void add_key_fields_for_nj(TABLE_LIST *nested_join_table,
-                                  KEY_FIELD **end, uint *and_level)
+                                  KEY_FIELD **end, uint *and_level,
+                                  SARGABLE_PARAM **sargables)
 {
   List_iterator<TABLE_LIST> li(nested_join_table->nested_join->join_list);
   table_map tables= 0;
@@ -3136,12 +3210,12 @@ static void add_key_fields_for_nj(TABLE_LIST *nested_join_table,
   while ((table= li++))
   {
     if (table->nested_join)
-      add_key_fields_for_nj(table, end, and_level);
+      add_key_fields_for_nj(table, end, and_level, sargables);
     else
       if (!table->on_expr)
         tables |= table->table->map;
   }
-  add_key_fields(end, and_level, nested_join_table->on_expr, tables);
+  add_key_fields(end, and_level, nested_join_table->on_expr, tables, sargables);
 }
 
 
@@ -3156,9 +3230,10 @@ static void add_key_fields_for_nj(TABLE_LIST *nested_join_table,
       tables         Number of tables in join
       cond           WHERE condition (note that the function analyzes 
                      join_tab[i]->on_expr too)
-      normal_tables  tables not inner w.r.t some outer join (ones for which
+      normal_tables  Tables not inner w.r.t some outer join (ones for which
                      we can make ref access based the WHERE clause)
       select_lex     current SELECT
+      sargables  OUT Array of found sargable candidates
       
   RETURN 
    0 - OK
@@ -3167,27 +3242,55 @@ static void add_key_fields_for_nj(TABLE_LIST *nested_join_table,
 
 static bool
 update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
-		    uint tables, COND *cond, COND_EQUAL *cond_equal,
-                    table_map normal_tables, SELECT_LEX *select_lex)
+                    uint tables, COND *cond, COND_EQUAL *cond_equal,
+                    table_map normal_tables, SELECT_LEX *select_lex,
+                    SARGABLE_PARAM **sargables)
 {
   uint	and_level,i,found_eq_constant;
   KEY_FIELD *key_fields, *end, *field;
+  uint sz;
   uint m= 1;
   
   if (cond_equal && cond_equal->max_members)
     m= cond_equal->max_members;
-
-  if (!(key_fields=(KEY_FIELD*)
-	thd->alloc(sizeof(key_fields[0])*
-		   (thd->lex->current_select->cond_count+1)*2*m)))
+  
+  /* 
+    We use the same piece of memory to store both  KEY_FIELD 
+    and SARGABLE_PARAM structure.
+    KEY_FIELD values are placed at the beginning this memory
+    while  SARGABLE_PARAM values are put at the end.
+    All predicates that are used to fill arrays of KEY_FIELD
+    and SARGABLE_PARAM structures have at most 2 arguments
+    except BETWEEN predicates that have 3 arguments and 
+    IN predicates.
+    This any predicate if it's not BETWEEN/IN can be used 
+    directly to fill at most 2 array elements, either of KEY_FIELD
+    or SARGABLE_PARAM type. For a BETWEEN predicate 3 elements
+    can be filled as this predicate is considered as
+    saragable with respect to each of its argument.
+    An IN predicate can require at most 1 element as currently
+    it is considered as sargable only for its first argument.
+    Multiple equality can add  elements that are filled after
+    substitution of field arguments by equal fields. There
+    can be not more than cond_equal->max_members such substitutions.
+  */ 
+  sz= max(sizeof(KEY_FIELD),sizeof(SARGABLE_PARAM))*
+      (((thd->lex->current_select->cond_count+1)*2 +
+	thd->lex->current_select->between_count)*m+1);
+  if (!(key_fields=(KEY_FIELD*)	thd->alloc(sz)))
     return TRUE; /* purecov: inspected */
   and_level= 0;
   field= end= key_fields;
+  *sargables= (SARGABLE_PARAM *) key_fields + 
+                (sz - sizeof((*sargables)[0].field))/sizeof(SARGABLE_PARAM);
+  /* set a barrier for the array of SARGABLE_PARAM */
+  (*sargables)[0].field= 0; 
+
   if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
     return TRUE;
   if (cond)
   {
-    add_key_fields(&end,&and_level,cond,normal_tables);
+    add_key_fields(&end,&and_level,cond,normal_tables,sargables);
     for (; field != end ; field++)
     {
       add_key_part(keyuse,field);
@@ -3210,7 +3313,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     */ 
     if (*join_tab[i].on_expr_ref)
       add_key_fields(&end,&and_level,*join_tab[i].on_expr_ref,
-		     join_tab[i].table->map);
+                     join_tab[i].table->map,sargables);
   }
 
   /* Process ON conditions for the nested joins */
@@ -3220,7 +3323,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     while ((table= li++))
     {
       if (table->nested_join)
-	add_key_fields_for_nj(table, &end, &and_level);
+	add_key_fields_for_nj(table, &end, &and_level, sargables);
     }
   }
 
@@ -4960,9 +5063,28 @@ make_simple_join(JOIN *join,TABLE *tmp_table)
   JOIN_TAB *join_tab;
   DBUG_ENTER("make_simple_join");
 
-  if (!(tableptr=(TABLE**) join->thd->alloc(sizeof(TABLE*))) ||
-      !(join_tab=(JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB))))
-    DBUG_RETURN(TRUE);
+  /*
+    Reuse TABLE * and JOIN_TAB if already allocated by a previous call
+    to this function through JOIN::exec (may happen for sub-queries).
+  */
+  if (!join->table_reexec)
+  {
+    if (!(join->table_reexec= (TABLE**) join->thd->alloc(sizeof(TABLE*))))
+      DBUG_RETURN(TRUE);                        /* purecov: inspected */
+    if (join->tmp_join)
+      join->tmp_join->table_reexec= join->table_reexec;
+  }
+  if (!join->join_tab_reexec)
+  {
+    if (!(join->join_tab_reexec=
+          (JOIN_TAB*) join->thd->alloc(sizeof(JOIN_TAB))))
+      DBUG_RETURN(TRUE);                        /* purecov: inspected */
+    if (join->tmp_join)
+      join->tmp_join->join_tab_reexec= join->join_tab_reexec;
+  }
+  tableptr= join->table_reexec;
+  join_tab= join->join_tab_reexec;
+
   join->join_tab=join_tab;
   join->table=tableptr; tableptr[0]=tmp_table;
   join->tables=1;
@@ -7344,7 +7466,22 @@ static void update_const_equal_items(COND *cond, JOIN_TAB *tab)
            ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
   {
     Item_equal *item_equal= (Item_equal *) cond;
+    bool contained_const= item_equal->get_const() != NULL;
     item_equal->update_const();
+    if (!contained_const && item_equal->get_const())
+    {
+      /* Update keys for range analysis */
+      Item_equal_iterator it(*item_equal);
+      Item_field *item_field;
+      while ((item_field= it++))
+      {
+        Field *field= item_field->field;
+        JOIN_TAB *stat= field->table->reginfo.join_tab;
+        key_map possible_keys= field->key_start;
+        possible_keys.intersect(field->table->keys_in_use_for_query);
+        stat[0].const_keys.merge(possible_keys);
+      }
+    }
   }
 }
 
@@ -10141,6 +10278,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     */
     join->examined_rows++;
     join->thd->row_count++;
+    DBUG_PRINT("counts", ("join->examined_rows++: %lu",
+                          (ulong) join->examined_rows));
 
     if (found)
     {
@@ -11993,7 +12132,6 @@ static int
 create_sort_index(THD *thd, JOIN *join, ORDER *order,
 		  ha_rows filesort_limit, ha_rows select_limit)
 {
-  SORT_FIELD *sortorder;
   uint length;
   ha_rows examined_rows;
   TABLE *table;
@@ -12007,11 +12145,18 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   table=  tab->table;
   select= tab->select;
 
-  if (test_if_skip_sort_order(tab,order,select_limit,0))
+  /*
+    When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
+    and thus force sorting on disk.
+  */
+  if ((order != join->group_list || 
+       !(join->select_options & SELECT_BIG_RESULT)) &&
+      test_if_skip_sort_order(tab,order,select_limit,0))
     DBUG_RETURN(0);
-  if (!(sortorder=make_unireg_sortorder(order,&length)))
+  if (!(join->sortorder= 
+        make_unireg_sortorder(order,&length,join->sortorder)))
     goto err;				/* purecov: inspected */
-  /* It's not fatal if the following alloc fails */
+
   table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                              MYF(MY_WME | MY_ZEROFILL));
   table->status=0;				// May be wrong if quick_select
@@ -12056,7 +12201,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
-  table->sort.found_records=filesort(thd, table,sortorder, length,
+  table->sort.found_records=filesort(thd, table,join->sortorder, length,
                                      select, filesort_limit, &examined_rows);
   tab->records= table->sort.found_records;	// For SQL_CALC_ROWS
   if (select)
@@ -12403,7 +12548,8 @@ err:
 }
 
 
-SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length)
+SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
+                                  SORT_FIELD *sortorder)
 {
   uint count;
   SORT_FIELD *sort,*pos;
@@ -12412,7 +12558,9 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length)
   count=0;
   for (ORDER *tmp = order; tmp; tmp=tmp->next)
     count++;
-  pos=sort=(SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD)*(count+1));
+  if (!sortorder)
+    sortorder= (SORT_FIELD*) sql_alloc(sizeof(SORT_FIELD)*(count+1));
+  pos=sort=sortorder;
   if (!pos)
     return 0;
 
@@ -13525,7 +13673,19 @@ bool JOIN::alloc_func_list()
     disctinct->group_by optimization
   */
   if (select_distinct)
+  {
     group_parts+= fields_list.elements;
+    /*
+      If the ORDER clause is specified then it's possible that
+      it also will be optimized, so reserve space for it too
+    */
+    if (order)
+    {
+      ORDER *ord;
+      for (ord= order; ord; ord= ord->next)
+        group_parts++;
+    }
+  }
 
   /* This must use calloc() as rollup_make_fields depends on this */
   sum_funcs= (Item_sum**) thd->calloc(sizeof(Item_sum**) * (func_count+1) +
@@ -14008,12 +14168,17 @@ bool JOIN::rollup_init()
   while ((item= it++))
   {
     ORDER *group_tmp;
+    bool found_in_group= 0;
+
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
       if (*group_tmp->item == item)
+      {
         item->maybe_null= 1;
+        found_in_group= 1;
+      }
     }
-    if (item->type() == Item::FUNC_ITEM)
+    if (item->type() == Item::FUNC_ITEM && !found_in_group)
     {
       bool changed= FALSE;
       if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
