@@ -159,9 +159,8 @@ create table t1 (a int);
 create table if not exists t2 select * from t1;
 create temporary table tt1 (a int);
 create table if not exists t3 like tt1;
-show binlog events;
+show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Format_desc	1	#	Server ver: 5.1.12-beta-debug-log, Binlog ver: 4
 master-bin.000001	#	Query	1	#	use `test`; create table t1 (id tinyint auto_increment primary key)
 master-bin.000001	#	Intvar	1	#	INSERT_ID=127
 master-bin.000001	#	Query	1	#	use `test`; insert into t1 values(null)
