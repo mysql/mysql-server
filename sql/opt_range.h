@@ -36,7 +36,7 @@
 
 typedef struct st_key_part {
   uint16           key,part, store_length, length;
-  uint8            null_bit;
+  uint8            null_bit, flag;
   Field            *field;
   Field::imagetype image_type;
 } KEY_PART;
