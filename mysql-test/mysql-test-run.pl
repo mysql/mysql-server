@@ -758,7 +758,8 @@ sub command_line_setup () {
     $opt_vardir= $default_vardir;
   }
   elsif ( $mysql_version_id < 50000 and
-	  $opt_vardir ne $default_vardir )
+	  ! $glob_win32 and # No supported on platforms without native symlink
+	  $opt_vardir ne $default_vardir)
   {
     # Version 4.1 and --vardir was specified
     # Only supported as a symlink from var/
