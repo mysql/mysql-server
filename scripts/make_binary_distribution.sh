@@ -225,6 +225,7 @@ $CP mysql-test/lib/*.sql $BASE/mysql-test/lib
 $CP mysql-test/t/*.def $BASE/mysql-test/t
 $CP mysql-test/include/*.inc $BASE/mysql-test/include
 $CP mysql-test/std_data/*.dat mysql-test/std_data/*.*001 \
+    mysql-test/std_data/*.cnf \
     $BASE/mysql-test/std_data
 $CP mysql-test/std_data/des_key_file $BASE/mysql-test/std_data
 $CP mysql-test/t/*test mysql-test/t/*.opt mysql-test/t/*.slave-mi \
