@@ -482,6 +482,27 @@ select make_set(3, name, upper(name)) from bug20536;
 select export_set(5, name, upper(name)) from bug20536;
 select export_set(5, name, upper(name), ",", 5) from bug20536;
 
+#
+# Bug #20108: corrupted default enum value for a ucs2 field              
+#
+
+CREATE TABLE t1 (
+  status enum('active','passive') collate latin1_general_ci 
+    NOT NULL default 'passive'
+);
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD a int NOT NULL AFTER status; 
+
+CREATE TABLE t2 (
+  status enum('active','passive') collate ucs2_turkish_ci 
+    NOT NULL default 'passive'
+);
+SHOW CREATE TABLE t2;
+ALTER TABLE t2 ADD a int NOT NULL AFTER status; 
+
+DROP TABLE t1,t2;
+
+
 # Some broken functions:  add these tests just to document current behavior.
 
 # PASSWORD and OLD_PASSWORD don't work with UCS2 strings, but to fix it would

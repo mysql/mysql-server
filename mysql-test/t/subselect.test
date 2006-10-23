@@ -1911,4 +1911,41 @@ SELECT sql_no_cache t1.a, r.a, r.b FROM t1 LEFT JOIN t2 r
 
 drop table t1,t2;
 
+#
+# Bug #21853: assert failure for a grouping query with
+#             an ALL/ANY quantified subquery in HAVING 
+#
+
+CREATE TABLE t1 (                  
+  field1 int NOT NULL,                 
+  field2 int NOT NULL,                 
+  field3 int NOT NULL,                 
+  PRIMARY KEY  (field1,field2,field3)  
+);
+CREATE TABLE t2 (             
+  fieldA int NOT NULL,            
+  fieldB int NOT NULL,            
+  PRIMARY KEY  (fieldA,fieldB)     
+); 
+
+INSERT INTO t1 VALUES
+  (1,1,1), (1,1,2), (1,2,1), (1,2,2), (1,2,3), (1,3,1);
+INSERT INTO t2 VALUES (1,1), (1,2), (1,3);
+
+SELECT field1, field2, COUNT(*)
+  FROM t1 GROUP BY field1, field2;
+
+SELECT field1, field2
+  FROM  t1
+    GROUP BY field1, field2
+      HAVING COUNT(*) >= ALL (SELECT fieldB 
+                                FROM t2 WHERE fieldA = field1);
+SELECT field1, field2
+  FROM  t1
+    GROUP BY field1, field2
+      HAVING COUNT(*) < ANY (SELECT fieldB 
+                               FROM t2 WHERE fieldA = field1);
+
+DROP TABLE t1, t2;
+
 # End of 4.1 tests
