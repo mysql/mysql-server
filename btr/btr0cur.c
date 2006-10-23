@@ -304,7 +304,7 @@ btr_cur_search_to_nth_level(
 {
 	page_cur_t*	page_cursor;
 	page_t*		page;
-	page_t*		guess;
+	buf_block_t*	guess;
 	rec_t*		node_ptr;
 	ulint		page_no;
 	ulint		space;
@@ -512,8 +512,8 @@ retry_page_get:
 			root_height = height;
 			cursor->tree_height = root_height + 1;
 #ifdef BTR_CUR_ADAPT
-			if (page != guess) {
-				info->root_guess = page;
+			if (block != guess) {
+				info->root_guess = block;
 			}
 #endif
 		}

@@ -1422,7 +1422,7 @@ trx_undo_mem_create(
 
 	undo->empty = TRUE;
 	undo->top_page_no = page_no;
-	undo->guess_page = NULL;
+	undo->guess_block = NULL;
 
 	return(undo);
 }

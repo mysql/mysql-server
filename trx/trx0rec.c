@@ -1028,6 +1028,7 @@ trx_undo_report_row_operation(
 {
 	trx_t*		trx;
 	trx_undo_t*	undo;
+	buf_block_t*	undo_block;
 	page_t*		undo_page;
 	ulint		offset;
 	ulint		page_no;
@@ -1093,16 +1094,13 @@ trx_undo_report_row_operation(
 	mtr_start(&mtr);
 
 	for (;;) {
-		buf_block_t*	block = buf_page_get_gen(undo->space, page_no,
-							 RW_X_LATCH,
-							 undo->guess_page,
-							 BUF_GET,
-							 __FILE__, __LINE__,
-							 &mtr);
+		undo_block = buf_page_get_gen(undo->space, page_no, RW_X_LATCH,
+					      undo->guess_block, BUF_GET,
+					      __FILE__, __LINE__, &mtr);
 #ifdef UNIV_SYNC_DEBUG
-		buf_block_dbg_add_level(block, SYNC_TRX_UNDO_PAGE);
+		buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
 #endif /* UNIV_SYNC_DEBUG */
-		undo_page = buf_block_get_frame(block);
+		undo_page = buf_block_get_frame(undo_block);
 
 		if (op_type == TRX_UNDO_INSERT_OP) {
 			offset = trx_undo_page_report_insert(
@@ -1163,7 +1161,7 @@ trx_undo_report_row_operation(
 	undo->top_page_no = page_no;
 	undo->top_offset  = offset;
 	undo->top_undo_no = trx->undo_no;
-	undo->guess_page = undo_page;
+	undo->guess_block = undo_block;
 
 	UT_DULINT_INC(trx->undo_no);
 

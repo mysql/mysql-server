@@ -548,7 +548,7 @@ buf_page_get_release_on_io(
 	ulint	space,		/* in: space id */
 	ulint	offset,		/* in: offset of the page within space
 				in units of a page */
-	buf_frame_t* guess,	/* in: guessed frame or NULL */
+	buf_block_t* guess,	/* in: guessed block or NULL */
 	ulint	rw_latch,	/* in: RW_X_LATCH, RW_S_LATCH,
 				or RW_NO_LATCH */
 	ulint	savepoint,	/* in: mtr savepoint */
