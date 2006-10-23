@@ -153,7 +153,12 @@ class ha_ndbcluster: public handler
  
   static void set_dbname(const char *pathname, char *dbname);
   static void set_tabname(const char *pathname, char *tabname);
-   
+
+  /*
+   * Internal to ha_ndbcluster, used by C functions
+   */
+  int ndb_err(NdbConnection*);
+
  private:
   int alter_table_name(const char *to);
   int drop_table();
@@ -206,7 +211,6 @@ class ha_ndbcluster: public handler
 
   longlong get_auto_increment();
   void invalidate_dictionary_cache(bool global);
-  int ndb_err(NdbConnection*);
   bool uses_blob_value(bool all_fields);
 
   int write_ndb_file();
