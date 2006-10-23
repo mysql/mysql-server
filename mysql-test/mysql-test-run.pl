@@ -1868,6 +1868,11 @@ sub kill_running_servers () {
 
     if ( ! -d $opt_vardir )
     {
+      if ( -l $opt_vardir and ! -d readlink($opt_vardir) )
+      {
+	mtr_report("Removing $opt_vardir symlink without destination");
+	unlink($opt_vardir);
+      }
       # The "var" dir does not exist already
       # the processes that mtr_kill_leftovers start will write
       # their log files to var/log so it should be created
