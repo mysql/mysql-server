@@ -166,6 +166,8 @@ row_sel_sec_rec_is_for_clust_rec(
 						    clust_index->table))) {
 					goto inequal;
 				}
+
+				continue;
 			}
 		}
 
