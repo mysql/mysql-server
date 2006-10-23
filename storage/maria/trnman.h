@@ -44,7 +44,7 @@ struct st_transaction
 extern uint trnman_active_transactions, trnman_allocated_transactions;
 
 int trnman_init(void);
-int trnman_destroy(void);
+void trnman_destroy(void);
 TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond);
 void trnman_end_trn(TRN *trn, my_bool commit);
 #define trnman_commit_trn(T) trnman_end_trn(T, TRUE)
