@@ -3518,7 +3518,7 @@ page_zip_reorganize(
 	page_t*		temp_page;
 	ulint		log_mode;
 
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_is_comp(page));
 	/* Note that page_zip_validate(page_zip, page) may fail here. */
 
