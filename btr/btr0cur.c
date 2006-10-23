@@ -1242,7 +1242,6 @@ btr_cur_pessimistic_insert(
 	ulint		zip_size	= dict_table_zip_size(index->table);
 	big_rec_t*	big_rec_vec	= NULL;
 	mem_heap_t*	heap		= NULL;
-	buf_block_t*	block;
 	ulint		err;
 	ibool		dummy_inh;
 	ibool		success;
@@ -1253,12 +1252,11 @@ btr_cur_pessimistic_insert(
 
 	*big_rec = NULL;
 
-	block = btr_cur_get_block(cursor);
-
 	ut_ad(mtr_memo_contains(mtr,
 				dict_index_get_lock(btr_cur_get_index(cursor)),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
+				MTR_MEMO_PAGE_X_FIX));
 
 	/* Try first an optimistic insert; reset the cursor flag: we do not
 	assume anything of how it was positioned */
@@ -1369,7 +1367,8 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (dict_index_get_page(index) == buf_block_get_page_no(block)) {
+	if (dict_index_get_page(index)
+	    == buf_block_get_page_no(btr_cur_get_block(cursor))) {
 
 		/* The page is the root page */
 		*rec = btr_root_raise_and_insert(cursor, entry,
@@ -1383,7 +1382,7 @@ btr_cur_pessimistic_insert(
 		mem_heap_free(heap);
 	}
 
-	btr_cur_position(index, page_rec_get_prev(*rec), block, cursor);
+	ut_ad(page_rec_get_next(btr_cur_get_rec(cursor)) == *rec);
 
 #ifdef BTR_CUR_ADAPT
 	btr_search_update_hash_on_insert(cursor);
