@@ -374,8 +374,8 @@ UNIV_INLINE
 ibool
 page_rec_check(
 /*===========*/
-			/* out: TRUE if succeed */
-	rec_t*	rec);	/* in: record */
+				/* out: TRUE if succeed */
+	const rec_t*	rec);	/* in: record */
 /*******************************************************************
 Gets the record pointed to by a directory slot. */
 UNIV_INLINE
@@ -841,19 +841,6 @@ page_parse_create(
 	ulint		comp,	/* in: nonzero=compact page format */
 	buf_block_t*	block,	/* in: block or NULL */
 	mtr_t*		mtr);	/* in: mtr or NULL */
-/***************************************************************
-Parses a redo log record of creating a compressed page. */
-
-byte*
-page_parse_create_zip(
-/*==================*/
-				/* out: end of log record or NULL */
-	byte*		ptr,	/* in: buffer */
-	byte*		end_ptr,/* in: buffer end */
-	page_t*		page,	/* in/out: page or NULL */
-	page_zip_des_t*	page_zip,/* in/out: compressed page or NULL */
-	dict_index_t*	index,	/* in: index of the page */
-	mtr_t*		mtr);	/* in: mtr or NULL */
 /****************************************************************
 Prints record contents including the data relevant only in
 the index page context. */
@@ -861,7 +848,7 @@ the index page context. */
 void
 page_rec_print(
 /*===========*/
-	rec_t*		rec,	/* in: physical record */
+	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets);/* in: record descriptor */
 /*******************************************************************
 This is used to print the contents of the directory for

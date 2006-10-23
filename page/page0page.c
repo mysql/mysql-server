@@ -1512,7 +1512,7 @@ the index page context. */
 void
 page_rec_print(
 /*===========*/
-	rec_t*		rec,	/* in: physical record */
+	const rec_t*	rec,	/* in: physical record */
 	const ulint*	offsets)/* in: record descriptor */
 {
 	ut_a(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));

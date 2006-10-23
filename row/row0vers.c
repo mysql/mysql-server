@@ -40,7 +40,7 @@ row_vers_impl_x_locked_off_kernel(
 				/* out: NULL if committed, else the active
 				transaction; NOTE that the kernel mutex is
 				temporarily released! */
-	rec_t*		rec,	/* in: record in a secondary index */
+	const rec_t*	rec,	/* in: record in a secondary index */
 	dict_index_t*	index,	/* in: the secondary index */
 	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
@@ -302,7 +302,7 @@ row_vers_old_has_index_entry(
 	mtr_t*		mtr,	/* in: mtr holding the latch on rec; it will
 				also hold the latch on purge_view */
 	dict_index_t*	index,	/* in: the secondary index */
-	dtuple_t*	ientry)	/* in: the secondary index entry */
+	const dtuple_t*	ientry)	/* in: the secondary index entry */
 {
 	rec_t*		version;
 	rec_t*		prev_version;
@@ -310,8 +310,8 @@ row_vers_old_has_index_entry(
 	ulint*		clust_offsets;
 	mem_heap_t*	heap;
 	mem_heap_t*	heap2;
-	dtuple_t*	row;
-	dtuple_t*	entry;
+	const dtuple_t*	row;
+	const dtuple_t*	entry;
 	ulint		err;
 	ulint		comp;
 

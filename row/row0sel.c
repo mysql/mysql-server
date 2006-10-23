@@ -60,20 +60,21 @@ static
 ibool
 row_sel_sec_rec_is_for_blob(
 /*========================*/
-				/* out: TRUE if the columns are equal */
-	ulint	mtype,		/* in: main type */
-	ulint	prtype,		/* in: precise type */
-	ulint	mbminlen,	/* in: minimum length of a
+					/* out: TRUE if the columns
+					are equal */
+	ulint		mtype,		/* in: main type */
+	ulint		prtype,		/* in: precise type */
+	ulint		mbminlen,	/* in: minimum length of a
+					multi-byte character */
+	ulint		mbmaxlen,	/* in: maximum length of a
 				multi-byte character */
-	ulint	mbmaxlen,	/* in: maximum length of a
-				multi-byte character */
-	byte*	clust_field,	/* in: the locally stored part of
+	const byte*	clust_field,	/* in: the locally stored part of
 				the clustered index column, including
 				the BLOB pointer */
-	ulint	clust_len,	/* in: length of clust_field */
-	byte*	sec_field,	/* in: column in secondary index */
-	ulint	sec_len,	/* in: length of sec_field */
-	ulint	zip_size)	/* in: compressed page size, or 0 */
+	ulint		clust_len,	/* in: length of clust_field */
+	const byte*	sec_field,	/* in: column in secondary index */
+	ulint		sec_len,	/* in: length of sec_field */
+	ulint		zip_size)	/* in: compressed page size, or 0 */
 {
 	ulint	len;
 	byte	buf[DICT_MAX_INDEX_COL_LEN];
@@ -101,14 +102,14 @@ row_sel_sec_rec_is_for_clust_rec(
 					record is equal to the corresponding
 					fields in the clustered record,
 					when compared with collation */
-	rec_t*		sec_rec,	/* in: secondary index record */
+	const rec_t*	sec_rec,	/* in: secondary index record */
 	dict_index_t*	sec_index,	/* in: secondary index */
-	rec_t*		clust_rec,	/* in: clustered index record */
+	const rec_t*	clust_rec,	/* in: clustered index record */
 	dict_index_t*	clust_index)	/* in: clustered index */
 {
-	byte*		sec_field;
+	const byte*	sec_field;
 	ulint		sec_len;
-	byte*		clust_field;
+	const byte*	clust_field;
 	ulint		n;
 	ulint		i;
 	mem_heap_t*	heap		= NULL;
@@ -3161,7 +3162,7 @@ row_sel_try_search_shortcut_for_mysql(
 	mtr_t*		mtr)	/* in: started mtr */
 {
 	dict_index_t*	index		= prebuilt->index;
-	dtuple_t*	search_tuple	= prebuilt->search_tuple;
+	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
 	rec_t*		rec;
@@ -3250,7 +3251,7 @@ row_search_for_mysql(
 {
 	dict_index_t*	index		= prebuilt->index;
 	ibool		comp		= dict_table_is_comp(index->table);
-	dtuple_t*	search_tuple	= prebuilt->search_tuple;
+	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
 	dict_index_t*	clust_index;

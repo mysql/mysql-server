@@ -241,8 +241,8 @@ to a file. Note that we must be careful to calculate the same value on
 ulint
 buf_calc_page_new_checksum(
 /*=======================*/
-			/* out: checksum */
-	byte*	page)	/* in: buffer page */
+				/* out: checksum */
+	const byte*	page)	/* in: buffer page */
 {
 	ulint checksum;
 
@@ -275,8 +275,8 @@ because this takes that field as an input! */
 ulint
 buf_calc_page_old_checksum(
 /*=======================*/
-			/* out: checksum */
-	byte*	page)	/* in: buffer page */
+				/* out: checksum */
+	const byte*	page)	/* in: buffer page */
 {
 	ulint checksum;
 
@@ -293,10 +293,10 @@ Checks if a page is corrupt. */
 ibool
 buf_page_is_corrupted(
 /*==================*/
-				/* out: TRUE if corrupted */
-	byte*	read_buf,	/* in: a database page */
-	ulint	zip_size)	/* in: size of compressed page;
-				0 for uncompressed pages */
+					/* out: TRUE if corrupted */
+	const byte*	read_buf,	/* in: a database page */
+	ulint		zip_size)	/* in: size of compressed page;
+					0 for uncompressed pages */
 {
 	ulint	checksum_field;
 	ulint	old_checksum_field;
@@ -404,8 +404,8 @@ Prints a page to stderr. */
 void
 buf_page_print(
 /*===========*/
-	byte*	read_buf,	/* in: a database page */
-	ulint	zip_size)	/* in: compressed page size, or
+	const byte*	read_buf,	/* in: a database page */
+	ulint		zip_size)	/* in: compressed page size, or
 				0 for uncompressed pages */
 {
 	dict_index_t*	index;
