@@ -8,6 +8,7 @@ mysqld2	offline
 Killing the process...
 Sleeping...
 Success: the process was restarted.
+Success: server is ready to accept connection on socket.
 
 --------------------------------------------------------------------
 -- Test for BUG#12751
