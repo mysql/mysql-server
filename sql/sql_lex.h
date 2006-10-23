@@ -530,7 +530,8 @@ public:
     list during split_sum_func
   */
   uint select_n_having_items;
-  uint cond_count;      /* number of arguments of and/or/xor in where/having */
+  uint cond_count;    /* number of arguments of and/or/xor in where/having/on */
+  uint between_count; /* number of between predicates in where/having/on      */   
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
   /* 
