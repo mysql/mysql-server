@@ -1553,7 +1553,7 @@ page_cur_delete_rec(
 	/* The page gets invalid for optimistic searches: increment the
 	frame modify clock */
 
-	buf_block_modify_clock_inc(buf_block_align(page)/*TODO*/);
+	buf_block_modify_clock_inc(page_cur_get_block(cursor));
 
 	/* 2. Find the next and the previous record. Note that the cursor is
 	left at the next record. */

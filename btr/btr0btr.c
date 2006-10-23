@@ -915,7 +915,7 @@ btr_page_reorganize_low(
 					page_get_infimum_rec(temp_page),
 					index, mtr);
 	/* Copy max trx id to recreated page */
-	page_set_max_trx_id(page, NULL, page_get_max_trx_id(temp_page));
+	page_set_max_trx_id(block, NULL, page_get_max_trx_id(temp_page));
 
 	if (UNIV_LIKELY_NULL(page_zip)
 	    && UNIV_UNLIKELY
@@ -1128,7 +1128,7 @@ btr_root_raise_and_insert(
 	heap = mem_heap_create(100);
 
 	rec = page_rec_get_next(page_get_infimum_rec(new_page));
-	new_page_no = page_get_page_no(new_page);
+	new_page_no = buf_block_get_page_no(new_block);
 
 	/* Build the node pointer (= node key and page address) for the
 	child */
@@ -1179,8 +1179,7 @@ btr_root_raise_and_insert(
 	/* We play safe and reset the free bits for the new page */
 
 #if 0
-	fprintf(stderr, "Root raise new page no %lu\n",
-		page_get_page_no(new_page));
+	fprintf(stderr, "Root raise new page no %lu\n", new_page_no);
 #endif
 
 	ibuf_reset_free_bits_with_type(index->type, new_block);
@@ -2481,7 +2480,7 @@ btr_discard_only_page_on_level(
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
 
-	if (UNIV_LIKELY(page_get_page_no(father_page)
+	if (UNIV_LIKELY(buf_block_get_page_no(father_block)
 			== dict_index_get_page(index))) {
 		/* The father is the root page */
 
@@ -2659,7 +2658,7 @@ btr_print_recursive(
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	fprintf(stderr, "NODE ON LEVEL %lu page number %lu\n",
 		(ulong) btr_page_get_level(page, mtr),
-		(ulong) page_get_page_no(page));
+		(ulong) buf_block_get_page_no(block));
 
 	page_print(block, index, width, width);
 

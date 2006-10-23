@@ -2733,7 +2733,7 @@ ibuf_insert_low(
 						thr, &mtr);
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
-			page_update_max_trx_id(page_align(ins_rec), NULL,
+			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
 					       thr_get_trx(thr)->id);
 		}
 	} else {
@@ -2754,7 +2754,7 @@ ibuf_insert_low(
 						 thr, &mtr);
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
-			page_update_max_trx_id(page_align(ins_rec), NULL,
+			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,
 					       thr_get_trx(thr)->id);
 		}
 
@@ -3332,8 +3332,7 @@ loop:
 			dict_index_t*	dummy_index;
 			dulint		max_trx_id = page_get_max_trx_id(
 				page_align(ibuf_rec));
-			page_update_max_trx_id(buf_block_get_frame(block),
-					       page_zip, max_trx_id);
+			page_update_max_trx_id(block, page_zip, max_trx_id);
 
 			entry = ibuf_build_entry_from_ibuf_rec(
 				ibuf_rec, heap, &dummy_index);
