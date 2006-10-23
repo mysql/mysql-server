@@ -293,12 +293,6 @@ typedef struct st_mysql
   /* needed for embedded server - no net buffer to store the 'info' */
   char *info_buffer;
 #endif
-  /*
-    In embedded server it points to the statement that is processed
-    in the current query. We store some results directly in statement
-    fields then.
-  */
-  struct st_mysql_stmt *current_stmt;
 } MYSQL;
 
 typedef struct st_mysql_res {
