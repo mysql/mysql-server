@@ -23,8 +23,11 @@ create table t1 (a int, b int);
 insert into t1 values (1,2), (1,3), (2,4), (2,5), (3,10);
 
 # view with variable
--- error 1351
+-- error ER_VIEW_SELECT_VARIABLE
 create view v1 (c,d) as select a,b+@@global.max_user_connections from t1;
+-- error ER_VIEW_SELECT_VARIABLE
+create view v1 (c,d) as select a,b from t1
+  where a = @@global.max_user_connections;
 
 # simple view
 create view v1 (c) as select b+1 from t1;
@@ -487,19 +490,6 @@ drop view v1;
 create view v1 (a,a) as select 'a','a';
 
 #
-# SP variables inside view test
-#
---disable_warnings
-drop procedure if exists p1;
---enable_warnings
-delimiter //;
-create procedure p1 () begin declare v int; create view v1 as select v; end;//
-delimiter ;//
--- error 1351
-call p1();
-drop procedure p1;
-
-#
 # updatablity should be transitive
 #
 create table t1 (col1 int,col2 char(22));
@@ -820,6 +810,8 @@ create view v1 as select 5 into outfile 'ttt';
 create table t1 (a int);
 -- error 1350
 create view v1 as select a from t1 procedure analyse();
+-- error ER_VIEW_SELECT_DERIVED
+create view v1 as select 1 from (select 1) as d1;
 drop table t1;
 
 #
@@ -2886,6 +2878,38 @@ DROP VIEW v1;
 DROP TABLE t1, t2;
 
 #
+# Bug#19111: TRIGGERs selecting from a VIEW on the firing base table
+# fail
+#
+# Allow to select from a view on a table being modified in a trigger
+# and stored function, since plain select is allowed there.
+#
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1);
+
+CREATE VIEW v1 AS SELECT MAX(i) FROM t1;
+
+# Plain 'SET NEW.i = (SELECT MAX(i) FROM t1) + 1' works, so select
+# from a view should work too.
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  SET NEW.i = (SELECT * FROM v1) + 1;
+INSERT INTO t1 VALUES (1);
+
+# Plain 'RETURN (SELECT MAX(i) FROM t1)' works in INSERT, so select
+# from a view should work too.
+CREATE FUNCTION f1() RETURNS INT RETURN (SELECT * FROM v1);
+UPDATE t1 SET i= f1();
+
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE t1;
+
 # Bug #16813 (WITH CHECK OPTION doesn't work with UPDATE)
 #
 CREATE TABLE t1(id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, val INT UNSIGNED NOT NULL);
