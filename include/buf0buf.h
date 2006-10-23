@@ -194,7 +194,7 @@ buf_page_get_release_on_io(
 	ulint	space,		/* in: space id */
 	ulint	offset,		/* in: offset of the page within space
 				in units of a page */
-	buf_frame_t* guess,	/* in: guessed frame or NULL */
+	buf_block_t* guess,	/* in: guessed frame or NULL */
 	ulint	rw_latch,	/* in: RW_X_LATCH, RW_S_LATCH,
 				or RW_NO_LATCH */
 	ulint	savepoint,	/* in: mtr savepoint */
@@ -223,7 +223,7 @@ buf_page_get_gen(
 	ulint		space,	/* in: space id */
 	ulint		offset,	/* in: page number */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
-	buf_frame_t*	guess,	/* in: guessed frame or NULL */
+	buf_block_t*	guess,	/* in: guessed block or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
 				BUF_GET_NO_LATCH */
 	const char*	file,	/* in: file name */

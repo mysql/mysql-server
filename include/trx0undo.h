@@ -374,7 +374,7 @@ struct trx_undo_struct{
 					i.e., the topmost element in the undo
 					log if we think of it as a stack */
 	dulint		top_undo_no;	/* undo number of the latest record */
-	page_t*		guess_page;	/* guess for the buffer frame where
+	buf_block_t*	guess_block;	/* guess for the buffer block where
 					the top page might reside */
 	/*-----------------------------*/
 	UT_LIST_NODE_T(trx_undo_t) undo_list;
