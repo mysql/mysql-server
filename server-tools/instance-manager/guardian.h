@@ -91,7 +91,7 @@ public:
   /* Initialize or refresh the list of guarded instances */
   int init();
   /* Request guardian shutdown. Stop instances if needed */
-  void request_shutdown(bool stop_instances);
+  void request_shutdown();
   /* Start instance protection */
   int guard(Instance *instance, bool nolock= FALSE);
   /* Stop instance protection */
@@ -123,7 +123,7 @@ public:
 
 private:
   /* Prepares Guardian shutdown. Stops instances is needed */
-  int stop_instances(bool stop_instances_arg);
+  int stop_instances();
   /* check instance state and act accordingly */
   void process_instance(Instance *instance, GUARD_NODE *current_node,
                         LIST **guarded_instances, LIST *elem);
