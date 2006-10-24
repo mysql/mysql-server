@@ -3217,7 +3217,7 @@ lock_update_discard(
 			lock_rec_reset_and_release_wait(block, heap_no);
 
 			rec = page + rec_get_next_offs(rec, TRUE);
-		} while (heap_no != PAGE_NEW_SUPREMUM);
+		} while (heap_no != PAGE_HEAP_NO_SUPREMUM);
 	} else {
 		rec = page + PAGE_OLD_INFIMUM;
 
@@ -3230,7 +3230,7 @@ lock_update_discard(
 			lock_rec_reset_and_release_wait(block, heap_no);
 
 			rec = page + rec_get_next_offs(rec, FALSE);
-		} while (heap_no != PAGE_OLD_SUPREMUM);
+		} while (heap_no != PAGE_HEAP_NO_SUPREMUM);
 	}
 
 	lock_rec_free_all_from_discard_page(block);
