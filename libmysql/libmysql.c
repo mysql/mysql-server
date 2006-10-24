@@ -4395,13 +4395,6 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
     set_stmt_error(stmt, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
     DBUG_RETURN(1);
   }
-  if (result->data)
-  {
-    free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
-    result->data= NULL;
-    result->rows= 0;
-    stmt->data_cursor= NULL;
-  }
 
   if (stmt->update_max_length && !stmt->bind_result_done)
   {
