@@ -74,7 +74,7 @@ Guardian_thread::Guardian_thread(Thread_registry &thread_registry_arg,
                                  uint monitoring_interval_arg) :
   Guardian_thread_args(thread_registry_arg, instance_map_arg,
                        monitoring_interval_arg),
-  thread_info(pthread_self()), guarded_instances(0)
+  thread_info(pthread_self(), TRUE), guarded_instances(0)
 {
   pthread_mutex_init(&LOCK_guardian, 0);
   pthread_cond_init(&COND_guardian, 0);
@@ -250,6 +250,8 @@ void Guardian_thread::run()
   LIST *node;
   struct timespec timeout;
 
+  log_info("Guardian: started.");
+
   thread_registry.register_thread(&thread_info);
 
   my_thread_init();
@@ -277,12 +279,16 @@ void Guardian_thread::run()
                                      &LOCK_guardian, &timeout);
   }
 
+  log_info("Guardian: stopped.");
+
   stopped= TRUE;
   pthread_mutex_unlock(&LOCK_guardian);
   /* now, when the Guardian is stopped we can stop the IM */
   thread_registry.unregister_thread(&thread_info);
   thread_registry.request_shutdown();
   my_thread_end();
+
+  log_info("Guardian: finished.");
 }
 
 
