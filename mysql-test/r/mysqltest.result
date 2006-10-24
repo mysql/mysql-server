@@ -152,8 +152,38 @@ mysqltest: At line 1: Missing delimiter
 mysqltest: At line 1: End of line junk detected: "sleep 7
 # Another comment
 "
+mysqltest: At line 1: Missing delimiter
+mysqltest: At line 1: Missing delimiter
+mysqltest: At line 1: End of line junk detected: "disconnect default
+
+#
+# comment
+# comment2
+
+# comment 3
+--disable_query_log
+"
+mysqltest: At line 1: End of line junk detected: "disconnect default # comment
+# comment part2
+
+# comment 3
+--disable_query_log
+"
 mysqltest: At line 1: Extra delimiter ";" found
 mysqltest: At line 1: Extra delimiter ";" found
+mysqltest: At line 1: Missing argument(s) to 'error'
+mysqltest: At line 1: Missing argument(s) to 'error'
+mysqltest: At line 1: The sqlstate definition must start with an uppercase S
+mysqltest: At line 1: The error name definition must start with an uppercase E
+mysqltest: At line 1: Invalid argument to error: '9eeeee' - the errno may only consist of digits[0-9]
+mysqltest: At line 1: Invalid argument to error: '1sssss' - the errno may only consist of digits[0-9]
+mysqltest: At line 1: The sqlstate must be exactly 5 chars long
+mysqltest: At line 1: The sqlstate may only consist of digits[0-9] and _uppercase_ letters
+mysqltest: At line 1: The sqlstate must be exactly 5 chars long
+mysqltest: At line 1: Unknown SQL error name 'E9999'
+mysqltest: At line 1: Invalid argument to error: '999e9' - the errno may only consist of digits[0-9]
+mysqltest: At line 1: Invalid argument to error: '9b' - the errno may only consist of digits[0-9]
+mysqltest: At line 1: Too many errorcodes specified
 MySQL
 "MySQL"
 MySQL: The world''s most popular open source database
@@ -239,7 +269,7 @@ mysqltest: At line 1: Missing assignment operator in let
 1
 # Execute: echo $success ;
 1 
-mysqltest: At line 1: Missing file name in source
+mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open file ./non_existingFile
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/error.sql": At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
@@ -332,16 +362,16 @@ Counter is greater than 0, (counter=10)
 Counter is not 0, (counter=0)
 1
 Testing while with not
-mysqltest: In included file "./include/mysqltest_while.inc": At line 64: Nesting too deeply
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest_while.inc": At line 64: Nesting too deeply
 mysqltest: At line 1: missing '(' in while
 mysqltest: At line 1: missing ')' in while
 mysqltest: At line 1: Missing '{' after while. Found "dec $i"
 mysqltest: At line 1: Stray '}' - end of block before beginning
 mysqltest: At line 1: Stray 'end' command - end of block before beginning
-mysqltest: At line 1: query '' failed: 1065: Query was empty
+mysqltest: At line 1: query '{' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
 mysqltest: At line 1: Missing '{' after while. Found "echo hej"
 mysqltest: At line 3: Missing end of block
-mysqltest: At line 1: Missing newline between while and '{'
+mysqltest: At line 3: Missing end of block
 mysqltest: At line 1: missing '(' in if
 mysqltest: At line 1: Stray 'end' command - end of block before beginning
 select "b" bs col1, "c" bs col2;
@@ -371,17 +401,15 @@ mysqltest: At line 1: Wrong column number to replace_column in 'replace_column 1
 mysqltest: At line 1: Invalid integer argument "10!"
 mysqltest: At line 1: End of line junk detected: "!"
 mysqltest: At line 1: Invalid integer argument "a"
-mysqltest: At line 1: Syntax error in connect - expected '(' found 'mysqltest: At line 1: Missing connection host
-mysqltest: At line 1: Missing connection host
-mysqltest: At line 1: Missing connection user
-mysqltest: At line 1: Missing connection user
-mysqltest: At line 1: Missing connection password
-mysqltest: At line 1: Missing connection db
-mysqltest: At line 1: Could not open connection 'con2': 1049 Unknown database 'illegal_db'
+mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
+mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
+mysqltest: At line 1: Missing required argument 'host' to command 'connect'
+mysqltest: At line 1: Missing required argument 'host' to command 'connect'
+mysqltest: At line 1: query 'connect  con2,localhost,root,,illegal_db' failed: 1049: Unknown database 'illegal_db'
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
 OK
-mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 7: Connection limit exhausted - increase MAX_CONS in mysqltest.c
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 7: Connection limit exhausted, you can have max 128 connections
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 2: Connection test_con1 already exists
 connect(localhost,root,,test,MASTER_PORT,MASTER_SOCKET);
@@ -449,7 +477,6 @@ sleep;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'sleep' at line 1
 ;
 ERROR 42000: Query was empty
-End of 5.0 tests
 select "b" as col1, "c" as col2;
 col1	col2
 b	c
@@ -477,4 +504,20 @@ a	D
 1	1
 1	4
 drop table t1;
-End of 5.1 tests
+mysqltest: At line 1: Missing required argument 'filename' to command 'remove_file'
+mysqltest: At line 1: Missing required argument 'filename' to command 'write_file'
+mysqltest: At line 1: End of file encountered before 'EOF' delimiter was found
+mysqltest: At line 1: End of line junk detected: "write_file filename ";
+"
+mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
+mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
+mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
+hello
+hello
+hello
+mysqltest: At line 1: Max delimiter length(16) exceeded
+hello
+hello
+mysqltest: At line 1: test of die
+Some output
+End of tests

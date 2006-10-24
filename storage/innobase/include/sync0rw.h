@@ -358,8 +358,9 @@ rw_lock_print(
 Prints debug info of currently locked rw-locks. */
 
 void
-rw_lock_list_print_info(void);
-/*=========================*/
+rw_lock_list_print_info(
+/*====================*/
+	FILE*	file);		/* in: file where to print */
 /*******************************************************************
 Returns the number of currently locked rw-locks.
 Works only in the debug version. */

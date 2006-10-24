@@ -23,12 +23,28 @@ sub gcov_prepare () {
     -or -name \*.da | xargs rm`;
 }
 
+# Used by gcov
+our @mysqld_src_dirs=
+  (
+   "strings",
+   "mysys",
+   "include",
+   "extra",
+   "regex",
+   "isam",
+   "merge",
+   "myisam",
+   "myisammrg",
+   "heap",
+   "sql",
+  );
+
 sub gcov_collect () {
 
   print "Collecting source coverage info...\n";
   -f $::opt_gcov_msg and unlink($::opt_gcov_msg);
   -f $::opt_gcov_err and unlink($::opt_gcov_err);
-  foreach my $d ( @::mysqld_src_dirs )
+  foreach my $d ( @mysqld_src_dirs )
   {
     chdir("$::glob_basedir/$d");
     foreach my $f ( (glob("*.h"), glob("*.cc"), glob("*.c")) )
