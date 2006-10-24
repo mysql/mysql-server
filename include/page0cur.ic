@@ -235,8 +235,7 @@ page_cur_tuple_insert(
 					index, tuple, ext, n_ext);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
-	rec = page_cur_insert_rec_low(cursor->rec,
-				      buf_block_get_page_zip(cursor->block),
+	rec = page_cur_insert_rec_low(cursor->rec, cursor->block,
 				      index, rec, offsets, mtr);
 	mem_heap_free(heap);
 	return(rec);
@@ -258,8 +257,7 @@ page_cur_rec_insert(
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/* in: mini-transaction handle, or NULL */
 {
-	return(page_cur_insert_rec_low(cursor->rec,
-				       buf_block_get_page_zip(cursor->block),
+	return(page_cur_insert_rec_low(cursor->rec, cursor->block,
 				       index, rec, offsets, mtr));
 }
 

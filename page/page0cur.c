@@ -895,7 +895,8 @@ page_cur_insert_rec_low(
 				otherwise */
 	rec_t*		current_rec,/* in: current record after which the
 				new record is inserted */
-	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	buf_block_t*	block,	/* in: buffer block of current_rec, or NULL
+				if the compressed page is not to be updated */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
@@ -911,7 +912,9 @@ page_cur_insert_rec_low(
 	rec_t*		insert_rec;	/* inserted record */
 	ulint		heap_no;	/* heap number of the inserted
 					record */
-	page_zip_des_t*	page_zip_orig	= page_zip;
+	page_zip_des_t*	page_zip;
+
+	page_zip = block ? buf_block_get_page_zip(block) : NULL;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -1116,20 +1119,19 @@ use_heap:
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		page_zip_write_rec(page_zip, insert_rec, index, offsets, 1);
-	} else if (UNIV_LIKELY_NULL(page_zip_orig)) {
+	} else if (UNIV_LIKELY_NULL(block)
+		   && UNIV_LIKELY_NULL(buf_block_get_page_zip(block))) {
 		ut_a(page_is_comp(page));
+
+		page_zip = buf_block_get_page_zip(block);
 
 		/* Recompress or reorganize and recompress the page. */
 		if (UNIV_UNLIKELY
-		    (!page_zip_compress(page_zip_orig, page, index, mtr))) {
+		    (!page_zip_compress(page_zip, page, index, mtr))) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ulint		insert_pos
 				= page_rec_get_n_recs_before(insert_rec);
-			buf_block_t*	block
-				= buf_block_align(page);
-
-			ut_ad(buf_block_get_page_zip(block) == page_zip_orig);
 
 			if (page_zip_reorganize(block, index, mtr)) {
 				/* The page was reorganized:
@@ -1137,7 +1139,7 @@ use_heap:
 				insert_rec = page + PAGE_NEW_INFIMUM;
 
 				do {
-					insert_rec = rec_get_next_ptr(
+					insert_rec = page + rec_get_next_offs(
 						insert_rec, TRUE);
 				} while (--insert_pos);
 
@@ -1145,7 +1147,7 @@ use_heap:
 			}
 
 			/* Out of space: restore the page */
-			if (!page_zip_decompress(page_zip_orig, page)) {
+			if (!page_zip_decompress(page_zip, page)) {
 				ut_error; /* Memory corrupted? */
 			}
 			ut_ad(page_validate(page, index));
