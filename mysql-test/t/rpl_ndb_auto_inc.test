@@ -6,6 +6,7 @@
 # Date: 2006-02-10
 # Change: Augmented test to use with cluster
 #####################################
+--source include/have_ndb.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed_or_row.inc
 

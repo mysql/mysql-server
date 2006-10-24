@@ -121,8 +121,9 @@ static void client_disconnect();
 
 void die(const char *file, int line, const char *expr)
 {
+  fflush(stdout);
   fprintf(stderr, "%s:%d: check failed: '%s'\n", file, line, expr);
-  fflush(NULL);
+  fflush(stderr);
   abort();
 }
 
@@ -7496,10 +7497,22 @@ static void test_explain_bug()
                        MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
                        0, 0, "", 3, 0);
 
-  verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
-                       mysql_get_server_version(mysql) <= 50000 ?
-                       MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
-                       0, 0, "", 64, 0);
+  if ( mysql_get_server_version(mysql) >= 50027 )
+  {
+    /*  The patch for bug#23037 changes column type of DEAULT to blob */
+    verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
+                         MYSQL_TYPE_BLOB, 0, 0, "", 0, 0);
+  }
+  else
+  {
+    verify_prepare_field(result, 4, "Default", "COLUMN_DEFAULT",
+                         mysql_get_server_version(mysql) >= 50027 ?
+                         MYSQL_TYPE_BLOB :
+                         mysql_get_server_version(mysql) <= 50000 ?
+                         MYSQL_TYPE_STRING : MYSQL_TYPE_VAR_STRING,
+                         0, 0, "",
+                         mysql_get_server_version(mysql) >= 50027 ? 0 :64, 0);
+  }
 
   verify_prepare_field(result, 5, "Extra", "EXTRA",
                        mysql_get_server_version(mysql) <= 50000 ?
