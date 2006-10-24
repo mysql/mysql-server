@@ -23,6 +23,7 @@
  *   Matt Wagner  <matt@mysql.com>
  *   Monty
  *   Jani
+ *   Holyfoot
  **/
 
 /**********************************************************************
@@ -215,6 +216,12 @@ struct connection
 {
   MYSQL mysql;
   char *name;
+
+  const char *cur_query;
+  int cur_query_len;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int query_done;
 };
 
 typedef struct
@@ -460,6 +467,57 @@ my_bool mysql_rpl_probe(MYSQL *mysql __attribute__((unused))) { return 1; }
 static void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
 				      int len);
 static int handle_no_error(struct st_query *q);
+
+#ifdef EMBEDDED_LIBRARY
+/*
+  send_one_query executes query in separate thread what is
+  necessary in embedded library to run 'send' in proper way.
+  This implementation doesn't handle errors returned
+  by mysql_send_query. It's technically possible, though
+  i don't see where it is needed.
+*/
+pthread_handler_decl(send_one_query, arg)
+{
+  struct connection *cn= (struct connection*)arg;
+
+  mysql_thread_init();
+  VOID(mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len));
+
+  mysql_thread_end();
+  pthread_mutex_lock(&cn->mutex);
+  cn->query_done= 1;
+  VOID(pthread_cond_signal(&cn->cond));
+  pthread_mutex_unlock(&cn->mutex);
+  pthread_exit(0);
+  return 0;
+}
+
+static int do_send_query(struct connection *cn, const char *q, int q_len,
+                         int flags)
+{
+  pthread_t tid;
+
+  if (flags & QUERY_REAP)
+    return mysql_send_query(&cn->mysql, q, q_len);
+
+  if (pthread_mutex_init(&cn->mutex, NULL) ||
+      pthread_cond_init(&cn->cond, NULL))
+    die("Error in the thread library");
+
+  cn->cur_query= q;
+  cn->cur_query_len= q_len;
+  cn->query_done= 0;
+  if (pthread_create(&tid, NULL, send_one_query, (void*)cn))
+    die("Cannot start new thread for query");
+
+  return 0;
+}
+
+#else /*EMBEDDED_LIBRARY*/
+
+#define do_send_query(cn,q,q_len,flags) mysql_send_query(&cn->mysql, q, q_len)
+
+#endif /*EMBEDDED_LIBRARY*/
 
 static void do_eval(DYNAMIC_STRING* query_eval, const char *query)
 {
@@ -2767,15 +2825,17 @@ static void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
 * the result will be read - for regular query, both bits must be on
 */
 
-static int run_query_normal(MYSQL *mysql, struct st_query *q, int flags);
-static int run_query_stmt  (MYSQL *mysql, struct st_query *q, int flags);
+static int run_query_normal(struct connection *cn, struct st_query *q,
+                            int flags);
+static int run_query_stmt  (struct connection *cn, struct st_query *q,
+                            int flags);
 static void run_query_stmt_handle_warnings(MYSQL *mysql, DYNAMIC_STRING *ds);
 static int run_query_stmt_handle_error(char *query, struct st_query *q,
                                        MYSQL_STMT *stmt, DYNAMIC_STRING *ds);
 static void run_query_display_metadata(MYSQL_FIELD *field, uint num_fields,
                                        DYNAMIC_STRING *ds);
 
-static int run_query(MYSQL *mysql, struct st_query *q, int flags)
+static int run_query(struct connection *cn, struct st_query *q, int flags)
 {
 
   /*
@@ -2791,13 +2851,15 @@ static int run_query(MYSQL *mysql, struct st_query *q, int flags)
 
   if (ps_protocol_enabled && disable_info &&
       (flags & QUERY_SEND) && (flags & QUERY_REAP) && ps_match_re(q->query))
-    return run_query_stmt(mysql, q, flags);
-  return run_query_normal(mysql, q, flags);
+    return run_query_stmt(cn, q, flags);
+  return run_query_normal(cn, q, flags);
 }
 
 
-static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
+static int run_query_normal(struct connection *cn, struct st_query* q,
+                            int flags)
 {
+  MYSQL *mysql= &cn->mysql;
   MYSQL_RES* res= 0;
   uint i;
   int error= 0, err= 0, counter= 0;
@@ -2833,11 +2895,24 @@ static int run_query_normal(MYSQL* mysql, struct st_query* q, int flags)
 
   if (flags & QUERY_SEND)
   {
-    got_error_on_send= mysql_send_query(mysql, query, query_len);
+    got_error_on_send= do_send_query(cn, query, query_len, flags);
     if (got_error_on_send && q->expected_errno[0].type == ERR_EMPTY)
       die("unable to send query '%s' (mysql_errno=%d , errno=%d)",
 	  query, mysql_errno(mysql), errno);
   }
+#ifdef EMBEDDED_LIBRARY
+  /*
+   Here we handle 'reap' command, so we need to check if the
+   query's thread was finished and probably wait
+  */
+  else if (flags & QUERY_REAP)
+  {
+    pthread_mutex_lock(&cn->mutex);
+    while (!cn->query_done)
+      pthread_cond_wait(&cn->cond, &cn->mutex);
+    pthread_mutex_unlock(&cn->mutex);
+  }
+#endif /*EMBEDDED_LIBRARY*/
 
   do
   {
@@ -3038,8 +3113,9 @@ end:
   complete SEND+REAP
 */
 
-static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
+static int run_query_stmt(struct connection *cn, struct st_query *q, int flags)
 {
+  MYSQL *mysql= &cn->mysql;
   int error= 0;             /* Function return code if "goto end;" */
   int err;                  /* Temporary storage of return code from calls */
   int query_len, got_error_on_execute;
@@ -3095,7 +3171,7 @@ static int run_query_stmt(MYSQL *mysql, struct st_query *q, int flags)
     C API.
   */
   if ((err= mysql_stmt_prepare(stmt, query, query_len)) == CR_NO_PREPARE_STMT)
-    return run_query_normal(mysql, q, flags);
+    return run_query_normal(cn, q, flags);
 
   if (err != 0)
   {
@@ -3922,7 +3998,7 @@ int main(int argc, char **argv)
 	  q->require_file=require_file;
 	  save_file[0]=0;
 	}
-	error|= run_query(&cur_con->mysql, q, QUERY_REAP|QUERY_SEND);
+	error|= run_query(cur_con, q, QUERY_REAP|QUERY_SEND);
 	display_result_vertically= old_display_result_vertically;
         q->last_argument= q->end;
         query_executed= 1;
@@ -3949,7 +4025,7 @@ int main(int argc, char **argv)
 	  q->require_file=require_file;
 	  save_file[0]=0;
 	}
-	error |= run_query(&cur_con->mysql, q, flags);
+	error |= run_query(cur_con, q, flags);
 	query_executed= 1;
         q->last_argument= q->end;
 	break;
@@ -3970,7 +4046,7 @@ int main(int argc, char **argv)
 	  query and read the result some time later when reap instruction
 	  is given on this connection.
 	 */
-	error |= run_query(&cur_con->mysql, q, QUERY_SEND);
+	error |= run_query(cur_con, q, QUERY_SEND);
 	query_executed= 1;
         q->last_argument= q->end;
 	break;
