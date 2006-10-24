@@ -1000,9 +1000,9 @@ drop table t1;
 #
 # Bug 12938 (arithmetic loop's zero)
 #
---disable-warnings
+--disable_warnings
 drop procedure if exists wg2;
---enable-warnings
+--enable_warnings
 delimiter //;
 create procedure wg2()
 begin

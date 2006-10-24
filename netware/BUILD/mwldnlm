@@ -3,6 +3,13 @@
 # stop on errors
 set -e
 
+# If libtool passes "x" as the first argument to this script
+# it's an indication that libtool is trying to unpack .la's
+# so they can be added to a new library
+# This step does not work on Netware and we avoid it by
+# replacing the .la library with the path to the .a library
+# in Makefile.in
+
 args=" $*"
 
 # NOTE: Option 'pipefail' is not standard sh

@@ -1060,6 +1060,18 @@ EOF
 s,\(extra/comp_err\)\$(EXEEXT),\1.linux,
 EOF
           ;;
+        libmysql/Makefile.in)
+          cat > $filesed << EOF
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
+EOF
+          ;;
+        libmysql_r/Makefile.in)
+          cat > $filesed << EOF
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
+EOF
+          ;;
         client/Makefile.in)
           #
           cat > $filesed << EOF
