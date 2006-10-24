@@ -379,6 +379,11 @@ mem_heap_create_block(
 
 				buf_block = heap->free_block;
 				heap->free_block = NULL;
+
+				if (UNIV_UNLIKELY(!buf_block)) {
+
+					return(NULL);
+				}
 			} else {
 				buf_block = buf_block_alloc(0);
 			}
@@ -387,13 +392,7 @@ mem_heap_create_block(
 		}
 	}
 
-	if (block == NULL) {
-		/* Only MEM_HEAP_BTR_SEARCH allocation should ever fail. */
-		ut_a(type & MEM_HEAP_BTR_SEARCH);
-
-		return(NULL);
-	}
-
+	ut_ad(block);
 	block->buf_block = buf_block;
 	block->magic_n = MEM_BLOCK_MAGIC_N;
 	ut_strlcpy_rev(block->file_name, file_name, sizeof(block->file_name));
