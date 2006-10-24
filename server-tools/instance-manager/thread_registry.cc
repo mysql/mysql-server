@@ -43,8 +43,10 @@ static void handle_signal(int __attribute__((unused)) sig_no)
 */
 
 Thread_info::Thread_info() {}
-Thread_info::Thread_info(pthread_t thread_id_arg) :
-  thread_id(thread_id_arg) {}
+Thread_info::Thread_info(pthread_t thread_id_arg,
+                         bool send_signal_on_shutdown_arg) :
+  thread_id(thread_id_arg),
+  send_signal_on_shutdown(send_signal_on_shutdown_arg) {}
 
 /*
   TODO: think about moving signal information (now it's shutdown_in_progress)
@@ -86,6 +88,9 @@ Thread_registry::~Thread_registry()
 
 void Thread_registry::register_thread(Thread_info *info)
 {
+  log_info("Thread_registry: registering thread %d...",
+           (int) info->thread_id);
+
 #ifndef __WIN__
   struct sigaction sa;
   sa.sa_handler= handle_signal;
@@ -112,11 +117,19 @@ void Thread_registry::register_thread(Thread_info *info)
 
 void Thread_registry::unregister_thread(Thread_info *info)
 {
+  log_info("Thread_registry: unregistering thread %d...",
+           (int) info->thread_id);
+
   pthread_mutex_lock(&LOCK_thread_registry);
   info->prev->next= info->next;
   info->next->prev= info->prev;
+
   if (head.next == &head)
+  {
+    log_info("Thread_registry: thread registry is empty!");
     pthread_cond_signal(&COND_thread_registry_is_empty);
+  }
+
   pthread_mutex_unlock(&LOCK_thread_registry);
 }
 
@@ -181,11 +194,6 @@ int Thread_registry::cond_timedwait(Thread_info *info, pthread_cond_t *cond,
 
 void Thread_registry::deliver_shutdown()
 {
-  Thread_info *info;
-  struct timespec shutdown_time;
-  int error;
-  set_timespec(shutdown_time, 1);
-
   pthread_mutex_lock(&LOCK_thread_registry);
   shutdown_in_progress= TRUE;
 
@@ -199,29 +207,14 @@ void Thread_registry::deliver_shutdown()
   process_alarm(THR_SERVER_ALARM);
 #endif
 
-  for (info= head.next; info != &head; info= info->next)
-  {
-    pthread_kill(info->thread_id, THREAD_KICK_OFF_SIGNAL);
-    /*
-      sic: race condition here, the thread may not yet fall into
-      pthread_cond_wait.
-    */
-    if (info->current_cond)
-      pthread_cond_signal(info->current_cond);
-  }
   /*
-    The common practice is to test predicate before pthread_cond_wait.
-    I don't do that here because the predicate is practically always false
-    before wait - is_shutdown's been just set, and the lock's still not
-    released - the only case when the predicate is false is when no other
-    threads exist.
+    sic: race condition here, the thread may not yet fall into
+    pthread_cond_wait.
   */
-  while (((error= pthread_cond_timedwait(&COND_thread_registry_is_empty,
-                                          &LOCK_thread_registry,
-                                          &shutdown_time)) != ETIMEDOUT &&
-          error != ETIME) &&
-         head.next != &head)
-    ;
+
+  interrupt_threads();
+
+  wait_for_threads_to_unregister();
 
   /*
     If previous signals did not reach some threads, they must be sleeping
@@ -230,11 +223,28 @@ void Thread_registry::deliver_shutdown()
     so this time everybody should be informed (presumably each worker can
     get CPU during shutdown_time.)
   */
-  for (info= head.next; info != &head; info= info->next)
+
+  interrupt_threads();
+
+  /* Get the last chance to threads to stop. */
+
+  wait_for_threads_to_unregister();
+
+  /*
+    Print out threads, that didn't stopped. Thread_registry destructor will
+    probably abort the program if there is still any alive thread.
+  */
+
+  if (head.next != &head)
   {
-    pthread_kill(info->thread_id, THREAD_KICK_OFF_SIGNAL);
-    if (info->current_cond)
-      pthread_cond_signal(info->current_cond);
+    log_info("Thread_registry: non-stopped threads:");
+
+    for (Thread_info *info= head.next; info != &head; info= info->next)
+      log_info("  - %ld", (long int) info->thread_id);
+  }
+  else
+  {
+    log_info("Thread_registry: all threads stopped.");
   }
 
   pthread_mutex_unlock(&LOCK_thread_registry);
@@ -244,4 +254,47 @@ void Thread_registry::deliver_shutdown()
 void Thread_registry::request_shutdown()
 {
   pthread_kill(sigwait_thread_pid, SIGTERM);
+}
+
+
+void Thread_registry::interrupt_threads()
+{
+  for (Thread_info *info= head.next; info != &head; info= info->next)
+  {
+    if (!info->send_signal_on_shutdown)
+      continue;
+
+    pthread_kill(info->thread_id, THREAD_KICK_OFF_SIGNAL);
+    if (info->current_cond)
+      pthread_cond_signal(info->current_cond);
+  }
+}
+
+
+void Thread_registry::wait_for_threads_to_unregister()
+{
+  struct timespec shutdown_time;
+
+  set_timespec(shutdown_time, 1);
+
+  log_info("Thread_registry: joining threads...");
+
+  while (true)
+  {
+    if (head.next == &head)
+    {
+      log_info("Thread_registry: emptied.");
+      return;
+    }
+
+    int error= pthread_cond_timedwait(&COND_thread_registry_is_empty,
+                                      &LOCK_thread_registry,
+                                      &shutdown_time);
+
+    if (error == ETIMEDOUT || error == ETIME)
+    {
+      log_info("Thread_registry: threads shutdown timed out.");
+      return;
+    }
+  }
 }

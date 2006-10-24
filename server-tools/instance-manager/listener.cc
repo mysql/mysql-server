@@ -87,7 +87,7 @@ private:
 Listener_thread::Listener_thread(const Listener_thread_args &args) :
   Listener_thread_args(args.thread_registry, args.user_map, args.instance_map)
   ,total_connection_count(0)
-  ,thread_info(pthread_self())
+  ,thread_info(pthread_self(), TRUE)
   ,num_sockets(0)
 {
 }
@@ -111,6 +111,8 @@ Listener_thread::~Listener_thread()
 void Listener_thread::run()
 {
   int i, n= 0;
+
+  log_info("Listener_thread: started.");
 
 #ifndef __WIN__
   /* we use this var to check whether we are running on LinuxThreads */
@@ -164,7 +166,7 @@ void Listener_thread::run()
     if (rc == 0 || rc == -1)
     {
       if (rc == -1 && errno != EINTR)
-        log_error("Listener_thread::run(): select() failed, %s",
+        log_error("Listener_thread: select() failed, %s",
                   strerror(errno));
       continue;
     }
@@ -198,7 +200,7 @@ void Listener_thread::run()
 
   /* III. Release all resources and exit */
 
-  log_info("Listener_thread::run(): shutdown requested, exiting...");
+  log_info("Listener_thread: shutdown requested, exiting...");
 
   for (i= 0; i < num_sockets; i++)
     close(sockets[i]);
@@ -209,6 +211,8 @@ void Listener_thread::run()
 
   thread_registry.unregister_thread(&thread_info);
   my_thread_end();
+
+  log_info("Listener_thread: finished.");
   return;
 
 err:
@@ -230,7 +234,7 @@ int Listener_thread::create_tcp_socket()
   int ip_socket= socket(AF_INET, SOCK_STREAM, 0);
   if (ip_socket == INVALID_SOCKET)
   {
-    log_error("Listener_thead::run(): socket(AF_INET) failed, %s",
+    log_error("Listener_thead: socket(AF_INET) failed, %s",
               strerror(errno));
     return -1;
   }
@@ -261,7 +265,7 @@ int Listener_thread::create_tcp_socket()
   if (bind(ip_socket, (struct sockaddr *) &ip_socket_address,
            sizeof(ip_socket_address)))
   {
-    log_error("Listener_thread::run(): bind(ip socket) failed, '%s'",
+    log_error("Listener_thread: bind(ip socket) failed, '%s'",
               strerror(errno));
     close(ip_socket);
     return -1;
@@ -269,7 +273,7 @@ int Listener_thread::create_tcp_socket()
 
   if (listen(ip_socket, LISTEN_BACK_LOG_SIZE))
   {
-    log_error("Listener_thread::run(): listen(ip socket) failed, %s",
+    log_error("Listener_thread: listen(ip socket) failed, %s",
               strerror(errno));
     close(ip_socket);
     return -1;
@@ -294,7 +298,7 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   int unix_socket= socket(AF_UNIX, SOCK_STREAM, 0);
   if (unix_socket == INVALID_SOCKET)
   {
-    log_error("Listener_thead::run(): socket(AF_UNIX) failed, %s",
+    log_error("Listener_thead: socket(AF_UNIX) failed, %s",
               strerror(errno));
     return -1;
   }
@@ -314,7 +318,7 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   if (bind(unix_socket, (struct sockaddr *) &unix_socket_address,
            sizeof(unix_socket_address)))
   {
-    log_error("Listener_thread::run(): bind(unix socket) failed, "
+    log_error("Listener_thread: bind(unix socket) failed, "
               "socket file name is '%s', error '%s'",
               unix_socket_address.sun_path, strerror(errno));
     close(unix_socket);
@@ -325,7 +329,7 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
 
   if (listen(unix_socket, LISTEN_BACK_LOG_SIZE))
   {
-    log_error("Listener_thread::run(): listen(unix socket) failed, %s",
+    log_error("Listener_thread: listen(unix socket) failed, %s",
               strerror(errno));
     close(unix_socket);
     return -1;
