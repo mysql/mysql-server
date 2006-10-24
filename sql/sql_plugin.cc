@@ -944,29 +944,28 @@ my_bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
   state_mask= ~state_mask; // do it only once
 
   rw_rdlock(&THR_LOCK_plugin);
+  total= type == MYSQL_ANY_PLUGIN ? plugin_array.elements 
+                                  : plugin_hash[type].records;
+  /*
+    Do the alloca out here in case we do have a working alloca:
+	leaving the nested stack frame invalidates alloca allocation.
+  */
+  plugins=(struct st_plugin_int **)my_alloca(total*sizeof(*plugins));
   if (type == MYSQL_ANY_PLUGIN)
   {
-    total=plugin_array.elements;
-    plugins=(struct st_plugin_int **)my_alloca(total*sizeof(*plugins));
     for (idx= 0; idx < total; idx++)
     {
       plugin= dynamic_element(&plugin_array, idx, struct st_plugin_int *);
-      if (plugin->state & state_mask)
-        continue;
-      plugins[idx]= plugin;
+      plugins[idx]= !(plugin->state & state_mask) ? plugin : NULL;
     }
   }
   else
   {
-    HASH *hash= &plugin_hash[type];
-    total=hash->records;
-    plugins=(struct st_plugin_int **)my_alloca(total*sizeof(*plugins));
+    HASH *hash= plugin_hash + type;
     for (idx= 0; idx < total; idx++)
     {
       plugin= (struct st_plugin_int *) hash_element(hash, idx);
-      if (plugin->state & state_mask)
-        continue;
-      plugins[idx]= plugin;
+      plugins[idx]= !(plugin->state & state_mask) ? plugin : NULL;
     }
   }
   rw_unlock(&THR_LOCK_plugin);
