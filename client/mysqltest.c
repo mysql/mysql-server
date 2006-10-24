@@ -496,7 +496,7 @@ static void handle_no_error(struct st_query *q);
   by mysql_send_query. It's technically possible, though
   i don't see where it is needed.
 */
-pthread_handler_decl(send_one_query, arg)
+pthread_handler_t send_one_query(void *arg)
 {
   struct connection *cn= (struct connection*)arg;
 
@@ -2097,7 +2097,7 @@ int close_connection(struct st_query *q)
 #ifndef EMBEDDED_LIBRARY
       if (q->type == Q_DIRTY_CLOSE)
       {
-	while (con->mysql.net.vio)
+	if (con->mysql.net.vio)
 	{
 	  vio_delete(con->mysql.net.vio);
 	  con->mysql.net.vio = 0;
@@ -3684,7 +3684,7 @@ static void run_query_normal(struct connection *cn, struct st_query *command,
   else if (flags & QUERY_REAP)
   {
     pthread_mutex_lock(&cn->mutex);
-    if (!cn->query_done)
+    while (!cn->query_done)
       pthread_cond_wait(&cn->cond, &cn->mutex);
     pthread_mutex_unlock(&cn->mutex);
   }
@@ -3939,11 +3939,10 @@ static void handle_no_error(struct st_query *q)
   error - function will not return
 */
 
-static void run_query_stmt(struct connection *cn, struct st_query *command,
+static void run_query_stmt(MYSQL *mysql, struct st_query *command,
 			   char *query, int query_len, DYNAMIC_STRING *ds,
 			   DYNAMIC_STRING *ds_warnings)
 {
-  MYSQL *mysql= &cn->mysql;
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
   MYSQL_STMT *stmt;
   DYNAMIC_STRING ds_prepare_warnings;
@@ -4175,8 +4174,10 @@ static int util_query(MYSQL* org_mysql, const char* query){
 
 */
 
-static void run_query(MYSQL *mysql, struct st_query *command, int flags)
+static void run_query(struct connection *cn, struct st_query *command,
+                      int flags)
 {
+  MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING ds_result;
   DYNAMIC_STRING ds_warnings;
@@ -4329,7 +4330,7 @@ static void run_query(MYSQL *mysql, struct st_query *command, int flags)
       match_re(&ps_re, query))
     run_query_stmt(mysql, command, query, query_len, ds, &ds_warnings);
   else
-    run_query_normal(mysql, command, flags, query, query_len,
+    run_query_normal(cn, command, flags, query, query_len,
 		     ds, &ds_warnings);
 
   if (sp_created)
