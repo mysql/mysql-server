@@ -282,6 +282,18 @@ public:
   bool union_part; // this subselect is part of union 
   bool optimized; // flag to avoid double optimization in EXPLAIN
 
+  /* 
+    storage for caching buffers allocated during query execution. 
+    These buffers allocations need to be cached as the thread memory pool is
+    cleared only at the end of the execution of the whole query and not caching
+    allocations that occur in repetition at execution time will result in 
+    excessive memory usage.
+  */  
+  SORT_FIELD *sortorder;                        // make_unireg_sortorder()
+  TABLE **table_reexec;                         // make_simple_join()
+  JOIN_TAB *join_tab_reexec;                    // make_simple_join()
+  /* end of allocation caching storage */
+
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
     :fields_list(fields_arg)
@@ -307,6 +319,9 @@ public:
     examined_rows= 0;
     exec_tmp_table1= 0;
     exec_tmp_table2= 0;
+    sortorder= 0;
+    table_reexec= 0;
+    join_tab_reexec= 0;
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
     procedure= 0;
