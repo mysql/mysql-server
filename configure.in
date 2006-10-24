@@ -508,6 +508,10 @@ AC_SUBST(DOXYGEN)
 AC_SUBST(PDFLATEX)
 AC_SUBST(MAKEINDEX)
 
+# icheck, used for ABI check
+AC_PATH_PROG(ICHECK, icheck, no)
+AC_SUBST(ICHECK)
+
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
 AC_MSG_CHECKING("how to check if pid exists")
