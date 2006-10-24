@@ -34,6 +34,8 @@ public:
     Head();
     Uint32 firstItem;
     Uint32 lastItem;
+
+    inline bool isEmpty() const { return firstItem == RNIL;}
   };
   
   DLFifoList(ArrayPool<T> & thePool);
