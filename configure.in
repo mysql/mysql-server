@@ -1176,12 +1176,16 @@ EOF
           cat > $filesed << EOF
 s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
 s,\(: conf_to_src\),\1.linux,
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
 EOF
           ;;
         libmysql_r/Makefile.in)
           cat > $filesed << EOF
 s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
 s,\(: conf_to_src\),\1.linux,
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
 EOF
           ;;
         strings/Makefile.in)
