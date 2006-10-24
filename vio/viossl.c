@@ -26,6 +26,10 @@
 #ifdef HAVE_OPENSSL
 
 #ifdef __NETWARE__
+
+/* yaSSL already uses BSD sockets */
+#ifndef HAVE_YASSL
+
 /*
   The default OpenSSL implementation on NetWare uses WinSock.
   This code allows us to use the BSD sockets.
@@ -47,6 +51,7 @@ static int SSL_set_fd_bsd(SSL *s, int fd)
 
 #define SSL_set_fd(A, B)  SSL_set_fd_bsd((A), (B))
 
+#endif /* HAVE_YASSL */
 #endif /* __NETWARE__ */
 
 
