@@ -52,14 +52,16 @@ static inline void log(FILE *file,  const char *format, va_list args)
   struct tm bd_time;                            // broken-down time
   localtime_r(&now, &bd_time);
 
-  char buff_date[32];
-  sprintf(buff_date, "%02d%02d%02d %2d:%02d:%02d\t",
-                            bd_time.tm_year % 100,
-                            bd_time.tm_mon + 1,
-                            bd_time.tm_mday,
-                            bd_time.tm_hour,
-                            bd_time.tm_min,
-                            bd_time.tm_sec);
+  char buff_date[128];
+  sprintf(buff_date, "[%d/%lu] [%02d/%02d/%02d %02d:%02d:%02d] ",
+          (int) getpid(),
+          (unsigned long) pthread_self(),
+          bd_time.tm_year % 100,
+          bd_time.tm_mon + 1,
+          bd_time.tm_mday,
+          bd_time.tm_hour,
+          bd_time.tm_min,
+          bd_time.tm_sec);
   /* Format the message */
   char buff_stack[256];
 
