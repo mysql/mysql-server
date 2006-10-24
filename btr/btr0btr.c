@@ -929,7 +929,7 @@ btr_page_reorganize_low(
 
 	if (UNIV_LIKELY(!recovery)) {
 		/* Update the record lock bitmaps */
-		lock_move_reorganize_page(page, temp_page);
+		lock_move_reorganize_page(block, temp_block);
 	}
 
 	data_size2 = page_get_data_size(page);
@@ -1122,7 +1122,7 @@ btr_root_raise_and_insert(
 	information of the record to be inserted on the infimum of the
 	root page: we cannot discard the lock structs on the root page */
 
-	lock_update_root_raise(new_page, root);
+	lock_update_root_raise(new_block, root_block);
 
 	/* Create a memory heap where the node pointer is stored */
 	heap = mem_heap_create(100);
@@ -1851,7 +1851,7 @@ func_start:
 		left_block = new_block;
 		right_block = block;
 
-		lock_update_split_left(page, new_page);
+		lock_update_split_left(right_block, left_block);
 	} else {
 		/*		fputs("Split right\n", stderr); */
 
@@ -1879,7 +1879,7 @@ func_start:
 		left_block = block;
 		right_block = new_block;
 
-		lock_update_split_right(new_page, page);
+		lock_update_split_right(right_block, left_block);
 	}
 
 #ifdef UNIV_ZIP_DEBUG
@@ -2197,7 +2197,7 @@ btr_lift_page_up(
 			      page, index, mtr);
 	}
 
-	lock_update_copy_and_discard(father_page, page);
+	lock_update_copy_and_discard(father_block, block);
 
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
@@ -2367,7 +2367,7 @@ err_exit:
 		btr_level_list_remove(page, mtr);
 
 		btr_node_ptr_delete(index, block, mtr);
-		lock_update_merge_left(merge_page, orig_pred, page);
+		lock_update_merge_left(merge_block, orig_pred, block);
 	} else {
 		rec_t*		orig_succ;
 #ifdef UNIV_BTR_DEBUG
@@ -2426,7 +2426,7 @@ err_exit:
 			offsets, right_page_no, mtr);
 		btr_node_ptr_delete(index, merge_block, mtr);
 
-		lock_update_merge_right(orig_succ, page);
+		lock_update_merge_right(merge_block, orig_succ, block);
 	}
 
 	mem_heap_free(heap);
@@ -2473,7 +2473,7 @@ btr_discard_only_page_on_level(
 
 	page_level = btr_page_get_level(page, mtr);
 
-	lock_update_discard(page_get_supremum_rec(father_page), page);
+	lock_update_discard(father_block, PAGE_HEAP_NO_SUPREMUM, block);
 
 	btr_page_set_level(father_page, father_page_zip, page_level, mtr);
 
@@ -2511,6 +2511,7 @@ btr_discard_page(
 	ulint		space;
 	ulint		left_page_no;
 	ulint		right_page_no;
+	buf_block_t*	merge_block;
 	page_t*		merge_page;
 	buf_block_t*	block;
 	page_t*		page;
@@ -2531,14 +2532,16 @@ btr_discard_page(
 	right_page_no = btr_page_get_next(buf_block_get_frame(block), mtr);
 
 	if (left_page_no != FIL_NULL) {
-		merge_page = btr_page_get(space, left_page_no, RW_X_LATCH,
-					  mtr);
+		merge_block = btr_block_get(space, left_page_no, RW_X_LATCH,
+					    mtr);
+		merge_page = buf_block_get_frame(merge_block);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_next(merge_page, mtr) == block->offset);
 #endif /* UNIV_BTR_DEBUG */
 	} else if (right_page_no != FIL_NULL) {
-		merge_page = btr_page_get(space, right_page_no, RW_X_LATCH,
-					  mtr);
+		merge_block = btr_block_get(space, right_page_no, RW_X_LATCH,
+					    mtr);
+		merge_page = buf_block_get_frame(merge_block);
 #ifdef UNIV_BTR_DEBUG
 		ut_a(btr_page_get_prev(merge_page, mtr) == block->offset);
 #endif /* UNIV_BTR_DEBUG */
@@ -2575,18 +2578,19 @@ btr_discard_page(
 #ifdef UNIV_ZIP_DEBUG
 	{
 		page_zip_des_t*	merge_page_zip
-			= buf_frame_get_page_zip(merge_page);
+			= buf_block_get_page_zip(merge_block);
 		ut_a(!merge_page_zip
 		     || page_zip_validate(merge_page_zip, merge_page));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (left_page_no != FIL_NULL) {
-		lock_update_discard(page_get_supremum_rec(merge_page), page);
+		lock_update_discard(merge_block, PAGE_HEAP_NO_SUPREMUM,
+				    block);
 	} else {
-		lock_update_discard(page_rec_get_next(
-					    page_get_infimum_rec(merge_page)),
-				    page);
+		lock_update_discard(merge_block,
+				    lock_get_min_heap_no(merge_block),
+				    block);
 	}
 
 	/* Free the file page */

@@ -969,7 +969,8 @@ row_ins_foreign_check_on_constraint(
 		gap if the search criterion was not unique */
 
 		err = lock_clust_rec_read_check_and_lock_alt(
-			0, clust_rec, clust_index, LOCK_X, LOCK_REC_NOT_GAP,
+			0, btr_pcur_get_block(pcur),
+			clust_rec, clust_index, LOCK_X, LOCK_REC_NOT_GAP,
 			thr);
 	}
 
@@ -1128,13 +1129,14 @@ static
 ulint
 row_ins_set_shared_rec_lock(
 /*========================*/
-				/* out: DB_SUCCESS or error code */
-	ulint		type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
-				LOCK_REC_NOT_GAP type lock */
-	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	que_thr_t*	thr)	/* in: query thread */
+					/* out: DB_SUCCESS or error code */
+	ulint			type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
+					LOCK_REC_NOT_GAP type lock */
+	const buf_block_t*	block,	/* in: buffer block of rec */
+	const rec_t*		rec,	/* in: record */
+	dict_index_t*		index,	/* in: index */
+	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
+	que_thr_t*		thr)	/* in: query thread */
 {
 	ulint	err;
 
@@ -1142,10 +1144,10 @@ row_ins_set_shared_rec_lock(
 
 	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets, LOCK_S, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, rec, index, offsets, LOCK_S, type, thr);
+			0, block, rec, index, offsets, LOCK_S, type, thr);
 	}
 
 	return(err);
@@ -1159,13 +1161,14 @@ static
 ulint
 row_ins_set_exclusive_rec_lock(
 /*===========================*/
-				/* out: DB_SUCCESS or error code */
-	ulint		type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
-				LOCK_REC_NOT_GAP type lock */
-	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	que_thr_t*	thr)	/* in: query thread */
+					/* out: DB_SUCCESS or error code */
+	ulint			type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
+					LOCK_REC_NOT_GAP type lock */
+	const buf_block_t*	block,	/* in: buffer block of rec */
+	const rec_t*		rec,	/* in: record */
+	dict_index_t*		index,	/* in: index */
+	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
+	que_thr_t*		thr)	/* in: query thread */
 {
 	ulint	err;
 
@@ -1173,10 +1176,10 @@ row_ins_set_exclusive_rec_lock(
 
 	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets, LOCK_X, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, rec, index, offsets, LOCK_X, type, thr);
+			0, block, rec, index, offsets, LOCK_X, type, thr);
 	}
 
 	return(err);
@@ -1209,6 +1212,7 @@ row_ins_check_foreign_constraint(
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
+	buf_block_t*	block;
 	rec_t*		rec;
 	btr_pcur_t	pcur;
 	ibool		moved;
@@ -1338,6 +1342,7 @@ run_again:
 
 	btr_pcur_open(check_index, entry, PAGE_CUR_GE,
 		      BTR_SEARCH_LEAF, &pcur, &mtr);
+	block = btr_pcur_get_block(&pcur);
 
 	/* Scan index records and check if there is a matching record */
 
@@ -1354,8 +1359,9 @@ run_again:
 
 		if (page_rec_is_supremum(rec)) {
 
-			err = row_ins_set_shared_rec_lock(
-				LOCK_ORDINARY, rec, check_index, offsets, thr);
+			err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, block,
+							  rec, check_index,
+							  offsets, thr);
 			if (err != DB_SUCCESS) {
 
 				break;
@@ -1370,8 +1376,8 @@ run_again:
 			if (rec_get_deleted_flag(rec,
 						 rec_offs_comp(offsets))) {
 				err = row_ins_set_shared_rec_lock(
-					LOCK_ORDINARY, rec, check_index,
-					offsets, thr);
+					LOCK_ORDINARY, block,
+					rec, check_index, offsets, thr);
 				if (err != DB_SUCCESS) {
 
 					break;
@@ -1382,8 +1388,8 @@ run_again:
 				into gaps */
 
 				err = row_ins_set_shared_rec_lock(
-					LOCK_REC_NOT_GAP, rec, check_index,
-					offsets, thr);
+					LOCK_REC_NOT_GAP, block,
+					rec, check_index, offsets, thr);
 
 				if (err != DB_SUCCESS) {
 
@@ -1434,7 +1440,8 @@ run_again:
 
 		if (cmp < 0) {
 			err = row_ins_set_shared_rec_lock(
-				LOCK_GAP, rec, check_index, offsets, thr);
+				LOCK_GAP, block,
+				rec, check_index, offsets, thr);
 			if (err != DB_SUCCESS) {
 
 				break;
@@ -1589,10 +1596,10 @@ ibool
 row_ins_dupl_error_with_rec(
 /*========================*/
 				/* out: TRUE if error */
-	rec_t*		rec,	/* in: user record; NOTE that we assume
+	const rec_t*	rec,	/* in: user record; NOTE that we assume
 				that the caller already has a record lock on
 				the record! */
-	dtuple_t*	entry,	/* in: entry to insert */
+	const dtuple_t*	entry,	/* in: entry to insert */
 	dict_index_t*	index,	/* in: index */
 	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
@@ -1653,7 +1660,8 @@ row_ins_scan_sec_index_for_duplicate(
 	ulint		i;
 	int		cmp;
 	ulint		n_fields_cmp;
-	rec_t*		rec;
+	buf_block_t*	block;
+	const rec_t*	rec;
 	btr_pcur_t	pcur;
 	ulint		err		= DB_SUCCESS;
 	ibool		moved;
@@ -1687,6 +1695,8 @@ row_ins_scan_sec_index_for_duplicate(
 
 	btr_pcur_open(index, entry, PAGE_CUR_GE, BTR_SEARCH_LEAF, &pcur, &mtr);
 
+	block = btr_pcur_get_block(&pcur);
+
 	/* Scan index records and check if there is a duplicate */
 
 	for (;;) {
@@ -1708,11 +1718,13 @@ row_ins_scan_sec_index_for_duplicate(
 			INSERT ON DUPLICATE KEY UPDATE). */
 
 			err = row_ins_set_exclusive_rec_lock(
-				LOCK_ORDINARY, rec, index, offsets, thr);
+				LOCK_ORDINARY, block,
+				rec, index, offsets, thr);
 		} else {
 
 			err = row_ins_set_shared_rec_lock(
-				LOCK_ORDINARY, rec, index, offsets, thr);
+				LOCK_ORDINARY, block,
+				rec, index, offsets, thr);
 		}
 
 		if (err != DB_SUCCESS) {
@@ -1837,12 +1849,14 @@ row_ins_duplicate_error_in_clust(
 				INSERT ON DUPLICATE KEY UPDATE). */
 
 				err = row_ins_set_exclusive_rec_lock(
-					LOCK_REC_NOT_GAP, rec,
-					cursor->index, offsets, thr);
+					LOCK_REC_NOT_GAP,
+					btr_cur_get_block(cursor),
+					rec, cursor->index, offsets, thr);
 			} else {
 
 				err = row_ins_set_shared_rec_lock(
-					LOCK_REC_NOT_GAP, rec,
+					LOCK_REC_NOT_GAP,
+					btr_cur_get_block(cursor), rec,
 					cursor->index, offsets, thr);
 			}
 
@@ -1875,13 +1889,15 @@ row_ins_duplicate_error_in_clust(
 				INSERT ON DUPLICATE KEY UPDATE). */
 
 				err = row_ins_set_exclusive_rec_lock(
-					LOCK_REC_NOT_GAP, rec,
-					cursor->index, offsets, thr);
+					LOCK_REC_NOT_GAP,
+					btr_cur_get_block(cursor),
+					rec, cursor->index, offsets, thr);
 			} else {
 
 				err = row_ins_set_shared_rec_lock(
-					LOCK_REC_NOT_GAP, rec,
-					cursor->index, offsets, thr);
+					LOCK_REC_NOT_GAP,
+					btr_cur_get_block(cursor),
+					rec, cursor->index, offsets, thr);
 			}
 
 			if (err != DB_SUCCESS) {

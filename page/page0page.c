@@ -645,7 +645,7 @@ page_copy_rec_list_end(
 
 	/* Update the lock table, MAX_TRX_ID, and possible hash index */
 
-	lock_move_rec_list_end(new_page, page, rec);
+	lock_move_rec_list_end(new_block, block, rec);
 
 	page_update_max_trx_id(new_block, new_page_zip,
 			       page_get_max_trx_id(page));
@@ -753,7 +753,7 @@ page_copy_rec_list_start(
 	page_update_max_trx_id(new_block, new_page_zip,
 			       page_get_max_trx_id(page_align(rec)));
 
-	lock_move_rec_list_start(new_page, page_align(rec), rec, ret);
+	lock_move_rec_list_start(new_block, block, rec, ret);
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 

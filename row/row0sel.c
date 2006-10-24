@@ -812,7 +812,8 @@ row_sel_get_clust_rec(
 		}
 
 		err = lock_clust_rec_read_check_and_lock(
-			0, clust_rec, index, offsets,
+			0, btr_pcur_get_block(&plan->clust_pcur),
+			clust_rec, index, offsets,
 			node->row_lock_mode, lock_type, thr);
 
 		if (err != DB_SUCCESS) {
@@ -885,14 +886,15 @@ UNIV_INLINE
 ulint
 sel_set_rec_lock(
 /*=============*/
-				/* out: DB_SUCCESS or error code */
-	rec_t*		rec,	/* in: record */
-	dict_index_t*	index,	/* in: index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	ulint		mode,	/* in: lock mode */
-	ulint		type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
-				LOC_REC_NOT_GAP */
-	que_thr_t*	thr)	/* in: query thread */
+					/* out: DB_SUCCESS or error code */
+	const buf_block_t*	block,	/* in: buffer block of rec */
+	const rec_t*		rec,	/* in: record */
+	dict_index_t*		index,	/* in: index */
+	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
+	ulint			mode,	/* in: lock mode */
+	ulint			type,	/* in: LOCK_ORDINARY, LOCK_GAP, or
+					LOC_REC_NOT_GAP */
+	que_thr_t*		thr)	/* in: query thread */
 {
 	trx_t*	trx;
 	ulint	err;
@@ -908,10 +910,10 @@ sel_set_rec_lock(
 
 	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(
-			0, rec, index, offsets, mode, type, thr);
+			0, block, rec, index, offsets, mode, type, thr);
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
-			0, rec, index, offsets, mode, type, thr);
+			0, block, rec, index, offsets, mode, type, thr);
 	}
 
 	return(err);
@@ -1165,7 +1167,7 @@ row_sel_try_search_shortcut(
 			ret = SEL_RETRY;
 			goto func_exit;
 		}
-	} else if (!lock_sec_rec_cons_read_sees(rec, index, node->read_view)) {
+	} else if (!lock_sec_rec_cons_read_sees(rec, node->read_view)) {
 
 		ret = SEL_RETRY;
 		goto func_exit;
@@ -1429,7 +1431,8 @@ rec_loop:
 				lock_type = LOCK_ORDINARY;
 			}
 
-			err = sel_set_rec_lock(next_rec, index, offsets,
+			err = sel_set_rec_lock(btr_pcur_get_block(&plan->pcur),
+					       next_rec, index, offsets,
 					       node->row_lock_mode,
 					       lock_type, thr);
 
@@ -1485,7 +1488,8 @@ skip_lock:
 			lock_type = LOCK_ORDINARY;
 		}
 
-		err = sel_set_rec_lock(rec, index, offsets,
+		err = sel_set_rec_lock(btr_pcur_get_block(&plan->pcur),
+				       rec, index, offsets,
 				       node->row_lock_mode, lock_type, thr);
 
 		if (err != DB_SUCCESS) {
@@ -1581,7 +1585,7 @@ skip_lock:
 
 				rec = old_vers;
 			}
-		} else if (!lock_sec_rec_cons_read_sees(rec, index,
+		} else if (!lock_sec_rec_cons_read_sees(rec,
 							node->read_view)) {
 			cons_read_requires_clust_rec = TRUE;
 		}
@@ -2899,7 +2903,8 @@ row_sel_get_clust_rec_for_mysql(
 		we set a LOCK_REC_NOT_GAP type lock */
 
 		err = lock_clust_rec_read_check_and_lock(
-			0, clust_rec, clust_index, *offsets,
+			0, btr_pcur_get_block(prebuilt->clust_pcur),
+			clust_rec, clust_index, *offsets,
 			prebuilt->select_lock_type, LOCK_REC_NOT_GAP, thr);
 		if (err != DB_SUCCESS) {
 
@@ -3749,7 +3754,8 @@ rec_loop:
 
 			offsets = rec_get_offsets(rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
-			err = sel_set_rec_lock(rec, index, offsets,
+			err = sel_set_rec_lock(btr_pcur_get_block(pcur),
+					       rec, index, offsets,
 					       prebuilt->select_lock_type,
 					       LOCK_ORDINARY, thr);
 
@@ -3883,6 +3889,7 @@ wrong_offs:
 				using a READ COMMITTED isolation level. */
 
 				err = sel_set_rec_lock(
+					btr_pcur_get_block(pcur),
 					rec, index, offsets,
 					prebuilt->select_lock_type, LOCK_GAP,
 					thr);
@@ -3918,6 +3925,7 @@ wrong_offs:
 				using a READ COMMITTED isolation level. */
 
 				err = sel_set_rec_lock(
+					btr_pcur_get_block(pcur),
 					rec, index, offsets,
 					prebuilt->select_lock_type, LOCK_GAP,
 					thr);
@@ -3986,7 +3994,8 @@ no_gap_lock:
 			lock_type = LOCK_REC_NOT_GAP;
 		}
 
-		err = sel_set_rec_lock(rec, index, offsets,
+		err = sel_set_rec_lock(btr_pcur_get_block(pcur),
+				       rec, index, offsets,
 				       prebuilt->select_lock_type,
 				       lock_type, thr);
 
@@ -4093,8 +4102,7 @@ no_gap_lock:
 
 				rec = old_vers;
 			}
-		} else if (!lock_sec_rec_cons_read_sees(rec, index,
-							trx->read_view)) {
+		} else if (!lock_sec_rec_cons_read_sees(rec, trx->read_view)) {
 			/* We are looking into a non-clustered index,
 			and to get the right version of the record we
 			have to look also into the clustered index: this

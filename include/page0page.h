@@ -444,6 +444,14 @@ page_rec_is_comp(
 /*=============*/
 				/* out: nonzero if in compact format */
 	const rec_t*	rec);	/* in: record */
+/*******************************************************************
+Returns the heap number of a record. */
+UNIV_INLINE
+ulint
+page_rec_get_heap_no(
+/*=================*/
+				/* out: heap number */
+	const rec_t*	rec);	/* in: the physical record */
 /****************************************************************
 Determine whether the page is a B-tree leaf. */
 UNIV_INLINE
