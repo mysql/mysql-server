@@ -327,7 +327,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
   if (sort_param->sort_info->got_error)
     goto err;
 
-  if (sort_param->keyinfo->flag && HA_VAR_LENGTH_KEY)
+  if (sort_param->keyinfo->flag & HA_VAR_LENGTH_KEY)
   {
     sort_param->write_keys=     write_keys_varlen;
     sort_param->read_to_buffer= read_to_buffer_varlen;
@@ -543,7 +543,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
   {
     if (got_error)
       continue;
-    if (sinfo->keyinfo->flag && HA_VAR_LENGTH_KEY)
+    if (sinfo->keyinfo->flag & HA_VAR_LENGTH_KEY)
     {
       sinfo->write_keys=write_keys_varlen;
       sinfo->read_to_buffer=read_to_buffer_varlen;

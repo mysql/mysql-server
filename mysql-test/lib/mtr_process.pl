@@ -4,12 +4,10 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
-#use Carp qw(cluck);
 use Socket;
 use Errno;
 use strict;
 
-#use POSIX ":sys_wait_h";
 use POSIX 'WNOHANG';
 
 sub mtr_run ($$$$$$;$);
@@ -93,8 +91,6 @@ sub spawn_impl ($$$$$$$$) {
   my $pid_file=   shift;                 # FIXME
   my $spawn_opts= shift;
 
-  mtr_error("Can't spawn with empty \"path\"") unless defined $path;
-
   if ( $::opt_script_debug )
   {
     print STDERR "\n";
@@ -117,6 +113,9 @@ sub spawn_impl ($$$$$$$$) {
     }
     print STDERR "#### ", "-" x 78, "\n";
   }
+
+  mtr_error("Can't spawn with empty \"path\"") unless defined $path;
+
 
  FORK:
   {
@@ -339,19 +338,6 @@ sub mtr_kill_leftovers () {
   mtr_report("Killing Possible Leftover Processes");
   mtr_debug("mtr_kill_leftovers(): started.");
 
-  mkpath("$::opt_vardir/log"); # Needed for mysqladmin log
-
-  # Stop or kill Instance Manager and all its children. If we failed to do
-  # that, we can only abort -- there is nothing left to do.
-
-  mtr_error("Failed to stop Instance Manager.")
-    unless mtr_im_stop($::instance_manager);
-
-  # Start shutdown of masters and slaves. Don't touch IM-managed mysqld
-  # instances -- they should be stopped by mtr_im_stop().
-
-  mtr_debug("Shutting down mysqld-instances...");
-
   my @kill_pids;
   my %admin_pids;
 
@@ -377,40 +363,41 @@ sub mtr_kill_leftovers () {
     $srv->{'pid'}= 0; # Assume we are done with it
   }
 
-  # Start shutdown of clusters.
-
-  mtr_debug("Shutting down cluster...");
-
-  foreach my $cluster (@{$::clusters})
+  if ( ! $::opt_skip_ndbcluster )
   {
-    mtr_debug("  - cluster " .
-              "(pid: $cluster->{pid}; " .
-              "pid file: '$cluster->{path_pid})");
+    # Start shutdown of clusters.
+    mtr_debug("Shutting down cluster...");
 
-    my $pid= mtr_ndbmgm_start($cluster, "shutdown");
-
-    # Save the pid of the ndb_mgm process
-    $admin_pids{$pid}= 1;
-
-    push(@kill_pids,{
-		     pid      => $cluster->{'pid'},
-		     pidfile  => $cluster->{'path_pid'}
-		    });
-
-    $cluster->{'pid'}= 0; # Assume we are done with it
-
-
-    foreach my $ndbd (@{$cluster->{'ndbds'}})
+    foreach my $cluster (@{$::clusters})
     {
-      mtr_debug("    - ndbd " .
-                "(pid: $ndbd->{pid}; " .
-                "pid file: '$ndbd->{path_pid})");
+      mtr_debug("  - cluster " .
+		"(pid: $cluster->{pid}; " .
+		"pid file: '$cluster->{path_pid})");
+
+      my $pid= mtr_ndbmgm_start($cluster, "shutdown");
+
+      # Save the pid of the ndb_mgm process
+      $admin_pids{$pid}= 1;
 
       push(@kill_pids,{
-		       pid      => $ndbd->{'pid'},
-		       pidfile  => $ndbd->{'path_pid'},
+		       pid      => $cluster->{'pid'},
+		       pidfile  => $cluster->{'path_pid'}
 		      });
-      $ndbd->{'pid'}= 0; # Assume we are done with it
+
+      $cluster->{'pid'}= 0; # Assume we are done with it
+
+      foreach my $ndbd (@{$cluster->{'ndbds'}})
+      {
+	mtr_debug("    - ndbd " .
+		  "(pid: $ndbd->{pid}; " .
+		  "pid file: '$ndbd->{path_pid})");
+
+	push(@kill_pids,{
+			 pid      => $ndbd->{'pid'},
+			 pidfile  => $ndbd->{'path_pid'},
+			});
+	$ndbd->{'pid'}= 0; # Assume we are done with it
+      }
     }
   }
 
@@ -1100,7 +1087,6 @@ sub mtr_kill_processes ($) {
 
 sub mtr_exit ($) {
   my $code= shift;
-#  cluck("Called mtr_exit()");
   mtr_timer_stop_all($::glob_timers);
   local $SIG{HUP} = 'IGNORE';
   # ToDo: Signalling -$$ will only work if we are the process group
