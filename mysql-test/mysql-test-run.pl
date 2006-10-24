@@ -1735,7 +1735,7 @@ sub environment_setup () {
   # Setup env so childs can execute mysql_client_test
   # ----------------------------------------------------
   my $cmdline_mysql_client_test=
-    "$exe_mysql_client_test --no-defaults --testcase --user=root --silent " .
+    "$exe_mysql_client_test --no-defaults --testcase --user=root " .
     "--port=$master->[0]->{'port'} " .
     "--socket=$master->[0]->{'path_sock'}";
   if ( $mysql_version_id >= 50000 )
