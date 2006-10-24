@@ -37,8 +37,6 @@ drop table t1;
 create table t1 (a int) engine=ndbcluster;
 insert into t1 value (2);
 connection server1;
-# Currently a retry is required remotely
---error 1296
 select * from t1;
 flush table t1;
 select * from t1;
