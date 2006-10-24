@@ -71,8 +71,6 @@ get_lock("bug12480",2)
 1
 create table t1 (a datetime,b  datetime, c datetime);
 drop function if exists bug12480;
-Warnings:
-Note	1305	FUNCTION bug12480 does not exist
 create function bug12480() returns datetime
 begin
 set @a=get_lock("bug12480",2);
