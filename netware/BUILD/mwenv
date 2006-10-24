@@ -65,5 +65,11 @@ then
   export TERM=linux
 fi
 
+# Temporary hack to allow building from source dist
+if [ "$USER"=pushbuild ]
+then
+  export ARFLAGS=$AR_FLAGS
+fi
+
 # Print all env. variables
 export
