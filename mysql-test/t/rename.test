@@ -2,10 +2,6 @@
 # Test of rename table
 #
 
-# Test requires concurrent connections, which can't be tested on embedded
-# server
--- source include/not_embedded.inc
-
 --disable_warnings
 drop table if exists t0,t1,t2,t3,t4;
 # Clear up from other tests (to ensure that SHOW TABLES below is right)
