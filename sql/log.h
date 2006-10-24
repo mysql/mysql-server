@@ -404,6 +404,9 @@ public:
 };
 
 
+int check_if_log_table(uint db_len, const char *db, uint table_name_len,
+                       const char *table_name, uint check_if_opened);
+
 class Log_to_csv_event_handler: public Log_event_handler
 {
   /*
@@ -412,6 +415,16 @@ class Log_to_csv_event_handler: public Log_event_handler
     THD's of the query. The reason is the locking order and duration.
   */
   THD *general_log_thd, *slow_log_thd;
+  /*
+    This is for the thread, which called tmp_close_log_tables. The thread
+    will be allowed to write-lock the log tables (as it explicitly disabled
+    logging). This is used for such operations as REPAIR, which require
+    exclusive lock on the log tables.
+    NOTE: there can be only one priviliged thread, as one should
+    lock logger with logger.lock() before calling tmp_close_log_tables().
+    So no other thread could get privileged status at the same time.
+  */
+  THD *privileged_thread;
   friend class LOGGER;
   TABLE_LIST general_log, slow_log;
 
@@ -436,12 +449,19 @@ public:
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
                             CHARSET_INFO *client_cs);
-  bool flush(THD *thd, TABLE_LIST *close_slow_Log,
-             TABLE_LIST* close_general_log);
+  void tmp_close_log_tables(THD *thd);
   void close_log_table(uint log_type, bool lock_in_use);
   bool reopen_log_table(uint log_type);
+  THD* get_privileged_thread()
+  {
+    return privileged_thread;
+  }
 };
 
+
+/* type of the log table */
+#define QUERY_LOG_SLOW 1
+#define QUERY_LOG_GENERAL 2
 
 class Log_to_file_event_handler: public Log_event_handler
 {
@@ -498,13 +518,18 @@ public:
   {}
   void lock() { (void) pthread_mutex_lock(&LOCK_logger); }
   void unlock() { (void) pthread_mutex_unlock(&LOCK_logger); }
-  bool is_general_log_table_enabled()
+  void tmp_close_log_tables(THD *thd);
+  bool is_log_table_enabled(uint log_table_type)
   {
-    return table_log_handler && table_log_handler->general_log.table != 0;
-  }
-  bool is_slow_log_table_enabled()
-  {
-    return table_log_handler && table_log_handler->slow_log.table != 0;
+    switch (log_table_type) {
+    case QUERY_LOG_SLOW:
+      return table_log_handler && table_log_handler->slow_log.table != 0;
+    case QUERY_LOG_GENERAL:
+      return table_log_handler && table_log_handler->general_log.table != 0;
+    default:
+      DBUG_ASSERT(0);
+      return FALSE;                             /* make compiler happy */
+    }
   }
   /*
     We want to initialize all log mutexes as soon as possible,
@@ -542,6 +567,7 @@ public:
 
   void close_log_table(uint log_type, bool lock_in_use);
   bool reopen_log_table(uint log_type);
+  bool reopen_log_tables();
 
   /* we use this function to setup all enabled log event handlers */
   int set_handlers(uint error_log_printer,
@@ -563,6 +589,13 @@ public:
     if (file_log_handler)
       return file_log_handler->get_mysql_log();
     return NULL;
+  }
+  THD* get_privileged_thread()
+  {
+    if (table_log_handler)
+      return table_log_handler->get_privileged_thread();
+    else
+      return NULL;
   }
 };
 
