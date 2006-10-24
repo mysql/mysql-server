@@ -114,7 +114,7 @@ static int packfrm(const void *data, uint len, const void **pack_data, uint *pac
 static int unpackfrm(const void **data, uint *len,
                      const void* pack_data);
 
-static int ndb_get_table_statistics(Ndb*, const char *, 
+static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*, const char *,
                                     struct Ndb_statistics *);
 
 // Util thread variables
@@ -372,7 +372,9 @@ int ha_ndbcluster::records_update()
     Ndb *ndb= get_ndb();
     struct Ndb_statistics stat;
     ndb->setDatabaseName(m_dbname);
-    if ((result= ndb_get_table_statistics(ndb, m_tabname, &stat)) == 0){
+    result= ndb_get_table_statistics(this, true, ndb, m_tabname, &stat);
+    if (result == 0)
+    {
       mean_rec_length= stat.row_size;
       data_file_length= stat.fragment_memory;
       info->records= stat.row_count;
@@ -383,7 +385,8 @@ int ha_ndbcluster::records_update()
     if (get_thd_ndb(thd)->error)
       info->no_uncommitted_rows_count= 0;
   }
-  records= info->records+ info->no_uncommitted_rows_count;
+  if(result==0)
+    records= info->records+ info->no_uncommitted_rows_count;
   DBUG_RETURN(result);
 }
 
@@ -3125,7 +3128,8 @@ int ha_ndbcluster::info(uint flag)
       struct Ndb_statistics stat;
       ndb->setDatabaseName(m_dbname);
       if (current_thd->variables.ndb_use_exact_count &&
-          (result= ndb_get_table_statistics(ndb, m_tabname, &stat)) == 0)
+          (result= ndb_get_table_statistics(this, true, ndb, m_tabname, &stat))
+          == 0)
       {
         mean_rec_length= stat.row_size;
         data_file_length= stat.fragment_memory;
@@ -4763,7 +4767,15 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   
   res= get_metadata(name);
   if (!res)
-    info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
+  {
+    Ndb *ndb= get_ndb();
+    ndb->setDatabaseName(m_dbname);
+    struct Ndb_statistics stat;
+    res= ndb_get_table_statistics(NULL, false, ndb, m_tabname, &stat);
+    records= stat.row_count;
+    if(!res)
+      res= info(HA_STATUS_CONST);
+  }
 
   DBUG_RETURN(res);
 }
@@ -5591,7 +5603,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   pthread_mutex_unlock(&share->mutex);
 
   struct Ndb_statistics stat;
-  if (ndb_get_table_statistics(ndb, tabname, &stat))
+  if (ndb_get_table_statistics(NULL, true, ndb, tabname, &stat))
   {
     free_share(share);
     DBUG_RETURN(1);
@@ -5921,12 +5933,14 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
 
 static 
 int
-ndb_get_table_statistics(Ndb* ndb, const char * table,
+ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
+                         const char* table,
                          struct Ndb_statistics * ndbstat)
 {
   NdbTransaction* pTrans;
   NdbError error;
   int retries= 10;
+  int reterr= 0;
   int retry_sleep= 30 * 1000; /* 30 milliseconds */
   char buff[22], buff2[22], buff3[22], buff4[22];
   DBUG_ENTER("ndb_get_table_statistics");
@@ -6017,6 +6031,19 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
 
     DBUG_RETURN(0);
 retry:
+    if(report_error)
+    {
+      if (file)
+      {
+        reterr= file->ndb_err(pTrans);
+      }
+      else
+      {
+        const NdbError& tmp= error;
+        ERR_PRINT(tmp);
+        reterr= ndb_to_mysql_error(&tmp);
+      }
+    }
     if (pTrans)
     {
       ndb->closeTransaction(pTrans);
@@ -6029,8 +6056,9 @@ retry:
     }
     break;
   } while(1);
-  DBUG_PRINT("exit", ("failed, error %u(%s)", error.code, error.message));
-  ERR_RETURN(error);
+  DBUG_PRINT("exit", ("failed, reterr: %u, NdbError %u(%s)", reterr,
+                      error.code, error.message));
+  DBUG_RETURN(reterr);
 }
 
 /*
@@ -6571,7 +6599,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       lock= share->commit_count_lock;
       pthread_mutex_unlock(&share->mutex);
 
-      if (ndb_get_table_statistics(ndb, tabname, &stat) == 0)
+      if (ndb_get_table_statistics(NULL, false, ndb, tabname, &stat) == 0)
       {
         char buff[22], buff2[22];
         DBUG_PRINT("ndb_util_thread",

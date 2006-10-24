@@ -626,6 +626,12 @@ static void set_tabname(const char *pathname, char *tabname);
   void cond_pop();
 
   uint8 table_cache_type();
+
+  /*
+   * Internal to ha_ndbcluster, used by C functions
+   */
+  int ndb_err(NdbTransaction*);
+
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
                                      qc_engine_callback *engine_callback,
@@ -690,8 +696,8 @@ private:
 
   ulonglong get_auto_increment();
   void invalidate_dictionary_cache(bool global);
-  int ndb_err(NdbTransaction*);
-  bool uses_blob_value(bool all_fields);
+
+bool uses_blob_value(bool all_fields);
 
   char *update_table_comment(const char * comment);
 
