@@ -2145,8 +2145,9 @@ function_exit:
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 
-		err = btr_store_big_rec_extern_fields(index, rec,
-						      offsets, big_rec, &mtr);
+		err = btr_store_big_rec_extern_fields(
+			index, btr_cur_get_block(&cursor),
+			rec, offsets, big_rec, &mtr);
 
 		if (modify) {
 			dtuple_big_rec_free(big_rec);

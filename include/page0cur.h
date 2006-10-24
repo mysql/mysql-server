@@ -180,7 +180,8 @@ page_cur_insert_rec_low(
 				otherwise */
 	rec_t*		current_rec,/* in: current record after which the
 				new record is inserted */
-	page_zip_des_t*	page_zip,/* in: compressed page, or NULL */
+	buf_block_t*	block,	/* in: buffer block of current_rec, or NULL
+				if the compressed page is not to be updated */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record */
 	ulint*		offsets,/* in/out: rec_get_offsets(rec, index) */
