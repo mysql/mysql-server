@@ -2923,6 +2923,58 @@ sub find_testcase_skipped_reason($)
 }
 
 
+sub analyze_testcase_failure_sync_with_master($)
+{
+  my ($tinfo)= @_;
+  mtr_verbose("analyze_testcase_failure_sync_with_master");
+  print "analyze_testcase_failure_sync_with_master\n";
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--silent");
+  mtr_add_arg($args, "-v");
+  mtr_add_arg($args, "--skip-safemalloc");
+  mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
+
+  mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
+  mtr_add_arg($args, "--port=%d", $master->[0]->{'port'});
+  mtr_add_arg($args, "--database=test");
+  mtr_add_arg($args, "--user=%s", $opt_user);
+  mtr_add_arg($args, "--password=");
+
+  # Run the test file and append output to log file
+  mtr_run_test($exe_mysqltest,$args,
+	       "include/analyze_failure_sync_with_master.test",
+	       "$path_timefile", "$path_timefile","",
+	       { append_log_file => 1 });
+
+}
+
+sub analyze_testcase_failure($)
+{
+  my ($tinfo)= @_;
+
+  # Open mysqltest.log
+  my $F= IO::File->new($path_timefile) or
+    mtr_error("can't open file \"$path_timefile\": $!");
+
+  while ( my $line= <$F> )
+  {
+    # Look for "mysqltest: At line nnn: <error>
+    if ( $line =~ /mysqltest: At line [0-9]*: (.*)/ )
+    {
+      my $error= $1;
+      # Look for "could not sync with master"
+      if ( $error =~ /could not sync with master/ )
+      {
+	analyze_testcase_failure_sync_with_master($tinfo);
+      }
+    }
+  }
+}
+
 ##############################################################################
 #
 #  Run a single test case
@@ -3011,6 +3063,10 @@ sub run_testcase ($) {
     }
     elsif ( $res == 1 )
     {
+      if ( $opt_force )
+      {
+	analyze_testcase_failure($tinfo);
+      }
       # Test case failure reported by mysqltest
       report_failure_and_restart($tinfo);
     }
