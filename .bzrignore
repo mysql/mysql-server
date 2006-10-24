@@ -403,8 +403,10 @@ heap/hp_test2
 help
 help.c
 help.h
+include/check_abi
 include/my_config.h
 include/my_global.h
+include/mysql_h.ic
 include/mysql_version.h
 include/mysqld_ername.h
 include/mysqld_error.h
@@ -704,6 +706,7 @@ mysql-test/r/bdb-deadlock.err
 mysql-test/r/bdb.err
 mysql-test/r/bdb.log
 mysql-test/r/bdb_cache.err
+mysql-test/r/blackhole.log
 mysql-test/r/client_test.err
 mysql-test/r/csv.err
 mysql-test/r/ctype_ucs.err
