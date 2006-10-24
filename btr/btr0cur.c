@@ -1189,7 +1189,7 @@ fail:
 
 	if (!(flags & BTR_NO_LOCKING_FLAG) && inherit) {
 
-		lock_update_insert(*rec);
+		lock_update_insert(block, *rec);
 	}
 
 #if 0
@@ -1389,7 +1389,7 @@ btr_cur_pessimistic_insert(
 #endif
 	if (!(flags & BTR_NO_LOCKING_FLAG)) {
 
-		lock_update_insert(*rec);
+		lock_update_insert(btr_cur_get_block(cursor), *rec);
 	}
 
 	err = DB_SUCCESS;
@@ -1434,7 +1434,7 @@ btr_cur_upd_lock_and_undo(
 		/* We do undo logging only when we update a clustered index
 		record */
 		return(lock_sec_rec_modify_check_and_lock(
-			       flags, rec, btr_cur_get_block(cursor),
+			       flags, btr_cur_get_block(cursor), rec,
 			       index, thr));
 	}
 
@@ -1449,7 +1449,7 @@ btr_cur_upd_lock_and_undo(
 		*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 		err = lock_clust_rec_modify_check_and_lock(
-			flags, rec, index,
+			flags, btr_cur_get_block(cursor), rec, index,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap), thr);
 		if (UNIV_LIKELY_NULL(heap)) {
@@ -1872,7 +1872,7 @@ btr_cur_optimistic_update(
 	explicit locks on rec, before deleting rec (see the comment in
 	.._pessimistic_update). */
 
-	lock_rec_store_on_page_infimum(page, rec);
+	lock_rec_store_on_page_infimum(block, rec);
 
 	btr_search_update_hash_on_delete(cursor);
 
@@ -1905,7 +1905,7 @@ btr_cur_optimistic_update(
 
 	/* Restore the old explicit lock state on the record */
 
-	lock_rec_restore_from_page_infimum(rec, page);
+	lock_rec_restore_from_page_infimum(block, rec, block);
 
 	page_cur_move_to_next(page_cursor);
 
@@ -1924,16 +1924,16 @@ static
 void
 btr_cur_pess_upd_restore_supremum(
 /*==============================*/
-	rec_t*	rec,	/* in: updated record */
-	mtr_t*	mtr)	/* in: mtr */
+	buf_block_t*	block,	/* in: buffer block of rec */
+	const rec_t*	rec,	/* in: updated record */
+	mtr_t*		mtr)	/* in: mtr */
 {
 	page_t*		page;
 	buf_block_t*	prev_block;
-	page_t*		prev_page;
 	ulint		space;
 	ulint		prev_page_no;
 
-	page = page_align(rec);
+	page = buf_block_get_frame(block);
 
 	if (page_rec_get_next(page_get_infimum_rec(page)) != rec) {
 		/* Updated record is not the first user record on its page */
@@ -1941,22 +1941,22 @@ btr_cur_pess_upd_restore_supremum(
 		return;
 	}
 
-	space = page_get_space_id(page);
+	space = buf_block_get_space(block);
 	prev_page_no = btr_page_get_prev(page, mtr);
 
 	ut_ad(prev_page_no != FIL_NULL);
 	prev_block = buf_page_get_with_no_latch(space, prev_page_no, mtr);
-	prev_page = buf_block_get_frame(prev_block);
 #ifdef UNIV_BTR_DEBUG
-	ut_a(btr_page_get_next(prev_page, mtr)
+	ut_a(btr_page_get_next(prev_block->frame, mtr)
 	     == page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 
-	/* We must already have an x-latch to prev_page! */
+	/* We must already have an x-latch on prev_block! */
 	ut_ad(mtr_memo_contains(mtr, prev_block, MTR_MEMO_PAGE_X_FIX));
 
-	lock_rec_reset_and_inherit_gap_locks(page_get_supremum_rec(prev_page),
-					     rec);
+	lock_rec_reset_and_inherit_gap_locks(prev_block, block,
+					     PAGE_HEAP_NO_SUPREMUM,
+					     page_rec_get_heap_no(rec));
 }
 
 /*****************************************************************
@@ -2117,8 +2117,6 @@ btr_cur_pessimistic_update(
 						    big_rec_vec, &heap);
 	}
 
-	page_cursor = btr_cur_get_page_cur(cursor);
-
 	/* Store state of explicit locks on rec on the page infimum record,
 	before deleting rec. The page infimum acts as a dummy carrier of the
 	locks, taking care also of lock releases, before we can move the locks
@@ -2128,13 +2126,15 @@ btr_cur_pessimistic_update(
 	delete the lock structs set on the root page even if the root
 	page carries just node pointers. */
 
-	lock_rec_store_on_page_infimum(page_align(rec), rec);
+	lock_rec_store_on_page_infimum(block, rec);
 
 	btr_search_update_hash_on_delete(cursor);
 
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
+	page_cursor = btr_cur_get_page_cur(cursor);
+
 	page_cur_delete_rec(page_cursor, index, offsets, mtr);
 
 	page_cur_move_to_prev(page_cursor);
@@ -2144,7 +2144,8 @@ btr_cur_pessimistic_update(
 	ut_a(rec || optim_err != DB_UNDERFLOW);
 
 	if (rec) {
-		lock_rec_restore_from_page_infimum(rec, page);
+		lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
+						   rec, block);
 
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
@@ -2189,7 +2190,8 @@ btr_cur_pessimistic_update(
 					     rec, index, offsets, mtr);
 	}
 
-	lock_rec_restore_from_page_infimum(rec, page);
+	lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
+					   rec, block);
 
 	/* If necessary, restore also the correct lock state for a new,
 	preceding supremum record created in a page split. While the old
@@ -2197,7 +2199,8 @@ btr_cur_pessimistic_update(
 	from a wrong record. */
 
 	if (!was_first) {
-		btr_cur_pess_upd_restore_supremum(rec, mtr);
+		btr_cur_pess_upd_restore_supremum(btr_cur_get_block(cursor),
+						  rec, mtr);
 	}
 
 return_after_reservations:
@@ -2388,6 +2391,7 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	err = lock_clust_rec_modify_check_and_lock(flags,
+						   btr_cur_get_block(cursor),
 						   rec, index, offsets, thr);
 
 	if (err != DB_SUCCESS) {
@@ -2539,9 +2543,9 @@ btr_cur_del_mark_set_sec_rec(
 	}
 #endif /* UNIV_DEBUG */
 
-	err = lock_sec_rec_modify_check_and_lock(flags, rec,
+	err = lock_sec_rec_modify_check_and_lock(flags,
 						 btr_cur_get_block(cursor),
-						 cursor->index, thr);
+						 rec, cursor->index, thr);
 	if (err != DB_SUCCESS) {
 
 		return(err);
@@ -2659,7 +2663,7 @@ btr_cur_optimistic_delete(
 		page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 #endif /* UNIV_ZIP_DEBUG */
 
-		lock_update_delete(rec);
+		lock_update_delete(block, rec);
 
 		btr_search_update_hash_on_delete(cursor);
 
@@ -2790,7 +2794,7 @@ btr_cur_pessimistic_delete(
 		goto return_after_reservations;
 	}
 
-	lock_update_delete(rec);
+	lock_update_delete(block, rec);
 	level = btr_page_get_level(page, mtr);
 
 	if (level > 0

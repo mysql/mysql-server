@@ -1488,7 +1488,8 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(pcur);
 
-		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
+		lock_rec_unlock(trx, btr_pcur_get_block(pcur),
+				rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 
@@ -1518,7 +1519,8 @@ row_unlock_for_mysql(
 
 		rec = btr_pcur_get_rec(clust_pcur);
 
-		lock_rec_unlock(trx, rec, prebuilt->select_lock_type);
+		lock_rec_unlock(trx, btr_pcur_get_block(clust_pcur),
+				rec, prebuilt->select_lock_type);
 
 		mtr_commit(&mtr);
 	}

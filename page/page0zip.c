@@ -3558,7 +3558,7 @@ page_zip_reorganize(
 		return(FALSE);
 	}
 
-	lock_move_reorganize_page(page, temp_page);
+	lock_move_reorganize_page(block, temp_block);
 	btr_search_drop_page_hash_index(block);
 
 	buf_block_free(temp_block);
