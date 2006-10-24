@@ -3578,6 +3578,7 @@ btr_store_big_rec_extern_fields(
 					/* out: DB_SUCCESS or error */
 	dict_index_t*	index,		/* in: index of rec; the index tree
 					MUST be X-latched */
+	buf_block_t*	rec_block,	/* in/out: block containing rec */
 	rec_t*		rec,		/* in/out: record */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index);
 					the "external storage" flags in offsets
@@ -3599,16 +3600,15 @@ btr_store_big_rec_extern_fields(
 	ulint	i;
 	mtr_t	mtr;
 	page_zip_des_t*	page_zip;
-	buf_block_t*	rec_block;
 	z_stream c_stream;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains_page(local_mtr, rec, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains(local_mtr, rec_block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(buf_block_get_frame(rec_block) == page_align(rec));
 	ut_a(dict_index_is_clust(index));
 
-	rec_block = buf_block_align(rec);
 	page_zip = buf_block_get_page_zip(rec_block);
 	ut_a(dict_table_zip_size(index->table)
 	     == buf_block_get_zip_size(rec_block));

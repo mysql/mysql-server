@@ -476,6 +476,7 @@ btr_store_big_rec_extern_fields(
 					/* out: DB_SUCCESS or error */
 	dict_index_t*	index,		/* in: index of rec; the index tree
 					MUST be X-latched */
+	buf_block_t*	rec_block,	/* in/out: block containing rec */
 	rec_t*		rec,		/* in: record */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index);
 					the "external storage" flags in offsets

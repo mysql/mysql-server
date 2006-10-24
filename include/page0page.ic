@@ -671,12 +671,11 @@ page_rec_get_next_low(
 		fprintf(stderr,
 			"InnoDB: Next record offset is nonsensical %lu"
 			" in record at offset %lu\n"
-			"InnoDB: rec address %p, first buffer frame %p\n"
-			"InnoDB: buffer pool high end %p, buf fix count %lu\n",
-			(ulong)offs, (ulong)(rec - page),
-			(void*) rec, (void*) buf_pool->frame_zero,
-			(void*) buf_pool->high_end,
-			(ulong) buf_block_align(rec)->buf_fix_count);
+			"InnoDB: rec address %p, space id %lu, page %lu\n",
+			(ulong)offs, (ulong) page_offset(rec),
+			(void*) rec,
+			(ulong) page_get_space_id(rec),
+			(ulong) page_get_page_no(rec));
 		buf_page_print(page, 0);
 
 		ut_error;
