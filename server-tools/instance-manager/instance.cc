@@ -34,6 +34,7 @@
 #include "mysql_manager_error.h"
 #include "portability.h"
 #include "priv.h"
+#include "thread_registry.h"
 
 
 const LEX_STRING
@@ -44,7 +45,8 @@ static const int INSTANCE_NAME_PREFIX_LEN= Instance::DFLT_INSTANCE_NAME.length;
 
 
 static void start_and_monitor_instance(Instance_options *old_instance_options,
-                                       Instance_map *instance_map);
+                                       Instance_map *instance_map,
+                                       Thread_registry *thread_registry);
 
 #ifndef __WIN__
 typedef pid_t My_process_info;
@@ -63,7 +65,8 @@ pthread_handler_t proxy(void *arg)
 {
   Instance *instance= (Instance *) arg;
   start_and_monitor_instance(&instance->options,
-                             instance->get_map());
+                             instance->get_map(),
+                             &instance->thread_registry);
   return 0;
 }
 
@@ -99,6 +102,7 @@ static int wait_process(My_process_info *pi)
     thread, but we don't know this one). Or we could use waitpid(), but
     couldn't use wait(), because it could return in any wait() in the program.
   */
+
   if (linuxthreads)
     wait(NULL);                               /* LinuxThreads were detected */
   else
@@ -239,11 +243,28 @@ static int start_process(Instance_options *instance_options,
 */
 
 static void start_and_monitor_instance(Instance_options *old_instance_options,
-                                       Instance_map *instance_map)
+                                       Instance_map *instance_map,
+                                       Thread_registry *thread_registry)
 {
   Instance_name instance_name(&old_instance_options->instance_name);
   Instance *current_instance;
   My_process_info process_info;
+  Thread_info thread_info(pthread_self(), FALSE);
+
+  log_info("Monitoring thread (instance: '%s'): started.",
+           (const char *) instance_name.get_c_str());
+
+  if (!old_instance_options->nonguarded)
+  {
+    /*
+      Register thread in Thread_registry to wait for it to stop on shutdown
+      only if instance is nuarded. If instance is guarded, the thread will not
+      finish, because nonguarded instances are not stopped on shutdown.
+    */
+
+    thread_registry->register_thread(&thread_info);
+    my_thread_init();
+  }
 
   /*
     Lock instance map to guarantee that no instances are deleted during
@@ -280,7 +301,14 @@ static void start_and_monitor_instance(Instance_options *old_instance_options,
 
   instance_map->unlock();
 
-  return;
+  if (!old_instance_options->nonguarded)
+  {
+    thread_registry->unregister_thread(&thread_info);
+    my_thread_end();
+  }
+
+  log_info("Monitoring thread (instance: '%s'): finished.",
+           (const char *) instance_name.get_c_str());
 }
 
 
@@ -343,10 +371,6 @@ int Instance::start()
   {
     remove_pid();
 
-    /*
-      No need to monitor this thread in the Thread_registry, as all
-      instances are to be stopped during shutdown.
-    */
     pthread_t proxy_thd_id;
     pthread_attr_t proxy_thd_attr;
     int rc;
@@ -404,7 +428,8 @@ void Instance::set_crash_flag_n_wake_all()
 
 
 
-Instance::Instance(): crashed(FALSE), configured(FALSE)
+Instance::Instance(Thread_registry &thread_registry_arg):
+  crashed(FALSE), configured(FALSE), thread_registry(thread_registry_arg)
 {
   pthread_mutex_init(&LOCK_instance, 0);
   pthread_cond_init(&COND_instance_stopped, 0);

@@ -156,7 +156,8 @@ void manager()
   */
 
   User_map user_map;
-  Instance_map instance_map(Options::Main::default_mysqld_path);
+  Instance_map instance_map(Options::Main::default_mysqld_path,
+                            thread_registry);
   Guardian_thread guardian_thread(thread_registry,
                                   &instance_map,
                                   Options::Main::monitoring_interval);
@@ -308,6 +309,8 @@ void manager()
   */
   pthread_cond_signal(&guardian_thread.COND_guardian);
 
+  log_info("Main loop: started.");
+
   while (!shutdown_complete)
   {
     int signo;
@@ -319,6 +322,20 @@ void manager()
       stop_all(&guardian_thread, &thread_registry);
       goto err;
     }
+
+    /*
+      The general idea in this loop is the following:
+        - we are waiting for SIGINT, SIGTERM -- signals that mean we should
+          shutdown;
+        - as shutdown signal is caught, we stop Guardian thread (by calling
+          Guardian_thread::request_shutdown());
+        - as Guardian_thread is stopped, it sends SIGTERM to this thread
+          (by calling Thread_registry::request_shutdown()), so that the
+          my_sigwait() above returns;
+        - as we catch the second SIGTERM, we send signals to all threads
+          registered in Thread_registry (by calling
+          Thread_registry::deliver_shutdown()) and waiting for threads to stop;
+    */
 
 #ifndef __WIN__
 /*
@@ -336,6 +353,8 @@ void manager()
     else
 #endif
     {
+      log_info("Main loop: got shutdown signal.");
+
       if (!guardian_thread.is_stopped())
       {
         guardian_thread.request_shutdown();
@@ -348,6 +367,8 @@ void manager()
       }
     }
   }
+
+  log_info("Main loop: finished.");
 
 err:
   /* delete the pid file */
