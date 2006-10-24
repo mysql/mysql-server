@@ -2624,6 +2624,7 @@ sub install_db ($$) {
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
+  mtr_add_arg($args, "--core-file");
 
   if ( $opt_debug )
   {
