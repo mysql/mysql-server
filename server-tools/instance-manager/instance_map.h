@@ -28,6 +28,7 @@
 class Guardian_thread;
 class Instance;
 class Named_value_arr;
+class Thread_registry;
 
 extern int load_all_groups(char ***groups, const char *filename);
 extern void free_groups(char **groups);
@@ -104,7 +105,8 @@ public:
   int create_instance(const LEX_STRING *instance_name,
                       const Named_value_arr *options);
 
-  Instance_map(const char *default_mysqld_path_arg);
+  Instance_map(const char *default_mysqld_path_arg,
+               Thread_registry &thread_registry_arg);
   ~Instance_map();
 
   /*
@@ -130,6 +132,8 @@ private:
   enum { START_HASH_SIZE = 16 };
   pthread_mutex_t LOCK_instance_map;
   HASH hash;
+
+  Thread_registry &thread_registry;
 };
 
 #endif /* INCLUDES_MYSQL_INSTANCE_MANAGER_INSTANCE_MAP_H */
