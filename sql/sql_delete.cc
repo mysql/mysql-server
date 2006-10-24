@@ -913,28 +913,16 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(TRUE);
   }
 
+  uint log_type= check_if_log_table(table_list->db_length, table_list->db,
+                                    table_list->table_name_length,
+                                    table_list->table_name, 1);
   /* close log tables in use */
-  if (!my_strcasecmp(system_charset_info, table_list->db, "mysql"))
+  if (log_type)
   {
-    if (opt_log &&
-        !my_strcasecmp(system_charset_info, table_list->table_name,
-                       "general_log"))
-    {
-      lock_logger= 1;
-      logger.lock();
-      logger.close_log_table(QUERY_LOG_GENERAL, FALSE);
-      closed_log_tables= closed_log_tables | QUERY_LOG_GENERAL;
-    }
-    else
-      if (opt_slow_log &&
-          !my_strcasecmp(system_charset_info, table_list->table_name,
-                         "slow_log"))
-      {
-        lock_logger= 1;
-        logger.lock();
-        logger.close_log_table(QUERY_LOG_SLOW, FALSE);
-        closed_log_tables= closed_log_tables | QUERY_LOG_SLOW;
-      }
+    lock_logger= 1;
+    logger.lock();
+    logger.close_log_table(log_type, FALSE);
+    closed_log_tables= closed_log_tables | log_type;
   }
 
   // Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this

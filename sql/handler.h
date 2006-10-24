@@ -975,6 +975,10 @@ public:
         thd     Handler of the thread, trying to lock the table
         table   Table handler to check
         count   Number of locks already granted to the table
+        called_by_privileged_thread TRUE if called from a logger THD
+                                    (general_log_thd or slow_log_thd)
+                                    or by a privileged thread, which
+                                    has the right to lock log tables.
 
     DESCRIPTION
       Check whether a handler allows to lock the table. For instance,
@@ -990,7 +994,7 @@ public:
   virtual bool check_if_locking_is_allowed(uint sql_command,
                                            ulong type, TABLE *table,
                                            uint count,
-                                           bool called_by_logger_thread)
+                                           bool called_by_privileged_thread)
   {
     return TRUE;
   }
