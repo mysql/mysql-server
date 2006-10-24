@@ -169,7 +169,7 @@ int Instance_map::process_one_option(const LEX_STRING *group,
   if (!(instance= (Instance *) hash_search(&hash, (byte *) group->str,
                                            group->length)))
   {
-    if (!(instance= new Instance()))
+    if (!(instance= new Instance(thread_registry)))
       return 1;
 
     if (instance->init(group) || add_instance(instance))
@@ -213,8 +213,10 @@ int Instance_map::process_one_option(const LEX_STRING *group,
 }
 
 
-Instance_map::Instance_map(const char *default_mysqld_path_arg):
-mysqld_path(default_mysqld_path_arg)
+Instance_map::Instance_map(const char *default_mysqld_path_arg,
+                           Thread_registry &thread_registry_arg):
+  mysqld_path(default_mysqld_path_arg),
+  thread_registry(thread_registry_arg)
 {
   pthread_mutex_init(&LOCK_instance_map, 0);
 }
@@ -333,7 +335,7 @@ int Instance_map::remove_instance(Instance *instance)
 int Instance_map::create_instance(const LEX_STRING *instance_name,
                                   const Named_value_arr *options)
 {
-  Instance *instance= new Instance();
+  Instance *instance= new Instance(thread_registry);
 
   if (!instance)
   {
