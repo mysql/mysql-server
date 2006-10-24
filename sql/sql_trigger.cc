@@ -276,8 +276,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
            table->triggers->drop_trigger(thd, tables, &stmt_query));
 
 end:
-  VOID(pthread_mutex_unlock(&LOCK_open));
-  start_waiting_global_read_lock(thd);
 
   if (!result)
   {
@@ -286,13 +284,16 @@ end:
       thd->clear_error();
 
       /* Such a statement can always go directly to binlog, no trans cache. */
-      Query_log_event qinfo(thd, stmt_query.ptr(), stmt_query.length(), 0,
-                            FALSE);
-      mysql_bin_log.write(&qinfo);
+      thd->binlog_query(THD::STMT_QUERY_TYPE,
+                        stmt_query.ptr(), stmt_query.length(), FALSE, FALSE);
     }
-
-    send_ok(thd);
   }
+
+  VOID(pthread_mutex_unlock(&LOCK_open));
+  start_waiting_global_read_lock(thd);
+
+  if (!result)
+    send_ok(thd);
 
   DBUG_RETURN(result);
 }

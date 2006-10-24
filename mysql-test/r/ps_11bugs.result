@@ -130,3 +130,36 @@ prepare st_18492 from 'select * from t1 where 3 in (select (1+1) union select 1)
 execute st_18492;
 a
 drop table t1;
+create table t1 (a int, b varchar(4));
+create table t2 (a int, b varchar(4), primary key(a));
+prepare stmt1 from 'insert into t1 (a, b) values (?, ?)';
+prepare stmt2 from 'insert into t2 (a, b) values (?, ?)';
+set @intarg= 11;
+set @varchararg= '2222';
+execute stmt1 using @intarg, @varchararg;
+execute stmt2 using @intarg, @varchararg;
+set @intarg= 12;
+execute stmt1 using @intarg, @UNDEFINED;
+execute stmt2 using @intarg, @UNDEFINED;
+set @intarg= 13;
+execute stmt1 using @UNDEFINED, @varchararg;
+execute stmt2 using @UNDEFINED, @varchararg;
+ERROR 23000: Column 'a' cannot be null
+set @intarg= 14;
+set @nullarg= Null;
+execute stmt1 using @UNDEFINED, @nullarg;
+execute stmt2 using @nullarg, @varchararg;
+ERROR 23000: Column 'a' cannot be null
+select * from t1;
+a	b
+11	2222
+12	NULL
+NULL	2222
+NULL	NULL
+select * from t2;
+a	b
+11	2222
+12	NULL
+drop table t1;
+drop table t2;
+End of 5.0 tests.
