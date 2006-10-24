@@ -1907,7 +1907,7 @@ int close_connection(struct st_query *q)
 #ifndef EMBEDDED_LIBRARY
       if (q->type == Q_DIRTY_CLOSE)
       {
-	while (con->mysql.net.vio)
+	if (con->mysql.net.vio)
 	{
 	  vio_delete(con->mysql.net.vio);
 	  con->mysql.net.vio = 0;
@@ -2908,7 +2908,7 @@ static int run_query_normal(struct connection *cn, struct st_query* q,
   else if (flags & QUERY_REAP)
   {
     pthread_mutex_lock(&cn->mutex);
-    if (!cn->query_done)
+    while (!cn->query_done)
       pthread_cond_wait(&cn->cond, &cn->mutex);
     pthread_mutex_unlock(&cn->mutex);
   }
