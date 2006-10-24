@@ -97,7 +97,7 @@ Mysql_connection_thread::Mysql_connection_thread(
                                args.user_map,
                                args.connection_id,
                                args.instance_map)
-  ,thread_info(pthread_self())
+  ,thread_info(pthread_self(), TRUE)
 {
   thread_registry.register_thread(&thread_info);
 }
@@ -165,7 +165,7 @@ Mysql_connection_thread::~Mysql_connection_thread()
 
 void Mysql_connection_thread::run()
 {
-  log_info("accepted mysql connection %d", connection_id);
+  log_info("accepted mysql connection %d", (int) connection_id);
 
   my_thread_init();
 
@@ -175,7 +175,7 @@ void Mysql_connection_thread::run()
     return;
   }
 
-  log_info("connection %d is checked successfully", connection_id);
+  log_info("connection %d is checked successfully", (int) connection_id);
 
   vio_keepalive(vio, TRUE);
 
@@ -315,7 +315,7 @@ int Mysql_connection_thread::do_command()
     enum enum_server_command command= (enum enum_server_command)
                                       (uchar) *packet;
     log_info("connection %d: packet_length=%d, command=%d",
-             connection_id, packet_length, command);
+             (int) connection_id, (int) packet_length, (int) command);
     return dispatch_command(command, packet + 1, packet_length - 1);
   }
 }
@@ -325,27 +325,33 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
 {
   switch (command) {
   case COM_QUIT:                                // client exit
-    log_info("query for connection %d received quit command", connection_id);
+    log_info("query for connection %d received quit command",
+             (int) connection_id);
     return 1;
   case COM_PING:
-    log_info("query for connection %d received ping command", connection_id);
+    log_info("query for connection %d received ping command",
+             (int) connection_id);
     net_send_ok(&net, connection_id, NULL);
     break;
   case COM_QUERY:
   {
     log_info("query for connection %d : ----\n%s\n-------------------------",
-	     connection_id,packet);
+	     (int) connection_id,
+             (const char *) packet);
     if (Command *command= parse_command(&instance_map, packet))
     {
       int res= 0;
-      log_info("query for connection %d successfully parsed",connection_id);
+      log_info("query for connection %d successfully parsed",
+               (int) connection_id);
       res= command->execute(&net, connection_id);
       delete command;
       if (!res)
-        log_info("query for connection %d executed ok",connection_id);
+        log_info("query for connection %d executed ok",
+                 (int) connection_id);
       else
       {
-        log_info("query for connection %d executed err=%d",connection_id,res);
+        log_info("query for connection %d executed err=%d",
+                 (int) connection_id, (int) res);
         net_send_error(&net, res);
         return 0;
       }
@@ -358,7 +364,8 @@ int Mysql_connection_thread::dispatch_command(enum enum_server_command command,
     break;
   }
   default:
-    log_info("query for connection %d received unknown command",connection_id);
+    log_info("query for connection %d received unknown command",
+             (int) connection_id);
     net_send_error(&net, ER_UNKNOWN_COM_ERROR);
     break;
   }
