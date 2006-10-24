@@ -1066,3 +1066,4 @@ vio/test-sslserver
 vio/viotest-ssl
 include/check_abi
 include/mysql_h.ic
+mysql-test/r/blackhole.log
