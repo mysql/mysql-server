@@ -27,8 +27,8 @@ WINE_BUILD_DIR="$base/$WINE_BUILD_DIR"
 echo "WINE_BUILD_DIR: $WINE_BUILD_DIR"
 
 # Look for libc, MySQL 5.1.x uses libc-2006 by default
-libcdir="$MYDEV/libc-2006"
-if test ! -d $libcdir
+libc_dir="$MYDEV/libc-2006"
+if [ ! -d `winepath $libc_dir` ]
 then
   # The libcdir didn't exist, set default
   libc_dir="$MYDEV/libc"
@@ -63,6 +63,12 @@ export STRIP=:
 if test -z "$TERM" -o "$TERM"=dumb
 then
   export TERM=linux
+fi
+
+# Temporary hack to allow building from source dist
+if [ "$USER"=pushbuild ]
+then
+  export ARFLAGS=$AR_FLAGS
 fi
 
 # Print all env. variables
