@@ -5603,7 +5603,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   pthread_mutex_unlock(&share->mutex);
 
   struct Ndb_statistics stat;
-  if (ndb_get_table_statistics(NULL, true, ndb, tabname, &stat))
+  if (ndb_get_table_statistics(NULL, false, ndb, tabname, &stat))
   {
     free_share(share);
     DBUG_RETURN(1);
@@ -6044,6 +6044,9 @@ retry:
         reterr= ndb_to_mysql_error(&tmp);
       }
     }
+    else
+      reterr= error.code;
+
     if (pTrans)
     {
       ndb->closeTransaction(pTrans);
