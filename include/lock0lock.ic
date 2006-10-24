@@ -59,7 +59,7 @@ lock_clust_rec_some_has_impl(
 /*=========================*/
 				/* out: transaction which has the x-lock, or
 				NULL */
-	rec_t*		rec,	/* in: user record */
+	const rec_t*	rec,	/* in: user record */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
 {
@@ -80,4 +80,30 @@ lock_clust_rec_some_has_impl(
 	}
 
 	return(NULL);
+}
+
+/*************************************************************************
+Gets the heap_no of the smallest user record on a page. */
+UNIV_INLINE
+ulint
+lock_get_min_heap_no(
+/*=================*/
+					/* out: heap_no of smallest
+					user record, or
+					PAGE_HEAP_NO_SUPREMUM */
+	const buf_block_t*	block)	/* in: buffer block */
+{
+	const page_t*	page	= block->frame;
+
+	if (page_is_comp(page)) {
+		return(rec_get_heap_no_new(
+			       page
+			       + rec_get_next_offs(page + PAGE_NEW_INFIMUM,
+						   TRUE)));
+	} else {
+		return(rec_get_heap_no_old(
+			       page
+			       + rec_get_next_offs(page + PAGE_OLD_INFIMUM,
+						   FALSE)));
+	}
 }

@@ -221,6 +221,22 @@ page_rec_is_comp(
 	return(page_is_comp(page_align((rec_t*) rec)));
 }
 
+/*******************************************************************
+Returns the heap number of a record. */
+UNIV_INLINE
+ulint
+page_rec_get_heap_no(
+/*=================*/
+				/* out: heap number */
+	const rec_t*	rec)	/* in: the physical record */
+{
+	if (page_rec_is_comp(rec)) {
+		return(rec_get_heap_no_new(rec));
+	} else {
+		return(rec_get_heap_no_old(rec));
+	}
+}
+
 /****************************************************************
 Determine whether the page is a B-tree leaf. */
 UNIV_INLINE

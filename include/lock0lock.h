@@ -15,7 +15,6 @@ Created 5/7/1996 Heikki Tuuri
 #include "rem0types.h"
 #include "dict0types.h"
 #include "que0types.h"
-#include "page0types.h"
 #include "lock0types.h"
 #include "read0types.h"
 #include "hash0hash.h"
@@ -49,7 +48,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 /*==================================*/
 				/* out: transaction which has the x-lock, or
 				NULL */
-	rec_t*		rec,	/* in: user record */
+	const rec_t*	rec,	/* in: user record */
 	dict_index_t*	index,	/* in: secondary index */
 	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*************************************************************************
@@ -61,20 +60,19 @@ lock_clust_rec_some_has_impl(
 /*=========================*/
 				/* out: transaction which has the x-lock, or
 				NULL */
-	rec_t*		rec,	/* in: user record */
+	const rec_t*	rec,	/* in: user record */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
-/*****************************************************************
-Makes a record to inherit the locks of another record as gap type
-locks, but does not reset the lock bits of the other record. Also
-waiting lock requests on rec are inherited as GRANTED gap locks. */
-
-void
-lock_rec_inherit_to_gap(
-/*====================*/
-	rec_t*	heir,	/* in: record which inherits */
-	rec_t*	rec);	/* in: record from which inherited; does NOT reset
-			the locks on this record */
+/*************************************************************************
+Gets the heap_no of the smallest user record on a page. */
+UNIV_INLINE
+ulint
+lock_get_min_heap_no(
+/*=================*/
+					/* out: heap_no of smallest
+					user record, or
+					PAGE_HEAP_NO_SUPREMUM */
+	const buf_block_t*	block);	/* in: buffer block */
 /*****************************************************************
 Updates the lock table when we have reorganized a page. NOTE: we copy
 also the locks set on the infimum of the page; the infimum may carry
@@ -84,8 +82,10 @@ were temporarily stored on the infimum. */
 void
 lock_move_reorganize_page(
 /*======================*/
-	page_t*	page,		/* in: old index page */
-	page_t*	new_page);	/* in: reorganized page */
+	const buf_block_t*	block,	/* in: old index page, now
+					reorganized */
+	const buf_block_t*	oblock);/* in: copy of the old, not
+					reorganized page */
 /*****************************************************************
 Moves the explicit locks on user records to another page if a record
 list end is moved to another page. */
@@ -93,10 +93,10 @@ list end is moved to another page. */
 void
 lock_move_rec_list_end(
 /*===================*/
-	page_t*	new_page,	/* in: index page to move to */
-	page_t*	page,		/* in: index page */
-	rec_t*	rec);		/* in: record on page: this is the
-				first record moved */
+	const buf_block_t*	new_block,	/* in: index page to move to */
+	const buf_block_t*	block,		/* in: index page */
+	const rec_t*		rec);		/* in: record on page: this
+						is the first record moved */
 /*****************************************************************
 Moves the explicit locks on user records to another page if a record
 list start is moved to another page. */
@@ -104,30 +104,39 @@ list start is moved to another page. */
 void
 lock_move_rec_list_start(
 /*=====================*/
-	page_t*	new_page,	/* in: index page to move to */
-	page_t*	page,		/* in: index page */
-	rec_t*	rec,		/* in: record on page: this is the
-				first record NOT copied */
-	rec_t*	old_end);	/* in: old previous-to-last record on
-				new_page before the records were copied */
+	const buf_block_t*	new_block,	/* in: index page to move to */
+	const buf_block_t*	block,		/* in: index page */
+	const rec_t*		rec,		/* in: record on page:
+						this is the first
+						record NOT copied */
+	const rec_t*		old_end);	/* in: old
+						previous-to-last
+						record on new_page
+						before the records
+						were copied */
 /*****************************************************************
 Updates the lock table when a page is split to the right. */
 
 void
 lock_update_split_right(
 /*====================*/
-	page_t*	right_page,	/* in: right page */
-	page_t*	left_page);	/* in: left page */
+	const buf_block_t*	right_block,	/* in: right page */
+	const buf_block_t*	left_block);	/* in: left page */
 /*****************************************************************
 Updates the lock table when a page is merged to the right. */
 
 void
 lock_update_merge_right(
 /*====================*/
-	rec_t*	orig_succ,	/* in: original successor of infimum
-				on the right page before merge */
-	page_t*	left_page);	/* in: merged index page which will be
-				discarded */
+	const buf_block_t*	right_block,	/* in: right page to
+						which merged */
+	const rec_t*		orig_succ,	/* in: original
+						successor of infimum
+						on the right page
+						before merge */
+	const buf_block_t*	left_block);	/* in: merged index
+						page which will be
+						discarded */
 /*****************************************************************
 Updates the lock table when the root page is copied to another in
 btr_root_raise_and_insert. Note that we leave lock structs on the
@@ -139,8 +148,8 @@ to be updated. */
 void
 lock_update_root_raise(
 /*===================*/
-	page_t*	new_page,	/* in: index page to which copied */
-	page_t*	root);		/* in: root page */
+	const buf_block_t*	block,	/* in: index page to which copied */
+	const buf_block_t*	root);	/* in: root page */
 /*****************************************************************
 Updates the lock table when a page is copied to another and the original page
 is removed from the chain of leaf pages, except if page is the root! */
@@ -148,27 +157,31 @@ is removed from the chain of leaf pages, except if page is the root! */
 void
 lock_update_copy_and_discard(
 /*=========================*/
-	page_t*	new_page,	/* in: index page to which copied */
-	page_t*	page);		/* in: index page; NOT the root! */
+	const buf_block_t*	new_block,	/* in: index page to
+						which copied */
+	const buf_block_t*	block);		/* in: index page;
+						NOT the root! */
 /*****************************************************************
 Updates the lock table when a page is split to the left. */
 
 void
 lock_update_split_left(
 /*===================*/
-	page_t*	right_page,	/* in: right page */
-	page_t*	left_page);	/* in: left page */
+	const buf_block_t*	right_block,	/* in: right page */
+	const buf_block_t*	left_block);	/* in: left page */
 /*****************************************************************
 Updates the lock table when a page is merged to the left. */
 
 void
 lock_update_merge_left(
 /*===================*/
-	page_t*	left_page,	/* in: left page to which merged */
-	rec_t*	orig_pred,	/* in: original predecessor of supremum
-				on the left page before merge */
-	page_t*	right_page);	/* in: merged index page which will be
-				discarded */
+	const buf_block_t*	left_block,	/* in: left page to
+						which merged */
+	const rec_t*		orig_pred,	/* in: original predecessor
+						of supremum on the left page
+						before merge */
+	const buf_block_t*	right_block);	/* in: merged index page
+						which will be discarded */
 /*****************************************************************
 Resets the original locks on heir and replaces them with gap type locks
 inherited from rec. */
@@ -176,30 +189,44 @@ inherited from rec. */
 void
 lock_rec_reset_and_inherit_gap_locks(
 /*=================================*/
-	rec_t*	heir,	/* in: heir record */
-	rec_t*	rec);	/* in: record */
+	const buf_block_t*	heir_block,	/* in: block containing the
+						record which inherits */
+	const buf_block_t*	block,		/* in: block containing the
+						record from which inherited;
+						does NOT reset the locks on
+						this record */
+	ulint			heir_heap_no,	/* in: heap_no of the
+						inheriting record */
+	ulint			heap_no);	/* in: heap_no of the
+						donating record */
 /*****************************************************************
 Updates the lock table when a page is discarded. */
 
 void
 lock_update_discard(
 /*================*/
-	rec_t*	heir,	/* in: record which will inherit the locks */
-	page_t*	page);	/* in: index page which will be discarded */
+	const buf_block_t*	heir_block,	/* in: index page
+						which will inherit the locks */
+	ulint			heir_heap_no,	/* in: heap_no of the record
+						which will inherit the locks */
+	const buf_block_t*	block);		/* in: index page
+						which will be discarded */
 /*****************************************************************
 Updates the lock table when a new user record is inserted. */
 
 void
 lock_update_insert(
 /*===============*/
-	rec_t*	rec);	/* in: the inserted record */
+	const buf_block_t*	block,	/* in: buffer block containing rec */
+	const rec_t*		rec);	/* in: the inserted record */
 /*****************************************************************
 Updates the lock table when a record is removed. */
 
 void
 lock_update_delete(
 /*===============*/
-	rec_t*	rec);	/* in: the record to be removed */
+	const buf_block_t*	block,	/* in: buffer block containing rec */
+	const rec_t*		rec);	/* in: the record to be removed */
 /*************************************************************************
 Stores on the page infimum record the explicit locks of another record.
 This function is used to store the lock state of a record when it is
@@ -211,10 +238,12 @@ actual record is being moved. */
 void
 lock_rec_store_on_page_infimum(
 /*===========================*/
-	page_t*	page,	/* in: page containing the record */
-	rec_t*	rec);	/* in: record whose lock state is stored
-			on the infimum record of the same page; lock
-			bits are reset on the record */
+	const buf_block_t*	block,	/* in: buffer block containing rec */
+	const rec_t*		rec);	/* in: record whose lock state
+					is stored on the infimum
+					record of the same page; lock
+					bits are reset on the
+					record */
 /*************************************************************************
 Restores the state of explicit lock requests on a single record, where the
 state was stored on the infimum of the page. */
@@ -222,10 +251,17 @@ state was stored on the infimum of the page. */
 void
 lock_rec_restore_from_page_infimum(
 /*===============================*/
-	rec_t*	rec,	/* in: record whose lock state is restored */
-	page_t*	page);	/* in: page (rec is not necessarily on this page)
-			whose infimum stored the lock state; lock bits are
-			reset on the infimum */
+	const buf_block_t*	block,	/* in: buffer block containing rec */
+	const rec_t*		rec,	/* in: record whose lock state
+					is stored on the infimum
+					record of the same page; lock
+					bits are reset on the
+					record */
+	const buf_block_t*	donator);/* in: page (rec is not
+					necessarily on this page)
+					whose infimum stored the lock
+					state; lock bits are reset on
+					the infimum */
 /*************************************************************************
 Returns TRUE if there are explicit record locks on a page. */
 
@@ -248,15 +284,16 @@ lock_rec_insert_check_and_lock(
 /*===========================*/
 				/* out: DB_SUCCESS, DB_LOCK_WAIT,
 				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing */
+	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is
+				set, does nothing */
 	rec_t*		rec,	/* in: record after which to insert */
-	buf_block_t*	block,	/* in: buffer block of rec */
+	buf_block_t*	block,	/* in/out: buffer block of rec */
 	dict_index_t*	index,	/* in: index */
 	que_thr_t*	thr,	/* in: query thread */
-	ibool*		inherit);/* out: set to TRUE if the new inserted
-				record maybe should inherit LOCK_GAP type
-				locks from the successor record */
+	ibool*		inherit);/* out: set to TRUE if the new
+				inserted record maybe should inherit
+				LOCK_GAP type locks from the successor
+				record */
 /*************************************************************************
 Checks if locks of other transactions prevent an immediate modify (update,
 delete mark, or delete unmark) of a clustered index record. If they do,
@@ -268,14 +305,17 @@ lock queue. */
 ulint
 lock_clust_rec_modify_check_and_lock(
 /*=================================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
-				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing */
-	rec_t*		rec,	/* in: record which should be modified */
-	dict_index_t*	index,	/* in: clustered index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	que_thr_t*	thr);	/* in: query thread */
+					/* out: DB_SUCCESS,
+					DB_LOCK_WAIT, DB_DEADLOCK, or
+					DB_QUE_THR_SUSPENDED */
+	ulint			flags,	/* in: if BTR_NO_LOCKING_FLAG
+					bit is set, does nothing */
+	const buf_block_t*	block,	/* in: buffer block of rec */
+	const rec_t*		rec,	/* in: record which should be
+					modified */
+	dict_index_t*		index,	/* in: clustered index */
+	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
+	que_thr_t*		thr);	/* in: query thread */
 /*************************************************************************
 Checks if locks of other transactions prevent an immediate modify
 (delete mark or delete unmark) of a secondary index record. */
@@ -285,13 +325,14 @@ lock_sec_rec_modify_check_and_lock(
 /*===============================*/
 				/* out: DB_SUCCESS, DB_LOCK_WAIT,
 				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing */
-	rec_t*		rec,	/* in: record which should be modified;
-				NOTE: as this is a secondary index, we
-				always have to modify the clustered index
-				record first: see the comment below */
-	buf_block_t*	block,	/* in: buffer block of rec */
+	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG
+				bit is set, does nothing */
+	buf_block_t*	block,	/* in/out: buffer block of rec */
+	rec_t*		rec,	/* in: record which should be
+				modified; NOTE: as this is a secondary
+				index, we always have to modify the
+				clustered index record first: see the
+				comment below */
 	dict_index_t*	index,	/* in: secondary index */
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
@@ -301,21 +342,26 @@ secondary index record. */
 ulint
 lock_sec_rec_read_check_and_lock(
 /*=============================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
-				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing */
-	rec_t*		rec,	/* in: user record or page supremum record
-				which should be read or passed over by a read
-				cursor */
-	dict_index_t*	index,	/* in: secondary index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	ulint		mode,	/* in: mode of the lock which the read cursor
-				should set on records: LOCK_S or LOCK_X; the
-				latter is possible in SELECT FOR UPDATE */
-	ulint		gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
-				LOCK_REC_NOT_GAP */
-	que_thr_t*	thr);	/* in: query thread */
+					/* out: DB_SUCCESS,
+					DB_LOCK_WAIT, DB_DEADLOCK, or
+					DB_QUE_THR_SUSPENDED */
+	ulint			flags,	/* in: if BTR_NO_LOCKING_FLAG
+					bit is set, does nothing */
+	const buf_block_t*	block,	/* in: buffer block of rec */
+	const rec_t*		rec,	/* in: user recpord or page
+					supremum record which should
+					be read or passed over by a
+					read cursor */
+	dict_index_t*		index,	/* in: secondary index */
+	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
+	ulint			mode,	/* in: mode of the lock which
+					the read cursor should set on
+					records: LOCK_S or LOCK_X; the
+					latter is possible in
+					SELECT FOR UPDATE */
+	ulint			gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
+					LOCK_REC_NOT_GAP */
+	que_thr_t*		thr);	/* in: query thread */
 /*************************************************************************
 Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
@@ -327,21 +373,26 @@ lock on the record. */
 ulint
 lock_clust_rec_read_check_and_lock(
 /*===============================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
-				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing */
-	rec_t*		rec,	/* in: user record or page supremum record
-				which should be read or passed over by a read
-				cursor */
-	dict_index_t*	index,	/* in: clustered index */
-	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
-	ulint		mode,	/* in: mode of the lock which the read cursor
-				should set on records: LOCK_S or LOCK_X; the
-				latter is possible in SELECT FOR UPDATE */
-	ulint		gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
-				LOCK_REC_NOT_GAP */
-	que_thr_t*	thr);	/* in: query thread */
+					/* out: DB_SUCCESS,
+					DB_LOCK_WAIT, DB_DEADLOCK, or
+					DB_QUE_THR_SUSPENDED */
+	ulint			flags,	/* in: if BTR_NO_LOCKING_FLAG
+					bit is set, does nothing */
+	const buf_block_t*	block,	/* in: buffer block of rec */
+	const rec_t*		rec,	/* in: user record or page
+					supremum record which should
+					be read or passed over by a
+					read cursor */
+	dict_index_t*		index,	/* in: clustered index */
+	const ulint*		offsets,/* in: rec_get_offsets(rec, index) */
+	ulint			mode,	/* in: mode of the lock which
+					the read cursor should set on
+					records: LOCK_S or LOCK_X; the
+					latter is possible in
+					SELECT FOR UPDATE */
+	ulint			gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
+					LOCK_REC_NOT_GAP */
+	que_thr_t*		thr);	/* in: query thread */
 /*************************************************************************
 Checks if locks of other transactions prevent an immediate read, or passing
 over by a read cursor, of a clustered index record. If they do, first tests
@@ -355,20 +406,25 @@ lock_clust_rec_read_check_and_lock() that does not require the parameter
 ulint
 lock_clust_rec_read_check_and_lock_alt(
 /*===================================*/
-				/* out: DB_SUCCESS, DB_LOCK_WAIT,
-				DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
-	ulint		flags,	/* in: if BTR_NO_LOCKING_FLAG bit is set,
-				does nothing */
-	rec_t*		rec,	/* in: user record or page supremum record
-				which should be read or passed over by a read
-				cursor */
-	dict_index_t*	index,	/* in: clustered index */
-	ulint		mode,	/* in: mode of the lock which the read cursor
-				should set on records: LOCK_S or LOCK_X; the
-				latter is possible in SELECT FOR UPDATE */
-	ulint		gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
-				LOCK_REC_NOT_GAP */
-	que_thr_t*	thr);	/* in: query thread */
+					/* out: DB_SUCCESS,
+					DB_LOCK_WAIT, DB_DEADLOCK, or
+					DB_QUE_THR_SUSPENDED */
+	ulint			flags,	/* in: if BTR_NO_LOCKING_FLAG
+					bit is set, does nothing */
+	const buf_block_t*	block,	/* in: buffer block of rec */
+	const rec_t*		rec,	/* in: user record or page
+					supremum record which should
+					be read or passed over by a
+					read cursor */
+	dict_index_t*		index,	/* in: clustered index */
+	ulint			mode,	/* in: mode of the lock which
+					the read cursor should set on
+					records: LOCK_S or LOCK_X; the
+					latter is possible in
+					SELECT FOR UPDATE */
+	ulint			gap_mode,/* in: LOCK_ORDINARY, LOCK_GAP, or
+					LOCK_REC_NOT_GAP */
+	que_thr_t*		thr);	/* in: query thread */
 /*************************************************************************
 Checks that a record is seen in a consistent read. */
 
@@ -377,7 +433,7 @@ lock_clust_rec_cons_read_sees(
 /*==========================*/
 				/* out: TRUE if sees, or FALSE if an earlier
 				version of the record should be retrieved */
-	rec_t*		rec,	/* in: user record which should be read or
+	const rec_t*	rec,	/* in: user record which should be read or
 				passed over by a read cursor */
 	dict_index_t*	index,	/* in: clustered index */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
@@ -388,18 +444,23 @@ Checks that a non-clustered index record is seen in a consistent read. */
 ulint
 lock_sec_rec_cons_read_sees(
 /*========================*/
-				/* out: TRUE if certainly sees, or FALSE if an
-				earlier version of the clustered index record
-				might be needed: NOTE that a non-clustered
-				index page contains so little information on
-				its modifications that also in the case FALSE,
-				the present version of rec may be the right,
-				but we must check this from the clustered
-				index record */
-	rec_t*		rec,	/* in: user record which should be read or
-				passed over by a read cursor */
-	dict_index_t*	index,	/* in: non-clustered index */
-	read_view_t*	view);	/* in: consistent read view */
+					/* out: TRUE if certainly
+					sees, or FALSE if an earlier
+					version of the clustered index
+					record might be needed: NOTE
+					that a non-clustered index
+					page contains so little
+					information on its
+					modifications that also in the
+					case FALSE, the present
+					version of rec may be the
+					right, but we must check this
+					from the clustered index
+					record */
+	const rec_t*		rec,	/* in: user record which
+					should be read or passed over
+					by a read cursor */
+	const read_view_t*	view);	/* in: consistent read view */
 /*************************************************************************
 Locks the specified database table in the mode given. If the lock cannot
 be granted immediately, the query thread is put to wait. */
@@ -430,10 +491,11 @@ to a lock. */
 void
 lock_rec_unlock(
 /*============*/
-	trx_t*	trx,		/* in: transaction that has set a record
-				lock */
-	rec_t*	rec,		/* in: record */
-	ulint	lock_mode);	/* in: LOCK_S or LOCK_X */
+	trx_t*			trx,	/* in: transaction that has
+					set a record lock */
+	const buf_block_t*	block,	/* in: buffer block containing rec */
+	const rec_t*		rec,	/* in: record */
+	ulint			lock_mode);/* in: LOCK_S or LOCK_X */
 /*************************************************************************
 Releases a table lock.
 Releases possible other transactions waiting for this lock. */
@@ -529,21 +591,11 @@ lock_check_trx_id_sanity(
 /*=====================*/
 					/* out: TRUE if ok */
 	dulint		trx_id,		/* in: trx id */
-	rec_t*		rec,		/* in: user record */
+	const rec_t*	rec,		/* in: user record */
 	dict_index_t*	index,		/* in: clustered index */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index) */
 	ibool		has_kernel_mutex);/* in: TRUE if the caller owns the
 					kernel mutex */
-/*************************************************************************
-Validates the lock queue on a single record. */
-
-ibool
-lock_rec_queue_validate(
-/*====================*/
-				/* out: TRUE if ok */
-	rec_t*		rec,	/* in: record to look at */
-	dict_index_t*	index,	/* in: index, or NULL if not known */
-	const ulint*	offsets);/* in: rec_get_offsets(rec, index) */
 /*************************************************************************
 Prints info of a table lock. */
 
@@ -574,30 +626,6 @@ void
 lock_print_info_all_transactions(
 /*=============================*/
 	FILE*	file);	/* in: file where to print */
-/*************************************************************************
-Validates the lock queue on a table. */
-
-ibool
-lock_table_queue_validate(
-/*======================*/
-				/* out: TRUE if ok */
-	dict_table_t*	table);	/* in: table */
-/*************************************************************************
-Validates the record lock queues on a page. */
-
-ibool
-lock_rec_validate_page(
-/*===================*/
-			/* out: TRUE if ok */
-	ulint	space,	/* in: space id */
-	ulint	page_no);/* in: page number */
-/*************************************************************************
-Validates the lock system. */
-
-ibool
-lock_validate(void);
-/*===============*/
-			/* out: TRUE if ok */
 /*************************************************************************
 Return approximate number or record locks (bits set in the bitmap) for
 this transaction. Since delete-marked records ma ybe removed, the
