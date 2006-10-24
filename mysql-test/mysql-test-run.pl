@@ -2926,8 +2926,6 @@ sub find_testcase_skipped_reason($)
 sub analyze_testcase_failure_sync_with_master($)
 {
   my ($tinfo)= @_;
-  mtr_verbose("analyze_testcase_failure_sync_with_master");
-  print "analyze_testcase_failure_sync_with_master\n";
 
   my $args;
   mtr_init_args(\$args);
