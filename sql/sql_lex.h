@@ -580,6 +580,8 @@ public:
   /* exclude this select from check of unique_table() */
   bool exclude_from_table_unique_test;
 
+  List<udf_func>     udf_list;                  /* udf function calls stack */
+
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();

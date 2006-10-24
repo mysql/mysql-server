@@ -1148,6 +1148,28 @@ void Item_name_const::print(String *str)
 
 
 /*
+ need a special class to adjust printing : references to aggregate functions 
+ must not be printed as refs because the aggregate functions that are added to
+ the front of select list are not printed as well.
+*/
+class Item_aggregate_ref : public Item_ref
+{
+public:
+  Item_aggregate_ref(Name_resolution_context *context_arg, Item **item,
+                  const char *table_name_arg, const char *field_name_arg)
+    :Item_ref(context_arg, item, table_name_arg, field_name_arg) {}
+
+  void print (String *str)
+  {
+    if (ref)
+      (*ref)->print(str);
+    else
+      Item_ident::print(str);
+  }
+};
+
+
+/*
   Move SUM items out from item tree and replace with reference
 
   SYNOPSIS
@@ -1200,8 +1222,8 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
     Item *new_item, *real_itm= real_item();
 
     ref_pointer_array[el]= real_itm;
-    if (!(new_item= new Item_ref(&thd->lex->current_select->context,
-                                 ref_pointer_array + el, 0, name)))
+    if (!(new_item= new Item_aggregate_ref(&thd->lex->current_select->context,
+                                           ref_pointer_array + el, 0, name)))
       return;                                   // fatal_error is set
     fields.push_front(real_itm);
     thd->change_item_tree(ref, new_item);
