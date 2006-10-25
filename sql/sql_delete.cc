@@ -253,7 +253,8 @@ cleanup:
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  if (error >= 0 || thd->net.report_error)
+  if ((error >= 0 || thd->net.report_error) &&
+      (!thd->lex->ignore || thd->is_fatal_error))
     send_error(thd,thd->killed ? ER_SERVER_SHUTDOWN: 0);
   else
   {
