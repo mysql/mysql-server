@@ -2996,5 +2996,99 @@ SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
   WHERE t1.id=2;
 
+DROP TABLE t1,t2,t3;
+
+#
+# Bug#20503: Server crash due to the ORDER clause isn't taken into account
+#            while space allocation
+#
+create table t1 (c1 varchar(1), c2 int, c3 int, c4 int, c5 int, c6 int,
+c7 int, c8 int, c9 int, fulltext key (`c1`));
+select distinct match (`c1`) against ('z') , c2, c3, c4,c5, c6,c7, c8 
+  from t1 where c9=1 order by c2, c2;
+drop table t1;
+
+#
+# Bug #22735: no equality propagation for BETWEEN and IN with STRING arguments
+#
+
+CREATE TABLE t1 (pk varchar(10) PRIMARY KEY, fk varchar(16));
+CREATE TABLE t2 (pk varchar(16) PRIMARY KEY, fk varchar(10));
+
+INSERT INTO t1 VALUES
+  ('d','dddd'), ('i','iii'), ('a','aa'), ('b','bb'), ('g','gg'), 
+  ('e','eee'), ('c','cccc'), ('h','hhh'), ('j','jjj'), ('f','fff');
+INSERT INTO t2 VALUES
+  ('jjj', 'j'), ('cc','c'), ('ccc','c'), ('aaa', 'a'), ('jjjj','j'),
+  ('hhh','h'), ('gg','g'), ('fff','f'), ('ee','e'), ('ffff','f'),
+  ('bbb','b'), ('ff','f'), ('cccc','c'), ('dddd','d'), ('jj','j'),
+  ('aaaa','a'), ('bb','b'), ('eeee','e'), ('aa','a'), ('hh','h');
+
+EXPLAIN SELECT t2.* 
+  FROM t1 JOIN t2 ON t2.fk=t1.pk
+    WHERE t2.fk < 'c' AND t2.pk=t1.fk;
+EXPLAIN SELECT t2.* 
+  FROM t1 JOIN t2 ON t2.fk=t1.pk 
+    WHERE t2.fk BETWEEN 'a' AND 'b' AND t2.pk=t1.fk;
+EXPLAIN SELECT t2.* 
+  FROM t1 JOIN t2 ON t2.fk=t1.pk 
+    WHERE t2.fk IN ('a','b') AND t2.pk=t1.fk;
+
+DROP TABLE t1,t2;
+
+#
+# Bug #22367: Optimizer uses ref join type instead of eq_ref for simple 
+#               join on strings
+#
+CREATE TABLE t1 (a int, b varchar(20) NOT NULL, PRIMARY KEY(a));
+CREATE TABLE t2 (a int, b varchar(20) NOT NULL,
+                 PRIMARY KEY (a), UNIQUE KEY (b));
+INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
+INSERT INTO t2 VALUES (1,'a'),(2,'b'),(3,'c');
+
+EXPLAIN SELECT t1.a FROM t1 LEFT JOIN t2 ON t2.b=t1.b WHERE t1.a=3;
+
+DROP TABLE t1,t2;
+
+#
+# Bug #19579: predicates that become sargable after reading const tables
+#             are not taken into account by optimizer
+#
+
+CREATE TABLE t1(id int PRIMARY KEY, b int, e int);
+CREATE TABLE t2(i int, a int, INDEX si(i), INDEX ai(a));
+CREATE TABLE t3(a int PRIMARY KEY, c char(4), INDEX ci(c));
+
+INSERT INTO t1 VALUES 
+  (1,10,19), (2,20,22), (4,41,42), (9,93,95), (7, 77,79),
+  (6,63,67), (5,55,58), (3,38,39), (8,81,89);
+INSERT INTO t2 VALUES
+  (21,210), (41,410), (82,820), (83,830), (84,840),
+  (65,650), (51,510), (37,370), (94,940), (76,760),
+  (22,220), (33,330), (40,400), (95,950), (38,380),
+  (67,670), (88,880), (57,570), (96,960), (97,970);
+INSERT INTO t3 VALUES
+  (210,'bb'), (950,'ii'), (400,'ab'), (500,'ee'), (220,'gg'),
+  (440,'gg'), (310,'eg'), (380,'ee'), (840,'bb'), (830,'ff'),
+  (230,'aa'), (960,'ii'), (410,'aa'), (510,'ee'), (290,'bb'),
+  (450,'gg'), (320,'dd'), (390,'hh'), (850,'jj'), (860,'ff');
+
+EXPLAIN
+SELECT t3.a FROM t1,t2 FORCE INDEX (si),t3
+  WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND 
+        t3.a=t2.a AND t3.c IN ('bb','ee');
+EXPLAIN
+SELECT t3.a FROM t1,t2,t3
+  WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND
+        t3.a=t2.a AND t3.c IN ('bb','ee') ;
+
+EXPLAIN 
+SELECT t3.a FROM t1,t2 FORCE INDEX (si),t3
+  WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
+        t3.c IN ('bb','ee');
+EXPLAIN 
+SELECT t3.a FROM t1,t2,t3
+  WHERE t1.id = 8 AND (t2.i=t1.b OR t2.i=t1.e) AND t3.a=t2.a AND
+        t3.c IN ('bb','ee');
 
 DROP TABLE t1,t2,t3;
