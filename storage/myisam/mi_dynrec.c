@@ -1203,9 +1203,11 @@ ulong _mi_rec_unpack(register MI_INFO *info, register byte *to, byte *from,
       {
 	uint size_length=rec_length- mi_portable_sizeof_char_ptr;
 	ulong blob_length=_mi_calc_blob_length(size_length,from);
-	if ((ulong) (from_end-from) - size_length < blob_length ||
-	    min_pack_length > (uint) (from_end -(from+size_length+blob_length)))
-	  goto err;
+        ulong from_left= (ulong) (from_end - from);
+        if (from_left < size_length ||
+            from_left - size_length < blob_length ||
+            from_left - size_length - blob_length < min_pack_length)
+          goto err;
 	memcpy((byte*) to,(byte*) from,(size_t) size_length);
 	from+=size_length;
 	memcpy_fixed((byte*) to+size_length,(byte*) &from,sizeof(char*));
