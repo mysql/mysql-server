@@ -440,16 +440,6 @@ buf_block_get_lock_hash_val(
 					/* out: lock hash value */
 	const buf_block_t*	block)	/* in: block */
 	__attribute__((const));
-/**************************************************************************
-Gets the mutex number protecting the page record lock hash chain in the lock
-table. */
-UNIV_INLINE
-mutex_t*
-buf_block_get_lock_mutex(
-/*=====================*/
-				/* out: mutex */
-	buf_block_t*	block)	/* in: block */
-	__attribute__((const));
 /***********************************************************************
 Checks if a pointer points to the block array of the buffer pool (blocks, not
 the frames). */

@@ -9,7 +9,6 @@ Created 12/7/1995 Heikki Tuuri
 #include "mach0data.h"
 #include "ut0lst.h"
 #include "buf0buf.h"
-#include "page0page.h"
 
 /************************************************************
 Opens a buffer to mlog. It must be closed with mlog_close. */
@@ -164,6 +163,7 @@ mlog_write_initial_log_record_fast(
 #ifdef UNIV_DEBUG
 	buf_block_t*	block;
 #endif
+	const byte*	page;
 	ulint		space;
 	ulint		offset;
 
@@ -171,8 +171,9 @@ mlog_write_initial_log_record_fast(
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(ptr && log_ptr);
 
-	space = page_get_space_id(page_align(ptr));
-	offset = page_get_page_no(page_align(ptr));
+	page = ut_align_down(ptr, UNIV_PAGE_SIZE);
+	space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+	offset = mach_read_from_4(page + FIL_PAGE_OFFSET);
 
 	mach_write_to_1(log_ptr, type);
 	log_ptr++;
