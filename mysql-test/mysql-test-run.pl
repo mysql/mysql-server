@@ -714,11 +714,19 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # NOTE if the default binlog format is changed, this has to be changed
   $used_binlog_format= "stmt";
+  if ( $mysql_version_id >= 50100 )
+  {
+    $used_binlog_format= "mixed";
+  }
   foreach my $arg ( @opt_extra_mysqld_opt )
   {
     if ( defined mtr_match_substring($arg,"binlog-format=row"))
     {
       $used_binlog_format= "row";
+    }
+    elsif ( defined mtr_match_substring($arg,"binlog-format=stmt"))
+    {
+      $used_binlog_format= "stmt";
     }
   }
   mtr_report("Using binlog format '$used_binlog_format'");
@@ -2624,6 +2632,7 @@ sub install_db ($$) {
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
+  mtr_add_arg($args, "--core-file");
 
   if ( $opt_debug )
   {
