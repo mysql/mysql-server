@@ -4,7 +4,7 @@
 # Taken fromm the select test
 #
 -- source include/have_partition.inc
--- source include/have_innodb.inc
+
 #
 # This test is disabled on Windows due to BUG#19107
 #
