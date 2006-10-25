@@ -504,7 +504,7 @@ btr_free_externally_stored_field(
 					an undo log page, not an index
 					page) */
 	byte*		field_ref,	/* in/out: field reference */
-	rec_t*		rec,		/* in: record containing field_ref, for
+	const rec_t*	rec,		/* in: record containing field_ref, for
 					page_zip_write_blob_ptr(), or NULL */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index),
 					or NULL */
