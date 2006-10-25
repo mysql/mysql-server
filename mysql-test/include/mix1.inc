@@ -259,6 +259,36 @@ select distinct a1 from t4 where pk_col not in (1,2,3,4);
 
 drop table t1,t4;
 
+
+#
+# BUG#18819: DELETE IGNORE hangs on foreign key parent delete
+#
+# The bug itself does not relate to InnoDB, but we have to use foreign
+# keys to reproduce it.
+#
+--disable_warnings
+DROP TABLE IF EXISTS t2, t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT NOT NULL PRIMARY KEY) ENGINE= InnoDB;
+CREATE TABLE t2 (
+  i INT NOT NULL,
+  FOREIGN KEY (i) REFERENCES t1 (i) ON DELETE NO ACTION
+) ENGINE= InnoDB;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+DELETE IGNORE FROM t1 WHERE i = 1;
+
+SELECT * FROM t1, t2;
+
+DROP TABLE t2, t1;
+
+
+--echo End of 4.1 tests.
+
+
 #
 # Bug #6142: a problem with the empty innodb table
 # (was part of group_min_max.test)
