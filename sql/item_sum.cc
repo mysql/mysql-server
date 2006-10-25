@@ -1410,12 +1410,20 @@ bool Item_sum_count_distinct::add()
 
 longlong Item_sum_count_distinct::val_int()
 {
+  int error;
   DBUG_ASSERT(fixed == 1);
   if (!table)					// Empty query
     return LL(0);
   if (use_tree)
     return tree->elements_in_tree;
-  table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+
+  error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+
+  if(error)
+  {
+    table->file->print_error(error, MYF(0));
+  }
+
   return table->file->records;
 }
 

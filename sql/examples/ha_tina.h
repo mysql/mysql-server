@@ -115,7 +115,7 @@ class ha_tina: public handler
   int rnd_pos(byte * buf, byte *pos);
   int rnd_end();
   void position(const byte *record);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int reset(void);
   int external_lock(THD *thd, int lock_type);

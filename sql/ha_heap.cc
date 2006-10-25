@@ -282,7 +282,7 @@ void ha_heap::position(const byte *record)
   *(HEAP_PTR*) ref= heap_position(file);	// Ref is aligned
 }
 
-void ha_heap::info(uint flag)
+int ha_heap::info(uint flag)
 {
   HEAPINFO info;
   (void) heap_info(file,&info,flag);
@@ -304,6 +304,7 @@ void ha_heap::info(uint flag)
   */
   if (key_stat_version != file->s->key_stat_version)
     update_key_stats();
+  return 0;
 }
 
 int ha_heap::extra(enum ha_extra_function operation)
