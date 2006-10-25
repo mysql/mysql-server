@@ -683,13 +683,13 @@ int ha_tina::rnd_pos(byte * buf, byte *pos)
   Currently this table handler doesn't implement most of the fields
   really needed. SHOW also makes use of this data
 */
-void ha_tina::info(uint flag)
+int ha_tina::info(uint flag)
 {
   DBUG_ENTER("ha_tina::info");
   /* This is a lie, but you don't want the optimizer to see zero or 1 */
   if (records < 2) 
     records= 2;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 /*

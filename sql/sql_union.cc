@@ -492,7 +492,12 @@ int st_select_lex_unit::exec()
 	DBUG_RETURN(res);
       }
       /* Needed for the following test and for records_at_start in next loop */
-      table->file->info(HA_STATUS_VARIABLE);
+      int error= table->file->info(HA_STATUS_VARIABLE);
+      if(error)
+      {
+        table->file->print_error(error, MYF(0));
+        DBUG_RETURN(1);
+      }
       if (found_rows_for_union && !sl->braces && 
           select_limit_cnt != HA_POS_ERROR)
       {

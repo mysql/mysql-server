@@ -127,7 +127,7 @@ class ha_berkeley: public handler
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int reset(void);
   int external_lock(THD *thd, int lock_type);
