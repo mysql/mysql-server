@@ -605,8 +605,13 @@ public:
   my_decimal *val_decimal_from_real(my_decimal *decimal_value);
   my_decimal *val_decimal_from_int(my_decimal *decimal_value);
   my_decimal *val_decimal_from_string(my_decimal *decimal_value);
+  my_decimal *val_decimal_from_date(my_decimal *decimal_value);
+  my_decimal *val_decimal_from_time(my_decimal *decimal_value);
   longlong val_int_from_decimal();
   double val_real_from_decimal();
+
+  int save_time_in_field(Field *field);
+  int save_date_in_field(Field *field);
 
   virtual Field *get_tmp_table_field() { return 0; }
   /* This is also used to create fields in CREATE ... SELECT: */
