@@ -39,12 +39,7 @@ drop table t1;
 create table t1 (a int) engine=ndbcluster;
 insert into t1 value (2);
 connection server1;
-## Currently a retry is required remotely
-#--error 1412
-#select * from t1;
-#show warnings;
-#flush table t1;
-# Table definition change should be propagated automatically
+select * from t1;
 select * from t1;
 
 # Connect to server2 and use the tables from there
