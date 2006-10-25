@@ -2413,6 +2413,13 @@ int Field_new_decimal::store_decimal(const my_decimal *decimal_value)
 }
 
 
+int Field_new_decimal::store_time(TIME *ltime, timestamp_type t_type)
+{
+    my_decimal decimal_value;
+    return store_value(date2my_decimal(ltime, &decimal_value));
+}
+
+
 double Field_new_decimal::val_real(void)
 {
   double dbl;
