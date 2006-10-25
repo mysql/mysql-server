@@ -5,7 +5,7 @@ Next DBACC 3002
 Next DBTUP 4014
 Next DBLQH 5043
 Next DBDICT 6006
-Next DBDIH 7174
+Next DBDIH 7178
 Next DBTC 8038
 Next CMVMI 9000
 Next BACKUP 10022
@@ -65,6 +65,8 @@ Delay GCP_SAVEREQ by 10 secs
 
 7030: Delay in GCP_PREPARE until node has completed a node failure
 7031: Delay in GCP_PREPARE and die 3s later
+
+7177: Delay copying of sysfileData in execCOPY_GCIREQ
 
 ERROR CODES FOR TESTING NODE FAILURE, LOCAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------
