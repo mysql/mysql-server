@@ -862,6 +862,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   bool error;
   uint closed_log_tables= 0, lock_logger= 0;
   uint path_length;
+  uint log_type;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -913,9 +914,9 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       DBUG_RETURN(TRUE);
   }
 
-  uint log_type= check_if_log_table(table_list->db_length, table_list->db,
-                                    table_list->table_name_length,
-                                    table_list->table_name, 1);
+  log_type= check_if_log_table(table_list->db_length, table_list->db,
+                               table_list->table_name_length,
+                               table_list->table_name, 1);
   /* close log tables in use */
   if (log_type)
   {
