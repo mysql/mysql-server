@@ -732,20 +732,17 @@ sub command_line_setup () {
   $used_binlog_format= "stmt";
   if ( $mysql_version_id >= 50100 )
   {
-    $used_binlog_format= "mixed";
-  }
-  foreach my $arg ( @opt_extra_mysqld_opt )
-  {
-    if ( defined mtr_match_substring($arg,"binlog-format=row"))
+    $used_binlog_format= "mixed"; # Default value for binlog format
+
+    foreach my $arg ( @opt_extra_mysqld_opt )
     {
-      $used_binlog_format= "row";
+      if ( $arg =~ /binlog-format=(\S+)/ )
+      {
+	$used_binlog_format= $1;
+      }
     }
-    elsif ( defined mtr_match_substring($arg,"binlog-format=stmt"))
-    {
-      $used_binlog_format= "stmt";
-    }
+    mtr_report("Using binlog format '$used_binlog_format'");
   }
-  mtr_report("Using binlog format '$used_binlog_format'");
 
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
