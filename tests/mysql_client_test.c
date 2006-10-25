@@ -14480,6 +14480,7 @@ static void test_bug11718()
     printf("return type: %s", (res->fields[0].type == MYSQL_TYPE_DATE)?"DATE":
            "not DATE");
   DIE_UNLESS(res->fields[0].type == MYSQL_TYPE_DATE);
+  mysql_free_result(res);
   rc= mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
 }
@@ -14946,6 +14947,8 @@ static void test_bug15613()
   DIE_UNLESS(field[4].length == 255);
   DIE_UNLESS(field[5].length == 255);
   DIE_UNLESS(field[6].length == 255);
+  mysql_free_result(metadata);
+  mysql_stmt_free_result(stmt);
 
   /* III. Cleanup */
   rc= mysql_query(mysql, "drop table t1");
@@ -15122,6 +15125,9 @@ static void test_bug14169()
   if (!opt_silent)
     printf("GROUP_CONCAT() result type %i", field[1].type);
   DIE_UNLESS(field[1].type == MYSQL_TYPE_BLOB);
+  mysql_free_result(res);
+  mysql_stmt_free_result(stmt);
+  mysql_stmt_close(stmt);
 
   rc= mysql_query(mysql, "drop table t1");
   myquery(rc);
@@ -15369,7 +15375,7 @@ static void test_bug15752()
   MYSQL mysql_local;
   int rc, i;
   const int ITERATION_COUNT= 100;
-  char *query= "CALL p1()";
+  const char *query= "CALL p1()";
 
   myheader("test_bug15752");
 
