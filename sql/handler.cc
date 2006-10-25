@@ -1106,8 +1106,7 @@ void handler::print_error(int error, myf errflag)
       if (key_nr == MAX_KEY)
       {
 	/* Key is unknown */
-	str.length(0);
-	str.append("");
+	str.copy("", 0, system_charset_info);
 	key_nr= -1;
       }
       else
