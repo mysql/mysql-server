@@ -10,7 +10,6 @@ Created 11/5/1995 Heikki Tuuri
 
 #ifdef UNIV_NONINL
 #include "buf0lru.ic"
-#include "srv0srv.h"	/* Needed to getsrv_print_innodb_monitor */
 #endif
 
 #include "ut0byte.h"
@@ -28,6 +27,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "os0file.h"
 #include "log0recv.h"
+#include "srv0srv.h"
 
 /* The number of blocks from the LRU_old pointer onward, including the block
 pointed to, must be 3/8 of the whole LRU list length, except that the
