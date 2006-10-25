@@ -2035,9 +2035,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
   if (key_nr == MAX_KEY)
   {
     /* Key is unknown */
-    str.length(0);
-    str.append(STRING_WITH_LEN(""));
-    key_nr= -1;
+    str.copy("", 0, system_charset_info);
     my_printf_error(ER_DUP_ENTRY, msg,
 		    MYF(0), str.c_ptr(), "*UNKNOWN*");
   }
