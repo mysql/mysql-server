@@ -779,3 +779,14 @@ select f1 from t1 where f1 in (select f1 from t1);
 f1
 40
 drop table t1;
+create table t1 as
+select from_days(s) as date,t
+from (select 1 as s,'t' as t union select null, null ) as sub1;
+select group_concat(t) from t1 group by week(date)/10;
+group_concat(t)
+t
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+Warning	1292	Truncated incorrect datetime value: '0000-00-00'
+drop table t1;
