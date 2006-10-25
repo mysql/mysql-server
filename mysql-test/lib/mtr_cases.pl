@@ -565,6 +565,7 @@ our @tags=
  ["include/have_innodb.inc", "innodb_test", 1],
  ["include/have_binlog_format_row.inc", "binlog_format", "row"],
  ["include/have_binlog_format_statement.inc", "binlog_format", "stmt"],
+ ["include/have_binlog_format_mixed.inc", "binlog_format", "mixed"],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
