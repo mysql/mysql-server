@@ -2205,7 +2205,7 @@ btr_lift_page_up(
 	/* We play safe and reset the free bits for the father */
 	ibuf_reset_free_bits_with_type(index->type, father_block);
 	ut_ad(page_validate(father_page, index));
-	ut_ad(btr_check_node_ptr(index, father_page, mtr));
+	ut_ad(btr_check_node_ptr(index, father_block, mtr));
 }
 
 /*****************************************************************
@@ -2440,7 +2440,7 @@ err_exit:
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
 
-	ut_ad(btr_check_node_ptr(index, merge_page, mtr));
+	ut_ad(btr_check_node_ptr(index, merge_block, mtr));
 	return(TRUE);
 }
 
@@ -2596,7 +2596,7 @@ btr_discard_page(
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
 
-	ut_ad(btr_check_node_ptr(index, merge_page, mtr));
+	ut_ad(btr_check_node_ptr(index, merge_block, mtr));
 }
 
 #ifdef UNIV_BTR_PRINT
@@ -2744,14 +2744,14 @@ btr_check_node_ptr(
 /*===============*/
 				/* out: TRUE */
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: index page */
+	buf_block_t*	block,	/* in: index page */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	tuple;
 	ulint*		offsets;
 	btr_cur_t	cursor;
-	buf_block_t*	block = buf_block_align(page);
+	page_t*		page = buf_block_get_frame(block);
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	if (dict_index_get_page(index) == block->offset) {

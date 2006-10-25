@@ -2839,7 +2839,7 @@ btr_cur_pessimistic_delete(
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 
-	ut_ad(btr_check_node_ptr(index, page, mtr));
+	ut_ad(btr_check_node_ptr(index, block, mtr));
 
 	*err = DB_SUCCESS;
 
@@ -3908,7 +3908,7 @@ btr_free_externally_stored_field(
 					an undo log page, not an index
 					page) */
 	byte*		field_ref,	/* in/out: field reference */
-	rec_t*		rec,		/* in: record containing field_ref, for
+	const rec_t*	rec,		/* in: record containing field_ref, for
 					page_zip_write_blob_ptr(), or NULL */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec, index),
 					or NULL */
@@ -3929,16 +3929,16 @@ btr_free_externally_stored_field(
 	ulint		next_page_no;
 	mtr_t		mtr;
 #ifdef UNIV_DEBUG
-	buf_block_t*	block = buf_block_align(field_ref);
-
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
-	ut_ad(mtr_memo_contains(local_mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(local_mtr, field_ref,
+				     MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
 
 	if (rec) {
 		ulint	local_len;
-		byte*	f = rec_get_nth_field(rec, offsets, i, &local_len);
+		const byte*	f = rec_get_nth_field(rec, offsets,
+						      i, &local_len);
 		ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 		local_len -= BTR_EXTERN_FIELD_REF_SIZE;
 		f += local_len;
@@ -3960,7 +3960,6 @@ btr_free_externally_stored_field(
 #ifdef UNIV_SYNC_DEBUG
 		buf_block_dbg_add_level(rec_block, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
-		ut_ad(rec_block == block);
 		space_id = mach_read_from_4(field_ref + BTR_EXTERN_SPACE_ID);
 
 		page_no = mach_read_from_4(field_ref + BTR_EXTERN_PAGE_NO);
