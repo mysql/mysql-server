@@ -178,9 +178,9 @@ page_cur_insert_rec_low(
 /*====================*/
 				/* out: pointer to record if succeed, NULL
 				otherwise */
-	rec_t*		current_rec,/* in: current record after which the
-				new record is inserted */
-	buf_block_t*	block,	/* in: buffer block of current_rec, or NULL
+	rec_t**		current_rec,/* in/out: pointer to current record after
+				which the new record is inserted */
+	buf_block_t*	block,	/* in: buffer block of *current_rec, or NULL
 				if the compressed page is not to be updated */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record */
