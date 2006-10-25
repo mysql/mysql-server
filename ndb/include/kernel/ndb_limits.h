@@ -62,6 +62,8 @@
 #define MAX_KEY_SIZE_IN_WORDS 1023
 #define MAX_FRM_DATA_SIZE 6000
 
+#define MAX_WORDS_META_FILE 24576
+
 #define MIN_ATTRBUF ((MAX_ATTRIBUTES_IN_TABLE/24) + 1)
 /*
  * Max Number of Records to fetch per SCAN_NEXTREQ in a scan in LQH. The
