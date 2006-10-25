@@ -2547,8 +2547,8 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     0    // 3M
   };
   const Uint32 maxInsert[] = {
-    2048,  // Temporarily to solve TR515
-    4096,    // 4k
+    MAX_WORDS_META_FILE,
+    4096,    // 16k
     16*3000, // Max 16 tuples
   };
   Uint32 minWrite[] = {
