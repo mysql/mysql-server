@@ -2157,23 +2157,56 @@ btr_lift_page_up(
 				record from the page should be removed */
 	mtr_t*		mtr)	/* in: mtr */
 {
-	btr_cur_t	father_cursor;
 	buf_block_t*	father_block;
 	page_t*		father_page;
 	ulint		page_level;
 	page_zip_des_t*	father_page_zip;
 	page_t*		page		= buf_block_get_frame(block);
+	ulint		root_page_no;
+	buf_block_t*	blocks[BTR_MAX_LEVELS];
+	ulint		n_blocks;	/* last used index in blocks[] */
+	ulint		i;
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
-	btr_page_get_father(index, block, mtr, &father_cursor);
-	father_block = btr_cur_get_block(&father_cursor);
-	father_page_zip = buf_block_get_page_zip(father_block);
-	father_page = buf_block_get_frame(father_block);
+	{
+		btr_cur_t	cursor;
+		mem_heap_t*	heap	= mem_heap_create(100);
+		ulint*		offsets;
 
-	page_level = btr_page_get_level(page, mtr);
+		offsets = btr_page_get_father_block(NULL, heap, index,
+						    block, mtr, &cursor);
+		father_block = btr_cur_get_block(&cursor);
+		father_page_zip = buf_block_get_page_zip(father_block);
+		father_page = buf_block_get_frame(father_block);
+
+		page_level = btr_page_get_level(page, mtr);
+		root_page_no = dict_index_get_page(index);
+
+		n_blocks = 0;
+		blocks[0] = father_block;
+
+		/* Store all ancestor pages so we can reset their
+		levels later on.  We have to do all the searches on
+		the tree now because later on, after we've replaced
+		the first level, the tree is in an inconsistent state
+		and can not be searched. */
+		while (buf_block_get_page_no(blocks[n_blocks])
+		       != root_page_no) {
+			ut_a(n_blocks < BTR_MAX_LEVELS);
+
+			offsets = btr_page_get_father_block(offsets, heap,
+							    index,
+							    blocks[n_blocks],
+							    mtr, &cursor);
+
+			blocks[++n_blocks] = btr_cur_get_block(&cursor);
+		}
+
+		mem_heap_free(heap);
+	}
 
 	btr_search_drop_page_hash_index(block);
 
@@ -2198,6 +2231,16 @@ btr_lift_page_up(
 	}
 
 	lock_update_copy_and_discard(father_block, block);
+
+	/* Go upward to root page, decrementing levels by one. */
+	for (i = 0; i <= n_blocks; i++, page_level++) {
+		page_t*	page = buf_block_get_frame(blocks[i]);
+
+		ut_ad(btr_page_get_level(page, mtr) == page_level + 1);
+
+		btr_page_set_level(page, buf_block_get_page_zip(blocks[i]),
+				   page_level, mtr);
+	}
 
 	/* Free the file page */
 	btr_page_free(index, block, mtr);

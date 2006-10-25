@@ -23,7 +23,17 @@ special big record storage structure */
 
 #define	BTR_PAGE_MAX_REC_SIZE	(UNIV_PAGE_SIZE / 2 - 200)
 
-/* Latching modes for the search function (in btr0cur.*) */
+/* Maximum depth of a B-tree in InnoDB. Note that this isn't a maximum as
+such; none of the tree operations avoid producing trees bigger than this. It
+is instead a "max depth that other code must work with", useful for e.g.
+fixed-size arrays that must store some information about each level in a
+tree. In other words: if a B-tree with bigger depth than this is
+encountered, it is not acceptable for it to lead to mysterious memory
+corruption, but it is acceptable for the program to die with a clear assert
+failure. */
+#define BTR_MAX_LEVELS		100
+
+/* Latching modes for btr_cur_search_to_nth_level(). */
 #define BTR_SEARCH_LEAF		RW_S_LATCH
 #define BTR_MODIFY_LEAF		RW_X_LATCH
 #define BTR_NO_LATCHES		RW_NO_LATCH

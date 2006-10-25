@@ -30,6 +30,7 @@ check fields at the both ends of the field. */
 #define MEM_SPACE_NEEDED(N) ut_calc_align((N), UNIV_MEM_ALIGNMENT)
 #endif
 
+#if defined UNIV_MEM_DEBUG || defined UNIV_DEBUG
 /*******************************************************************
 Checks a memory heap for consistency and prints the contents if requested.
 Outputs the sum of sizes of buffers given to the user (only in
@@ -59,15 +60,8 @@ mem_heap_validate_or_print(
 	ulint*		n_blocks); /* out: number of blocks in the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored */
-#ifdef UNIV_MEM_DEBUG
-/******************************************************************
-Prints the contents of a memory heap. */
-
-void
-mem_heap_print(
-/*===========*/
-	mem_heap_t*   heap);	/* in: memory heap */
-#endif /* UNIV_MEM_DEBUG */
+#endif /* UNIV_MEM_DEBUG || UNIV_DEBUG */
+#ifdef UNIV_DEBUG
 /******************************************************************
 Checks that an object is a memory heap (or a block of it) */
 
@@ -76,6 +70,7 @@ mem_heap_check(
 /*===========*/
 				/* out: TRUE if ok */
 	mem_heap_t*   heap);	/* in: memory heap */
+#endif /* UNIV_DEBUG */
 /******************************************************************
 Validates the contents of a memory heap. */
 
