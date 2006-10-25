@@ -540,7 +540,7 @@ page_copy_rec_list_end_no_locks(
 		rec_t*	ins_rec;
 		offsets = rec_get_offsets(cur1_rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
-		ins_rec = page_cur_insert_rec_low(cur2, NULL, index,
+		ins_rec = page_cur_insert_rec_low(&cur2, NULL, index,
 						  cur1_rec, offsets, mtr);
 		if (UNIV_UNLIKELY(!ins_rec)) {
 			/* Track an assertion failure reported on the mailing
@@ -705,7 +705,7 @@ page_copy_rec_list_start(
 		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
 		offsets = rec_get_offsets(cur1_rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
-		cur2 = page_cur_insert_rec_low(cur2, NULL, index,
+		cur2 = page_cur_insert_rec_low(&cur2, NULL, index,
 					       cur1_rec, offsets, mtr);
 		ut_a(cur2);
 

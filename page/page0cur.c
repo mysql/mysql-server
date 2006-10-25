@@ -893,9 +893,9 @@ page_cur_insert_rec_low(
 /*====================*/
 				/* out: pointer to record if succeed, NULL
 				otherwise */
-	rec_t*		current_rec,/* in: current record after which the
-				new record is inserted */
-	buf_block_t*	block,	/* in: buffer block of current_rec, or NULL
+	rec_t**		current_rec,/* in/out: pointer to current record after
+				which the new record is inserted */
+	buf_block_t*	block,	/* in: buffer block of *current_rec, or NULL
 				if the compressed page is not to be updated */
 	dict_index_t*	index,	/* in: record descriptor */
 	rec_t*		rec,	/* in: pointer to a physical record */
@@ -918,11 +918,11 @@ page_cur_insert_rec_low(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	page = page_align(current_rec);
+	page = page_align(*current_rec);
 	ut_ad(dict_table_is_comp(index->table)
 	      == (ibool) !!page_is_comp(page));
 
-	ut_ad(!page_rec_is_supremum(current_rec));
+	ut_ad(!page_rec_is_supremum(*current_rec));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
@@ -1021,21 +1021,21 @@ use_heap:
 	rec_offs_make_valid(insert_rec, index, offsets);
 
 	/* 4. Insert the record in the linked list of records */
-	ut_ad(current_rec != insert_rec);
+	ut_ad(*current_rec != insert_rec);
 
 	{
 		/* next record after current before the insertion */
-		rec_t*	next_rec = page_rec_get_next(current_rec);
+		rec_t*	next_rec = page_rec_get_next(*current_rec);
 #ifdef UNIV_DEBUG
 		if (page_is_comp(page)) {
-			ut_ad(rec_get_status(current_rec)
+			ut_ad(rec_get_status(*current_rec)
 				<= REC_STATUS_INFIMUM);
 			ut_ad(rec_get_status(insert_rec) < REC_STATUS_INFIMUM);
 			ut_ad(rec_get_status(next_rec) != REC_STATUS_INFIMUM);
 		}
 #endif
 		page_rec_set_next(insert_rec, next_rec);
-		page_rec_set_next(current_rec, insert_rec);
+		page_rec_set_next(*current_rec, insert_rec);
 	}
 
 	page_header_set_field(page, page_zip, PAGE_N_RECS,
@@ -1047,7 +1047,7 @@ use_heap:
 		rec_set_n_owned_new(insert_rec, NULL, 0);
 		rec_set_heap_no_new(insert_rec, heap_no);
 		if (UNIV_LIKELY_NULL(page_zip)) {
-			page_zip_dir_insert(page_zip, current_rec, free_rec,
+			page_zip_dir_insert(page_zip, *current_rec, free_rec,
 					insert_rec);
 		}
 	} else {
@@ -1068,7 +1068,7 @@ use_heap:
 							PAGE_NO_DIRECTION);
 		page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
 
-	} else if ((last_insert == current_rec)
+	} else if ((last_insert == *current_rec)
 		   && (page_header_get_field(page, PAGE_DIRECTION)
 		       != PAGE_LEFT)) {
 
@@ -1135,13 +1135,18 @@ use_heap:
 
 			if (page_zip_reorganize(block, index, mtr)) {
 				/* The page was reorganized:
-				Seek to insert_pos to find insert_rec. */
+				Seek to insert_pos to find insert_rec,
+				and update *current_rec. */
 				insert_rec = page + PAGE_NEW_INFIMUM;
 
-				do {
+				while (--insert_pos) {
 					insert_rec = page + rec_get_next_offs(
 						insert_rec, TRUE);
-				} while (--insert_pos);
+				}
+
+				*current_rec = insert_rec;
+				insert_rec = page
+					+ rec_get_next_offs(insert_rec, TRUE);
 
 				return(insert_rec);
 			}
@@ -1160,7 +1165,7 @@ use_heap:
 	/* 9. Write log record of the insert */
 	if (UNIV_LIKELY(mtr != NULL)) {
 		page_cur_insert_rec_write_log(insert_rec, rec_size,
-					      current_rec, index, mtr);
+					      *current_rec, index, mtr);
 	}
 
 	return(insert_rec);
