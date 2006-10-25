@@ -2900,3 +2900,22 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 --echo End of 5.0 tests.
+
+#
+# Bug#21370 View renaming lacks tablename_to_filename encoding
+#
+--disable_warnings
+DROP DATABASE IF EXISTS `d-1`;
+--enable_warnings
+CREATE DATABASE `d-1`;
+USE `d-1`;
+CREATE TABLE `t-1` (c1 INT);
+CREATE VIEW  `v-1` AS SELECT c1 FROM `t-1`;
+SHOW TABLES;
+RENAME TABLE `t-1` TO `t-2`;
+RENAME TABLE `v-1` TO `v-2`;
+SHOW TABLES;
+DROP TABLE `t-2`;
+DROP VIEW  `v-2`;
+DROP DATABASE `d-1`;
+USE test;
