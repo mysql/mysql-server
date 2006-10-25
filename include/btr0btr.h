@@ -301,7 +301,7 @@ btr_check_node_ptr(
 /*===============*/
 				/* out: TRUE */
 	dict_index_t*	index,	/* in: index tree */
-	page_t*		page,	/* in: index page */
+	buf_block_t*	block,	/* in: index page */
 	mtr_t*		mtr);	/* in: mtr */
 #endif /* UNIV_DEBUG */
 /*****************************************************************
