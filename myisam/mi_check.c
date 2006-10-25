@@ -251,11 +251,12 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
   my_off_t next_link;
   uint block_size=(nr+1)*MI_MIN_KEY_BLOCK_LENGTH;
   ha_rows records;
-  char llbuff[21],*buff;
+  char llbuff[21], llbuff2[21], *buff;
   DBUG_ENTER("check_k_link");
+  DBUG_PRINT("enter", ("block_size: %u", block_size));
 
   if (param->testflag & T_VERBOSE)
-    printf("block_size %4d:",block_size);
+    printf("block_size %4u:", block_size); /* purecov: tested */
 
   next_link=info->s->state.key_del[nr];
   records= (ha_rows) (info->state->key_file_length / block_size);
@@ -265,14 +266,46 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
       DBUG_RETURN(1);
     if (param->testflag & T_VERBOSE)
       printf("%16s",llstr(next_link,llbuff));
-    if (next_link > info->state->key_file_length ||
-	next_link & (info->s->blocksize-1))
+
+    /* Key blocks must lay within the key file length entirely. */
+    if (next_link + block_size > info->state->key_file_length)
+    {
+      /* purecov: begin tested */
+      mi_check_print_error(param, "Invalid key block position: %s  "
+                           "key block size: %u  file_length: %s",
+                           llstr(next_link, llbuff), block_size,
+                           llstr(info->state->key_file_length, llbuff2));
       DBUG_RETURN(1);
+      /* purecov: end */
+    }
+
+    /* Key blocks must be aligned at MI_MIN_KEY_BLOCK_LENGTH. */
+    if (next_link & (MI_MIN_KEY_BLOCK_LENGTH - 1))
+    {
+      /* purecov: begin tested */
+      mi_check_print_error(param, "Mis-aligned key block: %s  "
+                           "minimum key block length: %u",
+                           llstr(next_link, llbuff), MI_MIN_KEY_BLOCK_LENGTH);
+      DBUG_RETURN(1);
+      /* purecov: end */
+    }
+
+    /*
+      Read the key block with MI_MIN_KEY_BLOCK_LENGTH to find next link.
+      If the key cache block size is smaller than block_size, we can so
+      avoid unecessary eviction of cache block.
+    */
     if (!(buff=key_cache_read(info->s->key_cache,
                               info->s->kfile, next_link, DFLT_INIT_HITS,
-                              (byte*) info->buff,
-			      myisam_block_size, block_size, 1)))
+                              (byte*) info->buff, MI_MIN_KEY_BLOCK_LENGTH,
+                              MI_MIN_KEY_BLOCK_LENGTH, 1)))
+    {
+      /* purecov: begin tested */
+      mi_check_print_error(param, "key cache read error for block: %s",
+			   llstr(next_link,llbuff));
       DBUG_RETURN(1);
+      /* purecov: end */
+    }
     next_link=mi_sizekorr(buff);
     records--;
     param->key_file_blocks+=block_size;
@@ -556,17 +589,37 @@ static int chk_index_down(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
                      ha_checksum *key_checksum, uint level)
 {
   char llbuff[22],llbuff2[22];
-  if (page > info->state->key_file_length || (page & (info->s->blocksize -1)))
-  {
-    my_off_t max_length=my_seek(info->s->kfile,0L,MY_SEEK_END,MYF(0));
-    mi_check_print_error(param,"Wrong pagepointer: %s at page: %s",
-                llstr(page,llbuff),llstr(page,llbuff2));
+  DBUG_ENTER("chk_index_down");
 
-    if (page+info->s->blocksize > max_length)
+  /* Key blocks must lay within the key file length entirely. */
+  if (page + keyinfo->block_length > info->state->key_file_length)
+  {
+    /* purecov: begin tested */
+    /* Give it a chance to fit in the real file size. */
+    my_off_t max_length= my_seek(info->s->kfile, 0L, MY_SEEK_END, MYF(0));
+    mi_check_print_error(param, "Invalid key block position: %s  "
+                         "key block size: %u  file_length: %s",
+                         llstr(page, llbuff), keyinfo->block_length,
+                         llstr(info->state->key_file_length, llbuff2));
+    if (page + keyinfo->block_length > max_length)
       goto err;
-    info->state->key_file_length=(max_length &
-                                  ~ (my_off_t) (info->s->blocksize-1));
+    /* Fix the remebered key file length. */
+    info->state->key_file_length= (max_length &
+                                   ~ (my_off_t) (keyinfo->block_length - 1));
+    /* purecov: end */
   }
+
+  /* Key blocks must be aligned at MI_MIN_KEY_BLOCK_LENGTH. */
+  if (page & (MI_MIN_KEY_BLOCK_LENGTH - 1))
+  {
+    /* purecov: begin tested */
+    mi_check_print_error(param, "Mis-aligned key block: %s  "
+                         "minimum key block length: %u",
+                         llstr(page, llbuff), MI_MIN_KEY_BLOCK_LENGTH);
+    goto err;
+    /* purecov: end */
+  }
+
   if (!_mi_fetch_keypage(info,keyinfo,page, DFLT_INIT_HITS,buff,0))
   {
     mi_check_print_error(param,"Can't read key from filepos: %s",
@@ -577,9 +630,12 @@ static int chk_index_down(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   if (chk_index(param,info,keyinfo,page,buff,keys,key_checksum,level))
     goto err;
 
-  return 0;
+  DBUG_RETURN(0);
+
+  /* purecov: begin tested */
 err:
-  return 1;
+  DBUG_RETURN(1);
+  /* purecov: end */
 }
 
 
