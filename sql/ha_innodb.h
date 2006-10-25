@@ -142,7 +142,7 @@ class ha_innobase: public handler
   	int rnd_pos(byte * buf, byte *pos);
 
   	void position(const byte *record);
-  	void info(uint);
+  	int info(uint);
         int analyze(THD* thd,HA_CHECK_OPT* check_opt);
         int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 	int discard_or_import_tablespace(my_bool discard);

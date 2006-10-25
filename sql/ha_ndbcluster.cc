@@ -85,7 +85,7 @@ static int packfrm(const void *data, uint len, const void **pack_data, uint *pac
 static int unpackfrm(const void **data, uint *len,
 		     const void* pack_data);
 
-static int ndb_get_table_statistics(Ndb*, const char *, 
+static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*, const char *,
 				    Uint64* rows, Uint64* commits);
 
 
@@ -258,11 +258,13 @@ void ha_ndbcluster::set_rec_per_key()
   DBUG_VOID_RETURN;
 }
 
-void ha_ndbcluster::records_update()
+int ha_ndbcluster::records_update()
 {
   if (m_ha_not_exact_count)
-    return;
+    return 0;
   DBUG_ENTER("ha_ndbcluster::records_update");
+  int result= 0;
+
   struct Ndb_local_table_statistics *info= 
     (struct Ndb_local_table_statistics *)m_table_info;
   DBUG_PRINT("info", ("id=%d, no_uncommitted_rows_count=%d",
@@ -273,7 +275,9 @@ void ha_ndbcluster::records_update()
     Ndb *ndb= get_ndb();
     Uint64 rows;
     ndb->setDatabaseName(m_dbname);
-    if(ndb_get_table_statistics(ndb, m_tabname, &rows, 0) == 0){
+    result= ndb_get_table_statistics(this, true, ndb, m_tabname, &rows, 0);
+    if(result == 0)
+    {
       info->records= rows;
     }
   }
@@ -282,8 +286,9 @@ void ha_ndbcluster::records_update()
     if (((Thd_ndb*)(thd->transaction.thd_ndb))->error)
       info->no_uncommitted_rows_count= 0;
   }
-  records= info->records+ info->no_uncommitted_rows_count;
-  DBUG_VOID_RETURN;
+  if(result==0)
+    records= info->records+ info->no_uncommitted_rows_count;
+  DBUG_RETURN(result);
 }
 
 void ha_ndbcluster::no_uncommitted_rows_execute_failure()
@@ -2886,8 +2891,9 @@ void ha_ndbcluster::position(const byte *record)
 }
 
 
-void ha_ndbcluster::info(uint flag)
+int ha_ndbcluster::info(uint flag)
 {
+  int result= 0;
   DBUG_ENTER("info");
   DBUG_PRINT("enter", ("flag: %d", flag));
   
@@ -2905,17 +2911,17 @@ void ha_ndbcluster::info(uint flag)
       if (m_ha_not_exact_count)
 	records= 100;
       else
-	records_update();
+	result= records_update();
     }
     else
     {
       if ((my_errno= check_ndb_connection()))
-        DBUG_VOID_RETURN;
+        DBUG_RETURN(my_errno);
       Ndb *ndb= get_ndb();
       Uint64 rows= 100;
       ndb->setDatabaseName(m_dbname);
       if (current_thd->variables.ndb_use_exact_count)
-	ndb_get_table_statistics(ndb, m_tabname, &rows, 0);
+	result= ndb_get_table_statistics(this, true, ndb, m_tabname, &rows, 0);
       records= rows;
     }
   }
@@ -2940,7 +2946,11 @@ void ha_ndbcluster::info(uint flag)
         ndb->readAutoIncrementValue((const NDBTAB *) m_table);
     }
   }
-  DBUG_VOID_RETURN;
+
+  if(result == -1)
+    result= HA_ERR_NO_CONNECTION;
+
+  DBUG_RETURN(result);
 }
 
 
@@ -4394,7 +4404,15 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   
   res= get_metadata(name);
   if (!res)
-    info(HA_STATUS_VARIABLE | HA_STATUS_CONST);
+  {
+    Ndb *ndb= get_ndb();
+    ndb->setDatabaseName(m_dbname);
+    Uint64 rows= 0;
+    res= ndb_get_table_statistics(NULL, false, ndb, m_tabname, &rows, 0);
+    records= rows;
+    if(!res)
+      res= info(HA_STATUS_CONST);
+  }
 
   DBUG_RETURN(res);
 }
@@ -5276,13 +5294,15 @@ static int unpackfrm(const void **unpack_data, uint *unpack_len,
 
 static 
 int
-ndb_get_table_statistics(Ndb* ndb, const char * table, 
+ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
+                         const char * table,
 			 Uint64* row_count, Uint64* commit_count)
 {
   DBUG_ENTER("ndb_get_table_statistics");
   DBUG_PRINT("enter", ("table: %s", table));
   NdbConnection* pTrans;
   NdbError error;
+  int reterr= 0;
   int retries= 10;
   int retry_sleep= 30 * 1000; /* 30 milliseconds */
 
@@ -5351,6 +5371,19 @@ ndb_get_table_statistics(Ndb* ndb, const char * table,
     DBUG_RETURN(0);
 
 retry:
+    if(report_error)
+    {
+      if (file)
+      {
+        reterr= file->ndb_err(pTrans);
+      }
+      else
+      {
+        const NdbError& tmp= error;
+        ERR_PRINT(tmp);
+        reterr= ndb_to_mysql_error(&tmp);
+      }
+    }
     if (pTrans)
     {
       ndb->closeTransaction(pTrans);
@@ -5363,8 +5396,9 @@ retry:
     }
     break;
   } while(1);
-  DBUG_PRINT("exit", ("failed, error %u(%s)", error.code, error.message));
-  ERR_RETURN(error);
+  DBUG_PRINT("exit", ("failed, reterr: %u, NdbError %u(%s)", reterr,
+                      error.code, error.message));
+  DBUG_RETURN(reterr);
 }
 
 /*

@@ -972,7 +972,7 @@ int ha_archive::index_last(byte * buf)
 }
 
 
-void ha_archive::info(uint flag)
+int ha_archive::info(uint flag)
 {
   DBUG_ENTER("ha_archive::info");
 
@@ -980,7 +980,7 @@ void ha_archive::info(uint flag)
   records= share->rows_recorded;
   deleted= 0;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 int ha_archive::extra(enum ha_extra_function operation)

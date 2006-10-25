@@ -115,7 +115,7 @@ class ha_ndbcluster: public handler
   int read_range_next();
 
   bool get_error_message(int error, String *buf);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
@@ -153,7 +153,12 @@ class ha_ndbcluster: public handler
  
   static void set_dbname(const char *pathname, char *dbname);
   static void set_tabname(const char *pathname, char *tabname);
-   
+
+  /*
+   * Internal to ha_ndbcluster, used by C functions
+   */
+  int ndb_err(NdbConnection*);
+
  private:
   int alter_table_name(const char *to);
   int drop_table();
@@ -206,7 +211,6 @@ class ha_ndbcluster: public handler
 
   longlong get_auto_increment();
   void invalidate_dictionary_cache(bool global);
-  int ndb_err(NdbConnection*);
   bool uses_blob_value(bool all_fields);
 
   int write_ndb_file();
@@ -256,7 +260,7 @@ class ha_ndbcluster: public handler
 
   Ndb *get_ndb();
   void set_rec_per_key();
-  void records_update();
+  int records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_init(THD *);
