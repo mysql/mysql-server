@@ -329,4 +329,12 @@ select a, sha1(b) from t1;
 
 drop table t1;
 
+# bug#21873 MySQLD Crash on ALTER...ADD..UNIQUE..USING HASH statement for NDB backed table
+
+create table t1(id int not null) engine = NDB;
+
+alter table t1 add constraint uk_test unique (id) using hash;
+
+drop table t1;
+
 # End of 4.1 tests

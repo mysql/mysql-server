@@ -1399,9 +1399,8 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint inx,
           ORDERED_INDEX);
 } 
 
-int ha_ndbcluster::check_index_fields_not_null(uint inx)
+int ha_ndbcluster::check_index_fields_not_null(KEY* key_info)
 {
-  KEY* key_info= table->key_info + inx;
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
   DBUG_ENTER("ha_ndbcluster::check_index_fields_not_null");
@@ -5017,7 +5016,7 @@ int ha_ndbcluster::create_index(const char *name, KEY *key_info,
       error= create_unique_index(unique_name, key_info);
     break;
   case UNIQUE_INDEX:
-    if (!(error= check_index_fields_not_null(idx_no)))
+    if (!(error= check_index_fields_not_null(key_info)))
       error= create_unique_index(unique_name, key_info);
     break;
   case ORDERED_INDEX:

@@ -2036,6 +2036,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
   {
     /* Key is unknown */
     str.length(0);
+    str.append(STRING_WITH_LEN(""));
     key_nr= -1;
     my_printf_error(ER_DUP_ENTRY, msg,
 		    MYF(0), str.c_ptr(), "*UNKNOWN*");
