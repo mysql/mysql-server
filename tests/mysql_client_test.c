@@ -11778,6 +11778,7 @@ static void test_bug11718()
     printf("return type: %s", (res->fields[0].type == MYSQL_TYPE_DATE)?"DATE":
            "not DATE");
   DIE_UNLESS(res->fields[0].type == MYSQL_TYPE_DATE);
+  mysql_free_result(res);
   rc= mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
 }
@@ -11849,6 +11850,7 @@ static void test_bug15613()
   DIE_UNLESS(field[4].length == 255);
   DIE_UNLESS(field[5].length == 255);
   DIE_UNLESS(field[6].length == 255);
+  mysql_free_result(metadata);
 
   /* III. Cleanup */
   rc= mysql_query(mysql, "drop table t1");
