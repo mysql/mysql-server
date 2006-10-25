@@ -825,7 +825,6 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
   // scan direction
   const unsigned idir = scan.m_descending; // 0, 1
   const int jdir = 1 - 2 * (int)idir;      // 1, -1
-  unpackBound(*scan.m_bound[1 - idir], c_dataBuffer);
   // use copy of position
   TreePos pos = scan.m_scanPos;
   // get and remember original node
