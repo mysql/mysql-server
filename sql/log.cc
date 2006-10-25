@@ -317,11 +317,13 @@ Log_to_csv_event_handler::Log_to_csv_event_handler()
   /* logger thread always works with mysql database */
   general_log_thd->db= my_strdup("mysql", MYF(0));
   general_log_thd->db_length= 5;
+  general_log.table= 0;
 
   slow_log_thd= new THD;
   /* logger thread always works with mysql database */
   slow_log_thd->db= my_strdup("mysql", MYF(0));;
   slow_log_thd->db_length= 5;
+  slow_log.table= 0;
   /* no privileged thread exists at the moment */
   privileged_thread= 0;
 }

@@ -4607,11 +4607,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
   char *src_db;
   char *src_table= table_ident->table.str;
   int  err;
-  bool res= TRUE;
+  bool res= TRUE, unlock_dst_table= FALSE;
   enum legacy_db_type not_used;
   HA_CREATE_INFO *create_info;
 
-  TABLE_LIST src_tables_list;
+  TABLE_LIST src_tables_list, dst_tables_list;
   DBUG_ENTER("mysql_create_like_table");
 
   if (!(create_info= copy_create_info(lex_create_info)))
@@ -4794,16 +4794,28 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table,
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
-        TABLE *table_ptr;
-        int error;
+        uint counter;
 
         /*
-          Let's open and lock the table: it will be closed (and
-          unlocked) by close_thread_tables() at the end of the
-          statement anyway.
-         */
-        if (!(table_ptr= open_ltable(thd, table, TL_READ_NO_INSERT)))
+          Here we open the destination table. This is needed for
+          store_create_info() to work. The table will be closed
+          by close_thread_tables() at the end of the statement.
+        */
+        if (open_tables(thd, &table, &counter, 0))
           goto err;
+
+        bzero((gptr)&dst_tables_list, sizeof(dst_tables_list));
+        dst_tables_list.db= table->db;
+        dst_tables_list.table_name= table->table_name;
+
+        /*
+          lock destination table name, to make sure that nobody
+          can drop/alter the table while we execute store_create_info()
+        */
+        if (lock_and_wait_for_table_name(thd, &dst_tables_list))
+          goto err;
+        else
+          unlock_dst_table= TRUE;
 
         int result= store_create_info(thd, table, &query, create_info);
 
@@ -4837,6 +4849,12 @@ table_exists:
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
 
 err:
+  if (unlock_dst_table)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    unlock_table_name(thd, &dst_tables_list);
+    pthread_mutex_unlock(&LOCK_open);
+  }
   DBUG_RETURN(res);
 }
 
