@@ -975,7 +975,7 @@ sub command_line_setup () {
   }
   elsif ( $opt_valgrind_mysqltest )
   {
-    mtr_report("Turning on valgrind for mysqltest only");
+    mtr_report("Turning on valgrind for mysqltest and mysql_client_test only");
     $opt_valgrind= 1;
   }
 
@@ -1507,6 +1507,47 @@ sub generate_cmdline_mysqldump ($) {
 #
 ##############################################################################
 
+sub mysql_client_test_arguments()
+{
+  my $exe= $exe_mysql_client_test;
+
+  my $args;
+  mtr_init_args(\$args);
+  if ( $opt_valgrind_mysqltest )
+  {
+    valgrind_arguments($args, \$exe);
+  }
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--testcase");
+  mtr_add_arg($args, "--user=root");
+  mtr_add_arg($args, "--port=$master->[0]->{'port'}");
+  mtr_add_arg($args, "--socket=$master->[0]->{'path_sock'}");
+
+  if ( $mysql_version_id >= 50000 )
+  {
+    mtr_add_arg($args, "--vardir=$opt_vardir")
+  }
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args,
+      "--debug=d:t:A,$path_vardir_trace/log/mysql_client_test.trace");
+  }
+
+  if ( $glob_use_embedded_server )
+  {
+    mtr_add_arg($args,
+      " -A --language=$path_language");
+    mtr_add_arg($args,
+      " -A --datadir=$slave->[0]->{'path_myddir'}");
+    mtr_add_arg($args,
+      " -A --character-sets-dir=$path_charsetsdir");
+  }
+
+  return join(" ", $exe, @$args);
+}
+
 # Note that some env is setup in spawn/run, in "mtr_process.pl"
 
 sub environment_setup () {
@@ -1688,7 +1729,7 @@ sub environment_setup () {
       "--lock-directory=$opt_tmpdir";
 
     if ( $opt_debug )
-    {
+   {
       $cmdline_mysqlslap .=
 	" --debug=d:t:A,$path_vardir_trace/log/mysqlslap.trace";
     }
@@ -1758,30 +1799,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_client_test
   # ----------------------------------------------------
-  my $cmdline_mysql_client_test=
-    "$exe_mysql_client_test --no-defaults --testcase --user=root " .
-    "--port=$master->[0]->{'port'} " .
-    "--socket=$master->[0]->{'path_sock'}";
-  if ( $mysql_version_id >= 50000 )
-  {
-    $cmdline_mysql_client_test .=" --vardir=$opt_vardir";
-  }
-
-  if ( $opt_debug )
-  {
-    $cmdline_mysql_client_test .=
-      " --debug=d:t:A,$path_vardir_trace/log/mysql_client_test.trace";
-  }
-
-  if ( $glob_use_embedded_server )
-  {
-    $cmdline_mysql_client_test.=
-      " -A --language=$path_language" .
-      " -A --datadir=$slave->[0]->{'path_myddir'}" .
-      " -A --character-sets-dir=$path_charsetsdir";
-  }
-  $ENV{'MYSQL_CLIENT_TEST'}= $cmdline_mysql_client_test;
-
+  $ENV{'MYSQL_CLIENT_TEST'}=  mysql_client_test_arguments();
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_fix_system_tables
@@ -3611,15 +3629,6 @@ sub mysqld_start ($$$) {
     $wait_for_pid_file= 0;
   }
 
-  if ($exe_libtool and $opt_valgrind)
-  {
-    # Add "libtool --mode-execute"
-    # if running in valgrind(to avoid valgrinding bash)
-    unshift(@$args, "--mode=execute", $exe);
-    $exe= $exe_libtool;
-  }
-
-
   if ( defined $exe )
   {
     $pid= mtr_spawn($exe, $args, "",
@@ -4342,14 +4351,6 @@ sub run_mysqltest ($) {
     debugger_arguments(\$args, \$exe, "client");
   }
 
-  if ($exe_libtool and $opt_valgrind)
-  {
-    # Add "libtool --mode-execute" before the test to execute
-    # if running in valgrind(to avoid valgrinding bash)
-    unshift(@$args, "--mode=execute", $exe);
-    $exe= $exe_libtool;
-  }
-
   if ( $opt_check_testcases )
   {
     foreach my $mysqld (@{$master}, @{$slave})
@@ -4575,6 +4576,14 @@ sub valgrind_arguments {
   mtr_add_arg($args, $$exe);
 
   $$exe= $opt_valgrind_path || "valgrind";
+
+  if ($exe_libtool)
+  {
+    # Add "libtool --mode-execute" before the test to execute
+    # if running in valgrind(to avoid valgrinding bash)
+    unshift(@$args, "--mode=execute", $$exe);
+    $$exe= $exe_libtool;
+  }
 }
 
 
@@ -4687,7 +4696,8 @@ Options for coverage, profiling etc
   valgrind              Run the "mysqltest" and "mysqld" executables using
                         valgrind with options($default_valgrind_options)
   valgrind-all          Synonym for --valgrind
-  valgrind-mysqltest    Run the "mysqltest" executable with valgrind
+  valgrind-mysqltest    Run the "mysqltest" and "mysql_client_test" executable
+                        with valgrind
   valgrind-mysqld       Run the "mysqld" executable with valgrind
   valgrind-options=ARGS Options to give valgrind, replaces default options
   valgrind-path=[EXE]   Path to the valgrind executable
