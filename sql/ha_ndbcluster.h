@@ -808,7 +808,7 @@ private:
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
                                          bool primary) const;
-  int check_index_fields_not_null(uint index_no);
+  int check_index_fields_not_null(KEY *key_info);
 
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,
