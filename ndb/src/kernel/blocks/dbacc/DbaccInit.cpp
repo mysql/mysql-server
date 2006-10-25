@@ -53,6 +53,7 @@ void Dbacc::initData()
   tabrec = 0;
   undopage = 0;
 
+  cnoOfAllocatedPages = cpagesize = 0;
   // Records with constant sizes
 }//Dbacc::initData()
 
