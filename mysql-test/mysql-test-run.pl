@@ -405,9 +405,25 @@ sub main () {
       }
       $use_innodb||= $test->{'innodb_test'};
     }
-    $opt_skip_ndbcluster= $opt_skip_ndbcluster_slave= 1
-      unless $need_ndbcluster;
-    $opt_skip_im= 1 unless $need_im;
+
+    # Check if cluster can be skipped
+    if ( !$need_ndbcluster )
+    {
+      $opt_skip_ndbcluster= 1;
+      $opt_skip_ndbcluster_slave= 1;
+    }
+
+    # Check if slave cluster can be skipped
+    if ($max_slave_num == 0)
+    {
+      $opt_skip_ndbcluster_slave= 1;
+    }
+
+    # Check if im can be skipped
+    if ( ! $need_im )
+    {
+     $opt_skip_im= 1;
+   }
 
     initialize_servers();
 
