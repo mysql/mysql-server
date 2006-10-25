@@ -73,11 +73,15 @@ public:
   }
   
   int assign(const void * d, size_t l) {
-    if (data) free(data);
+    /* Free the old data only after copying, in case d==data. */
+    void *old_data= data;
     data = NULL;
     len = 0;
     alloc_size = 0;
-    return append(d, l);
+    int ret= append(d, l);
+    if (old_data)
+      free(old_data);
+    return ret;
   }
 
   void clear() {
