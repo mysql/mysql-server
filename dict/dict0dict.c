@@ -326,7 +326,7 @@ dict_col_copy_type_noninline(
 	const dict_col_t*	col,	/* in: column */
 	dtype_t*		type)	/* out: data type */
 {
-	return(dict_col_copy_type(col, type));
+	dict_col_copy_type(col, type);
 }
 
 /************************************************************************
@@ -3559,51 +3559,13 @@ dict_index_get_if_in_cache_low(
 				/* out: index, NULL if not found */
 	dulint	index_id)	/* in: index id */
 {
-	dict_table_t*	table;
 	dict_index_t*	index;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
-
-	while (table) {
-		index = UT_LIST_GET_FIRST(table->indexes);
-
-		while (index) {
-			if (0 == ut_dulint_cmp(index->id, index_id)) {
-
-				return(index);
-			}
-
-			index = UT_LIST_GET_NEXT(indexes, index);
-		}
-
-		table = UT_LIST_GET_NEXT(table_LRU, table);
-	}
-
-	return(NULL);
-}
-
-/**************************************************************************
-Returns an index object if it is found in the dictionary cache. */
-
-dict_index_t*
-dict_index_get_if_in_cache(
-/*=======================*/
-				/* out: index, NULL if not found */
-	dulint	index_id)	/* in: index id */
-{
-	dict_index_t*	index;
-
-	if (dict_sys == NULL) {
-		return(NULL);
-	}
-
-	mutex_enter(&(dict_sys->mutex));
-
-	index = dict_index_get_if_in_cache_low(index_id);
+	index = dict_index_find_on_id_low(index_id);
 
 	mutex_exit(&(dict_sys->mutex));
 
@@ -4183,18 +4145,8 @@ dict_print_info_on_foreign_key_in_create_format(
 			      dict_remove_db_name(
 				      foreign->referenced_table_name));
 	} else {
-		/* Look for the '/' in the table name */
-
-		i = 0;
-		while (foreign->referenced_table_name[i] != '/') {
-			i++;
-		}
-
-		ut_print_namel(file, trx, TRUE,
-			       foreign->referenced_table_name, i);
-		putc('.', file);
 		ut_print_name(file, trx, TRUE,
-			      foreign->referenced_table_name + i + 1);
+			      foreign->referenced_table_name);
 	}
 
 	putc(' ', file);

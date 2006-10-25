@@ -6639,7 +6639,7 @@ innodb_mutex_show_status(
 					mutex->count_spin_rounds,
 					mutex->count_os_wait,
 					mutex->count_os_yield,
-					mutex->lspent_time/1000);
+					(ulong) mutex->lspent_time/1000);
 
 				if (stat_print(thd, innobase_hton_name,
 						hton_name_len, buf1, buf1len,
@@ -6669,7 +6669,7 @@ innodb_mutex_show_status(
 		rw_lock_count, rw_lock_count_spin_loop,
 		rw_lock_count_spin_rounds,
 		rw_lock_count_os_wait, rw_lock_count_os_yield,
-		rw_lock_wait_time/1000);
+		(ulong) rw_lock_wait_time/1000);
 
 	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
@@ -6821,7 +6821,8 @@ ha_innobase::store_lock(
 			&& lock_type != TL_IGNORE)) {
 
 		/* The OR cases above are in this order:
-		1) MySQL is doing LOCK TABLES ... READ LOCAL, or
+		1) MySQL is doing LOCK TABLES ... READ LOCAL, or we
+		are processing a stored procedure or function, or
 		2) (we do not know when TL_READ_HIGH_PRIORITY is used), or
 		3) this is a SELECT ... IN SHARE MODE, or
 		4) we are doing a complex SQL statement like
@@ -6889,7 +6890,8 @@ ha_innobase::store_lock(
 		single transaction stored procedure call deterministic
 		(if it does not use a consistent read). */
 
-		if (lock_type == TL_READ && thd->in_lock_tables) {
+		if (lock_type == TL_READ
+		    && thd->lex->sql_command == SQLCOM_LOCK_TABLES) {
 			/* We come here if MySQL is processing LOCK TABLES
 			... READ LOCAL. MyISAM under that table lock type
 			reads the table as it was at the time the lock was
@@ -6948,8 +6950,7 @@ ha_innobase::store_lock(
 		(MySQL does have thd->in_lock_tables TRUE there). */
 
 		if (lock_type == TL_READ_NO_INSERT
-			&& (!thd->in_lock_tables
-				|| thd->lex->sql_command == SQLCOM_CALL)) {
+		    && thd->lex->sql_command != SQLCOM_LOCK_TABLES) {
 
 			lock_type = TL_READ;
 		}
@@ -7649,6 +7650,7 @@ mysql_declare_plugin(innobase)
   innobase_hton_name,
   "Innobase OY",
   "Supports transactions, row-level locking, and foreign keys",
+  PLUGIN_LICENSE_GPL,
   innobase_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,

@@ -35,7 +35,7 @@ The main components of the memory consumption are:
 8. session for each user, and
 9. stack for each OS thread.
 
-Items 1-3 are managed by an LRU algorithm. Items 5 and 6 can potentially
+Items 1 and 2 are managed by an LRU algorithm. Items 5 and 6 can potentially
 consume very much memory. Items 7 and 8 should consume quite little memory,
 and the OS should take care of item 9, which too should consume little memory.
 
@@ -54,16 +54,15 @@ common pool and the buffers in the buffer pool into a single LRU list and
 manage it uniformly, but this approach does not take into account the parsing
 and other costs unique to SQL statements.
 
-So, let the SQL statements and the data dictionary entries form one single
-LRU list, let us call it the dictionary LRU list. The locks for a transaction
-can be seen as a part of the state of the transaction. Hence, they should be
-stored in the common pool. We still have the problem of a very big update
-transaction, for example, which will set very many x-locks on rows, and the
-locks will consume a lot of memory, say, half of the buffer pool size.
+The locks for a transaction can be seen as a part of the state of the
+transaction. Hence, they should be stored in the common pool. We still
+have the problem of a very big update transaction, for example, which
+will set very many x-locks on rows, and the locks will consume a lot
+of memory, say, half of the buffer pool size.
 
 Another problem is what to do if we are not able to malloc a requested
-block of memory from the common pool. Then we can truncate the LRU list of
-the dictionary cache. If it does not help, a system error results.
+block of memory from the common pool. Then we can request memory from
+the operating system. If it does not help, a system error results.
 
 Because 5 and 6 may potentially consume very much memory, we let them grow
 into the buffer pool. We may let the locks of a transaction take frames
