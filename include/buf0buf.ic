@@ -308,19 +308,6 @@ buf_block_get_lock_hash_val(
 	return(block->lock_hash_val);
 }
 
-/**************************************************************************
-Gets the mutex number protecting the page record lock hash chain in the lock
-table. */
-UNIV_INLINE
-mutex_t*
-buf_frame_get_lock_mutex(
-/*=====================*/
-				/* out: mutex */
-	buf_block_t*	block)	/* in: block */
-{
-	return(block->lock_mutex);
-}
-
 /************************************************************************
 Allocates a buffer block. */
 UNIV_INLINE
