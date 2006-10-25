@@ -163,6 +163,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 nFragment;
   Uint32 nAttribute;
   Uint32 nScanOp; 
+  Uint32 nScanBatch;
 
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
@@ -172,9 +173,11 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_FRAGMENT, &nFragment));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_ATTRIBUTE, &nAttribute));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_SCAN_OP, &nScanOp));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_BATCH_SIZE, &nScanBatch));
 
   const Uint32 nDescPage = (nIndex * DescHeadSize + nAttribute * DescAttrSize + DescPageSize - 1) / DescPageSize;
   const Uint32 nScanBoundWords = nScanOp * ScanBoundSegmentSize * 4;
+  const Uint32 nScanLock = nScanOp * nScanBatch;
   
   c_indexPool.setSize(nIndex);
   c_fragPool.setSize(nFragment);
@@ -182,6 +185,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   c_fragOpPool.setSize(MaxIndexFragments);
   c_scanOpPool.setSize(nScanOp);
   c_scanBoundPool.setSize(nScanBoundWords);
+  c_scanLockPool.setSize(nScanLock);
   /*
    * Index id is physical array index.  We seize and initialize all
    * index records now.
