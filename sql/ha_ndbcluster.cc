@@ -449,16 +449,13 @@ ha_rows ha_ndbcluster::records()
   Ndb *ndb= get_ndb();
   ndb->setDatabaseName(m_dbname);
   struct Ndb_statistics stat;
-  if (ndb_get_table_statistics(ndb, m_table, &stat) == 0)
+  if (ndb_get_table_statistics(this, true, ndb, m_table, &stat) == 0)
   {
     retval= stat.row_count;
   }
   else
   {
-    /**
-     * Be consistent with BUG#19914 until we fix it properly
-     */
-    DBUG_RETURN(-1);
+    DBUG_RETURN(HA_POS_ERROR);
   }
 
   THD *thd= current_thd;
@@ -5760,8 +5757,10 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     Ndb *ndb= get_ndb();
     ndb->setDatabaseName(m_dbname);
     struct Ndb_statistics stat;
-    res= ndb_get_table_statistics(NULL, false, ndb, m_tabname, &stat);
-    records= stat.row_count;
+    res= ndb_get_table_statistics(NULL, false, ndb, m_table, &stat);
+    stats.mean_rec_length= stat.row_size;
+    stats.data_file_length= stat.fragment_memory;
+    stats.records= stat.row_count;
     if(!res)
       res= info(HA_STATUS_CONST);
   }
@@ -6829,7 +6828,7 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       else
       {
         Ndb_statistics stat;
-        if ((res=ndb_get_table_statistics(ndb, m_table, &stat)) != 0)
+        if ((res=ndb_get_table_statistics(this, true, ndb, m_table, &stat)) != 0)
           break;
         table_rows=stat.row_count;
         DBUG_PRINT("info", ("use db row_count: %llu", table_rows));
