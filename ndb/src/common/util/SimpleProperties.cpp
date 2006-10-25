@@ -245,7 +245,7 @@ SimpleProperties::pack(Writer & it, const void * __src,
       const char * src_len = _src + _map[i].Length_Offset;
       Uint32 len = *((Uint32*)src_len);
       if(!ignoreMinMax){
-	if(len == _map[i].maxValue)
+	if(len > _map[i].maxValue)
 	  return ValueTooHigh;
       }
       ok = it.add(_map[i].Key, src, len);
@@ -254,7 +254,7 @@ SimpleProperties::pack(Writer & it, const void * __src,
     case SimpleProperties::StringValue:
       if(!ignoreMinMax){
 	size_t len = strlen(src);
-	if(len == _map[i].maxValue)
+	if(len > _map[i].maxValue)
 	  return ValueTooHigh;
       }
       ok = it.add(_map[i].Key, src);
