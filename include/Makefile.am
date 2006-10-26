@@ -15,14 +15,14 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		mysql_version.h m_ctype.h my_config.h mysql_h.ic
+BUILT_SOURCES =		mysql_version.h my_config.h mysql_h.ic
 pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h my_xml.h \
 			mysql.h mysql_com.h mysql_embed.h \
 		  	my_semaphore.h my_pthread.h my_no_pthread.h \
 			errmsg.h my_global.h my_net.h my_alloc.h \
 			my_getopt.h sslopt-longopts.h my_dir.h typelib.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			mysql_time.h mysql/plugin.h $(BUILT_SOURCES)
+			mysql_time.h m_ctype.h mysql/plugin.h $(BUILT_SOURCES)
 noinst_HEADERS =	config-win.h config-netware.h \
 			heap.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
@@ -35,8 +35,8 @@ noinst_HEADERS =	config-win.h config-netware.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
 			my_libwrap.h
 
-# mysql_version.h are generated
-CLEANFILES =            mysql_version.h my_config.h readline openssl mysql_h.ic
+# Remove built files and the symlinked directories
+CLEANFILES =            $(BUILT_SOURCES) readline openssl
 
 # Some include files that may be moved and patched by configure
 DISTCLEANFILES =	sched.h $(CLEANFILES)
@@ -59,15 +59,18 @@ dist-hook:
 #
 
 # Create a icheck file for mysql.h
-mysql_h.ic: mysql.h
+mysql_h.ic: mysql.h mysql_version.h mysql_com.h mysql_time.h my_list.h \
+            my_alloc.h typelib.h
 	@set -x; \
 	if [ @ICHECK@ != no ] ; then \
-	  @ICHECK@ --canonify -o $@ mysql.h; \
+	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@ mysql.h; \
+	else \
+	  touch $@; \
 	fi;
 
 # Compare the icheck file to the reference
 check_abi: mysql_h.ic
-	@set -x; \
+	@set -ex; \
 	if [ @ICHECK@ != no ] ; then \
 	  @ICHECK@ --compare mysql_h.ic mysql_h_abi.ic; \
 	fi; \
