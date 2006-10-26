@@ -58,11 +58,11 @@ typedef MYSQL_ROWS * MYSQL_ROW_OFFSET;
 typedef struct st_mysql_stmt MYSQL_STMT;
 # 236 "mysql.h"
 typedef struct character_set MY_CHARSET_INFO;
-# 180 "mysql_com.h"
+# 184 "mysql_com.h"
 typedef struct st_net NET;
 # 21 "typelib.h"
 typedef struct st_typelib TYPELIB;
-# 170 "mysql_com.h"
+# 174 "mysql_com.h"
 typedef struct st_vio Vio;
 # 57 "mysql.h"
 typedef char * gptr;
@@ -84,9 +84,9 @@ typedef struct st_mysql_data MYSQL_DATA;
 typedef struct st_mysql_methods MYSQL_METHODS;
 # 48 "mysql_time.h"
 typedef struct st_mysql_time MYSQL_TIME;
-# 371 "mysql_com.h"
+# 375 "mysql_com.h"
 typedef struct st_udf_args UDF_ARGS;
-# 384 "mysql_com.h"
+# 388 "mysql_com.h"
 typedef struct st_udf_init UDF_INIT;
 # 27 "my_alloc.h"
 typedef struct st_used_mem USED_MEM;
@@ -102,7 +102,7 @@ struct __attribute__((aligned(__alignof__(unsigned int)), aligned(__alignof__(vo
     unsigned int mbminlen;
     unsigned int mbmaxlen;
   };
-# 357 "mysql_com.h"
+# 361 "mysql_com.h"
 struct __attribute__((aligned(__alignof__(unsigned long int)), aligned(__alignof__(double)))) rand_struct
   {
     unsigned long int seed1;
@@ -383,7 +383,7 @@ struct __attribute__((aligned(__alignof__(unsigned long int)))) st_mysql_time
     my_bool neg;
     enum enum_mysql_timestamp_type time_type;
   };
-# 180 "mysql_com.h"
+# 184 "mysql_com.h"
 struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned long int)))) st_net
   {
     Vio * vio;
@@ -427,7 +427,7 @@ struct __attribute__((aligned(__alignof__(unsigned int)), aligned(__alignof__(vo
     char const * * type_names;
     unsigned int * type_lengths;
   };
-# 371 "mysql_com.h"
+# 375 "mysql_com.h"
 struct __attribute__((aligned(__alignof__(unsigned int)), aligned(__alignof__(void *)))) st_udf_args
   {
     unsigned int arg_count;
@@ -438,7 +438,7 @@ struct __attribute__((aligned(__alignof__(unsigned int)), aligned(__alignof__(vo
     char * * attributes;
     unsigned long int * attribute_lengths;
   };
-# 384 "mysql_com.h"
+# 388 "mysql_com.h"
 struct __attribute__((aligned(__alignof__(unsigned long int)), aligned(__alignof__(void *)))) st_udf_init
   {
     my_bool maybe_null;
@@ -454,7 +454,7 @@ struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned
     unsigned int left;
     unsigned int size;
   };
-# 368 "mysql_com.h"
+# 372 "mysql_com.h"
 enum Item_result
   {
     STRING_RESULT = 0,
@@ -463,7 +463,7 @@ enum Item_result
     ROW_RESULT = 3,
     DECIMAL_RESULT = 4,
   };
-# 314 "mysql_com.h"
+# 318 "mysql_com.h"
 enum enum_cursor_type
   {
     CURSOR_TYPE_NO_CURSOR = 0,
@@ -471,7 +471,7 @@ enum enum_cursor_type
     CURSOR_TYPE_FOR_UPDATE = 2,
     CURSOR_TYPE_SCROLLABLE = 4,
   };
-# 227 "mysql_com.h"
+# 231 "mysql_com.h"
 enum enum_field_types
   {
     MYSQL_TYPE_DECIMAL = 0,
@@ -502,7 +502,7 @@ enum enum_field_types
     MYSQL_TYPE_STRING = 254,
     MYSQL_TYPE_GEOMETRY = 255,
   };
-# 324 "mysql_com.h"
+# 328 "mysql_com.h"
 enum enum_mysql_set_option
   {
     MYSQL_OPTION_MULTI_STATEMENTS_ON = 0,
@@ -557,7 +557,8 @@ enum enum_server_command
     COM_STMT_RESET = 26,
     COM_SET_OPTION = 27,
     COM_STMT_FETCH = 28,
-    COM_END = 29,
+    COM_DAEMON = 29,
+    COM_END = 30,
   };
 # 727 "mysql.h"
 enum enum_stmt_attr_type
@@ -566,7 +567,7 @@ enum enum_stmt_attr_type
     STMT_ATTR_CURSOR_TYPE = 1,
     STMT_ATTR_PREFETCH_ROWS = 2,
   };
-# 289 "mysql_com.h"
+# 293 "mysql_com.h"
 enum mysql_enum_shutdown_level
   {
     SHUTDOWN_DEFAULT = 0,
@@ -626,23 +627,23 @@ enum mysql_status
     MYSQL_STATUS_GET_RESULT = 1,
     MYSQL_STATUS_USE_RESULT = 2,
   };
-# 423 "mysql_com.h"
+# 427 "mysql_com.h"
 extern my_bool check_scramble(char const * reply, char const * message, unsigned char const * hash_stage2);
-# 416 "mysql_com.h"
+# 420 "mysql_com.h"
 extern my_bool check_scramble_323(char const *, char const * message, unsigned long int * salt);
-# 411 "mysql_com.h"
+# 415 "mysql_com.h"
 extern void create_random_string(char * to, unsigned int, struct rand_struct * rand_st);
 # 28 "typelib.h"
 extern int find_type(char * x, TYPELIB * typelib, unsigned int);
-# 425 "mysql_com.h"
+# 429 "mysql_com.h"
 extern void get_salt_from_password(unsigned char * res, char const * password);
-# 418 "mysql_com.h"
+# 422 "mysql_com.h"
 extern void get_salt_from_password_323(unsigned long int * res, char const * password);
-# 431 "mysql_com.h"
-extern char * get_tty_password(char * opt_message);
+# 435 "mysql_com.h"
+extern char * get_tty_password(char const * opt_message);
 # 30 "typelib.h"
 extern char const * get_type(TYPELIB * typelib, unsigned int);
-# 413 "mysql_com.h"
+# 417 "mysql_com.h"
 extern void hash_password(unsigned long int * to, char const * password, unsigned int);
 # 31 "my_list.h"
 extern LIST * list_add(LIST * root, LIST * element);
@@ -658,37 +659,31 @@ extern unsigned int list_length(LIST *);
 extern LIST * list_reverse(LIST * root);
 # 37 "my_list.h"
 extern int list_walk(LIST *, list_walk_action, gptr);
-# 440 "mysql_com.h"
-extern int load_defaults(char const * conf_file, char const * * groups, int * argc, char * * * argv);
-# 426 "mysql_com.h"
+# 430 "mysql_com.h"
 extern void make_password_from_salt(char * to, unsigned char const * hash_stage2);
-# 419 "mysql_com.h"
+# 423 "mysql_com.h"
 extern void make_password_from_salt_323(char * to, unsigned long int const * salt);
-# 421 "mysql_com.h"
+# 425 "mysql_com.h"
 extern void make_scrambled_password(char * to, char const * password);
-# 414 "mysql_com.h"
+# 418 "mysql_com.h"
 extern void make_scrambled_password_323(char * to, char const * password);
 # 29 "typelib.h"
 extern void make_type(char * to, unsigned int, TYPELIB * typelib);
-# 437 "mysql_com.h"
-extern int modify_defaults_file(char const * file_location, char const * option, char const * option_value, char const * section_name, int);
-# 354 "mysql_com.h"
+# 358 "mysql_com.h"
 extern int my_connect(my_socket, struct sockaddr const * name, unsigned int, unsigned int);
-# 436 "mysql_com.h"
-extern my_bool my_init(void);
-# 336 "mysql_com.h"
+# 340 "mysql_com.h"
 extern my_bool my_net_init(NET * net, Vio * vio);
-# 337 "mysql_com.h"
+# 341 "mysql_com.h"
 extern void my_net_local_init(NET * net);
-# 347 "mysql_com.h"
+# 351 "mysql_com.h"
 extern unsigned long int my_net_read(NET * net);
-# 342 "mysql_com.h"
+# 346 "mysql_com.h"
 extern my_bool my_net_write(NET * net, char const * packet, unsigned long int);
-# 410 "mysql_com.h"
+# 414 "mysql_com.h"
 extern double my_rnd(struct rand_struct *);
-# 443 "mysql_com.h"
+# 441 "mysql_com.h"
 extern void my_thread_end(void);
-# 442 "mysql_com.h"
+# 440 "mysql_com.h"
 extern my_bool my_thread_init(void);
 # 559 "mysql.h"
 extern void myodbc_remove_escape(MYSQL * mysql, char * name);
@@ -726,7 +721,7 @@ extern void mysql_enable_rpl_parse(MYSQL * mysql);
 extern my_bool mysql_eof(MYSQL_RES * res);
 # 412 "mysql.h"
 extern unsigned int mysql_errno(MYSQL * mysql);
-# 432 "mysql_com.h"
+# 436 "mysql_com.h"
 extern char const * mysql_errno_to_sqlstate(unsigned int);
 # 413 "mysql.h"
 extern char const * mysql_error(MYSQL * mysql);
@@ -942,25 +937,25 @@ extern char * mysql_unix_port;
 extern MYSQL_RES * mysql_use_result(MYSQL * mysql);
 # 415 "mysql.h"
 extern unsigned int mysql_warning_count(MYSQL * mysql);
-# 339 "mysql_com.h"
-extern void net_clear(NET * net);
-# 338 "mysql_com.h"
-extern void net_end(NET * net);
-# 341 "mysql_com.h"
-extern my_bool net_flush(NET * net);
-# 346 "mysql_com.h"
-extern int net_real_write(NET * net, char const * packet, unsigned long int);
-# 340 "mysql_com.h"
-extern my_bool net_realloc(NET * net, unsigned long int);
 # 343 "mysql_com.h"
+extern void net_clear(NET * net);
+# 342 "mysql_com.h"
+extern void net_end(NET * net);
+# 345 "mysql_com.h"
+extern my_bool net_flush(NET * net);
+# 350 "mysql_com.h"
+extern int net_real_write(NET * net, char const * packet, unsigned long int);
+# 344 "mysql_com.h"
+extern my_bool net_realloc(NET * net, unsigned long int);
+# 347 "mysql_com.h"
 extern my_bool net_write_command(NET * net, unsigned char, char const * header, unsigned long int, char const * packet, unsigned long int);
-# 427 "mysql_com.h"
+# 431 "mysql_com.h"
 extern char * octet2hex(char * to, char const * str, unsigned int);
-# 408 "mysql_com.h"
+# 412 "mysql_com.h"
 extern void randominit(struct rand_struct *, unsigned long int, unsigned long int);
-# 422 "mysql_com.h"
+# 426 "mysql_com.h"
 extern void scramble(char * to, char const * message, char const * password);
-# 415 "mysql_com.h"
+# 419 "mysql_com.h"
 extern void scramble_323(char * to, char const * message, char const * password);
 # 32 "typelib.h"
 extern TYPELIB sql_protocol_typelib;
