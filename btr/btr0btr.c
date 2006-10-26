@@ -2171,10 +2171,14 @@ btr_lift_page_up(
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
+	page_level = btr_page_get_level(page, mtr);
+	root_page_no = dict_index_get_page(index);
+
 	{
 		btr_cur_t	cursor;
 		mem_heap_t*	heap	= mem_heap_create(100);
 		ulint*		offsets;
+		buf_block_t*	b;
 
 		offsets = btr_page_get_father_block(NULL, heap, index,
 						    block, mtr, &cursor);
@@ -2182,27 +2186,22 @@ btr_lift_page_up(
 		father_page_zip = buf_block_get_page_zip(father_block);
 		father_page = buf_block_get_frame(father_block);
 
-		page_level = btr_page_get_level(page, mtr);
-		root_page_no = dict_index_get_page(index);
-
 		n_blocks = 0;
-		blocks[0] = father_block;
 
 		/* Store all ancestor pages so we can reset their
 		levels later on.  We have to do all the searches on
 		the tree now because later on, after we've replaced
 		the first level, the tree is in an inconsistent state
 		and can not be searched. */
-		while (buf_block_get_page_no(blocks[n_blocks])
-		       != root_page_no) {
+		for (b = father_block;
+		     buf_block_get_page_no(b) != root_page_no; ) {
 			ut_a(n_blocks < BTR_MAX_LEVELS);
 
 			offsets = btr_page_get_father_block(offsets, heap,
-							    index,
-							    blocks[n_blocks],
+							    index, b,
 							    mtr, &cursor);
 
-			blocks[++n_blocks] = btr_cur_get_block(&cursor);
+			blocks[n_blocks++] = b = btr_cur_get_block(&cursor);
 		}
 
 		mem_heap_free(heap);
@@ -2233,7 +2232,7 @@ btr_lift_page_up(
 	lock_update_copy_and_discard(father_block, block);
 
 	/* Go upward to root page, decrementing levels by one. */
-	for (i = 0; i <= n_blocks; i++, page_level++) {
+	for (i = 0; i < n_blocks; i++, page_level++) {
 		page_t*	page = buf_block_get_frame(blocks[i]);
 
 		ut_ad(btr_page_get_level(page, mtr) == page_level + 1);
