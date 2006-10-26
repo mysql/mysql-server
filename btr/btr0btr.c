@@ -2831,8 +2831,8 @@ static
 void
 btr_index_rec_validate_report(
 /*==========================*/
-	page_t*		page,	/* in: index page */
-	rec_t*		rec,	/* in: index record */
+	const page_t*	page,	/* in: index page */
+	const rec_t*	rec,	/* in: index record */
 	dict_index_t*	index)	/* in: index */
 {
 	fputs("InnoDB: Record in ", stderr);

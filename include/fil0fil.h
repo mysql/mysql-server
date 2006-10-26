@@ -662,9 +662,9 @@ fil_addr_is_null(
 Accessor functions for a file page */
 
 ulint
-fil_page_get_prev(byte*	page);
+fil_page_get_prev(const byte*	page);
 ulint
-fil_page_get_next(byte*	page);
+fil_page_get_next(const byte*	page);
 /*************************************************************************
 Sets the file page type. */
 

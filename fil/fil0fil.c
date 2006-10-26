@@ -4688,13 +4688,13 @@ fil_addr_is_null(
 Accessor functions for a file page */
 
 ulint
-fil_page_get_prev(byte*	page)
+fil_page_get_prev(const byte*	page)
 {
 	return(mach_read_from_4(page + FIL_PAGE_PREV));
 }
 
 ulint
-fil_page_get_next(byte*	page)
+fil_page_get_next(const byte*	page)
 {
 	return(mach_read_from_4(page + FIL_PAGE_NEXT));
 }

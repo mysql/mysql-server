@@ -552,17 +552,17 @@ resolved:
 }
 
 /****************************************************************
-The following function is used to get a pointer to the nth
+The following function is used to get the offset to the nth
 data field in an old-style record. */
 
-byte*
-rec_get_nth_field_old(
-/*==================*/
-			/* out: pointer to the field */
-	rec_t*	rec,	/* in: record */
-	ulint	n,	/* in: index of the field */
-	ulint*	len)	/* out: length of the field; UNIV_SQL_NULL if SQL
-			null */
+ulint
+rec_get_nth_field_offs_old(
+/*=======================*/
+				/* out: offset to the field */
+	const rec_t*	rec,	/* in: record */
+	ulint		n,	/* in: index of the field */
+	ulint*		len)	/* out: length of the field;
+				UNIV_SQL_NULL if SQL null */
 {
 	ulint	os;
 	ulint	next_os;
@@ -589,7 +589,7 @@ rec_get_nth_field_old(
 		if (next_os & REC_1BYTE_SQL_NULL_MASK) {
 			*len = UNIV_SQL_NULL;
 
-			return(rec + os);
+			return(os);
 		}
 
 		next_os = next_os & ~REC_1BYTE_SQL_NULL_MASK;
@@ -601,7 +601,7 @@ rec_get_nth_field_old(
 		if (next_os & REC_2BYTE_SQL_NULL_MASK) {
 			*len = UNIV_SQL_NULL;
 
-			return(rec + os);
+			return(os);
 		}
 
 		next_os = next_os & ~(REC_2BYTE_SQL_NULL_MASK
@@ -612,7 +612,7 @@ rec_get_nth_field_old(
 
 	ut_ad(*len < UNIV_PAGE_SIZE);
 
-	return(rec + os);
+	return(os);
 }
 
 /**************************************************************
@@ -1334,7 +1334,7 @@ rec_validate_old(
 	}
 
 	for (i = 0; i < n_fields; i++) {
-		data = rec_get_nth_field_old((rec_t*) rec, i, &len);
+		data = rec_get_nth_field_old(rec, i, &len);
 
 		if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
 			fprintf(stderr,
@@ -1461,7 +1461,7 @@ rec_print_old(
 
 	for (i = 0; i < n; i++) {
 
-		data = rec_get_nth_field_old((rec_t*) rec, i, &len);
+		data = rec_get_nth_field_old(rec, i, &len);
 
 		fprintf(file, " %lu:", (ulong) i);
 
