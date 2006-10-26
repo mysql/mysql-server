@@ -240,7 +240,8 @@ public:
   }
   Item *neg_transformer(THD *thd);
   virtual Item *negated_item();
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool subst_argument_checker(byte **arg) { return TRUE; }
 };
 
 class Item_func_not :public Item_bool_func
@@ -251,7 +252,7 @@ public:
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
   Item *neg_transformer(THD *thd);
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 class Item_maxmin_subselect;
@@ -468,7 +469,7 @@ public:
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -480,7 +481,7 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "strcmp"; }
   void print(String *str) { Item_func::print(str); }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -543,7 +544,7 @@ public:
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
   uint decimal_precision() const;
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -584,52 +585,8 @@ public:
   void print(String *str) { Item_func::print(str); }
   table_map not_null_tables() const { return 0; }
   bool is_null();
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
-
-
-class Item_func_case :public Item_func
-{
-  int first_expr_num, else_expr_num;
-  enum Item_result cached_result_type;
-  String tmp_value;
-  uint ncases;
-  Item_result cmp_type;
-  DTCollation cmp_collation;
-public:
-  Item_func_case(List<Item> &list, Item *first_expr_arg, Item *else_expr_arg)
-    :Item_func(), first_expr_num(-1), else_expr_num(-1),
-    cached_result_type(INT_RESULT)
-  {
-    ncases= list.elements;
-    if (first_expr_arg)
-    {
-      first_expr_num= list.elements;
-      list.push_back(first_expr_arg);
-    }
-    if (else_expr_arg)
-    {
-      else_expr_num= list.elements;
-      list.push_back(else_expr_arg);
-    }
-    set_arguments(list);
-  }
-  double val_real();
-  longlong val_int();
-  String *val_str(String *);
-  my_decimal *val_decimal(my_decimal *);
-  bool fix_fields(THD *thd, Item **ref);
-  void fix_length_and_dec();
-  uint decimal_precision() const;
-  table_map not_null_tables() const { return 0; }
-  enum Item_result result_type () const { return cached_result_type; }
-  const char *func_name() const { return "case"; }
-  void print(String *str);
-  Item *find_item(String *str);
-  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
-};
-
 
 /* Functions to handle the optimized IN */
 
@@ -685,6 +642,7 @@ public:
   {
     return test(compare(collation, base + pos1*size, base + pos2*size));
   }
+  virtual Item_result result_type()= 0;
 };
 
 class in_string :public in_vector
@@ -706,6 +664,7 @@ public:
     Item_string *to= (Item_string*)item;
     to->str_value= *str;
   }
+  Item_result result_type() { return STRING_RESULT; }
 };
 
 class in_longlong :public in_vector
@@ -728,6 +687,7 @@ public:
   {
     ((Item_int*)item)->value= ((longlong*)base)[pos];
   }
+  Item_result result_type() { return INT_RESULT; }
 };
 
 class in_double :public in_vector
@@ -745,6 +705,7 @@ public:
   {
     ((Item_float*)item)->value= ((double*) base)[pos];
   }
+  Item_result result_type() { return REAL_RESULT; }
 
 };
 
@@ -765,6 +726,8 @@ public:
     Item_decimal *item_dec= (Item_decimal*)item;
     item_dec->set_decimal_value(dec);
   }
+  Item_result result_type() { return DECIMAL_RESULT; }
+
 };
 
 
@@ -795,7 +758,9 @@ class cmp_item_string :public cmp_item
 protected:
   String *value_res;
 public:
+  cmp_item_string () {}
   cmp_item_string (CHARSET_INFO *cs) { cmp_charset= cs; }
+  void set_charset(CHARSET_INFO *cs) { cmp_charset= cs; }
   friend class cmp_item_sort_string;
   friend class cmp_item_sort_string_in_static;
 };
@@ -806,6 +771,8 @@ protected:
   char value_buff[STRING_BUFFER_USUAL_SIZE];
   String value;
 public:
+  cmp_item_sort_string():
+    cmp_item_string() {}
   cmp_item_sort_string(CHARSET_INFO *cs):
     cmp_item_string(cs),
     value(value_buff, sizeof(value_buff), cs) {}
@@ -827,6 +794,11 @@ public:
     return sortcmp(value_res, cmp->value_res, cmp_charset);
   } 
   cmp_item *make_same();
+  void set_charset(CHARSET_INFO *cs)
+  {
+    cmp_charset= cs;
+    value.set_quick(value_buff, sizeof(value_buff), cs);
+  }
 };
 
 class cmp_item_int :public cmp_item
@@ -907,6 +879,7 @@ public:
   ~in_row();
   void set(uint pos,Item *item);
   byte *get_value(Item *item);
+  Item_result result_type() { return ROW_RESULT; }
 };
 
 /* 
@@ -942,18 +915,109 @@ public:
   }
 };
 
+
+/*
+  The class Item_func_case is the CASE ... WHEN ... THEN ... END function
+  implementation.
+
+  When there is no expression between CASE and the first WHEN 
+  (the CASE expression) then this function simple checks all WHEN expressions
+  one after another. When some WHEN expression evaluated to TRUE then the
+  value of the corresponding THEN expression is returned.
+
+  When the CASE expression is specified then it is compared to each WHEN
+  expression individually. When an equal WHEN expression is found
+  corresponding THEN expression is returned.
+  In order to do correct comparisons several comparators are used. One for
+  each result type. Different result types that are used in particular
+  CASE ... END expression are collected in the fix_length_and_dec() member
+  function and only comparators for there result types are used.
+*/
+
+class Item_func_case :public Item_func
+{
+  int first_expr_num, else_expr_num;
+  enum Item_result cached_result_type, left_result_type;
+  String tmp_value;
+  uint ncases;
+  Item_result cmp_type;
+  DTCollation cmp_collation;
+  cmp_item *cmp_items[5]; /* For all result types */
+  cmp_item *case_item;
+public:
+  Item_func_case(List<Item> &list, Item *first_expr_arg, Item *else_expr_arg)
+    :Item_func(), first_expr_num(-1), else_expr_num(-1),
+    cached_result_type(INT_RESULT), left_result_type(INT_RESULT), case_item(0)
+  {
+    ncases= list.elements;
+    if (first_expr_arg)
+    {
+      first_expr_num= list.elements;
+      list.push_back(first_expr_arg);
+    }
+    if (else_expr_arg)
+    {
+      else_expr_num= list.elements;
+      list.push_back(else_expr_arg);
+    }
+    set_arguments(list);
+    bzero(&cmp_items, sizeof(cmp_items));
+  }
+  double val_real();
+  longlong val_int();
+  String *val_str(String *);
+  my_decimal *val_decimal(my_decimal *);
+  bool fix_fields(THD *thd, Item **ref);
+  void fix_length_and_dec();
+  uint decimal_precision() const;
+  table_map not_null_tables() const { return 0; }
+  enum Item_result result_type () const { return cached_result_type; }
+  const char *func_name() const { return "case"; }
+  void print(String *str);
+  Item *find_item(String *str);
+  CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
+  bool check_partition_func_processor(byte *bool_arg) { return FALSE;}
+  void cleanup()
+  {
+    uint i;
+    DBUG_ENTER("Item_func_case::cleanup");
+    Item_func::cleanup();
+    for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+    {
+      delete cmp_items[i];
+      cmp_items[i]= 0;
+    }
+    DBUG_VOID_RETURN;
+  }
+};
+
+/*
+  The Item_func_in class implements the in_expr IN(values_list) function.
+
+  The current implementation distinguishes 2 cases:
+  1) all items in the value_list are constants and have the same
+    result type. This case is handled by in_vector class.
+  2) items in the value_list have different result types or there is some
+    non-constant items.
+    In this case Item_func_in employs several cmp_item objects to performs
+    comparisons of in_expr and an item from the values_list. One cmp_item
+    object for each result type. Different result types are collected in the
+    fix_length_and_dec() member function by means of collect_cmp_types()
+    function.
+*/
 class Item_func_in :public Item_func_opt_neg
 {
 public:
-  Item_result cmp_type;
   in_vector *array;
-  cmp_item *in_item;
   bool have_null;
+  Item_result left_result_type;
+  cmp_item *cmp_items[5]; /* One cmp_item for each result type */
   DTCollation cmp_collation;
 
   Item_func_in(List<Item> &list)
-    :Item_func_opt_neg(list), array(0), in_item(0), have_null(0)
+    :Item_func_opt_neg(list), array(0), have_null(0)
   {
+    bzero(&cmp_items, sizeof(cmp_items));
     allowed_arg_cols= 0;  // Fetch this value from first argument
   }
   longlong val_int();
@@ -962,12 +1026,16 @@ public:
   uint decimal_precision() const { return 1; }
   void cleanup()
   {
+    uint i;
     DBUG_ENTER("Item_func_in::cleanup");
     Item_int_func::cleanup();
     delete array;
-    delete in_item;
     array= 0;
-    in_item= 0;
+    for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
+    {
+      delete cmp_items[i];
+      cmp_items[i]= 0;
+    }
     DBUG_VOID_RETURN;
   }
   optimize_type select_optimize() const
@@ -978,7 +1046,7 @@ public:
   bool nulls_in_row();
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 /* Functions used by where clause */
@@ -1020,7 +1088,7 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd);
   CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 /* Functions used by HAVING for rewriting IN subquery */
@@ -1042,8 +1110,7 @@ public:
   */
   table_map used_tables() const
     { return used_tables_cache | RAND_TABLE_BIT; }
-  bool check_partition_func_processor(byte *bool_arg)
-  { *(bool *)bool_arg= FALSE; return 0; }
+  bool check_partition_func_processor(byte *int_arg) {return TRUE;}
 };
 
 
@@ -1066,7 +1133,7 @@ public:
   void print(String *str);
   CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
   void top_level_item() { abort_on_null=1; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 
@@ -1105,7 +1172,7 @@ public:
   const char *func_name() const { return "like"; }
   bool fix_fields(THD *thd, Item **ref);
   void cleanup();
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 #ifdef USE_REGEX
@@ -1128,7 +1195,7 @@ public:
   const char *func_name() const { return "regexp"; }
   void print(String *str) { print_op(str); }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
 };
 
 #else
@@ -1185,7 +1252,10 @@ public:
   Item *transform(Item_transformer transformer, byte *arg);
   void traverse_cond(Cond_traverser, void *arg, traverse_order order);
   void neg_arguments(THD *thd);
-  bool check_partition_func_processor(byte *bool_arg) { return 0;}
+  bool check_partition_func_processor(byte *int_arg) {return FALSE;}
+  bool subst_argument_checker(byte **arg) { return TRUE; }
+  Item *compile(Item_analyzer analyzer, byte **arg_p,
+                Item_transformer transformer, byte *arg_t);
 };
 
 

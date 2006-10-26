@@ -2004,7 +2004,15 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
 
   if (ptr.p->slaveData.dropTrig.tableId == RNIL) {
     jam();
-    ptr.p->tables.first(tabPtr);
+    if(ptr.p->tables.count())
+      ptr.p->tables.first(tabPtr);
+    else
+    {
+      // Early abort, go to close files
+      jam();
+      closeFiles(signal, ptr);
+      return;
+    }
   } else {
     jam();
     ndbrequire(findTable(ptr, tabPtr, ptr.p->slaveData.dropTrig.tableId));
@@ -2105,8 +2113,11 @@ Backup::execDROP_TRIG_REF(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
 
-  ndbout << "ERROR DROPPING TRIGGER: " << ref->getConf()->getTriggerId();
-  ndbout << " Err: " << (Uint32)ref->getErrorCode() << endl << endl;
+  if(ref->getConf()->getTriggerId() != -1)
+  {
+    ndbout << "ERROR DROPPING TRIGGER: " << ref->getConf()->getTriggerId();
+    ndbout << " Err: " << (Uint32)ref->getErrorCode() << endl << endl;
+  }
 
   dropTrigReply(signal, ptr);
 }
@@ -2487,8 +2498,8 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     0    // 3M
   };
   const Uint32 maxInsert[] = {
-    2048,  // Temporarily to solve TR515
-    4096,    // 4k
+    MAX_WORDS_META_FILE,
+    4096,    // 16k
     16*3000, // Max 16 tuples
   };
   Uint32 minWrite[] = {
@@ -2538,8 +2549,9 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     files[i].p->filePointer = RNIL;
     files[i].p->m_flags = 0;
     files[i].p->errorCode = 0;
-    
-    if(files[i].p->pages.seize(noOfPages[i]) == false) {
+
+    if(ERROR_INSERTED(10035) || files[i].p->pages.seize(noOfPages[i]) == false)
+    {
       jam();
       DEBUG_OUT("Failed to seize " << noOfPages[i] << " pages");
       defineBackupRef(signal, ptr, DefineBackupRef::FailedToAllocateBuffers);
@@ -4451,14 +4463,24 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
   }
   
   jam();
-  BackupFilePtr filePtr;
-  ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
-  
+
   StopBackupConf* conf = (StopBackupConf*)signal->getDataPtrSend();
   conf->backupId = ptr.p->backupId;
   conf->backupPtr = ptr.i;
-  conf->noOfLogBytes = filePtr.p->operation.noOfBytes;
-  conf->noOfLogRecords = filePtr.p->operation.noOfRecords;
+
+  BackupFilePtr filePtr;
+  if(ptr.p->logFilePtr != RNIL)
+  {
+    ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
+    conf->noOfLogBytes= filePtr.p->operation.noOfBytes;
+    conf->noOfLogRecords= filePtr.p->operation.noOfRecords;
+  }
+  else
+  {
+    conf->noOfLogBytes= 0;
+    conf->noOfLogRecords= 0;
+  }
+
   sendSignal(ptr.p->masterRef, GSN_STOP_BACKUP_CONF, signal,
 	     StopBackupConf::SignalLength, JBB);
   

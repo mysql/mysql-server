@@ -28,7 +28,7 @@ class ha_myisammrg: public handler
   MYRG_INFO *file;
 
  public:
-  ha_myisammrg(TABLE_SHARE *table_arg);
+  ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_myisammrg() {}
   const char *table_type() const { return "MRG_MyISAM"; }
   const char **bas_ext() const;
@@ -72,7 +72,7 @@ class ha_myisammrg: public handler
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-  void info(uint);
+  int info(uint);
   int reset(void);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);

@@ -49,35 +49,26 @@ drop event event2;
 create event event2 on schedule every 2 second starts now() ends date_add(now(), interval 5 hour) comment "some" DO begin end;
 drop event event2;
 
+#
 # BUG #16537 (Events: mysql.event.starts is null)
+#
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 10 SECOND COMMENT "" DO SELECT 1;
---replace_column 8 # 9 #
-SHOW EVENTS;
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT interval_field, interval_value, body FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
 ALTER EVENT event_starts_test ON SCHEDULE AT '2020-02-02 20:00:02';
---replace_column 8 # 9 #
-SHOW EVENTS;
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
---replace_column 8 # 9 #
-SHOW EVENTS;
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "";
---replace_column 8 # 9 #
-SHOW EVENTS;
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
 DROP EVENT event_starts_test;
+
 CREATE EVENT event_starts_test ON SCHEDULE EVERY 20 SECOND STARTS '2020-02-02 20:00:02' ENDS '2022-02-02 20:00:02' DO SELECT 2;
---replace_column 8 # 9 #
-SHOW EVENTS;
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "non-empty comment";
---replace_column 8 # 9 #
-SHOW EVENTS;
-SELECT starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
 ALTER EVENT event_starts_test COMMENT "";
---replace_column 8 # 9 #
-SHOW EVENTS;
+SELECT execute_at IS NULL, starts IS NULL, ends IS NULL, comment FROM mysql.event WHERE db='events_test' AND name='event_starts_test';
 DROP EVENT event_starts_test;
 #
 #

@@ -313,7 +313,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
       jamEntry();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
-      removeAccLockOp(scan, req->accOperationPtr);
+      removeAccLockOp(scanPtr, req->accOperationPtr);
     }
     if (req->scanFlag == NextScanReq::ZSCAN_COMMIT) {
       jam();
@@ -424,21 +424,17 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     jam();
     // search is done only once in single range scan
     scanFirst(scanPtr);
-#ifdef VM_TRACE
-    if (debugFlags & DebugScan) {
-      debugOut << "First scan " << scanPtr.i << " " << scan << endl;
-    }
-#endif
   }
-  if (scan.m_state == ScanOp::Next) {
+  if (scan.m_state == ScanOp::Current ||
+      scan.m_state == ScanOp::Next) {
     jam();
     // look for next
-    scanNext(scanPtr, false);
+    scanFind(scanPtr);
   }
-  // for reading tuple key in Current or Locked state
+  // for reading tuple key in Found or Locked state
   Data pkData = c_dataBuffer;
   unsigned pkSize = 0; // indicates not yet done
-  if (scan.m_state == ScanOp::Current) {
+  if (scan.m_state == ScanOp::Found) {
     // found an entry to return
     jam();
     ndbrequire(scan.m_accLockOp == RNIL);
@@ -473,7 +469,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         scan.m_state = ScanOp::Locked;
         scan.m_accLockOp = lockReq->accOpPtr;
 #ifdef VM_TRACE
-        if (debugFlags & DebugScan) {
+        if (debugFlags & (DebugScan | DebugLock)) {
           debugOut << "Lock immediate scan " << scanPtr.i << " " << scan << endl;
         }
 #endif
@@ -485,7 +481,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         scan.m_lockwait = true;
         scan.m_accLockOp = lockReq->accOpPtr;
 #ifdef VM_TRACE
-        if (debugFlags & DebugScan) {
+        if (debugFlags & (DebugScan | DebugLock)) {
           debugOut << "Lock wait scan " << scanPtr.i << " " << scan << endl;
         }
 #endif
@@ -512,8 +508,8 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         jam();
         // max ops should depend on max scans (assert only)
         ndbassert(false);
-        // stay in Current state
-        scan.m_state = ScanOp::Current;
+        // stay in Found state
+        scan.m_state = ScanOp::Found;
         signal->theData[0] = scan.m_userPtr;
         signal->theData[1] = true;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
@@ -541,7 +537,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     if (accLockOp != RNIL) {
       scan.m_accLockOp = RNIL;
       // remember it until LQH unlocks it
-      addAccLockOp(scan, accLockOp);
+      addAccLockOp(scanPtr, accLockOp);
     } else {
       ndbrequire(scan.m_readCommitted);
       // operation RNIL in LQH would signal no tuple returned
@@ -596,7 +592,7 @@ Dbtux::execACCKEYCONF(Signal* signal)
   c_scanOpPool.getPtr(scanPtr);
   ScanOp& scan = *scanPtr.p;
 #ifdef VM_TRACE
-  if (debugFlags & DebugScan) {
+  if (debugFlags & (DebugScan | DebugLock)) {
     debugOut << "Lock obtained scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
@@ -641,7 +637,7 @@ Dbtux::execACCKEYREF(Signal* signal)
   c_scanOpPool.getPtr(scanPtr);
   ScanOp& scan = *scanPtr.p;
 #ifdef VM_TRACE
-  if (debugFlags & DebugScan) {
+  if (debugFlags & (DebugScan | DebugLock)) {
     debugOut << "Lock refused scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
@@ -685,7 +681,7 @@ Dbtux::execACC_ABORTCONF(Signal* signal)
   c_scanOpPool.getPtr(scanPtr);
   ScanOp& scan = *scanPtr.p;
 #ifdef VM_TRACE
-  if (debugFlags & DebugScan) {
+  if (debugFlags & (DebugScan | DebugLock)) {
     debugOut << "ACC_ABORTCONF scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
@@ -700,44 +696,95 @@ Dbtux::execACC_ABORTCONF(Signal* signal)
 }
 
 /*
- * Find start position for single range scan.  If it exists, sets state
- * to Next and links the scan to the node.  The first entry is returned
- * by scanNext.
+ * Find start position for single range scan.
  */
 void
 Dbtux::scanFirst(ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+#ifdef VM_TRACE
+  if (debugFlags & DebugScan) {
+    debugOut << "Enter first scan " << scanPtr.i << " " << scan << endl;
+  }
+#endif
   TreeHead& tree = frag.m_tree;
   // set up index keys for this operation
   setKeyAttrs(frag);
   // scan direction 0, 1
   const unsigned idir = scan.m_descending;
-  // unpack start key into c_dataBuffer
-  const ScanBound& bound = *scan.m_bound[idir];
-  ScanBoundIterator iter;
-  bound.first(iter);
-  for (unsigned j = 0; j < bound.getSize(); j++) {
-    jam();
-    c_dataBuffer[j] = *iter.data;
-    bound.next(iter);
-  }
+  unpackBound(*scan.m_bound[idir], c_dataBuffer);
   TreePos treePos;
   searchToScan(frag, c_dataBuffer, scan.m_boundCnt[idir], scan.m_descending, treePos);
-  if (treePos.m_loc == NullTupLoc) {
-    // empty result set
+  if (treePos.m_loc != NullTupLoc) {
+    scan.m_scanPos = treePos;
+    // link the scan to node found
+    NodeHandle node(frag);
+    selectNode(node, treePos.m_loc);
+    linkScan(node, scanPtr);
+    if (treePos.m_dir == 3) {
+      jam();
+      // check upper bound
+      TreeEnt ent = node.getEnt(treePos.m_pos);
+      if (scanCheck(scanPtr, ent))
+        scan.m_state = ScanOp::Current;
+      else
+        scan.m_state = ScanOp::Last;
+    } else {
+      scan.m_state = ScanOp::Next;
+    }
+  } else {
     jam();
     scan.m_state = ScanOp::Last;
-    return;
   }
-  // set position and state
-  scan.m_scanPos = treePos;
-  scan.m_state = ScanOp::Next;
-  // link the scan to node found
-  NodeHandle node(frag);
-  selectNode(node, treePos.m_loc);
-  linkScan(node, scanPtr);
+#ifdef VM_TRACE
+  if (debugFlags & DebugScan) {
+    debugOut << "Leave first scan " << scanPtr.i << " " << scan << endl;
+  }
+#endif
+}
+
+/*
+ * Look for entry to return as scan result.
+ */
+void
+Dbtux::scanFind(ScanOpPtr scanPtr)
+{
+  ScanOp& scan = *scanPtr.p;
+  Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+#ifdef VM_TRACE
+  if (debugFlags & DebugScan) {
+    debugOut << "Enter find scan " << scanPtr.i << " " << scan << endl;
+  }
+#endif
+  ndbrequire(scan.m_state == ScanOp::Current || scan.m_state == ScanOp::Next);
+  while (1) {
+    jam();
+    if (scan.m_state == ScanOp::Next)
+      scanNext(scanPtr, false);
+    if (scan.m_state == ScanOp::Current) {
+      jam();
+      const TreePos pos = scan.m_scanPos;
+      NodeHandle node(frag);
+      selectNode(node, pos.m_loc);
+      const TreeEnt ent = node.getEnt(pos.m_pos);
+      if (scanVisible(scanPtr, ent)) {
+        jam();
+        scan.m_state = ScanOp::Found;
+        scan.m_scanEnt = ent;
+        break;
+      }
+    } else {
+      jam();
+      break;
+    }
+    scan.m_state = ScanOp::Next;
+  }
+#ifdef VM_TRACE
+  if (debugFlags & DebugScan) {
+    debugOut << "Leave find scan " << scanPtr.i << " " << scan << endl;
+  }
+#endif
 }
 
 /*
@@ -755,6 +802,11 @@ Dbtux::scanFirst(ScanOpPtr scanPtr)
  *
  * If an entry was found, scan direction is 3.  Therefore tree
  * re-organizations need not worry about scan direction.
+ *
+ * This method is also used to move a scan when its entry is removed
+ * (see moveScanList).  If the scan is Blocked, we check if it remains
+ * Blocked on a different version of the tuple.  Otherwise the tuple is
+ * lost and state becomes Current.
  */
 void
 Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
@@ -762,8 +814,8 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
 #ifdef VM_TRACE
-  if (debugFlags & DebugScan) {
-    debugOut << "Next in scan " << scanPtr.i << " " << scan << endl;
+  if (debugFlags & (DebugMaint | DebugScan)) {
+    debugOut << "Enter next scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
   // cannot be moved away from tuple we have locked
@@ -773,15 +825,6 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
   // scan direction
   const unsigned idir = scan.m_descending; // 0, 1
   const int jdir = 1 - 2 * (int)idir;      // 1, -1
-  // unpack end key into c_dataBuffer
-  const ScanBound& bound = *scan.m_bound[1 - idir];
-  ScanBoundIterator iter;
-  bound.first(iter);
-  for (unsigned j = 0; j < bound.getSize(); j++) {
-    jam();
-    c_dataBuffer[j] = *iter.data;
-    bound.next(iter);
-  }
   // use copy of position
   TreePos pos = scan.m_scanPos;
   // get and remember original node
@@ -795,15 +838,14 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
   while (true) {
     jam();
 #ifdef VM_TRACE
-    if (debugFlags & DebugScan) {
-      debugOut << "Scan next pos " << pos << " " << node << endl;
+    if (debugFlags & (DebugMaint | DebugScan)) {
+      debugOut << "Current scan " << scanPtr.i << " pos " << pos << " node " << node << endl;
     }
 #endif
     if (pos.m_dir == 2) {
       // coming up from root ends the scan
       jam();
       pos.m_loc = NullTupLoc;
-      scan.m_state = ScanOp::Last;
       break;
     }
     if (node.m_loc != pos.m_loc) {
@@ -835,41 +877,22 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
     if (pos.m_dir == idir) {
       // coming up from left child scan current node
       jam();
-      pos.m_pos = idir == 0 ? 0 : occup - 1;
-      pos.m_match = false;
+      pos.m_pos = idir == 0 ? (Uint16)-1 : occup;
       pos.m_dir = 3;
     }
     if (pos.m_dir == 3) {
-      // within node
+      // before or within node
       jam();
-      // advance position
-      if (! pos.m_match)
-        pos.m_match = true;
-      else
-        // becomes ZNIL (which is > occup) if 0 and scan descending
-        pos.m_pos += jdir;
+      // advance position - becomes ZNIL (> occup) if 0 and descending
+      pos.m_pos += jdir;
       if (pos.m_pos < occup) {
         jam();
-        ent = node.getEnt(pos.m_pos);
         pos.m_dir = 3;  // unchanged
-        // read and compare all attributes
-        readKeyAttrs(frag, ent, 0, c_entryKey);
-        int ret = cmpScanBound(frag, 1 - idir, c_dataBuffer, scan.m_boundCnt[1 - idir], c_entryKey);
-        ndbrequire(ret != NdbSqlUtil::CmpUnknown);
-        if (jdir * ret < 0) {
+        ent = node.getEnt(pos.m_pos);
+        if (! scanCheck(scanPtr, ent)) {
           jam();
-          // hit upper bound of single range scan
           pos.m_loc = NullTupLoc;
-          scan.m_state = ScanOp::Last;
-          break;
         }
-        // can we see it
-        if (! scanVisible(scanPtr, ent)) {
-          jam();
-          continue;
-        }
-        // found entry
-        scan.m_state = ScanOp::Current;
         break;
       }
       // after node proceed to right child
@@ -895,28 +918,61 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
   // copy back position
   scan.m_scanPos = pos;
   // relink
-  if (scan.m_state == ScanOp::Current) {
-    ndbrequire(pos.m_match == true && pos.m_dir == 3);
+  if (pos.m_loc != NullTupLoc) {
+    ndbrequire(pos.m_dir == 3);
     ndbrequire(pos.m_loc == node.m_loc);
     if (origNode.m_loc != node.m_loc) {
       jam();
       unlinkScan(origNode, scanPtr);
       linkScan(node, scanPtr);
     }
-    // copy found entry
-    scan.m_scanEnt = ent;
-  } else if (scan.m_state == ScanOp::Last) {
-    jam();
-    ndbrequire(pos.m_loc == NullTupLoc);
-    unlinkScan(origNode, scanPtr);
+    if (scan.m_state != ScanOp::Blocked) {
+      scan.m_state = ScanOp::Current;
+    } else {
+      jam();
+      ndbrequire(fromMaintReq);
+      TreeEnt& scanEnt = scan.m_scanEnt;
+      ndbrequire(scanEnt.m_tupLoc != NullTupLoc);
+      if (scanEnt.eqtuple(ent)) {
+        // remains blocked on another version
+        scanEnt = ent;
+      } else {
+        jam();
+        scanEnt.m_tupLoc = NullTupLoc;
+        scan.m_state = ScanOp::Current;
+      }
+    }
   } else {
-    ndbrequire(false);
+    jam();
+    unlinkScan(origNode, scanPtr);
+    scan.m_state = ScanOp::Last;
   }
 #ifdef VM_TRACE
-  if (debugFlags & DebugScan) {
-    debugOut << "Next out scan " << scanPtr.i << " " << scan << endl;
+  if (debugFlags & (DebugMaint | DebugScan)) {
+    debugOut << "Leave next scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
+}
+
+/*
+ * Check end key.  Return true if scan is still within range.
+ */
+bool
+Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent)
+{
+  ScanOp& scan = *scanPtr.p;
+  Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+  const unsigned idir = scan.m_descending;
+  const int jdir = 1 - 2 * (int)idir;
+  unpackBound(*scan.m_bound[1 - idir], c_dataBuffer);
+  unsigned boundCnt = scan.m_boundCnt[1 - idir];
+  readKeyAttrs(frag, ent, 0, c_entryKey);
+  int ret = cmpScanBound(frag, 1 - idir, c_dataBuffer, boundCnt, c_entryKey);
+  ndbrequire(ret != NdbSqlUtil::CmpUnknown);
+  if (jdir * ret > 0)
+    return true;
+  // hit upper bound of single range scan
+  return false;
 }
 
 /*
@@ -959,18 +1015,9 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
   ScanOp& scan = *scanPtr.p;
   ndbrequire(! scan.m_lockwait && scan.m_accLockOp == RNIL);
   // unlock all not unlocked by LQH
-  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
-    if (scan.m_accLockOps[i] != RNIL) {
-      jam();
-      AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
-      lockReq->returnCode = RNIL;
-      lockReq->requestInfo = AccLockReq::Abort;
-      lockReq->accOpPtr = scan.m_accLockOps[i];
-      EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
-      jamEntry();
-      ndbrequire(lockReq->returnCode == AccLockReq::Success);
-      scan.m_accLockOps[i] = RNIL;
-    }
+  if (! scan.m_accLockOps.isEmpty()) {
+    jam();
+    abortAccLockOps(signal, scanPtr);
   }
   // send conf
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
@@ -984,44 +1031,76 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
 }
 
 void
-Dbtux::addAccLockOp(ScanOp& scan, Uint32 accLockOp)
+Dbtux::abortAccLockOps(Signal* signal, ScanOpPtr scanPtr)
 {
-  ndbrequire(accLockOp != RNIL);
-  Uint32* list = scan.m_accLockOps;
-  bool ok = false;
-  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
-    ndbrequire(list[i] != accLockOp);
-    if (! ok && list[i] == RNIL) {
-      list[i] = accLockOp;
-      ok = true;
-      // continue check for duplicates
-    }
+  ScanOp& scan = *scanPtr.p;
+#ifdef VM_TRACE
+  if (debugFlags & (DebugScan | DebugLock)) {
+    debugOut << "Abort locks in scan " << scanPtr.i << " " << scan << endl;
   }
-  if (! ok) {
-    unsigned i = scan.m_maxAccLockOps;
-    if (i < MaxAccLockOps) {
-      list[i] = accLockOp;
-      ok = true;
-      scan.m_maxAccLockOps = i + 1;
-    }
+#endif
+  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  ScanLockPtr lockPtr;
+  while (list.first(lockPtr)) {
+    jam();
+    AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
+    lockReq->returnCode = RNIL;
+    lockReq->requestInfo = AccLockReq::Abort;
+    lockReq->accOpPtr = lockPtr.p->m_accLockOp;
+    EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
+    jamEntry();
+    ndbrequire(lockReq->returnCode == AccLockReq::Success);
+    list.release(lockPtr);
   }
-  ndbrequire(ok);
 }
 
 void
-Dbtux::removeAccLockOp(ScanOp& scan, Uint32 accLockOp)
+Dbtux::addAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp)
 {
+  ScanOp& scan = *scanPtr.p;
+#ifdef VM_TRACE
+  if (debugFlags & (DebugScan | DebugLock)) {
+    debugOut << "Add lock " << hex << accLockOp << dec
+             << " to scan " << scanPtr.i << " " << scan << endl;
+  }
+#endif
+  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  ScanLockPtr lockPtr;
+#ifdef VM_TRACE
+  list.first(lockPtr);
+  while (lockPtr.i != RNIL) {
+    ndbrequire(lockPtr.p->m_accLockOp != accLockOp);
+    list.next(lockPtr);
+  }
+#endif
+  bool ok = list.seize(lockPtr);
+  ndbrequire(ok);
   ndbrequire(accLockOp != RNIL);
-  Uint32* list = scan.m_accLockOps;
-  bool ok = false;
-  for (unsigned i = 0; i < scan.m_maxAccLockOps; i++) {
-    if (list[i] == accLockOp) {
-      list[i] = RNIL;
-      ok = true;
+  lockPtr.p->m_accLockOp = accLockOp;
+}
+
+void
+Dbtux::removeAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp)
+{
+  ScanOp& scan = *scanPtr.p;
+#ifdef VM_TRACE
+  if (debugFlags & (DebugScan | DebugLock)) {
+    debugOut << "Remove lock " << hex << accLockOp << dec
+             << " from scan " << scanPtr.i << " " << scan << endl;
+  }
+#endif
+  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+  ScanLockPtr lockPtr;
+  list.first(lockPtr);
+  while (lockPtr.i != RNIL) {
+    if (lockPtr.p->m_accLockOp == accLockOp) {
+      jam();
       break;
     }
+    list.next(lockPtr);
   }
-  ndbrequire(ok);
+  ndbrequire(lockPtr.i != RNIL);
+  list.release(lockPtr);
 }
 
 /*

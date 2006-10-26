@@ -9,7 +9,9 @@ mytap                 Source for the MyTAP library
 mysys                 Tests for mysys components
   bitmap-t.c          Unit test for MY_BITMAP
   base64-t.c          Unit test for base64 encoding functions
-examples              Example unit tests
+examples              Example unit tests.
+  core-t.c            Example of raising a signal in the middle of the test
+		      THIS TEST WILL STOP ALL FURTHER TESTING!
   simple-t.c          Example of a standard TAP unit test
   skip-t.c            Example where some test points are skipped
   skip_all-t.c        Example of a test where the entire test is skipped
@@ -23,6 +25,9 @@ Executing unit tests
 To make and execute all unit tests in the directory:
 
    make test
+
+Observe that the tests in the examples/ directory are just various
+examples of tests and are not expected to pass.
 
 
 Adding unit tests

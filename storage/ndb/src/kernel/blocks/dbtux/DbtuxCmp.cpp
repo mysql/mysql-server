@@ -34,7 +34,7 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
   // skip to right position in search key only
   for (unsigned i = 0; i < start; i++) {
     jam();
-    searchKey += AttributeHeaderSize + searchKey.ah().getDataSize();
+    searchKey += AttributeHeaderSize + ah(searchKey).getDataSize();
   }
   // number of words of entry data left
   unsigned len2 = maxlen;
@@ -46,16 +46,16 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
       break;
     }
     len2 -= AttributeHeaderSize;
-    if (! searchKey.ah().isNULL()) {
-      if (! entryData.ah().isNULL()) {
+    if (! ah(searchKey).isNULL()) {
+      if (! ah(entryData).isNULL()) {
         jam();
         // verify attribute id
         const DescAttr& descAttr = descEnt.m_descAttr[start];
-        ndbrequire(searchKey.ah().getAttributeId() == descAttr.m_primaryAttrId);
-        ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
+        ndbrequire(ah(searchKey).getAttributeId() == descAttr.m_primaryAttrId);
+        ndbrequire(ah(entryData).getAttributeId() == descAttr.m_primaryAttrId);
         // sizes
-        const unsigned size1 = searchKey.ah().getDataSize();
-        const unsigned size2 = min(entryData.ah().getDataSize(), len2);
+        const unsigned size1 = ah(searchKey).getDataSize();
+        const unsigned size2 = min(ah(entryData).getDataSize(), len2);
         len2 -= size2;
         // compare
         NdbSqlUtil::Cmp* const cmp = c_sqlCmp[start];
@@ -74,15 +74,15 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
         break;
       }
     } else {
-      if (! entryData.ah().isNULL()) {
+      if (! ah(entryData).isNULL()) {
         jam();
         // NULL < not NULL
         ret = -1;
         break;
       }
     }
-    searchKey += AttributeHeaderSize + searchKey.ah().getDataSize();
-    entryData += AttributeHeaderSize + entryData.ah().getDataSize();
+    searchKey += AttributeHeaderSize + ah(searchKey).getDataSize();
+    entryData += AttributeHeaderSize + ah(entryData).getDataSize();
     start++;
   }
   return ret;
@@ -130,17 +130,17 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsign
     // get and skip bound type (it is used after the loop)
     type = boundInfo[0];
     boundInfo += 1;
-    if (! boundInfo.ah().isNULL()) {
-      if (! entryData.ah().isNULL()) {
+    if (! ah(boundInfo).isNULL()) {
+      if (! ah(entryData).isNULL()) {
         jam();
         // verify attribute id
-        const Uint32 index = boundInfo.ah().getAttributeId();
+        const Uint32 index = ah(boundInfo).getAttributeId();
         ndbrequire(index < frag.m_numAttrs);
         const DescAttr& descAttr = descEnt.m_descAttr[index];
-        ndbrequire(entryData.ah().getAttributeId() == descAttr.m_primaryAttrId);
+        ndbrequire(ah(entryData).getAttributeId() == descAttr.m_primaryAttrId);
         // sizes
-        const unsigned size1 = boundInfo.ah().getDataSize();
-        const unsigned size2 = min(entryData.ah().getDataSize(), len2);
+        const unsigned size1 = ah(boundInfo).getDataSize();
+        const unsigned size2 = min(ah(entryData).getDataSize(), len2);
         len2 -= size2;
         // compare
         NdbSqlUtil::Cmp* const cmp = c_sqlCmp[index];
@@ -159,14 +159,14 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsign
       }
     } else {
       jam();
-      if (! entryData.ah().isNULL()) {
+      if (! ah(entryData).isNULL()) {
         jam();
         // NULL < not NULL
         return -1;
       }
     }
-    boundInfo += AttributeHeaderSize + boundInfo.ah().getDataSize();
-    entryData += AttributeHeaderSize + entryData.ah().getDataSize();
+    boundInfo += AttributeHeaderSize + ah(boundInfo).getDataSize();
+    entryData += AttributeHeaderSize + ah(entryData).getDataSize();
     boundCount -= 1;
   }
   // all attributes were equal

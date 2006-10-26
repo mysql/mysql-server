@@ -225,6 +225,7 @@ extern int heap_indexes_are_disabled(HP_INFO *info);
 extern void heap_update_auto_increment(HP_INFO *info, const byte *record);
 ha_rows hp_rb_records_in_range(HP_INFO *info, int inx, key_range *min_key,
                                key_range *max_key);
+int hp_panic(enum ha_panic_function flag);
 int heap_rkey(HP_INFO *info, byte *record, int inx, const byte *key, 
               uint key_len, enum ha_rkey_function find_flag);
 extern gptr heap_find(HP_INFO *info,int inx,const byte *key);

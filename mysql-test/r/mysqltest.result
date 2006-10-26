@@ -217,8 +217,11 @@ hej
 
 a long variable content
 a long variable content
-a long $where variable content
+a long a long variable content variable content
+a long \$where variable content
 
+banana = banana
+Not a banana: ba\$cat\$cat
 mysqltest: At line 1: Missing arguments to let
 mysqltest: At line 1: Missing variable name in let
 mysqltest: At line 1: Missing assignment operator in let

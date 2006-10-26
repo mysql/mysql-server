@@ -32,6 +32,9 @@ insert into t1 value (2);
 select * from t1;
 a
 2
+select * from t1;
+a
+2
 flush status;
 select * from t1;
 a

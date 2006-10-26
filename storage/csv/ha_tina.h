@@ -129,7 +129,7 @@ private:
   int init_tina_writer();
 
 public:
-  ha_tina(TABLE_SHARE *table_arg);
+  ha_tina(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_tina()
   {
     if (chain_alloced)
@@ -189,7 +189,7 @@ public:
   /* This is required for SQL layer to know that we support autorepair */
   bool auto_repair() const { return 1; }
   void position(const byte *record);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int delete_all_rows(void);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
@@ -211,6 +211,4 @@ public:
   int find_current_row(byte *buf);
   int chain_append();
 };
-
-int tina_end(ha_panic_function type);
 

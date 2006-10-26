@@ -54,7 +54,11 @@ enum YasslError {
     verify_error        = 112,
     send_error          = 113,
     receive_error       = 114,
-    certificate_error   = 115
+    certificate_error   = 115,
+    privateKey_error    = 116,
+    badVersion_error    = 117
+
+    // !!!! add error message to .cpp !!!!
 
     // 1000+ from TaoCrypt error.hpp
 

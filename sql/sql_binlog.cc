@@ -31,6 +31,7 @@
 
 void mysql_client_binlog_statement(THD* thd)
 {
+  DBUG_ENTER("mysql_client_binlog_statement");
   DBUG_PRINT("info",("binlog base64: '%*s'",
                      (thd->lex->comment.length < 2048 ?
                       thd->lex->comment.length : 2048),
@@ -43,8 +44,8 @@ void mysql_client_binlog_statement(THD* thd)
   my_bool nsok= thd->net.no_send_ok;
   thd->net.no_send_ok= TRUE;
 
-  const my_size_t coded_len= thd->lex->comment.length + 1;
-  const my_size_t event_len= base64_needed_decoded_length(coded_len);
+  my_size_t coded_len= thd->lex->comment.length + 1;
+  my_size_t decoded_len= base64_needed_decoded_length(coded_len);
   DBUG_ASSERT(coded_len > 0);
 
   /*
@@ -57,9 +58,8 @@ void mysql_client_binlog_statement(THD* thd)
     new Format_description_log_event(4);
 
   const char *error= 0;
-  char *buf= (char *) my_malloc(event_len, MYF(MY_WME));
+  char *buf= (char *) my_malloc(decoded_len, MYF(MY_WME));
   Log_event *ev = 0;
-  int res;
 
   /*
     Out of memory check
@@ -73,43 +73,97 @@ void mysql_client_binlog_statement(THD* thd)
   thd->rli_fake->sql_thd= thd;
   thd->rli_fake->no_storage= TRUE;
 
-  res= base64_decode(thd->lex->comment.str, coded_len, buf);
-
-  DBUG_PRINT("info",("binlog base64 decoded_len=%d, event_len=%d\n",
-                     res, uint4korr(buf + EVENT_LEN_OFFSET)));
-  /*
-    Note that 'res' is the correct event length, 'event_len' was
-    calculated based on the base64-string that possibly contained
-    extra spaces, so it can be longer than the real event.
-  */
-  if (res < EVENT_LEN_OFFSET
-      || (uint) res != uint4korr(buf+EVENT_LEN_OFFSET))
+  for (char const *strptr= thd->lex->comment.str ;
+       strptr < thd->lex->comment.str + thd->lex->comment.length ; )
   {
-    my_error(ER_SYNTAX_ERROR, MYF(0));
-    goto end;
-  }
+    char const *endptr= 0;
+    int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr);
 
-  ev= Log_event::read_log_event(buf, res, &error, desc);
+    DBUG_PRINT("info",
+               ("bytes_decoded=%d; strptr=0x%lu; endptr=0x%lu ('%c':%d)",
+                bytes_decoded, strptr, endptr, *endptr, *endptr));
 
-  DBUG_PRINT("info",("binlog base64 err=%s", error));
-  if (!ev)
-  {
+    if (bytes_decoded < 0)
+    {
+      my_error(ER_BASE64_DECODE_ERROR, MYF(0));
+      goto end;
+    }
+    else if (bytes_decoded == 0)
+      break; // If no bytes where read, the string contained only whitespace
+
+    DBUG_ASSERT(bytes_decoded > 0);
+    DBUG_ASSERT(endptr > strptr);
+    coded_len-= endptr - strptr;
+    strptr= endptr;
+
     /*
-      This could actually be an out-of-memory, but it is more
-      likely causes by a bad statement
+      Now we have one or more events stored in the buffer. The size of
+      the buffer is computed based on how much base64-encoded data
+      there were, so there should be ample space for the data (maybe
+      even too much, since a statement can consist of a considerable
+      number of events).
+
+      TODO: Switch to use a stream-based base64 encoder/decoder in
+      order to be able to read exactly what is necessary.
     */
-    my_error(ER_SYNTAX_ERROR, MYF(0));
-    goto end;
-  }
 
-  DBUG_PRINT("info",("ev->get_type_code()=%d", ev->get_type_code()));
-  DBUG_PRINT("info",("buf+EVENT_TYPE_OFFSET=%d", buf+EVENT_TYPE_OFFSET));
+    DBUG_PRINT("info",("binlog base64 decoded_len=%d, bytes_decoded=%d",
+                       decoded_len, bytes_decoded));
 
-  ev->thd= thd;
-  if (ev->exec_event(thd->rli_fake))
-  {
-    my_error(ER_UNKNOWN_ERROR, MYF(0), "Error executing BINLOG statement");
-    goto end;
+    /*
+      Now we start to read events of the buffer, until there are no
+      more.
+    */
+    for (char *bufptr= buf ; bytes_decoded > 0 ; )
+    {
+      /*
+        Checking that the first event in the buffer is not truncated.
+      */
+      ulong event_len= uint4korr(bufptr + EVENT_LEN_OFFSET);
+      DBUG_PRINT("info", ("event_len=%lu, bytes_decoded=%d",
+                          event_len, bytes_decoded));
+      if (bytes_decoded < EVENT_LEN_OFFSET || (uint) bytes_decoded < event_len)
+      {
+        my_error(ER_SYNTAX_ERROR, MYF(0));
+        goto end;
+      }
+
+      ev= Log_event::read_log_event(bufptr, event_len, &error, desc);
+
+      DBUG_PRINT("info",("binlog base64 err=%s", error));
+      if (!ev)
+      {
+        /*
+          This could actually be an out-of-memory, but it is more likely
+          causes by a bad statement
+        */
+        my_error(ER_SYNTAX_ERROR, MYF(0));
+        goto end;
+      }
+
+      bytes_decoded -= event_len;
+      bufptr += event_len;
+
+      DBUG_PRINT("info",("ev->get_type_code()=%d", ev->get_type_code()));
+      DBUG_PRINT("info",("bufptr+EVENT_TYPE_OFFSET=0x%lx",
+                         bufptr+EVENT_TYPE_OFFSET));
+      DBUG_PRINT("info", ("bytes_decoded=%d; bufptr=0x%lx; buf[EVENT_LEN_OFFSET]=%u",
+                          bytes_decoded, bufptr, uint4korr(bufptr+EVENT_LEN_OFFSET)));
+      ev->thd= thd;
+      if (int err= ev->exec_event(thd->rli_fake))
+      {
+        DBUG_PRINT("info", ("exec_event() - error=%d", error));
+        /*
+          TODO: Maybe a better error message since the BINLOG statement
+          now contains several events.
+        */
+        my_error(ER_UNKNOWN_ERROR, MYF(0), "Error executing BINLOG statement");
+        goto end;
+      }
+
+      delete ev;
+      ev= 0;
+    }
   }
 
   /*
@@ -126,10 +180,7 @@ end:
   */
   thd->net.no_send_ok= nsok;
 
-  if (ev)
-    delete ev;
-  if (desc)
-    delete desc;
-  if (buf)
-    my_free(buf, MYF(0));
+  delete desc;
+  my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
+  DBUG_VOID_RETURN;
 }

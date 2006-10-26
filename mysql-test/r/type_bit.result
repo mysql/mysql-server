@@ -602,4 +602,12 @@ NULL	NULL
 0	0
 11111111	11111111
 drop table bug15583;
+create table t1(a bit(1), b smallint unsigned);
+insert into t1 (b, a) values ('2', '1');
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select hex(a), b from t1;
+hex(a)	b
+1	2
+drop table t1;
 End of 5.0 tests

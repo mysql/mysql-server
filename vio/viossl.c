@@ -167,10 +167,9 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, vio->sd);
-  SSL_set_accept_state(ssl);
-  if (SSL_do_handshake(ssl) < 1)
+  if (SSL_accept(ssl) < 1)
   {
-    DBUG_PRINT("error", ("SSL_do_handshake failure"));
+    DBUG_PRINT("error", ("SSL_accept failure"));
     report_errors(ssl);
     SSL_free(ssl);
     vio->ssl_arg= 0;
@@ -242,10 +241,9 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, vio->sd);
-  SSL_set_connect_state(ssl);
-  if (SSL_do_handshake(ssl) < 1)
+  if (SSL_connect(ssl) < 1)
   {
-    DBUG_PRINT("error", ("SSL_do_handshake failure"));
+    DBUG_PRINT("error", ("SSL_connect failure"));
     report_errors(ssl);
     SSL_free(ssl);
     vio->ssl_arg= 0;

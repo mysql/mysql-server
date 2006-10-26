@@ -660,9 +660,11 @@ main(int argc, const char** argv){
 
   Vector<int> tmp;
   generate(tmp, 5);
-
+  
   NDBT_TestSuite ts("testOperations");
-
+  
+  ts.setTemporaryTables(true);
+  
   for(Uint32 i = 0; i < 12; i++)
   {
     if(false && (i == 6 || i == 8 || i == 10))

@@ -359,15 +359,6 @@ show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE `t2` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	#	Query	1	#	use `test`; DROP TABLE if exists t2
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
@@ -375,15 +366,6 @@ master-bin.000001	#	Query	1	#	use `test`; DROP TABLE IF EXISTS t2
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t2 (a int, b int, primary key (a)) engine=innodb
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
-master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE `t2` (
-  `a` int(11) NOT NULL DEFAULT '0',
-  `b` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB
-master-bin.000001	#	Table_map	1	#	table_id: # (test.t2)
-master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	#	Query	1	#	use `test`; TRUNCATE table t2
 master-bin.000001	#	Xid	1	#	COMMIT /* xid= */
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)

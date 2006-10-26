@@ -703,7 +703,7 @@ def	test	t1	t1	g	g	255	4294967295	0	Y	144	0	63
 g
 select asbinary(g) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					asbinary(g)	252	8192	0	Y	128	0	63
+def					asbinary(g)	252	16777216	0	Y	128	0	63
 asbinary(g)
 drop table t1;
 create table t1 select GeomFromText('point(1 1)');

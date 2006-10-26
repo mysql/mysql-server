@@ -627,7 +627,7 @@ class Thd_ndb
 class ha_ndbcluster: public handler
 {
  public:
-  ha_ndbcluster(TABLE_SHARE *table);
+  ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
 
   int ha_initialise();
@@ -673,7 +673,7 @@ class ha_ndbcluster: public handler
 
   bool get_error_message(int error, String *buf);
   ha_rows records();
-  void info(uint);
+  int info(uint);
   void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
@@ -772,6 +772,12 @@ static void set_tabname(const char *pathname, char *tabname);
   void cond_pop();
 
   uint8 table_cache_type();
+
+  /*
+   * Internal to ha_ndbcluster, used by C functions
+   */
+  int ndb_err(NdbTransaction*);
+
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
                                      qc_engine_callback *engine_callback,
@@ -808,7 +814,7 @@ private:
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
   NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
                                          bool primary) const;
-  int check_index_fields_not_null(uint index_no);
+  int check_index_fields_not_null(KEY *key_info);
 
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,
@@ -868,7 +874,6 @@ private:
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  int ndb_err(NdbTransaction*);
   bool uses_blob_value();
 
   char *update_table_comment(const char * comment);
@@ -878,7 +883,7 @@ private:
   int check_ndb_connection(THD* thd= current_thd);
 
   void set_rec_per_key();
-  void records_update();
+  int records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);

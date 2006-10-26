@@ -139,7 +139,7 @@ void DH_Server::build(SSL& ssl)
                        parms_.alloc_pub(pubSz));
 
     short sigSz = 0;
-    mySTL::auto_ptr<Auth> auth(ysDelete);
+    mySTL::auto_ptr<Auth> auth;
     const CertManager& cert = ssl.getCrypto().get_certManager();
     
     if (ssl.getSecurity().get_parms().sig_algo_ == rsa_sa_algo)
@@ -151,9 +151,11 @@ void DH_Server::build(SSL& ssl)
         sigSz += DSS_ENCODED_EXTRA;
     }
     
-
     sigSz += auth->get_signatureLength();
-
+    if (!sigSz) {
+        ssl.SetError(privateKey_error);
+        return;
+    }
 
     length_ = 8; // pLen + gLen + YsLen + SigLen
     length_ += pSz + gSz + pubSz + sigSz;
@@ -612,7 +614,7 @@ void HandShakeHeader::Process(input_buffer& input, SSL& ssl)
 {
     ssl.verifyState(*this);
     const HandShakeFactory& hsf = ssl.getFactory().getHandShake();
-    mySTL::auto_ptr<HandShakeBase> hs(hsf.CreateObject(type_), ysDelete);
+    mySTL::auto_ptr<HandShakeBase> hs(hsf.CreateObject(type_));
     if (!hs.get()) {
         ssl.SetError(factory_error);
         return;
@@ -1214,6 +1216,20 @@ output_buffer& operator<<(output_buffer& output, const ServerHello& hello)
 // Server Hello processing handler
 void ServerHello::Process(input_buffer&, SSL& ssl)
 {
+    if (ssl.GetMultiProtocol()) {   // SSLv23 support
+        if (ssl.isTLS() && server_version_.minor_ < 1)
+            // downgrade to SSLv3
+            ssl.useSecurity().use_connection().TurnOffTLS();
+    }
+    else if (ssl.isTLS() && server_version_.minor_ < 1) {
+        ssl.SetError(badVersion_error);
+        return;
+    }
+    else if (!ssl.isTLS() && (server_version_.major_ == 3 &&
+                              server_version_.minor_ >= 1)) {
+        ssl.SetError(badVersion_error);
+        return;
+    }
     ssl.set_pending(cipher_suite_[1]);
     ssl.set_random(random_, server_end);
     if (id_len_)
@@ -1384,10 +1400,22 @@ output_buffer& operator<<(output_buffer& output, const ClientHello& hello)
 // Client Hello processing handler
 void ClientHello::Process(input_buffer&, SSL& ssl)
 {
-    if (ssl.isTLS() && client_version_.minor_ == 0) {
+    if (ssl.GetMultiProtocol()) {   // SSLv23 support
+        if (ssl.isTLS() && client_version_.minor_ < 1) {
+            // downgrade to SSLv3
         ssl.useSecurity().use_connection().TurnOffTLS();
         ProtocolVersion pv = ssl.getSecurity().get_connection().version_;
         ssl.useSecurity().use_parms().SetSuites(pv);  // reset w/ SSL suites
+    }
+    }
+    else if (ssl.isTLS() && client_version_.minor_ < 1) {
+        ssl.SetError(badVersion_error);
+        return;
+    }
+    else if (!ssl.isTLS() && (client_version_.major_ == 3 &&
+                              client_version_.minor_ >= 1)) {
+        ssl.SetError(badVersion_error);
+        return;
     }
     ssl.set_random(random_, client_end);
 
@@ -1541,7 +1569,7 @@ CertificateRequest::CertificateRequest()
 CertificateRequest::~CertificateRequest()
 {
 
-    mySTL::for_each(certificate_authorities_.begin(),
+    STL::for_each(certificate_authorities_.begin(),
                   certificate_authorities_.end(),
                   del_ptr_zero()) ;
 }
@@ -1634,9 +1662,9 @@ output_buffer& operator<<(output_buffer& output,
            request.typeTotal_ - REQUEST_HEADER, tmp);
     output.write(tmp, sizeof(tmp));
 
-    mySTL::list<DistinguishedName>::const_iterator first =
+    STL::list<DistinguishedName>::const_iterator first =
                                     request.certificate_authorities_.begin();
-    mySTL::list<DistinguishedName>::const_iterator last =
+    STL::list<DistinguishedName>::const_iterator last =
                                     request.certificate_authorities_.end();
     while (first != last) {
         uint16 sz;
@@ -1684,7 +1712,7 @@ void CertificateVerify::Build(SSL& ssl)
 
     uint16 sz = 0;
     byte   len[VERIFY_HEADER];
-    mySTL::auto_ptr<byte> sig(ysArrayDelete);
+    mySTL::auto_array<byte> sig;
 
     // sign
     const CertManager& cert = ssl.getCrypto().get_certManager();

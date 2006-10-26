@@ -196,7 +196,7 @@ typedef struct my_charset_handler_st
   
   /* Charset dependant snprintf() */
   int  (*snprintf)(struct charset_info_st *, char *to, uint n, const char *fmt,
-		   ...);
+		   ...) ATTRIBUTE_FORMAT_FPTR(printf, 4, 5);
   int  (*long10_to_str)(struct charset_info_st *, char *to, uint n, int radix,
 			long int val);
   int (*longlong10_to_str)(struct charset_info_st *, char *to, uint n,
@@ -217,6 +217,9 @@ typedef struct my_charset_handler_st
 			 int *err);
   longlong    (*strtoll10)(struct charset_info_st *cs,
                            const char *nptr, char **endptr, int *error);
+  ulonglong   (*strntoull10rnd)(struct charset_info_st *cs,
+                                const char *str, uint length, int unsigned_fl,
+                                char **endptr, int *error);
   ulong        (*scan)(struct charset_info_st *, const char *b, const char *e,
 		       int sq);
 } MY_CHARSET_HANDLER;
@@ -335,7 +338,8 @@ int my_mb_ctype_mb(CHARSET_INFO *,int *, const uchar *,const uchar *);
 ulong my_scan_8bit(CHARSET_INFO *cs, const char *b, const char *e, int sq);
 
 int my_snprintf_8bit(struct charset_info_st *, char *to, uint n,
-		     const char *fmt, ...);
+		     const char *fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 4, 5);
 
 long        my_strntol_8bit(CHARSET_INFO *, const char *s, uint l, int base,
 			    char **e, int *err);
@@ -356,6 +360,13 @@ longlong my_strtoll10_8bit(CHARSET_INFO *cs,
                            const char *nptr, char **endptr, int *error);
 longlong my_strtoll10_ucs2(CHARSET_INFO *cs, 
                            const char *nptr, char **endptr, int *error);
+
+ulonglong my_strntoull10rnd_8bit(CHARSET_INFO *cs,
+                                 const char *str, uint length, int unsigned_fl,
+                                 char **endptr, int *error);
+ulonglong my_strntoull10rnd_ucs2(CHARSET_INFO *cs, 
+                                 const char *str, uint length, int unsigned_fl,
+                                 char **endptr, int *error);
 
 void my_fill_8bit(CHARSET_INFO *cs, char* to, uint l, int fill);
 

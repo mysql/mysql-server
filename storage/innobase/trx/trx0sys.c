@@ -105,17 +105,17 @@ trx_doublewrite_init(
 
 	trx_doublewrite->first_free = 0;
 
-	trx_doublewrite->block1 = mach_read_from_4
-		(doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK1);
-	trx_doublewrite->block2 = mach_read_from_4
-		(doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK2);
-	trx_doublewrite->write_buf_unaligned = ut_malloc
-		((1 + 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) * UNIV_PAGE_SIZE);
+	trx_doublewrite->block1 = mach_read_from_4(
+		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK1);
+	trx_doublewrite->block2 = mach_read_from_4(
+		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK2);
+	trx_doublewrite->write_buf_unaligned = ut_malloc(
+		(1 + 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) * UNIV_PAGE_SIZE);
 
-	trx_doublewrite->write_buf = ut_align
-		(trx_doublewrite->write_buf_unaligned, UNIV_PAGE_SIZE);
-	trx_doublewrite->buf_block_arr = mem_alloc
-		(2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * sizeof(void*));
+	trx_doublewrite->write_buf = ut_align(
+		trx_doublewrite->write_buf_unaligned, UNIV_PAGE_SIZE);
+	trx_doublewrite->buf_block_arr = mem_alloc(
+		2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * sizeof(void*));
 }
 
 /********************************************************************
@@ -438,8 +438,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 			/* printf("Resetting space id in page %lu\n",
 			source_page_no); */
 		} else {
-			space_id = mach_read_from_4
-				(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+			space_id = mach_read_from_4(
+				page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 		}
 
 		if (!restore_corrupt_pages) {
@@ -671,12 +671,12 @@ trx_sys_print_mysql_binlog_offset_from_page(
 		fprintf(stderr,
 			"ibbackup: Last MySQL binlog file position %lu %lu,"
 			" file name %s\n",
-			(ulong) mach_read_from_4
-			(sys_header + TRX_SYS_MYSQL_LOG_INFO
-			 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-			(ulong) mach_read_from_4
-			(sys_header + TRX_SYS_MYSQL_LOG_INFO
-			 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
+			(ulong) mach_read_from_4(
+				sys_header + TRX_SYS_MYSQL_LOG_INFO
+				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
+			(ulong) mach_read_from_4(
+				sys_header + TRX_SYS_MYSQL_LOG_INFO
+				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
 			sys_header + TRX_SYS_MYSQL_LOG_INFO
 			+ TRX_SYS_MYSQL_LOG_NAME);
 	}
@@ -708,12 +708,12 @@ trx_sys_print_mysql_binlog_offset(void)
 		return;
 	}
 
-	trx_sys_mysql_bin_log_pos_high = mach_read_from_4
-		(sys_header + TRX_SYS_MYSQL_LOG_INFO
-		 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH);
-	trx_sys_mysql_bin_log_pos_low = mach_read_from_4
-		(sys_header + TRX_SYS_MYSQL_LOG_INFO
-		 + TRX_SYS_MYSQL_LOG_OFFSET_LOW);
+	trx_sys_mysql_bin_log_pos_high = mach_read_from_4(
+		sys_header + TRX_SYS_MYSQL_LOG_INFO
+		+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH);
+	trx_sys_mysql_bin_log_pos_low = mach_read_from_4(
+		sys_header + TRX_SYS_MYSQL_LOG_INFO
+		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
 	trx_sys_mysql_bin_log_pos
 		= (((ib_longlong)trx_sys_mysql_bin_log_pos_high) << 32)
@@ -777,12 +777,12 @@ trx_sys_print_mysql_master_log_pos(void)
 		  TRX_SYS_MYSQL_LOG_NAME_LEN);
 
 	trx_sys_mysql_master_log_pos
-		= (((ib_longlong) mach_read_from_4
-		    (sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		     + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
-		+ ((ib_longlong) mach_read_from_4
-		   (sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		    + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
+		= (((ib_longlong) mach_read_from_4(
+			    sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
+		+ ((ib_longlong) mach_read_from_4(
+			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
+			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
 	mtr_commit(&mtr);
 }
 
@@ -847,18 +847,19 @@ trx_sysf_create(
 			   mtr);
 	ut_a(buf_frame_get_page_no(page) == TRX_SYS_PAGE_NO);
 
-	/* Reset the doublewrite buffer magic number to zero so that we
-	know that the doublewrite buffer has not yet been created (this
-	suppresses a Valgrind warning) */
-
-	mach_write_to_4(page + TRX_SYS_DOUBLEWRITE + TRX_SYS_DOUBLEWRITE_MAGIC,
-			0);
 #ifdef UNIV_SYNC_DEBUG
 	buf_page_dbg_add_level(page, SYNC_TRX_SYS_HEADER);
 #endif /* UNIV_SYNC_DEBUG */
 
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_TRX_SYS,
 			 MLOG_2BYTES, mtr);
+
+	/* Reset the doublewrite buffer magic number to zero so that we
+	know that the doublewrite buffer has not yet been created (this
+	suppresses a Valgrind warning) */
+
+	mlog_write_ulint(page + TRX_SYS_DOUBLEWRITE
+			 + TRX_SYS_DOUBLEWRITE_MAGIC, 0, MLOG_4BYTES, mtr);
 
 	sys_header = trx_sysf_get(mtr);
 
@@ -919,12 +920,12 @@ trx_sys_init_at_db_start(void)
 	to the disk-based header! Thus trx id values will not overlap when
 	the database is repeatedly started! */
 
-	trx_sys->max_trx_id = ut_dulint_add
-		(ut_dulint_align_up(mtr_read_dulint
-				    (sys_header
-				     + TRX_SYS_TRX_ID_STORE, &mtr),
-				    TRX_SYS_TRX_ID_WRITE_MARGIN),
-		 2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
+	trx_sys->max_trx_id = ut_dulint_add(
+		ut_dulint_align_up(mtr_read_dulint(
+					   sys_header
+					   + TRX_SYS_TRX_ID_STORE, &mtr),
+				   TRX_SYS_TRX_ID_WRITE_MARGIN),
+		2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
 
 	UT_LIST_INIT(trx_sys->mysql_trx_list);
 	trx_lists_init_at_db_start();
@@ -935,8 +936,8 @@ trx_sys_init_at_db_start(void)
 		for (;;) {
 
 			if ( trx->conc_state != TRX_PREPARED) {
-				rows_to_undo += ut_conv_dulint_to_longlong
-					(trx->undo_no);
+				rows_to_undo += ut_conv_dulint_to_longlong(
+					trx->undo_no);
 			}
 
 			trx = UT_LIST_GET_NEXT(trx_list, trx);

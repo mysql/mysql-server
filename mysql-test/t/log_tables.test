@@ -178,21 +178,21 @@ select * from mysql.slow_log;
 
 # check that appropriate error messages are given when one attempts to alter
 # or drop a log tables, while corresponding logs are enabled
---error ER_CANT_ALTER_LOG_TABLE
+--error ER_BAD_LOG_STATEMENT
 alter table mysql.general_log engine=myisam;
---error ER_CANT_ALTER_LOG_TABLE
+--error ER_BAD_LOG_STATEMENT
 alter table mysql.slow_log engine=myisam;
 
---error ER_CANT_DROP_LOG_TABLE
+--error ER_BAD_LOG_STATEMENT
 drop table mysql.general_log;
---error ER_CANT_DROP_LOG_TABLE
+--error ER_BAD_LOG_STATEMENT
 drop table mysql.slow_log;
 
 # check that one can alter log tables to MyISAM
 set global general_log='OFF';
 
 # cannot convert another log table
---error ER_CANT_ALTER_LOG_TABLE
+--error ER_BAD_LOG_STATEMENT
 alter table mysql.slow_log engine=myisam;
 
 # alter both tables
@@ -252,13 +252,13 @@ set global general_log='OFF';
 set global slow_query_log='OFF';
 
 # check that alter table doesn't work for other engines
---error ER_BAD_LOG_ENGINE
+--error ER_UNSUPORTED_LOG_ENGINE
 alter table mysql.slow_log engine=ndb;
---error ER_BAD_LOG_ENGINE
+--error ER_UNSUPORTED_LOG_ENGINE
 alter table mysql.slow_log engine=innodb;
---error ER_BAD_LOG_ENGINE
+--error ER_UNSUPORTED_LOG_ENGINE
 alter table mysql.slow_log engine=archive;
---error ER_BAD_LOG_ENGINE
+--error ER_UNSUPORTED_LOG_ENGINE
 alter table mysql.slow_log engine=blackhole;
 
 drop table mysql.slow_log;
