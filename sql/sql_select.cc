@@ -2200,7 +2200,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables, COND *conds,
       continue;
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    bool no_partitions_used= table->no_partitions_used;
+    const bool no_partitions_used= table->no_partitions_used;
 #else
     const bool no_partitions_used= FALSE;
 #endif
