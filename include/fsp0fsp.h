@@ -80,16 +80,17 @@ Reads the space id from the first page of a tablespace. */
 ulint
 fsp_header_get_space_id(
 /*====================*/
-			/* out: space id, ULINT UNDEFINED if error */
-	page_t* page);	 /* in: first page of a tablespace */
+				/* out: space id, ULINT UNDEFINED if error */
+	const page_t*	page);	/* in: first page of a tablespace */
 /**************************************************************************
 Reads the compressed page size from the first page of a tablespace. */
 
 ulint
 fsp_header_get_zip_size(
 /*=====================*/
-			/* out: compressed page size, or 0 if uncompressed */
-	page_t*	page);	/* in: first page of a tablespace */
+				/* out: compressed page size in bytes,
+				or 0 if uncompressed */
+	const page_t*	page);	/* in: first page of a tablespace */
 /**************************************************************************
 Writes the space id and compressed page size to a tablespace header.
 This function is used past the buffer pool when we in fil0fil.c create

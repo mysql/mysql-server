@@ -95,7 +95,7 @@ ha_remove_all_nodes_to_page(
 /*========================*/
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: fold value */
-	page_t*		page);	/* in: buffer page */
+	const page_t*	page);	/* in: buffer page */
 /*****************************************************************
 Validates a given range of the cells in hash table. */
 
