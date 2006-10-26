@@ -228,7 +228,7 @@ row_ins_sec_index_entry_by_modify(
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
 	btr_cur_t*	cursor,	/* in: B-tree cursor */
-	dtuple_t*	entry,	/* in: index entry to insert */
+	const dtuple_t*	entry,	/* in: index entry to insert */
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -300,8 +300,8 @@ row_ins_clust_index_entry_by_modify(
 	big_rec_t**	big_rec,/* out: possible big rec vector of fields
 				which have to be stored externally by the
 				caller */
-	dtuple_t*	entry,	/* in: index entry to insert */
-	ulint*		ext_vec,/* in: array containing field numbers of
+	const dtuple_t*	entry,	/* in: index entry to insert */
+	const ulint*	ext_vec,/* in: array containing field numbers of
 				externally stored fields in entry, or NULL */
 	ulint		n_ext_vec,/* in: number of fields in ext_vec */
 	que_thr_t*	thr,	/* in: query thread */
@@ -632,9 +632,9 @@ row_ins_foreign_report_err(
 	que_thr_t*	thr,		/* in: query thread whose run_node
 					is an update node */
 	dict_foreign_t*	foreign,	/* in: foreign key constraint */
-	rec_t*		rec,		/* in: a matching index record in the
+	const rec_t*	rec,		/* in: a matching index record in the
 					child table */
-	dtuple_t*	entry)		/* in: index entry in the parent
+	const dtuple_t*	entry)		/* in: index entry in the parent
 					table */
 {
 	FILE*	ef	= dict_foreign_err_file;
@@ -686,10 +686,10 @@ row_ins_foreign_report_add_err(
 /*===========================*/
 	trx_t*		trx,		/* in: transaction */
 	dict_foreign_t*	foreign,	/* in: foreign key constraint */
-	rec_t*		rec,		/* in: a record in the parent table:
+	const rec_t*	rec,		/* in: a record in the parent table:
 					it does not match entry because we
 					have an error! */
-	dtuple_t*	entry)		/* in: index entry to insert in the
+	const dtuple_t*	entry)		/* in: index entry to insert in the
 					child table */
 {
 	FILE*	ef	= dict_foreign_err_file;
@@ -721,7 +721,7 @@ row_ins_foreign_report_add_err(
 		/* If the cursor ended on a supremum record, it is better
 		to report the previous record in the error message, so that
 		the user gets a more descriptive error message. */
-		rec = page_rec_get_prev(rec);
+		rec = page_rec_get_prev((rec_t*) rec);
 	}
 
 	if (rec) {
