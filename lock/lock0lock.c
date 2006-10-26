@@ -414,8 +414,8 @@ UNIV_INLINE
 ulint
 lock_get_type(
 /*==========*/
-			/* out: LOCK_TABLE or LOCK_REC */
-	lock_t*	lock)	/* in: lock */
+				/* out: LOCK_TABLE or LOCK_REC */
+	const lock_t*	lock)	/* in: lock */
 {
 	ut_ad(lock);
 
@@ -428,9 +428,9 @@ UNIV_INLINE
 ibool
 lock_rec_get_nth_bit(
 /*=================*/
-			/* out: TRUE if bit set */
-	lock_t*	lock,	/* in: record lock */
-	ulint	i)	/* in: index of the bit */
+				/* out: TRUE if bit set */
+	const lock_t*	lock,	/* in: record lock */
+	ulint		i)	/* in: index of the bit */
 {
 	ulint	byte_index;
 	ulint	bit_index;
@@ -616,8 +616,8 @@ UNIV_INLINE
 ulint
 lock_get_mode(
 /*==========*/
-			/* out: mode */
-	lock_t*	lock)	/* in: lock */
+				/* out: mode */
+	const lock_t*	lock)	/* in: lock */
 {
 	ut_ad(lock);
 
@@ -630,8 +630,8 @@ UNIV_INLINE
 ibool
 lock_get_wait(
 /*==========*/
-			/* out: TRUE if waiting */
-	lock_t*	lock)	/* in: lock */
+				/* out: TRUE if waiting */
+	const lock_t*	lock)	/* in: lock */
 {
 	ut_ad(lock);
 
@@ -729,8 +729,8 @@ lock_is_table_exclusive(
 	dict_table_t*	table,	/* in: table */
 	trx_t*		trx)	/* in: transaction */
 {
-	lock_t*	lock;
-	ibool	ok	= FALSE;
+	const lock_t*	lock;
+	ibool		ok	= FALSE;
 
 	ut_ad(table && trx);
 
@@ -778,7 +778,7 @@ lock_set_lock_and_trx_wait(
 	ut_ad(trx->wait_lock == NULL);
 
 	trx->wait_lock = lock;
-	lock->type_mode = lock->type_mode | LOCK_WAIT;
+	lock->type_mode |= LOCK_WAIT;
 }
 
 /**************************************************************************
@@ -796,7 +796,7 @@ lock_reset_lock_and_trx_wait(
 	/* Reset the back pointer in trx to this waiting lock request */
 
 	(lock->trx)->wait_lock = NULL;
-	lock->type_mode = lock->type_mode & ~LOCK_WAIT;
+	lock->type_mode &= ~LOCK_WAIT;
 }
 
 /*************************************************************************
@@ -805,8 +805,8 @@ UNIV_INLINE
 ibool
 lock_rec_get_gap(
 /*=============*/
-			/* out: TRUE if gap flag set */
-	lock_t*	lock)	/* in: record lock */
+				/* out: TRUE if gap flag set */
+	const lock_t*	lock)	/* in: record lock */
 {
 	ut_ad(lock);
 	ut_ad(lock_get_type(lock) == LOCK_REC);
@@ -825,8 +825,8 @@ UNIV_INLINE
 ibool
 lock_rec_get_rec_not_gap(
 /*=====================*/
-			/* out: TRUE if LOCK_REC_NOT_GAP flag set */
-	lock_t*	lock)	/* in: record lock */
+				/* out: TRUE if LOCK_REC_NOT_GAP flag set */
+	const lock_t*	lock)	/* in: record lock */
 {
 	ut_ad(lock);
 	ut_ad(lock_get_type(lock) == LOCK_REC);
@@ -845,8 +845,8 @@ UNIV_INLINE
 ibool
 lock_rec_get_insert_intention(
 /*==========================*/
-			/* out: TRUE if gap flag set */
-	lock_t*	lock)	/* in: record lock */
+				/* out: TRUE if gap flag set */
+	const lock_t*	lock)	/* in: record lock */
 {
 	ut_ad(lock);
 	ut_ad(lock_get_type(lock) == LOCK_REC);
@@ -945,19 +945,21 @@ UNIV_INLINE
 ibool
 lock_rec_has_to_wait(
 /*=================*/
-			/* out: TRUE if new lock has to wait for lock2 to be
-			removed */
-	trx_t*	trx,	/* in: trx of new lock */
-	ulint	type_mode,/* in: precise mode of the new lock to set:
-			LOCK_S or LOCK_X, possibly ORed to
-			LOCK_GAP or LOCK_REC_NOT_GAP, LOCK_INSERT_INTENTION */
-	lock_t*	lock2,	/* in: another record lock; NOTE that it is assumed
-			that this has a lock bit set on the same record as
-			in the new lock we are setting */
-	ibool lock_is_on_supremum)  /* in: TRUE if we are setting the lock
-			on the 'supremum' record of an index
-			page: we know then that the lock request
-			is really for a 'gap' type lock */
+				/* out: TRUE if new lock has to wait
+				for lock2 to be removed */
+	const trx_t*	trx,	/* in: trx of new lock */
+	ulint		type_mode,/* in: precise mode of the new lock
+				to set: LOCK_S or LOCK_X, possibly
+				ORed to LOCK_GAP or LOCK_REC_NOT_GAP,
+				LOCK_INSERT_INTENTION */
+	const lock_t*	lock2,	/* in: another record lock; NOTE that
+				it is assumed that this has a lock bit
+				set on the same record as in the new
+				lock we are setting */
+	ibool lock_is_on_supremum)  /* in: TRUE if we are setting the
+				lock on the 'supremum' record of an
+				index page: we know then that the lock
+				request is really for a 'gap' type lock */
 {
 	ut_ad(trx && lock2);
 	ut_ad(lock_get_type(lock2) == LOCK_REC);
@@ -1026,12 +1028,13 @@ static
 ibool
 lock_has_to_wait(
 /*=============*/
-			/* out: TRUE if lock1 has to wait for lock2 to be
-			removed */
-	lock_t*	lock1,	/* in: waiting lock */
-	lock_t*	lock2)	/* in: another lock; NOTE that it is assumed that this
-			has a lock bit set on the same record as in lock1 if
-			the locks are record locks */
+				/* out: TRUE if lock1 has to wait for
+				lock2 to be removed */
+	const lock_t*	lock1,	/* in: waiting lock */
+	const lock_t*	lock2)	/* in: another lock; NOTE that it is
+				assumed that this has a lock bit set
+				on the same record as in lock1 if the
+				locks are record locks */
 {
 	ut_ad(lock1 && lock2);
 
@@ -1064,8 +1067,8 @@ UNIV_INLINE
 ulint
 lock_rec_get_n_bits(
 /*================*/
-			/* out: number of bits */
-	lock_t*	lock)	/* in: record lock */
+				/* out: number of bits */
+	const lock_t*	lock)	/* in: record lock */
 {
 	return(lock->un_member.rec_lock.n_bits);
 }
@@ -1107,9 +1110,9 @@ static
 ulint
 lock_rec_find_set_bit(
 /*==================*/
-			/* out: bit index == heap number of the record, or
-			ULINT_UNDEFINED if none found */
-	lock_t*	lock)	/* in: record lock with at least one bit set */
+				/* out: bit index == heap number of
+				the record, or ULINT_UNDEFINED if none found */
+	const lock_t*	lock)	/* in: record lock with at least one bit set */
 {
 	ulint	i;
 
@@ -1347,26 +1350,18 @@ lock_rec_bitmap_reset(
 /*==================*/
 	lock_t*	lock)	/* in: record lock */
 {
-	byte*	ptr;
 	ulint	n_bytes;
-	ulint	i;
 
 	ut_ad(lock_get_type(lock) == LOCK_REC);
 
 	/* Reset to zero the bitmap which resides immediately after the lock
 	struct */
 
-	ptr = (byte*)lock + sizeof(lock_t);
-
 	n_bytes = lock_rec_get_n_bits(lock) / 8;
 
 	ut_ad((lock_rec_get_n_bits(lock) % 8) == 0);
 
-	for (i = 0; i < n_bytes; i++) {
-
-		*ptr = 0;
-		ptr++;
-	}
+	memset((byte*) lock + sizeof(lock_t), 0, n_bytes);
 }
 
 /*************************************************************************
@@ -1376,7 +1371,7 @@ lock_t*
 lock_rec_copy(
 /*==========*/
 				/* out: copy of lock */
-	lock_t*		lock,	/* in: record lock */
+	const lock_t*	lock,	/* in: record lock */
 	mem_heap_t*	heap)	/* in: memory heap */
 {
 	lock_t*	dupl_lock;
@@ -5022,12 +5017,12 @@ lock_rec_insert_check_and_lock(
 	ulint		err;
 	ulint		next_rec_heap_no;
 
+	ut_ad(block->frame == page_align(rec));
+
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
 		return(DB_SUCCESS);
 	}
-
-	ut_ad(rec);
 
 	trx = thr_get_trx(thr);
 	next_rec = page_rec_get_next(rec);
@@ -5184,6 +5179,7 @@ lock_clust_rec_modify_check_and_lock(
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(block->frame == page_align((rec_t*) rec));
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
@@ -5236,12 +5232,13 @@ lock_sec_rec_modify_check_and_lock(
 	ulint	err;
 	ulint	heap_no;
 
+	ut_ad(!dict_index_is_clust(index));
+	ut_ad(block->frame == page_align(rec));
+
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
 		return(DB_SUCCESS);
 	}
-
-	ut_ad(!dict_index_is_clust(index));
 
 	heap_no = page_rec_get_heap_no(rec);
 
@@ -5317,6 +5314,7 @@ lock_sec_rec_read_check_and_lock(
 	ulint	heap_no;
 
 	ut_ad(!dict_index_is_clust(index));
+	ut_ad(block->frame == page_align((rec_t*) rec));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
@@ -5392,6 +5390,7 @@ lock_clust_rec_read_check_and_lock(
 	ulint	heap_no;
 
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(block->frame == page_align((rec_t*) rec));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(gap_mode == LOCK_ORDINARY || gap_mode == LOCK_GAP
 	      || gap_mode == LOCK_REC_NOT_GAP);
