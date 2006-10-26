@@ -788,8 +788,9 @@ row_ins_foreign_check_on_constraint(
 	dict_index_t*	clust_index;
 	dtuple_t*	ref;
 	mem_heap_t*	upd_vec_heap	= NULL;
-	rec_t*		rec;
-	rec_t*		clust_rec;
+	const rec_t*	rec;
+	const rec_t*	clust_rec;
+	const buf_block_t* clust_block;
 	upd_t*		update;
 	ulint		n_to_update;
 	ulint		err;
@@ -919,6 +920,7 @@ row_ins_foreign_check_on_constraint(
 
 		clust_index = index;
 		clust_rec = rec;
+		clust_block = btr_pcur_get_block(pcur);
 	} else {
 		/* We have to look for the record in the clustered index
 		in the child table */
@@ -934,6 +936,7 @@ row_ins_foreign_check_on_constraint(
 					   cascade->pcur, 0, mtr);
 
 		clust_rec = btr_pcur_get_rec(cascade->pcur);
+		clust_block = btr_pcur_get_block(cascade->pcur);
 
 		if (!page_rec_is_user_rec(clust_rec)
 		    || btr_pcur_get_low_match(cascade->pcur)
@@ -969,9 +972,8 @@ row_ins_foreign_check_on_constraint(
 		gap if the search criterion was not unique */
 
 		err = lock_clust_rec_read_check_and_lock_alt(
-			0, btr_pcur_get_block(pcur),
-			clust_rec, clust_index, LOCK_X, LOCK_REC_NOT_GAP,
-			thr);
+			0, clust_block, clust_rec, clust_index,
+			LOCK_X, LOCK_REC_NOT_GAP, thr);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -1212,8 +1214,6 @@ row_ins_check_foreign_constraint(
 	dict_table_t*	check_table;
 	dict_index_t*	check_index;
 	ulint		n_fields_cmp;
-	buf_block_t*	block;
-	rec_t*		rec;
 	btr_pcur_t	pcur;
 	ibool		moved;
 	int		cmp;
@@ -1342,12 +1342,12 @@ run_again:
 
 	btr_pcur_open(check_index, entry, PAGE_CUR_GE,
 		      BTR_SEARCH_LEAF, &pcur, &mtr);
-	block = btr_pcur_get_block(&pcur);
 
 	/* Scan index records and check if there is a matching record */
 
 	for (;;) {
-		rec = btr_pcur_get_rec(&pcur);
+		const rec_t*		rec = btr_pcur_get_rec(&pcur);
+		const buf_block_t*	block = btr_pcur_get_block(&pcur);
 
 		if (page_rec_is_infimum(rec)) {
 
