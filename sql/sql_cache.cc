@@ -747,11 +747,10 @@ void query_cache_end_of_result(THD *thd)
     header->result()->type= Query_cache_block::RESULT;
     header->writer(0);
     thd->net.query_cache_query= 0;
-    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
-
-    STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
 
     BLOCK_UNLOCK_WR(query_block);
+    DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
+    STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
   }
   else
   {
