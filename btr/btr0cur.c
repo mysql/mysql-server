@@ -3590,6 +3590,7 @@ btr_store_big_rec_extern_fields(
 					containing the latch to rec and to the
 					tree */
 {
+	ulint	rec_page_no;
 	byte*	field_ref;
 	ulint	extern_len;
 	ulint	store_len;
@@ -3614,6 +3615,7 @@ btr_store_big_rec_extern_fields(
 	     == buf_block_get_zip_size(rec_block));
 
 	space_id = buf_block_get_space(rec_block);
+	rec_page_no = buf_block_get_page_no(rec_block);
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
 		int	err;
@@ -3662,8 +3664,7 @@ btr_store_big_rec_extern_fields(
 			mtr_start(&mtr);
 
 			if (prev_page_no == FIL_NULL) {
-				hint_page_no = 1
-					+ page_get_page_no(page_align(rec));
+				hint_page_no = 1 + rec_page_no;
 			} else {
 				hint_page_no = prev_page_no + 1;
 			}
@@ -3759,11 +3760,8 @@ btr_store_big_rec_extern_fields(
 					goto next_zip_page;
 				}
 
-				rec_block = buf_page_get(
-					space_id,
-					page_get_page_no(
-						page_align(field_ref)),
-					RW_X_LATCH, &mtr);
+				rec_block = buf_page_get(space_id, rec_page_no,
+							 RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 				buf_block_dbg_add_level(rec_block,
 							SYNC_NO_ORDER_CHECK);
@@ -3837,11 +3835,8 @@ next_zip_page:
 
 				extern_len -= store_len;
 
-				rec_block = buf_page_get(
-					space_id,
-					page_get_page_no(
-						page_align(field_ref)),
-					RW_X_LATCH, &mtr);
+				rec_block = buf_page_get(space_id, rec_page_no,
+							 RW_X_LATCH, &mtr);
 #ifdef UNIV_SYNC_DEBUG
 				buf_block_dbg_add_level(rec_block,
 							SYNC_NO_ORDER_CHECK);
