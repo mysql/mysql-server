@@ -102,7 +102,7 @@ sym_tab_add_int_lit(
 
 	node->indirection = NULL;
 
-	dtype_set(&(node->common.val.type), DATA_INT, 0, 4, 0);
+	dtype_set(&(node->common.val.type), DATA_INT, 0, 4);
 
 	data = mem_heap_alloc(sym_tab->heap, 4);
 	mach_write_to_4(data, val);
@@ -144,7 +144,7 @@ sym_tab_add_str_lit(
 
 	node->indirection = NULL;
 
-	dtype_set(&(node->common.val.type), DATA_VARCHAR, DATA_ENGLISH, 0, 0);
+	dtype_set(&(node->common.val.type), DATA_VARCHAR, DATA_ENGLISH, 0);
 
 	if (len) {
 		data = mem_heap_alloc(sym_tab->heap, len);
@@ -226,7 +226,7 @@ sym_tab_add_bound_lit(
 		ut_error;
 	}
 
-	dtype_set(&(node->common.val.type), blit->type, blit->prtype, len, 0);
+	dtype_set(&(node->common.val.type), blit->type, blit->prtype, len);
 
 	dfield_set_data(&(node->common.val), blit->address, blit->length);
 

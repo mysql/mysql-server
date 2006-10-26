@@ -1,4 +1,4 @@
--- require r/have_exampledb.require
 disable_query_log;
-show variables like "have_example_engine";
+--require r/true.require
+select support = 'Enabled' as `TRUE` from information_schema.engines where engine = 'example';
 enable_query_log;

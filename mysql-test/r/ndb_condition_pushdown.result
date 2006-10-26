@@ -513,7 +513,7 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
@@ -570,7 +570,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
@@ -629,7 +629,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
@@ -688,7 +688,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
@@ -748,7 +748,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
@@ -807,7 +807,7 @@ time_field <= '04:04:04' and
 date_time <= '1904-04-04 04:04:04' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
@@ -868,7 +868,7 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	medium_index	medium_index	3	const	1	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ref	medium_index	medium_index	3	const	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string = "aaaa" and 
 vstring = "aaaa" and 
@@ -925,7 +925,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	3	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string != "aaaa" and 
 vstring != "aaaa" and 
@@ -984,7 +984,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	3	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string > "aaaa" and 
 vstring > "aaaa" and 
@@ -1043,7 +1043,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string >= "aaaa" and 
 vstring >= "aaaa" and 
@@ -1103,7 +1103,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	3	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string < "dddd" and 
 vstring < "dddd" and 
@@ -1162,7 +1162,7 @@ time_field <= '04:04:04' and
 date_time <= '1904-04-04 04:04:04' 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string <= "dddd" and 
 vstring <= "dddd" and 
@@ -1202,7 +1202,7 @@ bin like concat(0xBB, '%') and
 vbin like concat(0xBB, '%')
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string like "b%" and
 vstring like "b%" and
@@ -1219,7 +1219,7 @@ bin not like concat(0xBB, '%') and
 vbin not like concat(0xBB, '%')
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where 
 string not like "b%" and
 vstring not like "b%" and
@@ -1255,7 +1255,7 @@ select auto from t1 where
 (date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	3	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where
 (string between "aaaa" and "cccc") and 
 (vstring between "aaaa" and "cccc") and 
@@ -1307,7 +1307,7 @@ select auto from t1 where
 ('1901-01-01 01:01:01' between date_time and date_time) 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	1	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where
 ("aaaa" between string and string) and 
 ("aaaa" between vstring and vstring) and 
@@ -1358,7 +1358,7 @@ select auto from t1 where
 (date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	1	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where
 (string not between "aaaa" and "cccc") and 
 (vstring not between "aaaa" and "cccc") and 
@@ -1409,7 +1409,7 @@ select auto from t1 where
 ('1901-01-01 01:01:01' not between date_time and date_time) 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	3	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where
 ("aaaa" not between string and string) and 
 ("aaaa" not between vstring and vstring) and 
@@ -1462,7 +1462,7 @@ time_field in('01:01:01','03:03:03') and
 date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	2	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where
 string in("aaaa","cccc") and 
 vstring in("aaaa","cccc") and 
@@ -1514,7 +1514,7 @@ select auto from t1 where
 '1901-01-01 01:01:01' in(date_time) 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	medium_index	medium_index	3	const	1	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ref	medium_index	medium_index	3	const	#	Using where with pushed condition; Using filesort
 select auto from t1 where
 "aaaa" in(string) and 
 "aaaa" in(vstring) and 
@@ -1565,7 +1565,7 @@ time_field not in('01:01:01','03:03:03') and
 date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	6	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	range	medium_index	medium_index	3	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where
 string not in("aaaa","cccc") and 
 vstring not in("aaaa","cccc") and 
@@ -1617,7 +1617,7 @@ select auto from t1 where
 '1901-01-01 01:01:01' not in(date_time) 
 order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	Using where with pushed condition; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select auto from t1 where
 "aaaa" not in(string) and 
 "aaaa" not in(vstring) and 
@@ -1704,7 +1704,7 @@ count(*)
 explain 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	6	Using where with pushed condition; Using filesort
+1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
@@ -1712,7 +1712,7 @@ pk1	attr1	attr2	attr3
 explain
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where with pushed condition; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 pk1	attr1	attr2	attr3
 3	3	3	d
@@ -1721,7 +1721,7 @@ pk1	attr1	attr2	attr3
 explain
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	6	Using where with pushed condition; Using filesort
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using filesort
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
@@ -1730,15 +1730,15 @@ pk1	attr1	attr2	attr3	attr4
 explain
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where with pushed condition; Using temporary; Using filesort
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	6	Using where with pushed condition
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition; Using temporary; Using filesort
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where with pushed condition
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 0	0	0	a	0	0	0	0	a
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	attr1	attr1	4	NULL	5	Using where with pushed condition; Using filesort
+1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using filesort
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
@@ -1746,8 +1746,8 @@ pk1	attr1	attr2	attr3	attr4
 explain
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	attr1	attr1	4	NULL	4	Using where with pushed condition; Using temporary; Using filesort
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using temporary; Using filesort
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c	2	2	9223372036854775804	2	c
@@ -1756,16 +1756,16 @@ pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
 explain
 select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Using filesort
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where; Using filesort
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	#	Using where; Using filesort
 explain
 select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.attr3 < 5 or t4.attr1 is null order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	6	Using where
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using temporary; Using filesort
+1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	#	Using where
 create table t5 (a int primary key auto_increment, b tinytext not null) 
 engine = ndb;
 insert into t5 (b) values ('jonas'), ('jensing'), ('johan');
@@ -1777,7 +1777,7 @@ a	b
 set engine_condition_pushdown = on;
 explain select * from t5 where b like '%jo%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	#	Using where
 select * from t5 where b like '%jo%' order by a;
 a	b
 1	jonas
@@ -1793,13 +1793,13 @@ auto
 set engine_condition_pushdown = on;
 explain select auto from t1 where date_time like '1902-02-02 %';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where
 select auto from t1 where date_time like '1902-02-02 %' order by auto;
 auto
 2
 explain select auto from t1 where date_time not like '1902-02-02 %';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where
 select auto from t1 where date_time not like '1902-02-02 %' order by auto;
 auto
 3

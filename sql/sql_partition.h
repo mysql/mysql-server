@@ -70,7 +70,7 @@ bool fix_partition_func(THD *thd, TABLE *table, bool create_table_ind);
 char *generate_partition_syntax(partition_info *part_info,
                                 uint *buf_length, bool use_sql_alloc,
                                 bool show_partition_options);
-bool partition_key_modified(TABLE *table, List<Item> &fields);
+bool partition_key_modified(TABLE *table, const MY_BITMAP *fields);
 void get_partition_set(const TABLE *table, byte *buf, const uint index,
                        const key_range *key_spec,
                        part_id_range *part_spec);
@@ -92,6 +92,9 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
                                            bool include_endpoint);
 bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
                           bool is_sub_part, bool is_field_to_be_setup);
+
+bool check_part_func_fields(Field **ptr, bool ok_with_charsets);
+bool field_is_partition_charset(Field *field);
 
 /*
   A "Get next" function for partition iterator.

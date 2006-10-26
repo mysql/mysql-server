@@ -34,19 +34,16 @@
 static handler *myisammrg_create_handler(TABLE_SHARE *table,
                                          MEM_ROOT *mem_root);
 
-/* MyISAM MERGE handlerton */
-
-handlerton myisammrg_hton;
-
-static handler *myisammrg_create_handler(TABLE_SHARE *table,
+static handler *myisammrg_create_handler(handlerton *hton,
+                                         TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_myisammrg(table);
+  return new (mem_root) ha_myisammrg(hton, table);
 }
 
 
-ha_myisammrg::ha_myisammrg(TABLE_SHARE *table_arg)
-  :handler(&myisammrg_hton, table_arg), file(0)
+ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg), file(0)
 {}
 
 static const char *ha_myisammrg_exts[] = {
@@ -126,7 +123,11 @@ int ha_myisammrg::write_row(byte * buf)
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
   if (table->next_number_field && buf == table->record[0])
-      update_auto_increment();
+  {
+    int error;
+    if ((error= update_auto_increment()))
+      return error;
+  }
   return myrg_write(file,buf);
 }
 
@@ -261,7 +262,7 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 }
 
 
-void ha_myisammrg::info(uint flag)
+int ha_myisammrg::info(uint flag)
 {
   MYMERGE_INFO info;
   (void) myrg_status(file,&info,flag);
@@ -311,10 +312,24 @@ void ha_myisammrg::info(uint flag)
   if (flag & HA_STATUS_CONST)
   {
     if (table->s->key_parts && info.rec_per_key)
+    {
+#ifdef HAVE_purify
+      /*
+        valgrind may be unhappy about it, because optimizer may access values
+        between file->keys and table->key_parts, that will be uninitialized.
+        It's safe though, because even if opimizer will decide to use a key
+        with such a number, it'll be an error later anyway.
+      */
+      bzero((char*) table->key_info[0].rec_per_key,
+            sizeof(table->key_info[0].rec_per_key) * table->s->key_parts);
+#endif
       memcpy((char*) table->key_info[0].rec_per_key,
 	     (char*) info.rec_per_key,
-	     sizeof(table->key_info[0].rec_per_key)*table->s->key_parts);
+             sizeof(table->key_info[0].rec_per_key) *
+             min(file->keys, table->s->key_parts));
+    }
   }
+  return 0;
 }
 
 
@@ -550,18 +565,29 @@ bool ha_myisammrg::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_NO;
 }
 
-static int myisammrg_init()
+extern int myrg_panic(enum ha_panic_function flag);
+int myisammrg_panic(handlerton *hton, ha_panic_function flag)
 {
-  myisammrg_hton.state=have_merge_db;
-  myisammrg_hton.db_type=DB_TYPE_MRG_MYISAM;
-  myisammrg_hton.create=myisammrg_create_handler;
-  myisammrg_hton.panic=myrg_panic;
-  myisammrg_hton.flags= HTON_CAN_RECREATE;
+  return myrg_panic(flag);
+}
+
+static int myisammrg_init(void *p)
+{
+  handlerton *myisammrg_hton;
+
+  myisammrg_hton= (handlerton *)p;
+
+  myisammrg_hton->state= have_merge_db;
+  myisammrg_hton->db_type= DB_TYPE_MRG_MYISAM;
+  myisammrg_hton->create= myisammrg_create_handler;
+  myisammrg_hton->panic= myisammrg_panic;
+  myisammrg_hton->flags=  HTON_CAN_RECREATE|HTON_NO_PARTITION;
+
   return 0;
 }
 
 struct st_mysql_storage_engine myisammrg_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &myisammrg_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(myisammrg)
 {
@@ -570,6 +596,7 @@ mysql_declare_plugin(myisammrg)
   "MRG_MYISAM",
   "MySQL AB",
   "Collection of identical MyISAM tables",
+  PLUGIN_LICENSE_GPL,
   myisammrg_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100, /* 1.0 */

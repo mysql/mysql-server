@@ -15,7 +15,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 ## Process this file with automake to create Makefile.in
-EXTRA_DIST = build-vs71.bat build-vs8.bat configure.js README
+EXTRA_DIST = build-vs71.bat build-vs8.bat build-vs8_x64.bat configure.js README
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

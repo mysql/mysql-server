@@ -19,10 +19,10 @@
 	/* if flag == HA_PANIC_CLOSE then all files are removed for more
 	   memory */
 
-int heap_panic(enum ha_panic_function flag)
+int hp_panic(enum ha_panic_function flag)
 {
   LIST *element,*next_open;
-  DBUG_ENTER("heap_panic");
+  DBUG_ENTER("hp_panic");
 
   pthread_mutex_lock(&THR_LOCK_heap);
   for (element=heap_open_list ; element ; element=next_open)
@@ -54,4 +54,4 @@ int heap_panic(enum ha_panic_function flag)
   }
   pthread_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(0);
-} /* heap_panic */
+} /* hp_panic */

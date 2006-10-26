@@ -21,8 +21,6 @@
 #ifndef NDB_TYPES_H
 #define NDB_TYPES_H
 
-#include <my_config.h>
-
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(_WIN64)
 #define NDB_SIZEOF_CHARP SIZEOF_CHARP
 #define NDB_SIZEOF_CHAR SIZEOF_CHAR
@@ -33,12 +31,12 @@
 typedef unsigned __int64 Uint64;
 typedef   signed __int64 Int64;
 #else
-#define NDB_SIZEOF_CHARP SIZEOF_CHARP
-#define NDB_SIZEOF_CHAR SIZEOF_CHAR
-#define NDB_SIZEOF_INT SIZEOF_INT
-#define NDB_SIZEOF_SHORT SIZEOF_SHORT
-#define NDB_SIZEOF_LONG SIZEOF_LONG
-#define NDB_SIZEOF_LONG_LONG SIZEOF_LONG_LONG
+#define NDB_SIZEOF_CHARP @NDB_SIZEOF_CHARP@
+#define NDB_SIZEOF_CHAR @NDB_SIZEOF_CHAR@
+#define NDB_SIZEOF_INT @NDB_SIZEOF_INT@
+#define NDB_SIZEOF_SHORT @NDB_SIZEOF_SHORT@
+#define NDB_SIZEOF_LONG @NDB_SIZEOF_LONG@
+#define NDB_SIZEOF_LONG_LONG @NDB_SIZEOF_LONG_LONG@
 typedef unsigned long long Uint64;
 typedef   signed long long Int64;
 #endif

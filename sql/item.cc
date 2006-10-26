@@ -1210,6 +1210,7 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
     split_sum_func(thd, ref_pointer_array, fields);
   }
   else if ((type() == SUM_FUNC_ITEM || (used_tables() & ~PARAM_TABLE_BIT)) &&
+           type() != SUBSELECT_ITEM &&
            (type() != REF_ITEM ||
            ((Item_ref*)this)->ref_type() == Item_ref::VIEW_REF))
   {
@@ -3795,6 +3796,7 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
+  null_value= FALSE;
   DBUG_VOID_RETURN;
 }
 
@@ -3840,13 +3842,48 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 
 
 /*
+  Check whether a field can be substituted by an equal item
+
+  SYNOPSIS
+    equal_fields_propagator()
+      arg - *arg != NULL <-> the field is in the context where
+            substitution for an equal item is valid
+   
+  DESCRIPTION
+    The function checks whether a substitution of the field
+    occurrence for an equal item is valid.
+
+  NOTES
+    The following statement is not always true:
+    x=y => F(x)=F(x/y).
+    This means substitution of an item for an equal item not always
+    yields an equavalent condition.
+    Here's an example:
+      'a'='a '
+      (LENGTH('a')=1) != (LENGTH('a ')=2)
+    Such a substitution is surely valid if either the substituted
+    field is not of a STRING type or if it is an argument of
+    a comparison  predicate.  
+
+  RETURN
+    TRUE   substitution is valid
+    FALSE  otherwise
+*/
+
+bool Item_field::subst_argument_checker(byte **arg)
+{
+  return (result_type() != STRING_RESULT) || (*arg);
+}
+
+
+/*
   Set a pointer to the multiple equality the field reference belongs to
   (if any)
    
   SYNOPSIS
     equal_fields_propagator()
-    arg - reference to list of multiple equalities where
-          the field (this object) is to be looked for
+      arg - reference to list of multiple equalities where
+            the field (this object) is to be looked for
   
   DESCRIPTION
     The function looks for a multiple equality containing the field item
@@ -3858,7 +3895,7 @@ Item_equal *Item_field::find_item_equal(COND_EQUAL *cond_equal)
 
   NOTES
     This function is supposed to be called as a callback parameter in calls
-    of the transform method.  
+    of the compile method.  
 
   RETURN VALUES
     pointer to the replacing constant item, if the field item was substituted 
@@ -3966,21 +4003,27 @@ void Item::make_field(Send_field *tmp_field)
 }
 
 
-void Item_empty_string::make_field(Send_field *tmp_field)
+enum_field_types Item::string_field_type() const
 {
   enum_field_types type= FIELD_TYPE_VAR_STRING;
   if (max_length >= 16777216)
     type= FIELD_TYPE_LONG_BLOB;
   else if (max_length >= 65536)
     type= FIELD_TYPE_MEDIUM_BLOB;
-  init_make_field(tmp_field, type);
+  return type;
+}
+
+
+void Item_empty_string::make_field(Send_field *tmp_field)
+{
+  init_make_field(tmp_field, string_field_type());
 }
 
 
 enum_field_types Item::field_type() const
 {
   switch (result_type()) {
-  case STRING_RESULT:  return MYSQL_TYPE_VARCHAR;
+  case STRING_RESULT:  return string_field_type();
   case INT_RESULT:     return FIELD_TYPE_LONGLONG;
   case DECIMAL_RESULT: return FIELD_TYPE_NEWDECIMAL;
   case REAL_RESULT:    return FIELD_TYPE_DOUBLE;
@@ -5668,11 +5711,6 @@ void Item_trigger_field::cleanup()
   Item::cleanup();
 }
 
-
-/*
-  If item is a const function, calculate it and return a const item
-  The original item is freed if not returned
-*/
 
 Item_result item_cmp_type(Item_result a,Item_result b)
 {

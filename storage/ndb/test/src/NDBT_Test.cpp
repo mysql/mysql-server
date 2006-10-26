@@ -770,6 +770,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname):name(pname){
    diskbased = false;
    tsname = NULL;
    createAllTables = false;
+   temporaryTables = false;
 }
 
 
@@ -791,6 +792,14 @@ void NDBT_TestSuite::setCreateAllTables(bool _flag){
   createAllTables = _flag;
 }
 
+void NDBT_TestSuite::setTemporaryTables(bool val){
+  temporaryTables = val;
+}
+
+bool NDBT_TestSuite::getTemporaryTables() const {
+  return temporaryTables;
+}
+
 bool NDBT_TestSuite::timerIsOn(){
   return (timer != 0);
 }
@@ -805,6 +814,7 @@ static int
 g_create_hook(Ndb* ndb, NdbDictionary::Table& tab, int when, void* arg)
 {
   NDBT_TestSuite* ts = (NDBT_TestSuite*)arg;
+  
   return ts->createHook(ndb, tab, when);
 }
 
@@ -942,14 +952,23 @@ int
 NDBT_TestSuite::createHook(Ndb* ndb, NdbDictionary::Table& tab, int when)
 {
   if (when == 0) {
-    if (diskbased) {
-      for (int i = 0; i < tab.getNoOfColumns(); i++) {
+    if (diskbased) 
+    {
+      for (int i = 0; i < tab.getNoOfColumns(); i++) 
+      {
         NdbDictionary::Column* col = tab.getColumn(i);
-        if (! col->getPrimaryKey()) {
+        if (! col->getPrimaryKey()) 
+	{
           col->setStorageType(NdbDictionary::Column::StorageTypeDisk);
         }
       }
     }
+    else if (temporaryTables)
+    {
+      tab.setTemporary(true);
+      tab.setLogging(false);
+    }
+    
     if (tsname != NULL) {
       tab.setTablespace(tsname);
     }

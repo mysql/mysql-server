@@ -519,7 +519,16 @@ typedef struct st_print_event_info
       bzero(db, sizeof(db));
       bzero(charset, sizeof(charset));
       bzero(time_zone_str, sizeof(time_zone_str));
+      uint const flags = MYF(MY_WME | MY_NABP);
+      init_io_cache(&head_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
+      init_io_cache(&body_cache, -1, 0, WRITE_CACHE, 0L, FALSE, flags);
     }
+
+  ~st_print_event_info() {
+    end_io_cache(&head_cache);
+    end_io_cache(&body_cache);
+  }
+
 
   /* Settings on how to print the events */
   bool short_form;
@@ -527,6 +536,13 @@ typedef struct st_print_event_info
   my_off_t hexdump_from;
   uint8 common_header_len;
 
+  /*
+     These two caches are used by the row-based replication events to
+     collect the header information and the main body of the events
+     making up a statement.
+   */
+  IO_CACHE head_cache;
+  IO_CACHE body_cache;
 } PRINT_EVENT_INFO;
 #endif
 
@@ -637,9 +653,11 @@ public:
                                    const Format_description_log_event *description_event);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
-  void print_timestamp(FILE* file, time_t *ts = 0);
-  void print_header(FILE* file, PRINT_EVENT_INFO* print_event_info);
-  void print_base64(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  void print_timestamp(IO_CACHE* file, time_t *ts = 0);
+  void print_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
+                    bool is_more);
+  void print_base64(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info,
+                    bool is_more);
 #endif
 
   static void *operator new(size_t size)
@@ -804,7 +822,7 @@ public:
                  uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
 #else
-  void print_query_header(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
@@ -1864,6 +1882,10 @@ protected:
 		 Log_event_type event_type,
 		 const Format_description_log_event *description_event);
 
+#ifdef MYSQL_CLIENT
+  void print_helper(FILE *, PRINT_EVENT_INFO *, char const *const name);
+#endif
+
 #ifndef MYSQL_CLIENT
   virtual int do_add_row_data(byte *data, my_size_t length);
 #endif
@@ -1874,6 +1896,7 @@ protected:
   ulong       m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
+  ulong       m_master_reclength; /* Length of record on master side */
 
   /* Bit buffer in the same memory as the class */
   uint32    m_bitbuf[128/(sizeof(uint32)*8)];
@@ -1927,12 +1950,15 @@ private:
       since SQL thread specific data is not available: that data is made
       available for the do_exec function.
 
-    RETURN VALUE
       A pointer to the start of the next row, or NULL if the preparation
       failed. Currently, preparation cannot fail, but don't rely on this
       behavior. 
+
+    RETURN VALUE
+      Error code, if something went wrong, 0 otherwise.
    */
-  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start) = 0;
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+                             char const *row_start, char const **row_end) = 0;
 
   /*
     Primitive to do the actual execution necessary for a row.
@@ -2000,10 +2026,11 @@ private:
   gptr  m_memory;
   byte *m_after_image;
 
-  virtual int         do_before_row_operations(TABLE *table);
-  virtual int         do_after_row_operations(TABLE *table, int error);
-  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start);
-  virtual int         do_exec_row(TABLE *table);
+  virtual int do_before_row_operations(TABLE *table);
+  virtual int do_after_row_operations(TABLE *table, int error);
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+                             char const *row_start, char const **row_end);
+  virtual int do_exec_row(TABLE *table);
 #endif
 };
 
@@ -2064,10 +2091,11 @@ private:
   byte *m_key;
   byte *m_after_image;
 
-  virtual int         do_before_row_operations(TABLE *table);
-  virtual int         do_after_row_operations(TABLE *table, int error);
-  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start);
-  virtual int         do_exec_row(TABLE *table);
+  virtual int do_before_row_operations(TABLE *table);
+  virtual int do_after_row_operations(TABLE *table, int error);
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+                             char const *row_start, char const **row_end);
+  virtual int do_exec_row(TABLE *table);
 #endif /* !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION) */
 };
 
@@ -2134,10 +2162,11 @@ private:
   byte *m_key;
   byte *m_after_image;
 
-  virtual int         do_before_row_operations(TABLE *table);
-  virtual int         do_after_row_operations(TABLE *table, int error);
-  virtual char const *do_prepare_row(THD*, TABLE*, char const *row_start);
-  virtual int         do_exec_row(TABLE *table);
+  virtual int do_before_row_operations(TABLE *table);
+  virtual int do_after_row_operations(TABLE *table, int error);
+  virtual int do_prepare_row(THD*, RELAY_LOG_INFO*, TABLE*,
+                             char const *row_start, char const **row_end);
+  virtual int do_exec_row(TABLE *table);
 #endif
 };
 

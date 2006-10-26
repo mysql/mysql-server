@@ -28,7 +28,7 @@ class ha_blackhole: public handler
   THR_LOCK thr_lock;
 
 public:
-  ha_blackhole(TABLE_SHARE *table_arg);
+  ha_blackhole(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_blackhole()
   {
   }
@@ -75,7 +75,7 @@ public:
   int index_first(byte * buf);
   int index_last(byte * buf);
   void position(const byte *record);
-  void info(uint flag);
+  int info(uint flag);
   int external_lock(THD *thd, int lock_type);
   uint lock_count(void) const;
   int create(const char *name, TABLE *table_arg,

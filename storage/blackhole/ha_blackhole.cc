@@ -24,11 +24,11 @@
 
 /* Static declarations for handlerton */
 
-handlerton blackhole_hton;
-static handler *blackhole_create_handler(TABLE_SHARE *table,
+static handler *blackhole_create_handler(handlerton *hton,
+                                         TABLE_SHARE *table,
                                          MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_blackhole(table);
+  return new (mem_root) ha_blackhole(hton, table);
 }
 
 
@@ -36,8 +36,9 @@ static handler *blackhole_create_handler(TABLE_SHARE *table,
 ** BLACKHOLE tables
 *****************************************************************************/
 
-ha_blackhole::ha_blackhole(TABLE_SHARE *table_arg)
-  :handler(&blackhole_hton, table_arg)
+ha_blackhole::ha_blackhole(handlerton *hton,
+                           TABLE_SHARE *table_arg)
+  :handler(hton, table_arg)
 {}
 
 
@@ -119,14 +120,14 @@ void ha_blackhole::position(const byte *record)
 }
 
 
-void ha_blackhole::info(uint flag)
+int ha_blackhole::info(uint flag)
 {
   DBUG_ENTER("ha_blackhole::info");
 
   bzero((char*) &stats, sizeof(stats));
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= 1;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 int ha_blackhole::external_lock(THD *thd, int lock_type)
@@ -201,17 +202,19 @@ int ha_blackhole::index_last(byte * buf)
   DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
-static int blackhole_init()
+static int blackhole_init(void *p)
 {
-  blackhole_hton.state= SHOW_OPTION_YES;
-  blackhole_hton.db_type= DB_TYPE_BLACKHOLE_DB;
-  blackhole_hton.create= blackhole_create_handler;
-  blackhole_hton.flags= HTON_CAN_RECREATE;
+  handlerton *blackhole_hton;
+  blackhole_hton= (handlerton *)p;
+  blackhole_hton->state= SHOW_OPTION_YES;
+  blackhole_hton->db_type= DB_TYPE_BLACKHOLE_DB;
+  blackhole_hton->create= blackhole_create_handler;
+  blackhole_hton->flags= HTON_CAN_RECREATE;
   return 0;
 }
 
 struct st_mysql_storage_engine blackhole_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &blackhole_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 mysql_declare_plugin(blackhole)
 {
@@ -220,6 +223,7 @@ mysql_declare_plugin(blackhole)
   "BLACKHOLE",
   "MySQL AB",
   "/dev/null storage engine (anything you write to it disappears)",
+  PLUGIN_LICENSE_GPL,
   blackhole_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,

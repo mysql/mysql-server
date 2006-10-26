@@ -31,7 +31,7 @@ class ha_heap: public handler
   uint    records_changed;
   uint    key_stat_version;
 public:
-  ha_heap(TABLE_SHARE *table);
+  ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}
   const char *table_type() const
   {
@@ -89,7 +89,7 @@ public:
   int rnd_next(byte *buf);
   int rnd_pos(byte * buf, byte *pos);
   void position(const byte *record);
-  void info(uint);
+  int info(uint);
   int extra(enum ha_extra_function operation);
   int reset();
   int external_lock(THD *thd, int lock_type);

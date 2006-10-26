@@ -198,6 +198,23 @@ void CleanUp();
 #endif
 
 
+#ifdef USE_SYS_STL
+    // use system STL
+    #define STL_VECTOR_FILE    <vector>
+    #define STL_LIST_FILE      <list>
+    #define STL_ALGORITHM_FILE <algorithm>
+    #define STL_MEMORY_FILE    <memory>
+    #define STL_NAMESPACE       std
+#else
+    // use mySTL
+    #define STL_VECTOR_FILE    "vector.hpp"
+    #define STL_LIST_FILE      "list.hpp"
+    #define STL_ALGORITHM_FILE "algorithm.hpp"
+    #define STL_MEMORY_FILE    "memory.hpp"
+    #define STL_NAMESPACE       mySTL
+#endif
+
+
 // ***************** DLL related ********************
 
 #ifdef TAOCRYPT_WIN32_AVAILABLE

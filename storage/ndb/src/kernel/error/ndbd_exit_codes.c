@@ -158,7 +158,9 @@ static const ErrStruct errArray[] =
     "System reports no more file system resources"},
    {NDBD_EXIT_AFS_NO_SUCH_FILE          , XFI, "File not found"},
    {NDBD_EXIT_AFS_READ_UNDERFLOW        , XFI, "Read underflow"},
-
+   
+   {NDBD_EXIT_INVALID_LCP_FILE, XFI, "Invalid LCP" },
+   
    /* Sentinel */
    {0, XUE,
     "No message slogan found (please report a bug if you get this error code)"}

@@ -73,12 +73,14 @@
 
 #include <mysql/plugin.h>
 
-static handler *example_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root);
+static handler *example_create_handler(handlerton *hton,
+                                       TABLE_SHARE *table, 
+                                       MEM_ROOT *mem_root);
 static int example_init_func();
 static bool example_init_func_for_handlerton();
 static int example_panic(enum ha_panic_function flag);
 
-handlerton example_hton;
+handlerton *example_hton;
 
 /* Variables for example share methods */
 static HASH example_open_tables; // Hash used to track open tables
@@ -96,25 +98,26 @@ static byte* example_get_key(EXAMPLE_SHARE *share,uint *length,
   return (byte*) share->table_name;
 }
 
-static int example_init_func()
+static int example_init_func(void *p)
 {
   DBUG_ENTER("example_init_func");
   if (!example_init)
   {
+    example_hton= (handlerton *)p;
     example_init= 1;
     VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
     (void) hash_init(&example_open_tables,system_charset_info,32,0,0,
                      (hash_get_key) example_get_key,0,0);
 
-    example_hton.state=   SHOW_OPTION_YES;
-    example_hton.db_type= DB_TYPE_EXAMPLE_DB;
-    example_hton.create=  example_create_handler;
-    example_hton.flags=   HTON_CAN_RECREATE;
+    example_hton->state=   SHOW_OPTION_YES;
+    example_hton->db_type= DB_TYPE_EXAMPLE_DB;
+    example_hton->create=  example_create_handler;
+    example_hton->flags=   HTON_CAN_RECREATE;
   }
   DBUG_RETURN(0);
 }
 
-static int example_done_func()
+static int example_done_func(void *p)
 {
   int error= 0;
   DBUG_ENTER("example_done_func");
@@ -200,14 +203,16 @@ static int free_share(EXAMPLE_SHARE *share)
 }
 
 
-static handler* example_create_handler(TABLE_SHARE *table, MEM_ROOT *mem_root)
+static handler* example_create_handler(handlerton *hton,
+                                       TABLE_SHARE *table, 
+                                       MEM_ROOT *mem_root)
 {
-  return new (mem_root) ha_example(table);
+  return new (mem_root) ha_example(hton, table);
 }
 
 
-ha_example::ha_example(TABLE_SHARE *table_arg)
-  :handler(&example_hton, table_arg)
+ha_example::ha_example(handlerton *hton, TABLE_SHARE *table_arg)
+  :handler(hton, table_arg)
 {}
 
 /*
@@ -525,10 +530,10 @@ int ha_example::rnd_pos(byte * buf, byte *pos)
     sql_update.cc
 
 */
-void ha_example::info(uint flag)
+int ha_example::info(uint flag)
 {
   DBUG_ENTER("ha_example::info");
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
@@ -702,7 +707,7 @@ int ha_example::create(const char *name, TABLE *table_arg,
 }
 
 struct st_mysql_storage_engine example_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION, &example_hton };
+{ MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 
 mysql_declare_plugin(example)
@@ -712,6 +717,7 @@ mysql_declare_plugin(example)
   "EXAMPLE",
   "Brian Aker, MySQL AB",
   "Example storage engine",
+  PLUGIN_LICENSE_GPL,
   example_init_func, /* Plugin Init */
   example_done_func, /* Plugin Deinit */
   0x0001 /* 0.1 */,

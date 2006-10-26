@@ -159,8 +159,9 @@ insert into t1 values(5, 'aaa');
 insert into t1 values(6, 'AAA');
 # 6
 select * from t1 order by p;
-# plan
-explain select * from t1 where a = 'zZz' order by p;
+# plan too flaky
+#--replace_column 9 #
+#explain select * from t1 where a = 'zZz' order by p;
 # 2
 select * from t1 where a = 'aAa' order by p;
 # 2
@@ -187,8 +188,9 @@ insert into t1 values(5, 'aaa');
 insert into t1 values(6, 'AAA');
 # 6
 select * from t1 order by p;
-# plan
-explain select * from t1 where a = 'zZz' order by p;
+# plan too flaky
+#--replace_column 9 #
+#explain select * from t1 where a = 'zZz' order by p;
 # 6
 select * from t1 where a = 'aAa' order by p;
 # 6
