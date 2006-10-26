@@ -162,4 +162,21 @@ select count(*) from t17583;
 count(*)
 1280
 drop table t17583;
+Test connect without db- or host-name => reconnect
+Test connect with dbname only => new dbname, old hostname
+ERROR 1064 (42000) at line 1: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'connecttest' at line 1
+Test connect with _invalid_ dbname only => new invalid dbname, old hostname
+ERROR 1049 (42000) at line 1: Unknown database 'invalid'
+ERROR 1049 (42000) at line 1: Unknown database 'invalid'
+Test connect with dbname + hostname
+Test connect with dbname + _invalid_ hostname
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'invalid_hostname' (errno)
+The commands reported in the bug report
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyril has found a bug :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
+Too long dbname
+ERROR 1049 (42000) at line 1: Unknown database 'test_really_long_dbnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
+Too long hostname
+ERROR 2005 (HY000) at line 1: Unknown MySQL server host 'cyrils_superlonghostnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' (errno)
 End of 5.0 tests

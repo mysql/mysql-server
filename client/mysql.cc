@@ -2920,7 +2920,11 @@ com_connect(String *buffer, char *line)
   bzero(buff, sizeof(buff));
   if (buffer)
   {
-    strmake(buff, line, sizeof(buff) - 1);
+    /*
+      Two null bytes are needed in the end of buff to allow
+      get_arg to find end of string the second time it's called.
+    */
+    strmake(buff, line, sizeof(buff)-2);
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
