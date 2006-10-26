@@ -1418,13 +1418,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     sp_cache_invalidate();
   }
 
-  if (mysql_bin_log.is_open())
-  {
-    thd->clear_error();
-    thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                      thd->query, thd->query_length, FALSE, FALSE);
-  }
-
   if (error)
   {
     VOID(pthread_mutex_unlock(&LOCK_open));
