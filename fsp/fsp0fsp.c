@@ -980,8 +980,8 @@ Reads the space id from the first page of a tablespace. */
 ulint
 fsp_header_get_space_id(
 /*====================*/
-			/* out: space id, ULINT UNDEFINED if error */
-	page_t*	page)	/* in: first page of a tablespace */
+				/* out: space id, ULINT UNDEFINED if error */
+	const page_t*	page)	/* in: first page of a tablespace */
 {
 	ulint	fsp_id;
 	ulint	id;
@@ -1008,8 +1008,9 @@ Reads the compressed page size from the first page of a tablespace. */
 ulint
 fsp_header_get_zip_size(
 /*=====================*/
-			/* out: compressed page size, or 0 if uncompressed */
-	page_t*	page)	/* in: first page of a tablespace */
+				/* out: compressed page size in bytes,
+				or 0 if uncompressed */
+	const page_t*	page)	/* in: first page of a tablespace */
 {
 	return(mach_read_from_4(FSP_HEADER_OFFSET + FSP_PAGE_ZIP_SIZE + page));
 }

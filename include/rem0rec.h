@@ -372,17 +372,19 @@ rec_offs_make_valid(
 	ulint*		offsets);/* in: array returned by rec_get_offsets() */
 
 /****************************************************************
-The following function is used to get a pointer to the nth
+The following function is used to get the offset to the nth
 data field in an old-style record. */
 
-byte*
-rec_get_nth_field_old(
-/*==================*/
-			/* out: pointer to the field */
-	rec_t*	rec,	/* in: record */
-	ulint	n,	/* in: index of the field */
-	ulint*	len);	/* out: length of the field; UNIV_SQL_NULL
-			if SQL null */
+ulint
+rec_get_nth_field_offs_old(
+/*=======================*/
+				/* out: offset to the field */
+	const rec_t*	rec,	/* in: record */
+	ulint		n,	/* in: index of the field */
+	ulint*		len);	/* out: length of the field; UNIV_SQL_NULL
+				if SQL null */
+#define rec_get_nth_field_old(rec, n, len) \
+((rec) + rec_get_nth_field_offs_old(rec, n, len))
 /****************************************************************
 Gets the physical size of an old-style field.
 Also an SQL null may have a field of size > 0,
@@ -407,7 +409,7 @@ rec_get_nth_field_offs(
 	ulint*		len);	/* out: length of the field; UNIV_SQL_NULL
 				if SQL null */
 #define rec_get_nth_field(rec, offsets, n, len) \
-(rec + rec_get_nth_field_offs(offsets, n, len))
+((rec) + rec_get_nth_field_offs(offsets, n, len))
 /**********************************************************
 Determine if the offsets are for a record in the new
 compact format. */

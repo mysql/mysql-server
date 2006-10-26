@@ -222,19 +222,19 @@ Reads 1 - 4 bytes from a file page buffered in the buffer pool. */
 ulint
 mtr_read_ulint(
 /*===========*/
-			/* out: value read */
-	byte*	ptr,	/* in: pointer from where to read */
-	ulint	type,	/* in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
-	mtr_t*	mtr);	/* in: mini-transaction handle */
+				/* out: value read */
+	const byte*	ptr,	/* in: pointer from where to read */
+	ulint		type,	/* in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+	mtr_t*		mtr);	/* in: mini-transaction handle */
 /************************************************************
 Reads 8 bytes from a file page buffered in the buffer pool. */
 
 dulint
 mtr_read_dulint(
 /*============*/
-			/* out: value read */
-	byte*	ptr,	/* in: pointer from where to read */
-	mtr_t*	mtr);	/* in: mini-transaction handle */
+				/* out: value read */
+	const byte*	ptr,	/* in: pointer from where to read */
+	mtr_t*		mtr);	/* in: mini-transaction handle */
 /*************************************************************************
 This macro locks an rw-lock in s-mode. */
 #define mtr_s_lock(B, MTR)	mtr_s_lock_func((B), __FILE__, __LINE__,\

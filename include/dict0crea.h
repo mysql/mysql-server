@@ -62,7 +62,7 @@ dict_truncate_index_tree(
 				/* out: new root page number, or
 				FIL_NULL on failure */
 	dict_table_t*	table,	/* in: the table the index belongs to */
-	rec_t*		rec,	/* in: record in the clustered index of
+	rec_t*		rec,	/* in/out: record in the clustered index of
 				SYS_INDEXES table */
 	mtr_t*		mtr);	/* in: mtr having the latch
 				on the record page. The mtr may be
@@ -73,8 +73,8 @@ Drops the index tree associated with a row in SYS_INDEXES table. */
 void
 dict_drop_index_tree(
 /*=================*/
-	rec_t*	rec,	/* in: record in the clustered index of SYS_INDEXES
-			table */
+	rec_t*	rec,	/* in/out: record in the clustered index
+			of SYS_INDEXES table */
 	mtr_t*	mtr);	/* in: mtr having the latch on the record page */
 /********************************************************************
 Creates the foreign key constraints system tables inside InnoDB

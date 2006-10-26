@@ -62,8 +62,8 @@ dict_get_first_table_name_in_db(
 	dtuple_t*	tuple;
 	mem_heap_t*	heap;
 	dfield_t*	dfield;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	mtr_t		mtr;
 
@@ -143,8 +143,8 @@ dict_print(void)
 	dict_index_t*	sys_index;
 	dict_table_t*	table;
 	btr_pcur_t	pcur;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	mtr_t		mtr;
 
@@ -230,15 +230,15 @@ static
 ulint
 dict_sys_tables_get_zip_size(
 /*=========================*/
-			/* out: compressed page size in kilobytes;
-			or 0 if the tablespace is uncompressed,
-			ULINT_UNDEFINED on error */
-	rec_t*	rec)	/* in: a record of SYS_TABLES */
+				/* out: compressed page size in kilobytes;
+				or 0 if the tablespace is uncompressed,
+				ULINT_UNDEFINED on error */
+	const rec_t*	rec)	/* in: a record of SYS_TABLES */
 {
-	byte*	field;
-	ulint	len;
-	ulint	n_cols;
-	ulint	table_type;
+	const byte*	field;
+	ulint		len;
+	ulint		n_cols;
+	ulint		table_type;
 
 	field = rec_get_nth_field_old(rec, 5, &len);
 	ut_a(len == 4);
@@ -280,7 +280,7 @@ dict_check_tablespaces_and_store_max_id(
 	dict_table_t*	sys_tables;
 	dict_index_t*	sys_index;
 	btr_pcur_t	pcur;
-	rec_t*		rec;
+	const rec_t*	rec;
 	ulint		max_space_id	= 0;
 	mtr_t		mtr;
 
@@ -320,11 +320,11 @@ loop:
 	if (!rec_get_deleted_flag(rec, 0)) {
 
 		/* We found one */
-		byte*	field;
-		ulint	len;
-		ulint	space_id;
-		ulint	zip_size_in_k;
-		char*	name;
+		const byte*	field;
+		ulint		len;
+		ulint		space_id;
+		ulint		zip_size_in_k;
+		char*		name;
 
 		field = rec_get_nth_field_old(rec, 0, &len);
 		name = mem_strdupl((char*) field, len);
@@ -386,8 +386,8 @@ dict_load_columns(
 	btr_pcur_t	pcur;
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	byte*		buf;
 	char*		name;
@@ -515,8 +515,8 @@ dict_load_fields(
 	dfield_t*	dfield;
 	ulint		pos_and_prefix_len;
 	ulint		prefix_len;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	byte*		buf;
 	ulint		i;
@@ -616,8 +616,8 @@ dict_load_indexes(
 	btr_pcur_t	pcur;
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	ulint		name_len;
 	char*		name_buf;
@@ -789,8 +789,8 @@ dict_load_table(
 	dtuple_t*	tuple;
 	mem_heap_t*	heap;
 	dfield_t*	dfield;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	ulint		space;
 	ulint		n_cols;
@@ -967,8 +967,8 @@ dict_load_table_on_id(
 	dfield_t*	dfield;
 	dict_index_t*	sys_table_ids;
 	dict_table_t*	sys_tables;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	dict_table_t*	table;
 	mtr_t		mtr;
@@ -1083,8 +1083,8 @@ dict_load_foreign_cols(
 	btr_pcur_t	pcur;
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	ulint		i;
 	mtr_t		mtr;
@@ -1161,8 +1161,8 @@ dict_load_foreign(
 	dtuple_t*	tuple;
 	mem_heap_t*	heap2;
 	dfield_t*	dfield;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	mtr_t		mtr;
 
@@ -1289,8 +1289,8 @@ dict_load_foreigns(
 	dfield_t*	dfield;
 	dict_index_t*	sec_index;
 	dict_table_t*	sys_foreign;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	char*		id ;
 	ulint		err;

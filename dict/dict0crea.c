@@ -647,14 +647,14 @@ Drops the index tree associated with a row in SYS_INDEXES table. */
 void
 dict_drop_index_tree(
 /*=================*/
-	rec_t*	rec,	/* in: record in the clustered index of SYS_INDEXES
-			table */
+	rec_t*	rec,	/* in/out: record in the clustered index
+			of SYS_INDEXES table */
 	mtr_t*	mtr)	/* in: mtr having the latch on the record page */
 {
-	ulint	root_page_no;
-	ulint	space;
-	byte*	ptr;
-	ulint	len;
+	ulint		root_page_no;
+	ulint		space;
+	const byte*	ptr;
+	ulint		len;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -714,7 +714,7 @@ dict_truncate_index_tree(
 				/* out: new root page number, or
 				FIL_NULL on failure */
 	dict_table_t*	table,	/* in: the table the index belongs to */
-	rec_t*		rec,	/* in: record in the clustered index of
+	rec_t*		rec,	/* in/out: record in the clustered index of
 				SYS_INDEXES table */
 	mtr_t*		mtr)	/* in: mtr having the latch
 				on the record page. The mtr may be
@@ -724,7 +724,7 @@ dict_truncate_index_tree(
 	ulint		space;
 	ulint		type;
 	dulint		index_id;
-	byte*		ptr;
+	const byte*	ptr;
 	ulint		len;
 	ulint		comp;
 	dict_index_t*	index;

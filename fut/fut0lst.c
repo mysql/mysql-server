@@ -414,16 +414,16 @@ ibool
 flst_validate(
 /*==========*/
 					/* out: TRUE if ok */
-	flst_base_node_t*	base,	/* in: pointer to base node of list */
+	const flst_base_node_t*	base,	/* in: pointer to base node of list */
 	mtr_t*			mtr1)	/* in: mtr */
 {
-	ulint		space;
-	flst_node_t*	node;
-	fil_addr_t	node_addr;
-	fil_addr_t	base_addr;
-	ulint		len;
-	ulint		i;
-	mtr_t		mtr2;
+	ulint			space;
+	const flst_node_t*	node;
+	fil_addr_t		node_addr;
+	fil_addr_t		base_addr;
+	ulint			len;
+	ulint			i;
+	mtr_t			mtr2;
 
 	ut_ad(base);
 	ut_ad(mtr_memo_contains_page(mtr1, base, MTR_MEMO_PAGE_X_FIX));
@@ -476,15 +476,15 @@ Prints info of a file-based list. */
 void
 flst_print(
 /*=======*/
-	flst_base_node_t*	base,	/* in: pointer to base node of list */
+	const flst_base_node_t*	base,	/* in: pointer to base node of list */
 	mtr_t*			mtr)	/* in: mtr */
 {
-	buf_frame_t*	frame;
-	ulint		len;
+	const buf_frame_t*	frame;
+	ulint			len;
 
 	ut_ad(base && mtr);
 	ut_ad(mtr_memo_contains_page(mtr, base, MTR_MEMO_PAGE_X_FIX));
-	frame = page_align(base);
+	frame = page_align((byte*) base);
 
 	len = flst_get_len(base, mtr);
 
@@ -493,5 +493,5 @@ flst_print(
 		"Base node in space %lu page %lu byte offset %lu; len %lu\n",
 		(ulong) page_get_space_id(frame),
 		(ulong) page_get_page_no(frame),
-		(ulong) (base - frame), (ulong) len);
+		(ulong) page_offset(base), (ulong) len);
 }

@@ -412,7 +412,7 @@ void
 ibuf_data_sizes_update(
 /*===================*/
 	ibuf_data_t*	data,	/* in: ibuf data struct */
-	page_t*		root,	/* in: ibuf tree root */
+	const page_t*	root,	/* in: ibuf tree root */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	ulint	old_size;
@@ -616,15 +616,16 @@ UNIV_INLINE
 ulint
 ibuf_bitmap_page_get_bits(
 /*======================*/
-			/* out: value of bits */
-	page_t*	page,	/* in: bitmap page */
-	ulint	page_no,/* in: page whose bits to get */
-	ulint	zip_size,/* in: compressed page size in bytes;
-			0 for uncompressed pages */
-	ulint	bit,	/* in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ... */
-	mtr_t*	mtr __attribute__((unused)))	/* in: mtr containing an
-						x-latch to the bitmap
-						page */
+				/* out: value of bits */
+	const page_t*	page,	/* in: bitmap page */
+	ulint		page_no,/* in: page whose bits to get */
+	ulint		zip_size,/* in: compressed page size in bytes;
+				0 for uncompressed pages */
+	ulint		bit,	/* in: IBUF_BITMAP_FREE,
+				IBUF_BITMAP_BUFFERED, ... */
+	mtr_t*		mtr __attribute__((unused)))
+				/* in: mtr containing an
+				x-latch to the bitmap page */
 {
 	ulint	byte_offset;
 	ulint	bit_offset;
@@ -1072,11 +1073,11 @@ static
 ulint
 ibuf_rec_get_page_no(
 /*=================*/
-			/* out: page number */
-	rec_t*	rec)	/* in: ibuf record */
+				/* out: page number */
+	const rec_t*	rec)	/* in: ibuf record */
 {
-	byte*	field;
-	ulint	len;
+	const byte*	field;
+	ulint		len;
 
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(rec) > 2);
@@ -1107,11 +1108,11 @@ static
 ulint
 ibuf_rec_get_space(
 /*===============*/
-			/* out: space id */
-	rec_t*	rec)	/* in: ibuf record */
+				/* out: space id */
+	const rec_t*	rec)	/* in: ibuf record */
 {
-	byte*	field;
-	ulint	len;
+	const byte*	field;
+	ulint		len;
 
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(rec) > 2);
@@ -1213,7 +1214,7 @@ ibuf_build_entry_from_ibuf_rec(
 					ibuf_rec, the caller must hold a
 					latch to the ibuf_rec page as long
 					as the entry is used! */
-	rec_t*		ibuf_rec,	/* in: record in an insert buffer */
+	const rec_t*	ibuf_rec,	/* in: record in an insert buffer */
 	mem_heap_t*	heap,		/* in: heap where built */
 	dict_index_t**	pindex)		/* out, own: dummy index that
 					describes the entry */
@@ -1221,7 +1222,7 @@ ibuf_build_entry_from_ibuf_rec(
 	dtuple_t*	tuple;
 	dfield_t*	field;
 	ulint		n_fields;
-	byte*		types;
+	const byte*	types;
 	const byte*	data;
 	ulint		len;
 	ulint		i;
@@ -1307,18 +1308,19 @@ static
 ulint
 ibuf_rec_get_volume(
 /*================*/
-			/* out: size of index record in bytes + an upper
-			limit of the space taken in the page directory */
-	rec_t*	ibuf_rec)/* in: ibuf record */
+				/* out: size of index record in bytes
+				+ an upper limit of the space taken in the
+				page directory */
+	const rec_t*	ibuf_rec)/* in: ibuf record */
 {
-	dtype_t	dtype;
-	ibool	new_format	= FALSE;
-	ulint	data_size	= 0;
-	ulint	n_fields;
-	byte*	types;
-	byte*	data;
-	ulint	len;
-	ulint	i;
+	dtype_t		dtype;
+	ibool		new_format	= FALSE;
+	ulint		data_size	= 0;
+	ulint		n_fields;
+	const byte*	types;
+	const byte*	data;
+	ulint		len;
+	ulint		i;
 
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(ibuf_rec) > 2);
@@ -2355,7 +2357,6 @@ ibuf_get_volume_buffered(
 	volume = 0;
 
 	rec = btr_pcur_get_rec(pcur);
-
 	page = page_align(rec);
 
 	if (page_rec_is_supremum(rec)) {
@@ -2503,8 +2504,8 @@ ibuf_update_max_tablespace_id(void)
 /*===============================*/
 {
 	ulint		max_space_id;
-	rec_t*		rec;
-	byte*		field;
+	const rec_t*	rec;
+	const byte*	field;
 	ulint		len;
 	ibuf_data_t*	ibuf_data;
 	dict_index_t*	ibuf_index;
@@ -2999,7 +3000,7 @@ ibuf_delete_rec(
 				should belong */
 	btr_pcur_t*	pcur,	/* in: pcur positioned on the record to
 				delete, having latch mode BTR_MODIFY_LEAF */
-	dtuple_t*	search_tuple,
+	const dtuple_t*	search_tuple,
 				/* in: search tuple for entries of page_no */
 	mtr_t*		mtr)	/* in: mtr */
 {
@@ -3576,7 +3577,7 @@ ibuf_is_empty(void)
 {
 	ibuf_data_t*	data;
 	ibool		is_empty;
-	page_t*		root;
+	const page_t*	root;
 	mtr_t		mtr;
 
 	ibuf_enter();
