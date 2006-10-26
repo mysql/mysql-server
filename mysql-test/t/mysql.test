@@ -170,4 +170,57 @@ select count(*) from t17583;
 --exec echo "select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; select count(*) from t17583; " |$MYSQL test >&-
 drop table t17583;
 
+#
+# Bug#20984: Reproducible MySQL client segmentation fault
+#  + additional tests for the "com_connect" function in mysql
+#
+#
+--echo Test connect without db- or host-name => reconnect
+--exec $MYSQL test -e "\r" 2>&1
+--exec $MYSQL test -e "connect" 2>&1
+
+--echo Test connect with dbname only => new dbname, old hostname
+--exec $MYSQL test -e "\r test" 2>&1
+--exec $MYSQL test -e "connect test" 2>&1
+--exec $MYSQL test -e "\rtest" 2>&1
+--error 1
+--exec $MYSQL test -e "connecttest" 2>&1
+
+--echo Test connect with _invalid_ dbname only => new invalid dbname, old hostname
+--error 1
+--exec $MYSQL test -e "\r invalid" 2>&1
+--error 1
+--exec $MYSQL test -e "connect invalid" 2>&1
+
+--echo Test connect with dbname + hostname
+--exec $MYSQL test -e "\r test localhost" 2>&1
+--exec $MYSQL test -e "connect test localhost" 2>&1
+
+--echo Test connect with dbname + _invalid_ hostname
+# Mask the errno of the error message
+--replace_regex /\([0-9]*\)/(errno)/
+--error 1
+--exec $MYSQL test -e "\r test invalid_hostname" 2>&1
+--replace_regex /\([0-9]*\)/(errno)/
+--error 1
+--exec $MYSQL test -e "connect test invalid_hostname" 2>&1
+
+--echo The commands reported in the bug report
+--replace_regex /\([0-9]*\)/(errno)/
+--error 1
+--exec $MYSQL test -e "\r\r\n\r\n cyril\ has\ found\ a\ bug\ :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 2>&1
+
+--replace_regex /\([0-9]*\)/(errno)/
+--error 1
+--exec echo '\r\r\n\r\n cyril\ has\ found\ a\ bug\ :)XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' | $MYSQL 2>&1
+
+--echo Too long dbname
+--error 1
+--exec echo '\r test_really_long_dbnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX localhost' | $MYSQL 2>&1
+
+--echo Too long hostname
+--replace_regex /\([0-9]*\)/(errno)/
+--error 1
+--exec echo '\r  test cyrils_superlonghostnameXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' | $MYSQL 2>&1
+
 --echo End of 5.0 tests
