@@ -2437,9 +2437,11 @@ err_exit:
 
 		if (UNIV_UNLIKELY(!orig_succ)) {
 			ut_a(merge_page_zip);
+#ifdef UNIV_BTR_DEBUG
 			/* FIL_PAGE_PREV was restored from merge_page_zip. */
-			ut_ad(!memcmp(fil_page_prev,
-				      merge_page + FIL_PAGE_PREV, 4));
+			ut_a(!memcmp(fil_page_prev,
+				     merge_page + FIL_PAGE_PREV, 4));
+#endif /* UNIV_BTR_DEBUG */
 			goto err_exit;
 		}
 
