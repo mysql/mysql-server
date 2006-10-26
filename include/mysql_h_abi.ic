@@ -1,5 +1,3 @@
-struct __pthread_internal_slist;
-struct __pthread_mutex_s;
 struct character_set;
 struct rand_struct;
 struct st_list;
@@ -21,8 +19,6 @@ struct st_typelib;
 struct st_udf_args;
 struct st_udf_init;
 struct st_used_mem;
-struct timespec;
-struct timeval;
 enum Item_result;
 enum enum_cursor_type;
 enum enum_field_types;
@@ -36,16 +32,8 @@ enum mysql_option;
 enum mysql_protocol_type;
 enum mysql_rpl_type;
 enum mysql_status;
-# 59 "/usr/include/bits/types.h"
-typedef long long int __quad_t;
 # 134 "mysql.h"
 typedef struct st_mysql_rows MYSQL_ROWS;
-# 55 "/usr/include/sys/select.h"
-typedef long int __fd_mask;
-# 145 "/usr/include/bits/types.h"
-typedef __quad_t __off64_t;
-# 60 "/usr/include/bits/types.h"
-typedef unsigned long long int __u_quad_t;
 # 24 "my_list.h"
 typedef struct st_list LIST;
 # 251 "mysql.h"
@@ -76,71 +64,6 @@ typedef struct st_net NET;
 typedef struct st_typelib TYPELIB;
 # 170 "mysql_com.h"
 typedef struct st_vio Vio;
-# 172 "/usr/include/bits/types.h"
-typedef long int __blkcnt_t;
-# 189 "/usr/include/bits/types.h"
-typedef char * __caddr_t;
-# 161 "/usr/include/bits/types.h"
-typedef int __clockid_t;
-# 156 "/usr/include/bits/types.h"
-typedef int __daddr_t;
-# 137 "/usr/include/bits/types.h"
-typedef __u_quad_t __dev_t;
-# 176 "/usr/include/bits/types.h"
-typedef unsigned long int __fsblkcnt_t;
-# 180 "/usr/include/bits/types.h"
-typedef unsigned long int __fsfilcnt_t;
-# 147 "/usr/include/bits/types.h"
-typedef struct __attribute__((aligned(__alignof__(int))))
-  {
-    int __val[2];
-  } __fsid_t;
-# 139 "/usr/include/bits/types.h"
-typedef unsigned int __gid_t;
-# 151 "/usr/include/bits/types.h"
-typedef unsigned int __id_t;
-# 140 "/usr/include/bits/types.h"
-typedef unsigned long int __ino_t;
-# 158 "/usr/include/bits/types.h"
-typedef int __key_t;
-# 187 "/usr/include/bits/types.h"
-typedef __off64_t __loff_t;
-# 142 "/usr/include/bits/types.h"
-typedef unsigned int __mode_t;
-# 143 "/usr/include/bits/types.h"
-typedef unsigned int __nlink_t;
-# 144 "/usr/include/bits/types.h"
-typedef long int __off_t;
-# 146 "/usr/include/bits/types.h"
-typedef int __pid_t;
-# 28 "/usr/include/bits/sigset.h"
-typedef struct __attribute__((aligned(__alignof__(unsigned long int))))
-  {
-    unsigned long int __val[(1024 / (8 * sizeof(unsigned long int)))];
-  } __sigset_t;
-# 183 "/usr/include/bits/types.h"
-typedef int __ssize_t;
-# 154 "/usr/include/bits/types.h"
-typedef long int __suseconds_t;
-# 152 "/usr/include/bits/types.h"
-typedef long int __time_t;
-# 164 "/usr/include/bits/types.h"
-typedef void * __timer_t;
-# 34 "/usr/include/bits/types.h"
-typedef unsigned char __u_char;
-# 36 "/usr/include/bits/types.h"
-typedef unsigned int __u_int;
-# 37 "/usr/include/bits/types.h"
-typedef unsigned long int __u_long;
-# 35 "/usr/include/bits/types.h"
-typedef unsigned short int __u_short;
-# 138 "/usr/include/bits/types.h"
-typedef unsigned int __uid_t;
-# 67 "/usr/include/sys/select.h"
-typedef struct __attribute__((aligned(__alignof__(long int))))
-  {
-    __fd_mask __fds_bits[(1024 / (8 * sizeof(__fd_mask)))];
-  } fd_set;
 # 57 "mysql.h"
 typedef char * gptr;
 # 29 "my_list.h"
@@ -167,237 +90,6 @@ typedef struct st_udf_args UDF_ARGS;
 typedef struct st_udf_init UDF_INIT;
 # 27 "my_alloc.h"
 typedef struct st_used_mem USED_MEM;
-# 173 "/usr/include/bits/types.h"
-typedef __quad_t __blkcnt64_t;
-# 167 "/usr/include/bits/types.h"
-typedef long int __blksize_t;
-# 148 "/usr/include/bits/types.h"
-typedef long int __clock_t;
-# 177 "/usr/include/bits/types.h"
-typedef __u_quad_t __fsblkcnt64_t;
-# 181 "/usr/include/bits/types.h"
-typedef __u_quad_t __fsfilcnt64_t;
-# 141 "/usr/include/bits/types.h"
-typedef __u_quad_t __ino64_t;
-# 42 "/usr/include/bits/types.h"
-typedef short int __int16_t;
-# 44 "/usr/include/bits/types.h"
-typedef int __int32_t;
-# 50 "/usr/include/bits/types.h"
-typedef long long int __int64_t;
-# 40 "/usr/include/bits/types.h"
-typedef signed char __int8_t;
-# 192 "/usr/include/bits/types.h"
-typedef int __intptr_t;
-# 46 "/usr/include/bits/pthreadtypes.h"
-typedef struct __pthread_internal_slist __pthread_slist_t;
-# 188 "/usr/include/bits/types.h"
-typedef __quad_t * __qaddr_t;
-# 150 "/usr/include/bits/types.h"
-typedef __u_quad_t __rlim64_t;
-# 149 "/usr/include/bits/types.h"
-typedef unsigned long int __rlim_t;
-# 23 "/usr/include/bits/sigset.h"
-typedef int __sig_atomic_t;
-# 195 "/usr/include/bits/types.h"
-typedef unsigned int __socklen_t;
-# 157 "/usr/include/bits/types.h"
-typedef long int __swblk_t;
-# 43 "/usr/include/bits/types.h"
-typedef unsigned short int __uint16_t;
-# 45 "/usr/include/bits/types.h"
-typedef unsigned int __uint32_t;
-# 51 "/usr/include/bits/types.h"
-typedef unsigned long long int __uint64_t;
-# 41 "/usr/include/bits/types.h"
-typedef unsigned char __uint8_t;
-# 153 "/usr/include/bits/types.h"
-typedef unsigned int __useconds_t;
-# 235 "/usr/include/sys/types.h"
-typedef __blkcnt_t blkcnt_t;
-# 117 "/usr/include/sys/types.h"
-typedef __caddr_t caddr_t;
-# 93 "/usr/include/time.h"
-typedef __clockid_t clockid_t;
-# 116 "/usr/include/sys/types.h"
-typedef __daddr_t daddr_t;
-# 62 "/usr/include/sys/types.h"
-typedef __dev_t dev_t;
-# 85 "/usr/include/sys/select.h"
-typedef __fd_mask fd_mask;
-# 239 "/usr/include/sys/types.h"
-typedef __fsblkcnt_t fsblkcnt_t;
-# 243 "/usr/include/sys/types.h"
-typedef __fsfilcnt_t fsfilcnt_t;
-# 41 "/usr/include/sys/types.h"
-typedef __fsid_t fsid_t;
-# 67 "/usr/include/sys/types.h"
-typedef __gid_t gid_t;
-# 105 "/usr/include/sys/types.h"
-typedef __id_t id_t;
-# 50 "/usr/include/sys/types.h"
-typedef __ino_t ino_t;
-# 196 "/usr/include/sys/types.h"
-typedef int int16_t;
-# 197 "/usr/include/sys/types.h"
-typedef int int32_t;
-# 198 "/usr/include/sys/types.h"
-typedef int int64_t;
-# 195 "/usr/include/sys/types.h"
-typedef int int8_t;
-# 123 "/usr/include/sys/types.h"
-typedef __key_t key_t;
-# 46 "/usr/include/sys/types.h"
-typedef __loff_t loff_t;
-# 72 "/usr/include/sys/types.h"
-typedef __mode_t mode_t;
-# 77 "/usr/include/sys/types.h"
-typedef __nlink_t nlink_t;
-# 88 "/usr/include/sys/types.h"
-typedef __off_t off_t;
-# 100 "/usr/include/sys/types.h"
-typedef __pid_t pid_t;
-# 39 "/usr/include/bits/pthreadtypes.h"
-typedef union __attribute__((aligned(__alignof__(long int))))
-  {
-    char __size[36];
-    long int __align;
-  } pthread_attr_t;
-# 153 "/usr/include/bits/pthreadtypes.h"
-typedef union __attribute__((aligned(__alignof__(long int))))
-  {
-    char __size[20];
-    long int __align;
-  } pthread_barrier_t;
-# 159 "/usr/include/bits/pthreadtypes.h"
-typedef union __attribute__((aligned(__alignof__(int))))
-  {
-    char __size[4];
-    int __align;
-  } pthread_barrierattr_t;
-# 84 "/usr/include/bits/pthreadtypes.h"
-typedef union __attribute__((aligned(__alignof__(unsigned long long int)), aligned(__alignof__(void *))))
-  {
-    struct __attribute__((aligned(__alignof__(unsigned long long int)), aligned(__alignof__(void *))))
-      {
-        int __lock;
-        unsigned int __futex;
-        unsigned long long int __total_seq;
-        unsigned long long int __wakeup_seq;
-        unsigned long long int __woken_seq;
-        void * __mutex;
-        unsigned int __nwaiters;
-        unsigned int __broadcast_seq;
-      } __data;
-    char __size[48];
-    long long int __align;
-  } pthread_cond_t;
-# 101 "/usr/include/bits/pthreadtypes.h"
-typedef union __attribute__((aligned(__alignof__(long int))))
-  {
-    char __size[4];
-    long int __align;
-  } pthread_condattr_t;
-# 109 "/usr/include/bits/pthreadtypes.h"
-typedef unsigned int pthread_key_t;
-# 54 "/usr/include/bits/pthreadtypes.h"
-typedef union __attribute__((aligned(__alignof__(long int))))
-  {
-    struct __pthread_mutex_s __data;
-    char __size[24];
-    long int __align;
-  } pthread_mutex_t;
-# 75 "/usr/include/bits/pthreadtypes.h"
-typedef union __attribute__((aligned(__alignof__(long int))))
-  {
-    char __size[4];
-    long int __align;
-  } pthread_mutexattr_t;
-# 113 "/usr/include/bits/pthreadtypes.h"
-typedef int pthread_once_t;
-# 119 "/usr/include/bits/pthreadtypes.h"
-typedef union __attribute__((aligned(__alignof__(long int))))
-  {
-    struct __attribute__((aligned(__alignof__(int))))
-      {
-        int __lock;
-        unsigned int __nr_readers;
-        unsigned int __readers_wakeup;
-        unsigned int __writer_wakeup;
-        unsigned int __nr_readers_queued;
-        unsigned int __nr_writers_queued;
-        unsigned int __flags;
-        int __writer;
-      } __data;
-    char __size[32];
-    long int __align;
-  } pthread_rwlock_t;
-# 138 "/usr/include/bits/pthreadtypes.h"
-typedef union __attribute__((aligned(__alignof__(long int))))
-  {
-    char __size[8];
-    long int __align;
-  } pthread_rwlockattr_t;
-# 148 "/usr/include/bits/pthreadtypes.h"
-typedef int volatile pthread_spinlock_t;
-# 36 "/usr/include/bits/pthreadtypes.h"
-typedef unsigned long int pthread_t;
-# 39 "/usr/include/sys/types.h"
-typedef __quad_t quad_t;
-# 206 "/usr/include/sys/types.h"
-typedef int register_t;
-# 38 "/usr/include/sys/select.h"
-typedef __sigset_t sigset_t;
-# 214 "/usr/lib/gcc/i386-redhat-linux/4.0.2/include/stddef.h"
-typedef unsigned int size_t;
-# 110 "/usr/include/sys/types.h"
-typedef __ssize_t ssize_t;
-# 49 "/usr/include/sys/select.h"
-typedef __suseconds_t suseconds_t;
-# 77 "/usr/include/time.h"
-typedef __time_t time_t;
-# 105 "/usr/include/time.h"
-typedef __timer_t timer_t;
-# 35 "/usr/include/sys/types.h"
-typedef __u_char u_char;
-# 37 "/usr/include/sys/types.h"
-typedef __u_int u_int;
-# 202 "/usr/include/sys/types.h"
-typedef unsigned int u_int16_t;
-# 203 "/usr/include/sys/types.h"
-typedef unsigned int u_int32_t;
-# 204 "/usr/include/sys/types.h"
-typedef unsigned int u_int64_t;
-# 201 "/usr/include/sys/types.h"
-typedef unsigned int u_int8_t;
-# 38 "/usr/include/sys/types.h"
-typedef __u_long u_long;
-# 40 "/usr/include/sys/types.h"
-typedef __u_quad_t u_quad_t;
-# 36 "/usr/include/sys/types.h"
-typedef __u_short u_short;
-# 82 "/usr/include/sys/types.h"
-typedef __uid_t uid_t;
-# 153 "/usr/include/sys/types.h"
-typedef unsigned int uint;
-# 151 "/usr/include/sys/types.h"
-typedef unsigned long int ulong;
-# 152 "/usr/include/sys/types.h"
-typedef unsigned short int ushort;
-# 46 "/usr/include/bits/pthreadtypes.h"
-struct __attribute__((aligned(__alignof__(void *)))) __pthread_internal_slist
-  {
-    struct __pthread_internal_slist * __next;
-  };
-# 54 "/usr/include/bits/pthreadtypes.h"
-struct __attribute__((aligned(__alignof__(int)))) __pthread_mutex_s
-  {
-    int __lock;
-    unsigned int __count;
-    int __owner;
-    int __kind;
-    unsigned int __nusers;
-  };
 # 236 "mysql.h"
 struct __attribute__((aligned(__alignof__(unsigned int)), aligned(__alignof__(void *)))) character_set
   {
@@ -762,18 +454,6 @@ struct __attribute__((aligned(__alignof__(void *)), aligned(__alignof__(unsigned
     unsigned int left;
     unsigned int size;
   };
-# 121 "/usr/include/time.h"
-struct __attribute__((aligned(__alignof__(long int)))) timespec
-  {
-    __time_t tv_sec;
-    long int tv_nsec;
-  };
-# 69 "/usr/include/bits/time.h"
-struct __attribute__((aligned(__alignof__(long int)))) timeval
-  {
-    __time_t tv_sec;
-    __suseconds_t tv_usec;
-  };
 # 368 "mysql_com.h"
 enum Item_result
   {
@@ -962,12 +642,6 @@ extern void get_salt_from_password_323(unsigned long int * res, char const * pas
 extern char * get_tty_password(char * opt_message);
 # 30 "typelib.h"
 extern char const * get_type(TYPELIB * typelib, unsigned int);
-# 41 "/usr/include/sys/sysmacros.h"
-extern unsigned int gnu_dev_major(unsigned long long int);
-# 53 "/usr/include/sys/sysmacros.h"
-extern unsigned long long int gnu_dev_makedev(unsigned int, unsigned int);
-# 47 "/usr/include/sys/sysmacros.h"
-extern unsigned int gnu_dev_minor(unsigned long long int);
 # 413 "mysql_com.h"
 extern void hash_password(unsigned long int * to, char const * password, unsigned int);
 # 31 "my_list.h"
@@ -1282,15 +956,11 @@ extern my_bool net_realloc(NET * net, unsigned long int);
 extern my_bool net_write_command(NET * net, unsigned char, char const * header, unsigned long int, char const * packet, unsigned long int);
 # 427 "mysql_com.h"
 extern char * octet2hex(char * to, char const * str, unsigned int);
-# 121 "/usr/include/sys/select.h"
-extern int pselect(int, fd_set * restrict __readfds, fd_set * restrict __writefds, fd_set * restrict __exceptfds, struct timespec const * restrict __timeout, __sigset_t const * restrict __sigmask);
 # 408 "mysql_com.h"
 extern void randominit(struct rand_struct *, unsigned long int, unsigned long int);
 # 422 "mysql_com.h"
 extern void scramble(char * to, char const * message, char const * password);
 # 415 "mysql_com.h"
 extern void scramble_323(char * to, char const * message, char const * password);
-# 109 "/usr/include/sys/select.h"
-extern int select(int, fd_set * restrict __readfds, fd_set * restrict __writefds, fd_set * restrict __exceptfds, struct timeval * restrict __timeout);
 # 32 "typelib.h"
 extern TYPELIB sql_protocol_typelib;
