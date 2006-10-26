@@ -165,16 +165,16 @@ They should be used with caution.
 
 %{see_base}
 
-%package bench
+%package test
 Requires: %{name}-client perl-DBI perl
-Summary: MySQL - Benchmarks and test system
+Summary: MySQL - Test suite
 Group: Applications/Databases
-Provides: mysql-bench
-Obsoletes: mysql-bench
+Provides: mysql-test
+Obsoletes: mysql-bench mysql-test
 AutoReqProv: no
 
-%description bench
-This package contains MySQL benchmark scripts and data.
+%description test
+This package contains the MySQL regression test suite.
 
 %{see_base}
 
@@ -628,6 +628,9 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_config
 %attr(755, root, root) %{_bindir}/ndb_error_reporter
 %attr(755, root, root) %{_bindir}/ndb_size.pl
+%attr(755, root, root) %{_bindir}/ndb_print_backup_file
+%attr(755, root, root) %{_bindir}/ndb_print_schema_file
+%attr(755, root, root) %{_bindir}/ndb_print_sys_file
 %attr(-, root, root) %{_datadir}/mysql/ndb_size.tmpl
 
 %files ndb-extra
@@ -635,12 +638,12 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_drop_index
 %attr(755, root, root) %{_bindir}/ndb_drop_table
 %attr(755, root, root) %{_bindir}/ndb_delete_all
+%attr(755, root, root) %{_sbindir}/ndb_cpcd
 
 %files devel
 %defattr(-, root, root, 0755)
 %doc mysql-release-%{mysql_version}/EXCEPTIONS-CLIENT
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
-%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_includedir}/mysql
 %dir %attr(755, root, root) %{_libdir}/mysql
@@ -666,6 +669,13 @@ fi
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
 %{_libdir}/libndb*.so*
+
+%files test
+%defattr(-, root, root, 0755)
+%attr(-, root, root) %{_datadir}/mysql-test
+%attr(755, root, root) %{_bindir}/mysql_client_test
+%attr(755, root, root) %{_bindir}/mysql_client_test_embedded
+%attr(755, root, root) %{_bindir}/mysqltest_embedded
 
 %files embedded
 %defattr(-, root, root, 0755) 

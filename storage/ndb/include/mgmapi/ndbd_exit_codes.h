@@ -146,6 +146,8 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_AFS_NO_SUCH_FILE          2815
 #define NDBD_EXIT_AFS_READ_UNDERFLOW        2816
 
+#define NDBD_EXIT_INVALID_LCP_FILE          2352
+
 const char *
 ndbd_exit_message(int faultId, ndbd_exit_classification *cl);
 const char *

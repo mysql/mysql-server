@@ -3791,7 +3791,7 @@ ER_WRONG_MRG_TABLE
         cze "V-B¹echny tabulky v MERGE tabulce nejsou definovány stejnì"
         dan "Tabellerne i MERGE er ikke defineret ens"
         nla "Niet alle tabellen in de MERGE tabel hebben identieke gedefinities"
-        eng "All tables in the MERGE table are not identically defined"
+        eng "Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist"
         est "Kõik tabelid MERGE tabeli määratluses ei ole identsed"
         fre "Toutes les tables de la table de type MERGE n'ont pas la même définition"
         ger "Nicht alle Tabellen in der MERGE-Tabelle sind gleich definiert"
@@ -5960,33 +5960,48 @@ ER_EVENT_SET_VAR_ERROR
         eng "Error during starting/stopping of the scheduler. Error code %u"
         ger "Fehler während des Startens oder Anhalten des Schedulers. Fehlercode %u"
 ER_PARTITION_MERGE_ERROR
-        eng "%s handler cannot be used in partitioned tables"
-        ger "%s-Handler kann in partitionierten Tabellen nicht verwendet werden"
-        swe "%s kan inte användas i en partitionerad tabell"
+        eng "Engine cannot be used in partitioned tables"
+        ger "Engine kann in partitionierten Tabellen nicht verwendet werden"
+        swe "Engine inte användas i en partitionerad tabell"
 ER_CANT_ACTIVATE_LOG
         eng "Cannot activate '%-.64s' log"
         ger "Kann Logdatei '%-.64s' nicht aktivieren"
 ER_RBR_NOT_AVAILABLE
         eng "The server was not built with row-based replication"
+ER_BASE64_DECODE_ERROR
+        eng "Decoding of base64 string failed"
+        swe "Avkodning av base64 sträng misslyckades"
         ger "Der Server hat keine zeilenbasierte Replikation"
 ER_NO_TRIGGERS_ON_SYSTEM_SCHEMA
         eng "Triggers can not be created on system tables"
         ger "Trigger können nicht auf Systemtabellen erzeugt werden"
-ER_CANT_ALTER_LOG_TABLE
-        eng "You can't alter a log table if logging is enabled"
-ER_BAD_LOG_ENGINE
-        eng "One can use only CSV and MyISAM engines for the log tables"
-ER_CANT_DROP_LOG_TABLE
-        eng "Cannot drop log table if log is enabled"
 ER_EVENT_RECURSIVITY_FORBIDDEN
         eng "Recursivity of EVENT DDL statements is forbidden when body is present"
+        ger "Rekursivität von EVENT-DDL-Anweisungen ist unzulässig wenn ein Hauptteil (Body) existiert"
 ER_EVENTS_DB_ERROR
         eng "Cannot proceed because the tables used by events were found damaged at server start"
+        ger "Kann nicht weitermachen, weil die Tabellen, die von Events verwendet werden, beim Serverstart als beschädigt markiert wurden"
 ER_ONLY_INTEGERS_ALLOWED
-        eng "Only normal integers allowed as number here"
+        eng "Only integers allowed as number here"
+        ger "An dieser Stelle sind nur Ganzzahlen zulässig"
+ER_AUTOINC_READ_FAILED
+        eng "Failed to read auto-increment value from storage engine"
+        ger "Lesen des Autoincrement-Werts von der Speicher-Engine fehlgeschlagen"
 ER_USERNAME
-	eng "user name"
+        eng "user name"
+        ger "Benutzername"
 ER_HOSTNAME
-	eng "host name"
+        eng "host name"
+        ger "Hostname"
 ER_WRONG_STRING_LENGTH
-	eng "String '%-.70s' is too long for %s (should be no longer than %d)"
+        eng "String '%-.70s' is too long for %s (should be no longer than %d)"
+        ger "String '%-.70s' ist zu lang für %s (sollte nicht länger sein als %d)"
+ER_UNSUPORTED_LOG_ENGINE
+        eng "This storage engine cannot be used for log tables""
+        ger "Diese Speicher-Engine kann für Logtabellen nicht verwendet werden"
+ER_BAD_LOG_STATEMENT
+        eng "You cannot '%s' a log table if logging is enabled"
+        ger "Sie können eine Logtabelle nicht '%s', wenn Loggen angeschaltet ist"
+ER_NON_INSERTABLE_TABLE  
+        eng "The target table %-.100s of the %s is not insertable-into"
+

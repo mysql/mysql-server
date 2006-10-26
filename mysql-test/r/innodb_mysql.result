@@ -1,5 +1,6 @@
+SET SESSION STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2,t1m,t1i,t2m,t2i,t4;
-create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
+create table t1(f1 varchar(800) binary not null, key(f1))
 character set utf8 collate utf8_general_ci;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 765 bytes
@@ -10,8 +11,8 @@ c_id int(11) not null default '0',
 org_id int(11) default null,
 unique key contacts$c_id (c_id),
 key contacts$org_id (org_id)
-) engine=innodb;
-insert into t1 values 
+);
+insert into t1 values
 (2,null),(120,null),(141,null),(218,7), (128,1),
 (151,2),(234,2),(236,2),(243,2),(255,2),(259,2),(232,3),(235,3),(238,3),
 (246,3),(253,3),(269,3),(285,3),(291,3),(293,3),(131,4),(230,4),(231,4);
@@ -33,16 +34,16 @@ sla_set int(11) default null,
 unique key t2$slai_id (slai_id),
 key t2$owner_id (owner_id),
 key t2$sla_id (sla_id)
-) engine=innodb;
+);
 insert into t2(slai_id, owner_tbl, owner_id, sla_id) values
 (1,3,1,1), (3,3,10,2), (4,3,3,6), (5,3,2,5), (6,3,8,3), (7,3,9,7),
 (8,3,6,8), (9,3,4,9), (10,3,5,10), (11,3,11,11), (12,3,7,12);
 flush tables;
 select si.slai_id
 from t1 c join t2 si on
-((si.owner_tbl = 3 and si.owner_id = c.org_id) or 
-( si.owner_tbl = 2 and si.owner_id = c.c_id)) 
-where 
+((si.owner_tbl = 3 and si.owner_id = c.org_id) or
+( si.owner_tbl = 2 and si.owner_id = c.c_id))
+where
 c.c_id = 218 and expiredate is null;
 slai_id
 12
@@ -53,17 +54,17 @@ c_id	org_id
 141	NULL
 select si.slai_id
 from t1 c join t2 si on
-((si.owner_tbl = 3 and si.owner_id = c.org_id) or 
-( si.owner_tbl = 2 and si.owner_id = c.c_id)) 
-where 
+((si.owner_tbl = 3 and si.owner_id = c.org_id) or
+( si.owner_tbl = 2 and si.owner_id = c.c_id))
+where
 c.c_id = 218 and expiredate is null;
 slai_id
 12
 drop table t1, t2;
-CREATE TABLE t1 (a int, b int, KEY b (b)) Engine=InnoDB;
-CREATE TABLE t2 (a int, b int, PRIMARY KEY  (a,b)) Engine=InnoDB;
-CREATE TABLE t3 (a int, b int, c int, PRIMARY KEY  (a), 
-UNIQUE KEY b (b,c), KEY a (a,b,c)) Engine=InnoDB;
+CREATE TABLE t1 (a int, b int, KEY b (b));
+CREATE TABLE t2 (a int, b int, PRIMARY KEY  (a,b));
+CREATE TABLE t3 (a int, b int, c int, PRIMARY KEY  (a),
+UNIQUE KEY b (b,c), KEY a (a,b,c));
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 SELECT a + 1, b + 1 FROM t1;
 INSERT INTO t1 SELECT a + 2, b + 2 FROM t1;
@@ -73,14 +74,14 @@ DELETE FROM t2 WHERE a = 1 AND b < 2;
 INSERT INTO t3 VALUES (1,1,1),(2,1,2);
 INSERT INTO t3 SELECT a + 2, a + 2, 3 FROM t3;
 INSERT INTO t3 SELECT a + 4, a + 4, 3 FROM t3;
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE 
-t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2) 
+SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
 ORDER BY t1.b LIMIT 2;
 b	a
 1	1
 2	2
-SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE 
-t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2) 
+SELECT STRAIGHT_JOIN SQL_NO_CACHE t1.b, t1.a FROM t1, t3, t2 WHERE
+t3.a = t2.a AND t2.b = t1.a AND t3.b = 1 AND t3.c IN (1, 2)
 ORDER BY t1.b LIMIT 5;
 b	a
 1	1
@@ -98,8 +99,8 @@ CREATE TABLE `t2` (
 `id4` INT NOT NULL,
 UNIQUE (`id2`,`id4`),
 KEY (`id1`)
-) ENGINE=InnoDB;
-INSERT INTO `t2`(`id1`,`id2`,`id3`,`id4`) VALUES 
+);
+INSERT INTO `t2`(`id1`,`id2`,`id3`,`id4`) VALUES
 (1,1,1,0),
 (1,1,2,1),
 (5,1,2,2),
@@ -110,66 +111,12 @@ SELECT `id1` FROM `t1` WHERE `id1` NOT IN (SELECT `id1` FROM `t2` WHERE `id2` = 
 id1
 2
 DROP TABLE t1, t2;
-create table t1m (a int) engine=myisam;
-create table t1i (a int) engine=innodb;
-create table t2m (a int) engine=myisam;
-create table t2i (a int) engine=innodb;
+create table t1m (a int) engine = MEMORY;
+create table t1i (a int);
+create table t2m (a int) engine = MEMORY;
+create table t2i (a int);
 insert into t2m values (5);
 insert into t2i values (5);
-select min(a) from t1m;
-min(a)
-NULL
-select min(7) from t1m;
-min(7)
-NULL
-select min(7) from DUAL;
-min(7)
-NULL
-explain select min(7) from t2m join t1m;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-select min(7) from t2m join t1m;
-min(7)
-NULL
-select max(a) from t1m;
-max(a)
-NULL
-select max(7) from t1m;
-max(7)
-NULL
-select max(7) from DUAL;
-max(7)
-NULL
-explain select max(7) from t2m join t1m;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-select max(7) from t2m join t1m;
-max(7)
-NULL
-select 1, min(a) from t1m where a=99;
-1	min(a)
-1	NULL
-select 1, min(a) from t1m where 1=99;
-1	min(a)
-1	NULL
-select 1, min(1) from t1m where a=99;
-1	min(1)
-1	NULL
-select 1, min(1) from t1m where 1=99;
-1	min(1)
-1	NULL
-select 1, max(a) from t1m where a=99;
-1	max(a)
-1	NULL
-select 1, max(a) from t1m where 1=99;
-1	max(a)
-1	NULL
-select 1, max(1) from t1m where a=99;
-1	max(1)
-1	NULL
-select 1, max(1) from t1m where 1=99;
-1	max(1)
-1	NULL
 select min(a) from t1i;
 min(a)
 NULL
@@ -178,7 +125,7 @@ min(7)
 NULL
 select min(7) from DUAL;
 min(7)
-NULL
+7
 explain select min(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
@@ -194,7 +141,7 @@ max(7)
 NULL
 select max(7) from DUAL;
 max(7)
-NULL
+7
 explain select max(7) from t2i join t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	
@@ -250,7 +197,7 @@ count(*)	min(7)	max(7)
 drop table t1m, t1i, t2m, t2i;
 create table t1 (
 a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(64) default ' '
-);
+) ENGINE = MEMORY;
 insert into t1 (a1, a2, b, c, d) values
 ('a','a','a','a111','xy1'),('a','a','a','b111','xy2'),('a','a','a','c111','xy3'),('a','a','a','d111','xy4'),
 ('a','a','b','e112','xy1'),('a','a','b','f112','xy2'),('a','a','b','g112','xy3'),('a','a','b','h112','xy4'),
@@ -286,14 +233,14 @@ insert into t1 (a1, a2, b, c, d) values
 ('d','b','b','m422','xy1'),('d','b','b','n422','xy2'),('d','b','b','o422','xy3'),('d','b','b','p422','xy4');
 create table t4 (
 pk_col int auto_increment primary key, a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(64) default ' '
-) engine=innodb;
+);
 insert into t4 (a1, a2, b, c, d, dummy) select * from t1;
 create index idx12672_0 on t4 (a1);
 create index idx12672_1 on t4 (a1,a2,b,c);
 create index idx12672_2 on t4 (a1,a2,b);
-analyze table t1;
+analyze table t4;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t4	analyze	status	OK
 select distinct a1 from t4 where pk_col not in (1,2,3,4);
 a1
 a
@@ -303,18 +250,18 @@ d
 drop table t1,t4;
 create table t1 (
 a varchar(30), b varchar(30), primary key(a), key(b)
-) engine=innodb;
+);
 select distinct a from t1;
 a
 drop table t1;
-create table t1(a int, key(a)) engine=innodb;
+create table t1(a int, key(a));
 insert into t1 values(1);
 select a, count(a) from t1 group by a with rollup;
 a	count(a)
 1	1
 NULL	1
 drop table t1;
-create table t1 (f1 int, f2 char(1), primary key(f1,f2)) engine=innodb;
+create table t1 (f1 int, f2 char(1), primary key(f1,f2));
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;
@@ -325,25 +272,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	NULL	PRIMARY	5	NULL	3	Using index for group-by; Using temporary
 drop table t1;
 CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
-INDEX (name)) ENGINE=InnoDB;
-CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11),
-FOREIGN KEY (fkey) REFERENCES t2(id)) ENGINE=InnoDB;
+INDEX (name));
+CREATE TABLE t2 (id int(11) NOT NULL PRIMARY KEY, fkey int(11));
+ALTER TABLE t2 ADD FOREIGN KEY (fkey) REFERENCES t2(id);
 INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
 INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,3),(5,3);
 EXPLAIN
-SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id 
+SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY,name	name	23	NULL	3	Using where; Using index
 1	SIMPLE	t2	ref	fkey	fkey	5	test.t1.id	1	Using where; Using index
 EXPLAIN
-SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id 
+SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 WHERE t1.name LIKE 'A%' OR FALSE;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	fkey	5	NULL	5	Using index
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.fkey	1	Using where
 DROP TABLE t1,t2;
-set storage_engine=innodb;
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
 CREATE TABLE t2 (primary key (a)) select * from t1;
@@ -401,7 +347,7 @@ ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 SELECT * from t2;
 a	b
 drop table t1,t2;
-create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
+create table t1(f1 varchar(800) binary not null, key(f1))
 character set utf8 collate utf8_general_ci;
 Warnings:
 Warning	1071	Specified key was too long; max key length is 765 bytes
@@ -413,7 +359,7 @@ CREATE TABLE `t2` (
 `c` int(11) default NULL,
 PRIMARY KEY  (`k`),
 UNIQUE KEY `idx_1` (`a`)
-) ENGINE=InnoDB;
+);
 insert into t2 ( a ) values ( 6 ) on duplicate key update c =
 ifnull( c,
 0 ) + 1;

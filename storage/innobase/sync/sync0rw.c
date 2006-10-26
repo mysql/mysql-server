@@ -89,7 +89,8 @@ void
 rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/* in: pointer to memory */
-	ulint		level,		/* in: level */
+	ulint		level __attribute__((unused)),
+					/* in: level */
 	const char*	cfile_name,	/* in: file name where created */
 	ulint 		cline,		/* in: file line where created */
 	const char*	cmutex_name) 	/* in: mutex name */
@@ -116,9 +117,9 @@ rw_lock_create_func(
 
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list);
-#endif /* UNIV_SYNC_DEBUG */
 
 	lock->level = level;
+#endif /* UNIV_SYNC_DEBUG */
 
 	lock->magic_n = RW_LOCK_MAGIC_N;
 

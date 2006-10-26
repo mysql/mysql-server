@@ -61,7 +61,7 @@ void DH::GenerateKeyPair(RandomNumberGenerator& rng, byte* priv, byte* pub)
 // Generate private value
 void DH::GeneratePrivate(RandomNumberGenerator& rng, byte* priv)
 {
-    Integer x(rng, Integer::One(), mySTL::min(p_ - 1,
+    Integer x(rng, Integer::One(), min(p_ - 1,
         Integer::Power2(2*DiscreteLogWorkFactor(p_.BitCount())) ) );
     x.Encode(priv, p_.ByteCount());
 }

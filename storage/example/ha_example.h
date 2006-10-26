@@ -45,7 +45,7 @@ class ha_example: public handler
   EXAMPLE_SHARE *share;    /* Shared lock info */
 
 public:
-  ha_example(TABLE_SHARE *table_arg);
+  ha_example(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_example()
   {
   }
@@ -136,7 +136,7 @@ public:
   int rnd_next(byte *buf);                                      //required
   int rnd_pos(byte * buf, byte *pos);                           //required
   void position(const byte *record);                            //required
-  void info(uint);                                              //required
+  int info(uint);                                              //required
 
   int extra(enum ha_extra_function operation);
   int reset(void);

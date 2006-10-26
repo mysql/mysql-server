@@ -18,7 +18,7 @@ pk1	b	c
 2	2	2
 4	1	1
 UPDATE t1 set pk1 = 1, c = 2 where pk1 = 4;
-ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
 select * from t1 order by pk1;
 pk1	b	c
 0	0	0

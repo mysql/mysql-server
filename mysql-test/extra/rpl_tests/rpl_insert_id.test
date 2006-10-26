@@ -9,8 +9,21 @@
 # column and index but without primary key.
 ##############################################################
 
+--echo #
+--echo # Setup
+--echo #
 
-# We also check how the foreign_key_check variable is replicated
+use test;
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+--echo #
+--echo # See if queries that use both auto_increment and LAST_INSERT_ID()
+--echo # are replicated well
+--echo #
+--echo # We also check how the foreign_key_check variable is replicated
+--echo #
 
 -- source include/master-slave.inc
 #should work for both SBR and RBR
@@ -49,7 +62,9 @@ select * from t1;
 select * from t2;
 connection master;
 
-# check if INSERT SELECT in auto_increment is well replicated (bug #490)
+--echo #
+--echo # check if INSERT SELECT in auto_increment is well replicated (bug #490)
+--echo #
 
 drop table t2;
 drop table t1;
@@ -72,10 +87,11 @@ save_master_pos;
 connection slave;
 sync_with_master;
 
-#
-# Bug#8412: Error codes reported in binary log for CHARACTER SET,
-#           FOREIGN_KEY_CHECKS
-#
+--echo #
+--echo # Bug#8412: Error codes reported in binary log for CHARACTER SET,
+--echo #           FOREIGN_KEY_CHECKS
+--echo #
+
 connection master;
 SET TIMESTAMP=1000000000;
 CREATE TABLE t1 ( a INT UNIQUE );
@@ -88,11 +104,10 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 
-# End of 4.1 tests
- 
-#
-# Bug#14553: NULL in WHERE resets LAST_INSERT_ID
-#
+--echo #
+--echo # Bug#14553: NULL in WHERE resets LAST_INSERT_ID
+--echo #
+
 connection master;
 create table t1(a int auto_increment, key(a));
 create table t2(a int);
@@ -107,11 +122,16 @@ connection master;
 drop table t1;
 drop table t2;
 
-#
-# BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
-#
-# The solution is not to reset last_insert_id on enter to sub-statement.
-#
+--echo #
+--echo # End of 4.1 tests
+--echo #
+
+--echo #
+--echo # BUG#15728: LAST_INSERT_ID function inside a stored function returns 0
+--echo #
+--echo # The solution is not to reset last_insert_id on enter to sub-statement.
+--echo #
+
 connection master;
 --disable_warnings
 drop function if exists bug15728;
@@ -254,12 +274,162 @@ select * from t1 order by n;
 
 connection master;
 drop table t1;
+sync_slave_with_master;
 
-# End of 5.0 tests
+
+#
+# BUG#20339: stored procedure using LAST_INSERT_ID() does not
+# replicate statement-based.
+#
+# There is another version of the test for bug#20339 above that is
+# actually originates in 5.1, and this is the version that is merged
+# from 5.0.
+#
+connection master;
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+# Reset result of LAST_INSERT_ID().
+SELECT LAST_INSERT_ID(0);
+
+CREATE TABLE t1 (
+  id INT NOT NULL DEFAULT 0,
+  last_id INT,
+  PRIMARY KEY (id)
+);
+
+CREATE TABLE t2 (
+  id INT NOT NULL AUTO_INCREMENT,
+  last_id INT,
+  PRIMARY KEY (id)
+);
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t2 (last_id) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (last_id) VALUES (LAST_INSERT_ID());
+END|
+delimiter ;|
+
+CALL p1();
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+sync_slave_with_master;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+
+
+#
+# BUG#21726: Incorrect result with multiple invocations of
+# LAST_INSERT_ID
+#
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (
+    i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    j INT DEFAULT 0
+);
+CREATE TABLE t2 (i INT);
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t1 (i) VALUES (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (i) VALUES (NULL), (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+END |
+
+CREATE FUNCTION f1() RETURNS INT MODIFIES SQL DATA
+BEGIN
+  INSERT INTO t1 (i) VALUES (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  INSERT INTO t1 (i) VALUES (NULL), (NULL);
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  RETURN 0;
+END |
+
+CREATE FUNCTION f2() RETURNS INT NOT DETERMINISTIC
+  RETURN LAST_INSERT_ID() |
+
+CREATE FUNCTION f3() RETURNS INT MODIFIES SQL DATA
+BEGIN
+  INSERT INTO t2 (i) VALUES (LAST_INSERT_ID());
+  RETURN 0;
+END |
+delimiter ;|
+
+INSERT INTO t1 VALUES (NULL, -1);
+CALL p1();
+SELECT f1();
+INSERT INTO t1 VALUES (NULL, f2()), (NULL, LAST_INSERT_ID()),
+                      (NULL, LAST_INSERT_ID()), (NULL, f2()), (NULL, f2());
+INSERT INTO t1 VALUES (NULL, f2());
+INSERT INTO t1 VALUES (NULL, LAST_INSERT_ID()), (NULL, LAST_INSERT_ID(5)),
+                      (NULL, @@LAST_INSERT_ID);
+# Test replication of substitution "IS NULL" -> "= LAST_INSERT_ID".
+INSERT INTO t1 VALUES (NULL, 0), (NULL, LAST_INSERT_ID());
+UPDATE t1 SET j= -1 WHERE i IS NULL;
+
+# Test statement-based replication of function calls.
+INSERT INTO t1 (i) VALUES (NULL);
+
+connection master1;
+INSERT INTO t1 (i) VALUES (NULL);
+
+connection master;
+SELECT f3();
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+sync_slave_with_master;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP TABLE t1, t2;
+
+
+sync_slave_with_master;
+
+--echo #
+--echo # End of 5.0 tests
+--echo #
+
+# Tests in this file are tightly bound together.  Recreate t2.
+connection master;
+create table t2 (
+  id int not null auto_increment,
+  last_id int,
+  primary key (id)
+);
+
 
 # Test for BUG#20341 "stored function inserting into one
 # auto_increment puts bad data in slave"
 
+connection master;
 truncate table t2;
 create table t1 (id tinyint primary key); # no auto_increment
 
@@ -289,8 +459,30 @@ select * from t1;
 select * from t2;
 
 connection master;
-drop table t1, t2;
+drop table t1;
 drop function insid;
 
-sync_slave_with_master;
+truncate table t2;
+create table t1 (n int primary key auto_increment not null,
+b int, unique(b));
+delimiter |;
+create procedure foo()
+begin
+  insert into t1 values(null,10);
+  insert ignore into t1 values(null,10);
+  insert ignore into t1 values(null,10);
+  insert into t2 values(null,3);
+end|
+delimiter ;|
+call foo();
+select * from t1;
+select * from t2;
 
+sync_slave_with_master;
+select * from t1;
+select * from t2;
+
+connection master;
+drop table t1, t2;
+drop procedure foo;
+sync_slave_with_master;

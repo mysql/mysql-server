@@ -690,10 +690,9 @@ main(int argc, char** argv)
       clearConsumers();
       ndbout_c("\nRestore successful, but encountered temporary error, "
                "please look at configuration.");
-      return NDBT_ProgramExit(NDBT_TEMPORARY);
     }               
   }
-
+  
   clearConsumers();
   return NDBT_ProgramExit(NDBT_OK);
 } // main

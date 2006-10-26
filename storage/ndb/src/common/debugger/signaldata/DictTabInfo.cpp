@@ -263,7 +263,7 @@ DictFilegroupInfo::Filegroup::init(){
 
 void
 DictFilegroupInfo::File::init(){
-  memset(FileName, sizeof(FileName), 0);
+  memset(FileName, 0, sizeof(FileName));
   FileType = ~0;
   FileId = ~0;
   FileVersion = ~0;

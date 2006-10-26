@@ -94,7 +94,7 @@ private:
   int stash_remote_error();
 
 public:
-  ha_federated(TABLE_SHARE *table_arg);
+  ha_federated(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_federated() {}
   /* The name that will be used for display purposes */
   const char *table_type() const { return "FEDERATED"; }
@@ -206,7 +206,7 @@ public:
   int rnd_next(byte *buf);                                      //required
   int rnd_pos(byte *buf, byte *pos);                            //required
   void position(const byte *record);                            //required
-  void info(uint);                                              //required
+  int info(uint);                                              //required
 
   void update_auto_increment(void);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
@@ -235,7 +235,4 @@ public:
                                      ha_rkey_function find_flag,
                                      MYSQL_RES **result);
 };
-
-int federated_db_init(void);
-int federated_db_end(ha_panic_function type);
 
