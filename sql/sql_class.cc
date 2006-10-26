@@ -859,7 +859,6 @@ int THD::send_explain_fields(select_result *result)
   field_list.push_back(new Item_empty_string("select_type", 19, cs));
   field_list.push_back(item= new Item_empty_string("table", NAME_LEN, cs));
   item->maybe_null= 1;
-#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (lex->describe & DESCRIBE_PARTITIONS)
   {
     /* Maximum length of string that make_used_partitions_str() can produce */
@@ -868,7 +867,6 @@ int THD::send_explain_fields(select_result *result)
     field_list.push_back(item);
     item->maybe_null= 1;
   }
-#endif
   field_list.push_back(item= new Item_empty_string("type", 10, cs));
   item->maybe_null= 1;
   field_list.push_back(item=new Item_empty_string("possible_keys",
