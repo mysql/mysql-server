@@ -3559,20 +3559,38 @@ dict_index_get_if_in_cache_low(
 				/* out: index, NULL if not found */
 	dulint	index_id)	/* in: index id */
 {
-	dict_index_t*	index;
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
 
-	index = dict_index_find_on_id_low(index_id);
+	return(dict_index_find_on_id_low(index_id));
+}
+
+#ifdef UNIV_DEBUG
+/**************************************************************************
+Returns an index object if it is found in the dictionary cache. */
+
+dict_index_t*
+dict_index_get_if_in_cache(
+/*=======================*/
+				/* out: index, NULL if not found */
+	dulint	index_id)	/* in: index id */
+{
+	dict_index_t*	index;
+
+	if (dict_sys == NULL) {
+		return(NULL);
+	}
+
+	mutex_enter(&(dict_sys->mutex));
+
+	index = dict_index_get_if_in_cache_low(index_id);
 
 	mutex_exit(&(dict_sys->mutex));
 
 	return(index);
 }
 
-#ifdef UNIV_DEBUG
 /**************************************************************************
 Checks that a tuple has n_fields_cmp value in a sensible range, so that
 no comparison can occur with the page number field in a node pointer. */
