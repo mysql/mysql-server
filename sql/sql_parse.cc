@@ -1168,7 +1168,14 @@ pthread_handler_t handle_one_connection(void *arg)
     {
       execute_init_command(thd, &sys_init_connect, &LOCK_sys_init_connect);
       if (thd->query_error)
+      {
 	thd->killed= THD::KILL_CONNECTION;
+        sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+                          thd->thread_id,(thd->db ? thd->db : "unconnected"),
+                          sctx->user ? sctx->user : "unauthenticated",
+                          sctx->host_or_ip, "init_connect command failed");
+        sql_print_warning("%s", net->last_error);
+      }
       thd->proc_info=0;
       thd->set_time();
       thd->init_for_queries();
