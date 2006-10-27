@@ -188,10 +188,6 @@ File_class::flush() const
   ::fflush(m_file);
   return ::fsync(::fileno(m_file));
 #else
-  return 0;
+  return ::fflush(m_file);;
 #endif
 }
-
-//
-// PRIVATE
-//
