@@ -33,7 +33,7 @@ typedef struct charset_info_st
   uint      strxfrm_multiply;
   uint      mbminlen;
   uint      mbmaxlen;
-  char      max_sort_char; /* For LIKE optimization */
+  uint16    max_sort_char; /* For LIKE optimization */
 
   MY_CHARSET_HANDLER *cset;
   MY_COLLATION_HANDLER *coll;
@@ -134,7 +134,15 @@ Misc fields
   mbmaxlen         - maximum multibyte sequence length.
                      1 for 8bit charsets. Can be also 2 or 3.
 
-
+  max_sort_char    - for LIKE range
+                     in case of 8bit character sets - native code
+		     of maximum character (max_str pad byte);
+                     in case of UTF8 and UCS2 - Unicode code of the maximum
+		     possible character (usually U+FFFF). This code is
+		     converted to multibyte representation (usually 0xEFBFBF)
+		     and then used as a pad sequence for max_str.
+		     in case of other multibyte character sets -
+		     max_str pad byte (usually 0xFF).
 
 MY_CHARSET_HANDLER
 ==================
