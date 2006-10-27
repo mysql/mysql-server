@@ -45,17 +45,16 @@ File_class::exists(const char* aFileName)
   return (my_stat(aFileName, &stmp, MYF(0))!=NULL);
 }
 
-long
+off_t
 File_class::size(FILE* f)
 {
-  long cur_pos = 0, length = 0;
-  
-  cur_pos = ::ftell(f);
-  ::fseek(f, 0, SEEK_END); 
-  length = ::ftell(f); 
-  ::fseek(f, cur_pos, SEEK_SET); // restore original position
+  MY_STAT s;
 
-  return length;
+  // Note that my_fstat behaves *differently* than my_stat. ARGGGHH!
+  if(my_fstat(::fileno(f), &s, MYF(0)))
+    return 0;
+
+  return s.st_size;
 }
 
 bool 
@@ -168,8 +167,8 @@ File_class::writeChar(const char* buf)
 {
   return writeChar(buf, 0, ::strlen(buf));
 }
-   
-long 
+
+off_t
 File_class::size() const
 {
   return File_class::size(m_file);
