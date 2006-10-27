@@ -1184,12 +1184,13 @@ JOIN::exec()
     thd->examined_row_count= 0;
     DBUG_VOID_RETURN;
   }
-  /* 
-    don't reset the found rows count if there're no tables
-    as FOUND_ROWS() may be called.
-  */  
+  /*
+    Don't reset the found rows count if there're no tables as
+    FOUND_ROWS() may be called. Never reset the examined row count here.
+    It must be accumulated from all join iterations of all join parts.
+  */
   if (tables)
-    thd->limit_found_rows= thd->examined_row_count= 0;
+    thd->limit_found_rows= 0;
 
   if (zero_result_cause)
   {
@@ -1237,6 +1238,12 @@ JOIN::exec()
   List<Item> *curr_all_fields= &all_fields;
   List<Item> *curr_fields_list= &fields_list;
   TABLE *curr_tmp_table= 0;
+  /*
+    Initialize examined rows here because the values from all join parts
+    must be accumulated in examined_row_count. Hence every join
+    iteration must count from zero.
+  */
+  curr_join->examined_rows= 0;
 
   /* Create a tmp table if distinct or if the sort is too complicated */
   if (need_tmp)
@@ -1585,7 +1592,10 @@ JOIN::exec()
   error= thd->net.report_error ? -1 :
     do_select(curr_join, curr_fields_list, NULL, procedure);
   thd->limit_found_rows= curr_join->send_records;
-  thd->examined_row_count= curr_join->examined_rows;
+  /* Accumulate the counts from all join iterations of all join parts. */
+  thd->examined_row_count+= curr_join->examined_rows;
+  DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
+                        (ulong) thd->examined_row_count));
   DBUG_VOID_RETURN;
 }
 
@@ -6191,6 +6201,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 	return -2;				/* purecov: inspected */
       }
       join->examined_rows++;
+      DBUG_PRINT("counts", ("join->examined_rows++: %lu",
+                            (ulong) join->examined_rows));
       join->thd->row_count++;
       if (!on_expr || on_expr->val_int())
       {
@@ -9718,12 +9730,17 @@ bool JOIN::rollup_init()
   while ((item= it++))
   {
     ORDER *group_tmp;
+    bool found_in_group= 0;
+
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
     {
       if (*group_tmp->item == item)
+      {
         item->maybe_null= 1;
+        found_in_group= 1;
+      }
     }
-    if (item->type() == Item::FUNC_ITEM)
+    if (item->type() == Item::FUNC_ITEM && !found_in_group)
     {
       bool changed= FALSE;
       if (change_group_ref(thd, (Item_func *) item, group_list, &changed))
