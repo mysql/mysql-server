@@ -183,7 +183,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                                                    MYF(MY_FAE | MY_ZEROFILL));
     
       if (!(sortorder= make_unireg_sortorder((ORDER*) order->first,
-                                             &length)) ||
+                                             &length, NULL)) ||
 	  (table->sort.found_records = filesort(thd, table, sortorder, length,
                                                 select, HA_POS_ERROR, 1,
                                                 &examined_rows))
