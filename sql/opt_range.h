@@ -295,6 +295,7 @@ protected:
   friend class QUICK_SELECT_DESC;
   friend class QUICK_INDEX_MERGE_SELECT;
   friend class QUICK_ROR_INTERSECT_SELECT;
+  friend class QUICK_GROUP_MIN_MAX_SELECT;
 
   DYNAMIC_ARRAY ranges;     /* ordered array of range ptrs */
   QUICK_RANGE **cur_range;  /* current element in ranges  */
@@ -643,6 +644,7 @@ public:
   ~QUICK_GROUP_MIN_MAX_SELECT();
   bool add_range(SEL_ARG *sel_range);
   void update_key_stat();
+  void adjust_prefix_ranges();
   bool alloc_buffers();
   int init();
   int reset();

@@ -793,6 +793,21 @@ static bool pack_fields(File file, List<create_field> &create_fields,
 	tmp.append(NAMES_SEP_CHAR);
 	for (const char **pos=field->interval->type_names ; *pos ; pos++)
 	{
+          char *val= (char*) *pos;
+          uint str_len= strlen(val);
+          /*
+            Note, hack: in old frm NAMES_SEP_CHAR is used to separate
+            names in the interval (ENUM/SET). To allow names to contain
+            NAMES_SEP_CHAR, we replace it with a comma before writing frm.
+            Backward conversion is done during frm file opening,
+            See table.cc, openfrm() function
+          */
+          for (uint cnt= 0 ; cnt < str_len ; cnt++)
+          {
+            char c= val[cnt];
+            if (c == NAMES_SEP_CHAR)
+              val[cnt]= ',';
+          }
 	  tmp.append(*pos);
 	  tmp.append(NAMES_SEP_CHAR);
 	}
