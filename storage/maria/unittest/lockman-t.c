@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#undef EXTRA_VERBOSE
+//#define EXTRA_VERBOSE
 
 #include <tap.h>
 
@@ -46,7 +46,7 @@ LOCK_OWNER *loid2lo(uint16 loid)
   lockman_release_locks(&lockman, loid2lo(O));print_lockhash(&lockman)
 #define test_lock(O, R, L, S, RES)                                      \
   ok(lockman_getlock(&lockman, loid2lo(O), R, L) == RES,                \
-     "lo" #O "> " S " lock resource " #R " with " #L "-lock");          \
+     "lo" #O "> " S "lock resource " #R " with " #L "-lock");           \
   print_lockhash(&lockman)
 #define lock_ok_a(O, R, L)                                              \
   test_lock(O, R, L, "", GOT_THE_LOCK)
@@ -107,38 +107,49 @@ void test_lockman_simple()
   unlock_all(3);
   unlock_all(4);
 
+  lock_ok_i(1, 1, IX);
+  lock_ok_i(2, 1, IX);
+  lock_conflict(1, 1, S);
+  lock_conflict(2, 1, X);
+  unlock_all(1);
+  unlock_all(2);
 }
 
-pthread_attr_t rt_attr;
-pthread_mutex_t rt_mutex;
-pthread_cond_t rt_cond;
 int rt_num_threads;
 int litmus;
 int thread_number= 0, timeouts= 0;
 void run_test(const char *test, pthread_handler handler, int n, int m)
 {
-  pthread_t t;
+  pthread_t *threads;
   ulonglong now= my_getsystime();
+  int i;
 
   thread_number= timeouts= 0;
   litmus= 0;
 
+  threads= (pthread_t *)my_malloc(sizeof(void *)*n, MYF(0));
+  if (!threads)
+  {
+    diag("Out of memory");
+    abort();
+  }
+
   diag("Running %s with %d threads, %d iterations... ", test, n, m);
-  for (rt_num_threads= n ; n ; n--)
-    if (pthread_create(&t, &rt_attr, handler, &m))
+  rt_num_threads= n;
+  for (i= 0; i < n ; i++)
+    if (pthread_create(threads+i, 0, handler, &m))
     {
       diag("Could not create thread");
-      litmus++;
-      rt_num_threads--;
+      abort();
     }
-  pthread_mutex_lock(&rt_mutex);
-  while (rt_num_threads)
-    pthread_cond_wait(&rt_cond, &rt_mutex);
-  pthread_mutex_unlock(&rt_mutex);
+  for (i= 0 ; i < n ; i++)
+    pthread_join(threads[i], 0);
   now= my_getsystime()-now;
   ok(litmus == 0, "Finished %s in %g secs (%d)", test, ((double)now)/1e7, litmus);
+  my_free((void*)threads, MYF(0));
 }
 
+pthread_mutex_t rt_mutex;
 int Nrows= 100;
 int Ntables= 10;
 int table_lock_ratio= 10;
@@ -222,10 +233,7 @@ pthread_handler_t test_lockman(void *arg)
   rt_num_threads--;
   timeouts+= timeout;
   if (!rt_num_threads)
-  {
-    pthread_cond_signal(&rt_cond);
     diag("number of timeouts: %d", timeouts);
-  }
   pthread_mutex_unlock(&rt_mutex);
 
   return 0;
@@ -236,16 +244,13 @@ int main()
   int i;
 
   my_init();
+  pthread_mutex_init(&rt_mutex, 0);
 
-  plan(31);
+  plan(35);
 
   if (my_atomic_initialize())
     return exit_status();
 
-  pthread_attr_init(&rt_attr);
-  pthread_attr_setdetachstate(&rt_attr, PTHREAD_CREATE_DETACHED);
-  pthread_mutex_init(&rt_mutex, 0);
-  pthread_cond_init(&rt_cond, 0);
 
   lockman_init(&lockman, &loid2lo, 50);
 
@@ -290,12 +295,10 @@ int main()
     ulonglong now= my_getsystime();
     lockman_destroy(&lockman);
     now= my_getsystime()-now;
-    diag("lockman_destroy: %g", ((double)now)/1e7);
+    diag("lockman_destroy: %g secs", ((double)now)/1e7);
   }
 
   pthread_mutex_destroy(&rt_mutex);
-  pthread_cond_destroy(&rt_cond);
-  pthread_attr_destroy(&rt_attr);
   my_end(0);
   return exit_status();
 }

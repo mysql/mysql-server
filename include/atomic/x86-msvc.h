@@ -43,7 +43,7 @@
     _asm setz   al					\
     _asm movzx  ret, al					\
   }
-#define make_atomic_swap_body(S)			\
+#define make_atomic_fas_body(S)				\
   _asm {						\
     _asm mov    reg_ ## S, v				\
     _asm xchg   *a, reg_ ## S				\

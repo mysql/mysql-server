@@ -26,10 +26,15 @@
   Every element is aligned to sizeof(element) boundary
   (to avoid false sharing if element is big enough).
 
+  LF_DYNARRAY is a recursive structure. On the zero level
+  LF_DYNARRAY::level[0] it's an array of LF_DYNARRAY_LEVEL_LENGTH elements,
+  on the first level it's an array of LF_DYNARRAY_LEVEL_LENGTH pointers
+  to arrays of elements, on the second level it's an array of pointers
+  to arrays of pointers to arrays of elements. And so on.
+
   Actually, it's wait-free, not lock-free ;-)
 */
 
-#undef DBUG_OFF
 #include <my_global.h>
 #include <strings.h>
 #include <my_sys.h>
@@ -75,6 +80,10 @@ static const int dynarray_idxes_in_prev_level[LF_DYNARRAY_LEVELS]=
     LF_DYNARRAY_LEVEL_LENGTH
 };
 
+/*
+  Returns a valid lvalue pointer to the element number 'idx'.
+  Allocates memory if necessary.
+*/
 void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
 {
   void * ptr, * volatile * ptr_ptr= 0;
@@ -123,6 +132,10 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
   return ptr + array->size_of_element * idx;
 }
 
+/*
+  Returns a pointer to the element number 'idx'
+  or NULL if an element does not exists
+*/
 void *_lf_dynarray_value(LF_DYNARRAY *array, uint idx)
 {
   void * ptr, * volatile * ptr_ptr= 0;
@@ -157,6 +170,16 @@ static int recursive_iterate(LF_DYNARRAY *array, void *ptr, int level,
   return 0;
 }
 
+/*
+  Calls func(array, arg) on every array of LF_DYNARRAY_LEVEL_LENGTH elements
+  in lf_dynarray.
+
+  DESCRIPTION
+    lf_dynarray consists of a set of arrays, LF_DYNARRAY_LEVEL_LENGTH elements
+    each. _lf_dynarray_iterate() calls user-supplied function on every array
+    from the set. It is the fastest way to scan the array, faster than
+      for (i=0; i < N; i++) { func(_lf_dynarray_value(dynarray, i)); }
+*/
 int _lf_dynarray_iterate(LF_DYNARRAY *array, lf_dynarray_func func, void *arg)
 {
   int i, res;

@@ -43,7 +43,7 @@
 #define make_atomic_add_body(S)					\
   asm volatile (LOCK_prefix "; xadd %0, %1;" : "+r" (v) , "+m" (*a))
 #endif
-#define make_atomic_swap_body(S)				\
+#define make_atomic_fas_body(S)				\
   asm volatile ("xchg %0, %1;" : "+r" (v) , "+m" (*a))
 #define make_atomic_cas_body(S)					\
   asm volatile (LOCK_prefix "; cmpxchg %3, %0; setz %2;"	\

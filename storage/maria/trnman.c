@@ -124,7 +124,7 @@ int trnman_init()
     this could only be called in the "idle" state - no transaction can be
     running. See asserts below.
 */
-int trnman_destroy()
+void trnman_destroy()
 {
   DBUG_ASSERT(trid_to_committed_trn.count == 0);
   DBUG_ASSERT(trnman_active_transactions == 0);
@@ -198,7 +198,10 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
 
   /* Allocating a new TRN structure */
   trn= pool;
-  /* Popping an unused TRN from the pool */
+  /*
+    Popping an unused TRN from the pool
+    (ABA isn't possible, we're behind a mutex
+  */
   my_atomic_rwlock_wrlock(&LOCK_pool);
   while (trn && !my_atomic_casptr((void **)&pool, (void **)&trn,
                                   (void *)trn->next))
@@ -265,7 +268,6 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
 */
 void trnman_end_trn(TRN *trn, my_bool commit)
 {
-  int res;
   TRN *free_me= 0;
   LF_PINS *pins= trn->pins;
 
@@ -303,8 +305,9 @@ void trnman_end_trn(TRN *trn, my_bool commit)
   */
   if (commit && active_list_min.next != &active_list_max)
   {
-    trn->commit_trid= global_trid_generator;
+    int res;
 
+    trn->commit_trid= global_trid_generator;
     trn->next= &committed_list_max;
     trn->prev= committed_list_max.prev;
     committed_list_max.prev= trn->prev->next= trn;
@@ -328,13 +331,18 @@ void trnman_end_trn(TRN *trn, my_bool commit)
   my_atomic_storeptr((void **)&short_trid_to_active_trn[trn->short_id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
 
+  /*
+    we, under the mutex, removed going-in-free_me transactions from the
+    active and committed lists, thus nobody else may see them when it scans
+    those lists, and thus nobody may want to free them. Now we don't
+    need a mutex to access free_me list
+  */
   while (free_me) // XXX send them to the purge thread
   {
-    int res;
     TRN *t= free_me;
     free_me= free_me->next;
 
-    res= lf_hash_delete(&trid_to_committed_trn, pins, &t->trid, sizeof(TrID));
+    lf_hash_delete(&trid_to_committed_trn, pins, &t->trid, sizeof(TrID));
 
     trnman_free_trn(t);
   }
