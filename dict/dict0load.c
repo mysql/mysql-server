@@ -796,7 +796,7 @@ dict_load_table(
 	ulint		n_cols;
 	ulint		flags;
 	ulint		err;
-	ulint		zip_size;
+	ulint		zip_size_in_k;
 	mtr_t		mtr;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -847,8 +847,8 @@ err_exit:
 
 	/* Check if the tablespace exists and has the right name */
 	if (space != 0) {
-		zip_size = dict_sys_tables_get_zip_size(rec);
-		ut_a(zip_size != ULINT_UNDEFINED);
+		zip_size_in_k = dict_sys_tables_get_zip_size(rec);
+		ut_a(zip_size_in_k != ULINT_UNDEFINED);
 
 		if (fil_space_for_table_exists_in_mem(space, name, FALSE,
 						      FALSE, FALSE)) {
@@ -867,7 +867,7 @@ err_exit:
 				name, (ulong)space);
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(
-				    TRUE, space, zip_size, name)) {
+				    TRUE, space, zip_size_in_k << 10, name)) {
 				/* We failed to find a sensible tablespace
 				file */
 
@@ -875,7 +875,7 @@ err_exit:
 			}
 		}
 	} else {
-		zip_size = 0;
+		zip_size_in_k = 0;
 	}
 
 	ut_a(name_of_col_is(sys_tables, sys_index, 4, "N_COLS"));
@@ -883,7 +883,7 @@ err_exit:
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
 
-	flags = zip_size << DICT_TF_COMPRESSED_SHIFT;
+	flags = zip_size_in_k << DICT_TF_COMPRESSED_SHIFT;
 
 	/* The high-order bit of N_COLS is the "compact format" flag. */
 	if (n_cols & 0x80000000UL) {
@@ -900,9 +900,9 @@ err_exit:
 	field = rec_get_nth_field_old(rec, 3, &len);
 	table->id = mach_read_from_8(field);
 
-	zip_size = dict_sys_tables_get_zip_size(rec);
+	zip_size_in_k = dict_sys_tables_get_zip_size(rec);
 
-	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+	if (UNIV_UNLIKELY(zip_size_in_k == ULINT_UNDEFINED)) {
 		field = rec_get_nth_field_old(rec, 5, &len);
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
