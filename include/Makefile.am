@@ -76,7 +76,7 @@ check_abi: mysql_h.ic
 	fi; \
 	touch check_abi;
 
-all: check_abi
+#all: check_abi
 
 
 # Don't update the files from bitkeeper
