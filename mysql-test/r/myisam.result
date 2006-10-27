@@ -1757,4 +1757,49 @@ create table t1 (a int not null, key key_block_size=1024 (a));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1
 create table t1 (a int not null, key `a` key_block_size=1024 (a));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_block_size=1024 (a))' at line 1
+CREATE TABLE t1 (
+c1 INT,
+c2 VARCHAR(300),
+KEY (c1) KEY_BLOCK_SIZE 1024,
+KEY (c2) KEY_BLOCK_SIZE 8192
+);
+INSERT INTO t1 VALUES (10, REPEAT('a', CEIL(RAND(10) * 300))),
+(11, REPEAT('b', CEIL(RAND() * 300))),
+(12, REPEAT('c', CEIL(RAND() * 300))),
+(13, REPEAT('d', CEIL(RAND() * 300))),
+(14, REPEAT('e', CEIL(RAND() * 300))),
+(15, REPEAT('f', CEIL(RAND() * 300))),
+(16, REPEAT('g', CEIL(RAND() * 300))),
+(17, REPEAT('h', CEIL(RAND() * 300))),
+(18, REPEAT('i', CEIL(RAND() * 300))),
+(19, REPEAT('j', CEIL(RAND() * 300))),
+(20, REPEAT('k', CEIL(RAND() * 300))),
+(21, REPEAT('l', CEIL(RAND() * 300))),
+(22, REPEAT('m', CEIL(RAND() * 300))),
+(23, REPEAT('n', CEIL(RAND() * 300))),
+(24, REPEAT('o', CEIL(RAND() * 300))),
+(25, REPEAT('p', CEIL(RAND() * 300))),
+(26, REPEAT('q', CEIL(RAND() * 300))),
+(27, REPEAT('r', CEIL(RAND() * 300))),
+(28, REPEAT('s', CEIL(RAND() * 300))),
+(29, REPEAT('t', CEIL(RAND() * 300))),
+(30, REPEAT('u', CEIL(RAND() * 300))),
+(31, REPEAT('v', CEIL(RAND() * 300))),
+(32, REPEAT('w', CEIL(RAND() * 300))),
+(33, REPEAT('x', CEIL(RAND() * 300))),
+(34, REPEAT('y', CEIL(RAND() * 300))),
+(35, REPEAT('z', CEIL(RAND() * 300)));
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+DELETE FROM t1 WHERE c1 >= 10;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
 End of 5.1 tests
