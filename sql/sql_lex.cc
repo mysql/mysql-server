@@ -1138,7 +1138,7 @@ void st_select_lex::init_query()
     initialization is checked for failure.
   */
   parent_lex->push_context(&context);
-  cond_count= with_wild= 0;
+  cond_count= between_count= with_wild= 0;
   conds_processed_with_permanent_arena= 0;
   ref_pointer_array= 0;
   select_n_having_items= 0;
