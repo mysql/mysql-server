@@ -379,7 +379,29 @@ NdbConnection::execute(ExecType aTypeOfExec,
        *   operations, making postExecute impossible
        */
       if (abortOption == AO_IgnoreError)
+      {
+         if (theCompletedFirstOp != NULL)
+	 {
+	   if (tCompletedFirstOp != NULL)
+	   {
+	     tCompletedLastOp->next(theCompletedFirstOp);
+	     theCompletedFirstOp = tCompletedFirstOp;
+	   } 
+	 }
+	 else
+	 {
+	   theCompletedFirstOp = tCompletedFirstOp;
+	   theCompletedLastOp = tCompletedLastOp;
+	 }
+         if (tPrepOp != NULL && tRestOp != NULL) {
+           if (theFirstOpInList == NULL)
+             theFirstOpInList = tRestOp;
+           else
+             theLastOpInList->next(tRestOp);
+           theLastOpInList = tLastOp;
+        }
 	DBUG_RETURN(-1);
+      }
     }
     
 #ifdef ndb_api_crash_on_complex_blob_abort
