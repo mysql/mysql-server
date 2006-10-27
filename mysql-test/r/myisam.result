@@ -797,6 +797,132 @@ a	b
 xxxxxxxxx	bbbbbb
 xxxxxxxxx	bbbbbb
 DROP TABLE t1;
+SET @@myisam_repair_threads=2;
+SHOW VARIABLES LIKE 'myisam_repair%';
+Variable_name	Value
+myisam_repair_threads	2
+CREATE TABLE t1 (
+`_id` int(11) NOT NULL default '0',
+`url` text,
+`email` text,
+`description` text,
+`loverlap` int(11) default NULL,
+`roverlap` int(11) default NULL,
+`lneighbor_id` int(11) default NULL,
+`rneighbor_id` int(11) default NULL,
+`length_` int(11) default NULL,
+`sequence` mediumtext,
+`name` text,
+`_obj_class` text NOT NULL,
+PRIMARY KEY  (`_id`),
+UNIQUE KEY `sequence_name_index` (`name`(50)),
+KEY (`length_`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES
+(1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample1',''),
+(2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample2',''),
+(3,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample3',''),
+(4,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample4',''),
+(5,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample5',''),
+(6,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample6',''),
+(7,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample7',''),
+(8,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample8',''),
+(9,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample9','');
+SELECT _id FROM t1;
+_id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+DELETE FROM t1 WHERE _id < 8;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Dynamic	2	#	#	#	#	140	#	#	#	#	#	#		
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Dynamic	2	#	#	#	#	0	#	#	#	#	#	#		
+SELECT _id FROM t1;
+_id
+8
+9
+DROP TABLE t1;
+CREATE TABLE t1 (
+`_id` int(11) NOT NULL default '0',
+`url` text,
+`email` text,
+`description` text,
+`loverlap` int(11) default NULL,
+`roverlap` int(11) default NULL,
+`lneighbor_id` int(11) default NULL,
+`rneighbor_id` int(11) default NULL,
+`length_` int(11) default NULL,
+`sequence` mediumtext,
+`name` text,
+`_obj_class` text NOT NULL,
+PRIMARY KEY  (`_id`),
+UNIQUE KEY `sequence_name_index` (`name`(50)),
+KEY (`length_`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES
+(1,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample1',''),
+(2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample2',''),
+(3,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample3',''),
+(4,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample4',''),
+(5,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample5',''),
+(6,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample6',''),
+(7,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample7',''),
+(8,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample8',''),
+(9,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'sample9','');
+SELECT _id FROM t1;
+_id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+DELETE FROM t1 WHERE _id < 8;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Dynamic	2	#	#	#	#	140	#	#	#	#	#	#		
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1 QUICK;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	9	Dynamic	2	#	#	#	#	140	#	#	#	#	#	#		
+SELECT _id FROM t1;
+_id
+8
+9
+DROP TABLE t1;
+SET @@myisam_repair_threads=1;
+SHOW VARIABLES LIKE 'myisam_repair%';
+Variable_name	Value
+myisam_repair_threads	1
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
