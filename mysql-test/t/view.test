@@ -2921,4 +2921,43 @@ UPDATE v1 SET val=6 WHERE id=2;
 DROP VIEW v1;
 DROP TABLE t1;
 
+
+#
+# BUG#22584: last_insert_id not updated after inserting a record
+# through a updatable view
+#
+# We still do not update LAST_INSERT_ID if AUTO_INCREMENT column is
+# not accessible through a view.  However, we do not reset the value
+# of LAST_INSERT_ID, but keep it unchanged.
+#
+--disable_warnings
+DROP VIEW IF EXISTS v1, v2;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT AUTO_INCREMENT PRIMARY KEY, j INT);
+CREATE VIEW v1 AS SELECT j FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t1;
+
+INSERT INTO t1 (j) VALUES (1);
+SELECT LAST_INSERT_ID();
+
+INSERT INTO v1 (j) VALUES (2);
+--echo # LAST_INSERT_ID() should not change.
+SELECT LAST_INSERT_ID();
+
+INSERT INTO v2 (j) VALUES (3);
+--echo # LAST_INSERT_ID() should be updated.
+SELECT LAST_INSERT_ID();
+
+INSERT INTO v1 (j) SELECT j FROM t1;
+--echo # LAST_INSERT_ID() should not change.
+SELECT LAST_INSERT_ID();
+
+SELECT * FROM t1;
+
+DROP VIEW v1, v2;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests.
