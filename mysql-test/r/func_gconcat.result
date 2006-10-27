@@ -74,11 +74,6 @@ grp	group_concat(c order by 1)
 1	a
 2	b,c
 3	C,D,d,d,D,E
-select grp,group_concat(c order by "c") from t1 group by grp;
-grp	group_concat(c order by "c")
-1	a
-2	b,c
-3	C,D,d,d,D,E
 select grp,group_concat(distinct c order by c) from t1 group by grp;
 grp	group_concat(distinct c order by c)
 1	a
