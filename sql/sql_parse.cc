@@ -3369,8 +3369,16 @@ end_with_restore_list:
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
+
+    /*
+      If we have inserted into a VIEW, and the base table has
+      AUTO_INCREMENT column, but this column is not accessible through
+      a view, then we should restore LAST_INSERT_ID to the value it
+      had before the statement.
+    */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->last_insert_id= thd->current_insert_id;
+
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -3431,8 +3439,15 @@ end_with_restore_list:
       select_lex->table_list.first= (byte*) first_table;
     }
 
+    /*
+      If we have inserted into a VIEW, and the base table has
+      AUTO_INCREMENT column, but this column is not accessible through
+      a view, then we should restore LAST_INSERT_ID to the value it
+      had before the statement.
+    */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->last_insert_id= thd->current_insert_id;
+
     break;
   }
   case SQLCOM_TRUNCATE:
