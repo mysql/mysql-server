@@ -198,7 +198,10 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond)
 
   /* Allocating a new TRN structure */
   trn= pool;
-  /* Popping an unused TRN from the pool */
+  /*
+    Popping an unused TRN from the pool
+    (ABA isn't possible, we're behind a mutex
+  */
   my_atomic_rwlock_wrlock(&LOCK_pool);
   while (trn && !my_atomic_casptr((void **)&pool, (void **)&trn,
                                   (void *)trn->next))
@@ -328,6 +331,12 @@ void trnman_end_trn(TRN *trn, my_bool commit)
   my_atomic_storeptr((void **)&short_trid_to_active_trn[trn->short_id], 0);
   my_atomic_rwlock_rdunlock(&LOCK_short_trid_to_trn);
 
+  /*
+    we, under the mutex, removed going-in-free_me transactions from the
+    active and committed lists, thus nobody else may see them when it scans
+    those lists, and thus nobody may want to free them. Now we don't
+    need a mutex to access free_me list
+  */
   while (free_me) // XXX send them to the purge thread
   {
     TRN *t= free_me;

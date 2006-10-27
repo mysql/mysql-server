@@ -1,3 +1,4 @@
+// TODO multi-pinbox
 /* Copyright (C) 2000 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -17,24 +18,25 @@
 /*
   wait-free concurrent allocator based on pinning addresses
 
-  It works as follows: every thread (strictly speaking - every CPU, but it's
-  too difficult to do) has a small array of pointers. They're called "pins".
-  Before using an object its address must be stored in this array (pinned).
-  When an object is no longer necessary its address must be removed from
-  this array (unpinned). When a thread wants to free() an object it
-  scans all pins of all threads to see if somebody has this object pinned.
-  If yes - the object is not freed (but stored in a purgatory).
-  To reduce the cost of a single free() pins are not scanned on every free()
-  but only added to (thread-local) purgatory. On every LF_PURGATORY_SIZE
-  free() purgatory is scanned and all unpinned objects are freed.
+  It works as follows: every thread (strictly speaking - every CPU, but
+  it's too difficult to do) has a small array of pointers. They're called
+  "pins".  Before using an object its address must be stored in this array
+  (pinned).  When an object is no longer necessary its address must be
+  removed from this array (unpinned). When a thread wants to free() an
+  object it scans all pins of all threads to see if somebody has this
+  object pinned.  If yes - the object is not freed (but stored in a
+  "purgatory").  To reduce the cost of a single free() pins are not scanned
+  on every free() but only added to (thread-local) purgatory. On every
+  LF_PURGATORY_SIZE free() purgatory is scanned and all unpinned objects
+  are freed.
 
   Pins are used to solve ABA problem. To use pins one must obey
   a pinning protocol:
    1. Let's assume that PTR is a shared pointer to an object. Shared means
-   that any thread may modify it anytime to point to a different object and
-   free the old object. Later the freed object may be potentially allocated
-   by another thread. If we're unlucky that another thread may set PTR to
-   point to this object again. This is ABA problem.
+      that any thread may modify it anytime to point to a different object
+      and free the old object. Later the freed object may be potentially
+      allocated by another thread. If we're unlucky that another thread may
+      set PTR to point to this object again. This is ABA problem.
    2. Create a local pointer LOCAL_PTR.
    3. Pin the PTR in a loop:
       do
@@ -42,31 +44,31 @@
         LOCAL_PTR= PTR;
         pin(PTR, PIN_NUMBER);
       } while (LOCAL_PTR != PTR)
-   4. It is guaranteed that after the loop is ended, LOCAL_PTR
+   4. It is guaranteed that after the loop has ended, LOCAL_PTR
       points to an object (or NULL, if PTR may be NULL), that
       will never be freed. It is not guaranteed though
-      that LOCAL_PTR == PTR
+      that LOCAL_PTR == PTR (as PTR can change any time)
    5. When done working with the object, remove the pin:
       unpin(PIN_NUMBER)
-   6. When copying pins (as in the list:
+   6. When copying pins (as in the list traversing loop:
+        pin(CUR, 1);
         while ()
         {
-          pin(CUR, 0);
-          do
-          {
-            NEXT=CUR->next;
-            pin(NEXT, 1);
-          } while (NEXT != CUR->next);
+          do                            // standard
+          {                             //  pinning
+            NEXT=CUR->next;             //   loop
+            pin(NEXT, 0);               //    see #3
+          } while (NEXT != CUR->next);  //     above
           ...
           ...
-          pin(CUR, 1);
           CUR=NEXT;
+          pin(CUR, 1);                  // copy pin[0] to pin[1]
         }
-      which keeps CUR address constantly pinned), note than pins may be copied
-      only upwards (!!!), that is pin N to pin M > N.
-   7. Don't keep the object pinned longer than necessary - the number of pins
-      you have is limited (and small), keeping an object pinned prevents its
-      reuse and cause unnecessary mallocs.
+      which keeps CUR address constantly pinned), note than pins may be
+      copied only upwards (!!!), that is pin[N] to pin[M], M > N.
+   7. Don't keep the object pinned longer than necessary - the number of
+      pins you have is limited (and small), keeping an object pinned
+      prevents its reuse and cause unnecessary mallocs.
 
   Implementation details:
   Pins are given away from a "pinbox". Pinbox is stack-based allocator.
@@ -85,7 +87,7 @@
 static void _lf_pinbox_real_free(LF_PINS *pins);
 
 /*
-  Initialize a pinbox. Must be usually called from lf_alloc_init.
+  Initialize a pinbox. Normally called from lf_alloc_init.
   See the latter for details.
 */
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
@@ -214,9 +216,9 @@ static int ptr_cmp(void **a, void **b)
 */
 void _lf_pinbox_free(LF_PINS *pins, void *addr)
 {
+  add_to_purgatory(pins, addr);
   if (pins->purgatory_count % LF_PURGATORY_SIZE)
     _lf_pinbox_real_free(pins);
-  add_to_purgatory(pins, addr);
 }
 
 struct st_harvester {

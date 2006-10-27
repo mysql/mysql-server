@@ -209,7 +209,6 @@ pthread_handler_t test_lf_hash(void *arg)
   my_atomic_rwlock_wrlock(&rwl);
   my_atomic_add32(&a32, sum);
   my_atomic_add32(&b32, ins);
-  my_atomic_add32(&a32, y);
 
   if (my_atomic_add32(&N, -1) == 1)
   {
@@ -281,12 +280,12 @@ int main()
 #endif
 #define THREADS 100
 
-  test_atomic("my_atomic_add32",  test_atomic_add_handler,    THREADS,CYCLES);
-  test_atomic("my_atomic_fas32",  test_atomic_fas_handler,    THREADS,CYCLES);
-  test_atomic("my_atomic_cas32",  test_atomic_cas_handler,    THREADS,CYCLES);
-  test_atomic("lf_pinbox",        test_lf_pinbox,             THREADS,CYCLES);
-  test_atomic("lf_alloc",         test_lf_alloc,              THREADS,CYCLES);
-  test_atomic("lf_hash",          test_lf_hash,               THREADS,CYCLES);
+  test_atomic("my_atomic_add32",  test_atomic_add_handler, THREADS,CYCLES);
+  test_atomic("my_atomic_fas32",  test_atomic_fas_handler, THREADS,CYCLES);
+  test_atomic("my_atomic_cas32",  test_atomic_cas_handler, THREADS,CYCLES);
+  test_atomic("lf_pinbox",        test_lf_pinbox,          THREADS,CYCLES);
+  test_atomic("lf_alloc",         test_lf_alloc,           THREADS,CYCLES);
+  test_atomic("lf_hash",          test_lf_hash,            THREADS,CYCLES/10);
 
   lf_hash_destroy(&lf_hash);
   lf_alloc_destroy(&lf_allocator);

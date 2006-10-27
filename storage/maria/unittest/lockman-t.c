@@ -14,7 +14,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#undef EXTRA_VERBOSE
+//#define EXTRA_VERBOSE
 
 #include <tap.h>
 
@@ -46,7 +46,7 @@ LOCK_OWNER *loid2lo(uint16 loid)
   lockman_release_locks(&lockman, loid2lo(O));print_lockhash(&lockman)
 #define test_lock(O, R, L, S, RES)                                      \
   ok(lockman_getlock(&lockman, loid2lo(O), R, L) == RES,                \
-     "lo" #O "> " S " lock resource " #R " with " #L "-lock");          \
+     "lo" #O "> " S "lock resource " #R " with " #L "-lock");           \
   print_lockhash(&lockman)
 #define lock_ok_a(O, R, L)                                              \
   test_lock(O, R, L, "", GOT_THE_LOCK)
@@ -107,6 +107,12 @@ void test_lockman_simple()
   unlock_all(3);
   unlock_all(4);
 
+  lock_ok_i(1, 1, IX);
+  lock_ok_i(2, 1, IX);
+  lock_conflict(1, 1, S);
+  lock_conflict(2, 1, X);
+  unlock_all(1);
+  unlock_all(2);
 }
 
 int rt_num_threads;
@@ -240,7 +246,7 @@ int main()
   my_init();
   pthread_mutex_init(&rt_mutex, 0);
 
-  plan(31);
+  plan(35);
 
   if (my_atomic_initialize())
     return exit_status();
@@ -289,7 +295,7 @@ int main()
     ulonglong now= my_getsystime();
     lockman_destroy(&lockman);
     now= my_getsystime()-now;
-    diag("lockman_destroy: %g", ((double)now)/1e7);
+    diag("lockman_destroy: %g secs", ((double)now)/1e7);
   }
 
   pthread_mutex_destroy(&rt_mutex);

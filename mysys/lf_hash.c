@@ -29,22 +29,35 @@
 
 LF_REQUIRE_PINS(3);
 
+/* An element of the list */
 typedef struct {
-  intptr volatile link;
-  uint32 hashnr;
+  intptr volatile link; /* a pointer to the next element in a listand a flag  */
+  uint32 hashnr;        /* reversed hash number, for sorting                  */
   const uchar *key;
   uint keylen;
 } LF_SLIST;
 
+/*
+  a structure to pass the context (pointers two the three successive elements
+  in a list) from lfind to linsert/ldelete
+*/
 typedef struct {
   intptr volatile *prev;
   LF_SLIST *curr, *next;
 } CURSOR;
 
+/*
+  the last bit in LF_SLIST::link is a "deleted" flag.
+  the helper macros below convert it to a pure pointer or a pure flag
+*/
 #define PTR(V)      (LF_SLIST *)((V) & (~(intptr)1))
 #define DELETED(V)  ((V) & 1)
 
 /*
+  DESCRIPTION
+    Search for hashnr/key/keylen in the list starting from 'head' and
+    position the cursor. The list is ORDER BY hashnr, key
+
   RETURN
     0 - not found
     1 - found
@@ -53,7 +66,7 @@ typedef struct {
     cursor is positioned in either case
     pins[0..2] are used, they are NOT removed on return
 */
-static int lfind(LF_SLIST * volatile *head, uint32 hashnr,
+static int lfind(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
                  const uchar *key, uint keylen, CURSOR *cursor, LF_PINS *pins)
 {
   uint32       cur_hashnr;
@@ -89,7 +102,8 @@ retry:
       if (cur_hashnr >= hashnr)
       {
         int r=1;
-        if (cur_hashnr > hashnr || (r=memcmp(cur_key, key, keylen)) >= 0)
+        if (cur_hashnr > hashnr ||
+            (r=my_strnncoll(cs, cur_key, cur_keylen, key, keylen)) >= 0)
           return !r;
       }
       cursor->prev=&(cursor->curr->link);
@@ -112,22 +126,26 @@ retry:
 }
 
 /*
+  DESCRIPTION
+    insert a 'node' in the list that starts from 'head' in the correct
+    position (as found by lfind)
+
   RETURN
     0     - inserted
-    not 0 - a pointer to a conflict (not pinned and thus unusable)
+    not 0 - a pointer to a duplicate (not pinned and thus unusable)
 
   NOTE
     it uses pins[0..2], on return all pins are removed.
 */
-static LF_SLIST *linsert(LF_SLIST * volatile *head, LF_SLIST *node,
-                         LF_PINS *pins, uint flags)
+static LF_SLIST *linsert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
+                         LF_SLIST *node, LF_PINS *pins, uint flags)
 {
   CURSOR         cursor;
   int            res=-1;
 
   do
   {
-    if (lfind(head, node->hashnr, node->key, node->keylen,
+    if (lfind(head, cs, node->hashnr, node->key, node->keylen,
               &cursor, pins) &&
         (flags & LF_HASH_UNIQUE))
       res=0; /* duplicate found */
@@ -147,13 +165,18 @@ static LF_SLIST *linsert(LF_SLIST * volatile *head, LF_SLIST *node,
 }
 
 /*
+  DESCRIPTION
+    deletes a node as identified by hashnr/keey/keylen from the list
+    that starts from 'head'
+
   RETURN
     0 - ok
     1 - not found
+
   NOTE
     it uses pins[0..2], on return all pins are removed.
 */
-static int ldelete(LF_SLIST * volatile *head, uint32 hashnr,
+static int ldelete(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
                    const uchar *key, uint keylen, LF_PINS *pins)
 {
   CURSOR cursor;
@@ -161,7 +184,7 @@ static int ldelete(LF_SLIST * volatile *head, uint32 hashnr,
 
   do
   {
-    if (!lfind(head, hashnr, key, keylen, &cursor, pins))
+    if (!lfind(head, cs, hashnr, key, keylen, &cursor, pins))
       res= 1;
     else
       if (my_atomic_casptr((void **)&(cursor.curr->link),
@@ -171,7 +194,7 @@ static int ldelete(LF_SLIST * volatile *head, uint32 hashnr,
                              (void **)&cursor.curr, cursor.next))
           _lf_alloc_free(pins, cursor.curr);
         else
-          lfind(head, hashnr, key, keylen, &cursor, pins);
+          lfind(head, cs, hashnr, key, keylen, &cursor, pins);
         res= 0;
       }
   } while (res == -1);
@@ -182,18 +205,24 @@ static int ldelete(LF_SLIST * volatile *head, uint32 hashnr,
 }
 
 /*
+  DESCRIPTION
+    searches for a node as identified by hashnr/keey/keylen in the list
+    that starts from 'head'
+
   RETURN
     0 - not found
     node - found
+
   NOTE
     it uses pins[0..2], on return the pin[2] keeps the node found
     all other pins are removed.
 */
-static LF_SLIST *lsearch(LF_SLIST * volatile *head, uint32 hashnr,
-                         const uchar *key, uint keylen, LF_PINS *pins)
+static LF_SLIST *lsearch(LF_SLIST * volatile *head, CHARSET_INFO *cs,
+                         uint32 hashnr, const uchar *key, uint keylen,
+                         LF_PINS *pins)
 {
   CURSOR cursor;
-  int res=lfind(head, hashnr, key, keylen, &cursor, pins);
+  int res=lfind(head, cs, hashnr, key, keylen, &cursor, pins);
   if (res) _lf_pin(pins, 2, cursor.curr);
   _lf_unpin(pins, 0);
   _lf_unpin(pins, 1);
@@ -219,6 +248,9 @@ static inline uint calc_hash(LF_HASH *hash, const uchar *key, uint keylen)
 #define MAX_LOAD 1.0
 static void initialize_bucket(LF_HASH *, LF_SLIST * volatile*, uint, LF_PINS *);
 
+/*
+  Initializes lf_hash, the arguments are compatible with hash_init
+*/
 void lf_hash_init(LF_HASH *hash, uint element_size, uint flags,
                   uint key_offset, uint key_length, hash_get_key get_key,
                   CHARSET_INFO *charset)
@@ -254,9 +286,14 @@ void lf_hash_destroy(LF_HASH *hash)
 }
 
 /*
+  DESCRIPTION
+    inserts a new element to a hash. it will have a _copy_ of
+    data, not a pointer to it.
+
   RETURN
     0 - inserted
     1 - didn't (unique key conflict)
+
   NOTE
     see linsert() for pin usage notes
 */
@@ -275,7 +312,7 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data)
   if (*el == NULL)
     initialize_bucket(hash, el, bucket, pins);
   node->hashnr=my_reverse_bits(hashnr) | 1;
-  if (linsert(el, node, pins, hash->flags))
+  if (linsert(el, hash->charset, node, pins, hash->flags))
   {
     _lf_alloc_free(pins, node);
     lf_rwunlock_by_pins(pins);
@@ -305,7 +342,8 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   el=_lf_dynarray_lvalue(&hash->array, bucket);
   if (*el == NULL)
     initialize_bucket(hash, el, bucket, pins);
-  if (ldelete(el, my_reverse_bits(hashnr) | 1, (uchar *)key, keylen, pins))
+  if (ldelete(el, hash->charset, my_reverse_bits(hashnr) | 1,
+              (uchar *)key, keylen, pins))
   {
     lf_rwunlock_by_pins(pins);
     return 1;
@@ -329,7 +367,8 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   el=_lf_dynarray_lvalue(&hash->array, bucket);
   if (*el == NULL)
     initialize_bucket(hash, el, bucket, pins);
-  found= lsearch(el, my_reverse_bits(hashnr) | 1, (uchar *)key, keylen, pins);
+  found= lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
+                 (uchar *)key, keylen, pins);
   lf_rwunlock_by_pins(pins);
   return found ? found+1 : 0;
 }
@@ -348,7 +387,7 @@ static void initialize_bucket(LF_HASH *hash, LF_SLIST * volatile *node,
   dummy->hashnr=my_reverse_bits(bucket);
   dummy->key=dummy_key;
   dummy->keylen=0;
-  if ((cur= linsert(el, dummy, pins, 0)))
+  if ((cur= linsert(el, hash->charset, dummy, pins, 0)))
   {
     my_free((void *)dummy, MYF(0));
     dummy= cur;
