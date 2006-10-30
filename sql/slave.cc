@@ -3175,6 +3175,8 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
           We were in a transaction which has been rolled back because of a
           temporary error;
           let's seek back to BEGIN log event and retry it all again.
+	  Note, if lock wait timeout (innodb_lock_wait_timeout exceeded)
+	  there is no rollback since 5.0.13 (ref: manual).
           We have to not only seek but also
           a) init_master_info(), to seek back to hot relay log's start for later
           (for when we will come back to this hot log after re-processing the
@@ -4454,7 +4456,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, MASTER_INFO* mi,
 '%s@%s:%d': \
 Error: '%s'  errno: %d  retry-time: %d  retries: %lu",
                       (reconnect ? "reconnecting" : "connecting"),
-                      mi->user,mi->host,mi->port,
+                      mi->user, mi->host, mi->port,
                       mysql_error(mysql), last_errno,
                       mi->connect_retry,
                       master_retry_count);
