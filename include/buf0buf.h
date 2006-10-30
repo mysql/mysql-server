@@ -73,24 +73,13 @@ buf_pool_init(
 /*==========*/
 				/* out, own: buf_pool object, NULL if not
 				enough memory or error */
-	ulint	max_size,	/* in: maximum size of the buf_pool in
-				blocks */
-	ulint	curr_size);	/* in: current size to use, must be <=
-				max_size, currently must be equal to
-				max_size */
+	ulint	curr_size);	/* in: current size to use */
 /*************************************************************************
 Gets the current size of buffer buf_pool in bytes. */
 UNIV_INLINE
 ulint
 buf_pool_get_curr_size(void);
 /*========================*/
-			/* out: size in bytes */
-/*************************************************************************
-Gets the maximum size of buffer pool in bytes. */
-UNIV_INLINE
-ulint
-buf_pool_get_max_size(void);
-/*=======================*/
 			/* out: size in bytes */
 /************************************************************************
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
@@ -429,15 +418,6 @@ buf_block_get_lock_hash_val(
 					/* out: lock hash value */
 	const buf_block_t*	block)	/* in: block */
 	__attribute__((const));
-/***********************************************************************
-Checks if a pointer points to the block array of the buffer pool (blocks, not
-the frames). */
-UNIV_INLINE
-ibool
-buf_pool_is_block(
-/*==============*/
-			/* out: TRUE if pointer to block */
-	void*	ptr);	/* in: pointer to memory */
 #ifdef UNIV_DEBUG
 /*************************************************************************
 Validates the buffer pool data structure. */
@@ -855,22 +835,8 @@ struct buf_pool_struct{
 					this is aligned by the frame size */
 	byte*		high_end;	/* pointer to the end of the buffer
 					frames */
-	ulint		n_frames;	/* number of frames */
 	buf_block_t*	blocks;		/* array of buffer control blocks */
-	buf_block_t**	blocks_of_frames;/* inverse mapping which can be used
-					to retrieve the buffer control block
-					of a frame; this is an array which
-					lists the blocks of frames in the
-					order frame_zero,
-					frame_zero + UNIV_PAGE_SIZE, ...
-					a control block is always assigned
-					for each frame, even if the frame does
-					not contain any data */
-	ulint		max_size;	/* number of control blocks ==
-					maximum pool size in pages */
-	ulint		curr_size;	/* current pool size in pages;
-					currently always the same as
-					max_size */
+	ulint		curr_size;	/* current pool size in pages */
 	hash_table_t*	page_hash;	/* hash table of the file pages */
 
 	ulint		n_pend_reads;	/* number of pending read operations */

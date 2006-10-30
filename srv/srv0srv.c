@@ -1783,7 +1783,7 @@ srv_export_innodb_status(void)
 		= buf_get_latched_pages_number();
 	export_vars.innodb_buffer_pool_pages_total = buf_pool->curr_size;
 
-	export_vars.innodb_buffer_pool_pages_misc = buf_pool->max_size
+	export_vars.innodb_buffer_pool_pages_misc = buf_pool->curr_size
 		- UT_LIST_GET_LEN(buf_pool->LRU)
 		- UT_LIST_GET_LEN(buf_pool->free);
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;

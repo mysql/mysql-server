@@ -629,18 +629,12 @@ buf_pool_init(
 /*==========*/
 				/* out, own: buf_pool object, NULL if not
 				enough memory or error */
-	ulint	max_size,	/* in: maximum size of the buf_pool in
-				blocks */
-	ulint	curr_size)	/* in: current size to use, must be <=
-				max_size, currently must be equal to
-				max_size */
+	ulint	curr_size)	/* in: current size to use */
 {
 	byte*		frame;
 	ulint		i;
 	buf_block_t*	block;
-	ulint		n_frames = max_size;
-
-	ut_a(max_size == curr_size);
+	ulint		n_frames = curr_size;
 
 	buf_pool = mem_alloc(sizeof(buf_pool_t));
 
@@ -658,17 +652,14 @@ buf_pool_init(
 		return(NULL);
 	}
 
-	buf_pool->blocks = ut_malloc(sizeof(buf_block_t) * max_size);
+	buf_pool->blocks = ut_malloc(sizeof(buf_block_t) * curr_size);
 
 	if (buf_pool->blocks == NULL) {
 
 		return(NULL);
 	}
 
-	buf_pool->max_size = max_size;
 	buf_pool->curr_size = curr_size;
-
-	buf_pool->n_frames = n_frames;
 
 	/* Align pointer to the first frame */
 
@@ -677,28 +668,20 @@ buf_pool_init(
 	buf_pool->frame_zero = frame;
 	buf_pool->high_end = frame + UNIV_PAGE_SIZE * n_frames;
 
-	buf_pool->blocks_of_frames = ut_malloc(sizeof(void*) * n_frames);
-
-	if (buf_pool->blocks_of_frames == NULL) {
-
-		return(NULL);
-	}
-
 	/* Init block structs and assign frames for them. Then we
 	assign the frames to the first blocks (we already mapped the
 	memory above). */
 
-	for (i = 0; i < max_size; i++) {
+	for (i = 0; i < curr_size; i++) {
 
 		block = buf_pool_get_nth_block(buf_pool, i);
 
 		frame = buf_pool->frame_zero + i * UNIV_PAGE_SIZE;
-		*(buf_pool->blocks_of_frames + i) = block;
 
 		buf_block_init(block, frame);
 	}
 
-	buf_pool->page_hash = hash_create(2 * max_size);
+	buf_pool->page_hash = hash_create(2 * curr_size);
 
 	buf_pool->n_pend_reads = 0;
 
