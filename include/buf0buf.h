@@ -75,25 +75,18 @@ buf_pool_init(
 				enough memory or error */
 	ulint	max_size,	/* in: maximum size of the buf_pool in
 				blocks */
-	ulint	curr_size,	/* in: current size to use, must be <=
+	ulint	curr_size);	/* in: current size to use, must be <=
 				max_size, currently must be equal to
 				max_size */
-	ulint	n_frames);	/* in: number of frames; if AWE is used,
-				this is the size of the address space window
-				where physical memory pages are mapped; if
-				AWE is not used then this must be the same
-				as max_size */
 /*************************************************************************
-Gets the current size of buffer buf_pool in bytes. In the case of AWE, the
-size of AWE window (= the frames). */
+Gets the current size of buffer buf_pool in bytes. */
 UNIV_INLINE
 ulint
 buf_pool_get_curr_size(void);
 /*========================*/
 			/* out: size in bytes */
 /*************************************************************************
-Gets the maximum size of buffer pool in bytes. In the case of AWE, the
-size of AWE window (= the frames). */
+Gets the maximum size of buffer pool in bytes. */
 UNIV_INLINE
 ulint
 buf_pool_get_max_size(void);
@@ -114,9 +107,7 @@ UNIV_INLINE
 buf_block_t*
 buf_block_alloc(
 /*============*/
-				/* out, own: the allocated block; also if AWE
-				is used it is guaranteed that the page is
-				mapped to a frame */
+				/* out, own: the allocated block */
 	ulint	zip_size);	/* in: compressed page size in bytes,
 				or 0 if uncompressed tablespace */
 /************************************************************************
@@ -161,8 +152,8 @@ improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
 RW_X_LATCH are allowed as LA! */
-#define buf_page_optimistic_get(LA, BL, G, MC, MTR)			     \
-	buf_page_optimistic_get_func(LA, BL, G, MC, __FILE__, __LINE__, MTR)
+#define buf_page_optimistic_get(LA, BL, MC, MTR)			     \
+	buf_page_optimistic_get_func(LA, BL, MC, __FILE__, __LINE__, MTR)
 /************************************************************************
 This is the general function used to get optimistic access to a database
 page. */
@@ -173,8 +164,6 @@ buf_page_optimistic_get_func(
 				/* out: TRUE if success */
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/* in: guessed block */
-	buf_frame_t*	guess,	/* in: guessed frame; note that AWE may move
-				frames */
 	dulint		modify_clock,/* in: modify clock value if mode is
 				..._GUESS_ON_CLOCK */
 	const char*	file,	/* in: file name */
@@ -531,19 +520,6 @@ buf_pool_invalidate(void);
 --------------------------- LOWER LEVEL ROUTINES -------------------------
 =========================================================================*/
 
-/************************************************************************
-Maps the page of block to a frame, if not mapped yet. Unmaps some page
-from the end of the awe_LRU_free_mapped. */
-
-void
-buf_awe_map_page_to_frame(
-/*======================*/
-	buf_block_t*	block,		/* in: block whose page should be
-					mapped to a frame */
-	ibool		add_to_mapped_list);/* in: TRUE if we in the case
-					we need to map the page should also
-					add the block to the
-					awe_LRU_free_mapped list */
 #ifdef UNIV_SYNC_DEBUG
 /*************************************************************************
 Adds latch level info for the rw-lock protecting the buffer frame. This
@@ -720,16 +696,7 @@ struct buf_block_struct{
 	byte*		frame;		/* pointer to buffer frame which
 					is of size UNIV_PAGE_SIZE, and
 					aligned to an address divisible by
-					UNIV_PAGE_SIZE; if AWE is used, this
-					will be NULL for the pages which are
-					currently not mapped into the virtual
-					address space window of the buffer
-					pool */
-	os_awe_t*	awe_info;	/* if AWE is used, then an array of
-					awe page infos for
-					UNIV_PAGE_SIZE / OS_AWE_X86_PAGE_SIZE
-					(normally = 4) physical memory
-					pages; otherwise NULL */
+					UNIV_PAGE_SIZE */
 	ulint		space;		/* space id of the page */
 	ulint		offset;		/* page number within the space */
 	ulint		lock_hash_val;	/* hashed value of the page address
@@ -776,10 +743,6 @@ struct buf_block_struct{
 					debugging */
 	UT_LIST_NODE_T(buf_block_t) LRU;
 					/* node of the LRU list */
-	UT_LIST_NODE_T(buf_block_t) awe_LRU_free_mapped;
-					/* in the AWE version node in the
-					list of free and LRU blocks which are
-					mapped to a frame */
 	ibool		in_LRU_list;	/* TRUE of the page is in the LRU list;
 					used in debugging */
 	ulint		LRU_position;	/* value which monotonically
@@ -886,10 +849,7 @@ struct buf_pool_struct{
 					struct and control blocks, except the
 					read-write lock in them */
 	byte*		frame_mem;	/* pointer to the memory area which
-					was allocated for the frames; in AWE
-					this is the virtual address space
-					window where we map pages stored
-					in physical memory */
+					was allocated for the frames */
 	byte*		frame_zero;	/* pointer to the first buffer frame:
 					this may differ from frame_mem, because
 					this is aligned by the frame size */
@@ -905,12 +865,7 @@ struct buf_pool_struct{
 					frame_zero + UNIV_PAGE_SIZE, ...
 					a control block is always assigned
 					for each frame, even if the frame does
-					not contain any data; note that in AWE
-					there are more control blocks than
-					buffer frames */
-	os_awe_t*	awe_info;	/* if AWE is used, AWE info for the
-					physical 4 kB memory pages associated
-					with buffer frames */
+					not contain any data */
 	ulint		max_size;	/* number of control blocks ==
 					maximum pool size in pages */
 	ulint		curr_size;	/* current pool size in pages;
@@ -932,9 +887,6 @@ struct buf_pool_struct{
 					counted as page gets; this field
 					is NOT protected by the buffer
 					pool mutex */
-	ulint		n_pages_awe_remapped; /* if AWE is enabled, the
-					number of remaps of blocks to
-					buffer frames */
 	ulint		n_page_gets_old;/* n_page_gets when buf_print was
 					last time called: used to calculate
 					hit rate */
@@ -943,7 +895,6 @@ struct buf_pool_struct{
 	ulint		n_pages_written_old;/* number write operations */
 	ulint		n_pages_created_old;/* number of pages created in
 					the pool with no read */
-	ulint		n_pages_awe_remapped_old;
 	/* 2. Page flushing algorithm fields */
 
 	UT_LIST_BASE_NODE_T(buf_block_t) flush_list;
@@ -976,10 +927,7 @@ struct buf_pool_struct{
 	/* 3. LRU replacement algorithm fields */
 
 	UT_LIST_BASE_NODE_T(buf_block_t) free;
-					/* base node of the free block list;
-					in the case of AWE, at the start are
-					always free blocks for which the
-					physical memory is mapped to a frame */
+					/* base node of the free block list */
 	UT_LIST_BASE_NODE_T(buf_block_t) LRU;
 					/* base node of the LRU list */
 	buf_block_t*	LRU_old;	/* pointer to the about 3/8 oldest
@@ -991,12 +939,6 @@ struct buf_pool_struct{
 					see buf0lru.c for the restrictions
 					on this value; not defined if
 					LRU_old == NULL */
-	UT_LIST_BASE_NODE_T(buf_block_t) awe_LRU_free_mapped;
-					/* list of those blocks which are
-					in the LRU list or the free list, and
-					where the page is mapped to a frame;
-					thus, frames allocated, e.g., to the
-					locki table, are not in this list */
 };
 
 /* States of a control block */

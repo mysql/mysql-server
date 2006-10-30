@@ -163,10 +163,6 @@ ulint	srv_pool_size		= ULINT_MAX;	/* size in pages; MySQL inits
 						this to size in kilobytes but
 						we normalize this to pages in
 						srv_boot() */
-ulint	srv_awe_window_size	= 0;		/* size in pages; MySQL inits
-						this to bytes, but we
-						normalize it to pages in
-						srv_boot() */
 ulint	srv_mem_pool_size	= ULINT_MAX;	/* size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
@@ -322,11 +318,6 @@ ibool	srv_use_checksums = TRUE;
 
 ibool	srv_set_thread_priorities = TRUE;
 int	srv_query_thread_priority = 0;
-
-/* TRUE if the Address Windowing Extensions of Windows are used; then we must
-disable adaptive hash indexes */
-ibool	srv_use_awe			= FALSE;
-ibool	srv_use_adaptive_hash_indexes	= TRUE;
 
 /*-------------------------------------------*/
 ulong	srv_n_spin_wait_rounds	= 20;
@@ -1244,17 +1235,7 @@ srv_normalize_init_values(void)
 
 	srv_pool_size = srv_pool_size / (UNIV_PAGE_SIZE / 1024);
 
-	srv_awe_window_size = srv_awe_window_size / UNIV_PAGE_SIZE;
-
-	if (srv_use_awe) {
-		/* If we are using AWE we must save memory in the 32-bit
-		address space of the process, and cannot bind the lock
-		table size to the real buffer pool size. */
-
-		srv_lock_table_size = 20 * srv_awe_window_size;
-	} else {
-		srv_lock_table_size = 5 * srv_pool_size;
-	}
+	srv_lock_table_size = 5 * srv_pool_size;
 
 	return(DB_SUCCESS);
 }
@@ -1701,13 +1682,6 @@ srv_printf_innodb_monitor(
 		mem_pool_get_reserved(mem_comm_pool));
 	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
 		dict_sys->size);
-
-	if (srv_use_awe) {
-		fprintf(file,
-			"In addition to that %lu MB of AWE memory allocated\n",
-			(ulong) (srv_pool_size
-				 / ((1024 * 1024) / UNIV_PAGE_SIZE)));
-	}
 
 	buf_print_io(file);
 

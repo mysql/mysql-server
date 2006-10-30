@@ -227,13 +227,10 @@ buf_LRU_search_and_free_block(
 
 			mutex_exit(&(buf_pool->mutex));
 
-			/* Remove possible adaptive hash index built on the
-			page; in the case of AWE the block may not have a
-			frame at all */
+			/* Remove possible adaptive hash index on the page */
 
-			if (block->frame) {
-				btr_search_drop_page_hash_index(block);
-			}
+			btr_search_drop_page_hash_index(block);
+
 			mutex_enter(&(buf_pool->mutex));
 
 			ut_a(block->buf_fix_count == 0);
@@ -328,9 +325,7 @@ LRU list to the free list. */
 buf_block_t*
 buf_LRU_get_free_block(
 /*===================*/
-				/* out: the free control block; also if AWE is
-				used, it is guaranteed that the block has its
-				page mapped to a frame when we return */
+				/* out: the free control block */
 	ulint	zip_size)	/* in: compressed page size in bytes,
 				or 0 if uncompressed tablespace */
 {
@@ -413,22 +408,6 @@ loop:
 		block->in_free_list = FALSE;
 		ut_a(block->state != BUF_BLOCK_FILE_PAGE);
 		ut_a(!block->in_LRU_list);
-
-		if (srv_use_awe) {
-			if (block->frame) {
-				/* Remove from the list of mapped pages */
-
-				UT_LIST_REMOVE(awe_LRU_free_mapped,
-					       buf_pool->awe_LRU_free_mapped,
-					       block);
-			} else {
-				/* We map the page to a frame; second param
-				FALSE below because we do not want it to be
-				added to the awe_LRU_free_mapped list */
-
-				buf_awe_map_page_to_frame(block, FALSE);
-			}
-		}
 
 		if (block->page_zip.size != zip_size) {
 			block->page_zip.size = zip_size;
@@ -649,13 +628,6 @@ buf_LRU_remove_block(
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, block);
 	block->in_LRU_list = FALSE;
 
-	if (srv_use_awe && block->frame) {
-		/* Remove from the list of mapped pages */
-
-		UT_LIST_REMOVE(awe_LRU_free_mapped,
-			       buf_pool->awe_LRU_free_mapped, block);
-	}
-
 	/* If the LRU list is so short that LRU_old not defined, return */
 	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
 
@@ -708,13 +680,6 @@ buf_LRU_add_block_to_end_low(
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, block);
 	block->in_LRU_list = TRUE;
 
-	if (srv_use_awe && block->frame) {
-		/* Add to the list of mapped pages */
-
-		UT_LIST_ADD_LAST(awe_LRU_free_mapped,
-				 buf_pool->awe_LRU_free_mapped, block);
-	}
-
 	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
 
 		buf_pool->LRU_old_len++;
@@ -762,15 +727,6 @@ buf_LRU_add_block_low(
 
 	block->old = old;
 	cl = buf_pool_clock_tic();
-
-	if (srv_use_awe && block->frame) {
-		/* Add to the list of mapped pages; for simplicity we always
-		add to the start, even if the user would have set 'old'
-		TRUE */
-
-		UT_LIST_ADD_FIRST(awe_LRU_free_mapped,
-				  buf_pool->awe_LRU_free_mapped, block);
-	}
 
 	if (!old || (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN)) {
 
@@ -877,15 +833,7 @@ buf_LRU_block_free_non_file_page(
 	UT_LIST_ADD_FIRST(free, buf_pool->free, block);
 	block->in_free_list = TRUE;
 
-	if (srv_use_awe && block->frame) {
-		/* Add to the list of mapped pages */
-
-		UT_LIST_ADD_FIRST(awe_LRU_free_mapped,
-				  buf_pool->awe_LRU_free_mapped, block);
-		UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
-	} else {
-		UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
-	}
+	UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 }
 
 /**********************************************************************
@@ -913,8 +861,6 @@ buf_LRU_block_remove_hashed_page(
 	buf_LRU_remove_block(block);
 
 	buf_pool->freed_page_clock += 1;
-
-	/* Note that if AWE is enabled the block may not have a frame at all */
 
 	buf_block_modify_clock_inc(block);
 

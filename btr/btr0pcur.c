@@ -197,7 +197,6 @@ btr_pcur_restore_position(
 	mtr_t*		mtr)		/* in: mtr */
 {
 	dict_index_t*	index;
-	page_t*		page;
 	dtuple_t*	tuple;
 	ulint		mode;
 	ulint		old_mode;
@@ -235,15 +234,13 @@ btr_pcur_restore_position(
 	ut_a(cursor->old_rec);
 	ut_a(cursor->old_n_fields);
 
-	page = btr_cur_get_page(btr_pcur_get_btr_cur(cursor));
-
 	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
 	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
 		/* Try optimistic restoration */
 
 		if (UNIV_LIKELY(buf_page_optimistic_get(
 					latch_mode,
-					cursor->block_when_stored, page,
+					cursor->block_when_stored,
 					cursor->modify_clock, mtr))) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 #ifdef UNIV_SYNC_DEBUG
