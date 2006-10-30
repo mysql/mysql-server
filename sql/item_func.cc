@@ -964,7 +964,14 @@ longlong Item_func_unsigned::val_int()
   longlong value;
   int error;
 
-  if (args[0]->cast_to_int_type() != STRING_RESULT)
+  if (args[0]->cast_to_int_type() == DECIMAL_RESULT)
+  {
+    my_decimal tmp, *dec= args[0]->val_decimal(&tmp);
+    if (!(null_value= args[0]->null_value))
+      my_decimal2int(E_DEC_FATAL_ERROR, dec, 1, &value);
+    return value;
+  }
+  else if (args[0]->cast_to_int_type() != STRING_RESULT)
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
