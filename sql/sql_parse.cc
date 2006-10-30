@@ -6177,7 +6177,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 
   ptr->alias= alias_str;
   if (lower_case_table_names && table->table.length)
-    my_casedn_str(files_charset_info, table->table.str);
+    table->table.length= my_casedn_str(files_charset_info, table->table.str);
   ptr->table_name=table->table.str;
   ptr->table_name_length=table->table.length;
   ptr->lock_type=   lock_type;
