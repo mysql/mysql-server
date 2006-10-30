@@ -978,8 +978,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 drop procedure if exists wg2;
-Warnings:
-Note	1305	PROCEDURE wg2 does not exist
 create procedure wg2()
 begin
 declare v int default 1;

@@ -7,7 +7,7 @@ AC_INIT(sql/mysqld.cc)
 AC_CANONICAL_SYSTEM
 # The Docs Makefile.am parses this line!
 # remember to also change ndb version below and update version.c in ndb
-AM_INIT_AUTOMAKE(mysql, 5.0.27)
+AM_INIT_AUTOMAKE(mysql, 5.0.29)
 AM_CONFIG_HEADER(config.h)
 
 PROTOCOL_VERSION=10
@@ -19,7 +19,7 @@ SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
 # ndb version
 NDB_VERSION_MAJOR=5
 NDB_VERSION_MINOR=0
-NDB_VERSION_BUILD=27
+NDB_VERSION_BUILD=29
 NDB_VERSION_STATUS=""
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -448,6 +448,10 @@ AC_PATH_PROG(MAKEINDEX, makeindex, no)
 AC_SUBST(DOXYGEN)
 AC_SUBST(PDFLATEX)
 AC_SUBST(MAKEINDEX)
+
+# icheck, used for ABI check
+AC_PATH_PROG(ICHECK, icheck, no)
+AC_SUBST(ICHECK)
 
 # Lock for PS
 AC_PATH_PROG(PS, ps, ps)
@@ -1176,12 +1180,16 @@ EOF
           cat > $filesed << EOF
 s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
 s,\(: conf_to_src\),\1.linux,
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
 EOF
           ;;
         libmysql_r/Makefile.in)
           cat > $filesed << EOF
 s,\(\./conf_to_src\)\( \$(top_srcdir)\),\1.linux\2,
 s,\(: conf_to_src\),\1.linux,
+s,libyassl.la,.libs/libyassl.a,
+s,libtaocrypt.la,.libs/libtaocrypt.a,
 EOF
           ;;
         strings/Makefile.in)
