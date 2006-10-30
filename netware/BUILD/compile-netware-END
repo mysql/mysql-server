@@ -18,8 +18,13 @@ rm -rf Makefile.in.bk
 # Setup Metrowerks environment
 . $path/mwenv
 
-# Run autotools(use BUILD/autorun.sh)
-. BUILD/autorun.sh
+# Temporary hack to allow building from source dist
+if [ ! "$USER"=pushbuild ]
+then
+  # Run autotools(use BUILD/autorun.sh)
+  echo "Running autotools again(BUILD/autorun.sh)"
+  . BUILD/autorun.sh
+fi
 
 # configure
 ./configure $base_configs $extra_configs

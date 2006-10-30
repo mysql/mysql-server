@@ -1195,7 +1195,7 @@ static void print_xml_tag(FILE * xml_file, const char* sbeg, const char* send,
                           const char* first_attribute_name, ...)
 {
   va_list arg_list;
-  char *attribute_name, *attribute_value;
+  const char *attribute_name, *attribute_value;
 
   fputs(sbeg, xml_file);
   fputc('<', xml_file);
@@ -1318,7 +1318,7 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 static void print_blob_as_hex(FILE *output_file, const char *str, ulong len)
 {
     /* sakaik got the idea to to provide blob's in hex notation. */
-    char *ptr= str, *end= ptr + len;
+    const char *ptr= str, *end= ptr + len;
     for (; ptr < end ; ptr++)
       fprintf(output_file, "%02X", *((uchar *)ptr));
     check_io(output_file);
