@@ -149,7 +149,8 @@ DROP TABLE t1, t2;
 #
 # Bug #22728 - Handler_rollback value is growing
 #
-flush status;
+
+let $before= `show /*!50002 GLOBAL */ status like 'Handler_rollback'`;
 create table t1 (c1 int) engine=innodb;
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
@@ -158,7 +159,11 @@ handler t1 open;
 handler t1 read first;
 disconnect con2;
 connection con1;
-show /*!50002 GLOBAL */ status like 'Handler_rollback';
+let $after= `show /*!50002 GLOBAL */ status like 'Handler_rollback'`;
+# Compare the before and after value, it should be equal
+--disable_query_log
+eval select STRCMP("$before", "$after") as "Before and after comparison";
+--enable_query_log
 connection default;
 drop table t1;
 disconnect con1;
