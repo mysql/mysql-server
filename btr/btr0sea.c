@@ -1021,7 +1021,7 @@ next_rec:
 
 	for (i = 0; i < n_cached; i++) {
 
-		ha_remove_all_nodes_to_page(table, folds[i], page);
+		ha_remove_all_nodes_to_page(table, folds[i], block, page);
 	}
 
 	block->is_hashed = FALSE;
@@ -1380,7 +1380,7 @@ btr_search_update_hash_on_delete(
 	}
 	rw_lock_x_lock(&btr_search_latch);
 
-	found = ha_search_and_delete_if_found(table, fold, rec);
+	found = ha_search_and_delete_if_found(table, fold, block, rec);
 
 	rw_lock_x_unlock(&btr_search_latch);
 }

@@ -16,6 +16,7 @@ void
 ha_delete_hash_node(
 /*================*/
 	hash_table_t*	table,		/* in: hash table */
+	buf_block_t*	block,		/* in: buffer block, or NULL */
 	ha_node_t*	del_node);	/* in: node to be deleted */
 
 /**********************************************************************
@@ -173,6 +174,7 @@ ha_search_and_delete_if_found(
 				/* out: TRUE if found */
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold,	/* in: folded value of the searched data */
+	buf_block_t*	block,	/* in: buffer block, or NULL */
 	void*		data)	/* in: pointer to the data */
 {
 	ha_node_t*	node;
@@ -184,7 +186,7 @@ ha_search_and_delete_if_found(
 	node = ha_search_with_data(table, fold, data);
 
 	if (node) {
-		ha_delete_hash_node(table, node);
+		ha_delete_hash_node(table, block, node);
 
 		return(TRUE);
 	}
