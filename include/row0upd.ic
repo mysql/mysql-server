@@ -116,8 +116,11 @@ row_upd_rec_sys_fields(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX)
-	      || !buf_block_align(rec)->is_hashed);
+	if (!rw_lock_own(&btr_search_latch, RW_LOCK_EX)) {
+		mutex_enter(&buf_pool->mutex);
+		ut_ad(!buf_block_align(rec)->is_hashed);
+		mutex_exit(&buf_pool->mutex);
+	}
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (UNIV_LIKELY_NULL(page_zip)) {
