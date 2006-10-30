@@ -804,7 +804,7 @@ sys_var *sys_variables[]=
 
 
 /*
-  Variables shown by SHOW variables in alphabetical order
+  Variables shown by SHOW VARIABLES in alphabetical order
 */
 
 struct show_var_st init_vars[]= {
