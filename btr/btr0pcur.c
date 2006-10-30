@@ -252,9 +252,9 @@ btr_pcur_restore_position(
 #endif /* UNIV_SYNC_DEBUG */
 			if (cursor->rel_pos == BTR_PCUR_ON) {
 #ifdef UNIV_DEBUG
-				rec_t*		rec;
-				ulint*		offsets1;
-				ulint*		offsets2;
+				const rec_t*	rec;
+				const ulint*	offsets1;
+				const ulint*	offsets2;
 #endif /* UNIV_DEBUG */
 				cursor->latch_mode = latch_mode;
 #ifdef UNIV_DEBUG

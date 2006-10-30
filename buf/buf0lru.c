@@ -899,6 +899,7 @@ buf_LRU_block_remove_hashed_page(
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 {
+	const buf_block_t*	hashed_block;
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
 #endif /* UNIV_SYNC_DEBUG */
@@ -917,22 +918,21 @@ buf_LRU_block_remove_hashed_page(
 
 	buf_block_modify_clock_inc(block);
 
-	if (block != buf_page_hash_get(block->space, block->offset)) {
+	hashed_block = buf_page_hash_get(block->space, block->offset);
+
+	if (UNIV_UNLIKELY(block != hashed_block)) {
 		fprintf(stderr,
 			"InnoDB: Error: page %lu %lu not found"
 			" in the hash table\n",
 			(ulong) block->space,
 			(ulong) block->offset);
-		if (buf_page_hash_get(block->space, block->offset)) {
+		if (hashed_block) {
 			fprintf(stderr,
 				"InnoDB: In hash table we find block"
 				" %p of %lu %lu which is not %p\n",
-				(void*) buf_page_hash_get(
-					block->space, block->offset),
-				(ulong) buf_page_hash_get(
-					block->space, block->offset)->space,
-				(ulong) buf_page_hash_get(
-					block->space, block->offset)->offset,
+				(const void*) hashed_block,
+				(ulong) hashed_block->space,
+				(ulong) hashed_block->offset,
 				(void*) block);
 		}
 
@@ -942,7 +942,7 @@ buf_LRU_block_remove_hashed_page(
 		buf_validate();
 		buf_LRU_validate();
 #endif
-		ut_a(0);
+		ut_error;
 	}
 
 	HASH_DELETE(buf_block_t, hash, buf_pool->page_hash,
