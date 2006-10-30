@@ -743,7 +743,7 @@ static int show_slave_skip_errors(THD *thd, SHOW_VAR *var, char *buff)
 #endif /* HAVE_REPLICATION */
 
 /*
-  Variables shown by SHOW variables in alphabetical order
+  Variables shown by SHOW VARIABLES in alphabetical order
 */
 
 SHOW_VAR init_vars[]= {

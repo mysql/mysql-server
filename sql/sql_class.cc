@@ -513,14 +513,13 @@ THD::~THD()
 
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
 {
-  ulong *end= (ulong*) ((byte*) to_var + offsetof(STATUS_VAR,
-						  last_system_status_var) +
+  ulong *end= (ulong*) ((byte*) to_var +
+                        offsetof(STATUS_VAR, last_system_status_var) +
 			sizeof(ulong));
   ulong *to= (ulong*) to_var, *from= (ulong*) from_var;
 
   while (to != end)
     *(to++)+= *(from++);
-  /* it doesn't make sense to add last_query_cost values */
 }
 
 /*
