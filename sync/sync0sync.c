@@ -1134,6 +1134,7 @@ sync_thread_add_level(
 		break;
 	case SYNC_TREE_NODE:
 		ut_a(sync_thread_levels_contain(array, SYNC_INDEX_TREE)
+		     || sync_thread_levels_contain(array, SYNC_DICT_OPERATION)
 		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
 		break;
 	case SYNC_TREE_NODE_NEW:
