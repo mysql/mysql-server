@@ -4446,7 +4446,7 @@ fil_aio_wait(
 	deadlocks in the i/o system. We keep tablespace 0 data files always
 	open, and use a special i/o thread to serve insert buffer requests. */
 
-	if (buf_pool_is_block(message)) {
+	if (fil_node->space->purpose == FIL_TABLESPACE) {
 		srv_set_io_thread_op_info(segment, "complete io for buf page");
 		buf_page_io_complete(message);
 	} else {

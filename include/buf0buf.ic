@@ -39,18 +39,7 @@ buf_pool_get_curr_size(void)
 /*========================*/
 			/* out: size in bytes */
 {
-	return((buf_pool->n_frames) * UNIV_PAGE_SIZE);
-}
-
-/*************************************************************************
-Gets the maximum size of buffer buf_pool in bytes. */
-UNIV_INLINE
-ulint
-buf_pool_get_max_size(void)
-/*=======================*/
-			/* out: size in bytes */
-{
-	return((buf_pool->n_frames) * UNIV_PAGE_SIZE);
+	return(buf_pool->curr_size * UNIV_PAGE_SIZE);
 }
 
 /***********************************************************************
@@ -67,26 +56,6 @@ buf_pool_get_nth_block(
 	ut_ad(i < buf_pool->max_size);
 
 	return(i + buf_pool->blocks);
-}
-
-/***********************************************************************
-Checks if a pointer points to the block array of the buffer pool (blocks, not
-the frames). */
-UNIV_INLINE
-ibool
-buf_pool_is_block(
-/*==============*/
-			/* out: TRUE if pointer to block */
-	void*	ptr)	/* in: pointer to memory */
-{
-	if ((buf_pool->blocks <= (buf_block_t*)ptr)
-	    && ((buf_block_t*)ptr < buf_pool->blocks
-		+ buf_pool->max_size)) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
 }
 
 /************************************************************************
@@ -229,33 +198,15 @@ buf_block_align(
 	byte*	ptr)	/* in: pointer to a frame */
 {
 	buf_block_t*	block;
-	buf_frame_t*	frame_zero;
+	ulint		space_id, page_no;
 
-	ut_ad(ptr);
+	ptr = ut_align_down(ptr, UNIV_PAGE_SIZE);
+	page_no = mach_read_from_4(ptr + FIL_PAGE_OFFSET);
+	space_id = mach_read_from_4(ptr + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-	frame_zero = buf_pool->frame_zero;
-
-	if (UNIV_UNLIKELY((ulint)ptr < (ulint)frame_zero)
-	    || UNIV_UNLIKELY((ulint)ptr > (ulint)(buf_pool->high_end))) {
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"InnoDB: Error: trying to access a stray pointer %p\n"
-			"InnoDB: buf pool start is at %p, end at %p\n"
-			"InnoDB: Probable reason is database corruption"
-			" or memory\n"
-			"InnoDB: corruption. If this happens in an"
-			" InnoDB database recovery, see\n"
-			"InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-			"forcing-recovery.html\n"
-			"InnoDB: how to force recovery.\n",
-			ptr, frame_zero,
-			buf_pool->high_end);
-		ut_error;
-	}
-
-	block = *(buf_pool->blocks_of_frames + (((ulint)(ptr - frame_zero))
-						>> UNIV_PAGE_SIZE_SHIFT));
+	block = buf_page_hash_get(space_id, page_no);
+	ut_ad(block);
+	ut_ad(block->frame == ptr);
 	return(block);
 }
 

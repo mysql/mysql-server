@@ -1230,7 +1230,7 @@ innobase_start_or_create_for_mysql(void)
 
 	fil_init(srv_max_n_open_files);
 
-	ret = buf_pool_init(srv_pool_size, srv_pool_size);
+	ret = buf_pool_init(srv_pool_size);
 
 	if (ret == NULL) {
 		fprintf(stderr,

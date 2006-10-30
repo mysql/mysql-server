@@ -775,10 +775,10 @@ dict_init(void)
 
 	mutex_create(&dict_sys->mutex, SYNC_DICT);
 
-	dict_sys->table_hash = hash_create(buf_pool_get_max_size()
+	dict_sys->table_hash = hash_create(buf_pool_get_curr_size()
 					   / (DICT_POOL_PER_TABLE_HASH
 					      * UNIV_WORD_SIZE));
-	dict_sys->table_id_hash = hash_create(buf_pool_get_max_size()
+	dict_sys->table_id_hash = hash_create(buf_pool_get_curr_size()
 					      / (DICT_POOL_PER_TABLE_HASH
 						 * UNIV_WORD_SIZE));
 	dict_sys->size = 0;

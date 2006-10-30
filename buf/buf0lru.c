@@ -307,7 +307,7 @@ buf_LRU_buf_pool_running_out(void)
 	mutex_enter(&(buf_pool->mutex));
 
 	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 4) {
+	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->curr_size / 4) {
 
 		ret = TRUE;
 	}
@@ -338,7 +338,7 @@ loop:
 	mutex_enter(&(buf_pool->mutex));
 
 	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 20) {
+	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->curr_size / 20) {
 		ut_print_timestamp(stderr);
 
 		fprintf(stderr,
@@ -358,8 +358,10 @@ loop:
 
 		ut_error;
 
-	} else if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
-		   + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->max_size / 3) {
+	} else if (!recv_recovery_on
+		   && (UT_LIST_GET_LEN(buf_pool->free)
+		       + UT_LIST_GET_LEN(buf_pool->LRU))
+		   < buf_pool->curr_size / 3) {
 
 		if (!buf_lru_switched_on_innodb_mon) {
 

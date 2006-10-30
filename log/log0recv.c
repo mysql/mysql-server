@@ -2448,7 +2448,7 @@ recv_group_scan_log_recs(
 				       group, start_lsn, end_lsn);
 
 		finished = recv_scan_log_recs(
-			TRUE, (buf_pool->n_frames - recv_n_pool_free_frames)
+			TRUE, (buf_pool->curr_size - recv_n_pool_free_frames)
 			* UNIV_PAGE_SIZE, TRUE, log_sys->buf, RECV_SCAN_SIZE,
 			start_lsn, contiguous_lsn, group_scanned_lsn);
 		start_lsn = end_lsn;
