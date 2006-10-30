@@ -32,8 +32,7 @@ buf_block_peek_if_too_old(
 }
 
 /*************************************************************************
-Gets the current size of buffer buf_pool in bytes. In the case of AWE, the
-size of AWE window (= the frames). */
+Gets the current size of buffer buf_pool in bytes. */
 UNIV_INLINE
 ulint
 buf_pool_get_curr_size(void)
@@ -44,8 +43,7 @@ buf_pool_get_curr_size(void)
 }
 
 /*************************************************************************
-Gets the maximum size of buffer buf_pool in bytes. In the case of AWE, the
-size of AWE window (= the frames). */
+Gets the maximum size of buffer buf_pool in bytes. */
 UNIV_INLINE
 ulint
 buf_pool_get_max_size(void)
@@ -314,9 +312,7 @@ UNIV_INLINE
 buf_block_t*
 buf_block_alloc(
 /*============*/
-				/* out, own: the allocated block; also if AWE
-				is used it is guaranteed that the page is
-				mapped to a frame */
+				/* out, own: the allocated block */
 	ulint	zip_size)	/* in: compressed page size in bytes,
 				or 0 if uncompressed tablespace */
 {
