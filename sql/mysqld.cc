@@ -2663,19 +2663,43 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   /* connections and databases needs lots of files */
   {
-    uint files, wanted_files;
+    uint files, wanted_files, max_open_files;
 
-    wanted_files= 10+(uint) max(max_connections*5,
-				 max_connections+table_cache_size*2);
-    set_if_bigger(wanted_files, open_files_limit);
-    files= my_set_max_open_files(wanted_files);
+    /* MyISAM requires two file handles per table. */
+    wanted_files= 10+max_connections+table_cache_size*2;
+    /*
+      We are trying to allocate no less than max_connections*5 file
+      handles (i.e. we are trying to set the limit so that they will
+      be available).  In addition, we allocate no less than how much
+      was already allocated.  However below we report a warning and
+      recompute values only if we got less file handles than were
+      explicitly requested.  No warning and re-computation occur if we
+      can't get max_connections*5 but still got no less than was
+      requested (value of wanted_files).
+    */
+    max_open_files= max(max(wanted_files, max_connections*5),
+                        open_files_limit);
+    files= my_set_max_open_files(max_open_files);
 
     if (files < wanted_files)
     {
       if (!open_files_limit)
       {
-	max_connections=	(ulong) min((files-10),max_connections);
-	table_cache_size= (ulong) max((files-10-max_connections)/2,64);
+        /*
+          If we have requested too much file handles than we bring
+          max_connections in supported bounds.
+        */
+        max_connections= (ulong) min(files-10-TABLE_OPEN_CACHE_MIN*2,
+                                     max_connections);
+        /*
+          Decrease table_cache_size according to max_connections, but
+          not below TABLE_OPEN_CACHE_MIN.  Outer min() ensures that we
+          never increase table_cache_size automatically (that could
+          happen if max_connections is decreased above).
+        */
+        table_cache_size= (ulong) min(max((files-10-max_connections)/2,
+                                          TABLE_OPEN_CACHE_MIN),
+                                      table_cache_size);    
 	DBUG_PRINT("warning",
 		   ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
 		    files, max_connections, table_cache_size));
@@ -6198,15 +6222,15 @@ The minimum value for this variable is 4096.",
   {"table_cache", OPT_TABLE_OPEN_CACHE,
    "Deprecated; use --table_open_cache instead.",
    (gptr*) &table_cache_size, (gptr*) &table_cache_size, 0, GET_ULONG,
-   REQUIRED_ARG, 64, 1, 512*1024L, 0, 1, 0},
+   REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
   {"table_definition_cache", OPT_TABLE_DEF_CACHE,
    "The number of cached table definitions.",
    (gptr*) &table_def_size, (gptr*) &table_def_size,
    0, GET_ULONG, REQUIRED_ARG, 128, 1, 512*1024L, 0, 1, 0},
   {"table_open_cache", OPT_TABLE_OPEN_CACHE,
    "The number of cached open tables.",
-   (gptr*) &table_cache_size, (gptr*) &table_cache_size,
-   0, GET_ULONG, REQUIRED_ARG, 64, 1, 512*1024L, 0, 1, 0},
+   (gptr*) &table_cache_size, (gptr*) &table_cache_size, 0, GET_ULONG,
+   REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
   {"table_lock_wait_timeout", OPT_TABLE_LOCK_WAIT_TIMEOUT,
    "Timeout in seconds to wait for a table level lock before returning an "
    "error. Used only if the connection has active cursors.",
