@@ -99,10 +99,12 @@ ha_insert_for_fold(
 		if (prev_node->fold == fold) {
 #ifdef UNIV_DEBUG
 			if (table->adaptive) {
+				mutex_enter(&buf_pool->mutex);
 				prev_block = buf_block_align(prev_node->data);
 				ut_a(prev_block->n_pointers > 0);
 				prev_block->n_pointers--;
 				buf_block_align(data)->n_pointers++;
+				mutex_exit(&buf_pool->mutex);
 			}
 #endif /* UNIV_DEBUG */
 			prev_node->data = data;
@@ -130,7 +132,9 @@ ha_insert_for_fold(
 
 #ifdef UNIV_DEBUG
 	if (table->adaptive) {
+		mutex_enter(&buf_pool->mutex);
 		buf_block_align(data)->n_pointers++;
+		mutex_exit(&buf_pool->mutex);
 	}
 #endif /* UNIV_DEBUG */
 	node->fold = fold;
@@ -167,8 +171,12 @@ ha_delete_hash_node(
 {
 #ifdef UNIV_DEBUG
 	if (table->adaptive) {
-		ut_a(buf_block_align(del_node->data)->n_pointers > 0);
-		buf_block_align(del_node->data)->n_pointers--;
+		buf_block_t*	block;
+		mutex_enter(&buf_pool->mutex);
+		block = buf_block_align(del_node->data);
+		mutex_exit(&buf_pool->mutex);
+		ut_a(block->n_pointers > 0);
+		block->n_pointers--;
 	}
 #endif /* UNIV_DEBUG */
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
@@ -220,9 +228,11 @@ ha_search_and_update_if_found(
 	if (node) {
 #ifdef UNIV_DEBUG
 		if (table->adaptive) {
+			mutex_enter(&buf_pool->mutex);
 			ut_a(buf_block_align(node->data)->n_pointers > 0);
 			buf_block_align(node->data)->n_pointers--;
 			buf_block_align(new_data)->n_pointers++;
+			mutex_exit(&buf_pool->mutex);
 		}
 #endif /* UNIV_DEBUG */
 		node->data = new_data;

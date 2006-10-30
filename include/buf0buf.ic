@@ -221,7 +221,11 @@ buf_frame_get_page_zip(
 			/* out: compressed page descriptor, or NULL */
 	byte*	ptr)	/* in: pointer to the page */
 {
-	return(buf_block_get_page_zip(buf_block_align(ptr)));
+	page_zip_des_t*	page_zip;
+	mutex_enter(&buf_pool->mutex);
+	page_zip = buf_block_get_page_zip(buf_block_align(ptr));
+	mutex_exit(&buf_pool->mutex);
+	return(page_zip);
 }
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
@@ -237,7 +241,6 @@ buf_ptr_get_fsp_addr(
 	fil_addr_t*	addr)	/* out: page offset and byte offset */
 {
 	const page_t*	page = ut_align_down((void*) ptr, UNIV_PAGE_SIZE);
-	ut_ad(buf_block_align((byte*) ptr));
 
 	*space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 	addr->page = mach_read_from_4(page + FIL_PAGE_OFFSET);

@@ -756,7 +756,9 @@ btr_search_guess_on_hash(
 		goto failure_unlock;
 	}
 
+	mutex_enter(&buf_pool->mutex);
 	block = buf_block_align(rec);
+	mutex_exit(&buf_pool->mutex);
 	page = page_align(rec);
 
 	if (UNIV_LIKELY(!has_search_latch)) {
@@ -1608,6 +1610,7 @@ btr_search_validate(void)
 	*offsets_ = (sizeof offsets_) / sizeof *offsets_;
 
 	rw_lock_x_lock(&btr_search_latch);
+	mutex_enter(&buf_pool->mutex);
 
 	cell_count = hash_get_n_cells(btr_search_sys->hash_index);
 
@@ -1615,9 +1618,11 @@ btr_search_validate(void)
 		/* We release btr_search_latch every once in a while to
 		give other queries a chance to run. */
 		if ((i != 0) && ((i % chunk_size) == 0)) {
+			mutex_exit(&buf_pool->mutex);
 			rw_lock_x_unlock(&btr_search_latch);
 			os_thread_yield();
 			rw_lock_x_lock(&btr_search_latch);
+			mutex_enter(&buf_pool->mutex);
 		}
 
 		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
@@ -1688,9 +1693,11 @@ btr_search_validate(void)
 		/* We release btr_search_latch every once in a while to
 		give other queries a chance to run. */
 		if (i != 0) {
+			mutex_exit(&buf_pool->mutex);
 			rw_lock_x_unlock(&btr_search_latch);
 			os_thread_yield();
 			rw_lock_x_lock(&btr_search_latch);
+			mutex_enter(&buf_pool->mutex);
 		}
 
 		if (!ha_validate(btr_search_sys->hash_index, i, end_index)) {
@@ -1698,6 +1705,7 @@ btr_search_validate(void)
 		}
 	}
 
+	mutex_exit(&buf_pool->mutex);
 	rw_lock_x_unlock(&btr_search_latch);
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
