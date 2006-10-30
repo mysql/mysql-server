@@ -149,6 +149,7 @@ void
 sync_print(
 /*=======*/
 	FILE*	file);		/* in: file where to print */
+#ifdef UNIV_DEBUG
 /**********************************************************************
 Checks that the mutex has been initialized. */
 
@@ -156,6 +157,8 @@ ibool
 mutex_validate(
 /*===========*/
 	mutex_t*	mutex);
+#endif /* UNIV_DEBUG */
+#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Adds a latch and its level in the thread level array. Allocates the memory
 for the array if called first time for this OS thread. Makes the checks
@@ -197,7 +200,6 @@ sync_thread_levels_empty_gen(
 					allowed to be owned by the thread,
 					also purge_is_running mutex is
 					allowed */
-#ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Checks that the current thread owns the mutex. Works only
 in the debug version. */
