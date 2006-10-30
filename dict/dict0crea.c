@@ -714,8 +714,10 @@ dict_truncate_index_tree(
 				/* out: new root page number, or
 				FIL_NULL on failure */
 	dict_table_t*	table,	/* in: the table the index belongs to */
-	rec_t*		rec,	/* in/out: record in the clustered index of
-				SYS_INDEXES table */
+	btr_pcur_t*	pcur,	/* in/out: persistent cursor pointing to
+				record in the clustered index of
+				SYS_INDEXES table. The cursor may be
+				repositioned in this call. */
 	mtr_t*		mtr)	/* in: mtr having the latch
 				on the record page. The mtr may be
 				committed and restarted in this call. */
@@ -724,6 +726,7 @@ dict_truncate_index_tree(
 	ulint		space;
 	ulint		type;
 	dulint		index_id;
+	rec_t*		rec;
 	const byte*	ptr;
 	ulint		len;
 	ulint		comp;
@@ -734,6 +737,7 @@ dict_truncate_index_tree(
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
+	rec = btr_pcur_get_rec(pcur);
 	ptr = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_PAGE_NO_FIELD, &len);
 
 	ut_ad(len == 4);
@@ -799,10 +803,11 @@ dict_truncate_index_tree(
 	/* We will need to commit the mini-transaction in order to avoid
 	deadlocks in the btr_create() call, because otherwise we would
 	be freeing and allocating pages in the same mini-transaction. */
+	btr_pcur_store_position(pcur, mtr);
 	mtr_commit(mtr);
-	/* mtr_commit() will invalidate rec. */
-	rec = NULL;
+
 	mtr_start(mtr);
+	btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 
 	/* Find the index corresponding to this SYS_INDEXES record. */
 	for (index = UT_LIST_GET_FIRST(table->indexes);
