@@ -71,13 +71,15 @@ void lf_dynarray_destroy(LF_DYNARRAY *array)
   bzero(array, sizeof(*array));
 }
 
-static const int dynarray_idxes_in_prev_level[LF_DYNARRAY_LEVELS]=
+static const long dynarray_idxes_in_prev_level[LF_DYNARRAY_LEVELS]=
 {
   0, /* +1 here to to avoid -1's below */
   LF_DYNARRAY_LEVEL_LENGTH,
-  LF_DYNARRAY_LEVEL_LENGTH * LF_DYNARRAY_LEVEL_LENGTH,
+  LF_DYNARRAY_LEVEL_LENGTH * LF_DYNARRAY_LEVEL_LENGTH +
+    LF_DYNARRAY_LEVEL_LENGTH,
   LF_DYNARRAY_LEVEL_LENGTH * LF_DYNARRAY_LEVEL_LENGTH *
-    LF_DYNARRAY_LEVEL_LENGTH
+    LF_DYNARRAY_LEVEL_LENGTH + LF_DYNARRAY_LEVEL_LENGTH *
+    LF_DYNARRAY_LEVEL_LENGTH + LF_DYNARRAY_LEVEL_LENGTH
 };
 
 /*
