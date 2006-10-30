@@ -197,7 +197,7 @@ drop table t1;
 create table t1 (s1 char(10) character set utf8);
 insert into t1 values (0x41FF);
 Warnings:
-Warning	1265	Data truncated for column 's1' at row 1
+Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
 select hex(s1) from t1;
 hex(s1)
 41
@@ -205,7 +205,7 @@ drop table t1;
 create table t1 (s1 varchar(10) character set utf8);
 insert into t1 values (0x41FF);
 Warnings:
-Warning	1265	Data truncated for column 's1' at row 1
+Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
 select hex(s1) from t1;
 hex(s1)
 41
@@ -213,7 +213,7 @@ drop table t1;
 create table t1 (s1 text character set utf8);
 insert into t1 values (0x41FF);
 Warnings:
-Warning	1265	Data truncated for column 's1' at row 1
+Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
 select hex(s1) from t1;
 hex(s1)
 41
