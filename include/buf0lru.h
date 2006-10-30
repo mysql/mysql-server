@@ -87,9 +87,7 @@ LRU list to the free list. */
 buf_block_t*
 buf_LRU_get_free_block(
 /*===================*/
-				/* out: the free control block; also if AWE is
-				used, it is guaranteed that the block has its
-				page mapped to a frame when we return */
+				/* out: the free control block */
 	ulint	zip_size);	/* in: compressed page size in bytes,
 				or 0 if uncompressed tablespace */
 

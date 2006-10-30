@@ -1536,22 +1536,10 @@ innobase_init(void *p)
 	/* We set srv_pool_size here in units of 1 kB. InnoDB internally
 	changes the value so that it becomes the number of database pages. */
 
-	if (innobase_buffer_pool_awe_mem_mb == 0) {
-		/* Careful here: we first convert the signed long int to ulint
-		and only after that divide */
+	/* Careful here: we first convert the signed long int to ulint
+	   and only after that divide */
 
-		srv_pool_size = ((ulint) innobase_buffer_pool_size) / 1024;
-	} else {
-		srv_use_awe = TRUE;
-		srv_pool_size = (ulint)
-				(1024 * innobase_buffer_pool_awe_mem_mb);
-		srv_awe_window_size = (ulint) innobase_buffer_pool_size;
-
-		/* Note that what the user specified as
-		innodb_buffer_pool_size is actually the AWE memory window
-		size in this case, and the real buffer pool size is
-		determined by .._awe_mem_mb. */
-	}
+	srv_pool_size = ((ulint) innobase_buffer_pool_size) / 1024;
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 

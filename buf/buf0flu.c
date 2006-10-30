@@ -640,19 +640,6 @@ buf_flush_try_page(
 
 		block->io_fix = BUF_IO_WRITE;
 
-		/* If AWE is enabled and the page is not mapped to a frame,
-		then map it */
-
-		if (block->frame == NULL) {
-			ut_a(srv_use_awe);
-
-			/* We set second parameter TRUE because the block is
-			in the LRU list and we must put it to
-			awe_LRU_free_mapped list once mapped to a frame */
-
-			buf_awe_map_page_to_frame(block, TRUE);
-		}
-
 		block->flush_type = flush_type;
 
 		if (buf_pool->n_flush[flush_type] == 0) {
@@ -707,19 +694,6 @@ buf_flush_try_page(
 
 		block->io_fix = BUF_IO_WRITE;
 
-		/* If AWE is enabled and the page is not mapped to a frame,
-		then map it */
-
-		if (block->frame == NULL) {
-			ut_a(srv_use_awe);
-
-			/* We set second parameter TRUE because the block is
-			in the LRU list and we must put it to
-			awe_LRU_free_mapped list once mapped to a frame */
-
-			buf_awe_map_page_to_frame(block, TRUE);
-		}
-
 		block->flush_type = flush_type;
 
 		if (buf_pool->n_flush[flush_type] == 0) {
@@ -745,19 +719,6 @@ buf_flush_try_page(
 		   && buf_flush_ready_for_flush(block, flush_type)) {
 
 		block->io_fix = BUF_IO_WRITE;
-
-		/* If AWE is enabled and the page is not mapped to a frame,
-		then map it */
-
-		if (block->frame == NULL) {
-			ut_a(srv_use_awe);
-
-			/* We set second parameter TRUE because the block is
-			in the LRU list and we must put it to
-			awe_LRU_free_mapped list once mapped to a frame */
-
-			buf_awe_map_page_to_frame(block, TRUE);
-		}
 
 		block->flush_type = flush_type;
 

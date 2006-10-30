@@ -85,7 +85,6 @@ extern ulong	srv_flush_log_at_trx_commit;
 extern byte	srv_latin1_ordering[256];/* The sort order table of the latin1
 					character set */
 extern ulint	srv_pool_size;
-extern ulint	srv_awe_window_size;
 extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
@@ -132,8 +131,6 @@ extern int	srv_query_thread_priority;
 
 extern ulong	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
-extern ibool	srv_use_awe;
-extern ibool	srv_use_adaptive_hash_indexes;
 /*-------------------------------------------*/
 
 extern ulint	srv_n_rows_inserted;

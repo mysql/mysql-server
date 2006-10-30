@@ -1035,10 +1035,6 @@ innobase_start_or_create_for_mysql(void)
 		"InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
 #endif
 
-#ifdef UNIV_SIMULATE_AWE
-	fprintf(stderr,
-		"InnoDB: !!!!!!!! UNIV_SIMULATE_AWE switched on !!!!!!!!!\n");
-#endif
 	if (srv_sizeof_trx_t_in_ha_innodb_cc != (ulint)sizeof(trx_t)) {
 		fprintf(stderr,
 			"InnoDB: Error: trx_t size is %lu in ha_innodb.cc"
@@ -1076,21 +1072,6 @@ innobase_start_or_create_for_mysql(void)
 	srv_is_being_started = TRUE;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
 	os_aio_use_native_aio = FALSE;
-
-#if !defined(__WIN2000__) && !defined(UNIV_SIMULATE_AWE)
-	if (srv_use_awe) {
-
-		fprintf(stderr,
-			"InnoDB: Error: You have specified"
-			" innodb_buffer_pool_awe_mem_mb\n"
-			"InnoDB: in my.cnf, but AWE can only"
-			" be used in Windows 2000 and later.\n"
-			"InnoDB: To use AWE, InnoDB must"
-			" be compiled with __WIN2000__ defined.\n");
-
-		return(DB_ERROR);
-	}
-#endif
 
 #ifdef __WIN__
 	if (os_get_os_version() == OS_WIN95
@@ -1249,25 +1230,7 @@ innobase_start_or_create_for_mysql(void)
 
 	fil_init(srv_max_n_open_files);
 
-	if (srv_use_awe) {
-		fprintf(stderr,
-			"InnoDB: Using AWE: Memory window is %lu MB"
-			" and AWE memory is %lu MB\n",
-			(ulong) (srv_awe_window_size / ((1024 * 1024)
-							/ UNIV_PAGE_SIZE)),
-			(ulong) (srv_pool_size / ((1024 * 1024)
-						  / UNIV_PAGE_SIZE)));
-
-		/* We must disable adaptive hash indexes because they do not
-		tolerate remapping of pages in AWE */
-
-		srv_use_adaptive_hash_indexes = FALSE;
-		ret = buf_pool_init(srv_pool_size, srv_pool_size,
-				    srv_awe_window_size);
-	} else {
-		ret = buf_pool_init(srv_pool_size, srv_pool_size,
-				    srv_pool_size);
-	}
+	ret = buf_pool_init(srv_pool_size, srv_pool_size);
 
 	if (ret == NULL) {
 		fprintf(stderr,
