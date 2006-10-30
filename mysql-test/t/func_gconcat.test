@@ -32,7 +32,6 @@ select grp,group_concat(d order by a desc) from t1 group by grp;
 select grp,group_concat(a order by a,d+c-ascii(c)-a) from t1 group by grp;
 select grp,group_concat(a order by d+c-ascii(c),a) from t1 group by grp;
 select grp,group_concat(c order by 1) from t1 group by grp;
-select grp,group_concat(c order by "c") from t1 group by grp;
 select grp,group_concat(distinct c order by c) from t1 group by grp;
 select grp,group_concat(distinct c order by c desc) from t1 group by grp;
 explain extended select grp,group_concat(distinct c order by c desc) from t1 group by grp;

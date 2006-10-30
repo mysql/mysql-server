@@ -405,9 +405,25 @@ sub main () {
       }
       $use_innodb||= $test->{'innodb_test'};
     }
-    $opt_skip_ndbcluster= $opt_skip_ndbcluster_slave= 1
-      unless $need_ndbcluster;
-    $opt_skip_im= 1 unless $need_im;
+
+    # Check if cluster can be skipped
+    if ( !$need_ndbcluster )
+    {
+      $opt_skip_ndbcluster= 1;
+      $opt_skip_ndbcluster_slave= 1;
+    }
+
+    # Check if slave cluster can be skipped
+    if ($max_slave_num == 0)
+    {
+      $opt_skip_ndbcluster_slave= 1;
+    }
+
+    # Check if im can be skipped
+    if ( ! $need_im )
+    {
+     $opt_skip_im= 1;
+   }
 
     initialize_servers();
 
@@ -714,14 +730,19 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   # NOTE if the default binlog format is changed, this has to be changed
   $used_binlog_format= "stmt";
-  foreach my $arg ( @opt_extra_mysqld_opt )
+  if ( $mysql_version_id >= 50100 )
   {
-    if ( defined mtr_match_substring($arg,"binlog-format=row"))
+    $used_binlog_format= "mixed"; # Default value for binlog format
+
+    foreach my $arg ( @opt_extra_mysqld_opt )
     {
-      $used_binlog_format= "row";
+      if ( $arg =~ /binlog-format=(\S+)/ )
+      {
+	$used_binlog_format= $1;
+      }
     }
+    mtr_report("Using binlog format '$used_binlog_format'");
   }
-  mtr_report("Using binlog format '$used_binlog_format'");
 
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
@@ -951,7 +972,7 @@ sub command_line_setup () {
   }
   elsif ( $opt_valgrind_mysqltest )
   {
-    mtr_report("Turning on valgrind for mysqltest only");
+    mtr_report("Turning on valgrind for mysqltest and mysql_client_test only");
     $opt_valgrind= 1;
   }
 
@@ -1483,6 +1504,47 @@ sub generate_cmdline_mysqldump ($) {
 #
 ##############################################################################
 
+sub mysql_client_test_arguments()
+{
+  my $exe= $exe_mysql_client_test;
+
+  my $args;
+  mtr_init_args(\$args);
+  if ( $opt_valgrind_mysqltest )
+  {
+    valgrind_arguments($args, \$exe);
+  }
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--testcase");
+  mtr_add_arg($args, "--user=root");
+  mtr_add_arg($args, "--port=$master->[0]->{'port'}");
+  mtr_add_arg($args, "--socket=$master->[0]->{'path_sock'}");
+
+  if ( $mysql_version_id >= 50000 )
+  {
+    mtr_add_arg($args, "--vardir=$opt_vardir")
+  }
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args,
+      "--debug=d:t:A,$path_vardir_trace/log/mysql_client_test.trace");
+  }
+
+  if ( $glob_use_embedded_server )
+  {
+    mtr_add_arg($args,
+      " -A --language=$path_language");
+    mtr_add_arg($args,
+      " -A --datadir=$slave->[0]->{'path_myddir'}");
+    mtr_add_arg($args,
+      " -A --character-sets-dir=$path_charsetsdir");
+  }
+
+  return join(" ", $exe, @$args);
+}
+
 # Note that some env is setup in spawn/run, in "mtr_process.pl"
 
 sub environment_setup () {
@@ -1664,7 +1726,7 @@ sub environment_setup () {
       "--lock-directory=$opt_tmpdir";
 
     if ( $opt_debug )
-    {
+   {
       $cmdline_mysqlslap .=
 	" --debug=d:t:A,$path_vardir_trace/log/mysqlslap.trace";
     }
@@ -1734,30 +1796,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_client_test
   # ----------------------------------------------------
-  my $cmdline_mysql_client_test=
-    "$exe_mysql_client_test --no-defaults --testcase --user=root --silent " .
-    "--port=$master->[0]->{'port'} " .
-    "--socket=$master->[0]->{'path_sock'}";
-  if ( $mysql_version_id >= 50000 )
-  {
-    $cmdline_mysql_client_test .=" --vardir=$opt_vardir";
-  }
-
-  if ( $opt_debug )
-  {
-    $cmdline_mysql_client_test .=
-      " --debug=d:t:A,$path_vardir_trace/log/mysql_client_test.trace";
-  }
-
-  if ( $glob_use_embedded_server )
-  {
-    $cmdline_mysql_client_test.=
-      " -A --language=$path_language" .
-      " -A --datadir=$slave->[0]->{'path_myddir'}" .
-      " -A --character-sets-dir=$path_charsetsdir";
-  }
-  $ENV{'MYSQL_CLIENT_TEST'}= $cmdline_mysql_client_test;
-
+  $ENV{'MYSQL_CLIENT_TEST'}=  mysql_client_test_arguments();
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_fix_system_tables
@@ -2624,6 +2663,7 @@ sub install_db ($$) {
   mtr_add_arg($args, "--skip-innodb");
   mtr_add_arg($args, "--skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=.");
+  mtr_add_arg($args, "--core-file");
 
   if ( $opt_debug )
   {
@@ -2923,6 +2963,56 @@ sub find_testcase_skipped_reason($)
 }
 
 
+sub analyze_testcase_failure_sync_with_master($)
+{
+  my ($tinfo)= @_;
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--silent");
+  mtr_add_arg($args, "-v");
+  mtr_add_arg($args, "--skip-safemalloc");
+  mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
+
+  mtr_add_arg($args, "--socket=%s", $master->[0]->{'path_sock'});
+  mtr_add_arg($args, "--port=%d", $master->[0]->{'port'});
+  mtr_add_arg($args, "--database=test");
+  mtr_add_arg($args, "--user=%s", $opt_user);
+  mtr_add_arg($args, "--password=");
+
+  # Run the test file and append output to log file
+  mtr_run_test($exe_mysqltest,$args,
+	       "include/analyze_failure_sync_with_master.test",
+	       "$path_timefile", "$path_timefile","",
+	       { append_log_file => 1 });
+
+}
+
+sub analyze_testcase_failure($)
+{
+  my ($tinfo)= @_;
+
+  # Open mysqltest.log
+  my $F= IO::File->new($path_timefile) or
+    mtr_error("can't open file \"$path_timefile\": $!");
+
+  while ( my $line= <$F> )
+  {
+    # Look for "mysqltest: At line nnn: <error>
+    if ( $line =~ /mysqltest: At line [0-9]*: (.*)/ )
+    {
+      my $error= $1;
+      # Look for "could not sync with master"
+      if ( $error =~ /could not sync with master/ )
+      {
+	analyze_testcase_failure_sync_with_master($tinfo);
+      }
+    }
+  }
+}
+
 ##############################################################################
 #
 #  Run a single test case
@@ -3011,6 +3101,10 @@ sub run_testcase ($) {
     }
     elsif ( $res == 1 )
     {
+      if ( $opt_force )
+      {
+	analyze_testcase_failure($tinfo);
+      }
       # Test case failure reported by mysqltest
       report_failure_and_restart($tinfo);
     }
@@ -3531,15 +3625,6 @@ sub mysqld_start ($$$) {
     # Default to not wait until pid file has been created
     $wait_for_pid_file= 0;
   }
-
-  if ($exe_libtool and $opt_valgrind)
-  {
-    # Add "libtool --mode-execute"
-    # if running in valgrind(to avoid valgrinding bash)
-    unshift(@$args, "--mode=execute", $exe);
-    $exe= $exe_libtool;
-  }
-
 
   if ( defined $exe )
   {
@@ -4263,14 +4348,6 @@ sub run_mysqltest ($) {
     debugger_arguments(\$args, \$exe, "client");
   }
 
-  if ($exe_libtool and $opt_valgrind)
-  {
-    # Add "libtool --mode-execute" before the test to execute
-    # if running in valgrind(to avoid valgrinding bash)
-    unshift(@$args, "--mode=execute", $exe);
-    $exe= $exe_libtool;
-  }
-
   if ( $opt_check_testcases )
   {
     foreach my $mysqld (@{$master}, @{$slave})
@@ -4496,6 +4573,14 @@ sub valgrind_arguments {
   mtr_add_arg($args, $$exe);
 
   $$exe= $opt_valgrind_path || "valgrind";
+
+  if ($exe_libtool)
+  {
+    # Add "libtool --mode-execute" before the test to execute
+    # if running in valgrind(to avoid valgrinding bash)
+    unshift(@$args, "--mode=execute", $$exe);
+    $$exe= $exe_libtool;
+  }
 }
 
 
@@ -4608,7 +4693,8 @@ Options for coverage, profiling etc
   valgrind              Run the "mysqltest" and "mysqld" executables using
                         valgrind with options($default_valgrind_options)
   valgrind-all          Synonym for --valgrind
-  valgrind-mysqltest    Run the "mysqltest" executable with valgrind
+  valgrind-mysqltest    Run the "mysqltest" and "mysql_client_test" executable
+                        with valgrind
   valgrind-mysqld       Run the "mysqld" executable with valgrind
   valgrind-options=ARGS Options to give valgrind, replaces default options
   valgrind-path=[EXE]   Path to the valgrind executable
