@@ -15,7 +15,8 @@
 connection master;
 eval CREATE TABLE t1 (a INT NOT NULL, KEY(a)) ENGINE=$engine_type;
 eval CREATE TABLE t2 (a INT NOT NULL, KEY(a)) ENGINE=$engine_type;
-eval CREATE TABLE t3 (a INT) ENGINE=$engine_type;
+# requiring 'unique' for the timeout part of the test
+eval CREATE TABLE t3 (a INT  UNIQUE) ENGINE=$engine_type;
 eval CREATE TABLE t4 (a INT) ENGINE=$engine_type;
 show variables like 'slave_transaction_retries';
 sync_slave_with_master;
@@ -58,7 +59,7 @@ enable_query_log;
 select * from t1 for update;
 start slave;
 --real_sleep 3 # hope that slave is blocked now
-insert into t2 values(22); # provoke deadlock, slave should be victim
+insert into t2 values(201); # provoke deadlock, slave should be victim
 commit;
 sync_with_master;
 select * from t1; # check that slave succeeded finally
@@ -73,11 +74,13 @@ show slave status;
 # 2) Test lock wait timeout
 
 stop slave;
-change master to master_log_pos=536; # the BEGIN log event
+delete from t3;
+change master to master_log_pos=543; # the BEGIN log event
 begin;
 select * from t2 for update; # hold lock
 start slave;
 --real_sleep 10 # slave should have blocked, and be retrying
+select count(*) from t3  /* must be zero */; # replaying begins after rollback
 commit;
 sync_with_master;
 select * from t1; # check that slave succeeded finally
@@ -96,11 +99,13 @@ set global max_relay_log_size=0;
 
 # This is really copy-paste of 2) of above
 stop slave;
-change master to master_log_pos=536;
+delete from t3;
+change master to master_log_pos=543;
 begin;
 select * from t2 for update;
 start slave;
 --real_sleep 10
+select count(*) from t3  /* must be zero */; # replaying begins after rollback
 commit;
 sync_with_master;
 select * from t1;
@@ -115,4 +120,4 @@ connection master;
 drop table t1,t2,t3,t4;
 sync_slave_with_master;
 
-# End of 4.1 tests
+--echo End of 5.1 tests
