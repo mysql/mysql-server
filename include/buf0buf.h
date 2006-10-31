@@ -830,11 +830,6 @@ struct buf_pool_struct{
 					read-write lock in them */
 	byte*		frame_mem;	/* pointer to the memory area which
 					was allocated for the frames */
-	byte*		frame_zero;	/* pointer to the first buffer frame:
-					this may differ from frame_mem, because
-					this is aligned by the frame size */
-	byte*		high_end;	/* pointer to the end of the buffer
-					frames */
 	buf_block_t*	blocks;		/* array of buffer control blocks */
 	ulint		curr_size;	/* current pool size in pages */
 	hash_table_t*	page_hash;	/* hash table of the file pages */
