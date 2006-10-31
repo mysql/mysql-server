@@ -1946,11 +1946,44 @@ subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
       full_scan 
 
   DESCRIPTION
-    Resolve subquery using index lookup(s).
-    First look for specified constant, 
-    If not found and we need to check for NULLs, do that too.
+    The engine is used to resolve subqueries in form
 
-    NULL IN (SELECT ...) is a special case.
+      oe IN (SELECT key FROM tbl WHERE subq_where) 
+
+    The value of the predicate is calculated as follows: 
+    1. If oe IS NULL, this is a special case, do a full table scan on
+       table tbl and search for row that satisfies subq_where. If such 
+       row is found, return NULL, otherwise return FALSE.
+    2. Make an index lookup via key=oe, search for a row that satisfies
+       subq_where. If found, return TRUE.
+    3. If check_null==TRUE, make another lookup via key=NULL, search for a 
+       row that satisfies subq_where. If found, return NULL, otherwise
+       return FALSE.
+
+  TODO
+    The step #1 can be optimized further when the index has several key
+    parts. Consider a subquery:
+    
+      (oe1, oe2) IN (SELECT keypart1, keypart2 FROM tbl WHERE subq_where)
+
+    and suppose we need to evaluate it for {oe1, oe2}=={const1, NULL}.
+    Current code will do a full table scan and obtain correct result. There
+    is a better option: instead of evaluating
+
+      SELECT keypart1, keypart2 FROM tbl WHERE subq_where            (1)
+
+    and checking if it has produced any matching rows, evaluate
+    
+      SELECT keypart2 FROM tbl WHERE subq_where AND keypart1=const1  (2)
+
+    If this query produces a row, the result is NULL (as we're evaluating 
+    "(const1, NULL) IN { (const1, X), ... }", which has a value of UNKNOWN,
+    i.e. NULL).  If the query produces no rows, the result is FALSE.
+
+    We currently evaluate (1) by doing a full table scan. (2) can be
+    evaluated by doing a "ref" scan on "keypart1=const1", which can be much
+    cheaper. We can use index statistics to quickly check whether "ref" scan
+    will be cheaper than full table scan.
 
   RETURN
     0
