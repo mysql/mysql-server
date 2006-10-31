@@ -127,4 +127,13 @@ create table t1 (a set('x','y') default 'x');
 alter table t1 alter a set default 'z';
 drop table t1;
 
+
+#
+# Bug#20922 mysql removes a name of first column in a table
+#
+create table t1 (f1 int);
+alter table t1 add f2 enum(0xFFFF);
+show create table t1;
+drop table t1;
+
 # End of 4.1 tests
