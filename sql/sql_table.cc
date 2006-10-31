@@ -5152,7 +5152,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   ha_rows copied,deleted;
   uint db_create_options, used_fields;
   handlerton *old_db_type, *new_db_type;
+  legacy_db_type table_type;
   HA_CREATE_INFO *create_info;
+  frm_type_enum frm_type;
   uint need_copy_table= 0;
   bool no_table_reopen= FALSE, varchar= FALSE;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -5234,6 +5236,52 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (alter_info->tablespace_op != NO_TABLESPACE_OP)
     DBUG_RETURN(mysql_discard_or_import_tablespace(thd,table_list,
 						   alter_info->tablespace_op));
+  strxnmov(new_name_buff, sizeof (new_name_buff) - 1, mysql_data_home, "/", db, 
+           "/", table_name, reg_ext, NullS);
+  (void) unpack_filename(new_name_buff, new_name_buff);
+  if (lower_case_table_names != 2)
+    my_casedn_str(files_charset_info, new_name_buff);
+  frm_type= mysql_frm_type(thd, new_name_buff, &table_type);
+  /* Rename a view */
+  if (frm_type == FRMTYPE_VIEW && !(alter_info->flags & ~ALTER_RENAME))
+  {
+    /*
+      Avoid problems with a rename on a table that we have locked or
+      if the user is trying to to do this in a transcation context
+    */
+
+    if (thd->locked_tables || thd->active_transaction())
+    {
+      my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
+                 ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+      DBUG_RETURN(1);
+    }
+
+    if (wait_if_global_read_lock(thd,0,1))
+      DBUG_RETURN(1);
+    VOID(pthread_mutex_lock(&LOCK_open));
+    if (lock_table_names(thd, table_list))
+      goto view_err;
+    
+    error=0;
+    if (!do_rename(thd, table_list, new_db, new_name, new_name, 1))
+    {
+      if (mysql_bin_log.is_open())
+      {
+        thd->clear_error();
+        Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
+        mysql_bin_log.write(&qinfo);
+      }
+      send_ok(thd);
+    }
+
+    unlock_table_names(thd, table_list, (TABLE_LIST*) 0);
+
+view_err:
+    pthread_mutex_unlock(&LOCK_open);
+    start_waiting_global_read_lock(thd);
+    DBUG_RETURN(error);
+  }
   if (!(table=open_ltable(thd,table_list,TL_WRITE_ALLOW_READ)))
     DBUG_RETURN(TRUE);
   table->use_all_columns();
@@ -6515,7 +6563,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
 	setup_order(thd, thd->lex->select_lex.ref_pointer_array,
 		    &tables, fields, all_fields, order) ||
-	!(sortorder=make_unireg_sortorder(order, &length)) ||
+	!(sortorder=make_unireg_sortorder(order, &length, NULL)) ||
 	(from->sort.found_records = filesort(thd, from, sortorder, length,
 					     (SQL_SELECT *) 0, HA_POS_ERROR, 1,
 					     &examined_rows)) ==
