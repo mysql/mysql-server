@@ -2869,6 +2869,20 @@ void Item_udf_func::cleanup()
 }
 
 
+void Item_udf_func::print(String *str)
+{
+  str->append(func_name());
+  str->append('(');
+  for (uint i=0 ; i < arg_count ; i++)
+  {
+    if (i != 0)
+      str->append(',');
+    args[i]->print_item_w_name(str);
+  }
+  str->append(')');
+}
+
+
 double Item_func_udf_float::val_real()
 {
   DBUG_ASSERT(fixed == 1);
