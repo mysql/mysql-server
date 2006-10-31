@@ -962,7 +962,7 @@ bool load_master_data(THD* thd)
      Cancel the previous START SLAVE UNTIL, as the fact to download
      a new copy logically makes UNTIL irrelevant.
   */
-  clear_until_condition(&active_mi->rli);
+  active_mi->rli.clear_until_condition();
 
   /*
     No need to update rli.event* coordinates, they will be when the slave
