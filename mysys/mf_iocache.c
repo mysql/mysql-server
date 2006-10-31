@@ -440,11 +440,24 @@ int _my_b_read(register IO_CACHE *info, byte *Buffer, uint Count)
 
   /* pos_in_file always point on where info->buffer was read */
   pos_in_file=info->pos_in_file+(uint) (info->read_end - info->buffer);
+
+  /* 
+    Whenever a function which operates on IO_CACHE flushes/writes
+    some part of the IO_CACHE to disk it will set the property
+    "seek_not_done" to indicate this to other functions operating
+    on the IO_CACHE.
+  */
   if (info->seek_not_done)
-  {					/* File touched, do seek */
-    VOID(my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)));
+  {
+    if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)) 
+        == MY_FILEPOS_ERROR)
+    {
+        info->error= -1;
+        DBUG_RETURN(1);
+    }
     info->seek_not_done=0;
   }
+
   diff_length=(uint) (pos_in_file & (IO_SIZE-1));
   if (Count >= (uint) (IO_SIZE+(IO_SIZE-diff_length)))
   {					/* Fill first intern buffer */
@@ -633,8 +646,22 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
     if (lock_io_cache(info, pos_in_file))
     {
       info->share->active=info;
-      if (info->seek_not_done)             /* File touched, do seek */
-        VOID(my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)));
+      /*
+        Whenever a function which operates on IO_CACHE flushes/writes
+        some part of the IO_CACHE to disk it will set the property
+        "seek_not_done" to indicate this to other functions operating
+        on the IO_CACHE.
+      */
+      if (info->seek_not_done)
+      {
+        if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0))
+            == MY_FILEPOS_ERROR)
+        {
+          info->error= -1;
+          unlock_io_cache(info);
+          DBUG_RETURN(1);
+        }
+      }
       len=(int)my_read(info->file,info->buffer, length, info->myflags);
       info->read_end=info->buffer + (len == -1 ? 0 : len);
       info->error=(len == (int)length ? 0 : len);
@@ -668,11 +695,16 @@ int _my_b_read_r(register IO_CACHE *info, byte *Buffer, uint Count)
 
 
 /*
-  Do sequential read from the SEQ_READ_APPEND cache
-  we do this in three stages:
+  Do sequential read from the SEQ_READ_APPEND cache.
+  
+  We do this in three stages:
    - first read from info->buffer
    - then if there are still data to read, try the file descriptor
    - afterwards, if there are still data to read, try append buffer
+
+  RETURNS
+    0  Success
+    1  Failed to read
 */
 
 int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
@@ -700,7 +732,13 @@ int _my_b_seq_read(register IO_CACHE *info, byte *Buffer, uint Count)
     With read-append cache we must always do a seek before we read,
     because the write could have moved the file pointer astray
   */
-  VOID(my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0)));
+  if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0))
+      == MY_FILEPOS_ERROR)
+  {
+   info->error= -1;
+   unlock_append_buffer(info);
+   return (1);
+  }
   info->seek_not_done=0;
 
   diff_length=(uint) (pos_in_file & (IO_SIZE-1));
@@ -816,6 +854,21 @@ read_append_buffer:
 
 #ifdef HAVE_AIOWAIT
 
+/*
+  Read from the IO_CACHE into a buffer and feed asynchronously
+  from disk when needed.
+
+  SYNOPSIS
+    _my_b_async_read()
+      info                      IO_CACHE pointer
+      Buffer                    Buffer to retrieve count bytes from file
+      Count                     Number of bytes to read into Buffer
+
+  RETURN VALUE
+    -1          An error has occurred; my_errno is set.
+     0          Success
+     1          An error has occurred; IO_CACHE to error state.
+*/
 int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
 {
   uint length,read_length,diff_length,left_length,use_length,org_Count;
@@ -906,13 +959,20 @@ int _my_b_async_read(register IO_CACHE *info, byte *Buffer, uint Count)
       info->error=(int) (read_length+left_length);
       return 1;
     }
-    VOID(my_seek(info->file,next_pos_in_file,MY_SEEK_SET,MYF(0)));
+    
+    if (my_seek(info->file,next_pos_in_file,MY_SEEK_SET,MYF(0))
+        == MY_FILEPOS_ERROR)
+    {
+      info->error= -1;
+      return (1);
+    }
+
     read_length=IO_SIZE*2- (uint) (next_pos_in_file & (IO_SIZE-1));
     if (Count < read_length)
     {					/* Small block, read to cache */
       if ((read_length=my_read(info->file,info->request_pos,
 			       read_length, info->myflags)) == (uint) -1)
-	return info->error= -1;
+        return info->error= -1;
       use_length=min(Count,read_length);
       memcpy(Buffer,info->request_pos,(size_t) use_length);
       info->read_pos=info->request_pos+Count;
@@ -999,7 +1059,15 @@ int _my_b_get(IO_CACHE *info)
   return (int) (uchar) buff;
 }
 
-	/* Returns != 0 if error on write */
+/* 
+   Write a byte buffer to IO_CACHE and flush to disk
+   if IO_CACHE is full.
+
+   RETURN VALUE
+    1 On error on write
+    0 On success
+   -1 On error; my_errno contains error code.
+*/
 
 int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
 {
@@ -1022,8 +1090,18 @@ int _my_b_write(register IO_CACHE *info, const byte *Buffer, uint Count)
   {					/* Fill first intern buffer */
     length=Count & (uint) ~(IO_SIZE-1);
     if (info->seek_not_done)
-    {					/* File touched, do seek */
-      VOID(my_seek(info->file,info->pos_in_file,MY_SEEK_SET,MYF(0)));
+    {
+      /*
+        Whenever a function which operates on IO_CACHE flushes/writes
+        some part of the IO_CACHE to disk it will set the property
+        "seek_not_done" to indicate this to other functions operating
+        on the IO_CACHE.
+      */
+      if (my_seek(info->file,info->pos_in_file,MY_SEEK_SET,MYF(0)))
+      {
+        info->error= -1;
+        return (1);
+      }
       info->seek_not_done=0;
     }
     if (my_write(info->file,Buffer,(uint) length,info->myflags | MY_NABP))
