@@ -1122,6 +1122,8 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
   if (Item_func_opt_neg::fix_fields(thd, ref))
     return 1;
 
+  thd->lex->current_select->between_count++;
+
   /* not_null_tables_cache == union(T1(e),T1(e1),T1(e2)) */
   if (pred_level && !negated)
     return 0;
