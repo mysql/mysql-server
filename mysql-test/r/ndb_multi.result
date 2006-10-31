@@ -28,9 +28,6 @@ Handler_discover	0
 drop table t1;
 create table t1 (a int) engine=ndbcluster;
 insert into t1 value (2);
-select * from t1;
-a
-2
 flush table t1;
 select * from t1;
 a
