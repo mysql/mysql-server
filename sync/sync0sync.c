@@ -147,11 +147,10 @@ ut_list_base_node_t  mutex_list;
 /* Mutex protecting the mutex_list variable */
 mutex_t mutex_list_mutex;
 
+#ifdef UNIV_SYNC_DEBUG
 /* Latching order checks start when this is set TRUE */
 ibool	sync_order_checks_on	= FALSE;
-
-/* Dummy mutex used to implement mutex_fence */
-mutex_t	dummy_mutex_for_fence;
+#endif /* UNIV_SYNC_DEBUG */
 
 struct sync_thread_struct{
 	os_thread_id_t	id;	/* OS thread id */
