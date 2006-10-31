@@ -57,13 +57,6 @@ mlog_write_initial_log_record(
 	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(type > MLOG_8BYTES);
 
-	if (ptr < buf_pool->frame_zero || ptr >= buf_pool->high_end) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to write to"
-			" a stray memory location %p\n", (void*) ptr);
-		ut_error;
-	}
-
 	log_ptr = mlog_open(mtr, 11);
 
 	/* If no logging is requested, we may return now */
@@ -240,14 +233,6 @@ mlog_write_ulint(
 {
 	byte*	log_ptr;
 
-	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
-	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to write to"
-			" a stray memory location %p\n", (void*) ptr);
-		ut_error;
-	}
-
 	switch (type) {
 	case MLOG_1BYTE:
 		mach_write_to_1(ptr, val);
@@ -293,14 +278,6 @@ mlog_write_dulint(
 {
 	byte*	log_ptr;
 
-	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
-	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to write to"
-			" a stray memory location %p\n", (void*) ptr);
-		ut_error;
-	}
-
 	ut_ad(ptr && mtr);
 
 	mach_write_to_8(ptr, val);
@@ -336,13 +313,6 @@ mlog_write_string(
 	ulint		len,	/* in: string length */
 	mtr_t*		mtr)	/* in: mini-transaction handle */
 {
-	if (UNIV_UNLIKELY(ptr < buf_pool->frame_zero)
-	    || UNIV_UNLIKELY(ptr >= buf_pool->high_end)) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to write to"
-			" a stray memory location %p\n", (void*) ptr);
-		ut_error;
-	}
 	ut_ad(ptr && mtr);
 	ut_a(len < UNIV_PAGE_SIZE);
 

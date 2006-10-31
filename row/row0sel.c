@@ -3795,13 +3795,9 @@ wrong_offs:
 			ut_print_timestamp(stderr);
 			buf_page_print(page_align(rec), 0);
 			fprintf(stderr,
-				"\nInnoDB: rec address %p, first"
-				" buffer frame %p\n"
-				"InnoDB: buffer pool high end %p,"
+				"\nInnoDB: rec address %p,"
 				" buf block fix count %lu\n",
-				(void*) rec, (void*) buf_pool->frame_zero,
-				(void*) buf_pool->high_end,
-				(ulong)
+				(void*) rec, (ulong)
 				btr_cur_get_block(btr_pcur_get_btr_cur(pcur))
 				->buf_fix_count);
 			fprintf(stderr,

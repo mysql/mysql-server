@@ -665,9 +665,6 @@ buf_pool_init(
 
 	frame = ut_align(buf_pool->frame_mem, UNIV_PAGE_SIZE);
 
-	buf_pool->frame_zero = frame;
-	buf_pool->high_end = frame + UNIV_PAGE_SIZE * n_frames;
-
 	/* Init block structs and assign frames for them. Then we
 	assign the frames to the first blocks (we already mapped the
 	memory above). */
@@ -676,9 +673,9 @@ buf_pool_init(
 
 		block = buf_pool_get_nth_block(buf_pool, i);
 
-		frame = buf_pool->frame_zero + i * UNIV_PAGE_SIZE;
-
 		buf_block_init(block, frame);
+
+		frame += UNIV_PAGE_SIZE;
 	}
 
 	buf_pool->page_hash = hash_create(2 * curr_size);
