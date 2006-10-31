@@ -99,8 +99,8 @@ typedef struct st_relay_log_info
   */
   pthread_cond_t start_cond, stop_cond, data_cond;
 
-  /* parent master info structure */
-  struct st_master_info *mi;
+  /* parent MASTER_INFO structure */
+  class MASTER_INFO *mi;
 
   /*
     Needed to deal properly with cur_log getting closed and re-opened with

@@ -54,7 +54,7 @@ ADD_EXECUTABLE(mysqld ../sql-common/client.c derror.cc des_key_file.cc
                event_queue.cc event_db_repository.cc 
                sql_tablespace.cc events.cc ../sql-common/my_user.c 
                partition_info.cc rpl_utility.cc rpl_injector.cc sql_locale.cc
-               rpl_rli.cc
+               rpl_rli.cc rpl_mi.cc
                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
   			   ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
 			   ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
