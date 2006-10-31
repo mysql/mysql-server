@@ -93,7 +93,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			sql_load.cc mf_iocache.cc field_conv.cc sql_show.cc \
 			sql_udf.cc sql_analyse.cc sql_analyse.h sql_cache.cc \
 			slave.cc sql_repl.cc rpl_filter.cc rpl_tblmap.cc \
-			rpl_utility.cc rpl_injector.cc \
+			rpl_utility.cc rpl_injector.cc rpl_rli.cc \
                         sql_union.cc sql_derived.cc \
 			client.c sql_client.cc mini_client_errors.c pack.c\
 			stacktrace.c repl_failsafe.h repl_failsafe.cc \
