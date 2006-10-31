@@ -36,6 +36,8 @@ typedef struct keyuse_t {
     satisfied if val has NULL 'value'.
   */
   bool null_rejecting;
+  /* TRUE<=> This ref access is an outer subquery reference access */
+  bool outer_ref;
 } KEYUSE;
 
 class store_key;
@@ -455,10 +457,11 @@ class store_key :public Sql_alloc
   Field *to_field;				// Store data here
   char *null_ptr;
   char err;
- public:
+public:
+  bool null_key; /* TRUE <=> the value of the key has a null part */
   enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
   store_key(THD *thd, Field *field_arg, char *ptr, char *null, uint length)
-    :null_ptr(null),err(0)
+    :null_ptr(null), err(0), null_key(0)
   {
     if (field_arg->type() == FIELD_TYPE_BLOB)
     {
@@ -496,6 +499,7 @@ class store_key_field: public store_key
   enum store_key_result copy()
   {
     copy_field.do_copy(&copy_field);
+    null_key= to_field->is_null();
     return err != 0 ? STORE_KEY_FATAL : STORE_KEY_OK;
   }
   const char *name() const { return field_name; }
@@ -516,8 +520,8 @@ public:
   enum store_key_result copy()
   {
     int res= item->save_in_field(to_field, 1);
+    null_key= to_field->is_null() || item->null_value;
     return (err != 0 || res > 2 ? STORE_KEY_FATAL : (store_key_result) res); 
-	                 
   }
   const char *name() const { return "func"; }
 };
@@ -547,6 +551,7 @@ public:
           err= res;
       }
     }
+    null_key= to_field->is_null() || item->null_value;
     return (err > 2 ?  STORE_KEY_FATAL : (store_key_result) err);
   }
   const char *name() const { return "const"; }

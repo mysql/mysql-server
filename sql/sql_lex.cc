@@ -1179,7 +1179,7 @@ void st_select_lex::init_select()
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
   with_sum_func= 0;
-
+  is_correlated= 0;
 }
 
 /*
@@ -1373,6 +1373,8 @@ void st_select_lex::mark_as_dependent(SELECT_LEX *last)
       SELECT_LEX_UNIT *munit= s->master_unit();
       munit->uncacheable|= UNCACHEABLE_DEPENDENT;
     }
+  is_correlated= TRUE;
+  this->master_unit()->item->is_correlated= TRUE;
 }
 
 bool st_select_lex_node::set_braces(bool value)      { return 1; }
