@@ -1959,6 +1959,16 @@ public:
 
 class Item_in_subselect;
 
+
+/*
+  An object of this class:
+   - Converts val_XXX() calls to ref->val_XXX_result() calls, like Item_ref.
+   - Sets owner->was_null=TRUE if it has returned a NULL value from any
+     val_XXX() function. This allows to inject an Item_ref_null_helper
+     object into subquery and then check if the subquery has produced a row
+     with NULL value.
+*/
+
 class Item_ref_null_helper: public Item_ref
 {
 protected:
