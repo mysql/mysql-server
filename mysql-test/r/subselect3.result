@@ -1,0 +1,153 @@
+drop table if exists t0, t1, t2, t3, t4;
+create table t1 (oref int, grp int, ie int) ;
+insert into t1 (oref, grp, ie) values
+(1, 1, 1),
+(1, 1, 1),
+(1, 2, NULL),
+(2, 1, 3),
+(3, 1, 4),
+(3, 2, NULL);
+create table t2 (oref int, a int);
+insert into t2 values 
+(1, 1),
+(2, 2),
+(3, 3),
+(4, NULL),
+(2, NULL);
+select a, oref, a in (select max(ie) 
+from t1 where oref=t2.oref group by grp) from t2;
+a	oref	a in (select max(ie) 
+from t1 where oref=t2.oref group by grp)
+1	1	1
+2	2	0
+3	3	NULL
+NULL	4	0
+NULL	2	NULL
+explain extended
+select a, oref, a in (select max(ie) 
+from t1 where oref=t2.oref group by grp) from t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	Using where; Using temporary; Using filesort
+Warnings:
+Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having trigcond((<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))) AS `a in (select max(ie) 
+from t1 where oref=t2.oref group by grp)` from `test`.`t2`
+explain extended
+select a, oref from t2 
+where a in (select max(ie) from t1 where oref=t2.oref group by grp);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	Using where
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	Using where; Using temporary; Using filesort
+Warnings:
+Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))
+create table t3 (a int);
+insert into t3 values (NULL), (NULL);
+flush status;
+select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
+a in (select max(ie) from t1 where oref=4 group by grp)
+0
+0
+show status like 'Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	11
+select ' ^ This must show 11' Z;
+Z
+ ^ This must show 11
+explain extended select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	Using where; Using temporary; Using filesort
+Warnings:
+Note	1003	select <in_optimizer>(`test`.`t3`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = 4) group by `test`.`t1`.`grp` having trigcond((<cache>(`test`.`t3`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))) AS `a in (select max(ie) from t1 where oref=4 group by grp)` from `test`.`t3`
+drop table t1, t2, t3;
+create table t1 (a int, oref int, key(a));
+insert into t1 values 
+(1, 1),
+(1, NULL),
+(2, 3),
+(2, NULL),
+(3, NULL);
+create table t2 (a int, oref int);
+insert into t2 values (1, 1), (2,2), (NULL, 3), (NULL, 4);
+select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
+oref	a	Z
+1	1	1
+2	2	0
+3	NULL	NULL
+4	NULL	0
+explain extended 
+select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	4	
+2	DEPENDENT SUBQUERY	t1	index_subquery	a	a	5	func	2	Using index; Using where
+Warnings:
+Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where (`test`.`t1`.`oref` = `test`.`t2`.`oref`)))) AS `Z` from `test`.`t2`
+flush status;
+select oref, a from t2 where a in (select a from t1 where oref=t2.oref);
+oref	a
+1	1
+show status like '%Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	5
+delete from t2;
+insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
+flush status;
+select oref, a, a in (select a from t1 where oref=t2.oref) Z from t2;
+oref	a	Z
+0	NULL	0
+0	NULL	0
+0	NULL	0
+0	NULL	0
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	29
+select 'No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.' Z;
+Z
+No key lookups, seq reads: 29= 5 reads from t2 + 4 * 6 reads from t1.
+drop table t1, t2;
+create table t1 (a int, b int, primary key (a));
+insert into t1 values (1,1), (3,1),(100,1);
+create table t2 (a int, b int);
+insert into t2 values (1,1),(2,1),(NULL,1),(NULL,0);
+select a,b, a in (select a from t1 where t1.b = t2.b) Z from t2 ;
+a	b	Z
+1	1	1
+2	1	0
+NULL	1	NULL
+NULL	0	0
+drop table t1, t2;
+create table t1 (a int, b int, key(a));
+insert into t1 values 
+(0,0),(1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+create table t2 like t1;
+insert into t2 select * from t1;
+update t2 set b=1;
+create table t3 (a int, oref int);
+insert into t3 values (1, 1), (NULL,1), (NULL,0);
+select a, oref, 
+t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) Z 
+from t3;
+a	oref	Z
+1	1	1
+NULL	1	NULL
+NULL	0	0
+explain extended
+select a, oref, 
+t3.a in (select t1.a from t1, t2 where t1.b=t2.a and t2.b=t3.oref) Z 
+from t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	
+2	DEPENDENT SUBQUERY	t1	ref_or_null	a	a	5	func	4	Using where
+2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	Using where
+Warnings:
+Note	1276	Field or reference 't3.oref' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond(((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)))) having trigcond(<is_not_null_test>(`test`.`t1`.`a`)))) AS `Z` from `test`.`t3`
+drop table t1, t2, t3;

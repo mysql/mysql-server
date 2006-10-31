@@ -60,6 +60,9 @@ public:
   /* subquery is transformed */
   bool changed;
 
+  /* TRUE <=> The underlying SELECT is correlated w.r.t some ancestor select */
+  bool is_correlated; 
+
   enum trans_res {RES_OK, RES_REDUCE, RES_ERROR};
   enum subs_type {UNKNOWN_SUBS, SINGLEROW_SUBS,
 		  EXISTS_SUBS, IN_SUBS, ALL_SUBS, ANY_SUBS};
@@ -92,7 +95,7 @@ public:
     return null_value;
   }
   bool fix_fields(THD *thd, Item **ref);
-  virtual bool exec();
+  virtual bool exec(bool full_scan);
   virtual void fix_length_and_dec();
   table_map used_tables() const;
   table_map not_null_tables() const { return 0; }
@@ -215,7 +218,20 @@ public:
   friend class subselect_indexsubquery_engine;
 };
 
-/* IN subselect */
+
+/*
+  IN subselect: this represents "left_exr IN (SELECT ...)"
+
+  This class has: 
+   - (as a descendant of Item_subselect) a "subquery execution engine" which 
+      allows it to evaluate subqueries. (and this class participates in
+      execution by having was_null variable where part of execution result
+      is stored.
+   - Transformation methods (todo: more on this).
+
+  This class is not used directly, it is "wrapped" into Item_in_optimizer
+  which provides some small bits of subquery evaluation.
+*/
 
 class Item_in_subselect :public Item_exists_subselect
 {
@@ -231,12 +247,14 @@ protected:
   bool abort_on_null;
   bool transformed;
 public:
+  /* Used to trigger on/off conditions that were pushed down to subselect */
+  bool enable_pushed_conds;
   Item_func_not_all *upper_item; // point on NOT/NOP before ALL/SOME subquery
 
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), optimizer(0), abort_on_null(0), transformed(0),
-     upper_item(0)
+     enable_pushed_conds(TRUE), upper_item(0)
   {}
 
   subs_type substype() { return IN_SUBS; }
@@ -256,6 +274,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
   void top_level_item() { abort_on_null=1; }
+  inline bool is_top_level_item() { return abort_on_null; }
   bool test_limit(st_select_lex_unit *unit);
   void print(String *str);
   bool fix_fields(THD *thd, Item **ref);
@@ -313,7 +332,28 @@ public:
   THD * get_thd() { return thd; }
   virtual int prepare()= 0;
   virtual void fix_length_and_dec(Item_cache** row)= 0;
-  virtual int exec()= 0;
+  /*
+    Execute the engine
+
+    SYNOPSIS
+      exec()
+        full_scan TRUE  - Pushed-down predicates are disabled, the engine
+                          must disable made based on those predicates.
+                  FALSE - Pushed-down predicates are in effect.
+    DESCRIPTION
+      Execute the engine. The result of execution is subquery value that is
+      either captured by previously set up select_result-based 'sink' or
+      stored somewhere by the exec() method itself.
+
+      A required side effect: if full_scan==TRUE, subselect_engine->no_rows()
+      should return correct result.
+
+    RETURN
+      0 - OK
+      1 - Either an execution error, or the engine was be "changed", and
+          caller should call exec() again for the new engine.
+  */
+  virtual int exec(bool full_scan)= 0;
   virtual uint cols()= 0; /* return number of columns in select */
   virtual uint8 uncacheable()= 0; /* query is uncacheable */
   enum Item_result type() { return res_type; }
@@ -325,6 +365,8 @@ public:
   virtual bool change_result(Item_subselect *si, select_subselect *result)= 0;
   virtual bool no_tables()= 0;
   virtual bool is_executed() const { return FALSE; }
+  /* Check if subquery produced any rows during last query execution */
+  virtual bool no_rows() = 0;
 };
 
 
@@ -342,7 +384,7 @@ public:
   void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
-  int exec();
+  int exec(bool full_scan);
   uint cols();
   uint8 uncacheable();
   void exclude();
@@ -351,6 +393,7 @@ public:
   bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
   bool is_executed() const { return executed; }
+  bool no_rows();
 };
 
 
@@ -364,7 +407,7 @@ public:
   void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
-  int exec();
+  int exec(bool full_scan);
   uint cols();
   uint8 uncacheable();
   void exclude();
@@ -373,6 +416,7 @@ public:
   bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
   bool is_executed() const;
+  bool no_rows();
 };
 
 
@@ -382,6 +426,12 @@ class subselect_uniquesubquery_engine: public subselect_engine
 protected:
   st_join_table *tab;
   Item *cond;
+  /* 
+    TRUE<=> last execution produced empty set. Valid only when left
+    expression is NULL.
+  */
+  bool empty_result_set;
+  bool null_keypart; /* TRUE <=> constructed search tuple has a NULL */
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
@@ -395,7 +445,7 @@ public:
   void cleanup();
   int prepare();
   void fix_length_and_dec(Item_cache** row);
-  int exec();
+  int exec(bool full_scan);
   uint cols() { return 1; }
   uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
   void exclude();
@@ -403,11 +453,15 @@ public:
   void print (String *str);
   bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
+  int scan_table();
+  bool copy_ref_key();
+  bool no_rows() { return empty_result_set; }
 };
 
 
 class subselect_indexsubquery_engine: public subselect_uniquesubquery_engine
 {
+  /* FALSE for 'ref', TRUE for 'ref-or-null'. */
   bool check_null;
 public:
 
@@ -418,7 +472,7 @@ public:
     :subselect_uniquesubquery_engine(thd, tab_arg, subs, where),
      check_null(chk_null)
   {}
-  int exec();
+  int exec(bool full_scan);
   void print (String *str);
 };
 
