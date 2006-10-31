@@ -769,43 +769,47 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
 
   SYNOPSIS
     Item_in_subselect::single_value_transformer()
-      join
-      func
+      join  Join object of the subquery (i.e. 'child' join).
+      func  Subquery comparison creator
 
   DESCRIPTION
     Rewrite a single-column subquery using rule-based approach. The subquery
     
-       oe $cmp$ (SELECT sel FROM ... WHERE subq_where HAVING subq_having)
+       oe $cmp$ (SELECT ie FROM ... WHERE subq_where ... HAVING subq_having)
     
     First, try to convert the subquery to scalar-result subquery in one of
     the forms:
     
        - oe $cmp$ (SELECT MAX(...) )  // handled by Item_singlerow_subselect
-       - oe $cmp$ <max>(SELECT ...)   // handled by Item_maxminsubselect
+       - oe $cmp$ <max>(SELECT ...)   // handled by Item_maxmin_subselect
    
     If that fails, the subquery will be handled with class Item_in_optimizer, 
     Inject the predicates into subquery, i.e. convert it to:
 
     - If the subquery has aggregates, GROUP BY, or HAVING, convert to
 
-       SELECT sel FROM ...  HAVING subq_having AND 
+       SELECT ie FROM ...  HAVING subq_having AND 
                                    trigcond(oe $cmp$ ref_or_null_helper<ie>)
                                    
       the addition is wrapped into trigger only when we want to distinguish
       between NULL and FALSE results.
 
-    - Else, if we don't care if subquery result is NULL or FALSE, convert to
-      
-       SELECT 1 ... WHERE (oe $CMP$ ie) AND subq_where
+    - Otherwise (no aggregates/GROUP BY/HAVING) convert it to one of the
+      following:
 
-    - Else convert to:
+      = If we don't need to distinguish between NULL and FALSE subquery:
+        
+        SELECT 1 FROM ... WHERE (oe $cmp$ ie) AND subq_where
 
-       SELECT 1 WHERE ...
-         WHERE  subq_where  AND trigcond((oe $CMP$ ie) OR ie IS NULL)
-         HAVING subq_having AND trigcond(<is_not_null_test>(ie))
+      = If we need to distinguish between those:
+
+        SELECT 1 FROM ...
+          WHERE  subq_where AND trigcond((oe $cmp$ ie) OR (ie IS NULL))
+          HAVING trigcond(<is_not_null_test>(ie))
 
   RETURN
-    RES_OK     - Transformed successfully (or done nothing?)
+    RES_OK     - OK, either subquery was transformed, or appopriate
+                 predicates where injected into it.
     RES_REDUCE - The subquery was reduced to non-subquery
     RES_ERROR  - Error
 */
@@ -1010,10 +1014,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 	  we can assign select_lex->having here, and pass 0 as last
 	  argument (reference) to fix_fields()
 	*/
-	select_lex->having=
-	  join->having= (join->having ?
-			 new Item_cond_and(having, join->having) :
-			 having);
+	select_lex->having= join->having= having;
 	select_lex->having_fix_field= 1;
         /*
           we do not check join->having->fixed, because Item_and (from
@@ -1608,7 +1609,6 @@ int subselect_uniquesubquery_engine::prepare()
 
 bool subselect_single_select_engine::no_rows()
 { 
-//  return test(!join->send_records);
   return !item->assigned();
 }
 
@@ -1791,9 +1791,7 @@ int subselect_uniquesubquery_engine::scan_table()
   int error;
   TABLE *table= tab->table;
   DBUG_ENTER("subselect_uniquesubquery_engine::scan_table");
-
   empty_result_set= TRUE;
-  bool is_uncorrelated= !cond || !(cond->used_tables() & OUTER_REF_TABLE_BIT);
 
   if (table->file->inited)
     table->file->ha_index_end();
