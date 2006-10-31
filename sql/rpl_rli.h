@@ -21,6 +21,7 @@
 
 #include "rpl_tblmap.h"
 
+
 /****************************************************************************
 
   Replication SQL Thread
@@ -163,6 +164,9 @@ typedef struct st_relay_log_info
 #endif
 
   time_t last_master_timestamp; 
+
+  void clear_slave_error();
+  void clear_until_condition();
 
   /*
     Needed for problems when slave stops and we want to restart it
@@ -321,5 +325,10 @@ typedef struct st_relay_log_info
 
   time_t unsafe_to_stop_at;
 } RELAY_LOG_INFO;
+
+
+// Defined in rpl_rli.cc
+int init_relay_log_info(RELAY_LOG_INFO* rli, const char* info_fname);
+
 
 #endif /* RPL_RLI_H */
