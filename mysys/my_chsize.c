@@ -88,7 +88,11 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
       Fill space between requested length and true length with 'filler'
       We should never come here on any modern machine
     */
-    VOID(my_seek(fd, newlength, MY_SEEK_SET, MYF(MY_WME+MY_FAE)));
+    if (my_seek(fd, newlength, MY_SEEK_SET, MYF(MY_WME+MY_FAE))
+        == MY_FILEPOS_ERROR)
+    {
+      goto err;
+    }
     swap_variables(my_off_t, newlength, oldsize);
   }
 #endif
