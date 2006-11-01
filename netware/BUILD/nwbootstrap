@@ -151,17 +151,18 @@ echo "making files writable..."
 cd $target_dir
 chmod -R u+rw,g+rw .
 
-# edit the mvenv file
-echo "updating the mwenv environment file..."
+## # edit the mvenv file
+## echo "updating the mwenv environment file..."
 mwenv="./netware/BUILD/mwenv"
-mv -f $mwenv $mwenv.org
-sed -e "s;WINE_BUILD_DIR;$wine_build_dir;g" \
-	-e "s;BUILD_DIR;$build_dir;g" \
-  -e "s;VERSION;$version;g" $mwenv.org > $mwenv
-chmod +rwx $mwenv
+## mv -f $mwenv $mwenv.org
+## sed -e "s;WINE_BUILD_DIR;$wine_build_dir;g" \
+## 	-e "s;BUILD_DIR;$build_dir;g" \
+##   -e "s;VERSION;$version;g" $mwenv.org > $mwenv
+## chmod +rwx $mwenv
 
 PWD=`pwd`
-SRC_DIR=`grep "^export MYDEV=" $mwenv | cut -d'=' -f2 | \
+# This line will catch the default value only, let's hope it is correct
+SRC_DIR=`grep "^ *export MYDEV=" $mwenv | cut -d'=' -f2 | \
            sed -e 's;";;g' -e "s;^;echo ;g" -e "s;$;/\`basename $PWD\`;g" | /bin/sh`
 
 

@@ -68,4 +68,5 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
       storage/innobase/handler/Makefile
       storage/innobase/usr/Makefile)
   ])
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(innobase, [handler/ha_innodb.cc])
 

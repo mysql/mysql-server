@@ -15,8 +15,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* To avoid problems with alarms in debug code, we disable DBUG here */
-#undef DBUG_OFF
-#define DBUG_OFF
+#define FORCE_DBUG_OFF
 #include <my_global.h>
 
 #if defined(THREAD) && !defined(DONT_USE_THR_ALARM)

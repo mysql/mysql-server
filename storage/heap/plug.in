@@ -3,4 +3,5 @@ MYSQL_STORAGE_ENGINE(heap,no,   [Memory Storage Engine],
 MYSQL_PLUGIN_DIRECTORY(heap,    [storage/heap])
 MYSQL_PLUGIN_STATIC(heap,       [libheap.a])
 MYSQL_PLUGIN_MANDATORY(heap)    dnl Memory tables
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(heap, [ha_heap.cc])
 
