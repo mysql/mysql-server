@@ -1193,6 +1193,7 @@ void clean_up(bool print_message)
 #endif
   }
   plugin_shutdown();
+  ha_end();
   if (tc_log)
     tc_log->close();
   xid_cache_free();
