@@ -742,7 +742,11 @@ public:
     0 - indicates that this query does not need prelocking.
   */
   TABLE_LIST **query_tables_own_last;
-  /* Set of stored routines called by statement. */
+  /*
+    Set of stored routines called by statement.
+    (Note that we use lazy-initialization for this hash).
+  */
+  enum { START_SROUTINES_HASH_SIZE= 16 };
   HASH sroutines;
   /*
     List linking elements of 'sroutines' set. Allows you to add new elements
