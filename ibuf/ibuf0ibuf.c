@@ -3233,7 +3233,7 @@ ibuf_merge_or_delete_for_page(
 		rw_lock_x_lock_move_ownership(&(block->lock));
 		page_zip = buf_block_get_page_zip(block);
 
-		if (UNIV_UNLIKELY(fil_page_get_type(buf_block_get_frame(block))
+		if (UNIV_UNLIKELY(fil_page_get_type(block->frame)
 				  != FIL_PAGE_INDEX)) {
 
 			corruption_noticed = TRUE;
@@ -3253,7 +3253,7 @@ ibuf_merge_or_delete_for_page(
 
 			fputs("\nInnoDB: Dump of the page:\n", stderr);
 
-			buf_page_print(buf_block_get_frame(block), 0);
+			buf_page_print(block->frame, 0);
 
 			fprintf(stderr,
 				"InnoDB: Error: corruption in the tablespace."
@@ -3272,7 +3272,7 @@ ibuf_merge_or_delete_for_page(
 				" to http://bugs.mysql.com\n\n",
 				(ulong) page_no,
 				(ulong)
-				fil_page_get_type(buf_block_get_frame(block)));
+				fil_page_get_type(block->frame));
 		}
 	}
 
@@ -3314,8 +3314,7 @@ loop:
 		    || ibuf_rec_get_space(ibuf_rec) != space) {
 			if (block) {
 				page_header_reset_last_insert(
-					buf_block_get_frame(block),
-					page_zip, &mtr);
+					block->frame, page_zip, &mtr);
 			}
 			goto reset_bit;
 		}
@@ -3381,7 +3380,7 @@ reset_bit:
 		ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 					  IBUF_BITMAP_BUFFERED, FALSE, &mtr);
 		if (block) {
-			page_t* page = buf_block_get_frame(block);
+			page_t* page = block->frame;
 			ulint old_bits = ibuf_bitmap_page_get_bits(
 				bitmap_page, page_no, zip_size,
 				IBUF_BITMAP_FREE, &mtr);
