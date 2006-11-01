@@ -65,31 +65,26 @@ void*
 os_mem_alloc_large(
 /*===============*/
 					/* out: allocated memory */
-	ulint		n,		/* in: number of bytes */
-	ibool		set_to_zero,	/* in: TRUE if allocated memory
-					should be set to zero if
-					UNIV_SET_MEM_TO_ZERO is defined */
-	ibool		assert_on_error)/* in: if TRUE, we crash mysqld if
-					 the memory cannot be allocated */
+	ulint*	n)			/* in/out: number of bytes */
 {
-#ifdef HAVE_LARGE_PAGES
-	ulint size;
+	void*	ptr;
+	ulint	size;
+#if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
 	int shmid;
-	void *ptr = NULL;
 	struct shmid_ds buf;
 
 	if (!os_use_large_pages || !os_large_page_size) {
 		goto skip;
 	}
 
-#ifdef UNIV_LINUX
 	/* Align block size to os_large_page_size */
-	size = ((n - 1) & ~(os_large_page_size - 1)) + os_large_page_size;
+	size = ut_2pow_round(*n + os_large_page_size - 1, os_large_page_size);
 
 	shmid = shmget(IPC_PRIVATE, (size_t)size, SHM_HUGETLB | SHM_R | SHM_W);
 	if (shmid < 0) {
 		fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to allocate"
-			" %lu bytes. errno %d\n", n, errno);
+			" %lu bytes. errno %d\n", size, errno);
+		ptr = NULL;
 	} else {
 		ptr = shmat(shmid, NULL, 0);
 		if (ptr == (void *)-1) {
@@ -103,24 +98,56 @@ os_mem_alloc_large(
 		process exits */
 		shmctl(shmid, IPC_RMID, &buf);
 	}
-#endif
 
 	if (ptr) {
-		if (set_to_zero) {
-#ifdef UNIV_SET_MEM_TO_ZERO
-			memset(ptr, '\0', size);
-#endif
-		}
-
+		*n = size;
+# ifdef UNIV_SET_MEM_TO_ZERO
+		memset(ptr, '\0', size);
+# endif
 		return(ptr);
 	}
 
 	fprintf(stderr, "InnoDB HugeTLB: Warning: Using conventional"
 		" memory pool\n");
 skip:
-#endif /* HAVE_LARGE_PAGES */
+#endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
 
-	return(ut_malloc_low(n, set_to_zero, assert_on_error));
+#ifdef __WIN__
+	SYSTEM_INFO	system_info;
+	GetSystemInfo(&system_info);
+
+	/* Align block size to system page size */
+	size = *n = ut_2pow_round(*n + system_info.dwPageSize - 1,
+				  system_info.dwPageSize);
+	ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
+			   PAGE_READWRITE | PAGE_WRITECOMBINE);
+	if (!ptr) {
+		fprintf(stderr, "InnoDB: VirtualAlloc(%lu bytes) failed;"
+			" Windows error %lu\n",
+			(ulong) size, (ulong) GetLastError());
+	}
+
+#elif defined __NETWARE__
+	size = *n;
+	ptr = ut_malloc_low(size, TRUE, FALSE);
+#else
+# ifdef HAVE_GETPAGESIZE
+	size = getpagesize();
+# else
+	size = UNIV_PAGE_SIZE;
+# endif
+	/* Align block size to system page size */
+	size = *n = ut_2pow_round(*n + size - 1, size);
+	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+		   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (UNIV_UNLIKELY(ptr == (void*) -1)) {
+		fprintf(stderr, "InnoDB: mmap(%lu bytes) failed;"
+			" errno %lu\n",
+			(ulong) size, (ulong) errno);
+		ptr = NULL;
+	}
+#endif
+	return(ptr);
 }
 
 /********************************************************************
@@ -129,19 +156,32 @@ Frees large pages memory. */
 void
 os_mem_free_large(
 /*==============*/
-	void	*ptr)	/* in: number of bytes */
+	void	*ptr,			/* in: pointer returned by
+					os_mem_alloc_large() */
+	ulint	size)			/* in: size returned by
+					os_mem_alloc_large() */
 {
-#ifdef HAVE_LARGE_PAGES
-	if (os_use_large_pages && os_large_page_size
-#ifdef UNIV_LINUX
-	    && !shmdt(ptr)
-#endif
-	    ) {
+#if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
+	if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
 		return;
 	}
-#endif
-
+#endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
+#ifdef __WIN__
+	if (!VirtualFree(ptr, size, MEM_DECOMMIT | MEM_RELEASE)) {
+		fprintf(stderr, "InnoDB: VirtualFree(%p, %lu) failed;"
+			" Windows error %lu\n",
+			ptr, (ulong) size, (ulong) GetLastError());
+	}
+#elif defined __NETWARE__
 	ut_free(ptr);
+#else
+	if (munmap(ptr, size)) {
+		fprintf(stderr, "InnoDB: munmap(%p, %lu) failed;"
+			" errno %lu\n",
+			ptr, (ulong) size, (ulong) errno);
+	}
+
+#endif
 }
 
 /********************************************************************

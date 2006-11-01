@@ -35,6 +35,9 @@ if we are compiling on Windows. */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 # include <sys/stat.h>
+# ifndef __NETWARE__
+#  include <sys/mman.h> /* mmap() for os0proc.c */
+# endif
 
 # undef PACKAGE
 # undef VERSION

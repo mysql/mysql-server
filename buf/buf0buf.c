@@ -634,7 +634,6 @@ buf_pool_init(
 	byte*		frame;
 	ulint		i;
 	buf_block_t*	block;
-	ulint		n_frames = curr_size;
 
 	buf_pool = mem_alloc(sizeof(buf_pool_t));
 
@@ -644,26 +643,34 @@ buf_pool_init(
 
 	mutex_enter(&(buf_pool->mutex));
 
-	buf_pool->frame_mem = os_mem_alloc_large(
-		UNIV_PAGE_SIZE * (n_frames + 1), TRUE, FALSE);
+	buf_pool->frame_mem_size = (curr_size + 1) * UNIV_PAGE_SIZE;
 
-	if (buf_pool->frame_mem == NULL) {
+	buf_pool->frame_mem = os_mem_alloc_large(&buf_pool->frame_mem_size);
+
+	if (UNIV_UNLIKELY(buf_pool->frame_mem == NULL)) {
 
 		return(NULL);
 	}
 
+	/* Align pointer to the first frame */
+
+	frame = ut_align(buf_pool->frame_mem, UNIV_PAGE_SIZE);
+
+	curr_size = buf_pool->frame_mem_size / UNIV_PAGE_SIZE
+		- (frame != buf_pool->frame_mem);
+
 	buf_pool->blocks = ut_malloc(sizeof(buf_block_t) * curr_size);
 
-	if (buf_pool->blocks == NULL) {
+	if (UNIV_UNLIKELY(buf_pool->blocks == NULL)) {
+
+		os_mem_free_large(buf_pool->frame_mem,
+				  buf_pool->frame_mem_size);
+		buf_pool->frame_mem = NULL;
 
 		return(NULL);
 	}
 
 	buf_pool->curr_size = curr_size;
-
-	/* Align pointer to the first frame */
-
-	frame = ut_align(buf_pool->frame_mem, UNIV_PAGE_SIZE);
 
 	/* Init block structs and assign frames for them. Then we
 	assign the frames to the first blocks (we already mapped the
