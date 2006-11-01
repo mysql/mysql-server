@@ -1371,6 +1371,10 @@ static bool add_used_routine(LEX *lex, Query_arena *arena,
                              const LEX_STRING *key,
                              TABLE_LIST *belong_to_view)
 {
+  hash_init_opt(&lex->sroutines, system_charset_info,
+                Query_tables_list::START_SROUTINES_HASH_SIZE,
+                0, 0, sp_sroutine_key, 0, 0);
+
   if (!hash_search(&lex->sroutines, (byte *)key->str, key->length))
   {
     Sroutine_hash_entry *rn=
