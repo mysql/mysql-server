@@ -140,11 +140,19 @@ static signal_entry install_signal[]= {
   { SIGABRT, handle_core_signal },
   { SIGFPE,  handle_core_signal },
   { SIGSEGV, handle_core_signal },
-  { SIGBUS,  handle_core_signal },
-  { SIGXCPU, handle_core_signal },
-  { SIGXFSZ, handle_core_signal },
-  { SIGSYS,  handle_core_signal },
-  { SIGTRAP, handle_core_signal }
+  { SIGBUS,  handle_core_signal }
+#ifdef SIGXCPU
+  , { SIGXCPU, handle_core_signal }
+#endif
+#ifdef SIGXCPU
+  , { SIGXFSZ, handle_core_signal }
+#endif
+#ifdef SIGXCPU
+  , { SIGSYS,  handle_core_signal }
+#endif
+#ifdef SIGXCPU
+  , { SIGTRAP, handle_core_signal }
+#endif
 };
 
 void
