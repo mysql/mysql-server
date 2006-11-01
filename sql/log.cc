@@ -2010,7 +2010,7 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
           goto err;
 
     /* command_type, thread_id */
-    length= my_snprintf(buff, 32, "%5ld ", thread_id);
+      length= my_snprintf(buff, 32, "%5ld ", (long) thread_id);
 
     if (my_b_write(&log_file, (byte*) buff, length))
       goto err;

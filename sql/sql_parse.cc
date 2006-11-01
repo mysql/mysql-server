@@ -4633,7 +4633,10 @@ end_with_restore_list:
 	  send_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 :
                                 thd->row_count_func));
 	else
+        {
+          DBUG_ASSERT(thd->net.report_error == 1 || thd->killed);
 	  goto error;		// Substatement should already have sent error
+        }
       }
       break;
     }
@@ -4918,7 +4921,7 @@ end_with_restore_list:
           LEX_STRING *name;
           int i;
           
-          for (i= 0; name= names++; i++)
+          for (i= 0; (name= names++); i++)
           {
             buff.append(i ? ", " : "(");
             append_identifier(thd, &buff, name->str, name->length);
