@@ -253,14 +253,11 @@ my_time_t TIME_to_timestamp(THD *thd, const TIME *t, my_bool *in_dst_time_gap)
 
   *in_dst_time_gap= 0;
 
-  if (t->year < TIMESTAMP_MAX_YEAR && t->year > TIMESTAMP_MIN_YEAR ||
-      t->year == TIMESTAMP_MAX_YEAR && t->month == 1 && t->day == 1 ||
-      t->year == TIMESTAMP_MIN_YEAR && t->month == 12 && t->day == 31)
+  timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, in_dst_time_gap);
+  if (timestamp)
   {
     thd->time_zone_used= 1;
-    timestamp= thd->variables.time_zone->TIME_to_gmt_sec(t, in_dst_time_gap);
-    if (timestamp >= TIMESTAMP_MIN_VALUE && timestamp <= TIMESTAMP_MAX_VALUE)
-      return timestamp;
+    return timestamp;
   }
 
   /* If we are here we have range error. */
