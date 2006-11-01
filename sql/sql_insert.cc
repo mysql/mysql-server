@@ -261,6 +261,8 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
   TABLE *table= insert_table_list->table;
   my_bool timestamp_mark;
 
+  LINT_INIT(timestamp_mark);
+
   if (table->timestamp_field)
   {
     /*
@@ -1699,7 +1701,7 @@ static int
 write_delayed(THD *thd,TABLE *table, enum_duplicates duplic,
               LEX_STRING query, bool ignore, bool log_on)
 {
-  delayed_row *row;
+  delayed_row *row= 0;
   delayed_insert *di=thd->di;
   const Discrete_interval *forced_auto_inc;
   DBUG_ENTER("write_delayed");
@@ -2306,14 +2308,18 @@ bool delayed_insert::handle_inserts(void)
   DBUG_RETURN(0);
 
  err:
-  DBUG_EXECUTE("error", max_rows= 0;);
+#ifndef DBUG_OFF
+  max_rows= 0;                                  // For DBUG output
+#endif
   /* Remove all not used rows */
   while ((row=rows.get()))
   {
     delete row;
     thread_safe_increment(delayed_insert_errors,&LOCK_delayed_status);
     stacked_inserts--;
-    DBUG_EXECUTE("error", max_rows++;);
+#ifndef DBUG_OFF
+    max_rows++;
+#endif
   }
   DBUG_PRINT("error", ("dropped %lu rows after an error", max_rows));
   thread_safe_increment(delayed_insert_errors, &LOCK_delayed_status);

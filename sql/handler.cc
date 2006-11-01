@@ -2947,15 +2947,15 @@ static my_bool binlog_func_list(THD *thd, st_plugin_int *plugin, void *arg)
 
 static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
 {
-  handlerton *hton;
   hton_list_st hton_list;
+  uint i, sz;
+
   hton_list.sz= 0;
   plugin_foreach(thd, binlog_func_list,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &hton_list);
 
-  uint i= 0, sz= hton_list.sz;
-  while(i < sz)
-    hton_list.hton[i++]->binlog_func(hton, thd, bfn->fn, bfn->arg);
+  for (i= 0, sz= hton_list.sz; i < sz ; i++)
+    hton_list.hton[i]->binlog_func(hton_list.hton[i], thd, bfn->fn, bfn->arg);
   return FALSE;
 }
 

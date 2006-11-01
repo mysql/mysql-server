@@ -1351,7 +1351,7 @@ Abstract_option_cmd::get_instance_options_list(const LEX_STRING *instance_name)
 
 int Abstract_option_cmd::execute_impl(st_net *net, ulong connection_id)
 {
-  int err_code;
+  int err_code= 0;
 
   /* Check that all the specified instances exist and are offline. */
 

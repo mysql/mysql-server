@@ -3598,7 +3598,7 @@ best_access_path(JOIN      *join,
   double best=              DBL_MAX;
   double best_time=         DBL_MAX;
   double records=           DBL_MAX;
-  table_map best_ref_depends_map;
+  table_map best_ref_depends_map= 0;
   double tmp;
   ha_rows rec;
 
@@ -10099,7 +10099,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   enum_nested_loop_state error= NESTED_LOOP_OK;
   JOIN_TAB *join_tab;
   DBUG_ENTER("do_select");
-
+  LINT_INIT(join_tab);
+  
   join->procedure=procedure;
   join->tmp_table= table;			/* Save for easy recursion */
   join->fields= fields;
@@ -10129,9 +10130,9 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     */
     if (!join->conds || join->conds->val_int())
     {
-      error= (*end_select)(join,join_tab,0);
+      error= (*end_select)(join, 0, 0);
       if (error == NESTED_LOOP_OK || error == NESTED_LOOP_QUERY_LIMIT)
-	error= (*end_select)(join,join_tab,1);
+	error= (*end_select)(join, 0, 1);
     }
     else if (join->send_row_on_empty_set())
     {
@@ -10687,7 +10688,7 @@ int report_error(TABLE *table, int error)
   */
   if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
     sql_print_error("Got error %d when reading table '%s'",
-		    error, table->s->path);
+		    error, table->s->path.str);
   table->file->print_error(error,MYF(0));
   return 1;
 }

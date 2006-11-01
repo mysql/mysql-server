@@ -275,6 +275,9 @@ static bool convert_constant_item(THD *thd, Field *field, Item **item)
     my_bitmap_map *old_write_map;
     my_bitmap_map *old_read_map;
 
+    LINT_INIT(old_write_map);
+    LINT_INIT(old_read_map);
+
     if (table)
     {
       old_write_map= dbug_tmp_use_all_columns(table, table->write_set);
