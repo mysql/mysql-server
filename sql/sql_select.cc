@@ -1299,14 +1299,14 @@ JOIN::reinit()
     exec_tmp_table1->file->extra(HA_EXTRA_RESET_STATE);
     exec_tmp_table1->file->delete_all_rows();
     free_io_cache(exec_tmp_table1);
-    filesort_free_buffers(exec_tmp_table1);
+    filesort_free_buffers(exec_tmp_table1,0);
   }
   if (exec_tmp_table2)
   {
     exec_tmp_table2->file->extra(HA_EXTRA_RESET_STATE);
     exec_tmp_table2->file->delete_all_rows();
     free_io_cache(exec_tmp_table2);
-    filesort_free_buffers(exec_tmp_table2);
+    filesort_free_buffers(exec_tmp_table2,0);
   }
   if (items0)
     set_items_ref_array(items0);
@@ -6150,7 +6150,7 @@ void JOIN::cleanup(bool full)
     if (tables > const_tables) // Test for not-const tables
     {
       free_io_cache(table[const_tables]);
-      filesort_free_buffers(table[const_tables]);
+      filesort_free_buffers(table[const_tables],full);
     }
 
     if (full)
