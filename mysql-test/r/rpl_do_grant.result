@@ -23,6 +23,8 @@ password<>_binary''
 delete from mysql.user where user=_binary'rpl_do_grant';
 delete from mysql.db where user=_binary'rpl_do_grant';
 flush privileges;
+delete from mysql.user where user=_binary'rpl_do_grant';
+delete from mysql.db where user=_binary'rpl_do_grant';
 flush privileges;
 show grants for rpl_do_grant@localhost;
 ERROR 42000: There is no such grant defined for user 'rpl_do_grant' on host 'localhost'
