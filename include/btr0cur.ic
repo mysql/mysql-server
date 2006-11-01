@@ -102,7 +102,7 @@ btr_cur_position(
 	buf_block_t*	block,	/* in: buffer block of rec */
 	btr_cur_t*	cursor)	/* out: cursor */
 {
-	ut_ad(page_align(rec) == buf_block_get_frame(block));
+	ut_ad(page_align(rec) == block->frame);
 
 	page_cur_position(rec, block, btr_cur_get_page_cur(cursor));
 
