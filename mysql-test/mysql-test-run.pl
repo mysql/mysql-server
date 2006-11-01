@@ -1633,7 +1633,7 @@ sub environment_setup () {
   # ----------------------------------------------------
   # We are nice and report a bit about our settings
   # ----------------------------------------------------
-  if (!$opt_extern)
+  if (!$opt_extern && $opt_verbose)
   {
     print "Using MTR_BUILD_THREAD      = $ENV{MTR_BUILD_THREAD}\n";
     print "Using MASTER_MYPORT         = $ENV{MASTER_MYPORT}\n";
@@ -2270,6 +2270,11 @@ sub initialize_servers () {
     }
     check_running_as_root();
   }
+  else
+  {
+    # We have to create the 'var' and related directories
+    cleanup_stale_files();
+  }
 }
 
 sub mysql_install_db () {
@@ -2590,16 +2595,18 @@ sub do_before_run_mysqltest($)
   }
 
 
-# MASV cleanup...
-  mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
-
-  # output current test to ndbcluster log file to enable diagnostics
-  mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
-
-  mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
-  if ( $master->[1]->{'pid'} )
+  if (!$opt_extern)
   {
-    mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+    # MASV cleanup...
+    mtr_tonewfile($path_current_test_log,"$tname\n"); # Always tell where we are
+
+    # output current test to ndbcluster log file to enable diagnostics
+    mtr_tofile($file_ndb_testrun_log,"CURRENT TEST $tname\n");
+
+    mtr_tofile($master->[0]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+    if ( $master->[1]->{'pid'} ) {
+      mtr_tofile($master->[1]->{'path_myerr'},"CURRENT_TEST: $tname\n");
+    }
   }
 }
 

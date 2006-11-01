@@ -6558,6 +6558,8 @@ static bool
 has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables)
 {
   char *first_table_name= NULL, *first_db;
+  LINT_INIT(first_db);
+
   for (TABLE_LIST *table= tables; table; table= table->next_global)
   {
     /* we must do preliminary checks as table->table may be NULL */

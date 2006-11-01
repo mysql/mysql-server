@@ -502,7 +502,7 @@ void plugin_deinitialize(struct st_plugin_int *plugin)
     if ((*plugin_type_deinitialize[plugin->plugin->type])(plugin))
     {
       sql_print_error("Plugin '%s' of type %s failed deinitialization",
-                      plugin->name.str, plugin_type_names[plugin->plugin->type]);
+                      plugin->name.str, plugin_type_names[plugin->plugin->type].str);
     } 
   }
   else if (plugin->plugin->deinit)
@@ -562,7 +562,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
     {
       sql_print_error("Plugin '%s' registration as a %s failed.",
-                      plugin->name.str, plugin_type_names[plugin->plugin->type]);
+                      plugin->name.str, plugin_type_names[plugin->plugin->type].str);
       goto err;
     }
   }

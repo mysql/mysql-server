@@ -1073,6 +1073,8 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     bool view_is_mergeable= (table->algorithm != VIEW_ALGORITHM_TMPTABLE &&
                              lex->can_be_merged());
     TABLE_LIST *view_main_select_tables;
+    LINT_INIT(view_main_select_tables);
+
     if (view_is_mergeable)
     {
       /*
