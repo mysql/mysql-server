@@ -1337,7 +1337,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
   if (EventLoggerBase::event_lookup(eventType,cat,threshold,severity,textF))
     DBUG_VOID_RETURN;
 
-  char m_text[256];
+  char m_text[512];
   EventLogger::getText(m_text, sizeof(m_text),
 		       textF, theData, nodeId);
 
@@ -1356,8 +1356,11 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
     if(strcmp(ndb_logevent_body[i].token,"error") == 0)
     {
       int m_text_len= strlen(m_text);
-      snprintf(m_text+m_text_len, 4 , " - ");
-      ndb_error_string(theData[3], m_text+(m_text_len+3), sizeof(m_text)-m_text_len-3);
+      if(sizeof(m_text)-m_text_len-3 > 0)
+      {
+        BaseString::snprintf(m_text+m_text_len, 4 , " - ");
+        ndb_error_string(val, m_text+(m_text_len+3), sizeof(m_text)-m_text_len-3);
+      }
     }
   }
 
