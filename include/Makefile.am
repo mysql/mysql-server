@@ -15,14 +15,14 @@
 # Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
 # MA 02111-1307, USA
 
-BUILT_SOURCES =		mysql_version.h m_ctype.h my_config.h mysql_h.ic
+BUILT_SOURCES =		mysql_version.h my_config.h abi_check
 pkginclude_HEADERS =	my_dbug.h m_string.h my_sys.h my_list.h my_xml.h \
 			mysql.h mysql_com.h mysqld_error.h mysql_embed.h \
 		  	my_semaphore.h my_pthread.h my_no_pthread.h raid.h \
 			errmsg.h my_global.h my_net.h my_alloc.h \
 			my_getopt.h sslopt-longopts.h my_dir.h typelib.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
-			sql_state.h mysql_time.h $(BUILT_SOURCES)
+			sql_state.h mysql_time.h m_ctype.h $(BUILT_SOURCES)
 noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 			nisam.h heap.h merge.h my_bitmap.h\
 			myisam.h myisampack.h myisammrg.h ft_global.h\
@@ -32,7 +32,8 @@ noinst_HEADERS =	config-win.h config-os2.h config-netware.h \
 			thr_lock.h t_ctype.h violite.h md5.h \
 			mysql_version.h.in my_handler.h my_time.h
 
-CLEANFILES =            mysql_h.ic
+CLEANFILES =            abi_check
+EXTRA_DIST =            mysql_h.ic
 
 # mysql_version.h are generated
 SUPERCLEANFILES =	mysql_version.h my_config.h $(CLEANFILES)
@@ -61,22 +62,17 @@ dist-hook:
 # Rules for checking that ABI has not changed
 #
 
-# Create a icheck file for mysql.h
-mysql_h.ic: mysql.h
-	@set -x; \
+# Create a icheck file and compare it to the reference
+abi_check: mysql.h mysql_version.h mysql_com.h mysql_time.h my_list.h \
+           my_alloc.h typelib.h
+	@set -ex; \
 	if [ @ICHECK@ != no ] ; then \
-	  @ICHECK@ --canonify -o $@ mysql.h; \
-	fi;
-
-# Compare the icheck file to the reference
-check_abi: mysql_h.ic
-	@set -x; \
-	if [ @ICHECK@ != no ] ; then \
-	  @ICHECK@ --compare mysql_h.ic mysql_h_abi.ic; \
+	  @ICHECK@ --canonify --skip-from-re /usr/ -o $@.ic mysql.h; \
+	  @ICHECK@ --compare mysql_h.ic $@.ic; \
 	fi; \
-	touch check_abi;
+	touch abi_check;
 
-all: check_abi
+all: abi_check
 
 
 # Don't update the files from bitkeeper

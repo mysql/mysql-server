@@ -1409,7 +1409,7 @@ int open_file(const char *name)
 
 void do_source(struct st_command *command)
 {
-  DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_filename;
   const struct command_arg source_args[] = {
     "filename", ARG_STRING, TRUE, &ds_filename, "File to source"
   };
@@ -1697,7 +1697,7 @@ void do_system(struct st_command *command)
 void do_remove_file(struct st_command *command)
 {
   int error;
-  DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_filename;
   const struct command_arg rm_args[] = {
     "filename", ARG_STRING, TRUE, &ds_filename, "File to delete"
   };
@@ -1730,8 +1730,8 @@ void do_remove_file(struct st_command *command)
 void do_copy_file(struct st_command *command)
 {
   int error;
-  DYNAMIC_STRING ds_from_file;
-  DYNAMIC_STRING ds_to_file;
+  static DYNAMIC_STRING ds_from_file;
+  static DYNAMIC_STRING ds_to_file;
   const struct command_arg copy_file_args[] = {
     "from_file", ARG_STRING, TRUE, &ds_from_file, "Filename to copy from",
     "to_file", ARG_STRING, TRUE, &ds_to_file, "Filename to copy to"
@@ -1766,7 +1766,7 @@ void do_copy_file(struct st_command *command)
 void do_file_exist(struct st_command *command)
 {
   int error;
-  DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_filename;
   const struct command_arg file_exist_args[] = {
     "filename", ARG_STRING, TRUE, &ds_filename, "File to check if it exist"
   };
@@ -1873,9 +1873,9 @@ void read_until_delimiter(DYNAMIC_STRING *ds,
 
 void do_write_file(struct st_command *command)
 {
-  DYNAMIC_STRING ds_content;
-  DYNAMIC_STRING ds_filename;
-  DYNAMIC_STRING ds_delimiter;
+  static DYNAMIC_STRING ds_content;
+  static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_delimiter;
   const struct command_arg write_file_args[] = {
     "filename", ARG_STRING, TRUE, &ds_filename, "File to write to",
     "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
@@ -1927,8 +1927,8 @@ void do_perl(struct st_command *command)
   int error;
   char buf[FN_REFLEN];
   FILE *res_file;
-  DYNAMIC_STRING ds_script;
-  DYNAMIC_STRING ds_delimiter;
+  static DYNAMIC_STRING ds_script;
+  static DYNAMIC_STRING ds_delimiter;
   const struct command_arg perl_args[] = {
     "delimiter", ARG_STRING, FALSE, &ds_delimiter, "Delimiter to read until"
   };
@@ -2985,14 +2985,14 @@ void do_connect(struct st_command *command)
   bool con_ssl= 0, con_compress= 0;
   char *ptr;
 
-  DYNAMIC_STRING ds_connection_name;
-  DYNAMIC_STRING ds_host;
-  DYNAMIC_STRING ds_user;
-  DYNAMIC_STRING ds_password;
-  DYNAMIC_STRING ds_database;
-  DYNAMIC_STRING ds_port;
-  DYNAMIC_STRING ds_sock;
-  DYNAMIC_STRING ds_options;
+  static DYNAMIC_STRING ds_connection_name;
+  static DYNAMIC_STRING ds_host;
+  static DYNAMIC_STRING ds_user;
+  static DYNAMIC_STRING ds_password;
+  static DYNAMIC_STRING ds_database;
+  static DYNAMIC_STRING ds_port;
+  static DYNAMIC_STRING ds_sock;
+  static DYNAMIC_STRING ds_options;
   const struct command_arg connect_args[] = {
     "connection name", ARG_STRING, TRUE, &ds_connection_name,
     "Name of the connection",
