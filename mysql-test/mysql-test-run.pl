@@ -1801,14 +1801,16 @@ sub environment_setup () {
   # ----------------------------------------------------
   # Setup env so childs can execute mysql_fix_system_tables
   # ----------------------------------------------------
-  my $cmdline_mysql_fix_system_tables=
-    "$exe_mysql_fix_system_tables --no-defaults --host=localhost " .
-    "--user=root --password= " .
-    "--basedir=$glob_basedir --bindir=$path_client_bindir --verbose " .
-    "--port=$master->[0]->{'port'} " .
-    "--socket=$master->[0]->{'path_sock'}";
-
-  $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
+  if ( ! $glob_win32 )
+  {
+    my $cmdline_mysql_fix_system_tables=
+      "$exe_mysql_fix_system_tables --no-defaults --host=localhost " .
+      "--user=root --password= " .
+      "--basedir=$glob_basedir --bindir=$path_client_bindir --verbose " .
+      "--port=$master->[0]->{'port'} " .
+      "--socket=$master->[0]->{'path_sock'}";
+    $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  $cmdline_mysql_fix_system_tables;
+  }
 
   # ----------------------------------------------------
   # Setup env so childs can execute my_print_defaults
