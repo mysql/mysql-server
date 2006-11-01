@@ -802,7 +802,21 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                                         count)))
         goto err;
       for (count= 0; count < interval->count; count++)
-        interval->type_lengths[count]= strlen(interval->type_names[count]);
+      {
+        char *val= (char*) interval->type_names[count];
+        interval->type_lengths[count]= strlen(val);
+        /*
+          Replace all ',' symbols with NAMES_SEP_CHAR.
+          See the comment in unireg.cc, pack_fields() function
+          for details.
+        */
+        for (uint cnt= 0 ; cnt < interval->type_lengths[count] ; cnt++)
+        {
+          char c= val[cnt];
+          if (c == ',')
+            val[cnt]= NAMES_SEP_CHAR;
+        }       
+      }
       interval->type_lengths[count]= 0;
     }
   }
@@ -2773,12 +2787,13 @@ bool st_table_list::prep_where(THD *thd, Item **conds,
             this expression will not be moved to WHERE condition (i.e. will
             be clean correctly for PS/SP)
           */
-          tbl->on_expr= and_conds(tbl->on_expr, where);
+          tbl->on_expr= and_conds(tbl->on_expr,
+                                  where->copy_andor_structure(thd));
           break;
         }
       }
       if (tbl == 0)
-        *conds= and_conds(*conds, where);
+        *conds= and_conds(*conds, where->copy_andor_structure(thd));
       if (arena)
         thd->restore_active_arena(arena, &backup);
       where_processed= TRUE;
