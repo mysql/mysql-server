@@ -3907,7 +3907,7 @@ err:
   close_thread_tables(thd);
   pthread_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
-  int ndb_obj_cnt= 1; // g_ndb
+  uint ndb_obj_cnt= 1; // g_ndb
   ndb_obj_cnt+= injector_ndb == 0 ? 0 : 1;
   ndb_obj_cnt+= schema_ndb == 0 ? 0 : 1;
   ndb_obj_cnt+= ndbcluster_util_inited ? 1 : 0;
@@ -3930,7 +3930,8 @@ err:
    *   otherwise user thread can have ongoing SUB_DATA
    */
   int sleep_cnt= 0;
-  while (sleep_cnt < 300 && g_ndb_cluster_connection->get_active_ndb_objects() > ndb_obj_cnt)
+  while (sleep_cnt < 300 &&
+         g_ndb_cluster_connection->get_active_ndb_objects() > ndb_obj_cnt)
   {
     my_sleep(10000); // 10ms
     sleep_cnt++;

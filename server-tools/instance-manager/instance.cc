@@ -166,7 +166,7 @@ static int start_process(Instance_options *instance_options,
     exit(1);
   case -1:
     log_info("cannot create a new process to start instance %s",
-             instance_options->instance_name);
+             instance_options->instance_name.str);
     return 1;
   }
   return 0;
@@ -311,9 +311,9 @@ void Instance::remove_pid()
   int pid;
   if ((pid= options.get_pid()) != 0)          /* check the pidfile */
     if (options.unlink_pidfile())             /* remove stalled pidfile */
-      log_error("cannot remove pidfile for instance %i, this might be \
-                since IM lacks permmissions or hasn't found the pidifle",
-                options.instance_name);
+      log_error("cannot remove pidfile for instance %s, this might be "
+                "since IM lacks permmissions or hasn't found the pidfile",
+                options.instance_name.str);
 }
 
 
@@ -619,7 +619,7 @@ void Instance::kill_instance(int signum)
         log_error("The instance %s is being stopped forcibly. Normally" \
                   "it should not happen. Probably the instance has been" \
                   "hanging. You should also check your IM setup",
-                  options.instance_name);
+                  options.instance_name.str);
         /* After sucessful hard kill the pidfile need to be removed */
         options.unlink_pidfile();
       }

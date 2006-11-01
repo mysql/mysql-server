@@ -480,7 +480,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       sql_print_warning("'%s' had no or invalid character set, "
                         "and default character set is multi-byte, "
                         "so character column sizes may have changed",
-                        share->path);
+                        share->path.str);
     }
     share->table_charset= default_charset_info;
   }
