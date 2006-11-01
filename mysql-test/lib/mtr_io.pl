@@ -37,18 +37,16 @@ sub mtr_get_pid_from_file ($) {
     open(FILE, '<', $pid_file_path)
       or mtr_error("can't open file \"$pid_file_path\": $!");
 
+    # Read pid number from file
     my $pid= <FILE>;
-
-    chomp($pid) if defined $pid;
-
     close FILE;
 
-    return $pid if defined $pid && $pid ne '';
+    return $pid if $pid=~ /^(\d+)/;
 
-    mtr_debug("Pid file '$pid_file_path' is empty. " .
-              "Sleeping $timeout second(s)...");
+    mtr_debug("Pid file '$pid_file_path' does not yet contain pid number.\n" .
+              "Sleeping $timeout second(s) more...");
 
-    sleep(1);
+    sleep($timeout);
   }
 
   mtr_error("Pid file '$pid_file_path' is corrupted. " .
