@@ -156,8 +156,8 @@ static int start_process(Instance_options *instance_options,
     /* exec never returns */
     exit(1);
   case -1:
-    log_info("cannot create a new process to start instance %s",
-             instance_options->instance_name);
+    log_info("cannot create a new process to start instance '%s'.",
+             (const char *) instance_options->instance_name);
     return 1;
   }
   return 0;
@@ -252,7 +252,8 @@ static void start_and_monitor_instance(Instance_options *old_instance_options,
           MAX_INSTANCE_NAME_LEN - 1);
   instance_name_len= old_instance_options->instance_name_len;
 
-  log_info("starting instance %s", instance_name_buff);
+  log_info("starting instance '%s'...",
+           (const char *) instance_name_buff);
 
   if (start_process(old_instance_options, &process_info))
   {
@@ -286,9 +287,9 @@ void Instance::remove_pid()
   int pid;
   if ((pid= options.get_pid()) != 0)          /* check the pidfile */
     if (options.unlink_pidfile())             /* remove stalled pidfile */
-      log_error("cannot remove pidfile for instance %i, this might be \
+      log_error("cannot remove pidfile for instance '%s', this might be \
                 since IM lacks permmissions or hasn't found the pidifle",
-                options.instance_name);
+                (const char *) options.instance_name);
 }
 
 
@@ -435,9 +436,9 @@ bool Instance::is_running()
       We have successfully connected to the server using fake
       username/password. Write a warning to the logfile.
     */
-    log_info("The Instance Manager was able to log into you server \
-             with faked compiled-in password while checking server status. \
-             Looks like something is wrong.");
+    log_info("The Instance Manager was able to log into you server "
+             "with faked compiled-in password while checking server status. "
+             "Looks like something is wrong.");
     pthread_mutex_unlock(&LOCK_instance);
     return_val= TRUE;                           /* server is alive */
   }
@@ -577,10 +578,10 @@ void Instance::kill_instance(int signum)
       /* Kill suceeded */
       if (signum == SIGKILL)      /* really killed instance with SIGKILL */
       {
-        log_error("The instance %s is being stopped forcibly. Normally" \
-                  "it should not happen. Probably the instance has been" \
+        log_error("The instance '%s' is being stopped forcibly. Normally"
+                  "it should not happen. Probably the instance has been"
                   "hanging. You should also check your IM setup",
-                  options.instance_name);
+                  (const char *) options.instance_name);
         /* After sucessful hard kill the pidfile need to be removed */
         options.unlink_pidfile();
       }

@@ -280,7 +280,7 @@ int Listener_thread::create_tcp_socket()
 
   FD_SET(ip_socket, &read_fds);
   sockets[num_sockets++]= ip_socket;
-  log_info("accepting connections on ip socket");
+  log_info("accepting connections on ip socket (port: %d)", (int) im_port);
   return 0;
 }
 
@@ -334,7 +334,7 @@ create_unix_socket(struct sockaddr_un &unix_socket_address)
   /* make sure that instances won't be listening our sockets */
   set_no_inherit(unix_socket);
 
-  log_info("accepting connections on unix socket %s",
+  log_info("accepting connections on unix socket '%s'",
            unix_socket_address.sun_path);
   sockets[num_sockets++]= unix_socket;
   FD_SET(unix_socket, &read_fds);
