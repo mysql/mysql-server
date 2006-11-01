@@ -1143,6 +1143,7 @@ sp_head::execute(THD *thd)
 	ctx->clear_handler();
 	ctx->enter_handler(hip);
         thd->clear_error();
+        thd->is_fatal_error= 0;
 	thd->killed= THD::NOT_KILLED;
 	continue;
       }
@@ -1170,8 +1171,9 @@ sp_head::execute(THD *thd)
   state= EXECUTED;
 
  done:
-  DBUG_PRINT("info", ("err_status: %d  killed: %d  query_error: %d",
-		      err_status, thd->killed, thd->query_error));
+  DBUG_PRINT("info", ("err_status: %d  killed: %d  query_error: %d  report_error: %d",
+		      err_status, thd->killed, thd->query_error,
+                      thd->net.report_error));
 
   if (thd->killed)
     err_status= TRUE;
@@ -2375,6 +2377,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
                                        bool open_tables, sp_instr* instr)
 {
   int res= 0;
+  DBUG_ENTER("reset_lex_and_exec_core");
 
   DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
@@ -2419,7 +2422,10 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
       res= -1;
 
   if (!res)
+  {
     res= instr->exec_core(thd, nextp);
+    DBUG_PRINT("info",("exec_core returned: %d", res));
+  }
 
   m_lex->unit.cleanup();
 
@@ -2457,7 +2463,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
     cleanup_items() is called in sp_head::execute()
   */
-  return res || thd->net.report_error;
+  DBUG_RETURN(res || thd->net.report_error);
 }
 
 

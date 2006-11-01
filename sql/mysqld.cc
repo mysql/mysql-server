@@ -1609,7 +1609,7 @@ static void network_init(void)
 
     if (strlen(mysqld_unix_port) > (sizeof(UNIXaddr.sun_path) - 1))
     {
-      sql_print_error("The socket file path is too long (> %lu): %s",
+      sql_print_error("The socket file path is too long (> %u): %s",
                       sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
       unireg_abort(1);
     }
@@ -3506,7 +3506,7 @@ int main(int argc, char **argv)
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Asked for %ld thread stack, but got %ld",
-			  thread_stack, stack_size);
+			  thread_stack, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
       thread_stack= stack_size*2;
 #else
@@ -5316,7 +5316,7 @@ master-ssl",
    (gptr*) &locked_in_memory, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"merge", OPT_MERGE, "Enable Merge storage engine. Disable with \
 --skip-merge.",
-   (gptr*) &opt_merge, (gptr*) &opt_merge, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0},
+   (gptr*) &opt_merge, (gptr*) &opt_merge, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"myisam-recover", OPT_MYISAM_RECOVER,
    "Syntax: myisam-recover[=option[,option...]], where option can be DEFAULT, BACKUP, FORCE or QUICK.",
    (gptr*) &myisam_recover_options_str, (gptr*) &myisam_recover_options_str, 0,

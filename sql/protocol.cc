@@ -79,6 +79,7 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
   if (net && net->no_send_error)
   {
     thd->clear_error();
+    thd->is_fatal_error= 0;			// Error message is given
     DBUG_PRINT("info", ("sending error messages prohibited"));
     DBUG_VOID_RETURN;
   }
@@ -111,7 +112,7 @@ void net_send_error(THD *thd, uint sql_errno, const char *err)
 
   net_send_error_packet(thd, sql_errno, err);
 
-  thd->is_fatal_error=0;			// Error message is given
+  thd->is_fatal_error= 0;			// Error message is given
   thd->net.report_error= 0;
 
   /* Abort multi-result sets */
@@ -156,6 +157,7 @@ net_printf_error(THD *thd, uint errcode, ...)
   if (net && net->no_send_error)
   {
     thd->clear_error();
+    thd->is_fatal_error= 0;			// Error message is given
     DBUG_PRINT("info", ("sending error messages prohibited"));
     DBUG_VOID_RETURN;
   }

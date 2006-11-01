@@ -6488,7 +6488,7 @@ static int ndbcluster_init(void *p)
   }
   {
     char buf[128];
-    my_snprintf(buf, sizeof(buf), "mysqld --server-id=%d", server_id);
+    my_snprintf(buf, sizeof(buf), "mysqld --server-id=%lu", server_id);
     g_ndb_cluster_connection->set_name(buf);
   }
   g_ndb_cluster_connection->set_optimized_node_selection
@@ -7245,7 +7245,7 @@ int handle_trailing_share(NDB_SHARE *share)
       share->key_length= min_key_length;
     }
     share->key_length=
-      my_snprintf(share->key, min_key_length + 1, "#leak%d",
+      my_snprintf(share->key, min_key_length + 1, "#leak%lu",
                   trailing_share_id++);
   }
   /* Keep it for possible the future trailing free */
@@ -9764,12 +9764,12 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
   update_status_variables(g_ndb_cluster_connection);
   buflen=
     my_snprintf(buf, sizeof(buf),
-                "cluster_node_id=%u, "
+                "cluster_node_id=%ld, "
                 "connected_host=%s, "
-                "connected_port=%u, "
-                "number_of_data_nodes=%u, "
-                "number_of_ready_data_nodes=%u, "
-                "connect_count=%u",
+                "connected_port=%ld, "
+                "number_of_data_nodes=%ld, "
+                "number_of_ready_data_nodes=%ld, "
+                "connect_count=%ld",
                 ndb_cluster_node_id,
                 ndb_connected_host,
                 ndb_connected_port,
@@ -10691,7 +10691,8 @@ static int ndbcluster_fill_files_table(handlerton *hton,
       table->field[c++]->store("NORMAL", 6, system_charset_info);
 
       char extra[100];
-      int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",id,lfg.getUndoBufferSize());
+      int len= my_snprintf(extra,sizeof(extra),"CLUSTER_NODE=%u;UNDO_BUFFER_SIZE=%lu",
+                           id, (ulong) lfg.getUndoBufferSize());
       table->field[c]->set_notnull();
       table->field[c]->store(extra, len, system_charset_info);
       schema_table_store_record(thd, table);
@@ -10708,7 +10709,6 @@ static int ndbcluster_fill_files_table(handlerton *hton,
   for (i= 0; i < lfglist.count; i++)
   {
     NdbDictionary::Dictionary::List::Element& elt= lfglist.elements[i];
-    unsigned id;
 
     NdbDictionary::LogfileGroup lfg= dict->getLogfileGroup(elt.name);
     ndberr= dict->getNdbError();
@@ -10779,7 +10779,8 @@ static int ndbcluster_fill_files_table(handlerton *hton,
     table->field[c++]->store("NORMAL", 6, system_charset_info);
 
     char extra[100];
-    int len= my_snprintf(extra,sizeof(extra),"UNDO_BUFFER_SIZE=%lu",id,lfg.getUndoBufferSize());
+    int len= my_snprintf(extra, sizeof(extra), "UNDO_BUFFER_SIZE=%lu",
+                         (ulong) lfg.getUndoBufferSize());
     table->field[c]->set_notnull();
     table->field[c]->store(extra, len, system_charset_info);
     schema_table_store_record(thd, table);
