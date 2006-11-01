@@ -48,19 +48,17 @@ void*
 os_mem_alloc_large(
 /*===============*/
 					/* out: allocated memory */
-	ulint		n,		/* in: number of bytes */
-	ibool		set_to_zero,	/* in: TRUE if allocated memory
-					should be set to zero if
-					UNIV_SET_MEM_TO_ZERO is defined */
-	ibool		assert_on_error);/* in: if TRUE, we crash mysqld if
-					 the memory cannot be allocated */
+	ulint*	n);			/* in/out: number of bytes */
 /********************************************************************
 Frees large pages memory. */
 
 void
 os_mem_free_large(
 /*==============*/
-void	*ptr);	/* in: number of bytes */
+	void	*ptr,			/* in: pointer returned by
+					os_mem_alloc_large() */
+	ulint	size);			/* in: size returned by
+					os_mem_alloc_large() */
 /********************************************************************
 Sets the priority boost for threads released from waiting within the current
 process. */
