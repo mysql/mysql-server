@@ -312,6 +312,7 @@ longlong Item_sum_count::val_int()
 void Item_sum_count::cleanup()
 {
   DBUG_ENTER("Item_sum_count::cleanup");
+  clear();
   Item_sum_int::cleanup();
   used_table_cache= ~(table_map) 0;
   DBUG_VOID_RETURN;

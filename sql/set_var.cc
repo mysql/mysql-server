@@ -2404,8 +2404,12 @@ bool sys_var_last_insert_id::update(THD *thd, set_var *var)
 byte *sys_var_last_insert_id::value_ptr(THD *thd, enum_var_type type,
 					LEX_STRING *base)
 {
-  thd->sys_var_tmp.long_value= (long) thd->insert_id();
-  return (byte*) &thd->last_insert_id;
+  /*
+    As this statement reads @@LAST_INSERT_ID, set
+    THD::last_insert_id_used.
+  */
+  thd->last_insert_id_used= TRUE;
+  return (byte*) &thd->current_insert_id;
 }
 
 

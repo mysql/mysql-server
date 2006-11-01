@@ -95,6 +95,8 @@ MY_LOCALE *my_locale_by_name(const char *name);
 #define MAX_ACCEPT_RETRY	10	// Test accept this many times
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
+#define TABLE_OPEN_CACHE_MIN    64
+#define TABLE_OPEN_CACHE_DEFAULT 64
 #define STACK_MIN_SIZE		8192	// Abort if less stack during eval.
 #define STACK_BUFF_ALLOC	64	// For stack overrun checks
 #ifndef MYSQLD_NET_RETRY_COUNT
