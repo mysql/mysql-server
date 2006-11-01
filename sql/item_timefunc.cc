@@ -1294,17 +1294,6 @@ String *Item_date::val_str(String *str)
 }
 
 
-int Item_date::save_in_field(Field *field, bool no_conversions)
-{
-  TIME ltime;
-  if (get_date(&ltime, TIME_FUZZY_DATE))
-    return set_field_to_null(field);
-  field->set_notnull();
-  field->store_time(&ltime, MYSQL_TIMESTAMP_DATE);
-  return 0;
-}
-
-
 longlong Item_date::val_int()
 {
   DBUG_ASSERT(fixed == 1);
