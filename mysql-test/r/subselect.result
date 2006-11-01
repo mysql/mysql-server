@@ -3545,3 +3545,19 @@ FROM t1 GROUP BY t1.a LIMIT 1)
 2
 2
 DROP TABLE t1,t2;
+CREATE TABLE t1 (a int, b int auto_increment, PRIMARY KEY (b));
+CREATE TABLE t2 (x int auto_increment, y int, z int,
+PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
+SET SESSION sort_buffer_size = 32 * 1024;
+SELECT SQL_NO_CACHE COUNT(*) 
+FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
+FROM t1) t;
+COUNT(*)
+3000
+SET SESSION sort_buffer_size = 8 * 1024 * 1024;
+SELECT SQL_NO_CACHE COUNT(*) 
+FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
+FROM t1) t;
+COUNT(*)
+3000
+DROP TABLE t1,t2;

@@ -2426,3 +2426,40 @@ SELECT (
 FROM t1 t2
 GROUP BY t2.a;
 DROP TABLE t1,t2;  
+
+#
+# Bug #21727: Correlated subquery that requires filesort:
+#             slow with big sort_buffer_size 
+#
+
+CREATE TABLE t1 (a int, b int auto_increment, PRIMARY KEY (b));
+CREATE TABLE t2 (x int auto_increment, y int, z int,
+                 PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
+
+disable_query_log;
+let $1=3000;
+while ($1)
+{
+  eval INSERT INTO t1(a) VALUES(RAND()*1000);
+  eval SELECT MAX(b) FROM t1 INTO @id;
+  let $2=10;
+  while ($2)
+  {
+    eval INSERT INTO t2(y,z) VALUES(@id,RAND()*1000);
+    dec $2;
+  } 
+  dec $1;
+}
+enable_query_log;
+
+SET SESSION sort_buffer_size = 32 * 1024;
+SELECT SQL_NO_CACHE COUNT(*) 
+  FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
+          FROM t1) t;
+
+SET SESSION sort_buffer_size = 8 * 1024 * 1024;
+SELECT SQL_NO_CACHE COUNT(*) 
+  FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
+          FROM t1) t;
+
+DROP TABLE t1,t2;
