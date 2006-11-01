@@ -2773,6 +2773,16 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   error= MYSQLparse((void *)thd) || thd->is_fatal_error ||
       thd->net.report_error || init_param_array(this);
+
+  /*
+    The first thing we do after parse error is freeing sp_head to
+    ensure that we have restored original memroot.
+  */
+  if (error && lex->sphead)
+  {
+    delete lex->sphead;
+    lex->sphead= NULL;
+  }
   /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
@@ -2798,6 +2808,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   if (error == 0)
     error= check_prepared_statement(this, name.str != 0);
 
+  /* Free sp_head if check_prepared_statement() failed. */
   if (error && lex->sphead)
   {
     delete lex->sphead;

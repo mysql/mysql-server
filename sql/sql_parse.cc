@@ -3045,11 +3045,6 @@ end_with_restore_list:
 
   case SQLCOM_ALTER_TABLE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-#if defined(DONT_ALLOW_SHOW_COMMANDS)
-    my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND),
-               MYF(0)); /* purecov: inspected */
-    goto error;
-#else
     {
       ulong priv=0;
       if (lex->name && (!lex->name[0] || strlen(lex->name) > NAME_LEN))
@@ -3115,7 +3110,6 @@ end_with_restore_list:
       }
       break;
     }
-#endif /*DONT_ALLOW_SHOW_COMMANDS*/
   case SQLCOM_RENAME_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -3369,8 +3363,16 @@ end_with_restore_list:
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
+
+    /*
+      If we have inserted into a VIEW, and the base table has
+      AUTO_INCREMENT column, but this column is not accessible through
+      a view, then we should restore LAST_INSERT_ID to the value it
+      had before the statement.
+    */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->last_insert_id= thd->current_insert_id;
+
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -3431,8 +3433,15 @@ end_with_restore_list:
       select_lex->table_list.first= (byte*) first_table;
     }
 
+    /*
+      If we have inserted into a VIEW, and the base table has
+      AUTO_INCREMENT column, but this column is not accessible through
+      a view, then we should restore LAST_INSERT_ID to the value it
+      had before the statement.
+    */
     if (first_table->view && !first_table->contain_auto_increment)
-      thd->last_insert_id= 0; // do not show last insert ID if VIEW have not it
+      thd->last_insert_id= thd->current_insert_id;
+
     break;
   }
   case SQLCOM_TRUNCATE:
@@ -5878,14 +5887,19 @@ void mysql_parse(THD *thd, char *inBuf, uint length)
       DBUG_ASSERT(thd->net.report_error);
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
-      query_cache_abort(&thd->net);
-      lex->unit.cleanup();
+
+      /*
+        The first thing we do after parse error is freeing sp_head to
+        ensure that we have restored original memroot.
+      */
       if (thd->lex->sphead)
       {
 	/* Clean up after failed stored procedure/function */
 	delete thd->lex->sphead;
 	thd->lex->sphead= NULL;
       }
+      query_cache_abort(&thd->net);
+      lex->unit.cleanup();
     }
     thd->proc_info="freeing items";
     thd->end_statement();
