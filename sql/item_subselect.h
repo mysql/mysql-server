@@ -114,6 +114,7 @@ public:
     single select and union subqueries only.
   */
   bool is_evaluated() const;
+  bool is_uncacheable() const;
 
   /*
     Used by max/min subquery to initialize value presence registration
@@ -427,4 +428,10 @@ inline bool Item_subselect::is_evaluated() const
 {
   return engine->is_executed();
 }
+
+inline bool Item_subselect::is_uncacheable() const
+{
+  return engine->uncacheable();
+}
+
 
