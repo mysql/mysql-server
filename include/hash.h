@@ -65,6 +65,8 @@ my_bool hash_check(HASH *hash);			/* Only in debug library */
 
 #define hash_clear(H) bzero((char*) (H),sizeof(*(H)))
 #define hash_inited(H) ((H)->array.buffer != 0)
+#define hash_init_opt(A,B,C,D,E,F,G,H) \
+          (!hash_inited(A) && _hash_init(A,B,C,D,E,F,G, H CALLER_INFO))
 
 #ifdef	__cplusplus
 }
