@@ -1449,10 +1449,12 @@ public:
 #ifndef EMBEDDED_LIBRARY
   inline void clear_error()
   {
+    DBUG_ENTER("clear_error");
     net.last_error[0]= 0;
     net.last_errno= 0;
     net.report_error= 0;
     query_error= 0;
+    DBUG_VOID_RETURN;
   }
   inline bool vio_ok() const { return net.vio != 0; }
 #else

@@ -74,11 +74,10 @@ int User::init(const char *line)
   password_length= strlen(password);
   if (password_length > SCRAMBLED_PASSWORD_CHAR_LENGTH)
   {
-    log_info("Error: password is too long (%d). Max length: %d. ",
-              "User line: '%s'.",
-              (int) password_length,
-              (int) SCRAMBLED_PASSWORD_CHAR_LENGTH,
-              (const char *) line);
+    log_info("Error: password is too long (%d). Max length: %d. User line: '%s'.",
+             (int) password_length,
+             (int) SCRAMBLED_PASSWORD_CHAR_LENGTH,
+             line);
     return 1;
   }
 

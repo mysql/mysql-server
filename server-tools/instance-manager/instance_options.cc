@@ -182,7 +182,7 @@ int Instance_options::fill_instance_version()
 err:
   if (rc)
     log_error("fill_instance_version: Failed to get version of '%s'",
-              mysqld_path);
+              mysqld_path.str);
   return rc;
 }
 
