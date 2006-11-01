@@ -1418,5 +1418,5 @@ insert into t1 values (CAST('10:11:12' AS time));
 select * from t1;
 f1
 20101112000000.000014
-20101112.000000
+101112.000000
 drop table t1;
