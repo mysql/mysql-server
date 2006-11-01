@@ -5694,7 +5694,6 @@ int Rows_log_event::exec_event(st_relay_log_info *rli)
     for (ptr= rli->tables_to_lock ; ptr ; ptr= ptr->next_global)
     {
       rli->m_table_map.set_table(ptr->table_id, ptr->table);
-      rli->touching_table(ptr->db, ptr->table_name, ptr->table_id);
     }
 #ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
