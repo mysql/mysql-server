@@ -587,15 +587,6 @@ buf_page_io_query(
 /*==============*/
 				/* out: TRUE if io going on */
 	buf_block_t*	block);	/* in: pool block, must be bufferfixed */
-/***********************************************************************
-Accessor function for block array. */
-UNIV_INLINE
-buf_block_t*
-buf_pool_get_nth_block(
-/*===================*/
-				/* out: pointer to block */
-	buf_pool_t*	pool,	/* in: pool */
-	ulint		i);	/* in: index of the block */
 /************************************************************************
 Function which inits a page for read to the buffer buf_pool. If the page is
 (1) already in buf_pool, or
@@ -830,6 +821,8 @@ struct buf_pool_struct{
 					read-write lock in them */
 	byte*		frame_mem;	/* pointer to the memory area which
 					was allocated for the frames */
+	ulint		frame_mem_size;	/* allocated length of frame_mem
+					in bytes */
 	buf_block_t*	blocks;		/* array of buffer control blocks */
 	ulint		curr_size;	/* current pool size in pages */
 	hash_table_t*	page_hash;	/* hash table of the file pages */
