@@ -438,25 +438,35 @@ sub mtr_kill_leftovers () {
 
     while ( my $elem= readdir(RUNDIR) )
     {
-      my $pidfile= "$rundir/$elem";
-
-      if ( -f $pidfile )
+      # Only read pid from files that end with .pid
+      if ( $elem =~ /.*[.]pid$/)
       {
-        mtr_debug("Processing PID file: '$pidfile'...");
 
-        my $pid= mtr_get_pid_from_file($pidfile);
+	my $pidfile= "$rundir/$elem";
 
-        mtr_debug("Got pid: $pid from file '$pidfile'");
+	if ( -f $pidfile )
+	{
+	  mtr_debug("Processing PID file: '$pidfile'...");
 
-        if ( $::glob_cygwin_perl or kill(0, $pid) )
-        {
-          mtr_debug("There is process with pid $pid -- scheduling for kill.");
-          push(@pids, $pid);            # We know (cygwin guess) it exists
-        }
-        else
-        {
-          mtr_debug("There is no process with pid $pid -- skipping.");
-        }
+	  my $pid= mtr_get_pid_from_file($pidfile);
+
+	  mtr_debug("Got pid: $pid from file '$pidfile'");
+
+	  if ( $::glob_cygwin_perl or kill(0, $pid) )
+	  {
+	    mtr_debug("There is process with pid $pid -- scheduling for kill.");
+	    push(@pids, $pid);            # We know (cygwin guess) it exists
+	  }
+	  else
+	  {
+	    mtr_debug("There is no process with pid $pid -- skipping.");
+	  }
+	}
+      }
+      else
+      {
+	mtr_warning("Found non pid file $elem in $rundir");
+	next;
       }
     }
     closedir(RUNDIR);
