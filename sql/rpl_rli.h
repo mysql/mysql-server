@@ -289,22 +289,6 @@ typedef struct st_relay_log_info
   void cached_charset_invalidate();
   bool cached_charset_compare(char *charset);
 
-  /*
-    To reload special tables when they are changes, we introduce a set
-    of functions that will mark whenever special functions need to be
-    called after modifying tables.  Right now, the tables are either
-    ACL tables or grants tables.
-  */
-  enum enum_reload_flag
-  {
-    RELOAD_NONE_F   = 0UL,
-    RELOAD_GRANT_F  = (1UL << 0), 
-    RELOAD_ACCESS_F = (1UL << 1)
-  };
-
-  ulong m_reload_flags;
-
-  void touching_table(char const* db, char const* table, ulong table_id);
   void transaction_end(THD*);
 
   void cleanup_context(THD *, bool);
