@@ -75,7 +75,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   for(Uint32 i = 0; i<MAX_FREE_LIST; i++)
   {
     printf("  %d : ", i);
-    Ptr<Page> ptr;
+    PagePtr ptr;
     ArrayPool<Page> *pool= (ArrayPool<Page>*)&m_global_page_pool;
     LocalDLList<Page> list(*pool, alloc.m_dirty_pages[i]);
     for(list.first(ptr); !ptr.isNull(); list.next(ptr))
@@ -262,7 +262,7 @@ Dbtup::update_extent_pos(Disk_alloc_info& alloc,
 }
 
 void
-Dbtup::restart_setup_page(Disk_alloc_info& alloc, Ptr<Page> pagePtr)
+Dbtup::restart_setup_page(Disk_alloc_info& alloc, PagePtr pagePtr)
 {
   /**
    * Link to extent, clear uncommitted_used_space
@@ -344,12 +344,15 @@ Dbtup::disk_page_prealloc(Signal* signal,
     if (!alloc.m_dirty_pages[i].isEmpty())
     {
       ptrI= alloc.m_dirty_pages[i].firstItem;
-      Ptr<GlobalPage> page;
-      m_global_page_pool.getPtr(page, ptrI);
+      Ptr<GlobalPage> gpage;
+      m_global_page_pool.getPtr(gpage, ptrI);
       
-      disk_page_prealloc_dirty_page(alloc, *(PagePtr*)&page, i, sz);
-      key->m_page_no= ((Page*)page.p)->m_page_no;
-      key->m_file_no= ((Page*)page.p)->m_file_no;
+      PagePtr tmp;
+      tmp.i = gpage.i;
+      tmp.p = reinterpret_cast<Page*>(gpage.p);
+      disk_page_prealloc_dirty_page(alloc, tmp, i, sz);
+      key->m_page_no= tmp.p->m_page_no;
+      key->m_file_no= tmp.p->m_file_no;
       if (DBG_DISK)
 	ndbout << " found dirty page " << *key << endl;
       return 0; // Page in memory
@@ -547,7 +550,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
 
 void
 Dbtup::disk_page_prealloc_dirty_page(Disk_alloc_info & alloc,
-				     Ptr<Page> pagePtr, 
+				     PagePtr pagePtr, 
 				     Uint32 old_idx, Uint32 sz)
 {
   ddassert(pagePtr.p->list_index == old_idx);
@@ -638,7 +641,9 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
   fragPtr.i= req.p->m_frag_ptr_i;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
 
-  Ptr<Page> pagePtr = *(Ptr<Page>*)&gpage;
+  PagePtr pagePtr;
+  pagePtr.i = gpage.i;
+  pagePtr.p = reinterpret_cast<Page*>(gpage.p);
 
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
@@ -666,7 +671,9 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
 
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, page_id);
-  Ptr<Page> pagePtr = *(Ptr<Page>*)&gpage;
+  PagePtr pagePtr;
+  pagePtr.i = gpage.i;
+  pagePtr.p = reinterpret_cast<Page*>(gpage.p);
 
   Ptr<Fragrecord> fragPtr;
   fragPtr.i= req.p->m_frag_ptr_i;
@@ -705,7 +712,7 @@ void
 Dbtup::disk_page_prealloc_callback_common(Signal* signal, 
 					  Ptr<Page_request> req, 
 					  Ptr<Fragrecord> fragPtr, 
-					  Ptr<Page> pagePtr)
+					  PagePtr pagePtr)
 {
   /**
    * 1) remove page request from Disk_alloc_info.m_page_requests
@@ -736,7 +743,7 @@ Dbtup::disk_page_prealloc_callback_common(Signal* signal,
    */
   ArrayPool<Page> *cheat_pool= (ArrayPool<Page>*)&m_global_page_pool;
   LocalDLList<Page> list(* cheat_pool, alloc.m_dirty_pages[new_idx]);
-  list.add(*(Ptr<Page>*)&pagePtr);
+  list.add(pagePtr);
   pagePtr.p->uncommitted_used_space = real_used;
   pagePtr.p->list_index = new_idx;
 
@@ -765,7 +772,7 @@ Dbtup::disk_page_prealloc_callback_common(Signal* signal,
 }
 
 void
-Dbtup::disk_page_set_dirty(Ptr<Page> pagePtr)
+Dbtup::disk_page_set_dirty(PagePtr pagePtr)
 {
   Uint32 idx = pagePtr.p->list_index;
   if ((idx & 0x8000) == 0)
@@ -833,7 +840,9 @@ Dbtup::disk_page_unmap_callback(Uint32 page_id, Uint32 dirty_count)
 {
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, page_id);
-  PagePtr pagePtr= *(PagePtr*)&gpage;
+  PagePtr pagePtr;
+  pagePtr.i = gpage.i;
+  pagePtr.p = reinterpret_cast<Page*>(gpage.p);
   
   Uint32 type = pagePtr.p->m_page_header.m_page_type;
   if (unlikely((type != File_formats::PT_Tup_fixsize_page &&
@@ -1028,10 +1037,13 @@ Dbtup::disk_page_abort_prealloc(Signal *signal, Fragrecord* fragPtrP,
   case -1:
     break;
   default:
-    Ptr<GlobalPage> page;
-    m_global_page_pool.getPtr(page, (Uint32)res);
-    disk_page_abort_prealloc_callback_1(signal, fragPtrP, *(PagePtr*)&page, 
-					sz);
+    Ptr<GlobalPage> gpage;
+    m_global_page_pool.getPtr(gpage, (Uint32)res);
+    PagePtr pagePtr;
+    pagePtr.i = gpage.i;
+    pagePtr.p = reinterpret_cast<Page*>(gpage.p);
+
+    disk_page_abort_prealloc_callback_1(signal, fragPtrP, pagePtr, sz);
   }
 }
 
@@ -1044,8 +1056,10 @@ Dbtup::disk_page_abort_prealloc_callback(Signal* signal,
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, page_id);
   
-  PagePtr pagePtr= *(PagePtr*)&gpage;
-  
+  PagePtr pagePtr;
+  pagePtr.i = gpage.i;
+  pagePtr.p = reinterpret_cast<Page*>(gpage.p);
+
   Ptr<Tablerec> tabPtr;
   tabPtr.i= pagePtr.p->m_table_id;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
@@ -1308,7 +1322,9 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   jamEntry();
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, page_id);
-  Ptr<Page> pagePtr = *(Ptr<Page>*)&gpage;
+  PagePtr pagePtr;
+  pagePtr.i = gpage.i;
+  pagePtr.p = reinterpret_cast<Page*>(gpage.p);
 
   Apply_undo* undo = &f_undo;
   

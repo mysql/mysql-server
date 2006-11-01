@@ -614,12 +614,17 @@ C_MODE_END
 #define _STATIC_VARARGS(X) X
 #define _PC(X)	X
 
+/* The DBUG_ON flag always takes precedence over default DBUG_OFF */
 #if defined(DBUG_ON) && defined(DBUG_OFF)
 #undef DBUG_OFF
 #endif
 
-#if defined(_lint) && !defined(DBUG_OFF)
-#define DBUG_OFF
+/* We might be forced to turn debug off, if not turned off already */
+#if (defined(FORCE_DBUG_OFF) || defined(_lint)) && !defined(DBUG_OFF)
+#  define DBUG_OFF
+#  ifdef DBUG_ON
+#    undef DBUG_ON
+#  endif
 #endif
 
 #include <my_dbug.h>

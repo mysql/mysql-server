@@ -27,7 +27,7 @@ INCLUDES =		@ZLIB_INCLUDES@ \
 WRAPLIBS=		@WRAPLIBS@
 SUBDIRS =		share
 libexec_PROGRAMS =	mysqld
-EXTRA_PROGRAMS =	gen_lex_hash
+noinst_PROGRAMS =	gen_lex_hash
 bin_PROGRAMS =		mysql_tzinfo_to_sql
 gen_lex_hash_LDFLAGS =  @NOINST_LDFLAGS@
 LDADD =			$(top_builddir)/vio/libvio.a \
@@ -120,8 +120,9 @@ DEFS =			-DMYSQL_SERVER \
 			-DLIBDIR="\"$(MYSQLLIBdir)\"" \
 			@DEFS@
 
-BUILT_SOURCES =		sql_yacc.cc sql_yacc.h lex_hash.h
-EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_SOURCES) \
+BUILT_DIST_SRC =	sql_yacc.cc sql_yacc.h
+BUILT_SOURCES =		$(BUILT_DIST_SRC) lex_hash.h
+EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_DIST_SRC) \
 			nt_servc.cc nt_servc.h message.mc CMakeLists.txt \
 			udf_example.c udf_example.def
 CLEANFILES =        	lex_hash.h sql_yacc.cc sql_yacc.h sql_yacc.output
@@ -157,11 +158,10 @@ sql_yacc.o:	sql_yacc.cc sql_yacc.h $(HEADERS)
 		@echo "If it fails, re-run configure with --with-low-memory"
 		$(CXXCOMPILE) $(LM_CFLAGS) -c $<
 
-# This generates lex_hash.h
-# NOTE Built sources should depend on their sources not the tool
-# this avoid the rebuild of the built files in a source dist
-lex_hash.h:	gen_lex_hash.cc lex.h
-		$(MAKE) $(AM_MAKEFLAGS) gen_lex_hash$(EXEEXT)
+# FIXME seems like now "lex_hash.h" differs depending on configure
+# flags, so can't pregenerate and include in source TAR. Revert to
+# dist pregenerated if this changes, so the file doesn't differ.
+lex_hash.h:	gen_lex_hash$(EXEEXT)
 		./gen_lex_hash$(EXEEXT) > $@
 
 # the following three should eventually be moved out of this directory
