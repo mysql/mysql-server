@@ -45,9 +45,10 @@ private:
   {
     partition_index_read= 0,
     partition_index_first= 1,
-    partition_index_last= 2,
-    partition_index_read_last= 3,
-    partition_no_index_scan= 4
+    partition_index_first_unordered= 2,
+    partition_index_last= 3,
+    partition_index_read_last= 4,
+    partition_no_index_scan= 5
   };
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
