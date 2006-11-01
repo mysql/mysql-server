@@ -150,7 +150,6 @@ void lex_start(THD *thd, uchar *buf,uint length)
   lex->safe_to_cache_query= 1;
   lex->time_zone_tables_used= 0;
   lex->leaf_tables_insert= 0;
-  lex->variables_used= 0;
   lex->empty_field_list_on_rset= 0;
   lex->select_lex.select_number= 1;
   lex->next_state=MY_LEX_START;
@@ -1635,9 +1634,18 @@ void Query_tables_list::reset_query_tables_list(bool init)
   query_tables_last= &query_tables;
   query_tables_own_last= 0;
   if (init)
-    hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
+  {
+    /*
+      We delay real initialization of hash (and therefore related
+      memory allocation) until first insertion into this hash.
+    */
+    hash_clear(&sroutines);
+  }
   else if (sroutines.records)
+  {
+    /* Non-zero sroutines.records means that hash was initialized. */
     my_hash_reset(&sroutines);
+  }
   sroutines_list.empty();
   sroutines_list_own_last= sroutines_list.next;
   sroutines_list_own_elements= 0;

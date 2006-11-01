@@ -45,10 +45,10 @@ const char *default_password_file_name= QUOTE(DEFAULT_PASSWORD_FILE_NAME);
 const char *default_log_file_name= QUOTE(DEFAULT_LOG_FILE_NAME);
 const char *Options::config_file= QUOTE(DEFAULT_CONFIG_FILE);
 const char *Options::angel_pid_file_name= NULL;
+const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
 #endif
 const char *Options::log_file_name= default_log_file_name;
 const char *Options::pid_file_name= QUOTE(DEFAULT_PID_FILE_NAME);
-const char *Options::socket_file_name= QUOTE(DEFAULT_SOCKET_FILE_NAME);
 const char *Options::password_file_name= default_password_file_name;
 const char *Options::default_mysqld_path= QUOTE(DEFAULT_MYSQLD_PATH);
 const char *Options::bind_address= 0;           /* No default value */
@@ -106,11 +106,11 @@ static struct my_option my_long_options[] =
     (gptr *) &Options::angel_pid_file_name,
     (gptr *) &Options::angel_pid_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-#endif
 
   { "socket", OPT_SOCKET, "Socket file to use for connection.",
     (gptr *) &Options::socket_file_name, (gptr *) &Options::socket_file_name,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
 
   { "passwd", 'P', "Prepare entry for passwd file and exit.", 0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 },

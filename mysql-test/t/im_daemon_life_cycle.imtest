@@ -17,6 +17,12 @@
 
 ###########################################################################
 
+# Wait for IM to start accepting connections.
+
+--exec $MYSQL_TEST_DIR/t/wait_for_socket.sh $EXE_MYSQL $IM_PATH_SOCK $IM_USERNAME $IM_PASSWORD '' 30
+
+###########################################################################
+
 #
 # BUG#12751: Instance Manager: client hangs
 #
