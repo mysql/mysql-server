@@ -1634,9 +1634,18 @@ void Query_tables_list::reset_query_tables_list(bool init)
   query_tables_last= &query_tables;
   query_tables_own_last= 0;
   if (init)
-    hash_init(&sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key, 0, 0);
+  {
+    /*
+      We delay real initialization of hash (and therefore related
+      memory allocation) until first insertion into this hash.
+    */
+    hash_clear(&sroutines);
+  }
   else if (sroutines.records)
+  {
+    /* Non-zero sroutines.records means that hash was initialized. */
     my_hash_reset(&sroutines);
+  }
   sroutines_list.empty();
   sroutines_list_own_last= sroutines_list.next;
   sroutines_list_own_elements= 0;
