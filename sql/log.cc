@@ -2411,7 +2411,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       /*
         Set 'created' to 0, so that in next relay logs this event does not
         trigger cleaning actions on the slave in
-        Format_description_log_event::exec_event().
+        Format_description_log_event::apply_event_impl().
       */
       description_event_for_queue->created= 0;
       /* Don't set log_pos in event header */
