@@ -2150,6 +2150,28 @@ void st_lex::restore_backup_query_tables_list(Query_tables_list *backup)
 
 
 /*
+  Checks for usage of routines and/or tables in a parsed statement
+
+  SYNOPSIS
+    st_lex:table_or_sp_used()
+
+  RETURN
+    FALSE  No routines and tables used
+    TRUE   Either or both routines and tables are used.
+*/
+
+bool st_lex::table_or_sp_used()
+{
+  DBUG_ENTER("table_or_sp_used");
+
+  if (sroutines.records || query_tables)
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
   Do end-of-prepare fixup for list of tables and their merge-VIEWed tables
 
   SYNOPSIS
@@ -2215,6 +2237,7 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     fix_prepare_info_in_table_list(thd, (TABLE_LIST *)table_list.first);
   }
 }
+
 
 /*
   There are st_select_lex::add_table_to_list &
