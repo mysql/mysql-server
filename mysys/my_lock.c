@@ -101,7 +101,7 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
 #elif defined(HAVE_LOCKING)
   /* Windows */
   {
-    my_bool error= false;
+    my_bool error= FALSE;
     pthread_mutex_lock(&my_file_info[fd].mutex);
     if (MyFlags & MY_SEEK_NOT_DONE) 
     {
