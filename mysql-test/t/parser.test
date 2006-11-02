@@ -1,0 +1,510 @@
+#
+# This file contains tests covering the parser
+#
+
+#=============================================================================
+# LEXICAL PARSER (lex)
+#=============================================================================
+
+SET @save_sql_mode=@@sql_mode;
+
+#
+# Documenting the current behavior, to detect incompatible changes.
+# In each cases:
+# - no error is the correct result
+# - an error is the expected result with the current implementation,
+#   and is a limitation.
+
+set SQL_MODE='';
+
+create table ADDDATE(a int);
+drop table ADDDATE;
+create table ADDDATE (a int);
+drop table ADDDATE;
+
+--error ER_PARSE_ERROR
+create table BIT_AND(a int);
+create table BIT_AND (a int);
+drop table BIT_AND;
+
+--error ER_PARSE_ERROR
+create table BIT_OR(a int);
+create table BIT_OR (a int);
+drop table BIT_OR;
+
+--error ER_PARSE_ERROR
+create table BIT_XOR(a int);
+create table BIT_XOR (a int);
+drop table BIT_XOR;
+
+--error ER_PARSE_ERROR
+create table CAST(a int);
+create table CAST (a int);
+drop table CAST;
+
+--error ER_PARSE_ERROR
+create table COUNT(a int);
+create table COUNT (a int);
+drop table COUNT;
+
+--error ER_PARSE_ERROR
+create table CURDATE(a int);
+create table CURDATE (a int);
+drop table CURDATE;
+
+--error ER_PARSE_ERROR
+create table CURTIME(a int);
+create table CURTIME (a int);
+drop table CURTIME;
+
+--error ER_PARSE_ERROR
+create table DATE_ADD(a int);
+create table DATE_ADD (a int);
+drop table DATE_ADD;
+
+--error ER_PARSE_ERROR
+create table DATE_SUB(a int);
+create table DATE_SUB (a int);
+drop table DATE_SUB;
+
+--error ER_PARSE_ERROR
+create table EXTRACT(a int);
+create table EXTRACT (a int);
+drop table EXTRACT;
+
+--error ER_PARSE_ERROR
+create table GROUP_CONCAT(a int);
+create table GROUP_CONCAT (a int);
+drop table GROUP_CONCAT;
+
+--error ER_PARSE_ERROR
+create table GROUP_UNIQUE_USERS(a int);
+create table GROUP_UNIQUE_USERS (a int);
+drop table GROUP_UNIQUE_USERS;
+
+--error ER_PARSE_ERROR
+create table MAX(a int);
+create table MAX (a int);
+drop table MAX;
+
+--error ER_PARSE_ERROR
+create table MID(a int);
+create table MID (a int);
+drop table MID;
+
+--error ER_PARSE_ERROR
+create table MIN(a int);
+create table MIN (a int);
+drop table MIN;
+
+--error ER_PARSE_ERROR
+create table NOW(a int);
+create table NOW (a int);
+drop table NOW;
+
+--error ER_PARSE_ERROR
+create table POSITION(a int);
+create table POSITION (a int);
+drop table POSITION;
+
+create table SESSION_USER(a int);
+drop table SESSION_USER;
+create table SESSION_USER (a int);
+drop table SESSION_USER;
+
+--error ER_PARSE_ERROR
+create table STD(a int);
+create table STD (a int);
+drop table STD;
+
+--error ER_PARSE_ERROR
+create table STDDEV(a int);
+create table STDDEV (a int);
+drop table STDDEV;
+
+--error ER_PARSE_ERROR
+create table STDDEV_POP(a int);
+create table STDDEV_POP (a int);
+drop table STDDEV_POP;
+
+--error ER_PARSE_ERROR
+create table STDDEV_SAMP(a int);
+create table STDDEV_SAMP (a int);
+drop table STDDEV_SAMP;
+
+create table SUBDATE(a int);
+drop table SUBDATE;
+create table SUBDATE (a int);
+drop table SUBDATE;
+
+--error ER_PARSE_ERROR
+create table SUBSTR(a int);
+create table SUBSTR (a int);
+drop table SUBSTR;
+
+--error ER_PARSE_ERROR
+create table SUBSTRING(a int);
+create table SUBSTRING (a int);
+drop table SUBSTRING;
+
+--error ER_PARSE_ERROR
+create table SUM(a int);
+create table SUM (a int);
+drop table SUM;
+
+--error ER_PARSE_ERROR
+create table SYSDATE(a int);
+create table SYSDATE (a int);
+drop table SYSDATE;
+
+create table SYSTEM_USER(a int);
+drop table SYSTEM_USER;
+create table SYSTEM_USER (a int);
+drop table SYSTEM_USER;
+
+--error ER_PARSE_ERROR
+create table TRIM(a int);
+create table TRIM (a int);
+drop table TRIM;
+
+--error ER_PARSE_ERROR
+create table UNIQUE_USERS(a int);
+create table UNIQUE_USERS (a int);
+drop table UNIQUE_USERS;
+
+--error ER_PARSE_ERROR
+create table VARIANCE(a int);
+create table VARIANCE (a int);
+drop table VARIANCE;
+
+--error ER_PARSE_ERROR
+create table VAR_POP(a int);
+create table VAR_POP (a int);
+drop table VAR_POP;
+
+--error ER_PARSE_ERROR
+create table VAR_SAMP(a int);
+create table VAR_SAMP (a int);
+drop table VAR_SAMP;
+
+set SQL_MODE='IGNORE_SPACE';
+
+create table ADDDATE(a int);
+drop table ADDDATE;
+create table ADDDATE (a int);
+drop table ADDDATE;
+
+--error ER_PARSE_ERROR
+create table BIT_AND(a int);
+--error ER_PARSE_ERROR
+create table BIT_AND (a int);
+
+--error ER_PARSE_ERROR
+create table BIT_OR(a int);
+--error ER_PARSE_ERROR
+create table BIT_OR (a int);
+
+--error ER_PARSE_ERROR
+create table BIT_XOR(a int);
+--error ER_PARSE_ERROR
+create table BIT_XOR (a int);
+
+--error ER_PARSE_ERROR
+create table CAST(a int);
+--error ER_PARSE_ERROR
+create table CAST (a int);
+
+--error ER_PARSE_ERROR
+create table COUNT(a int);
+--error ER_PARSE_ERROR
+create table COUNT (a int);
+
+--error ER_PARSE_ERROR
+create table CURDATE(a int);
+--error ER_PARSE_ERROR
+create table CURDATE (a int);
+
+--error ER_PARSE_ERROR
+create table CURTIME(a int);
+--error ER_PARSE_ERROR
+create table CURTIME (a int);
+
+--error ER_PARSE_ERROR
+create table DATE_ADD(a int);
+--error ER_PARSE_ERROR
+create table DATE_ADD (a int);
+
+--error ER_PARSE_ERROR
+create table DATE_SUB(a int);
+--error ER_PARSE_ERROR
+create table DATE_SUB (a int);
+
+--error ER_PARSE_ERROR
+create table EXTRACT(a int);
+--error ER_PARSE_ERROR
+create table EXTRACT (a int);
+
+--error ER_PARSE_ERROR
+create table GROUP_CONCAT(a int);
+--error ER_PARSE_ERROR
+create table GROUP_CONCAT (a int);
+
+--error ER_PARSE_ERROR
+create table GROUP_UNIQUE_USERS(a int);
+--error ER_PARSE_ERROR
+create table GROUP_UNIQUE_USERS (a int);
+
+--error ER_PARSE_ERROR
+create table MAX(a int);
+--error ER_PARSE_ERROR
+create table MAX (a int);
+
+--error ER_PARSE_ERROR
+create table MID(a int);
+--error ER_PARSE_ERROR
+create table MID (a int);
+
+--error ER_PARSE_ERROR
+create table MIN(a int);
+--error ER_PARSE_ERROR
+create table MIN (a int);
+
+--error ER_PARSE_ERROR
+create table NOW(a int);
+--error ER_PARSE_ERROR
+create table NOW (a int);
+
+--error ER_PARSE_ERROR
+create table POSITION(a int);
+--error ER_PARSE_ERROR
+create table POSITION (a int);
+
+create table SESSION_USER(a int);
+drop table SESSION_USER;
+create table SESSION_USER (a int);
+drop table SESSION_USER;
+
+--error ER_PARSE_ERROR
+create table STD(a int);
+--error ER_PARSE_ERROR
+create table STD (a int);
+
+--error ER_PARSE_ERROR
+create table STDDEV(a int);
+--error ER_PARSE_ERROR
+create table STDDEV (a int);
+
+--error ER_PARSE_ERROR
+create table STDDEV_POP(a int);
+--error ER_PARSE_ERROR
+create table STDDEV_POP (a int);
+
+--error ER_PARSE_ERROR
+create table STDDEV_SAMP(a int);
+--error ER_PARSE_ERROR
+create table STDDEV_SAMP (a int);
+
+create table SUBDATE(a int);
+drop table SUBDATE;
+create table SUBDATE (a int);
+drop table SUBDATE;
+
+--error ER_PARSE_ERROR
+create table SUBSTR(a int);
+--error ER_PARSE_ERROR
+create table SUBSTR (a int);
+
+--error ER_PARSE_ERROR
+create table SUBSTRING(a int);
+--error ER_PARSE_ERROR
+create table SUBSTRING (a int);
+
+--error ER_PARSE_ERROR
+create table SUM(a int);
+--error ER_PARSE_ERROR
+create table SUM (a int);
+
+--error ER_PARSE_ERROR
+create table SYSDATE(a int);
+--error ER_PARSE_ERROR
+create table SYSDATE (a int);
+
+create table SYSTEM_USER(a int);
+drop table SYSTEM_USER;
+create table SYSTEM_USER (a int);
+drop table SYSTEM_USER;
+
+--error ER_PARSE_ERROR
+create table TRIM(a int);
+--error ER_PARSE_ERROR
+create table TRIM (a int);
+
+--error ER_PARSE_ERROR
+create table UNIQUE_USERS(a int);
+--error ER_PARSE_ERROR
+create table UNIQUE_USERS (a int);
+
+--error ER_PARSE_ERROR
+create table VARIANCE(a int);
+--error ER_PARSE_ERROR
+create table VARIANCE (a int);
+
+--error ER_PARSE_ERROR
+create table VAR_POP(a int);
+--error ER_PARSE_ERROR
+create table VAR_POP (a int);
+
+--error ER_PARSE_ERROR
+create table VAR_SAMP(a int);
+--error ER_PARSE_ERROR
+create table VAR_SAMP (a int);
+
+SET @@sql_mode=@save_sql_mode;
+
+#=============================================================================
+# SYNTACTIC PARSER (bison)
+#=============================================================================
+
+#
+#
+# Bug#21114 (Foreign key creation fails to table with name format)
+# 
+
+# Test coverage with edge conditions
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select pi(3.14);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select tan();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select tan(1, 2);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select makedate(1);
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select makedate(1, 2, 3);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select maketime();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select maketime(1);
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select maketime(1, 2);
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select maketime(1, 2, 3, 4);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select atan();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select atan2(1, 2, 3);
+
+select benchmark(10, 1+1);
+
+-- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+select benchmark(5+5, 2);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select concat();
+select concat("foo");
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select concat_ws();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select concat_ws("foo");
+
+set @pwd="my password";
+-- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+select encode("secret", @pwd);
+-- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+select decode("encoded-secret", @pwd);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select encrypt();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select encrypt(1, 2, 3);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select des_encrypt("p1", "p2", "not expected");
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select des_decrypt("p1", "p2", "not expected");
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select elt();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select elt(1);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select export_set();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select export_set("p1");
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select export_set("p1", "p2");
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select export_set("p1", "p2", "p3", "p4", "p5", "p6");
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select field();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select field("p1");
+
+set @dec=2;
+-- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+select format(pi(), @dec);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select from_unixtime();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select from_unixtime(1, 2, 3);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select unix_timestamp(1, 2);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select greatest();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select greatest(12);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select last_insert_id(1, 2);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select least();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select least(12);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select locate();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select locate(1);
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select locate(1, 2, 3, 4);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select log();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select log(1, 2, 3);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select make_set();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select make_set(1);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select master_pos_wait();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select master_pos_wait(1);
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select master_pos_wait(1, 2, 3, 4);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select rand(1, 2, 3);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select round(1, 2, 3);
+
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select yearweek();
+-- error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+select yearweek(1, 2, 3);
+
