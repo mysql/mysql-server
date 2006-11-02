@@ -305,8 +305,8 @@ prepare stmt4 from ' show table status from test like ''t9%'' ';
 --replace_result 2147483647 4294967295
 # Bug#4288
 execute stmt4;
---replace_column 2 #
 prepare stmt4 from ' show status like ''Threads_running'' ';
+--replace_column 2 #
 execute stmt4;
 prepare stmt4 from ' show variables like ''sql_mode'' ';
 execute stmt4;

@@ -4,23 +4,19 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
-use Carp qw(cluck);
 use Socket;
 use Errno;
 use strict;
-
-#use POSIX ":sys_wait_h";
-use POSIX 'WNOHANG';
 
 sub mtr_init_timers ();
 sub mtr_timer_start($$$);
 sub mtr_timer_stop($$);
 sub mtr_timer_stop_all($);
-sub mtr_timer_waitpid($$$);
+
 
 ##############################################################################
 #
-#  Initiate a structure shared by all timers
+#  Initiate the structure shared by all timers
 #
 ##############################################################################
 
@@ -35,17 +31,19 @@ sub mtr_init_timers () {
 #  Start, stop and poll a timer
 #
 #  As alarm() isn't portable to Windows, we use separate processes to
-#  implement timers. That is why there is a mtr_timer_waitpid(), as this
-#  is where we catch a timeout.
+#  implement timers.
 #
 ##############################################################################
 
 sub mtr_timer_start($$$) {
   my ($timers,$name,$duration)= @_;
 
+  mtr_verbose("mtr_timer_start: $name, $duration");
+
   if ( exists $timers->{'timers'}->{$name} )
   {
     # We have an old running timer, kill it
+    mtr_verbose("There is an old timer running");
     mtr_timer_stop($timers,$name);
   }
 
@@ -57,7 +55,7 @@ sub mtr_timer_start($$$) {
     {
       if ( $! == $!{EAGAIN} )           # See "perldoc Errno"
       {
-        mtr_debug("Got EAGAIN from fork(), sleep 1 second and redo");
+        mtr_warning("Got EAGAIN from fork(), sleep 1 second and redo");
         sleep(1);
         redo FORK;
       }
@@ -70,6 +68,7 @@ sub mtr_timer_start($$$) {
     if ( $tpid )
     {
       # Parent, record the information
+      mtr_verbose("timer parent, record info($name, $tpid, $duration)");
       $timers->{'timers'}->{$name}->{'pid'}= $tpid;
       $timers->{'timers'}->{$name}->{'duration'}= $duration;
       $timers->{'pids'}->{$tpid}= $name;
@@ -85,6 +84,7 @@ sub mtr_timer_start($$$) {
       $SIG{INT}= 'DEFAULT';
 
       $0= "mtr_timer(timers,$name,$duration)";
+      mtr_verbose("timer child $name, sleep $duration");
       sleep($duration);
       exit(0);
     }
@@ -95,9 +95,12 @@ sub mtr_timer_start($$$) {
 sub mtr_timer_stop ($$) {
   my ($timers,$name)= @_;
 
+  mtr_verbose("mtr_timer_stop: $name");
+
   if ( exists $timers->{'timers'}->{$name} )
   {
     my $tpid= $timers->{'timers'}->{$name}->{'pid'};
+    mtr_verbose("Stopping timer with pid $tpid");
 
     # FIXME as Cygwin reuses pids fast, maybe check that is
     # the expected process somehow?!
@@ -114,7 +117,7 @@ sub mtr_timer_stop ($$) {
   }
   else
   {
-    mtr_debug("Asked to stop timer \"$name\" not started");
+    mtr_error("Asked to stop timer \"$name\" not started");
     return 0;
   }
 }
@@ -136,10 +139,8 @@ sub mtr_timer_timeout ($$) {
 
   return "" unless exists $timers->{'pids'}->{$pid};
 
-  # We got a timeout
-  my $name= $timers->{'pids'}->{$pid};
-  mtr_timer_stop($timers, $timers->{'timers'}->{$name});
-  return $name;
+  # We got a timeout, return the name ot the timer
+  return $timers->{'pids'}->{$pid};
 }
 
 1;
