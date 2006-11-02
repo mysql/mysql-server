@@ -9,8 +9,10 @@ disable_query_log;
 drop table if exists t1, t2;
 --enable_warnings
 flush tables;
-@r/have_ndb.require show variables like "have_ndbcluster";
-# @r/server_id.require show variables like "server_id";
+--require r/have_ndb.require
+show variables like "have_ndbcluster";
+#--require r/server_id.require
+#show variables like "server_id";
 enable_query_log;
 
 # Check that server2 has NDB support
@@ -20,8 +22,10 @@ disable_query_log;
 drop table if exists t1, t2;
 --enable_warnings
 flush tables;
-@r/have_ndb.require show variables like "have_ndbcluster";
-# @r/server_id1.require show variables like "server_id";
+--require r/have_ndb.require
+show variables like "have_ndbcluster";
+#--require r@r/server_id1.require
+#show variables like "server_id";
 enable_query_log;
 
 # Set the default connection to 'server1'

@@ -9,10 +9,12 @@ use strict;
 sub mtr_full_hostname ();
 sub mtr_short_hostname ();
 sub mtr_init_args ($);
-sub mtr_add_arg ($$);
+sub mtr_add_arg ($$@);
 sub mtr_path_exists(@);
 sub mtr_script_exists(@);
+sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
+sub mtr_exe_maybe_exists(@);
 sub mtr_copy_dir($$);
 sub mtr_same_opts($$);
 sub mtr_cmp_opts($$);
@@ -54,7 +56,7 @@ sub mtr_init_args ($) {
   $$args = [];                            # Empty list
 }
 
-sub mtr_add_arg ($$) {
+sub mtr_add_arg ($$@) {
   my $args=   shift;
   my $format= shift;
   my @fargs = @_;
@@ -101,8 +103,17 @@ sub mtr_script_exists (@) {
   }
 }
 
-sub mtr_exe_exists (@) {
+sub mtr_file_exists (@) {
+  foreach my $path ( @_ )
+  {
+    return $path if -e $path;
+  }
+  return "";
+}
+
+sub mtr_exe_maybe_exists (@) {
   my @path= @_;
+
   map {$_.= ".exe"} @path if $::glob_win32;
   foreach my $path ( @path )
   {
@@ -115,6 +126,16 @@ sub mtr_exe_exists (@) {
       return $path if -x $path;
     }
   }
+  return "";
+}
+
+sub mtr_exe_exists (@) {
+  my @path= @_;
+  if (my $path= mtr_exe_maybe_exists(@path))
+  {
+    return $path;
+  }
+  # Could not find exe, show error
   if ( @path == 1 )
   {
     mtr_error("Could not find $path[0]");
@@ -125,18 +146,29 @@ sub mtr_exe_exists (@) {
   }
 }
 
+
 sub mtr_copy_dir($$) {
-  my $srcdir= shift;
-  my $dstdir= shift;
+  my $from_dir= shift;
+  my $to_dir= shift;
 
-  # Create destination directory
-  mkpath($dstdir);
-  find(\&mtr_copy_one_file, $dstdir);
+#  mtr_verbose("Copying from $from_dir to $to_dir");
+
+  mkpath("$to_dir");
+  opendir(DIR, "$from_dir")
+    or mtr_error("Can't find $from_dir$!");
+  for(readdir(DIR)) {
+    next if "$_" eq "." or "$_" eq "..";
+    if ( -d "$from_dir/$_" )
+    {
+      mtr_copy_dir("$from_dir/$_", "$to_dir/$_");
+      next;
+    }
+    copy("$from_dir/$_", "$to_dir/$_");
+  }
+  closedir(DIR);
+
 }
 
-sub mtr_copy_one_file {
-  print $File::Find::name, "\n";
-}
 
 sub mtr_same_opts ($$) {
   my $l1= shift;

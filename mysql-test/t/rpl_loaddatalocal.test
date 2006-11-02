@@ -20,11 +20,13 @@ while ($1)
 }
 set SQL_LOG_BIN=1;
 enable_query_log;
-select * into outfile '../../var/master-data/rpl_loaddatalocal.select_outfile' from t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval select * into outfile '$MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' from t1;
 #This will generate a 20KB file, now test LOAD DATA LOCAL
 truncate table t1;
-load data local infile './var/master-data/rpl_loaddatalocal.select_outfile' into table t1;
-system rm ./var/master-data/rpl_loaddatalocal.select_outfile ;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval load data local infile '$MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' into table t1;
+--remove_file $MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile
 save_master_pos;
 connection slave;
 sync_with_master;
