@@ -253,8 +253,8 @@ $CP mysql-test/t/*.test $BASE/mysql-test/t
 $CP mysql-test/t/*.imtest mysql-test/t/*.disabled $BASE/mysql-test/t
 $CP mysql-test/t/*.opt mysql-test/t/*.slave-mi $BASE/mysql-test/t
 $CP mysql-test/t/*.sh mysql-test/t/*.sql $BASE/mysql-test/t
-$CP mysql-test/r/*.result mysql-test/r/*.require \
-    $BASE/mysql-test/r
+$CP mysql-test/r/*.result  $BASE/mysql-test/r
+$CP mysql-test/r/*.require $BASE/mysql-test/r
 $CP mysql-test/extra/binlog_tests/*.test $BASE/mysql-test/extra/binlog_tests
 $CP mysql-test/extra/rpl_tests/*.test $BASE/mysql-test/extra/rpl_tests
 
@@ -326,14 +326,16 @@ fi
 
 # NDB Cluster
 if [ x$NDBCLUSTER = x1 ]; then
-  ( cd storage/ndb    ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
-  ( cd mysql-test/ndb ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
+  ( cd storage/ndb ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
+  ( cd mysql-test  ; @MAKE@ DESTDIR=$BASE/ndb-stage install )
   $CP $BASE/ndb-stage@bindir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@libexecdir@/* $BASE/bin/.
   $CP $BASE/ndb-stage@pkglibdir@/* $BASE/lib/.
   test -d $BASE/include/storage || mkdir $BASE/include/storage
   $CP -r $BASE/ndb-stage@pkgincludedir@/storage/ndb $BASE/include/storage/
   $CP -r $BASE/ndb-stage@prefix@/mysql-test/ndb $BASE/mysql-test/. || exit 1
+  $CP -r $BASE/ndb-stage@prefix@/mysql-test/std_data/ndb_backup50 $BASE/mysql-test/std_data/. || exit 1
+  $CP -r $BASE/ndb-stage@prefix@/mysql-test/std_data/ndb_backup51 $BASE/mysql-test/std_data/. || exit 1
   rm -rf $BASE/ndb-stage
 fi
 

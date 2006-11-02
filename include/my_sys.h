@@ -341,12 +341,18 @@ typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 #ifdef THREAD
 typedef struct st_io_cache_share
 {
-  /* to sync on reads into buffer */
-  pthread_mutex_t mutex;
-  pthread_cond_t  cond;
-  int             count, total;
-  /* actual IO_CACHE that filled the buffer */
-  struct st_io_cache *active;
+  pthread_mutex_t       mutex;           /* To sync on reads into buffer. */
+  pthread_cond_t        cond;            /* To wait for signals. */
+  pthread_cond_t        cond_writer;     /* For a synchronized writer. */
+  /* Offset in file corresponding to the first byte of buffer. */
+  my_off_t              pos_in_file;
+  /* If a synchronized write cache is the source of the data. */
+  struct st_io_cache    *source_cache;
+  byte                  *buffer;         /* The read buffer. */
+  byte                  *read_end;       /* Behind last valid byte of buffer. */
+  int                   running_threads; /* threads not in lock. */
+  int                   total_threads;   /* threads sharing the cache. */
+  int                   error;           /* Last error. */
 #ifdef NOT_YET_IMPLEMENTED
   /* whether the structure should be free'd */
   my_bool alloced;
@@ -720,8 +726,8 @@ extern void setup_io_cache(IO_CACHE* info);
 extern int _my_b_read(IO_CACHE *info,byte *Buffer,uint Count);
 #ifdef THREAD
 extern int _my_b_read_r(IO_CACHE *info,byte *Buffer,uint Count);
-extern void init_io_cache_share(IO_CACHE *info,
-				IO_CACHE_SHARE *s, uint num_threads);
+extern void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
+                                IO_CACHE *write_cache, uint num_threads);
 extern void remove_io_thread(IO_CACHE *info);
 #endif
 extern int _my_b_seq_read(IO_CACHE *info,byte *Buffer,uint Count);
