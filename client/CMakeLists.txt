@@ -65,6 +65,9 @@ TARGET_LINK_LIBRARIES(mysqldump mysqlclient mysys dbug yassl taocrypt zlib wsock
 ADD_EXECUTABLE(mysqlimport mysqlimport.c)
 TARGET_LINK_LIBRARIES(mysqlimport mysqlclient mysys dbug yassl taocrypt zlib wsock32)
 
+ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c)
+TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient mysys dbug yassl taocrypt zlib wsock32)
+
 ADD_EXECUTABLE(mysqlshow mysqlshow.c)
 TARGET_LINK_LIBRARIES(mysqlshow mysqlclient mysys dbug yassl taocrypt zlib wsock32)
 

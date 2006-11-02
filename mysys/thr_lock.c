@@ -72,7 +72,7 @@ multiple read locks.
 */
 
 #if !defined(MAIN) && !defined(DBUG_OFF) && !defined(EXTRA_DEBUG)
-#define DBUG_OFF
+#define FORCE_DBUG_OFF
 #endif
 
 #include "mysys_priv.h"
