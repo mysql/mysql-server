@@ -66,6 +66,9 @@ sub mtr_add_arg ($$@) {
 
 ##############################################################################
 
+# Note - More specific paths should be given before less specific.  For examle
+# /client/debug should be listed before /client
+
 sub mtr_path_exists (@) {
   foreach my $path ( @_ )
   {
@@ -80,6 +83,9 @@ sub mtr_path_exists (@) {
     mtr_error("Could not find any of " . join(" ", @_));
   }
 }
+
+# Note - More specific paths should be given before less specific.  For examle
+# /client/debug should be listed before /client
 
 sub mtr_script_exists (@) {
   foreach my $path ( @_ )
@@ -111,6 +117,20 @@ sub mtr_file_exists (@) {
   return "";
 }
 
+# Note - More specific paths should be given before less specific.  For examle
+# /client/debug should be listed before /client
+
+sub mtr_file_exists (@) {
+  foreach my $path ( @_ )
+  {
+    return $path if -e $path;
+  }
+  return "";
+}
+
+# Note - More specific paths should be given before less specific.  For examle
+# /client/debug should be listed before /client
+
 sub mtr_exe_maybe_exists (@) {
   my @path= @_;
 
@@ -128,6 +148,9 @@ sub mtr_exe_maybe_exists (@) {
   }
   return "";
 }
+
+# Note - More specific paths should be given before less specific.  For examle
+# /client/debug should be listed before /client
 
 sub mtr_exe_exists (@) {
   my @path= @_;
