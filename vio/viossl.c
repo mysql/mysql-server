@@ -26,6 +26,10 @@
 #ifdef HAVE_OPENSSL
 
 #ifdef __NETWARE__
+
+/* yaSSL already uses BSD sockets */
+#ifndef HAVE_YASSL
+
 /*
   The default OpenSSL implementation on NetWare uses WinSock.
   This code allows us to use the BSD sockets.
@@ -47,6 +51,7 @@ static int SSL_set_fd_bsd(SSL *s, int fd)
 
 #define SSL_set_fd(A, B)  SSL_set_fd_bsd((A), (B))
 
+#endif /* HAVE_YASSL */
 #endif /* __NETWARE__ */
 
 
@@ -82,7 +87,7 @@ int vio_ssl_read(Vio *vio, gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_read");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d, ssl_: 0x%p",
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d, ssl_: 0x%lx",
 		       vio->sd, buf, size, vio->ssl_arg));
 
   r= SSL_read((SSL*) vio->ssl_arg, buf, size);
@@ -99,7 +104,7 @@ int vio_ssl_write(Vio *vio, const gptr buf, int size)
 {
   int r;
   DBUG_ENTER("vio_ssl_write");
-  DBUG_PRINT("enter", ("sd: %d, buf: 0x%p, size: %d", vio->sd, buf, size));
+  DBUG_PRINT("enter", ("sd: %d, buf: 0x%lx, size: %d", vio->sd, buf, size));
 
   r= SSL_write((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
@@ -167,10 +172,9 @@ int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, vio->sd);
-  SSL_set_accept_state(ssl);
-  if (SSL_do_handshake(ssl) < 1)
+  if (SSL_accept(ssl) < 1)
   {
-    DBUG_PRINT("error", ("SSL_do_handshake failure"));
+    DBUG_PRINT("error", ("SSL_accept failure"));
     report_errors(ssl);
     SSL_free(ssl);
     vio->ssl_arg= 0;
@@ -242,10 +246,9 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout)
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, vio->sd);
-  SSL_set_connect_state(ssl);
-  if (SSL_do_handshake(ssl) < 1)
+  if (SSL_connect(ssl) < 1)
   {
-    DBUG_PRINT("error", ("SSL_do_handshake failure"));
+    DBUG_PRINT("error", ("SSL_connect failure"));
     report_errors(ssl);
     SSL_free(ssl);
     vio->ssl_arg= 0;

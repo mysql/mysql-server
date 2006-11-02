@@ -10,7 +10,7 @@ start transaction;
 select f1();
 f1()
 100
- update t1 set col2=0 where col1=1;
+update t1 set col2=0 where col1=1;
 select * from t1;
 col1	col2
 1	100

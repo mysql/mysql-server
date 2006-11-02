@@ -51,10 +51,11 @@ uint my_read(File Filedes, byte *Buffer, uint Count, myf MyFlags)
       DBUG_PRINT("warning",("Read only %ld bytes off %ld from %d, errno: %d",
                             readbytes, Count, Filedes, my_errno));
 #ifdef THREAD
-      if ((int) readbytes <= 0 && errno == EINTR)
-      {
-        DBUG_PRINT("debug", ("my_read() was interrupted and returned %d", (int) readbytes));
-        continue;				/* Interrupted */
+      if ((readbytes == 0 || (int) readbytes == -1) && errno == EINTR)
+      {  
+        DBUG_PRINT("debug", ("my_read() was interrupted and returned %d",
+                             (int) readbytes));
+        continue;                              /* Interrupted */
       }
 #endif
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))

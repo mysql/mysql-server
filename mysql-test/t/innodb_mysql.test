@@ -117,6 +117,27 @@ INSERT INTO `t2`(`id1`,`id2`,`id3`,`id4`) VALUES
 
 SELECT `id1` FROM `t1` WHERE `id1` NOT IN (SELECT `id1` FROM `t2` WHERE `id2` = 1 AND `id3` = 2);
 DROP TABLE t1, t2;
+# Bug #22728 - Handler_rollback value is growing
+#
+
+let $before= `show /*!50002 GLOBAL */ status like 'Handler_rollback'`;
+create table t1 (c1 int) engine=innodb;
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection con2;
+handler t1 open;
+handler t1 read first;
+disconnect con2;
+connection con1;
+let $after= `show /*!50002 GLOBAL */ status like 'Handler_rollback'`;
+# Compare the before and after value, it should be equal
+--disable_query_log
+eval select STRCMP("$before", "$after") as "Before and after comparison";
+--enable_query_log
+connection default;
+drop table t1;
+disconnect con1;
+--echo End of 4.1 tests
 #
 # Bug #12882  	min/max inconsistent on empty table
 #
@@ -334,6 +355,15 @@ SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
 DROP TABLE t1,t2;
 
 #
+# Bug#17530: Incorrect key truncation on table creation caused server crash.
+#
+create table t1(f1 varchar(800) binary not null, key(f1)) engine = innodb 
+  character set utf8 collate utf8_general_ci;
+insert into t1 values('aaa');
+drop table t1;
+
+
+#
 # Bug#22781: SQL_BIG_RESULT fails to influence sort plan
 #
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
@@ -350,3 +380,6 @@ INSERT INTO t1 SELECT  a + 64, MOD(a + 64, 20), 1 FROM t1;
 EXPLAIN SELECT b, SUM(c) FROM t1 GROUP BY b;
 EXPLAIN SELECT SQL_BIG_RESULT b, SUM(c) FROM t1 GROUP BY b;
 DROP TABLE t1;
+
+
+--echo End of 5.0 tests
