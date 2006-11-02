@@ -348,11 +348,11 @@ public:
   void fix_length_and_dec() { max_length= 10; }
 };
 
-#define GEOM_NEW(obj_constructor) new obj_constructor
+#define GEOM_NEW(thd, obj_constructor) new (thd->mem_root) obj_constructor
 
 #else /*HAVE_SPATIAL*/
 
-#define GEOM_NEW(obj_constructor) NULL
+#define GEOM_NEW(thd, obj_constructor) NULL
 
 #endif
 
