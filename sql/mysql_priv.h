@@ -2052,6 +2052,10 @@ inline void kill_delayed_threads(void) {}
 void init_fill_schema_files_row(TABLE* table);
 bool schema_table_store_record(THD *thd, TABLE *table);
 
+/* sql/item_create.cc */
+int item_create_init();
+void item_create_cleanup();
+
 #endif /* MYSQL_SERVER */
 #endif /* MYSQL_CLIENT */
 
