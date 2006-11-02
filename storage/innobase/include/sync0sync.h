@@ -224,12 +224,6 @@ Counts currently reserved mutexes. Works only in the debug version. */
 ulint
 mutex_n_reserved(void);
 /*==================*/
-/**********************************************************************
-Prints debug info of currently reserved mutexes. */
-
-void
-mutex_list_print_info(void);
-/*========================*/
 #endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 NOT to be used outside this module except in debugging! Gets the value

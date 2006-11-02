@@ -758,8 +758,9 @@ rw_lock_is_locked(
 Prints debug info of currently locked rw-locks. */
 
 void
-rw_lock_list_print_info(void)
-/*=========================*/
+rw_lock_list_print_info(
+/*====================*/
+	FILE*	file)		/* in: file where to print */
 {
 	rw_lock_t*	lock;
 	ulint		count		= 0;
@@ -769,7 +770,7 @@ rw_lock_list_print_info(void)
 
 	fputs("-------------\n"
 	      "RW-LATCH INFO\n"
-	      "-------------\n", stderr);
+	      "-------------\n", file);
 
 	lock = UT_LIST_GET_FIRST(rw_lock_list);
 
@@ -783,12 +784,12 @@ rw_lock_list_print_info(void)
 		    || (rw_lock_get_reader_count(lock) != 0)
 		    || (rw_lock_get_waiters(lock) != 0)) {
 
-			fprintf(stderr, "RW-LOCK: %p ", (void*) lock);
+			fprintf(file, "RW-LOCK: %p ", (void*) lock);
 
 			if (rw_lock_get_waiters(lock)) {
-				fputs(" Waiters for the lock exist\n", stderr);
+				fputs(" Waiters for the lock exist\n", file);
 			} else {
-				putc('\n', stderr);
+				putc('\n', file);
 			}
 
 			info = UT_LIST_GET_FIRST(lock->debug_list);
@@ -802,7 +803,7 @@ rw_lock_list_print_info(void)
 		lock = UT_LIST_GET_NEXT(list, lock);
 	}
 
-	fprintf(stderr, "Total number of rw-locks %ld\n", count);
+	fprintf(file, "Total number of rw-locks %ld\n", count);
 	mutex_exit(&rw_lock_list_mutex);
 }
 

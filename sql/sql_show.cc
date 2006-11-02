@@ -1664,7 +1664,9 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 			"%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
 	}
 	else
-	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip);
+	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ? 
+                                      tmp_sctx->host_or_ip : 
+                                      tmp_sctx->host ? tmp_sctx->host : "");
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
@@ -5247,7 +5249,7 @@ ST_FIELD_INFO columns_fields_info[]=
   {"TABLE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"COLUMN_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, "Field"},
   {"ORDINAL_POSITION", 21 , MYSQL_TYPE_LONG, 0, 0, 0},
-  {"COLUMN_DEFAULT", NAME_LEN, MYSQL_TYPE_STRING, 0, 1, "Default"},
+  {"COLUMN_DEFAULT", MAX_FIELD_VARCHARLENGTH, MYSQL_TYPE_STRING, 0, 1, "Default"},
   {"IS_NULLABLE", 3, MYSQL_TYPE_STRING, 0, 0, "Null"},
   {"DATA_TYPE", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0},
   {"CHARACTER_MAXIMUM_LENGTH", 21 , MYSQL_TYPE_LONG, 0, 1, 0},

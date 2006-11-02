@@ -501,7 +501,19 @@ SHOW TABLES FROM no_such_database;
 --error ER_NO_SUCH_TABLE
 SHOW COLUMNS FROM no_such_table;
 
-# End of 5.0 tests.
+
+#
+# Bug #19764: SHOW commands end up in the slow log as table scans
+#
+flush status;
+show status like 'slow_queries';
+show tables;
+show status like 'slow_queries';
+# Table scan query, to ensure that slow_queries does still get incremented
+# (mysqld is started with --log-queries-not-using-indexes)
+select 1 from information_schema.tables limit 1;
+show status like 'slow_queries';
+
 --echo End of 5.0 tests.
 
 --disable_result_log
