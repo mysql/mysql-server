@@ -1329,7 +1329,6 @@ event_tail:
 
             Lex->sql_command= SQLCOM_CREATE_EVENT;
             /* We need that for disallowing subqueries */
-            Lex->expr_allows_subselect= FALSE;
           }
           ON SCHEDULE_SYM ev_schedule_time
           opt_ev_on_completion
@@ -1351,7 +1350,6 @@ event_tail:
               can overwrite it
             */
             Lex->sql_command= SQLCOM_CREATE_EVENT;
-            Lex->expr_allows_subselect= TRUE;
           }
       ;
 
@@ -4736,8 +4734,6 @@ alter:
             YYTHD->client_capabilities &= ~CLIENT_MULTI_QUERIES;
 
             Lex->sql_command= SQLCOM_ALTER_EVENT;
-            /* we need that for disallowing subqueries */
-            Lex->expr_allows_subselect= FALSE;
           }
           ev_alter_on_schedule_completion
           opt_ev_rename_to
@@ -4763,7 +4759,6 @@ alter:
               can overwrite it
             */
             Lex->sql_command= SQLCOM_ALTER_EVENT;
-            Lex->expr_allows_subselect= TRUE;
           }
         | ALTER TABLESPACE alter_tablespace_info
           {
@@ -8638,17 +8633,12 @@ purge_option:
 /* kill threads */
 
 kill:
-	KILL_SYM
-        {
-          Lex->sql_command= SQLCOM_KILL;
-          Lex->expr_allows_subselect= FALSE;
-        }
-        kill_option expr
+	KILL_SYM kill_option expr
 	{
 	  LEX *lex=Lex;
 	  lex->value_list.empty();
-	  lex->value_list.push_front($4);
-          Lex->expr_allows_subselect= TRUE;
+	  lex->value_list.push_front($3);
+          lex->sql_command= SQLCOM_KILL;
 	};
 
 kill_option:
