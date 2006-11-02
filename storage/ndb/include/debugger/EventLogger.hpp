@@ -172,7 +172,6 @@ private:
   Uint32 m_filterLevel;
 
   STATIC_CONST(MAX_TEXT_LENGTH = 256);
-  char m_text[MAX_TEXT_LENGTH];
 };
 
 
