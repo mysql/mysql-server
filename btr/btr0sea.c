@@ -696,7 +696,7 @@ btr_search_guess_on_hash(
 {
 	buf_block_t*	block;
 	rec_t*		rec;
-	page_t*		page;
+	const page_t*	page;
 	ulint		fold;
 	ulint		tuple_n_fields;
 	dulint		index_id;
@@ -756,10 +756,27 @@ btr_search_guess_on_hash(
 		goto failure_unlock;
 	}
 
-	mutex_enter(&buf_pool->mutex);
-	block = buf_block_align(rec);
-	mutex_exit(&buf_pool->mutex);
-	page = page_align(rec);
+	page = page_align((rec_t*) rec);
+	{
+		ulint	page_no		= page_get_page_no(page);
+		ulint	space_id	= page_get_space_id(page);
+
+		mutex_enter(&buf_pool->mutex);
+		block = buf_page_hash_get(space_id, page_no);
+		mutex_exit(&buf_pool->mutex);
+	}
+
+	if (UNIV_UNLIKELY(!block)) {
+
+		/* The block is most probably being freed.
+		The function buf_LRU_search_and_free_block()
+		first removes the block from buf_pool->page_hash
+		by calling buf_LRU_block_remove_hashed_page().
+		After that, it invokes btr_search_drop_page_hash_index().
+		Let us pretend that the block was also removed from
+		the adaptive hash index. */
+		goto failure_unlock;
+	}
 
 	if (UNIV_LIKELY(!has_search_latch)) {
 
@@ -1627,9 +1644,29 @@ btr_search_validate(void)
 
 		node = hash_get_nth_cell(btr_search_sys->hash_index, i)->node;
 
-		while (node != NULL) {
-			block = buf_block_align(node->data);
+		for (; node != NULL; node = node->next) {
 			page = page_align(node->data);
+			{
+				ulint	page_no	= page_get_page_no(page);
+				ulint	space_id= page_get_space_id(page);
+
+				block = buf_page_hash_get(space_id, page_no);
+			}
+
+			if (UNIV_UNLIKELY(!block)) {
+
+				/* The block is most probably being freed.
+				The function buf_LRU_search_and_free_block()
+				first removes the block from
+				buf_pool->page_hash by calling
+				buf_LRU_block_remove_hashed_page().
+				After that, it invokes
+				btr_search_drop_page_hash_index().
+				Let us pretend that the block was also removed
+				from the adaptive hash index. */
+				continue;
+			}
+
 			offsets = rec_get_offsets((rec_t*) node->data,
 						  block->index, offsets,
 						  block->curr_n_fields
@@ -1682,8 +1719,6 @@ btr_search_validate(void)
 					n_page_dumps++;
 				}
 			}
-
-			node = node->next;
 		}
 	}
 
