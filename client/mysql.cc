@@ -2124,6 +2124,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
 		(long) mysql_num_rows(result),
 		(long) mysql_num_rows(result) == 1 ? "row" : "rows");
 	end_pager();
+        if (mysql_errno(&mysql))
+          error= put_error(&mysql);
       }
     }
     else if (mysql_affected_rows(&mysql) == ~(ulonglong) 0)
