@@ -1893,7 +1893,7 @@ runDictOps(NDBT_Context* ctx, NDBT_Step* step)
     // create indexes
     const char** indlist = NDBT_Tables::getIndexes(tabName);
     uint indnum = 0;
-    while (*indlist != 0) {
+    while (indlist != 0 && *indlist != 0) {
       uint count = 0;
     try_create_index:
       count++;
