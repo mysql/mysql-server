@@ -3906,6 +3906,12 @@ end_with_restore_list:
   case SQLCOM_ALTER_EVENT:
   {
     DBUG_ASSERT(lex->event_parse_data);
+    if (lex->table_or_sp_used())
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
+               "function calls as part of this statement");
+      break;
+    }
     switch (lex->sql_command) {
     case SQLCOM_CREATE_EVENT:
       res= Events::get_instance()->
@@ -4206,6 +4212,13 @@ end_with_restore_list:
   case SQLCOM_KILL:
   {
     Item *it= (Item *)lex->value_list.head();
+
+    if (lex->table_or_sp_used())
+    {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
+               "function calls as part of this statement");
+      break;
+    }
 
     if ((!it->fixed && it->fix_fields(lex->thd, &it)) || it->check_cols(1))
     {
