@@ -1483,8 +1483,9 @@ bool handler::check_if_log_table_locking_is_allowed(uint sql_command,
 {
   /*
     Deny locking of the log tables, which is incompatible with
-    concurrent insert. Unless called from a logger THD:
-    general_log_thd or slow_log_thd.
+    concurrent insert. The routine is not called if the table is
+    being locked from a logger THD (general_log_thd or slow_log_thd)
+    or from a privileged thread (see log.cc for details)
   */
   if (table->s->log_table &&
       sql_command != SQLCOM_TRUNCATE &&
