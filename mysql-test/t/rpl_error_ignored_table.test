@@ -15,7 +15,7 @@ sync_with_master;
 # The port number is different when doing the release build with
 # Do-compile, hence we have to replace the port number here accordingly
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 33 #
+--replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 # check that the table has been ignored, because otherwise the test is nonsense
 show tables like 't1';
