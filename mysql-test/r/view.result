@@ -791,13 +791,13 @@ test.`f``1` ()
 5
 drop view v1;
 drop function `f``1`;
-create function x () returns int return 5;
-create view v1 as select x ();
+create function a() returns int return 5;
+create view v1 as select a();
 select * from v1;
-x ()
+a()
 5
 drop view v1;
-drop function x;
+drop function a;
 create table t2 (col1 char collate latin1_german2_ci);
 create view v2 as select col1 collate latin1_german1_ci from t2;
 show create view v2;

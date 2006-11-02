@@ -1184,6 +1184,7 @@ void clean_up(bool print_message)
   hostname_cache_free();
   item_user_lock_free();
   lex_free();				/* Free some memory */
+  item_create_cleanup();
   set_var_free();
   free_charsets();
   (void) ha_panic(HA_PANIC_CLOSE);	/* close all tables and logs */
@@ -2693,6 +2694,8 @@ static int init_common_variables(const char *conf_file_name, int argc,
     return 1;
   init_client_errs();
   lex_init();
+  if (item_create_init())
+    return 1;
   item_init();
   set_var_init();
   mysys_uses_curses=0;
