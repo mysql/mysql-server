@@ -46,15 +46,7 @@ void*
 runClusterMgr_C(void * me)
 {
   ((ClusterMgr*) me)->threadMain();
-  /** 
-   * Sleep to allow another thread that is not exiting to take control 
-   * of signals allocated by this thread
-   *
-   * see Ndb::~Ndb() in Ndbinit.cpp
-   */  
-#ifdef NDB_OSE
-  NdbSleep_MilliSleep(50);
-#endif
+
   return NULL;
 }
 

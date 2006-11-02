@@ -20,9 +20,7 @@
 #include <ConsoleLogHandler.hpp>
 #include <FileLogHandler.hpp>
 
-#if !defined NDB_OSE || !defined NDB_SOFTOSE
 #include <SysLogHandler.hpp>
-#endif
 
 #include <NdbOut.hpp>
 #include <NdbMain.h>
@@ -53,11 +51,7 @@ NDB_COMMAND(loggertest, "loggertest", "loggertest -console | -file",
 {	
   if (argc < 2)
   {
-#if defined NDB_OSE || defined NDB_SOFTOSE
-    ndbout << "Usage: loggertest -console | -file" << endl;
-#else
     ndbout << "Usage: loggertest -console | -file | -syslog" << endl;
-#endif
     return 0;
   }
 
@@ -70,12 +64,10 @@ NDB_COMMAND(loggertest, "loggertest", "loggertest -console | -file",
     logger.createFileHandler();
     //logger.addHandler(new FileLogHandler(argv[2]));
   }
-#if !defined NDB_OSE || !defined NDB_SOFTOSE
   else if (strcmp(argv[1], "-syslog") == 0)
   {
     logger.createSyslogHandler();
   }
-#endif
 
   logger.disable(Logger::LL_ALL);
 
@@ -101,8 +93,8 @@ NDB_COMMAND(loggertest, "loggertest", "loggertest -console | -file",
   ndbout << endl << "-- " << testCount - testFailed << " passed, " 
        << testFailed << " failed --" << endl;
 
-  logger.removeAllHandlers(); // Need to remove all for OSE, 
-                              // because logger is global
+  logger.removeAllHandlers();
+
   return 0;  	
 }
 

@@ -23,7 +23,7 @@
 #include <FileLogHandler.hpp>
 #include "LogHandlerList.hpp"
 
-#if !defined NDB_OSE || !defined NDB_SOFTOSE || !defined NDB_WIN32
+#if !defined NDB_WIN32
 #include <SysLogHandler.hpp>
 #endif
 
@@ -134,7 +134,7 @@ Logger::createSyslogHandler()
   bool rc = true;
   if (m_pSyslogHandler == NULL)
   {
-#if defined NDB_OSE || defined NDB_SOFTOSE || defined NDB_WIN32
+#if defined NDB_WIN32
     m_pSyslogHandler = new ConsoleLogHandler(); 
 #else
     m_pSyslogHandler = new SysLogHandler(); 

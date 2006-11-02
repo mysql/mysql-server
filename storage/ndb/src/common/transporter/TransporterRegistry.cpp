@@ -27,11 +27,6 @@
 #include "TCP_Transporter.hpp"
 #endif
 
-#ifdef NDB_OSE_TRANSPORTER
-#include "OSE_Receiver.hpp"
-#include "OSE_Transporter.hpp"
-#endif
-
 #ifdef NDB_SCI_TRANSPORTER
 #include "SCI_Transporter.hpp"
 #endif
@@ -95,7 +90,6 @@ TransporterRegistry::TransporterRegistry(void * callback,
   theTCPTransporters  = new TCP_Transporter * [maxTransporters];
   theSCITransporters  = new SCI_Transporter * [maxTransporters];
   theSHMTransporters  = new SHM_Transporter * [maxTransporters];
-  theOSETransporters  = new OSE_Transporter * [maxTransporters];
   theTransporterTypes = new TransporterType   [maxTransporters];
   theTransporters     = new Transporter     * [maxTransporters];
   performStates       = new PerformState      [maxTransporters];
@@ -106,21 +100,16 @@ TransporterRegistry::TransporterRegistry(void * callback,
   nTCPTransporters = 0;
   nSCITransporters = 0;
   nSHMTransporters = 0;
-  nOSETransporters = 0;
   
   // Initialize the transporter arrays
   for (unsigned i=0; i<maxTransporters; i++) {
     theTCPTransporters[i] = NULL;
     theSCITransporters[i] = NULL;
     theSHMTransporters[i] = NULL;
-    theOSETransporters[i] = NULL;
     theTransporters[i]    = NULL;
     performStates[i]      = DISCONNECTED;
     ioStates[i]           = NoHalt;
   }
-  theOSEReceiver = 0;
-  theOSEJunkSocketSend = 0;
-  theOSEJunkSocketRecv = 0;
 
   DBUG_VOID_RETURN;
 }
@@ -155,19 +144,11 @@ TransporterRegistry::~TransporterRegistry()
   delete[] theTCPTransporters;
   delete[] theSCITransporters;
   delete[] theSHMTransporters;
-  delete[] theOSETransporters;
   delete[] theTransporterTypes;
   delete[] theTransporters;
   delete[] performStates;
   delete[] ioStates;
 
-#ifdef NDB_OSE_TRANSPORTER
-  if(theOSEReceiver != NULL){
-    theOSEReceiver->destroyPhantom();
-    delete theOSEReceiver;
-    theOSEReceiver = 0;
-  }
-#endif
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
 
@@ -326,60 +307,6 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
   performStates[t->getRemoteNodeId()]       = DISCONNECTED;
   nTransporters++;
   nTCPTransporters++;
-
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  t->theReceiverPid = theReceiverPid;
-#endif
-  
-  return true;
-#else
-  return false;
-#endif
-}
-
-bool
-TransporterRegistry::createOSETransporter(TransporterConfiguration *conf) {
-#ifdef NDB_OSE_TRANSPORTER
-
-  if(!nodeIdSpecified){
-    init(conf->localNodeId);
-  }
-  
-  if(conf->localNodeId != localNodeId)
-    return false;
-  
-  if(theTransporters[conf->remoteNodeId] != NULL)
-    return false;
-
-  if(theOSEReceiver == NULL){
-    theOSEReceiver = new OSE_Receiver(this,
-				      10,
-				      localNodeId);
-  }
-  
-  OSE_Transporter * t = new OSE_Transporter(conf->ose.prioASignalSize,
-					    conf->ose.prioBSignalSize,
-					    localNodeId,
-					    conf->localHostName,
-					    conf->remoteNodeId,
-					    conf->serverNodeId,
-					    conf->remoteHostName,
-					    conf->checksum,
-					    conf->signalId);
-  if (t == NULL)
-    return false;
-  else if (!t->initTransporter()) {
-    delete t;
-    return false;
-  }
-  // Put the transporter in the transporter arrays
-  theOSETransporters[nOSETransporters]      = t;
-  theTransporters[t->getRemoteNodeId()]     = t;
-  theTransporterTypes[t->getRemoteNodeId()] = tt_OSE_TRANSPORTER;
-  performStates[t->getRemoteNodeId()]       = DISCONNECTED;
-  
-  nTransporters++;
-  nOSETransporters++;
 
   return true;
 #else
@@ -550,19 +477,8 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
     nSHMTransporters --;
 #endif
     break;
-  case tt_OSE_TRANSPORTER:
-#ifdef NDB_OSE_TRANSPORTER
-    for(; ind < nOSETransporters; ind++)
-      if(theOSETransporters[ind]->getRemoteNodeId() == nodeId)
-	break;
-    ind++;
-    for(; ind<nOSETransporters; ind++)
-      theOSETransporters[ind-1] = theOSETransporters[ind];
-    nOSETransporters --;
-#endif
-    break;
   }
-  
+
   nTransporters--;
 
   // Delete the transporter and remove it from theTransporters array
@@ -742,12 +658,7 @@ TransporterRegistry::external_IO(Uint32 timeOutMillis) {
 Uint32
 TransporterRegistry::pollReceive(Uint32 timeOutMillis){
   Uint32 retVal = 0;
-#ifdef NDB_OSE_TRANSPORTER
-  retVal |= poll_OSE(timeOutMillis);
-  retVal |= poll_TCP(0);
-  return retVal;
-#endif
-  
+
   if((nSCITransporters) > 0)
   {
     timeOutMillis=0;
@@ -824,18 +735,6 @@ TransporterRegistry::poll_SHM(Uint32 timeOutMillis)
 }
 #endif
 
-#ifdef NDB_OSE_TRANSPORTER
-Uint32
-TransporterRegistry::poll_OSE(Uint32 timeOutMillis)
-{
-  if(theOSEReceiver != NULL){
-    return theOSEReceiver->doReceive(timeOutMillis);
-  }
-  NdbSleep_MilliSleep(timeOutMillis);
-  return 0;
-}
-#endif
-
 #ifdef NDB_TCP_TRANSPORTER
 Uint32 
 TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
@@ -847,20 +746,8 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
   }
   
   struct timeval timeout;
-#ifdef NDB_OSE
-  // Return directly if there are no TCP transporters configured
-  
-  if(timeOutMillis <= 1){
-    timeout.tv_sec  = 0;
-    timeout.tv_usec = 1025;
-  } else {
-    timeout.tv_sec  = timeOutMillis / 1000;
-    timeout.tv_usec = (timeOutMillis % 1000) * 1000;
-  }
-#else  
   timeout.tv_sec  = timeOutMillis / 1000;
   timeout.tv_usec = (timeOutMillis % 1000) * 1000;
-#endif
 
   NDB_SOCKET_TYPE maxSocketValue = -1;
   
@@ -908,33 +795,6 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
 void
 TransporterRegistry::performReceive()
 {
-#ifdef NDB_OSE_TRANSPORTER
-  if(theOSEReceiver != 0)
-  {
-    while(theOSEReceiver->hasData())
-    {
-      NodeId remoteNodeId;
-      Uint32 * readPtr;
-      Uint32 sz = theOSEReceiver->getReceiveData(&remoteNodeId, &readPtr);
-      transporter_recv_from(callbackObj, remoteNodeId);
-      Uint32 szUsed = unpack(readPtr,
-			     sz,
-			     remoteNodeId,
-			     ioStates[remoteNodeId]);
-#ifdef DEBUG_TRANSPORTER
-      /**
-       * OSE transporter can handle executions of
-       *   half signals
-       */
-      assert(sz == szUsed);
-#endif
-      theOSEReceiver->updateReceiveDataPtr(szUsed);
-      theOSEReceiver->doReceive(0);
-      //      checkJobBuffer();
-    }
-  }
-#endif
-
 #ifdef NDB_TCP_TRANSPORTER
   if(tcpReadSelectReply > 0)
   {
@@ -1008,67 +868,7 @@ TransporterRegistry::performSend()
 {
   int i; 
   sendCounter = 1;
-  
-#ifdef NDB_OSE_TRANSPORTER
-  for (int i = 0; i < nOSETransporters; i++)
-  {
-    OSE_Transporter *t = theOSETransporters[i]; 
-    if(is_connected(t->getRemoteNodeId()) &&& (t->isConnected()))
-    {
-      t->doSend();
-    }//if
-  }//for
-#endif
-  
-#ifdef NDB_TCP_TRANSPORTER
-#ifdef NDB_OSE
-  {
-    int maxSocketValue = 0;
-    
-    // Needed for TCP/IP connections
-    // The writeset are used by select
-    fd_set writeset;
-    FD_ZERO(&writeset);
-    
-    // Prepare for sending and receiving
-    for (i = 0; i < nTCPTransporters; i++) {
-      TCP_Transporter * t = theTCPTransporters[i];
-      
-      // If the transporter is connected
-      if ((t->hasDataToSend()) && (t->isConnected())) {
-	const int socket = t->getSocket();
-	// Find the highest socket value. It will be used by select
-	if (socket > maxSocketValue) {
-	  maxSocketValue = socket;
-	}//if
-	FD_SET(socket, &writeset);
-      }//if
-    }//for
-    
-    // The highest socket value plus one
-    if(maxSocketValue == 0)
-      return;
-    
-    maxSocketValue++; 
-    struct timeval timeout = { 0, 1025 };
-    Uint32 tmp = select(maxSocketValue, 0, &writeset, 0, &timeout);
-    
-    if (tmp == 0) 
-    {
-      return;
-    }//if
-    for (i = 0; i < nTCPTransporters; i++) {
-      TCP_Transporter *t = theTCPTransporters[i];
-      const NodeId nodeId = t->getRemoteNodeId();
-      const int socket    = t->getSocket();
-      if(is_connected(nodeId)){
-	  if(t->isConnected() && FD_ISSET(socket, &writeset)) {
-	    t->doSend();
-	  }//if
-	}//if
-      }//for
-    }
-#endif
+
 #ifdef NDB_TCP_TRANSPORTER
   for (i = m_transp_count; i < nTCPTransporters; i++) 
   {
@@ -1090,7 +890,6 @@ TransporterRegistry::performSend()
   }
   m_transp_count++;
   if (m_transp_count == nTCPTransporters) m_transp_count = 0;
-#endif
 #endif
 #ifdef NDB_SCI_TRANSPORTER
   //scroll through the SCI transporters, 
@@ -1470,21 +1269,6 @@ void
 TransporterRegistry::startReceiving()
 {
   DBUG_ENTER("TransporterRegistry::startReceiving");
-#ifdef NDB_OSE_TRANSPORTER
-  if(theOSEReceiver != NULL){
-    theOSEReceiver->createPhantom();
-  }
-#endif
-
-#ifdef NDB_OSE
-  theOSEJunkSocketRecv = socket(AF_INET, SOCK_STREAM, 0);
-#endif
-
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  theReceiverPid = current_process();
-  for(int i = 0; i<nTCPTransporters; i++)
-    theTCPTransporters[i]->theReceiverPid = theReceiverPid;
-#endif
 
 #ifdef NDB_SHM_TRANSPORTER
   m_shm_own_pid = getpid();
@@ -1513,41 +1297,20 @@ TransporterRegistry::startReceiving()
 
 void
 TransporterRegistry::stopReceiving(){
-#ifdef NDB_OSE_TRANSPORTER
-  if(theOSEReceiver != NULL){
-    theOSEReceiver->destroyPhantom();
-  }
-#endif
-
   /**
    * Disconnect all transporters, this includes detach from remote node
    * and since that must be done from the same process that called attach
    * it's done here in the receive thread
    */
   disconnectAll();
-
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  if(theOSEJunkSocketRecv > 0)
-    close(theOSEJunkSocketRecv);
-  theOSEJunkSocketRecv = -1;
-#endif
-
 }
 
 void
 TransporterRegistry::startSending(){
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  theOSEJunkSocketSend = socket(AF_INET, SOCK_STREAM, 0);
-#endif
 }
 
 void
 TransporterRegistry::stopSending(){
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  if(theOSEJunkSocketSend > 0)
-    close(theOSEJunkSocketSend);
-  theOSEJunkSocketSend = -1;
-#endif
 }
 
 NdbOut & operator <<(NdbOut & out, SignalHeader & sh){

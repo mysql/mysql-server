@@ -540,7 +540,7 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
 
 void 
 catchsigs(bool ignore){
-#if !defined NDB_WIN32 && !defined NDB_SOFTOSE && !defined NDB_OSE 
+#if !defined NDB_WIN32
 
   static const int signals_shutdown[] = {
 #ifdef SIGBREAK

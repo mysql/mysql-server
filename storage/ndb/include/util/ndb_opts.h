@@ -42,7 +42,7 @@ const char *opt_debug= 0;
 #endif
 
 #define OPT_NDB_CONNECTSTRING 'c'
-#if defined VM_TRACE && ( ! ( defined NDB_OSE || defined NDB_SOFTOSE) )
+#if defined VM_TRACE
 #define OPT_WANT_CORE_DEFAULT 1
 #else
 #define OPT_WANT_CORE_DEFAULT 0

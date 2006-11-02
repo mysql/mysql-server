@@ -20,27 +20,7 @@
 #include <ndb_global.h>
 #include <ndb_net.h>
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-/**
- * Include files needed
- */
-#include "inet.h"
-
-#include <netdb.h>
-
-#define NDB_NONBLOCK FNDELAY
-#define NDB_SOCKET_TYPE int
-#define NDB_INVALID_SOCKET -1
-#define _NDB_CLOSE_SOCKET(x) close(x)
-
-/**
- * socklen_t not defined in the header files of OSE 
- */
-typedef int socklen_t;
-
-#define InetErrno (* inet_errno())
-
-#elif defined NDB_WIN32
+#if defined NDB_WIN32
 
 /**
  * Include files needed
