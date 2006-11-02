@@ -523,8 +523,9 @@ deallocate prepare stmt;
 #
 create table t1 (a varchar(20)); 
 insert into t1 values ('foo'); 
---error 1305
 prepare stmt FROM 'SELECT char_length (a) FROM t1'; 
+-- error ER_SP_DOES_NOT_EXIST
+prepare stmt2 FROM 'SELECT not_a_function (a) FROM t1'; 
 drop table t1;
 
 #
@@ -1126,8 +1127,9 @@ DROP TABLE t1;
 #
 create table t1 (a varchar(20)); 
 insert into t1 values ('foo'); 
---error 1305
 prepare stmt FROM 'SELECT char_length (a) FROM t1'; 
+-- error ER_SP_DOES_NOT_EXIST
+prepare stmt2 FROM 'SELECT not_a_function (a) FROM t1'; 
 drop table t1;
 
 #
