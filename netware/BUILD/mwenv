@@ -8,7 +8,7 @@ fi
 
 # The base path(in wineformat) where compilers, includes and
 # libraries are installed
-if test -z $MYDEV
+if test -z "$MYDEV"
 then
   # the default is "F:/mydev"
   export MYDEV="F:/mydev"
