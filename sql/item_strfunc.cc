@@ -2965,6 +2965,7 @@ String *Item_func_compress::val_str(String *str)
     null_value= 1;
     return 0;
   }
+  null_value= 0;
   if (res->is_empty()) return res;
 
   /*

@@ -215,6 +215,7 @@ select @@version;
 select @@global.version;
 @@global.version
 #
+End of 4.1 tests
 set @first_var= NULL;
 create table t1 select @first_var;
 show create table t1;
@@ -301,3 +302,11 @@ select @var;
 @var
 3
 drop table t1;
+insert into city 'blah';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''blah'' at line 1
+SHOW COUNT(*) WARNINGS;
+@@session.warning_count
+1
+SHOW COUNT(*) ERRORS;
+@@session.error_count
+1

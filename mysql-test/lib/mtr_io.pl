@@ -11,6 +11,8 @@ sub mtr_get_opts_from_file ($);
 sub mtr_fromfile ($);
 sub mtr_tofile ($@);
 sub mtr_tonewfile($@);
+sub mtr_lastlinefromfile($);
+sub mtr_appendfile_to_file ($$);
 
 ##############################################################################
 #
@@ -35,18 +37,16 @@ sub mtr_get_pid_from_file ($) {
     open(FILE, '<', $pid_file_path)
       or mtr_error("can't open file \"$pid_file_path\": $!");
 
+    # Read pid number from file
     my $pid= <FILE>;
-
-    chomp($pid) if defined $pid;
-
     close FILE;
 
-    return $pid if defined $pid && $pid ne '';
+    return $pid if $pid=~ /^(\d+)/;
 
-    mtr_debug("Pid file '$pid_file_path' is empty. " .
-              "Sleeping $timeout second(s)...");
+    mtr_debug("Pid file '$pid_file_path' does not yet contain pid number.\n" .
+              "Sleeping $timeout second(s) more...");
 
-    sleep(1);
+    sleep($timeout);
   }
 
   mtr_error("Pid file '$pid_file_path' is corrupted. " .
@@ -139,6 +139,20 @@ sub mtr_fromfile ($) {
   return $text;
 }
 
+sub mtr_lastlinefromfile ($) {
+  my $file=  shift;
+  my $text;
+
+  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
+  while (my $line= <FILE>)
+  {
+    $text= $line;
+  }
+  close FILE;
+  return $text;
+}
+
+
 sub mtr_tofile ($@) {
   my $file=  shift;
 
@@ -153,6 +167,18 @@ sub mtr_tonewfile ($@) {
   open(FILE,">",$file) or mtr_error("can't open file \"$file\": $!");
   print FILE join("", @_);
   close FILE;
+}
+
+sub mtr_appendfile_to_file ($$) {
+  my $from_file=  shift;
+  my $to_file=  shift;
+
+  open(TOFILE,">>",$to_file) or mtr_error("can't open file \"$to_file\": $!");
+  open(FROMFILE,"<",$from_file)
+    or mtr_error("can't open file \"$from_file\": $!");
+  print TOFILE while (<FROMFILE>);
+  close FROMFILE;
+  close TOFILE;
 }
 
 
