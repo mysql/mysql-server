@@ -22,8 +22,8 @@ basedir	VALUE
 server_id	VALUE
 skip-stack-trace	VALUE
 skip-innodb	VALUE
-skip-bdb	VALUE
 skip-ndbcluster	VALUE
+skip-bdb	VALUE
 SHOW INSTANCE OPTIONS mysqld2;
 option_name	value
 instance_name	VALUE
@@ -42,8 +42,8 @@ basedir	VALUE
 server_id	VALUE
 skip-stack-trace	VALUE
 skip-innodb	VALUE
-skip-bdb	VALUE
 skip-ndbcluster	VALUE
+skip-bdb	VALUE
 START INSTANCE mysqld2;
 Success: the process has been started.
 STOP INSTANCE mysqld2;
