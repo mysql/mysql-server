@@ -3237,6 +3237,11 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
 
     key_part->field=        (*field);
     key_part->image_type =  Field::itRAW;
+    /* 
+      We set keypart flag to 0 here as the only HA_PART_KEY_SEG is checked
+      in the RangeAnalysisModule.
+    */
+    key_part->flag=         0;
     /* We don't set key_parts->null_bit as it will not be used */
 
     ppar->is_part_keypart[part]= !in_subpart_fields;
