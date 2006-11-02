@@ -67,13 +67,17 @@
 class Thread_info
 {
 public:
-  Thread_info();
-  Thread_info(pthread_t thread_id_arg);
+  Thread_info(pthread_t thread_id_arg, bool send_signal_on_shutdown_arg);
   friend class Thread_registry;
+
+private:
+  Thread_info();
+
 private:
   pthread_cond_t *current_cond;
   Thread_info *prev, *next;
   pthread_t thread_id;
+  bool send_signal_on_shutdown;
 };
 
 
@@ -97,6 +101,10 @@ public:
                  pthread_mutex_t *mutex);
   int cond_timedwait(Thread_info *info, pthread_cond_t *cond,
                      pthread_mutex_t *mutex, struct timespec *wait_time);
+private:
+  void interrupt_threads();
+  void wait_for_threads_to_unregister();
+
 private:
   Thread_info head;
   bool shutdown_in_progress;

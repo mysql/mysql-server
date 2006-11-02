@@ -119,4 +119,13 @@ END|
 
 ---------------------------------------------------------------------------
 
+CREATE FUNCTION sp_vars_div_zero() RETURNS INTEGER
+BEGIN
+  DECLARE div_zero INTEGER;
+  SELECT 1/0 INTO div_zero;
+  RETURN div_zero;
+END|
+
+---------------------------------------------------------------------------
+
 delimiter ;|
