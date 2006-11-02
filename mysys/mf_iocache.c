@@ -963,13 +963,13 @@ int _my_b_read_r(register IO_CACHE *cache, byte *Buffer, uint Count)
           "seek_not_done" to indicate this to other functions operating
           on the IO_CACHE.
         */
-        if (info->seek_not_done)
+        if (cache->seek_not_done)
         {
-          if (my_seek(info->file,pos_in_file,MY_SEEK_SET,MYF(0))
+          if (my_seek(cache->file,pos_in_file,MY_SEEK_SET,MYF(0))
               == MY_FILEPOS_ERROR)
           {
-            info->error= -1;
-            unlock_io_cache(info);
+            cache->error= -1;
+            unlock_io_cache(cache);
             DBUG_RETURN(1);
           }
         }
