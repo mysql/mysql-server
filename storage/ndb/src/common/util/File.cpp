@@ -183,10 +183,5 @@ File_class::getName() const
 int
 File_class::flush() const
 {
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  ::fflush(m_file);
-  return ::fsync(::fileno(m_file));
-#else
   return ::fflush(m_file);;
-#endif
 }

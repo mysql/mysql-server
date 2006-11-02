@@ -472,25 +472,12 @@ NDB_COMMAND(acid, "acid", "acid", "acid", 65535)
   }
   NdbSchemaOp* pNdbSchemaOp = NULL ;
   VerifyMethodPtr(pNdbSchemaOp, pNdbSchemaCon, getNdbSchemaOp());
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  VerifyMethodInt(pNdbSchemaOp, createTable(
-                                            c_szWarehouse, 
-                                            (4+4+4+12)*1.02*g_nWarehouseCount/1024+1, 
-                                            TupleKey, 
-                                            (4+14)*g_nWarehouseCount/8/1024+1,
-                                            All, 
-                                            6,
-                                            78,
-                                            80,
-                                            1,
-                                            false));
-#else
   VerifyMethodInt(pNdbSchemaOp, createTable(
                                             c_szWarehouse, 
                                             (4+4+4+12)*1.02*g_nWarehouseCount/1024+1, 
                                             TupleKey, 
                                             (4+14)*g_nWarehouseCount/8/1024+1));
-#endif
+
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szWarehouseNumber, TupleKey, 32, 1, UnSigned, MMBased, false));
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szWarehouseSum, NoKey, 32, 1, UnSigned, MMBased, false));
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szWarehouseCount, NoKey, 32, 1, UnSigned, MMBased, false));
@@ -499,26 +486,13 @@ NDB_COMMAND(acid, "acid", "acid", "acid", 65535)
 
   pNdbSchemaCon= NdbSchemaCon::startSchemaTrans(pNdb);
   VerifyMethodPtr(pNdbSchemaOp, pNdbSchemaCon, getNdbSchemaOp());
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  VerifyMethodInt(pNdbSchemaOp, createTable(
-                                            c_szDistrict, 
-                                            (4+4+4+4+12)*1.02*g_nWarehouseCount*g_nDistrictPerWarehouse/1024+1, 
-                                            TupleKey, 
-                                            (4+4+14)*g_nWarehouseCount*g_nDistrictPerWarehouse/8/1024+1,
-                                            All, 
-                                            6,
-                                            78,
-                                            80,
-                                            1,
-                                            false));
-#else
   VerifyMethodInt(pNdbSchemaOp, createTable(
                                             c_szDistrict, 
                                             (4+4+4+4+12)*1.02*g_nWarehouseCount*g_nDistrictPerWarehouse/1024+1, 
                                             TupleKey, 
                                             (4+4+14)*g_nWarehouseCount*g_nDistrictPerWarehouse/8/1024+1));
 
-#endif
+
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szDistrictWarehouseNumber, TupleKey, 32, 1, UnSigned, MMBased, false));
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szDistrictNumber, TupleKey, 32, 1, UnSigned, MMBased, false));
   VerifyMethodInt(pNdbSchemaOp, createAttribute(c_szDistrictSum, NoKey, 32, 1, UnSigned, MMBased, false));

@@ -66,8 +66,7 @@ ConfigInfo::m_sectionNames[]={
 
   "TCP",
   "SCI",
-  "SHM",
-  "OSE"
+  "SHM"
 };
 const int ConfigInfo::m_noOfSectionNames = 
 sizeof(m_sectionNames)/sizeof(char*);
@@ -112,12 +111,10 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  checkConnectionSupport, 0 },
   { "SHM",  checkConnectionSupport, 0 },
   { "SCI",  checkConnectionSupport, 0 },
-  { "OSE",  checkConnectionSupport, 0 },
 
   { "TCP",  transformConnection, 0 },
   { "SHM",  transformConnection, 0 },
   { "SCI",  transformConnection, 0 },
-  { "OSE",  transformConnection, 0 },
 
   { DB_TOKEN,   fixNodeHostname, 0 },
   { API_TOKEN,  fixNodeHostname, 0 },
@@ -129,9 +126,7 @@ ConfigInfo::m_SectionRules[] = {
   { "SHM",  fixNodeId, "NodeId2" },
   { "SCI",  fixNodeId, "NodeId1" },
   { "SCI",  fixNodeId, "NodeId2" },
-  { "OSE",  fixNodeId, "NodeId1" },
-  { "OSE",  fixNodeId, "NodeId2" },
-  
+
   { "TCP",  fixHostname, "HostName1" },
   { "TCP",  fixHostname, "HostName2" },
   { "SHM",  fixHostname, "HostName1" },
@@ -140,8 +135,6 @@ ConfigInfo::m_SectionRules[] = {
   { "SCI",  fixHostname, "HostName2" },
   { "SHM",  fixHostname, "HostName1" },
   { "SHM",  fixHostname, "HostName2" },
-  { "OSE",  fixHostname, "HostName1" },
-  { "OSE",  fixHostname, "HostName2" },
 
   { "TCP",  fixPortNumber, 0 }, // has to come after fixHostName
   { "SHM",  fixPortNumber, 0 }, // has to come after fixHostName
@@ -165,7 +158,6 @@ ConfigInfo::m_SectionRules[] = {
   { "TCP",  checkConnectionConstraints, 0 },
   { "SHM",  checkConnectionConstraints, 0 },
   { "SCI",  checkConnectionConstraints, 0 },
-  { "OSE",  checkConnectionConstraints, 0 },
 
   { "TCP",  checkTCPConstraints, "HostName1" },
   { "TCP",  checkTCPConstraints, "HostName2" },
@@ -182,8 +174,7 @@ ConfigInfo::m_SectionRules[] = {
 
   { "TCP",  saveInConfigValues, 0 },
   { "SHM",  saveInConfigValues, 0 },
-  { "SCI",  saveInConfigValues, 0 },
-  { "OSE",  saveInConfigValues, 0 }
+  { "SCI",  saveInConfigValues, 0 }
 };
 const int ConfigInfo::m_NoOfRules = sizeof(m_SectionRules)/sizeof(SectionRule);
 
@@ -2147,150 +2138,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_STRING,
     UNDEFINED,
-    0, 0 },
-
-  /****************************************************************************
-   * OSE
-   ***************************************************************************/
-  {
-    CFG_SECTION_CONNECTION,
-    "OSE",
-    "OSE",
-    "Connection section",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_SECTION,
-    (const char *)CONNECTION_TYPE_OSE, 
-    0, 0 
-  },
-
-  {
-    CFG_CONNECTION_HOSTNAME_1,
-    "HostName1",
-    "OSE",
-    "Name of computer on one side of the connection",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_STRING,
-    UNDEFINED,
-    0, 0 },
-
-  {
-    CFG_CONNECTION_HOSTNAME_2,
-    "HostName2",
-    "OSE",
-    "Name of computer on one side of the connection",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_STRING,
-    UNDEFINED,
-    0, 0 },
-
-  {
-    CFG_CONNECTION_NODE_1,
-    "NodeId1",
-    "OSE",
-    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_CONNECTION_NODE_2,
-    "NodeId2",
-    "OSE",
-    "Id of node ("DB_TOKEN_PRINT", "API_TOKEN_PRINT" or "MGM_TOKEN_PRINT") on one side of the connection",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_INT,
-    UNDEFINED,
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_CONNECTION_SEND_SIGNAL_ID,
-    "SendSignalId",
-    "OSE",
-    "Sends id in each signal.  Used in trace files.",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_BOOL,
-    "true",
-    "false",
-    "true" },
-
-  {
-    CFG_CONNECTION_CHECKSUM,
-    "Checksum",
-    "OSE",
-    "If checksum is enabled, all signals between nodes are checked for errors",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_BOOL,
-    "false",
-    "false",
-    "true" },
-
-  {
-    CFG_OSE_PRIO_A_SIZE,
-    "PrioASignalSize",
-    "OSE",
-    "Size of priority A signals (in bytes)",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_INT,
-    "1000",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_OSE_PRIO_B_SIZE,
-    "PrioBSignalSize",
-    "OSE",
-    "Size of priority B signals (in bytes)",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_INT,
-    "1000",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-  
-  {
-    CFG_OSE_RECEIVE_ARRAY_SIZE,
-    "ReceiveArraySize",
-    "OSE",
-    "Number of OSE signals checked for correct ordering (in no of OSE signals)",
-    ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_INT,
-    "10",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_CONNECTION_NODE_1_SYSTEM,
-    "NodeId1_System",
-    "OSE",
-    "System for node 1 in connection",
-    ConfigInfo::CI_INTERNAL,
-    false,
-    ConfigInfo::CI_STRING,
-    UNDEFINED,
-    0, 0 },
-
-  {
-    CFG_CONNECTION_NODE_2_SYSTEM,
-    "NodeId2_System",
-    "OSE",
-    "System for node 2 in connection",
-    ConfigInfo::CI_INTERNAL,
-    false,
-    ConfigInfo::CI_STRING,
-    UNDEFINED,
-    0, 0 },
+    0, 0 }
 };
 
 const int ConfigInfo::m_NoOfParams = sizeof(m_ParamInfo) / sizeof(ParamInfo);
@@ -2835,12 +2683,7 @@ checkConnectionSupport(InitConfigFileParser::Context & ctx, const char * data)
     error= 1;
 #endif
   }
-  else if (strcasecmp("OSE",ctx.fname) == 0)
-  {
-#ifndef NDB_OSE_TRANSPORTER
-    error= 1;
-#endif
-  }
+
   if (error)
   {
     ctx.reportError("Binary not compiled with this connection support, "

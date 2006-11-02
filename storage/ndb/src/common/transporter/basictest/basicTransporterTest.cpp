@@ -57,21 +57,6 @@ TCP_TransporterConfiguration tcpTemplate = {
   true            // signalId;
 };
 
-OSE_TransporterConfiguration oseTemplate = {
-  "",    // remoteHostName;
-  "",    // localHostName;
-  0,     // remoteNodeId;
-  0,     // localNodeId;
-  false, // compression;
-  true,  // checksum;
-  true,  // signalId;
-  0,     // byteOrder;
-  
-  2000,  // prioASignalSize;
-  1000,  // prioBSignalSize;
-  10
-};
-
 SHM_TransporterConfiguration shmTemplate = {
   0,      //remoteNodeId
   0,      //localNodeId;
@@ -85,16 +70,12 @@ SHM_TransporterConfiguration shmTemplate = {
 
 TransporterRegistry *tReg = 0;
 
-#ifndef OSE_DELTA
 #include <signal.h>
-#endif
 
 extern "C"
 void
 signalHandler(int signo){
-#ifndef OSE_DELTA
   ::signal(13, signalHandler);
-#endif
   char buf[255];
   sprintf(buf,"Signal: %d\n", signo);
   ndbout << buf << endl;
@@ -114,7 +95,6 @@ typedef void (* CreateTransporterFunc)(void * conf,
 				       const char * localHostName,
 				       const char * remoteHostName);
 
-void createOSETransporter(void *, NodeId, NodeId, const char *, const char *);
 void createSCITransporter(void *, NodeId, NodeId, const char *, const char *);
 void createTCPTransporter(void *, NodeId, NodeId, const char *, const char *);
 void createSHMTransporter(void *, NodeId, NodeId, const char *, const char *);
@@ -172,9 +152,6 @@ main(int argc, const char **argv){
   if(strcasecmp(type, "tcp") == 0){
     func = createTCPTransporter;
     confTemplate = &tcpTemplate;
-  } else if(strcasecmp(type, "ose") == 0){
-    func = createOSETransporter;
-    confTemplate = &oseTemplate;
   } else if(strcasecmp(type, "sci") == 0){
     func = createSCITransporter;
     confTemplate = &sciTemplate;

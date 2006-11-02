@@ -28,10 +28,7 @@
 extern "C" {
 #endif
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-#include <ose.h>
-typedef SEMAPHORE NdbMutex;
-#elif defined NDB_WIN32
+#if defined NDB_WIN32
 typedef CRITICAL_SECTION NdbMutex;
 #else
 #include <pthread.h>

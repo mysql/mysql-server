@@ -23,11 +23,7 @@
 extern "C" {
 #endif
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-typedef unsigned long NDB_TICKS;
-#else
 typedef Uint64 NDB_TICKS; 
-#endif
 
 /**
  * Returns the current millisecond since 1970

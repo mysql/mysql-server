@@ -914,54 +914,6 @@ Uint32 Ndbfs::translateErrno(int aErrno)
       return FsRef::fsErrUnknown;
     }
 }
-#elif defined NDB_OSE || defined NDB_SOFTOSE
-Uint32 Ndbfs::translateErrno(int aErrno)
-{
-  switch (aErrno)
-    {
-      //permission denied
-    case EACCES:
-    case EROFS:
-    case ENXIO:
-      return FsRef::fsErrPermissionDenied;
-      //temporary not accessible
-    case EAGAIN:
-    case ETIMEDOUT:
-    case ENOLCK:
-      return FsRef::fsErrTemporaryNotAccessible;
-      //no space left on device
-    case ENFILE:
-    case EDQUOT:
-    case ENOSPC:
-      return FsRef::fsErrNoSpaceLeftOnDevice;
-      //none valid parameters
-    case EINVAL:
-    case EFBIG:
-    case EBADF:
-    case ENAMETOOLONG:
-    case EFAULT:
-    case EISDIR:
-      return FsRef::fsErrInvalidParameters;
-      //environment error
-    case EMLINK:
-    case ELOOP:
-      return FsRef::fsErrEnvironmentError;
-
-      //no more process resources
-    case EMFILE:
-    case ENOMEM:
-      return FsRef::fsErrNoMoreResources;
-      //no file
-    case ENOENT:
-      return FsRef::fsErrFileDoesNotExist;
-
-    case ERR_ReadUnderflow:
-      return FsRef::fsErrReadUnderflow;
-
-    default:
-      return FsRef::fsErrUnknown;
-    }
-}
 #else
 Uint32 Ndbfs::translateErrno(int aErrno)
 {

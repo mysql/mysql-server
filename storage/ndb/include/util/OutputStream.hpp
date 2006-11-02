@@ -53,15 +53,6 @@ public:
   int println(const char * fmt, ...);
 };
 
-class SoftOseOutputStream : public OutputStream {
-public:
-  SoftOseOutputStream();
-  virtual ~SoftOseOutputStream() {}
-
-  int print(const char * fmt, ...);
-  int println(const char * fmt, ...);
-};
-
 class NullOutputStream : public OutputStream {
 public:
   virtual ~NullOutputStream() {}

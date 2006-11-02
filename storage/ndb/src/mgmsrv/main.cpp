@@ -37,11 +37,7 @@
 
 #include <NdbAutoPtr.hpp>
 
-#if defined NDB_OSE || defined NDB_SOFTOSE
-#include <efs.h>
-#else
 #include <ndb_mgmclient.hpp>
-#endif
 
 #undef DEBUG
 #define DEBUG(x) ndbout << x << endl;
@@ -212,15 +208,6 @@ int main(int argc, char** argv)
 start:
   glob= new MgmGlobals;
 
-  /**
-   * OSE specific. Enable shared ownership of file system resources. 
-   * This is needed in order to use the cluster log since the events 
-   * from the cluster is written from the 'ndb_receive'(NDBAPI) thread/process.
-   */
-#if defined NDB_OSE || defined NDB_SOFTOSE
-  efs_segment_share();
-#endif
-
   global_mgmt_server_check = 1;
 
   if (opt_interactive ||
@@ -349,7 +336,6 @@ start:
   g_RestartServer= false;
   glob->socketServer->startServer();
 
-#if ! defined NDB_OSE && ! defined NDB_SOFTOSE
   if(opt_interactive) {
     BaseString con_str;
     if(glob->interface_name)
@@ -359,7 +345,6 @@ start:
     Ndb_mgmclient com(con_str.c_str(), 1);
     while(g_StopServer != true && read_and_execute(&com, "ndb_mgm> ", 1));
   } else 
-#endif
   {
     while(g_StopServer != true)
       NdbSleep_MilliSleep(500);

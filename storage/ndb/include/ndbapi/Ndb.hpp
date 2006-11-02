@@ -501,12 +501,11 @@
   
    There are four conditions leading to the transfer of database 
    operations from Ndb object buffers to the NDB kernel:
-   -# The NDB Transporter (TCP/IP, OSE, SCI or shared memory)
+   -# The NDB Transporter (TCP/IP, SCI or shared memory)
       decides that a buffer is full and sends it off. 
       The buffer size is implementation-dependent and
       may change between MySQL Cluster releases.
       On TCP/IP the buffer size is usually around 64 KB;
-      on OSE/Delta it is usually less than 2000 bytes. 
       Since each Ndb object provides a single buffer per storage node, 
       the notion of a "full" buffer is local to this storage node.
    -# The accumulation of statistical data on transferred information
@@ -991,16 +990,7 @@ template <class T> struct Ndb_free_list_t;
 
 typedef void (* NdbEventCallback)(NdbEventOperation*, Ndb*, void*);
 
-#if defined NDB_OSE
-/**
- * Default time to wait for response after request has been sent to 
- * NDB Cluster (Set to 10 seconds usually, but to 100 s in 
- * the OSE operating system)
- */
-#define WAITFOR_RESPONSE_TIMEOUT 100000 // Milliseconds
-#else
 #define WAITFOR_RESPONSE_TIMEOUT 120000 // Milliseconds
-#endif
 
 #define NDB_SYSTEM_DATABASE "sys"
 #define NDB_SYSTEM_SCHEMA "def"
