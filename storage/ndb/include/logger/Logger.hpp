@@ -276,6 +276,8 @@ public:
 
 protected:
 
+  NdbMutex *m_mutex;
+
   void log(LoggerLevel logLevel, const char* msg, va_list ap) const;
 
 private:
@@ -290,7 +292,9 @@ private:
   
   LogHandlerList* m_pHandlerList;
   const char* m_pCategory;
+
   /* Default handlers */
+  NdbMutex *m_handler_mutex;
   LogHandler* m_pConsoleHandler;
   LogHandler* m_pFileHandler;
   LogHandler* m_pSyslogHandler;
