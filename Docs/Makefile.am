@@ -66,7 +66,7 @@ INSTALL-BINARY:	mysql.info $(GT)
 # It is not in BitKeeper, but is downloaded from intranet by Bootstrap.
 dist-hook:
 	if [ -e $(srcdir)/manual.chm ] ; then \
-	  cp $(srcdir)/manual.chm $(distdir); \
+	  cp -f $(srcdir)/manual.chm $(distdir); \
 	fi
 
 # Don't update the files from bitkeeper

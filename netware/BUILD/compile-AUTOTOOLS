@@ -5,8 +5,11 @@
 
 # stop on errors
 set -e
+sed -e "s/^DIST_COMMON/#DIST_COMMON/g" storage/ndb/Makefile.am > storage/ndb/Makefile.am.$$
+mv storage/ndb/Makefile.am.$$ storage/ndb/Makefile.am
 
-for package in . ./storage/innobase
+# for package in . ./storage/innobase
+for package in .
 do
 	(cd $package
 	rm -rf config.cache autom4te.cache
@@ -14,6 +17,7 @@ do
 	autoheader
 	libtoolize --force
 	aclocal
+#	automake --verbose --add-missing --force-missing
 	automake --add-missing --force-missing
 	autoconf)
 done
