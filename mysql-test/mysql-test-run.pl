@@ -68,6 +68,9 @@ use strict;
 use warnings;
 use diagnostics;
 
+select(STDOUT);
+$| = 1; # Automatically flush STDOUT
+
 our $glob_win32_perl=  ($^O eq "MSWin32"); # ActiveState Win32 Perl
 our $glob_cygwin_perl= ($^O eq "cygwin");  # Cygwin Perl
 our $glob_win32=       ($glob_win32_perl or $glob_cygwin_perl);
@@ -126,6 +129,12 @@ our $path_my_basedir;
 our $opt_vardir;                 # A path but set directly on cmd line
 our $path_vardir_trace;          # unix formatted opt_vardir for trace files
 our $opt_tmpdir;                 # A path but set directly on cmd line
+
+# Visual Studio produces executables in different sub-directories based on the
+# configuration used to build them.  To make life easier, an environment
+# variable or command-line option may be specified to control which set of
+# executables will be used by the test suite.
+our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 our $default_vardir;
 
@@ -351,7 +360,6 @@ main();
 
 sub main () {
 
-  initial_setup();
   command_line_setup();
 
   check_ndbcluster_support(\%mysqld_variables);
@@ -433,86 +441,6 @@ sub main () {
   mtr_exit(0);
 }
 
-##############################################################################
-#
-#  Initial setup independent on command line arguments
-#
-##############################################################################
-
-sub initial_setup () {
-
-  select(STDOUT);
-  $| = 1;                       # Make unbuffered
-
-  $glob_scriptname=  basename($0);
-
-  # We require that we are in the "mysql-test" directory
-  # to run mysql-test-run
-  if (! -f $glob_scriptname)
-  {
-    mtr_error("Can't find the location for the mysql-test-run script\n" .
-              "Go to to the mysql-test directory and execute the script " .
-              "as follows:\n./$glob_scriptname");
-  }
-
-  if ( -d "../sql" )
-  {
-    $opt_source_dist=  1;
-  }
-
-  $glob_hostname=  mtr_short_hostname();
-
-  # 'basedir' is always parent of "mysql-test" directory
-  $glob_mysql_test_dir=  cwd();
-  if ( $glob_cygwin_perl )
-  {
-    # Windows programs like 'mysqld' needs Windows paths
-    $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
-    chomp($glob_mysql_test_dir);
-  }
-  $glob_basedir=         dirname($glob_mysql_test_dir);
-
-  # Expect mysql-bench to be located adjacent to the source tree, by default
-  $glob_mysql_bench_dir= "$glob_basedir/../mysql-bench"
-    unless defined $glob_mysql_bench_dir;
-
-  $path_my_basedir=
-    $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
-
-  $glob_timers= mtr_init_timers();
-
-  #
-  # Find the mysqld executable to be able to find the mysqld version
-  # number as early as possible
-  #
-
-  # Look for the path where to find the client binaries
-  $path_client_bindir= mtr_path_exists("$glob_basedir/client_release",
-				       "$glob_basedir/client_debug",
-				       "$glob_basedir/client/release",
-				       "$glob_basedir/client/debug",
-				       "$glob_basedir/client",
-				       "$glob_basedir/bin");
-
-  # Look for the mysqld executable
-  $exe_mysqld=         mtr_exe_exists ("$glob_basedir/sql/mysqld",
-				       "$path_client_bindir/mysqld-max-nt",
-				       "$path_client_bindir/mysqld-max",
-				       "$path_client_bindir/mysqld-nt",
-				       "$path_client_bindir/mysqld",
-				       "$path_client_bindir/mysqld-debug",
-				       "$path_client_bindir/mysqld-max",
-				       "$glob_basedir/libexec/mysqld",
-				       "$glob_basedir/bin/mysqld",
-				       "$glob_basedir/sql/release/mysqld",
-				       "$glob_basedir/sql/debug/mysqld");
-
-  # Use the mysqld found above to find out what features are available
-  collect_mysqld_features();
-
-}
-
-
 
 ##############################################################################
 #
@@ -590,6 +518,7 @@ sub command_line_setup () {
              'bench'                    => \$opt_bench,
              'small-bench'              => \$opt_small_bench,
              'with-ndbcluster'          => \$opt_with_ndbcluster,
+             'vs-config'            => \$opt_vs_config,
 
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
@@ -694,6 +623,68 @@ sub command_line_setup () {
             ) or usage("Can't read options");
 
   usage("") if $opt_usage;
+
+  $glob_scriptname=  basename($0);
+
+  # We require that we are in the "mysql-test" directory
+  # to run mysql-test-run
+  if (! -f $glob_scriptname)
+  {
+    mtr_error("Can't find the location for the mysql-test-run script\n" .
+              "Go to to the mysql-test directory and execute the script " .
+              "as follows:\n./$glob_scriptname");
+  }
+
+  if ( -d "../sql" )
+  {
+    $opt_source_dist=  1;
+  }
+
+  $glob_hostname=  mtr_short_hostname();
+
+  # 'basedir' is always parent of "mysql-test" directory
+  $glob_mysql_test_dir=  cwd();
+  if ( $glob_cygwin_perl )
+  {
+    # Windows programs like 'mysqld' needs Windows paths
+    $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
+    chomp($glob_mysql_test_dir);
+  }
+  $glob_basedir=         dirname($glob_mysql_test_dir);
+
+  # Expect mysql-bench to be located adjacent to the source tree, by default
+  $glob_mysql_bench_dir= "$glob_basedir/../mysql-bench"
+    unless defined $glob_mysql_bench_dir;
+
+  $path_my_basedir=
+    $opt_source_dist ? $glob_mysql_test_dir : $glob_basedir;
+
+  $glob_timers= mtr_init_timers();
+
+  #
+  # Find the mysqld executable to be able to find the mysqld version
+  # number as early as possible
+  #
+
+  # Look for the client binaries
+  $path_client_bindir= mtr_path_exists(vs_config_dirs('client', ''),
+				       "$glob_basedir/client_release",
+				       "$glob_basedir/client_debug",
+				       "$glob_basedir/client");
+
+  $exe_mysqld=         mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
+				       "$glob_basedir/sql/mysqld",
+				       "$path_client_bindir/mysqld-max-nt",
+				       "$path_client_bindir/mysqld-max",
+				       "$path_client_bindir/mysqld-nt",
+				       "$path_client_bindir/mysqld",
+				       "$path_client_bindir/mysqld-debug",
+				       "$path_client_bindir/mysqld-max",
+				       "$glob_basedir/libexec/mysqld",
+				       "$glob_basedir/bin/mysqld");
+
+  # Use the mysqld found above to find out what features are available
+  collect_mysqld_features();
 
   if ( $opt_comment )
   {
@@ -1396,16 +1387,14 @@ sub executable_setup () {
 
   # Look for my_print_defaults
   $exe_my_print_defaults=
-    mtr_exe_exists("$path_client_bindir/my_print_defaults",
-		   "$glob_basedir/extra/my_print_defaults",
-		   "$glob_basedir/extra/release/my_print_defaults",
-		   "$glob_basedir/extra/debug/my_print_defaults");
+    mtr_exe_exists(vs_config_dirs('extra', 'my_print_defaults'),
+		           "$path_client_bindir/my_print_defaults",
+		           "$glob_basedir/extra/my_print_defaults");
 
   # Look for perror
-  $exe_perror= mtr_exe_exists("$glob_basedir/extra/perror",
-			      "$path_client_bindir/perror",
-			      "$glob_basedir/extra/release/perror",
-			      "$glob_basedir/extra/debug/perror");
+  $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
+			                  "$glob_basedir/extra/perror",
+			                  "$path_client_bindir/perror");
 
   # Look for the client binaries
   $exe_mysqlcheck=     mtr_exe_exists("$path_client_bindir/mysqlcheck");
@@ -1451,22 +1440,20 @@ sub executable_setup () {
 
   # Look for the udf_example library
   $lib_udf_example=
-    mtr_file_exists("$glob_basedir/sql/.libs/udf_example.so",
-		    "$glob_basedir/sql/release/udf_example.dll",
-		    "$glob_basedir/sql/debug/udf_example.dll");
+    mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
+                    "$glob_basedir/sql/.libs/udf_example.so",);
 
   # Look for mysqltest executable
   if ( $glob_use_embedded_server )
   {
     $exe_mysqltest=
-      mtr_exe_exists("$glob_basedir/libmysqld/examples/mysqltest_embedded",
-		     "$path_client_bindir/mysqltest_embedded");
+      mtr_exe_exists(vs_config_dirs('libmysqld/examples', 'mysqltest_embedded'),
+                     "$glob_basedir/libmysqld/examples/mysqltest_embedded",                     
+                     "$path_client_bindir/mysqltest_embedded");
   }
   else
   {
       $exe_mysqltest= mtr_exe_exists("$path_client_bindir/mysqltest");
-
-
   }
 
   # Look for mysql_client_test executable which may _not_ exist in
@@ -1475,15 +1462,15 @@ sub executable_setup () {
   {
     $exe_mysql_client_test=
       mtr_exe_maybe_exists(
+        vs_config_dirs('libmysqld/examples', 'mysql_client_test_embedded'),
         "$glob_basedir/libmysqld/examples/mysql_client_test_embedded");
   }
   else
   {
     $exe_mysql_client_test=
-      mtr_exe_maybe_exists("$glob_basedir/tests/mysql_client_test",
-			   "$glob_basedir/tests/release/mysql_client_test",
-			   "$glob_basedir/tests/debug/mysql_client_test",
-			   "$glob_basedir/bin");
+      mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
+                           "$glob_basedir/tests/mysql_client_test",
+                           "$glob_basedir/bin");
   }
 }
 
@@ -2095,6 +2082,31 @@ sub check_debug_support ($) {
   }
   mtr_report("Binaries are debug compiled");
   $debug_compiled_binaries= 1;
+}
+
+##############################################################################
+#
+# Helper function to handle configuration-based subdirectories which Visual
+# Studio uses for storing binaries.  If opt_vs_config is set, this returns
+# a path based on that setting; if not, it returns paths for the default
+# /release/ and /debug/ subdirectories.
+#
+# $exe can be undefined, if the directory itself will be used
+#
+###############################################################################
+
+sub vs_config_dirs ($$) {
+  my ($path_part, $exe) = @_;
+
+  $exe = "" if not defined $exe;
+
+  if ($opt_vs_config)
+  {
+    return ("$glob_basedir/$path_part/$opt_vs_config/$exe");
+  }
+
+  return ("$glob_basedir/$path_part/release/$exe",
+          "$glob_basedir/$path_part/debug/$exe");
 }
 
 ##############################################################################
@@ -4616,6 +4628,8 @@ Options to control what engine/variation to run
   bench                 Run the benchmark suite
   small-bench           Run the benchmarks with --small-tests --small-tables
   with-ndbcluster       Use cluster as default table type for benchmark
+  vs-config             Visual Studio configuration used to create executables
+                        (default: MTR_VS_CONFIG environment variable)
 
 Options to control directories to use
   benchdir=DIR          The directory where the benchmark suite is stored
